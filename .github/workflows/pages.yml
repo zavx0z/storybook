@@ -1,0 +1,106 @@
+name: Storybook Documentation Pages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: storybook-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Storybook infrastructure
+        uses: actions/checkout@v6
+        with:
+          path: storybook
+
+      - name: Check out Engine dependency
+        uses: actions/checkout@v6
+        with:
+          repository: zavx0z/engine
+          ref: ae461b8ab622d391247c714f3937f18bd5b4ae45
+          path: engine
+
+      - name: Check out Layout dependency
+        uses: actions/checkout@v6
+        with:
+          repository: zavx0z/layout
+          ref: c97bc83b935ae1299c3db304c35483bb30f6de80
+          path: layout
+
+      - name: Check out UI dependency
+        uses: actions/checkout@v6
+        with:
+          repository: zavx0z/ui
+          ref: 74f5e7a8d3defb06787b6975dd672f5c1cba89fc
+          path: ui
+
+      - name: Check out Highlighter dependency
+        uses: actions/checkout@v6
+        with:
+          repository: zavx0z/highlighter
+          ref: a9f240b682a6ccec042ea04522220f153d3b53eb
+          path: highlighter
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+
+      - name: Register Engine package
+        working-directory: engine/packages/core
+        run: bun link
+
+      - name: Register Layout package
+        working-directory: layout/packages/core
+        run: bun link
+
+      - name: Register UI Elements package
+        working-directory: ui/packages/elements
+        run: bun link
+
+      - name: Register UI Components package
+        working-directory: ui/packages/components
+        run: bun link
+
+      - name: Install and verify Highlighter dependency
+        working-directory: highlighter
+        run: bun install --frozen-lockfile && bun run check
+
+      - name: Register Highlighter package
+        working-directory: highlighter
+        run: bun link
+
+      - name: Install Storybook dependencies
+        working-directory: storybook
+        run: bun install --frozen-lockfile
+
+      - name: Verify and build Storybook documentation
+        working-directory: storybook
+        run: bun run check
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Storybook documentation artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: storybook/dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

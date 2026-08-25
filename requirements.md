@@ -125,3 +125,7 @@ Repository владеет отдельным private documentation Storybook н�
 `package.json#exports`, documentation registry и focused coverage test обязаны
 совпадать. Self Storybook использует собственные neutral examples и не
 централизует stories других repositories.
+
+Manual Pages workflow публикует только self documentation artifact. Cold build
+получает Engine, Layout, UI и Highlighter из точных Git revisions, регистрирует
+их прямых package owners и выполняет frozen install/check общего Storybook.
