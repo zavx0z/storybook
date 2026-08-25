@@ -29,9 +29,12 @@ Overview и каждый prefix route оканчиваются `/`; exact leaf �
 
 ### `STORYBOOK-STORY-001` — один честный descriptor
 
-Один owner descriptor связывает route metadata, args, controls, source и lazy
-production renderer. Metadata доступна без загрузки реализации; loader
-вызывается только для выбранной story и кэшируется. V1 не объявляет `play` или
+Общий owner descriptor связывает eager route metadata и lazy owner module без
+предположений о render target. Owner-supplied `normalizeModule` проверяет
+загруженный модуль до помещения в cache; ошибка loader или проверки допускает
+повтор, а неизвестный route fail-closed. UI-specific `defineStorybookStories`
+добавляет args, controls, source и `UiSurface` renderer поверх этого общего
+каталога без изменения прежнего API. V1 не объявляет `play` или
 story-reference lifecycle, пока Workbench их не исполняет.
 
 ## Workbench

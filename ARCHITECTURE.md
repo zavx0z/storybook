@@ -18,7 +18,8 @@ Engine, Layout и UI остаются владельцами production mechanic
 1. Repository app объявляет pages, mounts, capabilities, readiness, visible
    shell strings и owner asset paths.
 2. Каждая package page передаёт собственный typed route tree и lazy story
-   registry.
+   registry. Общий registry знает только eager metadata и вызывает owner-owned
+   `normalizeModule`; UI Workbench использует совместимую обёртку с `UiSurface`.
 3. Dev server собирает browser entry один раз по запросу и кэширует его до
    owner-controlled restart.
 4. Static builder независимо собирает каждую page, вычисляет asset digests и

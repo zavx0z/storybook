@@ -66,36 +66,45 @@ const result = resolveStorybookRouteTree(
     id: "stories",
     importPath: "@zavx0z/storybook/stories",
     title: "Описания stories",
-    summary: "Хранит лёгкий каталог и загружает код конкретного примера только после его открытия.",
-    ownership: "Каталог, отрисовка и исходник остаются рядом с пакетом-владельцем. Общий пакет только связывает краткое описание с отложенным загрузчиком.",
-    example: `import {defineStorybookStories} from "@zavx0z/storybook/stories"
+    summary: "Строит лёгкий каталог для любого способа показа и загружает код примера только после открытия точного адреса.",
+    ownership: "Владелец хранит stories рядом со своим пакетом и сам проверяет загруженный модуль. Общий каталог отвечает за адреса, кэш и повтор после ошибки; defineStorybookStories добавляет готовый UI-контракт.",
+    example: `import {defineStorybookStoryCatalog} from "@zavx0z/storybook/stories"
 
-export const BUTTON_STORIES = defineStorybookStories({
+type OwnerStory = Readonly<{
+  present(): void
+}>
+
+export const OWNER_STORIES = defineStorybookStoryCatalog<unknown, OwnerStory>({
   representative: {
-    component: "button",
+    component: "scene",
     section: "basic",
-    variant: "contained",
+    variant: "default",
   },
   groups: [{
-    id: "controls",
-    label: "Элементы",
+    id: "examples",
+    label: "Примеры",
     components: [{
-      id: "button",
-      label: "Кнопка",
-      apiName: "Button",
+      id: "scene",
+      label: "Сцена",
+      apiName: "SceneExample",
       sections: [{
         id: "basic",
-        label: "Основные",
+        label: "Основное",
         variants: [{
-          id: "contained",
-          label: "Contained",
-          title: "Обычная кнопка",
-          load: async () =>
-            (await import("./stories/button.ts")).BUTTON_CONTAINED_STORY,
+          id: "default",
+          label: "Обычная",
+          title: "Обычная сцена",
+          load: async () => import("./stories/scene.ts"),
         }],
       }],
     }],
   }],
+  normalizeModule(route, loaded): OwnerStory {
+    if (loaded === null || typeof loaded !== "object" || !("present" in loaded)) {
+      throw new Error(\`Некорректная owner story: \${route}\`)
+    }
+    return loaded as OwnerStory
+  },
 })`,
   }),
   Object.freeze({

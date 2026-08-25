@@ -1,7 +1,11 @@
 /**
 Eager Storybook catalog metadata and lazy repository-owned story modules.
 
-The registry indexes owner descriptors without importing their implementations.
+The target-agnostic catalog knows only hierarchy, routes and an owner-supplied
+module normalizer. It never assumes a render target. The UI-specific helpers
+layer `UiSurface` args, controls, rendering and source generation on that same
+catalog without changing its loading laws.
+
 Unknown routes remain unknown; `representative` is presentation state for an
 overview, never a routing fallback.
 
@@ -95,34 +99,35 @@ export type StorybookStoryModule = Readonly<{
   source(args: StorybookStoryArgs): string
 }>
 
-export type StorybookStoryLoader = () => Promise<StorybookStoryModule>
+/** Loads one owner implementation without importing it into the eager catalog graph. */
+export type StorybookStoryLoader<LoadedModule = StorybookStoryModule> = () => Promise<LoadedModule>
 
-export type StorybookStoryVariantInput = Readonly<{
+export type StorybookStoryVariantInput<LoadedModule = StorybookStoryModule> = Readonly<{
   id: string
   label: string
   title: string
   tags?: readonly string[]
-  load: StorybookStoryLoader
+  load: StorybookStoryLoader<LoadedModule>
 }>
 
-export type StorybookStorySectionInput = Readonly<{
+export type StorybookStorySectionInput<LoadedModule = StorybookStoryModule> = Readonly<{
   id: string
   label: string
-  variants: readonly StorybookStoryVariantInput[]
+  variants: readonly StorybookStoryVariantInput<LoadedModule>[]
 }>
 
-export type StorybookStoryComponentInput = Readonly<{
+export type StorybookStoryComponentInput<LoadedModule = StorybookStoryModule> = Readonly<{
   id: string
   label: string
   apiName: string
   tags?: readonly string[]
-  sections: readonly StorybookStorySectionInput[]
+  sections: readonly StorybookStorySectionInput<LoadedModule>[]
 }>
 
-export type StorybookStoryGroupInput = Readonly<{
+export type StorybookStoryGroupInput<LoadedModule = StorybookStoryModule> = Readonly<{
   id: string
   label: string
-  components: readonly StorybookStoryComponentInput[]
+  components: readonly StorybookStoryComponentInput<LoadedModule>[]
 }>
 
 export type StorybookStoryPath = Readonly<{
@@ -131,11 +136,36 @@ export type StorybookStoryPath = Readonly<{
   variant: string
 }>
 
-export type StorybookStoryCatalogInput = Readonly<{
-  groups: readonly StorybookStoryGroupInput[]
+export type StorybookStoryCatalogInput<LoadedModule = StorybookStoryModule> = Readonly<{
+  groups: readonly StorybookStoryGroupInput<LoadedModule>[]
   /** Detail shown by an overview before the owner makes a more local choice. */
   representative: StorybookStoryPath
 }>
+
+/**
+Target-specific validation and normalization for one lazily loaded value.
+
+The generic catalog deliberately cannot inspect an Engine, DOM, SVG or UI
+module. Its owner receives the exact registered route and must throw for an
+invalid value; a successful return becomes the cached public module.
+*/
+export type StorybookStoryModuleNormalizer<LoadedModule, Module = LoadedModule> = (
+  route: string,
+  loaded: LoadedModule,
+) => Module
+
+/**
+Owner hierarchy plus the only target-specific step in the generic catalog.
+
+`normalizeModule` is required even when `LoadedModule` and `Module` are equal:
+the explicit callback prevents an unvalidated dynamic import from becoming a
+shared Storybook contract accidentally.
+*/
+export type StorybookStoryCatalogDefinition<LoadedModule, Module = LoadedModule> = Readonly<
+  StorybookStoryCatalogInput<LoadedModule> & {
+    normalizeModule: StorybookStoryModuleNormalizer<LoadedModule, Module>
+  }
+>
 
 export type StorybookStoryIndexItem = Readonly<{
   route: string
@@ -159,18 +189,21 @@ Eager metadata plus a per-route lazy module cache.
 A rejected load is removed from the cache so a transient failure does not
 poison later owner-controlled retries.
 */
-export type StorybookStoryRegistry = Readonly<{
+export type StorybookStoryCatalog<Module> = Readonly<{
   routeTree: StorybookRouteTree<string>
   index: readonly StorybookStoryIndexItem[]
   representative: string
   find(route: string): StorybookStoryIndexItem | undefined
   variants(route: string): readonly StorybookStoryIndexItem[]
-  load(route: string): Promise<StorybookStoryModule>
+  load(route: string): Promise<Module>
 }>
 
-type InternalStory = Readonly<{
+/** UI-specific catalog preserved for existing Workbench consumers. */
+export type StorybookStoryRegistry = StorybookStoryCatalog<StorybookStoryModule>
+
+type InternalStory<LoadedModule> = Readonly<{
   index: StorybookStoryIndexItem
-  load: StorybookStoryLoader
+  load: StorybookStoryLoader<LoadedModule>
 }>
 
 /**
@@ -203,17 +236,69 @@ export function defineStorybookStoryModule<const Args extends StorybookStoryArgs
 }
 
 /**
-Flattens owner descriptors into an eager searchable index and lazy module cache.
+Flattens target-agnostic owner descriptors into an eager index and lazy cache.
+
+Only eager metadata is read while the catalog is defined. A loader runs after
+an exact `load(route)` call, and concurrent calls receive the same promise.
+`normalizeModule` validates the result before it enters the cache. A loader or
+normalizer failure removes that promise so a later owner-controlled call can
+retry.
 
 `representative` must name a real leaf, but it is not consulted by `find()` or
-`load()`. Consumers therefore cannot turn an unknown pathname into a story.
+`load()`. Unknown routes therefore reject instead of selecting a fallback.
 
-@throws If hierarchy metadata is malformed, duplicated or empty, or if the
-representative leaf is not registered.
+@param input - Owner hierarchy, representative leaf and target-specific module
+normalizer. The normalizer must throw when a loaded value violates the owner's
+module contract.
+
+@returns An immutable eager index and exact-route lazy loader.
+
+@throws If `normalizeModule` is not a function, hierarchy metadata is malformed,
+duplicated or empty, or the representative leaf is not registered. Loader and
+normalizer failures reject `load()` and remain retryable.
+
+@example
+```ts
+type OwnerStory = Readonly<{present(): void}>
+
+const stories = defineStorybookStoryCatalog<unknown, OwnerStory>({
+  groups: [{
+    id: "examples",
+    label: "Примеры",
+    components: [{
+      id: "scene",
+      label: "Сцена",
+      apiName: "SceneExample",
+      sections: [{
+        id: "basic",
+        label: "Основное",
+        variants: [{
+          id: "default",
+          label: "Обычная",
+          title: "Обычная сцена",
+          load: async () => import("./scene.story.ts"),
+        }],
+      }],
+    }],
+  }],
+  representative: {component: "scene", section: "basic", variant: "default"},
+  normalizeModule(route, loaded): OwnerStory {
+    if (loaded === null || typeof loaded !== "object" || !("present" in loaded)) {
+      throw new Error(`Invalid owner story: ${route}`)
+    }
+    return loaded as OwnerStory
+  },
+})
+```
 */
-export function defineStorybookStories(input: StorybookStoryCatalogInput): StorybookStoryRegistry {
+export function defineStorybookStoryCatalog<const LoadedModule, Module = LoadedModule>(
+  input: StorybookStoryCatalogDefinition<LoadedModule, Module>,
+): StorybookStoryCatalog<Module> {
+  if (typeof input.normalizeModule !== "function") {
+    throw new Error("Storybook story catalog normalizeModule must be a function")
+  }
   if (input.groups.length === 0) throw new Error("Storybook story catalog must contain at least one group")
-  const stories: InternalStory[] = []
+  const stories: InternalStory<LoadedModule>[] = []
   const groupIds = new Set<string>()
   const componentIds = new Set<string>()
 
@@ -294,7 +379,7 @@ export function defineStorybookStories(input: StorybookStoryCatalogInput): Story
   if (!byRoute.has(representative)) {
     throw new Error(`Storybook representative route is not registered: ${representative}`)
   }
-  const loaded = new Map<string, Promise<StorybookStoryModule>>()
+  const loaded = new Map<string, Promise<Module>>()
   const index = Object.freeze(stories.map((story) => story.index))
   const noVariants = Object.freeze([]) as readonly StorybookStoryIndexItem[]
 
@@ -316,8 +401,9 @@ export function defineStorybookStories(input: StorybookStoryCatalogInput): Story
       if (story === undefined) return Promise.reject(new Error(`Unknown storybook story route: ${route}`))
       const current = loaded.get(route)
       if (current !== undefined) return current
-      const pending = story.load()
-        .then((module) => validateLoadedStory(route, module))
+      const pending = Promise.resolve()
+        .then(() => story.load())
+        .then((module) => input.normalizeModule(route, module))
         .catch((error) => {
           loaded.delete(route)
           throw error
@@ -325,6 +411,24 @@ export function defineStorybookStories(input: StorybookStoryCatalogInput): Story
       loaded.set(route, pending)
       return pending
     },
+  })
+}
+
+/**
+Defines the retained UI Workbench story protocol on the generic lazy catalog.
+
+This UI convenience API keeps the original `StorybookStoryModule` shape and
+performs its structural validation through the generic `normalizeModule` hook.
+Use {@link defineStorybookStoryCatalog} when the owner renders to another
+target and must not provide `UiSurface` behavior.
+
+@throws If hierarchy or a loaded UI story module violates the existing
+Storybook contract.
+*/
+export function defineStorybookStories(input: StorybookStoryCatalogInput): StorybookStoryRegistry {
+  return defineStorybookStoryCatalog({
+    ...input,
+    normalizeModule: validateLoadedStory,
   })
 }
 

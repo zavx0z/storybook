@@ -36,5 +36,11 @@ describe("self-documenting Storybook stories", () => {
     const module = await STORYBOOK_WORKBENCH_STORIES.load("route-tree/contract/overview")
     expect(module.controls).toEqual([])
     expect(module.source(module.defaultArgs)).toContain('from "@zavx0z/storybook/route-tree"')
+
+    const stories = await STORYBOOK_WORKBENCH_STORIES.load("stories/contract/overview")
+    const source = stories.source(stories.defaultArgs)
+    expect(source).toContain("defineStorybookStoryCatalog")
+    expect(source).toContain("normalizeModule")
+    expect(source).not.toContain("UiSurface")
   })
 })
