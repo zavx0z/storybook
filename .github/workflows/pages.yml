@@ -78,6 +78,18 @@ jobs:
         working-directory: highlighter
         run: bun link
 
+      - name: Register Storybook package
+        working-directory: storybook
+        run: bun link
+
+      - name: Install Layout dependencies
+        working-directory: layout
+        run: bun install --frozen-lockfile
+
+      - name: Install UI dependencies
+        working-directory: ui
+        run: bun install --frozen-lockfile
+
       - name: Install Storybook dependencies
         working-directory: storybook
         run: bun install --frozen-lockfile

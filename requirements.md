@@ -128,4 +128,5 @@ Repository владеет отдельным private documentation Storybook н�
 
 Manual Pages workflow публикует только self documentation artifact. Cold build
 получает Engine, Layout, UI и Highlighter из точных Git revisions, регистрирует
-их прямых package owners и выполняет frozen install/check общего Storybook.
+их прямых package owners, завершает frozen provider installs и только затем
+выполняет frozen install/check общего Storybook.

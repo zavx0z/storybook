@@ -19,6 +19,9 @@ describe("Storybook documentation Pages cold bootstrap", () => {
       "name: Register UI Components package",
       "name: Install and verify Highlighter dependency",
       "name: Register Highlighter package",
+      "name: Register Storybook package",
+      "name: Install Layout dependencies",
+      "name: Install UI dependencies",
       "name: Install Storybook dependencies",
       "name: Verify and build Storybook documentation",
       "name: Configure Pages",
@@ -26,6 +29,9 @@ describe("Storybook documentation Pages cold bootstrap", () => {
     ].map((marker) => workflow.indexOf(marker))
     expect(bootstrap.every((position) => position >= 0)).toBeTrue()
     expect(bootstrap).toEqual([...bootstrap].sort((left, right) => left - right))
+    expect(workflow).toContain("working-directory: storybook\n        run: bun link")
+    expect(workflow).toContain("working-directory: layout\n        run: bun install --frozen-lockfile")
+    expect(workflow).toContain("working-directory: ui\n        run: bun install --frozen-lockfile")
     expect(workflow).toContain("working-directory: storybook\n        run: bun install --frozen-lockfile")
     expect(workflow).toContain("working-directory: storybook\n        run: bun run check")
     expect(workflow).toContain("path: storybook/dist")

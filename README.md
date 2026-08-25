@@ -33,5 +33,6 @@ bun run check
 The check typechecks sources and examples, tests exact documentation coverage,
 and builds the self-contained `/storybook/` static artifact.
 
-The manual Pages workflow repeats that check from exact Engine, Layout, UI, and
-Highlighter revisions before publishing only this repository's documentation.
+The manual Pages workflow registers exact Engine, Layout, UI, Highlighter, and
+self package owners, completes their frozen bootstrap, and publishes only this
+repository's documentation.
