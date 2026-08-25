@@ -162,7 +162,7 @@ const comparison = planStorybookComparison({
     id: "app",
     importPath: "@zavx0z/storybook/app",
     title: "Описание Storybook-приложения",
-    summary: "Собирает в одном типизированном описании страницы, адреса, шрифт, подвал и признаки готовности.",
+    summary: "Собирает страницы, адреса, шрифт, подвал и признаки готовности. На DOM-страницах подвал не перекрывает содержимое.",
     ownership: "Каждый repository создаёт свой manifest. Shared package его проверяет, но не добавляет чужие страницы.",
     example: `import {join} from "node:path"
 import {defineStorybookApp} from "@zavx0z/storybook/app"
@@ -242,18 +242,23 @@ await buildStaticStorybook({
   Object.freeze({
     id: "environment",
     importPath: "@zavx0z/storybook/environment",
-    title: "Публичные адреса",
-    summary: "Добавляет public base к локальному адресу, чтобы один код работал локально и на Pages вложенном пути.",
-    ownership: "Application manifest задаёт app id и public base. Shared package читает вставленную meta и не зашивает имя repository в URL.",
+    title: "Адреса и граница кадра",
+    summary: "Добавляет public base к адресу и пропускает запланированную отрисовку до публикации ready marker.",
+    ownership: "Application manifest задаёт app id и public base, сама планирует render и ставит ready. Shared package читает meta и пересекает browser frame boundary; GPU evidence проверяется отдельно.",
     example: `import {
   storybookBasePath,
   storybookPublicPath,
+  waitForStorybookFrameBoundary,
 } from "@zavx0z/storybook/environment"
 
 const basePath = storybookBasePath("ui")
 const buttonUrl = storybookPublicPath(
   "ui",
   "/components/button/basic/contained",
-)`,
+)
+
+runtime.requestRender()
+await waitForStorybookFrameBoundary()
+document.documentElement.dataset.uiStorybook = "ready"`,
   }),
 ]) satisfies readonly StorybookDocumentationModule[]

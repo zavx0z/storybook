@@ -66,6 +66,33 @@ export function normalizeStorybookBasePath(value: string): string {
   return value
 }
 
+/**
+Lets work already scheduled for the next animation frame run and then crosses
+one following browser frame boundary.
+
+Call this only after the owner has scheduled its first render. The helper does
+not wait for GPU completion, inspect pixels, render, or publish readiness.
+
+@param scheduleFrame - Browser frame scheduler. Tests may provide a controlled
+scheduler without installing browser globals.
+
+@example
+```ts
+runtime.requestRender()
+await waitForStorybookFrameBoundary()
+document.documentElement.dataset.storybook = "ready"
+```
+*/
+export function waitForStorybookFrameBoundary(
+  scheduleFrame: (callback: FrameRequestCallback) => unknown = requestAnimationFrame,
+): Promise<void> {
+  return new Promise((resolve) => {
+    scheduleFrame(() => {
+      scheduleFrame(() => { resolve() })
+    })
+  })
+}
+
 function validateStorybookAppId(value: string): void {
   if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)) {
     throw new Error(`Storybook app id must be lowercase kebab-case: ${value}`)

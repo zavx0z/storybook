@@ -37,6 +37,10 @@ describe("shared Storybook no-HMR server", () => {
 
       const rootHtml = await fetch(`${origin}/`).then((response) => response.text())
       expect(rootHtml).toContain("<title>UI Storybook</title>")
+      expect(rootHtml).toContain('<body data-storybook-capability="dom">')
+      expect(rootHtml).toContain('body[data-storybook-capability="dom"] .storybook-footer')
+      expect(rootHtml).toContain("box-sizing: border-box")
+      expect(rootHtml.indexOf('<main id="catalog">')).toBeLessThan(rootHtml.indexOf('<footer class="storybook-footer"'))
       expect(rootHtml).not.toContain("data-storybook-home")
 
       const response = await fetch(`${origin}/components/button/basic`)

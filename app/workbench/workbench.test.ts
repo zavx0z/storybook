@@ -45,6 +45,12 @@ describe("self-documenting Workbench boundary", () => {
       expect(source).toContain(`frames(w, h).${region}`)
     }
     expect(source).toContain('dataset.storybookDocs = "ready"')
+    expect(source).toContain("runtime.requestRender()")
+    expect(source).toContain("await waitForStorybookFrameBoundary()")
+    expect(source).not.toContain("function nextPresentedFrame")
+    expect(source.indexOf("await waitForStorybookFrameBoundary()")).toBeLessThan(
+      source.indexOf('dataset.storybookDocs = "ready"'),
+    )
     expect(source).toContain("dataset.storybookDocsRoute = router.current.path")
     expect(source).toContain("dataset.storybookDocsSource = storyModule.source(args)")
     expect(source).toContain("dataset.storybookDocsArgs = JSON.stringify(args)")

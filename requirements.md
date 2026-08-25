@@ -85,9 +85,13 @@ capabilities, readiness и SHA-256 emitted assets, но не локальные 
 
 ### `STORYBOOK-EVIDENCE-001` — capability-specific readiness
 
-Ready marker публикуется после первого фактического результата. Acceptance
-требует exact route/target, startup console без ошибок и DOM, SVG либо non-black
-canvas evidence согласно capability. Evidence остаётся route-specific.
+Ready marker означает, что owner закончил начальную настройку страницы. Для
+canvas application shared browser environment предоставляет одну frame-boundary
+функцию: owner сначала планирует render, пересекает следующую browser frame
+boundary и только затем ставит ready. Marker и эта граница не доказывают GPU
+presentation. Acceptance отдельно требует exact route/target, startup console
+без ошибок и DOM, SVG либо non-black canvas evidence согласно capability.
+Evidence остаётся route-specific.
 
 ### `STORYBOOK-ASSET-001` — Engine-owned default font
 
@@ -105,7 +109,9 @@ revisions и доказывает один realpath/module instance во все�
 
 Обращённые к человеку shell strings пишутся по-русски. API identifiers, route
 IDs и import specifiers сохраняют точное написание. Home имеет label `Главная`,
-а footer передаётся typed descriptor; изменение HTML строками запрещено.
+а footer передаётся typed descriptor; изменение HTML строками запрещено. На DOM
+page footer остаётся в потоке документа и не перекрывает content; на canvas page
+сохраняется явно fixed chrome.
 
 ### `STORYBOOK-DOCS-001` — self-documenting public contract
 

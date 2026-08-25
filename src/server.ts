@@ -236,6 +236,7 @@ async function createPageHtml(
       .storybook-home {
         position: fixed;
         z-index: 2147483647;
+        box-sizing: border-box;
         display: inline-flex;
         align-items: center;
         min-height: 28px;
@@ -257,6 +258,13 @@ async function createPageHtml(
         left: 10px;
         bottom: 10px;
         color: rgba(255, 255, 255, 0.7);
+      }
+      body[data-storybook-capability="dom"] .storybook-footer {
+        position: static;
+        max-width: calc(100% - 20px);
+        margin: 0 10px 10px;
+        flex-wrap: wrap;
+        line-height: 1.35;
       }
       .storybook-home {
         right: 10px;

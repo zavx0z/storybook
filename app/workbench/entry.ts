@@ -26,7 +26,10 @@ import {
   type StorybookStoryPanelMode,
   type StorybookStoryPanelOptions,
 } from "@zavx0z/storybook/workbench"
-import {storybookPublicPath} from "@zavx0z/storybook/environment"
+import {
+  storybookPublicPath,
+  waitForStorybookFrameBoundary,
+} from "@zavx0z/storybook/environment"
 import {StorybookWorkbenchPreviewSurface} from "./preview.ts"
 import {
   STORYBOOK_WORKBENCH_STORIES,
@@ -203,8 +206,8 @@ async function startStorybookWorkbenchDocumentation(): Promise<void> {
 
     runtime.handleResize()
     publish()
-    await nextPresentedFrame()
-    publish()
+    runtime.requestRender()
+    await waitForStorybookFrameBoundary()
     document.documentElement.dataset.storybookDocs = "ready"
   } catch (error) {
     publishError(error)
@@ -256,10 +259,6 @@ function variantItems(selected: StorybookStoryIndexItem): readonly StorybookNavi
     label: item.variantLabel,
     route: item.route,
   }))
-}
-
-function nextPresentedFrame(): Promise<void> {
-  return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
 }
 
 function publishError(error: unknown): void {

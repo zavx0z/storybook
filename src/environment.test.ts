@@ -4,6 +4,7 @@ import {
   storybookBaseMetaName,
   storybookBasePath,
   storybookPublicPath,
+  waitForStorybookFrameBoundary,
 } from "./environment.ts"
 
 function documentWithBase(appId: string, value: string): Document {
@@ -43,5 +44,27 @@ describe("Storybook public environment", () => {
     for (const pathname of ["components", "/components//button", "/components?mode=test"]) {
       expect(() => storybookPublicPath("ui", pathname, documentRef), pathname).toThrow()
     }
+  })
+
+  test("runs an already scheduled render before crossing the following frame boundary", async () => {
+    const callbacks: FrameRequestCallback[] = []
+    let rendered = false
+    callbacks.push(() => { rendered = true })
+    const boundary = waitForStorybookFrameBoundary((callback) => { callbacks.push(callback) })
+
+    expect(callbacks).toHaveLength(2)
+    const firstFrame = callbacks.splice(0)
+    for (const callback of firstFrame) callback(1)
+    expect(rendered).toBeTrue()
+    expect(callbacks).toHaveLength(1)
+
+    let complete = false
+    void boundary.then(() => { complete = true })
+    await Promise.resolve()
+    expect(complete).toBeFalse()
+
+    callbacks.shift()!(2)
+    await boundary
+    expect(complete).toBeTrue()
   })
 })
