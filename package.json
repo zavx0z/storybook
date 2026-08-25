@@ -2,5 +2,47 @@
   "name": "@zavx0z/storybook",
   "version": "0.0.0",
   "private": true,
-  "type": "module"
+  "description": "Shared private Storybook infrastructure for repository-owned development applications.",
+  "type": "module",
+  "packageManager": "bun@1.4.0",
+  "exports": {
+    "./route-tree": "./src/route-tree.ts",
+    "./stories": "./src/stories.ts",
+    "./workbench": "./src/workbench.ts",
+    "./references": "./src/references.ts",
+    "./app": "./src/app.ts",
+    "./server": "./src/server.ts",
+    "./build": "./src/build.ts",
+    "./environment": "./src/environment.ts"
+  },
+  "scripts": {
+    "storybook": "bun app/server.ts",
+    "build": "bun app/build.ts",
+    "typecheck": "tsc --noEmit --pretty false",
+    "test": "bun test src",
+    "test:app": "bun test app",
+    "check": "bun run typecheck && bun run test && bun run test:app && bun run build"
+  },
+  "peerDependencies": {
+    "@engine/core": "0.0.1",
+    "@layout/core": "0.1.0",
+    "@ui/components": "0.0.1",
+    "@ui/elements": "0.0.1"
+  },
+  "peerDependenciesMeta": {
+    "@engine/core": {"optional": true},
+    "@layout/core": {"optional": true},
+    "@ui/components": {"optional": true},
+    "@ui/elements": {"optional": true}
+  },
+  "devDependencies": {
+    "@engine/core": "link:@engine/core",
+    "@layout/core": "link:@layout/core",
+    "@types/bun": "^1.4.0",
+    "@ui/components": "link:@ui/components",
+    "@ui/elements": "link:@ui/elements",
+    "@webgpu/types": "^0.1.68",
+    "@zavx0z/highlighter": "link:@zavx0z/highlighter",
+    "typescript": "^7.0.2"
+  }
 }

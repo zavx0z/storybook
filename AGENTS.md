@@ -27,6 +27,25 @@
   wrappers, root barrels, generated copies, or compatibility re-exports.
 - Preserve one resolved identity for Engine, Layout, UI, and other linked
   packages in every browser bundle.
+- This repository owns its own documentation Storybook. Every public contract,
+  visible shared behavior, route rule, or example change updates the matching
+  self-documentation page and executable example in the same slice. A change is
+  not complete while `bun run check` leaves that documentation stale.
+
+## Self documentation lifecycle
+
+- One private self Storybook runs on `http://127.0.0.1:4016` through
+  `bun run storybook`; it documents this package and does not compose stories
+  owned by UI, Node, Engine, Layout, or MetaFor.
+- The root page is the same five-region WebGPU Workbench supplied to consumers.
+  Every public subpath is a normal typed story in its catalog; live examples
+  are variants inside that same route tree. Do not create a second DOM docs
+  layout beside the shared Workbench.
+- The typed documentation registry and `package.json#exports` must have exact
+  one-to-one coverage. Do not add an export without its page and example.
+- The self app is no-HMR. After a stable source checkpoint, restart only its
+  exact owned process and verify the affected route; do not touch repository
+  Storybooks that merely consume the package.
 
 ## Delivery safety
 
