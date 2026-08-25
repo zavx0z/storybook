@@ -36,6 +36,17 @@ choices that are less correct than another owner implementation.
 
 Do not edit any repository during the first phase.
 
+Before repository research, verify that this Codex local project has the primary
+`storybook` folder plus all five secondary repository folders listed above.
+If folders are missing, use `$ai-macos` through direct
+`mcp__ai_macos__*` tools to open **Edit project → Add folder** in the Codex
+app and add only those exact canonical paths. First require passive
+`system_health` with `machine.matchesExpected: true`; call
+`input_readiness` only immediately before pointer/keyboard input. Do not use
+the deprecated `ai-macos-local` connector, direct REST, or permission
+endpoints. Capture and verify each UI state, and do not begin the audit until
+the attached-folder set is exact.
+
 1. Read every applicable `AGENTS.md`, repository architecture document,
    Storybook requirements, public types, package manifests, focused tests,
    lifecycle skills, server/build code, and Pages workflow.

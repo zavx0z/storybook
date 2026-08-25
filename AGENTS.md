@@ -30,6 +30,9 @@
 
 ## Delivery safety
 
+- For Codex app project-folder setup or macOS UI observation, use the globally
+  installed `$ai-macos` skill and only direct `mcp__ai_macos__*` tools.
+  Never use the deprecated `ai-macos-local` connector or direct REST.
 - Do not push, create a pull request, deploy Pages, dispatch workflows, or
   create a GitHub repository without a separate explicit owner request.
 - Do not stop an existing Storybook merely to inspect it. Resolve exact process
