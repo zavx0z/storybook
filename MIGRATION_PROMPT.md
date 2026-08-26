@@ -4,14 +4,14 @@ You are working in a Codex local multi-folder project.
 
 Primary repository:
 
-- `/Users/zavx0z/repozitarium/webxr-space/storybook`
+- `/Users/zavx0z/repozitarium/webxr-space/projects/storybook`
 
 Secondary repositories:
 
-- `/Users/zavx0z/repozitarium/webxr-space/engine`
-- `/Users/zavx0z/repozitarium/webxr-space/layout`
-- `/Users/zavx0z/repozitarium/webxr-space/ui`
-- `/Users/zavx0z/repozitarium/webxr-space/node`
+- `/Users/zavx0z/repozitarium/webxr-space/projects/engine`
+- `/Users/zavx0z/repozitarium/webxr-space/projects/layout`
+- `/Users/zavx0z/repozitarium/webxr-space/projects/ui`
+- `/Users/zavx0z/repozitarium/webxr-space/projects/node`
 - `/Users/zavx0z/repozitarium/metafor`
 
 ## Owner objective
