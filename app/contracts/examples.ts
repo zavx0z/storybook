@@ -19,6 +19,8 @@ export const STORYBOOK_DOCUMENTATION_MODULE_IDS = [
   "references",
   "app",
   "server",
+  "launcher",
+  "scaffold",
   "build",
   "environment",
 ] as const
@@ -200,19 +202,44 @@ export const app = defineStorybookApp({
     id: "server",
     importPath: "@zavx0z/storybook/server",
     title: "Локальный сервер",
-    summary: "Запускает один адрес для всех страниц Storybook одного repository. Каждую страницу собирает отдельно и без HMR.",
-    ownership: "Repository выбирает port, точный процесс и остановку. Shared package не пытается принять чужой listener по номеру порта.",
-    example: `import {startStorybookHubServer} from "@zavx0z/storybook/server"
+    summary: "Запускает один адрес для всех страниц Storybook package, просит свободный порт у операционной системы и сообщает launcher точный runtime.",
+    ownership: "Package владеет app manifest и своим процессом. Shared server выделяет порт автоматически и не принимает чужой listener по номеру порта.",
+    example: `import {startStorybookPackageServer} from "@zavx0z/storybook/server"
 import {app} from "./app.ts"
 
-const server = startStorybookHubServer({
+const server = startStorybookPackageServer({
   app,
-  hostname: "127.0.0.1",
-  port: 4017,
   staticFiles: [],
-})
+})`,
+  }),
+  Object.freeze({
+    id: "launcher",
+    importPath: "@zavx0z/storybook/launcher",
+    title: "Запуск по имени package",
+    summary: "Находит точный @scope/storybook, вызывает его единый script, проверяет runtime и открывает exact browser route без таблицы портов и selectors.",
+    ownership: "Пользователь называет только package. Shared launcher владеет поиском, automatic port handshake, PID/cwd health, typed page manifest и fail-closed exact-target operations.",
+    example: `import {
+  launchStorybookPackage,
+  resolveStorybookPackage,
+} from "@zavx0z/storybook/launcher"
 
-console.log(\`Storybook: \${server.url}\`)`,
+const packageIdentity = await resolveStorybookPackage("@ui/storybook")
+const running = await launchStorybookPackage(packageIdentity, {ensure: true})
+
+console.log(running.runtime.origin)`,
+  }),
+  Object.freeze({
+    id: "scaffold",
+    importPath: "@zavx0z/storybook/scaffold",
+    title: "Создание Storybook package",
+    summary: "Атомарно создаёт один канонический package с app, server, build, Workbench, stories, preview, fixture и lab state.",
+    ownership: "Shared package владеет составом стартового шаблона. Новый package сразу становится semantic owner с точным именем; существующая директория никогда не дописывается и не перезаписывается.",
+    example: `import {createStorybookPackage} from "@zavx0z/storybook/scaffold"
+
+await createStorybookPackage({
+  packageName: "@quantum/storybook",
+  directory: "quantum/storybook",
+})`,
   }),
   Object.freeze({
     id: "build",

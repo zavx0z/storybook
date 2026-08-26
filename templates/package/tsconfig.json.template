@@ -6,7 +6,6 @@
     "module": "Preserve",
     "moduleDetection": "force",
     "moduleResolution": "bundler",
-    "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "noEmit": true,
@@ -17,6 +16,6 @@
     "noImplicitOverride": true,
     "exactOptionalPropertyTypes": true
   },
-  "include": ["src/**/*.ts", "app/**/*.ts", "scripts/**/*.ts"],
+  "include": ["**/*.ts"],
   "exclude": ["dist", "node_modules"]
 }

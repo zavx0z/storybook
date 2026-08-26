@@ -17,11 +17,20 @@ import {
   type StorybookPageManifest,
   type StorybookStaticFile,
 } from "./app.ts"
+import {realpathSync} from "node:fs"
+import {isAbsolute} from "node:path"
 import {storybookBaseMetaName} from "./environment.ts"
 import {buildStorybookBrowserPage, storybookAssetContentType} from "./internal/browser-build.ts"
 import {storybookAppRecoveryIndex, storybookPageRecoveryIndex} from "./internal/routes.ts"
 import {resolveStorybookStaticFiles} from "./internal/static-files.ts"
 import {resolveStorybookRouteTree} from "./route-tree.ts"
+import {
+  readProcessStart,
+  readStorybookPackageManifest,
+  STORYBOOK_RUNTIME_PROTOCOL_VERSION,
+  writeStorybookRuntimeRecord,
+  type StorybookRuntimeRecord,
+} from "./internal/package-runtime.ts"
 
 export type StorybookPageDiagnostics = Readonly<{
   builds: number
@@ -45,9 +54,35 @@ export type StorybookPage = Readonly<{
 
 export type StorybookHubServerOptions = Readonly<{
   app: StorybookAppManifest
-  port: number
+  port?: number
   hostname?: string
   staticFiles: readonly StorybookStaticFile[]
+}>
+
+export type StorybookPackageServerOptions = Readonly<{
+  app: StorybookAppManifest
+  hostname?: string
+  staticFiles: readonly StorybookStaticFile[]
+}>
+
+export type StorybookDevelopmentPageManifest = Readonly<{
+  id: string
+  publicMountPath: string
+  routes: readonly string[]
+  capability: StorybookPageManifest["capability"]
+  touch: boolean
+  readiness: StorybookPageManifest["readiness"]
+  canvas: Readonly<{selector: string; evidence: "non-black"}> | null
+}>
+
+export type StorybookDevelopmentManifest = Readonly<{
+  schemaVersion: 1
+  app: Readonly<{
+    id: string
+    basePath: string
+    homePath: string
+  }>
+  pages: readonly StorybookDevelopmentPageManifest[]
 }>
 
 /**
@@ -171,14 +206,21 @@ export function startStorybookHubServer(options: StorybookHubServerOptions): Ret
     .sort((left, right) => right.publicMountPath.length - left.publicMountPath.length)
   const staticFiles = new Map(resolveStorybookStaticFiles(app, options.staticFiles)
     .map((file) => [file.publicPath, file.sourcePath] as const))
+  const developmentManifestPath = storybookAppPublicPath(app, "/@storybook/runtime.json")
+  const developmentManifest = defineStorybookDevelopmentManifest(app)
 
   return Bun.serve({
     hostname,
-    port: options.port,
+    port: options.port ?? 0,
     development: {hmr: false},
     async fetch(request) {
       if (request.method !== "GET" && request.method !== "HEAD") return methodNotAllowed()
       const pathname = new URL(request.url).pathname
+      if (pathname === developmentManifestPath) {
+        return new Response(JSON.stringify(developmentManifest), {
+          headers: noCacheHeaders("application/json; charset=utf-8"),
+        })
+      }
       const staticPath = staticFiles.get(pathname)
       if (staticPath !== undefined) {
         const file = Bun.file(staticPath)
@@ -198,6 +240,84 @@ export function startStorybookHubServer(options: StorybookHubServerOptions): Ret
       return await page.routeResponse(pathname) ?? notFound()
     },
   })
+}
+
+/** Projects the typed app into the browser-helper discovery contract. */
+export function defineStorybookDevelopmentManifest(
+  input: StorybookAppManifest,
+): StorybookDevelopmentManifest {
+  const app = defineStorybookApp(input)
+  return Object.freeze({
+    schemaVersion: 1 as const,
+    app: Object.freeze({
+      id: app.id,
+      basePath: app.basePath,
+      homePath: storybookAppPublicPath(app, app.home.path),
+    }),
+    pages: Object.freeze(app.pages.map((page) => Object.freeze({
+      id: page.id,
+      publicMountPath: storybookPagePublicMount(app, page),
+      routes: storybookPageRoutes(app, page),
+      capability: page.capability,
+      touch: page.touch === true,
+      readiness: page.readiness,
+      canvas: page.canvas === undefined
+        ? null
+        : Object.freeze({selector: `#${page.canvas.id}`, evidence: page.canvas.evidence}),
+    }))),
+  })
+}
+
+/**
+Starts a named Storybook package on an OS-allocated port.
+
+The package is read from the current working directory and must expose the
+exact `storybook` script used by the shared launcher. A machine-readable
+runtime record is printed and, when `STORYBOOK_STATE_FILE` is supplied by the
+launcher, written atomically for status and exact-process ownership checks.
+
+@throws If the working package, launcher expectation, port override or state
+path is invalid.
+*/
+export function startStorybookPackageServer(
+  options: StorybookPackageServerOptions,
+): ReturnType<typeof Bun.serve> {
+  const packageDirectory = realpathSync(process.cwd())
+  const packageManifest = readStorybookPackageManifest(packageDirectory)
+  const expectedPackageName = Bun.env.STORYBOOK_PACKAGE_NAME
+  if (expectedPackageName !== undefined && expectedPackageName !== packageManifest.name) {
+    throw new Error(`Storybook launcher selected ${expectedPackageName}, but cwd owns ${packageManifest.name}`)
+  }
+  const port = parsePackagePort(Bun.env.STORYBOOK_PORT)
+  const app = defineStorybookApp(options.app)
+  const processStart = readProcessStart(process.pid)
+  if (processStart === null) throw new Error(`Cannot read Storybook process start identity: ${process.pid}`)
+  const server = startStorybookHubServer({...options, app, port})
+  const runtime: StorybookRuntimeRecord = Object.freeze({
+    protocolVersion: STORYBOOK_RUNTIME_PROTOCOL_VERSION,
+    packageName: packageManifest.name,
+    packageDirectory,
+    pid: process.pid,
+    processStart,
+    origin: server.url.origin,
+    healthPath: storybookAppPublicPath(app, app.home.path),
+    manifestPath: storybookAppPublicPath(app, "/@storybook/runtime.json"),
+    appId: app.id,
+    basePath: app.basePath,
+    startedAt: new Date().toISOString(),
+  })
+  const statePath = Bun.env.STORYBOOK_STATE_FILE
+  try {
+    if (statePath !== undefined) {
+      if (!isAbsolute(statePath)) throw new Error(`Storybook state path must be absolute: ${statePath}`)
+      writeStorybookRuntimeRecord(statePath, runtime)
+    }
+    console.log(JSON.stringify({kind: "storybook-runtime", runtime}))
+    return server
+  } catch (error) {
+    server.stop(true)
+    throw error
+  }
 }
 
 async function createPageHtml(
@@ -355,4 +475,13 @@ function scriptJson(value: unknown): string {
     .replaceAll("&", "\\u0026")
     .replaceAll("\u2028", "\\u2028")
     .replaceAll("\u2029", "\\u2029")
+}
+
+function parsePackagePort(value: string | undefined): number {
+  if (value === undefined || value.length === 0) return 0
+  const port = Number(value)
+  if (!Number.isSafeInteger(port) || port < 0 || port > 65_535) {
+    throw new Error(`Invalid automatic Storybook port override: ${value}`)
+  }
+  return port
 }

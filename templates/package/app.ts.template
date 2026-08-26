@@ -1,0 +1,49 @@
+/** Package-owned Storybook application manifest. */
+
+import {fileURLToPath} from "node:url"
+import {
+  defineStorybookApp,
+  type StorybookAppManifest,
+  type StorybookStaticFile,
+} from "@zavx0z/storybook/app"
+import {createStorybookPage} from "./page/page.ts"
+
+export function createStorybookApp(
+  options: Readonly<{basePath?: string}> = {},
+): StorybookAppManifest {
+  return defineStorybookApp({
+    id: "__APP_ID__",
+    title: "__APP_TITLE__",
+    basePath: options.basePath ?? "",
+    home: {
+      path: "/",
+      label: "Главная",
+      ariaLabel: "На главную __APP_TITLE__",
+    },
+    footer: {
+      lead: "Создано для",
+      owner: {
+        label: "__OWNER_LABEL__",
+        href: "__OWNER_HREF__",
+      },
+      detail: "package-owned Storybook",
+    },
+    head: {
+      meta: [{
+        kind: "public-path",
+        name: "engine-default-font",
+        path: "/fonts/jetbrains-mono-bold.ttf",
+      }],
+    },
+    pages: [createStorybookPage()],
+  })
+}
+
+export function storybookStaticFiles(): readonly StorybookStaticFile[] {
+  return Object.freeze([{
+    publicPath: "/fonts/jetbrains-mono-bold.ttf",
+    sourcePath: fileURLToPath(
+      import.meta.resolve("@engine/core/fonts/jetbrains-mono-bold.ttf"),
+    ),
+  }])
+}

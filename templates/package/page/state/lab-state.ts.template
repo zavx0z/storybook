@@ -1,0 +1,68 @@
+import type {
+  StorybookStoryArgs,
+  StorybookStoryIndexItem,
+  StorybookStoryModule,
+} from "@zavx0z/storybook/stories"
+import type {StorybookStoryPanelMode} from "@zavx0z/storybook/workbench"
+import {
+  STORIES,
+  storyIndex,
+  type StoryRoute,
+} from "../stories.ts"
+
+export class StorybookLabState {
+  #route: StoryRoute
+  #story: StorybookStoryIndexItem
+  #module: StorybookStoryModule
+  #args: StorybookStoryArgs
+  #panelMode: StorybookStoryPanelMode = "controls"
+  #loadRevision = 0
+
+  private constructor(
+    route: StoryRoute,
+    story: StorybookStoryIndexItem,
+    module: StorybookStoryModule,
+  ) {
+    this.#route = route
+    this.#story = story
+    this.#module = module
+    this.#args = Object.freeze({...module.defaultArgs})
+  }
+
+  static async create(route: StoryRoute): Promise<StorybookLabState> {
+    return new StorybookLabState(route, storyIndex(route), await STORIES.load(route))
+  }
+
+  get route(): StoryRoute { return this.#route }
+  get story(): StorybookStoryIndexItem { return this.#story }
+  get module(): StorybookStoryModule { return this.#module }
+  get args(): StorybookStoryArgs { return this.#args }
+  get panelMode(): StorybookStoryPanelMode { return this.#panelMode }
+
+  async select(route: StoryRoute): Promise<boolean> {
+    const revision = ++this.#loadRevision
+    const story = storyIndex(route)
+    const module = await STORIES.load(route)
+    if (revision !== this.#loadRevision) return false
+    this.#route = route
+    this.#story = story
+    this.#module = module
+    this.#args = Object.freeze({...module.defaultArgs})
+    return true
+  }
+
+  invalidateSelection(): void {
+    this.#loadRevision += 1
+  }
+
+  setControl(key: string, value: unknown): void {
+    if (!this.#module.controls.some((control) => control.key === key)) {
+      throw new Error(`Story не объявляет control: ${key}`)
+    }
+    this.#args = Object.freeze({...this.#args, [key]: value})
+  }
+
+  setPanelMode(mode: StorybookStoryPanelMode): void {
+    this.#panelMode = mode
+  }
+}

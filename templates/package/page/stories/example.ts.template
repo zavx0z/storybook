@@ -1,0 +1,45 @@
+import {CodeEditor} from "@ui/components/code-editor"
+import {Typography} from "@ui/components/typography"
+import {defineStorybookStoryModule} from "@zavx0z/storybook/stories"
+import {EXAMPLE_FIXTURE} from "../fixtures/example.ts"
+
+export function createExampleStory() {
+  return defineStorybookStoryModule({
+    defaultArgs: {"show-values": true},
+    controls: [{
+      key: "show-values",
+      label: "Показывать values",
+      group: "Пример",
+      kind: "boolean",
+    }],
+    render(surface, args, frame) {
+      const inset = 18
+      Typography(surface, frame.x + inset, frame.y + 52, Math.max(1, frame.w - inset * 2), 28, {
+        children: EXAMPLE_FIXTURE.message,
+        variant: "subtitle",
+      })
+      CodeEditor(
+        surface,
+        frame.x + inset,
+        frame.y + 88,
+        Math.max(1, frame.w - inset * 2),
+        Math.max(1, frame.h - 106),
+        {
+          key: "starter-fixture",
+          value: JSON.stringify({
+            packageName: EXAMPLE_FIXTURE.packageName,
+            ...(args["show-values"] === true ? {values: EXAMPLE_FIXTURE.values} : {}),
+          }, null, 2),
+          readOnly: true,
+          languageId: "json",
+          showLineNumbers: true,
+        },
+      )
+    },
+    source(args) {
+      return `import {EXAMPLE_FIXTURE} from "./fixtures/example.ts"
+
+const visible = ${args["show-values"] === true ? "EXAMPLE_FIXTURE.values" : "EXAMPLE_FIXTURE.message"}`
+    },
+  })
+}

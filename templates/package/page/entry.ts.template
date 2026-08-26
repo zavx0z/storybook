@@ -1,0 +1,171 @@
+import {UiRuntime} from "@layout/core/runtime"
+import {
+  StorybookBackdropSurface,
+  StorybookDockSurface,
+  StorybookNavigationSurface,
+  StorybookStoryPanelSurface,
+  planStorybookShell,
+  type StorybookStoryPanelOptions,
+} from "@zavx0z/storybook/workbench"
+import {
+  StorybookRouteTreeRouter,
+  type StorybookRouteTreeNode,
+} from "@zavx0z/storybook/route-tree"
+import {storybookPublicPath} from "@zavx0z/storybook/environment"
+import {StoryPreviewSurface} from "./preview.ts"
+import {
+  STORIES,
+  catalogItems,
+  presentationRoute,
+  sectionItems,
+  variantItems,
+} from "./stories.ts"
+import {StorybookLabState} from "./state/lab-state.ts"
+
+const MOUNT_PATH = storybookPublicPath("__APP_ID__", "/")
+
+void startStorybook().catch(publishError)
+
+async function startStorybook(): Promise<void> {
+  const canvas = document.getElementById("__APP_ID__-storybook-canvas")
+  if (!(canvas instanceof HTMLCanvasElement)) throw new Error("Canvas __APP_TITLE__ не найден")
+  document.documentElement.dataset.__APP_CAMEL__Storybook = "starting"
+  const runtime = await UiRuntime.create(canvas, {
+    virtualDisplay: {initial: "near", surfaceDisplay: true, grid: false},
+  })
+  runtime.handleResize()
+
+  const router = new StorybookRouteTreeRouter(STORIES.routeTree, {basePath: MOUNT_PATH})
+  const initialNode = router.current
+  const state = await StorybookLabState.create(presentationRoute(initialNode.path))
+  const navigate = (path: string): void => {
+    if (!router.go(path)) throw new Error(`Неизвестный путь __APP_TITLE__: ${path}`)
+  }
+
+  const backdrop = new StorybookBackdropSurface()
+  const catalog = new StorybookNavigationSurface<string>({
+    title: "__APP_TITLE__",
+    items: catalogItems(),
+    route: componentPath(initialNode.path),
+    onNavigate: navigate,
+  })
+  const sections = new StorybookNavigationSurface<string>({
+    title: state.story.componentLabel,
+    items: sectionItems(state.route),
+    route: sectionPath(initialNode.path),
+    onNavigate: navigate,
+  })
+  const dock = new StorybookDockSurface<string>({
+    title: "Варианты",
+    items: variantItems(state.route),
+    route: initialNode.kind === "leaf" ? state.route : "",
+    onNavigate: navigate,
+  })
+  const preview = new StoryPreviewSurface()
+  preview.setStory(state.story, state.module, state.args)
+  let storyPanel: StorybookStoryPanelSurface
+
+  const panelOptions = (): StorybookStoryPanelOptions => ({
+    source: state.module.source(state.args),
+    args: state.args,
+    controls: state.module.controls,
+    events: [
+      {id: "route", label: "Scenario", value: state.route},
+      {id: "package", label: "Package", value: "__PACKAGE_NAME__"},
+    ],
+    mode: state.panelMode,
+    onModeChange(mode) {
+      state.setPanelMode(mode)
+      storyPanel.setOptions(panelOptions())
+      publish()
+    },
+    onControlChange(key, value) {
+      state.setControl(key, value)
+      preview.setArgs(state.args)
+      storyPanel.setOptions(panelOptions())
+      publish()
+    },
+    async onCopy(source) {
+      try {
+        await navigator.clipboard.writeText(source)
+        document.documentElement.dataset.__APP_CAMEL__StorybookCopy = "copied"
+      } catch {
+        document.documentElement.dataset.__APP_CAMEL__StorybookCopy = "error"
+      }
+    },
+  })
+  storyPanel = new StorybookStoryPanelSurface(panelOptions())
+
+  const frames = (w: number, h: number) => planStorybookShell(w, h, {
+    responsive: {compactBelow: null, compactPanels: []},
+  })
+  runtime.addSurface(backdrop, ({w, h}) => ({x: 0, y: 0, w, h}))
+  runtime.addSurface(catalog, ({w, h}) => frames(w, h).catalog)
+  runtime.addSurface(sections, ({w, h}) => frames(w, h).section)
+  runtime.addSurface(preview, ({w, h}) => frames(w, h).preview)
+  runtime.addSurface(dock, ({w, h}) => frames(w, h).dock)
+  runtime.addSurface(storyPanel, ({w, h}) => frames(w, h).info)
+
+  const publish = (): void => {
+    for (const surface of [catalog, sections, preview, dock, storyPanel]) surface.flushPendingRender()
+    runtime.space.updateWorldMatrix()
+    runtime.renderer.renderFrame(runtime.space, runtime.hud, runtime.viewPoint)
+    document.documentElement.dataset.__APP_CAMEL__StorybookRoute = state.route
+  }
+
+  const applyNode = async (node: StorybookRouteTreeNode<string>): Promise<void> => {
+    document.documentElement.dataset.__APP_CAMEL__Storybook = "starting"
+    state.invalidateSelection()
+    const route = presentationRoute(node.path)
+    if (route !== state.route && !await state.select(route)) return
+    if (router.current !== node) return
+    catalog.setOptions({
+      title: "__APP_TITLE__",
+      items: catalogItems(),
+      route: componentPath(node.path),
+      onNavigate: navigate,
+    })
+    sections.setOptions({
+      title: state.story.componentLabel,
+      items: sectionItems(state.route),
+      route: sectionPath(node.path),
+      onNavigate: navigate,
+    })
+    dock.setOptions({
+      title: "Варианты",
+      items: variantItems(state.route),
+      route: node.kind === "leaf" ? state.route : "",
+      onNavigate: navigate,
+    })
+    preview.setStory(state.story, state.module, state.args)
+    storyPanel.setOptions(panelOptions())
+    runtime.relayout()
+    publish()
+    document.documentElement.dataset.__APP_CAMEL__Storybook = "ready"
+  }
+
+  router.subscribe((node) => {
+    void applyNode(node).catch(publishError)
+  })
+  new ResizeObserver(() => {
+    runtime.handleResize()
+    publish()
+  }).observe(canvas)
+  publish()
+  document.documentElement.dataset.__APP_CAMEL__Storybook = "ready"
+}
+
+function componentPath(path: string): string {
+  return path.split("/")[0] ?? ""
+}
+
+function sectionPath(path: string): string {
+  return path.split("/").slice(0, 2).join("/")
+}
+
+function publishError(error: unknown): void {
+  const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+  document.documentElement.dataset.__APP_CAMEL__Storybook = "error"
+  document.documentElement.dataset.__APP_CAMEL__StorybookError = message
+  console.error(error)
+}

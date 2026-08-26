@@ -1,0 +1,35 @@
+import {describe, expect, test} from "bun:test"
+import {join} from "node:path"
+
+const browserScript = join(import.meta.dir, "../../scripts/storybook-browser.ts")
+
+describe("package-name Storybook browser tooling", () => {
+  test("derives runtime and page capability without a consumer registry or port", async () => {
+    const source = await Bun.file(browserScript).text()
+    expect(source).toContain('from "@zavx0z/storybook/launcher"')
+    expect(source).toContain("packageStatus.runtime.manifestPath")
+    expect(source).toContain("manifest.pages.find(({routes}) => routes.includes(route))")
+    expect(source).toContain("STORYBOOK_CDP_PORT")
+    expect(source).not.toContain("storybooks.json")
+    expect(source).not.toContain("NODES_DEV_")
+    expect(source).not.toContain("UI_DEV_")
+    expect(source).not.toMatch(/127\.0\.0\.1:40\d\d/u)
+    expect(source).not.toContain("config.selector")
+  })
+
+  test("serializes creation and revalidates the target before background readiness", async () => {
+    const source = await Bun.file(browserScript).text()
+    const creationLock = source.indexOf("await withTargetCreationLock({")
+    const creationScope = source.indexOf("creationScope: config.origin", creationLock)
+    const initialSelect = source.indexOf("selectTarget(config, true", creationScope)
+    const operationLock = source.indexOf("withTargetOperationLock({targetId: target.id, cdpPort}")
+    const reselect = source.indexOf("const lockedSelection = await selectTarget", operationLock)
+    const ready = source.indexOf("await runWithBackgroundFrameScheduling", reselect)
+    expect(creationLock).toBeGreaterThan(-1)
+    expect(creationScope).toBeGreaterThan(creationLock)
+    expect(initialSelect).toBeGreaterThan(creationScope)
+    expect(operationLock).toBeGreaterThan(initialSelect)
+    expect(reselect).toBeGreaterThan(operationLock)
+    expect(ready).toBeGreaterThan(reselect)
+  })
+})

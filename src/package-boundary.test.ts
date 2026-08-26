@@ -7,6 +7,7 @@ describe("@zavx0z/storybook package boundary", () => {
   test("publishes only the accepted exact subpaths", async () => {
     const manifest = await Bun.file(join(packageRoot, "package.json")).json() as {
       exports: Record<string, string>
+      bin: Record<string, string>
       peerDependencies: Record<string, string>
     }
     expect(manifest.exports).toEqual({
@@ -18,8 +19,14 @@ describe("@zavx0z/storybook package boundary", () => {
       "./server": "./src/server.ts",
       "./build": "./src/build.ts",
       "./environment": "./src/environment.ts",
+      "./launcher": "./src/launcher.ts",
+      "./scaffold": "./src/scaffold.ts",
     })
     expect(manifest.exports).not.toHaveProperty(".")
+    expect(manifest.bin).toEqual({
+      storybook: "./scripts/storybook.ts",
+      "create-storybook": "./scripts/create-storybook.ts",
+    })
     expect(manifest.peerDependencies).toEqual({
       "@engine/core": "0.0.1",
       "@layout/core": "0.1.0",

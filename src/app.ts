@@ -45,6 +45,8 @@ export type StorybookPageManifest = Readonly<{
   stylePath: string
   body: StorybookPageBody
   capability: StorybookCapability
+  /** Whether the page intentionally accepts synthetic touch evidence. */
+  touch?: boolean
   readiness: StorybookReadinessDescriptor
   canvas?: StorybookCanvasDescriptor
   routeTree: StorybookRouteTree<string>
@@ -197,6 +199,9 @@ function definePage(page: StorybookPageManifest): StorybookPageManifest {
     throw new Error(`Unknown Storybook page capability: ${String(page.capability)}`)
   }
   const webgpu = page.capability === "webgpu" || page.capability === "webgpu-diagnostic"
+  const touch = page.touch ?? false
+  if (typeof touch !== "boolean") throw new Error(`Storybook page touch capability must be boolean: ${id}`)
+  if (touch && !webgpu) throw new Error(`Storybook ${page.capability} page cannot declare touch evidence: ${id}`)
   if (webgpu && page.canvas === undefined) {
     throw new Error(`Storybook ${page.capability} page requires a non-black canvas descriptor: ${id}`)
   }
@@ -227,6 +232,7 @@ function definePage(page: StorybookPageManifest): StorybookPageManifest {
     stylePath,
     body,
     capability: page.capability,
+    ...(touch ? {touch: true} : {}),
     readiness,
     ...(canvas === undefined ? {} : {canvas}),
     routeTree: page.routeTree,

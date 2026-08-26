@@ -1,7 +1,9 @@
 # Требования `@zavx0z/storybook`
 
 `@zavx0z/storybook` — private dev-инфраструктура. Он не владеет stories,
-preview state, process, static output или acceptance потребляющего репозитория.
+preview state, static output или acceptance потребляющего package. Общий
+`$storybook` владеет только generic package discovery, process lifecycle,
+automatic port handshake и browser evidence mechanism.
 
 ## Ownership
 
@@ -71,10 +73,41 @@ lazy. Automated capture не меняет acceptance state.
 отдельным browser graph. DOM/SVG pages не получают WebGPU runtime; WebGPU page
 создаёт ровно один runtime.
 
-### `STORYBOOK-LIFE-001` — repository-owned no-HMR lifecycle
+### `STORYBOOK-LIFE-001` — package-named no-HMR lifecycle
 
-Shared server всегда no-HMR и не принимает ownership существующего listener.
-Selector, port, PID state и exact browser target принадлежат repository skill.
+Единственная внешняя identity runnable Storybook — точный scoped
+`package.json#name` вида `@scope/storybook`. Package объявляет один script
+`storybook`; общий launcher находит package внутри текущего repository и
+запускает его из package cwd. Aliases, selectors, port registries и
+consumer-owned lifecycle scripts запрещены.
+
+Package server всегда no-HMR, передаёт Bun `port: 0` и получает свободный port
+от операционной системы. Runtime публикует schema-version-1 state с exact
+package, checkout realpath, PID, process start, origin, app id и health route.
+Status и stop сначала сверяют эти identities; foreign или неоднозначный process
+не принимается и не останавливается. Номер порта не является contract или
+пользовательским вводом.
+
+### `STORYBOOK-BROWSER-001` — package-derived exact-target evidence
+
+Dev server публикует schema-version-1 manifest с app home, exact routes,
+capability, readiness, canvas и touch каждой page. Общий browser helper получает
+origin и manifest только из exact package runtime; consumer registry, selector,
+Storybook port и ручной CDP-flow запрещены. Target discovery/creation
+сериализуется по package origin, а navigation, readiness, capture и cleanup —
+по exact target id. Background frame scheduling включается только на bounded
+ready/render barrier и всегда снимается до освобождения target lock.
+
+### `STORYBOOK-SCAFFOLD-001` — один create-storybook template
+
+`create-storybook <@scope/storybook> <directory>` атомарно создаёт private ESM
+package с едиными scripts, typed app, automatic-port server, static build,
+consumer-owned `page`, `stories`, `preview`, `fixtures`, `state`, lazy story и
+focused test внутри shared Workbench. Template хранится только в
+`@zavx0z/storybook`.
+Generator отказывается изменять существующую директорию и не оставляет
+частичный package при ошибке. Созданный consumer может расширять semantics, но
+не копирует shared router, Workbench, server или lifecycle implementation.
 
 ### `STORYBOOK-STATIC-001` — manifest-driven static output
 
@@ -115,10 +148,11 @@ page footer остаётся в потоке документа и не пере
 
 ### `STORYBOOK-DOCS-001` — self-documenting public contract
 
-Repository владеет отдельным private documentation Storybook на `4016`.
-Его единственная страница использует тот же five-region WebGPU Workbench, что и
-внешние consumers. Каждый public subpath представлен обычной typed story с
-русским описанием и exact import example; отдельный DOM docs layout запрещён.
+Package владеет отдельным private documentation Storybook с identity
+`@zavx0z/storybook` и automatic port. Его единственная страница использует тот
+же five-region WebGPU Workbench, что и внешние consumers. Каждый public subpath
+представлен обычной typed story с русским описанием и exact import example;
+отдельный DOM docs layout запрещён.
 Изменение public API, routing, Workbench, server или build одновременно
 обновляет эту story и исполняемый self-example.
 

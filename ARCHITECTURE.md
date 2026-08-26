@@ -24,16 +24,20 @@ Engine, Layout и UI остаются владельцами production mechanic
    owner-controlled restart.
 4. Static builder независимо собирает каждую page, вычисляет asset digests и
    пишет один revisioned manifest.
-5. Repository lifecycle выбирает process и browser target; shared package не
-   запускает, не останавливает и не принимает чужой listener самостоятельно.
+5. Общий `$storybook` выбирает exact package process и browser target по
+   `package.json#name`; operating system выделяет port, а shared launcher не
+   принимает foreign process по совпавшему PID или origin.
+6. Dev server проецирует routes/readiness/canvas/touch в typed runtime manifest;
+   background browser helper читает его по package runtime и не содержит
+   consumer selectors, origins или port registry.
 
 Public package root намеренно пуст. Каждый contract импортируется через
 точный lowercase subpath, соответствующий одному owner-neutral понятию.
 
 ## Self documentation application
 
-Repository-owned app на `4016` использует один и тот же WebGPU Workbench для
-документации и живых примеров:
+Package-owned app `@zavx0z/storybook` на automatic port использует один и тот
+же WebGPU Workbench для документации и живых примеров:
 
 ```text
 one Workbench route tree

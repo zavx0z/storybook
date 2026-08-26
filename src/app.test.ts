@@ -54,6 +54,8 @@ describe("typed Storybook app manifest", () => {
       ...webgpu,
       capability: "dom",
     }]})).toThrow("cannot declare WebGPU canvas evidence")
+    expect(() => defineStorybookApp({...input, pages: [{...input.pages[0]!, touch: true}, webgpu]}))
+      .toThrow("cannot declare touch evidence")
     expect(() => defineStorybookApp({...input, head: {meta: [{
       kind: "value",
       name: "ui-storybook-base",

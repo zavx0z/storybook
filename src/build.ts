@@ -52,6 +52,7 @@ export type StorybookStaticPageRecord = Readonly<{
   publicMountPath: string
   routes: readonly string[]
   capability: StorybookCapability
+  touch?: boolean
   readiness: StorybookReadinessDescriptor
   canvas?: StorybookCanvasDescriptor
   entry: string
@@ -142,6 +143,7 @@ export async function buildStaticStorybook(options: StorybookStaticBuildOptions)
       publicMountPath: storybookPagePublicMount(app, page),
       routes: storybookPageRoutes(app, page),
       capability: page.capability,
+      ...(page.touch === true ? {touch: true} : {}),
       readiness: page.readiness,
       ...(page.canvas === undefined ? {} : {canvas: page.canvas}),
       entry: storybookAppPublicPath(app, `/@storybook-assets/${page.id}/entry.js`),

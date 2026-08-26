@@ -22,8 +22,10 @@
 - Node is a comparison candidate, not an assumed reference implementation.
 - `@zavx0z/storybook` is shared dev infrastructure. It does not become a
   central owner of other repositories' stories.
-- A repository or package with a real catalog/lifecycle/delivery boundary owns
-  its own stories, preview state, routes, process, static build, and acceptance.
+- A repository or package with a real catalog/delivery boundary owns its own
+  stories, preview state, routes, exact package process, static build, and
+  acceptance. The single global `$storybook` owns generic lifecycle and browser
+  mechanics for every exact `@scope/storybook` identity.
 - Production packages never import Storybook. Storybook dependencies remain in
   private development applications or explicit dev-only boundaries.
 - Import exact owners directly. Do not add compatibility aliases, `paths`,
@@ -37,9 +39,10 @@
 
 ## Self documentation lifecycle
 
-- One private self Storybook runs on `http://127.0.0.1:4016` through
-  `bun run storybook`; it documents this package and does not compose stories
-  owned by UI, Node, Engine, Layout, or MetaFor.
+- One private self Storybook is addressed only as `@zavx0z/storybook` through
+  the shared `$storybook` skill. Its package script uses an OS-allocated port;
+  agents never encode or select that port. It documents this package and does
+  not compose stories owned by UI, Node, Engine, Layout, or MetaFor.
 - The root page is the same five-region WebGPU Workbench supplied to consumers.
   Every public subpath is a normal typed story in its catalog; live examples
   are variants inside that same route tree. Do not create a second DOM docs
@@ -47,8 +50,8 @@
 - The typed documentation registry and `package.json#exports` must have exact
   one-to-one coverage. Do not add an export without its page and example.
 - The self app is no-HMR. After a stable source checkpoint, restart only its
-  exact owned process and verify the affected route; do not touch repository
-  Storybooks that merely consume the package.
+  exact package-named process through `$storybook` and verify the affected
+  route; do not touch repository Storybooks that merely consume the package.
 
 ## Delivery safety
 
@@ -58,8 +61,8 @@
 - Do not push, create a pull request, deploy Pages, dispatch workflows, or
   create a GitHub repository without a separate explicit owner request.
 - Do not stop an existing Storybook merely to inspect it. Resolve exact process
-  ownership first and preserve the UI Storybook at port 4017 through migration
-  until an approved cutover can leave its replacement running.
+  ownership first and leave its package-named replacement running before an
+  approved cutover stops the legacy process.
 - Automated captures are evidence candidates, not owner acceptance.
 - TypeScript and JavaScript changes use no trailing semicolons unless syntax
   requires one.

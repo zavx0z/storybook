@@ -13,7 +13,13 @@
     "./app": "./src/app.ts",
     "./server": "./src/server.ts",
     "./build": "./src/build.ts",
-    "./environment": "./src/environment.ts"
+    "./environment": "./src/environment.ts",
+    "./launcher": "./src/launcher.ts",
+    "./scaffold": "./src/scaffold.ts"
+  },
+  "bin": {
+    "storybook": "./scripts/storybook.ts",
+    "create-storybook": "./scripts/create-storybook.ts"
   },
   "scripts": {
     "storybook": "bun app/server.ts",

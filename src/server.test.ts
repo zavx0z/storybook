@@ -13,6 +13,20 @@ afterEach(async () => {
 })
 
 describe("shared Storybook no-HMR server", () => {
+  test("lets the operating system allocate a free port when none is supplied", async () => {
+    const fixture = await createFixture()
+    const server = startStorybookHubServer({
+      app: fixture.app,
+      staticFiles: [{publicPath: "/fonts/default.ttf", sourcePath: fixture.fontPath}],
+    })
+    try {
+      expect(server.port).toBeGreaterThan(0)
+      expect(await fetch(server.url).then(({status}) => status)).toBe(200)
+    } finally {
+      server.stop(true)
+    }
+  })
+
   test("serves only canonical registered routes with a structured Russian shell", async () => {
     const fixture = await createFixture()
     const app = defineStorybookApp(fixture.app)
@@ -69,6 +83,24 @@ describe("shared Storybook no-HMR server", () => {
       expect(await fetch(`${origin}/fonts/default.ttf`).then((file) => file.arrayBuffer()))
         .toEqual(new Uint8Array([0, 1, 2, 3]).buffer)
       expect(await fetch(`${origin}/@storybook-assets/components/missing.js`).then(({status}) => status)).toBe(404)
+      const development = await fetch(`${origin}/@storybook/runtime.json`).then((response) => response.json()) as {
+        schemaVersion: number
+        app: {id: string; homePath: string}
+        pages: Array<{id: string; capability: string; touch: boolean; canvas: {selector: string} | null}>
+      }
+      expect(development).toMatchObject({
+        schemaVersion: 1,
+        app: {id: "ui", homePath: "/"},
+      })
+      expect(development.pages).toEqual([
+        expect.objectContaining({id: "catalog", capability: "dom", touch: false, canvas: null}),
+        expect.objectContaining({
+          id: "components",
+          capability: "webgpu",
+          touch: false,
+          canvas: {selector: "#stage-canvas", evidence: "non-black"},
+        }),
+      ])
       expect(await fetch(`${origin}/`, {method: "POST"}).then(({status}) => status)).toBe(405)
     } finally {
       server.stop(true)

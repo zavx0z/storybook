@@ -3,6 +3,7 @@ import {
   STORYBOOK_WORKBENCH_STORIES,
   storybookWorkbenchPresentationRoute,
 } from "./stories.ts"
+import {STORYBOOK_DOCUMENTATION_MODULES} from "../contracts/examples.ts"
 
 describe("self-documenting Storybook stories", () => {
   test("keeps overview paths separate from their presentation story", () => {
@@ -10,7 +11,8 @@ describe("self-documenting Storybook stories", () => {
     expect(STORYBOOK_WORKBENCH_STORIES.routeTree.leaves).toContain("stories/contract/overview")
     expect(STORYBOOK_WORKBENCH_STORIES.routeTree.leaves).toContain("workbench/contract/overview")
     expect(STORYBOOK_WORKBENCH_STORIES.routeTree.leaves).toContain("workbench/live/primary")
-    expect(STORYBOOK_WORKBENCH_STORIES.routeTree.leaves).toHaveLength(11)
+    expect(STORYBOOK_WORKBENCH_STORIES.routeTree.leaves)
+      .toHaveLength(STORYBOOK_DOCUMENTATION_MODULES.length + 3)
     expect(storybookWorkbenchPresentationRoute("")).toBe("route-tree/contract/overview")
     expect(storybookWorkbenchPresentationRoute("route-tree")).toBe("route-tree/contract/overview")
     expect(storybookWorkbenchPresentationRoute("workbench/live")).toBe("workbench/live/primary")
