@@ -3,7 +3,7 @@
 ## Workspace boundary
 
 - The canonical primary checkout is
-  `/Users/zavx0z/repozitarium/webxr-space/projects/storybook`.
+  `/Users/zavx0z/repozitarium/storybook`.
 - Related canonical checkouts are
   `/Users/zavx0z/repozitarium/webxr-space/projects/engine`,
   `/Users/zavx0z/repozitarium/webxr-space/projects/layout`,

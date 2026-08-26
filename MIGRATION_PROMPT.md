@@ -4,7 +4,7 @@ You are working in a Codex local multi-folder project.
 
 Primary repository:
 
-- `/Users/zavx0z/repozitarium/webxr-space/projects/storybook`
+- `/Users/zavx0z/repozitarium/storybook`
 
 Secondary repositories:
 
