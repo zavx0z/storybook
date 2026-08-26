@@ -2,10 +2,13 @@
 
 ## Workspace boundary
 
-- The canonical primary checkout is `/Users/zavx0z/repozitarium/storybook`.
-- Related canonical checkouts are `/Users/zavx0z/repozitarium/engine`,
-  `/Users/zavx0z/repozitarium/layout`, `/Users/zavx0z/repozitarium/ui`,
-  `/Users/zavx0z/repozitarium/node`, and
+- The canonical primary checkout is
+  `/Users/zavx0z/repozitarium/webxr-space/storybook`.
+- Related canonical checkouts are
+  `/Users/zavx0z/repozitarium/webxr-space/engine`,
+  `/Users/zavx0z/repozitarium/webxr-space/layout`,
+  `/Users/zavx0z/repozitarium/webxr-space/ui`,
+  `/Users/zavx0z/repozitarium/webxr-space/node`, and
   `/Users/zavx0z/repozitarium/metafor`.
 - Never use `/Users/zavx0z/production` or another archival checkout.
 - Preserve every supplied branch, dirty worktree, listener, browser target, and
