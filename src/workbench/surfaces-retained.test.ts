@@ -7,8 +7,10 @@ import {
   StorybookDockSurface,
   StorybookInfoSurface,
   StorybookNavigationSurface,
+  StorybookStatusBarSurface,
   StorybookStoryPanelSurface,
   selectStorybookNavigationItems,
+  storybookStatusBarItems,
   type StorybookNavigationItem,
   type StorybookRetainedDiagnostics,
   type StorybookStoryPanelCategory,
@@ -129,6 +131,23 @@ beforeAll(async () => {
 })
 
 describe("retained @zavx0z/storybook Workbench surfaces", () => {
+  test("maps owner manifest text into the exact passive StatusBar primitive", () => {
+    const options = {
+      lead: "Создано для",
+      owner: "MetaFor",
+      detail: "переиспользуемая WebGPU-инфраструктура UI",
+    }
+    expect(storybookStatusBarItems(options)).toEqual([
+      {id: "lead", text: "Создано для "},
+      {id: "owner", text: "MetaFor", highlighted: true},
+      {id: "detail", text: " · переиспользуемая WebGPU-инфраструктура UI"},
+    ])
+    const surface = new StorybookStatusBarSurface(options)
+    expect(surface.node.name).toBe("StorybookStatusBarSurface")
+    expect(() => storybookStatusBarItems({...options, detail: " "})).toThrow("detail must not be empty")
+    surface.dispose()
+  })
+
   test("keeps Navigation owners stable and rematerializes only active or disabled items", () => {
     const navigate = (): void => {}
     const surface = new StorybookNavigationSurface<Route>({title: "Catalog", items, route: "first", onNavigate: navigate})

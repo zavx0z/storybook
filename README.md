@@ -18,10 +18,11 @@ Storybook:
 
 Use `$storybook ensure @zavx0z/storybook` and open the reported automatic
 origin.
-The root is the real five-region WebGPU Workbench: every public subpath is a
-normal story in its catalog, with the explanation in preview and the exact
-HTML, CSS and TypeScript documents in three source editors. Public changes must
-update that story and all three documents in the same change.
+The root is the real five-region WebGPU Workbench with the shared retained
+StatusBar below it: every public subpath is a normal story in its catalog, with
+the explanation in preview and the exact HTML, CSS and TypeScript documents in
+three source editors. Public changes must update that story and all three
+documents in the same change.
 
 ```bash
 bun run check

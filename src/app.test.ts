@@ -61,6 +61,10 @@ describe("typed Storybook app manifest", () => {
       name: "ui-storybook-base",
       content: "/other",
     }]}})).toThrow("base meta is owned by the shell")
+    expect(() => defineStorybookApp({...input, head: {meta: [
+      ...input.head.meta,
+      {kind: "value", name: "storybook-status-bar-owner", content: "Другой владелец"},
+    ]}})).toThrow("status bar meta is owned by the shell")
   })
 
   test("requires exact local files and a registered home route", () => {

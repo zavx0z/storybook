@@ -22,6 +22,7 @@ import {isAbsolute} from "node:path"
 import {storybookBaseMetaName} from "./environment.ts"
 import {buildStorybookBrowserPage, storybookAssetContentType} from "./internal/browser-build.ts"
 import {storybookAppRecoveryIndex, storybookPageRecoveryIndex} from "./internal/routes.ts"
+import {STORYBOOK_STATUS_BAR_META_NAMES} from "./internal/status-bar-environment.ts"
 import {resolveStorybookStaticFiles} from "./internal/static-files.ts"
 import {resolveStorybookRouteTree} from "./route-tree.ts"
 import {STORYBOOK_SHELL_BACKGROUND_CSS} from "./shell-theme.ts"
@@ -338,6 +339,14 @@ async function createPageHtml(
     const content = entry.kind === "value" ? entry.content : storybookAppPublicPath(app, entry.path)
     return `<meta name="${escapeHtml(entry.name)}" content="${escapeHtml(content)}">`
   }).join("\n    ")
+  const statusBarMeta = [
+    {name: STORYBOOK_STATUS_BAR_META_NAMES.lead, content: app.footer.lead},
+    {name: STORYBOOK_STATUS_BAR_META_NAMES.owner, content: app.footer.owner.label},
+    {name: STORYBOOK_STATUS_BAR_META_NAMES.detail, content: app.footer.detail},
+  ].map(({name, content}) => `<meta name="${escapeHtml(name)}" content="${escapeHtml(content)}">`).join("\n    ")
+  const footer = page.body.kind === "html" ? `<footer class="storybook-footer" data-storybook-footer>
+      ${escapeHtml(app.footer.lead)}&nbsp;<a href="${escapeHtml(app.footer.owner.href)}">${escapeHtml(app.footer.owner.label)}</a>&nbsp;· ${escapeHtml(app.footer.detail)}
+    </footer>` : ""
   const restore = createRestoreScript(app, page)
   return `<!doctype html>
 <html lang="ru" data-storybook-app="${escapeHtml(app.id)}" data-storybook-page="${escapeHtml(page.id)}">
@@ -347,6 +356,7 @@ async function createPageHtml(
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="${escapeHtml(storybookBaseMetaName(app.id))}" content="${escapeHtml(app.basePath)}">
     ${meta}
+    ${statusBarMeta}
     ${restore}
     <meta http-equiv="cache-control" content="no-cache">
     <link rel="icon" href="data:,">
@@ -364,7 +374,6 @@ async function createPageHtml(
       }
       .storybook-footer,
       .storybook-home {
-        position: fixed;
         z-index: 2147483647;
         box-sizing: border-box;
         display: inline-flex;
@@ -385,19 +394,19 @@ async function createPageHtml(
         text-decoration: none;
       }
       .storybook-footer {
-        left: 10px;
-        bottom: 10px;
-        color: rgba(255, 255, 255, 0.7);
-      }
-      body[data-storybook-capability="dom"] .storybook-footer {
         position: static;
         max-width: calc(100% - 20px);
         margin: 0 10px 10px;
         flex-wrap: wrap;
         line-height: 1.35;
+        color: rgba(255, 255, 255, 0.7);
       }
       .storybook-home {
+        position: fixed;
         right: 10px;
+        bottom: 34px;
+      }
+      body[data-storybook-capability="dom"] .storybook-home {
         bottom: 10px;
       }
       .storybook-footer a:hover,
@@ -412,9 +421,7 @@ async function createPageHtml(
   <body data-storybook-capability="${escapeHtml(page.capability)}">
     ${home}
     ${bodyHtml}
-    <footer class="storybook-footer" data-storybook-footer>
-      ${escapeHtml(app.footer.lead)}&nbsp;<a href="${escapeHtml(app.footer.owner.href)}">${escapeHtml(app.footer.owner.label)}</a>&nbsp;· ${escapeHtml(app.footer.detail)}
-    </footer>
+    ${footer}
     <script type="module" src="${escapeHtml(`${assetBasePath}/entry.js`)}"></script>
   </body>
 </html>`

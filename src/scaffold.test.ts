@@ -62,6 +62,8 @@ describe("create-storybook canonical package scaffold", () => {
     expect(entry).toContain("StorybookHtml = source.html")
     expect(entry).toContain("StorybookCss = source.css")
     expect(entry).toContain("StorybookTypescript = source.typescript")
+    expect(entry).toContain("new StorybookStatusBarSurface()")
+    expect(entry).toContain("frames(w, h).status")
     const labState = await Bun.file(join(target, "page/state/lab-state.ts")).text()
     expect(labState).toContain('StorybookStoryPanelCategory = "source"')
     expect(labState).toContain("get source(): StorybookStorySource")

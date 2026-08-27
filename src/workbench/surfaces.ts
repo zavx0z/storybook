@@ -20,6 +20,7 @@ import {li, ul} from "@ui/elements/list"
 import {uiIcons} from "@ui/elements/icons"
 import {uiShapeMetrics} from "@ui/elements/shape"
 import {span} from "@ui/elements/span"
+import {statusBar, type StatusBarItem} from "@ui/elements/status-bar"
 import {activeUiTheme} from "@ui/elements/theme"
 import {
   rgba8ToColor,
@@ -29,6 +30,7 @@ import {type UiSurfaceRect} from "@layout/core/runtime"
 import {flexColumn, flexRow} from "@layout/core/flex"
 import {storybookTheme} from "./theme.ts"
 import {STORYBOOK_SHELL_BACKGROUND_RGBA} from "../shell-theme.ts"
+import {readInjectedStorybookStatusBar} from "../internal/status-bar-environment.ts"
 import type {
   StorybookStoryArgs,
   StorybookStoryControl,
@@ -87,6 +89,12 @@ export type StorybookInfoOptions = Readonly<{
 export type StorybookPreviewChromeOptions = Readonly<{
   title?: string
   description?: string
+}>
+
+export type StorybookStatusBarOptions = Readonly<{
+  lead: string
+  owner: string
+  detail: string
 }>
 
 export type StorybookStoryPanelCategory = "source" | "controls" | "events"
@@ -1590,6 +1598,42 @@ export class StorybookBackdropSurface extends UiSurface {
       -0.18,
     )
   }
+}
+
+/** Shared passive Workbench footer rendered by the exact Elements StatusBar owner. */
+export class StorybookStatusBarSurface extends UiSurface {
+  readonly #items: readonly StatusBarItem[]
+
+  constructor(options: StorybookStatusBarOptions = readInjectedStorybookStatusBar()) {
+    super({bgColor: null, borderColor: null})
+    this.node.name = "StorybookStatusBarSurface"
+    this.#items = storybookStatusBarItems(options)
+  }
+
+  protected override render(): void {
+    statusBar(this, 0, 0, this.rectW, this.rectH, {
+      start: this.#items,
+      separator: "",
+    })
+  }
+}
+
+/** Maps one owner manifest descriptor to stable StatusBar items without copying the primitive. */
+export function storybookStatusBarItems(options: StorybookStatusBarOptions): readonly StatusBarItem[] {
+  const lead = requiredStatusBarText(options.lead, "lead")
+  const owner = requiredStatusBarText(options.owner, "owner")
+  const detail = requiredStatusBarText(options.detail, "detail")
+  return Object.freeze([
+    Object.freeze({id: "lead", text: `${lead} `}),
+    Object.freeze({id: "owner", text: owner, highlighted: true}),
+    Object.freeze({id: "detail", text: ` · ${detail}`}),
+  ])
+}
+
+function requiredStatusBarText(value: string, field: keyof StorybookStatusBarOptions): string {
+  const normalized = value.trim()
+  if (normalized.length === 0) throw new Error(`Storybook status bar ${field} must not be empty`)
+  return normalized
 }
 
 function normalizeNavigationOptions<Route extends string>(

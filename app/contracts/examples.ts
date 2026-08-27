@@ -144,16 +144,21 @@ export const OWNER_STORIES = defineStorybookStoryCatalog<unknown, OwnerStory>({
     category: "presentation",
     importPath: "@zavx0z/storybook/workbench",
     title: "Рабочее окно",
-    summary: "Раскладывает каталог, разделы, пример, варианты, три редактора кода и настройки в одном окне.",
-    ownership: "Общий пакет считает рамки пяти областей и показывает независимые HTML, CSS и TypeScript редакторы. Репозиторий передаёт свою область примера, source документы и сам решает, какие панели скрывать на узком экране.",
+    summary: "Раскладывает пять рабочих областей и общую нижнюю строку состояния в одном окне.",
+    ownership: "Общий пакет считает рамки пяти рабочих областей и отдельной StatusBar, затем напрямую использует @ui/elements/status-bar. Репозиторий передаёт свою область примера, source документы, manifest-текст нижней строки и сам решает, какие панели скрывать на узком экране.",
     laws: Object.freeze([
-      "Один document содержит один canvas, UiRuntime, Router и пятизонный Workbench.",
+      "Один document содержит один canvas, UiRuntime, Router, пятизонный Workbench и нижнюю retained StatusBar.",
       "Главная панель показывает disclosure groups и category rows; соседняя — semantic items; dock — scenarios.",
       "Inspector categories разделяют source, controls и events; source одновременно содержит HTML, CSS и TypeScript sections.",
       "Правая панель одновременно сохраняет HTML, CSS и TypeScript selection/scroll state и не смешивает copy actions.",
       "Preview остаётся consumer-owned и получает content frame ниже общего chrome.",
+      "StatusBar получает отдельный нижний Flex frame и не перекрывает рабочие области.",
+      "Одноэкранная canvas-презентация резервирует ту же строку через planStorybookStatusBarShell.",
     ]),
-    example: `import {planStorybookShell} from "@zavx0z/storybook/workbench"
+    example: `import {
+  StorybookStatusBarSurface,
+  planStorybookShell,
+} from "@zavx0z/storybook/workbench"
 
 const frames = planStorybookShell(1440, 900, {
   responsive: {
@@ -162,7 +167,8 @@ const frames = planStorybookShell(1440, 900, {
   },
 })
 
-previewSurface.frame = frames.preview`,
+runtime.addSurface(previewSurface, () => frames.preview)
+runtime.addSurface(new StorybookStatusBarSurface(), () => frames.status)`,
   }),
   Object.freeze({
     id: "references",
@@ -209,12 +215,12 @@ const comparison = planStorybookComparison({
     category: "runtime",
     importPath: "@zavx0z/storybook/app",
     title: "Описание Storybook-приложения",
-    summary: "Собирает страницы, адреса, шрифт, подвал и признаки готовности. На DOM-страницах подвал не перекрывает содержимое.",
+    summary: "Собирает страницы, адреса, шрифт, structured footer text и признаки готовности. DOM-страница показывает footer в потоке, canvas Workbench — retained StatusBar.",
     ownership: "Каждый repository создаёт свой manifest. Shared package его проверяет, но не добавляет чужие страницы.",
     laws: Object.freeze([
       "Канонический repository Storybook описывает один root Workbench page и свой полный route tree.",
       "Production owners не импортируют private Storybook application.",
-      "Readiness, font meta, footer и capabilities объявляются manifest-ом владельца.",
+      "Readiness, font meta, footer text и capabilities объявляются manifest-ом владельца.",
     ]),
     example: `import {join} from "node:path"
 import {defineStorybookApp} from "@zavx0z/storybook/app"

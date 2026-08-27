@@ -3,6 +3,7 @@ import {
   StorybookBackdropSurface,
   StorybookDockSurface,
   StorybookNavigationSurface,
+  StorybookStatusBarSurface,
   StorybookStoryPanelSurface,
   planStorybookShell,
   type StorybookStoryPanelOptions,
@@ -63,6 +64,7 @@ async function startStorybook(): Promise<void> {
   })
   const preview = new StoryPreviewSurface()
   preview.setStory(state.story, state.module, state.args)
+  const statusBar = new StorybookStatusBarSurface()
   let storyPanel: StorybookStoryPanelSurface
 
   const panelOptions = (): StorybookStoryPanelOptions => ({
@@ -105,9 +107,10 @@ async function startStorybook(): Promise<void> {
   runtime.addSurface(preview, ({w, h}) => frames(w, h).preview)
   runtime.addSurface(dock, ({w, h}) => frames(w, h).dock)
   runtime.addSurface(storyPanel, ({w, h}) => frames(w, h).info)
+  runtime.addSurface(statusBar, ({w, h}) => frames(w, h).status)
 
   const publish = (): void => {
-    for (const surface of [catalog, sections, preview, dock, storyPanel]) surface.flushPendingRender()
+    for (const surface of [catalog, sections, preview, dock, storyPanel, statusBar]) surface.flushPendingRender()
     runtime.space.updateWorldMatrix()
     runtime.renderer.renderFrame(runtime.space, runtime.hud, runtime.viewPoint)
     document.documentElement.dataset.__APP_CAMEL__StorybookRoute = state.route

@@ -37,13 +37,16 @@ describe("self-documenting Workbench boundary", () => {
     expect(seenSharedImports).toEqual(allowedSharedImports)
   })
 
-  test("owns one runtime and publishes all five desktop Workbench regions", async () => {
+  test("owns one runtime, five work regions and the shared retained StatusBar", async () => {
     const source = await Bun.file(`${workbenchRoot}/entry.ts`).text()
     expect(source.match(/UiRuntime\.create/g)).toHaveLength(1)
     expect(source).toContain("compactBelow: null")
     for (const region of ["catalog", "section", "preview", "dock", "info"]) {
       expect(source).toContain(`frames(w, h).${region}`)
     }
+    expect(source).toContain("new StorybookStatusBarSurface()")
+    expect(source).toContain("frames(w, h).status")
+    expect(source).toContain("storyPanel, statusBar")
     expect(source).toContain('dataset.storybookDocs = "ready"')
     expect(source).toContain("runtime.requestRender()")
     expect(source).toContain("await waitForStorybookFrameBoundary()")

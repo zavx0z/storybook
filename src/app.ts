@@ -18,6 +18,7 @@ import {
   storybookRouteTreeUrl,
   type StorybookRouteTree,
 } from "./route-tree.ts"
+import {STORYBOOK_STATUS_BAR_META_NAMES} from "./internal/status-bar-environment.ts"
 
 export type StorybookCapability = "dom" | "svg" | "webgpu" | "webgpu-diagnostic"
 
@@ -109,6 +110,11 @@ export function defineStorybookApp(input: StorybookAppManifest): StorybookAppMan
   const head = defineHead(input.head)
   if (head.meta.some((entry) => entry.name === storybookBaseMetaName(id))) {
     throw new Error(`Storybook app base meta is owned by the shell: ${storybookBaseMetaName(id)}`)
+  }
+  const statusBarMetaNames = new Set<string>(Object.values(STORYBOOK_STATUS_BAR_META_NAMES))
+  const statusBarMeta = head.meta.find((entry) => statusBarMetaNames.has(entry.name))
+  if (statusBarMeta !== undefined) {
+    throw new Error(`Storybook status bar meta is owned by the shell: ${statusBarMeta.name}`)
   }
   const fontMeta = head.meta.filter((entry) => entry.name === DEFAULT_FONT_META_NAME)
   if (fontMeta.length !== 1 || fontMeta[0]?.kind !== "public-path") {

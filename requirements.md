@@ -43,14 +43,20 @@ story-reference lifecycle, пока Workbench их не исполняет.
 
 ### `STORYBOOK-WORKBENCH-001` — parent-owned Flex composition
 
-Catalog, section, preview, dock и info вычисляются одним Flex graph по
-`LAYOUT-SLOT-001` и `LAYOUT-FLEX-001`. Shared package применяет, но не копирует
-Layout ownership, retained и shaped-clipping laws. Preview остаётся отдельной
-consumer-owned Surface.
+Catalog, section, preview, dock, info и нижний status frame вычисляются одним
+Flex graph по `LAYOUT-SLOT-001` и `LAYOUT-FLEX-001`. Пять рабочих областей
+остаются внутри stage, а status frame резервирует точную высоту
+`@ui/elements/status-bar` и не перекрывает их. Shared package применяет, но не
+копирует Layout ownership, retained и shaped-clipping laws. Preview остаётся
+отдельной consumer-owned Surface; нижняя строка напрямую вызывает exact
+`@ui/elements/status-bar` и не копирует его отрисовку. Canvas-презентация без
+пятизонного Workbench использует тот же `planStorybookStatusBarShell`, чтобы
+зарезервировать content и status sibling frames без overlay.
 
 Responsive policy содержит один optional compact breakpoint и список
-скрываемых `catalog | section | dock | info` panels. Preview не скрывается. При
-отсутствии breakpoint сохраняется desktop geometry UI Storybook.
+скрываемых `catalog | section | dock | info` panels. Preview и status bar не
+скрываются. При отсутствии breakpoint сохраняется desktop geometry UI
+Storybook над общей нижней строкой.
 
 ### `STORYBOOK-PANEL-001` — source, controls и events
 
@@ -149,16 +155,18 @@ revisions и доказывает один realpath/module instance во все�
 Обращённые к человеку shell strings пишутся по-русски. API identifiers, route
 IDs и import specifiers сохраняют точное написание. Home имеет label `Главная`,
 а footer передаётся typed descriptor; изменение HTML строками запрещено. На DOM
-page footer остаётся в потоке документа и не перекрывает content; на canvas page
-сохраняется явно fixed chrome.
+page footer остаётся в потоке документа и не перекрывает content. На canvas
+page server инъецирует те же lead, owner и detail как inert meta, fixed DOM
+footer отсутствует, а shared Workbench показывает пассивную retained StatusBar;
+owner выделяется, но не притворяется ссылкой без hit-контракта UI primitive.
 
 ### `STORYBOOK-DOCS-001` — self-documenting public contract
 
 Package владеет отдельным private documentation Storybook с identity
 `@zavx0z/storybook` и automatic port. Его единственная страница использует тот
-же five-region WebGPU Workbench, что и внешние consumers. Каждый public subpath
-представлен обычной typed story с русским описанием и exact import example;
-отдельный DOM docs layout запрещён.
+же five-region WebGPU Workbench с общей retained StatusBar, что и внешние
+consumers. Каждый public subpath представлен обычной typed story с русским
+описанием и exact import example; отдельный DOM docs layout запрещён.
 Изменение public API, routing, Workbench, server или build одновременно
 обновляет эту story и исполняемый self-example.
 

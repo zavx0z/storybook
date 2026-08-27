@@ -22,7 +22,9 @@ Engine, Layout и UI остаются владельцами production mechanic
    `normalizeModule`; UI Workbench использует совместимую обёртку с `UiSurface`
    и Blender-like Inspector categories для source, controls и events.
 3. Dev server собирает browser entry один раз по запросу и кэширует его до
-   owner-controlled restart.
+   owner-controlled restart. Для canvas page он инъецирует owner-supplied
+   status text, а shared Workbench отображает его через exact
+   `@ui/elements/status-bar` без отдельного DOM overlay.
 4. Static builder независимо собирает каждую page, вычисляет asset digests и
    пишет один revisioned manifest.
 5. Общий `$storybook` выбирает exact package process и browser target по
