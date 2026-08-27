@@ -10,7 +10,7 @@ static build therefore consume the same page graph.
 
 import {join} from "node:path"
 import {defineStorybookApp, type StorybookAppManifest} from "@zavx0z/storybook/app"
-import {STORYBOOK_WORKBENCH_STORIES} from "./workbench/stories.ts"
+import {STORYBOOK_DOCUMENTATION_CATALOG} from "./workbench/catalog.ts"
 
 export type StorybookDocumentationAppOptions = Readonly<{
   publicBasePath?: string
@@ -52,7 +52,7 @@ export function createStorybookDocumentationApp(
       capability: "webgpu-diagnostic",
       readiness: {dataset: "storybookDocs", value: "ready"},
       canvas: {id: "storybook-canvas", evidence: "non-black"},
-      routeTree: STORYBOOK_WORKBENCH_STORIES.routeTree,
+      routeTree: STORYBOOK_DOCUMENTATION_CATALOG.routeTree,
     }],
   })
 }

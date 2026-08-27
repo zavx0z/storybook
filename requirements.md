@@ -17,9 +17,10 @@ isolation boundary. Package-owned descriptors остаются в
 ### `STORYBOOK-IMPORT-001` — exact public subpaths
 
 Потребители импортируют только lowercase subpaths `route-tree`, `stories`,
-`workbench`, `references`, `app`, `server`, `build` и `environment`. Package не
-имеет root export, aliases, compatibility wrappers, generated source copies или
-re-exports прежних Storybook packages.
+`catalog`, `workbench`, `references`, `app`, `server`, `build`, `environment`,
+`launcher` и `scaffold`. Package не имеет root export, `dom/*`, aliases,
+compatibility wrappers, generated source copies или re-exports прежних
+Storybook packages.
 
 ## Routing и stories
 
@@ -29,47 +30,56 @@ Overview и каждый prefix route оканчиваются `/`; exact leaf �
 `/`. Неканоническая форма получает `308` на единственный canonical URL.
 Неизвестный suffix завершается `404` и не выбирает representative story.
 
-### `STORYBOOK-STORY-001` — один честный descriptor
+### `STORYBOOK-CATALOG-001` — один честный DOM catalog
 
-Общий owner descriptor связывает eager route metadata и lazy owner module без
-предположений о render target. Owner-supplied `normalizeModule` проверяет
+`@zavx0z/storybook/catalog` связывает eager route metadata и lazy owner module
+без предположений о render target. Owner-supplied `normalizeModule` проверяет
 загруженный модуль до помещения в cache; ошибка loader или проверки допускает
-повтор, а неизвестный route fail-closed. UI-specific `defineStorybookStories`
-добавляет args, controls, `{html, css, typescript}` source и `UiSurface`
-renderer поверх этого общего каталога. V1 не объявляет `play` или
-story-reference lifecycle, пока Workbench их не исполняет.
+повтор, а неизвестный route fail-closed. Representative задаёт только явный
+initial detail и не заменяет owner-owned overview presentation.
+
+### `STORYBOOK-DOM-STORY-001` — story является настоящим DOM-поддеревом
+
+Exact subpath `@zavx0z/storybook/stories` принимает caller-owned
+`@zavx0z/dom` `Document`. Первый render возвращает реальный `Node` этого
+Document, последующие argument updates обязаны изменить и вернуть тот же root
+object. Controller монтирует root в same-document host, сохраняет shallow
+snapshot args и при `dispose()` удаляет только принадлежащий story root.
+
+DOM story не принимает `UiSurface`, числовой frame или callback рисования и не
+импортирует Engine, Layout, Elements или Components. Обычные `title`,
+attributes и `addEventListener()` остаются author-facing API. HTML, CSS и
+TypeScript source возвращаются как три непустых literal документа.
 
 ## Workbench
 
-### `STORYBOOK-WORKBENCH-001` — parent-owned Flex composition
+### `STORYBOOK-DOM-WORKBENCH-001` — стабильный семантический shell
 
-Catalog, section, preview, dock, info и нижний status frame вычисляются одним
-Flex graph по `LAYOUT-SLOT-001` и `LAYOUT-FLEX-001`. Пять рабочих областей
-остаются внутри stage, а status frame резервирует точную высоту
-`@ui/elements/status-bar` и не перекрывает их. Shared package применяет, но не
-копирует Layout ownership, retained и shaped-clipping laws. Preview остаётся
-отдельной consumer-owned Surface; нижняя строка напрямую вызывает exact
-`@ui/elements/status-bar` и не копирует его отрисовку. Canvas-презентация без
-пятизонного Workbench использует тот же `planStorybookStatusBarShell`, чтобы
-зарезервировать content и status sibling frames без overlay.
+`@zavx0z/storybook/workbench` строит в одном переданном Document
+стандартные элементы для catalog nav/search, secondary nav, preview host,
+scenario dock, inspector с одновременными HTML/CSS/TypeScript sections и
+нижнего status. Factory не создаёт второй DOM realm. Его public element
+references стабильны, а keyed navigation/scenario items сохраняют identity при
+изменении подписи, состояния и порядка.
 
-Responsive policy содержит один optional compact breakpoint и список
-скрываемых `catalog | section | dock | info` panels. Preview и status bar не
-скрываются. При отсутствии breakpoint сохраняется desktop geometry UI
-Storybook над общей нижней строкой.
+Все изменения проходят через точные semantic addresses контроллера:
+`catalog.*`, `secondary.*`, `preview.*`, `scenarios.*`, `inspector.*`, `status`
+и `title`. Preview принимает только Node того же Document. `dispose()` снимает
+owned listeners и удаляет только Workbench root.
 
-### `STORYBOOK-PANEL-001` — source, controls и events
+### `STORYBOOK-DOM-WORKBENCH-002` — стандартные events, title, aria и flat CSS
 
-HTML, CSS и TypeScript source одновременно видны через три exact read-only
-`@ui/components/code-editor`. Каждый редактор владеет отдельными selection,
-scroll state и Copy action. V1 изменяет только `boolean` и `select` controls.
-Остальные control kinds обязаны быть явно non-interactive, а не выглядеть
-работающими.
+Navigation и scenarios являются настоящими button elements, search — input
+type=search. Внутреннее состояние реагирует на стандартные `click` и `input`,
+а semantic `storybooknavigate`, `storybooksearch` и `storybookscenario`
+CustomEvents всплывают по обычному DOM event path. Shell применяет `title`,
+`role`, `aria-label`, `aria-current`, `aria-pressed`, `aria-live` и native
+`disabled` reflection, не создавая отдельный tooltip callback API.
 
-Правая область использует exact `@ui/components/inspector`: category `source`
-показывает три collapsible editor sections одновременно, `controls` — ручные
-args controls, `events` — наблюдаемые события. Inspector chrome не объединяет
-retained owners редакторов, controls и events.
+`storybookDomWorkbenchCss` — одна плоская executable CSS string. Она использует
+только свойства начального CPU cascade и не содержит координатного Surface
+drawing. Cascade, layout, display list и WebGPU presentation принадлежат
+renderer pipeline, а не Storybook.
 
 ### `STORYBOOK-REFERENCE-001` — evidence, не acceptance
 
@@ -114,12 +124,12 @@ ready/render barrier и всегда снимается до освобожде�
 
 `create-storybook <@scope/storybook> <directory>` атомарно создаёт private ESM
 package с едиными scripts, typed app, automatic-port server, static build,
-consumer-owned `page`, `stories`, `preview`, `fixtures`, `state`, lazy story и
-focused test внутри shared Workbench. Template хранится только в
-`@zavx0z/storybook`.
+consumer-owned `page`, DOM catalog, fixture, lazy DOM story и focused test
+внутри semantic Workbench. Template хранится только в `@zavx0z/storybook`.
 Generator отказывается изменять существующую директорию и не оставляет
 частичный package при ошибке. Созданный consumer может расширять semantics, но
-не копирует shared router, Workbench, server или lifecycle implementation.
+не копирует shared router, Workbench, renderer, server или lifecycle
+implementation.
 
 ### `STORYBOOK-STATIC-001` — manifest-driven static output
 
@@ -146,9 +156,11 @@ meta URL. Shared package не содержит TTF или reference assets.
 
 ### `STORYBOOK-IDENTITY-001` — one runtime identity
 
-Engine, Layout, Elements и Components являются exact-version peers shared
-package и прямыми dependencies private app. Cold bootstrap фиксирует Git
-revisions и доказывает один realpath/module instance во всех lazy graphs.
+`@zavx0z/dom` и renderer packages являются exact-version peers shared package;
+Engine остаётся владельцем default-font meta и binary. Private app напрямую
+объявляет только дополнительные domain owners, которые реально использует.
+Cold bootstrap фиксирует Git revisions и доказывает один realpath/module
+instance во всех lazy graphs.
 
 ### `STORYBOOK-I18N-001` — русский visible shell
 
@@ -157,16 +169,17 @@ IDs и import specifiers сохраняют точное написание. Hom
 а footer передаётся typed descriptor; изменение HTML строками запрещено. На DOM
 page footer остаётся в потоке документа и не перекрывает content. На canvas
 page server инъецирует те же lead, owner и detail как inert meta, fixed DOM
-footer отсутствует, а shared Workbench показывает пассивную retained StatusBar;
-owner выделяется, но не притворяется ссылкой без hit-контракта UI primitive.
+footer отсутствует, а shared Workbench показывает семантический status footer;
+owner выделяется, но не притворяется ссылкой без обычного DOM hit-контракта.
 
 ### `STORYBOOK-DOCS-001` — self-documenting public contract
 
 Package владеет отдельным private documentation Storybook с identity
-`@zavx0z/storybook` и automatic port. Его единственная страница использует тот
-же five-region WebGPU Workbench с общей retained StatusBar, что и внешние
-consumers. Каждый public subpath представлен обычной typed story с русским
-описанием и exact import example; отдельный DOM docs layout запрещён.
+`@zavx0z/storybook` и automatic port. Его единственная страница использует
+shared semantic DOM Workbench и `createDocumentCanvasRuntime`, то есть тот же
+публичный DOM contour, что и repository consumers. Каждый public subpath
+представлен обычной DOM story с русским описанием и exact import example;
+второй docs layout запрещён.
 Изменение public API, routing, Workbench, server или build одновременно
 обновляет эту story и исполняемый self-example.
 
@@ -174,7 +187,6 @@ consumers. Каждый public subpath представлен обычной typ
 совпадать. Self Storybook использует собственные neutral examples и не
 централизует stories других repositories.
 
-Manual Pages workflow публикует только self documentation artifact. Cold build
-получает Engine, Layout, UI и Highlighter из точных Git revisions, регистрирует
-их прямых package owners, завершает frozen provider installs и только затем
-выполняет frozen install/check общего Storybook.
+Static self-documentation build остаётся локальным evidence artifact. Pages
+workflow отсутствует, пока независимые DOM/renderer owners не имеют immutable
+remote revisions и владелец отдельно не разрешил публикацию.

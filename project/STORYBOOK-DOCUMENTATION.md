@@ -579,8 +579,8 @@ Declaration не должна:
 Текущие реализации:
 
 * [declaration публичных contracts](../app/contracts/examples.ts);
-* [self Storybook registry](../app/workbench/stories.ts);
-* [generic story catalog](../src/stories.ts);
+* [self Storybook catalog](../app/workbench/catalog.ts);
+* [generic DOM catalog](../src/dom/catalog.ts);
 * [действующая архитектура](../ARCHITECTURE.md);
 * [принятые требования](../requirements.md).
 
@@ -723,8 +723,8 @@ revision guard against stale response
 ### Текущий Storybook
 
 * [Explicit documentation declaration](../app/contracts/examples.ts).
-* [Self Storybook route и lazy presentation registry](../app/workbench/stories.ts).
-* [Generic eager-index и lazy-module catalog](../src/stories.ts).
+* [Self Storybook route и lazy presentation catalog](../app/workbench/catalog.ts).
+* [Generic eager-index и lazy-module DOM catalog](../src/dom/catalog.ts).
 * Current baseline commit:
   `928a9efd83ad09a7bf99709ae8af332bf5503eba`.
 

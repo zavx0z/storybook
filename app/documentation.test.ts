@@ -2,7 +2,7 @@ import {describe, expect, test} from "bun:test"
 import {dirname, join, resolve} from "node:path"
 
 import {STORYBOOK_DOCUMENTATION_MODULES} from "./contracts/examples.ts"
-import {STORYBOOK_WORKBENCH_STORIES} from "./workbench/stories.ts"
+import {STORYBOOK_DOCUMENTATION_CATALOG} from "./workbench/catalog.ts"
 
 type StorybookPackageManifest = Readonly<{
   name: string
@@ -44,10 +44,12 @@ describe("@zavx0z/storybook self-documentation boundary", () => {
     expect(exportSubpaths).not.toContain(".")
     expect(exportSubpaths.every((subpath) => /^\.\/[a-z]+(?:-[a-z]+)*$/u.test(subpath))).toBeTrue()
 
-    const exportedIds = exportSubpaths.map((subpath) => subpath.slice(2)).sort()
+    const exportedImports = exportSubpaths.map((subpath) => `@zavx0z/storybook/${subpath.slice(2)}`).sort()
+    const documentedImports = STORYBOOK_DOCUMENTATION_MODULES.map(({importPath}) => importPath)
     const documentedIds = STORYBOOK_DOCUMENTATION_MODULES.map(({id}) => id)
     expect(new Set(documentedIds).size).toBe(documentedIds.length)
-    expect([...documentedIds].sort().join("\n")).toBe(exportedIds.join("\n"))
+    expect(new Set(documentedImports).size).toBe(documentedImports.length)
+    expect([...documentedImports].sort().join("\n")).toBe(exportedImports.join("\n"))
   })
 
   test("shows Russian contract documentation with an exact import example for every module", async () => {
@@ -55,8 +57,8 @@ describe("@zavx0z/storybook self-documentation boundary", () => {
     const acceptedImports = new Set(Object.keys(manifest.exports).map((subpath) => `${manifest.name}/${subpath.slice(2)}`))
 
     for (const module of STORYBOOK_DOCUMENTATION_MODULES) {
-      const exactImportPath = `${manifest.name}/${module.id}`
-      expect(module.importPath === exactImportPath, `${module.id} import path`).toBeTrue()
+      const exactImportPath = module.importPath
+      expect(acceptedImports.has(exactImportPath), `${module.id} import path`).toBeTrue()
       expect(hasRussianText(module.title), `${module.id} title`).toBeTrue()
       expect(hasRussianText(module.summary), `${module.id} summary`).toBeTrue()
       expect(hasRussianText(module.ownership), `${module.id} ownership`).toBeTrue()
@@ -69,10 +71,10 @@ describe("@zavx0z/storybook self-documentation boundary", () => {
       }
     }
 
-    const documentedComponents = [...new Set(STORYBOOK_WORKBENCH_STORIES.index.map(({componentId}) => componentId))]
+    const documentedComponents = [...new Set(STORYBOOK_DOCUMENTATION_CATALOG.index.map(({componentId}) => componentId))]
     expect(documentedComponents).toEqual(STORYBOOK_DOCUMENTATION_MODULES.map(({id}) => id))
     for (const module of STORYBOOK_DOCUMENTATION_MODULES) {
-      expect(STORYBOOK_WORKBENCH_STORIES.find(`${module.id}/contract/overview`)).toBeDefined()
+      expect(STORYBOOK_DOCUMENTATION_CATALOG.find(`${module.id}/contract/overview`)).toBeDefined()
     }
   })
 

@@ -12,8 +12,9 @@ describe("@zavx0z/storybook package boundary", () => {
     }
     expect(manifest.exports).toEqual({
       "./route-tree": "./src/route-tree.ts",
-      "./stories": "./src/stories.ts",
-      "./workbench": "./src/workbench.ts",
+      "./stories": "./src/dom/stories.ts",
+      "./catalog": "./src/dom/catalog.ts",
+      "./workbench": "./src/dom/workbench.ts",
       "./references": "./src/references.ts",
       "./app": "./src/app.ts",
       "./server": "./src/server.ts",
@@ -28,10 +29,7 @@ describe("@zavx0z/storybook package boundary", () => {
       "create-storybook": "./scripts/create-storybook.ts",
     })
     expect(manifest.peerDependencies).toEqual({
-      "@engine/core": "0.0.1",
-      "@layout/core": "0.1.0",
-      "@ui/components": "0.0.1",
-      "@ui/elements": "0.0.1",
+      "@zavx0z/dom": "^0.1.0",
     })
   })
 
@@ -44,6 +42,9 @@ describe("@zavx0z/storybook package boundary", () => {
     }
     const source = sources.join("\n")
     for (const forbidden of [
+      "@layout/core",
+      "@ui/components",
+      "@ui/elements",
       "@ui/storybook",
       "startStorybookServer",
       "deepRoutes",
@@ -54,5 +55,23 @@ describe("@zavx0z/storybook package boundary", () => {
       "Hamiltonian",
       "Bulk",
     ]) expect(source, forbidden).not.toContain(forbidden)
+
+    const manifest = await Bun.file(join(packageRoot, "package.json")).text()
+    for (const forbidden of [
+      '"./dom/',
+      '"@layout/core"',
+      '"@ui/components"',
+      '"@ui/elements"',
+      '"@zavx0z/highlighter"',
+    ]) expect(manifest, forbidden).not.toContain(forbidden)
+
+    for (const legacyPath of [
+      "src/stories.ts",
+      "src/workbench.ts",
+      "src/workbench/layout.ts",
+      "src/workbench/surfaces.ts",
+      "src/workbench/theme.ts",
+      "src/shell-theme.ts",
+    ]) expect(await Bun.file(join(packageRoot, legacyPath)).exists(), legacyPath).toBeFalse()
   })
 })

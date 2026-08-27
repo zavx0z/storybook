@@ -1,19 +1,17 @@
 import {
-  defineStorybookStories,
-  type StorybookStoryIndexItem,
-  type StorybookStoryModule,
-} from "@zavx0z/storybook/stories"
-import type {StorybookNavigationItem} from "@zavx0z/storybook/workbench"
+  defineStorybookDomCatalog,
+  type StorybookDomCatalogIndexItem,
+} from "@zavx0z/storybook/catalog"
+import type {StorybookDomStoryModule} from "@zavx0z/storybook/stories"
 
-export type StoryRoute = "example/overview/default"
-export type PresentationRoute = "" | "example" | "example/overview" | StoryRoute
+export type PackageStory = StorybookDomStoryModule<Record<string, unknown>>
 
-const loadExampleStory = async (): Promise<StorybookStoryModule> => {
+const loadExampleStory = async (): Promise<PackageStory> => {
   const {createExampleStory} = await import("./stories/example.ts")
   return createExampleStory()
 }
 
-export const STORIES = defineStorybookStories({
+export const STORIES = defineStorybookDomCatalog<PackageStory, PackageStory>({
   groups: [{
     id: "package",
     label: "Пакет",
@@ -35,98 +33,22 @@ export const STORIES = defineStorybookStories({
     }],
   }],
   representative: {component: "example", section: "overview", variant: "default"},
+  normalizeModule(route, loaded) {
+    if (
+      typeof loaded !== "object" ||
+      loaded === null ||
+      typeof loaded.render !== "function" ||
+      typeof loaded.source !== "function"
+    ) throw new Error(`Некорректная DOM story __APP_TITLE__: ${route}`)
+    return loaded
+  },
 })
 
-export function presentationRoute(path: string): PresentationRoute {
-  const node = STORIES.routeTree.find(path)
-  if (node === undefined) throw new Error(`Неизвестный путь __APP_TITLE__: ${path}`)
-  return node.path as PresentationRoute
-}
-
-export function storyIndex(route: PresentationRoute): StorybookStoryIndexItem {
-  const story = STORIES.find(route)
-  if (story !== undefined) return story
-  return overviewIndex(route)
-}
-
-export async function loadPresentation(route: PresentationRoute): Promise<StorybookStoryModule> {
-  const story = STORIES.find(route)
-  if (story !== undefined) return STORIES.load(story.route)
-  const {createOverviewStory} = await import("./stories/overview.ts")
-  return createOverviewStory(overviewInput(route))
-}
-
-export function catalogItems(): readonly StorybookNavigationItem<string>[] {
-  const firstByComponent = new Map<string, StorybookStoryIndexItem>()
-  for (const story of STORIES.index) {
-    if (!firstByComponent.has(story.componentId)) firstByComponent.set(story.componentId, story)
-  }
-  return [...firstByComponent.values()].map((story) => ({
-    id: story.componentId,
-    label: story.componentLabel,
-    route: story.componentId,
-    group: {id: story.groupId, label: story.groupLabel, collapsed: false},
-    searchText: `${story.apiName} ${story.tags.join(" ")}`,
-  }))
-}
-
-export function sectionItems(route: PresentationRoute): readonly StorybookNavigationItem<string>[] {
-  const selected = storyIndex(route)
-  const firstBySection = new Map<string, StorybookStoryIndexItem>()
-  for (const story of STORIES.index) {
-    if (story.componentId === selected.componentId && !firstBySection.has(story.sectionId)) {
-      firstBySection.set(story.sectionId, story)
-    }
-  }
-  return [...firstBySection.values()].map((story) => ({
-    id: story.sectionId,
-    label: story.sectionLabel,
-    route: `${story.componentId}/${story.sectionId}`,
-  }))
-}
-
-export function variantItems(route: PresentationRoute): readonly StorybookNavigationItem<StoryRoute>[] {
-  const selected = storyIndex(route)
-  if (selected.componentId.length === 0 || selected.sectionId.length === 0) return []
-  return STORIES.index.filter((story) => (
-    story.componentId === selected.componentId && story.sectionId === selected.sectionId
-  )).map((story) => ({
-    id: story.variantId,
-    label: story.variantLabel,
-    route: story.route as StoryRoute,
-  }))
-}
-
-function overviewInput(route: PresentationRoute): Readonly<{
-  title: string
-  items: readonly Readonly<{label: string; route: string}>[]
-}> {
-  if (route === "") return {title: "__APP_TITLE__ · Обзор", items: catalogItems().map(({label, route}) => ({label, route}))}
-  if (route === "example") {
-    return {title: "Первый пример · Обзор", items: sectionItems(route).map(({label, route}) => ({label, route}))}
-  }
-  return {title: "Обзор · Варианты", items: STORIES.index.map(({variantLabel, route: storyRoute}) => ({
-    label: variantLabel,
-    route: storyRoute,
-  }))}
-}
-
-function overviewIndex(route: PresentationRoute): StorybookStoryIndexItem {
-  const component = route === "" ? "" : "example"
-  const section = route === "example/overview" ? "overview" : ""
-  return Object.freeze({
-    route,
-    groupId: "package",
-    groupLabel: "Пакет",
-    componentId: component,
-    componentLabel: component.length === 0 ? "__APP_TITLE__" : "Первый пример",
-    apiName: "__PACKAGE_NAME__",
-    sectionId: section,
-    sectionLabel: section.length === 0 ? "Обзор" : "Обзор",
-    variantId: "overview",
-    variantLabel: "Обзор",
-    title: route.length === 0 ? "__APP_TITLE__ · Обзор" : "Первый пример · Обзор",
-    tags: Object.freeze(["overview"]),
-    searchText: "__APP_TITLE__ __PACKAGE_NAME__ overview",
-  })
+export function storyContext(route: string): StorybookDomCatalogIndexItem | null {
+  const exact = STORIES.find(route)
+  if (exact !== undefined) return exact
+  const prefix = route.length === 0 ? "" : `${route}/`
+  return STORIES.index.find(({route: leaf}) => (
+    prefix.length === 0 || leaf.startsWith(prefix)
+  )) ?? null
 }

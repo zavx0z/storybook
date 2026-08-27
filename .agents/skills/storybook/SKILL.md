@@ -11,7 +11,7 @@ consumer lifecycle registries, or per-repository copies of this skill.
 
 The package owns its app, pages, stories, preview, fixtures, lab state, static
 output and acceptance. `@zavx0z/storybook` owns the shared router, Workbench,
-server, Blender-backed shell colors, build, package launcher, automatic port
+server, neutral shell fallback, build, package launcher, automatic port
 handshake and scaffold. Consumer CSS may style story content and geometry but
 must not set `html`, `body`, root or canvas shell background colors.
 
@@ -104,9 +104,8 @@ template:
 
 The target must not exist. Never use the generator to update, merge, or adopt
 an existing Storybook. Generated packages include the canonical scripts,
-typed app, automatic-port server, static build, consumer-owned page, stories,
-preview, fixtures, lab state, lazy starter story, shared Workbench and focused
-test.
+typed app, automatic-port server, static build, consumer-owned page, DOM
+catalog, fixture, lazy DOM story, shared semantic Workbench and focused test.
 
 ## Acceptance
 

@@ -25,7 +25,6 @@ import {storybookAppRecoveryIndex, storybookPageRecoveryIndex} from "./internal/
 import {STORYBOOK_STATUS_BAR_META_NAMES} from "./internal/status-bar-environment.ts"
 import {resolveStorybookStaticFiles} from "./internal/static-files.ts"
 import {resolveStorybookRouteTree} from "./route-tree.ts"
-import {STORYBOOK_SHELL_BACKGROUND_CSS} from "./shell-theme.ts"
 import {
   readProcessStart,
   readStorybookPackageManifest,
@@ -33,6 +32,8 @@ import {
   writeStorybookRuntimeRecord,
   type StorybookRuntimeRecord,
 } from "./internal/package-runtime.ts"
+
+const STORYBOOK_SHELL_BACKGROUND_CSS = "#1d1d1d"
 
 export type StorybookPageDiagnostics = Readonly<{
   builds: number

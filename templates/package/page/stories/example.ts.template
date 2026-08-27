@@ -1,75 +1,69 @@
-import {CodeEditor} from "@ui/components/code-editor"
-import {Typography} from "@ui/components/typography"
-import {defineStorybookStoryModule} from "@zavx0z/storybook/stories"
+import {
+  type HTMLElement,
+  type Text,
+} from "@zavx0z/dom"
+import {
+  defineStorybookDomStory,
+  type StorybookDomStoryModule,
+} from "@zavx0z/storybook/stories"
 import {EXAMPLE_FIXTURE} from "../fixtures/example.ts"
 
-export function createExampleStory() {
-  return defineStorybookStoryModule({
-    defaultArgs: {"show-values": true},
-    controls: [{
-      key: "show-values",
-      label: "Показывать values",
-      group: "Пример",
-      kind: "boolean",
-    }],
-    render(surface, args, frame) {
-      const inset = 18
-      Typography(surface, frame.x + inset, frame.y + 52, Math.max(1, frame.w - inset * 2), 28, {
-        children: EXAMPLE_FIXTURE.message,
-        variant: "subtitle",
-      })
-      CodeEditor(
-        surface,
-        frame.x + inset,
-        frame.y + 88,
-        Math.max(1, frame.w - inset * 2),
-        Math.max(1, frame.h - 106),
-        {
-          key: "starter-fixture",
-          value: JSON.stringify({
-            packageName: EXAMPLE_FIXTURE.packageName,
-            ...(args["show-values"] === true ? {values: EXAMPLE_FIXTURE.values} : {}),
-          }, null, 2),
-          readOnly: true,
-          languageId: "json",
-          showLineNumbers: true,
-        },
-      )
+type ExampleArgs = Record<string, unknown> & Readonly<{
+  showValues: boolean
+}>
+
+type ExamplePresentation = Readonly<{
+  root: HTMLElement
+  heading: Text
+  data: Text
+}>
+
+export function createExampleStory(): StorybookDomStoryModule<ExampleArgs> {
+  let presentation: ExamplePresentation | null = null
+  return defineStorybookDomStory({
+    defaultArgs: {showValues: true},
+    render(document, args, current) {
+      if (presentation === null) {
+        const root = document.createElement("article")
+        const headingElement = document.createElement("h2")
+        const heading = document.createTextNode("")
+        const dataElement = document.createElement("pre")
+        const data = document.createTextNode("")
+        root.className = "fixture"
+        headingElement.className = "fixture__message"
+        dataElement.className = "fixture__data"
+        headingElement.appendChild(heading)
+        dataElement.appendChild(data)
+        root.append(headingElement, dataElement)
+        presentation = Object.freeze({root, heading, data})
+      }
+      if (current !== null && current !== presentation.root) {
+        throw new Error("Example story received another root")
+      }
+      presentation.heading.data = EXAMPLE_FIXTURE.message
+      presentation.data.data = JSON.stringify({
+        packageName: EXAMPLE_FIXTURE.packageName,
+        ...(args.showValues ? {values: EXAMPLE_FIXTURE.values} : {}),
+      }, null, 2)
+      return presentation.root
     },
     source(args) {
-      return {
-        html: `<article class="fixture"${args["show-values"] === true ? ` data-values="${EXAMPLE_FIXTURE.values.join(",")}"` : ""}>
+      return Object.freeze({
+        html: `<article class="fixture"${args.showValues ? ` data-values="${EXAMPLE_FIXTURE.values.join(",")}"` : ""}>
   <h2 class="fixture__message">${EXAMPLE_FIXTURE.message}</h2>
   <pre class="fixture__data"></pre>
 </article>`,
-        css: `.fixture {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: 100%;
-  gap: 12px;
-  padding: 18px;
-  border: 1px solid #1a1a1a;
-  border-radius: 6px;
-  color: #e8e8e8;
-  background: #303030;
-}
-
-.fixture__message {
-  margin: 0;
-  font-size: 16px;
-  line-height: 28px;
-}
-
-.fixture__data {
-  flex: 1 1 auto;
-  margin: 0;
-  overflow: auto;
-}`,
+        css: exampleCss,
         typescript: `import {EXAMPLE_FIXTURE} from "./fixtures/example.ts"
 
-const visible = ${args["show-values"] === true ? "EXAMPLE_FIXTURE.values" : "EXAMPLE_FIXTURE.message"}`,
-      }
+const visible = ${args.showValues ? "EXAMPLE_FIXTURE.values" : "EXAMPLE_FIXTURE.message"}`,
+      })
     },
   })
 }
+
+const exampleCss = `
+.fixture { display: flex; flex-direction: column; width: 100%; height: 100%; gap: 12px; padding: 18px; border: 1px solid #1a1a1a; border-radius: 6px; color: #e8e8e8; background: #303030; }
+.fixture__message { display: block; font-size: 16px; line-height: 28px; }
+.fixture__data { display: block; flex: 1 1 0; overflow: auto; color: #d0d0d0; white-space: pre; }
+`.trim()

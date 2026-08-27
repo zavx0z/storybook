@@ -5,8 +5,8 @@
 - The canonical primary checkout is
   `/Users/zavx0z/repozitarium/storybook`.
 - Related canonical checkouts are
+  `/Users/zavx0z/repozitarium/renderer`,
   `/Users/zavx0z/repozitarium/webxr-space/projects/engine`,
-  `/Users/zavx0z/repozitarium/webxr-space/projects/layout`,
   `/Users/zavx0z/repozitarium/webxr-space/projects/ui`,
   `/Users/zavx0z/repozitarium/webxr-space/projects/node`, and
   `/Users/zavx0z/repozitarium/metafor`.
@@ -30,8 +30,10 @@
   private development applications or explicit dev-only boundaries.
 - Import exact owners directly. Do not add compatibility aliases, `paths`,
   wrappers, root barrels, generated copies, or compatibility re-exports.
-- Preserve one resolved identity for Engine, Layout, UI, and other linked
-  packages in every browser bundle.
+- Preserve one resolved identity for `@zavx0z/dom`, `@zavx0z/renderer`,
+  `@zavx0z/renderer-webgpu`, `@engine/core`, UI, and every other linked package
+  in each browser bundle. Generic Layout and `@ui/elements` are retired and
+  must not be reintroduced as preview owners or compatibility paths.
 - This repository owns its own documentation Storybook. Every public contract,
   visible shared behavior, route rule, or example change updates the matching
   self-documentation page and executable example in the same slice. A change is
@@ -42,7 +44,7 @@
 - One private self Storybook is addressed only as `@zavx0z/storybook` through
   the shared `$storybook` skill. Its package script uses an OS-allocated port;
   agents never encode or select that port. It documents this package and does
-  not compose stories owned by UI, Node, Engine, Layout, or MetaFor.
+  not compose stories owned by UI, Node, Engine, Renderer, or MetaFor.
 - The root page is the same five-region WebGPU Workbench supplied to consumers.
   Every public subpath is a normal typed story in its catalog; live examples
   are variants inside that same route tree. Do not create a second DOM docs

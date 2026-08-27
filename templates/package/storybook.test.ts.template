@@ -1,20 +1,23 @@
 import {describe, expect, test} from "bun:test"
+import {createDocument, Node} from "@zavx0z/dom"
 import {createStorybookApp} from "./app.ts"
-import {STORIES, loadPresentation, presentationRoute} from "./page/stories.ts"
+import {STORIES, storyContext} from "./page/stories.ts"
 
 describe("__PACKAGE_NAME__ scaffold", () => {
-  test("owns one typed Workbench page and one lazy starter story", async () => {
+  test("owns one typed DOM Workbench page and one lazy starter story", async () => {
     const app = createStorybookApp()
     expect(app.id).toBe("__APP_ID__")
     expect(app.pages).toHaveLength(1)
     expect(app.pages[0]?.routeTree).toBe(STORIES.routeTree)
     expect(STORIES.routeTree.leaves).toEqual(["example/overview/default"])
-    expect(presentationRoute("")).toBe("")
-    const overview = (await loadPresentation("")).source({})
-    expect(overview.html).toContain('class="overview"')
-    expect(overview.css).toContain(".overview__items")
-    expect(overview.typescript).toContain("export const items")
+    expect(storyContext("")?.componentId).toBe("example")
+    expect(storyContext("example/overview")?.sectionId).toBe("overview")
+
     const story = await STORIES.load("example/overview/default")
+    const document = createDocument()
+    const root = story.render(document, story.defaultArgs, null)
+    expect(root).toBeInstanceOf(Node)
+    expect(story.render(document, story.defaultArgs, root)).toBe(root)
     const source = story.source(story.defaultArgs)
     expect(source.html).toContain('class="fixture"')
     expect(source.css).toContain(".fixture__data")
@@ -23,8 +26,11 @@ describe("__PACKAGE_NAME__ scaffold", () => {
 
   test("uses an automatic-port package server without consumer port knowledge", async () => {
     const source = await Bun.file(new URL("./server.ts", import.meta.url)).text()
+    const entry = await Bun.file(new URL("./page/entry.ts", import.meta.url)).text()
     expect(source).toContain("startStorybookPackageServer")
     expect(source).not.toContain("port:")
     expect(source).not.toMatch(/_STORYBOOK_PORT/u)
+    expect(entry).toContain("createDocumentCanvasRuntime")
+    expect(entry).not.toMatch(/UiRuntime|UiSurface|@layout\/core|@ui\/elements|@ui\/components/)
   })
 })

@@ -15,6 +15,7 @@
 export const STORYBOOK_DOCUMENTATION_MODULE_IDS = [
   "route-tree",
   "stories",
+  "catalog",
   "workbench",
   "references",
   "app",
@@ -91,34 +92,64 @@ const result = resolveStorybookRouteTree(
     id: "stories",
     category: "catalog",
     importPath: "@zavx0z/storybook/stories",
-    title: "Описания stories",
-    summary: "Строит лёгкий каталог для любого способа показа и загружает код примера только после открытия точного адреса.",
-    ownership: "Владелец хранит stories и отдельные overview-модули рядом со своим пакетом и сам проверяет загруженный модуль. Общий каталог отвечает за адреса, кэш и повтор после ошибки; representative задаёт только явный начальный detail и не подменяет overview.",
+    title: "DOM-истории",
+    summary: "Монтирует story как настоящий Node в единственном переданном Document и обновляет тот же объект при изменении аргументов.",
+    ownership: "Story владеет семантическими HTML-элементами и обычными обработчиками событий. Shared controller проверяет один DOM realm, стабильность корня и точечное удаление при dispose; Engine, Layout и UI Elements в этот контракт не входят.",
     laws: Object.freeze([
-      "Metadata остаётся eager, production implementation загружается только для выбранной presentation.",
-      "Overview владеет собственным aggregate module и не подставляет первый detail.",
-      "Каждая UI story возвращает три независимых literal source документа: HTML, CSS и TypeScript.",
-      "Отклонённая lazy-загрузка не отравляет кэш и может быть повторена.",
+      "Первый render возвращает реальный Node из переданного @zavx0z/dom Document.",
+      "Следующие render-вызовы обновляют тот же root Node и не заменяют его.",
+      "Controller удаляет только принадлежащий ему story root и не очищает соседей preview host.",
+      "Source остаётся тремя literal документами HTML, CSS и TypeScript.",
     ]),
-    example: `import {defineStorybookStoryCatalog} from "@zavx0z/storybook/stories"
+    example: `import {
+  defineStorybookDomStory,
+  mountStorybookDomStory,
+} from "@zavx0z/storybook/stories"
 
-type OwnerStory = Readonly<{
-  present(): void
-}>
-
-export const OWNER_STORIES = defineStorybookStoryCatalog<unknown, OwnerStory>({
-  representative: {
-    component: "scene",
-    section: "basic",
-    variant: "default",
+const outputStory = defineStorybookDomStory({
+  defaultArgs: {label: "Output"},
+  render(document, args, current) {
+    const button = current ?? document.createElement("button")
+    button.textContent = args.label
+    button.title = "Открыть Output"
+    return button
   },
+  source: () => ({
+    html: "<button title=\"Открыть Output\">Output</button>",
+    css: "button { background: #3f5f84; }",
+    typescript: "button.addEventListener(\"click\", openOutput)",
+  }),
+})
+
+const mounted = mountStorybookDomStory({
+  document,
+  host: previewHost,
+  story: outputStory,
+})`,
+  }),
+  Object.freeze({
+    id: "catalog",
+    category: "catalog",
+    importPath: "@zavx0z/storybook/catalog",
+    title: "DOM-каталог",
+    summary: "Строит target-neutral pathname hierarchy и exact lazy cache без зависимости от retained Surface types.",
+    ownership: "Repository owner задаёт группы, компоненты, sections, variants и проверяет загруженный модуль. Shared leaf владеет только metadata, route tree, retryable cache и точным representative id.",
+    laws: Object.freeze([
+      "Overview и exact leaf выводятся из одной eager metadata hierarchy.",
+      "Загрузка выполняется только для запрошенного exact route и кэширует один pending Promise.",
+      "Unknown route и malformed hierarchy fail closed до owner implementation.",
+      "Контракт не импортирует Engine, Layout, Elements, Components или render target.",
+    ]),
+    example: `import {defineStorybookDomCatalog} from "@zavx0z/storybook/catalog"
+
+const catalog = defineStorybookDomCatalog({
   groups: [{
     id: "examples",
     label: "Примеры",
     components: [{
       id: "scene",
       label: "Сцена",
-      apiName: "SceneExample",
+      apiName: "Scene",
       sections: [{
         id: "basic",
         label: "Основное",
@@ -126,49 +157,51 @@ export const OWNER_STORIES = defineStorybookStoryCatalog<unknown, OwnerStory>({
           id: "default",
           label: "Обычная",
           title: "Обычная сцена",
-          load: async () => import("./stories/scene.ts"),
+          load: () => import("./scene.ts"),
         }],
       }],
     }],
   }],
-  normalizeModule(route, loaded): OwnerStory {
-    if (loaded === null || typeof loaded !== "object" || !("present" in loaded)) {
-      throw new Error(\`Некорректная owner story: \${route}\`)
-    }
-    return loaded as OwnerStory
-  },
+  representative: {component: "scene", section: "basic", variant: "default"},
+  normalizeModule: (_route, loaded) => loaded,
 })`,
   }),
   Object.freeze({
     id: "workbench",
     category: "presentation",
     importPath: "@zavx0z/storybook/workbench",
-    title: "Рабочее окно",
-    summary: "Раскладывает пять рабочих областей и общую нижнюю строку состояния в одном окне.",
-    ownership: "Общий пакет считает рамки пяти рабочих областей и отдельной StatusBar, затем напрямую использует @ui/elements/status-bar. Репозиторий передаёт свою область примера, source документы, manifest-текст нижней строки и сам решает, какие панели скрывать на узком экране.",
+    title: "DOM Workbench · Рабочее окно",
+    summary: "Создаёт стабильное HTML DOM-окно каталога, навигации, preview, scenarios, исходного кода и status без числового рисования Surface.",
+    ownership: "Shared package владеет только семантическим shell, flat CSS и адресами обновления. Один caller-owned Document остаётся владельцем всех Node; CPU renderer и WebGPU backend читают это дерево ниже по конвейеру.",
     laws: Object.freeze([
-      "Один document содержит один canvas, UiRuntime, Router, пятизонный Workbench и нижнюю retained StatusBar.",
-      "Главная панель показывает disclosure groups и category rows; соседняя — semantic items; dock — scenarios.",
-      "Inspector categories разделяют source, controls и events; source одновременно содержит HTML, CSS и TypeScript sections.",
-      "Правая панель одновременно сохраняет HTML, CSS и TypeScript selection/scroll state и не смешивает copy actions.",
-      "Preview остаётся consumer-owned и получает content frame ниже общего chrome.",
-      "StatusBar получает отдельный нижний Flex frame и не перекрывает рабочие области.",
-      "Одноэкранная canvas-презентация резервирует ту же строку через planStorybookStatusBarShell.",
+      "Catalog, secondary navigation, preview host, scenario dock, source inspector и status создаются один раз.",
+      "Обновления используют точные semantic addresses и сохраняют shell и keyed item identity.",
+      "title, aria, click, input и bubbling CustomEvent используют стандартный DOM API.",
+      "Экспортируемая CSS-строка содержит только плоские исполняемые правила без target-specific drawing.",
     ]),
     example: `import {
-  StorybookStatusBarSurface,
-  planStorybookShell,
+  createStorybookDomWorkbench,
+  storybookDomWorkbenchCss,
 } from "@zavx0z/storybook/workbench"
 
-const frames = planStorybookShell(1440, 900, {
-  responsive: {
-    compactBelow: null,
-    compactPanels: [],
-  },
+const workbench = createStorybookDomWorkbench({
+  document,
+  parent: document,
 })
 
-runtime.addSurface(previewSurface, () => frames.preview)
-runtime.addSurface(new StorybookStatusBarSurface(), () => frames.status)`,
+workbench.update("catalog.items", [{
+  id: "button",
+  label: "Кнопка",
+  route: "components/button",
+}])
+workbench.update("preview.node", buttonStoryRoot)
+
+const renderer = createDocumentRenderer({
+  document,
+  root: workbench.element,
+  viewport,
+  styleSheets: [storybookDomWorkbenchCss],
+})`,
   }),
   Object.freeze({
     id: "references",
@@ -215,7 +248,7 @@ const comparison = planStorybookComparison({
     category: "runtime",
     importPath: "@zavx0z/storybook/app",
     title: "Описание Storybook-приложения",
-    summary: "Собирает страницы, адреса, шрифт, structured footer text и признаки готовности. DOM-страница показывает footer в потоке, canvas Workbench — retained StatusBar.",
+    summary: "Собирает страницы, адреса, шрифт, structured footer text и признаки готовности. DOM-страница показывает footer в потоке, canvas Workbench — семантический status footer.",
     ownership: "Каждый repository создаёт свой manifest. Shared package его проверяет, но не добавляет чужие страницы.",
     laws: Object.freeze([
       "Канонический repository Storybook описывает один root Workbench page и свой полный route tree.",
@@ -259,7 +292,7 @@ export const app = defineStorybookApp({
     category: "development",
     importPath: "@zavx0z/storybook/server",
     title: "Локальный сервер",
-    summary: "Запускает один адрес для всех страниц, применяет общий Blender-backed shell fallback и сообщает launcher точный automatic-port runtime.",
+    summary: "Запускает один адрес для всех страниц, применяет общий нейтральный shell fallback и сообщает launcher точный automatic-port runtime.",
     ownership: "Package владеет app manifest, процессом и content CSS. Shared server владеет shell background, поэтому package pages не задают html/body fallback colors.",
     laws: Object.freeze([
       "Server запускается без HMR и публикует runtime handshake с фактическим origin.",
@@ -301,11 +334,12 @@ console.log(running.runtime.origin)`,
     category: "development",
     importPath: "@zavx0z/storybook/scaffold",
     title: "Создание Storybook package",
-    summary: "Атомарно создаёт один канонический package с app, server, build, Workbench, stories, preview, fixture и lab state.",
+    summary: "Атомарно создаёт один канонический package с app, server, build, semantic DOM Workbench, lazy DOM catalog и fixture.",
     ownership: "Shared package владеет составом стартового шаблона. Новый package сразу становится semantic owner с точным именем; существующая директория никогда не дописывается и не перезаписывается.",
     laws: Object.freeze([
       "Generator создаёт пакет атомарно и отказывается от существующей target directory.",
-      "Шаблон сразу содержит disclosure navigation, owner-authored overviews и lazy detail story.",
+      "Шаблон сразу содержит один @zavx0z/dom Document, owner-authored overviews и lazy detail story.",
+      "Canvas runtime использует общий CPU CSS/layout/display/hit pipeline и WebGPU adapter без UiSurface.",
       "Adoption существующего Storybook является миграцией, а не повторным scaffold.",
     ]),
     example: `import {createStorybookPackage} from "@zavx0z/storybook/scaffold"

@@ -6,32 +6,24 @@
       "name": "@zavx0z/storybook",
       "devDependencies": {
         "@engine/core": "link:@engine/core",
-        "@layout/core": "link:@layout/core",
         "@types/bun": "^1.4.0",
-        "@ui/components": "link:@ui/components",
-        "@ui/elements": "link:@ui/elements",
         "@webgpu/types": "^0.1.68",
-        "@zavx0z/highlighter": "link:@zavx0z/highlighter",
+        "@zavx0z/dom": "link:@zavx0z/dom",
+        "@zavx0z/renderer": "link:@zavx0z/renderer",
+        "@zavx0z/renderer-browser": "link:@zavx0z/renderer-browser",
+        "@zavx0z/renderer-webgpu": "link:@zavx0z/renderer-webgpu",
         "typescript": "^7.0.2",
       },
       "peerDependencies": {
-        "@engine/core": "0.0.1",
-        "@layout/core": "0.1.0",
-        "@ui/components": "0.0.1",
-        "@ui/elements": "0.0.1",
+        "@zavx0z/dom": "^0.1.0",
       },
       "optionalPeers": [
-        "@engine/core",
-        "@layout/core",
-        "@ui/components",
-        "@ui/elements",
+        "@zavx0z/dom",
       ],
     },
   },
   "packages": {
     "@engine/core": ["@engine/core@link:@engine/core", {}],
-
-    "@layout/core": ["@layout/core@link:@layout/core", {}],
 
     "@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
 
@@ -77,13 +69,15 @@
 
     "@typescript/typescript-win32-x64": ["@typescript/typescript-win32-x64@7.0.2", "", { "os": "win32", "cpu": "x64" }, "sha512-0BQ3HkAHHlKLSp1qRvf3SUhGpGsDuhB/jgFw75guyqbxJqEaS0Cw/VFO8i2nHglJUzQCRtMMR/IBAKE3ETMC4g=="],
 
-    "@ui/components": ["@ui/components@link:@ui/components", {}],
-
-    "@ui/elements": ["@ui/elements@link:@ui/elements", {}],
-
     "@webgpu/types": ["@webgpu/types@0.1.72", "", {}, "sha512-0cF7RFM2edNoiIS1ODJp0/Gzv4/xSXhwoR0YCza+OWpJWtn4wmo9DvK91aLlH9+uUnwIriP7ZiC3WitmyhuzBw=="],
 
-    "@zavx0z/highlighter": ["@zavx0z/highlighter@link:@zavx0z/highlighter", {}],
+    "@zavx0z/dom": ["@zavx0z/dom@link:@zavx0z/dom", {}],
+
+    "@zavx0z/renderer": ["@zavx0z/renderer@link:@zavx0z/renderer", {}],
+
+    "@zavx0z/renderer-browser": ["@zavx0z/renderer-browser@link:@zavx0z/renderer-browser", {}],
+
+    "@zavx0z/renderer-webgpu": ["@zavx0z/renderer-webgpu@link:@zavx0z/renderer-webgpu", {}],
 
     "bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
 

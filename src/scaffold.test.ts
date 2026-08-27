@@ -16,7 +16,7 @@ afterEach(async () => {
 })
 
 describe("create-storybook canonical package scaffold", () => {
-  test("creates the exact package, Workbench, stories, fixture and lab-state composition", async () => {
+  test("creates the exact DOM Workbench, catalog, story and fixture composition", async () => {
     const parent = await temporaryRoot()
     const target = join(parent, "quantum-storybook")
     const created = await createStorybookPackage({
@@ -52,32 +52,36 @@ describe("create-storybook canonical package scaffold", () => {
     expect(page).toContain('dataset: "quantumStorybook"')
     expect(page).toContain('canvasId: "quantum-storybook-canvas"')
     const stories = await Bun.file(join(target, "page/stories.ts")).text()
-    expect(stories).toContain("loadPresentation")
-    expect(stories).toContain("return node.path as PresentationRoute")
-    expect(stories).not.toContain("routeTree.leaves.find")
+    expect(stories).toContain("defineStorybookDomCatalog")
+    expect(stories).toContain('from "@zavx0z/storybook/catalog"')
+    expect(stories).toContain('from "@zavx0z/storybook/stories"')
+    expect(stories).toContain("loadExampleStory")
+    expect(stories).toContain("storyContext")
+    expect(stories).not.toContain("@zavx0z/storybook/dom/")
     const entry = await Bun.file(join(target, "page/entry.ts")).text()
-    expect(entry).toContain("source: state.source")
-    expect(entry).toContain("category: state.panelCategory")
-    expect(entry).toContain("onCategoryChange(category)")
+    expect(entry).toContain("createDocument()")
+    expect(entry).toContain("createStorybookDomWorkbench")
+    expect(entry).toContain("createDocumentCanvasRuntime")
+    expect(entry).toContain('from "@zavx0z/storybook/workbench"')
     expect(entry).toContain("StorybookHtml = source.html")
     expect(entry).toContain("StorybookCss = source.css")
     expect(entry).toContain("StorybookTypescript = source.typescript")
-    expect(entry).toContain("new StorybookStatusBarSurface()")
-    expect(entry).toContain("frames(w, h).status")
-    const labState = await Bun.file(join(target, "page/state/lab-state.ts")).text()
-    expect(labState).toContain('StorybookStoryPanelCategory = "source"')
-    expect(labState).toContain("get source(): StorybookStorySource")
+    expect(entry).toContain("waitForStorybookFrameBoundary")
+    expect(entry).not.toMatch(/UiRuntime|UiSurface|@layout\/core|@ui\/elements|@ui\/components/)
+    expect(entry).not.toContain("@zavx0z/storybook/dom/")
     expect(await Bun.file(join(target, "page/style.css")).text()).not.toContain("background")
     for (const path of [
       "page/entry.ts",
       "page/page.ts",
       "page/stories.ts",
-      "page/preview.ts",
       "page/fixtures/example.ts",
-      "page/state/lab-state.ts",
       "page/stories/example.ts",
-      "page/stories/overview.ts",
     ]) expect(await Bun.file(join(target, path)).exists(), path).toBeTrue()
+    for (const path of [
+      "page/preview.ts",
+      "page/state/lab-state.ts",
+      "page/stories/overview.ts",
+    ]) expect(await Bun.file(join(target, path)).exists(), path).toBeFalse()
 
     expect((await validateStorybookPackageScaffold(target, "@quantum/storybook")).files)
       .toEqual(STORYBOOK_PACKAGE_TEMPLATE_PATHS)

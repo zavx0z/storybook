@@ -11,6 +11,48 @@ subpaths and has no root export.
 
 The accepted laws are in [requirements.md](requirements.md).
 
+## DOM-native foundation
+
+Storybook использует один настоящий `@zavx0z/dom` `Document` для
+самого примера и общего Storybook shell:
+
+```ts
+import {createDocument} from "@zavx0z/dom"
+import {defineStorybookDomStory} from "@zavx0z/storybook/stories"
+import {
+  createStorybookDomWorkbench,
+  storybookDomWorkbenchCss,
+} from "@zavx0z/storybook/workbench"
+
+const document = createDocument()
+const workbench = createStorybookDomWorkbench({document, parent: document})
+
+const story = defineStorybookDomStory({
+  defaultArgs: {label: "Output"},
+  render(document, args, current) {
+    const button = current ?? document.createElement("button")
+    button.textContent = args.label
+    button.title = "Открыть Output"
+    return button
+  },
+  source: () => ({
+    html: "<button title=\"Открыть Output\">Output</button>",
+    css: "button { background: #3f5f84; }",
+    typescript: "button.addEventListener(\"click\", openOutput)",
+  }),
+})
+
+workbench.update("catalog.items", [{
+  id: "button",
+  label: "Кнопка",
+  route: "components/button",
+}])
+```
+
+`storybookDomWorkbenchCss` передаётся CPU renderer как обычная flat CSS string.
+Exports `stories`, `catalog` и `workbench` не знают Engine, Layout, Elements,
+numeric surfaces или WebGPU; эти стадии находятся ниже semantic boundary.
+
 ## Self documentation
 
 This repository dogfoods the package through its own Russian documentation
@@ -18,11 +60,11 @@ Storybook:
 
 Use `$storybook ensure @zavx0z/storybook` and open the reported automatic
 origin.
-The root is the real five-region WebGPU Workbench with the shared retained
-StatusBar below it: every public subpath is a normal story in its catalog, with
-the explanation in preview and the exact HTML, CSS and TypeScript documents in
-three source editors. Public changes must update that story and all three
-documents in the same change.
+The root is the semantic DOM Workbench rendered by the production
+CPU/WebGPU document pipeline: every public subpath is a normal DOM story in its
+catalog, with the explanation in preview and exact HTML, CSS and TypeScript
+documents in the inspector. Public changes must update that story and all
+three documents in the same change.
 
 ```bash
 bun run check
@@ -60,6 +102,6 @@ bun scripts/create-storybook.ts @quantum/storybook ../metafor/quantum/storybook
 The generator refuses an existing target. Adoption of an existing Storybook is
 a migration, never a scaffold overwrite.
 
-The manual Pages workflow registers exact Engine, Layout, UI, Highlighter, and
-self package owners, completes their frozen bootstrap, and publishes only this
-repository's documentation.
+Static output remains a local evidence artifact. Pages delivery is
+intentionally absent until every independent DOM/renderer owner has an
+immutable remote revision and the owner separately authorizes publication.

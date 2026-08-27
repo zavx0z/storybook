@@ -3,28 +3,29 @@
 Пакет находится только в development graph:
 
 ```text
-@engine/core ─┐
-@layout/core ─┼─> @zavx0z/storybook <─ repository Storybook app
-@ui/elements ─┤                          └─ package-owned descriptors
-@ui/components┘
+repository-owned DOM stories ─> @zavx0z/storybook
+                                     ├─ semantic Workbench
+                                     ├─ routing / server / static build
+                                     └─ lifecycle helpers
+
+@zavx0z/dom -> CPU renderer -> renderer-webgpu -> @engine/core
 ```
 
-Engine, Layout и UI остаются владельцами production mechanics. Shared package
-собирает из них neutral Workbench, routing, server и static delivery, не
-перенося к себе story semantics.
+Shared package владеет target-neutral Storybook mechanics и не переносит к себе
+repository story semantics. Его собственное приложение является обычным
+consumer нового DOM/renderer pipeline.
 
 ## Application flow
 
 1. Repository app объявляет pages, mounts, capabilities, readiness, visible
    shell strings и owner asset paths.
-2. Каждая package page передаёт собственный typed route tree и lazy story
-   registry. Общий registry знает только eager metadata и вызывает owner-owned
-   `normalizeModule`; UI Workbench использует совместимую обёртку с `UiSurface`
-   и Blender-like Inspector categories для source, controls и events.
+2. Каждая package page передаёт собственный typed route tree и lazy DOM story
+   registry. Общий catalog знает только eager metadata и вызывает owner-owned
+   `normalizeModule`; semantic Workbench принимает реальные Node того же
+   `@zavx0z/dom` Document.
 3. Dev server собирает browser entry один раз по запросу и кэширует его до
-   owner-controlled restart. Для canvas page он инъецирует owner-supplied
-   status text, а shared Workbench отображает его через exact
-   `@ui/elements/status-bar` без отдельного DOM overlay.
+   owner-controlled restart. Canvas page сама соединяет DOM Workbench с
+   `createDocumentCanvasRuntime`; shared server не рисует UI.
 4. Static builder независимо собирает каждую page, вычисляет asset digests и
    пишет один revisioned manifest.
 5. Общий `$storybook` выбирает exact package process и browser target по
@@ -37,18 +38,50 @@ Engine, Layout и UI остаются владельцами production mechanic
 Public package root намеренно пуст. Каждый contract импортируется через
 точный lowercase subpath, соответствующий одному owner-neutral понятию.
 
-## Self documentation application
+## DOM-native presentation flow
 
-Package-owned app `@zavx0z/storybook` на automatic port использует один и тот
-же WebGPU Workbench для документации и живых примеров:
+Production-facing authoring contract использует стандартное DOM-дерево:
 
 ```text
-one Workbench route tree
+one @zavx0z/dom Document
+   ├─> owner DOM story (stable Node)
+   └─> semantic Workbench shell
+          ├─ catalog nav + search
+          ├─ secondary nav
+          ├─ preview host
+          ├─ scenario dock
+          ├─ source inspector
+          └─ status
+                 │
+                 v
+flat CSS -> CPU renderer -> display list / hit tree -> WebGPU backend
+```
+
+`@zavx0z/storybook/stories`, `@zavx0z/storybook/catalog` и
+`@zavx0z/storybook/workbench` имеют один required runtime peer — `@zavx0z/dom`.
+Они не импортируют Engine, Layout, Elements или Components.
+Document и реальные Node являются всей semantic boundary; title, aria,
+attributes и events используют стандартные имена и наследование DOM.
+
+Workbench создаёт структуру один раз. Контроллер изменяет содержимое по точным
+semantic addresses и сохраняет shell/keyed-child identity. Renderer ниже по
+конвейеру подписывается на mutation batches этого же Document, вычисляет CSS и
+layout на CPU, а WebGPU backend проецирует display list. Storybook не владеет
+ни одним из этих rendering stages.
+
+## Self documentation application
+
+Package-owned app `@zavx0z/storybook` на automatic port использует один
+semantic DOM Workbench для документации и живых примеров:
+
+```text
+one @zavx0z/dom Document
+   └─ one Workbench route tree
    ├─> public module stories   Russian preview + HTML/CSS/TypeScript source
-   └─> live example variants  real @ui components
+   └─> live example variants  standard HTML elements
 ```
 
 Typed documentation registry является единственным списком документируемых
-модулей. Он преобразуется в обычный shared story registry; focused test
+модулей. Он преобразуется в DOM catalog; focused test
 сравнивает его с `package.json#exports`, поэтому новый API не может пройти
 repository check без своей story.

@@ -1,174 +1,279 @@
-import {UiRuntime} from "@layout/core/runtime"
+import {loadDocumentDefaultFont} from "@engine/core/default-font"
 import {
-  StorybookBackdropSurface,
-  StorybookDockSurface,
-  StorybookNavigationSurface,
-  StorybookStatusBarSurface,
-  StorybookStoryPanelSurface,
-  planStorybookShell,
-  type StorybookStoryPanelOptions,
+  CustomEvent as DomCustomEvent,
+  createDocument,
+  type Document,
+  type HTMLElement,
+  type Text,
+} from "@zavx0z/dom"
+import {createDocumentCanvasRuntime} from "@zavx0z/renderer-browser"
+import type {StorybookDomCatalogIndexItem} from "@zavx0z/storybook/catalog"
+import type {
+  StorybookDomStoryArgs,
+  StorybookDomStoryModule,
+  StorybookDomStorySource,
+} from "@zavx0z/storybook/stories"
+import {
+  STORYBOOK_DOM_WORKBENCH_EVENTS,
+  createStorybookDomWorkbench,
+  storybookDomWorkbenchCss,
+  type StorybookDomNavigationItem,
+  type StorybookDomScenarioItem,
 } from "@zavx0z/storybook/workbench"
+import {
+  storybookPublicPath,
+  waitForStorybookFrameBoundary,
+} from "@zavx0z/storybook/environment"
 import {
   StorybookRouteTreeRouter,
   type StorybookRouteTreeNode,
 } from "@zavx0z/storybook/route-tree"
-import {storybookPublicPath} from "@zavx0z/storybook/environment"
-import {StoryPreviewSurface} from "./preview.ts"
-import {
-  STORIES,
-  catalogItems,
-  presentationRoute,
-  sectionItems,
-  variantItems,
-} from "./stories.ts"
-import {StorybookLabState} from "./state/lab-state.ts"
+import {STORIES, storyContext} from "./stories.ts"
 
-const MOUNT_PATH = storybookPublicPath("__APP_ID__", "/")
+const MOUNT = storybookPublicPath("__APP_ID__", "/")
 
-void startStorybook().catch(publishError)
+type OverviewPresentation = Readonly<{
+  element: HTMLElement
+  title: Text
+  description: Text
+  items: HTMLElement
+}>
 
 async function startStorybook(): Promise<void> {
   const canvas = document.getElementById("__APP_ID__-storybook-canvas")
   if (!(canvas instanceof HTMLCanvasElement)) throw new Error("Canvas __APP_TITLE__ не найден")
   document.documentElement.dataset.__APP_CAMEL__Storybook = "starting"
-  const runtime = await UiRuntime.create(canvas, {
-    virtualDisplay: {initial: "near", surfaceDisplay: true, grid: false},
-  })
-  runtime.handleResize()
 
-  const router = new StorybookRouteTreeRouter(STORIES.routeTree, {basePath: MOUNT_PATH})
-  const initialNode = router.current
-  const state = await StorybookLabState.create(presentationRoute(initialNode.path))
-  const navigate = (path: string): void => {
-    if (!router.go(path)) throw new Error(`Неизвестный путь __APP_TITLE__: ${path}`)
-  }
+  try {
+    const semanticDocument = createDocument()
+    const overview = createOverview(semanticDocument)
+    const workbench = createStorybookDomWorkbench({
+      document: semanticDocument,
+      parent: semanticDocument,
+      initial: {
+        title: "__APP_TITLE__",
+        "catalog.label": "Каталог",
+        "catalog.items": catalogItems(),
+        "catalog.active": null,
+        "secondary.label": "Разделы",
+        "secondary.items": Object.freeze([]),
+        "secondary.active": null,
+        "preview.label": "__APP_TITLE__ · Обзор",
+        "preview.node": overview.element,
+        "scenarios.label": "Варианты",
+        "scenarios.items": Object.freeze([]),
+        "scenarios.active": null,
+        "inspector.label": "Исходный код",
+        "inspector.source": overviewSource("__APP_TITLE__ · Обзор"),
+        status: {lead: "Создано для ", owner: "__OWNER_LABEL__", detail: " · __PACKAGE_NAME__"},
+      },
+    })
+    const runtime = await createDocumentCanvasRuntime({
+      canvas,
+      document: semanticDocument,
+      root: workbench.element,
+      styleSheets: [storybookDomWorkbenchCss, appCss],
+      font: await loadDocumentDefaultFont(),
+      tooltipDelayMs: 500,
+    })
+    const router = new StorybookRouteTreeRouter(STORIES.routeTree, {basePath: MOUNT})
+    let revision = 0
+    let args: StorybookDomStoryArgs = Object.freeze({})
+    let disposed = false
 
-  const backdrop = new StorybookBackdropSurface()
-  const catalog = new StorybookNavigationSurface<string>({
-    title: "__APP_TITLE__",
-    items: catalogItems(),
-    route: componentPath(initialNode.path),
-    onNavigate: navigate,
-  })
-  const sections = new StorybookNavigationSurface<string>({
-    title: state.story.componentLabel,
-    items: sectionItems(state.route),
-    route: sectionPath(initialNode.path),
-    onNavigate: navigate,
-  })
-  const dock = new StorybookDockSurface<string>({
-    title: "Варианты",
-    items: variantItems(state.route),
-    route: initialNode.kind === "leaf" ? state.route : "",
-    onNavigate: navigate,
-  })
-  const preview = new StoryPreviewSurface()
-  preview.setStory(state.story, state.module, state.args)
-  const statusBar = new StorybookStatusBarSurface()
-  let storyPanel: StorybookStoryPanelSurface
+    const navigate = (route: string): void => {
+      if (!router.go(route)) throw new Error(`Неизвестный путь __APP_TITLE__: ${route}`)
+    }
+    const onNavigate = (event: unknown): void => navigate(
+      (event as DomCustomEvent<{route: string}>).detail.route,
+    )
+    const onScenario = (event: unknown): void => navigate(
+      (event as DomCustomEvent<{id: string}>).detail.id,
+    )
+    workbench.element.addEventListener(STORYBOOK_DOM_WORKBENCH_EVENTS.navigate, onNavigate)
+    workbench.element.addEventListener(STORYBOOK_DOM_WORKBENCH_EVENTS.scenario, onScenario)
 
-  const panelOptions = (): StorybookStoryPanelOptions => ({
-    source: state.source,
-    args: state.args,
-    controls: state.module.controls,
-    events: [
-      {id: "route", label: "Scenario", value: state.route},
-      {id: "package", label: "Package", value: "__PACKAGE_NAME__"},
-    ],
-    category: state.panelCategory,
-    onCategoryChange(category) {
-      state.setPanelCategory(category)
-      storyPanel.setOptions(panelOptions())
-      publish()
-    },
-    onControlChange(key, value) {
-      state.setControl(key, value)
-      preview.setArgs(state.args)
-      storyPanel.setOptions(panelOptions())
-      publish()
-    },
-    async onCopy(kind, source) {
-      try {
-        await navigator.clipboard.writeText(source)
-        document.documentElement.dataset.__APP_CAMEL__StorybookCopy = `${kind}:copied`
-      } catch {
-        document.documentElement.dataset.__APP_CAMEL__StorybookCopy = `${kind}:error`
+    const publish = (
+      node: StorybookRouteTreeNode<string>,
+      source: StorybookDomStorySource,
+    ): void => {
+      document.documentElement.dataset.__APP_CAMEL__StorybookRoute = node.path
+      document.documentElement.dataset.__APP_CAMEL__StorybookRouteKind = node.kind
+      document.documentElement.dataset.__APP_CAMEL__StorybookHtml = source.html
+      document.documentElement.dataset.__APP_CAMEL__StorybookCss = source.css
+      document.documentElement.dataset.__APP_CAMEL__StorybookTypescript = source.typescript
+      document.documentElement.dataset.__APP_CAMEL__StorybookArgs = JSON.stringify(args)
+      runtime.render()
+    }
+
+    const applyNode = async (node: StorybookRouteTreeNode<string>): Promise<void> => {
+      const selectedRevision = ++revision
+      document.documentElement.dataset.__APP_CAMEL__Storybook = "starting"
+      if (node.kind === "overview") {
+        args = Object.freeze({})
+        const source = applyOverview(workbench, overview, node)
+        publish(node, source)
+      } else {
+        const index = requireStory(node.path)
+        const story = await STORIES.load(node.path)
+        if (selectedRevision !== revision || router.current !== node) return
+        args = Object.freeze({...story.defaultArgs})
+        const root = story.render(semanticDocument, args, null)
+        const source = story.source(args)
+        applyLeaf(workbench, index, root, source)
+        publish(node, source)
       }
-    },
-  })
-  storyPanel = new StorybookStoryPanelSurface(panelOptions())
+      await waitForStorybookFrameBoundary()
+      if (selectedRevision !== revision || router.current !== node) return
+      document.documentElement.dataset.__APP_CAMEL__Storybook = "ready"
+    }
 
-  const frames = (w: number, h: number) => planStorybookShell(w, h, {
-    responsive: {compactBelow: null, compactPanels: []},
-  })
-  runtime.addSurface(backdrop, ({w, h}) => ({x: 0, y: 0, w, h}))
-  runtime.addSurface(catalog, ({w, h}) => frames(w, h).catalog)
-  runtime.addSurface(sections, ({w, h}) => frames(w, h).section)
-  runtime.addSurface(preview, ({w, h}) => frames(w, h).preview)
-  runtime.addSurface(dock, ({w, h}) => frames(w, h).dock)
-  runtime.addSurface(storyPanel, ({w, h}) => frames(w, h).info)
-  runtime.addSurface(statusBar, ({w, h}) => frames(w, h).status)
-
-  const publish = (): void => {
-    for (const surface of [catalog, sections, preview, dock, storyPanel, statusBar]) surface.flushPendingRender()
-    runtime.space.updateWorldMatrix()
-    runtime.renderer.renderFrame(runtime.space, runtime.hud, runtime.viewPoint)
-    document.documentElement.dataset.__APP_CAMEL__StorybookRoute = state.route
-    const source = state.source
-    document.documentElement.dataset.__APP_CAMEL__StorybookHtml = source.html
-    document.documentElement.dataset.__APP_CAMEL__StorybookCss = source.css
-    document.documentElement.dataset.__APP_CAMEL__StorybookTypescript = source.typescript
+    const unsubscribe = router.subscribe((node) => void applyNode(node).catch(publishError))
+    const dispose = (): void => {
+      if (disposed) return
+      disposed = true
+      revision += 1
+      unsubscribe()
+      workbench.element.removeEventListener(STORYBOOK_DOM_WORKBENCH_EVENTS.navigate, onNavigate)
+      workbench.element.removeEventListener(STORYBOOK_DOM_WORKBENCH_EVENTS.scenario, onScenario)
+      router.dispose()
+      runtime.dispose()
+      workbench.dispose()
+    }
+    window.addEventListener("pagehide", dispose, {once: true})
+    await applyNode(router.current)
+  } catch (error) {
+    publishError(error)
+    throw error
   }
+}
 
-  const applyNode = async (node: StorybookRouteTreeNode<string>): Promise<void> => {
-    document.documentElement.dataset.__APP_CAMEL__Storybook = "starting"
-    state.invalidateSelection()
-    const route = presentationRoute(node.path)
-    if (route !== state.route && !await state.select(route)) return
-    if (router.current !== node) return
-    catalog.setOptions({
-      title: "__APP_TITLE__",
-      items: catalogItems(),
-      route: componentPath(node.path),
-      onNavigate: navigate,
-    })
-    sections.setOptions({
-      title: state.story.componentLabel,
-      items: sectionItems(state.route),
-      route: sectionPath(node.path),
-      onNavigate: navigate,
-    })
-    dock.setOptions({
-      title: "Варианты",
-      items: variantItems(state.route),
-      route: node.kind === "leaf" ? state.route : "",
-      onNavigate: navigate,
-    })
-    preview.setStory(state.story, state.module, state.args)
-    storyPanel.setOptions(panelOptions())
-    runtime.relayout()
-    publish()
-    document.documentElement.dataset.__APP_CAMEL__Storybook = "ready"
-  }
-
-  router.subscribe((node) => {
-    void applyNode(node).catch(publishError)
+function applyOverview(
+  workbench: ReturnType<typeof createStorybookDomWorkbench>,
+  overview: OverviewPresentation,
+  node: StorybookRouteTreeNode<string>,
+): StorybookDomStorySource {
+  const context = storyContext(node.path)
+  const title = node.path === ""
+    ? "__APP_TITLE__ · Обзор"
+    : node.depth === 1
+      ? `${context?.componentLabel ?? node.segment} · Обзор`
+      : `${context?.sectionLabel ?? node.segment} · Обзор`
+  const children = STORIES.routeTree.children(node.path)
+  overview.title.data = title
+  overview.description.data = `${children.length} непосредственных разделов`
+  overview.items.replaceChildren(...children.map((child) => {
+    const item = workbench.document.createElement("li")
+    item.className = "starter-overview__item"
+    item.appendChild(workbench.document.createTextNode(labelForNode(child)))
+    return item
+  }))
+  const source = overviewSource(title)
+  workbench.document.transaction(() => {
+    workbench.update("catalog.active", context?.componentId ?? null)
+    workbench.update("secondary.items", context === null ? Object.freeze([]) : sectionItems(context))
+    workbench.update("secondary.active", node.depth >= 2 ? context?.sectionId ?? null : null)
+    workbench.update("preview.label", title)
+    workbench.update("preview.node", overview.element)
+    workbench.update("scenarios.items", node.depth >= 2 && context !== null
+      ? scenarioItems(context)
+      : Object.freeze([]))
+    workbench.update("scenarios.active", null)
+    workbench.update("inspector.source", source)
   })
-  new ResizeObserver(() => {
-    runtime.handleResize()
-    publish()
-  }).observe(canvas)
-  publish()
-  document.documentElement.dataset.__APP_CAMEL__Storybook = "ready"
+  return source
 }
 
-function componentPath(path: string): string {
-  return path.split("/")[0] ?? ""
+function applyLeaf(
+  workbench: ReturnType<typeof createStorybookDomWorkbench>,
+  index: StorybookDomCatalogIndexItem,
+  root: ReturnType<StorybookDomStoryModule["render"]>,
+  source: StorybookDomStorySource,
+): void {
+  workbench.document.transaction(() => {
+    workbench.update("catalog.active", index.componentId)
+    workbench.update("secondary.items", sectionItems(index))
+    workbench.update("secondary.active", index.sectionId)
+    workbench.update("preview.label", index.title)
+    workbench.update("preview.node", root)
+    workbench.update("scenarios.items", scenarioItems(index))
+    workbench.update("scenarios.active", index.route)
+    workbench.update("inspector.source", source)
+  })
 }
 
-function sectionPath(path: string): string {
-  return path.split("/").slice(0, 2).join("/")
+function catalogItems(): readonly StorybookDomNavigationItem[] {
+  const seen = new Set<string>()
+  return STORIES.index.flatMap((item) => {
+    if (seen.has(item.componentId)) return []
+    seen.add(item.componentId)
+    return [{id: item.componentId, label: item.componentLabel, route: item.componentId, title: item.apiName}]
+  })
 }
+
+function sectionItems(selected: StorybookDomCatalogIndexItem): readonly StorybookDomNavigationItem[] {
+  const seen = new Set<string>()
+  return STORIES.index.flatMap((item) => {
+    if (item.componentId !== selected.componentId || seen.has(item.sectionId)) return []
+    seen.add(item.sectionId)
+    return [{id: item.sectionId, label: item.sectionLabel, route: `${item.componentId}/${item.sectionId}`}]
+  })
+}
+
+function scenarioItems(selected: StorybookDomCatalogIndexItem): readonly StorybookDomScenarioItem[] {
+  return STORIES.index
+    .filter((item) => item.componentId === selected.componentId && item.sectionId === selected.sectionId)
+    .map((item) => ({id: item.route, label: item.variantLabel, title: item.title}))
+}
+
+function requireStory(route: string): StorybookDomCatalogIndexItem {
+  const story = STORIES.find(route)
+  if (story === undefined) throw new Error(`Неизвестная DOM story __APP_TITLE__: ${route}`)
+  return story
+}
+
+function labelForNode(node: StorybookRouteTreeNode<string>): string {
+  if (node.kind === "leaf") return requireStory(node.path).variantLabel
+  const context = storyContext(node.path)
+  return node.depth === 1
+    ? context?.componentLabel ?? node.segment
+    : context?.sectionLabel ?? node.segment
+}
+
+function createOverview(document: Document): OverviewPresentation {
+  const element = document.createElement("section")
+  const heading = document.createElement("h3")
+  const title = document.createTextNode("")
+  const paragraph = document.createElement("p")
+  const description = document.createTextNode("")
+  const items = document.createElement("ul")
+  element.className = "starter-overview"
+  heading.className = "starter-overview__title"
+  paragraph.className = "starter-overview__description"
+  items.className = "starter-overview__items"
+  heading.appendChild(title)
+  paragraph.appendChild(description)
+  element.append(heading, paragraph, items)
+  return Object.freeze({element, title, description, items})
+}
+
+function overviewSource(title: string): StorybookDomStorySource {
+  return Object.freeze({
+    html: `<section class="starter-overview"><h3>${title}</h3></section>`,
+    css: appCss,
+    typescript: `export const title = ${JSON.stringify(title)}`,
+  })
+}
+
+const appCss = `
+.starter-overview { display: flex; flex-direction: column; width: 100%; height: 100%; gap: 10px; padding: 18px; background: #202124; color: #e8e8e8; }
+.starter-overview__title { display: block; color: #7edcec; font-size: 16px; }
+.starter-overview__description, .starter-overview__item { display: block; color: #b8b8b8; font-size: 12px; }
+.starter-overview__items { display: flex; flex-direction: column; gap: 6px; }
+.fixture { display: flex; flex-direction: column; width: 100%; height: 100%; gap: 12px; padding: 18px; border: 1px solid #1a1a1a; border-radius: 6px; color: #e8e8e8; background: #303030; }
+.fixture__message { display: block; font-size: 16px; line-height: 28px; }
+.fixture__data { display: block; flex: 1 1 0; overflow: auto; color: #d0d0d0; white-space: pre; }
+`.trim()
 
 function publishError(error: unknown): void {
   const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
@@ -176,3 +281,5 @@ function publishError(error: unknown): void {
   document.documentElement.dataset.__APP_CAMEL__StorybookError = message
   console.error(error)
 }
+
+void startStorybook()

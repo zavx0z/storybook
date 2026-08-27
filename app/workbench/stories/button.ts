@@ -1,127 +1,72 @@
-/**
-Real `@ui/components/button` example owned by the Storybook documentation app.
-
-The story receives its event bridge from the eager registry. Its preview and
-generated source therefore describe the same current arguments without moving
-Button semantics into shared Storybook infrastructure.
-
-@packageDocumentation
-*/
-
-import {Button} from "@ui/components/button"
 import {
-  defineStorybookStoryModule,
-  type StorybookStoryArgs,
-  type StorybookStoryModule,
+  type HTMLButtonElement,
+  type Text,
+} from "@zavx0z/dom"
+import {
+  defineStorybookDomStory,
+  type StorybookDomStoryModule,
 } from "@zavx0z/storybook/stories"
-import type {StorybookWorkbenchButtonPreset} from "../stories.ts"
 
-type WorkbenchButtonArgs = StorybookStoryArgs & Readonly<{
+export type StorybookWorkbenchButtonArgs = Record<string, unknown> & Readonly<{
   variant: "contained" | "outlined" | "glass"
   disabled: boolean
 }>
 
-/**
-Creates one live documentation story from a route-owned initial state.
+type ButtonPresentation = Readonly<{
+  element: HTMLButtonElement
+  text: Text
+}>
 
-`onClick` remains page-owned so the shared story contract does not acquire an
-event bus or domain switch.
-*/
 export function createStorybookWorkbenchButtonStory(
-  preset: StorybookWorkbenchButtonPreset,
-  onClick: () => void,
-): StorybookStoryModule {
-  return defineStorybookStoryModule<WorkbenchButtonArgs>({
+  preset: Pick<StorybookWorkbenchButtonArgs, "variant" | "disabled">,
+): StorybookDomStoryModule<StorybookWorkbenchButtonArgs> {
+  let presentation: ButtonPresentation | null = null
+
+  return defineStorybookDomStory({
     defaultArgs: {
       variant: preset.variant,
       disabled: preset.disabled,
     },
-    controls: [
-      {
-        key: "variant",
-        label: "Вид",
-        group: "Кнопка",
-        kind: "select",
-        options: [
-          {value: "contained", label: "Заполненная"},
-          {value: "outlined", label: "Контурная"},
-          {value: "glass", label: "Стекло"},
-        ],
-      },
-      {
-        key: "disabled",
-        label: "Недоступна",
-        group: "Состояние",
-        kind: "boolean",
-      },
-    ],
-    render(surface, args, frame) {
-      const width = Math.min(240, Math.max(160, frame.w * 0.36))
-      const height = 40
-      Button(
-        surface,
-        frame.x + (frame.w - width) / 2,
-        frame.y + frame.h * 0.58 - height / 2,
-        width,
-        height,
-        {
-          children: "Проверить пример",
-          variant: args.variant,
-          color: "primary",
-          disabled: args.disabled,
-          onClick,
-        },
-      )
+    render(document, args, current) {
+      if (presentation === null) {
+        const element = document.createElement("button")
+        const text = document.createTextNode("")
+        element.type = "button"
+        element.title = "Проверить DOM story"
+        element.appendChild(text)
+        presentation = Object.freeze({element, text})
+      }
+      if (current !== null && current !== presentation.element) {
+        throw new Error("Button story received another root")
+      }
+      presentation.element.className = `documentation-button documentation-button--${args.variant}`
+      presentation.element.disabled = args.disabled
+      presentation.text.data = "Проверить пример"
+      return presentation.element
     },
     source(args) {
-      return {
-        html: `<button class="button button--${args.variant}" type="button"${args.disabled ? " disabled" : ""}>
-  Проверить пример
-</button>`,
-        css: `.button {
-  width: 240px;
-  height: 40px;
-  border: 1px solid #181818;
-  border-radius: 4px;
-  color: #f0f0f0;
-  background: #4772b3;
-}
-
-.button--outlined {
-  color: #9fc5ff;
-  background: transparent;
-  border-color: #4772b3;
-}
-
-.button--glass {
-  background: rgba(71, 114, 179, 0.24);
-}
-
-.button:hover {
-  background: #5683c5;
-}
-
-.button:active {
-  background: #365f9d;
-}
-
-.button:disabled {
-  color: #808080;
-  background: #333333;
-  cursor: default;
-}`,
+      return Object.freeze({
+        html: `<button class="documentation-button documentation-button--${args.variant}" type="button" title="Проверить DOM story"${args.disabled ? " disabled" : ""}>Проверить пример</button>`,
+        css: buttonStoryCss,
         typescript: [
-          'import {Button} from "@ui/components/button"',
-          "",
-          "Button(surface, x, y, 240, 40, {",
-          '  children: "Проверить пример",',
-          `  variant: ${JSON.stringify(args.variant)},`,
-          '  color: "primary",',
-          ...(args.disabled ? ["  disabled: true,"] : []),
-          "  onClick: () => console.log(\"Нажатие\"),",
-          "})",
+          'const button = document.createElement("button")',
+          'button.type = "button"',
+          'button.textContent = "Проверить пример"',
+          'button.title = "Проверить DOM story"',
+          `button.className = "documentation-button documentation-button--${args.variant}"`,
+          ...(args.disabled ? ["button.disabled = true"] : []),
+          'button.addEventListener("click", () => console.log("Нажатие"))',
         ].join("\n"),
-      }
+      })
     },
   })
 }
+
+const buttonStoryCss = `
+.documentation-button { display: block; width: 240px; height: 40px; padding: 8px 14px; border: 1px solid #181818; border-radius: 4px; color: #f0f0f0; background: #4772b3; }
+.documentation-button--outlined { color: #9fc5ff; background: transparent; border-color: #4772b3; }
+.documentation-button--glass { background: rgba(71, 114, 179, 0.24); }
+.documentation-button:hover { background: #5683c5; }
+.documentation-button:active { background: #365f9d; }
+.documentation-button:disabled { color: #808080; background: #333333; }
+`.trim()
