@@ -35,8 +35,8 @@ Overview и каждый prefix route оканчиваются `/`; exact leaf �
 предположений о render target. Owner-supplied `normalizeModule` проверяет
 загруженный модуль до помещения в cache; ошибка loader или проверки допускает
 повтор, а неизвестный route fail-closed. UI-specific `defineStorybookStories`
-добавляет args, controls, source и `UiSurface` renderer поверх этого общего
-каталога без изменения прежнего API. V1 не объявляет `play` или
+добавляет args, controls, `{html, css, typescript}` source и `UiSurface`
+renderer поверх этого общего каталога. V1 не объявляет `play` или
 story-reference lifecycle, пока Workbench их не исполняет.
 
 ## Workbench
@@ -54,10 +54,16 @@ Responsive policy содержит один optional compact breakpoint и сп�
 
 ### `STORYBOOK-PANEL-001` — source, controls и events
 
-Source всегда виден через exact read-only `@ui/components/code-editor`; полная
-Copy action не зависит от selection. V1 изменяет только `boolean` и `select`.
+HTML, CSS и TypeScript source одновременно видны через три exact read-only
+`@ui/components/code-editor`. Каждый редактор владеет отдельными selection,
+scroll state и Copy action. V1 изменяет только `boolean` и `select` controls.
 Остальные control kinds обязаны быть явно non-interactive, а не выглядеть
 работающими.
+
+Правая область использует exact `@ui/components/inspector`: category `source`
+показывает три collapsible editor sections одновременно, `controls` — ручные
+args controls, `events` — наблюдаемые события. Inspector chrome не объединяет
+retained owners редакторов, controls и events.
 
 ### `STORYBOOK-REFERENCE-001` — evidence, не acceptance
 

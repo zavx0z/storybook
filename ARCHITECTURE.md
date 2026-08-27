@@ -19,7 +19,8 @@ Engine, Layout и UI остаются владельцами production mechanic
    shell strings и owner asset paths.
 2. Каждая package page передаёт собственный typed route tree и lazy story
    registry. Общий registry знает только eager metadata и вызывает owner-owned
-   `normalizeModule`; UI Workbench использует совместимую обёртку с `UiSurface`.
+   `normalizeModule`; UI Workbench использует совместимую обёртку с `UiSurface`
+   и Blender-like Inspector categories для source, controls и events.
 3. Dev server собирает browser entry один раз по запросу и кэширует его до
    owner-controlled restart.
 4. Static builder независимо собирает каждую page, вычисляет asset digests и
@@ -41,7 +42,7 @@ Package-owned app `@zavx0z/storybook` на automatic port использует �
 
 ```text
 one Workbench route tree
-   ├─> public module stories   Russian preview + exact import source
+   ├─> public module stories   Russian preview + HTML/CSS/TypeScript source
    └─> live example variants  real @ui components
 ```
 

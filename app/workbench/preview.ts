@@ -13,7 +13,10 @@ import type {
   StorybookStoryIndexItem,
   StorybookStoryModule,
 } from "@zavx0z/storybook/stories"
-import {drawStorybookPreviewChrome} from "@zavx0z/storybook/workbench"
+import {
+  drawStorybookPreviewChrome,
+  planStorybookPreviewContent,
+} from "@zavx0z/storybook/workbench"
 
 export class StorybookWorkbenchPreviewSurface extends UiSurface {
   readonly #content = this.createRetainedParent()
@@ -64,13 +67,18 @@ export class StorybookWorkbenchPreviewSurface extends UiSurface {
     if (!geometryChanged && signature === this.#signature) return
 
     this.materializeRetainedParent(this.#content, () => {
-      drawStorybookPreviewChrome(this, this.rectW, this.rectH, {
+      const chrome = {
         title: this.#index.title,
         description: this.#index.sectionId === "contract"
           ? "Описание публичного контракта и точный пример импорта."
           : "Настоящий компонент, параметры и исходный код связаны одним примером.",
-      })
-      this.#module.render(this, this.#args, {x: 0, y: 0, w: this.rectW, h: this.rectH})
+      }
+      drawStorybookPreviewChrome(this, this.rectW, this.rectH, chrome)
+      this.#module.render(
+        this,
+        this.#args,
+        planStorybookPreviewContent(this.rectW, this.rectH, chrome),
+      )
     })
     this.#signature = signature
     this.#geometry = {

@@ -66,16 +66,16 @@ async function startStorybook(): Promise<void> {
   let storyPanel: StorybookStoryPanelSurface
 
   const panelOptions = (): StorybookStoryPanelOptions => ({
-    source: state.module.source(state.args),
+    source: state.source,
     args: state.args,
     controls: state.module.controls,
     events: [
       {id: "route", label: "Scenario", value: state.route},
       {id: "package", label: "Package", value: "__PACKAGE_NAME__"},
     ],
-    mode: state.panelMode,
-    onModeChange(mode) {
-      state.setPanelMode(mode)
+    category: state.panelCategory,
+    onCategoryChange(category) {
+      state.setPanelCategory(category)
       storyPanel.setOptions(panelOptions())
       publish()
     },
@@ -85,12 +85,12 @@ async function startStorybook(): Promise<void> {
       storyPanel.setOptions(panelOptions())
       publish()
     },
-    async onCopy(source) {
+    async onCopy(kind, source) {
       try {
         await navigator.clipboard.writeText(source)
-        document.documentElement.dataset.__APP_CAMEL__StorybookCopy = "copied"
+        document.documentElement.dataset.__APP_CAMEL__StorybookCopy = `${kind}:copied`
       } catch {
-        document.documentElement.dataset.__APP_CAMEL__StorybookCopy = "error"
+        document.documentElement.dataset.__APP_CAMEL__StorybookCopy = `${kind}:error`
       }
     },
   })
@@ -111,6 +111,10 @@ async function startStorybook(): Promise<void> {
     runtime.space.updateWorldMatrix()
     runtime.renderer.renderFrame(runtime.space, runtime.hud, runtime.viewPoint)
     document.documentElement.dataset.__APP_CAMEL__StorybookRoute = state.route
+    const source = state.source
+    document.documentElement.dataset.__APP_CAMEL__StorybookHtml = source.html
+    document.documentElement.dataset.__APP_CAMEL__StorybookCss = source.css
+    document.documentElement.dataset.__APP_CAMEL__StorybookTypescript = source.typescript
   }
 
   const applyNode = async (node: StorybookRouteTreeNode<string>): Promise<void> => {

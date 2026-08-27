@@ -74,17 +74,54 @@ export function createStorybookWorkbenchButtonStory(
       )
     },
     source(args) {
-      return [
-        'import {Button} from "@ui/components/button"',
-        "",
-        "Button(surface, x, y, 240, 40, {",
-        '  children: "Проверить пример",',
-        `  variant: ${JSON.stringify(args.variant)},`,
-        '  color: "primary",',
-        ...(args.disabled ? ["  disabled: true,"] : []),
-        "  onClick: () => console.log(\"Нажатие\"),",
-        "})",
-      ].join("\n")
+      return {
+        html: `<button class="button button--${args.variant}" type="button"${args.disabled ? " disabled" : ""}>
+  Проверить пример
+</button>`,
+        css: `.button {
+  width: 240px;
+  height: 40px;
+  border: 1px solid #181818;
+  border-radius: 4px;
+  color: #f0f0f0;
+  background: #4772b3;
+}
+
+.button--outlined {
+  color: #9fc5ff;
+  background: transparent;
+  border-color: #4772b3;
+}
+
+.button--glass {
+  background: rgba(71, 114, 179, 0.24);
+}
+
+.button:hover {
+  background: #5683c5;
+}
+
+.button:active {
+  background: #365f9d;
+}
+
+.button:disabled {
+  color: #808080;
+  background: #333333;
+  cursor: default;
+}`,
+        typescript: [
+          'import {Button} from "@ui/components/button"',
+          "",
+          "Button(surface, x, y, 240, 40, {",
+          '  children: "Проверить пример",',
+          `  variant: ${JSON.stringify(args.variant)},`,
+          '  color: "primary",',
+          ...(args.disabled ? ["  disabled: true,"] : []),
+          "  onClick: () => console.log(\"Нажатие\"),",
+          "})",
+        ].join("\n"),
+      }
     },
   })
 }

@@ -1,6 +1,6 @@
 import {describe, expect, test} from "bun:test"
 import {createStorybookApp} from "./app.ts"
-import {STORIES} from "./page/stories.ts"
+import {STORIES, loadPresentation, presentationRoute} from "./page/stories.ts"
 
 describe("__PACKAGE_NAME__ scaffold", () => {
   test("owns one typed Workbench page and one lazy starter story", async () => {
@@ -9,8 +9,16 @@ describe("__PACKAGE_NAME__ scaffold", () => {
     expect(app.pages).toHaveLength(1)
     expect(app.pages[0]?.routeTree).toBe(STORIES.routeTree)
     expect(STORIES.routeTree.leaves).toEqual(["example/overview/default"])
+    expect(presentationRoute("")).toBe("")
+    const overview = (await loadPresentation("")).source({})
+    expect(overview.html).toContain('class="overview"')
+    expect(overview.css).toContain(".overview__items")
+    expect(overview.typescript).toContain("export const items")
     const story = await STORIES.load("example/overview/default")
-    expect(story.source(story.defaultArgs)).toContain("EXAMPLE_FIXTURE")
+    const source = story.source(story.defaultArgs)
+    expect(source.html).toContain('class="fixture"')
+    expect(source.css).toContain(".fixture__data")
+    expect(source.typescript).toContain("EXAMPLE_FIXTURE")
   })
 
   test("uses an automatic-port package server without consumer port knowledge", async () => {

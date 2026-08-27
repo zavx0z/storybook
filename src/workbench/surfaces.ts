@@ -1,23 +1,39 @@
 import {type Object3D} from "@engine/core"
 import {Button} from "@ui/components/button"
-import {CodeEditor} from "@ui/components/code-editor"
+import {
+  CodeEditor,
+  type CodeEditorScrollPosition,
+  type CodeEditorSelection,
+} from "@ui/components/code-editor"
+import {
+  Inspector,
+  planInspector,
+  type InspectorCategory,
+  type InspectorPlan,
+  type InspectorSection,
+} from "@ui/components/inspector"
 import {Pane} from "@ui/components/pane"
 import {TextField} from "@ui/components/text-field"
 import {Typography} from "@ui/components/typography"
-import {div, divScrollPosition} from "@ui/elements/div"
+import {div, divScrollPosition, divScrollTo} from "@ui/elements/div"
 import {li, ul} from "@ui/elements/list"
+import {uiIcons} from "@ui/elements/icons"
 import {uiShapeMetrics} from "@ui/elements/shape"
 import {span} from "@ui/elements/span"
 import {activeUiTheme} from "@ui/elements/theme"
 import {
   rgba8ToColor,
-  resolveOpaqueRgba8,
 } from "@ui/elements/theme-reference"
 import {UiSurface, Z} from "@layout/core/surface"
 import {type UiSurfaceRect} from "@layout/core/runtime"
 import {flexColumn, flexRow} from "@layout/core/flex"
 import {storybookTheme} from "./theme.ts"
-import type {StorybookStoryArgs, StorybookStoryControl} from "../stories.ts"
+import {STORYBOOK_SHELL_BACKGROUND_RGBA} from "../shell-theme.ts"
+import type {
+  StorybookStoryArgs,
+  StorybookStoryControl,
+  StorybookStorySource,
+} from "../stories.ts"
 
 export type StorybookNavigationGroup = Readonly<{
   id: string
@@ -73,7 +89,8 @@ export type StorybookPreviewChromeOptions = Readonly<{
   description?: string
 }>
 
-export type StorybookStoryPanelMode = "controls" | "events"
+export type StorybookStoryPanelCategory = "source" | "controls" | "events"
+export type StorybookStorySourceKind = keyof StorybookStorySource
 
 export type StorybookStoryEvent = Readonly<{
   id: string
@@ -82,15 +99,17 @@ export type StorybookStoryEvent = Readonly<{
 }>
 
 export type StorybookStoryPanelOptions = Readonly<{
-  source: string
+  source: StorybookStorySource
   args: StorybookStoryArgs
   controls: readonly StorybookStoryControl[]
   events?: readonly StorybookStoryEvent[]
-  mode: StorybookStoryPanelMode
-  onModeChange(mode: StorybookStoryPanelMode): void
+  contextLabel?: string
+  category: StorybookStoryPanelCategory
+  onCategoryChange(category: StorybookStoryPanelCategory): void
   onControlChange(key: string, value: unknown): void
-  onCopy(source: string): void | Promise<void>
-  onSourceScrollChange?(position: Readonly<{left: number; top: number}>): void
+  onCopy(kind: StorybookStorySourceKind, source: string): void | Promise<void>
+  onSourceScrollChange?(kind: StorybookStorySourceKind, position: CodeEditorScrollPosition): void
+  onSourceSelectionChange?(kind: StorybookStorySourceKind, selection: CodeEditorSelection | null): void
 }>
 
 export type StorybookRetainedOwnerDiagnostics = Readonly<{
@@ -173,26 +192,25 @@ type NormalizedStoryControl = Readonly<{
 }>
 
 type NormalizedStoryPanelOptions = Readonly<{
-  source: string
+  source: StorybookStorySource
   controls: readonly NormalizedStoryControl[]
   events: readonly StorybookStoryEvent[]
-  mode: StorybookStoryPanelMode
-  onModeChange(mode: StorybookStoryPanelMode): void
+  contextLabel: string | undefined
+  category: StorybookStoryPanelCategory
+  onCategoryChange(category: StorybookStoryPanelCategory): void
   onControlChange(key: string, value: unknown): void
-  onCopy(source: string): void | Promise<void>
-  onSourceScrollChange: ((position: Readonly<{left: number; top: number}>) => void) | undefined
+  onCopy(kind: StorybookStorySourceKind, source: string): void | Promise<void>
+  onSourceScrollChange: ((kind: StorybookStorySourceKind, position: CodeEditorScrollPosition) => void) | undefined
+  onSourceSelectionChange: ((kind: StorybookStorySourceKind, selection: CodeEditorSelection | null) => void) | undefined
 }>
 
 const PANEL_OWNER = "panel"
 const TITLE_OWNER = "title"
 const STATUS_OWNER = "status"
 const SEARCH_OWNER = "search"
-const SOURCE_TITLE_OWNER = "source-title"
-const SOURCE_COPY_OWNER = "source-copy"
-const SOURCE_BOX_OWNER = "source-box"
-const SOURCE_SCROLL_KEY = "story-source-scroll"
-const SOURCE_CONTROLS_TAB_OWNER = "source-tab:controls"
-const SOURCE_EVENTS_TAB_OWNER = "source-tab:events"
+const STORY_SOURCE_KINDS = Object.freeze(["html", "css", "typescript"] as const)
+const STORY_INSPECTOR_KEY = "storybook-story-inspector"
+const STORY_INSPECTOR_SECTIONS_SCROLL_KEY = `${STORY_INSPECTOR_KEY}:sections`
 const workbenchText = rgba8ToColor(activeUiTheme.widgets.box.text)
 const workbenchMuted = rgba8ToColor(activeUiTheme.widgets.menuBack.text)
 const workbenchNavigationFill = rgba8ToColor(activeUiTheme.spaceNode.list)
@@ -551,7 +569,7 @@ abstract class StorybookNavigationBaseSurface<Route extends string> extends Reta
         variant: "title",
         fontPx: uiShapeMetrics.compactFontPx,
         color: workbenchText,
-        sx: {textAlign: "center"},
+        style: {textAlign: "center"},
       })
       return
     }
@@ -728,7 +746,7 @@ function drawNavigationSection<Route extends string>(
     style: {
       background: workbenchSectionBodyFill,
       borderColor: null,
-      borderRadius: uiShapeMetrics.lowRadius,
+      borderRadius: 4,
       borderWidth: 0,
       overflowY: "hidden",
       padding: 0,
@@ -872,14 +890,14 @@ function drawNavigationRowFill(
 ): void {
   if (color.a <= 0) return
   if (corners.topLeft && corners.topRight && corners.bottomLeft && corners.bottomRight) {
-    drawNavigationFillPart(surface, 0, 0, width, height, uiShapeMetrics.lowRadius, color)
+    drawNavigationFillPart(surface, 0, 0, width, height, 4, color)
     return
   }
   if (!corners.topLeft && !corners.topRight && !corners.bottomLeft && !corners.bottomRight) {
     drawNavigationFillPart(surface, 0, 0, width, height, 0, color)
     return
   }
-  const radius = Math.min(uiShapeMetrics.lowRadius, width / 2, height / 2)
+  const radius = Math.min(4, width / 2, height / 2)
   drawNavigationFillPart(surface, radius, 0, width - radius * 2, height, 0, color)
   drawNavigationFillPart(surface, 0, radius, width, height - radius * 2, 0, color)
   drawNavigationFillCorner(surface, 0, 0, radius, corners.topLeft, color)
@@ -945,7 +963,7 @@ function drawNavigationPanel(surface: UiSurface, width: number, height: number, 
     style: {
       background: workbenchNavigationFill,
       borderColor: workbenchEditorBorder,
-      borderRadius: uiShapeMetrics.lowRadius,
+      borderRadius: 6,
       borderWidth: uiShapeMetrics.borderWidth,
       zIndex: -0.12,
     },
@@ -956,7 +974,7 @@ function drawNavigationPanel(surface: UiSurface, width: number, height: number, 
       borderColor: rgba8ToColor(
         active ? activeUiTheme.material.editorOutlineActive : activeUiTheme.material.editorOutline,
       ),
-      borderRadius: uiShapeMetrics.lowRadius,
+      borderRadius: 6,
       borderWidth: uiShapeMetrics.borderWidth,
       zIndex: -0.11,
     },
@@ -1106,15 +1124,25 @@ export class StorybookInfoSurface extends RetainedStorybookSurface {
   }
 }
 
-/** Retained source/controls panel for one selected story. Source remains visible in every mode. */
+/** Retained HTML/CSS/TypeScript source and controls panel for one selected story. */
 export class StorybookStoryPanelSurface extends RetainedStorybookSurface {
   #options: NormalizedStoryPanelOptions
+  #query = ""
+  #sectionsScrollTop = 0
+  #expandedSections = new Map<string, boolean>([
+    ["html", true],
+    ["css", true],
+    ["typescript", true],
+    ["controls", true],
+    ["events", true],
+  ])
   #layout: Readonly<{
     w: number
     h: number
     pixelScale: number
     font: unknown
     ownerKeys: readonly string[]
+    plan: InspectorPlan
   }> | null = null
 
   constructor(options: StorybookStoryPanelOptions) {
@@ -1122,22 +1150,24 @@ export class StorybookStoryPanelSurface extends RetainedStorybookSurface {
     this.#options = normalizeStoryPanelOptions(options)
   }
 
-  /** Current code-pane position owned by the shared scrollable Pane primitive. */
-  get sourceScrollPosition(): Readonly<{left: number; top: number}> {
-    return divScrollPosition(this, SOURCE_SCROLL_KEY)
+  /** Current position of one independently owned source editor. */
+  sourceScrollPosition(kind: StorybookStorySourceKind): CodeEditorScrollPosition {
+    return divScrollPosition(this, storySourceScrollKey(kind))
   }
 
   setOptions(options: StorybookStoryPanelOptions): void {
     const next = normalizeStoryPanelOptions(options)
     const previous = this.#options
-    const sourceChanged = previous.source !== next.source
-    const structureChanged = previous.mode !== next.mode ||
+    const changedSourceKinds = STORY_SOURCE_KINDS.filter((kind) => previous.source[kind] !== next.source[kind])
+    const categoryChanged = previous.category !== next.category
+    const structureChanged = categoryChanged || previous.contextLabel !== next.contextLabel ||
       !sameStrings(previous.controls.map(({descriptor}) => descriptor.key), next.controls.map(({descriptor}) => descriptor.key)) ||
+      !sameStrings(previous.controls.map(({descriptor}) => descriptor.group), next.controls.map(({descriptor}) => descriptor.group)) ||
       !sameStrings(previous.events.map(({id}) => id), next.events.map(({id}) => id))
     let changed = structureChanged
 
-    if (sourceChanged) {
-      this.markOwnerDirty(SOURCE_BOX_OWNER)
+    for (const kind of changedSourceKinds) {
+      this.markOwnerDirty(storySourceBoxOwnerKey(kind))
       changed = true
     }
     const previousControls = new Map(previous.controls.map((control) => [control.descriptor.key, control] as const))
@@ -1158,12 +1188,16 @@ export class StorybookStoryPanelSurface extends RetainedStorybookSurface {
         changed = true
       }
     }
-    if (previous.mode !== next.mode) {
-      this.markOwnerDirty(SOURCE_CONTROLS_TAB_OWNER)
-      this.markOwnerDirty(SOURCE_EVENTS_TAB_OWNER)
+    if (categoryChanged) {
+      this.#query = ""
+      this.#sectionsScrollTop = 0
+      divScrollTo(this, STORY_INSPECTOR_SECTIONS_SCROLL_KEY, {left: 0, top: 0})
     }
     this.#options = next
-    if (structureChanged) this.#layout = null
+    if (structureChanged) {
+      this.#layout = null
+      this.markOwnerDirty(PANEL_OWNER)
+    }
     if (changed) this.requestRender()
   }
 
@@ -1181,79 +1215,66 @@ export class StorybookStoryPanelSurface extends RetainedStorybookSurface {
     this.noteLayoutPlan()
     const forceGeometry = this.#layout !== null &&
       (this.#layout.pixelScale !== this.pixelScale || this.#layout.font !== this.font)
-    const frames = new Map<string, UiSurfaceRect>()
-    const horizontalPad = uiShapeMetrics.tightGap * 2
-    const headerY = uiShapeMetrics.tightGap
-    const headerH = uiShapeMetrics.panelHeaderHeight
-    flexRow({
-      x: horizontalPad,
-      y: headerY,
-      w: Math.max(0, this.rectW - horizontalPad * 2),
-      h: headerH,
-      gap: uiShapeMetrics.tightGap,
-      alignItems: "stretch",
-      items: [
-        {width: "grow", height: headerH, draw: (x, y, w, h) => { frames.set(SOURCE_TITLE_OWNER, {x, y, w, h}) }},
-        {width: uiShapeMetrics.iconActionSlot * 4, height: headerH, draw: (x, y, w, h) => { frames.set(SOURCE_COPY_OWNER, {x, y, w, h}) }},
-      ],
-    })
-
-    const codeY = headerY + headerH + uiShapeMetrics.panelSectionGap
-    const codeH = Math.max(
-      uiShapeMetrics.rowHeight * 6,
-      Math.min(uiShapeMetrics.rowHeight * 14, this.rectH * 0.36),
+    const categories = this.#inspectorCategories()
+    const sections = this.#inspectorSections()
+    const plan = planInspector(
+      0,
+      0,
+      this.rectW,
+      this.rectH,
+      {
+        categories,
+        selectedCategoryId: this.#options.category,
+        sections,
+        query: this.#query,
+        ...(this.#options.contextLabel === undefined ? {} : {context: {label: this.#options.contextLabel}}),
+      },
+      this.#sectionsScrollTop,
     )
-    frames.set(SOURCE_BOX_OWNER, {x: horizontalPad, y: codeY, w: Math.max(0, this.rectW - horizontalPad * 2), h: codeH})
-
-    const tabsY = codeY + codeH + uiShapeMetrics.panelSectionGap
-    flexRow({
-      x: horizontalPad,
-      y: tabsY,
-      w: Math.max(0, this.rectW - horizontalPad * 2),
-      h: uiShapeMetrics.rowHeight,
-      gap: uiShapeMetrics.separatorWidth,
-      alignItems: "stretch",
-      items: [
-        {width: "grow", height: uiShapeMetrics.rowHeight, draw: (x, y, w, h) => { frames.set(SOURCE_CONTROLS_TAB_OWNER, {x, y, w, h}) }},
-        {width: "grow", height: uiShapeMetrics.rowHeight, draw: (x, y, w, h) => { frames.set(SOURCE_EVENTS_TAB_OWNER, {x, y, w, h}) }},
-      ],
-    })
-
-    let detailY = tabsY + uiShapeMetrics.rowHeight + uiShapeMetrics.panelSectionGap
-    const detailBottom = this.rectH - uiShapeMetrics.tightGap
-    if (this.#options.mode === "controls") {
-      const seenGroups = new Set<string>()
-      for (const control of this.#options.controls) {
-        if (!seenGroups.has(control.descriptor.group)) {
-          seenGroups.add(control.descriptor.group)
-          if (detailY + uiShapeMetrics.rowHeight > detailBottom) break
-          frames.set(storyControlGroupOwnerKey(control.descriptor.group), {
-            x: horizontalPad,
-            y: detailY,
-            w: Math.max(0, this.rectW - horizontalPad * 2),
+    const frames = new Map<string, UiSurfaceRect>()
+    if (this.#options.category === "source") {
+      for (const section of plan.sections) {
+        if (!isStorySourceKind(section.id) || section.content === null) continue
+        frames.set(storySourceBoxOwnerKey(section.id), section.content)
+      }
+    } else if (this.#options.category === "controls") {
+      const content = plan.sections.find(({id}) => id === "controls")?.content
+      if (content !== null && content !== undefined) {
+        let y = content.y
+        let group: string | undefined
+        for (const control of this.#options.controls) {
+          if (control.descriptor.group !== group) {
+            group = control.descriptor.group
+            frames.set(storyControlGroupOwnerKey(group), {
+              x: content.x,
+              y,
+              w: content.w,
+              h: uiShapeMetrics.rowHeight,
+            })
+            y += uiShapeMetrics.rowHeight + uiShapeMetrics.separatorWidth
+          }
+          frames.set(storyControlOwnerKey(control.descriptor.key), {
+            x: content.x,
+            y,
+            w: content.w,
             h: uiShapeMetrics.rowHeight,
           })
-          detailY += uiShapeMetrics.rowHeight + uiShapeMetrics.separatorWidth
+          y += uiShapeMetrics.rowHeight + uiShapeMetrics.separatorWidth
         }
-        if (detailY + uiShapeMetrics.rowHeight > detailBottom) break
-        frames.set(storyControlOwnerKey(control.descriptor.key), {
-          x: horizontalPad,
-          y: detailY,
-          w: Math.max(0, this.rectW - horizontalPad * 2),
-          h: uiShapeMetrics.rowHeight,
-        })
-        detailY += uiShapeMetrics.rowHeight + uiShapeMetrics.separatorWidth
       }
     } else {
-      for (const event of this.#options.events) {
-        if (detailY + uiShapeMetrics.rowHeight > detailBottom) break
-        frames.set(storyEventOwnerKey(event.id), {
-          x: horizontalPad,
-          y: detailY,
-          w: Math.max(0, this.rectW - horizontalPad * 2),
-          h: uiShapeMetrics.rowHeight,
-        })
-        detailY += uiShapeMetrics.rowHeight + uiShapeMetrics.separatorWidth
+      const content = plan.sections.find(({id}) => id === "events")?.content
+      if (content !== null && content !== undefined) {
+        let y = content.y
+        for (const event of this.#options.events) {
+          frames.set(storyEventOwnerKey(event.id), {
+            x: content.x,
+            y,
+            w: content.w,
+            h: uiShapeMetrics.rowHeight,
+          })
+          y += uiShapeMetrics.rowHeight + uiShapeMetrics.separatorWidth
+        }
       }
     }
 
@@ -1273,62 +1294,171 @@ export class StorybookStoryPanelSurface extends RetainedStorybookSurface {
       pixelScale: this.pixelScale,
       font: this.font,
       ownerKeys: [...frames.keys()],
+      plan,
     }
+  }
+
+  #inspectorCategories(): readonly InspectorCategory[] {
+    return Object.freeze([
+      Object.freeze({
+        id: "source",
+        label: "Исходный код",
+        iconSrc: uiIcons.language,
+        sectionIds: STORY_SOURCE_KINDS,
+      }),
+      Object.freeze({
+        id: "controls",
+        label: "Параметры",
+        iconSrc: uiIcons.settings,
+        sectionIds: Object.freeze(["controls"]),
+      }),
+      Object.freeze({
+        id: "events",
+        label: "События",
+        iconSrc: uiIcons.log,
+        sectionIds: Object.freeze(["events"]),
+      }),
+    ])
+  }
+
+  #inspectorSections(): readonly InspectorSection[] {
+    const sourceSections = STORY_SOURCE_KINDS.map((kind): InspectorSection => {
+      const label = storySourceTitle(kind)
+      return Object.freeze({
+        id: kind,
+        label,
+        expanded: this.#expandedSections.get(kind) ?? true,
+        contentHeight: uiShapeMetrics.rowHeight * 6,
+        actions: Object.freeze([Object.freeze({
+          id: `copy-${kind}`,
+          label: `Копировать ${label}`,
+          iconSrc: uiIcons.copy,
+          action: () => { void this.#options.onCopy(kind, this.#options.source[kind]) },
+        })]),
+        render() {},
+      })
+    })
+    const controlGroups = [...new Set(this.#options.controls.map(({descriptor}) => descriptor.group))]
+    const controlsRows = this.#options.controls.length + controlGroups.length
+    const controls: InspectorSection = Object.freeze({
+      id: "controls",
+      label: "Параметры",
+      expanded: this.#expandedSections.get("controls") ?? true,
+      contentHeight: controlsRows * uiShapeMetrics.rowHeight +
+        Math.max(0, controlsRows - 1) * uiShapeMetrics.separatorWidth,
+      render() {},
+    })
+    const events: InspectorSection = Object.freeze({
+      id: "events",
+      label: "События",
+      expanded: this.#expandedSections.get("events") ?? true,
+      contentHeight: this.#options.events.length * uiShapeMetrics.rowHeight +
+        Math.max(0, this.#options.events.length - 1) * uiShapeMetrics.separatorWidth,
+      render() {},
+    })
+    return Object.freeze([...sourceSections, controls, events])
+  }
+
+  #markInspectorContentsDirty(): void {
+    for (const key of this.#layout?.ownerKeys ?? []) this.markOwnerDirty(key)
+  }
+
+  #drawInspector(frame: UiSurfaceRect): void {
+    Inspector(this, 0, 0, frame.w, frame.h, {
+      key: STORY_INSPECTOR_KEY,
+      categories: this.#inspectorCategories(),
+      selectedCategoryId: this.#options.category,
+      sections: this.#inspectorSections(),
+      query: this.#query,
+      searchPlaceholder: "HTML, CSS, TypeScript, параметр или событие…",
+      ...(this.#options.contextLabel === undefined ? {} : {context: {label: this.#options.contextLabel}}),
+      style: {borderRadius: 6},
+      onCategoryChange: (id) => {
+        if (!isStoryPanelCategory(id) || id === this.#options.category) return
+        this.#options.onCategoryChange(id)
+      },
+      onQueryChange: (query) => {
+        if (query === this.#query) return
+        this.#query = query
+        this.#sectionsScrollTop = 0
+        divScrollTo(this, STORY_INSPECTOR_SECTIONS_SCROLL_KEY, {left: 0, top: 0})
+        this.#markInspectorContentsDirty()
+        this.#layout = null
+        this.markOwnerDirty(PANEL_OWNER)
+        this.requestRender()
+      },
+      onSectionToggle: (id, expanded) => {
+        if (this.#expandedSections.get(id) === expanded) return
+        this.#expandedSections.set(id, expanded)
+        this.#markInspectorContentsDirty()
+        this.#layout = null
+        this.markOwnerDirty(PANEL_OWNER)
+        this.requestRender()
+      },
+      onSectionsScrollChange: ({top}) => {
+        if (top === this.#sectionsScrollTop) return
+        this.#sectionsScrollTop = top
+        this.#markInspectorContentsDirty()
+        this.#layout = null
+        this.markOwnerDirty(PANEL_OWNER)
+        this.requestRender()
+      },
+    })
+  }
+
+  #drawInSectionsViewport(frame: UiSurfaceRect, draw: () => void): void {
+    const viewport = this.#layout?.plan.sectionsViewport
+    if (viewport === undefined) return
+    const clip = intersectSurfaceRects(frame, viewport)
+    if (clip === null) return
+    if (clip.x === frame.x && clip.y === frame.y && clip.w === frame.w && clip.h === frame.h) {
+      draw()
+      return
+    }
+    div(this, clip.x - frame.x, clip.y - frame.y, clip.w, clip.h, {
+      style: {
+        background: null,
+        borderColor: null,
+        borderRadius: 0,
+        overflow: "hidden",
+        padding: 0,
+      },
+      children: draw,
+    })
   }
 
   #drawOwner(key: string, frame: UiSurfaceRect): void {
     if (key === PANEL_OWNER) {
-      drawPanel(this, frame.w, frame.h, this.panelActive)
+      this.#drawInspector(frame)
       return
     }
-    if (key === SOURCE_TITLE_OWNER) {
-      Typography(this, 0, 0, frame.w, frame.h, {
-        children: "TypeScript",
-        variant: "title",
-        fontPx: uiShapeMetrics.compactFontPx,
-        color: workbenchText,
-      })
-      return
-    }
-    if (key === SOURCE_COPY_OWNER) {
-      Button(this, 0, 0, frame.w, frame.h, {
-        children: "Копировать",
-        variant: "glass",
-        color: "neutral",
-        appearance: "tool",
-        fontPx: uiShapeMetrics.compactFontPx,
-        onClick: () => { void this.#options.onCopy(this.#options.source) },
-      })
-      return
-    }
-    if (key === SOURCE_BOX_OWNER) {
-      CodeEditor(this, 0, 0, frame.w, frame.h, {
-        key: SOURCE_SCROLL_KEY,
-        value: this.#options.source,
-        readOnly: true,
-        languageId: "typescript",
-        showLineNumbers: true,
-        fontPx: uiShapeMetrics.compactFontPx,
-        linePx: uiShapeMetrics.compactFontPx + uiShapeMetrics.tightGap + uiShapeMetrics.separatorWidth,
-        ...(this.#options.onSourceScrollChange === undefined ? {} : {onScrollChange: this.#options.onSourceScrollChange}),
-      })
-      return
-    }
-    if (key === SOURCE_CONTROLS_TAB_OWNER || key === SOURCE_EVENTS_TAB_OWNER) {
-      const mode: StorybookStoryPanelMode = key === SOURCE_CONTROLS_TAB_OWNER ? "controls" : "events"
-      Button(this, 0, 0, frame.w, frame.h, {
-        children: mode === "controls" ? "Параметры" : "События",
-        variant: this.#options.mode === mode ? "contained" : "glass",
-        color: "neutral",
-        appearance: "tab",
-        selected: this.#options.mode === mode,
-        fontPx: uiShapeMetrics.compactFontPx,
-        onClick: () => this.#options.onModeChange(mode),
+    const boxKind = storySourceKindFromOwnerKey(key, "source-box:")
+    if (boxKind !== undefined) {
+      this.#drawInSectionsViewport(frame, () => {
+        CodeEditor(this, 0, 0, frame.w, frame.h, {
+          key: storySourceScrollKey(boxKind),
+          value: this.#options.source[boxKind],
+          readOnly: true,
+          languageId: boxKind,
+          showLineNumbers: true,
+          fontPx: uiShapeMetrics.compactFontPx,
+          linePx: uiShapeMetrics.compactFontPx + uiShapeMetrics.tightGap + uiShapeMetrics.separatorWidth,
+          ...(this.#options.onSourceScrollChange === undefined ? {} : {
+            onScrollChange: (position) => this.#options.onSourceScrollChange?.(boxKind, position),
+          }),
+          ...(this.#options.onSourceSelectionChange === undefined ? {} : {
+            onSelectionChange: (selection) => this.#options.onSourceSelectionChange?.(boxKind, selection),
+          }),
+        })
       })
       return
     }
     if (key.startsWith("source-control-group:")) {
-      Typography(this, 0, 0, frame.w, frame.h, {children: controlGroupForOwnerKey(key), variant: "caption", color: workbenchMuted})
+      this.#drawInSectionsViewport(frame, () => Typography(this, 0, 0, frame.w, frame.h, {
+        children: controlGroupForOwnerKey(key),
+        variant: "caption",
+        color: workbenchMuted,
+      }))
       return
     }
     if (key.startsWith("source-control:")) {
@@ -1336,7 +1466,7 @@ export class StorybookStoryPanelSurface extends RetainedStorybookSurface {
       const control = this.#options.controls.find(({descriptor}) => descriptor.key === controlKey)
       if (control === undefined) return
       const next = nextStoryControlValue(control.descriptor, control.value)
-      Button(this, 0, 0, frame.w, frame.h, {
+      this.#drawInSectionsViewport(frame, () => Button(this, 0, 0, frame.w, frame.h, {
         children: `${control.descriptor.label}: ${formatStoryValue(control.value)}`,
         variant: "glass",
         color: "neutral",
@@ -1349,17 +1479,17 @@ export class StorybookStoryPanelSurface extends RetainedStorybookSurface {
           const nextValue = nextStoryControlValue(current.descriptor, current.value)
           if (nextValue !== undefined) this.#options.onControlChange(controlKey, nextValue)
         },
-      })
+      }))
       return
     }
     if (key.startsWith("source-event:")) {
       const id = key.slice("source-event:".length)
       const event = this.#options.events.find((candidate) => candidate.id === id)
-      if (event !== undefined) Typography(this, 0, 0, frame.w, frame.h, {
+      if (event !== undefined) this.#drawInSectionsViewport(frame, () => Typography(this, 0, 0, frame.w, frame.h, {
         children: `${event.label}: ${event.value}`,
         variant: "caption",
         color: workbenchMuted,
-      })
+      }))
     }
   }
 }
@@ -1372,19 +1502,19 @@ export function drawStorybookPreviewChrome(
   options: StorybookPreviewChromeOptions = {},
 ): void {
   Pane(surface, 0, 0, width, height, {
-    appearance: "box",
-    sx: {
+    appearance: "panel",
+    style: {
       padding: 0,
     },
   })
   const {title, description} = options
   if (title === undefined && description === undefined) return
-  const contentInset = uiShapeMetrics.tightGap * 2
+  const {contentInset, chromeHeight} = storybookPreviewChromeMetrics(options)
   flexColumn({
     x: contentInset,
     y: uiShapeMetrics.tightGap,
     w: Math.max(0, width - contentInset * 2),
-    h: uiShapeMetrics.panelHeaderHeight + uiShapeMetrics.panelSectionGap + uiShapeMetrics.rowHeight,
+    h: chromeHeight,
     gap: uiShapeMetrics.panelSectionGap,
     items: [
       title === undefined ? false : {
@@ -1409,6 +1539,41 @@ export function drawStorybookPreviewChrome(
   })
 }
 
+/** Content rect below the optional shared preview title and description. */
+export function planStorybookPreviewContent(
+  width: number,
+  height: number,
+  options: StorybookPreviewChromeOptions = {},
+): UiSurfaceRect {
+  const {contentInset, chromeHeight, rowCount} = storybookPreviewChromeMetrics(options)
+  const y = rowCount === 0
+    ? contentInset
+    : uiShapeMetrics.tightGap + chromeHeight + uiShapeMetrics.panelSectionGap
+  return {
+    x: contentInset,
+    y,
+    w: Math.max(0, width - contentInset * 2),
+    h: Math.max(0, height - y - contentInset),
+  }
+}
+
+function storybookPreviewChromeMetrics(options: StorybookPreviewChromeOptions): Readonly<{
+  contentInset: number
+  chromeHeight: number
+  rowCount: number
+}> {
+  const rowHeights = [
+    ...(options.title === undefined ? [] : [uiShapeMetrics.panelHeaderHeight]),
+    ...(options.description === undefined ? [] : [uiShapeMetrics.rowHeight]),
+  ]
+  return {
+    contentInset: uiShapeMetrics.tightGap * 2,
+    chromeHeight: rowHeights.reduce((sum, value) => sum + value, 0) +
+      uiShapeMetrics.panelSectionGap * Math.max(0, rowHeights.length - 1),
+    rowCount: rowHeights.length,
+  }
+}
+
 export class StorybookBackdropSurface extends UiSurface {
   constructor() {
     super({bgColor: null, borderColor: null})
@@ -1416,10 +1581,14 @@ export class StorybookBackdropSurface extends UiSurface {
   }
 
   protected override render(): void {
-    this.drawRect(0, 0, this.rectW, this.rectH, rgba8ToColor(resolveOpaqueRgba8(
-      activeUiTheme.spaceNode.back,
-      activeUiTheme.spaceNode.navigationBar,
-    )), -0.18)
+    this.drawRect(
+      0,
+      0,
+      this.rectW,
+      this.rectH,
+      rgba8ToColor(STORYBOOK_SHELL_BACKGROUND_RGBA),
+      -0.18,
+    )
   }
 }
 
@@ -1500,7 +1669,14 @@ export function selectStorybookNavigationItems<Route extends string>(
 }
 
 function normalizeStoryPanelOptions(options: StorybookStoryPanelOptions): NormalizedStoryPanelOptions {
-  if (options.source.trim().length === 0) throw new Error("Storybook story panel source must not be empty")
+  if (!isStoryPanelCategory(options.category)) {
+    throw new Error(`Unknown Storybook story panel category: ${options.category}`)
+  }
+  for (const kind of STORY_SOURCE_KINDS) {
+    if (options.source[kind].trim().length === 0) {
+      throw new Error(`Storybook story panel source ${kind} must not be empty`)
+    }
+  }
   const controlKeys = new Set<string>()
   const controls = options.controls.map((descriptor): NormalizedStoryControl => {
     if (controlKeys.has(descriptor.key)) throw new Error(`Duplicate storybook story panel control: ${descriptor.key}`)
@@ -1516,14 +1692,16 @@ function normalizeStoryPanelOptions(options: StorybookStoryPanelOptions): Normal
     return Object.freeze({...event})
   })
   return Object.freeze({
-    source: options.source,
+    source: Object.freeze({...options.source}),
     controls: Object.freeze(controls),
     events: Object.freeze(events),
-    mode: options.mode,
-    onModeChange: options.onModeChange,
+    contextLabel: options.contextLabel?.trim() || undefined,
+    category: options.category,
+    onCategoryChange: options.onCategoryChange,
     onControlChange: options.onControlChange,
     onCopy: options.onCopy,
     onSourceScrollChange: options.onSourceScrollChange,
+    onSourceSelectionChange: options.onSourceSelectionChange,
   })
 }
 
@@ -1546,6 +1724,46 @@ function normalizeInfoOptions(options: StorybookInfoOptions): NormalizedInfoOpti
 
 function itemOwnerKey(id: string): string {
   return `item:${id}`
+}
+
+function storySourceBoxOwnerKey(kind: StorybookStorySourceKind): string {
+  return `source-box:${kind}`
+}
+
+function storySourceScrollKey(kind: StorybookStorySourceKind): string {
+  return `story-source-scroll:${kind}`
+}
+
+function storySourceKindFromOwnerKey(
+  key: string,
+  prefix: "source-box:",
+): StorybookStorySourceKind | undefined {
+  if (!key.startsWith(prefix)) return undefined
+  const kind = key.slice(prefix.length)
+  return STORY_SOURCE_KINDS.find((candidate) => candidate === kind)
+}
+
+function isStorySourceKind(value: string): value is StorybookStorySourceKind {
+  return STORY_SOURCE_KINDS.some((kind) => kind === value)
+}
+
+function isStoryPanelCategory(value: string): value is StorybookStoryPanelCategory {
+  return value === "source" || value === "controls" || value === "events"
+}
+
+function intersectSurfaceRects(left: UiSurfaceRect, right: UiSurfaceRect): UiSurfaceRect | null {
+  const x = Math.max(left.x, right.x)
+  const y = Math.max(left.y, right.y)
+  const rightEdge = Math.min(left.x + left.w, right.x + right.w)
+  const bottomEdge = Math.min(left.y + left.h, right.y + right.h)
+  if (rightEdge <= x || bottomEdge <= y) return null
+  return {x, y, w: rightEdge - x, h: bottomEdge - y}
+}
+
+function storySourceTitle(kind: StorybookStorySourceKind): string {
+  if (kind === "html") return "HTML"
+  if (kind === "css") return "CSS"
+  return "TypeScript"
 }
 
 function storyControlOwnerKey(key: string): string {
@@ -1798,7 +2016,7 @@ function drawPanel(surface: UiSurface, width: number, height: number, active: bo
   Pane(surface, 0, 0, width, height, {
     appearance: "panel",
     active,
-    sx: {
+    style: {
       padding: 0,
       zIndex: -0.12,
     },

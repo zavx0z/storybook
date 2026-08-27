@@ -26,7 +26,11 @@ const module = defineStorybookStoryModule({
   ],
   render() {},
   source(args) {
-    return `Button(surface, x, y, w, h, {children: ${JSON.stringify(args.label)}, variant: ${JSON.stringify(args.variant)}})`
+    return {
+      html: `<button class="button">${args.label}</button>`,
+      css: `.button { display: inline-flex; }`,
+      typescript: `Button(surface, x, y, w, h, {children: ${JSON.stringify(args.label)}, variant: ${JSON.stringify(args.variant)}})`,
+    }
   },
 })
 
@@ -110,7 +114,7 @@ describe("typed Storybook story registry", () => {
       defaultArgs: {label: "Основная"},
       controls: [unsafeControl],
       render() {},
-      source: () => "source",
+      source: () => ({html: "<p>source</p>", css: "p {}", typescript: "source"}),
     })).toThrow("must be explicitly noninteractive")
   })
 
@@ -125,7 +129,37 @@ describe("typed Storybook story registry", () => {
     expect(second).toBe(first)
     expect(await first).toBe(module)
     expect(loads).toBe(1)
-    expect(module.source({...module.defaultArgs, label: "Готово"})).toContain('"Готово"')
+    const source = module.source({...module.defaultArgs, label: "Готово"})
+    expect(source.html).toContain("Готово")
+    expect(source.css).toContain(".button")
+    expect(source.typescript).toContain('"Готово"')
+    expect(Object.isFrozen(source)).toBeTrue()
+  })
+
+  test("requires and snapshots literal HTML, CSS and TypeScript source", () => {
+    const mutable = {html: "<div></div>", css: "div {}", typescript: "div(surface, x, y, w, h)"}
+    const valid = defineStorybookStoryModule({
+      defaultArgs: {},
+      render() {},
+      source: () => mutable,
+    })
+    const source = valid.source({})
+    mutable.html = "<span></span>"
+    expect(source).toEqual({
+      html: "<div></div>",
+      css: "div {}",
+      typescript: "div(surface, x, y, w, h)",
+    })
+    expect(Object.isFrozen(source)).toBeTrue()
+
+    for (const kind of ["html", "css", "typescript"] as const) {
+      const invalid = defineStorybookStoryModule({
+        defaultArgs: {},
+        render() {},
+        source: () => ({...source, [kind]: "  "}),
+      })
+      expect(() => invalid.source({})).toThrow(`source ${kind} must not be empty`)
+    }
   })
 
   test("retries a failed lazy story", async () => {

@@ -51,6 +51,21 @@ describe("create-storybook canonical package scaffold", () => {
     const page = await Bun.file(join(target, "page/page.ts")).text()
     expect(page).toContain('dataset: "quantumStorybook"')
     expect(page).toContain('canvasId: "quantum-storybook-canvas"')
+    const stories = await Bun.file(join(target, "page/stories.ts")).text()
+    expect(stories).toContain("loadPresentation")
+    expect(stories).toContain("return node.path as PresentationRoute")
+    expect(stories).not.toContain("routeTree.leaves.find")
+    const entry = await Bun.file(join(target, "page/entry.ts")).text()
+    expect(entry).toContain("source: state.source")
+    expect(entry).toContain("category: state.panelCategory")
+    expect(entry).toContain("onCategoryChange(category)")
+    expect(entry).toContain("StorybookHtml = source.html")
+    expect(entry).toContain("StorybookCss = source.css")
+    expect(entry).toContain("StorybookTypescript = source.typescript")
+    const labState = await Bun.file(join(target, "page/state/lab-state.ts")).text()
+    expect(labState).toContain('StorybookStoryPanelCategory = "source"')
+    expect(labState).toContain("get source(): StorybookStorySource")
+    expect(await Bun.file(join(target, "page/style.css")).text()).not.toContain("background")
     for (const path of [
       "page/entry.ts",
       "page/page.ts",
@@ -59,6 +74,7 @@ describe("create-storybook canonical package scaffold", () => {
       "page/fixtures/example.ts",
       "page/state/lab-state.ts",
       "page/stories/example.ts",
+      "page/stories/overview.ts",
     ]) expect(await Bun.file(join(target, path)).exists(), path).toBeTrue()
 
     expect((await validateStorybookPackageScaffold(target, "@quantum/storybook")).files)

@@ -6,8 +6,8 @@ module normalizer. It never assumes a render target. The UI-specific helpers
 layer `UiSurface` args, controls, rendering and source generation on that same
 catalog without changing its loading laws.
 
-Unknown routes remain unknown; `representative` is presentation state for an
-overview, never a routing fallback.
+Unknown routes remain unknown; `representative` is an explicit initial detail
+choice, never a routing fallback or a substitute for an overview module.
 
 @packageDocumentation
 */
@@ -17,6 +17,18 @@ import type {UiSurface} from "@layout/core/surface"
 import {defineStorybookRouteTree, type StorybookRouteTree} from "./route-tree.ts"
 
 export type StorybookStoryArgs = Readonly<Record<string, unknown>>
+
+/**
+The three literal source documents shown beside one rendered story.
+
+HTML is the declarative consumer markup, CSS is the complete visible cascade,
+and TypeScript is the exact efficient runtime call used after DSL parsing.
+*/
+export type StorybookStorySource = Readonly<{
+  html: string
+  css: string
+  typescript: string
+}>
 
 export type StorybookStoryInteractiveControlKind = "boolean" | "select"
 export type StorybookStoryNonInteractiveControlKind = "number" | "text" | "color" | "custom"
@@ -88,7 +100,7 @@ export type StorybookStoryModuleInput<Args extends StorybookStoryArgs> = Readonl
   defaultArgs: Args
   controls?: readonly StorybookStoryControlInput<Extract<keyof Args, string>>[]
   render(surface: UiSurface, args: Args, frame: UiSurfaceRect): void
-  source(args: Args): string
+  source(args: Args): StorybookStorySource
 }>
 
 /** A loaded story keeps only production rendering and source-generation behavior. */
@@ -96,7 +108,7 @@ export type StorybookStoryModule = Readonly<{
   defaultArgs: StorybookStoryArgs
   controls: readonly StorybookStoryControl[]
   render(surface: UiSurface, args: StorybookStoryArgs, frame: UiSurfaceRect): void
-  source(args: StorybookStoryArgs): string
+  source(args: StorybookStoryArgs): StorybookStorySource
 }>
 
 /** Loads one owner implementation without importing it into the eager catalog graph. */
@@ -138,7 +150,7 @@ export type StorybookStoryPath = Readonly<{
 
 export type StorybookStoryCatalogInput<LoadedModule = StorybookStoryModule> = Readonly<{
   groups: readonly StorybookStoryGroupInput<LoadedModule>[]
-  /** Detail shown by an overview before the owner makes a more local choice. */
+  /** Explicit initial detail choice for consumers that request one. */
   representative: StorybookStoryPath
 }>
 
@@ -211,9 +223,10 @@ Normalizes one repository-owned story implementation.
 
 `defaultArgs` and controls are shallow snapshots. The production owner retains
 the render target and implementation; this package only enforces the shared
-module boundary and non-empty generated source.
+module boundary and the three non-empty generated source documents.
 
-@throws If a control is malformed or `source()` later returns only whitespace.
+@throws If a control is malformed or `source()` later omits or empties HTML,
+CSS or TypeScript.
 */
 export function defineStorybookStoryModule<const Args extends StorybookStoryArgs>(
   input: StorybookStoryModuleInput<Args>,
@@ -227,9 +240,7 @@ export function defineStorybookStoryModule<const Args extends StorybookStoryArgs
       input.render(surface, args as Args, frame)
     },
     source(args) {
-      const source = input.source(args as Args)
-      if (source.trim().length === 0) throw new Error("Storybook story source must not be empty")
-      return source
+      return normalizeStorySource(input.source(args as Args))
     },
   }
   return Object.freeze(module)
@@ -497,6 +508,22 @@ function validateLoadedStory(route: string, module: StorybookStoryModule): Story
   if (typeof module.render !== "function") throw new Error(`Storybook story render must be a function: ${route}`)
   if (typeof module.source !== "function") throw new Error(`Storybook story source must be a function: ${route}`)
   return module
+}
+
+function normalizeStorySource(source: StorybookStorySource): StorybookStorySource {
+  if (source === null || typeof source !== "object" || Array.isArray(source)) {
+    throw new Error("Storybook story source must contain html, css and typescript")
+  }
+  for (const kind of ["html", "css", "typescript"] as const) {
+    if (typeof source[kind] !== "string" || source[kind].trim().length === 0) {
+      throw new Error(`Storybook story source ${kind} must not be empty`)
+    }
+  }
+  return Object.freeze({
+    html: source.html,
+    css: source.css,
+    typescript: source.typescript,
+  })
 }
 
 function validateId(kind: string, value: string): void {

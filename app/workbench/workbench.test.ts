@@ -52,8 +52,12 @@ describe("self-documenting Workbench boundary", () => {
       source.indexOf('dataset.storybookDocs = "ready"'),
     )
     expect(source).toContain("dataset.storybookDocsRoute = router.current.path")
-    expect(source).toContain("dataset.storybookDocsSource = storyModule.source(args)")
+    expect(source).toContain("dataset.storybookDocsHtml = source.html")
+    expect(source).toContain("dataset.storybookDocsCss = source.css")
+    expect(source).toContain("dataset.storybookDocsTypescript = source.typescript")
     expect(source).toContain("dataset.storybookDocsArgs = JSON.stringify(args)")
+    expect(source).toContain('let panelCategory: StorybookStoryPanelCategory = "source"')
+    expect(source).toContain("onCategoryChange(category)")
   })
 
   test("builds one browser entry with a separately emitted lazy story graph", async () => {

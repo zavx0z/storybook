@@ -11,6 +11,7 @@ boundary required from repository consumers.
 import {
   defineStorybookStories,
   type StorybookStoryComponentInput,
+  type StorybookStoryIndexItem,
   type StorybookStoryModule,
 } from "@zavx0z/storybook/stories"
 import {
@@ -98,23 +99,71 @@ export const STORYBOOK_WORKBENCH_STORIES = defineStorybookStories({
   representative: {component: "route-tree", section: "contract", variant: "overview"},
 })
 
-/**
-Selects the leaf rendered inside an overview without changing its URL.
-
-The root uses the declared representative. A component or section overview
-uses its first owned descendant. Unknown paths still fail closed.
-
-@throws If `path` is not a registered overview or leaf.
-*/
+/** Resolves one exact overview or leaf presentation without a descendant fallback. */
 export function storybookWorkbenchPresentationRoute(path: string): string {
   const node = STORYBOOK_WORKBENCH_STORIES.routeTree.find(path)
   if (node === undefined) throw new Error(`Unknown Storybook Workbench route: ${path}`)
-  if (node.kind === "leaf") return node.path
-  if (node.path.length === 0) return STORYBOOK_WORKBENCH_STORIES.representative
-  const prefix = `${node.path}/`
-  const descendant = STORYBOOK_WORKBENCH_STORIES.index.find(({route}) => route.startsWith(prefix))
-  if (descendant === undefined) throw new Error(`Storybook Workbench overview has no story: ${path}`)
-  return descendant.route
+  return node.path
+}
+
+export function storybookWorkbenchPresentationIndex(route: string): StorybookStoryIndexItem {
+  const detail = STORYBOOK_WORKBENCH_STORIES.find(route)
+  if (detail !== undefined) return detail
+  const node = STORYBOOK_WORKBENCH_STORIES.routeTree.find(route)
+  if (node?.kind !== "overview") throw new Error(`Unknown Storybook Workbench presentation: ${route}`)
+  const representative = STORYBOOK_WORKBENCH_STORIES.index.find(({route: leaf}) => (
+    node.path.length === 0 || leaf.startsWith(`${node.path}/`)
+  ))
+  if (representative === undefined) throw new Error(`Storybook Workbench overview has no story: ${route}`)
+  const segments = node.path.length === 0 ? [] : node.path.split("/")
+  return Object.freeze({
+    ...representative,
+    route: node.path,
+    componentId: segments[0] ?? "",
+    componentLabel: segments.length === 0 ? "Документация Storybook" : representative.componentLabel,
+    sectionId: segments[1] ?? "",
+    sectionLabel: segments.length < 2 ? "Обзор" : representative.sectionLabel,
+    variantId: "overview",
+    variantLabel: "Обзор",
+    title: segments.length === 0
+      ? "Документация Storybook · Обзор"
+      : `${segments.length === 1 ? representative.componentLabel : representative.sectionLabel} · Обзор`,
+  })
+}
+
+export async function loadStorybookWorkbenchPresentation(route: string): Promise<StorybookStoryModule> {
+  const detail = STORYBOOK_WORKBENCH_STORIES.find(route)
+  if (detail !== undefined) return STORYBOOK_WORKBENCH_STORIES.load(detail.route)
+  const index = storybookWorkbenchPresentationIndex(route)
+  const {createStorybookOverviewStory} = await import("./stories/overview.ts")
+  return createStorybookOverviewStory({
+    title: index.title,
+    items: storybookWorkbenchOverviewItems(route),
+  })
+}
+
+function storybookWorkbenchOverviewItems(route: string): readonly Readonly<{label: string; route: string}>[] {
+  const segments = route.length === 0 ? [] : route.split("/")
+  if (segments.length === 0) {
+    const seen = new Set<string>()
+    return STORYBOOK_WORKBENCH_STORIES.index.flatMap((item) => {
+      if (seen.has(item.componentId)) return []
+      seen.add(item.componentId)
+      return [{label: item.componentLabel, route: item.componentId}]
+    })
+  }
+  const selected = storybookWorkbenchPresentationIndex(route)
+  if (segments.length === 1) {
+    const seen = new Set<string>()
+    return STORYBOOK_WORKBENCH_STORIES.index.flatMap((item) => {
+      if (item.componentId !== selected.componentId || seen.has(item.sectionId)) return []
+      seen.add(item.sectionId)
+      return [{label: item.sectionLabel, route: `${item.componentId}/${item.sectionId}`}]
+    })
+  }
+  return STORYBOOK_WORKBENCH_STORIES.index
+    .filter((item) => item.componentId === selected.componentId && item.sectionId === selected.sectionId)
+    .map((item) => ({label: item.variantLabel, route: item.route}))
 }
 
 /**

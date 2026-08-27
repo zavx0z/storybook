@@ -41,9 +41,54 @@ export function createStorybookContractStory(
       drawWrappedParagraph(surface, contract.ownership, x + 22, summaryBottom + 58, width - 44)
     },
     source() {
-      return contract.example
+      return {
+        html: `<article class="contract" data-contract="${escapeHtml(contract.id)}">
+  <h2 class="contract__title">${escapeHtml(contract.title)}</h2>
+  <p class="contract__summary">${escapeHtml(contract.summary)}</p>
+  <h3 class="contract__subtitle">Кто за что отвечает</h3>
+  <p class="contract__ownership">${escapeHtml(contract.ownership)}</p>
+</article>`,
+        css: `.contract {
+  width: 100%;
+  height: 100%;
+  padding: 22px;
+  border: 1px solid #1a1a1a;
+  border-radius: 6px;
+  color: #e8e8e8;
+  background: #303030;
+  overflow: auto;
+}
+
+.contract__title {
+  margin: 0 0 10px;
+  font-size: 18px;
+  line-height: 30px;
+}
+
+.contract__summary,
+.contract__ownership {
+  margin: 0;
+  font-size: 12px;
+  line-height: 22px;
+}
+
+.contract__subtitle {
+  margin: 22px 0 12px;
+  font-size: 14px;
+  line-height: 24px;
+}`,
+        typescript: contract.example,
+      }
     },
   })
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
 }
 
 function drawWrappedParagraph(

@@ -20,8 +20,8 @@ Use `$storybook ensure @zavx0z/storybook` and open the reported automatic
 origin.
 The root is the real five-region WebGPU Workbench: every public subpath is a
 normal story in its catalog, with the explanation in preview and the exact
-import example in the source panel. Public changes must update that story and
-example in the same change.
+HTML, CSS and TypeScript documents in three source editors. Public changes must
+update that story and all three documents in the same change.
 
 ```bash
 bun run check

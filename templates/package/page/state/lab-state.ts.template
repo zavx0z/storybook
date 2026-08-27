@@ -2,24 +2,25 @@ import type {
   StorybookStoryArgs,
   StorybookStoryIndexItem,
   StorybookStoryModule,
+  StorybookStorySource,
 } from "@zavx0z/storybook/stories"
-import type {StorybookStoryPanelMode} from "@zavx0z/storybook/workbench"
+import type {StorybookStoryPanelCategory} from "@zavx0z/storybook/workbench"
 import {
-  STORIES,
+  loadPresentation,
   storyIndex,
-  type StoryRoute,
+  type PresentationRoute,
 } from "../stories.ts"
 
 export class StorybookLabState {
-  #route: StoryRoute
+  #route: PresentationRoute
   #story: StorybookStoryIndexItem
   #module: StorybookStoryModule
   #args: StorybookStoryArgs
-  #panelMode: StorybookStoryPanelMode = "controls"
+  #panelCategory: StorybookStoryPanelCategory = "source"
   #loadRevision = 0
 
   private constructor(
-    route: StoryRoute,
+    route: PresentationRoute,
     story: StorybookStoryIndexItem,
     module: StorybookStoryModule,
   ) {
@@ -29,20 +30,21 @@ export class StorybookLabState {
     this.#args = Object.freeze({...module.defaultArgs})
   }
 
-  static async create(route: StoryRoute): Promise<StorybookLabState> {
-    return new StorybookLabState(route, storyIndex(route), await STORIES.load(route))
+  static async create(route: PresentationRoute): Promise<StorybookLabState> {
+    return new StorybookLabState(route, storyIndex(route), await loadPresentation(route))
   }
 
-  get route(): StoryRoute { return this.#route }
+  get route(): PresentationRoute { return this.#route }
   get story(): StorybookStoryIndexItem { return this.#story }
   get module(): StorybookStoryModule { return this.#module }
   get args(): StorybookStoryArgs { return this.#args }
-  get panelMode(): StorybookStoryPanelMode { return this.#panelMode }
+  get source(): StorybookStorySource { return this.#module.source(this.#args) }
+  get panelCategory(): StorybookStoryPanelCategory { return this.#panelCategory }
 
-  async select(route: StoryRoute): Promise<boolean> {
+  async select(route: PresentationRoute): Promise<boolean> {
     const revision = ++this.#loadRevision
     const story = storyIndex(route)
-    const module = await STORIES.load(route)
+    const module = await loadPresentation(route)
     if (revision !== this.#loadRevision) return false
     this.#route = route
     this.#story = story
@@ -62,7 +64,7 @@ export class StorybookLabState {
     this.#args = Object.freeze({...this.#args, [key]: value})
   }
 
-  setPanelMode(mode: StorybookStoryPanelMode): void {
-    this.#panelMode = mode
+  setPanelCategory(category: StorybookStoryPanelCategory): void {
+    this.#panelCategory = category
   }
 }

@@ -37,9 +37,39 @@ export function createExampleStory() {
       )
     },
     source(args) {
-      return `import {EXAMPLE_FIXTURE} from "./fixtures/example.ts"
+      return {
+        html: `<article class="fixture"${args["show-values"] === true ? ` data-values="${EXAMPLE_FIXTURE.values.join(",")}"` : ""}>
+  <h2 class="fixture__message">${EXAMPLE_FIXTURE.message}</h2>
+  <pre class="fixture__data"></pre>
+</article>`,
+        css: `.fixture {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid #1a1a1a;
+  border-radius: 6px;
+  color: #e8e8e8;
+  background: #303030;
+}
 
-const visible = ${args["show-values"] === true ? "EXAMPLE_FIXTURE.values" : "EXAMPLE_FIXTURE.message"}`
+.fixture__message {
+  margin: 0;
+  font-size: 16px;
+  line-height: 28px;
+}
+
+.fixture__data {
+  flex: 1 1 auto;
+  margin: 0;
+  overflow: auto;
+}`,
+        typescript: `import {EXAMPLE_FIXTURE} from "./fixtures/example.ts"
+
+const visible = ${args["show-values"] === true ? "EXAMPLE_FIXTURE.values" : "EXAMPLE_FIXTURE.message"}`,
+      }
     },
   })
 }

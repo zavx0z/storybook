@@ -11,7 +11,10 @@ import {
   selectStorybookNavigationItems,
   type StorybookNavigationItem,
   type StorybookRetainedDiagnostics,
+  type StorybookStoryPanelCategory,
+  type StorybookStoryPanelOptions,
 } from "./surfaces.ts"
+import type {StorybookStorySource} from "../stories.ts"
 
 type Route = "first" | "second" | "third" | "fourth"
 type OwnerSnapshot = Readonly<{
@@ -24,6 +27,12 @@ const items: readonly StorybookNavigationItem<Route>[] = [
   {id: "second", label: "Second", route: "second"},
   {id: "third", label: "Third", route: "third"},
 ]
+
+const storySource = (typescript: string): StorybookStorySource => Object.freeze({
+  html: `<button class="button">Example</button>`,
+  css: `.button { display: inline-flex; }`,
+  typescript,
+})
 
 const createFakeRuntime = (): UiRuntime => ({
   canvas: {style: {}},
@@ -504,8 +513,8 @@ describe("retained @zavx0z/storybook Workbench surfaces", () => {
   })
 
   test("keeps source visible while copy, controls and events use exact retained owners", () => {
-    const copied: string[] = []
-    const modes: string[] = []
+    const copied: Array<readonly [string, string]> = []
+    const categories: string[] = []
     const changes: Array<readonly [string, unknown]> = []
     const source = [
       'import {Button} from "@ui/components/button"',
@@ -515,8 +524,10 @@ describe("retained @zavx0z/storybook Workbench surfaces", () => {
       "  disabled: false,",
       "})",
     ].join("\n")
-    const surface = new StorybookStoryPanelSurface({
-      source,
+    let category: StorybookStoryPanelCategory = "source"
+    let surface: StorybookStoryPanelSurface
+    const options = (): StorybookStoryPanelOptions => ({
+      source: storySource(source),
       args: {variant: "contained", disabled: false},
       controls: [
         {
@@ -530,50 +541,67 @@ describe("retained @zavx0z/storybook Workbench surfaces", () => {
         {key: "disabled", label: "Недоступна", group: "Состояние", kind: "boolean", interactive: true},
       ],
       events: [{id: "click", label: "Клики", value: "0"}],
-      mode: "controls",
-      onModeChange: (mode) => { modes.push(mode) },
+      category,
+      onCategoryChange: (nextCategory) => {
+        categories.push(nextCategory)
+        category = nextCategory
+        surface.setOptions(options())
+      },
       onControlChange: (key, value) => { changes.push([key, value]) },
-      onCopy: (value) => { copied.push(value) },
+      onCopy: (kind, value) => { copied.push([kind, value]) },
     })
+    surface = new StorybookStoryPanelSurface(options())
     surface.attachCanvas(createFakeRuntime())
     surface.setRect({x: 0, y: 0, w: 300, h: 900}, 0.001, font)
     expect(surface.diagnostics.owners.map(({key}) => key)).toEqual([
       "panel",
-      "source-title",
-      "source-copy",
-      "source-box",
-      "source-tab:controls",
-      "source-tab:events",
+      "source-box:html",
+      "source-box:css",
+      "source-box:typescript",
+    ])
+    expectOwnerOrigin(surface, "source-box:html", 44, 70)
+    expectOwnerOrigin(surface, "source-box:css", 44, 254)
+    expectOwnerOrigin(surface, "source-box:typescript", 44, 438)
+
+    const pointer = {button: 0, preventDefault() {}} as MouseEvent
+    for (const y of [51, 235, 419]) {
+      surface.onPointerDown(pointer, 270, y)
+      surface.onPointerUp(pointer, 270, y)
+    }
+    surface.flushPendingRender()
+    expect(copied).toEqual([
+      ["html", '<button class="button">Example</button>'],
+      ["css", ".button { display: inline-flex; }"],
+      ["typescript", source],
+    ])
+    surface.onPointerDown(pointer, 15, 77)
+    surface.onPointerUp(pointer, 15, 77)
+    surface.flushPendingRender()
+    expect(categories).toEqual(["controls"])
+    expect(surface.diagnostics.owners.map(({key}) => key)).toEqual([
+      "panel",
       "source-control-group:Основные",
       "source-control:variant",
       "source-control-group:Состояние",
       "source-control:disabled",
     ])
-    expectOwnerOrigin(surface, "source-title", 6, 3)
-    expectOwnerOrigin(surface, "source-copy", 206, 3)
-    expectOwnerOrigin(surface, "source-box", 6, 30)
-    expectOwnerOrigin(surface, "source-tab:controls", 6, 357)
-    expectOwnerOrigin(surface, "source-tab:events", 150.5, 357)
-    expectOwnerOrigin(surface, "source-control:variant", 6, 409)
-
-    const pointer = {button: 0, preventDefault() {}} as MouseEvent
-    surface.onPointerDown(pointer, 220, 15)
-    surface.onPointerUp(pointer, 220, 15)
-    surface.onPointerDown(pointer, 150, 421)
-    surface.onPointerUp(pointer, 150, 421)
-    surface.onPointerDown(pointer, 220, 369)
-    surface.onPointerUp(pointer, 220, 369)
-    surface.flushPendingRender()
-    expect(copied).toEqual([source])
+    expectOwnerOrigin(surface, "source-control:variant", 44, 95)
+    surface.onPointerDown(pointer, 150, 107)
+    surface.onPointerUp(pointer, 150, 107)
     expect(changes).toEqual([["variant", "outlined"]])
-    expect(modes).toEqual(["events"])
+
+    surface.onPointerDown(pointer, 15, 106)
+    surface.onPointerUp(pointer, 15, 106)
+    surface.flushPendingRender()
+    expect(categories).toEqual(["controls", "events"])
+    expect(surface.diagnostics.owners.map(({key}) => key)).toEqual(["panel", "source-event:click"])
     surface.dispose()
   })
 
   test("shows every control kind but only invokes boolean and select controls", () => {
     const changes: Array<readonly [string, unknown]> = []
     const surface = new StorybookStoryPanelSurface({
-      source: "render(surface, args)",
+      source: storySource("render(surface, args)"),
       args: {count: 1, label: "Текст", color: "#ffffff", custom: "read-only", enabled: false},
       controls: [
         {key: "count", label: "Число", group: "Значения", kind: "number", interactive: false},
@@ -582,8 +610,8 @@ describe("retained @zavx0z/storybook Workbench surfaces", () => {
         {key: "custom", label: "Особое", group: "Значения", kind: "custom", interactive: false},
         {key: "enabled", label: "Включено", group: "Значения", kind: "boolean", interactive: true},
       ],
-      mode: "controls",
-      onModeChange() {},
+      category: "controls",
+      onCategoryChange() {},
       onControlChange: (key, value) => { changes.push([key, value]) },
       onCopy() {},
     })
@@ -600,11 +628,39 @@ describe("retained @zavx0z/storybook Workbench surfaces", () => {
     ]) expect(ownerKeys).toContain(key)
 
     const pointer = {button: 0, preventDefault() {}} as MouseEvent
-    for (const y of [421, 446, 471, 496, 521]) {
+    for (const y of [125, 150, 175, 200, 225]) {
       surface.onPointerDown(pointer, 150, y)
       surface.onPointerUp(pointer, 150, y)
     }
     expect(changes).toEqual([["enabled", true]])
+    surface.dispose()
+  })
+
+  test("reports selection from each source editor under its exact language owner", () => {
+    const selections: string[] = []
+    const surface = new StorybookStoryPanelSurface({
+      source: storySource("Button(surface, x, y, w, h)"),
+      args: {},
+      controls: [],
+      events: [],
+      category: "source",
+      onCategoryChange() {},
+      onControlChange() {},
+      onCopy() {},
+      onSourceSelectionChange: (kind, selection) => {
+        if (selection !== null && selection.text.length > 0) selections.push(kind)
+      },
+    })
+    surface.attachCanvas(createFakeRuntime())
+    surface.setRect({x: 0, y: 0, w: 300, h: 900}, 0.001, font)
+
+    const pointer = {button: 0, preventDefault() {}} as MouseEvent
+    for (const y of [100, 295, 490]) {
+      surface.onPointerDown(pointer, 95, y)
+      surface.onPointerMove(pointer, 125, y)
+      surface.onPointerUp(pointer, 125, y)
+    }
+    expect(new Set(selections)).toEqual(new Set(["html", "css", "typescript"]))
     surface.dispose()
   })
 
@@ -615,20 +671,24 @@ describe("retained @zavx0z/storybook Workbench surfaces", () => {
     ].join("\n")
     const positions: Array<Readonly<{left: number; top: number}>> = []
     const surface = new StorybookStoryPanelSurface({
-      source,
+      source: storySource(source),
       args: {},
       controls: [],
       events: [],
-      mode: "controls",
-      onModeChange() {},
+      category: "source",
+      onCategoryChange() {},
       onControlChange() {},
       onCopy() {},
-      onSourceScrollChange: (position) => { positions.push(position) },
+      onSourceScrollChange: (kind, position) => {
+        if (kind === "typescript") positions.push(position)
+      },
     })
     surface.attachCanvas(createFakeRuntime())
     surface.setRect({x: 0, y: 0, w: 300, h: 900}, 0.001, font)
     const before = snapshots(surface)
-    expect(surface.sourceScrollPosition).toEqual({left: 0, top: 0})
+    expect(surface.sourceScrollPosition("html")).toEqual({left: 0, top: 0})
+    expect(surface.sourceScrollPosition("css")).toEqual({left: 0, top: 0})
+    expect(surface.sourceScrollPosition("typescript")).toEqual({left: 0, top: 0})
 
     const originalRequestAnimationFrame = globalThis.requestAnimationFrame
     const originalCancelAnimationFrame = globalThis.cancelAnimationFrame
@@ -659,23 +719,25 @@ describe("retained @zavx0z/storybook Workbench surfaces", () => {
       shiftKey: false,
       timeStamp,
       preventDefault: () => { prevented += 1 },
-    } as unknown as WheelEvent, 100, 100)
+    } as unknown as WheelEvent, 100, 520)
 
     try {
       wheel(0, 180, 100)
       drain(116)
-      expect(surface.sourceScrollPosition.top).toBeGreaterThan(0)
-      expect(surface.sourceScrollPosition.left).toBe(0)
+      expect(surface.sourceScrollPosition("typescript").top).toBeGreaterThan(0)
+      expect(surface.sourceScrollPosition("typescript").left).toBe(0)
+      expect(surface.sourceScrollPosition("html")).toEqual({left: 0, top: 0})
+      expect(surface.sourceScrollPosition("css")).toEqual({left: 0, top: 0})
 
       wheel(240, 0, 500)
       drain(516)
-      expect(surface.sourceScrollPosition.left).toBeGreaterThan(0)
-      expect(surface.sourceScrollPosition.top).toBeGreaterThan(0)
+      expect(surface.sourceScrollPosition("typescript").left).toBeGreaterThan(0)
+      expect(surface.sourceScrollPosition("typescript").top).toBeGreaterThan(0)
       expect(prevented).toBe(2)
-      expect(positions.at(-1)?.left).toBe(surface.sourceScrollPosition.left)
-      expect(positions.at(-1)?.top).toBe(surface.sourceScrollPosition.top)
-      expectOwnersStable(surface, before, new Set(["source-box"]))
-      expect(snapshot(owner(surface, "source-box"))).not.toEqual(before.get("source-box"))
+      expect(positions.at(-1)?.left).toBe(surface.sourceScrollPosition("typescript").left)
+      expect(positions.at(-1)?.top).toBe(surface.sourceScrollPosition("typescript").top)
+      expectOwnersStable(surface, before, new Set(["source-box:typescript"]))
+      expect(snapshot(owner(surface, "source-box:typescript"))).not.toEqual(before.get("source-box:typescript"))
     } finally {
       globalThis.requestAnimationFrame = originalRequestAnimationFrame
       globalThis.cancelAnimationFrame = originalCancelAnimationFrame

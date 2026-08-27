@@ -24,6 +24,7 @@ import {buildStorybookBrowserPage, storybookAssetContentType} from "./internal/b
 import {storybookAppRecoveryIndex, storybookPageRecoveryIndex} from "./internal/routes.ts"
 import {resolveStorybookStaticFiles} from "./internal/static-files.ts"
 import {resolveStorybookRouteTree} from "./route-tree.ts"
+import {STORYBOOK_SHELL_BACKGROUND_CSS} from "./shell-theme.ts"
 import {
   readProcessStart,
   readStorybookPackageManifest,
@@ -352,6 +353,15 @@ async function createPageHtml(
     <title>${escapeHtml(page.title)}</title>
     <link rel="stylesheet" href="${escapeHtml(`${assetBasePath}/style.css`)}">
     <style>
+      :root {
+        color-scheme: dark;
+        --storybook-shell-background: ${STORYBOOK_SHELL_BACKGROUND_CSS};
+        background: var(--storybook-shell-background);
+      }
+      html,
+      body {
+        background: var(--storybook-shell-background);
+      }
       .storybook-footer,
       .storybook-home {
         position: fixed;

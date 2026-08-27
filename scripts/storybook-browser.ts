@@ -26,6 +26,12 @@ import {
 } from "../src/browser/interaction-plan.ts"
 import {storybookTargetUrl} from "../src/browser/target-url.ts"
 import {
+  clearStorybookBrowserTargetRecord,
+  readStorybookBrowserTargetRecord,
+  writeStorybookBrowserTargetRecord,
+  type StorybookBrowserTargetOwner,
+} from "../src/browser/target-record.ts"
+import {
   withTargetCreationLock,
   withTargetOperationLock,
 } from "../src/browser/target-operation-lock.ts"
@@ -60,6 +66,8 @@ type Options = Readonly<{
   outputDir?: string
   canvasSelector?: string
   plan?: string
+  activate: boolean
+  preserveRoute: boolean
   durationMs: number
   frames: number
 }>
@@ -81,6 +89,11 @@ if (action === undefined || packageName === undefined) {
 if (!actions.has(action)) fail(`unknown browser action: ${action}`)
 
 const options = parseOptions(optionArgs)
+if (options.activate && action !== "open" && action !== "reload") {
+  fail("--activate is supported only for open and reload")
+}
+if (options.preserveRoute && action !== "open") fail("--preserve-route is supported only for open")
+if (options.preserveRoute && options.route !== undefined) fail("--preserve-route cannot be combined with --route")
 const checkout = resolve(options.repositoryRoot ?? readGitRoot(process.cwd()))
 validateCheckout(checkout)
 const packageIdentity = await resolveStorybookPackage(packageName, {repositoryRoot: checkout})
@@ -91,15 +104,30 @@ if (packageStatus.status !== "running" || packageStatus.runtime === null) {
 const developmentManifest = await loadDevelopmentManifest(
   new URL(packageStatus.runtime.manifestPath, packageStatus.runtime.origin).href,
 )
-const config = resolveTargetConfig(checkout, packageIdentity.name, packageStatus.runtime.origin, developmentManifest, options)
+const cdpPort = Number(Bun.env.STORYBOOK_CDP_PORT ?? 9222)
+if (!Number.isInteger(cdpPort) || cdpPort < 1 || cdpPort > 65535) fail("STORYBOOK_CDP_PORT must be 1..65535")
+const targetOwner: StorybookBrowserTargetOwner = Object.freeze({
+  statePath: packageIdentity.statePath,
+  packageName: packageIdentity.name,
+  packageDirectory: packageIdentity.directory,
+  cdpPort,
+})
+const preservedRoute = options.preserveRoute
+  ? await recordedTargetRoute(targetOwner, developmentManifest, cdpPort)
+  : undefined
+const config = resolveTargetConfig(
+  checkout,
+  packageIdentity.name,
+  packageStatus.runtime.origin,
+  developmentManifest,
+  preservedRoute === undefined ? options : {...options, route: preservedRoute},
+)
 if (!new Set(["targets", "target", "close"]).has(action)) {
   await validateRegistryRoute(config.targetUrl)
 }
 if (config.canvas.capability === "none" && new Set(["canvas", "viewports", "touch", "profile", "interact"]).has(action)) {
   fail(`${action} is unsupported for ${config.packageName}: this route has no canvas`)
 }
-const cdpPort = Number(Bun.env.STORYBOOK_CDP_PORT ?? 9222)
-if (!Number.isInteger(cdpPort) || cdpPort < 1 || cdpPort > 65535) fail("STORYBOOK_CDP_PORT must be 1..65535")
 let interactionPlan: InteractionPlan | null = null
 if (action === "interact") {
   if (options.route === undefined) fail("interact requires --route")
@@ -111,13 +139,20 @@ if (action === "interact") {
 }
 
 if (action === "targets") {
-  output({action, checkout, packageName: config.packageName, origin: config.origin, targets: await candidateTargets(config, cdpPort)})
+  output({
+    action,
+    checkout,
+    packageName: config.packageName,
+    origin: config.origin,
+    targetRecord: readStorybookBrowserTargetRecord(targetOwner),
+    targets: await candidateTargets(config, cdpPort),
+  })
   process.exit(0)
 }
 if (action === "close") {
   const targetId = options.targetId ?? fail("close requires --target-id <exact-created-target-id>")
   const closed = await withTargetOperationLock({targetId, cdpPort}, () => (
-    closeTarget(config, targetId, cdpPort)
+    closeTarget(config, targetId, cdpPort, targetOwner)
   ))
   output({action, checkout, packageName: config.packageName, closed})
   process.exit(0)
@@ -125,14 +160,21 @@ if (action === "close") {
 
 const selected = action === "open"
   ? await withTargetCreationLock({
-      creationScope: config.origin,
-      cdpPort,
-    }, () => selectTarget(config, true, options.targetId, cdpPort))
-  : await selectTarget(config, false, options.targetId, cdpPort)
+    creationScope: config.origin,
+    cdpPort,
+    }, () => selectTarget(config, true, options.targetId, cdpPort, targetOwner, true))
+  : await selectTarget(config, false, options.targetId, cdpPort, targetOwner, false)
 const target = selected.target
 if (action === "target") output({action, ...targetResult(config, target), currentUrl: target.url})
 else await withTargetOperationLock({targetId: target.id, cdpPort}, async () => {
-  const lockedSelection = await selectTarget(config, false, target.id, cdpPort)
+  const lockedSelection = await selectTarget(
+    config,
+    false,
+    target.id,
+    cdpPort,
+    targetOwner,
+    action === "open",
+  )
   const lockedTarget = lockedSelection.target
   if (action === "interact") {
     validateInteractionInvocation({
@@ -151,10 +193,11 @@ else await withTargetOperationLock({targetId: target.id, cdpPort}, async () => {
       if (action === "reload") await reloadAndWait(cdp, config.ready)
       else if (!lockedSelection.navigate) await waitReady(cdp, config.ready)
     })
+    if (options.activate) await activateTarget(lockedTarget.id, cdpPort)
     if (action === "open") {
-      output({action, ...targetResult(config, lockedTarget), dom: await readDom(cdp, config.canvas.selector)})
+      output({action, activated: options.activate, ...targetResult(config, lockedTarget), dom: await readDom(cdp, config.canvas.selector)})
     } else if (action === "reload") {
-      output({action, ...targetResult(config, lockedTarget), dom: await readDom(cdp, config.canvas.selector)})
+      output({action, activated: options.activate, ...targetResult(config, lockedTarget), dom: await readDom(cdp, config.canvas.selector)})
     } else if (action === "dom") {
       output({action, ...targetResult(config, lockedTarget), dom: await readDom(cdp, config.canvas.selector)})
     } else if (action === "console") {
@@ -199,10 +242,20 @@ function parseOptions(args: readonly string[]): Options {
   let outputDir: string | undefined
   let canvasSelector: string | undefined
   let plan: string | undefined
+  let activate = false
+  let preserveRoute = false
   let durationMs = 1000
   let frames = 60
   for (let index = 0; index < args.length; index++) {
     const key = args[index]
+    if (key === "--activate") {
+      activate = true
+      continue
+    }
+    if (key === "--preserve-route") {
+      preserveRoute = true
+      continue
+    }
     const value = args[index + 1]
     if (!value) fail(`missing value for ${key}`)
     if (key === "--root") repositoryRoot = value
@@ -225,6 +278,8 @@ function parseOptions(args: readonly string[]): Options {
     ...(outputDir === undefined ? {} : {outputDir}),
     ...(canvasSelector === undefined ? {} : {canvasSelector}),
     ...(plan === undefined ? {} : {plan}),
+    activate,
+    preserveRoute,
     durationMs,
     frames,
   }
@@ -301,6 +356,27 @@ async function loadDevelopmentManifest(url: string): Promise<StorybookDevelopmen
   return manifest
 }
 
+async function recordedTargetRoute(
+  owner: StorybookBrowserTargetOwner,
+  manifest: StorybookDevelopmentManifest,
+  port: number,
+): Promise<string | undefined> {
+  const record = readStorybookBrowserTargetRecord(owner)
+  if (record === null) return undefined
+  const target = (await listTargets(port)).find(({id, type}) => id === record.targetId && type === "page")
+  if (target === undefined) return undefined
+  let pathname: string
+  try {
+    pathname = new URL(target.url).pathname
+  } catch {
+    throw new Error(`recorded Storybook target has an invalid URL: ${target.url}`)
+  }
+  if (!manifest.pages.some(({routes}) => routes.includes(pathname))) {
+    throw new Error(`recorded Storybook route is no longer declared by ${owner.packageName}: ${pathname}`)
+  }
+  return pathname
+}
+
 async function validateRegistryRoute(url: string): Promise<void> {
   let response: Response
   try {
@@ -357,17 +433,52 @@ async function selectTarget(
   create: boolean,
   requestedId: string | undefined,
   port: number,
+  owner: StorybookBrowserTargetOwner,
+  allowRecordedTarget: boolean,
 ): Promise<{target: Target; navigate: boolean}> {
-  let candidates = await candidateTargets(config, port)
+  const pages = (await listTargets(port)).filter((target) => target.type === "page")
+  let record = readStorybookBrowserTargetRecord(owner)
+  const recordedTargetId = record?.targetId
+  const recordedTarget = recordedTargetId === undefined
+    ? undefined
+    : pages.find(({id}) => id === recordedTargetId)
+  if (record !== null && recordedTarget === undefined) {
+    clearStorybookBrowserTargetRecord(owner, record.targetId)
+    record = null
+  }
+  let candidates = pages.filter((target) => targetOrigin(target.url) === config.origin)
   if (requestedId !== undefined) {
-    candidates = candidates.filter((candidate) => candidate.id === requestedId)
-    if (candidates.length !== 1) throw new Error(`target ${requestedId} is not an existing ${config.packageName} target at ${config.origin}`)
+    const requested = pages.filter((candidate) => candidate.id === requestedId)
+    if (requested.length !== 1) throw new Error(`target ${requestedId} is not an existing page target`)
+    const target = requested[0]!
+    const currentOrigin = targetOrigin(target.url) === config.origin
+    if (!currentOrigin && !(allowRecordedTarget && record?.targetId === requestedId)) {
+      throw new Error(`target ${requestedId} is not the owned ${config.packageName} target at ${config.origin}`)
+    }
+    if (recordedTarget !== undefined && recordedTarget.id !== target.id) {
+      throw new Error(`ambiguous recorded ${config.packageName} target: ${recordedTarget.id},${target.id}`)
+    }
+    if (record === null) writeStorybookBrowserTargetRecord(owner, target.id)
+    return {target, navigate: target.url !== config.targetUrl}
   } else if (candidates.length > 1) {
     throw new Error(`ambiguous ${config.packageName} targets at ${config.origin}; pass --target-id or reconcile exact created duplicates: ${candidates.map(({id, url}) => `${id}=${url}`).join(",")}`)
   }
 
+  if (candidates.length === 1) {
+    const target = candidates[0]!
+    if (recordedTarget !== undefined && recordedTarget.id !== target.id) {
+      throw new Error(`ambiguous recorded ${config.packageName} target: ${recordedTarget.id},${target.id}`)
+    }
+    if (record === null) writeStorybookBrowserTargetRecord(owner, target.id)
+    return {target, navigate: target.url !== config.targetUrl}
+  }
   if (candidates.length === 0 && create) {
+    if (recordedTarget !== undefined) {
+      if (!recordedTarget.webSocketDebuggerUrl) throw new Error(`target websocket is missing: ${recordedTarget.id}`)
+      return {target: recordedTarget, navigate: recordedTarget.url !== config.targetUrl}
+    }
     const created = await exactTarget(config.targetUrl, true, port)
+    writeStorybookBrowserTargetRecord(owner, created.id)
     return {target: created, navigate: false}
   }
   if (candidates.length === 0) throw new Error(`no background target for ${config.packageName} at ${config.origin}; run open`)
@@ -376,7 +487,12 @@ async function selectTarget(
   return {target, navigate: target.url !== config.targetUrl}
 }
 
-async function closeTarget(config: TargetConfig, targetId: string, port: number): Promise<{id: string; url: string}> {
+async function closeTarget(
+  config: TargetConfig,
+  targetId: string,
+  port: number,
+  owner: StorybookBrowserTargetOwner,
+): Promise<{id: string; url: string}> {
   const candidate = (await candidateTargets(config, port)).find(({id}) => id === targetId)
   if (!candidate) throw new Error(`refusing to close target outside ${config.packageName} origin: ${targetId}`)
   const version = await fetchJson<{webSocketDebuggerUrl?: string}>(`http://127.0.0.1:${port}/json/version`)
@@ -385,7 +501,16 @@ async function closeTarget(config: TargetConfig, targetId: string, port: number)
     const result = await cdp.send<{success?: boolean}>("Target.closeTarget", {targetId})
     if (result.success !== true) throw new Error(`Target.closeTarget rejected ${targetId}`)
   })
+  clearStorybookBrowserTargetRecord(owner, targetId)
   return {id: candidate.id, url: candidate.url}
+}
+
+async function activateTarget(targetId: string, port: number): Promise<void> {
+  const version = await fetchJson<{webSocketDebuggerUrl?: string}>(`http://127.0.0.1:${port}/json/version`)
+  if (!version.webSocketDebuggerUrl) throw new Error(`browser CDP websocket is unavailable on ${port}`)
+  await withCdp(version.webSocketDebuggerUrl, async (cdp) => {
+    await cdp.send("Target.activateTarget", {targetId})
+  })
 }
 
 function targetOrigin(url: string): string | null {
@@ -517,13 +642,22 @@ async function waitReady(cdp: CdpConnection, marker: ReadyMarker | null): Promis
   const expression = readyExpression(marker)
   for (let attempt = 0; attempt < 75; attempt++) {
     try {
-      if (await evaluate<boolean>(cdp, expression)) return
+      if (await evaluate<boolean>(cdp, expression)) {
+        await waitPresentedFrameBoundary(cdp)
+        return
+      }
     } catch {
       // Navigation briefly destroys the execution context.
     }
     await Bun.sleep(200)
   }
   throw new Error(`page did not reach ready marker: ${expression}`)
+}
+
+async function waitPresentedFrameBoundary(cdp: CdpConnection): Promise<void> {
+  await evaluate<boolean>(cdp, `new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)))
+  })`, true)
 }
 
 async function reloadAndWait(cdp: CdpConnection, marker: ReadyMarker | null): Promise<void> {

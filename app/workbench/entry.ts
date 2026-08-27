@@ -2,8 +2,8 @@
 Live self-documenting Workbench page for `@zavx0z/storybook`.
 
 The page owns one `UiRuntime`, one pathname router and its local stories. Every
-visible region is a public Workbench surface; overview routes choose only a
-presentation descendant and never rewrite their canonical pathname.
+visible region is a public Workbench surface; overview routes own aggregate
+presentations and never rewrite their canonical pathname.
 
 @packageDocumentation
 */
@@ -13,7 +13,6 @@ import {StorybookRouteTreeRouter, type StorybookRouteTreeNode} from "@zavx0z/sto
 import type {
   StorybookStoryArgs,
   StorybookStoryIndexItem,
-  StorybookStoryModule,
 } from "@zavx0z/storybook/stories"
 import {
   StorybookBackdropSurface,
@@ -23,7 +22,7 @@ import {
   planStorybookShell,
   type StorybookNavigationItem,
   type StorybookResponsivePolicy,
-  type StorybookStoryPanelMode,
+  type StorybookStoryPanelCategory,
   type StorybookStoryPanelOptions,
 } from "@zavx0z/storybook/workbench"
 import {
@@ -33,7 +32,9 @@ import {
 import {StorybookWorkbenchPreviewSurface} from "./preview.ts"
 import {
   STORYBOOK_WORKBENCH_STORIES,
+  loadStorybookWorkbenchPresentation,
   observeStorybookWorkbenchButtonClicks,
+  storybookWorkbenchPresentationIndex,
   storybookWorkbenchPresentationRoute,
 } from "./stories.ts"
 
@@ -58,10 +59,10 @@ async function startStorybookWorkbenchDocumentation(): Promise<void> {
       basePath: WORKBENCH_MOUNT_PATH,
     })
     let storyRoute = storybookWorkbenchPresentationRoute(router.current.path)
-    let storyIndex = requireStory(storyRoute)
-    let storyModule = await STORYBOOK_WORKBENCH_STORIES.load(storyRoute)
+    let storyIndex = storybookWorkbenchPresentationIndex(storyRoute)
+    let storyModule = await loadStorybookWorkbenchPresentation(storyRoute)
     let args: StorybookStoryArgs = Object.freeze({...storyModule.defaultArgs})
-    let panelMode: StorybookStoryPanelMode = "controls"
+    let panelCategory: StorybookStoryPanelCategory = "source"
     let clickCount = 0
     let controlChanges = 0
     let selectionRevision = 0
@@ -82,13 +83,14 @@ async function startStorybookWorkbenchDocumentation(): Promise<void> {
       source: storyModule.source(args),
       args,
       controls: storyModule.controls,
+      contextLabel: storyIndex.title,
       events: [
         {id: "clicks", label: "Нажатия", value: String(clickCount)},
         {id: "changes", label: "Изменения", value: String(controlChanges)},
       ],
-      mode: panelMode,
-      onModeChange(mode) {
-        panelMode = mode
+      category: panelCategory,
+      onCategoryChange(category) {
+        panelCategory = category
         storyPanel.setOptions(panelOptions())
         publish()
       },
@@ -99,12 +101,12 @@ async function startStorybookWorkbenchDocumentation(): Promise<void> {
         storyPanel.setOptions(panelOptions())
         publish()
       },
-      async onCopy(source) {
+      async onCopy(kind, source) {
         try {
           await navigator.clipboard.writeText(source)
-          document.documentElement.dataset.storybookDocsCopy = "copied"
+          document.documentElement.dataset.storybookDocsCopy = `${kind}:copied`
         } catch {
-          document.documentElement.dataset.storybookDocsCopy = "error"
+          document.documentElement.dataset.storybookDocsCopy = `${kind}:error`
         }
       },
     })
@@ -166,15 +168,18 @@ async function startStorybookWorkbenchDocumentation(): Promise<void> {
       document.documentElement.dataset.storybookDocsRoute = router.current.path
       document.documentElement.dataset.storybookDocsRouteKind = router.current.kind
       document.documentElement.dataset.storybookDocsStory = storyRoute
-      document.documentElement.dataset.storybookDocsSource = storyModule.source(args)
+      const source = storyModule.source(args)
+      document.documentElement.dataset.storybookDocsHtml = source.html
+      document.documentElement.dataset.storybookDocsCss = source.css
+      document.documentElement.dataset.storybookDocsTypescript = source.typescript
       document.documentElement.dataset.storybookDocsArgs = JSON.stringify(args)
     }
 
     async function applyRoute(node: StorybookRouteTreeNode<string>): Promise<void> {
       const revision = ++selectionRevision
       const nextRoute = storybookWorkbenchPresentationRoute(node.path)
-      const nextIndex = requireStory(nextRoute)
-      const nextModule = await STORYBOOK_WORKBENCH_STORIES.load(nextRoute)
+      const nextIndex = storybookWorkbenchPresentationIndex(nextRoute)
+      const nextModule = await loadStorybookWorkbenchPresentation(nextRoute)
       if (revision !== selectionRevision || router.current !== node) return
       storyRoute = nextRoute
       storyIndex = nextIndex
@@ -215,12 +220,6 @@ async function startStorybookWorkbenchDocumentation(): Promise<void> {
   }
 }
 
-function requireStory(route: string): StorybookStoryIndexItem {
-  const story = STORYBOOK_WORKBENCH_STORIES.find(route)
-  if (story === undefined) throw new Error(`Storybook Workbench story not found: ${route}`)
-  return story
-}
-
 function catalogItems(collapsed: ReadonlySet<string>): readonly StorybookNavigationItem<string>[] {
   const firstByComponent = new Map<string, StorybookStoryIndexItem>()
   for (const item of STORYBOOK_WORKBENCH_STORIES.index) {
@@ -254,7 +253,10 @@ function sectionItems(selected: StorybookStoryIndexItem): readonly StorybookNavi
 }
 
 function variantItems(selected: StorybookStoryIndexItem): readonly StorybookNavigationItem<string>[] {
-  return STORYBOOK_WORKBENCH_STORIES.variants(selected.route).map((item) => ({
+  if (selected.componentId.length === 0 || selected.sectionId.length === 0) return []
+  return STORYBOOK_WORKBENCH_STORIES.index.filter((item) => (
+    item.componentId === selected.componentId && item.sectionId === selected.sectionId
+  )).map((item) => ({
     id: item.variantId,
     label: item.variantLabel,
     route: item.route,

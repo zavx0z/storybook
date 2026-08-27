@@ -30,6 +30,7 @@ export const STORYBOOK_PACKAGE_TEMPLATE_PATHS = Object.freeze([
   "page/state/lab-state.ts",
   "page/stories.ts",
   "page/stories/example.ts",
+  "page/stories/overview.ts",
   "page/style.css",
   "server.ts",
   "storybook.test.ts",

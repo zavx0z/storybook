@@ -27,12 +27,29 @@ export const STORYBOOK_DOCUMENTATION_MODULE_IDS = [
 
 export type StorybookDocumentationModuleId = typeof STORYBOOK_DOCUMENTATION_MODULE_IDS[number]
 
+export const STORYBOOK_DOCUMENTATION_GROUPS = Object.freeze([
+  {id: "contracts", label: "Контракты"},
+  {id: "lifecycle", label: "Жизненный цикл"},
+] as const)
+
+export const STORYBOOK_DOCUMENTATION_CATEGORIES = Object.freeze([
+  {id: "catalog", label: "Каталог", route: "contracts/catalog", group: STORYBOOK_DOCUMENTATION_GROUPS[0]},
+  {id: "presentation", label: "Рабочее окно", route: "contracts/presentation", group: STORYBOOK_DOCUMENTATION_GROUPS[0]},
+  {id: "runtime", label: "Приложение", route: "contracts/runtime", group: STORYBOOK_DOCUMENTATION_GROUPS[0]},
+  {id: "development", label: "Разработка", route: "lifecycle/development", group: STORYBOOK_DOCUMENTATION_GROUPS[1]},
+  {id: "delivery", label: "Доставка", route: "lifecycle/delivery", group: STORYBOOK_DOCUMENTATION_GROUPS[1]},
+] as const)
+
+export type StorybookDocumentationCategoryId = typeof STORYBOOK_DOCUMENTATION_CATEGORIES[number]["id"]
+
 export type StorybookDocumentationModule = Readonly<{
   id: StorybookDocumentationModuleId
+  category: StorybookDocumentationCategoryId
   importPath: `@zavx0z/storybook/${StorybookDocumentationModuleId}`
   title: string
   summary: string
   ownership: string
+  laws: readonly string[]
   example: string
 }>
 
@@ -45,10 +62,16 @@ export type StorybookDocumentationModule = Readonly<{
 export const STORYBOOK_DOCUMENTATION_MODULES = Object.freeze([
   Object.freeze({
     id: "route-tree",
+    category: "catalog",
     importPath: "@zavx0z/storybook/route-tree",
     title: "Маршруты",
     summary: "Строит точное дерево URL. Обзоры заканчиваются на /, а конкретные страницы — нет.",
     ownership: "Общий пакет проверяет адреса и не выбирает случайный пример. Репозиторий сам задаёт свои конечные маршруты и базовый адрес.",
+    laws: Object.freeze([
+      "Overview оканчивается `/`, exact leaf не оканчивается `/`.",
+      "Неизвестный suffix остаётся неизвестным и не выбирает fallback story.",
+      "Один Router владеет pathname и переходами внутри текущего Workbench.",
+    ]),
     example: `import {
   defineStorybookRouteTree,
   resolveStorybookRouteTree,
@@ -66,10 +89,17 @@ const result = resolveStorybookRouteTree(
   }),
   Object.freeze({
     id: "stories",
+    category: "catalog",
     importPath: "@zavx0z/storybook/stories",
     title: "Описания stories",
     summary: "Строит лёгкий каталог для любого способа показа и загружает код примера только после открытия точного адреса.",
-    ownership: "Владелец хранит stories рядом со своим пакетом и сам проверяет загруженный модуль. Общий каталог отвечает за адреса, кэш и повтор после ошибки; defineStorybookStories добавляет готовый UI-контракт.",
+    ownership: "Владелец хранит stories и отдельные overview-модули рядом со своим пакетом и сам проверяет загруженный модуль. Общий каталог отвечает за адреса, кэш и повтор после ошибки; representative задаёт только явный начальный detail и не подменяет overview.",
+    laws: Object.freeze([
+      "Metadata остаётся eager, production implementation загружается только для выбранной presentation.",
+      "Overview владеет собственным aggregate module и не подставляет первый detail.",
+      "Каждая UI story возвращает три независимых literal source документа: HTML, CSS и TypeScript.",
+      "Отклонённая lazy-загрузка не отравляет кэш и может быть повторена.",
+    ]),
     example: `import {defineStorybookStoryCatalog} from "@zavx0z/storybook/stories"
 
 type OwnerStory = Readonly<{
@@ -111,10 +141,18 @@ export const OWNER_STORIES = defineStorybookStoryCatalog<unknown, OwnerStory>({
   }),
   Object.freeze({
     id: "workbench",
+    category: "presentation",
     importPath: "@zavx0z/storybook/workbench",
     title: "Рабочее окно",
-    summary: "Раскладывает каталог, разделы, пример, варианты, код и настройки в одном окне.",
-    ownership: "Общий пакет считает рамки пяти областей. Репозиторий передаёт свою область примера и сам решает, какие панели скрывать на узком экране.",
+    summary: "Раскладывает каталог, разделы, пример, варианты, три редактора кода и настройки в одном окне.",
+    ownership: "Общий пакет считает рамки пяти областей и показывает независимые HTML, CSS и TypeScript редакторы. Репозиторий передаёт свою область примера, source документы и сам решает, какие панели скрывать на узком экране.",
+    laws: Object.freeze([
+      "Один document содержит один canvas, UiRuntime, Router и пятизонный Workbench.",
+      "Главная панель показывает disclosure groups и category rows; соседняя — semantic items; dock — scenarios.",
+      "Inspector categories разделяют source, controls и events; source одновременно содержит HTML, CSS и TypeScript sections.",
+      "Правая панель одновременно сохраняет HTML, CSS и TypeScript selection/scroll state и не смешивает copy actions.",
+      "Preview остаётся consumer-owned и получает content frame ниже общего chrome.",
+    ]),
     example: `import {planStorybookShell} from "@zavx0z/storybook/workbench"
 
 const frames = planStorybookShell(1440, 900, {
@@ -128,10 +166,16 @@ previewSurface.frame = frames.preview`,
   }),
   Object.freeze({
     id: "references",
+    category: "presentation",
     importPath: "@zavx0z/storybook/references",
     title: "Эталонные изображения",
     summary: "Проверяет описание эталона и считает равный масштаб для сравнения двух картинок.",
     ownership: "Репозиторий хранит файл, источник и решение о принятии. Общий пакет не может сам объявить новый снимок эталоном.",
+    laws: Object.freeze([
+      "Автоматический capture является кандидатом, а не owner acceptance.",
+      "Subject и reference сравниваются в одном масштабе.",
+      "Provenance, viewport, DPR и SHA-256 принадлежат descriptor владельца.",
+    ]),
     example: `import {
   defineStorybookReference,
   planStorybookComparison,
@@ -162,10 +206,16 @@ const comparison = planStorybookComparison({
   }),
   Object.freeze({
     id: "app",
+    category: "runtime",
     importPath: "@zavx0z/storybook/app",
     title: "Описание Storybook-приложения",
     summary: "Собирает страницы, адреса, шрифт, подвал и признаки готовности. На DOM-страницах подвал не перекрывает содержимое.",
     ownership: "Каждый repository создаёт свой manifest. Shared package его проверяет, но не добавляет чужие страницы.",
+    laws: Object.freeze([
+      "Канонический repository Storybook описывает один root Workbench page и свой полный route tree.",
+      "Production owners не импортируют private Storybook application.",
+      "Readiness, font meta, footer и capabilities объявляются manifest-ом владельца.",
+    ]),
     example: `import {join} from "node:path"
 import {defineStorybookApp} from "@zavx0z/storybook/app"
 import {CATALOG_ROUTES} from "./routes.ts"
@@ -200,10 +250,16 @@ export const app = defineStorybookApp({
   }),
   Object.freeze({
     id: "server",
+    category: "development",
     importPath: "@zavx0z/storybook/server",
     title: "Локальный сервер",
-    summary: "Запускает один адрес для всех страниц Storybook package, просит свободный порт у операционной системы и сообщает launcher точный runtime.",
-    ownership: "Package владеет app manifest и своим процессом. Shared server выделяет порт автоматически и не принимает чужой listener по номеру порта.",
+    summary: "Запускает один адрес для всех страниц, применяет общий Blender-backed shell fallback и сообщает launcher точный automatic-port runtime.",
+    ownership: "Package владеет app manifest, процессом и content CSS. Shared server владеет shell background, поэтому package pages не задают html/body fallback colors.",
+    laws: Object.freeze([
+      "Server запускается без HMR и публикует runtime handshake с фактическим origin.",
+      "Порт выбирает операционная система; consumer не хранит номер порта.",
+      "Неизвестные routes и конфликтующие static files отклоняются fail-closed.",
+    ]),
     example: `import {startStorybookPackageServer} from "@zavx0z/storybook/server"
 import {app} from "./app.ts"
 
@@ -214,10 +270,16 @@ const server = startStorybookPackageServer({
   }),
   Object.freeze({
     id: "launcher",
+    category: "development",
     importPath: "@zavx0z/storybook/launcher",
     title: "Запуск по имени package",
-    summary: "Находит точный @scope/storybook, вызывает его единый script, проверяет runtime и открывает exact browser route без таблицы портов и selectors.",
-    ownership: "Пользователь называет только package. Shared launcher владеет поиском, automatic port handshake, PID/cwd health, typed page manifest и fail-closed exact-target operations.",
+    summary: "Находит точный @scope/storybook, вызывает его единый script и при первом запуске открывает одну активную exact browser route без таблицы портов и selectors.",
+    ownership: "Пользователь называет только package. Shared launcher владеет automatic port handshake и exact targetId; restart сохраняет pathname, в фоне меняет только origin и не забирает browser focus.",
+    laws: Object.freeze([
+      "Единственная идентичность процесса — точное имя `@scope/storybook`.",
+      "Первый запуск открывает одну вкладку; ensure переиспользует её; restart не забирает фокус.",
+      "Stop и restart могут завершать только проверенный записанный child process.",
+    ]),
     example: `import {
   launchStorybookPackage,
   resolveStorybookPackage,
@@ -230,10 +292,16 @@ console.log(running.runtime.origin)`,
   }),
   Object.freeze({
     id: "scaffold",
+    category: "development",
     importPath: "@zavx0z/storybook/scaffold",
     title: "Создание Storybook package",
     summary: "Атомарно создаёт один канонический package с app, server, build, Workbench, stories, preview, fixture и lab state.",
     ownership: "Shared package владеет составом стартового шаблона. Новый package сразу становится semantic owner с точным именем; существующая директория никогда не дописывается и не перезаписывается.",
+    laws: Object.freeze([
+      "Generator создаёт пакет атомарно и отказывается от существующей target directory.",
+      "Шаблон сразу содержит disclosure navigation, owner-authored overviews и lazy detail story.",
+      "Adoption существующего Storybook является миграцией, а не повторным scaffold.",
+    ]),
     example: `import {createStorybookPackage} from "@zavx0z/storybook/scaffold"
 
 await createStorybookPackage({
@@ -243,10 +311,16 @@ await createStorybookPackage({
   }),
   Object.freeze({
     id: "build",
+    category: "delivery",
     importPath: "@zavx0z/storybook/build",
     title: "Сборка готового сайта",
     summary: "Собирает страницы и файлы для публикации, а также записывает версии, размеры и SHA-256 в manifest.",
     ownership: "Repository выбирает public base, output и Git revisions. Shared package делает воспроизводимую сборку, но не публикует её.",
+    laws: Object.freeze([
+      "Static build не публикует Pages и не запускает workflow самостоятельно.",
+      "Manifest фиксирует revisions, routes, chunks, sizes и SHA-256 без local realpaths.",
+      "Сломанная сборка не заменяет последний принадлежащий пакету artifact.",
+    ]),
     example: `import {
   buildStaticStorybook,
   readGitIdentity,
@@ -268,10 +342,16 @@ await buildStaticStorybook({
   }),
   Object.freeze({
     id: "environment",
+    category: "runtime",
     importPath: "@zavx0z/storybook/environment",
     title: "Адреса и граница кадра",
     summary: "Добавляет public base к адресу и пропускает запланированную отрисовку до публикации ready marker.",
     ownership: "Application manifest задаёт app id и public base, сама планирует render и ставит ready. Shared package читает meta и пересекает browser frame boundary; GPU evidence проверяется отдельно.",
+    laws: Object.freeze([
+      "Public path вычисляется из app metadata, а не из hardcoded deployment URL.",
+      "Ready marker ставится только после owner render и общей frame boundary.",
+      "Frame boundary не заменяет console, DOM и non-black GPU acceptance.",
+    ]),
     example: `import {
   storybookBasePath,
   storybookPublicPath,
