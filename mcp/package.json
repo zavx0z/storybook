@@ -1,0 +1,21 @@
+{
+  "name": "@zavx0z/storybook-mcp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.4.0",
+  "scripts": {
+    "start": "bun run stdio.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit --pretty false",
+    "check": "bun run typecheck && bun run test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.0.0"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@types/bun": "^1.4.0",
+    "typescript": "^7.0.2"
+  }
+}
