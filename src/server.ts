@@ -112,7 +112,11 @@ export function createStorybookPage(app: StorybookAppManifest, page: StorybookPa
     if (built !== null) return Promise.resolve(built)
     if (buildInFlight !== null) return buildInFlight
     builds += 1
-    const pending = buildStorybookBrowserPage(page.entrypoint, {minify: false, sourcemap: "inline"})
+    const pending = buildStorybookBrowserPage(page.entrypoint, {
+      minify: false,
+      sourcemap: "inline",
+      ...(page.browserBuild === undefined ? {} : {plugins: page.browserBuild.plugins}),
+    })
       .then((next) => {
         built = next
         return next

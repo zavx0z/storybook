@@ -138,6 +138,7 @@ describe("DOM-native Storybook Workbench", () => {
 
     const supportedProperties = new Set([
       "display",
+      "box-sizing",
       "flex-direction",
       "width",
       "height",
@@ -146,10 +147,17 @@ describe("DOM-native Storybook Workbench", () => {
       "flex",
       "flex-grow",
       "gap",
+      "margin",
       "padding",
+      "border",
+      "border-top",
+      "border-color",
+      "border-radius",
       "background",
       "color",
       "font-size",
+      "line-height",
+      "opacity",
       "white-space",
       "align-items",
       "justify-content",
@@ -162,5 +170,13 @@ describe("DOM-native Storybook Workbench", () => {
         expect(supportedProperties.has(property), property).toBeTrue()
       }
     }
+  })
+
+  test("keeps the compact editor fallback and measured StatusBar", () => {
+    expect(storybookDomWorkbenchCss).toContain("height: 24px")
+    expect(storybookDomWorkbenchCss).toContain("border-top: 2px solid #161616")
+    expect(storybookDomWorkbenchCss).toContain("padding: 0 12px 0 8px")
+    expect(storybookDomWorkbenchCss).toContain("font-size: 11px")
+    expect(storybookDomWorkbenchCss).not.toMatch(/border-radius:\s*(?:999px|50%)/u)
   })
 })

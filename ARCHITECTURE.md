@@ -35,6 +35,14 @@ consumer нового DOM/renderer pipeline.
    background browser helper читает его по package runtime и не содержит
    consumer selectors, origins или port registry.
 
+Каждая page может передать один compiler-neutral `browserBuild.plugins` source:
+готовый список stateless Bun plugins либо фабрику свежего списка. Dev и static
+передают этот source в один `buildStorybookBrowserPage`; он не попадает в
+runtime/static manifests. Stateful compiler использует фабрику и завершает
+собственную session через Bun plugin `onEnd` каждого изолированного build.
+Shared Storybook не импортирует Template, JSX compiler или UI package и не
+создаёт persistent/HMR session.
+
 Public package root намеренно пуст. Каждый contract импортируется через
 точный lowercase subpath, соответствующий одному owner-neutral понятию.
 
@@ -68,6 +76,12 @@ semantic addresses и сохраняет shell/keyed-child identity. Renderer н
 конвейеру подписывается на mutation batches этого же Document, вычисляет CSS и
 layout на CPU, а WebGPU backend проецирует display list. Storybook не владеет
 ни одним из этих rendering stages.
+
+Shared CSS задаёт только compact editor fallback: пять плотных рабочих regions
+над отдельной 24px StatusBar, low-radius panel contours, thin separators и
+compact navigation/source rows. Repository owner добавляет scoped material
+policy и reference acceptance, не копируя semantic Workbench и не заменяя его
+oversized cards или pill navigation.
 
 ## Self documentation application
 

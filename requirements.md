@@ -81,6 +81,19 @@ CustomEvents всплывают по обычному DOM event path. Shell пр
 drawing. Cascade, layout, display list и WebGPU presentation принадлежат
 renderer pipeline, а не Storybook.
 
+### `STORYBOOK-DOM-WORKBENCH-003` — compact editor fallback
+
+Shared stylesheet задаёт нейтральный compact editor fallback: пять плотных
+рабочих regions над отдельной StatusBar, low-radius panel contours, thin
+separators, compact navigation rows и самостоятельные source regions. Он не
+использует pill silhouette, oversized card, большие пустые интервалы либо
+растягивание scenario controls на всю рабочую область.
+
+StatusBar имеет `24px` logical height, `2px` top band, `12px` right inset и
+`11px` font. Shared package не владеет product palette или reference
+acceptance: consumer может добавить scoped stylesheet с собственными material
+roles, но не копирует Workbench structure и не ослабляет compact fallback.
+
 ### `STORYBOOK-REFERENCE-001` — evidence, не acceptance
 
 Shared package владеет только immutable reference schema, validation и
@@ -94,6 +107,20 @@ lazy. Automated capture не меняет acceptance state.
 Один repository process обслуживает один origin, но каждая page собирается
 отдельным browser graph. DOM/SVG pages не получают WebGPU runtime; WebGPU page
 создаёт ровно один runtime.
+
+### `STORYBOOK-BUNDLE-002` — compiler-neutral page plugin source
+
+Owner page может объявить optional `browserBuild.plugins`: readonly список Bun
+plugins либо синхронную фабрику такого списка. Dev on-demand build и static
+build обязаны передать один и тот же page-owned source в общий browser builder;
+без descriptor поведение сборки остаётся прежним. Build configuration не
+проецируется в development или static manifest.
+
+Прямой список предназначен для stateless reusable plugins. Stateful compiler
+объявляется фабрикой: она вызывается ровно один раз на каждый фактический
+`Bun.build`, возвращает свежие plugin instances и завершает session через
+собственный `onEnd`. Shared Storybook не импортирует consumer compiler, не
+держит persistent compiler session и не предполагает HMR/rebuild lifecycle.
 
 ### `STORYBOOK-LIFE-001` — package-named no-HMR lifecycle
 
@@ -147,6 +174,20 @@ boundary и только затем ставит ready. Marker и эта гра�
 presentation. Acceptance отдельно требует exact route/target, startup console
 без ошибок и DOM, SVG либо non-black canvas evidence согласно capability.
 Evidence остаётся route-specific.
+
+### `STORYBOOK-BROWSER-002` — automatic bounded CDP bootstrap
+
+Любая `$storybook browser ...` команда сначала проверяет exact configured CDP
+port. Если endpoint недоступен, один process-wide creation lock запускает
+идемпотентный canonical `@meta/chrome` `cdp` script из
+`~/repozitarium/ai-macos/chrome`, ждёт bounded readiness и только затем читает,
+создаёт или меняет target. Уже готовый CDP не перезапускается. `status`, server,
+build и package checks браузер не запускают.
+
+`STORYBOOK_CDP_BOOTSTRAP_ROOT` может явно задать другой canonical package root;
+он обязан иметь имя `@meta/chrome` и script `cdp`. Bootstrap failure сохраняет
+точную ошибку и не переходит к AppleScript, foreign browser profile или
+произвольному executable.
 
 ### `STORYBOOK-ASSET-001` — Engine-owned default font
 

@@ -5,6 +5,7 @@ import {basename, dirname, isAbsolute, join, resolve} from "node:path"
 import {inspectStorybookPackage, resolveStorybookPackage} from "@zavx0z/storybook/launcher"
 import type {StorybookDevelopmentManifest} from "@zavx0z/storybook/server"
 import {runWithBackgroundFrameScheduling} from "../src/browser/background-frame-scheduling.ts"
+import {ensureStorybookCdp} from "../src/browser/cdp-bootstrap.ts"
 import {
   CanvasEvidenceRejected,
   acceptCanvasEvidence,
@@ -106,6 +107,9 @@ const developmentManifest = await loadDevelopmentManifest(
 )
 const cdpPort = Number(Bun.env.STORYBOOK_CDP_PORT ?? 9222)
 if (!Number.isInteger(cdpPort) || cdpPort < 1 || cdpPort > 65535) fail("STORYBOOK_CDP_PORT must be 1..65535")
+await withTargetCreationLock({creationScope: "cdp-bootstrap", cdpPort}, () => (
+  ensureStorybookCdp(cdpPort)
+))
 const targetOwner: StorybookBrowserTargetOwner = Object.freeze({
   statePath: packageIdentity.statePath,
   packageName: packageIdentity.name,

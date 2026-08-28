@@ -248,15 +248,17 @@ const comparison = planStorybookComparison({
     category: "runtime",
     importPath: "@zavx0z/storybook/app",
     title: "Описание Storybook-приложения",
-    summary: "Собирает страницы, адреса, шрифт, structured footer text и признаки готовности. DOM-страница показывает footer в потоке, canvas Workbench — семантический status footer.",
+    summary: "Собирает страницы, адреса, шрифт, build plugins, structured footer text и признаки готовности. DOM-страница показывает footer в потоке, canvas Workbench — семантический status footer.",
     ownership: "Каждый repository создаёт свой manifest. Shared package его проверяет, но не добавляет чужие страницы.",
     laws: Object.freeze([
       "Канонический repository Storybook описывает один root Workbench page и свой полный route tree.",
       "Production owners не импортируют private Storybook application.",
       "Readiness, font meta, footer text и capabilities объявляются manifest-ом владельца.",
+      "Compiler-neutral browser plugin factory принадлежит page и создаёт свежий lifecycle для каждого build.",
     ]),
     example: `import {join} from "node:path"
 import {defineStorybookApp} from "@zavx0z/storybook/app"
+import {createTemplateJsxBunPlugin} from "@zavx0z/template/bun"
 import {CATALOG_ROUTES} from "./routes.ts"
 
 export const app = defineStorybookApp({
@@ -281,6 +283,9 @@ export const app = defineStorybookApp({
     entrypoint: join(import.meta.dir, "catalog/entry.ts"),
     stylePath: join(import.meta.dir, "catalog/style.css"),
     body: {kind: "html", bodyHtmlPath: join(import.meta.dir, "catalog/body.html")},
+    browserBuild: {plugins: () => [createTemplateJsxBunPlugin({
+      sourceRoots: [import.meta.dir],
+    })]},
     capability: "dom",
     readiness: {dataset: "uiStorybook", value: "ready"},
     routeTree: CATALOG_ROUTES,
@@ -296,6 +301,7 @@ export const app = defineStorybookApp({
     ownership: "Package владеет app manifest, процессом и content CSS. Shared server владеет shell background, поэтому package pages не задают html/body fallback colors.",
     laws: Object.freeze([
       "Server запускается без HMR и публикует runtime handshake с фактическим origin.",
+      "On-demand browser build применяет page-owned plugin source и кэшируется до owner restart.",
       "Порт выбирает операционная система; consumer не хранит номер порта.",
       "Неизвестные routes и конфликтующие static files отклоняются fail-closed.",
     ]),
@@ -358,6 +364,7 @@ await createStorybookPackage({
     ownership: "Repository выбирает public base, output и Git revisions. Shared package делает воспроизводимую сборку, но не публикует её.",
     laws: Object.freeze([
       "Static build не публикует Pages и не запускает workflow самостоятельно.",
+      "Static и dev используют один page-owned browser plugin source без compiler dependency в shared package.",
       "Manifest фиксирует revisions, routes, chunks, sizes и SHA-256 без local realpaths.",
       "Сломанная сборка не заменяет последний принадлежащий пакету artifact.",
     ]),

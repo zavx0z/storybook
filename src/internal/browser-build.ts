@@ -1,4 +1,5 @@
 import {basename} from "node:path"
+import type {StorybookBrowserPluginSource} from "../app.ts"
 
 export type StorybookBrowserBuild = Readonly<{
   entry: Blob
@@ -7,6 +8,7 @@ export type StorybookBrowserBuild = Readonly<{
 
 export type StorybookBrowserBuildOptions = Readonly<{
   minify: boolean
+  plugins?: StorybookBrowserPluginSource
   sourcemap: "inline" | "none"
 }>
 
@@ -14,6 +16,7 @@ export async function buildStorybookBrowserPage(
   entrypoint: string,
   options: StorybookBrowserBuildOptions,
 ): Promise<StorybookBrowserBuild> {
+  const plugins = resolveStorybookBrowserPlugins(options.plugins)
   const result = await Bun.build({
     entrypoints: [entrypoint],
     loader: {".wgsl": "text"},
@@ -22,6 +25,7 @@ export async function buildStorybookBrowserPage(
     splitting: true,
     minify: options.minify,
     sourcemap: options.sourcemap,
+    ...(plugins.length === 0 ? {} : {plugins}),
   })
   if (!result.success) throw new Error(result.logs.map((log) => String(log)).join("\n"))
 
@@ -41,6 +45,24 @@ export async function buildStorybookBrowserPage(
   }
   if (entry === null) throw new Error(`Storybook page did not emit a browser entry: ${entrypoint}`)
   return Object.freeze({entry, chunks})
+}
+
+function resolveStorybookBrowserPlugins(
+  source: StorybookBrowserPluginSource | undefined,
+): Bun.BunPlugin[] {
+  if (source === undefined) return []
+  const plugins = typeof source === "function" ? source() : source
+  if (!Array.isArray(plugins)) {
+    throw new TypeError("Storybook browser plugin factory must return a plugin list")
+  }
+  return plugins.map((plugin, index) => {
+    if (plugin === null || typeof plugin !== "object" ||
+      typeof plugin.name !== "string" || plugin.name.trim().length === 0 ||
+      typeof plugin.setup !== "function") {
+      throw new TypeError(`Storybook browser plugin ${index} must have a name and setup function`)
+    }
+    return plugin
+  })
 }
 
 export function storybookAssetContentType(name: string, asset: Blob): string | null {

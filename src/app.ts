@@ -38,6 +38,21 @@ export type StorybookPageBody =
   | Readonly<{kind: "canvas"; canvasId: string}>
   | Readonly<{kind: "html"; bodyHtmlPath: string}>
 
+/**
+Owner-provided Bun plugins for one isolated browser build.
+
+A direct list is suitable for stateless, reusable plugins. Stateful compiler
+plugins should use a factory so every dev or static `Bun.build()` receives a
+fresh plugin instance and can finish its own `onEnd` lifecycle.
+*/
+export type StorybookBrowserPluginSource =
+  | readonly Bun.BunPlugin[]
+  | (() => readonly Bun.BunPlugin[])
+
+export type StorybookBrowserBuildDescriptor = Readonly<{
+  plugins: StorybookBrowserPluginSource
+}>
+
 export type StorybookPageManifest = Readonly<{
   id: string
   title: string
@@ -45,6 +60,8 @@ export type StorybookPageManifest = Readonly<{
   entrypoint: string
   stylePath: string
   body: StorybookPageBody
+  /** Build-process-only extensions for this page's isolated browser graph. */
+  browserBuild?: StorybookBrowserBuildDescriptor
   capability: StorybookCapability
   /** Whether the page intentionally accepts synthetic touch evidence. */
   touch?: boolean
@@ -197,6 +214,9 @@ function definePage(page: StorybookPageManifest): StorybookPageManifest {
   const body = page.body.kind === "canvas"
     ? Object.freeze({kind: "canvas" as const, canvasId: validateHtmlId(page.body.canvasId, `page ${id} body canvas`)})
     : Object.freeze({kind: "html" as const, bodyHtmlPath: validateLocalFile(page.body.bodyHtmlPath, `page ${id} body`)})
+  const browserBuild = page.browserBuild === undefined
+    ? undefined
+    : defineBrowserBuild(page.browserBuild, id)
   const readiness = Object.freeze({
     dataset: validateDatasetKey(page.readiness.dataset, `page ${id} readiness dataset`),
     value: validateVisibleText(page.readiness.value, `page ${id} readiness value`),
@@ -237,11 +257,28 @@ function definePage(page: StorybookPageManifest): StorybookPageManifest {
     entrypoint,
     stylePath,
     body,
+    ...(browserBuild === undefined ? {} : {browserBuild}),
     capability: page.capability,
     ...(touch ? {touch: true} : {}),
     readiness,
     ...(canvas === undefined ? {} : {canvas}),
     routeTree: page.routeTree,
+  })
+}
+
+function defineBrowserBuild(
+  input: StorybookBrowserBuildDescriptor,
+  pageId: string,
+): StorybookBrowserBuildDescriptor {
+  if (input === null || typeof input !== "object") {
+    throw new Error(`Storybook page ${pageId} browser build must be an object`)
+  }
+  const source = input.plugins
+  if (typeof source !== "function" && !Array.isArray(source)) {
+    throw new Error(`Storybook page ${pageId} browser plugins must be a list or factory`)
+  }
+  return Object.freeze({
+    plugins: typeof source === "function" ? source : Object.freeze([...source]),
   })
 }
 

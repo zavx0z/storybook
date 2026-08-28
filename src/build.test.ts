@@ -108,6 +108,34 @@ describe("shared static Storybook build", () => {
     expect(JSON.stringify(identity)).not.toContain(repositoryRoot)
   })
 
+  test("uses the same page-owned plugin seam and closes one fresh lifecycle per static page build", async () => {
+    const fixture = await createFixture()
+    const lifecycle = createPluginLifecycle()
+    const app = defineStorybookApp({
+      ...fixture.app,
+      pages: fixture.app.pages.map((page) => ({
+        ...page,
+        browserBuild: {plugins: compilerPluginFactory("static", lifecycle)},
+      })),
+    })
+
+    const manifest = await buildStaticStorybook({
+      app,
+      outputRoot: fixture.outputRoot,
+      source: {revision: "a".repeat(40), dirty: true},
+      dependencies: [],
+      staticFiles: [{publicPath: "/fonts/default.ttf", sourcePath: fixture.fontPath}],
+    })
+
+    const entries = await Promise.all(app.pages.map((page) => Bun.file(join(
+      fixture.outputRoot,
+      `@storybook-assets/${page.id}/entry.js`,
+    )).text()))
+    expect(entries.every((source) => source.includes("storybookCompilerPlugin"))).toBeTrue()
+    expect(lifecycle).toEqual({factories: 2, setups: 2, starts: 2, loads: 2, ends: 2})
+    expect(JSON.stringify(manifest)).not.toContain("browserBuild")
+  }, 30_000)
+
   test("rejects non-exact identities before replacing output", async () => {
     const fixture = await createFixture()
     await Bun.write(join(fixture.outputRoot, "sentinel.txt"), "preserve")
@@ -268,4 +296,45 @@ async function createFixture(): Promise<Readonly<{
 
 function ownershipMarker(app: StorybookAppManifest): string {
   return JSON.stringify({schemaVersion: 1, app: {id: app.id, basePath: app.basePath}})
+}
+
+type PluginLifecycle = {
+  factories: number
+  setups: number
+  starts: number
+  loads: number
+  ends: number
+}
+
+function createPluginLifecycle(): PluginLifecycle {
+  return {factories: 0, setups: 0, starts: 0, loads: 0, ends: 0}
+}
+
+function compilerPluginFactory(
+  marker: string,
+  lifecycle: PluginLifecycle,
+): () => readonly Bun.BunPlugin[] {
+  return () => {
+    lifecycle.factories += 1
+    return [{
+      name: `storybook-compiler-${marker}`,
+      setup(builder) {
+        lifecycle.setups += 1
+        builder.onStart(() => {
+          lifecycle.starts += 1
+        })
+        builder.onLoad({filter: /(?:catalog|components)\.ts$/}, async ({path}) => {
+          lifecycle.loads += 1
+          return {
+            contents: `${await Bun.file(path).text()}\ndocument.documentElement.dataset.storybookCompilerPlugin = ${JSON.stringify(marker)}`,
+            loader: "ts",
+          }
+        })
+        builder.onEnd(async () => {
+          await Promise.resolve()
+          lifecycle.ends += 1
+        })
+      },
+    }]
+  }
 }

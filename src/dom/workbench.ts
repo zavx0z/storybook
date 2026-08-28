@@ -24,28 +24,27 @@ import type {StorybookDomStorySource} from "./stories.ts"
 
 /** Flat author CSS accepted directly by the CPU renderer's initial cascade. */
 export const storybookDomWorkbenchCss = `
-.storybook-dom-workbench { display: flex; flex-direction: column; width: 100%; height: 100%; background: #1f1f1f; color: #e8e8e8; font-size: 13px; }
-.storybook-dom-workbench__body { display: flex; flex-direction: row; flex: 1 1 0; min-height: 0; gap: 1px; }
-.storybook-dom-workbench__catalog { display: flex; flex-direction: column; flex: 0 0 210px; width: 210px; gap: 6px; padding: 8px; background: #292929; }
-.storybook-dom-workbench__secondary { display: flex; flex-direction: column; flex: 0 0 160px; width: 160px; gap: 6px; padding: 8px; background: #252525; }
-.storybook-dom-workbench__center { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; gap: 1px; }
-.storybook-dom-workbench__preview { display: flex; flex-direction: column; flex-grow: 1; gap: 6px; padding: 10px; background: #181818; }
+.storybook-dom-workbench { box-sizing: border-box; display: flex; flex-direction: column; width: 100%; height: 100%; background: #1d1d1d; color: #d8d8d8; font-size: 11px; line-height: 16px; }
+.storybook-dom-workbench__body { box-sizing: border-box; display: flex; flex-direction: row; flex: 1 1 0; min-height: 0; gap: 4px; padding: 4px; overflow: hidden; background: #161616; }
+.storybook-dom-workbench__catalog { box-sizing: border-box; display: flex; flex-direction: column; flex: 0 0 196px; width: 196px; gap: 2px; padding: 4px; overflow: hidden; border: 1px solid #111111; border-radius: 6px; background: #303030; }
+.storybook-dom-workbench__secondary { box-sizing: border-box; display: flex; flex-direction: column; flex: 0 0 152px; width: 152px; gap: 2px; padding: 4px; overflow: hidden; border: 1px solid #111111; border-radius: 6px; background: #292929; }
+.storybook-dom-workbench__center { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; gap: 4px; overflow: hidden; }
+.storybook-dom-workbench__preview { box-sizing: border-box; display: flex; flex-direction: column; flex-grow: 1; gap: 2px; padding: 4px; overflow: hidden; border: 1px solid #111111; border-radius: 6px; background: #1d1d1d; }
 .storybook-dom-workbench__preview-host { display: flex; flex-direction: column; flex-grow: 1; align-items: center; justify-content: center; }
-.storybook-dom-workbench__scenarios { display: flex; flex-direction: row; height: 36px; gap: 4px; padding: 4px; background: #252525; }
-.storybook-dom-workbench__scenario-items { display: flex; flex-direction: row; flex: 1 1 0; gap: 4px; }
-.storybook-dom-workbench__scenario-items .storybook-dom-workbench__item { flex: 1 1 0; width: auto; }
-.storybook-dom-workbench__inspector { display: flex; flex-direction: column; flex: 0 0 440px; width: 440px; min-height: 0; gap: 8px; padding: 8px; overflow: hidden; background: #292929; }
-.storybook-dom-workbench__sources { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; gap: 8px; overflow: auto; }
-.storybook-dom-workbench__source { display: flex; flex-direction: column; gap: 4px; padding: 6px; background: #1b1b1b; }
-.storybook-dom-workbench__code { display: block; color: #d5d5d5; font-size: 12px; white-space: pre; }
-.storybook-dom-workbench__search { display: block; width: 100%; height: 28px; padding: 4px 6px; background: #171717; color: #f0f0f0; }
-.storybook-dom-workbench__items { display: flex; flex-direction: column; gap: 2px; }
-.storybook-dom-workbench__item { display: block; width: 100%; padding: 6px 8px; background: #323232; color: #dedede; }
-.storybook-dom-workbench__item[data-active] { background: #3f5f84; color: #ffffff; }
-.storybook-dom-workbench__item[disabled] { background: #242424; color: #777777; }
-.storybook-dom-workbench__heading { display: block; color: #f4f4f4; font-size: 13px; }
-.storybook-dom-workbench__status { display: flex; flex-direction: row; height: 24px; gap: 0px; padding: 4px 8px; background: #151515; color: #a8a8a8; font-size: 12px; }
-.storybook-dom-workbench__status-owner { color: #ffffff; }
+.storybook-dom-workbench__scenarios { box-sizing: border-box; display: flex; flex-direction: row; height: 28px; gap: 4px; padding: 2px 4px; overflow: hidden; border: 1px solid #111111; border-radius: 6px; background: #292929; }
+.storybook-dom-workbench__scenario-items { display: flex; flex-direction: row; flex: 1 1 0; gap: 2px; }
+.storybook-dom-workbench__inspector { box-sizing: border-box; display: flex; flex-direction: column; flex: 0 0 400px; width: 400px; min-height: 0; gap: 2px; padding: 4px; overflow: hidden; border: 1px solid #111111; border-radius: 6px; background: #292929; }
+.storybook-dom-workbench__sources { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; gap: 4px; overflow: auto; }
+.storybook-dom-workbench__source { box-sizing: border-box; display: flex; flex-direction: column; gap: 0; padding: 0; overflow: hidden; border: 1px solid #151515; border-radius: 4px; background: #1d1d1d; }
+.storybook-dom-workbench__code { box-sizing: border-box; display: block; min-height: 64px; margin: 0; padding: 5px 6px; overflow: auto; background: #1d1d1d; color: #d5d5d5; font-size: 11px; line-height: 16px; white-space: pre; }
+.storybook-dom-workbench__search { box-sizing: border-box; display: block; width: 100%; height: 24px; padding: 2px 6px; border: 1px solid #151515; border-radius: 4px; background: #202020; color: #e0e0e0; font-size: 11px; }
+.storybook-dom-workbench__items { display: flex; flex-direction: column; gap: 1px; }
+.storybook-dom-workbench__item { box-sizing: border-box; display: block; width: 100%; min-height: 24px; padding: 3px 6px; border: 1px solid transparent; border-radius: 2px; background: #303030; color: #c8c8c8; font-size: 11px; }
+.storybook-dom-workbench__item[data-active] { border-color: #47788f; background: #31566a; color: #f0f0f0; }
+.storybook-dom-workbench__item[disabled] { background: #292929; color: #707070; opacity: 0.55; }
+.storybook-dom-workbench__heading { box-sizing: border-box; display: block; min-height: 20px; margin: 0; padding: 2px 4px; color: #d8d8d8; font-size: 11px; line-height: 16px; }
+.storybook-dom-workbench__status { box-sizing: border-box; display: flex; flex-direction: row; align-items: center; width: 100%; height: 24px; gap: 0; padding: 0 12px 0 8px; border-top: 2px solid #161616; background: #181818; color: #878787; font-size: 11px; line-height: 20px; }
+.storybook-dom-workbench__status-owner { color: #c8c8c8; }
 `.trim()
 
 export const STORYBOOK_DOM_WORKBENCH_EVENTS = Object.freeze({

@@ -4,7 +4,11 @@ import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {defineStorybookApp, type StorybookAppManifest} from "./app.ts"
 import {defineStorybookRouteTree} from "./route-tree.ts"
-import {createStorybookPage, startStorybookHubServer} from "./server.ts"
+import {
+  createStorybookPage,
+  defineStorybookDevelopmentManifest,
+  startStorybookHubServer,
+} from "./server.ts"
 
 const temporaryRoots: string[] = []
 
@@ -144,6 +148,27 @@ describe("shared Storybook no-HMR server", () => {
     expect(sourceText).not.toContain("deepRoutes")
   }, 30_000)
 
+  test("uses a fresh page-owned plugin factory for the one no-HMR dev build", async () => {
+    const fixture = await createFixture()
+    const lifecycle = createPluginLifecycle()
+    const app = defineStorybookApp({
+      ...fixture.app,
+      pages: fixture.app.pages.map((page) => page.id === "components"
+        ? {...page, browserBuild: {plugins: compilerPluginFactory("development", lifecycle)}}
+        : page),
+    })
+    const components = createStorybookPage(app, app.pages[1]!)
+
+    const first = await components.assetResponse("/@storybook-assets/components/entry.js")
+    const second = await components.assetResponse("/@storybook-assets/components/entry.js")
+
+    expect(await first?.text()).toContain("storybookCompilerPlugin")
+    expect(second?.status).toBe(200)
+    expect(components.diagnostics.builds).toBe(1)
+    expect(lifecycle).toEqual({factories: 1, setups: 1, starts: 1, loads: 1, ends: 1})
+    expect(JSON.stringify(defineStorybookDevelopmentManifest(app))).not.toContain("browserBuild")
+  }, 30_000)
+
   test("does not accept a page descriptor outside the exact app graph", async () => {
     const fixture = await createFixture()
     const app = defineStorybookApp(fixture.app)
@@ -229,5 +254,46 @@ async function createFixture(): Promise<Readonly<{app: StorybookAppManifest; fon
         },
       ],
     },
+  }
+}
+
+type PluginLifecycle = {
+  factories: number
+  setups: number
+  starts: number
+  loads: number
+  ends: number
+}
+
+function createPluginLifecycle(): PluginLifecycle {
+  return {factories: 0, setups: 0, starts: 0, loads: 0, ends: 0}
+}
+
+function compilerPluginFactory(
+  marker: string,
+  lifecycle: PluginLifecycle,
+): () => readonly Bun.BunPlugin[] {
+  return () => {
+    lifecycle.factories += 1
+    return [{
+      name: `storybook-compiler-${marker}`,
+      setup(builder) {
+        lifecycle.setups += 1
+        builder.onStart(() => {
+          lifecycle.starts += 1
+        })
+        builder.onLoad({filter: /entry\.ts$/}, async ({path}) => {
+          lifecycle.loads += 1
+          return {
+            contents: `${await Bun.file(path).text()}\ndocument.documentElement.dataset.storybookCompilerPlugin = ${JSON.stringify(marker)}`,
+            loader: "ts",
+          }
+        })
+        builder.onEnd(async () => {
+          await Promise.resolve()
+          lifecycle.ends += 1
+        })
+      },
+    }]
   }
 }

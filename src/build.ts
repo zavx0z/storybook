@@ -122,7 +122,11 @@ export async function buildStaticStorybook(options: StorybookStaticBuildOptions)
   const pages: StorybookStaticPageRecord[] = []
   for (const page of app.pages) {
     const assetDirectory = `@storybook-assets/${page.id}`
-    const browserBuild = await buildStorybookBrowserPage(page.entrypoint, {minify: true, sourcemap: "none"})
+    const browserBuild = await buildStorybookBrowserPage(page.entrypoint, {
+      minify: true,
+      sourcemap: "none",
+      ...(page.browserBuild === undefined ? {} : {plugins: page.browserBuild.plugins}),
+    })
     await emit(`${assetDirectory}/entry.js`, browserBuild.entry)
     const chunkNames = [...browserBuild.chunks.keys()].sort()
     for (const name of chunkNames) {

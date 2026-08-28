@@ -7,6 +7,9 @@ const launcherScript = join(import.meta.dir, "../../scripts/storybook.ts")
 describe("package-name Storybook browser tooling", () => {
   test("derives runtime and page capability without a consumer registry or port", async () => {
     const source = await Bun.file(browserScript).text()
+    expect(source).toContain('from "../src/browser/cdp-bootstrap.ts"')
+    expect(source).toContain('creationScope: "cdp-bootstrap"')
+    expect(source).toContain("ensureStorybookCdp(cdpPort)")
     expect(source).toContain('from "@zavx0z/storybook/launcher"')
     expect(source).toContain("packageStatus.runtime.manifestPath")
     expect(source).toContain("manifest.pages.find(({routes}) => routes.includes(route))")

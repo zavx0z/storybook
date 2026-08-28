@@ -76,6 +76,36 @@ describe("typed Storybook app manifest", () => {
     expect(() => defineStorybookApp({...input, home: {...input.home, path: "/missing"}}))
       .toThrow("must resolve to a registered route")
   })
+
+  test("keeps compiler-neutral browser plugin sources on the owning page", () => {
+    const input = appInput("")
+    const plugin: Bun.BunPlugin = {
+      name: "storybook-app-test",
+      setup() {},
+    }
+    const factory = (): readonly Bun.BunPlugin[] => [plugin]
+    const app = defineStorybookApp({
+      ...input,
+      pages: [
+        {...input.pages[0]!, browserBuild: {plugins: [plugin]}},
+        {...input.pages[1]!, browserBuild: {plugins: factory}},
+      ],
+    })
+
+    const direct = app.pages[0]?.browserBuild?.plugins
+    expect(Array.isArray(direct)).toBeTrue()
+    expect(Object.isFrozen(direct)).toBeTrue()
+    expect(app.pages[1]?.browserBuild?.plugins).toBe(factory)
+    expect(Object.isFrozen(app.pages[0]?.browserBuild)).toBeTrue()
+
+    expect(() => defineStorybookApp({
+      ...input,
+      pages: [{
+        ...input.pages[0]!,
+        browserBuild: {plugins: null as unknown as readonly Bun.BunPlugin[]},
+      }, input.pages[1]!],
+    })).toThrow("browser plugins must be a list or factory")
+  })
 })
 
 function appInput(basePath: string): StorybookAppManifest {
