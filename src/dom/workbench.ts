@@ -2,8 +2,8 @@
 Semantic Storybook Workbench built from standard HTML DOM concepts.
 
 The factory creates one stable shell in a caller-owned `@zavx0z/dom`
-`Document`. Catalog, secondary navigation, preview, scenarios, source inspector
-and status are updated by explicit addresses. Interaction uses normal DOM
+`Document`. Catalog, secondary navigation, preview, scenarios, owner-supplied
+Inspector and status are updated by explicit addresses. Interaction uses normal DOM
 listeners and bubbling events; rendering remains a downstream concern.
 
 @packageDocumentation
@@ -20,7 +20,6 @@ import {
   Node,
   type Text,
 } from "@zavx0z/dom"
-import type {StorybookDomStorySource} from "./stories.ts"
 
 /** Flat author CSS accepted directly by the CPU renderer's initial cascade. */
 export const storybookDomWorkbenchCss = `
@@ -33,10 +32,7 @@ export const storybookDomWorkbenchCss = `
 .storybook-dom-workbench__preview-host { display: flex; flex-direction: column; flex-grow: 1; align-items: center; justify-content: center; }
 .storybook-dom-workbench__scenarios { box-sizing: border-box; display: flex; flex-direction: row; height: 28px; gap: 4px; padding: 2px 4px; overflow: hidden; border: 1px solid #111111; border-radius: 6px; background: #292929; }
 .storybook-dom-workbench__scenario-items { display: flex; flex-direction: row; flex: 1 1 0; gap: 2px; }
-.storybook-dom-workbench__inspector { box-sizing: border-box; display: flex; flex-direction: column; flex: 0 0 400px; width: 400px; min-height: 0; gap: 2px; padding: 4px; overflow: hidden; border: 1px solid #111111; border-radius: 6px; background: #292929; }
-.storybook-dom-workbench__sources { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; gap: 4px; overflow: auto; }
-.storybook-dom-workbench__source { box-sizing: border-box; display: flex; flex-direction: column; gap: 0; padding: 0; overflow: hidden; border: 1px solid #151515; border-radius: 4px; background: #1d1d1d; }
-.storybook-dom-workbench__code { box-sizing: border-box; display: block; min-height: 64px; margin: 0; padding: 5px 6px; overflow: auto; background: #1d1d1d; color: #d5d5d5; font-size: 11px; line-height: 16px; white-space: pre; }
+.storybook-dom-workbench__inspector-host { box-sizing: border-box; display: flex; flex-direction: column; flex: 0 0 400px; width: 400px; min-height: 0; overflow: hidden; }
 .storybook-dom-workbench__search { box-sizing: border-box; display: block; width: 100%; height: 24px; padding: 2px 6px; border: 1px solid #151515; border-radius: 4px; background: #202020; color: #e0e0e0; font-size: 11px; }
 .storybook-dom-workbench__items { display: flex; flex-direction: column; gap: 1px; }
 .storybook-dom-workbench__item { box-sizing: border-box; display: block; width: 100%; min-height: 24px; padding: 3px 6px; border: 1px solid transparent; border-radius: 2px; background: #303030; color: #c8c8c8; font-size: 11px; }
@@ -89,8 +85,7 @@ export type StorybookDomWorkbenchAddressMap = Readonly<{
   "scenarios.label": string
   "scenarios.items": readonly StorybookDomScenarioItem[]
   "scenarios.active": string | null
-  "inspector.label": string
-  "inspector.source": StorybookDomStorySource
+  "inspector.node": Node | null
   status: StorybookDomStatus
 }>
 
@@ -120,11 +115,7 @@ export type StorybookDomWorkbenchElements = Readonly<{
   previewHost: HTMLElement
   scenarios: HTMLElement
   scenarioItems: HTMLDivElement
-  inspector: HTMLElement
-  sourcePanel: HTMLElement
-  htmlSource: HTMLElement
-  cssSource: HTMLElement
-  typescriptSource: HTMLElement
+  inspectorHost: HTMLDivElement
   status: HTMLElement
 }>
 
@@ -211,12 +202,7 @@ export function createStorybookDomWorkbench(
   const scenarioLabel = labeledElement(document, "span", "storybook-dom-workbench__heading", "")
   const scenarioItems = element(document, "div", "storybook-dom-workbench__scenario-items") as HTMLDivElement
 
-  const inspector = element(document, "aside", "storybook-dom-workbench__inspector")
-  const inspectorHeading = labeledElement(document, "h2", "storybook-dom-workbench__heading", "")
-  const sourcePanel = element(document, "div", "storybook-dom-workbench__sources")
-  const htmlSource = sourceSection(document, "HTML")
-  const cssSource = sourceSection(document, "CSS")
-  const typescriptSource = sourceSection(document, "TypeScript")
+  const inspectorHost = element(document, "div", "storybook-dom-workbench__inspector-host") as HTMLDivElement
 
   const status = element(document, "footer", "storybook-dom-workbench__status")
   status.setAttribute("role", "status")
@@ -237,15 +223,10 @@ export function createStorybookDomWorkbench(
     scenarios.appendChild(scenarioItems)
     center.appendChild(preview)
     center.appendChild(scenarios)
-    sourcePanel.appendChild(htmlSource.section)
-    sourcePanel.appendChild(cssSource.section)
-    sourcePanel.appendChild(typescriptSource.section)
-    inspector.appendChild(inspectorHeading.element)
-    inspector.appendChild(sourcePanel)
     body.appendChild(catalog)
     body.appendChild(secondary)
     body.appendChild(center)
-    body.appendChild(inspector)
+    body.appendChild(inspectorHost)
     status.appendChild(statusLead.element)
     status.appendChild(statusOwner.element)
     status.appendChild(statusDetail.element)
@@ -272,8 +253,7 @@ export function createStorybookDomWorkbench(
     "scenarios.label": "Сценарии",
     "scenarios.items": Object.freeze([]),
     "scenarios.active": null,
-    "inspector.label": "Исходный код",
-    "inspector.source": emptySource(),
+    "inspector.node": null,
     status: Object.freeze({lead: "Создано для ", owner: "MetaFor", detail: " · Storybook"}),
   }
 
@@ -407,19 +387,14 @@ export function createStorybookDomWorkbench(
         applyScenarioSelection(next)
         return
       }
-      case "inspector.label": {
-        const next = requiredText("Inspector label", value)
+      case "inspector.node": {
+        const next = previewNode(value)
+        if (next !== null) assertNodeInDocument(next, document, "Inspector node")
+        const previous = state[address]
+        if (previous === next) return
+        if (previous?.parentNode === inspectorHost) inspectorHost.removeChild(previous)
+        if (next !== null) inspectorHost.appendChild(next)
         state[address] = next
-        inspectorHeading.text.data = next
-        inspector.setAttribute("aria-label", next)
-        return
-      }
-      case "inspector.source": {
-        const next = sourceValue(value)
-        state[address] = next
-        htmlSource.code.data = next.html
-        cssSource.code.data = next.css
-        typescriptSource.code.data = next.typescript
         return
       }
       case "status": {
@@ -581,11 +556,7 @@ export function createStorybookDomWorkbench(
       previewHost,
       scenarios,
       scenarioItems,
-      inspector,
-      sourcePanel,
-      htmlSource: htmlSource.section,
-      cssSource: cssSource.section,
-      typescriptSource: typescriptSource.section,
+      inspectorHost,
       status,
     }),
     controller,
@@ -607,8 +578,7 @@ export function createStorybookDomWorkbench(
   update("scenarios.label", initial["scenarios.label"] ?? state["scenarios.label"])
   update("scenarios.items", initial["scenarios.items"] ?? state["scenarios.items"])
   update("scenarios.active", initial["scenarios.active"] ?? state["scenarios.active"])
-  update("inspector.label", initial["inspector.label"] ?? state["inspector.label"])
-  update("inspector.source", initial["inspector.source"] ?? state["inspector.source"])
+  update("inspector.node", initial["inspector.node"] ?? state["inspector.node"])
   update("status", initial.status ?? state.status)
   return workbench
 }
@@ -631,26 +601,6 @@ function labeledElement(
   return {element: result, text}
 }
 
-function sourceSection(
-  document: Document,
-  label: string,
-): Readonly<{section: HTMLElement; code: Text}> {
-  const section = element(document, "section", "storybook-dom-workbench__source")
-  section.setAttribute("aria-label", `${label} исходный код`)
-  const heading = labeledElement(document, "h3", "storybook-dom-workbench__heading", label)
-  const pre = element(document, "pre", "storybook-dom-workbench__code")
-  const codeElement = element(document, "code", "")
-  const code = document.createTextNode("")
-  codeElement.appendChild(code)
-  pre.appendChild(codeElement)
-  section.appendChild(heading.element)
-  section.appendChild(pre)
-  return {section, code}
-}
-
-function emptySource(): StorybookDomStorySource {
-  return Object.freeze({html: " ", css: " ", typescript: " "})
-}
 
 function requiredText(label: string, value: unknown): string {
   const text = stringValue(label, value)
@@ -704,16 +654,6 @@ function scenarioItemsValue(value: unknown): readonly StorybookDomScenarioItem[]
     })
   })
   return Object.freeze(items)
-}
-
-function sourceValue(value: unknown): StorybookDomStorySource {
-  if (value === null || typeof value !== "object") throw new TypeError("Inspector source must be an object")
-  const source = value as StorybookDomStorySource
-  return Object.freeze({
-    html: stringValue("HTML source", source.html),
-    css: stringValue("CSS source", source.css),
-    typescript: stringValue("TypeScript source", source.typescript),
-  })
 }
 
 function statusValue(value: unknown): StorybookDomStatus {

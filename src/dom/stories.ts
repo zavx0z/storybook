@@ -12,7 +12,7 @@ import {type Document, Node} from "@zavx0z/dom"
 
 export type StorybookDomStoryArgs = Readonly<object>
 
-/** Literal authoring documents shown by the source inspector. */
+/** Literal authoring documents retained as story provenance and evidence. */
 export type StorybookDomStorySource = Readonly<{
   html: string
   css: string

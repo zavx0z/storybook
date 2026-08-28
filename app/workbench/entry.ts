@@ -51,6 +51,7 @@ async function startStorybookDocumentation(): Promise<void> {
   try {
     const semanticDocument = createDocument()
     const overview = createOverviewPresentation(semanticDocument)
+    const inspector = createDocumentationInspector(semanticDocument)
     const workbench = createStorybookDomWorkbench({
       document: semanticDocument,
       parent: semanticDocument,
@@ -67,11 +68,7 @@ async function startStorybookDocumentation(): Promise<void> {
         "scenarios.label": "Варианты",
         "scenarios.items": Object.freeze([]),
         "scenarios.active": null,
-        "inspector.label": "Исходный код",
-        "inspector.source": overviewSource(
-          "Документация Storybook · Обзор",
-          "Публичные target-neutral контракты и DOM Workbench.",
-        ),
+        "inspector.node": inspector.element,
         status: {
           lead: "Создано для ",
           owner: "MetaFor",
@@ -148,7 +145,7 @@ async function startStorybookDocumentation(): Promise<void> {
         story = null
         storyRoot = null
         args = Object.freeze({})
-        const source = applyOverview(workbench, overview, node)
+        const source = applyOverview(workbench, overview, inspector, node)
         publish(node, source, "Обзор")
       } else {
         const nextIndex = storybookDocumentationIndex(node.path)
@@ -160,7 +157,7 @@ async function startStorybookDocumentation(): Promise<void> {
         storyRoot = nextRoot
         args = nextArgs
         const source = nextStory.source(nextArgs)
-        applyLeaf(workbench, nextIndex, nextRoot, source)
+        applyLeaf(workbench, inspector, nextIndex, nextRoot, source, nextArgs)
         publish(node, source, "Готово")
       }
       await waitForStorybookFrameBoundary()
@@ -192,6 +189,7 @@ async function startStorybookDocumentation(): Promise<void> {
 function applyOverview(
   workbench: ReturnType<typeof createStorybookDomWorkbench>,
   overview: OverviewPresentation,
+  inspector: DocumentationInspector,
   node: StorybookRouteTreeNode<string>,
 ): StorybookDomStorySource {
   const context = storybookDocumentationContext(node.path)
@@ -221,16 +219,18 @@ function applyOverview(
       ? scenarioItems(context)
       : Object.freeze([]))
     workbench.update("scenarios.active", null)
-    workbench.update("inspector.source", source)
+    inspector.update(title, Object.freeze({kind: "overview", children: children.length}))
   })
   return source
 }
 
 function applyLeaf(
   workbench: ReturnType<typeof createStorybookDomWorkbench>,
+  inspector: DocumentationInspector,
   index: StorybookDomCatalogIndexItem,
   root: ReturnType<StorybookDomStoryModule["render"]>,
   source: StorybookDomStorySource,
+  args: StorybookDomStoryArgs,
 ): void {
   workbench.document.transaction(() => {
     workbench.update("catalog.active", index.componentId)
@@ -240,8 +240,33 @@ function applyLeaf(
     workbench.update("preview.node", root)
     workbench.update("scenarios.items", scenarioItems(index))
     workbench.update("scenarios.active", index.route)
-    workbench.update("inspector.source", source)
+    inspector.update(index.apiName, Object.freeze({...args}))
   })
+}
+
+type DocumentationInspector = Readonly<{
+  element: HTMLElement
+  update(title: string, props: Readonly<Record<string, unknown>>): void
+}>
+
+function createDocumentationInspector(document: ReturnType<typeof createDocument>): DocumentationInspector {
+  const element = document.createElement("aside")
+  const heading = document.createElement("h2")
+  const values = document.createElement("div")
+  element.setAttribute("aria-label", "Props")
+  element.setAttribute("style", "box-sizing:border-box;width:100%;height:100%;padding:8px;border:1px solid #111;border-radius:6px;background:#292929")
+  heading.textContent = "Props"
+  values.setAttribute("style", "display:flex;flex-direction:column;gap:4px")
+  element.append(heading, values)
+  const update = (title: string, props: Readonly<Record<string, unknown>>): void => {
+    heading.textContent = `${title} · Props`
+    values.replaceChildren(...Object.entries(props).map(([key, value]) => {
+      const row = document.createElement("div")
+      row.textContent = `${key}: ${String(value)}`
+      return row
+    }))
+  }
+  return Object.freeze({element, update})
 }
 
 function catalogItems(): readonly StorybookDomNavigationItem[] {

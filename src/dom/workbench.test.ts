@@ -6,22 +6,18 @@ import {
   storybookDomWorkbenchCss,
 } from "./workbench.ts"
 
-const source = Object.freeze({
-  html: "<button title=\"Output\">Output</button>",
-  css: "button { background: #3f5f84; }",
-  typescript: "button.addEventListener(\"click\", openOutput)",
-})
-
 describe("DOM-native Storybook Workbench", () => {
   test("creates the complete semantic shell with standard title and aria metadata", () => {
     const document = createDocument()
+    const inspector = document.createElement("aside")
+    inspector.setAttribute("aria-label", "Props")
     const workbench = createStorybookDomWorkbench({
       document,
       parent: document,
       initial: {
         title: "UI Storybook",
         "preview.label": "Кнопка Output",
-        "inspector.source": source,
+        "inspector.node": inspector,
         status: {lead: "Создано для ", owner: "MetaFor", detail: " · WebXR UI"},
       },
     })
@@ -37,14 +33,12 @@ describe("DOM-native Storybook Workbench", () => {
     expect(workbench.elements.preview.localName).toBe("main")
     expect(workbench.elements.previewHost.getAttribute("role")).toBe("region")
     expect(workbench.elements.scenarios.getAttribute("role")).toBe("toolbar")
-    expect(workbench.elements.inspector.localName).toBe("aside")
+    expect(workbench.elements.inspectorHost.localName).toBe("div")
+    expect(workbench.elements.inspectorHost.firstChild).toBe(inspector)
     expect(workbench.elements.status.getAttribute("role")).toBe("status")
     expect(workbench.elements.status.getAttribute("aria-label")).toBe(
       "Создано для MetaFor · WebXR UI",
     )
-    expect(workbench.elements.htmlSource.textContent).toContain(source.html)
-    expect(workbench.elements.cssSource.textContent).toContain(source.css)
-    expect(workbench.elements.typescriptSource.textContent).toContain(source.typescript)
   })
 
   test("updates addressed state while preserving shell and keyed item identity", () => {
@@ -84,6 +78,7 @@ describe("DOM-native Storybook Workbench", () => {
 
     const foreign = createDocument().createElement("div")
     expect(() => workbench.update("preview.node", foreign)).toThrow("another Document")
+    expect(() => workbench.update("inspector.node", foreign)).toThrow("another Document")
   })
 
   test("uses native click/input dispatch and emits bubbling semantic events", () => {

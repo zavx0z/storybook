@@ -58,7 +58,7 @@ one @zavx0z/dom Document
           ├─ secondary nav
           ├─ preview host
           ├─ scenario dock
-          ├─ source inspector
+          ├─ owner-supplied Inspector node
           └─ status
                  │
                  v
@@ -91,7 +91,7 @@ semantic DOM Workbench для документации и живых приме�
 ```text
 one @zavx0z/dom Document
    └─ one Workbench route tree
-   ├─> public module stories   Russian preview + HTML/CSS/TypeScript source
+   ├─> public module stories   Russian preview + source provenance
    └─> live example variants  standard HTML elements
 ```
 

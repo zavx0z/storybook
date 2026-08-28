@@ -47,6 +47,7 @@ async function startStorybook(): Promise<void> {
   try {
     const semanticDocument = createDocument()
     const overview = createOverview(semanticDocument)
+    const inspector = createPropsInspector(semanticDocument)
     const workbench = createStorybookDomWorkbench({
       document: semanticDocument,
       parent: semanticDocument,
@@ -63,8 +64,7 @@ async function startStorybook(): Promise<void> {
         "scenarios.label": "Варианты",
         "scenarios.items": Object.freeze([]),
         "scenarios.active": null,
-        "inspector.label": "Исходный код",
-        "inspector.source": overviewSource("__APP_TITLE__ · Обзор"),
+        "inspector.node": inspector,
         status: {lead: "Создано для ", owner: "__OWNER_LABEL__", detail: " · __PACKAGE_NAME__"},
       },
     })
@@ -179,7 +179,6 @@ function applyOverview(
       ? scenarioItems(context)
       : Object.freeze([]))
     workbench.update("scenarios.active", null)
-    workbench.update("inspector.source", source)
   })
   return source
 }
@@ -198,7 +197,6 @@ function applyLeaf(
     workbench.update("preview.node", root)
     workbench.update("scenarios.items", scenarioItems(index))
     workbench.update("scenarios.active", index.route)
-    workbench.update("inspector.source", source)
   })
 }
 
@@ -255,6 +253,16 @@ function createOverview(document: Document): OverviewPresentation {
   paragraph.appendChild(description)
   element.append(heading, paragraph, items)
   return Object.freeze({element, title, description, items})
+}
+
+function createPropsInspector(document: Document): HTMLElement {
+  const inspector = document.createElement("aside")
+  const heading = document.createElement("h2")
+  inspector.setAttribute("aria-label", "Props")
+  inspector.setAttribute("style", "box-sizing:border-box;width:100%;height:100%;padding:8px;border:1px solid #111;border-radius:6px;background:#292929")
+  heading.textContent = "Props"
+  inspector.appendChild(heading)
+  return inspector
 }
 
 function overviewSource(title: string): StorybookDomStorySource {

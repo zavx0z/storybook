@@ -171,10 +171,10 @@ const catalog = defineStorybookDomCatalog({
     category: "presentation",
     importPath: "@zavx0z/storybook/workbench",
     title: "DOM Workbench · Рабочее окно",
-    summary: "Создаёт стабильное HTML DOM-окно каталога, навигации, preview, scenarios, исходного кода и status без числового рисования Surface.",
+    summary: "Создаёт стабильное HTML DOM-окно каталога, навигации, preview, owner Inspector и status без числового рисования Surface.",
     ownership: "Shared package владеет только семантическим shell, flat CSS и адресами обновления. Один caller-owned Document остаётся владельцем всех Node; CPU renderer и WebGPU backend читают это дерево ниже по конвейеру.",
     laws: Object.freeze([
-      "Catalog, secondary navigation, preview host, scenario dock, source inspector и status создаются один раз.",
+      "Catalog, secondary navigation, preview host, scenario dock, Inspector host и status создаются один раз.",
       "Обновления используют точные semantic addresses и сохраняют shell и keyed item identity.",
       "title, aria, click, input и bubbling CustomEvent используют стандартный DOM API.",
       "Экспортируемая CSS-строка содержит только плоские исполняемые правила без target-specific drawing.",

@@ -57,15 +57,15 @@ TypeScript source возвращаются как три непустых litera
 
 `@zavx0z/storybook/workbench` строит в одном переданном Document
 стандартные элементы для catalog nav/search, secondary nav, preview host,
-scenario dock, inspector с одновременными HTML/CSS/TypeScript sections и
-нижнего status. Factory не создаёт второй DOM realm. Его public element
+scenario dock, owner-supplied Inspector и нижнего status. Factory не создаёт
+второй DOM realm. Его public element
 references стабильны, а keyed navigation/scenario items сохраняют identity при
 изменении подписи, состояния и порядка.
 
 Все изменения проходят через точные semantic addresses контроллера:
 `catalog.*`, `secondary.*`, `preview.*`, `scenarios.*`, `inspector.*`, `status`
-и `title`. Preview принимает только Node того же Document. `dispose()` снимает
-owned listeners и удаляет только Workbench root.
+и `title`. Preview и Inspector принимают только Node того же Document.
+`dispose()` снимает owned listeners и удаляет только Workbench root.
 
 ### `STORYBOOK-DOM-WORKBENCH-002` — стандартные events, title, aria и flat CSS
 
