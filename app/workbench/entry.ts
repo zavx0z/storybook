@@ -270,17 +270,26 @@ function createDocumentationInspector(document: ReturnType<typeof createDocument
 }
 
 function catalogItems(): readonly StorybookDomNavigationItem[] {
-  const seen = new Set<string>()
-  return STORYBOOK_DOCUMENTATION_CATALOG.index.flatMap((item) => {
-    if (seen.has(item.componentId)) return []
-    seen.add(item.componentId)
-    return [{
-      id: item.componentId,
-      label: item.componentLabel,
-      route: item.componentId,
-      title: item.apiName,
-    }]
-  })
+  const components = new Map<string, {
+    item: StorybookDomCatalogIndexItem
+    searchText: string[]
+  }>()
+  for (const item of STORYBOOK_DOCUMENTATION_CATALOG.index) {
+    const component = components.get(item.componentId)
+    if (component === undefined) {
+      components.set(item.componentId, {item, searchText: [item.searchText]})
+    } else {
+      component.searchText.push(item.searchText)
+    }
+  }
+  return [...components.values()].map((component) => ({
+    id: component.item.componentId,
+    label: component.item.componentLabel,
+    route: component.item.componentId,
+    group: {id: component.item.groupId, label: component.item.groupLabel},
+    title: component.item.apiName,
+    searchText: component.searchText.join(" "),
+  }))
 }
 
 function sectionItems(

@@ -74,4 +74,19 @@ describe("@zavx0z/storybook package boundary", () => {
       "src/shell-theme.ts",
     ]) expect(await Bun.file(join(packageRoot, legacyPath)).exists(), legacyPath).toBeFalse()
   })
+
+  test("keeps the Workbench tree on the DOM-only dependency boundary", async () => {
+    const source = await Promise.all([
+      Bun.file(join(import.meta.dir, "dom/workbench.ts")).text(),
+      Bun.file(join(import.meta.dir, "dom/navigation-tree.ts")).text(),
+    ]).then((files) => files.join("\n"))
+    for (const forbidden of [
+      "@engine/core",
+      "@layout/core",
+      "@ui/components",
+      "@ui/elements",
+      "@zavx0z/react",
+      "@zavx0z/renderer",
+    ]) expect(source, forbidden).not.toContain(forbidden)
+  })
 })

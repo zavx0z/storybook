@@ -20,6 +20,17 @@ import {
   Node,
   type Text,
 } from "@zavx0z/dom"
+import {
+  createStorybookDomNavigationTree,
+  normalizeStorybookDomNavigationItems,
+  type StorybookDomNavigationItem,
+  type StorybookDomNavigationTree,
+} from "./navigation-tree.ts"
+
+export type {
+  StorybookDomNavigationGroup,
+  StorybookDomNavigationItem,
+} from "./navigation-tree.ts"
 
 /** Flat author CSS accepted directly by the CPU renderer's initial cascade. */
 export const storybookDomWorkbenchCss = `
@@ -34,8 +45,17 @@ export const storybookDomWorkbenchCss = `
 .storybook-dom-workbench__scenario-items { display: flex; flex-direction: row; flex: 1 1 0; gap: 2px; }
 .storybook-dom-workbench__inspector-host { box-sizing: border-box; display: flex; flex-direction: column; flex: 0 0 400px; width: 400px; min-height: 0; overflow: hidden; }
 .storybook-dom-workbench__search { box-sizing: border-box; display: block; width: 100%; height: 24px; padding: 2px 6px; border: 1px solid #151515; border-radius: 4px; background: #202020; color: #e0e0e0; font-size: 11px; }
-.storybook-dom-workbench__items { display: flex; flex-direction: column; gap: 1px; }
-.storybook-dom-workbench__item { box-sizing: border-box; display: block; width: 100%; min-height: 24px; padding: 3px 6px; border: 1px solid transparent; border-radius: 2px; background: #303030; color: #c8c8c8; font-size: 11px; }
+.storybook-dom-workbench__items { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; gap: 1px; overflow: auto; }
+.storybook-dom-workbench__tree { gap: 0; }
+.storybook-dom-workbench__group { box-sizing: border-box; display: flex; flex-direction: column; width: 100%; border: 0 solid transparent; border-radius: 4px; overflow: hidden; background: #292929; }
+.storybook-dom-workbench__group-toggle { box-sizing: border-box; display: flex; flex-direction: row; align-items: center; width: 100%; height: 24px; min-height: 24px; padding: 0 4px; overflow: hidden; border: 1px solid #191919; border-radius: 2px; background: #252525; color: #d8d8d8; font-size: 11px; text-align: left; white-space: nowrap; }
+.storybook-dom-workbench__group-toggle[data-focused] { border-color: #47788f; }
+.storybook-dom-workbench__disclosure { display: block; flex: 0 0 20px; width: 20px; color: #a8a8a8; text-align: center; }
+.storybook-dom-workbench__group-label { display: block; flex: 1 1 0; min-width: 0; overflow: hidden; white-space: nowrap; }
+.storybook-dom-workbench__group-items { display: flex; flex-direction: column; gap: 0; background: #303030; }
+.storybook-dom-workbench__tree-spacer { box-sizing: border-box; display: block; flex: 0 0 auto; width: 100%; }
+.storybook-dom-workbench__item { box-sizing: border-box; display: block; width: 100%; height: 24px; min-height: 24px; padding: 3px 6px; overflow: hidden; border: 1px solid transparent; border-radius: 2px; background: #303030; color: #c8c8c8; font-size: 11px; white-space: nowrap; }
+.storybook-dom-workbench__item--nested { padding: 3px 6px 3px 24px; border-radius: 0; background: #292929; }
 .storybook-dom-workbench__item[data-active] { border-color: #47788f; background: #31566a; color: #f0f0f0; }
 .storybook-dom-workbench__item[disabled] { background: #292929; color: #707070; opacity: 0.55; }
 .storybook-dom-workbench__heading { box-sizing: border-box; display: block; min-height: 20px; margin: 0; padding: 2px 4px; color: #d8d8d8; font-size: 11px; line-height: 16px; }
@@ -47,15 +67,8 @@ export const STORYBOOK_DOM_WORKBENCH_EVENTS = Object.freeze({
   navigate: "storybooknavigate",
   search: "storybooksearch",
   scenario: "storybookscenario",
+  groupToggle: "storybookgrouptoggle",
 } as const)
-
-export type StorybookDomNavigationItem = Readonly<{
-  id: string
-  label: string
-  route: string
-  title?: string
-  disabled?: boolean
-}>
 
 export type StorybookDomScenarioItem = Readonly<{
   id: string
@@ -181,8 +194,12 @@ export function createStorybookDomWorkbench(
   catalogSearch.placeholder = "Поиск…"
   catalogSearch.title = "Поиск по каталогу"
   catalogSearch.setAttribute("aria-label", "Поиск по каталогу")
-  const catalogItems = element(document, "div", "storybook-dom-workbench__items") as HTMLDivElement
-  catalogItems.setAttribute("role", "list")
+  const catalogItems = element(
+    document,
+    "div",
+    "storybook-dom-workbench__items storybook-dom-workbench__tree",
+  ) as HTMLDivElement
+  catalogItems.setAttribute("role", "tree")
 
   const secondary = element(document, "nav", "storybook-dom-workbench__secondary")
   const secondaryHeading = labeledElement(document, "h2", "storybook-dom-workbench__heading", "")
@@ -235,9 +252,9 @@ export function createStorybookDomWorkbench(
     parent?.appendChild(root)
   })
 
-  const catalogRecords = new Map<string, NavigationRecord>()
   const secondaryRecords = new Map<string, NavigationRecord>()
   const scenarioRecords = new Map<string, ScenarioRecord>()
+  let catalogTree: StorybookDomNavigationTree
   let disposed = false
   const state: MutableWorkbenchState = {
     title: "Storybook",
@@ -297,30 +314,31 @@ export function createStorybookDomWorkbench(
         state[address] = next
         catalogHeading.text.data = next
         catalog.setAttribute("aria-label", next)
+        catalogItems.setAttribute("aria-label", next)
         return
       }
       case "catalog.search": {
         const next = stringValue("Catalog search", value)
         state[address] = next
         catalogSearch.value = next
-        applyCatalogFilter(catalogRecords, next)
+        catalogTree.setQuery(next)
         return
       }
       case "catalog.items": {
         const next = navigationItems("Catalog", value)
         state[address] = next
-        reconcileNavigation(catalogItems, catalogRecords, next, "catalog")
-        if (state["catalog.active"] !== null && !catalogRecords.has(state["catalog.active"]!)) {
+        catalogTree.updateItems(next)
+        if (state["catalog.active"] !== null && !catalogTree.hasItem(state["catalog.active"]!)) {
           state["catalog.active"] = null
         }
-        applyNavigationSelection(catalogRecords, state["catalog.active"])
-        applyCatalogFilter(catalogRecords, state["catalog.search"])
+        catalogTree.setActive(state["catalog.active"])
+        catalogTree.setQuery(state["catalog.search"])
         return
       }
       case "catalog.active": {
-        const next = selectedId("Catalog", value, catalogRecords)
+        const next = selectedCatalogId(value, catalogTree)
         state[address] = next
-        applyNavigationSelection(catalogRecords, next)
+        catalogTree.setActive(next)
         return
       }
       case "secondary.label": {
@@ -333,7 +351,7 @@ export function createStorybookDomWorkbench(
       case "secondary.items": {
         const next = navigationItems("Secondary navigation", value)
         state[address] = next
-        reconcileNavigation(secondaryItems, secondaryRecords, next, "secondary")
+        reconcileNavigation(secondaryItems, secondaryRecords, next)
         if (state["secondary.active"] !== null && !secondaryRecords.has(state["secondary.active"]!)) {
           state["secondary.active"] = null
         }
@@ -414,7 +432,6 @@ export function createStorybookDomWorkbench(
     host: HTMLDivElement,
     records: Map<string, NavigationRecord>,
     items: readonly StorybookDomNavigationItem[],
-    kind: "catalog" | "secondary",
   ): void => {
     const retained = new Set(items.map(({id}) => id))
     for (const [id, record] of records) {
@@ -439,12 +456,11 @@ export function createStorybookDomWorkbench(
           onClick: () => {
             const current = records.get(item.id)
             if (current === undefined || current.button.disabled) return
-            const address = kind === "catalog" ? "catalog.active" : "secondary.active"
-            update(address, current.item.id)
+            update("secondary.active", current.item.id)
             current.button.dispatchEvent(new CustomEvent(STORYBOOK_DOM_WORKBENCH_EVENTS.navigate, {
               bubbles: true,
               detail: Object.freeze({
-                kind,
+                kind: "secondary",
                 id: current.item.id,
                 route: current.item.route,
               }),
@@ -531,14 +547,31 @@ export function createStorybookDomWorkbench(
     if (disposed) return
     disposed = true
     catalogSearch.removeEventListener("input", onSearchInput)
-    for (const record of catalogRecords.values()) record.button.removeEventListener("click", record.onClick)
+    catalogTree.dispose()
     for (const record of secondaryRecords.values()) record.button.removeEventListener("click", record.onClick)
     for (const record of scenarioRecords.values()) record.button.removeEventListener("click", record.onClick)
-    catalogRecords.clear()
     secondaryRecords.clear()
     scenarioRecords.clear()
     if (root.parentNode !== null) root.parentNode.removeChild(root)
   }
+
+  catalogTree = createStorybookDomNavigationTree({
+    document,
+    host: catalogItems,
+    onNavigate(item, source) {
+      update("catalog.active", item.id)
+      source.dispatchEvent(new CustomEvent(STORYBOOK_DOM_WORKBENCH_EVENTS.navigate, {
+        bubbles: true,
+        detail: Object.freeze({kind: "catalog", id: item.id, route: item.route}),
+      }))
+    },
+    onGroupToggle(group, collapsed, source) {
+      source.dispatchEvent(new CustomEvent(STORYBOOK_DOM_WORKBENCH_EVENTS.groupToggle, {
+        bubbles: true,
+        detail: Object.freeze({kind: "catalog", id: group.id, collapsed}),
+      }))
+    },
+  })
 
   const controller: StorybookDomWorkbenchController = Object.freeze({read, update, dispose})
   const workbench: StorybookDomWorkbench = Object.freeze({
@@ -614,25 +647,7 @@ function stringValue(label: string, value: unknown): string {
 }
 
 function navigationItems(label: string, value: unknown): readonly StorybookDomNavigationItem[] {
-  if (!Array.isArray(value)) throw new TypeError(`${label} items must be an array`)
-  const ids = new Set<string>()
-  const items = value.map((candidate, index) => {
-    if (candidate === null || typeof candidate !== "object") {
-      throw new TypeError(`${label} item ${index} must be an object`)
-    }
-    const item = candidate as StorybookDomNavigationItem
-    const id = requiredText(`${label} item id`, item.id)
-    if (ids.has(id)) throw new Error(`Duplicate ${label.toLowerCase()} item id: ${id}`)
-    ids.add(id)
-    return Object.freeze({
-      id,
-      label: requiredText(`${label} item label`, item.label),
-      route: requiredText(`${label} item route`, item.route),
-      ...(item.title === undefined ? {} : {title: stringValue(`${label} item title`, item.title)}),
-      ...(item.disabled === undefined ? {} : {disabled: Boolean(item.disabled)}),
-    })
-  })
-  return Object.freeze(items)
+  return normalizeStorybookDomNavigationItems(label, value)
 }
 
 function scenarioItemsValue(value: unknown): readonly StorybookDomScenarioItem[] {
@@ -677,20 +692,20 @@ function selectedId(
   return id
 }
 
+function selectedCatalogId(
+  value: unknown,
+  tree: StorybookDomNavigationTree,
+): string | null {
+  if (value === null) return null
+  const id = requiredText("Catalog active id", value)
+  if (!tree.hasItem(id)) throw new Error(`Unknown catalog item id: ${id}`)
+  return id
+}
+
 function previewNode(value: unknown): Node | null {
   if (value === null) return null
   if (!(value instanceof Node)) throw new TypeError("Preview node must be a Node from @zavx0z/dom")
   return value
-}
-
-function applyCatalogFilter(records: ReadonlyMap<string, NavigationRecord>, value: string): void {
-  const query = value.trim().toLocaleLowerCase()
-  for (const record of records.values()) {
-    const searchText = `${record.item.label} ${record.item.route}`.toLocaleLowerCase()
-    record.button.setAttribute("style", query.length === 0 || searchText.includes(query)
-      ? "display: block"
-      : "display: none")
-  }
 }
 
 function orderChildren(host: Node, children: readonly Node[]): void {

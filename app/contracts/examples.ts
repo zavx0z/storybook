@@ -171,15 +171,17 @@ const catalog = defineStorybookDomCatalog({
     category: "presentation",
     importPath: "@zavx0z/storybook/workbench",
     title: "DOM Workbench · Рабочее окно",
-    summary: "Создаёт стабильное HTML DOM-окно каталога, навигации, preview, owner Inspector и status без числового рисования Surface.",
-    ownership: "Shared package владеет только семантическим shell, flat CSS и адресами обновления. Один caller-owned Document остаётся владельцем всех Node; CPU renderer и WebGPU backend читают это дерево ниже по конвейеру.",
+    summary: "Создаёт стабильное HTML DOM-окно с catalog navigation tree, плоской secondary navigation, preview, owner Inspector и status без числового рисования Surface.",
+    ownership: "Shared package владеет семантическим shell, keyed group/leaf tree, внутренним collapse state, bounded DOM projection, flat CSS и адресами обновления. Один caller-owned Document остаётся владельцем всех Node; CPU renderer и WebGPU backend читают это дерево ниже по конвейеру.",
     laws: Object.freeze([
-      "Catalog, secondary navigation, preview host, scenario dock, Inspector host и status создаются один раз.",
-      "Обновления используют точные semantic addresses и сохраняют shell и keyed item identity.",
-      "title, aria, click, input и bubbling CustomEvent используют стандартный DOM API.",
+      "Catalog tree, secondary navigation, preview host, scenario dock, Inspector host и status создаются один раз.",
+      "Явные group.id/group.label принадлежат catalog metadata; collapsed group ids принадлежат Workbench и переживают item updates.",
+      "Keyed group/leaf identity, bounded projection и полная search metadata сохраняются без полного DOM churn.",
+      "Group toggle испускает storybookgrouptoggle, но не storybooknavigate; pointer и keyboard используют стандартный DOM API.",
       "Экспортируемая CSS-строка содержит только плоские исполняемые правила без target-specific drawing.",
     ]),
     example: `import {
+  STORYBOOK_DOM_WORKBENCH_EVENTS,
   createStorybookDomWorkbench,
   storybookDomWorkbenchCss,
 } from "@zavx0z/storybook/workbench"
@@ -193,7 +195,22 @@ workbench.update("catalog.items", [{
   id: "button",
   label: "Кнопка",
   route: "components/button",
+  group: {id: "components", label: "Компоненты"},
+  searchText: "Button action control",
 }])
+
+workbench.element.addEventListener(
+  STORYBOOK_DOM_WORKBENCH_EVENTS.groupToggle,
+  (event) => {
+    const {id, collapsed} = (event as CustomEvent<{
+      kind: "catalog"
+      id: string
+      collapsed: boolean
+    }>).detail
+    console.log(id, collapsed)
+  },
+)
+
 workbench.update("preview.node", buttonStoryRoot)
 
 const renderer = createDocumentRenderer({

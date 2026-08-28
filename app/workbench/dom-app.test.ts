@@ -46,6 +46,18 @@ describe("self-documenting DOM Workbench application", () => {
     expect(source).toContain('workbench.update("scenarios.active", null)')
   })
 
+  test("dogfoods the public catalog tree metadata and documents group toggles", async () => {
+    const source = await Bun.file(`${root}/entry.ts`).text()
+    const contracts = await Bun.file(`${root}/../contracts/examples.ts`).text()
+
+    expect(source).toContain("group: {id: component.item.groupId, label: component.item.groupLabel}")
+    expect(source).toContain("title: component.item.apiName")
+    expect(source).toContain('searchText: component.searchText.join(" ")')
+    expect(contracts).toContain("STORYBOOK_DOM_WORKBENCH_EVENTS.groupToggle")
+    expect(contracts).toContain('group: {id: "components", label: "Компоненты"}')
+    expect(contracts).toContain('searchText: "Button action control"')
+  })
+
   test("builds one entry and lazy DOM story chunks", async () => {
     const result = await Bun.build({
       entrypoints: [`${root}/entry.ts`],

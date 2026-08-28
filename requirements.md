@@ -56,25 +56,38 @@ TypeScript source возвращаются как три непустых litera
 ### `STORYBOOK-DOM-WORKBENCH-001` — стабильный семантический shell
 
 `@zavx0z/storybook/workbench` строит в одном переданном Document
-стандартные элементы для catalog nav/search, secondary nav, preview host,
-scenario dock, owner-supplied Inspector и нижнего status. Factory не создаёт
-второй DOM realm. Его public element
-references стабильны, а keyed navigation/scenario items сохраняют identity при
-изменении подписи, состояния и порядка.
+стандартные элементы для catalog navigation tree/search, плоской secondary nav,
+preview host, scenario dock, owner-supplied Inspector и нижнего status. Factory
+не создаёт второй DOM realm. Его public element references стабильны, а keyed
+catalog groups/leaves, secondary navigation и scenario items сохраняют identity
+при изменении подписи, состояния и порядка.
+
+Catalog declaration передаёт только стабильные `group.id`, `group.label` и
+leaf metadata. Множество collapsed group ids является внутренним состоянием
+Workbench: оно сохраняется при обновлении `catalog.items`, независимо для каждой
+группы и удаляется для исчезнувших групп. Secondary navigation остаётся плоской
+и не получает disclosure semantics из route prefixes или catalog groups.
 
 Все изменения проходят через точные semantic addresses контроллера:
 `catalog.*`, `secondary.*`, `preview.*`, `scenarios.*`, `inspector.*`, `status`
 и `title`. Preview и Inspector принимают только Node того же Document.
 `dispose()` снимает owned listeners и удаляет только Workbench root.
 
-### `STORYBOOK-DOM-WORKBENCH-002` — стандартные events, title, aria и flat CSS
+### `STORYBOOK-DOM-WORKBENCH-002` — стандартные tree events, title, aria и flat CSS
 
-Navigation и scenarios являются настоящими button elements, search — input
-type=search. Внутреннее состояние реагирует на стандартные `click` и `input`,
-а semantic `storybooknavigate`, `storybooksearch` и `storybookscenario`
-CustomEvents всплывают по обычному DOM event path. Shell применяет `title`,
-`role`, `aria-label`, `aria-current`, `aria-pressed`, `aria-live` и native
-`disabled` reflection, не создавая отдельный tooltip callback API.
+Catalog является настоящим `role=tree`: group headers и leaves имеют
+`role=treeitem`, group header публикует `aria-expanded`, children container —
+`role=group`, active leaf — `aria-current`, disabled leaf — `aria-disabled` и
+native `disabled` reflection. Secondary navigation и scenarios остаются
+настоящими button elements, search — `input type=search`.
+
+Pointer и стандартные Tree View keys управляют фокусом, disclosure и leaf
+navigation. Group toggle не меняет active route и не испускает navigation;
+semantic `storybookgrouptoggle` с `{kind: "catalog", id, collapsed}` всплывает
+вместе с существующими `storybooknavigate`, `storybooksearch` и
+`storybookscenario` по обычному DOM event path. Search сопоставляет group label
+и полные leaf `label`, `title`, `route`, `searchText`, не изменяя сохранённое
+collapse state. Shell не создаёт repository-specific callback API.
 
 `storybookDomWorkbenchCss` — одна плоская executable CSS string. Она использует
 только свойства начального CPU cascade и не содержит координатного Surface
@@ -93,6 +106,15 @@ StatusBar имеет `24px` logical height, `2px` top band, `12px` right inset �
 `11px` font. Shared package не владеет product palette или reference
 acceptance: consumer может добавить scoped stylesheet с собственными material
 roles, но не копирует Workbench structure и не ослабляет compact fallback.
+
+### `STORYBOOK-DOM-WORKBENCH-004` — bounded catalog projection
+
+Большой catalog не материализуется целиком при каждом addressed update.
+Workbench хранит полную validated item model, но DOM содержит только bounded
+visible projection с небольшим overscan; search сначала вычисляет совпавшие
+groups/leaves, затем проецирует их тем же bounded путём. Keyed records сохраняют
+identity внутри проекции, active/focused row остаётся достижимой, а обновление
+одной группы не создаёт полный DOM churn для остальных элементов.
 
 ### `STORYBOOK-REFERENCE-001` — evidence, не acceptance
 

@@ -108,10 +108,9 @@ describe("DOM-native Storybook Workbench", () => {
     workbench.elements.catalogSearch.value = "поле"
     workbench.elements.catalogSearch.dispatchEvent(new Event("input", {bubbles: true}))
     expect(workbench.controller.read("catalog.search")).toBe("поле")
-    expect(button.getAttribute("style")).toBe("display: none")
-    expect((workbench.elements.catalogItems.children[1] as HTMLButtonElement).getAttribute("style")).toBe(
-      "display: block",
-    )
+    expect(button.parentNode).toBeNull()
+    expect(workbench.elements.catalogItems.children).toHaveLength(1)
+    expect((workbench.elements.catalogItems.firstChild as HTMLButtonElement).textContent).toBe("Поле")
     expect(events[1]).toEqual({type: "storybooksearch", detail: {value: "поле"}})
 
     const scenario = workbench.elements.scenarioItems.firstChild as HTMLButtonElement
@@ -157,6 +156,7 @@ describe("DOM-native Storybook Workbench", () => {
       "align-items",
       "justify-content",
       "overflow",
+      "text-align",
     ])
     for (const rule of rules) {
       const declarations = rule[2] ?? ""
@@ -172,6 +172,9 @@ describe("DOM-native Storybook Workbench", () => {
     expect(storybookDomWorkbenchCss).toContain("border-top: 2px solid #161616")
     expect(storybookDomWorkbenchCss).toContain("padding: 0 12px 0 8px")
     expect(storybookDomWorkbenchCss).toContain("font-size: 11px")
+    expect(storybookDomWorkbenchCss).toContain(".storybook-dom-workbench__tree { gap: 0; }")
+    expect(storybookDomWorkbenchCss).toContain("height: 24px; min-height: 24px")
+    expect(storybookDomWorkbenchCss).toContain("white-space: nowrap")
     expect(storybookDomWorkbenchCss).not.toMatch(/border-radius:\s*(?:999px|50%)/u)
   })
 })

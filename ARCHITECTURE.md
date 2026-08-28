@@ -54,8 +54,8 @@ Production-facing authoring contract использует стандартное
 one @zavx0z/dom Document
    ├─> owner DOM story (stable Node)
    └─> semantic Workbench shell
-          ├─ catalog nav + search
-          ├─ secondary nav
+          ├─ catalog navigation tree + search
+          ├─ flat secondary navigation
           ├─ preview host
           ├─ scenario dock
           ├─ owner-supplied Inspector node
@@ -71,17 +71,23 @@ flat CSS -> CPU renderer -> display list / hit tree -> WebGPU backend
 Document и реальные Node являются всей semantic boundary; title, aria,
 attributes и events используют стандартные имена и наследование DOM.
 
-Workbench создаёт структуру один раз. Контроллер изменяет содержимое по точным
-semantic addresses и сохраняет shell/keyed-child identity. Renderer ниже по
-конвейеру подписывается на mutation batches этого же Document, вычисляет CSS и
-layout на CPU, а WebGPU backend проецирует display list. Storybook не владеет
-ни одним из этих rendering stages.
+Workbench создаёт структуру один раз. Catalog declaration передаёт явные
+group/leaf metadata, а Workbench владеет disclosure state и публикует настоящее
+`tree` / `treeitem` / `group` DOM-поддерево. Group toggle остаётся UI-событием и
+не становится route navigation; secondary navigation сохраняет отдельную
+плоскую семантику. Контроллер изменяет содержимое по точным semantic addresses,
+сохраняет shell и keyed group/leaf identity, а большой catalog проецирует в
+bounded visible DOM window вместо безусловной полной материализации.
+
+Renderer ниже по конвейеру подписывается на mutation batches этого же Document,
+вычисляет CSS и layout на CPU, а WebGPU backend проецирует display list.
+Storybook не владеет ни одним из этих rendering stages.
 
 Shared CSS задаёт только compact editor fallback: пять плотных рабочих regions
 над отдельной 24px StatusBar, low-radius panel contours, thin separators и
-compact navigation/source rows. Repository owner добавляет scoped material
-policy и reference acceptance, не копируя semantic Workbench и не заменяя его
-oversized cards или pill navigation.
+compact group/leaf navigation и source rows. Repository owner добавляет scoped
+material policy и reference acceptance, не копируя semantic Workbench и не
+заменяя его oversized cards или pill navigation.
 
 ## Self documentation application
 

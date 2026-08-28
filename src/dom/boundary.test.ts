@@ -42,6 +42,7 @@ describe("DOM Storybook package boundary", () => {
       Bun.file(join(import.meta.dir, "stories.ts")).text(),
       Bun.file(join(import.meta.dir, "catalog.ts")).text(),
       Bun.file(join(import.meta.dir, "workbench.ts")).text(),
+      Bun.file(join(import.meta.dir, "navigation-tree.ts")).text(),
     ])
     const imports = sources.join("\n").match(/from\s+["'][^"']+["']/gu) ?? []
     expect(imports).toEqual(expect.arrayContaining([
@@ -51,6 +52,7 @@ describe("DOM Storybook package boundary", () => {
       expect(source).not.toMatch(/from\s+["']@engine\//u)
       expect(source).not.toMatch(/from\s+["']@layout\//u)
       expect(source).not.toMatch(/from\s+["']@ui\/(?:elements|components)/u)
+      expect(source).not.toMatch(/from\s+["']@zavx0z\/(?:renderer|react)/u)
       expect(source).not.toMatch(/\bUiSurface\b|\bstatusBar\s*\(\s*surface\b/u)
     }
   })
