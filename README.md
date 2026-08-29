@@ -91,6 +91,12 @@ composition; standalone projects/packages можно подключать одн
 Global landing показывает workspace groups, direct projects и direct packages.
 Каждый package открывается в named tab `storybook:<package-id>` и получает один
 JS realm, one runtime instance and one independently updateable PackageSession.
+Landing и каждая package page являются отдельным Experience: один semantic
+Document и один host Canvas/Renderer/Space/ViewPoint, в котором Workbench
+проецируется camera-locked overlay root. Разные tabs не разделяют эти owners.
+Direct Engine stories используют bounded region того же Space/Renderer/canvas;
+semantic overlays остаются foreground, а package runtime не создаёт второй
+presentation host.
 
 ## Runtime protocol
 

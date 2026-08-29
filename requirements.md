@@ -73,6 +73,28 @@ variants в dock. Section может быть variant grouping metadata/route se
 Overview читает настоящий owner file. Markdown subset не выполняет HTML/JS;
 ошибка локальна node. Plain-text fallback явный и безопасный.
 
+### `STORYBOOK-WORKBENCH-005` — one page Experience
+
+External landing и каждая package browser page владеют одним exact semantic
+Document и одним host `DocumentSpaceRuntime`: native Canvas, Engine Renderer,
+Space и ViewPoint. Workbench является camera-locked overlay root того же
+Document. Font и полный ordered stylesheet set принадлежат host; package
+session может предоставить owner styles до активации своей presentation.
+
+Одновременно активен только один host runtime. При замене stylesheet set
+предыдущий host полностью dispose-ится до создания следующего. Named package
+tabs остаются отдельными Experiences и не разделяют Document, Canvas, Space,
+renderer resources или runtime state.
+
+### `STORYBOOK-WORKBENCH-006` — bounded direct world
+
+Executable owner может атомарно смонтировать semantic preview node и один
+arbitrary Engine Space через `context.mountWorldPreview`. Shared host привязывает
+его к существующему `DocumentSpaceRuntime`, вычисляет logical/DPR viewport из
+semantic preview box и представляет кадр в порядке base → bounded world →
+semantic overlays. Owner не получает raw Renderer/SpaceRuntime и не создаёт
+Canvas, Renderer, ViewPoint, listener set или RAF.
+
 ## Runtime and build
 
 ### `STORYBOOK-RUNTIME-001` — structural adapter
@@ -256,6 +278,9 @@ package lifecycle. Production exports не расширяются stories. Refer
 Blender capture, screenshot/accepted baselines, pixel/perceptual diff,
 Reference/Actual/Diff UI, full TypeScript/TSDoc discovery и production component
 redesign не реализуются. MCP capture остаётся evidence, не accepted reference.
+Direct-world projection ограничена одним bounded live region текущей package
+story; multi-region authoring, arbitrary owner picking и post-processing graph
+не следуют из этого контракта.
 
 ## Acceptance matrix
 

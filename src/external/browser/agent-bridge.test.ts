@@ -13,7 +13,10 @@ import {
   type PointerInput,
   type WheelInput,
 } from "@zavx0z/renderer"
-import type {DocumentCanvasRuntime} from "@zavx0z/renderer-browser"
+import type {
+  DocumentOverlayRuntime,
+  DocumentSpaceRuntime,
+} from "@zavx0z/renderer-browser"
 import type {ExternalStorybookPackageTabModel} from "./model.ts"
 import {
   createStorybookAgentBridge,
@@ -367,13 +370,14 @@ function createFixture(): Fixture {
     composeFrame: (frame) => frame,
     dispose() {},
   } satisfies DocumentInteractionController
-  const runtime = {
-    documentRenderer: renderer,
+  const workbenchOverlay = {
+    renderer,
     interaction,
-    get currentFrame() {
+    get frame() {
       return renderer.flush()
     },
-  } as unknown as DocumentCanvasRuntime
+  } as unknown as DocumentOverlayRuntime
+  const runtime = {} as DocumentSpaceRuntime
   const externalCanvas = canvas("external-storybook-canvas", 640, 480, {left: 0, top: 0})
   const ownerCanvas = canvas("owner-canvas", 320, 180, {left: 23, top: 31})
   const browserDocument = {
@@ -423,6 +427,10 @@ function createFixture(): Fixture {
     canvas: externalCanvas,
     workbench,
     runtime,
+    workbenchOverlay,
+    applyWorldPreviewGesture() {
+      return false
+    },
     get presentedFrameSequence() {
       return frameSequence
     },

@@ -41,6 +41,7 @@ export const storybookDomWorkbenchCss = `
 .storybook-dom-workbench__center { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; gap: 4px; overflow: hidden; }
 .storybook-dom-workbench__preview { box-sizing: border-box; display: flex; flex-direction: column; flex-grow: 1; gap: 2px; padding: 4px; overflow: hidden; border: 1px solid #111111; border-radius: 6px; background: #1d1d1d; }
 .storybook-dom-workbench__preview-host { display: flex; flex-direction: column; flex-grow: 1; align-items: center; justify-content: center; }
+.storybook-dom-workbench[data-storybook-world-preview], .storybook-dom-workbench[data-storybook-world-preview] .storybook-dom-workbench__body, .storybook-dom-workbench[data-storybook-world-preview] .storybook-dom-workbench__preview { background: transparent; }
 .storybook-dom-workbench__scenarios { box-sizing: border-box; display: flex; flex-direction: row; height: 28px; gap: 4px; padding: 2px 4px; overflow: hidden; border: 1px solid #111111; border-radius: 6px; background: #292929; }
 .storybook-dom-workbench__scenario-items { display: flex; flex-direction: row; flex: 1 1 0; gap: 2px; }
 .storybook-dom-workbench__inspector-host { box-sizing: border-box; display: flex; flex-direction: column; flex: 0 0 400px; width: 400px; min-height: 0; overflow: hidden; }

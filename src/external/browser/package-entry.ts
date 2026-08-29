@@ -8,6 +8,7 @@ import {
   validateStorybookRuntimeSession,
   type StorybookRuntimeContext,
   type StorybookRuntimeSession,
+  type StorybookWorldPreview,
 } from "../runtime-protocol.ts"
 import {
   decodeExternalStorybookPackagePath,
@@ -170,8 +171,15 @@ export async function startExternalStorybookPackage(
   let operationTail: Promise<void> = Promise.resolve()
   let disposePromise: Promise<void> | null = null
   let agentBridge: StorybookAgentBridge | null = null
+  let activeWorldPreview: StorybookWorldPreview | null = null
   let reloadingFallback = false
   let disposed = false
+
+  const disposeWorldPreview = (): void => {
+    const preview = activeWorldPreview
+    activeWorldPreview = null
+    preview?.dispose()
+  }
 
   const context: StorybookRuntimeContext = Object.freeze({
     document: shell.document,
@@ -182,6 +190,7 @@ export async function startExternalStorybookPackage(
       if (contextRevision !== navigationRevision || routeAbort.signal.aborted) {
         throw new Error("External Storybook runtime attempted a stale mount")
       }
+      disposeWorldPreview()
       shell.mountPreview(currentModel.selectedNode.label, node)
     },
     publishInspector(value) {
@@ -201,6 +210,15 @@ export async function startExternalStorybookPackage(
     },
     subscribePreviewBounds(listener) {
       return shell.subscribePreviewBounds(listener)
+    },
+    mountWorldPreview(registration) {
+      if (contextRevision !== navigationRevision || routeAbort.signal.aborted) {
+        throw new Error("External Storybook runtime attempted a stale world mount")
+      }
+      disposeWorldPreview()
+      const preview = shell.mountWorldPreview(currentModel.selectedNode.label, registration)
+      activeWorldPreview = preview
+      return preview
     },
   })
 
@@ -248,6 +266,7 @@ export async function startExternalStorybookPackage(
     model: ExternalStorybookPackageTabModel,
     revision: number,
   ): Promise<void> => {
+    disposeWorldPreview()
     if (session !== null && mountedRoute !== null) {
       await session.unmount()
       mountedRoute = null
@@ -275,6 +294,7 @@ export async function startExternalStorybookPackage(
       return
     }
     contextRevision = revision
+    disposeWorldPreview()
     shell.showMessage(`${model.selectedNode.label} · Загрузка`, model.selectedNode.label, "Загрузка owner story…")
     const [runtimeSession, story] = await abortable(Promise.all([ensureSession(), loader()]), signal)
     if (disposed || revision !== navigationRevision || signal.aborted) return
@@ -288,6 +308,7 @@ export async function startExternalStorybookPackage(
       await abortable(Promise.resolve(runtimeSession.mount(storyInput)), signal)
       if (disposed || revision !== navigationRevision || signal.aborted) {
         await runtimeSession.unmount()
+        disposeWorldPreview()
         return
       }
       mountedRoute = route
@@ -451,6 +472,7 @@ export async function startExternalStorybookPackage(
         await settleBefore(operationTail, deadline)
         if (sessionPromise !== null) await settleBefore(sessionPromise, deadline)
         if (session !== null) {
+          disposeWorldPreview()
           if (mountedRoute !== null) await settleBefore(Promise.resolve(session.unmount()), deadline)
           await settleBefore(Promise.resolve(session.dispose()), deadline)
         }

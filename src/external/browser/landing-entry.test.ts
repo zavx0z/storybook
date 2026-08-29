@@ -1,13 +1,16 @@
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
 import {createDocument, type Element, type Node} from "@zavx0z/dom"
-import type {DocumentCanvasRuntime} from "@zavx0z/renderer-browser"
+import type {
+  DocumentOverlayRuntime,
+  DocumentSpaceRuntime,
+} from "@zavx0z/renderer-browser"
 import {resolveExternalStorybookDeclarations} from "../declarations.ts"
 import {createExternalStorybookGraph, type ExternalStorybookGraph} from "../graph.ts"
 import type {StorybookPackageSessionSnapshot} from "../package-session.ts"
 import {createExternalStorybookClientSnapshot} from "./client-protocol.ts"
 import {startExternalStorybookLanding} from "./landing-entry.ts"
-import type {ExternalStorybookShellCanvasRuntimeFactory} from "./shell.ts"
+import type {ExternalStorybookShellSpaceRuntimeFactory} from "./shell.ts"
 
 const fixtureRoot = join(import.meta.dir, "..", "fixtures", "valid")
 
@@ -48,7 +51,7 @@ describe("external Storybook landing frontend", () => {
         document: createDocument(),
         canvas: {} as HTMLCanvasElement,
         loadFont: async () => ({}) as never,
-        createCanvasRuntime: fakeRuntimeFactory(),
+        createSpaceRuntime: fakeRuntimeFactory(),
       },
     })
 
@@ -130,14 +133,34 @@ function packageSnapshots(graph: ExternalStorybookGraph): readonly StorybookPack
   })] : []))
 }
 
-function fakeRuntimeFactory(): ExternalStorybookShellCanvasRuntimeFactory {
-  return (async () => ({
-    requestRender() {},
-    subscribe() {
-      return () => {}
-    },
-    dispose() {},
-  } as unknown as DocumentCanvasRuntime)) as ExternalStorybookShellCanvasRuntimeFactory
+function fakeRuntimeFactory(): ExternalStorybookShellSpaceRuntimeFactory {
+  return (async (options) => {
+    const presented = new Set<(frame: number) => void>()
+    let frames = 0
+    return {
+      document: options.document,
+      styleSheets: options.styleSheets,
+      font: options.font,
+      addOverlay() {
+        return {
+          subscribe() {
+            return () => {}
+          },
+          dispose() {},
+        } as unknown as DocumentOverlayRuntime
+      },
+      render() {
+        frames += 1
+        for (const listener of presented) listener(frames)
+      },
+      subscribePresented(listener: (frame: number) => void) {
+        presented.add(listener)
+        return () => presented.delete(listener)
+      },
+      requestRender() {},
+      dispose() { presented.clear() },
+    } as unknown as DocumentSpaceRuntime
+  }) as ExternalStorybookShellSpaceRuntimeFactory
 }
 
 function descendants(root: Node): Element[] {

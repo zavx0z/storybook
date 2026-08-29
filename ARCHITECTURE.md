@@ -116,6 +116,18 @@ runtime instance и один PackageSession revision. Generated entry являе
 executable variant. Browser никогда не выполняет arbitrary import path из JSON
 и не использует `eval`.
 
+Landing и каждая package page владеют отдельным semantic Document и одним
+`DocumentSpaceRuntime`, который соединяет их native Canvas, Engine Renderer,
+Space и ViewPoint. Workbench является camera-locked overlay root этого же
+Document; font и ordered stylesheet set принадлежат host. Named tabs остаются
+разными Experiences и не разделяют DOM, Space либо renderer resources.
+
+Owner direct-world story использует узкий structural `mountWorldPreview`:
+semantic node остаётся в том же Document, а arbitrary Engine Space становится
+bounded child существующего host Space. Logical preview box преобразуется в
+physical viewport/scissor ровно один раз. Один кадр собирается как base world →
+bounded worlds → semantic overlays и публикуется тем же Renderer/canvas.
+
 Shared shell source один для landing и package entries. Package build включает
 только выбранный package graph, поэтому другая package production code в tab не
 попадает. Bun metafile фиксирует canonical dependency realpaths. Branded
@@ -146,6 +158,10 @@ README читается по owner resource link. Shared browser renderer под
 bounded Markdown subset: headings, paragraphs, lists, code blocks, links и
 inline code. Embedded HTML/JavaScript не выполняется; неизвестная конструкция
 становится text. Ошибка README локальна выбранному node.
+
+Runtime `@engine/core` не создаёт private Canvas, Renderer, ViewPoint listeners
+или RAF. Он передаёт только owner Space/camera/resize contract; shared host
+владеет clip, input priority, camera routing, frame coalescing и cleanup.
 
 ## Structural runtime protocol
 

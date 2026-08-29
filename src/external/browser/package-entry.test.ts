@@ -1,7 +1,11 @@
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
+import {Space} from "@engine/core"
 import {createDocument} from "@zavx0z/dom"
-import type {DocumentCanvasRuntime} from "@zavx0z/renderer-browser"
+import type {
+  DocumentOverlayRuntime,
+  DocumentSpaceRuntime,
+} from "@zavx0z/renderer-browser"
 import {resolveExternalStorybookDeclarations} from "../declarations.ts"
 import {createExternalStorybookGraph, type ExternalStorybookGraph} from "../graph.ts"
 import type {StorybookPackageSessionSnapshot} from "../package-session.ts"
@@ -11,7 +15,7 @@ import {
   startExternalStorybookPackage,
   type ExternalStorybookPackageEnvironment,
 } from "./package-entry.ts"
-import type {ExternalStorybookShellCanvasRuntimeFactory} from "./shell.ts"
+import type {ExternalStorybookShellSpaceRuntimeFactory} from "./shell.ts"
 
 const fixtureRoot = join(import.meta.dir, "..", "fixtures", "valid")
 
@@ -34,6 +38,7 @@ describe("external Storybook package frontend", () => {
     let disposes = 0
     const contexts: StorybookRuntimeContext[] = []
     const bounds: unknown[] = []
+    const worldLifecycle = {adds: 0, removes: 0}
 
     const controller = await startExternalStorybookPackage({
       packageId: "@fixture/components",
@@ -53,7 +58,14 @@ describe("external Storybook package frontend", () => {
                 const node = ownerContext.document.createElement("section")
                 node.className = "owner-story"
                 node.textContent = `${input.route}:${input.story.label}`
-                ownerContext.mount(node)
+                ownerContext.mountWorldPreview({
+                  node,
+                  space: new Space(),
+                  camera: {
+                    position: {x: 10, y: -20, z: 30},
+                    target: {x: 0, y: 0, z: 0},
+                  },
+                })
                 ownerContext.publishInspector({route: input.route})
                 ownerContext.publishSource({typescript: `export const route = ${JSON.stringify(input.route)}`})
                 ownerContext.publishProps({label: input.story.label})
@@ -96,7 +108,7 @@ describe("external Storybook package frontend", () => {
           document: semanticDocument,
           canvas: {} as HTMLCanvasElement,
           loadFont: async () => ({}) as never,
-          createCanvasRuntime: fakeRuntimeFactory(),
+          createSpaceRuntime: fakeRuntimeFactory(worldLifecycle),
         },
       },
     })
@@ -122,6 +134,7 @@ describe("external Storybook package frontend", () => {
     expect(containedLoads).toBe(1)
     expect(outlinedLoads).toBe(0)
     expect(mounts).toBe(1)
+    expect(worldLifecycle.adds).toBe(1)
     const ownerContext = contexts[0]!
     expect(ownerContext.document).toBe(semanticDocument)
     expect(ownerContext.browserDocument).toBe(browserDocument)
@@ -137,11 +150,14 @@ describe("external Storybook package frontend", () => {
     expect(outlinedLoads).toBe(1)
     expect(mounts).toBe(2)
     expect(unmounts).toBe(1)
+    expect(worldLifecycle.adds).toBe(2)
+    expect(worldLifecycle.removes).toBe(1)
     expect(controller.shell.workbench.controller.read("scenarios.active"))
       .toBe("variant:@fixture/components/components/button/outlined")
 
     await controller.navigate("components/button")
     expect(unmounts).toBe(2)
+    expect(worldLifecycle.removes).toBe(2)
     expect(controller.shell.workbench.controller.read("preview.node")?.textContent)
       .toContain("2 вариантов")
     expect(history.pushed).toEqual([
@@ -551,7 +567,7 @@ function environmentFixture(
       document: createDocument(),
       canvas: {} as HTMLCanvasElement,
       loadFont: async () => ({}) as never,
-      createCanvasRuntime: fakeRuntimeFactory(),
+      createSpaceRuntime: fakeRuntimeFactory(),
     },
   }
 }
@@ -583,12 +599,61 @@ function packageSnapshots(
   })] : []))
 }
 
-function fakeRuntimeFactory(): ExternalStorybookShellCanvasRuntimeFactory {
-  return (async () => ({
-    requestRender() {},
-    subscribe() {
-      return () => {}
-    },
-    dispose() {},
-  } as unknown as DocumentCanvasRuntime)) as ExternalStorybookShellCanvasRuntimeFactory
+function fakeRuntimeFactory(
+  worldLifecycle: {adds: number; removes: number} = {adds: 0, removes: 0},
+): ExternalStorybookShellSpaceRuntimeFactory {
+  return (async (options) => {
+    let world: any = null
+    const presented = new Set<(frame: number) => void>()
+    let frames = 0
+    return ({
+      document: options.document,
+      styleSheets: options.styleSheets,
+      font: options.font,
+      addOverlay() {
+        return {
+          subscribe() {
+            return () => {}
+          },
+          dispose() {},
+        } as unknown as DocumentOverlayRuntime
+      },
+      addWorld(registration: any) {
+        worldLifecycle.adds += 1
+        world = {
+          id: registration.id,
+          space: registration.space,
+          viewport: registration.viewport,
+          viewPoint: {},
+          disposed: false,
+          requestRender() {},
+        }
+        return world
+      },
+      updateWorld(_id: string, update: any) {
+        if (world !== null && "viewport" in update) world.viewport = update.viewport
+        return world
+      },
+      removeWorld() {
+        if (world === null) return false
+        worldLifecycle.removes += 1
+        world = null
+        return true
+      },
+      render() {
+        frames += 1
+        for (const listener of presented) listener(frames)
+      },
+      subscribePresented(listener: (frame: number) => void) {
+        presented.add(listener)
+        return () => presented.delete(listener)
+      },
+      requestRender() {},
+      dispose() {
+        world = null
+        presented.clear()
+      },
+      get disposed() { return false },
+    } as unknown as DocumentSpaceRuntime)
+  }) as ExternalStorybookShellSpaceRuntimeFactory
 }

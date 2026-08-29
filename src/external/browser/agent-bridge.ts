@@ -56,7 +56,7 @@ export function createStorybookAgentBridge(
 ): StorybookAgentBridge {
   const inspector = createDomInspector({
     document: options.shell.document,
-    renderer: options.shell.runtime.documentRenderer,
+    renderer: options.shell.workbenchOverlay.renderer,
   })
   let disposed = false
 
@@ -214,7 +214,7 @@ export function createStorybookAgentBridge(
         const box = native.getBoundingClientRect()
         clip = exactClip(box.left, box.top, box.width, box.height)
       } else {
-        const viewport = options.shell.runtime.currentFrame.viewport
+        const viewport = options.shell.workbenchOverlay.frame.viewport
         clip = exactClip(0, 0, viewport.width, viewport.height)
       }
     } else {
@@ -289,12 +289,12 @@ async function applyNodeAction(
     if (point === null) throw new Error("Storybook semantic target has no presented bounds")
     return {clientX: point.x, clientY: point.y, pointerId: 1, pointerType: "mouse", button: 0, buttons}
   }
-  if (action === "hover") shell.runtime.interaction.pointerMove(shell.runtime.currentFrame, pointer(0))
-  else if (action === "pointerDown") shell.runtime.interaction.pointerDown(shell.runtime.currentFrame, pointer(1))
-  else if (action === "pointerUp") shell.runtime.interaction.pointerUp(shell.runtime.currentFrame, pointer(0))
+  if (action === "hover") shell.workbenchOverlay.interaction.pointerMove(shell.workbenchOverlay.frame, pointer(0))
+  else if (action === "pointerDown") shell.workbenchOverlay.interaction.pointerDown(shell.workbenchOverlay.frame, pointer(1))
+  else if (action === "pointerUp") shell.workbenchOverlay.interaction.pointerUp(shell.workbenchOverlay.frame, pointer(0))
   else if (action === "click") {
-    shell.runtime.interaction.pointerDown(shell.runtime.currentFrame, pointer(1))
-    shell.runtime.interaction.pointerUp(shell.runtime.currentFrame, pointer(0))
+    shell.workbenchOverlay.interaction.pointerDown(shell.workbenchOverlay.frame, pointer(1))
+    shell.workbenchOverlay.interaction.pointerUp(shell.workbenchOverlay.frame, pointer(0))
   } else if (action === "drag") {
     if (point === null) throw new Error("Storybook drag source requires presented bounds")
     let destinationPoint: Readonly<{x: number; y: number}>
@@ -313,19 +313,24 @@ async function applyNodeAction(
         : null
       const dx = finiteNumber(delta?.dx, -10_000, 10_000, "drag dx")
       const dy = finiteNumber(delta?.dy, -10_000, 10_000, "drag dy")
-      const viewport = shell.runtime.currentFrame.viewport
+      const viewport = shell.workbenchOverlay.frame.viewport
       destinationPoint = Object.freeze({
         x: Math.max(0, Math.min(viewport.width, point.x + dx)),
         y: Math.max(0, Math.min(viewport.height, point.y + dy)),
       })
     }
-    shell.runtime.interaction.pointerDown(shell.runtime.currentFrame, pointer(1))
-    shell.runtime.interaction.pointerMove(shell.runtime.currentFrame, {
+    if (shell.applyWorldPreviewGesture(node, {
+      kind: "orbit",
+      deltaX: destinationPoint.x - point.x,
+      deltaY: destinationPoint.y - point.y,
+    })) return
+    shell.workbenchOverlay.interaction.pointerDown(shell.workbenchOverlay.frame, pointer(1))
+    shell.workbenchOverlay.interaction.pointerMove(shell.workbenchOverlay.frame, {
       ...pointer(1),
       clientX: destinationPoint.x,
       clientY: destinationPoint.y,
     })
-    shell.runtime.interaction.pointerUp(shell.runtime.currentFrame, {
+    shell.workbenchOverlay.interaction.pointerUp(shell.workbenchOverlay.frame, {
       ...pointer(0),
       clientX: destinationPoint.x,
       clientY: destinationPoint.y,
@@ -336,7 +341,8 @@ async function applyNodeAction(
       : null
     const delta = finiteNumber(wheelValue?.deltaY ?? request.value ?? 120, -10_000, 10_000, "wheel value")
     if (point === null) throw new Error("Storybook wheel target has no presented bounds")
-    shell.runtime.interaction.wheel(shell.runtime.currentFrame, {
+    if (shell.applyWorldPreviewGesture(node, {kind: "pan", deltaX: 0, deltaY: delta})) return
+    shell.workbenchOverlay.interaction.wheel(shell.workbenchOverlay.frame, {
       clientX: point.x,
       clientY: point.y,
       deltaY: delta,

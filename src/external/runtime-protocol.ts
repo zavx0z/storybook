@@ -2,6 +2,7 @@ import type {
   Document as SemanticDocument,
   Node as SemanticNode,
 } from "@zavx0z/dom"
+import type {Space} from "@engine/core"
 
 /** Exact structural marker implemented by executable owner runtimes. */
 export const STORYBOOK_RUNTIME_PROTOCOL = "storybook-runtime/1" as const
@@ -11,6 +12,48 @@ export type StorybookRuntimeStoryInput = Readonly<{
   route: string
   story: unknown
   signal: AbortSignal
+}>
+
+/** Camera preset for one owner world projected inside the shared page Experience. */
+export type StorybookWorldPreviewCamera = Readonly<{
+  position: Readonly<{x: number; y: number; z: number}>
+  target: Readonly<{x: number; y: number; z: number}>
+  up?: Readonly<{x: number; y: number; z: number}>
+  fov?: number
+  near?: number
+  far?: number
+}>
+
+/** Exact logical and framebuffer extent owned by one bounded world preview. */
+export type StorybookWorldPreviewViewport = Readonly<{
+  x: number
+  y: number
+  width: number
+  height: number
+  backingX: number
+  backingY: number
+  backingWidth: number
+  backingHeight: number
+  pixelRatio: number
+}>
+
+/** Atomic semantic anchor plus direct Engine world presentation. */
+export type StorybookWorldPreviewRegistration = Readonly<{
+  node: SemanticNode
+  space: Space
+  camera: StorybookWorldPreviewCamera
+  cameraGestures?: boolean
+  resize?(viewport: StorybookWorldPreviewViewport): void
+  onDoubleClick?(): void
+}>
+
+/** Narrow owner handle; the shared Renderer and page Space remain private. */
+export type StorybookWorldPreview = Readonly<{
+  readonly frames: number
+  readonly disposed: boolean
+  requestRender(): void
+  resetViewPoint(): void
+  dispose(): void
 }>
 
 /** Host capabilities supplied by the external Storybook shell. */
@@ -26,6 +69,7 @@ export type StorybookRuntimeContext = Readonly<{
   reportDiagnostic(value: unknown): void
   requestRender(): void
   subscribePreviewBounds(listener: (bounds: StorybookPreviewBounds | null) => void): () => void
+  mountWorldPreview(registration: StorybookWorldPreviewRegistration): StorybookWorldPreview
 }>
 
 export type StorybookPreviewBounds = Readonly<{
