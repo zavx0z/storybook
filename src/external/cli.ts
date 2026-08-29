@@ -1,13 +1,7 @@
 import {existsSync} from "node:fs"
 import {isAbsolute, resolve} from "node:path"
-import {fileURLToPath} from "node:url"
+import {createExternalStorybookController} from "./controller.ts"
 import {initExternalStorybookDeclaration} from "./init.ts"
-import {
-  acquireExternalStorybookStartLease,
-  inspectExternalStorybookServer,
-  removeReplaceableExternalStorybookState,
-} from "./server-state.ts"
-import {startExternalStorybookServer} from "./server.ts"
 
 export type ExternalStorybookCliIo = Readonly<{
   stdout(value: string): void
@@ -45,141 +39,40 @@ export async function runExternalStorybookCli(
     io.stdout(json({action: "init", ...result}))
     return 0
   }
-
-  let inspection = await inspectExternalStorybookServer()
+  const controller = createExternalStorybookController()
+  const context = Object.freeze({signal: AbortSignal.timeout(120_000)})
+  let result: Readonly<Record<string, unknown>>
   if (command.action === "serve") {
-    if (inspection.state === "running" && inspection.record !== null) {
-      for (const path of command.declarations) {
-        await request(inspection.record.origin, "/api/attach", {path: inputPath(path)})
-      }
-      io.stdout(json({action: "serve", outcome: "already-running", ...await status(inspection.record.origin)}))
-      return 0
-    }
-    const lease = acquireExternalStorybookStartLease()
-    let running: Awaited<ReturnType<typeof startExternalStorybookServer>> | null = null
-    try {
-      inspection = await inspectExternalStorybookServer()
-      if (inspection.state === "running" && inspection.record !== null) {
-        for (const path of command.declarations) {
-          await request(inspection.record.origin, "/api/attach", {path: inputPath(path)})
-        }
-        io.stdout(json({action: "serve", outcome: "already-running", ...await status(inspection.record.origin)}))
-        return 0
-      }
-      if (inspection.state === "stale") {
-        if (!inspection.replaceable) {
-          throw new Error(`Refusing to replace ambiguous external Storybook state: ${inspection.reason}`)
-        }
-        removeReplaceableExternalStorybookState(inspection)
-      }
-      running = await startExternalStorybookServer({
-        declarations: command.declarations.map(inputPath),
-      })
-    } finally {
-      lease.release()
-    }
-    if (running === null) throw new Error("External Storybook server did not start")
-    io.stdout(json({action: "serve", outcome: "started", origin: running.origin, record: running.record}))
-    const stop = (): void => running.stop()
-    process.once("SIGINT", stop)
-    process.once("SIGTERM", stop)
-    await running.stopped
-    process.removeListener("SIGINT", stop)
-    process.removeListener("SIGTERM", stop)
-    return 0
-  }
-
-  if (inspection.state !== "running" || inspection.record === null) {
-    if (command.action === "status") {
-      io.stdout(json({action: "status", ...inspection}))
-      return inspection.state === "stale" ? 1 : 0
-    }
-    if (command.action === "check" && command.scope !== null && pathLike(command.scope)) {
-      const lease = acquireExternalStorybookStartLease()
-      let running: Awaited<ReturnType<typeof startExternalStorybookServer>> | null = null
-      try {
-        inspection = await inspectExternalStorybookServer()
-        if (inspection.state === "running") {
-          throw new Error("External Storybook server started concurrently; retry check against it")
-        }
-        if (inspection.state === "stale") {
-          if (!inspection.replaceable) {
-            throw new Error(`Refusing to replace ambiguous external Storybook state: ${inspection.reason}`)
-          }
-          removeReplaceableExternalStorybookState(inspection)
-        }
-        running = await startExternalStorybookServer({declarations: [inputPath(command.scope)]})
-      } finally {
-        lease.release()
-      }
-      if (running === null) throw new Error("External Storybook transient check server did not start")
-      try {
-        const result = await request(running.origin, "/api/check", {scope: null}, true)
-        io.stdout(json({action: "check", transient: true, ...summarizeCheck(result.body)}))
-        return result.response.ok ? 0 : 1
-      } finally {
-        running.stop()
-        await running.stopped
-      }
-    }
-    throw new Error(`External Storybook server is not running: ${command.action}`)
-  }
-
-  const origin = inspection.record.origin
-  if (command.action === "status") {
-    io.stdout(json({action: "status", ...(await status(origin))}))
-    return 0
-  }
-  if (command.action === "attach") {
-    const result = await request(origin, "/api/attach", {path: inputPath(command.path)})
-    io.stdout(json({action: "attach", ...result.body}))
-    return 0
-  }
-  if (command.action === "detach") {
-    const result = await request(origin, "/api/detach", {scopeId: command.scopeId})
-    io.stdout(json({action: "detach", ...result.body}))
-    return 0
-  }
-  if (command.action === "open") {
-    const result = await request(origin, "/api/open", {
+    result = await controller.ensure({
+      schemaVersion: 1,
+      roots: command.declarations.map(inputPath),
+    }, context)
+  } else if (command.action === "status") {
+    result = await controller.status({schemaVersion: 1, includeViews: true}, context)
+  } else if (command.action === "attach") {
+    result = await controller.attach({schemaVersion: 1, root: inputPath(command.path)}, context)
+  } else if (command.action === "detach") {
+    result = await controller.detach({schemaVersion: 1, scopeId: command.scopeId}, context)
+  } else if (command.action === "open") {
+    result = await controller.open({
+      schemaVersion: 1,
       packageId: command.packageId,
       route: command.route,
-    })
-    let browserOpened = false
-    if (result.body.delivered === 0) {
-      const child = Bun.spawn([
-        process.execPath,
-        fileURLToPath(new URL("../../scripts/storybook-browser.ts", import.meta.url)),
-        "open",
-        command.packageId,
-        ...(command.route.length === 0 ? [] : ["--route", command.route]),
-      ], {
-        cwd: process.cwd(),
-        stdin: "inherit",
-        stdout: "inherit",
-        stderr: "inherit",
-      })
-      const exitCode = await child.exited
-      if (exitCode !== 0) throw new Error(`External Storybook browser open failed: ${exitCode}`)
-      browserOpened = true
-    }
-    io.stdout(json({action: "open", browserOpened, ...result.body}))
-    return 0
+    }, context)
+  } else if (command.action === "check") {
+    result = await controller.check({
+      schemaVersion: 1,
+      scope: normalizeExternalStorybookCheckScope(command.scope) ?? inputPath("."),
+      live: false,
+    }, context)
+  } else if (command.action === "stop") {
+    result = await controller.stop({schemaVersion: 1, confirm: true}, context)
+  } else {
+    command satisfies never
+    return 1
   }
-  if (command.action === "check") {
-    const result = await request(origin, "/api/check", {
-      scope: normalizeExternalStorybookCheckScope(command.scope),
-    }, true)
-    io.stdout(json({action: "check", ...summarizeCheck(result.body)}))
-    return result.response.ok ? 0 : 1
-  }
-  if (command.action === "stop") {
-    const result = await request(origin, "/api/stop", {})
-    io.stdout(json({action: "stop", ...result.body}))
-    return 0
-  }
-  command satisfies never
-  return 1
+  io.stdout(json({action: command.action, ...result}))
+  return result.status === "failed" || result.status === "timeout" || result.status === "unavailable" ? 1 : 0
 }
 
 export function parseExternalStorybookCli(args: readonly string[]): ExternalStorybookCliCommand {
@@ -236,68 +129,6 @@ function usage(): never {
     "  storybook stop",
     "  storybook init <root> --kind <package|project|workspace> [--executable] [--stories]",
   ].join("\n"))
-}
-
-async function status(origin: string): Promise<Record<string, unknown>> {
-  const body = (await request(origin, "/api/status", {}, false, "GET")).body
-  return {
-    ...body,
-    packages: summarizePackages(body.packages),
-  }
-}
-
-function summarizeCheck(body: Record<string, unknown>): Record<string, unknown> {
-  return {...body, packages: summarizePackages(body.packages)}
-}
-
-function summarizePackages(value: unknown): unknown {
-  if (!Array.isArray(value)) return value
-  return value.map((candidate) => {
-    if (candidate === null || typeof candidate !== "object" || Array.isArray(candidate)) return candidate
-    const snapshot = candidate as Record<string, unknown>
-    return {
-      packageId: snapshot.packageId,
-      buildState: snapshot.buildState,
-      activeRevision: snapshot.activeRevision,
-      lastGoodRevision: snapshot.lastGoodRevision,
-      moduleGraphRevision: snapshot.moduleGraphRevision,
-      diagnostics: snapshot.diagnostics,
-      dependencyCount: Array.isArray(snapshot.dependencyRealpaths)
-        ? snapshot.dependencyRealpaths.length
-        : 0,
-      builds: snapshot.builds,
-    }
-  })
-}
-
-async function request(
-  origin: string,
-  path: string,
-  body: unknown,
-  allowFailure = false,
-  method = "POST",
-): Promise<Readonly<{response: Response, body: Record<string, unknown>}>> {
-  const response = await fetch(new URL(path, origin), {
-    method,
-    ...(method === "GET" ? {} : {
-      headers: {"content-type": "application/json"},
-      body: JSON.stringify(body),
-    }),
-    signal: AbortSignal.timeout(120_000),
-  })
-  const value = await response.json() as unknown
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error(`External Storybook returned an invalid response: ${path}`)
-  }
-  const record = value as Record<string, unknown>
-  if (!response.ok && !allowFailure) {
-    throw new Error(typeof record.error === "string" ? record.error : `External Storybook request failed: ${response.status}`)
-  }
-  return Object.freeze({response, body: record})
-}
-
-function pathLike(value: string): boolean {
-  return isAbsolute(value) || value.startsWith(".") || existsSync(inputPath(value))
 }
 
 /** Preserves registry identities while canonicalizing path-like check scopes at the caller boundary. */

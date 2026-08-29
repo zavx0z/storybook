@@ -18,6 +18,13 @@ import {
   relative,
   resolve,
 } from "node:path"
+import {
+  validateExternalStorybookExportName,
+  validateExternalStorybookModulePath,
+  validateExternalStorybookPackageId,
+  validateExternalStorybookRoute,
+  validateExternalStorybookScopeId,
+} from "./declaration-law.ts"
 
 export const EXTERNAL_STORYBOOK_SCHEMA_VERSION = 1 as const
 
@@ -577,7 +584,7 @@ async function resolveModuleReference(
   assertExactKeys(record, label, [pathField, "export"], [pathField, "export"])
   const modulePath = await resolveContainedFile(
     baseDirectory,
-    requiredPath(`${label} path`, record[pathField]),
+    validateExternalStorybookModulePath(record[pathField], `${label} path`),
     scopeRoot,
     `${label} path`,
   )
@@ -671,11 +678,11 @@ function validateCatalogRoutes(categories: readonly ResolvedExternalStorybookCat
       throw new Error(`External Storybook route conflicts with overview ${path}: ${overviewOwner}; ${owner}`)
     }
   }
-  const leafPaths = [...leaves.keys()]
-  for (const path of leafPaths) {
-    for (const other of leafPaths) {
+  const allPaths = [...overviews.keys(), ...leaves.keys()]
+  for (const path of leaves.keys()) {
+    for (const other of allPaths) {
       if (path !== other && other.startsWith(`${path}/`)) {
-        throw new Error(`External Storybook leaf route cannot contain another leaf: ${path}; ${other}`)
+        throw new Error(`External Storybook leaf route cannot contain another route: ${path}; ${other}`)
       }
     }
   }
@@ -850,39 +857,23 @@ function optionalString(record: Record<string, unknown>, key: string, label: str
 }
 
 function scopeId(value: unknown, label: string): string {
-  const id = visibleText(value, label)
-  if (!/^[a-z0-9]+(?:[._-][a-z0-9]+)*$/u.test(id)) throw new Error(`${label} is invalid: ${id}`)
-  return id
+  return validateExternalStorybookScopeId(value, label)
 }
 
 function packageId(value: unknown, label: string): string {
-  const id = visibleText(value, label)
-  if (!/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/u.test(id)) {
-    throw new Error(`${label} must be an exact package name: ${id}`)
-  }
-  return id
+  return validateExternalStorybookPackageId(value, label)
 }
 
 function localId(value: unknown, label: string): string {
-  const id = visibleText(value, label)
-  if (!/^[a-z0-9]+(?:[._-][a-z0-9]+)*$/u.test(id)) throw new Error(`${label} is invalid: ${id}`)
-  return id
+  return validateExternalStorybookScopeId(value, label)
 }
 
 function routePath(value: unknown, label: string): string {
-  const path = visibleText(value, label)
-  if (path.startsWith("/") || path.endsWith("/") || path.includes("//") ||
-    path.includes("\\") || /[?#]/u.test(path) ||
-    path.split("/").some((segment) => segment === "" || segment === "." || segment === "..")) {
-    throw new Error(`${label} must be a normalized package-local route: ${path}`)
-  }
-  return path
+  return validateExternalStorybookRoute(value, label)
 }
 
 function exportText(value: unknown, label: string): string {
-  const name = visibleText(value, label)
-  if (/[\u0000-\u001f\u007f]/u.test(name)) throw new Error(`${label} contains control characters`)
-  return name
+  return validateExternalStorybookExportName(value, label)
 }
 
 function requiredPath(label: string, value: unknown): string {

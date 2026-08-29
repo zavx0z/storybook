@@ -1,5 +1,6 @@
 import {realpathSync} from "node:fs"
 import {resolve} from "node:path"
+import {StorybookBuildSemaphore} from "./build-semaphore.ts"
 import {StorybookDependencyWatchCoordinator} from "./dependency-watch.ts"
 import {
   StorybookPackageSession,
@@ -15,7 +16,13 @@ export type ExternalStorybookSessionManagerOptions = Readonly<{
   buildRevision: StorybookPackageRevisionBuilder
   publish?(event: StorybookPackageEvent): void
   watch?: StorybookDependencyWatchCoordinator
+  buildSemaphore?: StorybookBuildSemaphore
+  buildConcurrency?: number
   rebuildDelayMs?: number
+  compileTimeoutMs?: number
+  protocolTimeoutMs?: number
+  activationTimeoutMs?: number
+  retainedRevisionLimit?: number
 }>
 
 /** Owns PackageSessions as a derived runtime view of the canonical graph. */
@@ -25,15 +32,28 @@ export class ExternalStorybookSessionManager {
   readonly #publish: (event: StorybookPackageEvent) => void
   readonly #watch: StorybookDependencyWatchCoordinator
   readonly #ownsWatch: boolean
+  readonly #buildSemaphore: StorybookBuildSemaphore
+  readonly #ownsBuildSemaphore: boolean
   readonly #rebuildDelayMs: number | undefined
+  readonly #compileTimeoutMs: number | undefined
+  readonly #protocolTimeoutMs: number | undefined
+  readonly #activationTimeoutMs: number | undefined
+  readonly #retainedRevisionLimit: number | undefined
   readonly #sessions = new Map<string, StorybookPackageSession>()
   #disposed = false
+  #disposePromise: Promise<void> | null = null
 
   constructor(options: ExternalStorybookSessionManagerOptions) {
     this.#artifactRoot = resolve(options.artifactRoot)
     this.#buildRevision = options.buildRevision
     this.#publish = options.publish ?? (() => {})
     this.#rebuildDelayMs = options.rebuildDelayMs
+    this.#compileTimeoutMs = options.compileTimeoutMs
+    this.#protocolTimeoutMs = options.protocolTimeoutMs
+    this.#activationTimeoutMs = options.activationTimeoutMs
+    this.#retainedRevisionLimit = options.retainedRevisionLimit
+    this.#ownsBuildSemaphore = options.buildSemaphore === undefined
+    this.#buildSemaphore = options.buildSemaphore ?? new StorybookBuildSemaphore(options.buildConcurrency)
     this.#ownsWatch = options.watch === undefined
     this.#watch = options.watch ?? new StorybookDependencyWatchCoordinator({
       onError: ({packageId, path, error}) => this.#publish(Object.freeze({
@@ -60,7 +80,7 @@ export class ExternalStorybookSessionManager {
     for (const [packageId, session] of this.#sessions) {
       if (nextIds.has(packageId)) continue
       this.#watch.remove(packageId)
-      session.dispose()
+      void session.dispose()
       this.#sessions.delete(packageId)
     }
     for (const descriptor of descriptors) {
@@ -69,7 +89,12 @@ export class ExternalStorybookSessionManager {
         const session = new StorybookPackageSession(descriptor, {
           artifactRoot: this.#artifactRoot,
           buildRevision: this.#buildRevision,
+          buildSemaphore: this.#buildSemaphore,
           ...(this.#rebuildDelayMs === undefined ? {} : {rebuildDelayMs: this.#rebuildDelayMs}),
+          ...(this.#compileTimeoutMs === undefined ? {} : {compileTimeoutMs: this.#compileTimeoutMs}),
+          ...(this.#protocolTimeoutMs === undefined ? {} : {protocolTimeoutMs: this.#protocolTimeoutMs}),
+          ...(this.#activationTimeoutMs === undefined ? {} : {activationTimeoutMs: this.#activationTimeoutMs}),
+          ...(this.#retainedRevisionLimit === undefined ? {} : {retainedRevisionLimit: this.#retainedRevisionLimit}),
           publish: (event) => this.#onSessionEvent(event),
         })
         this.#sessions.set(descriptor.packageId, session)
@@ -90,8 +115,11 @@ export class ExternalStorybookSessionManager {
   async ensure(packageId: string): Promise<StorybookPackageSessionSnapshot> {
     const session = this.session(packageId)
     const current = session.snapshot()
-    if (current.activeRevision !== null && current.buildState === "ready") return current
-    return session.build()
+    const active = current.revisions?.find(({revision}) => revision === current.activeRevision)
+    if ((current.builtRevision !== null && current.builtRevision !== undefined) ||
+      current.activatingRevision !== null && current.activatingRevision !== undefined ||
+      active !== undefined && active.generation === current.generation) return current
+    return session.ensureBuilt()
   }
 
   snapshots(): readonly StorybookPackageSessionSnapshot[] {
@@ -104,17 +132,22 @@ export class ExternalStorybookSessionManager {
     return this.#watch.notify(path)
   }
 
-  dispose(): void {
-    if (this.#disposed) return
+  dispose(): Promise<void> {
+    if (this.#disposePromise !== null) return this.#disposePromise
     this.#disposed = true
-    for (const session of this.#sessions.values()) session.dispose()
+    const sessions = [...this.#sessions.values()]
+    const pending = sessions.map((session) => session.dispose())
     this.#sessions.clear()
     if (this.#ownsWatch) this.#watch.dispose()
+    this.#disposePromise = Promise.all(pending).then(() => {
+      if (this.#ownsBuildSemaphore) this.#buildSemaphore.dispose()
+    })
+    return this.#disposePromise
   }
 
   #onSessionEvent(event: StorybookPackageEvent): void {
     const session = this.#sessions.get(event.packageId)
-    if (event.type === "package.updated" && session !== undefined) {
+    if ((event.type === "package.built" || event.type === "package.updated") && session !== undefined) {
       try {
         this.#replaceWatch(session)
       } catch (error) {
@@ -131,13 +164,36 @@ export class ExternalStorybookSessionManager {
   #replaceWatch(session: StorybookPackageSession): void {
     const descriptor = session.descriptor
     const paths = [
-      ...(descriptor.runtime === null ? [] : [descriptor.runtime.path]),
-      ...descriptor.variants.map(({module}) => module.path),
-      ...session.snapshot().dependencyRealpaths,
+      ...(descriptor.runtime === null ? [] : [{path: descriptor.runtime.path, category: "code" as const}]),
+      ...descriptor.variants.map(({module}) => ({path: module.path, category: "code" as const})),
+      ...(descriptor.watchPaths ?? (descriptor.watchedPaths ?? []).map((path) => ({path, category: "code" as const}))),
+      ...session.snapshot().dependencyRealpaths.map((path) => ({path, category: "code" as const})),
     ]
-    this.#watch.replace(session.packageId, uniqueRealpaths(paths), (path) => {
-      session.invalidate(path)
-    })
+    const categorized = uniqueCategorizedPaths(paths)
+    const onEvent = (event: Readonly<{
+      path: string
+      categories: readonly ("declaration" | "code" | "metadata" | "resource")[]
+    }>): void => {
+      if (event.categories.includes("metadata")) {
+        this.#publish(Object.freeze({type: "package.metadata-updated", packageId: session.packageId, path: event.path}))
+      }
+      if (event.categories.includes("resource")) {
+        this.#publish(Object.freeze({type: "package.resources-updated", packageId: session.packageId, path: event.path}))
+      }
+      if (event.categories.includes("code")) {
+        this.#publish(Object.freeze({type: "package.code-updated", packageId: session.packageId, path: event.path}))
+      }
+      if (event.categories.some((category) => category === "code" || category === "metadata" || category === "resource")) {
+        session.invalidate(event.path)
+      }
+    }
+    if (typeof this.#watch.replaceCategorized === "function") {
+      this.#watch.replaceCategorized(session.packageId, categorized, onEvent)
+    } else {
+      this.#watch.replace(session.packageId, categorized.map(({path}) => path), (path) => {
+        onEvent({path, categories: ["code"]})
+      })
+    }
   }
 
   #assertActive(): void {
@@ -145,12 +201,20 @@ export class ExternalStorybookSessionManager {
   }
 }
 
-function uniqueRealpaths(paths: readonly string[]): readonly string[] {
-  return Object.freeze([...new Set(paths.map((path) => {
+function uniqueCategorizedPaths(
+  paths: readonly Readonly<{path: string, category: "declaration" | "code" | "metadata" | "resource"}>[],
+) {
+  const seen = new Set<string>()
+  return Object.freeze(paths.flatMap((entry) => {
+    let path: string
     try {
-      return realpathSync(path)
+      path = realpathSync(entry.path)
     } catch {
-      return resolve(path)
+      path = resolve(entry.path)
     }
-  }))].sort())
+    const key = `${entry.category}\0${path}`
+    if (seen.has(key)) return []
+    seen.add(key)
+    return [Object.freeze({path, category: entry.category})]
+  }).sort((left, right) => left.path.localeCompare(right.path) || left.category.localeCompare(right.category)))
 }

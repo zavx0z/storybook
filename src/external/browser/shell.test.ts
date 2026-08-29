@@ -25,6 +25,7 @@ describe("external Storybook shared browser shell", () => {
     expect(runtimes).toHaveLength(1)
     expect(runtimes[0]?.options.document).toBe(document)
     expect(runtimes[0]?.options.root).toBe(shell.workbench.element)
+    expect(shell.presentFrame()).toBe(1)
 
     const preview = document.createElement("button")
     preview.textContent = "Owner preview"
@@ -116,6 +117,11 @@ function fakeRuntimeFactory(output: FakeRuntime[]): ExternalStorybookShellCanvas
     }
     output.push(owner)
     return {
+      render() {
+        const frame = {viewport: {width: 1024, height: 768}, boxByNode: new Map()}
+        for (const subscriber of subscribers) subscriber(frame)
+        return frame
+      },
       requestRender() {
         owner.requests += 1
       },

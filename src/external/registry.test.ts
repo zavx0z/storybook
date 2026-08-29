@@ -1,6 +1,7 @@
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
 import {ExternalStorybookRegistry} from "./registry.ts"
+import {externalStorybookStructuralWatchPaths} from "./server.ts"
 
 const fixtureRoot = join(import.meta.dir, "fixtures", "valid")
 
@@ -52,5 +53,14 @@ describe("external Storybook attached-root registry", () => {
       "components/button/outlined",
     ])
     expect(components.declarationDigest).toMatch(/^[a-f0-9]{64}$/u)
+    expect(components.watchPaths).toContainEqual({
+      path: join(fixtureRoot, "projects/alpha/packages/components/docs/architecture.svg"),
+      category: "resource",
+    })
+    expect(components.resourceFiles?.find(({sourcePath}) => sourcePath.endsWith("/docs/architecture.svg"))?.targetPath)
+      .toEndWith("/docs/architecture.svg")
+    const structural = externalStorybookStructuralWatchPaths(registry.snapshot())
+    expect(structural).toContain(join(fixtureRoot, "README.md"))
+    expect(structural).toContain(join(fixtureRoot, "projects/alpha/README.md"))
   })
 })

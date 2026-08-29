@@ -180,6 +180,7 @@ describe("external Storybook package frontend", () => {
     socket.emit("message", {data: JSON.stringify({
       type: "package.failed",
       packageId: "@fixture/components",
+      revision: "revision-b",
       diagnostics: [{phase: "compile", message: "broken candidate"}],
     })})
     expect(controller.shell.workbench.elements.inspectorHost.textContent).toContain("broken candidate")
@@ -209,6 +210,260 @@ describe("external Storybook package frontend", () => {
       revisionUrl: "/__storybook/revisions/%40fixture%2Fcomponents/revision-other/",
       environment: environmentFixture(snapshot, "/packages/%40fixture%2Fcomponents/"),
     })).rejects.toThrow("revision is not active or last-good")
+  })
+
+  test("reports create, session, mount and first-frame failures without acknowledging working", async () => {
+    const graph = await fixtureGraph()
+    const candidate = "revision-a"
+    const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, candidate))
+    for (const failure of ["create", "session", "mount", "frame"] as const) {
+      const baseEnvironment = environmentFixture(
+        snapshot,
+        "/packages/%40fixture%2Fcomponents/components/button/basic/contained",
+      )
+      const acknowledgements: Array<Readonly<{working: boolean; diagnostic?: string}>> = []
+      let invalidDispose = 0
+      const environment: ExternalStorybookPackageEnvironment = {
+        ...baseEnvironment,
+        acknowledgeActivation: async (value) => { acknowledgements.push(value) },
+        ...(failure === "frame" ? {waitForFrame: async () => { throw new Error("frame failed") }} : {}),
+      }
+      const controller = await startExternalStorybookPackage({
+        packageId: "@fixture/components",
+        candidateRevision: candidate,
+        revisionUrl: "/__storybook/revisions/%40fixture%2Fcomponents/revision-a/",
+        async loadRuntime() {
+          return {
+            protocol: STORYBOOK_RUNTIME_PROTOCOL,
+            async create(context: StorybookRuntimeContext) {
+              if (failure === "create") throw new Error("create failed")
+              if (failure === "session") return {dispose() { invalidDispose += 1 }} as never
+              return {
+                async mount() {
+                  if (failure === "mount") throw new Error("mount failed")
+                  const node = context.document.createElement("div")
+                  node.textContent = "working"
+                  context.mount(node)
+                },
+                async unmount() {},
+                async dispose() {},
+              }
+            },
+          }
+        },
+        storyLoaders: new Map([["components/button/basic/contained", async () => ({label: "Contained"})]]),
+        environment,
+      })
+      expect(acknowledgements).toHaveLength(1)
+      expect(acknowledgements[0]?.working, failure).toBeFalse()
+      expect(acknowledgements[0]?.diagnostic?.length, failure).toBeGreaterThan(0)
+      expect((environment.browserDocument as any).documentElement.dataset.externalStorybookPackage).toBe("error")
+      await controller.dispose()
+      if (failure === "session") expect(invalidDispose).toBe(1)
+    }
+  })
+
+  test("reloads the previous working revision after acknowledged candidate runtime failure", async () => {
+    const graph = await fixtureGraph()
+    const candidate = "revision-a"
+    const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, candidate))
+    const environment = environmentFixture(
+      snapshot,
+      "/packages/%40fixture%2Fcomponents/components/button/basic/contained",
+    )
+    const browserDocument = environment.browserDocument as unknown as {
+      querySelector(selector: string): {content: string} | null
+    }
+    browserDocument.querySelector = (selector) => {
+      if (selector.includes("browser-session")) return {content: "a".repeat(43)}
+      if (selector.includes("activation-id")) return {content: "activation-id"}
+      if (selector.includes("fallback-revision")) return {content: "revision-working"}
+      return null
+    }
+    const fetcher = (async (_input: URL | RequestInfo, init?: RequestInit) =>
+      init?.method === "POST" ? Response.json({ok: false}) : Response.json(snapshot)) as typeof fetch
+    const controller = await startExternalStorybookPackage({
+      packageId: "@fixture/components",
+      candidateRevision: candidate,
+      revisionUrl: "/__storybook/revisions/%40fixture%2Fcomponents/revision-a/",
+      async loadRuntime() {
+        return {
+          protocol: STORYBOOK_RUNTIME_PROTOCOL,
+          async create() { throw new Error("candidate create failed") },
+        }
+      },
+      storyLoaders: new Map([["components/button/basic/contained", async () => ({})]]),
+      environment: {...environment, fetcher},
+    })
+    expect((environment.location as LocationFixture).reloads).toBe(1)
+    await controller.dispose()
+  })
+
+  test("aborts a hung candidate and reloads lastWorking on activation-timeout event", async () => {
+    const graph = await fixtureGraph()
+    const candidate = "revision-timeout"
+    const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, candidate))
+    const environment = environmentFixture(
+      snapshot,
+      "/packages/%40fixture%2Fcomponents/components/button/basic/contained",
+    )
+    const socket = new FakeSocket()
+    const browserDocument = environment.browserDocument as unknown as {
+      querySelector(selector: string): {content: string} | null
+    }
+    browserDocument.querySelector = (selector) => {
+      if (selector.includes("browser-session")) return {content: "b".repeat(43)}
+      if (selector.includes("fallback-revision")) return {content: "revision-working"}
+      return null
+    }
+    let createStarted!: () => void
+    const creating = new Promise<void>((resolvePromise) => { createStarted = resolvePromise })
+    const pending = startExternalStorybookPackage({
+      packageId: "@fixture/components",
+      candidateRevision: candidate,
+      revisionUrl: "/__storybook/revisions/%40fixture%2Fcomponents/revision-timeout/",
+      async loadRuntime() {
+        return {
+          protocol: STORYBOOK_RUNTIME_PROTOCOL,
+          async create() {
+            createStarted()
+            await new Promise<never>(() => {})
+          },
+        }
+      },
+      storyLoaders: new Map([["components/button/basic/contained", async () => ({})]]),
+      environment: {
+        ...environment,
+        createSocket: () => socket,
+        cleanupTimeoutMs: 10,
+      },
+    })
+    await creating
+    socket.emit("message", {data: JSON.stringify({
+      type: "package.failed",
+      packageId: "@fixture/components",
+      revision: candidate,
+      diagnostics: [{phase: "timeout", message: "activation timed out"}],
+    })})
+    await expect(pending).rejects.toThrow(`Storybook candidate activation failed: ${candidate}`)
+    expect((environment.location as LocationFixture).reloads).toBe(1)
+    expect(socket.closed).toBeTrue()
+  })
+
+  test("serializes rapid runtime routes and disposes a session created after cancellation", async () => {
+    const graph = await fixtureGraph()
+    const candidate = "revision-a"
+    const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, candidate))
+    const environment = environmentFixture(snapshot, "/packages/%40fixture%2Fcomponents/")
+    let concurrent = 0
+    let maximum = 0
+    let startFirst!: () => void
+    const firstStarted = new Promise<void>((resolvePromise) => { startFirst = resolvePromise })
+    let releaseFirst!: () => void
+    const firstGate = new Promise<void>((resolvePromise) => { releaseFirst = resolvePromise })
+    const controller = await startExternalStorybookPackage({
+      packageId: "@fixture/components",
+      candidateRevision: candidate,
+      revisionUrl: "/__storybook/revisions/%40fixture%2Fcomponents/revision-a/",
+      async loadRuntime() {
+        return {
+          protocol: STORYBOOK_RUNTIME_PROTOCOL,
+          async create(context: StorybookRuntimeContext) {
+            return {
+              async mount({route}: {route: string}) {
+                concurrent += 1
+                maximum = Math.max(maximum, concurrent)
+                if (route.endsWith("contained")) {
+                  startFirst()
+                  await firstGate
+                }
+                concurrent -= 1
+                const node = context.document.createElement("div")
+                context.mount(node)
+              },
+              async unmount() {},
+              async dispose() {},
+            }
+          },
+        }
+      },
+      storyLoaders: new Map([
+        ["components/button/basic/contained", async () => ({})],
+        ["components/button/outlined", async () => ({})],
+      ]),
+      environment,
+    })
+    const first = controller.navigate("components/button/basic/contained")
+    await firstStarted
+    const second = controller.navigate("components/button/outlined")
+    releaseFirst()
+    await Promise.all([first, second])
+    expect(maximum).toBe(1)
+    expect(controller.currentRoute).toBe("components/button/outlined")
+    await controller.dispose()
+
+    const cancellation = new AbortController()
+    let createStarted!: () => void
+    const creating = new Promise<void>((resolvePromise) => { createStarted = resolvePromise })
+    let releaseCreate!: () => void
+    const createGate = new Promise<void>((resolvePromise) => { releaseCreate = resolvePromise })
+    let lateDispose = 0
+    const pending = startExternalStorybookPackage({
+      packageId: "@fixture/components",
+      candidateRevision: candidate,
+      revisionUrl: "/__storybook/revisions/%40fixture%2Fcomponents/revision-a/",
+      async loadRuntime() {
+        return {
+          protocol: STORYBOOK_RUNTIME_PROTOCOL,
+          async create() {
+            createStarted()
+            await createGate
+            return {
+              async mount() {},
+              async unmount() {},
+              async dispose() { lateDispose += 1 },
+            }
+          },
+        }
+      },
+      storyLoaders: new Map([["components/button/basic/contained", async () => ({})]]),
+      environment: {
+        ...environmentFixture(snapshot, "/packages/%40fixture%2Fcomponents/components/button/basic/contained"),
+        lifecycleSignal: cancellation.signal,
+      },
+    })
+    await creating
+    cancellation.abort(new Error("view closed"))
+    releaseCreate()
+    await expect(pending).rejects.toThrow("view closed")
+    expect(lateDispose).toBe(1)
+
+    const hungCancellation = new AbortController()
+    let hungStarted!: () => void
+    const hungCreating = new Promise<void>((resolvePromise) => { hungStarted = resolvePromise })
+    const hung = startExternalStorybookPackage({
+      packageId: "@fixture/components",
+      candidateRevision: candidate,
+      revisionUrl: "/__storybook/revisions/%40fixture%2Fcomponents/revision-a/",
+      async loadRuntime() {
+        return {
+          protocol: STORYBOOK_RUNTIME_PROTOCOL,
+          async create() {
+            hungStarted()
+            await new Promise<never>(() => {})
+          },
+        }
+      },
+      storyLoaders: new Map([["components/button/basic/contained", async () => ({})]]),
+      environment: {
+        ...environmentFixture(snapshot, "/packages/%40fixture%2Fcomponents/components/button/basic/contained"),
+        lifecycleSignal: hungCancellation.signal,
+        cleanupTimeoutMs: 10,
+      },
+    })
+    await hungCreating
+    hungCancellation.abort(new Error("hung view closed"))
+    await expect(hung).rejects.toThrow("hung view closed")
   })
 })
 

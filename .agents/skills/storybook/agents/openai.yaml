@@ -1,7 +1,7 @@
 interface:
   display_name: "Storybook"
-  short_description: "Run one external Storybook for declared package owners"
-  default_prompt: "Use $storybook to attach declarations and verify an exact package tab on the one external server."
+  short_description: "Operate the one external Storybook through MCP"
+  default_prompt: "Use only Storybook MCP tools to ensure, search, open, wait, inspect, interact, and capture an exact package view."
 
 policy:
   allow_implicit_invocation: true

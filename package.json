@@ -14,16 +14,20 @@
     "build": "bun scripts/storybook.ts check .",
     "typecheck": "tsc --noEmit --pretty false",
     "test": "bun test src",
-    "check": "bun run typecheck && bun run test && bun run build"
+    "mcp:check": "bun run --cwd mcp check",
+    "check": "bun run typecheck && bun run test && bun run mcp:check && bun run build"
   },
   "devDependencies": {
     "@engine/core": "link:@engine/core",
     "@types/bun": "^1.4.0",
+    "@types/pngjs": "^6.0.5",
     "@webgpu/types": "^0.1.68",
     "@zavx0z/dom": "link:@zavx0z/dom",
+    "@zavx0z/dom-devtools": "link:@zavx0z/dom-devtools",
     "@zavx0z/renderer": "link:@zavx0z/renderer",
     "@zavx0z/renderer-browser": "link:@zavx0z/renderer-browser",
     "@zavx0z/renderer-webgpu": "link:@zavx0z/renderer-webgpu",
+    "pngjs": "^7.0.0",
     "typescript": "^7.0.2"
   }
 }

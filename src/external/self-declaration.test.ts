@@ -36,6 +36,15 @@ describe("external Storybook self declaration", () => {
     const categories = graph.nodes.filter(({kind}) => kind === "category")
     expect(categories.some(({presentationGroup}) => presentationGroup === null)).toBeTrue()
     expect(categories.some(({presentationGroup}) => presentationGroup !== null)).toBeTrue()
+    const search = graph.nodes.flatMap(({searchTerms}) => searchTerms.map((value) => value.toLowerCase()))
+    for (const term of [
+      "mcp",
+      "externalstorybookcontroller",
+      "storybook_ensure",
+      "lastworking",
+      "package.code-updated",
+      "package.resources-updated",
+    ]) expect(search).toContain(term)
   })
 
   test("keeps the external bin, CLI actions and self contracts in lockstep", async () => {

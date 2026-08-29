@@ -154,6 +154,10 @@ export async function startExternalStorybookLanding(
       shell.updateStatus(`${update.packageId} · build failed`)
     } else if (update.type === "package.updated") {
       shell.updateStatus(`${update.packageId} · ${update.revision}`)
+    } else if (update.type === "package.built") {
+      shell.updateStatus(`${update.packageId} · built · ${update.revision}`)
+    } else if (update.type === "package.resources-updated" || update.type === "package.metadata-updated") {
+      shell.updateStatus(`${update.packageId} · ${update.type}`)
     }
   }
   socket?.addEventListener("open", onSocketOpen)
@@ -213,6 +217,16 @@ function createLandingSocket(
   if (href === undefined) return null
   const url = new URL("/api/events", href)
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
+  const token = typeof options.browserDocument?.querySelector === "function"
+    ? options.browserDocument.querySelector<HTMLMetaElement>(
+      'meta[name="external-storybook-browser-session"]',
+    )?.content
+    : typeof globalThis.document?.querySelector === "function"
+      ? globalThis.document.querySelector<HTMLMetaElement>(
+        'meta[name="external-storybook-browser-session"]',
+      )?.content
+      : undefined
+  if (token !== undefined && token.length > 0) url.searchParams.set("session", token)
   if (options.createSocket !== undefined) return options.createSocket(url.href)
   return typeof WebSocket === "undefined" ? null : new WebSocket(url.href)
 }
@@ -230,6 +244,9 @@ function parseLandingEvent(value: unknown): any | null {
   if (record.type === "registry.updated" && typeof record.graphDigest === "string") return record
   if (record.type === "package.open" && typeof record.packageId === "string" && typeof record.urlPath === "string") return record
   if (record.type === "package.updated" && typeof record.packageId === "string" && typeof record.revision === "string") return record
+  if (record.type === "package.built" && typeof record.packageId === "string" && typeof record.revision === "string") return record
+  if (["package.resources-updated", "package.metadata-updated"].includes(String(record.type)) &&
+    typeof record.packageId === "string") return record
   if (record.type === "package.failed" && typeof record.packageId === "string") return record
   return null
 }

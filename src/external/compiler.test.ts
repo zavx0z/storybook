@@ -17,7 +17,7 @@ afterEach(async () => {
 })
 
 describe("external Storybook package compiler", () => {
-  test("returns no plugins when effective tsconfig does not require Template JSX", async () => {
+  test("keeps exact owner resolution when effective tsconfig does not require Template JSX", async () => {
     const root = await temporaryRoot()
     await writeJson(join(root, "package.json"), {name: "@fixture/plain"})
     await writeJson(join(root, "tsconfig.json"), {
@@ -32,7 +32,7 @@ describe("external Storybook package compiler", () => {
       moduleSourcePaths: [source],
     })
 
-    expect(plugins).toEqual([])
+    expect(plugins.map(({name}) => name)).toEqual(["external-storybook-exact-owner-resolution"])
     expect(Object.isFrozen(plugins)).toBeTrue()
   })
 
@@ -41,18 +41,24 @@ describe("external Storybook package compiler", () => {
     const first = await createStorybookPackageCompilerPlugins(fixture.input)
     const second = await createStorybookPackageCompilerPlugins(fixture.input)
 
-    expect(first).toHaveLength(1)
-    expect(second).toHaveLength(1)
+    expect(first).toHaveLength(2)
+    expect(second).toHaveLength(2)
     expect(first[0]).not.toBe(second[0])
-    expect(first[0]!.name).toBe("fixture-template-1")
-    expect(second[0]!.name).toBe("fixture-template-2")
+    expect(first.map(({name}) => name)).toEqual([
+      "external-storybook-exact-owner-resolution",
+      "fixture-template-1",
+    ])
+    expect(second.map(({name}) => name)).toEqual([
+      "external-storybook-exact-owner-resolution",
+      "fixture-template-2",
+    ])
     const canonicalProjectRoot = await realpath(fixture.projectRoot)
     const canonicalDependencyRoots = await Promise.all([
       fixture.linkedRoot,
       fixture.templateRoot,
       fixture.transitiveRoot,
     ].map(async (path) => await realpath(path)))
-    expect(fixtureOptions(first[0]!)).toEqual({
+    expect(fixtureOptions(first[1]!)).toEqual({
       cwd: canonicalProjectRoot,
       persistent: false,
       sourceRoots: [

@@ -1,7 +1,9 @@
 import {afterEach, describe, expect, test} from "bun:test"
+import {createHash} from "node:crypto"
 import {mkdtempSync, mkdirSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
+import {STORYBOOK_PACKAGE_GRAPH_PROTOCOL, type StorybookPackageRevisionGraphSnapshot} from "./package-revision.ts"
 import {
   StorybookPackageSession,
   storybookBuildError,
@@ -17,132 +19,189 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, {recursive: true, force: true})
 })
 
-describe("independent Storybook PackageSession", () => {
-  test("publishes immutable active and last-good revisions", async () => {
-    const root = fixtureRoot("a")
+describe("working Storybook PackageSession lifecycle", () => {
+  test("keeps a successful build merely built until exact browser acknowledgement", async () => {
+    const root = fixtureRoot("activation")
     const events: StorybookPackageEvent[] = []
     const session = createSession(descriptor(root, "@fixture/a"), successfulBuilder(), events)
-    const first = await session.build()
-    expect(first.buildState).toBe("ready")
-    expect(first.activeRevision).toBe(first.lastGoodRevision)
-    expect(session.revisionDirectory()).not.toBeNull()
+    const built = await session.ensureBuilt()
+    expect(built.buildState).toBe("built")
+    expect(built.builtRevision).not.toBeNull()
+    expect(built.activeRevision).toBeNull()
+    expect(built.lastWorkingRevision).toBeNull()
 
-    const second = await session.build()
-    expect(second.activeRevision).not.toBe(first.activeRevision)
-    expect(second.lastGoodRevision).toBe(second.activeRevision)
-    expect(session.revisionDirectory(first.activeRevision)).not.toBeNull()
-    expect(events.map(({type}) => type)).toEqual(["package.updated", "package.updated"])
+    const activation = session.beginActivation({
+      revision: built.builtRevision!,
+      viewId: "view-a",
+      route: "category/subject/default",
+    })
+    expect(() => session.acknowledgeActivation({
+      ...activation,
+      packageGraphDigest: "foreign-graph",
+      frameSequence: 7,
+    })).toThrow("does not match its lease")
+    expect(session.snapshot().activeRevision).toBeNull()
+    const working = session.acknowledgeActivation({
+      ...activation,
+      frameSequence: 7,
+    })
+    expect(working.buildState).toBe("active")
+    expect(working.activeRevision).toBe(built.builtRevision!)
+    expect(working.lastWorkingRevision).toBe(built.builtRevision!)
+    expect(working.lastGoodRevision).toBe(built.builtRevision!)
+    expect(events.map(({type}) => type)).toEqual([
+      "package.built",
+      "package.activating",
+      "package.updated",
+    ])
   })
 
-  test("keeps last-good and isolates diagnostics after a failed candidate", async () => {
-    const root = fixtureRoot("a")
-    let fail = false
+  test("activation failure preserves previous active and lastWorking revision", async () => {
+    const root = fixtureRoot("activation-failure")
     const events: StorybookPackageEvent[] = []
+    const session = createSession(descriptor(root, "@fixture/a", "one"), successfulBuilder(), events)
+    const first = await session.ensureBuilt()
+    const firstActivation = session.beginActivation({
+      revision: first.builtRevision!, viewId: "view-a", route: "category/subject/default",
+    })
+    const working = session.acknowledgeActivation({...firstActivation, frameSequence: 1})
+
+    session.reconfigure(descriptor(root, "@fixture/a", "two"))
+    const second = await session.ensureBuilt()
+    const secondActivation = session.beginActivation({
+      revision: second.builtRevision!, viewId: "view-a", route: "category/subject/default",
+    })
+    const failed = session.failActivation({
+      revision: secondActivation.revision,
+      activationId: secondActivation.activationId,
+      diagnostic: storybookDiagnostic("activation", "runtime.create failed"),
+    })
+    expect(failed.buildState).toBe("failed")
+    expect(failed.activeRevision).toBe(working.activeRevision)
+    expect(failed.lastWorkingRevision).toBe(working.lastWorkingRevision)
+    expect(failed.failedRevision).toBe(secondActivation.revision)
+    expect(failed.diagnostics[0]?.message).toBe("runtime.create failed")
+  })
+
+  test("restarts the exact activation lease on a repeated candidate page request", async () => {
+    const root = fixtureRoot("activation-restart")
+    const session = createSession(descriptor(root, "@fixture/a"), successfulBuilder(), [])
+    const built = await session.ensureBuilt()
+    const first = session.beginActivation({
+      revision: built.builtRevision!, viewId: "view-first", route: "category/subject/default",
+    })
+    const second = session.beginActivation({
+      revision: built.builtRevision!, viewId: "view-second", route: "category/subject/default",
+    })
+    expect(second.activationId).not.toBe(first.activationId)
+    expect(() => session.acknowledgeActivation({...first, frameSequence: 1})).toThrow("stale")
+    const working = session.acknowledgeActivation({...second, frameSequence: 1})
+    expect(working.activeRevision).toBe(built.builtRevision!)
+    expect(working.lastWorkingRevision).toBe(built.builtRevision!)
+  })
+
+  test("compile failure preserves working revision and package-local diagnostics", async () => {
+    const root = fixtureRoot("compile-failure")
+    let fail = false
     const session = createSession(descriptor(root, "@fixture/a"), async (input) => {
       if (fail) throw storybookBuildError(storybookDiagnostic("compile", "Unexpected token", input.descriptor.runtime!.path))
       return successfulBuild(input.stagingDirectory)
-    }, events)
-    const good = await session.build()
-    fail = true
-    const failed = await session.build()
-    expect(failed.buildState).toBe("failed")
-    expect(failed.activeRevision).toBe(good.activeRevision)
-    expect(failed.lastGoodRevision).toBe(good.lastGoodRevision)
-    expect(failed.diagnostics[0]?.message).toBe("Unexpected token")
-    expect(events.at(-1)?.type).toBe("package.failed")
-  })
-
-  test("A failure never changes B or unopened C", async () => {
-    const aRoot = fixtureRoot("a")
-    const bRoot = fixtureRoot("b")
-    const cRoot = fixtureRoot("c")
-    const a = createSession(descriptor(aRoot, "@fixture/a"), async () => {
-      throw new Error("A failed")
     }, [])
-    const b = createSession(descriptor(bRoot, "@fixture/b"), successfulBuilder(), [])
-    const c = createSession(descriptor(cRoot, "@fixture/c"), successfulBuilder(), [])
-    const [aState, bState] = await Promise.all([a.build(), b.build()])
-    expect(aState.buildState).toBe("failed")
-    expect(bState.buildState).toBe("ready")
-    expect(c.snapshot().builds).toBe(0)
-    expect(c.snapshot().buildState).toBe("idle")
-  })
-
-  test("invalidates only sessions whose canonical graph contains a path", async () => {
-    const shared = fixtureRoot("shared")
-    const source = join(shared, "source.ts")
-    writeFileSync(source, "export const shared = true\n")
-    const aRoot = fixtureRoot("a")
-    const bRoot = fixtureRoot("b")
-    const cRoot = fixtureRoot("c")
-    const builder = (dependencies: readonly string[]): StorybookPackageRevisionBuilder =>
-      async ({stagingDirectory}) => ({...successfulBuild(stagingDirectory), dependencyRealpaths: dependencies})
-    const a = createSession(descriptor(aRoot, "@fixture/a"), builder([source]), [])
-    const b = createSession(descriptor(bRoot, "@fixture/b"), builder([source]), [])
-    const c = createSession(descriptor(cRoot, "@fixture/c"), builder([]), [])
-    await Promise.all([a.build(), b.build(), c.build()])
-    expect(a.invalidate(source)).toBeTrue()
-    expect(b.invalidate(source)).toBeTrue()
-    expect(c.invalidate(source)).toBeFalse()
-    await Bun.sleep(15)
-    expect(a.snapshot().builds).toBe(2)
-    expect(b.snapshot().builds).toBe(2)
-    expect(c.snapshot().builds).toBe(1)
-  })
-
-  test("detach disposes only the selected session", async () => {
-    const aRoot = fixtureRoot("a")
-    const bRoot = fixtureRoot("b")
-    const events: StorybookPackageEvent[] = []
-    const a = createSession(descriptor(aRoot, "@fixture/a"), successfulBuilder(), events)
-    const b = createSession(descriptor(bRoot, "@fixture/b"), successfulBuilder(), events)
-    await Promise.all([a.build(), b.build()])
-    a.dispose()
-    expect(a.snapshot().buildState).toBe("disposed")
-    expect(b.snapshot().buildState).toBe("ready")
-    expect(events.at(-1)).toEqual({type: "package.detached", packageId: "@fixture/a"})
-  })
-
-  test("reconfiguration keeps last-good while a new declaration candidate fails", async () => {
-    const root = fixtureRoot("reconfigure")
-    let fail = false
-    const session = createSession(descriptor(root, "@fixture/reconfigure"), async ({stagingDirectory}) => {
-      if (fail) throw new Error("new declaration failed")
-      return successfulBuild(stagingDirectory)
-    }, [])
-    const good = await session.build()
-    fail = true
-    const changed = session.reconfigure({
-      ...session.descriptor,
-      declarationDigest: "new-declaration",
+    const first = await session.ensureBuilt()
+    const activation = session.beginActivation({
+      revision: first.builtRevision!, viewId: "view-a", route: "category/subject/default",
     })
-    expect(changed).toBeTrue()
-    await Bun.sleep(15)
-    const failed = session.snapshot()
+    const working = session.acknowledgeActivation({...activation, frameSequence: 1})
+    fail = true
+    session.reconfigure(descriptor(root, "@fixture/a", "broken"))
+    const failed = await session.ensureBuilt()
     expect(failed.buildState).toBe("failed")
-    expect(failed.lastGoodRevision).toBe(good.lastGoodRevision)
-    expect(failed.activeRevision).toBe(good.activeRevision)
+    expect(failed.activeRevision).toBe(working.activeRevision)
+    expect(failed.lastWorkingRevision).toBe(working.lastWorkingRevision)
+    expect(failed.diagnostics[0]?.message).toBe("Unexpected token")
   })
 
-  test("concurrent check waits for the latest queued descriptor build", async () => {
-    const root = fixtureRoot("queued")
-    let releaseFirst!: () => void
-    const firstGate = new Promise<void>((resolvePromise) => { releaseFirst = resolvePromise })
+  test("coalesces one generation and cancels a superseded build before building latest", async () => {
+    const root = fixtureRoot("queue")
     let calls = 0
-    const session = createSession(descriptor(root, "@fixture/queued"), async ({stagingDirectory}) => {
+    let firstStarted!: () => void
+    const started = new Promise<void>((resolvePromise) => { firstStarted = resolvePromise })
+    const session = createSession(descriptor(root, "@fixture/a", "one"), async (input) => {
       calls += 1
-      if (calls === 1) await firstGate
-      return successfulBuild(stagingDirectory)
+      if (calls === 1) {
+        firstStarted()
+        await new Promise<void>((_resolve, reject) => {
+          input.signal.addEventListener("abort", () => reject(input.signal.reason), {once: true})
+        })
+      }
+      return successfulBuild(input.stagingDirectory)
     }, [])
-    const first = session.build()
-    session.reconfigure({...session.descriptor, declarationDigest: "queued-latest"})
-    const check = session.build()
-    releaseFirst()
-    const [firstResult, checkResult] = await Promise.all([first, check])
+    const first = session.ensureBuilt()
+    const duplicate = session.ensureBuilt()
+    await started
+    session.reconfigure(descriptor(root, "@fixture/a", "two"))
+    const latest = session.ensureBuilt()
+    await Promise.all([first, duplicate, latest])
     expect(calls).toBe(2)
-    expect(checkResult.declarationDigest).toBe("queued-latest")
-    expect(checkResult.buildState).toBe("ready")
-    expect(firstResult.activeRevision).toBe(checkResult.activeRevision)
+    expect(session.snapshot().generation).toBe(2)
+    expect(session.snapshot().buildState).toBe("built")
+    expect(session.snapshot().revisions?.at(-1)?.declarationDigest).toBe("digest-two")
+  })
+
+  test("detach aborts exact build and dispose is idempotent", async () => {
+    const root = fixtureRoot("dispose")
+    let aborted = false
+    let started!: () => void
+    const gate = new Promise<void>((resolvePromise) => { started = resolvePromise })
+    const session = createSession(descriptor(root, "@fixture/a"), async (input) => {
+      started()
+      await new Promise<void>((_resolve, reject) => input.signal.addEventListener("abort", () => {
+        aborted = true
+        reject(input.signal.reason)
+      }, {once: true}))
+      return successfulBuild(input.stagingDirectory)
+    }, [])
+    void session.ensureBuilt()
+    await gate
+    const first = session.dispose()
+    const second = session.dispose()
+    expect(first).toBe(second)
+    await first
+    expect(aborted).toBeTrue()
+    expect(session.snapshot().buildState).toBe("disposed")
+  })
+
+  test("retains leased history and collects it after release", async () => {
+    const root = fixtureRoot("retention")
+    const session = createSession(
+      descriptor(root, "@fixture/a", "one"),
+      successfulBuilder(),
+      [],
+      {retainedRevisionLimit: 0},
+    )
+    const first = await session.ensureBuilt()
+    const firstActivation = session.beginActivation({
+      revision: first.builtRevision!, viewId: "view-a", route: "category/subject/default",
+    })
+    const firstWorking = session.acknowledgeActivation({...firstActivation, frameSequence: 1})
+    const oldRevision = firstWorking.activeRevision!
+    const lease = session.acquireRevisionLease(oldRevision, "view-lease")
+
+    session.reconfigure(descriptor(root, "@fixture/a", "two"))
+    const second = await session.ensureBuilt()
+    const secondActivation = session.beginActivation({
+      revision: second.builtRevision!, viewId: "view-a", route: "category/subject/default",
+    })
+    session.acknowledgeActivation({...secondActivation, frameSequence: 2})
+    expect(session.revisionDirectory(oldRevision)).not.toBeNull()
+    lease.release()
+    expect(session.revisionDirectory(oldRevision)).toBeNull()
+    const activeRevision = session.snapshot().activeRevision!
+    const activeLease = session.acquireRevisionLease(activeRevision, "active-view")
+    await session.dispose()
+    expect(session.revisionDirectory(activeRevision)).not.toBeNull()
+    activeLease.release()
+    expect(session.revisionDirectory(activeRevision)).toBeNull()
   })
 })
 
@@ -150,31 +209,78 @@ function createSession(
   value: StorybookPackageBuildDescriptor,
   buildRevision: StorybookPackageRevisionBuilder,
   events: StorybookPackageEvent[],
+  overrides: Readonly<{retainedRevisionLimit?: number}> = {},
 ): StorybookPackageSession {
   return new StorybookPackageSession(value, {
     artifactRoot: join(value.projectRoot, ".artifacts"),
     buildRevision,
     rebuildDelayMs: 0,
     publish: (event) => events.push(event),
+    ...overrides,
   })
 }
 
-function descriptor(root: string, packageId: string): StorybookPackageBuildDescriptor {
+function descriptor(root: string, packageId: string, version = "one"): StorybookPackageBuildDescriptor {
   const runtime = join(root, "runtime.ts")
   const story = join(root, "story.ts")
   const manifest = join(root, "manifest.json")
   writeFileSync(runtime, "export const runtime = {}\n")
   writeFileSync(story, "export const story = {}\n")
   writeFileSync(manifest, "{}\n")
+  const declarationDigest = `digest-${version}`
   return {
     packageId,
     packageRoot: root,
     projectRoot: root,
     manifestPath: manifest,
-    declarationDigest: `digest-${packageId}`,
+    declarationDigest,
+    graphSnapshot: graphSnapshot(packageId, declarationDigest),
     runtime: {path: runtime, export: "runtime"},
     variants: [{route: "category/subject/default", module: {path: story, export: "story"}}],
   }
+}
+
+function graphSnapshot(packageId: string, declarationDigest: string): StorybookPackageRevisionGraphSnapshot {
+  const packageNodeId = `package:${packageId}`
+  const variantNodeId = `variant:${packageId}/category/subject/default`
+  const withoutDigest = {
+    protocol: STORYBOOK_PACKAGE_GRAPH_PROTOCOL,
+    packageId,
+    declarationDigest,
+    metadata: {label: packageId, ownerId: packageId, urlPath: `/packages/${encodeURIComponent(packageId)}/`},
+    rootId: packageNodeId,
+    nodes: [
+      {
+        id: packageNodeId, kind: "package" as const, ownerId: packageId, packageId, label: packageId,
+        parentId: null, childIds: [], urlPath: `/packages/${encodeURIComponent(packageId)}/`, routePath: "",
+        searchTerms: [packageId], group: null, subjectKind: null, apiName: null, hasReadme: false,
+        resourceKinds: [], resourceUrl: `/__storybook/resources/nodes/${encodeURIComponent(packageNodeId)}/`,
+      },
+      {
+        id: variantNodeId, kind: "variant" as const, ownerId: packageId, packageId, label: "Default",
+        parentId: packageNodeId, childIds: [],
+        urlPath: `/packages/${encodeURIComponent(packageId)}/category/subject/default`,
+        routePath: "category/subject/default", searchTerms: ["default"], group: null, subjectKind: null,
+        apiName: null, hasReadme: false, resourceKinds: [],
+        resourceUrl: `/__storybook/resources/nodes/${encodeURIComponent(variantNodeId)}/`,
+      },
+    ],
+    routes: [
+      {path: "", urlPath: `/packages/${encodeURIComponent(packageId)}/`, kind: "overview" as const, nodeId: packageNodeId},
+      {
+        path: "category/subject/default",
+        urlPath: `/packages/${encodeURIComponent(packageId)}/category/subject/default`,
+        kind: "variant" as const,
+        nodeId: variantNodeId,
+      },
+    ],
+    loaders: [{route: "category/subject/default", nodeId: variantNodeId, exportName: "story"}],
+    resources: [],
+  }
+  return Object.freeze({
+    ...withoutDigest,
+    packageGraphDigest: createHash("sha256").update(JSON.stringify(withoutDigest)).digest("hex"),
+  })
 }
 
 function successfulBuilder(): StorybookPackageRevisionBuilder {
@@ -184,11 +290,7 @@ function successfulBuilder(): StorybookPackageRevisionBuilder {
 function successfulBuild(stagingDirectory: string) {
   mkdirSync(stagingDirectory, {recursive: true})
   writeFileSync(join(stagingDirectory, "entry.js"), "export {}\n")
-  return {
-    moduleGraphRevision: "module-graph-revision",
-    dependencyRealpaths: [],
-    entryRelativePath: "entry.js",
-  }
+  return {moduleGraphRevision: "module-graph-revision", dependencyRealpaths: [], entryRelativePath: "entry.js"}
 }
 
 function fixtureRoot(name: string): string {

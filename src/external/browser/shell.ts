@@ -48,6 +48,7 @@ export type ExternalStorybookShell = Readonly<{
   canvas: HTMLCanvasElement
   workbench: StorybookDomWorkbench
   readonly runtime: DocumentCanvasRuntime
+  readonly presentedFrameSequence: number
   mountPreview(label: string, node: SemanticNode): void
   showMessage(label: string, title: string, detail: string): SemanticElement
   showMarkdown(label: string, source: string, baseUrl?: string): SemanticElement
@@ -58,6 +59,9 @@ export type ExternalStorybookShell = Readonly<{
   clearDiagnostics(): void
   updateStatus(detail: string): void
   requestRender(): void
+  presentFrame(): number
+  waitForPresentedFrame(afterSequence: number, signal?: AbortSignal, timeoutMs?: number): Promise<number>
+  captureLastPresentedFramePng(): Promise<Blob | null>
   setOwnerStyleSheets(styleSheets: readonly string[]): Promise<void>
   subscribePreviewBounds(listener: (bounds: StorybookPreviewBounds | null) => void): () => void
   dispose(): void
@@ -108,12 +112,19 @@ export async function createExternalStorybookShell(
     },
   })
   const createRuntime = options.createCanvasRuntime ?? createDocumentCanvasRuntime
+  markShellPhase(browserDocument, "font")
   const font = await (options.loadFont ?? loadDocumentDefaultFont)()
+  markShellPhase(browserDocument, "renderer")
   const boundsListeners = new Set<(bounds: StorybookPreviewBounds | null) => void>()
+  const frameWaiters = new Set<Readonly<{
+    afterSequence: number
+    resolve(sequence: number): void
+  }>>()
   let ownerStyleSheets = Object.freeze([]) as readonly string[]
   let runtime!: DocumentCanvasRuntime
   let unsubscribeFrame = (): void => {}
   let latestBounds: StorybookPreviewBounds | null = null
+  let presentedFrameSequence = 0
   let disposed = false
 
   const publishBounds = (bounds: StorybookPreviewBounds | null): void => {
@@ -139,6 +150,12 @@ export async function createExternalStorybookShell(
       tooltipDelayMs: 500,
     })
     unsubscribeFrame = runtime.subscribe((frame) => {
+      presentedFrameSequence += 1
+      for (const waiter of [...frameWaiters]) {
+        if (presentedFrameSequence <= waiter.afterSequence) continue
+        frameWaiters.delete(waiter)
+        waiter.resolve(presentedFrameSequence)
+      }
       const box = frame.boxByNode.get(workbench.elements.previewHost)
       publishBounds(box === undefined
         ? null
@@ -153,6 +170,7 @@ export async function createExternalStorybookShell(
     })
   }
   await startRenderer()
+  markShellPhase(browserDocument, "ready")
 
   const mountPreview = (label: string, node: SemanticNode): void => {
     assertActive(disposed)
@@ -184,6 +202,9 @@ export async function createExternalStorybookShell(
     workbench,
     get runtime() {
       return runtime
+    },
+    get presentedFrameSequence() {
+      return presentedFrameSequence
     },
     mountPreview,
     showMessage,
@@ -226,6 +247,62 @@ export async function createExternalStorybookShell(
       assertActive(disposed)
       runtime.requestRender()
     },
+    presentFrame() {
+      assertActive(disposed)
+      const before = presentedFrameSequence
+      runtime.render()
+      if (presentedFrameSequence <= before) {
+        throw new Error("Storybook renderer did not publish the synchronous frame")
+      }
+      return presentedFrameSequence
+    },
+    waitForPresentedFrame(afterSequence, signal, timeoutMs = 8_000) {
+      assertActive(disposed)
+      if (!Number.isSafeInteger(afterSequence) || afterSequence < 0) {
+        throw new TypeError("Presented frame sequence must be a non-negative integer")
+      }
+      if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 30_000) {
+        throw new RangeError("Presented frame timeout must be between 1 and 30000 ms")
+      }
+      if (presentedFrameSequence > afterSequence) return Promise.resolve(presentedFrameSequence)
+      return new Promise<number>((resolvePromise, reject) => {
+        let settled = false
+        const waiter = Object.freeze({
+          afterSequence,
+          resolve(sequence: number) {
+            if (settled) return
+            settled = true
+            cleanup()
+            resolvePromise(sequence)
+          },
+        })
+        const timer = setTimeout(() => {
+          if (settled) return
+          settled = true
+          cleanup()
+          reject(new Error(`Storybook presented frame timed out after ${timeoutMs} ms`))
+        }, timeoutMs)
+        const onAbort = (): void => {
+          if (settled) return
+          settled = true
+          cleanup()
+          reject(signal?.reason ?? new DOMException("Aborted", "AbortError"))
+        }
+        const cleanup = (): void => {
+          clearTimeout(timer)
+          signal?.removeEventListener("abort", onAbort)
+          frameWaiters.delete(waiter)
+        }
+        frameWaiters.add(waiter)
+        signal?.addEventListener("abort", onAbort, {once: true})
+        if (signal?.aborted === true) onAbort()
+        else runtime.requestRender()
+      })
+    },
+    captureLastPresentedFramePng() {
+      assertActive(disposed)
+      return runtime.captureLastPresentedFramePng()
+    },
     async setOwnerStyleSheets(styleSheets) {
       assertActive(disposed)
       if (!Array.isArray(styleSheets) || styleSheets.some((sheet) => typeof sheet !== "string")) {
@@ -248,6 +325,8 @@ export async function createExternalStorybookShell(
       disposed = true
       unsubscribeFrame()
       boundsListeners.clear()
+      for (const waiter of frameWaiters) waiter.resolve(presentedFrameSequence)
+      frameWaiters.clear()
       runtime.dispose()
       workbench.dispose()
     },
@@ -398,4 +477,11 @@ function sameBounds(
 
 function assertActive(disposed: boolean): void {
   if (disposed) throw new Error("External Storybook shell is disposed")
+}
+
+function markShellPhase(document: globalThis.Document, phase: string): void {
+  const root = document.documentElement
+  if (root !== undefined && root !== null && root.dataset !== undefined) {
+    root.dataset.externalStorybookShellPhase = phase
+  }
 }

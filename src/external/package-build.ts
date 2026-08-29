@@ -1,5 +1,6 @@
-import {createHash} from "node:crypto"
+import {createHash, randomUUID} from "node:crypto"
 import {
+  copyFileSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -31,15 +32,52 @@ export type StorybookCompilerPluginResolver = (
 export type CreateStorybookPackageRevisionBuilderOptions = Readonly<{
   browserEntryPath?: string
   runtimeProtocolPath?: string
+  workerPath?: string
   resolveCompilerPlugins?: StorybookCompilerPluginResolver
 }>
 
-let packageBuildTail: Promise<void> = Promise.resolve()
+export type StorybookPackageBuildWorkerJob = Readonly<{
+  input: Omit<Parameters<StorybookPackageRevisionBuilder>[0], "signal">
+  options: Readonly<{
+    browserEntryPath: string
+    runtimeProtocolPath: string
+  }>
+}>
+
+export type StorybookPackageBuildWorkerResult = Readonly<{
+  ok: true
+  build: Awaited<ReturnType<StorybookPackageRevisionBuilder>>
+}> | Readonly<{
+  ok: false
+  message: string
+  diagnostics: readonly Readonly<{phase: string, message: string, path: string | null}>[]
+}>
 
 /** Creates the real Bun browser builder used independently by each PackageSession. */
 export function createStorybookPackageRevisionBuilder(
   options: CreateStorybookPackageRevisionBuilderOptions = {},
 ): StorybookPackageRevisionBuilder {
+  const browserEntryPath = realpathSync(options.browserEntryPath ?? fileURLToPath(
+    new URL("./browser/package-entry.ts", import.meta.url),
+  ))
+  const runtimeProtocolPath = realpathSync(options.runtimeProtocolPath ?? fileURLToPath(
+    new URL("./runtime-protocol.ts", import.meta.url),
+  ))
+  const workerPath = realpathSync(options.workerPath ?? fileURLToPath(
+    new URL("./package-build-worker.ts", import.meta.url),
+  ))
+  if (options.resolveCompilerPlugins !== undefined) {
+    return (input) => buildStorybookPackageRevisionInProcess(input, options)
+  }
+  return (input) => runPackageBuildWorker(input, {browserEntryPath, runtimeProtocolPath}, workerPath)
+}
+
+/** In-process implementation used only inside the isolated package-build worker and focused seams. */
+export async function buildStorybookPackageRevisionInProcess(
+  input: Parameters<StorybookPackageRevisionBuilder>[0],
+  options: CreateStorybookPackageRevisionBuilderOptions = {},
+): Promise<Awaited<ReturnType<StorybookPackageRevisionBuilder>>> {
+  input.signal.throwIfAborted()
   const browserEntryPath = realpathSync(options.browserEntryPath ?? fileURLToPath(
     new URL("./browser/package-entry.ts", import.meta.url),
   ))
@@ -56,9 +94,18 @@ export function createStorybookPackageRevisionBuilder(
     moduleSourcePaths: sourcePaths,
   }))
 
-  return (input) => withPackageBuildLock(async () => {
+  return (async () => {
     const {descriptor, candidateRevision, revisionUrl, stagingDirectory} = input
+    input.signal.throwIfAborted()
     mkdirSync(stagingDirectory, {recursive: true})
+    for (const resource of descriptor.resourceFiles ?? []) {
+      const target = resolve(stagingDirectory, resource.targetPath)
+      if (!target.startsWith(`${resolve(stagingDirectory)}${sep}`)) {
+        throw storybookBuildError(storybookDiagnostic("publish", "Revision resource escaped staging", target))
+      }
+      mkdirSync(dirname(target), {recursive: true})
+      copyFileSync(resource.sourcePath, target)
+    }
     const modules = descriptor.runtime === null
       ? []
       : [descriptor.runtime, ...descriptor.variants.map(({module}) => module)]
@@ -69,6 +116,7 @@ export function createStorybookPackageRevisionBuilder(
       sourcePaths,
     })
     const validationPlugins = Object.freeze([...(await resolvePlugins(compilerInput))])
+    input.signal.throwIfAborted()
     validatePlugins(validationPlugins)
     await validateModuleExports(descriptor, validationPlugins, stagingDirectory)
     const plugins = Object.freeze([...(await resolvePlugins(compilerInput))])
@@ -76,6 +124,8 @@ export function createStorybookPackageRevisionBuilder(
 
     const loaderPath = join(stagingDirectory, "generated-loaders.ts")
     const entryPath = join(stagingDirectory, "package-entry.ts")
+    const graphPath = join(stagingDirectory, "package-graph.json")
+    await Bun.write(graphPath, `${JSON.stringify(descriptor.graphSnapshot)}\n`)
     if (descriptor.runtime === null) {
       await Bun.write(loaderPath, [
         "export const STORYBOOK_PACKAGE_STORY_LOADERS = new Map()",
@@ -106,6 +156,7 @@ export function createStorybookPackageRevisionBuilder(
       "await startExternalStorybookPackage({",
       `  packageId: ${JSON.stringify(descriptor.packageId)},`,
       `  candidateRevision: ${JSON.stringify(candidateRevision)},`,
+      `  graphSnapshot: ${JSON.stringify(descriptor.graphSnapshot)},`,
       "  revisionUrl: storybookRevisionUrl,",
       "  loadRuntime: loadStorybookPackageRuntime,",
       "  storyLoaders: STORYBOOK_PACKAGE_STORY_LOADERS,",
@@ -113,6 +164,7 @@ export function createStorybookPackageRevisionBuilder(
       "",
     ].join("\n"))
 
+    input.signal.throwIfAborted()
     const result = await Bun.build({
       entrypoints: [entryPath],
       outdir: stagingDirectory,
@@ -150,6 +202,8 @@ export function createStorybookPackageRevisionBuilder(
         runtimeProtocolPath,
         stagingDirectory,
         protocolPlugins,
+        input.signal,
+        input.protocolTimeoutMs,
       )
     }
     const entryOutput = result.outputs.find((output) => output.kind === "entry-point")
@@ -173,21 +227,143 @@ export function createStorybookPackageRevisionBuilder(
       dependencyRealpaths,
       entryRelativePath,
     })
-  })
+  })()
 }
 
-async function withPackageBuildLock<Value>(operation: () => Promise<Value>): Promise<Value> {
-  const previous = packageBuildTail
-  let release!: () => void
-  packageBuildTail = new Promise<void>((resolvePromise) => {
-    release = resolvePromise
+async function runPackageBuildWorker(
+  input: Parameters<StorybookPackageRevisionBuilder>[0],
+  options: Readonly<{browserEntryPath: string, runtimeProtocolPath: string}>,
+  workerPath: string,
+): Promise<Awaited<ReturnType<StorybookPackageRevisionBuilder>>> {
+  input.signal.throwIfAborted()
+  mkdirSync(input.stagingDirectory, {recursive: true})
+  const nonce = randomUUID()
+  const jobPath = join(input.stagingDirectory, `.build-job-${nonce}.json`)
+  const resultPath = join(input.stagingDirectory, `.build-result-${nonce}.json`)
+  const {signal: _signal, ...serializableInput} = input
+  const job: StorybookPackageBuildWorkerJob = Object.freeze({
+    input: serializableInput,
+    options,
   })
-  await previous
+  await Bun.write(jobPath, `${JSON.stringify(job)}\n`)
+  const child = Bun.spawn([process.execPath, workerPath, jobPath, resultPath], {
+    cwd: input.descriptor.projectRoot,
+    env: {...Bun.env, STORYBOOK_PACKAGE_BUILD_WORKER: "1"},
+    stdin: "ignore",
+    stdout: "ignore",
+    stderr: "pipe",
+  })
   try {
-    return await operation()
+    const {exitCode, stderr} = await waitForChild(
+      child,
+      input.signal,
+      input.compileTimeoutMs,
+      "Storybook package compile",
+    )
+    input.signal.throwIfAborted()
+    if (!existsSync(resultPath)) {
+      throw storybookBuildError(storybookDiagnostic(
+        exitCode === 0 ? "compile" : "compile",
+        stderr.trim() || `Storybook package build worker exited ${exitCode} without a result`,
+      ))
+    }
+    const result = JSON.parse(readFileSync(resultPath, "utf8")) as StorybookPackageBuildWorkerResult
+    if (result.ok) return result.build
+    const diagnostics = result.diagnostics.flatMap((diagnostic) =>
+      isWorkerDiagnosticPhase(diagnostic.phase)
+        ? [storybookDiagnostic(diagnostic.phase, diagnostic.message, diagnostic.path)]
+        : [])
+    throw storybookBuildError(diagnostics.length > 0
+      ? diagnostics
+      : storybookDiagnostic("compile", result.message))
   } finally {
-    release()
+    rmSync(jobPath, {force: true})
+    rmSync(resultPath, {force: true})
   }
+}
+
+async function waitForChild(
+  child: any,
+  signal: AbortSignal,
+  timeoutMs: number,
+  label: string,
+): Promise<Readonly<{exitCode: number, stdout: string, stderr: string}>> {
+  let timedOut = false
+  let abortReason: unknown = null
+  let hardKill: ReturnType<typeof setTimeout> | null = null
+  const terminate = (reason: unknown, timeout: boolean): void => {
+    abortReason = reason
+    timedOut = timeout
+    try {
+      child.kill()
+      hardKill = setTimeout(() => {
+        try {
+          child.kill(9)
+        } catch {
+          // The exact child already exited.
+        }
+      }, 250)
+    } catch {
+      // The exact child already exited.
+    }
+  }
+  const onAbort = (): void => terminate(signal.reason, false)
+  signal.addEventListener("abort", onAbort, {once: true})
+  const timer = setTimeout(() => terminate(new Error(`${label} timed out after ${timeoutMs}ms`), true), timeoutMs)
+  try {
+    const [exitCode, stdout, stderr] = await Promise.all([
+      child.exited,
+      readBoundedStream(child.stdout, 64 * 1024),
+      readBoundedStream(child.stderr, 64 * 1024),
+    ])
+    if (signal.aborted) throw abortReason instanceof Error ? abortReason : signal.reason
+    if (timedOut) {
+      const error = storybookBuildError(storybookDiagnostic(
+        "timeout",
+        abortReason instanceof Error ? abortReason.message : `${label} timed out`,
+      ))
+      error.name = "TimeoutError"
+      throw error
+    }
+    return Object.freeze({exitCode, stdout, stderr})
+  } finally {
+    clearTimeout(timer)
+    if (hardKill !== null) clearTimeout(hardKill)
+    signal.removeEventListener("abort", onAbort)
+  }
+}
+
+async function readBoundedStream(stream: unknown, limit: number): Promise<string> {
+  if (stream === null || stream === undefined || typeof stream === "number") return ""
+  const reader = (stream as ReadableStream<Uint8Array>).getReader()
+  const chunks: Uint8Array[] = []
+  let length = 0
+  try {
+    while (length < limit) {
+      const next = await reader.read()
+      if (next.done) break
+      const remaining = limit - length
+      const chunk = next.value.byteLength <= remaining ? next.value : next.value.slice(0, remaining)
+      chunks.push(chunk)
+      length += chunk.byteLength
+    }
+  } finally {
+    await reader.cancel().catch(() => {})
+  }
+  const value = new Uint8Array(length)
+  let offset = 0
+  for (const chunk of chunks) {
+    value.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  return new TextDecoder().decode(value)
+}
+
+function isWorkerDiagnosticPhase(
+  value: string,
+): value is Parameters<typeof storybookDiagnostic>[0] {
+  return ["resolve", "validate", "compile", "link", "protocol", "publish", "watch", "activation", "timeout"]
+    .includes(value)
 }
 
 async function validateModuleExports(
@@ -261,6 +437,8 @@ async function validateRuntimeProtocol(
   runtimeProtocolPath: string,
   stagingDirectory: string,
   plugins: readonly Bun.BunPlugin[],
+  signal: AbortSignal,
+  timeoutMs: number,
 ): Promise<void> {
   const runtime = descriptor.runtime
   if (runtime === null) return
@@ -296,11 +474,12 @@ async function validateRuntimeProtocol(
     stdout: "pipe",
     stderr: "pipe",
   })
-  const [exitCode, stdout, stderr] = await Promise.all([
-    child.exited,
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-  ])
+  const {exitCode, stdout, stderr} = await waitForChild(
+    child,
+    signal,
+    timeoutMs,
+    "Storybook runtime protocol validation",
+  )
   if (exitCode !== 0) {
     const message = [stderr.trim(), stdout.trim()].filter(Boolean).join("\n") ||
       `Runtime protocol validation exited ${exitCode}`
@@ -318,9 +497,14 @@ function canonicalBuildInputs(
       ? [path]
       : [resolve(projectRoot, path), resolve(process.cwd(), path)]
     const candidate = candidates.find(existsSync)
-    return candidate === undefined ? [] : [realpathSync(candidate)]
+    return candidate === undefined ? [] : [stableBuildInputPath(candidate)]
   })
   return Object.freeze([...new Set(paths)].sort())
+}
+
+function stableBuildInputPath(path: string): string {
+  const absolute = resolve(path)
+  return join(realpathSync(dirname(absolute)), basename(absolute))
 }
 
 function validateConsumerBoundary(
@@ -344,18 +528,18 @@ function validateConsumerBoundary(
 }
 
 function validatePackageIdentities(paths: readonly string[]): void {
-  const identities = new Map<string, string>()
+  const identities = new Map<string, Readonly<{root: string; path: string}>>()
   for (const path of paths) {
     const owner = nearestPackage(path)
     if (owner === null) continue
     const current = identities.get(owner.name)
-    if (current !== undefined && current !== owner.root) {
+    if (current !== undefined && current.root !== owner.root) {
       throw storybookBuildError(storybookDiagnostic(
         "link",
-        `Package ${owner.name} resolved to two realpaths: ${current} and ${owner.root}`,
+        `Package ${owner.name} resolved to two realpaths: ${current.root} via ${current.path} and ${owner.root} via ${path}`,
       ))
     }
-    identities.set(owner.name, owner.root)
+    identities.set(owner.name, Object.freeze({root: owner.root, path}))
   }
 }
 

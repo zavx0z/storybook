@@ -45,7 +45,10 @@ export type ExternalStorybookClientPackageSummary = Readonly<{
   declarationDigest: string
   moduleGraphRevision: string | null
   candidateRevision: string | null
+  builtRevision: string | null
+  activatingRevision: string | null
   activeRevision: string | null
+  lastWorkingRevision: string | null
   lastGoodRevision: string | null
   buildState: StorybookPackageBuildState
   diagnostics: readonly ExternalStorybookClientDiagnostic[]
@@ -175,7 +178,10 @@ function projectPackageSummary(
     declarationDigest: safeRevision(snapshot.declarationDigest, "declaration digest"),
     moduleGraphRevision: optionalRevision(snapshot.moduleGraphRevision, "module graph revision"),
     candidateRevision: optionalRevision(snapshot.candidateRevision, "candidate revision"),
+    builtRevision: optionalRevision(snapshot.builtRevision ?? null, "built revision"),
+    activatingRevision: optionalRevision(snapshot.activatingRevision ?? null, "activating revision"),
     activeRevision: optionalRevision(snapshot.activeRevision, "active revision"),
+    lastWorkingRevision: optionalRevision(snapshot.lastWorkingRevision ?? snapshot.lastGoodRevision, "last-working revision"),
     lastGoodRevision: optionalRevision(snapshot.lastGoodRevision, "last-good revision"),
     buildState,
     diagnostics: Object.freeze(snapshot.diagnostics.map((diagnostic) =>
@@ -198,6 +204,8 @@ function projectDiagnostic(
     "protocol",
     "publish",
     "watch",
+    "activation",
+    "timeout",
   ])
   if (!phases.has(diagnostic.phase)) {
     throw new Error(`Unknown external Storybook diagnostic phase: ${String(diagnostic.phase)}`)
@@ -279,7 +287,7 @@ function validatePackageId(value: string): string {
 }
 
 function validateBuildState(value: StorybookPackageBuildState): StorybookPackageBuildState {
-  if (!["idle", "building", "ready", "failed", "disposed"].includes(value)) {
+  if (!["idle", "building", "built", "activating", "active", "ready", "failed", "disposed"].includes(value)) {
     throw new Error(`Unknown external Storybook package build state: ${String(value)}`)
   }
   return value

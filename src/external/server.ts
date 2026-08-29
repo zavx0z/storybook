@@ -1,5 +1,6 @@
-import {randomUUID} from "node:crypto"
+import {randomBytes, randomUUID} from "node:crypto"
 import {
+  chmodSync,
   existsSync,
   mkdirSync,
   readFileSync,
@@ -11,18 +12,46 @@ import {
 import {basename, dirname, extname, isAbsolute, join, relative, resolve, sep} from "node:path"
 import {fileURLToPath} from "node:url"
 import {createExternalStorybookClientSnapshot} from "./browser/client-protocol.ts"
-import {StorybookDependencyWatchCoordinator} from "./dependency-watch.ts"
-import {externalStorybookArtifactRoot, createExternalStorybookServerRecord, externalStorybookServerStatePath, readExternalStorybookServerRecord, writeExternalStorybookServerRecord, type ExternalStorybookServerRecord} from "./server-state.ts"
+import {StorybookDependencyWatchCoordinator, StorybookDirtyRefreshCoordinator} from "./dependency-watch.ts"
+import {assertExternalStorybookStartLease, externalStorybookArtifactRoot, createExternalStorybookServerRecord, externalStorybookServerStatePath, readExternalStorybookServerRecord, writeExternalStorybookServerRecord, writeExternalStorybookStartCandidate, type ExternalStorybookServerRecord} from "./server-state.ts"
 import {ExternalStorybookRegistry, type ExternalStorybookRegistrySnapshot} from "./registry.ts"
 import {createStorybookPackageRevisionBuilder} from "./package-build.ts"
 import {ExternalStorybookSessionManager} from "./session-manager.ts"
 import {externalStorybookNode, resolveExternalStorybookRoute} from "./graph.ts"
-import type {StorybookPackageEvent} from "./package-session.ts"
+import {storybookDiagnostic, type StorybookPackageEvent} from "./package-session.ts"
+import {createExternalStorybookResourceAllowList} from "./resource-allowlist.ts"
+import {StorybookEventHub} from "./events.ts"
+import {externalStorybookImplementationDigest} from "./implementation-digest.ts"
+import {
+  ExternalStorybookSecurityError,
+  assertExternalStorybookControlRequest,
+  assertExternalStorybookRequestHost,
+  assertExternalStorybookRequestOrigin,
+} from "./security.ts"
+
+const STORYBOOK_CONTROL_BODY_MAX_BYTES = 65_536
+const STORYBOOK_WEBSOCKET_MESSAGE_MAX_BYTES = 8_192
+const STORYBOOK_BROWSER_SESSION_TTL_MS = 120_000
+const STORYBOOK_BROWSER_SESSION_MAX_ENTRIES = 1_024
 
 type StorybookWebSocketData = {
   subscriptions: Set<string>
   unsubscribers: Map<string, () => void>
+  grant: StorybookBrowserSessionGrant
+  sessionToken: string
 }
+
+type StorybookBrowserSessionGrant = Readonly<{
+  kind: "registry" | "package"
+  packageId: string | null
+  revision: string | null
+  viewId: string | null
+  activationId: string | null
+  packageGraphDigest: string | null
+  allowedTopics: ReadonlySet<string>
+  expiresAt: number
+  release(): void
+}>
 
 export type ExternalStorybookServerOptions = Readonly<{
   declarations?: readonly string[]
@@ -35,6 +64,7 @@ export type ExternalStorybookServerOptions = Readonly<{
   fallbackEntryPath?: string
   packageBrowserEntryPath?: string
   writeServerRecord?: typeof writeExternalStorybookServerRecord
+  startLease?: Readonly<{path: string; token: string}>
 }>
 
 export type ExternalStorybookRunningServer = Readonly<{
@@ -42,9 +72,10 @@ export type ExternalStorybookRunningServer = Readonly<{
   record: ExternalStorybookServerRecord
   registry: ExternalStorybookRegistry
   sessions: ExternalStorybookSessionManager
+  watch: StorybookDependencyWatchCoordinator
   server: Bun.Server<StorybookWebSocketData>
   stopped: Promise<void>
-  stop(): void
+  stop(): Promise<void>
 }>
 
 /** Starts the one external Storybook HTTP/WebSocket process on an automatic port. */
@@ -52,24 +83,30 @@ export async function startExternalStorybookServer(
   options: ExternalStorybookServerOptions = {},
 ): Promise<ExternalStorybookRunningServer> {
   const toolRoot = realpathSync(options.toolRoot ?? fileURLToPath(new URL("../../", import.meta.url)))
+  const implementationDigest = externalStorybookImplementationDigest(toolRoot)
   const statePath = resolve(options.statePath ?? externalStorybookServerStatePath())
   const artifactRoot = resolve(options.artifactRoot ?? externalStorybookArtifactRoot())
   const writeServerRecord = options.writeServerRecord ?? writeExternalStorybookServerRecord
-  mkdirSync(artifactRoot, {recursive: true})
+  mkdirSync(artifactRoot, {recursive: true, mode: 0o700})
+  chmodSync(artifactRoot, 0o700)
   const registry = new ExternalStorybookRegistry()
   if ((options.declarations?.length ?? 0) > 0) await registry.attachMany(options.declarations!)
   const clients = new Set<Bun.ServerWebSocket<StorybookWebSocketData>>()
   const watch = new StorybookDependencyWatchCoordinator()
-  let serverRecord: ExternalStorybookServerRecord
+  let serverRecord!: ExternalStorybookServerRecord
+  let serverRecordCreated = false
   let stoppedResolve: () => void
   const stopped = new Promise<void>((resolvePromise) => {
     stoppedResolve = resolvePromise
   })
   let closing = false
-  let structuralRefresh: Promise<void> | null = null
+  let closePromise: Promise<void> | null = null
   let sharedAssets: Promise<SharedBrowserAssets> | null = null
+  const browserSessions = new StorybookBrowserSessionRegistry()
+  const eventHub = new StorybookEventHub<StorybookPackageEvent | RegistryEvent | OpenEvent>()
 
   const publish = (event: StorybookPackageEvent | RegistryEvent | OpenEvent): number => {
+    eventHub.publish(event)
     const browserEvent = event.type === "package.failed"
       ? sanitizePackageFailure(event, registry, () => sessions.snapshots())
       : event
@@ -100,16 +137,8 @@ export async function startExternalStorybookServer(
 
   const refreshStructuralWatch = (): void => {
     const snapshot = registry.snapshot()
-    const paths = snapshot.graph.nodes.flatMap((node) => [
-      node.source.path,
-      ...(node.readmePath === null ? [] : [node.readmePath]),
-      ...node.resources.map(({path}) => path),
-    ])
-    watch.replace("__registry__", [...new Set(paths)], () => {
-      if (structuralRefresh !== null) return
-      structuralRefresh = refreshRegistry().finally(() => {
-        structuralRefresh = null
-      })
+    watch.replace("__registry__", externalStorybookStructuralWatchPaths(snapshot), () => {
+      void structuralRefresh.request()
     })
   }
 
@@ -164,22 +193,40 @@ export async function startExternalStorybookServer(
       }))
     }
   }
+  const structuralRefresh = new StorybookDirtyRefreshCoordinator(refreshRegistry)
 
   let server!: Bun.Server<StorybookWebSocketData>
-  server = Bun.serve<StorybookWebSocketData>({
+  try {
+    server = Bun.serve<StorybookWebSocketData>({
     hostname: options.hostname ?? "127.0.0.1",
     port: options.port ?? 0,
     fetch: async (request, currentServer) => {
       const url = new URL(request.url)
-      if (url.pathname === "/api/events") {
-        if (currentServer.upgrade(request, {data: {subscriptions: new Set(), unsubscribers: new Map()}})) return
-        return responseJson({error: "WebSocket upgrade failed"}, 400)
-      }
       try {
+        assertExternalStorybookRequestHost(request, server.url.origin)
+        if (url.pathname === "/api/events") {
+          assertExternalStorybookRequestOrigin(request, server.url.origin, {required: true})
+          if (request.headers.get("upgrade")?.toLowerCase() !== "websocket") {
+            return responseJson({error: "Storybook WebSocket upgrade is required"}, 426)
+          }
+          const sessionToken = websocketSessionToken(url)
+          const grant = browserSessions.consume(sessionToken)
+          if (currentServer.upgrade(request, {
+            data: {subscriptions: new Set(), unsubscribers: new Map(), grant, sessionToken},
+          })) return
+          return responseJson({error: "WebSocket upgrade failed"}, 400)
+        }
+        if (url.pathname.startsWith("/api/control/")) {
+          assertExternalStorybookControlRequest(request, {
+            origin: server.url.origin,
+            controlToken: serverRecord.controlToken,
+          })
+        }
         if (url.pathname === "/api/health" && request.method === "GET") {
           return responseJson({
             ok: true,
             protocol: "external-storybook-server/1",
+            instanceId: serverRecord.instanceId,
             origin: server.url.origin,
             registryRevision: registry.snapshot().revision,
             graphDigest: registry.snapshot().graph.digest,
@@ -187,9 +234,29 @@ export async function startExternalStorybookServer(
         }
         if (url.pathname === "/api/status" && request.method === "GET") {
           const snapshot = registry.snapshot()
+          const client = createExternalStorybookClientSnapshot(snapshot.graph, sessions.snapshots())
           return responseJson({
             ok: true,
             origin: server.url.origin,
+            instanceId: serverRecord.instanceId,
+            registryRevision: snapshot.revision,
+            roots: snapshot.entries.map(({rootKind, canonicalId, digest, descendantIds}) => ({
+              rootKind,
+              canonicalId,
+              digest,
+              descendantCount: descendantIds.length,
+            })),
+            graphDigest: snapshot.graph.digest,
+            packages: client.packages,
+          })
+        }
+        if (url.pathname === "/api/control/status" && request.method === "GET") {
+          const snapshot = registry.snapshot()
+          return responseJson({
+            ok: true,
+            origin: server.url.origin,
+            instanceId: serverRecord.instanceId,
+            registryRevision: snapshot.revision,
             entries: snapshot.entries,
             graphDigest: snapshot.graph.digest,
             packages: sessions.snapshots(),
@@ -199,30 +266,129 @@ export async function startExternalStorybookServer(
           const snapshot = registry.snapshot()
           return responseJson(createExternalStorybookClientSnapshot(snapshot.graph, sessions.snapshots()))
         }
-        if (url.pathname === "/api/attach" && request.method === "POST") {
+        if (url.pathname === "/api/browser/activation" && request.method === "POST") {
+          assertExternalStorybookRequestOrigin(request, server.url.origin, {required: true})
+          const token = request.headers.get("x-storybook-session") ?? ""
+          const grant = browserSessions.authorize(token)
+          if (grant.kind !== "package" || grant.packageId === null || grant.revision === null ||
+            grant.viewId === null || grant.activationId === null || grant.packageGraphDigest === null) {
+            throw new Error("Storybook browser session has no activation authority")
+          }
           const body = await requestObject(request)
-          const path = requiredText("attach path", body.path)
-          const snapshot = await mutateRegistry(() => registry.attach(path, "cli"))
-          return responseJson({ok: true, entry: snapshot.entries.at(-1), graphDigest: snapshot.graph.digest})
+          assertExactRequestKeys(body, [
+            "activationId", "diagnostic", "frameSequence", "packageGraphDigest",
+            "packageId", "revision", "route", "working",
+          ])
+          const packageId = requiredText("activation packageId", body.packageId)
+          const revision = requiredText("activation revision", body.revision)
+          const activationId = requiredText("activation id", body.activationId)
+          const packageGraphDigest = requiredText("activation graph digest", body.packageGraphDigest)
+          const route = typeof body.route === "string" ? body.route : requiredText("activation route", body.route)
+          if (typeof body.working !== "boolean") throw new Error("Storybook activation working must be boolean")
+          if (packageId !== grant.packageId || revision !== grant.revision ||
+            activationId !== grant.activationId || packageGraphDigest !== grant.packageGraphDigest) {
+            throw new Error("Storybook browser activation does not match its scoped session")
+          }
+          const session = sessions.session(packageId)
+          const result = body.working === true
+            ? session.acknowledgeActivation({
+              revision,
+              activationId,
+              viewId: grant.viewId,
+              route,
+              packageGraphDigest,
+              frameSequence: Number(body.frameSequence),
+            })
+            : session.failActivation({
+              revision,
+              activationId,
+              diagnostic: storybookDiagnostic(
+                "activation",
+                typeof body.diagnostic === "string" ? body.diagnostic.slice(0, 4_096) : "Storybook browser activation failed",
+              ),
+            })
+          return responseJson({ok: body.working === true, package: result})
         }
-        if (url.pathname === "/api/detach" && request.method === "POST") {
+        if (url.pathname === "/api/control/attach" && request.method === "POST") {
           const body = await requestObject(request)
+          assertExactRequestKeys(body, ["roots"])
+          const roots = requiredTextList("attach roots", body.roots, 32)
+          const snapshot = await mutateRegistry(() => registry.attachMany(roots, "cli"))
+          return responseJson({
+            ok: true,
+            attached: snapshot.entries.slice(-roots.length).map(({rootKind, canonicalId, digest}) => ({
+              rootKind,
+              canonicalId,
+              digest,
+            })),
+            graphDigest: snapshot.graph.digest,
+          })
+        }
+        if (url.pathname === "/api/control/detach" && request.method === "POST") {
+          const body = await requestObject(request)
+          assertExactRequestKeys(body, ["scopeId"])
           const scopeId = requiredText("detach scopeId", body.scopeId)
           const snapshot = await mutateRegistry(() => registry.detach(scopeId))
           return responseJson({ok: true, graphDigest: snapshot.graph.digest})
         }
-        if (url.pathname === "/api/check" && request.method === "POST") {
+        if (url.pathname === "/api/control/check" && request.method === "POST") {
           const body = await requestObject(request)
+          assertExactRequestKeys(body, ["live", "scope"])
           const scope = body.scope === undefined || body.scope === null
             ? null
             : requiredText("check scope", body.scope)
           const packageIds = resolveCheckPackages(registry.snapshot(), scope)
           const results = await Promise.all(packageIds.map((packageId) => sessions.ensure(packageId)))
-          const ok = results.every(({buildState, activeRevision}) => buildState === "ready" && activeRevision !== null)
-          return responseJson({ok, packages: results}, ok ? 200 : 422)
+          const ok = results.every((snapshot) => packageBuildSucceeded(snapshot))
+          return responseJson({ok, graphDigest: registry.snapshot().graph.digest, packages: results})
         }
-        if (url.pathname === "/api/open" && request.method === "POST") {
+        if (url.pathname === "/api/control/wait" && request.method === "POST") {
           const body = await requestObject(request)
+          assertExactRequestKeys(body, ["afterRevision", "condition", "packageId", "timeoutMs", "viewId"])
+          const packageId = body.packageId === null || body.packageId === undefined
+            ? null
+            : requiredText("wait packageId", body.packageId)
+          const condition = requiredText("wait condition", body.condition)
+          if (!new Set(["built", "active", "ready", "presented", "failed"]).has(condition)) {
+            throw new Error(`Unknown Storybook wait condition: ${condition}`)
+          }
+          if (packageId === null) throw new Error("Server-side Storybook wait requires packageId")
+          const afterRevision = body.afterRevision === null || body.afterRevision === undefined
+            ? null
+            : requiredText("wait afterRevision", body.afterRevision)
+          const timeoutMs = Number(body.timeoutMs ?? 30_000)
+          if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 100 || timeoutMs > 120_000) {
+            throw new Error("Storybook wait timeout must be between 100 and 120000 ms")
+          }
+          const current = sessions.session(packageId).snapshot()
+          const reached = packageCondition(current, condition, afterRevision)
+          if (reached !== null) return responseJson({
+            ok: true,
+            timeout: false,
+            condition,
+            previousRevision: afterRevision,
+            currentRevision: reached,
+            package: current,
+          })
+          const event = await eventHub.wait((candidate) => packageEventCondition(
+            candidate,
+            packageId,
+            condition,
+            afterRevision,
+          ), {timeoutMs, signal: request.signal})
+          const next = sessions.session(packageId).snapshot()
+          return responseJson({
+            ok: event !== null,
+            timeout: event === null,
+            condition,
+            previousRevision: afterRevision,
+            currentRevision: packageCondition(next, condition, afterRevision),
+            package: next,
+          })
+        }
+        if (url.pathname === "/api/control/open" && request.method === "POST") {
+          const body = await requestObject(request)
+          assertExactRequestKeys(body, ["packageId", "route"])
           const packageId = requiredText("open packageId", body.packageId)
           const route = body.route === undefined || body.route === ""
             ? ""
@@ -237,7 +403,10 @@ export async function startExternalStorybookServer(
           const delivered = publish(event)
           return responseJson({ok: true, delivered, url: new URL(resolvedRoute.urlPath, server.url).href})
         }
-        if (url.pathname === "/api/stop" && request.method === "POST") {
+        if (url.pathname === "/api/control/stop" && request.method === "POST") {
+          const body = await requestObject(request)
+          assertExactRequestKeys(body, ["confirm"])
+          if (body.confirm !== true) throw new Error("External Storybook stop requires confirm: true")
           setTimeout(() => close(), 25)
           return responseJson({ok: true})
         }
@@ -259,11 +428,15 @@ export async function startExternalStorybookServer(
           return fileResponse(join(toolRoot, url.pathname), "application/schema+json; charset=utf-8")
         }
         if (url.pathname.startsWith("/packages/") && request.method === "GET") {
-          return packagePageResponse(url, registry, sessions, ensureSharedAssets)
+          return packagePageResponse(url, registry, sessions, ensureSharedAssets, browserSessions, server.url.origin)
         }
         if (request.method === "GET" && isLandingPath(registry.snapshot(), url.pathname)) {
           const assets = await ensureSharedAssets()
-          return htmlResponse(storybookHtml("Storybook", `/__storybook/shared/${assets.landingEntry}`, "landing"))
+          const session = browserSessions.issue({kind: "registry", packageId: null, revision: null})
+          return htmlResponse(
+            storybookHtml("Storybook", `/__storybook/shared/${assets.landingEntry}`, "landing", session.token, null),
+            server.url.origin,
+          )
         }
         return responseJson({error: "Unknown external Storybook route"}, 404)
       } catch (error) {
@@ -271,18 +444,27 @@ export async function startExternalStorybookServer(
       }
     },
     websocket: {
+      maxPayloadLength: STORYBOOK_WEBSOCKET_MESSAGE_MAX_BYTES,
       open(websocket) {
         clients.add(websocket)
       },
       message(websocket, message) {
         try {
-          const value = JSON.parse(typeof message === "string" ? message : new TextDecoder().decode(message)) as unknown
+          const source = typeof message === "string" ? message : new TextDecoder().decode(message)
+          if (new TextEncoder().encode(source).byteLength > STORYBOOK_WEBSOCKET_MESSAGE_MAX_BYTES) {
+            throw new Error("Storybook WebSocket message is too large")
+          }
+          const value = JSON.parse(source) as unknown
           if (value === null || typeof value !== "object") throw new Error("Subscription must be an object")
           const record = value as Record<string, unknown>
+          assertExactRequestKeys(record, ["type", "topic"])
           if (record.type !== "subscribe") throw new Error("Unknown Storybook WebSocket message")
           const topic = requiredText("subscription topic", record.topic)
           if (topic !== "registry" && !topic.startsWith("package:")) {
             throw new Error(`Invalid Storybook subscription topic: ${topic}`)
+          }
+          if (!websocket.data.grant.allowedTopics.has(topic)) {
+            throw new Error(`Storybook browser session is not authorized for topic: ${topic}`)
           }
           if (topic.startsWith("package:") && !websocket.data.unsubscribers.has(topic)) {
             const packageId = topic.slice("package:".length)
@@ -297,18 +479,46 @@ export async function startExternalStorybookServer(
       close(websocket) {
         for (const unsubscribe of websocket.data.unsubscribers.values()) unsubscribe()
         websocket.data.unsubscribers.clear()
+        browserSessions.release(websocket.data.sessionToken)
         clients.delete(websocket)
       },
     },
-  })
+    })
+  } catch (error) {
+    await sessions.dispose()
+    watch.dispose()
+    browserSessions.dispose()
+    eventHub.close()
+    stoppedResolve!()
+    throw error
+  }
 
-  serverRecord = createExternalStorybookServerRecord({
-    toolRoot,
-    origin: server.url.origin,
-    attachedDeclarations: registry.snapshot().entries.map(({declarationPath}) => declarationPath),
-  })
-  writeServerRecord(statePath, serverRecord)
-  refreshStructuralWatch()
+  try {
+    serverRecord = createExternalStorybookServerRecord({
+      toolRoot,
+      origin: server.url.origin,
+      implementationDigest,
+      attachedDeclarations: registry.snapshot().entries.map(({declarationPath}) => declarationPath),
+    })
+    if (options.startLease === undefined) {
+      writeServerRecord(statePath, serverRecord)
+    } else {
+      writeExternalStorybookStartCandidate(options.startLease, serverRecord)
+      await waitForStartupPublication(options.startLease, serverRecord, statePath)
+    }
+    serverRecordCreated = true
+    refreshStructuralWatch()
+  } catch (error) {
+    await sessions.dispose()
+    watch.remove("__registry__")
+    watch.dispose()
+    browserSessions.dispose()
+    eventHub.close()
+    server.stop(true)
+    if (serverRecordCreated) removeOwnedState(statePath, serverRecord)
+    stoppedResolve!()
+    throw error
+  }
 
   const ensureSharedAssets = (): Promise<SharedBrowserAssets> => {
     sharedAssets ??= buildSharedBrowserAssets({
@@ -323,24 +533,32 @@ export async function startExternalStorybookServer(
     return sharedAssets
   }
 
-  const close = (): void => {
-    if (closing) return
+  const close = (): Promise<void> => {
+    if (closePromise !== null) return closePromise
     closing = true
-    for (const client of clients) client.close(1001, "Storybook server stopped")
-    clients.clear()
-    sessions.dispose()
-    watch.remove("__registry__")
-    watch.dispose()
-    server.stop(true)
-    removeOwnedState(statePath, serverRecord)
-    stoppedResolve!()
+    closePromise = (async () => {
+      for (const client of clients) client.close(1001, "Storybook server stopped")
+      clients.clear()
+      watch.remove("__registry__")
+      watch.dispose()
+      browserSessions.dispose()
+      eventHub.close()
+      await sessions.dispose()
+      server.stop(true)
+      removeOwnedState(statePath, serverRecord)
+      stoppedResolve!()
+    })()
+    return closePromise
   }
 
   return Object.freeze({
     origin: server.url.origin,
-    record: serverRecord,
+    get record() {
+      return serverRecord
+    },
     registry,
     sessions,
+    watch,
     server,
     stopped,
     stop: close,
@@ -415,26 +633,85 @@ async function packagePageResponse(
   registry: ExternalStorybookRegistry,
   sessions: ExternalStorybookSessionManager,
   ensureSharedAssets: () => Promise<SharedBrowserAssets>,
+  browserSessions: StorybookBrowserSessionRegistry,
+  origin: string,
 ): Promise<Response> {
   const route = parsePackageRequest(url.pathname)
-  const graph = registry.snapshot().graph
-  const resolvedRoute = resolveExternalStorybookRoute(graph, route.packageId, route.routePath)
+  const snapshot = await sessions.ensure(route.packageId)
+  const revision = snapshot.builtRevision ?? snapshot.activatingRevision ??
+    snapshot.activeRevision ?? snapshot.lastWorkingRevision ?? snapshot.lastGoodRevision
+  if (revision === null) {
+    const assets = await ensureSharedAssets()
+    const browserSession = browserSessions.issue({
+      kind: "package",
+      packageId: route.packageId,
+      revision: null,
+    })
+    return htmlResponse(
+      storybookHtml(
+        `${route.packageId} · Storybook`,
+        `/__storybook/shared/${assets.fallbackEntry}`,
+        null,
+        browserSession.token,
+        null,
+        null,
+      ),
+      origin,
+    )
+  }
+  const session = sessions.session(route.packageId)
+  const graphSnapshot = session.revisionGraphSnapshot(revision)
+  if (graphSnapshot === null) throw new Error(`Storybook revision graph is missing: ${route.packageId}:${revision}`)
+  const resolvedRoute = graphSnapshot.routes.find(({path}) => path === route.routePath)
+  if (resolvedRoute === undefined) throw new Error(`Unknown Storybook revision route: ${route.packageId}:${route.routePath}`)
   if (resolvedRoute.urlPath !== url.pathname) {
     return new Response(null, {status: 308, headers: {location: resolvedRoute.urlPath}})
   }
-  const snapshot = await sessions.ensure(route.packageId)
-  if (snapshot.activeRevision === null || snapshot.entryRelativePath === null) {
-    const assets = await ensureSharedAssets()
-    return htmlResponse(storybookHtml(
-      `${route.packageId} · Storybook`,
-      `/__storybook/shared/${assets.fallbackEntry}`,
-    ))
-  }
-  const session = sessions.session(route.packageId)
-  const directory = session.revisionDirectory(snapshot.activeRevision)
+  const directory = session.revisionDirectory(revision)
   if (directory === null) throw new Error(`Active Storybook revision is missing: ${route.packageId}`)
-  const script = `${revisionBase(route.packageId, snapshot.activeRevision)}${snapshot.entryRelativePath}`
-  return htmlResponse(storybookHtml(`${route.packageId} · Storybook`, script))
+  const revisionRecord = snapshot.revisions?.find((candidate) => candidate.revision === revision)
+  if (revisionRecord === undefined) throw new Error(`Storybook revision record is missing: ${route.packageId}:${revision}`)
+  const viewId = `browser:${randomUUID()}`
+  const fallbackRevision = snapshot.builtRevision === revision
+    ? snapshot.activeRevision ?? snapshot.lastWorkingRevision ?? snapshot.lastGoodRevision
+    : null
+  const activation = snapshot.builtRevision === revision
+    ? session.beginActivation({revision, viewId, route: route.routePath})
+    : null
+  const lease = session.acquireRevisionLease(revision, viewId)
+  const script = `${revisionBase(route.packageId, revision)}${revisionRecord.entryRelativePath}`
+  const browserSession = browserSessions.issue({
+    kind: "package",
+    packageId: route.packageId,
+    revision,
+    viewId,
+    activationId: activation?.activationId ?? null,
+    packageGraphDigest: graphSnapshot.packageGraphDigest,
+    release: lease.release,
+  })
+  return htmlResponse(
+    storybookHtml(
+      `${route.packageId} · Storybook`,
+      script,
+      null,
+      browserSession.token,
+      activation?.activationId ?? null,
+      fallbackRevision === revision ? null : fallbackRevision,
+    ),
+    origin,
+  )
+}
+
+export function externalStorybookStructuralWatchPaths(
+  snapshot: ExternalStorybookRegistrySnapshot,
+): readonly string[] {
+  return Object.freeze([...new Set(snapshot.graph.nodes.flatMap((node) => [
+    node.source.path,
+    ...(node.readmePath === null || node.kind !== "workspace" && node.kind !== "project"
+      ? []
+      : [node.readmePath]),
+    ...(node.kind === "package" && node.packageJsonPath !== null ? [node.packageJsonPath] : []),
+  ]))].sort())
 }
 
 function parsePackageRequest(pathname: string): Readonly<{packageId: string, routePath: string}> {
@@ -473,6 +750,16 @@ function resourceResponse(snapshot: ExternalStorybookRegistrySnapshot, url: URL)
   if (encodeURIComponent(nodeId) !== encoded) throw new Error(`Non-canonical Storybook resource identity: ${encoded}`)
   const node = externalStorybookNode(snapshot.graph, nodeId)
   const ownerRoot = resourceOwnerRoot(snapshot, node.id)
+  let allowList
+  try {
+    allowList = createExternalStorybookResourceAllowList({
+      ownerRoot,
+      readmePath: node.readmePath,
+      declaredResources: node.resources,
+    })
+  } catch {
+    return responseJson({error: "Unknown Storybook resource"}, 404)
+  }
   const kind = url.searchParams.get("kind")
   if (kind !== null) {
     if ([...url.searchParams.keys()].some((key) => key !== "kind" && key !== "index")) {
@@ -486,7 +773,7 @@ function resourceResponse(snapshot: ExternalStorybookRegistrySnapshot, url: URL)
     const resources = node.resources.filter((resource) => resource.kind === kind)
     const resource = resources[Number(indexValue)]
     if (resource === undefined) return responseJson({error: "Unknown node resource"}, 404)
-    const path = canonicalContainedFile(resource.path, ownerRoot)
+    const path = allowList.resolveDeclaredResource(resource.path)
     return path === null
       ? responseJson({error: "Unknown node resource"}, 404)
       : fileResponse(path, contentType(path))
@@ -494,7 +781,7 @@ function resourceResponse(snapshot: ExternalStorybookRegistrySnapshot, url: URL)
   if ([...url.searchParams.keys()].length > 0) throw new Error("Unknown Storybook README resource query")
   if (node.readmePath === null) return responseJson({error: "Node has no README"}, 404)
   if (relativeSegments.length === 0 || relativeSegments.every((segment) => segment.length === 0)) {
-    const path = canonicalContainedFile(node.readmePath, ownerRoot)
+    const path = allowList.resolveReadmeFile(node.readmePath)
     return path === null
       ? responseJson({error: "Unknown README resource"}, 404)
       : fileResponse(path, "text/markdown; charset=utf-8")
@@ -507,9 +794,8 @@ function resourceResponse(snapshot: ExternalStorybookRegistrySnapshot, url: URL)
     }
     return decoded
   })
-  const path = canonicalContainedFile(
+  const path = allowList.resolveReadmeFile(
     resolve(dirname(node.readmePath), ...decodedSegments),
-    ownerRoot,
   )
   return path === null
     ? responseJson({error: "Unknown README resource"}, 404)
@@ -550,7 +836,7 @@ function fileInsideResponse(root: string, encodedPath: string): Response {
       encodeURIComponent(decoded) !== segment) {
       throw new Error(`Unsafe Storybook asset path: ${encodedPath}`)
     }
-    return decoded
+    return segment
   })
   const canonicalRoot = realpathSync(root)
   const path = canonicalContainedFile(resolve(canonicalRoot, ...segments), canonicalRoot)
@@ -590,6 +876,49 @@ function resolveCheckPackages(
     .map(({packageId}) => packageId!))
 }
 
+function packageBuildSucceeded(
+  snapshot: ReturnType<ExternalStorybookSessionManager["snapshots"]>[number],
+): boolean {
+  if ((snapshot.buildState === "active" || snapshot.buildState === "ready") &&
+    snapshot.activeRevision !== null) return true
+  if (snapshot.buildState === "activating" && snapshot.activatingRevision !== null &&
+    snapshot.diagnostics.length === 0) return true
+  return snapshot.buildState === "built" && snapshot.builtRevision !== null &&
+    snapshot.diagnostics.length === 0
+}
+
+function packageCondition(
+  snapshot: ReturnType<ExternalStorybookSessionManager["snapshots"]>[number],
+  condition: string,
+  afterRevision: string | null,
+): string | null {
+  const revision = condition === "built"
+    ? snapshot.builtRevision ?? snapshot.activeRevision
+    : condition === "failed"
+      ? snapshot.failedRevision ?? null
+      : snapshot.activeRevision
+  if (revision === null || revision === undefined || revision === afterRevision) return null
+  if (condition === "built" && !["built", "activating", "active", "ready"].includes(snapshot.buildState)) return null
+  if (condition === "failed" && snapshot.buildState !== "failed") return null
+  if (["active", "ready", "presented"].includes(condition) &&
+    !["active", "ready"].includes(snapshot.buildState)) return null
+  return revision
+}
+
+function packageEventCondition(
+  event: StorybookPackageEvent | RegistryEvent | OpenEvent,
+  packageId: string,
+  condition: string,
+  afterRevision: string | null,
+): boolean {
+  if (!("packageId" in event) || event.packageId !== packageId) return false
+  const revision = "revision" in event && typeof event.revision === "string" ? event.revision : null
+  if (revision === afterRevision) return false
+  if (condition === "built") return event.type === "package.built" || event.type === "package.updated"
+  if (condition === "failed") return event.type === "package.failed"
+  return event.type === "package.updated"
+}
+
 function declarationPathMatches(
   scope: string,
   canonicalId: string,
@@ -615,6 +944,151 @@ function matchesSubscription(
   return subscriptions.has("registry") || subscriptions.has(`package:${event.packageId}`)
 }
 
+export class StorybookBrowserSessionRegistry {
+  readonly #sessions = new Map<string, StorybookBrowserSessionGrant>()
+  readonly #active = new Map<string, StorybookBrowserSessionGrant>()
+  readonly #ttlMs: number
+  readonly #maxEntries: number
+  readonly #now: () => number
+
+  constructor(options: Readonly<{
+    ttlMs?: number
+    maxEntries?: number
+    now?: () => number
+  }> = {}) {
+    this.#ttlMs = boundedRegistryNumber(options.ttlMs ?? STORYBOOK_BROWSER_SESSION_TTL_MS, 1, 3_600_000, "TTL")
+    this.#maxEntries = boundedRegistryNumber(
+      options.maxEntries ?? STORYBOOK_BROWSER_SESSION_MAX_ENTRIES,
+      1,
+      100_000,
+      "entry limit",
+    )
+    this.#now = options.now ?? Date.now
+  }
+
+  issue(input: Readonly<{
+    kind: StorybookBrowserSessionGrant["kind"]
+    packageId: string | null
+    revision: string | null
+    viewId?: string | null
+    activationId?: string | null
+    packageGraphDigest?: string | null
+    release?: () => void
+  }>): Readonly<{token: string, grant: StorybookBrowserSessionGrant}> {
+    this.#removeExpired()
+    while (this.#sessions.size >= this.#maxEntries) {
+      const oldest = this.#sessions.keys().next().value
+      if (oldest === undefined) break
+      this.release(oldest)
+    }
+    if (input.kind === "registry" && (input.packageId !== null || input.revision !== null)) {
+      throw new Error("Registry browser session cannot carry package identity")
+    }
+    if (input.kind === "package" && input.packageId === null) {
+      throw new Error("Package browser session requires package identity")
+    }
+    const token = randomBytes(32).toString("base64url")
+    const allowedTopics = input.kind === "registry"
+      ? new Set<string>(["registry"])
+      : new Set<string>([`package:${input.packageId}`])
+    const grant = Object.freeze({
+      kind: input.kind,
+      packageId: input.packageId,
+      revision: input.revision,
+      viewId: input.viewId ?? null,
+      activationId: input.activationId ?? null,
+      packageGraphDigest: input.packageGraphDigest ?? null,
+      allowedTopics,
+      expiresAt: this.#now() + this.#ttlMs,
+      release: once(input.release ?? (() => {})),
+    })
+    this.#sessions.set(token, grant)
+    return Object.freeze({token, grant})
+  }
+
+  consume(token: string): StorybookBrowserSessionGrant {
+    this.#removeExpired()
+    if (!/^[A-Za-z0-9_-]{43}$/u.test(token)) this.#reject()
+    const grant = this.#sessions.get(token)
+    if (grant === undefined || grant.expiresAt <= this.#now()) this.#reject()
+    this.#sessions.delete(token)
+    const active = Object.freeze({...grant, expiresAt: Number.POSITIVE_INFINITY})
+    this.#active.set(token, active)
+    return active
+  }
+
+  authorize(token: string): StorybookBrowserSessionGrant {
+    this.#removeExpired()
+    if (!/^[A-Za-z0-9_-]{43}$/u.test(token)) this.#reject()
+    const grant = this.#active.get(token) ?? this.#sessions.get(token)
+    if (grant === undefined || grant.expiresAt <= this.#now()) this.#reject()
+    return grant
+  }
+
+  release(token: string): void {
+    const grant = this.#active.get(token) ?? this.#sessions.get(token)
+    this.#active.delete(token)
+    this.#sessions.delete(token)
+    grant?.release()
+  }
+
+  dispose(): void {
+    for (const grant of [...this.#sessions.values(), ...this.#active.values()]) grant.release()
+    this.#sessions.clear()
+    this.#active.clear()
+  }
+
+  #removeExpired(): void {
+    const now = this.#now()
+    for (const [token, grant] of this.#sessions) {
+      if (grant.expiresAt <= now) this.release(token)
+    }
+  }
+
+  #reject(): never {
+    throw new ExternalStorybookSecurityError(
+      "invalid-browser-session",
+      401,
+      "External Storybook browser session is missing, expired or invalid",
+    )
+  }
+}
+
+function boundedRegistryNumber(value: number, minimum: number, maximum: number, label: string): number {
+  if (!Number.isSafeInteger(value) || value < minimum || value > maximum) {
+    throw new RangeError(`Storybook browser session ${label} must be between ${minimum} and ${maximum}`)
+  }
+  return value
+}
+
+function websocketSessionToken(url: URL): string {
+  if ([...url.searchParams.keys()].some((key) => key !== "session")) {
+    throw new ExternalStorybookSecurityError(
+      "invalid-browser-session",
+      401,
+      "External Storybook WebSocket query is invalid",
+    )
+  }
+  const token = url.searchParams.get("session")
+  if (token === null || token.length === 0) {
+    throw new ExternalStorybookSecurityError(
+      "invalid-browser-session",
+      401,
+      "External Storybook browser session is required",
+    )
+  }
+  return token
+}
+
+function once(operation: () => void): () => void {
+  let called = false
+  return () => {
+    if (called) return
+    called = true
+    operation()
+  }
+}
+
 function sanitizePackageFailure(
   event: Extract<StorybookPackageEvent, {type: "package.failed"}>,
   registry: ExternalStorybookRegistry,
@@ -626,10 +1100,10 @@ function sanitizePackageFailure(
       snapshots(),
     ).packages.find(({packageId}) => packageId === event.packageId)
     return summary === undefined
-      ? {type: event.type, packageId: event.packageId, diagnostics: []}
-      : {type: event.type, packageId: event.packageId, diagnostics: summary.diagnostics}
+      ? {type: event.type, packageId: event.packageId, revision: event.revision, diagnostics: []}
+      : {type: event.type, packageId: event.packageId, revision: event.revision, diagnostics: summary.diagnostics}
   } catch {
-    return {type: event.type, packageId: event.packageId, diagnostics: []}
+    return {type: event.type, packageId: event.packageId, revision: event.revision, diagnostics: []}
   }
 }
 
@@ -637,13 +1111,23 @@ function revisionBase(packageId: string, revision: string): string {
   return `/__storybook/revisions/${encodeURIComponent(packageId)}/${revision}/`
 }
 
-function storybookHtml(title: string, script: string, entry: "landing" | null = null): string {
+function storybookHtml(
+  title: string,
+  script: string,
+  entry: "landing" | null = null,
+  browserSessionToken: string,
+  activationId: string | null,
+  fallbackRevision: string | null = null,
+): string {
   return `<!doctype html>
 <html lang="ru"${entry === null ? "" : ` data-external-storybook-entry="${entry}"`}>
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="engine-default-font" content="/assets/jetbrains-mono-bold.ttf">
+    <meta name="external-storybook-browser-session" content="${escapeHtml(browserSessionToken)}">
+    ${activationId === null ? "" : `<meta name="external-storybook-activation-id" content="${escapeHtml(activationId)}">`}
+    ${fallbackRevision === null ? "" : `<meta name="external-storybook-fallback-revision" content="${escapeHtml(fallbackRevision)}">`}
     <title>${escapeHtml(title)}</title>
     <style>html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#111}#external-storybook-canvas{display:block;width:100%;height:100%;touch-action:none}</style>
   </head>
@@ -655,22 +1139,44 @@ function storybookHtml(title: string, script: string, entry: "landing" | null = 
 }
 
 function responseJson(value: unknown, status = 200): Response {
-  return Response.json(value, {status, headers: {"cache-control": "no-store"}})
+  return Response.json(value, {status, headers: {
+    "cache-control": "no-store",
+    "x-content-type-options": "nosniff",
+  }})
 }
 
-function htmlResponse(value: string): Response {
+function htmlResponse(value: string, origin: string): Response {
+  const websocket = new URL(origin)
+  websocket.protocol = websocket.protocol === "https:" ? "wss:" : "ws:"
   return new Response(value, {
     headers: {
       "content-type": "text/html; charset=utf-8",
       "cache-control": "no-store",
-      "content-security-policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ws:",
+      "content-security-policy": [
+        "default-src 'self'",
+        "script-src 'self'",
+        "style-src 'self' 'unsafe-inline'",
+        "img-src 'self' data:",
+        `connect-src 'self' ${websocket.origin}`,
+        "object-src 'none'",
+        "base-uri 'none'",
+        "form-action 'none'",
+        "frame-ancestors 'none'",
+      ].join("; "),
+      "cross-origin-opener-policy": "same-origin",
+      "referrer-policy": "no-referrer",
+      "x-content-type-options": "nosniff",
     },
   })
 }
 
 function fileResponse(path: string, type: string): Response {
   if (!existsSync(path) || !statSync(path).isFile()) return responseJson({error: "File not found"}, 404)
-  return new Response(Bun.file(path), {headers: {"content-type": type, "cache-control": "no-cache"}})
+  return new Response(Bun.file(path), {headers: {
+    "content-type": type,
+    "cache-control": "no-cache",
+    "x-content-type-options": "nosniff",
+  }})
 }
 
 function contentType(path: string): string {
@@ -687,25 +1193,92 @@ function contentType(path: string): string {
 }
 
 async function requestObject(request: Request): Promise<Record<string, unknown>> {
-  const value = await request.json() as unknown
+  const contentLength = request.headers.get("content-length")
+  if (contentLength !== null && (!/^(?:0|[1-9][0-9]*)$/u.test(contentLength) ||
+    Number(contentLength) > STORYBOOK_CONTROL_BODY_MAX_BYTES)) {
+    throw new StorybookRequestError(413, "Storybook request body is too large")
+  }
+  const source = await boundedRequestText(request, STORYBOOK_CONTROL_BODY_MAX_BYTES)
+  let value: unknown
+  try {
+    value = JSON.parse(source)
+  } catch (error) {
+    throw new StorybookRequestError(400, "Storybook request body must contain valid JSON", error)
+  }
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     throw new Error("Storybook request body must be an object")
   }
   return value as Record<string, unknown>
 }
 
+async function boundedRequestText(request: Request, maxBytes: number): Promise<string> {
+  if (request.body === null) return ""
+  const reader = request.body.getReader()
+  const chunks: Uint8Array[] = []
+  let length = 0
+  while (true) {
+    const result = await reader.read()
+    if (result.done) break
+    length += result.value.byteLength
+    if (length > maxBytes) {
+      await reader.cancel("Storybook request body is too large")
+      throw new StorybookRequestError(413, "Storybook request body is too large")
+    }
+    chunks.push(result.value)
+  }
+  const bytes = new Uint8Array(length)
+  let offset = 0
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset)
+    offset += chunk.byteLength
+  }
+  try {
+    return new TextDecoder("utf-8", {fatal: true}).decode(bytes)
+  } catch (error) {
+    throw new StorybookRequestError(400, "Storybook request body must be UTF-8", error)
+  }
+}
+
 function requiredText(label: string, value: unknown): string {
-  if (typeof value !== "string" || value.trim().length === 0) {
+  if (typeof value !== "string" || value.trim().length === 0 || value.length > 4_096 ||
+    /[\u0000-\u001f\u007f]/u.test(value)) {
     throw new Error(`Storybook ${label} must be non-empty text`)
   }
   return value
 }
 
+function requiredTextList(label: string, value: unknown, maxItems: number): readonly string[] {
+  if (!Array.isArray(value) || value.length === 0 || value.length > maxItems) {
+    throw new Error(`Storybook ${label} must contain between 1 and ${maxItems} paths`)
+  }
+  return Object.freeze(value.map((entry, index) => requiredText(`${label}[${index}]`, entry)))
+}
+
+function assertExactRequestKeys(record: Record<string, unknown>, allowed: readonly string[]): void {
+  const accepted = new Set(allowed)
+  for (const key of Object.keys(record)) {
+    if (!accepted.has(key)) throw new Error(`Storybook request has unknown field: ${key}`)
+  }
+}
+
 function statusForError(error: unknown): number {
+  if (error instanceof ExternalStorybookSecurityError || error instanceof StorybookRequestError) {
+    return error.status
+  }
   const message = errorText(error)
   if (/Unknown|not found|does not exist|has no README/iu.test(message)) return 404
   if (/duplicate|ambiguous|already/iu.test(message)) return 409
   return 400
+}
+
+class StorybookRequestError extends Error {
+  readonly status: number
+
+  constructor(status: number, message: string, cause?: unknown) {
+    super(message, cause === undefined ? undefined : {cause})
+    this.name = "StorybookRequestError"
+    this.status = status
+  }
 }
 
 function errorText(error: unknown): string {
@@ -719,8 +1292,28 @@ function escapeHtml(value: string): string {
 function removeOwnedState(path: string, record: ExternalStorybookServerRecord): void {
   try {
     const current = readExternalStorybookServerRecord(path)
-    if (current.pid === record.pid && current.processStart === record.processStart) unlinkSync(path)
+    if (current.pid === record.pid && current.processStart === record.processStart &&
+      current.instanceId === record.instanceId && current.controlToken === record.controlToken) unlinkSync(path)
   } catch {
     // A missing or foreign state file is never removed.
   }
+}
+
+async function waitForStartupPublication(
+  lease: Readonly<{path: string; token: string}>,
+  record: ExternalStorybookServerRecord,
+  statePath: string,
+): Promise<void> {
+  const deadline = Date.now() + 20_000
+  while (Date.now() < deadline) {
+    if (existsSync(statePath)) {
+      const current = readExternalStorybookServerRecord(statePath)
+      if (current.pid === record.pid && current.processStart === record.processStart &&
+        current.instanceId === record.instanceId && current.controlToken === record.controlToken) return
+      throw new Error("Storybook startup state was published by another daemon")
+    }
+    assertExternalStorybookStartLease(lease.path, lease.token)
+    await Bun.sleep(25)
+  }
+  throw new DOMException("Storybook controller did not publish daemon state", "TimeoutError")
 }

@@ -31,6 +31,19 @@
       "minLength": 1,
       "pattern": "^(?!/)(?![A-Za-z]:)(?!.*\\\\).+$"
     },
+    "modulePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*[\\\\?#\\u0000-\\u001F\\u007F]).+$"
+    },
+    "exportName": {
+      "type": "string",
+      "pattern": "^(?:default|[$A-Z_a-z][$0-9A-Z_a-z]*)$"
+    },
+    "route": {
+      "type": "string",
+      "pattern": "^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?(?:/[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?)*$"
+    },
     "group": {
       "type": "object",
       "additionalProperties": false,
@@ -58,11 +71,8 @@
       "additionalProperties": false,
       "required": ["path", "export"],
       "properties": {
-        "path": {"$ref": "#/$defs/relativePath"},
-        "export": {
-          "type": "string",
-          "minLength": 1
-        }
+        "path": {"$ref": "#/$defs/modulePath"},
+        "export": {"$ref": "#/$defs/exportName"}
       }
     },
     "resources": {
@@ -85,11 +95,7 @@
         "id": {"$ref": "#/$defs/id"},
         "label": {"$ref": "#/$defs/label"},
         "group": {"$ref": "#/$defs/group"},
-        "route": {
-          "type": "string",
-          "minLength": 1,
-          "pattern": "^(?!/)(?!.*//)(?!.*[?#\\\\])(?!\\.{1,2}(?:/|$))(?!.*\\/\\.{1,2}(?:/|$)).*[^/]$"
-        },
+        "route": {"$ref": "#/$defs/route"},
         "module": {"$ref": "#/$defs/module"},
         "resources": {"$ref": "#/$defs/resources"}
       }
@@ -102,11 +108,7 @@
         "id": {"$ref": "#/$defs/id"},
         "kind": {"$ref": "#/$defs/id"},
         "label": {"$ref": "#/$defs/label"},
-        "route": {
-          "type": "string",
-          "minLength": 1,
-          "pattern": "^(?!/)(?!.*//)(?!.*[?#\\\\])(?!\\.{1,2}(?:/|$))(?!.*\\/\\.{1,2}(?:/|$)).*[^/]$"
-        },
+        "route": {"$ref": "#/$defs/route"},
         "apiName": {"$ref": "#/$defs/label"},
         "readme": {"$ref": "#/$defs/relativePath"},
         "tags": {"$ref": "#/$defs/stringList"},
@@ -124,11 +126,7 @@
       "properties": {
         "id": {"$ref": "#/$defs/id"},
         "label": {"$ref": "#/$defs/label"},
-        "route": {
-          "type": "string",
-          "minLength": 1,
-          "pattern": "^(?!/)(?!.*//)(?!.*[?#\\\\])(?!\\.{1,2}(?:/|$))(?!.*\\/\\.{1,2}(?:/|$)).*[^/]$"
-        },
+        "route": {"$ref": "#/$defs/route"},
         "group": {"$ref": "#/$defs/group"},
         "subjects": {
           "type": "array",

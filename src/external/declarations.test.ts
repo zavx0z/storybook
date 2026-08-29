@@ -273,6 +273,15 @@ describe("external Storybook JSON declarations", () => {
     await expect(resolveExternalStorybookDeclarations([duplicateRoute]))
       .rejects.toThrow("Duplicate external Storybook route")
 
+    const leafPrefix = await cloneFixture()
+    await updateComponentsCatalog(leafPrefix, (catalog) => {
+      const categories = asRecords(catalog.categories)
+      categories[0] = {...categories[0], route: "components/button/basic/contained/overview"}
+      return {...catalog, categories}
+    })
+    await expect(resolveExternalStorybookDeclarations([leafPrefix]))
+      .rejects.toThrow("leaf route cannot contain another route")
+
     const groupConflict = await cloneFixture()
     await updateComponentsCatalog(groupConflict, (catalog) => {
       const categories = asRecords(catalog.categories)

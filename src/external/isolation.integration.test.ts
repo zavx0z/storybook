@@ -7,8 +7,8 @@ import {startExternalStorybookServer, type ExternalStorybookRunningServer} from 
 const roots: string[] = []
 const servers: ExternalStorybookRunningServer[] = []
 
-afterEach(() => {
-  for (const server of servers.splice(0)) server.stop()
+afterEach(async () => {
+  await Promise.all(servers.splice(0).map((server) => server.stop()))
   for (const root of roots.splice(0)) rmSync(root, {recursive: true, force: true})
 })
 
@@ -21,19 +21,18 @@ describe("one-server package isolation", () => {
       artifactRoot: join(fixture.root, "artifacts"),
     })
     servers.push(running)
-    const aSocket = await packageSocket(running.origin, "@fixture/a")
-    const bSocket = await packageSocket(running.origin, "@fixture/b")
-
-    const [aPage, bPage] = await Promise.all([
-      fetch(new URL("/packages/%40fixture%2Fa/catalog/a/default", running.origin)),
-      fetch(new URL("/packages/%40fixture%2Fb/catalog/b/default", running.origin)),
+    await Promise.all([
+      running.sessions.ensure("@fixture/a"),
+      running.sessions.ensure("@fixture/b"),
     ])
-    expect(aPage.status).toBe(200)
-    expect(bPage.status).toBe(200)
+    activateSession(running, "@fixture/a", "catalog/a/default")
+    activateSession(running, "@fixture/b", "catalog/b/default")
+    const aSocket = await packageSocket(running.origin, "@fixture/a", "catalog/a/default")
+    const bSocket = await packageSocket(running.origin, "@fixture/b", "catalog/b/default")
     const initialA = running.sessions.session("@fixture/a").snapshot()
     const initialB = running.sessions.session("@fixture/b").snapshot()
-    expect(initialA.buildState, JSON.stringify(initialA.diagnostics)).toBe("ready")
-    expect(initialB.buildState, JSON.stringify(initialB.diagnostics)).toBe("ready")
+    expect(initialA.buildState, JSON.stringify(initialA.diagnostics)).toBe("active")
+    expect(initialB.buildState, JSON.stringify(initialB.diagnostics)).toBe("active")
     expect(initialA.subscribers).toBe(1)
     expect(initialB.subscribers).toBe(1)
     expect(running.sessions.session("@fixture/c").snapshot().builds).toBe(0)
@@ -43,9 +42,13 @@ describe("one-server package isolation", () => {
     writeFileSync(fixture.aStory, storySource("A2", "../../../shared.ts"))
     await waitFor(() => {
       const snapshot = running.sessions.session("@fixture/a").snapshot()
-      return snapshot.builds >= 2 && snapshot.buildState === "ready" &&
-        snapshot.activeRevision !== initialA.activeRevision
+      return snapshot.builds >= 2 && snapshot.buildState === "built" &&
+        snapshot.builtRevision !== initialA.activeRevision
     })
+    expect(await aSocket.waitFor("package.built")).toMatchObject({packageId: "@fixture/a"})
+    const builtA = running.sessions.session("@fixture/a").snapshot()
+    expect(builtA.activeRevision).toBe(initialA.activeRevision)
+    activateSession(running, "@fixture/a", "catalog/a/default")
     const updatedA = running.sessions.session("@fixture/a").snapshot()
     expect(updatedA.activeRevision).not.toBe(initialA.activeRevision)
     expect(running.sessions.session("@fixture/b").snapshot().activeRevision).toBe(initialB.activeRevision)
@@ -61,15 +64,16 @@ describe("one-server package isolation", () => {
     expect(failedA.activeRevision).toBe(updatedA.activeRevision)
     expect(failedA.lastGoodRevision).toBe(lastGood)
     expect(failedA.diagnostics.length).toBeGreaterThan(0)
-    expect(running.sessions.session("@fixture/b").snapshot().buildState).toBe("ready")
+    expect(running.sessions.session("@fixture/b").snapshot().buildState).toBe("active")
     expect(await aSocket.waitFor("package.failed")).toMatchObject({packageId: "@fixture/a"})
 
     aSocket.clear()
     writeFileSync(fixture.aStory, storySource("A3", "../../../shared.ts"))
     await waitFor(() => {
       const snapshot = running.sessions.session("@fixture/a").snapshot()
-      return snapshot.buildState === "ready" && snapshot.activeRevision !== updatedA.activeRevision
+      return snapshot.buildState === "built" && snapshot.builtRevision !== updatedA.activeRevision
     })
+    activateSession(running, "@fixture/a", "catalog/a/default")
     expect(running.sessions.session("@fixture/a").snapshot().diagnostics).toEqual([])
     expect(await aSocket.waitFor("package.updated")).toMatchObject({packageId: "@fixture/a"})
 
@@ -81,6 +85,11 @@ describe("one-server package isolation", () => {
     await waitFor(() =>
       running.sessions.session("@fixture/a").snapshot().builds > beforeSharedA &&
       running.sessions.session("@fixture/b").snapshot().builds > beforeSharedB)
+    await waitFor(() =>
+      running.sessions.session("@fixture/a").snapshot().buildState === "built" &&
+      running.sessions.session("@fixture/b").snapshot().buildState === "built")
+    activateSession(running, "@fixture/a", "catalog/a/default")
+    activateSession(running, "@fixture/b", "catalog/b/default")
     expect(await aSocket.waitFor("package.updated")).toMatchObject({packageId: "@fixture/a"})
     expect(await bSocket.waitFor("package.updated")).toMatchObject({packageId: "@fixture/b"})
     expect(running.sessions.session("@fixture/c").snapshot().builds).toBe(0)
@@ -101,10 +110,20 @@ describe("one-server package isolation", () => {
 
 type SocketEvent = Readonly<Record<string, any> & {type: string}>
 
-async function packageSocket(origin: string, packageId: string) {
-  const url = new URL("/api/events", origin)
+async function packageSocket(origin: string, packageId: string, route: string) {
+  const page = await fetch(new URL(`/packages/${encodeURIComponent(packageId)}/${route}`, origin))
+  expect(page.status).toBe(200)
+  const token = (await page.text()).match(
+    /<meta name="external-storybook-browser-session" content="([A-Za-z0-9_-]+)">/u,
+  )?.[1]
+  if (token === undefined) throw new Error("Storybook package browser session is missing")
+  const url = new URL(`/api/events?session=${encodeURIComponent(token)}`, origin)
   url.protocol = "ws:"
-  const socket = new WebSocket(url.href)
+  const Constructor = WebSocket as unknown as new (
+    url: string,
+    options: Readonly<{headers: Readonly<Record<string, string>>}>,
+  ) => WebSocket
+  const socket = new Constructor(url.href, {headers: {origin}})
   const messages: SocketEvent[] = []
   await new Promise<void>((resolvePromise, reject) => {
     socket.addEventListener("open", () => resolvePromise(), {once: true})
@@ -130,6 +149,26 @@ async function packageSocket(origin: string, packageId: string) {
       socket.close()
     },
   }
+}
+
+function activateSession(
+  running: ExternalStorybookRunningServer,
+  packageId: string,
+  route: string,
+): void {
+  const session = running.sessions.session(packageId)
+  const before = session.snapshot()
+  const revision = before.builtRevision
+  if (revision === null || revision === undefined) throw new Error(`Fixture package is not built: ${packageId}`)
+  const activation = session.beginActivation({revision, viewId: `test:${packageId}`, route})
+  session.acknowledgeActivation({
+    revision,
+    activationId: activation.activationId,
+    viewId: activation.viewId,
+    route,
+    packageGraphDigest: activation.packageGraphDigest,
+    frameSequence: 1,
+  })
 }
 
 function createIsolationFixture() {

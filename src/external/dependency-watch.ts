@@ -10,6 +10,26 @@ export const STORYBOOK_DEPENDENCY_WATCH_INTERVAL_MS = 200
 export const STORYBOOK_DEPENDENCY_WATCH_MIN_INTERVAL_MS = 25
 export const STORYBOOK_DEPENDENCY_WATCH_MAX_INTERVAL_MS = 5_000
 
+export const STORYBOOK_WATCH_CATEGORIES = Object.freeze([
+  "declaration",
+  "code",
+  "metadata",
+  "resource",
+] as const)
+
+export type StorybookWatchCategory = typeof STORYBOOK_WATCH_CATEGORIES[number]
+
+export type StorybookCategorizedWatchPath = Readonly<{
+  path: string
+  category: StorybookWatchCategory
+}>
+
+export type StorybookCategorizedWatchEvent = Readonly<{
+  ownerId: string
+  path: string
+  categories: readonly StorybookWatchCategory[]
+}>
+
 export type StorybookDependencyWatchCallback = (canonicalPath: string) => void
 
 export type StorybookDependencyWatchListener = (
@@ -136,6 +156,42 @@ export class StorybookDependencyWatchCoordinator {
     return Object.freeze([...nextPaths].sort())
   }
 
+  /** Replaces one typed watch projection while retaining one watcher per realpath. */
+  replaceCategorized(
+    ownerId: string,
+    paths: readonly StorybookCategorizedWatchPath[],
+    callback: (event: StorybookCategorizedWatchEvent) => void,
+  ): readonly string[] {
+    this.#assertActive()
+    const id = requiredText("ownerId", ownerId)
+    if (!Array.isArray(paths)) throw new TypeError("Storybook categorized watch paths must be an array")
+    if (typeof callback !== "function") {
+      throw new TypeError(`Storybook categorized watch callback must be a function: ${id}`)
+    }
+    const categoriesByPath = new Map<string, Set<StorybookWatchCategory>>()
+    for (const [index, value] of paths.entries()) {
+      if (value === null || typeof value !== "object") {
+        throw new TypeError(`Storybook categorized watch path ${index} must be an object`)
+      }
+      const path = realpathSync(resolve(requiredText(`paths[${index}].path`, value.path)))
+      if (!STORYBOOK_WATCH_CATEGORIES.includes(value.category)) {
+        throw new TypeError(`Unknown Storybook watch category: ${String(value.category)}`)
+      }
+      const categories = categoriesByPath.get(path) ?? new Set<StorybookWatchCategory>()
+      categories.add(value.category)
+      categoriesByPath.set(path, categories)
+    }
+    return this.replace(id, [...categoriesByPath.keys()], (path) => {
+      const categories = categoriesByPath.get(path)
+      if (categories === undefined) return
+      callback(Object.freeze({
+        ownerId: id,
+        path,
+        categories: Object.freeze(STORYBOOK_WATCH_CATEGORIES.filter((category) => categories.has(category))),
+      }))
+    })
+  }
+
   /** Removes one package without disturbing dependencies still used by peers. */
   remove(packageId: string): boolean {
     if (this.#disposed) return false
@@ -243,6 +299,49 @@ export class StorybookDependencyWatchCoordinator {
 
   #assertActive(): void {
     if (this.#disposed) throw new Error("Storybook dependency watch coordinator is disposed")
+  }
+}
+
+/** Coalesces refreshes without dropping a request that arrives during an active refresh. */
+export class StorybookDirtyRefreshCoordinator {
+  readonly #refresh: () => void | Promise<void>
+  readonly #onError: (error: unknown) => void
+  #dirty = false
+  #running: Promise<void> | null = null
+
+  constructor(
+    refresh: () => void | Promise<void>,
+    onError: (error: unknown) => void = () => {},
+  ) {
+    if (typeof refresh !== "function") throw new TypeError("Storybook refresh operation must be a function")
+    if (typeof onError !== "function") throw new TypeError("Storybook refresh error handler must be a function")
+    this.#refresh = refresh
+    this.#onError = onError
+  }
+
+  request(): Promise<void> {
+    this.#dirty = true
+    if (this.#running !== null) return this.#running
+    const running = this.#drain().finally(() => {
+      if (this.#running === running) this.#running = null
+    })
+    this.#running = running
+    return running
+  }
+
+  wait(): Promise<void> {
+    return this.#running ?? Promise.resolve()
+  }
+
+  async #drain(): Promise<void> {
+    while (this.#dirty) {
+      this.#dirty = false
+      try {
+        await this.#refresh()
+      } catch (error) {
+        this.#onError(error)
+      }
+    }
   }
 }
 

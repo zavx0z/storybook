@@ -1,4 +1,9 @@
 import {isAbsolute, normalize} from "node:path"
+import {
+  validateExternalStorybookExportName,
+  validateExternalStorybookPackageId,
+  validateExternalStorybookRoute,
+} from "./declaration-law.ts"
 
 export type StorybookGeneratedModule = Readonly<{
   path: string
@@ -42,7 +47,7 @@ export function generateStorybookLoaderSource(
     if (variant === null || typeof variant !== "object" || Array.isArray(variant)) {
       throw new TypeError(`Storybook variant ${index} must be an object`)
     }
-    const route = validateRoute(variant.route, `variant ${index} route`)
+    const route = validateExternalStorybookRoute(variant.route, `Storybook variant ${index} route`)
     if (routes.has(route)) throw new Error(`Duplicate Storybook variant route: ${route}`)
     routes.add(route)
     return Object.freeze({
@@ -93,7 +98,7 @@ function validateModule(
     throw new TypeError(`Storybook ${label} module must be an object`)
   }
   const path = validateModulePath(value.path, label)
-  const exportName = validateExportName(value.export, label)
+  const exportName = validateExternalStorybookExportName(value.export, `Storybook ${label} export`)
   return Object.freeze({
     url: path,
     export: exportName,
@@ -133,8 +138,13 @@ function validEncodedPackageSegment(value: string): boolean {
   } catch {
     return false
   }
-  return encodeURIComponent(decoded) === value &&
-    /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/u.test(decoded)
+  if (encodeURIComponent(decoded) !== value) return false
+  try {
+    validateExternalStorybookPackageId(decoded, "Storybook revision package")
+    return true
+  } catch {
+    return false
+  }
 }
 
 function validateModulePath(value: string, label: string): string {
@@ -150,23 +160,6 @@ function validateModulePath(value: string, label: string): string {
   }
   if (normalized !== value) throw new Error(`Storybook ${label} module path is not canonical: ${value}`)
   return normalized
-}
-
-function validateExportName(value: string, label: string): string {
-  if (typeof value !== "string" ||
-    !/^(?:default|[$A-Z_a-z][$0-9A-Z_a-z]*)$/u.test(value)) {
-    throw new Error(`Invalid Storybook ${label} export: ${String(value)}`)
-  }
-  return value
-}
-
-function validateRoute(value: string, label: string): string {
-  if (typeof value !== "string" || value.length === 0 ||
-    value.split("/").some((segment) =>
-      !/^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?$/u.test(segment))) {
-    throw new Error(`Invalid Storybook ${label}: ${String(value)}`)
-  }
-  return value
 }
 
 function unsafeDecodedSegment(value: string): boolean {

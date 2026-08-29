@@ -11,7 +11,7 @@ const contracts = Object.freeze({
   routeTree: contract(
     "Canonical graph and routes",
     "Versioned standalone package, project and optional workspace declarations resolve atomically into one immutable graph. Package, category and subject overviews remain real states; unknown routes fail closed.",
-    "Owners provide ordered JSON. External Storybook derives landing, navigation, search, URLs, build lookup and the future MCP viewport from the same identities; a failed attach leaves the current registry unchanged.",
+    "Owners provide ordered JSON. External Storybook derives landing, navigation, search, URLs, build lookup and the current MCP viewport from the same identities; a failed attach leaves the current registry unchanged.",
     "storybook check ./packages/components",
   ),
   stories: contract(
@@ -35,7 +35,7 @@ const contracts = Object.freeze({
   references: contract(
     "Owner evidence resources",
     "Reference metadata and media remain linked owner resources for a later acceptance stage.",
-    "This stage does not create captures, baselines, visual diffs or acceptance state.",
+    "MCP may create bounded evidence captures, but this stage does not create accepted baselines, visual diffs or owner acceptance state.",
     "resources.references: [\"./reference.png\"]",
   ),
   app: contract(
@@ -46,14 +46,14 @@ const contracts = Object.freeze({
   ),
   server: contract(
     "One server and origin",
-    "storybook serve owns one automatic-port HTTP/WebSocket process for every attached root and package tab.",
-    "No consumer package starts a listener or declares a Storybook port.",
-    "storybook serve ./workspace ./standalone-package",
+    "One daemon owns automatic-port HTTP/WebSocket state for every attached root and package tab; MCP connection lifetime is independent.",
+    "The shared controller migrates verified legacy TMPDIR state, rejects foreign checkouts and fences daemon publication with one atomic startup lease; no consumer owns a listener or port.",
+    "storybook serve ./workspace\nstorybook_ensure({roots})",
   ),
   launcher: contract(
-    "External CLI",
-    "Attach, detach, open, status, check and stop address the existing server. Repeated attach/open never starts a second process.",
-    "Named package tabs reuse storybook:<package-id>.",
+    "MCP and human adapters",
+    "Ensure, attach, search, open, wait, inspect, interact, capture, check, close and explicit administration call one typed controller.",
+    "Opaque views persistently reuse a bridge-attested storybook:<package-id> target across MCP processes and server origins; confirmed duplicates are reconciled only after ready.",
     [
       "storybook attach ./project",
       "storybook detach project-id",
@@ -61,6 +61,7 @@ const contracts = Object.freeze({
       "storybook status",
       "storybook check @ui/components",
       "storybook stop",
+      "background direct CDP; no Chrome activation, ai-macos, @meta/chrome or browser CLI",
     ].join("\n"),
   ),
   scaffold: contract(
@@ -71,15 +72,15 @@ const contracts = Object.freeze({
   ),
   build: contract(
     "Independent PackageSession",
-    "Each package has its own compiler graph, isolated candidate staging, active and last-good published revisions and diagnostics.",
-    "Only an atomically published revision is immutable. A failed candidate never replaces last-good or cancels successful peers.",
-    "resolve → validate → compile → link → protocol → publish",
+    "Each package has a serial queue, isolated candidate, immutable built revision, exact graph snapshot, activation lease and lastWorking diagnostics.",
+    "Only browser-acknowledged create → mount → presented frame promotes active/lastWorking. A failed candidate never cancels successful peers.",
+    "candidate → built → activating → active/lastWorking",
   ),
   environment: contract(
     "Package-scoped updates",
-    "Metafile realpaths invalidate only sessions that actually contain a changed dependency.",
-    "package.updated reloads only matching tabs; package.failed preserves their route and last-good presentation.",
-    "{type: \"package.updated\", packageId, revision}",
+    "Metafile identities and typed declaration/code/metadata/resource watchers invalidate only their owning sessions; local README assets are allowlisted and watched explicitly.",
+    "Package-scoped events reload only matching views; package.failed preserves route and lastWorking presentation.",
+    "package.code-updated | package.resources-updated | package.metadata-updated | package.updated",
   ),
 })
 

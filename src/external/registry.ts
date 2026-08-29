@@ -1,4 +1,5 @@
 import {createHash} from "node:crypto"
+import {dirname, join, relative} from "node:path"
 import {
   EXTERNAL_STORYBOOK_SCHEMA_VERSION,
   resolveExternalStorybookDeclarations,
@@ -11,6 +12,12 @@ import {
   type ExternalStorybookGraph,
 } from "./graph.ts"
 import type {StorybookPackageBuildDescriptor} from "./package-session.ts"
+import {
+  createStorybookPackageRevisionGraphSnapshot,
+  revisionDeclaredResourcePath,
+  revisionReadmeResourcePath,
+} from "./package-revision.ts"
+import {createExternalStorybookResourceAllowList} from "./resource-allowlist.ts"
 
 export type ExternalStorybookAttachSource = "cli" | "workspace" | "project" | "direct-package"
 
@@ -175,6 +182,15 @@ export function externalStorybookPackageDescriptors(
     if (variants.length > 0 && declaration.runtime === null) {
       throw new Error(`Executable package has no Storybook runtime: ${declaration.id}`)
     }
+    const readmeAssetsByNode = new Map(graph.nodes.flatMap((candidate) => {
+      if (candidate.packageId !== declaration.id || candidate.readmePath === null) return []
+      const assets = createExternalStorybookResourceAllowList({
+        ownerRoot: declaration.scopeRoot,
+        readmePath: candidate.readmePath,
+        declaredResources: candidate.resources,
+      }).entries.filter(({kind}) => kind === "readme-asset").map(({path}) => path)
+      return [[candidate.id, Object.freeze(assets)] as const]
+    }))
     const watchedPaths = [
       declaration.manifestPath,
       ...(declaration.catalog === null ? [] : [declaration.catalog.path]),
@@ -183,16 +199,70 @@ export function externalStorybookPackageDescriptors(
         candidate.packageId === declaration.id
           ? [
             ...(candidate.readmePath === null ? [] : [candidate.readmePath]),
+            ...(readmeAssetsByNode.get(candidate.id) ?? []),
             ...candidate.resources.map(({path}) => path),
           ]
           : []),
     ]
+    const watchPaths = [
+      {path: declaration.manifestPath, category: "declaration" as const},
+      ...(declaration.catalog === null
+        ? []
+        : [{path: declaration.catalog.path, category: "declaration" as const}]),
+      {path: declaration.packageJsonPath, category: "metadata" as const},
+      {path: declaration.packageJsonPath, category: "code" as const},
+      ...(declaration.readmePath === null
+        ? []
+        : [{path: declaration.readmePath, category: "metadata" as const}]),
+      ...graph.nodes.flatMap((candidate) => candidate.packageId === declaration.id
+        ? [
+          ...(candidate.readmePath === null
+            ? []
+            : [{path: candidate.readmePath, category: "metadata" as const}]),
+          ...(readmeAssetsByNode.get(candidate.id) ?? [])
+            .map((path) => ({path, category: "resource" as const})),
+          ...candidate.resources.map(({path}) => ({path, category: "resource" as const})),
+        ]
+        : []),
+    ]
+    const declarationDigest = packageDeclarationDigest(declaration, graph)
+    const resourceFiles = graph.nodes.flatMap((candidate) => {
+      if (candidate.packageId !== declaration.id) return []
+      const indexes = new Map<string, number>()
+      return [
+        ...(candidate.readmePath === null
+          ? []
+          : [{sourcePath: candidate.readmePath, targetPath: revisionReadmeResourcePath(candidate.id)}]),
+        ...(candidate.readmePath === null ? [] : (readmeAssetsByNode.get(candidate.id) ?? []).map((sourcePath) => ({
+          sourcePath,
+          targetPath: join(
+            dirname(revisionReadmeResourcePath(candidate.id)),
+            relative(dirname(candidate.readmePath!), sourcePath),
+          ),
+        }))),
+        ...candidate.resources.map((resource) => {
+          const index = indexes.get(resource.kind) ?? 0
+          indexes.set(resource.kind, index + 1)
+          return {
+            sourcePath: resource.path,
+            targetPath: revisionDeclaredResourcePath(candidate.id, resource.kind, index, resource.path),
+          }
+        }),
+      ]
+    })
     return Object.freeze({
       packageId: declaration.id,
       packageRoot: declaration.scopeRoot,
       projectRoot,
       manifestPath: declaration.manifestPath,
-      declarationDigest: packageDeclarationDigest(declaration, graph),
+      declarationDigest,
+      resourceFiles: Object.freeze(resourceFiles),
+      watchPaths: Object.freeze(watchPaths),
+      graphSnapshot: createStorybookPackageRevisionGraphSnapshot(
+        graph,
+        declaration.id,
+        declarationDigest,
+      ),
       runtime: declaration.runtime === null
         ? null
         : {path: declaration.runtime.path, export: declaration.runtime.exportName},

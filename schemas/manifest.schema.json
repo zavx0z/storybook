@@ -18,7 +18,7 @@
     },
     "packageId": {
       "type": "string",
-          "pattern": "^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$"
+      "pattern": "^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$"
     },
     "label": {
       "type": "string",
@@ -28,6 +28,15 @@
       "type": "string",
       "minLength": 1,
       "pattern": "^(?!/)(?![A-Za-z]:)(?!.*\\\\).+$"
+    },
+    "modulePath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?![A-Za-z]:)(?!.*[\\\\?#\\u0000-\\u001F\\u007F]).+$"
+    },
+    "exportName": {
+      "type": "string",
+      "pattern": "^(?:default|[$A-Z_a-z][$0-9A-Z_a-z]*)$"
     },
     "declarationReference": {
       "type": "object",
@@ -42,11 +51,8 @@
       "additionalProperties": false,
       "required": ["module", "export"],
       "properties": {
-        "module": {"$ref": "#/$defs/relativePath"},
-        "export": {
-          "type": "string",
-          "minLength": 1
-        }
+        "module": {"$ref": "#/$defs/modulePath"},
+        "export": {"$ref": "#/$defs/exportName"}
       }
     },
     "workspace": {

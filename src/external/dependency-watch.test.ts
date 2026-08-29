@@ -12,6 +12,7 @@ import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {
   StorybookDependencyWatchCoordinator,
+  StorybookDirtyRefreshCoordinator,
   type StorybookDependencyWatchError,
   type StorybookDependencyUnwatchFile,
   type StorybookDependencyWatchFile,
@@ -130,6 +131,55 @@ describe("shared external Storybook dependency watch", () => {
   test("rejects an invalid interval before creating any watcher", () => {
     expect(() => new StorybookDependencyWatchCoordinator({intervalMs: 0}))
       .toThrow("Invalid Storybook dependency watch interval")
+  })
+
+  test("projects typed categories over one canonical watcher", () => {
+    const root = fixtureRoot()
+    const metadata = sourceFile(root, "package.json")
+    const story = sourceFile(root, "story.ts")
+    const watcher = fakeWatcher()
+    const coordinator = createCoordinator(watcher)
+    const events: Array<Readonly<{path: string, categories: readonly string[]}>> = []
+
+    coordinator.replaceCategorized("@fixture/a", [
+      {path: metadata, category: "metadata"},
+      {path: metadata, category: "code"},
+      {path: story, category: "code"},
+    ], ({path, categories}) => events.push({path, categories}))
+
+    expect(watcher.watchCalls).toHaveLength(2)
+    coordinator.notify(metadata)
+    coordinator.notify(story)
+    expect(events).toEqual([
+      {path: realpathSync(metadata), categories: ["code", "metadata"]},
+      {path: realpathSync(story), categories: ["code"]},
+    ])
+  })
+
+  test("does not lose a refresh requested during the active refresh", async () => {
+    let calls = 0
+    let release!: () => void
+    const gate = new Promise<void>((resolvePromise) => { release = resolvePromise })
+    const errors: string[] = []
+    const refresh = new StorybookDirtyRefreshCoordinator(async () => {
+      calls += 1
+      if (calls === 1) await gate
+      if (calls === 3) throw new Error("refresh failed")
+    }, (error) => errors.push(error instanceof Error ? error.message : String(error)))
+
+    const first = refresh.request()
+    refresh.request()
+    refresh.request()
+    release()
+    await first
+    expect(calls).toBe(2)
+
+    await refresh.request()
+    expect(calls).toBe(3)
+    expect(errors).toEqual(["refresh failed"])
+    await refresh.request()
+    expect(calls).toBe(4)
+    await refresh.wait()
   })
 })
 

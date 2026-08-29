@@ -95,6 +95,30 @@ describe("external Storybook browser client protocol", () => {
     expect(() => encodeExternalStorybookPackagePath("fixture/components")).toThrow()
   })
 
+  test("projects every package-session diagnostic phase", async () => {
+    const graph = await fixtureGraph()
+    const phases = [
+      "resolve",
+      "validate",
+      "compile",
+      "link",
+      "protocol",
+      "publish",
+      "watch",
+      "activation",
+      "timeout",
+    ] as const
+    const snapshots = packageSnapshots(graph, {
+      "@fixture/components": {
+        buildState: "failed",
+        diagnostics: phases.map((phase) => ({phase, message: `${phase} diagnostic`, path: null})),
+      },
+    })
+    const client = createExternalStorybookClientSnapshot(graph, snapshots)
+    expect(client.packages.find(({packageId}) => packageId === "@fixture/components")?.diagnostics)
+      .toEqual(phases.map((phase) => ({phase, message: `${phase} diagnostic`})))
+  })
+
   test("fails closed for unknown resource and session identities", async () => {
     const graph = await fixtureGraph()
     const snapshots = packageSnapshots(graph)
