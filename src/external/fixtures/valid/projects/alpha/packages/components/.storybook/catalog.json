@@ -1,0 +1,58 @@
+{
+  "$schema": "../../../../../../../../../schemas/catalog.schema.json",
+  "schemaVersion": 1,
+  "categories": [
+    {
+      "id": "foundation",
+      "label": "Foundation",
+      "subjects": [
+        {
+          "id": "event-target",
+          "kind": "interface",
+          "label": "EventTarget",
+          "apiName": "EventTarget",
+          "readme": "./docs/event-target.md",
+          "tags": ["events", "platform"],
+          "aliases": ["события"],
+          "variants": []
+        }
+      ]
+    },
+    {
+      "id": "components",
+      "label": "Components",
+      "group": {"id": "ui", "label": "UI"},
+      "subjects": [
+        {
+          "id": "button",
+          "kind": "component",
+          "label": "Button",
+          "apiName": "Button",
+          "tags": ["button", "control", "action"],
+          "aliases": ["кнопка"],
+          "variants": [
+            {
+              "id": "contained",
+              "label": "Contained",
+              "group": {"id": "basic", "label": "Basic"},
+              "route": "components/button/basic/contained",
+              "module": {"path": "./stories/button.ts", "export": "contained"},
+              "resources": {
+                "fixture": "./fixtures/button-contained.json",
+                "tests": ["../src/button.test.ts"],
+                "references": ["./references/button-contained.reference.json"],
+                "assets": ["./assets/button.svg"]
+              }
+            },
+            {
+              "id": "outlined",
+              "label": "Outlined",
+              "group": {"id": "basic", "label": "Basic"},
+              "module": {"path": "./stories/button.ts", "export": "outlined"}
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

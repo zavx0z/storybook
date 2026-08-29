@@ -1,7 +1,0 @@
-import {startStorybookPackageServer} from "@zavx0z/storybook/server"
-import {createStorybookApp, storybookStaticFiles} from "./app.ts"
-
-startStorybookPackageServer({
-  app: createStorybookApp(),
-  staticFiles: storybookStaticFiles(),
-})

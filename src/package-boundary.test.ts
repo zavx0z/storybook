@@ -1,92 +1,60 @@
 import {describe, expect, test} from "bun:test"
-import {join} from "node:path"
+import {existsSync} from "node:fs"
+import {join, resolve} from "node:path"
 
-const packageRoot = join(import.meta.dir, "..")
+const root = resolve(import.meta.dir, "..")
 
-describe("@zavx0z/storybook package boundary", () => {
-  test("publishes only the accepted exact subpaths", async () => {
-    const manifest = await Bun.file(join(packageRoot, "package.json")).json() as {
-      exports: Record<string, string>
-      bin: Record<string, string>
-      peerDependencies: Record<string, string>
-    }
-    expect(manifest.exports).toEqual({
-      "./route-tree": "./src/route-tree.ts",
-      "./stories": "./src/dom/stories.ts",
-      "./catalog": "./src/dom/catalog.ts",
-      "./workbench": "./src/dom/workbench.ts",
-      "./references": "./src/references.ts",
-      "./app": "./src/app.ts",
-      "./server": "./src/server.ts",
-      "./build": "./src/build.ts",
-      "./environment": "./src/environment.ts",
-      "./launcher": "./src/launcher.ts",
-      "./scaffold": "./src/scaffold.ts",
-    })
-    expect(manifest.exports).not.toHaveProperty(".")
-    expect(manifest.bin).toEqual({
-      storybook: "./scripts/storybook.ts",
-      "create-storybook": "./scripts/create-storybook.ts",
-    })
-    expect(manifest.peerDependencies).toEqual({
-      "@zavx0z/dom": "^0.1.0",
-    })
+describe("external @zavx0z/storybook tool boundary", () => {
+  test("publishes one CLI and no consumer code API", async () => {
+    const manifest = await Bun.file(join(root, "package.json")).json() as Record<string, any>
+    expect(manifest.private).toBeTrue()
+    expect(manifest.exports).toBeUndefined()
+    expect(manifest.bin).toEqual({storybook: "./scripts/storybook.ts"})
+    expect(manifest.peerDependencies).toBeUndefined()
+    expect(manifest.peerDependenciesMeta).toBeUndefined()
+    expect(manifest.scripts.storybook).toBe("bun scripts/storybook.ts")
+    expect(manifest.scripts.serve).toBe("bun scripts/storybook.ts serve .")
   })
 
-  test("contains no compatibility or repository-domain surface", async () => {
-    const glob = new Bun.Glob("**/*.ts")
-    const sources: string[] = []
-    for await (const path of glob.scan({cwd: import.meta.dir, onlyFiles: true})) {
-      if (path.endsWith(".test.ts") || path.endsWith(".d.ts")) continue
-      sources.push(await Bun.file(join(import.meta.dir, path)).text())
-    }
-    const source = sources.join("\n")
-    for (const forbidden of [
-      "@layout/core",
-      "@ui/components",
-      "@ui/elements",
-      "@ui/storybook",
-      "startStorybookServer",
-      "deepRoutes",
-      "NodeEditor",
-      "NodeCanvas",
-      "Socket",
-      "Parameter",
-      "Hamiltonian",
-      "Bulk",
-    ]) expect(source, forbidden).not.toContain(forbidden)
-
-    const manifest = await Bun.file(join(packageRoot, "package.json")).text()
-    for (const forbidden of [
-      '"./dom/',
-      '"@layout/core"',
-      '"@ui/components"',
-      '"@ui/elements"',
-      '"@zavx0z/highlighter"',
-    ]) expect(manifest, forbidden).not.toContain(forbidden)
-
-    for (const legacyPath of [
-      "src/stories.ts",
-      "src/workbench.ts",
-      "src/workbench/layout.ts",
-      "src/workbench/surfaces.ts",
-      "src/workbench/theme.ts",
-      "src/shell-theme.ts",
-    ]) expect(await Bun.file(join(packageRoot, legacyPath)).exists(), legacyPath).toBeFalse()
+  test("contains no package-local server, launcher, scaffold or npm template mode", () => {
+    for (const path of [
+      "app/server.ts",
+      "app/build.ts",
+      "scripts/create-storybook.ts",
+      "src/app.ts",
+      "src/build.ts",
+      "src/server.ts",
+      "src/launcher.ts",
+      "src/scaffold.ts",
+      "src/internal/package-runtime.ts",
+      "templates/package/package.json.template",
+    ]) expect(existsSync(join(root, path)), path).toBeFalse()
   })
 
-  test("keeps the Workbench tree on the DOM-only dependency boundary", async () => {
-    const source = await Promise.all([
-      Bun.file(join(import.meta.dir, "dom/workbench.ts")).text(),
-      Bun.file(join(import.meta.dir, "dom/navigation-tree.ts")).text(),
-    ]).then((files) => files.join("\n"))
-    for (const forbidden of [
-      "@engine/core",
-      "@layout/core",
-      "@ui/components",
-      "@ui/elements",
-      "@zavx0z/react",
-      "@zavx0z/renderer",
-    ]) expect(source, forbidden).not.toContain(forbidden)
+  test("self documentation is an ordinary declaration without Storybook imports", async () => {
+    const manifest = await Bun.file(join(root, ".storybook", "manifest.json")).json()
+    expect(manifest).toMatchObject({
+      schemaVersion: 1,
+      kind: "package",
+      id: "@zavx0z/storybook",
+      catalog: "./catalog.json",
+    })
+    for (const path of [
+      ".storybook/runtime.ts",
+      ".storybook/stories/contracts.ts",
+      ".storybook/stories/workbench.ts",
+    ]) expect(await Bun.file(join(root, path)).text(), path).not.toContain("@zavx0z/storybook")
+  })
+
+  test("shared browser shell uses exact internal owners rather than package exports", async () => {
+    const sources = await Promise.all([
+      "src/external/browser/shell.ts",
+      "src/external/browser/landing-entry.ts",
+      "src/external/browser/package-entry.ts",
+    ].map((path) => Bun.file(join(root, path)).text()))
+    expect(sources.join("\n")).not.toMatch(/from ["']@zavx0z\/storybook(?:\/[^"']*)?["']/u)
+    expect(sources.join("\n")).not.toContain("UiSurface")
+    expect(sources.join("\n")).not.toContain("@layout/core")
+    expect(sources.join("\n")).not.toContain("@ui/elements")
   })
 })

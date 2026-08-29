@@ -1,6 +1,0 @@
-/** Frozen starter fixture replaced or extended by the package owner. */
-export const EXAMPLE_FIXTURE = Object.freeze({
-  packageName: "__PACKAGE_NAME__",
-  message: "Первый package-owned Storybook scenario",
-  values: Object.freeze([1, 2, 3]),
-})

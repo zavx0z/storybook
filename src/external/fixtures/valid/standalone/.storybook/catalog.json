@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "categories": [
+    {
+      "id": "tools",
+      "label": "Tools",
+      "subjects": [
+        {
+          "id": "diagnostics",
+          "kind": "tool",
+          "label": "Diagnostics",
+          "variants": []
+        }
+      ]
+    }
+  ]
+}

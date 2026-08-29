@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/zavx0z/storybook/main/schemas/catalog.schema.json",
+  "schemaVersion": 1,
+  "categories": [{
+    "id": "fixture",
+    "label": "Fixture",
+    "subjects": [{
+      "id": "b",
+      "kind": "fixture",
+      "label": "Package B",
+      "variants": [{
+        "id": "default",
+        "label": "Default",
+        "route": "fixture/b/default",
+        "module": {"path": "./story.ts", "export": "story"}
+      }]
+    }]
+  }]
+}

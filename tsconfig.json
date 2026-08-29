@@ -17,6 +17,6 @@
     "noImplicitOverride": true,
     "exactOptionalPropertyTypes": true
   },
-  "include": ["src/**/*.ts", "app/**/*.ts", "scripts/**/*.ts"],
+  "include": ["src/**/*.ts", "scripts/**/*.ts", ".storybook/**/*.ts"],
   "exclude": ["dist", "node_modules"]
 }

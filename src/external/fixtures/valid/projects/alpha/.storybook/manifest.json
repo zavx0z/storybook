@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "kind": "project",
+  "id": "fixture-alpha",
+  "label": "Fixture Alpha",
+  "readme": "../README.md",
+  "packages": [
+    {"declaration": "../packages/components/.storybook/manifest.json"}
+  ]
+}

@@ -1,1191 +1,339 @@
 #!/usr/bin/env bun
 
-import {mkdir, rename, unlink} from "node:fs/promises"
-import {basename, dirname, isAbsolute, join, resolve} from "node:path"
-import {inspectStorybookPackage, resolveStorybookPackage} from "@zavx0z/storybook/launcher"
-import type {StorybookDevelopmentManifest} from "@zavx0z/storybook/server"
-import {runWithBackgroundFrameScheduling} from "../src/browser/background-frame-scheduling.ts"
-import {ensureStorybookCdp} from "../src/browser/cdp-bootstrap.ts"
-import {
-  CanvasEvidenceRejected,
-  acceptCanvasEvidence,
-  type CanvasEvidence,
-  type RawCanvasSnapshot,
-} from "../src/browser/canvas-evidence.ts"
-import {
-  assertInteractionEvidence,
-  executeInteractionPlan,
-  interactionExitCode,
-  interactionOutcome,
-  InteractionRenderBarrierRejected,
-  parseInteractionPlan,
-  runBackgroundInputMode,
-  runInteractionRenderBarrier,
-  validateInteractionInvocation,
-  type InteractionPlan,
-  type InteractionRenderBarrier,
-} from "../src/browser/interaction-plan.ts"
-import {storybookTargetUrl} from "../src/browser/target-url.ts"
-import {
-  clearStorybookBrowserTargetRecord,
-  readStorybookBrowserTargetRecord,
-  writeStorybookBrowserTargetRecord,
-  type StorybookBrowserTargetOwner,
-} from "../src/browser/target-record.ts"
-import {
-  withTargetCreationLock,
-  withTargetOperationLock,
-} from "../src/browser/target-operation-lock.ts"
+import {resolve} from "node:path"
+import {inspectExternalStorybookServer} from "../src/external/server-state.ts"
+import type {ExternalStorybookClientSnapshot} from "../src/external/browser/client-protocol.ts"
 
 type JsonObject = Record<string, unknown>
-type ReadyMarker = Readonly<{kind: "dataset"; name: string; value: string}>
-type CanvasDescriptor = Readonly<{
-  selector: string
-  capability: "webgpu" | "webgpu-diagnostic" | "none"
-  touch: boolean
-}>
-type Target = Readonly<{
+type BrowserTarget = Readonly<{
   id: string
-  type: string
   title: string
   url: string
-  webSocketDebuggerUrl?: string
-}>
-type TargetConfig = Readonly<{
-  checkout: string
-  packageName: string
-  origin: string
-  targetUrl: string
-  ready: ReadyMarker
-  canvas: CanvasDescriptor
-}>
-type Options = Readonly<{
-  repositoryRoot?: string
-  route?: string
-  targetId?: string
-  output?: string
-  outputDir?: string
-  canvasSelector?: string
-  plan?: string
-  activate: boolean
-  preserveRoute: boolean
-  durationMs: number
-  frames: number
-}>
-type ConsoleEntry = Readonly<{
-  source: "console" | "log"
-  level: string
-  text: string
-  timestamp?: number
-  url?: string
-  line?: number
 }>
 
-const [action, packageName, ...optionArgs] = Bun.argv.slice(2)
-const actions = new Set(["targets", "target", "open", "close", "reload", "dom", "console", "page", "canvas", "viewports", "touch", "profile", "interact"])
-
-if (action === undefined || packageName === undefined) {
-  fail("usage: storybook-browser.ts {targets|target|open|close|reload|dom|console|page|canvas|viewports|touch|profile|interact} <@scope/storybook> [--root <repository>] [options]")
-}
-if (!actions.has(action)) fail(`unknown browser action: ${action}`)
-
+const CHROME_ORIGIN = "http://127.0.0.1:7880"
+const actions = new Set(["targets", "target", "open", "close", "reload", "dom", "console", "page", "canvas"])
+const [action, scope, ...optionArgs] = Bun.argv.slice(2)
+if (action === undefined || scope === undefined || !actions.has(action)) usage()
 const options = parseOptions(optionArgs)
-if (options.activate && action !== "open" && action !== "reload") {
-  fail("--activate is supported only for open and reload")
+if (options.activate && action !== "open" && action !== "reload") usage()
+
+const inspection = await inspectExternalStorybookServer()
+if (inspection.state !== "running" || inspection.record === null) {
+  fail("External Storybook server is not running; run `storybook serve` first")
 }
-if (options.preserveRoute && action !== "open") fail("--preserve-route is supported only for open")
-if (options.preserveRoute && options.route !== undefined) fail("--preserve-route cannot be combined with --route")
-const checkout = resolve(options.repositoryRoot ?? readGitRoot(process.cwd()))
-validateCheckout(checkout)
-const packageIdentity = await resolveStorybookPackage(packageName, {repositoryRoot: checkout})
-const packageStatus = await inspectStorybookPackage(packageIdentity)
-if (packageStatus.status !== "running" || packageStatus.runtime === null) {
-  fail(`storybook package is not running through $storybook: ${packageName}; run ensure first`)
-}
-const developmentManifest = await loadDevelopmentManifest(
-  new URL(packageStatus.runtime.manifestPath, packageStatus.runtime.origin).href,
-)
-const cdpPort = Number(Bun.env.STORYBOOK_CDP_PORT ?? 9222)
-if (!Number.isInteger(cdpPort) || cdpPort < 1 || cdpPort > 65535) fail("STORYBOOK_CDP_PORT must be 1..65535")
-await withTargetCreationLock({creationScope: "cdp-bootstrap", cdpPort}, () => (
-  ensureStorybookCdp(cdpPort)
-))
-const targetOwner: StorybookBrowserTargetOwner = Object.freeze({
-  statePath: packageIdentity.statePath,
-  packageName: packageIdentity.name,
-  packageDirectory: packageIdentity.directory,
-  cdpPort,
-})
-const preservedRoute = options.preserveRoute
-  ? await recordedTargetRoute(targetOwner, developmentManifest, cdpPort)
-  : undefined
-const config = resolveTargetConfig(
-  checkout,
-  packageIdentity.name,
-  packageStatus.runtime.origin,
-  developmentManifest,
-  preservedRoute === undefined ? options : {...options, route: preservedRoute},
-)
-if (!new Set(["targets", "target", "close"]).has(action)) {
-  await validateRegistryRoute(config.targetUrl)
-}
-if (config.canvas.capability === "none" && new Set(["canvas", "viewports", "touch", "profile", "interact"]).has(action)) {
-  fail(`${action} is unsupported for ${config.packageName}: this route has no canvas`)
-}
-let interactionPlan: InteractionPlan | null = null
-if (action === "interact") {
-  if (options.route === undefined) fail("interact requires --route")
-  if (options.targetId === undefined) fail("interact requires --target-id")
-  interactionPlan = await loadInteractionPlan(
-    options.plan ?? fail("interact requires --plan <absolute-or-checkout-relative-json>"),
-    checkout,
-  )
-}
+const serverOrigin = inspection.record.origin
+const targetUrl = await resolveStorybookUrl(serverOrigin, scope, options.route)
+await chromeHealth()
+let targets = await chromeTargets()
+let candidates = candidateTargets(targets, serverOrigin, scope)
 
 if (action === "targets") {
-  output({
-    action,
-    checkout,
-    packageName: config.packageName,
-    origin: config.origin,
-    targetRecord: readStorybookBrowserTargetRecord(targetOwner),
-    targets: await candidateTargets(config, cdpPort),
-  })
+  output({action, scope, targetUrl, targets: candidates})
   process.exit(0)
 }
+
 if (action === "close") {
-  const targetId = options.targetId ?? fail("close requires --target-id <exact-created-target-id>")
-  const closed = await withTargetOperationLock({targetId, cdpPort}, () => (
-    closeTarget(config, targetId, cdpPort, targetOwner)
-  ))
-  output({action, checkout, packageName: config.packageName, closed})
+  const target = selectTarget(candidates, options.targetId)
+  await chromeRequest(`/cdp/targets/${encodeURIComponent(target.id)}`, {method: "DELETE"})
+  output({action, target})
   process.exit(0)
 }
 
-const selected = action === "open"
-  ? await withTargetCreationLock({
-    creationScope: config.origin,
-    cdpPort,
-    }, () => selectTarget(config, true, options.targetId, cdpPort, targetOwner, true))
-  : await selectTarget(config, false, options.targetId, cdpPort, targetOwner, false)
-const target = selected.target
-if (action === "target") output({action, ...targetResult(config, target), currentUrl: target.url})
-else await withTargetOperationLock({targetId: target.id, cdpPort}, async () => {
-  const lockedSelection = await selectTarget(
-    config,
-    false,
-    target.id,
-    cdpPort,
-    targetOwner,
-    action === "open",
-  )
-  const lockedTarget = lockedSelection.target
-  if (action === "interact") {
-    validateInteractionInvocation({
-      packageName: config.packageName,
-      route: options.route,
-      targetId: options.targetId,
-      targetUrl: config.targetUrl,
-      currentUrl: lockedTarget.url,
-    })
-  }
-  return withPage(lockedTarget, async (cdp) => {
-    await runWithBackgroundFrameScheduling({
-      setFocusEmulation: (enabled) => setFocusEmulation(cdp, enabled),
-    }, async () => {
-      if (lockedSelection.navigate) await navigateAndWait(cdp, config.targetUrl, config.ready)
-      if (action === "reload") await reloadAndWait(cdp, config.ready)
-      else if (!lockedSelection.navigate) await waitReady(cdp, config.ready)
-    })
-    if (options.activate) await activateTarget(lockedTarget.id, cdpPort)
-    if (action === "open") {
-      output({action, activated: options.activate, ...targetResult(config, lockedTarget), dom: await readDom(cdp, config.canvas.selector)})
-    } else if (action === "reload") {
-      output({action, activated: options.activate, ...targetResult(config, lockedTarget), dom: await readDom(cdp, config.canvas.selector)})
-    } else if (action === "dom") {
-      output({action, ...targetResult(config, lockedTarget), dom: await readDom(cdp, config.canvas.selector)})
-    } else if (action === "console") {
-      const collector = await createConsoleCollector(cdp)
-      await Bun.sleep(options.durationMs)
-      collector.stop()
-      if (consoleErrors(collector.entries).length > 0) process.exitCode = 1
-      output({action, ...targetResult(config, lockedTarget), durationMs: options.durationMs, entries: collector.entries})
-    } else if (action === "page") {
-      const destination = options.output ?? fail("page requires --output <png>")
-      const capture = await capturePage(cdp, destination)
-      output({action, ...targetResult(config, lockedTarget), capture})
-    } else if (action === "canvas") {
-      const destination = options.output ?? fail("canvas requires --output <png>")
-      const capture = await captureCanvas(cdp, config, destination, true)
-      output({action, ...targetResult(config, lockedTarget), capture})
-      if (!capture.written) process.exitCode = 1
-    } else if (action === "viewports") {
-      const result = await runViewports(cdp, config, lockedTarget, options)
-      output(result)
-      if (result.outcome === "starting-or-idle-black") process.exitCode = 1
-    } else if (action === "touch") {
-      if (!config.canvas.touch) fail(`touch is unsupported for ${config.packageName}`)
-      output(await runWithBackgroundFrameScheduling({
-        setFocusEmulation: (enabled) => setFocusEmulation(cdp, enabled),
-      }, () => runTouch(cdp, config, lockedTarget)))
-    } else if (action === "profile") {
-      output(await runProfile(cdp, config, lockedTarget, options.frames))
-    } else if (action === "interact") {
-      const result = await runInteraction(cdp, config, lockedTarget, interactionPlan ?? fail("interaction plan was not loaded"))
-      output(result)
-      process.exitCode = interactionExitCode(result)
-    }
-  })
-})
+if (action === "open" && candidates.length === 0) {
+  await createTarget(targetUrl)
+  const deadline = Date.now() + 5_000
+  do {
+    targets = await chromeTargets()
+    candidates = candidateTargets(targets, serverOrigin, scope)
+    if (candidates.length > 0) break
+    await Bun.sleep(100)
+  } while (Date.now() < deadline)
+}
+const target = selectTarget(candidates, options.targetId)
 
-function parseOptions(args: readonly string[]): Options {
-  let repositoryRoot: string | undefined
+if (action === "target") {
+  output({action, scope, targetUrl, target})
+  process.exit(0)
+}
+
+if (action === "open") {
+  if (target.url !== targetUrl) await navigate(target, targetUrl)
+  else await waitReady(target)
+  const observed = await waitForStorybookDom(target)
+  if (options.activate) await activate(target)
+  output({action, activated: options.activate, target: observed})
+} else if (action === "reload") {
+  if (options.route !== undefined || target.url !== targetUrl) await navigate(target, targetUrl)
+  else await chromeJson("/reload", {
+    method: "POST",
+    body: {targetId: target.id},
+  })
+  const observed = await waitForStorybookDom(target)
+  if (options.activate) await activate(target)
+  output({action, activated: options.activate, target: observed})
+} else if (action === "dom") {
+  output({action, target: await targetDom(target)})
+} else if (action === "console") {
+  const result = await chromeJson("/console", {
+    method: "POST",
+    body: {
+      targetId: target.id,
+      durationMs: options.durationMs,
+    },
+  })
+  const entries = Array.isArray(result.entries) ? result.entries : []
+  if (entries.some((entry) => isConsoleError(entry))) process.exitCode = 1
+  output({action, target, durationMs: options.durationMs, entries})
+} else if (action === "page") {
+  const destination = resolve(options.output ?? fail("page requires --output <png>"))
+  const response = await chromeRequest("/cdp/screenshot", {
+    method: "POST",
+    body: {
+      targetId: target.id,
+      format: "png",
+      waitReady: true,
+      caption: `Ожидаю увидеть готовый ${scope === "landing" ? "global landing" : `${scope} package Workbench`} на exact route`,
+    },
+  })
+  if (!response.ok) fail(await response.text())
+  await Bun.write(destination, await response.arrayBuffer())
+  output({action, target, output: destination})
+} else if (action === "canvas") {
+  const destination = resolve(options.output ?? fail("canvas requires --output <png>"))
+  const result = await chromeJson("/eval", {
+    method: "POST",
+    body: {
+      targetId: target.id,
+      js: `const canvases = [...document.querySelectorAll("canvas")]
+        .filter((canvas) => !canvas.hidden && getComputedStyle(canvas).visibility !== "hidden")
+      const canvas = canvases.find((candidate) => candidate.id !== "external-storybook-canvas")
+        ?? canvases.find((candidate) => candidate.id === "external-storybook-canvas")
+      if (!canvas) throw new Error("Storybook canvas not found")
+      return canvas.toDataURL("image/png")`,
+    },
+  })
+  const dataUrl = responseString(result)
+  const match = dataUrl.match(/^data:image\/png;base64,(.+)$/u)
+  if (match === null) fail("Storybook canvas returned no PNG data URL")
+  await Bun.write(destination, Buffer.from(match[1]!, "base64"))
+  output({action, target, output: destination, canvasBytes: Bun.file(destination).size})
+}
+
+async function resolveStorybookUrl(origin: string, scope: string, route: string | undefined): Promise<string> {
+  if (scope === "landing") {
+    if (route !== undefined) fail("landing does not accept --route")
+    return new URL("/", origin).href
+  }
+  const response = await fetch(new URL("/api/client", origin), {signal: AbortSignal.timeout(5_000)})
+  if (!response.ok) fail(`External Storybook client graph failed: ${response.status}`)
+  const snapshot = await response.json() as ExternalStorybookClientSnapshot
+  const path = route ?? ""
+  const matches = snapshot.nodes.filter((node) => node.packageId === scope && node.routePath === path)
+  if (matches.length === 0) fail(`Unknown external Storybook route: ${scope}:${path}`)
+  if (matches.length > 1) fail(`Ambiguous external Storybook route: ${scope}:${path}`)
+  return new URL(matches[0]!.urlPath, origin).href
+}
+
+async function chromeHealth(): Promise<void> {
+  const response = await fetch(`${CHROME_ORIGIN}/health`, {signal: AbortSignal.timeout(3_000)})
+  if (!response.ok) fail(`@meta/chrome health failed: ${response.status}`)
+  const health = await response.json() as JsonObject
+  if (health.ok !== true) fail(`@meta/chrome is not ready: ${JSON.stringify(health)}`)
+  const cdp = health.cdp as JsonObject | undefined
+  if (cdp?.available !== true) fail("@meta/chrome CDP is unavailable; start its canonical CDP Chrome")
+}
+
+async function chromeTargets(): Promise<JsonObject[]> {
+  const value = await chromeJson("/cdp/targets")
+  if (!Array.isArray(value.targets)) fail("@meta/chrome returned no CDP targets")
+  return value.targets.filter((target): target is JsonObject =>
+    target !== null && typeof target === "object" && !Array.isArray(target))
+}
+
+function candidateTargets(
+  targets: readonly JsonObject[],
+  storybookOrigin: string,
+  scope: string,
+): BrowserTarget[] {
+  const packagePrefix = scope === "landing" ? null : `/packages/${encodeURIComponent(scope)}/`
+  const candidates: BrowserTarget[] = []
+  for (const target of targets) {
+    if (target.type !== "page" || typeof target.targetId !== "string" || target.targetId.length === 0) continue
+    const url = typeof target.url === "string" ? target.url : ""
+    let parsed: URL
+    try {
+      parsed = new URL(url)
+    } catch {
+      continue
+    }
+    if (parsed.origin !== storybookOrigin) continue
+    if (packagePrefix === null ? !landingPath(parsed.pathname) : !parsed.pathname.startsWith(packagePrefix)) continue
+    candidates.push(Object.freeze({
+      id: target.targetId,
+      title: typeof target.title === "string" ? target.title : "",
+      url,
+    }))
+  }
+  return candidates
+}
+
+function landingPath(pathname: string): boolean {
+  return pathname === "/" || /^\/(?:projects|workspaces)\/[^/]+\/$/u.test(pathname)
+}
+
+async function createTarget(url: string): Promise<void> {
+  await chromeJson("/cdp/targets", {method: "POST", body: {url}})
+}
+
+function selectTarget(candidates: readonly BrowserTarget[], targetId: string | undefined): BrowserTarget {
+  if (targetId !== undefined) {
+    const target = candidates.find(({id}) => id === targetId)
+    if (target === undefined) fail(`Exact Storybook target not found: ${targetId}`)
+    return target
+  }
+  if (candidates.length === 0) fail("Storybook target is not open; run browser open")
+  if (candidates.length > 1) fail("Multiple Storybook targets are open; pass --target-id")
+  return candidates[0]!
+}
+
+async function navigate(target: BrowserTarget, url: string): Promise<void> {
+  await chromeJson("/navigate", {
+    method: "POST",
+    body: {targetId: target.id, url},
+  })
+}
+
+async function activate(target: BrowserTarget): Promise<void> {
+  await chromeJson(`/cdp/targets/${encodeURIComponent(target.id)}/activate`, {
+    method: "POST",
+  })
+}
+
+async function waitReady(target: BrowserTarget): Promise<void> {
+  await chromeJson("/wait-ready", {
+    method: "POST",
+    body: {targetId: target.id},
+  })
+}
+
+async function targetDom(target: BrowserTarget): Promise<JsonObject> {
+  return chromeJson("/eval", {
+    method: "POST",
+    body: {
+      targetId: target.id,
+      js: `return {
+        title: document.title,
+        pathname: location.pathname,
+        ready: document.documentElement.dataset.externalStorybook ?? null,
+        landingState: document.documentElement.dataset.externalStorybookLanding ?? null,
+        packageState: document.documentElement.dataset.externalStorybookPackage ?? null,
+        packageId: document.documentElement.dataset.externalStorybookPackageId ?? null,
+        route: document.documentElement.dataset.externalStorybookRoute ?? null,
+        revision: document.documentElement.dataset.externalStorybookRevision ?? null,
+        error: document.documentElement.dataset.externalStorybookError ?? null,
+        timeOrigin: performance.timeOrigin,
+        canvases: [...document.querySelectorAll("canvas")].map((canvas) => ({
+          id: canvas.id,
+          width: canvas.width,
+          height: canvas.height,
+          hidden: canvas.hidden,
+        })),
+      }`,
+    },
+  })
+}
+
+async function waitForStorybookDom(target: BrowserTarget): Promise<JsonObject> {
+  const deadline = Date.now() + 10_000
+  let observed = await targetDom(target)
+  while (Date.now() < deadline) {
+    const parsed = observed.parsed
+    if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+      const ready = (parsed as JsonObject).ready
+      if (ready === "ready" || ready === "error") return observed
+    }
+    await Bun.sleep(50)
+    observed = await targetDom(target)
+  }
+  fail(`Storybook target did not reach a ready or error state: ${target.id}`)
+}
+
+async function chromeJson(
+  path: string,
+  options: Readonly<{method?: string, body?: unknown}> = {},
+): Promise<JsonObject> {
+  const response = await chromeRequest(path, options)
+  const text = await response.text()
+  if (!response.ok) fail(text || `@meta/chrome request failed: ${response.status}`)
+  const value = JSON.parse(text) as unknown
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    fail(`@meta/chrome returned invalid JSON: ${path}`)
+  }
+  return value as JsonObject
+}
+
+function chromeRequest(
+  path: string,
+  options: Readonly<{method?: string, body?: unknown}>,
+): Promise<Response> {
+  return fetch(`${CHROME_ORIGIN}${path}`, {
+    method: options.method ?? "GET",
+    ...(options.body === undefined ? {} : {
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify(options.body),
+    }),
+    signal: AbortSignal.timeout(30_000),
+  })
+}
+
+function responseString(result: JsonObject): string {
+  if (typeof result.parsed === "string") return result.parsed
+  if (typeof result.result !== "string") fail("@meta/chrome eval returned no string")
+  try {
+    const parsed = JSON.parse(result.result)
+    return typeof parsed === "string" ? parsed : result.result
+  } catch {
+    return result.result
+  }
+}
+
+function isConsoleError(value: unknown): boolean {
+  if (value === null || typeof value !== "object") return false
+  const entry = value as JsonObject
+  return entry.level === "error" || entry.type === "error"
+}
+
+function parseOptions(args: readonly string[]) {
   let route: string | undefined
   let targetId: string | undefined
   let outputPath: string | undefined
-  let outputDir: string | undefined
-  let canvasSelector: string | undefined
-  let plan: string | undefined
   let activate = false
-  let preserveRoute = false
-  let durationMs = 1000
-  let frames = 60
-  for (let index = 0; index < args.length; index++) {
-    const key = args[index]
-    if (key === "--activate") {
+  let durationMs = 1_500
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index]
+    if (argument === "--activate") {
       activate = true
       continue
     }
-    if (key === "--preserve-route") {
-      preserveRoute = true
-      continue
-    }
     const value = args[index + 1]
-    if (!value) fail(`missing value for ${key}`)
-    if (key === "--root") repositoryRoot = value
-    else if (key === "--route") route = value
-    else if (key === "--target-id") targetId = value
-    else if (key === "--output") outputPath = value
-    else if (key === "--output-dir") outputDir = value
-    else if (key === "--canvas-selector") canvasSelector = value
-    else if (key === "--plan") plan = value
-    else if (key === "--duration-ms") durationMs = positiveInteger(value, key)
-    else if (key === "--frames") frames = positiveInteger(value, key)
-    else fail(`unknown option: ${key}`)
-    index++
+    if (value === undefined) usage()
+    if (argument === "--route") route = value
+    else if (argument === "--target-id") targetId = value
+    else if (argument === "--output") outputPath = value
+    else if (argument === "--duration-ms") {
+      durationMs = Number(value)
+      if (!Number.isInteger(durationMs) || durationMs < 0 || durationMs > 30_000) usage()
+    } else usage()
+    index += 1
   }
-  return {
-    ...(repositoryRoot === undefined ? {} : {repositoryRoot}),
-    ...(route === undefined ? {} : {route}),
-    ...(targetId === undefined ? {} : {targetId}),
-    ...(outputPath === undefined ? {} : {output: outputPath}),
-    ...(outputDir === undefined ? {} : {outputDir}),
-    ...(canvasSelector === undefined ? {} : {canvasSelector}),
-    ...(plan === undefined ? {} : {plan}),
-    activate,
-    preserveRoute,
-    durationMs,
-    frames,
-  }
+  return Object.freeze({route, targetId, output: outputPath, activate, durationMs})
 }
 
-function readGitRoot(cwd: string): string {
-  const result = Bun.spawnSync(["git", "-C", cwd, "rev-parse", "--show-toplevel"])
-  if (result.exitCode !== 0) fail(`not a Git checkout: ${cwd}`)
-  const root = result.stdout.toString().trim()
-  if (root.length === 0) fail(`Git returned an empty checkout root: ${cwd}`)
-  return root
-}
-
-async function loadInteractionPlan(path: string, checkoutRoot: string): Promise<InteractionPlan> {
-  const planPath = isAbsolute(path) ? path : resolve(checkoutRoot, path)
-  const file = Bun.file(planPath)
-  if (!await file.exists()) throw new Error(`interaction plan does not exist: ${planPath}`)
-  if (file.size < 1 || file.size > 65_536) throw new Error(`interaction plan must contain 1..65536 bytes: ${planPath}`)
-  let value: unknown
-  try {
-    value = JSON.parse(await file.text())
-  } catch (error) {
-    throw new Error(`interaction plan is not valid JSON: ${errorText(error)}`)
-  }
-  return parseInteractionPlan(value)
-}
-
-function positiveInteger(value: string, label: string): number {
-  const parsed = Number(value)
-  if (!Number.isInteger(parsed) || parsed < 1) fail(`${label} must be a positive integer`)
-  return parsed
-}
-
-function validateCheckout(path: string): void {
-  const result = Bun.spawnSync(["git", "-C", path, "rev-parse", "--show-toplevel"])
-  if (result.exitCode !== 0) fail(`not a Git checkout: ${path}`)
-  const root = result.stdout.toString().trim()
-  if (root !== path) fail(`pass the exact checkout root, got: ${path}`)
-}
-
-function resolveTargetConfig(
-  checkout: string,
-  packageName: string,
-  origin: string,
-  manifest: StorybookDevelopmentManifest,
-  options: Options,
-): TargetConfig {
-  const route = options.route ?? manifest.app.homePath
-  const page = manifest.pages.find(({routes}) => routes.includes(route))
-  if (page === undefined) fail(`storybook route is not declared by ${packageName}: ${route}`)
-  const webgpu = page.capability === "webgpu" || page.capability === "webgpu-diagnostic"
-  const canvas: CanvasDescriptor = page.canvas === null
-    ? {selector: options.canvasSelector ?? "canvas", capability: "none", touch: false}
-    : {
-        selector: options.canvasSelector ?? page.canvas.selector,
-        capability: webgpu ? page.capability : "none",
-        touch: page.touch,
-      }
-  return {
-    checkout,
-    packageName,
-    origin,
-    targetUrl: storybookTargetUrl(origin, route),
-    ready: {kind: "dataset", name: page.readiness.dataset, value: page.readiness.value},
-    canvas,
-  }
-}
-
-async function loadDevelopmentManifest(url: string): Promise<StorybookDevelopmentManifest> {
-  const manifest = await fetchJson<StorybookDevelopmentManifest>(url)
-  if (manifest.schemaVersion !== 1 || manifest.app === undefined || !Array.isArray(manifest.pages)) {
-    fail(`invalid Storybook development manifest: ${url}`)
-  }
-  return manifest
-}
-
-async function recordedTargetRoute(
-  owner: StorybookBrowserTargetOwner,
-  manifest: StorybookDevelopmentManifest,
-  port: number,
-): Promise<string | undefined> {
-  const record = readStorybookBrowserTargetRecord(owner)
-  if (record === null) return undefined
-  const target = (await listTargets(port)).find(({id, type}) => id === record.targetId && type === "page")
-  if (target === undefined) return undefined
-  let pathname: string
-  try {
-    pathname = new URL(target.url).pathname
-  } catch {
-    throw new Error(`recorded Storybook target has an invalid URL: ${target.url}`)
-  }
-  if (!manifest.pages.some(({routes}) => routes.includes(pathname))) {
-    throw new Error(`recorded Storybook route is no longer declared by ${owner.packageName}: ${pathname}`)
-  }
-  return pathname
-}
-
-async function validateRegistryRoute(url: string): Promise<void> {
-  let response: Response
-  try {
-    response = await fetch(url, {redirect: "manual"})
-  } catch (error) {
-    fail(`storybook route preflight failed for ${url}: ${errorText(error)}`)
-  }
-  if (response.status >= 300 && response.status < 400) {
-    const location = response.headers.get("location")
-    fail(`storybook route is not canonical: ${url}${location === null ? "" : `; use ${new URL(location, url).href}`}`)
-  }
-  if (response.status === 404) fail(`storybook route is not registered: ${url}`)
-  if (!response.ok) fail(`storybook route preflight returned ${response.status}: ${url}`)
-  await response.body?.cancel()
-}
-
-async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init)
-  if (!response.ok) throw new Error(`${init?.method ?? "GET"} ${url} returned ${response.status}: ${await response.text()}`)
-  return response.json() as Promise<T>
-}
-
-async function listTargets(port: number): Promise<Target[]> {
-  return fetchJson<Target[]>(`http://127.0.0.1:${port}/json/list`)
-}
-
-async function exactTarget(url: string, create: boolean, port: number): Promise<Target> {
-  let matches = (await listTargets(port)).filter((target) => target.type === "page" && target.url === url)
-  if (matches.length === 0 && create) {
-    const version = await fetchJson<{webSocketDebuggerUrl?: string}>(`http://127.0.0.1:${port}/json/version`)
-    if (!version.webSocketDebuggerUrl) throw new Error(`browser CDP websocket is unavailable on ${port}`)
-    await withCdp(version.webSocketDebuggerUrl, async (cdp) => {
-      await cdp.send("Target.createTarget", {url, background: true})
-    })
-    for (let attempt = 0; attempt < 50; attempt++) {
-      matches = (await listTargets(port)).filter((target) => target.type === "page" && target.url === url)
-      if (matches.length > 0) break
-      await Bun.sleep(100)
-    }
-  }
-  if (matches.length === 0) throw new Error(`no exact background target: ${url}; run open`)
-  if (matches.length !== 1) throw new Error(`ambiguous exact background targets for ${url}: ${matches.map(({id}) => id).join(",")}`)
-  if (!matches[0]!.webSocketDebuggerUrl) throw new Error(`target websocket is missing: ${matches[0]!.id}`)
-  return matches[0]!
-}
-
-async function candidateTargets(config: TargetConfig, port: number): Promise<Target[]> {
-  const pages = (await listTargets(port)).filter((target) => target.type === "page")
-  return pages.filter((target) => targetOrigin(target.url) === config.origin)
-}
-
-async function selectTarget(
-  config: TargetConfig,
-  create: boolean,
-  requestedId: string | undefined,
-  port: number,
-  owner: StorybookBrowserTargetOwner,
-  allowRecordedTarget: boolean,
-): Promise<{target: Target; navigate: boolean}> {
-  const pages = (await listTargets(port)).filter((target) => target.type === "page")
-  let record = readStorybookBrowserTargetRecord(owner)
-  const recordedTargetId = record?.targetId
-  const recordedTarget = recordedTargetId === undefined
-    ? undefined
-    : pages.find(({id}) => id === recordedTargetId)
-  if (record !== null && recordedTarget === undefined) {
-    clearStorybookBrowserTargetRecord(owner, record.targetId)
-    record = null
-  }
-  let candidates = pages.filter((target) => targetOrigin(target.url) === config.origin)
-  if (requestedId !== undefined) {
-    const requested = pages.filter((candidate) => candidate.id === requestedId)
-    if (requested.length !== 1) throw new Error(`target ${requestedId} is not an existing page target`)
-    const target = requested[0]!
-    const currentOrigin = targetOrigin(target.url) === config.origin
-    if (!currentOrigin && !(allowRecordedTarget && record?.targetId === requestedId)) {
-      throw new Error(`target ${requestedId} is not the owned ${config.packageName} target at ${config.origin}`)
-    }
-    if (recordedTarget !== undefined && recordedTarget.id !== target.id) {
-      throw new Error(`ambiguous recorded ${config.packageName} target: ${recordedTarget.id},${target.id}`)
-    }
-    if (record === null) writeStorybookBrowserTargetRecord(owner, target.id)
-    return {target, navigate: target.url !== config.targetUrl}
-  } else if (candidates.length > 1) {
-    throw new Error(`ambiguous ${config.packageName} targets at ${config.origin}; pass --target-id or reconcile exact created duplicates: ${candidates.map(({id, url}) => `${id}=${url}`).join(",")}`)
-  }
-
-  if (candidates.length === 1) {
-    const target = candidates[0]!
-    if (recordedTarget !== undefined && recordedTarget.id !== target.id) {
-      throw new Error(`ambiguous recorded ${config.packageName} target: ${recordedTarget.id},${target.id}`)
-    }
-    if (record === null) writeStorybookBrowserTargetRecord(owner, target.id)
-    return {target, navigate: target.url !== config.targetUrl}
-  }
-  if (candidates.length === 0 && create) {
-    if (recordedTarget !== undefined) {
-      if (!recordedTarget.webSocketDebuggerUrl) throw new Error(`target websocket is missing: ${recordedTarget.id}`)
-      return {target: recordedTarget, navigate: recordedTarget.url !== config.targetUrl}
-    }
-    const created = await exactTarget(config.targetUrl, true, port)
-    writeStorybookBrowserTargetRecord(owner, created.id)
-    return {target: created, navigate: false}
-  }
-  if (candidates.length === 0) throw new Error(`no background target for ${config.packageName} at ${config.origin}; run open`)
-  const target = candidates[0]!
-  if (!target.webSocketDebuggerUrl) throw new Error(`target websocket is missing: ${target.id}`)
-  return {target, navigate: target.url !== config.targetUrl}
-}
-
-async function closeTarget(
-  config: TargetConfig,
-  targetId: string,
-  port: number,
-  owner: StorybookBrowserTargetOwner,
-): Promise<{id: string; url: string}> {
-  const candidate = (await candidateTargets(config, port)).find(({id}) => id === targetId)
-  if (!candidate) throw new Error(`refusing to close target outside ${config.packageName} origin: ${targetId}`)
-  const version = await fetchJson<{webSocketDebuggerUrl?: string}>(`http://127.0.0.1:${port}/json/version`)
-  if (!version.webSocketDebuggerUrl) throw new Error(`browser CDP websocket is unavailable on ${port}`)
-  await withCdp(version.webSocketDebuggerUrl, async (cdp) => {
-    const result = await cdp.send<{success?: boolean}>("Target.closeTarget", {targetId})
-    if (result.success !== true) throw new Error(`Target.closeTarget rejected ${targetId}`)
-  })
-  clearStorybookBrowserTargetRecord(owner, targetId)
-  return {id: candidate.id, url: candidate.url}
-}
-
-async function activateTarget(targetId: string, port: number): Promise<void> {
-  const version = await fetchJson<{webSocketDebuggerUrl?: string}>(`http://127.0.0.1:${port}/json/version`)
-  if (!version.webSocketDebuggerUrl) throw new Error(`browser CDP websocket is unavailable on ${port}`)
-  await withCdp(version.webSocketDebuggerUrl, async (cdp) => {
-    await cdp.send("Target.activateTarget", {targetId})
-  })
-}
-
-function targetOrigin(url: string): string | null {
-  try {
-    return new URL(url).origin
-  } catch {
-    return null
-  }
-}
-
-class CdpConnection {
-  readonly #socket: WebSocket
-  readonly #pending = new Map<number, {
-    resolve: (value: unknown) => void
-    reject: (error: Error) => void
-    timer: ReturnType<typeof setTimeout>
-  }>()
-  readonly #listeners = new Map<string, Set<(params: unknown) => void>>()
-  #sequence = 0
-
-  private constructor(socket: WebSocket) {
-    this.#socket = socket
-    socket.addEventListener("message", (event) => this.#message(String(event.data)))
-    socket.addEventListener("close", () => {
-      for (const [id, pending] of this.#pending) {
-        clearTimeout(pending.timer)
-        pending.reject(new Error(`CDP closed before response ${id}`))
-      }
-      this.#pending.clear()
-    })
-  }
-
-  static async open(url: string): Promise<CdpConnection> {
-    const socket = new WebSocket(url)
-    await new Promise<void>((resolveOpen, rejectOpen) => {
-      const timer = setTimeout(() => rejectOpen(new Error(`CDP connection timeout: ${url}`)), 5000)
-      socket.addEventListener("open", () => {
-        clearTimeout(timer)
-        resolveOpen()
-      }, {once: true})
-      socket.addEventListener("error", () => {
-        clearTimeout(timer)
-        rejectOpen(new Error(`CDP connection failed: ${url}`))
-      }, {once: true})
-    })
-    return new CdpConnection(socket)
-  }
-
-  send<T = JsonObject>(method: string, params: unknown = {}): Promise<T> {
-    return new Promise<T>((resolveSend, rejectSend) => {
-      const id = ++this.#sequence
-      const timer = setTimeout(() => {
-        this.#pending.delete(id)
-        rejectSend(new Error(`CDP command timeout: ${method}`))
-      }, 15000)
-      this.#pending.set(id, {
-        resolve: (value) => resolveSend(value as T),
-        reject: rejectSend,
-        timer,
-      })
-      this.#socket.send(JSON.stringify({id, method, params}))
-    })
-  }
-
-  on(method: string, listener: (params: unknown) => void): () => void {
-    const listeners = this.#listeners.get(method) ?? new Set()
-    listeners.add(listener)
-    this.#listeners.set(method, listeners)
-    return () => listeners.delete(listener)
-  }
-
-  close(): void {
-    this.#socket.close()
-  }
-
-  #message(raw: string): void {
-    const message = JSON.parse(raw) as {id?: number; method?: string; params?: unknown; result?: unknown; error?: {message?: string}}
-    if (message.id !== undefined) {
-      const pending = this.#pending.get(message.id)
-      if (!pending) return
-      this.#pending.delete(message.id)
-      clearTimeout(pending.timer)
-      if (message.error) pending.reject(new Error(message.error.message ?? "CDP command failed"))
-      else pending.resolve(message.result)
-      return
-    }
-    if (message.method) {
-      for (const listener of this.#listeners.get(message.method) ?? []) listener(message.params)
-    }
-  }
-}
-
-async function withCdp<T>(url: string, operation: (cdp: CdpConnection) => Promise<T>): Promise<T> {
-  const cdp = await CdpConnection.open(url)
-  try {
-    return await operation(cdp)
-  } finally {
-    cdp.close()
-  }
-}
-
-async function withPage<T>(target: Target, operation: (cdp: CdpConnection) => Promise<T>): Promise<T> {
-  if (!target.webSocketDebuggerUrl) throw new Error(`page websocket is missing: ${target.id}`)
-  return withCdp(target.webSocketDebuggerUrl, operation)
-}
-
-async function setFocusEmulation(cdp: CdpConnection, enabled: boolean): Promise<void> {
-  await cdp.send("Emulation.setFocusEmulationEnabled", {enabled})
-}
-
-async function evaluate<T>(cdp: CdpConnection, expression: string, awaitPromise = false): Promise<T> {
-  const response = await cdp.send<{
-    result?: {value?: T; description?: string}
-    exceptionDetails?: {text?: string; exception?: {description?: string}}
-  }>("Runtime.evaluate", {expression, awaitPromise, returnByValue: true})
-  if (response.exceptionDetails) {
-    throw new Error(response.exceptionDetails.exception?.description ?? response.exceptionDetails.text ?? "Runtime.evaluate failed")
-  }
-  return response.result?.value as T
-}
-
-function readyExpression(marker: ReadyMarker | null): string {
-  const complete = "document.readyState === 'complete'"
-  if (marker === null) return complete
-  return `${complete} && document.documentElement.dataset[${JSON.stringify(marker.name)}] === ${JSON.stringify(marker.value)}`
-}
-
-async function waitReady(cdp: CdpConnection, marker: ReadyMarker | null): Promise<void> {
-  const expression = readyExpression(marker)
-  for (let attempt = 0; attempt < 75; attempt++) {
-    try {
-      if (await evaluate<boolean>(cdp, expression)) {
-        await waitPresentedFrameBoundary(cdp)
-        return
-      }
-    } catch {
-      // Navigation briefly destroys the execution context.
-    }
-    await Bun.sleep(200)
-  }
-  throw new Error(`page did not reach ready marker: ${expression}`)
-}
-
-async function waitPresentedFrameBoundary(cdp: CdpConnection): Promise<void> {
-  await evaluate<boolean>(cdp, `new Promise((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve(true)))
-  })`, true)
-}
-
-async function reloadAndWait(cdp: CdpConnection, marker: ReadyMarker | null): Promise<void> {
-  await cdp.send("Page.enable")
-  await cdp.send("Page.reload", {ignoreCache: false})
-  await waitReady(cdp, marker)
-}
-
-async function navigateAndWait(cdp: CdpConnection, url: string, marker: ReadyMarker | null): Promise<void> {
-  await cdp.send("Page.enable")
-  const result = await cdp.send<{errorText?: string}>("Page.navigate", {url})
-  if (result.errorText) throw new Error(`Page.navigate failed: ${result.errorText}`)
-  await waitReady(cdp, marker)
-}
-
-async function readDom(cdp: CdpConnection, canvasSelector: string): Promise<JsonObject> {
-  return evaluate<JsonObject>(cdp, `(() => {
-    const canvas = document.querySelector(${JSON.stringify(canvasSelector)})
-    const home = document.querySelector("[data-storybook-home]")
-    const footer = document.querySelector("[data-storybook-footer]")
-    const svg = document.querySelector("#svg-view svg")
-    return {
-      url: location.href,
-      title: document.title,
-      readyState: document.readyState,
-      visibility: document.visibilityState,
-      focused: document.hasFocus(),
-      dataset: {...document.documentElement.dataset},
-      inner: [innerWidth, innerHeight, devicePixelRatio],
-      scroll: [document.documentElement.scrollWidth, document.documentElement.scrollHeight],
-      canvas: canvas instanceof HTMLCanvasElement
-        ? [canvas.width, canvas.height, canvas.clientWidth, canvas.clientHeight]
-        : null,
-      home: home instanceof HTMLAnchorElement
-        ? {href:home.getAttribute("href"), url:home.href, text:home.textContent, visible:home.getClientRects().length > 0}
-        : null,
-      footer: footer instanceof HTMLElement
-        ? {text:footer.textContent?.replace(/\\s+/g, " ").trim() ?? "", visible:footer.getClientRects().length > 0}
-        : null,
-      svg: svg instanceof SVGSVGElement
-        ? {viewBox:svg.getAttribute("viewBox"), children:svg.childElementCount, visible:svg.getClientRects().length > 0}
-        : null,
-    }
-  })()`)
-}
-
-async function capturePage(cdp: CdpConnection, destination: string): Promise<JsonObject> {
-  await setFocusEmulation(cdp, true)
-  let response: {data?: string}
-  try {
-    await evaluate(cdp, `new Promise((resolve) => {
-      window.dispatchEvent(new Event("resize"))
-      let frames = 0
-      const step = () => {
-        frames += 1
-        if (frames >= 2) resolve(frames)
-        else requestAnimationFrame(step)
-      }
-      requestAnimationFrame(step)
-    })`, true)
-    response = await cdp.send<{data?: string}>("Page.captureScreenshot", {
-      format: "png",
-      fromSurface: true,
-      captureBeyondViewport: false,
-    })
-  } finally {
-    await setFocusEmulation(cdp, false)
-  }
-  if (typeof response.data !== "string" || response.data.length === 0) {
-    throw new Error("Page.captureScreenshot returned no PNG data")
-  }
-  const bytes = Buffer.from(response.data, "base64")
-  if (bytes.length < 8 || bytes[0] !== 0x89 || bytes[1] !== 0x50 || bytes[2] !== 0x4e || bytes[3] !== 0x47) {
-    throw new Error("Page.captureScreenshot returned an invalid PNG")
-  }
-  const absolute = resolve(destination)
-  await mkdir(dirname(absolute), {recursive: true})
-  const temporary = join(dirname(absolute), `.${basename(absolute)}.${process.pid}.${Date.now()}.tmp`)
-  try {
-    await Bun.write(temporary, bytes)
-    await rename(temporary, absolute)
-  } catch (error) {
-    try {
-      await unlink(temporary)
-    } catch {
-      // The temporary file was never created or was already moved.
-    }
-    throw error
-  }
-  return Object.freeze({kind: "exact-page-png", written: true, path: absolute, bytes: bytes.length})
-}
-
-async function readCanvasSnapshot(cdp: CdpConnection, selector: string): Promise<RawCanvasSnapshot> {
-  return evaluate<RawCanvasSnapshot>(cdp, `(async () => {
-    const canvas = document.querySelector(${JSON.stringify(selector)})
-    if (!(canvas instanceof HTMLCanvasElement) || canvas.width < 1 || canvas.height < 1) {
-      return {dataUrl:null, probe:null}
-    }
-    const dataUrl = canvas.toDataURL("image/png")
-    const bitmap = await createImageBitmap(await (await fetch(dataUrl)).blob())
-    const probe = document.createElement("canvas")
-    probe.width = Math.min(128, bitmap.width)
-    probe.height = Math.min(128, bitmap.height)
-    const context = probe.getContext("2d", {willReadFrequently:true})
-    if (context === null) {
-      bitmap.close()
-      return {dataUrl, probe:null}
-    }
-    context.drawImage(bitmap, 0, 0, probe.width, probe.height)
-    bitmap.close()
-    return {
-      dataUrl,
-      probe:{
-        width:probe.width,
-        height:probe.height,
-        rgba:Array.from(context.getImageData(0, 0, probe.width, probe.height).data),
-      },
-    }
-  })()`, true)
-}
-
-async function captureCanvas(
-  cdp: CdpConnection,
-  config: TargetConfig,
-  outputPath: string,
-  retryStartingBlack: boolean,
-): Promise<CanvasEvidence> {
-  const common = {
-    destination: outputPath,
-    snapshot: () => readCanvasSnapshot(cdp, config.canvas.selector),
-  }
-  return retryStartingBlack
-    ? acceptCanvasEvidence({
-        ...common,
-        retryAfterBlack: () => awaitCanvasRendererActivity(cdp, config),
-      })
-    : acceptCanvasEvidence(common)
-}
-
-async function awaitCanvasRendererActivity(cdp: CdpConnection, config: TargetConfig): Promise<void> {
-  await setFocusEmulation(cdp, true)
-  try {
-    await navigateAndWait(cdp, config.targetUrl, config.ready)
-    const activity = await evaluate<{frames: number; timedOut: boolean}>(cdp, `new Promise((resolve) => {
-      window.dispatchEvent(new Event("resize"))
-      let settled = false
-      let frames = 0
-      const finish = (timedOut) => {
-        if (settled) return
-        settled = true
-        clearTimeout(timeout)
-        resolve({frames, timedOut})
-      }
-      const timeout = setTimeout(() => finish(true), 2000)
-      const step = () => {
-        frames++
-        if (frames < 2) requestAnimationFrame(step)
-        else setTimeout(() => finish(false), 250)
-      }
-      requestAnimationFrame(step)
-    })`, true)
-    if (activity.timedOut || activity.frames < 2) {
-      throw new Error(`canvas renderer activity timed out after ${activity.frames} frames`)
-    }
-  } finally {
-    await setFocusEmulation(cdp, false)
-  }
-}
-
-async function createConsoleCollector(cdp: CdpConnection) {
-  const entries: ConsoleEntry[] = []
-  const removeConsole = cdp.on("Runtime.consoleAPICalled", (raw) => {
-    const event = raw as {type?: string; timestamp?: number; args?: Array<{value?: unknown; description?: string}>}
-    const text = (event.args ?? []).map((arg) => arg.value === undefined ? arg.description ?? "" : printable(arg.value)).join(" ")
-    entries.push({
-      source: "console",
-      level: event.type ?? "log",
-      text,
-      ...(event.timestamp === undefined ? {} : {timestamp: event.timestamp}),
-    })
-  })
-  const removeLog = cdp.on("Log.entryAdded", (raw) => {
-    const entry = (raw as {entry?: {level?: string; text?: string; timestamp?: number; url?: string; lineNumber?: number}}).entry
-    if (!entry) return
-    entries.push({
-      source: "log",
-      level: entry.level ?? "info",
-      text: entry.text ?? "",
-      ...(entry.timestamp === undefined ? {} : {timestamp: entry.timestamp}),
-      ...(entry.url === undefined ? {} : {url: entry.url}),
-      ...(entry.lineNumber === undefined ? {} : {line: entry.lineNumber}),
-    })
-  })
-  await cdp.send("Runtime.enable")
-  await cdp.send("Log.enable")
-  return {entries, stop: () => { removeConsole(); removeLog() }}
-}
-
-function printable(value: unknown): string {
-  if (typeof value === "string") return value
-  try {
-    return JSON.stringify(value)
-  } catch {
-    return String(value)
-  }
-}
-
-function consoleErrors(entries: readonly ConsoleEntry[]): readonly ConsoleEntry[] {
-  return entries.filter(({level}) => level === "error")
-}
-
-async function forceClearMetrics(cdp: CdpConnection): Promise<void> {
-  await cdp.send("Emulation.clearDeviceMetricsOverride")
-  await cdp.send("Emulation.setDeviceMetricsOverride", {width: 0, height: 0, deviceScaleFactor: 0, mobile: false})
-  await cdp.send("Emulation.clearDeviceMetricsOverride")
-  await cdp.send("Emulation.setTouchEmulationEnabled", {enabled: false})
-}
-
-async function setMobile(cdp: CdpConnection, width: number, height: number): Promise<void> {
-  await cdp.send("Emulation.setDeviceMetricsOverride", {width, height, deviceScaleFactor: 2, mobile: true})
-  await cdp.send("Emulation.setTouchEmulationEnabled", {enabled: true, maxTouchPoints: 2})
-}
-
-function validateViewport(label: string, dom: JsonObject, width?: number, height?: number): void {
-  const inner = dom.inner as number[] | undefined
-  const scroll = dom.scroll as number[] | undefined
-  if (!inner || !scroll) throw new Error(`${label}: missing viewport metrics`)
-  if (width !== undefined && height !== undefined && (inner[0] !== width || inner[1] !== height)) {
-    throw new Error(`${label}: expected ${width}x${height}, got ${inner[0]}x${inner[1]}`)
-  }
-  if (scroll[0] !== inner[0]) throw new Error(`${label}: horizontal overflow ${scroll[0]} > ${inner[0]}`)
-}
-
-async function runViewports(cdp: CdpConnection, config: TargetConfig, target: Target, options: Options): Promise<JsonObject> {
-  await setFocusEmulation(cdp, true)
-  const collector = await createConsoleCollector(cdp)
-  const captures: JsonObject = {}
-  const result: JsonObject = {
-    action: "viewports",
-    ...targetResult(config, target),
-    captures,
-    rendererActivityEmulation: true,
-    physicalDeviceProof: false,
-    ownerAcceptance: false,
-  }
-  let failure: unknown = null
-  let cursor = collector.entries.length
-  let native: JsonObject | null = null
-  try {
-    await forceClearMetrics(cdp)
-    await reloadAndWait(cdp, config.ready)
-    native = await readDom(cdp, config.canvas.selector)
-    validateViewport("desktop", native)
-    const desktopEntries = collector.entries.slice(cursor)
-    if (consoleErrors(desktopEntries).length > 0) throw new Error(`desktop: console errors ${JSON.stringify(consoleErrors(desktopEntries))}`)
-    result.desktop = {dom: native, console: desktopEntries}
-    if (options.outputDir) {
-      const capture = await captureCanvas(cdp, config, join(options.outputDir, "desktop.png"), false)
-      captures.desktop = capture
-      if (!capture.written) throw new CanvasEvidenceRejected(capture)
-    }
-
-    for (const [label, width, height] of [["portrait", 390, 844], ["landscape", 844, 390]] as const) {
-      cursor = collector.entries.length
-      await setMobile(cdp, width, height)
-      await reloadAndWait(cdp, config.ready)
-      const dom = await readDom(cdp, config.canvas.selector)
-      validateViewport(label, dom, width, height)
-      const entries = collector.entries.slice(cursor)
-      if (consoleErrors(entries).length > 0) throw new Error(`${label}: console errors ${JSON.stringify(consoleErrors(entries))}`)
-      result[label] = {dom, console: entries}
-      if (options.outputDir) {
-        const capture = await captureCanvas(cdp, config, join(options.outputDir, `${label}.png`), false)
-        captures[label] = capture
-        if (!capture.written) throw new CanvasEvidenceRejected(capture)
-      }
-    }
-  } catch (error) {
-    failure = error
-  } finally {
-    try {
-      await forceClearMetrics(cdp)
-      await reloadAndWait(cdp, config.ready)
-      await setFocusEmulation(cdp, false)
-      const restored = await readDom(cdp, config.canvas.selector)
-      result.restored = restored
-      result.nativeMetricsRestored = native !== null && JSON.stringify(native.inner) === JSON.stringify(restored.inner)
-      if (result.nativeMetricsRestored !== true && failure === null) failure = new Error(`native metrics were not restored`)
-    } catch (restoreError) {
-      failure = failure === null ? restoreError : new Error(`${errorText(failure)}; restore failed: ${errorText(restoreError)}`)
-    }
-    collector.stop()
-    await setFocusEmulation(cdp, false)
-  }
-  if (failure instanceof CanvasEvidenceRejected) {
-    result.outcome = failure.evidence.kind
-    result.written = false
-    return result
-  }
-  if (failure !== null) throw failure
-  return result
-}
-
-async function runTouch(cdp: CdpConnection, config: TargetConfig, target: Target): Promise<JsonObject> {
-  let native: JsonObject | null = null
-  let result: JsonObject = {action: "touch", ...targetResult(config, target)}
-  let failure: unknown = null
-  try {
-    await forceClearMetrics(cdp)
-    await reloadAndWait(cdp, config.ready)
-    native = await readDom(cdp, config.canvas.selector)
-    await setMobile(cdp, 390, 844)
-    await reloadAndWait(cdp, config.ready)
-    const selector = JSON.stringify(config.canvas.selector)
-    const touch = await evaluate<JsonObject>(cdp, `(() => {
-      const canvas = document.querySelector(${selector})
-      if (!(canvas instanceof HTMLCanvasElement)) throw new Error("touch canvas not found")
-      const snapshot = () => ({
-        x: Number(document.documentElement.dataset.canvasX),
-        y: Number(document.documentElement.dataset.canvasY),
-        scale: Number(document.documentElement.dataset.canvasScale),
-      })
-      const valid = (value) => Number.isFinite(value.x) && Number.isFinite(value.y) && Number.isFinite(value.scale)
-      const point = (id, x, y) => new Touch({identifier:id, target:canvas, clientX:x, clientY:y, screenX:x, screenY:y, radiusX:4, radiusY:4, force:1})
-      const emit = (target, type, touches, changedTouches) => target.dispatchEvent(new TouchEvent(type, {bubbles:true, cancelable:true, touches, targetTouches:touches, changedTouches}))
-      const before = snapshot()
-      const oneStart = point(1, 200, 300)
-      emit(canvas, "touchstart", [oneStart], [oneStart])
-      const oneMove = point(1, 230, 340)
-      emit(window, "touchmove", [oneMove], [oneMove])
-      emit(window, "touchend", [], [oneMove])
-      const pan = snapshot()
-      const a = point(1, 130, 360)
-      const b = point(2, 260, 360)
-      emit(canvas, "touchstart", [a,b], [a,b])
-      const c = point(1, 80, 360)
-      const d = point(2, 310, 360)
-      emit(window, "touchmove", [c,d], [c,d])
-      emit(window, "touchend", [], [c,d])
-      const pinch = snapshot()
-      return {
-        evidence:"synthetic-page-touch", before, pan, pinch,
-        panChanged:valid(pan) && (!valid(before) || pan.x !== before.x || pan.y !== before.y),
-        pinchChanged:valid(pan) && valid(pinch) && pinch.scale > pan.scale,
-        physicalDeviceProof:false, ownerAcceptance:false,
-      }
-    })()`)
-    if (touch.panChanged !== true || touch.pinchChanged !== true) throw new Error(`touch transform did not change: ${JSON.stringify(touch)}`)
-    result = {...result, touch}
-  } catch (error) {
-    failure = error
-  } finally {
-    try {
-      await forceClearMetrics(cdp)
-      await reloadAndWait(cdp, config.ready)
-      const restored = await readDom(cdp, config.canvas.selector)
-      result.restored = restored
-      result.nativeMetricsRestored = native !== null && JSON.stringify(native.inner) === JSON.stringify(restored.inner)
-      if (result.nativeMetricsRestored !== true && failure === null) failure = new Error("native metrics were not restored after touch")
-    } catch (restoreError) {
-      failure = failure === null ? restoreError : new Error(`${errorText(failure)}; restore failed: ${errorText(restoreError)}`)
-    }
-  }
-  if (failure !== null) throw failure
-  return result
-}
-
-async function runInteraction(
-  cdp: CdpConnection,
-  config: TargetConfig,
-  target: Target,
-  plan: InteractionPlan,
-): Promise<JsonObject> {
-  const initial = await readDom(cdp, config.canvas.selector)
-  const inner = initial.inner as number[] | undefined
-  if (!inner || !Number.isFinite(inner[0]) || !Number.isFinite(inner[1])) {
-    throw new Error("interaction target is missing viewport metrics")
-  }
-  const collector = await createConsoleCollector(cdp)
-  const captures: CanvasEvidence[] = []
-  const renderBarriers: InteractionRenderBarrier[] = []
-  const backgroundInput = await runBackgroundInputMode({
-    setFocusEmulation: (enabled) => setFocusEmulation(cdp, enabled),
-  }, () => executeInteractionPlan(plan, {
-    viewport: {width: inner[0]!, height: inner[1]!},
-    async send(method, params) {
-      await cdp.send(method, params)
-    },
-    async settle(ms) {
-      try {
-        renderBarriers.push(await runInteractionRenderBarrier({
-          evaluate: (source, awaitPromise) => evaluate<unknown>(cdp, source, awaitPromise),
-        }, ms))
-      } catch (error) {
-        if (error instanceof InteractionRenderBarrierRejected) renderBarriers.push(error.barrier)
-        throw error
-      }
-    },
-    async checkpoint(step) {
-      const checkpoint: JsonObject = {name: step.name}
-      if (step.dom) checkpoint.dom = await readDom(cdp, config.canvas.selector)
-      if (step.canvas !== undefined) {
-        const capture = await captureCanvas(cdp, config, step.canvas, false)
-        captures.push(capture)
-        checkpoint.canvas = capture
-        if (!capture.written) throw new CanvasEvidenceRejected(capture)
-      }
-      return checkpoint
-    },
-  }))
-  const checkpoints = backgroundInput.value?.checkpoints ?? []
-  let failure = backgroundInput.failure
-
-  let final: JsonObject | null = null
-  try {
-    final = await readDom(cdp, config.canvas.selector)
-  } catch (error) {
-    failure = failure ?? error
-  } finally {
-    collector.stop()
-  }
-  const errors = consoleErrors(collector.entries)
-  const routePreserved = initial.url === config.targetUrl && final?.url === config.targetUrl
-  if (failure === null) {
-    try {
-      assertInteractionEvidence({
-        targetUrl: config.targetUrl,
-        initialUrl: initial.url,
-        finalUrl: final?.url,
-        console: collector.entries,
-        captures,
-      })
-    } catch (error) {
-      failure = error
-    }
-  }
-  const outcome = interactionOutcome(failure)
-  return {
-    action: "interact",
-    ...targetResult(config, target),
-    ...outcome,
-    plan: {version: plan.version, steps: plan.steps.length, settleMs: plan.settleMs},
-    initial,
-    final,
-    routePreserved,
-    checkpoints,
-    console: collector.entries,
-    consoleErrors: errors,
-    renderBarriers,
-    focusEmulation: backgroundInput.focusEmulation,
-    syntheticInput: true,
-    backgroundOnly: true,
-    ownerAcceptance: false,
-  }
-}
-
-async function runProfile(cdp: CdpConnection, config: TargetConfig, target: Target, frames: number): Promise<JsonObject> {
-  await setFocusEmulation(cdp, true)
-  await waitReady(cdp, config.ready)
-  await cdp.send("Performance.enable", {timeDomain: "timeTicks"})
-  try {
-    const dom = await readDom(cdp, config.canvas.selector)
-    const heapBefore = await cdp.send<JsonObject>("Runtime.getHeapUsage")
-    const metricsBefore = await performanceMetrics(cdp)
-    const frameEvidence = await evaluate<JsonObject>(cdp, `new Promise((resolve) => {
-      const deltas = []
-      let previous = null
-      const step = (now) => {
-        if (previous !== null) deltas.push(now - previous)
-        previous = now
-        if (deltas.length >= ${frames}) {
-          resolve({count:deltas.length, durationMs:deltas.reduce((sum, value) => sum + value, 0), meanMs:deltas.reduce((sum, value) => sum + value, 0) / deltas.length, maxMs:Math.max(...deltas), deltas})
-        } else requestAnimationFrame(step)
-      }
-      requestAnimationFrame(step)
-    })`, true)
-    const metricsAfter = await performanceMetrics(cdp)
-    const heapAfter = await cdp.send<JsonObject>("Runtime.getHeapUsage")
-    return {
-      action: "profile",
-      ...targetResult(config, target),
-      dom,
-      rendererActivityEmulation: true,
-      performance: {before: metricsBefore, after: metricsAfter},
-      heap: {
-        before: heapBefore,
-        after: heapAfter,
-        usedSizeDelta: Number(heapAfter.usedSize) - Number(heapBefore.usedSize),
-      },
-      frames: frameEvidence,
-      gpu: {
-        status: "external-capture-required",
-        sourceInstrumented: false,
-        workflow: "references/profiling.md#external-webgpu-inspector",
-        gpuTimeMeasured: false,
-      },
-      ownerAcceptance: false,
-    }
-  } finally {
-    try {
-      await cdp.send("Performance.disable")
-    } finally {
-      await setFocusEmulation(cdp, false)
-    }
-  }
-}
-
-async function performanceMetrics(cdp: CdpConnection): Promise<Record<string, number>> {
-  const response = await cdp.send<{metrics?: Array<{name: string; value: number}>}>("Performance.getMetrics")
-  return Object.fromEntries((response.metrics ?? []).map(({name, value}) => [name, value]))
-}
-
-function targetResult(config: TargetConfig, target: Target): JsonObject {
-  return {
-    checkout: config.checkout,
-    packageName: config.packageName,
-    targetId: target.id,
-    targetUrl: config.targetUrl,
-    backgroundOnly: true,
-  }
-}
-
-function errorText(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
+function usage(): never {
+  throw new Error(
+    "Usage: storybook-browser.ts <targets|target|open|close|reload|dom|console|page|canvas> <landing|package-id> [--route <package-route>] [--target-id <window:tab>] [--output <png>] [--duration-ms <ms>] [--activate]",
+  )
 }
 
 function output(value: unknown): void {

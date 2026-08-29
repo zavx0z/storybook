@@ -14,12 +14,6 @@
         "@zavx0z/renderer-webgpu": "link:@zavx0z/renderer-webgpu",
         "typescript": "^7.0.2",
       },
-      "peerDependencies": {
-        "@zavx0z/dom": "^0.1.0",
-      },
-      "optionalPeers": [
-        "@zavx0z/dom",
-      ],
     },
   },
   "packages": {

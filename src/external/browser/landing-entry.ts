@@ -1,0 +1,281 @@
+/** Global external Storybook landing entry. It never imports package runtime code. */
+
+import type {CustomEvent} from "@zavx0z/dom"
+import {STORYBOOK_DOM_WORKBENCH_EVENTS} from "../../dom/workbench.ts"
+import {waitForStorybookFrameBoundary} from "./frame.ts"
+import {
+  deriveExternalStorybookLanding,
+  deriveExternalStorybookLandingSelection,
+  type ExternalStorybookBrowserNavigationItem,
+} from "./model.ts"
+import {
+  createExternalStorybookShell,
+  externalStorybookClientNode,
+  fetchExternalStorybookClientSnapshot,
+  readExternalStorybookNodeReadme,
+  type CreateExternalStorybookShellOptions,
+  type ExternalStorybookShell,
+} from "./shell.ts"
+import type {ExternalStorybookClientSnapshot} from "./client-protocol.ts"
+
+export type StartExternalStorybookLandingOptions = Readonly<{
+  fetcher?: typeof fetch
+  browserDocument?: globalThis.Document
+  openWindow?(url: string, name: string): unknown
+  createSocket?(url: string): LandingSocket
+  location?: Pick<Location, "href" | "pathname" | "reload">
+  history?: Pick<History, "pushState">
+  waitForFrame?(): Promise<void>
+  shell?: Omit<CreateExternalStorybookShellOptions, "title" | "browserDocument">
+}>
+
+export type ExternalStorybookLandingController = Readonly<{
+  snapshot: ExternalStorybookClientSnapshot
+  shell: ExternalStorybookShell
+  select(nodeId: string): Promise<void>
+  dispose(): void
+}>
+
+export async function startExternalStorybookLanding(
+  options: StartExternalStorybookLandingOptions = {},
+): Promise<ExternalStorybookLandingController> {
+  const browserDocument = options.browserDocument ?? globalThis.document
+  if (browserDocument === undefined) throw new Error("External Storybook landing Document is unavailable")
+  browserDocument.documentElement.dataset.externalStorybook = "starting"
+  browserDocument.documentElement.dataset.externalStorybookLanding = "starting"
+  const fetcher = options.fetcher ?? globalThis.fetch
+  const snapshot = await fetchExternalStorybookClientSnapshot(fetcher)
+  const graph = snapshot
+  const landing = deriveExternalStorybookLanding(graph)
+  const shell = await createExternalStorybookShell({
+    title: "External Storybook",
+    browserDocument,
+    ...(options.shell ?? {}),
+  })
+  const openWindow = options.openWindow ?? ((url: string, name: string) => globalThis.open(url, name))
+  const location = options.location ?? globalThis.location
+  const history = options.history ?? globalThis.history
+  let selectionRevision = 0
+  let disposed = false
+
+  shell.workbench.update("catalog.label", "Проекты и пакеты")
+  shell.workbench.update("catalog.items", navigationItems(landing.catalogItems))
+  shell.showMessage(
+    "External Storybook · Обзор",
+    "External Storybook",
+    "Выберите проект или самостоятельный пакет. Workspace используется только как раскрываемая композиция.",
+  )
+
+  const showWorkspace = async (nodeId: string): Promise<void> => {
+    const revision = ++selectionRevision
+    const node = externalStorybookClientNode(snapshot, nodeId)
+    if (node.kind !== "workspace") throw new Error(`Landing group is not a workspace: ${nodeId}`)
+    const readme = await readExternalStorybookNodeReadme(node, fetcher)
+    if (disposed || revision !== selectionRevision) return
+    shell.document.transaction(() => {
+      shell.workbench.update("catalog.active", null)
+      shell.workbench.update("secondary.items", Object.freeze([]))
+      shell.workbench.update("secondary.active", null)
+    })
+    if (readme === null) shell.showMessage(`${node.label} · Обзор`, node.label, "Workspace composition")
+    else shell.showMarkdown(`${node.label} · README`, readme, node.resourceUrl)
+    shell.updateStatus(`${node.label} · workspace overview`)
+  }
+
+  const select = async (nodeId: string, updateHistory = true): Promise<void> => {
+    assertActive(disposed)
+    const revision = ++selectionRevision
+    const selection = deriveExternalStorybookLandingSelection(graph, nodeId)
+    shell.document.transaction(() => {
+      shell.workbench.update("catalog.active", selection.catalogActiveId)
+      shell.workbench.update("secondary.label", "Пакеты")
+      shell.workbench.update("secondary.items", navigationItems(selection.secondaryItems))
+      shell.workbench.update("secondary.active", selection.secondaryActiveId)
+      shell.workbench.update("scenarios.items", Object.freeze([]))
+      shell.workbench.update("scenarios.active", null)
+    })
+    const clientNode = externalStorybookClientNode(snapshot, selection.overviewNode.id)
+    try {
+      const readme = await readExternalStorybookNodeReadme(clientNode, fetcher)
+      if (disposed || revision !== selectionRevision) return
+      const preview = readme === null
+        ? shell.showMessage(
+          `${clientNode.label} · Обзор`,
+          clientNode.label,
+          overviewDescription(clientNode.kind),
+        )
+        : shell.showMarkdown(`${clientNode.label} · README`, readme, clientNode.resourceUrl)
+      if (clientNode.kind === "package") {
+        const packageId = clientNode.packageId
+        if (packageId === null) throw new Error(`Landing package has no package identity: ${clientNode.id}`)
+        const button = shell.document.createElement("button")
+        button.className = "external-storybook-action"
+        button.textContent = `Открыть ${clientNode.label}`
+        button.title = `Открыть пакет ${packageId} в отдельной вкладке`
+        button.addEventListener("click", () => {
+          openWindow(clientNode.urlPath, `storybook:${packageId}`)
+        })
+        preview.appendChild(button)
+      } else if (updateHistory && location !== undefined && history !== undefined &&
+        location.pathname !== clientNode.urlPath) {
+        history.pushState(null, "", clientNode.urlPath)
+      }
+      shell.clearDiagnostics()
+      shell.updateStatus(`${clientNode.label} · overview`)
+    } catch (error) {
+      if (disposed || revision !== selectionRevision) return
+      shell.reportDiagnostic(errorText(error))
+      shell.showMessage(`${clientNode.label} · Ошибка`, clientNode.label, errorText(error))
+      shell.updateStatus(`${clientNode.label} · error`)
+    }
+  }
+
+  const onNavigate = (event: unknown): void => {
+    const detail = (event as CustomEvent<{id: string}>).detail
+    void select(detail.id).catch((error) => isolateLandingError(browserDocument, shell, error))
+  }
+  const onGroupToggle = (event: unknown): void => {
+    const detail = (event as CustomEvent<{id: string}>).detail
+    void showWorkspace(detail.id).catch((error) => isolateLandingError(browserDocument, shell, error))
+  }
+  shell.workbench.element.addEventListener(STORYBOOK_DOM_WORKBENCH_EVENTS.navigate, onNavigate)
+  shell.workbench.element.addEventListener(STORYBOOK_DOM_WORKBENCH_EVENTS.groupToggle, onGroupToggle)
+
+  const socket = createLandingSocket(options, location?.href)
+  const onSocketOpen = (): void => socket?.send(JSON.stringify({type: "subscribe", topic: "registry"}))
+  const onSocketMessage = (event: MessageEvent): void => {
+    const update = parseLandingEvent(event.data)
+    if (update === null) return
+    if (update.type === "package.open") {
+      openWindow(update.urlPath, `storybook:${update.packageId}`)
+    } else if (update.type === "registry.updated") {
+      location?.reload()
+    } else if (update.type === "package.failed") {
+      shell.updateStatus(`${update.packageId} · build failed`)
+    } else if (update.type === "package.updated") {
+      shell.updateStatus(`${update.packageId} · ${update.revision}`)
+    }
+  }
+  socket?.addEventListener("open", onSocketOpen)
+  socket?.addEventListener("message", onSocketMessage)
+
+  const applyLandingPath = async (): Promise<void> => {
+    const pathname = location?.pathname ?? "/"
+    if (pathname === "/") {
+      if (snapshot.rootIds.length === 1) {
+        const root = externalStorybookClientNode(snapshot, snapshot.rootIds[0]!)
+        if (root.kind === "workspace") await showWorkspace(root.id)
+      }
+      return
+    }
+    const node = snapshot.nodes.find((candidate) => candidate.urlPath === pathname)
+    if (node?.kind === "workspace") await showWorkspace(node.id)
+    else if (node?.kind === "project") await select(node.id, false)
+    else throw new Error(`Unknown external Storybook landing pathname: ${pathname}`)
+  }
+  const onPopState = (): void => {
+    void applyLandingPath().catch((error) => isolateLandingError(browserDocument, shell, error))
+  }
+  globalThis.addEventListener?.("popstate", onPopState)
+  await applyLandingPath()
+
+  const dispose = (): void => {
+    if (disposed) return
+    disposed = true
+    selectionRevision += 1
+    shell.workbench.element.removeEventListener(STORYBOOK_DOM_WORKBENCH_EVENTS.navigate, onNavigate)
+    shell.workbench.element.removeEventListener(STORYBOOK_DOM_WORKBENCH_EVENTS.groupToggle, onGroupToggle)
+    socket?.removeEventListener("open", onSocketOpen)
+    socket?.removeEventListener("message", onSocketMessage)
+    socket?.close()
+    globalThis.removeEventListener?.("popstate", onPopState)
+    shell.dispose()
+  }
+  globalThis.addEventListener?.("pagehide", dispose, {once: true})
+  shell.requestRender()
+  await (options.waitForFrame ?? waitForStorybookFrameBoundary)()
+  browserDocument.documentElement.dataset.externalStorybook = "ready"
+  browserDocument.documentElement.dataset.externalStorybookLanding = "ready"
+  return Object.freeze({snapshot, shell, select, dispose})
+}
+
+type LandingSocket = Readonly<{
+  addEventListener(type: string, listener: (event: any) => void): void
+  removeEventListener(type: string, listener: (event: any) => void): void
+  send(data: string): void
+  close(): void
+}>
+
+function createLandingSocket(
+  options: StartExternalStorybookLandingOptions,
+  href: string | undefined,
+): LandingSocket | null {
+  if (href === undefined) return null
+  const url = new URL("/api/events", href)
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
+  if (options.createSocket !== undefined) return options.createSocket(url.href)
+  return typeof WebSocket === "undefined" ? null : new WebSocket(url.href)
+}
+
+function parseLandingEvent(value: unknown): any | null {
+  if (typeof value !== "string") return null
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(value)
+  } catch {
+    return null
+  }
+  if (parsed === null || typeof parsed !== "object" || !("type" in parsed)) return null
+  const record = parsed as Record<string, unknown>
+  if (record.type === "registry.updated" && typeof record.graphDigest === "string") return record
+  if (record.type === "package.open" && typeof record.packageId === "string" && typeof record.urlPath === "string") return record
+  if (record.type === "package.updated" && typeof record.packageId === "string" && typeof record.revision === "string") return record
+  if (record.type === "package.failed" && typeof record.packageId === "string") return record
+  return null
+}
+
+function navigationItems(items: readonly ExternalStorybookBrowserNavigationItem[]) {
+  return Object.freeze(items.map((item) => Object.freeze({
+    id: item.id,
+    label: item.label,
+    route: item.route,
+    title: item.title,
+    searchText: item.searchText,
+    ...(item.group === null ? {} : {group: item.group}),
+  })))
+}
+
+function overviewDescription(kind: string): string {
+  if (kind === "project") return "Выберите пакет во второй панели."
+  if (kind === "package") return "Откройте пакет в отдельной вкладке для изучения его каталога."
+  return "Owner README для этого узла не объявлен."
+}
+
+function isolateLandingError(
+  document: globalThis.Document,
+  shell: ExternalStorybookShell,
+  error: unknown,
+): void {
+  document.documentElement.dataset.externalStorybookLanding = "error"
+  document.documentElement.dataset.externalStorybookError = errorText(error)
+  shell.reportDiagnostic(errorText(error))
+  shell.updateStatus("landing error")
+  console.error(error)
+}
+
+function errorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+function assertActive(disposed: boolean): void {
+  if (disposed) throw new Error("External Storybook landing is disposed")
+}
+
+if (typeof document !== "undefined") {
+  void startExternalStorybookLanding().catch((error) => {
+    document.documentElement.dataset.externalStorybook = "error"
+    document.documentElement.dataset.externalStorybookLanding = "error"
+    document.documentElement.dataset.externalStorybookError = errorText(error)
+    console.error(error)
+  })
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../../../schemas/manifest.schema.json",
+  "schemaVersion": 1,
+  "kind": "workspace",
+  "id": "fixture-workspace",
+  "label": "Fixture Workspace",
+  "readme": "../README.md",
+  "projects": [
+    {"declaration": "../projects/alpha/.storybook/manifest.json"},
+    {"declaration": "../projects/beta/.storybook/manifest.json"}
+  ]
+}

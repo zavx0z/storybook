@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../../../../../../../schemas/manifest.schema.json",
+  "schemaVersion": 1,
+  "kind": "package",
+  "id": "@fixture/components",
+  "label": "Fixture Components",
+  "packageJson": "../package.json",
+  "readme": "../README.md",
+  "runtime": {
+    "module": "./runtime.ts",
+    "export": "runtime"
+  },
+  "catalog": "./catalog.json"
+}

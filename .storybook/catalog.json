@@ -1,0 +1,150 @@
+{
+  "$schema": "https://raw.githubusercontent.com/zavx0z/storybook/main/schemas/catalog.schema.json",
+  "schemaVersion": 1,
+  "categories": [
+    {
+      "id": "route-tree",
+      "label": "Canonical graph and routes",
+      "subjects": [{
+        "id": "contract",
+        "kind": "contract",
+        "label": "Route contract",
+        "apiName": "ExternalStorybookGraph",
+        "variants": [{"id": "overview", "label": "Overview", "route": "route-tree/contract/overview", "module": {"path": "./stories/contracts.ts", "export": "routeTree"}}]
+      }]
+    },
+    {
+      "id": "stories",
+      "label": "Owner stories",
+      "group": {"id": "contracts", "label": "Contracts"},
+      "subjects": [{
+        "id": "contract",
+        "kind": "contract",
+        "label": "Story module boundary",
+        "apiName": "module.path + module.export",
+        "variants": [{"id": "overview", "label": "Overview", "route": "stories/contract/overview", "module": {"path": "./stories/contracts.ts", "export": "stories"}}]
+      }]
+    },
+    {
+      "id": "catalog",
+      "label": "JSON catalog",
+      "group": {"id": "contracts", "label": "Contracts"},
+      "subjects": [{
+        "id": "contract",
+        "kind": "contract",
+        "label": "Declaration catalog",
+        "apiName": "catalog.schema.json",
+        "variants": [{"id": "overview", "label": "Overview", "route": "catalog/contract/overview", "module": {"path": "./stories/contracts.ts", "export": "catalog"}}]
+      }]
+    },
+    {
+      "id": "workbench",
+      "label": "Workbench",
+      "group": {"id": "contracts", "label": "Contracts"},
+      "subjects": [
+        {
+          "id": "contract",
+          "kind": "contract",
+          "label": "Six-region shell",
+          "apiName": "Workbench",
+          "variants": [{"id": "overview", "label": "Overview", "route": "workbench/contract/overview", "module": {"path": "./stories/contracts.ts", "export": "workbench"}}]
+        },
+        {
+          "id": "live",
+          "kind": "component",
+          "label": "Live button",
+          "apiName": "HTMLButtonElement",
+          "variants": [
+            {"id": "primary", "label": "Primary", "route": "workbench/live/primary", "module": {"path": "./stories/workbench.ts", "export": "primary"}},
+            {"id": "outlined", "label": "Outlined", "route": "workbench/live/outlined", "module": {"path": "./stories/workbench.ts", "export": "outlined"}},
+            {"id": "disabled", "label": "Disabled", "route": "workbench/live/disabled", "module": {"path": "./stories/workbench.ts", "export": "disabled"}}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "references",
+      "label": "References",
+      "group": {"id": "contracts", "label": "Contracts"},
+      "subjects": [{
+        "id": "contract",
+        "kind": "resource",
+        "label": "Owner evidence",
+        "apiName": "owner resource links",
+        "variants": [{"id": "overview", "label": "Overview", "route": "references/contract/overview", "module": {"path": "./stories/contracts.ts", "export": "references"}}]
+      }]
+    },
+    {
+      "id": "app",
+      "label": "Package realm",
+      "group": {"id": "runtime", "label": "Runtime"},
+      "subjects": [{
+        "id": "contract",
+        "kind": "runtime",
+        "label": "Package tab",
+        "apiName": "storybook-runtime/1",
+        "variants": [{"id": "overview", "label": "Overview", "route": "app/contract/overview", "module": {"path": "./stories/contracts.ts", "export": "app"}}]
+      }]
+    },
+    {
+      "id": "server",
+      "label": "One server",
+      "group": {"id": "lifecycle", "label": "Lifecycle"},
+      "subjects": [{
+        "id": "contract",
+        "kind": "tool",
+        "label": "HTTP and WebSocket",
+        "apiName": "storybook serve",
+        "variants": [{"id": "overview", "label": "Overview", "route": "server/contract/overview", "module": {"path": "./stories/contracts.ts", "export": "server"}}]
+      }]
+    },
+    {
+      "id": "launcher",
+      "label": "CLI",
+      "group": {"id": "lifecycle", "label": "Lifecycle"},
+      "subjects": [{
+        "id": "contract",
+        "kind": "tool",
+        "label": "Attach, detach and open",
+        "apiName": "storybook CLI",
+        "variants": [{"id": "overview", "label": "Overview", "route": "launcher/contract/overview", "module": {"path": "./stories/contracts.ts", "export": "launcher"}}]
+      }]
+    },
+    {
+      "id": "scaffold",
+      "label": "Declaration init",
+      "group": {"id": "lifecycle", "label": "Lifecycle"},
+      "subjects": [{
+        "id": "contract",
+        "kind": "tool",
+        "label": "Declaration initialization",
+        "apiName": "storybook init",
+        "variants": [{"id": "overview", "label": "Overview", "route": "scaffold/contract/overview", "module": {"path": "./stories/contracts.ts", "export": "scaffold"}}]
+      }]
+    },
+    {
+      "id": "build",
+      "label": "PackageSession",
+      "group": {"id": "lifecycle", "label": "Lifecycle"},
+      "subjects": [{
+        "id": "contract",
+        "kind": "capability",
+        "label": "Published revisions",
+        "apiName": "PackageSession",
+        "variants": [{"id": "overview", "label": "Overview", "route": "build/contract/overview", "module": {"path": "./stories/contracts.ts", "export": "build"}}]
+      }]
+    },
+    {
+      "id": "environment",
+      "label": "Isolation",
+      "group": {"id": "lifecycle", "label": "Lifecycle"},
+      "subjects": [{
+        "id": "contract",
+        "kind": "capability",
+        "label": "Package-scoped updates",
+        "apiName": "package.updated",
+        "variants": [{"id": "overview", "label": "Overview", "route": "environment/contract/overview", "module": {"path": "./stories/contracts.ts", "export": "environment"}}]
+      }]
+    }
+  ]
+}

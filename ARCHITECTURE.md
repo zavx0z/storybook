@@ -1,107 +1,198 @@
-# Архитектура `@zavx0z/storybook`
+# Внешняя архитектура Storybook
 
-Пакет находится только в development graph:
-
-```text
-repository-owned DOM stories ─> @zavx0z/storybook
-                                     ├─ semantic Workbench
-                                     ├─ routing / server / static build
-                                     └─ lifecycle helpers
-
-@zavx0z/dom -> CPU renderer -> renderer-webgpu -> @engine/core
-```
-
-Shared package владеет target-neutral Storybook mechanics и не переносит к себе
-repository story semantics. Его собственное приложение является обычным
-consumer нового DOM/renderer pipeline.
-
-## Application flow
-
-1. Repository app объявляет pages, mounts, capabilities, readiness, visible
-   shell strings и owner asset paths.
-2. Каждая package page передаёт собственный typed route tree и lazy DOM story
-   registry. Общий catalog знает только eager metadata и вызывает owner-owned
-   `normalizeModule`; semantic Workbench принимает реальные Node того же
-   `@zavx0z/dom` Document.
-3. Dev server собирает browser entry один раз по запросу и кэширует его до
-   owner-controlled restart. Canvas page сама соединяет DOM Workbench с
-   `createDocumentCanvasRuntime`; shared server не рисует UI.
-4. Static builder независимо собирает каждую page, вычисляет asset digests и
-   пишет один revisioned manifest.
-5. Общий `$storybook` выбирает exact package process и browser target по
-   `package.json#name`; operating system выделяет port, а shared launcher не
-   принимает foreign process по совпавшему PID или origin.
-6. Dev server проецирует routes/readiness/canvas/touch в typed runtime manifest;
-   background browser helper читает его по package runtime и не содержит
-   consumer selectors, origins или port registry.
-
-Каждая page может передать один compiler-neutral `browserBuild.plugins` source:
-готовый список stateless Bun plugins либо фабрику свежего списка. Dev и static
-передают этот source в один `buildStorybookBrowserPage`; он не попадает в
-runtime/static manifests. Stateful compiler использует фабрику и завершает
-собственную session через Bun plugin `onEnd` каждого изолированного build.
-Shared Storybook не импортирует Template, JSX compiler или UI package и не
-создаёт persistent/HMR session.
-
-Public package root намеренно пуст. Каждый contract импортируется через
-точный lowercase subpath, соответствующий одному owner-neutral понятию.
-
-## DOM-native presentation flow
-
-Production-facing authoring contract использует стандартное DOM-дерево:
+`/Users/zavx0z/repozitarium/storybook` — самостоятельный development tool. Он
+не является dependency consumer project или production package и не переносит
+к себе их stories, README, fixtures, tests, media или предметную семантику.
 
 ```text
-one @zavx0z/dom Document
-   ├─> owner DOM story (stable Node)
-   └─> semantic Workbench shell
-          ├─ catalog navigation tree + search
-          ├─ flat secondary navigation
-          ├─ preview host
-          ├─ scenario dock
-          ├─ owner-supplied Inspector node
-          └─ status
-                 │
-                 v
-flat CSS -> CPU renderer -> display list / hit tree -> WebGPU backend
+owner JSON declarations + owner resources
+                    │
+                    v
+one external storybook serve process
+  ├─ declaration registry
+  ├─ one immutable normalized graph
+  ├─ one HTTP origin + WebSocket
+  ├─ one shared Workbench frontend
+  └─ independent PackageSession per package
+         ├─ generated static lazy loader
+         ├─ compiler/module graph
+         ├─ isolated candidate staging
+         ├─ active + last-good revision
+         ├─ immutable published revisions
+         └─ package-scoped diagnostics/update topic
 ```
 
-`@zavx0z/storybook/stories`, `@zavx0z/storybook/catalog` и
-`@zavx0z/storybook/workbench` имеют один required runtime peer — `@zavx0z/dom`.
-Они не импортируют Engine, Layout, Elements или Components.
-Document и реальные Node являются всей semantic boundary; title, aria,
-attributes и events используют стандартные имена и наследование DOM.
+## Owner law
 
-Workbench создаёт структуру один раз. Catalog declaration передаёт явные
-group/leaf metadata, а Workbench владеет disclosure state и публикует настоящее
-`tree` / `treeitem` / `group` DOM-поддерево. Group toggle остаётся UI-событием и
-не становится route navigation; secondary navigation сохраняет отдельную
-плоскую семантику. Контроллер изменяет содержимое по точным semantic addresses,
-сохраняет shell и keyed group/leaf identity, а большой catalog проецирует в
-bounded visible DOM window вместо безусловной полной материализации.
+Реальный package владеет `.storybook/manifest.json`, `catalog.json`, semantic
+order, story modules, README/resources и при необходимости structural runtime
+adapter. Project и workspace являются только сохранённой композицией ссылок на
+эти declarations. Они не владеют вторым catalog, frontend, server или runtime.
 
-Renderer ниже по конвейеру подписывается на mutation batches этого же Document,
-вычисляет CSS и layout на CPU, а WebGPU backend проецирует display list.
-Storybook не владеет ни одним из этих rendering stages.
+Внешний Storybook владеет schemas, discovery, validation, canonical graph,
+search/routing derived views, шестью областями Workbench, package build/revision
+lifecycle, diagnostics и browser tabs. Будущий MCP будет только другой
+проекцией того же graph; отдельный MCP registry не допускается.
 
-Shared CSS задаёт только compact editor fallback: пять плотных рабочих regions
-над отдельной 24px StatusBar, low-radius panel contours, thin separators и
-compact group/leaf navigation и source rows. Repository owner добавляет scoped
-material policy и reference acceptance, не копируя semantic Workbench и не
-заменяя его oversized cards или pill navigation.
+## Declaration flow
 
-## Self documentation application
+Единственный формат первого этапа — versioned JSON:
 
-Package-owned app `@zavx0z/storybook` на automatic port использует один
-semantic DOM Workbench для документации и живых примеров:
+- `schemas/manifest.schema.json` описывает `workspace | project | package`
+  declarations
+- `schemas/catalog.schema.json` описывает `category → subject → variant`
+- `<scope>/.storybook/manifest.json` является universal entry
+- `<package>/.storybook/catalog.json` содержит только data и links на
+  owner-owned resources
+
+Discovery canonicalizes каждый путь через `realpath`, проверяет kind каждой
+ссылки, package identity по настоящему `package.json`, schema version, cycles,
+duplicate ids, route/ID uniqueness и package-root containment. Подключение
+subtree атомарно: ошибка нового root не меняет текущий registry или sessions.
+
+## Canonical normalized graph
+
+Resolver создаёт один serializable immutable graph с kinds `workspace`,
+`project`, `package`, `category`, `subject`, `variant`. Presentation group —
+optional descriptor, а не semantic node или отдельный semantic level.
+
+Каждый node содержит canonical identity, kind, owner, label, structural path,
+canonical URL, parent, ordered children, README/resources, search terms, source
+declaration и digest. Routes, navigation, search, UI keys, package selection и
+build lookup являются derived indexes одного graph. Unknown или ambiguous
+identity/route fail closed. Package/category/subject overview — самостоятельное
+состояние и никогда не заменяется первой variant.
+
+Canonical identities стабильны относительно owner ids:
 
 ```text
-one @zavx0z/dom Document
-   └─ one Workbench route tree
-   ├─> public module stories   Russian preview + source provenance
-   └─> live example variants  standard HTML elements
+workspace:<workspace-id>
+project:<project-id>
+package:<package-id>
+category:<package-id>/<category-id>
+subject:<package-id>/<category-id>/<subject-id>
+variant:<package-id>/<category-id>/<subject-id>/<variant-id>
 ```
 
-Typed documentation registry является единственным списком документируемых
-модулей. Он преобразуется в DOM catalog; focused test
-сравнивает его с `package.json#exports`, поэтому новый API не может пройти
-repository check без своей story.
+## One server, one origin, separate realms
+
+`storybook serve [declaration-or-root...]` создаёт единственный Bun listener с
+`port: 0`. Runtime state хранит exact PID/start/cwd/origin; `attach`, `detach`,
+`open`, `status`, `check` и `stop` обращаются к этому process и никогда не
+запускают package-owned listener.
+
+Global landing и все package tabs обслуживаются одним origin. Landing не
+импортирует package runtime/production code. URL package tab содержит exact
+package identity; повторное открытие использует named target
+`storybook:<package-id>`.
+
+Одна package tab имеет один browser realm, один generated entry, один package
+runtime instance и один PackageSession revision. Generated entry является
+тонкой static map: один заранее validated import boundary для runtime и каждой
+executable variant. Browser никогда не выполняет arbitrary import path из JSON
+и не использует `eval`.
+
+Shared shell source один для landing и package entries. Package build включает
+только выбранный package graph, поэтому другая package production code в tab не
+попадает. Bun metafile фиксирует canonical dependency realpaths. Branded
+DOM/Renderer/Engine/Template identities проверяются до publish; разные realpath
+одного обязательного runtime fail closed.
+
+## Workbench projection
+
+Сохраняется один DOM-native Workbench:
+
+```text
+catalog | secondary | preview | scenarios | inspector | status
+```
+
+Canonical graph проецируется в существующий `Navigation Tree` через
+`catalog.items`. Direct items, optional `group → child`, disclosure, search,
+pointer/keyboard navigation, keyed identity, active/disabled/focus и bounded
+large-catalog window остаются его внутренним UI/session state. Collapse state
+не записывается в declarations.
+
+Landing показывает workspace groups, direct standalone projects и direct
+packages без fake workspace. Package tab показывает categories (direct или
+grouped), subjects во второй panel и variants в scenarios. Старый section
+segment сохраняется в explicit route и optional variant grouping metadata, но
+не возвращает отдельную постоянную panel.
+
+README читается по owner resource link. Shared browser renderer поддерживает
+bounded Markdown subset: headings, paragraphs, lists, code blocks, links и
+inline code. Embedded HTML/JavaScript не выполняется; неизвестная конструкция
+становится text. Ошибка README локальна выбранному node.
+
+## Structural runtime protocol
+
+Consumer не импортирует Storybook даже type-only. Executable package может
+экспортировать plain object из указанного declaration module:
+
+```text
+runtime.protocol === "storybook-runtime/1"
+runtime.create(context) -> session | Promise<session>
+
+session.mount({route, story, signal})
+session.update?({route, story, signal})
+session.unmount()
+session.dispose()
+```
+
+`context` передаёт package-tab Document, validated `mount(node)`, inspector and
+source/props publication, diagnostic reporting и lifetime AbortSignal. Mounted
+Node обязан принадлежать exact context Document. Runtime владеет только
+owner-specific story execution, освобождает предыдущую story и idempotently
+dispose-ится. Navigation, routing, Workbench, registry и server ему недоступны.
+
+External shell валидирует marker/methods структурно, изолирует исключения и
+отображает их только в package status/inspector.
+
+## PackageSession and revisions
+
+Для каждого package существует независимый state:
+
+```text
+packageId
+declarationDigest
+moduleGraphRevision
+candidateRevision
+activeRevision
+lastGoodRevision
+diagnostics
+dependencyRealpaths
+subscribers
+buildState
+```
+
+Candidate проходит declaration/path/export validation, compile, link, runtime
+protocol validation и только затем атомарно публикуется в immutable revision
+directory. Active/last-good меняются после полного успеха. Failed candidate не
+заменяет last-good artifact и не меняет другие sessions.
+
+Metafile-derived dependency index инвалидирует только sessions, реально
+содержащие изменённый canonical realpath. Shared dependency может независимо
+пересобрать A и B; C остаётся clean. Success публикует
+`package.updated {packageId, revision}`, failure —
+`package.failed {packageId, diagnostics}`. Package tab слушает только свой
+topic и после success перезагружает тот же URL; landing получает только registry
+и summary statuses.
+
+## Compiler boundary
+
+Declarations не содержат build callbacks. External PackageSession использует
+обычный owner package/module resolution и standard project TypeScript config.
+Если project `jsxImportSource` требует existing compiler, session разрешает его
+из exact package dependency graph и создаёт fresh compiler plugin instances как
+internal workers. Compiler не становится Storybook dependency consumer-а и не
+получает server/lifecycle ownership.
+
+## Migration boundary
+
+Private packages `@engine/storybook`, `@ui/storybook`, `@nodes/storybook`,
+`@quantum/storybook`, package-local server/build/bootstrap scripts и all
+consumer imports/dependencies удаляются после route/resource parity. Renderer
+получает только реальные DOM-owned stories; retired Layout не оживляется.
+
+Существующие reference/evidence assets остаются immutable owner resources, но
+Blender capture, screenshot baseline, visual diff, acceptance state и MCP
+transport не входят в этот этап.

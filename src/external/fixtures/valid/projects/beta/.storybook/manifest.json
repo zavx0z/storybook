@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "kind": "project",
+  "id": "fixture-beta",
+  "label": "Fixture Beta",
+  "packages": [
+    {"declaration": "../packages/docs/.storybook/manifest.json"}
+  ]
+}

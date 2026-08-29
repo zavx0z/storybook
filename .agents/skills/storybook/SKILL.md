@@ -1,121 +1,118 @@
 ---
 name: storybook
-description: "Create, launch, restart, build, and verify any repository-owned @scope/storybook package by its exact package name. Use for shared Storybook lifecycle, routes, Workbench, browser evidence, or create-storybook scaffolding; product runtimes remain outside."
+description: "Run, attach, check and verify the one external declaration-driven Storybook server and exact package tabs. Consumer projects own JSON declarations and stories, never Storybook packages or dependencies."
 ---
 
-# Storybook
+# External Storybook
 
-Use the exact `package.json#name` as the only Storybook identity. Accept names
-of the form `@scope/storybook`; never introduce selectors, aliases, port tables,
-consumer lifecycle registries, or per-repository copies of this skill.
+Use the one dispatcher from this skill. Never copy it into a consumer, select a
+port, start a package-local server or address an old `@scope/storybook` package.
 
-The package owns its app, pages, stories, preview, fixtures, lab state, static
-output and acceptance. `@zavx0z/storybook` owns the shared router, Workbench,
-server, neutral shell fallback, build, package launcher, automatic port
-handshake and scaffold. Consumer CSS may style story content and geometry but
-must not set `html`, `body`, root or canvas shell background colors.
-
-## Locate the canonical tools
-
-Set `SKILL_ROOT` to the directory containing this `SKILL.md`, using the exact
-path shown by Codex. The one dispatcher resolves its physical source checkout:
+Set `SKILL_ROOT` to the exact directory containing this file. The dispatcher
+resolves the canonical external tool checkout:
 
 ```bash
-"$SKILL_ROOT/scripts/storybook.sh" status @ui/storybook
+"$SKILL_ROOT/scripts/storybook.sh" status
 ```
 
-Do not guess another checkout or copy a tool into the consumer.
+## Owner boundary
 
-## Package lifecycle
+Consumer roots provide only `.storybook/manifest.json`, package
+`catalog.json`, owner-owned stories/resources and optional plain
+`storybook-runtime/1` adapters. They never install or import
+`@zavx0z/storybook`, expose stories from production packages, own a Storybook
+listener or choose a port.
 
-Run read-only `status` before the first lifecycle action. Supply the consumer
-repository through `--root` only when it is not the current Git repository.
+The external tool owns the single process/origin, canonical graph, shared
+six-region Workbench, independent PackageSessions, immutable revisions,
+last-good diagnostics, WebSocket topics and browser tabs.
+
+## Server and registry
+
+Always run read-only `status` first. A stopped server may be started once with
+one or more declaration/root paths. Preserve the foreground terminal session.
 
 ```bash
-"$SKILL_ROOT/scripts/storybook.sh" status  @ui/storybook
-"$SKILL_ROOT/scripts/storybook.sh" ensure  @ui/storybook
-"$SKILL_ROOT/scripts/storybook.sh" restart @ui/storybook
-"$SKILL_ROOT/scripts/storybook.sh" stop    @ui/storybook
-"$SKILL_ROOT/scripts/storybook.sh" build   @ui/storybook
-"$SKILL_ROOT/scripts/storybook.sh" check   @ui/storybook
+"$SKILL_ROOT/scripts/storybook.sh" serve /path/to/workspace /path/to/package
+"$SKILL_ROOT/scripts/storybook.sh" attach /path/to/another-project
+"$SKILL_ROOT/scripts/storybook.sh" detach project-id
+"$SKILL_ROOT/scripts/storybook.sh" status
+"$SKILL_ROOT/scripts/storybook.sh" stop
 ```
 
-The first `start` or stopped `ensure` opens and activates one exact package
-route in Chrome after readiness. The dispatcher records that package target;
-`restart` preserves its exact registered pathname while navigating the same tab
-to the new automatic-port origin in the background, and must not activate
-Chrome or take OS focus. A repeated `ensure` reuses both the running package and
-its tab. Use `--no-open` only for an
-explicitly internal server-only launch. These commands may remain the foreground
-owner of the exact package child; preserve the returned terminal session. The
-launcher requests port `0`; the operating system allocates the port and the
-package publishes its origin through the runtime protocol. Never choose,
-reserve, scan, document, or kill by port.
+If the server already runs, `serve` attaches supplied roots and reuses it.
+Attach is atomic; failure must leave the current graph and sessions unchanged.
+Detach closes only the selected descendant sessions. Stop is global and must be
+used only when the task actually authorizes stopping this exact server.
 
-Status and stop validate package name, checkout realpath, PID, process start,
-cwd and HTTP health. A foreign or ambiguous process is a hard stop, not a retry
-or adoption signal. An explicit exact stop/restart may terminate only the
-recorded child; no SIGKILL escalation is automatic.
+Workspace is optional. It is valid to attach workspace groups, standalone
+projects and standalone packages simultaneously.
 
-After a stable applicable source checkpoint, restart the exact package once
-and reload only the routes needed for evidence. Preserve unrelated listeners
-and browser targets. Unknown routes fail closed; overview routes end in `/`
-and exact leaves do not.
+## Check and initialize
 
-Every registered overview owns a real presentation inside the same Workbench.
-A primary overview shows common information and all secondary items with no
-secondary or dock selection; a secondary overview shows all variants with no
-exact variant selected. Never render the first descendant leaf as hidden
-overview content. A `representative` may seed explicit initial selection, but
-it does not replace an overview's module, source, controls or readiness state.
-
-## Background browser evidence
-
-The same package name resolves the runtime origin and typed page manifest. Run
-`targets` first; open a target only when none exists, and pass an exact target
-id whenever more than one package-origin target exists.
+`check` resolves and compiles exact package sessions without creating a
+consumer server. With no running server and a path scope it uses one bounded
+transient external process and stops it afterward.
 
 ```bash
-"$SKILL_ROOT/scripts/storybook.sh" browser targets @ui/storybook
-"$SKILL_ROOT/scripts/storybook.sh" browser open @ui/storybook --activate
-"$SKILL_ROOT/scripts/storybook.sh" browser reload @ui/storybook \
-  --route /components/button/basic/contained --target-id "$target_id"
-"$SKILL_ROOT/scripts/storybook.sh" browser canvas @ui/storybook \
-  --route /components/button/basic/contained --target-id "$target_id" \
-  --output /tmp/ui-button.png
+"$SKILL_ROOT/scripts/storybook.sh" check /path/to/project
+"$SKILL_ROOT/scripts/storybook.sh" check @ui/components
+
+"$SKILL_ROOT/scripts/storybook.sh" init packages/components --kind package --executable --stories
+"$SKILL_ROOT/scripts/storybook.sh" init . --kind project
+"$SKILL_ROOT/scripts/storybook.sh" init . --kind workspace
 ```
 
-The browser helper reads origin, routes, readiness, canvas and touch from the
-running package. It never reads a consumer registry or port. It serializes
-target creation and exact-target operations, enables background frame
-scheduling through the owner ready marker and one following presented-frame
-boundary, then restores emulation during cleanup. `--activate` selects the exact
-tab inside Chrome without taking OS focus from another application.
+Init creates declarations, not `package.json`, `bunfig.toml`, server/build
+wrappers, lifecycle scripts, dependencies or port configuration. It refuses an
+existing `.storybook` directory.
 
-## Create a package
+## Landing and package tabs
 
-For a new owner boundary, generate the whole package from the one maintained
-template:
+Open from the landing action or request an exact package/route from the running
+server:
 
 ```bash
-"$SKILL_ROOT/scripts/storybook.sh" create \
-  @quantum/storybook quantum/storybook
+"$SKILL_ROOT/scripts/storybook.sh" open @ui/components components/button/basic/contained
 ```
 
-The target must not exist. Never use the generator to update, merge, or adopt
-an existing Storybook. Generated packages include the canonical scripts,
-typed app, automatic-port server, static build, consumer-owned page, DOM
-catalog, fixture, lazy DOM story, shared semantic Workbench and focused test.
+The landing client reuses named tab `storybook:<package-id>`. One package tab
+equals one JS realm, one runtime instance and one independently updateable
+session. Normal route navigation stays in place; successful package update
+reloads only matching tabs and preserves pathname. Failure keeps last-good and
+shows package diagnostics.
+
+## Browser evidence
+
+The browser helper derives the current origin and exact package URLs from the
+running external server. It uses the canonical macOS Chrome service internally,
+checks its health first and always targets a stable CDP `targetId`. It never
+falls back to ambiguous AppleScript window/tab selection when several Chrome
+profiles are running.
+
+```bash
+"$SKILL_ROOT/scripts/storybook.sh" browser targets landing
+"$SKILL_ROOT/scripts/storybook.sh" browser open landing --activate
+
+"$SKILL_ROOT/scripts/storybook.sh" browser targets @ui/components
+"$SKILL_ROOT/scripts/storybook.sh" browser open @ui/components \
+  --route components/button/basic/contained
+"$SKILL_ROOT/scripts/storybook.sh" browser reload @ui/components \
+  --route components/button/basic/contained --target-id WINDOW:TAB
+"$SKILL_ROOT/scripts/storybook.sh" browser console @ui/components \
+  --target-id WINDOW:TAB
+"$SKILL_ROOT/scripts/storybook.sh" browser canvas @ui/components \
+  --target-id WINDOW:TAB --output /tmp/ui-components.png
+```
+
+Run `targets` first and pass the exact target id when more than one matching
+package tab exists. Browser evidence is route-specific: ready marker, exact
+pathname/package id, console errors `0` and a non-empty DOM or canvas preview.
+Automated capture remains evidence, not owner acceptance.
 
 ## Acceptance
 
-Run the package's focused tests and typecheck while iterating, then its exact
-`check` script. Browser evidence is route-specific: readiness plus console 0
-and DOM, SVG, or non-black exact canvas according to the app manifest. Automated
-captures remain evidence candidates, not owner acceptance.
-
-Production packages never import Storybook. Import exact lowercase
-`@zavx0z/storybook/*` owners in private Storybook packages; do not add root
-barrels, aliases, wrappers, generated shared-source copies, or compatibility
-re-exports. Build and verification never authorize push, Pages deployment, or
-workflow dispatch.
+Iterate with focused owner tests and external `check`, then verify the exact
+live route. Preserve existing listeners, attached roots, unrelated tabs and
+user WIP. Build/check/browser actions never authorize commit, push, workflow,
+Pages deployment, reference capture or MCP changes.

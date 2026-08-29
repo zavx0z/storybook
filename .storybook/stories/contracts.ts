@@ -1,0 +1,126 @@
+import type {Document, HTMLElement} from "@zavx0z/dom"
+
+type Contract = Readonly<{
+  title: string
+  summary: string
+  ownership: string
+  example: string
+}>
+
+const contracts = Object.freeze({
+  routeTree: contract(
+    "Canonical graph and routes",
+    "Versioned standalone package, project and optional workspace declarations resolve atomically into one immutable graph. Package, category and subject overviews remain real states; unknown routes fail closed.",
+    "Owners provide ordered JSON. External Storybook derives landing, navigation, search, URLs, build lookup and the future MCP viewport from the same identities; a failed attach leaves the current registry unchanged.",
+    "storybook check ./packages/components",
+  ),
+  stories: contract(
+    "Owner story modules",
+    "A catalog stores one static module path and export name for each executable variant. Story modules import production owners, never Storybook.",
+    "The external PackageSession validates exports and emits literal lazy imports before browser delivery.",
+    "export const contained = createContainedButtonStory()",
+  ),
+  catalog: contract(
+    "JSON catalog",
+    "The only first-stage catalog model is category → subject → variant with optional presentation groups and explicit migration routes. README is read from the owner file through a bounded Markdown renderer.",
+    "The package owns semantic order and resources. Collapse state and Workbench layout stay external; embedded HTML and JavaScript are never executed.",
+    ".storybook/catalog.json",
+  ),
+  workbench: contract(
+    "Six-region Workbench",
+    "Catalog, secondary navigation, preview, scenarios, inspector and status are one stable DOM-native shell.",
+    "The restored Navigation Tree owns disclosure, search, keyboard/pointer focus and bounded row projection.",
+    "graph → catalog.items",
+  ),
+  references: contract(
+    "Owner evidence resources",
+    "Reference metadata and media remain linked owner resources for a later acceptance stage.",
+    "This stage does not create captures, baselines, visual diffs or acceptance state.",
+    "resources.references: [\"./reference.png\"]",
+  ),
+  app: contract(
+    "One package tab realm",
+    "One package tab loads one generated entry, one runtime adapter and only its selected lazy story chunks. Compiler metafiles fix canonical dependency realpaths.",
+    "The shared shell owns navigation; a structural storybook-runtime/1 adapter owns only package presentation. Ambiguous or duplicate required runtime identities fail closed before publish.",
+    "one package = one tab = one JS realm",
+  ),
+  server: contract(
+    "One server and origin",
+    "storybook serve owns one automatic-port HTTP/WebSocket process for every attached root and package tab.",
+    "No consumer package starts a listener or declares a Storybook port.",
+    "storybook serve ./workspace ./standalone-package",
+  ),
+  launcher: contract(
+    "External CLI",
+    "Attach, detach, open, status, check and stop address the existing server. Repeated attach/open never starts a second process.",
+    "Named package tabs reuse storybook:<package-id>.",
+    [
+      "storybook attach ./project",
+      "storybook detach project-id",
+      "storybook open @ui/components components/button/basic/contained",
+      "storybook status",
+      "storybook check @ui/components",
+      "storybook stop",
+    ].join("\n"),
+  ),
+  scaffold: contract(
+    "Declaration initialization",
+    "storybook init creates .storybook data and optional runtime/story owner directories, not a private npm package.",
+    "No package.json, bunfig, server, build wrapper, port or dependency is introduced.",
+    "storybook init packages/components --kind package --executable --stories",
+  ),
+  build: contract(
+    "Independent PackageSession",
+    "Each package has its own compiler graph, isolated candidate staging, active and last-good published revisions and diagnostics.",
+    "Only an atomically published revision is immutable. A failed candidate never replaces last-good or cancels successful peers.",
+    "resolve → validate → compile → link → protocol → publish",
+  ),
+  environment: contract(
+    "Package-scoped updates",
+    "Metafile realpaths invalidate only sessions that actually contain a changed dependency.",
+    "package.updated reloads only matching tabs; package.failed preserves their route and last-good presentation.",
+    "{type: \"package.updated\", packageId, revision}",
+  ),
+})
+
+export const routeTree = contracts.routeTree
+export const stories = contracts.stories
+export const catalog = contracts.catalog
+export const workbench = contracts.workbench
+export const references = contracts.references
+export const app = contracts.app
+export const server = contracts.server
+export const launcher = contracts.launcher
+export const scaffold = contracts.scaffold
+export const build = contracts.build
+export const environment = contracts.environment
+
+function contract(
+  title: string,
+  summary: string,
+  ownership: string,
+  example: string,
+) {
+  return Object.freeze({
+    render(document: Document): HTMLElement {
+      const root = document.createElement("article")
+      root.className = "external-contract"
+      const heading = document.createElement("h2")
+      const summaryNode = document.createElement("p")
+      const ownershipNode = document.createElement("p")
+      const code = document.createElement("pre")
+      heading.textContent = title
+      summaryNode.textContent = summary
+      ownershipNode.textContent = ownership
+      code.textContent = example
+      root.append(heading, summaryNode, ownershipNode, code)
+      return root
+    },
+    source: Object.freeze({
+      html: `<article><h2>${title}</h2><p>${summary}</p></article>`,
+      css: ".external-contract { display: flex; flex-direction: column; }",
+      typescript: example,
+    }),
+    props: Object.freeze({title}),
+  })
+}

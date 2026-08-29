@@ -1,107 +1,131 @@
-# @zavx0z/storybook
+# External Storybook
 
-Shared private development framework for repository- and package-owned
-Storybooks.
+Один внешний Storybook для independently owned packages и projects. Consumer
+не устанавливает и не импортирует `@zavx0z/storybook`: он хранит только JSON
+declarations, настоящие owner stories/resources и optional structural runtime.
 
-This repository does not own Engine, Layout, UI, Node, or MetaFor stories. Each
-real repository or package owner keeps its catalog, scenarios, preview state,
-lifecycle, static delivery, and acceptance. This package provides the common
-Workbench, route, server, build, and evidence contracts through exact public
-subpaths and has no root export.
+## Declaration files
 
-The accepted laws are in [requirements.md](requirements.md).
+Единственный формат первого этапа — JSON schema version 1:
 
-## DOM-native foundation
+- [`schemas/manifest.schema.json`](schemas/manifest.schema.json) — universal
+  `workspace | project | package` entry
+- [`schemas/catalog.schema.json`](schemas/catalog.schema.json) —
+  `category → subject → variant`
+- `<scope>/.storybook/manifest.json`
+- `<package>/.storybook/catalog.json`
 
-Storybook использует один настоящий `@zavx0z/dom` `Document` для
-самого примера и общего Storybook shell:
+Paths разрешаются относительно declaration и canonicalize через `realpath`.
+Package manifest `id` обязан совпадать с настоящим `package.json#name`.
+Unknown versions, cycles, duplicate identities/routes, missing exports and path
+escapes fail closed.
 
-```ts
-import {createDocument} from "@zavx0z/dom"
-import {defineStorybookDomStory} from "@zavx0z/storybook/stories"
-import {
-  createStorybookDomWorkbench,
-  storybookDomWorkbenchCss,
-} from "@zavx0z/storybook/workbench"
+Минимальный executable package:
 
-const document = createDocument()
-const workbench = createStorybookDomWorkbench({document, parent: document})
-
-const story = defineStorybookDomStory({
-  defaultArgs: {label: "Output"},
-  render(document, args, current) {
-    const button = current ?? document.createElement("button")
-    button.textContent = args.label
-    button.title = "Открыть Output"
-    return button
-  },
-  source: () => ({
-    html: "<button title=\"Открыть Output\">Output</button>",
-    css: "button { background: #3f5f84; }",
-    typescript: "button.addEventListener(\"click\", openOutput)",
-  }),
-})
-
-workbench.update("catalog.items", [{
-  id: "button",
-  label: "Кнопка",
-  route: "components/button",
-}])
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/zavx0z/storybook/main/schemas/manifest.schema.json",
+  "schemaVersion": 1,
+  "kind": "package",
+  "id": "@ui/components",
+  "label": "UI Components",
+  "packageJson": "../package.json",
+  "readme": "../README.md",
+  "runtime": {"module": "./runtime.ts", "export": "runtime"},
+  "catalog": "./catalog.json"
+}
 ```
 
-`storybookDomWorkbenchCss` передаётся CPU renderer как обычная flat CSS string.
-Exports `stories`, `catalog` и `workbench` не знают Engine, Layout, Elements,
-numeric surfaces или WebGPU; эти стадии находятся ниже semantic boundary.
+Catalog содержит только data. Story loading задаётся статической парой
+`module.path + module.export`; functions, YAML, `eval`, style paths и copied
+README content запрещены.
 
-## Self documentation
+## One server workflow
 
-This repository dogfoods the package through its own Russian documentation
-Storybook:
+```bash
+storybook serve [declaration-or-root...]
+storybook attach <declaration-or-root>
+storybook detach <scope-id>
+storybook open <package-id> [route]
+storybook status
+storybook check [scope-id-or-path]
+storybook stop
+storybook init <root> --kind package|project|workspace
+```
 
-Use `$storybook ensure @zavx0z/storybook` and open the reported automatic
-origin.
-The root is the semantic DOM Workbench rendered by the production
-CPU/WebGPU document pipeline: every public subpath is a normal DOM story in its
-catalog, with the explanation in preview and exact HTML, CSS and TypeScript
-documents in the inspector. Public changes must update that story and all
-three documents in the same change.
+`serve` создаёт один automatic-port process и один origin. Attach/open
+существующего server не создают второй listener. Workspace — optional saved
+composition; standalone projects/packages можно подключать одновременно.
+
+Global landing показывает workspace groups, direct projects и direct packages.
+Каждый package открывается в named tab `storybook:<package-id>` и получает один
+JS realm, one runtime instance and one independently updateable PackageSession.
+
+## Runtime protocol
+
+Executable owner adapter — plain object без Storybook import:
+
+```ts
+export const runtime = Object.freeze({
+  protocol: "storybook-runtime/1",
+  create(context) {
+    let mounted = null
+    return Object.freeze({
+      styleSheets: Object.freeze([ownerCss]),
+      mount({story, signal}) {
+        if (signal.aborted) return
+        mounted = story.render(context.document)
+        context.mount(mounted)
+      },
+      unmount() {
+        mounted?.remove()
+        mounted = null
+      },
+      dispose() {
+        mounted?.remove()
+        mounted = null
+      },
+    })
+  },
+})
+```
+
+Shared shell owns catalog, secondary, preview, scenarios, inspector, status,
+routing and diagnostics. Runtime owns only package-specific presentation and
+must mount Nodes from the exact provided Document.
+
+## PackageSession lifecycle
+
+Each candidate runs:
+
+```text
+resolve declarations
+→ validate paths/exports
+→ compile/link split browser graph
+→ validate runtime protocol and module identities
+→ publish immutable revision
+→ mark active and last-good
+→ notify only package subscribers
+```
+
+Build failure leaves server, graph, other packages and last-good artifact
+unchanged. Bun metafile realpaths invalidate only actual dependent sessions.
+The first stage uses package-scoped full-tab reload rather than module HMR.
+
+## Self documentation and checks
+
+This repository documents itself through the same ordinary
+[`.storybook/manifest.json`](.storybook/manifest.json) path as every owner. It
+has no special package server or second registry.
 
 ```bash
 bun run check
 ```
 
-The check typechecks sources and examples, tests exact documentation coverage,
-and builds the self-contained `/storybook/` static artifact.
+With no running server, a path-scoped `check` creates one bounded transient
+server and stops it after the build. A package-id `check` addresses the exact
+package in an already running registry.
 
-## One Storybook skill
-
-Runnable Storybooks are addressed only by their exact package name. The shared
-launcher resolves the package, asks the operating system for a free port and
-tracks the exact process without a consumer port registry:
-
-```bash
-bun scripts/storybook.ts status @ui/storybook --root ../webxr-space/projects/ui
-bun scripts/storybook.ts ensure @ui/storybook --root ../webxr-space/projects/ui
-```
-
-The same package identity drives background browser evidence; routes and canvas
-capabilities come from the running app rather than a copied registry:
-
-```bash
-.agents/skills/storybook/scripts/storybook.sh browser targets @ui/storybook
-.agents/skills/storybook/scripts/storybook.sh browser reload @ui/storybook \
-  --route /components/button/basic/contained --target-id TARGET_ID
-```
-
-Create a new canonical package from the one maintained template:
-
-```bash
-bun scripts/create-storybook.ts @quantum/storybook ../metafor/quantum/storybook
-```
-
-The generator refuses an existing target. Adoption of an existing Storybook is
-a migration, never a scaffold overwrite.
-
-Static output remains a local evidence artifact. Pages delivery is
-intentionally absent until every independent DOM/renderer owner has an
-immutable remote revision and the owner separately authorizes publication.
+Current scope deliberately excludes Blender capture, accepted screenshots,
+visual diff and MCP transport. Existing owner reference/evidence files remain
+linked resources for the following stage.

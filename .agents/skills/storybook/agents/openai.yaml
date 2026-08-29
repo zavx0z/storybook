@@ -1,7 +1,7 @@
 interface:
   display_name: "Storybook"
-  short_description: "Create and run Storybook packages by name"
-  default_prompt: "Use $storybook to launch or verify an exact @scope/storybook package."
+  short_description: "Run one external Storybook for declared package owners"
+  default_prompt: "Use $storybook to attach declarations and verify an exact package tab on the one external server."
 
 policy:
   allow_implicit_invocation: true

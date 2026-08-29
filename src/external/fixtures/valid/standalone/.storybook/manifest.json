@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "kind": "package",
+  "id": "@fixture/standalone",
+  "label": "Standalone Fixture",
+  "packageJson": "../package.json",
+  "readme": "../README.md",
+  "catalog": "./catalog.json"
+}
