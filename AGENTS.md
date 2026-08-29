@@ -40,6 +40,11 @@
   visible shared behavior, route rule, or example change updates the matching
   self-documentation page and executable example in the same slice. A change is
   not complete while `bun run check` leaves that documentation stale.
+- Storybook MCP is the only agent control surface. Agents use `storybook_*`
+  tools for lifecycle, search, views, wait, inspection, interaction and capture;
+  they never call the Storybook CLI, browser scripts, ports or CDP identities.
+- CLI remains a human/diagnostic adapter to the same
+  `ExternalStorybookController`; MCP must never spawn or parse it.
 
 ## Self documentation lifecycle
 
@@ -53,15 +58,15 @@
   layout beside the shared Workbench.
 - Package catalog JSON, current contracts and executable examples must remain
   aligned. A shared implementation change updates the matching self page.
-- After a stable source checkpoint, run external `check` and let the existing
-  server publish only this package revision; do not restart the server or other
-  package tabs for a package implementation change.
+- After a stable source checkpoint, use `storybook_check` and
+  `storybook_wait`; do not restart the server or unrelated package views for a
+  package implementation change.
 
 ## Delivery safety
 
-- For Codex app project-folder setup or macOS UI observation, use the globally
-  installed `$ai-macos` skill and only direct `mcp__ai_macos__*` tools.
-  Never use the deprecated `ai-macos-local` connector or direct REST.
+- Storybook browser lifecycle is implemented inside Storybook MCP through its
+  private direct-CDP controller. Never use `ai-macos`, `@meta/chrome`, a browser
+  CLI/script or OS focus as a Storybook dependency or fallback.
 - Do not push, create a pull request, deploy Pages, dispatch workflows, or
   create a GitHub repository without a separate explicit owner request.
 - Do not stop the one existing external Storybook merely to inspect it. Use

@@ -100,14 +100,14 @@ resolution, foreign branded Node и incompatible protocol fail closed.
 ### `STORYBOOK-SESSION-001` — independent PackageSession
 
 Каждый package имеет собственные compiler context, module graph, watchers,
-generated entry, candidate/active/last-good revisions, diagnostics,
-subscribers и build state. Candidate становится active только после полного
-resolve→validate→compile→link→protocol→publish.
+generated entry, candidate/built/activating/active/lastWorking revisions,
+diagnostics, subscribers и build state. Build success публикует только `built`;
+active/lastWorking требует live create→mount→present acknowledgement.
 
 ### `STORYBOOK-SESSION-002` — last-good isolation
 
-Failed build не меняет active/last-good artifact, server, graph или другие
-sessions. Без last-good только affected preview показывает isolated error.
+Failed build/activation не меняет active/lastWorking artifact, server, graph или другие
+sessions. Без lastWorking только affected preview показывает isolated error.
 Исправление публикует новую revision и очищает diagnostics.
 
 ### `STORYBOOK-SESSION-003` — dependency-aware update
@@ -115,6 +115,23 @@ sessions. Без last-good только affected preview показывает is
 Changed canonical realpath invalidates only sessions whose metafile graph его
 содержит. Package success/failure WebSocket events всегда содержат packageId.
 Affected tab сохраняет текущий route; unrelated tabs/global shell не reload.
+
+### `STORYBOOK-SESSION-004` — exact revision graph
+
+Published revision содержит immutable package graph/route/resource snapshot.
+Package tab использует только snapshot своей revision; mutable global graph
+доступен landing, но не смешивается со старым working bundle.
+
+### `STORYBOOK-SESSION-005` — bounded queues and cancellation
+
+Каждый package имеет собственную serial queue. Shared semaphore ограничивает
+compiler children, но hung A не блокирует B. Compile/protocol/activation имеют
+timeouts; detach/reconfigure abort exact candidate и завершают child process.
+
+### `STORYBOOK-RUNTIME-002` — serialized cleanup
+
+Create/unmount/mount/update/present/dispose строго последовательны. Pending
+create/mount получает AbortSignal; поздняя session dispose-ится до shell cleanup.
 
 ## Server and CLI
 
@@ -124,6 +141,18 @@ Affected tab сохраняет текущий route; unrelated tabs/global shel
 registry, graph, sessions, revisions, diagnostics и tabs. Port выбирает OS и он
 не становится user-facing identity. Attach/open существующего server не
 создают второй process.
+Private state root един для CLI и MCP независимо от cwd, `TMPDIR` и transport
+environment; управляемая замена daemon сохраняет предыдущий listener port.
+Подтверждённый legacy TMPDIR state мигрируется без второго daemon; state чужого
+checkout не принимается и не останавливается. Startup сериализован atomic
+cross-process lease, который controller держит до публикации state и чей
+fencing token обязан предъявить daemon child. Abort до
+публикации завершает exact child; занятый preserved port откатывается на
+automatic port.
+Declarations и preferred port до destructive replacement сохраняются в private
+migration journal до успешной публикации/attach; daemon publication требует
+актуальный fencing token startup lease. Daemon пишет token-scoped candidate,
+canonical `server.json` атомарно commit-ит только live lease owner.
 
 ### `STORYBOOK-REGISTRY-001` — atomic attach/detach
 
@@ -137,6 +166,69 @@ sessions и уведомляет связанные tabs, не останавл�
 `open <package-id> [route]`, `status`, `check <scope-or-path>`, `stop` и
 `init <root> --kind package|project|workspace`. Init создаёт declarations, не
 npm package/server/build/bunfig/port config.
+
+## MCP
+
+### `STORYBOOK-MCP-001` — one agent interface
+
+Stdio MCP регистрирует exact tools `storybook_ensure`, `storybook_status`,
+`storybook_attach`, `storybook_detach`, `storybook_search`, `storybook_open`,
+`storybook_wait`, `storybook_inspect`, `storybook_interact`,
+`storybook_capture`, `storybook_check`, `storybook_close`, `storybook_stop`.
+Prompts отсутствуют. Tools имеют strict versioned bounded schemas и не принимают
+raw JavaScript, CDP identity, coordinates или screenshot path.
+
+### `STORYBOOK-MCP-002` — shared controller parity
+
+CLI и MCP вызывают один `ExternalStorybookController`. MCP не shell-out-ит CLI,
+не парсит stdout и не останавливает daemon при disconnect. Несколько MCP clients
+переиспользуют один canonical server/start lease.
+
+### `STORYBOOK-MCP-003` — canonical resources
+
+Read-only resources: `storybook://state`, `storybook://graph`, package/view/
+capture templates. Это bounded derived projections canonical graph/sessions,
+не отдельный MCP registry.
+
+### `STORYBOOK-MCP-004` — opaque browser views
+
+Один package view соответствует named package tab/realm. Agent получает opaque
+`viewId`, semantic state and capture metadata; port, PID, targetId, Chrome index,
+master token и private artifact path не раскрываются.
+MCP сохраняет private ownership record и secret между stdio processes,
+сериализует package target operations, переиспользует bridge-attested target
+после смены server origin и закрывает только подтверждённые дубли после ready.
+Ownership нового target записывается до navigation/readiness; каждый duplicate
+повторно аттестуется непосредственно перед close.
+Создание target — background-only; активация Chrome, OS focus, `ai-macos`,
+`@meta/chrome` и browser CLI как runtime dependency запрещены. Ensure, attach,
+search и `check(live:false)` не требуют доступного CDP.
+
+### `STORYBOOK-MCP-005` — semantic bridge
+
+Inspection и interaction используют existing semantic Document, Workbench IDs
+и renderer frame. Target resolution exact nodeId либо exact role+name;
+ambiguity fail closed. Raw eval/coordinates не являются agent API.
+
+## Security and retention
+
+### `STORYBOOK-SECURITY-001` — authenticated local control
+
+State record mode `0600`; random master token required for control API. Host,
+Origin and browser WebSocket scoped token проверяются. Stop requires
+`confirm: true`; MCP disconnect never stops server.
+
+### `STORYBOOK-SECURITY-002` — declared resource allow-list
+
+README endpoint читает exact declared README and precomputed local assets only.
+Declared resources addressed by kind/index. Undeclared siblings, traversal,
+symlink escapes and arbitrary owner-root reads fail closed.
+
+### `STORYBOOK-RETENTION-001` — bounded artifacts
+
+Retain active, lastWorking and leased revisions plus bounded recent history.
+Capture store bounded by count/TTL; resource URI survives MCP client process
+without exposing filesystem paths.
 
 ## Delivery and performance
 
@@ -159,11 +251,11 @@ private Storybook packages, wrappers, consumer dependencies/imports и old
 package lifecycle. Production exports не расширяются stories. References/evidence
 сохраняются у owner.
 
-### `STORYBOOK-SCOPE-001` — first-stage exclusions
+### `STORYBOOK-SCOPE-001` — current exclusions
 
 Blender capture, screenshot/accepted baselines, pixel/perceptual diff,
-Reference/Actual/Diff UI, MCP transport/tools, full TypeScript/TSDoc discovery
-и production component redesign не реализуются.
+Reference/Actual/Diff UI, full TypeScript/TSDoc discovery и production component
+redesign не реализуются. MCP capture остаётся evidence, не accepted reference.
 
 ## Acceptance matrix
 
@@ -175,7 +267,7 @@ unknown routes.
 
 Persistent fixture packages A/B/C доказывают one-origin session isolation:
 A-only update не rebuild/reload B/C, shared A+B dependency не затрагивает C,
-failed A сохраняет last-good и diagnostics, исправление публикует новую
+failed A сохраняет lastWorking и diagnostics, исправление публикует новую
 revision. Consumer boundary scan и owner parity fixtures доказывают отсутствие
 старых dependencies/imports/packages/wrappers, сохранение leaf routes,
 документированные overview remaps и отсутствие production story exports.

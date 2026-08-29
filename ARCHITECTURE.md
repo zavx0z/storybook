@@ -17,7 +17,7 @@ one external storybook serve process
          ├─ generated static lazy loader
          ├─ compiler/module graph
          ├─ isolated candidate staging
-         ├─ active + last-good revision
+         ├─ active + lastWorking revision
          ├─ immutable published revisions
          └─ package-scoped diagnostics/update topic
 ```
@@ -31,8 +31,9 @@ adapter. Project и workspace являются только сохранённо
 
 Внешний Storybook владеет schemas, discovery, validation, canonical graph,
 search/routing derived views, шестью областями Workbench, package build/revision
-lifecycle, diagnostics и browser tabs. Будущий MCP будет только другой
-проекцией того же graph; отдельный MCP registry не допускается.
+lifecycle, diagnostics и browser tabs. Текущий MCP является агентской
+проекцией того же graph через общий controller; отдельный MCP registry не
+допускается.
 
 ## Declaration flow
 
@@ -77,14 +78,37 @@ variant:<package-id>/<category-id>/<subject-id>/<variant-id>
 ## One server, one origin, separate realms
 
 `storybook serve [declaration-or-root...]` создаёт единственный Bun listener с
-`port: 0`. Runtime state хранит exact PID/start/cwd/origin; `attach`, `detach`,
+automatic port; управляемая замена daemon повторно использует его предыдущий
+port. Canonical private state находится в одном user cache root и не зависит от
+cwd, `TMPDIR` или stdio transport environment. Runtime state хранит exact
+PID/start/cwd/origin; `attach`, `detach`,
 `open`, `status`, `check` и `stop` обращаются к этому process и никогда не
 запускают package-owned listener.
 
+При первом запуске после migration controller проверяет прежние user TMPDIR
+roots, принимает только state с exact canonical `toolRoot`/PID/start/cwd,
+останавливает подтверждённые legacy daemons и переносит union declarations.
+Чужой checkout fail closed. Межпроцессный start lease забирается атомарно,
+удерживается controller до публикации, а его fencing token передаётся daemon
+child; abort не оставляет второй starting process. Предыдущий port
+переиспользуется best-effort, а `EADDRINUSE` безопасно
+возвращает automatic port.
+До остановки прежнего daemon declarations/port атомарно записываются в private
+migration journal; journal переживает abort/crash и удаляется только после
+успешной публикации/attach. Child пишет token-scoped candidate внутрь lease, а
+живой controller атомарно commit-ит его в `server.json`; superseded child не
+может публиковать canonical state.
+
 Global landing и все package tabs обслуживаются одним origin. Landing не
 импортирует package runtime/production code. URL package tab содержит exact
-package identity; повторное открытие использует named target
-`storybook:<package-id>`.
+package identity. MCP хранит private target record и persistent HMAC secret;
+повторное открытие сериализовано между MCP-процессами и использует target,
+который подтверждает `storybook:<package-id>` через package bridge. Поэтому
+смена server instance/origin не создаёт новую вкладку. После успешного ready
+подтверждённые дубли пакета повторно аттестуются непосредственно перед close;
+неподтверждённые чужие targets не изменяются. Новый target получает provisional
+ownership сразу после `Target.createTarget`, поэтому timeout/error следующего
+шага переиспользует ту же вкладку, а не создаёт ещё одну.
 
 Одна package tab имеет один browser realm, один generated entry, один package
 runtime instance и один PackageSession revision. Generated entry является
@@ -147,6 +171,28 @@ dispose-ится. Navigation, routing, Workbench, registry и server ему не
 External shell валидирует marker/methods структурно, изолирует исключения и
 отображает их только в package status/inspector.
 
+## Controller adapters
+
+CLI и MCP являются adapters одного typed application service:
+
+```text
+                    ┌─ human CLI formatting
+Storybook Core ─────┤
+                    └─ MCP tools/resources
+
+ExternalStorybookController
+  ├─ canonical server lifecycle and registry
+  ├─ graph search and package checks
+  ├─ StorybookBrowserController
+  ├─ StorybookViewRegistry
+  └─ StorybookCaptureStore
+```
+
+MCP не запускает CLI, не парсит stdout и не владеет вторым registry. Stdio
+connection может завершиться независимо от daemon server. CLI сохраняется для
+человека и аварийной диагностики, но не содержит отдельной lifecycle/browser
+логики.
+
 ## PackageSession and revisions
 
 Для каждого package существует независимый state:
@@ -156,8 +202,10 @@ packageId
 declarationDigest
 moduleGraphRevision
 candidateRevision
+builtRevision
+activatingRevision
 activeRevision
-lastGoodRevision
+lastWorkingRevision
 diagnostics
 dependencyRealpaths
 subscribers
@@ -165,17 +213,62 @@ buildState
 ```
 
 Candidate проходит declaration/path/export validation, compile, link, runtime
-protocol validation и только затем атомарно публикуется в immutable revision
-directory. Active/last-good меняются после полного успеха. Failed candidate не
-заменяет last-good artifact и не меняет другие sessions.
+protocol validation и атомарно публикуется как `built` immutable revision.
+Executable revision становится `active`/`lastWorking` только после browser
+acknowledgement: runtime module loaded, adapter/session validated,
+`runtime.create`, initial mount и presented frame. Failed activation не заменяет
+предыдущий working artifact и не меняет другие sessions.
+
+Каждая revision содержит exact immutable package graph projection, route/loader
+table, declaration digest, resources и metadata. Package tab никогда не
+соединяет старый bundle с новым global graph. Build queue последовательна только
+внутри одной PackageSession; общий semaphore лишь ограничивает число compiler
+children. Compile/protocol/activation имеют timeout и exact cancellation.
 
 Metafile-derived dependency index инвалидирует только sessions, реально
 содержащие изменённый canonical realpath. Shared dependency может независимо
 пересобрать A и B; C остаётся clean. Success публикует
-`package.updated {packageId, revision}`, failure —
-`package.failed {packageId, diagnostics}`. Package tab слушает только свой
-topic и после success перезагружает тот же URL; landing получает только registry
-и summary statuses.
+`package.built`, `package.updated`, scoped resource/metadata events или
+`package.failed`. Package tab слушает только свой authenticated ephemeral topic;
+landing получает registry и summary statuses.
+
+Runtime operations сериализованы: create → unmount → mount/update → present →
+dispose. Abort pending navigation/create не позволяет поздней session утечь;
+dispose idempotent и завершается до shell cleanup.
+
+## MCP semantic viewport
+
+Storybook MCP предоставляет lifecycle, canonical search, opaque package views,
+event-driven wait, inspection, semantic interaction и capture. `viewId` является
+opaque capability derived from actual browser target and persistent private
+Storybook secret; CDP
+identity, Chrome profile, port и filesystem artifact path агенту не передаются.
+Public `origin` аналогично является HMAC identity, пригодной для one-origin
+сравнения без раскрытия loopback URL/port.
+
+Browser controller является частью MCP и говорит с Chrome по direct CDP, без
+`ai-macos`, `@meta/chrome` и browser CLI. `Target.createTarget` всегда получает
+`background: true`; controller не отправляет target activation, `bringToFront`
+или focus emulation. Небраузерные lifecycle/query operations не требуют CDP.
+
+Package-tab agent bridge проецирует существующий semantic Document, Workbench
+identities и current renderer frame. Он не создаёт второе дерево и не принимает
+raw JavaScript. Bounds берутся из exact `RenderFrame.boxByNode`; interaction
+использует public DOM/renderer-browser input APIs. Capture использует current
+owner-presented frame либо exact CDP crop и возвращает bounded MCP image/resource.
+
+## Local control security
+
+State record имеет mode `0600` и random master token. Destructive/control HTTP
+requires bearer token and canonical Origin/Host checks. Browser получает только
+scoped short-lived WebSocket/activation token; master token не попадает в page
+source, MCP result или diagnostics.
+
+README/resources обслуживаются только по declaration-derived allow-list:
+declared README, declared resources и заранее discovered local README assets.
+Revision assets, captures and state reject traversal/symlink escapes. Revision
+and capture stores retain active/lastWorking/leased data plus bounded recent TTL,
+а остальное удаляют.
 
 ## Compiler boundary
 
@@ -193,6 +286,6 @@ Private packages `@engine/storybook`, `@ui/storybook`, `@nodes/storybook`,
 consumer imports/dependencies удаляются после route/resource parity. Renderer
 получает только реальные DOM-owned stories; retired Layout не оживляется.
 
-Существующие reference/evidence assets остаются immutable owner resources, но
-Blender capture, screenshot baseline, visual diff, acceptance state и MCP
-transport не входят в этот этап.
+Существующие reference/evidence assets остаются immutable owner resources.
+Storybook MCP capture создаёт bounded evidence, но не Blender reference,
+accepted baseline, visual diff или owner acceptance state.

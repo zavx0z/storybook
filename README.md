@@ -42,6 +42,37 @@ README content запрещены.
 
 ## One server workflow
 
+Для агента единственным интерфейсом являются Storybook MCP tools:
+
+```text
+storybook_ensure → storybook_search → storybook_open → storybook_wait
+→ storybook_inspect → storybook_interact → storybook_capture
+```
+
+MCP скрывает daemon process, automatic port, Chrome/CDP identity и artifact
+paths. Поле `origin` является стабильной HMAC identity server instance, а не
+сетевым URL. MCP не shell-out-ит CLI: MCP и human CLI вызывают один
+`ExternalStorybookController`. Завершение stdio connection не останавливает
+canonical server.
+Canonical private state хранится в одном user cache root, поэтому CLI и разные
+stdio MCP processes не расходятся из-за cwd или `TMPDIR`.
+Первый запуск проверяет и сводит подтверждённые legacy TMPDIR daemons; чужой
+checkout не принимается. Controller держит startup lease до публикации state,
+а daemon предъявляет его fencing token; занятый прежний port не блокирует запуск
+— используется новый automatic port.
+Replacement journal сохраняет declarations/port через abort или crash и
+очищается только после успешной публикации; superseded startup token не может
+перезаписать canonical state: child пишет candidate, а `server.json` commit-ит
+только live controller — владелец lease.
+
+Browser lifecycle также полностью принадлежит MCP: private direct-CDP client
+переиспользует persistent package target, при `storybook_open` подтверждает
+старый target через package bridge и сводит подтверждённые дубли к одной
+вкладке. Новый target создаётся только в background; Storybook не активирует
+Chrome и не зависит от `ai-macos`, `@meta/chrome` или browser CLI.
+
+CLI ниже остаётся только human/diagnostic adapter:
+
 ```bash
 storybook serve [declaration-or-root...]
 storybook attach <declaration-or-root>
@@ -103,14 +134,19 @@ resolve declarations
 → validate paths/exports
 → compile/link split browser graph
 → validate runtime protocol and module identities
-→ publish immutable revision
-→ mark active and last-good
+→ publish immutable built revision with exact package graph
+→ live runtime create/mount/present acknowledgement
+→ mark active and lastWorking
 → notify only package subscribers
 ```
 
-Build failure leaves server, graph, other packages and last-good artifact
-unchanged. Bun metafile realpaths invalidate only actual dependent sessions.
-The first stage uses package-scoped full-tab reload rather than module HMR.
+Build/runtime/frame failure leaves server, graph, other packages and
+lastWorking artifact unchanged. Bun metafile realpaths invalidate only actual
+dependent sessions. Per-package queues share only a bounded compiler semaphore.
+
+Browser inspection uses the existing semantic Document and
+`@zavx0z/dom-devtools`; interaction uses public Renderer/DOM input APIs. Capture
+returns MCP image content plus bounded `storybook://captures/...` resources.
 
 ## Self documentation and checks
 
@@ -122,10 +158,10 @@ has no special package server or second registry.
 bun run check
 ```
 
-With no running server, a path-scoped `check` creates one bounded transient
-server and stops it after the build. A package-id `check` addresses the exact
-package in an already running registry.
+A path-scoped `check` ensures the canonical daemon, attaches that declaration
+root and leaves the shared server available for later CLI/MCP clients. A
+package-id `check` addresses the exact package in an already running registry.
 
-Current scope deliberately excludes Blender capture, accepted screenshots,
-visual diff and MCP transport. Existing owner reference/evidence files remain
-linked resources for the following stage.
+Current scope deliberately excludes Blender capture, accepted screenshots and
+visual diff. MCP capture is bounded evidence only; existing owner
+reference/evidence files remain linked resources for the following stage.

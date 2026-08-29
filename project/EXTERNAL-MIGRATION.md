@@ -22,12 +22,20 @@ workflow dispatch was created.
 | `@quantum/storybook` | `@metafor/types`, `bulk` | 6 | 14 | 20 |
 | hardcoded self app | `@zavx0z/storybook` | 14 | 24 | 38 |
 
-The final current graph resolves four independently attached roots:
+The completed owner-migration baseline resolved four independently attached roots:
 `workspace:webxr-space`, `project:renderer`, `project:metafor` and the standalone
 `package:@zavx0z/storybook`. It contains 17 declarations, 11 packages, 574
 nodes and 568 routes: 360 executable variants and 208 real overviews. Its
 digest is
 `095d5dfd901a496f471fef7dbdc792e660c05b7996e8dc22e3d808aad647fc49`.
+
+The later MCP slice added search aliases only to the existing Storybook self
+contract nodes (`MCP`, controller tools, watcher events and `lastWorking`). It
+did not add declarations, nodes or routes. Direct resolution in the published
+root order is now
+`fb62d3f8075fd0f546a8a93f3f4019e678224b7b6141acffae459daea6783376`;
+the long-lived server may report another digest when the same independent roots
+were attached in a different preserved order.
 
 All 17 manifests and 11 catalogs use the stable version-1 schema URLs under
 `https://raw.githubusercontent.com/zavx0z/storybook/main/schemas/`.
@@ -138,3 +146,55 @@ contained 21 declarations, 14 packages, 587 nodes and 580 routes with digest
 
 The accepted server and tabs were left running; no listener or browser process
 owned by another task was stopped.
+
+## MCP completion evidence
+
+The Storybook MCP is now the sole agent interface. Its stdio adapter exposes
+the 13 fixed `storybook_*` tools, two static resources and three resource
+templates over the same `ExternalStorybookController` used by the human CLI.
+It exposes opaque HMAC origin/view identities, never the loopback port, PID,
+control capability, CDP target or artifact path.
+
+Final static gates for the MCP slice: root `bun run check` passed 187 tests /
+1420 assertions plus the self package build; MCP passed 7 protocol tests / 47
+assertions. The WebXR declaration tests remained 15 / 54, while its strict
+root check remains blocked only by the external Renderer pin drift documented
+above.
+
+Final real stdio E2E server identity:
+
+- instance `2135c643-ff5d-4dc8-9004-1e82a4570db4`
+- opaque origin `storybook-origin-v1_T9FkK0dLEja-IZjUH9PPmDwUyiPhN_Gs1CZ1QRcF79Y`
+- four ready real views: Renderer DOM, UI Components, Node Editor and Engine
+- MCP disconnect/reconnect preserved the same instance/origin and capture
+  resource
+
+Exact captures from that run:
+
+| Area | Capture | Revision | Dimensions | SHA-256 |
+|---|---|---|---:|---|
+| UI preview | `capture_psKNZQCxySvxzWjRDt0vo624` | `9a9463e678fb4c412c839ac7` | 2284×1984 | `55587dc095eff7d0373e7633f43b9e858e83b310023ed9959becb332a8d5fd98` |
+| Renderer Workbench | `capture_K0bxCcZmfWbB-33HmwPXHrfr` | `dc2da158e87615039d42b395` | 3840×2176 | `0f32196100e632a3ae4a89065b61b9f712358b860180001c54aaff5a83c88f93` |
+| Engine canvas | `capture_ZhjuLaIY3i-g_o_9sGr_frGL` | `08afcf093d0304ce82ff2a28` | 2284×1984 | `05c3235720a78c2e8fa705f64da4e777253759fd9ce47bab0079e8ca6e8a70f7` |
+
+Controlled A/B/C evidence:
+
+- A `51a2fb0e3349d1c45b4fd47f → 219ee132d26786af07bea62d`
+- failed A candidate `d268dcc48a4bf70449959654` preserved visible
+  `lastWorking=219ee132d26786af07bea62d`
+- recovery promoted `b08400ac35be4289be72fb2e` and cleared diagnostics
+- B stayed `f57adffbb0f62b7bae876d48`; C stayed
+  `a2609a6a352b59cf944787f5`
+- fixture A returned byte-for-byte to
+  `344c3e54e22da700f1b53ce96995863f079b73edacfa40129785599331ae1ff4`
+- the temporary isolation root and A/B/C views were removed; the four real
+  package tabs and canonical server remained running
+
+After the final implementation-digest refresh, the current canonical server is
+instance `479f3596-e951-49e0-a649-f03984ad174c`, opaque origin
+`storybook-origin-v1_3fQDtTLnIbqJR8bBk8T0MJEQsbGcb6aqbGqPnyTHfYU`, with
+11 packages and graph digest
+`e817eb3f2f77ee71bd3594fe060c8ce4d69c23a7308121fb0fe2333533f30b2e`.
+Its four current ready/presented revisions are DOM `5db3ad48a2c1dfd6ec771100`,
+UI `08dcca9daf1d3760f574c80f`, Node Editor
+`a78cd628c1922f6599102b5b` and Engine `b1caaf4128299cd161df365a`.
