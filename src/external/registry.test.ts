@@ -4,6 +4,7 @@ import {ExternalStorybookRegistry} from "./registry.ts"
 import {externalStorybookStructuralWatchPaths} from "./server.ts"
 
 const fixtureRoot = join(import.meta.dir, "fixtures", "valid")
+const storybookRoot = join(import.meta.dir, "..", "..")
 
 describe("external Storybook attached-root registry", () => {
   test("atomically attaches workspace and independent package without a fake workspace", async () => {
@@ -57,10 +58,80 @@ describe("external Storybook attached-root registry", () => {
       path: join(fixtureRoot, "projects/alpha/packages/components/docs/architecture.svg"),
       category: "resource",
     })
+    expect(components.watchPaths).toContainEqual({
+      path: join(fixtureRoot, "projects/alpha/packages/components/tokens.css"),
+      category: "resource",
+    })
+    expect(components.watchPaths).toContainEqual({
+      path: join(fixtureRoot, "projects/alpha/packages/components/theme.css"),
+      category: "resource",
+    })
+    expect(components.watchPaths).toContainEqual({
+      path: join(fixtureRoot, "projects/alpha/packages/components/.storybook/runtime.ts"),
+      category: "code",
+    })
+    expect(components.watchPaths).toContainEqual({
+      path: join(fixtureRoot, "projects/alpha/packages/components/.storybook/stories/button.ts"),
+      category: "code",
+    })
+    expect(components.watchPaths).toContainEqual({
+      path: join(fixtureRoot, "projects/alpha/packages/components/.storybook/widgets/fixture-controls.tsx"),
+      category: "code",
+    })
+    expect(components.widgetModules).toEqual([{
+      id: "fixture-controls",
+      module: {
+        path: join(fixtureRoot, "projects/alpha/packages/components/.storybook/widgets/fixture-controls.tsx"),
+        export: "FixtureControlsWidget",
+      },
+    }])
+    expect(components.graphSnapshot.widgetLoaders).toEqual([{
+      id: "fixture-controls",
+      exportName: "FixtureControlsWidget",
+    }])
+    expect(components.resourceFiles?.filter(({targetPath}) => targetPath.startsWith("author-style-sheets/")))
+      .toEqual([
+        {
+          sourcePath: join(fixtureRoot, "projects/alpha/packages/components/tokens.css"),
+          sourceRoot: join(fixtureRoot, "projects/alpha/packages/components"),
+          targetPath: "author-style-sheets/0.css",
+          contentDigest: components.graphSnapshot.authorStyleSheets[0]!.contentDigest,
+        },
+        {
+          sourcePath: join(fixtureRoot, "projects/alpha/packages/components/theme.css"),
+          sourceRoot: join(fixtureRoot, "projects/alpha/packages/components"),
+          targetPath: "author-style-sheets/1.css",
+          contentDigest: components.graphSnapshot.authorStyleSheets[1]!.contentDigest,
+        },
+      ])
     expect(components.resourceFiles?.find(({sourcePath}) => sourcePath.endsWith("/docs/architecture.svg"))?.targetPath)
       .toEndWith("/docs/architecture.svg")
     const structural = externalStorybookStructuralWatchPaths(registry.snapshot())
     expect(structural).toContain(join(fixtureRoot, "README.md"))
     expect(structural).toContain(join(fixtureRoot, "projects/alpha/README.md"))
+    expect(structural).toContain(join(fixtureRoot, "projects/alpha/packages/components/tokens.css"))
+    expect(structural).toContain(join(fixtureRoot, "projects/alpha/packages/components/theme.css"))
+  })
+
+  test("copies and watches Workbench author sheets separately for every package revision", async () => {
+    const registry = new ExternalStorybookRegistry()
+    await registry.attachMany([storybookRoot, fixtureRoot])
+    const components = registry.packageDescriptors()
+      .find(({packageId}) => packageId === "@fixture/components")!
+    expect(components.graphSnapshot.workbenchAuthorStyleSheets.map(({specifier, url}) => ({specifier, url})))
+      .toEqual([{
+        specifier: "@ui/components/theme.css",
+        url: "workbench-author-style-sheets/0.css",
+      }])
+    const workbenchResource = components.resourceFiles?.find(({targetPath}) =>
+      targetPath === "workbench-author-style-sheets/0.css")
+    expect(workbenchResource).toMatchObject({
+      contentDigest: components.graphSnapshot.workbenchAuthorStyleSheets[0]!.contentDigest,
+    })
+    expect(workbenchResource?.sourcePath).toEndWith("/packages/components/theme.css")
+    expect(components.watchPaths).toContainEqual({
+      path: workbenchResource!.sourcePath,
+      category: "resource",
+    })
   })
 })

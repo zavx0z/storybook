@@ -1,4 +1,9 @@
-import type {Document, HTMLElement} from "@zavx0z/dom"
+import type {HTMLElement} from "@zavx0z/dom"
+import {createRoot} from "@zavx0z/react"
+import {
+  defineSelfStory,
+  serializeSelfElement,
+} from "./story-types.ts"
 
 type Contract = Readonly<{
   title: string
@@ -6,6 +11,56 @@ type Contract = Readonly<{
   ownership: string
   example: string
 }>
+
+function ContractView(props: Contract) {
+  return <article style={css`
+    & {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      gap: 10px;
+      padding: 18px;
+      overflow: auto;
+      border: 1px solid #181818;
+      border-radius: 4px;
+      background: #292929;
+      color: #e8e8e8;
+    }
+  `}>
+    <h2 style={css`
+      & {
+        margin: 0;
+        color: #9fdff3;
+        font-size: 17px;
+      }
+    `}>{props.title}</h2>
+    <p style={css`
+      & {
+        margin: 0;
+        color: #d0d0d0;
+        font-size: 12px;
+        white-space: normal;
+      }
+    `}>{props.summary}</p>
+    <p style={css`
+      & {
+        margin: 0;
+        color: #d0d0d0;
+        font-size: 12px;
+        white-space: normal;
+      }
+    `}>{props.ownership}</p>
+    <pre style={css`
+      & {
+        padding: 8px;
+        overflow: auto;
+        border: 1px solid #161616;
+        background: #202020;
+      }
+    `}><code>{props.example}</code></pre>
+  </article>
+}
 
 const contracts = Object.freeze({
   routeTree: contract(
@@ -32,6 +87,12 @@ const contracts = Object.freeze({
     "The external page Experience owns one semantic Document and one Canvas/Renderer/Space host. The restored Navigation Tree owns disclosure, search, keyboard/pointer focus and bounded row projection.",
     "Document → DocumentSpaceRuntime → Workbench overlay",
   ),
+  authorStyles: contract(
+    "Linked author styles and root source",
+    "A package declares ordered exact public CSS export specifiers owned by itself or a manifest-reached local dependency. Each immutable revision materializes one native link per resource before its module entry; required links must be ready before the one DocumentSpaceRuntime is created.",
+    "Global Source CSS comes from the declared author registry. Component Source CSS comes only from one active ComponentRoot authored provenance and is rendered as raw highlighted CSS. Dynamic declarations remain inline in HTML. Cleanup always disposes runtime before the linked host; Workbench chrome and generated selectors cannot enter Source.",
+    "authorStyleSheets: [{\"specifier\":\"@ui/components/theme.css\"}]\nruntime.dispose() → themeHost.dispose()",
+  ),
   references: contract(
     "Owner evidence resources",
     "Reference metadata and media remain linked owner resources for a later acceptance stage.",
@@ -52,8 +113,8 @@ const contracts = Object.freeze({
   ),
   launcher: contract(
     "MCP and human adapters",
-    "Ensure, attach, search, open, wait, inspect, interact, capture, check, close and explicit administration call one typed controller.",
-    "Opaque views persistently reuse a bridge-attested storybook:<package-id> target across MCP processes and server origins; confirmed duplicates are reconciled only after ready.",
+    "Ensure, attach, search, open, wait, inspect, interact, capture, check, close and explicit administration call one typed controller. Inspection exposes the shell-owned Canvas as singular canvas state.",
+    "Opaque views persistently reuse a bridge-attested storybook:<package-id> target across MCP processes and server origins; confirmed duplicates are reconciled only after ready. Canvas capture targets the same exact shell Canvas without native plural discovery.",
     [
       "storybook attach ./project",
       "storybook detach project-id",
@@ -88,6 +149,7 @@ export const routeTree = contracts.routeTree
 export const stories = contracts.stories
 export const catalog = contracts.catalog
 export const workbench = contracts.workbench
+export const authorStyles = contracts.authorStyles
 export const references = contracts.references
 export const app = contracts.app
 export const server = contracts.server
@@ -102,26 +164,31 @@ function contract(
   ownership: string,
   example: string,
 ) {
-  return Object.freeze({
-    render(document: Document): HTMLElement {
-      const root = document.createElement("article")
-      root.className = "external-contract"
-      const heading = document.createElement("h2")
-      const summaryNode = document.createElement("p")
-      const ownershipNode = document.createElement("p")
-      const code = document.createElement("pre")
-      heading.textContent = title
-      summaryNode.textContent = summary
-      ownershipNode.textContent = ownership
-      code.textContent = example
-      root.append(heading, summaryNode, ownershipNode, code)
-      return root
-    },
-    source: Object.freeze({
-      html: `<article><h2>${title}</h2><p>${summary}</p></article>`,
-      css: ".external-contract { display: flex; flex-direction: column; }",
-      typescript: example,
-    }),
-    props: Object.freeze({title}),
+  const props = Object.freeze({title, summary, ownership, example})
+  return defineSelfStory((document) => {
+    const staging = document.createElement("div")
+    const root = createRoot(staging)
+    root.render(<ContractView
+      title={props.title}
+      summary={props.summary}
+      ownership={props.ownership}
+      example={props.example}
+    />)
+    const element = staging.querySelector("article") as HTMLElement | null
+    if (element === null) {
+      root.unmount()
+      throw new Error("Self Storybook Contract mounted no article")
+    }
+    staging.removeChild(element)
+    return Object.freeze({
+      element,
+      root,
+      source: Object.freeze({
+        html: serializeSelfElement(element),
+        typescript: example,
+      }),
+      props: Object.freeze({title}),
+      dispose: () => root.unmount(),
+    })
   })
 }

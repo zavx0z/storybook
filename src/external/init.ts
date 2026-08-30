@@ -60,11 +60,21 @@ type InitPlan = Readonly<{
 const PACKAGE_ID = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/u
 const LOCAL_ID = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/u
 
-const RUNTIME_STUB = `export const runtime = Object.freeze({
-  protocol: "storybook-runtime/1",
-  create() {
+const RUNTIME_STUB = `type StoryPresentation = Readonly<{
+  protocol: "story-presentation/1"
+  node: unknown
+  componentRoot: Readonly<{readStyleSheets(): unknown}>
+  source: Readonly<{html: string; typescript: string}>
+  values?: Readonly<Record<string, unknown>>
+}>
+
+export const runtime = Object.freeze({
+  protocol: "storybook-runtime/3",
+  create(context: Readonly<{present(value: StoryPresentation): void}>) {
     return Object.freeze({
-      mount() {},
+      mount(input: Readonly<{story: StoryPresentation}>) {
+        context.present(input.story)
+      },
       unmount() {},
       dispose() {},
     })
@@ -149,6 +159,11 @@ async function packagePlan(
         kind: "documentation",
         label,
         apiName: packageName,
+        presentation: {
+          protocol: "story-presentation/1",
+          projection: "display",
+          widgets: ["source", "diagnostics"],
+        },
         variants: [],
       }],
     }],

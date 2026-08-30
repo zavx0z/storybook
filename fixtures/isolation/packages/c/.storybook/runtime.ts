@@ -5,12 +5,20 @@ type FixtureNode = {
 
 type FixtureContext = Readonly<{
   document: {createElement(name: string): FixtureNode}
-  mount(node: FixtureNode): void
-  publishProps(value: unknown): void
+  present(value: Readonly<{
+    protocol: "story-presentation/1"
+    node: FixtureNode
+    componentRoot: {readStyleSheets(): unknown}
+    source: Readonly<{html: string; typescript: string}>
+  }>): void
 }>
 
+const componentRoot = Object.freeze({
+  readStyleSheets: () => Object.freeze({revision: 1, styleSheets: Object.freeze([])}),
+})
+
 export const runtime = Object.freeze({
-  protocol: "storybook-runtime/1",
+  protocol: "storybook-runtime/3",
   create(context: FixtureContext) {
     let mounted: FixtureNode | null = null
     const remove = (): void => {
@@ -25,8 +33,15 @@ export const runtime = Object.freeze({
         remove()
         const node = context.document.createElement("p")
         node.textContent = input.story
-        context.mount(node)
-        context.publishProps(Object.freeze({value: input.story}))
+        context.present(Object.freeze({
+          protocol: "story-presentation/1",
+          node,
+          componentRoot,
+          source: Object.freeze({
+            html: `<p>${escapeHtml(input.story)}</p>`,
+            typescript: `export const story = ${JSON.stringify(input.story)}`,
+          }),
+        }))
         mounted = node
       },
       unmount: remove,
@@ -34,3 +49,7 @@ export const runtime = Object.freeze({
     })
   },
 })
+
+function escapeHtml(value: string): string {
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
+}

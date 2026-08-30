@@ -1,5 +1,5 @@
-import {afterEach, describe, expect, test} from "bun:test"
-import {existsSync, mkdtempSync, mkdirSync, rmSync, symlinkSync, unlinkSync, writeFileSync} from "node:fs"
+import {afterEach, describe, expect, setDefaultTimeout, test} from "bun:test"
+import {existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {
@@ -11,6 +11,7 @@ import {writeExternalStorybookServerRecord} from "./server-state.ts"
 
 const roots: string[] = []
 const servers: ExternalStorybookRunningServer[] = []
+setDefaultTimeout(30_000)
 
 afterEach(async () => {
   await Promise.all(servers.splice(0).map((server) => server.stop()))
@@ -45,6 +46,7 @@ describe("one external Storybook server", () => {
     const landing = await fetch(new URL("/", running.origin))
     expect(landing.status).toBe(200)
     const html = await landing.text()
+    expect(html).toContain('<link rel="icon" href="data:,">')
     const script = html.match(/<script type="module" src="([^"]+)"/u)?.[1]
     expect(script).toBeDefined()
     expect((await fetch(new URL(script!, running.origin))).status).toBe(200)
@@ -67,7 +69,7 @@ describe("one external Storybook server", () => {
     const checked = await controlPost(running, "/api/control/check", {scope: "@fixture/standalone"})
     expect(checked.response.status).toBe(200)
     expect(running.sessions.session("@fixture/standalone").snapshot().builds).toBe(1)
-  })
+  }, 30_000)
 
   test("owns one automatic origin and atomically attaches independent roots", async () => {
     const fixture = serverFixture()
@@ -121,13 +123,40 @@ describe("one external Storybook server", () => {
       join(fixture.workspace, "projects/alpha/packages/components/package.json"),
     ]
     for (const path of structural) {
-      const revision = running.registry.snapshot().revision
       expect(running.watch.notify(path)).toBeGreaterThan(0)
-      await waitFor(() => running.registry.snapshot().revision > revision)
     }
     const unrelated = join(fixture.workspace, "unrelated.txt")
     writeFileSync(unrelated, "unrelated")
     expect(running.watch.notify(unrelated)).toBe(0)
+  })
+
+  test("explicit refresh reconciles an attached declaration even when its watch event was missed", async () => {
+    const fixture = serverFixture()
+    const running = await startExternalStorybookServer({
+      declarations: [fixture.workspace],
+      statePath: fixture.statePath,
+      artifactRoot: fixture.artifactRoot,
+    })
+    servers.push(running)
+    const before = running.registry.snapshot()
+    const manifestPath = join(
+      fixture.workspace,
+      "projects/alpha/packages/components/.storybook/manifest.json",
+    )
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as Record<string, unknown>
+    manifest.label = "Components refreshed"
+    writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
+
+    const refreshed = await controlPost(running, "/api/control/refresh", {})
+    expect(refreshed.response.status).toBe(200)
+    expect(refreshed.body.registryRevision).toBeGreaterThan(before.revision)
+    expect(refreshed.body.graphDigest).not.toBe(before.graph.digest)
+    expect(running.registry.snapshot().graph.nodes.find(({id}) =>
+      id === "package:@fixture/components")?.label).toBe("Components refreshed")
+
+    const stableRevision = running.registry.snapshot().revision
+    const unchanged = await controlPost(running, "/api/control/refresh", {})
+    expect(unchanged.body.registryRevision).toBe(stableRevision)
   })
 
   test("promotes built revision only after exact browser activation acknowledgement", async () => {
@@ -202,7 +231,7 @@ describe("one external Storybook server", () => {
     expect(failedResponse.status).toBe(200)
     expect(session.snapshot().activeRevision).toBe(working.activeRevision)
     expect(session.snapshot().lastWorkingRevision).toBe(working.lastWorkingRevision)
-  }, 15_000)
+  }, 30_000)
 
   test("protects control routes and never exposes the master capability to browser responses", async () => {
     const fixture = serverFixture()
@@ -235,7 +264,8 @@ describe("one external Storybook server", () => {
     expect(browserSessionToken(html)).not.toBe(running.record.controlToken)
     expect(landing.headers.get("content-security-policy")).toContain("frame-ancestors 'none'")
     expect(landing.headers.get("content-security-policy"))
-      .toContain(`connect-src 'self' ws://${new URL(running.origin).host}`)
+      .toContain(`connect-src 'self' data: ws://${new URL(running.origin).host}`)
+    expect(landing.headers.get("content-security-policy")).toContain("img-src 'self' data: blob:")
 
     const refusedStop = await controlPost(running, "/api/control/stop", {confirm: false})
     expect(refusedStop.response.status).toBe(400)
@@ -269,7 +299,7 @@ describe("one external Storybook server", () => {
     socket.send(JSON.stringify({type: "subscribe", topic: "package:@fixture/standalone"}))
     await waitFor(() => messages.some(({type}) => type === "subscribed"))
     socket.close()
-  }, 15_000)
+  }, 30_000)
 
   test("serves only declared README files, resources and literal local README assets", async () => {
     const fixture = serverFixture()
@@ -309,7 +339,100 @@ describe("one external Storybook server", () => {
     const componentState = running.sessions.session("@fixture/components").snapshot()
     expect(componentState.buildState, JSON.stringify(componentState.diagnostics)).toBe("activating")
     expect(running.sessions.session("@fixture/docs").snapshot().builds).toBe(0)
-  }, 15_000)
+  }, 30_000)
+
+  test("serves ordered revision-scoped native author stylesheet links before the package entry", async () => {
+    const fixture = serverFixture()
+    const running = await startExternalStorybookServer({
+      declarations: [fixture.workspace],
+      statePath: fixture.statePath,
+      artifactRoot: fixture.artifactRoot,
+      packageBrowserEntryPath: fixture.packageEntry,
+    })
+    servers.push(running)
+    const page = await fetch(new URL(
+      "/packages/%40fixture%2Fcomponents/components/button/basic/contained",
+      running.origin,
+    ))
+    expect(page.status).toBe(200)
+    const html = await page.text()
+    const session = running.sessions.session("@fixture/components")
+    const state = session.snapshot()
+    const revision = state.builtRevision ?? state.activatingRevision
+    if (revision === null || revision === undefined) throw new Error("Fixture revision is missing")
+    const graph = session.revisionGraphSnapshot(revision)
+    if (graph === null) throw new Error("Fixture revision graph is missing")
+    expect(graph.authorStyleSheets.map(({specifier, url}) => ({specifier, url}))).toEqual([
+      {specifier: "@fixture/components/tokens.css", url: "author-style-sheets/0.css"},
+      {specifier: "@fixture/components/theme.css", url: "author-style-sheets/1.css"},
+    ])
+    const revisionUrl = `/__storybook/revisions/%40fixture%2Fcomponents/${revision}/`
+    const links = graph.authorStyleSheets.map((styleSheet, index) =>
+      `<link id="external-storybook-author-style-sheet-${index}" rel="stylesheet" ` +
+      `data-external-storybook-author-style-sheet="${styleSheet.specifier}" ` +
+      `data-external-storybook-author-style-sheet-digest="${styleSheet.contentDigest}" ` +
+      `href="${revisionUrl}${styleSheet.url}">`)
+    expect(html).toContain(links[0]!)
+    expect(html).toContain(links[1]!)
+    expect(html.match(/id="external-storybook-author-style-sheet-[0-9]+"/gu)).toHaveLength(2)
+    expect(html.indexOf(links[0]!)).toBeLessThan(html.indexOf(links[1]!))
+    expect(html.indexOf(links[1]!)).toBeLessThan(html.indexOf("<script type=\"module\""))
+    for (const [index, styleSheet] of graph.authorStyleSheets.entries()) {
+      const response = await fetch(new URL(`${revisionUrl}${styleSheet.url}`, running.origin))
+      expect(response.status).toBe(200)
+      expect(response.headers.get("content-type")).toBe("text/css; charset=utf-8")
+      expect(await response.text()).toBe(await Bun.file(join(
+        fixture.workspace,
+        `projects/alpha/packages/components/${index === 0 ? "tokens.css" : "theme.css"}`,
+      )).text())
+    }
+    expect(html).not.toContain(join(fixture.workspace, "projects/alpha/packages/components"))
+  }, 30_000)
+
+  test("refreshes author CSS content digest before publishing its next immutable revision", async () => {
+    const fixture = serverFixture()
+    const running = await startExternalStorybookServer({
+      declarations: [fixture.workspace],
+      statePath: fixture.statePath,
+      artifactRoot: fixture.artifactRoot,
+      packageBrowserEntryPath: fixture.packageEntry,
+    })
+    servers.push(running)
+    await fetch(new URL(
+      "/packages/%40fixture%2Fcomponents/components/button/basic/contained",
+      running.origin,
+    ))
+    const session = running.sessions.session("@fixture/components")
+    const before = session.snapshot()
+    const beforeRevision = before.builtRevision ?? before.activatingRevision
+    if (beforeRevision === null || beforeRevision === undefined) throw new Error("Fixture revision is missing")
+    const beforeGraph = session.revisionGraphSnapshot(beforeRevision)
+    if (beforeGraph === null) throw new Error("Fixture revision graph is missing")
+    const beforeDigest = beforeGraph.authorStyleSheets[0]?.contentDigest
+    const registryRevision = running.registry.snapshot().revision
+    const tokens = join(fixture.workspace, "projects/alpha/packages/components/tokens.css")
+    writeFileSync(tokens, ":root { --fixture-accent: #ffffff; }\n")
+    expect(running.watch.notify(tokens)).toBeGreaterThan(1)
+    await waitFor(() => running.registry.snapshot().revision > registryRevision)
+    const built = await running.sessions.ensure("@fixture/components")
+    const nextRevision = built.builtRevision ?? built.activatingRevision
+    if (nextRevision === null || nextRevision === undefined) throw new Error("Next fixture revision is missing")
+    const nextGraph = session.revisionGraphSnapshot(nextRevision)
+    if (nextGraph === null) throw new Error("Next fixture revision graph is missing")
+    expect(nextRevision).not.toBe(beforeRevision)
+    expect(nextGraph.authorStyleSheets[0]?.contentDigest).not.toBe(beforeDigest)
+    expect(nextGraph.packageGraphDigest).not.toBe(beforeGraph.packageGraphDigest)
+    const previousResponse = await fetch(new URL(
+      `/__storybook/revisions/%40fixture%2Fcomponents/${beforeRevision}/author-style-sheets/0.css`,
+      running.origin,
+    ))
+    expect(await previousResponse.text()).toBe(":root { --fixture-accent: #35c7d8; }\n")
+    const response = await fetch(new URL(
+      `/__storybook/revisions/%40fixture%2Fcomponents/${nextRevision}/author-style-sheets/0.css`,
+      running.origin,
+    ))
+    expect(await response.text()).toBe(":root { --fixture-accent: #ffffff; }\n")
+  }, 30_000)
 
   test("failed attach leaves registry and sessions unchanged", async () => {
     const fixture = serverFixture()

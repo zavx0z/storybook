@@ -1,6 +1,6 @@
-import {afterEach, describe, expect, test} from "bun:test"
+import {afterEach, describe, expect, setDefaultTimeout, test} from "bun:test"
 import {createHash} from "node:crypto"
-import {mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
+import {mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, unlinkSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {createStorybookPackageRevisionBuilder} from "./package-build.ts"
@@ -8,6 +8,7 @@ import {STORYBOOK_PACKAGE_GRAPH_PROTOCOL, type StorybookPackageRevisionGraphSnap
 import type {StorybookPackageBuildDescriptor} from "./package-session.ts"
 
 const roots: string[] = []
+setDefaultTimeout(20_000)
 
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, {recursive: true, force: true})
@@ -24,12 +25,18 @@ describe("real Storybook package revision build", () => {
     expect(result.entryRelativePath).toMatch(/\.js$/u)
     expect(result.dependencyRealpaths).toContain(realpathSync(fixture.runtime))
     expect(result.dependencyRealpaths).toContain(realpathSync(fixture.story))
+    expect(result.dependencyRealpaths).toContain(realpathSync(fixture.widget))
     expect(result.moduleGraphRevision).toMatch(/^[a-f0-9]{64}$/u)
+    expect(await Bun.file(join(staging, "author-style-sheets/0.css")).text()).toBe(
+      await Bun.file(fixture.theme).text(),
+    )
     expect(await Bun.file(join(staging, result.entryRelativePath)).text()).not.toContain("fixture story marker")
     const chunks = await Array.fromAsync(new Bun.Glob("chunks/*.js").scan({cwd: staging, absolute: true}))
     expect(chunks.length).toBeGreaterThan(0)
     expect((await Promise.all(chunks.map((path) => Bun.file(path).text()))).join("\n"))
       .toContain("fixture story marker")
+    expect((await Promise.all(chunks.map((path) => Bun.file(path).text()))).join("\n"))
+      .toContain("fixture widget marker")
   })
 
   test("fails before publish for a missing export", async () => {
@@ -49,9 +56,54 @@ describe("real Storybook package revision build", () => {
     ))).rejects.toThrow()
   })
 
+  test("includes component widget module bytes in the immutable module graph revision", async () => {
+    const fixture = createFixture()
+    const build = createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry})
+    const first = await build(buildInput(
+      fixture.descriptor,
+      join(fixture.root, ".candidate-widget-a"),
+      "revision-widget-a",
+    ))
+    writeFileSync(
+      fixture.widget,
+      readFileSync(fixture.widget, "utf8").replace("fixture widget marker", "changed widget marker"),
+    )
+    const second = await build(buildInput(
+      fixture.descriptor,
+      join(fixture.root, ".candidate-widget-b"),
+      "revision-widget-b",
+    ))
+    expect(second.moduleGraphRevision).not.toBe(first.moduleGraphRevision)
+  })
+
+  test("fails before copying author CSS whose bytes no longer match the resolved digest", async () => {
+    const fixture = createFixture()
+    writeFileSync(fixture.theme, ".theme { color: changed; }\n")
+    const build = createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry})
+    await expect(build(buildInput(
+      fixture.descriptor,
+      join(fixture.root, ".candidate-changed-css"),
+      "revision-css",
+    ))).rejects.toThrow("Revision resource content changed after resolution")
+  })
+
+  test("rejects an author CSS file replaced by a symlink even when bytes still match", async () => {
+    const fixture = createFixture()
+    const outside = join(fixture.root, "outside-theme.css")
+    writeFileSync(outside, readFileSync(fixture.theme))
+    unlinkSync(fixture.theme)
+    symlinkSync(outside, fixture.theme)
+    const build = createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry})
+    await expect(build(buildInput(
+      fixture.descriptor,
+      join(fixture.root, ".candidate-symlink-css"),
+      "revision-symlink-css",
+    ))).rejects.toThrow("exact non-symlink file")
+  })
+
   test("fails protocol validation without losing build diagnostics", async () => {
     const fixture = createFixture()
-    writeFileSync(fixture.runtime, "export const runtime = {protocol: 'storybook-runtime/2', create() {}}\n")
+    writeFileSync(fixture.runtime, "export const runtime = {protocol: 'storybook-runtime/1', create() {}}\n")
     const build = createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry})
     await expect(build(buildInput(
       fixture.descriptor,
@@ -64,7 +116,7 @@ describe("real Storybook package revision build", () => {
     const fixture = createFixture()
     writeFileSync(fixture.runtime, [
       "await new Promise(() => {})",
-      "export const runtime = {protocol: 'storybook-runtime/1', create() {}}",
+      "export const runtime = {protocol: 'storybook-runtime/3', create() {}}",
       "",
     ].join("\n"))
     const build = createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry})
@@ -113,6 +165,8 @@ function createFixture(): Readonly<{
   root: string
   runtime: string
   story: string
+  widget: string
+  theme: string
   browserEntry: string
   descriptor: StorybookPackageBuildDescriptor
 }> {
@@ -123,12 +177,22 @@ function createFixture(): Readonly<{
   const manifest = join(packageRoot, ".storybook", "manifest.json")
   const runtime = join(packageRoot, ".storybook", "runtime.ts")
   const story = join(packageRoot, ".storybook", "story.ts")
+  const widget = join(packageRoot, ".storybook", "widget.tsx")
+  const theme = join(packageRoot, "theme.css")
   const browserEntry = join(root, "browser-entry.ts")
+  const templateRoot = realpathSync(join(import.meta.dir, "../../node_modules/@zavx0z/template"))
+  writeFileSync(join(root, "package.json"), JSON.stringify({
+    name: "@fixture/project",
+    type: "module",
+    devDependencies: {"@zavx0z/template": "link:@zavx0z/template"},
+  }))
+  mkdirSync(join(root, "node_modules", "@zavx0z"), {recursive: true})
+  symlinkSync(templateRoot, join(root, "node_modules", "@zavx0z", "template"))
   writeFileSync(join(packageRoot, "package.json"), JSON.stringify({name: "@fixture/package", type: "module"}))
   writeFileSync(manifest, "{}\n")
   writeFileSync(runtime, [
     "export const runtime = {",
-    "  protocol: 'storybook-runtime/1',",
+    "  protocol: 'storybook-runtime/3',",
     "  create() {",
     "    return {mount() {}, unmount() {}, dispose() {}}",
     "  },",
@@ -136,6 +200,14 @@ function createFixture(): Readonly<{
     "",
   ].join("\n"))
   writeFileSync(story, "export const story = 'fixture story marker'\n")
+  writeFileSync(widget, [
+    "/** @jsxImportSource @zavx0z/template */",
+    "export function widget(props: Readonly<{value: unknown}>) {",
+    "  return <section>fixture widget marker {String(props.value ?? '')}</section>",
+    "}",
+    "",
+  ].join("\n"))
+  writeFileSync(theme, ".theme { color: cyan; }\n")
   writeFileSync(browserEntry, [
     "export async function startExternalStorybookPackage(input: unknown) {",
     "  globalThis.__fixture = input",
@@ -147,6 +219,8 @@ function createFixture(): Readonly<{
     root,
     runtime,
     story,
+    widget,
+    theme,
     browserEntry,
     descriptor: {
       packageId: "@fixture/package",
@@ -154,9 +228,20 @@ function createFixture(): Readonly<{
       projectRoot: root,
       manifestPath: manifest,
       declarationDigest: "fixture-declaration",
-      graphSnapshot: graphSnapshot("@fixture/package", "fixture-declaration"),
+      graphSnapshot: graphSnapshot(
+        "@fixture/package",
+        "fixture-declaration",
+        createHash("sha256").update(readFileSync(theme)).digest("hex"),
+      ),
+      resourceFiles: [{
+        sourcePath: theme,
+        sourceRoot: packageRoot,
+        targetPath: "author-style-sheets/0.css",
+        contentDigest: createHash("sha256").update(readFileSync(theme)).digest("hex"),
+      }],
       runtime: {path: runtime, export: "runtime"},
       variants: [{route: "category/subject/default", module: {path: story, export: "story"}}],
+      widgetModules: [{id: "fixture-widget", module: {path: widget, export: "widget"}}],
     },
   })
 }
@@ -173,14 +258,24 @@ function buildInput(
     revisionUrl: `/__storybook/revisions/${encodeURIComponent(descriptor.packageId)}/${revision}/`,
     stagingDirectory,
     signal: new AbortController().signal,
-    compileTimeoutMs: 10_000,
+    compileTimeoutMs: 30_000,
     protocolTimeoutMs: 2_000,
   }
 }
 
-function graphSnapshot(packageId: string, declarationDigest: string): StorybookPackageRevisionGraphSnapshot {
+function graphSnapshot(
+  packageId: string,
+  declarationDigest: string,
+  contentDigest: string,
+): StorybookPackageRevisionGraphSnapshot {
   const packageNode = `package:${packageId}`
+  const subjectNode = `subject:${packageId}/category/subject`
   const variantNode = `variant:${packageId}/category/subject/default`
+  const presentation = {
+    protocol: "story-presentation/1" as const,
+    projection: "display" as const,
+    widgets: ["source", "diagnostics", "fixture-widget"],
+  }
   const withoutDigest = {
     protocol: STORYBOOK_PACKAGE_GRAPH_PROTOCOL,
     packageId,
@@ -190,21 +285,35 @@ function graphSnapshot(packageId: string, declarationDigest: string): StorybookP
     nodes: [
       {
         id: packageNode, kind: "package" as const, ownerId: packageId, packageId, label: packageId,
-        parentId: null, childIds: [], urlPath: `/packages/${encodeURIComponent(packageId)}/`, routePath: "",
+        parentId: null, childIds: [subjectNode], urlPath: `/packages/${encodeURIComponent(packageId)}/`, routePath: "",
         searchTerms: [packageId], group: null, subjectKind: null, apiName: null, hasReadme: false,
         resourceKinds: [], resourceUrl: `/__storybook/resources/nodes/${encodeURIComponent(packageNode)}/`,
+        presentation: null,
+      },
+      {
+        id: subjectNode, kind: "subject" as const, ownerId: packageId, packageId, label: "Subject",
+        parentId: packageNode, childIds: [variantNode],
+        urlPath: `/packages/${encodeURIComponent(packageId)}/category/subject/`, routePath: "category/subject",
+        searchTerms: ["subject"], group: null, subjectKind: "fixture", apiName: null, hasReadme: false,
+        resourceKinds: [], resourceUrl: `/__storybook/resources/nodes/${encodeURIComponent(subjectNode)}/`,
+        presentation,
       },
       {
         id: variantNode, kind: "variant" as const, ownerId: packageId, packageId, label: "Default",
-        parentId: packageNode, childIds: [],
+        parentId: subjectNode, childIds: [],
         urlPath: `/packages/${encodeURIComponent(packageId)}/category/subject/default`,
         routePath: "category/subject/default", searchTerms: ["default"], group: null, subjectKind: null,
         apiName: null, hasReadme: false, resourceKinds: [],
         resourceUrl: `/__storybook/resources/nodes/${encodeURIComponent(variantNode)}/`,
+        presentation,
       },
     ],
     routes: [
       {path: "", urlPath: `/packages/${encodeURIComponent(packageId)}/`, kind: "overview" as const, nodeId: packageNode},
+      {
+        path: "category/subject", urlPath: `/packages/${encodeURIComponent(packageId)}/category/subject/`,
+        kind: "overview" as const, nodeId: subjectNode,
+      },
       {
         path: "category/subject/default",
         urlPath: `/packages/${encodeURIComponent(packageId)}/category/subject/default`,
@@ -214,6 +323,17 @@ function graphSnapshot(packageId: string, declarationDigest: string): StorybookP
     ],
     loaders: [{route: "category/subject/default", nodeId: variantNode, exportName: "story"}],
     resources: [],
+    authorStyleSheets: [{
+      specifier: `${packageId}/theme.css`,
+      url: "author-style-sheets/0.css",
+      contentDigest,
+    }],
+    workbenchAuthorStyleSheets: [],
+    widgetContributions: {
+      protocol: "widget-contribution/1" as const,
+      items: [{id: "fixture-widget", kind: "component" as const, label: "Fixture widget"}],
+    },
+    widgetLoaders: [{id: "fixture-widget", exportName: "widget"}],
   }
   return Object.freeze({
     ...withoutDigest,

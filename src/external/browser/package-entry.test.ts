@@ -9,6 +9,7 @@ import type {
 import {resolveExternalStorybookDeclarations} from "../declarations.ts"
 import {createExternalStorybookGraph, type ExternalStorybookGraph} from "../graph.ts"
 import type {StorybookPackageSessionSnapshot} from "../package-session.ts"
+import {createStorybookPackageRevisionGraphSnapshot} from "../package-revision.ts"
 import {STORYBOOK_RUNTIME_PROTOCOL, type StorybookRuntimeContext} from "../runtime-protocol.ts"
 import {createExternalStorybookClientSnapshot} from "./client-protocol.ts"
 import {
@@ -20,6 +21,87 @@ import type {ExternalStorybookShellSpaceRuntimeFactory} from "./shell.ts"
 const fixtureRoot = join(import.meta.dir, "..", "fixtures", "valid")
 
 describe("external Storybook package frontend", () => {
+  test("binds only exact revision-declared native author links before activation", async () => {
+    const graph = await fixtureGraph()
+    const revision = "revision-theme"
+    const revisionUrl = `/__storybook/revisions/%40fixture%2Fcomponents/${revision}/`
+    const revisionGraph = createStorybookPackageRevisionGraphSnapshot(
+      graph,
+      "@fixture/components",
+      "fixture-declaration",
+    )
+    const dataset: Record<string, string> = {}
+    const browserDocument = {
+      documentElement: {dataset},
+    } as unknown as globalThis.Document
+    const links = new Map<string, HTMLLinkElement>(revisionGraph.authorStyleSheets.map((styleSheet, index) => {
+      const attributes = new Map([
+        ["rel", "stylesheet"],
+        ["href", `${revisionUrl}${styleSheet.url}`],
+        ["data-external-storybook-author-style-sheet", styleSheet.specifier],
+        ["data-external-storybook-author-style-sheet-digest", styleSheet.contentDigest],
+      ])
+      const link = {
+        localName: "link",
+        ownerDocument: browserDocument,
+        getAttribute: (name: string) => attributes.get(name) ?? null,
+      } as unknown as HTMLLinkElement
+      return [`external-storybook-author-style-sheet-${index}`, link] as const
+    }))
+    browserDocument.getElementById = (id) => links.get(id) ?? null
+    const lifecycle: string[] = []
+    const acknowledged: boolean[] = []
+    const location = locationFixture("/packages/%40fixture%2Fcomponents/")
+    const controller = await startExternalStorybookPackage({
+      packageId: "@fixture/components",
+      candidateRevision: revision,
+      revisionUrl,
+      graphSnapshot: revisionGraph,
+      loadRuntime: null,
+      storyLoaders: new Map(),
+      widgetLoaders: new Map([["fixture-controls", async () => ({})]]),
+      environment: {
+        browserDocument,
+        location,
+        history: historyFixture(location),
+        fetcher: (async () => new Response("# UI Components")) as unknown as typeof fetch,
+        createSocket: () => new FakeSocket(),
+        async waitForFrame() {},
+        async acknowledgeActivation({working}) {
+          lifecycle.push("activation")
+          acknowledged.push(working)
+        },
+        shell: {
+          document: createDocument(),
+          canvas: {} as HTMLCanvasElement,
+          loadFont: async () => ({}) as never,
+          createSpaceRuntime: fakeRuntimeFactory(),
+          createLinkedAuthorStyleSheetHost(options) {
+            lifecycle.push("author-host")
+            expect(options.sources.map(({id}) => id)).toEqual(
+              revisionGraph.authorStyleSheets.map(({specifier}) => specifier),
+            )
+            expect(options.sources.map(({link}) => link)).toEqual([...links.values()])
+            return {
+              canvas: options.canvas,
+              document: options.document,
+              sources: options.sources,
+              ready: Promise.resolve().then(() => { lifecycle.push("author-ready") }),
+              disposed: false,
+              refresh() {},
+              dispose() { lifecycle.push("author-dispose") },
+            }
+          },
+        },
+      },
+    })
+
+    expect(acknowledged).toEqual([true])
+    expect(lifecycle.slice(0, 3)).toEqual(["author-host", "author-ready", "activation"])
+    await controller.dispose()
+    expect(lifecycle.at(-1)).toBe("author-dispose")
+  })
+
   test("keeps overviews real and loads one runtime plus only exact selected stories", async () => {
     const graph = await fixtureGraph()
     const candidate = "revision-a"
@@ -37,7 +119,6 @@ describe("external Storybook package frontend", () => {
     let unmounts = 0
     let disposes = 0
     const contexts: StorybookRuntimeContext[] = []
-    const bounds: unknown[] = []
     const worldLifecycle = {adds: 0, removes: 0}
 
     const controller = await startExternalStorybookPackage({
@@ -50,25 +131,36 @@ describe("external Storybook package frontend", () => {
           protocol: STORYBOOK_RUNTIME_PROTOCOL,
           async create(ownerContext: StorybookRuntimeContext) {
             contexts.push(ownerContext)
-            ownerContext.subscribePreviewBounds((value) => bounds.push(value))
             return {
-              styleSheets: [".owner-story { color: cyan; }"],
               async mount(input: Readonly<{route: string, story: any}>) {
                 mounts += 1
                 const node = ownerContext.document.createElement("section")
                 node.className = "owner-story"
                 node.textContent = `${input.route}:${input.story.label}`
-                ownerContext.mountWorldPreview({
+                ownerContext.present({
+                  protocol: "story-presentation/1",
                   node,
-                  space: new Space(),
-                  camera: {
-                    position: {x: 10, y: -20, z: 30},
-                    target: {x: 0, y: 0, z: 0},
+                  componentRoot: {
+                    readStyleSheets: () => Object.freeze({
+                    revision: mounts,
+                    styleSheets: Object.freeze([Object.freeze({
+                      id: `owner-story-${mounts}`,
+                      cssText: ".generated-owner-story { color: cyan; }",
+                      source: Object.freeze({
+                        kind: "authored-css",
+                        moduleId: "@fixture/components/story.tsx",
+                        componentName: "FixtureStory",
+                        cssText: "& { color: cyan; }",
+                      }),
+                    })]),
+                    }),
                   },
+                  source: {
+                    html: `<section>${input.story.label}</section>`,
+                    typescript: `export const route = ${JSON.stringify(input.route)}`,
+                  },
+                  values: {props: {label: input.story.label}},
                 })
-                ownerContext.publishInspector({route: input.route})
-                ownerContext.publishSource({typescript: `export const route = ${JSON.stringify(input.route)}`})
-                ownerContext.publishProps({label: input.story.label})
                 ownerContext.reportDiagnostic({phase: "runtime", message: "owner-ready"})
                 ownerContext.requestRender()
               },
@@ -115,7 +207,7 @@ describe("external Storybook package frontend", () => {
 
     expect(dataset.externalStorybookPackage).toBe("ready")
     expect(controller.currentRoute).toBe("")
-    expect(controller.shell.workbench.controller.read("preview.node")?.textContent).toContain("Owner README")
+    expect(controller.shell.workbench.controller.read("presentation").node?.textContent).toContain("Owner README")
     expect(runtimeLoads).toBe(0)
     expect(containedLoads).toBe(0)
     expect(outlinedLoads).toBe(0)
@@ -134,13 +226,13 @@ describe("external Storybook package frontend", () => {
     expect(containedLoads).toBe(1)
     expect(outlinedLoads).toBe(0)
     expect(mounts).toBe(1)
-    expect(worldLifecycle.adds).toBe(1)
+    expect(worldLifecycle.adds).toBe(0)
     const ownerContext = contexts[0]!
     expect(ownerContext.document).toBe(semanticDocument)
-    expect(ownerContext.browserDocument).toBe(browserDocument)
-    expect(ownerContext.canvas).toBe(controller.shell.canvas)
-    expect(bounds).toEqual([null])
-    expect(controller.shell.workbench.controller.read("preview.node")?.textContent)
+    expect(ownerContext.projection).toBe("display")
+    expect("space" in ownerContext).toBeFalse()
+    expect("mountWorldPreview" in ownerContext).toBeFalse()
+    expect(controller.shell.workbench.controller.read("presentation").node?.textContent)
       .toBe("components/button/basic/contained:Contained")
     expect(controller.shell.workbench.elements.inspectorHost.textContent).toContain("owner-ready")
 
@@ -150,15 +242,15 @@ describe("external Storybook package frontend", () => {
     expect(outlinedLoads).toBe(1)
     expect(mounts).toBe(2)
     expect(unmounts).toBe(1)
-    expect(worldLifecycle.adds).toBe(2)
-    expect(worldLifecycle.removes).toBe(1)
+    expect(worldLifecycle.adds).toBe(0)
+    expect(worldLifecycle.removes).toBe(0)
     expect(controller.shell.workbench.controller.read("scenarios.active"))
       .toBe("variant:@fixture/components/components/button/outlined")
 
     await controller.navigate("components/button")
     expect(unmounts).toBe(2)
-    expect(worldLifecycle.removes).toBe(2)
-    expect(controller.shell.workbench.controller.read("preview.node")?.textContent)
+    expect(worldLifecycle.removes).toBe(0)
+    expect(controller.shell.workbench.controller.read("presentation").node?.textContent)
       .toContain("2 вариантов")
     expect(history.pushed).toEqual([
       "/packages/%40fixture%2Fcomponents/components/",
@@ -206,6 +298,85 @@ describe("external Storybook package frontend", () => {
     expect(socket.closed).toBeTrue()
   })
 
+  test("grants only a declared world subject the exact host Space without creating another world", async () => {
+    const sourceGraph = await fixtureGraph()
+    const buttonSubjectId = "subject:@fixture/components/components/button"
+    const worldGraph: ExternalStorybookGraph = Object.freeze({
+      ...sourceGraph,
+      nodes: Object.freeze(sourceGraph.nodes.map((node) =>
+        node.id === buttonSubjectId || node.parentId === buttonSubjectId && node.kind === "variant"
+          ? Object.freeze({
+            ...node,
+            presentation: node.presentation === null
+              ? null
+              : Object.freeze({...node.presentation, projection: "world" as const}),
+          })
+          : node)),
+    })
+    const candidate = "revision-world"
+    const snapshot = createExternalStorybookClientSnapshot(
+      worldGraph,
+      packageSnapshots(worldGraph, candidate),
+    )
+    const baseEnvironment = environmentFixture(
+      snapshot,
+      "/packages/%40fixture%2Fcomponents/components/button/basic/contained",
+    )
+    const worldLifecycle = {adds: 0, removes: 0}
+    const environment: ExternalStorybookPackageEnvironment = {
+      ...baseEnvironment,
+      shell: {
+        ...(baseEnvironment.shell ?? {}),
+        document: createDocument(),
+        canvas: {} as HTMLCanvasElement,
+        loadFont: async () => ({}) as never,
+        createSpaceRuntime: fakeRuntimeFactory(worldLifecycle),
+      },
+    }
+    const contexts: StorybookRuntimeContext[] = []
+    const controller = await startExternalStorybookPackage({
+      packageId: "@fixture/components",
+      candidateRevision: candidate,
+      revisionUrl: `/__storybook/revisions/%40fixture%2Fcomponents/${candidate}/`,
+      async loadRuntime() {
+        return {
+          protocol: STORYBOOK_RUNTIME_PROTOCOL,
+          create(context: StorybookRuntimeContext) {
+            contexts.push(context)
+            if (context.projection !== "world") throw new Error("Expected world context")
+            return {
+              mount() {
+                const node = context.document.createElement("section")
+                context.present({
+                  protocol: "story-presentation/1",
+                  node,
+                  componentRoot: {readStyleSheets: () => ({revision: 0, styleSheets: []})},
+                  source: {html: "<section></section>", typescript: "<World />"},
+                })
+                context.mountWorldPreview({
+                  node,
+                  camera: {position: {x: 0, y: -10, z: 4}, target: {x: 0, y: 0, z: 0}},
+                })
+              },
+              unmount() {},
+              dispose() {},
+            }
+          },
+        }
+      },
+      storyLoaders: new Map([["components/button/basic/contained", async () => ({})]]),
+      environment,
+    })
+    const contextSeen = contexts[0]
+    expect(contextSeen?.projection).toBe("world")
+    if (contextSeen?.projection !== "world") throw new Error("World context was not created")
+    expect(contextSeen.space).toBe(controller.shell.runtime.space)
+    expect(controller.shell.runtime.worldIds).toEqual([])
+    expect(worldLifecycle).toEqual({adds: 0, removes: 0})
+    expect(controller.shell.workbench.controller.read("presentation").projection).toBe("world")
+    await controller.dispose()
+  })
+
   test("fails before shell creation for a foreign pathname or unpublished revision", async () => {
     const graph = await fixtureGraph()
     const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-a"))
@@ -226,6 +397,176 @@ describe("external Storybook package frontend", () => {
       revisionUrl: "/__storybook/revisions/%40fixture%2Fcomponents/revision-other/",
       environment: environmentFixture(snapshot, "/packages/%40fixture%2Fcomponents/"),
     })).rejects.toThrow("revision is not active or last-good")
+  })
+
+  test("acknowledges a required author link that failed before module entry as non-working", async () => {
+    const graph = await fixtureGraph()
+    const candidate = "revision-author-failure"
+    const revisionUrl = `/__storybook/revisions/%40fixture%2Fcomponents/${candidate}/`
+    const revisionGraph = createStorybookPackageRevisionGraphSnapshot(
+      graph,
+      "@fixture/components",
+      "fixture-author-failure",
+    )
+    const environment = environmentFixture(
+      createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, candidate)),
+      "/packages/%40fixture%2Fcomponents/",
+    )
+    const browserDocument = {
+      documentElement: {dataset: {}},
+      readyState: "interactive",
+    } as unknown as globalThis.Document
+    const links = new Map<string, HTMLLinkElement>(revisionGraph.authorStyleSheets.map((styleSheet, index) => {
+      const attributes = new Map([
+        ["rel", "stylesheet"],
+        ["href", `${revisionUrl}${styleSheet.url}`],
+        ["data-external-storybook-author-style-sheet", styleSheet.specifier],
+        ["data-external-storybook-author-style-sheet-digest", styleSheet.contentDigest],
+      ])
+      return [`external-storybook-author-style-sheet-${index}`, {
+        localName: "link",
+        ownerDocument: browserDocument,
+        sheet: null,
+        getAttribute: (name: string) => attributes.get(name) ?? null,
+      } as unknown as HTMLLinkElement] as const
+    }))
+    browserDocument.getElementById = (id) => links.get(id) ?? null
+    const acknowledgements: Array<Readonly<{
+      packageId: string
+      revision: string
+      packageGraphDigest: string
+      route: string
+      working: boolean
+      frameSequence: number
+      diagnostic?: string
+    }>> = []
+    await expect(startExternalStorybookPackage({
+      packageId: "@fixture/components",
+      candidateRevision: candidate,
+      revisionUrl,
+      graphSnapshot: revisionGraph,
+      loadRuntime: null,
+      storyLoaders: new Map(),
+      widgetLoaders: new Map([["fixture-controls", async () => ({})]]),
+      environment: {
+        ...environment,
+        browserDocument,
+        acknowledgeActivation: async (value) => { acknowledgements.push(value) },
+      },
+    })).rejects.toThrow("failed before package entry")
+    expect(acknowledgements).toEqual([{
+      packageId: "@fixture/components",
+      revision: candidate,
+      packageGraphDigest: revisionGraph.packageGraphDigest,
+      route: "",
+      frameSequence: 0,
+      working: false,
+      diagnostic: "Required Storybook author stylesheet failed before package entry: @fixture/components/tokens.css",
+    }])
+  })
+
+  test("unmounts a partially mounted root when runtime/3 atomic source provenance fails", async () => {
+    const graph = await fixtureGraph()
+    const candidate = "revision-missing-provenance"
+    const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, candidate))
+    const environment = environmentFixture(
+      snapshot,
+      "/packages/%40fixture%2Fcomponents/components/button/basic/contained",
+    )
+    let unmounts = 0
+    let rootActive = true
+    const controller = await startExternalStorybookPackage({
+      packageId: "@fixture/components",
+      candidateRevision: candidate,
+      revisionUrl: `/__storybook/revisions/%40fixture%2Fcomponents/${candidate}/`,
+      async loadRuntime() {
+        return {
+          protocol: STORYBOOK_RUNTIME_PROTOCOL,
+          create(context: StorybookRuntimeContext) {
+            return {
+              mount() {
+                const node = context.document.createElement("button")
+                context.present({
+                  protocol: "story-presentation/1",
+                  node,
+                  source: {html: "<button></button>", typescript: "<Button />"},
+                  componentRoot: {readStyleSheets: () => ({
+                    revision: 1,
+                    styleSheets: [{id: "generated-only", cssText: "[data-z] {}"}],
+                  })},
+                })
+              },
+              unmount() {
+                unmounts += 1
+                rootActive = false
+              },
+              dispose() {},
+            }
+          },
+        }
+      },
+      storyLoaders: new Map([["components/button/basic/contained", async () => ({})]]),
+      environment,
+    })
+    expect(unmounts).toBe(1)
+    expect(rootActive).toBeFalse()
+    expect((environment.browserDocument as any).documentElement.dataset.externalStorybookPackage)
+      .toBe("error")
+    await controller.navigate("components/button")
+    expect(unmounts).toBe(1)
+    await controller.dispose()
+  })
+
+  test("requires exactly one atomic presentation and rejects derived or unselected values", async () => {
+    const graph = await fixtureGraph()
+    const candidate = "revision-atomic-law"
+    const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, candidate))
+    for (const violation of ["missing", "double", "derived", "unselected"] as const) {
+      const environment = environmentFixture(
+        snapshot,
+        "/packages/%40fixture%2Fcomponents/components/button/basic/contained",
+      )
+      let unmounts = 0
+      const controller = await startExternalStorybookPackage({
+        packageId: "@fixture/components",
+        candidateRevision: candidate,
+        revisionUrl: `/__storybook/revisions/%40fixture%2Fcomponents/${candidate}/`,
+        async loadRuntime() {
+          return {
+            protocol: STORYBOOK_RUNTIME_PROTOCOL,
+            create(context: StorybookRuntimeContext) {
+              return {
+                mount() {
+                  if (violation === "missing") return
+                  const node = context.document.createElement("button")
+                  const present = (values?: Readonly<Record<string, unknown>>) => context.present({
+                    protocol: "story-presentation/1",
+                    node,
+                    componentRoot: {readStyleSheets: () => ({revision: 0, styleSheets: []})},
+                    source: {html: "<button></button>", typescript: "<Button />"},
+                    ...(values === undefined ? {} : {values}),
+                  })
+                  present(violation === "derived"
+                    ? {dom: {}}
+                    : violation === "unselected"
+                      ? {events: []}
+                      : undefined)
+                  if (violation === "double") present()
+                },
+                unmount() { unmounts += 1 },
+                dispose() {},
+              }
+            },
+          }
+        },
+        storyLoaders: new Map([["components/button/basic/contained", async () => ({})]]),
+        environment,
+      })
+      expect((environment.browserDocument as any).documentElement.dataset.externalStorybookPackage, violation)
+        .toBe("error")
+      expect(unmounts, violation).toBe(1)
+      await controller.dispose()
+    }
   })
 
   test("reports create, session, mount and first-frame failures without acknowledging working", async () => {
@@ -259,7 +600,12 @@ describe("external Storybook package frontend", () => {
                   if (failure === "mount") throw new Error("mount failed")
                   const node = context.document.createElement("div")
                   node.textContent = "working"
-                  context.mount(node)
+                  context.present({
+                    protocol: "story-presentation/1",
+                    node,
+                    componentRoot: {readStyleSheets: () => ({revision: 0, styleSheets: []})},
+                    source: {html: "<div>working</div>", typescript: "<Working />"},
+                  })
                 },
                 async unmount() {},
                 async dispose() {},
@@ -395,7 +741,12 @@ describe("external Storybook package frontend", () => {
                 }
                 concurrent -= 1
                 const node = context.document.createElement("div")
-                context.mount(node)
+                context.present({
+                  protocol: "story-presentation/1",
+                  node,
+                  componentRoot: {readStyleSheets: () => ({revision: 0, styleSheets: []})},
+                  source: {html: `<div>${route}</div>`, typescript: `<Story route=${JSON.stringify(route)} />`},
+                })
               },
               async unmount() {},
               async dispose() {},
@@ -603,13 +954,24 @@ function fakeRuntimeFactory(
   worldLifecycle: {adds: number; removes: number} = {adds: 0, removes: 0},
 ): ExternalStorybookShellSpaceRuntimeFactory {
   return (async (options) => {
-    let world: any = null
     const presented = new Set<(frame: number) => void>()
     let frames = 0
+    let viewPointSnapshot = Object.freeze({
+      position: Object.freeze({x: 0, y: -1_000, z: 0}),
+      target: Object.freeze({x: 0, y: 0, z: 0}),
+      up: Object.freeze({x: 0, y: 0, z: 1}),
+      fov: Math.PI / 4,
+      near: 1,
+      far: 2_000,
+    })
     return ({
+      canvas: options.canvas,
       document: options.document,
       styleSheets: options.styleSheets,
       font: options.font,
+      space: new Space(),
+      viewPoint: {orbit() {}, pan() {}},
+      worldIds: Object.freeze([]),
       addOverlay() {
         return {
           subscribe() {
@@ -620,25 +982,15 @@ function fakeRuntimeFactory(
       },
       addWorld(registration: any) {
         worldLifecycle.adds += 1
-        world = {
-          id: registration.id,
-          space: registration.space,
-          viewport: registration.viewport,
-          viewPoint: {},
-          disposed: false,
-          requestRender() {},
-        }
-        return world
+        throw new Error(`Second world registration is forbidden: ${String(registration?.id)}`)
       },
-      updateWorld(_id: string, update: any) {
-        if (world !== null && "viewport" in update) world.viewport = update.viewport
-        return world
+      updateWorld() {
+        worldLifecycle.adds += 1
+        throw new Error("Second world update is forbidden")
       },
       removeWorld() {
-        if (world === null) return false
         worldLifecycle.removes += 1
-        world = null
-        return true
+        throw new Error("Second world removal is forbidden")
       },
       render() {
         frames += 1
@@ -649,8 +1001,13 @@ function fakeRuntimeFactory(
         return () => presented.delete(listener)
       },
       requestRender() {},
+      snapshotViewPoint() {
+        return viewPointSnapshot
+      },
+      restoreViewPoint(value: typeof viewPointSnapshot) {
+        viewPointSnapshot = value
+      },
       dispose() {
-        world = null
         presented.clear()
       },
       get disposed() { return false },

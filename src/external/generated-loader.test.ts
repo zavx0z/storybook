@@ -18,6 +18,7 @@ describe("external Storybook generated loader", () => {
           module: {path: "/owner/package/.storybook/stories/button.ts", export: "contained"},
         },
       ],
+      widgets: [],
     })
 
     expect(source.match(/\bimport\("[^"\n]+"\)/gu)).toHaveLength(3)
@@ -44,11 +45,13 @@ describe("external Storybook generated loader", () => {
       revisionUrl: "/__storybook/revisions/example/rev-a/",
       runtime,
       variants,
+      widgets: [],
     })
     const second = generateStorybookLoaderSource({
       revisionUrl: "/__storybook/revisions/example/rev-a/",
       runtime,
       variants: [...variants].reverse(),
+      widgets: [],
     })
 
     expect(first).toBe(second)
@@ -61,6 +64,7 @@ describe("external Storybook generated loader", () => {
         route: "foundation/button/default",
         module: {path: "/owner/stories/button.ts", export: "story"},
       }],
+      widgets: [],
     } as const
     const oldSource = generateStorybookLoaderSource({
       ...input,
@@ -82,6 +86,7 @@ describe("external Storybook generated loader", () => {
       revisionUrl: "/__storybook/revisions/example/rev-a/",
       runtime,
       variants: [],
+      widgets: [],
     } as const
     for (const input of [null, [], {...valid, variants: null}]) {
       expect(() => generateStorybookLoaderSource(
@@ -120,5 +125,25 @@ describe("external Storybook generated loader", () => {
         {route: "story/default", module: {path: "/owner/two.ts", export: "story"}},
       ],
     })).toThrow("Duplicate Storybook variant route")
+  })
+
+  test("emits exact lazy component widget loaders by contribution id", () => {
+    const source = generateStorybookLoaderSource({
+      revisionUrl: "/__storybook/revisions/example/rev-widgets/",
+      runtime: null,
+      variants: [],
+      widgets: [{
+        id: "package-inspector",
+        module: {path: "/owner/widgets/inspector.tsx", export: "InspectorWidget"},
+      }],
+    })
+
+    expect(source).toContain("STORYBOOK_PACKAGE_WIDGET_LOADERS = new Map")
+    expect(source).toContain('"package-inspector"')
+    expect(source).toContain('import("/owner/widgets/inspector.tsx")')
+    expect(source).toContain('namespace["InspectorWidget"]')
+    expect(source).toContain("const runtimeLoader = null")
+    expect(source).toContain("export const loadStorybookPackageRuntime = null")
+    expect(source).toContain("export function loadStorybookWidget(id)")
   })
 })

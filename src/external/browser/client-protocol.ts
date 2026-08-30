@@ -6,6 +6,7 @@ import {
 import type {
   ExternalStorybookPresentationGroup,
   ExternalStorybookResourceKind,
+  ResolvedExternalStorybookStoryPresentation,
 } from "../declarations.ts"
 import type {
   StorybookPackageBuildState,
@@ -33,6 +34,7 @@ export type ExternalStorybookClientNode = Readonly<{
   hasReadme: boolean
   resourceKinds: readonly ExternalStorybookResourceKind[]
   resourceUrl: string
+  presentation: ResolvedExternalStorybookStoryPresentation | null
 }>
 
 export type ExternalStorybookClientDiagnostic = Readonly<{
@@ -123,6 +125,13 @@ export function createExternalStorybookClientSnapshot(
     hasReadme: node.readmePath !== null,
     resourceKinds: Object.freeze([...new Set(node.resources.map(({kind}) => kind))]),
     resourceUrl: externalStorybookNodeResourceUrl(graph, node.id),
+    presentation: node.presentation === null
+      ? null
+      : Object.freeze({
+        protocol: node.presentation.protocol,
+        projection: node.presentation.projection,
+        widgets: Object.freeze([...node.presentation.widgets]),
+      }),
   }))
   return Object.freeze({
     protocol: EXTERNAL_STORYBOOK_CLIENT_PROTOCOL,
@@ -232,6 +241,7 @@ function collectHiddenPaths(
     if (node.packageJsonPath !== null) paths.add(node.packageJsonPath)
     if (node.runtime !== null) paths.add(node.runtime.path)
     if (node.module !== null) paths.add(node.module.path)
+    for (const styleSheet of node.authorStyleSheets) paths.add(styleSheet.path)
     for (const resource of node.resources) paths.add(resource.path)
   }
   for (const snapshot of snapshots) {

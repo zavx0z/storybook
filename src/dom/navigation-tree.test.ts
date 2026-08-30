@@ -1,4 +1,4 @@
-import {describe, expect, test} from "bun:test"
+import {beforeAll, describe, expect, test} from "bun:test"
 import {
   createDocument,
   CustomEvent,
@@ -10,12 +10,18 @@ import {
   MouseEvent,
   Node,
 } from "@zavx0z/dom"
-import {
-  createStorybookDomWorkbench,
-  STORYBOOK_DOM_WORKBENCH_EVENTS,
-  type StorybookDomNavigationItem,
-  type StorybookDomWorkbench,
+import {loadCompiledWorkbench} from "./compiled-workbench.test-support.ts"
+import type {
+  StorybookDomNavigationItem,
+  StorybookDomWorkbench,
 } from "./workbench.ts"
+import type * as WorkbenchModule from "./workbench.ts"
+
+let api: typeof WorkbenchModule
+
+beforeAll(async () => {
+  api = await loadCompiledWorkbench()
+})
 
 const groupedItems = Object.freeze([
   {
@@ -100,8 +106,8 @@ describe("DOM-native Storybook catalog navigation tree", () => {
     const workbench = createWorkbench(groupedItems)
     const events: Array<Readonly<{type: string; detail: unknown}>> = []
     for (const type of [
-      STORYBOOK_DOM_WORKBENCH_EVENTS.navigate,
-      STORYBOOK_DOM_WORKBENCH_EVENTS.groupToggle,
+      api.STORYBOOK_DOM_WORKBENCH_EVENTS.navigate,
+      api.STORYBOOK_DOM_WORKBENCH_EVENTS.groupToggle,
     ]) {
       workbench.element.addEventListener(type, (event) => {
         events.push({type, detail: (event as CustomEvent).detail})
@@ -138,22 +144,22 @@ describe("DOM-native Storybook catalog navigation tree", () => {
     const interfaces = findLeaf(workbench, "interfaces")!
     const elements = findGroup(workbench, "elements")!
     const styles = findLeaf(workbench, "styles")!
-    interfaces.focus()
+    focusControl(interfaces).focus()
 
     press(interfaces, "ArrowDown")
-    expect(workbench.document.activeElement).toBe(elements)
+    expect(workbench.document.activeElement).toBe(focusControl(elements))
     press(elements, "ArrowRight")
-    expect(workbench.document.activeElement).toBe(styles)
+    expect(workbench.document.activeElement).toBe(focusControl(styles))
     press(styles, "ArrowLeft")
-    expect(workbench.document.activeElement).toBe(elements)
+    expect(workbench.document.activeElement).toBe(focusControl(elements))
     press(elements, "ArrowLeft")
     expect(elements.getAttribute("aria-expanded")).toBe("false")
     press(elements, "ArrowRight")
     expect(elements.getAttribute("aria-expanded")).toBe("true")
     press(elements, "End")
-    expect(workbench.document.activeElement).toBe(styles)
+    expect(workbench.document.activeElement).toBe(focusControl(styles))
     press(styles, "Home")
-    expect(workbench.document.activeElement).toBe(dom)
+    expect(workbench.document.activeElement).toBe(focusControl(dom))
     press(dom, "Enter")
     expect(dom.getAttribute("aria-expanded")).toBe("false")
     press(dom, " ")
@@ -164,13 +170,13 @@ describe("DOM-native Storybook catalog navigation tree", () => {
     const workbench = createWorkbench(groupedItems)
     const group = findGroup(workbench, "elements")!
     const child = findLeaf(workbench, "styles")!
-    child.focus()
-    expect(workbench.document.activeElement).toBe(child)
+    focusControl(child).focus()
+    expect(workbench.document.activeElement).toBe(focusControl(child))
 
     clickGroup(group)
     expect(group.getAttribute("aria-expanded")).toBe("false")
-    expect(workbench.document.activeElement).toBe(group)
-    expect(groupContainers(workbench)[1]?.childNodes).toHaveLength(0)
+    expect(workbench.document.activeElement).toBe(focusControl(group))
+    expect(groupContainers(workbench)[1]?.querySelectorAll('[role="treeitem"]')).toHaveLength(0)
   })
 
   test("exposes disabled leaves while skipping and never activating them", () => {
@@ -184,19 +190,20 @@ describe("DOM-native Storybook catalog navigation tree", () => {
     const elements = findGroup(workbench, "elements")!
     const styles = findLeaf(workbench, "styles")!
     const navigations: unknown[] = []
-    workbench.element.addEventListener(STORYBOOK_DOM_WORKBENCH_EVENTS.navigate, (event) => {
+    workbench.element.addEventListener(api.STORYBOOK_DOM_WORKBENCH_EVENTS.navigate, (event) => {
       navigations.push((event as CustomEvent).detail)
     })
 
-    expect(disabled.disabled).toBeTrue()
+    const disabledButton = disabled.querySelector("button") as HTMLButtonElement
+    expect(disabledButton.disabled).toBeTrue()
     expect(disabled.getAttribute("aria-disabled")).toBe("true")
-    disabled.click()
+    disabledButton.click()
     expect(navigations).toEqual([])
-    interfaces.focus()
+    focusControl(interfaces).focus()
     press(interfaces, "ArrowDown")
-    expect(workbench.document.activeElement).toBe(elements)
+    expect(workbench.document.activeElement).toBe(focusControl(elements))
     press(elements, "ArrowRight")
-    expect(workbench.document.activeElement).toBe(styles)
+    expect(workbench.document.activeElement).toBe(focusControl(styles))
   })
 
   test("searches group, label, title, route and domain aliases without changing collapse state", () => {
@@ -271,12 +278,13 @@ describe("DOM-native Storybook catalog navigation tree", () => {
       route: `rows/${index}`,
     })))
     const first = findLeaf(workbench, "row-0")!
-    first.focus()
+    focusControl(first).focus()
     for (let index = 0; index < 25; index++) {
       press(workbench.document.activeElement as HTMLElement, "ArrowDown")
     }
 
-    expect((workbench.document.activeElement as HTMLElement).getAttribute("data-id")).toBe("row-25")
+    expect((workbench.document.activeElement as HTMLElement).closest("[data-id]")?.getAttribute("data-id"))
+      .toBe("row-25")
     expect(workbench.elements.catalogItems.scrollTop).toBeGreaterThan(0)
     expect(25 - workbench.elements.catalogItems.scrollTop / 24).toBeLessThan(20)
   })
@@ -310,18 +318,18 @@ describe("DOM-native Storybook catalog navigation tree", () => {
     workbench.update("catalog.search", "")
     expect(tree.scrollTop).toBe(0)
     const retainedFirst = findLeaf(workbench, "item-0")!
-    retainedFirst.focus()
+    focusControl(retainedFirst).focus()
     tree.scrollTop = 2400
     expect(Number(tree.getAttribute("data-storybook-tree-window-start"))).toBeGreaterThan(0)
-    expect(workbench.document.activeElement).toBe(retainedFirst)
+    expect(workbench.document.activeElement).toBe(focusControl(retainedFirst))
     expect(retainedFirst.isConnected).toBeTrue()
     expect(leafRows(workbench).length).toBeLessThanOrEqual(81)
-    expect(leafRows(workbench).filter((row) => row.tabIndex === 0)).toEqual([retainedFirst])
+    expect(leafRows(workbench).filter((row) => focusControl(row).tabIndex === 0)).toEqual([retainedFirst])
     expect(Number(tree.getAttribute("data-storybook-tree-created"))).toBeLessThan(250)
 
     press(retainedFirst, "End")
     const last = findLeaf(workbench, "item-999")!
-    expect(workbench.document.activeElement).toBe(last)
+    expect(workbench.document.activeElement).toBe(focusControl(last))
     const window = Number(tree.getAttribute("data-storybook-tree-window-start"))
     const scrollRow = tree.scrollTop / 24
     expect(1000 - scrollRow).toBeLessThan(20)
@@ -354,7 +362,7 @@ function createWorkbench(
   active: string | null = null,
 ): StorybookDomWorkbench {
   const document = createDocument()
-  return createStorybookDomWorkbench({
+  return api.createStorybookDomWorkbench({
     document,
     parent: document,
     initial: {
@@ -384,9 +392,9 @@ function groupContainers(workbench: StorybookDomWorkbench): HTMLDivElement[] {
     .filter((element): element is HTMLDivElement => element.getAttribute("role") === "group")
 }
 
-function leafRows(workbench: StorybookDomWorkbench): HTMLButtonElement[] {
+function leafRows(workbench: StorybookDomWorkbench): HTMLElement[] {
   return descendants(workbench.elements.catalogItems)
-    .filter((element): element is HTMLButtonElement => element.hasAttribute("data-id") &&
+    .filter((element): element is HTMLElement => element.hasAttribute("data-id") &&
       element.getAttribute("role") === "treeitem")
 }
 
@@ -394,16 +402,22 @@ function findGroup(workbench: StorybookDomWorkbench, id: string): HTMLElement | 
   return groupRows(workbench).find((element) => element.getAttribute("data-group-id") === id)
 }
 
-function findLeaf(workbench: StorybookDomWorkbench, id: string): HTMLButtonElement | undefined {
+function findLeaf(workbench: StorybookDomWorkbench, id: string): HTMLElement | undefined {
   return leafRows(workbench).find((element) => element.getAttribute("data-id") === id)
 }
 
 function clickGroup(group: HTMLElement): void {
   const header = group.children[0] as HTMLButtonElement | undefined
-  if (header === undefined || !header.classList.contains("storybook-dom-workbench__group-toggle")) {
+  if (header === undefined || header.localName !== "button") {
     throw new Error("Catalog group toggle is missing")
   }
   header.dispatchEvent(new MouseEvent("click", {bubbles: true, cancelable: true}))
+}
+
+function focusControl(row: HTMLElement): HTMLElement {
+  const control = row.querySelector("button") as HTMLElement | null
+  if (control === null) throw new Error("Catalog row has no production Button")
+  return control
 }
 
 function press(target: HTMLElement, key: string): void {

@@ -46,12 +46,29 @@ Package, category и subject overview существуют независимо 
 Unknown route получает 404/fail-closed; overview никогда не выбирает случайную
 первую variant. Arrays сохраняют owner semantic order.
 
+### `STORYBOOK-DECL-002` — subject presentation and widgets
+
+Package-level `widgetContributions` использует exact
+`widget-contribution/1`: до 32 package-wide unique items. Owner-defined v1 item
+имеет только `kind: "component"`, label и exact governed TSX module/export;
+компонент получает только `{value}`. Reserved standard ids
+`props, source, events, diagnostics, dom, layout, display, reference` объявляет
+ровно один self package `@zavx0z/storybook` в этом порядке.
+
+Каждый catalog subject обязан иметь `story-presentation/1` с projection
+`display | world | hud` и ordered unique widgets 2..32, включая `source` и
+`diagnostics`. Variant exact-наследует subject; package default и variant
+override запрещены.
+
 ## Workbench
 
 ### `STORYBOOK-WORKBENCH-001` — one six-region shell
 
-Shared shell владеет `catalog`, `secondary`, `preview`, `scenarios`, `inspector`
-и `status`. Project/runtime не декларирует layout и не заменяет navigation.
+Fixed `workbench-layout/1` владеет ровно `catalog`, `secondary`, `preview`,
+`scenarios`, `inspector`, `status` в этом порядке. Project/runtime не декларирует
+layout и не заменяет navigation. Видимый shell является одним compiled TSX
+ComponentRoot и содержит ровно один production `@ui/components/Inspector`;
+rail/content являются его внутренностями, а не package slots.
 
 ### `STORYBOOK-WORKBENCH-002` — restored Navigation Tree
 
@@ -79,31 +96,64 @@ External landing и каждая package browser page владеют одним 
 Document и одним host `DocumentSpaceRuntime`: native Canvas, Engine Renderer,
 Space и ViewPoint. Workbench является camera-locked overlay root того же
 Document. Font и полный ordered stylesheet set принадлежат host; package
-session может предоставить owner styles до активации своей presentation.
+author resources регистрируются до создания host runtime.
 
-Одновременно активен только один host runtime. При замене stylesheet set
-предыдущий host полностью dispose-ится до создания следующего. Named package
-tabs остаются отдельными Experiences и не разделяют Document, Canvas, Space,
-renderer resources или runtime state.
+На всём lifecycle page создаётся ровно один host runtime; owner session не
+может передать runtime `styleSheets` или пересоздать Renderer/Space/ViewPoint.
+Named package tabs остаются отдельными Experiences и не разделяют Document,
+Canvas, Space, renderer resources или runtime state.
 
-### `STORYBOOK-WORKBENCH-006` — bounded direct world
+### `STORYBOOK-WORKBENCH-006` — one shared world
 
-Executable owner может атомарно смонтировать semantic preview node и один
-arbitrary Engine Space через `context.mountWorldPreview`. Shared host привязывает
-его к существующему `DocumentSpaceRuntime`, вычисляет logical/DPR viewport из
-semantic preview box и представляет кадр в порядке base → bounded world →
-semantic overlays. Owner не получает raw Renderer/SpaceRuntime и не создаёт
-Canvas, Renderer, ViewPoint, listener set или RAF.
+Только subject с `projection: "world"` получает `context.space`, тождественный
+`DocumentSpaceRuntime.space`, и narrow `mountWorldPreview` без поля `space`.
+Owner добавляет world content в этот exact Space; shared host применяет camera к
+единственному ViewPoint и вычисляет logical/DPR preview bounds. Display, HUD и
+Workbench являются same-Document projection roots. Owner не получает raw
+Renderer/SpaceRuntime и не создаёт второй Space, Canvas, Renderer, ViewPoint,
+listener set или RAF.
 
 ## Runtime and build
 
 ### `STORYBOOK-RUNTIME-001` — structural adapter
 
-Adapter marker — exact `storybook-runtime/1`. Он создаёт package execution
+Adapter marker — exact `storybook-runtime/3`. Он создаёт package execution
 session, монтирует/обновляет/unmount-ит loaded story, принимает AbortSignal,
-idempotently dispose-ится и может публиковать source/props/inspector diagnostics.
+idempotently dispose-ится и на каждый mount/update ровно один раз вызывает
+atomic `context.present({protocol:"story-presentation/1", node, componentRoot,
+source, values?})`.
 Он не импортирует Storybook, не владеет graph/navigation/server и не передаёт
 Node между разными Document realms.
+
+### `STORYBOOK-STYLE-001` — exact linked author resources
+
+Package-level ordered `authorStyleSheets` содержит только strict public CSS
+export `specifier` self-owner либо exact transitively manifest-reached local
+dependency. Resolver требует exact package identity, exact string export
+target, canonical contained `.css`, unique specifier/file и SHA-256 bytes.
+Self Workbench sheets идут первыми, active package sheets вторыми; одинаковые
+specifier+bytes дают один native link, conflicting bytes fail closed. Immutable
+revision materializes bytes и создаёт один annotated native `<link>`
+до module entry. Browser bridge получает только exact declared links, ждёт
+`ready` до `DocumentSpaceRuntime`, не fetch-ит и не сканирует
+`document.styleSheets`; load/CSSOM/import/nesting/grouping errors fail closed.
+Cleanup строго вызывает `DocumentSpaceRuntime.dispose()` перед release/dispose
+linked author host.
+
+### `STORYBOOK-SOURCE-001` — root-scoped authored source
+
+Runtime/3 передаёт required `source:{html,typescript}` и `componentRoot` только
+в atomic `context.present`. Host читает один immutable
+`componentRoot.readStyleSheets()` snapshot, сохраняет first-adoption order,
+deduplicates source records и требует `source.kind: "authored-css"` у каждого
+adopted sheet. Structured CSS facet содержит отдельно exact declared
+`authorStyleSheets[{specifier, cssText}]` и exact active-root
+`componentStyleSheets[{moduleId, componentName, cssText}]`. Legacy `css` string,
+session `styleSheets`, generated CSS reverse parsing и Document-wide filtering
+запрещены. Raw CSS показывается с CSS highlighting без `<style>` или fences;
+dynamic declarations видны как inline style в HTML facet.
+`dom`, `layout`, `display` выводятся из current semantic node/frame, diagnostics
+из `reportDiagnostic`; эти derived keys запрещены в runtime `values`.
 
 ### `STORYBOOK-LOADER-001` — generated static lazy boundaries
 
@@ -231,6 +281,9 @@ search и `check(live:false)` не требуют доступного CDP.
 Inspection и interaction используют existing semantic Document, Workbench IDs
 и renderer frame. Target resolution exact nodeId либо exact role+name;
 ambiguity fail closed. Raw eval/coordinates не являются agent API.
+State/inspection публикуют только singular `canvas` exact текущего shell;
+plural canvas discovery отсутствует. Capture area `canvas` всегда означает этот
+же единственный host Canvas.
 
 ## Security and retention
 

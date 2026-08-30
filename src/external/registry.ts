@@ -12,10 +12,13 @@ import {
   type ExternalStorybookGraph,
 } from "./graph.ts"
 import type {StorybookPackageBuildDescriptor} from "./package-session.ts"
+import {mergeStorybookAuthorStyleSheets} from "./author-style-sheets.ts"
 import {
   createStorybookPackageRevisionGraphSnapshot,
+  revisionAuthorStyleSheetPath,
   revisionDeclaredResourcePath,
   revisionReadmeResourcePath,
+  revisionWorkbenchAuthorStyleSheetPath,
 } from "./package-revision.ts"
 import {createExternalStorybookResourceAllowList} from "./resource-allowlist.ts"
 
@@ -123,6 +126,7 @@ export class ExternalStorybookRegistry {
       candidateGraph,
       this.#entries.map(({attachSource}) => attachSource),
     )
+    if (candidateGraph.digest === this.#graph.digest) return this.snapshot()
     this.#commit(candidateEntries, candidateDeclarations, candidateGraph)
     return this.snapshot()
   }
@@ -161,7 +165,10 @@ export function externalStorybookPackageDescriptors(
   const packages = declarations.declarations.filter(
     (declaration): declaration is ResolvedExternalStorybookPackage => declaration.kind === "package",
   )
+  const workbenchDeclaration = packages.find(({id}) => id === "@zavx0z/storybook") ?? null
+  const workbenchAuthorStyleSheets = workbenchDeclaration?.authorStyleSheets ?? Object.freeze([])
   return Object.freeze(packages.map((declaration) => {
+    mergeStorybookAuthorStyleSheets(workbenchAuthorStyleSheets, declaration.authorStyleSheets)
     const node = externalStorybookNode(graph, declaration.canonicalId)
     const projectNode = [...node.structuralPath].reverse()
       .map((id) => externalStorybookNode(graph, id))
@@ -179,6 +186,9 @@ export function externalStorybookPackageDescriptors(
           module: {path: candidate.module.path, export: candidate.module.exportName},
         }]
         : [])
+    const widgetModules = declaration.widgetContributions?.items.flatMap((item) => item.kind === "component"
+      ? [{id: item.id, module: {path: item.module.path, export: item.module.exportName}}]
+      : []) ?? []
     if (variants.length > 0 && declaration.runtime === null) {
       throw new Error(`Executable package has no Storybook runtime: ${declaration.id}`)
     }
@@ -195,6 +205,13 @@ export function externalStorybookPackageDescriptors(
       declaration.manifestPath,
       ...(declaration.catalog === null ? [] : [declaration.catalog.path]),
       ...(declaration.readmePath === null ? [] : [declaration.readmePath]),
+      ...(declaration.runtime === null ? [] : [declaration.runtime.path]),
+      ...variants.map(({module}) => module.path),
+      ...widgetModules.map(({module}) => module.path),
+      ...declaration.authorStyleSheets.map(({path}) => path),
+      ...declaration.authorStyleSheets.map(({ownerPackageJsonPath}) => ownerPackageJsonPath),
+      ...workbenchAuthorStyleSheets.map(({path}) => path),
+      ...workbenchAuthorStyleSheets.map(({ownerPackageJsonPath}) => ownerPackageJsonPath),
       ...graph.nodes.flatMap((candidate) =>
         candidate.packageId === declaration.id
           ? [
@@ -211,6 +228,21 @@ export function externalStorybookPackageDescriptors(
         : [{path: declaration.catalog.path, category: "declaration" as const}]),
       {path: declaration.packageJsonPath, category: "metadata" as const},
       {path: declaration.packageJsonPath, category: "code" as const},
+      ...(declaration.runtime === null
+        ? []
+        : [{path: declaration.runtime.path, category: "code" as const}]),
+      ...variants.map(({module}) => ({path: module.path, category: "code" as const})),
+      ...widgetModules.map(({module}) => ({path: module.path, category: "code" as const})),
+      ...declaration.authorStyleSheets.map(({ownerPackageJsonPath}) => ({
+        path: ownerPackageJsonPath,
+        category: "declaration" as const,
+      })),
+      ...declaration.authorStyleSheets.map(({path}) => ({path, category: "resource" as const})),
+      ...workbenchAuthorStyleSheets.map(({ownerPackageJsonPath}) => ({
+        path: ownerPackageJsonPath,
+        category: "declaration" as const,
+      })),
+      ...workbenchAuthorStyleSheets.map(({path}) => ({path, category: "resource" as const})),
       ...(declaration.readmePath === null
         ? []
         : [{path: declaration.readmePath, category: "metadata" as const}]),
@@ -226,30 +258,44 @@ export function externalStorybookPackageDescriptors(
         : []),
     ]
     const declarationDigest = packageDeclarationDigest(declaration, graph)
-    const resourceFiles = graph.nodes.flatMap((candidate) => {
-      if (candidate.packageId !== declaration.id) return []
-      const indexes = new Map<string, number>()
-      return [
-        ...(candidate.readmePath === null
-          ? []
-          : [{sourcePath: candidate.readmePath, targetPath: revisionReadmeResourcePath(candidate.id)}]),
-        ...(candidate.readmePath === null ? [] : (readmeAssetsByNode.get(candidate.id) ?? []).map((sourcePath) => ({
-          sourcePath,
-          targetPath: join(
-            dirname(revisionReadmeResourcePath(candidate.id)),
-            relative(dirname(candidate.readmePath!), sourcePath),
-          ),
-        }))),
-        ...candidate.resources.map((resource) => {
-          const index = indexes.get(resource.kind) ?? 0
-          indexes.set(resource.kind, index + 1)
-          return {
-            sourcePath: resource.path,
-            targetPath: revisionDeclaredResourcePath(candidate.id, resource.kind, index, resource.path),
-          }
-        }),
-      ]
-    })
+    const resourceFiles = [
+      ...workbenchAuthorStyleSheets.map((styleSheet, index) => ({
+        sourcePath: styleSheet.path,
+        sourceRoot: styleSheet.ownerRoot,
+        targetPath: revisionWorkbenchAuthorStyleSheetPath(index),
+        contentDigest: styleSheet.contentDigest,
+      })),
+      ...declaration.authorStyleSheets.map((styleSheet, index) => ({
+        sourcePath: styleSheet.path,
+        sourceRoot: styleSheet.ownerRoot,
+        targetPath: revisionAuthorStyleSheetPath(index),
+        contentDigest: styleSheet.contentDigest,
+      })),
+      ...graph.nodes.flatMap((candidate) => {
+        if (candidate.packageId !== declaration.id) return []
+        const indexes = new Map<string, number>()
+        return [
+          ...(candidate.readmePath === null
+            ? []
+            : [{sourcePath: candidate.readmePath, targetPath: revisionReadmeResourcePath(candidate.id)}]),
+          ...(candidate.readmePath === null ? [] : (readmeAssetsByNode.get(candidate.id) ?? []).map((sourcePath) => ({
+            sourcePath,
+            targetPath: join(
+              dirname(revisionReadmeResourcePath(candidate.id)),
+              relative(dirname(candidate.readmePath!), sourcePath),
+            ),
+          }))),
+          ...candidate.resources.map((resource) => {
+            const index = indexes.get(resource.kind) ?? 0
+            indexes.set(resource.kind, index + 1)
+            return {
+              sourcePath: resource.path,
+              targetPath: revisionDeclaredResourcePath(candidate.id, resource.kind, index, resource.path),
+            }
+          }),
+        ]
+      }),
+    ]
     return Object.freeze({
       packageId: declaration.id,
       packageRoot: declaration.scopeRoot,
@@ -267,6 +313,7 @@ export function externalStorybookPackageDescriptors(
         ? null
         : {path: declaration.runtime.path, export: declaration.runtime.exportName},
       variants: Object.freeze(variants),
+      widgetModules: Object.freeze(widgetModules),
       watchedPaths: Object.freeze([...new Set(watchedPaths)]),
     })
   }))

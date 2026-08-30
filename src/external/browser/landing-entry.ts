@@ -1,6 +1,7 @@
 /** Global external Storybook landing entry. It never imports package runtime code. */
 
 import type {CustomEvent} from "@zavx0z/dom"
+import type {BrowserLinkedAuthorStyleSheetSource} from "@zavx0z/renderer-browser"
 import {STORYBOOK_DOM_WORKBENCH_EVENTS} from "../../dom/workbench.ts"
 import {waitForStorybookFrameBoundary} from "./frame.ts"
 import {
@@ -17,6 +18,7 @@ import {
   type ExternalStorybookShell,
 } from "./shell.ts"
 import type {ExternalStorybookClientSnapshot} from "./client-protocol.ts"
+import type {StorybookOverviewAction} from "./landing-view.ts"
 
 export type StartExternalStorybookLandingOptions = Readonly<{
   fetcher?: typeof fetch
@@ -51,6 +53,8 @@ export async function startExternalStorybookLanding(
     title: "External Storybook",
     browserDocument,
     ...(options.shell ?? {}),
+    authorStyleSheetSources: options.shell?.authorStyleSheetSources ??
+      indexedLandingAuthorStyleSheetSources(browserDocument),
   })
   const openWindow = options.openWindow ?? ((url: string, name: string) => globalThis.open(url, name))
   const location = options.location ?? globalThis.location
@@ -98,25 +102,20 @@ export async function startExternalStorybookLanding(
     try {
       const readme = await readExternalStorybookNodeReadme(clientNode, fetcher)
       if (disposed || revision !== selectionRevision) return
-      const preview = readme === null
-        ? shell.showMessage(
+      const action = clientNode.kind === "package"
+        ? packageOpenAction(clientNode, openWindow)
+        : undefined
+      if (readme === null) {
+        shell.showMessage(
           `${clientNode.label} · Обзор`,
           clientNode.label,
           overviewDescription(clientNode.kind),
+          action,
         )
-        : shell.showMarkdown(`${clientNode.label} · README`, readme, clientNode.resourceUrl)
-      if (clientNode.kind === "package") {
-        const packageId = clientNode.packageId
-        if (packageId === null) throw new Error(`Landing package has no package identity: ${clientNode.id}`)
-        const button = shell.document.createElement("button")
-        button.className = "external-storybook-action"
-        button.textContent = `Открыть ${clientNode.label}`
-        button.title = `Открыть пакет ${packageId} в отдельной вкладке`
-        button.addEventListener("click", () => {
-          openWindow(clientNode.urlPath, `storybook:${packageId}`)
-        })
-        preview.appendChild(button)
-      } else if (updateHistory && location !== undefined && history !== undefined &&
+      } else {
+        shell.showMarkdown(`${clientNode.label} · README`, readme, clientNode.resourceUrl, action)
+      }
+      if (clientNode.kind !== "package" && updateHistory && location !== undefined && history !== undefined &&
         location.pathname !== clientNode.urlPath) {
         history.pushState(null, "", clientNode.urlPath)
       }
@@ -266,6 +265,86 @@ function overviewDescription(kind: string): string {
   if (kind === "project") return "Выберите пакет во второй панели."
   if (kind === "package") return "Откройте пакет в отдельной вкладке для изучения его каталога."
   return "Owner README для этого узла не объявлен."
+}
+
+function packageOpenAction(
+  node: Readonly<{
+    id: string
+    label: string
+    packageId: string | null
+    urlPath: string
+  }>,
+  openWindow: (url: string, name: string) => unknown,
+): StorybookOverviewAction {
+  const packageId = node.packageId
+  if (packageId === null) throw new Error(`Landing package has no package identity: ${node.id}`)
+  return Object.freeze({
+    label: `Открыть ${node.label}`,
+    title: `Открыть пакет ${packageId} в отдельной вкладке`,
+    activate() {
+      openWindow(node.urlPath, `storybook:${packageId}`)
+    },
+  })
+}
+
+/** Reads only the server-indexed landing links; it never scans native CSSOM. */
+export function indexedLandingAuthorStyleSheetSources(
+  document: globalThis.Document,
+): readonly BrowserLinkedAuthorStyleSheetSource[] {
+  if (typeof document.querySelectorAll !== "function" || typeof document.getElementById !== "function") {
+    return Object.freeze([])
+  }
+  const annotated = [...document.querySelectorAll<HTMLLinkElement>(
+    'link[data-external-storybook-author-style-sheet]',
+  )]
+  if (annotated.length > 32) throw new Error("Landing Workbench author stylesheet list exceeds 32 links")
+  const annotatedSet = new Set(annotated)
+  const specifiers = new Set<string>()
+  return Object.freeze(annotated.map((_candidate, index) => {
+    const elementId = `external-storybook-author-style-sheet-${index}`
+    const element = document.getElementById(elementId)
+    if (element === null || !annotatedSet.has(element as HTMLLinkElement) ||
+      element.localName.toLowerCase() !== "link") {
+      throw new Error(`Required landing Workbench author stylesheet link is missing at index ${index}`)
+    }
+    const link = element as HTMLLinkElement
+    const specifier = exactLandingLinkText(
+      link.getAttribute("data-external-storybook-author-style-sheet"),
+      `landing Workbench author stylesheet ${index} specifier`,
+    )
+    const digest = exactLandingLinkText(
+      link.getAttribute("data-external-storybook-author-style-sheet-digest"),
+      `landing Workbench author stylesheet ${specifier} digest`,
+    )
+    const href = exactLandingLinkText(
+      link.getAttribute("href"),
+      `landing Workbench author stylesheet ${specifier} href`,
+    )
+    if (!/^[a-f0-9]{64}$/u.test(digest)) {
+      throw new Error(`Landing Workbench author stylesheet digest is invalid: ${specifier}`)
+    }
+    if (!href.startsWith("/") || /[\u0000-\u001f\u007f]/u.test(href)) {
+      throw new Error(`Landing Workbench author stylesheet href is invalid: ${specifier}`)
+    }
+    if (specifier.includes("\\") || specifiers.has(specifier)) {
+      throw new Error(`Landing Workbench author stylesheet specifier is invalid or duplicate: ${specifier}`)
+    }
+    specifiers.add(specifier)
+    if (link.ownerDocument !== document || link.getAttribute("rel") !== "stylesheet") {
+      throw new Error(`Landing Workbench author stylesheet link belongs to another realm: ${specifier}`)
+    }
+    if ((document.readyState === "interactive" || document.readyState === "complete") && link.sheet === null) {
+      throw new Error(`Required landing Workbench author stylesheet failed before entry: ${specifier}`)
+    }
+    return Object.freeze({id: specifier, link})
+  }))
+}
+
+function exactLandingLinkText(value: unknown, label: string): string {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new TypeError(`${label} must be non-empty text`)
+  }
+  return value
 }
 
 function isolateLandingError(

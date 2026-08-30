@@ -1,17 +1,75 @@
-import type {Document, HTMLElement, Node} from "@zavx0z/dom"
+import type {Document} from "@zavx0z/dom"
+import type {CompiledTemplate} from "@zavx0z/template/compiled"
+import {
+  createStorybookComponentPresentation,
+  type StorybookComponentPresentation,
+} from "./browser/component-presentation.ts"
+import type {StorybookOverviewAction} from "./browser/landing-view.tsx"
+import {
+  StorybookMarkdownView,
+  type StorybookMarkdownViewProps,
+} from "./markdown-view.tsx"
 
-export type RenderStorybookMarkdownOptions = Readonly<{
-  document: Document
+export type StorybookMarkdownInline = Readonly<{
+  key: string
+  kind: "text"
+  value: string
+}> | Readonly<{
+  key: string
+  kind: "code"
+  value: string
+}> | Readonly<{
+  key: string
+  kind: "link"
+  value: string
+  href: string
+  external: boolean
+}>
+
+export type StorybookMarkdownBlock = Readonly<{
+  key: string
+  kind: "heading"
+  level: number
+  content: readonly StorybookMarkdownInline[]
+}> | Readonly<{
+  key: string
+  kind: "paragraph"
+  content: readonly StorybookMarkdownInline[]
+}> | Readonly<{
+  key: string
+  kind: "list"
+  ordered: boolean
+  items: readonly Readonly<{
+    key: string
+    content: readonly StorybookMarkdownInline[]
+  }>[]
+}> | Readonly<{
+  key: string
+  kind: "code"
+  languageId: string
+  value: string
+}>
+
+export type StorybookMarkdownDocument = Readonly<{
+  blocks: readonly StorybookMarkdownBlock[]
+}>
+
+export type ParseStorybookMarkdownOptions = Readonly<{
   source: string
   baseUrl?: string
 }>
 
-/** Renders a bounded read-only Markdown subset without evaluating embedded HTML. */
-export function renderStorybookMarkdown(options: RenderStorybookMarkdownOptions): HTMLElement {
-  const {document} = options
-  const root = document.createElement("article")
-  root.className = "storybook-markdown"
+export type RenderStorybookMarkdownOptions = ParseStorybookMarkdownOptions & Readonly<{
+  document: Document
+  action?: StorybookOverviewAction
+}>
+
+/** Parses the bounded inert Markdown subset into immutable presentation data. */
+export function parseStorybookMarkdown(
+  options: ParseStorybookMarkdownOptions,
+): StorybookMarkdownDocument {
   const lines = options.source.replaceAll("\r\n", "\n").replaceAll("\r", "\n").split("\n")
+  const blocks: StorybookMarkdownBlock[] = []
   let index = 0
   while (index < lines.length) {
     const line = lines[index]!
@@ -21,7 +79,7 @@ export function renderStorybookMarkdown(options: RenderStorybookMarkdownOptions)
     }
     const fence = line.match(/^\s*```([^`]*)$/u)
     if (fence !== null) {
-      const language = fence[1]!.trim()
+      const start = index
       const code: string[] = []
       index += 1
       while (index < lines.length && !/^\s*```\s*$/u.test(lines[index]!)) {
@@ -29,38 +87,49 @@ export function renderStorybookMarkdown(options: RenderStorybookMarkdownOptions)
         index += 1
       }
       if (index < lines.length) index += 1
-      const pre = document.createElement("pre")
-      const element = document.createElement("code")
-      if (language.length > 0) element.setAttribute("data-language", language)
-      element.textContent = code.join("\n")
-      pre.appendChild(element)
-      root.appendChild(pre)
+      blocks.push(Object.freeze({
+        key: `code:${start}`,
+        kind: "code",
+        languageId: fence[1]!.trim() || "plaintext",
+        value: code.join("\n"),
+      }))
       continue
     }
     const heading = line.match(/^(#{1,6})\s+(.+)$/u)
     if (heading !== null) {
-      const element = document.createElement(`h${heading[1]!.length}`)
-      appendInline(document, element, heading[2]!, options.baseUrl)
-      root.appendChild(element)
+      blocks.push(Object.freeze({
+        key: `heading:${index}`,
+        kind: "heading",
+        level: heading[1]!.length,
+        content: parseInline(heading[2]!, options.baseUrl, `heading:${index}`),
+      }))
       index += 1
       continue
     }
     const list = line.match(/^\s*(?:[-*+]|(\d+)\.)\s+(.+)$/u)
     if (list !== null) {
+      const start = index
       const ordered = list[1] !== undefined
-      const element = document.createElement(ordered ? "ol" : "ul")
+      const items: Array<Readonly<{key: string; content: readonly StorybookMarkdownInline[]}>> = []
       while (index < lines.length) {
         const item = lines[index]!.match(/^\s*(?:[-*+]|(\d+)\.)\s+(.+)$/u)
         if (item === null || (item[1] !== undefined) !== ordered) break
-        const row = document.createElement("li")
-        appendInline(document, row, item[2]!, options.baseUrl)
-        element.appendChild(row)
+        items.push(Object.freeze({
+          key: `item:${index}`,
+          content: parseInline(item[2]!, options.baseUrl, `item:${index}`),
+        }))
         index += 1
       }
-      root.appendChild(element)
+      blocks.push(Object.freeze({
+        key: `list:${start}`,
+        kind: "list",
+        ordered,
+        items: Object.freeze(items),
+      }))
       continue
     }
-    const paragraph: string[] = [line]
+    const start = index
+    const paragraph = [line]
     index += 1
     while (index < lines.length && lines[index]!.trim().length > 0 &&
       !/^\s*```/u.test(lines[index]!) &&
@@ -69,46 +138,76 @@ export function renderStorybookMarkdown(options: RenderStorybookMarkdownOptions)
       paragraph.push(lines[index]!)
       index += 1
     }
-    const element = document.createElement("p")
-    appendInline(document, element, paragraph.join(" "), options.baseUrl)
-    root.appendChild(element)
+    blocks.push(Object.freeze({
+      key: `paragraph:${start}`,
+      kind: "paragraph",
+      content: parseInline(paragraph.join(" "), options.baseUrl, `paragraph:${start}`),
+    }))
   }
-  return root
+  return Object.freeze({blocks: Object.freeze(blocks)})
 }
 
-function appendInline(
-  document: Document,
-  parent: HTMLElement,
+/** Creates one compiled, disposable Markdown presentation. */
+export function renderStorybookMarkdown(
+  options: RenderStorybookMarkdownOptions,
+): StorybookComponentPresentation {
+  const props: StorybookMarkdownViewProps = Object.freeze({
+    markdown: parseStorybookMarkdown(options),
+    ...(options.action === undefined ? {} : {action: options.action}),
+  })
+  return createStorybookComponentPresentation(
+    options.document,
+    StorybookMarkdownView as unknown as CompiledTemplate<StorybookMarkdownViewProps>,
+    props,
+    "[data-storybook-markdown]",
+  )
+}
+
+function parseInline(
   source: string,
   baseUrl: string | undefined,
-): void {
+  keyPrefix: string,
+): readonly StorybookMarkdownInline[] {
   const token = /(`[^`\n]+`|\[[^\]\n]+\]\([^()\s]+\))/gu
+  const output: StorybookMarkdownInline[] = []
   let offset = 0
+  let tokenIndex = 0
   for (const match of source.matchAll(token)) {
     const start = match.index
-    if (start > offset) parent.appendChild(document.createTextNode(source.slice(offset, start)))
+    if (start > offset) output.push(Object.freeze({
+      key: `${keyPrefix}:text:${tokenIndex++}`,
+      kind: "text",
+      value: source.slice(offset, start),
+    }))
     const value = match[0]
     if (value.startsWith("`")) {
-      const code = document.createElement("code")
-      code.textContent = value.slice(1, -1)
-      parent.appendChild(code)
+      output.push(Object.freeze({
+        key: `${keyPrefix}:code:${tokenIndex++}`,
+        kind: "code",
+        value: value.slice(1, -1),
+      }))
     } else {
       const parts = value.match(/^\[([^\]]+)\]\(([^)]+)\)$/u)!
       const label = parts[1]!
       const href = safeHref(parts[2]!, baseUrl)
-      if (href === null) {
-        parent.appendChild(document.createTextNode(label))
-      } else {
-        const link = document.createElement("a")
-        link.textContent = label
-        link.setAttribute("href", href)
-        if (/^https?:/u.test(href)) link.setAttribute("rel", "noreferrer")
-        parent.appendChild(link)
-      }
+      output.push(href === null
+        ? Object.freeze({key: `${keyPrefix}:text:${tokenIndex++}`, kind: "text", value: label})
+        : Object.freeze({
+            key: `${keyPrefix}:link:${tokenIndex++}`,
+            kind: "link",
+            value: label,
+            href,
+            external: /^https?:/u.test(href),
+          }))
     }
     offset = start + value.length
   }
-  if (offset < source.length) parent.appendChild(document.createTextNode(source.slice(offset)))
+  if (offset < source.length) output.push(Object.freeze({
+    key: `${keyPrefix}:text:${tokenIndex}`,
+    kind: "text",
+    value: source.slice(offset),
+  }))
+  return Object.freeze(output)
 }
 
 function safeHref(value: string, baseUrl: string | undefined): string | null {
@@ -121,13 +220,3 @@ function safeHref(value: string, baseUrl: string | undefined): string | null {
     return null
   }
 }
-
-export const storybookMarkdownCss = String.raw`
-.storybook-markdown { box-sizing: border-box; display: block; width: 100%; height: 100%; padding: 12px; overflow: auto; color: #d8d8d8; font-size: 12px; line-height: 1.45; }
-.storybook-markdown h1, .storybook-markdown h2, .storybook-markdown h3, .storybook-markdown h4, .storybook-markdown h5, .storybook-markdown h6 { margin: 0 0 8px; color: #f0f0f0; }
-.storybook-markdown p { margin: 0 0 8px; }
-.storybook-markdown ul, .storybook-markdown ol { margin: 0 0 8px; padding-left: 20px; }
-.storybook-markdown pre { box-sizing: border-box; margin: 0 0 8px; padding: 8px; overflow: auto; border: 1px solid #161616; border-radius: 3px; background: #202020; }
-.storybook-markdown code { color: #c4d8e4; font-family: monospace; }
-.storybook-markdown a { color: #8fc7e8; }
-`

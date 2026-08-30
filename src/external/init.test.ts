@@ -61,6 +61,11 @@ describe("external Storybook declaration init", () => {
           kind: "documentation",
           label: "Fixture Button",
           apiName: "@fixture/button",
+          presentation: {
+            protocol: "story-presentation/1",
+            projection: "display",
+            widgets: ["source", "diagnostics"],
+          },
           variants: [],
         }],
       }],
@@ -89,12 +94,18 @@ describe("external Storybook declaration init", () => {
     ])
     expect(readdirSync(result.storiesPath!)).toEqual([])
     const runtimeSource = readFileSync(result.runtimePath!, "utf8")
-    expect(runtimeSource).toContain('protocol: "storybook-runtime/1"')
+    expect(runtimeSource).toContain('protocol: "storybook-runtime/3"')
+    expect(runtimeSource).toContain("context.present(input.story)")
+    expect(runtimeSource).toContain('protocol: "story-presentation/1"')
+    expect(runtimeSource).toContain("source: Readonly<{html: string; typescript: string}>")
+    expect(runtimeSource).not.toContain("publishSource")
+    expect(runtimeSource).not.toContain("publishProps")
+    expect(runtimeSource).not.toContain("publishInspector")
     expect(runtimeSource).not.toContain("@zavx0z/storybook")
     expect(runtimeSource).not.toContain("import ")
     const module = await import(`${result.runtimePath}?test=${crypto.randomUUID()}`)
     const runtime = validateStorybookRuntimeAdapter(module.runtime)
-    expect(validateStorybookRuntimeSession(await runtime.create({} as never))).toBeDefined()
+    expect(validateStorybookRuntimeSession(await runtime.create({present() {}} as never))).toBeDefined()
     expect(json(result.manifestPath).runtime).toEqual({
       module: "./runtime.ts",
       export: "runtime",

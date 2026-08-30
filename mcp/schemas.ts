@@ -74,7 +74,7 @@ export const storybookWaitSchema = z.strictObject({
 export const storybookInspectSchema = z.strictObject({
   schemaVersion,
   viewId,
-  include: uniqueList(z.enum(["state", "diagnostics", "console", "semantic", "layout", "display", "canvases"]), 7).optional(),
+  include: uniqueList(z.enum(["state", "diagnostics", "console", "semantic", "layout", "display", "canvas"]), 7).optional(),
   maxDepth: z.number().int().min(0).max(12).optional(),
   limit: limit.optional(),
   cursor: cursor.optional(),

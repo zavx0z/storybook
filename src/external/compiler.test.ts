@@ -32,7 +32,10 @@ describe("external Storybook package compiler", () => {
       moduleSourcePaths: [source],
     })
 
-    expect(plugins.map(({name}) => name)).toEqual(["external-storybook-exact-owner-resolution"])
+    expect(plugins.map(({name}) => name)).toEqual([
+      "external-storybook-exact-owner-resolution",
+      "zavx0z-template-jsx",
+    ])
     expect(Object.isFrozen(plugins)).toBeTrue()
   })
 
@@ -58,14 +61,27 @@ describe("external Storybook package compiler", () => {
       fixture.templateRoot,
       fixture.transitiveRoot,
     ].map(async (path) => await realpath(path)))
-    expect(fixtureOptions(first[1]!)).toEqual({
-      cwd: canonicalProjectRoot,
-      persistent: false,
-      sourceRoots: [
-        canonicalProjectRoot,
-        ...canonicalDependencyRoots.sort(),
-      ],
-    })
+    const ownerSourceRoots = [
+      canonicalProjectRoot,
+      ...canonicalDependencyRoots.sort(),
+      await realpath(fixture.packageRoot),
+    ]
+    const ownerSourceIds = [
+      "@fixture/project",
+      "@fixture/linked",
+      "@zavx0z/template",
+      "@fixture/transitive",
+      "@fixture/owner",
+    ]
+    const options = fixtureOptions(first[1]!)
+    expect(options.cwd).toBe(canonicalProjectRoot)
+    expect(options.persistent).toBeFalse()
+    expect(options.sourceRoots.slice(0, ownerSourceRoots.length)).toEqual(ownerSourceRoots)
+    expect(options.styleSourceRootIds.slice(0, ownerSourceIds.length)).toEqual(ownerSourceIds)
+    const toolRoot = await realpath(join(import.meta.dir, "../.."))
+    const toolIndex = options.sourceRoots.indexOf(toolRoot)
+    expect(toolIndex).toBeGreaterThanOrEqual(ownerSourceRoots.length)
+    expect(options.styleSourceRootIds[toolIndex]).toBe("@zavx0z/storybook")
   })
 
   test("reads JSONC extends and fails closed for conflicting module configs", async () => {
@@ -77,6 +93,15 @@ describe("external Storybook package compiler", () => {
     })
     const nestedSource = join(nestedRoot, "nested.tsx")
     await Bun.write(nestedSource, "export const nested = <div />")
+
+    const privateOnly = await createStorybookPackageCompilerPlugins({
+      ...fixture.input,
+      moduleSourcePaths: [nestedSource],
+    })
+    expect(privateOnly.map(({name}) => name)).toEqual([
+      "external-storybook-exact-owner-resolution",
+      "zavx0z-template-jsx",
+    ])
 
     await expect(createStorybookPackageCompilerPlugins({
       ...fixture.input,
@@ -98,6 +123,35 @@ describe("external Storybook package compiler", () => {
       projectRoot: root,
       moduleSourcePaths: [source],
     })).rejects.toThrow("not a linked owner dependency")
+  })
+
+  test("limits exact owner resolution to governed ids while d3-dag re-exports d3-array", async () => {
+    const fixture = await d3ReExportFixture()
+    const inspected = await createStorybookPackageCompilerPlugins(fixture.input)
+    const filter = resolverFilter(inspected[0]!)
+
+    expect(filter.test("@fixture/governed.test")).toBeTrue()
+    expect(filter.test("@fixture/governed.test/subpath")).toBeTrue()
+    expect(filter.test("@fixture/governedXtest")).toBeFalse()
+    expect(filter.test("d3-dag")).toBeFalse()
+    expect(filter.test("d3-array")).toBeFalse()
+
+    const plugins = await createStorybookPackageCompilerPlugins(fixture.input)
+    const result = await Bun.build({
+      entrypoints: [fixture.source],
+      target: "browser",
+      format: "esm",
+      plugins: [...plugins],
+    })
+    expect(result.success, result.logs.map(({message}) => message).join("\n")).toBeTrue()
+    const output = result.outputs[0]
+    if (output === undefined) throw new Error("d3 re-export regression build emitted no output")
+    const bundled = await output.text()
+    expect(bundled).not.toMatch(/from\s*["']d3-array["']/u)
+    const namespace = await import(`data:text/javascript;base64,${Buffer.from(bundled).toString("base64")}`)
+    expect(namespace.governedMarker).toBe("governed-owner")
+    expect(namespace.default21()).toBe("d3-array-default")
+    expect(namespace.ascending(1, 2)).toBe(-1)
   })
 
   test("structurally rejects missing factories and invalid plugin results", async () => {
@@ -141,6 +195,7 @@ export function createTemplateJsxBunPlugin(options) {
     fixtureOptions: options,
   }
 }
+
 `): Promise<Readonly<{
   projectRoot: string
   packageRoot: string
@@ -207,6 +262,74 @@ export function createTemplateJsxBunPlugin(options) {
   })
 }
 
+async function d3ReExportFixture(): Promise<Readonly<{
+  source: string
+  input: Parameters<typeof createStorybookPackageCompilerPlugins>[0]
+}>> {
+  const root = await temporaryRoot()
+  const projectRoot = join(root, "project")
+  const packageRoot = join(projectRoot, "packages", "owner")
+  const governedRoot = join(root, "governed")
+  const d3DagRoot = join(packageRoot, "node_modules", "d3-dag")
+  const d3ArrayRoot = join(packageRoot, "node_modules", "d3-array")
+  await Promise.all([projectRoot, packageRoot, governedRoot, d3DagRoot, d3ArrayRoot]
+    .map((path) => mkdir(path, {recursive: true})))
+
+  await writeJson(join(projectRoot, "package.json"), {
+    name: "@fixture/d3-project",
+    workspaces: ["packages/*"],
+  })
+  await writeJson(join(packageRoot, "package.json"), {
+    name: "@fixture/d3-owner",
+    dependencies: {
+      "@fixture/governed.test": "link:@fixture/governed.test",
+      "d3-dag": "0.9.1",
+    },
+  })
+  await writeJson(join(governedRoot, "package.json"), {
+    name: "@fixture/governed.test",
+    type: "module",
+    exports: {".": "./index.js"},
+  })
+  await Bun.write(join(governedRoot, "index.js"),
+    'export const governedMarker = "governed-owner"\n')
+  await linkPackage(packageRoot, "@fixture/governed.test", governedRoot)
+
+  await writeJson(join(d3DagRoot, "package.json"), {
+    name: "d3-dag",
+    type: "module",
+    exports: {".": "./index.js"},
+    dependencies: {"d3-array": "3.2.4"},
+  })
+  await Bun.write(join(d3DagRoot, "index.js"),
+    'export {default as default21, ascending} from "d3-array"\n')
+  await writeJson(join(d3ArrayRoot, "package.json"), {
+    name: "d3-array",
+    type: "module",
+    exports: {".": "./index.js"},
+  })
+  await Bun.write(join(d3ArrayRoot, "index.js"), [
+    'export default function default21() { return "d3-array-default" }',
+    "export function ascending(left, right) { return left < right ? -1 : left > right ? 1 : 0 }",
+    "",
+  ].join("\n"))
+
+  const source = join(packageRoot, "story.ts")
+  await Bun.write(source, [
+    'export {governedMarker} from "@fixture/governed.test"',
+    'export {default21, ascending} from "d3-dag"',
+    "",
+  ].join("\n"))
+  return Object.freeze({
+    source,
+    input: Object.freeze({
+      packageRoot,
+      projectRoot,
+      moduleSourcePaths: Object.freeze([source]),
+    }),
+  })
+}
+
 async function temporaryRoot(): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), "zavx0z-storybook-compiler-"))
   temporaryRoots.push(root)
@@ -224,6 +347,27 @@ async function writeJson(path: string, value: unknown): Promise<void> {
   await Bun.write(path, `${JSON.stringify(value, null, 2)}\n`)
 }
 
-function fixtureOptions(plugin: Bun.BunPlugin): unknown {
-  return (plugin as Bun.BunPlugin & Readonly<{fixtureOptions: unknown}>).fixtureOptions
+function fixtureOptions(plugin: Bun.BunPlugin): Readonly<{
+  cwd: string
+  persistent: boolean
+  sourceRoots: readonly string[]
+  styleSourceRootIds: readonly string[]
+}> {
+  return (plugin as Bun.BunPlugin & Readonly<{fixtureOptions: Readonly<{
+    cwd: string
+    persistent: boolean
+    sourceRoots: readonly string[]
+    styleSourceRootIds: readonly string[]
+  }>} >).fixtureOptions
+}
+
+function resolverFilter(plugin: Bun.BunPlugin): RegExp {
+  let filter: RegExp | null = null
+  plugin.setup({
+    onResolve(options: Readonly<{filter: RegExp}>) {
+      filter = options.filter
+    },
+  } as never)
+  if (filter === null) throw new Error("Exact owner resolver registered no onResolve filter")
+  return filter
 }

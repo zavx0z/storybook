@@ -6,6 +6,8 @@
     "module": "Preserve",
     "moduleDetection": "force",
     "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "jsxImportSource": "@zavx0z/template",
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
@@ -17,6 +19,6 @@
     "noImplicitOverride": true,
     "exactOptionalPropertyTypes": true
   },
-  "include": ["src/**/*.ts", "scripts/**/*.ts", ".storybook/**/*.ts"],
+  "include": ["src/**/*.ts", "scripts/**/*.ts", ".storybook/**/*.ts", ".storybook/**/*.tsx"],
   "exclude": ["dist", "node_modules"]
 }

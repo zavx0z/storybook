@@ -8,7 +8,6 @@ import {
 describe("external Storybook runtime protocol", () => {
   test("accepts the exact structural adapter and required session lifecycle", () => {
     const session = {
-      styleSheets: ["button { color: white; }"],
       mount() {},
       update() {},
       unmount() {},
@@ -40,6 +39,7 @@ describe("external Storybook runtime protocol", () => {
       null,
       [],
       {},
+      {protocol: "storybook-runtime/1", create() {}},
       {protocol: "storybook-runtime/2", create() {}},
       {protocol: STORYBOOK_RUNTIME_PROTOCOL},
       {protocol: STORYBOOK_RUNTIME_PROTOCOL, create: true},
@@ -58,6 +58,7 @@ describe("external Storybook runtime protocol", () => {
       {},
       {...valid, mount: null},
       {...valid, update: null},
+      {...valid, styleSheets: ["legacy"]},
       {...valid, styleSheets: ["valid", 1]},
       {...valid, unmount: "no"},
       {...valid, dispose: 1},

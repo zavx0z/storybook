@@ -106,11 +106,15 @@ try {
     inspections[key] = await tool("storybook_inspect", {
       schemaVersion: 1,
       viewId: text(opened[key]!.viewId, `${key} viewId`),
-      include: ["state", "diagnostics", "console", "semantic", "canvases"],
+      include: ["state", "diagnostics", "console", "semantic", "canvas"],
       maxDepth: 8,
       limit: 200,
     })
     assert(array(inspections[key]!.consoleErrors).length === 0, `${key} console has errors`)
+    const canvas = inspections[key]!.canvas
+    assert(canvas !== null && typeof canvas === "object" && !Array.isArray(canvas), `${key} has no exact canvas`)
+    assert((canvas as Record<string, unknown>).id === "external-storybook-canvas", `${key} projected a foreign canvas`)
+    assert(!("canvases" in inspections[key]!), `${key} exposed a plural canvas projection`)
   }
   const timeOrigins = new Set(Object.values(inspections).map((value) => nestedNumber(value, "timeOrigin")))
   assert(timeOrigins.size === 4, "real package views do not have distinct realms")

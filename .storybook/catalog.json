@@ -10,7 +10,8 @@
         "kind": "contract",
         "label": "Route contract",
         "apiName": "ExternalStorybookGraph",
-        "variants": [{"id": "overview", "label": "Overview", "route": "route-tree/contract/overview", "module": {"path": "./stories/contracts.ts", "export": "routeTree"}}]
+        "presentation": {"protocol": "story-presentation/1", "projection": "display", "widgets": ["props", "source", "diagnostics"]},
+        "variants": [{"id": "overview", "label": "Overview", "route": "route-tree/contract/overview", "module": {"path": "./stories/contracts.tsx", "export": "routeTree"}}]
       }]
     },
     {
@@ -22,7 +23,8 @@
         "kind": "contract",
         "label": "Story module boundary",
         "apiName": "module.path + module.export",
-        "variants": [{"id": "overview", "label": "Overview", "route": "stories/contract/overview", "module": {"path": "./stories/contracts.ts", "export": "stories"}}]
+        "presentation": {"protocol": "story-presentation/1", "projection": "display", "widgets": ["props", "source", "diagnostics"]},
+        "variants": [{"id": "overview", "label": "Overview", "route": "stories/contract/overview", "module": {"path": "./stories/contracts.tsx", "export": "stories"}}]
       }]
     },
     {
@@ -34,7 +36,8 @@
         "kind": "contract",
         "label": "Declaration catalog",
         "apiName": "catalog.schema.json",
-        "variants": [{"id": "overview", "label": "Overview", "route": "catalog/contract/overview", "module": {"path": "./stories/contracts.ts", "export": "catalog"}}]
+        "presentation": {"protocol": "story-presentation/1", "projection": "display", "widgets": ["props", "source", "diagnostics"]},
+        "variants": [{"id": "overview", "label": "Overview", "route": "catalog/contract/overview", "module": {"path": "./stories/contracts.tsx", "export": "catalog"}}]
       }]
     },
     {
@@ -47,17 +50,19 @@
           "kind": "contract",
           "label": "Six-region shell",
           "apiName": "Workbench",
-          "variants": [{"id": "overview", "label": "Overview", "route": "workbench/contract/overview", "module": {"path": "./stories/contracts.ts", "export": "workbench"}}]
+          "presentation": {"protocol": "story-presentation/1", "projection": "display", "widgets": ["props", "source", "diagnostics"]},
+        "variants": [{"id": "overview", "label": "Overview", "route": "workbench/contract/overview", "module": {"path": "./stories/contracts.tsx", "export": "workbench"}}]
         },
         {
           "id": "live",
           "kind": "component",
           "label": "Live button",
           "apiName": "HTMLButtonElement",
+          "presentation": {"protocol": "story-presentation/1", "projection": "display", "widgets": ["props", "source", "events", "diagnostics", "dom", "layout", "display"]},
           "variants": [
-            {"id": "primary", "label": "Primary", "route": "workbench/live/primary", "module": {"path": "./stories/workbench.ts", "export": "primary"}},
-            {"id": "outlined", "label": "Outlined", "route": "workbench/live/outlined", "module": {"path": "./stories/workbench.ts", "export": "outlined"}},
-            {"id": "disabled", "label": "Disabled", "route": "workbench/live/disabled", "module": {"path": "./stories/workbench.ts", "export": "disabled"}}
+            {"id": "primary", "label": "Primary", "route": "workbench/live/primary", "module": {"path": "./stories/workbench.tsx", "export": "primary"}},
+            {"id": "outlined", "label": "Outlined", "route": "workbench/live/outlined", "module": {"path": "./stories/workbench.tsx", "export": "outlined"}},
+            {"id": "disabled", "label": "Disabled", "route": "workbench/live/disabled", "module": {"path": "./stories/workbench.tsx", "export": "disabled"}}
           ]
         }
       ]
@@ -71,7 +76,21 @@
         "kind": "resource",
         "label": "Owner evidence",
         "apiName": "owner resource links",
-        "variants": [{"id": "overview", "label": "Overview", "route": "references/contract/overview", "module": {"path": "./stories/contracts.ts", "export": "references"}}]
+        "presentation": {"protocol": "story-presentation/1", "projection": "display", "widgets": ["props", "source", "diagnostics"]},
+        "variants": [{"id": "overview", "label": "Overview", "route": "references/contract/overview", "module": {"path": "./stories/contracts.tsx", "export": "references"}}]
+      }]
+    },
+    {
+      "id": "author-styles",
+      "label": "Author styles",
+      "group": {"id": "contracts", "label": "Contracts"},
+      "subjects": [{
+        "id": "contract",
+        "kind": "contract",
+        "label": "Linked theme and root source",
+        "apiName": "authorStyleSheets + ComponentRoot.readStyleSheets",
+        "presentation": {"protocol": "story-presentation/1", "projection": "display", "widgets": ["props", "source", "diagnostics"]},
+        "variants": [{"id": "overview", "label": "Overview", "route": "author-styles/contract/overview", "module": {"path": "./stories/contracts.tsx", "export": "authorStyles"}}]
       }]
     },
     {
@@ -82,8 +101,9 @@
         "id": "contract",
         "kind": "runtime",
         "label": "Package tab",
-        "apiName": "storybook-runtime/1",
-        "variants": [{"id": "overview", "label": "Overview", "route": "app/contract/overview", "module": {"path": "./stories/contracts.ts", "export": "app"}}]
+        "apiName": "storybook-runtime/3",
+        "presentation": {"protocol": "story-presentation/1", "projection": "display", "widgets": ["props", "source", "diagnostics"]},
+        "variants": [{"id": "overview", "label": "Overview", "route": "app/contract/overview", "module": {"path": "./stories/contracts.tsx", "export": "app"}}]
       }]
     },
     {
@@ -95,7 +115,8 @@
         "kind": "tool",
         "label": "HTTP and WebSocket",
         "apiName": "storybook serve",
-        "variants": [{"id": "overview", "label": "Overview", "route": "server/contract/overview", "module": {"path": "./stories/contracts.ts", "export": "server"}}]
+        "presentation": {"protocol": "story-presentation/1", "projection": "display", "widgets": ["props", "source", "diagnostics"]},
+        "variants": [{"id": "overview", "label": "Overview", "route": "server/contract/overview", "module": {"path": "./stories/contracts.tsx", "export": "server"}}]
       }]
     },
     {
@@ -108,6 +129,7 @@
         "label": "Attach, detach and open",
         "apiName": "storybook CLI",
         "tags": ["mcp", "controller"],
+        "presentation": {"protocol": "story-presentation/1", "projection": "display", "widgets": ["props", "source", "diagnostics"]},
         "aliases": [
           "ExternalStorybookController",
           "storybook_ensure",
@@ -118,7 +140,7 @@
           "storybook_interact",
           "storybook_capture"
         ],
-        "variants": [{"id": "overview", "label": "Overview", "route": "launcher/contract/overview", "module": {"path": "./stories/contracts.ts", "export": "launcher"}}]
+        "variants": [{"id": "overview", "label": "Overview", "route": "launcher/contract/overview", "module": {"path": "./stories/contracts.tsx", "export": "launcher"}}]
       }]
     },
     {
@@ -130,7 +152,8 @@
         "kind": "tool",
         "label": "Declaration initialization",
         "apiName": "storybook init",
-        "variants": [{"id": "overview", "label": "Overview", "route": "scaffold/contract/overview", "module": {"path": "./stories/contracts.ts", "export": "scaffold"}}]
+        "presentation": {"protocol": "story-presentation/1", "projection": "display", "widgets": ["props", "source", "diagnostics"]},
+        "variants": [{"id": "overview", "label": "Overview", "route": "scaffold/contract/overview", "module": {"path": "./stories/contracts.tsx", "export": "scaffold"}}]
       }]
     },
     {
@@ -143,7 +166,8 @@
         "label": "Published revisions",
         "apiName": "PackageSession",
         "aliases": ["candidate", "built", "activating", "active", "lastWorking", "failed"],
-        "variants": [{"id": "overview", "label": "Overview", "route": "build/contract/overview", "module": {"path": "./stories/contracts.ts", "export": "build"}}]
+        "presentation": {"protocol": "story-presentation/1", "projection": "display", "widgets": ["props", "source", "diagnostics"]},
+        "variants": [{"id": "overview", "label": "Overview", "route": "build/contract/overview", "module": {"path": "./stories/contracts.tsx", "export": "build"}}]
       }]
     },
     {
@@ -162,7 +186,8 @@
           "registry.updated",
           "package.failed"
         ],
-        "variants": [{"id": "overview", "label": "Overview", "route": "environment/contract/overview", "module": {"path": "./stories/contracts.ts", "export": "environment"}}]
+        "presentation": {"protocol": "story-presentation/1", "projection": "display", "widgets": ["props", "source", "diagnostics"]},
+        "variants": [{"id": "overview", "label": "Overview", "route": "environment/contract/overview", "module": {"path": "./stories/contracts.tsx", "export": "environment"}}]
       }]
     }
   ]

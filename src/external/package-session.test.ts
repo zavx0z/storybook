@@ -119,6 +119,13 @@ describe("working Storybook PackageSession lifecycle", () => {
     expect(failed.activeRevision).toBe(working.activeRevision)
     expect(failed.lastWorkingRevision).toBe(working.lastWorkingRevision)
     expect(failed.diagnostics[0]?.message).toBe("Unexpected token")
+    fail = false
+    expect(session.retryFailed()).toBeTrue()
+    const retried = await session.ensureBuilt()
+    expect(retried.buildState).toBe("built")
+    expect(retried.builtRevision).not.toBe(failed.failedRevision)
+    expect(retried.diagnostics).toEqual([])
+    expect(session.retryFailed()).toBeFalse()
   })
 
   test("coalesces one generation and cancels a superseded build before building latest", async () => {
@@ -203,6 +210,36 @@ describe("working Storybook PackageSession lifecycle", () => {
     activeLease.release()
     expect(session.revisionDirectory(activeRevision)).toBeNull()
   })
+
+  test("requires exact resources for separate Workbench and active author sheet collections", async () => {
+    const root = fixtureRoot("workbench-author-sheets")
+    const base = descriptor(root, "@fixture/a")
+    const theme = join(root, "theme.css")
+    writeFileSync(theme, ":root { --theme: 1; }\n")
+    const contentDigest = createHash("sha256").update(":root { --theme: 1; }\n").digest("hex")
+    const graphSnapshot = redigest({
+      ...base.graphSnapshot,
+      workbenchAuthorStyleSheets: [{
+        specifier: "@ui/components/theme.css",
+        url: "workbench-author-style-sheets/0.css",
+        contentDigest,
+      }],
+    })
+    const good = {
+      ...base,
+      graphSnapshot,
+      resourceFiles: [{
+        sourcePath: theme,
+        sourceRoot: root,
+        targetPath: "workbench-author-style-sheets/0.css",
+        contentDigest,
+      }],
+    }
+    const session = createSession(good, successfulBuilder(), [])
+    await session.dispose()
+    expect(() => createSession({...good, resourceFiles: []}, successfulBuilder(), []))
+      .toThrow("resource does not match graph snapshot")
+  })
 })
 
 function createSession(
@@ -237,12 +274,19 @@ function descriptor(root: string, packageId: string, version = "one"): Storybook
     graphSnapshot: graphSnapshot(packageId, declarationDigest),
     runtime: {path: runtime, export: "runtime"},
     variants: [{route: "category/subject/default", module: {path: story, export: "story"}}],
+    widgetModules: [],
   }
 }
 
 function graphSnapshot(packageId: string, declarationDigest: string): StorybookPackageRevisionGraphSnapshot {
   const packageNodeId = `package:${packageId}`
+  const subjectNodeId = `subject:${packageId}/category/subject`
   const variantNodeId = `variant:${packageId}/category/subject/default`
+  const presentation = {
+    protocol: "story-presentation/1" as const,
+    projection: "display" as const,
+    widgets: ["source", "diagnostics"],
+  }
   const withoutDigest = {
     protocol: STORYBOOK_PACKAGE_GRAPH_PROTOCOL,
     packageId,
@@ -252,21 +296,35 @@ function graphSnapshot(packageId: string, declarationDigest: string): StorybookP
     nodes: [
       {
         id: packageNodeId, kind: "package" as const, ownerId: packageId, packageId, label: packageId,
-        parentId: null, childIds: [], urlPath: `/packages/${encodeURIComponent(packageId)}/`, routePath: "",
+        parentId: null, childIds: [subjectNodeId], urlPath: `/packages/${encodeURIComponent(packageId)}/`, routePath: "",
         searchTerms: [packageId], group: null, subjectKind: null, apiName: null, hasReadme: false,
         resourceKinds: [], resourceUrl: `/__storybook/resources/nodes/${encodeURIComponent(packageNodeId)}/`,
+        presentation: null,
+      },
+      {
+        id: subjectNodeId, kind: "subject" as const, ownerId: packageId, packageId, label: "Subject",
+        parentId: packageNodeId, childIds: [variantNodeId],
+        urlPath: `/packages/${encodeURIComponent(packageId)}/category/subject/`, routePath: "category/subject",
+        searchTerms: ["subject"], group: null, subjectKind: "fixture", apiName: null, hasReadme: false,
+        resourceKinds: [], resourceUrl: `/__storybook/resources/nodes/${encodeURIComponent(subjectNodeId)}/`,
+        presentation,
       },
       {
         id: variantNodeId, kind: "variant" as const, ownerId: packageId, packageId, label: "Default",
-        parentId: packageNodeId, childIds: [],
+        parentId: subjectNodeId, childIds: [],
         urlPath: `/packages/${encodeURIComponent(packageId)}/category/subject/default`,
         routePath: "category/subject/default", searchTerms: ["default"], group: null, subjectKind: null,
         apiName: null, hasReadme: false, resourceKinds: [],
         resourceUrl: `/__storybook/resources/nodes/${encodeURIComponent(variantNodeId)}/`,
+        presentation,
       },
     ],
     routes: [
       {path: "", urlPath: `/packages/${encodeURIComponent(packageId)}/`, kind: "overview" as const, nodeId: packageNodeId},
+      {
+        path: "category/subject", urlPath: `/packages/${encodeURIComponent(packageId)}/category/subject/`,
+        kind: "overview" as const, nodeId: subjectNodeId,
+      },
       {
         path: "category/subject/default",
         urlPath: `/packages/${encodeURIComponent(packageId)}/category/subject/default`,
@@ -276,7 +334,21 @@ function graphSnapshot(packageId: string, declarationDigest: string): StorybookP
     ],
     loaders: [{route: "category/subject/default", nodeId: variantNodeId, exportName: "story"}],
     resources: [],
+    authorStyleSheets: [],
+    workbenchAuthorStyleSheets: [],
+    widgetContributions: null,
+    widgetLoaders: [],
   }
+  return Object.freeze({
+    ...withoutDigest,
+    packageGraphDigest: createHash("sha256").update(JSON.stringify(withoutDigest)).digest("hex"),
+  })
+}
+
+function redigest(
+  value: StorybookPackageRevisionGraphSnapshot,
+): StorybookPackageRevisionGraphSnapshot {
+  const {packageGraphDigest: _previous, ...withoutDigest} = value
   return Object.freeze({
     ...withoutDigest,
     packageGraphDigest: createHash("sha256").update(JSON.stringify(withoutDigest)).digest("hex"),

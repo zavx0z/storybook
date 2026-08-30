@@ -41,8 +41,9 @@ describe("external @zavx0z/storybook tool boundary", () => {
     })
     for (const path of [
       ".storybook/runtime.ts",
-      ".storybook/stories/contracts.ts",
-      ".storybook/stories/workbench.ts",
+      ".storybook/stories/contracts.tsx",
+      ".storybook/stories/workbench.tsx",
+      ".storybook/stories/story-types.ts",
     ]) expect(await Bun.file(join(root, path)).text(), path).not.toContain("@zavx0z/storybook")
   })
 
@@ -55,7 +56,11 @@ describe("external @zavx0z/storybook tool boundary", () => {
     const combined = sources.join("\n")
     expect(combined).toContain("createDocumentSpaceRuntime")
     expect(combined).toContain("runtime.addOverlay({")
-    expect(combined).toContain("runtime.addWorld({")
+    expect(combined).not.toContain("runtime.addWorld(")
+    expect(combined).not.toContain("runtime.updateWorld(")
+    expect(combined).not.toContain("runtime.removeWorld(")
+    expect(combined).toContain("space: shell.runtime.space")
+    expect(combined).toContain("runtime.viewPoint")
     expect(combined).toContain("workbenchOverlay")
     expect(combined).toContain("mountWorldPreview")
     expect(combined).not.toContain("createDocumentCanvasRuntime")

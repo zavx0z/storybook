@@ -30,6 +30,7 @@ type PackageManifest = Readonly<{
 type OwnerDependencyGraph = Readonly<{
   packageRootsByName: ReadonlyMap<string, string>
   sourceRoots: readonly string[]
+  styleSourceRootIds: readonly string[]
 }>
 
 /** Resolves the exact manifest-reached owner roots governed by one compiler session. */
@@ -50,6 +51,7 @@ type TemplatePluginFactory = (
     cwd: string
     persistent: false
     sourceRoots: readonly string[]
+    styleSourceRootIds: readonly string[]
   }>,
 ) => unknown
 
@@ -87,14 +89,19 @@ export async function createStorybookPackageCompilerPlugins(
     bases: Object.freeze([packageRoot, projectRoot, canonicalDirectory(STORYBOOK_TOOL_ROOT, "Storybook tool root")]),
   })
   const jsxImportSource = effectiveJsxImportSource(projectRoot, packageRoot, sourcePaths)
-  if (jsxImportSource !== TEMPLATE_JSX_IMPORT_SOURCE) return Object.freeze([resolver])
-
-  const templateRoot = dependencyGraph.packageRootsByName.get(TEMPLATE_JSX_IMPORT_SOURCE)
+  const compileOwnerTemplate = jsxImportSource === TEMPLATE_JSX_IMPORT_SOURCE
+  const templateRoot = compileOwnerTemplate
+    ? dependencyGraph.packageRootsByName.get(TEMPLATE_JSX_IMPORT_SOURCE)
+    : toolGraph.packageRootsByName.get(TEMPLATE_JSX_IMPORT_SOURCE)
   if (templateRoot === undefined) {
-    throw new Error(
-      `${TEMPLATE_JSX_IMPORT_SOURCE} is required by tsconfig but is not a linked owner dependency`,
-    )
+    throw new Error(compileOwnerTemplate
+      ? `${TEMPLATE_JSX_IMPORT_SOURCE} is required by tsconfig but is not a linked owner dependency`
+      : `${TEMPLATE_JSX_IMPORT_SOURCE} is required by the shared Storybook Workbench compiler`)
   }
+  const compilerRoots = mergeCompilerSourceRoots(
+    ...(compileOwnerTemplate ? [dependencyGraph] : []),
+    toolGraph,
+  )
   const adapterPath = resolveTemplateAdapter(packageRoot, projectRoot, templateRoot)
   const namespace = await import(pathToFileURL(adapterPath).href) as unknown
   const factory = validateTemplatePluginFactory(namespace, adapterPath)
@@ -103,7 +110,8 @@ export async function createStorybookPackageCompilerPlugins(
     candidate = factory({
       cwd: projectRoot,
       persistent: false,
-      sourceRoots: dependencyGraph.sourceRoots,
+      sourceRoots: compilerRoots.sourceRoots,
+      styleSourceRootIds: compilerRoots.styleSourceRootIds,
     })
   } catch (error) {
     throw new Error(`Template JSX compiler factory failed: ${adapterPath}`, {cause: error})
@@ -112,14 +120,38 @@ export async function createStorybookPackageCompilerPlugins(
   return Object.freeze([resolver, plugin])
 }
 
+function mergeCompilerSourceRoots(
+  ...graphs: readonly Pick<OwnerDependencyGraph, "sourceRoots" | "styleSourceRootIds">[]
+): Readonly<{sourceRoots: readonly string[]; styleSourceRootIds: readonly string[]}> {
+  const sourceRoots: string[] = []
+  const styleSourceRootIds: string[] = []
+  const physicalRoots = new Set<string>()
+  for (const graph of graphs) {
+    if (graph.sourceRoots.length !== graph.styleSourceRootIds.length) {
+      throw new Error("Storybook compiler source roots and public ids are misaligned")
+    }
+    for (const [index, root] of graph.sourceRoots.entries()) {
+      if (physicalRoots.has(root)) continue
+      physicalRoots.add(root)
+      sourceRoots.push(root)
+      styleSourceRootIds.push(graph.styleSourceRootIds[index]!)
+    }
+  }
+  return Object.freeze({
+    sourceRoots: Object.freeze(sourceRoots),
+    styleSourceRootIds: Object.freeze(styleSourceRootIds),
+  })
+}
+
 function exactOwnerResolver(input: Readonly<{
   packageRootsByName: ReadonlyMap<string, string>
   bases: readonly string[]
 }>): Bun.BunPlugin {
+  const governedPackageFilter = exactPackageSpecifierFilter(input.packageRootsByName.keys())
   return {
     name: "external-storybook-exact-owner-resolution",
     setup(builder) {
-      builder.onResolve({filter: /^(?:@[a-z0-9][a-z0-9._-]*\/|[a-z0-9][a-z0-9._-]*(?:\/|$))/u}, ({path}) => {
+      builder.onResolve({filter: governedPackageFilter}, ({path}) => {
         const packageName = barePackageName(path)
         const ownerRoot = input.packageRootsByName.get(packageName)
         if (ownerRoot === undefined) return undefined
@@ -138,12 +170,23 @@ function exactOwnerResolver(input: Readonly<{
   }
 }
 
+function exactPackageSpecifierFilter(packageNames: Iterable<string>): RegExp {
+  const alternatives = [...packageNames]
+    .sort(comparePaths)
+    .map((packageName) => packageName.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"))
+  return alternatives.length === 0
+    ? /^(?!)$/u
+    : new RegExp(`^(?:${alternatives.join("|")})(?:/|$)`, "u")
+}
+
 function mergeOwnerPackageRoots(
   ...maps: readonly ReadonlyMap<string, string>[]
 ): ReadonlyMap<string, string> {
   const output = new Map<string, string>()
   for (const map of maps) {
-    for (const [name, root] of map) registerPackageRoot(output, name, root)
+    for (const [name, root] of map) {
+      if (!output.has(name)) output.set(name, root)
+    }
   }
   return output
 }
@@ -163,14 +206,22 @@ function effectiveJsxImportSource(
     const configPath = findNearestTsconfig(dirname(sourcePath), projectRoot)
     if (configPath !== null) configPaths.add(configPath)
   }
-  const packageConfig = findNearestTsconfig(packageRoot, projectRoot)
-  if (packageConfig !== null) configPaths.add(packageConfig)
+  if (configPaths.size === 0) {
+    const packageConfig = findNearestTsconfig(packageRoot, projectRoot)
+    if (packageConfig !== null) configPaths.add(packageConfig)
+  }
   if (configPaths.size === 0) return undefined
 
   const cache = new Map<string, string | undefined>()
-  const values = [...configPaths]
+  const values = [
+    ...[...configPaths]
     .sort(comparePaths)
-    .map((path) => readTsconfigJsxImportSource(path, cache, new Set()))
+    .map((path) => readTsconfigJsxImportSource(path, cache, new Set())),
+    ...sourcePaths.flatMap((path) => {
+      const value = explicitJsxImportSource(path)
+      return value === undefined ? [] : [value]
+    }),
+  ]
   const distinct = new Set(values)
   if (distinct.size > 1) {
     throw new Error(
@@ -179,6 +230,14 @@ function effectiveJsxImportSource(
     )
   }
   return values[0]
+}
+
+function explicitJsxImportSource(path: string): string | undefined {
+  if (!/\.[cm]?[jt]sx$/u.test(path)) return undefined
+  const source = readFileSync(path, "utf8").slice(0, 4_096)
+  const match = source.match(/@jsxImportSource\s+([^\s*]+)/u)
+  const value = match?.[1]
+  return value === undefined || value.trim().length === 0 ? undefined : value.trim()
 }
 
 function findNearestTsconfig(start: string, projectRoot: string): string | null {
@@ -299,14 +358,27 @@ function discoverOwnerDependencyGraph(
       throw new Error(`Owner dependency root cannot contain the Storybook project: ${root}`)
     }
   }
-  const governedRoots = [projectRoot, ...externalRoots]
-    .flatMap((root) => physicalOwnerRoots(root))
+  const sourceOwners = new Map<string, string>()
+  for (const [name, root] of packageRootsByName) {
+    for (const physicalRoot of physicalOwnerRoots(root)) {
+      const previous = sourceOwners.get(physicalRoot)
+      if (previous !== undefined && previous !== name) {
+        throw new Error(`Ambiguous public source root identity ${physicalRoot}: ${previous} and ${name}`)
+      }
+      sourceOwners.set(physicalRoot, name)
+    }
+  }
+  const projectSource = sourceOwners.get(projectRoot)
+  const orderedSources = [
+    ...(projectSource === undefined ? [] : [[projectRoot, projectSource] as const]),
+    ...[...sourceOwners]
+      .filter(([root]) => root !== projectRoot)
+      .sort(([left], [right]) => comparePaths(left, right)),
+  ]
   return Object.freeze({
     packageRootsByName,
-    sourceRoots: Object.freeze([
-      projectRoot,
-      ...[...new Set(governedRoots)].filter((root) => root !== projectRoot).sort(comparePaths),
-    ]),
+    sourceRoots: Object.freeze(orderedSources.map(([root]) => root)),
+    styleSourceRootIds: Object.freeze(orderedSources.map(([, id]) => id)),
   })
 }
 
@@ -482,7 +554,11 @@ function resolveTemplateAdapter(
   projectRoot: string,
   templateRoot: string,
 ): string {
-  const attempts = [...new Set([packageRoot, projectRoot])]
+  const attempts = [...new Set([
+    packageRoot,
+    projectRoot,
+    canonicalDirectory(STORYBOOK_TOOL_ROOT, "Storybook tool root"),
+  ])]
   for (const fromRoot of attempts) {
     let resolved: string
     try {
@@ -491,11 +567,7 @@ function resolveTemplateAdapter(
       continue
     }
     const adapterPath = canonicalFile(resolved, "Template JSX compiler adapter")
-    if (!inside(templateRoot, adapterPath)) {
-      throw new Error(
-        `Template JSX compiler resolved outside the owner dependency identity: ${adapterPath}`,
-      )
-    }
+    if (!inside(templateRoot, adapterPath)) continue
     return adapterPath
   }
   throw new Error(`Cannot resolve ${TEMPLATE_BUN_EXPORT} from owner dependency graph`)

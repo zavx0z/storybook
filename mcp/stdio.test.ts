@@ -104,7 +104,7 @@ describe("Storybook MCP stdio", () => {
     const {client} = await inMemoryClient(controller)
     const validCursor = await client.callTool({
       name: "storybook_inspect",
-      arguments: {schemaVersion: 1, viewId: viewId(), cursor: "offset:80", maxDepth: 12},
+      arguments: {schemaVersion: 1, viewId: viewId(), include: ["canvas"], cursor: "offset:80", maxDepth: 12},
     })
     expect(validCursor.isError).not.toBeTrue()
     for (const request of [
@@ -117,6 +117,7 @@ describe("Storybook MCP stdio", () => {
     ]) expect((await client.callTool(request)).isError).not.toBeTrue()
     for (const request of [
       {name: "storybook_inspect", arguments: {schemaVersion: 1, viewId: viewId(), maxDepth: 13}},
+      {name: "storybook_inspect", arguments: {schemaVersion: 1, viewId: viewId(), include: ["canvases"]}},
       {name: "storybook_wait", arguments: {
         schemaVersion: 1, viewId: viewId(), condition: "built", timeoutMs: 1_000,
       }},

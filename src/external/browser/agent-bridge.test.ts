@@ -31,6 +31,15 @@ describe("external Storybook agent bridge inspection", () => {
   test("keeps stable node identities across compact, default and paginated projections", async () => {
     const fixture = createFixture()
     try {
+      const state = await fixture.bridge.invoke(request("state")) as AgentInspection
+      expect(state.canvas).toEqual({
+        id: "external-storybook-canvas",
+        width: 640,
+        height: 480,
+        hidden: false,
+      })
+      expect("canvases" in state).toBeFalse()
+
       const compact = await fixture.bridge.invoke(request("inspect", {
         include: ["state"],
       })) as AgentInspection
@@ -46,16 +55,18 @@ describe("external Storybook agent bridge inspection", () => {
       })
       expect(compact.semantic).toBeUndefined()
       expect(compact.diagnostics).toBeUndefined()
-      expect(compact.canvases).toBeUndefined()
+      expect(compact.canvas).toBeUndefined()
 
       const defaultInspection = await fixture.bridge.call("inspect") as AgentInspection
       expect(defaultInspection.semantic?.nodes.length).toBeGreaterThan(0)
       expect(defaultInspection.semantic?.total).toBeGreaterThan(0)
       expect(defaultInspection.diagnostics).toEqual([])
-      expect(defaultInspection.canvases).toEqual([
-        {id: "external-storybook-canvas", width: 640, height: 480, hidden: false},
-        {id: "owner-canvas", width: 320, height: 180, hidden: false},
-      ])
+      expect(defaultInspection.canvas).toEqual({
+        id: "external-storybook-canvas",
+        width: 640,
+        height: 480,
+        hidden: false,
+      })
       expect(defaultInspection.semantic?.nodes.every((node) => !("bounds" in node))).toBeTrue()
       expect(defaultInspection.semantic?.nodes.every((node) => !("display" in node))).toBeTrue()
 
@@ -69,7 +80,7 @@ describe("external Storybook agent bridge inspection", () => {
       expect(firstPage.semantic?.nodes.every((node) => "bounds" in node)).toBeTrue()
       expect(firstPage.semantic?.nodes.every((node) => "display" in node && "hit" in node)).toBeTrue()
       expect(firstPage.diagnostics).toBeUndefined()
-      expect(firstPage.canvases).toBeUndefined()
+      expect(firstPage.canvas).toBeUndefined()
 
       const secondPage = await fixture.bridge.invoke(request("inspect", {
         include: ["semantic", "layout", "display"],
@@ -189,6 +200,13 @@ describe("external Storybook agent bridge interaction", () => {
       expect(fixture.navigations).toEqual(["/controls/alternate"])
       expect(scenario.state.route).toBe("/controls/alternate")
 
+      const checkbox = fixture.document.createElement("input")
+      checkbox.setAttribute("type", "checkbox")
+      checkbox.setAttribute("title", "Owner checkbox")
+      checkbox.setAttribute("style", "display:block; width:18px; height:18px")
+      fixture.preview.appendChild(checkbox)
+      await interact({action: "click", target: {role: "checkbox", name: "Owner checkbox"}})
+
       const duplicate = fixture.document.createElement("button")
       duplicate.textContent = "Run exact"
       duplicate.setAttribute("style", "display:block; width:80px; height:24px")
@@ -208,7 +226,7 @@ describe("external Storybook agent bridge interaction", () => {
 })
 
 describe("external Storybook agent bridge capture", () => {
-  test("returns exact presented workbench, preview, owner canvas and semantic node clips", async () => {
+  test("returns exact presented workbench, preview, host canvas and semantic node clips", async () => {
     const fixture = createFixture()
     try {
       const inspection = await fixture.bridge.invoke(request("inspect", {
@@ -231,7 +249,7 @@ describe("external Storybook agent bridge capture", () => {
 
       expect(await capture("workbench")).toMatchObject({x: 0, y: 0, width: 640, height: 480})
       expect(await capture("preview")).toMatchObject({width: 300, height: 140})
-      expect(await capture("canvas")).toEqual({x: 23, y: 31, width: 320, height: 180, scale: 1})
+      expect(await capture("canvas")).toEqual({x: 0, y: 0, width: 640, height: 480, scale: 1})
       const nodeClip = await capture("node", ids.run)
       const run = inspection.semantic?.nodes.find(({nodeId}) => nodeId === ids.run)
       expect(nodeClip).toMatchObject({
@@ -267,7 +285,7 @@ type AgentInspection = Readonly<{
   presented: boolean
   frameSequence: number
   diagnostics?: readonly string[]
-  canvases?: readonly Readonly<{id: string; width: number; height: number; hidden: boolean}>[]
+  canvas?: Readonly<{id: string; width: number; height: number; hidden: boolean}>
   semantic?: Readonly<{
     root: string
     nodes: readonly AgentNode[]
@@ -293,6 +311,7 @@ type Fixture = Readonly<{
   shell: ExternalStorybookShell
   document: SemanticDocument
   root: SemanticElement
+  preview: SemanticElement
   run: SemanticElement
   destination: SemanticElement
   input: InstanceType<typeof import("@zavx0z/dom").HTMLInputElement>
@@ -379,7 +398,6 @@ function createFixture(): Fixture {
   } as unknown as DocumentOverlayRuntime
   const runtime = {} as DocumentSpaceRuntime
   const externalCanvas = canvas("external-storybook-canvas", 640, 480, {left: 0, top: 0})
-  const ownerCanvas = canvas("owner-canvas", 320, 180, {left: 23, top: 31})
   const browserDocument = {
     defaultView: {name: "storybook-view"},
     documentElement: {
@@ -390,8 +408,8 @@ function createFixture(): Fixture {
         externalStorybookRevision: "revision-1",
       },
     },
-    querySelectorAll(selector: string) {
-      return selector === "canvas" ? [externalCanvas, ownerCanvas] : []
+    querySelectorAll() {
+      throw new Error("Agent bridge must not scan native canvases")
     },
   } as unknown as globalThis.Document
   let route = "/controls/default"
@@ -459,6 +477,7 @@ function createFixture(): Fixture {
     shell,
     document,
     root,
+    preview,
     run,
     destination,
     input,

@@ -55,7 +55,7 @@ export type StorybookWaitInput = Readonly<{
 export type StorybookInspectInput = Readonly<{
   schemaVersion: typeof STORYBOOK_MCP_SCHEMA_VERSION
   viewId: string
-  include?: readonly ("state" | "diagnostics" | "console" | "semantic" | "layout" | "display" | "canvases")[] | undefined
+  include?: readonly ("state" | "diagnostics" | "console" | "semantic" | "layout" | "display" | "canvas")[] | undefined
   maxDepth?: number | undefined
   limit?: number | undefined
   cursor?: string | undefined

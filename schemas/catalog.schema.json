@@ -75,6 +75,26 @@
         "export": {"$ref": "#/$defs/exportName"}
       }
     },
+    "presentation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol", "projection", "widgets"],
+      "properties": {
+        "protocol": {"const": "story-presentation/1"},
+        "projection": {"enum": ["display", "world", "hud"]},
+        "widgets": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/id"},
+          "allOf": [
+            {"contains": {"const": "source"}},
+            {"contains": {"const": "diagnostics"}}
+          ]
+        }
+      }
+    },
     "resources": {
       "type": "object",
       "additionalProperties": false,
@@ -103,7 +123,7 @@
     "subject": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "kind", "label", "variants"],
+      "required": ["id", "kind", "label", "presentation", "variants"],
       "properties": {
         "id": {"$ref": "#/$defs/id"},
         "kind": {"$ref": "#/$defs/id"},
@@ -113,6 +133,7 @@
         "readme": {"$ref": "#/$defs/relativePath"},
         "tags": {"$ref": "#/$defs/stringList"},
         "aliases": {"$ref": "#/$defs/stringList"},
+        "presentation": {"$ref": "#/$defs/presentation"},
         "variants": {
           "type": "array",
           "items": {"$ref": "#/$defs/variant"}

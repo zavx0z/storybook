@@ -3,6 +3,7 @@ import {
   validateExternalStorybookExportName,
   validateExternalStorybookPackageId,
   validateExternalStorybookRoute,
+  validateExternalStorybookScopeId,
 } from "./declaration-law.ts"
 
 export type StorybookGeneratedModule = Readonly<{
@@ -15,10 +16,16 @@ export type StorybookGeneratedVariant = Readonly<{
   module: StorybookGeneratedModule
 }>
 
+export type StorybookGeneratedWidget = Readonly<{
+  id: string
+  module: StorybookGeneratedModule
+}>
+
 export type StorybookGeneratedLoaderInput = Readonly<{
   revisionUrl: string
-  runtime: StorybookGeneratedModule
+  runtime: StorybookGeneratedModule | null
   variants: readonly StorybookGeneratedVariant[]
+  widgets: readonly StorybookGeneratedWidget[]
 }>
 
 /**
@@ -37,11 +44,10 @@ export function generateStorybookLoaderSource(
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
     throw new TypeError("Storybook generated loader input must be an object")
   }
-  if (!Array.isArray(input.variants)) {
-    throw new TypeError("Storybook generated loader variants must be a list")
-  }
+  if (!Array.isArray(input.variants)) throw new TypeError("Storybook generated loader variants must be a list")
+  if (!Array.isArray(input.widgets)) throw new TypeError("Storybook generated loader widgets must be a list")
   const revisionUrl = validateRevisionUrl(input.revisionUrl)
-  const runtime = validateModule(input.runtime, "runtime")
+  const runtime = input.runtime === null ? null : validateModule(input.runtime, "runtime")
   const routes = new Set<string>()
   const variants = input.variants.map((variant, index) => {
     if (variant === null || typeof variant !== "object" || Array.isArray(variant)) {
@@ -55,16 +61,35 @@ export function generateStorybookLoaderSource(
       module: validateModule(variant.module, `variant ${route}`),
     })
   }).sort((left, right) => left.route < right.route ? -1 : left.route > right.route ? 1 : 0)
+  const widgetIds = new Set<string>()
+  const widgets = input.widgets.map((widget, index) => {
+    if (widget === null || typeof widget !== "object" || Array.isArray(widget)) {
+      throw new TypeError(`Storybook widget ${index} must be an object`)
+    }
+    const id = validateExternalStorybookScopeId(widget.id, `Storybook widget ${index} id`)
+    if (widgetIds.has(id)) throw new Error(`Duplicate Storybook widget id: ${id}`)
+    widgetIds.add(id)
+    return Object.freeze({id, module: validateModule(widget.module, `widget ${id}`)})
+  })
 
   const routeEntries = variants.map(({route, module}) => [
     `  [${jsString(route)}, () =>`,
     `    import(${jsString(module.url)}).then((namespace) => namespace[${jsString(module.export)}])],`,
   ].join("\n")).join("\n")
   const routeValues = variants.map(({route}) => `  ${jsString(route)},`).join("\n")
+  const widgetEntries = widgets.map(({id, module}) => [
+    `  [${jsString(id)}, () =>`,
+    `    import(${jsString(module.url)}).then((namespace) => namespace[${jsString(module.export)}])],`,
+  ].join("\n")).join("\n")
+  const widgetValues = widgets.map(({id}) => `  ${jsString(id)},`).join("\n")
 
   return [
-    `const runtimeLoader = () =>`,
-    `  import(${jsString(runtime.url)}).then((namespace) => namespace[${jsString(runtime.export)}])`,
+    ...(runtime === null
+      ? [`const runtimeLoader = null`]
+      : [
+        `const runtimeLoader = () =>`,
+        `  import(${jsString(runtime.url)}).then((namespace) => namespace[${jsString(runtime.export)}])`,
+      ]),
     ``,
     `export const STORYBOOK_PACKAGE_STORY_LOADERS = new Map([`,
     routeEntries,
@@ -74,15 +99,33 @@ export function generateStorybookLoaderSource(
     `export const storybookVariantRoutes = Object.freeze([`,
     routeValues,
     `])`,
+    `export const STORYBOOK_PACKAGE_WIDGET_LOADERS = new Map([`,
+    widgetEntries,
+    `])`,
+    `export const storybookWidgetContributionIds = Object.freeze([`,
+    widgetValues,
+    `])`,
     ``,
-    `export function loadStorybookPackageRuntime() {`,
-    `  return runtimeLoader()`,
-    `}`,
+    ...(runtime === null
+      ? [`export const loadStorybookPackageRuntime = null`]
+      : [
+        `export function loadStorybookPackageRuntime() {`,
+        `  return runtimeLoader()`,
+        `}`,
+      ]),
     ``,
     `export function loadStorybookVariant(route) {`,
     `  const loader = STORYBOOK_PACKAGE_STORY_LOADERS.get(route)`,
     `  if (loader === undefined) {`,
     `    throw new Error("Unknown Storybook variant route: " + String(route))`,
+    `  }`,
+    `  return loader()`,
+    `}`,
+    ``,
+    `export function loadStorybookWidget(id) {`,
+    `  const loader = STORYBOOK_PACKAGE_WIDGET_LOADERS.get(id)`,
+    `  if (loader === undefined) {`,
+    `    throw new Error("Unknown Storybook widget contribution: " + String(id))`,
     `  }`,
     `  return loader()`,
     `}`,

@@ -32,13 +32,40 @@ escapes fail closed.
   "packageJson": "../package.json",
   "readme": "../README.md",
   "runtime": {"module": "./runtime.ts", "export": "runtime"},
+  "authorStyleSheets": [{"specifier": "@ui/components/theme.css"}],
   "catalog": "./catalog.json"
 }
 ```
 
+Каждый `authorStyleSheets[].specifier` обязан быть exact public CSS export
+этого package либо exact manifest-reached local dependency, например
+`package.json#exports["./theme.css"] = "./theme.css"`.
+Storybook включает bytes и SHA-256 в immutable revision, создаёт один обычный
+revision-scoped `<link>` до module entry и передаёт только этот exact loaded
+link в semantic author registry. Он не fetch-ит CSS повторно и не сканирует
+native `document.styleSheets`.
+
 Catalog содержит только data. Story loading задаётся статической парой
 `module.path + module.export`; functions, YAML, `eval`, style paths и copied
 README content запрещены.
+
+Каждый subject обязан объявить один inherited presentation contract; variants
+не могут его переопределять:
+
+```json
+{
+  "presentation": {
+    "protocol": "story-presentation/1",
+    "projection": "display",
+    "widgets": ["props", "source", "diagnostics"]
+  }
+}
+```
+
+`projection` равен только `display | world | hud`. Package-level custom widgets
+объявляются в `widgetContributions` protocol `widget-contribution/1`, а subject
+выбирает их id в `presentation.widgets`. Восемь standard widgets объявлены один
+раз self package `@zavx0z/storybook`; Inspector layout package не заменяет.
 
 ## One server workflow
 
@@ -90,13 +117,15 @@ composition; standalone projects/packages можно подключать одн
 
 Global landing показывает workspace groups, direct projects и direct packages.
 Каждый package открывается в named tab `storybook:<package-id>` и получает один
-JS realm, one runtime instance and one independently updateable PackageSession.
+JS realm, one loaded runtime adapter, не более одной active subject session и
+one independently updateable PackageSession.
 Landing и каждая package page являются отдельным Experience: один semantic
 Document и один host Canvas/Renderer/Space/ViewPoint, в котором Workbench
 проецируется camera-locked overlay root. Разные tabs не разделяют эти owners.
-Direct Engine stories используют bounded region того же Space/Renderer/canvas;
-semantic overlays остаются foreground, а package runtime не создаёт второй
-presentation host.
+Direct Engine stories добавляют content только в exact shared `context.space`;
+world aperture, HUD и semantic overlays остаются проекциями того же
+Document/Space/ViewPoint. Package runtime не создаёт второй Space, Canvas,
+Renderer, ViewPoint или presentation host.
 
 ## Runtime protocol
 
@@ -104,32 +133,55 @@ Executable owner adapter — plain object без Storybook import:
 
 ```ts
 export const runtime = Object.freeze({
-  protocol: "storybook-runtime/1",
+  protocol: "storybook-runtime/3",
   create(context) {
-    let mounted = null
+    let current = null
     return Object.freeze({
-      styleSheets: Object.freeze([ownerCss]),
       mount({story, signal}) {
         if (signal.aborted) return
-        mounted = story.render(context.document)
-        context.mount(mounted)
+        current?.dispose()
+        current = story.create(context.document)
+        context.present({
+          protocol: "story-presentation/1",
+          node: current.element,
+          componentRoot: current.root,
+          source: {
+            html: current.source.html,
+            typescript: current.source.typescript,
+          },
+          values: {props: current.props},
+        })
       },
       unmount() {
-        mounted?.remove()
-        mounted = null
+        current?.dispose()
+        current = null
       },
       dispose() {
-        mounted?.remove()
-        mounted = null
+        current?.dispose()
+        current = null
       },
     })
   },
 })
 ```
 
-Shared shell owns catalog, secondary, preview, scenarios, inspector, status,
-routing and diagnostics. Runtime owns only package-specific presentation and
-must mount Nodes from the exact provided Document.
+Fixed `workbench-layout/1` owns exactly `catalog`, `secondary`, `preview`,
+`scenarios`, `inspector`, `status`. Один compiled Workbench ComponentRoot
+использует production `@ui/components/Inspector`; runtime не может добавить или
+заменить region. Runtime owns only package-specific presentation and must
+publish Nodes from the exact provided Document.
+
+`context.present` является единственным atomic channel и принимает required
+`{node, componentRoot, source:{html,typescript}}` плюс selected widget values.
+За один mount/update обязана быть ровно одна публикация. CSS facet имеет structured форму
+`{authorStyleSheets, componentStyleSheets}`: первая часть читается из declared
+linked author registry, вторая — из одного `root.readStyleSheets()` snapshot с
+opt-in `authored-css` provenance. Legacy `css: string`, session `styleSheets`,
+generated `data-z` CSS и Workbench chrome fail closed и в Source не попадают.
+CSS отображается как raw `language=css` с подсветкой, без `<style>` и fences.
+`dom`, `layout`, `display` и `diagnostics` выводит host; runtime не может
+подделать их через `values`. `context.space` существует только для subject с
+`projection: "world"` и тождественен единственному `runtime.space`.
 
 ## PackageSession lifecycle
 
@@ -153,6 +205,8 @@ dependent sessions. Per-package queues share only a bounded compiler semaphore.
 Browser inspection uses the existing semantic Document and
 `@zavx0z/dom-devtools`; interaction uses public Renderer/DOM input APIs. Capture
 returns MCP image content plus bounded `storybook://captures/...` resources.
+State/inspection expose one singular `canvas` owned by the shell, and canvas
+capture always targets that exact host Canvas without native canvas discovery.
 
 ## Self documentation and checks
 

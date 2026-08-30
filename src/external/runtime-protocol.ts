@@ -3,15 +3,31 @@ import type {
   Node as SemanticNode,
 } from "@zavx0z/dom"
 import type {Space} from "@engine/core"
+import type {StorybookRuntimeStyleSheetRoot} from "./browser/source-projection.ts"
 
 /** Exact structural marker implemented by executable owner runtimes. */
-export const STORYBOOK_RUNTIME_PROTOCOL = "storybook-runtime/1" as const
+export const STORYBOOK_RUNTIME_PROTOCOL = "storybook-runtime/3" as const
+export const STORYBOOK_PRESENTATION_PROTOCOL = "story-presentation/1" as const
 
 /** One loaded story operation inside an exact package-tab realm. */
 export type StorybookRuntimeStoryInput = Readonly<{
   route: string
   story: unknown
   signal: AbortSignal
+}>
+
+export type StorybookRuntimeSourceInput = Readonly<{
+  html: string
+  typescript: string
+}>
+
+/** One atomic owner presentation published for the current mount/update. */
+export type StorybookRuntimePresentationInput = Readonly<{
+  protocol: typeof STORYBOOK_PRESENTATION_PROTOCOL
+  node: SemanticNode
+  componentRoot: StorybookRuntimeStyleSheetRoot
+  source: StorybookRuntimeSourceInput
+  values?: Readonly<Record<string, unknown>>
 }>
 
 /** Camera preset for one owner world projected inside the shared page Experience. */
@@ -40,14 +56,13 @@ export type StorybookWorldPreviewViewport = Readonly<{
 /** Atomic semantic anchor plus direct Engine world presentation. */
 export type StorybookWorldPreviewRegistration = Readonly<{
   node: SemanticNode
-  space: Space
   camera: StorybookWorldPreviewCamera
   cameraGestures?: boolean
   resize?(viewport: StorybookWorldPreviewViewport): void
   onDoubleClick?(): void
 }>
 
-/** Narrow owner handle; the shared Renderer and page Space remain private. */
+/** Narrow camera/frame handle; Renderer stays private and Space comes only from world context. */
 export type StorybookWorldPreview = Readonly<{
   readonly frames: number
   readonly disposed: boolean
@@ -56,21 +71,31 @@ export type StorybookWorldPreview = Readonly<{
   dispose(): void
 }>
 
-/** Host capabilities supplied by the external Storybook shell. */
-export type StorybookRuntimeContext = Readonly<{
+/** Capabilities shared by every declaration-governed presentation context. */
+export type StorybookRuntimeContextBase = Readonly<{
   document: SemanticDocument
-  browserDocument: globalThis.Document
-  canvas: HTMLCanvasElement
   signal: AbortSignal
-  mount(node: SemanticNode): void
-  publishInspector(value: unknown): void
-  publishSource(value: unknown): void
-  publishProps(value: unknown): void
+  present(value: StorybookRuntimePresentationInput): void
   reportDiagnostic(value: unknown): void
   requestRender(): void
-  subscribePreviewBounds(listener: (bounds: StorybookPreviewBounds | null) => void): () => void
+}>
+
+/** DOM or HUD projection. Engine Space ownership is intentionally absent. */
+export type StorybookComponentRuntimeContext = StorybookRuntimeContextBase & Readonly<{
+  projection: "display" | "hud"
+}>
+
+/** Declared Engine/world projection on the one Experience Space and ViewPoint. */
+export type StorybookWorldRuntimeContext = StorybookRuntimeContextBase & Readonly<{
+  projection: "world"
+  space: Space
   mountWorldPreview(registration: StorybookWorldPreviewRegistration): StorybookWorldPreview
 }>
+
+/** Exact context union selected from the owning subject declaration. */
+export type StorybookRuntimeContext =
+  | StorybookComponentRuntimeContext
+  | StorybookWorldRuntimeContext
 
 export type StorybookPreviewBounds = Readonly<{
   x: number
@@ -83,7 +108,6 @@ export type StorybookPreviewBounds = Readonly<{
 
 /** Package-owned execution session. Navigation and registry state stay external. */
 export type StorybookRuntimeSession = Readonly<{
-  styleSheets?: readonly string[]
   mount(input: StorybookRuntimeStoryInput): void | Promise<void>
   update?(input: StorybookRuntimeStoryInput): void | Promise<void>
   unmount(): void | Promise<void>
@@ -125,10 +149,8 @@ can always replace a story, unmount it and dispose the package realm cleanly.
 */
 export function validateStorybookRuntimeSession(value: unknown): StorybookRuntimeSession {
   const session = requireObject(value, "Storybook runtime session")
-  const styleSheets = readProperty(session, "styleSheets", "Storybook runtime session")
-  if (styleSheets !== undefined && (!Array.isArray(styleSheets) ||
-    styleSheets.some((sheet) => typeof sheet !== "string"))) {
-    throw new TypeError("Storybook runtime session.styleSheets must be a string list when provided")
+  if (Object.hasOwn(session, "styleSheets")) {
+    throw new TypeError("Storybook runtime session.styleSheets is not supported; declare authorStyleSheets or use compiled component CSS")
   }
   requireMethod(session, "mount", "Storybook runtime session")
   const update = readProperty(session, "update", "Storybook runtime session")

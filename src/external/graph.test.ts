@@ -112,6 +112,25 @@ describe("external Storybook normalized graph", () => {
 
   test("records exact ownership, source, resources and stable structural paths", async () => {
     const graph = createExternalStorybookGraph(await fixtureDeclarations())
+    const packageNode = externalStorybookNode(graph, "package:@fixture/components")
+    expect(packageNode.authorStyleSheets.map(({specifier}) => specifier)).toEqual([
+      "@fixture/components/tokens.css",
+      "@fixture/components/theme.css",
+    ])
+    expect(packageNode.authorStyleSheets.every(({contentDigest}) => /^[a-f0-9]{64}$/u.test(contentDigest))).toBeTrue()
+    expect(packageNode.widgetContributions).toMatchObject({
+      protocol: "widget-contribution/1",
+      items: [{id: "fixture-controls", kind: "component", label: "Fixture controls"}],
+    })
+    const subject = externalStorybookNode(
+      graph,
+      "subject:@fixture/components/components/button",
+    )
+    expect(subject.presentation).toEqual({
+      protocol: "story-presentation/1",
+      projection: "display",
+      widgets: ["props", "source", "diagnostics"],
+    })
     const variant = externalStorybookNode(
       graph,
       "variant:@fixture/components/components/button/contained",
@@ -136,6 +155,9 @@ describe("external Storybook normalized graph", () => {
       "reference",
       "asset",
     ])
+    expect(variant.authorStyleSheets).toEqual([])
+    expect(variant.presentation).toBe(subject.presentation)
+    expect(variant.widgetContributions).toBeNull()
     expect(variant.digest).toMatch(/^[a-f0-9]{64}$/u)
   })
 })

@@ -1,6 +1,6 @@
 import {createHash, randomUUID} from "node:crypto"
 import {existsSync, mkdirSync, realpathSync, renameSync, rmSync} from "node:fs"
-import {join, resolve} from "node:path"
+import {isAbsolute, join, relative, resolve} from "node:path"
 import {StorybookBuildSemaphore, storybookAbortError} from "./build-semaphore.ts"
 import {
   STORYBOOK_WATCH_CATEGORIES,
@@ -13,9 +13,12 @@ import {
 
 export type StorybookPackageModule = Readonly<{path: string, export: string}>
 export type StorybookPackageVariantModule = Readonly<{route: string, module: StorybookPackageModule}>
+export type StorybookPackageWidgetModule = Readonly<{id: string, module: StorybookPackageModule}>
 export type StorybookPackageRevisionResourceFile = Readonly<{
   sourcePath: string
+  sourceRoot?: string
   targetPath: string
+  contentDigest?: string
 }>
 
 export type StorybookPackageBuildDescriptor = Readonly<{
@@ -28,6 +31,7 @@ export type StorybookPackageBuildDescriptor = Readonly<{
   resourceFiles?: readonly StorybookPackageRevisionResourceFile[]
   runtime: StorybookPackageModule | null
   variants: readonly StorybookPackageVariantModule[]
+  widgetModules: readonly StorybookPackageWidgetModule[]
   watchedPaths?: readonly string[]
   watchPaths?: readonly StorybookCategorizedWatchPath[]
 }>
@@ -279,6 +283,13 @@ export class StorybookPackageSession {
 
   build(): Promise<StorybookPackageSessionSnapshot> {
     return this.ensureBuilt()
+  }
+
+  retryFailed(): boolean {
+    this.#assertActive()
+    if (this.#failedRevision === null || this.#runner !== null) return false
+    this.#advanceGeneration("Storybook explicit failed-build retry")
+    return true
   }
 
   async ensureBuilt(): Promise<StorybookPackageSessionSnapshot> {
@@ -689,14 +700,46 @@ function normalizeDescriptor(value: StorybookPackageBuildDescriptor): StorybookP
     throw new Error(`Storybook package loader table does not match graph snapshot: ${packageId}`)
   }
   const runtime = value.runtime === null ? null : normalizeModule(value.runtime)
+  const widgetModules = Object.freeze([...value.widgetModules].map((widget) => Object.freeze({
+    id: requiredText("widget module id", widget.id),
+    module: normalizeModule(widget.module),
+  })))
+  if (new Set(widgetModules.map(({id}) => id)).size !== widgetModules.length) {
+    throw new Error(`Duplicate package widget module id: ${packageId}`)
+  }
+  if (JSON.stringify(widgetModules.map(({id}) => id)) !==
+    JSON.stringify(graphSnapshot.widgetLoaders.map(({id}) => id))) {
+    throw new Error(`Storybook package widget loader table does not match graph snapshot: ${packageId}`)
+  }
+  for (const [index, widget] of widgetModules.entries()) {
+    if (widget.module.export !== graphSnapshot.widgetLoaders[index]?.exportName) {
+      throw new Error(`Storybook package widget loader export does not match graph snapshot: ${packageId}:${widget.id}`)
+    }
+  }
   const resourceFiles = Object.freeze((value.resourceFiles ?? []).map((file) => {
     const sourcePath = realpathSync(file.sourcePath)
+    const sourceRoot = file.sourceRoot === undefined ? undefined : realpathSync(file.sourceRoot)
+    if (sourceRoot !== undefined) {
+      const local = relative(sourceRoot, sourcePath)
+      if (local === "" || local.startsWith("..") || isAbsolute(local)) {
+        throw new Error(`Storybook revision resource escaped its exact source root: ${sourcePath}`)
+      }
+    }
     const targetPath = file.targetPath
     if (typeof targetPath !== "string" || targetPath.length === 0 || targetPath.startsWith("/") ||
       targetPath.includes("\\") || targetPath.split("/").some((segment) => segment === "" || segment === "." || segment === "..")) {
       throw new Error(`Invalid Storybook revision resource target: ${String(targetPath)}`)
     }
-    return Object.freeze({sourcePath, targetPath})
+    const contentDigest = file.contentDigest
+    if (contentDigest !== undefined && !/^[a-f0-9]{64}$/u.test(contentDigest)) {
+      throw new Error(`Invalid Storybook revision resource content digest: ${targetPath}`)
+    }
+    return Object.freeze({
+      sourcePath,
+      ...(sourceRoot === undefined ? {} : {sourceRoot}),
+      targetPath,
+      ...(contentDigest === undefined ? {} : {contentDigest}),
+    })
   }))
   const watchPaths = Object.freeze((value.watchPaths ?? []).map((entry) => {
     if (!STORYBOOK_WATCH_CATEGORIES.includes(entry.category)) {
@@ -706,6 +749,29 @@ function normalizeDescriptor(value: StorybookPackageBuildDescriptor): StorybookP
   }))
   if (new Set(resourceFiles.map(({targetPath}) => targetPath)).size !== resourceFiles.length) {
     throw new Error(`Duplicate Storybook revision resource target: ${packageId}`)
+  }
+  const resourceByTarget = new Map(resourceFiles.map((file) => [file.targetPath, file] as const))
+  for (const styleSheets of [
+    graphSnapshot.workbenchAuthorStyleSheets,
+    graphSnapshot.authorStyleSheets,
+  ] as const) {
+    for (const styleSheet of styleSheets) {
+      const file = resourceByTarget.get(styleSheet.url)
+      if (file === undefined || file.sourceRoot === undefined ||
+        file.contentDigest !== styleSheet.contentDigest) {
+        throw new Error(`Storybook author stylesheet resource does not match graph snapshot: ${styleSheet.specifier}`)
+      }
+    }
+  }
+  for (const file of resourceFiles) {
+    if (file.targetPath.startsWith("author-style-sheets/") &&
+      !graphSnapshot.authorStyleSheets.some(({url}) => url === file.targetPath)) {
+      throw new Error(`Undeclared Storybook author stylesheet resource target: ${file.targetPath}`)
+    }
+    if (file.targetPath.startsWith("workbench-author-style-sheets/") &&
+      !graphSnapshot.workbenchAuthorStyleSheets.some(({url}) => url === file.targetPath)) {
+      throw new Error(`Undeclared Storybook Workbench author stylesheet resource target: ${file.targetPath}`)
+    }
   }
   if (runtime === null && variants.length > 0) {
     throw new Error(`Executable variants require a package runtime: ${packageId}`)
@@ -721,6 +787,7 @@ function normalizeDescriptor(value: StorybookPackageBuildDescriptor): StorybookP
     graphSnapshot,
     runtime,
     variants,
+    widgetModules,
     ...(value.watchedPaths === undefined
       ? {}
       : {watchedPaths: Object.freeze(value.watchedPaths.map(safeRealpath))}),
@@ -735,6 +802,7 @@ function sameDescriptor(left: StorybookPackageBuildDescriptor, right: StorybookP
     left.manifestPath === right.manifestPath &&
     JSON.stringify(left.runtime) === JSON.stringify(right.runtime) &&
     JSON.stringify(left.variants) === JSON.stringify(right.variants) &&
+    JSON.stringify(left.widgetModules) === JSON.stringify(right.widgetModules) &&
     JSON.stringify(left.resourceFiles ?? []) === JSON.stringify(right.resourceFiles ?? []) &&
     JSON.stringify(left.watchPaths ?? []) === JSON.stringify(right.watchPaths ?? []) &&
     JSON.stringify(left.watchedPaths ?? []) === JSON.stringify(right.watchedPaths ?? [])
@@ -749,6 +817,7 @@ function declaredPaths(descriptor: StorybookPackageBuildDescriptor): Set<string>
     descriptor.manifestPath,
     ...(descriptor.runtime === null ? [] : [descriptor.runtime.path]),
     ...descriptor.variants.map(({module}) => module.path),
+    ...descriptor.widgetModules.map(({module}) => module.path),
     ...(descriptor.resourceFiles ?? []).map(({sourcePath}) => sourcePath),
     ...(descriptor.watchPaths ?? []).map(({path}) => path),
     ...(descriptor.watchedPaths ?? []),

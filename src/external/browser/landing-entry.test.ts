@@ -1,6 +1,11 @@
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
-import {createDocument, type Element, type Node} from "@zavx0z/dom"
+import {
+  createDocument,
+  readDocumentCompiledStyleSheets,
+  type Element,
+  type Node,
+} from "@zavx0z/dom"
 import type {
   DocumentOverlayRuntime,
   DocumentSpaceRuntime,
@@ -9,7 +14,10 @@ import {resolveExternalStorybookDeclarations} from "../declarations.ts"
 import {createExternalStorybookGraph, type ExternalStorybookGraph} from "../graph.ts"
 import type {StorybookPackageSessionSnapshot} from "../package-session.ts"
 import {createExternalStorybookClientSnapshot} from "./client-protocol.ts"
-import {startExternalStorybookLanding} from "./landing-entry.ts"
+import {
+  indexedLandingAuthorStyleSheetSources,
+  startExternalStorybookLanding,
+} from "./landing-entry.ts"
 import type {ExternalStorybookShellSpaceRuntimeFactory} from "./shell.ts"
 
 const fixtureRoot = join(import.meta.dir, "..", "fixtures", "valid")
@@ -21,6 +29,7 @@ describe("external Storybook landing frontend", () => {
     const requests: string[] = []
     const opened: Array<Readonly<{url: string, name: string}>> = []
     const pushed: string[] = []
+    const semanticDocument = createDocument()
     const location = {
       href: "http://127.0.0.1:3000/projects/fixture-alpha/",
       pathname: "/projects/fixture-alpha/",
@@ -48,7 +57,7 @@ describe("external Storybook landing frontend", () => {
       },
       async waitForFrame() {},
       shell: {
-        document: createDocument(),
+        document: semanticDocument,
         canvas: {} as HTMLCanvasElement,
         loadFont: async () => ({}) as never,
         createSpaceRuntime: fakeRuntimeFactory(),
@@ -67,17 +76,21 @@ describe("external Storybook landing frontend", () => {
 
     expect(controller.shell.workbench.controller.read("secondary.items").map(({id}) => id))
       .toEqual(["package:@fixture/components"])
-    expect(controller.shell.workbench.controller.read("preview.node")?.textContent)
+    expect(controller.shell.workbench.controller.read("presentation").node?.textContent)
       .toContain("project:fixture-alpha")
+    const initialPresentation = controller.shell.workbench.controller.read("presentation").node
+    const initialStyleSheetCount = readDocumentCompiledStyleSheets(semanticDocument).styleSheets.length
+    expect(initialStyleSheetCount).toBeGreaterThan(0)
 
     await controller.select("project:fixture-beta")
     expect(pushed).toEqual(["/projects/fixture-beta/"])
+    expect(initialPresentation?.parentNode).toBeNull()
 
     await controller.select("project:fixture-alpha")
     expect(controller.shell.workbench.controller.read("secondary.items").map(({id}) => id))
       .toEqual(["package:@fixture/components"])
     expect(pushed).toEqual(["/projects/fixture-beta/", "/projects/fixture-alpha/"])
-    expect(controller.shell.workbench.controller.read("preview.node")?.textContent)
+    expect(controller.shell.workbench.controller.read("presentation").node?.textContent)
       .toContain("project:fixture-alpha")
 
     await controller.select("package:@fixture/components")
@@ -105,7 +118,33 @@ describe("external Storybook landing frontend", () => {
     expect(source).not.toContain("runtime-protocol")
     expect(source).not.toContain("loadRuntime")
     expect(source).not.toContain("storyLoaders")
+    expect(source).not.toContain("createElement(")
+    expect(source).not.toContain("className")
+    expect(source).not.toContain("external-storybook-action")
     controller.dispose()
+    expect(readDocumentCompiledStyleSheets(semanticDocument).styleSheets).toEqual([])
+  })
+
+  test("reads only bounded contiguous indexed Workbench author links", () => {
+    const document = indexedLinkDocument([
+      {specifier: "@ui/components/theme.css", digest: "a".repeat(64), href: "/revision/theme.css"},
+      {specifier: "@fixture/tokens.css", digest: "b".repeat(64), href: "/revision/tokens.css"},
+    ])
+    expect(indexedLandingAuthorStyleSheetSources(document).map(({id}) => id)).toEqual([
+      "@ui/components/theme.css",
+      "@fixture/tokens.css",
+    ])
+
+    const duplicate = indexedLinkDocument([
+      {specifier: "@ui/components/theme.css", digest: "a".repeat(64), href: "/revision/a.css"},
+      {specifier: "@ui/components/theme.css", digest: "a".repeat(64), href: "/revision/b.css"},
+    ])
+    expect(() => indexedLandingAuthorStyleSheetSources(duplicate)).toThrow("invalid or duplicate")
+
+    const invalidDigest = indexedLinkDocument([
+      {specifier: "@ui/components/theme.css", digest: "invalid", href: "/revision/theme.css"},
+    ])
+    expect(() => indexedLandingAuthorStyleSheetSources(invalidDigest)).toThrow("digest is invalid")
   })
 })
 
@@ -177,4 +216,39 @@ function click(element: Element | undefined): void {
     throw new Error("Fixture action button is missing")
   }
   element.click()
+}
+
+function indexedLinkDocument(
+  values: readonly Readonly<{specifier: string; digest: string; href: string}>[],
+): globalThis.Document {
+  const links: HTMLLinkElement[] = []
+  const byId = new Map<string, HTMLLinkElement>()
+  const document = {
+    readyState: "loading",
+    querySelectorAll() {
+      return links
+    },
+    getElementById(id: string) {
+      return byId.get(id) ?? null
+    },
+  } as unknown as globalThis.Document
+  for (const [index, value] of values.entries()) {
+    const attributes = new Map<string, string>([
+      ["rel", "stylesheet"],
+      ["href", value.href],
+      ["data-external-storybook-author-style-sheet", value.specifier],
+      ["data-external-storybook-author-style-sheet-digest", value.digest],
+    ])
+    const link = {
+      localName: "link",
+      ownerDocument: document,
+      sheet: {},
+      getAttribute(name: string) {
+        return attributes.get(name) ?? null
+      },
+    } as unknown as HTMLLinkElement
+    links.push(link)
+    byId.set(`external-storybook-author-style-sheet-${index}`, link)
+  }
+  return document
 }

@@ -107,6 +107,7 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
       const missing = roots.filter((root) => !attached.has(resolveManifestPath(root)))
       if (missing.length > 0) await client.control("/api/control/attach", {roots: missing}, context.signal)
     }
+    await client.control("/api/control/refresh", {}, context.signal)
     return this.#statusResult(record, false, context.signal)
   }
 

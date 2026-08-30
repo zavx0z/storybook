@@ -110,8 +110,10 @@ package identity. MCP хранит private target record и persistent HMAC secr
 ownership сразу после `Target.createTarget`, поэтому timeout/error следующего
 шага переиспользует ту же вкладку, а не создаёт ещё одну.
 
-Одна package tab имеет один browser realm, один generated entry, один package
-runtime instance и один PackageSession revision. Generated entry является
+Одна package tab имеет один browser realm, один generated entry, один loaded
+runtime adapter, не более одной active subject session и один PackageSession
+revision. Subject switch пересоздаёт session, чтобы world capability не утекала
+в display/HUD subject. Generated entry является
 тонкой static map: один заранее validated import boundary для runtime и каждой
 executable variant. Browser никогда не выполняет arbitrary import path из JSON
 и не использует `eval`.
@@ -122,11 +124,11 @@ Space и ViewPoint. Workbench является camera-locked overlay root это
 Document; font и ordered stylesheet set принадлежат host. Named tabs остаются
 разными Experiences и не разделяют DOM, Space либо renderer resources.
 
-Owner direct-world story использует узкий structural `mountWorldPreview`:
-semantic node остаётся в том же Document, а arbitrary Engine Space становится
-bounded child существующего host Space. Logical preview box преобразуется в
-physical viewport/scissor ровно один раз. Один кадр собирается как base world →
-bounded worlds → semantic overlays и публикуется тем же Renderer/canvas.
+Owner direct-world story использует узкий structural `mountWorldPreview` без
+поля `space`: semantic node остаётся в том же Document, а world content уже
+принадлежит exact `context.space === DocumentSpaceRuntime.space`. Shared host
+применяет camera к единственному ViewPoint и публикует world, display, HUD и
+Workbench тем же Renderer/canvas. Child Space/ViewPoint не создаётся.
 
 Shared shell source один для landing и package entries. Package build включает
 только выбранный package graph, поэтому другая package production code в tab не
@@ -136,11 +138,16 @@ DOM/Renderer/Engine/Template identities проверяются до publish; р�
 
 ## Workbench projection
 
-Сохраняется один DOM-native Workbench:
+Fixed `workbench-layout/1` реализован одним compiled TSX ComponentRoot:
 
 ```text
 catalog | secondary | preview | scenarios | inspector | status
 ```
+
+В `inspector` существует ровно один production
+`@ui/components/inspector#Inspector`. Subject declaration выбирает ordered
+widgets; package не добавляет region и не заменяет rail/content. Workbench
+сохраняет selected widget по `(packageId, subjectId)` между variants.
 
 Canonical graph проецируется в существующий `Navigation Tree` через
 `catalog.items`. Direct items, optional `group → child`, disclosure, search,
@@ -159,8 +166,8 @@ bounded Markdown subset: headings, paragraphs, lists, code blocks, links и
 inline code. Embedded HTML/JavaScript не выполняется; неизвестная конструкция
 становится text. Ошибка README локальна выбранному node.
 
-Runtime `@engine/core` не создаёт private Canvas, Renderer, ViewPoint listeners
-или RAF. Он передаёт только owner Space/camera/resize contract; shared host
+Runtime `@engine/core` не создаёт private Canvas, Space, Renderer, ViewPoint,
+listeners или RAF. Он использует только granted shared Space/camera/resize contract; shared host
 владеет clip, input priority, camera routing, frame coalescing и cleanup.
 
 ## Structural runtime protocol
@@ -169,7 +176,7 @@ Consumer не импортирует Storybook даже type-only. Executable pa
 экспортировать plain object из указанного declaration module:
 
 ```text
-runtime.protocol === "storybook-runtime/1"
+runtime.protocol === "storybook-runtime/3"
 runtime.create(context) -> session | Promise<session>
 
 session.mount({route, story, signal})
@@ -178,11 +185,35 @@ session.unmount()
 session.dispose()
 ```
 
-`context` передаёт package-tab Document, validated `mount(node)`, inspector and
-source/props publication, diagnostic reporting и lifetime AbortSignal. Mounted
-Node обязан принадлежать exact context Document. Runtime владеет только
+`context` передаёт package-tab Document, lifetime AbortSignal, diagnostics и
+один atomic `present({protocol:"story-presentation/1", node, componentRoot,
+source, values?})`. Каждый mount/update обязан вызвать его ровно один раз. Node
+обязан принадлежать exact context Document. Runtime владеет только
 owner-specific story execution, освобождает предыдущую story и idempotently
 dispose-ится. Navigation, routing, Workbench, registry и server ему недоступны.
+Только world subject получает exact shared `context.space` и
+`mountWorldPreview`; display/HUD context Engine API не содержит.
+
+Package-level `authorStyleSheets` называет только exact public CSS export
+specifier self-owner либо transitively manifest-reached local dependency.
+Self Workbench sheets идут первыми и dedup-ятся с active package по exact
+specifier+digest; конфликт bytes fail closed. Resolver фиксирует canonical file и content digest; revision
+materializes ordered CSS bytes и native page создаёт один annotated link на
+каждый resource до package entry. `createBrowserLinkedAuthorStyleSheetHost`
+получает exact links, semantic Document и shell Canvas, ждёт `ready` до
+создания `DocumentSpaceRuntime`, не fetch-ит и не сканирует native stylesheets.
+
+Runtime/3 передаёт Source и root только внутри atomic `present`. Host один раз читает exact
+root-local stylesheet snapshot. CSS facet отдельно содержит declared author
+registry и ordered/deduplicated `authored-css` provenance active root. Legacy
+CSS strings, generated selectors, Document-wide compiled sheet filtering и
+Workbench runtime CSS не являются Source contract.
+
+Package-level `widgetContributions/1` определяет custom governed TSX widgets;
+`story-presentation/1` обязателен на subject и наследуется variants. Standard
+registry `props/source/events/diagnostics/dom/layout/display/reference` объявлен
+ровно один раз self package. Host derives DOM/layout/display/current diagnostics;
+runtime values не могут публиковать эти channels.
 
 External shell валидирует marker/methods структурно, изолирует исключения и
 отображает их только в package status/inspector.
@@ -270,8 +301,10 @@ Browser controller является частью MCP и говорит с Chrome
 Package-tab agent bridge проецирует существующий semantic Document, Workbench
 identities и current renderer frame. Он не создаёт второе дерево и не принимает
 raw JavaScript. Bounds берутся из exact `RenderFrame.boxByNode`; interaction
-использует public DOM/renderer-browser input APIs. Capture использует current
-owner-presented frame либо exact CDP crop и возвращает bounded MCP image/resource.
+использует public DOM/renderer-browser input APIs. State и inspection содержат
+singular `canvas`, взятый непосредственно из shell; native Document не сканируется
+в поисках альтернативного owner Canvas. Capture area `canvas` использует bounds
+того же exact host Canvas и возвращает bounded MCP image/resource.
 
 ## Local control security
 

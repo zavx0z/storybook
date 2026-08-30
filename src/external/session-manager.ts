@@ -122,6 +122,10 @@ export class ExternalStorybookSessionManager {
     return session.ensureBuilt()
   }
 
+  retryFailed(packageId: string): boolean {
+    return this.session(packageId).retryFailed()
+  }
+
   snapshots(): readonly StorybookPackageSessionSnapshot[] {
     this.#assertActive()
     return Object.freeze([...this.#sessions.values()].map((session) => session.snapshot()))

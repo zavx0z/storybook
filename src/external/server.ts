@@ -12,10 +12,13 @@ import {
 import {basename, dirname, extname, isAbsolute, join, relative, resolve, sep} from "node:path"
 import {fileURLToPath} from "node:url"
 import {createExternalStorybookClientSnapshot} from "./browser/client-protocol.ts"
+import {mergeStorybookAuthorStyleSheets} from "./author-style-sheets.ts"
 import {StorybookDependencyWatchCoordinator, StorybookDirtyRefreshCoordinator} from "./dependency-watch.ts"
 import {assertExternalStorybookStartLease, externalStorybookArtifactRoot, createExternalStorybookServerRecord, externalStorybookServerStatePath, readExternalStorybookServerRecord, writeExternalStorybookServerRecord, writeExternalStorybookStartCandidate, type ExternalStorybookServerRecord} from "./server-state.ts"
 import {ExternalStorybookRegistry, type ExternalStorybookRegistrySnapshot} from "./registry.ts"
 import {createStorybookPackageRevisionBuilder} from "./package-build.ts"
+import {createStorybookPackageCompilerPlugins} from "./compiler.ts"
+import type {StorybookPackageRevisionAuthorStyleSheet} from "./package-revision.ts"
 import {ExternalStorybookSessionManager} from "./session-manager.ts"
 import {externalStorybookNode, resolveExternalStorybookRoute} from "./graph.ts"
 import {storybookDiagnostic, type StorybookPackageEvent} from "./package-session.ts"
@@ -33,6 +36,10 @@ const STORYBOOK_CONTROL_BODY_MAX_BYTES = 65_536
 const STORYBOOK_WEBSOCKET_MESSAGE_MAX_BYTES = 8_192
 const STORYBOOK_BROWSER_SESSION_TTL_MS = 120_000
 const STORYBOOK_BROWSER_SESSION_MAX_ENTRIES = 1_024
+
+type StorybookHtmlAuthorStyleSheet = StorybookPackageRevisionAuthorStyleSheet & Readonly<{
+  href: string
+}>
 
 type StorybookWebSocketData = {
   subscriptions: Set<string>
@@ -165,7 +172,7 @@ export async function startExternalStorybookServer(
     const beforeRecord = serverRecord
     try {
       const snapshot = await operation()
-      commitRegistry(snapshot)
+      if (snapshot.revision !== before.revision) commitRegistry(snapshot)
       return snapshot
     } catch (error) {
       if (registry.snapshot().revision !== before.revision || registry.snapshot().graph !== before.graph) {
@@ -198,9 +205,10 @@ export async function startExternalStorybookServer(
   let server!: Bun.Server<StorybookWebSocketData>
   try {
     server = Bun.serve<StorybookWebSocketData>({
-    hostname: options.hostname ?? "127.0.0.1",
-    port: options.port ?? 0,
-    fetch: async (request, currentServer) => {
+      hostname: options.hostname ?? "127.0.0.1",
+      port: options.port ?? 0,
+      idleTimeout: 30,
+      fetch: async (request, currentServer) => {
       const url = new URL(request.url)
       try {
         assertExternalStorybookRequestHost(request, server.url.origin)
@@ -331,13 +339,25 @@ export async function startExternalStorybookServer(
           const snapshot = await mutateRegistry(() => registry.detach(scopeId))
           return responseJson({ok: true, graphDigest: snapshot.graph.digest})
         }
+        if (url.pathname === "/api/control/refresh" && request.method === "POST") {
+          const body = await requestObject(request)
+          assertExactRequestKeys(body, [])
+          const snapshot = await mutateRegistry(() => registry.refresh())
+          return responseJson({
+            ok: true,
+            registryRevision: snapshot.revision,
+            graphDigest: snapshot.graph.digest,
+          })
+        }
         if (url.pathname === "/api/control/check" && request.method === "POST") {
           const body = await requestObject(request)
           assertExactRequestKeys(body, ["live", "scope"])
           const scope = body.scope === undefined || body.scope === null
             ? null
             : requiredText("check scope", body.scope)
-          const packageIds = resolveCheckPackages(registry.snapshot(), scope)
+          const refreshed = await mutateRegistry(() => registry.refresh())
+          const packageIds = resolveCheckPackages(refreshed, scope)
+          for (const packageId of packageIds) sessions.retryFailed(packageId)
           const results = await Promise.all(packageIds.map((packageId) => sessions.ensure(packageId)))
           const ok = results.every((snapshot) => packageBuildSucceeded(snapshot))
           return responseJson({ok, graphDigest: registry.snapshot().graph.digest, packages: results})
@@ -433,8 +453,17 @@ export async function startExternalStorybookServer(
         if (request.method === "GET" && isLandingPath(registry.snapshot(), url.pathname)) {
           const assets = await ensureSharedAssets()
           const session = browserSessions.issue({kind: "registry", packageId: null, revision: null})
+          const authorStyleSheets = await landingWorkbenchAuthorStyleSheets(registry, sessions)
           return htmlResponse(
-            storybookHtml("Storybook", `/__storybook/shared/${assets.landingEntry}`, "landing", session.token, null),
+            storybookHtml(
+              "Storybook",
+              `/__storybook/shared/${assets.landingEntry}`,
+              "landing",
+              session.token,
+              null,
+              null,
+              authorStyleSheets,
+            ),
             server.url.origin,
           )
         }
@@ -523,6 +552,7 @@ export async function startExternalStorybookServer(
   const ensureSharedAssets = (): Promise<SharedBrowserAssets> => {
     sharedAssets ??= buildSharedBrowserAssets({
       root: join(artifactRoot, "shared"),
+      toolRoot,
       landingEntryPath: options.landingEntryPath ?? fileURLToPath(
         new URL("./browser/landing-entry.ts", import.meta.url),
       ),
@@ -565,6 +595,31 @@ export async function startExternalStorybookServer(
   })
 }
 
+async function landingWorkbenchAuthorStyleSheets(
+  registry: ExternalStorybookRegistry,
+  sessions: ExternalStorybookSessionManager,
+): Promise<readonly StorybookHtmlAuthorStyleSheet[]> {
+  const self = registry.snapshot().graph.nodes.find((node) =>
+    node.kind === "package" && node.packageId === "@zavx0z/storybook")
+  if (self === undefined) return Object.freeze([])
+  const snapshot = await sessions.ensure("@zavx0z/storybook")
+  const revision = snapshot.builtRevision ?? snapshot.activatingRevision ??
+    snapshot.activeRevision ?? snapshot.lastWorkingRevision ?? snapshot.lastGoodRevision
+  if (revision === null) {
+    throw new Error("Shared Storybook Workbench has no immutable theme revision")
+  }
+  const graph = sessions.session("@zavx0z/storybook").revisionGraphSnapshot(revision)
+  if (graph === null) throw new Error("Shared Storybook Workbench revision graph is missing")
+  const revisionUrl = revisionBase("@zavx0z/storybook", revision)
+  return Object.freeze(mergeStorybookAuthorStyleSheets(
+    graph.workbenchAuthorStyleSheets,
+    graph.authorStyleSheets,
+  ).map((styleSheet) => Object.freeze({
+    ...styleSheet,
+    href: `${revisionUrl}${styleSheet.url}`,
+  })))
+}
+
 type RegistryEvent = Readonly<{
   type: "registry.updated"
   revision: number
@@ -589,14 +644,21 @@ type SharedBrowserAssets = Readonly<{
 
 async function buildSharedBrowserAssets(input: Readonly<{
   root: string
+  toolRoot: string
   landingEntryPath: string
   fallbackEntryPath: string
 }>): Promise<SharedBrowserAssets> {
   const staging = `${input.root}.candidate-${randomUUID()}`
   rmSync(staging, {recursive: true, force: true})
   mkdirSync(staging, {recursive: true})
+  const entrypoints = [realpathSync(input.landingEntryPath), realpathSync(input.fallbackEntryPath)]
+  const plugins = await createStorybookPackageCompilerPlugins({
+    packageRoot: input.toolRoot,
+    projectRoot: input.toolRoot,
+    moduleSourcePaths: entrypoints,
+  })
   const result = await Bun.build({
-    entrypoints: [realpathSync(input.landingEntryPath), realpathSync(input.fallbackEntryPath)],
+    entrypoints,
     outdir: staging,
     root: dirname(realpathSync(input.landingEntryPath)),
     naming: {entry: "[name]-[hash].[ext]", chunk: "chunks/[name]-[hash].[ext]"},
@@ -606,6 +668,7 @@ async function buildSharedBrowserAssets(input: Readonly<{
     splitting: true,
     sourcemap: "external",
     loader: {".wgsl": "text"},
+    plugins: [...plugins],
     metafile: true,
     throw: false,
   })
@@ -647,6 +710,7 @@ async function packagePageResponse(
       packageId: route.packageId,
       revision: null,
     })
+    const authorStyleSheets = await landingWorkbenchAuthorStyleSheets(registry, sessions)
     return htmlResponse(
       storybookHtml(
         `${route.packageId} · Storybook`,
@@ -655,6 +719,7 @@ async function packagePageResponse(
         browserSession.token,
         null,
         null,
+        authorStyleSheets,
       ),
       origin,
     )
@@ -679,7 +744,8 @@ async function packagePageResponse(
     ? session.beginActivation({revision, viewId, route: route.routePath})
     : null
   const lease = session.acquireRevisionLease(revision, viewId)
-  const script = `${revisionBase(route.packageId, revision)}${revisionRecord.entryRelativePath}`
+  const revisionUrl = revisionBase(route.packageId, revision)
+  const script = `${revisionUrl}${revisionRecord.entryRelativePath}`
   const browserSession = browserSessions.issue({
     kind: "package",
     packageId: route.packageId,
@@ -697,6 +763,13 @@ async function packagePageResponse(
       browserSession.token,
       activation?.activationId ?? null,
       fallbackRevision === revision ? null : fallbackRevision,
+      mergeStorybookAuthorStyleSheets(
+        graphSnapshot.workbenchAuthorStyleSheets,
+        graphSnapshot.authorStyleSheets,
+      ).map((styleSheet) => Object.freeze({
+        ...styleSheet,
+        href: `${revisionUrl}${styleSheet.url}`,
+      })),
     ),
     origin,
   )
@@ -711,6 +784,8 @@ export function externalStorybookStructuralWatchPaths(
       ? []
       : [node.readmePath]),
     ...(node.kind === "package" && node.packageJsonPath !== null ? [node.packageJsonPath] : []),
+    ...node.authorStyleSheets.map(({path}) => path),
+    ...node.authorStyleSheets.map(({ownerPackageJsonPath}) => ownerPackageJsonPath),
   ]))].sort())
 }
 
@@ -1118,16 +1193,25 @@ function storybookHtml(
   browserSessionToken: string,
   activationId: string | null,
   fallbackRevision: string | null = null,
+  authorStyleSheets: readonly StorybookHtmlAuthorStyleSheet[] = Object.freeze([]),
 ): string {
+  const styleSheetLinks = authorStyleSheets.map((styleSheet, index) => [
+    `    <link id="external-storybook-author-style-sheet-${index}" rel="stylesheet"`,
+    `data-external-storybook-author-style-sheet="${escapeHtml(styleSheet.specifier)}"`,
+    `data-external-storybook-author-style-sheet-digest="${escapeHtml(styleSheet.contentDigest)}"`,
+    `href="${escapeHtml(styleSheet.href)}">`,
+  ].join(" ")).join("\n")
   return `<!doctype html>
 <html lang="ru"${entry === null ? "" : ` data-external-storybook-entry="${entry}"`}>
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
     <meta name="engine-default-font" content="/assets/jetbrains-mono-bold.ttf">
     <meta name="external-storybook-browser-session" content="${escapeHtml(browserSessionToken)}">
     ${activationId === null ? "" : `<meta name="external-storybook-activation-id" content="${escapeHtml(activationId)}">`}
     ${fallbackRevision === null ? "" : `<meta name="external-storybook-fallback-revision" content="${escapeHtml(fallbackRevision)}">`}
+${styleSheetLinks.length === 0 ? "" : `${styleSheetLinks}\n`}
     <title>${escapeHtml(title)}</title>
     <style>html,body{width:100%;height:100%;margin:0;overflow:hidden;background:#111}#external-storybook-canvas{display:block;width:100%;height:100%;touch-action:none}</style>
   </head>
@@ -1156,8 +1240,8 @@ function htmlResponse(value: string, origin: string): Response {
         "default-src 'self'",
         "script-src 'self'",
         "style-src 'self' 'unsafe-inline'",
-        "img-src 'self' data:",
-        `connect-src 'self' ${websocket.origin}`,
+        "img-src 'self' data: blob:",
+        `connect-src 'self' data: ${websocket.origin}`,
         "object-src 'none'",
         "base-uri 'none'",
         "form-action 'none'",

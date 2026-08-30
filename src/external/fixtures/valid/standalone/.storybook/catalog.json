@@ -9,6 +9,7 @@
           "id": "diagnostics",
           "kind": "tool",
           "label": "Diagnostics",
+          "presentation": {"protocol": "story-presentation/1", "projection": "display", "widgets": ["source", "diagnostics"]},
           "variants": []
         }
       ]

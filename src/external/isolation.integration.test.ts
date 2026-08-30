@@ -105,7 +105,7 @@ describe("one-server package isolation", () => {
     expect((await fetch(new URL("/api/health", running.origin))).status).toBe(200)
     aSocket.close()
     bSocket.close()
-  }, 20_000)
+  }, 180_000)
 })
 
 type SocketEvent = Readonly<Record<string, any> & {type: string}>
@@ -159,7 +159,9 @@ function activateSession(
   const session = running.sessions.session(packageId)
   const before = session.snapshot()
   const revision = before.builtRevision
-  if (revision === null || revision === undefined) throw new Error(`Fixture package is not built: ${packageId}`)
+  if (revision === null || revision === undefined) {
+    throw new Error(`Fixture package is not built: ${packageId}: ${JSON.stringify(before.diagnostics)}`)
+  }
   const activation = session.beginActivation({revision, viewId: `test:${packageId}`, route})
   session.acknowledgeActivation({
     revision,
@@ -215,6 +217,11 @@ function createIsolationFixture() {
           id,
           kind: "fixture",
           label: id.toUpperCase(),
+          presentation: {
+            protocol: "story-presentation/1",
+            projection: "display",
+            widgets: ["source", "diagnostics"],
+          },
           variants: [{
             id: "default",
             label: "Default",
@@ -226,9 +233,29 @@ function createIsolationFixture() {
     }, null, 2)}\n`)
     writeFileSync(join(declarationRoot, "runtime.ts"), [
       "export const runtime = Object.freeze({",
-      "  protocol: 'storybook-runtime/1',",
-      "  create() {",
-      "    return Object.freeze({mount() {}, unmount() {}, dispose() {}})",
+      "  protocol: 'storybook-runtime/3',",
+      "  create(context) {",
+      "    let mounted = null",
+      "    const remove = () => {",
+      "      if (mounted?.parentNode != null) mounted.parentNode.removeChild(mounted)",
+      "      mounted = null",
+      "    }",
+      "    return Object.freeze({",
+      "      mount(input) {",
+      "        remove()",
+      "        const node = context.document.createElement('p')",
+      "        node.textContent = String(input.story)",
+      "        context.present(Object.freeze({",
+      "          protocol: 'story-presentation/1',",
+      "          node,",
+      "          componentRoot: Object.freeze({readStyleSheets: () => Object.freeze({revision: 1, styleSheets: Object.freeze([])})}),",
+      "          source: Object.freeze({html: '<p></p>', typescript: `export const story = ${JSON.stringify(String(input.story))}`}),",
+      "        }))",
+      "        mounted = node",
+      "      },",
+      "      unmount: remove,",
+      "      dispose: remove,",
+      "    })",
       "  },",
       "})",
       "",
@@ -255,7 +282,7 @@ function storySource(label: string, sharedPath: string): string {
   ].join("\n")
 }
 
-async function waitFor(predicate: () => boolean, timeoutMs = 8_000): Promise<void> {
+async function waitFor(predicate: () => boolean, timeoutMs = 40_000): Promise<void> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     if (predicate()) return

@@ -1,68 +1,38 @@
-/**
-Semantic Storybook Workbench built from standard HTML DOM concepts.
-
-The factory creates one stable shell in a caller-owned `@zavx0z/dom`
-`Document`. Catalog, secondary navigation, preview, scenarios, owner-supplied
-Inspector and status are updated by explicit addresses. Interaction uses normal DOM
-listeners and bubbling events; rendering remains a downstream concern.
-
-@packageDocumentation
-*/
+/** Compiled six-region Storybook Workbench controller. */
 
 import {
   CustomEvent,
   type Document,
-  type Element,
-  type HTMLButtonElement,
   type HTMLDivElement,
-  type HTMLElement,
   type HTMLInputElement,
+  type HTMLElement,
   Node,
-  type Text,
 } from "@zavx0z/dom"
 import {
-  createStorybookDomNavigationTree,
+  component,
+  createRoot,
+  keyedComponents,
+  type ComponentRoot,
+  type KeyedComponentsValue,
+} from "@zavx0z/react"
+import {
+  isCompiledTemplate,
+  type CompiledTemplate,
+} from "@zavx0z/template/compiled"
+import {
   normalizeStorybookDomNavigationItems,
   type StorybookDomNavigationItem,
-  type StorybookDomNavigationTree,
 } from "./navigation-tree.ts"
+import {
+  CustomWidgetSection,
+  StandardWidgetSection,
+  StorybookWorkbenchView,
+} from "./workbench-view.tsx"
 
 export type {
   StorybookDomNavigationGroup,
   StorybookDomNavigationItem,
 } from "./navigation-tree.ts"
-
-/** Flat author CSS accepted directly by the CPU renderer's initial cascade. */
-export const storybookDomWorkbenchCss = `
-.storybook-dom-workbench { box-sizing: border-box; display: flex; flex-direction: column; width: 100%; height: 100%; background: #1d1d1d; color: #d8d8d8; font-size: 11px; line-height: 16px; }
-.storybook-dom-workbench__body { box-sizing: border-box; display: flex; flex-direction: row; flex: 1 1 0; min-height: 0; gap: 4px; padding: 4px; overflow: hidden; background: #161616; }
-.storybook-dom-workbench__catalog { box-sizing: border-box; display: flex; flex-direction: column; flex: 0 0 196px; width: 196px; gap: 2px; padding: 4px; overflow: hidden; border: 1px solid #111111; border-radius: 6px; background: #303030; }
-.storybook-dom-workbench__secondary { box-sizing: border-box; display: flex; flex-direction: column; flex: 0 0 152px; width: 152px; gap: 2px; padding: 4px; overflow: hidden; border: 1px solid #111111; border-radius: 6px; background: #292929; }
-.storybook-dom-workbench__center { display: flex; flex-direction: column; flex: 1 1 0; min-width: 0; gap: 4px; overflow: hidden; }
-.storybook-dom-workbench__preview { box-sizing: border-box; display: flex; flex-direction: column; flex-grow: 1; gap: 2px; padding: 4px; overflow: hidden; border: 1px solid #111111; border-radius: 6px; background: #1d1d1d; }
-.storybook-dom-workbench__preview-host { display: flex; flex-direction: column; flex-grow: 1; align-items: center; justify-content: center; }
-.storybook-dom-workbench[data-storybook-world-preview], .storybook-dom-workbench[data-storybook-world-preview] .storybook-dom-workbench__body, .storybook-dom-workbench[data-storybook-world-preview] .storybook-dom-workbench__preview { background: transparent; }
-.storybook-dom-workbench__scenarios { box-sizing: border-box; display: flex; flex-direction: row; height: 28px; gap: 4px; padding: 2px 4px; overflow: hidden; border: 1px solid #111111; border-radius: 6px; background: #292929; }
-.storybook-dom-workbench__scenario-items { display: flex; flex-direction: row; flex: 1 1 0; gap: 2px; }
-.storybook-dom-workbench__inspector-host { box-sizing: border-box; display: flex; flex-direction: column; flex: 0 0 400px; width: 400px; min-height: 0; overflow: hidden; }
-.storybook-dom-workbench__search { box-sizing: border-box; display: block; width: 100%; height: 24px; padding: 2px 6px; border: 1px solid #151515; border-radius: 4px; background: #202020; color: #e0e0e0; font-size: 11px; }
-.storybook-dom-workbench__items { display: flex; flex-direction: column; flex: 1 1 0; min-height: 0; gap: 1px; overflow: auto; }
-.storybook-dom-workbench__tree { gap: 0; }
-.storybook-dom-workbench__group { box-sizing: border-box; display: flex; flex-direction: column; width: 100%; border: 0 solid transparent; border-radius: 4px; overflow: hidden; background: #292929; }
-.storybook-dom-workbench__group-toggle { box-sizing: border-box; display: flex; flex-direction: row; align-items: center; width: 100%; height: 24px; min-height: 24px; padding: 0 4px; overflow: hidden; border: 1px solid #191919; border-radius: 2px; background: #252525; color: #d8d8d8; font-size: 11px; text-align: left; white-space: nowrap; }
-.storybook-dom-workbench__group-toggle[data-focused] { border-color: #47788f; }
-.storybook-dom-workbench__disclosure { display: block; flex: 0 0 20px; width: 20px; color: #a8a8a8; text-align: center; }
-.storybook-dom-workbench__group-label { display: block; flex: 1 1 0; min-width: 0; overflow: hidden; white-space: nowrap; }
-.storybook-dom-workbench__group-items { display: flex; flex-direction: column; gap: 0; background: #303030; }
-.storybook-dom-workbench__tree-spacer { box-sizing: border-box; display: block; flex: 0 0 auto; width: 100%; }
-.storybook-dom-workbench__item { box-sizing: border-box; display: block; width: 100%; height: 24px; min-height: 24px; padding: 3px 6px; overflow: hidden; border: 1px solid transparent; border-radius: 2px; background: #303030; color: #c8c8c8; font-size: 11px; white-space: nowrap; }
-.storybook-dom-workbench__item--nested { padding: 3px 6px 3px 24px; border-radius: 0; background: #292929; }
-.storybook-dom-workbench__item[data-active] { border-color: #47788f; background: #31566a; color: #f0f0f0; }
-.storybook-dom-workbench__item[disabled] { background: #292929; color: #707070; opacity: 0.55; }
-.storybook-dom-workbench__heading { box-sizing: border-box; display: block; min-height: 20px; margin: 0; padding: 2px 4px; color: #d8d8d8; font-size: 11px; line-height: 16px; }
-.storybook-dom-workbench__status { box-sizing: border-box; display: flex; flex-direction: row; align-items: center; width: 100%; height: 24px; gap: 0; padding: 0 12px 0 8px; border-top: 2px solid #161616; background: #181818; color: #878787; font-size: 11px; line-height: 20px; }
-.storybook-dom-workbench__status-owner { color: #c8c8c8; }
-`.trim()
 
 export const STORYBOOK_DOM_WORKBENCH_EVENTS = Object.freeze({
   navigate: "storybooknavigate",
@@ -70,6 +40,64 @@ export const STORYBOOK_DOM_WORKBENCH_EVENTS = Object.freeze({
   scenario: "storybookscenario",
   groupToggle: "storybookgrouptoggle",
 } as const)
+
+export const STORYBOOK_WORKBENCH_LAYOUT_PROTOCOL = "workbench-layout/1" as const
+export const STORYBOOK_WORKBENCH_REGIONS = Object.freeze([
+  "catalog",
+  "secondary",
+  "preview",
+  "scenarios",
+  "inspector",
+  "status",
+] as const)
+
+export const STORYBOOK_DOM_STANDARD_WIDGET_REGISTRY = Object.freeze([
+  Object.freeze({id: "props", kind: "props", label: "P", title: "Props"}),
+  Object.freeze({id: "source", kind: "source", label: "S", title: "Source"}),
+  Object.freeze({id: "events", kind: "events", label: "E", title: "Events"}),
+  Object.freeze({id: "diagnostics", kind: "diagnostics", label: "!", title: "Diagnostics"}),
+  Object.freeze({id: "dom", kind: "dom", label: "D", title: "DOM"}),
+  Object.freeze({id: "layout", kind: "layout", label: "L", title: "Layout"}),
+  Object.freeze({id: "display", kind: "display", label: "V", title: "Display"}),
+  Object.freeze({id: "reference", kind: "reference", label: "R", title: "Reference"}),
+] as const satisfies readonly StorybookDomInspectorWidgetRegistration[])
+
+export type StorybookDomStandardWidgetKind =
+  | "props"
+  | "source"
+  | "events"
+  | "diagnostics"
+  | "dom"
+  | "layout"
+  | "display"
+  | "reference"
+
+type StorybookDomInspectorStandardWidgetRegistration = Readonly<{
+  id: string
+  kind: StorybookDomStandardWidgetKind
+  label: string
+  title: string
+}>
+
+export type StorybookDomInspectorCustomWidgetRegistration = Readonly<{
+  id: string
+  kind: "custom"
+  label: string
+  title: string
+  component: CompiledTemplate<Readonly<{value: unknown}>>
+}>
+
+export type StorybookDomInspectorWidgetRegistration =
+  | StorybookDomInspectorStandardWidgetRegistration
+  | StorybookDomInspectorCustomWidgetRegistration
+
+export type StorybookDomInspectorSubject = Readonly<{
+  packageId: string
+  subjectId: string
+  widgetIds: readonly string[]
+}>
+
+export type StorybookDomInspectorValues = Readonly<Record<string, unknown>>
 
 export type StorybookDomScenarioItem = Readonly<{
   id: string
@@ -84,7 +112,21 @@ export type StorybookDomStatus = Readonly<{
   detail: string
 }>
 
-/** Every mutable Workbench region has one explicit semantic address. */
+export type StorybookDomPresentationProjection = "display" | "hud" | "world"
+
+export type StorybookDomPresentation = Readonly<{
+  node: Node | null
+  projection: StorybookDomPresentationProjection
+}>
+
+export type StorybookDomWorkbenchPresentationUpdate = Readonly<{
+  label: string
+  presentation: StorybookDomPresentation
+  inspectorSubject: StorybookDomInspectorSubject | null
+  inspectorValues: StorybookDomInspectorValues
+}>
+
+/** Every host-driven Workbench input has one exact typed address. */
 export type StorybookDomWorkbenchAddressMap = Readonly<{
   title: string
   "catalog.label": string
@@ -95,11 +137,13 @@ export type StorybookDomWorkbenchAddressMap = Readonly<{
   "secondary.items": readonly StorybookDomNavigationItem[]
   "secondary.active": string | null
   "preview.label": string
-  "preview.node": Node | null
+  presentation: StorybookDomPresentation
   "scenarios.label": string
   "scenarios.items": readonly StorybookDomScenarioItem[]
   "scenarios.active": string | null
-  "inspector.node": Node | null
+  "inspector.registry": readonly StorybookDomInspectorWidgetRegistration[]
+  "inspector.subject": StorybookDomInspectorSubject | null
+  "inspector.values": StorybookDomInspectorValues
   status: StorybookDomStatus
 }>
 
@@ -113,10 +157,11 @@ export type StorybookDomWorkbenchController = Readonly<{
     address: Address,
     value: StorybookDomWorkbenchAddressMap[Address],
   ): void
+  present(value: StorybookDomWorkbenchPresentationUpdate): void
   dispose(): void
 }>
 
-/** Stable public node references; none are replaced by addressed updates. */
+/** Stable semantic hosts created by one compiled ComponentRoot. */
 export type StorybookDomWorkbenchElements = Readonly<{
   root: HTMLDivElement
   body: HTMLDivElement
@@ -127,6 +172,9 @@ export type StorybookDomWorkbenchElements = Readonly<{
   secondaryItems: HTMLDivElement
   preview: HTMLElement
   previewHost: HTMLElement
+  displayHost: HTMLElement
+  hudHost: HTMLElement
+  worldHost: HTMLElement
   scenarios: HTMLElement
   scenarioItems: HTMLDivElement
   inspectorHost: HTMLDivElement
@@ -143,152 +191,136 @@ export type StorybookDomWorkbench = Readonly<{
   document: Document
   element: HTMLDivElement
   elements: StorybookDomWorkbenchElements
+  componentRoot: ComponentRoot
   controller: StorybookDomWorkbenchController
   update<Address extends StorybookDomWorkbenchAddress>(
     address: Address,
     value: StorybookDomWorkbenchAddressMap[Address],
   ): void
+  present(value: StorybookDomWorkbenchPresentationUpdate): void
   dispose(): void
 }>
 
-type MutableWorkbenchState = {
-  -readonly [Address in StorybookDomWorkbenchAddress]: StorybookDomWorkbenchAddressMap[Address]
+export type StorybookDomWorkbenchViewState = {
+  -readonly [Address in StorybookDomWorkbenchAddress]:
+    StorybookDomWorkbenchAddressMap[Address]
 }
 
-type NavigationRecord = {
-  item: StorybookDomNavigationItem
-  button: HTMLButtonElement
-  text: Text
-  onClick: () => void
-}
-
-type ScenarioRecord = {
-  item: StorybookDomScenarioItem
-  button: HTMLButtonElement
-  text: Text
-  onClick: () => void
+type InspectorRetainedState = {
+  selectedId: string
+  query: string
+  expanded: Map<string, boolean>
 }
 
 /**
-Creates the complete semantic Workbench shell in one supplied Document.
-
-The caller may append `element` later or pass a same-document `parent` for an
-atomic mount. The shell never creates another Document and rejects preview
-nodes from another realm.
-*/
+ * Creates one compiled Workbench ComponentRoot in the supplied semantic
+ * Document. Preview projection changes reparent the exact external Node between
+ * fixed same-Document display/HUD/world hosts without remounting it.
+ */
 export function createStorybookDomWorkbench(
   options: CreateStorybookDomWorkbenchOptions,
 ): StorybookDomWorkbench {
   const {document} = options
   const parent = options.parent
   if (parent !== undefined) assertNodeInDocument(parent, document, "Workbench parent")
-
-  const root = element(document, "div", "storybook-dom-workbench") as HTMLDivElement
-  root.setAttribute("role", "application")
-  root.setAttribute("data-storybook-workbench", "")
-
-  const body = element(document, "div", "storybook-dom-workbench__body") as HTMLDivElement
-  const catalog = element(document, "nav", "storybook-dom-workbench__catalog")
-  const catalogHeading = labeledElement(document, "h2", "storybook-dom-workbench__heading", "")
-  const catalogSearch = element(document, "input", "storybook-dom-workbench__search") as HTMLInputElement
-  catalogSearch.type = "search"
-  catalogSearch.placeholder = "Поиск…"
-  catalogSearch.title = "Поиск по каталогу"
-  catalogSearch.setAttribute("aria-label", "Поиск по каталогу")
-  const catalogItems = element(
-    document,
-    "div",
-    "storybook-dom-workbench__items storybook-dom-workbench__tree",
-  ) as HTMLDivElement
-  catalogItems.setAttribute("role", "tree")
-
-  const secondary = element(document, "nav", "storybook-dom-workbench__secondary")
-  const secondaryHeading = labeledElement(document, "h2", "storybook-dom-workbench__heading", "")
-  const secondaryItems = element(document, "div", "storybook-dom-workbench__items") as HTMLDivElement
-  secondaryItems.setAttribute("role", "list")
-
-  const center = element(document, "div", "storybook-dom-workbench__center")
-  const preview = element(document, "main", "storybook-dom-workbench__preview")
-  preview.setAttribute("role", "main")
-  const previewHeading = labeledElement(document, "h2", "storybook-dom-workbench__heading", "")
-  const previewHost = element(document, "section", "storybook-dom-workbench__preview-host")
-  previewHost.setAttribute("role", "region")
-  previewHost.setAttribute("aria-live", "polite")
-
-  const scenarios = element(document, "section", "storybook-dom-workbench__scenarios")
-  scenarios.setAttribute("role", "toolbar")
-  const scenarioLabel = labeledElement(document, "span", "storybook-dom-workbench__heading", "")
-  const scenarioItems = element(document, "div", "storybook-dom-workbench__scenario-items") as HTMLDivElement
-
-  const inspectorHost = element(document, "div", "storybook-dom-workbench__inspector-host") as HTMLDivElement
-
-  const status = element(document, "footer", "storybook-dom-workbench__status")
-  status.setAttribute("role", "status")
-  status.setAttribute("aria-live", "polite")
-  const statusLead = labeledElement(document, "span", "", "")
-  const statusOwner = labeledElement(document, "span", "storybook-dom-workbench__status-owner", "")
-  const statusDetail = labeledElement(document, "span", "", "")
-
-  document.transaction(() => {
-    catalog.appendChild(catalogHeading.element)
-    catalog.appendChild(catalogSearch)
-    catalog.appendChild(catalogItems)
-    secondary.appendChild(secondaryHeading.element)
-    secondary.appendChild(secondaryItems)
-    preview.appendChild(previewHeading.element)
-    preview.appendChild(previewHost)
-    scenarios.appendChild(scenarioLabel.element)
-    scenarios.appendChild(scenarioItems)
-    center.appendChild(preview)
-    center.appendChild(scenarios)
-    body.appendChild(catalog)
-    body.appendChild(secondary)
-    body.appendChild(center)
-    body.appendChild(inspectorHost)
-    status.appendChild(statusLead.element)
-    status.appendChild(statusOwner.element)
-    status.appendChild(statusDetail.element)
-    root.appendChild(body)
-    root.appendChild(status)
-    parent?.appendChild(root)
-  })
-
-  const secondaryRecords = new Map<string, NavigationRecord>()
-  const scenarioRecords = new Map<string, ScenarioRecord>()
-  let catalogTree: StorybookDomNavigationTree
   let disposed = false
-  const state: MutableWorkbenchState = {
-    title: "Storybook",
-    "catalog.label": "Каталог",
-    "catalog.search": "",
-    "catalog.items": Object.freeze([]),
-    "catalog.active": null,
-    "secondary.label": "Разделы",
-    "secondary.items": Object.freeze([]),
-    "secondary.active": null,
-    "preview.label": "Предпросмотр",
-    "preview.node": null,
-    "scenarios.label": "Сценарии",
-    "scenarios.items": Object.freeze([]),
-    "scenarios.active": null,
-    "inspector.node": null,
-    status: Object.freeze({lead: "Создано для ", owner: "MetaFor", detail: " · Storybook"}),
-  }
+  let state = initialState(options.initial)
+  const inspectorStateBySubject = new Map<string, InspectorRetainedState>()
+  const staging = document.createDocumentFragment()
+  const componentRoot = createRoot(staging, {identifierPrefix: "storybook-workbench"})
+  let rerender = (): void => {}
 
-  const onSearchInput = (): void => {
-    update("catalog.search", catalogSearch.value)
-    catalogSearch.dispatchEvent(new CustomEvent(STORYBOOK_DOM_WORKBENCH_EVENTS.search, {
+  const onCatalogNavigate = (item: StorybookDomNavigationItem, source: HTMLElement): void => {
+    update("catalog.active", item.id)
+    source.dispatchEvent(new CustomEvent(STORYBOOK_DOM_WORKBENCH_EVENTS.navigate, {
       bubbles: true,
-      detail: Object.freeze({value: catalogSearch.value}),
+      detail: Object.freeze({kind: "catalog", id: item.id, route: item.route}),
     }))
   }
-  catalogSearch.addEventListener("input", onSearchInput)
+  const onCatalogSearch = (value: string, source: HTMLElement): void => {
+    update("catalog.search", value)
+    source.dispatchEvent(new CustomEvent(STORYBOOK_DOM_WORKBENCH_EVENTS.search, {
+      bubbles: true,
+      detail: Object.freeze({value}),
+    }))
+  }
+  const onGroupToggle = (
+    group: Readonly<{id: string; label: string}>,
+    collapsed: boolean,
+    source: HTMLElement,
+  ): void => {
+    source.dispatchEvent(new CustomEvent(STORYBOOK_DOM_WORKBENCH_EVENTS.groupToggle, {
+      bubbles: true,
+      detail: Object.freeze({kind: "catalog", id: group.id, collapsed}),
+    }))
+  }
+  const onSecondaryNavigate = (item: StorybookDomNavigationItem, source: HTMLElement): void => {
+    update("secondary.active", item.id)
+    source.dispatchEvent(new CustomEvent(STORYBOOK_DOM_WORKBENCH_EVENTS.navigate, {
+      bubbles: true,
+      detail: Object.freeze({kind: "secondary", id: item.id, route: item.route}),
+    }))
+  }
+  const onScenario = (item: StorybookDomScenarioItem, source: HTMLElement): void => {
+    update("scenarios.active", item.id)
+    source.dispatchEvent(new CustomEvent(STORYBOOK_DOM_WORKBENCH_EVENTS.scenario, {
+      bubbles: true,
+      detail: Object.freeze({id: item.id}),
+    }))
+  }
+  const onInspectorCategoryChange = (id: string): void => {
+    const retained = retainedInspectorState(state, inspectorStateBySubject)
+    if (retained === null || !activeInspectorWidgets(state).some(widget => widget.id === id)) return
+    retained.selectedId = id
+    rerender()
+  }
+  const onInspectorQueryChange = (query: string): void => {
+    const retained = retainedInspectorState(state, inspectorStateBySubject)
+    if (retained === null) return
+    retained.query = query
+    rerender()
+  }
+  const onInspectorToggle = (id: string, expanded: boolean): void => {
+    const retained = retainedInspectorState(state, inspectorStateBySubject)
+    if (retained === null || !activeInspectorWidgets(state).some(widget => widget.id === id)) return
+    retained.expanded.set(id, expanded)
+    rerender()
+  }
+
+  const renderState = (candidate: StorybookDomWorkbenchViewState): void => {
+    const inspector = inspectorProjection(
+      candidate,
+      inspectorStateBySubject,
+      onInspectorToggle,
+    )
+    componentRoot.render(StorybookWorkbenchView as any, {
+      document,
+      state: candidate,
+      inspectorSelectedId: inspector.selectedId,
+      inspectorQuery: inspector.query,
+      onCatalogNavigate,
+      onCatalogSearch,
+      onGroupToggle,
+      onSecondaryNavigate,
+      onScenario,
+      onInspectorCategoryChange,
+      onInspectorQueryChange,
+      children: inspector.sections,
+    })
+  }
+  rerender = () => renderState(state)
+  rerender()
+  const element = exactElement(staging, "[data-storybook-workbench]", "Workbench root") as HTMLDivElement
+  const elements = readElements(element)
+  parent?.appendChild(element)
+  componentRoot.flush()
+  syncPresentation(null, state.presentation, elements, document)
 
   const read = <Address extends StorybookDomWorkbenchAddress>(
     address: Address,
   ): StorybookDomWorkbenchAddressMap[Address] => {
     assertActive(disposed)
-    return state[address]
+    return state[address as keyof StorybookDomWorkbenchViewState] as StorybookDomWorkbenchAddressMap[Address]
   }
 
   const update = <Address extends StorybookDomWorkbenchAddress>(
@@ -296,355 +328,288 @@ export function createStorybookDomWorkbench(
     value: StorybookDomWorkbenchAddressMap[Address],
   ): void => {
     assertActive(disposed)
-    document.transaction(() => applyUpdate(address, value))
+    const previousPresentation = state.presentation
+    const next = updatedState(state, address, value, document)
+    renderState(next)
+    state = next
+    syncPresentation(previousPresentation, next.presentation, elements, document)
   }
 
-  const applyUpdate = (
-    address: StorybookDomWorkbenchAddress,
-    value: StorybookDomWorkbenchAddressMap[StorybookDomWorkbenchAddress],
-  ): void => {
-    switch (address) {
-      case "title": {
-        const next = requiredText("Workbench title", value)
-        state.title = next
-        root.setAttribute("aria-label", next)
-        return
-      }
-      case "catalog.label": {
-        const next = requiredText("Catalog label", value)
-        state[address] = next
-        catalogHeading.text.data = next
-        catalog.setAttribute("aria-label", next)
-        catalogItems.setAttribute("aria-label", next)
-        return
-      }
-      case "catalog.search": {
-        const next = stringValue("Catalog search", value)
-        state[address] = next
-        catalogSearch.value = next
-        catalogTree.setQuery(next)
-        return
-      }
-      case "catalog.items": {
-        const next = navigationItems("Catalog", value)
-        state[address] = next
-        catalogTree.updateItems(next)
-        if (state["catalog.active"] !== null && !catalogTree.hasItem(state["catalog.active"]!)) {
-          state["catalog.active"] = null
-        }
-        catalogTree.setActive(state["catalog.active"])
-        catalogTree.setQuery(state["catalog.search"])
-        return
-      }
-      case "catalog.active": {
-        const next = selectedCatalogId(value, catalogTree)
-        state[address] = next
-        catalogTree.setActive(next)
-        return
-      }
-      case "secondary.label": {
-        const next = requiredText("Secondary navigation label", value)
-        state[address] = next
-        secondaryHeading.text.data = next
-        secondary.setAttribute("aria-label", next)
-        return
-      }
-      case "secondary.items": {
-        const next = navigationItems("Secondary navigation", value)
-        state[address] = next
-        reconcileNavigation(secondaryItems, secondaryRecords, next)
-        if (state["secondary.active"] !== null && !secondaryRecords.has(state["secondary.active"]!)) {
-          state["secondary.active"] = null
-        }
-        applyNavigationSelection(secondaryRecords, state["secondary.active"])
-        return
-      }
-      case "secondary.active": {
-        const next = selectedId("Secondary navigation", value, secondaryRecords)
-        state[address] = next
-        applyNavigationSelection(secondaryRecords, next)
-        return
-      }
-      case "preview.label": {
-        const next = requiredText("Preview label", value)
-        state[address] = next
-        previewHeading.text.data = next
-        preview.setAttribute("aria-label", next)
-        previewHost.setAttribute("aria-label", next)
-        return
-      }
-      case "preview.node": {
-        const next = previewNode(value)
-        if (next !== null) assertNodeInDocument(next, document, "Preview node")
-        const previous = state[address]
-        if (previous === next) return
-        if (previous?.parentNode === previewHost) previewHost.removeChild(previous)
-        if (next !== null) previewHost.appendChild(next)
-        state[address] = next
-        return
-      }
-      case "scenarios.label": {
-        const next = requiredText("Scenario label", value)
-        state[address] = next
-        scenarioLabel.text.data = next
-        scenarios.setAttribute("aria-label", next)
-        return
-      }
-      case "scenarios.items": {
-        const next = scenarioItemsValue(value)
-        state[address] = next
-        reconcileScenarios(next)
-        if (state["scenarios.active"] !== null && !scenarioRecords.has(state["scenarios.active"]!)) {
-          state["scenarios.active"] = null
-        }
-        applyScenarioSelection(state["scenarios.active"])
-        return
-      }
-      case "scenarios.active": {
-        const next = selectedId("Scenario", value, scenarioRecords)
-        state[address] = next
-        applyScenarioSelection(next)
-        return
-      }
-      case "inspector.node": {
-        const next = previewNode(value)
-        if (next !== null) assertNodeInDocument(next, document, "Inspector node")
-        const previous = state[address]
-        if (previous === next) return
-        if (previous?.parentNode === inspectorHost) inspectorHost.removeChild(previous)
-        if (next !== null) inspectorHost.appendChild(next)
-        state[address] = next
-        return
-      }
-      case "status": {
-        const next = statusValue(value)
-        state[address] = next
-        statusLead.text.data = next.lead
-        statusOwner.text.data = next.owner
-        statusOwner.element.title = next.owner
-        statusDetail.text.data = next.detail
-        status.setAttribute("aria-label", `${next.lead}${next.owner}${next.detail}`)
-        return
-      }
+  const present = (value: StorybookDomWorkbenchPresentationUpdate): void => {
+    assertActive(disposed)
+    const presentation = presentationValue(value?.presentation)
+    if (presentation.node !== null) assertNodeInDocument(presentation.node, document, "Presentation node")
+    const subject = inspectorSubject(value?.inspectorSubject, state["inspector.registry"])
+    const values = inspectorValues(value?.inspectorValues)
+    const next: StorybookDomWorkbenchViewState = {
+      ...state,
+      "preview.label": requiredText("Preview label", value?.label),
+      presentation,
+      "inspector.subject": subject,
+      "inspector.values": values,
     }
-  }
-
-  const reconcileNavigation = (
-    host: HTMLDivElement,
-    records: Map<string, NavigationRecord>,
-    items: readonly StorybookDomNavigationItem[],
-  ): void => {
-    const retained = new Set(items.map(({id}) => id))
-    for (const [id, record] of records) {
-      if (retained.has(id)) continue
-      record.button.removeEventListener("click", record.onClick)
-      if (record.button.parentNode === host) host.removeChild(record.button)
-      records.delete(id)
-    }
-
-    for (const item of items) {
-      let record = records.get(item.id)
-      if (record === undefined) {
-        const button = element(document, "button", "storybook-dom-workbench__item") as HTMLButtonElement
-        const text = document.createTextNode("")
-        button.setAttribute("type", "button")
-        button.setAttribute("role", "listitem")
-        button.appendChild(text)
-        record = {
-          item,
-          button,
-          text,
-          onClick: () => {
-            const current = records.get(item.id)
-            if (current === undefined || current.button.disabled) return
-            update("secondary.active", current.item.id)
-            current.button.dispatchEvent(new CustomEvent(STORYBOOK_DOM_WORKBENCH_EVENTS.navigate, {
-              bubbles: true,
-              detail: Object.freeze({
-                kind: "secondary",
-                id: current.item.id,
-                route: current.item.route,
-              }),
-            }))
-          },
-        }
-        button.addEventListener("click", record.onClick)
-        records.set(item.id, record)
-      }
-      record.item = item
-      record.text.data = item.label
-      record.button.title = item.title ?? item.label
-      record.button.disabled = item.disabled ?? false
-      record.button.setAttribute("data-id", item.id)
-      record.button.setAttribute("data-route", item.route)
-      record.button.setAttribute("aria-label", item.label)
-    }
-    orderChildren(host, items.map(({id}) => records.get(id)!.button))
-  }
-
-  const reconcileScenarios = (items: readonly StorybookDomScenarioItem[]): void => {
-    const retained = new Set(items.map(({id}) => id))
-    for (const [id, record] of scenarioRecords) {
-      if (retained.has(id)) continue
-      record.button.removeEventListener("click", record.onClick)
-      if (record.button.parentNode === scenarioItems) scenarioItems.removeChild(record.button)
-      scenarioRecords.delete(id)
-    }
-    for (const item of items) {
-      let record = scenarioRecords.get(item.id)
-      if (record === undefined) {
-        const button = element(document, "button", "storybook-dom-workbench__item") as HTMLButtonElement
-        const text = document.createTextNode("")
-        button.setAttribute("type", "button")
-        button.appendChild(text)
-        record = {
-          item,
-          button,
-          text,
-          onClick: () => {
-            const current = scenarioRecords.get(item.id)
-            if (current === undefined || current.button.disabled) return
-            update("scenarios.active", current.item.id)
-            current.button.dispatchEvent(new CustomEvent(STORYBOOK_DOM_WORKBENCH_EVENTS.scenario, {
-              bubbles: true,
-              detail: Object.freeze({id: current.item.id}),
-            }))
-          },
-        }
-        button.addEventListener("click", record.onClick)
-        scenarioRecords.set(item.id, record)
-      }
-      record.item = item
-      record.text.data = item.label
-      record.button.title = item.title ?? item.label
-      record.button.disabled = item.disabled ?? false
-      record.button.setAttribute("data-id", item.id)
-      record.button.setAttribute("aria-label", item.label)
-    }
-    orderChildren(scenarioItems, items.map(({id}) => scenarioRecords.get(id)!.button))
-  }
-
-  const applyNavigationSelection = (
-    records: ReadonlyMap<string, NavigationRecord>,
-    active: string | null,
-  ): void => {
-    for (const [id, record] of records) {
-      const selected = id === active
-      setPresence(record.button, "data-active", selected)
-      if (selected) record.button.setAttribute("aria-current", "page")
-      else record.button.removeAttribute("aria-current")
-    }
-  }
-
-  const applyScenarioSelection = (active: string | null): void => {
-    for (const [id, record] of scenarioRecords) {
-      const selected = id === active
-      setPresence(record.button, "data-active", selected)
-      record.button.setAttribute("aria-pressed", String(selected))
-    }
+    const previousPresentation = state.presentation
+    renderState(next)
+    state = next
+    syncPresentation(previousPresentation, presentation, elements, document)
   }
 
   const dispose = (): void => {
     if (disposed) return
     disposed = true
-    catalogSearch.removeEventListener("input", onSearchInput)
-    catalogTree.dispose()
-    for (const record of secondaryRecords.values()) record.button.removeEventListener("click", record.onClick)
-    for (const record of scenarioRecords.values()) record.button.removeEventListener("click", record.onClick)
-    secondaryRecords.clear()
-    scenarioRecords.clear()
-    if (root.parentNode !== null) root.parentNode.removeChild(root)
+    const node = state.presentation.node
+    if (node !== null && node.parentNode !== null) node.parentNode.removeChild(node)
+    componentRoot.unmount()
+    if (element.parentNode !== null) element.parentNode.removeChild(element)
   }
 
-  catalogTree = createStorybookDomNavigationTree({
+  const controller: StorybookDomWorkbenchController = Object.freeze({read, update, present, dispose})
+  return Object.freeze({
     document,
-    host: catalogItems,
-    onNavigate(item, source) {
-      update("catalog.active", item.id)
-      source.dispatchEvent(new CustomEvent(STORYBOOK_DOM_WORKBENCH_EVENTS.navigate, {
-        bubbles: true,
-        detail: Object.freeze({kind: "catalog", id: item.id, route: item.route}),
-      }))
-    },
-    onGroupToggle(group, collapsed, source) {
-      source.dispatchEvent(new CustomEvent(STORYBOOK_DOM_WORKBENCH_EVENTS.groupToggle, {
-        bubbles: true,
-        detail: Object.freeze({kind: "catalog", id: group.id, collapsed}),
-      }))
-    },
-  })
-
-  const controller: StorybookDomWorkbenchController = Object.freeze({read, update, dispose})
-  const workbench: StorybookDomWorkbench = Object.freeze({
-    document,
-    element: root,
-    elements: Object.freeze({
-      root,
-      body,
-      catalog,
-      catalogSearch,
-      catalogItems,
-      secondary,
-      secondaryItems,
-      preview,
-      previewHost,
-      scenarios,
-      scenarioItems,
-      inspectorHost,
-      status,
-    }),
+    element,
+    elements,
+    componentRoot,
     controller,
     update,
+    present,
     dispose,
   })
-
-  const initial = options.initial ?? {}
-  update("title", initial.title ?? state.title)
-  update("catalog.label", initial["catalog.label"] ?? state["catalog.label"])
-  update("catalog.items", initial["catalog.items"] ?? state["catalog.items"])
-  update("catalog.active", initial["catalog.active"] ?? state["catalog.active"])
-  update("catalog.search", initial["catalog.search"] ?? state["catalog.search"])
-  update("secondary.label", initial["secondary.label"] ?? state["secondary.label"])
-  update("secondary.items", initial["secondary.items"] ?? state["secondary.items"])
-  update("secondary.active", initial["secondary.active"] ?? state["secondary.active"])
-  update("preview.label", initial["preview.label"] ?? state["preview.label"])
-  update("preview.node", initial["preview.node"] ?? state["preview.node"])
-  update("scenarios.label", initial["scenarios.label"] ?? state["scenarios.label"])
-  update("scenarios.items", initial["scenarios.items"] ?? state["scenarios.items"])
-  update("scenarios.active", initial["scenarios.active"] ?? state["scenarios.active"])
-  update("inspector.node", initial["inspector.node"] ?? state["inspector.node"])
-  update("status", initial.status ?? state.status)
-  return workbench
 }
 
-function element(document: Document, tag: string, className: string): HTMLElement {
-  const result = document.createElement(tag)
-  if (className.length > 0) result.className = className
-  return result
+function inspectorProjection(
+  state: StorybookDomWorkbenchViewState,
+  retainedBySubject: Map<string, InspectorRetainedState>,
+  onToggle: (id: string, expanded: boolean) => void,
+): Readonly<{
+  selectedId: string
+  query: string
+  sections: KeyedComponentsValue
+}> {
+  const widgets = activeInspectorWidgets(state)
+  const retained = retainedInspectorState(state, retainedBySubject)
+  const selectedId = retained?.selectedId ?? ""
+  const query = retained?.query ?? ""
+  const normalizedQuery = query.trim().toLocaleLowerCase("ru-RU")
+  const sections = widgets.map(widget => {
+    const hidden = widget.id !== selectedId || normalizedQuery.length > 0 &&
+      !`${widget.id} ${widget.title}`.toLocaleLowerCase("ru-RU").includes(normalizedQuery)
+    const sectionProps = {
+      widget,
+      value: state["inspector.values"][widget.id],
+      expanded: retained?.expanded.get(widget.id) ?? true,
+      hidden,
+      onToggle,
+    }
+    if (widget.kind !== "custom") {
+      return component(
+        StandardWidgetSection as unknown as CompiledTemplate<typeof sectionProps>,
+        sectionProps,
+        widget.id,
+      )
+    }
+    const child = component(widget.component, Object.freeze({
+      value: state["inspector.values"][widget.id],
+    }), `${widget.id}:value`)
+    return component(
+      CustomWidgetSection as unknown as CompiledTemplate<typeof sectionProps & Readonly<{children: typeof child}>>,
+      {...sectionProps, children: child},
+      widget.id,
+    )
+  })
+  return Object.freeze({selectedId, query, sections: keyedComponents(sections)})
 }
 
-function labeledElement(
+function activeInspectorWidgets(
+  state: StorybookDomWorkbenchViewState,
+): readonly StorybookDomInspectorWidgetRegistration[] {
+  const subject = state["inspector.subject"]
+  if (subject === null) return Object.freeze([])
+  return Object.freeze(subject.widgetIds.map(id =>
+    state["inspector.registry"].find(widget => widget.id === id)!))
+}
+
+function retainedInspectorState(
+  state: StorybookDomWorkbenchViewState,
+  retainedBySubject: Map<string, InspectorRetainedState>,
+): InspectorRetainedState | null {
+  const subject = state["inspector.subject"]
+  if (subject === null) return null
+  const widgets = activeInspectorWidgets(state)
+  const key = `${subject.packageId}\0${subject.subjectId}`
+  let retained = retainedBySubject.get(key)
+  if (retained === undefined) {
+    retained = {selectedId: widgets[0]?.id ?? "", query: "", expanded: new Map()}
+    retainedBySubject.set(key, retained)
+  } else if (!widgets.some(widget => widget.id === retained!.selectedId)) {
+    retained.selectedId = widgets[0]?.id ?? ""
+  }
+  return retained
+}
+
+function initialState(
+  initial: Partial<StorybookDomWorkbenchAddressMap> | undefined,
+): StorybookDomWorkbenchViewState {
+  const registry = widgetRegistry(initial?.["inspector.registry"] ?? STORYBOOK_DOM_STANDARD_WIDGET_REGISTRY)
+  const presentation = presentationValue(initial?.presentation ?? Object.freeze({
+    node: null,
+    projection: "display",
+  }))
+  const state: StorybookDomWorkbenchViewState = {
+    title: requiredText("Workbench title", initial?.title ?? "Storybook"),
+    "catalog.label": requiredText("Catalog label", initial?.["catalog.label"] ?? "Каталог"),
+    "catalog.search": stringValue("Catalog search", initial?.["catalog.search"] ?? ""),
+    "catalog.items": navigationItems("Catalog", initial?.["catalog.items"] ?? Object.freeze([])),
+    "catalog.active": null,
+    "secondary.label": requiredText("Secondary navigation label", initial?.["secondary.label"] ?? "Разделы"),
+    "secondary.items": navigationItems("Secondary navigation", initial?.["secondary.items"] ?? Object.freeze([])),
+    "secondary.active": null,
+    "preview.label": requiredText("Preview label", initial?.["preview.label"] ?? "Предпросмотр"),
+    presentation,
+    "scenarios.label": requiredText("Scenario label", initial?.["scenarios.label"] ?? "Сценарии"),
+    "scenarios.items": scenarioItemsValue(initial?.["scenarios.items"] ?? Object.freeze([])),
+    "scenarios.active": null,
+    "inspector.registry": registry,
+    "inspector.subject": inspectorSubject(initial?.["inspector.subject"] ?? null, registry),
+    "inspector.values": inspectorValues(initial?.["inspector.values"] ?? Object.freeze({})),
+    status: statusValue(initial?.status ?? {lead: "Создано для ", owner: "MetaFor", detail: " · Storybook"}),
+  }
+  state["catalog.active"] = selectedId(
+    "Catalog",
+    initial?.["catalog.active"] ?? null,
+    state["catalog.items"],
+  )
+  state["secondary.active"] = selectedId(
+    "Secondary navigation",
+    initial?.["secondary.active"] ?? null,
+    state["secondary.items"],
+  )
+  state["scenarios.active"] = selectedId(
+    "Scenario",
+    initial?.["scenarios.active"] ?? null,
+    state["scenarios.items"],
+  )
+  return state
+}
+
+function updatedState<Address extends StorybookDomWorkbenchAddress>(
+  current: StorybookDomWorkbenchViewState,
+  address: Address,
+  value: StorybookDomWorkbenchAddressMap[Address],
   document: Document,
-  tag: string,
-  className: string,
-  value: string,
-): Readonly<{element: HTMLElement; text: Text}> {
-  const result = element(document, tag, className)
-  const text = document.createTextNode(value)
-  result.appendChild(text)
-  return {element: result, text}
+): StorybookDomWorkbenchViewState {
+  const next = {...current}
+  switch (address) {
+    case "title":
+      next.title = requiredText("Workbench title", value)
+      break
+    case "catalog.label":
+      next["catalog.label"] = requiredText("Catalog label", value)
+      break
+    case "catalog.search":
+      next["catalog.search"] = stringValue("Catalog search", value)
+      break
+    case "catalog.items":
+      next["catalog.items"] = navigationItems("Catalog", value)
+      if (next["catalog.active"] !== null && !next["catalog.items"].some(item =>
+        item.id === next["catalog.active"])) next["catalog.active"] = null
+      break
+    case "catalog.active":
+      next["catalog.active"] = selectedId("Catalog", value, next["catalog.items"])
+      break
+    case "secondary.label":
+      next["secondary.label"] = requiredText("Secondary navigation label", value)
+      break
+    case "secondary.items":
+      next["secondary.items"] = navigationItems("Secondary navigation", value)
+      if (next["secondary.active"] !== null && !next["secondary.items"].some(item =>
+        item.id === next["secondary.active"])) next["secondary.active"] = null
+      break
+    case "secondary.active":
+      next["secondary.active"] = selectedId("Secondary navigation", value, next["secondary.items"])
+      break
+    case "preview.label":
+      next["preview.label"] = requiredText("Preview label", value)
+      break
+    case "presentation": {
+      const presentation = presentationValue(value)
+      if (presentation.node !== null) assertNodeInDocument(presentation.node, document, "Presentation node")
+      next.presentation = presentation
+      break
+    }
+    case "scenarios.label":
+      next["scenarios.label"] = requiredText("Scenario label", value)
+      break
+    case "scenarios.items":
+      next["scenarios.items"] = scenarioItemsValue(value)
+      if (next["scenarios.active"] !== null && !next["scenarios.items"].some(item =>
+        item.id === next["scenarios.active"])) next["scenarios.active"] = null
+      break
+    case "scenarios.active":
+      next["scenarios.active"] = selectedId("Scenario", value, next["scenarios.items"])
+      break
+    case "inspector.registry":
+      next["inspector.registry"] = widgetRegistry(value)
+      next["inspector.subject"] = inspectorSubject(next["inspector.subject"], next["inspector.registry"])
+      break
+    case "inspector.subject":
+      next["inspector.subject"] = inspectorSubject(value, next["inspector.registry"])
+      break
+    case "inspector.values":
+      next["inspector.values"] = inspectorValues(value)
+      break
+    case "status":
+      next.status = statusValue(value)
+      break
+  }
+  return next
 }
 
-
-function requiredText(label: string, value: unknown): string {
-  const text = stringValue(label, value)
-  if (text.trim().length === 0) throw new Error(`${label} must not be empty`)
-  return text
+function syncPresentation(
+  previous: StorybookDomPresentation | null,
+  next: StorybookDomPresentation,
+  elements: StorybookDomWorkbenchElements,
+  document: Document,
+): void {
+  if (next.node !== null) assertNodeInDocument(next.node, document, "Presentation node")
+  const previousNode = previous?.node ?? null
+  if (previousNode !== null && previousNode !== next.node && previousNode.parentNode !== null) {
+    previousNode.parentNode.removeChild(previousNode)
+  }
+  if (next.node === null) return
+  const host = next.projection === "display"
+    ? elements.displayHost
+    : next.projection === "hud"
+      ? elements.hudHost
+      : elements.worldHost
+  if (next.node.parentNode !== host) host.appendChild(next.node)
 }
 
-function stringValue(label: string, value: unknown): string {
-  if (typeof value !== "string") throw new TypeError(`${label} must be a string`)
-  return value
+function readElements(root: HTMLDivElement): StorybookDomWorkbenchElements {
+  return Object.freeze({
+    root,
+    body: exactElement(root, '[data-storybook-workbench-part="body"]', "Workbench body") as HTMLDivElement,
+    catalog: exactElement(root, '[data-storybook-region="catalog"]', "Catalog region"),
+    catalogSearch: exactElement(root, '[data-storybook-part="catalog-search"] input', "Catalog search") as HTMLInputElement,
+    catalogItems: exactElement(root, '[data-storybook-tree="catalog"]', "Catalog items") as HTMLDivElement,
+    secondary: exactElement(root, '[data-storybook-region="secondary"]', "Secondary region"),
+    secondaryItems: exactElement(root, '[data-storybook-part="secondary-items"]', "Secondary items") as HTMLDivElement,
+    preview: exactElement(root, '[data-storybook-region="preview"]', "Preview region"),
+    previewHost: exactElement(root, '[data-storybook-part="preview-host"]', "Preview host"),
+    displayHost: exactElement(root, '[data-storybook-projection="display"]', "Display projection host"),
+    hudHost: exactElement(root, '[data-storybook-projection="hud"]', "HUD projection host"),
+    worldHost: exactElement(root, '[data-storybook-projection="world"]', "World projection host"),
+    scenarios: exactElement(root, '[data-storybook-region="scenarios"]', "Scenarios region"),
+    scenarioItems: exactElement(root, '[data-storybook-part="scenario-items"]', "Scenario items") as HTMLDivElement,
+    inspectorHost: exactElement(root, '[data-storybook-region="inspector"]', "Inspector region") as HTMLDivElement,
+    status: exactElement(root, '[data-storybook-region="status"]', "Status region"),
+  })
+}
+
+function exactElement(root: Node, selector: string, label: string): HTMLElement {
+  if (!("querySelectorAll" in root)) throw new TypeError(`${label} root cannot be queried`)
+  const matches = [...(root as Node & {querySelectorAll(selector: string): readonly HTMLElement[]}).querySelectorAll(selector)]
+  if (matches.length !== 1) throw new Error(`${label} must have one exact element, received ${matches.length}`)
+  return matches[0]!
 }
 
 function navigationItems(label: string, value: unknown): readonly StorybookDomNavigationItem[] {
@@ -654,7 +619,7 @@ function navigationItems(label: string, value: unknown): readonly StorybookDomNa
 function scenarioItemsValue(value: unknown): readonly StorybookDomScenarioItem[] {
   if (!Array.isArray(value)) throw new TypeError("Scenario items must be an array")
   const ids = new Set<string>()
-  const items = value.map((candidate, index) => {
+  return Object.freeze(value.map((candidate, index) => {
     if (candidate === null || typeof candidate !== "object") {
       throw new TypeError(`Scenario item ${index} must be an object`)
     }
@@ -668,8 +633,98 @@ function scenarioItemsValue(value: unknown): readonly StorybookDomScenarioItem[]
       ...(item.title === undefined ? {} : {title: stringValue("Scenario item title", item.title)}),
       ...(item.disabled === undefined ? {} : {disabled: Boolean(item.disabled)}),
     })
+  }))
+}
+
+function widgetRegistry(value: unknown): readonly StorybookDomInspectorWidgetRegistration[] {
+  if (!Array.isArray(value)) throw new TypeError("Inspector widget registry must be an array")
+  const ids = new Set<string>()
+  const result = value.map((candidate, index) => {
+    if (candidate === null || typeof candidate !== "object") {
+      throw new TypeError(`Inspector widget ${index} must be an object`)
+    }
+    const widget = candidate as StorybookDomInspectorWidgetRegistration
+    const id = requiredText(`Inspector widget ${index} id`, widget.id)
+    if (ids.has(id)) throw new Error(`Duplicate Inspector widget id: ${id}`)
+    ids.add(id)
+    if (!["props", "source", "events", "diagnostics", "dom", "layout", "display", "reference", "custom"]
+      .includes(widget.kind)) throw new Error(`Unknown Inspector widget kind: ${String(widget.kind)}`)
+    if (widget.kind !== "custom" && widget.kind !== id) {
+      throw new Error(`Standard Inspector widget id must equal its kind: ${id}`)
+    }
+    const label = requiredText(`Inspector widget ${index} label`, widget.label)
+    const title = requiredText(`Inspector widget ${index} title`, widget.title)
+    if (widget.kind !== "custom") return Object.freeze({id, kind: widget.kind, label, title})
+    if (!isCompiledTemplate(widget.component)) {
+      throw new TypeError(`Custom Inspector widget component must be a governed compiled template: ${id}`)
+    }
+    return Object.freeze({id, kind: "custom" as const, label, title, component: widget.component})
   })
-  return Object.freeze(items)
+  const standard = STORYBOOK_DOM_STANDARD_WIDGET_REGISTRY.map(({id}) => id)
+  const presentStandard = result.filter(({kind}) => kind !== "custom").map(({id}) => id)
+  if (presentStandard.length !== standard.length ||
+    presentStandard.some((id, index) => id !== standard[index])) {
+    throw new Error("Standard Inspector widget registry order is fixed")
+  }
+  return Object.freeze(result)
+}
+
+function inspectorSubject(
+  value: unknown,
+  registry: readonly StorybookDomInspectorWidgetRegistration[],
+): StorybookDomInspectorSubject | null {
+  if (value === null) return null
+  if (value === undefined || typeof value !== "object" || Array.isArray(value)) {
+    throw new TypeError("Inspector subject must be an object or null")
+  }
+  const subject = value as StorybookDomInspectorSubject
+  if (!Array.isArray(subject.widgetIds)) throw new TypeError("Inspector subject widgetIds must be an array")
+  const available = new Set(registry.map(({id}) => id))
+  const seen = new Set<string>()
+  const widgetIds = subject.widgetIds.map((candidate, index) => {
+    const id = requiredText(`Inspector subject widget ${index}`, candidate)
+    if (!available.has(id)) throw new Error(`Inspector subject references unknown widget: ${id}`)
+    if (seen.has(id)) throw new Error(`Inspector subject repeats widget: ${id}`)
+    seen.add(id)
+    return id
+  })
+  return Object.freeze({
+    packageId: requiredText("Inspector subject packageId", subject.packageId),
+    subjectId: requiredText("Inspector subject subjectId", subject.subjectId),
+    widgetIds: Object.freeze(widgetIds),
+  })
+}
+
+function inspectorValues(value: unknown): StorybookDomInspectorValues {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new TypeError("Inspector values must be an object")
+  }
+  return Object.freeze({...value as Record<string, unknown>})
+}
+
+function presentationValue(value: unknown): StorybookDomPresentation {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new TypeError("Workbench presentation must be an object")
+  }
+  const candidate = value as StorybookDomPresentation
+  if (candidate.projection !== "display" && candidate.projection !== "hud" && candidate.projection !== "world") {
+    throw new Error(`Unknown Workbench presentation projection: ${String(candidate.projection)}`)
+  }
+  if (candidate.node !== null && !(candidate.node instanceof Node)) {
+    throw new TypeError("Workbench presentation node must be a Node from @zavx0z/dom")
+  }
+  return Object.freeze({node: candidate.node, projection: candidate.projection})
+}
+
+function selectedId(
+  label: string,
+  value: unknown,
+  items: readonly Readonly<{id: string}>[],
+): string | null {
+  if (value === null) return null
+  const id = requiredText(`${label} active id`, value)
+  if (!items.some(item => item.id === id)) throw new Error(`Unknown ${label.toLowerCase()} item id: ${id}`)
+  return id
 }
 
 function statusValue(value: unknown): StorybookDomStatus {
@@ -682,47 +737,15 @@ function statusValue(value: unknown): StorybookDomStatus {
   })
 }
 
-function selectedId(
-  label: string,
-  value: unknown,
-  records: ReadonlyMap<string, unknown>,
-): string | null {
-  if (value === null) return null
-  const id = requiredText(`${label} active id`, value)
-  if (!records.has(id)) throw new Error(`Unknown ${label.toLowerCase()} item id: ${id}`)
-  return id
+function requiredText(label: string, value: unknown): string {
+  const text = stringValue(label, value)
+  if (text.trim().length === 0) throw new Error(`${label} must not be empty`)
+  return text
 }
 
-function selectedCatalogId(
-  value: unknown,
-  tree: StorybookDomNavigationTree,
-): string | null {
-  if (value === null) return null
-  const id = requiredText("Catalog active id", value)
-  if (!tree.hasItem(id)) throw new Error(`Unknown catalog item id: ${id}`)
-  return id
-}
-
-function previewNode(value: unknown): Node | null {
-  if (value === null) return null
-  if (!(value instanceof Node)) throw new TypeError("Preview node must be a Node from @zavx0z/dom")
+function stringValue(label: string, value: unknown): string {
+  if (typeof value !== "string") throw new TypeError(`${label} must be a string`)
   return value
-}
-
-function orderChildren(host: Node, children: readonly Node[]): void {
-  let cursor = host.firstChild
-  for (const child of children) {
-    if (child === cursor) {
-      cursor = cursor.nextSibling
-      continue
-    }
-    host.insertBefore(child, cursor)
-  }
-}
-
-function setPresence(element: Element, name: string, present: boolean): void {
-  if (present) element.setAttribute(name, "")
-  else element.removeAttribute(name)
 }
 
 function assertNodeInDocument(node: Node, document: Document, label: string): void {

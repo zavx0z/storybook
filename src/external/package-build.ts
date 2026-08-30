@@ -1,23 +1,31 @@
 import {createHash, randomUUID} from "node:crypto"
 import {
+  closeSync,
+  constants,
   copyFileSync,
   existsSync,
+  fstatSync,
   mkdirSync,
+  openSync,
   readFileSync,
   realpathSync,
   rmSync,
+  statSync,
+  writeFileSync,
 } from "node:fs"
 import {dirname, extname, isAbsolute, join, relative, resolve, sep} from "node:path"
 import {fileURLToPath} from "node:url"
 import {
   generateStorybookLoaderSource,
   type StorybookGeneratedVariant,
+  type StorybookGeneratedWidget,
 } from "./generated-loader.ts"
 import {createStorybookPackageCompilerPlugins} from "./compiler.ts"
 import {
   storybookBuildError,
   storybookDiagnostic,
   type StorybookPackageBuildDescriptor,
+  type StorybookPackageRevisionResourceFile,
   type StorybookPackageRevisionBuilder,
 } from "./package-session.ts"
 
@@ -99,16 +107,31 @@ export async function buildStorybookPackageRevisionInProcess(
     input.signal.throwIfAborted()
     mkdirSync(stagingDirectory, {recursive: true})
     for (const resource of descriptor.resourceFiles ?? []) {
+      let attestedBytes: Buffer | null = null
+      if (resource.contentDigest !== undefined) {
+        attestedBytes = readAttestedRevisionResource(resource)
+        const actualDigest = createHash("sha256").update(attestedBytes).digest("hex")
+        if (actualDigest !== resource.contentDigest) {
+          throw storybookBuildError(storybookDiagnostic(
+            "publish",
+            `Revision resource content changed after resolution: ${resource.targetPath}`,
+            resource.sourcePath,
+          ))
+        }
+      }
       const target = resolve(stagingDirectory, resource.targetPath)
       if (!target.startsWith(`${resolve(stagingDirectory)}${sep}`)) {
         throw storybookBuildError(storybookDiagnostic("publish", "Revision resource escaped staging", target))
       }
       mkdirSync(dirname(target), {recursive: true})
-      copyFileSync(resource.sourcePath, target)
+      if (attestedBytes === null) copyFileSync(resource.sourcePath, target)
+      else writeFileSync(target, attestedBytes)
     }
-    const modules = descriptor.runtime === null
-      ? []
-      : [descriptor.runtime, ...descriptor.variants.map(({module}) => module)]
+    const modules = [
+      ...(descriptor.runtime === null ? [] : [descriptor.runtime]),
+      ...descriptor.variants.map(({module}) => module),
+      ...descriptor.widgetModules.map(({module}) => module),
+    ]
     const sourcePaths = Object.freeze(modules.map(({path}) => path))
     const compilerInput = Object.freeze({
       packageRoot: descriptor.packageRoot,
@@ -126,30 +149,26 @@ export async function buildStorybookPackageRevisionInProcess(
     const entryPath = join(stagingDirectory, "package-entry.ts")
     const graphPath = join(stagingDirectory, "package-graph.json")
     await Bun.write(graphPath, `${JSON.stringify(descriptor.graphSnapshot)}\n`)
-    if (descriptor.runtime === null) {
-      await Bun.write(loaderPath, [
-        "export const STORYBOOK_PACKAGE_STORY_LOADERS = new Map()",
-        "export const storybookVariantRoutes = Object.freeze([])",
-        `export const storybookRevisionUrl = ${JSON.stringify(revisionUrl)}`,
-        "export const loadStorybookPackageRuntime = null",
-        "",
-      ].join("\n"))
-    } else {
-      const variants: readonly StorybookGeneratedVariant[] = descriptor.variants.map(({route, module}) => ({
-        route,
-        module,
-      }))
-      await Bun.write(loaderPath, generateStorybookLoaderSource({
-        revisionUrl,
-        runtime: descriptor.runtime,
-        variants,
-      }))
-    }
+    const variants: readonly StorybookGeneratedVariant[] = descriptor.variants.map(({route, module}) => ({
+      route,
+      module,
+    }))
+    const widgets: readonly StorybookGeneratedWidget[] = descriptor.widgetModules.map(({id, module}) => ({
+      id,
+      module,
+    }))
+    await Bun.write(loaderPath, generateStorybookLoaderSource({
+      revisionUrl,
+      runtime: descriptor.runtime,
+      variants,
+      widgets,
+    }))
     await Bun.write(entryPath, [
       `import {startExternalStorybookPackage} from ${JSON.stringify(browserEntryPath)}`,
       "import {",
       "  loadStorybookPackageRuntime,",
       "  STORYBOOK_PACKAGE_STORY_LOADERS,",
+      "  STORYBOOK_PACKAGE_WIDGET_LOADERS,",
       "  storybookRevisionUrl,",
       "} from \"./generated-loaders.ts\"",
       "",
@@ -160,6 +179,7 @@ export async function buildStorybookPackageRevisionInProcess(
       "  revisionUrl: storybookRevisionUrl,",
       "  loadRuntime: loadStorybookPackageRuntime,",
       "  storyLoaders: STORYBOOK_PACKAGE_STORY_LOADERS,",
+      "  widgetLoaders: STORYBOOK_PACKAGE_WIDGET_LOADERS,",
       "})",
       "",
     ].join("\n"))
@@ -228,6 +248,52 @@ export async function buildStorybookPackageRevisionInProcess(
       entryRelativePath,
     })
   })()
+}
+
+function readAttestedRevisionResource(
+  resource: StorybookPackageRevisionResourceFile,
+): Buffer {
+  if (resource.sourceRoot === undefined) {
+    throw storybookBuildError(storybookDiagnostic(
+      "publish",
+      `Attested revision resource has no exact source root: ${resource.targetPath}`,
+      resource.sourcePath,
+    ))
+  }
+  let descriptor: number
+  try {
+    descriptor = openSync(resource.sourcePath, constants.O_RDONLY | constants.O_NOFOLLOW)
+  } catch {
+    throw storybookBuildError(storybookDiagnostic(
+      "publish",
+      `Attested revision resource must remain an exact non-symlink file: ${resource.targetPath}`,
+      resource.sourcePath,
+    ))
+  }
+  try {
+    const canonical = realpathSync(resource.sourcePath)
+    const sourceRoot = realpathSync(resource.sourceRoot)
+    const local = relative(sourceRoot, canonical)
+    if (local === "" || local.startsWith("..") || isAbsolute(local)) {
+      throw storybookBuildError(storybookDiagnostic(
+        "publish",
+        `Attested revision resource escaped its exact source root: ${resource.targetPath}`,
+        resource.sourcePath,
+      ))
+    }
+    const opened = fstatSync(descriptor)
+    const current = statSync(canonical)
+    if (!opened.isFile() || opened.dev !== current.dev || opened.ino !== current.ino) {
+      throw storybookBuildError(storybookDiagnostic(
+        "publish",
+        `Attested revision resource changed during publication: ${resource.targetPath}`,
+        resource.sourcePath,
+      ))
+    }
+    return readFileSync(descriptor)
+  } finally {
+    closeSync(descriptor)
+  }
 }
 
 async function runPackageBuildWorker(
@@ -371,9 +437,13 @@ async function validateModuleExports(
   plugins: readonly Bun.BunPlugin[],
   stagingDirectory: string,
 ): Promise<void> {
-  if (descriptor.runtime === null) return
   const validationPath = join(stagingDirectory, "validate-exports.ts")
-  const modules = [descriptor.runtime, ...descriptor.variants.map(({module}) => module)]
+  const modules = [
+    ...(descriptor.runtime === null ? [] : [descriptor.runtime]),
+    ...descriptor.variants.map(({module}) => module),
+    ...descriptor.widgetModules.map(({module}) => module),
+  ]
+  if (modules.length === 0) return
   for (const module of modules) validateScannedExport(module.path, module.export)
   await Bun.write(validationPath, [
     ...modules.map((module, index) =>

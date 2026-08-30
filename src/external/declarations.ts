@@ -8,7 +8,8 @@
  */
 
 import {createHash} from "node:crypto"
-import {realpath, readFile, stat} from "node:fs/promises"
+import {constants} from "node:fs"
+import {open, realpath, readFile, stat} from "node:fs/promises"
 import {
   basename,
   dirname,
@@ -27,6 +28,21 @@ import {
 } from "./declaration-law.ts"
 
 export const EXTERNAL_STORYBOOK_SCHEMA_VERSION = 1 as const
+export const STORYBOOK_WIDGET_CONTRIBUTION_PROTOCOL = "widget-contribution/1" as const
+export const STORYBOOK_STORY_PRESENTATION_PROTOCOL = "story-presentation/1" as const
+export const STORYBOOK_STANDARD_WIDGET_IDS = Object.freeze([
+  "props",
+  "source",
+  "events",
+  "diagnostics",
+  "dom",
+  "layout",
+  "display",
+  "reference",
+] as const)
+
+export type ExternalStorybookStandardWidgetId = typeof STORYBOOK_STANDARD_WIDGET_IDS[number]
+export type ExternalStorybookStoryProjection = "display" | "world" | "hud"
 
 export type ExternalStorybookDeclarationKind = "workspace" | "project" | "package"
 
@@ -53,6 +69,41 @@ export type ExternalStorybookResource = Readonly<{
   path: string
 }>
 
+export type ResolvedExternalStorybookAuthorStyleSheet = Readonly<{
+  specifier: string
+  path: string
+  ownerRoot: string
+  ownerPackageJsonPath: string
+  contentDigest: string
+}>
+
+export type ResolvedExternalStorybookStandardWidgetContribution = Readonly<{
+  id: ExternalStorybookStandardWidgetId
+  kind: "standard"
+}>
+
+export type ResolvedExternalStorybookComponentWidgetContribution = Readonly<{
+  id: string
+  kind: "component"
+  label: string
+  module: ExternalStorybookModuleReference
+}>
+
+export type ResolvedExternalStorybookWidgetContribution =
+  | ResolvedExternalStorybookStandardWidgetContribution
+  | ResolvedExternalStorybookComponentWidgetContribution
+
+export type ResolvedExternalStorybookWidgetContributions = Readonly<{
+  protocol: typeof STORYBOOK_WIDGET_CONTRIBUTION_PROTOCOL
+  items: readonly ResolvedExternalStorybookWidgetContribution[]
+}>
+
+export type ResolvedExternalStorybookStoryPresentation = Readonly<{
+  protocol: typeof STORYBOOK_STORY_PRESENTATION_PROTOCOL
+  projection: ExternalStorybookStoryProjection
+  widgets: readonly string[]
+}>
+
 export type ResolvedExternalStorybookVariant = Readonly<{
   id: string
   label: string
@@ -60,6 +111,7 @@ export type ResolvedExternalStorybookVariant = Readonly<{
   route: string
   module: ExternalStorybookModuleReference | null
   resources: readonly ExternalStorybookResource[]
+  presentation: ResolvedExternalStorybookStoryPresentation
   sourcePointer: string
 }>
 
@@ -72,6 +124,7 @@ export type ResolvedExternalStorybookSubject = Readonly<{
   readmePath: string | null
   tags: readonly string[]
   aliases: readonly string[]
+  presentation: ResolvedExternalStorybookStoryPresentation
   variants: readonly ResolvedExternalStorybookVariant[]
   sourcePointer: string
 }>
@@ -117,6 +170,8 @@ export type ResolvedExternalStorybookPackage = ResolvedExternalStorybookDeclarat
   kind: "package"
   packageJsonPath: string
   packageName: string
+  authorStyleSheets: readonly ResolvedExternalStorybookAuthorStyleSheet[]
+  widgetContributions: ResolvedExternalStorybookWidgetContributions | null
   runtime: ExternalStorybookModuleReference | null
   catalog: ResolvedExternalStorybookCatalog | null
 }>
@@ -169,6 +224,8 @@ const MANIFEST_KEYS = Object.freeze({
     "readme",
     "runtime",
     "catalog",
+    "authorStyleSheets",
+    "widgetContributions",
   ]),
 } as const)
 
@@ -335,7 +392,11 @@ async function resolveManifest(
       if (dirname(packageJsonPath) !== scopeRoot) {
         throw new Error(`External Storybook packageJson must belong to the exact package root: ${packageJsonPath}`)
       }
-      const packageName = await readPackageName(packageJsonPath)
+      const {record: packageJson} = await readJsonObject(
+        packageJsonPath,
+        "External Storybook package.json",
+      )
+      const packageName = packageId(packageJson.name, "External Storybook package.json name")
       if (packageName !== id) {
         throw new Error(`External Storybook package id ${id} does not match package.json name ${packageName}`)
       }
@@ -344,6 +405,26 @@ async function resolveManifest(
         throw new Error(`Ambiguous external Storybook package identity ${id}:\n${previousPackageOwner}\n${manifestPath}`)
       }
       state.packageJsonOwners.set(packageJsonPath, manifestPath)
+      const authorStyleSheets = record.authorStyleSheets === undefined
+        ? Object.freeze([]) as readonly ResolvedExternalStorybookAuthorStyleSheet[]
+        : await resolveAuthorStyleSheets(
+          record.authorStyleSheets,
+          packageJson,
+          packageJsonPath,
+          id,
+          scopeRoot,
+        )
+      const widgetContributions = record.widgetContributions === undefined
+        ? null
+        : await resolveWidgetContributions(
+          record.widgetContributions,
+          id,
+          dirname(manifestPath),
+          scopeRoot,
+        )
+      if (id === "@zavx0z/storybook" && widgetContributions === null) {
+        throw new Error("@zavx0z/storybook must declare widget-contribution/1 standard registry")
+      }
       const runtime = record.runtime === undefined
         ? null
         : await resolveModuleReference(
@@ -363,6 +444,7 @@ async function resolveManifest(
             "package catalog",
           ),
           scopeRoot,
+          widgetContributions,
         )
       declaration = Object.freeze({
         schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
@@ -376,6 +458,8 @@ async function resolveManifest(
         digest,
         packageJsonPath,
         packageName,
+        authorStyleSheets,
+        widgetContributions,
         runtime,
         catalog,
       })
@@ -392,6 +476,7 @@ async function resolveManifest(
 async function resolveCatalog(
   catalogPath: string,
   scopeRoot: string,
+  widgetContributions: ResolvedExternalStorybookWidgetContributions | null,
 ): Promise<ResolvedExternalStorybookCatalog> {
   const {record, digest} = await readJsonObject(catalogPath, "External Storybook catalog")
   assertExactKeys(
@@ -428,8 +513,8 @@ async function resolveCatalog(
       assertExactKeys(
         subject,
         `Catalog ${subjectPointer}`,
-        ["id", "kind", "label", "route", "apiName", "readme", "tags", "aliases", "variants"],
-        ["id", "kind", "label", "variants"],
+        ["id", "kind", "label", "route", "apiName", "readme", "tags", "aliases", "presentation", "variants"],
+        ["id", "kind", "label", "presentation", "variants"],
       )
       const subjectId = localId(subject.id, `Catalog ${subjectPointer} id`)
       assertUnique(subjectIds, subjectId, `Duplicate external Storybook subject id: ${id}/${subjectId}`)
@@ -451,6 +536,11 @@ async function resolveCatalog(
         )
       const tags = optionalStringList(subject.tags, `Catalog ${subjectPointer} tags`)
       const aliases = optionalStringList(subject.aliases, `Catalog ${subjectPointer} aliases`)
+      const presentation = resolveStoryPresentation(
+        subject.presentation,
+        `Catalog ${subjectPointer} presentation`,
+        widgetContributions,
+      )
       const variantValues = arrayValue(subject.variants, `Catalog ${subjectPointer} variants`)
       const variantIds = new Set<string>()
       const variantGroups = new Map<string, string>()
@@ -503,6 +593,7 @@ async function resolveCatalog(
           route,
           module,
           resources,
+          presentation,
           sourcePointer: variantPointer,
         }))
       }
@@ -515,6 +606,7 @@ async function resolveCatalog(
         readmePath,
         tags,
         aliases,
+        presentation,
         variants: Object.freeze(variants),
         sourcePointer: subjectPointer,
       }))
@@ -571,6 +663,388 @@ async function resolveResources(
     for (const path of arrayValue(record[key], `${label} ${key}`)) await append(kind, path)
   }
   return Object.freeze(output)
+}
+
+async function resolveWidgetContributions(
+  value: unknown,
+  packageName: string,
+  baseDirectory: string,
+  scopeRoot: string,
+): Promise<ResolvedExternalStorybookWidgetContributions> {
+  const label = "External Storybook package widgetContributions"
+  const record = objectValue(value, label)
+  assertExactKeys(record, label, ["protocol", "items"], ["protocol", "items"])
+  if (record.protocol !== STORYBOOK_WIDGET_CONTRIBUTION_PROTOCOL) {
+    throw new Error(`Unsupported external Storybook widget contribution protocol: ${String(record.protocol)}`)
+  }
+  const candidates = arrayValue(record.items, `${label} items`)
+  if (candidates.length > 32) throw new Error(`${label} items must contain at most 32 entries`)
+  const reserved = new Set<string>(STORYBOOK_STANDARD_WIDGET_IDS)
+  const ids = new Set<string>()
+  const items: ResolvedExternalStorybookWidgetContribution[] = []
+  for (const [index, value] of candidates.entries()) {
+    const itemLabel = `${label} items ${index}`
+    const item = objectValue(value, itemLabel)
+    const kind = visibleText(item.kind, `${itemLabel} kind`)
+    if (kind === "standard") {
+      assertExactKeys(item, itemLabel, ["id", "kind"], ["id", "kind"])
+      if (packageName !== "@zavx0z/storybook") {
+        throw new Error(`Standard Storybook widgets can only be declared by @zavx0z/storybook: ${packageName}`)
+      }
+      const id = localId(item.id, `${itemLabel} id`)
+      if (!reserved.has(id)) throw new Error(`Unknown standard Storybook widget id: ${id}`)
+      assertUnique(ids, id, `Duplicate external Storybook widget contribution id: ${id}`)
+      items.push(Object.freeze({id: id as ExternalStorybookStandardWidgetId, kind}))
+      continue
+    }
+    if (kind !== "component") throw new Error(`Unknown external Storybook widget contribution kind: ${kind}`)
+    assertExactKeys(item, itemLabel, ["id", "kind", "label", "module"], ["id", "kind", "label", "module"])
+    const id = localId(item.id, `${itemLabel} id`)
+    if (reserved.has(id)) throw new Error(`Storybook widget id is reserved by the standard registry: ${id}`)
+    assertUnique(ids, id, `Duplicate external Storybook widget contribution id: ${id}`)
+    items.push(Object.freeze({
+      id,
+      kind,
+      label: visibleText(item.label, `${itemLabel} label`),
+      module: await resolveModuleReference(
+        item.module,
+        baseDirectory,
+        scopeRoot,
+        `${itemLabel} module`,
+        "path",
+      ),
+    }))
+  }
+  if (packageName === "@zavx0z/storybook") {
+    const standardItems = items.filter(
+      (item): item is ResolvedExternalStorybookStandardWidgetContribution => item.kind === "standard",
+    )
+    if (JSON.stringify(standardItems.map(({id}) => id)) !== JSON.stringify(STORYBOOK_STANDARD_WIDGET_IDS)) {
+      throw new Error(
+        `@zavx0z/storybook must declare the exact ordered standard widget registry: ${STORYBOOK_STANDARD_WIDGET_IDS.join(", ")}`,
+      )
+    }
+    if (items.slice(0, standardItems.length).some((item) => item.kind !== "standard")) {
+      throw new Error("@zavx0z/storybook standard widget registry must precede component contributions")
+    }
+  }
+  return Object.freeze({
+    protocol: STORYBOOK_WIDGET_CONTRIBUTION_PROTOCOL,
+    items: Object.freeze(items),
+  })
+}
+
+function resolveStoryPresentation(
+  value: unknown,
+  label: string,
+  widgetContributions: ResolvedExternalStorybookWidgetContributions | null,
+): ResolvedExternalStorybookStoryPresentation {
+  const record = objectValue(value, label)
+  assertExactKeys(record, label, ["protocol", "projection", "widgets"], ["protocol", "projection", "widgets"])
+  if (record.protocol !== STORYBOOK_STORY_PRESENTATION_PROTOCOL) {
+    throw new Error(`Unsupported external Storybook story presentation protocol: ${String(record.protocol)}`)
+  }
+  const projection = record.projection
+  if (projection !== "display" && projection !== "world" && projection !== "hud") {
+    throw new Error(`Unknown external Storybook story projection: ${String(projection)}`)
+  }
+  const widgetValues = arrayValue(record.widgets, `${label} widgets`)
+  if (widgetValues.length < 2 || widgetValues.length > 32) {
+    throw new Error(`${label} widgets must contain between 2 and 32 entries`)
+  }
+  const customIds = new Set(widgetContributions?.items
+    .filter((item) => item.kind === "component")
+    .map(({id}) => id) ?? [])
+  const standardIds = new Set<string>(STORYBOOK_STANDARD_WIDGET_IDS)
+  const widgets = widgetValues.map((candidate, index) => {
+    const id = localId(candidate, `${label} widgets ${index}`)
+    if (!standardIds.has(id) && !customIds.has(id)) {
+      throw new Error(`Unknown external Storybook presentation widget: ${id}`)
+    }
+    return id
+  })
+  if (new Set(widgets).size !== widgets.length) throw new Error(`${label} widgets must not contain duplicates`)
+  for (const required of ["source", "diagnostics"] as const) {
+    if (!widgets.includes(required)) throw new Error(`${label} widgets must contain ${required}`)
+  }
+  return Object.freeze({
+    protocol: STORYBOOK_STORY_PRESENTATION_PROTOCOL,
+    projection,
+    widgets: Object.freeze(widgets),
+  })
+}
+
+async function resolveAuthorStyleSheets(
+  value: unknown,
+  packageJson: Record<string, unknown>,
+  packageJsonPath: string,
+  packageName: string,
+  packageRoot: string,
+): Promise<readonly ResolvedExternalStorybookAuthorStyleSheet[]> {
+  const entries = nonEmptyArray(value, "External Storybook package authorStyleSheets")
+  const specifiers = new Set<string>()
+  const paths = new Set<string>()
+  const resolved: ResolvedExternalStorybookAuthorStyleSheet[] = []
+  for (const [index, candidate] of entries.entries()) {
+    const label = `External Storybook package authorStyleSheets ${index}`
+    const entry = objectValue(candidate, label)
+    assertExactKeys(entry, label, ["specifier"], ["specifier"])
+    const {specifier, ownerPackageName} = authorStyleSheetSpecifier(entry.specifier, `${label} specifier`)
+    assertUnique(specifiers, specifier, `Duplicate external Storybook author stylesheet specifier: ${specifier}`)
+    const owner = ownerPackageName === packageName
+      ? Object.freeze({packageJson, packageJsonPath, packageRoot})
+      : await resolveManifestReachedLocalDependency(
+        packageJson,
+        packageRoot,
+        ownerPackageName,
+        label,
+      )
+    const packageExports = objectValue(
+      owner.packageJson.exports,
+      `External Storybook ${ownerPackageName} package.json exports for authorStyleSheets`,
+    )
+    const exportKey = `.${specifier.slice(ownerPackageName.length)}`
+    if (!Object.hasOwn(packageExports, exportKey)) {
+      throw new Error(`External Storybook author stylesheet is not an exact package export: ${specifier}`)
+    }
+    const target = visibleText(
+      packageExports[exportKey],
+      `External Storybook author stylesheet export ${exportKey}`,
+    )
+    if (!target.startsWith("./") || /[?#*]/u.test(target) ||
+      target.slice(2).split("/").some((segment) => segment.length === 0 || segment === "." || segment === "..")) {
+      throw new Error(`External Storybook author stylesheet export must be an exact relative file target: ${target}`)
+    }
+    const source = await readExactAuthorStyleSheet(
+      owner.packageRoot,
+      target,
+      `author stylesheet export ${exportKey}`,
+    )
+    const path = source.path
+    if (extname(path).toLowerCase() !== ".css") {
+      throw new Error(`External Storybook author stylesheet must resolve to a CSS file: ${specifier}`)
+    }
+    assertUnique(paths, path, `External Storybook author stylesheet file is declared more than once: ${path}`)
+    const contentDigest = createHash("sha256").update(source.bytes).digest("hex")
+    resolved.push(Object.freeze({
+      specifier,
+      path,
+      ownerRoot: owner.packageRoot,
+      ownerPackageJsonPath: owner.packageJsonPath,
+      contentDigest,
+    }))
+  }
+  return Object.freeze(resolved)
+}
+
+function authorStyleSheetSpecifier(
+  value: unknown,
+  label: string,
+): Readonly<{specifier: string; ownerPackageName: string}> {
+  const specifier = visibleText(value, label)
+  const segments = specifier.split("/")
+  const ownerPackageName = specifier.startsWith("@")
+    ? segments.length >= 3 ? `${segments[0]}/${segments[1]}` : ""
+    : segments[0] ?? ""
+  packageId(ownerPackageName, `${label} package`)
+  const subpath = specifier.slice(ownerPackageName.length + 1)
+  if (subpath.length === 0 || subpath.includes("\\") || /[?#*]/u.test(subpath) ||
+    !subpath.endsWith(".css") ||
+    subpath.split("/").some((segment) => segment.length === 0 || segment === "." || segment === "..")) {
+    throw new Error(`${label} must be an exact public package subpath: ${specifier}`)
+  }
+  return Object.freeze({specifier, ownerPackageName})
+}
+
+async function resolveManifestReachedLocalDependency(
+  packageJson: Record<string, unknown>,
+  packageRoot: string,
+  dependencyName: string,
+  label: string,
+): Promise<Readonly<{
+  packageJson: Record<string, unknown>
+  packageJsonPath: string
+  packageRoot: string
+}>> {
+  type Owner = Readonly<{
+    packageJson: Record<string, unknown>
+    packageJsonPath: string
+    packageRoot: string
+  }>
+  const queue: Owner[] = [Object.freeze({
+    packageJson,
+    packageJsonPath: join(packageRoot, "package.json"),
+    packageRoot,
+  })]
+  const visitedRoots = new Set<string>()
+  const matches = new Map<string, Owner>()
+  let targetWasNonLocal = false
+  while (queue.length > 0) {
+    const owner = queue.shift()!
+    if (visitedRoots.has(owner.packageRoot)) continue
+    visitedRoots.add(owner.packageRoot)
+    for (const [name, specifier] of localDependencyEntries(owner.packageJson)) {
+      if (!isLocalDependencySpecifier(specifier)) {
+        if (name === dependencyName) targetWasNonLocal = true
+        continue
+      }
+      const dependency = await resolveExactLocalDependency(
+        owner.packageRoot,
+        name,
+        specifier,
+      )
+      if (name === dependencyName) matches.set(dependency.packageRoot, dependency)
+      if (!visitedRoots.has(dependency.packageRoot)) queue.push(dependency)
+    }
+  }
+  if (matches.size === 1) return matches.values().next().value!
+  if (matches.size > 1) {
+    throw new Error(
+      `Ambiguous manifest-reached local dependency for Storybook author stylesheet ${dependencyName}: ${
+        [...matches.keys()].sort().join(", ")
+      }`,
+    )
+  }
+  if (targetWasNonLocal) {
+    throw new Error(`Storybook author stylesheet dependency must be local: ${dependencyName}`)
+  }
+  throw new Error(`${label} specifier is neither self-owned nor a manifest-reached local dependency: ${dependencyName}`)
+}
+
+function localDependencyEntries(
+  packageJson: Record<string, unknown>,
+): readonly Readonly<[name: string, specifier: string]>[] {
+  const byName = new Map<string, Set<string>>()
+  for (const sectionName of [
+    "dependencies",
+    "optionalDependencies",
+    "peerDependencies",
+    "devDependencies",
+  ] as const) {
+    const section = packageJson[sectionName]
+    if (section === undefined) continue
+    const dependencies = objectValue(section, `External Storybook package.json ${sectionName}`)
+    for (const [name, value] of Object.entries(dependencies)) {
+      packageId(name, `External Storybook local dependency name`)
+      const specifier = visibleText(value, `External Storybook local dependency ${name}`)
+      const values = byName.get(name) ?? new Set<string>()
+      values.add(specifier)
+      byName.set(name, values)
+    }
+  }
+  const entries: Array<Readonly<[string, string]>> = []
+  for (const [name, specifiers] of [...byName].sort(([left], [right]) =>
+    left < right ? -1 : left > right ? 1 : 0)) {
+    const localSpecifiers = [...specifiers].filter(isLocalDependencySpecifier)
+    if (new Set(localSpecifiers).size > 1) {
+      throw new Error(`Conflicting local dependency specifiers for Storybook author stylesheet: ${name}`)
+    }
+    entries.push(Object.freeze([
+      name,
+      localSpecifiers[0] ?? [...specifiers].sort()[0]!,
+    ] as const))
+  }
+  return Object.freeze(entries)
+}
+
+function isLocalDependencySpecifier(value: string): boolean {
+  return /^(?:link:|workspace:|file:|portal:)/u.test(value)
+}
+
+async function resolveExactLocalDependency(
+  packageRoot: string,
+  dependencyName: string,
+  dependencySpecifier: string,
+): Promise<Readonly<{
+  packageJson: Record<string, unknown>
+  packageJsonPath: string
+  packageRoot: string
+}>> {
+  const separator = dependencySpecifier.indexOf(":")
+  const protocol = dependencySpecifier.slice(0, separator + 1)
+  const target = dependencySpecifier.slice(separator + 1)
+  const dependencyRoot = (protocol === "link:" || protocol === "file:" || protocol === "portal:") &&
+    (target.startsWith(".") || isAbsolute(target))
+    ? await canonicalDependencyDirectory(resolve(packageRoot, target), dependencyName)
+    : await installedLocalDependencyDirectory(packageRoot, dependencyName)
+  const dependencyPackageJsonPath = join(dependencyRoot, "package.json")
+  const {record: dependencyPackageJson} = await readExactJsonObject(
+    dependencyPackageJsonPath,
+    `External Storybook local dependency ${dependencyName} package.json`,
+  )
+  if (packageId(dependencyPackageJson.name, `local dependency ${dependencyName} name`) !== dependencyName) {
+    throw new Error(`Storybook local dependency identity mismatch: ${dependencyName}`)
+  }
+  return Object.freeze({
+    packageJson: dependencyPackageJson,
+    packageJsonPath: dependencyPackageJsonPath,
+    packageRoot: dependencyRoot,
+  })
+}
+
+async function installedLocalDependencyDirectory(
+  packageRoot: string,
+  dependencyName: string,
+): Promise<string> {
+  const segments = dependencyName.split("/")
+  let directory = packageRoot
+  while (true) {
+    try {
+      return await canonicalDependencyDirectory(
+        join(directory, "node_modules", ...segments),
+        dependencyName,
+      )
+    } catch {
+      const parent = dirname(directory)
+      if (parent === directory) break
+      directory = parent
+    }
+  }
+  throw new Error(`Cannot resolve manifest-reached local dependency for Storybook author stylesheet: ${dependencyName}`)
+}
+
+async function canonicalDependencyDirectory(path: string, dependencyName: string): Promise<string> {
+  let canonical: string
+  try {
+    canonical = await realpath(path)
+  } catch (error) {
+    throw new Error(`Storybook local dependency does not exist: ${dependencyName}`, {cause: error})
+  }
+  if (!(await stat(canonical)).isDirectory()) {
+    throw new Error(`Storybook local dependency must be a directory: ${dependencyName}`)
+  }
+  return canonical
+}
+
+async function readExactAuthorStyleSheet(
+  ownerRoot: string,
+  target: string,
+  label: string,
+): Promise<Readonly<{path: string; bytes: Buffer}>> {
+  validateRelativePath(target, label)
+  const lexical = resolve(ownerRoot, target)
+  if (!isContained(ownerRoot, lexical)) {
+    throw new Error(`External Storybook ${label} escapes scope root: ${target}`)
+  }
+  let handle: Awaited<ReturnType<typeof open>>
+  try {
+    handle = await open(lexical, constants.O_RDONLY | constants.O_NOFOLLOW)
+  } catch (error) {
+    throw new Error(`External Storybook ${label} must be an exact non-symlink file: ${lexical}`, {cause: error})
+  }
+  try {
+    const [opened, canonical] = await Promise.all([handle.stat(), realpath(lexical)])
+    if (!opened.isFile() || !isContained(ownerRoot, canonical)) {
+      throw new Error(`External Storybook ${label} escapes its exact owner package: ${target}`)
+    }
+    const current = await stat(canonical)
+    if (opened.dev !== current.dev || opened.ino !== current.ino) {
+      throw new Error(`External Storybook ${label} changed during resolution: ${target}`)
+    }
+    return Object.freeze({path: canonical, bytes: await handle.readFile()})
+  } finally {
+    await handle.close()
+  }
 }
 
 async function resolveModuleReference(
@@ -763,16 +1237,37 @@ function isContained(root: string, path: string): boolean {
   return local === "" || (!local.startsWith("..") && !isAbsolute(local))
 }
 
-async function readPackageName(packageJsonPath: string): Promise<string> {
-  const {record} = await readJsonObject(packageJsonPath, "External Storybook package.json")
-  return packageId(record.name, "External Storybook package.json name")
-}
-
 async function readJsonObject(
   path: string,
   label: string,
 ): Promise<Readonly<{record: Record<string, unknown>, digest: string}>> {
   const source = await readFile(path, "utf8")
+  return parseJsonObject(source, path, label)
+}
+
+async function readExactJsonObject(
+  path: string,
+  label: string,
+): Promise<Readonly<{record: Record<string, unknown>, digest: string}>> {
+  let handle: Awaited<ReturnType<typeof open>>
+  try {
+    handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW)
+  } catch (error) {
+    throw new Error(`${label} must be an exact non-symlink file: ${path}`, {cause: error})
+  }
+  try {
+    if (!(await handle.stat()).isFile()) throw new Error(`${label} must be a file: ${path}`)
+    return parseJsonObject(await handle.readFile("utf8"), path, label)
+  } finally {
+    await handle.close()
+  }
+}
+
+function parseJsonObject(
+  source: string,
+  path: string,
+  label: string,
+): Readonly<{record: Record<string, unknown>, digest: string}> {
   let value: unknown
   try {
     value = JSON.parse(source)

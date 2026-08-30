@@ -210,12 +210,19 @@ function descriptor(
     graphSnapshot: graphSnapshot(`@fixture/${id}`, declarationDigest),
     runtime: {path: runtime, export: "runtime"},
     variants: [{route: "category/subject/default", module: {path: story, export: "story"}}],
+    widgetModules: [],
   }
 }
 
 function graphSnapshot(packageId: string, declarationDigest: string): StorybookPackageRevisionGraphSnapshot {
   const packageNode = `package:${packageId}`
+  const subjectNode = `subject:${packageId}/category/subject`
   const variantNode = `variant:${packageId}/category/subject/default`
+  const presentation = {
+    protocol: "story-presentation/1" as const,
+    projection: "display" as const,
+    widgets: ["source", "diagnostics"],
+  }
   const withoutDigest = {
     protocol: STORYBOOK_PACKAGE_GRAPH_PROTOCOL,
     packageId,
@@ -225,21 +232,35 @@ function graphSnapshot(packageId: string, declarationDigest: string): StorybookP
     nodes: [
       {
         id: packageNode, kind: "package" as const, ownerId: packageId, packageId, label: packageId,
-        parentId: null, childIds: [], urlPath: `/packages/${encodeURIComponent(packageId)}/`, routePath: "",
+        parentId: null, childIds: [subjectNode], urlPath: `/packages/${encodeURIComponent(packageId)}/`, routePath: "",
         searchTerms: [packageId], group: null, subjectKind: null, apiName: null, hasReadme: false,
         resourceKinds: [], resourceUrl: `/__storybook/resources/nodes/${encodeURIComponent(packageNode)}/`,
+        presentation: null,
+      },
+      {
+        id: subjectNode, kind: "subject" as const, ownerId: packageId, packageId, label: "Subject",
+        parentId: packageNode, childIds: [variantNode],
+        urlPath: `/packages/${encodeURIComponent(packageId)}/category/subject/`, routePath: "category/subject",
+        searchTerms: ["subject"], group: null, subjectKind: "fixture", apiName: null, hasReadme: false,
+        resourceKinds: [], resourceUrl: `/__storybook/resources/nodes/${encodeURIComponent(subjectNode)}/`,
+        presentation,
       },
       {
         id: variantNode, kind: "variant" as const, ownerId: packageId, packageId, label: "Default",
-        parentId: packageNode, childIds: [],
+        parentId: subjectNode, childIds: [],
         urlPath: `/packages/${encodeURIComponent(packageId)}/category/subject/default`,
         routePath: "category/subject/default", searchTerms: ["default"], group: null, subjectKind: null,
         apiName: null, hasReadme: false, resourceKinds: [],
         resourceUrl: `/__storybook/resources/nodes/${encodeURIComponent(variantNode)}/`,
+        presentation,
       },
     ],
     routes: [
       {path: "", urlPath: `/packages/${encodeURIComponent(packageId)}/`, kind: "overview" as const, nodeId: packageNode},
+      {
+        path: "category/subject", urlPath: `/packages/${encodeURIComponent(packageId)}/category/subject/`,
+        kind: "overview" as const, nodeId: subjectNode,
+      },
       {
         path: "category/subject/default",
         urlPath: `/packages/${encodeURIComponent(packageId)}/category/subject/default`,
@@ -249,6 +270,10 @@ function graphSnapshot(packageId: string, declarationDigest: string): StorybookP
     ],
     loaders: [{route: "category/subject/default", nodeId: variantNode, exportName: "story"}],
     resources: [],
+    authorStyleSheets: [],
+    workbenchAuthorStyleSheets: [],
+    widgetContributions: null,
+    widgetLoaders: [],
   }
   return Object.freeze({
     ...withoutDigest,

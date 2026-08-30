@@ -14,6 +14,7 @@
           "readme": "./docs/event-target.md",
           "tags": ["events", "platform"],
           "aliases": ["события"],
+          "presentation": {"protocol": "story-presentation/1", "projection": "display", "widgets": ["source", "diagnostics"]},
           "variants": []
         }
       ]
@@ -30,6 +31,7 @@
           "apiName": "Button",
           "tags": ["button", "control", "action"],
           "aliases": ["кнопка"],
+          "presentation": {"protocol": "story-presentation/1", "projection": "display", "widgets": ["props", "source", "diagnostics"]},
           "variants": [
             {
               "id": "contained",

@@ -8,6 +8,7 @@
       "id": "a",
       "kind": "fixture",
       "label": "Package A",
+      "presentation": {"protocol": "story-presentation/1", "projection": "display", "widgets": ["source", "diagnostics"]},
       "variants": [{
         "id": "default",
         "label": "Default",

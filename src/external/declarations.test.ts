@@ -1,5 +1,5 @@
 import {afterEach, describe, expect, test} from "bun:test"
-import {cp, mkdtemp, mkdir, rm, symlink} from "node:fs/promises"
+import {cp, mkdtemp, mkdir, realpath, rm, symlink} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {dirname, join} from "node:path"
 import {
@@ -26,11 +26,21 @@ describe("external Storybook JSON declarations", () => {
       expect(manifest.$defs[kind].additionalProperties, kind).toBeFalse()
       expect(manifest.$defs[kind].properties.schemaVersion).toEqual({const: 1})
     }
+    expect(manifest.$defs.authorStyleSheet.additionalProperties).toBeFalse()
+    for (const kind of [
+      "widgetContributionModule",
+      "standardWidgetContribution",
+      "componentWidgetContribution",
+      "widgetContributions",
+    ]) expect(manifest.$defs[kind].additionalProperties, kind).toBeFalse()
+    expect(manifest.$defs.widgetContributions.properties.items.maxItems).toBe(32)
     expect(catalog.$schema).toBe("https://json-schema.org/draft/2020-12/schema")
     expect(catalog.additionalProperties).toBeFalse()
-    for (const kind of ["category", "subject", "variant", "group", "module", "resources"]) {
+    for (const kind of ["category", "subject", "variant", "group", "module", "resources", "presentation"]) {
       expect(catalog.$defs[kind].additionalProperties, kind).toBeFalse()
     }
+    expect(catalog.$defs.subject.required).toContain("presentation")
+    expect(catalog.$defs.presentation.properties.widgets).toMatchObject({minItems: 2, maxItems: 32, uniqueItems: true})
     expect(catalog.properties.schemaVersion).toEqual({const: 1})
     expect(JSON.stringify([manifest, catalog])).not.toContain("function")
   })
@@ -54,9 +64,29 @@ describe("external Storybook JSON declarations", () => {
     expect(components.packageName).toBe("@fixture/components")
     expect(components.packageJsonPath).toEndWith("/projects/alpha/packages/components/package.json")
     expect(components.runtime).toMatchObject({exportName: "runtime"})
+    expect(components.authorStyleSheets.map(({specifier}) => specifier)).toEqual([
+      "@fixture/components/tokens.css",
+      "@fixture/components/theme.css",
+    ])
+    expect(components.authorStyleSheets.every(({path}) => path.startsWith(components.scopeRoot))).toBeTrue()
+    expect(components.authorStyleSheets.every(({contentDigest}) => /^[a-f0-9]{64}$/u.test(contentDigest))).toBeTrue()
+    expect(Object.isFrozen(components.authorStyleSheets)).toBeTrue()
+    expect(components.widgetContributions).toMatchObject({
+      protocol: "widget-contribution/1",
+      items: [{id: "fixture-controls", kind: "component", label: "Fixture controls"}],
+    })
+    expect(components.widgetContributions?.items[0]?.kind === "component" &&
+      components.widgetContributions.items[0].module).toMatchObject({exportName: "FixtureControlsWidget"})
     expect(components.catalog?.categories.map(({id}) => id)).toEqual(["foundation", "components"])
     expect(components.catalog?.categories[0]?.group).toBeNull()
     expect(components.catalog?.categories[1]?.group).toEqual({id: "ui", label: "UI"})
+    const button = components.catalog?.categories[1]?.subjects[0]
+    expect(button?.presentation).toEqual({
+      protocol: "story-presentation/1",
+      projection: "display",
+      widgets: ["props", "source", "diagnostics"],
+    })
+    expect(button?.variants.every(({presentation}) => presentation === button.presentation)).toBeTrue()
     expect(components.catalog?.categories[0]?.subjects[0]?.variants).toEqual([])
     const contained = components.catalog?.categories[1]?.subjects[0]?.variants[0]
     expect(contained?.route).toBe("components/button/basic/contained")
@@ -212,6 +242,368 @@ describe("external Storybook JSON declarations", () => {
       .rejects.toThrow("escapes scope root after realpath")
   })
 
+  test("resolves only exact ordered public CSS exports and digests their bytes", async () => {
+    const digestRoot = await cloneFixture()
+    const first = declarationPackage(
+      (await resolveExternalStorybookDeclarations([digestRoot])).declarations,
+      "@fixture/components",
+    )
+    await Bun.write(
+      join(digestRoot, "projects/alpha/packages/components/tokens.css"),
+      ":root { --fixture-accent: #ffffff; }\n",
+    )
+    const second = declarationPackage(
+      (await resolveExternalStorybookDeclarations([digestRoot])).declarations,
+      "@fixture/components",
+    )
+    expect(second.authorStyleSheets.map(({specifier}) => specifier)).toEqual(
+      first.authorStyleSheets.map(({specifier}) => specifier),
+    )
+    expect(second.authorStyleSheets[0]?.contentDigest).not.toBe(first.authorStyleSheets[0]?.contentDigest)
+    expect(second.authorStyleSheets[1]?.contentDigest).toBe(first.authorStyleSheets[1]?.contentDigest)
+
+    const dependencyResource = await cloneFixture()
+    const dependencyRoot = join(dependencyResource, "projects/alpha/packages/components")
+    const consumerRoot = join(dependencyResource, "projects/beta/packages/docs")
+    await updateJson(join(consumerRoot, "package.json"), (value) => ({
+      ...value,
+      dependencies: {"@fixture/components": "link:@fixture/components"},
+    }))
+    await mkdir(join(consumerRoot, "node_modules", "@fixture"), {recursive: true})
+    await symlink(dependencyRoot, join(consumerRoot, "node_modules", "@fixture", "components"))
+    await updateJson(join(consumerRoot, ".storybook/manifest.json"), (value) => ({
+      ...value,
+      authorStyleSheets: [{specifier: "@fixture/components/theme.css"}],
+    }))
+    const consumer = declarationPackage(
+      (await resolveExternalStorybookDeclarations([dependencyResource])).declarations,
+      "@fixture/docs",
+    )
+    const canonicalDependencyRoot = await realpath(dependencyRoot)
+    expect(consumer.authorStyleSheets).toEqual([{
+      specifier: "@fixture/components/theme.css",
+      path: join(canonicalDependencyRoot, "theme.css"),
+      ownerRoot: canonicalDependencyRoot,
+      ownerPackageJsonPath: join(canonicalDependencyRoot, "package.json"),
+      contentDigest: first.authorStyleSheets[1]!.contentDigest,
+    }])
+
+    const transitiveResource = await cloneFixture()
+    const transitiveComponentsRoot = join(transitiveResource, "projects/alpha/packages/components")
+    const transitiveThemeRoot = join(transitiveResource, "projects/alpha/packages/theme")
+    const transitiveConsumerRoot = join(transitiveResource, "projects/beta/packages/docs")
+    await mkdir(transitiveThemeRoot, {recursive: true})
+    await Bun.write(join(transitiveThemeRoot, "package.json"), JSON.stringify({
+      name: "@fixture/theme",
+      type: "module",
+      exports: {"./theme.css": "./theme.css"},
+    }))
+    await Bun.write(join(transitiveThemeRoot, "theme.css"), ":root { --transitive: #abcdef; }\n")
+    await updateJson(join(transitiveComponentsRoot, "package.json"), (value) => ({
+      ...value,
+      dependencies: {
+        ...(value.dependencies as Record<string, unknown> | undefined),
+        "@fixture/theme": "link:../theme",
+      },
+    }))
+    await updateJson(join(transitiveConsumerRoot, "package.json"), (value) => ({
+      ...value,
+      dependencies: {"@fixture/components": "link:@fixture/components"},
+    }))
+    await mkdir(join(transitiveConsumerRoot, "node_modules", "@fixture"), {recursive: true})
+    await symlink(
+      transitiveComponentsRoot,
+      join(transitiveConsumerRoot, "node_modules", "@fixture", "components"),
+    )
+    await updateJson(join(transitiveConsumerRoot, ".storybook/manifest.json"), (value) => ({
+      ...value,
+      authorStyleSheets: [{specifier: "@fixture/theme/theme.css"}],
+    }))
+    const transitiveConsumer = declarationPackage(
+      (await resolveExternalStorybookDeclarations([transitiveResource])).declarations,
+      "@fixture/docs",
+    )
+    expect(transitiveConsumer.authorStyleSheets[0]).toMatchObject({
+      specifier: "@fixture/theme/theme.css",
+      ownerRoot: await realpath(transitiveThemeRoot),
+    })
+
+    const missingExport = await cloneFixture()
+    await updateJson(componentsPackageJson(missingExport), (value) => ({
+      ...value,
+      exports: {"./*": "./*"},
+    }))
+    await expect(resolveExternalStorybookDeclarations([missingExport]))
+      .rejects.toThrow("not an exact package export")
+
+    const conditionalExport = await cloneFixture()
+    await updateJson(componentsPackageJson(conditionalExport), (value) => ({
+      ...value,
+      exports: {
+        ...value.exports as Record<string, unknown>,
+        "./tokens.css": {default: "./tokens.css"},
+      },
+    }))
+    await expect(resolveExternalStorybookDeclarations([conditionalExport]))
+      .rejects.toThrow("must be a string")
+
+    const nonCanonicalTarget = await cloneFixture()
+    await updateJson(componentsPackageJson(nonCanonicalTarget), (value) => ({
+      ...value,
+      exports: {
+        ...value.exports as Record<string, unknown>,
+        "./tokens.css": "./styles/../tokens.css",
+      },
+    }))
+    await expect(resolveExternalStorybookDeclarations([nonCanonicalTarget]))
+      .rejects.toThrow("must be an exact relative file target")
+
+    const foreignSpecifier = await cloneFixture()
+    await updateJson(componentsManifest(foreignSpecifier), (value) => ({
+      ...value,
+      authorStyleSheets: [{specifier: "@fixture/other/theme.css"}],
+    }))
+    await expect(resolveExternalStorybookDeclarations([foreignSpecifier]))
+      .rejects.toThrow("neither self-owned nor a manifest-reached local dependency")
+
+    const remoteDependency = await cloneFixture()
+    await updateJson(componentsPackageJson(remoteDependency), (value) => ({
+      ...value,
+      dependencies: {"@fixture/other": "^1.0.0"},
+    }))
+    await updateJson(componentsManifest(remoteDependency), (value) => ({
+      ...value,
+      authorStyleSheets: [{specifier: "@fixture/other/theme.css"}],
+    }))
+    await expect(resolveExternalStorybookDeclarations([remoteDependency]))
+      .rejects.toThrow("dependency must be local")
+
+    const duplicateSpecifier = await cloneFixture()
+    await updateJson(componentsManifest(duplicateSpecifier), (value) => ({
+      ...value,
+      authorStyleSheets: [
+        {specifier: "@fixture/components/theme.css"},
+        {specifier: "@fixture/components/theme.css"},
+      ],
+    }))
+    await expect(resolveExternalStorybookDeclarations([duplicateSpecifier]))
+      .rejects.toThrow("Duplicate external Storybook author stylesheet specifier")
+
+    const compatibilityShape = await cloneFixture()
+    await updateJson(componentsManifest(compatibilityShape), (value) => ({
+      ...value,
+      authorStyleSheets: [{id: "@fixture/components/theme.css", path: "../theme.css"}],
+    }))
+    await expect(resolveExternalStorybookDeclarations([compatibilityShape]))
+      .rejects.toThrow("unknown field: id")
+
+    const symlinkEscape = await cloneFixture()
+    const packageRoot = join(symlinkEscape, "projects/alpha/packages/components")
+    const outside = join(symlinkEscape, "outside.css")
+    await Bun.write(outside, "body { color: red; }\n")
+    await symlink(outside, join(packageRoot, "escape.css"))
+    await updateJson(componentsPackageJson(symlinkEscape), (value) => ({
+      ...value,
+      exports: {
+        ...value.exports as Record<string, unknown>,
+        "./theme.css": "./escape.css",
+      },
+    }))
+    await expect(resolveExternalStorybookDeclarations([symlinkEscape]))
+      .rejects.toThrow("must be an exact non-symlink file")
+  })
+
+  test("validates the exact widget registry and subject-owned presentation", async () => {
+    const standardItems = [
+      "props", "source", "events", "diagnostics", "dom", "layout", "display", "reference",
+    ].map((id) => ({id, kind: "standard" as const}))
+    const self = await cloneFixture()
+    await updateJson(componentsManifest(self), (value) => ({
+      ...value,
+      id: "@zavx0z/storybook",
+      authorStyleSheets: undefined,
+      widgetContributions: {
+        protocol: "widget-contribution/1",
+        items: [
+          ...standardItems,
+          {
+            id: "fixture-controls",
+            kind: "component",
+            label: "Fixture controls",
+            module: {path: "./widgets/fixture-controls.tsx", export: "FixtureControlsWidget"},
+          },
+        ],
+      },
+    }))
+    await updateJson(componentsPackageJson(self), (value) => ({...value, name: "@zavx0z/storybook"}))
+    const selfPackage = declarationPackage(
+      (await resolveExternalStorybookDeclarations([self])).declarations,
+      "@zavx0z/storybook",
+    )
+    expect(selfPackage.widgetContributions?.items
+      .filter(({kind}) => kind === "standard")
+      .map(({id, kind}) => ({id, kind}))).toEqual(standardItems)
+
+    const selfWithoutRegistry = await cloneFixture()
+    await updateJson(componentsManifest(selfWithoutRegistry), (value) => ({
+      ...value,
+      id: "@zavx0z/storybook",
+      authorStyleSheets: undefined,
+      widgetContributions: undefined,
+    }))
+    await updateJson(
+      componentsPackageJson(selfWithoutRegistry),
+      (value) => ({...value, name: "@zavx0z/storybook"}),
+    )
+    await expect(resolveExternalStorybookDeclarations([selfWithoutRegistry]))
+      .rejects.toThrow("must declare widget-contribution/1 standard registry")
+
+    const ordinaryStandard = await cloneFixture()
+    await updateJson(componentsManifest(ordinaryStandard), (value) => ({
+      ...value,
+      widgetContributions: {protocol: "widget-contribution/1", items: [standardItems[0]]},
+    }))
+    await expect(resolveExternalStorybookDeclarations([ordinaryStandard]))
+      .rejects.toThrow("can only be declared by @zavx0z/storybook")
+
+    const reservedComponent = await cloneFixture()
+    await updateJson(componentsManifest(reservedComponent), (value) => ({
+      ...value,
+      widgetContributions: {
+        protocol: "widget-contribution/1",
+        items: [{
+          id: "source",
+          kind: "component",
+          label: "Wrong",
+          module: {path: "./stories/button.ts", export: "contained"},
+        }],
+      },
+    }))
+    await expect(resolveExternalStorybookDeclarations([reservedComponent]))
+      .rejects.toThrow("reserved by the standard registry")
+
+    const tooMany = await cloneFixture()
+    await updateJson(componentsManifest(tooMany), (value) => ({
+      ...value,
+      widgetContributions: {
+        protocol: "widget-contribution/1",
+        items: Array.from({length: 33}, (_unused, index) => ({
+          id: `widget-${index}`,
+          kind: "component",
+          label: `Widget ${index}`,
+          module: {path: "./stories/button.ts", export: "contained"},
+        })),
+      },
+    }))
+    await expect(resolveExternalStorybookDeclarations([tooMany]))
+      .rejects.toThrow("at most 32 entries")
+
+    const missingWidgetExport = await cloneFixture()
+    await updateJson(componentsManifest(missingWidgetExport), (value) => ({
+      ...value,
+      widgetContributions: {
+        protocol: "widget-contribution/1",
+        items: [{
+          id: "custom",
+          kind: "component",
+          label: "Custom",
+          module: {path: "./stories/button.ts", export: "missing"},
+        }],
+      },
+    }))
+    await expect(resolveExternalStorybookDeclarations([missingWidgetExport]))
+      .rejects.toThrow("module has no export missing")
+
+    const duplicate = await cloneFixture()
+    await updateJson(componentsManifest(duplicate), (value) => ({
+      ...value,
+      widgetContributions: {
+        protocol: "widget-contribution/1",
+        items: [
+          {
+            id: "custom", kind: "component", label: "One",
+            module: {path: "./stories/button.ts", export: "contained"},
+          },
+          {
+            id: "custom", kind: "component", label: "Two",
+            module: {path: "./stories/button.ts", export: "outlined"},
+          },
+        ],
+      },
+    }))
+    await expect(resolveExternalStorybookDeclarations([duplicate]))
+      .rejects.toThrow("Duplicate external Storybook widget contribution id")
+
+    const missingPresentation = await cloneFixture()
+    await updateComponentsCatalog(missingPresentation, (catalog) => {
+      const categories = asRecords(catalog.categories)
+      const subjects = asRecords(categories[0]!.subjects)
+      const {presentation: _removed, ...subject} = subjects[0]!
+      categories[0] = {...categories[0], subjects: [subject]}
+      return {...catalog, categories}
+    })
+    await expect(resolveExternalStorybookDeclarations([missingPresentation]))
+      .rejects.toThrow("is missing field: presentation")
+
+    const unknownWidget = await cloneFixture()
+    await updateComponentsCatalog(unknownWidget, (catalog) => {
+      const categories = asRecords(catalog.categories)
+      const subjects = asRecords(categories[0]!.subjects)
+      subjects[0] = {
+        ...subjects[0],
+        presentation: {protocol: "story-presentation/1", projection: "world", widgets: ["source", "diagnostics", "missing"]},
+      }
+      categories[0] = {...categories[0], subjects}
+      return {...catalog, categories}
+    })
+    await expect(resolveExternalStorybookDeclarations([unknownWidget]))
+      .rejects.toThrow("Unknown external Storybook presentation widget")
+
+    const missingDiagnostic = await cloneFixture()
+    await updateComponentsCatalog(missingDiagnostic, (catalog) => {
+      const categories = asRecords(catalog.categories)
+      const subjects = asRecords(categories[0]!.subjects)
+      subjects[0] = {
+        ...subjects[0],
+        presentation: {protocol: "story-presentation/1", projection: "hud", widgets: ["source", "props"]},
+      }
+      categories[0] = {...categories[0], subjects}
+      return {...catalog, categories}
+    })
+    await expect(resolveExternalStorybookDeclarations([missingDiagnostic]))
+      .rejects.toThrow("widgets must contain diagnostics")
+
+    const duplicateWidget = await cloneFixture()
+    await updateComponentsCatalog(duplicateWidget, (catalog) => {
+      const categories = asRecords(catalog.categories)
+      const subjects = asRecords(categories[0]!.subjects)
+      subjects[0] = {
+        ...subjects[0],
+        presentation: {protocol: "story-presentation/1", projection: "world", widgets: ["source", "diagnostics", "source"]},
+      }
+      categories[0] = {...categories[0], subjects}
+      return {...catalog, categories}
+    })
+    await expect(resolveExternalStorybookDeclarations([duplicateWidget]))
+      .rejects.toThrow("widgets must not contain duplicates")
+
+    const variantDefault = await cloneFixture()
+    await updateComponentsCatalog(variantDefault, (catalog) => {
+      const categories = asRecords(catalog.categories)
+      const subjects = asRecords(categories[1]!.subjects)
+      const variants = asRecords(subjects[0]!.variants)
+      variants[0] = {
+        ...variants[0],
+        presentation: {protocol: "story-presentation/1", projection: "hud", widgets: ["source", "diagnostics"]},
+      }
+      subjects[0] = {...subjects[0], variants}
+      categories[1] = {...categories[1], subjects}
+      return {...catalog, categories}
+    })
+    await expect(resolveExternalStorybookDeclarations([variantDefault]))
+      .rejects.toThrow("unknown field: presentation")
+  })
+
   test("rejects missing exports, duplicate routes and conflicting group descriptors", async () => {
     const runtimeAlias = await cloneFixture()
     const runtimeManifest = join(
@@ -322,6 +714,14 @@ async function cloneFixture(): Promise<string> {
 
 function manifest(root: string): string {
   return join(root, ".storybook", "manifest.json")
+}
+
+function componentsManifest(root: string): string {
+  return join(root, "projects/alpha/packages/components/.storybook/manifest.json")
+}
+
+function componentsPackageJson(root: string): string {
+  return join(root, "projects/alpha/packages/components/package.json")
 }
 
 async function updateComponentsCatalog(

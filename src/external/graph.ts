@@ -6,12 +6,15 @@ import {
   type ExternalStorybookModuleReference,
   type ExternalStorybookPresentationGroup,
   type ExternalStorybookResource,
+  type ResolvedExternalStorybookAuthorStyleSheet,
   type ResolvedExternalStorybookCategory,
   type ResolvedExternalStorybookDeclaration,
   type ResolvedExternalStorybookDeclarations,
   type ResolvedExternalStorybookPackage,
   type ResolvedExternalStorybookSubject,
   type ResolvedExternalStorybookVariant,
+  type ResolvedExternalStorybookStoryPresentation,
+  type ResolvedExternalStorybookWidgetContributions,
 } from "./declarations.ts"
 
 export type ExternalStorybookGraphNodeKind =
@@ -40,6 +43,9 @@ export type ExternalStorybookGraphNode = Readonly<{
   childIds: readonly string[]
   readmePath: string | null
   resources: readonly ExternalStorybookResource[]
+  authorStyleSheets: readonly ResolvedExternalStorybookAuthorStyleSheet[]
+  widgetContributions: ResolvedExternalStorybookWidgetContributions | null
+  presentation: ResolvedExternalStorybookStoryPresentation | null
   searchTerms: readonly string[]
   source: ExternalStorybookGraphSource
   presentationGroup: ExternalStorybookPresentationGroup | null
@@ -130,6 +136,11 @@ export function createExternalStorybookGraph(
       childIds: Object.freeze([...childIds]),
       readmePath: declaration.readmePath,
       resources: Object.freeze([]),
+      authorStyleSheets: declaration.kind === "package"
+        ? declaration.authorStyleSheets
+        : Object.freeze([]),
+      widgetContributions: declaration.kind === "package" ? declaration.widgetContributions : null,
+      presentation: null,
       searchTerms: searchTerms(declaration.id, declaration.label),
       source: Object.freeze({path: declaration.manifestPath, pointer: ""}),
       presentationGroup: null,
@@ -261,6 +272,9 @@ function appendPackageCatalog(
         subjectNodeId(declaration.id, category.id, subject.id))),
       readmePath: null,
       resources: Object.freeze([]),
+      authorStyleSheets: Object.freeze([]),
+      widgetContributions: null,
+      presentation: null,
       searchTerms: searchTerms(
         category.id,
         category.label,
@@ -307,6 +321,9 @@ function appendSubject(
       variantNodeId(declaration.id, category.id, subject.id, variant.id))),
     readmePath: subject.readmePath,
     resources: Object.freeze([]),
+    authorStyleSheets: Object.freeze([]),
+    widgetContributions: null,
+    presentation: subject.presentation,
     searchTerms: searchTerms(
       subject.id,
       subject.kind,
@@ -351,6 +368,9 @@ function appendVariant(
     childIds: Object.freeze([]),
     readmePath: null,
     resources: variant.resources,
+    authorStyleSheets: Object.freeze([]),
+    widgetContributions: null,
+    presentation: variant.presentation,
     searchTerms: searchTerms(
       variant.id,
       variant.label,

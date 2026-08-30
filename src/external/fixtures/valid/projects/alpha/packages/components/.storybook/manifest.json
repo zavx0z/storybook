@@ -10,5 +10,18 @@
     "module": "./runtime.ts",
     "export": "runtime"
   },
+  "authorStyleSheets": [
+    {"specifier": "@fixture/components/tokens.css"},
+    {"specifier": "@fixture/components/theme.css"}
+  ],
+  "widgetContributions": {
+    "protocol": "widget-contribution/1",
+    "items": [{
+      "id": "fixture-controls",
+      "kind": "component",
+      "label": "Fixture controls",
+      "module": {"path": "./widgets/fixture-controls.tsx", "export": "FixtureControlsWidget"}
+    }]
+  },
   "catalog": "./catalog.json"
 }

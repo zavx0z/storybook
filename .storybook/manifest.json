@@ -10,5 +10,21 @@
     "module": "./runtime.ts",
     "export": "runtime"
   },
+  "authorStyleSheets": [
+    {"specifier": "@ui/components/theme.css"}
+  ],
+  "widgetContributions": {
+    "protocol": "widget-contribution/1",
+    "items": [
+      {"id": "props", "kind": "standard"},
+      {"id": "source", "kind": "standard"},
+      {"id": "events", "kind": "standard"},
+      {"id": "diagnostics", "kind": "standard"},
+      {"id": "dom", "kind": "standard"},
+      {"id": "layout", "kind": "standard"},
+      {"id": "display", "kind": "standard"},
+      {"id": "reference", "kind": "standard"}
+    ]
+  },
   "catalog": "./catalog.json"
 }

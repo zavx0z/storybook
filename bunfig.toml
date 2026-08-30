@@ -3,3 +3,6 @@ peer = false
 
 [loader]
 ".wgsl" = "text"
+
+[test]
+preload = ["./src/dom/compiled-workbench.test-support.ts"]

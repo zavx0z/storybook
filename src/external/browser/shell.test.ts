@@ -1,19 +1,109 @@
 import {describe, expect, test} from "bun:test"
-import {Space} from "@engine/core"
 import {createDocument, type Element, type Node} from "@zavx0z/dom"
 import type {
+  BrowserLinkedAuthorStyleSheetHost,
   DocumentOverlayRuntime,
   DocumentSpaceRuntime,
-  DocumentSpaceWorldRuntime,
+  DocumentSpaceViewPointSnapshot,
 } from "@zavx0z/renderer-browser"
 import {
-  EXTERNAL_STORYBOOK_OWNER_WORLD_ID,
   EXTERNAL_STORYBOOK_WORKBENCH_OVERLAY_ID,
   createExternalStorybookShell,
   type ExternalStorybookShellSpaceRuntimeFactory,
 } from "./shell.ts"
 
 describe("external Storybook shared browser shell", () => {
+  test("awaits exact linked author styles before creating and disposes them after the one runtime", async () => {
+    const runtimes: FakeRuntime[] = []
+    const lifecycle: string[] = []
+    let resolveReady = (): void => {}
+    const ready = new Promise<void>((resolve) => { resolveReady = resolve })
+    const runtimeFactory = fakeRuntimeFactory(runtimes)
+    const creation = createExternalStorybookShell({
+      title: "Linked theme",
+      document: createDocument(),
+      browserDocument: {} as globalThis.Document,
+      canvas: {} as HTMLCanvasElement,
+      loadFont: async () => ({}) as never,
+      authorStyleSheetSources: [{id: "@ui/components/theme.css", link: {} as HTMLLinkElement}],
+      createLinkedAuthorStyleSheetHost(options) {
+        lifecycle.push("author-create")
+        expect(options.sources.map(({id}) => id)).toEqual(["@ui/components/theme.css"])
+        return {
+          canvas: options.canvas,
+          document: options.document,
+          sources: options.sources,
+          ready: ready.then(() => { lifecycle.push("author-ready") }),
+          disposed: false,
+          refresh() {},
+          dispose() { lifecycle.push("author-dispose") },
+        } as BrowserLinkedAuthorStyleSheetHost
+      },
+      async createSpaceRuntime(options) {
+        lifecycle.push("runtime-create")
+        const runtime = await runtimeFactory(options)
+        return new Proxy(runtime, {
+          get(target, property, receiver) {
+            if (property !== "dispose") return Reflect.get(target, property, receiver)
+            return () => {
+              lifecycle.push("runtime-dispose")
+              target.dispose()
+            }
+          },
+        })
+      },
+    })
+
+    await Promise.resolve()
+    expect(runtimes).toHaveLength(0)
+    resolveReady()
+    const shell = await creation
+    expect(lifecycle).toEqual(["author-create", "author-ready", "runtime-create"])
+    shell.dispose()
+    expect(lifecycle).toEqual([
+      "author-create",
+      "author-ready",
+      "runtime-create",
+      "runtime-dispose",
+      "author-dispose",
+    ])
+  })
+
+  test("rejects a failed or stalled required author host before creating a runtime and releases it", async () => {
+    for (const failure of ["rejected", "stalled"] as const) {
+      const runtimes: FakeRuntime[] = []
+      let disposals = 0
+      const creation = createExternalStorybookShell({
+        title: `Author ${failure}`,
+        document: createDocument(),
+        browserDocument: {} as globalThis.Document,
+        canvas: {} as HTMLCanvasElement,
+        loadFont: async () => ({}) as never,
+        authorStyleSheetSources: [{id: "required-theme", link: {} as HTMLLinkElement}],
+        authorStyleSheetReadyTimeoutMs: 5,
+        createSpaceRuntime: fakeRuntimeFactory(runtimes),
+        createLinkedAuthorStyleSheetHost(options) {
+          return {
+            canvas: options.canvas,
+            document: options.document,
+            sources: options.sources,
+            ready: failure === "rejected"
+              ? Promise.reject(new Error("required theme rejected"))
+              : new Promise<void>(() => {}),
+            disposed: false,
+            refresh() {},
+            dispose() { disposals += 1 },
+          } as BrowserLinkedAuthorStyleSheetHost
+        },
+      })
+      await expect(creation).rejects.toThrow(
+        failure === "rejected" ? "required theme rejected" : "did not become ready",
+      )
+      expect(runtimes).toHaveLength(0)
+      expect(disposals).toBe(1)
+    }
+  })
+
   test("owns one semantic Workbench and renderer while exposing same-document host seams", async () => {
     const runtimes: FakeRuntime[] = []
     const document = createDocument()
@@ -44,19 +134,58 @@ describe("external Storybook shared browser shell", () => {
     const preview = document.createElement("button")
     preview.textContent = "Owner preview"
     shell.mountPreview("Owner", preview)
-    expect(shell.workbench.elements.previewHost.firstChild).toBe(preview)
+    expect(shell.workbench.elements.displayHost.firstChild).toBe(preview)
     expect(runtimes[0]?.requests).toBeGreaterThan(0)
     expect(() => shell.mountPreview("Foreign", createDocument().createElement("div")))
       .toThrow("another Document")
 
-    shell.publishInspector({kind: "owner"})
-    shell.publishSource({typescript: "export const story = true"})
-    shell.publishProps({disabled: false})
+    shell.workbench.present({
+      label: "Owner",
+      presentation: {node: preview, projection: "display"},
+      inspectorSubject: {
+        packageId: "@fixture/components",
+        subjectId: "button",
+        widgetIds: ["props", "source", "diagnostics"],
+      },
+      inspectorValues: {
+        props: {disabled: false, kind: "owner"},
+        source: {
+          html: '<button style="opacity: 0.5">Output</button>',
+          css: {
+            authorStyleSheets: [{
+              specifier: "@fixture/components/theme.css",
+              cssText: ":root { --tone: #123456; }",
+            }],
+            componentStyleSheets: [{
+              moduleId: "@fixture/components/button.tsx",
+              componentName: "Button",
+              cssText: "& { color: var(--tone); }\n&:hover { color: white; }",
+            }],
+          },
+          typescript: "export const story = true",
+        },
+        diagnostics: [],
+      },
+    })
     shell.reportDiagnostic("fixture diagnostic")
-    expect(shell.workbench.elements.inspectorHost.textContent).toContain("Inspector")
+    expect(shell.workbench.elements.inspectorHost.querySelector("aside")?.getAttribute("aria-label"))
+      .toBe("Inspector")
     expect(shell.workbench.elements.inspectorHost.textContent).toContain("Source")
     expect(shell.workbench.elements.inspectorHost.textContent).toContain("Props")
     expect(shell.workbench.elements.inspectorHost.textContent).toContain("fixture diagnostic")
+    const cssFacets = shell.workbench.elements.inspectorHost.querySelectorAll('[data-language-id="css"]')
+    expect(cssFacets).toHaveLength(2)
+    expect(cssFacets[0]?.querySelector("code")?.textContent).toBe(":root { --tone: #123456; }")
+    expect(cssFacets[1]?.querySelector("code")?.textContent).toBe("& { color: var(--tone); }&:hover { color: white; }")
+    expect(cssFacets[1]?.querySelector("code")?.querySelectorAll("[data-line-index]")).toHaveLength(2)
+    expect(cssFacets[1]?.querySelector("[data-token-category]")).not.toBeNull()
+    expect(cssFacets[1]?.querySelector("code")?.textContent).not.toContain("```css")
+    expect(cssFacets[1]?.querySelector("code")?.textContent).not.toContain("<style")
+    expect(cssFacets[1]?.querySelector("code")?.textContent).not.toContain("css`")
+    expect(cssFacets[1]?.querySelector("code")?.textContent).not.toContain("${")
+    expect(cssFacets[1]?.querySelector("code")?.textContent).not.toContain("`")
+    expect(shell.workbench.elements.inspectorHost.querySelector('[data-language-id="html"] code')?.textContent)
+      .toContain('style="opacity: 0.5"')
 
     const bounds: unknown[] = []
     const unsubscribe = shell.subscribePreviewBounds((value) => bounds.push(value))
@@ -73,22 +202,38 @@ describe("external Storybook shared browser shell", () => {
     unsubscribe()
 
     const worldNode = document.createElement("section")
-    const worldSpace = new Space()
     const worldResizes: unknown[] = []
+    expect(() => shell.mountWorldPreview("Foreign world", {
+      node: worldNode,
+      space: Object.freeze({}),
+      camera: {
+        position: {x: 0, y: 0, z: 1},
+        target: {x: 0, y: 0, z: 0},
+      },
+    } as never)).toThrow("registration.space is forbidden")
+    expect(runtimes[0]?.forbiddenWorldCalls).toBe(0)
     const worldPreview = shell.mountWorldPreview("Engine", {
       node: worldNode,
-      space: worldSpace,
       camera: {
         position: {x: 10, y: -20, z: 30},
         target: {x: 0, y: 0, z: 0},
       },
       resize: (viewport) => worldResizes.push(viewport),
     })
-    expect(shell.workbench.elements.previewHost.firstChild).toBe(worldNode)
+    expect(shell.workbench.elements.worldHost.firstChild).toBe(worldNode)
     expect(shell.workbench.element.hasAttribute("data-storybook-world-preview")).toBeTrue()
-    expect(runtimes[0]?.worldId).toBe(EXTERNAL_STORYBOOK_OWNER_WORLD_ID)
-    expect(runtimes[0]?.worldSpace).toBe(worldSpace)
-    expect(runtimes[0]?.worldViewport).toEqual({x: 12, y: 18, width: 640, height: 360})
+    const activeRuntime = runtimes[0]!
+    expect(shell.runtime.space).toBe(activeRuntime.runtime.space)
+    expect(shell.runtime.viewPoint).toBe(activeRuntime.runtime.viewPoint)
+    expect(runtimes[0]?.forbiddenWorldCalls).toBe(0)
+    expect(runtimes[0]?.restoredViewPoints.at(-1)).toEqual({
+      position: {x: 10, y: -20, z: 30},
+      target: {x: 0, y: 0, z: 0},
+      up: {x: 0, y: 0, z: 1},
+      fov: Math.PI / 4,
+      near: 1,
+      far: 2_000,
+    })
     expect(worldResizes.at(-1)).toEqual({
       x: 12,
       y: 18,
@@ -105,7 +250,7 @@ describe("external Storybook shared browser shell", () => {
       deltaX: 12,
       deltaY: -7,
     })).toBeTrue()
-    expect(runtimes[0]?.worldOrbits).toEqual([[12, -7]])
+    expect(runtimes[0]?.viewPointOrbits).toEqual([[12, -7]])
     expect(shell.applyWorldPreviewGesture(document.createElement("div"), {
       kind: "pan",
       deltaX: 1,
@@ -114,18 +259,15 @@ describe("external Storybook shared browser shell", () => {
     worldPreview.requestRender()
     expect(runtimes[0]?.requests).toBeGreaterThan(0)
 
-    await shell.setOwnerStyleSheets([".owner { color: red; }"])
-    expect(runtimes).toHaveLength(2)
-    expect(runtimes[0]?.disposed).toBeTrue()
-    expect(runtimes[1]?.options.styleSheets).toContain(".owner { color: red; }")
-    expect(runtimes[1]?.worldSpace).toBe(worldSpace)
+    expect(runtimes).toHaveLength(1)
+    expect(runtimes[0]?.forbiddenWorldCalls).toBe(0)
     expect(worldPreview.disposed).toBeFalse()
     shell.showMessage("Overview", "Overview", "No direct world")
     expect(worldPreview.disposed).toBeTrue()
     expect(shell.workbench.element.hasAttribute("data-storybook-world-preview")).toBeFalse()
-    expect(runtimes[1]?.worldRemoves).toBe(1)
+    expect(runtimes[0]?.restoredViewPoints.at(-1)).toEqual(runtimes[0]?.initialViewPoint)
     shell.dispose()
-    expect(runtimes[1]?.disposed).toBeTrue()
+    expect(runtimes[0]?.disposed).toBeTrue()
     expect(shell.workbench.element.parentNode).toBeNull()
   })
 
@@ -194,11 +336,10 @@ type FakeRuntime = {
   overlay: DocumentOverlayRuntime | null
   overlayId: string | null
   overlayRoot: Node | null
-  worldId: string | null
-  worldSpace: Space | null
-  worldViewport: Readonly<{x: number; y: number; width: number; height: number}> | null
-  worldOrbits: Array<readonly [number, number]>
-  worldRemoves: number
+  initialViewPoint: DocumentSpaceViewPointSnapshot
+  restoredViewPoints: DocumentSpaceViewPointSnapshot[]
+  viewPointOrbits: Array<readonly [number, number]>
+  forbiddenWorldCalls: number
   requests: number
   disposed: boolean
   emit(node: Node, box: Readonly<{
@@ -218,18 +359,25 @@ function fakeRuntimeFactory(output: FakeRuntime[]): ExternalStorybookShellSpaceR
     let overlay: DocumentOverlayRuntime | null = null
     let overlayId: string | null = null
     let overlayRoot: Node | null = null
-    let world: DocumentSpaceWorldRuntime | null = null
+    const initialViewPoint = Object.freeze({
+      position: Object.freeze({x: 0, y: -1_000, z: 0}),
+      target: Object.freeze({x: 0, y: 0, z: 0}),
+      up: Object.freeze({x: 0, y: 0, z: 1}),
+      fov: Math.PI / 4,
+      near: 1,
+      far: 2_000,
+    })
+    let currentViewPoint: DocumentSpaceViewPointSnapshot = initialViewPoint
     const owner: FakeRuntime = {
       options,
       runtime: null as unknown as DocumentSpaceRuntime,
       overlay,
       overlayId,
       overlayRoot,
-      worldId: null,
-      worldSpace: null,
-      worldViewport: null,
-      worldOrbits: [],
-      worldRemoves: 0,
+      initialViewPoint,
+      restoredViewPoints: [],
+      viewPointOrbits: [],
+      forbiddenWorldCalls: 0,
       requests: 0,
       disposed: false,
       emit(node, box) {
@@ -239,8 +387,17 @@ function fakeRuntimeFactory(output: FakeRuntime[]): ExternalStorybookShellSpaceR
     }
     const runtime = {
       document: options.document,
+      canvas: options.canvas,
       styleSheets: options.styleSheets,
       font: options.font,
+      space: Object.freeze({kind: "one-shared-space"}),
+      viewPoint: {
+        orbit(deltaX: number, deltaY: number) {
+          owner.viewPointOrbits.push([deltaX, deltaY])
+        },
+        pan() {},
+      },
+      worldIds: Object.freeze([]),
       addOverlay(registration: Readonly<{id: string; root: Node}>) {
         overlayId = registration.id
         overlayRoot = registration.root
@@ -264,42 +421,16 @@ function fakeRuntimeFactory(output: FakeRuntime[]): ExternalStorybookShellSpaceR
         return overlay
       },
       addWorld(registration: any) {
-        owner.worldId = registration.id
-        owner.worldSpace = registration.space
-        owner.worldViewport = registration.viewport
-        const notifyResize = () => registration.onResize?.(owner.worldViewport === null ? null : {
-          logicalViewport: owner.worldViewport,
-          backingViewport: owner.worldViewport,
-          pixelRatio: 1,
-        })
-        world = {
-          id: registration.id,
-          space: registration.space,
-          get viewport() { return owner.worldViewport },
-          viewPoint: {
-            orbit(deltaX: number, deltaY: number) {
-              owner.worldOrbits.push([deltaX, deltaY])
-            },
-            pan() {},
-          },
-          get disposed() { return owner.disposed },
-          requestRender() { owner.requests += 1 },
-        } as unknown as DocumentSpaceWorldRuntime
-        notifyResize()
-        return world
+        owner.forbiddenWorldCalls += 1
+        throw new Error(`Second world registration is forbidden: ${String(registration?.id)}`)
       },
-      updateWorld(_id: string, update: any) {
-        if ("viewport" in update) owner.worldViewport = update.viewport
-        return world!
+      updateWorld() {
+        owner.forbiddenWorldCalls += 1
+        throw new Error("Second world update is forbidden")
       },
       removeWorld() {
-        if (world === null) return false
-        owner.worldRemoves += 1
-        world = null
-        owner.worldId = null
-        owner.worldSpace = null
-        owner.worldViewport = null
-        return true
+        owner.forbiddenWorldCalls += 1
+        throw new Error("Second world removal is forbidden")
       },
       render() {
         for (const subscriber of subscribers) subscriber(currentFrame)
@@ -313,9 +444,15 @@ function fakeRuntimeFactory(output: FakeRuntime[]): ExternalStorybookShellSpaceR
       requestRender() {
         owner.requests += 1
       },
+      snapshotViewPoint() {
+        return currentViewPoint
+      },
+      restoreViewPoint(value: DocumentSpaceViewPointSnapshot) {
+        currentViewPoint = value
+        owner.restoredViewPoints.push(value)
+      },
       dispose() {
         owner.disposed = true
-        world = null
         subscribers.clear()
         presentedSubscribers.clear()
       },

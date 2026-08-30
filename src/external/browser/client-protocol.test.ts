@@ -73,7 +73,6 @@ describe("external Storybook browser client protocol", () => {
       '"dependencyRealpaths"',
       '"entryRelativePath"',
       '"module"',
-      '"source"',
       "# Fixture Components",
     ]) expect(serialized).not.toContain(forbidden)
     expect(JSON.parse(serialized)).toEqual(client)

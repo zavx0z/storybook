@@ -119,20 +119,20 @@ export function createStorybookAgentBridge(
         subjectId: model.secondaryActiveId,
         variantId: model.variantActiveId,
       }),
-      canvases: Object.freeze([...options.shell.browserDocument.querySelectorAll("canvas")].map((canvas) => Object.freeze({
-        id: canvas.id,
-        width: canvas.width,
-        height: canvas.height,
-        hidden: canvas.hidden,
-      }))),
+      canvas: Object.freeze({
+        id: options.shell.canvas.id,
+        width: options.shell.canvas.width,
+        height: options.shell.canvas.height,
+        hidden: options.shell.canvas.hidden,
+      }),
     })
   }
 
   function inspect(request: StorybookAgentBridgeRequest) {
     const defaultInspection = request.include === undefined
-    const include = new Set(request.include ?? ["state", "diagnostics", "semantic", "canvases"])
+    const include = new Set(request.include ?? ["state", "diagnostics", "semantic", "canvas"])
     const stateProjection = state()
-    const {canvases, ...identity} = stateProjection
+    const {canvas, ...identity} = stateProjection
     const needsNodes = include.has("semantic") || include.has("layout") || include.has("display")
     if (!needsNodes) {
       return Object.freeze({
@@ -140,7 +140,7 @@ export function createStorybookAgentBridge(
         ...(include.has("diagnostics") ? {
           diagnostics: identity.error === null ? Object.freeze([]) : Object.freeze([identity.error]),
         } : {}),
-        ...(include.has("canvases") ? {canvases} : {}),
+        ...(include.has("canvas") ? {canvas} : {}),
       })
     }
     const maximumDepth = boundedInteger(request.maxDepth ?? (defaultInspection ? 2 : 4), 0, 12, "maxDepth")
@@ -161,7 +161,7 @@ export function createStorybookAgentBridge(
       ...(include.has("diagnostics") ? {
         diagnostics: identity.error === null ? Object.freeze([]) : Object.freeze([identity.error]),
       } : {}),
-      ...(include.has("canvases") ? {canvases} : {}),
+      ...(include.has("canvas") ? {canvas} : {}),
       semantic: Object.freeze({
         mutationVersion: snapshot.mutationVersion,
         stateVersion: snapshot.stateVersion,
@@ -208,15 +208,8 @@ export function createStorybookAgentBridge(
       : "workbench"
     let clip: Readonly<{x: number; y: number; width: number; height: number; scale: number}>
     if (area === "canvas") {
-      const native = [...options.shell.browserDocument.querySelectorAll("canvas")]
-        .find((canvas) => canvas.id !== "external-storybook-canvas" && !canvas.hidden)
-      if (native !== undefined) {
-        const box = native.getBoundingClientRect()
-        clip = exactClip(box.left, box.top, box.width, box.height)
-      } else {
-        const viewport = options.shell.workbenchOverlay.frame.viewport
-        clip = exactClip(0, 0, viewport.width, viewport.height)
-      }
+      const box = options.shell.canvas.getBoundingClientRect()
+      clip = exactClip(box.left, box.top, box.width, box.height)
     } else {
       const semantic = area === "preview"
         ? options.shell.workbench.elements.previewHost
@@ -249,7 +242,7 @@ function projectNode(
 ) {
   const semantic = inspector.nodeForId(node.id)
   const attributes = new Map(node.attributes.map(({name, value}) => [name, value] as const))
-  const role = attributes.get("role") ?? node.hit?.role ?? implicitRole(node.localName)
+  const role = attributes.get("role") ?? node.hit?.role ?? implicitRole(node.localName, attributes)
   const name = accessibleName(semantic, attributes, byId, inspector)
   const text = compactText(semantic?.textContent ?? node.nodeValue ?? "")
   return Object.freeze({
@@ -401,7 +394,7 @@ function resolveTarget(target: StorybookAgentTarget | undefined, inspector: DomI
   const matches = snapshot.nodes.filter((node) => {
     const semantic = inspector.nodeForId(node.id)
     const attributes = new Map(node.attributes.map(({name, value}) => [name, value] as const))
-    const role = attributes.get("role") ?? node.hit?.role ?? implicitRole(node.localName)
+    const role = attributes.get("role") ?? node.hit?.role ?? implicitRole(node.localName, attributes)
     return role === target.role && accessibleName(semantic, attributes, byId, inspector) === target.name
   })
   if (matches.length === 0) throw new Error(`Unknown Storybook semantic target: ${target.role} ${target.name}`)
@@ -420,11 +413,23 @@ function accessibleName(
   return compactText(node?.textContent ?? "")
 }
 
-function implicitRole(localName: string | null): string | null {
+function implicitRole(
+  localName: string | null,
+  attributes: ReadonlyMap<string, string>,
+): string | null {
   if (localName === "button") return "button"
   if (localName === "nav") return "navigation"
   if (localName === "main") return "main"
-  if (localName === "input") return "textbox"
+  if (localName === "input") {
+    const type = (attributes.get("type") ?? "text").toLowerCase()
+    if (type === "checkbox") return "checkbox"
+    if (type === "radio") return "radio"
+    if (type === "range") return "slider"
+    if (type === "button" || type === "submit" || type === "reset") return "button"
+    if (type === "number") return "spinbutton"
+    if (type === "search") return "searchbox"
+    return "textbox"
+  }
   if (localName === "textarea") return "textbox"
   if (localName === "a") return "link"
   return null
