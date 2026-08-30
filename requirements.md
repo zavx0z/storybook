@@ -51,9 +51,11 @@ child получает отдельную runtime session и real production roo
 same-Document aggregate. Representative не меняет URL, active subject/variant
 либо dock selection. Labels-only cards и message вместо executable children
 запрещены, кроме package README и явно неподдерживаемого world aggregate.
-Aggregate parent владеет обычным CSS `row` layout с `flex-wrap: wrap`: пока
+Aggregate parent владеет обычным CSS `row` layout с `flex-wrap: wrap`
+и `align-content: flex-start`: пока
 bounded child tiles помещаются, они делят строку, затем Renderer переносит
-следующий tile на новую строку. Единственный child заполняет доступный preview,
+следующий tile на новую компактную строку от cross-start с точным `gap: 8px`.
+Единственный child заполняет доступный preview,
 а `overflow-y` остаётся только scroll fallback для малой высоты viewport.
 Ручные coordinates, измерение ширины и consumer-local packing запрещены.
 

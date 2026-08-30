@@ -8,7 +8,7 @@ import {
 import {createStorybookAggregatePresentation} from "./aggregate-presentation.tsx"
 
 describe("external Storybook aggregate presentation", () => {
-  test("uses parent-owned CSS wrapping for bounded real child roots", () => {
+  test("uses parent-owned wrapping and compact cross-start rows for bounded real child roots", () => {
     const document = createDocument()
     const children = ["alpha", "beta", "gamma"].map(id => ownerPresentation(document, id))
     const presentation = createStorybookAggregatePresentation(
@@ -38,7 +38,7 @@ describe("external Storybook aggregate presentation", () => {
       sheet.source.moduleId === "@zavx0z/storybook/src/external/browser/aggregate-presentation.tsx" &&
       sheet.source.componentName === "StorybookAggregateOverviewView"
     )?.source?.cssText
-    expect(ownerCss).toContain("flex-direction:row;flex-wrap:wrap")
+    expect(ownerCss).toContain("flex-direction:row;flex-wrap:wrap;align-content:flex-start")
     expect(ownerCss).toContain("overflow-y:auto")
     expect(ownerCss).not.toContain("position:absolute")
     expect(ownerCss).not.toContain("left:")
@@ -52,15 +52,19 @@ describe("external Storybook aggregate presentation", () => {
       viewport: {width: 600, height: 420},
     })
     const frame = renderer.flush()
+    const gridBox = requiredBox(frame.boxByNode.get(grid), "aggregate grid")
     const [first, second, third] = tiles.map((tile, index) =>
       requiredBox(frame.boxByNode.get(tile), `tile ${index}`)
     )
 
+    expect(first.y).toBe(gridBox.contentY)
     expect(first).toMatchObject({width: 280, height: 180})
     expect(second).toMatchObject({y: first.y, width: 280, height: 180})
     expect(second.x).toBe(first.x + first.width + 8)
     expect(third).toMatchObject({x: first.x, width: 280, height: 180})
     expect(third.y).toBe(first.y + first.height + 8)
+    expect(gridBox.contentY + gridBox.contentHeight - (third.y + third.height))
+      .toBeGreaterThan(0)
 
     renderer.dispose()
     presentation.dispose()

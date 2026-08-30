@@ -95,6 +95,7 @@ export function StorybookAggregateOverviewView(props: StorybookAggregateOverview
           display: flex;
           flex-direction: row;
           flex-wrap: wrap;
+          align-content: flex-start;
           align-items: stretch;
           width: 100%;
           min-height: 0;
