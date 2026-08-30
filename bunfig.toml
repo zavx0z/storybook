@@ -5,4 +5,4 @@ peer = false
 ".wgsl" = "text"
 
 [test]
-preload = ["./src/dom/compiled-workbench.test-support.ts"]
+preload = ["./src/workbench/testing/compile-workbench.ts"]

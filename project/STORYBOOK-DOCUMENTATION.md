@@ -580,7 +580,7 @@ Declaration не должна:
 
 * [declaration публичных contracts](../app/contracts/examples.ts);
 * [self Storybook catalog](../app/workbench/catalog.ts);
-* [generic DOM catalog](../src/dom/catalog.ts);
+* historical generic catalog из указанного baseline commit (в текущем tree удалён);
 * [действующая архитектура](../ARCHITECTURE.md);
 * [принятые требования](../requirements.md).
 
@@ -724,7 +724,7 @@ revision guard against stale response
 
 * [Explicit documentation declaration](../app/contracts/examples.ts).
 * [Self Storybook route и lazy presentation catalog](../app/workbench/catalog.ts).
-* [Generic eager-index и lazy-module DOM catalog](../src/dom/catalog.ts).
+* Historical generic eager-index/lazy-module catalog в baseline commit.
 * Current baseline commit:
   `928a9efd83ad09a7bf99709ae8af332bf5503eba`.
 

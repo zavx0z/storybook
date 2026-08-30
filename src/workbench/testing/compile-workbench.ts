@@ -2,9 +2,9 @@ import {plugin} from "bun"
 import {readFileSync} from "node:fs"
 import {join, resolve} from "node:path"
 import {createTemplateJsxBunPlugin} from "@zavx0z/template/bun"
-import {resolveStorybookCompilerSourceRoots} from "../external/compiler.ts"
+import {resolveStorybookCompilerSourceRoots} from "../../external/compiler.ts"
 
-const storybookRoot = resolve(import.meta.dir, "../..")
+const storybookRoot = resolve(import.meta.dir, "../../..")
 const sourceRoots = resolveStorybookCompilerSourceRoots({
   projectRoot: storybookRoot,
   packageRoot: storybookRoot,
@@ -23,9 +23,9 @@ plugin(createTemplateJsxBunPlugin({
   styleSourceRootIds,
 }))
 
-let loading: Promise<typeof import("./workbench.ts")> | null = null
+let loading: Promise<typeof import("../controller.ts")> | null = null
 
-export function loadCompiledWorkbench(): Promise<typeof import("./workbench.ts")> {
-  loading ??= import("./workbench.ts")
+export function loadCompiledWorkbench(): Promise<typeof import("../controller.ts")> {
+  loading ??= import("../controller.ts")
   return loading
 }

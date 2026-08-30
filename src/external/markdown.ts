@@ -4,7 +4,7 @@ import {
   createStorybookComponentPresentation,
   type StorybookComponentPresentation,
 } from "./browser/component-presentation.ts"
-import type {StorybookOverviewAction} from "./browser/landing-view.tsx"
+import type {StorybookOverviewAction} from "./components/overview-action.ts"
 import {
   StorybookMarkdownView,
   type StorybookMarkdownViewProps,

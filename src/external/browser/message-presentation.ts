@@ -7,9 +7,7 @@ import {
 import {
   StorybookMessageView,
   type StorybookMessageViewProps,
-} from "./landing-view.tsx"
-
-export type {StorybookOverviewAction} from "./landing-view.tsx"
+} from "./message-view.tsx"
 
 export function createStorybookMessagePresentation(
   document: Document,

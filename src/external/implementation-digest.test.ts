@@ -50,7 +50,7 @@ function implementationFixture(): string {
   for (const directory of [
     "schemas",
     "scripts",
-    "src/dom",
+    "src/workbench",
     "src/external/browser",
     "src/external/browser-control",
     "src/external/fixtures",
@@ -62,7 +62,7 @@ function implementationFixture(): string {
   writeFileSync(join(root, "package.json"), "{}\n")
   writeFileSync(join(root, "scripts/storybook-daemon.ts"), "daemon\n")
   writeFileSync(join(root, "schemas/manifest.schema.json"), "{}\n")
-  writeFileSync(join(root, "src/dom/workbench.ts"), "export const workbench = true\n")
+  writeFileSync(join(root, "src/workbench/controller.ts"), "export const workbench = true\n")
   writeFileSync(join(root, "src/external/server.ts"), "export const revision = 1\n")
   writeFileSync(join(root, "src/external/controller.ts"), "controller revision 1\n")
   writeFileSync(join(root, "src/external/control-client.ts"), "control client revision 1\n")

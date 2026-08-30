@@ -10,18 +10,19 @@ import {
   MouseEvent,
   Node,
 } from "@zavx0z/dom"
-import {loadCompiledWorkbench} from "./compiled-workbench.test-support.ts"
 import type {
-  StorybookDomNavigationItem,
-  StorybookDomWorkbench,
-} from "./workbench.ts"
-import type * as WorkbenchModule from "./workbench.ts"
+  Workbench,
+  WorkbenchNavigationItem,
+} from "../contract.ts"
+import {WORKBENCH_EVENTS} from "../contract.ts"
+import type * as ControllerModule from "../controller.ts"
+import {loadCompiledWorkbench} from "../testing/compile-workbench.ts"
 
-let api: typeof WorkbenchModule
+let api: typeof ControllerModule
 
 beforeAll(async () => {
   api = await loadCompiledWorkbench()
-})
+}, 30_000)
 
 const groupedItems = Object.freeze([
   {
@@ -45,9 +46,9 @@ const groupedItems = Object.freeze([
     route: "elements/style",
     group: {id: "elements", label: "Элементы"},
   },
-] satisfies readonly StorybookDomNavigationItem[])
+] satisfies readonly WorkbenchNavigationItem[])
 
-describe("DOM-native Storybook catalog navigation tree", () => {
+describe("compiled Storybook catalog navigation tree", () => {
   test("creates explicit group rows, child groups and active leaves", () => {
     const workbench = createWorkbench(groupedItems, "primitives")
     expect(workbench.elements.catalogItems.getAttribute("role")).toBe("tree")
@@ -106,8 +107,8 @@ describe("DOM-native Storybook catalog navigation tree", () => {
     const workbench = createWorkbench(groupedItems)
     const events: Array<Readonly<{type: string; detail: unknown}>> = []
     for (const type of [
-      api.STORYBOOK_DOM_WORKBENCH_EVENTS.navigate,
-      api.STORYBOOK_DOM_WORKBENCH_EVENTS.groupToggle,
+      WORKBENCH_EVENTS.navigate,
+      WORKBENCH_EVENTS.groupToggle,
     ]) {
       workbench.element.addEventListener(type, (event) => {
         events.push({type, detail: (event as CustomEvent).detail})
@@ -190,7 +191,7 @@ describe("DOM-native Storybook catalog navigation tree", () => {
     const elements = findGroup(workbench, "elements")!
     const styles = findLeaf(workbench, "styles")!
     const navigations: unknown[] = []
-    workbench.element.addEventListener(api.STORYBOOK_DOM_WORKBENCH_EVENTS.navigate, (event) => {
+    workbench.element.addEventListener(WORKBENCH_EVENTS.navigate, (event) => {
       navigations.push((event as CustomEvent).detail)
     })
 
@@ -290,7 +291,7 @@ describe("DOM-native Storybook catalog navigation tree", () => {
   })
 
   test("keeps a 1000-item catalog in a bounded keyed DOM projection", () => {
-    const items: readonly StorybookDomNavigationItem[] = Array.from({length: 1000}, (_, index) => ({
+    const items: readonly WorkbenchNavigationItem[] = Array.from({length: 1000}, (_, index) => ({
       id: `item-${index}`,
       label: `Item ${index}`,
       route: `items/${index}`,
@@ -358,11 +359,11 @@ describe("DOM-native Storybook catalog navigation tree", () => {
 })
 
 function createWorkbench(
-  items: readonly StorybookDomNavigationItem[],
+  items: readonly WorkbenchNavigationItem[],
   active: string | null = null,
-): StorybookDomWorkbench {
+): Workbench {
   const document = createDocument()
-  return api.createStorybookDomWorkbench({
+  return api.createWorkbench({
     document,
     parent: document,
     initial: {
@@ -381,28 +382,28 @@ function descendants(root: Node): Element[] {
   return result
 }
 
-function groupRows(workbench: StorybookDomWorkbench): HTMLElement[] {
+function groupRows(workbench: Workbench): HTMLElement[] {
   return descendants(workbench.elements.catalogItems)
     .filter((element): element is HTMLElement => element.hasAttribute("data-group-id") &&
       element.getAttribute("role") === "treeitem")
 }
 
-function groupContainers(workbench: StorybookDomWorkbench): HTMLDivElement[] {
+function groupContainers(workbench: Workbench): HTMLDivElement[] {
   return descendants(workbench.elements.catalogItems)
     .filter((element): element is HTMLDivElement => element.getAttribute("role") === "group")
 }
 
-function leafRows(workbench: StorybookDomWorkbench): HTMLElement[] {
+function leafRows(workbench: Workbench): HTMLElement[] {
   return descendants(workbench.elements.catalogItems)
     .filter((element): element is HTMLElement => element.hasAttribute("data-id") &&
       element.getAttribute("role") === "treeitem")
 }
 
-function findGroup(workbench: StorybookDomWorkbench, id: string): HTMLElement | undefined {
+function findGroup(workbench: Workbench, id: string): HTMLElement | undefined {
   return groupRows(workbench).find((element) => element.getAttribute("data-group-id") === id)
 }
 
-function findLeaf(workbench: StorybookDomWorkbench, id: string): HTMLElement | undefined {
+function findLeaf(workbench: Workbench, id: string): HTMLElement | undefined {
   return leafRows(workbench).find((element) => element.getAttribute("data-id") === id)
 }
 

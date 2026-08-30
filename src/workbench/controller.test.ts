@@ -8,19 +8,26 @@ import {
   type HTMLElement,
 } from "@zavx0z/dom"
 import {isCompiledTemplate} from "@zavx0z/template/compiled"
-import {loadCompiledWorkbench} from "./compiled-workbench.test-support.ts"
-import type * as WorkbenchModule from "./workbench.ts"
+import {
+  WORKBENCH_EVENTS,
+  WORKBENCH_LAYOUT_PROTOCOL,
+  WORKBENCH_REGIONS,
+  type Workbench,
+} from "./contract.ts"
+import type * as ControllerModule from "./controller.ts"
+import {WORKBENCH_STANDARD_WIDGET_REGISTRY} from "./inspector/registry.ts"
+import {loadCompiledWorkbench} from "./testing/compile-workbench.ts"
 
-let api: typeof WorkbenchModule
+let api: typeof ControllerModule
 
 beforeAll(async () => {
   api = await loadCompiledWorkbench()
-})
+}, 30_000)
 
 describe("compiled Storybook Workbench", () => {
   test("creates one ComponentRoot, six exact regions and one production Inspector", () => {
     const document = createDocument()
-    const workbench = api.createStorybookDomWorkbench({
+    const workbench = api.createWorkbench({
       document,
       parent: document,
       initial: {
@@ -34,9 +41,9 @@ describe("compiled Storybook Workbench", () => {
     expect(document.documentElement).toBe(workbench.element)
     expect(workbench.element.getAttribute("aria-label")).toBe("UI Storybook")
     expect(workbench.element.getAttribute("role")).toBe("application")
-    expect(api.STORYBOOK_WORKBENCH_LAYOUT_PROTOCOL).toBe("workbench-layout/1")
+    expect(WORKBENCH_LAYOUT_PROTOCOL).toBe("workbench-layout/1")
     expect(Array.from(workbench.element.querySelectorAll("[data-storybook-region]")).map((element) =>
-      element.getAttribute("data-storybook-region"))).toEqual([...api.STORYBOOK_WORKBENCH_REGIONS])
+      element.getAttribute("data-storybook-region"))).toEqual([...WORKBENCH_REGIONS])
     expect(workbench.elements.catalog.localName).toBe("nav")
     expect(workbench.elements.secondary.localName).toBe("nav")
     expect(workbench.elements.preview.localName).toBe("main")
@@ -51,14 +58,14 @@ describe("compiled Storybook Workbench", () => {
     expect(workbench.componentRoot.readStyleSheets().styleSheets.length).toBeGreaterThan(0)
     const componentNames = new Set(workbench.componentRoot.readStyleSheets().styleSheets
       .flatMap(sheet => sheet.source?.kind === "authored-css" ? [sheet.source.componentName] : []))
-    for (const name of ["StorybookWorkbenchView", "Button", "TextField", "Inspector"]) {
+    for (const name of ["WorkbenchView", "Pane", "Button", "TextField", "Inspector"]) {
       expect(componentNames.has(name), name).toBeTrue()
     }
   })
 
   test("updates addressed component state while preserving shell and keyed item identities", () => {
     const document = createDocument()
-    const workbench = api.createStorybookDomWorkbench({document, parent: document})
+    const workbench = api.createWorkbench({document, parent: document})
     const shell = {...workbench.elements}
     const items = [
       {id: "button", label: "Кнопка", route: "components/button", title: "Открыть Button"},
@@ -87,7 +94,7 @@ describe("compiled Storybook Workbench", () => {
 
   test("atomically reparents one presentation Node between display, HUD and world hosts", () => {
     const document = createDocument()
-    const workbench = api.createStorybookDomWorkbench({document, parent: document})
+    const workbench = api.createWorkbench({document, parent: document})
     const presentation = document.createElement("button")
     presentation.textContent = "Output"
     const identity = presentation
@@ -135,14 +142,14 @@ describe("compiled Storybook Workbench", () => {
 
   test("uses production controls and emits bubbling semantic navigation events", () => {
     const document = createDocument()
-    const workbench = api.createStorybookDomWorkbench({document, parent: document})
+    const workbench = api.createWorkbench({document, parent: document})
     workbench.update("catalog.items", [
       {id: "button", label: "Кнопка", route: "components/button"},
       {id: "input", label: "Поле", route: "components/input"},
     ])
     workbench.update("scenarios.items", [{id: "hover", label: "Hover"}])
     const events: Array<Readonly<{type: string; detail: unknown}>> = []
-    for (const type of Object.values(api.STORYBOOK_DOM_WORKBENCH_EVENTS)) {
+    for (const type of Object.values(WORKBENCH_EVENTS)) {
       workbench.element.addEventListener(type, event => {
         events.push({type, detail: (event as CustomEvent).detail})
       })
@@ -171,7 +178,7 @@ describe("compiled Storybook Workbench", () => {
 
   test("retains Inspector widget selection by package and subject across variants", () => {
     const document = createDocument()
-    const workbench = api.createStorybookDomWorkbench({document, parent: document})
+    const workbench = api.createWorkbench({document, parent: document})
     const node = document.createElement("button")
     const subject = {
       packageId: "@fixture/components",
@@ -228,17 +235,17 @@ describe("compiled Storybook Workbench", () => {
   })
 
   test("mounts a governed custom widget with only its value", async () => {
-    const {CustomWorkbenchWidget} = await import("./workbench-custom-widget.fixture.tsx")
+    const {CustomWorkbenchWidget} = await import("./inspector/custom-widget.fixture.tsx")
     expect(isCompiledTemplate(CustomWorkbenchWidget)).toBeTrue()
     const document = createDocument()
-    const registry = [...api.STORYBOOK_DOM_STANDARD_WIDGET_REGISTRY, {
+    const registry = [...WORKBENCH_STANDARD_WIDGET_REGISTRY, {
       id: "metrics",
       kind: "custom" as const,
       label: "M",
       title: "Metrics",
       component: CustomWorkbenchWidget as never,
     }]
-    const workbench = api.createStorybookDomWorkbench({
+    const workbench = api.createWorkbench({
       document,
       parent: document,
       initial: {"inspector.registry": registry},
@@ -255,30 +262,32 @@ describe("compiled Storybook Workbench", () => {
   })
 
   test("contains no handwritten visible Workbench element construction or global chrome CSS", async () => {
-    const controller = await Bun.file(new URL("./workbench.ts", import.meta.url)).text()
-    const view = await Bun.file(new URL("./workbench-view.tsx", import.meta.url)).text()
-    const navigation = await Bun.file(new URL("./navigation-tree-view.tsx", import.meta.url)).text()
+    const controller = await Bun.file(new URL("./controller.ts", import.meta.url)).text()
+    const view = await Bun.file(new URL("./view.tsx", import.meta.url)).text()
+    const inspector = await Bun.file(new URL("./inspector/panel.tsx", import.meta.url)).text()
+    const sourceWidget = await Bun.file(new URL("./inspector/source-widget.tsx", import.meta.url)).text()
+    const navigation = await Bun.file(new URL("./navigation/tree.tsx", import.meta.url)).text()
     expect(controller).not.toContain("createElement(")
-    expect(controller).not.toContain("storybookDomWorkbenchCss")
-    expect(view).toContain('from "@ui/components/inspector"')
-    expect(view).toContain('from "@ui/components/code-editor"')
+    expect(controller).not.toContain("StorybookDom")
+    expect(inspector).toContain('from "@ui/components/inspector"')
+    expect(sourceWidget).toContain('from "@ui/components/code-editor"')
     expect(view).not.toContain("createElement(")
     expect(navigation).not.toContain("createElement(")
   })
 })
 
 function row(
-  workbench: WorkbenchModule.StorybookDomWorkbench,
+  workbench: Workbench,
   id: string,
   required?: true,
 ): HTMLElement
 function row(
-  workbench: WorkbenchModule.StorybookDomWorkbench,
+  workbench: Workbench,
   id: string,
   required: false,
 ): HTMLElement | null
 function row(
-  workbench: WorkbenchModule.StorybookDomWorkbench,
+  workbench: Workbench,
   id: string,
   required = true,
 ): HTMLElement | null {
@@ -296,7 +305,7 @@ function buttonIn(element: ReturnType<typeof row>): HTMLButtonElement {
 }
 
 function categoryButton(
-  workbench: WorkbenchModule.StorybookDomWorkbench,
+  workbench: Workbench,
   title: string,
 ): HTMLButtonElement {
   const button = [...workbench.elements.inspectorHost.querySelectorAll("button")]

@@ -1,66 +1,15 @@
 import type {HTMLElement} from "@zavx0z/dom"
 import {createRoot} from "@zavx0z/react"
 import {
+  ContractDocument,
+  type ContractDocumentProps,
+} from "./contract-document.tsx"
+import {
   defineSelfStory,
   serializeSelfElement,
 } from "./story-types.ts"
 
-type Contract = Readonly<{
-  title: string
-  summary: string
-  ownership: string
-  example: string
-}>
-
-function ContractView(props: Contract) {
-  return <article style={css`
-    & {
-      display: flex;
-      flex-direction: column;
-      width: 100%;
-      height: 100%;
-      gap: 10px;
-      padding: 18px;
-      overflow: auto;
-      border: 1px solid #181818;
-      border-radius: 4px;
-      background: #292929;
-      color: #e8e8e8;
-    }
-  `}>
-    <h2 style={css`
-      & {
-        margin: 0;
-        color: #9fdff3;
-        font-size: 17px;
-      }
-    `}>{props.title}</h2>
-    <p style={css`
-      & {
-        margin: 0;
-        color: #d0d0d0;
-        font-size: 12px;
-        white-space: normal;
-      }
-    `}>{props.summary}</p>
-    <p style={css`
-      & {
-        margin: 0;
-        color: #d0d0d0;
-        font-size: 12px;
-        white-space: normal;
-      }
-    `}>{props.ownership}</p>
-    <pre style={css`
-      & {
-        padding: 8px;
-        overflow: auto;
-        border: 1px solid #161616;
-        background: #202020;
-      }
-    `}><code>{props.example}</code></pre>
-  </article>
-}
+type Contract = ContractDocumentProps
 
 const contracts = Object.freeze({
   routeTree: contract(
@@ -83,8 +32,8 @@ const contracts = Object.freeze({
   ),
   workbench: contract(
     "Six-region Workbench",
-    "Catalog, secondary navigation, preview, scenarios, inspector and status are one stable DOM-native shell projected as a camera-locked overlay.",
-    "The external page Experience owns one semantic Document and one Canvas/Renderer/Space host. The restored Navigation Tree owns disclosure, search, keyboard/pointer focus and bounded row projection.",
+    "Catalog, secondary navigation, preview, scenarios, inspector and status are six compiled TSX region components composed by one stable Workbench root and projected as a camera-locked overlay.",
+    "The external page Experience owns one semantic Document and one Canvas/Renderer/Space host. Workbench modules separately own controller/state, presentation reparent, navigation model/windowing/rows/tree and the one production Inspector. Every TSX owner keeps its CSS inside the component.",
     "Document → DocumentSpaceRuntime → Workbench overlay",
   ),
   authorStyles: contract(
@@ -102,8 +51,8 @@ const contracts = Object.freeze({
   app: contract(
     "One package tab realm",
     "One package tab loads one generated entry, one runtime adapter and only its selected lazy story chunks into one page Experience. Compiler metafiles fix canonical dependency realpaths.",
-    "The shared shell owns one semantic Document and host Canvas/Renderer/Space. A structural adapter may atomically mount one bounded direct Engine Space; it receives no raw Renderer and creates no second canvas. Named tabs remain separate Experiences.",
-    "one package = one tab = one DocumentSpaceRuntime; base → bounded → semantic overlays",
+    "The shared shell owns one semantic Document and one host Canvas/Renderer/Space/ViewPoint. Only a declared world subject receives the exact shared context.space and may register its semantic node and camera through mountWorldPreview; no child Space, ViewPoint, Renderer or Canvas exists. Named tabs remain separate Experiences.",
+    "one package = one tab = one DocumentSpaceRuntime → shared world + semantic projection roots",
   ),
   server: contract(
     "One server and origin",
@@ -168,16 +117,16 @@ function contract(
   return defineSelfStory((document) => {
     const staging = document.createElement("div")
     const root = createRoot(staging)
-    root.render(<ContractView
+    root.render(<ContractDocument
       title={props.title}
       summary={props.summary}
       ownership={props.ownership}
       example={props.example}
     />)
-    const element = staging.querySelector("article") as HTMLElement | null
+    const element = staging.firstElementChild as HTMLElement | null
     if (element === null) {
       root.unmount()
-      throw new Error("Self Storybook Contract mounted no article")
+      throw new Error("Self Storybook Contract mounted no document")
     }
     staging.removeChild(element)
     return Object.freeze({

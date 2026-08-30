@@ -2,7 +2,7 @@
 
 import type {CustomEvent} from "@zavx0z/dom"
 import type {BrowserLinkedAuthorStyleSheetSource} from "@zavx0z/renderer-browser"
-import {STORYBOOK_DOM_WORKBENCH_EVENTS} from "../../dom/workbench.ts"
+import {WORKBENCH_EVENTS} from "../../workbench/contract.ts"
 import {waitForStorybookFrameBoundary} from "./frame.ts"
 import {
   deriveExternalStorybookLanding,
@@ -18,7 +18,7 @@ import {
   type ExternalStorybookShell,
 } from "./shell.ts"
 import type {ExternalStorybookClientSnapshot} from "./client-protocol.ts"
-import type {StorybookOverviewAction} from "./landing-view.ts"
+import type {StorybookOverviewAction} from "../components/overview-action.ts"
 
 export type StartExternalStorybookLandingOptions = Readonly<{
   fetcher?: typeof fetch
@@ -137,8 +137,8 @@ export async function startExternalStorybookLanding(
     const detail = (event as CustomEvent<{id: string}>).detail
     void showWorkspace(detail.id).catch((error) => isolateLandingError(browserDocument, shell, error))
   }
-  shell.workbench.element.addEventListener(STORYBOOK_DOM_WORKBENCH_EVENTS.navigate, onNavigate)
-  shell.workbench.element.addEventListener(STORYBOOK_DOM_WORKBENCH_EVENTS.groupToggle, onGroupToggle)
+  shell.workbench.element.addEventListener(WORKBENCH_EVENTS.navigate, onNavigate)
+  shell.workbench.element.addEventListener(WORKBENCH_EVENTS.groupToggle, onGroupToggle)
 
   const socket = createLandingSocket(options, location?.href)
   const onSocketOpen = (): void => socket?.send(JSON.stringify({type: "subscribe", topic: "registry"}))
@@ -186,8 +186,8 @@ export async function startExternalStorybookLanding(
     if (disposed) return
     disposed = true
     selectionRevision += 1
-    shell.workbench.element.removeEventListener(STORYBOOK_DOM_WORKBENCH_EVENTS.navigate, onNavigate)
-    shell.workbench.element.removeEventListener(STORYBOOK_DOM_WORKBENCH_EVENTS.groupToggle, onGroupToggle)
+    shell.workbench.element.removeEventListener(WORKBENCH_EVENTS.navigate, onNavigate)
+    shell.workbench.element.removeEventListener(WORKBENCH_EVENTS.groupToggle, onGroupToggle)
     socket?.removeEventListener("open", onSocketOpen)
     socket?.removeEventListener("message", onSocketMessage)
     socket?.close()

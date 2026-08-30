@@ -5,11 +5,11 @@ import {createDomInspector} from "@zavx0z/dom-devtools"
 import type {BrowserLinkedAuthorStyleSheetSource} from "@zavx0z/renderer-browser"
 import {isCompiledTemplate, type CompiledTemplate} from "@zavx0z/template/compiled"
 import {
-  STORYBOOK_DOM_STANDARD_WIDGET_REGISTRY,
-  STORYBOOK_DOM_WORKBENCH_EVENTS,
-  type StorybookDomInspectorCustomWidgetRegistration,
-  type StorybookDomWorkbenchPresentationUpdate,
-} from "../../dom/workbench.ts"
+  WORKBENCH_EVENTS,
+  type WorkbenchInspectorCustomWidgetRegistration,
+  type WorkbenchPresentationUpdate,
+} from "../../workbench/contract.ts"
+import {WORKBENCH_STANDARD_WIDGET_REGISTRY} from "../../workbench/inspector/registry.ts"
 import {mergeStorybookAuthorStyleSheets} from "../author-style-sheets.ts"
 import {createStorybookAgentBridge, type StorybookAgentBridge} from "./agent-bridge.ts"
 import {
@@ -248,7 +248,7 @@ export async function startExternalStorybookPackage(
   let currentModel = initialModel
   let navigationRevision = 0
   let activePresentationOperation: StorybookPresentationOperation | null = null
-  let activePresentationView: StorybookDomWorkbenchPresentationUpdate | null = null
+  let activePresentationView: WorkbenchPresentationUpdate | null = null
   let routeDiagnostics: unknown[] = []
   let operationTail: Promise<void> = Promise.resolve()
   let disposePromise: Promise<void> | null = null
@@ -289,7 +289,7 @@ export async function startExternalStorybookPackage(
         candidate as CompiledTemplate<Readonly<{value: unknown}>>,
       )
     }
-    const customRegistry: StorybookDomInspectorCustomWidgetRegistration[] = []
+    const customRegistry: WorkbenchInspectorCustomWidgetRegistration[] = []
     for (const item of revisionGraph?.widgetContributions?.items ?? []) {
       if (item.kind !== "component") continue
       const component = customWidgetComponents.get(item.id)
@@ -303,7 +303,7 @@ export async function startExternalStorybookPackage(
       }))
     }
     shell.workbench.update("inspector.registry", Object.freeze([
-      ...STORYBOOK_DOM_STANDARD_WIDGET_REGISTRY,
+      ...WORKBENCH_STANDARD_WIDGET_REGISTRY,
       ...customRegistry,
     ]))
   }
@@ -724,8 +724,8 @@ export async function startExternalStorybookPackage(
       isolatePackageError(browserDocument, shell, currentModel, error)
     }
   }
-  shell.workbench.element.addEventListener(STORYBOOK_DOM_WORKBENCH_EVENTS.navigate, onNavigate)
-  shell.workbench.element.addEventListener(STORYBOOK_DOM_WORKBENCH_EVENTS.scenario, onScenario)
+  shell.workbench.element.addEventListener(WORKBENCH_EVENTS.navigate, onNavigate)
+  shell.workbench.element.addEventListener(WORKBENCH_EVENTS.scenario, onScenario)
   globalThis.addEventListener?.("popstate", onPopState)
 
   const socket = createPackageSocket(
@@ -785,8 +785,8 @@ export async function startExternalStorybookPackage(
     globalThis.removeEventListener?.("popstate", onPopState)
     globalThis.removeEventListener?.("pagehide", onPageHide)
     environment.lifecycleSignal?.removeEventListener("abort", onPageHide)
-    shell.workbench.element.removeEventListener(STORYBOOK_DOM_WORKBENCH_EVENTS.navigate, onNavigate)
-    shell.workbench.element.removeEventListener(STORYBOOK_DOM_WORKBENCH_EVENTS.scenario, onScenario)
+    shell.workbench.element.removeEventListener(WORKBENCH_EVENTS.navigate, onNavigate)
+    shell.workbench.element.removeEventListener(WORKBENCH_EVENTS.scenario, onScenario)
     const cleanupTimeoutMs = boundedCleanupTimeout(environment.cleanupTimeoutMs ?? 5_000)
     disposePromise = (async () => {
       try {

@@ -22,7 +22,7 @@ const IMPLEMENTATION_FILES = Object.freeze([
 
 const IMPLEMENTATION_TREES = Object.freeze([
   Object.freeze({path: "schemas", kind: "schema" as const}),
-  Object.freeze({path: "src/dom", kind: "source" as const}),
+  Object.freeze({path: "src/workbench", kind: "source" as const}),
   Object.freeze({path: "src/external", kind: "source" as const}),
 ])
 

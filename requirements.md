@@ -70,12 +70,29 @@ layout и не заменяет navigation. Видимый shell являетс�
 ComponentRoot и содержит ровно один production `@ui/components/Inspector`;
 rail/content являются его внутренностями, а не package slots.
 
+Внутренний owner module называется `src/workbench`: controller, state,
+presentation, navigation, каждый region и Inspector projection разделены по
+своим обязанностям. Semantic DOM является runtime substrate, а не именем
+Workbench domain. Каждый TSX component владеет своим `style={css``}`; общий
+визуал переиспользуется только через настоящий component, не module-level
+`CssStyle` fragments.
+
+Workbench components обязаны композировать exact production owners
+`Pane`, `Button`, `TextField`, `Typography`, `Inspector`, `InspectorSection`,
+`Field` и `CodeEditor`, когда их semantic/API contract подходит. Caller
+`style` содержит только contextual placement; он не повторяет owner padding,
+control height, font, border, background, focus, selected, disabled или shadow.
+Storybook-owned intrinsic остаётся только там, где он несёт другую семантику:
+navigation tree, document markup, projection host или fixed region layout.
+
 ### `STORYBOOK-WORKBENCH-002` — restored Navigation Tree
 
-Canonical graph использует существующий DOM-native Tree View с direct rows,
-optional groups, disclosure, search, pointer/standard keyboard navigation,
-stable keys, active/disabled/focus and bounded hidden-row projection. Group
-toggle не навигирует. Collapse/focus принадлежат session, не JSON.
+Canonical graph использует compiled TSX `WorkbenchNavigationTree` с direct
+rows, optional groups, disclosure, search, pointer/standard keyboard
+navigation, stable keys, active/disabled/focus and bounded hidden-row
+projection. Pure model/windowing, row components и tree session lifecycle
+являются отдельными модулями. Group toggle не навигирует. Collapse/focus
+принадлежат session, не JSON.
 
 ### `STORYBOOK-WORKBENCH-003` — landing and package tab semantics
 

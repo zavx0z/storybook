@@ -16,11 +16,11 @@ import {
   type DocumentSpaceRuntime,
   type DocumentSpaceViewPointSnapshot,
 } from "@zavx0z/renderer-browser"
-import {
-  createStorybookDomWorkbench,
-  type StorybookDomWorkbench,
-  type StorybookDomWorkbenchPresentationUpdate,
-} from "../../dom/workbench.ts"
+import type {
+  Workbench,
+  WorkbenchPresentationUpdate,
+} from "../../workbench/contract.ts"
+import {createWorkbench} from "../../workbench/controller.ts"
 import {
   EXTERNAL_STORYBOOK_CLIENT_PROTOCOL,
   type ExternalStorybookClientNode,
@@ -31,8 +31,8 @@ import {
 } from "../markdown.ts"
 import {
   createStorybookMessagePresentation,
-  type StorybookOverviewAction,
-} from "./landing-view.ts"
+} from "./message-presentation.ts"
+import type {StorybookOverviewAction} from "../components/overview-action.ts"
 import type {StorybookComponentPresentation} from "./component-presentation.ts"
 import type {
   StorybookPreviewBounds,
@@ -67,11 +67,11 @@ export type ExternalStorybookShell = Readonly<{
   document: SemanticDocument
   browserDocument: globalThis.Document
   canvas: HTMLCanvasElement
-  workbench: StorybookDomWorkbench
+  workbench: Workbench
   readonly runtime: DocumentSpaceRuntime
   readonly workbenchOverlay: DocumentOverlayRuntime
   readonly presentedFrameSequence: number
-  present(value: StorybookDomWorkbenchPresentationUpdate): void
+  present(value: WorkbenchPresentationUpdate): void
   mountPreview(label: string, node: SemanticNode): void
   showMessage(label: string, title: string, detail: string, action?: StorybookOverviewAction): SemanticElement
   showMarkdown(label: string, source: string, baseUrl?: string, action?: StorybookOverviewAction): SemanticElement
@@ -123,7 +123,7 @@ export async function createExternalStorybookShell(
   if (browserDocument === undefined) throw new Error("External Storybook browser Document is unavailable")
   const canvas = options.canvas ?? ensureCanvas(browserDocument)
   const document = options.document ?? createDocument()
-  const workbench = createStorybookDomWorkbench({
+  const workbench = createWorkbench({
     document,
     parent: document,
     initial: {

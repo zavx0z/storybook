@@ -171,6 +171,15 @@ Fixed `workbench-layout/1` owns exactly `catalog`, `secondary`, `preview`,
 заменить region. Runtime owns only package-specific presentation and must
 publish Nodes from the exact provided Document.
 
+Workbench implementation живёт в `src/workbench`: controller/state,
+presentation, navigation, six region components и Inspector widgets разделены
+на точных owners. `src/dom` отсутствует, потому что semantic DOM — substrate,
+не домен shell. CSS находится внутри owning TSX components; shared pane/heading
+поведение переиспользуется компонентами, а не `CssStyle` constants.
+Production `Pane`, `Button`, `TextField`, `Typography`, `Inspector`, `Field`
+и `CodeEditor` владеют своим visual/state contract; Storybook caller styles
+задают только размещение внутри fixed Workbench regions.
+
 `context.present` является единственным atomic channel и принимает required
 `{node, componentRoot, source:{html,typescript}}` плюс selected widget values.
 За один mount/update обязана быть ровно одна публикация. CSS facet имеет structured форму

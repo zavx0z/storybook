@@ -1,7 +1,6 @@
-import {Button} from "@ui/components/button"
 import {CodeEditor} from "@ui/components/code-editor"
-import type {Event} from "@zavx0z/dom"
-import type {StorybookOverviewAction} from "./browser/landing-view.tsx"
+import {StorybookOverviewActionButton} from "./components/overview-action-button.tsx"
+import type {StorybookOverviewAction} from "./components/overview-action.ts"
 import type {
   StorybookMarkdownBlock,
   StorybookMarkdownDocument,
@@ -19,14 +18,6 @@ type MarkdownBlockProps = Readonly<{block: StorybookMarkdownBlock}>
 type MarkdownListProps = Readonly<{
   items: Extract<StorybookMarkdownBlock, {kind: "list"}>["items"]
 }>
-
-const codeEditorStyle: CssStyle = css`
-  & { width: 100%; height: 160px; min-height: 96px; }
-`
-
-const actionStyle: CssStyle = css`
-  & { width: auto; min-width: 120px; min-height: 30px; padding: 5px 10px; align-self: flex-start; }
-`
 
 function MarkdownText(props: Readonly<{value: string}>) {
   return <span>{props.value}</span>
@@ -86,25 +77,21 @@ function MarkdownListItem(props: Readonly<{
 }
 
 function MarkdownOrderedList(props: MarkdownListProps) {
-  return <ol style={css`& { display: flex; flex-direction: column; margin: 0 0 8px; padding-left: 20px; }`}>
+  return <ol
+    data-markdown-list="ordered"
+    style={css`& { display: flex; flex-direction: column; margin: 0 0 8px; padding-left: 20px; }`}
+  >
     {props.items.map(item => <MarkdownListItem key={item.key} item={item} />)}
   </ol>
 }
 
 function MarkdownUnorderedList(props: MarkdownListProps) {
-  return <ul style={css`& { display: flex; flex-direction: column; margin: 0 0 8px; padding-left: 20px; }`}>
+  return <ul
+    data-markdown-list="unordered"
+    style={css`& { display: flex; flex-direction: column; margin: 0 0 8px; padding-left: 20px; }`}
+  >
     {props.items.map(item => <MarkdownListItem key={item.key} item={item} />)}
   </ul>
-}
-
-function MarkdownList(props: Readonly<{
-  ordered: boolean
-  items: MarkdownListProps["items"]
-}>) {
-  return <section data-markdown-list={props.ordered ? "ordered" : "unordered"}>
-    {props.ordered ? <MarkdownOrderedList items={props.items} /> : null}
-    {!props.ordered ? <MarkdownUnorderedList items={props.items} /> : null}
-  </section>
 }
 
 function MarkdownCodeBlock(props: Readonly<{languageId: string; value: string}>) {
@@ -113,23 +100,29 @@ function MarkdownCodeBlock(props: Readonly<{languageId: string; value: string}>)
     readOnly={true}
     languageId={props.languageId}
     title={`${props.languageId} code`}
-    style={codeEditorStyle}
+    style={css`
+      & {
+        width: 100%;
+        height: 160px;
+        min-height: 96px;
+      }
+    `}
   />
 }
 
 function MarkdownBlock(props: MarkdownBlockProps) {
   const block = props.block
-  return <section data-markdown-block={block.kind}>
+  return <div data-markdown-block={block.kind}>
     {block.kind === "heading" ? <MarkdownHeading level={block.level} content={block.content} /> : null}
     {block.kind === "paragraph" ? <MarkdownParagraph content={block.content} /> : null}
-    {block.kind === "list" ? <MarkdownList ordered={block.ordered} items={block.items} /> : null}
+    {block.kind === "list" && block.ordered ? <MarkdownOrderedList items={block.items} /> : null}
+    {block.kind === "list" && !block.ordered ? <MarkdownUnorderedList items={block.items} /> : null}
     {block.kind === "code" ? <MarkdownCodeBlock languageId={block.languageId} value={block.value} /> : null}
-  </section>
+  </div>
 }
 
 /** Compiled inert Markdown presentation with an optional production action. */
 export function StorybookMarkdownView(props: StorybookMarkdownViewProps) {
-  const onAction = (_event: Event) => props.action?.activate()
   return <article
     data-storybook-markdown=""
     style={css`
@@ -148,13 +141,8 @@ export function StorybookMarkdownView(props: StorybookMarkdownViewProps) {
     `}
   >
     {props.markdown.blocks.map(block => <MarkdownBlock key={block.key} block={block} />)}
-    {props.action === undefined ? null : <Button
-      label={props.action.label}
-      title={props.action.title}
-      aria-label={props.action.title}
-      tone="primary"
-      style={actionStyle}
-      onClick={onAction}
+    {props.action === undefined ? null : <StorybookOverviewActionButton
+      action={props.action}
     />}
   </article>
 }

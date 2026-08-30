@@ -1,77 +1,77 @@
-/** Pure validation and projection for the compiled Storybook Navigation Tree. */
+/** Pure validation and projection for Workbench navigation. */
 
-export type StorybookDomNavigationGroup = Readonly<{
+export type WorkbenchNavigationGroup = Readonly<{
   id: string
   label: string
 }>
 
-export type StorybookDomNavigationItem = Readonly<{
+export type WorkbenchNavigationItem = Readonly<{
   id: string
   label: string
   route: string
   title?: string
   disabled?: boolean
   searchText?: string
-  group?: StorybookDomNavigationGroup
+  group?: WorkbenchNavigationGroup
 }>
 
-export type StorybookDomNavigationGroupProjection = Readonly<{
+export type WorkbenchNavigationGroupProjection = Readonly<{
   kind: "group"
-  group: StorybookDomNavigationGroup
-  items: readonly StorybookDomNavigationItem[]
+  group: WorkbenchNavigationGroup
+  items: readonly WorkbenchNavigationItem[]
 }>
 
-export type StorybookDomNavigationLeafProjection = Readonly<{
+export type WorkbenchNavigationLeafProjection = Readonly<{
   kind: "leaf"
-  item: StorybookDomNavigationItem
+  item: WorkbenchNavigationItem
   parentId: string | null
 }>
 
-export type StorybookDomNavigationTopLevelProjection =
-  | StorybookDomNavigationGroupProjection
-  | StorybookDomNavigationLeafProjection
+export type WorkbenchNavigationTopLevelProjection =
+  | WorkbenchNavigationGroupProjection
+  | WorkbenchNavigationLeafProjection
 
-export type StorybookDomNavigationRow = Readonly<{
+export type WorkbenchNavigationRow = Readonly<{
   kind: "group"
   id: string
-  group: StorybookDomNavigationGroupProjection
+  group: WorkbenchNavigationGroupProjection
 }> | Readonly<{
   kind: "leaf"
   id: string
-  item: StorybookDomNavigationItem
+  item: WorkbenchNavigationItem
   parentId: string | null
 }>
 
-export type StorybookDomNavigationProjection = Readonly<{
-  topLevel: readonly StorybookDomNavigationTopLevelProjection[]
-  rows: readonly StorybookDomNavigationRow[]
-  leaves: readonly StorybookDomNavigationLeafProjection[]
+export type WorkbenchNavigationProjection = Readonly<{
+  topLevel: readonly WorkbenchNavigationTopLevelProjection[]
+  rows: readonly WorkbenchNavigationRow[]
+  leaves: readonly WorkbenchNavigationLeafProjection[]
 }>
 
 type MutableGroupProjection = {
   kind: "group"
-  group: StorybookDomNavigationGroup
-  items: StorybookDomNavigationItem[]
+  group: WorkbenchNavigationGroup
+  items: WorkbenchNavigationItem[]
 }
 
 /** Validates and freezes navigation metadata before component rendering. */
-export function normalizeStorybookDomNavigationItems(
+export function normalizeWorkbenchNavigationItems(
   label: string,
   value: unknown,
-): readonly StorybookDomNavigationItem[] {
+): readonly WorkbenchNavigationItem[] {
   if (!Array.isArray(value)) throw new TypeError(`${label} items must be an array`)
   const itemIds = new Set<string>()
-  const groups = new Map<string, StorybookDomNavigationGroup>()
-  const items = value.map((candidate, index): StorybookDomNavigationItem => {
+  const groups = new Map<string, WorkbenchNavigationGroup>()
+  const items = value.map((candidate, index): WorkbenchNavigationItem => {
     if (candidate === null || typeof candidate !== "object") {
       throw new TypeError(`${label} item ${index} must be an object`)
     }
-    const item = candidate as StorybookDomNavigationItem
+    const item = candidate as WorkbenchNavigationItem
     const id = requiredText(`${label} item id`, item.id)
     if (itemIds.has(id)) throw new Error(`Duplicate ${label.toLowerCase()} item id: ${id}`)
     itemIds.add(id)
 
-    let group: StorybookDomNavigationGroup | undefined
+    let group: WorkbenchNavigationGroup | undefined
     if (item.group !== undefined) {
       if (item.group === null || typeof item.group !== "object") {
         throw new TypeError(`${label} item group must be an object`)
@@ -104,13 +104,13 @@ export function normalizeStorybookDomNavigationItems(
 }
 
 /** Derives visible semantic rows without constructing or owning DOM nodes. */
-export function projectStorybookDomNavigation(
-  items: readonly StorybookDomNavigationItem[],
+export function projectWorkbenchNavigation(
+  items: readonly WorkbenchNavigationItem[],
   query: string,
   collapsedGroupIds: ReadonlySet<string>,
-): StorybookDomNavigationProjection {
-  const normalizedQuery = normalizeStorybookDomNavigationSearch(query)
-  const topLevel: Array<MutableGroupProjection | StorybookDomNavigationLeafProjection> = []
+): WorkbenchNavigationProjection {
+  const normalizedQuery = normalizeWorkbenchNavigationSearch(query)
+  const topLevel: Array<MutableGroupProjection | WorkbenchNavigationLeafProjection> = []
   const groups = new Map<string, MutableGroupProjection>()
   for (const item of items) {
     if (item.group === undefined) {
@@ -128,18 +128,18 @@ export function projectStorybookDomNavigation(
     if (matches(item, normalizedQuery)) group.items.push(item)
   }
 
-  const normalizedTopLevel = topLevel.flatMap((entry): StorybookDomNavigationTopLevelProjection[] => {
+  const normalizedTopLevel = topLevel.flatMap((entry): WorkbenchNavigationTopLevelProjection[] => {
     if (entry.kind === "leaf") return [entry]
     if (entry.items.length === 0 &&
-      !normalizeStorybookDomNavigationSearch(entry.group.label).includes(normalizedQuery)) return []
+      !normalizeWorkbenchNavigationSearch(entry.group.label).includes(normalizedQuery)) return []
     return [Object.freeze({
       kind: "group" as const,
       group: entry.group,
       items: Object.freeze([...entry.items]),
     })]
   })
-  const rows: StorybookDomNavigationRow[] = []
-  const leaves: StorybookDomNavigationLeafProjection[] = []
+  const rows: WorkbenchNavigationRow[] = []
+  const leaves: WorkbenchNavigationLeafProjection[] = []
   for (const entry of normalizedTopLevel) {
     if (entry.kind === "leaf") {
       const row = Object.freeze({kind: "leaf" as const, id: entry.item.id, item: entry.item, parentId: null})
@@ -162,34 +162,34 @@ export function projectStorybookDomNavigation(
   })
 }
 
-export function storybookDomNavigationRowEnabled(row: StorybookDomNavigationRow): boolean {
+export function workbenchNavigationRowEnabled(row: WorkbenchNavigationRow): boolean {
   return row.kind === "group" || !row.item.disabled
 }
 
-export function storybookDomNavigationRowKey(
-  row: StorybookDomNavigationRow | undefined,
+export function workbenchNavigationRowKey(
+  row: WorkbenchNavigationRow | undefined,
 ): string | null {
   if (row === undefined) return null
   return row.kind === "group"
-    ? storybookDomNavigationGroupKey(row.id)
-    : storybookDomNavigationLeafKey(row.id)
+    ? workbenchNavigationGroupKey(row.id)
+    : workbenchNavigationLeafKey(row.id)
 }
 
-export function storybookDomNavigationGroupKey(id: string): string {
+export function workbenchNavigationGroupKey(id: string): string {
   return `group:${id}`
 }
 
-export function storybookDomNavigationLeafKey(id: string): string {
+export function workbenchNavigationLeafKey(id: string): string {
   return `leaf:${id}`
 }
 
-export function normalizeStorybookDomNavigationSearch(value: string): string {
+export function normalizeWorkbenchNavigationSearch(value: string): string {
   return value.trim().toLocaleLowerCase("ru-RU")
 }
 
-function matches(item: StorybookDomNavigationItem, query: string): boolean {
+function matches(item: WorkbenchNavigationItem, query: string): boolean {
   if (query.length === 0) return true
-  return normalizeStorybookDomNavigationSearch([
+  return normalizeWorkbenchNavigationSearch([
     item.label,
     item.title ?? "",
     item.route,

@@ -144,16 +144,31 @@ Fixed `workbench-layout/1` реализован одним compiled TSX Componen
 catalog | secondary | preview | scenarios | inspector | status
 ```
 
+Implementation owner — `src/workbench`, не generic `src/dom`. Корневой
+`WorkbenchView` только композирует шесть region components. Contract/state,
+ComponentRoot controller, same-Document presentation reparent, navigation
+model/windowing/rows/tree и Inspector registry/projection/widgets являются
+отдельными acyclic modules. Каждый TSX owner объявляет CSS непосредственно в
+своём `style={css``}`; повторяемая pane/heading семантика оформлена components,
+а не внешними `CssStyle` constants.
+
+Region and presentation components import exact production UI owners directly.
+Workbench may constrain their placement, but never redraw owner contour,
+density or native focus/selected/disabled states. Semantic HTML remains local
+only when the production component has another contract, for example Markdown
+`ol/ul` versus interactive `List`, or navigation tree versus `listbox`.
+
 В `inspector` существует ровно один production
 `@ui/components/inspector#Inspector`. Subject declaration выбирает ordered
 widgets; package не добавляет region и не заменяет rail/content. Workbench
 сохраняет selected widget по `(packageId, subjectId)` между variants.
 
-Canonical graph проецируется в существующий `Navigation Tree` через
+Canonical graph проецируется в compiled `WorkbenchNavigationTree` через
 `catalog.items`. Direct items, optional `group → child`, disclosure, search,
 pointer/keyboard navigation, keyed identity, active/disabled/focus и bounded
-large-catalog window остаются его внутренним UI/session state. Collapse state
-не записывается в declarations.
+large-catalog window остаются его внутренним UI/session state. Pure projection
+и windowing не зависят от TSX; row components владеют разметкой и CSS. Collapse
+state не записывается в declarations.
 
 Landing показывает workspace groups, direct standalone projects и direct
 packages без fake workspace. Package tab показывает categories (direct или

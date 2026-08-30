@@ -54,15 +54,15 @@
         "variants": [{"id": "overview", "label": "Overview", "route": "workbench/contract/overview", "module": {"path": "./stories/contracts.tsx", "export": "workbench"}}]
         },
         {
-          "id": "live",
+          "id": "presentation",
           "kind": "component",
-          "label": "Live button",
-          "apiName": "HTMLButtonElement",
+          "label": "Atomic presentation",
+          "apiName": "context.present",
           "presentation": {"protocol": "story-presentation/1", "projection": "display", "widgets": ["props", "source", "events", "diagnostics", "dom", "layout", "display"]},
           "variants": [
-            {"id": "primary", "label": "Primary", "route": "workbench/live/primary", "module": {"path": "./stories/workbench.tsx", "export": "primary"}},
-            {"id": "outlined", "label": "Outlined", "route": "workbench/live/outlined", "module": {"path": "./stories/workbench.tsx", "export": "outlined"}},
-            {"id": "disabled", "label": "Disabled", "route": "workbench/live/disabled", "module": {"path": "./stories/workbench.tsx", "export": "disabled"}}
+            {"id": "primary", "label": "Primary", "route": "workbench/presentation/primary", "module": {"path": "./stories/presentation.tsx", "export": "primary"}},
+            {"id": "outlined", "label": "Outlined", "route": "workbench/presentation/outlined", "module": {"path": "./stories/presentation.tsx", "export": "outlined"}},
+            {"id": "disabled", "label": "Disabled", "route": "workbench/presentation/disabled", "module": {"path": "./stories/presentation.tsx", "export": "disabled"}}
           ]
         }
       ]

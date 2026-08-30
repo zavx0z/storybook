@@ -26,6 +26,7 @@ describe("external @zavx0z/storybook tool boundary", () => {
       "src/server.ts",
       "src/launcher.ts",
       "src/scaffold.ts",
+      "src/dom",
       "src/internal/package-runtime.ts",
       "templates/package/package.json.template",
     ]) expect(existsSync(join(root, path)), path).toBeFalse()
@@ -41,8 +42,9 @@ describe("external @zavx0z/storybook tool boundary", () => {
     })
     for (const path of [
       ".storybook/runtime.ts",
+      ".storybook/stories/contract-document.tsx",
       ".storybook/stories/contracts.tsx",
-      ".storybook/stories/workbench.tsx",
+      ".storybook/stories/presentation.tsx",
       ".storybook/stories/story-types.ts",
     ]) expect(await Bun.file(join(root, path)).text(), path).not.toContain("@zavx0z/storybook")
   })
@@ -68,6 +70,10 @@ describe("external @zavx0z/storybook tool boundary", () => {
     expect(combined).not.toContain("UiSurface")
     expect(combined).not.toContain("@layout/core")
     expect(combined).not.toContain("@ui/elements")
+    expect(combined).not.toContain("StorybookDom")
+    expect(combined).not.toContain("STORYBOOK_DOM")
+    expect(combined).toContain("workbench/contract.ts")
+    expect(combined).toContain("workbench/controller.ts")
     const protocol = await Bun.file(join(root, "src/external/runtime-protocol.ts")).text()
     expect(protocol).toContain("mountWorldPreview")
     expect(protocol).not.toContain("engineRenderer")

@@ -20,9 +20,9 @@ describe("external Storybook self declaration", () => {
       "stories/contract/overview",
       "catalog/contract/overview",
       "workbench/contract/overview",
-      "workbench/live/primary",
-      "workbench/live/outlined",
-      "workbench/live/disabled",
+      "workbench/presentation/primary",
+      "workbench/presentation/outlined",
+      "workbench/presentation/disabled",
       "references/contract/overview",
       "author-styles/contract/overview",
       "app/contract/overview",
@@ -34,7 +34,7 @@ describe("external Storybook self declaration", () => {
     ])
     expect(overviews).toHaveLength(26)
     expect(overviews[0]).toBe("")
-    expect(overviews).toContain("workbench/live")
+    expect(overviews).toContain("workbench/presentation")
     expect(overviews.some((path) => path.endsWith("/overview"))).toBeFalse()
     const categories = graph.nodes.filter(({kind}) => kind === "category")
     expect(categories.some(({presentationGroup}) => presentationGroup === null)).toBeTrue()
@@ -103,8 +103,9 @@ describe("external Storybook self declaration", () => {
   test("keeps its owner runtime and stories free of Storybook imports", async () => {
     for (const path of [
       ".storybook/runtime.ts",
+      ".storybook/stories/contract-document.tsx",
       ".storybook/stories/contracts.tsx",
-      ".storybook/stories/workbench.tsx",
+      ".storybook/stories/presentation.tsx",
       ".storybook/stories/story-types.ts",
     ]) {
       const source = await Bun.file(resolve(root, path)).text()
@@ -112,8 +113,21 @@ describe("external Storybook self declaration", () => {
       expect(source, path).not.toContain('import {css}')
       expect(source, path).not.toContain("style={[")
     }
-    const workbench = await Bun.file(resolve(root, ".storybook/stories/workbench.tsx")).text()
-    expect(workbench).toContain('data-variant={props.variant}')
-    expect(workbench).toContain('&[data-variant="outlined"]')
+    const presentation = await Bun.file(resolve(root, ".storybook/stories/presentation.tsx")).text()
+    expect(presentation).toContain('from "@ui/components/button"')
+    expect(presentation).toContain("<Button")
+    expect(presentation).not.toContain("<button")
+    expect(presentation).not.toContain("style={css`")
+
+    const contractDocument = await Bun.file(resolve(
+      root,
+      ".storybook/stories/contract-document.tsx",
+    )).text()
+    for (const owner of ["code-editor", "pane", "typography"]) {
+      expect(contractDocument).toContain(`from "@ui/components/${owner}"`)
+    }
+    expect(contractDocument).not.toContain("<pre")
+    expect(contractDocument).not.toContain("<code")
+    expect(contractDocument).not.toMatch(/#[\da-f]{3,8}/iu)
   })
 })
