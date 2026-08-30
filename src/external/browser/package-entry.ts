@@ -49,6 +49,17 @@ import {
   type ExternalStorybookShell,
 } from "./shell.ts"
 import {projectStorybookSource} from "./source-projection.ts"
+import {
+  createStorybookAggregatePresentation,
+  type StorybookAggregatePresentation,
+  type StorybookAggregatePresentationItem,
+} from "./aggregate-presentation.tsx"
+import {
+  disposeStorybookAggregateChildren,
+  mountStorybookAggregateChildren,
+  planStorybookOverview,
+  type MountedStorybookAggregateChild,
+} from "./aggregate-runtime.ts"
 
 export type ExternalStorybookStoryLoader = () => Promise<unknown>
 export type ExternalStorybookWidgetLoader = () => Promise<unknown>
@@ -82,6 +93,11 @@ type StorybookPresentationSubject = Readonly<{
   id: string
   kind: "subject"
   presentation: StorybookPackageRevisionStoryPresentation
+}>
+
+type MountedStorybookAggregate = Readonly<{
+  presentation: StorybookAggregatePresentation
+  children: readonly MountedStorybookAggregateChild[]
 }>
 
 export type ExternalStorybookPackageEnvironment = Readonly<{
@@ -243,6 +259,7 @@ export async function startExternalStorybookPackage(
   let runtimeAdapterPromise: Promise<StorybookRuntimeAdapter> | null = null
   let session: BoundStorybookRuntimeSession | null = null
   let sessionPromise: Promise<BoundStorybookRuntimeSession> | null = null
+  let aggregate: MountedStorybookAggregate | null = null
   let mountedRoute: string | null = null
   let currentRoute = initialRoute
   let currentModel = initialModel
@@ -473,6 +490,14 @@ export async function startExternalStorybookPackage(
     if (session === record) session = null
   }
 
+  const disposeAggregate = async (): Promise<void> => {
+    const current = aggregate
+    aggregate = null
+    if (current === null) return
+    await disposeStorybookAggregateChildren(current.children)
+    current.presentation.dispose()
+  }
+
   const ensureSession = async (
     subject: StorybookPresentationSubject,
   ): Promise<BoundStorybookRuntimeSession> => {
@@ -523,11 +548,132 @@ export async function startExternalStorybookPackage(
     return pending
   }
 
+  const showAggregateOverview = async (
+    model: ExternalStorybookPackageTabModel,
+    revision: number,
+    signal: AbortSignal,
+  ): Promise<boolean> => {
+    const plan = planStorybookOverview(snapshot, model)
+    if (plan.length === 0 || plan.some(({subject}) =>
+      subject.presentation.projection === "world")) return false
+    await disposeAggregate()
+    if (session !== null) {
+      if (mountedRoute !== null) {
+        await session.session.unmount()
+        mountedRoute = null
+      }
+      await disposeSession(session)
+    }
+    let children: readonly MountedStorybookAggregateChild[] = Object.freeze([])
+    let pendingPresentation: StorybookAggregatePresentation | null = null
+    try {
+      const aggregateSignal = AbortSignal.any([lifetime.signal, signal])
+      const adapter = await abortable(ensureRuntimeAdapter(), aggregateSignal)
+      children = await mountStorybookAggregateChildren({
+        document: shell.document,
+        adapter,
+        plan,
+        signal: aggregateSignal,
+        async loadStory(route) {
+          const loader = storyLoaders.get(route)
+          if (loader === undefined) {
+            throw new Error(`Storybook aggregate representative has no exact loader: ${route}`)
+          }
+          return loader()
+        },
+        validatePresentation(value, presentation) {
+          exactRuntimePresentation(
+            value,
+            shell,
+            presentation,
+            revisionGraph?.authorStyleSheets.map(({specifier}) => specifier) ?? Object.freeze([]),
+            routeDiagnostics,
+          )
+        },
+        reportDiagnostic,
+        requestRender: () => shell.requestRender(),
+      })
+      if (disposed || revision !== navigationRevision || signal.aborted) {
+        throw signal.reason ?? new DOMException("Storybook aggregate navigation superseded", "AbortError")
+      }
+      const node = externalStorybookClientNode(snapshot, model.selectedNode.id)
+      const aggregatePresentation = createStorybookAggregatePresentation(
+        shell.document,
+        `${node.label} · Обзор`,
+        Object.freeze(children.map((child): StorybookAggregatePresentationItem => Object.freeze({
+          id: child.plan.id,
+          label: child.plan.label,
+          route: child.plan.route,
+          presentation: child.presentation,
+        }))),
+      )
+      pendingPresentation = aggregatePresentation
+      const overviewSubject = exactPresentationSubject(revisionGraph, snapshot, model)
+      let inspectorValues: Readonly<Record<string, unknown>> = Object.freeze({
+        diagnostics: Object.freeze([...routeDiagnostics]),
+      })
+      let inspectorSubject: WorkbenchPresentationUpdate["inspectorSubject"] = null
+      if (overviewSubject === null) {
+        projectStorybookSource(
+          aggregatePresentation.source,
+          aggregatePresentation.componentRoot,
+          shell.document,
+          revisionGraph?.authorStyleSheets.map(({specifier}) => specifier) ?? Object.freeze([]),
+        )
+      } else {
+        const subjectPresentation = requiredSubjectPresentation(overviewSubject)
+        const committed = exactRuntimePresentation(
+          Object.freeze({
+            protocol: STORYBOOK_PRESENTATION_PROTOCOL,
+            node: aggregatePresentation.element,
+            componentRoot: aggregatePresentation.componentRoot,
+            source: aggregatePresentation.source,
+          }),
+          shell,
+          subjectPresentation,
+          revisionGraph?.authorStyleSheets.map(({specifier}) => specifier) ?? Object.freeze([]),
+          routeDiagnostics,
+        )
+        inspectorValues = committed.inspectorValues
+        inspectorSubject = Object.freeze({
+          packageId,
+          subjectId: overviewSubject.id,
+          widgetIds: subjectPresentation.widgets,
+        })
+      }
+      const next = Object.freeze({
+        label: `${node.label} · Обзор`,
+        presentation: Object.freeze({
+          node: aggregatePresentation.element,
+          projection: "display" as const,
+        }),
+        inspectorSubject,
+        inspectorValues,
+      })
+      activePresentationView = next
+      shell.workbench.present(next)
+      shell.requestRender()
+      aggregate = Object.freeze({
+        presentation: aggregatePresentation,
+        children: Object.freeze([...children]),
+      })
+      pendingPresentation = null
+      return true
+    } catch (error) {
+      pendingPresentation?.dispose()
+      await disposeStorybookAggregateChildren(children, error, true)
+      throw error
+    }
+  }
+
   const showOverview = async (
     model: ExternalStorybookPackageTabModel,
     revision: number,
+    signal: AbortSignal,
   ): Promise<void> => {
     disposeWorldPreview()
+    if (await showAggregateOverview(model, revision, signal)) return
+    await disposeAggregate()
     if (session !== null && mountedRoute !== null) {
       await session.session.unmount()
       mountedRoute = null
@@ -572,13 +718,14 @@ export async function startExternalStorybookPackage(
     if (route === null) throw new Error(`External Storybook variant has no route: ${model.selectedNode.id}`)
     const loader = storyLoaders.get(route)
     if (loader === undefined) {
-      await showOverview(model, revision)
+      await showOverview(model, revision, signal)
       return
     }
     const subject = exactPresentationSubject(revisionGraph, snapshot, model)
     if (subject === null) throw new Error(`Executable Storybook variant has no presentation subject: ${route}`)
     const presentation = requiredSubjectPresentation(subject)
     disposeWorldPreview()
+    await disposeAggregate()
     shell.showMessage(`${model.selectedNode.label} · Загрузка`, model.selectedNode.label, "Загрузка owner story…")
     const [runtimeRecord, story] = await abortable(Promise.all([ensureSession(subject), loader()]), signal)
     if (disposed || revision !== navigationRevision || signal.aborted) return
@@ -657,7 +804,7 @@ export async function startExternalStorybookPackage(
       if (model.selectedNode.kind === "variant") {
         await showVariant(model, revision, signal)
       } else {
-        await showOverview(model, revision)
+        await showOverview(model, revision, signal)
       }
       if (disposed || revision !== navigationRevision || signal.aborted) return
       shell.updateStatus(`${packageId} · ${route.length === 0 ? "overview" : route}`)
@@ -793,6 +940,7 @@ export async function startExternalStorybookPackage(
         const deadline = Date.now() + cleanupTimeoutMs
         await settleBefore(operationTail, deadline)
         if (sessionPromise !== null) await settleBefore(sessionPromise, deadline)
+        if (aggregate !== null) await settleBefore(disposeAggregate(), deadline)
         if (session !== null) {
           disposeWorldPreview()
           if (mountedRoute !== null) await settleBefore(Promise.resolve(session.session.unmount()), deadline)

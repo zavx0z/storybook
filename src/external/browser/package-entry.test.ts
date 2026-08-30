@@ -1,7 +1,7 @@
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
 import {Space} from "@engine/core"
-import {createDocument} from "@zavx0z/dom"
+import {createDocument, type Element} from "@zavx0z/dom"
 import type {
   DocumentOverlayRuntime,
   DocumentSpaceRuntime,
@@ -102,7 +102,7 @@ describe("external Storybook package frontend", () => {
     expect(lifecycle.at(-1)).toBe("author-dispose")
   })
 
-  test("keeps overviews real and loads one runtime plus only exact selected stories", async () => {
+  test("materializes real overview children without selecting their representative routes", async () => {
     const graph = await fixtureGraph()
     const candidate = "revision-a"
     const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, candidate))
@@ -219,13 +219,21 @@ describe("external Storybook package frontend", () => {
     expect(controller.shell.workbench.controller.read("secondary.active"))
       .toBe("subject:@fixture/components/components/button")
     expect(controller.shell.workbench.controller.read("scenarios.active")).toBeNull()
-    expect(runtimeLoads).toBe(0)
+    expect(runtimeLoads).toBe(1)
+    expect(containedLoads).toBe(2)
+    expect(outlinedLoads).toBe(1)
+    expect(mounts).toBe(3)
+    const subjectOverview = controller.shell.workbench.controller.read("presentation").node
+    expect((subjectOverview as Element | null)?.querySelectorAll("[data-storybook-aggregate-item]"))
+      .toHaveLength(2)
+    expect(subjectOverview?.textContent).toContain("Contained")
+    expect(subjectOverview?.textContent).toContain("Outlined")
 
     await controller.navigate("components/button/basic/contained")
     expect(runtimeLoads).toBe(1)
-    expect(containedLoads).toBe(1)
-    expect(outlinedLoads).toBe(0)
-    expect(mounts).toBe(1)
+    expect(containedLoads).toBe(3)
+    expect(outlinedLoads).toBe(1)
+    expect(mounts).toBe(4)
     expect(worldLifecycle.adds).toBe(0)
     const ownerContext = contexts[0]!
     expect(ownerContext.document).toBe(semanticDocument)
@@ -238,20 +246,22 @@ describe("external Storybook package frontend", () => {
 
     await controller.navigate("components/button/outlined")
     expect(runtimeLoads).toBe(1)
-    expect(containedLoads).toBe(1)
-    expect(outlinedLoads).toBe(1)
-    expect(mounts).toBe(2)
-    expect(unmounts).toBe(1)
+    expect(containedLoads).toBe(3)
+    expect(outlinedLoads).toBe(2)
+    expect(mounts).toBe(5)
     expect(worldLifecycle.adds).toBe(0)
     expect(worldLifecycle.removes).toBe(0)
     expect(controller.shell.workbench.controller.read("scenarios.active"))
       .toBe("variant:@fixture/components/components/button/outlined")
 
     await controller.navigate("components/button")
-    expect(unmounts).toBe(2)
     expect(worldLifecycle.removes).toBe(0)
-    expect(controller.shell.workbench.controller.read("presentation").node?.textContent)
-      .toContain("2 вариантов")
+    expect(controller.shell.workbench.controller.read("scenarios.active")).toBeNull()
+    const restoredOverview = controller.shell.workbench.controller.read("presentation").node
+    expect((restoredOverview as Element | null)?.querySelectorAll("[data-storybook-aggregate-item]"))
+      .toHaveLength(2)
+    expect(restoredOverview?.textContent).toContain("Contained")
+    expect(restoredOverview?.textContent).toContain("Outlined")
     expect(history.pushed).toEqual([
       "/packages/%40fixture%2Fcomponents/components/",
       "/packages/%40fixture%2Fcomponents/components/button/",
@@ -294,7 +304,8 @@ describe("external Storybook package frontend", () => {
     expect(controller.shell.workbench.elements.inspectorHost.textContent).toContain("broken candidate")
 
     await controller.dispose()
-    expect(disposes).toBe(1)
+    expect(unmounts).toBeGreaterThanOrEqual(6)
+    expect(disposes).toBeGreaterThanOrEqual(6)
     expect(socket.closed).toBeTrue()
   })
 
@@ -513,7 +524,9 @@ describe("external Storybook package frontend", () => {
     expect((environment.browserDocument as any).documentElement.dataset.externalStorybookPackage)
       .toBe("error")
     await controller.navigate("components/button")
-    expect(unmounts).toBe(1)
+    expect(unmounts).toBe(2)
+    expect((environment.browserDocument as any).documentElement.dataset.externalStorybookPackage)
+      .toBe("error")
     await controller.dispose()
   })
 

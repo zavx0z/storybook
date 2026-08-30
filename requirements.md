@@ -45,6 +45,17 @@ registries запрещены.
 Package, category и subject overview существуют независимо от descendants.
 Unknown route получает 404/fail-closed; overview никогда не выбирает случайную
 первую variant. Arrays сохраняют owner semantic order.
+Category overview материализует по одному bounded representative detail каждого
+immediate subject; subject overview материализует все direct variants. Каждый
+child получает отдельную runtime session и real production root внутри одного
+same-Document aggregate. Representative не меняет URL, active subject/variant
+либо dock selection. Labels-only cards и message вместо executable children
+запрещены, кроме package README и явно неподдерживаемого world aggregate.
+Aggregate parent владеет обычным CSS `row` layout с `flex-wrap: wrap`: пока
+bounded child tiles помещаются, они делят строку, затем Renderer переносит
+следующий tile на новую строку. Единственный child заполняет доступный preview,
+а `overflow-y` остаётся только scroll fallback для малой высоты viewport.
+Ручные coordinates, измерение ширины и consumer-local packing запрещены.
 
 ### `STORYBOOK-DECL-002` — subject presentation and widgets
 
@@ -176,9 +187,12 @@ dynamic declarations видны как inline style в HTML facet.
 
 Validated declaration генерирует static import expression на runtime и каждую
 variant. Module path/export проверяются build-time. Runtime загружается только
-в package tab, variant — только при выборе. Browser arbitrary dynamic import,
-eval и giant all-package bundle запрещены. Failed old import становится
-retryable через новый immutable revision URL.
+в package tab. Exact leaf загружает только выбранную variant; category/subject
+overview загружает только bounded representative/direct descendants своего
+поддерева для real aggregate, не меняя selection. Unrelated variants остаются
+unloaded. Browser arbitrary dynamic import, eval и giant all-package bundle
+запрещены. Failed old import становится retryable через новый immutable revision
+URL.
 
 ### `STORYBOOK-IDENTITY-001` — one module identity per package realm
 
@@ -327,8 +341,9 @@ without exposing filesystem paths.
 ### `STORYBOOK-PERF-001` — bounded lazy startup
 
 Server startup/landing не собирает и не загружает all stories/runtimes.
-Unopened variant remains unloaded, clean session не rebuild-ится, declaration
-metadata bounded, hidden catalog rows не eager materialize.
+Variant остаётся unloaded, пока не выбрана exact leaf либо её bounded subtree не
+открыт как category/subject aggregate. Clean session не rebuild-ится,
+declaration metadata bounded, hidden catalog rows не eager materialize.
 
 ### `STORYBOOK-REVISION-001` — immutable artifacts
 
