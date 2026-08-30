@@ -1,5 +1,5 @@
 import {afterEach, describe, expect, test} from "bun:test"
-import {cp, mkdtemp, mkdir, realpath, rm, symlink} from "node:fs/promises"
+import {cp, link, mkdtemp, mkdir, realpath, rm, stat, symlink} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {dirname, join} from "node:path"
 import {
@@ -239,7 +239,38 @@ describe("external Storybook JSON declarations", () => {
       return {...value, categories}
     })
     await expect(resolveExternalStorybookDeclarations([symlinkEscape]))
-      .rejects.toThrow("escapes scope root after realpath")
+      .rejects.toThrow("must be an exact non-symlink file")
+  })
+
+  test("preserves the declared owner path independently of a hardlink leaf alias", async () => {
+    const hardlinked = await cloneFixture()
+    const packageRoot = join(hardlinked, "projects", "alpha", "packages", "components")
+    const packageJsonPath = join(packageRoot, "package.json")
+    const mirrorRoot = join(hardlinked, "node_modules", ".bun", "components-mirror")
+    const mirrorPath = join(mirrorRoot, "package.json")
+    await mkdir(mirrorRoot, {recursive: true})
+    await link(packageJsonPath, mirrorPath)
+
+    const [ownerStat, mirrorStat, leafRealpath, canonicalPackageRoot, canonicalMirrorRoot] = await Promise.all([
+      stat(packageJsonPath),
+      stat(mirrorPath),
+      realpath(packageJsonPath),
+      realpath(packageRoot),
+      realpath(mirrorRoot),
+    ])
+    expect({dev: ownerStat.dev, ino: ownerStat.ino}).toEqual({
+      dev: mirrorStat.dev,
+      ino: mirrorStat.ino,
+    })
+    expect([
+      join(canonicalPackageRoot, "package.json"),
+      join(canonicalMirrorRoot, "package.json"),
+    ]).toContain(leafRealpath)
+
+    const declarations = await resolveExternalStorybookDeclarations([hardlinked])
+    const components = declarationPackage(declarations.declarations, "@fixture/components")
+    expect(components.scopeRoot).toBe(canonicalPackageRoot)
+    expect(components.packageJsonPath).toBe(join(canonicalPackageRoot, "package.json"))
   })
 
   test("resolves only exact ordered public CSS exports and digests their bytes", async () => {

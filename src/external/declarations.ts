@@ -2,14 +2,14 @@
  * Versioned JSON declaration discovery for the external Storybook.
  *
  * The resolver reads data only. It canonicalizes every owner path through
- * `realpath`, rejects paths outside the declaring scope, verifies exact package
- * identity and statically checks requested ESM exports without executing owner
- * modules.
+ * canonical directory chains, preserves exact hardlinked owner leaf paths,
+ * rejects paths outside the declaring scope, verifies exact package identity
+ * and statically checks requested ESM exports without executing owner modules.
  */
 
 import {createHash} from "node:crypto"
 import {constants} from "node:fs"
-import {open, realpath, readFile, stat} from "node:fs/promises"
+import {lstat, open, realpath, readFile, stat} from "node:fs/promises"
 import {
   basename,
   dirname,
@@ -1026,24 +1026,18 @@ async function readExactAuthorStyleSheet(
   if (!isContained(ownerRoot, lexical)) {
     throw new Error(`External Storybook ${label} escapes scope root: ${target}`)
   }
-  let handle: Awaited<ReturnType<typeof open>>
+  const opened = await openExactOwnerFile(
+    lexical,
+    `External Storybook ${label}`,
+    "exact",
+  )
   try {
-    handle = await open(lexical, constants.O_RDONLY | constants.O_NOFOLLOW)
-  } catch (error) {
-    throw new Error(`External Storybook ${label} must be an exact non-symlink file: ${lexical}`, {cause: error})
-  }
-  try {
-    const [opened, canonical] = await Promise.all([handle.stat(), realpath(lexical)])
-    if (!opened.isFile() || !isContained(ownerRoot, canonical)) {
+    if (!isContained(ownerRoot, opened.path)) {
       throw new Error(`External Storybook ${label} escapes its exact owner package: ${target}`)
     }
-    const current = await stat(canonical)
-    if (opened.dev !== current.dev || opened.ino !== current.ino) {
-      throw new Error(`External Storybook ${label} changed during resolution: ${target}`)
-    }
-    return Object.freeze({path: canonical, bytes: await handle.readFile()})
+    return Object.freeze({path: opened.path, bytes: await opened.handle.readFile()})
   } finally {
-    await handle.close()
+    await opened.handle.close()
   }
 }
 
@@ -1095,11 +1089,14 @@ async function moduleHasExport(
     if (specifier === undefined || (!specifier.startsWith(".") && !isAbsolute(specifier))) continue
     let resolved: string
     try {
-      resolved = await realpath(Bun.resolveSync(specifier, dirname(modulePath)))
+      resolved = await resolveContainedAbsoluteFile(
+        Bun.resolveSync(specifier, dirname(modulePath)),
+        scopeRoot,
+        "module re-export",
+      )
     } catch {
       continue
     }
-    if (!isContained(scopeRoot, resolved)) continue
     if (await moduleHasExport(resolved, exportName, scopeRoot, visiting)) {
       visiting.delete(modulePath)
       return true
@@ -1186,16 +1183,13 @@ async function resolveEntryManifest(input: string): Promise<string> {
 }
 
 async function canonicalManifest(path: string): Promise<string> {
-  let canonical: string
+  const opened = await openExactOwnerFile(path, "External Storybook manifest", "missing")
   try {
-    canonical = await realpath(path)
-  } catch (error) {
-    throw new Error(`External Storybook manifest does not exist: ${path}`, {cause: error})
+    await manifestScopeRoot(opened.path)
+    return opened.path
+  } finally {
+    await opened.handle.close()
   }
-  const metadata = await stat(canonical)
-  if (!metadata.isFile()) throw new Error(`External Storybook manifest must be a file: ${canonical}`)
-  await manifestScopeRoot(canonical)
-  return canonical
 }
 
 async function manifestScopeRoot(manifestPath: string): Promise<string> {
@@ -1218,18 +1212,66 @@ async function resolveContainedFile(
   validateRelativePath(value, label)
   const lexical = resolve(baseDirectory, value)
   if (!isContained(scopeRoot, lexical)) throw new Error(`External Storybook ${label} escapes scope root: ${value}`)
-  let canonical: string
+  return await resolveContainedAbsoluteFile(lexical, scopeRoot, label)
+}
+
+async function resolveContainedAbsoluteFile(
+  lexical: string,
+  scopeRoot: string,
+  label: string,
+): Promise<string> {
+  const opened = await openExactOwnerFile(
+    lexical,
+    `External Storybook ${label}`,
+    "missing",
+  )
   try {
-    canonical = await realpath(lexical)
+    if (!isContained(scopeRoot, opened.path)) {
+      throw new Error(`External Storybook ${label} escapes scope root after realpath: ${lexical}`)
+    }
+    return opened.path
+  } finally {
+    await opened.handle.close()
+  }
+}
+
+async function openExactOwnerFile(
+  lexical: string,
+  label: string,
+  missing: "missing" | "exact",
+): Promise<Readonly<{
+  path: string
+  handle: Awaited<ReturnType<typeof open>>
+}>> {
+  let canonicalParent: string
+  try {
+    canonicalParent = await realpath(dirname(lexical))
   } catch (error) {
-    throw new Error(`External Storybook ${label} does not exist: ${lexical}`, {cause: error})
+    throw new Error(`${label} does not exist: ${lexical}`, {cause: error})
   }
-  if (!isContained(scopeRoot, canonical)) {
-    throw new Error(`External Storybook ${label} escapes scope root after realpath: ${value}`)
+  const path = join(canonicalParent, basename(lexical))
+  let handle: Awaited<ReturnType<typeof open>>
+  try {
+    handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW)
+  } catch (error) {
+    const code = (error as Readonly<{code?: unknown}>).code
+    if (missing === "missing" && code === "ENOENT") {
+      throw new Error(`${label} does not exist: ${path}`, {cause: error})
+    }
+    throw new Error(`${label} must be an exact non-symlink file: ${path}`, {cause: error})
   }
-  const metadata = await stat(canonical)
-  if (!metadata.isFile()) throw new Error(`External Storybook ${label} must be a file: ${canonical}`)
-  return canonical
+  try {
+    const opened = await handle.stat()
+    if (!opened.isFile()) throw new Error(`${label} must be a file: ${path}`)
+    const current = await lstat(path)
+    if (!current.isFile() || opened.dev !== current.dev || opened.ino !== current.ino) {
+      throw new Error(`${label} changed during resolution: ${path}`)
+    }
+    return Object.freeze({path, handle})
+  } catch (error) {
+    await handle.close()
+    throw error
+  }
 }
 
 function isContained(root: string, path: string): boolean {
