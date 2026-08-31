@@ -70,6 +70,23 @@ describe("Workbench component module boundary", () => {
     ]) expect(panel).not.toContain(declaration)
   })
 
+  test("composes the production StatusBar instead of duplicating its footer visual contract", () => {
+    const status = readFileSync(join(root, "regions/status.tsx"), "utf8")
+    expect(status).toContain('from "@ui/components/status-bar"')
+    expect(status).toContain("<StatusBar")
+    expect(status).not.toContain("<footer")
+    expect(status).not.toContain("<Typography")
+    for (const declaration of [
+      "height:",
+      "padding:",
+      "border:",
+      "background:",
+      "color:",
+      "font-size:",
+      "line-height:",
+    ]) expect(status).not.toContain(declaration)
+  })
+
   test("keeps reusable component contour and states with production owners", () => {
     const inspector = readFileSync(join(root, "inspector/panel.tsx"), "utf8")
     expect(inspector).not.toContain("style=")

@@ -7,6 +7,7 @@ import {
   type HTMLInputElement,
   type HTMLElement,
 } from "@zavx0z/dom"
+import {createDocumentRenderer} from "@zavx0z/renderer"
 import {isCompiledTemplate} from "@zavx0z/template/compiled"
 import {
   WORKBENCH_EVENTS,
@@ -48,10 +49,22 @@ describe("compiled Storybook Workbench", () => {
     expect(workbench.elements.secondary.localName).toBe("nav")
     expect(workbench.elements.preview.localName).toBe("main")
     expect(workbench.elements.scenarios.getAttribute("role")).toBe("toolbar")
-    expect(workbench.elements.status.getAttribute("role")).toBe("status")
-    expect(workbench.elements.status.getAttribute("aria-label")).toBe(
+    const status = workbench.elements.status.querySelector("footer") as HTMLElement | null
+    expect(status?.getAttribute("role")).toBe("status")
+    expect(status?.getAttribute("aria-label")).toBe(
       "Создано для MetaFor · WebXR UI",
     )
+    expect(status?.textContent).toBe("Создано для MetaFor · WebXR UI")
+    expect(workbench.elements.status.querySelectorAll('[role="status"]')).toHaveLength(1)
+    expect(workbench.elements.status.querySelector('[data-status-item="workbench-status-owner"]')
+      ?.getAttribute("data-highlighted")).toBe("true")
+    const renderer = createDocumentRenderer({
+      document,
+      root: workbench.element,
+      viewport: {width: 1_280, height: 720},
+    })
+    expect(renderer.flush().boxByNode.get(status!)).toMatchObject({width: 1_280, height: 24})
+    renderer.dispose()
     expect(workbench.element.querySelectorAll("aside")).toHaveLength(1)
     expect(workbench.elements.inspectorHost.querySelector("aside")?.getAttribute("aria-label"))
       .toBe("Инспектор")
@@ -62,7 +75,7 @@ describe("compiled Storybook Workbench", () => {
     expect(workbench.componentRoot.readStyleSheets().styleSheets.length).toBeGreaterThan(0)
     const componentNames = new Set(workbench.componentRoot.readStyleSheets().styleSheets
       .flatMap(sheet => sheet.source?.kind === "authored-css" ? [sheet.source.componentName] : []))
-    for (const name of ["WorkbenchView", "Pane", "Button", "TextField", "Inspector"]) {
+    for (const name of ["WorkbenchView", "Pane", "Button", "TextField", "Inspector", "StatusBar"]) {
       expect(componentNames.has(name), name).toBeTrue()
     }
   })
