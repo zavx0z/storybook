@@ -1,11 +1,12 @@
 import {
   existsSync,
+  lstatSync,
   readFileSync,
   readdirSync,
   realpathSync,
   statSync,
 } from "node:fs"
-import {dirname, isAbsolute, join, relative, resolve, sep} from "node:path"
+import {basename, dirname, isAbsolute, join, relative, resolve, sep} from "node:path"
 import {fileURLToPath, pathToFileURL} from "node:url"
 
 const TEMPLATE_JSX_IMPORT_SOURCE = "@zavx0z/template"
@@ -554,6 +555,26 @@ function resolveTemplateAdapter(
   projectRoot: string,
   templateRoot: string,
 ): string {
+  const manifest = parseJsonObject(
+    join(templateRoot, "package.json"),
+    "Template owner package manifest",
+  )
+  const declared = conditionalExportTarget(
+    isObject(manifest.exports) ? manifest.exports["./bun"] : undefined,
+  )
+  if (declared !== null) {
+    if (!declared.startsWith("./")) {
+      throw new Error(`Template JSX compiler export must be package-relative: ${declared}`)
+    }
+    const adapterPath = canonicalLexicalFile(
+      resolve(templateRoot, declared),
+      "Template JSX compiler adapter",
+    )
+    if (!inside(templateRoot, adapterPath)) {
+      throw new Error(`Template JSX compiler adapter escaped its owner package: ${adapterPath}`)
+    }
+    return adapterPath
+  }
   const attempts = [...new Set([
     packageRoot,
     projectRoot,
@@ -566,11 +587,21 @@ function resolveTemplateAdapter(
     } catch {
       continue
     }
-    const adapterPath = canonicalFile(resolved, "Template JSX compiler adapter")
+    const adapterPath = canonicalLexicalFile(resolved, "Template JSX compiler adapter")
     if (!inside(templateRoot, adapterPath)) continue
     return adapterPath
   }
   throw new Error(`Cannot resolve ${TEMPLATE_BUN_EXPORT} from owner dependency graph`)
+}
+
+function conditionalExportTarget(value: unknown): string | null {
+  if (typeof value === "string") return value
+  if (!isObject(value)) return null
+  for (const condition of ["bun", "import", "default"] as const) {
+    const target = conditionalExportTarget(value[condition])
+    if (target !== null) return target
+  }
+  return null
 }
 
 function validateTemplatePluginFactory(
@@ -641,6 +672,26 @@ function canonicalFile(value: string, label: string): string {
     throw new Error(`${label} does not exist: ${value}`, {cause: error})
   }
   if (!statSync(path).isFile()) throw new Error(`${label} must be a file: ${path}`)
+  return path
+}
+
+function canonicalLexicalFile(value: string, label: string): string {
+  let parent: string
+  try {
+    parent = realpathSync.native(dirname(resolve(value)))
+  } catch (error) {
+    throw new Error(`${label} parent does not exist: ${value}`, {cause: error})
+  }
+  const path = join(parent, basename(value))
+  let opened: ReturnType<typeof lstatSync>
+  try {
+    opened = lstatSync(path)
+  } catch (error) {
+    throw new Error(`${label} does not exist: ${path}`, {cause: error})
+  }
+  if (!opened.isFile() || opened.isSymbolicLink()) {
+    throw new Error(`${label} must be an exact non-symlink file: ${path}`)
+  }
   return path
 }
 

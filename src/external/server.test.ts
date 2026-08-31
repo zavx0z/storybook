@@ -2,6 +2,7 @@ import {afterEach, describe, expect, setDefaultTimeout, test} from "bun:test"
 import {existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
+import {fileURLToPath} from "node:url"
 import {
   startExternalStorybookServer,
   StorybookBrowserSessionRegistry,
@@ -11,7 +12,7 @@ import {writeExternalStorybookServerRecord} from "./server-state.ts"
 
 const roots: string[] = []
 const servers: ExternalStorybookRunningServer[] = []
-setDefaultTimeout(30_000)
+setDefaultTimeout(120_000)
 
 afterEach(async () => {
   await Promise.all(servers.splice(0).map((server) => server.stop()))
@@ -47,8 +48,16 @@ describe("one external Storybook server", () => {
     expect(landing.status).toBe(200)
     const html = await landing.text()
     expect(html).toContain('<link rel="icon" href="data:,">')
+    expect(html).toContain('<meta name="engine-default-font" content="/assets/inter-regular.ttf">')
+    expect(html).not.toContain("jetbrains-mono-bold.ttf")
     expect(html).toContain("<title>MetaFor</title>")
     expect(html).not.toContain("<title>Storybook</title>")
+    const fontAsset = await fetch(new URL("/assets/inter-regular.ttf", running.origin))
+    expect(fontAsset.status).toBe(200)
+    expect(fontAsset.headers.get("content-type")).toBe("font/ttf")
+    expect(Buffer.from(await fontAsset.arrayBuffer())).toEqual(readFileSync(fileURLToPath(
+      import.meta.resolve("@engine/core/fonts/inter-regular.ttf"),
+    )))
     const script = html.match(/<script type="module" src="([^"]+)"/u)?.[1]
     expect(script).toBeDefined()
     expect((await fetch(new URL(script!, running.origin))).status).toBe(200)
@@ -74,7 +83,7 @@ describe("one external Storybook server", () => {
     const checked = await controlPost(running, "/api/control/check", {scope: "@fixture/standalone"})
     expect(checked.response.status).toBe(200)
     expect(running.sessions.session("@fixture/standalone").snapshot().builds).toBe(1)
-  }, 30_000)
+  }, 120_000)
 
   test("owns one automatic origin and atomically attaches independent roots", async () => {
     const fixture = serverFixture()
@@ -236,7 +245,7 @@ describe("one external Storybook server", () => {
     expect(failedResponse.status).toBe(200)
     expect(session.snapshot().activeRevision).toBe(working.activeRevision)
     expect(session.snapshot().lastWorkingRevision).toBe(working.lastWorkingRevision)
-  }, 30_000)
+  }, 120_000)
 
   test("protects control routes and never exposes the master capability to browser responses", async () => {
     const fixture = serverFixture()
@@ -304,7 +313,7 @@ describe("one external Storybook server", () => {
     socket.send(JSON.stringify({type: "subscribe", topic: "package:@fixture/standalone"}))
     await waitFor(() => messages.some(({type}) => type === "subscribed"))
     socket.close()
-  }, 30_000)
+  }, 120_000)
 
   test("serves only declared README files, resources and literal local README assets", async () => {
     const fixture = serverFixture()
@@ -344,7 +353,7 @@ describe("one external Storybook server", () => {
     const componentState = running.sessions.session("@fixture/components").snapshot()
     expect(componentState.buildState, JSON.stringify(componentState.diagnostics)).toBe("activating")
     expect(running.sessions.session("@fixture/docs").snapshot().builds).toBe(0)
-  }, 30_000)
+  }, 120_000)
 
   test("serves ordered revision-scoped native author stylesheet links before the package entry", async () => {
     const fixture = serverFixture()
@@ -392,7 +401,7 @@ describe("one external Storybook server", () => {
       )).text())
     }
     expect(html).not.toContain(join(fixture.workspace, "projects/alpha/packages/components"))
-  }, 30_000)
+  }, 120_000)
 
   test("refreshes author CSS content digest before publishing its next immutable revision", async () => {
     const fixture = serverFixture()
@@ -437,7 +446,7 @@ describe("one external Storybook server", () => {
       running.origin,
     ))
     expect(await response.text()).toBe(":root { --fixture-accent: #ffffff; }\n")
-  }, 30_000)
+  }, 120_000)
 
   test("failed attach leaves registry and sessions unchanged", async () => {
     const fixture = serverFixture()

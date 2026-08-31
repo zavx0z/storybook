@@ -6,6 +6,7 @@ import {startExternalStorybookServer, type ExternalStorybookRunningServer} from 
 
 const roots: string[] = []
 const servers: ExternalStorybookRunningServer[] = []
+const isolationTest = process.env.STORYBOOK_SKIP_ISOLATION === "1" ? test.skip : test
 
 afterEach(async () => {
   await Promise.all(servers.splice(0).map((server) => server.stop()))
@@ -13,7 +14,7 @@ afterEach(async () => {
 })
 
 describe("one-server package isolation", () => {
-  test("isolates A/B/C updates, last-good failures and shared dependencies", async () => {
+  isolationTest("isolates A/B/C updates, last-good failures and shared dependencies", async () => {
     const fixture = createIsolationFixture()
     const running = await startExternalStorybookServer({
       declarations: [fixture.projectRoot],

@@ -13,7 +13,7 @@
     "serve": "bun scripts/storybook.ts serve .",
     "build": "bun scripts/storybook.ts check .",
     "typecheck": "tsc --noEmit --pretty false",
-    "test": "bun test src",
+    "test": "STORYBOOK_SKIP_ISOLATION=1 bun test src --max-concurrency=1 && bun test src/external/isolation.integration.test.ts --max-concurrency=1",
     "mcp:check": "bun run --cwd mcp check",
     "check": "bun run typecheck && bun run test && bun run mcp:check && bun run build"
   },

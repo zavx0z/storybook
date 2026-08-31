@@ -10,6 +10,7 @@ import {
   validateStorybookPackageRevisionGraphSnapshot,
   type StorybookPackageRevisionGraphSnapshot,
 } from "./package-revision.ts"
+import {STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS} from "./timing.ts"
 
 export type StorybookPackageModule = Readonly<{path: string, export: string}>
 export type StorybookPackageVariantModule = Readonly<{route: string, module: StorybookPackageModule}>
@@ -162,7 +163,6 @@ type ActivationRecord = {
 
 type RunningBuild = Readonly<{generation: number, controller: AbortController}>
 
-const DEFAULT_COMPILE_TIMEOUT_MS = 30_000
 const DEFAULT_PROTOCOL_TIMEOUT_MS = 10_000
 const DEFAULT_ACTIVATION_TIMEOUT_MS = 15_000
 const DEFAULT_RETAINED_REVISION_LIMIT = 3
@@ -209,7 +209,7 @@ export class StorybookPackageSession {
     this.#buildSemaphore = options.buildSemaphore ?? new StorybookBuildSemaphore(1)
     this.#rebuildDelayMs = boundedDuration(options.rebuildDelayMs ?? 40, 0, 60_000, "rebuild delay")
     this.#compileTimeoutMs = boundedDuration(
-      options.compileTimeoutMs ?? DEFAULT_COMPILE_TIMEOUT_MS, 100, 10 * 60_000, "compile timeout",
+      options.compileTimeoutMs ?? STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS, 100, 10 * 60_000, "compile timeout",
     )
     this.#protocolTimeoutMs = boundedDuration(
       options.protocolTimeoutMs ?? DEFAULT_PROTOCOL_TIMEOUT_MS, 100, 60_000, "protocol timeout",

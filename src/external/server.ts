@@ -32,6 +32,7 @@ import {
   assertExternalStorybookRequestHost,
   assertExternalStorybookRequestOrigin,
 } from "./security.ts"
+import {STORYBOOK_SERVER_IDLE_TIMEOUT_SECONDS} from "./timing.ts"
 
 const STORYBOOK_CONTROL_BODY_MAX_BYTES = 65_536
 const STORYBOOK_WEBSOCKET_MESSAGE_MAX_BYTES = 8_192
@@ -208,7 +209,7 @@ export async function startExternalStorybookServer(
     server = Bun.serve<StorybookWebSocketData>({
       hostname: options.hostname ?? "127.0.0.1",
       port: options.port ?? 0,
-      idleTimeout: 30,
+      idleTimeout: STORYBOOK_SERVER_IDLE_TIMEOUT_SECONDS,
       fetch: async (request, currentServer) => {
       const url = new URL(request.url)
       try {
@@ -441,8 +442,8 @@ export async function startExternalStorybookServer(
           const assets = await ensureSharedAssets()
           return fileInsideResponse(assets.root, url.pathname.slice("/__storybook/shared/".length))
         }
-        if (url.pathname === "/assets/jetbrains-mono-bold.ttf" && request.method === "GET") {
-          const fontPath = fileURLToPath(import.meta.resolve("@engine/core/fonts/jetbrains-mono-bold.ttf"))
+        if (url.pathname === "/assets/inter-regular.ttf" && request.method === "GET") {
+          const fontPath = fileURLToPath(import.meta.resolve("@engine/core/fonts/inter-regular.ttf"))
           return fileResponse(fontPath, "font/ttf")
         }
         if (url.pathname === "/schemas/manifest.schema.json" || url.pathname === "/schemas/catalog.schema.json") {
@@ -1214,7 +1215,7 @@ function storybookHtml(
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" href="data:,">
-    <meta name="engine-default-font" content="/assets/jetbrains-mono-bold.ttf">
+    <meta name="engine-default-font" content="/assets/inter-regular.ttf">
     <meta name="external-storybook-browser-session" content="${escapeHtml(browserSessionToken)}">
     ${activationId === null ? "" : `<meta name="external-storybook-activation-id" content="${escapeHtml(activationId)}">`}
     ${fallbackRevision === null ? "" : `<meta name="external-storybook-fallback-revision" content="${escapeHtml(fallbackRevision)}">`}

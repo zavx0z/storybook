@@ -16,6 +16,14 @@ describe("external @zavx0z/storybook tool boundary", () => {
     expect(manifest.scripts.serve).toBe("bun scripts/storybook.ts serve .")
   })
 
+  test("runs multi-package isolation in its own explicit process", async () => {
+    const manifest = await Bun.file(join(root, "package.json")).json() as Record<string, any>
+    const script = manifest.scripts.test as string
+    expect(script).toContain("STORYBOOK_SKIP_ISOLATION=1 bun test src --max-concurrency=1")
+    expect(script).toContain("&& bun test src/external/isolation.integration.test.ts --max-concurrency=1")
+    expect(script).not.toContain("server.test.ts")
+  })
+
   test("contains no package-local server, launcher, scaffold or npm template mode", () => {
     for (const path of [
       "app/server.ts",

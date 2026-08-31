@@ -122,6 +122,9 @@ one independently updateable PackageSession.
 Landing и каждая package page являются отдельным Experience: один semantic
 Document и один host Canvas/Renderer/Space/ViewPoint, в котором Workbench
 проецируется camera-locked overlay root. Разные tabs не разделяют эти owners.
+Host загружает canonical default font через exact owner export
+`@engine/core/fonts/inter-regular.ttf`; тот же файл доступен page runtime по
+стабильному URL `/assets/inter-regular.ttf`.
 Direct Engine stories добавляют content только в exact shared `context.space`;
 world aperture, HUD и semantic overlays остаются проекциями того же
 Document/Space/ViewPoint. Package runtime не создаёт второй Space, Canvas,
@@ -190,8 +193,8 @@ tiles в компактные строки от cross-start, single child зап
 Category может быть typed primary component (`kind + apiName`); тогда её
 ordinary subjects являются secondary sections, а dock показывает variants
 выбранной section. Shared Storybook не содержит списков promoted package routes.
-Production `Pane`, `Button`, `TextField`, `Typography`, `Inspector`, `Field`
-и `CodeEditor` владеют своим visual/state contract; Storybook caller styles
+Production `Pane`, `Button`, `TextField`, `Typography`, `Inspector`, `Field`,
+`CodeEditor` и `StatusBar` владеют своим visual/state contract; Storybook caller styles
 задают только размещение внутри fixed Workbench regions.
 Native page title равен `MetaFor` на landing/self page и exact package label на
 остальных package pages; `Storybook` не добавляется.

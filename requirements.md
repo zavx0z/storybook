@@ -95,7 +95,7 @@ Workbench domain. Каждый TSX component владеет своим `style={c
 
 Workbench components обязаны композировать exact production owners
 `Pane`, `Button`, `TextField`, `Typography`, `Inspector`, `InspectorSection`,
-`Field` и `CodeEditor`, когда их semantic/API contract подходит. Caller
+`Field`, `CodeEditor` и `StatusBar`, когда их semantic/API contract подходит. Caller
 `style` содержит только contextual placement; он не повторяет owner padding,
 control height, font, border, background, focus, selected, disabled или shadow.
 Storybook-owned intrinsic остаётся только там, где он несёт другую семантику:
@@ -140,6 +140,9 @@ Document и одним host `DocumentSpaceRuntime`: native Canvas, Engine Render
 Space и ViewPoint. Workbench является camera-locked overlay root того же
 Document. Font и полный ordered stylesheet set принадлежат host; package
 author resources регистрируются до создания host runtime.
+Host default font является exact `@engine/core/fonts/inter-regular.ttf` и
+публикуется без копии либо fallback по `/assets/inter-regular.ttf`; HTML meta
+указывает на этот же URL до запуска page runtime.
 
 На всём lifecycle page создаётся ровно один host runtime; owner session не
 может передать runtime `styleSheets` или пересоздать Renderer/Space/ViewPoint.
@@ -245,6 +248,14 @@ Package tab использует только snapshot своей revision; muta
 Каждый package имеет собственную serial queue. Shared semaphore ограничивает
 compiler children, но hung A не блокирует B. Compile/protocol/activation имеют
 timeouts; detach/reconfigure abort exact candidate и завершают child process.
+Package compile получает отдельный bounded budget 120 секунд: это покрывает
+fresh Template/TypeScript initialization на поддерживаемом Intel host, но не
+ослабляет per-candidate cancellation или exact child termination. HTTP/WebSocket
+server сохраняет request transport 125 секунд, чтобы bounded compile успел либо
+вернуть page, либо опубликовать structured diagnostic вместо transport reset.
+Multi-package isolation, которая поднимает несколько compiler/server children и
+регистрирует Bun plugins, выполняется отдельным test process и не делит
+process-global plugin state с unit и server integration suite.
 
 ### `STORYBOOK-RUNTIME-002` — serialized cleanup
 
