@@ -54,6 +54,11 @@ child получает отдельную runtime session и real production roo
 same-Document aggregate. Representative не меняет URL, active subject/variant
 либо dock selection. Labels-only cards и message вместо executable children
 запрещены, кроме package README и явно неподдерживаемого world aggregate.
+Если overview содержит ровно один executable child, Inspector сохраняет
+presentation contract его exact subject и получает runtime values этого
+representative, не выбирая subject/variant в navigation. Поэтому single-subject
+category показывает те же owner controls, что и representative story. При
+нескольких children Storybook не выбирает произвольный Inspector owner.
 Aggregate parent владеет обычным CSS `row` layout с `flex-wrap: wrap`
 и `align-content: flex-start`: пока
 bounded child tiles помещаются, они делят строку, затем Renderer переносит

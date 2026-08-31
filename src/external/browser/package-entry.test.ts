@@ -223,6 +223,15 @@ describe("external Storybook package frontend", () => {
     expect((categoryOverview as Element | null)?.querySelectorAll("[data-storybook-aggregate-item]"))
       .toHaveLength(1)
     expect(categoryOverview?.textContent).toContain("Contained")
+    expect(controller.shell.workbench.controller.read("inspector.subject")).toEqual({
+      packageId: "@fixture/components",
+      subjectId: "subject:@fixture/components/components/button",
+      widgetIds: ["props", "source", "diagnostics"],
+    })
+    expect(controller.shell.workbench.controller.read("inspector.values")).toMatchObject({
+      props: {label: "Contained"},
+    })
+    expect(controller.shell.workbench.elements.inspectorHost.textContent).toContain("Contained")
 
     await controller.navigate("components/button")
     expect(controller.shell.workbench.controller.read("catalog.active"))

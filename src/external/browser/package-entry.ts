@@ -609,7 +609,11 @@ export async function startExternalStorybookPackage(
         }))),
       )
       pendingPresentation = aggregatePresentation
-      const overviewSubject = exactPresentationSubject(revisionGraph, snapshot, model)
+      const selectedSubject = exactPresentationSubject(revisionGraph, snapshot, model)
+      const overviewSubject = selectedSubject ?? (
+        plan.length === 1 && children.length === 1 ? plan[0]!.subject : null
+      )
+      const representative = children.length === 1 ? children[0]!.presentation : null
       let inspectorValues: Readonly<Record<string, unknown>> = Object.freeze({
         diagnostics: Object.freeze([...routeDiagnostics]),
       })
@@ -622,6 +626,13 @@ export async function startExternalStorybookPackage(
           revisionGraph?.authorStyleSheets.map(({specifier}) => specifier) ?? Object.freeze([]),
         )
       } else {
+        await ensureInspectorRegistry(overviewSubject)
+        if (disposed || revision !== navigationRevision || signal.aborted) {
+          throw signal.reason ?? new DOMException(
+            "Storybook aggregate Inspector setup superseded",
+            "AbortError",
+          )
+        }
         const subjectPresentation = requiredSubjectPresentation(overviewSubject)
         const committed = exactRuntimePresentation(
           Object.freeze({
@@ -629,6 +640,9 @@ export async function startExternalStorybookPackage(
             node: aggregatePresentation.element,
             componentRoot: aggregatePresentation.componentRoot,
             source: aggregatePresentation.source,
+            ...(representative?.values === undefined
+              ? {}
+              : {values: representative.values}),
           }),
           shell,
           subjectPresentation,

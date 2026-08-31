@@ -190,6 +190,9 @@ representative не выбирается в navigation или dock. Их compile
 `align-content: flex-start` и `gap: 8px`: Renderer адаптивно переносит bounded
 tiles в компактные строки от cross-start, single child заполняет preview, а vertical scroll
 остаётся fallback для недостаточной высоты. Ручного coordinate packing нет.
+Если aggregate содержит один child, Inspector сохраняет exact subject widgets
+и runtime values этого representative без изменения navigation selection.
+Aggregate с несколькими children не выбирает произвольный Inspector owner.
 Category может быть typed primary component (`kind + apiName`); тогда её
 ordinary subjects являются secondary sections, а dock показывает variants
 выбранной section. Shared Storybook не содержит списков promoted package routes.
