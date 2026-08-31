@@ -62,8 +62,8 @@ const contracts = Object.freeze({
   ),
   launcher: contract(
     "MCP and human adapters",
-    "Ensure, attach, search, open, wait, inspect, interact, capture, check, close and explicit administration call one typed controller. Inspection exposes the shell-owned Canvas as singular canvas state.",
-    "Opaque views persistently reuse a bridge-attested storybook:<package-id> target across MCP processes and server origins; confirmed duplicates are reconciled only after ready. Canvas capture targets the same exact shell Canvas without native plural discovery.",
+    "Ensure, attach, search, open, wait, inspect, interact, capture, check, close and explicit administration call one typed controller. Inspection exposes the shell-owned Canvas as singular canvas state. Key interaction activates and verifies the exact Workbench owner in the existing native-input host before browser keydown and keyup.",
+    "Opaque views persistently reuse a bridge-attested storybook:<package-id> target across MCP processes and server origins; confirmed duplicates are reconciled only after ready. Canvas capture targets the same exact shell Canvas without native plural discovery. The bridge never fabricates semantic keyboard events or creates a second input owner, so Browser-owned Escape, Range and Select defaults remain authoritative.",
     [
       "storybook attach ./project",
       "storybook detach project-id",

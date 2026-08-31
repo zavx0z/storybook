@@ -4,7 +4,6 @@ import {
   HTMLElement,
   HTMLInputElement,
   HTMLTextAreaElement,
-  KeyboardEvent,
   type Element,
   type Node,
 } from "@zavx0z/dom"
@@ -352,17 +351,13 @@ async function applyNodeAction(
     const modifiers = Array.isArray(keyValue?.modifiers)
       ? new Set(keyValue.modifiers.filter((value): value is string => typeof value === "string"))
       : new Set<string>()
-    const init = {
+    shell.dispatchNativeKey(node, {
       key,
-      bubbles: true,
-      composed: true,
       altKey: modifiers.has("alt"),
       ctrlKey: modifiers.has("ctrl"),
       metaKey: modifiers.has("meta"),
       shiftKey: modifiers.has("shift"),
-    }
-    node.dispatchEvent(new KeyboardEvent("keydown", init))
-    node.dispatchEvent(new KeyboardEvent("keyup", init))
+    })
   } else if (action === "type") {
     const text = boundedText(request.value !== null && typeof request.value === "object" && !Array.isArray(request.value)
       ? (request.value as Record<string, unknown>).text

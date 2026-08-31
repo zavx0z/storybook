@@ -3,8 +3,8 @@
 import {loadDocumentDefaultFont} from "@engine/core/default-font"
 import {
   createDocument,
+  HTMLElement as SemanticHTMLElement,
   type Document as SemanticDocument,
-  type HTMLElement as SemanticElement,
   type Node as SemanticNode,
 } from "@zavx0z/dom"
 import {
@@ -50,6 +50,14 @@ export type ExternalStorybookShellSpaceRuntimeFactory =
 export type ExternalStorybookLinkedAuthorStyleSheetHostFactory =
   typeof createBrowserLinkedAuthorStyleSheetHost
 
+export type ExternalStorybookNativeKey = Readonly<{
+  key: string
+  altKey: boolean
+  ctrlKey: boolean
+  metaKey: boolean
+  shiftKey: boolean
+}>
+
 export type CreateExternalStorybookShellOptions = Readonly<{
   title: string
   browserDocument?: globalThis.Document
@@ -73,8 +81,8 @@ export type ExternalStorybookShell = Readonly<{
   readonly presentedFrameSequence: number
   present(value: WorkbenchPresentationUpdate): void
   mountPreview(label: string, node: SemanticNode): void
-  showMessage(label: string, title: string, detail: string, action?: StorybookOverviewAction): SemanticElement
-  showMarkdown(label: string, source: string, baseUrl?: string, action?: StorybookOverviewAction): SemanticElement
+  showMessage(label: string, title: string, detail: string, action?: StorybookOverviewAction): SemanticHTMLElement
+  showMarkdown(label: string, source: string, baseUrl?: string, action?: StorybookOverviewAction): SemanticHTMLElement
   reportDiagnostic(value: unknown): void
   clearDiagnostics(): void
   updateStatus(detail: string): void
@@ -88,6 +96,7 @@ export type ExternalStorybookShell = Readonly<{
     node: SemanticNode,
     gesture: Readonly<{kind: "orbit" | "pan"; deltaX: number; deltaY: number}>,
   ): boolean
+  dispatchNativeKey(target: SemanticHTMLElement, input: ExternalStorybookNativeKey): void
   dispose(): void
 }>
 
@@ -392,7 +401,7 @@ export async function createExternalStorybookShell(
   const mountShellPresentation = (
     label: string,
     presentation: StorybookComponentPresentation,
-  ): SemanticElement => {
+  ): SemanticHTMLElement => {
     activeWorldPreview?.dispose()
     activeShellPresentation?.dispose()
     activeShellPresentation = presentation
@@ -404,7 +413,7 @@ export async function createExternalStorybookShell(
     title: string,
     detail: string,
     action?: StorybookOverviewAction,
-  ): SemanticElement => mountShellPresentation(label, createStorybookMessagePresentation(document, {
+  ): SemanticHTMLElement => mountShellPresentation(label, createStorybookMessagePresentation(document, {
     title,
     detail,
     ...(action === undefined ? {} : {action}),
@@ -414,12 +423,72 @@ export async function createExternalStorybookShell(
     source: string,
     baseUrl?: string,
     action?: StorybookOverviewAction,
-  ): SemanticElement => mountShellPresentation(label, renderStorybookMarkdown({
+  ): SemanticHTMLElement => mountShellPresentation(label, renderStorybookMarkdown({
     document,
     source,
     ...(baseUrl === undefined ? {} : {baseUrl}),
     ...(action === undefined ? {} : {action}),
   }))
+
+  const exactNativeInputProxy = (
+    expectedTarget?: SemanticHTMLElement,
+  ): globalThis.Element => {
+    const host = runtime.nativeInputHost
+    if (host.document !== document || host.ownerId !== EXTERNAL_STORYBOOK_WORKBENCH_OVERLAY_ID) {
+      throw new Error("Storybook native key input owner does not match the Workbench overlay")
+    }
+    if (expectedTarget !== undefined && host.inputTarget !== expectedTarget) {
+      throw new Error("Storybook native key input target does not match the semantic target")
+    }
+    if (host.inputTarget === null || !workbench.element.contains(host.inputTarget)) {
+      throw new Error("Storybook native key input target is outside the Workbench overlay")
+    }
+    const proxy = browserDocument.activeElement
+    const exact = host.activeProxy === "input"
+      ? proxy === host.nativeInput
+      : host.activeProxy === "textarea"
+        ? proxy === host.nativeTextArea
+        : host.activeProxy === "select"
+          ? proxy?.getAttribute("data-renderer-select-proxy") === ""
+          : false
+    if (!exact || proxy === null) {
+      throw new Error("Storybook native key input proxy does not match the active input owner")
+    }
+    return proxy
+  }
+  const dispatchNativeKey = (
+    target: SemanticHTMLElement,
+    input: ExternalStorybookNativeKey,
+  ): void => {
+    assertActive(disposed)
+    if (!(target instanceof SemanticHTMLElement)) {
+      throw new TypeError("Storybook native key target must be an @zavx0z/dom HTMLElement")
+    }
+    if (!workbench.element.contains(target)) {
+      throw new Error("Storybook native key target is outside the Workbench overlay")
+    }
+    const host = runtime.nativeInputHost
+    host.setActiveDocument(document, EXTERNAL_STORYBOOK_WORKBENCH_OVERLAY_ID)
+    target.focus()
+    host.synchronize()
+    const KeyboardEventConstructor = browserDocument.defaultView?.KeyboardEvent
+    if (KeyboardEventConstructor === undefined) {
+      throw new Error("Storybook browser KeyboardEvent constructor is unavailable")
+    }
+    const init: KeyboardEventInit = {
+      key: input.key,
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      altKey: input.altKey,
+      ctrlKey: input.ctrlKey,
+      metaKey: input.metaKey,
+      shiftKey: input.shiftKey,
+    }
+    exactNativeInputProxy(target).dispatchEvent(new KeyboardEventConstructor("keydown", init))
+    host.synchronize()
+    exactNativeInputProxy().dispatchEvent(new KeyboardEventConstructor("keyup", init))
+  }
 
   const shell: ExternalStorybookShell = Object.freeze({
     document,
@@ -537,6 +606,7 @@ export async function createExternalStorybookShell(
       assertActive(disposed)
       return activeWorldPreview?.applyGesture(node, gesture) ?? false
     },
+    dispatchNativeKey,
     dispose() {
       if (disposed) return
       disposed = true

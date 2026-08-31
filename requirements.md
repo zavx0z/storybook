@@ -338,6 +338,20 @@ search и `check(live:false)` не требуют доступного CDP.
 Inspection и interaction используют existing semantic Document, Workbench IDs
 и renderer frame. Target resolution exact nodeId либо exact role+name;
 ambiguity fail closed. Raw eval/coordinates не являются agent API.
+`key` активирует exact Workbench overlay owner в уже существующем
+`DocumentNativeInputHost`, фокусирует semantic target, синхронизирует host и
+проверяет exact Document/owner/target/native proxy до browser `keydown` и
+`keyup`. Modifiers сохраняются; ownership/proxy mismatch fail closed. Bridge не
+fabricate-ит semantic `KeyboardEvent`, поэтому Browser-owned Escape, Range и
+Select defaults исполняются одним native input owner. Exact proxy берётся только
+из `browserDocument.activeElement`: input/textarea сверяются по public host
+identity, select — по Renderer-owned `data-renderer-select-proxy`; native DOM
+scan отсутствует. После `keydown` host синхронизируется повторно: если default
+action восстановил focus внутри того же Workbench owner, `keyup` идёт через его
+текущий exact proxy, а не через stale target.
+Это bounded agent adapter с browser-realm event (`isTrusted === false`): он
+доказывает Renderer/Browser-host defaults, но не заявляет OS keyboard, Tab
+navigation или native Button activation.
 State/inspection публикуют только singular `canvas` exact текущего shell;
 plural canvas discovery отсутствует. Capture area `canvas` всегда означает этот
 же единственный host Canvas.

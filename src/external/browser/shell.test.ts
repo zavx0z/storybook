@@ -13,6 +13,84 @@ import {
 } from "./shell.ts"
 
 describe("external Storybook shared browser shell", () => {
+  test("routes bounded keys through the exact Workbench native input owner", async () => {
+    const runtimes: FakeRuntime[] = []
+    const nativeInput = createFakeNativeInputHarness()
+    const document = createDocument()
+    const shell = await createExternalStorybookShell({
+      title: "Native key fixture",
+      document,
+      browserDocument: nativeInput.browserDocument,
+      canvas: {} as HTMLCanvasElement,
+      loadFont: async () => ({}) as never,
+      createSpaceRuntime: fakeRuntimeFactory(runtimes, nativeInput),
+    })
+    const preview = document.createElement("section")
+    const target = document.createElement("input")
+    target.setAttribute("aria-label", "Exact text input")
+    const restoredFocus = document.createElement("button")
+    restoredFocus.textContent = "Popover source"
+    preview.append(target, restoredFocus)
+    shell.mountPreview("Input", preview)
+    nativeInput.onKeyDown = () => restoredFocus.focus()
+
+    shell.dispatchNativeKey(target, {
+      key: "Escape",
+      altKey: true,
+      ctrlKey: true,
+      metaKey: true,
+      shiftKey: true,
+    })
+
+    expect(nativeInput.activations).toEqual([{
+      document,
+      ownerId: EXTERNAL_STORYBOOK_WORKBENCH_OVERLAY_ID,
+    }])
+    expect(nativeInput.synchronizations).toBeGreaterThanOrEqual(3)
+    expect(nativeInput.host.inputTarget).toBe(restoredFocus)
+    expect(nativeInput.events.map(({type}) => type)).toEqual(["keydown", "keyup"])
+    expect(nativeInput.events[0]).toMatchObject({
+      key: "Escape",
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      altKey: true,
+      ctrlKey: true,
+      metaKey: true,
+      shiftKey: true,
+    })
+
+    nativeInput.ownerOverride = "foreign-overlay"
+    expect(() => shell.dispatchNativeKey(target, {
+      key: "Enter",
+      altKey: false,
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+    })).toThrow("input owner does not match")
+    nativeInput.ownerOverride = null
+    nativeInput.proxyMismatch = true
+    expect(() => shell.dispatchNativeKey(target, {
+      key: "Enter",
+      altKey: false,
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+    })).toThrow("input proxy does not match")
+    nativeInput.proxyMismatch = false
+    nativeInput.keyboardEventUnavailable = true
+    expect(() => shell.dispatchNativeKey(target, {
+      key: "Enter",
+      altKey: false,
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+    })).toThrow("KeyboardEvent constructor is unavailable")
+    expect(nativeInput.events).toHaveLength(2)
+
+    shell.dispose()
+  })
+
   test("awaits exact linked author styles before creating and disposes them after the one runtime", async () => {
     const runtimes: FakeRuntime[] = []
     const lifecycle: string[] = []
@@ -350,7 +428,10 @@ type FakeRuntime = {
   }>): void
 }
 
-function fakeRuntimeFactory(output: FakeRuntime[]): ExternalStorybookShellSpaceRuntimeFactory {
+function fakeRuntimeFactory(
+  output: FakeRuntime[],
+  nativeInput?: FakeNativeInputHarness,
+): ExternalStorybookShellSpaceRuntimeFactory {
   return (async (options) => {
     const subscribers = new Set<(frame: any) => void>()
     const presentedSubscribers = new Set<(frame: number) => void>()
@@ -390,6 +471,12 @@ function fakeRuntimeFactory(output: FakeRuntime[]): ExternalStorybookShellSpaceR
       canvas: options.canvas,
       styleSheets: options.styleSheets,
       font: options.font,
+      ...(nativeInput === undefined ? {} : {
+        nativeInputHost: nativeInput.host,
+        nativeInput: nativeInput.host.nativeInput,
+        nativeTextArea: nativeInput.host.nativeTextArea,
+        get inputTarget() { return nativeInput.host.inputTarget },
+      }),
       space: Object.freeze({kind: "one-shared-space"}),
       viewPoint: {
         orbit(deltaX: number, deltaY: number) {
@@ -462,6 +549,101 @@ function fakeRuntimeFactory(output: FakeRuntime[]): ExternalStorybookShellSpaceR
     output.push(owner)
     return runtime
   }) as ExternalStorybookShellSpaceRuntimeFactory
+}
+
+type FakeNativeInputHarness = {
+  browserDocument: globalThis.Document
+  host: DocumentSpaceRuntime["nativeInputHost"]
+  activations: Array<Readonly<{
+    document: ReturnType<typeof createDocument> | null
+    ownerId: string | null
+  }>>
+  events: KeyboardEvent[]
+  synchronizations: number
+  ownerOverride: string | null
+  proxyMismatch: boolean
+  keyboardEventUnavailable: boolean
+  onKeyDown: (() => void) | null
+}
+
+function createFakeNativeInputHarness(): FakeNativeInputHarness {
+  const events: KeyboardEvent[] = []
+  const activations: FakeNativeInputHarness["activations"] = []
+  const input = new EventTarget()
+  const textarea = new EventTarget()
+  const foreign = new EventTarget()
+  let activeBrowserElement: EventTarget | null = null
+  let activeDocument: ReturnType<typeof createDocument> | null = null
+  let ownerId: string | null = null
+  let inputTarget: FakeNativeInputHarness["host"]["inputTarget"] = null
+  let activeProxy: FakeNativeInputHarness["host"]["activeProxy"] = null
+  const harness: FakeNativeInputHarness = {
+    browserDocument: null as unknown as globalThis.Document,
+    host: null as unknown as FakeNativeInputHarness["host"],
+    activations,
+    events,
+    synchronizations: 0,
+    ownerOverride: null,
+    proxyMismatch: false,
+    keyboardEventUnavailable: false,
+    onKeyDown: null,
+  }
+  class FixtureKeyboardEvent extends Event {
+    readonly key: string
+    readonly altKey: boolean
+    readonly ctrlKey: boolean
+    readonly metaKey: boolean
+    readonly shiftKey: boolean
+    constructor(type: string, init: KeyboardEventInit = {}) {
+      super(type, init)
+      this.key = init.key ?? ""
+      this.altKey = init.altKey ?? false
+      this.ctrlKey = init.ctrlKey ?? false
+      this.metaKey = init.metaKey ?? false
+      this.shiftKey = init.shiftKey ?? false
+    }
+  }
+  input.addEventListener("keydown", (event) => {
+    events.push(event as KeyboardEvent)
+    harness.onKeyDown?.()
+  })
+  input.addEventListener("keyup", (event) => events.push(event as KeyboardEvent))
+  const synchronize = (): void => {
+    harness.synchronizations += 1
+    inputTarget = activeDocument?.activeElement as typeof inputTarget
+    activeProxy = inputTarget === null ? null : "input"
+    activeBrowserElement = inputTarget === null
+      ? null
+      : harness.proxyMismatch ? foreign : input
+  }
+  harness.host = Object.freeze({
+    nativeInput: input as unknown as HTMLInputElement,
+    nativeTextArea: textarea as unknown as HTMLTextAreaElement,
+    get document() { return activeDocument },
+    get ownerId() { return ownerId },
+    get inputTarget() { return inputTarget },
+    get activeProxy() { return activeProxy },
+    setActiveDocument(document, nextOwnerId = null) {
+      activeDocument = document
+      ownerId = document === null ? null : harness.ownerOverride ?? nextOwnerId
+      activations.push({document, ownerId: nextOwnerId})
+      synchronize()
+    },
+    synchronize,
+    blur() {
+      inputTarget = null
+      activeProxy = null
+      activeBrowserElement = null
+    },
+    dispose() {},
+  })
+  harness.browserDocument = {
+    get activeElement() { return activeBrowserElement },
+    get defaultView() {
+      return harness.keyboardEventUnavailable ? {} : {KeyboardEvent: FixtureKeyboardEvent}
+    },
+  } as unknown as globalThis.Document
+  return harness
 }
 
 function frame(

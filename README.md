@@ -233,6 +233,10 @@ dependent sessions. Per-package queues share only a bounded compiler semaphore.
 Browser inspection uses the existing semantic Document and
 `@zavx0z/dom-devtools`; interaction uses public Renderer/DOM input APIs. Capture
 returns MCP image content plus bounded `storybook://captures/...` resources.
+Agent `key` activates and verifies the exact Workbench owner in the existing
+Browser native-input host, then sends browser `keydown`/`keyup` through its
+active proxy. It never fabricates a semantic keyboard event, discovers a native
+control or creates another input owner.
 State/inspection expose one singular `canvas` owned by the shell, and canvas
 capture always targets that exact host Canvas without native canvas discovery.
 

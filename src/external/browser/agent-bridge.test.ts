@@ -1,7 +1,6 @@
 import {describe, expect, test} from "bun:test"
 import {
   Event,
-  KeyboardEvent,
   createDocument,
   type Document as SemanticDocument,
   type Element as SemanticElement,
@@ -25,7 +24,10 @@ import {
   type StorybookAgentBridge,
   type StorybookAgentBridgeRequest,
 } from "./agent-bridge.ts"
-import type {ExternalStorybookShell} from "./shell.ts"
+import type {
+  ExternalStorybookNativeKey,
+  ExternalStorybookShell,
+} from "./shell.ts"
 
 describe("external Storybook agent bridge inspection", () => {
   test("keeps stable node identities across compact, default and paginated projections", async () => {
@@ -130,10 +132,10 @@ describe("external Storybook agent bridge interaction", () => {
         limit: 200,
       })) as AgentInspection
       const ids = fixture.nodeIds(inspection)
-      const keyEvents: KeyboardEvent[] = []
+      const semanticKeyEvents: Event[] = []
       const inputEvents: Event[] = []
-      fixture.run.addEventListener("keydown", (event) => keyEvents.push(event as KeyboardEvent))
-      fixture.run.addEventListener("keyup", (event) => keyEvents.push(event as KeyboardEvent))
+      fixture.run.addEventListener("keydown", (event) => semanticKeyEvents.push(event))
+      fixture.run.addEventListener("keyup", (event) => semanticKeyEvents.push(event))
       fixture.input.addEventListener("input", (event) => inputEvents.push(event))
 
       let lastSequence = fixture.shell.presentedFrameSequence
@@ -179,14 +181,17 @@ describe("external Storybook agent bridge interaction", () => {
         target: {nodeId: ids.run},
         value: {key: "Enter", modifiers: ["alt", "ctrl", "meta", "shift"]},
       })
-      expect(keyEvents.map(({type}) => type)).toEqual(["keydown", "keyup"])
-      expect(keyEvents[0]).toMatchObject({
-        key: "Enter",
-        altKey: true,
-        ctrlKey: true,
-        metaKey: true,
-        shiftKey: true,
-      })
+      expect(fixture.calls.nativeKeys).toEqual([{
+        target: fixture.run,
+        input: {
+          key: "Enter",
+          altKey: true,
+          ctrlKey: true,
+          metaKey: true,
+          shiftKey: true,
+        },
+      }])
+      expect(semanticKeyEvents).toHaveLength(0)
 
       await interact({action: "type", target: {nodeId: ids.input}, value: {text: " typed"}})
       expect(fixture.input.value).toBe("seed typed")
@@ -326,6 +331,10 @@ type InteractionCalls = Readonly<{
   pointerDowns: PointerInput[]
   pointerUps: PointerInput[]
   wheels: WheelInput[]
+  nativeKeys: Array<Readonly<{
+    target: SemanticElement
+    input: ExternalStorybookNativeKey
+  }>>
 }>
 
 function createFixture(): Fixture {
@@ -363,6 +372,7 @@ function createFixture(): Fixture {
     pointerDowns: [],
     pointerUps: [],
     wheels: [],
+    nativeKeys: [],
   }
   const interaction = {
     document,
@@ -448,6 +458,9 @@ function createFixture(): Fixture {
     workbenchOverlay,
     applyWorldPreviewGesture() {
       return false
+    },
+    dispatchNativeKey(target: SemanticElement, input: ExternalStorybookNativeKey) {
+      calls.nativeKeys.push({target, input})
     },
     get presentedFrameSequence() {
       return frameSequence
