@@ -176,9 +176,25 @@ presentation, navigation, six region components и Inspector widgets разде�
 на точных owners. `src/dom` отсутствует, потому что semantic DOM — substrate,
 не домен shell. CSS находится внутри owning TSX components; shared pane/heading
 поведение переиспользуется компонентами, а не `CssStyle` constants.
+В primary catalog disclosure group занимает собственный header и полный поток
+видимых category rows; secondary показывает subjects выбранной category, а dock
+— только variants выбранного subject.
+На category overview preview показывает real bounded representative каждого
+immediate subject; на subject overview — все direct variants. Child stories
+имеют отдельные runtime/3 sessions, но один Document/Canvas/Renderer/Space;
+representative не выбирается в navigation или dock. Их compiled TSX parent
+использует обычный CSS row flow с `flex-wrap: wrap`,
+`align-content: flex-start` и `gap: 8px`: Renderer адаптивно переносит bounded
+tiles в компактные строки от cross-start, single child заполняет preview, а vertical scroll
+остаётся fallback для недостаточной высоты. Ручного coordinate packing нет.
+Category может быть typed primary component (`kind + apiName`); тогда её
+ordinary subjects являются secondary sections, а dock показывает variants
+выбранной section. Shared Storybook не содержит списков promoted package routes.
 Production `Pane`, `Button`, `TextField`, `Typography`, `Inspector`, `Field`
 и `CodeEditor` владеют своим visual/state contract; Storybook caller styles
 задают только размещение внутри fixed Workbench regions.
+Native page title равен `MetaFor` на landing/self page и exact package label на
+остальных package pages; `Storybook` не добавляется.
 
 `context.present` является единственным atomic channel и принимает required
 `{node, componentRoot, source:{html,typescript}}` плюс selected widget values.

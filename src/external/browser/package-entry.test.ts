@@ -206,6 +206,7 @@ describe("external Storybook package frontend", () => {
     })
 
     expect(dataset.externalStorybookPackage).toBe("ready")
+    expect(controller.shell.workbench.element.getAttribute("aria-label")).toBe("Fixture Components")
     expect(controller.currentRoute).toBe("")
     expect(controller.shell.workbench.controller.read("presentation").node?.textContent).toContain("Owner README")
     expect(runtimeLoads).toBe(0)
@@ -213,6 +214,16 @@ describe("external Storybook package frontend", () => {
     expect(outlinedLoads).toBe(0)
 
     await controller.navigate("components")
+    expect(controller.shell.workbench.controller.read("catalog.active"))
+      .toBe("category:@fixture/components/components")
+    expect(controller.shell.workbench.controller.read("secondary.label")).toBe("Components")
+    expect(controller.shell.workbench.controller.read("secondary.active")).toBeNull()
+    expect(controller.shell.workbench.controller.read("scenarios.active")).toBeNull()
+    const categoryOverview = controller.shell.workbench.controller.read("presentation").node
+    expect((categoryOverview as Element | null)?.querySelectorAll("[data-storybook-aggregate-item]"))
+      .toHaveLength(1)
+    expect(categoryOverview?.textContent).toContain("Contained")
+
     await controller.navigate("components/button")
     expect(controller.shell.workbench.controller.read("catalog.active"))
       .toBe("category:@fixture/components/components")

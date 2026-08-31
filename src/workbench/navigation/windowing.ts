@@ -43,6 +43,19 @@ export type GroupBlock = Readonly<{
   hidden: false
 }>
 
+/** Exact layout rows occupied by one retained root block. */
+export function navigationRootBlockRows(
+  block: RootBlock,
+  collapsed: boolean,
+): number {
+  if (block.kind === "spacer") return block.rows
+  if (block.kind === "leaf" || collapsed) return 1
+  return 1 + block.children.reduce((rows, child) => {
+    if (child.hidden) return rows
+    return rows + (child.kind === "spacer" ? child.rows : 1)
+  }, 0)
+}
+
 export function windowedBlocks(
   projection: WorkbenchNavigationProjection,
   windowStart: number,

@@ -26,14 +26,14 @@ const contracts = Object.freeze({
   ),
   catalog: contract(
     "JSON catalog",
-    "The only first-stage catalog model is category → subject → variant with optional presentation groups and explicit migration routes. README is read from the owner file through a bounded Markdown renderer.",
-    "The package owns semantic order and resources. Collapse state and Workbench layout stay external; embedded HTML and JavaScript are never executed.",
+    "The only first-stage catalog model is category → subject → variant with optional presentation groups and explicit migration routes. A category may own paired kind/apiName so a primary component expresses its sections as ordinary subjects. README is read from the owner file through a bounded Markdown renderer.",
+    "The package owns semantic order, typed category identity and resources. Collapse state and Workbench layout stay external; promoted route lists and embedded HTML/JavaScript are forbidden.",
     ".storybook/catalog.json",
   ),
   workbench: contract(
     "Six-region Workbench",
-    "Catalog, secondary navigation, preview, scenarios, inspector and status are six compiled TSX region components composed by one stable Workbench root and projected as a camera-locked overlay.",
-    "The external page Experience owns one semantic Document and one Canvas/Renderer/Space host. Workbench modules separately own controller/state, presentation reparent, navigation model/windowing/rows/tree and the one production Inspector. Every TSX owner keeps its CSS inside the component.",
+    "Catalog, secondary navigation, preview, scenarios, inspector and status are six compiled TSX region components composed by one stable Workbench root and projected as a camera-locked overlay. Expanded primary disclosure groups occupy their header and every visible category row before the next root row.",
+    "The external page Experience owns one semantic Document and one Canvas/Renderer/Space host. Workbench modules separately own controller/state, presentation reparent, navigation model/windowing/rows/tree and the one production Inspector. Primary category, secondary subject and scenario dock remain distinct projections. Shared human-facing Inspector chrome and built-in widget titles are Russian; owner values and standard technical identifiers remain exact. Every TSX owner keeps its CSS inside the component.",
     "Document → DocumentSpaceRuntime → Workbench overlay",
   ),
   authorStyles: contract(
@@ -51,7 +51,7 @@ const contracts = Object.freeze({
   app: contract(
     "One package tab realm",
     "One package tab loads one generated entry, one runtime adapter and only its selected lazy story chunks into one page Experience. Compiler metafiles fix canonical dependency realpaths.",
-    "The shared shell owns one semantic Document and one host Canvas/Renderer/Space/ViewPoint. Only a declared world subject receives the exact shared context.space and may register its semantic node and camera through mountWorldPreview; no child Space, ViewPoint, Renderer or Canvas exists. Named tabs remain separate Experiences.",
+    "The shared shell owns one semantic Document and one host Canvas/Renderer/Space/ViewPoint. Only a declared world subject receives the exact shared context.space and may register its semantic node and camera through mountWorldPreview; no child Space, ViewPoint, Renderer or Canvas exists. Named tabs remain separate Experiences. Native page title is MetaFor for self and the exact package label for owners, never Storybook branding.",
     "one package = one tab = one DocumentSpaceRuntime → shared world + semantic projection roots",
   ),
   server: contract(

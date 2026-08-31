@@ -19,6 +19,7 @@ import {
 } from "./shell.ts"
 import type {ExternalStorybookClientSnapshot} from "./client-protocol.ts"
 import type {StorybookOverviewAction} from "../components/overview-action.ts"
+import {externalStorybookPageTitle} from "../page-title.ts"
 
 export type StartExternalStorybookLandingOptions = Readonly<{
   fetcher?: typeof fetch
@@ -50,7 +51,7 @@ export async function startExternalStorybookLanding(
   const graph = snapshot
   const landing = deriveExternalStorybookLanding(graph)
   const shell = await createExternalStorybookShell({
-    title: "External Storybook",
+    title: externalStorybookPageTitle(null),
     browserDocument,
     ...(options.shell ?? {}),
     authorStyleSheetSources: options.shell?.authorStyleSheetSources ??

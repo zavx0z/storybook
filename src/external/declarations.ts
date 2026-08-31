@@ -133,6 +133,8 @@ export type ResolvedExternalStorybookCategory = Readonly<{
   id: string
   route: string
   label: string
+  kind: string | null
+  apiName: string | null
   group: ExternalStorybookPresentationGroup | null
   subjects: readonly ResolvedExternalStorybookSubject[]
   sourcePointer: string
@@ -496,10 +498,24 @@ async function resolveCatalog(
   for (const [categoryIndex, value] of categoryValues.entries()) {
     const pointer = `/categories/${categoryIndex}`
     const category = objectValue(value, `Catalog ${pointer}`)
-    assertExactKeys(category, `Catalog ${pointer}`, ["id", "label", "route", "group", "subjects"], ["id", "label", "subjects"])
+    assertExactKeys(
+      category,
+      `Catalog ${pointer}`,
+      ["id", "label", "kind", "apiName", "route", "group", "subjects"],
+      ["id", "label", "subjects"],
+    )
     const id = localId(category.id, `Catalog ${pointer} id`)
     assertUnique(categoryIds, id, `Duplicate external Storybook category id: ${id}`)
     const label = visibleText(category.label, `Catalog ${pointer} label`)
+    const categoryKind = category.kind === undefined
+      ? null
+      : localId(category.kind, `Catalog ${pointer} kind`)
+    const categoryApiName = category.apiName === undefined
+      ? null
+      : visibleText(category.apiName, `Catalog ${pointer} apiName`)
+    if ((categoryKind === null) !== (categoryApiName === null)) {
+      throw new Error(`Catalog ${pointer} kind and apiName must be declared together`)
+    }
     const categoryRoute = category.route === undefined
       ? id
       : routePath(category.route, `Catalog ${pointer} route`)
@@ -615,6 +631,8 @@ async function resolveCatalog(
       id,
       route: categoryRoute,
       label,
+      kind: categoryKind,
+      apiName: categoryApiName,
       group,
       subjects: Object.freeze(subjects),
       sourcePointer: pointer,

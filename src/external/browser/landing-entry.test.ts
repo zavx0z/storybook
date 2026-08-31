@@ -65,6 +65,7 @@ describe("external Storybook landing frontend", () => {
     })
 
     expect(dataset.externalStorybookLanding).toBe("ready")
+    expect(controller.shell.workbench.element.getAttribute("aria-label")).toBe("MetaFor")
     expect(controller.shell.workbench.controller.read("catalog.items").map(({id, group}) => ({id, group})))
       .toEqual([
         {id: "project:fixture-alpha", group: {id: "workspace:fixture-workspace", label: "Fixture Workspace"}},

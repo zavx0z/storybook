@@ -47,12 +47,17 @@ describe("one external Storybook server", () => {
     expect(landing.status).toBe(200)
     const html = await landing.text()
     expect(html).toContain('<link rel="icon" href="data:,">')
+    expect(html).toContain("<title>MetaFor</title>")
+    expect(html).not.toContain("<title>Storybook</title>")
     const script = html.match(/<script type="module" src="([^"]+)"/u)?.[1]
     expect(script).toBeDefined()
     expect((await fetch(new URL(script!, running.origin))).status).toBe(200)
 
     const packagePage = await fetch(new URL("/packages/%40fixture%2Fstandalone/", running.origin))
     expect(packagePage.status).toBe(200)
+    const packageHtml = await packagePage.text()
+    expect(packageHtml).toContain("<title>Standalone Fixture</title>")
+    expect(packageHtml).not.toContain("· Storybook</title>")
     const state = running.sessions.session("@fixture/standalone").snapshot()
     expect(state.buildState).toBe("activating")
     expect(state.builtRevision).not.toBeNull()

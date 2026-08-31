@@ -8,14 +8,14 @@ import type {
 import {requiredText} from "../validation.ts"
 
 export const WORKBENCH_STANDARD_WIDGET_REGISTRY = Object.freeze([
-  Object.freeze({id: "props", kind: "props", label: "P", title: "Props"}),
-  Object.freeze({id: "source", kind: "source", label: "S", title: "Source"}),
-  Object.freeze({id: "events", kind: "events", label: "E", title: "Events"}),
-  Object.freeze({id: "diagnostics", kind: "diagnostics", label: "!", title: "Diagnostics"}),
+  Object.freeze({id: "props", kind: "props", label: "П", title: "Параметры"}),
+  Object.freeze({id: "source", kind: "source", label: "И", title: "Исходники"}),
+  Object.freeze({id: "events", kind: "events", label: "С", title: "События"}),
+  Object.freeze({id: "diagnostics", kind: "diagnostics", label: "!", title: "Диагностика"}),
   Object.freeze({id: "dom", kind: "dom", label: "D", title: "DOM"}),
-  Object.freeze({id: "layout", kind: "layout", label: "L", title: "Layout"}),
-  Object.freeze({id: "display", kind: "display", label: "V", title: "Display"}),
-  Object.freeze({id: "reference", kind: "reference", label: "R", title: "Reference"}),
+  Object.freeze({id: "layout", kind: "layout", label: "Р", title: "Раскладка"}),
+  Object.freeze({id: "display", kind: "display", label: "О", title: "Отображение"}),
+  Object.freeze({id: "reference", kind: "reference", label: "Э", title: "Эталон"}),
 ] as const satisfies readonly WorkbenchInspectorWidgetRegistration[])
 
 export function validateWorkbenchWidgetRegistry(

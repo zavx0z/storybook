@@ -54,7 +54,11 @@ describe("compiled Storybook Workbench", () => {
     )
     expect(workbench.element.querySelectorAll("aside")).toHaveLength(1)
     expect(workbench.elements.inspectorHost.querySelector("aside")?.getAttribute("aria-label"))
-      .toBe("Inspector")
+      .toBe("Инспектор")
+    const inspectorSearch = workbench.elements.inspectorHost.querySelector(
+      'input[aria-label="Поиск по инспектору"]',
+    ) as HTMLInputElement | null
+    expect(inspectorSearch?.placeholder).toBe("Поиск…")
     expect(workbench.componentRoot.readStyleSheets().styleSheets.length).toBeGreaterThan(0)
     const componentNames = new Set(workbench.componentRoot.readStyleSheets().styleSheets
       .flatMap(sheet => sheet.source?.kind === "authored-css" ? [sheet.source.componentName] : []))
@@ -204,8 +208,8 @@ describe("compiled Storybook Workbench", () => {
       inspectorSubject: subject,
       inspectorValues: values,
     })
-    categoryButton(workbench, "Source").click()
-    expect(categoryButton(workbench, "Source").getAttribute("aria-pressed")).toBe("true")
+    categoryButton(workbench, "Исходники").click()
+    expect(categoryButton(workbench, "Исходники").getAttribute("aria-pressed")).toBe("true")
     expect(workbench.elements.inspectorHost.querySelector('[data-language-id="css"]')?.textContent)
       .toContain("color: red")
 
@@ -215,7 +219,7 @@ describe("compiled Storybook Workbench", () => {
       inspectorSubject: subject,
       inspectorValues: {...values, props: {disabled: true}},
     })
-    expect(categoryButton(workbench, "Source").getAttribute("aria-pressed")).toBe("true")
+    expect(categoryButton(workbench, "Исходники").getAttribute("aria-pressed")).toBe("true")
 
     workbench.present({
       label: "Checkbox",
@@ -223,7 +227,7 @@ describe("compiled Storybook Workbench", () => {
       inspectorSubject: {packageId: "@fixture/components", subjectId: "checkbox", widgetIds: ["props"]},
       inspectorValues: {props: {checked: true}},
     })
-    expect(categoryButton(workbench, "Props").getAttribute("aria-pressed")).toBe("true")
+    expect(categoryButton(workbench, "Параметры").getAttribute("aria-pressed")).toBe("true")
 
     workbench.present({
       label: "Button primary",
@@ -231,7 +235,7 @@ describe("compiled Storybook Workbench", () => {
       inspectorSubject: subject,
       inspectorValues: values,
     })
-    expect(categoryButton(workbench, "Source").getAttribute("aria-pressed")).toBe("true")
+    expect(categoryButton(workbench, "Исходники").getAttribute("aria-pressed")).toBe("true")
   })
 
   test("mounts a governed custom widget with only its value", async () => {

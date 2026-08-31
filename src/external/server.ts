@@ -25,6 +25,7 @@ import {storybookDiagnostic, type StorybookPackageEvent} from "./package-session
 import {createExternalStorybookResourceAllowList} from "./resource-allowlist.ts"
 import {StorybookEventHub} from "./events.ts"
 import {externalStorybookImplementationDigest} from "./implementation-digest.ts"
+import {externalStorybookPageTitle} from "./page-title.ts"
 import {
   ExternalStorybookSecurityError,
   assertExternalStorybookControlRequest,
@@ -456,7 +457,7 @@ export async function startExternalStorybookServer(
           const authorStyleSheets = await landingWorkbenchAuthorStyleSheets(registry, sessions)
           return htmlResponse(
             storybookHtml(
-              "Storybook",
+              externalStorybookPageTitle(null),
               `/__storybook/shared/${assets.landingEntry}`,
               "landing",
               session.token,
@@ -700,6 +701,12 @@ async function packagePageResponse(
   origin: string,
 ): Promise<Response> {
   const route = parsePackageRequest(url.pathname)
+  const packageNode = registry.snapshot().graph.nodes.find((node) =>
+    node.kind === "package" && node.packageId === route.packageId)
+  if (packageNode === undefined) {
+    throw new Error(`Unknown Storybook package page title owner: ${route.packageId}`)
+  }
+  const pageTitle = externalStorybookPageTitle(route.packageId, packageNode.label)
   const snapshot = await sessions.ensure(route.packageId)
   const revision = snapshot.builtRevision ?? snapshot.activatingRevision ??
     snapshot.activeRevision ?? snapshot.lastWorkingRevision ?? snapshot.lastGoodRevision
@@ -713,7 +720,7 @@ async function packagePageResponse(
     const authorStyleSheets = await landingWorkbenchAuthorStyleSheets(registry, sessions)
     return htmlResponse(
       storybookHtml(
-        `${route.packageId} · Storybook`,
+        pageTitle,
         `/__storybook/shared/${assets.fallbackEntry}`,
         null,
         browserSession.token,
@@ -757,7 +764,7 @@ async function packagePageResponse(
   })
   return htmlResponse(
     storybookHtml(
-      `${route.packageId} · Storybook`,
+      pageTitle,
       script,
       null,
       browserSession.token,

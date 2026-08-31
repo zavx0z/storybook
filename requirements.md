@@ -31,6 +31,9 @@ Canonical files — `.storybook/manifest.json` и package-local
 eval и executable JSON expressions запрещены. Unknown version/kind/field,
 cycles, duplicate ids/routes, ambiguous package identity, missing/escaping path
 fail closed.
+Category может опционально объявить только парную semantic identity
+`kind + apiName`. Это позволяет component-owned primary category выразить свои
+sections ordinary subjects без package-specific navigation hardcode.
 
 ### `STORYBOOK-GRAPH-001` — one immutable graph
 
@@ -106,14 +109,24 @@ navigation, stable keys, active/disabled/focus and bounded hidden-row
 projection. Pure model/windowing, row components и tree session lifecycle
 являются отдельными модулями. Group toggle не навигирует. Collapse/focus
 принадлежат session, не JSON.
+Expanded disclosure занимает в layout строку заголовка и все видимые строки
+своих category children; следующий root row начинается только после них.
+Перекрытие либо clipping primary category rows запрещены.
 
 ### `STORYBOOK-WORKBENCH-003` — landing and package tab semantics
 
 Workspace является group row; direct project/package остаётся direct row.
 Project selection показывает packages и README, но не открывает первый package.
 Package tab показывает category/group→category, subject во второй panel и
-variants в dock. Section может быть variant grouping metadata/route segment, но
-не обязательным semantic level.
+variants в dock. Ordinary component остаётся subject. Компонент, явно поднятый
+owner-ом в primary category, объявляет свои sections ordinary subjects; dock
+содержит variants выбранной section. Для остальных subjects section может
+оставаться только variant grouping metadata/route segment.
+
+Native page title landing и self-tool realm равен `MetaFor`; остальные package
+realms используют exact package label из canonical graph. Суффикс либо
+самостоятельный title `Storybook` запрещён: tool identity не является частью
+имени страницы.
 
 ### `STORYBOOK-WORKBENCH-004` — safe README
 

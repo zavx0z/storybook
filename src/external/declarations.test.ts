@@ -7,6 +7,8 @@ import {
   resolveExternalStorybookDeclarations,
   type ResolvedExternalStorybookPackage,
 } from "./declarations.ts"
+import {createExternalStorybookGraph, externalStorybookNode} from "./graph.ts"
+import {createStorybookPackageRevisionGraphSnapshot} from "./package-revision.ts"
 
 const fixtureRoot = join(import.meta.dir, "fixtures", "valid")
 const temporaryRoots: string[] = []
@@ -40,6 +42,10 @@ describe("external Storybook JSON declarations", () => {
       expect(catalog.$defs[kind].additionalProperties, kind).toBeFalse()
     }
     expect(catalog.$defs.subject.required).toContain("presentation")
+    expect(catalog.$defs.category.dependentRequired).toEqual({
+      kind: ["apiName"],
+      apiName: ["kind"],
+    })
     expect(catalog.$defs.presentation.properties.widgets).toMatchObject({minItems: 2, maxItems: 32, uniqueItems: true})
     expect(catalog.properties.schemaVersion).toEqual({const: 1})
     expect(JSON.stringify([manifest, catalog])).not.toContain("function")
@@ -137,6 +143,51 @@ describe("external Storybook JSON declarations", () => {
       "package:@fixture/components",
       "package:@fixture/extra-docs",
     ])
+  })
+
+  test("preserves paired semantic category identity and rejects partial metadata", async () => {
+    const typed = await cloneFixture()
+    await updateComponentsCatalog(typed, (catalog) => {
+      const categories = asRecords(catalog.categories)
+      categories[1] = {...categories[1], kind: "component", apiName: "ButtonCatalog"}
+      return {...catalog, categories}
+    })
+    const resolved = declarationPackage(
+      (await resolveExternalStorybookDeclarations([typed])).declarations,
+      "@fixture/components",
+    )
+    expect(resolved.catalog?.categories[1]).toMatchObject({
+      kind: "component",
+      apiName: "ButtonCatalog",
+    })
+    const graph = createExternalStorybookGraph(
+      await resolveExternalStorybookDeclarations([typed]),
+    )
+    expect(externalStorybookNode(graph, "category:@fixture/components/components")).toMatchObject({
+      subjectKind: "component",
+      apiName: "ButtonCatalog",
+    })
+    const revision = createStorybookPackageRevisionGraphSnapshot(
+      graph,
+      "@fixture/components",
+      "typed-category",
+    )
+    expect(revision.nodes.find(({id}) => id === "category:@fixture/components/components"))
+      .toMatchObject({subjectKind: "component", apiName: "ButtonCatalog"})
+
+    for (const orphan of ["kind", "apiName"] as const) {
+      const invalid = await cloneFixture()
+      await updateComponentsCatalog(invalid, (catalog) => {
+        const categories = asRecords(catalog.categories)
+        categories[1] = {
+          ...categories[1],
+          ...(orphan === "kind" ? {kind: "component"} : {apiName: "ButtonCatalog"}),
+        }
+        return {...catalog, categories}
+      })
+      await expect(resolveExternalStorybookDeclarations([invalid]))
+        .rejects.toThrow("kind and apiName must be declared together")
+    }
   })
 
   test("fails closed for unknown versions, kinds, fields and missing declarations", async () => {

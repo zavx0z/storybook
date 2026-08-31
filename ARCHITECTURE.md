@@ -168,13 +168,31 @@ Canonical graph проецируется в compiled `WorkbenchNavigationTree` �
 pointer/keyboard navigation, keyed identity, active/disabled/focus и bounded
 large-catalog window остаются его внутренним UI/session state. Pure projection
 и windowing не зависят от TSX; row components владеют разметкой и CSS. Collapse
-state не записывается в declarations.
+state не записывается в declarations. Expanded disclosure block занимает header
+и полный поток видимых category rows, поэтому следующий root row никогда их не
+перекрывает.
 
 Landing показывает workspace groups, direct standalone projects и direct
 packages без fake workspace. Package tab показывает categories (direct или
-grouped), subjects во второй panel и variants в scenarios. Старый section
-segment сохраняется в explicit route и optional variant grouping metadata, но
-не возвращает отдельную постоянную panel.
+grouped), subjects во второй panel и variants в scenarios. Typed category может
+сама владеть semantic `kind/apiName`: так primary component использует ordinary
+subjects как свои sections без special-case в Workbench. У обычного subject
+section segment остаётся optional variant grouping metadata.
+
+Category и subject overview не являются пустыми navigation states. Shared host
+создаёт compiled TSX aggregate и монтирует отдельную runtime/3 session для
+каждого immediate child: category использует один bounded representative каждого
+subject, subject — все direct variants. Их exact Nodes остаются в том же
+Document, а representative routes не становятся active navigation. Package
+README и world-only overview не подменяются DOM aggregate. Aggregate parent
+задаёт обычный CSS row flow с `flex-wrap: wrap`,
+`align-content: flex-start` и `gap: 8px`; Renderer переносит bounded tiles
+в компактные строки от cross-start, а вертикальный overflow остаётся fallback для малой
+высоты preview. Storybook не вычисляет coordinates или packing вручную.
+
+Native document title принадлежит realm content: landing и self-tool package
+используют `MetaFor`, остальные package tabs — exact package label canonical
+graph. Storybook не добавляется как branding suffix к page title.
 
 README читается по owner resource link. Shared browser renderer поддерживает
 bounded Markdown subset: headings, paragraphs, lists, code blocks, links и

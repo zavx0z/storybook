@@ -11,6 +11,7 @@ import {
 } from "../../workbench/contract.ts"
 import {WORKBENCH_STANDARD_WIDGET_REGISTRY} from "../../workbench/inspector/registry.ts"
 import {mergeStorybookAuthorStyleSheets} from "../author-style-sheets.ts"
+import {externalStorybookPageTitle} from "../page-title.ts"
 import {createStorybookAgentBridge, type StorybookAgentBridge} from "./agent-bridge.ts"
 import {
   STORYBOOK_PRESENTATION_PROTOCOL,
@@ -220,7 +221,7 @@ export async function startExternalStorybookPackage(
   let shell: ExternalStorybookShell
   try {
     shell = await createExternalStorybookShell({
-      title: `${packageId} · Storybook`,
+      title: externalStorybookPageTitle(packageId, initialModel.packageNode.label),
       browserDocument,
       ...(environment.shell ?? {}),
       authorStyleSheetSources: exactAuthorStyleSheetSources(
@@ -1043,7 +1044,10 @@ function applyModel(shell: ExternalStorybookShell, model: ExternalStorybookPacka
     shell.workbench.update("catalog.label", model.packageNode.label)
     shell.workbench.update("catalog.items", navigationItems(model.catalogItems))
     shell.workbench.update("catalog.active", model.catalogActiveId)
-    shell.workbench.update("secondary.label", "Предметы")
+    shell.workbench.update(
+      "secondary.label",
+      model.catalogItems.find(({id}) => id === model.catalogActiveId)?.label ?? "Предметы",
+    )
     shell.workbench.update("secondary.items", navigationItems(model.secondaryItems))
     shell.workbench.update("secondary.active", model.secondaryActiveId)
     shell.workbench.update("scenarios.label", "Варианты")

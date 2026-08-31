@@ -31,13 +31,13 @@ export function WorkbenchInspector(props: WorkbenchInspectorProps) {
     sectionIds: Object.freeze([widget.id]),
   })))
   return <Inspector
-    ariaLabel="Inspector"
-    categoriesLabel="Widgets"
+    ariaLabel="Инспектор"
+    categoriesLabel="Панели"
     categories={categories}
     selectedCategoryId={props.selectedId}
     query={props.query}
-    searchLabel="Search Inspector"
-    searchPlaceholder="Search…"
+    searchLabel="Поиск по инспектору"
+    searchPlaceholder="Поиск…"
     context={props.subject === null ? undefined : {
       label: `${props.subject.packageId} · ${props.subject.subjectId}`,
       title: `${props.subject.packageId}/${props.subject.subjectId}`,

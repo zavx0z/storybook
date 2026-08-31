@@ -17,6 +17,11 @@ import type {
 import {WORKBENCH_EVENTS} from "../contract.ts"
 import type * as ControllerModule from "../controller.ts"
 import {loadCompiledWorkbench} from "../testing/compile-workbench.ts"
+import {projectWorkbenchNavigation} from "./model.ts"
+import {
+  navigationRootBlockRows,
+  windowedBlocks,
+} from "./windowing.ts"
 
 let api: typeof ControllerModule
 
@@ -49,6 +54,20 @@ const groupedItems = Object.freeze([
 ] satisfies readonly WorkbenchNavigationItem[])
 
 describe("compiled Storybook catalog navigation tree", () => {
+  test("expanded disclosure blocks occupy their header and every visible category row", () => {
+    const projection = projectWorkbenchNavigation(groupedItems, "", new Set())
+    const blocks = windowedBlocks(projection, 0, null, new Set())
+    const dom = blocks.find(block => block.kind === "group" && block.projection.group.id === "dom")
+    const elements = blocks.find(block =>
+      block.kind === "group" && block.projection.group.id === "elements")
+
+    expect(dom).toBeDefined()
+    expect(elements).toBeDefined()
+    expect(navigationRootBlockRows(dom!, false)).toBe(2)
+    expect(navigationRootBlockRows(elements!, false)).toBe(3)
+    expect(navigationRootBlockRows(elements!, true)).toBe(1)
+  })
+
   test("creates explicit group rows, child groups and active leaves", () => {
     const workbench = createWorkbench(groupedItems, "primitives")
     expect(workbench.elements.catalogItems.getAttribute("role")).toBe("tree")

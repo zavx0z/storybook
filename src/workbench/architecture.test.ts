@@ -106,6 +106,7 @@ describe("Workbench component module boundary", () => {
     }
 
     const rows = readFileSync(join(root, "navigation/row.tsx"), "utf8")
+    expect(rows).toContain("navigationRootBlockRows(block, props.collapsed)")
     expect(rows).not.toContain('&[aria-current="page"]')
     expect(rows).not.toContain('&[data-focused="true"]')
     expect(rows).not.toContain('&[aria-disabled="true"]')

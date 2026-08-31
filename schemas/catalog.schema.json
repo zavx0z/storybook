@@ -144,9 +144,15 @@
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "label", "subjects"],
+      "dependentRequired": {
+        "kind": ["apiName"],
+        "apiName": ["kind"]
+      },
       "properties": {
         "id": {"$ref": "#/$defs/id"},
         "label": {"$ref": "#/$defs/label"},
+        "kind": {"$ref": "#/$defs/id"},
+        "apiName": {"$ref": "#/$defs/label"},
         "route": {"$ref": "#/$defs/route"},
         "group": {"$ref": "#/$defs/group"},
         "subjects": {

@@ -8,6 +8,7 @@ import {
 } from "./model.ts"
 import {
   NAVIGATION_ROW_HEIGHT,
+  navigationRootBlockRows,
   type GroupBlock,
   type RootBlock,
 } from "./windowing.ts"
@@ -48,6 +49,7 @@ export function NavigationRootBlock(props: NavigationRootBlockProps) {
     : workbenchNavigationGroupKey(group.id)
   const active = leaf !== null && leaf.item.id === props.activeId
   const disabled = leaf?.item.disabled === true
+  const blockRows = navigationRootBlockRows(block, props.collapsed)
   const onGroup = (event: Event) => {
     if (group !== null) props.onGroup(group, event.currentTarget as HTMLElement)
   }
@@ -70,8 +72,8 @@ export function NavigationRootBlock(props: NavigationRootBlockProps) {
         display: flex;
         flex-direction: column;
         width: 100%;
-        height: ${block.kind === "spacer" ? block.rows * NAVIGATION_ROW_HEIGHT : NAVIGATION_ROW_HEIGHT}px;
-        min-height: ${block.kind === "spacer" ? block.rows * NAVIGATION_ROW_HEIGHT : NAVIGATION_ROW_HEIGHT}px;
+        height: ${blockRows * NAVIGATION_ROW_HEIGHT}px;
+        min-height: ${blockRows * NAVIGATION_ROW_HEIGHT}px;
         overflow: clip;
       }
       &[data-kind="group"] { background: var(--widget-toolbar-background); }
