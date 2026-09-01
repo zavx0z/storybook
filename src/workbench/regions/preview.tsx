@@ -1,4 +1,3 @@
-import {WorkbenchRegionHeading} from "../components/region-heading.tsx"
 import {WorkbenchRegionPanel} from "../components/region-panel.tsx"
 import type {WorkbenchPresentationProjection} from "../contract.ts"
 
@@ -20,7 +19,6 @@ function PreviewRegionContent(props: Readonly<{value: PreviewRegionProps}>) {
       gap: 2px;
     }
   `}>
-    <WorkbenchRegionHeading text={value.label} />
     <section
       role="region"
       aria-label={value.label}

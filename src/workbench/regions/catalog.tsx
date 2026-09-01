@@ -1,6 +1,5 @@
 import {TextField} from "@ui/components/text-field"
 import type {Document, Event, HTMLElement} from "@zavx0z/dom"
-import {WorkbenchRegionHeading} from "../components/region-heading.tsx"
 import {WorkbenchRegionPanel} from "../components/region-panel.tsx"
 import type {
   WorkbenchNavigationGroup,
@@ -34,7 +33,6 @@ function CatalogRegionContent(props: Readonly<{value: CatalogRegionProps}>) {
       gap: 2px;
     }
   `}>
-    <WorkbenchRegionHeading text={value.label} />
     <div
       data-storybook-part="catalog-search"
       style={css`

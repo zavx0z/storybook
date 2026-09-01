@@ -1,6 +1,5 @@
 import type {HTMLElement} from "@zavx0z/dom"
 import {WorkbenchNavigationList} from "../components/navigation-list.tsx"
-import {WorkbenchRegionHeading} from "../components/region-heading.tsx"
 import {WorkbenchRegionPanel} from "../components/region-panel.tsx"
 import type {WorkbenchNavigationItem} from "../contract.ts"
 
@@ -23,7 +22,6 @@ function SecondaryRegionContent(props: Readonly<{value: SecondaryRegionProps}>) 
       gap: 2px;
     }
   `}>
-    <WorkbenchRegionHeading text={value.label} />
     <div
       data-storybook-part="secondary-items"
       style={css`

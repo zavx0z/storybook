@@ -91,10 +91,17 @@ describe("Workbench component module boundary", () => {
     const inspector = readFileSync(join(root, "inspector/panel.tsx"), "utf8")
     expect(inspector).not.toContain("style=")
 
-    const heading = readFileSync(join(root, "components/region-heading.tsx"), "utf8")
-    expect(heading).toContain("<header")
-    expect(componentOpenings(heading, "Typography")).toHaveLength(1)
-    expect(componentOpenings(heading, "Typography")[0]).not.toContain("style=")
+    expect(existsSync(join(root, "components/region-heading.tsx"))).toBeFalse()
+    for (const path of [
+      join(root, "regions/catalog.tsx"),
+      join(root, "regions/secondary.tsx"),
+      join(root, "regions/scenarios.tsx"),
+      join(root, "regions/preview.tsx"),
+    ]) {
+      const source = readFileSync(path, "utf8")
+      expect(source, path).not.toContain("WorkbenchRegionHeading")
+      expect(source, path).not.toContain("<header")
+    }
 
     const catalog = readFileSync(join(root, "regions/catalog.tsx"), "utf8")
     for (const opening of componentOpenings(catalog, "TextField")) {

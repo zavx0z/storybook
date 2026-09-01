@@ -146,6 +146,8 @@ catalog | secondary | scenarios | preview | inspector | status
 
 `scenarios` — визуально неподписанная полоса кнопок непосредственно над
 `preview`; её label используется только как доступное имя toolbar.
+`catalog`, `secondary` и `preview` также не имеют видимых headings: labels
+используются только как доступные имена regions.
 
 Implementation owner — `src/workbench`, не generic `src/dom`. Корневой
 `WorkbenchView` только композирует шесть region components. Contract/state,

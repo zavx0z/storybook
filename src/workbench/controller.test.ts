@@ -49,8 +49,17 @@ describe("compiled Storybook Workbench", () => {
     expect(workbench.elements.secondary.localName).toBe("nav")
     expect(workbench.elements.preview.localName).toBe("main")
     expect(workbench.elements.scenarios.getAttribute("role")).toBe("toolbar")
+    for (const [region, label] of [
+      [workbench.elements.catalog, "Каталог"],
+      [workbench.elements.secondary, "Разделы"],
+      [workbench.elements.scenarios, "Сценарии"],
+      [workbench.elements.preview, "Кнопка Output"],
+    ] as const) {
+      expect(region.getAttribute("aria-label")).toBe(label)
+      expect(region.querySelector("header")).toBeNull()
+    }
+    expect(workbench.elements.previewHost.getAttribute("aria-label")).toBe("Кнопка Output")
     expect(workbench.elements.scenarios.textContent).toBe("")
-    expect(workbench.elements.scenarios.querySelector("header")).toBeNull()
     const status = workbench.elements.status.querySelector("footer") as HTMLElement | null
     expect(status?.getAttribute("role")).toBe("status")
     expect(status?.getAttribute("aria-label")).toBe(
