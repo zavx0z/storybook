@@ -1,10 +1,4 @@
-import type {
-  Document,
-  Element,
-  Event,
-  HTMLElement,
-  KeyboardEvent,
-} from "@zavx0z/dom"
+import type {Document as SemanticDocument} from "@zavx0z/dom"
 import {
   useCallback,
   useLayoutEffect,
@@ -34,7 +28,7 @@ import {
 } from "./windowing.ts"
 
 export type WorkbenchNavigationTreeProps = Readonly<{
-  document: Document
+  document: SemanticDocument
   items: readonly WorkbenchNavigationItem[]
   activeId: string | null
   query: string
@@ -47,13 +41,13 @@ export function WorkbenchNavigationTree(props: WorkbenchNavigationTreeProps) {
   const [collapsedGroupIds, setCollapsedGroupIds] = useState<ReadonlySet<string>>(new Set())
   const [focusKey, setFocusKey] = useState<string | null>(null)
   const [windowStart, setWindowStart] = useState(0)
-  const treeRef = useRef<HTMLElement | null>(null)
+  const treeRef = useRef<HTMLDivElement | null>(null)
   const pendingFocusRef = useRef<string | null>(null)
   const previousQueryRef = useRef(props.query)
   const programmaticScrollTopRef = useRef<number | null>(null)
   const createdLeafIdsRef = useRef<Set<string>>(new Set())
   const createdGroupIdsRef = useRef<Set<string>>(new Set())
-  const bindTree = useCallback((element: HTMLElement | null) => {
+  const bindTree = useCallback((element: HTMLDivElement | null) => {
     treeRef.current = element
   }, [])
 
@@ -158,8 +152,7 @@ export function WorkbenchNavigationTree(props: WorkbenchNavigationTreeProps) {
   const onGroupClick = (group: WorkbenchNavigationGroup, source: HTMLElement): void => {
     toggleGroup(group, !collapsedGroupIds.has(group.id), source)
   }
-  const onKeyDown = (event: Event): void => {
-    const keyboard = event as KeyboardEvent
+  const onKeyDown = (keyboard: KeyboardEvent): void => {
     if (!isTreeKey(keyboard.key) || enabledRows.length === 0) return
     const currentKey = rowKeyForTarget(keyboard.target) ?? effectiveFocusKey
     const currentIndex = enabledRows.findIndex(row => workbenchNavigationRowKey(row) === currentKey)
@@ -213,7 +206,7 @@ export function WorkbenchNavigationTree(props: WorkbenchNavigationTreeProps) {
       activateLeaf(current.item, rowElement(currentKey) ?? treeRef.current!)
     }
   }
-  const onFocusIn = (event: Event): void => {
+  const onFocusIn = (event: FocusEvent): void => {
     const key = rowKeyForTarget(event.target)
     if (key !== null) setFocusKey(key)
   }
@@ -245,7 +238,7 @@ export function WorkbenchNavigationTree(props: WorkbenchNavigationTreeProps) {
     if (tree === null) return
     for (const row of tree.querySelectorAll("[data-tree-row-key]")) {
       const key = row.getAttribute("data-tree-row-key")
-      const control = row.querySelector("button") as HTMLElement | null
+      const control = row.querySelector<HTMLButtonElement>("button")
       if (control !== null) {
         control.tabIndex = key === effectiveFocusKey && !row.hasAttribute("hidden") ? 0 : -1
       }
@@ -261,8 +254,10 @@ export function WorkbenchNavigationTree(props: WorkbenchNavigationTreeProps) {
 
   useLayoutEffect(() => props.document.subscribeStateChanges(batch => {
     const tree = treeRef.current
-    if (tree === null || !batch.records.some(record =>
-      record.type === "scroll" && record.target === tree)) return
+    if (tree === null) return
+    const treeIdentity: object = tree
+    if (!batch.records.some(record =>
+      record.type === "scroll" && record.target === treeIdentity)) return
     if (programmaticScrollTopRef.current !== null &&
       tree.scrollTop === programmaticScrollTopRef.current) {
       programmaticScrollTopRef.current = null
@@ -280,13 +275,12 @@ export function WorkbenchNavigationTree(props: WorkbenchNavigationTreeProps) {
     if (key === null) return null
     const tree = treeRef.current
     if (tree === null) return null
-    return [...tree.querySelectorAll("[data-tree-row-key]")]
-      .find(candidate => candidate.getAttribute("data-tree-row-key") === key) as
-        HTMLElement | undefined ?? null
+    return [...tree.querySelectorAll<HTMLElement>("[data-tree-row-key]")]
+      .find(candidate => candidate.getAttribute("data-tree-row-key") === key) ?? null
   }
 
   function rowControl(key: string | null): HTMLElement | null {
-    return rowElement(key)?.querySelector("button") as HTMLElement | null
+    return rowElement(key)?.querySelector<HTMLButtonElement>("button") ?? null
   }
 
   return <div
@@ -323,10 +317,14 @@ export function WorkbenchNavigationTree(props: WorkbenchNavigationTreeProps) {
   </div>
 }
 
-function rowKeyForTarget(target: unknown): string | null {
-  if (target === null || typeof target !== "object" || !("closest" in target)) return null
-  const row = (target as Element).closest("[data-tree-row-key]")
+function rowKeyForTarget(target: EventTarget | null): string | null {
+  if (!hasClosest(target)) return null
+  const row = target.closest("[data-tree-row-key]")
   return row?.getAttribute("data-tree-row-key") ?? null
+}
+
+function hasClosest(target: EventTarget | null): target is EventTarget & Pick<Element, "closest"> {
+  return target !== null && "closest" in target
 }
 
 function equalSets(left: ReadonlySet<string>, right: ReadonlySet<string>): boolean {

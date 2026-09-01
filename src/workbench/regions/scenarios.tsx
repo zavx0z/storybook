@@ -1,5 +1,4 @@
-import {Button} from "@ui/components/button"
-import type {Event, HTMLElement} from "@zavx0z/dom"
+import {Button, type ButtonProps} from "@ui/components/button"
 import type {WorkbenchScenarioItem} from "../contract.ts"
 
 type ScenarioButtonProps = Readonly<{
@@ -16,8 +15,8 @@ export type ScenariosRegionProps = Readonly<{
 }>
 
 function ScenarioButton(props: ScenarioButtonProps) {
-  const onClick = (event: Event) => {
-    if (!props.item.disabled) props.onScenario(props.item, event.currentTarget as HTMLElement)
+  const onClick: NonNullable<ButtonProps["onClick"]> = event => {
+    if (!props.item.disabled) props.onScenario(props.item, event.currentTarget)
   }
   return <Button
     label={props.item.label}

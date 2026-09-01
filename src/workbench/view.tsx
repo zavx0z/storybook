@@ -1,4 +1,4 @@
-import type {Document, HTMLElement} from "@zavx0z/dom"
+import type {Document as SemanticDocument} from "@zavx0z/dom"
 import type {JsxSourceElement} from "@zavx0z/template/jsx-runtime"
 import type {
   WorkbenchNavigationGroup,
@@ -14,7 +14,7 @@ import {SecondaryRegion} from "./regions/secondary.tsx"
 import {StatusRegion} from "./regions/status.tsx"
 
 export type WorkbenchViewProps = Readonly<{
-  document: Document
+  document: SemanticDocument
   state: WorkbenchViewState
   inspectorSelectedId: string
   inspectorQuery: string

@@ -1,5 +1,4 @@
-import {Button} from "@ui/components/button"
-import type {Event, HTMLElement} from "@zavx0z/dom"
+import {Button, type ButtonProps} from "@ui/components/button"
 import type {WorkbenchNavigationItem} from "../contract.ts"
 
 type WorkbenchNavigationListItemProps = Readonly<{
@@ -15,8 +14,8 @@ export type WorkbenchNavigationListProps = Readonly<{
 }>
 
 function WorkbenchNavigationListItem(props: WorkbenchNavigationListItemProps) {
-  const onClick = (event: Event) => {
-    if (!props.item.disabled) props.onNavigate(props.item, event.currentTarget as HTMLElement)
+  const onClick: NonNullable<ButtonProps["onClick"]> = event => {
+    if (!props.item.disabled) props.onNavigate(props.item, event.currentTarget)
   }
   return <div
     role="listitem"

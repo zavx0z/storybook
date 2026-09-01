@@ -1,5 +1,5 @@
-import {TextField} from "@ui/components/fields/text-field"
-import type {Document, Event, HTMLElement} from "@zavx0z/dom"
+import {TextField, type TextFieldProps} from "@ui/components/fields/text-field"
+import type {Document as SemanticDocument} from "@zavx0z/dom"
 import {WorkbenchRegionPanel} from "../components/region-panel.tsx"
 import type {
   WorkbenchNavigationGroup,
@@ -8,7 +8,7 @@ import type {
 import {WorkbenchNavigationTree} from "../navigation/tree.tsx"
 
 export type CatalogRegionProps = Readonly<{
-  document: Document
+  document: SemanticDocument
   label: string
   search: string
   items: readonly WorkbenchNavigationItem[]
@@ -20,8 +20,8 @@ export type CatalogRegionProps = Readonly<{
 
 function CatalogRegionContent(props: Readonly<{value: CatalogRegionProps}>) {
   const value = props.value
-  const onSearch = (search: string, event: Event) => {
-    value.onSearch(search, event.currentTarget as HTMLElement)
+  const onSearch: NonNullable<TextFieldProps["onInput"]> = (search, event) => {
+    value.onSearch(search, event.currentTarget)
   }
   return <div style={css`
     display: flex;

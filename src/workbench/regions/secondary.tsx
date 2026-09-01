@@ -1,4 +1,3 @@
-import type {HTMLElement} from "@zavx0z/dom"
 import {WorkbenchNavigationList} from "../components/navigation-list.tsx"
 import {WorkbenchRegionPanel} from "../components/region-panel.tsx"
 import type {WorkbenchNavigationItem} from "../contract.ts"

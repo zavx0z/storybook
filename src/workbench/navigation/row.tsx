@@ -1,6 +1,5 @@
-import {Button} from "@ui/components/button"
+import {Button, type ButtonProps} from "@ui/components/button"
 import {chevronDownIcon, chevronRightIcon} from "@ui/components/icons"
-import type {Event, HTMLElement} from "@zavx0z/dom"
 import {
   workbenchNavigationGroupKey,
   workbenchNavigationLeafKey,
@@ -51,8 +50,8 @@ export function NavigationRootBlock(props: NavigationRootBlockProps) {
   const active = leaf !== null && leaf.item.id === props.activeId
   const disabled = leaf?.item.disabled === true
   const blockRows = navigationRootBlockRows(block, props.collapsed)
-  const onGroup = (event: Event) => {
-    if (group !== null) props.onGroup(group, event.currentTarget as HTMLElement)
+  const onGroup: NonNullable<ButtonProps["onClick"]> = event => {
+    if (group !== null) props.onGroup(group, event.currentTarget)
   }
   return <div
     role={block.kind === "spacer" || block.hidden ? "presentation" : "treeitem"}
@@ -174,8 +173,8 @@ function NavigationGroupBlock(props: NavigationGroupBlockProps) {
 
 /** One production Button owner for both root and nested navigation leaves. */
 function NavigationLeafButton(props: NavigationLeafButtonProps) {
-  const onClick = (event: Event) => {
-    if (!props.item.disabled) props.onLeaf(props.item, event.currentTarget as HTMLElement)
+  const onClick: NonNullable<ButtonProps["onClick"]> = event => {
+    if (!props.item.disabled) props.onLeaf(props.item, event.currentTarget)
   }
   return <Button
     label={props.item.label}

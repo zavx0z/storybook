@@ -1,5 +1,4 @@
 import {Button} from "@ui/components/button"
-import type {Event} from "@zavx0z/dom"
 import type {StorybookOverviewAction} from "./overview-action.ts"
 
 export type StorybookOverviewActionButtonProps = Readonly<{

@@ -1,5 +1,4 @@
 import {Panel} from "@ui/components/panel"
-import type {Event} from "@zavx0z/dom"
 import type {JsxSourceElement} from "@zavx0z/template/jsx-runtime"
 import type {WorkbenchInspectorWidgetRegistration} from "../contract.ts"
 import {SourceWidget} from "./source-widget.tsx"
