@@ -45,6 +45,7 @@ export type WorkbenchInspectorStandardWidgetRegistration = Readonly<{
   kind: WorkbenchStandardWidgetKind
   label: string
   title: string
+  iconSrc?: string
 }>
 
 export type WorkbenchInspectorCustomWidgetRegistration = Readonly<{
@@ -52,6 +53,7 @@ export type WorkbenchInspectorCustomWidgetRegistration = Readonly<{
   kind: "custom"
   label: string
   title: string
+  iconSrc?: string
   component: CompiledTemplate<Readonly<{value: unknown}>>
 }>
 

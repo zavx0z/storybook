@@ -9,6 +9,7 @@ import {
 } from "@zavx0z/dom"
 import {createDocumentRenderer} from "@zavx0z/renderer"
 import {isCompiledTemplate} from "@zavx0z/template/compiled"
+import {uiIcons} from "@ui/components/icons"
 import {
   WORKBENCH_EVENTS,
   WORKBENCH_LAYOUT_PROTOCOL,
@@ -90,6 +91,7 @@ describe("compiled Storybook Workbench", () => {
       'input[aria-label="Поиск по инспектору"]',
     ) as HTMLInputElement | null
     expect(inspectorSearch?.placeholder).toBe("Поиск…")
+    expect(inspectorSearch?.parentElement?.querySelector("img")?.getAttribute("src")).toBe(uiIcons.search)
     expect(workbench.componentRoot.readStyleSheets().styleSheets.length).toBeGreaterThan(0)
     const componentNames = new Set(workbench.componentRoot.readStyleSheets().styleSheets
       .flatMap(sheet => sheet.source?.kind === "authored-css" ? [sheet.source.componentName] : []))
@@ -243,6 +245,10 @@ describe("compiled Storybook Workbench", () => {
     })
     categoryButton(workbench, "Исходники").click()
     expect(categoryButton(workbench, "Исходники").getAttribute("aria-pressed")).toBe("true")
+    expect(categoryButton(workbench, "Исходники").querySelector("img")?.getAttribute("src"))
+      .toBe(uiIcons.language)
+    expect(workbench.elements.inspectorHost.querySelector('[title="@fixture/components/button"] img')?.getAttribute("src"))
+      .toBe(uiIcons.resource)
     expect(workbench.elements.inspectorHost.querySelector('[data-language-id="css"]')?.textContent)
       .toContain("color: red")
 
@@ -302,11 +308,14 @@ describe("compiled Storybook Workbench", () => {
     const controller = await Bun.file(new URL("./controller.ts", import.meta.url)).text()
     const view = await Bun.file(new URL("./view.tsx", import.meta.url)).text()
     const inspector = await Bun.file(new URL("./inspector/panel.tsx", import.meta.url)).text()
+    const inspectorRegistry = await Bun.file(new URL("./inspector/registry.ts", import.meta.url)).text()
     const sourceWidget = await Bun.file(new URL("./inspector/source-widget.tsx", import.meta.url)).text()
     const navigation = await Bun.file(new URL("./navigation/tree.tsx", import.meta.url)).text()
     expect(controller).not.toContain("createElement(")
     expect(controller).not.toContain("StorybookDom")
     expect(inspector).toContain('from "@ui/components/inspector"')
+    expect(inspector).not.toContain("uiIcons")
+    expect(inspectorRegistry).not.toContain("uiIcons")
     expect(sourceWidget).toContain('from "@ui/components/code-editor"')
     expect(view).not.toContain("createElement(")
     expect(navigation).not.toContain("createElement(")

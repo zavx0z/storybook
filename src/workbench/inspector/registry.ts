@@ -1,4 +1,14 @@
 import {isCompiledTemplate} from "@zavx0z/template/compiled"
+import {
+  breakpointIcon,
+  databaseIcon,
+  executionPointIcon,
+  expandIcon,
+  imageIcon,
+  languageIcon,
+  settingsIcon,
+  visibilityOnIcon,
+} from "@ui/components/icons"
 import type {
   WorkbenchInspectorSubject,
   WorkbenchInspectorValues,
@@ -8,14 +18,14 @@ import type {
 import {requiredText} from "../validation.ts"
 
 export const WORKBENCH_STANDARD_WIDGET_REGISTRY = Object.freeze([
-  Object.freeze({id: "props", kind: "props", label: "П", title: "Параметры"}),
-  Object.freeze({id: "source", kind: "source", label: "И", title: "Исходники"}),
-  Object.freeze({id: "events", kind: "events", label: "С", title: "События"}),
-  Object.freeze({id: "diagnostics", kind: "diagnostics", label: "!", title: "Диагностика"}),
-  Object.freeze({id: "dom", kind: "dom", label: "D", title: "DOM"}),
-  Object.freeze({id: "layout", kind: "layout", label: "Р", title: "Раскладка"}),
-  Object.freeze({id: "display", kind: "display", label: "О", title: "Отображение"}),
-  Object.freeze({id: "reference", kind: "reference", label: "Э", title: "Эталон"}),
+  Object.freeze({id: "props", kind: "props", label: "П", title: "Параметры", iconSrc: settingsIcon}),
+  Object.freeze({id: "source", kind: "source", label: "И", title: "Исходники", iconSrc: languageIcon}),
+  Object.freeze({id: "events", kind: "events", label: "С", title: "События", iconSrc: executionPointIcon}),
+  Object.freeze({id: "diagnostics", kind: "diagnostics", label: "!", title: "Диагностика", iconSrc: breakpointIcon}),
+  Object.freeze({id: "dom", kind: "dom", label: "D", title: "DOM", iconSrc: databaseIcon}),
+  Object.freeze({id: "layout", kind: "layout", label: "Р", title: "Раскладка", iconSrc: expandIcon}),
+  Object.freeze({id: "display", kind: "display", label: "О", title: "Отображение", iconSrc: visibilityOnIcon}),
+  Object.freeze({id: "reference", kind: "reference", label: "Э", title: "Эталон", iconSrc: imageIcon}),
 ] as const satisfies readonly WorkbenchInspectorWidgetRegistration[])
 
 export function validateWorkbenchWidgetRegistry(
@@ -38,11 +48,15 @@ export function validateWorkbenchWidgetRegistry(
     }
     const label = requiredText(`Inspector widget ${index} label`, widget.label)
     const title = requiredText(`Inspector widget ${index} title`, widget.title)
-    if (widget.kind !== "custom") return Object.freeze({id, kind: widget.kind, label, title})
+    const iconSrc = widget.iconSrc === undefined
+      ? undefined
+      : requiredText(`Inspector widget ${index} iconSrc`, widget.iconSrc)
+    const icon = iconSrc === undefined ? {} : {iconSrc}
+    if (widget.kind !== "custom") return Object.freeze({id, kind: widget.kind, label, title, ...icon})
     if (!isCompiledTemplate(widget.component)) {
       throw new TypeError(`Custom Inspector widget component must be a governed compiled template: ${id}`)
     }
-    return Object.freeze({id, kind: "custom" as const, label, title, component: widget.component})
+    return Object.freeze({id, kind: "custom" as const, label, title, ...icon, component: widget.component})
   })
   const standard = WORKBENCH_STANDARD_WIDGET_REGISTRY.map(({id}) => id)
   const presentStandard = result.filter(({kind}) => kind !== "custom").map(({id}) => id)

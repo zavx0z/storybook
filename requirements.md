@@ -94,6 +94,10 @@ Project/runtime не декларирует layout и не заменяет navi
 является одним compiled TSX ComponentRoot и содержит ровно один production
 `@ui/components/Inspector`; rail/content являются его внутренностями, а не
 package slots.
+Standard Inspector registry импортирует только exact named icon assets и
+передаёт их в optional category `iconSrc`; aggregate `uiIcons` не попадает в
+Workbench bundle. Буквенные labels остаются semantic fallback, но не заменяют
+видимые SVG. Search и subject context используют production Inspector slots.
 
 Внутренний owner module называется `src/workbench`: controller, state,
 presentation, navigation, каждый region и Inspector projection разделены по

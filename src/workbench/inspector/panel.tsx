@@ -3,6 +3,7 @@ import {
   InspectorSections,
   type InspectorCategory,
 } from "@ui/components/inspector"
+import {resourceIcon} from "@ui/components/icons"
 import type {JsxSourceElement} from "@zavx0z/template/jsx-runtime"
 import type {
   WorkbenchInspectorSubject,
@@ -27,6 +28,7 @@ export function WorkbenchInspector(props: WorkbenchInspectorProps) {
   const categories: readonly InspectorCategory[] = Object.freeze(registrations.map(widget => Object.freeze({
     id: widget.id,
     label: widget.label,
+    iconSrc: widget.iconSrc,
     title: widget.title,
     sectionIds: Object.freeze([widget.id]),
   })))
@@ -40,6 +42,7 @@ export function WorkbenchInspector(props: WorkbenchInspectorProps) {
     searchPlaceholder="Поиск…"
     context={props.subject === null ? undefined : {
       label: `${props.subject.packageId} · ${props.subject.subjectId}`,
+      iconSrc: resourceIcon,
       title: `${props.subject.packageId}/${props.subject.subjectId}`,
     }}
     onCategoryChange={props.onCategoryChange}
