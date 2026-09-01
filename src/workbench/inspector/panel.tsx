@@ -1,6 +1,5 @@
 import {
   Inspector,
-  InspectorSections,
   type InspectorCategory,
 } from "@ui/components/inspector"
 import {resourceIcon} from "@ui/components/icons"
@@ -30,7 +29,7 @@ export function WorkbenchInspector(props: WorkbenchInspectorProps) {
     label: widget.label,
     iconSrc: widget.iconSrc,
     title: widget.title,
-    sectionIds: Object.freeze([widget.id]),
+    panelIds: Object.freeze([widget.id]),
   })))
   return <Inspector
     ariaLabel="Инспектор"
@@ -48,8 +47,6 @@ export function WorkbenchInspector(props: WorkbenchInspectorProps) {
     onCategoryChange={props.onCategoryChange}
     onQueryChange={props.onQueryChange}
   >
-    <InspectorSections>
-      {props.children}
-    </InspectorSections>
+    {props.children}
   </Inspector>
 }

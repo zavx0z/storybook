@@ -1,7 +1,5 @@
-import {BooleanField} from "@ui/components/fields/boolean-field"
-import {IntegerField} from "@ui/components/fields/integer-field"
+import {CheckboxField} from "@ui/components/fields/checkbox-field"
 import {NumberField} from "@ui/components/fields/number-field"
-import {ReadonlyField} from "@ui/components/fields/readonly-field"
 import {TextField} from "@ui/components/fields/text-field"
 
 type ValueFieldDefinition = Readonly<{
@@ -10,7 +8,6 @@ type ValueFieldDefinition = Readonly<{
   readOnly: true
 }> & (
   | Readonly<{kind: "boolean"; value: boolean}>
-  | Readonly<{kind: "integer"; value: number}>
   | Readonly<{kind: "number"; value: number}>
   | Readonly<{kind: "text"; value: string}>
   | Readonly<{kind: "readonly"; value: string}>
@@ -33,36 +30,33 @@ export function ValueFields(props: Readonly<{value: unknown}>) {
 function ValueField(props: Readonly<{definition: ValueFieldDefinition}>) {
   const definition = props.definition
   return <div style={css`& { display: contents; }`}>
-    {definition.kind === "boolean" ? <BooleanField
-      id={definition.id}
+    {definition.kind === "boolean" ? <CheckboxField
       label={definition.label}
-      value={definition.value}
-      readOnly={definition.readOnly}
-      presentation="checkbox"
-    /> : null}
-    {definition.kind === "integer" ? <IntegerField
-      id={definition.id}
-      label={definition.label}
-      value={definition.value}
+      checked={definition.value}
       readOnly={definition.readOnly}
     /> : null}
     {definition.kind === "number" ? <NumberField
-      id={definition.id}
       label={definition.label}
       value={definition.value}
       readOnly={definition.readOnly}
     /> : null}
     {definition.kind === "text" ? <TextField
-      id={definition.id}
       label={definition.label}
       value={definition.value}
       readOnly={definition.readOnly}
     /> : null}
-    {definition.kind === "readonly" ? <ReadonlyField
-      id={definition.id}
-      label={definition.label}
-      value={definition.value}
-    /> : null}
+    {definition.kind === "readonly" ? <ValueOutput definition={definition} /> : null}
+  </div>
+}
+
+function ValueOutput(props: Readonly<{
+  definition: Extract<ValueFieldDefinition, Readonly<{kind: "readonly"}>>
+}>) {
+  return <div style={css`
+    & { display: flex; flex-direction: row; min-height: 28px; gap: 4px; }
+  `}>
+    <span style={css`& { display: block; width: 40%; }`}>{props.definition.label}</span>
+    <output style={css`& { display: block; min-width: 0; flex-grow: 1; }`}>{props.definition.value}</output>
   </div>
 }
 
@@ -88,7 +82,7 @@ function fieldFromEntry(key: string, value: unknown): ValueFieldDefinition {
     return Object.freeze({...base, kind: "boolean", value})
   }
   if (typeof value === "number" && Number.isFinite(value)) {
-    return Object.freeze({...base, kind: Number.isInteger(value) ? "integer" : "number", value})
+    return Object.freeze({...base, kind: "number", value})
   }
   if (typeof value === "string") return Object.freeze({...base, kind: "text", value})
   return Object.freeze({...base, kind: "readonly", value: printable(value)})

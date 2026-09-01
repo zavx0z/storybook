@@ -138,7 +138,7 @@ export function createWorkbench(options: CreateWorkbenchOptions): Workbench {
       onScenario,
       onInspectorCategoryChange,
       onInspectorQueryChange,
-      children: inspector.sections,
+      children: inspector.panels,
     })
   }
   rerender = () => renderState(state)

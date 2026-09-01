@@ -166,7 +166,10 @@ only when the production component has another contract, for example Markdown
 В `inspector` существует ровно один production
 `@ui/components/inspector#Inspector`. Subject declaration выбирает ordered
 widgets; package не добавляет region и не заменяет rail/content. Workbench
-сохраняет selected widget по `(packageId, subjectId)` между variants.
+передаёт direct keyed `@ui/components/panel#Panel` children и связывает rail
+через category `panelIds`. `widget.id` остаётся projection key и identity
+retained expansion state; Panel не получает domain id. Workbench сохраняет
+selected widget по `(packageId, subjectId)` между variants.
 
 Canonical graph проецируется в compiled `WorkbenchNavigationTree` через
 `catalog.items`. Direct items, optional `group → child`, disclosure, search,

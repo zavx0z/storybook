@@ -1,4 +1,4 @@
-import {TextControl} from "@ui/components/controls/text-control"
+import {TextField} from "@ui/components/fields/text-field"
 import type {Document, Event, HTMLElement} from "@zavx0z/dom"
 import {WorkbenchRegionPanel} from "../components/region-panel.tsx"
 import type {
@@ -44,7 +44,7 @@ function CatalogRegionContent(props: Readonly<{value: CatalogRegionProps}>) {
         }
       `}
     >
-      <TextControl
+      <TextField
         type="search"
         value={value.search}
         placeholder="Поиск…"

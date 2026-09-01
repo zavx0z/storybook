@@ -88,14 +88,15 @@ describe("compiled Storybook Workbench", () => {
     expect(workbench.elements.inspectorHost.querySelector("aside")?.getAttribute("aria-label"))
       .toBe("Инспектор")
     const inspectorSearch = workbench.elements.inspectorHost.querySelector(
-      'input[aria-label="Поиск по инспектору"]',
+      'input[type="search"]',
     ) as HTMLInputElement | null
     expect(inspectorSearch?.placeholder).toBe("Поиск…")
-    expect(inspectorSearch?.parentElement?.querySelector("img")?.getAttribute("src")).toBe(uiIcons.search)
+    expect(inspectorSearch?.parentElement?.parentElement?.querySelector("img")?.getAttribute("src"))
+      .toBe(uiIcons.search)
     expect(workbench.componentRoot.readStyleSheets().styleSheets.length).toBeGreaterThan(0)
     const componentNames = new Set(workbench.componentRoot.readStyleSheets().styleSheets
       .flatMap(sheet => sheet.source?.kind === "authored-css" ? [sheet.source.componentName] : []))
-    for (const name of ["WorkbenchView", "Pane", "Button", "TextControl", "Inspector", "StatusBar"]) {
+    for (const name of ["WorkbenchView", "Pane", "Button", "TextField", "Inspector", "StatusBar"]) {
       expect(componentNames.has(name), name).toBeTrue()
     }
   })
@@ -177,7 +178,7 @@ describe("compiled Storybook Workbench", () => {
     expect(workbench.elements.worldHost.firstChild).toBe(identity)
   })
 
-  test("uses production controls and emits bubbling semantic navigation events", () => {
+  test("uses production Fields and emits bubbling semantic navigation events", () => {
     const document = createDocument()
     const workbench = api.createWorkbench({document, parent: document})
     workbench.update("catalog.items", [
@@ -251,6 +252,17 @@ describe("compiled Storybook Workbench", () => {
       .toBe(uiIcons.resource)
     expect(workbench.elements.inspectorHost.querySelector('[data-language-id="css"]')?.textContent)
       .toContain("color: red")
+    const sourcePanel = inspectorPanel(workbench, "Исходники")
+    const sourceToggle = sourcePanel.querySelector("header button") as HTMLButtonElement
+    expect(sourcePanel.getAttribute("id")).toBeNull()
+    expect(sourceToggle.getAttribute("aria-expanded")).toBe("true")
+    sourceToggle.click()
+    expect(sourceToggle.getAttribute("aria-expanded")).toBe("false")
+    expect(document.getElementById(sourceToggle.getAttribute("aria-controls")!)?.hasAttribute("hidden"))
+      .toBe(true)
+    expect(new Set(workbench.componentRoot.readStyleSheets().styleSheets
+      .flatMap(sheet => sheet.source?.kind === "authored-css" ? [sheet.source.componentName] : []))
+      .has("Panel")).toBeTrue()
 
     workbench.present({
       label: "Button disabled",
@@ -259,6 +271,8 @@ describe("compiled Storybook Workbench", () => {
       inspectorValues: {...values, props: {disabled: true}},
     })
     expect(categoryButton(workbench, "Исходники").getAttribute("aria-pressed")).toBe("true")
+    expect(inspectorPanel(workbench, "Исходники")).toBe(sourcePanel)
+    expect(sourceToggle.getAttribute("aria-expanded")).toBe("false")
 
     workbench.present({
       label: "Checkbox",
@@ -275,6 +289,9 @@ describe("compiled Storybook Workbench", () => {
       inspectorValues: values,
     })
     expect(categoryButton(workbench, "Исходники").getAttribute("aria-pressed")).toBe("true")
+    const restoredSourcePanel = inspectorPanel(workbench, "Исходники")
+    expect(restoredSourcePanel.querySelector("header button")?.getAttribute("aria-expanded"))
+      .toBe("false")
   })
 
   test("mounts a governed custom widget with only its value", async () => {
@@ -308,12 +325,16 @@ describe("compiled Storybook Workbench", () => {
     const controller = await Bun.file(new URL("./controller.ts", import.meta.url)).text()
     const view = await Bun.file(new URL("./view.tsx", import.meta.url)).text()
     const inspector = await Bun.file(new URL("./inspector/panel.tsx", import.meta.url)).text()
+    const widgetPanel = await Bun.file(new URL("./inspector/widget-panel.tsx", import.meta.url)).text()
     const inspectorRegistry = await Bun.file(new URL("./inspector/registry.ts", import.meta.url)).text()
     const sourceWidget = await Bun.file(new URL("./inspector/source-widget.tsx", import.meta.url)).text()
     const navigation = await Bun.file(new URL("./navigation/tree.tsx", import.meta.url)).text()
     expect(controller).not.toContain("createElement(")
     expect(controller).not.toContain("StorybookDom")
     expect(inspector).toContain('from "@ui/components/inspector"')
+    expect(inspector).not.toContain("InspectorSections")
+    expect(widgetPanel).toContain('from "@ui/components/panel"')
+    expect(widgetPanel).not.toContain("InspectorSection")
     expect(inspector).not.toContain("uiIcons")
     expect(inspectorRegistry).not.toContain("uiIcons")
     expect(sourceWidget).toContain('from "@ui/components/code-editor"')
@@ -358,4 +379,14 @@ function categoryButton(
     .find(candidate => candidate.getAttribute("aria-label") === title) as HTMLButtonElement | undefined
   if (button === undefined) throw new Error(`Missing Inspector category: ${title}`)
   return button
+}
+
+function inspectorPanel(
+  workbench: Workbench,
+  title: string,
+): HTMLElement {
+  const panel = [...workbench.elements.inspectorHost.querySelectorAll("[data-panel]")]
+    .find(candidate => candidate.querySelector("header button")?.getAttribute("title") === title)
+  if (panel === undefined) throw new Error(`Missing Inspector panel: ${title}`)
+  return panel as HTMLElement
 }

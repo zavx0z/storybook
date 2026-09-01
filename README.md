@@ -181,7 +181,9 @@ Workbench implementation живёт в `src/workbench`: controller/state,
 presentation, navigation, six region components и Inspector widgets разделены
 на точных owners. `src/dom` отсутствует, потому что semantic DOM — substrate,
 не домен shell. CSS находится внутри owning TSX components; shared pane/heading
-поведение переиспользуется компонентами, а не `CssStyle` constants.
+поведение переиспользуется компонентами, а не `CssStyle` constants. Inspector
+получает direct keyed production `Panel` children; Storybook замыкает widget id
+в toggle callback, не расширяя Panel domain identity.
 В primary catalog disclosure group занимает собственный header и полный поток
 видимых category rows; secondary показывает subjects выбранной category, а dock
 — только variants выбранного subject.
@@ -199,7 +201,7 @@ Aggregate с несколькими children не выбирает произв�
 Category может быть typed primary component (`kind + apiName`); тогда её
 ordinary subjects являются secondary sections, а dock показывает variants
 выбранной section. Shared Storybook не содержит списков promoted package routes.
-Production `Pane`, `Button`, `TextControl`, `Typography`, `Inspector`, concrete Fields,
+Production `Pane`, `Button`, `TextField`, `Typography`, `Inspector`, concrete Fields,
 `CodeEditor` и `StatusBar` владеют своим visual/state contract; Storybook caller styles
 задают только размещение внутри fixed Workbench regions.
 Native page title равен `MetaFor` на landing/self page и exact package label на

@@ -93,7 +93,10 @@ Fixed `workbench-layout/2` владеет ровно `catalog`, `secondary`, `sc
 Project/runtime не декларирует layout и не заменяет navigation. Видимый shell
 является одним compiled TSX ComponentRoot и содержит ровно один production
 `@ui/components/Inspector`; rail/content являются его внутренностями, а не
-package slots.
+package slots. Inspector получает direct keyed `@ui/components/Panel` children;
+category `panelIds` связывает rail с widget panels. Domain `widget.id` остаётся
+key/retained-state identity Storybook и замыкается consumer callback-ом вокруг
+`Panel.onToggle(expanded, event)`, но не становится prop-ом Panel.
 Standard Inspector registry импортирует только exact named icon assets и
 передаёт их в optional category `iconSrc`; aggregate `uiIcons` не попадает в
 Workbench bundle. Буквенные labels остаются semantic fallback, но не заменяют
@@ -107,8 +110,8 @@ Workbench domain. Каждый TSX component владеет своим `style={c
 `CssStyle` fragments.
 
 Workbench components обязаны композировать exact production owners
-`Pane`, `Button`, `TextControl`, `Typography`, `Inspector`, `InspectorSection`,
-`Field`, `CodeEditor` и `StatusBar`, когда их semantic/API contract подходит. Caller
+`Pane`, `Button`, `TextField`, `Typography`, `Inspector`, `Panel`,
+concrete Fields, `CodeEditor` и `StatusBar`, когда их semantic/API contract подходит. Caller
 `style` содержит только contextual placement; он не повторяет owner padding,
 control height, font, border, background, focus, selected, disabled или shadow.
 Storybook-owned intrinsic остаётся только там, где он несёт другую семантику:

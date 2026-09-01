@@ -89,7 +89,17 @@ describe("Workbench component module boundary", () => {
 
   test("keeps reusable component contour and states with production owners", () => {
     const inspector = readFileSync(join(root, "inspector/panel.tsx"), "utf8")
+    const widgetPanel = readFileSync(join(root, "inspector/widget-panel.tsx"), "utf8")
     expect(inspector).not.toContain("style=")
+    expect(inspector).toContain("panelIds:")
+    expect(inspector).not.toContain("InspectorSections")
+    expect(inspector).not.toContain("sectionIds")
+    expect(widgetPanel).toContain('from "@ui/components/panel"')
+    expect(widgetPanel).toContain("<Panel")
+    expect(widgetPanel).toContain("props.onToggle(props.widget.id, expanded)")
+    expect(widgetPanel).not.toContain("InspectorSection")
+    expect(widgetPanel).not.toContain("id={props.widget.id}")
+    expect(existsSync(join(root, "inspector/widget-section.tsx"))).toBeFalse()
 
     expect(existsSync(join(root, "components/region-heading.tsx"))).toBeFalse()
     for (const path of [
@@ -104,7 +114,7 @@ describe("Workbench component module boundary", () => {
     }
 
     const catalog = readFileSync(join(root, "regions/catalog.tsx"), "utf8")
-    for (const opening of componentOpenings(catalog, "TextControl")) {
+    for (const opening of componentOpenings(catalog, "TextField")) {
       expect(opening).not.toContain("height:")
       expect(opening).not.toContain("padding:")
     }

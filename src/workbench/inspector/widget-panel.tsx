@@ -1,12 +1,11 @@
-import {
-  InspectorSection,
-} from "@ui/components/inspector"
+import {Panel} from "@ui/components/panel"
+import type {Event} from "@zavx0z/dom"
 import type {JsxSourceElement} from "@zavx0z/template/jsx-runtime"
 import type {WorkbenchInspectorWidgetRegistration} from "../contract.ts"
 import {SourceWidget} from "./source-widget.tsx"
 import {ValueFields} from "./value-fields.tsx"
 
-export type WidgetSectionProps = Readonly<{
+export type WidgetPanelProps = Readonly<{
   widget: WorkbenchInspectorWidgetRegistration
   value: unknown
   expanded: boolean
@@ -14,7 +13,7 @@ export type WidgetSectionProps = Readonly<{
   onToggle(id: string, expanded: boolean): void
 }>
 
-function StandardWidgetSectionContent(props: Readonly<{
+function StandardWidgetPanelContent(props: Readonly<{
   widget: WorkbenchInspectorWidgetRegistration
   value: unknown
 }>) {
@@ -35,30 +34,28 @@ function StandardWidgetSectionContent(props: Readonly<{
   </div>
 }
 
-export function StandardWidgetSection(props: WidgetSectionProps) {
-  const onToggle = (id: string, expanded: boolean) => props.onToggle(id, expanded)
-  return <InspectorSection
-    id={props.widget.id}
+export function StandardWidgetPanel(props: WidgetPanelProps) {
+  const onToggle = (expanded: boolean, _event: Event) => props.onToggle(props.widget.id, expanded)
+  return <Panel
     label={props.widget.title}
     title={props.widget.title}
     expanded={props.expanded}
     hidden={props.hidden}
     onToggle={onToggle}
   >
-    <StandardWidgetSectionContent widget={props.widget} value={props.value} />
-  </InspectorSection>
+    <StandardWidgetPanelContent widget={props.widget} value={props.value} />
+  </Panel>
 }
 
-export function CustomWidgetSection(props: WidgetSectionProps & Readonly<{
+export function CustomWidgetPanel(props: WidgetPanelProps & Readonly<{
   children: JsxSourceElement
 }>) {
-  const onToggle = (id: string, expanded: boolean) => props.onToggle(id, expanded)
-  return <InspectorSection
-    id={props.widget.id}
+  const onToggle = (expanded: boolean, _event: Event) => props.onToggle(props.widget.id, expanded)
+  return <Panel
     label={props.widget.title}
     title={props.widget.title}
     expanded={props.expanded}
     hidden={props.hidden}
     onToggle={onToggle}
-  >{props.children}</InspectorSection>
+  >{props.children}</Panel>
 }
