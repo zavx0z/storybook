@@ -1,4 +1,20 @@
-import {Field, type FieldDefinition} from "@ui/components/field"
+import {BooleanField} from "@ui/components/fields/boolean-field"
+import {IntegerField} from "@ui/components/fields/integer-field"
+import {NumberField} from "@ui/components/fields/number-field"
+import {ReadonlyField} from "@ui/components/fields/readonly-field"
+import {TextField} from "@ui/components/fields/text-field"
+
+type ValueFieldDefinition = Readonly<{
+  id: string
+  label: string
+  readOnly: true
+}> & (
+  | Readonly<{kind: "boolean"; value: boolean}>
+  | Readonly<{kind: "integer"; value: number}>
+  | Readonly<{kind: "number"; value: number}>
+  | Readonly<{kind: "text"; value: string}>
+  | Readonly<{kind: "readonly"; value: string}>
+)
 
 export function ValueFields(props: Readonly<{value: unknown}>) {
   const fields = fieldsFromValue(props.value)
@@ -10,11 +26,47 @@ export function ValueFields(props: Readonly<{value: unknown}>) {
       gap: 4px;
     }
   `}>
-    {fields.map(definition => <Field key={definition.id} definition={definition} />)}
+    {fields.map(definition => <ValueField key={definition.id} definition={definition} />)}
   </div>
 }
 
-function fieldsFromValue(value: unknown): readonly FieldDefinition[] {
+function ValueField(props: Readonly<{definition: ValueFieldDefinition}>) {
+  const definition = props.definition
+  return <div style={css`& { display: contents; }`}>
+    {definition.kind === "boolean" ? <BooleanField
+      id={definition.id}
+      label={definition.label}
+      value={definition.value}
+      readOnly={definition.readOnly}
+      presentation="checkbox"
+    /> : null}
+    {definition.kind === "integer" ? <IntegerField
+      id={definition.id}
+      label={definition.label}
+      value={definition.value}
+      readOnly={definition.readOnly}
+    /> : null}
+    {definition.kind === "number" ? <NumberField
+      id={definition.id}
+      label={definition.label}
+      value={definition.value}
+      readOnly={definition.readOnly}
+    /> : null}
+    {definition.kind === "text" ? <TextField
+      id={definition.id}
+      label={definition.label}
+      value={definition.value}
+      readOnly={definition.readOnly}
+    /> : null}
+    {definition.kind === "readonly" ? <ReadonlyField
+      id={definition.id}
+      label={definition.label}
+      value={definition.value}
+    /> : null}
+  </div>
+}
+
+function fieldsFromValue(value: unknown): readonly ValueFieldDefinition[] {
   const entries = value !== null && typeof value === "object" && !Array.isArray(value)
     ? Object.entries(value)
     : [["value", value]] as const
@@ -30,10 +82,10 @@ function fieldsFromValue(value: unknown): readonly FieldDefinition[] {
   return Object.freeze(entries.map(([key, entry]) => fieldFromEntry(key, entry)))
 }
 
-function fieldFromEntry(key: string, value: unknown): FieldDefinition {
+function fieldFromEntry(key: string, value: unknown): ValueFieldDefinition {
   const base = {id: `widget-${key}`, label: key, readOnly: true} as const
   if (typeof value === "boolean") {
-    return Object.freeze({...base, kind: "boolean", value, presentation: "checkbox"})
+    return Object.freeze({...base, kind: "boolean", value})
   }
   if (typeof value === "number" && Number.isFinite(value)) {
     return Object.freeze({...base, kind: Number.isInteger(value) ? "integer" : "number", value})

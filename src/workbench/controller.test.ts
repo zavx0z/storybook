@@ -95,7 +95,7 @@ describe("compiled Storybook Workbench", () => {
     expect(workbench.componentRoot.readStyleSheets().styleSheets.length).toBeGreaterThan(0)
     const componentNames = new Set(workbench.componentRoot.readStyleSheets().styleSheets
       .flatMap(sheet => sheet.source?.kind === "authored-css" ? [sheet.source.componentName] : []))
-    for (const name of ["WorkbenchView", "Pane", "Button", "TextField", "Inspector", "StatusBar"]) {
+    for (const name of ["WorkbenchView", "Pane", "Button", "TextControl", "Inspector", "StatusBar"]) {
       expect(componentNames.has(name), name).toBeTrue()
     }
   })

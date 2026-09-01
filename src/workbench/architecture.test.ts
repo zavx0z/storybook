@@ -104,7 +104,7 @@ describe("Workbench component module boundary", () => {
     }
 
     const catalog = readFileSync(join(root, "regions/catalog.tsx"), "utf8")
-    for (const opening of componentOpenings(catalog, "TextField")) {
+    for (const opening of componentOpenings(catalog, "TextControl")) {
       expect(opening).not.toContain("height:")
       expect(opening).not.toContain("padding:")
     }

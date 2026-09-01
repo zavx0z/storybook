@@ -199,7 +199,7 @@ Aggregate с несколькими children не выбирает произв�
 Category может быть typed primary component (`kind + apiName`); тогда её
 ordinary subjects являются secondary sections, а dock показывает variants
 выбранной section. Shared Storybook не содержит списков promoted package routes.
-Production `Pane`, `Button`, `TextField`, `Typography`, `Inspector`, `Field`,
+Production `Pane`, `Button`, `TextControl`, `Typography`, `Inspector`, concrete Fields,
 `CodeEditor` и `StatusBar` владеют своим visual/state contract; Storybook caller styles
 задают только размещение внутри fixed Workbench regions.
 Native page title равен `MetaFor` на landing/self page и exact package label на

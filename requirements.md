@@ -107,7 +107,7 @@ Workbench domain. Каждый TSX component владеет своим `style={c
 `CssStyle` fragments.
 
 Workbench components обязаны композировать exact production owners
-`Pane`, `Button`, `TextField`, `Typography`, `Inspector`, `InspectorSection`,
+`Pane`, `Button`, `TextControl`, `Typography`, `Inspector`, `InspectorSection`,
 `Field`, `CodeEditor` и `StatusBar`, когда их semantic/API contract подходит. Caller
 `style` содержит только contextual placement; он не повторяет owner padding,
 control height, font, border, background, focus, selected, disabled или shadow.
