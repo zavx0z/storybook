@@ -85,11 +85,13 @@ override запрещены.
 
 ### `STORYBOOK-WORKBENCH-001` — one six-region shell
 
-Fixed `workbench-layout/1` владеет ровно `catalog`, `secondary`, `preview`,
-`scenarios`, `inspector`, `status` в этом порядке. Project/runtime не декларирует
-layout и не заменяет navigation. Видимый shell является одним compiled TSX
-ComponentRoot и содержит ровно один production `@ui/components/Inspector`;
-rail/content являются его внутренностями, а не package slots.
+Fixed `workbench-layout/2` владеет ровно `catalog`, `secondary`, `scenarios`,
+`preview`, `inspector`, `status` в этом порядке. `scenarios` является визуально
+неподписанной полосой кнопок непосредственно над `preview`; её label остаётся
+только доступным именем toolbar. Project/runtime не декларирует layout и не
+заменяет navigation. Видимый shell является одним compiled TSX ComponentRoot и
+содержит ровно один production `@ui/components/Inspector`; rail/content являются
+его внутренностями, а не package slots.
 
 Внутренний owner module называется `src/workbench`: controller, state,
 presentation, navigation, каждый region и Inspector projection разделены по

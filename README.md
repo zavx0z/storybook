@@ -168,11 +168,13 @@ export const runtime = Object.freeze({
 })
 ```
 
-Fixed `workbench-layout/1` owns exactly `catalog`, `secondary`, `preview`,
-`scenarios`, `inspector`, `status`. Один compiled Workbench ComponentRoot
-использует production `@ui/components/Inspector`; runtime не может добавить или
-заменить region. Runtime owns only package-specific presentation and must
-publish Nodes from the exact provided Document.
+Fixed `workbench-layout/2` owns exactly `catalog`, `secondary`, `scenarios`,
+`preview`, `inspector`, `status`. `scenarios` — визуально неподписанная полоса
+кнопок непосредственно над `preview`; её label остаётся только доступным именем
+toolbar. Один compiled Workbench ComponentRoot использует production
+`@ui/components/Inspector`; runtime не может добавить или заменить region.
+Runtime owns only package-specific presentation and must publish Nodes from the
+exact provided Document.
 
 Workbench implementation живёт в `src/workbench`: controller/state,
 presentation, navigation, six region components и Inspector widgets разделены

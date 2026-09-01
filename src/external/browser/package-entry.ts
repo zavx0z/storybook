@@ -1064,7 +1064,6 @@ function applyModel(shell: ExternalStorybookShell, model: ExternalStorybookPacka
     )
     shell.workbench.update("secondary.items", navigationItems(model.secondaryItems))
     shell.workbench.update("secondary.active", model.secondaryActiveId)
-    shell.workbench.update("scenarios.label", "Варианты")
     shell.workbench.update("scenarios.items", variantItems(model.variants))
     shell.workbench.update("scenarios.active", model.variantActiveId)
   })

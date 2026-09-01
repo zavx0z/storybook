@@ -145,7 +145,6 @@ export async function createExternalStorybookShell(
       "secondary.active": null,
       "preview.label": "Обзор",
       presentation: Object.freeze({node: null, projection: "display"}),
-      "scenarios.label": "Варианты",
       "scenarios.items": Object.freeze([]),
       "scenarios.active": null,
       status: {

@@ -97,15 +97,15 @@ export function WorkbenchView(props: WorkbenchViewProps) {
           gap: 4px;
         }
       `}>
-        <PreviewRegion
-          label={state["preview.label"]}
-          projection={state.presentation.projection}
-        />
         <ScenariosRegion
           label={state["scenarios.label"]}
           items={state["scenarios.items"]}
           activeId={state["scenarios.active"]}
           onScenario={props.onScenario}
+        />
+        <PreviewRegion
+          label={state["preview.label"]}
+          projection={state.presentation.projection}
         />
       </div>
       <InspectorRegion

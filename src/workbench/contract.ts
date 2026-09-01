@@ -19,13 +19,13 @@ export const WORKBENCH_EVENTS = Object.freeze({
   groupToggle: "storybookgrouptoggle",
 } as const)
 
-export const WORKBENCH_LAYOUT_PROTOCOL = "workbench-layout/1" as const
+export const WORKBENCH_LAYOUT_PROTOCOL = "workbench-layout/2" as const
 
 export const WORKBENCH_REGIONS = Object.freeze([
   "catalog",
   "secondary",
-  "preview",
   "scenarios",
+  "preview",
   "inspector",
   "status",
 ] as const)

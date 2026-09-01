@@ -42,13 +42,15 @@ describe("compiled Storybook Workbench", () => {
     expect(document.documentElement).toBe(workbench.element)
     expect(workbench.element.getAttribute("aria-label")).toBe("UI Storybook")
     expect(workbench.element.getAttribute("role")).toBe("application")
-    expect(WORKBENCH_LAYOUT_PROTOCOL).toBe("workbench-layout/1")
+    expect(WORKBENCH_LAYOUT_PROTOCOL).toBe("workbench-layout/2")
     expect(Array.from(workbench.element.querySelectorAll("[data-storybook-region]")).map((element) =>
       element.getAttribute("data-storybook-region"))).toEqual([...WORKBENCH_REGIONS])
     expect(workbench.elements.catalog.localName).toBe("nav")
     expect(workbench.elements.secondary.localName).toBe("nav")
     expect(workbench.elements.preview.localName).toBe("main")
     expect(workbench.elements.scenarios.getAttribute("role")).toBe("toolbar")
+    expect(workbench.elements.scenarios.textContent).toBe("")
+    expect(workbench.elements.scenarios.querySelector("header")).toBeNull()
     const status = workbench.elements.status.querySelector("footer") as HTMLElement | null
     expect(status?.getAttribute("role")).toBe("status")
     expect(status?.getAttribute("aria-label")).toBe(
@@ -63,7 +65,14 @@ describe("compiled Storybook Workbench", () => {
       root: workbench.element,
       viewport: {width: 1_280, height: 720},
     })
-    expect(renderer.flush().boxByNode.get(status!)).toMatchObject({width: 1_280, height: 24})
+    const layout = renderer.flush().boxByNode
+    expect(layout.get(status!)).toMatchObject({width: 1_280, height: 24})
+    const scenariosBox = layout.get(workbench.elements.scenarios)
+    const previewBox = layout.get(workbench.elements.preview)
+    expect(scenariosBox).toBeDefined()
+    expect(previewBox).toBeDefined()
+    expect((scenariosBox?.y ?? Infinity) + (scenariosBox?.height ?? Infinity))
+      .toBeLessThanOrEqual(previewBox?.y ?? -Infinity)
     renderer.dispose()
     expect(workbench.element.querySelectorAll("aside")).toHaveLength(1)
     expect(workbench.elements.inspectorHost.querySelector("aside")?.getAttribute("aria-label"))
@@ -165,6 +174,8 @@ describe("compiled Storybook Workbench", () => {
       {id: "input", label: "Поле", route: "components/input"},
     ])
     workbench.update("scenarios.items", [{id: "hover", label: "Hover"}])
+    expect(workbench.elements.scenarios.textContent).toBe("Hover")
+    expect(workbench.elements.scenarios.querySelector("header")).toBeNull()
     const events: Array<Readonly<{type: string; detail: unknown}>> = []
     for (const type of Object.values(WORKBENCH_EVENTS)) {
       workbench.element.addEventListener(type, event => {

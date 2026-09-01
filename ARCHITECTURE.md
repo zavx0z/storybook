@@ -138,11 +138,14 @@ DOM/Renderer/Engine/Template identities проверяются до publish; р�
 
 ## Workbench projection
 
-Fixed `workbench-layout/1` реализован одним compiled TSX ComponentRoot:
+Fixed `workbench-layout/2` реализован одним compiled TSX ComponentRoot:
 
 ```text
-catalog | secondary | preview | scenarios | inspector | status
+catalog | secondary | scenarios | preview | inspector | status
 ```
+
+`scenarios` — визуально неподписанная полоса кнопок непосредственно над
+`preview`; её label используется только как доступное имя toolbar.
 
 Implementation owner — `src/workbench`, не generic `src/dom`. Корневой
 `WorkbenchView` только композирует шесть region components. Contract/state,

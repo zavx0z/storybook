@@ -1,6 +1,5 @@
 import {Button} from "@ui/components/button"
 import type {Event, HTMLElement} from "@zavx0z/dom"
-import {WorkbenchRegionHeading} from "../components/region-heading.tsx"
 import type {WorkbenchScenarioItem} from "../contract.ts"
 
 type ScenarioButtonProps = Readonly<{
@@ -51,47 +50,28 @@ export function ScenariosRegion(props: ScenariosRegionProps) {
       }
     `}
   >
-    <div style={css`
-      & {
-        display: flex;
-        flex-direction: row;
-        width: 100%;
-        height: 28px;
-        gap: 4px;
-        padding: 2px 4px;
-        overflow: clip;
-      }
-    `}>
-      <div style={css`
+    <div
+      data-storybook-part="scenario-items"
+      style={css`
         & {
+          box-sizing: border-box;
           display: flex;
           flex-direction: row;
           width: 100%;
           min-width: 0;
-          gap: 4px;
+          height: 28px;
+          gap: 2px;
+          padding: 2px 4px;
+          overflow: clip;
         }
-      `}>
-        <WorkbenchRegionHeading text={props.label} />
-        <div
-          data-storybook-part="scenario-items"
-          style={css`
-            & {
-              display: flex;
-              flex-direction: row;
-              min-width: 0;
-              flex-grow: 1;
-              gap: 2px;
-            }
-          `}
-        >
-          {props.items.map(item => <ScenarioButton
-            key={item.id}
-            item={item}
-            selected={item.id === props.activeId}
-            onScenario={props.onScenario}
-          />)}
-        </div>
-      </div>
+      `}
+    >
+      {props.items.map(item => <ScenarioButton
+        key={item.id}
+        item={item}
+        selected={item.id === props.activeId}
+        onScenario={props.onScenario}
+      />)}
     </div>
   </section>
 }
