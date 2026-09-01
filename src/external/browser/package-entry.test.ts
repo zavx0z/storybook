@@ -150,7 +150,7 @@ describe("external Storybook package frontend", () => {
                         kind: "authored-css",
                         moduleId: "@fixture/components/story.tsx",
                         componentName: "FixtureStory",
-                        cssText: "& { color: cyan; }",
+                        cssText: "color: cyan;",
                       }),
                     })]),
                     }),

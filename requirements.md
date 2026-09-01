@@ -107,7 +107,14 @@ presentation, navigation, каждый region и Inspector projection разде
 своим обязанностям. Semantic DOM является runtime substrate, а не именем
 Workbench domain. Каждый TSX component владеет своим `style={css``}`; общий
 визуал переиспользуется только через настоящий component, не module-level
-`CssStyle` fragments.
+`CssStyle` fragments. Базовые declarations имеют одну каноническую форму:
+пишутся напрямую в `css```, без избыточного `& { ... }`; `&` остаётся
+только для реального nested pseudo-state или attribute selector. Неэкспортируемый
+style fragment, который потребляется одним `style` site, запрещён: declarations
+встраиваются в owning TSX element. Private module CSS fragment допустим только
+при нескольких реальных same-module style consumers и не экспортируется;
+публичная общая тема является exact `.css` export. Workbench shared visual всё
+равно выражается component-ом.
 
 Workbench components обязаны композировать exact production owners
 `Pane`, `Button`, `TextField`, `Typography`, `Inspector`, `Panel`,

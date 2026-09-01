@@ -16,12 +16,10 @@ function SourceDocumentView(props: SourceDocumentViewProps) {
   return <section
     data-source-document={props.document.key}
     style={css`
-      & {
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-        gap: 2px;
-      }
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      gap: 2px;
     `}
   >
     <Typography text={props.document.label} variant="caption" />
@@ -31,11 +29,9 @@ function SourceDocumentView(props: SourceDocumentViewProps) {
       languageId={props.document.languageId}
       title={props.document.label}
       style={css`
-        & {
-          width: 100%;
-          height: 180px;
-          min-height: 120px;
-        }
+        width: 100%;
+        height: 180px;
+        min-height: 120px;
       `}
     />
   </section>
@@ -44,15 +40,16 @@ function SourceDocumentView(props: SourceDocumentViewProps) {
 export function SourceWidget(props: Readonly<{value: unknown}>) {
   const documents = sourceDocuments(props.value)
   return <div style={css`
-    & {
-      display: flex;
-      flex-direction: column;
-      width: 100%;
-      min-height: 0;
-      gap: 6px;
-    }
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 0;
+    gap: 6px;
   `}>
-    {documents.map(document => <SourceDocumentView key={document.key} document={document} />)}
+    {documents.map(document => <SourceDocumentView
+      key={document.key}
+      document={document}
+    />)}
   </div>
 }
 

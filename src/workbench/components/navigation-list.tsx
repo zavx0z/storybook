@@ -25,12 +25,10 @@ function WorkbenchNavigationListItem(props: WorkbenchNavigationListItemProps) {
     data-id={props.item.id}
     data-route={props.item.route}
     style={css`
-      & {
-        display: flex;
-        align-items: center;
-        width: 100%;
-        min-height: 24px;
-      }
+      display: flex;
+      align-items: center;
+      width: 100%;
+      min-height: 24px;
     `}
   >
     <Button
@@ -40,11 +38,9 @@ function WorkbenchNavigationListItem(props: WorkbenchNavigationListItemProps) {
       disabled={props.item.disabled === true}
       selected={props.selected}
       style={css`
-        & {
-          width: 100%;
-          min-width: 0;
-          justify-content: flex-start;
-        }
+        width: 100%;
+        min-width: 0;
+        justify-content: flex-start;
       `}
       onClick={onClick}
     />
@@ -55,14 +51,12 @@ export function WorkbenchNavigationList(props: WorkbenchNavigationListProps) {
   return <div
     role="list"
     style={css`
-      & {
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-        flex-grow: 1;
-        gap: 1px;
-        overflow-y: auto;
-      }
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      flex-grow: 1;
+      gap: 1px;
+      overflow-y: auto;
     `}
   >
     {props.items.map(item => <WorkbenchNavigationListItem

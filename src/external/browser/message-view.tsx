@@ -17,12 +17,10 @@ type StorybookMessageContentProps = Readonly<{
 
 function StorybookMessageContent(props: StorybookMessageContentProps) {
   return <div style={css`
-    & {
-      display: flex;
-      flex-direction: column;
-      width: 100%;
-      gap: 8px;
-    }
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
   `}>
     <Typography text={props.title} variant="title" />
     <Typography text={props.detail} variant="body" />
@@ -37,18 +35,14 @@ export function StorybookMessageView(props: StorybookMessageViewProps) {
   return <article
     data-storybook-message=""
     style={css`
-      & {
-        display: block;
-        width: 100%;
-        min-height: 180px;
-      }
+      display: block;
+      width: 100%;
+      min-height: 180px;
     `}
   >
     <Pane style={css`
-      & {
-        width: 100%;
-        min-height: 180px;
-      }
+      width: 100%;
+      min-height: 180px;
     `}>
       <StorybookMessageContent
         title={props.title}

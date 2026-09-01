@@ -20,13 +20,11 @@ export function InspectorRegion(props: InspectorRegionProps) {
   return <div
     data-storybook-region="inspector"
     style={css`
-      & {
-        display: flex;
-        flex: 0 0 400px;
-        width: 400px;
-        min-height: 0;
-        overflow: clip;
-      }
+      display: flex;
+      flex: 0 0 400px;
+      width: 400px;
+      min-height: 0;
+      overflow: clip;
     `}
   >
     <WorkbenchInspector

@@ -20,6 +20,7 @@ describe("Workbench component module boundary", () => {
       const source = readFileSync(path, "utf8")
       expect(source, path).not.toMatch(/^(?:export\s+)?const\s+\w+[^=\n]*=\s*css`/mu)
       expect(source, path).not.toContain("CssStyle")
+      expect(source, path).not.toMatch(/&\s*\{/u)
       expect(source, path).not.toContain("createElement(")
       expect(source, path).not.toContain("defineStyles")
       expect(source, path).not.toContain("style={[")

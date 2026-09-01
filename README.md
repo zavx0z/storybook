@@ -180,8 +180,10 @@ and must publish Nodes from the exact provided Document.
 Workbench implementation живёт в `src/workbench`: controller/state,
 presentation, navigation, six region components и Inspector widgets разделены
 на точных owners. `src/dom` отсутствует, потому что semantic DOM — substrate,
-не домен shell. CSS находится внутри owning TSX components; shared pane/heading
-поведение переиспользуется компонентами, а не `CssStyle` constants. Inspector
+не домен shell. CSS находится внутри owning TSX components: base declarations пишутся
+напрямую, `&` остаётся только для nested selectors, а single-use local style не
+выносится в `CssStyle` constant. Shared pane/heading поведение переиспользуется
+компонентами. Inspector
 получает direct keyed production `Panel` children; Storybook замыкает widget id
 в toggle callback, не расширяя Panel domain identity.
 В primary catalog disclosure group занимает собственный header и полный поток

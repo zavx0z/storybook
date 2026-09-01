@@ -16,20 +16,23 @@ type ValueFieldDefinition = Readonly<{
 export function ValueFields(props: Readonly<{value: unknown}>) {
   const fields = fieldsFromValue(props.value)
   return <div style={css`
-    & {
-      display: flex;
-      flex-direction: column;
-      width: 100%;
-      gap: 4px;
-    }
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 4px;
   `}>
-    {fields.map(definition => <ValueField key={definition.id} definition={definition} />)}
+    {fields.map(definition => <ValueField
+      key={definition.id}
+      definition={definition}
+    />)}
   </div>
 }
 
 function ValueField(props: Readonly<{definition: ValueFieldDefinition}>) {
   const definition = props.definition
-  return <div style={css`& { display: contents; }`}>
+  return <div style={css`
+    display: contents;
+  `}>
     {definition.kind === "boolean" ? <CheckboxField
       label={definition.label}
       checked={definition.value}
@@ -51,12 +54,22 @@ function ValueField(props: Readonly<{definition: ValueFieldDefinition}>) {
 
 function ValueOutput(props: Readonly<{
   definition: Extract<ValueFieldDefinition, Readonly<{kind: "readonly"}>>
-}>) {
+  }>) {
   return <div style={css`
-    & { display: flex; flex-direction: row; min-height: 28px; gap: 4px; }
+    display: flex;
+    flex-direction: row;
+    min-height: 28px;
+    gap: 4px;
   `}>
-    <span style={css`& { display: block; width: 40%; }`}>{props.definition.label}</span>
-    <output style={css`& { display: block; min-width: 0; flex-grow: 1; }`}>{props.definition.value}</output>
+    <span style={css`
+      display: block;
+      width: 40%;
+    `}>{props.definition.label}</span>
+    <output style={css`
+      display: block;
+      min-width: 0;
+      flex-grow: 1;
+    `}>{props.definition.value}</output>
   </div>
 }
 

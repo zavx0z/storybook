@@ -68,17 +68,21 @@ export function NavigationRootBlock(props: NavigationRootBlockProps) {
     data-focused={rowKey !== null && rowKey === props.focusedKey ? "true" : undefined}
     hidden={block.hidden}
     style={css`
-      & {
-        box-sizing: border-box;
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-        height: ${blockRows * NAVIGATION_ROW_HEIGHT}px;
-        min-height: ${blockRows * NAVIGATION_ROW_HEIGHT}px;
-        overflow: clip;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: ${blockRows * NAVIGATION_ROW_HEIGHT}px;
+      min-height: ${blockRows * NAVIGATION_ROW_HEIGHT}px;
+      overflow: clip;
+
+      &[data-kind="group"] {
+        background: var(--widget-toolbar-background);
       }
-      &[data-kind="group"] { background: var(--widget-toolbar-background); }
-      &[hidden] { display: none; }
+
+      &[hidden] {
+        display: none;
+      }
     `}
   >
     {group !== null ? <Button
@@ -89,11 +93,9 @@ export function NavigationRootBlock(props: NavigationRootBlockProps) {
       aria-expanded={String(!props.collapsed)}
       variant="text"
       style={css`
-        & {
-          width: 100%;
-          min-width: 0;
-          justify-content: flex-start;
-        }
+        width: 100%;
+        min-width: 0;
+        justify-content: flex-start;
       `}
       onClick={onGroup}
     /> : null}
@@ -109,13 +111,14 @@ export function NavigationRootBlock(props: NavigationRootBlockProps) {
       data-group-id={group?.id}
       hidden={group === null || props.collapsed}
       style={css`
-        & {
-          display: flex;
-          flex-direction: column;
-          width: 100%;
-          background: var(--widget-text-background);
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        background: var(--widget-text-background);
+
+        &[hidden] {
+          display: none;
         }
-        &[hidden] { display: none; }
       `}
     >
       {children.map(child => <NavigationGroupBlock
@@ -148,15 +151,16 @@ function NavigationGroupBlock(props: NavigationGroupBlockProps) {
     data-focused={rowKey !== null && rowKey === props.focusedKey ? "true" : undefined}
     hidden={block.hidden}
     style={css`
-      & {
-        box-sizing: border-box;
-        display: flex;
-        width: 100%;
-        height: ${block.kind === "spacer" ? block.rows * NAVIGATION_ROW_HEIGHT : NAVIGATION_ROW_HEIGHT}px;
-        min-height: ${block.kind === "spacer" ? block.rows * NAVIGATION_ROW_HEIGHT : NAVIGATION_ROW_HEIGHT}px;
-        overflow: clip;
+      box-sizing: border-box;
+      display: flex;
+      width: 100%;
+      height: ${block.kind === "spacer" ? block.rows * NAVIGATION_ROW_HEIGHT : NAVIGATION_ROW_HEIGHT}px;
+      min-height: ${block.kind === "spacer" ? block.rows * NAVIGATION_ROW_HEIGHT : NAVIGATION_ROW_HEIGHT}px;
+      overflow: clip;
+
+      &[hidden] {
+        display: none;
       }
-      &[hidden] { display: none; }
     `}
   >
     {leaf !== null ? <NavigationLeafButton
@@ -181,13 +185,12 @@ function NavigationLeafButton(props: NavigationLeafButtonProps) {
     selected={props.active}
     variant="text"
     style={css`
-      & {
-        width: 100%;
-        min-width: 0;
-        justify-content: flex-start;
-      }
+      width: 100%;
+      min-width: 0;
+      justify-content: flex-start;
+
       ${props.nested && css`
-        & { padding-left: 24px; }
+        padding-left: 24px;
       `}
     `}
     onClick={onClick}

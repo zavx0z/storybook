@@ -21,12 +21,10 @@ function StandardWidgetPanelContent(props: Readonly<{
   return <div
     data-widget-kind={props.widget.kind}
     style={css`
-      & {
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-        min-height: 0;
-      }
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      min-height: 0;
     `}
   >
     {source ? <SourceWidget value={props.value} /> : null}
@@ -43,7 +41,10 @@ export function StandardWidgetPanel(props: WidgetPanelProps) {
     hidden={props.hidden}
     onToggle={onToggle}
   >
-    <StandardWidgetPanelContent widget={props.widget} value={props.value} />
+    <StandardWidgetPanelContent
+      widget={props.widget}
+      value={props.value}
+    />
   </Panel>
 }
 
@@ -57,5 +58,7 @@ export function CustomWidgetPanel(props: WidgetPanelProps & Readonly<{
     expanded={props.expanded}
     hidden={props.hidden}
     onToggle={onToggle}
-  >{props.children}</Panel>
+  >
+    {props.children}
+  </Panel>
 }

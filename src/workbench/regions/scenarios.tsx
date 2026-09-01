@@ -26,10 +26,8 @@ function ScenarioButton(props: ScenarioButtonProps) {
     disabled={props.item.disabled === true}
     selected={props.selected}
     style={css`
-      & {
-        width: auto;
-        min-width: 72px;
-      }
+      width: auto;
+      min-width: 72px;
     `}
     onClick={onClick}
   />
@@ -42,28 +40,24 @@ export function ScenariosRegion(props: ScenariosRegionProps) {
     data-storybook-region="scenarios"
     aria-label={props.label}
     style={css`
-      & {
-        display: flex;
-        width: 100%;
-        height: 28px;
-        min-height: 28px;
-      }
+      display: flex;
+      width: 100%;
+      height: 28px;
+      min-height: 28px;
     `}
   >
     <div
       data-storybook-part="scenario-items"
       style={css`
-        & {
-          box-sizing: border-box;
-          display: flex;
-          flex-direction: row;
-          width: 100%;
-          min-width: 0;
-          height: 28px;
-          gap: 2px;
-          padding: 2px 4px;
-          overflow: clip;
-        }
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: row;
+        width: 100%;
+        min-width: 0;
+        height: 28px;
+        gap: 2px;
+        padding: 2px 4px;
+        overflow: clip;
       `}
     >
       {props.items.map(item => <ScenarioButton

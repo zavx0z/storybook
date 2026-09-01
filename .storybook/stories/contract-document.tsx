@@ -11,10 +11,8 @@ export type ContractDocumentProps = Readonly<{
 
 function ContractParagraph(props: Readonly<{text: string}>) {
   return <p style={css`
-    & {
-      margin: 0;
-      white-space: normal;
-    }
+    margin: 0;
+    white-space: normal;
   `}>
     <Typography text={props.text} variant="body" />
   </p>
@@ -22,19 +20,19 @@ function ContractParagraph(props: Readonly<{text: string}>) {
 
 function ContractContent(props: ContractDocumentProps) {
   return <article style={css`
-    & {
-      box-sizing: border-box;
-      display: flex;
-      flex-direction: column;
-      width: 100%;
-      height: 100%;
-      min-width: 0;
-      min-height: 0;
-      gap: 10px;
-      overflow: auto;
-    }
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    gap: 10px;
+    overflow: auto;
   `}>
-    <h2 style={css`& { margin: 0; }`}>
+    <h2 style={css`
+      margin: 0;
+    `}>
       <Typography text={props.title} variant="title" />
     </h2>
     <ContractParagraph text={props.summary} />
@@ -46,12 +44,10 @@ function ContractContent(props: ContractDocumentProps) {
       showLineNumbers={false}
       title={`${props.title} example`}
       style={css`
-        & {
-          width: 100%;
-          height: 120px;
-          min-height: 80px;
-          flex-shrink: 0;
-        }
+        width: 100%;
+        height: 120px;
+        min-height: 80px;
+        flex-shrink: 0;
       `}
     />
   </article>
@@ -59,10 +55,8 @@ function ContractContent(props: ContractDocumentProps) {
 
 export function ContractDocument(props: ContractDocumentProps) {
   return <Pane style={css`
-    & {
-      width: 100%;
-      height: 100%;
-    }
+    width: 100%;
+    height: 100%;
   `}>
     <ContractContent
       title={props.title}

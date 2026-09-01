@@ -9,15 +9,13 @@ export type PreviewRegionProps = Readonly<{
 function PreviewRegionContent(props: Readonly<{value: PreviewRegionProps}>) {
   const value = props.value
   return <div style={css`
-    & {
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      width: 100%;
-      min-height: 0;
-      flex-grow: 1;
-      gap: 2px;
-    }
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 0;
+    flex-grow: 1;
+    gap: 2px;
   `}>
     <section
       role="region"
@@ -26,30 +24,29 @@ function PreviewRegionContent(props: Readonly<{value: PreviewRegionProps}>) {
       data-storybook-part="preview-host"
       data-active-projection={value.projection}
       style={css`
-        & {
-          position: relative;
-          display: flex;
-          flex-direction: column;
-          min-height: 0;
-          flex-grow: 1;
-          align-items: center;
-          justify-content: center;
-        }
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        flex-grow: 1;
+        align-items: center;
+        justify-content: center;
       `}
     >
       <div
         data-storybook-projection="display"
         hidden={value.projection !== "display"}
         style={css`
-          & {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            height: 100%;
-            align-items: center;
-            justify-content: center;
+          display: flex;
+          flex-direction: column;
+          width: 100%;
+          height: 100%;
+          align-items: center;
+          justify-content: center;
+
+          &[hidden] {
+            display: none;
           }
-          &[hidden] { display: none; }
         `}
       ></div>
       <div
@@ -57,16 +54,17 @@ function PreviewRegionContent(props: Readonly<{value: PreviewRegionProps}>) {
         aria-label="World semantic anchor"
         hidden={value.projection !== "world"}
         style={css`
-          & {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            height: 100%;
-            align-items: center;
-            justify-content: center;
-            background: transparent;
+          display: flex;
+          flex-direction: column;
+          width: 100%;
+          height: 100%;
+          align-items: center;
+          justify-content: center;
+          background: transparent;
+
+          &[hidden] {
+            display: none;
           }
-          &[hidden] { display: none; }
         `}
       ></div>
       <div
@@ -74,18 +72,19 @@ function PreviewRegionContent(props: Readonly<{value: PreviewRegionProps}>) {
         aria-label="HUD projection"
         hidden={value.projection !== "hud"}
         style={css`
-          & {
-            position: absolute;
-            left: 0;
-            top: 0;
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            height: 100%;
-            align-items: center;
-            justify-content: center;
+          position: absolute;
+          left: 0;
+          top: 0;
+          display: flex;
+          flex-direction: column;
+          width: 100%;
+          height: 100%;
+          align-items: center;
+          justify-content: center;
+
+          &[hidden] {
+            display: none;
           }
-          &[hidden] { display: none; }
         `}
       ></div>
     </section>
@@ -98,12 +97,10 @@ export function PreviewRegion(props: PreviewRegionProps) {
     data-storybook-region="preview"
     aria-label={props.label}
     style={css`
-      & {
-        display: flex;
-        min-width: 0;
-        min-height: 0;
-        flex-grow: 1;
-      }
+      display: flex;
+      min-width: 0;
+      min-height: 0;
+      flex-grow: 1;
     `}
   >
     <WorkbenchRegionPanel transparent={props.projection === "world"}>

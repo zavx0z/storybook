@@ -13,24 +13,20 @@ export type SecondaryRegionProps = Readonly<{
 function SecondaryRegionContent(props: Readonly<{value: SecondaryRegionProps}>) {
   const value = props.value
   return <div style={css`
-    & {
-      display: flex;
-      flex-direction: column;
-      width: 100%;
-      min-height: 0;
-      flex-grow: 1;
-      gap: 2px;
-    }
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 0;
+    flex-grow: 1;
+    gap: 2px;
   `}>
     <div
       data-storybook-part="secondary-items"
       style={css`
-        & {
-          display: flex;
-          flex-direction: column;
-          min-height: 0;
-          flex-grow: 1;
-        }
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        flex-grow: 1;
       `}
     >
       <WorkbenchNavigationList
@@ -48,12 +44,10 @@ export function SecondaryRegion(props: SecondaryRegionProps) {
     data-storybook-region="secondary"
     aria-label={props.label}
     style={css`
-      & {
-        display: flex;
-        flex: 0 0 152px;
-        width: 152px;
-        min-height: 0;
-      }
+      display: flex;
+      flex: 0 0 152px;
+      width: 152px;
+      min-height: 0;
     `}
   >
     <WorkbenchRegionPanel>

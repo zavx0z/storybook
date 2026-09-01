@@ -25,7 +25,9 @@ function MarkdownText(props: Readonly<{value: string}>) {
 
 function MarkdownInlineCode(props: Readonly<{value: string}>) {
   return <code style={css`
-    & { display: inline; color: var(--editor-content); font-family: monospace; }
+    display: inline;
+    color: var(--editor-content);
+    font-family: monospace;
   `}>{props.value}</code>
 }
 
@@ -33,8 +35,13 @@ function MarkdownLink(props: Readonly<{value: string; href: string; external: bo
   return <a
     href={props.href}
     rel={props.external ? "noreferrer" : undefined}
-    style={css`& { display: inline; color: var(--widget-toolbar-content-selected); }`}
-  >{props.value}</a>
+    style={css`
+      display: inline;
+      color: var(--widget-toolbar-content-selected);
+    `}
+  >
+    {props.value}
+  </a>
 }
 
 function MarkdownInline(props: MarkdownInlineProps) {
@@ -50,7 +57,10 @@ function MarkdownInline(props: MarkdownInlineProps) {
 }
 
 function MarkdownInlineList(props: MarkdownInlineListProps) {
-  return <span>{props.content.map(inline => <MarkdownInline key={inline.key} inline={inline} />)}</span>
+  return <span>{props.content.map(inline => <MarkdownInline
+    key={inline.key}
+    inline={inline}
+  />)}</span>
 }
 
 function MarkdownHeading(props: Readonly<{
@@ -60,12 +70,21 @@ function MarkdownHeading(props: Readonly<{
   return <h2
     role="heading"
     aria-level={String(props.level)}
-    style={css`& { display: block; margin: 0 0 8px; color: var(--widget-regular-content); }`}
-  ><MarkdownInlineList content={props.content} /></h2>
+    style={css`
+      display: block;
+      margin: 0 0 8px;
+      color: var(--widget-regular-content);
+    `}
+  >
+    <MarkdownInlineList content={props.content} />
+  </h2>
 }
 
 function MarkdownParagraph(props: MarkdownInlineListProps) {
-  return <p style={css`& { display: block; margin: 0 0 8px; }`}>
+  return <p style={css`
+    display: block;
+    margin: 0 0 8px;
+  `}>
     <MarkdownInlineList content={props.content} />
   </p>
 }
@@ -79,18 +98,34 @@ function MarkdownListItem(props: Readonly<{
 function MarkdownOrderedList(props: MarkdownListProps) {
   return <ol
     data-markdown-list="ordered"
-    style={css`& { display: flex; flex-direction: column; margin: 0 0 8px; padding-left: 20px; }`}
+    style={css`
+      display: flex;
+      flex-direction: column;
+      margin: 0 0 8px;
+      padding-left: 20px;
+    `}
   >
-    {props.items.map(item => <MarkdownListItem key={item.key} item={item} />)}
+    {props.items.map(item => <MarkdownListItem
+      key={item.key}
+      item={item}
+    />)}
   </ol>
 }
 
 function MarkdownUnorderedList(props: MarkdownListProps) {
   return <ul
     data-markdown-list="unordered"
-    style={css`& { display: flex; flex-direction: column; margin: 0 0 8px; padding-left: 20px; }`}
+    style={css`
+      display: flex;
+      flex-direction: column;
+      margin: 0 0 8px;
+      padding-left: 20px;
+    `}
   >
-    {props.items.map(item => <MarkdownListItem key={item.key} item={item} />)}
+    {props.items.map(item => <MarkdownListItem
+      key={item.key}
+      item={item}
+    />)}
   </ul>
 }
 
@@ -101,11 +136,9 @@ function MarkdownCodeBlock(props: Readonly<{languageId: string; value: string}>)
     languageId={props.languageId}
     title={`${props.languageId} code`}
     style={css`
-      & {
-        width: 100%;
-        height: 160px;
-        min-height: 96px;
-      }
+      width: 100%;
+      height: 160px;
+      min-height: 96px;
     `}
   />
 }
@@ -113,11 +146,17 @@ function MarkdownCodeBlock(props: Readonly<{languageId: string; value: string}>)
 function MarkdownBlock(props: MarkdownBlockProps) {
   const block = props.block
   return <div data-markdown-block={block.kind}>
-    {block.kind === "heading" ? <MarkdownHeading level={block.level} content={block.content} /> : null}
+    {block.kind === "heading" ? <MarkdownHeading
+      level={block.level}
+      content={block.content}
+    /> : null}
     {block.kind === "paragraph" ? <MarkdownParagraph content={block.content} /> : null}
     {block.kind === "list" && block.ordered ? <MarkdownOrderedList items={block.items} /> : null}
     {block.kind === "list" && !block.ordered ? <MarkdownUnorderedList items={block.items} /> : null}
-    {block.kind === "code" ? <MarkdownCodeBlock languageId={block.languageId} value={block.value} /> : null}
+    {block.kind === "code" ? <MarkdownCodeBlock
+      languageId={block.languageId}
+      value={block.value}
+    /> : null}
   </div>
 }
 
@@ -126,21 +165,22 @@ export function StorybookMarkdownView(props: StorybookMarkdownViewProps) {
   return <article
     data-storybook-markdown=""
     style={css`
-      & {
-        box-sizing: border-box;
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-        height: 100%;
-        padding: 12px;
-        overflow-y: auto;
-        color: var(--widget-box-content);
-        font-size: var(--font-size-sm);
-        line-height: 1.45;
-      }
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      padding: 12px;
+      overflow-y: auto;
+      color: var(--widget-box-content);
+      font-size: var(--font-size-sm);
+      line-height: 1.45;
     `}
   >
-    {props.markdown.blocks.map(block => <MarkdownBlock key={block.key} block={block} />)}
+    {props.markdown.blocks.map(block => <MarkdownBlock
+      key={block.key}
+      block={block}
+    />)}
     {props.action === undefined ? null : <StorybookOverviewActionButton
       action={props.action}
     />}

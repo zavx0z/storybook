@@ -40,29 +40,25 @@ function StorybookAggregateTileContent(props: Readonly<{
 }>) {
   const item = props.item
   return <div style={css`
-      & {
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-        min-height: 120px;
-        flex-grow: 1;
-        gap: 4px;
-      }
-    `}>
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 120px;
+    flex-grow: 1;
+    gap: 4px;
+  `}>
     <Typography text={item.label} variant="caption" />
     <div
       data-storybook-aggregate-item={item.id}
       data-storybook-aggregate-route={item.route}
       style={css`
-        & {
-          display: flex;
-          min-width: 0;
-          min-height: 120px;
-          flex-grow: 1;
-          align-items: center;
-          justify-content: center;
-          overflow: hidden;
-        }
+        display: flex;
+        min-width: 0;
+        min-height: 120px;
+        flex-grow: 1;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
       `}
     ></div>
   </div>
@@ -74,36 +70,32 @@ export function StorybookAggregateOverviewView(props: StorybookAggregateOverview
     data-storybook-aggregate-overview=""
     aria-label={`Обзор компонентов: ${props.title}`}
     style={css`
-      & {
-        box-sizing: border-box;
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-        height: 100%;
-        min-height: 0;
-        gap: 4px;
-        overflow: hidden;
-      }
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      gap: 4px;
+      overflow: hidden;
     `}
   >
     <Typography text={props.title} variant="title" />
     <div
       data-storybook-aggregate-grid=""
       style={css`
-        & {
-          box-sizing: border-box;
-          display: flex;
-          flex-direction: row;
-          flex-wrap: wrap;
-          align-content: flex-start;
-          align-items: stretch;
-          width: 100%;
-          min-height: 0;
-          flex-grow: 1;
-          gap: 8px;
-          overflow-y: auto;
-          padding: 4px;
-        }
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-content: flex-start;
+        align-items: stretch;
+        width: 100%;
+        min-height: 0;
+        flex-grow: 1;
+        gap: 8px;
+        overflow-y: auto;
+        padding: 4px;
       `}
     >
       {props.items.map(item => <Pane
@@ -111,26 +103,23 @@ export function StorybookAggregateOverviewView(props: StorybookAggregateOverview
         variant="outlined"
         title={item.label}
         style={css`
-          & {
-            display: flex;
-            flex: 0 0 280px;
-            flex-direction: column;
-            width: 280px;
-            height: 180px;
-            min-width: 0;
-            min-height: 160px;
-            max-width: 100%;
-            max-height: 180px;
-            gap: 4px;
-          }
+          display: flex;
+          flex: 0 0 280px;
+          flex-direction: column;
+          width: 280px;
+          height: 180px;
+          min-width: 0;
+          min-height: 160px;
+          max-width: 100%;
+          max-height: 180px;
+          gap: 4px;
+
           ${props.items.length === 1 && css`
-            & {
-              flex-basis: 100%;
-              width: 100%;
-              height: 100%;
-              min-width: 0;
-              max-height: none;
-            }
+            flex-basis: 100%;
+            width: 100%;
+            height: 100%;
+            min-width: 0;
+            max-height: none;
           `}
         `}
       >

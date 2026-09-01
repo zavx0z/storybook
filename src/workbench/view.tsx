@@ -38,37 +38,39 @@ export function WorkbenchView(props: WorkbenchViewProps) {
     data-storybook-workbench=""
     data-storybook-world-preview={world ? "true" : undefined}
     style={css`
-      & {
-        box-sizing: border-box;
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-        height: 100%;
-        overflow: clip;
-        background: rgb(var(--surface-925));
-        color: var(--widget-regular-content);
-        font-size: 11px;
-        line-height: 16px;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      overflow: clip;
+      background: rgb(var(--surface-925));
+      color: var(--widget-regular-content);
+      font-size: 11px;
+      line-height: 16px;
+
+      &[data-storybook-world-preview="true"] {
+        background: transparent;
       }
-      &[data-storybook-world-preview="true"] { background: transparent; }
     `}
   >
     <div
       data-storybook-workbench-part="body"
       data-world={world ? "true" : undefined}
       style={css`
-        & {
-          box-sizing: border-box;
-          display: flex;
-          flex-direction: row;
-          min-height: 0;
-          flex-grow: 1;
-          gap: 4px;
-          padding: 4px;
-          overflow: clip;
-          background: rgb(var(--surface-950));
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: row;
+        min-height: 0;
+        flex-grow: 1;
+        gap: 4px;
+        padding: 4px;
+        overflow: clip;
+        background: rgb(var(--surface-950));
+
+        &[data-world="true"] {
+          background: transparent;
         }
-        &[data-world="true"] { background: transparent; }
       `}
     >
       <CatalogRegion
@@ -88,14 +90,12 @@ export function WorkbenchView(props: WorkbenchViewProps) {
         onNavigate={props.onSecondaryNavigate}
       />
       <div style={css`
-        & {
-          display: flex;
-          flex-direction: column;
-          min-width: 0;
-          min-height: 0;
-          flex-grow: 1;
-          gap: 4px;
-        }
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+        flex-grow: 1;
+        gap: 4px;
       `}>
         <ScenariosRegion
           label={state["scenarios.label"]}

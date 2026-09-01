@@ -302,15 +302,13 @@ export function WorkbenchNavigationTree(props: WorkbenchNavigationTreeProps) {
     onKeyDown={onKeyDown}
     onFocusIn={onFocusIn}
     style={css`
-      & {
-        display: flex;
-        flex-direction: column;
-        min-height: 0;
-        flex-grow: 1;
-        gap: 0;
-        overflow-y: auto;
-        background: var(--widget-text-background);
-      }
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      flex-grow: 1;
+      gap: 0;
+      overflow-y: auto;
+      background: var(--widget-text-background);
     `}
   >
     {blocks.map(block => <NavigationRootBlock

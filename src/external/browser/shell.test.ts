@@ -237,7 +237,7 @@ describe("external Storybook shared browser shell", () => {
             componentStyleSheets: [{
               moduleId: "@fixture/components/button.tsx",
               componentName: "Button",
-              cssText: "& { color: var(--tone); }\n&:hover { color: white; }",
+              cssText: "color: var(--tone);\n&:hover { color: white; }",
             }],
           },
           typescript: "export const story = true",
@@ -254,7 +254,7 @@ describe("external Storybook shared browser shell", () => {
     const cssFacets = shell.workbench.elements.inspectorHost.querySelectorAll('[data-language-id="css"]')
     expect(cssFacets).toHaveLength(2)
     expect(cssFacets[0]?.querySelector("code")?.textContent).toBe(":root { --tone: #123456; }")
-    expect(cssFacets[1]?.querySelector("code")?.textContent).toBe("& { color: var(--tone); }&:hover { color: white; }")
+    expect(cssFacets[1]?.querySelector("code")?.textContent).toBe("color: var(--tone);&:hover { color: white; }")
     expect(cssFacets[1]?.querySelector("code")?.querySelectorAll("[data-line-index]")).toHaveLength(2)
     expect(cssFacets[1]?.querySelector("[data-token-category]")).not.toBeNull()
     expect(cssFacets[1]?.querySelector("code")?.textContent).not.toContain("```css")

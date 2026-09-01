@@ -232,7 +232,7 @@ describe("compiled Storybook Workbench", () => {
         css: {authorStyleSheets: [], componentStyleSheets: [{
           moduleId: "@fixture/components/button.tsx",
           componentName: "Button",
-          cssText: "& { color: red; }",
+          cssText: "color: red;",
         }]},
         typescript: "<Button />",
       },

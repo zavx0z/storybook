@@ -155,7 +155,11 @@ ComponentRoot controller, same-Document presentation reparent, navigation
 model/windowing/rows/tree и Inspector registry/projection/widgets являются
 отдельными acyclic modules. Каждый TSX owner объявляет CSS непосредственно в
 своём `style={css``}`; повторяемая pane/heading семантика оформлена components,
-а не внешними `CssStyle` constants.
+а не внешними `CssStyle` constants. Базовые declarations пишутся прямо,
+без обёртки `& { ... }`; `&` обозначает только настоящий nested selector.
+Одноразовый локальный fragment встраивается в единственный style site; separate
+private fragment требует нескольких реальных same-module consumers и не может
+экспортироваться. Public shared styles принадлежат exact `.css` export.
 
 Region and presentation components import exact production UI owners directly.
 Workbench may constrain their placement, but never redraw owner contour,

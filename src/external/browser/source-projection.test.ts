@@ -18,7 +18,7 @@ describe("Storybook structured source projection", () => {
       kind: "authored-css",
       moduleId: "@ui/components/button.tsx",
       componentName: "Button",
-      cssText: "& { color: var(--tone); }",
+      cssText: "color: var(--tone);",
     })
     const root = Object.freeze({
       readStyleSheets() {
@@ -32,7 +32,7 @@ describe("Storybook structured source projection", () => {
               kind: "authored-css",
               moduleId: "@ui/components/icons.tsx",
               componentName: "Icon",
-              cssText: "& { width: 12px; }",
+              cssText: "width: 12px;",
             })}),
           ]),
         })
@@ -55,12 +55,12 @@ describe("Storybook structured source projection", () => {
           {
             moduleId: "@ui/components/button.tsx",
             componentName: "Button",
-            cssText: "& { color: var(--tone); }",
+            cssText: "color: var(--tone);",
           },
           {
             moduleId: "@ui/components/icons.tsx",
             componentName: "Icon",
-            cssText: "& { width: 12px; }",
+            cssText: "width: 12px;",
           },
         ],
       },
