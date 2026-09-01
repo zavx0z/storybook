@@ -14,6 +14,7 @@ import type {
   Workbench,
   WorkbenchNavigationItem,
 } from "../contract.ts"
+import {chevronDownIcon, chevronRightIcon} from "@ui/components/icons"
 import {WORKBENCH_EVENTS} from "../contract.ts"
 import type * as ControllerModule from "../controller.ts"
 import {loadCompiledWorkbench} from "../testing/compile-workbench.ts"
@@ -79,6 +80,15 @@ describe("compiled Storybook catalog navigation tree", () => {
       "true",
       "true",
     ])
+    expect(groupRows(workbench).map((row) => focusControl(row).textContent)).toEqual([
+      "DOM",
+      "Элементы",
+    ])
+    expect(groupRows(workbench).map((row) =>
+      focusControl(row).querySelector("img")?.getAttribute("src"))).toEqual([
+      chevronDownIcon,
+      chevronDownIcon,
+    ])
     expect(groupContainers(workbench).every((group) => group.getAttribute("role") === "group"))
       .toBeTrue()
     expect(groupContainers(workbench).every((group) =>
@@ -135,9 +145,13 @@ describe("compiled Storybook catalog navigation tree", () => {
     }
     const dom = findGroup(workbench, "dom")!
     const elements = findGroup(workbench, "elements")!
+    const domDisclosure = focusControl(dom).querySelector("img")!
+    expect(domDisclosure.getAttribute("src")).toBe(chevronDownIcon)
 
     clickGroup(dom)
     expect(dom.getAttribute("aria-expanded")).toBe("false")
+    expect(focusControl(dom).querySelector("img")).toBe(domDisclosure)
+    expect(domDisclosure.getAttribute("src")).toBe(chevronRightIcon)
     expect(elements.getAttribute("aria-expanded")).toBe("true")
     expect(events).toEqual([{
       type: "storybookgrouptoggle",
@@ -147,6 +161,8 @@ describe("compiled Storybook catalog navigation tree", () => {
 
     clickGroup(dom)
     expect(dom.getAttribute("aria-expanded")).toBe("true")
+    expect(focusControl(dom).querySelector("img")).toBe(domDisclosure)
+    expect(domDisclosure.getAttribute("src")).toBe(chevronDownIcon)
     expect(events.at(-1)).toEqual({
       type: "storybookgrouptoggle",
       detail: {kind: "catalog", id: "dom", collapsed: false},

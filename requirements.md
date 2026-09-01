@@ -125,6 +125,9 @@ projection. Pure model/windowing, row components и tree session lifecycle
 Expanded disclosure занимает в layout строку заголовка и все видимые строки
 своих category children; следующий root row начинается только после них.
 Перекрытие либо clipping primary category rows запрещены.
+Group Button materializes exact `chevronDownIcon`/`chevronRightIcon` через
+standard `<img>` и сохраняет image identity при toggle. Текстовые `▾/▸`,
+Unicode glyph fallback и font-dependent disclosure запрещены.
 
 ### `STORYBOOK-WORKBENCH-003` — landing and package tab semantics
 

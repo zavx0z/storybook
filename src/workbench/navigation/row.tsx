@@ -1,4 +1,5 @@
 import {Button} from "@ui/components/button"
+import {chevronDownIcon, chevronRightIcon} from "@ui/components/icons"
 import type {Event, HTMLElement} from "@zavx0z/dom"
 import {
   workbenchNavigationGroupKey,
@@ -81,7 +82,8 @@ export function NavigationRootBlock(props: NavigationRootBlockProps) {
     `}
   >
     {group !== null ? <Button
-      label={`${props.collapsed ? "▸" : "▾"} ${group.label}`}
+      label={group.label}
+      startIcon={props.collapsed ? chevronRightIcon : chevronDownIcon}
       title={group.label}
       aria-label={group.label}
       aria-expanded={String(!props.collapsed)}
