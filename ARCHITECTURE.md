@@ -13,6 +13,8 @@ one external storybook serve process
   ├─ one immutable normalized graph
   ├─ one HTTP origin + WebSocket
   ├─ one shared Workbench frontend
+  ├─ one private @zavx0z/storybook-browser-lifecycle
+  │      └─ exact packageId → absent | reserved | owned target
   └─ independent PackageSession per package
          ├─ generated static lazy loader
          ├─ compiler/module graph
@@ -29,11 +31,15 @@ order, story modules, README/resources и при необходимости stru
 adapter. Project и workspace являются только сохранённой композицией ссылок на
 эти declarations. Они не владеют вторым catalog, frontend, server или runtime.
 
-Внешний Storybook владеет schemas, discovery, validation, canonical graph,
-search/routing derived views, шестью областями Workbench, package build/revision
-lifecycle, diagnostics и browser tabs. Текущий MCP является агентской
-проекцией того же graph через общий controller; отдельный MCP registry не
-допускается.
+Корневой `@zavx0z/storybook` владеет schemas, discovery, validation, canonical
+graph, search/routing derived views, шестью областями Workbench, package
+build/revision lifecycle и diagnostics. Private nested
+`@zavx0z/storybook-browser-lifecycle` единолично владеет browser target
+reservations, attestation, navigation, readiness и exact-target operations.
+Корень композирует один logical lifecycle owner; вложенный package не создаёт
+отдельный process, port, registry или graph. MCP является только агентской
+проекцией через общий controller; отдельный MCP registry или browser lifecycle
+не допускается.
 
 ## Declaration flow
 
@@ -101,14 +107,30 @@ migration journal; journal переживает abort/crash и удаляетс�
 
 Global landing и все package tabs обслуживаются одним origin. Landing не
 импортирует package runtime/production code. URL package tab содержит exact
-package identity. MCP хранит private target record и persistent HMAC secret;
-повторное открытие сериализовано между MCP-процессами и использует target,
-который подтверждает `storybook:<package-id>` через package bridge. Поэтому
-смена server instance/origin не создаёт новую вкладку. После успешного ready
-подтверждённые дубли пакета повторно аттестуются непосредственно перед close;
-неподтверждённые чужие targets не изменяются. Новый target получает provisional
-ownership сразу после `Target.createTarget`, поэтому timeout/error следующего
-шага переиспользует ту же вкладку, а не создаёт ещё одну.
+package identity. Landing, CLI и MCP вызывают один typed `openPackage`; direct
+`window.open`, named-tab fallback и frontend-owned package open отсутствуют.
+
+`@zavx0z/storybook-browser-lifecycle` сериализует operation между всеми
+adapters и хранит для exact `packageId` один tagged state:
+
+```text
+absent → reserved(operationId) → owned(targetId)
+               │                       │
+               └──── retry/recover ────┘
+```
+
+Reservation возникает атомарно до `Target.createTarget`; поэтому concurrent
+call присоединяется к operation, а route или смена server instance/origin лишь
+навигирует тот же owned target. Timeout, abort и crash не превращают pending
+operation в разрешение создать второй target. Duplicate logical state не
+существует и не публикуется.
+
+Несколько attested physical targets допускаются только как вход legacy/crash
+recovery. Под package lock lifecycle выбирает retained target, повторно
+аттестует obsolete candidates непосредственно перед close и нормализует browser
+до публикации view/status. Неподтверждённые, foreign и navigated-away user
+targets не изменяются; невозможность safe recovery завершает operation fail
+closed, а не скрывает duplicate фильтрацией current origin.
 
 Одна package tab имеет один browser realm, один generated entry, один loaded
 runtime adapter, не более одной active subject session и один PackageSession
@@ -275,15 +297,22 @@ Storybook Core ─────┤
 ExternalStorybookController
   ├─ canonical server lifecycle and registry
   ├─ graph search and package checks
-  ├─ StorybookBrowserController
-  ├─ StorybookViewRegistry
-  └─ StorybookCaptureStore
+  └─ authenticated canonical server control API
+
+Canonical server
+  └─ one StorybookBrowserLifecycle.openPackage / exact-target instance
+         ├─ package reservation state and operation locks
+         ├─ target attestation, navigation, readiness and recovery
+         └─ opaque views and bounded captures
 ```
 
 MCP не запускает CLI, не парсит stdout и не владеет вторым registry. Stdio
 connection может завершиться независимо от daemon server. CLI сохраняется для
 человека и аварийной диагностики, но не содержит отдельной lifecycle/browser
-логики.
+логики. Landing также является adapter этого application service и не открывает
+package tab самостоятельно. Browser branch диаграммы принадлежит private
+`@zavx0z/storybook-browser-lifecycle`; это package boundary, а не второй runtime
+owner или process.
 
 ## PackageSession and revisions
 
@@ -330,18 +359,20 @@ dispose idempotent и завершается до shell cleanup.
 
 ## MCP semantic viewport
 
-Storybook MCP предоставляет lifecycle, canonical search, opaque package views,
-event-driven wait, inspection, semantic interaction и capture. `viewId` является
+Storybook MCP проецирует lifecycle commands, canonical search, opaque package
+views, event-driven wait, inspection, semantic interaction и capture. `viewId`
+является
 opaque capability derived from actual browser target and persistent private
 Storybook secret; CDP
 identity, Chrome profile, port и filesystem artifact path агенту не передаются.
 Public `origin` аналогично является HMAC identity, пригодной для one-origin
 сравнения без раскрытия loopback URL/port.
 
-Browser controller является частью MCP и говорит с Chrome по direct CDP, без
-`ai-macos`, `@meta/chrome` и browser CLI. `Target.createTarget` всегда получает
-`background: true`; controller не отправляет target activation, `bringToFront`
-или focus emulation. Небраузерные lifecycle/query operations не требуют CDP.
+Private browser lifecycle owner говорит с Chrome по direct CDP; MCP лишь
+делегирует ему opaque operation. `ai-macos`, `@meta/chrome` и browser CLI не
+используются. `Target.createTarget` всегда получает `background: true`;
+lifecycle owner не отправляет target activation, `bringToFront` или focus
+emulation. Небраузерные lifecycle/query operations не требуют CDP.
 
 Package-tab agent bridge проецирует существующий semantic Document, Workbench
 identities и current renderer frame. Он не создаёт второе дерево и не принимает

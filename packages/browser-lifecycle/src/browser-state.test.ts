@@ -11,7 +11,7 @@ afterEach(() => {
 })
 
 describe("Storybook browser state", () => {
-  test("persists one private view secret across MCP controller instances", () => {
+  test("persists one private view secret across lifecycle instances", () => {
     const root = temporaryRoot()
     const first = new StorybookBrowserState(root)
     const second = new StorybookBrowserState(root)
@@ -27,6 +27,7 @@ describe("Storybook browser state", () => {
     const written = state.writeTarget({
       packageId: "@fixture/a",
       cdpOrigin: "http://127.0.0.1:9222",
+      browserIdentity: "a".repeat(64),
       targetId: "TARGET_A",
     })
 
@@ -35,6 +36,31 @@ describe("Storybook browser state", () => {
     expect(state.readTarget("@fixture/a")).toEqual(written)
     expect(state.clearTarget("@fixture/a", "TARGET_A")).toBeTrue()
     expect(state.readTarget("@fixture/a")).toBeNull()
+  })
+
+  test("persists an atomic reservation before binding its created target", () => {
+    const state = new StorybookBrowserState(temporaryRoot())
+    const reserved = state.reserveTarget({
+      packageId: "@fixture/a",
+      cdpOrigin: "http://127.0.0.1:9222",
+      browserIdentity: "a".repeat(64),
+      url: "http://127.0.0.1:43123/packages/%40fixture%2Fa/",
+      baselineTargetIds: ["BEFORE_A", "BEFORE_B"],
+    })
+    expect(reserved).toMatchObject({phase: "reserved", targetId: null})
+
+    const owned = state.writeTarget({
+      packageId: "@fixture/a",
+      cdpOrigin: "http://127.0.0.1:9222",
+      browserIdentity: "a".repeat(64),
+      targetId: "CREATED",
+    })
+    expect(owned).toMatchObject({
+      phase: "owned",
+      targetId: "CREATED",
+      url: reserved.url,
+      baselineTargetIds: ["BEFORE_A", "BEFORE_B"],
+    })
   })
 })
 

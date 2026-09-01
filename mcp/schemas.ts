@@ -1,5 +1,5 @@
 import {z} from "zod"
-import {STORYBOOK_MCP_SCHEMA_VERSION} from "../src/external/browser-control/types.ts"
+import {STORYBOOK_MCP_SCHEMA_VERSION} from "../src/external/controller-contract.ts"
 
 const schemaVersion = z.literal(STORYBOOK_MCP_SCHEMA_VERSION)
 const boundedPath = z.string().min(1).max(4_096).refine((value) => !/[\u0000-\u001f\u007f]/u.test(value),

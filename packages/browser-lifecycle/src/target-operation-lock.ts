@@ -1,7 +1,7 @@
 import {createHash, randomUUID} from "node:crypto"
 import {mkdir, readFile, rename, rm, stat, writeFile} from "node:fs/promises"
 import {join} from "node:path"
-import {readProcessStart} from "../server-state.ts"
+import type {StorybookProcessStart} from "./contract.ts"
 
 type LockOwner = Readonly<{
   pid: number
@@ -16,6 +16,7 @@ export async function withStorybookBrowserLock<Value>(
     scope: string
     timeoutMs?: number
     signal?: AbortSignal
+    processStart?: StorybookProcessStart
   }>,
   operation: () => Promise<Value>,
 ): Promise<Value> {
@@ -32,6 +33,7 @@ export async function acquireStorybookBrowserLock(input: Readonly<{
   scope: string
   timeoutMs?: number
   signal?: AbortSignal
+  processStart?: StorybookProcessStart
 }>): Promise<Readonly<{path: string; release(): Promise<void>}>> {
   if (input.scope.length === 0) throw new Error("Storybook browser lock scope is required")
   const timeoutMs = input.timeoutMs ?? 60_000
@@ -41,6 +43,7 @@ export async function acquireStorybookBrowserLock(input: Readonly<{
   const digest = createHash("sha256").update(input.scope).digest("hex")
   const path = join(input.root, `${digest}.lock`)
   const ownerPath = join(path, "owner.json")
+  const readProcessStart = input.processStart ?? localProcessStart
   const processStart = readProcessStart(process.pid)
   if (processStart === null) throw new Error("Cannot identify Storybook browser lock process")
   const token = randomUUID()
@@ -69,13 +72,25 @@ export async function acquireStorybookBrowserLock(input: Readonly<{
         throw error
       }
     }
-    if (await reclaimStale(path, ownerPath, token)) continue
+    if (await reclaimStale(path, ownerPath, token, readProcessStart)) continue
     if (Date.now() >= deadline) throw new DOMException("Storybook browser operation lock timed out", "TimeoutError")
     await abortableDelay(50, input.signal)
   }
 }
 
-async function reclaimStale(path: string, ownerPath: string, token: string): Promise<boolean> {
+function localProcessStart(pid: number): string | null {
+  const result = Bun.spawnSync(["ps", "-p", String(pid), "-o", "lstart="])
+  if (result.exitCode !== 0) return null
+  const value = result.stdout.toString().trim()
+  return value.length === 0 ? null : value
+}
+
+async function reclaimStale(
+  path: string,
+  ownerPath: string,
+  token: string,
+  readProcessStart: StorybookProcessStart,
+): Promise<boolean> {
   const owner = await readOwner(ownerPath)
   if (owner !== null && readProcessStart(owner.pid) === owner.processStart) return false
   if (owner === null) {

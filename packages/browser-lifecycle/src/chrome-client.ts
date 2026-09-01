@@ -1,40 +1,16 @@
+import {createHash} from "node:crypto"
 import {existsSync, mkdirSync, readFileSync, unlinkSync} from "node:fs"
 import {join, resolve} from "node:path"
-import {externalStorybookStateRoot} from "../server-state.ts"
 import {StorybookCdpConnection, type StorybookCdpWebSocketFactory} from "./cdp-connection.ts"
 import {withStorybookBrowserLock} from "./target-operation-lock.ts"
 import type {
   ChromeTargetSummary,
   StorybookBridgeClip,
   StorybookBridgeMethod,
-} from "./types.ts"
-
-export type StorybookChromeConsoleEntry = Readonly<{
-  type?: string
-  level?: string
-  text?: string
-  url?: string
-  line?: number
-  timestamp?: number
-}>
-
-export interface StorybookChromeClient {
-  health(signal?: AbortSignal): Promise<void>
-  cdpOrigin(signal?: AbortSignal): Promise<string>
-  targets(signal?: AbortSignal): Promise<readonly ChromeTargetSummary[]>
-  createTarget(url: string, signal?: AbortSignal): Promise<ChromeTargetSummary>
-  closeTarget(targetId: string, signal?: AbortSignal): Promise<void>
-  navigate(targetId: string, url: string, signal?: AbortSignal): Promise<void>
-  waitReady(targetId: string, timeoutMs: number, signal?: AbortSignal): Promise<void>
-  consoleEntries(targetId: string, durationMs: number, signal?: AbortSignal): Promise<readonly StorybookChromeConsoleEntry[]>
-  bridgeDiagnostics(targetId: string, signal?: AbortSignal): Promise<Readonly<Record<string, unknown>>>
-  callBridge(targetId: string, method: StorybookBridgeMethod, params: unknown, signal?: AbortSignal): Promise<unknown>
-  screenshot(
-    targetId: string,
-    options: Readonly<{caption: string; clip?: StorybookBridgeClip; timeoutMs?: number}>,
-    signal?: AbortSignal,
-  ): Promise<Uint8Array>
-}
+  StorybookChromeClient,
+  StorybookChromeConsoleEntry,
+  StorybookProcessStart,
+} from "./contract.ts"
 
 export type StorybookCdpClientOptions = Readonly<{
   origin?: string
@@ -45,6 +21,7 @@ export type StorybookCdpClientOptions = Readonly<{
   stateRoot?: string
   chromeBinary?: string
   spawnChrome?: (command: readonly string[]) => void
+  processStart?: StorybookProcessStart
 }>
 
 type StorybookCdpTarget = ChromeTargetSummary & Readonly<{webSocketDebuggerUrl: string}>
@@ -61,6 +38,7 @@ export class StorybookCdpClient implements StorybookChromeClient {
   readonly #stateRoot: string
   readonly #chromeBinary: string | undefined
   readonly #spawnChrome: (command: readonly string[]) => void
+  readonly #processStart: StorybookProcessStart | undefined
   #originPromise: Promise<string> | null = null
 
   constructor(options: StorybookCdpClientOptions = {}) {
@@ -70,9 +48,10 @@ export class StorybookCdpClient implements StorybookChromeClient {
     this.#webSocketFactory = options.webSocketFactory
     this.#requestTimeoutMs = boundedTimeout(options.requestTimeoutMs ?? 30_000, 100, 120_000)
     this.#launchIfMissing = options.launchIfMissing ?? true
-    this.#stateRoot = resolve(options.stateRoot ?? join(externalStorybookStateRoot(), "browser"))
+    this.#stateRoot = resolve(options.stateRoot ?? join(process.cwd(), ".storybook-browser-lifecycle"))
     this.#chromeBinary = options.chromeBinary
-    this.#spawnChrome = options.spawnChrome ?? spawnOwnedChrome
+    this.#spawnChrome = options.spawnChrome ?? ((command) => spawnOwnedChrome(command, this.#stateRoot))
+    this.#processStart = options.processStart
   }
 
   async health(signal?: AbortSignal): Promise<void> {
@@ -92,6 +71,14 @@ export class StorybookCdpClient implements StorybookChromeClient {
       throw error
     })
     return this.#originPromise
+  }
+
+  async browserIdentity(signal?: AbortSignal): Promise<string> {
+    const version = await this.#version(await this.cdpOrigin(signal), signal)
+    return createHash("sha256")
+      .update("external-storybook-cdp-browser\0")
+      .update(version.webSocketDebuggerUrl)
+      .digest("hex")
   }
 
   async targets(signal?: AbortSignal): Promise<readonly ChromeTargetSummary[]> {
@@ -382,6 +369,7 @@ export class StorybookCdpClient implements StorybookChromeClient {
       scope: "owned-chrome-launch",
       timeoutMs: 20_000,
       ...(signal === undefined ? {} : {signal}),
+      ...(this.#processStart === undefined ? {} : {processStart: this.#processStart}),
     }, async () => {
       const existing = ownedChromeOrigin(this.#stateRoot)
       if (existing !== null) {
@@ -504,9 +492,9 @@ function discoverChromeBinary(): string {
   return path
 }
 
-function spawnOwnedChrome(command: readonly string[]): void {
+function spawnOwnedChrome(command: readonly string[], stateRoot: string): void {
   const child = Bun.spawn([...command], {
-    cwd: externalStorybookStateRoot(),
+    cwd: stateRoot,
     stdin: "ignore",
     stdout: "ignore",
     stderr: "ignore",

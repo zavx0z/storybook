@@ -23,17 +23,17 @@ describe("Storybook view registry", () => {
     expect(registry.internal(first[0]!.viewId).targetId).toBe("CDP-SECRET-TARGET")
   })
 
-  test("fails closed for duplicate package views and forgets closed targets", () => {
+  test("makes duplicate logical package views unrepresentable", () => {
     const registry = new StorybookViewRegistry(new Uint8Array(32).fill(9))
     const origin = "http://127.0.0.1:43123"
-    registry.synchronize([
+    const retained = registry.synchronize([
+      {targetId: "A", type: "page", title: "A", url: `${origin}/packages/%40fixture%2Fa/`},
+    ], origin)
+    expect(() => registry.synchronize([
       {targetId: "A", type: "page", title: "A", url: `${origin}/packages/%40fixture%2Fa/`},
       {targetId: "B", type: "page", title: "B", url: `${origin}/packages/%40fixture%2Fa/example`},
-    ], origin)
-    expect(() => registry.exactPackage("@fixture/a", origin)).toThrow("Multiple Storybook views")
-    const firstId = registry.list()[0]!.viewId
-    expect(registry.forget(firstId)).toBeTrue()
-    expect(registry.list()).toHaveLength(1)
+    ], origin)).toThrow("Duplicate Storybook logical package view")
+    expect(registry.list()).toEqual(retained)
   })
 
   test("ignores landing, foreign-origin and non-page targets", () => {

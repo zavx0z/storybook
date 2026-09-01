@@ -24,7 +24,7 @@ import {externalStorybookPageTitle} from "../page-title.ts"
 export type StartExternalStorybookLandingOptions = Readonly<{
   fetcher?: typeof fetch
   browserDocument?: globalThis.Document
-  openWindow?(url: string, name: string): unknown
+  openPackage?(input: Readonly<{packageId: string; route: string}>): Promise<void>
   createSocket?(url: string): LandingSocket
   location?: Pick<Location, "href" | "pathname" | "reload">
   history?: Pick<History, "pushState">
@@ -57,7 +57,7 @@ export async function startExternalStorybookLanding(
     authorStyleSheetSources: options.shell?.authorStyleSheetSources ??
       indexedLandingAuthorStyleSheetSources(browserDocument),
   })
-  const openWindow = options.openWindow ?? ((url: string, name: string) => globalThis.open(url, name))
+  const openPackage = options.openPackage ?? ((input) => requestPackageView(fetcher, browserDocument, input))
   const location = options.location ?? globalThis.location
   const history = options.history ?? globalThis.history
   let selectionRevision = 0
@@ -104,7 +104,15 @@ export async function startExternalStorybookLanding(
       const readme = await readExternalStorybookNodeReadme(clientNode, fetcher)
       if (disposed || revision !== selectionRevision) return
       const action = clientNode.kind === "package"
-        ? packageOpenAction(clientNode, openWindow)
+        ? packageOpenAction(clientNode, (input) => {
+          void openPackage(input).then(() => {
+            shell.clearDiagnostics()
+            shell.updateStatus(`${input.packageId} · view requested`)
+          }).catch((error) => {
+            shell.reportDiagnostic(errorText(error))
+            shell.updateStatus(`${input.packageId} · open failed`)
+          })
+        })
         : undefined
       if (readme === null) {
         shell.showMessage(
@@ -146,9 +154,7 @@ export async function startExternalStorybookLanding(
   const onSocketMessage = (event: MessageEvent): void => {
     const update = parseLandingEvent(event.data)
     if (update === null) return
-    if (update.type === "package.open") {
-      openWindow(update.urlPath, `storybook:${update.packageId}`)
-    } else if (update.type === "registry.updated") {
+    if (update.type === "registry.updated") {
       location?.reload()
     } else if (update.type === "package.failed") {
       shell.updateStatus(`${update.packageId} · build failed`)
@@ -242,7 +248,6 @@ function parseLandingEvent(value: unknown): any | null {
   if (parsed === null || typeof parsed !== "object" || !("type" in parsed)) return null
   const record = parsed as Record<string, unknown>
   if (record.type === "registry.updated" && typeof record.graphDigest === "string") return record
-  if (record.type === "package.open" && typeof record.packageId === "string" && typeof record.urlPath === "string") return record
   if (record.type === "package.updated" && typeof record.packageId === "string" && typeof record.revision === "string") return record
   if (record.type === "package.built" && typeof record.packageId === "string" && typeof record.revision === "string") return record
   if (["package.resources-updated", "package.metadata-updated"].includes(String(record.type)) &&
@@ -273,9 +278,8 @@ function packageOpenAction(
     id: string
     label: string
     packageId: string | null
-    urlPath: string
   }>,
-  openWindow: (url: string, name: string) => unknown,
+  openPackage: (input: Readonly<{packageId: string; route: string}>) => void,
 ): StorybookOverviewAction {
   const packageId = node.packageId
   if (packageId === null) throw new Error(`Landing package has no package identity: ${node.id}`)
@@ -283,9 +287,38 @@ function packageOpenAction(
     label: `Открыть ${node.label}`,
     title: `Открыть пакет ${packageId} в отдельной вкладке`,
     activate() {
-      openWindow(node.urlPath, `storybook:${packageId}`)
+      openPackage(Object.freeze({packageId, route: ""}))
     },
   })
+}
+
+async function requestPackageView(
+  fetcher: typeof fetch,
+  browserDocument: globalThis.Document,
+  input: Readonly<{packageId: string; route: string}>,
+): Promise<void> {
+  const session = browserDocument.querySelector<HTMLMetaElement>(
+    'meta[name="external-storybook-browser-session"]',
+  )?.content
+  if (session === undefined || session.length === 0) {
+    throw new Error("External Storybook landing has no browser session")
+  }
+  const response = await fetcher("/api/browser/open", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-storybook-session": session,
+    },
+    body: JSON.stringify(input),
+  })
+  const result = await response.json().catch(() => null) as unknown
+  if (!response.ok || result === null || typeof result !== "object" || (result as Record<string, unknown>).ok !== true) {
+    const message = result !== null && typeof result === "object" &&
+      typeof (result as Record<string, unknown>).error === "string"
+      ? (result as Record<string, unknown>).error as string
+      : `External Storybook package view request failed with ${response.status}`
+    throw new Error(message)
+  }
 }
 
 /** Reads only the server-indexed landing links; it never scans native CSSOM. */

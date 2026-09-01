@@ -22,6 +22,18 @@ Standalone package, one-package project, multi-package project, workspace и
 несколько independently attached roots поддерживаются одинаково. Workspace не
 является обязательным global registry и не создаётся искусственно.
 
+### `STORYBOOK-EXT-004` — private browser lifecycle owner
+
+Private nested implementation package `@zavx0z/storybook-browser-lifecycle`
+единолично владеет browser target discovery, reservation, attestation,
+navigation, readiness, exact-target operations и close. Корневой
+`@zavx0z/storybook` композирует ровно один logical lifecycle owner с canonical
+private state; landing, CLI и MCP остаются adapters этого owner.
+
+Вложенный package не создаёт второй daemon, listener, port, registry, graph или
+consumer API. Consumer repositories по-прежнему не зависят от Storybook и не
+импортируют browser lifecycle даже type-only.
+
 ## Declarations and graph
 
 ### `STORYBOOK-DECL-001` — one JSON format
@@ -293,9 +305,12 @@ create/mount получает AbortSignal; поздняя session dispose-итс
 ### `STORYBOOK-SERVER-001` — one automatic-port server
 
 `storybook serve` создаёт один Bun process/origin и владеет HTTP, WebSocket,
-registry, graph, sessions, revisions, diagnostics и tabs. Port выбирает OS и он
-не становится user-facing identity. Attach/open существующего server не
-создают второй process.
+registry, graph, sessions, revisions и diagnostics. В этот же process
+композируется ровно один logical owner
+`@zavx0z/storybook-browser-lifecycle`, управляющий всеми Storybook tabs; port
+выбирает OS и не становится user-facing identity.
+Attach/open существующего server не создают второй process или browser
+lifecycle owner.
 Private state root един для CLI и MCP независимо от cwd, `TMPDIR` и transport
 environment; управляемая замена daemon сохраняет предыдущий listener port.
 Подтверждённый legacy TMPDIR state мигрируется без второго daemon; state чужого
@@ -322,6 +337,43 @@ sessions и уведомляет связанные tabs, не останавл�
 `init <root> --kind package|project|workspace`. Init создаёт declarations, не
 npm package/server/build/bunfig/port config.
 
+## Browser lifecycle
+
+### `STORYBOOK-BROWSER-001` — one logical target per exact package identity
+
+Для каждого exact `packageId` private lifecycle хранит не более одного tagged
+state: `absent | reserved(operationId) | owned(targetId)`. Reservation создаётся
+атомарно под package-scoped cross-process lock до `Target.createTarget`; route,
+server instance и origin не входят в package target identity. Повторный,
+конкурентный или восстановленный `openPackage` присоединяется к существующей
+reservation либо переиспользует и навигирует existing owned target.
+
+Второй owned target для того же `packageId` не является допустимым logical
+state: lifecycle не создаёт, не регистрирует и не публикует его. Timeout, abort
+или process crash на любом переходе reservation/create/navigation/readiness не
+разрешает retry создать следующий target; retry обязан восстановить pending
+operation/target либо fail closed.
+
+### `STORYBOOK-BROWSER-002` — one open command for every adapter
+
+Landing action, CLI и MCP вызывают один typed application command
+`openPackage`, который делегирует exact package operation только
+`@zavx0z/storybook-browser-lifecycle`. Direct `window.open`/`globalThis.open`,
+named-tab fallback и server event, поручающий landing самостоятельно создать
+package tab, запрещены. Разные routes последовательно навигируют тот же target
+и сохраняют его opaque view identity.
+
+### `STORYBOOK-BROWSER-003` — recovery is not normal deduplication
+
+Несколько physical targets, подтверждённых как старое ownership одного package,
+являются только legacy/crash recovery anomaly и не импортируются в logical
+state. Lifecycle под package lock выбирает один retained target, повторно
+аттестует каждый obsolete candidate непосредственно перед close и завершает
+normalization до публикации `open`, `status`, `views` или live `check` result.
+Unattested, foreign и navigated-away user targets не изменяются. Если safe
+normalization невозможна, operation fail closed и duplicate view не скрывается
+origin filter-ом.
+
 ## MCP
 
 ### `STORYBOOK-MCP-001` — one agent interface
@@ -337,7 +389,9 @@ raw JavaScript, CDP identity, coordinates или screenshot path.
 
 CLI и MCP вызывают один `ExternalStorybookController`. MCP не shell-out-ит CLI,
 не парсит stdout и не останавливает daemon при disconnect. Несколько MCP clients
-переиспользуют один canonical server/start lease.
+переиспользуют один canonical server/start lease; browser operations всех
+adapters делегируются тому же `@zavx0z/storybook-browser-lifecycle` и его
+package reservations.
 
 ### `STORYBOOK-MCP-003` — canonical resources
 
@@ -347,14 +401,14 @@ capture templates. Это bounded derived projections canonical graph/sessions,
 
 ### `STORYBOOK-MCP-004` — opaque browser views
 
-Один package view соответствует named package tab/realm. Agent получает opaque
+Один package view является opaque projection единственного lifecycle-owned
+package target/realm. Agent получает opaque
 `viewId`, semantic state and capture metadata; port, PID, targetId, Chrome index,
 master token и private artifact path не раскрываются.
-MCP сохраняет private ownership record и secret между stdio processes,
-сериализует package target operations, переиспользует bridge-attested target
-после смены server origin и закрывает только подтверждённые дубли после ready.
-Ownership нового target записывается до navigation/readiness; каждый duplicate
-повторно аттестуется непосредственно перед close.
+MCP не владеет target records, reservations, discovery или reconciliation: он
+вызывает общий `openPackage` и публикует только result nested lifecycle owner.
+Смена server origin сохраняет тот же lifecycle target и opaque view identity;
+duplicate package view не является representable MCP state.
 Создание target — background-only; активация Chrome, OS focus, `ai-macos`,
 `@meta/chrome` и browser CLI как runtime dependency запрещены. Ensure, attach,
 search и `check(live:false)` не требуют доступного CDP.
@@ -448,6 +502,21 @@ revision. Consumer boundary scan и owner parity fixtures доказывают �
 старых dependencies/imports/packages/wrappers, сохранение leaf routes,
 документированные overview remaps и отсутствие production story exports.
 
+Browser lifecycle tests доказывают package invariant на границах каждого
+перехода: repeated и concurrent landing/CLI/MCP opens, разные routes, server
+origin replacement, timeout/abort/crash после reservation и create, externally
+closed target и legacy duplicate recovery. Для exact package каждый trace имеет
+не более одного concurrent reservation/owned target; каждый concurrent/retry
+open episode имеет не более одного successful create и один stable opaque
+`viewId`. После подтверждённого external close следующий episode создаёт ровно
+один replacement; foreign targets сохраняются. Package-boundary scan доказывает,
+что direct CDP, target state и package lock принадлежат только
+`@zavx0z/storybook-browser-lifecycle`, а adapters не содержат параллельный open.
+
 Live acceptance выполняется на том же server: global landing, минимум три
 package tabs разных owners, exact ready routes, zero console errors, non-empty
 preview/canvas, scoped A failure/recovery и неизменные B/C/landing realms.
+Repeated landing + MCP opens и controlled server-origin replacement обязаны
+закончиться одним attested physical target на package; `status`, `views` и
+`check(live:true)` fail closed, если uniqueness нельзя подтвердить, не раскрывая
+private target identity.

@@ -5,10 +5,12 @@ import {join} from "node:path"
 const root = join(import.meta.dir, "../..")
 
 describe("external Storybook agent tooling", () => {
-  test("keeps Chrome mechanics in the shared browser controller", async () => {
+  test("keeps Chrome mechanics in the private browser lifecycle package", async () => {
     expect(existsSync(join(root, "scripts/storybook-browser.ts"))).toBeFalse()
-    const chrome = await Bun.file(join(root, "src/external/browser-control/chrome-client.ts")).text()
-    const controller = await Bun.file(join(root, "src/external/browser-control/controller.ts")).text()
+    const chrome = await Bun.file(join(root, "packages/browser-lifecycle/src/chrome-client.ts")).text()
+    const lifecycle = await Bun.file(join(root, "packages/browser-lifecycle/src/service.ts")).text()
+    const landing = await Bun.file(join(root, "src/external/browser/landing-entry.ts")).text()
+    const manifest = await Bun.file(join(root, "packages/browser-lifecycle/package.json")).json()
     expect(chrome).toContain('connection.command("Target.createTarget"')
     expect(chrome).toContain("background: true")
     expect(chrome).toContain("StorybookCdpConnection")
@@ -18,12 +20,16 @@ describe("external Storybook agent tooling", () => {
     expect(chrome).not.toContain("Target.activateTarget")
     expect(chrome).not.toContain("Page.bringToFront")
     expect(chrome).not.toContain("Emulation.setFocusEmulationEnabled")
-    expect(controller).toContain("StorybookViewRegistry")
-    expect(controller).toContain("StorybookBrowserState")
-    expect(controller).toContain("withStorybookBrowserLock")
-    expect(controller).not.toContain("windowId")
-    expect(controller).not.toContain("tabIndex")
-    expect(controller).not.toContain("outputPath")
+    expect(lifecycle).toContain("StorybookViewRegistry")
+    expect(lifecycle).toContain("StorybookBrowserState")
+    expect(lifecycle).toContain("withStorybookBrowserLock")
+    expect(lifecycle).not.toContain("windowId")
+    expect(lifecycle).not.toContain("tabIndex")
+    expect(lifecycle).not.toContain("outputPath")
+    expect(landing).not.toContain("globalThis.open")
+    expect(landing).not.toContain("window.open")
+    expect(manifest.name).toBe("@zavx0z/storybook-browser-lifecycle")
+    expect(manifest.private).toBeTrue()
   })
 
   test("keeps CLI as a thin adapter to the same controller", async () => {

@@ -1,5 +1,5 @@
 import {ResourceTemplate, type McpServer} from "@modelcontextprotocol/server"
-import type {ExternalStorybookController, StorybookResourceResult} from "../src/external/browser-control/types.ts"
+import type {ExternalStorybookController, StorybookResourceResult} from "../src/external/controller-contract.ts"
 import {sanitizeMcpString, sanitizeMcpText, sanitizeMcpValue} from "./public-boundary.ts"
 
 export type StorybookControllerAccessor = () => Promise<ExternalStorybookController>

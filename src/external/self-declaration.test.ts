@@ -1,5 +1,7 @@
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
+import {createDocument} from "@zavx0z/dom"
+import {browserLifecycle} from "../../.storybook/stories/contracts.tsx"
 import {parseExternalStorybookCli} from "./cli.ts"
 import {resolveExternalStorybookDeclarations} from "./declarations.ts"
 import {createExternalStorybookGraph, externalStorybookNode, externalStorybookRoutes} from "./graph.ts"
@@ -27,12 +29,13 @@ describe("external Storybook self declaration", () => {
       "author-styles/contract/overview",
       "app/contract/overview",
       "server/contract/overview",
+      "browser-lifecycle/contract/overview",
       "launcher/contract/overview",
       "scaffold/contract/overview",
       "build/contract/overview",
       "environment/contract/overview",
     ])
-    expect(overviews).toHaveLength(26)
+    expect(overviews).toHaveLength(28)
     expect(overviews[0]).toBe("")
     expect(overviews).toContain("workbench/presentation")
     expect(overviews.some((path) => path.endsWith("/overview"))).toBeFalse()
@@ -43,6 +46,9 @@ describe("external Storybook self declaration", () => {
     for (const term of [
       "mcp",
       "externalstorybookcontroller",
+      "storybookbrowserlifecycle",
+      "@zavx0z/storybook-browser-lifecycle",
+      "openpackage",
       "storybook_ensure",
       "lastworking",
       "package.code-updated",
@@ -77,6 +83,20 @@ describe("external Storybook self declaration", () => {
       specifier: "@ui/components/theme.css",
       url: "workbench-author-style-sheets/0.css",
     }])
+  })
+
+  test("executes the private browser lifecycle owner contract story", () => {
+    const presentation = browserLifecycle.create(createDocument())
+    try {
+      expect(presentation.element.textContent)
+        .toContain("StorybookBrowserLifecycle")
+      expect(presentation.element.textContent)
+        .toContain("Duplicate logical state is unrepresentable")
+      expect(presentation.source.typescript).toContain("openPackage")
+      expect(presentation.source.typescript).toContain("one reservation → one owned target → one viewId")
+    } finally {
+      presentation.dispose()
+    }
   })
 
   test("keeps the external bin, CLI actions and self contracts in lockstep", async () => {

@@ -3,7 +3,7 @@ import {fileURLToPath} from "node:url"
 import {Client, InMemoryTransport} from "@modelcontextprotocol/client"
 import {getDefaultEnvironment, StdioClientTransport} from "@modelcontextprotocol/client/stdio"
 import type {McpServer} from "@modelcontextprotocol/server"
-import type {ExternalStorybookController} from "../src/external/browser-control/types.ts"
+import type {ExternalStorybookController} from "../src/external/controller-contract.ts"
 import {STORYBOOK_TOOL_NAMES} from "./schemas.ts"
 import {createStorybookMcpServer} from "./server.ts"
 

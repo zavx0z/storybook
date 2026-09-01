@@ -50,7 +50,7 @@ const contracts = Object.freeze({
   ),
   app: contract(
     "One package tab realm",
-    "One package tab loads one generated entry, one runtime adapter and only its selected lazy story chunks into one page Experience. Compiler metafiles fix canonical dependency realpaths.",
+    "One exact package identity maps through the private browser lifecycle owner to one reused package target. That tab loads one generated entry, one runtime adapter and only its selected lazy story chunks into one page Experience. Compiler metafiles fix canonical dependency realpaths.",
     "The shared shell owns one semantic Document and one host Canvas/Renderer/Space/ViewPoint. Only a declared world subject receives the exact shared context.space and may register its semantic node and camera through mountWorldPreview; no child Space, ViewPoint, Renderer or Canvas exists. Named tabs remain separate Experiences. Native page title is MetaFor for self and the exact package label for owners, never Storybook branding.",
     "one package = one tab = one DocumentSpaceRuntime → shared world + semantic projection roots",
   ),
@@ -60,10 +60,16 @@ const contracts = Object.freeze({
     "The shared controller migrates verified legacy TMPDIR state, rejects foreign checkouts and fences daemon publication with one atomic startup lease; no consumer owns a listener or port.",
     "storybook serve ./workspace\nstorybook_ensure({roots})",
   ),
+  browserLifecycle: contract(
+    "One logical target per package",
+    "The private StorybookBrowserLifecycle package owner holds one tagged absent | reserved | owned target state for each exact packageId. Reservation precedes target creation, so repeated, concurrent and recovered opens reuse one operation and one opaque view identity; route and server origin only navigate that target.",
+    "Landing, CLI and MCP call the same openPackage application command and never open a tab independently. Duplicate logical state is unrepresentable. Attested legacy physical duplicates are recovery-only and are normalized under the package lock before publication; foreign or navigated-away user targets remain untouched.",
+    "await browserLifecycle.openPackage({packageId: \"@ui/components\", route})\n// concurrent calls → one reservation → one owned target → one viewId",
+  ),
   launcher: contract(
     "MCP and human adapters",
-    "Ensure, attach, search, open, wait, inspect, interact, capture, check, close and explicit administration call one typed controller. Inspection exposes the shell-owned Canvas as singular canvas state. Key interaction activates and verifies the exact Workbench owner in the existing native-input host before browser keydown and keyup.",
-    "Opaque views persistently reuse a bridge-attested storybook:<package-id> target across MCP processes and server origins; confirmed duplicates are reconciled only after ready. Canvas capture targets the same exact shell Canvas without native plural discovery. The bridge never fabricates semantic keyboard events or creates a second input owner, so Browser-owned Escape, Range and Select defaults remain authoritative.",
+    "Ensure, attach, search, open, wait, inspect, interact, capture, check, close and explicit administration call one typed controller. Browser open delegates to the private lifecycle owner's openPackage; MCP owns only bounded schemas and opaque transport projections. Inspection exposes the shell-owned Canvas as singular canvas state. Key interaction activates and verifies the exact Workbench owner in the existing native-input host before browser keydown and keyup.",
+    "CLI and MCP contain no target records, reservation state, discovery or reconciliation. Canvas capture targets the same exact shell Canvas without native plural discovery. The bridge never fabricates semantic keyboard events or creates a second input owner, so Browser-owned Escape, Range and Select defaults remain authoritative.",
     [
       "storybook attach ./project",
       "storybook detach project-id",
@@ -102,6 +108,7 @@ export const authorStyles = contracts.authorStyles
 export const references = contracts.references
 export const app = contracts.app
 export const server = contracts.server
+export const browserLifecycle = contracts.browserLifecycle
 export const launcher = contracts.launcher
 export const scaffold = contracts.scaffold
 export const build = contracts.build

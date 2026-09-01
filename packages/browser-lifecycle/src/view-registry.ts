@@ -3,7 +3,7 @@ import type {
   ChromeTargetSummary,
   StorybookInternalView,
   StorybookPublicView,
-} from "./types.ts"
+} from "./contract.ts"
 
 const VIEW_ID_PREFIX = "storybook-view-v1_"
 
@@ -22,7 +22,8 @@ export class StorybookViewRegistry {
 
   synchronize(targets: readonly ChromeTargetSummary[], origin: string): readonly StorybookPublicView[] {
     const canonicalOrigin = loopbackOrigin(origin)
-    const nextIds = new Set<string>()
+    const nextViews = new Map<string, StorybookInternalView>()
+    const packageIds = new Set<string>()
     for (const target of targets) {
       if (target.type !== "page") continue
       let identity: ReturnType<typeof storybookTargetIdentity>
@@ -37,6 +38,10 @@ export class StorybookViewRegistry {
       if (previous !== undefined && previous.targetId !== target.targetId) {
         throw new Error("Storybook opaque view identity collision")
       }
+      if (packageIds.has(identity.packageId)) {
+        throw new Error(`Duplicate Storybook logical package view: ${identity.packageId}`)
+      }
+      packageIds.add(identity.packageId)
       const view = Object.freeze({
         viewId,
         targetId: target.targetId,
@@ -46,14 +51,16 @@ export class StorybookViewRegistry {
         url: target.url,
         title: target.title,
       })
-      this.#viewsById.set(viewId, view)
-      this.#viewIdByTarget.set(target.targetId, viewId)
-      nextIds.add(viewId)
+      nextViews.set(viewId, view)
     }
     for (const [viewId, view] of this.#viewsById) {
-      if (view.origin !== canonicalOrigin || nextIds.has(viewId)) continue
+      if (view.origin !== canonicalOrigin) continue
       this.#viewsById.delete(viewId)
       this.#viewIdByTarget.delete(view.targetId)
+    }
+    for (const [viewId, view] of nextViews) {
+      this.#viewsById.set(viewId, view)
+      this.#viewIdByTarget.set(view.targetId, viewId)
     }
     return Object.freeze([...this.#viewsById.values()]
       .filter((view) => view.origin === canonicalOrigin)
@@ -84,7 +91,7 @@ export class StorybookViewRegistry {
     const canonicalOrigin = loopbackOrigin(origin)
     const matches = [...this.#viewsById.values()].filter((view) =>
       view.origin === canonicalOrigin && view.packageId === packageId)
-    if (matches.length > 1) throw new Error(`Multiple Storybook views are open for package ${packageId}`)
+    if (matches.length > 1) throw new Error(`Duplicate Storybook logical package view: ${packageId}`)
     return matches[0] ?? null
   }
 
@@ -94,6 +101,11 @@ export class StorybookViewRegistry {
     this.#viewsById.delete(viewId)
     this.#viewIdByTarget.delete(view.targetId)
     return true
+  }
+
+  forgetTarget(targetId: string): boolean {
+    const viewId = this.#viewIdByTarget.get(targetId)
+    return viewId === undefined ? false : this.forget(viewId)
   }
 
   list(): readonly StorybookPublicView[] {

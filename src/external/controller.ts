@@ -3,10 +3,6 @@ import {existsSync, realpathSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import {join, resolve} from "node:path"
 import {
-  StorybookBrowserController,
-} from "./browser-control/controller.ts"
-import {StorybookCaptureStore} from "./browser-control/capture-store.ts"
-import {
   type ExternalStorybookController as ExternalStorybookControllerContract,
   type StorybookAttachInput,
   type StorybookCaptureInput,
@@ -25,14 +21,13 @@ import {
   type StorybookStatusInput,
   type StorybookStopInput,
   type StorybookWaitInput,
-} from "./browser-control/types.ts"
+} from "./controller-contract.ts"
 import {ExternalStorybookControlClient} from "./control-client.ts"
 import {externalStorybookImplementationDigest} from "./implementation-digest.ts"
 import {
   acquireExternalStorybookStartLease,
   clearExternalStorybookMigrationRecord,
   externalStorybookLegacyStatePaths,
-  externalStorybookStateRoot,
   externalStorybookServerStatePath,
   inspectExternalStorybookServer,
   publishExternalStorybookStartCandidate,
@@ -55,7 +50,6 @@ type SpawnedStorybookDaemon = Bun.Subprocess<"ignore", "ignore", "pipe">
 export type CreateExternalStorybookControllerOptions = Readonly<{
   daemonEntryPath?: string
   toolRoot?: string
-  captureRoot?: string
   legacyStatePaths?: readonly string[]
   spawnDaemon?: (input: Readonly<{
     entryPath: string
@@ -77,10 +71,7 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
     preferredPort?: number
     startLease: Readonly<{path: string; token: string}>
   }>) => SpawnedStorybookDaemon
-  readonly #captureStore: StorybookCaptureStore
   readonly #legacyStatePaths: readonly string[]
-  #browserInstanceId: string | null = null
-  #browser: StorybookBrowserController | null = null
 
   constructor(options: CreateExternalStorybookControllerOptions = {}) {
     this.#toolRoot = realpathSync(options.toolRoot ?? fileURLToPath(new URL("../../", import.meta.url)))
@@ -88,9 +79,6 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
       new URL("../../scripts/storybook-daemon.ts", import.meta.url),
     ))
     this.#spawnDaemon = options.spawnDaemon ?? spawnCanonicalDaemon
-    this.#captureStore = new StorybookCaptureStore({
-      root: resolve(options.captureRoot ?? join(externalStorybookStateRoot(), "captures")),
-    })
     this.#legacyStatePaths = Object.freeze([...(options.legacyStatePaths ?? externalStorybookLegacyStatePaths())])
   }
 
@@ -135,12 +123,6 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
     const record = await this.#requireRunning()
     const client = new ExternalStorybookControlClient(record)
     await client.control("/api/control/detach", {scopeId: input.scopeId}, context.signal)
-    const snapshot = await this.#clientSnapshot(record, context.signal)
-    const packageIds = new Set(snapshot.packages.map((candidate) => String(candidate.packageId)))
-    const browser = this.#browserFor(record)
-    for (const view of await browser.synchronize(record.origin, context.signal)) {
-      if (!packageIds.has(view.packageId)) await browser.close(view.viewId, context.signal)
-    }
     return this.#statusResult(record, true, context.signal)
   }
 
@@ -181,51 +163,15 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
   async open(input: StorybookOpenInput, context: StorybookControllerContext): Promise<StorybookControllerResult> {
     const record = await this.#ensureRunning(context.signal)
     const client = new ExternalStorybookControlClient(record)
-    const route = input.route ?? ""
-    const snapshot = await this.#clientSnapshot(record, context.signal)
-    const node = exactRouteNode(snapshot, input.packageId, route)
-    const checked = await client.control("/api/control/check", {scope: input.packageId, live: false}, context.signal)
-    const packageState = Array.isArray(checked.packages)
-      ? checked.packages.find((candidate) => candidate !== null && typeof candidate === "object" &&
-        (candidate as Record<string, unknown>).packageId === input.packageId) as Record<string, unknown> | undefined
-      : undefined
-    const expectedRevision = typeof packageState?.builtRevision === "string" ? packageState.builtRevision : undefined
-    const openInput = {
-      origin: record.origin,
+    const result = await client.control("/api/control/open", {
       packageId: input.packageId,
-      route,
-      url: new URL(String(node.urlPath), record.origin).href,
-      ...(expectedRevision === undefined ? {} : {expectedRevision}),
-    }
-    let opened
-    try {
-      opened = await this.#browserFor(record).open(openInput, context.signal)
-    } catch (error) {
-      if (expectedRevision === undefined || !(error instanceof Error) ||
-        !error.message.includes("view revision mismatch")) throw error
-      opened = await this.#browserFor(record).open({
-        origin: record.origin,
-        packageId: input.packageId,
-        route,
-        url: new URL(String(node.urlPath), record.origin).href,
-      }, context.signal)
-    }
-    const candidateMatches = expectedRevision === undefined || opened.identity.revision === expectedRevision
-    const ok = checked.ok === true && candidateMatches && opened.identity.ready
-    const projectedPackage = publicPackageSnapshot(packageState)
+      route: input.route ?? "",
+    }, context.signal)
+    const {package: packageSnapshot, ok, ...publicResult} = result
+    const projectedPackage = publicPackageSnapshot(packageSnapshot)
     return Object.freeze({
-      status: ok ? "success" : "failed",
-      viewId: opened.view.viewId,
-      packageId: opened.identity.packageId,
-      route: opened.identity.route,
-      graphDigest: opened.identity.graphDigest,
-      revision: opened.identity.revision,
-      state: opened.identity.ready ? "ready" : "error",
-      ready: opened.identity.ready,
-      presented: opened.identity.presented,
-      reused: opened.reused,
-      ...(expectedRevision === undefined ? {} : {candidateRevision: expectedRevision}),
-      workingFallback: opened.identity.ready && !candidateMatches,
+      ...publicResult,
+      status: ok === true ? "success" : "failed",
       ...(projectedPackage === null ? {} : {package: projectedPackage}),
     })
   }
@@ -276,16 +222,28 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
   ): Promise<StorybookControllerResult> {
     const timeoutMs = input.timeoutMs ?? 30_000
     const deadline = Date.now() + timeoutMs
-    const browser = this.#browserFor(record)
-    await browser.synchronize(record.origin, signal)
-    const view = browser.views().find(({viewId}) => viewId === input.viewId)
-    if (view === undefined) throw new Error(`Unknown Storybook view: ${input.viewId}`)
-    if (input.packageId !== undefined && input.packageId !== view.packageId) {
-      throw new Error(`Storybook wait view belongs to ${view.packageId}, not ${input.packageId}`)
+    const client = new ExternalStorybookControlClient(record)
+    const exactView = await client.read(
+      `/api/control/views/${encodeURIComponent(input.viewId)}`,
+      signal,
+    )
+    const view = exactView.view !== null && typeof exactView.view === "object" && !Array.isArray(exactView.view)
+      ? exactView.view as Record<string, unknown>
+      : undefined
+    if (view === undefined) throw new Error(`Invalid Storybook view: ${input.viewId}`)
+    const packageId = String(view.packageId)
+    const route = String(view.route ?? "")
+    if (input.packageId !== undefined && input.packageId !== packageId) {
+      throw new Error(`Storybook wait view belongs to ${packageId}, not ${input.packageId}`)
     }
     let inspected: Readonly<Record<string, unknown>> | null = null
     try {
-      inspected = await browser.inspect(input.viewId, {include: ["state"]}, signal)
+      const result = await client.control("/api/control/inspect", {
+        viewId: input.viewId,
+        include: ["state"],
+      }, signal)
+      const {ok: _ok, ...projection} = result
+      inspected = Object.freeze(projection)
     } catch {
       // A reload may temporarily destroy the bridge; package events remain authoritative.
     }
@@ -306,13 +264,12 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
       reached: false,
       previousRevision: input.afterRevision ?? null,
       currentRevision: inspected?.revision ?? null,
-      view,
+      view: Object.freeze(view),
     })
-    const client = new ExternalStorybookControlClient(record)
     const waited = await client.control("/api/control/wait", {
-      packageId: view.packageId,
+      packageId,
       viewId: input.viewId,
-      afterRevision: input.afterRevision ?? (typeof inspected?.revision === "string" ? inspected.revision : null),
+      afterRevision: input.afterRevision ?? null,
       condition: "active",
       timeoutMs: remaining,
     }, signal)
@@ -324,51 +281,53 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
         previousRevision: input.afterRevision ?? null,
         currentRevision: waited.currentRevision ?? null,
         ...(publicPackageSnapshot(waited.package) === null ? {} : {package: publicPackageSnapshot(waited.package)}),
-        view,
+        view: Object.freeze(view),
       })
     }
-    const snapshot = await this.#clientSnapshot(record, signal)
-    const node = exactRouteNode(snapshot, view.packageId, view.route)
-    const opened = await browser.open({
-      origin: record.origin,
-      packageId: view.packageId,
-      route: view.route,
-      url: new URL(String(node.urlPath), record.origin).href,
+    const opened = await client.control("/api/control/open", {
+      packageId,
+      route,
       timeoutMs: Math.max(100, deadline - Date.now()),
-      expectedRevision: waited.currentRevision,
     }, signal)
-    const reached = opened.identity.ready &&
-      (input.condition === "ready" || opened.identity.presented) &&
-      opened.identity.revision !== input.afterRevision
+    const reached = opened.ready === true &&
+      (input.condition === "ready" || opened.presented === true) &&
+      opened.revision !== input.afterRevision
+    const {package: packageSnapshot, ok: _ok, ...publicView} = opened
+    const projectedPackage = publicPackageSnapshot(packageSnapshot)
     return Object.freeze({
       status: reached ? "success" : "timeout",
       condition: input.condition,
       reached,
       previousRevision: input.afterRevision ?? null,
-      currentRevision: opened.identity.revision,
-      view: Object.freeze({...opened.view, ...opened.identity}),
+      currentRevision: opened.revision,
+      ...(projectedPackage === null ? {} : {package: projectedPackage}),
+      view: Object.freeze(publicView),
     })
   }
 
   async inspect(input: StorybookInspectInput, context: StorybookControllerContext): Promise<StorybookControllerResult> {
     const record = await this.#requireRunning()
-    const browser = this.#browserFor(record)
-    await browser.synchronize(record.origin, context.signal)
-    const result = await browser.inspect(input.viewId, {
+    const result = await new ExternalStorybookControlClient(record).control("/api/control/inspect", {
+      viewId: input.viewId,
       ...(input.include === undefined ? {} : {include: input.include}),
       ...(input.maxDepth === undefined ? {} : {maxDepth: input.maxDepth}),
       ...(input.limit === undefined ? {} : {limit: input.limit}),
       ...(input.cursor === undefined ? {} : {cursor: input.cursor}),
     }, context.signal)
-    return Object.freeze({status: "success", ...result})
+    const {ok: _ok, ...publicResult} = result
+    return Object.freeze({status: "success", ...publicResult})
   }
 
   async interact(input: StorybookInteractInput, context: StorybookControllerContext): Promise<StorybookControllerResult> {
     const record = await this.#requireRunning()
-    const browser = this.#browserFor(record)
-    await browser.synchronize(record.origin, context.signal)
-    const result = await browser.interact(input, context.signal)
-    return Object.freeze({status: "success", ...result})
+    const {schemaVersion: _schemaVersion, ...operation} = input
+    const result = await new ExternalStorybookControlClient(record).control(
+      "/api/control/interact",
+      operation,
+      context.signal,
+    )
+    const {ok: _ok, ...publicResult} = result
+    return Object.freeze({status: "success", ...publicResult})
   }
 
   async capture(input: StorybookCaptureInput, context: StorybookControllerContext): Promise<StorybookCaptureResult> {
@@ -383,11 +342,35 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
       }, context)
       if (typeof opened.viewId !== "string") throw new Error("Storybook capture could not open its package view")
       viewId = opened.viewId
-    } else {
-      await this.#browserFor(record).synchronize(record.origin, context.signal)
+    } else if (input.packageId !== undefined || input.route !== undefined) {
+      const exactView = await new ExternalStorybookControlClient(record).read(
+        `/api/control/views/${encodeURIComponent(viewId)}`,
+        context.signal,
+      )
+      const view = exactView.view !== null && typeof exactView.view === "object" && !Array.isArray(exactView.view)
+        ? exactView.view as Record<string, unknown>
+        : undefined
+      if (view === undefined) throw new Error(`Invalid Storybook view: ${viewId}`)
+      const packageId = String(view.packageId)
+      if (input.packageId !== undefined && input.packageId !== packageId) {
+        throw new Error(`Storybook capture view belongs to ${packageId}, not ${input.packageId}`)
+      }
+      const opened = await this.open({
+        schemaVersion: 1,
+        packageId,
+        route: input.route ?? String(view.route ?? ""),
+      }, context)
+      if (opened.viewId !== viewId) throw new Error(`Storybook capture view identity changed: ${viewId}`)
     }
-    const result = await this.#browserFor(record).capture({...input, viewId}, context.signal)
-    return Object.freeze({status: "success", ...result})
+    const result = await new ExternalStorybookControlClient(record).control("/api/control/capture", {
+      viewId,
+      area: input.area,
+      ...(input.nodeId === undefined ? {} : {nodeId: input.nodeId}),
+      ...(input.failOnConsoleError === undefined ? {} : {failOnConsoleError: input.failOnConsoleError}),
+      ...(input.timeoutMs === undefined ? {} : {timeoutMs: input.timeoutMs}),
+    }, context.signal)
+    const {ok: _ok, ...publicResult} = result
+    return Object.freeze({status: "success", ...publicResult}) as StorybookCaptureResult
   }
 
   async check(input: StorybookCheckInput, context: StorybookControllerContext): Promise<StorybookControllerResult> {
@@ -411,6 +394,17 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
     if (input.live === true && Array.isArray(result.packages)) {
       const views = []
       let timedOut = false
+      const listed = await client.read("/api/control/views", operationContext.signal)
+      const retainedRouteByPackage = new Map(Array.isArray(listed.views)
+        ? listed.views.flatMap((candidate) => candidate !== null && typeof candidate === "object" &&
+          typeof (candidate as Record<string, unknown>).packageId === "string" &&
+          typeof (candidate as Record<string, unknown>).route === "string"
+          ? [[
+            (candidate as Record<string, unknown>).packageId as string,
+            (candidate as Record<string, unknown>).route as string,
+          ] as const]
+          : [])
+        : [])
       for (const candidate of result.packages) {
         if (candidate === null || typeof candidate !== "object") continue
         const packageRecord = candidate as Record<string, unknown>
@@ -421,7 +415,11 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
             ? packageRecord.activeRevision
             : null
         try {
-          const opened = await this.open({schemaVersion: 1, packageId, route: ""}, operationContext)
+          const opened = await this.open({
+            schemaVersion: 1,
+            packageId,
+            route: retainedRouteByPackage.get(packageId) ?? "",
+          }, operationContext)
           views.push(Object.freeze({
             ...opened,
             expectedRevision,
@@ -479,9 +477,13 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
 
   async close(input: StorybookCloseInput, context: StorybookControllerContext): Promise<StorybookControllerResult> {
     const record = await this.#requireRunning()
-    const browser = this.#browserFor(record)
-    await browser.synchronize(record.origin, context.signal)
-    return Object.freeze({status: "success", ...await browser.close(input.viewId, context.signal)})
+    const result = await new ExternalStorybookControlClient(record).control(
+      "/api/control/close",
+      {viewId: input.viewId},
+      context.signal,
+    )
+    const {ok: _ok, ...publicResult} = result
+    return Object.freeze({status: "success", ...publicResult})
   }
 
   async stop(input: StorybookStopInput, context: StorybookControllerContext): Promise<StorybookControllerResult> {
@@ -521,18 +523,26 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
     }
     if (parsed.hostname === "views") {
       const viewId = parsed.pathname.slice(1)
-      const browser = this.#browserFor(record)
-      await browser.synchronize(record.origin, context.signal)
-      return jsonResource(uri, await browser.inspect(viewId, {include: ["state", "diagnostics"], limit: 40}, context.signal))
+      const result = await new ExternalStorybookControlClient(record).control("/api/control/inspect", {
+        viewId,
+        include: ["state", "diagnostics"],
+        limit: 40,
+      }, context.signal)
+      const {ok: _ok, ...publicResult} = result
+      return jsonResource(uri, publicResult)
     }
     if (parsed.hostname === "captures") {
       const captureId = parsed.pathname.slice(1)
-      const capture = this.#captureStore.read(captureId)
+      const capture = await new ExternalStorybookControlClient(record).read(
+        `/api/control/captures/${encodeURIComponent(captureId)}`,
+        context.signal,
+      )
+      if (typeof capture.data !== "string") throw new Error(`Storybook capture resource is invalid: ${captureId}`)
       return Object.freeze({
         status: "success",
         uri,
         mimeType: "image/png",
-        blob: Buffer.from(capture.png).toString("base64"),
+        blob: capture.data,
       })
     }
     throw new Error(`Unknown Storybook resource URI: ${uri}`)
@@ -551,9 +561,12 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
         candidate !== null && typeof candidate === "object" && (candidate as Record<string, unknown>).packageId === scope)
         .map(publicPackageSnapshot)
       : []
-    const views = includeViews
-      ? await this.#browserFor(record).synchronize(record.origin, signal)
-      : undefined
+    const viewsResult = includeViews ? await client.read("/api/control/views", signal) : null
+    const views = viewsResult === null
+      ? undefined
+      : Array.isArray(viewsResult.views)
+        ? viewsResult.views
+        : []
     return Object.freeze({
       status: "success",
       server: "running",
@@ -686,14 +699,6 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
     return inspection.record
   }
 
-  #browserFor(record: ExternalStorybookServerRecord): StorybookBrowserController {
-    if (this.#browser !== null && this.#browserInstanceId === record.instanceId) return this.#browser
-    this.#browser = new StorybookBrowserController({
-      captures: this.#captureStore,
-    })
-    this.#browserInstanceId = record.instanceId
-    return this.#browser
-  }
 }
 
 export function createExternalStorybookController(
@@ -937,13 +942,6 @@ function resolveManifestPath(root: string): string {
 function canonicalScope(value: string): string {
   if (existsSync(value)) return realpathSync(value)
   return value
-}
-
-function exactRouteNode(snapshot: ClientSnapshot, packageId: string, route: string): Readonly<Record<string, unknown>> {
-  const matches = snapshot.nodes.filter((node) => node.packageId === packageId && node.routePath === route)
-  if (matches.length === 0) throw new Error(`Unknown Storybook route: ${packageId}:${route}`)
-  if (matches.length > 1) throw new Error(`Ambiguous Storybook route: ${packageId}:${route}`)
-  return matches[0]!
 }
 
 function viewConditionReached(

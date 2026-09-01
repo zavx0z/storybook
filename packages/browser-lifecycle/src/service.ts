@@ -1,20 +1,27 @@
-import type {ChromeTargetSummary, StorybookCaptureInput, StorybookInteractInput, StorybookPublicView} from "./types.ts"
-import type {StorybookBridgeClip, StorybookBridgeIdentity} from "./types.ts"
-import {StorybookCaptureStore, type StoredStorybookCapture} from "./capture-store.ts"
-import {
-  StorybookCdpClient,
-  type StorybookChromeClient,
-  type StorybookChromeConsoleEntry,
-} from "./chrome-client.ts"
+import {resolve} from "node:path"
+import type {
+  ChromeTargetSummary,
+  StoredStorybookCapture,
+  StorybookBridgeClip,
+  StorybookBridgeIdentity,
+  StorybookBrowserCaptureInput,
+  StorybookBrowserInteractInput,
+  StorybookChromeClient,
+  StorybookChromeConsoleEntry,
+  StorybookProcessStart,
+  StorybookPublicView,
+} from "./contract.ts"
+import {StorybookCaptureStore} from "./capture-store.ts"
+import {StorybookCdpClient} from "./chrome-client.ts"
 import {StorybookBrowserState} from "./browser-state.ts"
 import {withStorybookBrowserLock} from "./target-operation-lock.ts"
 import {StorybookViewRegistry} from "./view-registry.ts"
 
-export type StorybookBrowserControllerOptions = Readonly<{
+export type CreateStorybookBrowserLifecycleOptions = Readonly<{
+  stateRoot: string
+  captureRoot: string
   chrome?: StorybookChromeClient
-  views?: StorybookViewRegistry
-  captures: StorybookCaptureStore
-  state?: StorybookBrowserState
+  processStart?: StorybookProcessStart
 }>
 
 export type StorybookBrowserOpenInput = Readonly<{
@@ -22,6 +29,7 @@ export type StorybookBrowserOpenInput = Readonly<{
   packageId: string
   route: string
   url: string
+  packageLabel?: string
   timeoutMs?: number
   expectedRevision?: string
 }>
@@ -30,21 +38,72 @@ export type StorybookBrowserCaptureResult = StoredStorybookCapture & Readonly<{
   image: Readonly<{data: string; mimeType: "image/png"}>
 }>
 
-/** Browser mechanics shared by CLI and MCP while keeping every CDP identity private. */
-export class StorybookBrowserController {
+export interface StorybookBrowserLifecycle {
+  openPackage(input: StorybookBrowserOpenInput, signal?: AbortSignal): Promise<Readonly<{
+    view: StorybookPublicView
+    identity: StorybookBridgeIdentity
+    reused: boolean
+  }>>
+  listViews(
+    origin: string,
+    signal?: AbortSignal,
+    packages?: readonly Readonly<{packageId: string; label: string}>[],
+  ): Promise<readonly StorybookPublicView[]>
+  getView(viewId: string): StorybookPublicView
+  inspect(
+    viewId: string,
+    input: Readonly<{include?: readonly string[]; maxDepth?: number; limit?: number; cursor?: string}>,
+    signal?: AbortSignal,
+  ): Promise<Readonly<Record<string, unknown>>>
+  interact(input: StorybookBrowserInteractInput, signal?: AbortSignal): Promise<Readonly<Record<string, unknown>>>
+  capture(input: StorybookBrowserCaptureInput, signal?: AbortSignal): Promise<StorybookBrowserCaptureResult>
+  close(viewId: string, signal?: AbortSignal): Promise<Readonly<{
+    closed: boolean
+    viewId: string
+    preserved?: boolean
+  }>>
+  readCapture(captureId: string): Readonly<{metadata: StoredStorybookCapture; png: Uint8Array}>
+}
+
+export function createStorybookBrowserLifecycle(
+  options: CreateStorybookBrowserLifecycleOptions,
+): StorybookBrowserLifecycle {
+  const stateRoot = resolve(options.stateRoot)
+  return new DefaultStorybookBrowserLifecycle({
+    state: new StorybookBrowserState(stateRoot),
+    chrome: options.chrome ?? new StorybookCdpClient({
+      stateRoot,
+      ...(options.processStart === undefined ? {} : {processStart: options.processStart}),
+    }),
+    captures: new StorybookCaptureStore({root: resolve(options.captureRoot)}),
+    ...(options.processStart === undefined ? {} : {processStart: options.processStart}),
+  })
+}
+
+type DefaultStorybookBrowserLifecycleOptions = Readonly<{
+  chrome: StorybookChromeClient
+  captures: StorybookCaptureStore
+  state: StorybookBrowserState
+  processStart?: StorybookProcessStart
+}>
+
+/** Sole package-target lifecycle owner composed by the canonical Storybook server. */
+class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
   readonly #chrome: StorybookChromeClient
   readonly #views: StorybookViewRegistry
   readonly #captures: StorybookCaptureStore
   readonly #state: StorybookBrowserState
+  readonly #processStart: StorybookProcessStart | undefined
 
-  constructor(options: StorybookBrowserControllerOptions) {
-    this.#state = options.state ?? new StorybookBrowserState()
-    this.#chrome = options.chrome ?? new StorybookCdpClient()
-    this.#views = options.views ?? new StorybookViewRegistry(this.#state.secret())
+  constructor(options: DefaultStorybookBrowserLifecycleOptions) {
+    this.#state = options.state
+    this.#chrome = options.chrome
+    this.#views = new StorybookViewRegistry(this.#state.secret())
     this.#captures = options.captures
+    this.#processStart = options.processStart
   }
 
-  async open(input: StorybookBrowserOpenInput, signal?: AbortSignal): Promise<Readonly<{
+  async openPackage(input: StorybookBrowserOpenInput, signal?: AbortSignal): Promise<Readonly<{
     view: StorybookPublicView
     identity: StorybookBridgeIdentity
     reused: boolean
@@ -61,6 +120,7 @@ export class StorybookBrowserController {
       scope: `package:${packageId}`,
       timeoutMs,
       signal: operationSignal,
+      ...(this.#processStart === undefined ? {} : {processStart: this.#processStart}),
     }, () => this.#openLocked({...input, origin, packageId, route, url, timeoutMs}, operationSignal))
   }
 
@@ -82,29 +142,64 @@ export class StorybookBrowserController {
     await this.#chrome.health(operationSignal)
     let targets = await this.#chrome.targets(operationSignal)
     const cdpOrigin = await this.#chrome.cdpOrigin(operationSignal)
+    const browserIdentity = await this.#chrome.browserIdentity(operationSignal)
     const recorded = this.#state.readTarget(packageId)
+    let reserved: ChromeTargetSummary | null = null
+    if (recorded?.phase === "reserved" && recorded.cdpOrigin === cdpOrigin &&
+      recorded.browserIdentity === browserIdentity && recorded.url !== null) {
+      const baseline = new Set(recorded.baselineTargetIds)
+      const candidates = targets.filter((target) =>
+        !baseline.has(target.targetId) && target.url === recorded.url)
+      if (candidates.length > 1) {
+        throw new Error(`Ambiguous Storybook reserved package target: ${packageId}`)
+      }
+      reserved = candidates[0] ?? null
+      if (reserved === null && recorded.createSent) {
+        throw new Error(`Storybook package target creation is indeterminate: ${packageId}`)
+      }
+    }
     const owned: ChromeTargetSummary[] = []
     for (const target of targets) {
       if (target.type !== "page") continue
-      if (recorded?.cdpOrigin === cdpOrigin && recorded.targetId === target.targetId) {
-        owned.push(target)
+      if (recorded?.phase === "owned" && recorded.cdpOrigin === cdpOrigin &&
+        recorded.browserIdentity === browserIdentity &&
+        recorded.targetId === target.targetId) {
+        const identity = packageTargetIdentity(target.url)
+        const protocol = new URL(target.url).protocol
+        if (identity?.packageId === packageId || protocol !== "http:" && protocol !== "https:") {
+          owned.push(target)
+        } else {
+          this.#state.clearTarget(packageId, target.targetId)
+          this.#views.forgetTarget(target.targetId)
+        }
         continue
       }
       const candidate = packageTargetIdentity(target.url)
       if (candidate?.packageId === packageId &&
-        await this.#attestsPackage(target, packageId, operationSignal)) owned.push(target)
+        await this.#attestsPackage(target, packageId, operationSignal, input.packageLabel)) owned.push(target)
     }
-    let selected = owned.find(({targetId}) => recorded?.targetId === targetId) ??
+    let selected = reserved ?? owned.find(({targetId}) => recorded?.targetId === targetId) ??
       owned.find((target) => new URL(target.url).origin === origin) ??
       owned[0] ?? null
     const reused = selected !== null
     if (selected === null) {
+      if (recorded?.phase !== "reserved" || recorded.cdpOrigin !== cdpOrigin ||
+        recorded.browserIdentity !== browserIdentity || recorded.url !== url) {
+        this.#state.reserveTarget({
+          packageId,
+          cdpOrigin,
+          browserIdentity,
+          url,
+          baselineTargetIds: targets.map(({targetId}) => targetId),
+        })
+      }
+      this.#state.markCreateSent(packageId)
       const created = await this.#chrome.createTarget(url, operationSignal)
       selected = created
     }
-    // Persist provisional ownership before navigation/readiness. A broken page
-    // is still the package's one reusable target on the next MCP invocation.
-    this.#state.writeTarget({packageId, cdpOrigin, targetId: selected.targetId})
+    // Bind the reservation before navigation/readiness. A broken page remains
+    // the package's one reusable target on the next lifecycle invocation.
+    this.#state.writeTarget({packageId, cdpOrigin, browserIdentity, targetId: selected.targetId})
     if (selected.url !== url) await this.#chrome.navigate(selected.targetId, url, operationSignal)
     await this.#chrome.waitReady(selected.targetId, timeoutMs, operationSignal)
     let identity = await this.#waitBridgeIdentity(selected.targetId, timeoutMs, operationSignal)
@@ -129,29 +224,55 @@ export class StorybookBrowserController {
       if (duplicate.targetId === selected.targetId) continue
       const current = currentTargets.find(({targetId}) => targetId === duplicate.targetId)
       if (current === undefined || packageTargetIdentity(current.url)?.packageId !== packageId ||
-        !await this.#attestsPackage(current, packageId, operationSignal)) continue
+        !await this.#attestsPackage(current, packageId, operationSignal, input.packageLabel)) continue
       await this.#chrome.closeTarget(current.targetId, operationSignal)
     }
-    this.#views.synchronize(await this.#verifiedCurrentTargets(origin, operationSignal), origin)
-    const internal = this.#views.exactPackage(packageId, origin)
-    if (internal === null || internal.targetId !== selected.targetId) {
+    const current = (await this.#chrome.targets(operationSignal))
+      .find(({targetId}) => targetId === selected.targetId)
+    if (current === undefined || new URL(current.url).origin !== origin) {
       throw new Error(`Storybook target did not become the exact package view for ${packageId}`)
     }
+    const view = this.#views.register(current, origin)
     return Object.freeze({
-      view: this.#views.public(internal.viewId),
+      view,
       identity,
       reused,
     })
   }
 
-  views(): readonly StorybookPublicView[] {
-    return this.#views.list()
-  }
-
-  async synchronize(origin: string, signal?: AbortSignal): Promise<readonly StorybookPublicView[]> {
+  async listViews(
+    origin: string,
+    signal?: AbortSignal,
+    packages?: readonly Readonly<{packageId: string; label: string}>[],
+  ): Promise<readonly StorybookPublicView[]> {
     await this.#chrome.health(signal)
     const canonicalOrigin = loopbackOrigin(origin)
-    return this.#views.synchronize(await this.#verifiedCurrentTargets(canonicalOrigin, signal), canonicalOrigin)
+    const labels = packages === undefined ? null : new Map(packages.map(({packageId, label}) => [
+      exactPackageId(packageId),
+      exactPackageLabel(label),
+    ] as const))
+    const candidates = (await this.#chrome.targets(signal)).filter((target) =>
+      target.type === "page" && packageTargetIdentity(target.url) !== null &&
+      (labels === null || labels.has(packageTargetIdentity(target.url)!.packageId)))
+    const grouped = new Map<string, ChromeTargetSummary[]>()
+    for (const target of candidates) {
+      const identity = packageTargetIdentity(target.url)
+      if (identity === null) continue
+      const group = grouped.get(identity.packageId) ?? []
+      group.push(target)
+      grouped.set(identity.packageId, group)
+    }
+    const retained: ChromeTargetSummary[] = []
+    for (const [packageId, targets] of grouped) {
+      retained.push(await this.#normalizePackageTargets(
+        canonicalOrigin,
+        packageId,
+        targets,
+        signal,
+        labels?.get(packageId),
+      ))
+    }
+    return this.#views.synchronize(retained, canonicalOrigin)
   }
 
   async inspect(
@@ -164,6 +285,7 @@ export class StorybookBrowserController {
       root: this.#state.lockRoot(),
       scope: `package:${view.packageId}`,
       ...(signal === undefined ? {} : {signal}),
+      ...(this.#processStart === undefined ? {} : {processStart: this.#processStart}),
     }, async () => {
       const projection = objectResult(await this.#chrome.callBridge(view.targetId, "inspect", Object.freeze({
         schemaVersion: 1,
@@ -184,7 +306,11 @@ export class StorybookBrowserController {
     })
   }
 
-  async interact(input: StorybookInteractInput, signal?: AbortSignal): Promise<Readonly<Record<string, unknown>>> {
+  getView(viewId: string): StorybookPublicView {
+    return this.#views.public(viewId)
+  }
+
+  async interact(input: StorybookBrowserInteractInput, signal?: AbortSignal): Promise<Readonly<Record<string, unknown>>> {
     const view = this.#views.internal(input.viewId)
     const timeout = AbortSignal.timeout(input.timeoutMs ?? 8_000)
     const operationSignal = signal === undefined ? timeout : AbortSignal.any([signal, timeout])
@@ -193,14 +319,18 @@ export class StorybookBrowserController {
       scope: `package:${view.packageId}`,
       timeoutMs: input.timeoutMs ?? 8_000,
       signal: operationSignal,
+      ...(this.#processStart === undefined ? {} : {processStart: this.#processStart}),
     }, async () => {
-      const result = objectResult(await this.#chrome.callBridge(view.targetId, "interact", input, operationSignal),
+      const result = objectResult(await this.#chrome.callBridge(view.targetId, "interact", Object.freeze({
+        ...input,
+        schemaVersion: 1,
+      }), operationSignal),
         "Storybook interact bridge result")
       return Object.freeze({...result, view: this.#views.public(input.viewId)})
     })
   }
 
-  async capture(input: StorybookCaptureInput, signal?: AbortSignal): Promise<StorybookBrowserCaptureResult> {
+  async capture(input: StorybookBrowserCaptureInput, signal?: AbortSignal): Promise<StorybookBrowserCaptureResult> {
     if (input.viewId === undefined) throw new Error("Browser capture requires an exact viewId")
     const timeout = AbortSignal.timeout(input.timeoutMs ?? 30_000)
     const operationSignal = signal === undefined ? timeout : AbortSignal.any([signal, timeout])
@@ -210,6 +340,7 @@ export class StorybookBrowserController {
       scope: `package:${view.packageId}`,
       timeoutMs: input.timeoutMs ?? 30_000,
       signal: operationSignal,
+      ...(this.#processStart === undefined ? {} : {processStart: this.#processStart}),
     }, async () => {
       const identity = bridgeIdentity(await this.#chrome.callBridge(
         view.targetId,
@@ -256,24 +387,52 @@ export class StorybookBrowserController {
     })
   }
 
-  async close(viewId: string, signal?: AbortSignal): Promise<Readonly<{closed: true; viewId: string}>> {
+  async close(viewId: string, signal?: AbortSignal): Promise<Readonly<{
+    closed: boolean
+    viewId: string
+    preserved?: boolean
+  }>> {
     const view = this.#views.internal(viewId)
-    await withStorybookBrowserLock({
+    return withStorybookBrowserLock({
       root: this.#state.lockRoot(),
       scope: `package:${view.packageId}`,
       ...(signal === undefined ? {} : {signal}),
+      ...(this.#processStart === undefined ? {} : {processStart: this.#processStart}),
     }, async () => {
-      await this.#chrome.closeTarget(view.targetId, signal)
+      const current = (await this.#chrome.targets(signal)).find(({targetId}) => targetId === view.targetId)
+      if (current !== undefined && packageTargetIdentity(current.url)?.packageId === view.packageId) {
+        const attested = await this.#attestsPackage(
+          current,
+          view.packageId,
+          signal ?? AbortSignal.timeout(5_000),
+        )
+        if (!attested) {
+          throw new Error(`Storybook exact package target attestation is indeterminate: ${view.packageId}`)
+        }
+        await this.#chrome.closeTarget(view.targetId, signal)
+        this.#state.clearTarget(view.packageId, view.targetId)
+        this.#views.forget(viewId)
+        return Object.freeze({closed: true, viewId})
+      }
       this.#state.clearTarget(view.packageId, view.targetId)
       this.#views.forget(viewId)
+      return Object.freeze({
+        closed: false,
+        viewId,
+        ...(current === undefined ? {} : {preserved: true}),
+      })
     })
-    return Object.freeze({closed: true, viewId})
+  }
+
+  readCapture(captureId: string): Readonly<{metadata: StoredStorybookCapture; png: Uint8Array}> {
+    return this.#captures.read(captureId)
   }
 
   async #attestsPackage(
     target: ChromeTargetSummary,
     packageId: string,
     signal: AbortSignal,
+    packageLabel?: string,
   ): Promise<boolean> {
     try {
       return bridgeIdentity(await this.#chrome.callBridge(
@@ -286,33 +445,124 @@ export class StorybookBrowserController {
       try {
         const diagnostic = await this.#chrome.bridgeDiagnostics(target.targetId, signal)
         const markers = objectResult(diagnostic.markers, "Storybook target markers")
-        return diagnostic.viewName === `storybook:${packageId}` && markers.packageId === packageId
+        const markerPackageId = markers.packageId
+        if (packageTargetIdentity(target.url)?.packageId !== packageId ||
+          typeof markerPackageId === "string" && markerPackageId !== packageId) return false
+        const revisionPrefix = `/__storybook/revisions/${encodeURIComponent(packageId)}/`
+        const ownsRevisionScript = Array.isArray(diagnostic.scripts) &&
+          diagnostic.scripts.some((value) => typeof value === "string" && value.startsWith(revisionPrefix))
+        return markerPackageId === packageId ||
+          diagnostic.viewName === `storybook:${packageId}` &&
+            (markerPackageId === null || markerPackageId === undefined) ||
+          ownsRevisionScript ||
+          packageLabel !== undefined && target.title === packageLabel
       } catch {
-        return false
+        return packageTargetIdentity(target.url)?.packageId === packageId &&
+          packageLabel !== undefined && target.title === packageLabel
       }
     }
   }
 
-  async #verifiedCurrentTargets(
-    origin: string,
-    signal?: AbortSignal,
-  ): Promise<readonly ChromeTargetSummary[]> {
-    const targets = await this.#chrome.targets(signal)
-    const cdpOrigin = await this.#chrome.cdpOrigin(signal)
-    const verified: ChromeTargetSummary[] = []
-    for (const target of targets) {
-      const identity = packageTargetIdentity(target.url)
-      if (target.type !== "page" || identity === null || new URL(target.url).origin !== origin) continue
-      const recorded = this.#state.readTarget(identity.packageId)
-      if (recorded?.cdpOrigin === cdpOrigin && recorded.targetId === target.targetId) {
-        verified.push(target)
-        continue
-      }
-      const timeout = AbortSignal.timeout(2_000)
-      const operationSignal = signal === undefined ? timeout : AbortSignal.any([signal, timeout])
-      if (await this.#attestsPackage(target, identity.packageId, operationSignal)) verified.push(target)
+  async #attestationSummary(
+    target: ChromeTargetSummary,
+    packageId: string,
+    signal: AbortSignal,
+    packageLabel?: string,
+  ): Promise<string> {
+    try {
+      const diagnostic = await this.#chrome.bridgeDiagnostics(target.targetId, signal)
+      const markers = diagnostic.markers !== null && typeof diagnostic.markers === "object" &&
+        !Array.isArray(diagnostic.markers)
+        ? diagnostic.markers as Record<string, unknown>
+        : {}
+      const marker = markers.packageId
+      const scripts = Array.isArray(diagnostic.scripts) ? diagnostic.scripts : []
+      const revisionPrefix = `/__storybook/revisions/${encodeURIComponent(packageId)}/`
+      return [
+        `name=${diagnostic.viewName === `storybook:${packageId}` ? "exact" : diagnostic.viewName ? "other" : "empty"}`,
+        `marker=${marker === packageId ? "exact" : typeof marker === "string" ? "conflict" : "empty"}`,
+        `title=${packageLabel === undefined ? "unavailable" : target.title === packageLabel ? "exact" : target.title ? "other" : "empty"}`,
+        `revisionScript=${scripts.some((value) => typeof value === "string" && value.startsWith(revisionPrefix)) ? "yes" : "no"}`,
+      ].join(",")
+    } catch {
+      return `diagnostics=unavailable,title=${packageLabel === undefined
+        ? "unavailable"
+        : target.title === packageLabel
+          ? "exact"
+          : target.title
+            ? "other"
+            : "empty"}`
     }
-    return Object.freeze(verified)
+  }
+
+  async #normalizePackageTargets(
+    origin: string,
+    packageId: string,
+    targets: readonly ChromeTargetSummary[],
+    signal?: AbortSignal,
+    packageLabel?: string,
+  ): Promise<ChromeTargetSummary> {
+    return withStorybookBrowserLock({
+      root: this.#state.lockRoot(),
+      scope: `package:${packageId}`,
+      ...(signal === undefined ? {} : {signal}),
+      ...(this.#processStart === undefined ? {} : {processStart: this.#processStart}),
+    }, async () => {
+      const cdpOrigin = await this.#chrome.cdpOrigin(signal)
+      const browserIdentity = await this.#chrome.browserIdentity(signal)
+      const recorded = this.#state.readTarget(packageId)
+      let selected = targets.find(({targetId}) => recorded?.phase === "owned" &&
+        recorded.cdpOrigin === cdpOrigin && recorded.browserIdentity === browserIdentity &&
+        recorded.targetId === targetId) ??
+        targets.find((target) => new URL(target.url).origin === origin) ??
+        targets[0]
+      if (selected === undefined) throw new Error(`Storybook package has no attested target: ${packageId}`)
+      if (new URL(selected.url).origin !== origin) {
+        const previous = new URL(selected.url)
+        const nextUrl = new URL(`${previous.pathname}${previous.search}${previous.hash}`, origin).href
+        await this.#chrome.navigate(selected.targetId, nextUrl, signal)
+        await this.#chrome.waitReady(selected.targetId, 30_000, signal)
+        const identity = await this.#waitBridgeIdentity(selected.targetId, 30_000, signal)
+        if (identity.packageId !== packageId) {
+          throw new Error(`Storybook normalized target belongs to another package: ${packageId}`)
+        }
+        selected = (await this.#chrome.targets(signal)).find(({targetId}) => targetId === selected!.targetId)
+        if (selected === undefined) throw new Error(`Storybook normalized target disappeared: ${packageId}`)
+      }
+      const selectedSignal = signal ?? AbortSignal.timeout(5_000)
+      if (packageTargetIdentity(selected.url)?.packageId !== packageId ||
+        !await this.#attestsPackage(selected, packageId, selectedSignal, packageLabel)) {
+        throw new Error(`Storybook selected package target attestation is indeterminate: ${packageId}`)
+      }
+      const selectedTargetId = selected.targetId
+      for (const duplicate of targets) {
+        if (duplicate.targetId === selectedTargetId) continue
+        const current = (await this.#chrome.targets(signal)).find(({targetId}) => targetId === duplicate.targetId)
+        if (current === undefined || packageTargetIdentity(current.url)?.packageId !== packageId) continue
+        const operationSignal = signal ?? AbortSignal.timeout(5_000)
+        if (!await this.#attestsPackage(current, packageId, operationSignal, packageLabel)) {
+          const evidence = await this.#attestationSummary(current, packageId, operationSignal, packageLabel)
+          throw new Error(
+            `Storybook duplicate package target attestation is indeterminate: ${packageId}; ${evidence}`,
+          )
+        }
+        await this.#chrome.closeTarget(current.targetId, signal)
+      }
+      const retained = (await this.#chrome.targets(signal)).find(({targetId}) => targetId === selectedTargetId)
+      if (retained === undefined || new URL(retained.url).origin !== origin ||
+        packageTargetIdentity(retained.url)?.packageId !== packageId ||
+        !await this.#attestsPackage(
+          retained,
+          packageId,
+          signal ?? AbortSignal.timeout(5_000),
+          packageLabel,
+        )) {
+        throw new Error(`Storybook retained package target changed during normalization: ${packageId}`)
+      }
+      selected = retained
+      this.#state.writeTarget({packageId, cdpOrigin, browserIdentity, targetId: selected.targetId})
+      return selected
+    })
   }
 
   async #waitBridgeIdentity(
@@ -461,6 +711,14 @@ function packageTargetIdentity(value: string): Readonly<{packageId: string; rout
 function exactPackageId(value: unknown): string {
   if (typeof value !== "string" || !/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/u.test(value)) {
     throw new Error(`Invalid Storybook package identity: ${String(value)}`)
+  }
+  return value
+}
+
+function exactPackageLabel(value: unknown): string {
+  if (typeof value !== "string" || value.trim().length === 0 || value.length > 256 ||
+    /[\u0000-\u001f\u007f]/u.test(value)) {
+    throw new Error("Invalid Storybook browser package label")
   }
   return value
 }

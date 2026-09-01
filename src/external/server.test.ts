@@ -3,6 +3,7 @@ import {existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, u
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {fileURLToPath} from "node:url"
+import type {StorybookBrowserLifecycle} from "@zavx0z/storybook-browser-lifecycle/service"
 import {
   startExternalStorybookServer,
   StorybookBrowserSessionRegistry,
@@ -34,6 +35,15 @@ describe("one external Storybook server", () => {
     expect(registry.authorize(second.token).revision).toBe("two")
     registry.release(second.token)
     expect(released).toBe(2)
+  })
+
+  test("keeps active landing authority independent from the event socket TTL", () => {
+    let now = 0
+    const registry = new StorybookBrowserSessionRegistry({ttlMs: 100, now: () => now})
+    const issued = registry.issue({kind: "registry", packageId: null, revision: null})
+    registry.consume(issued.token)
+    now = 10_000
+    expect(registry.authorize(issued.token).kind).toBe("registry")
   })
 
   test("serves the shared landing bundle and a lazily built documentation package on one origin", async () => {
@@ -93,6 +103,7 @@ describe("one external Storybook server", () => {
       landingEntryPath: fixture.landingEntry,
       fallbackEntryPath: fixture.fallbackEntry,
       packageBrowserEntryPath: fixture.packageEntry,
+      browserLifecycle: fakeBrowserLifecycle().service,
     })
     servers.push(running)
     const health = await fetchJson(new URL("/api/health", running.origin))
@@ -547,37 +558,60 @@ describe("one external Storybook server", () => {
     expect((await fetch(new URL("/api/health", running.origin))).status).toBe(200)
   })
 
-  test("delivers CLI open to the landing topic with one named package URL", async () => {
+  test("routes landing and control opens through one canonical browser lifecycle", async () => {
     const fixture = serverFixture()
+    const lifecycle = fakeBrowserLifecycle()
     const running = await startExternalStorybookServer({
       declarations: [fixture.standalone],
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
+      browserLifecycle: lifecycle.service,
     })
     servers.push(running)
     const landing = await fetch(new URL("/", running.origin))
     const session = browserSessionToken(await landing.text())
-    const url = new URL(`/api/events?session=${encodeURIComponent(session)}`, running.origin)
-    url.protocol = "ws:"
-    const socket = storybookSocket(url.href, running.origin)
-    const messages: Array<Record<string, unknown>> = []
+    const eventsUrl = new URL(`/api/events?session=${encodeURIComponent(session)}`, running.origin)
+    eventsUrl.protocol = "ws:"
+    const socket = storybookSocket(eventsUrl.href, running.origin)
     await new Promise<void>((resolvePromise) => socket.addEventListener("open", () => resolvePromise(), {once: true}))
-    socket.addEventListener("message", (event) => {
-      if (typeof event.data === "string") messages.push(JSON.parse(event.data))
-    })
-    socket.send(JSON.stringify({type: "subscribe", topic: "registry"}))
-    await waitFor(() => messages.some(({type}) => type === "subscribed"))
-    const opened = await controlPost(running, "/api/control/open", {
-      packageId: "@fixture/standalone",
-      route: "",
-    })
-    expect(opened.body.delivered).toBe(1)
-    await waitFor(() => messages.some(({type}) => type === "package.open"))
-    expect(messages.find(({type}) => type === "package.open")).toMatchObject({
-      packageId: "@fixture/standalone",
-      urlPath: "/packages/%40fixture%2Fstandalone/",
-    })
+    const disconnected = new Promise<void>((resolvePromise) =>
+      socket.addEventListener("close", () => resolvePromise(), {once: true}))
     socket.close()
+    await disconnected
+    const [control, browser] = await Promise.all([
+      controlPost(running, "/api/control/open", {
+        packageId: "@fixture/standalone",
+        route: "",
+      }),
+      fetch(new URL("/api/browser/open", running.origin), {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: running.origin,
+          "x-storybook-session": session,
+        },
+        body: JSON.stringify({packageId: "@fixture/standalone", route: ""}),
+      }),
+    ])
+    expect(control.body).toMatchObject({
+      ok: true,
+      packageId: "@fixture/standalone",
+      viewId: lifecycle.viewId,
+    })
+    expect(browser.status).toBe(200)
+    expect(await browser.json()).toMatchObject({
+      ok: true,
+      packageId: "@fixture/standalone",
+      viewId: lifecycle.viewId,
+    })
+    expect(lifecycle.opened).toHaveLength(2)
+    expect(new Set(lifecycle.opened.map(({packageId}) => packageId)))
+      .toEqual(new Set(["@fixture/standalone"]))
+    expect(await controlGet(running, `/api/control/views/${encodeURIComponent(lifecycle.viewId)}`))
+      .toMatchObject({
+        ok: true,
+        view: {viewId: lifecycle.viewId, packageId: "@fixture/standalone"},
+      })
   })
 
   test("bounds authenticated control bodies before parsing", async () => {
@@ -627,6 +661,7 @@ describe("one external Storybook server", () => {
       landingEntryPath: fixture.landingEntry,
       fallbackEntryPath: fixture.fallbackEntry,
       packageBrowserEntryPath: fixture.packageEntry,
+      browserLifecycle: fakeBrowserLifecycle().service,
     })
     servers.push(running)
     const detached = await controlPost(running, "/api/control/detach", {scopeId: "fixture-workspace"})
@@ -643,6 +678,74 @@ describe("one external Storybook server", () => {
     servers.splice(servers.indexOf(running), 1)
   })
 })
+
+function fakeBrowserLifecycle(): Readonly<{
+  service: StorybookBrowserLifecycle
+  viewId: string
+  opened: Array<Readonly<{packageId: string; route: string}>>
+}> {
+  const viewId = `storybook-view-v1_${"a".repeat(43)}`
+  const opened: Array<Readonly<{packageId: string; route: string}>> = []
+  const service: StorybookBrowserLifecycle = {
+    async openPackage(input) {
+      opened.push(Object.freeze({packageId: input.packageId, route: input.route}))
+      return Object.freeze({
+        view: Object.freeze({
+          viewId,
+          packageId: input.packageId,
+          route: input.route,
+          title: "Fixture",
+        }),
+        identity: Object.freeze({
+          protocol: "external-storybook-agent-bridge/1",
+          packageId: input.packageId,
+          route: input.route,
+          revision: input.expectedRevision ?? "fixture-revision",
+          graphDigest: "a".repeat(64),
+          ready: true,
+          presented: true,
+          timeOrigin: 1,
+        }),
+        reused: opened.length > 1,
+      })
+    },
+    async listViews() {
+      const current = opened.at(-1)
+      return current === undefined ? Object.freeze([]) : Object.freeze([Object.freeze({
+        viewId,
+        packageId: current.packageId,
+        route: current.route,
+        title: "Fixture",
+      })])
+    },
+    getView(requestedViewId) {
+      const current = opened.at(-1)
+      if (requestedViewId !== viewId || current === undefined) throw new Error("Unknown fake view")
+      return Object.freeze({
+        viewId,
+        packageId: current.packageId,
+        route: current.route,
+        title: "Fixture",
+      })
+    },
+    async inspect() {
+      return Object.freeze({ready: true, presented: true, revision: "fixture-revision"})
+    },
+    async interact() {
+      return Object.freeze({ok: true})
+    },
+    async capture() {
+      throw new Error("Fake browser lifecycle capture is not configured")
+    },
+    async close(requestedViewId) {
+      return Object.freeze({closed: true, viewId: requestedViewId})
+    },
+    readCapture() {
+      throw new Error("Fake browser lifecycle capture is not configured")
+    },
+  }
+  return Object.freeze({service, viewId, opened})
+}
 
 function serverFixture(): Readonly<{
   root: string

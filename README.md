@@ -92,11 +92,20 @@ Replacement journal сохраняет declarations/port через abort или
 перезаписать canonical state: child пишет candidate, а `server.json` commit-ит
 только live controller — владелец lease.
 
-Browser lifecycle также полностью принадлежит MCP: private direct-CDP client
-переиспользует persistent package target, при `storybook_open` подтверждает
-старый target через package bridge и сводит подтверждённые дубли к одной
-вкладке. Новый target создаётся только в background; Storybook не активирует
-Chrome и не зависит от `ai-macos`, `@meta/chrome` или browser CLI.
+Browser lifecycle единолично принадлежит private nested package
+`@zavx0z/storybook-browser-lifecycle`. Canonical server композирует один его
+instance, а landing, CLI и MCP вызывают один `openPackage`
+через server-owned application boundary. Для exact
+`packageId` существует только `absent | reserved | owned target`: reservation
+создаётся до `Target.createTarget`, repeated/concurrent opens переиспользуют её
+и один target, а route или смена server origin только навигирует его. Direct
+`window.open`/named-tab fallback отсутствует.
+
+Legacy confirmed duplicates являются recovery input, а не допустимым lifecycle
+state: owner нормализует их под package lock до публикации view и повторно
+аттестует obsolete target перед close. Foreign/user tabs остаются
+неприкосновенными. Новый target создаётся только в background; Storybook не
+активирует Chrome и не зависит от `ai-macos`, `@meta/chrome` или browser CLI.
 
 CLI ниже остаётся только human/diagnostic adapter:
 
@@ -116,9 +125,11 @@ storybook init <root> --kind package|project|workspace
 composition; standalone projects/packages можно подключать одновременно.
 
 Global landing показывает workspace groups, direct projects и direct packages.
-Каждый package открывается в named tab `storybook:<package-id>` и получает один
-JS realm, one loaded runtime adapter, не более одной active subject session и
-one independently updateable PackageSession.
+Каждый exact package identity отображается private lifecycle owner в один
+reused package target `storybook:<package-id>` и получает один JS realm, one
+loaded runtime adapter, не более одной active subject session и one
+independently updateable PackageSession. Landing не создаёт tab самостоятельно:
+его action делегирует тому же `openPackage`, что CLI и MCP.
 Landing и каждая package page являются отдельным Experience: один semantic
 Document и один host Canvas/Renderer/Space/ViewPoint, в котором Workbench
 проецируется camera-locked overlay root. Разные tabs не разделяют эти owners.

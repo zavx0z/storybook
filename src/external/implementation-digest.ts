@@ -9,14 +9,13 @@ const MCP_SIDE_SOURCE_FILES = new Set([
   "src/external/control-client.ts",
   "src/external/controller.ts",
 ])
-const MCP_SIDE_SOURCE_PREFIXES = Object.freeze([
-  "src/external/browser-control/",
-])
+const MCP_SIDE_SOURCE_PREFIXES = Object.freeze([])
 
 const IMPLEMENTATION_FILES = Object.freeze([
   "bun.lock",
   "bunfig.toml",
   "package.json",
+  "packages/browser-lifecycle/package.json",
   "scripts/storybook-daemon.ts",
 ])
 
@@ -24,6 +23,7 @@ const IMPLEMENTATION_TREES = Object.freeze([
   Object.freeze({path: "schemas", kind: "schema" as const}),
   Object.freeze({path: "src/workbench", kind: "source" as const}),
   Object.freeze({path: "src/external", kind: "source" as const}),
+  Object.freeze({path: "packages/browser-lifecycle/src", kind: "source" as const}),
 ])
 
 /**

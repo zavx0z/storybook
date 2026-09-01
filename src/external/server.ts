@@ -1,5 +1,13 @@
 import {randomBytes, randomUUID} from "node:crypto"
 import {
+  createStorybookBrowserLifecycle,
+  type StorybookBrowserLifecycle,
+} from "@zavx0z/storybook-browser-lifecycle/service"
+import type {
+  StorybookBrowserCaptureInput,
+  StorybookBrowserInteractInput,
+} from "@zavx0z/storybook-browser-lifecycle/contract"
+import {
   chmodSync,
   existsSync,
   mkdirSync,
@@ -72,6 +80,9 @@ export type ExternalStorybookServerOptions = Readonly<{
   landingEntryPath?: string
   fallbackEntryPath?: string
   packageBrowserEntryPath?: string
+  browserLifecycle?: StorybookBrowserLifecycle
+  browserStateRoot?: string
+  captureRoot?: string
   writeServerRecord?: typeof writeExternalStorybookServerRecord
   startLease?: Readonly<{path: string; token: string}>
 }>
@@ -82,6 +93,7 @@ export type ExternalStorybookRunningServer = Readonly<{
   registry: ExternalStorybookRegistry
   sessions: ExternalStorybookSessionManager
   watch: StorybookDependencyWatchCoordinator
+  browserLifecycle: StorybookBrowserLifecycle
   server: Bun.Server<StorybookWebSocketData>
   stopped: Promise<void>
   stop(): Promise<void>
@@ -96,6 +108,10 @@ export async function startExternalStorybookServer(
   const statePath = resolve(options.statePath ?? externalStorybookServerStatePath())
   const artifactRoot = resolve(options.artifactRoot ?? externalStorybookArtifactRoot())
   const writeServerRecord = options.writeServerRecord ?? writeExternalStorybookServerRecord
+  const browserLifecycle = options.browserLifecycle ?? createStorybookBrowserLifecycle({
+    stateRoot: resolve(options.browserStateRoot ?? join(dirname(statePath), "browser")),
+    captureRoot: resolve(options.captureRoot ?? join(dirname(statePath), "captures")),
+  })
   mkdirSync(artifactRoot, {recursive: true, mode: 0o700})
   chmodSync(artifactRoot, 0o700)
   const registry = new ExternalStorybookRegistry()
@@ -112,9 +128,9 @@ export async function startExternalStorybookServer(
   let closePromise: Promise<void> | null = null
   let sharedAssets: Promise<SharedBrowserAssets> | null = null
   const browserSessions = new StorybookBrowserSessionRegistry()
-  const eventHub = new StorybookEventHub<StorybookPackageEvent | RegistryEvent | OpenEvent>()
+  const eventHub = new StorybookEventHub<StorybookPackageEvent | RegistryEvent>()
 
-  const publish = (event: StorybookPackageEvent | RegistryEvent | OpenEvent): number => {
+  const publish = (event: StorybookPackageEvent | RegistryEvent): number => {
     eventHub.publish(event)
     const browserEvent = event.type === "package.failed"
       ? sanitizePackageFailure(event, registry, () => sessions.snapshots())
@@ -190,6 +206,65 @@ export async function startExternalStorybookServer(
       }
       throw error
     }
+  }
+
+  const openPackageView = async (
+    input: Readonly<{packageId: string; route: string; timeoutMs?: number}>,
+    signal: AbortSignal,
+  ): Promise<Readonly<Record<string, unknown>>> => {
+    await mutateRegistry(() => registry.refresh())
+    const graph = registry.snapshot().graph
+    const resolvedRoute = resolveExternalStorybookRoute(
+      graph,
+      input.packageId,
+      input.route,
+    )
+    const packageNode = graph.nodes.find((node) =>
+      node.kind === "package" && node.packageId === input.packageId)
+    if (packageNode === undefined) throw new Error(`Unknown Storybook package: ${input.packageId}`)
+    sessions.retryFailed(input.packageId)
+    const packageState = await sessions.ensure(input.packageId)
+    const expectedRevision = packageState.builtRevision ?? undefined
+    const openInput = {
+      origin: server.url.origin,
+      packageId: input.packageId,
+      route: input.route,
+      url: new URL(resolvedRoute.urlPath, server.url).href,
+      packageLabel: externalStorybookPageTitle(packageNode.packageId, packageNode.label),
+      ...(input.timeoutMs === undefined ? {} : {timeoutMs: input.timeoutMs}),
+      ...(expectedRevision === undefined ? {} : {expectedRevision}),
+    }
+    let opened
+    try {
+      opened = await browserLifecycle.openPackage(openInput, signal)
+    } catch (error) {
+      if (expectedRevision === undefined || !(error instanceof Error) ||
+        !error.message.includes("view revision mismatch")) throw error
+      opened = await browserLifecycle.openPackage({
+        origin: server.url.origin,
+        packageId: input.packageId,
+        route: input.route,
+        url: new URL(resolvedRoute.urlPath, server.url).href,
+        packageLabel: externalStorybookPageTitle(packageNode.packageId, packageNode.label),
+        ...(input.timeoutMs === undefined ? {} : {timeoutMs: input.timeoutMs}),
+      }, signal)
+    }
+    const candidateMatches = expectedRevision === undefined || opened.identity.revision === expectedRevision
+    return Object.freeze({
+      ok: candidateMatches && opened.identity.ready,
+      viewId: opened.view.viewId,
+      packageId: opened.identity.packageId,
+      route: opened.identity.route,
+      graphDigest: opened.identity.graphDigest,
+      revision: opened.identity.revision,
+      state: opened.identity.ready ? "ready" : "error",
+      ready: opened.identity.ready,
+      presented: opened.identity.presented,
+      reused: opened.reused,
+      ...(expectedRevision === undefined ? {} : {candidateRevision: expectedRevision}),
+      workingFallback: opened.identity.ready && !candidateMatches,
+      package: sessions.session(input.packageId).snapshot(),
+    })
   }
 
   const refreshRegistry = async (): Promise<void> => {
@@ -272,6 +347,84 @@ export async function startExternalStorybookServer(
             packages: sessions.snapshots(),
           })
         }
+        if (url.pathname.startsWith("/api/control/views/") && request.method === "GET") {
+          const viewId = requiredText("view id", decodeURIComponent(
+            url.pathname.slice("/api/control/views/".length),
+          ))
+          return responseJson({ok: true, view: browserLifecycle.getView(viewId)})
+        }
+        if (url.pathname === "/api/control/views" && request.method === "GET") {
+          const packages = registry.snapshot().graph.nodes.flatMap((node) =>
+            node.kind === "package" && node.packageId !== null
+              ? [{
+                packageId: node.packageId,
+                label: externalStorybookPageTitle(node.packageId, node.label),
+              }]
+              : [])
+          return responseJson({
+            ok: true,
+            views: await browserLifecycle.listViews(server.url.origin, request.signal, packages),
+          })
+        }
+        if (url.pathname === "/api/control/inspect" && request.method === "POST") {
+          const body = await requestObject(request)
+          assertExactRequestKeys(body, ["cursor", "include", "limit", "maxDepth", "viewId"])
+          const result = await browserLifecycle.inspect(
+            requiredText("inspect viewId", body.viewId),
+            {
+              ...(body.include === undefined ? {} : {include: requiredTextList("inspect include", body.include, 8)}),
+              ...(body.maxDepth === undefined ? {} : {maxDepth: Number(body.maxDepth)}),
+              ...(body.limit === undefined ? {} : {limit: Number(body.limit)}),
+              ...(body.cursor === undefined ? {} : {cursor: requiredText("inspect cursor", body.cursor)}),
+            },
+            request.signal,
+          )
+          return responseJson({ok: true, ...result})
+        }
+        if (url.pathname === "/api/control/interact" && request.method === "POST") {
+          const body = await requestObject(request)
+          assertExactRequestKeys(body, ["action", "destination", "target", "timeoutMs", "value", "viewId"])
+          const input = {
+            viewId: requiredText("interact viewId", body.viewId),
+            action: requiredText("interact action", body.action),
+            ...(body.target === undefined ? {} : {target: body.target}),
+            ...(body.value === undefined ? {} : {value: body.value}),
+            ...(body.destination === undefined ? {} : {destination: body.destination}),
+            ...(body.timeoutMs === undefined ? {} : {timeoutMs: Number(body.timeoutMs)}),
+          } as StorybookBrowserInteractInput
+          return responseJson({ok: true, ...await browserLifecycle.interact(input, request.signal)})
+        }
+        if (url.pathname === "/api/control/capture" && request.method === "POST") {
+          const body = await requestObject(request)
+          assertExactRequestKeys(body, ["area", "failOnConsoleError", "nodeId", "timeoutMs", "viewId"])
+          const input = {
+            viewId: requiredText("capture viewId", body.viewId),
+            area: requiredText("capture area", body.area),
+            ...(body.nodeId === undefined ? {} : {nodeId: requiredText("capture nodeId", body.nodeId)}),
+            ...(body.failOnConsoleError === undefined ? {} : {failOnConsoleError: body.failOnConsoleError === true}),
+            ...(body.timeoutMs === undefined ? {} : {timeoutMs: Number(body.timeoutMs)}),
+          } as StorybookBrowserCaptureInput
+          return responseJson({ok: true, ...await browserLifecycle.capture(input, request.signal)})
+        }
+        if (url.pathname === "/api/control/close" && request.method === "POST") {
+          const body = await requestObject(request)
+          assertExactRequestKeys(body, ["viewId"])
+          return responseJson({
+            ok: true,
+            ...await browserLifecycle.close(requiredText("close viewId", body.viewId), request.signal),
+          })
+        }
+        if (url.pathname.startsWith("/api/control/captures/") && request.method === "GET") {
+          const captureId = requiredText("capture id", decodeURIComponent(
+            url.pathname.slice("/api/control/captures/".length),
+          ))
+          const capture = browserLifecycle.readCapture(captureId)
+          return responseJson({
+            ok: true,
+            metadata: capture.metadata,
+            data: Buffer.from(capture.png).toString("base64"),
+          })
+        }
         if (url.pathname === "/api/client" && request.method === "GET") {
           const snapshot = registry.snapshot()
           return responseJson(createExternalStorybookClientSnapshot(snapshot.graph, sessions.snapshots()))
@@ -319,6 +472,23 @@ export async function startExternalStorybookServer(
             })
           return responseJson({ok: body.working === true, package: result})
         }
+        if (url.pathname === "/api/browser/open" && request.method === "POST") {
+          assertExternalStorybookRequestOrigin(request, server.url.origin, {required: true})
+          const token = request.headers.get("x-storybook-session") ?? ""
+          const grant = browserSessions.authorize(token)
+          if (grant.kind !== "registry") {
+            throw new Error("Only the Storybook landing session may request a package view")
+          }
+          const body = await requestObject(request)
+          assertExactRequestKeys(body, ["packageId", "route"])
+          const packageId = requiredText("open packageId", body.packageId)
+          const route = body.route === undefined || body.route === ""
+            ? ""
+            : requiredText("open route", body.route)
+          const result = await openPackageView({packageId, route}, request.signal)
+          const {package: _package, ...browserResult} = result
+          return responseJson(browserResult)
+        }
         if (url.pathname === "/api/control/attach" && request.method === "POST") {
           const body = await requestObject(request)
           assertExactRequestKeys(body, ["roots"])
@@ -338,7 +508,24 @@ export async function startExternalStorybookServer(
           const body = await requestObject(request)
           assertExactRequestKeys(body, ["scopeId"])
           const scopeId = requiredText("detach scopeId", body.scopeId)
+          const currentPackages = registry.snapshot().graph.nodes.flatMap((node) =>
+            node.kind === "package" && node.packageId !== null
+              ? [{
+                packageId: node.packageId,
+                label: externalStorybookPageTitle(node.packageId, node.label),
+              }]
+              : [])
+          const openViews = await browserLifecycle.listViews(
+            server.url.origin,
+            request.signal,
+            currentPackages,
+          )
           const snapshot = await mutateRegistry(() => registry.detach(scopeId))
+          const retainedPackageIds = new Set(snapshot.graph.nodes.flatMap((node) =>
+            node.kind === "package" && node.packageId !== null ? [node.packageId] : []))
+          for (const view of openViews) {
+            if (!retainedPackageIds.has(view.packageId)) await browserLifecycle.close(view.viewId, request.signal)
+          }
           return responseJson({ok: true, graphDigest: snapshot.graph.digest})
         }
         if (url.pathname === "/api/control/refresh" && request.method === "POST") {
@@ -410,20 +597,16 @@ export async function startExternalStorybookServer(
         }
         if (url.pathname === "/api/control/open" && request.method === "POST") {
           const body = await requestObject(request)
-          assertExactRequestKeys(body, ["packageId", "route"])
+          assertExactRequestKeys(body, ["packageId", "route", "timeoutMs"])
           const packageId = requiredText("open packageId", body.packageId)
           const route = body.route === undefined || body.route === ""
             ? ""
             : requiredText("open route", body.route)
-          const resolvedRoute = resolveExternalStorybookRoute(registry.snapshot().graph, packageId, route)
-          const event = Object.freeze({
-            type: "package.open" as const,
+          return responseJson(await openPackageView({
             packageId,
             route,
-            urlPath: resolvedRoute.urlPath,
-          })
-          const delivered = publish(event)
-          return responseJson({ok: true, delivered, url: new URL(resolvedRoute.urlPath, server.url).href})
+            ...(body.timeoutMs === undefined ? {} : {timeoutMs: Number(body.timeoutMs)}),
+          }, request.signal))
         }
         if (url.pathname === "/api/control/stop" && request.method === "POST") {
           const body = await requestObject(request)
@@ -510,7 +693,9 @@ export async function startExternalStorybookServer(
       close(websocket) {
         for (const unsubscribe of websocket.data.unsubscribers.values()) unsubscribe()
         websocket.data.unsubscribers.clear()
-        browserSessions.release(websocket.data.sessionToken)
+        if (websocket.data.grant.kind === "package") {
+          browserSessions.release(websocket.data.sessionToken)
+        }
         clients.delete(websocket)
       },
     },
@@ -591,6 +776,7 @@ export async function startExternalStorybookServer(
     registry,
     sessions,
     watch,
+    browserLifecycle,
     server,
     stopped,
     stop: close,
@@ -629,13 +815,6 @@ type RegistryEvent = Readonly<{
 }> | Readonly<{
   type: "registry.failed"
   message: string
-}>
-
-type OpenEvent = Readonly<{
-  type: "package.open"
-  packageId: string
-  route: string
-  urlPath: string
 }>
 
 type SharedBrowserAssets = Readonly<{
@@ -989,7 +1168,7 @@ function packageCondition(
 }
 
 function packageEventCondition(
-  event: StorybookPackageEvent | RegistryEvent | OpenEvent,
+  event: StorybookPackageEvent | RegistryEvent,
   packageId: string,
   condition: string,
   afterRevision: string | null,
@@ -1019,9 +1198,9 @@ function declarationPathMatches(
 
 function matchesSubscription(
   subscriptions: ReadonlySet<string>,
-  event: StorybookPackageEvent | RegistryEvent | OpenEvent,
+  event: StorybookPackageEvent | RegistryEvent,
 ): boolean {
-  if (event.type === "registry.updated" || event.type === "registry.failed" || event.type === "package.open") {
+  if (event.type === "registry.updated" || event.type === "registry.failed") {
     return subscriptions.has("registry")
   }
   return subscriptions.has("registry") || subscriptions.has(`package:${event.packageId}`)
@@ -1059,8 +1238,8 @@ export class StorybookBrowserSessionRegistry {
     release?: () => void
   }>): Readonly<{token: string, grant: StorybookBrowserSessionGrant}> {
     this.#removeExpired()
-    while (this.#sessions.size >= this.#maxEntries) {
-      const oldest = this.#sessions.keys().next().value
+    while (this.#sessions.size + this.#active.size >= this.#maxEntries) {
+      const oldest = this.#sessions.keys().next().value ?? this.#active.keys().next().value
       if (oldest === undefined) break
       this.release(oldest)
     }

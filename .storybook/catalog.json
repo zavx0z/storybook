@@ -120,6 +120,26 @@
       }]
     },
     {
+      "id": "browser-lifecycle",
+      "label": "Browser lifecycle",
+      "group": {"id": "lifecycle", "label": "Lifecycle"},
+      "subjects": [{
+        "id": "contract",
+        "kind": "capability",
+        "label": "One package target",
+        "apiName": "StorybookBrowserLifecycle",
+        "tags": ["browser", "target", "ownership", "singleton"],
+        "aliases": [
+          "@zavx0z/storybook-browser-lifecycle",
+          "openPackage",
+          "package reservation",
+          "packageId to target"
+        ],
+        "presentation": {"protocol": "story-presentation/1", "projection": "display", "widgets": ["props", "source", "diagnostics"]},
+        "variants": [{"id": "overview", "label": "Overview", "route": "browser-lifecycle/contract/overview", "module": {"path": "./stories/contracts.tsx", "export": "browserLifecycle"}}]
+      }]
+    },
+    {
       "id": "launcher",
       "label": "CLI",
       "group": {"id": "lifecycle", "label": "Lifecycle"},

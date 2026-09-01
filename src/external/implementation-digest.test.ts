@@ -30,17 +30,19 @@ describe("external Storybook implementation digest", () => {
     expect(externalStorybookImplementationDigest(root)).toBe(first)
   })
 
-  test("excludes MCP-side browser mechanics but includes browser runtime", () => {
+  test("includes the browser lifecycle owner and browser runtime but excludes transport adapters", () => {
     const root = implementationFixture()
     const first = externalStorybookImplementationDigest(root)
-    writeFileSync(join(root, "src/external/browser-control/client.ts"), "browser control revision 2\n")
+    writeFileSync(join(root, "packages/browser-lifecycle/src/service.ts"), "browser lifecycle revision 2\n")
+    expect(externalStorybookImplementationDigest(root)).not.toBe(first)
+    const lifecycleRevision = externalStorybookImplementationDigest(root)
     writeFileSync(join(root, "src/external/controller.ts"), "controller revision 2\n")
     writeFileSync(join(root, "src/external/control-client.ts"), "control client revision 2\n")
     writeFileSync(join(root, "src/external/cli.ts"), "cli revision 2\n")
-    expect(externalStorybookImplementationDigest(root)).toBe(first)
+    expect(externalStorybookImplementationDigest(root)).toBe(lifecycleRevision)
 
     writeFileSync(join(root, "src/external/browser/package-entry.ts"), "browser runtime revision 2\n")
-    expect(externalStorybookImplementationDigest(root)).not.toBe(first)
+    expect(externalStorybookImplementationDigest(root)).not.toBe(lifecycleRevision)
   })
 })
 
@@ -52,14 +54,15 @@ function implementationFixture(): string {
     "scripts",
     "src/workbench",
     "src/external/browser",
-    "src/external/browser-control",
     "src/external/fixtures",
+    "packages/browser-lifecycle/src",
   ]) {
     mkdirSync(join(root, directory), {recursive: true})
   }
   writeFileSync(join(root, "bun.lock"), "lock\n")
   writeFileSync(join(root, "bunfig.toml"), "[loader]\n")
   writeFileSync(join(root, "package.json"), "{}\n")
+  writeFileSync(join(root, "packages/browser-lifecycle/package.json"), "{}\n")
   writeFileSync(join(root, "scripts/storybook-daemon.ts"), "daemon\n")
   writeFileSync(join(root, "schemas/manifest.schema.json"), "{}\n")
   writeFileSync(join(root, "src/workbench/controller.ts"), "export const workbench = true\n")
@@ -67,7 +70,7 @@ function implementationFixture(): string {
   writeFileSync(join(root, "src/external/controller.ts"), "controller revision 1\n")
   writeFileSync(join(root, "src/external/control-client.ts"), "control client revision 1\n")
   writeFileSync(join(root, "src/external/cli.ts"), "cli revision 1\n")
-  writeFileSync(join(root, "src/external/browser-control/client.ts"), "browser control revision 1\n")
+  writeFileSync(join(root, "packages/browser-lifecycle/src/service.ts"), "browser lifecycle revision 1\n")
   writeFileSync(join(root, "src/external/browser/package-entry.ts"), "browser runtime revision 1\n")
   writeFileSync(join(root, "src/external/server.test.ts"), "test revision 1\n")
   writeFileSync(join(root, "src/external/fixtures/owner.ts"), "owner revision 1\n")

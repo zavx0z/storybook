@@ -5,6 +5,9 @@
   "description": "One external declaration-driven Storybook server for independently owned packages.",
   "type": "module",
   "packageManager": "bun@1.4.0",
+  "workspaces": [
+    "packages/*"
+  ],
   "bin": {
     "storybook": "./scripts/storybook.ts"
   },
@@ -13,14 +16,17 @@
     "serve": "bun scripts/storybook.ts serve .",
     "build": "bun scripts/storybook.ts check .",
     "typecheck": "tsc --noEmit --pretty false",
+    "browser-lifecycle:check": "bun run --cwd packages/browser-lifecycle check",
     "test": "STORYBOOK_SKIP_ISOLATION=1 bun test src --max-concurrency=1 && bun test src/external/isolation.integration.test.ts --max-concurrency=1",
     "mcp:check": "bun run --cwd mcp check",
-    "check": "bun run typecheck && bun run test && bun run mcp:check && bun run build"
+    "check": "bun run browser-lifecycle:check && bun run typecheck && bun run test && bun run mcp:check && bun run build"
+  },
+  "dependencies": {
+    "@zavx0z/storybook-browser-lifecycle": "workspace:*"
   },
   "devDependencies": {
     "@engine/core": "link:@engine/core",
     "@types/bun": "^1.4.0",
-    "@types/pngjs": "^6.0.5",
     "@webgpu/types": "^0.1.68",
     "@ui/components": "link:@ui/components",
     "@zavx0z/dom": "link:@zavx0z/dom",
@@ -31,7 +37,6 @@
     "@zavx0z/renderer-browser": "link:@zavx0z/renderer-browser",
     "@zavx0z/renderer-webgpu": "link:@zavx0z/renderer-webgpu",
     "@zavx0z/template": "link:@zavx0z/template",
-    "pngjs": "^7.0.0",
     "typescript": "^7.0.2"
   }
 }

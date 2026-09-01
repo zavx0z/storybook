@@ -12,29 +12,11 @@ import {
 } from "node:fs"
 import {join, resolve} from "node:path"
 import {PNG} from "pngjs"
-
-export type StorybookCaptureArea = "page" | "workbench" | "preview" | "canvas" | "node"
-
-export type StorybookCaptureMetadata = Readonly<{
-  packageId: string
-  route: string
-  graphDigest: string
-  revision: string
-  area: StorybookCaptureArea
-  nodeId?: string
-  consoleErrors: readonly unknown[]
-}>
-
-export type StoredStorybookCapture = StorybookCaptureMetadata & Readonly<{
-  captureId: string
-  resourceUri: string
-  mimeType: "image/png"
-  width: number
-  height: number
-  bytes: number
-  sha256: string
-  capturedAt: string
-}>
+import type {
+  StoredStorybookCapture,
+  StorybookCaptureArea,
+  StorybookCaptureMetadata,
+} from "./contract.ts"
 
 export type StorybookCaptureStoreOptions = Readonly<{
   root: string

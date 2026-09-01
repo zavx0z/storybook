@@ -3,7 +3,7 @@ import type {
   ExternalStorybookController,
   StorybookCaptureResult,
   StorybookControllerResult,
-} from "../src/external/browser-control/types.ts"
+} from "../src/external/controller-contract.ts"
 import {registerStorybookResources, type StorybookControllerAccessor} from "./resources.ts"
 import {
   storybookAttachSchema,
@@ -42,7 +42,7 @@ export function createStorybookMcpServer(options: CreateStorybookMcpServerOption
     title: "Read Storybook status",
     description: "Read canonical server, registry, package-session and optional view state without starting it.",
     inputSchema: storybookStatusSchema,
-    annotations: {readOnlyHint: true, idempotentHint: true},
+    annotations: {idempotentHint: true},
   }, async (input, context) => invoke(controller, (value) => value.status(input, {signal: context.mcpReq.signal})))
 
   server.registerTool("storybook_attach", {

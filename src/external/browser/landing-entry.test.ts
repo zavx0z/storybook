@@ -23,11 +23,11 @@ import type {ExternalStorybookShellSpaceRuntimeFactory} from "./shell.ts"
 const fixtureRoot = join(import.meta.dir, "..", "fixtures", "valid")
 
 describe("external Storybook landing frontend", () => {
-  test("renders mixed roots, project packages, owner README and named package tabs without runtime code", async () => {
+  test("renders mixed roots, project packages, owner README and delegates package views to the lifecycle owner", async () => {
     const graph = await fixtureGraph()
     const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph))
     const requests: string[] = []
-    const opened: Array<Readonly<{url: string, name: string}>> = []
+    const opened: Array<Readonly<{packageId: string, route: string}>> = []
     const pushed: string[] = []
     const semanticDocument = createDocument()
     const location = {
@@ -37,16 +37,26 @@ describe("external Storybook landing frontend", () => {
     }
     const dataset: Record<string, string> = {}
     const controller = await startExternalStorybookLanding({
-      browserDocument: {documentElement: {dataset}} as unknown as globalThis.Document,
-      fetcher: (async (input) => {
+      browserDocument: {
+        documentElement: {dataset},
+        querySelector(selector: string) {
+          return selector === 'meta[name="external-storybook-browser-session"]'
+            ? {content: "landing-session"}
+            : null
+        },
+      } as unknown as globalThis.Document,
+      fetcher: (async (input, init) => {
         const url = String(input)
         requests.push(url)
         if (url === "/api/client") return Response.json(snapshot)
+        if (url === "/api/browser/open") {
+          opened.push(JSON.parse(String(init?.body)))
+          expect(init?.method).toBe("POST")
+          expect((init?.headers as Record<string, string>)["x-storybook-session"]).toBe("landing-session")
+          return Response.json({ok: true})
+        }
         return new Response(`# ${decodeURIComponent(url.split("/").filter(Boolean).at(-1) ?? "README")}`)
       }) as typeof fetch,
-      openWindow(url, name) {
-        opened.push({url, name})
-      },
       location,
       history: {
         pushState(_data, _unused, url) {
@@ -100,9 +110,10 @@ describe("external Storybook landing frontend", () => {
       .find((element) => element.nodeName === "BUTTON")
     expect(nestedAction?.textContent).toBe("Открыть Fixture Components")
     click(nestedAction)
+    await Promise.resolve()
     expect(opened.at(-1)).toEqual({
-      url: "/packages/%40fixture%2Fcomponents/",
-      name: "storybook:@fixture/components",
+      packageId: "@fixture/components",
+      route: "",
     })
 
     await controller.select("package:@fixture/standalone")
@@ -110,9 +121,10 @@ describe("external Storybook landing frontend", () => {
     const directAction = descendants(controller.shell.workbench.elements.previewHost)
       .find((element) => element.nodeName === "BUTTON")
     click(directAction)
+    await Promise.resolve()
     expect(opened.at(-1)).toEqual({
-      url: "/packages/%40fixture%2Fstandalone/",
-      name: "storybook:@fixture/standalone",
+      packageId: "@fixture/standalone",
+      route: "",
     })
 
     const source = await Bun.file(join(import.meta.dir, "landing-entry.ts")).text()
@@ -123,6 +135,8 @@ describe("external Storybook landing frontend", () => {
     expect(source).not.toContain("createElement(")
     expect(source).not.toContain("className")
     expect(source).not.toContain("external-storybook-action")
+    expect(source).not.toContain("globalThis.open")
+    expect(source).not.toContain("window.open")
     expect(view).toContain('from "../components/overview-action-button.tsx"')
     expect(view).not.toContain("actionStyle")
     controller.dispose()
