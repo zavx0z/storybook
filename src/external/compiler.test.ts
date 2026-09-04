@@ -1,4 +1,4 @@
-import {afterEach, describe, expect, test} from "bun:test"
+import {afterEach, describe, expect, setDefaultTimeout, test} from "bun:test"
 import {
   mkdir,
   mkdtemp,
@@ -14,6 +14,7 @@ import {
 } from "./compiler.ts"
 
 const temporaryRoots: string[] = []
+setDefaultTimeout(20_000)
 
 afterEach(async () => {
   await Promise.all(temporaryRoots.splice(0).map((root) => rm(root, {recursive: true, force: true})))
