@@ -353,6 +353,11 @@ Metafile-derived dependency index инвалидирует только sessions
 `package.failed`. Package tab слушает только свой authenticated ephemeral topic;
 landing получает registry и summary statuses.
 
+Файловое изменение автоматически пересобирает только PackageSession с живым
+subscriber её package tab. Неактивная session сохраняет lastWorking, повышает
+generation и откладывает compiler до следующего открытия. Explicit scoped
+check остаётся самостоятельным источником спроса и не является частью open.
+
 Runtime operations сериализованы: create → unmount → mount/update → present →
 dispose. Abort pending navigation/create не позволяет поздней session утечь;
 dispose idempotent и завершается до shell cleanup.

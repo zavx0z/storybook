@@ -274,6 +274,11 @@ sessions. Без lastWorking только affected preview показывает 
 Changed canonical realpath invalidates only sessions whose metafile graph его
 содержит. Package success/failure WebSocket events всегда содержат packageId.
 Affected tab сохраняет текущий route; unrelated tabs/global shell не reload.
+Автоматическая пересборка запускается только для package с живым subscriber
+его отдельной вкладки. Ранее собранный, но больше не просматриваемый package
+только помечает новое generation и собирает последнюю версию при следующем
+open/subscribe. Явный `check` своего scope остаётся отдельным безусловным
+запросом сборки.
 
 ### `STORYBOOK-SESSION-004` — exact revision graph
 
@@ -464,6 +469,8 @@ Server startup/landing не собирает и не загружает all stor
 Variant остаётся unloaded, пока не выбрана exact leaf либо её bounded subtree не
 открыт как category/subject aggregate. Clean session не rebuild-ится,
 declaration metadata bounded, hidden catalog rows не eager materialize.
+Attach, refresh, status и search не создают спрос на compiler; такой спрос
+создают только exact package view либо явно вызванный check.
 
 ### `STORYBOOK-REVISION-001` — immutable artifacts
 

@@ -237,10 +237,11 @@ export class StorybookPackageSession {
       throw new Error(`Cannot reconfigure Storybook package identity ${this.packageId} as ${next.packageId}`)
     }
     if (sameDescriptor(this.#descriptor, next)) return false
-    const shouldBuild = this.#builds > 0 || this.#runner !== null || this.#failedRevision !== null
+    const hasSubscribers = this.#subscribers > 0
     this.#descriptor = next
-    this.#advanceGeneration("Storybook package reconfigured")
-    if (shouldBuild) void this.ensureBuilt()
+    this.#cancelRebuildTimer()
+    this.#advanceGeneration("Storybook package reconfigured", hasSubscribers)
+    if (hasSubscribers) this.#requestCurrentGeneration()
     return true
   }
 
@@ -272,12 +273,15 @@ export class StorybookPackageSession {
 
   subscribe(): () => void {
     this.#assertActive()
+    const wasInactive = this.#subscribers === 0
     this.#subscribers += 1
+    if (wasInactive) this.#requestCurrentGeneration()
     let subscribed = true
     return () => {
       if (!subscribed) return
       subscribed = false
       this.#subscribers = Math.max(0, this.#subscribers - 1)
+      if (this.#subscribers === 0) this.#cancelRebuildTimer()
     }
   }
 
@@ -294,16 +298,18 @@ export class StorybookPackageSession {
 
   async ensureBuilt(): Promise<StorybookPackageSessionSnapshot> {
     this.#assertActive()
-    const target = this.#generation
-    const existing = this.#revisionForGeneration(target)
-    if (existing !== null && existing.status !== "failed") return this.snapshot()
-    if (this.#completedGeneration >= target && this.#failedRevision !== null) return this.snapshot()
-    this.#requestedGeneration = Math.max(this.#requestedGeneration, target)
-    this.#startRunner()
-    while (!this.#disposed && this.#completedGeneration < target) {
-      const runner = this.#runner
-      if (runner === null) break
-      await runner
+    while (!this.#disposed) {
+      const target = this.#generation
+      const existing = this.#revisionForGeneration(target)
+      if (existing !== null && existing.status !== "failed") return this.snapshot()
+      if (this.#completedGeneration >= target && this.#failedRevision !== null) return this.snapshot()
+      this.#requestCurrentGeneration()
+      while (!this.#disposed && this.#completedGeneration < target) {
+        const runner = this.#runner
+        if (runner === null) break
+        await runner
+      }
+      if (target === this.#generation) return this.snapshot()
     }
     return this.snapshot()
   }
@@ -314,11 +320,13 @@ export class StorybookPackageSession {
     const declared = declaredPaths(this.descriptor)
     const dependencies = new Set([...this.#revisions.values()].flatMap(({dependencyRealpaths}) => dependencyRealpaths))
     if (!dependencies.has(canonical) && !declared.has(canonical)) return false
-    this.#advanceGeneration(`Storybook dependency changed: ${canonical}`)
-    if (this.#rebuildTimer !== null) clearTimeout(this.#rebuildTimer)
+    const hasSubscribers = this.#subscribers > 0
+    this.#advanceGeneration(`Storybook dependency changed: ${canonical}`, hasSubscribers)
+    this.#cancelRebuildTimer()
+    if (!hasSubscribers) return true
     this.#rebuildTimer = setTimeout(() => {
       this.#rebuildTimer = null
-      if (!this.#disposed) void this.ensureBuilt()
+      if (!this.#disposed && this.#subscribers > 0) this.#requestCurrentGeneration()
     }, this.#rebuildDelayMs)
     return true
   }
@@ -469,8 +477,7 @@ export class StorybookPackageSession {
   dispose(): Promise<void> {
     if (this.#disposePromise !== null) return this.#disposePromise
     this.#disposed = true
-    if (this.#rebuildTimer !== null) clearTimeout(this.#rebuildTimer)
-    this.#rebuildTimer = null
+    this.#cancelRebuildTimer()
     this.#cancelActivation()
     this.#runningBuild?.controller.abort(storybookAbortError("Storybook package detached"))
     this.#subscribers = 0
@@ -496,6 +503,11 @@ export class StorybookPackageSession {
       if (!this.#disposed && this.#requestedGeneration > this.#completedGeneration) this.#startRunner()
     })
     this.#runner = runner
+  }
+
+  #requestCurrentGeneration(): void {
+    this.#requestedGeneration = Math.max(this.#requestedGeneration, this.#generation)
+    this.#startRunner()
   }
 
   async #runBuildQueue(): Promise<void> {
@@ -576,18 +588,40 @@ export class StorybookPackageSession {
         type: "package.failed", packageId: this.packageId, revision: candidate, diagnostics,
       }))
     } finally {
-      if (this.#runningBuild?.generation === generation) this.#runningBuild = null
+      const ownsRunningBuild = this.#runningBuild?.generation === generation
+      if (ownsRunningBuild) this.#runningBuild = null
       if (this.#candidateRevision === candidate) this.#candidateRevision = null
+      if (ownsRunningBuild && this.#buildState === "building") this.#restoreSettledBuildState()
     }
   }
 
-  #advanceGeneration(reason: string): void {
+  #advanceGeneration(reason: string, cancelRunningBuild = true): void {
     this.#generation += 1
-    this.#requestedGeneration = Math.max(this.#requestedGeneration, this.#generation)
-    this.#runningBuild?.controller.abort(storybookAbortError(reason))
+    if (cancelRunningBuild) this.#runningBuild?.controller.abort(storybookAbortError(reason))
     this.#cancelActivation()
     if (this.#builtRevision !== null && this.#record(this.#builtRevision)?.generation !== this.#generation) {
       this.#builtRevision = null
+    }
+  }
+
+  #cancelRebuildTimer(): void {
+    if (this.#rebuildTimer !== null) clearTimeout(this.#rebuildTimer)
+    this.#rebuildTimer = null
+  }
+
+  #restoreSettledBuildState(): void {
+    if (this.#disposed) return
+    if (this.#activatingRevision !== null) {
+      this.#buildState = "activating"
+    } else if (this.#builtRevision !== null) {
+      this.#buildState = "built"
+    } else if (this.#failedRevision !== null &&
+      this.#record(this.#failedRevision)?.generation === this.#generation) {
+      this.#buildState = "failed"
+    } else if (this.#activeRevision !== null) {
+      this.#buildState = "active"
+    } else {
+      this.#buildState = "idle"
     }
   }
 

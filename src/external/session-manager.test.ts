@@ -38,12 +38,16 @@ describe("external Storybook PackageSession manager", () => {
     await Bun.sleep(15)
     expect(manager.snapshots()).toHaveLength(1)
     expect(manager.snapshots()[0]?.declarationDigest).toBe("a-next")
+    expect(manager.snapshots()[0]?.builds).toBe(1)
     expect(events.some(({type, packageId}) =>
       type === "package.detached" && packageId === "@fixture/b")).toBeTrue()
+    const unsubscribe = aSession.subscribe()
+    await waitFor(() => aSession.snapshot().builds === 2 && aSession.snapshot().buildState === "built")
+    unsubscribe()
     await manager.dispose()
   })
 
-  test("shared dependency invalidates A and B but not C", async () => {
+  test("shared dependency rebuilds only subscribed packages and inactive package catches up on subscribe", async () => {
     const root = fixtureRoot()
     const shared = join(root, "shared.ts")
     writeFileSync(shared, "export const shared = true\n")
@@ -59,11 +63,21 @@ describe("external Storybook PackageSession manager", () => {
     })
     manager.sync([descriptor(root, "a"), descriptor(root, "b"), descriptor(root, "c")])
     await Promise.all([manager.ensure("@fixture/a"), manager.ensure("@fixture/b")])
+    const a = manager.session("@fixture/a")
+    const b = manager.session("@fixture/b")
+    const unsubscribeA = a.subscribe()
     expect(manager.notifyDependency(shared)).toBe(2)
+    await waitFor(() => a.snapshot().builds === 2 && a.snapshot().buildState === "built")
     await Bun.sleep(15)
-    expect(manager.session("@fixture/a").snapshot().builds).toBe(2)
-    expect(manager.session("@fixture/b").snapshot().builds).toBe(2)
+    expect(a.snapshot().builds).toBe(2)
+    expect(b.snapshot()).toMatchObject({subscribers: 0, generation: 2, builds: 1})
     expect(manager.session("@fixture/c").snapshot().builds).toBe(0)
+
+    const unsubscribeB = b.subscribe()
+    await waitFor(() => b.snapshot().builds === 2 && b.snapshot().buildState === "built")
+    expect(b.snapshot().revisions?.at(-1)?.generation).toBe(2)
+    unsubscribeA()
+    unsubscribeB()
     await manager.dispose()
   })
 
@@ -295,4 +309,12 @@ function fixtureRoot(): string {
   const root = mkdtempSync(join(tmpdir(), "storybook-session-manager-"))
   roots.push(root)
   return root
+}
+
+async function waitFor(predicate: () => boolean, timeoutMs = 1_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (!predicate()) {
+    if (Date.now() >= deadline) throw new Error("Timed out waiting for Storybook session manager state")
+    await Bun.sleep(5)
+  }
 }

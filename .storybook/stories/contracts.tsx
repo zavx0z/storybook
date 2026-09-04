@@ -88,14 +88,14 @@ const contracts = Object.freeze({
   ),
   build: contract(
     "Independent PackageSession",
-    "Each package has a serial queue, isolated candidate, immutable built revision, exact graph snapshot, activation lease and lastWorking diagnostics.",
-    "Only browser-acknowledged create → mount → presented frame promotes active/lastWorking. A failed candidate never cancels successful peers.",
+    "Each package has a serial queue, isolated candidate, immutable built revision, exact graph snapshot, activation lease and lastWorking diagnostics. Automatic rebuild runs only while the package has a live view subscriber.",
+    "An inactive package records its latest generation without compiling and catches up when its first view subscribes. Only browser-acknowledged create → mount → presented frame promotes active/lastWorking; a failed candidate never cancels successful peers.",
     "candidate → built → activating → active/lastWorking",
   ),
   environment: contract(
     "Package-scoped updates",
     "Metafile identities and typed declaration/code/metadata/resource watchers invalidate only their owning sessions; local README assets are allowlisted and watched explicitly.",
-    "Package-scoped events reload only matching views; package.failed preserves route and lastWorking presentation.",
+    "Package-scoped events reload only matching subscribed views; an inactive package preserves lastWorking without starting a rebuild. package.failed preserves route and lastWorking presentation.",
     "package.code-updated | package.resources-updated | package.metadata-updated | package.updated",
   ),
 })

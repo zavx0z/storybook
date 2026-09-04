@@ -128,7 +128,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     expect(session.retryFailed()).toBeFalse()
   })
 
-  test("coalesces one generation and cancels a superseded build before building latest", async () => {
+  test("coalesces one active generation and cancels its superseded build before building latest", async () => {
     const root = fixtureRoot("queue")
     let calls = 0
     let firstStarted!: () => void
@@ -143,6 +143,7 @@ describe("working Storybook PackageSession lifecycle", () => {
       }
       return successfulBuild(input.stagingDirectory)
     }, [])
+    const unsubscribe = session.subscribe()
     const first = session.ensureBuilt()
     const duplicate = session.ensureBuilt()
     await started
@@ -153,6 +154,157 @@ describe("working Storybook PackageSession lifecycle", () => {
     expect(session.snapshot().generation).toBe(2)
     expect(session.snapshot().buildState).toBe("built")
     expect(session.snapshot().revisions?.at(-1)?.declarationDigest).toBe("digest-two")
+    unsubscribe()
+  })
+
+  test("keeps inactive reconfigure stale until the first subscriber requests its latest generation", async () => {
+    const root = fixtureRoot("inactive-reconfigure")
+    const builtDigests: string[] = []
+    const session = createSession(descriptor(root, "@fixture/a", "one"), async (input) => {
+      builtDigests.push(input.descriptor.declarationDigest)
+      return successfulBuild(input.stagingDirectory)
+    }, [])
+    await session.ensureBuilt()
+
+    session.reconfigure(descriptor(root, "@fixture/a", "two"))
+    await Bun.sleep(20)
+    expect(session.snapshot()).toMatchObject({
+      subscribers: 0,
+      generation: 2,
+      builds: 1,
+    })
+    expect(builtDigests).toEqual(["digest-one"])
+
+    const unsubscribe = session.subscribe()
+    await waitFor(() => session.snapshot().builds === 2 && session.snapshot().buildState === "built")
+    expect(builtDigests).toEqual(["digest-one", "digest-two"])
+    expect(session.snapshot().revisions?.at(-1)?.generation).toBe(2)
+    unsubscribe()
+  })
+
+  test("does not restart a failed package while it has no subscribers", async () => {
+    const root = fixtureRoot("inactive-failure")
+    const session = createSession(descriptor(root, "@fixture/a", "one"), async (input) => {
+      throw storybookBuildError(storybookDiagnostic("compile", "broken fixture", input.descriptor.runtime!.path))
+    }, [])
+    await session.ensureBuilt()
+    expect(session.snapshot()).toMatchObject({subscribers: 0, builds: 1, buildState: "failed"})
+
+    session.reconfigure(descriptor(root, "@fixture/a", "two"))
+    await Bun.sleep(20)
+    expect(session.snapshot()).toMatchObject({subscribers: 0, generation: 2, builds: 1})
+
+    expect(session.invalidate(session.descriptor.variants[0]!.module.path)).toBeTrue()
+    await Bun.sleep(20)
+    expect(session.snapshot()).toMatchObject({subscribers: 0, generation: 3, builds: 1})
+  })
+
+  test("recovers a subscribed package after the next invalidation fixes its failed generation", async () => {
+    const root = fixtureRoot("active-failure-recovery")
+    let fail = false
+    const session = createSession(descriptor(root, "@fixture/a"), async (input) => {
+      if (fail) {
+        throw storybookBuildError(storybookDiagnostic("compile", "broken fixture", input.descriptor.runtime!.path))
+      }
+      return successfulBuild(input.stagingDirectory)
+    }, [])
+    const unsubscribe = session.subscribe()
+    await waitFor(() => session.snapshot().buildState === "built")
+    const source = session.descriptor.variants[0]!.module.path
+
+    fail = true
+    expect(session.invalidate(source)).toBeTrue()
+    await waitFor(() => session.snapshot().buildState === "failed")
+    fail = false
+    expect(session.invalidate(source)).toBeTrue()
+    await waitFor(() => session.snapshot().buildState === "built" && session.snapshot().builds === 3)
+    expect(session.snapshot().diagnostics).toEqual([])
+    unsubscribe()
+  })
+
+  test("keeps inactive invalidation stale and cancels its pending rebuild when the last subscriber leaves", async () => {
+    const root = fixtureRoot("inactive-invalidation")
+    const session = createSession(
+      descriptor(root, "@fixture/a"),
+      successfulBuilder(),
+      [],
+      {rebuildDelayMs: 40},
+    )
+    const unsubscribeFirst = session.subscribe()
+    await waitFor(() => session.snapshot().builds === 1 && session.snapshot().buildState === "built")
+    const source = session.descriptor.variants[0]!.module.path
+
+    expect(session.invalidate(source)).toBeTrue()
+    unsubscribeFirst()
+    await Bun.sleep(80)
+    expect(session.snapshot()).toMatchObject({subscribers: 0, generation: 2, builds: 1})
+
+    expect(session.invalidate(source)).toBeTrue()
+    await Bun.sleep(80)
+    expect(session.snapshot()).toMatchObject({subscribers: 0, generation: 3, builds: 1})
+
+    const unsubscribeLatest = session.subscribe()
+    await waitFor(() => session.snapshot().builds === 2 && session.snapshot().buildState === "built")
+    expect(session.snapshot().revisions?.at(-1)?.generation).toBe(3)
+    unsubscribeLatest()
+  })
+
+  test("does not cancel an already running build when its last subscriber leaves", async () => {
+    const root = fixtureRoot("inactive-running-subscriber")
+    let releaseBuild!: () => void
+    let markStarted!: () => void
+    let aborted = false
+    const started = new Promise<void>((resolvePromise) => { markStarted = resolvePromise })
+    const released = new Promise<void>((resolvePromise) => { releaseBuild = resolvePromise })
+    const session = createSession(descriptor(root, "@fixture/a"), async (input) => {
+      input.signal.addEventListener("abort", () => { aborted = true }, {once: true})
+      markStarted()
+      await released
+      return successfulBuild(input.stagingDirectory)
+    }, [])
+
+    const unsubscribe = session.subscribe()
+    await started
+    unsubscribe()
+    expect(session.snapshot().subscribers).toBe(0)
+    expect(aborted).toBeFalse()
+    releaseBuild()
+    await waitFor(() => session.snapshot().buildState === "built")
+    expect(aborted).toBeFalse()
+    expect(session.snapshot().builds).toBe(1)
+  })
+
+  test("does not cancel an inactive running build and lets explicit ensure reach the latest generation", async () => {
+    const root = fixtureRoot("inactive-running")
+    let releaseBuild!: () => void
+    let markStarted!: () => void
+    let aborted = false
+    const started = new Promise<void>((resolvePromise) => { markStarted = resolvePromise })
+    const released = new Promise<void>((resolvePromise) => { releaseBuild = resolvePromise })
+    const builtDigests: string[] = []
+    const session = createSession(descriptor(root, "@fixture/a", "one"), async (input) => {
+      builtDigests.push(input.descriptor.declarationDigest)
+      input.signal.addEventListener("abort", () => { aborted = true }, {once: true})
+      markStarted()
+      await released
+      return successfulBuild(input.stagingDirectory)
+    }, [])
+
+    const initial = session.ensureBuilt()
+    await started
+    session.reconfigure(descriptor(root, "@fixture/a", "two"))
+    expect(aborted).toBeFalse()
+    releaseBuild()
+    await initial
+    expect(aborted).toBeFalse()
+    expect(builtDigests).toEqual(["digest-one", "digest-two"])
+    expect(session.snapshot()).toMatchObject({
+      subscribers: 0,
+      generation: 2,
+      builds: 2,
+      buildState: "built",
+    })
+    expect(session.snapshot().revisions?.at(-1)?.generation).toBe(2)
   })
 
   test("detach aborts exact build and dispose is idempotent", async () => {
@@ -246,7 +398,7 @@ function createSession(
   value: StorybookPackageBuildDescriptor,
   buildRevision: StorybookPackageRevisionBuilder,
   events: StorybookPackageEvent[],
-  overrides: Readonly<{retainedRevisionLimit?: number}> = {},
+  overrides: Readonly<{retainedRevisionLimit?: number, rebuildDelayMs?: number}> = {},
 ): StorybookPackageSession {
   return new StorybookPackageSession(value, {
     artifactRoot: join(value.projectRoot, ".artifacts"),
@@ -255,6 +407,14 @@ function createSession(
     publish: (event) => events.push(event),
     ...overrides,
   })
+}
+
+async function waitFor(predicate: () => boolean, timeoutMs = 1_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (!predicate()) {
+    if (Date.now() >= deadline) throw new Error("Timed out waiting for Storybook package session state")
+    await Bun.sleep(5)
+  }
 }
 
 function descriptor(root: string, packageId: string, version = "one"): StorybookPackageBuildDescriptor {
