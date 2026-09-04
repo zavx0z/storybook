@@ -376,8 +376,11 @@ Public `origin` аналогично является HMAC identity, приго�
 Private browser lifecycle owner говорит с Chrome по direct CDP; MCP лишь
 делегирует ему opaque operation. `ai-macos`, `@meta/chrome` и browser CLI не
 используются. `Target.createTarget` всегда получает `background: true`;
-lifecycle owner не отправляет target activation, `bringToFront` или focus
-emulation. Небраузерные lifecycle/query operations не требуют CDP.
+MCP/CLI open не отправляет target activation. Только аутентифицированное
+действие человека на landing после exact attestation может вызвать
+`Target.activateTarget` для уже выбранной package tab. `bringToFront`, focus
+emulation и OS focus не используются. Небраузерные lifecycle/query operations
+не требуют CDP.
 
 Package-tab agent bridge проецирует существующий semantic Document, Workbench
 identities и current renderer frame. Он не создаёт второе дерево и не принимает

@@ -607,6 +607,8 @@ describe("one external Storybook server", () => {
     expect(lifecycle.opened).toHaveLength(2)
     expect(new Set(lifecycle.opened.map(({packageId}) => packageId)))
       .toEqual(new Set(["@fixture/standalone"]))
+    expect(lifecycle.opened.filter(({foreground}) => foreground)).toHaveLength(1)
+    expect(lifecycle.opened.filter(({foreground}) => !foreground)).toHaveLength(1)
     expect(await controlGet(running, `/api/control/views/${encodeURIComponent(lifecycle.viewId)}`))
       .toMatchObject({
         ok: true,
@@ -682,13 +684,17 @@ describe("one external Storybook server", () => {
 function fakeBrowserLifecycle(): Readonly<{
   service: StorybookBrowserLifecycle
   viewId: string
-  opened: Array<Readonly<{packageId: string; route: string}>>
+  opened: Array<Readonly<{packageId: string; route: string; foreground: boolean}>>
 }> {
   const viewId = `storybook-view-v1_${"a".repeat(43)}`
-  const opened: Array<Readonly<{packageId: string; route: string}>> = []
+  const opened: Array<Readonly<{packageId: string; route: string; foreground: boolean}>> = []
   const service: StorybookBrowserLifecycle = {
     async openPackage(input) {
-      opened.push(Object.freeze({packageId: input.packageId, route: input.route}))
+      opened.push(Object.freeze({
+        packageId: input.packageId,
+        route: input.route,
+        foreground: input.foreground === true,
+      }))
       return Object.freeze({
         view: Object.freeze({
           viewId,

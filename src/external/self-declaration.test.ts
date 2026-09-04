@@ -92,8 +92,10 @@ describe("external Storybook self declaration", () => {
         .toContain("StorybookBrowserLifecycle")
       expect(presentation.element.textContent)
         .toContain("Duplicate logical state is unrepresentable")
+      expect(presentation.element.textContent).toContain("foreground: true")
+      expect(presentation.element.textContent).toContain("CLI and MCP remain background-only")
       expect(presentation.source.typescript).toContain("openPackage")
-      expect(presentation.source.typescript).toContain("one reservation → one owned target → one viewId")
+      expect(presentation.source.typescript).toContain("human landing action only")
     } finally {
       presentation.dispose()
     }

@@ -105,7 +105,9 @@ Legacy confirmed duplicates являются recovery input, а не допус�
 state: owner нормализует их под package lock до публикации view и повторно
 аттестует obsolete target перед close. Foreign/user tabs остаются
 неприкосновенными. Новый target создаётся только в background; Storybook не
-активирует Chrome и не зависит от `ai-macos`, `@meta/chrome` или browser CLI.
+активирует Chrome при CLI/MCP open и не зависит от `ai-macos`, `@meta/chrome`
+или browser CLI. Аутентифицированное нажатие человека на landing после всех
+проверок активирует exact существующую package tab через lifecycle owner.
 
 CLI ниже остаётся только human/diagnostic adapter:
 

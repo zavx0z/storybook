@@ -63,8 +63,8 @@ const contracts = Object.freeze({
   browserLifecycle: contract(
     "One logical target per package",
     "The private StorybookBrowserLifecycle package owner holds one tagged absent | reserved | owned target state for each exact packageId. Reservation precedes target creation, so repeated, concurrent and recovered opens reuse one operation and one opaque view identity; route and server origin only navigate that target.",
-    "Landing, CLI and MCP call the same openPackage application command and never open a tab independently. Duplicate logical state is unrepresentable. Attested legacy physical duplicates are recovery-only and are normalized under the package lock before publication; foreign or navigated-away user targets remain untouched.",
-    "await browserLifecycle.openPackage({packageId: \"@ui/components\", route})\n// concurrent calls → one reservation → one owned target → one viewId",
+    "Landing, CLI and MCP call the same openPackage application command and never open a tab independently. Duplicate logical state is unrepresentable. Only an authenticated human action in landing may pass `foreground: true` after exact target re-attestation; CLI and MCP remain background-only. Foreign or navigated-away user targets remain untouched.",
+    "await browserLifecycle.openPackage({packageId: \"@zavx0z/ui\", route, foreground: true})\n// human landing action only; CLI and MCP omit foreground",
   ),
   launcher: contract(
     "MCP and human adapters",
@@ -77,7 +77,7 @@ const contracts = Object.freeze({
       "storybook status",
       "storybook check @ui/components",
       "storybook stop",
-      "background direct CDP; no Chrome activation, ai-macos, @meta/chrome or browser CLI",
+      "MCP and CLI stay background; only authenticated landing may request foreground",
     ].join("\n"),
   ),
   scaffold: contract(

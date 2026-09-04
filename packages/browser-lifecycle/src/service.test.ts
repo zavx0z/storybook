@@ -33,6 +33,7 @@ describe("Storybook browser lifecycle service", () => {
     expect(JSON.stringify(first.view)).not.toContain("43123")
     expect(first.view).not.toHaveProperty("origin")
     expect(first.view).not.toHaveProperty("url")
+    expect(chrome.activated).toEqual([])
   })
 
   test("adopts an attested package target from the previous server origin", async () => {
@@ -60,10 +61,16 @@ describe("Storybook browser lifecycle service", () => {
       {targetId: "OLD_A", type: "page", title: "A", url: "http://127.0.0.1:41000/packages/%40fixture%2Fa/fixture/a/default"},
       {targetId: "OLD_B", type: "page", title: "B", url: "http://127.0.0.1:42000/packages/%40fixture%2Fa/fixture/a/default"},
     ]
-    const opened = await createController(chrome).openPackage(openInput(chrome))
+    const opened = await createController(chrome).openPackage({...openInput(chrome), foreground: true})
 
     expect(opened.reused).toBeTrue()
     expect(chrome.closed).toEqual(["OLD_B"])
+    expect(chrome.activated).toEqual(["OLD_A"])
+    const closeIndex = chrome.targetOperations.indexOf("close:OLD_B")
+    const activateIndex = chrome.targetOperations.indexOf("activate:OLD_A")
+    expect(closeIndex).toBeGreaterThanOrEqual(0)
+    expect(activateIndex).toBeGreaterThan(closeIndex)
+    expect(chrome.targetOperations.slice(closeIndex + 1, activateIndex)).toContain("identity:OLD_A")
     expect(chrome.targetsValue).toEqual([expect.objectContaining({targetId: "OLD_A"})])
   })
 
@@ -439,7 +446,9 @@ describe("Storybook browser lifecycle service", () => {
       packageId: "@fixture/a",
       route: "fixture/a/default",
       url: `${chrome.origin}/packages/%40fixture%2Fa/fixture/a/default`,
+      foreground: true,
     })).rejects.toThrow("window.name")
+    expect(chrome.activated).toEqual([])
   })
 
   test("waits for the package bridge after document readiness", async () => {
@@ -514,6 +523,8 @@ class FakeChrome implements StorybookChromeClient {
   readonly titleOnlyTargetIds = new Set<string>()
   readonly unavailableDiagnosticsTargetIds = new Set<string>()
   readonly closed: string[] = []
+  readonly activated: string[] = []
+  readonly targetOperations: string[] = []
   created = 0
   lastClip: unknown
   invalidIdentity = false
@@ -559,8 +570,13 @@ class FakeChrome implements StorybookChromeClient {
     this.targetsValue.push(this.pendingTarget)
     this.pendingTarget = null
   }
+  async activateTarget(targetId: string): Promise<void> {
+    this.activated.push(targetId)
+    this.targetOperations.push(`activate:${targetId}`)
+  }
   async closeTarget(targetId: string): Promise<void> {
     this.closed.push(targetId)
+    this.targetOperations.push(`close:${targetId}`)
     this.targetsValue = this.targetsValue.filter((target) => target.targetId !== targetId)
   }
   async navigate(_targetId: string, url: string): Promise<void> {
@@ -629,6 +645,7 @@ class FakeChrome implements StorybookChromeClient {
     }
     if (method === "identity") {
       this.identityCalls += 1
+      this.targetOperations.push(`identity:${targetId}`)
       if (this.identityCalls <= this.unavailableBridgeCalls) {
         throw new Error("Storybook agent bridge is unavailable in the exact target")
       }

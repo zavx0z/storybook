@@ -209,7 +209,12 @@ export async function startExternalStorybookServer(
   }
 
   const openPackageView = async (
-    input: Readonly<{packageId: string; route: string; timeoutMs?: number}>,
+    input: Readonly<{
+      packageId: string
+      route: string
+      timeoutMs?: number
+      foreground?: boolean
+    }>,
     signal: AbortSignal,
   ): Promise<Readonly<Record<string, unknown>>> => {
     await mutateRegistry(() => registry.refresh())
@@ -233,6 +238,7 @@ export async function startExternalStorybookServer(
       packageLabel: externalStorybookPageTitle(packageNode.packageId, packageNode.label),
       ...(input.timeoutMs === undefined ? {} : {timeoutMs: input.timeoutMs}),
       ...(expectedRevision === undefined ? {} : {expectedRevision}),
+      ...(input.foreground === undefined ? {} : {foreground: input.foreground}),
     }
     let opened
     try {
@@ -247,6 +253,7 @@ export async function startExternalStorybookServer(
         url: new URL(resolvedRoute.urlPath, server.url).href,
         packageLabel: externalStorybookPageTitle(packageNode.packageId, packageNode.label),
         ...(input.timeoutMs === undefined ? {} : {timeoutMs: input.timeoutMs}),
+        ...(input.foreground === undefined ? {} : {foreground: input.foreground}),
       }, signal)
     }
     const candidateMatches = expectedRevision === undefined || opened.identity.revision === expectedRevision
@@ -485,7 +492,7 @@ export async function startExternalStorybookServer(
           const route = body.route === undefined || body.route === ""
             ? ""
             : requiredText("open route", body.route)
-          const result = await openPackageView({packageId, route}, request.signal)
+          const result = await openPackageView({packageId, route, foreground: true}, request.signal)
           const {package: _package, ...browserResult} = result
           return responseJson(browserResult)
         }

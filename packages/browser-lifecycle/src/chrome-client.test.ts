@@ -57,6 +57,22 @@ describe("Storybook direct CDP client", () => {
     expect(cdp.commands.map(({method}) => method)).not.toContain("Emulation.setFocusEmulationEnabled")
   })
 
+  test("activates only the exact target through the browser CDP domain", async () => {
+    const cdp = new FakeCdp()
+    cdp.targets.push(cdp.target("TARGET_A", "http://127.0.0.1:43123/packages/a/"))
+    const client = cdp.client()
+
+    await client.activateTarget("TARGET_A")
+
+    expect(cdp.commands.find(({method}) => method === "Target.activateTarget")).toEqual({
+      socket: "browser",
+      method: "Target.activateTarget",
+      params: {targetId: "TARGET_A"},
+    })
+    expect(cdp.commands.map(({method}) => method)).not.toContain("Page.bringToFront")
+    expect(cdp.commands.map(({method}) => method)).not.toContain("Emulation.setFocusEmulationEnabled")
+  })
+
   test("finishes an already-sent create command after caller cancellation", async () => {
     const cdp = new FakeCdp()
     cdp.responseDelayMs = 50

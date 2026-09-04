@@ -32,6 +32,7 @@ export type StorybookBrowserOpenInput = Readonly<{
   packageLabel?: string
   timeoutMs?: number
   expectedRevision?: string
+  foreground?: boolean
 }>
 
 export type StorybookBrowserCaptureResult = StoredStorybookCapture & Readonly<{
@@ -112,6 +113,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
     const packageId = exactPackageId(input.packageId)
     const route = exactRoute(input.route)
     const url = exactPackageUrl(input.url, origin, packageId, route)
+    const foreground = optionalBoolean(input.foreground, "Storybook foreground open")
     const timeoutMs = boundedTimeout(input.timeoutMs ?? 30_000)
     const timeout = AbortSignal.timeout(timeoutMs)
     const operationSignal = signal === undefined ? timeout : AbortSignal.any([signal, timeout])
@@ -121,7 +123,15 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
       timeoutMs,
       signal: operationSignal,
       ...(this.#processStart === undefined ? {} : {processStart: this.#processStart}),
-    }, () => this.#openLocked({...input, origin, packageId, route, url, timeoutMs}, operationSignal))
+    }, () => this.#openLocked({
+      ...input,
+      origin,
+      packageId,
+      route,
+      url,
+      timeoutMs,
+      foreground,
+    }, operationSignal))
   }
 
   async #openLocked(
@@ -131,6 +141,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
       route: string
       url: string
       timeoutMs: number
+      foreground: boolean
     }>,
     operationSignal: AbortSignal,
   ): Promise<Readonly<{
@@ -138,7 +149,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
     identity: StorybookBridgeIdentity
     reused: boolean
   }>> {
-    const {origin, packageId, route, url, timeoutMs} = input
+    const {origin, packageId, route, url, timeoutMs, foreground} = input
     await this.#chrome.health(operationSignal)
     let targets = await this.#chrome.targets(operationSignal)
     const cdpOrigin = await this.#chrome.cdpOrigin(operationSignal)
@@ -232,6 +243,11 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
     if (current === undefined || new URL(current.url).origin !== origin) {
       throw new Error(`Storybook target did not become the exact package view for ${packageId}`)
     }
+    if (foreground && (packageTargetIdentity(current.url)?.packageId !== packageId ||
+      !await this.#attestsPackage(current, packageId, operationSignal, input.packageLabel))) {
+      throw new Error(`Storybook foreground package target attestation is indeterminate: ${packageId}`)
+    }
+    if (foreground) await this.#chrome.activateTarget(current.targetId, operationSignal)
     const view = this.#views.register(current, origin)
     return Object.freeze({
       view,
@@ -675,6 +691,12 @@ function loopbackOrigin(value: string): string {
     throw new Error(`Storybook origin must be loopback HTTP: ${value}`)
   }
   return url.origin
+}
+
+function optionalBoolean(value: unknown, label: string): boolean {
+  if (value === undefined) return false
+  if (typeof value !== "boolean") throw new TypeError(`${label} must be a boolean`)
+  return value
 }
 
 function packageTargetIdentity(value: string): Readonly<{packageId: string; route: string}> | null {

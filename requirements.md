@@ -366,7 +366,10 @@ Landing action, CLI и MCP вызывают один typed application command
 `@zavx0z/storybook-browser-lifecycle`. Direct `window.open`/`globalThis.open`,
 named-tab fallback и server event, поручающий landing самостоятельно создать
 package tab, запрещены. Разные routes последовательно навигируют тот же target
-и сохраняют его opaque view identity.
+и сохраняют его opaque view identity. Только подтверждённое действие человека
+на landing после readiness, duplicate normalization и повторной target
+аттестации активирует exact package tab. CLI, MCP и другие автоматические
+вызовы не меняют активную вкладку.
 
 ### `STORYBOOK-BROWSER-003` — recovery is not normal deduplication
 
@@ -414,9 +417,11 @@ MCP не владеет target records, reservations, discovery или reconcili
 вызывает общий `openPackage` и публикует только result nested lifecycle owner.
 Смена server origin сохраняет тот же lifecycle target и opaque view identity;
 duplicate package view не является representable MCP state.
-Создание target — background-only; активация Chrome, OS focus, `ai-macos`,
-`@meta/chrome` и browser CLI как runtime dependency запрещены. Ensure, attach,
-search и `check(live:false)` не требуют доступного CDP.
+Создание target — background-only. MCP/CLI open не активирует Chrome; только
+аутентифицированное действие человека на landing может передать явное
+`foreground` намерение lifecycle owner. OS focus, `ai-macos`, `@meta/chrome` и
+browser CLI как runtime dependency запрещены. Ensure, attach, search и
+`check(live:false)` не требуют доступного CDP.
 
 ### `STORYBOOK-MCP-005` — semantic bridge
 

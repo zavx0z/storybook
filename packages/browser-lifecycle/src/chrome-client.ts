@@ -109,6 +109,12 @@ export class StorybookCdpClient implements StorybookChromeClient {
     }
   }
 
+  async activateTarget(targetId: string, signal?: AbortSignal): Promise<void> {
+    await this.#withBrowser((connection) => connection.command("Target.activateTarget", {
+      targetId: exactTargetId(targetId),
+    }, {signal, timeoutMs: 5_000}), signal)
+  }
+
   async closeTarget(targetId: string, signal?: AbortSignal): Promise<void> {
     const result = await this.#withBrowser((connection) => connection.command("Target.closeTarget", {
       targetId: exactTargetId(targetId),
