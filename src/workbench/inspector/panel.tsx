@@ -1,8 +1,8 @@
 import {
   Inspector,
   type InspectorCategory,
-} from "@ui/components/inspector"
-import {resourceIcon} from "@ui/components/icons"
+} from "@zavx0z/ui/widgets/inspector"
+import {resourceIcon} from "@zavx0z/ui/themes/icons"
 import type {JsxSourceElement} from "@zavx0z/template/jsx-runtime"
 import type {
   WorkbenchInspectorSubject,

@@ -33,7 +33,7 @@ type RuntimeContext = Readonly<{
 }>
 
 export const runtime = Object.freeze({
-  protocol: "storybook-runtime/3",
+  protocol: "storybook-runtime/4",
   create(context: RuntimeContext) {
     let current: StoryPresentation | null = null
     const remove = (): void => {

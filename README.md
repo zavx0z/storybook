@@ -1,8 +1,9 @@
 # External Storybook
 
-Один внешний Storybook для independently owned packages и projects. Consumer
-не устанавливает и не импортирует `@zavx0z/storybook`: он хранит только JSON
-declarations, настоящие owner stories/resources и optional structural runtime.
+Один внешний Storybook для независимо принадлежащих владельцам пакетов и
+проектов. Потребитель не устанавливает и не импортирует
+`@zavx0z/storybook`: он хранит только JSON-декларации, собственные истории и
+ресурсы, а при необходимости — структурный runtime.
 
 ## Declaration files
 
@@ -27,12 +28,12 @@ escapes fail closed.
   "$schema": "https://raw.githubusercontent.com/zavx0z/storybook/main/schemas/manifest.schema.json",
   "schemaVersion": 1,
   "kind": "package",
-  "id": "@ui/components",
-  "label": "UI Components",
+  "id": "@zavx0z/ui",
+  "label": "UI",
   "packageJson": "../package.json",
   "readme": "../README.md",
   "runtime": {"module": "./runtime.ts", "export": "runtime"},
-  "authorStyleSheets": [{"specifier": "@ui/components/theme.css"}],
+  "authorStyleSheets": [{"specifier": "@zavx0z/ui/themes/theme.css"}],
   "catalog": "./catalog.json"
 }
 ```
@@ -62,7 +63,7 @@ README content запрещены.
 }
 ```
 
-`projection` равен только `display | world | hud`. Package-level custom widgets
+`projection` равен только `display | hud | space`. Package-level custom widgets
 объявляются в `widgetContributions` protocol `widget-contribution/1`, а subject
 выбирает их id в `presentation.widgets`. Восемь standard widgets объявлены один
 раз self package `@zavx0z/storybook`; Inspector layout package не заменяет.
@@ -132,16 +133,25 @@ reused package target `storybook:<package-id>` и получает один JS r
 loaded runtime adapter, не более одной active subject session и one
 independently updateable PackageSession. Landing не создаёт tab самостоятельно:
 его action делегирует тому же `openPackage`, что CLI и MCP.
-Landing и каждая package page являются отдельным Experience: один semantic
-Document и один host Canvas/Renderer/Space/ViewPoint, в котором Workbench
-проецируется camera-locked overlay root. Разные tabs не разделяют эти owners.
-Host загружает canonical default font через exact owner export
-`@engine/core/fonts/inter-regular.ttf`; тот же файл доступен page runtime по
-стабильному URL `/assets/inter-regular.ttf`.
-Direct Engine stories добавляют content только в exact shared `context.space`;
-world aperture, HUD и semantic overlays остаются проекциями того же
-Document/Space/ViewPoint. Package runtime не создаёт второй Space, Canvas,
-Renderer, ViewPoint или presentation host.
+Landing и каждая package page являются отдельным
+`@zavx0z/browser` Experience. Browser владеет единственными semantic Document,
+native Canvas, циклом кадров и вводом этой страницы. Внутри Experience находятся
+exact `@zavx0z/space` `XRSpaceElement` и `XRViewPointElement`; разные вкладки не
+разделяют этих владельцев.
+
+Весь Workbench монтируется как один `XRHUDElement`
+`external-storybook-workbench`. История с `projection: "display"` монтируется
+в настоящий `XRDisplayElement` `external-storybook-display`, история с
+`projection: "hud"` — в `XRHUDElement`, а история с `projection: "space"` —
+непосредственно в тот же `XRSpaceElement` через
+`mountSpacePreview`. Ни одна история не создаёт второй Experience, Document,
+Canvas, Space, ViewPoint, цикл кадров или owner ввода.
+
+Host вызывает exact `@zavx0z/engine/default-font` и загружает asset через public
+export `@zavx0z/engine/fonts/inter-regular.ttf`; тот же файл доступен page
+runtime по стабильному URL `/assets/inter-regular.ttf`.
+Page bundle разрешает только exact final package identities; compatibility
+aliases и повторные realpath одного owner fail closed.
 
 ## Runtime protocol
 
@@ -149,7 +159,7 @@ Executable owner adapter — plain object без Storybook import:
 
 ```ts
 export const runtime = Object.freeze({
-  protocol: "storybook-runtime/3",
+  protocol: "storybook-runtime/4",
   create(context) {
     let current = null
     return Object.freeze({
@@ -181,14 +191,24 @@ export const runtime = Object.freeze({
 })
 ```
 
+Marker обязан быть exact `storybook-runtime/4`. Context всегда содержит
+`projection`. Для `display` и `hud` spatial capabilities отсутствуют; только
+`space` получает exact `context.space` и `mountSpacePreview(registration)`.
+Runtime публикует semantic Node из предоставленного Document и не получает
+implementation objects Browser, Renderer или WebGPU.
+
 Fixed `workbench-layout/2` owns exactly `catalog`, `secondary`, `scenarios`,
 `preview`, `inspector`, `status`. `scenarios` — визуально неподписанная полоса
 кнопок непосредственно над `preview`; её label остаётся только доступным именем
 toolbar. `catalog`, `secondary` и `preview` также не рендерят видимые headings:
 их labels остаются только доступными именами regions. Один compiled Workbench
-ComponentRoot использует production `@ui/components/Inspector`; runtime не может
+ComponentRoot использует production `@zavx0z/ui/widgets/inspector`; runtime не может
 добавить или заменить region. Runtime owns only package-specific presentation
 and must publish Nodes from the exact provided Document.
+Весь этот ComponentRoot имеет одного родителя — exact HUD
+`external-storybook-workbench`. Preview не создаёт локального host: Display
+story использует `experience.getProjection(display)`, а Space story —
+`experience.getProjection(experience.space)`.
 
 Workbench implementation живёт в `src/workbench`: controller/state,
 presentation, navigation, six region components и Inspector widgets разделены
@@ -197,14 +217,15 @@ presentation, navigation, six region components и Inspector widgets разде�
 напрямую, `&` остаётся только для nested selectors, а single-use local style не
 выносится в `CssStyle` constant. Shared pane/heading поведение переиспользуется
 компонентами. Inspector
-получает direct keyed production `Panel` children; Storybook замыкает widget id
+получает direct keyed production `@zavx0z/ui/surfaces/panel` children;
+Storybook замыкает widget id
 в toggle callback, не расширяя Panel domain identity.
 В primary catalog disclosure group занимает собственный header и полный поток
 видимых category rows; secondary показывает subjects выбранной category, а dock
 — только variants выбранного subject.
 На category overview preview показывает real bounded representative каждого
 immediate subject; на subject overview — все direct variants. Child stories
-имеют отдельные runtime/3 sessions, но один Document/Canvas/Renderer/Space;
+имеют отдельные runtime/4 sessions, но один Browser Experience;
 representative не выбирается в navigation или dock. Их compiled TSX parent
 использует обычный CSS row flow с `flex-wrap: wrap`,
 `align-content: flex-start` и `gap: 8px`: Renderer адаптивно переносит bounded
@@ -216,9 +237,12 @@ Aggregate с несколькими children не выбирает произв�
 Category может быть typed primary component (`kind + apiName`); тогда её
 ordinary subjects являются secondary sections, а dock показывает variants
 выбранной section. Shared Storybook не содержит списков promoted package routes.
-Production `Pane`, `Button`, `TextField`, `Typography`, `Inspector`, concrete Fields,
-`CodeEditor` и `StatusBar` владеют своим visual/state contract; Storybook caller styles
-задают только размещение внутри fixed Workbench regions.
+Production `@zavx0z/ui/surfaces/pane`, `@zavx0z/ui/buttons/button`,
+`@zavx0z/ui/fields/text-field`, `@zavx0z/ui/typography`,
+`@zavx0z/ui/widgets/inspector`, concrete Fields,
+`@zavx0z/ui/views/code-editor` и `@zavx0z/ui/feedback/status-bar` владеют своим
+visual/state contract; Storybook caller styles задают только размещение внутри
+fixed Workbench regions.
 Native page title равен `MetaFor` на landing/self page и exact package label на
 остальных package pages; `Storybook` не добавляется.
 
@@ -231,8 +255,9 @@ opt-in `authored-css` provenance. Legacy `css: string`, session `styleSheets`,
 generated `data-z` CSS и Workbench chrome fail closed и в Source не попадают.
 CSS отображается как raw `language=css` с подсветкой, без `<style>` и fences.
 `dom`, `layout`, `display` и `diagnostics` выводит host; runtime не может
-подделать их через `values`. `context.space` существует только для subject с
-`projection: "world"` и тождественен единственному `runtime.space`.
+подделать их через `values`. `context.space` и `mountSpacePreview` существуют
+только для subject с `projection: "space"`; `context.space` тождественен
+единственному `experience.space`.
 
 ## PackageSession lifecycle
 
@@ -254,7 +279,8 @@ lastWorking artifact unchanged. Bun metafile realpaths invalidate only actual
 dependent sessions. Per-package queues share only a bounded compiler semaphore.
 
 Browser inspection uses the existing semantic Document and
-`@zavx0z/dom-devtools`; interaction uses public Renderer/DOM input APIs. Capture
+`@zavx0z/dom-devtools`; interaction uses projection input and
+`experience.dispatchKey(...)` единственного Browser Experience. Capture
 returns MCP image content plus bounded `storybook://captures/...` resources.
 Agent `key` activates and verifies the exact Workbench owner in the existing
 Browser native-input host, then sends browser `keydown`/`keyup` through its

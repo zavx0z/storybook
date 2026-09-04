@@ -8,7 +8,7 @@ import {
   languageIcon,
   settingsIcon,
   visibilityOnIcon,
-} from "@ui/components/icons"
+} from "@zavx0z/ui/themes/icons"
 import type {
   WorkbenchInspectorSubject,
   WorkbenchInspectorValues,

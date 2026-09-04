@@ -58,7 +58,8 @@ describe("Workbench component module boundary", () => {
 
   test("composes the production Pane instead of duplicating its visual contract", () => {
     const panel = readFileSync(join(root, "components/region-panel.tsx"), "utf8")
-    expect(panel).toContain('from "@ui/components/pane"')
+    const preview = readFileSync(join(root, "regions/preview.tsx"), "utf8")
+    expect(panel).toContain('from "@zavx0z/ui/surfaces/pane"')
     expect(panel).toContain("<Pane")
     for (const declaration of [
       "box-sizing:",
@@ -69,11 +70,12 @@ describe("Workbench component module boundary", () => {
       "background:",
       "color:",
     ]) expect(panel).not.toContain(declaration)
+    expect(preview).toContain('transparent={props.projection !== "hud"}')
   })
 
   test("composes the production StatusBar instead of duplicating its footer visual contract", () => {
     const status = readFileSync(join(root, "regions/status.tsx"), "utf8")
-    expect(status).toContain('from "@ui/components/status-bar"')
+    expect(status).toContain('from "@zavx0z/ui/feedback/status-bar"')
     expect(status).toContain("<StatusBar")
     expect(status).not.toContain("<footer")
     expect(status).not.toContain("<Typography")
@@ -95,7 +97,7 @@ describe("Workbench component module boundary", () => {
     expect(inspector).toContain("panelIds:")
     expect(inspector).not.toContain("InspectorSections")
     expect(inspector).not.toContain("sectionIds")
-    expect(widgetPanel).toContain('from "@ui/components/panel"')
+    expect(widgetPanel).toContain('from "@zavx0z/ui/surfaces/panel"')
     expect(widgetPanel).toContain("<Panel")
     expect(widgetPanel).toContain("props.onToggle(props.widget.id, expanded)")
     expect(widgetPanel).not.toContain("InspectorSection")

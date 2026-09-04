@@ -2,7 +2,7 @@ import {
   component,
   keyedComponents,
   type KeyedComponentsValue,
-} from "@zavx0z/react"
+} from "@zavx0z/component"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
 import type {WorkbenchViewState} from "../contract.ts"
 import {activeWorkbenchInspectorWidgets} from "./registry.ts"

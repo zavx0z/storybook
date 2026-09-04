@@ -11,7 +11,7 @@
     "export": "runtime"
   },
   "authorStyleSheets": [
-    {"specifier": "@ui/components/theme.css"}
+    {"specifier": "@zavx0z/ui/themes/theme.css"}
   ],
   "widgetContributions": {
     "protocol": "widget-contribution/1",

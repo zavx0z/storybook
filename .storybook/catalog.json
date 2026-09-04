@@ -101,7 +101,7 @@
         "id": "contract",
         "kind": "runtime",
         "label": "Package tab",
-        "apiName": "storybook-runtime/3",
+        "apiName": "storybook-runtime/4",
         "presentation": {"protocol": "story-presentation/1", "projection": "display", "widgets": ["props", "source", "diagnostics"]},
         "variants": [{"id": "overview", "label": "Overview", "route": "app/contract/overview", "module": {"path": "./stories/contracts.tsx", "export": "app"}}]
       }]

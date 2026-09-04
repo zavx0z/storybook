@@ -118,6 +118,30 @@ describe("external Storybook browser client protocol", () => {
       .toEqual(phases.map((phase) => ({phase, message: `${phase} diagnostic`})))
   })
 
+  test("projects Space as the only spatial presentation identity", async () => {
+    const graph = await fixtureGraph()
+    const subjectId = "subject:@fixture/components/components/button"
+    const spatialGraph: ExternalStorybookGraph = {
+      ...graph,
+      nodes: Object.freeze(graph.nodes.map(node => node.id === subjectId
+        ? Object.freeze({
+            ...node,
+            presentation: Object.freeze({
+              ...node.presentation!,
+              projection: "space" as const,
+            }),
+          })
+        : node)),
+    }
+    const client = createExternalStorybookClientSnapshot(
+      spatialGraph,
+      packageSnapshots(spatialGraph),
+    )
+
+    expect(client.nodes.find(({id}) => id === subjectId)?.presentation?.projection).toBe("space")
+    expect(JSON.stringify(client)).not.toContain('"projection":"world"')
+  })
+
   test("fails closed for unknown resource and session identities", async () => {
     const graph = await fixtureGraph()
     const snapshots = packageSnapshots(graph)

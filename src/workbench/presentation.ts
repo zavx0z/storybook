@@ -2,6 +2,7 @@ import {type Document, Node} from "@zavx0z/dom"
 import type {
   WorkbenchElements,
   WorkbenchPresentation,
+  WorkbenchProjectionHosts,
 } from "./contract.ts"
 
 export function validateWorkbenchPresentation(
@@ -13,7 +14,7 @@ export function validateWorkbenchPresentation(
   }
   const candidate = value as WorkbenchPresentation
   if (candidate.projection !== "display" && candidate.projection !== "hud" &&
-    candidate.projection !== "world") {
+    candidate.projection !== "space") {
     throw new Error(`Unknown Workbench presentation projection: ${String(candidate.projection)}`)
   }
   if (candidate.node !== null && !(candidate.node instanceof Node)) {
@@ -30,6 +31,7 @@ export function syncWorkbenchPresentation(
   next: WorkbenchPresentation,
   elements: WorkbenchElements,
   document: Document,
+  projectionHosts: WorkbenchProjectionHosts = Object.freeze({}),
 ): void {
   if (next.node !== null) assertNodeInDocument(next.node, document, "Presentation node")
   const previousNode = previous?.node ?? null
@@ -38,11 +40,26 @@ export function syncWorkbenchPresentation(
   }
   if (next.node === null) return
   const host = next.projection === "display"
-    ? elements.displayHost
+    ? projectionHosts.display ?? elements.displayHost
     : next.projection === "hud"
       ? elements.hudHost
-      : elements.worldHost
+      : projectionHosts.space ?? elements.spaceHost
   if (next.node.parentNode !== host) host.appendChild(next.node)
+}
+
+export function validateWorkbenchProjectionHosts(
+  value: WorkbenchProjectionHosts | undefined,
+  document: Document,
+): WorkbenchProjectionHosts {
+  if (value === undefined) return Object.freeze({})
+  const output: {display?: Node; space?: Node} = {}
+  for (const kind of ["display", "space"] as const) {
+    const node = value[kind]
+    if (node === undefined) continue
+    assertNodeInDocument(node, document, `Workbench ${kind} projection host`)
+    output[kind] = node
+  }
+  return Object.freeze(output)
 }
 
 export function assertNodeInDocument(node: Node, document: Document, label: string): void {

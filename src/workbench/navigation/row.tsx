@@ -1,5 +1,5 @@
-import {Button, type ButtonProps} from "@ui/components/button"
-import {chevronDownIcon, chevronRightIcon} from "@ui/components/icons"
+import {Button, type ButtonProps} from "@zavx0z/ui/buttons/button"
+import {chevronDownIcon, chevronRightIcon} from "@zavx0z/ui/themes/icons"
 import {
   workbenchNavigationGroupKey,
   workbenchNavigationLeafKey,

@@ -6,6 +6,10 @@ import {
 } from "./runtime-protocol.ts"
 
 describe("external Storybook runtime protocol", () => {
+  test("uses runtime/4 for semantic Display, HUD and Space ownership", () => {
+    expect(STORYBOOK_RUNTIME_PROTOCOL).toBe("storybook-runtime/4")
+  })
+
   test("accepts the exact structural adapter and required session lifecycle", () => {
     const session = {
       mount() {},
@@ -41,6 +45,7 @@ describe("external Storybook runtime protocol", () => {
       {},
       {protocol: "storybook-runtime/1", create() {}},
       {protocol: "storybook-runtime/2", create() {}},
+      {protocol: "storybook-runtime/3", create() {}},
       {protocol: STORYBOOK_RUNTIME_PROTOCOL},
       {protocol: STORYBOOK_RUNTIME_PROTOCOL, create: true},
     ]) expect(() => validateStorybookRuntimeAdapter(runtime)).toThrow()

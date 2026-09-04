@@ -50,9 +50,9 @@ function PreviewRegionContent(props: Readonly<{value: PreviewRegionProps}>) {
         `}
       ></div>
       <div
-        data-storybook-projection="world"
-        aria-label="World semantic anchor"
-        hidden={value.projection !== "world"}
+        data-storybook-projection="space"
+        aria-label="Space semantic anchor"
+        hidden={value.projection !== "space"}
         style={css`
           display: flex;
           flex-direction: column;
@@ -91,7 +91,7 @@ function PreviewRegionContent(props: Readonly<{value: PreviewRegionProps}>) {
   </div>
 }
 
-/** Fixed same-Document display, world and HUD projection hosts. */
+/** Fixed same-Document Display, HUD and Space projection hosts. */
 export function PreviewRegion(props: PreviewRegionProps) {
   return <main
     data-storybook-region="preview"
@@ -103,7 +103,7 @@ export function PreviewRegion(props: PreviewRegionProps) {
       flex-grow: 1;
     `}
   >
-    <WorkbenchRegionPanel transparent={props.projection === "world"}>
+    <WorkbenchRegionPanel transparent={props.projection !== "hud"}>
       <PreviewRegionContent value={props} />
     </WorkbenchRegionPanel>
   </main>

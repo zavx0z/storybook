@@ -47,7 +47,7 @@ type MountStorybookAggregateChildrenOptions = Readonly<{
   requestRender(): void
 }>
 
-/** Mounts every bounded overview child in its own runtime/3 session. */
+/** Mounts every bounded overview child in its own runtime/4 session. */
 export async function mountStorybookAggregateChildren(
   options: MountStorybookAggregateChildrenOptions,
 ): Promise<readonly MountedStorybookAggregateChild[]> {
@@ -92,8 +92,8 @@ async function mountStorybookAggregateChild(
   plan: StorybookOverviewPlanItem,
 ): Promise<MountedStorybookAggregateChild> {
   const presentation = plan.subject.presentation
-  if (presentation.projection === "world") {
-    throw new Error(`Storybook world subject cannot be materialized in a DOM aggregate: ${plan.subject.id}`)
+  if (presentation.projection === "space") {
+    throw new Error(`Storybook Space subject cannot be materialized in a DOM aggregate: ${plan.subject.id}`)
   }
   const abort = new AbortController()
   const childSignal = AbortSignal.any([options.signal, abort.signal])

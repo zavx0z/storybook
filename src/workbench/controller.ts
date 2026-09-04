@@ -5,7 +5,7 @@ import {
   type HTMLDivElement,
   type HTMLElement,
 } from "@zavx0z/dom"
-import {createRoot} from "@zavx0z/react"
+import {createRoot} from "@zavx0z/component"
 import type {
   CreateWorkbenchOptions,
   Workbench,
@@ -39,6 +39,7 @@ import {
   assertNodeInDocument,
   syncWorkbenchPresentation,
   validateWorkbenchPresentation,
+  validateWorkbenchProjectionHosts,
 } from "./presentation.ts"
 import {
   createInitialWorkbenchState,
@@ -50,12 +51,13 @@ import {WorkbenchView} from "./view.tsx"
 /**
  * Creates one compiled Workbench ComponentRoot in the supplied semantic
  * Document. Projection changes reparent the exact external Node between fixed
- * same-Document display/HUD/world hosts without remounting it.
+ * same-Document Display/HUD/Space hosts without remounting it.
  */
 export function createWorkbench(options: CreateWorkbenchOptions): Workbench {
   const {document} = options
   const parent = options.parent
   if (parent !== undefined) assertNodeInDocument(parent, document, "Workbench parent")
+  const projectionHosts = validateWorkbenchProjectionHosts(options.projectionHosts, document)
   let disposed = false
   let state = createInitialWorkbenchState(options.initial, document)
   const inspectorStateBySubject = new Map<string, WorkbenchInspectorRetainedState>()
@@ -151,7 +153,7 @@ export function createWorkbench(options: CreateWorkbenchOptions): Workbench {
   const elements = readWorkbenchElements(element)
   parent?.appendChild(element)
   componentRoot.flush()
-  syncWorkbenchPresentation(null, state.presentation, elements, document)
+  syncWorkbenchPresentation(null, state.presentation, elements, document, projectionHosts)
 
   const read = <Address extends WorkbenchAddress>(
     address: Address,
@@ -169,7 +171,13 @@ export function createWorkbench(options: CreateWorkbenchOptions): Workbench {
     const next = updateWorkbenchState(state, address, value, document)
     renderState(next)
     state = next
-    syncWorkbenchPresentation(previousPresentation, next.presentation, elements, document)
+    syncWorkbenchPresentation(
+      previousPresentation,
+      next.presentation,
+      elements,
+      document,
+      projectionHosts,
+    )
   }
 
   const present = (value: WorkbenchPresentationUpdate): void => {
@@ -190,7 +198,7 @@ export function createWorkbench(options: CreateWorkbenchOptions): Workbench {
     const previousPresentation = state.presentation
     renderState(next)
     state = next
-    syncWorkbenchPresentation(previousPresentation, presentation, elements, document)
+    syncWorkbenchPresentation(previousPresentation, presentation, elements, document, projectionHosts)
   }
 
   const dispose = (): void => {

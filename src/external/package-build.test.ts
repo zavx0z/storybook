@@ -87,6 +87,38 @@ describe("real Storybook package revision build", () => {
       .toContain("fixture widget marker")
   })
 
+  test("builds a declaration-only package from the shared Storybook compiler owner", async () => {
+    const fixture = createFixture()
+    writeFileSync(join(fixture.root, "package.json"), JSON.stringify({
+      name: "@fixture/project",
+      type: "module",
+    }))
+    writeFileSync(join(fixture.root, "tsconfig.json"), JSON.stringify({
+      compilerOptions: {jsxImportSource: "@zavx0z/template"},
+    }))
+    const descriptor: StorybookPackageBuildDescriptor = {
+      ...fixture.descriptor,
+      graphSnapshot: declarationOnlyGraphSnapshot(
+        fixture.descriptor.packageId,
+        fixture.descriptor.declarationDigest,
+      ),
+      resourceFiles: [],
+      runtime: null,
+      variants: [],
+      widgetModules: [],
+    }
+    const build = createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry})
+
+    const result = await build(buildInput(
+      descriptor,
+      join(fixture.root, ".candidate-declaration-only"),
+      "revision-declaration-only",
+    ))
+
+    expect(result.entryRelativePath).toMatch(/\.js$/u)
+    expect(result.moduleGraphRevision).toMatch(/^[a-f0-9]{64}$/u)
+  })
+
   test("fails before publish for a missing export", async () => {
     const fixture = createFixture()
     const build = createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry})
@@ -164,7 +196,7 @@ describe("real Storybook package revision build", () => {
     const fixture = createFixture()
     writeFileSync(fixture.runtime, [
       "await new Promise(() => {})",
-      "export const runtime = {protocol: 'storybook-runtime/3', create() {}}",
+      "export const runtime = {protocol: 'storybook-runtime/4', create() {}}",
       "",
     ].join("\n"))
     const build = createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry})
@@ -240,7 +272,7 @@ function createFixture(): Readonly<{
   writeFileSync(manifest, "{}\n")
   writeFileSync(runtime, [
     "export const runtime = {",
-    "  protocol: 'storybook-runtime/3',",
+    "  protocol: 'storybook-runtime/4',",
     "  create() {",
     "    return {mount() {}, unmount() {}, dispose() {}}",
     "  },",
@@ -382,6 +414,52 @@ function graphSnapshot(
       items: [{id: "fixture-widget", kind: "component" as const, label: "Fixture widget"}],
     },
     widgetLoaders: [{id: "fixture-widget", exportName: "widget"}],
+  }
+  return Object.freeze({
+    ...withoutDigest,
+    packageGraphDigest: createHash("sha256").update(JSON.stringify(withoutDigest)).digest("hex"),
+  })
+}
+
+function declarationOnlyGraphSnapshot(
+  packageId: string,
+  declarationDigest: string,
+): StorybookPackageRevisionGraphSnapshot {
+  const packageNode = `package:${packageId}`
+  const urlPath = `/packages/${encodeURIComponent(packageId)}/`
+  const withoutDigest = {
+    protocol: STORYBOOK_PACKAGE_GRAPH_PROTOCOL,
+    packageId,
+    declarationDigest,
+    metadata: {label: packageId, ownerId: packageId, urlPath},
+    ancestors: [],
+    rootId: packageNode,
+    nodes: [{
+      id: packageNode,
+      kind: "package" as const,
+      ownerId: packageId,
+      packageId,
+      label: packageId,
+      parentId: null,
+      childIds: [],
+      urlPath,
+      routePath: "",
+      searchTerms: [packageId],
+      group: null,
+      subjectKind: null,
+      apiName: null,
+      hasReadme: false,
+      resourceKinds: [],
+      resourceUrl: `/__storybook/resources/nodes/${encodeURIComponent(packageNode)}/`,
+      presentation: null,
+    }],
+    routes: [{path: "", urlPath, kind: "overview" as const, nodeId: packageNode}],
+    loaders: [],
+    resources: [],
+    authorStyleSheets: [],
+    workbenchAuthorStyleSheets: [],
+    widgetContributions: null,
+    widgetLoaders: [],
   }
   return Object.freeze({
     ...withoutDigest,

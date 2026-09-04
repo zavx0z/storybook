@@ -42,7 +42,7 @@ export const STORYBOOK_STANDARD_WIDGET_IDS = Object.freeze([
 ] as const)
 
 export type ExternalStorybookStandardWidgetId = typeof STORYBOOK_STANDARD_WIDGET_IDS[number]
-export type ExternalStorybookStoryProjection = "display" | "world" | "hud"
+export type ExternalStorybookStoryProjection = "display" | "hud" | "space"
 
 export type ExternalStorybookDeclarationKind = "workspace" | "project" | "package"
 
@@ -763,8 +763,8 @@ function resolveStoryPresentation(
     throw new Error(`Unsupported external Storybook story presentation protocol: ${String(record.protocol)}`)
   }
   const projection = record.projection
-  if (projection !== "display" && projection !== "world" && projection !== "hud") {
-    throw new Error(`Unknown external Storybook story projection: ${String(projection)}`)
+  if (projection !== "display" && projection !== "hud" && projection !== "space") {
+    throw new Error(`Unsupported external Storybook presentation projection: ${String(projection)}`)
   }
   const widgetValues = arrayValue(record.widgets, `${label} widgets`)
   if (widgetValues.length < 2 || widgetValues.length > 32) {

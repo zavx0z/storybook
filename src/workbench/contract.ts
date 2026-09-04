@@ -5,7 +5,7 @@ import type {
   HTMLElement,
   Node,
 } from "@zavx0z/dom"
-import type {ComponentRoot} from "@zavx0z/react"
+import type {ComponentRoot} from "@zavx0z/component"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
 import type {
   WorkbenchNavigationGroup,
@@ -82,7 +82,7 @@ export type WorkbenchStatus = Readonly<{
   detail: string
 }>
 
-export type WorkbenchPresentationProjection = "display" | "hud" | "world"
+export type WorkbenchPresentationProjection = "display" | "hud" | "space"
 
 export type WorkbenchPresentation = Readonly<{
   node: Node | null
@@ -94,6 +94,11 @@ export type WorkbenchPresentationUpdate = Readonly<{
   presentation: WorkbenchPresentation
   inspectorSubject: WorkbenchInspectorSubject | null
   inspectorValues: WorkbenchInspectorValues
+}>
+
+export type WorkbenchProjectionHosts = Readonly<{
+  display?: Node
+  space?: Node
 }>
 
 /** Every host-driven Workbench input has one exact typed address. */
@@ -142,7 +147,7 @@ export type WorkbenchElements = Readonly<{
   previewHost: HTMLElement
   displayHost: HTMLElement
   hudHost: HTMLElement
-  worldHost: HTMLElement
+  spaceHost: HTMLElement
   scenarios: HTMLElement
   scenarioItems: HTMLDivElement
   inspectorHost: HTMLDivElement
@@ -152,6 +157,7 @@ export type WorkbenchElements = Readonly<{
 export type CreateWorkbenchOptions = Readonly<{
   document: Document
   parent?: Node
+  projectionHosts?: WorkbenchProjectionHosts
   initial?: Partial<WorkbenchAddressMap>
 }>
 

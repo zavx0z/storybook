@@ -1,4 +1,4 @@
-import {StatusBar} from "@ui/components/status-bar"
+import {StatusBar} from "@zavx0z/ui/feedback/status-bar"
 import type {WorkbenchStatus} from "../contract.ts"
 
 export type StatusRegionProps = Readonly<{

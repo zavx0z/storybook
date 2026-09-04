@@ -7,8 +7,11 @@ import {
   symlink,
 } from "node:fs/promises"
 import {tmpdir} from "node:os"
-import {dirname, join} from "node:path"
-import {createStorybookPackageCompilerPlugins} from "./compiler.ts"
+import {dirname, join, resolve} from "node:path"
+import {
+  createStorybookPackageCompilerPlugins,
+  resolveStorybookCompilerSourceRoots,
+} from "./compiler.ts"
 
 const temporaryRoots: string[] = []
 
@@ -39,6 +42,34 @@ describe("external Storybook package compiler", () => {
     expect(Object.isFrozen(plugins)).toBeTrue()
   })
 
+  test("skips a foreign ambient cache and resolves the exact attested tool owner", async () => {
+    const root = await temporaryRoot()
+    const foreignTemplate = join(root, "node_modules", "@zavx0z", "template")
+    await mkdir(foreignTemplate, {recursive: true})
+    await writeJson(join(root, "package.json"), {name: "@fixture/foreign-cache"})
+    await writeJson(join(root, "tsconfig.json"), {
+      compilerOptions: {jsx: "react-jsx", jsxImportSource: "react"},
+    })
+    await writeJson(join(foreignTemplate, "package.json"), {
+      name: "@zavx0z/template",
+      exports: {"./compiled": "./compiled.ts"},
+    })
+    await Bun.write(join(foreignTemplate, "compiled.ts"), "export const foreign = true\n")
+    const source = join(root, "story.ts")
+    await Bun.write(source, "export const story = true\n")
+
+    const plugins = await createStorybookPackageCompilerPlugins({
+      packageRoot: root,
+      projectRoot: root,
+      moduleSourcePaths: [source],
+    })
+    const resolved = resolveWithPlugin(plugins[0]!, "@zavx0z/template/compiled")
+    expect(resolved.path).toBe(await realpath(resolve(
+      import.meta.dir,
+      "../../../webxr-space/template/compiled.ts",
+    )))
+  })
+
   test("resolves a fresh Template plugin and exact manifest-reached source roots", async () => {
     const fixture = await templateProjectFixture()
     const first = await createStorybookPackageCompilerPlugins(fixture.input)
@@ -47,13 +78,14 @@ describe("external Storybook package compiler", () => {
     expect(first).toHaveLength(2)
     expect(second).toHaveLength(2)
     expect(first[0]).not.toBe(second[0])
+    expect(first[1]).not.toBe(second[1])
     expect(first.map(({name}) => name)).toEqual([
       "external-storybook-exact-owner-resolution",
-      "fixture-template-1",
+      "zavx0z-template-jsx",
     ])
     expect(second.map(({name}) => name)).toEqual([
       "external-storybook-exact-owner-resolution",
-      "fixture-template-2",
+      "zavx0z-template-jsx",
     ])
     const canonicalProjectRoot = await realpath(fixture.projectRoot)
     const canonicalDependencyRoots = await Promise.all([
@@ -61,27 +93,16 @@ describe("external Storybook package compiler", () => {
       fixture.templateRoot,
       fixture.transitiveRoot,
     ].map(async (path) => await realpath(path)))
-    const ownerSourceRoots = [
+    const expectedOwnerSourceRoots = [
       canonicalProjectRoot,
       ...canonicalDependencyRoots.sort(),
       await realpath(fixture.packageRoot),
     ]
-    const ownerSourceIds = [
-      "@fixture/project",
-      "@fixture/linked",
-      "@zavx0z/template",
-      "@fixture/transitive",
-      "@fixture/owner",
-    ]
-    const options = fixtureOptions(first[1]!)
-    expect(options.cwd).toBe(canonicalProjectRoot)
-    expect(options.persistent).toBeFalse()
-    expect(options.sourceRoots.slice(0, ownerSourceRoots.length)).toEqual(ownerSourceRoots)
-    expect(options.styleSourceRootIds.slice(0, ownerSourceIds.length)).toEqual(ownerSourceIds)
-    const toolRoot = await realpath(join(import.meta.dir, "../.."))
-    const toolIndex = options.sourceRoots.indexOf(toolRoot)
-    expect(toolIndex).toBeGreaterThanOrEqual(ownerSourceRoots.length)
-    expect(options.styleSourceRootIds[toolIndex]).toBe("@zavx0z/storybook")
+    const ownerSourceRoots = resolveStorybookCompilerSourceRoots({
+      projectRoot: fixture.projectRoot,
+      packageRoot: fixture.packageRoot,
+    })
+    for (const root of expectedOwnerSourceRoots) expect(ownerSourceRoots).toContain(root)
   })
 
   test("reads JSONC extends and fails closed for conflicting module configs", async () => {
@@ -125,6 +146,75 @@ describe("external Storybook package compiler", () => {
     })).rejects.toThrow("not a linked owner dependency")
   })
 
+  test("uses the shared Storybook compiler owner for a declaration-only package like Engine", async () => {
+    const root = await temporaryRoot()
+    const packageRoot = join(root, "engine")
+    await mkdir(packageRoot, {recursive: true})
+    await writeJson(join(root, "package.json"), {name: "@fixture/project"})
+    await writeJson(join(root, "tsconfig.json"), {
+      compilerOptions: {jsxImportSource: "@zavx0z/template"},
+    })
+    await writeJson(join(packageRoot, "package.json"), {name: "@fixture/declaration-only-engine"})
+
+    const plugins = await createStorybookPackageCompilerPlugins({
+      packageRoot,
+      projectRoot: root,
+      moduleSourcePaths: [],
+    })
+
+    expect(plugins.map(({name}) => name)).toEqual([
+      "external-storybook-exact-owner-resolution",
+      "zavx0z-template-jsx",
+    ])
+  })
+
+  test("builds the real webxr UI with exact tool owners satisfying declared peers", async () => {
+    const projectRoot = await realpath(resolve(import.meta.dir, "../../../webxr-space"))
+    const packageRoot = join(projectRoot, "ui")
+    const source = join(
+      packageRoot,
+      ".storybook/stories/compiled/compiled-button-production-story.tsx",
+    )
+    const plugins = await createStorybookPackageCompilerPlugins({
+      packageRoot,
+      projectRoot,
+      moduleSourcePaths: [source],
+    })
+    const result = await Bun.build({
+      entrypoints: [source],
+      format: "esm",
+      metafile: true,
+      plugins: [...plugins],
+      target: "browser",
+    })
+    expect(result.success, result.logs.map(({message}) => message).join("\n")).toBeTrue()
+    const inputs = JSON.stringify(result.metafile?.inputs ?? {})
+    expect(inputs).toContain("webxr-space/ui/buttons/button.tsx")
+    expect(inputs).toContain("webxr-space/component/src/index.ts")
+    expect(inputs).toContain("webxr-space/template/compiled.ts")
+    expect(inputs).not.toContain("node_modules/.bun/@zavx0z+")
+  })
+
+  test("maps an exact Bun hardlink module mirror back to the declared package owner", async () => {
+    const projectRoot = await realpath(resolve(import.meta.dir, "../../../webxr-space"))
+    const packageRoot = join(projectRoot, "ui")
+    const mirrorSource = resolve(
+      import.meta.dir,
+      "../../node_modules/@zavx0z/ui/.storybook/stories/subjects/components-fields-toggle-button-group.ts",
+    )
+
+    const plugins = await createStorybookPackageCompilerPlugins({
+      packageRoot,
+      projectRoot,
+      moduleSourcePaths: [mirrorSource],
+    })
+
+    expect(plugins.map(({name}) => name)).toEqual([
+      "external-storybook-exact-owner-resolution",
+      "zavx0z-template-jsx",
+    ])
+  })
+
   test("limits exact owner resolution to governed ids while d3-dag re-exports d3-array", async () => {
     const fixture = await d3ReExportFixture()
     const inspected = await createStorybookPackageCompilerPlugins(fixture.input)
@@ -154,14 +244,15 @@ describe("external Storybook package compiler", () => {
     expect(namespace.ascending(1, 2)).toBe(-1)
   })
 
-  test("structurally rejects missing factories and invalid plugin results", async () => {
-    for (const adapterSource of [
-      "export const unsupported = true",
-      "export function createTemplateJsxBunPlugin() { return {name: 'broken'} }",
-    ]) {
-      const fixture = await templateProjectFixture(adapterSource)
-      await expect(createStorybookPackageCompilerPlugins(fixture.input)).rejects.toThrow()
-    }
+  test("fails closed when consumer and tool graphs name different Template roots", async () => {
+    const fixture = await templateProjectFixture(String.raw`
+export function createTemplateJsxBunPlugin() {
+  return {name: "alternate-template", setup() {}}
+}
+`)
+    await expect(createStorybookPackageCompilerPlugins(fixture.input)).rejects.toThrow(
+      "Ambiguous owner dependency identity @zavx0z/template",
+    )
   })
 
   test("rejects package and module paths outside their project boundary", async () => {
@@ -185,18 +276,7 @@ describe("external Storybook package compiler", () => {
   })
 })
 
-async function templateProjectFixture(adapterSource = String.raw`
-let instance = 0
-export function createTemplateJsxBunPlugin(options) {
-  instance += 1
-  return {
-    name: "fixture-template-" + instance,
-    setup() {},
-    fixtureOptions: options,
-  }
-}
-
-`): Promise<Readonly<{
+async function templateProjectFixture(adapterSource?: string): Promise<Readonly<{
   projectRoot: string
   packageRoot: string
   templateRoot: string
@@ -207,10 +287,18 @@ export function createTemplateJsxBunPlugin(options) {
   const root = await temporaryRoot()
   const projectRoot = join(root, "project")
   const packageRoot = join(projectRoot, "packages", "owner")
-  const templateRoot = join(root, "owners", "template")
+  const templateRoot = adapterSource === undefined
+    ? await realpath(resolve(import.meta.dir, "../../../webxr-space/template"))
+    : join(root, "owners", "template")
   const linkedRoot = join(root, "owners", "linked")
   const transitiveRoot = join(root, "owners", "transitive")
-  await Promise.all([projectRoot, packageRoot, templateRoot, linkedRoot, transitiveRoot]
+  await Promise.all([
+    projectRoot,
+    packageRoot,
+    ...(adapterSource === undefined ? [] : [templateRoot]),
+    linkedRoot,
+    transitiveRoot,
+  ]
     .map((path) => mkdir(path, {recursive: true})))
 
   await writeJson(join(projectRoot, "package.json"), {
@@ -220,15 +308,17 @@ export function createTemplateJsxBunPlugin(options) {
       "@fixture/owner": "workspace:*",
       "@fixture/linked": "link:@fixture/linked",
     },
-    devDependencies: {"@zavx0z/template": "link:@zavx0z/template"},
+    devDependencies: {"@zavx0z/template": `file:${templateRoot}`},
   })
   await writeJson(join(packageRoot, "package.json"), {name: "@fixture/owner"})
-  await writeJson(join(templateRoot, "package.json"), {
-    name: "@zavx0z/template",
-    type: "module",
-    exports: {"./bun": "./bun.js"},
-  })
-  await Bun.write(join(templateRoot, "bun.js"), adapterSource)
+  if (adapterSource !== undefined) {
+    await writeJson(join(templateRoot, "package.json"), {
+      name: "@zavx0z/template",
+      type: "module",
+      exports: {"./bun": "./bun.js"},
+    })
+    await Bun.write(join(templateRoot, "bun.js"), adapterSource)
+  }
   await writeJson(join(linkedRoot, "package.json"), {
     name: "@fixture/linked",
     dependencies: {"@fixture/transitive": "link:@fixture/transitive"},
@@ -347,20 +437,6 @@ async function writeJson(path: string, value: unknown): Promise<void> {
   await Bun.write(path, `${JSON.stringify(value, null, 2)}\n`)
 }
 
-function fixtureOptions(plugin: Bun.BunPlugin): Readonly<{
-  cwd: string
-  persistent: boolean
-  sourceRoots: readonly string[]
-  styleSourceRootIds: readonly string[]
-}> {
-  return (plugin as Bun.BunPlugin & Readonly<{fixtureOptions: Readonly<{
-    cwd: string
-    persistent: boolean
-    sourceRoots: readonly string[]
-    styleSourceRootIds: readonly string[]
-  }>} >).fixtureOptions
-}
-
 function resolverFilter(plugin: Bun.BunPlugin): RegExp {
   let filter: RegExp | null = null
   plugin.setup({
@@ -370,4 +446,29 @@ function resolverFilter(plugin: Bun.BunPlugin): RegExp {
   } as never)
   if (filter === null) throw new Error("Exact owner resolver registered no onResolve filter")
   return filter
+}
+
+function resolveWithPlugin(plugin: Bun.BunPlugin, path: string): Readonly<{path?: string}> {
+  const holder: {callback?: (arguments_: Record<string, unknown>) => unknown} = {}
+  plugin.setup({
+    onResolve(
+      _options: Readonly<{filter: RegExp}>,
+      candidate: (arguments_: Record<string, unknown>) => unknown,
+    ) {
+      holder.callback = candidate
+    },
+  } as never)
+  const callback = holder.callback
+  if (callback === undefined) throw new Error("Exact owner resolver registered no onResolve callback")
+  const result = callback({
+    importer: "",
+    kind: "import-statement",
+    namespace: "file",
+    path,
+    resolveDir: "",
+  })
+  if (result === null || typeof result !== "object") {
+    throw new Error(`Exact owner resolver returned no result for ${path}`)
+  }
+  return result as Readonly<{path?: string}>
 }

@@ -4,7 +4,7 @@ type FixtureElement = {
 }
 
 export const runtime = Object.freeze({
-  protocol: "storybook-runtime/3",
+  protocol: "storybook-runtime/4",
   create(context: Readonly<{
     document: {createElement(tag: string): FixtureElement}
     present(value: Readonly<{

@@ -1,5 +1,5 @@
 import type {HTMLElement} from "@zavx0z/dom"
-import {createRoot} from "@zavx0z/react"
+import {createRoot} from "@zavx0z/component"
 import {
   ContractDocument,
   type ContractDocumentProps,
@@ -15,7 +15,7 @@ const contracts = Object.freeze({
   routeTree: contract(
     "Canonical graph and routes",
     "Versioned standalone package, project and optional workspace declarations resolve atomically into one immutable graph. Package, category and subject overviews remain real states; unknown routes fail closed. Category and subject overviews render real immediate child stories without selecting their representative routes. A single-child overview retains that representative subject's Inspector contract and values.",
-    "Owners provide ordered JSON. External Storybook derives landing, navigation, search, URLs, build lookup and the current MCP viewport from the same identities; a failed attach leaves the current registry unchanged. One compiled aggregate contains separate runtime/3 child sessions in the same Document and owns a CSS row with flex-wrap, align-content: flex-start and gap: 8px; Renderer packs bounded tiles into compact cross-start rows, one child fills preview, and vertical overflow is only a small-height fallback. Single-child Inspector inheritance does not change navigation selection; multi-child aggregates choose no arbitrary Inspector owner. Storybook never computes packing coordinates.",
+    "Owners provide ordered JSON. External Storybook derives landing, navigation, search, URLs, build lookup and the current MCP viewport from the same identities; a failed attach leaves the current registry unchanged. One compiled aggregate contains separate runtime/4 child sessions in the same Document and owns a CSS row with flex-wrap, align-content: flex-start and gap: 8px; Renderer packs bounded tiles into compact cross-start rows, one child fills preview, and vertical overflow is only a small-height fallback. Single-child Inspector inheritance does not change navigation selection; multi-child aggregates choose no arbitrary Inspector owner. Storybook never computes packing coordinates.",
     "storybook check ./packages/components",
   ),
   stories: contract(
@@ -31,16 +31,16 @@ const contracts = Object.freeze({
     ".storybook/catalog.json",
   ),
   workbench: contract(
-    "Six-region Workbench",
-    "Catalog, secondary navigation, scenarios, preview, inspector and status are six compiled TSX region components composed by one stable workbench-layout/2 root and projected as a camera-locked overlay. Catalog, secondary, scenario and preview labels are accessibility-only: fixed regions render their controls and content without visible captions. The scenario button toolbar sits directly above preview. Expanded primary disclosure groups occupy their header and every visible category row before the next root row; their retained disclosure uses exact chevron SVG images rather than font glyphs.",
-    "The external page Experience owns one semantic Document and one Canvas/Renderer/Space host. The host loads the exact @engine/core Inter Regular default font through its stable asset route. Workbench modules separately own controller/state, presentation reparent, navigation model/windowing/rows/tree and the one production Inspector with direct keyed production Panel children. Category panelIds relate the rail to widgets; Storybook retains widget ids and closes each id over Panel.onToggle without adding domain identity to Panel. The status region adapts WorkbenchStatus lead/owner/detail into the exact production StatusBar owner. Primary category, secondary subject and scenario toolbar remain distinct projections. Shared human-facing Inspector chrome and built-in widget titles are Russian; owner values and standard technical identifiers remain exact. Every TSX owner keeps its CSS inside the component.",
-    "Document → DocumentSpaceRuntime → Workbench overlay",
+    "Workbench из шести областей",
+    "`catalog`, `secondary`, `scenarios`, `preview`, `inspector` и `status` являются шестью compiled TSX components одного `workbench-layout/2`. Весь Workbench монтируется в exact `XRHUDElement` `external-storybook-workbench`. Labels `catalog`, `secondary`, `scenarios` и `preview` остаются доступными именами без видимых подписей; scenario toolbar расположен непосредственно над preview.",
+    "Страница владеет одним `@zavx0z/browser` Experience: Browser владеет Document, Canvas, циклом кадров и вводом, а Experience содержит exact `@zavx0z/space` `XRSpaceElement` и `XRViewPointElement`. Workbench использует `@zavx0z/ui/widgets/inspector` с direct keyed `@zavx0z/ui/surfaces/panel` children и exact `@zavx0z/ui/feedback/status-bar`. Display story монтируется в actual `XRDisplayElement`, HUD story — в `XRHUDElement`, а трёхмерная story — непосредственно в `XRSpaceElement`.",
+    "createExperience(...) → experience.getProjection(workbenchHud) → external-storybook-workbench",
   ),
   authorStyles: contract(
-    "Linked author styles and root source",
-    "A package declares ordered exact public CSS export specifiers owned by itself or a manifest-reached local dependency. Each immutable revision materializes one native link per resource before its module entry; required links must be ready before the one DocumentSpaceRuntime is created.",
-    "Global Source CSS comes from the declared author registry. Component Source CSS comes only from one active ComponentRoot authored provenance and is rendered as raw highlighted CSS. Dynamic declarations remain inline in HTML. Cleanup always disposes runtime before the linked host; Workbench chrome and generated selectors cannot enter Source.",
-    "authorStyleSheets: [{\"specifier\":\"@ui/components/theme.css\"}]\nruntime.dispose() → themeHost.dispose()",
+    "Связанные стили автора и исходный текст root",
+    "Пакет объявляет упорядоченные exact public CSS exports собственного владельца или достижимой через manifest локальной зависимости. Каждая immutable revision создаёт одну native link на ресурс до загрузки module entry; все обязательные links должны быть ready до `createExperience(...)`.",
+    "Global Source CSS берётся из объявленного author registry. Component Source CSS берётся только из authored provenance одного active ComponentRoot и показывается как исходный CSS с подсветкой. Dynamic declarations остаются inline в HTML. Cleanup освобождает Experience раньше связанных ресурсов; Workbench chrome и generated selectors не входят в Source.",
+    "linkedAuthorStyleSheets: [{id, link}]\nexperience.dispose() → release links",
   ),
   references: contract(
     "Owner evidence resources",
@@ -49,10 +49,10 @@ const contracts = Object.freeze({
     "resources.references: [\"./reference.png\"]",
   ),
   app: contract(
-    "One package tab realm",
-    "One exact package identity maps through the private browser lifecycle owner to one reused package target. That tab loads one generated entry, one runtime adapter and only its selected lazy story chunks into one page Experience. Compiler metafiles fix canonical dependency realpaths.",
-    "The shared shell owns one semantic Document and one host Canvas/Renderer/Space/ViewPoint. Only a declared world subject receives the exact shared context.space and may register its semantic node and camera through mountWorldPreview; no child Space, ViewPoint, Renderer or Canvas exists. Named tabs remain separate Experiences. Native page title is MetaFor for self and the exact package label for owners, never Storybook branding.",
-    "one package = one tab = one DocumentSpaceRuntime → shared world + semantic projection roots",
+    "Одна package tab — один Experience",
+    "Одна exact package identity через private browser lifecycle owner соответствует одному повторно используемому package target. Вкладка загружает один generated entry, один runtime adapter с marker `storybook-runtime/4` и только выбранные lazy story chunks в один `@zavx0z/browser` Experience.",
+    "Browser владеет Document, Canvas, циклом кадров и вводом страницы. Experience предоставляет exact `@zavx0z/space` `XRSpaceElement` и `XRViewPointElement`. Projection допускает только `display | hud | space`: display использует настоящий `XRDisplayElement`, hud — `XRHUDElement`, а space получает `context.space` и `mountSpacePreview`. Child Experience, Document, Canvas, Space или ViewPoint не создаются.",
+    "one package = one tab = one Experience → Display | HUD | Space",
   ),
   server: contract(
     "One server and origin",
@@ -68,14 +68,14 @@ const contracts = Object.freeze({
   ),
   launcher: contract(
     "MCP and human adapters",
-    "Ensure, attach, search, open, wait, inspect, interact, capture, check, close and explicit administration call one typed controller. Browser open delegates to the private lifecycle owner's openPackage; MCP owns only bounded schemas and opaque transport projections. Inspection exposes the shell-owned Canvas as singular canvas state. Key interaction activates and verifies the exact Workbench owner in the existing native-input host before browser keydown and keyup.",
-    "CLI and MCP contain no target records, reservation state, discovery or reconciliation. Canvas capture targets the same exact shell Canvas without native plural discovery. The bridge never fabricates semantic keyboard events or creates a second input owner, so Browser-owned Escape, Range and Select defaults remain authoritative.",
+    "`ensure`, `attach`, `search`, `open`, `wait`, `inspect`, `interact`, `capture`, `check`, `close` и явное администрирование вызывают один typed controller. Browser open делегируется private lifecycle owner через `openPackage`; MCP владеет только bounded schemas и opaque transport projections. Inspection показывает Canvas единственного Experience. Key interaction проверяет exact Workbench HUD owner и вызывает `experience.dispatchKey(...)`.",
+    "CLI и MCP не содержат target records, reservation state, discovery или reconciliation. Canvas capture направлен в тот же exact Experience Canvas без поиска множества native Canvas. Bridge не создаёт semantic keyboard events или второй input owner, поэтому Browser-owned defaults Escape, Range и Select остаются authoritative.",
     [
       "storybook attach ./project",
       "storybook detach project-id",
-      "storybook open @ui/components components/button/basic/contained",
+      "storybook open @zavx0z/ui components/foundation/button/basic/contained",
       "storybook status",
-      "storybook check @ui/components",
+      "storybook check @zavx0z/ui",
       "storybook stop",
       "MCP and CLI stay background; only authenticated landing may request foreground",
     ].join("\n"),

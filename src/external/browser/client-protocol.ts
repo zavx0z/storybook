@@ -6,8 +6,9 @@ import {
 import type {
   ExternalStorybookPresentationGroup,
   ExternalStorybookResourceKind,
-  ResolvedExternalStorybookStoryPresentation,
+  ExternalStorybookStoryProjection,
 } from "../declarations.ts"
+import {STORYBOOK_STORY_PRESENTATION_PROTOCOL} from "../declarations.ts"
 import type {
   StorybookPackageBuildState,
   StorybookPackageDiagnostic,
@@ -16,6 +17,12 @@ import type {
 
 export const EXTERNAL_STORYBOOK_CLIENT_PROTOCOL = "external-storybook-client/1" as const
 export const EXTERNAL_STORYBOOK_RESOURCE_PREFIX = "/__storybook/resources/nodes/" as const
+
+export type ExternalStorybookClientStoryPresentation = Readonly<{
+  protocol: typeof STORYBOOK_STORY_PRESENTATION_PROTOCOL
+  projection: ExternalStorybookStoryProjection
+  widgets: readonly string[]
+}>
 
 export type ExternalStorybookClientNode = Readonly<{
   id: string
@@ -34,7 +41,7 @@ export type ExternalStorybookClientNode = Readonly<{
   hasReadme: boolean
   resourceKinds: readonly ExternalStorybookResourceKind[]
   resourceUrl: string
-  presentation: ResolvedExternalStorybookStoryPresentation | null
+  presentation: ExternalStorybookClientStoryPresentation | null
 }>
 
 export type ExternalStorybookClientDiagnostic = Readonly<{

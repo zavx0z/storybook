@@ -5,10 +5,8 @@
 - The canonical primary checkout is
   `/Users/zavx0z/repozitarium/storybook`.
 - Related canonical checkouts are
-  `/Users/zavx0z/repozitarium/renderer`,
-  `/Users/zavx0z/repozitarium/webxr-space/projects/engine`,
-  `/Users/zavx0z/repozitarium/webxr-space/projects/ui`,
-  `/Users/zavx0z/repozitarium/webxr-space/projects/node`, and
+  `/Users/zavx0z/repozitarium/webxr-space`,
+  `/Users/zavx0z/repozitarium/renderer`, and
   `/Users/zavx0z/repozitarium/metafor`.
 - Never use `/Users/zavx0z/production` or another archival checkout.
 - Preserve every supplied branch, dirty worktree, listener, browser target, and
@@ -32,10 +30,28 @@
   build wrapper, launcher or private `@scope/storybook` package.
 - Import exact owners directly. Do not add compatibility aliases, `paths`,
   wrappers, root barrels, generated copies, or compatibility re-exports.
-- Preserve one resolved identity for `@zavx0z/dom`, `@zavx0z/renderer`,
-  `@zavx0z/renderer-webgpu`, `@engine/core`, UI, and every other linked package
-  in each browser bundle. Generic Layout and `@ui/elements` are retired and
-  must not be reintroduced as preview owners or compatibility paths.
+- В сборке каждой страницы сохраняется по одной resolved identity для
+  `@zavx0z/browser`, `@zavx0z/component`, `@zavx0z/dom`, `@zavx0z/engine`,
+  `@zavx0z/layout`, `@zavx0z/nodes`, `@zavx0z/nodetree`, `@zavx0z/renderer`,
+  `@zavx0z/space`, `@zavx0z/template`, `@zavx0z/ui` и `@zavx0z/webgpu`.
+  Исторические package identities, compatibility aliases и
+  generic Layout preview owners не возвращаются.
+- Landing и каждая package page владеют ровно одним
+  `@zavx0z/browser` Experience. Browser владеет его semantic Document, native
+  Canvas, циклом кадров и вводом. Experience содержит exact
+  `@zavx0z/space` `XRSpaceElement` и `XRViewPointElement`; package runtime не
+  создаёт второй Experience или owner.
+- Весь Workbench монтируется в одну HUD projection. Subject с
+  `projection: "display"` монтируется в настоящий `XRDisplayElement`, subject с
+  `projection: "hud"` — в `XRHUDElement`, а трёхмерный subject с
+  `projection: "space"` — непосредственно в тот же `XRSpaceElement`. Допустимы
+  только `display | hud | space`.
+- Исполняемый package runtime использует exact marker `storybook-runtime/4`.
+  Spatial runtime получает только `context.space` и `mountSpacePreview`;
+  implementation objects Renderer и Browser остаются private.
+- Шрифт страницы загружается через exact `@zavx0z/engine/default-font` и asset
+  `@zavx0z/engine/fonts/inter-regular.ttf`; копии шрифта и запасные owner paths
+  запрещены.
 - This repository owns its own declaration-driven documentation. Every public contract,
   visible shared behavior, route rule, or example change updates the matching
   self-documentation page and executable example in the same slice. A change is

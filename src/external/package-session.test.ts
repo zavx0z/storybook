@@ -372,7 +372,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     const graphSnapshot = redigest({
       ...base.graphSnapshot,
       workbenchAuthorStyleSheets: [{
-        specifier: "@ui/components/theme.css",
+        specifier: "@zavx0z/ui/themes/theme.css",
         url: "workbench-author-style-sheets/0.css",
         contentDigest,
       }],

@@ -1,4 +1,4 @@
-import {Pane} from "@ui/components/pane"
+import {Pane} from "@zavx0z/ui/surfaces/pane"
 import type {JsxSourceElement} from "@zavx0z/template/jsx-runtime"
 
 export type WorkbenchRegionPanelProps = Readonly<{

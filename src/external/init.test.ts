@@ -94,7 +94,7 @@ describe("external Storybook declaration init", () => {
     ])
     expect(readdirSync(result.storiesPath!)).toEqual([])
     const runtimeSource = readFileSync(result.runtimePath!, "utf8")
-    expect(runtimeSource).toContain('protocol: "storybook-runtime/3"')
+    expect(runtimeSource).toContain('protocol: "storybook-runtime/4"')
     expect(runtimeSource).toContain("context.present(input.story)")
     expect(runtimeSource).toContain('protocol: "story-presentation/1"')
     expect(runtimeSource).toContain("source: Readonly<{html: string; typescript: string}>")

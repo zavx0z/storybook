@@ -389,7 +389,7 @@ function validateRevisionStoryPresentation(
   label: string,
 ): void {
   if (value === null || value.protocol !== STORYBOOK_STORY_PRESENTATION_PROTOCOL ||
-    (value.projection !== "display" && value.projection !== "world" && value.projection !== "hud") ||
+    (value.projection !== "display" && value.projection !== "hud" && value.projection !== "space") ||
     !Array.isArray(value.widgets) || value.widgets.length < 2 || value.widgets.length > 32) {
     throw new Error(`Invalid Storybook story presentation: ${label}`)
   }

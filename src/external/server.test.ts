@@ -66,7 +66,7 @@ describe("one external Storybook server", () => {
     expect(fontAsset.status).toBe(200)
     expect(fontAsset.headers.get("content-type")).toBe("font/ttf")
     expect(Buffer.from(await fontAsset.arrayBuffer())).toEqual(readFileSync(fileURLToPath(
-      import.meta.resolve("@engine/core/fonts/inter-regular.ttf"),
+      import.meta.resolve("@zavx0z/engine/fonts/inter-regular.ttf"),
     )))
     const script = html.match(/<script type="module" src="([^"]+)"/u)?.[1]
     expect(script).toBeDefined()

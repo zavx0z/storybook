@@ -65,7 +65,7 @@ immediate subject; subject overview материализует все direct var
 child получает отдельную runtime session и real production root внутри одного
 same-Document aggregate. Representative не меняет URL, active subject/variant
 либо dock selection. Labels-only cards и message вместо executable children
-запрещены, кроме package README и явно неподдерживаемого world aggregate.
+запрещены, кроме package README и явно неподдерживаемого Space aggregate.
 Если overview содержит ровно один executable child, Inspector сохраняет
 presentation contract его exact subject и получает runtime values этого
 representative, не выбирая subject/variant в navigation. Поэтому single-subject
@@ -89,7 +89,7 @@ Package-level `widgetContributions` использует exact
 ровно один self package `@zavx0z/storybook` в этом порядке.
 
 Каждый catalog subject обязан иметь `story-presentation/1` с projection
-`display | world | hud` и ordered unique widgets 2..32, включая `source` и
+`display | hud | space` и ordered unique widgets 2..32, включая `source` и
 `diagnostics`. Variant exact-наследует subject; package default и variant
 override запрещены.
 
@@ -104,8 +104,9 @@ Fixed `workbench-layout/2` владеет ровно `catalog`, `secondary`, `sc
 рендерят видимые headings: их labels остаются только доступными именами regions.
 Project/runtime не декларирует layout и не заменяет navigation. Видимый shell
 является одним compiled TSX ComponentRoot и содержит ровно один production
-`@ui/components/Inspector`; rail/content являются его внутренностями, а не
-package slots. Inspector получает direct keyed `@ui/components/Panel` children;
+`@zavx0z/ui/widgets/inspector#Inspector`; rail/content являются его
+внутренностями, а не package slots. Inspector получает direct keyed
+`@zavx0z/ui/surfaces/panel#Panel` children;
 category `panelIds` связывает rail с widget panels. Domain `widget.id` остаётся
 key/retained-state identity Storybook и замыкается consumer callback-ом вокруг
 `Panel.onToggle(expanded, event)`, но не становится prop-ом Panel.
@@ -129,8 +130,12 @@ style fragment, который потребляется одним `style` site,
 равно выражается component-ом.
 
 Workbench components обязаны композировать exact production owners
-`Pane`, `Button`, `TextField`, `Typography`, `Inspector`, `Panel`,
-concrete Fields, `CodeEditor` и `StatusBar`, когда их semantic/API contract подходит. Caller
+`@zavx0z/ui/surfaces/pane`, `@zavx0z/ui/buttons/button`,
+`@zavx0z/ui/fields/text-field`, `@zavx0z/ui/typography`,
+`@zavx0z/ui/widgets/inspector`, `@zavx0z/ui/surfaces/panel`, concrete Fields,
+`@zavx0z/ui/views/code-editor`, `@zavx0z/ui/navigation/breadcrumbs` и
+`@zavx0z/ui/feedback/status-bar`, когда их
+semantic/API contract подходит. Caller
 `style` содержит только contextual placement; он не повторяет owner padding,
 control height, font, border, background, focus, selected, disabled или shadow.
 Storybook-owned intrinsic остаётся только там, где он несёт другую семантику:
@@ -173,35 +178,47 @@ Overview читает настоящий owner file. Markdown subset не вып
 
 ### `STORYBOOK-WORKBENCH-005` — one page Experience
 
-External landing и каждая package browser page владеют одним exact semantic
-Document и одним host `DocumentSpaceRuntime`: native Canvas, Engine Renderer,
-Space и ViewPoint. Workbench является camera-locked overlay root того же
-Document. Font и полный ordered stylesheet set принадлежат host; package
-author resources регистрируются до создания host runtime.
-Host default font является exact `@engine/core/fonts/inter-regular.ttf` и
-публикуется без копии либо fallback по `/assets/inter-regular.ttf`; HTML meta
-указывает на этот же URL до запуска page runtime.
+External landing и каждая package browser page владеют ровно одним
+`@zavx0z/browser` Experience. Browser создаёт и освобождает semantic Document,
+native Canvas, цикл кадров и owner ввода этой страницы. Experience содержит
+exact `@zavx0z/space` `XRSpaceElement` и `XRViewPointElement`; package runtime
+не получает право создавать или заменять этих владельцев.
 
-На всём lifecycle page создаётся ровно один host runtime; owner session не
-может передать runtime `styleSheets` или пересоздать Renderer/Space/ViewPoint.
-Named package tabs остаются отдельными Experiences и не разделяют Document,
-Canvas, Space, renderer resources или runtime state.
+Весь Workbench является одним `XRHUDElement`
+`external-storybook-workbench`. Exact `XRDisplayElement`
+`external-storybook-display` принимает Display stories; HUD stories используют
+`XRHUDElement`, а Space stories монтируются непосредственно в единственный
+`XRSpaceElement`. Host получает каждую projection только через
+`experience.getProjection(owner)`.
+Исходный ViewPoint двумерной рабочей среды смотрит перпендикулярно Display. Display
+и HUD должны находиться строго ближе дальней плоскости ViewPoint, чтобы прямоугольники,
+текст и input проектировались одинаково и читаемо.
 
-### `STORYBOOK-WORKBENCH-006` — one shared world
+Host default font загружается через `@zavx0z/engine/default-font` из exact
+asset export `@zavx0z/engine/fonts/inter-regular.ttf` и публикуется без копии
+либо fallback по `/assets/inter-regular.ttf`; HTML meta указывает на тот же URL
+до запуска page runtime.
 
-Только subject с `projection: "world"` получает `context.space`, тождественный
-`DocumentSpaceRuntime.space`, и narrow `mountWorldPreview` без поля `space`.
-Owner добавляет world content в этот exact Space; shared host применяет camera к
-единственному ViewPoint и вычисляет logical/DPR preview bounds. Display, HUD и
-Workbench являются same-Document projection roots. Owner не получает raw
-Renderer/SpaceRuntime и не создаёт второй Space, Canvas, Renderer, ViewPoint,
-listener set или RAF.
+На всём lifecycle page создаётся ровно один Experience; owner session не может
+передать runtime `styleSheets` или пересоздать Document, Canvas, Space,
+ViewPoint, цикл кадров либо owner ввода. Named package tabs остаются отдельными
+Experiences и не разделяют эти объекты или runtime state.
+
+### `STORYBOOK-WORKBENCH-006` — one shared Space
+
+Только subject с `projection: "space"` получает `context.space`, тождественный
+`experience.space`, и narrow `mountSpacePreview`. Owner добавляет трёхмерный
+semantic content непосредственно в exact Space; Browser Experience применяет
+camera к единственному `experience.viewPoint` и вычисляет logical/DPR preview
+bounds. Display, HUD и Workbench являются same-Document projection roots.
+Owner не получает implementation objects Renderer/Browser и не создаёт второй
+Experience, Document, Canvas, Space, ViewPoint, listener set или RAF.
 
 ## Runtime and build
 
 ### `STORYBOOK-RUNTIME-001` — structural adapter
 
-Adapter marker — exact `storybook-runtime/3`. Он создаёт package execution
+Adapter marker — exact `storybook-runtime/4`. Он создаёт package execution
 session, монтирует/обновляет/unmount-ит loaded story, принимает AbortSignal,
 idempotently dispose-ится и на каждый mount/update ровно один раз вызывает
 atomic `context.present({protocol:"story-presentation/1", node, componentRoot,
@@ -218,15 +235,15 @@ target, canonical contained `.css`, unique specifier/file и SHA-256 bytes.
 Self Workbench sheets идут первыми, active package sheets вторыми; одинаковые
 specifier+bytes дают один native link, conflicting bytes fail closed. Immutable
 revision materializes bytes и создаёт один annotated native `<link>`
-до module entry. Browser bridge получает только exact declared links, ждёт
-`ready` до `DocumentSpaceRuntime`, не fetch-ит и не сканирует
-`document.styleSheets`; load/CSSOM/import/nesting/grouping errors fail closed.
-Cleanup строго вызывает `DocumentSpaceRuntime.dispose()` перед release/dispose
-linked author host.
+до module entry. Browser Experience получает только exact declared links через
+`linkedAuthorStyleSheets`, ждёт `ready` до `createExperience(...)`, не загружает
+CSS повторно и не сканирует `document.styleSheets`;
+load/CSSOM/import/nesting/grouping errors fail closed. Cleanup строго вызывает
+`experience.dispose()` перед release/dispose linked author resources.
 
 ### `STORYBOOK-SOURCE-001` — root-scoped authored source
 
-Runtime/3 передаёт required `source:{html,typescript}` и `componentRoot` только
+Runtime/4 передаёт required `source:{html,typescript}` и `componentRoot` только
 в atomic `context.present`. Host читает один immutable
 `componentRoot.readStyleSheets()` snapshot, сохраняет first-adoption order,
 deduplicates source records и требует `source.kind: "authored-css"` у каждого
@@ -250,11 +267,21 @@ unloaded. Browser arbitrary dynamic import, eval и giant all-package bundle
 запрещены. Failed old import становится retryable через новый immutable revision
 URL.
 
+Package без runtime, variants и custom widget modules считается
+declaration-only. Для него собирается только generated entry и общий Workbench:
+их compiler dependencies принадлежат `@zavx0z/storybook`. Package не обязан
+объявлять `@zavx0z/template` ради общего shell. Как только package объявляет
+хотя бы один исполняемый author module, его effective `jsxImportSource` и exact
+linked owner dependencies снова проверяются fail closed.
+
 ### `STORYBOOK-IDENTITY-001` — one module identity per package realm
 
 Package build фиксирует canonical dependency realpaths. Две identities
-обязательного DOM/Renderer/Engine/React-like/Template runtime, ambiguous
-resolution, foreign branded Node и incompatible protocol fail closed.
+обязательных `@zavx0z/browser`, `@zavx0z/component`, `@zavx0z/dom`,
+`@zavx0z/engine`, `@zavx0z/layout`, `@zavx0z/nodes`, `@zavx0z/nodetree`,
+`@zavx0z/renderer`, `@zavx0z/space`, `@zavx0z/template`, `@zavx0z/ui` или
+`@zavx0z/webgpu`, ambiguous resolution, foreign branded Node
+и incompatible protocol fail closed. Compatibility aliases запрещены.
 
 ### `STORYBOOK-SESSION-001` — independent PackageSession
 
@@ -428,21 +455,21 @@ browser CLI как runtime dependency запрещены. Ensure, attach, search
 Inspection и interaction используют existing semantic Document, Workbench IDs
 и renderer frame. Target resolution exact nodeId либо exact role+name;
 ambiguity fail closed. Raw eval/coordinates не являются agent API.
-`key` активирует exact Workbench overlay owner в уже существующем
-`DocumentNativeInputHost`, фокусирует semantic target, синхронизирует host и
-проверяет exact Document/owner/target/native proxy до browser `keydown` и
-`keyup`. Modifiers сохраняются; ownership/proxy mismatch fail closed. Bridge не
-fabricate-ит semantic `KeyboardEvent`, поэтому Browser-owned Escape, Range и
-Select defaults исполняются одним native input owner. Exact proxy берётся только
+`key` активирует exact Workbench HUD owner в существующем Browser Experience,
+фокусирует semantic target и вызывает `experience.dispatchKey(...)` только
+после проверки exact Document/owner/target/native proxy. Modifiers сохраняются;
+ownership/proxy mismatch fail closed. Bridge не fabricate-ит semantic
+`KeyboardEvent`, поэтому Browser-owned Escape, Range и Select defaults
+исполняются одним input owner. Exact proxy берётся только
 из `browserDocument.activeElement`: input/textarea сверяются по public host
 identity, select — по Renderer-owned `data-renderer-select-proxy`; native DOM
-scan отсутствует. После `keydown` host синхронизируется повторно: если default
+scan отсутствует. После `keydown` Experience синхронизируется повторно: если default
 action восстановил focus внутри того же Workbench owner, `keyup` идёт через его
 текущий exact proxy, а не через stale target.
 Это bounded agent adapter с browser-realm event (`isTrusted === false`): он
 доказывает Renderer/Browser-host defaults, но не заявляет OS keyboard, Tab
 navigation или native Button activation.
-State/inspection публикуют только singular `canvas` exact текущего shell;
+State/inspection публикуют только singular `canvas` exact текущего Experience;
 plural canvas discovery отсутствует. Capture area `canvas` всегда означает этот
 же единственный host Canvas.
 
@@ -495,7 +522,7 @@ package lifecycle. Production exports не расширяются stories. Refer
 Blender capture, screenshot/accepted baselines, pixel/perceptual diff,
 Reference/Actual/Diff UI, full TypeScript/TSDoc discovery и production component
 redesign не реализуются. MCP capture остаётся evidence, не accepted reference.
-Direct-world projection ограничена одним bounded live region текущей package
+Space projection ограничена одним bounded live region текущей package
 story; multi-region authoring, arbitrary owner picking и post-processing graph
 не следуют из этого контракта.
 

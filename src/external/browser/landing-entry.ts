@@ -1,9 +1,8 @@
 /** Global external Storybook landing entry. It never imports package runtime code. */
 
 import type {CustomEvent} from "@zavx0z/dom"
-import type {BrowserLinkedAuthorStyleSheetSource} from "@zavx0z/renderer-browser"
+import type {ExperienceLinkedAuthorStyleSheet} from "@zavx0z/browser"
 import {WORKBENCH_EVENTS} from "../../workbench/contract.ts"
-import {waitForStorybookFrameBoundary} from "./frame.ts"
 import {
   deriveExternalStorybookLanding,
   deriveExternalStorybookLandingSelection,
@@ -28,7 +27,6 @@ export type StartExternalStorybookLandingOptions = Readonly<{
   createSocket?(url: string): LandingSocket
   location?: Pick<Location, "href" | "pathname" | "reload">
   history?: Pick<History, "pushState">
-  waitForFrame?(): Promise<void>
   shell?: Omit<CreateExternalStorybookShellOptions, "title" | "browserDocument">
 }>
 
@@ -202,8 +200,7 @@ export async function startExternalStorybookLanding(
     shell.dispose()
   }
   globalThis.addEventListener?.("pagehide", dispose, {once: true})
-  shell.requestRender()
-  await (options.waitForFrame ?? waitForStorybookFrameBoundary)()
+  shell.presentFrame()
   browserDocument.documentElement.dataset.externalStorybook = "ready"
   browserDocument.documentElement.dataset.externalStorybookLanding = "ready"
   return Object.freeze({snapshot, shell, select, dispose})
@@ -324,7 +321,7 @@ async function requestPackageView(
 /** Reads only the server-indexed landing links; it never scans native CSSOM. */
 export function indexedLandingAuthorStyleSheetSources(
   document: globalThis.Document,
-): readonly BrowserLinkedAuthorStyleSheetSource[] {
+): readonly ExperienceLinkedAuthorStyleSheet[] {
   if (typeof document.querySelectorAll !== "function" || typeof document.getElementById !== "function") {
     return Object.freeze([])
   }

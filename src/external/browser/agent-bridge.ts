@@ -55,7 +55,14 @@ export function createStorybookAgentBridge(
 ): StorybookAgentBridge {
   const inspector = createDomInspector({
     document: options.shell.document,
-    renderer: options.shell.workbenchOverlay.renderer,
+    readFrame(node) {
+      try {
+        const projection = options.shell.projectionFor(node)
+        return projection.kind === "space" ? null : projection.readFrame()
+      } catch {
+        return null
+      }
+    },
   })
   let disposed = false
 
@@ -142,10 +149,10 @@ export function createStorybookAgentBridge(
         ...(include.has("canvas") ? {canvas} : {}),
       })
     }
-    const maximumDepth = boundedInteger(request.maxDepth ?? (defaultInspection ? 2 : 4), 0, 12, "maxDepth")
+    const maximumDepth = boundedInteger(request.maxDepth ?? (defaultInspection ? 4 : 6), 0, 12, "maxDepth")
     const limit = boundedInteger(request.limit ?? (defaultInspection ? 40 : 80), 1, 200, "limit")
     const offset = decodeCursor(request.cursor)
-    const snapshot = inspector.snapshot(options.shell.workbench.element)
+    const snapshot = inspector.snapshot(options.shell.space)
     const byId = new Map(snapshot.nodes.map((node) => [node.id, node] as const))
     const depths = new Map<number, number>([[snapshot.root, 0]])
     const ordered = snapshot.nodes.filter((node) => {
@@ -216,7 +223,7 @@ export function createStorybookAgentBridge(
           ? inspector.nodeForId(parseAgentNodeId(String((request as Record<string, unknown>).nodeId)))
           : options.shell.workbench.element
       if (semantic === null) throw new Error("Unknown Storybook capture node")
-      const snapshot = inspector.snapshot(options.shell.workbench.element)
+      const snapshot = inspector.snapshot(options.shell.space)
       const id = inspector.idForNode(semantic)
       const node = snapshot.nodes.find((candidate) => candidate.id === id)
       if (node?.box === undefined || node.box === null) throw new Error(`Storybook ${area} has no presented bounds`)
@@ -273,28 +280,39 @@ async function applyNodeAction(
   inspector: DomInspector,
   shell: ExternalStorybookShell,
 ): Promise<void> {
-  const snapshot = inspector.snapshot(shell.workbench.element)
+  const snapshot = inspector.snapshot(shell.space)
   const record = snapshot.nodes.find(({id}) => inspector.nodeForId(id) === node)
   const box = record?.hit ?? record?.box ?? null
   const point = box === null ? null : {x: box.x + box.width / 2, y: box.y + box.height / 2}
-  const pointer = (buttons: number) => {
-    if (point === null) throw new Error("Storybook semantic target has no presented bounds")
-    return {clientX: point.x, clientY: point.y, pointerId: 1, pointerType: "mouse", button: 0, buttons}
+  const projection = shell.projectionFor(node)
+  const pointer = (
+    buttons: number,
+    target: Readonly<{x: number; y: number}> | null = point,
+  ) => {
+    if (target === null) throw new Error("Storybook semantic target has no presented bounds")
+    return {x: target.x, y: target.y, pointerId: 1, pointerType: "mouse", button: 0, buttons}
   }
-  if (action === "hover") shell.workbenchOverlay.interaction.pointerMove(shell.workbenchOverlay.frame, pointer(0))
-  else if (action === "pointerDown") shell.workbenchOverlay.interaction.pointerDown(shell.workbenchOverlay.frame, pointer(1))
-  else if (action === "pointerUp") shell.workbenchOverlay.interaction.pointerUp(shell.workbenchOverlay.frame, pointer(0))
+  if (action === "hover") documentProjection(projection).pointerMove(pointer(0))
+  else if (action === "pointerDown") documentProjection(projection).pointerDown(pointer(1))
+  else if (action === "pointerUp") documentProjection(projection).pointerUp(pointer(0))
   else if (action === "click") {
-    shell.workbenchOverlay.interaction.pointerDown(shell.workbenchOverlay.frame, pointer(1))
-    shell.workbenchOverlay.interaction.pointerUp(shell.workbenchOverlay.frame, pointer(0))
+    const owner = documentProjection(projection)
+    owner.pointerDown(pointer(1))
+    owner.pointerUp(pointer(0))
   } else if (action === "drag") {
-    if (point === null) throw new Error("Storybook drag source requires presented bounds")
     let destinationPoint: Readonly<{x: number; y: number}>
     if (request.destination !== undefined) {
+      if (point === null) throw new Error("Storybook drag source requires presented bounds")
       const destination = resolveTarget(request.destination, inspector)
       const target = snapshot.nodes.find(({id}) => inspector.nodeForId(id) === destination)
       const destinationBox = target?.hit ?? target?.box ?? null
       if (destinationBox === null) throw new Error("Storybook drag destination requires presented bounds")
+      const destinationProjection = shell.projectionFor(destination)
+      if (
+        projection.kind === "space" ||
+        destinationProjection.kind === "space" ||
+        projection.owner !== destinationProjection.owner
+      ) throw new Error("Storybook drag endpoints must belong to one Display or HUD projection")
       destinationPoint = Object.freeze({
         x: destinationBox.x + destinationBox.width / 2,
         y: destinationBox.y + destinationBox.height / 2,
@@ -305,38 +323,37 @@ async function applyNodeAction(
         : null
       const dx = finiteNumber(delta?.dx, -10_000, 10_000, "drag dx")
       const dy = finiteNumber(delta?.dy, -10_000, 10_000, "drag dy")
-      const viewport = shell.workbenchOverlay.frame.viewport
+      if (shell.applySpacePreviewGesture(node, {kind: "orbit", deltaX: dx, deltaY: dy})) return
+      if (point === null) throw new Error("Storybook drag source requires presented bounds")
+      const frame = documentProjection(projection).readFrame()
+      if (frame === null) throw new Error("Storybook drag projection has no presented frame")
+      const viewport = frame.viewport
       destinationPoint = Object.freeze({
-        x: Math.max(0, Math.min(viewport.width, point.x + dx)),
-        y: Math.max(0, Math.min(viewport.height, point.y + dy)),
+        x: Math.max(0, Math.min(Math.max(0, viewport.width - 0.001), point.x + dx)),
+        y: Math.max(0, Math.min(Math.max(0, viewport.height - 0.001), point.y + dy)),
       })
     }
-    if (shell.applyWorldPreviewGesture(node, {
+    if (point === null) throw new Error("Storybook drag source requires presented bounds")
+    if (shell.applySpacePreviewGesture(node, {
       kind: "orbit",
       deltaX: destinationPoint.x - point.x,
       deltaY: destinationPoint.y - point.y,
     })) return
-    shell.workbenchOverlay.interaction.pointerDown(shell.workbenchOverlay.frame, pointer(1))
-    shell.workbenchOverlay.interaction.pointerMove(shell.workbenchOverlay.frame, {
-      ...pointer(1),
-      clientX: destinationPoint.x,
-      clientY: destinationPoint.y,
-    })
-    shell.workbenchOverlay.interaction.pointerUp(shell.workbenchOverlay.frame, {
-      ...pointer(0),
-      clientX: destinationPoint.x,
-      clientY: destinationPoint.y,
-    })
+    const owner = documentProjection(projection)
+    owner.pointerDown(pointer(1))
+    owner.pointerMove(pointer(1, destinationPoint))
+    owner.pointerUp(pointer(0, destinationPoint))
   } else if (action === "wheel") {
     const wheelValue = request.value !== null && typeof request.value === "object" && !Array.isArray(request.value)
       ? request.value as Record<string, unknown>
       : null
     const delta = finiteNumber(wheelValue?.deltaY ?? request.value ?? 120, -10_000, 10_000, "wheel value")
+    if (shell.applySpacePreviewGesture(node, {kind: "pan", deltaX: 0, deltaY: delta})) return
     if (point === null) throw new Error("Storybook wheel target has no presented bounds")
-    if (shell.applyWorldPreviewGesture(node, {kind: "pan", deltaX: 0, deltaY: delta})) return
-    shell.workbenchOverlay.interaction.wheel(shell.workbenchOverlay.frame, {
-      clientX: point.x,
-      clientY: point.y,
+    documentProjection(projection).wheel({
+      x: point.x,
+      y: point.y,
+      deltaX: 0,
       deltaY: delta,
     })
   } else if (action === "focus") {
@@ -344,6 +361,7 @@ async function applyNodeAction(
     node.focus()
   } else if (action === "key") {
     if (!(node instanceof HTMLElement)) throw new Error("Storybook key target is not an HTMLElement")
+    documentProjection(projection).pointerDown(pointer(1))
     const keyValue = request.value !== null && typeof request.value === "object" && !Array.isArray(request.value)
       ? request.value as Record<string, unknown>
       : null
@@ -371,6 +389,15 @@ async function applyNodeAction(
   } else {
     throw new Error(`Unsupported Storybook node action: ${action}`)
   }
+}
+
+function documentProjection(
+  projection: ReturnType<ExternalStorybookShell["projectionFor"]>,
+) {
+  if (projection.kind === "space") {
+    throw new Error("Storybook semantic target has no Display or HUD input projection")
+  }
+  return projection
 }
 
 function resolveTarget(target: StorybookAgentTarget | undefined, inspector: DomInspector): Node {

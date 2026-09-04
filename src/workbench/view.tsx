@@ -31,12 +31,12 @@ export type WorkbenchViewProps = Readonly<{
 /** One compiled six-region Workbench composition. */
 export function WorkbenchView(props: WorkbenchViewProps) {
   const state = props.state
-  const world = state.presentation.projection === "world"
+  const content = state.presentation.projection !== "hud"
   return <div
     role="application"
     aria-label={state.title}
     data-storybook-workbench=""
-    data-storybook-world-preview={world ? "true" : undefined}
+    data-storybook-content-preview={content ? "true" : undefined}
     style={css`
       box-sizing: border-box;
       display: flex;
@@ -49,14 +49,14 @@ export function WorkbenchView(props: WorkbenchViewProps) {
       font-size: 11px;
       line-height: 16px;
 
-      &[data-storybook-world-preview="true"] {
+      &[data-storybook-content-preview="true"] {
         background: transparent;
       }
     `}
   >
     <div
       data-storybook-workbench-part="body"
-      data-world={world ? "true" : undefined}
+      data-content={content ? "true" : undefined}
       style={css`
         box-sizing: border-box;
         display: flex;
@@ -68,7 +68,7 @@ export function WorkbenchView(props: WorkbenchViewProps) {
         overflow: clip;
         background: rgb(var(--surface-950));
 
-        &[data-world="true"] {
+        &[data-content="true"] {
           background: transparent;
         }
       `}

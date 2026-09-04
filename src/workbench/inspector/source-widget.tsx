@@ -1,5 +1,5 @@
-import {CodeEditor} from "@ui/components/code-editor"
-import {Typography} from "@ui/components/typography"
+import {CodeEditor} from "@zavx0z/ui/views/code-editor"
+import {Typography} from "@zavx0z/ui/typography"
 
 type SourceDocument = Readonly<{
   key: string

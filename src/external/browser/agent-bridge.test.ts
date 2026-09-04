@@ -5,17 +5,16 @@ import {
   type Document as SemanticDocument,
   type Element as SemanticElement,
 } from "@zavx0z/dom"
-import {
-  createDocumentRenderer,
-  type DocumentInteractionController,
-  type DocumentRenderer,
-  type PointerInput,
-  type WheelInput,
-} from "@zavx0z/renderer"
 import type {
-  DocumentOverlayRuntime,
-  DocumentSpaceRuntime,
-} from "@zavx0z/renderer-browser"
+  ExperienceProjectionPointerInput,
+  ExperienceProjectionWheelInput,
+} from "@zavx0z/browser"
+import {createDocumentRenderer} from "@zavx0z/renderer"
+import {
+  createSpaceElementFactories,
+  XRHUDElement,
+  XRSpaceElement,
+} from "@zavx0z/space"
 import type {ExternalStorybookPackageTabModel} from "./model.ts"
 import {
   createStorybookAgentBridge,
@@ -165,16 +164,16 @@ describe("external Storybook agent bridge interaction", () => {
 
       await interact({action: "drag", target: {nodeId: ids.run}, destination: {nodeId: ids.destination}})
       expect(fixture.calls.pointerDowns.at(-1)).toMatchObject({buttons: 1})
-      expect(fixture.calls.pointerMoves.at(-1)?.clientX)
-        .toBeGreaterThan(fixture.calls.pointerDowns.at(-1)?.clientX ?? Number.POSITIVE_INFINITY)
+      expect(fixture.calls.pointerMoves.at(-1)?.x)
+        .toBeGreaterThan(fixture.calls.pointerDowns.at(-1)?.x ?? Number.POSITIVE_INFINITY)
       expect(fixture.calls.pointerUps.at(-1)).toMatchObject({buttons: 0})
-      expect(fixture.calls.pointerUps.at(-1)?.clientX).toBe(fixture.calls.pointerMoves.at(-1)?.clientX)
+      expect(fixture.calls.pointerUps.at(-1)?.x).toBe(fixture.calls.pointerMoves.at(-1)?.x)
 
       await interact({action: "drag", target: {nodeId: ids.run}, value: {dx: 12, dy: 8}})
-      expect(fixture.calls.pointerMoves.at(-1)?.clientX)
-        .toBe((fixture.calls.pointerDowns.at(-1)?.clientX ?? 0) + 12)
-      expect(fixture.calls.pointerMoves.at(-1)?.clientY)
-        .toBe((fixture.calls.pointerDowns.at(-1)?.clientY ?? 0) + 8)
+      expect(fixture.calls.pointerMoves.at(-1)?.x)
+        .toBe((fixture.calls.pointerDowns.at(-1)?.x ?? 0) + 12)
+      expect(fixture.calls.pointerMoves.at(-1)?.y)
+        .toBe((fixture.calls.pointerDowns.at(-1)?.y ?? 0) + 8)
 
       await interact({
         action: "key",
@@ -327,10 +326,10 @@ type Fixture = Readonly<{
 }>
 
 type InteractionCalls = Readonly<{
-  pointerMoves: PointerInput[]
-  pointerDowns: PointerInput[]
-  pointerUps: PointerInput[]
-  wheels: WheelInput[]
+  pointerMoves: ExperienceProjectionPointerInput[]
+  pointerDowns: ExperienceProjectionPointerInput[]
+  pointerUps: ExperienceProjectionPointerInput[]
+  wheels: ExperienceProjectionWheelInput[]
   nativeKeys: Array<Readonly<{
     target: SemanticElement
     input: ExternalStorybookNativeKey
@@ -338,9 +337,12 @@ type InteractionCalls = Readonly<{
 }>
 
 function createFixture(): Fixture {
-  const document = createDocument()
+  const document = createDocument({elementFactories: createSpaceElementFactories()})
+  const space = document.createElement("xr-space") as XRSpaceElement
+  const viewPoint = document.createElement("xr-view-point")
+  const hud = document.createElement("xr-hud") as XRHUDElement
+  hud.id = "external-storybook-workbench"
   const root = document.createElement("div")
-  document.appendChild(root)
   root.setAttribute("style", "display:block; width:640px; height:480px; background:#202124")
   const preview = document.createElement("main")
   preview.setAttribute("aria-label", "Preview")
@@ -361,10 +363,15 @@ function createFixture(): Fixture {
   nested.appendChild(nestedLabel)
   preview.append(run, destination, input, nested)
   root.appendChild(preview)
+  document.transaction(() => {
+    hud.append(root)
+    space.append(viewPoint, hud)
+    document.append(space)
+  })
 
   const renderer = createDocumentRenderer({
     document,
-    root,
+    root: hud,
     viewport: {width: 640, height: 480},
   })
   const calls: InteractionCalls = {
@@ -374,39 +381,35 @@ function createFixture(): Fixture {
     wheels: [],
     nativeKeys: [],
   }
-  const interaction = {
-    document,
-    hoveredElement: null,
-    pressedElement: null,
-    tooltip: null,
-    pointerMove(_frame, inputValue) {
+  const hudProjection = Object.freeze({
+    kind: "hud" as const,
+    owner: hud,
+    readFrame: () => renderer.flush(),
+    subscribeFrames: () => () => {},
+    pointerMove(inputValue: ExperienceProjectionPointerInput) {
       calls.pointerMoves.push(inputValue)
       return run
     },
-    pointerDown(_frame, inputValue) {
+    pointerDown(inputValue: ExperienceProjectionPointerInput) {
       calls.pointerDowns.push(inputValue)
       return run
     },
-    pointerUp(_frame, inputValue) {
+    pointerUp(inputValue: ExperienceProjectionPointerInput) {
       calls.pointerUps.push(inputValue)
       return run
     },
-    pointerCancel() {},
-    wheel(_frame, inputValue) {
+    wheel(inputValue: ExperienceProjectionWheelInput) {
       calls.wheels.push(inputValue)
       return destination
     },
-    composeFrame: (frame) => frame,
-    dispose() {},
-  } satisfies DocumentInteractionController
-  const workbenchOverlay = {
-    renderer,
-    interaction,
-    get frame() {
-      return renderer.flush()
-    },
-  } as unknown as DocumentOverlayRuntime
-  const runtime = {} as DocumentSpaceRuntime
+  })
+  const spaceProjection = Object.freeze({
+    kind: "space" as const,
+    owner: space,
+    orbit() {},
+    pan() {},
+    zoom() {},
+  })
   const externalCanvas = canvas("external-storybook-canvas", 640, 480, {left: 0, top: 0})
   const browserDocument = {
     defaultView: {name: "storybook-view"},
@@ -453,10 +456,16 @@ function createFixture(): Fixture {
     document,
     browserDocument,
     canvas: externalCanvas,
+    space,
+    viewPoint,
+    hud,
     workbench,
-    runtime,
-    workbenchOverlay,
-    applyWorldPreviewGesture() {
+    projectionFor(node: import("@zavx0z/dom").Node) {
+      if (node === hud || hud.contains(node)) return hudProjection
+      if (node === space || space.contains(node)) return spaceProjection
+      throw new Error("Fixture node is outside Experience")
+    },
+    applySpacePreviewGesture() {
       return false
     },
     dispatchNativeKey(target: SemanticElement, input: ExternalStorybookNativeKey) {

@@ -120,7 +120,7 @@ describe("external Storybook attached-root registry", () => {
       .find(({packageId}) => packageId === "@fixture/components")!
     expect(components.graphSnapshot.workbenchAuthorStyleSheets.map(({specifier, url}) => ({specifier, url})))
       .toEqual([{
-        specifier: "@ui/components/theme.css",
+        specifier: "@zavx0z/ui/themes/theme.css",
         url: "workbench-author-style-sheets/0.css",
       }])
     const workbenchResource = components.resourceFiles?.find(({targetPath}) =>
@@ -128,7 +128,7 @@ describe("external Storybook attached-root registry", () => {
     expect(workbenchResource).toMatchObject({
       contentDigest: components.graphSnapshot.workbenchAuthorStyleSheets[0]!.contentDigest,
     })
-    expect(workbenchResource?.sourcePath).toEndWith("/packages/components/theme.css")
+    expect(workbenchResource?.sourcePath).toEndWith("/ui/themes/theme.css")
     expect(components.watchPaths).toContainEqual({
       path: workbenchResource!.sourcePath,
       category: "resource",

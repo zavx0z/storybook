@@ -14,7 +14,7 @@ import type {
   Workbench,
   WorkbenchNavigationItem,
 } from "../contract.ts"
-import {chevronDownIcon, chevronRightIcon} from "@ui/components/icons"
+import {chevronDownIcon, chevronRightIcon} from "@zavx0z/ui/themes/icons"
 import {WORKBENCH_EVENTS} from "../contract.ts"
 import type * as ControllerModule from "../controller.ts"
 import {loadCompiledWorkbench} from "../testing/compile-workbench.ts"

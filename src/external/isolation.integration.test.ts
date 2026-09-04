@@ -234,7 +234,7 @@ function createIsolationFixture() {
     }, null, 2)}\n`)
     writeFileSync(join(declarationRoot, "runtime.ts"), [
       "export const runtime = Object.freeze({",
-      "  protocol: 'storybook-runtime/3',",
+      "  protocol: 'storybook-runtime/4',",
       "  create(context) {",
       "    let mounted = null",
       "    const remove = () => {",

@@ -1,5 +1,5 @@
 import type {Document, HTMLElement} from "@zavx0z/dom"
-import {createRoot, type ComponentRoot} from "@zavx0z/react"
+import {createRoot, type ComponentRoot} from "@zavx0z/component"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
 
 export type StorybookComponentPresentation = Readonly<{

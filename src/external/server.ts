@@ -633,7 +633,7 @@ export async function startExternalStorybookServer(
           return fileInsideResponse(assets.root, url.pathname.slice("/__storybook/shared/".length))
         }
         if (url.pathname === "/assets/inter-regular.ttf" && request.method === "GET") {
-          const fontPath = fileURLToPath(import.meta.resolve("@engine/core/fonts/inter-regular.ttf"))
+          const fontPath = fileURLToPath(import.meta.resolve("@zavx0z/engine/fonts/inter-regular.ttf"))
           return fileResponse(fontPath, "font/ttf")
         }
         if (url.pathname === "/schemas/manifest.schema.json" || url.pathname === "/schemas/catalog.schema.json") {

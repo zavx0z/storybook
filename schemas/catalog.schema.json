@@ -81,7 +81,7 @@
       "required": ["protocol", "projection", "widgets"],
       "properties": {
         "protocol": {"const": "story-presentation/1"},
-        "projection": {"enum": ["display", "world", "hud"]},
+        "projection": {"enum": ["display", "hud", "space"]},
         "widgets": {
           "type": "array",
           "minItems": 2,

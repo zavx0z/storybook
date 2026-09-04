@@ -8,18 +8,22 @@
         "@zavx0z/storybook-browser-lifecycle": "workspace:*",
       },
       "devDependencies": {
-        "@engine/core": "link:@engine/core",
         "@types/bun": "^1.4.0",
-        "@ui/components": "link:@ui/components",
         "@webgpu/types": "^0.1.68",
-        "@zavx0z/dom": "link:@zavx0z/dom",
-        "@zavx0z/dom-devtools": "link:@zavx0z/dom-devtools",
+        "@zavx0z/browser": "file:../webxr-space/browser",
+        "@zavx0z/component": "file:../webxr-space/component",
+        "@zavx0z/dom": "file:../webxr-space/dom",
+        "@zavx0z/dom-devtools": "file:../renderer/packages/devtools",
+        "@zavx0z/engine": "file:../webxr-space/engine",
         "@zavx0z/highlighter": "link:@zavx0z/highlighter",
-        "@zavx0z/react": "link:@zavx0z/react",
-        "@zavx0z/renderer": "link:@zavx0z/renderer",
-        "@zavx0z/renderer-browser": "link:@zavx0z/renderer-browser",
-        "@zavx0z/renderer-webgpu": "link:@zavx0z/renderer-webgpu",
-        "@zavx0z/template": "link:@zavx0z/template",
+        "@zavx0z/layout": "file:../webxr-space/layout",
+        "@zavx0z/nodes": "file:../webxr-space/nodes",
+        "@zavx0z/nodetree": "file:../webxr-space/nodetree",
+        "@zavx0z/renderer": "file:../webxr-space/renderer",
+        "@zavx0z/space": "file:../webxr-space/space",
+        "@zavx0z/template": "file:../webxr-space/template",
+        "@zavx0z/ui": "file:../webxr-space/ui",
+        "@zavx0z/webgpu": "file:../webxr-space/webgpu",
         "typescript": "^7.0.2",
       },
     },
@@ -37,7 +41,9 @@
     },
   },
   "packages": {
-    "@engine/core": ["@engine/core@link:@engine/core", {}],
+    "@dagrejs/dagre": ["@dagrejs/dagre@3.1.1", "", { "dependencies": { "@dagrejs/graphlib": "4.0.5" } }, "sha512-zroZB1dFOFiGgv4Xcrn1DckB1o4aOikPqD2NDQPV0WM//CXGcS6xiD0rNkqHmw6FEg4tabt4nxPLwgCWT+Vb2A=="],
+
+    "@dagrejs/graphlib": ["@dagrejs/graphlib@4.0.5", "", {}, "sha512-7xrBTqIts3o+PMUZX97wSc+7TUbW+/rULzGNCTP6yooNVDXbzw4Wutg/H/xOutTB/c/k0YqOAavgPh4/Zk9PFA=="],
 
     "@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
 
@@ -85,34 +91,144 @@
 
     "@typescript/typescript-win32-x64": ["@typescript/typescript-win32-x64@7.0.2", "", { "os": "win32", "cpu": "x64" }, "sha512-0BQ3HkAHHlKLSp1qRvf3SUhGpGsDuhB/jgFw75guyqbxJqEaS0Cw/VFO8i2nHglJUzQCRtMMR/IBAKE3ETMC4g=="],
 
-    "@ui/components": ["@ui/components@link:@ui/components", {}],
-
     "@webgpu/types": ["@webgpu/types@0.1.72", "", {}, "sha512-0cF7RFM2edNoiIS1ODJp0/Gzv4/xSXhwoR0YCza+OWpJWtn4wmo9DvK91aLlH9+uUnwIriP7ZiC3WitmyhuzBw=="],
 
-    "@zavx0z/dom": ["@zavx0z/dom@link:@zavx0z/dom", {}],
+    "@zavx0z/browser": ["@zavx0z/browser@file:../webxr-space/browser", { "peerDependencies": { "@zavx0z/dom": "*", "@zavx0z/engine": "*", "@zavx0z/renderer": "*", "@zavx0z/space": "*", "@zavx0z/webgpu": "*" }, "optionalPeers": ["@zavx0z/dom", "@zavx0z/engine", "@zavx0z/renderer", "@zavx0z/space", "@zavx0z/webgpu"] }],
 
-    "@zavx0z/dom-devtools": ["@zavx0z/dom-devtools@link:@zavx0z/dom-devtools", {}],
+    "@zavx0z/component": ["@zavx0z/component@file:../webxr-space/component", { "peerDependencies": { "@zavx0z/dom": "*", "@zavx0z/template": "*" }, "optionalPeers": ["@zavx0z/dom", "@zavx0z/template"] }],
+
+    "@zavx0z/dom": ["@zavx0z/dom@file:../webxr-space/dom", { "peerDependencies": { "typescript": "7.0.2" } }],
+
+    "@zavx0z/dom-devtools": ["@zavx0z/dom-devtools@file:../renderer/packages/devtools", { "devDependencies": { "@types/bun": "^1.4.0", "typescript": "^7.0.2" }, "peerDependencies": { "@zavx0z/dom": "*", "@zavx0z/renderer": "*" }, "optionalPeers": ["@zavx0z/dom", "@zavx0z/renderer"] }],
+
+    "@zavx0z/engine": ["@zavx0z/engine@file:../webxr-space/engine", {}],
 
     "@zavx0z/highlighter": ["@zavx0z/highlighter@link:@zavx0z/highlighter", {}],
 
-    "@zavx0z/react": ["@zavx0z/react@link:@zavx0z/react", {}],
+    "@zavx0z/layout": ["@zavx0z/layout@file:../webxr-space/layout", { "dependencies": { "@dagrejs/dagre": "3.1.1", "d3-dag": "0.9.1" } }],
 
-    "@zavx0z/renderer": ["@zavx0z/renderer@link:@zavx0z/renderer", {}],
+    "@zavx0z/nodes": ["@zavx0z/nodes@file:../webxr-space/nodes", { "peerDependencies": { "@zavx0z/component": "*", "@zavx0z/dom": "*", "@zavx0z/layout": "*", "@zavx0z/nodetree": "*", "@zavx0z/template": "*", "@zavx0z/ui": "*" }, "optionalPeers": ["@zavx0z/component", "@zavx0z/dom", "@zavx0z/layout", "@zavx0z/nodetree", "@zavx0z/template", "@zavx0z/ui"] }],
 
-    "@zavx0z/renderer-browser": ["@zavx0z/renderer-browser@link:@zavx0z/renderer-browser", {}],
+    "@zavx0z/nodetree": ["@zavx0z/nodetree@file:../webxr-space/nodetree", {}],
 
-    "@zavx0z/renderer-webgpu": ["@zavx0z/renderer-webgpu@link:@zavx0z/renderer-webgpu", {}],
+    "@zavx0z/renderer": ["@zavx0z/renderer@file:../webxr-space/renderer", { "peerDependencies": { "@zavx0z/dom": "*" }, "optionalPeers": ["@zavx0z/dom"] }],
+
+    "@zavx0z/space": ["@zavx0z/space@file:../webxr-space/space", { "peerDependencies": { "@zavx0z/component": "*", "@zavx0z/dom": "*", "@zavx0z/engine": "*", "@zavx0z/template": "*" }, "optionalPeers": ["@zavx0z/component", "@zavx0z/dom", "@zavx0z/engine", "@zavx0z/template"] }],
 
     "@zavx0z/storybook-browser-lifecycle": ["@zavx0z/storybook-browser-lifecycle@workspace:packages/browser-lifecycle"],
 
-    "@zavx0z/template": ["@zavx0z/template@link:@zavx0z/template", {}],
+    "@zavx0z/template": ["@zavx0z/template@file:../webxr-space/template", { "peerDependencies": { "@zavx0z/dom": "*", "typescript": "7.0.2" }, "optionalPeers": ["@zavx0z/dom", "typescript"] }],
+
+    "@zavx0z/ui": ["@zavx0z/ui@file:../webxr-space/ui", { "dependencies": { "@zavx0z/highlighter": "link:@zavx0z/highlighter" }, "peerDependencies": { "@zavx0z/component": "*", "@zavx0z/dom": "*", "@zavx0z/template": "*" }, "optionalPeers": ["@zavx0z/component", "@zavx0z/dom", "@zavx0z/template"] }],
+
+    "@zavx0z/webgpu": ["@zavx0z/webgpu@file:../webxr-space/webgpu", { "devDependencies": { "@webgpu/types": "0.1.72" }, "peerDependencies": { "@zavx0z/engine": "*", "@zavx0z/renderer": "*" }, "optionalPeers": ["@zavx0z/engine", "@zavx0z/renderer"] }],
 
     "bun-types": ["bun-types@1.4.0", "", { "dependencies": { "@types/node": "*" } }, "sha512-iIKw23BspnQQYd3prITOBxeUsxBHnwzX6YJfGMuNOZzeNcMmVqzIIVGRm1l69ogaPQmb4wB6BN8mA5bE9YuC5Q=="],
 
+    "d3-array": ["d3-array@3.2.4", "", { "dependencies": { "internmap": "1 - 2" } }, "sha512-tdQAmyA18i4J7wprpYq8ClcxZy3SC31QMeByyCFyRt7BVHdREQZ5lpzoe5mFEYZUWe+oq8HBvk9JjpibyEV4Jg=="],
+
+    "d3-dag": ["d3-dag@0.9.1", "", { "dependencies": { "d3-array": "^3.1.1", "fastpriorityqueue": "0.7.1", "javascript-lp-solver": "0.4.24", "quadprog": "^1.6.1" } }, "sha512-ol3CXnScfo/KzRO2fULM1FX4uO36zIsT/c1zMPfqcjSGwpHFBti4ET2ABCKDbP0Z+9KK4ayiilwAJFNm31korw=="],
+
+    "fastpriorityqueue": ["fastpriorityqueue@0.7.1", "", { "dependencies": { "minimist": "^1.2.5" } }, "sha512-XJ+vbiXYjmxc32VEpXScAq7mBg3vqh90OjLfiuyQ0zAtXpgICdVgGjKHep1kLGQufyuCBiEYpl6ZKcw79chTpA=="],
+
+    "internmap": ["internmap@2.0.3", "", {}, "sha512-5Hh7Y1wQbvY5ooGgPbDaL5iYLAPzMTUrjMulskHLH6wnv/A+1q5rgEaiuqEjB+oxGXIVZs1FF+R/KPN3ZSQYYg=="],
+
+    "javascript-lp-solver": ["javascript-lp-solver@0.4.24", "", {}, "sha512-5edoDKnMrt/u3M6GnZKDDIPxOyFOg+WrwDv8mjNiMC2DePhy2H9/FFQgf4ggywaXT1utvkxusJcjQUER72cZmA=="],
+
+    "minimist": ["minimist@1.2.8", "", {}, "sha512-2yyAR8qBkN3YuheJanUpWC5U3bb5osDywNB8RzDVlDwDHbocAJveqqj1u8+SVD7jkWT4yvsHCpWqqWqAxb0zCA=="],
+
     "pngjs": ["pngjs@7.0.0", "", {}, "sha512-LKWqWJRhstyYo9pGvgor/ivk2w94eSjE3RGVuzLGlr3NmD8bf7RcYGze1mNdEHRP6TRP6rMuDHk5t44hnTRyow=="],
+
+    "quadprog": ["quadprog@1.6.1", "", {}, "sha512-fN5Jkcjlln/b3pJkseDKREf89JkKIyu6cKIVXisgL6ocKPQ0yTp9n6NZUAq3otEPPw78WZMG9K0o9WsfKyMWJw=="],
 
     "typescript": ["typescript@7.0.2", "", { "optionalDependencies": { "@typescript/typescript-aix-ppc64": "7.0.2", "@typescript/typescript-darwin-arm64": "7.0.2", "@typescript/typescript-darwin-x64": "7.0.2", "@typescript/typescript-freebsd-arm64": "7.0.2", "@typescript/typescript-freebsd-x64": "7.0.2", "@typescript/typescript-linux-arm": "7.0.2", "@typescript/typescript-linux-arm64": "7.0.2", "@typescript/typescript-linux-loong64": "7.0.2", "@typescript/typescript-linux-mips64el": "7.0.2", "@typescript/typescript-linux-ppc64": "7.0.2", "@typescript/typescript-linux-riscv64": "7.0.2", "@typescript/typescript-linux-s390x": "7.0.2", "@typescript/typescript-linux-x64": "7.0.2", "@typescript/typescript-netbsd-arm64": "7.0.2", "@typescript/typescript-netbsd-x64": "7.0.2", "@typescript/typescript-openbsd-arm64": "7.0.2", "@typescript/typescript-openbsd-x64": "7.0.2", "@typescript/typescript-sunos-x64": "7.0.2", "@typescript/typescript-win32-arm64": "7.0.2", "@typescript/typescript-win32-x64": "7.0.2" }, "bin": { "tsc": "bin/tsc" } }, "sha512-8FYau96o3NKOhbjKi/qNvG/W5jhzxkbdm5sj9AbZ/5T5sWqn3hJgLfGx27sRKZWTvyzCP8dLRBTf5tBTSRVUNA=="],
 
     "undici-types": ["undici-types@8.3.0", "", {}, "sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ=="],
+
+    "@zavx0z/browser/@zavx0z/dom": ["@zavx0z/dom@file:../webxr-space/dom", { "peerDependencies": { "typescript": "7.0.2" } }],
+
+    "@zavx0z/browser/@zavx0z/engine": ["@zavx0z/engine@file:../webxr-space/engine", {}],
+
+    "@zavx0z/browser/@zavx0z/renderer": ["@zavx0z/renderer@file:../webxr-space/renderer", { "peerDependencies": { "@zavx0z/dom": "*" }, "optionalPeers": ["@zavx0z/dom"] }],
+
+    "@zavx0z/browser/@zavx0z/space": ["@zavx0z/space@file:../webxr-space/space", { "peerDependencies": { "@zavx0z/component": "*", "@zavx0z/dom": "*", "@zavx0z/engine": "*", "@zavx0z/template": "*" }, "optionalPeers": ["@zavx0z/component", "@zavx0z/dom", "@zavx0z/engine", "@zavx0z/template"] }],
+
+    "@zavx0z/browser/@zavx0z/webgpu": ["@zavx0z/webgpu@file:../webxr-space/webgpu", { "devDependencies": { "@webgpu/types": "0.1.72" }, "peerDependencies": { "@zavx0z/engine": "*", "@zavx0z/renderer": "*" }, "optionalPeers": ["@zavx0z/engine", "@zavx0z/renderer"] }],
+
+    "@zavx0z/component/@zavx0z/dom": ["@zavx0z/dom@file:../webxr-space/dom", { "peerDependencies": { "typescript": "7.0.2" } }],
+
+    "@zavx0z/component/@zavx0z/template": ["@zavx0z/template@file:../webxr-space/template", { "peerDependencies": { "@zavx0z/dom": "*", "typescript": "7.0.2" }, "optionalPeers": ["@zavx0z/dom", "typescript"] }],
+
+    "@zavx0z/dom-devtools/@zavx0z/dom": ["@zavx0z/dom@file:../webxr-space/dom", { "peerDependencies": { "typescript": "7.0.2" } }],
+
+    "@zavx0z/dom-devtools/@zavx0z/renderer": ["@zavx0z/renderer@file:../webxr-space/renderer", { "peerDependencies": { "@zavx0z/dom": "*" }, "optionalPeers": ["@zavx0z/dom"] }],
+
+    "@zavx0z/renderer/@zavx0z/dom": ["@zavx0z/dom@file:../webxr-space/dom", { "peerDependencies": { "typescript": "7.0.2" } }],
+
+    "@zavx0z/space/@zavx0z/component": ["@zavx0z/component@file:../webxr-space/component", { "peerDependencies": { "@zavx0z/dom": "*", "@zavx0z/template": "*" }, "optionalPeers": ["@zavx0z/dom", "@zavx0z/template"] }],
+
+    "@zavx0z/space/@zavx0z/dom": ["@zavx0z/dom@file:../webxr-space/dom", { "peerDependencies": { "typescript": "7.0.2" } }],
+
+    "@zavx0z/space/@zavx0z/engine": ["@zavx0z/engine@file:../webxr-space/engine", {}],
+
+    "@zavx0z/space/@zavx0z/template": ["@zavx0z/template@file:../webxr-space/template", { "peerDependencies": { "@zavx0z/dom": "*", "typescript": "7.0.2" }, "optionalPeers": ["@zavx0z/dom", "typescript"] }],
+
+    "@zavx0z/template/@zavx0z/dom": ["@zavx0z/dom@file:../webxr-space/dom", { "peerDependencies": { "typescript": "7.0.2" } }],
+
+    "@zavx0z/ui/@zavx0z/component": ["@zavx0z/component@file:../webxr-space/component", { "peerDependencies": { "@zavx0z/dom": "*", "@zavx0z/template": "*" }, "optionalPeers": ["@zavx0z/dom", "@zavx0z/template"] }],
+
+    "@zavx0z/ui/@zavx0z/dom": ["@zavx0z/dom@file:../webxr-space/dom", { "peerDependencies": { "typescript": "7.0.2" } }],
+
+    "@zavx0z/ui/@zavx0z/template": ["@zavx0z/template@file:../webxr-space/template", { "peerDependencies": { "@zavx0z/dom": "*", "typescript": "7.0.2" }, "optionalPeers": ["@zavx0z/dom", "typescript"] }],
+
+    "@zavx0z/webgpu/@zavx0z/engine": ["@zavx0z/engine@file:../webxr-space/engine", {}],
+
+    "@zavx0z/webgpu/@zavx0z/renderer": ["@zavx0z/renderer@file:../webxr-space/renderer", { "peerDependencies": { "@zavx0z/dom": "*" }, "optionalPeers": ["@zavx0z/dom"] }],
+
+    "@zavx0z/browser/@zavx0z/renderer/@zavx0z/dom": ["@zavx0z/dom@file:../webxr-space/dom", { "peerDependencies": { "typescript": "7.0.2" } }],
+
+    "@zavx0z/browser/@zavx0z/space/@zavx0z/component": ["@zavx0z/component@file:../webxr-space/component", { "peerDependencies": { "@zavx0z/dom": "*", "@zavx0z/template": "*" }, "optionalPeers": ["@zavx0z/dom", "@zavx0z/template"] }],
+
+    "@zavx0z/browser/@zavx0z/space/@zavx0z/dom": ["@zavx0z/dom@file:../webxr-space/dom", { "peerDependencies": { "typescript": "7.0.2" } }],
+
+    "@zavx0z/browser/@zavx0z/space/@zavx0z/engine": ["@zavx0z/engine@file:../webxr-space/engine", {}],
+
+    "@zavx0z/browser/@zavx0z/space/@zavx0z/template": ["@zavx0z/template@file:../webxr-space/template", { "peerDependencies": { "@zavx0z/dom": "*", "typescript": "7.0.2" }, "optionalPeers": ["@zavx0z/dom", "typescript"] }],
+
+    "@zavx0z/browser/@zavx0z/webgpu/@zavx0z/engine": ["@zavx0z/engine@file:../webxr-space/engine", {}],
+
+    "@zavx0z/browser/@zavx0z/webgpu/@zavx0z/renderer": ["@zavx0z/renderer@file:../webxr-space/renderer", { "peerDependencies": { "@zavx0z/dom": "*" }, "optionalPeers": ["@zavx0z/dom"] }],
+
+    "@zavx0z/component/@zavx0z/template/@zavx0z/dom": ["@zavx0z/dom@file:../webxr-space/dom", { "peerDependencies": { "typescript": "7.0.2" } }],
+
+    "@zavx0z/dom-devtools/@zavx0z/renderer/@zavx0z/dom": ["@zavx0z/dom@file:../webxr-space/dom", { "peerDependencies": { "typescript": "7.0.2" } }],
+
+    "@zavx0z/space/@zavx0z/component/@zavx0z/dom": ["@zavx0z/dom@file:../webxr-space/dom", { "peerDependencies": { "typescript": "7.0.2" } }],
+
+    "@zavx0z/space/@zavx0z/component/@zavx0z/template": ["@zavx0z/template@file:../webxr-space/template", { "peerDependencies": { "@zavx0z/dom": "*", "typescript": "7.0.2" }, "optionalPeers": ["@zavx0z/dom", "typescript"] }],
+
+    "@zavx0z/space/@zavx0z/template/@zavx0z/dom": ["@zavx0z/dom@file:../webxr-space/dom", { "peerDependencies": { "typescript": "7.0.2" } }],
+
+    "@zavx0z/ui/@zavx0z/component/@zavx0z/dom": ["@zavx0z/dom@file:../webxr-space/dom", { "peerDependencies": { "typescript": "7.0.2" } }],
+
+    "@zavx0z/ui/@zavx0z/component/@zavx0z/template": ["@zavx0z/template@file:../webxr-space/template", { "peerDependencies": { "@zavx0z/dom": "*", "typescript": "7.0.2" }, "optionalPeers": ["@zavx0z/dom", "typescript"] }],
+
+    "@zavx0z/ui/@zavx0z/template/@zavx0z/dom": ["@zavx0z/dom@file:../webxr-space/dom", { "peerDependencies": { "typescript": "7.0.2" } }],
+
+    "@zavx0z/webgpu/@zavx0z/renderer/@zavx0z/dom": ["@zavx0z/dom@file:../webxr-space/dom", { "peerDependencies": { "typescript": "7.0.2" } }],
+
+    "@zavx0z/browser/@zavx0z/space/@zavx0z/component/@zavx0z/dom": ["@zavx0z/dom@file:../webxr-space/dom", { "peerDependencies": { "typescript": "7.0.2" } }],
+
+    "@zavx0z/browser/@zavx0z/space/@zavx0z/component/@zavx0z/template": ["@zavx0z/template@file:../webxr-space/template", { "peerDependencies": { "@zavx0z/dom": "*", "typescript": "7.0.2" }, "optionalPeers": ["@zavx0z/dom", "typescript"] }],
+
+    "@zavx0z/browser/@zavx0z/space/@zavx0z/template/@zavx0z/dom": ["@zavx0z/dom@file:../webxr-space/dom", { "peerDependencies": { "typescript": "7.0.2" } }],
+
+    "@zavx0z/browser/@zavx0z/webgpu/@zavx0z/renderer/@zavx0z/dom": ["@zavx0z/dom@file:../webxr-space/dom", { "peerDependencies": { "typescript": "7.0.2" } }],
+
+    "@zavx0z/space/@zavx0z/component/@zavx0z/template/@zavx0z/dom": ["@zavx0z/dom@file:../webxr-space/dom", { "peerDependencies": { "typescript": "7.0.2" } }],
+
+    "@zavx0z/ui/@zavx0z/component/@zavx0z/template/@zavx0z/dom": ["@zavx0z/dom@file:../webxr-space/dom", { "peerDependencies": { "typescript": "7.0.2" } }],
+
+    "@zavx0z/browser/@zavx0z/space/@zavx0z/component/@zavx0z/template/@zavx0z/dom": ["@zavx0z/dom@file:../webxr-space/dom", { "peerDependencies": { "typescript": "7.0.2" } }],
   }
 }

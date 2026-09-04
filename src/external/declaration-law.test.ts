@@ -31,7 +31,7 @@ describe("external Storybook declaration validation law", () => {
     for (const id of ["webxr", "node-editor", "renderer.dom"]) {
       expect(validateExternalStorybookScopeId(id, "id")).toBe(id)
     }
-    for (const id of ["bulk", "@ui/components", "@zavx0z/dom"]) {
+    for (const id of ["bulk", "@fixture/components", "@zavx0z/dom"]) {
       expect(validateExternalStorybookPackageId(id, "package")).toBe(id)
     }
     for (const route of ["a", "components/button/basic/contained", "dom/interfaces/document/tree/default"]) {

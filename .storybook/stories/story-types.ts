@@ -1,5 +1,5 @@
 import type {Document, Element, HTMLElement, Node} from "@zavx0z/dom"
-import type {ComponentRoot} from "@zavx0z/react"
+import type {ComponentRoot} from "@zavx0z/component"
 
 export type SelfStoryPresentation = Readonly<{
   element: HTMLElement

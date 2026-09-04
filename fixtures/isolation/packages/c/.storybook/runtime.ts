@@ -18,7 +18,7 @@ const componentRoot = Object.freeze({
 })
 
 export const runtime = Object.freeze({
-  protocol: "storybook-runtime/3",
+  protocol: "storybook-runtime/4",
   create(context: FixtureContext) {
     let mounted: FixtureNode | null = null
     const remove = (): void => {

@@ -1,4 +1,4 @@
-import {CodeEditor} from "@ui/components/code-editor"
+import {CodeEditor} from "@zavx0z/ui/views/code-editor"
 import {StorybookOverviewActionButton} from "./components/overview-action-button.tsx"
 import type {StorybookOverviewAction} from "./components/overview-action.ts"
 import type {

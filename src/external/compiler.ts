@@ -8,6 +8,12 @@ import {
 } from "node:fs"
 import {basename, dirname, isAbsolute, join, relative, resolve, sep} from "node:path"
 import {fileURLToPath, pathToFileURL} from "node:url"
+import {
+  canonicalizeStorybookPackageFile,
+  preferredStorybookPackageRoot,
+  readStorybookPackageOwner,
+  sameStorybookPackageOwner,
+} from "./owner-identity.ts"
 
 const TEMPLATE_JSX_IMPORT_SOURCE = "@zavx0z/template"
 const TEMPLATE_BUN_EXPORT = "@zavx0z/template/bun"
@@ -23,12 +29,14 @@ export type StorybookPackageCompilerInput = Readonly<{
 }>
 
 type PackageManifest = Readonly<{
+  declaredDependencies: ReadonlySet<string>
   root: string
   name: string
   localDependencies: ReadonlyMap<string, string>
 }>
 
 type OwnerDependencyGraph = Readonly<{
+  declaredDependencies: ReadonlySet<string>
   packageRootsByName: ReadonlyMap<string, string>
   sourceRoots: readonly string[]
   styleSourceRootIds: readonly string[]
@@ -45,6 +53,41 @@ export function resolveStorybookCompilerSourceRoots(input: Readonly<{
     throw new Error(`Storybook package root must be inside project root: ${packageRoot}`)
   }
   return discoverOwnerDependencyGraph(projectRoot, packageRoot).sourceRoots
+}
+
+/** Resolves runtime imports to the same exact owner roots governed by compilation. */
+export function createStorybookOwnerResolver(input: Readonly<{
+  projectRoot: string
+  packageRoot: string
+}>): Bun.BunPlugin {
+  const projectRoot = canonicalDirectory(input.projectRoot, "Storybook project root")
+  const packageRoot = canonicalDirectory(input.packageRoot, "Storybook package root")
+  if (!inside(projectRoot, packageRoot)) {
+    throw new Error(`Storybook package root must be inside project root: ${packageRoot}`)
+  }
+  const graph = discoverOwnerDependencyGraph(projectRoot, packageRoot)
+  return exactOwnerResolver({
+    packageRootsByName: graph.packageRootsByName,
+  })
+}
+
+/** Maps an attested installed hardlink back to its one canonical owner source path. */
+export function createStorybookOwnerSourcePath(input: Readonly<{
+  projectRoot: string
+  packageRoot: string
+}>): (path: string) => string {
+  const projectRoot = canonicalDirectory(input.projectRoot, "Storybook project root")
+  const packageRoot = canonicalDirectory(input.packageRoot, "Storybook package root")
+  if (!inside(projectRoot, packageRoot)) {
+    throw new Error(`Storybook package root must be inside project root: ${packageRoot}`)
+  }
+  const roots = discoverOwnerDependencyGraph(projectRoot, packageRoot).packageRootsByName
+  return (path: string): string => {
+    const installed = readStorybookPackageOwner(path)
+    if (installed === null) return path
+    const ownerRoot = roots.get(installed.name)
+    return ownerRoot === undefined ? path : canonicalizeStorybookPackageFile(ownerRoot, path)
+  }
 }
 
 type TemplatePluginFactory = (
@@ -87,12 +130,18 @@ export async function createStorybookPackageCompilerPlugins(
   )
   const resolver = exactOwnerResolver({
     packageRootsByName: exactOwnerRoots,
-    bases: Object.freeze([packageRoot, projectRoot, canonicalDirectory(STORYBOOK_TOOL_ROOT, "Storybook tool root")]),
   })
-  const jsxImportSource = effectiveJsxImportSource(projectRoot, packageRoot, sourcePaths)
-  const compileOwnerTemplate = jsxImportSource === TEMPLATE_JSX_IMPORT_SOURCE
+  const hasConsumerModules = sourcePaths.length > 0
+  const jsxImportSource = hasConsumerModules
+    ? effectiveJsxImportSource(projectRoot, packageRoot, sourcePaths)
+    : undefined
+  const compileOwnerTemplate = hasConsumerModules && jsxImportSource === TEMPLATE_JSX_IMPORT_SOURCE
   const templateRoot = compileOwnerTemplate
-    ? dependencyGraph.packageRootsByName.get(TEMPLATE_JSX_IMPORT_SOURCE)
+    ? dependencyGraph.packageRootsByName.get(TEMPLATE_JSX_IMPORT_SOURCE) ?? (
+      dependencyGraph.declaredDependencies.has(TEMPLATE_JSX_IMPORT_SOURCE)
+        ? toolGraph.packageRootsByName.get(TEMPLATE_JSX_IMPORT_SOURCE)
+        : undefined
+    )
     : toolGraph.packageRootsByName.get(TEMPLATE_JSX_IMPORT_SOURCE)
   if (templateRoot === undefined) {
     throw new Error(compileOwnerTemplate
@@ -146,7 +195,6 @@ function mergeCompilerSourceRoots(
 
 function exactOwnerResolver(input: Readonly<{
   packageRootsByName: ReadonlyMap<string, string>
-  bases: readonly string[]
 }>): Bun.BunPlugin {
   const governedPackageFilter = exactPackageSpecifierFilter(input.packageRootsByName.keys())
   return {
@@ -156,16 +204,7 @@ function exactOwnerResolver(input: Readonly<{
         const packageName = barePackageName(path)
         const ownerRoot = input.packageRootsByName.get(packageName)
         if (ownerRoot === undefined) return undefined
-        for (const base of input.bases) {
-          let candidate: string
-          try {
-            candidate = Bun.resolveSync(path, base)
-          } catch {
-            continue
-          }
-          if (insideLexically(ownerRoot, candidate)) return {path: candidate}
-        }
-        throw new Error(`Cannot resolve exact owner package ${path} as ${ownerRoot}`)
+        return {path: resolveExactOwnerExport(ownerRoot, packageName, path)}
       })
     },
   }
@@ -186,7 +225,15 @@ function mergeOwnerPackageRoots(
   const output = new Map<string, string>()
   for (const map of maps) {
     for (const [name, root] of map) {
-      if (!output.has(name)) output.set(name, root)
+      const previous = output.get(name)
+      if (previous !== undefined && previous !== root) {
+        if (!sameStorybookPackageOwner(previous, root)) {
+          throw new Error(`Ambiguous owner dependency identity ${name}: ${previous} and ${root}`)
+        }
+        output.set(name, preferredStorybookPackageRoot(previous, root))
+        continue
+      }
+      output.set(name, root)
     }
   }
   return output
@@ -195,6 +242,41 @@ function mergeOwnerPackageRoots(
 function barePackageName(specifier: string): string {
   const segments = specifier.split("/")
   return specifier.startsWith("@") ? `${segments[0]}/${segments[1]}` : segments[0]!
+}
+
+function resolveExactOwnerExport(
+  ownerRoot: string,
+  packageName: string,
+  specifier: string,
+): string {
+  const manifest = parseJsonObject(join(ownerRoot, "package.json"), "exact owner package manifest")
+  if (manifest.name !== packageName) {
+    throw new Error(`Exact owner package name mismatch: expected ${packageName}, found ${String(manifest.name)}`)
+  }
+  const suffix = specifier.slice(packageName.length)
+  const subpath = suffix === "" ? "." : `.${suffix}`
+  const packageExports = manifest.exports
+  let target: string | null = null
+  if (subpath === "." && packageExports !== undefined &&
+    (!isObject(packageExports) || !Object.keys(packageExports).some(key => key.startsWith(".")))) {
+    target = conditionalExportTarget(packageExports)
+  } else if (isObject(packageExports)) {
+    target = conditionalExportTarget(packageExports[subpath])
+  }
+  if (target === null && subpath === "." && packageExports === undefined) {
+    target = conditionalExportTarget(manifest.module) ?? conditionalExportTarget(manifest.main)
+    if (target === null && existsSync(join(ownerRoot, "index.ts"))) target = "./index.ts"
+    if (target === null && existsSync(join(ownerRoot, "index.js"))) target = "./index.js"
+  }
+  if (target === null) {
+    throw new Error(`Cannot resolve exact owner package ${specifier} from ${ownerRoot}`)
+  }
+  if (!target.startsWith("./") || target.includes("*")) {
+    throw new Error(`Exact owner export must be one package-relative file: ${specifier} -> ${target}`)
+  }
+  const path = canonicalLexicalFile(resolve(ownerRoot, target), `exact owner export ${specifier}`)
+  if (!inside(ownerRoot, path)) throw new Error(`Exact owner export escaped ${packageName}: ${path}`)
+  return path
 }
 
 function effectiveJsxImportSource(
@@ -330,17 +412,19 @@ function discoverOwnerDependencyGraph(
     throw new Error(`Storybook owner package manifest is missing: ${packageRoot}`)
   }
   const manifestsByRoot = new Map<string, PackageManifest>()
+  const declaredDependencies = new Set<string>()
   const packageRootsByName = new Map<string, string>()
   while (queue.length > 0) {
     const root = queue.shift()!
     if (manifestsByRoot.has(root)) continue
-    const manifest = readPackageManifest(root)
+    const manifest = readPackageManifest(root, root === projectRoot || root === packageRoot)
     manifestsByRoot.set(root, manifest)
+    for (const name of manifest.declaredDependencies) declaredDependencies.add(name)
     registerPackageRoot(packageRootsByName, manifest.name, root)
     for (const [name, specifier] of [...manifest.localDependencies].sort(([left], [right]) =>
       left < right ? -1 : left > right ? 1 : 0)) {
       const dependencyRoot = resolveLocalDependencyRoot(name, specifier, root)
-      const dependencyManifest = readPackageManifest(dependencyRoot)
+      const dependencyManifest = readPackageManifest(dependencyRoot, false)
       if (dependencyManifest.name !== name) {
         throw new Error(
           `Resolved owner dependency identity mismatch: expected ${name}, found ${dependencyManifest.name}`,
@@ -377,6 +461,7 @@ function discoverOwnerDependencyGraph(
       .sort(([left], [right]) => comparePaths(left, right)),
   ]
   return Object.freeze({
+    declaredDependencies: Object.freeze(declaredDependencies),
     packageRootsByName,
     sourceRoots: Object.freeze(orderedSources.map(([root]) => root)),
     styleSourceRootIds: Object.freeze(orderedSources.map(([, id]) => id)),
@@ -462,25 +547,31 @@ function collectPackageTargets(value: unknown, output: string[]): void {
   for (const entry of Object.values(value)) collectPackageTargets(entry, output)
 }
 
-function readPackageManifest(root: string): PackageManifest {
+function readPackageManifest(
+  root: string,
+  includeDevDependencies: boolean,
+): PackageManifest {
   const manifestPath = join(root, "package.json")
   const manifest = parseJsonObject(manifestPath, "owner package manifest")
   if (typeof manifest.name !== "string" || manifest.name.trim().length === 0) {
     throw new TypeError(`Owner package manifest has no name: ${manifestPath}`)
   }
   const dependencies = new Map<string, string>()
-  for (const sectionName of [
+  const declaredDependencies = new Set<string>()
+  const sectionNames = [
     "dependencies",
     "optionalDependencies",
     "peerDependencies",
-    "devDependencies",
-  ] as const) {
+    ...(includeDevDependencies ? ["devDependencies" as const] : []),
+  ] as const
+  for (const sectionName of sectionNames) {
     const section = manifest[sectionName]
     if (section === undefined) continue
     if (!isObject(section)) {
       throw new TypeError(`Owner package manifest ${sectionName} must be an object: ${manifestPath}`)
     }
     for (const [name, value] of Object.entries(section)) {
+      declaredDependencies.add(name)
       if (typeof value !== "string") {
         throw new TypeError(`Owner dependency ${name} must have a string specifier: ${manifestPath}`)
       }
@@ -493,6 +584,7 @@ function readPackageManifest(root: string): PackageManifest {
     }
   }
   return Object.freeze({
+    declaredDependencies: Object.freeze(declaredDependencies),
     root,
     name: manifest.name,
     localDependencies: dependencies,
@@ -596,6 +688,13 @@ function resolveTemplateAdapter(
 
 function conditionalExportTarget(value: unknown): string | null {
   if (typeof value === "string") return value
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const target = conditionalExportTarget(entry)
+      if (target !== null) return target
+    }
+    return null
+  }
   if (!isObject(value)) return null
   for (const condition of ["bun", "import", "default"] as const) {
     const target = conditionalExportTarget(value[condition])
@@ -631,7 +730,11 @@ function registerPackageRoot(
 ): void {
   const previous = roots.get(name)
   if (previous !== undefined && previous !== root) {
-    throw new Error(`Ambiguous owner dependency identity ${name}: ${previous} and ${root}`)
+    if (!sameStorybookPackageOwner(previous, root)) {
+      throw new Error(`Ambiguous owner dependency identity ${name}: ${previous} and ${root}`)
+    }
+    roots.set(name, preferredStorybookPackageRoot(previous, root))
+    return
   }
   roots.set(name, root)
 }
@@ -645,8 +748,18 @@ function canonicalSourcePath(
   if (typeof value !== "string" || value.length === 0) {
     throw new TypeError(`Storybook compiler module source ${index} must be a path`)
   }
-  const path = canonicalFile(isAbsolute(value) ? value : resolve(packageRoot, value),
+  // Preserve the declared owner path: native realpath may select a Bun hardlink
+  // mirror in node_modules even though the exact lexical file is inside projectRoot.
+  const lexicalPath = canonicalLexicalFile(isAbsolute(value) ? value : resolve(packageRoot, value),
     `Storybook compiler module source ${index}`)
+  let path = lexicalPath
+  if (!inside(projectRoot, path)) {
+    try {
+      path = canonicalizeStorybookPackageFile(packageRoot, path)
+    } catch {
+      // A foreign source still fails the project boundary below.
+    }
+  }
   if (!inside(projectRoot, path)) {
     throw new Error(`Storybook compiler module source must be inside project root: ${path}`)
   }
@@ -727,11 +840,6 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 function inside(root: string, path: string): boolean {
   const child = relative(comparablePath(root), comparablePath(path))
-  return child === "" || (!child.startsWith(`..${sep}`) && child !== ".." && !child.startsWith(sep))
-}
-
-function insideLexically(root: string, path: string): boolean {
-  const child = relative(resolve(root), resolve(path))
   return child === "" || (!child.startsWith(`..${sep}`) && child !== ".." && !child.startsWith(sep))
 }
 

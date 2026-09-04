@@ -70,7 +70,7 @@ describe("exact Storybook package revision graph", () => {
       "declaration-components-with-workbench",
     )
     expect(snapshot.workbenchAuthorStyleSheets.map(({specifier, url}) => ({specifier, url}))).toEqual([{
-      specifier: "@ui/components/theme.css",
+      specifier: "@zavx0z/ui/themes/theme.css",
       url: "workbench-author-style-sheets/0.css",
     }])
     expect(snapshot.authorStyleSheets.map(({specifier, url}) => ({specifier, url}))).toEqual([
@@ -132,7 +132,7 @@ describe("exact Storybook package revision graph", () => {
     const workbenchOwned = redigest({
       ...snapshot,
       workbenchAuthorStyleSheets: [{
-        specifier: "@ui/components/theme.css",
+        specifier: "@zavx0z/ui/themes/theme.css",
         url: "workbench-author-style-sheets/0.css",
         contentDigest: snapshot.authorStyleSheets[0]!.contentDigest,
       }],
@@ -174,6 +174,22 @@ describe("exact Storybook package revision graph", () => {
 
     const subjectIndex = snapshot.nodes.findIndex(({id}) =>
       id === "subject:@fixture/components/components/button")
+    const subjectId = snapshot.nodes[subjectIndex]!.id
+    const spacePresentationNodes = snapshot.nodes.map(node =>
+      node.id === subjectId || node.kind === "variant" && node.parentId === subjectId
+        ? {...node, presentation: {...node.presentation!, projection: "space" as const}}
+        : node)
+    const spacePresentation = redigest({...snapshot, nodes: spacePresentationNodes})
+    expect(() => validateStorybookPackageRevisionGraphSnapshot(spacePresentation)).not.toThrow()
+
+    const legacyWorldNodes = snapshot.nodes.map(node =>
+      node.id === subjectId || node.kind === "variant" && node.parentId === subjectId
+        ? {...node, presentation: {...node.presentation!, projection: "world" as never}}
+        : node)
+    const legacyWorld = redigest({...snapshot, nodes: legacyWorldNodes})
+    expect(() => validateStorybookPackageRevisionGraphSnapshot(legacyWorld))
+      .toThrow("Invalid Storybook story presentation")
+
     const unknownWidgetNodes = snapshot.nodes.map((node, index) => index === subjectIndex
       ? {...node, presentation: {...node.presentation!, widgets: [...node.presentation!.widgets, "missing"]}}
       : node.kind === "variant" && node.parentId === snapshot.nodes[subjectIndex]!.id

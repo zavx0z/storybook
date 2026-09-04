@@ -1,6 +1,6 @@
-import {CodeEditor} from "@ui/components/code-editor"
-import {Pane} from "@ui/components/pane"
-import {Typography} from "@ui/components/typography"
+import {CodeEditor} from "@zavx0z/ui/views/code-editor"
+import {Pane} from "@zavx0z/ui/surfaces/pane"
+import {Typography} from "@zavx0z/ui/typography"
 
 export type ContractDocumentProps = Readonly<{
   title: string

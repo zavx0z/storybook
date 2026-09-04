@@ -47,6 +47,7 @@ describe("external Storybook JSON declarations", () => {
       apiName: ["kind"],
     })
     expect(catalog.$defs.presentation.properties.widgets).toMatchObject({minItems: 2, maxItems: 32, uniqueItems: true})
+    expect(catalog.$defs.presentation.properties.projection.enum).toEqual(["display", "hud", "space"])
     expect(catalog.properties.schemaVersion).toEqual({const: 1})
     expect(JSON.stringify([manifest, catalog])).not.toContain("function")
   })
@@ -633,7 +634,7 @@ describe("external Storybook JSON declarations", () => {
       const subjects = asRecords(categories[0]!.subjects)
       subjects[0] = {
         ...subjects[0],
-        presentation: {protocol: "story-presentation/1", projection: "world", widgets: ["source", "diagnostics", "missing"]},
+        presentation: {protocol: "story-presentation/1", projection: "space", widgets: ["source", "diagnostics", "missing"]},
       }
       categories[0] = {...categories[0], subjects}
       return {...catalog, categories}
@@ -661,13 +662,31 @@ describe("external Storybook JSON declarations", () => {
       const subjects = asRecords(categories[0]!.subjects)
       subjects[0] = {
         ...subjects[0],
-        presentation: {protocol: "story-presentation/1", projection: "world", widgets: ["source", "diagnostics", "source"]},
+        presentation: {protocol: "story-presentation/1", projection: "space", widgets: ["source", "diagnostics", "source"]},
       }
       categories[0] = {...categories[0], subjects}
       return {...catalog, categories}
     })
     await expect(resolveExternalStorybookDeclarations([duplicateWidget]))
       .rejects.toThrow("widgets must not contain duplicates")
+
+    const legacyWorld = await cloneFixture()
+    await updateComponentsCatalog(legacyWorld, (catalog) => {
+      const categories = asRecords(catalog.categories)
+      const subjects = asRecords(categories[0]!.subjects)
+      subjects[0] = {
+        ...subjects[0],
+        presentation: {
+          protocol: "story-presentation/1",
+          projection: "world",
+          widgets: ["source", "diagnostics"],
+        },
+      }
+      categories[0] = {...categories[0], subjects}
+      return {...catalog, categories}
+    })
+    await expect(resolveExternalStorybookDeclarations([legacyWorld]))
+      .rejects.toThrow("Unsupported external Storybook presentation projection")
 
     const variantDefault = await cloneFixture()
     await updateComponentsCatalog(variantDefault, (catalog) => {

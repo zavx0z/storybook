@@ -36,7 +36,7 @@ describe("compiled self Storybook component owners", () => {
       expect(button.disabled).toBe(canary.disabled)
       expect(button.title).toBe("External Storybook live story")
       expect(button.textContent).toBe(canary.label)
-      expect(authoredOwners(presentation)).toContain("@ui/components/button.tsx#Button")
+      expect(authoredOwners(presentation)).toContain("@zavx0z/ui/buttons/button.tsx#Button")
 
       const root = presentation.root
       presentation.dispose()
@@ -58,9 +58,9 @@ describe("compiled self Storybook component owners", () => {
 
     const owners = authoredOwners(presentation)
     for (const owner of [
-      "@ui/components/pane.tsx#Pane",
-      "@ui/components/typography.tsx#Typography",
-      "@ui/components/code-editor.tsx#CodeEditor",
+      "@zavx0z/ui/surfaces/pane.tsx#Pane",
+      "@zavx0z/ui/typography.tsx#Typography",
+      "@zavx0z/ui/views/code-editor.tsx#CodeEditor",
     ]) expect(owners, owner).toContain(owner)
 
     const root = presentation.root

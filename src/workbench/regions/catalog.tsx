@@ -1,4 +1,4 @@
-import {TextField, type TextFieldProps} from "@ui/components/fields/text-field"
+import {TextField, type TextFieldProps} from "@zavx0z/ui/fields/text-field"
 import type {Document as SemanticDocument} from "@zavx0z/dom"
 import {WorkbenchRegionPanel} from "../components/region-panel.tsx"
 import type {

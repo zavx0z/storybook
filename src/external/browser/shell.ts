@@ -1,21 +1,23 @@
-/** One semantic Workbench Experience projected into a camera-locked overlay. */
+/** One semantic Workbench Experience projected into the shared HUD. */
 
-import {loadDocumentDefaultFont} from "@engine/core/default-font"
 import {
-  createDocument,
+  createExperience as createBrowserExperience,
+  type Experience,
+  type ExperienceLinkedAuthorStyleSheet,
+  type ExperienceProjection,
+} from "@zavx0z/browser"
+import {loadDocumentDefaultFont} from "@zavx0z/engine/default-font"
+import {
   HTMLElement as SemanticHTMLElement,
   type Document as SemanticDocument,
   type Node as SemanticNode,
 } from "@zavx0z/dom"
 import {
-  createBrowserLinkedAuthorStyleSheetHost,
-  createDocumentSpaceRuntime,
-  type BrowserLinkedAuthorStyleSheetHost,
-  type BrowserLinkedAuthorStyleSheetSource,
-  type DocumentOverlayRuntime,
-  type DocumentSpaceRuntime,
-  type DocumentSpaceViewPointSnapshot,
-} from "@zavx0z/renderer-browser"
+  XRDisplayElement,
+  XRHUDElement,
+  XRSpaceElement,
+  type XRViewPointElement,
+} from "@zavx0z/space"
 import type {
   Workbench,
   WorkbenchPresentationUpdate,
@@ -36,19 +38,16 @@ import type {StorybookOverviewAction} from "../components/overview-action.ts"
 import type {StorybookComponentPresentation} from "./component-presentation.ts"
 import type {
   StorybookPreviewBounds,
-  StorybookWorldPreview,
-  StorybookWorldPreviewCamera,
-  StorybookWorldPreviewRegistration,
+  StorybookSpacePreview,
+  StorybookSpacePreviewCamera,
+  StorybookSpacePreviewRegistration,
 } from "../runtime-protocol.ts"
 
 export const EXTERNAL_STORYBOOK_CANVAS_ID = "external-storybook-canvas" as const
-export const EXTERNAL_STORYBOOK_WORKBENCH_OVERLAY_ID = "external-storybook-workbench" as const
+export const EXTERNAL_STORYBOOK_DISPLAY_ID = "external-storybook-display" as const
+export const EXTERNAL_STORYBOOK_WORKBENCH_ID = "external-storybook-workbench" as const
 
-export type ExternalStorybookShellSpaceRuntimeFactory =
-  typeof createDocumentSpaceRuntime
-
-export type ExternalStorybookLinkedAuthorStyleSheetHostFactory =
-  typeof createBrowserLinkedAuthorStyleSheetHost
+export type ExternalStorybookExperienceFactory = typeof createBrowserExperience
 
 export type ExternalStorybookNativeKey = Readonly<{
   key: string
@@ -62,23 +61,24 @@ export type CreateExternalStorybookShellOptions = Readonly<{
   title: string
   browserDocument?: globalThis.Document
   canvas?: HTMLCanvasElement
-  document?: SemanticDocument
   statusOwner?: string
   loadFont?: typeof loadDocumentDefaultFont
-  createSpaceRuntime?: ExternalStorybookShellSpaceRuntimeFactory
-  authorStyleSheetSources?: readonly BrowserLinkedAuthorStyleSheetSource[]
-  authorStyleSheetReadyTimeoutMs?: number
-  createLinkedAuthorStyleSheetHost?: ExternalStorybookLinkedAuthorStyleSheetHostFactory
+  createExperience?: ExternalStorybookExperienceFactory
+  authorStyleSheetSources?: readonly ExperienceLinkedAuthorStyleSheet[]
 }>
 
 export type ExternalStorybookShell = Readonly<{
   document: SemanticDocument
   browserDocument: globalThis.Document
   canvas: HTMLCanvasElement
+  experience: Experience
+  space: XRSpaceElement
+  viewPoint: XRViewPointElement
+  display: XRDisplayElement
+  hud: XRHUDElement
   workbench: Workbench
-  readonly runtime: DocumentSpaceRuntime
-  readonly workbenchOverlay: DocumentOverlayRuntime
   readonly presentedFrameSequence: number
+  projectionFor(node: SemanticNode): ExperienceProjection
   present(value: WorkbenchPresentationUpdate): void
   mountPreview(label: string, node: SemanticNode): void
   showMessage(label: string, title: string, detail: string, action?: StorybookOverviewAction): SemanticHTMLElement
@@ -91,8 +91,8 @@ export type ExternalStorybookShell = Readonly<{
   waitForPresentedFrame(afterSequence: number, signal?: AbortSignal, timeoutMs?: number): Promise<number>
   captureLastPresentedFramePng(): Promise<Blob | null>
   subscribePreviewBounds(listener: (bounds: StorybookPreviewBounds | null) => void): () => void
-  mountWorldPreview(label: string, registration: StorybookWorldPreviewRegistration): StorybookWorldPreview
-  applyWorldPreviewGesture(
+  mountSpacePreview(label: string, registration: StorybookSpacePreviewRegistration): StorybookSpacePreview
+  applySpacePreviewGesture(
     node: SemanticNode,
     gesture: Readonly<{kind: "orbit" | "pan"; deltaX: number; deltaY: number}>,
   ): boolean
@@ -100,7 +100,7 @@ export type ExternalStorybookShell = Readonly<{
   dispose(): void
 }>
 
-type BoundStorybookWorldPreview = StorybookWorldPreview & Readonly<{
+type BoundStorybookSpacePreview = StorybookSpacePreview & Readonly<{
   suspend(): void
   resume(): void
   applyGesture(
@@ -109,9 +109,11 @@ type BoundStorybookWorldPreview = StorybookWorldPreview & Readonly<{
   ): boolean
 }>
 
-const worldViewPointSnapshot = (
-  camera: StorybookWorldPreviewCamera,
-): DocumentSpaceViewPointSnapshot => Object.freeze({
+type StorybookViewPointSnapshot = Required<StorybookSpacePreviewCamera>
+
+const spaceViewPointSnapshot = (
+  camera: StorybookSpacePreviewCamera,
+): StorybookViewPointSnapshot => Object.freeze({
   position: Object.freeze({...camera.position}),
   target: Object.freeze({...camera.target}),
   up: Object.freeze({
@@ -124,55 +126,103 @@ const worldViewPointSnapshot = (
   far: camera.far ?? 2_000,
 })
 
-/** Creates one page Experience with one Document, Canvas/Renderer/Space and Workbench overlay. */
+/** Creates one page Experience with one Document, Canvas, Space, ViewPoint, Display and HUD. */
 export async function createExternalStorybookShell(
   options: CreateExternalStorybookShellOptions,
 ): Promise<ExternalStorybookShell> {
   const browserDocument = options.browserDocument ?? globalThis.document
   if (browserDocument === undefined) throw new Error("External Storybook browser Document is unavailable")
   const canvas = options.canvas ?? ensureCanvas(browserDocument)
-  const document = options.document ?? createDocument()
-  const workbench = createWorkbench({
-    document,
-    parent: document,
-    initial: {
-      title: options.title,
-      "catalog.label": "Каталог",
-      "catalog.items": Object.freeze([]),
-      "catalog.active": null,
-      "secondary.label": "Пакеты",
-      "secondary.items": Object.freeze([]),
-      "secondary.active": null,
-      "preview.label": "Обзор",
-      presentation: Object.freeze({node: null, projection: "display"}),
-      "scenarios.items": Object.freeze([]),
-      "scenarios.active": null,
-      status: {
-        lead: "Создано для ",
-        owner: options.statusOwner ?? "MetaFor",
-        detail: " · External Storybook",
-      },
-    },
-  })
-  const createRuntime = options.createSpaceRuntime ?? createDocumentSpaceRuntime
+  const authorStyleSheetSources = options.authorStyleSheetSources ?? Object.freeze([])
+  if (!Array.isArray(authorStyleSheetSources)) {
+    throw new TypeError("External Storybook author stylesheet sources must be a list")
+  }
   markShellPhase(browserDocument, "font")
   const font = await (options.loadFont ?? loadDocumentDefaultFont)()
+  if (authorStyleSheetSources.length > 0) markShellPhase(browserDocument, "author-styles")
   markShellPhase(browserDocument, "renderer")
+  const pendingAuthorDiagnostics: unknown[] = []
+  let publishAuthorDiagnostic = (value: unknown): void => {
+    pendingAuthorDiagnostics.push(value)
+  }
+  const createExperience = options.createExperience ?? createBrowserExperience
+  const experience = await createExperience({
+    canvas,
+    font,
+    styleSheets: Object.freeze([]),
+    linkedAuthorStyleSheets: authorStyleSheetSources,
+    cameraGestures: false,
+    onLinkedAuthorStyleSheetError(error, source) {
+      publishAuthorDiagnostic(Object.freeze({
+        phase: "author-styles",
+        message: error.message,
+        source: source?.id ?? null,
+      }))
+    },
+  })
+  const document = experience.document
+  const space = experience.space
+  const viewPoint = experience.viewPoint
+  const display = document.createElement("xr-display") as XRDisplayElement
+  const hud = document.createElement("xr-hud") as XRHUDElement
+  display.id = EXTERNAL_STORYBOOK_DISPLAY_ID
+  hud.id = EXTERNAL_STORYBOOK_WORKBENCH_ID
+  let workbench: Workbench
+  try {
+    document.transaction(() => {
+      viewPoint.x = 0
+      viewPoint.y = 0
+      viewPoint.z = 1_000
+      viewPoint.targetX = 0
+      viewPoint.targetY = 0
+      viewPoint.targetZ = 0
+      viewPoint.upX = 0
+      viewPoint.upY = 1
+      viewPoint.upZ = 0
+      viewPoint.far = 2_000
+      space.append(display, hud)
+    })
+    workbench = createWorkbench({
+      document,
+      parent: hud,
+      projectionHosts: {display, space},
+      initial: {
+        title: options.title,
+        "catalog.label": "Каталог",
+        "catalog.items": Object.freeze([]),
+        "catalog.active": null,
+        "secondary.label": "Пакеты",
+        "secondary.items": Object.freeze([]),
+        "secondary.active": null,
+        "preview.label": "Обзор",
+        presentation: Object.freeze({node: null, projection: "display"}),
+        "scenarios.items": Object.freeze([]),
+        "scenarios.active": null,
+        status: {
+          lead: "Создано для ",
+          owner: options.statusOwner ?? "MetaFor",
+          detail: " · External Storybook",
+        },
+      },
+    })
+  } catch (error) {
+    experience.dispose()
+    throw error
+  }
+  const displayProjection = experience.getProjection(display)
+  const hudProjection = experience.getProjection(hud)
+  const spaceProjection = experience.getProjection(space)
   const boundsListeners = new Set<(bounds: StorybookPreviewBounds | null) => void>()
   const frameWaiters = new Set<Readonly<{
     afterSequence: number
     resolve(sequence: number): void
   }>>()
-  let runtime!: DocumentSpaceRuntime
-  let workbenchOverlay!: DocumentOverlayRuntime
   let unsubscribeFrame = (): void => {}
   let unsubscribePresented = (): void => {}
   let latestBounds: StorybookPreviewBounds | null = null
-  let presentedFrameSequence = 0
-  let activeWorldPreview: BoundStorybookWorldPreview | null = null
+  let activeSpacePreview: BoundStorybookSpacePreview | null = null
   let activeShellPresentation: StorybookComponentPresentation | null = null
-  let authorStyleSheetHost: BrowserLinkedAuthorStyleSheetHost | null = null
-  let shellDiagnostics: unknown[] = []
+  let shellDiagnostics: unknown[] = [...pendingAuthorDiagnostics]
   let disposed = false
 
   const publishShellDiagnostics = (): void => {
@@ -186,100 +236,45 @@ export async function createExternalStorybookShell(
     shellDiagnostics.push(value)
     publishShellDiagnostics()
   }
+  publishAuthorDiagnostic = (value): void => {
+    if (disposed) return
+    appendShellDiagnostic(value)
+    experience.requestFrame()
+  }
+  if (shellDiagnostics.length > 0) publishShellDiagnostics()
 
   const publishBounds = (bounds: StorybookPreviewBounds | null): void => {
     if (sameBounds(latestBounds, bounds)) return
     latestBounds = bounds
     for (const listener of [...boundsListeners]) listener(bounds)
   }
-  const startExperienceHost = async (): Promise<void> => {
-    if (disposed) throw new Error("External Storybook shell is disposed")
-    activeWorldPreview?.suspend()
-    unsubscribeFrame()
-    unsubscribeFrame = () => {}
-    unsubscribePresented()
-    unsubscribePresented = () => {}
-    runtime = await createRuntime({
-      canvas,
-      document,
-      styleSheets: Object.freeze([]),
-      font,
-      cameraGestures: false,
-    })
-    try {
-      unsubscribePresented = runtime.subscribePresented(() => {
-        presentedFrameSequence += 1
-        for (const waiter of [...frameWaiters]) {
-          if (presentedFrameSequence <= waiter.afterSequence) continue
-          frameWaiters.delete(waiter)
-          waiter.resolve(presentedFrameSequence)
-        }
-      })
-      workbenchOverlay = runtime.addOverlay({
-        id: EXTERNAL_STORYBOOK_WORKBENCH_OVERLAY_ID,
-        root: workbench.element,
-        tooltipDelayMs: 500,
-      })
-      unsubscribeFrame = workbenchOverlay.subscribe((frame) => {
-        const box = frame.boxByNode.get(workbench.elements.previewHost)
-        publishBounds(box === undefined
-          ? null
-          : Object.freeze({
-            x: box.contentX,
-            y: box.contentY,
-            width: box.contentWidth,
-            height: box.contentHeight,
-            viewportWidth: frame.viewport.width,
-            viewportHeight: frame.viewport.height,
-          }))
-      })
-      runtime.render()
-      activeWorldPreview?.resume()
-    } catch (error) {
-      unsubscribeFrame()
-      unsubscribeFrame = () => {}
-      unsubscribePresented()
-      unsubscribePresented = () => {}
-      runtime.dispose()
-      throw error
-    }
-  }
-  const authorStyleSheetSources = options.authorStyleSheetSources ?? Object.freeze([])
-  if (!Array.isArray(authorStyleSheetSources)) {
-    throw new TypeError("External Storybook author stylesheet sources must be a list")
-  }
-  if (authorStyleSheetSources.length > 0) {
-    markShellPhase(browserDocument, "author-styles")
-    authorStyleSheetHost = (options.createLinkedAuthorStyleSheetHost ??
-      createBrowserLinkedAuthorStyleSheetHost)({
-      canvas,
-      document,
-      sources: authorStyleSheetSources,
-      onError(error, source) {
-        appendShellDiagnostic(Object.freeze({
-          phase: "author-styles",
-          message: error.message,
-          source: source?.id ?? null,
-        }))
-        if (runtime !== undefined && !disposed) runtime.requestRender()
-      },
-    })
-    try {
-      await waitForAuthorStyleSheetHost(
-        authorStyleSheetHost,
-        options.authorStyleSheetReadyTimeoutMs ?? 8_000,
-      )
-    } catch (error) {
-      authorStyleSheetHost.dispose()
-      workbench.dispose()
-      throw error
-    }
-  }
   try {
-    await startExperienceHost()
+    unsubscribePresented = experience.subscribePresented(sequence => {
+      for (const waiter of [...frameWaiters]) {
+        if (sequence <= waiter.afterSequence) continue
+        frameWaiters.delete(waiter)
+        waiter.resolve(sequence)
+      }
+    })
+    unsubscribeFrame = hudProjection.subscribeFrames(frame => {
+      const box = frame.boxByNode.get(workbench.elements.previewHost)
+      publishBounds(box === undefined
+        ? null
+        : Object.freeze({
+          x: box.contentX,
+          y: box.contentY,
+          width: box.contentWidth,
+          height: box.contentHeight,
+          viewportWidth: frame.viewport.width,
+          viewportHeight: frame.viewport.height,
+        }))
+    })
+    experience.render()
   } catch (error) {
-    authorStyleSheetHost?.dispose()
+    unsubscribeFrame()
+    unsubscribePresented()
     workbench.dispose()
+    experience.dispose()
     throw error
   }
   markShellPhase(browserDocument, "ready")
@@ -287,7 +282,7 @@ export async function createExternalStorybookShell(
   const mountPreviewNode = (
     label: string,
     node: SemanticNode,
-    projection: "display" | "hud" | "world" = "display",
+    projection: "display" | "hud" | "space" = "display",
   ): void => {
     assertActive(disposed)
     workbench.present({
@@ -296,36 +291,36 @@ export async function createExternalStorybookShell(
       inspectorSubject: workbench.controller.read("inspector.subject"),
       inspectorValues: workbench.controller.read("inspector.values"),
     })
-    runtime.requestRender()
+    experience.requestFrame()
   }
   const mountPreview = (label: string, node: SemanticNode): void => {
-    activeWorldPreview?.dispose()
+    activeSpacePreview?.dispose()
     activeShellPresentation?.dispose()
     activeShellPresentation = null
     mountPreviewNode(label, node)
   }
-  const mountWorldPreview = (
+  const mountSpacePreview = (
     label: string,
-    registration: StorybookWorldPreviewRegistration,
-  ): StorybookWorldPreview => {
+    registration: StorybookSpacePreviewRegistration,
+  ): StorybookSpacePreview => {
     assertActive(disposed)
     if (registration === null || typeof registration !== "object") {
-      throw new TypeError("Storybook world preview registration is required")
+      throw new TypeError("Storybook Space preview registration is required")
     }
     if (Object.hasOwn(registration, "space")) {
-      throw new TypeError("Storybook world preview registration.space is forbidden; use the one Experience Space")
+      throw new TypeError("Storybook Space preview registration.space is forbidden; use the one Experience Space")
     }
-    activeWorldPreview?.dispose()
+    activeSpacePreview?.dispose()
     activeShellPresentation?.dispose()
     activeShellPresentation = null
-    mountPreviewNode(label, registration.node, "world")
-    const initialViewPoint = worldViewPointSnapshot(registration.camera)
-    const restoredViewPoint = runtime.snapshotViewPoint()
-    runtime.restoreViewPoint(initialViewPoint)
-    const startedFrame = presentedFrameSequence
+    mountPreviewNode(label, registration.node, "space")
+    const initialViewPoint = spaceViewPointSnapshot(registration.camera)
+    const restoredViewPoint = readViewPointSnapshot(viewPoint)
+    writeViewPointSnapshot(document, viewPoint, initialViewPoint)
+    const startedFrame = experience.presentedFrame
     let previewDisposed = false
     let unsubscribeBounds = (): void => {}
-    let controller!: BoundStorybookWorldPreview
+    let controller!: BoundStorybookSpacePreview
 
     const applyBounds = (bounds: StorybookPreviewBounds | null): void => {
       if (previewDisposed || disposed || bounds === null ||
@@ -345,24 +340,24 @@ export async function createExternalStorybookShell(
     }
     controller = Object.freeze({
       get frames() {
-        return Math.max(0, presentedFrameSequence - startedFrame)
+        return Math.max(0, experience.presentedFrame - startedFrame)
       },
       get disposed() {
         return previewDisposed
       },
       requestRender() {
-        if (previewDisposed) throw new Error("Storybook world preview is disposed")
-        runtime.requestRender()
+        if (previewDisposed) throw new Error("Storybook Space preview is disposed")
+        experience.requestFrame()
       },
       resetViewPoint() {
-        if (previewDisposed) throw new Error("Storybook world preview is disposed")
-        runtime.restoreViewPoint(initialViewPoint)
-        runtime.requestRender()
+        if (previewDisposed) throw new Error("Storybook Space preview is disposed")
+        writeViewPointSnapshot(document, viewPoint, initialViewPoint)
+        experience.requestFrame()
       },
       suspend() {},
       resume() {
         if (previewDisposed) return
-        runtime.restoreViewPoint(initialViewPoint)
+        writeViewPointSnapshot(document, viewPoint, initialViewPoint)
         applyBounds(latestBounds)
       },
       applyGesture(node, gesture) {
@@ -372,11 +367,10 @@ export async function createExternalStorybookShell(
           !(registration.node.contains(node) || node.contains(registration.node))
         ) return false
         if (gesture.kind === "orbit") {
-          runtime.viewPoint.orbit(gesture.deltaX, gesture.deltaY)
+          spaceProjection.orbit(gesture.deltaX, gesture.deltaY)
         } else {
-          runtime.viewPoint.pan(gesture.deltaX, gesture.deltaY)
+          spaceProjection.pan(gesture.deltaX, gesture.deltaY)
         }
-        runtime.requestRender()
         return true
       },
       dispose() {
@@ -384,14 +378,14 @@ export async function createExternalStorybookShell(
         previewDisposed = true
         unsubscribeBounds()
         unsubscribeBounds = () => {}
-        if (!runtime.disposed) {
-          runtime.restoreViewPoint(restoredViewPoint)
-          runtime.requestRender()
+        if (!experience.disposed) {
+          writeViewPointSnapshot(document, viewPoint, restoredViewPoint)
+          experience.requestFrame()
         }
-        if (activeWorldPreview === controller) activeWorldPreview = null
+        if (activeSpacePreview === controller) activeSpacePreview = null
       },
     })
-    activeWorldPreview = controller
+    activeSpacePreview = controller
     boundsListeners.add(applyBounds)
     unsubscribeBounds = () => boundsListeners.delete(applyBounds)
     applyBounds(latestBounds)
@@ -401,7 +395,7 @@ export async function createExternalStorybookShell(
     label: string,
     presentation: StorybookComponentPresentation,
   ): SemanticHTMLElement => {
-    activeWorldPreview?.dispose()
+    activeSpacePreview?.dispose()
     activeShellPresentation?.dispose()
     activeShellPresentation = presentation
     mountPreviewNode(label, presentation.element)
@@ -429,31 +423,11 @@ export async function createExternalStorybookShell(
     ...(action === undefined ? {} : {action}),
   }))
 
-  const exactNativeInputProxy = (
-    expectedTarget?: SemanticHTMLElement,
-  ): globalThis.Element => {
-    const host = runtime.nativeInputHost
-    if (host.document !== document || host.ownerId !== EXTERNAL_STORYBOOK_WORKBENCH_OVERLAY_ID) {
-      throw new Error("Storybook native key input owner does not match the Workbench overlay")
-    }
-    if (expectedTarget !== undefined && host.inputTarget !== expectedTarget) {
-      throw new Error("Storybook native key input target does not match the semantic target")
-    }
-    if (host.inputTarget === null || !workbench.element.contains(host.inputTarget)) {
-      throw new Error("Storybook native key input target is outside the Workbench overlay")
-    }
-    const proxy = browserDocument.activeElement
-    const exact = host.activeProxy === "input"
-      ? proxy === host.nativeInput
-      : host.activeProxy === "textarea"
-        ? proxy === host.nativeTextArea
-        : host.activeProxy === "select"
-          ? proxy?.getAttribute("data-renderer-select-proxy") === ""
-          : false
-    if (!exact || proxy === null) {
-      throw new Error("Storybook native key input proxy does not match the active input owner")
-    }
-    return proxy
+  const projectionFor = (node: SemanticNode): ExperienceProjection => {
+    if (node === display || display.contains(node)) return displayProjection
+    if (node === hud || hud.contains(node)) return hudProjection
+    if (node === space || space.contains(node)) return spaceProjection
+    throw new Error("Storybook semantic node is outside the Experience Space")
   }
   const dispatchNativeKey = (
     target: SemanticHTMLElement,
@@ -463,67 +437,56 @@ export async function createExternalStorybookShell(
     if (!(target instanceof SemanticHTMLElement)) {
       throw new TypeError("Storybook native key target must be an @zavx0z/dom HTMLElement")
     }
-    if (!workbench.element.contains(target)) {
-      throw new Error("Storybook native key target is outside the Workbench overlay")
+    const projection = projectionFor(target)
+    if (projection.kind === "space") {
+      throw new Error("Storybook native key target has no Display or HUD projection")
     }
-    const host = runtime.nativeInputHost
-    host.setActiveDocument(document, EXTERNAL_STORYBOOK_WORKBENCH_OVERLAY_ID)
-    target.focus()
-    host.synchronize()
-    const KeyboardEventConstructor = browserDocument.defaultView?.KeyboardEvent
-    if (KeyboardEventConstructor === undefined) {
-      throw new Error("Storybook browser KeyboardEvent constructor is unavailable")
-    }
-    const init: KeyboardEventInit = {
+    const init = {
       key: input.key,
-      bubbles: true,
-      cancelable: true,
-      composed: true,
       altKey: input.altKey,
       ctrlKey: input.ctrlKey,
       metaKey: input.metaKey,
       shiftKey: input.shiftKey,
-    }
-    exactNativeInputProxy(target).dispatchEvent(new KeyboardEventConstructor("keydown", init))
-    host.synchronize()
-    exactNativeInputProxy().dispatchEvent(new KeyboardEventConstructor("keyup", init))
+    } as const
+    experience.dispatchKey(projection.owner, target, {type: "keydown", ...init})
+    experience.dispatchKey(projection.owner, target, {type: "keyup", ...init})
   }
 
   const shell: ExternalStorybookShell = Object.freeze({
     document,
     browserDocument,
     canvas,
+    experience,
+    space,
+    viewPoint,
+    display,
+    hud,
     workbench,
-    get runtime() {
-      return runtime
-    },
-    get workbenchOverlay() {
-      return workbenchOverlay
-    },
     get presentedFrameSequence() {
-      return presentedFrameSequence
+      return experience.presentedFrame
     },
+    projectionFor,
     present(value) {
       assertActive(disposed)
       activeShellPresentation?.dispose()
       activeShellPresentation = null
       workbench.present(value)
-      runtime.requestRender()
+      experience.requestFrame()
     },
     mountPreview,
-    mountWorldPreview,
+    mountSpacePreview,
     showMessage,
     showMarkdown,
     reportDiagnostic(value) {
       assertActive(disposed)
       appendShellDiagnostic(value)
-      runtime.requestRender()
+      experience.requestFrame()
     },
     clearDiagnostics() {
       assertActive(disposed)
       shellDiagnostics = []
       publishShellDiagnostics()
-      runtime.requestRender()
+      experience.requestFrame()
     },
     updateStatus(detail) {
       assertActive(disposed)
@@ -532,20 +495,20 @@ export async function createExternalStorybookShell(
         owner: options.statusOwner ?? "MetaFor",
         detail: ` · ${detail}`,
       })
-      runtime.requestRender()
+      experience.requestFrame()
     },
     requestRender() {
       assertActive(disposed)
-      runtime.requestRender()
+      experience.requestFrame()
     },
     presentFrame() {
       assertActive(disposed)
-      const before = presentedFrameSequence
-      runtime.render()
-      if (presentedFrameSequence <= before) {
+      const before = experience.presentedFrame
+      experience.render()
+      if (experience.presentedFrame <= before) {
         throw new Error("Storybook renderer did not publish the synchronous frame")
       }
-      return presentedFrameSequence
+      return experience.presentedFrame
     },
     waitForPresentedFrame(afterSequence, signal, timeoutMs = 8_000) {
       assertActive(disposed)
@@ -555,7 +518,7 @@ export async function createExternalStorybookShell(
       if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 30_000) {
         throw new RangeError("Presented frame timeout must be between 1 and 30000 ms")
       }
-      if (presentedFrameSequence > afterSequence) return Promise.resolve(presentedFrameSequence)
+      if (experience.presentedFrame > afterSequence) return Promise.resolve(experience.presentedFrame)
       return new Promise<number>((resolvePromise, reject) => {
         let settled = false
         const waiter = Object.freeze({
@@ -587,12 +550,12 @@ export async function createExternalStorybookShell(
         frameWaiters.add(waiter)
         signal?.addEventListener("abort", onAbort, {once: true})
         if (signal?.aborted === true) onAbort()
-        else runtime.requestRender()
+        else experience.requestFrame()
       })
     },
     captureLastPresentedFramePng() {
       assertActive(disposed)
-      return runtime.captureLastPresentedFramePng()
+      return experience.captureLastPresentedFramePng()
     },
     subscribePreviewBounds(listener) {
       assertActive(disposed)
@@ -601,24 +564,23 @@ export async function createExternalStorybookShell(
       listener(latestBounds)
       return () => boundsListeners.delete(listener)
     },
-    applyWorldPreviewGesture(node, gesture) {
+    applySpacePreviewGesture(node, gesture) {
       assertActive(disposed)
-      return activeWorldPreview?.applyGesture(node, gesture) ?? false
+      return activeSpacePreview?.applyGesture(node, gesture) ?? false
     },
     dispatchNativeKey,
     dispose() {
       if (disposed) return
       disposed = true
-      activeWorldPreview?.dispose()
+      activeSpacePreview?.dispose()
       activeShellPresentation?.dispose()
       activeShellPresentation = null
       unsubscribeFrame()
       unsubscribePresented()
       boundsListeners.clear()
-      for (const waiter of frameWaiters) waiter.resolve(presentedFrameSequence)
+      for (const waiter of frameWaiters) waiter.resolve(experience.presentedFrame)
       frameWaiters.clear()
-      runtime.dispose()
-      authorStyleSheetHost?.dispose()
+      experience.dispose()
       workbench.dispose()
     },
   })
@@ -636,26 +598,40 @@ function canvasPixelRatio(
   return Number.isFinite(ratio) && ratio > 0 ? ratio : 1
 }
 
-async function waitForAuthorStyleSheetHost(
-  host: BrowserLinkedAuthorStyleSheetHost,
-  timeoutMs: number,
-): Promise<void> {
-  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 30_000) {
-    throw new RangeError("Storybook author stylesheet ready timeout must be between 1 and 30000 ms")
-  }
-  let timer: ReturnType<typeof setTimeout> | null = null
-  try {
-    await Promise.race([
-      host.ready,
-      new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(() => reject(new Error(
-          `Required Storybook author stylesheets did not become ready within ${timeoutMs} ms`,
-        )), timeoutMs)
-      }),
-    ])
-  } finally {
-    if (timer !== null) clearTimeout(timer)
-  }
+function readViewPointSnapshot(viewPoint: XRViewPointElement): StorybookViewPointSnapshot {
+  return Object.freeze({
+    position: Object.freeze({x: viewPoint.x, y: viewPoint.y, z: viewPoint.z}),
+    target: Object.freeze({
+      x: viewPoint.targetX,
+      y: viewPoint.targetY,
+      z: viewPoint.targetZ,
+    }),
+    up: Object.freeze({x: viewPoint.upX, y: viewPoint.upY, z: viewPoint.upZ}),
+    fov: viewPoint.fov,
+    near: viewPoint.near,
+    far: viewPoint.far,
+  })
+}
+
+function writeViewPointSnapshot(
+  document: SemanticDocument,
+  viewPoint: XRViewPointElement,
+  snapshot: StorybookViewPointSnapshot,
+): void {
+  document.transaction(() => {
+    viewPoint.x = snapshot.position.x
+    viewPoint.y = snapshot.position.y
+    viewPoint.z = snapshot.position.z
+    viewPoint.targetX = snapshot.target.x
+    viewPoint.targetY = snapshot.target.y
+    viewPoint.targetZ = snapshot.target.z
+    viewPoint.upX = snapshot.up.x
+    viewPoint.upY = snapshot.up.y
+    viewPoint.upZ = snapshot.up.z
+    viewPoint.fov = snapshot.fov
+    viewPoint.near = snapshot.near
+    viewPoint.far = snapshot.far
+  })
 }
 
 /** Fetches and validates the serializable browser snapshot. */
@@ -711,8 +687,8 @@ function validateClientSnapshot(value: unknown): ExternalStorybookClientSnapshot
       const presentation = node.presentation
       if (presentation === null || presentation === undefined ||
         presentation.protocol !== "story-presentation/1" ||
-        (presentation.projection !== "display" && presentation.projection !== "world" &&
-          presentation.projection !== "hud") ||
+        (presentation.projection !== "display" && presentation.projection !== "hud" &&
+          presentation.projection !== "space") ||
         !Array.isArray(presentation.widgets) || presentation.widgets.length < 2 ||
         new Set(presentation.widgets).size !== presentation.widgets.length ||
         !presentation.widgets.includes("source") || !presentation.widgets.includes("diagnostics")) {

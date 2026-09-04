@@ -10,9 +10,9 @@ describe("external Storybook CLI", () => {
     })
     expect(parseExternalStorybookCli(["attach", "project"])).toEqual({action: "attach", path: "project"})
     expect(parseExternalStorybookCli(["detach", "project:ui"])).toEqual({action: "detach", scopeId: "project:ui"})
-    expect(parseExternalStorybookCli(["open", "@ui/components", "components/button/default"])).toEqual({
+    expect(parseExternalStorybookCli(["open", "@fixture/components", "components/button/default"])).toEqual({
       action: "open",
-      packageId: "@ui/components",
+      packageId: "@fixture/components",
       route: "components/button/default",
     })
     expect(parseExternalStorybookCli(["status"])).toEqual({action: "status"})
@@ -40,7 +40,8 @@ describe("external Storybook CLI", () => {
   test("canonicalizes a running-server path scope without rewriting a package identity", () => {
     const invocationCwd = resolve(import.meta.dir, "../..")
     expect(normalizeExternalStorybookCheckScope(".", invocationCwd)).toBe(invocationCwd)
-    expect(normalizeExternalStorybookCheckScope("@ui/components", invocationCwd)).toBe("@ui/components")
+    expect(normalizeExternalStorybookCheckScope("@fixture/components", invocationCwd))
+      .toBe("@fixture/components")
   })
 
   test("rejects old package lifecycle and malformed commands", () => {

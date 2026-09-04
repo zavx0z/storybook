@@ -4,7 +4,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-} from "@zavx0z/react"
+} from "@zavx0z/component"
 import {
   projectWorkbenchNavigation,
   workbenchNavigationGroupKey,

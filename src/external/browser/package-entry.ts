@@ -2,7 +2,7 @@
 
 import type {CustomEvent, Node as SemanticNode} from "@zavx0z/dom"
 import {createDomInspector} from "@zavx0z/dom-devtools"
-import type {BrowserLinkedAuthorStyleSheetSource} from "@zavx0z/renderer-browser"
+import type {ExperienceLinkedAuthorStyleSheet} from "@zavx0z/browser"
 import {isCompiledTemplate, type CompiledTemplate} from "@zavx0z/template/compiled"
 import {
   WORKBENCH_EVENTS,
@@ -21,7 +21,7 @@ import {
   type StorybookRuntimeContext,
   type StorybookRuntimePresentationInput,
   type StorybookRuntimeSession,
-  type StorybookWorldPreview,
+  type StorybookSpacePreview,
 } from "../runtime-protocol.ts"
 import {
   decodeExternalStorybookPackagePath,
@@ -87,7 +87,7 @@ type StorybookPresentationOperation = {
   projection: StorybookPackageRevisionStoryPresentation["projection"]
   presented: boolean
   presentedNode: SemanticNode | null
-  worldNode: SemanticNode | null
+  spaceNode: SemanticNode | null
 }
 
 type StorybookPresentationSubject = Readonly<{
@@ -107,8 +107,6 @@ export type ExternalStorybookPackageEnvironment = Readonly<{
   location?: Pick<Location, "pathname" | "href" | "reload">
   history?: Pick<History, "pushState" | "replaceState">
   createSocket?(url: string): ExternalStorybookSocket
-  /** Focused test seam; production waits on the renderer-presented frame sequence. */
-  waitForFrame?(): Promise<void>
   shell?: Omit<
     CreateExternalStorybookShellOptions,
     "title" | "browserDocument" | "authorStyleSheetSources"
@@ -271,7 +269,7 @@ export async function startExternalStorybookPackage(
   let operationTail: Promise<void> = Promise.resolve()
   let disposePromise: Promise<void> | null = null
   let agentBridge: StorybookAgentBridge | null = null
-  let activeWorldPreview: StorybookWorldPreview | null = null
+  let activeSpacePreview: StorybookSpacePreview | null = null
   const customWidgetComponents = new Map<
     string,
     CompiledTemplate<Readonly<{value: unknown}>>
@@ -280,9 +278,10 @@ export async function startExternalStorybookPackage(
   let disposed = false
   const presentationInspector = createDomInspector({
     document: shell.document,
-    ...(shell.workbenchOverlay.renderer === undefined
-      ? {}
-      : {renderer: shell.workbenchOverlay.renderer}),
+    readFrame(node) {
+      const projection = shell.projectionFor(node)
+      return projection.kind === "space" ? null : projection.readFrame()
+    },
   })
   let derivedPresentationSignature = ""
 
@@ -326,9 +325,9 @@ export async function startExternalStorybookPackage(
     ]))
   }
 
-  const disposeWorldPreview = (): void => {
-    const preview = activeWorldPreview
-    activeWorldPreview = null
+  const disposeSpacePreview = (): void => {
+    const preview = activeSpacePreview
+    activeSpacePreview = null
     preview?.dispose()
   }
 
@@ -417,8 +416,8 @@ export async function startExternalStorybookPackage(
           revisionGraph?.authorStyleSheets.map(({specifier}) => specifier) ?? Object.freeze([]),
           routeDiagnostics,
         )
-        if (operation.worldNode !== null && operation.worldNode !== committed.node) {
-          throw new Error("Storybook world preview node differs from the atomic presentation node")
+        if (operation.spaceNode !== null && operation.spaceNode !== committed.node) {
+          throw new Error("Storybook Space preview node differs from the atomic presentation node")
         }
         operation.presented = true
         operation.presentedNode = committed.node
@@ -449,25 +448,25 @@ export async function startExternalStorybookPackage(
         shell.requestRender()
       },
     } as const
-    if (presentation.projection !== "world") {
+    if (presentation.projection !== "space") {
       return Object.freeze({...base, projection: presentation.projection})
     }
     return Object.freeze({
       ...base,
-      projection: "world" as const,
-      space: shell.runtime.space,
-      mountWorldPreview(registration: Parameters<ExternalStorybookShell["mountWorldPreview"]>[1]) {
+      projection: "space" as const,
+      space: shell.space,
+      mountSpacePreview(registration: Parameters<ExternalStorybookShell["mountSpacePreview"]>[1]) {
         const operation = activeOperation(subject.id, presentation.projection)
-        if (operation.worldNode !== null) {
-          throw new Error("Storybook runtime mount/update registered more than one world preview")
+        if (operation.spaceNode !== null) {
+          throw new Error("Storybook runtime mount/update registered more than one Space preview")
         }
-        operation.worldNode = registration.node
+        operation.spaceNode = registration.node
         if (operation.presentedNode !== null && operation.presentedNode !== registration.node) {
-          throw new Error("Storybook world preview node differs from the atomic presentation node")
+          throw new Error("Storybook Space preview node differs from the atomic presentation node")
         }
-        disposeWorldPreview()
-        const preview = shell.mountWorldPreview(currentModel.selectedNode.label, registration)
-        activeWorldPreview = preview
+        disposeSpacePreview()
+        const preview = shell.mountSpacePreview(currentModel.selectedNode.label, registration)
+        activeSpacePreview = preview
         return preview
       },
     })
@@ -556,7 +555,7 @@ export async function startExternalStorybookPackage(
   ): Promise<boolean> => {
     const plan = planStorybookOverview(snapshot, model)
     if (plan.length === 0 || plan.some(({subject}) =>
-      subject.presentation.projection === "world")) return false
+      subject.presentation.projection === "space")) return false
     await disposeAggregate()
     if (session !== null) {
       if (mountedRoute !== null) {
@@ -686,7 +685,7 @@ export async function startExternalStorybookPackage(
     revision: number,
     signal: AbortSignal,
   ): Promise<void> => {
-    disposeWorldPreview()
+    disposeSpacePreview()
     if (await showAggregateOverview(model, revision, signal)) return
     await disposeAggregate()
     if (session !== null && mountedRoute !== null) {
@@ -739,7 +738,7 @@ export async function startExternalStorybookPackage(
     const subject = exactPresentationSubject(revisionGraph, snapshot, model)
     if (subject === null) throw new Error(`Executable Storybook variant has no presentation subject: ${route}`)
     const presentation = requiredSubjectPresentation(subject)
-    disposeWorldPreview()
+    disposeSpacePreview()
     await disposeAggregate()
     shell.showMessage(`${model.selectedNode.label} · Загрузка`, model.selectedNode.label, "Загрузка owner story…")
     const [runtimeRecord, story] = await abortable(Promise.all([ensureSession(subject), loader()]), signal)
@@ -751,7 +750,7 @@ export async function startExternalStorybookPackage(
       projection: presentation.projection,
       presented: false,
       presentedNode: null,
-      worldNode: null,
+      spaceNode: null,
     }
     activePresentationOperation = operation
     try {
@@ -765,20 +764,20 @@ export async function startExternalStorybookPackage(
         await abortable(Promise.resolve(runtimeRecord.session.mount(storyInput)), signal)
         if (disposed || revision !== navigationRevision || signal.aborted) {
           await runtimeRecord.session.unmount()
-          disposeWorldPreview()
+          disposeSpacePreview()
           return
         }
       }
       if (!operation.presented) {
         throw new Error(`Storybook runtime mount/update published no atomic presentation: ${route}`)
       }
-      if (operation.worldNode !== null && operation.worldNode !== operation.presentedNode) {
-        throw new Error("Storybook world preview node differs from the atomic presentation node")
+      if (operation.spaceNode !== null && operation.spaceNode !== operation.presentedNode) {
+        throw new Error("Storybook Space preview node differs from the atomic presentation node")
       }
       mountedRoute = route
     } catch (error) {
       mountedRoute = null
-      disposeWorldPreview()
+      disposeSpacePreview()
       try {
         await runtimeRecord.session.unmount()
       } catch (cleanupError) {
@@ -822,17 +821,10 @@ export async function startExternalStorybookPackage(
         await showOverview(model, revision, signal)
       }
       if (disposed || revision !== navigationRevision || signal.aborted) return
-      shell.updateStatus(`${packageId} · ${route.length === 0 ? "overview" : route}`)
       const beforeFrame = shell.presentedFrameSequence
-      if (environment.waitForFrame !== undefined) {
-        await environment.waitForFrame()
-        if (refreshDerivedPresentation()) shell.requestRender()
-      }
-      else {
-        let frameSequence = shell.presentFrame()
-        if (frameSequence <= beforeFrame) throw new Error("Storybook activation did not present a new frame")
-        if (refreshDerivedPresentation()) frameSequence = shell.presentFrame()
-      }
+      let frameSequence = shell.presentFrame()
+      if (frameSequence <= beforeFrame) throw new Error("Storybook activation did not present a new frame")
+      if (refreshDerivedPresentation()) frameSequence = shell.presentFrame()
       if (disposed || revision !== navigationRevision || signal.aborted) return
       browserDocument.documentElement.dataset.externalStorybook = "ready"
       browserDocument.documentElement.dataset.externalStorybookPackage = "ready"
@@ -957,7 +949,7 @@ export async function startExternalStorybookPackage(
         if (sessionPromise !== null) await settleBefore(sessionPromise, deadline)
         if (aggregate !== null) await settleBefore(disposeAggregate(), deadline)
         if (session !== null) {
-          disposeWorldPreview()
+          disposeSpacePreview()
           if (mountedRoute !== null) await settleBefore(Promise.resolve(session.session.unmount()), deadline)
           session.abort.abort(reason)
           await settleBefore(Promise.resolve(session.session.dispose()), deadline)
@@ -1150,7 +1142,7 @@ function exactAuthorStyleSheetSources(
   browserDocument: globalThis.Document,
   graph: StorybookPackageRevisionGraphSnapshot | null,
   revisionBase: string | null,
-): readonly BrowserLinkedAuthorStyleSheetSource[] {
+): readonly ExperienceLinkedAuthorStyleSheet[] {
   if (graph === null) return Object.freeze([])
   const styleSheets = mergeStorybookAuthorStyleSheets(
     graph.workbenchAuthorStyleSheets,

@@ -1,6 +1,6 @@
-import {Button} from "@ui/components/button"
+import {Button} from "@zavx0z/ui/buttons/button"
 import type {HTMLElement} from "@zavx0z/dom"
-import {createRoot} from "@zavx0z/react"
+import {createRoot} from "@zavx0z/component"
 import {
   defineSelfStory,
   serializeSelfElement,

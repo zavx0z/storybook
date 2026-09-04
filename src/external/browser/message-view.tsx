@@ -1,5 +1,5 @@
-import {Pane} from "@ui/components/pane"
-import {Typography} from "@ui/components/typography"
+import {Pane} from "@zavx0z/ui/surfaces/pane"
+import {Typography} from "@zavx0z/ui/typography"
 import {StorybookOverviewActionButton} from "../components/overview-action-button.tsx"
 import type {StorybookOverviewAction} from "../components/overview-action.ts"
 

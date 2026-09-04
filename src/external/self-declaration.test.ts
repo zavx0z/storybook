@@ -56,7 +56,7 @@ describe("external Storybook self declaration", () => {
     ]) expect(search).toContain(term)
     const packageNode = externalStorybookNode(graph, "package:@zavx0z/storybook")
     expect(packageNode.authorStyleSheets.map(({specifier}) => specifier)).toEqual([
-      "@ui/components/theme.css",
+      "@zavx0z/ui/themes/theme.css",
     ])
     expect(packageNode.widgetContributions?.items.map(({id}) => id)).toEqual([
       "props", "source", "events", "diagnostics", "dom", "layout", "display", "reference",
@@ -76,11 +76,11 @@ describe("external Storybook self declaration", () => {
       "self-declaration",
     )
     expect(snapshot.authorStyleSheets.map(({specifier, url}) => ({specifier, url}))).toEqual([{
-      specifier: "@ui/components/theme.css",
+      specifier: "@zavx0z/ui/themes/theme.css",
       url: "author-style-sheets/0.css",
     }])
     expect(snapshot.workbenchAuthorStyleSheets.map(({specifier, url}) => ({specifier, url}))).toEqual([{
-      specifier: "@ui/components/theme.css",
+      specifier: "@zavx0z/ui/themes/theme.css",
       url: "workbench-author-style-sheets/0.css",
     }])
   })
@@ -110,7 +110,7 @@ describe("external Storybook self declaration", () => {
       ["serve"],
       ["attach", "."],
       ["detach", "project-id"],
-      ["open", "@ui/components"],
+      ["open", "@zavx0z/ui"],
       ["status"],
       ["check", "."],
       ["stop"],
@@ -136,7 +136,7 @@ describe("external Storybook self declaration", () => {
       expect(source, path).not.toContain("style={[")
     }
     const presentation = await Bun.file(resolve(root, ".storybook/stories/presentation.tsx")).text()
-    expect(presentation).toContain('from "@ui/components/button"')
+    expect(presentation).toContain('from "@zavx0z/ui/buttons/button"')
     expect(presentation).toContain("<Button")
     expect(presentation).not.toContain("<button")
     expect(presentation).not.toContain("style={css`")
@@ -145,9 +145,11 @@ describe("external Storybook self declaration", () => {
       root,
       ".storybook/stories/contract-document.tsx",
     )).text()
-    for (const owner of ["code-editor", "pane", "typography"]) {
-      expect(contractDocument).toContain(`from "@ui/components/${owner}"`)
-    }
+    for (const owner of [
+      "@zavx0z/ui/views/code-editor",
+      "@zavx0z/ui/surfaces/pane",
+      "@zavx0z/ui/typography",
+    ]) expect(contractDocument).toContain(`from "${owner}"`)
     expect(contractDocument).not.toContain("<pre")
     expect(contractDocument).not.toContain("<code")
     expect(contractDocument).not.toMatch(/#[\da-f]{3,8}/iu)

@@ -1,6 +1,6 @@
-import {CheckboxField} from "@ui/components/fields/checkbox-field"
-import {NumberField} from "@ui/components/fields/number-field"
-import {TextField} from "@ui/components/fields/text-field"
+import {CheckboxField} from "@zavx0z/ui/fields/checkbox-field"
+import {NumberField} from "@zavx0z/ui/fields/number-field"
+import {TextField} from "@zavx0z/ui/fields/text-field"
 
 type ValueFieldDefinition = Readonly<{
   id: string

@@ -8,7 +8,7 @@ describe("Storybook view registry", () => {
       targetId: "CDP-SECRET-TARGET",
       type: "page",
       title: "UI",
-      url: "http://127.0.0.1:43123/packages/%40ui%2Fcomponents/components/button/default",
+      url: "http://127.0.0.1:43123/packages/%40fixture%2Fcomponents/components/button/default",
     }]
     const first = registry.synchronize(targets, "http://127.0.0.1:43123")
     const second = registry.synchronize(targets, "http://127.0.0.1:43123")
@@ -17,7 +17,7 @@ describe("Storybook view registry", () => {
     expect(first[0]?.viewId).toStartWith("storybook-view-v1_")
     expect(JSON.stringify(first)).not.toContain("CDP-SECRET-TARGET")
     expect(first[0]).toMatchObject({
-      packageId: "@ui/components",
+      packageId: "@fixture/components",
       route: "components/button/default",
     })
     expect(registry.internal(first[0]!.viewId).targetId).toBe("CDP-SECRET-TARGET")

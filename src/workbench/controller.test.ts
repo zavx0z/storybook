@@ -9,7 +9,7 @@ import {
 } from "@zavx0z/dom"
 import {createDocumentRenderer} from "@zavx0z/renderer"
 import {isCompiledTemplate} from "@zavx0z/template/compiled"
-import {uiIcons} from "@ui/components/icons"
+import {uiIcons} from "@zavx0z/ui/themes/icons"
 import {
   WORKBENCH_EVENTS,
   WORKBENCH_LAYOUT_PROTOCOL,
@@ -130,9 +130,15 @@ describe("compiled Storybook Workbench", () => {
     }
   })
 
-  test("atomically reparents one presentation Node between display, HUD and world hosts", () => {
+  test("atomically reparents one presentation Node between Display, HUD and Space hosts", () => {
     const document = createDocument()
-    const workbench = api.createWorkbench({document, parent: document})
+    const display = document.createElement("section")
+    const space = document.createElement("section")
+    const workbench = api.createWorkbench({
+      document,
+      parent: document,
+      projectionHosts: {display, space},
+    })
     const presentation = document.createElement("button")
     presentation.textContent = "Output"
     const identity = presentation
@@ -144,7 +150,10 @@ describe("compiled Storybook Workbench", () => {
       inspectorSubject: subject,
       inspectorValues: {props: {disabled: false}},
     })
-    expect(workbench.elements.displayHost.firstChild).toBe(identity)
+    expect(display.firstChild).toBe(identity)
+    expect(workbench.elements.displayHost.firstChild).toBeNull()
+    expect(workbench.element.getAttribute("data-storybook-content-preview")).toBe("true")
+    expect(workbench.elements.body.getAttribute("data-content")).toBe("true")
     expect(workbench.controller.read("preview.label")).toBe("Button")
 
     workbench.present({
@@ -153,20 +162,23 @@ describe("compiled Storybook Workbench", () => {
       inspectorSubject: subject,
       inspectorValues: {props: {disabled: false}},
     })
-    expect(workbench.elements.displayHost.firstChild).toBeNull()
+    expect(display.firstChild).toBeNull()
     expect(workbench.elements.hudHost.firstChild).toBe(identity)
     expect(presentation.ownerDocument).toBe(document)
+    expect(workbench.element.getAttribute("data-storybook-content-preview")).toBeNull()
+    expect(workbench.elements.body.getAttribute("data-content")).toBeNull()
 
     workbench.present({
-      label: "Button world",
-      presentation: {node: presentation, projection: "world"},
+      label: "Button Space",
+      presentation: {node: presentation, projection: "space"},
       inspectorSubject: subject,
       inspectorValues: {props: {disabled: false}},
     })
     expect(workbench.elements.hudHost.firstChild).toBeNull()
-    expect(workbench.elements.worldHost.firstChild).toBe(identity)
-    expect(workbench.element.getAttribute("data-storybook-world-preview")).toBe("true")
-    expect(workbench.elements.body.getAttribute("data-world")).toBe("true")
+    expect(space.firstChild).toBe(identity)
+    expect(workbench.elements.spaceHost.firstChild).toBeNull()
+    expect(workbench.element.getAttribute("data-storybook-content-preview")).toBe("true")
+    expect(workbench.elements.body.getAttribute("data-content")).toBe("true")
 
     const foreign = createDocument().createElement("div")
     expect(() => workbench.present({
@@ -175,7 +187,7 @@ describe("compiled Storybook Workbench", () => {
       inspectorSubject: subject,
       inspectorValues: {},
     })).toThrow("another Document")
-    expect(workbench.elements.worldHost.firstChild).toBe(identity)
+    expect(space.firstChild).toBe(identity)
   })
 
   test("uses production Fields and emits bubbling semantic navigation events", () => {
@@ -331,13 +343,13 @@ describe("compiled Storybook Workbench", () => {
     const navigation = await Bun.file(new URL("./navigation/tree.tsx", import.meta.url)).text()
     expect(controller).not.toContain("createElement(")
     expect(controller).not.toContain("StorybookDom")
-    expect(inspector).toContain('from "@ui/components/inspector"')
+    expect(inspector).toContain('from "@zavx0z/ui/widgets/inspector"')
     expect(inspector).not.toContain("InspectorSections")
-    expect(widgetPanel).toContain('from "@ui/components/panel"')
+    expect(widgetPanel).toContain('from "@zavx0z/ui/surfaces/panel"')
     expect(widgetPanel).not.toContain("InspectorSection")
     expect(inspector).not.toContain("uiIcons")
     expect(inspectorRegistry).not.toContain("uiIcons")
-    expect(sourceWidget).toContain('from "@ui/components/code-editor"')
+    expect(sourceWidget).toContain('from "@zavx0z/ui/views/code-editor"')
     expect(view).not.toContain("createElement(")
     expect(navigation).not.toContain("createElement(")
   })

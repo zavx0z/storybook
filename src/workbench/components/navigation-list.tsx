@@ -1,4 +1,4 @@
-import {Button, type ButtonProps} from "@ui/components/button"
+import {Button, type ButtonProps} from "@zavx0z/ui/buttons/button"
 import type {WorkbenchNavigationItem} from "../contract.ts"
 
 type WorkbenchNavigationListItemProps = Readonly<{

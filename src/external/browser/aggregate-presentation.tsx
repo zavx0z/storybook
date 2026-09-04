@@ -1,5 +1,5 @@
-import {Pane} from "@ui/components/pane"
-import {Typography} from "@ui/components/typography"
+import {Pane} from "@zavx0z/ui/surfaces/pane"
+import {Typography} from "@zavx0z/ui/typography"
 import type {Document, Node} from "@zavx0z/dom"
 import type {
   StorybookRuntimePresentationInput,

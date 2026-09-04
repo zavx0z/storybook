@@ -1,676 +1,416 @@
 import {describe, expect, test} from "bun:test"
-import {createDocument, type Element, type Node} from "@zavx0z/dom"
 import type {
-  BrowserLinkedAuthorStyleSheetHost,
-  DocumentOverlayRuntime,
-  DocumentSpaceRuntime,
-  DocumentSpaceViewPointSnapshot,
-} from "@zavx0z/renderer-browser"
+  CreateExperienceOptions,
+  Experience,
+  ExperienceDocumentProjection,
+  ExperienceProjection,
+} from "@zavx0z/browser"
 import {
-  EXTERNAL_STORYBOOK_WORKBENCH_OVERLAY_ID,
+  createDocument,
+  type Element,
+  type Node,
+} from "@zavx0z/dom"
+import type {RenderBox, RenderFrame} from "@zavx0z/renderer"
+import {
+  createSpaceElementFactories,
+  XRDisplayElement,
+  XRHUDElement,
+  XRSpaceElement,
+  XRViewPointElement,
+} from "@zavx0z/space"
+import {
+  EXTERNAL_STORYBOOK_DISPLAY_ID,
+  EXTERNAL_STORYBOOK_WORKBENCH_ID,
   createExternalStorybookShell,
-  type ExternalStorybookShellSpaceRuntimeFactory,
+  type ExternalStorybookExperienceFactory,
 } from "./shell.ts"
 
-describe("external Storybook shared browser shell", () => {
-  test("routes bounded keys through the exact Workbench native input owner", async () => {
-    const runtimes: FakeRuntime[] = []
-    const nativeInput = createFakeNativeInputHarness()
-    const document = createDocument()
-    const shell = await createExternalStorybookShell({
-      title: "Native key fixture",
-      document,
-      browserDocument: nativeInput.browserDocument,
-      canvas: {} as HTMLCanvasElement,
-      loadFont: async () => ({}) as never,
-      createSpaceRuntime: fakeRuntimeFactory(runtimes, nativeInput),
-    })
-    const preview = document.createElement("section")
-    const target = document.createElement("input")
-    target.setAttribute("aria-label", "Exact text input")
-    const restoredFocus = document.createElement("button")
-    restoredFocus.textContent = "Popover source"
-    preview.append(target, restoredFocus)
-    shell.mountPreview("Input", preview)
-    nativeInput.onKeyDown = () => restoredFocus.focus()
+describe("external Storybook shared Browser Experience", () => {
+  test("creates one semantic Space/ViewPoint/Display/HUD and mounts the Workbench in HUD", async () => {
+    const state = createFakeExperienceState()
+    const shell = await createShell(state)
 
-    shell.dispatchNativeKey(target, {
-      key: "Escape",
-      altKey: true,
-      ctrlKey: true,
-      metaKey: true,
-      shiftKey: true,
+    expect(state.creations).toBe(1)
+    expect(shell.document).toBe(shell.experience.document)
+    expect(shell.space).toBe(shell.experience.space)
+    expect(shell.viewPoint).toBe(shell.experience.viewPoint)
+    expect(shell.document.documentElement).toBe(shell.space)
+    expect(shell.viewPoint.parentElement).toBe(shell.space)
+    expect(viewPointValues(shell.viewPoint)).toMatchObject({
+      x: 0,
+      y: 0,
+      z: 1_000,
+      targetX: 0,
+      targetY: 0,
+      targetZ: 0,
+      upX: 0,
+      upY: 1,
+      upZ: 0,
+      far: 2_000,
+    })
+    expect(shell.display).toBeInstanceOf(XRDisplayElement)
+    expect(shell.display.id).toBe(EXTERNAL_STORYBOOK_DISPLAY_ID)
+    expect(shell.hud).toBeInstanceOf(XRHUDElement)
+    expect(shell.hud.id).toBe(EXTERNAL_STORYBOOK_WORKBENCH_ID)
+    expect(shell.display.parentElement).toBe(shell.space)
+    expect(shell.hud.parentElement).toBe(shell.space)
+    expect(shell.workbench.element.parentElement).toBe(shell.hud)
+
+    const displayNode = shell.document.createElement("button")
+    shell.mountPreview("Display", displayNode)
+    expect(shell.display.firstChild).toBe(displayNode)
+    expect(shell.projectionFor(displayNode).kind).toBe("display")
+
+    const hudNode = shell.document.createElement("button")
+    shell.present({
+      label: "HUD",
+      presentation: {node: hudNode, projection: "hud"},
+      inspectorSubject: null,
+      inspectorValues: {},
+    })
+    expect(shell.workbench.elements.hudHost.firstChild).toBe(hudNode)
+    expect(shell.hud.contains(hudNode)).toBeTrue()
+    expect(shell.projectionFor(hudNode).kind).toBe("hud")
+
+    const spaceNode = shell.document.createElement("xr-group")
+    shell.present({
+      label: "Space",
+      presentation: {node: spaceNode, projection: "space"},
+      inspectorSubject: null,
+      inspectorValues: {},
+    })
+    expect(spaceNode.parentElement).toBe(shell.space)
+    expect(shell.projectionFor(spaceNode).kind).toBe("space")
+    shell.dispose()
+  })
+
+  test("passes exact linked author styles to createExperience", async () => {
+    const state = createFakeExperienceState()
+    const link = {} as HTMLLinkElement
+    const shell = await createShell(state, {
+      authorStyleSheetSources: [{id: "@zavx0z/ui/themes/theme.css", link}],
     })
 
-    expect(nativeInput.activations).toEqual([{
-      document,
-      ownerId: EXTERNAL_STORYBOOK_WORKBENCH_OVERLAY_ID,
+    expect(state.options?.linkedAuthorStyleSheets).toEqual([{
+      id: "@zavx0z/ui/themes/theme.css",
+      link,
     }])
-    expect(nativeInput.synchronizations).toBeGreaterThanOrEqual(3)
-    expect(nativeInput.host.inputTarget).toBe(restoredFocus)
-    expect(nativeInput.events.map(({type}) => type)).toEqual(["keydown", "keyup"])
-    expect(nativeInput.events[0]).toMatchObject({
-      key: "Escape",
-      bubbles: true,
-      cancelable: true,
-      composed: true,
-      altKey: true,
-      ctrlKey: true,
-      metaKey: true,
-      shiftKey: true,
-    })
-
-    nativeInput.ownerOverride = "foreign-overlay"
-    expect(() => shell.dispatchNativeKey(target, {
-      key: "Enter",
-      altKey: false,
-      ctrlKey: false,
-      metaKey: false,
-      shiftKey: false,
-    })).toThrow("input owner does not match")
-    nativeInput.ownerOverride = null
-    nativeInput.proxyMismatch = true
-    expect(() => shell.dispatchNativeKey(target, {
-      key: "Enter",
-      altKey: false,
-      ctrlKey: false,
-      metaKey: false,
-      shiftKey: false,
-    })).toThrow("input proxy does not match")
-    nativeInput.proxyMismatch = false
-    nativeInput.keyboardEventUnavailable = true
-    expect(() => shell.dispatchNativeKey(target, {
-      key: "Enter",
-      altKey: false,
-      ctrlKey: false,
-      metaKey: false,
-      shiftKey: false,
-    })).toThrow("KeyboardEvent constructor is unavailable")
-    expect(nativeInput.events).toHaveLength(2)
-
+    expect(state.options?.styleSheets).toEqual([])
+    expect(state.options?.cameraGestures).toBeFalse()
     shell.dispose()
   })
 
-  test("awaits exact linked author styles before creating and disposes them after the one runtime", async () => {
-    const runtimes: FakeRuntime[] = []
-    const lifecycle: string[] = []
-    let resolveReady = (): void => {}
-    const ready = new Promise<void>((resolve) => { resolveReady = resolve })
-    const runtimeFactory = fakeRuntimeFactory(runtimes)
-    const creation = createExternalStorybookShell({
-      title: "Linked theme",
-      document: createDocument(),
-      browserDocument: {} as globalThis.Document,
-      canvas: {} as HTMLCanvasElement,
-      loadFont: async () => ({}) as never,
-      authorStyleSheetSources: [{id: "@ui/components/theme.css", link: {} as HTMLLinkElement}],
-      createLinkedAuthorStyleSheetHost(options) {
-        lifecycle.push("author-create")
-        expect(options.sources.map(({id}) => id)).toEqual(["@ui/components/theme.css"])
-        return {
-          canvas: options.canvas,
-          document: options.document,
-          sources: options.sources,
-          ready: ready.then(() => { lifecycle.push("author-ready") }),
-          disposed: false,
-          refresh() {},
-          dispose() { lifecycle.push("author-dispose") },
-        } as BrowserLinkedAuthorStyleSheetHost
-      },
-      async createSpaceRuntime(options) {
-        lifecycle.push("runtime-create")
-        const runtime = await runtimeFactory(options)
-        return new Proxy(runtime, {
-          get(target, property, receiver) {
-            if (property !== "dispose") return Reflect.get(target, property, receiver)
-            return () => {
-              lifecycle.push("runtime-dispose")
-              target.dispose()
-            }
-          },
-        })
-      },
-    })
-
-    await Promise.resolve()
-    expect(runtimes).toHaveLength(0)
-    resolveReady()
-    const shell = await creation
-    expect(lifecycle).toEqual(["author-create", "author-ready", "runtime-create"])
-    shell.dispose()
-    expect(lifecycle).toEqual([
-      "author-create",
-      "author-ready",
-      "runtime-create",
-      "runtime-dispose",
-      "author-dispose",
-    ])
-  })
-
-  test("rejects a failed or stalled required author host before creating a runtime and releases it", async () => {
-    for (const failure of ["rejected", "stalled"] as const) {
-      const runtimes: FakeRuntime[] = []
-      let disposals = 0
-      const creation = createExternalStorybookShell({
-        title: `Author ${failure}`,
-        document: createDocument(),
-        browserDocument: {} as globalThis.Document,
-        canvas: {} as HTMLCanvasElement,
-        loadFont: async () => ({}) as never,
-        authorStyleSheetSources: [{id: "required-theme", link: {} as HTMLLinkElement}],
-        authorStyleSheetReadyTimeoutMs: 5,
-        createSpaceRuntime: fakeRuntimeFactory(runtimes),
-        createLinkedAuthorStyleSheetHost(options) {
-          return {
-            canvas: options.canvas,
-            document: options.document,
-            sources: options.sources,
-            ready: failure === "rejected"
-              ? Promise.reject(new Error("required theme rejected"))
-              : new Promise<void>(() => {}),
-            disposed: false,
-            refresh() {},
-            dispose() { disposals += 1 },
-          } as BrowserLinkedAuthorStyleSheetHost
-        },
-      })
-      await expect(creation).rejects.toThrow(
-        failure === "rejected" ? "required theme rejected" : "did not become ready",
-      )
-      expect(runtimes).toHaveLength(0)
-      expect(disposals).toBe(1)
-    }
-  })
-
-  test("owns one semantic Workbench and renderer while exposing same-document host seams", async () => {
-    const runtimes: FakeRuntime[] = []
-    const document = createDocument()
-    const shell = await createExternalStorybookShell({
-      title: "Fixture Storybook",
-      document,
-      browserDocument: {} as globalThis.Document,
-      canvas: {} as HTMLCanvasElement,
-      loadFont: async () => ({}) as never,
-      createSpaceRuntime: fakeRuntimeFactory(runtimes),
-    })
-
-    expect(shell.document).toBe(document)
-    expect(shell.workbench.document).toBe(document)
-    expect(shell.workbench.element).toBe(document.documentElement as typeof shell.workbench.element)
-    expect(runtimes).toHaveLength(1)
-    const firstRuntime = runtimes[0]!
-    expect(firstRuntime.options.document).toBe(document)
-    expect(firstRuntime.options.cameraGestures).toBeFalse()
-    expect(firstRuntime.overlayId).toBe(EXTERNAL_STORYBOOK_WORKBENCH_OVERLAY_ID)
-    expect(firstRuntime.overlayRoot).toBe(shell.workbench.element)
-    expect(shell.runtime).toBe(firstRuntime.runtime)
-    expect(shell.workbenchOverlay).toBe(firstRuntime.overlay!)
-    expect(shell.runtime.document).toBe(document)
-    expect(shell.workbenchOverlay.document).toBe(document)
-    expect(shell.presentFrame()).toBeGreaterThan(1)
-
-    const preview = document.createElement("button")
-    preview.textContent = "Owner preview"
-    shell.mountPreview("Owner", preview)
-    expect(shell.workbench.elements.displayHost.firstChild).toBe(preview)
-    expect(runtimes[0]?.requests).toBeGreaterThan(0)
-    expect(() => shell.mountPreview("Foreign", createDocument().createElement("div")))
-      .toThrow("another Document")
-
-    shell.workbench.present({
-      label: "Owner",
-      presentation: {node: preview, projection: "display"},
-      inspectorSubject: {
-        packageId: "@fixture/components",
-        subjectId: "button",
-        widgetIds: ["props", "source", "diagnostics"],
-      },
-      inspectorValues: {
-        props: {disabled: false, kind: "owner"},
-        source: {
-          html: '<button style="opacity: 0.5">Output</button>',
-          css: {
-            authorStyleSheets: [{
-              specifier: "@fixture/components/theme.css",
-              cssText: ":root { --tone: #123456; }",
-            }],
-            componentStyleSheets: [{
-              moduleId: "@fixture/components/button.tsx",
-              componentName: "Button",
-              cssText: "color: var(--tone);\n&:hover { color: white; }",
-            }],
-          },
-          typescript: "export const story = true",
-        },
-        diagnostics: [],
-      },
-    })
-    shell.reportDiagnostic("fixture diagnostic")
-    expect(shell.workbench.elements.inspectorHost.querySelector("aside")?.getAttribute("aria-label"))
-      .toBe("Инспектор")
-    expect(shell.workbench.elements.inspectorHost.textContent).toContain("Исходники")
-    expect(shell.workbench.elements.inspectorHost.textContent).toContain("Параметры")
-    expect(shell.workbench.elements.inspectorHost.textContent).toContain("fixture diagnostic")
-    const cssFacets = shell.workbench.elements.inspectorHost.querySelectorAll('[data-language-id="css"]')
-    expect(cssFacets).toHaveLength(2)
-    expect(cssFacets[0]?.querySelector("code")?.textContent).toBe(":root { --tone: #123456; }")
-    expect(cssFacets[1]?.querySelector("code")?.textContent).toBe("color: var(--tone);&:hover { color: white; }")
-    expect(cssFacets[1]?.querySelector("code")?.querySelectorAll("[data-line-index]")).toHaveLength(2)
-    expect(cssFacets[1]?.querySelector("[data-token-category]")).not.toBeNull()
-    expect(cssFacets[1]?.querySelector("code")?.textContent).not.toContain("```css")
-    expect(cssFacets[1]?.querySelector("code")?.textContent).not.toContain("<style")
-    expect(cssFacets[1]?.querySelector("code")?.textContent).not.toContain("css`")
-    expect(cssFacets[1]?.querySelector("code")?.textContent).not.toContain("${")
-    expect(cssFacets[1]?.querySelector("code")?.textContent).not.toContain("`")
-    expect(shell.workbench.elements.inspectorHost.querySelector('[data-language-id="html"] code')?.textContent)
-      .toContain('style="opacity: 0.5"')
-
+  test("uses Experience frames for bounds, acknowledgement and capture", async () => {
+    const state = createFakeExperienceState()
+    const shell = await createShell(state)
     const bounds: unknown[] = []
-    const unsubscribe = shell.subscribePreviewBounds((value) => bounds.push(value))
-    runtimes[0]?.emit(shell.workbench.elements.previewHost, {
+    const unsubscribe = shell.subscribePreviewBounds(value => bounds.push(value))
+    state.emitFrame(shell.hud, shell.workbench.elements.previewHost, {
       contentX: 12,
       contentY: 18,
       contentWidth: 640,
       contentHeight: 360,
     })
+
     expect(bounds).toEqual([
       null,
       {x: 12, y: 18, width: 640, height: 360, viewportWidth: 1024, viewportHeight: 768},
     ])
+    const before = shell.presentedFrameSequence
+    expect(shell.presentFrame()).toBeGreaterThan(before)
+    expect(await shell.captureLastPresentedFramePng()).toBe(state.capture)
     unsubscribe()
+    shell.dispose()
+  })
 
-    const worldNode = document.createElement("section")
-    const worldResizes: unknown[] = []
-    expect(() => shell.mountWorldPreview("Foreign world", {
-      node: worldNode,
-      space: Object.freeze({}),
-      camera: {
-        position: {x: 0, y: 0, z: 1},
-        target: {x: 0, y: 0, z: 0},
-      },
-    } as never)).toThrow("registration.space is forbidden")
-    expect(runtimes[0]?.forbiddenWorldCalls).toBe(0)
-    const worldPreview = shell.mountWorldPreview("Engine", {
-      node: worldNode,
+  test("routes Space camera gestures through the semantic ViewPoint and restores its preset", async () => {
+    const state = createFakeExperienceState()
+    const shell = await createShell(state)
+    const node = shell.document.createElement("xr-group")
+    const restored = viewPointValues(shell.viewPoint)
+    const preview = shell.mountSpacePreview("Space", {
+      node,
       camera: {
         position: {x: 10, y: -20, z: 30},
-        target: {x: 0, y: 0, z: 0},
+        target: {x: 1, y: 2, z: 3},
       },
-      resize: (viewport) => worldResizes.push(viewport),
     })
-    expect(shell.workbench.elements.worldHost.firstChild).toBe(worldNode)
-    expect(shell.workbench.element.hasAttribute("data-storybook-world-preview")).toBeTrue()
-    const activeRuntime = runtimes[0]!
-    expect(shell.runtime.space).toBe(activeRuntime.runtime.space)
-    expect(shell.runtime.viewPoint).toBe(activeRuntime.runtime.viewPoint)
-    expect(runtimes[0]?.forbiddenWorldCalls).toBe(0)
-    expect(runtimes[0]?.restoredViewPoints.at(-1)).toEqual({
-      position: {x: 10, y: -20, z: 30},
-      target: {x: 0, y: 0, z: 0},
-      up: {x: 0, y: 0, z: 1},
-      fov: Math.PI / 4,
-      near: 1,
-      far: 2_000,
+
+    expect(node.parentElement).toBe(shell.space)
+    expect(viewPointValues(shell.viewPoint)).toMatchObject({
+      x: 10,
+      y: -20,
+      z: 30,
+      targetX: 1,
+      targetY: 2,
+      targetZ: 3,
     })
-    expect(worldResizes.at(-1)).toEqual({
-      x: 12,
-      y: 18,
-      width: 640,
-      height: 360,
-      backingX: 12,
-      backingY: 18,
-      backingWidth: 640,
-      backingHeight: 360,
-      pixelRatio: 1,
-    })
-    expect(shell.applyWorldPreviewGesture(worldNode, {
+    expect(shell.applySpacePreviewGesture(node, {
       kind: "orbit",
-      deltaX: 12,
-      deltaY: -7,
+      deltaX: 4,
+      deltaY: -2,
     })).toBeTrue()
-    expect(runtimes[0]?.viewPointOrbits).toEqual([[12, -7]])
-    expect(shell.applyWorldPreviewGesture(document.createElement("div"), {
-      kind: "pan",
-      deltaX: 1,
-      deltaY: 2,
-    })).toBeFalse()
-    worldPreview.requestRender()
-    expect(runtimes[0]?.requests).toBeGreaterThan(0)
-
-    expect(runtimes).toHaveLength(1)
-    expect(runtimes[0]?.forbiddenWorldCalls).toBe(0)
-    expect(worldPreview.disposed).toBeFalse()
-    shell.showMessage("Overview", "Overview", "No direct world")
-    expect(worldPreview.disposed).toBeTrue()
-    expect(shell.workbench.element.hasAttribute("data-storybook-world-preview")).toBeFalse()
-    expect(runtimes[0]?.restoredViewPoints.at(-1)).toEqual(runtimes[0]?.initialViewPoint)
-    shell.dispose()
-    expect(runtimes[0]?.disposed).toBeTrue()
-    expect(shell.workbench.element.parentNode).toBeNull()
-  })
-
-  test("renders bounded Markdown and unknown HTML as inert text", async () => {
-    const shell = await createExternalStorybookShell({
-      title: "Fixture Storybook",
-      document: createDocument(),
-      browserDocument: {} as globalThis.Document,
-      canvas: {} as HTMLCanvasElement,
-      loadFont: async () => ({}) as never,
-      createSpaceRuntime: fakeRuntimeFactory([]),
-    })
-    const markdown = shell.showMarkdown(
-      "README",
-      "# Owner\n\n<script>globalThis.pwned = true</script>\n\n- item",
-      "http://localhost/resource",
-    )
-    expect(markdown.textContent).toContain("Owner")
-    expect(markdown.textContent).toContain("<script>globalThis.pwned = true</script>")
-    expect(descendants(markdown).some((node) => node.nodeName === "SCRIPT")).toBeFalse()
+    expect(state.spaceGestures).toEqual([{kind: "orbit", deltaX: 4, deltaY: -2}])
+    preview.dispose()
+    expect(viewPointValues(shell.viewPoint)).toEqual(restored)
     shell.dispose()
   })
 
-  test("keeps landing and package pages as separate Experiences", async () => {
-    const runtimes: FakeRuntime[] = []
-    const landingDocument = createDocument()
-    const packageDocument = createDocument()
-    const landingCanvas = {} as HTMLCanvasElement
-    const packageCanvas = {} as HTMLCanvasElement
-    const createSpaceRuntime = fakeRuntimeFactory(runtimes)
-    const landing = await createExternalStorybookShell({
-      title: "Landing",
-      document: landingDocument,
-      browserDocument: {} as globalThis.Document,
-      canvas: landingCanvas,
-      loadFont: async () => ({}) as never,
-      createSpaceRuntime,
-    })
-    const packageShell = await createExternalStorybookShell({
-      title: "Package",
-      document: packageDocument,
-      browserDocument: {} as globalThis.Document,
-      canvas: packageCanvas,
-      loadFont: async () => ({}) as never,
-      createSpaceRuntime,
-    })
+  test("dispatches keys only through the exact active Display or HUD projection", async () => {
+    const state = createFakeExperienceState()
+    const shell = await createShell(state)
+    const target = shell.document.createElement("button")
+    shell.mountPreview("Key", target)
+    state.pointerTarget = target
+    const projection = shell.projectionFor(target)
+    if (projection.kind === "space") throw new Error("Expected a document projection")
+    projection.pointerDown({x: 1, y: 1})
 
-    expect(landing.document).toBe(landingDocument)
-    expect(packageShell.document).toBe(packageDocument)
-    expect(landing.runtime.document).toBe(landingDocument)
-    expect(packageShell.runtime.document).toBe(packageDocument)
-    expect(landing.canvas).toBe(landingCanvas)
-    expect(packageShell.canvas).toBe(packageCanvas)
-    expect(landing.runtime).not.toBe(packageShell.runtime)
-    expect(landing.workbenchOverlay.root).toBe(landing.workbench.element)
-    expect(packageShell.workbenchOverlay.root).toBe(packageShell.workbench.element)
+    shell.dispatchNativeKey(target, {
+      key: "Enter",
+      altKey: false,
+      ctrlKey: false,
+      metaKey: false,
+      shiftKey: false,
+    })
+    expect(state.keys.map(({input}) => input.type)).toEqual(["keydown", "keyup"])
+    expect(state.keys.every(({owner, target: keyTarget}) =>
+      owner === shell.display && keyTarget === target)).toBeTrue()
+    shell.dispose()
+  })
 
+  test("keeps landing and package shells as separate Experiences", async () => {
+    const landingState = createFakeExperienceState()
+    const packageState = createFakeExperienceState()
+    const landing = await createShell(landingState)
+    const packageShell = await createShell(packageState)
+
+    expect(landing.experience).not.toBe(packageShell.experience)
+    expect(landing.document).not.toBe(packageShell.document)
+    expect(landing.space).not.toBe(packageShell.space)
     landing.dispose()
     packageShell.dispose()
   })
+
+  test("releases the Experience when its first presented frame fails", async () => {
+    const state = createFakeExperienceState()
+    state.renderError = new Error("first frame failed")
+
+    await expect(createShell(state)).rejects.toThrow("first frame failed")
+    expect(state.experience?.disposed).toBeTrue()
+  })
 })
 
-type FakeRuntime = {
-  options: Parameters<ExternalStorybookShellSpaceRuntimeFactory>[0]
-  runtime: DocumentSpaceRuntime
-  overlay: DocumentOverlayRuntime | null
-  overlayId: string | null
-  overlayRoot: Node | null
-  initialViewPoint: DocumentSpaceViewPointSnapshot
-  restoredViewPoints: DocumentSpaceViewPointSnapshot[]
-  viewPointOrbits: Array<readonly [number, number]>
-  forbiddenWorldCalls: number
-  requests: number
-  disposed: boolean
-  emit(node: Node, box: Readonly<{
-    contentX: number
-    contentY: number
-    contentWidth: number
-    contentHeight: number
-  }>): void
-}
-
-function fakeRuntimeFactory(
-  output: FakeRuntime[],
-  nativeInput?: FakeNativeInputHarness,
-): ExternalStorybookShellSpaceRuntimeFactory {
-  return (async (options) => {
-    const subscribers = new Set<(frame: any) => void>()
-    const presentedSubscribers = new Set<(frame: number) => void>()
-    let presentedFrames = 0
-    let currentFrame: any = frame(options.document, options.document, options.styleSheets)
-    let overlay: DocumentOverlayRuntime | null = null
-    let overlayId: string | null = null
-    let overlayRoot: Node | null = null
-    const initialViewPoint = Object.freeze({
-      position: Object.freeze({x: 0, y: -1_000, z: 0}),
-      target: Object.freeze({x: 0, y: 0, z: 0}),
-      up: Object.freeze({x: 0, y: 0, z: 1}),
-      fov: Math.PI / 4,
-      near: 1,
-      far: 2_000,
-    })
-    let currentViewPoint: DocumentSpaceViewPointSnapshot = initialViewPoint
-    const owner: FakeRuntime = {
-      options,
-      runtime: null as unknown as DocumentSpaceRuntime,
-      overlay,
-      overlayId,
-      overlayRoot,
-      initialViewPoint,
-      restoredViewPoints: [],
-      viewPointOrbits: [],
-      forbiddenWorldCalls: 0,
-      requests: 0,
-      disposed: false,
-      emit(node, box) {
-        currentFrame = frame(options.document, overlayRoot ?? options.document, options.styleSheets, node, box)
-        for (const subscriber of subscribers) subscriber(currentFrame)
-      },
-    }
-    const runtime = {
-      document: options.document,
-      canvas: options.canvas,
-      styleSheets: options.styleSheets,
-      font: options.font,
-      ...(nativeInput === undefined ? {} : {
-        nativeInputHost: nativeInput.host,
-        nativeInput: nativeInput.host.nativeInput,
-        nativeTextArea: nativeInput.host.nativeTextArea,
-        get inputTarget() { return nativeInput.host.inputTarget },
-      }),
-      space: Object.freeze({kind: "one-shared-space"}),
-      viewPoint: {
-        orbit(deltaX: number, deltaY: number) {
-          owner.viewPointOrbits.push([deltaX, deltaY])
-        },
-        pan() {},
-      },
-      worldIds: Object.freeze([]),
-      addOverlay(registration: Readonly<{id: string; root: Node}>) {
-        overlayId = registration.id
-        overlayRoot = registration.root
-        overlay = {
-          document: options.document,
-          root: registration.root,
-          styleSheets: options.styleSheets,
-          font: options.font,
-          get frame() { return currentFrame },
-          subscribe(listener: (frame: any) => void) {
-            subscribers.add(listener)
-            return () => subscribers.delete(listener)
-          },
-          dispose() {
-            subscribers.clear()
-          },
-        } as unknown as DocumentOverlayRuntime
-        owner.overlay = overlay
-        owner.overlayId = overlayId
-        owner.overlayRoot = overlayRoot
-        return overlay
-      },
-      addWorld(registration: any) {
-        owner.forbiddenWorldCalls += 1
-        throw new Error(`Second world registration is forbidden: ${String(registration?.id)}`)
-      },
-      updateWorld() {
-        owner.forbiddenWorldCalls += 1
-        throw new Error("Second world update is forbidden")
-      },
-      removeWorld() {
-        owner.forbiddenWorldCalls += 1
-        throw new Error("Second world removal is forbidden")
-      },
-      render() {
-        for (const subscriber of subscribers) subscriber(currentFrame)
-        presentedFrames += 1
-        for (const subscriber of presentedSubscribers) subscriber(presentedFrames)
-      },
-      subscribePresented(listener: (frame: number) => void) {
-        presentedSubscribers.add(listener)
-        return () => presentedSubscribers.delete(listener)
-      },
-      requestRender() {
-        owner.requests += 1
-      },
-      snapshotViewPoint() {
-        return currentViewPoint
-      },
-      restoreViewPoint(value: DocumentSpaceViewPointSnapshot) {
-        currentViewPoint = value
-        owner.restoredViewPoints.push(value)
-      },
-      dispose() {
-        owner.disposed = true
-        subscribers.clear()
-        presentedSubscribers.clear()
-      },
-      get disposed() { return owner.disposed },
-    } as unknown as DocumentSpaceRuntime
-    owner.runtime = runtime
-    output.push(owner)
-    return runtime
-  }) as ExternalStorybookShellSpaceRuntimeFactory
-}
-
-type FakeNativeInputHarness = {
-  browserDocument: globalThis.Document
-  host: DocumentSpaceRuntime["nativeInputHost"]
-  activations: Array<Readonly<{
-    document: ReturnType<typeof createDocument> | null
-    ownerId: string | null
+type FakeExperienceState = {
+  creations: number
+  options: CreateExperienceOptions | null
+  experience: Experience | null
+  pointerTarget: Element | null
+  activeOwner: XRDisplayElement | XRHUDElement | null
+  activeTarget: Element | null
+  keys: Array<Readonly<{
+    owner: XRDisplayElement | XRHUDElement
+    target: Element
+    input: Readonly<{type: "keydown" | "keyup"; key: string}>
   }>>
-  events: KeyboardEvent[]
-  synchronizations: number
-  ownerOverride: string | null
-  proxyMismatch: boolean
-  keyboardEventUnavailable: boolean
-  onKeyDown: (() => void) | null
+  spaceGestures: Array<Readonly<{
+    kind: "orbit" | "pan"
+    deltaX: number
+    deltaY: number
+  }>>
+  capture: Blob
+  renderError: Error | null
+  emitFrame(
+    owner: XRDisplayElement | XRHUDElement,
+    node: Node,
+    box: Readonly<{
+      contentX: number
+      contentY: number
+      contentWidth: number
+      contentHeight: number
+    }>,
+  ): void
 }
 
-function createFakeNativeInputHarness(): FakeNativeInputHarness {
-  const events: KeyboardEvent[] = []
-  const activations: FakeNativeInputHarness["activations"] = []
-  const input = new EventTarget()
-  const textarea = new EventTarget()
-  const foreign = new EventTarget()
-  let activeBrowserElement: EventTarget | null = null
-  let activeDocument: ReturnType<typeof createDocument> | null = null
-  let ownerId: string | null = null
-  let inputTarget: FakeNativeInputHarness["host"]["inputTarget"] = null
-  let activeProxy: FakeNativeInputHarness["host"]["activeProxy"] = null
-  const harness: FakeNativeInputHarness = {
-    browserDocument: null as unknown as globalThis.Document,
-    host: null as unknown as FakeNativeInputHarness["host"],
-    activations,
-    events,
-    synchronizations: 0,
-    ownerOverride: null,
-    proxyMismatch: false,
-    keyboardEventUnavailable: false,
-    onKeyDown: null,
+function createFakeExperienceState(): FakeExperienceState {
+  return {
+    creations: 0,
+    options: null,
+    experience: null,
+    pointerTarget: null,
+    activeOwner: null,
+    activeTarget: null,
+    keys: [],
+    spaceGestures: [],
+    capture: new Blob(["capture"], {type: "image/png"}),
+    renderError: null,
+    emitFrame() {
+      throw new Error("Fake Experience is not created")
+    },
   }
-  class FixtureKeyboardEvent extends Event {
-    readonly key: string
-    readonly altKey: boolean
-    readonly ctrlKey: boolean
-    readonly metaKey: boolean
-    readonly shiftKey: boolean
-    constructor(type: string, init: KeyboardEventInit = {}) {
-      super(type, init)
-      this.key = init.key ?? ""
-      this.altKey = init.altKey ?? false
-      this.ctrlKey = init.ctrlKey ?? false
-      this.metaKey = init.metaKey ?? false
-      this.shiftKey = init.shiftKey ?? false
+}
+
+async function createShell(
+  state: FakeExperienceState,
+  options: Readonly<{
+    authorStyleSheetSources?: CreateExperienceOptions["linkedAuthorStyleSheets"]
+  }> = {},
+) {
+  return createExternalStorybookShell({
+    title: "Fixture Storybook",
+    browserDocument: {} as globalThis.Document,
+    canvas: {width: 1024, height: 768} as HTMLCanvasElement,
+    loadFont: async () => ({}) as never,
+    createExperience: fakeExperienceFactory(state),
+    ...(options.authorStyleSheetSources === undefined
+      ? {}
+      : {authorStyleSheetSources: options.authorStyleSheetSources}),
+  })
+}
+
+function fakeExperienceFactory(state: FakeExperienceState): ExternalStorybookExperienceFactory {
+  return async options => {
+    state.creations += 1
+    state.options = options
+    const document = createDocument({elementFactories: createSpaceElementFactories()})
+    const space = document.createElement("xr-space") as XRSpaceElement
+    const viewPoint = document.createElement("xr-view-point") as XRViewPointElement
+    document.transaction(() => {
+      space.append(viewPoint)
+      document.append(space)
+    })
+    const projections = new Map<XRDisplayElement | XRHUDElement, ExperienceDocumentProjection>()
+    const frames = new Map<XRDisplayElement | XRHUDElement, RenderFrame>()
+    const frameListeners = new Map<XRDisplayElement | XRHUDElement, Set<(frame: RenderFrame) => void>>()
+    const presented = new Set<(sequence: number) => void>()
+    let sequence = 0
+    let disposed = false
+
+    const documentProjection = (
+      owner: XRDisplayElement | XRHUDElement,
+    ): ExperienceDocumentProjection => {
+      let projection = projections.get(owner)
+      if (projection !== undefined) return projection
+      projection = Object.freeze({
+        kind: owner instanceof XRDisplayElement ? "display" as const : "hud" as const,
+        owner,
+        readFrame: () => frames.get(owner) ?? fakeFrame(document, owner),
+        subscribeFrames(listener: (frame: RenderFrame) => void) {
+          let listeners = frameListeners.get(owner)
+          if (listeners === undefined) {
+            listeners = new Set()
+            frameListeners.set(owner, listeners)
+          }
+          listeners.add(listener)
+          return () => listeners?.delete(listener)
+        },
+        pointerDown() {
+          state.activeOwner = owner
+          state.activeTarget = state.pointerTarget
+          return state.pointerTarget
+        },
+        pointerMove: () => state.pointerTarget,
+        pointerUp: () => state.pointerTarget,
+        wheel: () => state.pointerTarget,
+      })
+      projections.set(owner, projection)
+      return projection
     }
+    const spaceProjection = Object.freeze({
+      kind: "space" as const,
+      owner: space,
+      orbit(deltaX: number, deltaY: number) {
+        state.spaceGestures.push({kind: "orbit", deltaX, deltaY})
+      },
+      pan(deltaX: number, deltaY: number) {
+        state.spaceGestures.push({kind: "pan", deltaX, deltaY})
+      },
+      zoom() {},
+    })
+    const getProjection = (
+      owner: XRSpaceElement | XRDisplayElement | XRHUDElement,
+    ): ExperienceProjection => owner instanceof XRSpaceElement
+      ? spaceProjection
+      : documentProjection(owner)
+    const experience = Object.freeze({
+      canvas: options.canvas,
+      document,
+      space,
+      viewPoint,
+      get presentedFrame() { return sequence },
+      get disposed() { return disposed },
+      getProjection,
+      subscribePresented(listener: (value: number) => void) {
+        presented.add(listener)
+        return () => presented.delete(listener)
+      },
+      dispatchKey(owner: XRDisplayElement | XRHUDElement, target: Element, input: any) {
+        if (state.activeOwner !== owner || state.activeTarget !== target) {
+          throw new Error("Semantic key target does not own the Experience native proxy")
+        }
+        state.keys.push({owner, target, input})
+        return true
+      },
+      resetViewPoint() {},
+      render() {
+        if (state.renderError !== null) throw state.renderError
+        sequence += 1
+        for (const listener of presented) listener(sequence)
+      },
+      requestFrame() {},
+      resize() {},
+      captureLastPresentedFramePng: async () => state.capture,
+      dispose() { disposed = true },
+    }) as unknown as Experience
+    state.experience = experience
+    state.emitFrame = (owner, node, box) => {
+      const renderBox = {
+        node,
+        x: box.contentX,
+        y: box.contentY,
+        width: box.contentWidth,
+        height: box.contentHeight,
+        ...box,
+      } as RenderBox
+      const frame = fakeFrame(document, owner, new Map([[node, renderBox]]))
+      frames.set(owner, frame)
+      for (const listener of frameListeners.get(owner) ?? []) listener(frame)
+    }
+    return experience
   }
-  input.addEventListener("keydown", (event) => {
-    events.push(event as KeyboardEvent)
-    harness.onKeyDown?.()
-  })
-  input.addEventListener("keyup", (event) => events.push(event as KeyboardEvent))
-  const synchronize = (): void => {
-    harness.synchronizations += 1
-    inputTarget = activeDocument?.activeElement as typeof inputTarget
-    activeProxy = inputTarget === null ? null : "input"
-    activeBrowserElement = inputTarget === null
-      ? null
-      : harness.proxyMismatch ? foreign : input
-  }
-  harness.host = Object.freeze({
-    nativeInput: input as unknown as HTMLInputElement,
-    nativeTextArea: textarea as unknown as HTMLTextAreaElement,
-    get document() { return activeDocument },
-    get ownerId() { return ownerId },
-    get inputTarget() { return inputTarget },
-    get activeProxy() { return activeProxy },
-    setActiveDocument(document, nextOwnerId = null) {
-      activeDocument = document
-      ownerId = document === null ? null : harness.ownerOverride ?? nextOwnerId
-      activations.push({document, ownerId: nextOwnerId})
-      synchronize()
-    },
-    synchronize,
-    blur() {
-      inputTarget = null
-      activeProxy = null
-      activeBrowserElement = null
-    },
-    dispose() {},
-  })
-  harness.browserDocument = {
-    get activeElement() { return activeBrowserElement },
-    get defaultView() {
-      return harness.keyboardEventUnavailable ? {} : {KeyboardEvent: FixtureKeyboardEvent}
-    },
-  } as unknown as globalThis.Document
-  return harness
 }
 
-function frame(
+function fakeFrame(
   document: ReturnType<typeof createDocument>,
   root: Node,
-  _styleSheets: readonly string[],
-  node?: Node,
-  box?: Readonly<{
-    contentX: number
-    contentY: number
-    contentWidth: number
-    contentHeight: number
-  }>,
-) {
+  boxByNode: ReadonlyMap<Node, RenderBox> = new Map(),
+): RenderFrame {
   return {
+    revision: 1,
     document,
     root,
     viewport: {width: 1024, height: 768},
-    boxByNode: node === undefined || box === undefined ? new Map() : new Map([[node, box]]),
+    boxes: Object.freeze([...boxByNode.values()]),
+    boxByNode,
+    displayList: Object.freeze([]),
+    hits: new Map(),
+    scrolls: new Map(),
   }
 }
 
-function descendants(root: Node): Element[] {
-  const output: Element[] = []
-  for (const child of root.childNodes) {
-    if (!("localName" in child)) continue
-    output.push(child as Element, ...descendants(child))
+function viewPointValues(viewPoint: XRViewPointElement) {
+  return {
+    x: viewPoint.x,
+    y: viewPoint.y,
+    z: viewPoint.z,
+    targetX: viewPoint.targetX,
+    targetY: viewPoint.targetY,
+    targetZ: viewPoint.targetZ,
+    upX: viewPoint.upX,
+    upY: viewPoint.upY,
+    upZ: viewPoint.upZ,
+    fov: viewPoint.fov,
+    near: viewPoint.near,
+    far: viewPoint.far,
   }
-  return output
 }

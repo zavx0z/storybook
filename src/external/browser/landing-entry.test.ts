@@ -7,9 +7,19 @@ import {
   type Node,
 } from "@zavx0z/dom"
 import type {
-  DocumentOverlayRuntime,
-  DocumentSpaceRuntime,
-} from "@zavx0z/renderer-browser"
+  Experience,
+  ExperienceDocumentProjection,
+  ExperienceProjection,
+  ExperienceSpaceProjection,
+} from "@zavx0z/browser"
+import type {RenderFrame} from "@zavx0z/renderer"
+import {
+  createSpaceElementFactories,
+  XRDisplayElement,
+  XRHUDElement,
+  XRSpaceElement,
+  XRViewPointElement,
+} from "@zavx0z/space"
 import {resolveExternalStorybookDeclarations} from "../declarations.ts"
 import {createExternalStorybookGraph, type ExternalStorybookGraph} from "../graph.ts"
 import type {StorybookPackageSessionSnapshot} from "../package-session.ts"
@@ -18,7 +28,7 @@ import {
   indexedLandingAuthorStyleSheetSources,
   startExternalStorybookLanding,
 } from "./landing-entry.ts"
-import type {ExternalStorybookShellSpaceRuntimeFactory} from "./shell.ts"
+import type {ExternalStorybookExperienceFactory} from "./shell.ts"
 
 const fixtureRoot = join(import.meta.dir, "..", "fixtures", "valid")
 
@@ -29,13 +39,13 @@ describe("external Storybook landing frontend", () => {
     const requests: string[] = []
     const opened: Array<Readonly<{packageId: string, route: string}>> = []
     const pushed: string[] = []
-    const semanticDocument = createDocument()
     const location = {
       href: "http://127.0.0.1:3000/projects/fixture-alpha/",
       pathname: "/projects/fixture-alpha/",
       reload() {},
     }
     const dataset: Record<string, string> = {}
+    const experienceState = createFakeExperienceState()
     const controller = await startExternalStorybookLanding({
       browserDocument: {
         documentElement: {dataset},
@@ -65,12 +75,10 @@ describe("external Storybook landing frontend", () => {
           location.pathname = path
         },
       },
-      async waitForFrame() {},
       shell: {
-        document: semanticDocument,
         canvas: {} as HTMLCanvasElement,
         loadFont: async () => ({}) as never,
-        createSpaceRuntime: fakeRuntimeFactory(),
+        createExperience: fakeExperienceFactory(experienceState),
       },
     })
 
@@ -84,29 +92,27 @@ describe("external Storybook landing frontend", () => {
       ])
     expect(requests[0]).toBe("/api/client")
     expect(requests.at(-1)).toContain("project%3Afixture-alpha")
-
     expect(controller.shell.workbench.controller.read("secondary.items").map(({id}) => id))
       .toEqual(["package:@fixture/components"])
     expect(controller.shell.workbench.controller.read("presentation").node?.textContent)
       .toContain("project:fixture-alpha")
     const initialPresentation = controller.shell.workbench.controller.read("presentation").node
+    const semanticDocument = controller.shell.document
     const initialStyleSheetCount = readDocumentCompiledStyleSheets(semanticDocument).styleSheets.length
     expect(initialStyleSheetCount).toBeGreaterThan(0)
 
     await controller.select("project:fixture-beta")
     expect(pushed).toEqual(["/projects/fixture-beta/"])
     expect(initialPresentation?.parentNode).toBeNull()
-
     await controller.select("project:fixture-alpha")
     expect(controller.shell.workbench.controller.read("secondary.items").map(({id}) => id))
       .toEqual(["package:@fixture/components"])
     expect(pushed).toEqual(["/projects/fixture-beta/", "/projects/fixture-alpha/"])
     expect(controller.shell.workbench.controller.read("presentation").node?.textContent)
       .toContain("project:fixture-alpha")
-
     await controller.select("package:@fixture/components")
     expect(controller.shell.workbench.controller.read("secondary.active")).toBe("package:@fixture/components")
-    const nestedAction = descendants(controller.shell.workbench.elements.previewHost)
+    const nestedAction = descendants(controller.shell.display)
       .find((element) => element.nodeName === "BUTTON")
     expect(nestedAction?.textContent).toBe("Открыть Fixture Components")
     click(nestedAction)
@@ -115,10 +121,9 @@ describe("external Storybook landing frontend", () => {
       packageId: "@fixture/components",
       route: "",
     })
-
     await controller.select("package:@fixture/standalone")
     expect(controller.shell.workbench.controller.read("secondary.items")).toEqual([])
-    const directAction = descendants(controller.shell.workbench.elements.previewHost)
+    const directAction = descendants(controller.shell.display)
       .find((element) => element.nodeName === "BUTTON")
     click(directAction)
     await Promise.resolve()
@@ -141,26 +146,28 @@ describe("external Storybook landing frontend", () => {
     expect(view).not.toContain("actionStyle")
     controller.dispose()
     expect(readDocumentCompiledStyleSheets(semanticDocument).styleSheets).toEqual([])
+    expect(experienceState.creations).toBe(1)
+    expect(experienceState.disposals).toBe(1)
   })
 
   test("reads only bounded contiguous indexed Workbench author links", () => {
     const document = indexedLinkDocument([
-      {specifier: "@ui/components/theme.css", digest: "a".repeat(64), href: "/revision/theme.css"},
+      {specifier: "@zavx0z/ui/themes/theme.css", digest: "a".repeat(64), href: "/revision/theme.css"},
       {specifier: "@fixture/tokens.css", digest: "b".repeat(64), href: "/revision/tokens.css"},
     ])
     expect(indexedLandingAuthorStyleSheetSources(document).map(({id}) => id)).toEqual([
-      "@ui/components/theme.css",
+      "@zavx0z/ui/themes/theme.css",
       "@fixture/tokens.css",
     ])
 
     const duplicate = indexedLinkDocument([
-      {specifier: "@ui/components/theme.css", digest: "a".repeat(64), href: "/revision/a.css"},
-      {specifier: "@ui/components/theme.css", digest: "a".repeat(64), href: "/revision/b.css"},
+      {specifier: "@zavx0z/ui/themes/theme.css", digest: "a".repeat(64), href: "/revision/a.css"},
+      {specifier: "@zavx0z/ui/themes/theme.css", digest: "a".repeat(64), href: "/revision/b.css"},
     ])
     expect(() => indexedLandingAuthorStyleSheetSources(duplicate)).toThrow("invalid or duplicate")
 
     const invalidDigest = indexedLinkDocument([
-      {specifier: "@ui/components/theme.css", digest: "invalid", href: "/revision/theme.css"},
+      {specifier: "@zavx0z/ui/themes/theme.css", digest: "invalid", href: "/revision/theme.css"},
     ])
     expect(() => indexedLandingAuthorStyleSheetSources(invalidDigest)).toThrow("digest is invalid")
   })
@@ -190,34 +197,143 @@ function packageSnapshots(graph: ExternalStorybookGraph): readonly StorybookPack
   })] : []))
 }
 
-function fakeRuntimeFactory(): ExternalStorybookShellSpaceRuntimeFactory {
-  return (async (options) => {
-    const presented = new Set<(frame: number) => void>()
-    let frames = 0
-    return {
-      document: options.document,
-      styleSheets: options.styleSheets,
-      font: options.font,
-      addOverlay() {
-        return {
-          subscribe() {
-            return () => {}
-          },
-          dispose() {},
-        } as unknown as DocumentOverlayRuntime
+type FakeExperienceState = {
+  creations: number
+  disposals: number
+  frames: number
+}
+
+function createFakeExperienceState(): FakeExperienceState {
+  return {creations: 0, disposals: 0, frames: 0}
+}
+
+function fakeExperienceFactory(
+  state: FakeExperienceState = createFakeExperienceState(),
+): ExternalStorybookExperienceFactory {
+  return async options => {
+    state.creations += 1
+    const document = createDocument({elementFactories: createSpaceElementFactories()})
+    const space = document.createElement("xr-space") as XRSpaceElement
+    const viewPoint = document.createElement("xr-view-point") as XRViewPointElement
+    document.transaction(() => {
+      space.append(viewPoint)
+      document.append(space)
+    })
+    const presented = new Set<(sequence: number) => void>()
+    const documentProjections = new Map<XRDisplayElement | XRHUDElement, Readonly<{
+      projection: ExperienceDocumentProjection
+      subscribers: Set<(frame: RenderFrame) => void>
+      setFrame(frame: RenderFrame): void
+    }>>()
+    const spaceProjection: ExperienceSpaceProjection = Object.freeze({
+      kind: "space",
+      owner: space,
+      orbit() {},
+      pan() {},
+      zoom() {},
+    })
+    let disposed = false
+
+    const documentProjection = (
+      owner: XRDisplayElement | XRHUDElement,
+    ): ExperienceDocumentProjection => {
+      const existing = documentProjections.get(owner)
+      if (existing !== undefined) return existing.projection
+      if (owner.ownerDocument !== document || owner.parentNode !== space) {
+        throw new Error("Fake Experience projection owner must be a direct child of its semantic Space")
+      }
+      const subscribers = new Set<(frame: RenderFrame) => void>()
+      let frame: RenderFrame | null = null
+      const projection: ExperienceDocumentProjection = Object.freeze({
+        kind: owner instanceof XRDisplayElement ? "display" : "hud",
+        owner,
+        readFrame: () => frame,
+        subscribeFrames(listener) {
+          subscribers.add(listener)
+          return () => subscribers.delete(listener)
+        },
+        pointerDown: () => null,
+        pointerMove: () => null,
+        pointerUp: () => null,
+        wheel: () => null,
+      })
+      documentProjections.set(owner, Object.freeze({
+        projection,
+        subscribers,
+        setFrame(value: RenderFrame) {
+          frame = value
+        },
+      }))
+      return projection
+    }
+
+    function getProjection(owner: XRSpaceElement): ExperienceSpaceProjection
+    function getProjection(owner: XRDisplayElement | XRHUDElement): ExperienceDocumentProjection
+    function getProjection(
+      owner: XRSpaceElement | XRDisplayElement | XRHUDElement,
+    ): ExperienceProjection {
+      if (owner === space) return spaceProjection
+      return documentProjection(owner as XRDisplayElement | XRHUDElement)
+    }
+
+    const experience: Experience = Object.freeze({
+      canvas: options.canvas,
+      document,
+      space,
+      viewPoint,
+      get presentedFrame() {
+        return state.frames
       },
-      render() {
-        frames += 1
-        for (const listener of presented) listener(frames)
+      get disposed() {
+        return disposed
       },
-      subscribePresented(listener: (frame: number) => void) {
+      getProjection,
+      subscribePresented(listener) {
         presented.add(listener)
         return () => presented.delete(listener)
       },
-      requestRender() {},
-      dispose() { presented.clear() },
-    } as unknown as DocumentSpaceRuntime
-  }) as ExternalStorybookShellSpaceRuntimeFactory
+      dispatchKey: () => true,
+      resetViewPoint() {},
+      render() {
+        state.frames += 1
+        for (const [owner, binding] of documentProjections) {
+          const frame = fakeRenderFrame(document, owner, state.frames)
+          binding.setFrame(frame)
+          for (const listener of binding.subscribers) listener(frame)
+        }
+        for (const listener of presented) listener(state.frames)
+      },
+      requestFrame() {},
+      resize() {},
+      captureLastPresentedFramePng: async () => new Blob(["fake-png"], {type: "image/png"}),
+      dispose() {
+        if (disposed) return
+        disposed = true
+        state.disposals += 1
+        presented.clear()
+        documentProjections.clear()
+      },
+    })
+    return experience
+  }
+}
+
+function fakeRenderFrame(
+  document: ReturnType<typeof createDocument>,
+  root: XRDisplayElement | XRHUDElement,
+  revision: number,
+): RenderFrame {
+  return Object.freeze({
+    revision,
+    document,
+    root,
+    viewport: Object.freeze({width: 1024, height: 768}),
+    boxes: Object.freeze([]),
+    boxByNode: new Map(),
+    displayList: Object.freeze([]),
+    hits: new Map(),
+    scrolls: new Map(),
+  })
 }
 
 function descendants(root: Node): Element[] {

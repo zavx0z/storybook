@@ -2,11 +2,11 @@ import type {
   Document as SemanticDocument,
   Node as SemanticNode,
 } from "@zavx0z/dom"
-import type {Space} from "@engine/core"
+import type {XRSpaceElement} from "@zavx0z/space"
 import type {StorybookRuntimeStyleSheetRoot} from "./browser/source-projection.ts"
 
 /** Exact structural marker implemented by executable owner runtimes. */
-export const STORYBOOK_RUNTIME_PROTOCOL = "storybook-runtime/3" as const
+export const STORYBOOK_RUNTIME_PROTOCOL = "storybook-runtime/4" as const
 export const STORYBOOK_PRESENTATION_PROTOCOL = "story-presentation/1" as const
 
 /** One loaded story operation inside an exact package-tab realm. */
@@ -30,8 +30,8 @@ export type StorybookRuntimePresentationInput = Readonly<{
   values?: Readonly<Record<string, unknown>>
 }>
 
-/** Camera preset for one owner world projected inside the shared page Experience. */
-export type StorybookWorldPreviewCamera = Readonly<{
+/** Camera preset for one owner scene projected inside the shared page Experience Space. */
+export type StorybookSpacePreviewCamera = Readonly<{
   position: Readonly<{x: number; y: number; z: number}>
   target: Readonly<{x: number; y: number; z: number}>
   up?: Readonly<{x: number; y: number; z: number}>
@@ -40,8 +40,8 @@ export type StorybookWorldPreviewCamera = Readonly<{
   far?: number
 }>
 
-/** Exact logical and framebuffer extent owned by one bounded world preview. */
-export type StorybookWorldPreviewViewport = Readonly<{
+/** Exact logical and framebuffer extent owned by one bounded Space preview. */
+export type StorybookSpacePreviewViewport = Readonly<{
   x: number
   y: number
   width: number
@@ -53,17 +53,17 @@ export type StorybookWorldPreviewViewport = Readonly<{
   pixelRatio: number
 }>
 
-/** Atomic semantic anchor plus direct Engine world presentation. */
-export type StorybookWorldPreviewRegistration = Readonly<{
+/** Atomic semantic anchor plus direct presentation in the one semantic Space. */
+export type StorybookSpacePreviewRegistration = Readonly<{
   node: SemanticNode
-  camera: StorybookWorldPreviewCamera
+  camera: StorybookSpacePreviewCamera
   cameraGestures?: boolean
-  resize?(viewport: StorybookWorldPreviewViewport): void
+  resize?(viewport: StorybookSpacePreviewViewport): void
   onDoubleClick?(): void
 }>
 
-/** Narrow camera/frame handle; Renderer stays private and Space comes only from world context. */
-export type StorybookWorldPreview = Readonly<{
+/** Narrow camera/frame handle; Renderer stays private and Space remains semantic. */
+export type StorybookSpacePreview = Readonly<{
   readonly frames: number
   readonly disposed: boolean
   requestRender(): void
@@ -80,22 +80,22 @@ export type StorybookRuntimeContextBase = Readonly<{
   requestRender(): void
 }>
 
-/** DOM or HUD projection. Engine Space ownership is intentionally absent. */
+/** Display or HUD projection. Space ownership is intentionally absent. */
 export type StorybookComponentRuntimeContext = StorybookRuntimeContextBase & Readonly<{
   projection: "display" | "hud"
 }>
 
-/** Declared Engine/world projection on the one Experience Space and ViewPoint. */
-export type StorybookWorldRuntimeContext = StorybookRuntimeContextBase & Readonly<{
-  projection: "world"
-  space: Space
-  mountWorldPreview(registration: StorybookWorldPreviewRegistration): StorybookWorldPreview
+/** Declared spatial projection on the one semantic Experience Space and ViewPoint. */
+export type StorybookSpaceRuntimeContext = StorybookRuntimeContextBase & Readonly<{
+  projection: "space"
+  space: XRSpaceElement
+  mountSpacePreview(registration: StorybookSpacePreviewRegistration): StorybookSpacePreview
 }>
 
 /** Exact context union selected from the owning subject declaration. */
 export type StorybookRuntimeContext =
   | StorybookComponentRuntimeContext
-  | StorybookWorldRuntimeContext
+  | StorybookSpaceRuntimeContext
 
 export type StorybookPreviewBounds = Readonly<{
   x: number

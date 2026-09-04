@@ -69,7 +69,7 @@ const RUNTIME_STUB = `type StoryPresentation = Readonly<{
 }>
 
 export const runtime = Object.freeze({
-  protocol: "storybook-runtime/3",
+  protocol: "storybook-runtime/4",
   create(context: Readonly<{present(value: StoryPresentation): void}>) {
     return Object.freeze({
       mount(input: Readonly<{story: StoryPresentation}>) {

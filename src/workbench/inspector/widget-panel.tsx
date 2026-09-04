@@ -1,4 +1,4 @@
-import {Panel} from "@ui/components/panel"
+import {Panel} from "@zavx0z/ui/surfaces/panel"
 import type {JsxSourceElement} from "@zavx0z/template/jsx-runtime"
 import type {WorkbenchInspectorWidgetRegistration} from "../contract.ts"
 import {SourceWidget} from "./source-widget.tsx"

@@ -1,11 +1,20 @@
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
-import {Space} from "@engine/core"
 import {createDocument, type Element} from "@zavx0z/dom"
 import type {
-  DocumentOverlayRuntime,
-  DocumentSpaceRuntime,
-} from "@zavx0z/renderer-browser"
+  Experience,
+  ExperienceDocumentProjection,
+  ExperienceProjection,
+  ExperienceSpaceProjection,
+} from "@zavx0z/browser"
+import type {RenderFrame} from "@zavx0z/renderer"
+import {
+  createSpaceElementFactories,
+  XRDisplayElement,
+  XRHUDElement,
+  XRSpaceElement,
+  XRViewPointElement,
+} from "@zavx0z/space"
 import {resolveExternalStorybookDeclarations} from "../declarations.ts"
 import {createExternalStorybookGraph, type ExternalStorybookGraph} from "../graph.ts"
 import type {StorybookPackageSessionSnapshot} from "../package-session.ts"
@@ -16,7 +25,7 @@ import {
   startExternalStorybookPackage,
   type ExternalStorybookPackageEnvironment,
 } from "./package-entry.ts"
-import type {ExternalStorybookShellSpaceRuntimeFactory} from "./shell.ts"
+import type {ExternalStorybookExperienceFactory} from "./shell.ts"
 
 const fixtureRoot = join(import.meta.dir, "..", "fixtures", "valid")
 
@@ -51,6 +60,7 @@ describe("external Storybook package frontend", () => {
     browserDocument.getElementById = (id) => links.get(id) ?? null
     const lifecycle: string[] = []
     const acknowledged: boolean[] = []
+    const experienceState = createFakeExperienceState(lifecycle)
     const location = locationFixture("/packages/%40fixture%2Fcomponents/")
     const controller = await startExternalStorybookPackage({
       packageId: "@fixture/components",
@@ -66,40 +76,26 @@ describe("external Storybook package frontend", () => {
         history: historyFixture(location),
         fetcher: (async () => new Response("# UI Components")) as unknown as typeof fetch,
         createSocket: () => new FakeSocket(),
-        async waitForFrame() {},
         async acknowledgeActivation({working}) {
           lifecycle.push("activation")
           acknowledged.push(working)
         },
         shell: {
-          document: createDocument(),
           canvas: {} as HTMLCanvasElement,
           loadFont: async () => ({}) as never,
-          createSpaceRuntime: fakeRuntimeFactory(),
-          createLinkedAuthorStyleSheetHost(options) {
-            lifecycle.push("author-host")
-            expect(options.sources.map(({id}) => id)).toEqual(
-              revisionGraph.authorStyleSheets.map(({specifier}) => specifier),
-            )
-            expect(options.sources.map(({link}) => link)).toEqual([...links.values()])
-            return {
-              canvas: options.canvas,
-              document: options.document,
-              sources: options.sources,
-              ready: Promise.resolve().then(() => { lifecycle.push("author-ready") }),
-              disposed: false,
-              refresh() {},
-              dispose() { lifecycle.push("author-dispose") },
-            }
-          },
+          createExperience: fakeExperienceFactory(experienceState),
         },
       },
     })
 
     expect(acknowledged).toEqual([true])
-    expect(lifecycle.slice(0, 3)).toEqual(["author-host", "author-ready", "activation"])
+    expect(experienceState.linkedAuthorStyleSheets.map(({id}) => id)).toEqual(
+      revisionGraph.authorStyleSheets.map(({specifier}) => specifier),
+    )
+    expect(experienceState.linkedAuthorStyleSheets.map(({link}) => link)).toEqual([...links.values()])
+    expect(lifecycle.slice(0, 2)).toEqual(["experience-create", "activation"])
     await controller.dispose()
-    expect(lifecycle.at(-1)).toBe("author-dispose")
+    expect(lifecycle.at(-1)).toBe("experience-dispose")
   })
 
   test("materializes real overview children without selecting their representative routes", async () => {
@@ -111,7 +107,7 @@ describe("external Storybook package frontend", () => {
     const browserLocation = locationFixture("/packages/%40fixture%2Fcomponents/")
     const history = historyFixture(browserLocation)
     const socket = new FakeSocket()
-    const semanticDocument = createDocument()
+    const experienceState = createFakeExperienceState()
     let runtimeLoads = 0
     let containedLoads = 0
     let outlinedLoads = 0
@@ -119,7 +115,6 @@ describe("external Storybook package frontend", () => {
     let unmounts = 0
     let disposes = 0
     const contexts: StorybookRuntimeContext[] = []
-    const worldLifecycle = {adds: 0, removes: 0}
 
     const controller = await startExternalStorybookPackage({
       packageId: "@fixture/components",
@@ -195,12 +190,10 @@ describe("external Storybook package frontend", () => {
           socket.url = url
           return socket
         },
-        async waitForFrame() {},
         shell: {
-          document: semanticDocument,
           canvas: {} as HTMLCanvasElement,
           loadFont: async () => ({}) as never,
-          createSpaceRuntime: fakeRuntimeFactory(worldLifecycle),
+          createExperience: fakeExperienceFactory(experienceState),
         },
       },
     })
@@ -254,28 +247,26 @@ describe("external Storybook package frontend", () => {
     expect(containedLoads).toBe(3)
     expect(outlinedLoads).toBe(1)
     expect(mounts).toBe(4)
-    expect(worldLifecycle.adds).toBe(0)
     const ownerContext = contexts[0]!
-    expect(ownerContext.document).toBe(semanticDocument)
+    const experienceDocument = experienceState.document
+    if (experienceDocument === null) throw new Error("Fake Experience did not publish its semantic Document")
+    expect(ownerContext.document).toBe(controller.shell.document)
+    expect(ownerContext.document).toBe(experienceDocument)
     expect(ownerContext.projection).toBe("display")
     expect("space" in ownerContext).toBeFalse()
-    expect("mountWorldPreview" in ownerContext).toBeFalse()
+    expect("mountSpacePreview" in ownerContext).toBeFalse()
     expect(controller.shell.workbench.controller.read("presentation").node?.textContent)
       .toBe("components/button/basic/contained:Contained")
     expect(controller.shell.workbench.elements.inspectorHost.textContent).toContain("owner-ready")
-
     await controller.navigate("components/button/outlined")
     expect(runtimeLoads).toBe(1)
     expect(containedLoads).toBe(3)
     expect(outlinedLoads).toBe(2)
     expect(mounts).toBe(5)
-    expect(worldLifecycle.adds).toBe(0)
-    expect(worldLifecycle.removes).toBe(0)
     expect(controller.shell.workbench.controller.read("scenarios.active"))
       .toBe("variant:@fixture/components/components/button/outlined")
 
     await controller.navigate("components/button")
-    expect(worldLifecycle.removes).toBe(0)
     expect(controller.shell.workbench.controller.read("scenarios.active")).toBeNull()
     const restoredOverview = controller.shell.workbench.controller.read("presentation").node
     expect((restoredOverview as Element | null)?.querySelectorAll("[data-storybook-aggregate-item]"))
@@ -327,12 +318,13 @@ describe("external Storybook package frontend", () => {
     expect(unmounts).toBeGreaterThanOrEqual(6)
     expect(disposes).toBeGreaterThanOrEqual(6)
     expect(socket.closed).toBeTrue()
+    expect(experienceState.disposals).toBe(1)
   })
 
-  test("grants only a declared world subject the exact host Space without creating another world", async () => {
+  test("grants only a declared space subject the exact semantic Experience Space", async () => {
     const sourceGraph = await fixtureGraph()
     const buttonSubjectId = "subject:@fixture/components/components/button"
-    const worldGraph: ExternalStorybookGraph = Object.freeze({
+    const spaceGraph: ExternalStorybookGraph = Object.freeze({
       ...sourceGraph,
       nodes: Object.freeze(sourceGraph.nodes.map((node) =>
         node.id === buttonSubjectId || node.parentId === buttonSubjectId && node.kind === "variant"
@@ -340,28 +332,27 @@ describe("external Storybook package frontend", () => {
             ...node,
             presentation: node.presentation === null
               ? null
-              : Object.freeze({...node.presentation, projection: "world" as const}),
+              : Object.freeze({...node.presentation, projection: "space" as const}),
           })
           : node)),
     })
-    const candidate = "revision-world"
+    const candidate = "revision-space"
     const snapshot = createExternalStorybookClientSnapshot(
-      worldGraph,
-      packageSnapshots(worldGraph, candidate),
+      spaceGraph,
+      packageSnapshots(spaceGraph, candidate),
     )
     const baseEnvironment = environmentFixture(
       snapshot,
       "/packages/%40fixture%2Fcomponents/components/button/basic/contained",
     )
-    const worldLifecycle = {adds: 0, removes: 0}
+    const experienceState = createFakeExperienceState()
     const environment: ExternalStorybookPackageEnvironment = {
       ...baseEnvironment,
       shell: {
         ...(baseEnvironment.shell ?? {}),
-        document: createDocument(),
         canvas: {} as HTMLCanvasElement,
         loadFont: async () => ({}) as never,
-        createSpaceRuntime: fakeRuntimeFactory(worldLifecycle),
+        createExperience: fakeExperienceFactory(experienceState),
       },
     }
     const contexts: StorybookRuntimeContext[] = []
@@ -374,7 +365,7 @@ describe("external Storybook package frontend", () => {
           protocol: STORYBOOK_RUNTIME_PROTOCOL,
           create(context: StorybookRuntimeContext) {
             contexts.push(context)
-            if (context.projection !== "world") throw new Error("Expected world context")
+            if (context.projection !== "space") throw new Error("Expected space context")
             return {
               mount() {
                 const node = context.document.createElement("section")
@@ -382,9 +373,9 @@ describe("external Storybook package frontend", () => {
                   protocol: "story-presentation/1",
                   node,
                   componentRoot: {readStyleSheets: () => ({revision: 0, styleSheets: []})},
-                  source: {html: "<section></section>", typescript: "<World />"},
+                  source: {html: "<section></section>", typescript: "<Space />"},
                 })
-                context.mountWorldPreview({
+                context.mountSpacePreview({
                   node,
                   camera: {position: {x: 0, y: -10, z: 4}, target: {x: 0, y: 0, z: 0}},
                 })
@@ -399,13 +390,17 @@ describe("external Storybook package frontend", () => {
       environment,
     })
     const contextSeen = contexts[0]
-    expect(contextSeen?.projection).toBe("world")
-    if (contextSeen?.projection !== "world") throw new Error("World context was not created")
-    expect(contextSeen.space).toBe(controller.shell.runtime.space)
-    expect(controller.shell.runtime.worldIds).toEqual([])
-    expect(worldLifecycle).toEqual({adds: 0, removes: 0})
-    expect(controller.shell.workbench.controller.read("presentation").projection).toBe("world")
+    expect(contextSeen?.projection).toBe("space")
+    if (contextSeen?.projection !== "space") throw new Error("Space context was not created")
+    const experienceSpace = experienceState.space
+    if (experienceSpace === null) throw new Error("Fake Experience did not publish its semantic Space")
+    expect(contextSeen.space).toBe(controller.shell.space)
+    expect(contextSeen.space).toBe(experienceSpace)
+    expect(contextSeen.space.ownerDocument).toBe(controller.shell.document)
+    expect(controller.shell.workbench.controller.read("presentation").projection).toBe("space")
+    expect(experienceState.creations).toBe(1)
     await controller.dispose()
+    expect(experienceState.disposals).toBe(1)
   })
 
   test("fails before shell creation for a foreign pathname or unpublished revision", async () => {
@@ -496,7 +491,7 @@ describe("external Storybook package frontend", () => {
     }])
   })
 
-  test("unmounts a partially mounted root when runtime/3 atomic source provenance fails", async () => {
+  test("unmounts a partially mounted root when runtime/4 atomic source provenance fails", async () => {
     const graph = await fixtureGraph()
     const candidate = "revision-missing-provenance"
     const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, candidate))
@@ -613,10 +608,15 @@ describe("external Storybook package frontend", () => {
       )
       const acknowledgements: Array<Readonly<{working: boolean; diagnostic?: string}>> = []
       let invalidDispose = 0
+      const experienceState = createFakeExperienceState()
+      if (failure === "frame") experienceState.failRenderAt = 2
       const environment: ExternalStorybookPackageEnvironment = {
         ...baseEnvironment,
         acknowledgeActivation: async (value) => { acknowledgements.push(value) },
-        ...(failure === "frame" ? {waitForFrame: async () => { throw new Error("frame failed") }} : {}),
+        shell: {
+          ...(baseEnvironment.shell ?? {}),
+          createExperience: fakeExperienceFactory(experienceState),
+        },
       }
       const controller = await startExternalStorybookPackage({
         packageId: "@fixture/components",
@@ -946,12 +946,10 @@ function environmentFixture(
     history: historyFixture(location),
     fetcher: (async (_input: URL | RequestInfo) => Response.json(snapshot)) as typeof fetch,
     createSocket: () => new FakeSocket(),
-    async waitForFrame() {},
     shell: {
-      document: createDocument(),
       canvas: {} as HTMLCanvasElement,
       loadFont: async () => ({}) as never,
-      createSpaceRuntime: fakeRuntimeFactory(),
+      createExperience: fakeExperienceFactory(),
     },
   }
 }
@@ -983,67 +981,164 @@ function packageSnapshots(
   })] : []))
 }
 
-function fakeRuntimeFactory(
-  worldLifecycle: {adds: number; removes: number} = {adds: 0, removes: 0},
-): ExternalStorybookShellSpaceRuntimeFactory {
-  return (async (options) => {
-    const presented = new Set<(frame: number) => void>()
-    let frames = 0
-    let viewPointSnapshot = Object.freeze({
-      position: Object.freeze({x: 0, y: -1_000, z: 0}),
-      target: Object.freeze({x: 0, y: 0, z: 0}),
-      up: Object.freeze({x: 0, y: 0, z: 1}),
-      fov: Math.PI / 4,
-      near: 1,
-      far: 2_000,
+type FakeExperienceState = {
+  creations: number
+  disposals: number
+  frames: number
+  document: ReturnType<typeof createDocument> | null
+  space: XRSpaceElement | null
+  linkedAuthorStyleSheets: readonly Readonly<{id: string; link: HTMLLinkElement}>[]
+  lifecycle: string[]
+  failRenderAt: number | null
+}
+
+function createFakeExperienceState(lifecycle: string[] = []): FakeExperienceState {
+  return {
+    creations: 0,
+    disposals: 0,
+    frames: 0,
+    document: null,
+    space: null,
+    linkedAuthorStyleSheets: Object.freeze([]),
+    lifecycle,
+    failRenderAt: null,
+  }
+}
+
+function fakeExperienceFactory(
+  state: FakeExperienceState = createFakeExperienceState(),
+): ExternalStorybookExperienceFactory {
+  return async options => {
+    state.creations += 1
+    state.lifecycle.push("experience-create")
+    state.linkedAuthorStyleSheets = Object.freeze([...(options.linkedAuthorStyleSheets ?? [])])
+
+    const document = createDocument({elementFactories: createSpaceElementFactories()})
+    const space = document.createElement("xr-space") as XRSpaceElement
+    const viewPoint = document.createElement("xr-view-point") as XRViewPointElement
+    document.transaction(() => {
+      space.append(viewPoint)
+      document.append(space)
     })
-    return ({
+    state.document = document
+    state.space = space
+
+    const presented = new Set<(sequence: number) => void>()
+    const documentProjections = new Map<XRDisplayElement | XRHUDElement, Readonly<{
+      projection: ExperienceDocumentProjection
+      subscribers: Set<(frame: RenderFrame) => void>
+      setFrame(frame: RenderFrame): void
+    }>>()
+    const spaceProjection: ExperienceSpaceProjection = Object.freeze({
+      kind: "space",
+      owner: space,
+      orbit() {},
+      pan() {},
+      zoom() {},
+    })
+    let disposed = false
+
+    const documentProjection = (
+      owner: XRDisplayElement | XRHUDElement,
+    ): ExperienceDocumentProjection => {
+      const existing = documentProjections.get(owner)
+      if (existing !== undefined) return existing.projection
+      if (owner.ownerDocument !== document || owner.parentNode !== space) {
+        throw new Error("Fake Experience projection owner must be a direct child of its semantic Space")
+      }
+      const subscribers = new Set<(frame: RenderFrame) => void>()
+      let frame: RenderFrame | null = null
+      const projection: ExperienceDocumentProjection = Object.freeze({
+        kind: owner instanceof XRDisplayElement ? "display" : "hud",
+        owner,
+        readFrame: () => frame,
+        subscribeFrames(listener) {
+          subscribers.add(listener)
+          return () => subscribers.delete(listener)
+        },
+        pointerDown: () => null,
+        pointerMove: () => null,
+        pointerUp: () => null,
+        wheel: () => null,
+      })
+      documentProjections.set(owner, Object.freeze({
+        projection,
+        subscribers,
+        setFrame(value: RenderFrame) {
+          frame = value
+        },
+      }))
+      return projection
+    }
+
+    function getProjection(owner: XRSpaceElement): ExperienceSpaceProjection
+    function getProjection(owner: XRDisplayElement | XRHUDElement): ExperienceDocumentProjection
+    function getProjection(
+      owner: XRSpaceElement | XRDisplayElement | XRHUDElement,
+    ): ExperienceProjection {
+      if (owner === space) return spaceProjection
+      return documentProjection(owner as XRDisplayElement | XRHUDElement)
+    }
+
+    const experience: Experience = Object.freeze({
       canvas: options.canvas,
-      document: options.document,
-      styleSheets: options.styleSheets,
-      font: options.font,
-      space: new Space(),
-      viewPoint: {orbit() {}, pan() {}},
-      worldIds: Object.freeze([]),
-      addOverlay() {
-        return {
-          subscribe() {
-            return () => {}
-          },
-          dispose() {},
-        } as unknown as DocumentOverlayRuntime
+      document,
+      space,
+      viewPoint,
+      get presentedFrame() {
+        return state.frames
       },
-      addWorld(registration: any) {
-        worldLifecycle.adds += 1
-        throw new Error(`Second world registration is forbidden: ${String(registration?.id)}`)
+      get disposed() {
+        return disposed
       },
-      updateWorld() {
-        worldLifecycle.adds += 1
-        throw new Error("Second world update is forbidden")
-      },
-      removeWorld() {
-        worldLifecycle.removes += 1
-        throw new Error("Second world removal is forbidden")
-      },
-      render() {
-        frames += 1
-        for (const listener of presented) listener(frames)
-      },
-      subscribePresented(listener: (frame: number) => void) {
+      getProjection,
+      subscribePresented(listener) {
         presented.add(listener)
         return () => presented.delete(listener)
       },
-      requestRender() {},
-      snapshotViewPoint() {
-        return viewPointSnapshot
+      dispatchKey: () => true,
+      resetViewPoint() {},
+      render() {
+        const nextFrame = state.frames + 1
+        if (state.failRenderAt === nextFrame) throw new Error("frame failed")
+        state.frames = nextFrame
+        for (const [owner, binding] of documentProjections) {
+          const frame = fakeRenderFrame(document, owner, state.frames)
+          binding.setFrame(frame)
+          for (const listener of binding.subscribers) listener(frame)
+        }
+        for (const listener of presented) listener(state.frames)
       },
-      restoreViewPoint(value: typeof viewPointSnapshot) {
-        viewPointSnapshot = value
-      },
+      requestFrame() {},
+      resize() {},
+      captureLastPresentedFramePng: async () => new Blob(["fake-png"], {type: "image/png"}),
       dispose() {
+        if (disposed) return
+        disposed = true
+        state.disposals += 1
+        state.lifecycle.push("experience-dispose")
         presented.clear()
+        documentProjections.clear()
       },
-      get disposed() { return false },
-    } as unknown as DocumentSpaceRuntime)
-  }) as ExternalStorybookShellSpaceRuntimeFactory
+    })
+    return experience
+  }
+}
+
+function fakeRenderFrame(
+  document: ReturnType<typeof createDocument>,
+  root: XRDisplayElement | XRHUDElement,
+  revision: number,
+): RenderFrame {
+  return Object.freeze({
+    revision,
+    document,
+    root,
+    viewport: Object.freeze({width: 1024, height: 768}),
+    boxes: Object.freeze([]),
+    boxByNode: new Map(),
+    displayList: Object.freeze([]),
+    hits: new Map(),
+    scrolls: new Map(),
+  })
 }

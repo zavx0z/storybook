@@ -2,7 +2,11 @@ import {plugin} from "bun"
 import {readFileSync} from "node:fs"
 import {join, resolve} from "node:path"
 import {createTemplateJsxBunPlugin} from "@zavx0z/template/bun"
-import {resolveStorybookCompilerSourceRoots} from "../../external/compiler.ts"
+import {
+  createStorybookOwnerResolver,
+  createStorybookOwnerSourcePath,
+  resolveStorybookCompilerSourceRoots,
+} from "../../external/compiler.ts"
 
 const storybookRoot = resolve(import.meta.dir, "../../..")
 const sourceRoots = resolveStorybookCompilerSourceRoots({
@@ -17,11 +21,35 @@ const styleSourceRootIds = Object.freeze(sourceRoots.map((root) => {
   return manifest.name
 }))
 
-plugin(createTemplateJsxBunPlugin({
+const ownerResolver = createStorybookOwnerResolver({
+  projectRoot: storybookRoot,
+  packageRoot: storybookRoot,
+})
+const ownerSourcePath = createStorybookOwnerSourcePath({
+  projectRoot: storybookRoot,
+  packageRoot: storybookRoot,
+})
+const templateCompiler = createTemplateJsxBunPlugin({
   persistent: true,
   sourceRoots,
   styleSourceRootIds,
-}))
+})
+
+plugin({
+  name: "external-storybook-runtime-owners",
+  setup(builder) {
+    ownerResolver.setup(builder)
+    templateCompiler.setup({
+      ...builder,
+      onLoad(options, callback) {
+        return builder.onLoad(options, arguments_ => callback({
+          ...arguments_,
+          path: ownerSourcePath(arguments_.path),
+        }))
+      },
+    })
+  },
+})
 
 let loading: Promise<typeof import("../controller.ts")> | null = null
 
