@@ -22,6 +22,12 @@ import {
 } from "./generated-loader.ts"
 import {createStorybookPackageCompilerPlugins} from "./compiler.ts"
 import {
+  canonicalizeStorybookPackageFile,
+  preferredStorybookPackageRoot,
+  readStorybookPackageOwner,
+  sameStorybookPackageOwner,
+} from "./owner-identity.ts"
+import {
   storybookBuildError,
   storybookDiagnostic,
   type StorybookPackageBuildDescriptor,
@@ -208,12 +214,11 @@ export async function buildStorybookPackageRevisionInProcess(
     const metafile = result.metafile
     if (metafile === undefined) throw storybookBuildError(storybookDiagnostic("link", "Bun emitted no package metafile"))
     const stagingPrefix = `${realpathSync(stagingDirectory)}${sep}`
-    const dependencyRealpaths = Object.freeze(canonicalBuildInputs(
+    const dependencyRealpaths = canonicalizeStorybookPackageIdentities(canonicalBuildInputs(
       metafile.inputs,
       descriptor.projectRoot,
     ).filter((path) => !path.startsWith(stagingPrefix)))
     validateConsumerBoundary(dependencyRealpaths, descriptor, stagingDirectory)
-    validatePackageIdentities(dependencyRealpaths)
     if (descriptor.runtime !== null) {
       const protocolPlugins = Object.freeze([...(await resolvePlugins(compilerInput))])
       validatePlugins(protocolPlugins)
@@ -597,39 +602,40 @@ function validateConsumerBoundary(
   }
 }
 
-function validatePackageIdentities(paths: readonly string[]): void {
-  const identities = new Map<string, Readonly<{root: string; path: string}>>()
+export function canonicalizeStorybookPackageIdentities(paths: readonly string[]): readonly string[] {
+  const identities = new Map<string, {paths: string[]; root: string}>()
   for (const path of paths) {
-    const owner = nearestPackage(path)
+    const owner = readStorybookPackageOwner(path)
     if (owner === null) continue
     const current = identities.get(owner.name)
     if (current !== undefined && current.root !== owner.root) {
+      if (!sameStorybookPackageOwner(current.root, owner.root)) {
+        throw storybookBuildError(storybookDiagnostic(
+          "link",
+          `Package ${owner.name} resolved to two realpaths: ${current.root} via ${current.paths[0]} and ${owner.root} via ${path}`,
+        ))
+      }
+      current.root = preferredStorybookPackageRoot(current.root, owner.root)
+    }
+    if (current === undefined) identities.set(owner.name, {paths: [path], root: owner.root})
+    else current.paths.push(path)
+  }
+  const canonical = paths.map((path) => {
+    const owner = readStorybookPackageOwner(path)
+    if (owner === null) return path
+    const identity = identities.get(owner.name)
+    if (identity === undefined) return path
+    try {
+      return canonicalizeStorybookPackageFile(identity.root, path)
+    } catch (error) {
       throw storybookBuildError(storybookDiagnostic(
         "link",
-        `Package ${owner.name} resolved to two realpaths: ${current.root} via ${current.path} and ${owner.root} via ${path}`,
+        error instanceof Error ? error.message : String(error),
+        path,
       ))
     }
-    identities.set(owner.name, Object.freeze({root: owner.root, path}))
-  }
-}
-
-function nearestPackage(path: string): Readonly<{name: string, root: string}> | null {
-  let directory = dirname(path)
-  while (directory !== dirname(directory)) {
-    const manifestPath = join(directory, "package.json")
-    if (existsSync(manifestPath)) {
-      try {
-        const value = JSON.parse(readFileSync(manifestPath, "utf8")) as Record<string, unknown>
-        if (typeof value.name === "string" && value.name.length > 0) {
-          return Object.freeze({name: value.name, root: realpathSync(directory)})
-        }
-      } catch {
-        return null
-      }
-    }
-    directory = dirname(directory)
-  }
-  return null
+  })
+  return Object.freeze([...new Set(canonical)].sort())
 }
 
 async function buildRevisionDigest(

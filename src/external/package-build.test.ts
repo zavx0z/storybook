@@ -1,9 +1,22 @@
 import {afterEach, describe, expect, setDefaultTimeout, test} from "bun:test"
 import {createHash} from "node:crypto"
-import {mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, unlinkSync, writeFileSync} from "node:fs"
+import {
+  linkSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import {createStorybookPackageRevisionBuilder} from "./package-build.ts"
+import {
+  canonicalizeStorybookPackageIdentities,
+  createStorybookPackageRevisionBuilder,
+} from "./package-build.ts"
 import {STORYBOOK_PACKAGE_GRAPH_PROTOCOL, type StorybookPackageRevisionGraphSnapshot} from "./package-revision.ts"
 import type {StorybookPackageBuildDescriptor} from "./package-session.ts"
 
@@ -15,6 +28,41 @@ afterEach(() => {
 })
 
 describe("real Storybook package revision build", () => {
+  test("canonicalizes an attested Bun hardlink mirror and rejects false same-name roots", () => {
+    const root = mkdtempSync(join(tmpdir(), "storybook-owner-identity-"))
+    roots.push(root)
+    const ownerRoot = join(root, "owner")
+    const mirrorRoot = join(root, "node_modules", ".bun", "owner-mirror", "node_modules", "@fixture", "owner")
+    const tamperedRoot = join(root, "node_modules", ".bun", "owner-tampered", "node_modules", "@fixture", "owner")
+    const foreignRoot = join(root, "foreign")
+    for (const directory of [ownerRoot, mirrorRoot, tamperedRoot, foreignRoot]) {
+      mkdirSync(join(directory, "src"), {recursive: true})
+    }
+    const manifest = join(ownerRoot, "package.json")
+    const source = join(ownerRoot, "src", "index.ts")
+    writeFileSync(manifest, JSON.stringify({name: "@fixture/owner"}))
+    writeFileSync(source, "export const owner = true\n")
+    linkSync(manifest, join(mirrorRoot, "package.json"))
+    linkSync(source, join(mirrorRoot, "src", "index.ts"))
+    linkSync(manifest, join(tamperedRoot, "package.json"))
+    writeFileSync(join(tamperedRoot, "src", "index.ts"), "export const owner = false\n")
+    writeFileSync(join(foreignRoot, "package.json"), JSON.stringify({name: "@fixture/owner"}))
+    writeFileSync(join(foreignRoot, "src", "index.ts"), "export const foreign = true\n")
+
+    expect(canonicalizeStorybookPackageIdentities([
+      join(mirrorRoot, "src", "index.ts"),
+      source,
+    ])).toEqual([join(realpathSync(ownerRoot), "src", "index.ts")])
+    expect(() => canonicalizeStorybookPackageIdentities([
+      source,
+      join(tamperedRoot, "src", "index.ts"),
+    ])).toThrow("file identity mismatch")
+    expect(() => canonicalizeStorybookPackageIdentities([
+      source,
+      join(foreignRoot, "src", "index.ts"),
+    ])).toThrow("resolved to two realpaths")
+  })
+
   test("emits a lazy split package entry and canonical dependency graph", async () => {
     const fixture = createFixture()
     const staging = join(fixture.root, ".candidate")
