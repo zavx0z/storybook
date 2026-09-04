@@ -9,8 +9,6 @@ import {fileURLToPath} from "node:url"
 const stdio = fileURLToPath(new URL("./stdio.ts", import.meta.url))
 const roots = [
   "/Users/zavx0z/repozitarium/webxr-space",
-  "/Users/zavx0z/repozitarium/renderer",
-  "/Users/zavx0z/repozitarium/metafor",
   "/Users/zavx0z/repozitarium/storybook/fixtures/isolation",
 ]
 const fixtureStory = "/Users/zavx0z/repozitarium/storybook/fixtures/isolation/packages/a/.storybook/story.ts"
@@ -43,20 +41,41 @@ try {
     timeoutMs: 30_000,
   })
   assert(checked.ok === true, "fixture package check failed")
-  const liveChecked = await tool("storybook_check", {
+  const uiLiveChecked = await tool("storybook_check", {
     schemaVersion: 1,
-    scope: "@engine/core",
+    scope: "@zavx0z/ui",
     live: true,
     timeoutMs: 30_000,
   })
-  assert(liveChecked.ok === true && array(liveChecked.views).every((view) =>
+  assert(uiLiveChecked.ok === true && array(uiLiveChecked.views).every((view) =>
     view !== null && typeof view === "object" &&
-    (view as Record<string, unknown>).revisionMatches === true), "live Engine check did not activate exact revision")
+    (view as Record<string, unknown>).revisionMatches === true),
+  "live UI check did not activate the exact runtime/4 revision")
+  const nodesLiveChecked = await tool("storybook_check", {
+    schemaVersion: 1,
+    scope: "@zavx0z/nodes",
+    live: true,
+    timeoutMs: 30_000,
+  })
+  assert(nodesLiveChecked.ok === true && array(nodesLiveChecked.views).every((view) =>
+    view !== null && typeof view === "object" &&
+    (view as Record<string, unknown>).revisionMatches === true),
+  "live Nodes check did not activate the exact runtime/4 revision")
+  const selfLiveChecked = await tool("storybook_check", {
+    schemaVersion: 1,
+    scope: "@zavx0z/storybook",
+    live: true,
+    timeoutMs: 30_000,
+  })
+  assert(selfLiveChecked.ok === true && array(selfLiveChecked.views).every((view) =>
+    view !== null && typeof view === "object" &&
+    (view as Record<string, unknown>).revisionMatches === true),
+  "live self check did not activate the exact runtime/4 revision")
   const searches = Object.fromEntries(await Promise.all([
-    ["HTMLElement", undefined],
-    ["Button", "@ui/components"],
-    ["NodeEditor", undefined],
-    ["coordinate system", "@engine/core"],
+    ["UI внутри Display", "@zavx0z/ui"],
+    ["Фиксированная", "@zavx0z/nodes"],
+    ["Package tab", "@zavx0z/storybook"],
+    ["Package A", "@storybook-fixture/a"],
   ].map(async ([query, packageId]) => [query, await tool("storybook_search", {
     schemaVersion: 1,
     query,
@@ -68,10 +87,9 @@ try {
   }
 
   for (const [key, packageId, route] of [
-    ["dom", "@zavx0z/dom", "dom/interfaces/document/tree/default"],
-    ["ui", "@ui/components", "components/foundation/button/basic/contained"],
-    ["node", "@nodes/editor", "editor/node-tree/live"],
-    ["engine", "@engine/core", "space/coordinate-system/z-up"],
+    ["ui", "@zavx0z/ui", "acceptance/experience/display/default"],
+    ["nodes", "@zavx0z/nodes", "layout/fixed/baseline/right"],
+    ["self", "@zavx0z/storybook", "app/contract/overview"],
     ["a", "@storybook-fixture/a", "fixture/a/default"],
     ["b", "@storybook-fixture/b", "fixture/b/default"],
     ["c", "@storybook-fixture/c", "fixture/c/default"],
@@ -91,9 +109,9 @@ try {
     name: "storybook_wait",
     arguments: {
       schemaVersion: 1,
-      viewId: text(opened.dom!.viewId, "DOM viewId"),
+      viewId: text(opened.ui!.viewId, "UI viewId"),
       condition: "presented",
-      afterRevision: text(opened.dom!.revision, "DOM revision"),
+      afterRevision: text(opened.ui!.revision, "UI revision"),
       timeoutMs: 100,
     },
   })
@@ -102,24 +120,28 @@ try {
   "view-specific afterRevision wait did not time out")
 
   const inspections: Record<string, Record<string, unknown>> = {}
-  for (const key of ["dom", "ui", "node", "engine"] as const) {
+  for (const key of ["ui", "nodes", "self", "a", "b", "c"] as const) {
     inspections[key] = await tool("storybook_inspect", {
       schemaVersion: 1,
       viewId: text(opened[key]!.viewId, `${key} viewId`),
-      include: ["state", "diagnostics", "console", "semantic", "canvas"],
-      maxDepth: 8,
+      include: ["state", "diagnostics", "console", "semantic", "layout", "display", "canvas"],
+      maxDepth: key === "nodes" ? 3 : 12,
       limit: 200,
     })
     assert(array(inspections[key]!.consoleErrors).length === 0, `${key} console has errors`)
+    assert(array(inspections[key]!.diagnostics).length === 0, `${key} has diagnostics`)
     const canvas = inspections[key]!.canvas
     assert(canvas !== null && typeof canvas === "object" && !Array.isArray(canvas), `${key} has no exact canvas`)
     assert((canvas as Record<string, unknown>).id === "external-storybook-canvas", `${key} projected a foreign canvas`)
     assert(!("canvases" in inspections[key]!), `${key} exposed a plural canvas projection`)
   }
+  const uiLaw = assertExperienceProjectionLaw(inspections.ui!, "display", "UI внутри общего Display")
+  const nodesLaw = assertExperienceProjectionLaw(inspections.nodes!, "display", "Фиксированная основа")
+  const selfLaw = assertExperienceProjectionLaw(inspections.self!, "display", "storybook-runtime/4")
   const timeOrigins = new Set(Object.values(inspections).map((value) => nestedNumber(value, "timeOrigin")))
-  assert(timeOrigins.size === 4, "real package views do not have distinct realms")
+  assert(timeOrigins.size === 6, "new UI, Nodes, self and fixture package views do not have distinct realms")
 
-  const uiButton = semanticNode(inspections.ui!, "button", "Output")
+  const uiButton = semanticNode(inspections.ui!, "button", "UI внутри общего Display")
   for (const action of ["hover", "focus", "click"] as const) {
     await tool("storybook_interact", {
       schemaVersion: 1,
@@ -136,17 +158,19 @@ try {
     maxDepth: 8,
     limit: 200,
   })
-  const interactedButton = semanticNode(interactedUi, "button", "Output")
+  const interactedButton = semanticNode(interactedUi, "button", "Выбрано")
   const interactedStates = interactedButton.states
   assert(interactedUi.ready === true && interactedUi.presented === true, "UI action lost ready/presented state")
   assert(interactedStates !== null && typeof interactedStates === "object" &&
     (interactedStates as Record<string, unknown>).focused === true, "UI button did not remain focused")
+  assertExperienceProjectionLaw(interactedUi, "display", "Выбрано")
 
   const captures: Record<string, Record<string, unknown>> = {}
   for (const [key, view, area] of [
     ["uiPreview", "ui", "preview"],
-    ["rendererWorkbench", "dom", "workbench"],
-    ["engineCanvas", "engine", "canvas"],
+    ["nodesPreview", "nodes", "preview"],
+    ["selfWorkbench", "self", "workbench"],
+    ["uiCanvas", "ui", "canvas"],
   ] as const) {
     captures[key] = await tool("storybook_capture", {
       schemaVersion: 1,
@@ -160,10 +184,76 @@ try {
     assert(captures[key]!.route === opened[view]!.route, `${key} capture route mismatch`)
     assert(captures[key]!.graphDigest === opened[view]!.graphDigest, `${key} capture graph mismatch`)
   }
-  captureResourceUri = text(captures.engineCanvas!.resourceUri, "capture resource")
+  captureResourceUri = text(captures.uiCanvas!.resourceUri, "capture resource")
   const captureResource = await client.readResource({uri: captureResourceUri})
   assert(captureResource.contents.some((content) => "blob" in content && content.blob.length > 100),
     "capture resource has no PNG")
+
+  const hudRoute = "acceptance/experience/hud/default"
+  opened.uiHud = await tool("storybook_open", {
+    schemaVersion: 1,
+    packageId: "@zavx0z/ui",
+    route: hudRoute,
+  })
+  assert(opened.uiHud.ready === true && opened.uiHud.presented === true, "UI HUD view is not ready")
+  assert(opened.uiHud.route === hudRoute, "UI HUD route identity mismatch")
+  assert(opened.uiHud.viewId === opened.ui!.viewId, "UI HUD route created a second package view")
+  const hudPresented = await tool("storybook_wait", {
+    schemaVersion: 1,
+    viewId: text(opened.uiHud.viewId, "UI HUD viewId"),
+    condition: "presented",
+    timeoutMs: 5_000,
+  })
+  assert(hudPresented.reached === true, "UI HUD presented wait did not reach")
+  const hudLiveChecked = await tool("storybook_check", {
+    schemaVersion: 1,
+    scope: "@zavx0z/ui",
+    live: true,
+    timeoutMs: 30_000,
+  })
+  const hudCheckedViews = array(hudLiveChecked.views)
+  assert(hudLiveChecked.ok === true && hudCheckedViews.length === 1 && hudCheckedViews.every((view) =>
+    view !== null && typeof view === "object" &&
+    (view as Record<string, unknown>).route === hudRoute &&
+    (view as Record<string, unknown>).revisionMatches === true),
+  "live UI HUD check did not activate the exact runtime/4 revision")
+  const inspectedHud = await tool("storybook_inspect", {
+    schemaVersion: 1,
+    viewId: text(opened.uiHud.viewId, "UI HUD viewId"),
+    include: ["state", "diagnostics", "console", "semantic", "layout", "display", "canvas"],
+    maxDepth: 12,
+    limit: 200,
+  })
+  assert(inspectedHud.ready === true && inspectedHud.presented === true, "UI HUD lost ready/presented state")
+  assert(array(inspectedHud.consoleErrors).length === 0, "UI HUD console has errors")
+  assert(array(inspectedHud.diagnostics).length === 0, "UI HUD has diagnostics")
+  const hudCanvas = inspectedHud.canvas
+  assert(hudCanvas !== null && typeof hudCanvas === "object" && !Array.isArray(hudCanvas),
+    "UI HUD has no exact canvas")
+  assert((hudCanvas as Record<string, unknown>).id === "external-storybook-canvas",
+    "UI HUD projected a foreign canvas")
+  assert(!("canvases" in inspectedHud), "UI HUD exposed a plural canvas projection")
+  semanticNode(inspectedHud, "button", "UI внутри общего Display")
+  const uiHudLaw = assertExperienceProjectionLaw(inspectedHud, "hud", "UI внутри общего Display")
+  captures.uiHudPreview = await tool("storybook_capture", {
+    schemaVersion: 1,
+    viewId: text(opened.uiHud.viewId, "UI HUD viewId"),
+    area: "preview",
+    failOnConsoleError: true,
+    timeoutMs: 30_000,
+  })
+  assert(number(captures.uiHudPreview.width) > 0 && number(captures.uiHudPreview.height) > 0,
+    "UI HUD preview capture is empty")
+  assert(captures.uiHudPreview.revision === opened.uiHud.revision,
+    "UI HUD preview capture revision mismatch")
+  assert(captures.uiHudPreview.route === hudRoute, "UI HUD preview capture route mismatch")
+  assert(captures.uiHudPreview.graphDigest === opened.uiHud.graphDigest,
+    "UI HUD preview capture graph mismatch")
+  const hudCaptureResource = await client.readResource({
+    uri: text(captures.uiHudPreview.resourceUri, "UI HUD preview capture resource"),
+  })
+  assert(hudCaptureResource.contents.some((content) => "blob" in content && content.blob.length > 100),
+    "UI HUD preview capture resource has no PNG")
 
   const initial = fixtureState(await tool("storybook_status", {schemaVersion: 1}), opened)
   emit("baseline", {
@@ -174,6 +264,14 @@ try {
       key,
       array((value as Record<string, unknown>).results).length,
     ])),
+    architecture: {
+      runtime: "storybook-runtime/4",
+      projections: ["display", "hud", "space"],
+      ui: uiLaw,
+      uiHud: uiHudLaw,
+      nodes: nodesLaw,
+      self: selfLaw,
+    },
     views: Object.fromEntries(Object.entries(opened).map(([key, value]) => [key, {
       viewId: value.viewId,
       revision: value.revision,
@@ -348,14 +446,92 @@ function fixtureState(status: Record<string, unknown>, opened: Record<string, Re
 }
 
 function semanticNode(value: Record<string, unknown>, role: string, name: string): Record<string, unknown> {
-  const semantic = value.semantic
-  if (semantic === null || typeof semantic !== "object") throw new Error("Inspection has no semantic projection")
-  const matches = array((semantic as Record<string, unknown>).nodes).filter((candidate) =>
-    candidate !== null && typeof candidate === "object" &&
-    (candidate as Record<string, unknown>).role === role &&
-    (candidate as Record<string, unknown>).name === name)
+  const matches = semanticNodes(value).filter((candidate) =>
+    candidate.role === role && candidate.name === name)
   if (matches.length !== 1) throw new Error(`Expected one semantic ${role} ${name}, received ${matches.length}`)
-  return matches[0] as Record<string, unknown>
+  return matches[0]!
+}
+
+function assertExperienceProjectionLaw(
+  value: Record<string, unknown>,
+  expectedProjection: "display" | "hud",
+  contentText: string,
+): Readonly<Record<string, unknown>> {
+  const nodes = semanticNodes(value)
+  const byId = new Map(nodes.map((node) => [text(node.nodeId, "semantic nodeId"), node] as const))
+  const space = oneSemanticTag(nodes, "xr-space")
+  const viewPoint = oneSemanticTag(nodes, "xr-view-point")
+  const display = oneSemanticTag(nodes, "xr-display")
+  const hud = oneSemanticTag(nodes, "xr-hud")
+  const spaceId = text(space.nodeId, "Space nodeId")
+
+  assert(space.parentId === null, "Experience Space is not the semantic root")
+  assert(viewPoint.parentId === spaceId, "Experience ViewPoint is not owned by the exact Space")
+  assert(display.parentId === spaceId, "Experience Display is not owned by the exact Space")
+  assert(hud.parentId === spaceId, "Experience HUD is not owned by the exact Space")
+
+  const workbenches = nodes.filter(({role}) => role === "application")
+  assert(workbenches.length === 1, `Expected one Workbench application, received ${workbenches.length}`)
+  assert(isSemanticDescendant(workbenches[0]!, hud, byId), "Workbench is not mounted in the exact HUD")
+
+  const namedContent = nodes.filter((node) => node.name === contentText)
+  const contentCandidates = namedContent.length > 0
+    ? namedContent
+    : nodes.filter((node) => typeof node.text === "string" && node.text.includes(contentText))
+  const expectedOwner = expectedProjection === "display" ? display : hud
+  const projectedContent = contentCandidates.filter((node) =>
+    isSemanticDescendant(node, expectedOwner, byId))
+  assert(projectedContent.length > 0,
+    `${expectedProjection} contains no projected content: ${contentText}`)
+
+  return Object.freeze({
+    projection: expectedProjection,
+    space: space.nodeId,
+    viewPoint: viewPoint.nodeId,
+    display: display.nodeId,
+    hud: hud.nodeId,
+    workbench: workbenches[0]!.nodeId,
+    content: projectedContent[0]!.nodeId,
+  })
+}
+
+function semanticNodes(value: Record<string, unknown>): Record<string, unknown>[] {
+  const semantic = value.semantic
+  if (semantic === null || typeof semantic !== "object" || Array.isArray(semantic)) {
+    throw new Error("Inspection has no semantic projection")
+  }
+  return array((semantic as Record<string, unknown>).nodes).map((candidate) => {
+    if (candidate === null || typeof candidate !== "object" || Array.isArray(candidate)) {
+      throw new Error("Inspection contains an invalid semantic node")
+    }
+    return candidate as Record<string, unknown>
+  })
+}
+
+function oneSemanticTag(
+  nodes: readonly Record<string, unknown>[],
+  tag: string,
+): Record<string, unknown> {
+  const matches = nodes.filter((node) => node.tag === tag)
+  if (matches.length !== 1) throw new Error(`Expected one semantic ${tag}, received ${matches.length}`)
+  return matches[0]!
+}
+
+function isSemanticDescendant(
+  node: Record<string, unknown>,
+  ancestor: Record<string, unknown>,
+  byId: ReadonlyMap<string, Record<string, unknown>>,
+): boolean {
+  const ancestorId = text(ancestor.nodeId, "semantic ancestor nodeId")
+  const seen = new Set<string>()
+  let parentId = typeof node.parentId === "string" ? node.parentId : null
+  while (parentId !== null && !seen.has(parentId)) {
+    if (parentId === ancestorId) return true
+    seen.add(parentId)
+    const parent = byId.get(parentId)
+    parentId = parent !== undefined && typeof parent.parentId === "string" ? parent.parentId : null
+  }
+  return false
 }
 
 function nestedNumber(value: Record<string, unknown>, key: string): number {
