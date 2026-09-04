@@ -282,7 +282,7 @@ lastWorking artifact unchanged. Bun metafile realpaths invalidate only actual
 dependent sessions. Per-package queues share only a bounded compiler semaphore.
 
 Browser inspection uses the existing semantic Document and
-`@zavx0z/dom-devtools`; interaction uses projection input and
+`@zavx0z/devtools`; interaction uses projection input and
 `experience.dispatchKey(...)` единственного Browser Experience. Capture
 returns MCP image content plus bounded `storybook://captures/...` resources.
 Agent `key` activates and verifies the exact Workbench owner in the existing

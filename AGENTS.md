@@ -31,11 +31,14 @@
 - Import exact owners directly. Do not add compatibility aliases, `paths`,
   wrappers, root barrels, generated copies, or compatibility re-exports.
 - В сборке каждой страницы сохраняется по одной resolved identity для
-  `@zavx0z/browser`, `@zavx0z/component`, `@zavx0z/dom`, `@zavx0z/engine`,
+  `@zavx0z/browser`, `@zavx0z/component`, `@zavx0z/devtools`, `@zavx0z/dom`, `@zavx0z/engine`,
   `@zavx0z/layout`, `@zavx0z/nodes`, `@zavx0z/nodetree`, `@zavx0z/renderer`,
   `@zavx0z/space`, `@zavx0z/template`, `@zavx0z/ui` и `@zavx0z/webgpu`.
   Исторические package identities, compatibility aliases и
   generic Layout preview owners не возвращаются.
+- Число пакетов WebXR не фиксировано: состав следует самостоятельным
+  ответственностям и принятым решениям. Диагностика использует
+  `@zavx0z/devtools` из монорепозитория, без зависимости от исходного Renderer checkout.
 - Landing и каждая package page владеют ровно одним
   `@zavx0z/browser` Experience. Browser владеет его semantic Document, native
   Canvas, циклом кадров и вводом. Experience содержит exact

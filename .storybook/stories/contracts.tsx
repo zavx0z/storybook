@@ -69,7 +69,7 @@ const contracts = Object.freeze({
   launcher: contract(
     "MCP and human adapters",
     "`ensure`, `attach`, `search`, `open`, `wait`, `inspect`, `interact`, `capture`, `check`, `close` и явное администрирование вызывают один typed controller. Browser open делегируется private lifecycle owner через `openPackage`; MCP владеет только bounded schemas и opaque transport projections. Inspection показывает Canvas единственного Experience. Key interaction проверяет exact Workbench HUD owner и вызывает `experience.dispatchKey(...)`.",
-    "CLI и MCP не содержат target records, reservation state, discovery или reconciliation. Canvas capture направлен в тот же exact Experience Canvas без поиска множества native Canvas. Bridge не создаёт semantic keyboard events или второй input owner, поэтому Browser-owned defaults Escape, Range и Select остаются authoritative.",
+    "Диагностику Document предоставляет @zavx0z/devtools из WebXR: createDomInspector сохраняет идентификаторы, снимки дерева и состояния, размеры и записи рисования. Storybook передаёт readFrame(node) из существующего Experience. CLI и MCP не содержат target records, reservation state, discovery или reconciliation. Canvas capture направлен в тот же exact Experience Canvas без поиска множества native Canvas. Bridge не создаёт semantic keyboard events или второй input owner, поэтому Browser-owned defaults Escape, Range и Select остаются authoritative.",
     [
       "storybook attach ./project",
       "storybook detach project-id",

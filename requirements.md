@@ -282,7 +282,7 @@ linked owner dependencies снова проверяются fail closed.
 ### `STORYBOOK-IDENTITY-001` — one module identity per package realm
 
 Package build фиксирует canonical dependency realpaths. Две identities
-обязательных `@zavx0z/browser`, `@zavx0z/component`, `@zavx0z/dom`,
+обязательных `@zavx0z/browser`, `@zavx0z/component`, `@zavx0z/devtools`, `@zavx0z/dom`,
 `@zavx0z/engine`, `@zavx0z/layout`, `@zavx0z/nodes`, `@zavx0z/nodetree`,
 `@zavx0z/renderer`, `@zavx0z/space`, `@zavx0z/template`, `@zavx0z/ui` или
 `@zavx0z/webgpu`, ambiguous resolution, foreign branded Node
@@ -460,6 +460,10 @@ browser CLI как runtime dependency запрещены. Ensure, attach, search
 Inspection и interaction используют existing semantic Document, Workbench IDs
 и renderer frame. Target resolution exact nodeId либо exact role+name;
 ambiguity fail closed. Raw eval/coordinates не являются agent API.
+`createDomInspector` импортируется из `@zavx0z/devtools` в WebXR. Этот владелец
+предоставляет снимки, стабильные идентификаторы и освобождение ссылок;
+`readFrame(node)` читает готовый кадр нужной projection единственного Experience.
+Диагностические панели и команды агента не требуют исходный Renderer checkout.
 `key` активирует exact Workbench HUD owner в существующем Browser Experience,
 фокусирует semantic target и вызывает `experience.dispatchKey(...)` только
 после проверки exact Document/owner/target/native proxy. Modifiers сохраняются;

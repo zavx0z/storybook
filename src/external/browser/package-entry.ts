@@ -1,7 +1,7 @@
 /** One package-tab realm driven by generated literal runtime/story loaders. */
 
 import type {CustomEvent, Node as SemanticNode} from "@zavx0z/dom"
-import {createDomInspector} from "@zavx0z/dom-devtools"
+import {createDomInspector} from "@zavx0z/devtools"
 import type {ExperienceLinkedAuthorStyleSheet} from "@zavx0z/browser"
 import {isCompiledTemplate, type CompiledTemplate} from "@zavx0z/template/compiled"
 import {

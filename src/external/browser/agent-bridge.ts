@@ -1,4 +1,4 @@
-import {createDomInspector, type DomInspector, type DomInspectorNode} from "@zavx0z/dom-devtools"
+import {createDomInspector, type DomInspector, type DomInspectorNode} from "@zavx0z/devtools"
 import {
   Event,
   HTMLElement,

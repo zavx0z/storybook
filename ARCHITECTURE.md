@@ -167,7 +167,7 @@ path не допускаются.
 Shared shell source один для landing и package entries. Package build включает
 только выбранный package graph, поэтому другая package production code в tab не
 попадает. Bun metafile фиксирует canonical dependency realpaths. Identities
-`@zavx0z/browser`, `@zavx0z/component`, `@zavx0z/dom`, `@zavx0z/engine`,
+`@zavx0z/browser`, `@zavx0z/component`, `@zavx0z/devtools`, `@zavx0z/dom`, `@zavx0z/engine`,
 `@zavx0z/layout`, `@zavx0z/nodes`, `@zavx0z/nodetree`, `@zavx0z/renderer`,
 `@zavx0z/space`, `@zavx0z/template`, `@zavx0z/ui` и `@zavx0z/webgpu`
 проверяются до publish; разные realpath одного обязательного
@@ -406,6 +406,12 @@ MCP/CLI open не отправляет target activation. Только ауте�
 `Target.activateTarget` для уже выбранной package tab. `bringToFront`, focus
 emulation и OS focus не используются. Небраузерные lifecycle/query operations
 не требуют CDP.
+
+`@zavx0z/devtools` из WebXR владеет идентификаторами элементов, снимками дерева,
+состояния и результатов Renderer. Storybook подключает `createDomInspector`
+для диагностических панелей и команд агента, передавая существующий Document
+и `readFrame(node)` соответствующей Display/HUD projection. Он не импортирует
+старый пакет из исходного Renderer checkout и не создаёт второй Renderer.
 
 Package-tab agent bridge проецирует существующий semantic Document, Workbench
 identities и current renderer frame. Он не создаёт второе дерево и не принимает

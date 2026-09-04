@@ -17,6 +17,7 @@ const monorepoRoot = realpathSync.native(resolve(root, "../webxr-space"))
 const newFamily = Object.freeze({
   "@zavx0z/browser": "browser",
   "@zavx0z/component": "component",
+  "@zavx0z/devtools": "devtools",
   "@zavx0z/dom": "dom",
   "@zavx0z/engine": "engine",
   "@zavx0z/layout": "layout",
@@ -39,6 +40,7 @@ describe("Storybook package identity", () => {
       expect(manifest.devDependencies[name], name).toBe(`file:../webxr-space/${directory}`)
     }
     expect(manifest.devDependencies["@zavx0z/react"]).toBeUndefined()
+    expect(manifest.devDependencies["@zavx0z/dom-devtools"]).toBeUndefined()
     expect(manifest.devDependencies["@ui/components"]).toBeUndefined()
     expect(manifest.devDependencies["@engine/core"]).toBeUndefined()
     expect(manifest.devDependencies["@zavx0z/renderer-browser"]).toBeUndefined()
@@ -65,6 +67,7 @@ describe("Storybook package identity", () => {
     })
 
     assertOnePhysicalOwner(roots, "@zavx0z/component", "component", "src/index.ts")
+    assertOnePhysicalOwner(roots, "@zavx0z/devtools", "devtools", "inspector.ts")
     assertOnePhysicalOwner(roots, "@zavx0z/dom", "dom", "src/index.ts")
     assertOnePhysicalOwner(roots, "@zavx0z/renderer", "renderer", "src/index.ts")
     assertOnePhysicalOwner(roots, "@zavx0z/template", "template", "compiled.ts")
@@ -79,6 +82,7 @@ describe("Storybook package identity", () => {
 
     const rootsByName = packageRootsByName(roots)
     expect(rootsByName.get("@zavx0z/react")).toBeUndefined()
+    expect(rootsByName.get("@zavx0z/dom-devtools")).toBeUndefined()
     expect(rootsByName.get("@ui/components")).toBeUndefined()
     expect(rootsByName.get("@engine/core")).toBeUndefined()
     expect(rootsByName.get("@zavx0z/renderer-browser")).toBeUndefined()
@@ -90,6 +94,7 @@ describe("Storybook package identity", () => {
     })
     for (const [specifier, ownerPath] of [
       ["@zavx0z/component", "component/src/index.ts"],
+      ["@zavx0z/devtools", "devtools/inspector.ts"],
       ["@zavx0z/dom", "dom/src/index.ts"],
       ["@zavx0z/renderer", "renderer/src/index.ts"],
       ["@zavx0z/template/compiled", "template/compiled.ts"],
@@ -146,9 +151,9 @@ function sourceFiles(roots: readonly string[]): readonly string[] {
 }
 
 function hasLegacyOwnerImport(source: string): boolean {
-  return /^\s*(?:import|export)\b[^\n]*["'](?:@ui\/components|@zavx0z\/react)(?:\/[^"']*)?["']/mu
+  return /^\s*(?:import|export)\b[^\n]*["'](?:@ui\/components|@zavx0z\/(?:react|dom-devtools))(?:\/[^"']*)?["']/mu
     .test(source) ||
-    /^\s*\}\s*from\s+["'](?:@ui\/components|@zavx0z\/react)(?:\/[^"']*)?["']/mu
+    /^\s*\}\s*from\s+["'](?:@ui\/components|@zavx0z\/(?:react|dom-devtools))(?:\/[^"']*)?["']/mu
       .test(source)
 }
 

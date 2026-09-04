@@ -30,7 +30,7 @@
     "@zavx0z/browser": "file:../webxr-space/browser",
     "@zavx0z/component": "file:../webxr-space/component",
     "@zavx0z/dom": "file:../webxr-space/dom",
-    "@zavx0z/dom-devtools": "file:../renderer/packages/devtools",
+    "@zavx0z/devtools": "file:../webxr-space/devtools",
     "@zavx0z/engine": "file:../webxr-space/engine",
     "@zavx0z/highlighter": "link:@zavx0z/highlighter",
     "@zavx0z/layout": "file:../webxr-space/layout",
