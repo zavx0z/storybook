@@ -189,9 +189,40 @@ function validateScenarioItems(value: unknown): readonly WorkbenchScenarioItem[]
 function validateWorkbenchStatus(value: unknown): WorkbenchStatus {
   if (value === null || typeof value !== "object") throw new TypeError("Status must be an object")
   const status = value as WorkbenchStatus
+  const owner = requiredText("Status owner", status.owner)
+  const source = status.breadcrumbs ?? Object.freeze([{
+    id: "status-owner",
+    label: owner,
+    route: "",
+  }])
+  if (!Array.isArray(source) || source.length === 0) {
+    throw new TypeError("Status breadcrumbs must be a non-empty array")
+  }
+  const ids = new Set<string>()
+  const breadcrumbs = source.map((candidate, index) => {
+    if (candidate === null || typeof candidate !== "object") {
+      throw new TypeError(`Status breadcrumb ${index} must be an object`)
+    }
+    const id = requiredText("Status breadcrumb id", candidate.id)
+    if (ids.has(id)) throw new Error(`Duplicate status breadcrumb id: ${id}`)
+    ids.add(id)
+    return Object.freeze({
+      id,
+      label: requiredText("Status breadcrumb label", candidate.label),
+      route: stringValue("Status breadcrumb route", candidate.route),
+      ...(candidate.urlPath === undefined
+        ? {}
+        : {urlPath: requiredText("Status breadcrumb URL path", candidate.urlPath)}),
+      ...(candidate.title === undefined
+        ? {}
+        : {title: stringValue("Status breadcrumb title", candidate.title)}),
+      ...(candidate.disabled === undefined ? {} : {disabled: Boolean(candidate.disabled)}),
+    })
+  })
   return Object.freeze({
     lead: stringValue("Status lead", status.lead),
-    owner: requiredText("Status owner", status.owner),
+    owner,
     detail: stringValue("Status detail", status.detail),
+    breadcrumbs: Object.freeze(breadcrumbs),
   })
 }

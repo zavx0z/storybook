@@ -32,8 +32,8 @@ const contracts = Object.freeze({
   ),
   workbench: contract(
     "Workbench из шести областей",
-    "`catalog`, `secondary`, `scenarios`, `preview`, `inspector` и `status` являются шестью compiled TSX components одного `workbench-layout/2`. Весь Workbench монтируется в exact `XRHUDElement` `external-storybook-workbench`. Labels `catalog`, `secondary`, `scenarios` и `preview` остаются доступными именами без видимых подписей; scenario toolbar расположен непосредственно над preview.",
-    "Страница владеет одним `@zavx0z/browser` Experience: Browser владеет Document, Canvas, циклом кадров и вводом, а Experience содержит exact `@zavx0z/space` `XRSpaceElement` и `XRViewPointElement`. Workbench использует `@zavx0z/ui/widgets/inspector` с direct keyed `@zavx0z/ui/surfaces/panel` children и exact `@zavx0z/ui/feedback/status-bar`. Display story монтируется в actual `XRDisplayElement`, HUD story — в `XRHUDElement`, а трёхмерная story — непосредственно в `XRSpaceElement`.",
+    "`catalog`, `secondary`, `scenarios`, `preview`, `inspector` и `status` являются шестью compiled TSX components одного `workbench-layout/2`. Весь Workbench монтируется в exact `XRHUDElement` `external-storybook-workbench`. Status композирует production Breadcrumbs с полным путём `workspace → project → package → category → subject → variant`; scenario toolbar расположен непосредственно над preview.",
+    "Страница владеет одним `@zavx0z/browser` Experience: Browser владеет Document, Canvas, циклом кадров и вводом, а Experience содержит exact `@zavx0z/space` `XRSpaceElement` и `XRViewPointElement`. Workbench использует `@zavx0z/ui/widgets/inspector`, `@zavx0z/ui/navigation/breadcrumbs` и exact `@zavx0z/ui/feedback/status-bar`. Переход по Breadcrumbs к предку сохраняет тот же package target. Display story монтируется в actual `XRDisplayElement`, HUD story — в `XRHUDElement`, а трёхмерная story — непосредственно в `XRSpaceElement`.",
     "createExperience(...) → experience.getProjection(workbenchHud) → external-storybook-workbench",
   ),
   authorStyles: contract(

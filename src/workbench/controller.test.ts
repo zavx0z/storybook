@@ -66,10 +66,10 @@ describe("compiled Storybook Workbench", () => {
     expect(status?.getAttribute("aria-label")).toBe(
       "Создано для MetaFor · WebXR UI",
     )
-    expect(status?.textContent).toBe("Создано для MetaFor · WebXR UI")
+    expect(status?.textContent).toBe("MetaFor · WebXR UI")
     expect(workbench.elements.status.querySelectorAll('[role="status"]')).toHaveLength(1)
-    expect(workbench.elements.status.querySelector('[data-status-item="workbench-status-owner"]')
-      ?.getAttribute("data-highlighted")).toBe("true")
+    expect(workbench.elements.status.querySelector('nav[aria-label="Текущий путь"]')).not.toBeNull()
+    expect(workbench.elements.status.querySelector('[aria-current="page"]')?.textContent).toBe("MetaFor")
     const renderer = createDocumentRenderer({
       document,
       root: workbench.element,
@@ -226,6 +226,24 @@ describe("compiled Storybook Workbench", () => {
     scenario.click()
     expect(workbench.controller.read("scenarios.active")).toBe("hover")
     expect(events[2]).toEqual({type: "storybookscenario", detail: {id: "hover"}})
+
+    workbench.update("status", {
+      lead: "",
+      owner: "@fixture/components",
+      detail: "",
+      breadcrumbs: [
+        {id: "package", label: "@fixture/components", route: ""},
+        {id: "subject", label: "Кнопка", route: "components/button"},
+      ],
+    })
+    const breadcrumb = workbench.elements.status.querySelector(
+      '[data-breadcrumb-id="package"] button',
+    ) as HTMLButtonElement
+    breadcrumb.click()
+    expect(events[3]).toEqual({
+      type: "storybooknavigate",
+      detail: {kind: "breadcrumb", id: "package", route: ""},
+    })
   })
 
   test("retains Inspector widget selection by package and subject across variants", () => {
@@ -260,8 +278,7 @@ describe("compiled Storybook Workbench", () => {
     expect(categoryButton(workbench, "Исходники").getAttribute("aria-pressed")).toBe("true")
     expect(categoryButton(workbench, "Исходники").querySelector("img")?.getAttribute("src"))
       .toBe(uiIcons.language)
-    expect(workbench.elements.inspectorHost.querySelector('[title="@fixture/components/button"] img')?.getAttribute("src"))
-      .toBe(uiIcons.resource)
+    expect(workbench.elements.inspectorHost.querySelector('[title="@fixture/components/button"]')).toBeNull()
     expect(workbench.elements.inspectorHost.querySelector('[data-language-id="css"]')?.textContent)
       .toContain("color: red")
     const sourcePanel = inspectorPanel(workbench, "Исходники")

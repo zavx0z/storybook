@@ -69,6 +69,15 @@ export type WorkbenchInspectorSubject = Readonly<{
 
 export type WorkbenchInspectorValues = Readonly<Record<string, unknown>>
 
+export type WorkbenchBreadcrumb = Readonly<{
+  id: string
+  label: string
+  route: string
+  urlPath?: string
+  title?: string
+  disabled?: boolean
+}>
+
 export type WorkbenchScenarioItem = Readonly<{
   id: string
   label: string
@@ -80,6 +89,7 @@ export type WorkbenchStatus = Readonly<{
   lead: string
   owner: string
   detail: string
+  breadcrumbs?: readonly WorkbenchBreadcrumb[]
 }>
 
 export type WorkbenchPresentationProjection = "display" | "hud" | "space"

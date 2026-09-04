@@ -19,6 +19,7 @@ import {
 import type {ExternalStorybookClientSnapshot} from "./client-protocol.ts"
 import type {StorybookOverviewAction} from "../components/overview-action.ts"
 import {externalStorybookPageTitle} from "../page-title.ts"
+import {deriveStorybookBreadcrumbs} from "./breadcrumbs.ts"
 
 export type StartExternalStorybookLandingOptions = Readonly<{
   fetcher?: typeof fetch
@@ -69,7 +70,9 @@ export async function startExternalStorybookLanding(
     "Выберите проект или самостоятельный пакет. Workspace используется только как раскрываемая композиция.",
   )
 
-  const showWorkspace = async (nodeId: string): Promise<void> => {
+  const breadcrumbsFor = (nodeId: string) => deriveStorybookBreadcrumbs(graph, nodeId, {kind: "landing"})
+
+  const showWorkspace = async (nodeId: string, updateHistory = false): Promise<void> => {
     const revision = ++selectionRevision
     const node = externalStorybookClientNode(snapshot, nodeId)
     if (node.kind !== "workspace") throw new Error(`Landing group is not a workspace: ${nodeId}`)
@@ -79,10 +82,18 @@ export async function startExternalStorybookLanding(
       shell.workbench.update("catalog.active", null)
       shell.workbench.update("secondary.items", Object.freeze([]))
       shell.workbench.update("secondary.active", null)
+      shell.workbench.update("status", {
+        lead: "",
+        owner: node.label,
+        detail: "",
+        breadcrumbs: breadcrumbsFor(node.id),
+      })
     })
     if (readme === null) shell.showMessage(`${node.label} · Обзор`, node.label, "Workspace composition")
     else shell.showMarkdown(`${node.label} · README`, readme, node.resourceUrl)
-    shell.updateStatus(`${node.label} · workspace overview`)
+    if (updateHistory && location !== undefined && history !== undefined && location.pathname !== node.urlPath) {
+      history.pushState(null, "", node.urlPath)
+    }
   }
 
   const select = async (nodeId: string, updateHistory = true): Promise<void> => {
@@ -96,6 +107,12 @@ export async function startExternalStorybookLanding(
       shell.workbench.update("secondary.active", selection.secondaryActiveId)
       shell.workbench.update("scenarios.items", Object.freeze([]))
       shell.workbench.update("scenarios.active", null)
+      shell.workbench.update("status", {
+        lead: "",
+        owner: selection.overviewNode.label,
+        detail: "",
+        breadcrumbs: breadcrumbsFor(selection.overviewNode.id),
+      })
     })
     const clientNode = externalStorybookClientNode(snapshot, selection.overviewNode.id)
     try {
@@ -105,7 +122,6 @@ export async function startExternalStorybookLanding(
         ? packageOpenAction(clientNode, (input) => {
           void openPackage(input).then(() => {
             shell.clearDiagnostics()
-            shell.updateStatus(`${input.packageId} · view requested`)
           }).catch((error) => {
             shell.reportDiagnostic(errorText(error))
             shell.updateStatus(`${input.packageId} · open failed`)
@@ -127,7 +143,6 @@ export async function startExternalStorybookLanding(
         history.pushState(null, "", clientNode.urlPath)
       }
       shell.clearDiagnostics()
-      shell.updateStatus(`${clientNode.label} · overview`)
     } catch (error) {
       if (disposed || revision !== selectionRevision) return
       shell.reportDiagnostic(errorText(error))
@@ -137,8 +152,12 @@ export async function startExternalStorybookLanding(
   }
 
   const onNavigate = (event: unknown): void => {
-    const detail = (event as CustomEvent<{id: string}>).detail
-    void select(detail.id).catch((error) => isolateLandingError(browserDocument, shell, error))
+    const detail = (event as CustomEvent<{id: string; kind?: string}>).detail
+    const node = externalStorybookClientNode(snapshot, detail.id)
+    const navigation = detail.kind === "breadcrumb" && node.kind === "workspace"
+      ? showWorkspace(node.id, true)
+      : select(node.id)
+    void navigation.catch((error) => isolateLandingError(browserDocument, shell, error))
   }
   const onGroupToggle = (event: unknown): void => {
     const detail = (event as CustomEvent<{id: string}>).detail
@@ -172,12 +191,12 @@ export async function startExternalStorybookLanding(
     if (pathname === "/") {
       if (snapshot.rootIds.length === 1) {
         const root = externalStorybookClientNode(snapshot, snapshot.rootIds[0]!)
-        if (root.kind === "workspace") await showWorkspace(root.id)
+        if (root.kind === "workspace") await showWorkspace(root.id, false)
       }
       return
     }
     const node = snapshot.nodes.find((candidate) => candidate.urlPath === pathname)
-    if (node?.kind === "workspace") await showWorkspace(node.id)
+    if (node?.kind === "workspace") await showWorkspace(node.id, false)
     else if (node?.kind === "project") await select(node.id, false)
     else throw new Error(`Unknown external Storybook landing pathname: ${pathname}`)
   }

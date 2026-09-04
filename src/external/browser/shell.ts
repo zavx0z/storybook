@@ -490,7 +490,9 @@ export async function createExternalStorybookShell(
     },
     updateStatus(detail) {
       assertActive(disposed)
+      const current = workbench.controller.read("status")
       workbench.update("status", {
+        ...current,
         lead: "Создано для ",
         owner: options.statusOwner ?? "MetaFor",
         detail: ` · ${detail}`,

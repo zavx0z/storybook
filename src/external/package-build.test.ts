@@ -361,6 +361,7 @@ function graphSnapshot(
     packageId,
     declarationDigest,
     metadata: {label: packageId, ownerId: packageId, urlPath: `/packages/${encodeURIComponent(packageId)}/`},
+    ancestors: [],
     rootId: packageNode,
     nodes: [
       {

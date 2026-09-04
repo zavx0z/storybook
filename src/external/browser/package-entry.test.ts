@@ -94,6 +94,16 @@ describe("external Storybook package frontend", () => {
     )
     expect(experienceState.linkedAuthorStyleSheets.map(({link}) => link)).toEqual([...links.values()])
     expect(lifecycle.slice(0, 2)).toEqual(["experience-create", "activation"])
+    expect(controller.shell.workbench.controller.read("status").breadcrumbs?.map(({label}) => label)).toEqual([
+      "Fixture Workspace",
+      "Fixture Alpha",
+      "Fixture Components",
+    ])
+    const workspaceBreadcrumb = controller.shell.workbench.elements.status.querySelector(
+      '[data-breadcrumb-id="workspace:fixture-workspace"] button',
+    ) as import("@zavx0z/dom").HTMLButtonElement
+    workspaceBreadcrumb.click()
+    expect(location.href).toBe("http://localhost/workspaces/fixture-workspace/")
     await controller.dispose()
     expect(lifecycle.at(-1)).toBe("experience-dispose")
   })
@@ -258,6 +268,14 @@ describe("external Storybook package frontend", () => {
     expect(controller.shell.workbench.controller.read("presentation").node?.textContent)
       .toBe("components/button/basic/contained:Contained")
     expect(controller.shell.workbench.elements.inspectorHost.textContent).toContain("owner-ready")
+    expect(controller.shell.workbench.controller.read("status").breadcrumbs?.map(({label}) => label)).toEqual([
+      "Fixture Workspace",
+      "Fixture Alpha",
+      "Fixture Components",
+      "Components",
+      "Button",
+      "Contained",
+    ])
     await controller.navigate("components/button/outlined")
     expect(runtimeLoads).toBe(1)
     expect(containedLoads).toBe(3)

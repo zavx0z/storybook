@@ -2,7 +2,6 @@ import {
   Inspector,
   type InspectorCategory,
 } from "@zavx0z/ui/widgets/inspector"
-import {resourceIcon} from "@zavx0z/ui/themes/icons"
 import type {JsxSourceElement} from "@zavx0z/template/jsx-runtime"
 import type {
   WorkbenchInspectorSubject,
@@ -39,11 +38,6 @@ export function WorkbenchInspector(props: WorkbenchInspectorProps) {
     query={props.query}
     searchLabel="Поиск по инспектору"
     searchPlaceholder="Поиск…"
-    context={props.subject === null ? undefined : {
-      label: `${props.subject.packageId} · ${props.subject.subjectId}`,
-      iconSrc: resourceIcon,
-      title: `${props.subject.packageId}/${props.subject.subjectId}`,
-    }}
     onCategoryChange={props.onCategoryChange}
     onQueryChange={props.onQueryChange}
   >

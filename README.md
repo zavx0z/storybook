@@ -243,6 +243,9 @@ Production `@zavx0z/ui/surfaces/pane`, `@zavx0z/ui/buttons/button`,
 `@zavx0z/ui/views/code-editor` и `@zavx0z/ui/feedback/status-bar` владеют своим
 visual/state contract; Storybook caller styles задают только размещение внутри
 fixed Workbench regions.
+StatusBar содержит production `@zavx0z/ui/navigation/breadcrumbs` с полным
+путём на landing overview и от workspace/project до текущего variant в package
+tab; прежняя плоская status-строка и package/subject в Inspector не дублируются.
 Native page title равен `MetaFor` на landing/self page и exact package label на
 остальных package pages; `Storybook` не добавляется.
 

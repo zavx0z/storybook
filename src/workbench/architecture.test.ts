@@ -76,7 +76,9 @@ describe("Workbench component module boundary", () => {
   test("composes the production StatusBar instead of duplicating its footer visual contract", () => {
     const status = readFileSync(join(root, "regions/status.tsx"), "utf8")
     expect(status).toContain('from "@zavx0z/ui/feedback/status-bar"')
+    expect(status).toContain('from "@zavx0z/ui/navigation/breadcrumbs"')
     expect(status).toContain("<StatusBar")
+    expect(status).toContain("<Breadcrumbs")
     expect(status).not.toContain("<footer")
     expect(status).not.toContain("<Typography")
     for (const declaration of [
@@ -97,6 +99,7 @@ describe("Workbench component module boundary", () => {
     expect(inspector).toContain("panelIds:")
     expect(inspector).not.toContain("InspectorSections")
     expect(inspector).not.toContain("sectionIds")
+    expect(inspector).not.toContain("context=")
     expect(widgetPanel).toContain('from "@zavx0z/ui/surfaces/panel"')
     expect(widgetPanel).toContain("<Panel")
     expect(widgetPanel).toContain("props.onToggle(props.widget.id, expanded)")

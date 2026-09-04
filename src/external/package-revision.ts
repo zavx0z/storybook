@@ -19,7 +19,14 @@ import {
 } from "./declaration-law.ts"
 import {sha256Hex} from "./sha256.ts"
 
-export const STORYBOOK_PACKAGE_GRAPH_PROTOCOL = "storybook-package-graph/2" as const
+export const STORYBOOK_PACKAGE_GRAPH_PROTOCOL = "storybook-package-graph/3" as const
+
+export type StorybookPackageRevisionAncestor = Readonly<{
+  id: string
+  kind: "workspace" | "project"
+  label: string
+  urlPath: string
+}>
 
 export type StorybookPackageRevisionGraphNode = Readonly<{
   id: string
@@ -108,6 +115,7 @@ export type StorybookPackageRevisionGraphSnapshot = Readonly<{
     ownerId: string
     urlPath: string
   }>
+  ancestors: readonly StorybookPackageRevisionAncestor[]
   rootId: string
   nodes: readonly StorybookPackageRevisionGraphNode[]
   routes: readonly StorybookPackageRevisionRoute[]
@@ -131,6 +139,18 @@ export function createStorybookPackageRevisionGraphSnapshot(
     throw new Error(`Storybook package graph must contain one package node: ${packageId}`)
   }
   const packageNode = packageNodes[0]!
+  const ancestors = Object.freeze(packageNode.structuralPath.slice(0, -1).map((id) => {
+    const ancestor = graph.nodes.find(node => node.id === id)
+    if (ancestor === undefined || ancestor.kind !== "workspace" && ancestor.kind !== "project") {
+      throw new Error(`Storybook package ancestor is invalid: ${packageId}:${id}`)
+    }
+    return Object.freeze({
+      id: ancestor.id,
+      kind: ancestor.kind,
+      label: ancestor.label,
+      urlPath: ancestor.urlPath,
+    })
+  }))
   const nodeIds = new Set(sourceNodes.map(({id}) => id))
   const nodes = Object.freeze(sourceNodes.map((node): StorybookPackageRevisionGraphNode => Object.freeze({
     id: node.id,
@@ -226,6 +246,7 @@ export function createStorybookPackageRevisionGraphSnapshot(
       ownerId: packageNode.ownerId,
       urlPath: packageNode.urlPath,
     }),
+    ancestors,
     rootId: packageNode.id,
     nodes,
     routes,
@@ -258,7 +279,7 @@ export function validateStorybookPackageRevisionGraphSnapshot(
   }
   requiredText("graph declarationDigest", value.declarationDigest)
   requiredText("graph packageGraphDigest", value.packageGraphDigest)
-  if (!Array.isArray(value.nodes) || !Array.isArray(value.routes) ||
+  if (!Array.isArray(value.ancestors) || !Array.isArray(value.nodes) || !Array.isArray(value.routes) ||
     !Array.isArray(value.loaders) || !Array.isArray(value.resources) ||
     !Array.isArray(value.authorStyleSheets) || !Array.isArray(value.workbenchAuthorStyleSheets) ||
     !Array.isArray(value.widgetLoaders)) {
@@ -271,6 +292,33 @@ export function validateStorybookPackageRevisionGraphSnapshot(
   }
   const routes = new Set(value.routes.map(({path}) => path))
   if (routes.size !== value.routes.length) throw new Error(`Duplicate Storybook package graph route: ${packageId}`)
+  const ancestorKinds = value.ancestors.map(ancestor => ancestor?.kind)
+  const validAncestorSequence = ancestorKinds.length === 0 ||
+    ancestorKinds.length === 1 && ancestorKinds[0] === "project" ||
+    ancestorKinds.length === 2 && ancestorKinds[0] === "workspace" && ancestorKinds[1] === "project"
+  if (!validAncestorSequence) {
+    throw new Error(`Storybook package ancestor sequence is invalid: ${packageId}`)
+  }
+  const ancestorIds = new Set<string>()
+  for (const [index, ancestor] of value.ancestors.entries()) {
+    if (ancestor === null || typeof ancestor !== "object" ||
+      ancestor.kind !== "workspace" && ancestor.kind !== "project") {
+      throw new TypeError(`Storybook package ancestor ${index} is invalid: ${packageId}`)
+    }
+    const id = requiredText("package ancestor id", ancestor.id)
+    if (ancestorIds.has(id)) throw new Error(`Duplicate Storybook package ancestor: ${packageId}:${id}`)
+    ancestorIds.add(id)
+    const prefix = `${ancestor.kind}:`
+    if (!id.startsWith(prefix)) {
+      throw new Error(`Storybook package ancestor identity does not match its kind: ${packageId}:${id}`)
+    }
+    const ownerId = requiredText("package ancestor owner id", id.slice(prefix.length))
+    requiredText("package ancestor label", ancestor.label)
+    const expectedUrlPath = `/${ancestor.kind}s/${encodeURIComponent(ownerId)}/`
+    if (ancestor.urlPath !== expectedUrlPath) {
+      throw new Error(`Storybook package ancestor URL is not canonical: ${packageId}:${id}`)
+    }
+  }
   for (const loader of value.loaders) {
     if (!routes.has(loader.route)) throw new Error(`Storybook loader has no graph route: ${packageId}:${loader.route}`)
   }

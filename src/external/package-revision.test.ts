@@ -22,6 +22,20 @@ describe("exact Storybook package revision graph", () => {
     )
     expect(validateStorybookPackageRevisionGraphSnapshot(snapshot, "@fixture/components")).toBe(snapshot)
     expect(snapshot.rootId).toBe("package:@fixture/components")
+    expect(snapshot.ancestors).toEqual([
+      {
+        id: "workspace:fixture-workspace",
+        kind: "workspace",
+        label: "Fixture Workspace",
+        urlPath: "/workspaces/fixture-workspace/",
+      },
+      {
+        id: "project:fixture-alpha",
+        kind: "project",
+        label: "Fixture Alpha",
+        urlPath: "/projects/fixture-alpha/",
+      },
+    ])
     expect(snapshot.routes.map(({path}) => path)).toEqual([
       "",
       "foundation",
@@ -94,6 +108,45 @@ describe("exact Storybook package revision graph", () => {
       ...snapshot,
       protocol: "storybook-package-graph/1",
     } as never)).toThrow("Unsupported Storybook package graph protocol")
+
+    const nestedSnapshot = createStorybookPackageRevisionGraphSnapshot(
+      graph,
+      "@fixture/components",
+      "nested-ancestors",
+    )
+    const reversedAncestors = redigest({
+      ...nestedSnapshot,
+      ancestors: [nestedSnapshot.ancestors[1]!, nestedSnapshot.ancestors[0]!],
+    })
+    expect(() => validateStorybookPackageRevisionGraphSnapshot(reversedAncestors))
+      .toThrow("ancestor sequence is invalid")
+
+    const workspaceWithoutProject = redigest({
+      ...nestedSnapshot,
+      ancestors: [nestedSnapshot.ancestors[0]!],
+    })
+    expect(() => validateStorybookPackageRevisionGraphSnapshot(workspaceWithoutProject))
+      .toThrow("ancestor sequence is invalid")
+
+    const externalAncestorUrl = redigest({
+      ...nestedSnapshot,
+      ancestors: [
+        nestedSnapshot.ancestors[0]!,
+        {...nestedSnapshot.ancestors[1]!, urlPath: "https://example.com/projects/fixture-alpha/"},
+      ],
+    })
+    expect(() => validateStorybookPackageRevisionGraphSnapshot(externalAncestorUrl))
+      .toThrow("ancestor URL is not canonical")
+
+    const mismatchedAncestorId = redigest({
+      ...nestedSnapshot,
+      ancestors: [
+        nestedSnapshot.ancestors[0]!,
+        {...nestedSnapshot.ancestors[1]!, id: "workspace:fixture-alpha"},
+      ],
+    })
+    expect(() => validateStorybookPackageRevisionGraphSnapshot(mismatchedAncestorId))
+      .toThrow("ancestor identity does not match its kind")
   })
 
   test("rejects duplicate specifiers and non-canonical author stylesheet revision URLs", async () => {

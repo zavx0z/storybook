@@ -11,6 +11,7 @@ import type {
   Workbench,
   WorkbenchAddress,
   WorkbenchAddressMap,
+  WorkbenchBreadcrumb,
   WorkbenchController,
   WorkbenchNavigationGroup,
   WorkbenchNavigationItem,
@@ -103,6 +104,17 @@ export function createWorkbench(options: CreateWorkbenchOptions): Workbench {
       detail: Object.freeze({id: item.id}),
     }))
   }
+  const onStatusNavigate = (item: WorkbenchBreadcrumb, source: HTMLElement): void => {
+    source.dispatchEvent(new CustomEvent(WORKBENCH_EVENTS.navigate, {
+      bubbles: true,
+      detail: Object.freeze({
+        kind: "breadcrumb",
+        id: item.id,
+        route: item.route,
+        ...(item.urlPath === undefined ? {} : {urlPath: item.urlPath}),
+      }),
+    }))
+  }
   const onInspectorCategoryChange = (id: string): void => {
     const retained = retainedWorkbenchInspectorState(state, inspectorStateBySubject)
     if (retained === null || !activeWorkbenchInspectorWidgets(state).some(widget => widget.id === id)) return
@@ -140,6 +152,7 @@ export function createWorkbench(options: CreateWorkbenchOptions): Workbench {
       onScenario,
       onInspectorCategoryChange,
       onInspectorQueryChange,
+      onStatusNavigate,
       children: inspector.panels,
     })
   }

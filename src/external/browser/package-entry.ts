@@ -35,6 +35,7 @@ import {
   type StorybookPackageRevisionGraphSnapshot,
   type StorybookPackageRevisionStoryPresentation,
 } from "../package-revision.ts"
+import {deriveStorybookBreadcrumbs} from "./breadcrumbs.ts"
 import {
   deriveExternalStorybookPackageTab,
   type ExternalStorybookBrowserNavigationItem,
@@ -806,6 +807,15 @@ export async function startExternalStorybookPackage(
     browserDocument.documentElement.dataset.externalStorybookPackage = "starting"
     browserDocument.documentElement.dataset.externalStorybookRoute = route
     applyModel(shell, model)
+    shell.workbench.update("status", {
+      lead: "",
+      owner: packageId,
+      detail: "",
+      breadcrumbs: deriveStorybookBreadcrumbs(graph, model.selectedNode.id, {
+        kind: "package",
+        ancestors: revisionGraph?.ancestors ?? [],
+      }),
+    })
     routeDiagnostics = []
     activePresentationView = null
     derivedPresentationSignature = ""
@@ -858,7 +868,12 @@ export async function startExternalStorybookPackage(
     await scheduleRoute(route)
   }
   const onNavigate = (event: unknown): void => {
-    const route = (event as CustomEvent<{route: string}>).detail.route
+    const detail = (event as CustomEvent<{route: string; urlPath?: string}>).detail
+    if (detail.urlPath !== undefined) {
+      location.href = new URL(detail.urlPath, location.href).href
+      return
+    }
+    const route = detail.route
     void navigate(route).catch((error) => isolatePackageError(browserDocument, shell, currentModel, error))
   }
   const onScenario = (event: unknown): void => {

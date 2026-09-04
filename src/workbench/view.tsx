@@ -3,6 +3,7 @@ import type {JsxSourceElement} from "@zavx0z/template/jsx-runtime"
 import type {
   WorkbenchNavigationGroup,
   WorkbenchNavigationItem,
+  WorkbenchBreadcrumb,
   WorkbenchScenarioItem,
   WorkbenchViewState,
 } from "./contract.ts"
@@ -25,6 +26,7 @@ export type WorkbenchViewProps = Readonly<{
   onScenario(item: WorkbenchScenarioItem, source: HTMLElement): void
   onInspectorCategoryChange(id: string): void
   onInspectorQueryChange(query: string): void
+  onStatusNavigate(item: WorkbenchBreadcrumb, source: HTMLElement): void
   children: readonly JsxSourceElement[]
 }>
 
@@ -117,6 +119,9 @@ export function WorkbenchView(props: WorkbenchViewProps) {
         onQueryChange={props.onInspectorQueryChange}
       >{props.children}</InspectorRegion>
     </div>
-    <StatusRegion status={state.status} />
+    <StatusRegion
+      status={state.status}
+      onNavigate={props.onStatusNavigate}
+    />
   </div>
 }

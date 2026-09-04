@@ -242,6 +242,7 @@ function graphSnapshot(packageId: string, declarationDigest: string): StorybookP
     packageId,
     declarationDigest,
     metadata: {label: packageId, ownerId: packageId, urlPath: `/packages/${encodeURIComponent(packageId)}/`},
+    ancestors: [],
     rootId: packageNode,
     nodes: [
       {

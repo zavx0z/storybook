@@ -92,6 +92,12 @@ describe("external Storybook landing frontend", () => {
       ])
     expect(requests[0]).toBe("/api/client")
     expect(requests.at(-1)).toContain("project%3Afixture-alpha")
+    expect(statusBreadcrumbLabels(controller)).toEqual([
+      "Fixture Workspace",
+      "Fixture Alpha",
+    ])
+    expect(controller.shell.workbench.controller.read("status").detail).toBe("")
+
     expect(controller.shell.workbench.controller.read("secondary.items").map(({id}) => id))
       .toEqual(["package:@fixture/components"])
     expect(controller.shell.workbench.controller.read("presentation").node?.textContent)
@@ -104,14 +110,30 @@ describe("external Storybook landing frontend", () => {
     await controller.select("project:fixture-beta")
     expect(pushed).toEqual(["/projects/fixture-beta/"])
     expect(initialPresentation?.parentNode).toBeNull()
+    expect(statusBreadcrumbLabels(controller)).toEqual([
+      "Fixture Workspace",
+      "Fixture Beta",
+    ])
+
     await controller.select("project:fixture-alpha")
     expect(controller.shell.workbench.controller.read("secondary.items").map(({id}) => id))
       .toEqual(["package:@fixture/components"])
     expect(pushed).toEqual(["/projects/fixture-beta/", "/projects/fixture-alpha/"])
     expect(controller.shell.workbench.controller.read("presentation").node?.textContent)
       .toContain("project:fixture-alpha")
+    expect(statusBreadcrumbLabels(controller)).toEqual([
+      "Fixture Workspace",
+      "Fixture Alpha",
+    ])
+
     await controller.select("package:@fixture/components")
     expect(controller.shell.workbench.controller.read("secondary.active")).toBe("package:@fixture/components")
+    expect(statusBreadcrumbLabels(controller)).toEqual([
+      "Fixture Workspace",
+      "Fixture Alpha",
+      "Fixture Components",
+    ])
+    expect(controller.shell.workbench.controller.read("status").detail).toBe("")
     const nestedAction = descendants(controller.shell.display)
       .find((element) => element.nodeName === "BUTTON")
     expect(nestedAction?.textContent).toBe("Открыть Fixture Components")
@@ -121,8 +143,36 @@ describe("external Storybook landing frontend", () => {
       packageId: "@fixture/components",
       route: "",
     })
+    expect(statusBreadcrumbLabels(controller)).toEqual([
+      "Fixture Workspace",
+      "Fixture Alpha",
+      "Fixture Components",
+    ])
+
+    const workspaceBreadcrumb = controller.shell.workbench.elements.status.querySelector(
+      '[data-breadcrumb-id="workspace:fixture-workspace"] button',
+    ) as Element | null
+    click(workspaceBreadcrumb ?? undefined)
+    await waitFor(() => statusBreadcrumbLabels(controller).length === 1, "workspace breadcrumb navigation")
+    expect(statusBreadcrumbLabels(controller)).toEqual(["Fixture Workspace"])
+    expect(location.pathname).toBe("/workspaces/fixture-workspace/")
+
+    await controller.select("package:@fixture/components")
+    const projectBreadcrumb = controller.shell.workbench.elements.status.querySelector(
+      '[data-breadcrumb-id="project:fixture-alpha"] button',
+    ) as Element | null
+    click(projectBreadcrumb ?? undefined)
+    await waitFor(() => statusBreadcrumbLabels(controller).length === 2 &&
+      location.pathname === "/projects/fixture-alpha/", "project breadcrumb navigation")
+    expect(statusBreadcrumbLabels(controller)).toEqual([
+      "Fixture Workspace",
+      "Fixture Alpha",
+    ])
+    expect(location.pathname).toBe("/projects/fixture-alpha/")
+
     await controller.select("package:@fixture/standalone")
     expect(controller.shell.workbench.controller.read("secondary.items")).toEqual([])
+    expect(statusBreadcrumbLabels(controller)).toEqual(["Standalone Fixture"])
     const directAction = descendants(controller.shell.display)
       .find((element) => element.nodeName === "BUTTON")
     click(directAction)
@@ -350,6 +400,21 @@ function click(element: Element | undefined): void {
     throw new Error("Fixture action button is missing")
   }
   element.click()
+}
+
+function statusBreadcrumbLabels(
+  controller: Awaited<ReturnType<typeof startExternalStorybookLanding>>,
+): readonly string[] {
+  return controller.shell.workbench.controller.read("status").breadcrumbs?.map(({label}) => label) ?? []
+}
+
+async function waitFor(predicate: () => boolean, label: string): Promise<void> {
+  const deadline = Date.now() + 1_000
+  while (Date.now() < deadline) {
+    if (predicate()) return
+    await Bun.sleep(1)
+  }
+  throw new Error(`Timed out waiting for ${label}`)
 }
 
 function indexedLinkDocument(

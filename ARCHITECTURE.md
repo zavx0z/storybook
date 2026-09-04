@@ -204,6 +204,14 @@ density or native focus/selected/disabled states. Semantic HTML remains local
 only when the production component has another contract, for example Markdown
 `ol/ul` versus interactive `List`, or navigation tree versus `listbox`.
 
+Status region композирует production `@zavx0z/ui/navigation/breadcrumbs`
+внутри production StatusBar на landing, workspace/project/package overview и
+package route. Immutable revision несёт путь предков `workspace → project`,
+затем Breadcrumbs продолжает его узлами package graph. Переход к предку
+открывает его global overview и не расширяет package build. Обычный обзор не
+дублируется прежней плоской status-строкой. Inspector не повторяет
+package/subject строку.
+
 В `inspector` существует ровно один production
 `@zavx0z/ui/widgets/inspector#Inspector`. Subject declaration выбирает ordered
 widgets; package не добавляет region и не заменяет rail/content. Workbench

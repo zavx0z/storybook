@@ -113,7 +113,12 @@ key/retained-state identity Storybook и замыкается consumer callback-
 Standard Inspector registry импортирует только exact named icon assets и
 передаёт их в optional category `iconSrc`; aggregate `uiIcons` не попадает в
 Workbench bundle. Буквенные labels остаются semantic fallback, но не заменяют
-видимые SVG. Search и subject context используют production Inspector slots.
+видимые SVG. Search использует production Inspector slot. Каждый landing,
+workspace/project/package overview и package route показывает свой полный путь
+`workspace → project → package → category → subject → variant` через production
+`@zavx0z/ui/navigation/breadcrumbs` внутри StatusBar; Inspector не дублирует
+package/subject context. Обычный переход не оставляет рядом прежнюю плоскую
+строку `owner · route · overview`.
 
 Внутренний owner module называется `src/workbench`: controller, state,
 presentation, navigation, каждый region и Inspector projection разделены по
