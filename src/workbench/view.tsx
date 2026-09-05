@@ -16,6 +16,7 @@ import {StatusRegion} from "./regions/status.tsx"
 
 export type WorkbenchViewProps = Readonly<{
   document: SemanticDocument
+  onElement?: ((node: HTMLDivElement | null) => void) | undefined
   state: WorkbenchViewState
   inspectorSelectedId: string
   inspectorQuery: string
@@ -35,6 +36,7 @@ export function WorkbenchView(props: WorkbenchViewProps) {
   const state = props.state
   const content = state.presentation.projection !== "hud"
   return <div
+    ref={props.onElement}
     role="application"
     aria-label={state.title}
     data-storybook-workbench=""

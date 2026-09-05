@@ -3,16 +3,16 @@ import {resolve} from "node:path"
 
 const root = resolve(import.meta.dir, "../../..")
 
-test("[STORYBOOK-EXPERIENCE-001] shell использует только новый Browser Experience", async () => {
+test("[STORYBOOK-EXPERIENCE-001] shell использует только новый Browser Root", async () => {
   const shell = await Bun.file(resolve(import.meta.dir, "shell.ts")).text()
   const manifest = await Bun.file(resolve(root, "package.json")).json() as {
     devDependencies: Readonly<Record<string, string>>
   }
 
   expect(shell).toContain('from "@zavx0z/browser"')
-  expect(shell).toContain("createExperience(")
-  expect(shell).toContain("experience.document")
-  expect(shell).toContain("experience.getProjection(")
+  expect(shell).toContain("attachBrowserApplication")
+  expect(shell).toContain("root.document")
+  expect(shell).toContain("root.getProjection(")
   expect(shell).not.toContain("createDocumentSpaceRuntime")
   expect(shell).not.toContain("DocumentSpaceRuntime")
   expect(shell).not.toContain("DocumentOverlayRuntime")
@@ -44,11 +44,15 @@ test("[STORYBOOK-EXPERIENCE-002] Workbench принадлежит HUD, конт�
   const presentation = await Bun.file(resolve(root, "src/workbench/presentation.ts")).text()
   const protocol = await Bun.file(resolve(root, "src/external/runtime-protocol.ts")).text()
 
-  expect(shell).toContain("experience.space")
-  expect(shell).toContain("experience.viewPoint")
+  expect(shell).toContain("root.space")
+  expect(shell).toContain("root.viewPoint")
   expect(shell).toContain("XRDisplayElement")
   expect(shell).toContain("XRHUDElement")
-  expect(shell).toContain("parent: hud")
+  const app = await Bun.file(resolve(import.meta.dir, "application.tsx")).text()
+  expect(app).toContain("<HUD")
+  expect(app).toContain("<Workbench")
+  expect(app).not.toContain("createWorkbench")
+  expect(app).not.toContain("key=")
   expect(presentation).toContain('projection === "display"')
   expect(presentation).toContain('projection === "hud"')
   expect(presentation).toContain('projection !== "space"')

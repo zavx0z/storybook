@@ -33,15 +33,15 @@ const contracts = Object.freeze({
   workbench: contract(
     "Workbench из шести областей",
     "`catalog`, `secondary`, `scenarios`, `preview`, `inspector` и `status` являются шестью compiled TSX components одного `workbench-layout/2`. Весь Workbench монтируется в exact `XRHUDElement` `external-storybook-workbench`. Status композирует production Breadcrumbs с полным путём `workspace → project → package → category → subject → variant`; scenario toolbar расположен непосредственно над preview.",
-    "Страница владеет одним `@zavx0z/browser` Experience: Browser владеет Document, Canvas, циклом кадров и вводом, а Experience содержит exact `@zavx0z/space` `XRSpaceElement` и `XRViewPointElement`. Workbench использует `@zavx0z/ui/widgets/inspector`, `@zavx0z/ui/navigation/breadcrumbs` и exact `@zavx0z/ui/feedback/status-bar`. Переход по Breadcrumbs к предку сохраняет тот же package target. Display story монтируется в actual `XRDisplayElement`, HUD story — в `XRHUDElement`, а трёхмерная story — непосредственно в `XRSpaceElement`. " +
-    "Центральная область HUD задаёт только layout bounds. Её отдельная рамка Preview отсутствует: border, border-radius и overflow принадлежат самому xr-display. Shell переводит границы центральной области из CSS pixels в положение и масштаб Display через текущую камеру; viewport Display изменяется вместе с областью. README и story остаются прямым содержимым Display без декоративной обёртки.",
-    "createExperience(...) → experience.getProjection(workbenchHud) → external-storybook-workbench",
+    "Страница владеет одним `@zavx0z/browser` Root: Browser владеет Document, Canvas, циклом кадров и вводом, а Root содержит exact `@zavx0z/space` `XRSpaceElement` и `XRViewPointElement`. Workbench использует `@zavx0z/ui/widgets/inspector`, `@zavx0z/ui/navigation/breadcrumbs` и exact `@zavx0z/ui/feedback/status-bar`. Переход по Breadcrumbs к предку сохраняет тот же package target. Display story монтируется в actual `XRDisplayElement`, HUD story — в `XRHUDElement`, а трёхмерная story — непосредственно в `XRSpaceElement`. " +
+    "Авторский TSX использует обычный document со стандартными DOM-типами: Template привязывает его к Document компонента при сборке и сохраняет ссылку в callbacks. Native document страницы не заменяется. Центральная область HUD задаёт только layout bounds. Её отдельная рамка Preview отсутствует: border, border-radius и overflow принадлежат самому xr-display. Shell переводит границы центральной области из CSS pixels в положение и масштаб Display через текущую камеру; viewport Display изменяется вместе с областью. README и story остаются прямым содержимым Display без декоративной обёртки.",
+    "attach({canvas, app: <StorybookApp />}) → root.getProjection(workbenchHud) → external-storybook-workbench",
   ),
   authorStyles: contract(
     "Связанные стили автора и исходный текст root",
-    "Пакет объявляет упорядоченные exact public CSS exports собственного владельца или достижимой через manifest локальной зависимости. Каждая immutable revision создаёт одну native link на ресурс до загрузки module entry; все обязательные links должны быть ready до `createExperience(...)`.",
-    "Global Source CSS берётся из объявленного author registry. Component Source CSS берётся только из authored provenance одного active ComponentRoot и показывается как исходный CSS с подсветкой. Dynamic declarations остаются inline в HTML. Cleanup освобождает Experience раньше связанных ресурсов; Workbench chrome и generated selectors не входят в Source.",
-    "linkedAuthorStyleSheets: [{id, link}]\nexperience.dispose() → release links",
+    "Пакет объявляет упорядоченные exact public CSS exports собственного владельца или достижимой через manifest локальной зависимости. Каждая immutable revision создаёт одну native link на ресурс до загрузки module entry; все обязательные links должны быть ready до `attach({canvas, app: <StorybookApp />})`.",
+    "Global Source CSS берётся из объявленного author registry. Component Source CSS берётся только из authored provenance одного active ComponentRoot и показывается как исходный CSS с подсветкой. Dynamic declarations остаются inline в HTML. Cleanup освобождает Root раньше связанных ресурсов; Workbench chrome и generated selectors не входят в Source.",
+    "stylesheets: [{id, link}]\nroot.unmount() → release links",
   ),
   references: contract(
     "Owner evidence resources",
@@ -50,10 +50,10 @@ const contracts = Object.freeze({
     "resources.references: [\"./reference.png\"]",
   ),
   app: contract(
-    "Одна package tab — один Experience",
-    "Одна exact package identity через private browser lifecycle owner соответствует одному повторно используемому package target. Вкладка загружает один generated entry, один runtime adapter с marker `storybook-runtime/4` и только выбранные lazy story chunks в один `@zavx0z/browser` Experience.",
-    "Browser владеет Document, Canvas, циклом кадров и вводом страницы. Experience предоставляет exact `@zavx0z/space` `XRSpaceElement` и `XRViewPointElement`. Projection допускает только `display | hud | space`: display использует настоящий `XRDisplayElement`, hud — `XRHUDElement`, а space получает `context.space` и `mountSpacePreview`. Child Experience, Document, Canvas, Space или ViewPoint не создаются.",
-    "one package = one tab = one Experience → Display | HUD | Space",
+    "Одна package tab — один Root",
+    "Одна exact package identity через private browser lifecycle owner соответствует одному повторно используемому package target. Вкладка загружает один generated entry, один runtime adapter с marker `storybook-runtime/4` и только выбранные lazy story chunks в один `@zavx0z/browser` Root.",
+    "Browser владеет Document, Canvas, циклом кадров и вводом страницы. Root предоставляет exact `@zavx0z/space` `XRSpaceElement` и `XRViewPointElement`. Projection допускает только `display | hud | space`: display использует настоящий `XRDisplayElement`, hud — `XRHUDElement`, а space получает `context.space` и `mountSpacePreview`. Child Root, Document, Canvas, Space или ViewPoint не создаются.",
+    "one package = one tab = one Root → Display | HUD | Space",
   ),
   server: contract(
     "One server and origin",
@@ -69,8 +69,8 @@ const contracts = Object.freeze({
   ),
   launcher: contract(
     "MCP and human adapters",
-    "`ensure`, `attach`, `search`, `open`, `wait`, `inspect`, `interact`, `capture`, `check`, `close` и явное администрирование вызывают один typed controller. Browser open делегируется private lifecycle owner через `openPackage`; MCP владеет только bounded schemas и opaque transport projections. Inspection показывает Canvas единственного Experience. Key interaction проверяет exact Workbench HUD owner и вызывает `experience.dispatchKey(...)`.",
-    "Диагностику Document предоставляет @zavx0z/devtools из WebXR: createDomInspector сохраняет идентификаторы, снимки дерева и состояния, размеры и записи рисования. Storybook передаёт readFrame(node) из существующего Experience. CLI и MCP не содержат target records, reservation state, discovery или reconciliation. Canvas capture направлен в тот же exact Experience Canvas без поиска множества native Canvas. Bridge не создаёт semantic keyboard events или второй input owner, поэтому Browser-owned defaults Escape, Range и Select остаются authoritative.",
+    "`ensure`, `attach`, `search`, `open`, `wait`, `inspect`, `interact`, `capture`, `check`, `close` и явное администрирование вызывают один typed controller. Browser open делегируется private lifecycle owner через `openPackage`; MCP владеет только bounded schemas и opaque transport projections. Inspection показывает Canvas единственного Root. Pointer и wheel interaction проходят через `root.input` с общим hit/occlusion/capture; Key interaction использует `root.dispatchKey(...)`.",
+    "Диагностику Document предоставляет @zavx0z/devtools из WebXR: createDomInspector сохраняет идентификаторы, снимки дерева и состояния, размеры и записи рисования. Storybook передаёт readFrame(node) из существующего Root. CLI и MCP не содержат target records, reservation state, discovery или reconciliation. Canvas capture направлен в тот же exact Root Canvas без поиска множества native Canvas. Bridge не создаёт semantic keyboard events или второй input owner, поэтому Browser-owned defaults Escape, Range и Select остаются authoritative.",
     [
       "storybook attach ./project",
       "storybook detach project-id",
@@ -95,8 +95,8 @@ const contracts = Object.freeze({
   ),
   environment: contract(
     "Package-scoped updates",
-    "Metafile identities and typed declaration/code/metadata/resource watchers invalidate only their owning sessions. Project and workspace README changes emit registry.readme-updated with exact nodeIds: only the selected document is fetched again and its existing Markdown article is updated in the same Experience, without reloading the page or building packages.",
-    "Shared browser code uses the existing dependency watcher and canonical metafile inputs. Changed shared dependencies rebuild the landing/fallback entries on the same server; shared.updated reloads only registry pages. Hashed assets remain available to older documents. A failed build preserves the previous working assets and retries after repair. Package pages retain their independent revisions and lastWorking behavior.",
+    "Metafile identities and typed declaration/code/metadata/resource watchers invalidate only their owning sessions. Project and workspace README changes emit registry.readme-updated with exact nodeIds: only the selected document is fetched again and its existing Markdown article is updated in the same Root, without reloading the page or building packages.",
+    "Shared browser code uses the existing dependency watcher and canonical metafile inputs. Changed shared dependencies rebuild the landing/fallback entries on the same server; shared.updated reloads only registry pages. Hashed assets remain available to older documents. A failed build preserves the previous working assets and retries after repair. If bootstrap left an owned package page without its bridge, open reloads that same target once after repair. Package pages retain their independent revisions and lastWorking behavior.",
     "registry.readme-updated {nodeIds} → existing Markdown.update\nshared.updated {entry} → registry page reload\npackage.updated → matching package view",
   ),
 })

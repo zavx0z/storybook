@@ -175,7 +175,6 @@ export type Workbench = Readonly<{
   document: Document
   element: HTMLDivElement
   elements: WorkbenchElements
-  componentRoot: ComponentRoot
   controller: WorkbenchController
   update<Address extends WorkbenchAddress>(
     address: Address,

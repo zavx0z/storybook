@@ -138,6 +138,23 @@ describe("Storybook browser lifecycle service", () => {
     expect(chrome.created).toBe(1)
   })
 
+  test("reopens the same owned URL once when an earlier bootstrap left no bridge", async () => {
+    const chrome = new FakeChrome()
+    const input = openInput(chrome)
+    chrome.targetsValue = [{targetId: "BROKEN", type: "page", title: "Fixture", url: input.url}]
+    chrome.legacyTargetIds.add("BROKEN")
+    const navigate = chrome.navigate.bind(chrome)
+    chrome.navigate = async (target, url) => {
+      await navigate(target, url)
+      chrome.legacyTargetIds.delete(target)
+    }
+    const opened = await createController(chrome).openPackage(input)
+    expect(opened.reused).toBe(true)
+    expect(chrome.created).toBe(0)
+    expect(chrome.navigations).toBe(1)
+    expect(chrome.closed).toEqual([])
+  })
+
   test("recovers a sent reservation before applying a new route and server origin", async () => {
     const chrome = new FakeChrome()
     const root = temporaryRoot()

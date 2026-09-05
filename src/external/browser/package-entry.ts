@@ -2,7 +2,7 @@
 
 import type {CustomEvent, Node as SemanticNode} from "@zavx0z/dom"
 import {createDomInspector} from "@zavx0z/devtools"
-import type {ExperienceLinkedAuthorStyleSheet} from "@zavx0z/browser"
+import type {RootLinkedAuthorStyleSheet} from "@zavx0z/browser"
 import {isCompiledTemplate, type CompiledTemplate} from "@zavx0z/template/compiled"
 import {
   WORKBENCH_EVENTS,
@@ -1157,7 +1157,7 @@ function exactAuthorStyleSheetSources(
   browserDocument: globalThis.Document,
   graph: StorybookPackageRevisionGraphSnapshot | null,
   revisionBase: string | null,
-): readonly ExperienceLinkedAuthorStyleSheet[] {
+): readonly RootLinkedAuthorStyleSheet[] {
   if (graph === null) return Object.freeze([])
   const styleSheets = mergeStorybookAuthorStyleSheets(
     graph.workbenchAuthorStyleSheets,

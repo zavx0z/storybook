@@ -107,8 +107,10 @@ describe("external Storybook attached-root registry", () => {
     expect(components.resourceFiles?.find(({sourcePath}) => sourcePath.endsWith("/docs/architecture.svg"))?.targetPath)
       .toEndWith("/docs/architecture.svg")
     const structural = externalStorybookStructuralWatchPaths(registry.snapshot())
-    expect(structural).toContain(join(fixtureRoot, "README.md"))
-    expect(structural).toContain(join(fixtureRoot, "projects/alpha/README.md"))
+    // Эти README обновляют существующий документ через отдельное уведомление.
+    // Их правка не должна перестраивать граф пакетов.
+    expect(structural).not.toContain(join(fixtureRoot, "README.md"))
+    expect(structural).not.toContain(join(fixtureRoot, "projects/alpha/README.md"))
     expect(structural).toContain(join(fixtureRoot, "projects/alpha/packages/components/tokens.css"))
     expect(structural).toContain(join(fixtureRoot, "projects/alpha/packages/components/theme.css"))
   })

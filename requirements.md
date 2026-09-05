@@ -181,20 +181,26 @@ realms используют exact package label из canonical graph. Суффи
 Overview читает настоящий owner file. Markdown subset не выполняет HTML/JS;
 ошибка локальна node. Plain-text fallback явный и безопасный.
 
-### `STORYBOOK-WORKBENCH-005` — one page Experience
+### `STORYBOOK-WORKBENCH-005` — one page Root
 
 External landing и каждая package browser page владеют ровно одним
-`@zavx0z/browser` Experience. Browser создаёт и освобождает semantic Document,
-native Canvas, цикл кадров и owner ввода этой страницы. Experience содержит
+`@zavx0z/browser` Root. Browser создаёт и освобождает semantic Document,
+native Canvas, цикл кадров и owner ввода этой страницы. Root содержит
 exact `@zavx0z/space` `XRSpaceElement` и `XRViewPointElement`; package runtime
 не получает право создавать или заменять этих владельцев.
+
+В скомпилированном TSX свободное имя `document` имеет стандартный DOM-тип и
+связывается Template с Document компонента. Обработчики и продолжения после
+`await` сохраняют эту ссылку. Native document страницы и локальные одноимённые
+переменные не подменяются. Внутренний Workbench controller проверяет semantic
+Document на границе перед использованием собственных API.
 
 Весь Workbench является одним `XRHUDElement`
 `external-storybook-workbench`. Exact `XRDisplayElement`
 `external-storybook-display` принимает Display stories; HUD stories используют
 `XRHUDElement`, а Space stories монтируются непосредственно в единственный
 `XRSpaceElement`. Host получает каждую projection только через
-`experience.getProjection(owner)`.
+`root.getProjection(owner)`.
 Исходный ViewPoint двумерной рабочей среды смотрит перпендикулярно Display. Display
 и HUD должны находиться строго ближе дальней плоскости ViewPoint, чтобы прямоугольники,
 текст и input проектировались одинаково и читаемо.
@@ -204,20 +210,20 @@ asset export `@zavx0z/engine/fonts/inter-regular.ttf` и публикуется 
 либо fallback по `/assets/inter-regular.ttf`; HTML meta указывает на тот же URL
 до запуска page runtime.
 
-На всём lifecycle page создаётся ровно один Experience; owner session не может
+На всём lifecycle page создаётся ровно один Root; owner session не может
 передать runtime `styleSheets` или пересоздать Document, Canvas, Space,
 ViewPoint, цикл кадров либо owner ввода. Named package tabs остаются отдельными
-Experiences и не разделяют эти объекты или runtime state.
+Roots и не разделяют эти объекты или runtime state.
 
 ### `STORYBOOK-WORKBENCH-006` — one shared Space
 
 Только subject с `projection: "space"` получает `context.space`, тождественный
-`experience.space`, и narrow `mountSpacePreview`. Owner добавляет трёхмерный
-semantic content непосредственно в exact Space; Browser Experience применяет
-camera к единственному `experience.viewPoint` и вычисляет logical/DPR preview
+`root.space`, и narrow `mountSpacePreview`. Owner добавляет трёхмерный
+semantic content непосредственно в exact Space; Browser Root применяет
+camera к единственному `root.viewPoint` и вычисляет logical/DPR preview
 bounds. Display, HUD и Workbench являются same-Document projection roots.
 Owner не получает implementation objects Renderer/Browser и не создаёт второй
-Experience, Document, Canvas, Space, ViewPoint, listener set или RAF.
+Root, Document, Canvas, Space, ViewPoint, listener set или RAF.
 
 ## Runtime and build
 
@@ -240,11 +246,11 @@ target, canonical contained `.css`, unique specifier/file и SHA-256 bytes.
 Self Workbench sheets идут первыми, active package sheets вторыми; одинаковые
 specifier+bytes дают один native link, conflicting bytes fail closed. Immutable
 revision materializes bytes и создаёт один annotated native `<link>`
-до module entry. Browser Experience получает только exact declared links через
-`linkedAuthorStyleSheets`, ждёт `ready` до `createExperience(...)`, не загружает
+до module entry. Browser Root получает только exact declared links через
+`stylesheets`, ждёт `ready` до первого кадра `attach(...)`, не загружает
 CSS повторно и не сканирует `document.styleSheets`;
 load/CSSOM/import/nesting/grouping errors fail closed. Cleanup строго вызывает
-`experience.dispose()` перед release/dispose linked author resources.
+`root.unmount()` перед release/dispose linked author resources.
 
 ### `STORYBOOK-SOURCE-001` — root-scoped authored source
 
@@ -462,23 +468,23 @@ Inspection и interaction используют existing semantic Document, Workb
 ambiguity fail closed. Raw eval/coordinates не являются agent API.
 `createDomInspector` импортируется из `@zavx0z/devtools` в WebXR. Этот владелец
 предоставляет снимки, стабильные идентификаторы и освобождение ссылок;
-`readFrame(node)` читает готовый кадр нужной projection единственного Experience.
+`readFrame(node)` читает готовый кадр нужной projection единственного Root.
 Диагностические панели и команды агента не требуют исходный Renderer checkout.
-`key` активирует exact Workbench HUD owner в существующем Browser Experience,
-фокусирует semantic target и вызывает `experience.dispatchKey(...)` только
+`key` активирует exact Workbench HUD owner в существующем Browser Root,
+фокусирует semantic target и вызывает `root.dispatchKey(...)` только
 после проверки exact Document/owner/target/native proxy. Modifiers сохраняются;
 ownership/proxy mismatch fail closed. Bridge не fabricate-ит semantic
 `KeyboardEvent`, поэтому Browser-owned Escape, Range и Select defaults
 исполняются одним input owner. Exact proxy берётся только
 из `browserDocument.activeElement`: input/textarea сверяются по public host
 identity, select — по Renderer-owned `data-renderer-select-proxy`; native DOM
-scan отсутствует. После `keydown` Experience синхронизируется повторно: если default
+scan отсутствует. После `keydown` Root синхронизируется повторно: если default
 action восстановил focus внутри того же Workbench owner, `keyup` идёт через его
 текущий exact proxy, а не через stale target.
 Это bounded agent adapter с browser-realm event (`isTrusted === false`): он
 доказывает Renderer/Browser-host defaults, но не заявляет OS keyboard, Tab
 navigation или native Button activation.
-State/inspection публикуют только singular `canvas` exact текущего Experience;
+State/inspection публикуют только singular `canvas` exact текущего Root;
 plural canvas discovery отсутствует. Capture area `canvas` всегда означает этот
 же единственный host Canvas.
 
@@ -568,3 +574,21 @@ Repeated landing + MCP opens и controlled server-origin replacement обяза�
 закончиться одним attested physical target на package; `status`, `views` и
 `check(live:true)` fail closed, если uniqueness нельзя подтвердить, не раскрывая
 private target identity.
+
+
+### `STORYBOOK-APP-001` — authored App and shared input
+
+Landing и package pages запускают один `StorybookApp` через публичный
+`@zavx0z/browser.attach`. App объявляет свой Space, ViewPoint, Display и HUD
+в TSX; Browser не создаёт второй semantic каркас. Component владеет App,
+его refs и cleanup. `attach` завершается после первого представленного кадра.
+
+MCP pointer и wheel actions сначала преобразуют точку semantic target через
+`getProjection(owner).projectPoint` в native client coordinates, затем
+вызывают общий `root.input`. Они не вызывают input выбранной проекции
+напрямую и не обходят hit/occlusion/capture. Для Space gestures используется
+тот же input. Drag может пересечь границу Display/HUD; capture сохраняется.
+
+Если прежний bootstrap оставил правильный package URL без agent bridge,
+повторный open перезагружает тот же подтверждённый target один раз и проверяет
+новую revision. Для восстановления не создаётся дополнительная вкладка.

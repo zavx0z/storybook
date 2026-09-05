@@ -6,8 +6,8 @@ import {
   type Element as SemanticElement,
 } from "@zavx0z/dom"
 import type {
-  ExperienceProjectionPointerInput,
-  ExperienceProjectionWheelInput,
+  RootPointerInput,
+  RootWheelInput,
 } from "@zavx0z/browser"
 import {createDocumentRenderer} from "@zavx0z/renderer"
 import {
@@ -326,10 +326,10 @@ type Fixture = Readonly<{
 }>
 
 type InteractionCalls = Readonly<{
-  pointerMoves: ExperienceProjectionPointerInput[]
-  pointerDowns: ExperienceProjectionPointerInput[]
-  pointerUps: ExperienceProjectionPointerInput[]
-  wheels: ExperienceProjectionWheelInput[]
+  pointerMoves: RootPointerInput[]
+  pointerDowns: RootPointerInput[]
+  pointerUps: RootPointerInput[]
+  wheels: RootWheelInput[]
   nativeKeys: Array<Readonly<{
     target: SemanticElement
     input: ExternalStorybookNativeKey
@@ -385,20 +385,21 @@ function createFixture(): Fixture {
     kind: "hud" as const,
     owner: hud,
     readFrame: () => renderer.flush(),
+    projectPoint: (point: {x: number; y: number}) => point,
     subscribeFrames: () => () => {},
-    pointerMove(inputValue: ExperienceProjectionPointerInput) {
+    pointerMove(inputValue: RootPointerInput) {
       calls.pointerMoves.push(inputValue)
       return run
     },
-    pointerDown(inputValue: ExperienceProjectionPointerInput) {
+    pointerDown(inputValue: RootPointerInput) {
       calls.pointerDowns.push(inputValue)
       return run
     },
-    pointerUp(inputValue: ExperienceProjectionPointerInput) {
+    pointerUp(inputValue: RootPointerInput) {
       calls.pointerUps.push(inputValue)
       return run
     },
-    wheel(inputValue: ExperienceProjectionWheelInput) {
+    wheel(inputValue: RootWheelInput) {
       calls.wheels.push(inputValue)
       return destination
     },
@@ -453,6 +454,7 @@ function createFixture(): Fixture {
     elements: {previewHost: preview},
   }
   const shell = Object.freeze({
+    root: {input: hudProjection, getProjection: () => hudProjection},
     document,
     browserDocument,
     canvas: externalCanvas,
@@ -463,7 +465,7 @@ function createFixture(): Fixture {
     projectionFor(node: import("@zavx0z/dom").Node) {
       if (node === hud || hud.contains(node)) return hudProjection
       if (node === space || space.contains(node)) return spaceProjection
-      throw new Error("Fixture node is outside Experience")
+      throw new Error("Fixture node is outside Root")
     },
     applySpacePreviewGesture() {
       return false

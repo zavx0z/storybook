@@ -57,7 +57,7 @@ describe("external @zavx0z/storybook tool boundary", () => {
     ]) expect(await Bun.file(join(root, path)).text(), path).not.toContain("@zavx0z/storybook")
   })
 
-  test("shared browser shell uses one public Browser Experience without low-level owners", async () => {
+  test("shared browser shell uses one public Browser Root without low-level owners", async () => {
     const sources = await Promise.all([
       "src/external/browser/shell.ts",
       "src/external/browser/landing-entry.ts",
@@ -65,13 +65,12 @@ describe("external @zavx0z/storybook tool boundary", () => {
     ].map((path) => Bun.file(join(root, path)).text()))
     const combined = sources.join("\n")
     expect(combined).toContain('from "@zavx0z/browser"')
-    expect(combined).toContain("createExperience({")
-    expect(combined).toContain("experience.document")
-    expect(combined).toContain("experience.space")
-    expect(combined).toContain("experience.viewPoint")
-    expect(combined).toContain('display.id = EXTERNAL_STORYBOOK_DISPLAY_ID')
-    expect(combined).toContain('hud.id = EXTERNAL_STORYBOOK_WORKBENCH_ID')
-    expect(combined).toContain("projectionHosts: {display, space}")
+    expect(combined).toContain("attachBrowserApplication")
+    expect(combined).toContain("root.document")
+    expect(combined).toContain("root.space")
+    expect(combined).toContain("root.viewPoint")
+    const app = await Bun.file(join(root, "src/external/browser/application.tsx")).text()
+    expect(app).toContain("<Workbench")
     expect(combined).toContain("mountSpacePreview")
     expect(combined).not.toContain("createDocumentSpaceRuntime")
     expect(combined).not.toContain("DocumentSpaceRuntime")
@@ -88,7 +87,7 @@ describe("external @zavx0z/storybook tool boundary", () => {
     expect(combined).not.toContain("StorybookDom")
     expect(combined).not.toContain("STORYBOOK_DOM")
     expect(combined).toContain("workbench/contract.ts")
-    expect(combined).toContain("workbench/controller.ts")
+    expect(app).toContain("workbench/workbench.tsx")
     const protocol = await Bun.file(join(root, "src/external/runtime-protocol.ts")).text()
     expect(protocol).toContain("mountSpacePreview")
     expect(protocol).toContain("space: XRSpaceElement")

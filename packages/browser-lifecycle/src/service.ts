@@ -213,6 +213,17 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
     this.#state.writeTarget({packageId, cdpOrigin, browserIdentity, targetId: selected.targetId})
     if (selected.url !== url) await this.#chrome.navigate(selected.targetId, url, operationSignal)
     await this.#chrome.waitReady(selected.targetId, timeoutMs, operationSignal)
+    if (reused && selected.url === url) {
+      try {
+        await this.#chrome.callBridge(selected.targetId, "identity", Object.freeze({schemaVersion: 1}), operationSignal)
+      } catch (error) {
+        if (!(error instanceof Error) || error.message !== "Storybook agent bridge is unavailable in the exact target") throw error
+        // A failed bootstrap can leave the correct URL without a bridge. Reopen
+        // that same owned target once so a repaired revision can initialize.
+        await this.#chrome.navigate(selected.targetId, url, operationSignal)
+        await this.#chrome.waitReady(selected.targetId, timeoutMs, operationSignal)
+      }
+    }
     let identity = await this.#waitBridgeIdentity(selected.targetId, timeoutMs, operationSignal)
     if (identity.packageId !== packageId || identity.route !== route) {
       throw new Error(`Storybook bridge identity mismatch: expected ${packageId}:${route}`)

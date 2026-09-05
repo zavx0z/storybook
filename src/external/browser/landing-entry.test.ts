@@ -1,3 +1,4 @@
+import {createRoot} from "@zavx0z/component"
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
 import {
@@ -7,10 +8,10 @@ import {
   type Node,
 } from "@zavx0z/dom"
 import type {
-  Experience,
-  ExperienceDocumentProjection,
-  ExperienceProjection,
-  ExperienceSpaceProjection,
+  Root,
+  RootDocumentProjection,
+  RootProjection,
+  RootSpaceProjection,
 } from "@zavx0z/browser"
 import type {RenderFrame} from "@zavx0z/renderer"
 import {
@@ -28,7 +29,7 @@ import {
   indexedLandingAuthorStyleSheetSources,
   startExternalStorybookLanding,
 } from "./landing-entry.ts"
-import type {ExternalStorybookExperienceFactory} from "./shell.ts"
+import type {ExternalStorybookRootFactory} from "./shell.ts"
 
 const fixtureRoot = join(import.meta.dir, "..", "fixtures", "valid")
 
@@ -45,7 +46,7 @@ describe("external Storybook landing frontend", () => {
       reload() {},
     }
     const dataset: Record<string, string> = {}
-    const experienceState = createFakeExperienceState()
+    const experienceState = createFakeRootState()
     const controller = await startExternalStorybookLanding({
       browserDocument: {
         documentElement: {dataset},
@@ -78,7 +79,7 @@ describe("external Storybook landing frontend", () => {
       shell: {
         canvas: {} as HTMLCanvasElement,
         loadFont: async () => ({}) as never,
-        createExperience: fakeExperienceFactory(experienceState),
+        attach: fakeRootFactory(experienceState),
       },
     })
 
@@ -207,7 +208,7 @@ describe("external Storybook landing frontend", () => {
     let source = "# First\n\nBefore"
     let reads = 0
     let reloads = 0
-    const experienceState = createFakeExperienceState()
+    const experienceState = createFakeRootState()
     const controller = await startExternalStorybookLanding({
       browserDocument: {documentElement: {dataset: {}}, querySelector() { return null }} as unknown as Document,
       location: {
@@ -231,7 +232,7 @@ describe("external Storybook landing frontend", () => {
       shell: {
         canvas: {} as HTMLCanvasElement,
         loadFont: async () => ({}) as never,
-        createExperience: fakeExperienceFactory(experienceState),
+        attach: fakeRootFactory(experienceState),
       },
     })
     try {
@@ -303,35 +304,34 @@ function packageSnapshots(graph: ExternalStorybookGraph): readonly StorybookPack
   })] : []))
 }
 
-type FakeExperienceState = {
+type FakeRootState = {
   creations: number
   disposals: number
   frames: number
 }
 
-function createFakeExperienceState(): FakeExperienceState {
+function createFakeRootState(): FakeRootState {
   return {creations: 0, disposals: 0, frames: 0}
 }
 
-function fakeExperienceFactory(
-  state: FakeExperienceState = createFakeExperienceState(),
-): ExternalStorybookExperienceFactory {
+function fakeRootFactory(
+  state: FakeRootState = createFakeRootState(),
+): ExternalStorybookRootFactory {
   return async options => {
     state.creations += 1
     const document = createDocument({elementFactories: createSpaceElementFactories()})
-    const space = document.createElement("xr-space") as XRSpaceElement
-    const viewPoint = document.createElement("xr-view-point") as XRViewPointElement
-    document.transaction(() => {
-      space.append(viewPoint)
-      document.append(space)
-    })
+    const appRoot = createRoot(document)
+    appRoot.render(options.app)
+    appRoot.flush()
+    const space = document.documentElement as XRSpaceElement
+    const viewPoint = space.querySelector("xr-view-point") as XRViewPointElement
     const presented = new Set<(sequence: number) => void>()
     const documentProjections = new Map<XRDisplayElement | XRHUDElement, Readonly<{
-      projection: ExperienceDocumentProjection
+      projection: RootDocumentProjection
       subscribers: Set<(frame: RenderFrame) => void>
       setFrame(frame: RenderFrame): void
     }>>()
-    const spaceProjection: ExperienceSpaceProjection = Object.freeze({
+    const spaceProjection: RootSpaceProjection = Object.freeze({
       kind: "space",
       owner: space,
       orbit() {},
@@ -342,17 +342,18 @@ function fakeExperienceFactory(
 
     const documentProjection = (
       owner: XRDisplayElement | XRHUDElement,
-    ): ExperienceDocumentProjection => {
+    ): RootDocumentProjection => {
       const existing = documentProjections.get(owner)
       if (existing !== undefined) return existing.projection
       if (owner.ownerDocument !== document || owner.parentNode !== space) {
-        throw new Error("Fake Experience projection owner must be a direct child of its semantic Space")
+        throw new Error("Fake Root projection owner must be a direct child of its semantic Space")
       }
       const subscribers = new Set<(frame: RenderFrame) => void>()
       let frame: RenderFrame | null = null
-      const projection: ExperienceDocumentProjection = Object.freeze({
+      const projection: RootDocumentProjection = Object.freeze({
         kind: owner instanceof XRDisplayElement ? "display" : "hud",
         owner,
+        projectPoint: (point: {x: number; y: number}) => point,
         readFrame: () => frame,
         subscribeFrames(listener) {
           subscribers.add(listener)
@@ -373,16 +374,23 @@ function fakeExperienceFactory(
       return projection
     }
 
-    function getProjection(owner: XRSpaceElement): ExperienceSpaceProjection
-    function getProjection(owner: XRDisplayElement | XRHUDElement): ExperienceDocumentProjection
+    function getProjection(owner: XRSpaceElement): RootSpaceProjection
+    function getProjection(owner: XRDisplayElement | XRHUDElement): RootDocumentProjection
     function getProjection(
       owner: XRSpaceElement | XRDisplayElement | XRHUDElement,
-    ): ExperienceProjection {
+    ): RootProjection {
       if (owner === space) return spaceProjection
       return documentProjection(owner as XRDisplayElement | XRHUDElement)
     }
 
-    const experience: Experience = Object.freeze({
+    const root: Root = Object.freeze({
+      input: {
+        pointerDown() {},
+        pointerMove() {},
+        pointerUp() {},
+        pointerCancel() {},
+        wheel() {},
+      },
       canvas: options.canvas,
       document,
       space,
@@ -409,18 +417,19 @@ function fakeExperienceFactory(
         }
         for (const listener of presented) listener(state.frames)
       },
-      requestFrame() {},
+      invalidate() {},
       resize() {},
       captureLastPresentedFramePng: async () => new Blob(["fake-png"], {type: "image/png"}),
-      dispose() {
+      unmount() {
         if (disposed) return
         disposed = true
+        appRoot.unmount()
         state.disposals += 1
         presented.clear()
         documentProjections.clear()
       },
     })
-    return experience
+    return root
   }
 }
 

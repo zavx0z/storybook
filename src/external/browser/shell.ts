@@ -1,15 +1,23 @@
-/** One semantic Workbench Experience projected into the shared HUD. */
+/**
+Страница Storybook подключает один App через Browser attach.
+
+Root владеет Document, Canvas, вводом и кадрами. Shell выбирает содержимое
+Workbench и наблюдает его готовую раскладку; управление ресурсами подключения
+остаётся у Root.unmount.
+
+@packageDocumentation
+*/
 
 import {
-  createExperience as createBrowserExperience,
-  type Experience,
-  type ExperienceLinkedAuthorStyleSheet,
-  type ExperienceProjection,
+  attach as attachBrowserApplication,
+  type Root,
+  type RootLinkedAuthorStyleSheet,
+  type RootProjection,
 } from "@zavx0z/browser"
 import {loadDocumentDefaultFont} from "@zavx0z/engine/default-font"
 import {STORYBOOK_FONT_FACES} from "./font-faces.ts"
-import {StorybookDisplay} from "./display-view.tsx"
-import {createStorybookComponentPresentation} from "./component-presentation.ts"
+import {StorybookApp, type StorybookAppProps} from "./application.tsx"
+import {component} from "@zavx0z/component"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
 import {
   HTMLElement as SemanticHTMLElement,
@@ -26,7 +34,6 @@ import type {
   Workbench,
   WorkbenchPresentationUpdate,
 } from "../../workbench/contract.ts"
-import {createWorkbench} from "../../workbench/controller.ts"
 import {
   EXTERNAL_STORYBOOK_CLIENT_PROTOCOL,
   type ExternalStorybookClientNode,
@@ -52,7 +59,7 @@ export const EXTERNAL_STORYBOOK_CANVAS_ID = "external-storybook-canvas" as const
 export const EXTERNAL_STORYBOOK_DISPLAY_ID = "external-storybook-display" as const
 export const EXTERNAL_STORYBOOK_WORKBENCH_ID = "external-storybook-workbench" as const
 
-export type ExternalStorybookExperienceFactory = typeof createBrowserExperience
+export type ExternalStorybookRootFactory = typeof attachBrowserApplication
 
 export type ExternalStorybookNativeKey = Readonly<{
   key: string
@@ -68,22 +75,22 @@ export type CreateExternalStorybookShellOptions = Readonly<{
   canvas?: HTMLCanvasElement
   statusOwner?: string
   loadFont?: typeof loadDocumentDefaultFont
-  createExperience?: ExternalStorybookExperienceFactory
-  authorStyleSheetSources?: readonly ExperienceLinkedAuthorStyleSheet[]
+  attach?: ExternalStorybookRootFactory
+  authorStyleSheetSources?: readonly RootLinkedAuthorStyleSheet[]
 }>
 
 export type ExternalStorybookShell = Readonly<{
   document: SemanticDocument
   browserDocument: globalThis.Document
   canvas: HTMLCanvasElement
-  experience: Experience
+  root: Root
   space: XRSpaceElement
   viewPoint: XRViewPointElement
   display: XRDisplayElement
   hud: XRHUDElement
   workbench: Workbench
   readonly presentedFrameSequence: number
-  projectionFor(node: SemanticNode): ExperienceProjection
+  projectionFor(node: SemanticNode): RootProjection
   present(value: WorkbenchPresentationUpdate): void
   mountPreview(label: string, node: SemanticNode): void
   showMessage(label: string, title: string, detail: string, action?: StorybookOverviewAction): SemanticHTMLElement
@@ -97,10 +104,6 @@ export type ExternalStorybookShell = Readonly<{
   captureLastPresentedFramePng(): Promise<Blob | null>
   subscribePreviewBounds(listener: (bounds: StorybookPreviewBounds | null) => void): () => void
   mountSpacePreview(label: string, registration: StorybookSpacePreviewRegistration): StorybookSpacePreview
-  applySpacePreviewGesture(
-    node: SemanticNode,
-    gesture: Readonly<{kind: "orbit" | "pan"; deltaX: number; deltaY: number}>,
-  ): boolean
   dispatchNativeKey(target: SemanticHTMLElement, input: ExternalStorybookNativeKey): void
   dispose(): void
 }>
@@ -108,10 +111,6 @@ export type ExternalStorybookShell = Readonly<{
 type BoundStorybookSpacePreview = StorybookSpacePreview & Readonly<{
   suspend(): void
   resume(): void
-  applyGesture(
-    node: SemanticNode,
-    gesture: Readonly<{kind: "orbit" | "pan"; deltaX: number; deltaY: number}>,
-  ): boolean
 }>
 
 type StorybookViewPointSnapshot = Required<StorybookSpacePreviewCamera>
@@ -121,17 +120,12 @@ const spaceViewPointSnapshot = (
 ): StorybookViewPointSnapshot => Object.freeze({
   position: Object.freeze({...camera.position}),
   target: Object.freeze({...camera.target}),
-  up: Object.freeze({
-    x: camera.up?.x ?? 0,
-    y: camera.up?.y ?? 0,
-    z: camera.up?.z ?? 1,
-  }),
   fov: camera.fov ?? Math.PI / 4,
   near: camera.near ?? 1,
   far: camera.far ?? 2_000,
 })
 
-/** Creates one page Experience with one Document, Canvas, Space, ViewPoint, Display and HUD. */
+/** Подключает авторский Workbench App и связывает его проекции с навигацией Storybook. */
 export async function createExternalStorybookShell(
   options: CreateExternalStorybookShellOptions,
 ): Promise<ExternalStorybookShell> {
@@ -150,15 +144,21 @@ export async function createExternalStorybookShell(
   let publishAuthorDiagnostic = (value: unknown): void => {
     pendingAuthorDiagnostics.push(value)
   }
-  const createExperience = options.createExperience ?? createBrowserExperience
-  const experience = await createExperience({
+  let workbench!: Workbench
+  const start = options.attach ?? attachBrowserApplication
+  const root = await start({
+    app: component(StorybookApp as unknown as CompiledTemplate<StorybookAppProps>, {
+      title: options.title,
+      statusOwner: options.statusOwner ?? "MetaFor",
+      displayId: EXTERNAL_STORYBOOK_DISPLAY_ID,
+      hudId: EXTERNAL_STORYBOOK_WORKBENCH_ID,
+      onReady(value) { workbench = value },
+    }),
     canvas,
     font,
     ...(options.loadFont === undefined ? {fontSources: STORYBOOK_FONT_FACES} : {}),
-    styleSheets: Object.freeze([]),
-    linkedAuthorStyleSheets: authorStyleSheetSources,
-    cameraGestures: false,
-    onLinkedAuthorStyleSheetError(error, source) {
+    stylesheets: authorStyleSheetSources,
+    onStyleSheetError(error, source) {
       publishAuthorDiagnostic(Object.freeze({
         phase: "author-styles",
         message: error.message,
@@ -166,65 +166,18 @@ export async function createExternalStorybookShell(
       }))
     },
   })
-  const document = experience.document
-  const space = experience.space
-  const viewPoint = experience.viewPoint
-  const displayView = createStorybookComponentPresentation<{id: string}, XRDisplayElement>(
-    document,
-    StorybookDisplay as unknown as CompiledTemplate<{id: string}>,
-    {id: EXTERNAL_STORYBOOK_DISPLAY_ID},
-    "xr-display",
-  )
-  const display = displayView.element
-  display.visible = false
-  const hud = document.createElement("xr-hud") as XRHUDElement
-  hud.id = EXTERNAL_STORYBOOK_WORKBENCH_ID
-  let workbench: Workbench
-  try {
-    document.transaction(() => {
-      viewPoint.x = 0
-      viewPoint.y = 0
-      viewPoint.z = 1_000
-      viewPoint.targetX = 0
-      viewPoint.targetY = 0
-      viewPoint.targetZ = 0
-      viewPoint.upX = 0
-      viewPoint.upY = 1
-      viewPoint.upZ = 0
-      viewPoint.far = 2_000
-      space.append(display, hud)
-    })
-    workbench = createWorkbench({
-      document,
-      parent: hud,
-      projectionHosts: {display, space},
-      initial: {
-        title: options.title,
-        "catalog.label": "Каталог",
-        "catalog.items": Object.freeze([]),
-        "catalog.active": null,
-        "secondary.label": "Пакеты",
-        "secondary.items": Object.freeze([]),
-        "secondary.active": null,
-        "preview.label": "Обзор",
-        presentation: Object.freeze({node: null, projection: "display"}),
-        "scenarios.items": Object.freeze([]),
-        "scenarios.active": null,
-        status: {
-          lead: "Создано для ",
-          owner: options.statusOwner ?? "MetaFor",
-          detail: " · External Storybook",
-        },
-      },
-    })
-  } catch (error) {
-    displayView.dispose()
-    experience.dispose()
-    throw error
+  const document = root.document
+  const space = root.space
+  const viewPoint = root.viewPoint
+  const display = document.getElementById(EXTERNAL_STORYBOOK_DISPLAY_ID)
+  const hud = document.getElementById(EXTERNAL_STORYBOOK_WORKBENCH_ID)
+  if (!(display instanceof XRDisplayElement) || !(hud instanceof XRHUDElement) || workbench === undefined) {
+    root.unmount()
+    throw new Error("Storybook App did not mount its Display, HUD and Workbench")
   }
-  const displayProjection = experience.getProjection(display)
-  const hudProjection = experience.getProjection(hud)
-  const spaceProjection = experience.getProjection(space)
+  const displayProjection = root.getProjection(display)
+  const hudProjection = root.getProjection(hud)
+  const spaceProjection = root.getProjection(space)
   const boundsListeners = new Set<(bounds: StorybookPreviewBounds | null) => void>()
   const frameWaiters = new Set<Readonly<{
     afterSequence: number
@@ -252,7 +205,7 @@ export async function createExternalStorybookShell(
   publishAuthorDiagnostic = (value): void => {
     if (disposed) return
     appendShellDiagnostic(value)
-    experience.requestFrame()
+    root.invalidate()
   }
   if (shellDiagnostics.length > 0) publishShellDiagnostics()
 
@@ -263,15 +216,15 @@ export async function createExternalStorybookShell(
     if (visible && bounds !== null) {
       // The HUD supplies layout bounds in CSS pixels. Project that rectangle
       // onto the existing front-facing Display through the authored camera.
-      const units = 2 * (viewPoint.z - display.z) * Math.tan(viewPoint.fov / 2) / bounds.viewportHeight
+      const units = 2 * (display.y - viewPoint.y) * Math.tan(viewPoint.fov / 2) / bounds.viewportHeight
       const x = viewPoint.x + (bounds.x + bounds.width / 2 - bounds.viewportWidth / 2) * units
-      const y = viewPoint.y + (bounds.viewportHeight / 2 - bounds.y - bounds.height / 2) * units
+      const z = viewPoint.z + (bounds.viewportHeight / 2 - bounds.y - bounds.height / 2) * units
       document.transaction(() => {
         if (display.viewportWidth !== bounds.width) display.viewportWidth = bounds.width
         if (display.viewportHeight !== bounds.height) display.viewportHeight = bounds.height
         if (display.worldUnitsPerPixel !== units) display.worldUnitsPerPixel = units
         if (display.x !== x) display.x = x
-        if (display.y !== y) display.y = y
+        if (display.z !== z) display.z = z
       })
     }
     if (sameBounds(latestBounds, bounds)) return
@@ -279,7 +232,7 @@ export async function createExternalStorybookShell(
     for (const listener of [...boundsListeners]) listener(bounds)
   }
   try {
-    unsubscribePresented = experience.subscribePresented(sequence => {
+    unsubscribePresented = root.subscribePresented(sequence => {
       for (const waiter of [...frameWaiters]) {
         if (sequence <= waiter.afterSequence) continue
         frameWaiters.delete(waiter)
@@ -299,13 +252,12 @@ export async function createExternalStorybookShell(
           viewportHeight: frame.viewport.height,
         }))
     })
-    experience.render()
+    root.render()
   } catch (error) {
     unsubscribeFrame()
     unsubscribePresented()
     workbench.dispose()
-    displayView.dispose()
-    experience.dispose()
+    root.unmount()
     throw error
   }
   markShellPhase(browserDocument, "ready")
@@ -322,7 +274,7 @@ export async function createExternalStorybookShell(
       inspectorSubject: workbench.controller.read("inspector.subject"),
       inspectorValues: workbench.controller.read("inspector.values"),
     })
-    experience.requestFrame()
+    root.invalidate()
   }
   const mountPreview = (label: string, node: SemanticNode): void => {
     activeSpacePreview?.dispose()
@@ -339,7 +291,7 @@ export async function createExternalStorybookShell(
       throw new TypeError("Storybook Space preview registration is required")
     }
     if (Object.hasOwn(registration, "space")) {
-      throw new TypeError("Storybook Space preview registration.space is forbidden; use the one Experience Space")
+      throw new TypeError("Storybook Space preview registration.space is forbidden; use the one Root Space")
     }
     activeSpacePreview?.dispose()
     activeShellPresentation?.dispose()
@@ -347,8 +299,9 @@ export async function createExternalStorybookShell(
     mountPreviewNode(label, registration.node, "space")
     const initialViewPoint = spaceViewPointSnapshot(registration.camera)
     const restoredViewPoint = readViewPointSnapshot(viewPoint)
+    viewPoint.controls = registration.cameraGestures !== false
     writeViewPointSnapshot(document, viewPoint, initialViewPoint)
-    const startedFrame = experience.presentedFrame
+    const startedFrame = root.presentedFrame
     let previewDisposed = false
     let unsubscribeBounds = (): void => {}
     let controller!: BoundStorybookSpacePreview
@@ -371,19 +324,19 @@ export async function createExternalStorybookShell(
     }
     controller = Object.freeze({
       get frames() {
-        return Math.max(0, experience.presentedFrame - startedFrame)
+        return Math.max(0, root.presentedFrame - startedFrame)
       },
       get disposed() {
         return previewDisposed
       },
       requestRender() {
         if (previewDisposed) throw new Error("Storybook Space preview is disposed")
-        experience.requestFrame()
+        root.invalidate()
       },
       resetViewPoint() {
         if (previewDisposed) throw new Error("Storybook Space preview is disposed")
         writeViewPointSnapshot(document, viewPoint, initialViewPoint)
-        experience.requestFrame()
+        root.invalidate()
       },
       suspend() {},
       resume() {
@@ -391,27 +344,15 @@ export async function createExternalStorybookShell(
         writeViewPointSnapshot(document, viewPoint, initialViewPoint)
         applyBounds(latestBounds)
       },
-      applyGesture(node, gesture) {
-        if (
-          previewDisposed ||
-          registration.cameraGestures === false ||
-          !(registration.node.contains(node) || node.contains(registration.node))
-        ) return false
-        if (gesture.kind === "orbit") {
-          spaceProjection.orbit(gesture.deltaX, gesture.deltaY)
-        } else {
-          spaceProjection.pan(gesture.deltaX, gesture.deltaY)
-        }
-        return true
-      },
       dispose() {
         if (previewDisposed) return
         previewDisposed = true
         unsubscribeBounds()
         unsubscribeBounds = () => {}
-        if (!experience.disposed) {
+        if (!root.disposed) {
+          viewPoint.controls = false
           writeViewPointSnapshot(document, viewPoint, restoredViewPoint)
-          experience.requestFrame()
+          root.invalidate()
         }
         if (activeSpacePreview === controller) activeSpacePreview = null
       },
@@ -462,11 +403,11 @@ export async function createExternalStorybookShell(
     return mountShellPresentation(label, renderStorybookMarkdown({document, ...props}))
   }
 
-  const projectionFor = (node: SemanticNode): ExperienceProjection => {
+  const projectionFor = (node: SemanticNode): RootProjection => {
     if (node === display || display.contains(node)) return displayProjection
     if (node === hud || hud.contains(node)) return hudProjection
     if (node === space || space.contains(node)) return spaceProjection
-    throw new Error("Storybook semantic node is outside the Experience Space")
+    throw new Error("Storybook semantic node is outside the Root Space")
   }
   const dispatchNativeKey = (
     target: SemanticHTMLElement,
@@ -487,22 +428,22 @@ export async function createExternalStorybookShell(
       metaKey: input.metaKey,
       shiftKey: input.shiftKey,
     } as const
-    experience.dispatchKey(projection.owner, target, {type: "keydown", ...init})
-    experience.dispatchKey(projection.owner, target, {type: "keyup", ...init})
+    root.dispatchKey(projection.owner, target, {type: "keydown", ...init})
+    root.dispatchKey(projection.owner, target, {type: "keyup", ...init})
   }
 
   const shell: ExternalStorybookShell = Object.freeze({
     document,
     browserDocument,
     canvas,
-    experience,
+    root,
     space,
     viewPoint,
     display,
     hud,
     workbench,
     get presentedFrameSequence() {
-      return experience.presentedFrame
+      return root.presentedFrame
     },
     projectionFor,
     present(value) {
@@ -510,7 +451,7 @@ export async function createExternalStorybookShell(
       activeShellPresentation?.dispose()
       activeShellPresentation = null
       workbench.present(value)
-      experience.requestFrame()
+      root.invalidate()
     },
     mountPreview,
     mountSpacePreview,
@@ -519,13 +460,13 @@ export async function createExternalStorybookShell(
     reportDiagnostic(value) {
       assertActive(disposed)
       appendShellDiagnostic(value)
-      experience.requestFrame()
+      root.invalidate()
     },
     clearDiagnostics() {
       assertActive(disposed)
       shellDiagnostics = []
       publishShellDiagnostics()
-      experience.requestFrame()
+      root.invalidate()
     },
     updateStatus(detail) {
       assertActive(disposed)
@@ -536,20 +477,20 @@ export async function createExternalStorybookShell(
         owner: options.statusOwner ?? "MetaFor",
         detail: ` · ${detail}`,
       })
-      experience.requestFrame()
+      root.invalidate()
     },
     requestRender() {
       assertActive(disposed)
-      experience.requestFrame()
+      root.invalidate()
     },
     presentFrame() {
       assertActive(disposed)
-      const before = experience.presentedFrame
-      experience.render()
-      if (experience.presentedFrame <= before) {
+      const before = root.presentedFrame
+      root.render()
+      if (root.presentedFrame <= before) {
         throw new Error("Storybook renderer did not publish the synchronous frame")
       }
-      return experience.presentedFrame
+      return root.presentedFrame
     },
     waitForPresentedFrame(afterSequence, signal, timeoutMs = 8_000) {
       assertActive(disposed)
@@ -559,7 +500,7 @@ export async function createExternalStorybookShell(
       if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 30_000) {
         throw new RangeError("Presented frame timeout must be between 1 and 30000 ms")
       }
-      if (experience.presentedFrame > afterSequence) return Promise.resolve(experience.presentedFrame)
+      if (root.presentedFrame > afterSequence) return Promise.resolve(root.presentedFrame)
       return new Promise<number>((resolvePromise, reject) => {
         let settled = false
         const waiter = Object.freeze({
@@ -591,12 +532,12 @@ export async function createExternalStorybookShell(
         frameWaiters.add(waiter)
         signal?.addEventListener("abort", onAbort, {once: true})
         if (signal?.aborted === true) onAbort()
-        else experience.requestFrame()
+        else root.invalidate()
       })
     },
     captureLastPresentedFramePng() {
       assertActive(disposed)
-      return experience.captureLastPresentedFramePng()
+      return root.captureLastPresentedFramePng()
     },
     subscribePreviewBounds(listener) {
       assertActive(disposed)
@@ -604,10 +545,6 @@ export async function createExternalStorybookShell(
       boundsListeners.add(listener)
       listener(latestBounds)
       return () => boundsListeners.delete(listener)
-    },
-    applySpacePreviewGesture(node, gesture) {
-      assertActive(disposed)
-      return activeSpacePreview?.applyGesture(node, gesture) ?? false
     },
     dispatchNativeKey,
     dispose() {
@@ -619,12 +556,11 @@ export async function createExternalStorybookShell(
       unsubscribeFrame()
       unsubscribePresented()
       boundsListeners.clear()
-      for (const waiter of frameWaiters) waiter.resolve(experience.presentedFrame)
+      for (const waiter of frameWaiters) waiter.resolve(root.presentedFrame)
       frameWaiters.clear()
-      experience.dispose()
+      root.unmount()
       workbench.dispose()
-      displayView.dispose()
-    },
+      },
   })
   return shell
 }
@@ -648,7 +584,6 @@ function readViewPointSnapshot(viewPoint: XRViewPointElement): StorybookViewPoin
       y: viewPoint.targetY,
       z: viewPoint.targetZ,
     }),
-    up: Object.freeze({x: viewPoint.upX, y: viewPoint.upY, z: viewPoint.upZ}),
     fov: viewPoint.fov,
     near: viewPoint.near,
     far: viewPoint.far,
@@ -667,9 +602,6 @@ function writeViewPointSnapshot(
     viewPoint.targetX = snapshot.target.x
     viewPoint.targetY = snapshot.target.y
     viewPoint.targetZ = snapshot.target.z
-    viewPoint.upX = snapshot.up.x
-    viewPoint.upY = snapshot.up.y
-    viewPoint.upZ = snapshot.up.z
     viewPoint.fov = snapshot.fov
     viewPoint.near = snapshot.near
     viewPoint.far = snapshot.far

@@ -30,11 +30,10 @@ export type StorybookRuntimePresentationInput = Readonly<{
   values?: Readonly<Record<string, unknown>>
 }>
 
-/** Camera preset for one owner scene projected inside the shared page Experience Space. */
+/** Положение обзора в единственном Space страницы: правая система Z-up, расстояния в мм. */
 export type StorybookSpacePreviewCamera = Readonly<{
   position: Readonly<{x: number; y: number; z: number}>
   target: Readonly<{x: number; y: number; z: number}>
-  up?: Readonly<{x: number; y: number; z: number}>
   fov?: number
   near?: number
   far?: number
@@ -85,7 +84,7 @@ export type StorybookComponentRuntimeContext = StorybookRuntimeContextBase & Rea
   projection: "display" | "hud"
 }>
 
-/** Declared spatial projection on the one semantic Experience Space and ViewPoint. */
+/** Declared spatial projection on the one semantic Root Space and ViewPoint. */
 export type StorybookSpaceRuntimeContext = StorybookRuntimeContextBase & Readonly<{
   projection: "space"
   space: XRSpaceElement

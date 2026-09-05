@@ -40,10 +40,10 @@
   ответственностям и принятым решениям. Диагностика использует
   `@zavx0z/devtools` из монорепозитория, без зависимости от исходного Renderer checkout.
 - Landing и каждая package page владеют ровно одним
-  `@zavx0z/browser` Experience. Browser владеет его semantic Document, native
-  Canvas, циклом кадров и вводом. Experience содержит exact
+  `@zavx0z/browser` Root. Browser владеет его semantic Document, native
+  Canvas, циклом кадров и вводом. Root содержит exact
   `@zavx0z/space` `XRSpaceElement` и `XRViewPointElement`; package runtime не
-  создаёт второй Experience или owner.
+  создаёт второй Root или owner.
 - Весь Workbench монтируется в одну HUD projection. Subject с
   `projection: "display"` монтируется в настоящий `XRDisplayElement`, subject с
   `projection: "hud"` — в `XRHUDElement`, а трёхмерный subject с

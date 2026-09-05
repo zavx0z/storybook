@@ -222,7 +222,7 @@ describe("one external Storybook server", () => {
       artifactRoot: fixture.artifactRoot,
     })
     servers.push(running)
-    const structural = [
+    const watched = [
       join(fixture.workspace, ".storybook/manifest.json"),
       join(fixture.workspace, "README.md"),
       join(fixture.workspace, "projects/alpha/.storybook/manifest.json"),
@@ -230,7 +230,7 @@ describe("one external Storybook server", () => {
       join(fixture.workspace, "projects/alpha/packages/components/.storybook/catalog.json"),
       join(fixture.workspace, "projects/alpha/packages/components/package.json"),
     ]
-    for (const path of structural) {
+    for (const path of watched) {
       expect(running.watch.notify(path)).toBeGreaterThan(0)
     }
     const unrelated = join(fixture.workspace, "unrelated.txt")

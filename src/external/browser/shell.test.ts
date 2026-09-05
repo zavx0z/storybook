@@ -1,9 +1,11 @@
+import {createRoot} from "@zavx0z/component"
 import {describe, expect, test} from "bun:test"
 import type {
-  CreateExperienceOptions,
-  Experience,
-  ExperienceDocumentProjection,
-  ExperienceProjection,
+  AttachOptions,
+  Root,
+  RootDocumentProjection,
+  RootLinkedAuthorStyleSheet,
+  RootProjection,
 } from "@zavx0z/browser"
 import {
   createDocument,
@@ -22,30 +24,27 @@ import {
   EXTERNAL_STORYBOOK_DISPLAY_ID,
   EXTERNAL_STORYBOOK_WORKBENCH_ID,
   createExternalStorybookShell,
-  type ExternalStorybookExperienceFactory,
+  type ExternalStorybookRootFactory,
 } from "./shell.ts"
 
-describe("external Storybook shared Browser Experience", () => {
+describe("external Storybook shared Browser Root", () => {
   test("creates one semantic Space/ViewPoint/Display/HUD and mounts the Workbench in HUD", async () => {
-    const state = createFakeExperienceState()
+    const state = createFakeRootState()
     const shell = await createShell(state)
 
     expect(state.creations).toBe(1)
-    expect(shell.document).toBe(shell.experience.document)
-    expect(shell.space).toBe(shell.experience.space)
-    expect(shell.viewPoint).toBe(shell.experience.viewPoint)
+    expect(shell.document).toBe(shell.root.document)
+    expect(shell.space).toBe(shell.root.space)
+    expect(shell.viewPoint).toBe(shell.root.viewPoint)
     expect(shell.document.documentElement).toBe(shell.space)
     expect(shell.viewPoint.parentElement).toBe(shell.space)
     expect(viewPointValues(shell.viewPoint)).toMatchObject({
       x: 0,
-      y: 0,
-      z: 1_000,
+      y: -1_000,
+      z: 0,
       targetX: 0,
       targetY: 0,
       targetZ: 0,
-      upX: 0,
-      upY: 1,
-      upZ: 0,
       far: 2_000,
     })
     expect(shell.display).toBeInstanceOf(XRDisplayElement)
@@ -84,24 +83,23 @@ describe("external Storybook shared Browser Experience", () => {
     shell.dispose()
   })
 
-  test("passes exact linked author styles to createExperience", async () => {
-    const state = createFakeExperienceState()
+  test("passes exact linked author styles to createRoot", async () => {
+    const state = createFakeRootState()
     const link = {} as HTMLLinkElement
     const shell = await createShell(state, {
       authorStyleSheetSources: [{id: "@zavx0z/ui/themes/theme.css", link}],
     })
 
-    expect(state.options?.linkedAuthorStyleSheets).toEqual([{
+    expect(state.options?.stylesheets).toEqual([{
       id: "@zavx0z/ui/themes/theme.css",
       link,
     }])
-    expect(state.options?.styleSheets).toEqual([])
-    expect(state.options?.cameraGestures).toBeFalse()
+    expect(shell.viewPoint.controls).toBe(false)
     shell.dispose()
   })
 
-  test("uses Experience frames for bounds, acknowledgement and capture", async () => {
-    const state = createFakeExperienceState()
+  test("uses Root frames for bounds, acknowledgement and capture", async () => {
+    const state = createFakeRootState()
     const shell = await createShell(state)
     const bounds: unknown[] = []
     const unsubscribe = shell.subscribePreviewBounds(value => bounds.push(value))
@@ -121,7 +119,7 @@ describe("external Storybook shared Browser Experience", () => {
     const scale = shell.display.worldUnitsPerPixel
     expect(scale).toBeCloseTo(2_000 * Math.tan(shell.viewPoint.fov / 2) / 768, 10)
     expect(shell.display.x / scale + 512 - 320).toBeCloseTo(12, 10)
-    expect(384 - shell.display.y / scale - 180).toBeCloseTo(18, 10)
+    expect(384 - shell.display.z / scale - 180).toBeCloseTo(18, 10)
     const renderer = createDocumentRenderer({
       document: shell.document,
       root: shell.display,
@@ -142,7 +140,7 @@ describe("external Storybook shared Browser Experience", () => {
     expect(display.viewportWidth).toBe(480)
     expect(display.viewportHeight).toBe(280)
     expect(display.x / display.worldUnitsPerPixel + 512 - 240).toBeCloseTo(180, 10)
-    expect(384 - display.y / display.worldUnitsPerPixel - 140).toBeCloseTo(40, 10)
+    expect(384 - display.z / display.worldUnitsPerPixel - 140).toBeCloseTo(40, 10)
     const before = shell.presentedFrameSequence
     expect(shell.presentFrame()).toBeGreaterThan(before)
     expect(await shell.captureLastPresentedFramePng()).toBe(state.capture)
@@ -151,7 +149,7 @@ describe("external Storybook shared Browser Experience", () => {
   })
 
   test("routes Space camera gestures through the semantic ViewPoint and restores its preset", async () => {
-    const state = createFakeExperienceState()
+    const state = createFakeRootState()
     const shell = await createShell(state)
     const node = shell.document.createElement("xr-group")
     const restored = viewPointValues(shell.viewPoint)
@@ -172,26 +170,21 @@ describe("external Storybook shared Browser Experience", () => {
       targetY: 2,
       targetZ: 3,
     })
-    expect(shell.applySpacePreviewGesture(node, {
-      kind: "orbit",
-      deltaX: 4,
-      deltaY: -2,
-    })).toBeTrue()
-    expect(state.spaceGestures).toEqual([{kind: "orbit", deltaX: 4, deltaY: -2}])
+    expect(shell.viewPoint.controls).toBe(true)
     preview.dispose()
     expect(viewPointValues(shell.viewPoint)).toEqual(restored)
     shell.dispose()
   })
 
   test("dispatches keys only through the exact active Display or HUD projection", async () => {
-    const state = createFakeExperienceState()
+    const state = createFakeRootState()
     const shell = await createShell(state)
     const target = shell.document.createElement("button")
     shell.mountPreview("Key", target)
     state.pointerTarget = target
     const projection = shell.projectionFor(target)
     if (projection.kind === "space") throw new Error("Expected a document projection")
-    projection.pointerDown({x: 1, y: 1})
+    shell.root.input.pointerDown({x: 1, y: 1})
 
     shell.dispatchNativeKey(target, {
       key: "Enter",
@@ -206,32 +199,32 @@ describe("external Storybook shared Browser Experience", () => {
     shell.dispose()
   })
 
-  test("keeps landing and package shells as separate Experiences", async () => {
-    const landingState = createFakeExperienceState()
-    const packageState = createFakeExperienceState()
+  test("keeps landing and package shells as separate Roots", async () => {
+    const landingState = createFakeRootState()
+    const packageState = createFakeRootState()
     const landing = await createShell(landingState)
     const packageShell = await createShell(packageState)
 
-    expect(landing.experience).not.toBe(packageShell.experience)
+    expect(landing.root).not.toBe(packageShell.root)
     expect(landing.document).not.toBe(packageShell.document)
     expect(landing.space).not.toBe(packageShell.space)
     landing.dispose()
     packageShell.dispose()
   })
 
-  test("releases the Experience when its first presented frame fails", async () => {
-    const state = createFakeExperienceState()
+  test("releases the Root when its first presented frame fails", async () => {
+    const state = createFakeRootState()
     state.renderError = new Error("first frame failed")
 
     await expect(createShell(state)).rejects.toThrow("first frame failed")
-    expect(state.experience?.disposed).toBeTrue()
+    expect(state.root?.disposed).toBeTrue()
   })
 })
 
-type FakeExperienceState = {
+type FakeRootState = {
   creations: number
-  options: CreateExperienceOptions | null
-  experience: Experience | null
+  options: AttachOptions | null
+  root: Root | null
   pointerTarget: Element | null
   activeOwner: XRDisplayElement | XRHUDElement | null
   activeTarget: Element | null
@@ -259,11 +252,11 @@ type FakeExperienceState = {
   ): void
 }
 
-function createFakeExperienceState(): FakeExperienceState {
+function createFakeRootState(): FakeRootState {
   return {
     creations: 0,
     options: null,
-    experience: null,
+    root: null,
     pointerTarget: null,
     activeOwner: null,
     activeTarget: null,
@@ -272,15 +265,15 @@ function createFakeExperienceState(): FakeExperienceState {
     capture: new Blob(["capture"], {type: "image/png"}),
     renderError: null,
     emitFrame() {
-      throw new Error("Fake Experience is not created")
+      throw new Error("Fake Root is not created")
     },
   }
 }
 
 async function createShell(
-  state: FakeExperienceState,
+  state: FakeRootState,
   options: Readonly<{
-    authorStyleSheetSources?: CreateExperienceOptions["linkedAuthorStyleSheets"]
+    authorStyleSheetSources?: readonly RootLinkedAuthorStyleSheet[]
   }> = {},
 ) {
   return createExternalStorybookShell({
@@ -288,25 +281,24 @@ async function createShell(
     browserDocument: {} as globalThis.Document,
     canvas: {width: 1024, height: 768} as HTMLCanvasElement,
     loadFont: async () => ({}) as never,
-    createExperience: fakeExperienceFactory(state),
+    attach: fakeRootFactory(state),
     ...(options.authorStyleSheetSources === undefined
       ? {}
       : {authorStyleSheetSources: options.authorStyleSheetSources}),
   })
 }
 
-function fakeExperienceFactory(state: FakeExperienceState): ExternalStorybookExperienceFactory {
+function fakeRootFactory(state: FakeRootState): ExternalStorybookRootFactory {
   return async options => {
     state.creations += 1
     state.options = options
     const document = createDocument({elementFactories: createSpaceElementFactories()})
-    const space = document.createElement("xr-space") as XRSpaceElement
-    const viewPoint = document.createElement("xr-view-point") as XRViewPointElement
-    document.transaction(() => {
-      space.append(viewPoint)
-      document.append(space)
-    })
-    const projections = new Map<XRDisplayElement | XRHUDElement, ExperienceDocumentProjection>()
+    const appRoot = createRoot(document)
+    appRoot.render(options.app)
+    appRoot.flush()
+    const space = document.documentElement as XRSpaceElement
+    const viewPoint = space.querySelector("xr-view-point") as XRViewPointElement
+    const projections = new Map<XRDisplayElement | XRHUDElement, RootDocumentProjection>()
     const frames = new Map<XRDisplayElement | XRHUDElement, RenderFrame>()
     const frameListeners = new Map<XRDisplayElement | XRHUDElement, Set<(frame: RenderFrame) => void>>()
     const presented = new Set<(sequence: number) => void>()
@@ -315,12 +307,13 @@ function fakeExperienceFactory(state: FakeExperienceState): ExternalStorybookExp
 
     const documentProjection = (
       owner: XRDisplayElement | XRHUDElement,
-    ): ExperienceDocumentProjection => {
+    ): RootDocumentProjection => {
       let projection = projections.get(owner)
       if (projection !== undefined) return projection
       projection = Object.freeze({
         kind: owner instanceof XRDisplayElement ? "display" as const : "hud" as const,
         owner,
+        projectPoint: (point: {x: number; y: number}) => point,
         readFrame: () => frames.get(owner) ?? fakeFrame(document, owner),
         subscribeFrames(listener: (frame: RenderFrame) => void) {
           let listeners = frameListeners.get(owner)
@@ -356,10 +349,20 @@ function fakeExperienceFactory(state: FakeExperienceState): ExternalStorybookExp
     })
     const getProjection = (
       owner: XRSpaceElement | XRDisplayElement | XRHUDElement,
-    ): ExperienceProjection => owner instanceof XRSpaceElement
+    ): RootProjection => owner instanceof XRSpaceElement
       ? spaceProjection
       : documentProjection(owner)
-    const experience = Object.freeze({
+    const root = Object.freeze({
+      input: {
+        pointerDown() {
+          state.activeTarget = state.pointerTarget
+          state.activeOwner = state.pointerTarget?.parentElement as XRDisplayElement | XRHUDElement
+        },
+        pointerMove() {},
+        pointerUp() {},
+        pointerCancel() {},
+        wheel() {},
+      },
       canvas: options.canvas,
       document,
       space,
@@ -373,7 +376,7 @@ function fakeExperienceFactory(state: FakeExperienceState): ExternalStorybookExp
       },
       dispatchKey(owner: XRDisplayElement | XRHUDElement, target: Element, input: any) {
         if (state.activeOwner !== owner || state.activeTarget !== target) {
-          throw new Error("Semantic key target does not own the Experience native proxy")
+          throw new Error("Semantic key target does not own the Root native proxy")
         }
         state.keys.push({owner, target, input})
         return true
@@ -384,12 +387,15 @@ function fakeExperienceFactory(state: FakeExperienceState): ExternalStorybookExp
         sequence += 1
         for (const listener of presented) listener(sequence)
       },
-      requestFrame() {},
+      invalidate() {},
       resize() {},
       captureLastPresentedFramePng: async () => state.capture,
-      dispose() { disposed = true },
-    }) as unknown as Experience
-    state.experience = experience
+      unmount() {
+        disposed = true
+        appRoot.unmount()
+      },
+    }) as unknown as Root
+    state.root = root
     state.emitFrame = (owner, node, box) => {
       const renderBox = {
         node,
@@ -403,7 +409,7 @@ function fakeExperienceFactory(state: FakeExperienceState): ExternalStorybookExp
       frames.set(owner, frame)
       for (const listener of frameListeners.get(owner) ?? []) listener(frame)
     }
-    return experience
+    return root
   }
 }
 
@@ -433,9 +439,6 @@ function viewPointValues(viewPoint: XRViewPointElement) {
     targetX: viewPoint.targetX,
     targetY: viewPoint.targetY,
     targetZ: viewPoint.targetZ,
-    upX: viewPoint.upX,
-    upY: viewPoint.upY,
-    upZ: viewPoint.upZ,
     fov: viewPoint.fov,
     near: viewPoint.near,
     far: viewPoint.far,

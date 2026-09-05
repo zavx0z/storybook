@@ -1,7 +1,7 @@
 /** Global external Storybook landing entry. It never imports package runtime code. */
 
 import type {CustomEvent} from "@zavx0z/dom"
-import type {ExperienceLinkedAuthorStyleSheet} from "@zavx0z/browser"
+import type {RootLinkedAuthorStyleSheet} from "@zavx0z/browser"
 import {WORKBENCH_EVENTS} from "../../workbench/contract.ts"
 import {
   deriveExternalStorybookLanding,
@@ -356,7 +356,7 @@ async function requestPackageView(
 /** Reads only the server-indexed landing links; it never scans native CSSOM. */
 export function indexedLandingAuthorStyleSheetSources(
   document: globalThis.Document,
-): readonly ExperienceLinkedAuthorStyleSheet[] {
+): readonly RootLinkedAuthorStyleSheet[] {
   if (typeof document.querySelectorAll !== "function" || typeof document.getElementById !== "function") {
     return Object.freeze([])
   }

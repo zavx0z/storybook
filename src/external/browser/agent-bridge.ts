@@ -283,8 +283,22 @@ async function applyNodeAction(
   const snapshot = inspector.snapshot(shell.space)
   const record = snapshot.nodes.find(({id}) => inspector.nodeForId(id) === node)
   const box = record?.hit ?? record?.box ?? null
-  const point = box === null ? null : {x: box.x + box.width / 2, y: box.y + box.height / 2}
-  const projection = shell.projectionFor(node)
+  const presentedPoint = (target: Node, bounds: typeof box) => {
+    const owner = shell.projectionFor(target)
+    if (owner.kind !== "space") {
+      return bounds === null ? null : owner.projectPoint({
+        x: bounds.x + bounds.width / 2,
+        y: bounds.y + bounds.height / 2,
+      })
+    }
+    const hud = shell.root.getProjection(shell.hud)
+    const preview = hud.readFrame()?.boxByNode.get(shell.workbench.elements.previewHost)
+    return preview === undefined ? null : hud.projectPoint({
+      x: preview.contentX + preview.contentWidth / 2,
+      y: preview.contentY + preview.contentHeight / 2,
+    })
+  }
+  const point = presentedPoint(node, box)
   const pointer = (
     buttons: number,
     target: Readonly<{x: number; y: number}> | null = point,
@@ -292,11 +306,11 @@ async function applyNodeAction(
     if (target === null) throw new Error("Storybook semantic target has no presented bounds")
     return {x: target.x, y: target.y, pointerId: 1, pointerType: "mouse", button: 0, buttons}
   }
-  if (action === "hover") documentProjection(projection).pointerMove(pointer(0))
-  else if (action === "pointerDown") documentProjection(projection).pointerDown(pointer(1))
-  else if (action === "pointerUp") documentProjection(projection).pointerUp(pointer(0))
+  if (action === "hover") shell.root.input.pointerMove(pointer(0))
+  else if (action === "pointerDown") shell.root.input.pointerDown(pointer(1))
+  else if (action === "pointerUp") shell.root.input.pointerUp(pointer(0))
   else if (action === "click") {
-    const owner = documentProjection(projection)
+    const owner = shell.root.input
     owner.pointerDown(pointer(1))
     owner.pointerUp(pointer(0))
   } else if (action === "drag") {
@@ -307,39 +321,20 @@ async function applyNodeAction(
       const target = snapshot.nodes.find(({id}) => inspector.nodeForId(id) === destination)
       const destinationBox = target?.hit ?? target?.box ?? null
       if (destinationBox === null) throw new Error("Storybook drag destination requires presented bounds")
-      const destinationProjection = shell.projectionFor(destination)
-      if (
-        projection.kind === "space" ||
-        destinationProjection.kind === "space" ||
-        projection.owner !== destinationProjection.owner
-      ) throw new Error("Storybook drag endpoints must belong to one Display or HUD projection")
-      destinationPoint = Object.freeze({
-        x: destinationBox.x + destinationBox.width / 2,
-        y: destinationBox.y + destinationBox.height / 2,
-      })
+      const destinationClientPoint = presentedPoint(destination, destinationBox)
+      if (destinationClientPoint === null) throw new Error("Storybook drag destination is not presented")
+      destinationPoint = destinationClientPoint
     } else {
       const delta = request.value !== null && typeof request.value === "object" && !Array.isArray(request.value)
         ? request.value as Record<string, unknown>
         : null
       const dx = finiteNumber(delta?.dx, -10_000, 10_000, "drag dx")
       const dy = finiteNumber(delta?.dy, -10_000, 10_000, "drag dy")
-      if (shell.applySpacePreviewGesture(node, {kind: "orbit", deltaX: dx, deltaY: dy})) return
       if (point === null) throw new Error("Storybook drag source requires presented bounds")
-      const frame = documentProjection(projection).readFrame()
-      if (frame === null) throw new Error("Storybook drag projection has no presented frame")
-      const viewport = frame.viewport
-      destinationPoint = Object.freeze({
-        x: Math.max(0, Math.min(Math.max(0, viewport.width - 0.001), point.x + dx)),
-        y: Math.max(0, Math.min(Math.max(0, viewport.height - 0.001), point.y + dy)),
-      })
+      destinationPoint = {x: point.x + dx, y: point.y + dy}
     }
     if (point === null) throw new Error("Storybook drag source requires presented bounds")
-    if (shell.applySpacePreviewGesture(node, {
-      kind: "orbit",
-      deltaX: destinationPoint.x - point.x,
-      deltaY: destinationPoint.y - point.y,
-    })) return
-    const owner = documentProjection(projection)
+    const owner = shell.root.input
     owner.pointerDown(pointer(1))
     owner.pointerMove(pointer(1, destinationPoint))
     owner.pointerUp(pointer(0, destinationPoint))
@@ -348,12 +343,11 @@ async function applyNodeAction(
       ? request.value as Record<string, unknown>
       : null
     const delta = finiteNumber(wheelValue?.deltaY ?? request.value ?? 120, -10_000, 10_000, "wheel value")
-    if (shell.applySpacePreviewGesture(node, {kind: "pan", deltaX: 0, deltaY: delta})) return
     if (point === null) throw new Error("Storybook wheel target has no presented bounds")
-    documentProjection(projection).wheel({
+    shell.root.input.wheel({
       x: point.x,
       y: point.y,
-      deltaX: 0,
+      deltaX: finiteNumber(wheelValue?.deltaX ?? 0, -10_000, 10_000, "wheel deltaX"),
       deltaY: delta,
     })
   } else if (action === "focus") {
@@ -361,7 +355,8 @@ async function applyNodeAction(
     node.focus()
   } else if (action === "key") {
     if (!(node instanceof HTMLElement)) throw new Error("Storybook key target is not an HTMLElement")
-    documentProjection(projection).pointerDown(pointer(1))
+    shell.root.input.pointerDown(pointer(1))
+    shell.root.input.pointerUp(pointer(0))
     const keyValue = request.value !== null && typeof request.value === "object" && !Array.isArray(request.value)
       ? request.value as Record<string, unknown>
       : null
@@ -389,15 +384,6 @@ async function applyNodeAction(
   } else {
     throw new Error(`Unsupported Storybook node action: ${action}`)
   }
-}
-
-function documentProjection(
-  projection: ReturnType<ExternalStorybookShell["projectionFor"]>,
-) {
-  if (projection.kind === "space") {
-    throw new Error("Storybook semantic target has no Display or HUD input projection")
-  }
-  return projection
 }
 
 function resolveTarget(target: StorybookAgentTarget | undefined, inspector: DomInspector): Node {

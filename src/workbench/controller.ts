@@ -2,6 +2,7 @@
 
 import {
   CustomEvent,
+  Document,
   type HTMLDivElement,
   type HTMLElement,
 } from "@zavx0z/dom"
@@ -47,23 +48,30 @@ import {
   updateWorkbenchState,
 } from "./state.ts"
 import {requiredText} from "./validation.ts"
-import {WorkbenchView} from "./view.tsx"
+import {WorkbenchView, type WorkbenchViewProps} from "./view.tsx"
 
 /**
- * Creates one compiled Workbench ComponentRoot in the supplied semantic
- * Document. Projection changes reparent the exact external Node between fixed
- * same-Document Display/HUD/Space hosts without remounting it.
- */
-export function createWorkbench(options: CreateWorkbenchOptions): Workbench {
+Создаёт состояние Workbench в переданном Document приложения.
+
+Авторский TSX использует нативный тип Document, а компилятор связывает его с
+semantic Document. Здесь проверяется фактический владелец перед использованием
+внутренних API. Отдельный компонентный корень или native Document не создаётся.
+
+@throws TypeError При передаче браузерного Document вместо Document приложения.
+*/
+export function createWorkbenchModel(options: Omit<CreateWorkbenchOptions, "document"> & Readonly<{document: Document | globalThis.Document}>) {
   const {document} = options
+  if (!(document instanceof Document)) throw new TypeError("Workbench requires the application's semantic Document")
   const parent = options.parent
   if (parent !== undefined) assertNodeInDocument(parent, document, "Workbench parent")
-  const projectionHosts = validateWorkbenchProjectionHosts(options.projectionHosts, document)
+  let projectionHosts = validateWorkbenchProjectionHosts(options.projectionHosts, document)
   let disposed = false
   let state = createInitialWorkbenchState(options.initial, document)
   const inspectorStateBySubject = new Map<string, WorkbenchInspectorRetainedState>()
-  const staging = document.createDocumentFragment()
-  const componentRoot = createRoot(staging, {identifierPrefix: "storybook-workbench"})
+  const listeners = new Set<() => void>()
+  let snapshot!: WorkbenchViewProps
+  let element!: HTMLDivElement
+  let elements!: Workbench["elements"]
   let rerender = (): void => {}
 
   const onCatalogNavigate = (item: WorkbenchNavigationItem, source: HTMLElement): void => {
@@ -140,7 +148,7 @@ export function createWorkbench(options: CreateWorkbenchOptions): Workbench {
       inspectorStateBySubject,
       onInspectorToggle,
     )
-    componentRoot.render(WorkbenchView as any, {
+    snapshot = {
       document,
       state: candidate,
       inspectorSelectedId: inspector.selectedId,
@@ -154,19 +162,11 @@ export function createWorkbench(options: CreateWorkbenchOptions): Workbench {
       onInspectorQueryChange,
       onStatusNavigate,
       children: inspector.panels,
-    })
+    } as unknown as WorkbenchViewProps
+    for (const listener of [...listeners]) listener()
   }
   rerender = () => renderState(state)
   rerender()
-  const element = exactWorkbenchElement(
-    staging,
-    "[data-storybook-workbench]",
-    "Workbench root",
-  ) as HTMLDivElement
-  const elements = readWorkbenchElements(element)
-  parent?.appendChild(element)
-  componentRoot.flush()
-  syncWorkbenchPresentation(null, state.presentation, elements, document, projectionHosts)
 
   const read = <Address extends WorkbenchAddress>(
     address: Address,
@@ -182,9 +182,9 @@ export function createWorkbench(options: CreateWorkbenchOptions): Workbench {
     assertActive(disposed)
     const previousPresentation = state.presentation
     const next = updateWorkbenchState(state, address, value, document)
-    renderState(next)
     state = next
-    syncWorkbenchPresentation(
+    renderState(next)
+    if (elements !== undefined) syncWorkbenchPresentation(
       previousPresentation,
       next.presentation,
       elements,
@@ -211,7 +211,7 @@ export function createWorkbench(options: CreateWorkbenchOptions): Workbench {
     const previousPresentation = state.presentation
     renderState(next)
     state = next
-    syncWorkbenchPresentation(previousPresentation, presentation, elements, document, projectionHosts)
+    if (elements !== undefined) syncWorkbenchPresentation(previousPresentation, presentation, elements, document, projectionHosts)
   }
 
   const dispose = (): void => {
@@ -219,21 +219,49 @@ export function createWorkbench(options: CreateWorkbenchOptions): Workbench {
     disposed = true
     const node = state.presentation.node
     if (node !== null && node.parentNode !== null) node.parentNode.removeChild(node)
-    componentRoot.unmount()
-    if (element.parentNode !== null) element.parentNode.removeChild(element)
+    listeners.clear()
   }
 
   const controller: WorkbenchController = Object.freeze({read, update, present, dispose})
   return Object.freeze({
-    document,
-    element,
-    elements,
-    componentRoot,
-    controller,
-    update,
-    present,
+    getSnapshot: () => snapshot,
+    subscribe(listener: () => void) {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+    bind(target: HTMLDivElement, hosts = options.projectionHosts): Workbench {
+      element = target
+      elements = readWorkbenchElements(element)
+      projectionHosts = validateWorkbenchProjectionHosts(hosts, document)
+      syncWorkbenchPresentation(null, state.presentation, elements, document, projectionHosts)
+      return {document, element, elements, controller, update, present, dispose}
+    },
     dispose,
   })
+}
+
+/** Standalone fixture adapter around the same declarative Workbench model/view. */
+export function createWorkbench(options: CreateWorkbenchOptions) {
+  const model = createWorkbenchModel(options)
+  const staging = options.document.createDocumentFragment()
+  const componentRoot = createRoot(staging, {identifierPrefix: "storybook-workbench"})
+  const render = () => componentRoot.render(WorkbenchView as any, model.getSnapshot())
+  const unsubscribe = model.subscribe(render)
+  render()
+  const element = exactWorkbenchElement(staging, "[data-storybook-workbench]", "Workbench root") as HTMLDivElement
+  options.parent?.appendChild(element)
+  componentRoot.flush()
+  const workbench = model.bind(element)
+  return {
+    ...workbench,
+    componentRoot,
+    dispose() {
+      unsubscribe()
+      model.dispose()
+      componentRoot.unmount()
+      element.parentNode?.removeChild(element)
+    },
+  }
 }
 
 function assertActive(disposed: boolean): void {
