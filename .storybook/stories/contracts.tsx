@@ -26,14 +26,15 @@ const contracts = Object.freeze({
   ),
   catalog: contract(
     "JSON catalog",
-    "The only first-stage catalog model is category → subject → variant with optional presentation groups and explicit migration routes. A category may own paired kind/apiName so a primary component expresses its sections as ordinary subjects. README is read from the owner file through a bounded Markdown renderer.",
-    "The package owns semantic order, typed category identity and resources. Collapse state and Workbench layout stay external; promoted route lists and embedded HTML/JavaScript are forbidden.",
+    "The catalog model is category → subject → variant with optional presentation groups and explicit migration routes. README uses @zavx0z/ui/views/markdown and the shared @zavx0z/ui/markdown parser (markdown-it CommonMark plus inert parse5 HTML projection). Resource discovery uses that same parser, including code-labelled links and admitted HTML images. Code blocks reuse CodeEditor.",
+    "The package owns semantic order, typed category identity and resources. Storybook owns the surrounding viewport and optional overview action. Markdown wrap defaults to true; fenced code retains its scrolling. Browser loads declared Engine-owned Inter and JetBrains Mono faces, and Renderer/WebGPU share face selection and exact metrics. Image dimensions and GIF animation reuse the WebGPU texture loader. GIF decoding pauses when all image consumers leave their viewport/clips and resumes from the saved frame position. GIF playback requires browser ImageDecoder support; otherwise a static frame remains with a diagnostic. Script, executable URLs and HTML event attributes are not materialized. List markers and table layout retain platform limitations.",
     ".storybook/catalog.json",
   ),
   workbench: contract(
     "Workbench из шести областей",
     "`catalog`, `secondary`, `scenarios`, `preview`, `inspector` и `status` являются шестью compiled TSX components одного `workbench-layout/2`. Весь Workbench монтируется в exact `XRHUDElement` `external-storybook-workbench`. Status композирует production Breadcrumbs с полным путём `workspace → project → package → category → subject → variant`; scenario toolbar расположен непосредственно над preview.",
-    "Страница владеет одним `@zavx0z/browser` Experience: Browser владеет Document, Canvas, циклом кадров и вводом, а Experience содержит exact `@zavx0z/space` `XRSpaceElement` и `XRViewPointElement`. Workbench использует `@zavx0z/ui/widgets/inspector`, `@zavx0z/ui/navigation/breadcrumbs` и exact `@zavx0z/ui/feedback/status-bar`. Переход по Breadcrumbs к предку сохраняет тот же package target. Display story монтируется в actual `XRDisplayElement`, HUD story — в `XRHUDElement`, а трёхмерная story — непосредственно в `XRSpaceElement`.",
+    "Страница владеет одним `@zavx0z/browser` Experience: Browser владеет Document, Canvas, циклом кадров и вводом, а Experience содержит exact `@zavx0z/space` `XRSpaceElement` и `XRViewPointElement`. Workbench использует `@zavx0z/ui/widgets/inspector`, `@zavx0z/ui/navigation/breadcrumbs` и exact `@zavx0z/ui/feedback/status-bar`. Переход по Breadcrumbs к предку сохраняет тот же package target. Display story монтируется в actual `XRDisplayElement`, HUD story — в `XRHUDElement`, а трёхмерная story — непосредственно в `XRSpaceElement`. " +
+    "Центральная область HUD задаёт только layout bounds. Её отдельная рамка Preview отсутствует: border, border-radius и overflow принадлежат самому xr-display. Shell переводит границы центральной области из CSS pixels в положение и масштаб Display через текущую камеру; viewport Display изменяется вместе с областью. README и story остаются прямым содержимым Display без декоративной обёртки.",
     "createExperience(...) → experience.getProjection(workbenchHud) → external-storybook-workbench",
   ),
   authorStyles: contract(
@@ -94,9 +95,9 @@ const contracts = Object.freeze({
   ),
   environment: contract(
     "Package-scoped updates",
-    "Metafile identities and typed declaration/code/metadata/resource watchers invalidate only their owning sessions; local README assets are allowlisted and watched explicitly.",
-    "Package-scoped events reload only matching subscribed views; an inactive package preserves lastWorking without starting a rebuild. package.failed preserves route and lastWorking presentation.",
-    "package.code-updated | package.resources-updated | package.metadata-updated | package.updated",
+    "Metafile identities and typed declaration/code/metadata/resource watchers invalidate only their owning sessions. Project and workspace README changes emit registry.readme-updated with exact nodeIds: only the selected document is fetched again and its existing Markdown article is updated in the same Experience, without reloading the page or building packages.",
+    "Shared browser code uses the existing dependency watcher and canonical metafile inputs. Changed shared dependencies rebuild the landing/fallback entries on the same server; shared.updated reloads only registry pages. Hashed assets remain available to older documents. A failed build preserves the previous working assets and retries after repair. Package pages retain their independent revisions and lastWorking behavior.",
+    "registry.readme-updated {nodeIds} → existing Markdown.update\nshared.updated {entry} → registry page reload\npackage.updated → matching package view",
   ),
 })
 

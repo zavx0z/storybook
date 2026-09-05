@@ -1,20 +1,20 @@
-import type {Document, HTMLElement} from "@zavx0z/dom"
+import type {Document, Element, HTMLElement} from "@zavx0z/dom"
 import {createRoot, type ComponentRoot} from "@zavx0z/component"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
 
-export type StorybookComponentPresentation = Readonly<{
-  element: HTMLElement
+export type StorybookComponentPresentation<Root extends Element = HTMLElement> = Readonly<{
+  element: Root
   componentRoot: ComponentRoot
   dispose(): void
 }>
 
 /** Mounts one governed view without constructing a visible element imperatively. */
-export function createStorybookComponentPresentation<Props>(
+export function createStorybookComponentPresentation<Props, Root extends Element = HTMLElement>(
   document: Document,
   template: CompiledTemplate<Props>,
   props: Readonly<Props>,
   selector: string,
-): StorybookComponentPresentation {
+): StorybookComponentPresentation<Root> {
   const staging = document.createDocumentFragment()
   const componentRoot = createRoot(staging)
   componentRoot.render(template, props)
@@ -23,7 +23,7 @@ export function createStorybookComponentPresentation<Props>(
     componentRoot.unmount()
     throw new Error(`Storybook component presentation requires one ${selector}, received ${matches.length}`)
   }
-  const element = matches[0] as HTMLElement
+  const element = matches[0] as Root
   staging.removeChild(element)
   let disposed = false
   return Object.freeze({

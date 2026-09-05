@@ -70,7 +70,8 @@ describe("Workbench component module boundary", () => {
       "background:",
       "color:",
     ]) expect(panel).not.toContain(declaration)
-    expect(preview).toContain('transparent={props.projection !== "hud"}')
+    expect(preview).not.toContain("WorkbenchRegionPanel")
+    expect(preview).not.toContain("border:")
   })
 
   test("composes the production StatusBar instead of duplicating its footer visual contract", () => {

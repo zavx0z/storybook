@@ -13,6 +13,7 @@ import {
   mkdirSync,
   readFileSync,
   realpathSync,
+  renameSync,
   rmSync,
   statSync,
   unlinkSync,
@@ -20,11 +21,13 @@ import {
 import {basename, dirname, extname, isAbsolute, join, relative, resolve, sep} from "node:path"
 import {fileURLToPath} from "node:url"
 import {createExternalStorybookClientSnapshot} from "./browser/client-protocol.ts"
+import {STORYBOOK_FONT_FACES} from "./browser/font-faces.ts"
 import {mergeStorybookAuthorStyleSheets} from "./author-style-sheets.ts"
 import {StorybookDependencyWatchCoordinator, StorybookDirtyRefreshCoordinator} from "./dependency-watch.ts"
 import {assertExternalStorybookStartLease, externalStorybookArtifactRoot, createExternalStorybookServerRecord, externalStorybookServerStatePath, readExternalStorybookServerRecord, writeExternalStorybookServerRecord, writeExternalStorybookStartCandidate, type ExternalStorybookServerRecord} from "./server-state.ts"
 import {ExternalStorybookRegistry, type ExternalStorybookRegistrySnapshot} from "./registry.ts"
-import {createStorybookPackageRevisionBuilder} from "./package-build.ts"
+import {canonicalBuildInputs, canonicalizeStorybookPackageIdentities, createStorybookPackageRevisionBuilder} from "./package-build.ts"
+import {StorybookSharedBrowserAssets, type SharedBrowserAssets} from "./shared-browser-assets.ts"
 import {createStorybookPackageCompilerPlugins} from "./compiler.ts"
 import type {StorybookPackageRevisionAuthorStyleSheet} from "./package-revision.ts"
 import {ExternalStorybookSessionManager} from "./session-manager.ts"
@@ -126,7 +129,7 @@ export async function startExternalStorybookServer(
   })
   let closing = false
   let closePromise: Promise<void> | null = null
-  let sharedAssets: Promise<SharedBrowserAssets> | null = null
+  const sharedAssetRoot = join(artifactRoot, "shared")
   const browserSessions = new StorybookBrowserSessionRegistry()
   const eventHub = new StorybookEventHub<StorybookPackageEvent | RegistryEvent>()
 
@@ -164,6 +167,17 @@ export async function startExternalStorybookServer(
     const snapshot = registry.snapshot()
     watch.replace("__registry__", externalStorybookStructuralWatchPaths(snapshot), () => {
       void structuralRefresh.request()
+    })
+    const readmes = new Map<string, string[]>()
+    for (const node of snapshot.graph.nodes) {
+      if (node.readmePath === null || node.kind !== "project" && node.kind !== "workspace") continue
+      const path = realpathSync(node.readmePath)
+      const ids = readmes.get(path) ?? []
+      ids.push(node.id)
+      readmes.set(path, ids)
+    }
+    watch.replace("__landing_readmes__", [...readmes.keys()], path => {
+      publish(Object.freeze({type: "registry.readme-updated", nodeIds: Object.freeze(readmes.get(path) ?? [])}))
     })
   }
 
@@ -629,11 +643,12 @@ export async function startExternalStorybookServer(
           return revisionAssetResponse(sessions, url.pathname)
         }
         if (url.pathname.startsWith("/__storybook/shared/") && request.method === "GET") {
-          const assets = await ensureSharedAssets()
-          return fileInsideResponse(assets.root, url.pathname.slice("/__storybook/shared/".length))
+          if (!existsSync(sharedAssetRoot)) return responseJson({error: "Unknown shared browser asset"}, 404)
+          return fileInsideResponse(sharedAssetRoot, url.pathname.slice("/__storybook/shared/".length))
         }
-        if (url.pathname === "/assets/inter-regular.ttf" && request.method === "GET") {
-          const fontPath = fileURLToPath(import.meta.resolve("@zavx0z/engine/fonts/inter-regular.ttf"))
+        if (STORYBOOK_FONT_FACES.some(face => face.src === url.pathname) && request.method === "GET") {
+          const name = url.pathname.slice("/assets/".length)
+          const fontPath = fileURLToPath(import.meta.resolve(`@zavx0z/engine/fonts/${name}`))
           return fileResponse(fontPath, "font/ttf")
         }
         if (url.pathname === "/schemas/manifest.schema.json" || url.pathname === "/schemas/catalog.schema.json") {
@@ -743,9 +758,10 @@ export async function startExternalStorybookServer(
     throw error
   }
 
-  const ensureSharedAssets = (): Promise<SharedBrowserAssets> => {
-    sharedAssets ??= buildSharedBrowserAssets({
-      root: join(artifactRoot, "shared"),
+  const sharedAssets = new StorybookSharedBrowserAssets({
+    watch,
+    build: () => buildSharedBrowserAssets({
+      root: sharedAssetRoot,
       toolRoot,
       landingEntryPath: options.landingEntryPath ?? fileURLToPath(
         new URL("./browser/landing-entry.ts", import.meta.url),
@@ -753,14 +769,18 @@ export async function startExternalStorybookServer(
       fallbackEntryPath: options.fallbackEntryPath ?? fileURLToPath(
         new URL("./browser/fallback-entry.ts", import.meta.url),
       ),
-    })
-    return sharedAssets
-  }
+    }),
+    subscribed: () => [...clients].some(client => client.data.subscriptions.has("registry")),
+    updated: assets => publish(Object.freeze({type: "shared.updated", entry: assets.landingEntry})),
+    failed: error => publish(Object.freeze({type: "shared.failed", message: errorText(error)})),
+  })
+  const ensureSharedAssets = (): Promise<SharedBrowserAssets> => sharedAssets.ensure()
 
   const close = (): Promise<void> => {
     if (closePromise !== null) return closePromise
     closing = true
     closePromise = (async () => {
+      sharedAssets.dispose()
       for (const client of clients) client.close(1001, "Storybook server stopped")
       clients.clear()
       watch.remove("__registry__")
@@ -822,12 +842,15 @@ type RegistryEvent = Readonly<{
 }> | Readonly<{
   type: "registry.failed"
   message: string
-}>
-
-type SharedBrowserAssets = Readonly<{
-  root: string
-  landingEntry: string
-  fallbackEntry: string
+}> | Readonly<{
+  type: "registry.readme-updated"
+  nodeIds: readonly string[]
+}> | Readonly<{
+  type: "shared.updated"
+  entry: string
+}> | Readonly<{
+  type: "shared.failed"
+  message: string
 }>
 
 async function buildSharedBrowserAssets(input: Readonly<{
@@ -864,19 +887,29 @@ async function buildSharedBrowserAssets(input: Readonly<{
     rmSync(staging, {recursive: true, force: true})
     throw new Error(result.logs.map(({message}) => message).join("\n"))
   }
+  if (result.metafile === undefined) {
+    rmSync(staging, {recursive: true, force: true})
+    throw new Error("Bun emitted no shared browser metafile")
+  }
+  const dependencyRealpaths = canonicalizeStorybookPackageIdentities(
+    canonicalBuildInputs(result.metafile.inputs, input.toolRoot),
+  )
   const entryFor = (source: string): string => {
     const byName = result.outputs.find((artifact) =>
       artifact.kind === "entry-point" && basename(artifact.path).startsWith(basename(source, extname(source))))
     if (byName === undefined) throw new Error(`Shared Storybook entry was not emitted: ${source}`)
     return relative(staging, byName.path)
   }
-  rmSync(input.root, {recursive: true, force: true})
-  mkdirSync(dirname(input.root), {recursive: true})
-  await Bun.write(join(staging, "manifest.json"), JSON.stringify({ok: true}))
   const landingEntry = entryFor(input.landingEntryPath)
   const fallbackEntry = entryFor(input.fallbackEntryPath)
-  await import("node:fs/promises").then(({rename}) => rename(staging, input.root))
-  return Object.freeze({root: input.root, landingEntry, fallbackEntry})
+  // Hashed assets stay available to documents that still reference older entries.
+  for (const artifact of result.outputs) {
+    const destination = join(input.root, relative(staging, artifact.path))
+    mkdirSync(dirname(destination), {recursive: true})
+    renameSync(artifact.path, destination)
+  }
+  rmSync(staging, {recursive: true, force: true})
+  return Object.freeze({root: input.root, landingEntry, fallbackEntry, dependencyRealpaths})
 }
 
 async function packagePageResponse(
@@ -974,9 +1007,6 @@ export function externalStorybookStructuralWatchPaths(
 ): readonly string[] {
   return Object.freeze([...new Set(snapshot.graph.nodes.flatMap((node) => [
     node.source.path,
-    ...(node.readmePath === null || node.kind !== "workspace" && node.kind !== "project"
-      ? []
-      : [node.readmePath]),
     ...(node.kind === "package" && node.packageJsonPath !== null ? [node.packageJsonPath] : []),
     ...node.authorStyleSheets.map(({path}) => path),
     ...node.authorStyleSheets.map(({ownerPackageJsonPath}) => ownerPackageJsonPath),
@@ -1207,7 +1237,7 @@ function matchesSubscription(
   subscriptions: ReadonlySet<string>,
   event: StorybookPackageEvent | RegistryEvent,
 ): boolean {
-  if (event.type === "registry.updated" || event.type === "registry.failed") {
+  if (!("packageId" in event)) {
     return subscriptions.has("registry")
   }
   return subscriptions.has("registry") || subscriptions.has(`package:${event.packageId}`)

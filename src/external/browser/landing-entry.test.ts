@@ -200,6 +200,62 @@ describe("external Storybook landing frontend", () => {
     expect(experienceState.disposals).toBe(1)
   })
 
+  test("updates only the selected README without recreating the document or reloading the page", async () => {
+    const graph = await fixtureGraph()
+    const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph))
+    const listeners = new Map<string, (event: any) => void>()
+    let source = "# First\n\nBefore"
+    let reads = 0
+    let reloads = 0
+    const experienceState = createFakeExperienceState()
+    const controller = await startExternalStorybookLanding({
+      browserDocument: {documentElement: {dataset: {}}, querySelector() { return null }} as unknown as Document,
+      location: {
+        href: "http://127.0.0.1:3000/projects/fixture-alpha/",
+        pathname: "/projects/fixture-alpha/",
+        reload() { reloads += 1 },
+      },
+      fetcher: (async input => {
+        if (String(input) === "/api/client") return Response.json(snapshot)
+        reads += 1
+        return new Response(source)
+      }) as typeof fetch,
+      createSocket() {
+        return {
+          addEventListener(type, listener) { listeners.set(type, listener) },
+          removeEventListener(type) { listeners.delete(type) },
+          send() {},
+          close() {},
+        }
+      },
+      shell: {
+        canvas: {} as HTMLCanvasElement,
+        loadFont: async () => ({}) as never,
+        createExperience: fakeExperienceFactory(experienceState),
+      },
+    })
+    try {
+      const article = controller.shell.display.querySelector("article")!
+      const workbench = controller.shell.workbench.element
+      const beforeReads = reads
+      listeners.get("message")?.({data: JSON.stringify({type: "registry.readme-updated", nodeIds: ["project:unrelated"]})})
+      expect(reads).toBe(beforeReads)
+      source = "# Second\n\nAfter"
+      listeners.get("message")?.({data: JSON.stringify({type: "registry.readme-updated", nodeIds: ["project:fixture-alpha"]})})
+      await waitFor(() => article.textContent.includes("After"), "selected README refresh")
+      expect(controller.shell.display.querySelector("article")).toBe(article)
+      expect(controller.shell.workbench.element).toBe(workbench)
+      expect(reads).toBe(beforeReads + 1)
+      expect(reloads).toBe(0)
+      expect(experienceState.creations).toBe(1)
+      expect(experienceState.disposals).toBe(0)
+      listeners.get("message")?.({data: JSON.stringify({type: "shared.updated", entry: "landing-new.js"})})
+      expect(reloads).toBe(1)
+    } finally {
+      controller.dispose()
+    }
+  })
+
   test("reads only bounded contiguous indexed Workbench author links", () => {
     const document = indexedLinkDocument([
       {specifier: "@zavx0z/ui/themes/theme.css", digest: "a".repeat(64), href: "/revision/theme.css"},

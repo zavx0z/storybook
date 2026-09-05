@@ -60,6 +60,7 @@ export async function startExternalStorybookLanding(
   const location = options.location ?? globalThis.location
   const history = options.history ?? globalThis.history
   let selectionRevision = 0
+  let selectedNodeId: string | null = null
   let disposed = false
 
   shell.workbench.update("catalog.label", "Проекты и пакеты")
@@ -73,6 +74,7 @@ export async function startExternalStorybookLanding(
   const breadcrumbsFor = (nodeId: string) => deriveStorybookBreadcrumbs(graph, nodeId, {kind: "landing"})
 
   const showWorkspace = async (nodeId: string, updateHistory = false): Promise<void> => {
+    selectedNodeId = nodeId
     const revision = ++selectionRevision
     const node = externalStorybookClientNode(snapshot, nodeId)
     if (node.kind !== "workspace") throw new Error(`Landing group is not a workspace: ${nodeId}`)
@@ -98,6 +100,7 @@ export async function startExternalStorybookLanding(
 
   const select = async (nodeId: string, updateHistory = true): Promise<void> => {
     assertActive(disposed)
+    selectedNodeId = nodeId
     const revision = ++selectionRevision
     const selection = deriveExternalStorybookLandingSelection(graph, nodeId)
     shell.document.transaction(() => {
@@ -171,8 +174,17 @@ export async function startExternalStorybookLanding(
   const onSocketMessage = (event: MessageEvent): void => {
     const update = parseLandingEvent(event.data)
     if (update === null) return
-    if (update.type === "registry.updated") {
+    if (update.type === "registry.readme-updated") {
+      if (selectedNodeId === null || !update.nodeIds.includes(selectedNodeId)) return
+      const node = externalStorybookClientNode(snapshot, selectedNodeId)
+      const refreshed = node.kind === "workspace"
+        ? showWorkspace(node.id, false)
+        : select(node.id, false)
+      void refreshed.catch(error => isolateLandingError(browserDocument, shell, error))
+    } else if (update.type === "registry.updated" || update.type === "shared.updated") {
       location?.reload()
+    } else if (update.type === "shared.failed") {
+      shell.reportDiagnostic(update.message)
     } else if (update.type === "package.failed") {
       shell.updateStatus(`${update.packageId} · build failed`)
     } else if (update.type === "package.updated") {
@@ -263,6 +275,10 @@ function parseLandingEvent(value: unknown): any | null {
   }
   if (parsed === null || typeof parsed !== "object" || !("type" in parsed)) return null
   const record = parsed as Record<string, unknown>
+  if (record.type === "registry.readme-updated" && Array.isArray(record.nodeIds) &&
+    record.nodeIds.every(id => typeof id === "string")) return record
+  if (record.type === "shared.updated" && typeof record.entry === "string") return record
+  if (record.type === "shared.failed" && typeof record.message === "string") return record
   if (record.type === "registry.updated" && typeof record.graphDigest === "string") return record
   if (record.type === "package.updated" && typeof record.packageId === "string" && typeof record.revision === "string") return record
   if (record.type === "package.built" && typeof record.packageId === "string" && typeof record.revision === "string") return record

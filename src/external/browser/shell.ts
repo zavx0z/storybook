@@ -7,6 +7,10 @@ import {
   type ExperienceProjection,
 } from "@zavx0z/browser"
 import {loadDocumentDefaultFont} from "@zavx0z/engine/default-font"
+import {STORYBOOK_FONT_FACES} from "./font-faces.ts"
+import {StorybookDisplay} from "./display-view.tsx"
+import {createStorybookComponentPresentation} from "./component-presentation.ts"
+import type {CompiledTemplate} from "@zavx0z/template/compiled"
 import {
   HTMLElement as SemanticHTMLElement,
   type Document as SemanticDocument,
@@ -30,6 +34,7 @@ import {
 } from "./client-protocol.ts"
 import {
   renderStorybookMarkdown,
+  type StorybookMarkdownPresentation,
 } from "../markdown.ts"
 import {
   createStorybookMessagePresentation,
@@ -149,6 +154,7 @@ export async function createExternalStorybookShell(
   const experience = await createExperience({
     canvas,
     font,
+    ...(options.loadFont === undefined ? {fontSources: STORYBOOK_FONT_FACES} : {}),
     styleSheets: Object.freeze([]),
     linkedAuthorStyleSheets: authorStyleSheetSources,
     cameraGestures: false,
@@ -163,9 +169,15 @@ export async function createExternalStorybookShell(
   const document = experience.document
   const space = experience.space
   const viewPoint = experience.viewPoint
-  const display = document.createElement("xr-display") as XRDisplayElement
+  const displayView = createStorybookComponentPresentation<{id: string}, XRDisplayElement>(
+    document,
+    StorybookDisplay as unknown as CompiledTemplate<{id: string}>,
+    {id: EXTERNAL_STORYBOOK_DISPLAY_ID},
+    "xr-display",
+  )
+  const display = displayView.element
+  display.visible = false
   const hud = document.createElement("xr-hud") as XRHUDElement
-  display.id = EXTERNAL_STORYBOOK_DISPLAY_ID
   hud.id = EXTERNAL_STORYBOOK_WORKBENCH_ID
   let workbench: Workbench
   try {
@@ -206,6 +218,7 @@ export async function createExternalStorybookShell(
       },
     })
   } catch (error) {
+    displayView.dispose()
     experience.dispose()
     throw error
   }
@@ -244,6 +257,23 @@ export async function createExternalStorybookShell(
   if (shellDiagnostics.length > 0) publishShellDiagnostics()
 
   const publishBounds = (bounds: StorybookPreviewBounds | null): void => {
+    const visible = bounds !== null && bounds.width > 0 && bounds.height > 0 &&
+      workbench.controller.read("presentation").projection === "display"
+    if (display.visible !== visible) display.visible = visible
+    if (visible && bounds !== null) {
+      // The HUD supplies layout bounds in CSS pixels. Project that rectangle
+      // onto the existing front-facing Display through the authored camera.
+      const units = 2 * (viewPoint.z - display.z) * Math.tan(viewPoint.fov / 2) / bounds.viewportHeight
+      const x = viewPoint.x + (bounds.x + bounds.width / 2 - bounds.viewportWidth / 2) * units
+      const y = viewPoint.y + (bounds.viewportHeight / 2 - bounds.y - bounds.height / 2) * units
+      document.transaction(() => {
+        if (display.viewportWidth !== bounds.width) display.viewportWidth = bounds.width
+        if (display.viewportHeight !== bounds.height) display.viewportHeight = bounds.height
+        if (display.worldUnitsPerPixel !== units) display.worldUnitsPerPixel = units
+        if (display.x !== x) display.x = x
+        if (display.y !== y) display.y = y
+      })
+    }
     if (sameBounds(latestBounds, bounds)) return
     latestBounds = bounds
     for (const listener of [...boundsListeners]) listener(bounds)
@@ -274,6 +304,7 @@ export async function createExternalStorybookShell(
     unsubscribeFrame()
     unsubscribePresented()
     workbench.dispose()
+    displayView.dispose()
     experience.dispose()
     throw error
   }
@@ -416,12 +447,20 @@ export async function createExternalStorybookShell(
     source: string,
     baseUrl?: string,
     action?: StorybookOverviewAction,
-  ): SemanticHTMLElement => mountShellPresentation(label, renderStorybookMarkdown({
-    document,
-    source,
-    ...(baseUrl === undefined ? {} : {baseUrl}),
-    ...(action === undefined ? {} : {action}),
-  }))
+  ): SemanticHTMLElement => {
+    const props = {
+      source,
+      ...(baseUrl === undefined ? {} : {baseUrl}),
+      ...(action === undefined ? {} : {action}),
+    }
+    if (activeShellPresentation !== null && "update" in activeShellPresentation) {
+      const presentation = activeShellPresentation as StorybookMarkdownPresentation
+      presentation.update(props)
+      mountPreviewNode(label, presentation.element)
+      return presentation.element
+    }
+    return mountShellPresentation(label, renderStorybookMarkdown({document, ...props}))
+  }
 
   const projectionFor = (node: SemanticNode): ExperienceProjection => {
     if (node === display || display.contains(node)) return displayProjection
@@ -584,6 +623,7 @@ export async function createExternalStorybookShell(
       frameWaiters.clear()
       experience.dispose()
       workbench.dispose()
+      displayView.dispose()
     },
   })
   return shell

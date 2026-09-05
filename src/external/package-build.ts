@@ -562,7 +562,7 @@ async function validateRuntimeProtocol(
   }
 }
 
-function canonicalBuildInputs(
+export function canonicalBuildInputs(
   inputs: Readonly<Record<string, unknown>>,
   projectRoot: string,
 ): readonly string[] {

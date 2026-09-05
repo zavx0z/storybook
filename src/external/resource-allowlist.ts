@@ -1,5 +1,6 @@
 import {readFileSync, realpathSync, statSync} from "node:fs"
 import {dirname, isAbsolute, relative, resolve} from "node:path"
+import {markdownDestinations} from "@zavx0z/ui/markdown"
 
 export const EXTERNAL_STORYBOOK_README_MAX_BYTES = 1_048_576
 
@@ -26,8 +27,8 @@ export type CreateExternalStorybookResourceAllowListInput = Readonly<{
 /**
  * Creates one immutable exact-file allow-list for a declaration snapshot.
  *
- * Local README assets are derived only from literal Markdown link/image
- * destinations. An arbitrary sibling inside the owner root is never admitted.
+ * Local README assets are derived from the same inert Markdown/HTML model as
+ * the view. An arbitrary sibling inside the owner root is never admitted.
  */
 export function createExternalStorybookResourceAllowList(
   input: CreateExternalStorybookResourceAllowListInput,
@@ -88,12 +89,10 @@ export function createExternalStorybookResourceAllowList(
   })
 }
 
-/** Extracts the bounded inline link/image destination subset rendered by Storybook Markdown. */
+/** Reuses the production parser for Markdown and admitted HTML destinations. */
 export function localMarkdownDestinations(source: string): readonly string[] {
   if (typeof source !== "string") throw new TypeError("Storybook Markdown source must be text")
-  const destinations = [...source.matchAll(/!?\[[^\]\n]*\]\(([^()\s]+)\)/gu)]
-    .map((match) => match[1]!)
-    .filter((value) => localDestination(value))
+  const destinations = markdownDestinations(source).filter(localDestination)
   return Object.freeze([...new Set(destinations)])
 }
 

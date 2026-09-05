@@ -1,4 +1,3 @@
-import {WorkbenchRegionPanel} from "../components/region-panel.tsx"
 import type {WorkbenchPresentationProjection} from "../contract.ts"
 
 export type PreviewRegionProps = Readonly<{
@@ -103,8 +102,6 @@ export function PreviewRegion(props: PreviewRegionProps) {
       flex-grow: 1;
     `}
   >
-    <WorkbenchRegionPanel transparent={props.projection !== "hud"}>
-      <PreviewRegionContent value={props} />
-    </WorkbenchRegionPanel>
+    <PreviewRegionContent value={props} />
   </main>
 }

@@ -79,6 +79,20 @@ describe("external Storybook resource allow-list", () => {
       "[bad](javascript:alert(1))",
     ].join("\n"))).toEqual(["./DOC.md#section", "./media/image.png"])
   })
+
+  test("admits an HTML image and a code-labelled link but no destinations from code or scripts", () => {
+    expect(localMarkdownDestinations([
+      '<div align="center"><img src="docs/img/metafor.gif" width="444" onerror="bad()"></div>',
+      "",
+      "[`docs/README.md`](docs/README.md)",
+      "",
+      "```html",
+      '<img src="secret.txt">',
+      "```",
+      "",
+      '<script><img src="private.txt"></script>',
+    ].join("\n"))).toEqual(["docs/img/metafor.gif", "docs/README.md"])
+  })
 })
 
 function resourceFixture() {

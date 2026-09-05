@@ -10,7 +10,7 @@ import {
   type Element,
   type Node,
 } from "@zavx0z/dom"
-import type {RenderBox, RenderFrame} from "@zavx0z/renderer"
+import {createDocumentRenderer, type RenderBox, type RenderFrame} from "@zavx0z/renderer"
 import {
   createSpaceElementFactories,
   XRDisplayElement,
@@ -58,7 +58,7 @@ describe("external Storybook shared Browser Experience", () => {
 
     const displayNode = shell.document.createElement("button")
     shell.mountPreview("Display", displayNode)
-    expect(shell.display.firstChild).toBe(displayNode)
+    expect(displayNode.parentNode === shell.display).toBe(true)
     expect(shell.projectionFor(displayNode).kind).toBe("display")
 
     const hudNode = shell.document.createElement("button")
@@ -116,6 +116,33 @@ describe("external Storybook shared Browser Experience", () => {
       null,
       {x: 12, y: 18, width: 640, height: 360, viewportWidth: 1024, viewportHeight: 768},
     ])
+    expect(shell.display.viewportWidth).toBe(640)
+    expect(shell.display.viewportHeight).toBe(360)
+    const scale = shell.display.worldUnitsPerPixel
+    expect(scale).toBeCloseTo(2_000 * Math.tan(shell.viewPoint.fov / 2) / 768, 10)
+    expect(shell.display.x / scale + 512 - 320).toBeCloseTo(12, 10)
+    expect(384 - shell.display.y / scale - 180).toBeCloseTo(18, 10)
+    const renderer = createDocumentRenderer({
+      document: shell.document,
+      root: shell.display,
+      viewport: {width: 640, height: 360},
+      styleSheets: ["xr-display { --widget-box-outline: #333333; }"],
+    })
+    const frame = renderer.flush()
+    expect(frame.boxByNode.get(shell.display)).toMatchObject({
+      width: 640, height: 360, contentX: 1, contentY: 1, contentWidth: 638, contentHeight: 358,
+    })
+    expect(frame.displayList.some(item => item.kind === "rect" && item.node === shell.display)).toBe(true)
+    renderer.dispose()
+    const display = shell.display
+    state.emitFrame(shell.hud, shell.workbench.elements.previewHost, {
+      contentX: 180, contentY: 40, contentWidth: 480, contentHeight: 280,
+    })
+    expect(shell.display === display).toBe(true)
+    expect(display.viewportWidth).toBe(480)
+    expect(display.viewportHeight).toBe(280)
+    expect(display.x / display.worldUnitsPerPixel + 512 - 240).toBeCloseTo(180, 10)
+    expect(384 - display.y / display.worldUnitsPerPixel - 140).toBeCloseTo(40, 10)
     const before = shell.presentedFrameSequence
     expect(shell.presentFrame()).toBeGreaterThan(before)
     expect(await shell.captureLastPresentedFramePng()).toBe(state.capture)

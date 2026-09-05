@@ -95,6 +95,89 @@ describe("one external Storybook server", () => {
     expect(running.sessions.session("@fixture/standalone").snapshot().builds).toBe(1)
   }, 120_000)
 
+  test("refreshes shared dependencies on the same server and keeps old hashed assets available", async () => {
+    const fixture = serverFixture()
+    const entries = sharedEntriesFixture()
+    const dependency = join(entries.root, "code-view.ts")
+    writeFileSync(dependency, 'export const height = "160px"\n')
+    writeFileSync(entries.landing, 'import {height} from "./code-view.ts"\ndocument.title = height\n')
+    const running = await startExternalStorybookServer({
+      statePath: fixture.statePath,
+      artifactRoot: fixture.artifactRoot,
+      landingEntryPath: entries.landing,
+      fallbackEntryPath: entries.fallback,
+    })
+    servers.push(running)
+    const instance = running.record.instanceId
+    const entry = async () => {
+      const response = await fetch(new URL("/", running.origin))
+      const html = await response.text()
+      expect(response.status, html).toBe(200)
+      const script = html.match(/<script type="module" src="([^"]+)"/u)?.[1]
+      if (script === undefined) throw new Error("Missing landing entry")
+      return script
+    }
+    const first = await entry()
+    const original = await (await fetch(new URL(first, running.origin))).text()
+    expect(original).toContain("160px")
+    writeFileSync(dependency, 'export const height = "auto"\n')
+    const second = await entry()
+    expect(second).not.toBe(first)
+    expect(await (await fetch(new URL(second, running.origin))).text()).toContain("auto")
+    expect(await (await fetch(new URL(first, running.origin))).text()).toBe(original)
+    writeFileSync(dependency, "export const height =\n")
+    expect(await entry()).toBe(second)
+    writeFileSync(dependency, 'export const height = "content"\n')
+    const repaired = await entry()
+    expect(repaired).not.toBe(second)
+    expect(await (await fetch(new URL(repaired, running.origin))).text()).toContain("content")
+    expect(running.record.instanceId).toBe(instance)
+    expect((await fetch(new URL("/api/health", running.origin))).status).toBe(200)
+  })
+
+  test("notifies a project README change without rebuilding packages or changing the server", async () => {
+    const fixture = serverFixture()
+    const entries = sharedEntriesFixture()
+    const running = await startExternalStorybookServer({
+      declarations: [fixture.workspace],
+      statePath: fixture.statePath,
+      artifactRoot: fixture.artifactRoot,
+      landingEntryPath: entries.landing,
+      fallbackEntryPath: entries.fallback,
+    })
+    servers.push(running)
+    const page = await fetch(new URL("/projects/fixture-alpha/", running.origin))
+    const html = await page.text()
+    expect(page.status, html).toBe(200)
+    const url = new URL(`/api/events?session=${encodeURIComponent(browserSessionToken(html))}`, running.origin)
+    url.protocol = "ws:"
+    const socket = storybookSocket(url.href, running.origin)
+    const messages: Array<Record<string, unknown>> = []
+    socket.addEventListener("message", event => { messages.push(JSON.parse(String(event.data))) })
+    await new Promise<void>((resolve, reject) => {
+      socket.addEventListener("open", () => resolve(), {once: true})
+      socket.addEventListener("error", () => reject(new Error("README socket failed")), {once: true})
+    })
+    try {
+      socket.send(JSON.stringify({type: "subscribe", topic: "registry"}))
+      await waitFor(() => messages.some(message => message.type === "subscribed"))
+      const builds = running.sessions.snapshots().map(snapshot => snapshot.builds)
+      const instance = running.record.instanceId
+      const revision = running.registry.snapshot().revision
+      const readme = join(fixture.workspace, "projects/alpha/README.md")
+      writeFileSync(readme, "# Updated project README\n")
+      running.watch.notify(readme)
+      await waitFor(() => messages.some(message => message.type === "registry.readme-updated"))
+      expect(messages.find(message => message.type === "registry.readme-updated")?.nodeIds).toEqual(["project:fixture-alpha"])
+      expect(messages.some(message => message.type === "registry.updated" || message.type === "shared.updated")).toBe(false)
+      expect(running.registry.snapshot().revision).toBe(revision)
+      expect(running.sessions.snapshots().map(snapshot => snapshot.builds)).toEqual(builds)
+      expect(running.record.instanceId).toBe(instance)
+    } finally {
+      socket.close()
+    }
+  })
+
   test("owns one automatic origin and atomically attaches independent roots", async () => {
     const fixture = serverFixture()
     const running = await startExternalStorybookServer({
@@ -131,7 +214,7 @@ describe("one external Storybook server", () => {
     expect(running.record.controlToken).toMatch(/^[A-Za-z0-9_-]{43}$/u)
   })
 
-  test("wires manifest, catalog, package metadata and landing README structural watches", async () => {
+  test("wires structural files and separately owned landing README watches", async () => {
     const fixture = serverFixture()
     const running = await startExternalStorybookServer({
       declarations: [fixture.workspace],
@@ -751,6 +834,16 @@ function fakeBrowserLifecycle(): Readonly<{
     },
   }
   return Object.freeze({service, viewId, opened})
+}
+
+function sharedEntriesFixture() {
+  const root = mkdtempSync(join(import.meta.dir, "fixtures", ".shared-browser-"))
+  roots.push(root)
+  const landing = join(root, "landing-entry.ts")
+  const fallback = join(root, "fallback-entry.ts")
+  writeFileSync(landing, 'document.title = "landing"\n')
+  writeFileSync(fallback, 'document.title = "fallback"\n')
+  return {root, landing, fallback}
 }
 
 function serverFixture(): Readonly<{
