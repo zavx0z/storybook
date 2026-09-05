@@ -94,6 +94,7 @@ describe("external Storybook landing frontend", () => {
     expect(requests[0]).toBe("/api/client")
     expect(requests.at(-1)).toContain("project%3Afixture-alpha")
     expect(statusBreadcrumbLabels(controller)).toEqual([
+      "Главная",
       "Fixture Workspace",
       "Fixture Alpha",
     ])
@@ -112,6 +113,7 @@ describe("external Storybook landing frontend", () => {
     expect(pushed).toEqual(["/projects/fixture-beta/"])
     expect(initialPresentation?.parentNode).toBeNull()
     expect(statusBreadcrumbLabels(controller)).toEqual([
+      "Главная",
       "Fixture Workspace",
       "Fixture Beta",
     ])
@@ -123,6 +125,7 @@ describe("external Storybook landing frontend", () => {
     expect(controller.shell.workbench.controller.read("presentation").node?.textContent)
       .toContain("project:fixture-alpha")
     expect(statusBreadcrumbLabels(controller)).toEqual([
+      "Главная",
       "Fixture Workspace",
       "Fixture Alpha",
     ])
@@ -130,6 +133,7 @@ describe("external Storybook landing frontend", () => {
     await controller.select("package:@fixture/components")
     expect(controller.shell.workbench.controller.read("secondary.active")).toBe("package:@fixture/components")
     expect(statusBreadcrumbLabels(controller)).toEqual([
+      "Главная",
       "Fixture Workspace",
       "Fixture Alpha",
       "Fixture Components",
@@ -145,6 +149,7 @@ describe("external Storybook landing frontend", () => {
       route: "",
     })
     expect(statusBreadcrumbLabels(controller)).toEqual([
+      "Главная",
       "Fixture Workspace",
       "Fixture Alpha",
       "Fixture Components",
@@ -154,8 +159,8 @@ describe("external Storybook landing frontend", () => {
       '[data-breadcrumb-id="workspace:fixture-workspace"] button',
     ) as Element | null
     click(workspaceBreadcrumb ?? undefined)
-    await waitFor(() => statusBreadcrumbLabels(controller).length === 1, "workspace breadcrumb navigation")
-    expect(statusBreadcrumbLabels(controller)).toEqual(["Fixture Workspace"])
+    await waitFor(() => statusBreadcrumbLabels(controller).length === 2, "workspace breadcrumb navigation")
+    expect(statusBreadcrumbLabels(controller)).toEqual(["Главная", "Fixture Workspace"])
     expect(location.pathname).toBe("/workspaces/fixture-workspace/")
 
     await controller.select("package:@fixture/components")
@@ -163,9 +168,10 @@ describe("external Storybook landing frontend", () => {
       '[data-breadcrumb-id="project:fixture-alpha"] button',
     ) as Element | null
     click(projectBreadcrumb ?? undefined)
-    await waitFor(() => statusBreadcrumbLabels(controller).length === 2 &&
+    await waitFor(() => statusBreadcrumbLabels(controller).length === 3 &&
       location.pathname === "/projects/fixture-alpha/", "project breadcrumb navigation")
     expect(statusBreadcrumbLabels(controller)).toEqual([
+      "Главная",
       "Fixture Workspace",
       "Fixture Alpha",
     ])
@@ -173,7 +179,7 @@ describe("external Storybook landing frontend", () => {
 
     await controller.select("package:@fixture/standalone")
     expect(controller.shell.workbench.controller.read("secondary.items")).toEqual([])
-    expect(statusBreadcrumbLabels(controller)).toEqual(["Standalone Fixture"])
+    expect(statusBreadcrumbLabels(controller)).toEqual(["Главная", "Standalone Fixture"])
     const directAction = descendants(controller.shell.display)
       .find((element) => element.nodeName === "BUTTON")
     click(directAction)
@@ -195,6 +201,18 @@ describe("external Storybook landing frontend", () => {
     expect(source).not.toContain("window.open")
     expect(view).toContain('from "../components/overview-action-button.tsx"')
     expect(view).not.toContain("actionStyle")
+    const home = controller.shell.workbench.elements.status.querySelector(
+      '[data-breadcrumb-id="storybook:root"] button',
+    ) as Element
+    expect(home.textContent).toBe("")
+    expect(home.getAttribute("aria-label")).toBe("Главная")
+    click(home)
+    expect(location.pathname).toBe("/")
+    expect(statusBreadcrumbLabels(controller)).toEqual(["Главная"])
+    expect(controller.shell.workbench.controller.read("catalog.active")).toBeNull()
+    expect(controller.shell.workbench.controller.read("secondary.items")).toEqual([])
+    expect(controller.shell.document).toBe(semanticDocument)
+    expect(controller.shell.workbench.elements.status.querySelector('[aria-current="page"]')?.hasAttribute("disabled")).toBe(true)
     controller.dispose()
     expect(readDocumentCompiledStyleSheets(semanticDocument).styleSheets).toEqual([])
     expect(experienceState.creations).toBe(1)

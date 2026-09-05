@@ -209,6 +209,7 @@ function validateWorkbenchStatus(value: unknown): WorkbenchStatus {
     return Object.freeze({
       id,
       label: requiredText("Status breadcrumb label", candidate.label),
+      ...(candidate.iconSrc === undefined ? {} : {iconSrc: requiredText("Status breadcrumb icon source", candidate.iconSrc)}),
       route: stringValue("Status breadcrumb route", candidate.route),
       ...(candidate.urlPath === undefined
         ? {}

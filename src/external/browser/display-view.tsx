@@ -1,4 +1,4 @@
-import {Display} from "@zavx0z/space/display"
+import {Display} from "@zavx0z/space/portals/display"
 
 /** The Display itself owns its border, layout and overflow clipping. */
 export function StorybookDisplay(props: Readonly<{id: string}>) {

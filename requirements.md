@@ -114,7 +114,10 @@ Standard Inspector registry импортирует только exact named icon
 передаёт их в optional category `iconSrc`; aggregate `uiIcons` не попадает в
 Workbench bundle. Буквенные labels остаются semantic fallback, но не заменяют
 видимые SVG. Search использует production Inspector slot. Каждый landing,
-workspace/project/package overview и package route показывает свой полный путь
+workspace/project/package overview и package route начинает путь с иконки дома,
+ведущей в общий каталог `/`. На самой главной странице эта иконка — текущий
+неактивный сегмент. Она не создаёт искусственного родителя declaration-графа.
+Далее показывается полный существующий путь
 `workspace → project → package → category → subject → variant` через production
 `@zavx0z/ui/navigation/breadcrumbs` внутри StatusBar; Inspector не дублирует
 package/subject context. Обычный переход не оставляет рядом прежнюю плоскую

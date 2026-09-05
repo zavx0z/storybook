@@ -96,6 +96,7 @@ describe("external Storybook package frontend", () => {
     expect(experienceState.stylesheets.map(({link}) => link)).toEqual([...links.values()])
     expect(lifecycle.slice(0, 2)).toEqual(["root-create", "activation"])
     expect(controller.shell.workbench.controller.read("status").breadcrumbs?.map(({label}) => label)).toEqual([
+      "Главная",
       "Fixture Workspace",
       "Fixture Alpha",
       "Fixture Components",
@@ -105,6 +106,14 @@ describe("external Storybook package frontend", () => {
     ) as import("@zavx0z/dom").HTMLButtonElement
     workspaceBreadcrumb.click()
     expect(location.href).toBe("http://localhost/workspaces/fixture-workspace/")
+    const homeBreadcrumb = controller.shell.workbench.elements.status.querySelector(
+      '[data-breadcrumb-id="storybook:root"] button',
+    ) as import("@zavx0z/dom").HTMLButtonElement
+    expect(homeBreadcrumb.textContent).toBe("")
+    expect(homeBreadcrumb.getAttribute("aria-label")).toBe("Главная")
+    expect(homeBreadcrumb.querySelector("img")).not.toBeNull()
+    homeBreadcrumb.click()
+    expect(location.href).toBe("http://localhost/")
     await controller.dispose()
     expect(lifecycle.at(-1)).toBe("root-dispose")
   })
@@ -270,6 +279,7 @@ describe("external Storybook package frontend", () => {
       .toBe("components/button/basic/contained:Contained")
     expect(controller.shell.workbench.elements.inspectorHost.textContent).toContain("owner-ready")
     expect(controller.shell.workbench.controller.read("status").breadcrumbs?.map(({label}) => label)).toEqual([
+      "Главная",
       "Fixture Workspace",
       "Fixture Alpha",
       "Fixture Components",

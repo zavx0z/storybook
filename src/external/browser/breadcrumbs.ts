@@ -1,4 +1,5 @@
 import type {WorkbenchBreadcrumb} from "../../workbench/contract.ts"
+import {homeIcon} from "@zavx0z/ui/themes/icons"
 import type {StorybookPackageRevisionAncestor} from "../package-revision.ts"
 import type {
   ExternalStorybookClientNode,
@@ -12,6 +13,16 @@ export type StorybookBreadcrumbScope =
     ancestors: readonly StorybookPackageRevisionAncestor[]
   }>
 
+/** Общий каталог является корнем навигации, независимо от корней declaration-графа. */
+export const STORYBOOK_ROOT_BREADCRUMB: WorkbenchBreadcrumb = Object.freeze({
+  id: "storybook:root",
+  label: "Главная",
+  title: "Общий каталог Storybook",
+  iconSrc: homeIcon,
+  route: "",
+  urlPath: "/",
+})
+
 /** Derives one ordered breadcrumb path from the exact browser graph projection. */
 export function deriveStorybookBreadcrumbs(
   graph: ExternalStorybookClientSnapshot,
@@ -19,8 +30,8 @@ export function deriveStorybookBreadcrumbs(
   scope: StorybookBreadcrumbScope,
 ): readonly WorkbenchBreadcrumb[] {
   const path = graphPath(graph, selectedId)
-  if (scope.kind === "landing") return landingBreadcrumbs(path)
-  return packageBreadcrumbs(path, scope.ancestors)
+  const breadcrumbs = scope.kind === "landing" ? landingBreadcrumbs(path) : packageBreadcrumbs(path, scope.ancestors)
+  return Object.freeze([STORYBOOK_ROOT_BREADCRUMB, ...breadcrumbs])
 }
 
 function landingBreadcrumbs(

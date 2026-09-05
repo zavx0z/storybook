@@ -19,7 +19,7 @@ import {
 import type {ExternalStorybookClientSnapshot} from "./client-protocol.ts"
 import type {StorybookOverviewAction} from "../components/overview-action.ts"
 import {externalStorybookPageTitle} from "../page-title.ts"
-import {deriveStorybookBreadcrumbs} from "./breadcrumbs.ts"
+import {deriveStorybookBreadcrumbs, STORYBOOK_ROOT_BREADCRUMB} from "./breadcrumbs.ts"
 
 export type StartExternalStorybookLandingOptions = Readonly<{
   fetcher?: typeof fetch
@@ -65,11 +65,28 @@ export async function startExternalStorybookLanding(
 
   shell.workbench.update("catalog.label", "Проекты и пакеты")
   shell.workbench.update("catalog.items", navigationItems(landing.catalogItems))
-  shell.showMessage(
-    "External Storybook · Обзор",
-    "External Storybook",
-    "Выберите проект или самостоятельный пакет. Workspace используется только как раскрываемая композиция.",
-  )
+  const showRootOverview = (): void => {
+    selectedNodeId = null
+    selectionRevision += 1
+    shell.document.transaction(() => {
+      shell.workbench.update("catalog.active", null)
+      shell.workbench.update("secondary.items", [])
+      shell.workbench.update("secondary.active", null)
+      shell.workbench.update("scenarios.items", [])
+      shell.workbench.update("scenarios.active", null)
+      shell.workbench.update("status", {
+        lead: "",
+        owner: "External Storybook",
+        detail: "",
+        breadcrumbs: [STORYBOOK_ROOT_BREADCRUMB],
+      })
+      shell.showMessage(
+        "External Storybook · Обзор",
+        "External Storybook",
+        "Выберите проект или самостоятельный пакет. Workspace используется только как раскрываемая композиция.",
+      )
+    })
+  }
 
   const breadcrumbsFor = (nodeId: string) => deriveStorybookBreadcrumbs(graph, nodeId, {kind: "landing"})
 
@@ -155,7 +172,12 @@ export async function startExternalStorybookLanding(
   }
 
   const onNavigate = (event: unknown): void => {
-    const detail = (event as CustomEvent<{id: string; kind?: string}>).detail
+    const detail = (event as CustomEvent<{id: string; kind?: string; urlPath?: string}>).detail
+    if (detail.kind === "breadcrumb" && detail.id === STORYBOOK_ROOT_BREADCRUMB.id) {
+      showRootOverview()
+      if (location !== undefined && history !== undefined && location.pathname !== "/") history.pushState(null, "", "/")
+      return
+    }
     const node = externalStorybookClientNode(snapshot, detail.id)
     const navigation = detail.kind === "breadcrumb" && node.kind === "workspace"
       ? showWorkspace(node.id, true)
@@ -201,10 +223,7 @@ export async function startExternalStorybookLanding(
   const applyLandingPath = async (): Promise<void> => {
     const pathname = location?.pathname ?? "/"
     if (pathname === "/") {
-      if (snapshot.rootIds.length === 1) {
-        const root = externalStorybookClientNode(snapshot, snapshot.rootIds[0]!)
-        if (root.kind === "workspace") await showWorkspace(root.id, false)
-      }
+      showRootOverview()
       return
     }
     const node = snapshot.nodes.find((candidate) => candidate.urlPath === pathname)
