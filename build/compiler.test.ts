@@ -65,10 +65,10 @@ describe("external Storybook package compiler", () => {
       moduleSourcePaths: [source],
     })
     const resolved = resolveWithPlugin(plugins[0]!, "@zavx0z/template/compiled")
-    expect(resolved.path).toBe(await realpath(resolve(
+    expect(resolved.path).toBe(join(await realpath(resolve(
       import.meta.dir,
-      "../../webxr-space/template/compiled.ts",
-    )))
+      "../../webxr-space/template",
+    )), "compiled.ts"))
   })
 
   test("resolves a fresh Template plugin and exact manifest-reached source roots", async () => {

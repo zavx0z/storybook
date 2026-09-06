@@ -17,6 +17,7 @@ export const WORKBENCH_EVENTS = Object.freeze({
   search: "storybooksearch",
   scenario: "storybookscenario",
   groupToggle: "storybookgrouptoggle",
+  catalogAction: "storybookcatalogaction",
 } as const)
 
 export const WORKBENCH_LAYOUT_PROTOCOL = "workbench-layout/2" as const
@@ -112,9 +113,21 @@ export type WorkbenchProjectionHosts = Readonly<{
   space?: Node
 }>
 
+export type WorkbenchCatalogManagement = Readonly<{
+  pending: boolean
+  error: string
+  removableIds: readonly string[]
+}>
+
+export type WorkbenchCatalogAction = Readonly<{
+  action: "attach" | "detach"
+  value?: string
+}>
+
 /** Every host-driven Workbench input has one exact typed address. */
 export type WorkbenchAddressMap = Readonly<{
   title: string
+  "catalog.management": WorkbenchCatalogManagement | null
   "catalog.label": string
   "catalog.search": string
   "catalog.items": readonly WorkbenchNavigationItem[]

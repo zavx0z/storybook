@@ -1,8 +1,9 @@
+import {attachPickedDirectory, pickStorybookDirectory} from "./directory-picker.ts"
 /** Global external Storybook landing entry. It never imports package runtime code. */
 
 import type {CustomEvent} from "@zavx0z/dom"
 import type {RootLinkedAuthorStyleSheet} from "@zavx0z/browser"
-import {WORKBENCH_EVENTS} from "../workbench/contract.ts"
+import {WORKBENCH_EVENTS, type WorkbenchCatalogAction, type WorkbenchCatalogManagement} from "../workbench/contract.ts"
 import {
   deriveExternalStorybookLanding,
   deriveExternalStorybookLandingSelection,
@@ -24,6 +25,7 @@ import {deriveStorybookBreadcrumbs, STORYBOOK_ROOT_BREADCRUMB} from "./breadcrum
 export type StartExternalStorybookLandingOptions = Readonly<{
   fetcher?: typeof fetch
   browserDocument?: globalThis.Document
+  pickDirectory?(): Promise<FileSystemDirectoryHandle>
   openPackage?(input: Readonly<{packageId: string; route: string}>): Promise<void>
   createSocket?(url: string): LandingSocket
   location?: Pick<Location, "href" | "pathname" | "reload">
@@ -46,9 +48,9 @@ export async function startExternalStorybookLanding(
   browserDocument.documentElement.dataset.externalStorybook = "starting"
   browserDocument.documentElement.dataset.externalStorybookLanding = "starting"
   const fetcher = options.fetcher ?? globalThis.fetch
-  const snapshot = await fetchExternalStorybookClientSnapshot(fetcher)
-  const graph = snapshot
-  const landing = deriveExternalStorybookLanding(graph)
+  let snapshot = await fetchExternalStorybookClientSnapshot(fetcher)
+  let graph = snapshot
+  let landing = deriveExternalStorybookLanding(graph)
   const shell = await createExternalStorybookShell({
     title: externalStorybookPageTitle(null),
     browserDocument,
@@ -62,6 +64,14 @@ export async function startExternalStorybookLanding(
   let selectionRevision = 0
   let selectedNodeId: string | null = null
   let disposed = false
+
+  let management: WorkbenchCatalogManagement = {pending: false, error: "", removableIds: []}
+  const updateManagement = (patch: Partial<WorkbenchCatalogManagement> = {}): void => {
+    management = {...management, ...patch}
+    management = {...management, removableIds: management.pending ? [] : landing.catalogItems.map(item => item.id)}
+    shell.workbench.update("catalog.management", management)
+  }
+  updateManagement()
 
   shell.workbench.update("catalog.label", "Проекты и пакеты")
   shell.workbench.update("catalog.items", navigationItems(landing.catalogItems))
@@ -171,6 +181,50 @@ export async function startExternalStorybookLanding(
     }
   }
 
+  let refreshRevision = 0
+  const refreshRegistry = async (): Promise<void> => {
+    const revision = ++refreshRevision
+    const updated = await fetchExternalStorybookClientSnapshot(fetcher)
+    if (disposed || revision !== refreshRevision) return
+    snapshot = updated
+    graph = updated
+    landing = deriveExternalStorybookLanding(graph)
+    shell.workbench.update("catalog.items", navigationItems(landing.catalogItems))
+    updateManagement()
+    if (selectedNodeId !== null && graph.nodes.some(node => node.id === selectedNodeId)) {
+      const node = externalStorybookClientNode(snapshot, selectedNodeId)
+      if (node.kind === "workspace") await showWorkspace(node.id)
+      else await select(node.id, false)
+    } else {
+      showRootOverview()
+      if (location !== undefined && history !== undefined && location.pathname !== "/") {
+        if ("replaceState" in history && typeof history.replaceState === "function") history.replaceState(null, "", "/")
+        else history.pushState(null, "", "/")
+      }
+    }
+  }
+  const changeProject = async (action: WorkbenchCatalogAction): Promise<void> => {
+    if (management.pending) return
+    if (action.action === "detach" && !management.removableIds.includes(action.value ?? "")) return
+    updateManagement({pending: true, error: ""})
+    try {
+      if (action.action === "attach") {
+        const directory = await (options.pickDirectory?.() ?? pickStorybookDirectory())
+        await attachPickedDirectory(directory, (operation, body) => requestRegistryChange(fetcher, browserDocument, {action: operation, body}))
+      } else {
+        await requestRegistryChange(fetcher, browserDocument, {action: "detach", body: {scopeId: action.value!}})
+      }
+      await refreshRegistry()
+      updateManagement({pending: false})
+    } catch (error) {
+      const cancelled = error instanceof Error && error.name === "AbortError"
+      updateManagement({pending: false, error: cancelled ? "" : errorText(error)})
+    }
+  }
+  const onCatalogAction = (event: unknown): void => {
+    void changeProject((event as CustomEvent<WorkbenchCatalogAction>).detail)
+  }
+
   const onNavigate = (event: unknown): void => {
     const detail = (event as CustomEvent<{id: string; kind?: string; urlPath?: string}>).detail
     if (detail.kind === "breadcrumb" && detail.id === STORYBOOK_ROOT_BREADCRUMB.id) {
@@ -188,6 +242,7 @@ export async function startExternalStorybookLanding(
     const detail = (event as CustomEvent<{id: string}>).detail
     void showWorkspace(detail.id).catch((error) => isolateLandingError(browserDocument, shell, error))
   }
+  shell.workbench.element.addEventListener(WORKBENCH_EVENTS.catalogAction, onCatalogAction)
   shell.workbench.element.addEventListener(WORKBENCH_EVENTS.navigate, onNavigate)
   shell.workbench.element.addEventListener(WORKBENCH_EVENTS.groupToggle, onGroupToggle)
 
@@ -203,7 +258,9 @@ export async function startExternalStorybookLanding(
         ? showWorkspace(node.id, false)
         : select(node.id, false)
       void refreshed.catch(error => isolateLandingError(browserDocument, shell, error))
-    } else if (update.type === "registry.updated" || update.type === "shared.updated") {
+    } else if (update.type === "registry.updated") {
+      void refreshRegistry().catch(error => updateManagement({error: errorText(error)}))
+    } else if (update.type === "shared.updated") {
       location?.reload()
     } else if (update.type === "shared.failed") {
       shell.reportDiagnostic(update.message)
@@ -241,6 +298,7 @@ export async function startExternalStorybookLanding(
     if (disposed) return
     disposed = true
     selectionRevision += 1
+    shell.workbench.element.removeEventListener(WORKBENCH_EVENTS.catalogAction, onCatalogAction)
     shell.workbench.element.removeEventListener(WORKBENCH_EVENTS.navigate, onNavigate)
     shell.workbench.element.removeEventListener(WORKBENCH_EVENTS.groupToggle, onGroupToggle)
     socket?.removeEventListener("open", onSocketOpen)
@@ -253,7 +311,7 @@ export async function startExternalStorybookLanding(
   shell.presentFrame()
   browserDocument.documentElement.dataset.externalStorybook = "ready"
   browserDocument.documentElement.dataset.externalStorybookLanding = "ready"
-  return Object.freeze({snapshot, shell, select, dispose})
+  return Object.freeze({get snapshot() { return snapshot }, shell, select, dispose})
 }
 
 type LandingSocket = Readonly<{
@@ -341,6 +399,23 @@ function packageOpenAction(
       openPackage(Object.freeze({packageId, route: ""}))
     },
   })
+}
+
+async function requestRegistryChange(
+  fetcher: typeof fetch,
+  browserDocument: globalThis.Document,
+  input: Readonly<{action: "directory" | "attach" | "detach"; body: Record<string, unknown>}>,
+): Promise<Record<string, unknown>> {
+  const session = browserDocument.querySelector<HTMLMetaElement>('meta[name="external-storybook-browser-session"]')?.content
+  if (!session) throw new Error("Сессия каталога недоступна. Обновите страницу.")
+  const response = await fetcher(`/api/browser/${input.action}`, {
+    method: "POST",
+    headers: {"content-type": "application/json", "x-storybook-session": session},
+    body: JSON.stringify(input.body),
+  })
+  const result = await response.json() as {ok?: boolean; error?: string}
+  if (!response.ok || result.ok !== true) throw new Error(result.error ?? "Не удалось изменить список проектов")
+  return result
 }
 
 async function requestPackageView(

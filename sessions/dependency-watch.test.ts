@@ -1,6 +1,8 @@
-import {afterEach, describe, expect, test} from "bun:test"
+import {afterEach, describe, expect, spyOn, test} from "bun:test"
+import * as filesystem from "node:fs"
 import {
   mkdtempSync,
+  linkSync,
   realpathSync,
   rmSync,
   symlinkSync,
@@ -106,6 +108,85 @@ describe("shared external Storybook dependency watch", () => {
     expect(coordinator.notify(source)).toBe(1)
     expect(calls).toEqual([canonical, canonical])
     expect(watcher.watchCalls).toHaveLength(1)
+  })
+
+  test("retains a hardlinked source pathname when replacement breaks its inode link", () => {
+    const root = realpathSync(fixtureRoot())
+    const source = sourceFile(root, "owner.ts")
+    const mirror = join(root, "mirror.ts")
+    linkSync(source, mirror)
+    // Bun may report either hardlink as realpath. Exercise the other spelling.
+    const selected = realpathSync(source) === source ? mirror : source
+    const watcher = fakeWatcher()
+    const coordinator = createCoordinator(watcher)
+    const calls: string[] = []
+
+    coordinator.replace("@fixture/a", [selected], (path) => calls.push(`a:${path}`))
+    unlinkSync(selected)
+    writeFileSync(selected, "export const version = 2\n")
+    coordinator.replaceCategorized("@fixture/b", [
+      {path: selected, category: "code"},
+      {path: selected, category: "metadata"},
+    ], ({path, categories}) => calls.push(`b:${path}:${categories.join(",")}`))
+
+    expect(watcher.watchCalls.map(({path}) => path)).toEqual([selected])
+    expect(coordinator.notify(selected)).toBe(2)
+    expect(calls).toEqual([`a:${selected}`, `b:${selected}:code,metadata`])
+    coordinator.remove("@fixture/a")
+    expect(coordinator.notify(selected)).toBe(1)
+    coordinator.remove("@fixture/b")
+    expect(watcher.unwatchCalls).toEqual([selected])
+  })
+
+  test("ignores a runtime realpath cache changing the reported hardlink spelling", () => {
+    const root = realpathSync(fixtureRoot())
+    const source = sourceFile(root, "owner.ts")
+    const mirror = join(root, "mirror.ts")
+    linkSync(source, mirror)
+    const original = filesystem.realpathSync
+    let reported = mirror
+    const resolution = spyOn(filesystem, "realpathSync").mockImplementation(new Proxy(original, {
+      apply(target, receiver, args) {
+        const actual = Reflect.apply(target, receiver, args)
+        if (String(args[0]) !== source) return actual
+        return typeof actual === "string" ? reported : Buffer.from(reported)
+      },
+    }))
+    Object.defineProperty(resolution, "native", {value: original.native})
+    try {
+      const watcher = fakeWatcher()
+      const coordinator = createCoordinator(watcher)
+      const calls: string[] = []
+      coordinator.replace("@fixture/a", [source], (path) => calls.push(`a:${path}`))
+      reported = source
+      coordinator.replace("@fixture/b", [source], (path) => calls.push(`b:${path}`))
+
+      expect(watcher.watchCalls.map(({path}) => path)).toEqual([source])
+      expect(coordinator.notify(source)).toBe(2)
+      expect(calls).toEqual([`a:${source}`, `b:${source}`])
+    } finally {
+      resolution.mockRestore()
+    }
+  })
+
+  test("rejects a retargeted symlink while a peer retains its previous target", () => {
+    const root = fixtureRoot()
+    const first = sourceFile(root, "first.ts")
+    const second = sourceFile(root, "second.ts")
+    const alias = join(root, "alias.ts")
+    symlinkSync(first, alias)
+    const watcher = fakeWatcher()
+    const coordinator = createCoordinator(watcher)
+    const calls: string[] = []
+    coordinator.replace("@fixture/a", [alias], (path) => calls.push(path))
+    unlinkSync(alias)
+    symlinkSync(second, alias)
+
+    expect(() => coordinator.replace("@fixture/b", [alias], () => {}))
+      .toThrow("dependency alias resolves ambiguously")
+    expect(watcher.watchCalls).toHaveLength(1)
+    expect(coordinator.notify(first)).toBe(1)
+    expect(calls).toEqual([realpathSync(first)])
   })
 
   test("dispose is idempotent and releases every underlying watcher once", () => {

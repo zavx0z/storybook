@@ -160,7 +160,10 @@
           "storybook_interact",
           "storybook_capture"
         ],
-        "variants": [{"id": "overview", "label": "Overview", "route": "launcher/contract/overview", "module": {"path": "./stories/contracts.tsx", "export": "launcher"}}]
+        "variants": [
+          {"id": "overview", "label": "Overview", "route": "launcher/contract/overview", "module": {"path": "./stories/contracts.tsx", "export": "launcher"}},
+          {"id": "projects", "label": "Управление проектами", "route": "launcher/contract/projects", "module": {"path": "./stories/project-controls.tsx", "export": "projects"}}
+        ]
       }]
     },
     {

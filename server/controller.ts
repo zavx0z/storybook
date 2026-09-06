@@ -1,7 +1,8 @@
+import {readStorybookProjectSelection} from "./project-store.ts"
 import {createHmac} from "node:crypto"
 import {existsSync, realpathSync} from "node:fs"
 import {fileURLToPath} from "node:url"
-import {join, resolve} from "node:path"
+import {dirname, join, resolve} from "node:path"
 import {
   type ExternalStorybookController as ExternalStorybookControllerContract,
   type StorybookAttachInput,
@@ -116,7 +117,11 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
   }
 
   async attach(input: StorybookAttachInput, context: StorybookControllerContext): Promise<StorybookControllerResult> {
-    return this.ensure({schemaVersion: 1, roots: [input.root]}, context)
+    const roots = canonicalRoots([input.root])
+    const record = await this.#ensureRunning(context.signal)
+    const client = new ExternalStorybookControlClient(record)
+    await client.control("/api/control/attach", {roots}, context.signal)
+    return this.#statusResult(record, true, context.signal)
   }
 
   async detach(input: StorybookDetachInput, context: StorybookControllerContext): Promise<StorybookControllerResult> {
@@ -872,7 +877,7 @@ async function attachMigratedDeclarations(
   declarations: readonly string[],
   signal: AbortSignal,
 ): Promise<ExternalStorybookServerRecord> {
-  if (declarations.length === 0) return record
+  if (declarations.length === 0 || readStorybookProjectSelection(join(dirname(externalStorybookServerStatePath()), "projects.json")) !== null) return record
   const client = new ExternalStorybookControlClient(record)
   const status = await client.read("/api/control/status", signal)
   const attached = new Set(Array.isArray(status.entries) ? status.entries.flatMap((candidate) =>

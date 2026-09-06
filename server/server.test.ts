@@ -1,4 +1,5 @@
-import {afterEach, describe, expect, setDefaultTimeout, test} from "bun:test"
+import {afterEach, describe, expect, setDefaultTimeout, spyOn, test} from "bun:test"
+import * as filesystem from "node:fs"
 import {existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
@@ -21,6 +22,113 @@ afterEach(async () => {
 })
 
 describe("one external Storybook server", () => {
+  test("shares saved project selection between browser and MCP including nested removal and an empty restart", async () => {
+    const fixture = serverFixture()
+    const options = {declarations: [fixture.workspace], projectDirectory: fixture.workspace, statePath: fixture.statePath, artifactRoot: fixture.artifactRoot}
+    let running = await startExternalStorybookServer(options)
+    servers.push(running)
+    const workspaceFile = join(fixture.workspace, ".storybook/manifest.json")
+    const workspaceBytes = readFileSync(workspaceFile, "utf8")
+    const html = await (await fetch(new URL("/", running.origin))).text()
+    const session = html.match(/name="external-storybook-browser-session" content="([^"]+)"/u)?.[1]
+    expect(session).toBeDefined()
+    const browserChange = (action: string, body: unknown, origin = running.origin) => fetch(new URL(`/api/browser/${action}`, running.origin), {
+      method: "POST",
+      headers: {"content-type": "application/json", "origin": origin, "x-storybook-session": session!},
+      body: JSON.stringify(body),
+    })
+
+    const browserAttach = async (root: string) => {
+      const challenge = await (await browserChange("directory", {})).json() as {token: string; filename: string; content: string}
+      const marker = join(root, challenge.filename)
+      writeFileSync(marker, challenge.content)
+      try { return await browserChange("attach", {selectionToken: challenge.token}) }
+      finally { unlinkSync(marker) }
+    }
+    expect((await browserChange("attach", {selectionToken: "foreign"}, "https://foreign.invalid")).ok).toBeFalse()
+    expect(running.registry.snapshot().entries).toHaveLength(1)
+    expect((await browserAttach(fixture.standalone)).ok).toBeTrue()
+    expect((await browserAttach(fixture.standalone)).ok).toBeTrue()
+    expect(running.registry.snapshot().entries).toHaveLength(2)
+    const beforeFailure = running.registry.snapshot()
+    expect((await browserChange("attach", {selectionToken: "missing"})).ok).toBeFalse()
+    expect(running.registry.snapshot()).toEqual(beforeFailure)
+
+    const removed = await controlPost(running, "/api/control/detach", {scopeId: "project:fixture-alpha"})
+    expect(removed.response.ok).toBeTrue()
+    expect(running.registry.snapshot().graph.nodes.some(node => node.id === "project:fixture-alpha")).toBeFalse()
+    expect(running.registry.snapshot().graph.nodes.some(node => node.id === "project:fixture-beta")).toBeTrue()
+    expect(readFileSync(workspaceFile, "utf8")).toBe(workspaceBytes)
+    expect((await browserAttach(join(fixture.workspace, "projects/alpha"))).ok).toBeTrue()
+    expect(running.registry.snapshot().entries).toHaveLength(2)
+    await controlPost(running, "/api/control/detach", {scopeId: "project:fixture-alpha"})
+    await running.stop()
+
+    running = await startExternalStorybookServer(options)
+    servers.push(running)
+    expect(running.registry.snapshot().entries).toHaveLength(2)
+    expect(running.registry.snapshot().graph.nodes.some(node => node.id === "project:fixture-alpha")).toBeFalse()
+    expect(running.registry.snapshot().graph.nodes.some(node => node.id === "project:fixture-beta")).toBeTrue()
+    const restored = await controlPost(running, "/api/control/attach", {roots: [join(fixture.workspace, "projects/alpha")]})
+    expect(restored.response.ok).toBeTrue()
+    expect(running.registry.snapshot().entries).toHaveLength(2)
+    expect(running.registry.snapshot().graph.nodes.some(node => node.id === "project:fixture-alpha")).toBeTrue()
+
+    await controlPost(running, "/api/control/detach", {scopeId: "workspace:fixture-workspace"})
+    await controlPost(running, "/api/control/detach", {scopeId: "package:@fixture/standalone"})
+    await running.stop()
+    running = await startExternalStorybookServer(options)
+    servers.push(running)
+    expect(running.registry.snapshot().entries).toEqual([])
+    const empty = await fetch(new URL("/", running.origin))
+    expect(empty.status).toBe(200)
+    expect(await empty.text()).toContain('/assets/workbench-style/0.css')
+    const theme = await fetch(new URL("/assets/workbench-style/0.css", running.origin))
+    expect(theme.status).toBe(200)
+    expect(await theme.text()).toContain("--widget-")
+    expect(readFileSync(workspaceFile, "utf8")).toBe(workspaceBytes)
+  })
+
+  test("serves a project page when a peer registered a dependency before its hardlink spelling changed", async () => {
+    const fixture = serverFixture()
+    const entries = sharedEntriesFixture()
+    const dependency = join(entries.root, "shared.ts")
+    const mirror = join(entries.root, "shared-mirror.ts")
+    writeFileSync(dependency, 'export const title = "project"\n')
+    filesystem.linkSync(dependency, mirror)
+    writeFileSync(entries.landing, 'import {title} from "./shared.ts"\ndocument.title = title\n')
+    const running = await startExternalStorybookServer({
+      declarations: [fixture.workspace],
+      statePath: fixture.statePath,
+      artifactRoot: fixture.artifactRoot,
+      landingEntryPath: entries.landing,
+      fallbackEntryPath: entries.fallback,
+    })
+    servers.push(running)
+    const original = filesystem.realpathSync
+    let reported = mirror
+    const resolution = spyOn(filesystem, "realpathSync").mockImplementation(new Proxy(original, {
+      apply(target, receiver, args) {
+        const actual = Reflect.apply(target, receiver, args)
+        if (String(args[0]) !== dependency) return actual
+        return typeof actual === "string" ? reported : Buffer.from(reported)
+      },
+    }))
+    Object.defineProperty(resolution, "native", {value: original.native})
+    try {
+      running.watch.replace("@fixture/peer", [dependency], () => {})
+      reported = dependency
+      const response = await fetch(new URL("/projects/fixture-alpha/", running.origin))
+      const html = await response.text()
+      expect(response.status, html).toBe(200)
+      expect(html).toContain('<script type="module"')
+      expect(html).not.toContain("dependency alias resolves ambiguously")
+      expect(running.watch.notify(dependency)).toBe(2)
+    } finally {
+      resolution.mockRestore()
+    }
+  })
+
   test("keeps active browser leases alive and releases pending eviction", () => {
     let now = 0
     let released = 0

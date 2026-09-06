@@ -47,13 +47,13 @@ export function createStorybookMcpServer(options: CreateStorybookMcpServerOption
 
   server.registerTool("storybook_attach", {
     title: "Attach Storybook declaration root",
-    description: "Atomically attach one standalone package, project or workspace declaration root.",
+    description: "Add a package, project or workspace to the saved Storybook catalog. Reuses existing entries and restores previously removed branches.",
     inputSchema: storybookAttachSchema,
   }, async (input, context) => invoke(controller, (value) => value.attach(input, {signal: context.mcpReq.signal})))
 
   server.registerTool("storybook_detach", {
     title: "Detach Storybook scope",
-    description: "Detach only one exact declaration subtree and its package views.",
+    description: "Remove one project, package or workspace branch from the saved Storybook catalog and close its package views. Repository files are preserved.",
     inputSchema: storybookDetachSchema,
     annotations: {destructiveHint: true},
   }, async (input, context) => invoke(controller, (value) => value.detach(input, {signal: context.mcpReq.signal})))

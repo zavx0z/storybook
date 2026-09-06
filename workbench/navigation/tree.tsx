@@ -32,6 +32,8 @@ export type WorkbenchNavigationTreeProps = Readonly<{
   items: readonly WorkbenchNavigationItem[]
   activeId: string | null
   query: string
+  removableIds?: readonly string[]
+  onRemove?: ((item: WorkbenchNavigationItem, source: HTMLElement) => void) | undefined
   onNavigate(item: WorkbenchNavigationItem, source: HTMLElement): void
   onGroupToggle(group: WorkbenchNavigationGroup, collapsed: boolean, source: HTMLElement): void
 }>
@@ -312,6 +314,8 @@ export function WorkbenchNavigationTree(props: WorkbenchNavigationTreeProps) {
       collapsed={block.kind === "group" && collapsedGroupIds.has(block.projection.group.id)}
       focusedKey={effectiveFocusKey}
       onLeaf={activateLeaf}
+      removableIds={props.removableIds ?? []}
+      onRemove={props.onRemove}
       onGroup={onGroupClick}
     />)}
   </div>

@@ -11,6 +11,7 @@ import type {
   CreateWorkbenchOptions,
   Workbench,
   WorkbenchAddress,
+  WorkbenchCatalogAction,
   WorkbenchAddressMap,
   WorkbenchBreadcrumb,
   WorkbenchController,
@@ -80,6 +81,9 @@ export function createWorkbenchModel(options: Omit<CreateWorkbenchOptions, "docu
       bubbles: true,
       detail: Object.freeze({kind: "catalog", id: item.id, route: item.route}),
     }))
+  }
+  const onCatalogAction = (action: WorkbenchCatalogAction, source: HTMLElement): void => {
+    source.dispatchEvent(new CustomEvent(WORKBENCH_EVENTS.catalogAction, {bubbles: true, detail: Object.freeze({...action})}))
   }
   const onCatalogSearch = (value: string, source: HTMLElement): void => {
     update("catalog.search", value)
@@ -154,6 +158,7 @@ export function createWorkbenchModel(options: Omit<CreateWorkbenchOptions, "docu
       inspectorSelectedId: inspector.selectedId,
       inspectorQuery: inspector.query,
       onCatalogNavigate,
+      onCatalogAction,
       onCatalogSearch,
       onGroupToggle,
       onSecondaryNavigate,

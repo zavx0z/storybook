@@ -42,6 +42,7 @@ export function Workbench(props: WorkbenchProps) {
     inspectorSelectedId={view.inspectorSelectedId}
     inspectorQuery={view.inspectorQuery}
     onCatalogNavigate={view.onCatalogNavigate}
+    onCatalogAction={view.onCatalogAction}
     onCatalogSearch={view.onCatalogSearch}
     onGroupToggle={view.onGroupToggle}
     onSecondaryNavigate={view.onSecondaryNavigate}

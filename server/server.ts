@@ -1,3 +1,5 @@
+import {StorybookDirectorySelection} from "./directory-selection.ts"
+import {readStorybookProjectSelection, writeStorybookProjectSelection} from "./project-store.ts"
 import {randomBytes, randomUUID} from "node:crypto"
 import {
   createStorybookBrowserLifecycle,
@@ -76,6 +78,7 @@ type StorybookBrowserSessionGrant = Readonly<{
 }>
 
 export type ExternalStorybookServerOptions = Readonly<{
+  projectDirectory?: string
   /** Источник нормализованного каталога; по умолчанию читает существующие JSON-декларации. */
   resolveCatalog?: StorybookCatalogResolver
   declarations?: readonly string[]
@@ -122,7 +125,16 @@ export async function startExternalStorybookServer(
   mkdirSync(artifactRoot, {recursive: true, mode: 0o700})
   chmodSync(artifactRoot, 0o700)
   const registry = new ExternalStorybookRegistry(options.resolveCatalog ?? resolveExternalStorybookDeclarations)
-  if ((options.declarations?.length ?? 0) > 0) await registry.attachMany(options.declarations!)
+  const selectionPath = join(dirname(statePath), "projects.json")
+  const savedSelection = readStorybookProjectSelection(selectionPath)
+  await registry.configure(savedSelection?.roots ?? options.declarations ?? [], savedSelection?.excludedScopes ?? [])
+  const saveSelection = (snapshot: ExternalStorybookRegistrySnapshot): void => {
+    writeStorybookProjectSelection(selectionPath, {
+      version: 1,
+      roots: snapshot.entries.map(entry => entry.declarationPath),
+      excludedScopes: snapshot.excludedScopes,
+    })
+  }
   const clients = new Set<Bun.ServerWebSocket<StorybookWebSocketData>>()
   const watch = new StorybookDependencyWatchCoordinator()
   let serverRecord!: ExternalStorybookServerRecord
@@ -135,6 +147,7 @@ export async function startExternalStorybookServer(
   let closePromise: Promise<void> | null = null
   const sharedAssetRoot = join(artifactRoot, "shared")
   const browserSessions = new StorybookBrowserSessionRegistry()
+  const directorySelections = new StorybookDirectorySelection()
   const eventHub = new StorybookEventHub<StorybookPackageEvent | RegistryEvent>()
 
   const publish = (event: StorybookPackageEvent | RegistryEvent): number => {
@@ -193,6 +206,7 @@ export async function startExternalStorybookServer(
     writeServerRecord(statePath, nextRecord)
     refreshStructuralWatch()
     sessions.sync(registry.packageDescriptors())
+    saveSelection(snapshot)
     serverRecord = nextRecord
     publish(Object.freeze({
       type: "registry.updated",
@@ -201,7 +215,7 @@ export async function startExternalStorybookServer(
     }))
   }
 
-  const mutateRegistry = async (
+  const applyRegistryMutation = async (
     operation: () => Promise<ExternalStorybookRegistrySnapshot>,
   ): Promise<ExternalStorybookRegistrySnapshot> => {
     const before = registry.snapshot()
@@ -217,6 +231,7 @@ export async function startExternalStorybookServer(
           writeServerRecord(statePath, beforeRecord)
           refreshStructuralWatch()
           sessions.sync(registry.packageDescriptors())
+          saveSelection(before)
           serverRecord = beforeRecord
         } catch (rollbackError) {
           throw new AggregateError([error, rollbackError], "External Storybook registry rollback failed")
@@ -224,6 +239,19 @@ export async function startExternalStorybookServer(
       }
       throw error
     }
+  }
+
+  let registryTail: Promise<unknown> = Promise.resolve()
+  const mutateRegistry = (operation: () => Promise<ExternalStorybookRegistrySnapshot>): Promise<ExternalStorybookRegistrySnapshot> => {
+    const pending = registryTail.then(() => applyRegistryMutation(operation))
+    registryTail = pending.catch(() => {})
+    return pending
+  }
+
+  const assertRegistryBrowserRequest = (request: Request): void => {
+    assertExternalStorybookRequestOrigin(request, server.url.origin, {required: true})
+    const grant = browserSessions.authorize(request.headers.get("x-storybook-session") ?? "")
+    if (grant.kind !== "registry") throw new Error("Only the Storybook landing may change the project list")
   }
 
   const openPackageView = async (
@@ -514,10 +542,22 @@ export async function startExternalStorybookServer(
           const {package: _package, ...browserResult} = result
           return responseJson(browserResult)
         }
-        if (url.pathname === "/api/control/attach" && request.method === "POST") {
+        if (url.pathname === "/api/browser/directory" && request.method === "POST") {
+          assertRegistryBrowserRequest(request)
+          assertExactRequestKeys(await requestObject(request), [])
+          return responseJson({ok: true, ...directorySelections.begin(request.headers.get("x-storybook-session")!)})
+        }
+        if (["/api/control/attach", "/api/browser/attach"].includes(url.pathname) && request.method === "POST") {
+          if (url.pathname.startsWith("/api/browser/")) assertRegistryBrowserRequest(request)
           const body = await requestObject(request)
-          assertExactRequestKeys(body, ["roots"])
-          const roots = requiredTextList("attach roots", body.roots, 32)
+          const browser = url.pathname.startsWith("/api/browser/")
+          assertExactRequestKeys(body, browser ? ["selectionToken"] : ["roots"])
+          const roots = browser ? [directorySelections.resolve(
+            requiredText("directory selection", body.selectionToken),
+            request.headers.get("x-storybook-session")!,
+            options.projectDirectory ?? dirname(toolRoot),
+            await registry.sourceRoots(),
+          )] : requiredTextList("attach roots", body.roots, 32)
           const snapshot = await mutateRegistry(() => registry.attachMany(roots, "cli"))
           return responseJson({
             ok: true,
@@ -529,7 +569,8 @@ export async function startExternalStorybookServer(
             graphDigest: snapshot.graph.digest,
           })
         }
-        if (url.pathname === "/api/control/detach" && request.method === "POST") {
+        if (["/api/control/detach", "/api/browser/detach"].includes(url.pathname) && request.method === "POST") {
+          if (url.pathname.startsWith("/api/browser/")) assertRegistryBrowserRequest(request)
           const body = await requestObject(request)
           assertExactRequestKeys(body, ["scopeId"])
           const scopeId = requiredText("detach scopeId", body.scopeId)
@@ -650,6 +691,13 @@ export async function startExternalStorybookServer(
           if (!existsSync(sharedAssetRoot)) return responseJson({error: "Unknown shared browser asset"}, 404)
           return fileInsideResponse(sharedAssetRoot, url.pathname.slice("/__storybook/shared/".length))
         }
+        if (url.pathname.startsWith("/assets/workbench-style/") && request.method === "GET") {
+          const index = Number(url.pathname.slice("/assets/workbench-style/".length).replace(/\.css$/u, ""))
+          const styles = await defaultWorkbenchStyles()
+          const style = Number.isInteger(index) && index >= 0 ? styles[index] : undefined
+          if (style === undefined) return responseJson({error: "Unknown Workbench stylesheet"}, 404)
+          return new Response(Bun.file(style.path), {headers: {"content-type": "text/css", "cache-control": "no-store"}})
+        }
         if (STORYBOOK_FONT_FACES.some(face => face.src === url.pathname) && request.method === "GET") {
           const name = url.pathname.slice("/assets/".length)
           const fontPath = fileURLToPath(import.meta.resolve(`@zavx0z/engine/fonts/${name}`))
@@ -750,6 +798,7 @@ export async function startExternalStorybookServer(
     }
     serverRecordCreated = true
     refreshStructuralWatch()
+    saveSelection(registry.snapshot())
   } catch (error) {
     await sessions.dispose()
     watch.remove("__registry__")
@@ -814,13 +863,28 @@ export async function startExternalStorybookServer(
   })
 }
 
+async function defaultWorkbenchStyles() {
+  const catalog = await resolveExternalStorybookDeclarations([fileURLToPath(new URL("../", import.meta.url))])
+  const owner = catalog.scopes.find(scope => scope.canonicalId === "package:@zavx0z/storybook")
+  if (owner?.kind !== "package") throw new Error("Workbench stylesheet owner is unavailable")
+  return owner.authorStyleSheets
+}
+
 async function landingWorkbenchAuthorStyleSheets(
   registry: ExternalStorybookRegistry,
   sessions: ExternalStorybookSessionManager,
 ): Promise<readonly StorybookHtmlAuthorStyleSheet[]> {
   const self = registry.snapshot().graph.nodes.find((node) =>
     node.kind === "package" && node.packageId === "@zavx0z/storybook")
-  if (self === undefined) return Object.freeze([])
+  if (self === undefined) {
+    const styles = await defaultWorkbenchStyles()
+    return Object.freeze(styles.map((style, index) => Object.freeze({
+      specifier: style.specifier,
+      contentDigest: style.contentDigest,
+      url: `assets/workbench-style/${index}.css`,
+      href: `/assets/workbench-style/${index}.css`,
+    })))
+  }
   const snapshot = await sessions.ensure("@zavx0z/storybook")
   const revision = snapshot.builtRevision ?? snapshot.activatingRevision ??
     snapshot.activeRevision ?? snapshot.lastWorkingRevision ?? snapshot.lastGoodRevision

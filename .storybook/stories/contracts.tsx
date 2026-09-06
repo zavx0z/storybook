@@ -71,6 +71,7 @@ const contracts = Object.freeze({
   ),
   launcher: contract(
     "MCP and human adapters",
+    "На landing кнопка + справа от поиска вызывает native showDirectoryPicker. Одноразовая метка с browser readwrite permission подтверждает точную папку локальному серверу и удаляется после запроса; путь не угадывается по имени. При наведении внутри общей подсветки строки появляется крестик удаления из каталога. Место под него зарезервировано; нажатие не открывает проект. Те же операции выполняют storybook_attach и storybook_detach. Список сохраняется между запусками, включая пустой состав; файлы проектов не удаляются. Вложенный проект исключается без удаления соседей, повторное добавление восстанавливает его. " +
     "`ensure`, `attach`, `search`, `open`, `wait`, `inspect`, `interact`, `capture`, `check`, `close` и явное администрирование вызывают один typed controller. Browser open делегируется private lifecycle owner через `openPackage`; MCP владеет только bounded schemas и opaque transport projections. Inspection показывает Canvas единственного Root. Pointer и wheel interaction проходят через `root.input` с общим hit/occlusion/capture; Key interaction использует `root.dispatchKey(...)`.",
     "Диагностику Document предоставляет @zavx0z/devtools из WebXR: createDomInspector сохраняет идентификаторы, снимки дерева и состояния, размеры и записи рисования. Storybook передаёт readFrame(node) из существующего Root. CLI и MCP не содержат target records, reservation state, discovery или reconciliation. Canvas capture направлен в тот же exact Root Canvas без поиска множества native Canvas. Bridge не создаёт semantic keyboard events или второй input owner, поэтому Browser-owned defaults Escape, Range и Select остаются authoritative.",
     [
@@ -97,6 +98,7 @@ const contracts = Object.freeze({
   ),
   environment: contract(
     "Package-scoped updates",
+    "Dependency watchers сохраняют канонический путь обычного файла при hardlink-копиях Bun и замене inode. Разрешаются только настоящие symlinks; конфликт сменившей цель ссылки с прежним подписчиком отклоняется атомарно. " +
     "Metafile identities and typed declaration/code/metadata/resource watchers invalidate only their owning sessions. Project and workspace README changes emit registry.readme-updated with exact nodeIds: only the selected document is fetched again and its existing Markdown article is updated in the same Root, without reloading the page or building packages.",
     "Shared browser code uses the existing dependency watcher and canonical metafile inputs. Changed shared dependencies rebuild the landing/fallback entries on the same server; shared.updated reloads only registry pages. Hashed assets remain available to older documents. A failed build preserves the previous working assets and retries after repair. If bootstrap left an owned package page without its bridge, open reloads that same target once after repair. Package pages retain their independent revisions and lastWorking behavior.",
     "registry.readme-updated {nodeIds} → existing Markdown.update\nshared.updated {entry} → registry page reload\npackage.updated → matching package view",

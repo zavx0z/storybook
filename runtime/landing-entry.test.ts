@@ -25,6 +25,7 @@ import {
   resolveExternalStorybookDeclarations,
 } from "../discovery/declarations.ts"
 import {createExternalStorybookGraph, type ExternalStorybookGraph} from "../catalog/graph.ts"
+import {selectStorybookCatalog} from "../catalog/selection.ts"
 import type {StorybookPackageSessionSnapshot} from "../sessions/package-session.ts"
 import {createExternalStorybookClientSnapshot} from "./client-protocol.ts"
 import {
@@ -36,6 +37,83 @@ import type {ExternalStorybookRootFactory} from "./shell.ts"
 const fixtureRoot = join(import.meta.dir, "../discovery/fixtures/valid")
 
 describe("external Storybook landing frontend", () => {
+  test("adds and removes projects through the catalog controls without reloading the Root", async () => {
+    const catalog = await resolveExternalStorybookDeclarations([fixtureRoot, join(fixtureRoot, "standalone")])
+    const full = createExternalStorybookGraph(catalog)
+    const removed = createExternalStorybookGraph(selectStorybookCatalog(catalog, ["project:fixture-alpha"]))
+    const empty = createExternalStorybookGraph({schemaVersion: 1, rootIds: [], scopes: []})
+    let snapshot = createExternalStorybookClientSnapshot(empty, [])
+    const changes: unknown[] = []
+    const token = "11111111-1111-4111-8111-111111111111"
+    const files = new Map<string, string>()
+    let picks = 0
+    const selectedDirectory = {
+      async getFileHandle(name: string) {
+        return {async createWritable() { return {
+          async write(value: string) { files.set(name, value) },
+          async close() {},
+          async abort() {},
+        } }}
+      },
+      async removeEntry(name: string) { files.delete(name) },
+    } as unknown as FileSystemDirectoryHandle
+    let reloads = 0
+    const controller = await startExternalStorybookLanding({
+      browserDocument: {
+        documentElement: {dataset: {}},
+        querySelector: () => ({content: "registry-session"}),
+      } as unknown as globalThis.Document,
+      pickDirectory: async () => {
+        picks += 1
+        if (picks > 1) throw new DOMException("Cancelled", "AbortError")
+        return selectedDirectory
+      },
+      fetcher: (async (input, init) => {
+        if (String(input) === "/api/client") return Response.json(snapshot)
+        if (String(input) === "/api/browser/directory") {
+          expect(picks).toBe(1)
+          return Response.json({ok: true, token, filename: `.storybook-selection-${token}`, content: "proof"})
+        }
+        if (String(input).startsWith("/api/browser/")) {
+          const body = JSON.parse(String(init?.body))
+          changes.push(body)
+          expect((init?.headers as Record<string, string>)["x-storybook-session"]).toBe("registry-session")
+          const nextGraph = String(input).endsWith("attach") ? full : removed
+          snapshot = createExternalStorybookClientSnapshot(nextGraph, packageSnapshots(nextGraph))
+          return Response.json({ok: true})
+        }
+        return new Response("# Project")
+      }) as typeof fetch,
+      location: {href: "http://localhost/", pathname: "/", reload() { reloads += 1 }},
+      history: {pushState() {}},
+      shell: {canvas: {} as HTMLCanvasElement, loadFont: async () => ({}) as never, attach: fakeRootFactory(createFakeRootState())},
+    })
+    try {
+      const root = controller.shell.workbench.element
+      const button = root.querySelector('[aria-label="Добавить проект"]') as import("@zavx0z/dom").HTMLButtonElement
+      button.click()
+      await waitUntil(() => controller.shell.workbench.controller.read("catalog.management")?.pending === false)
+      expect(controller.shell.workbench.controller.read("catalog.management")?.error).toBe("")
+      expect(changes).toEqual([{selectionToken: token}])
+      expect(files.size).toBe(0)
+      expect(controller.shell.workbench.controller.read("catalog.items")).toHaveLength(3)
+      const removeButton = (root.querySelector('[aria-label="Удалить Fixture Alpha из каталога"]') as import("@zavx0z/dom").HTMLButtonElement)
+      removeButton.click()
+      await waitUntil(() => controller.shell.workbench.controller.read("catalog.management")?.pending === false)
+      expect(changes[1]).toEqual({scopeId: "project:fixture-alpha"})
+      expect(controller.shell.workbench.controller.read("catalog.items").map(item => item.id))
+        .toEqual(["project:fixture-beta", "package:@fixture/standalone"])
+      expect(controller.shell.workbench.element).toBe(root)
+      expect(reloads).toBe(0)
+      button.click()
+      await waitUntil(() => controller.shell.workbench.controller.read("catalog.management")?.pending === false)
+      expect(changes).toHaveLength(2)
+      expect(controller.shell.workbench.controller.read("catalog.management")?.error).toBe("")
+    } finally {
+      controller.dispose()
+    }
+  })
+
   test("renders mixed roots, project packages, owner README and delegates package views to the lifecycle owner", async () => {
     const graph = await fixtureGraph()
     const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph))
@@ -429,6 +507,7 @@ function fakeRootFactory(
       dispatchKey: () => true,
       resetViewPoint() {},
       render() {
+        appRoot.flush()
         state.frames += 1
         for (const [owner, binding] of documentProjections) {
           const frame = fakeRenderFrame(document, owner, state.frames)
@@ -535,4 +614,12 @@ function indexedLinkDocument(
     byId.set(`external-storybook-author-style-sheet-${index}`, link)
   }
   return document
+}
+
+async function waitUntil(predicate: () => boolean): Promise<void> {
+  const deadline = Date.now() + 2_000
+  while (!predicate()) {
+    if (Date.now() > deadline) throw new Error("Project management did not settle")
+    await Bun.sleep(5)
+  }
 }

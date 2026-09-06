@@ -1,10 +1,12 @@
 import {
+  lstatSync,
+  readlinkSync,
   realpathSync,
   unwatchFile as nodeUnwatchFile,
   watchFile as nodeWatchFile,
   type Stats,
 } from "node:fs"
-import {resolve} from "node:path"
+import {basename, dirname, join, resolve} from "node:path"
 
 export const STORYBOOK_DEPENDENCY_WATCH_INTERVAL_MS = 200
 export const STORYBOOK_DEPENDENCY_WATCH_MIN_INTERVAL_MS = 25
@@ -77,7 +79,7 @@ type AliasRegistration = {
 }
 
 /**
- * Owns one polling watcher for each canonical dependency realpath.
+ * Owns one polling watcher for each canonical dependency pathname.
  *
  * Package registrations are replaceable projections over that shared watcher.
  * A deleted path keeps its canonical identity until the last package removes
@@ -122,7 +124,7 @@ export class StorybookDependencyWatchCoordinator {
     const nextPaths = new Set<string>()
     for (const [index, path] of paths.entries()) {
       const lexicalPath = resolve(requiredText(`paths[${index}]`, path))
-      const canonicalPath = realpathSync(lexicalPath)
+      const canonicalPath = canonicalDependencyPath(lexicalPath)
       nextAliases.set(lexicalPath, canonicalPath)
       nextPaths.add(canonicalPath)
     }
@@ -173,7 +175,7 @@ export class StorybookDependencyWatchCoordinator {
       if (value === null || typeof value !== "object") {
         throw new TypeError(`Storybook categorized watch path ${index} must be an object`)
       }
-      const path = realpathSync(resolve(requiredText(`paths[${index}].path`, value.path)))
+      const path = canonicalDependencyPath(resolve(requiredText(`paths[${index}].path`, value.path)))
       if (!STORYBOOK_WATCH_CATEGORIES.includes(value.category)) {
         throw new TypeError(`Unknown Storybook watch category: ${String(value.category)}`)
       }
@@ -181,7 +183,7 @@ export class StorybookDependencyWatchCoordinator {
       categories.add(value.category)
       categoriesByPath.set(path, categories)
     }
-    return this.replace(id, [...categoriesByPath.keys()], (path) => {
+    return this.replace(id, paths.map(({path}) => path), (path) => {
       const categories = categoriesByPath.get(path)
       if (categories === undefined) return
       callback(Object.freeze({
@@ -351,12 +353,31 @@ function canonicalNotificationPath(
   aliases: ReadonlyMap<string, AliasRegistration>,
 ): string {
   try {
-    const canonicalPath = realpathSync(lexicalPath)
+    const canonicalPath = canonicalDependencyPath(lexicalPath)
     if (watchedPaths.has(canonicalPath)) return canonicalPath
   } catch {
     // A deleted dependency keeps the alias recorded by its last successful build.
   }
   return aliases.get(lexicalPath)?.canonicalPath ?? lexicalPath
+}
+
+/**
+Сохраняет путь обычного файла при наличии hardlink-копий Bun.
+
+Канонизируется цепочка директорий, а лист разрешается дальше только при
+настоящей символической ссылке. Замена inode редактором не меняет владельца
+watcher. Повторный путь при обходе symlink отклоняется как цикл.
+*/
+function canonicalDependencyPath(input: string): string {
+  let path = resolve(input)
+  const visited = new Set<string>()
+  for (;;) {
+    path = join(realpathSync.native(dirname(path)), basename(path))
+    if (visited.has(path)) throw new Error(`Cyclic Storybook dependency symlink: ${input}`)
+    visited.add(path)
+    if (!lstatSync(path).isSymbolicLink()) return path
+    path = resolve(dirname(path), readlinkSync(path))
+  }
 }
 
 function watchInterval(value = STORYBOOK_DEPENDENCY_WATCH_INTERVAL_MS): number {

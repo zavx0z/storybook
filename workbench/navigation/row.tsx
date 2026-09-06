@@ -1,5 +1,5 @@
 import {Button, type ButtonProps} from "@zavx0z/ui/buttons/button"
-import {chevronDownIcon, chevronRightIcon} from "@zavx0z/ui/themes/icons"
+import {chevronDownIcon, chevronRightIcon, closeIcon} from "@zavx0z/ui/themes/icons"
 import {
   workbenchNavigationGroupKey,
   workbenchNavigationLeafKey,
@@ -19,6 +19,8 @@ export type NavigationRootBlockProps = Readonly<{
   collapsed: boolean
   focusedKey: string | null
   onLeaf(item: WorkbenchNavigationItem, source: HTMLElement): void
+  removableIds?: readonly string[]
+  onRemove?: ((item: WorkbenchNavigationItem, source: HTMLElement) => void) | undefined
   onGroup(group: WorkbenchNavigationGroup, source: HTMLElement): void
 }>
 
@@ -27,6 +29,8 @@ type NavigationGroupBlockProps = Readonly<{
   activeId: string | null
   focusedKey: string | null
   onLeaf(item: WorkbenchNavigationItem, source: HTMLElement): void
+  removableIds?: readonly string[]
+  onRemove?: ((item: WorkbenchNavigationItem, source: HTMLElement) => void) | undefined
 }>
 
 type NavigationLeafButtonProps = Readonly<{
@@ -34,6 +38,8 @@ type NavigationLeafButtonProps = Readonly<{
   active: boolean
   nested: boolean
   onLeaf(item: WorkbenchNavigationItem, source: HTMLElement): void
+  removableIds?: readonly string[]
+  onRemove?: ((item: WorkbenchNavigationItem, source: HTMLElement) => void) | undefined
 }>
 
 /** Root-level group, leaf and spacer row owner. */
@@ -103,6 +109,8 @@ export function NavigationRootBlock(props: NavigationRootBlockProps) {
       active={active}
       nested={false}
       onLeaf={props.onLeaf}
+      removableIds={props.removableIds ?? []}
+      onRemove={props.onRemove}
     /> : null}
     <div
       role={group === null ? undefined : "group"}
@@ -126,6 +134,8 @@ export function NavigationRootBlock(props: NavigationRootBlockProps) {
         activeId={props.activeId}
         focusedKey={props.focusedKey}
         onLeaf={props.onLeaf}
+        removableIds={props.removableIds ?? []}
+        onRemove={props.onRemove}
       />)}
     </div>
   </div>
@@ -167,6 +177,8 @@ function NavigationGroupBlock(props: NavigationGroupBlockProps) {
       active={active}
       nested={true}
       onLeaf={props.onLeaf}
+      removableIds={props.removableIds ?? []}
+      onRemove={props.onRemove}
     /> : null}
   </div>
 }
@@ -176,22 +188,71 @@ function NavigationLeafButton(props: NavigationLeafButtonProps) {
   const onClick: NonNullable<ButtonProps["onClick"]> = event => {
     if (!props.item.disabled) props.onLeaf(props.item, event.currentTarget)
   }
-  return <Button
-    label={props.item.label}
-    title={props.item.title ?? props.item.label}
-    aria-label={props.item.label}
-    disabled={props.item.disabled === true}
-    selected={props.active}
-    variant="text"
-    style={css`
-      width: 100%;
-      min-width: 0;
-      justify-content: flex-start;
+  const removable = props.removableIds?.includes(props.item.id) === true
+  return <div style={css`
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    min-width: 0;
 
-      ${props.nested && css`
-        padding-left: 24px;
+    --project-remove-opacity: 0;
+    --project-remove-events: none;
+
+    &:hover {
+      --project-remove-opacity: 1;
+      --project-remove-events: auto;
+    }
+  `}>
+    <Button
+      label={props.item.label}
+      title={props.item.title ?? props.item.label}
+      aria-label={props.item.label}
+      disabled={props.item.disabled === true}
+      selected={props.active}
+      variant="text"
+      style={css`
+        flex: 1;
+        min-width: 0;
+        justify-content: flex-start;
+
+        ${removable && css`
+          padding-right: var(--control-height-medium);
+        `}
+
+        ${props.nested && css`
+          padding-left: 24px;
+        `}
       `}
-    `}
-    onClick={onClick}
-  />
+      onClick={onClick}
+    />
+    <span
+      hidden={!removable}
+      data-storybook-remove=""
+      style={css`
+        position: absolute;
+        top: 0;
+        right: 0;
+        display: flex;
+        opacity: var(--project-remove-opacity);
+        pointer-events: var(--project-remove-events);
+
+        &[hidden] {
+          display: none;
+        }
+      `}
+    >
+      <Button
+        label=""
+        startIcon={closeIcon}
+        title={`Удалить ${props.item.label} из каталога`}
+        aria-label={`Удалить ${props.item.label} из каталога`}
+        variant="text"
+        onClick={event => {
+          event.stopPropagation()
+          props.onRemove?.(props.item, event.currentTarget)
+        }}
+      />
+    </span>
+  </div>
 }

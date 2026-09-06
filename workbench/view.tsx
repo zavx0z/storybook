@@ -2,6 +2,7 @@ import type {Document as SemanticDocument} from "@zavx0z/dom"
 import type {JsxSourceElement} from "@zavx0z/template/jsx-runtime"
 import type {
   WorkbenchNavigationGroup,
+  WorkbenchCatalogAction,
   WorkbenchNavigationItem,
   WorkbenchBreadcrumb,
   WorkbenchScenarioItem,
@@ -20,6 +21,7 @@ export type WorkbenchViewProps = Readonly<{
   state: WorkbenchViewState
   inspectorSelectedId: string
   inspectorQuery: string
+  onCatalogAction(action: WorkbenchCatalogAction, source: HTMLElement): void
   onCatalogNavigate(item: WorkbenchNavigationItem, source: HTMLElement): void
   onCatalogSearch(value: string, source: HTMLElement): void
   onGroupToggle(group: WorkbenchNavigationGroup, collapsed: boolean, source: HTMLElement): void
@@ -80,6 +82,8 @@ export function WorkbenchView(props: WorkbenchViewProps) {
       <CatalogRegion
         document={props.document}
         label={state["catalog.label"]}
+        management={state["catalog.management"]}
+        onAction={props.onCatalogAction}
         search={state["catalog.search"]}
         items={state["catalog.items"]}
         activeId={state["catalog.active"]}

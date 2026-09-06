@@ -2,6 +2,7 @@ import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
 import {createDocument} from "@zavx0z/dom"
 import {browserLifecycle} from "../.storybook/stories/contracts.tsx"
+import {projects} from "../.storybook/stories/project-controls.tsx"
 import {parseExternalStorybookCli} from "../server/cli.ts"
 import {
   resolveExternalStorybookDeclarations,
@@ -12,6 +13,16 @@ import {createStorybookPackageRevisionGraphSnapshot} from "../sessions/package-r
 const root = resolve(import.meta.dir, "..")
 
 describe("external Storybook self declaration", () => {
+  test("renders the real catalog controls in the project-management example", () => {
+    const presentation = projects.create(createDocument())
+    try {
+      expect(presentation.element.querySelector('[aria-label="Добавить проект"]')).not.toBeNull()
+      expect(presentation.element.querySelector('[aria-label="Удалить Первый проект из каталога"]')).not.toBeNull()
+      expect(presentation.source.html).toContain("Первый проект")
+    } finally {
+      presentation.dispose()
+    }
+  })
   test("uses the ordinary package path and preserves exact self routes", async () => {
     const declarations = await resolveExternalStorybookDeclarations([root])
     const graph = createExternalStorybookGraph(declarations)
@@ -33,6 +44,7 @@ describe("external Storybook self declaration", () => {
       "server/contract/overview",
       "browser-lifecycle/contract/overview",
       "launcher/contract/overview",
+      "launcher/contract/projects",
       "scaffold/contract/overview",
       "build/contract/overview",
       "environment/contract/overview",

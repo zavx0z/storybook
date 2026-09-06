@@ -1,6 +1,7 @@
 import type {Document} from "@zavx0z/dom"
 import type {
   WorkbenchAddress,
+  WorkbenchCatalogManagement,
   WorkbenchAddressMap,
   WorkbenchScenarioItem,
   WorkbenchStatus,
@@ -33,6 +34,7 @@ export function createInitialWorkbenchState(
   }), document)
   const state: WorkbenchViewState = {
     title: requiredText("Workbench title", initial?.title ?? "Storybook"),
+    "catalog.management": validateManagement(initial?.["catalog.management"] ?? null),
     "catalog.label": requiredText("Catalog label", initial?.["catalog.label"] ?? "Каталог"),
     "catalog.search": stringValue("Catalog search", initial?.["catalog.search"] ?? ""),
     "catalog.items": normalizeWorkbenchNavigationItems(
@@ -96,6 +98,9 @@ export function updateWorkbenchState<Address extends WorkbenchAddress>(
   switch (address) {
     case "title":
       next.title = requiredText("Workbench title", value)
+      break
+    case "catalog.management":
+      next["catalog.management"] = validateManagement(value)
       break
     case "catalog.label":
       next["catalog.label"] = requiredText("Catalog label", value)
@@ -225,5 +230,19 @@ function validateWorkbenchStatus(value: unknown): WorkbenchStatus {
     owner,
     detail: stringValue("Status detail", status.detail),
     breadcrumbs: Object.freeze(breadcrumbs),
+  })
+}
+
+function validateManagement(value: unknown): WorkbenchCatalogManagement | null {
+  if (value === null) return null
+  if (typeof value !== "object") throw new TypeError("Invalid catalog management state")
+  const state = value as WorkbenchCatalogManagement
+  if (typeof state.pending !== "boolean" || !Array.isArray(state.removableIds)) {
+    throw new TypeError("Invalid catalog management state")
+  }
+  return Object.freeze({
+    pending: state.pending,
+    error: stringValue("Project error", state.error),
+    removableIds: Object.freeze(state.removableIds.map(id => requiredText("Removable project", id))),
   })
 }
