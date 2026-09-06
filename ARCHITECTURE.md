@@ -41,6 +41,39 @@ reservations, attestation, navigation, readiness и exact-target operations.
 проекцией через общий controller; отдельный MCP registry или browser lifecycle
 не допускается.
 
+## Модули и граница обнаружения
+
+Подключённые корни обрабатывает `discovery/declarations.ts`. Этот источник
+читает существующие JSON-декларации, проверяет владение и возвращает
+`StorybookCatalog` из `catalog/catalog.t.ts`. Реестр получает resolver при
+создании; граф использует нормализованный контракт и не импортирует JSON reader.
+Новый источник сможет предоставить тот же контракт, сохранив один реестр,
+Workbench и MCP. Обнаружение «проект = структура» ещё не реализовано.
+
+| Владелец | Ответственность |
+| --- | --- |
+| `discovery/` | Обнаружение и проверка JSON-деклараций, создание деклараций |
+| `catalog/` | Нормализованные типы, граф, реестр, маршруты, поиск и ресурсы документации |
+| `build/` | Входы сборки, компиляция, статические загрузчики и общие браузерные ресурсы |
+| `sessions/` | Версии пакетов, активация, подписки, наблюдение за зависимостями |
+| `runtime/` | Browser Root, загрузка и исполнение выбранных примеров, проекции и агентский bridge |
+| `workbench/` | Навигация, шесть областей интерфейса и Inspector |
+| `server/` | HTTP/WebSocket, daemon и общий controller для CLI/MCP |
+
+`mcp/` сохраняет транспортный адаптер. `packages/browser-lifecycle` сохраняет
+единоличное владение вкладками. `src/shared` содержит общие внутренние механизмы;
+производственный код располагается в соответствующих модулях, без фасадов на
+прежних путях. Проверки прежнего поведения перенесены вместе с владельцами.
+
+Каждый узел каталога несёт точную source reference. JSON reader заполняет её
+путём и JSON Pointer; граф переносит эту reference без знания формата источника.
+Вход сборки содержит общий `sourcePath`, а публичные поля существующих
+revision/MCP-протоколов, маршруты и идентификаторы сохранены.
+
+Сбой resolver или проверки кандидата сохраняет предыдущий снимок реестра.
+Невизуальный документационный subject может существовать без runtime и вариантов.
+Эта граница проверяется в `catalog/registry.spec.ts` на пакете без `.storybook`.
+
 ## Declaration flow
 
 Единственный формат первого этапа — versioned JSON:
@@ -186,7 +219,7 @@ catalog | secondary | scenarios | preview | inspector | status
 `catalog`, `secondary` и `preview` также не имеют видимых headings: labels
 используются только как доступные имена regions.
 
-Implementation owner — `src/workbench`, не generic `src/dom`. Корневой
+Implementation owner — `workbench`, не generic `src/dom`. Корневой
 `WorkbenchView` только композирует шесть region components. Contract/state,
 ComponentRoot controller, same-Document presentation reparent, navigation
 model/windowing/rows/tree и Inspector registry/projection/widgets являются

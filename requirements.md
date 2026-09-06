@@ -2,6 +2,20 @@
 
 ## Ownership
 
+### `STORYBOOK-CATALOG-001` — источник и нормализованный каталог
+
+`catalog/catalog.t.ts` владеет общим контрактом обнаруженного содержания.
+`discovery/declarations.ts` реализует действующий JSON resolver. Реестр принимает
+resolver при создании; граф и подготовка сборки не импортируют JSON reader.
+Источник проверяет свои файлы, а граф сохраняет точные identities, semantic
+order, маршруты, source references и ресурсные связи.
+
+Изменение способа обнаружения не создаёт второй граф, Workbench или MCP registry.
+Ошибка источника или кандидата не изменяет последний согласованный registry
+snapshot. Подготовительный рефакторинг сохраняет JSON schema, browser runtime,
+MCP protocol и все существующие маршруты. TypeScript/TSDoc discovery и новый
+исполнитель спецификаций не входят в этот срез.
+
 ### `STORYBOOK-EXT-001` — внешний tool
 
 Consumer project/package не содержит dependency, devDependency,
@@ -123,7 +137,7 @@ workspace/project/package overview и package route начинает путь с
 package/subject context. Обычный переход не оставляет рядом прежнюю плоскую
 строку `owner · route · overview`.
 
-Внутренний owner module называется `src/workbench`: controller, state,
+Внутренний owner module называется `workbench`: controller, state,
 presentation, navigation, каждый region и Inspector projection разделены по
 своим обязанностям. Semantic DOM является runtime substrate, а не именем
 Workbench domain. Каждый TSX component владеет своим `style={css``}`; общий

@@ -5,6 +5,14 @@
 `@zavx0z/storybook`: он хранит только JSON-декларации, собственные истории и
 ресурсы, а при необходимости — структурный runtime.
 
+Внутри инструмента обнаружение отделено от каталога: действующий JSON reader
+передаёт нормализованный `StorybookCatalog` общему реестру. Граф, маршруты,
+сборка, Workbench и MCP используют этот результат. Реестр принимает источник
+при создании, поэтому дальнейшее обнаружение по структуре проекта сможет
+использовать ту же цепочку. Сам механизм «проект = структура» пока не добавлен.
+Границы модулей и сохранённые протоколы описаны в
+[архитектуре обнаружения](ARCHITECTURE.md#модули-и-граница-обнаружения).
+
 ## Declaration files
 
 Единственный формат первого этапа — JSON schema version 1:
@@ -210,7 +218,7 @@ and must publish Nodes from the exact provided Document.
 story использует `experience.getProjection(display)`, а Space story —
 `experience.getProjection(experience.space)`.
 
-Workbench implementation живёт в `src/workbench`: controller/state,
+Workbench implementation живёт в `workbench`: controller/state,
 presentation, navigation, six region components и Inspector widgets разделены
 на точных owners. `src/dom` отсутствует, потому что semantic DOM — substrate,
 не домен shell. CSS находится внутри owning TSX components: base declarations пишутся

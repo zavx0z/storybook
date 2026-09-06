@@ -7,7 +7,7 @@ import {join} from "node:path"
 import {acquireStorybookBrowserLock, withStorybookBrowserLock} from "./target-operation-lock.ts"
 
 const roots: string[] = []
-const worker = join(import.meta.dir, "fixtures", "browser-lock-worker.ts")
+const worker = join(import.meta.dir, "fixtures/browser-lock-worker.ts")
 
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, {recursive: true, force: true})

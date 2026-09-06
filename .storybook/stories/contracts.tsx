@@ -26,9 +26,11 @@ const contracts = Object.freeze({
   ),
   catalog: contract(
     "JSON catalog",
+    "JSON reader в discovery/declarations.ts передаёт нормализованный StorybookCatalog из catalog/catalog.t.ts. ExternalStorybookRegistry принимает StorybookCatalogResolver при создании; граф и подготовка сборки не импортируют JSON reader. Декларации остаются действующим способом подключения. Обнаружение проект = структура пока не реализовано. " +
     "The catalog model is category → subject → variant with optional presentation groups and explicit migration routes. README uses @zavx0z/ui/views/markdown and the shared @zavx0z/ui/markdown parser (markdown-it CommonMark plus inert parse5 HTML projection). Resource discovery uses that same parser, including code-labelled links and admitted HTML images. Code blocks reuse CodeEditor.",
+    "Нормализованный каталог сохраняет точные source references, порядок владельца и существующие маршруты. При ошибке источника текущий граф остаётся рабочим. catalog/registry.spec.ts проверяет эту границу на невизуальном пакете без .storybook. Владельцы реализации разделены на discovery, catalog, build, sessions, runtime, workbench и server; MCP и browser-lifecycle сохраняют свои границы. " +
     "The package owns semantic order, typed category identity and resources. Storybook owns the surrounding viewport and optional overview action. Markdown wrap defaults to true; fenced code retains its scrolling. Browser loads declared Engine-owned Inter and JetBrains Mono faces, and Renderer/WebGPU share face selection and exact metrics. Image dimensions and GIF animation reuse the WebGPU texture loader. GIF decoding pauses when all image consumers leave their viewport/clips and resumes from the saved frame position. GIF playback requires browser ImageDecoder support; otherwise a static frame remains with a diagnostic. Script, executable URLs and HTML event attributes are not materialized. List markers and table layout retain platform limitations.",
-    ".storybook/catalog.json",
+    "const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)\nconst snapshot = await registry.attach(root)\n// .storybook/catalog.json → StorybookCatalog → snapshot.graph",
   ),
   workbench: contract(
     "Workbench из шести областей",

@@ -3,7 +3,7 @@ import type {
   ExternalStorybookController,
   StorybookCaptureResult,
   StorybookControllerResult,
-} from "../src/external/controller-contract.ts"
+} from "../server/controller-contract.ts"
 import {registerStorybookResources, type StorybookControllerAccessor} from "./resources.ts"
 import {
   storybookAttachSchema,
@@ -138,7 +138,7 @@ function controllerAccessor(options: CreateStorybookMcpServerOptions): Storybook
 }
 
 async function loadCanonicalController(): Promise<ExternalStorybookController> {
-  const moduleUrl = new URL("../src/external/controller.ts", import.meta.url)
+  const moduleUrl = new URL("../server/controller.ts", import.meta.url)
   const namespace = await import(moduleUrl.href) as Record<string, unknown>
   const factory = namespace.createExternalStorybookController
   if (typeof factory !== "function") {

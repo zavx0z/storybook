@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 
 import {fileURLToPath} from "node:url"
-import {runExternalStorybookDaemon} from "../src/external/daemon.ts"
+import {runExternalStorybookDaemon} from "../server/daemon.ts"
 
-process.chdir(fileURLToPath(new URL("../", import.meta.url)))
+process.chdir(fileURLToPath(new URL("..", import.meta.url)))
 
 try {
   const lease = startLease()

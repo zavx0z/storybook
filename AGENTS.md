@@ -15,6 +15,15 @@
 
 ## Architecture process
 
+- Production owners are grouped in `discovery`, `catalog`, `build`, `sessions`,
+  `runtime`, `workbench` and `server`. `src/shared` contains private shared
+  mechanisms. Keep direct imports to the current owner; do not restore aliases
+  or forwarding files under the retired `src/external` tree.
+- `catalog/catalog.t.ts` owns the normalized discovery result. JSON discovery
+  remains the default resolver composed by the server. Registry and graph must
+  not import the JSON reader; additional discovery mechanisms use this same
+  catalog boundary and do not create parallel registries or UI/MCP models.
+
 - Start read-only. Before implementation, audit every existing Storybook and
   present one evidence-backed owner law and a staged migration plan.
 - Node is a comparison candidate, not an assumed reference implementation.

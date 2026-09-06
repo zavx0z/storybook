@@ -6,7 +6,7 @@ import {
   createStorybookOwnerResolver,
   createStorybookOwnerSourcePath,
   resolveStorybookCompilerSourceRoots,
-} from "../../external/compiler.ts"
+} from "../../../build/compiler.ts"
 
 const storybookRoot = resolve(import.meta.dir, "../../..")
 const sourceRoots = resolveStorybookCompilerSourceRoots({
@@ -51,9 +51,9 @@ plugin({
   },
 })
 
-let loading: Promise<typeof import("../controller.ts")> | null = null
+let loading: Promise<typeof import("../../../workbench/controller.ts")> | null = null
 
-export function loadCompiledWorkbench(): Promise<typeof import("../controller.ts")> {
-  loading ??= import("../controller.ts")
+export function loadCompiledWorkbench(): Promise<typeof import("../../../workbench/controller.ts")> {
+  loading ??= import("../../../workbench/controller.ts")
   return loading
 }

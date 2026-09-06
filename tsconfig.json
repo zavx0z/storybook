@@ -20,11 +20,21 @@
     "exactOptionalPropertyTypes": true
   },
   "include": [
+    "catalog/**/*.ts",
+    "discovery/**/*.ts",
+    "build/**/*.ts",
+    "sessions/**/*.ts",
+    "runtime/**/*.ts",
+    "runtime/**/*.tsx",
+    "workbench/**/*.ts",
+    "workbench/**/*.tsx",
+    "server/**/*.ts",
+    "tests/**/*.ts",
     "src/**/*.ts",
     "src/**/*.tsx",
     "scripts/**/*.ts",
     ".storybook/**/*.ts",
     ".storybook/**/*.tsx"
   ],
-  "exclude": ["dist", "node_modules"]
+  "exclude": ["dist", "node_modules", ".refactor-audit"]
 }
