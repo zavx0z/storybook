@@ -20,8 +20,15 @@ workspace с сохранением соседей. Повторное доба�
 
 UI и MCP attach/detach используют один серверный путь изменения реестра.
 Browser mutation требует origin и действующую registry session; package session
-не получает этого права. Изменения сериализуются, а выбор сохраняется отдельно
-от состояния процесса. Пустой сохранённый список не заменяется стартовыми roots.
+не получает этого права. Изменения сериализуются. Выбор хранится в `~/.storybook/projects.json` как
+JSON-массив абсолютных каталогов, отдельно от состояния процесса и кэша.
+Ни имена, ни идентификаторы, ни исключения в нём не сохраняются.
+Состав не восстанавливается из истории процессов; корни задаются явно.
+При удалении вложенной ветви оставшиеся ветви становятся явными выбранными
+корнями без изменения деклараций. `package.json#label` определяет название
+при открытии и обновлении. Старый manifest label остаётся fallback на время
+перехода; новые пакеты задают label в package.json.
+Общее правило: [archetypes/README.md](./archetypes/README.md). Пустой сохранённый список не заменяется стартовыми roots.
 Обновление списка сохраняет текущий Root; удаление выбранной ветви переводит
 навигацию в корень. Workbench остаётся работоспособным при пустом каталоге.
 
@@ -424,7 +431,8 @@ sessions и уведомляет связанные tabs, не останавл�
 Поддерживаются `serve [root...]`, `attach <root>`, `detach <scope-id>`,
 `open <package-id> [route]`, `status`, `check <scope-or-path>`, `stop` и
 `init <root> --kind package|project|workspace`. Init создаёт declarations, не
-npm package/server/build/bunfig/port config.
+npm package/server/build/bunfig/port config. Для project/workspace состав задаётся
+явными повторяемыми `--declaration <manifest>`; поиска соседних declarations нет.
 
 ## Browser lifecycle
 

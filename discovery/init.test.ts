@@ -114,7 +114,7 @@ describe("external Storybook declaration init", () => {
     })
   })
 
-  test("discovers direct packages and projects in deterministic declaration order", async () => {
+  test("uses only explicitly selected declarations in the supplied order", async () => {
     const workspace = fixtureRoot("workspace")
     mkdirSync(join(workspace, "projects"))
     for (const projectName of ["zeta", "alpha"]) {
@@ -127,7 +127,7 @@ describe("external Storybook declaration init", () => {
         writePackage(owner, `@${projectName}/${packageName}`)
         await initExternalStorybookDeclaration({root: owner, kind: "package"})
       }
-      await initExternalStorybookDeclaration({root: project, kind: "project"})
+      await initExternalStorybookDeclaration({root: project, kind: "project", declarations: ["packages/first/.storybook/manifest.json", "packages/second/.storybook/manifest.json"]})
       expect(json(join(project, ".storybook", "manifest.json")).packages).toEqual([
         {declaration: "../packages/first/.storybook/manifest.json"},
         {declaration: "../packages/second/.storybook/manifest.json"},
@@ -138,6 +138,7 @@ describe("external Storybook declaration init", () => {
       root: workspace,
       kind: "workspace",
       label: "Fixture Workspace",
+      declarations: ["projects/alpha/.storybook/manifest.json", "projects/zeta/.storybook/manifest.json"],
     })
     expect(json(result.manifestPath).projects).toEqual([
       {declaration: "../projects/alpha/.storybook/manifest.json"},
@@ -148,11 +149,11 @@ describe("external Storybook declaration init", () => {
     expect(resolved.scopes.filter(({kind}) => kind === "package")).toHaveLength(4)
   })
 
-  test("fails before mutation when composition has no direct declarations", async () => {
+  test("requires an explicit composition before mutation", async () => {
     for (const kind of ["project", "workspace"] as const) {
       const root = fixtureRoot(kind)
       await expect(initExternalStorybookDeclaration({root, kind}))
-        .rejects.toThrow("found no direct")
+        .rejects.toThrow("requires explicit")
       expect(existsSync(join(root, ".storybook"))).toBeFalse()
       expect(readdirSync(root).some((name) => name.startsWith(".storybook-init-"))).toBeFalse()
     }

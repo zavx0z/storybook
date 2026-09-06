@@ -3,7 +3,6 @@ import {
   lstat,
   mkdir,
   readFile,
-  readdir,
   realpath,
   rename,
   rm,
@@ -38,6 +37,7 @@ export type InitExternalStorybookDeclarationOptions = Readonly<{
   root: string
   kind: StorybookCatalogScopeKind
   label?: string
+  declarations?: readonly string[]
   executable?: boolean
   stories?: boolean
 }>
@@ -104,7 +104,7 @@ export async function initExternalStorybookDeclaration(
 
   const plan = kind === "package"
     ? await packagePlan(root, optionalLabel(options.label), executable, stories)
-    : await compositionPlan(root, kind, optionalLabel(options.label))
+    : await compositionPlan(root, kind, optionalLabel(options.label), options.declarations ?? [])
   const staging = join(root, `.storybook-init-${randomUUID()}`)
   await mkdir(staging)
   try {
@@ -185,13 +185,14 @@ async function compositionPlan(
   root: string,
   kind: "project" | "workspace",
   requestedLabel: string | null,
+  selectedDeclarations: readonly string[],
 ): Promise<InitPlan> {
   const collection = kind === "project" ? "packages" : "projects"
   const expectedChild = kind === "project" ? "package" : "project"
-  const manifests = await directDeclarations(root, collection, expectedChild)
+  const manifests = await explicitDeclarations(root, selectedDeclarations, expectedChild)
   if (manifests.length === 0) {
     throw new Error(
-      `External Storybook ${kind} init found no direct ${collection}/* declarations: ${root}`,
+      `External Storybook ${kind} init requires explicit ${collection} declarations: ${root}`,
     )
   }
   const id = scopeId(basename(root))
@@ -218,29 +219,16 @@ async function compositionPlan(
   })
 }
 
-async function directDeclarations(
+async function explicitDeclarations(
   root: string,
-  collection: string,
+  selected: readonly string[],
   expectedKind: "package" | "project",
 ): Promise<readonly string[]> {
-  const directory = join(root, collection)
-  let entries
-  try {
-    entries = await readdir(directory, {withFileTypes: true})
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return Object.freeze([])
-    throw error
-  }
   const manifests: string[] = []
-  for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name))) {
-    if (!entry.isDirectory() && !entry.isSymbolicLink()) continue
-    const lexicalPath = join(directory, entry.name, ".storybook", "manifest.json")
-    if (!await pathExists(lexicalPath)) continue
-    const canonicalPath = await realpath(lexicalPath)
-    if (!isContained(root, canonicalPath)) {
-      throw new Error(`External Storybook direct declaration escapes init root: ${lexicalPath}`)
-    }
-    manifests.push(canonicalPath)
+  for (const input of selected) {
+    const path = await realpath(resolve(root, input))
+    if (!isContained(root, path)) throw new Error(`External Storybook declaration escapes init root: ${input}`)
+    manifests.push(path)
   }
   if (manifests.length === 0) return Object.freeze([])
   const declarations = await resolveExternalStorybookDeclarations(manifests)
@@ -252,7 +240,7 @@ async function directDeclarations(
     const declaration = byId.get(rootId)
     if (declaration?.kind !== expectedKind) {
       throw new Error(
-        `External Storybook ${collection}/* declaration must be ${expectedKind}: ${declaration?.source.path ?? rootId}`,
+        `External Storybook selected declaration must be ${expectedKind}: ${declaration?.source.path ?? rootId}`,
       )
     }
   }

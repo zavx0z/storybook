@@ -36,6 +36,7 @@
         "kind": "contract",
         "label": "Declaration catalog",
         "apiName": "catalog.schema.json",
+        "readme": "../archetypes/README.md",
         "presentation": {"protocol": "story-presentation/1", "projection": "display", "widgets": ["props", "source", "diagnostics"]},
         "variants": [{"id": "overview", "label": "Overview", "route": "catalog/contract/overview", "module": {"path": "./stories/contracts.tsx", "export": "catalog"}}]
       }]

@@ -1,0 +1,10 @@
+{
+  "name": "@zavx0z/storybook-archetypes",
+  "label": "Правила структуры проектов",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Общие правила описания проектов и пакетов для Storybook",
+  "exports": {
+    "./README.md": "./README.md"
+  }
+}

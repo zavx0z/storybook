@@ -1,5 +1,6 @@
 {
   "name": "@zavx0z/storybook-browser-lifecycle",
+  "label": "Вкладки Storybook",
   "version": "0.0.0",
   "private": true,
   "type": "module",

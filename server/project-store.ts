@@ -1,24 +1,21 @@
 import {existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync} from "node:fs"
 import {dirname, isAbsolute} from "node:path"
+import {homedir} from "node:os"
+import {join, resolve} from "node:path"
 import {randomUUID} from "node:crypto"
 
-export type StorybookProjectSelection = Readonly<{
-  version: 1
-  roots: readonly string[]
-  excludedScopes: readonly string[]
-}>
+export type StorybookProjectSelection = readonly string[]
+
+export function storybookProjectSelectionPath(): string {
+  return join(resolve(Bun.env.STORYBOOK_CONFIG_ROOT ?? join(homedir(), ".storybook")), "projects.json")
+}
 
 /** Постоянный выбор пользователя, отдельный от PID, transport и артефактов сборки. */
 export function readStorybookProjectSelection(path: string): StorybookProjectSelection | null {
   if (!existsSync(path)) return null
-  const value = JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>
-  if (value.version !== 1 || Object.keys(value).some(key => !["version", "roots", "excludedScopes"].includes(key))) {
-    throw new Error("Invalid Storybook project selection")
-  }
-  const roots = strings(value.roots)
-  const excludedScopes = strings(value.excludedScopes)
+  const roots = strings(JSON.parse(readFileSync(path, "utf8")))
   if (roots.some(root => !isAbsolute(root))) throw new Error("Storybook project paths must be absolute")
-  return Object.freeze({version: 1, roots, excludedScopes})
+  return roots
 }
 
 /** Атомарно заменяет только выбор проектов; содержимое репозиториев не изменяется. */

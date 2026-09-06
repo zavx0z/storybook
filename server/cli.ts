@@ -22,6 +22,7 @@ export type ExternalStorybookCliCommand =
     kind: "workspace" | "project" | "package"
     executable: boolean
     stories: boolean
+    declarations?: readonly string[]
   }>
 
 export async function runExternalStorybookCli(
@@ -35,6 +36,7 @@ export async function runExternalStorybookCli(
       kind: command.kind,
       executable: command.executable,
       stories: command.stories,
+      ...(command.declarations === undefined ? {} : {declarations: command.declarations}),
     })
     io.stdout(json({action: "init", ...result}))
     return 0
@@ -96,6 +98,7 @@ function parseInit(args: readonly string[]): ExternalStorybookCliCommand {
   let kind: "workspace" | "project" | "package" | null = null
   let executable = false
   let stories = false
+  const declarations: string[] = []
   for (let index = 1; index < args.length; index += 1) {
     const argument = args[index]
     if (argument === "--executable") {
@@ -106,6 +109,12 @@ function parseInit(args: readonly string[]): ExternalStorybookCliCommand {
       stories = true
       continue
     }
+    if (argument === "--declaration") {
+      const path = args[++index]
+      if (path === undefined || path.startsWith("--")) usage()
+      declarations.push(path)
+      continue
+    }
     if (argument !== "--kind" || kind !== null) usage()
     const value = args[index + 1]
     if (value !== "workspace" && value !== "project" && value !== "package") usage()
@@ -114,7 +123,8 @@ function parseInit(args: readonly string[]): ExternalStorybookCliCommand {
   }
   if (kind === null) usage()
   if ((executable || stories) && kind !== "package") usage()
-  return Object.freeze({action: "init", root, kind, executable, stories})
+  return Object.freeze({action: "init", root, kind, executable, stories,
+    ...(declarations.length === 0 ? {} : {declarations: Object.freeze(declarations)})})
 }
 
 function usage(): never {
@@ -127,7 +137,7 @@ function usage(): never {
     "  storybook status",
     "  storybook check [scope-id-or-path]",
     "  storybook stop",
-    "  storybook init <root> --kind <package|project|workspace> [--executable] [--stories]",
+    "  storybook init <root> --kind <package|project|workspace> [--executable] [--stories] [--declaration <manifest>...]",
   ].join("\n"))
 }
 

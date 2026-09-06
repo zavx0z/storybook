@@ -1,4 +1,3 @@
-import {selectStorybookCatalog} from "./selection.ts"
 import type {
   StorybookCatalog,
   StorybookCatalogResolver,
@@ -27,7 +26,6 @@ export type ExternalStorybookRegistryEntry = Readonly<{
 
 export type ExternalStorybookRegistrySnapshot = Readonly<{
   revision: number
-  excludedScopes: readonly string[]
   entries: readonly ExternalStorybookRegistryEntry[]
   catalog: StorybookCatalog
   graph: ExternalStorybookGraph
@@ -41,7 +39,6 @@ export type ExternalStorybookRegistrySnapshot = Readonly<{
 */
 export class ExternalStorybookRegistry {
   #revision = 0
-  #excludedScopes: readonly string[] = Object.freeze([])
   #entries: readonly ExternalStorybookRegistryEntry[] = Object.freeze([])
   #catalog: StorybookCatalog = emptyDeclarations()
   #graph: ExternalStorybookGraph = createExternalStorybookGraph(this.#catalog)
@@ -51,15 +48,14 @@ export class ExternalStorybookRegistry {
   snapshot(): ExternalStorybookRegistrySnapshot {
     return Object.freeze({
       revision: this.#revision,
-      excludedScopes: this.#excludedScopes,
       entries: this.#entries,
       catalog: this.#catalog,
       graph: this.#graph,
     })
   }
 
-  async configure(roots: readonly string[], excludedScopes: readonly string[] = []): Promise<ExternalStorybookRegistrySnapshot> {
-    return this.#resolve(roots, roots.map(() => "direct-package"), excludedScopes)
+  async configure(roots: readonly string[]): Promise<ExternalStorybookRegistrySnapshot> {
+    return this.#resolve(roots, roots.map(() => "direct-package"))
   }
 
   async attach(input: string, attachSource: ExternalStorybookAttachSource = "cli"): Promise<ExternalStorybookRegistrySnapshot> {
@@ -69,55 +65,53 @@ export class ExternalStorybookRegistry {
   async attachMany(inputs: readonly string[], attachSource: ExternalStorybookAttachSource = "cli"): Promise<ExternalStorybookRegistrySnapshot> {
     if (inputs.length === 0) return this.snapshot()
     const incoming = await this.resolveCatalog([...new Set(inputs)])
-    if (this.#entries.length === 0) {
-      const restored = new Set(incoming.scopes.map(scope => scope.canonicalId))
-      return this.#accept(incoming, incoming.rootIds.map(() => attachSource), this.#excludedScopes.filter(id => !restored.has(id)))
-    }
-    const currentRoots = this.#entries.map(entry => entry.declarationPath)
-    const current = currentRoots.length === 0 ? emptyDeclarations() : await this.resolveCatalog(currentRoots)
-    const represented = new Set(current.scopes.map(scope => scope.source.path))
-    const added = incoming.rootIds.map(id => incoming.scopes.find(scope => scope.canonicalId === id)!)
-      .filter(scope => !represented.has(scope.source.path))
-    const restored = new Set(incoming.scopes.map(scope => scope.canonicalId))
+    if (this.#entries.length === 0) return this.#accept(incoming, incoming.rootIds.map(() => attachSource))
+    const incomingRoots = incoming.scopes.filter(scope => incoming.rootIds.includes(scope.canonicalId))
+    // An explicit ancestor replaces its already selected descendants, avoiding duplicate owners.
+    const incomingPaths = new Set(incoming.scopes.map(scope => scope.source.path))
+    const exactRoots = new Set(incomingRoots.map(scope => scope.source.path))
+    const kept = this.#entries.filter(entry => exactRoots.has(entry.declarationPath) || !incomingPaths.has(entry.declarationPath))
+    const represented = new Set(this.#catalog.scopes.map(scope => scope.source.path))
+    const added = incomingRoots.filter(scope => !represented.has(scope.source.path))
     return this.#resolve(
-      [...currentRoots, ...added.map(scope => scope.source.path)],
-      [...this.#entries.map(entry => entry.attachSource), ...added.map(() => attachSource)],
-      this.#excludedScopes.filter(id => !restored.has(id)),
+      [...kept.map(entry => entry.declarationPath), ...added.map(scope => scope.source.path)],
+      [...kept.map(entry => entry.attachSource), ...added.map(() => attachSource)],
     )
   }
 
   async detach(scopeId: string): Promise<ExternalStorybookRegistrySnapshot> {
     const matches = this.#catalog.scopes.filter(scope => scope.canonicalId === scopeId || scope.id === scopeId)
-    if (matches.length === 0) throw new Error(`Unknown attached external Storybook scope: ${scopeId}`)
-    if (matches.length > 1) throw new Error(`Ambiguous attached external Storybook scope: ${scopeId}`)
-    const id = matches[0]!.canonicalId
-    const root = this.#entries.find(entry => entry.canonicalId === id)
-    const remaining = this.#entries.filter(entry => entry !== root)
-    return this.#resolve(
-      remaining.map(entry => entry.declarationPath),
-      remaining.map(entry => entry.attachSource),
-      root === undefined ? [...new Set([...this.#excludedScopes, id])] : this.#excludedScopes,
-    )
+    if (matches.length !== 1) throw new Error(`Unknown or ambiguous attached external Storybook scope: ${scopeId}`)
+    const removed = matches[0]!.canonicalId
+    const scopes = new Map(this.#catalog.scopes.map(scope => [scope.canonicalId, scope]))
+    const children = (id: string): readonly string[] => {
+      const scope = scopes.get(id)!
+      return scope.kind === "workspace" ? scope.projectIds : scope.kind === "project" ? scope.packageIds : []
+    }
+    const contains = (id: string): boolean => id === removed || children(id).some(contains)
+    const retain = (id: string): readonly string[] => id === removed ? [] :
+      contains(id) ? children(id).flatMap(retain) : [scopes.get(id)!.source.path]
+    const paths = this.#catalog.rootIds.flatMap(retain)
+    return this.#resolve(paths, paths.map(() => "direct-package"))
   }
 
   async refresh(): Promise<ExternalStorybookRegistrySnapshot> {
     if (this.#entries.length === 0) return this.snapshot()
-    return this.#resolve(this.#entries.map(entry => entry.declarationPath), this.#entries.map(entry => entry.attachSource), this.#excludedScopes)
+    return this.#resolve(this.#entries.map(entry => entry.declarationPath), this.#entries.map(entry => entry.attachSource))
   }
 
-  async #resolve(roots: readonly string[], sources: readonly ExternalStorybookAttachSource[], excludedScopes: readonly string[]): Promise<ExternalStorybookRegistrySnapshot> {
+  async #resolve(roots: readonly string[], sources: readonly ExternalStorybookAttachSource[]): Promise<ExternalStorybookRegistrySnapshot> {
     const raw = roots.length === 0 ? emptyDeclarations() : await this.resolveCatalog(roots)
-    return this.#accept(raw, sources, excludedScopes)
+    return this.#accept(raw, sources)
   }
 
-  #accept(raw: StorybookCatalog, sources: readonly ExternalStorybookAttachSource[], excludedScopes: readonly string[]): ExternalStorybookRegistrySnapshot {
-    const catalog = selectStorybookCatalog(raw, excludedScopes)
+  #accept(raw: StorybookCatalog, sources: readonly ExternalStorybookAttachSource[]): ExternalStorybookRegistrySnapshot {
+    const catalog = raw
     const graph = createExternalStorybookGraph(catalog)
     externalStorybookPackageDescriptors(catalog, graph)
     const entries = createEntries(catalog, graph, sources)
-    if (graph.digest === this.#graph.digest && JSON.stringify(excludedScopes) === JSON.stringify(this.#excludedScopes)) return this.snapshot()
+    if (graph.digest === this.#graph.digest) return this.snapshot()
     this.#commit(entries, catalog, graph)
-    this.#excludedScopes = Object.freeze([...excludedScopes])
     return this.snapshot()
   }
 
@@ -125,7 +119,7 @@ export class ExternalStorybookRegistry {
     return externalStorybookPackageDescriptors(this.#catalog, this.#graph)
   }
 
-  /** Корни источника включают исключённые ветви, чтобы выбранный проект можно было восстановить. */
+  /** Explicitly selected roots and their declared descendants. */
   async sourceRoots(): Promise<readonly string[]> {
     if (this.#entries.length === 0) return Object.freeze([])
     const raw = await this.resolveCatalog(this.#entries.map(entry => entry.declarationPath))
@@ -137,7 +131,6 @@ export class ExternalStorybookRegistry {
       throw new Error("External Storybook registry rollback snapshot is invalid")
     }
     this.#revision = snapshot.revision
-    this.#excludedScopes = snapshot.excludedScopes
     this.#entries = snapshot.entries
     this.#catalog = snapshot.catalog
     this.#graph = snapshot.graph

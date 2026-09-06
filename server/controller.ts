@@ -1,4 +1,3 @@
-import {readStorybookProjectSelection} from "./project-store.ts"
 import {createHmac} from "node:crypto"
 import {existsSync, realpathSync} from "node:fs"
 import {fileURLToPath} from "node:url"
@@ -632,7 +631,7 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
       inspection = await inspectExternalStorybookServer()
       assertOwnedStorybookState(inspection, this.#toolRoot)
       if (compatibleRunningRecord(inspection, implementationDigest, this.#toolRoot)) {
-        const record = await attachMigratedDeclarations(inspection.record!, migration?.declarations ?? [], signal)
+        const record = inspection.record!
         if (migration !== null) clearExternalStorybookMigrationRecord(this.#toolRoot)
         return record
       }
@@ -649,7 +648,7 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
         inspection = await inspectExternalStorybookServer()
         assertOwnedStorybookState(inspection, this.#toolRoot)
         if (compatibleRunningRecord(inspection, implementationDigest, this.#toolRoot)) {
-          const record = await attachMigratedDeclarations(inspection.record!, declarations, signal)
+          const record = inspection.record!
           if (migration !== null) clearExternalStorybookMigrationRecord(this.#toolRoot)
           return record
         }
@@ -661,7 +660,7 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
       const child = this.#spawnDaemon({
         entryPath: this.#daemonEntryPath,
         toolRoot: this.#toolRoot,
-        declarations,
+        declarations: Object.freeze([]),
         ...(preferredPort === undefined ? {} : {preferredPort}),
         startLease: Object.freeze({path: lease.path, token: lease.token}),
       })
@@ -870,24 +869,6 @@ async function migrateLegacyStorybookState(
     removeReplaceableExternalStorybookState(inspection, statePath)
   }
   return migration
-}
-
-async function attachMigratedDeclarations(
-  record: ExternalStorybookServerRecord,
-  declarations: readonly string[],
-  signal: AbortSignal,
-): Promise<ExternalStorybookServerRecord> {
-  if (declarations.length === 0 || readStorybookProjectSelection(join(dirname(externalStorybookServerStatePath()), "projects.json")) !== null) return record
-  const client = new ExternalStorybookControlClient(record)
-  const status = await client.read("/api/control/status", signal)
-  const attached = new Set(Array.isArray(status.entries) ? status.entries.flatMap((candidate) =>
-    candidate !== null && typeof candidate === "object" &&
-      typeof (candidate as Record<string, unknown>).declarationPath === "string"
-      ? [(candidate as Record<string, unknown>).declarationPath as string]
-      : []) : [])
-  const missing = declarations.filter((path) => !attached.has(path))
-  if (missing.length > 0) await client.control("/api/control/attach", {roots: missing}, signal)
-  return record
 }
 
 function mergeDeclarations(...groups: readonly (readonly string[])[]): readonly string[] {

@@ -5,6 +5,12 @@ import {join} from "node:path"
 /** Подтверждения привязаны к registry session; сервер только читает выбранную метку. */
 export class StorybookDirectorySelection {
   readonly #pending = new Map<string, {session: string; content: string; expires: number}>()
+  readonly #knownDirectories = new Set<string>()
+
+  /** Keep only previously declared locations for proof lookup during this server session. */
+  remember(directories: readonly string[]): void {
+    for (const directory of directories) this.#knownDirectories.add(directory)
+  }
 
   begin(session: string): Readonly<{token: string; filename: string; content: string}> {
     for (const [token, item] of this.#pending) if (item.expires < Date.now()) this.#pending.delete(token)
@@ -22,7 +28,7 @@ export class StorybookDirectorySelection {
     }
     this.#pending.delete(token)
     const base = realpathSync.native(directory)
-    const candidates = [base, ...knownRoots, ...readdirSync(base, {withFileTypes: true})
+    const candidates = [base, ...knownRoots, ...this.#knownDirectories, ...readdirSync(base, {withFileTypes: true})
       .filter(entry => entry.isDirectory()).map(entry => join(base, entry.name))]
     const matches = new Set<string>()
     for (const candidate of candidates) {

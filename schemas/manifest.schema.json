@@ -116,7 +116,7 @@
     "workspace": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schemaVersion", "kind", "id", "label", "projects"],
+      "required": ["schemaVersion", "kind", "id", "projects"],
       "properties": {
         "$schema": {"$ref": "#/$defs/schemaReference"},
         "schemaVersion": {"const": 1},
@@ -134,7 +134,7 @@
     "project": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schemaVersion", "kind", "id", "label", "packages"],
+      "required": ["schemaVersion", "kind", "id", "packages"],
       "properties": {
         "$schema": {"$ref": "#/$defs/schemaReference"},
         "schemaVersion": {"const": 1},
@@ -152,7 +152,7 @@
     "package": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schemaVersion", "kind", "id", "label", "packageJson"],
+      "required": ["schemaVersion", "kind", "id", "packageJson"],
       "properties": {
         "$schema": {"$ref": "#/$defs/schemaReference"},
         "schemaVersion": {"const": 1},

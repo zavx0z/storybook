@@ -60,7 +60,7 @@ describe("one external Storybook server", () => {
     expect(running.registry.snapshot().graph.nodes.some(node => node.id === "project:fixture-beta")).toBeTrue()
     expect(readFileSync(workspaceFile, "utf8")).toBe(workspaceBytes)
     expect((await browserAttach(join(fixture.workspace, "projects/alpha"))).ok).toBeTrue()
-    expect(running.registry.snapshot().entries).toHaveLength(2)
+    expect(running.registry.snapshot().entries).toHaveLength(3)
     await controlPost(running, "/api/control/detach", {scopeId: "project:fixture-alpha"})
     await running.stop()
 
@@ -71,10 +71,11 @@ describe("one external Storybook server", () => {
     expect(running.registry.snapshot().graph.nodes.some(node => node.id === "project:fixture-beta")).toBeTrue()
     const restored = await controlPost(running, "/api/control/attach", {roots: [join(fixture.workspace, "projects/alpha")]})
     expect(restored.response.ok).toBeTrue()
-    expect(running.registry.snapshot().entries).toHaveLength(2)
+    expect(running.registry.snapshot().entries).toHaveLength(3)
     expect(running.registry.snapshot().graph.nodes.some(node => node.id === "project:fixture-alpha")).toBeTrue()
 
-    await controlPost(running, "/api/control/detach", {scopeId: "workspace:fixture-workspace"})
+    await controlPost(running, "/api/control/detach", {scopeId: "project:fixture-alpha"})
+    await controlPost(running, "/api/control/detach", {scopeId: "project:fixture-beta"})
     await controlPost(running, "/api/control/detach", {scopeId: "package:@fixture/standalone"})
     await running.stop()
     running = await startExternalStorybookServer(options)

@@ -25,7 +25,7 @@ import {
   resolveExternalStorybookDeclarations,
 } from "../discovery/declarations.ts"
 import {createExternalStorybookGraph, type ExternalStorybookGraph} from "../catalog/graph.ts"
-import {selectStorybookCatalog} from "../catalog/selection.ts"
+import {ExternalStorybookRegistry} from "../catalog/registry.ts"
 import type {StorybookPackageSessionSnapshot} from "../sessions/package-session.ts"
 import {createExternalStorybookClientSnapshot} from "./client-protocol.ts"
 import {
@@ -40,7 +40,9 @@ describe("external Storybook landing frontend", () => {
   test("adds and removes projects through the catalog controls without reloading the Root", async () => {
     const catalog = await resolveExternalStorybookDeclarations([fixtureRoot, join(fixtureRoot, "standalone")])
     const full = createExternalStorybookGraph(catalog)
-    const removed = createExternalStorybookGraph(selectStorybookCatalog(catalog, ["project:fixture-alpha"]))
+    const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
+    await registry.configure([fixtureRoot, join(fixtureRoot, "standalone")])
+    const removed = (await registry.detach("project:fixture-alpha")).graph
     const empty = createExternalStorybookGraph({schemaVersion: 1, rootIds: [], scopes: []})
     let snapshot = createExternalStorybookClientSnapshot(empty, [])
     const changes: unknown[] = []

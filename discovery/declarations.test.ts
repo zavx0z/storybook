@@ -22,6 +22,29 @@ afterEach(async () => {
 })
 
 describe("external Storybook JSON declarations", () => {
+  test("reads project and package labels from package.json on every resolution", async () => {
+    const root = await cloneFixture()
+    const project = join(root, "projects/alpha/package.json")
+    await Bun.write(project, JSON.stringify({name: "alpha", label: "Первый проект"}))
+    await updateJson(componentsPackageJson(root), value => ({...value, label: "Компоненты проекта"}))
+    await updateJson(componentsManifest(root), value => {
+      delete value.label
+      return value
+    })
+    const first = await resolveExternalStorybookDeclarations([root])
+    expect(first.scopes.find(scope => scope.id === "fixture-alpha")?.label).toBe("Первый проект")
+    const before = declarationPackage(first.scopes, "@fixture/components")
+    expect(before.label).toBe("Компоненты проекта")
+    await updateJson(componentsPackageJson(root), value => ({...value, label: "Новое название"}))
+    const second = await resolveExternalStorybookDeclarations([root])
+    const after = declarationPackage(second.scopes, "@fixture/components")
+    expect(after.label).toBe("Новое название")
+    expect(after.canonicalId).toBe(before.canonicalId)
+    expect(after.digest).not.toBe(before.digest)
+    await updateJson(componentsPackageJson(root), value => ({...value, label: ""}))
+    await expect(resolveExternalStorybookDeclarations([root])).rejects.toThrow("label")
+  })
+
   test("ships one strict versioned schema for manifests and catalogs", async () => {
     const manifest = await Bun.file(join(import.meta.dir, "../schemas/manifest.schema.json")).json()
     const catalog = await Bun.file(join(import.meta.dir, "../schemas/catalog.schema.json")).json()

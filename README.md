@@ -148,6 +148,11 @@ storybook init <root> --kind package|project|workspace
 существующего server не создают второй listener. Workspace — optional saved
 composition; standalone projects/packages можно подключать одновременно.
 
+Правила перехода «проект = структура» находятся в [archetypes/README.md](./archetypes/README.md).
+Состав задаётся явно и хранится списком абсолютных каталогов в `~/.storybook/projects.json`,
+отдельно от runtime cache. Названия читаются из `package.json#label` при открытии
+и обновлении. Декларации содержимого продолжают работать.
+
 Global landing показывает workspace groups, direct projects и direct packages.
 Каждый exact package identity отображается private lifecycle owner в один
 reused package target `storybook:<package-id>` и получает один JS realm, one

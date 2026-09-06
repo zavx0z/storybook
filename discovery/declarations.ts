@@ -148,7 +148,7 @@ async function resolveManifest(
   }
 
   const scopeRoot = await manifestScopeRoot(manifestPath)
-  const {record, digest} = await readJsonObject(manifestPath, "External Storybook manifest")
+  const {record, digest: manifestDigest} = await readJsonObject(manifestPath, "External Storybook manifest")
   const schemaVersion = record.schemaVersion
   if (schemaVersion !== EXTERNAL_STORYBOOK_SCHEMA_VERSION) {
     throw new Error(`Unsupported external Storybook manifest schemaVersion: ${String(schemaVersion)}`)
@@ -163,16 +163,22 @@ async function resolveManifest(
     `External Storybook ${kind} manifest`,
     MANIFEST_KEYS[kind],
     kind === "workspace"
-      ? ["schemaVersion", "kind", "id", "label", "projects"]
+      ? ["schemaVersion", "kind", "id", "projects"]
       : kind === "project"
-        ? ["schemaVersion", "kind", "id", "label", "packages"]
-        : ["schemaVersion", "kind", "id", "label", "packageJson"],
+        ? ["schemaVersion", "kind", "id", "packages"]
+        : ["schemaVersion", "kind", "id", "packageJson"],
   )
   optionalString(record, "$schema", `External Storybook ${kind} $schema`)
   const id = kind === "package"
     ? packageId(record.id, "External Storybook package id")
     : scopeId(record.id, `External Storybook ${kind} id`)
-  const label = visibleText(record.label, `External Storybook ${kind} label`)
+  const ownerPackagePath = join(scopeRoot, "package.json")
+  const ownerPackage = await Bun.file(ownerPackagePath).exists()
+    ? (await readJsonObject(await resolveContainedFile(scopeRoot, "package.json", scopeRoot, "owner package.json"), "Owner package.json")).record
+    : null
+  // Existing declarations remain readable during the structural migration.
+  const label = visibleText(ownerPackage !== null && Object.hasOwn(ownerPackage, "label") ? ownerPackage.label : record.label, `External Storybook ${kind} package.json label`)
+  const digest = createHash("sha256").update(manifestDigest).update(JSON.stringify(label)).digest("hex")
   const previousScope = state.scopeIds.get(id)
   if (previousScope !== undefined) {
     const identity = kind === "package" ? "Ambiguous external Storybook package identity" : "Duplicate external Storybook scope id"

@@ -15,12 +15,14 @@ import {
 } from "./server-state.ts"
 
 const stateRoot = mkdtempSync(join(tmpdir(), "storybook-controller-"))
+const previousConfigRoot = Bun.env.STORYBOOK_CONFIG_ROOT
 const previousStateRoot = Bun.env.STORYBOOK_STATE_ROOT
 const fixture = join(import.meta.dir, "../discovery/fixtures/valid/standalone")
 const context = () => ({signal: AbortSignal.timeout(30_000)})
 
 describe.serial("external Storybook shared controller", () => {
   beforeAll(() => {
+    Bun.env.STORYBOOK_CONFIG_ROOT = join(stateRoot, "config")
     Bun.env.STORYBOOK_STATE_ROOT = stateRoot
   })
 
@@ -31,6 +33,8 @@ describe.serial("external Storybook shared controller", () => {
     } catch {
       // A failed test may stop the isolated daemon first.
     }
+    if (previousConfigRoot === undefined) delete Bun.env.STORYBOOK_CONFIG_ROOT
+    else Bun.env.STORYBOOK_CONFIG_ROOT = previousConfigRoot
     if (previousStateRoot === undefined) delete Bun.env.STORYBOOK_STATE_ROOT
     else Bun.env.STORYBOOK_STATE_ROOT = previousStateRoot
     rmSync(stateRoot, {recursive: true, force: true})

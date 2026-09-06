@@ -1,5 +1,6 @@
 {
   "name": "@zavx0z/storybook-mcp",
+  "label": "Storybook MCP",
   "version": "0.0.0",
   "private": true,
   "type": "module",

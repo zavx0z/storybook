@@ -1,5 +1,5 @@
 import {StorybookDirectorySelection} from "./directory-selection.ts"
-import {readStorybookProjectSelection, writeStorybookProjectSelection} from "./project-store.ts"
+import {readStorybookProjectSelection, storybookProjectSelectionPath, writeStorybookProjectSelection} from "./project-store.ts"
 import {randomBytes, randomUUID} from "node:crypto"
 import {
   createStorybookBrowserLifecycle,
@@ -78,6 +78,7 @@ type StorybookBrowserSessionGrant = Readonly<{
 }>
 
 export type ExternalStorybookServerOptions = Readonly<{
+  projectSelectionPath?: string
   projectDirectory?: string
   /** Источник нормализованного каталога; по умолчанию читает существующие JSON-декларации. */
   resolveCatalog?: StorybookCatalogResolver
@@ -125,15 +126,13 @@ export async function startExternalStorybookServer(
   mkdirSync(artifactRoot, {recursive: true, mode: 0o700})
   chmodSync(artifactRoot, 0o700)
   const registry = new ExternalStorybookRegistry(options.resolveCatalog ?? resolveExternalStorybookDeclarations)
-  const selectionPath = join(dirname(statePath), "projects.json")
+  const selectionPath = options.projectSelectionPath ?? (options.statePath === undefined
+    ? storybookProjectSelectionPath() : join(dirname(statePath), "projects.json"))
   const savedSelection = readStorybookProjectSelection(selectionPath)
-  await registry.configure(savedSelection?.roots ?? options.declarations ?? [], savedSelection?.excludedScopes ?? [])
+  await registry.configure(savedSelection ?? options.declarations ?? [])
   const saveSelection = (snapshot: ExternalStorybookRegistrySnapshot): void => {
-    writeStorybookProjectSelection(selectionPath, {
-      version: 1,
-      roots: snapshot.entries.map(entry => entry.declarationPath),
-      excludedScopes: snapshot.excludedScopes,
-    })
+    writeStorybookProjectSelection(selectionPath, snapshot.entries.map(entry =>
+      snapshot.catalog.scopes.find(scope => scope.canonicalId === entry.canonicalId)!.scopeRoot))
   }
   const clients = new Set<Bun.ServerWebSocket<StorybookWebSocketData>>()
   const watch = new StorybookDependencyWatchCoordinator()
@@ -182,6 +181,7 @@ export async function startExternalStorybookServer(
 
   const refreshStructuralWatch = (): void => {
     const snapshot = registry.snapshot()
+    directorySelections.remember(snapshot.catalog.scopes.map(scope => scope.scopeRoot))
     watch.replace("__registry__", externalStorybookStructuralWatchPaths(snapshot), () => {
       void structuralRefresh.request()
     })
@@ -710,6 +710,7 @@ export async function startExternalStorybookServer(
           return packagePageResponse(url, registry, sessions, ensureSharedAssets, browserSessions, server.url.origin)
         }
         if (request.method === "GET" && isLandingPath(registry.snapshot(), url.pathname)) {
+          await mutateRegistry(() => registry.refresh())
           const assets = await ensureSharedAssets()
           const session = browserSessions.issue({kind: "registry", packageId: null, revision: null})
           const authorStyleSheets = await landingWorkbenchAuthorStyleSheets(registry, sessions)
@@ -1073,12 +1074,12 @@ async function packagePageResponse(
 export function externalStorybookStructuralWatchPaths(
   snapshot: ExternalStorybookRegistrySnapshot,
 ): readonly string[] {
-  return Object.freeze([...new Set(snapshot.graph.nodes.flatMap((node) => [
+  return Object.freeze([...new Set([...snapshot.catalog.scopes.map(scope => join(scope.scopeRoot, "package.json")).filter(existsSync), ...snapshot.graph.nodes.flatMap((node) => [
     node.source.path,
     ...(node.kind === "package" && node.packageJsonPath !== null ? [node.packageJsonPath] : []),
     ...node.authorStyleSheets.map(({path}) => path),
     ...node.authorStyleSheets.map(({ownerPackageJsonPath}) => ownerPackageJsonPath),
-  ]))].sort())
+  ])])].sort())
 }
 
 function parsePackageRequest(pathname: string): Readonly<{packageId: string, routePath: string}> {
