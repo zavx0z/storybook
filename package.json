@@ -7,7 +7,7 @@
   "type": "module",
   "packageManager": "bun@1.4.0",
   "workspaces": [
-    "packages/*",
+    "browser-lifecycle",
     "archetypes"
   ],
   "bin": {
@@ -18,7 +18,7 @@
     "serve": "bun scripts/storybook.ts serve .",
     "build": "bun scripts/storybook.ts check .",
     "typecheck": "tsc --noEmit --pretty false",
-    "browser-lifecycle:check": "bun run --cwd packages/browser-lifecycle check",
+    "browser-lifecycle:check": "bun run --cwd browser-lifecycle check",
     "test": "STORYBOOK_SKIP_ISOLATION=1 bun test catalog discovery build sessions runtime workbench server tests src --max-concurrency=1 && bun test tests/isolation.integration.test.ts --max-concurrency=1",
     "mcp:check": "bun run --cwd mcp check",
     "check": "bun run browser-lifecycle:check && bun run typecheck && bun run test && bun run mcp:check && bun run build"

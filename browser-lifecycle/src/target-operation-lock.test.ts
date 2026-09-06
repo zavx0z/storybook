@@ -69,7 +69,7 @@ function spawnWorker(
   holdMs: number,
 ): Bun.Subprocess<"ignore", "pipe", "pipe"> {
   return Bun.spawn([process.execPath, worker, root, "package:@fixture/a", events, label, String(holdMs)], {
-    cwd: join(import.meta.dir, "../../.."),
+    cwd: join(import.meta.dir, "../.."),
     stdin: "ignore",
     stdout: "pipe",
     stderr: "pipe",

@@ -15,7 +15,7 @@ const IMPLEMENTATION_FILES = Object.freeze([
   "bun.lock",
   "bunfig.toml",
   "package.json",
-  "packages/browser-lifecycle/package.json",
+  "browser-lifecycle/package.json",
   "scripts/storybook-daemon.ts",
 ])
 
@@ -29,7 +29,7 @@ const IMPLEMENTATION_TREES = Object.freeze([
   Object.freeze({path: "runtime", kind: "source" as const}),
   Object.freeze({path: "server", kind: "source" as const}),
   Object.freeze({path: "src/shared", kind: "source" as const}),
-  Object.freeze({path: "packages/browser-lifecycle/src", kind: "source" as const}),
+  Object.freeze({path: "browser-lifecycle/src", kind: "source" as const}),
 ])
 
 /**

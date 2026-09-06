@@ -31,7 +31,7 @@
       "name": "@zavx0z/storybook-archetypes",
       "version": "0.0.0",
     },
-    "packages/browser-lifecycle": {
+    "browser-lifecycle": {
       "name": "@zavx0z/storybook-browser-lifecycle",
       "version": "0.0.0",
       "dependencies": {
@@ -121,7 +121,7 @@
 
     "@zavx0z/storybook-archetypes": ["@zavx0z/storybook-archetypes@workspace:archetypes"],
 
-    "@zavx0z/storybook-browser-lifecycle": ["@zavx0z/storybook-browser-lifecycle@workspace:packages/browser-lifecycle"],
+    "@zavx0z/storybook-browser-lifecycle": ["@zavx0z/storybook-browser-lifecycle@workspace:browser-lifecycle"],
 
     "@zavx0z/template": ["@zavx0z/template@file:../webxr-space/template", { "peerDependencies": { "@zavx0z/dom": "*", "typescript": "7.0.2" }, "optionalPeers": ["@zavx0z/dom", "typescript"] }],
 

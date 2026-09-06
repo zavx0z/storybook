@@ -7,10 +7,10 @@ const root = join(import.meta.dir, "..")
 describe("external Storybook agent tooling", () => {
   test("keeps Chrome mechanics in the private browser lifecycle package", async () => {
     expect(existsSync(join(root, "scripts/storybook-browser.ts"))).toBeFalse()
-    const chrome = await Bun.file(join(root, "packages/browser-lifecycle/src/chrome-client.ts")).text()
-    const lifecycle = await Bun.file(join(root, "packages/browser-lifecycle/src/service.ts")).text()
+    const chrome = await Bun.file(join(root, "browser-lifecycle/src/chrome-client.ts")).text()
+    const lifecycle = await Bun.file(join(root, "browser-lifecycle/src/service.ts")).text()
     const landing = await Bun.file(join(root, "runtime/landing-entry.ts")).text()
-    const manifest = await Bun.file(join(root, "packages/browser-lifecycle/package.json")).json()
+    const manifest = await Bun.file(join(root, "browser-lifecycle/package.json")).json()
     expect(chrome).toContain('connection.command("Target.createTarget"')
     expect(chrome).toContain("background: true")
     expect(chrome).toContain("StorybookCdpConnection")
