@@ -246,6 +246,36 @@ describe("compiled Storybook Workbench", () => {
     })
   })
 
+  test("defers standard widget contents until first disclosure and then retains their nodes", () => {
+    const document = createDocument()
+    const workbench = api.createWorkbench({document, parent: document})
+    const subject = {packageId: "@fixture/components", subjectId: "large-source", widgetIds: ["props", "source"]}
+    const source = {html: "<div>first</div>", typescript: "const value = 1", css: {authorStyleSheets: [], componentStyleSheets: []}}
+    try {
+      workbench.present({label: "Large source", presentation: {node: null, projection: "display"},
+        inspectorSubject: subject, inspectorValues: {props: {}, source},
+      })
+      const panel = inspectorPanel(workbench, "Исходники")
+      expect(panel.querySelectorAll("code")).toHaveLength(0)
+      const toggle = panel.querySelector("header button") as HTMLButtonElement
+      toggle.click()
+      categoryButton(workbench, "Исходники").click()
+      expect(panel.querySelectorAll("code")).toHaveLength(0)
+      toggle.click()
+      const code = panel.querySelector("code")!
+      expect(code.textContent).toBe(source.html)
+      categoryButton(workbench, "Параметры").click()
+      expect(panel.querySelector("code")).toBe(code)
+      workbench.present({label: "Updated source", presentation: {node: null, projection: "display"}, inspectorSubject: subject,
+        inspectorValues: {props: {}, source: {...source, html: "<div>latest</div>"}},
+      })
+      categoryButton(workbench, "Исходники").click()
+      expect(panel.querySelector("code")).toBe(code)
+      expect(code.textContent).toBe("<div>latest</div>")
+    } finally { workbench.dispose() }
+    expect(document.childNodes).toHaveLength(0)
+  })
+
   test("retains Inspector widget selection by package and subject across variants", () => {
     const document = createDocument()
     const workbench = api.createWorkbench({document, parent: document})

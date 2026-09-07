@@ -1,4 +1,5 @@
 import {Panel} from "@zavx0z/ui/surfaces/panel"
+import {useRef} from "@zavx0z/component"
 import type {JsxSourceElement} from "@zavx0z/template/jsx-runtime"
 import type {WorkbenchInspectorWidgetRegistration} from "../contract.ts"
 import {SourceWidget} from "./source-widget.tsx"
@@ -15,7 +16,11 @@ export type WidgetPanelProps = Readonly<{
 function StandardWidgetPanelContent(props: Readonly<{
   widget: WorkbenchInspectorWidgetRegistration
   value: unknown
+  active: boolean
 }>) {
+  const activated = useRef(false)
+  if (props.active) activated.current = true
+  const showContent = activated.current
   const source = props.widget.kind === "source"
   return <div
     data-widget-kind={props.widget.kind}
@@ -26,8 +31,8 @@ function StandardWidgetPanelContent(props: Readonly<{
       min-height: 0;
     `}
   >
-    {source ? <SourceWidget value={props.value} /> : null}
-    {!source ? <ValueFields value={props.value} /> : null}
+    {showContent && source ? <SourceWidget value={props.value} /> : null}
+    {showContent && !source ? <ValueFields value={props.value} /> : null}
   </div>
 }
 
@@ -43,6 +48,7 @@ export function StandardWidgetPanel(props: WidgetPanelProps) {
     <StandardWidgetPanelContent
       widget={props.widget}
       value={props.value}
+      active={!props.hidden && props.expanded}
     />
   </Panel>
 }

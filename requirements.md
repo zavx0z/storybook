@@ -154,6 +154,10 @@ Project/runtime не декларирует layout и не заменяет navi
 category `panelIds` связывает rail с widget panels. Domain `widget.id` остаётся
 key/retained-state identity Storybook и замыкается consumer callback-ом вокруг
 `Panel.onToggle(expanded, event)`, но не становится prop-ом Panel.
+Содержимое standard widget создаётся при первом одновременном выборе и раскрытии
+панели. До этого скрытые «Исходники» не материализуют редакторы подсвеченного
+текста. После первого раскрытия те же nodes сохраняются при сворачивании и
+переключениях, а новые values продолжают поступать обычным props-путём.
 Standard Inspector registry импортирует только exact named icon assets и
 передаёт их в optional category `iconSrc`; aggregate `uiIcons` не попадает в
 Workbench bundle. Буквенные labels остаются semantic fallback, но не заменяют
