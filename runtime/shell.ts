@@ -105,6 +105,7 @@ export type ExternalStorybookShell = Readonly<{
   subscribePreviewBounds(listener: (bounds: StorybookPreviewBounds | null) => void): () => void
   mountSpacePreview(label: string, registration: StorybookSpacePreviewRegistration): StorybookSpacePreview
   dispatchNativeKey(target: SemanticHTMLElement, input: ExternalStorybookNativeKey): void
+  dispatchNativeText(target: SemanticHTMLElement, text: string): void
   dispose(): void
 }>
 
@@ -431,6 +432,15 @@ export async function createExternalStorybookShell(
     root.dispatchKey(projection.owner, target, {type: "keydown", ...init})
     root.dispatchKey(projection.owner, target, {type: "keyup", ...init})
   }
+  const dispatchNativeText = (target: SemanticHTMLElement, text: string): void => {
+    assertActive(disposed)
+    if (!(target instanceof SemanticHTMLElement)) {
+      throw new TypeError("Storybook native text target must be an @zavx0z/dom HTMLElement")
+    }
+    const projection = projectionFor(target)
+    if (projection.kind === "space") throw new Error("Storybook native text target has no Display or HUD projection")
+    root.dispatchText(projection.owner, target, text)
+  }
 
   const shell: ExternalStorybookShell = Object.freeze({
     document,
@@ -547,6 +557,7 @@ export async function createExternalStorybookShell(
       return () => boundsListeners.delete(listener)
     },
     dispatchNativeKey,
+    dispatchNativeText,
     dispose() {
       if (disposed) return
       disposed = true

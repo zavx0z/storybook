@@ -1,4 +1,5 @@
 import {createRoot} from "@zavx0z/component"
+import {createDocumentClipboardController} from "@zavx0z/browser/clipboard"
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
 import {createDocument, type Element} from "@zavx0z/dom"
@@ -1169,6 +1170,7 @@ function fakeRootFactory(
     state.stylesheets = Object.freeze((options.stylesheets ?? []).filter((source): source is Readonly<{id: string; link: HTMLLinkElement}> => typeof source !== "string"))
 
     const document = createDocument({elementFactories: createSpaceElementFactories()})
+    const clipboard = createDocumentClipboardController(document)
     const appRoot = createRoot(document)
     appRoot.render(options.app)
     appRoot.flush()
@@ -1236,6 +1238,7 @@ function fakeRootFactory(
     }
 
     const root: Root = Object.freeze({
+      clipboard,
       input: {
         pointerDown() {},
         pointerMove() {},
@@ -1259,6 +1262,7 @@ function fakeRootFactory(
         return () => presented.delete(listener)
       },
       dispatchKey: () => true,
+      dispatchText: () => true,
       resetViewPoint() {},
       render() {
         const nextFrame = state.frames + 1
@@ -1278,6 +1282,7 @@ function fakeRootFactory(
         if (disposed) return
         disposed = true
         appRoot.unmount()
+        clipboard.dispose()
         state.disposals += 1
         state.lifecycle.push("root-dispose")
         presented.clear()

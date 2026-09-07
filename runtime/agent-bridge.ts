@@ -1,9 +1,6 @@
 import {createDomInspector, type DomInspector, type DomInspectorNode} from "@zavx0z/devtools"
 import {
-  Event,
   HTMLElement,
-  HTMLInputElement,
-  HTMLTextAreaElement,
   type Element,
   type Node,
 } from "@zavx0z/dom"
@@ -355,8 +352,7 @@ async function applyNodeAction(
     node.focus()
   } else if (action === "key") {
     if (!(node instanceof HTMLElement)) throw new Error("Storybook key target is not an HTMLElement")
-    shell.root.input.pointerDown(pointer(1))
-    shell.root.input.pointerUp(pointer(0))
+    if (shell.document.activeElement !== node) node.focus()
     const keyValue = request.value !== null && typeof request.value === "object" && !Array.isArray(request.value)
       ? request.value as Record<string, unknown>
       : null
@@ -375,12 +371,9 @@ async function applyNodeAction(
     const text = boundedText(request.value !== null && typeof request.value === "object" && !Array.isArray(request.value)
       ? (request.value as Record<string, unknown>).text
       : request.value, 4_096, "type value")
-    if (node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement) {
-      node.value = `${node.value}${text}`
-      node.dispatchEvent(new Event("input", {bubbles: true, composed: true}))
-    } else {
-      throw new Error("Storybook type target is not a text control")
-    }
+    if (!(node instanceof HTMLElement)) throw new Error("Storybook type target is not an HTMLElement")
+    if (shell.document.activeElement !== node) node.focus()
+    shell.dispatchNativeText(node, text)
   } else {
     throw new Error(`Unsupported Storybook node action: ${action}`)
   }

@@ -1,6 +1,7 @@
 import {describe, expect, test} from "bun:test"
 import {
   Event,
+  HTMLElement as SemanticHTMLElement,
   createDocument,
   type Document as SemanticDocument,
   type Element as SemanticElement,
@@ -193,9 +194,9 @@ describe("external Storybook agent bridge interaction", () => {
       expect(semanticKeyEvents).toHaveLength(0)
 
       await interact({action: "type", target: {nodeId: ids.input}, value: {text: " typed"}})
-      expect(fixture.input.value).toBe("seed typed")
-      expect(inputEvents).toHaveLength(1)
-      expect(inputEvents[0]).toMatchObject({type: "input", bubbles: true, composed: true})
+      expect(fixture.calls.nativeTexts).toEqual([{target: fixture.input, text: " typed"}])
+      expect(fixture.input.value).toBe("seed")
+      expect(inputEvents).toHaveLength(0)
 
       await interact({action: "wheel", target: {nodeId: ids.destination}, value: {deltaY: -48}})
       expect(fixture.calls.wheels.at(-1)).toMatchObject({deltaY: -48})
@@ -226,6 +227,43 @@ describe("external Storybook agent bridge interaction", () => {
     } finally {
       fixture.dispose()
     }
+  })
+
+  test("key focuses without pointer synthesis and preserves the exact existing selection", async () => {
+    const fixture = createFixture()
+    try {
+      if (!(fixture.run instanceof SemanticHTMLElement)) throw new Error("Expected semantic HTMLElement")
+      fixture.run.focus()
+      const selection = fixture.document.getSelection()
+      selection.setBaseAndExtent(fixture.run.firstChild!, 1, fixture.run.firstChild!, 5)
+      const range = selection.getRangeAt(0)
+      await fixture.bridge.invoke(request("interact", {
+        action: "key", target: {role: "button", name: "Run exact"}, value: {key: "c", modifiers: ["meta"]},
+      }))
+      expect(fixture.calls.pointerDowns).toHaveLength(0)
+      expect(fixture.calls.pointerUps).toHaveLength(0)
+      expect(selection.getRangeAt(0)).toBe(range)
+      expect(selection.toString()).toBe("un e")
+    } finally {fixture.dispose()}
+  })
+
+  test("contenteditable type delegates to Browser without Storybook text mutation", async () => {
+    const fixture = createFixture()
+    const editor = fixture.document.createElement("div")
+    editor.setAttribute("contenteditable", "plaintext-only")
+    editor.setAttribute("role", "textbox")
+    editor.setAttribute("aria-label", "Editable source")
+    editor.textContent = "original"
+    fixture.preview.append(editor)
+    try {
+      await fixture.bridge.invoke(request("interact", {
+        action: "type", target: {role: "textbox", name: "Editable source"}, value: "typed",
+      }))
+      expect(fixture.document.activeElement).toBe(editor)
+      expect(fixture.calls.nativeTexts).toEqual([{target: editor, text: "typed"}])
+      expect(editor.textContent).toBe("original")
+      expect(fixture.calls.pointerDowns).toHaveLength(0)
+    } finally {fixture.dispose()}
   })
 })
 
@@ -334,6 +372,7 @@ type InteractionCalls = Readonly<{
     target: SemanticElement
     input: ExternalStorybookNativeKey
   }>>
+  nativeTexts: Array<Readonly<{target: SemanticElement; text: string}>>
 }>
 
 function createFixture(): Fixture {
@@ -380,6 +419,7 @@ function createFixture(): Fixture {
     pointerUps: [],
     wheels: [],
     nativeKeys: [],
+    nativeTexts: [],
   }
   const hudProjection = Object.freeze({
     kind: "hud" as const,
@@ -472,6 +512,9 @@ function createFixture(): Fixture {
     },
     dispatchNativeKey(target: SemanticElement, input: ExternalStorybookNativeKey) {
       calls.nativeKeys.push({target, input})
+    },
+    dispatchNativeText(target: SemanticElement, text: string) {
+      calls.nativeTexts.push({target, text})
     },
     get presentedFrameSequence() {
       return frameSequence

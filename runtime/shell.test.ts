@@ -1,4 +1,5 @@
 import {createRoot} from "@zavx0z/component"
+import {createDocumentClipboardController} from "@zavx0z/browser/clipboard"
 import {describe, expect, test} from "bun:test"
 import type {
   AttachOptions,
@@ -199,6 +200,21 @@ describe("external Storybook shared Browser Root", () => {
     shell.dispose()
   })
 
+  test("dispatches text through the exact active Root projection", async () => {
+    const state = createFakeRootState()
+    const shell = await createShell(state)
+    const target = shell.document.createElement("div")
+    target.setAttribute("contenteditable", "plaintext-only")
+    shell.mountPreview("Text", target)
+    state.pointerTarget = target
+    shell.root.input.pointerDown({x: 1, y: 1})
+    shell.dispatchNativeText(target, "replacement")
+    expect(state.texts).toEqual([{owner: shell.display, target, text: "replacement"}])
+    state.activeTarget = null
+    expect(() => shell.dispatchNativeText(target, "wrong target")).toThrow("Root native proxy")
+    shell.dispose()
+  })
+
   test("keeps landing and package shells as separate Roots", async () => {
     const landingState = createFakeRootState()
     const packageState = createFakeRootState()
@@ -233,6 +249,7 @@ type FakeRootState = {
     target: Element
     input: Readonly<{type: "keydown" | "keyup"; key: string}>
   }>>
+  texts: Array<Readonly<{owner: XRDisplayElement | XRHUDElement; target: Element; text: string}>>
   spaceGestures: Array<Readonly<{
     kind: "orbit" | "pan"
     deltaX: number
@@ -261,6 +278,7 @@ function createFakeRootState(): FakeRootState {
     activeOwner: null,
     activeTarget: null,
     keys: [],
+    texts: [],
     spaceGestures: [],
     capture: new Blob(["capture"], {type: "image/png"}),
     renderError: null,
@@ -293,6 +311,7 @@ function fakeRootFactory(state: FakeRootState): ExternalStorybookRootFactory {
     state.creations += 1
     state.options = options
     const document = createDocument({elementFactories: createSpaceElementFactories()})
+    const clipboard = createDocumentClipboardController(document)
     const appRoot = createRoot(document)
     appRoot.render(options.app)
     appRoot.flush()
@@ -364,6 +383,7 @@ function fakeRootFactory(state: FakeRootState): ExternalStorybookRootFactory {
         wheel() {},
       },
       canvas: options.canvas,
+      clipboard,
       document,
       space,
       viewPoint,
@@ -381,6 +401,13 @@ function fakeRootFactory(state: FakeRootState): ExternalStorybookRootFactory {
         state.keys.push({owner, target, input})
         return true
       },
+      dispatchText(owner: XRDisplayElement | XRHUDElement, target: Element, text: string) {
+        if (state.activeOwner !== owner || state.activeTarget !== target) {
+          throw new Error("Semantic text target does not own the Root native proxy")
+        }
+        state.texts.push({owner, target, text})
+        return true
+      },
       resetViewPoint() {},
       render() {
         if (state.renderError !== null) throw state.renderError
@@ -393,6 +420,7 @@ function fakeRootFactory(state: FakeRootState): ExternalStorybookRootFactory {
       unmount() {
         disposed = true
         appRoot.unmount()
+        clipboard.dispose()
       },
     }) as unknown as Root
     state.root = root
