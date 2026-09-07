@@ -375,7 +375,13 @@ function canonicalDependencyPath(input: string): string {
     path = join(realpathSync.native(dirname(path)), basename(path))
     if (visited.has(path)) throw new Error(`Cyclic Storybook dependency symlink: ${input}`)
     visited.add(path)
-    if (!lstatSync(path).isSymbolicLink()) return path
+    try {
+      if (!lstatSync(path).isSymbolicLink()) return path
+    } catch (error) {
+      // Watch the containing directory while a declared file is temporarily absent.
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return path
+      throw error
+    }
     path = resolve(dirname(path), readlinkSync(path))
   }
 }

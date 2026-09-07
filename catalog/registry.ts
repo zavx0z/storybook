@@ -29,6 +29,7 @@ export type ExternalStorybookRegistrySnapshot = Readonly<{
   entries: readonly ExternalStorybookRegistryEntry[]
   catalog: StorybookCatalog
   graph: ExternalStorybookGraph
+  descriptors: readonly StorybookPackageBuildDescriptor[]
 }>
 
 /**
@@ -39,6 +40,7 @@ export type ExternalStorybookRegistrySnapshot = Readonly<{
 */
 export class ExternalStorybookRegistry {
   #revision = 0
+  #descriptors: readonly StorybookPackageBuildDescriptor[] = Object.freeze([])
   #entries: readonly ExternalStorybookRegistryEntry[] = Object.freeze([])
   #catalog: StorybookCatalog = emptyDeclarations()
   #graph: ExternalStorybookGraph = createExternalStorybookGraph(this.#catalog)
@@ -51,6 +53,7 @@ export class ExternalStorybookRegistry {
       entries: this.#entries,
       catalog: this.#catalog,
       graph: this.#graph,
+      descriptors: this.#descriptors,
     })
   }
 
@@ -101,28 +104,33 @@ export class ExternalStorybookRegistry {
   }
 
   async #resolve(roots: readonly string[], sources: readonly ExternalStorybookAttachSource[]): Promise<ExternalStorybookRegistrySnapshot> {
-    const raw = roots.length === 0 ? emptyDeclarations() : await this.resolveCatalog(roots)
+    const raw = roots.length === 0 ? emptyDeclarations() : await this.resolveCatalog(roots, this.#catalog)
     return this.#accept(raw, sources)
   }
 
   #accept(raw: StorybookCatalog, sources: readonly ExternalStorybookAttachSource[]): ExternalStorybookRegistrySnapshot {
     const catalog = raw
     const graph = createExternalStorybookGraph(catalog)
-    externalStorybookPackageDescriptors(catalog, graph)
+    const failed = new Set(catalog.scopes.filter(scope => scope.resolutionError !== undefined).map(scope => scope.id))
+    const retained = this.#descriptors.filter(descriptor => failed.has(descriptor.packageId))
+    const retainedIds = new Set(retained.map(descriptor => descriptor.packageId))
+    const include = new Set(catalog.scopes.filter(scope => scope.kind === "package" && !retainedIds.has(scope.id)).map(scope => scope.id))
+    const descriptors = Object.freeze([...externalStorybookPackageDescriptors(catalog, graph, include), ...retained])
     const entries = createEntries(catalog, graph, sources)
-    if (graph.digest === this.#graph.digest) return this.snapshot()
+    if (graph.digest === this.#graph.digest && JSON.stringify(catalog.scopes.map(scope => scope.resolutionError)) === JSON.stringify(this.#catalog.scopes.map(scope => scope.resolutionError))) return this.snapshot()
+    this.#descriptors = descriptors
     this.#commit(entries, catalog, graph)
     return this.snapshot()
   }
 
   packageDescriptors(): readonly StorybookPackageBuildDescriptor[] {
-    return externalStorybookPackageDescriptors(this.#catalog, this.#graph)
+    return this.#descriptors
   }
 
   /** Explicitly selected roots and their declared descendants. */
   async sourceRoots(): Promise<readonly string[]> {
     if (this.#entries.length === 0) return Object.freeze([])
-    const raw = await this.resolveCatalog(this.#entries.map(entry => entry.declarationPath))
+    const raw = this.#catalog
     return Object.freeze([...new Set(raw.scopes.map(scope => scope.scopeRoot))])
   }
 
@@ -134,6 +142,7 @@ export class ExternalStorybookRegistry {
     this.#entries = snapshot.entries
     this.#catalog = snapshot.catalog
     this.#graph = snapshot.graph
+    this.#descriptors = snapshot.descriptors
   }
 
   #commit(

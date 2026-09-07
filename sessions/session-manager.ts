@@ -1,4 +1,4 @@
-import {realpathSync} from "node:fs"
+import {existsSync, realpathSync} from "node:fs"
 import {resolve} from "node:path"
 import {StorybookBuildSemaphore} from "../build/build-semaphore.ts"
 import {StorybookDependencyWatchCoordinator} from "./dependency-watch.ts"
@@ -68,7 +68,7 @@ export class ExternalStorybookSessionManager {
     })
   }
 
-  sync(descriptors: readonly StorybookPackageBuildDescriptor[]): void {
+  sync(descriptors: readonly StorybookPackageBuildDescriptor[], failures: ReadonlyMap<string, string> = new Map()): void {
     this.#assertActive()
     const nextIds = new Set<string>()
     for (const descriptor of descriptors) {
@@ -99,9 +99,10 @@ export class ExternalStorybookSessionManager {
         })
         this.#sessions.set(descriptor.packageId, session)
         this.#replaceWatch(session)
-      } else if (current.reconfigure(descriptor)) {
+      } else if (!failures.has(descriptor.packageId) && current.reconfigure(descriptor)) {
         this.#replaceWatch(current)
       }
+      this.#sessions.get(descriptor.packageId)!.setResolutionError(failures.get(descriptor.packageId) ?? null)
     }
   }
 
@@ -115,6 +116,7 @@ export class ExternalStorybookSessionManager {
   async ensure(packageId: string): Promise<StorybookPackageSessionSnapshot> {
     const session = this.session(packageId)
     const current = session.snapshot()
+    if (current.diagnostics.some(diagnostic => diagnostic.phase === "resolve")) return current
     const active = current.revisions?.find(({revision}) => revision === current.activeRevision)
     if ((current.builtRevision !== null && current.builtRevision !== undefined) ||
       current.activatingRevision !== null && current.activatingRevision !== undefined ||
@@ -173,7 +175,7 @@ export class ExternalStorybookSessionManager {
       ...(descriptor.watchPaths ?? (descriptor.watchedPaths ?? []).map((path) => ({path, category: "code" as const}))),
       ...session.snapshot().dependencyRealpaths.map((path) => ({path, category: "code" as const})),
     ]
-    const categorized = uniqueCategorizedPaths(paths)
+    const categorized = uniqueCategorizedPaths(paths.filter(entry => existsSync(entry.path)))
     const onEvent = (event: Readonly<{
       path: string
       categories: readonly ("declaration" | "code" | "metadata" | "resource")[]

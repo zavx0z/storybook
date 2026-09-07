@@ -136,6 +136,9 @@ export type StorybookPackageCatalog = Readonly<{
 }>
 
 type StorybookCatalogScopeBase = Readonly<{
+  /** Scoped discovery failure; content is the last validated snapshot or an empty owner shell. */
+  resolutionError?: string
+  recoveryPaths?: readonly string[]
   schemaVersion: typeof EXTERNAL_STORYBOOK_SCHEMA_VERSION
   canonicalId: string
   id: string
@@ -181,9 +184,13 @@ export type StorybookCatalog = Readonly<{
 Читает все выбранные корни в один кандидат каталога без изменения реестра.
 
 Источник обязан проверить существование, владение и неоднозначность файлов.
-При ошибке Promise отклоняется, а реестр сохраняет прежний согласованный граф.
+Для обновления передаётся предыдущий каталог: локальная ошибка возвращается
+у соответствующего scope с последним проверенным содержимым или пустой
+оболочкой владельца. Соседние scopes обновляются независимо. Без предыдущего
+каталога действует строгая проверка нового подключения.
 Новый способ обнаружения подключается здесь без второго реестра или Workbench.
 */
 export type StorybookCatalogResolver = (
   roots: readonly string[],
+  previous?: StorybookCatalog,
 ) => Promise<StorybookCatalog>

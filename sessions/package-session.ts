@@ -191,6 +191,7 @@ export class StorybookPackageSession {
   #lastWorkingRevision: string | null = null
   #failedRevision: string | null = null
   #diagnostics: readonly StorybookPackageDiagnostic[] = Object.freeze([])
+  #resolutionError: string | null = null
   #buildState: StorybookPackageBuildState = "idle"
   #builds = 0
   #subscribers = 0
@@ -230,6 +231,18 @@ export class StorybookPackageSession {
     return this.#descriptor
   }
 
+  /** Isolates declaration failures without retiring an already working revision. */
+  setResolutionError(message: string | null): void {
+    if (message === this.#resolutionError) return
+    this.#resolutionError = message
+    this.#cancelRebuildTimer()
+    this.#advanceGeneration("Storybook declaration changed")
+    if (message !== null) {
+      this.#publish(Object.freeze({type: "package.failed", packageId: this.packageId,
+        diagnostics: Object.freeze([storybookDiagnostic("resolve", message.replaceAll(`${this.descriptor.packageRoot}/`, ""), this.descriptor.sourcePath)])}))
+    } else if (this.#subscribers > 0) this.#requestCurrentGeneration()
+  }
+
   reconfigure(descriptor: StorybookPackageBuildDescriptor): boolean {
     this.#assertActive()
     const next = normalizeDescriptor(descriptor)
@@ -262,11 +275,11 @@ export class StorybookPackageSession {
       packageGraphDigest: this.descriptor.graphSnapshot.packageGraphDigest,
       generation: this.#generation,
       entryRelativePath: selected?.entryRelativePath ?? null,
-      diagnostics: this.#diagnostics,
+      diagnostics: this.#resolutionError === null ? this.#diagnostics : Object.freeze([storybookDiagnostic("resolve", this.#resolutionError.replaceAll(`${this.descriptor.packageRoot}/`, ""), this.descriptor.sourcePath)]),
       dependencyRealpaths: selected?.dependencyRealpaths ?? Object.freeze([]),
       revisions: Object.freeze([...this.#revisions.values()].map(revisionSnapshot)),
       subscribers: this.#subscribers,
-      buildState: this.#buildState,
+      buildState: this.#resolutionError === null ? this.#buildState : "failed",
       builds: this.#builds,
     })
   }
@@ -299,6 +312,7 @@ export class StorybookPackageSession {
   async ensureBuilt(): Promise<StorybookPackageSessionSnapshot> {
     this.#assertActive()
     while (!this.#disposed) {
+      if (this.#resolutionError !== null) return this.snapshot()
       const target = this.#generation
       const existing = this.#revisionForGeneration(target)
       if (existing !== null && existing.status !== "failed") return this.snapshot()
@@ -497,10 +511,10 @@ export class StorybookPackageSession {
   }
 
   #startRunner(): void {
-    if (this.#runner !== null || this.#disposed) return
+    if (this.#runner !== null || this.#disposed || this.#resolutionError !== null) return
     const runner = this.#runBuildQueue().finally(() => {
       if (this.#runner === runner) this.#runner = null
-      if (!this.#disposed && this.#requestedGeneration > this.#completedGeneration) this.#startRunner()
+      if (!this.#disposed && this.#resolutionError === null && this.#requestedGeneration > this.#completedGeneration) this.#startRunner()
     })
     this.#runner = runner
   }
@@ -511,7 +525,7 @@ export class StorybookPackageSession {
   }
 
   async #runBuildQueue(): Promise<void> {
-    while (!this.#disposed && this.#requestedGeneration > this.#completedGeneration) {
+    while (!this.#disposed && this.#resolutionError === null && this.#requestedGeneration > this.#completedGeneration) {
       const generation = this.#generation
       const descriptor = this.#descriptor
       await this.#buildCandidate(descriptor, generation)
@@ -718,7 +732,7 @@ function normalizeDescriptor(value: StorybookPackageBuildDescriptor): StorybookP
   const packageId = requiredText("packageId", value.packageId)
   const packageRoot = realpathSync(value.packageRoot)
   const projectRoot = realpathSync(value.projectRoot)
-  const sourcePath = realpathSync(value.sourcePath)
+  const sourcePath = safeRealpath(value.sourcePath)
   const declarationDigest = requiredText("declarationDigest", value.declarationDigest)
   const graphSnapshot = validateStorybookPackageRevisionGraphSnapshot(value.graphSnapshot, packageId)
   if (graphSnapshot.declarationDigest !== declarationDigest) {

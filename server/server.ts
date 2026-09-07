@@ -28,7 +28,7 @@ import {mergeStorybookAuthorStyleSheets} from "../catalog/author-style-sheets.ts
 import {StorybookDependencyWatchCoordinator, StorybookDirtyRefreshCoordinator} from "../sessions/dependency-watch.ts"
 import {assertExternalStorybookStartLease, externalStorybookArtifactRoot, createExternalStorybookServerRecord, externalStorybookServerStatePath, readExternalStorybookServerRecord, writeExternalStorybookServerRecord, writeExternalStorybookStartCandidate, type ExternalStorybookServerRecord} from "./server-state.ts"
 import {ExternalStorybookRegistry, type ExternalStorybookRegistrySnapshot} from "../catalog/registry.ts"
-import {resolveExternalStorybookDeclarations} from "../discovery/declarations.ts"
+import {resolveExternalStorybookDeclarations, resolveExternalStorybookAuthorStyleSheets} from "../discovery/declarations.ts"
 import type {StorybookCatalogResolver} from "../catalog/catalog.t.ts"
 import {canonicalBuildInputs, canonicalizeStorybookPackageIdentities, createStorybookPackageRevisionBuilder} from "../build/package-build.ts"
 import {StorybookSharedBrowserAssets, type SharedBrowserAssets} from "../build/shared-browser-assets.ts"
@@ -177,7 +177,7 @@ export async function startExternalStorybookServer(
     watch,
     publish,
   })
-  sessions.sync(registry.packageDescriptors())
+  sessions.sync(registry.packageDescriptors(), declarationFailures(registry.snapshot()))
 
   const refreshStructuralWatch = (): void => {
     const snapshot = registry.snapshot()
@@ -205,7 +205,7 @@ export async function startExternalStorybookServer(
     })
     writeServerRecord(statePath, nextRecord)
     refreshStructuralWatch()
-    sessions.sync(registry.packageDescriptors())
+    sessions.sync(registry.packageDescriptors(), declarationFailures(registry.snapshot()))
     saveSelection(snapshot)
     serverRecord = nextRecord
     publish(Object.freeze({
@@ -230,7 +230,7 @@ export async function startExternalStorybookServer(
         try {
           writeServerRecord(statePath, beforeRecord)
           refreshStructuralWatch()
-          sessions.sync(registry.packageDescriptors())
+          sessions.sync(registry.packageDescriptors(), declarationFailures(registry.snapshot()))
           saveSelection(before)
           serverRecord = beforeRecord
         } catch (rollbackError) {
@@ -396,6 +396,7 @@ export async function startExternalStorybookServer(
             instanceId: serverRecord.instanceId,
             registryRevision: snapshot.revision,
             entries: snapshot.entries,
+            declarationErrors: snapshot.catalog.scopes.filter(scope => scope.resolutionError !== undefined).map(scope => ({scopeId: scope.canonicalId, message: scope.resolutionError})),
             graphDigest: snapshot.graph.digest,
             packages: sessions.snapshots(),
           })
@@ -865,10 +866,7 @@ export async function startExternalStorybookServer(
 }
 
 async function defaultWorkbenchStyles() {
-  const catalog = await resolveExternalStorybookDeclarations([fileURLToPath(new URL("../", import.meta.url))])
-  const owner = catalog.scopes.find(scope => scope.canonicalId === "package:@zavx0z/storybook")
-  if (owner?.kind !== "package") throw new Error("Workbench stylesheet owner is unavailable")
-  return owner.authorStyleSheets
+  return resolveExternalStorybookAuthorStyleSheets(fileURLToPath(new URL("../", import.meta.url)))
 }
 
 async function landingWorkbenchAuthorStyleSheets(
@@ -877,7 +875,7 @@ async function landingWorkbenchAuthorStyleSheets(
 ): Promise<readonly StorybookHtmlAuthorStyleSheet[]> {
   const self = registry.snapshot().graph.nodes.find((node) =>
     node.kind === "package" && node.packageId === "@zavx0z/storybook")
-  if (self === undefined) {
+  if (self === undefined || declarationFailures(registry.snapshot()).has("@zavx0z/storybook")) {
     const styles = await defaultWorkbenchStyles()
     return Object.freeze(styles.map((style, index) => Object.freeze({
       specifier: style.specifier,
@@ -1071,15 +1069,27 @@ async function packagePageResponse(
   )
 }
 
+function declarationFailures(snapshot: ExternalStorybookRegistrySnapshot): ReadonlyMap<string, string> {
+  const result = new Map<string, string>()
+  const scopes = new Map(snapshot.catalog.scopes.map(scope => [scope.canonicalId, scope]))
+  const mark = (id: string, message: string): void => {
+    const scope = scopes.get(id)
+    if (scope?.kind === "package") result.set(scope.id, message)
+    else for (const child of scope?.kind === "project" ? scope.packageIds : scope?.kind === "workspace" ? scope.projectIds : []) mark(child, message)
+  }
+  for (const scope of scopes.values()) if (scope.resolutionError !== undefined) mark(scope.canonicalId, scope.resolutionError)
+  return result
+}
+
 export function externalStorybookStructuralWatchPaths(
   snapshot: ExternalStorybookRegistrySnapshot,
 ): readonly string[] {
-  return Object.freeze([...new Set([...snapshot.catalog.scopes.map(scope => join(scope.scopeRoot, "package.json")).filter(existsSync), ...snapshot.graph.nodes.flatMap((node) => [
+  return Object.freeze([...new Set([...snapshot.catalog.scopes.flatMap(scope => [join(scope.scopeRoot, "package.json"), ...(scope.recoveryPaths ?? [])]).filter(path => existsSync(dirname(path))), ...snapshot.graph.nodes.flatMap((node) => [
     node.source.path,
     ...(node.kind === "package" && node.packageJsonPath !== null ? [node.packageJsonPath] : []),
     ...node.authorStyleSheets.map(({path}) => path),
     ...node.authorStyleSheets.map(({ownerPackageJsonPath}) => ownerPackageJsonPath),
-  ])])].sort())
+  ])])].filter(path => existsSync(dirname(path))).sort())
 }
 
 function parsePackageRequest(pathname: string): Readonly<{packageId: string, routePath: string}> {

@@ -582,6 +582,7 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
         ? value.entries.map((entry) => publicRoot(entry)).filter(Boolean)
         : [],
       packages,
+      declarationErrors: value.declarationErrors ?? [],
       ...(views === undefined ? {} : {views}),
     })
   }

@@ -54,6 +54,8 @@ import {
 } from "./declaration-law.ts"
 
 type ResolveState = {
+  previous?: StorybookCatalog
+  recoveryPaths: Set<string>
   scopes: StorybookCatalogScope[]
   scopeIds: Map<string, string>
   packageJsonOwners: Map<string, string>
@@ -102,11 +104,14 @@ const MANIFEST_KEYS = Object.freeze({
  */
 export async function resolveExternalStorybookDeclarations(
   inputs: readonly string[],
+  previous?: StorybookCatalog,
 ): Promise<StorybookCatalog> {
   if (!Array.isArray(inputs) || inputs.length === 0) {
     throw new Error("External Storybook requires at least one declaration or root")
   }
   const state: ResolveState = {
+    ...(previous === undefined ? {} : {previous}),
+    recoveryPaths: new Set(),
     scopes: [],
     scopeIds: new Map(),
     packageJsonOwners: new Map(),
@@ -115,7 +120,13 @@ export async function resolveExternalStorybookDeclarations(
   }
   const rootIds: string[] = []
   for (const [index, input] of inputs.entries()) {
-    const manifestPath = await resolveEntryManifest(visibleText(input, `External Storybook root ${index}`))
+    const checkedInput = visibleText(input, `External Storybook root ${index}`)
+    const manifestPath = await resolveEntryManifest(checkedInput).catch(error => {
+      const retained = previous?.scopes.find(scope => scope.source.path === resolve(input) || scope.scopeRoot === resolve(input))
+      if (previous === undefined) throw error
+      return retained?.source.path ?? (basename(input) === "manifest.json" && basename(dirname(input)) === ".storybook"
+        ? resolve(input) : join(resolve(input), ".storybook", "manifest.json"))
+    })
     const declaration = await resolveManifest(manifestPath, state)
     rootIds.push(declaration.canonicalId)
   }
@@ -126,6 +137,20 @@ export async function resolveExternalStorybookDeclarations(
   })
 }
 
+/** Reads only the package-owned Workbench CSS contract, independently of its documentation catalog. */
+export async function resolveExternalStorybookAuthorStyleSheets(root: string): Promise<readonly StorybookAuthorStyleSheet[]> {
+  const manifestPath = await resolveEntryManifest(root)
+  const scopeRoot = await manifestScopeRoot(manifestPath)
+  const {record} = await readJsonObject(manifestPath, "Workbench manifest")
+  if (record.kind !== "package") throw new Error("Workbench stylesheet owner must be a package")
+  const packageJsonPath = await resolveContainedFile(dirname(manifestPath), requiredPath("packageJson", record.packageJson), scopeRoot, "packageJson")
+  const {record: metadata} = await readJsonObject(packageJsonPath, "Workbench package.json")
+  const id = packageId(metadata.name, "Workbench package identity")
+  if (id !== record.id) throw new Error("Workbench package identity mismatch")
+  return record.authorStyleSheets === undefined ? Object.freeze([]) :
+    resolveAuthorStyleSheets(record.authorStyleSheets, metadata, packageJsonPath, id, scopeRoot)
+}
+
 /** Returns the stable canonical declaration identity used by the normalized graph. */
 export function externalStorybookDeclarationId(
   kind: StorybookCatalogScopeKind,
@@ -134,7 +159,77 @@ export function externalStorybookDeclarationId(
   return `${kind}:${id}`
 }
 
-async function resolveManifest(
+async function resolveManifest(manifestPath: string, state: ResolveState): Promise<StorybookCatalogScope> {
+  if (state.previous === undefined) return resolveManifestStrict(manifestPath, state)
+  const checkpoint = {
+    scopes: [...state.scopes], scopeIds: new Map(state.scopeIds),
+    packageJsonOwners: new Map(state.packageJsonOwners), completed: new Set(state.completed),
+    visiting: [...state.visiting],
+  }
+  try {
+    return await resolveManifestStrict(manifestPath, state)
+  } catch (error) {
+    Object.assign(state, checkpoint)
+    const message = error instanceof Error ? error.message : String(error)
+    const missing = message.match(/does not exist: (.+)$/u)?.[1]
+    if (missing !== undefined) state.recoveryPaths.add(missing)
+    // Conflicting identities cannot be accepted by choosing an arbitrary winner.
+    if (/Duplicate|Ambiguous|Cyclic|referenced more than once/u.test(message)) throw error
+    const previous = state.previous.scopes.find(scope => scope.source.path === manifestPath)
+    const retained = previous === undefined ? [] : previousSubtree(state.previous, previous)
+    const owner = previous ?? await unavailableOwner(manifestPath)
+    const recoveryPaths = Object.freeze([...new Set([
+      manifestPath, ...state.recoveryPaths,
+      ...(previous?.recoveryPaths ?? []),
+    ])])
+    const failed = Object.freeze({...owner, resolutionError: message, recoveryPaths})
+    for (const scope of [...retained.filter(scope => scope.canonicalId !== owner.canonicalId), failed]) {
+      if (state.scopeIds.has(scope.id)) throw new Error(`Duplicate external Storybook scope id ${scope.id}`)
+      state.scopes.push(scope)
+      state.scopeIds.set(scope.id, scope.source.path)
+      state.completed.add(scope.source.path)
+      if (scope.kind === "package") state.packageJsonOwners.set(scope.packageJsonPath, scope.source.path)
+    }
+    return failed
+  }
+}
+
+function previousSubtree(catalog: StorybookCatalog, root: StorybookCatalogScope): StorybookCatalogScope[] {
+  const ids = root.kind === "workspace" ? root.projectIds : root.kind === "project" ? root.packageIds : []
+  return [...ids.flatMap(id => {
+    const child = catalog.scopes.find(scope => scope.canonicalId === id)
+    return child === undefined ? [] : previousSubtree(catalog, child)
+  }), root]
+}
+
+async function unavailableOwner(manifestPath: string): Promise<StorybookCatalogScope> {
+  const scopeRoot = await manifestScopeRoot(manifestPath).catch(() => resolve(dirname(manifestPath), ".."))
+  const object = (value: unknown): Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}
+  const record = object(await readJsonObject(manifestPath, "Unavailable owner manifest").then(value => value.record).catch(() => null))
+  const metadata = object(await readJsonObject(join(scopeRoot, "package.json"), "Unavailable owner package.json").then(value => value.record).catch(() => null))
+  let kind: StorybookCatalogScopeKind = record.kind === "workspace" || record.kind === "project" ? record.kind : "package"
+  let id: string
+  try {
+    id = kind === "package" ? packageId(metadata.name ?? record.id, "Unavailable package identity") : scopeId(record.id, "Unavailable project identity")
+  } catch {
+    // An unavailable selected directory is a registration shell, never an invented package identity.
+    kind = "project"
+    id = `unavailable-${createHash("sha256").update(scopeRoot).digest("hex").slice(0, 24)}`
+  }
+  const base = {
+    schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION, kind, id,
+    canonicalId: externalStorybookDeclarationId(kind, id), scopeRoot,
+    label: typeof metadata.label === "string" ? metadata.label : typeof record.label === "string" ? record.label : `${basename(scopeRoot)} (недоступен)`,
+    source: Object.freeze({path: manifestPath, pointer: ""}), readmePath: null,
+    digest: createHash("sha256").update(manifestPath).digest("hex"),
+  }
+  if (kind === "workspace") return Object.freeze({...base, kind, projectIds: Object.freeze([])})
+  if (kind === "project") return Object.freeze({...base, kind, packageIds: Object.freeze([])})
+  return Object.freeze({...base, kind, packageName: id, packageJsonPath: join(scopeRoot, "package.json"),
+    authorStyleSheets: Object.freeze([]), widgetContributions: null, runtime: null, catalog: null})
+}
+
+async function resolveManifestStrict(
   manifestPath: string,
   state: ResolveState,
 ): Promise<StorybookCatalogScope> {
@@ -147,6 +242,7 @@ async function resolveManifest(
     throw new Error(`External Storybook declaration is referenced more than once: ${manifestPath}`)
   }
 
+  state.recoveryPaths = new Set([manifestPath])
   const scopeRoot = await manifestScopeRoot(manifestPath)
   const {record, digest: manifestDigest} = await readJsonObject(manifestPath, "External Storybook manifest")
   const schemaVersion = record.schemaVersion
@@ -207,7 +303,13 @@ async function resolveManifest(
           reference,
           scopeRoot,
           `workspace project declaration ${index}`,
-        )
+        ).catch(error => {
+          if (state.previous === undefined || !/does not exist|missing/u.test(String(error))) throw error
+          validateRelativePath(reference, "child declaration")
+          const candidate = resolve(dirname(manifestPath), reference)
+          if (!isContained(scopeRoot, candidate)) throw error
+          return candidate
+        })
         const child = await resolveManifest(childPath, state)
         if (child.kind !== "project") {
           throw new Error(`Workspace declaration must reference a project, received ${child.kind}: ${childPath}`)
@@ -235,7 +337,13 @@ async function resolveManifest(
           reference,
           scopeRoot,
           `project package declaration ${index}`,
-        )
+        ).catch(error => {
+          if (state.previous === undefined || !/does not exist|missing/u.test(String(error))) throw error
+          validateRelativePath(reference, "child declaration")
+          const candidate = resolve(dirname(manifestPath), reference)
+          if (!isContained(scopeRoot, candidate)) throw error
+          return candidate
+        })
         const child = await resolveManifest(childPath, state)
         if (child.kind !== "package") {
           throw new Error(`Project declaration must reference a package, received ${child.kind}: ${childPath}`)
@@ -306,6 +414,7 @@ async function resolveManifest(
           "package runtime",
           "module",
         )
+      if (typeof record.catalog === "string") state.recoveryPaths.add(resolve(dirname(manifestPath), record.catalog))
       const catalog = record.catalog === undefined
         ? null
         : await resolveCatalog(

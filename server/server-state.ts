@@ -279,7 +279,13 @@ export function createExternalStorybookServerRecord(input: Readonly<{
     healthPath: "/api/health",
     websocketPath: "/api/events",
     attachedDeclarations: Object.freeze(
-      [...(input.attachedDeclarations ?? [])].map((path) => realpathSync(path)).sort(),
+      [...(input.attachedDeclarations ?? [])].map(path => {
+        try { return realpathSync(path) }
+        catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error
+          return resolve(path)
+        }
+      }).sort(),
     ),
     startedAt: new Date().toISOString(),
   })

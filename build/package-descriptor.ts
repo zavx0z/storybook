@@ -17,13 +17,14 @@ import {
 export function externalStorybookPackageDescriptors(
   catalog: StorybookCatalog,
   graph: ExternalStorybookGraph,
+  include?: ReadonlySet<string>,
 ): readonly StorybookPackageBuildDescriptor[] {
   const packages = catalog.scopes.filter(
     (declaration): declaration is StorybookPackage => declaration.kind === "package",
   )
   const workbenchDeclaration = packages.find(({id}) => id === "@zavx0z/storybook") ?? null
   const workbenchAuthorStyleSheets = workbenchDeclaration?.authorStyleSheets ?? Object.freeze([])
-  return Object.freeze(packages.map((declaration) => {
+  return Object.freeze(packages.filter(declaration => include === undefined || include.has(declaration.id)).map((declaration) => {
     mergeStorybookAuthorStyleSheets(workbenchAuthorStyleSheets, declaration.authorStyleSheets)
     const node = externalStorybookNode(graph, declaration.canonicalId)
     const projectNode = [...node.structuralPath].reverse()
@@ -176,6 +177,7 @@ export function externalStorybookPackageDescriptors(
 function packageDeclarationDigest(
   declaration: StorybookPackage,
   graph: ExternalStorybookGraph,
+  include?: ReadonlySet<string>,
 ): string {
   const hash = createHash("sha256").update(`${declaration.digest}\0${declaration.catalog?.digest ?? ""}\0`)
   for (const node of graph.nodes) {
