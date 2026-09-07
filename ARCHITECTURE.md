@@ -278,7 +278,19 @@ README и Space-only overview не подменяются DOM aggregate. Aggrega
 задаёт обычный CSS row flow с `flex-wrap: wrap`,
 `align-content: flex-start` и `gap: 8px`; Renderer переносит bounded tiles
 в компактные строки от cross-start, а вертикальный overflow остаётся fallback для малой
-высоты preview. Storybook не вычисляет coordinates или packing вручную.
+высоты preview. Storybook не вычисляет coordinates tiles или packing вручную.
+Каждый tile содержит compiled TSX stage с независимым contain-scale и
+центрированием. Host читает готовые owner/tile bounds из кадров существующей
+projection и обновляет CSS custom properties stage, сохраняя авторские
+dimensions, styles и exact owner node. Resize меняет только fit; общий обзор
+и соседние tiles не масштабируются. Subscription снимается при disposal.
+Host сначала подключает aggregate с пустыми tile hosts к существующей
+declared Display/HUD projection, затем создаёт и монтирует child sessions.
+Child `context.present` валидирует и синхронно подключает root к exact tile;
+продолжение mount получает тот же projection ancestry, что и leaf. Abort и
+частичный failure освобождают все sessions и detached/published roots.
+Subjects без variants не создают executable children. Mixed-projection overview
+остаётся README/navigation overview; разные projections не подменяются одной.
 
 Native document title принадлежит realm content: landing и self-tool package
 используют `MetaFor`, остальные package tabs — exact package label canonical

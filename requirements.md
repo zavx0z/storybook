@@ -110,6 +110,16 @@ child получает отдельную runtime session и real production roo
 same-Document aggregate. Representative не меняет URL, active subject/variant
 либо dock selection. Labels-only cards и message вместо executable children
 запрещены, кроме package README и явно неподдерживаемого Space aggregate.
+Aggregate hosts подключаются к существующей declared Display/HUD projection
+до первого child mount. `context.present` проверяет и синхронно подключает
+exact owner node к его tile: продолжение mount уже видит host-owned projection,
+как у отдельной variant. Publication после abort, вне mount или повторная
+publication отклоняется. При частичном failure/navigation host освобождает
+все child sessions и nodes, включая поздно завершившийся create; ошибка cleanup
+не оставляет aggregate wrapper. Новые projection roots не создаются.
+Subjects без variants остаются read-only overview states и не требуют
+representative. Обзор с разными declared projections использует owner README
+либо navigation overview; host не переносит HUD child в Display или наоборот.
 Если overview содержит ровно один executable child, Inspector сохраняет
 presentation contract его exact subject и получает runtime values этого
 representative, не выбирая subject/variant в navigation. Поэтому single-subject
@@ -121,7 +131,14 @@ bounded child tiles помещаются, они делят строку, зат
 следующий tile на новую компактную строку от cross-start с точным `gap: 8px`.
 Единственный child заполняет доступный preview,
 а `overflow-y` остаётся только scroll fallback для малой высоты viewport.
-Ручные coordinates, измерение ширины и consumer-local packing запрещены.
+Ручные coordinates и измерение ширины для packing tiles запрещены.
+Внутри каждого tile host показывает owner целиком с сохранением пропорций:
+`scale = min(1, availableWidth / ownerWidth, availableHeight / ownerHeight)`.
+Compiled TSX stage центрирует root через CSS transform/custom properties;
+исходные dimensions, inline styles и identity owner не меняются. Размеры
+берутся из готового frame существующей projection, при resize viewport или
+owner fit пересчитывается без накопления предыдущего масштаба. Subscription
+освобождается вместе с aggregate, отдельный frame lifecycle не создаётся.
 
 ### `STORYBOOK-DECL-002` — subject presentation and widgets
 

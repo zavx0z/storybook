@@ -33,6 +33,122 @@ import type {ExternalStorybookRootFactory} from "./shell.ts"
 const fixtureRoot = join(import.meta.dir, "../discovery/fixtures/valid")
 
 describe("external Storybook package frontend", () => {
+  test.each(["display", "hud"] as const)("mounts %s overview children into the existing projection before owner continuation", async projection => {
+    const graph = await fixtureGraph()
+    const base = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-projection"))
+    const snapshot = {
+      ...base,
+      nodes: base.nodes.map(node => ({
+        ...node,
+        presentation: node.presentation === null ? null : {...node.presentation, projection},
+      })),
+    }
+    let mounts = 0
+    const controller = await startExternalStorybookPackage({
+      packageId: "@fixture/components",
+      candidateRevision: "revision-projection",
+      revisionUrl: "/__storybook/revisions/%40fixture%2Fcomponents/revision-projection/",
+      async loadRuntime() {
+        return {
+          protocol: STORYBOOK_RUNTIME_PROTOCOL,
+          create(context: StorybookRuntimeContext) {
+            return {
+              mount() {
+                const node = context.document.createElement("article")
+                context.present({
+                  protocol: "story-presentation/1",
+                  node,
+                  componentRoot: {readStyleSheets: () => ({revision: 0, styleSheets: []})},
+                  source: {html: "<article></article>", typescript: "export const owner = {}"},
+                })
+                expect(context.projection).toBe(projection)
+                expect(node.closest(`xr-${projection}`)).toBeInstanceOf(
+                  projection === "display" ? XRDisplayElement : XRHUDElement,
+                )
+                mounts += 1
+              },
+              unmount() {},
+              dispose() {},
+            }
+          },
+        }
+      },
+      storyLoaders: new Map([
+        ["components/button/basic/contained", async () => ({})],
+        ["components/button/outlined", async () => ({})],
+      ]),
+      environment: environmentFixture(snapshot, "/packages/%40fixture%2Fcomponents/components/button"),
+    })
+    try {
+      expect(mounts).toBe(2)
+      expect(controller.shell.document.querySelectorAll("xr-display")).toHaveLength(1)
+      expect(controller.shell.document.querySelectorAll("xr-hud")).toHaveLength(1)
+      const view = controller.shell.workbench.controller.read("presentation")
+      expect(view.projection).toBe(projection)
+      expect((view.node as Element).querySelectorAll("article")).toHaveLength(2)
+      await controller.navigate("foundation/event-target")
+      expect(controller.shell.document.querySelectorAll("[data-storybook-aggregate-overview]"))
+        .toHaveLength(0)
+    } finally {
+      await controller.dispose()
+    }
+  })
+
+  test("keeps a mixed Display/HUD category as an overview without remapping its children", async () => {
+    const graph = await fixtureGraph()
+    const base = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-mixed"))
+    const subject = base.nodes.find(({id}) => id === "subject:@fixture/components/components/button")!
+    const variant = base.nodes.find(({id}) => id === "variant:@fixture/components/components/button/contained")!
+    const hudSubjectId = "subject:@fixture/components/components/hud-button"
+    const hudVariantId = "variant:@fixture/components/components/hud-button/contained"
+    const presentation = {...subject.presentation!, projection: "hud" as const}
+    const snapshot = {
+      ...base,
+      nodes: [
+        ...base.nodes.map(node => node.id === subject.parentId
+          ? {...node, childIds: [...node.childIds, hudSubjectId]}
+          : node),
+        {
+          ...subject,
+          id: hudSubjectId,
+          childIds: [hudVariantId],
+          routePath: "components/hud-button",
+          urlPath: "/packages/%40fixture%2Fcomponents/components/hud-button",
+          presentation,
+        },
+        {
+          ...variant,
+          id: hudVariantId,
+          parentId: hudSubjectId,
+          routePath: "components/hud-button/contained",
+          urlPath: "/packages/%40fixture%2Fcomponents/components/hud-button/contained",
+          presentation,
+        },
+      ],
+    }
+    let runtimeLoads = 0
+    const controller = await startExternalStorybookPackage({
+      packageId: "@fixture/components",
+      candidateRevision: "revision-mixed",
+      revisionUrl: "/__storybook/revisions/%40fixture%2Fcomponents/revision-mixed/",
+      async loadRuntime() {
+        runtimeLoads += 1
+        throw new Error("Mixed projection overview must not execute child runtimes")
+      },
+      storyLoaders: new Map(),
+      environment: environmentFixture(snapshot, "/packages/%40fixture%2Fcomponents/components"),
+    })
+    try {
+      expect(runtimeLoads).toBe(0)
+      expect(controller.currentRoute).toBe("components")
+      expect(controller.shell.workbench.controller.read("secondary.active")).toBeNull()
+      expect(controller.shell.document.querySelectorAll("[data-storybook-aggregate-overview]"))
+        .toHaveLength(0)
+    } finally {
+      await controller.dispose()
+    }
+  })
+
   test("binds only exact revision-declared native author links before activation", async () => {
     const graph = await fixtureGraph()
     const revision = "revision-theme"
@@ -178,6 +294,8 @@ describe("external Storybook package frontend", () => {
                   },
                   values: {props: {label: input.story.label}},
                 })
+                expect(node.ownerDocument).toBe(ownerContext.document)
+                expect(node.closest("xr-display")).toBeInstanceOf(XRDisplayElement)
                 ownerContext.reportDiagnostic({phase: "runtime", message: "owner-ready"})
                 ownerContext.requestRender()
               },
@@ -246,7 +364,9 @@ describe("external Storybook package frontend", () => {
     expect(controller.shell.workbench.controller.read("inspector.values")).toMatchObject({
       props: {label: "Contained"},
     })
-    expect(controller.shell.workbench.elements.inspectorHost.textContent).toContain("Contained")
+    expect((controller.shell.workbench.elements.inspectorHost.querySelector(
+      '[data-widget-kind="props"] input[data-text-field-value]',
+    ) as import("@zavx0z/dom").HTMLInputElement | null)?.value).toBe("Contained")
 
     await controller.navigate("components/button")
     expect(controller.shell.workbench.controller.read("catalog.active"))
@@ -279,6 +399,10 @@ describe("external Storybook package frontend", () => {
     expect("mountSpacePreview" in ownerContext).toBeFalse()
     expect(controller.shell.workbench.controller.read("presentation").node?.textContent)
       .toBe("components/button/basic/contained:Contained")
+    const diagnosticsCategory = controller.shell.workbench.elements.inspectorHost.querySelector(
+      'button[aria-label="Диагностика"]',
+    ) as import("@zavx0z/dom").HTMLButtonElement
+    diagnosticsCategory.click()
     expect(controller.shell.workbench.elements.inspectorHost.textContent).toContain("owner-ready")
     expect(controller.shell.workbench.controller.read("status").breadcrumbs?.map(({label}) => label)).toEqual([
       "Главная",

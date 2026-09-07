@@ -54,7 +54,6 @@ import {projectStorybookSource} from "./source-projection.ts"
 import {
   createStorybookAggregatePresentation,
   type StorybookAggregatePresentation,
-  type StorybookAggregatePresentationItem,
 } from "./aggregate-presentation.tsx"
 import {
   disposeStorybookAggregateChildren,
@@ -100,6 +99,7 @@ type StorybookPresentationSubject = Readonly<{
 type MountedStorybookAggregate = Readonly<{
   presentation: StorybookAggregatePresentation
   children: readonly MountedStorybookAggregateChild[]
+  stopFitting(): void
 }>
 
 export type ExternalStorybookPackageEnvironment = Readonly<{
@@ -495,8 +495,12 @@ export async function startExternalStorybookPackage(
     const current = aggregate
     aggregate = null
     if (current === null) return
-    await disposeStorybookAggregateChildren(current.children)
-    current.presentation.dispose()
+    current.stopFitting()
+    try {
+      await disposeStorybookAggregateChildren(current.children)
+    } finally {
+      current.presentation.dispose()
+    }
   }
 
   const ensureSession = async (
@@ -555,8 +559,9 @@ export async function startExternalStorybookPackage(
     signal: AbortSignal,
   ): Promise<boolean> => {
     const plan = planStorybookOverview(snapshot, model)
-    if (plan.length === 0 || plan.some(({subject}) =>
-      subject.presentation.projection === "space")) return false
+    const projection = plan[0]?.subject.presentation.projection
+    if (projection === undefined || projection === "space" || plan.some(({subject}) =>
+      subject.presentation.projection !== projection)) return false
     await disposeAggregate()
     if (session !== null) {
       if (mountedRoute !== null) {
@@ -567,9 +572,32 @@ export async function startExternalStorybookPackage(
     }
     let children: readonly MountedStorybookAggregateChild[] = Object.freeze([])
     let pendingPresentation: StorybookAggregatePresentation | null = null
+    let stopFitting = () => {}
     try {
       const aggregateSignal = AbortSignal.any([lifetime.signal, signal])
       const adapter = await abortable(ensureRuntimeAdapter(), aggregateSignal)
+      if (disposed || revision !== navigationRevision || signal.aborted) {
+        throw signal.reason ?? new DOMException("Storybook aggregate navigation superseded", "AbortError")
+      }
+      const node = externalStorybookClientNode(snapshot, model.selectedNode.id)
+      const aggregatePresentation = createStorybookAggregatePresentation(
+        shell.document,
+        `${node.label} · Обзор`,
+        plan,
+      )
+      pendingPresentation = aggregatePresentation
+      const mountingView: WorkbenchPresentationUpdate = Object.freeze({
+        label: `${node.label} · Обзор`,
+        presentation: Object.freeze({node: aggregatePresentation.element, projection}),
+        inspectorSubject: null,
+        inspectorValues: Object.freeze({diagnostics: Object.freeze([...routeDiagnostics])}),
+      })
+      activePresentationView = mountingView
+      shell.present(mountingView)
+      stopFitting = shell.root.getProjection(projection === "display" ? shell.display : shell.hud)
+        .subscribeFrames(frame => {
+          if (aggregatePresentation.fitToFrame(frame)) shell.requestRender()
+        })
       children = await mountStorybookAggregateChildren({
         document: shell.document,
         adapter,
@@ -581,6 +609,9 @@ export async function startExternalStorybookPackage(
             throw new Error(`Storybook aggregate representative has no exact loader: ${route}`)
           }
           return loader()
+        },
+        present(item, value) {
+          return aggregatePresentation.present(item.id, value)
         },
         validatePresentation(value, presentation) {
           exactRuntimePresentation(
@@ -597,18 +628,6 @@ export async function startExternalStorybookPackage(
       if (disposed || revision !== navigationRevision || signal.aborted) {
         throw signal.reason ?? new DOMException("Storybook aggregate navigation superseded", "AbortError")
       }
-      const node = externalStorybookClientNode(snapshot, model.selectedNode.id)
-      const aggregatePresentation = createStorybookAggregatePresentation(
-        shell.document,
-        `${node.label} · Обзор`,
-        Object.freeze(children.map((child): StorybookAggregatePresentationItem => Object.freeze({
-          id: child.plan.id,
-          label: child.plan.label,
-          route: child.plan.route,
-          presentation: child.presentation,
-        }))),
-      )
-      pendingPresentation = aggregatePresentation
       const selectedSubject = exactPresentationSubject(revisionGraph, snapshot, model)
       const overviewSubject = selectedSubject ?? (
         plan.length === 1 && children.length === 1 ? plan[0]!.subject : null
@@ -660,7 +679,7 @@ export async function startExternalStorybookPackage(
         label: `${node.label} · Обзор`,
         presentation: Object.freeze({
           node: aggregatePresentation.element,
-          projection: "display" as const,
+          projection,
         }),
         inspectorSubject,
         inspectorValues,
@@ -671,12 +690,20 @@ export async function startExternalStorybookPackage(
       aggregate = Object.freeze({
         presentation: aggregatePresentation,
         children: Object.freeze([...children]),
+        stopFitting,
       })
       pendingPresentation = null
       return true
     } catch (error) {
-      pendingPresentation?.dispose()
-      await disposeStorybookAggregateChildren(children, error, true)
+      stopFitting()
+      try {
+        await disposeStorybookAggregateChildren(children, error, true)
+      } finally {
+        if (activePresentationView?.presentation.node === pendingPresentation?.element) {
+          activePresentationView = null
+        }
+        pendingPresentation?.dispose()
+      }
       throw error
     }
   }

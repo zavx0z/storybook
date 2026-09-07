@@ -1,5 +1,6 @@
 [install]
 peer = false
+linker = "hoisted"
 
 [loader]
 ".wgsl" = "text"

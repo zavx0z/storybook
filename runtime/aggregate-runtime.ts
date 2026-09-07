@@ -31,6 +31,7 @@ export type MountedStorybookAggregateChild = Readonly<{
   abort: AbortController
   session: StorybookRuntimeSession
   presentation: StorybookRuntimePresentationInput
+  detachPresentation(): void
 }>
 
 type MountStorybookAggregateChildrenOptions = Readonly<{
@@ -39,6 +40,7 @@ type MountStorybookAggregateChildrenOptions = Readonly<{
   plan: readonly StorybookOverviewPlanItem[]
   signal: AbortSignal
   loadStory(route: string): Promise<unknown>
+  present(plan: StorybookOverviewPlanItem, value: StorybookRuntimePresentationInput): () => void
   validatePresentation(
     value: StorybookRuntimePresentationInput,
     presentation: StorybookPackageRevisionStoryPresentation,
@@ -47,7 +49,7 @@ type MountStorybookAggregateChildrenOptions = Readonly<{
   requestRender(): void
 }>
 
-/** Mounts every bounded overview child in its own runtime/4 session. */
+/** Publishes each child synchronously into its already attached overview host. */
 export async function mountStorybookAggregateChildren(
   options: MountStorybookAggregateChildrenOptions,
 ): Promise<readonly MountedStorybookAggregateChild[]> {
@@ -81,6 +83,11 @@ export async function disposeStorybookAggregateChildren(
     } catch (error) {
       errors.push(error)
     }
+    try {
+      child.detachPresentation()
+    } catch (error) {
+      errors.push(error)
+    }
   }
   if (!bestEffort && errors.length > 0) {
     throw new AggregateError(errors, "Storybook aggregate child cleanup failed")
@@ -98,14 +105,20 @@ async function mountStorybookAggregateChild(
   const abort = new AbortController()
   const childSignal = AbortSignal.any([options.signal, abort.signal])
   let published: StorybookRuntimePresentationInput | null = null
+  let detachPresentation = () => {}
+  let mounting = false
   const context: StorybookRuntimeContext = Object.freeze({
     document: options.document,
     signal: childSignal,
     projection: presentation.projection,
     present(value: StorybookRuntimePresentationInput) {
+      if (childSignal.aborted) throw childSignal.reason
+      if (!mounting) throw new Error(`Storybook aggregate child published outside mount: ${plan.route}`)
       if (published !== null) {
         throw new Error(`Storybook aggregate child published more than once: ${plan.route}`)
       }
+      options.validatePresentation(value, presentation)
+      detachPresentation = options.present(plan, value)
       published = value
     },
     reportDiagnostic(value: unknown) {
@@ -116,21 +129,35 @@ async function mountStorybookAggregateChild(
   })
   let session: StorybookRuntimeSession | null = null
   try {
-    const candidate = await abortable(Promise.resolve(options.adapter.create(context)), childSignal)
-    session = validateStorybookRuntimeSession(candidate)
+    if (childSignal.aborted) throw childSignal.reason
+    const createdSession = await abortable<StorybookRuntimeSession>(Promise.resolve(options.adapter.create(context)).then(async candidate => {
+      let created: StorybookRuntimeSession
+      try {
+        created = validateStorybookRuntimeSession(candidate)
+        if (!childSignal.aborted) return created
+      } catch (error) {
+        await disposeCandidate(candidate)
+        throw error
+      }
+      await disposeCandidate(created)
+      throw childSignal.reason
+    }), childSignal)
+    session = createdSession
     const story = await abortable(options.loadStory(plan.route), childSignal)
     const input: StorybookRuntimeStoryInput = Object.freeze({
       route: plan.route,
       story,
       signal: childSignal,
     })
-    await abortable(Promise.resolve(session.mount(input)), childSignal)
+    mounting = true
+    await abortable(Promise.resolve(createdSession.mount(input)), childSignal)
+    mounting = false
     if (published === null) {
       throw new Error(`Storybook aggregate child published no presentation: ${plan.route}`)
     }
-    options.validatePresentation(published, presentation)
-    return Object.freeze({plan, abort, session, presentation: published})
+    return Object.freeze({plan, abort, session: createdSession, presentation: published, detachPresentation})
   } catch (error) {
+    mounting = false
     abort.abort(error)
     if (session !== null) {
       try {
@@ -144,6 +171,11 @@ async function mountStorybookAggregateChild(
         // The original aggregate child failure remains primary.
       }
     }
+    try {
+      detachPresentation()
+    } catch {
+      // Preserve the original failure while the aggregate host is released.
+    }
     throw error
   }
 }
@@ -154,16 +186,17 @@ export function planStorybookOverview(
 ): readonly StorybookOverviewPlanItem[] {
   const selected = externalStorybookClientNode(snapshot, model.selectedNode.id)
   if (selected.kind !== "category" && selected.kind !== "subject") return Object.freeze([])
-  return Object.freeze(selected.childIds.map((childId) => {
+  return Object.freeze(selected.childIds.flatMap((childId) => {
     const child = externalStorybookClientNode(snapshot, childId)
-    const variant = child.kind === "variant" ? child : firstStorybookVariant(snapshot, child)
+    const variant = firstStorybookVariantOrNull(snapshot, child)
+    if (variant === null) return []
     const subject = variant.parentId === null
       ? null
       : externalStorybookClientNode(snapshot, variant.parentId)
     if (subject?.kind !== "subject" || subject.presentation === null || variant.routePath === null) {
       throw new Error(`Storybook overview child has no executable presentation: ${child.id}`)
     }
-    return Object.freeze({
+    return [Object.freeze({
       id: child.id,
       label: child.label,
       route: variant.routePath,
@@ -172,19 +205,19 @@ export function planStorybookOverview(
         kind: "subject" as const,
         presentation: subject.presentation,
       }),
-    })
+    })]
   }))
 }
 
-function firstStorybookVariant(
-  snapshot: ExternalStorybookClientSnapshot,
-  node: ExternalStorybookClientNode,
-): ExternalStorybookClientNode {
-  const variant = firstStorybookVariantOrNull(snapshot, node)
-  if (variant === null) {
-    throw new Error(`Storybook overview child has no representative variant: ${node.id}`)
+async function disposeCandidate(candidate: unknown): Promise<void> {
+  if (candidate !== null && typeof candidate === "object" &&
+    "dispose" in candidate && typeof candidate.dispose === "function") {
+    try {
+      await candidate.dispose()
+    } catch {
+      // A rejected or cancelled creation retains its original failure.
+    }
   }
-  return variant
 }
 
 function firstStorybookVariantOrNull(
