@@ -22,12 +22,8 @@ export function StorybookApp(props: StorybookAppProps) {
   if (clipboard === null) throw new Error("Storybook requires the clipboard controller of its existing Browser Root")
   return <Space>
     <ViewPoint
-      x={0}
-      y={-1000}
-      z={0}
-      targetX={0}
-      targetY={0}
-      targetZ={0}
+      position={{x: 0, y: -1000, z: 0}}
+      target={{x: 0, y: 0, z: 0}}
       far={2000}
     />
     <StorybookDisplay id={props.displayId} />

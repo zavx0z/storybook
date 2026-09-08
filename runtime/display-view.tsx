@@ -4,8 +4,9 @@ import {Display} from "@zavx0z/space/portals/display"
 export function StorybookDisplay(props: Readonly<{id: string}>) {
   return <Display
     id={props.id}
-    quaternionX={Math.SQRT1_2}
-    quaternionW={Math.SQRT1_2}
+    rotation={{x: 90, y: 0, z: 0}}
+    size={{width: 960, height: 680}}
+    resolution={{width: 960, height: 680}}
     style={css`
       box-sizing: border-box;
       display: flex;
