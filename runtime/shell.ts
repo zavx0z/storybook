@@ -1,4 +1,5 @@
 import {DisplayElement} from "@zavx0z/dom/display"
+import {readDisplayStyle} from "@zavx0z/renderer"
 /**
 Страница Storybook подключает один App через Browser createRoot.
 
@@ -191,6 +192,7 @@ export async function createExternalStorybookShell(
   let unsubscribeFrame = (): void => {}
   let unsubscribePresented = (): void => {}
   let latestBounds: StorybookPreviewBounds | null = null
+  let fittedDisplayBounds: StorybookPreviewBounds | null = null
   let activeSpacePreview: BoundStorybookSpacePreview | null = null
   let activeShellPresentation: StorybookComponentPresentation | null = null
   let shellDiagnostics: unknown[] = [...pendingAuthorDiagnostics]
@@ -217,18 +219,29 @@ export async function createExternalStorybookShell(
   const publishBounds = (bounds: StorybookPreviewBounds | null): void => {
     const visible = bounds !== null && bounds.width > 0 && bounds.height > 0 &&
       workbench.controller.read("presentation").projection === "display"
-    if (visible && bounds !== null) {
-      // The HUD supplies layout bounds in CSS pixels. Project that rectangle
-      // onto the existing front-facing Display through the authored camera.
-      const units = 2 * (0 - viewPoint.y) * Math.tan(viewPoint.fov / 2) / bounds.viewportHeight
-      const x = viewPoint.x + (bounds.x + bounds.width / 2 - bounds.viewportWidth / 2) * units
-      const z = viewPoint.z + (bounds.viewportHeight / 2 - bounds.y - bounds.height / 2) * units
-      const style = `--preview-width: ${bounds.width}px; --preview-height: ${bounds.height}px; --preview-x: ${x}mm; --preview-z: ${z}mm; --preview-scale: ${units / (25.4 / 96)}; --preview-visibility: visible`
-      if (display.getAttribute("style") !== style) display.setAttribute("style", style)
+    if (visible && bounds !== null && !sameBounds(fittedDisplayBounds, bounds)) {
+      const surface = readDisplayStyle(document, display)
+      const width = surface.viewport.width * surface.worldUnitsPerPixel
+      const height = surface.viewport.height * surface.worldUnitsPerPixel
+      // Вписываем неизменную поверхность в прямоугольник HUD по обеим осям.
+      // Параллельный сдвиг камеры и цели сохраняет фронтальный вид дисплея.
+      const units = Math.max(width / bounds.width, height / bounds.height)
+      const distance = Math.max(viewPoint.near * 1.01, units * bounds.viewportHeight / (2 * Math.tan(viewPoint.fov / 2)))
+      const projectedUnits = 2 * distance * Math.tan(viewPoint.fov / 2) / bounds.viewportHeight
+      const x = (bounds.viewportWidth / 2 - bounds.x - bounds.width / 2) * projectedUnits
+      const z = (bounds.y + bounds.height / 2 - bounds.viewportHeight / 2) * projectedUnits
+      fittedDisplayBounds = bounds
+      writeViewPointSnapshot(document, viewPoint, {
+        position: {x, y: -distance, z},
+        target: {x, y: 0, z},
+        fov: viewPoint.fov,
+        near: viewPoint.near,
+        far: Math.max(viewPoint.far, distance + 1000),
+      })
     }
-    if (!visible && display.getAttribute("style") !== "--preview-visibility: hidden") {
-      display.setAttribute("style", "--preview-visibility: hidden")
-    }
+    if (!visible) fittedDisplayBounds = null
+    const style = `--preview-visibility: ${visible ? "visible" : "hidden"}`
+    if (display.getAttribute("style") !== style) display.setAttribute("style", style)
     if (sameBounds(latestBounds, bounds)) return
     latestBounds = bounds
     for (const listener of [...boundsListeners]) listener(bounds)

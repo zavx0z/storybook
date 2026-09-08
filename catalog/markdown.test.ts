@@ -2,7 +2,7 @@ import {DisplayElement} from "@zavx0z/dom/display"
 import {describe, expect, test} from "bun:test"
 import {createDocument, type HTMLButtonElement} from "@zavx0z/dom"
 import {createSpaceElementFactories} from "@zavx0z/space"
-import {createDocumentRenderer, createDocumentInteractionController} from "@zavx0z/renderer"
+import {createDocumentRenderer, createDocumentInteractionController, readDisplayStyle} from "@zavx0z/renderer"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
 import {StorybookDisplay} from "../runtime/display-view.tsx"
 import {createStorybookComponentPresentation} from "../runtime/component-presentation.ts"
@@ -23,13 +23,13 @@ describe("safe compiled Storybook Markdown", () => {
       document,
       source: Array.from({length: 40}, (_, index) => `## Heading ${index}\n\nParagraph with enough content to fill the document.`).join("\n\n"),
     })
-    display.element.setAttribute("style", "--preview-width: 600px; --preview-height: 300px")
     document.append(display.element)
     display.element.append(markdown.element)
+    const surface = readDisplayStyle(document, display.element)
     const renderer = createDocumentRenderer({
       document,
       root: display.element,
-      viewport: {width: 600, height: 300},
+      viewport: surface.viewport,
       styleSheets: ["display { --widget-box-outline: #333; --font-size-sm: 12px; }"],
     })
     const interaction = createDocumentInteractionController({document})
@@ -38,17 +38,16 @@ describe("safe compiled Storybook Markdown", () => {
       const section = markdown.element
       const box = frame.boxByNode.get(section)!
       const metrics = frame.scrolls.get(section)!
-      expect(box.height).toBe(298)
+      expect(box.height).toBeCloseTo(surface.viewport.height - 2)
       expect(metrics.maxScrollTop).toBeGreaterThan(0)
       expect(metrics.scrollHeight).toBeGreaterThan(metrics.clientHeight)
       interaction.wheel(frame, {clientX: 40, clientY: 40, deltaY: 100})
       const scrolled = renderer.flush()
       expect(scrolled.scrolls.get(section)?.scrollTop).toBeGreaterThan(0)
       expect(scrolled.scrolls.get(display.element)?.scrollTop ?? 0).toBe(0)
-      display.element.setAttribute("style", "--preview-width: 600px; --preview-height: 200px")
-      renderer.resize({width: 600, height: 200})
+      renderer.resize(surface.viewport)
       const resized = renderer.flush()
-      expect(resized.boxByNode.get(section)?.height).toBe(198)
+      expect(resized.boxByNode.get(section)?.height).toBeCloseTo(surface.viewport.height - 2)
       expect(resized.scrolls.get(section)?.scrollTop).toBe(scrolled.scrolls.get(section)?.scrollTop)
       markdown.update({source: "Short README"})
       const short = renderer.flush()

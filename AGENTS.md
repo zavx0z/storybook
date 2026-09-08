@@ -71,6 +71,10 @@
   `projection: "hud"` — в `XRHUDElement`, а трёхмерный subject с
   `projection: "space"` — непосредственно в тот же `XRSpaceElement`. Допустимы
   только `display | hud | space`.
+- Физический Display имеет постоянные CSS `width`, `height`, `scale: 1` и атрибут `dpi`.
+  Вписывание в свободную область HUD и resize окна изменяют общий ViewPoint:
+  дистанцию и параллельный сдвиг камеры с целью. Не менять размеры поверхности,
+  её масштаб, матрицу или CSS viewport ради подгонки. Сохранять пропорции и поля.
 - Исполняемый package runtime использует exact marker `storybook-runtime/4`.
   Spatial runtime получает только `context.space` и `mountSpacePreview`;
   implementation objects Renderer и Browser остаются private.

@@ -6,11 +6,11 @@ export function StorybookDisplay(props: Readonly<{id: string}>) {
       dpi={96}
       style={css`
         box-sizing: border-box;
-        width: var(--preview-width, 960px);
-        height: var(--preview-height, 540px);
-        translate: var(--preview-x, 0mm) 0 var(--preview-z, 0mm);
+        width: 600mm;
+        height: 337.5mm;
+        translate: 0 0 0;
         rotate: x 90deg;
-        scale: var(--preview-scale, 1);
+        scale: 1;
         visibility: var(--preview-visibility, visible);
 
         display: flex;

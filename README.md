@@ -200,6 +200,13 @@ exact `@zavx0z/space` `XRSpaceElement` и `XRViewPointElement`; разные в�
 `mountSpacePreview`. Ни одна история не создаёт второй Experience, Document,
 Canvas, Space, ViewPoint, цикл кадров или owner ввода.
 
+Физический Display имеет постоянные размеры `600 × 337,5 мм`, плотность
+`96 dpi` и `scale: 1`. По границам свободной области HUD host рассчитывает
+дистанцию ViewPoint и параллельный сдвиг камеры с её целью. Поверхность целиком
+вписывается с сохранением пропорций; при необходимости остаются поля.
+Resize окна и панелей меняет камеру, сохраняя матрицу `2268 × 1276`,
+CSS viewport, раскладку, прокрутку и состояние содержимого Display.
+
 Host вызывает exact `@zavx0z/engine/default-font` и загружает asset через public
 export `@zavx0z/engine/fonts/inter-regular.ttf`; тот же файл доступен page
 runtime по стабильному URL `/assets/inter-regular.ttf`.
