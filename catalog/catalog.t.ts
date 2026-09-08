@@ -139,6 +139,8 @@ type StorybookCatalogScopeBase = Readonly<{
   /** Scoped discovery failure; content is the last validated snapshot or an empty owner shell. */
   resolutionError?: string
   recoveryPaths?: readonly string[]
+  /** Owner structure paths observed for package discovery and optional manifest changes. */
+  structurePaths?: readonly string[]
   schemaVersion: typeof EXTERNAL_STORYBOOK_SCHEMA_VERSION
   canonicalId: string
   id: string

@@ -29,9 +29,12 @@
 - Node is a comparison candidate, not an assumed reference implementation.
 - `@zavx0z/storybook` is an external dev tool. It does not become a central
   owner of other repositories' stories.
-- A real package owns JSON declarations, semantic order, stories/resources,
-  optional structural runtime and acceptance. Projects/workspaces are only
-  saved compositions. The one global `$storybook` process owns registry,
+- A real package owns package.json metadata, optional JSON declarations,
+  semantic order, stories/resources, optional structural runtime and acceptance.
+  Structural projects discover packages through package.json workspaces using
+  Bun.Glob; manifest.packages remains for projects without workspaces. Packages
+  without manifests stay visible. Never combine both composition sources.
+  The one global `$storybook` process owns registry,
   canonical graph, Workbench, PackageSessions, revisions, diagnostics and
   browser mechanics for exact production package identities.
 - Consumer repositories and packages never depend on or import Storybook,

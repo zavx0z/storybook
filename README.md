@@ -28,10 +28,11 @@ Browser API возвращает handle, а не абсолютный путь. 
 не подставляется. Отмена выбора не меняет каталог.
 
 
-Единственный формат первого этапа — JSON schema version 1:
+Структура проекта задаёт состав через package.json#workspaces. Манифесты
+необязательны и описывают содержимое по JSON schema version 1:
 
-- [`schemas/manifest.schema.json`](schemas/manifest.schema.json) — universal
-  `workspace | project | package` entry
+- [`schemas/manifest.schema.json`](schemas/manifest.schema.json) —
+  `workspace | project | package` declarations
 - [`schemas/catalog.schema.json`](schemas/catalog.schema.json) —
   `category → subject → variant`
 - `<scope>/.storybook/manifest.json`
@@ -152,7 +153,9 @@ composition; standalone projects/packages можно подключать одн
 Состав задаётся явно и хранится списком абсолютных каталогов в `~/.storybook/projects.json`,
 отдельно от runtime cache. Названия читаются из `package.json#label` при открытии
 и обновлении; это обязательное поле каждого корня и пакета. Manifest не содержит label.
-Декларации содержимого продолжают работать.
+Состав структурного проекта читается из workspaces, включая glob-шаблоны.
+Пакеты без манифеста тоже видимы; манифесты добавляют содержимое. Прежний
+manifest.packages поддерживается только без workspaces.
 
 Global landing показывает workspace groups, direct projects и direct packages.
 Каждый exact package identity отображается private lifecycle owner в один

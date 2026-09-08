@@ -22,6 +22,17 @@ afterEach(async () => {
 })
 
 describe("external Storybook package compiler", () => {
+  test("uses only tool compiler owners when a package has no executable modules", async () => {
+    const fixture = await templateProjectFixture("throw new Error('consumer compiler must not execute')")
+    const plugins = await createStorybookPackageCompilerPlugins({...fixture.input, moduleSourcePaths: []})
+    expect(plugins.map(plugin => plugin.name)).toEqual([
+      "external-storybook-exact-owner-resolution",
+      "zavx0z-template-jsx",
+    ])
+    expect(resolveWithPlugin(plugins[0]!, "@zavx0z/template/compiled").path)
+      .toBe(join(await realpath(resolve(import.meta.dir, "../../webxr-space/template")), "compiled.ts"))
+  })
+
   test("keeps exact owner resolution when effective tsconfig does not require Template JSX", async () => {
     const root = await temporaryRoot()
     await writeJson(join(root, "package.json"), {name: "@fixture/plain"})

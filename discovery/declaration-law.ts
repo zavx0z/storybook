@@ -17,6 +17,17 @@ export function validateExternalStorybookScopeId(value: unknown, label: string):
   return id
 }
 
+/** Stable directory-derived id shared by structural discovery and declaration init. */
+export function deriveExternalStorybookScopeId(value: string): string {
+  const id = value.normalize("NFKD")
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/gu, "-")
+    .replace(/^[._-]+|[._-]+$/gu, "")
+    .replace(/[._-]{2,}/gu, "-")
+  if (!scopeIdPattern.test(id)) throw new Error(`Cannot derive external Storybook scope id: ${value}`)
+  return id
+}
+
 /** One exact production package identity law shared by every adapter. */
 export function validateExternalStorybookPackageId(value: unknown, label: string): string {
   const id = requiredText(value, label)

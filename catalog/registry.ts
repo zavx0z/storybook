@@ -117,7 +117,9 @@ export class ExternalStorybookRegistry {
     const include = new Set(catalog.scopes.filter(scope => scope.kind === "package" && !retainedIds.has(scope.id)).map(scope => scope.id))
     const descriptors = Object.freeze([...externalStorybookPackageDescriptors(catalog, graph, include), ...retained])
     const entries = createEntries(catalog, graph, sources)
-    if (graph.digest === this.#graph.digest && JSON.stringify(catalog.scopes.map(scope => scope.resolutionError)) === JSON.stringify(this.#catalog.scopes.map(scope => scope.resolutionError))) return this.snapshot()
+    if (graph.digest === this.#graph.digest &&
+      JSON.stringify(catalog.scopes.map(scope => [scope.resolutionError, scope.structurePaths])) ===
+      JSON.stringify(this.#catalog.scopes.map(scope => [scope.resolutionError, scope.structurePaths]))) return this.snapshot()
     this.#descriptors = descriptors
     this.#commit(entries, catalog, graph)
     return this.snapshot()

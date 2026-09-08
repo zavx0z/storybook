@@ -33,6 +33,7 @@ import {
   STORYBOOK_STANDARD_WIDGET_IDS,
 } from "../catalog/protocol.ts"
 
+import {discoverWorkspacePackages} from "./workspaces.ts"
 import {createHash} from "node:crypto"
 import {constants} from "node:fs"
 import {lstat, open, realpath, readFile, stat} from "node:fs/promises"
@@ -46,6 +47,7 @@ import {
   resolve,
 } from "node:path"
 import {
+  deriveExternalStorybookScopeId,
   validateExternalStorybookExportName,
   validateExternalStorybookModulePath,
   validateExternalStorybookPackageId,
@@ -156,15 +158,15 @@ export function externalStorybookDeclarationId(
   return `${kind}:${id}`
 }
 
-async function resolveManifest(manifestPath: string, state: ResolveState): Promise<StorybookCatalogScope> {
-  if (state.previous === undefined) return resolveManifestStrict(manifestPath, state)
+async function resolveManifest(manifestPath: string, state: ResolveState, packageOnly = false): Promise<StorybookCatalogScope> {
+  if (state.previous === undefined) return resolveManifestStrict(manifestPath, state, packageOnly)
   const checkpoint = {
     scopes: [...state.scopes], scopeIds: new Map(state.scopeIds),
     packageJsonOwners: new Map(state.packageJsonOwners), completed: new Set(state.completed),
     visiting: [...state.visiting],
   }
   try {
-    return await resolveManifestStrict(manifestPath, state)
+    return await resolveManifestStrict(manifestPath, state, packageOnly)
   } catch (error) {
     Object.assign(state, checkpoint)
     const message = error instanceof Error ? error.message : String(error)
@@ -172,7 +174,7 @@ async function resolveManifest(manifestPath: string, state: ResolveState): Promi
     if (missing !== undefined) state.recoveryPaths.add(missing)
     // Conflicting identities cannot be accepted by choosing an arbitrary winner.
     if (/Duplicate|Ambiguous|Cyclic|referenced more than once/u.test(message)) throw error
-    const previous = state.previous.scopes.find(scope => scope.source.path === manifestPath)
+    const previous = state.previous.scopes.find(scope => scope.source.path === manifestPath || scope.scopeRoot === (basename(manifestPath) === "package.json" ? dirname(manifestPath) : dirname(dirname(manifestPath))))
     const retained = previous === undefined ? [] : previousSubtree(state.previous, previous)
     const owner = previous ?? await unavailableOwner(manifestPath)
     const recoveryPaths = Object.freeze([...new Set([
@@ -200,7 +202,7 @@ function previousSubtree(catalog: StorybookCatalog, root: StorybookCatalogScope)
 }
 
 async function unavailableOwner(manifestPath: string): Promise<StorybookCatalogScope> {
-  const scopeRoot = await manifestScopeRoot(manifestPath).catch(() => resolve(dirname(manifestPath), ".."))
+  const scopeRoot = await sourceScopeRoot(manifestPath).catch(() => resolve(dirname(manifestPath), ".."))
   const object = (value: unknown): Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}
   const record = object(await readJsonObject(manifestPath, "Unavailable owner manifest").then(value => value.record).catch(() => null))
   const metadata = object(await readJsonObject(join(scopeRoot, "package.json"), "Unavailable owner package.json").then(value => value.record).catch(() => null))
@@ -229,6 +231,7 @@ async function unavailableOwner(manifestPath: string): Promise<StorybookCatalogS
 async function resolveManifestStrict(
   manifestPath: string,
   state: ResolveState,
+  packageOnly: boolean,
 ): Promise<StorybookCatalogScope> {
   const cycleIndex = state.visiting.indexOf(manifestPath)
   if (cycleIndex >= 0) {
@@ -240,8 +243,17 @@ async function resolveManifestStrict(
   }
 
   state.recoveryPaths = new Set([manifestPath])
-  const scopeRoot = await manifestScopeRoot(manifestPath)
-  const {record, digest: manifestDigest} = await readJsonObject(manifestPath, "External Storybook manifest")
+  const scopeRoot = await sourceScopeRoot(manifestPath)
+  const structural = basename(manifestPath) === "package.json"
+  const {record: sourceRecord, digest: manifestDigest} = await readJsonObject(manifestPath, "External Storybook source")
+  const record: Record<string, unknown> = structural
+    ? {
+      schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
+      kind: !packageOnly && sourceRecord.workspaces !== undefined ? "project" : "package",
+      id: !packageOnly && sourceRecord.workspaces !== undefined ? deriveExternalStorybookScopeId(basename(scopeRoot)) : sourceRecord.name,
+      ...(!packageOnly && sourceRecord.workspaces !== undefined ? {} : {packageJson: "./package.json"}),
+    }
+    : sourceRecord
   const schemaVersion = record.schemaVersion
   if (schemaVersion !== EXTERNAL_STORYBOOK_SCHEMA_VERSION) {
     throw new Error(`Unsupported external Storybook manifest schemaVersion: ${String(schemaVersion)}`)
@@ -258,7 +270,7 @@ async function resolveManifestStrict(
     kind === "workspace"
       ? ["schemaVersion", "kind", "id", "projects"]
       : kind === "project"
-        ? ["schemaVersion", "kind", "id", "packages"]
+        ? ["schemaVersion", "kind", "id"]
         : ["schemaVersion", "kind", "id", "packageJson"],
   )
   optionalString(record, "$schema", `External Storybook ${kind} $schema`)
@@ -272,7 +284,7 @@ async function resolveManifestStrict(
     "Owner package.json",
   )).record
   const label = visibleText(ownerPackage.label, `External Storybook ${kind} package.json label`)
-  const digest = createHash("sha256").update(manifestDigest).update(JSON.stringify(label)).digest("hex")
+  let digest = createHash("sha256").update(manifestDigest).update(JSON.stringify(label)).digest("hex")
   const previousScope = state.scopeIds.get(id)
   if (previousScope !== undefined) {
     const identity = kind === "package" ? "Ambiguous external Storybook package identity" : "Duplicate external Storybook scope id"
@@ -280,7 +292,9 @@ async function resolveManifestStrict(
   }
   state.scopeIds.set(id, manifestPath)
   const readmePath = record.readme === undefined
-    ? null
+    ? structural && await Bun.file(join(scopeRoot, "README.md")).exists()
+      ? await resolveContainedFile(scopeRoot, "README.md", scopeRoot, "package README")
+      : null
     : await resolveContainedFile(
       dirname(manifestPath),
       requiredPath(`${kind} readme`, record.readme),
@@ -292,6 +306,7 @@ async function resolveManifestStrict(
   state.visiting.push(manifestPath)
   try {
     let declaration: StorybookCatalogScope
+    let structurePaths: readonly string[] = []
     if (kind === "workspace") {
       const references = declarationReferences(record.projects, "workspace projects")
       const projectIds: string[] = []
@@ -327,26 +342,39 @@ async function resolveManifestStrict(
         projectIds: Object.freeze(projectIds),
       })
     } else if (kind === "project") {
-      const references = declarationReferences(record.packages, "project packages")
       const packageIds: string[] = []
-      for (const [index, reference] of references.entries()) {
-        const childPath = await resolveContainedFile(
-          dirname(manifestPath),
-          reference,
-          scopeRoot,
-          `project package declaration ${index}`,
-        ).catch(error => {
-          if (state.previous === undefined || !/does not exist|missing/u.test(String(error))) throw error
-          validateRelativePath(reference, "child declaration")
-          const candidate = resolve(dirname(manifestPath), reference)
-          if (!isContained(scopeRoot, candidate)) throw error
-          return candidate
-        })
-        const child = await resolveManifest(childPath, state)
-        if (child.kind !== "package") {
-          throw new Error(`Project declaration must reference a package, received ${child.kind}: ${childPath}`)
+      if (ownerPackage.workspaces !== undefined) {
+        if (record.packages !== undefined) throw new Error("Project composition must use either package.json workspaces or manifest packages, not both")
+        const discovered = await discoverWorkspacePackages(scopeRoot, ownerPackage.workspaces)
+        structurePaths = discovered.watchPaths
+        digest = createHash("sha256").update(digest).update(JSON.stringify(ownerPackage.workspaces)).update(JSON.stringify(discovered.roots)).digest("hex")
+        for (const root of discovered.roots) {
+          const source = await resolveEntryManifest(root)
+          const child = await resolveManifest(source, state, true)
+          if (child.kind !== "package") throw new Error(`Workspace member must be a package: ${root}`)
+          packageIds.push(child.canonicalId)
         }
-        packageIds.push(child.canonicalId)
+      } else {
+        const references = declarationReferences(record.packages, "project packages")
+        for (const [index, reference] of references.entries()) {
+          const childPath = await resolveContainedFile(
+            dirname(manifestPath),
+            reference,
+            scopeRoot,
+            `project package declaration ${index}`,
+          ).catch(error => {
+            if (state.previous === undefined || !/does not exist|missing/u.test(String(error))) throw error
+            validateRelativePath(reference, "child declaration")
+            const candidate = resolve(dirname(manifestPath), reference)
+            if (!isContained(scopeRoot, candidate)) throw error
+            return candidate
+          })
+          const child = await resolveManifest(childPath, state)
+          if (child.kind !== "package") {
+            throw new Error(`Project declaration must reference a package, received ${child.kind}: ${childPath}`)
+          }
+          packageIds.push(child.canonicalId)
+        }
       }
       declaration = Object.freeze({
         schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
@@ -443,6 +471,13 @@ async function resolveManifestStrict(
         catalog,
       })
     }
+    const optionalManifest = join(scopeRoot, ".storybook", "manifest.json")
+    declaration = Object.freeze({...declaration, structurePaths: Object.freeze([
+      ...structurePaths,
+      scopeRoot,
+      join(scopeRoot, ".storybook"),
+      optionalManifest,
+    ])})
     state.completed.add(manifestPath)
     state.scopes.push(declaration)
     return declaration
@@ -1167,14 +1202,34 @@ async function resolveEntryManifest(input: string): Promise<string> {
   try {
     metadata = await stat(absolute)
   } catch (error) {
-    throw new Error(`External Storybook declaration or root does not exist: ${absolute}`, {cause: error})
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT" ||
+      basename(absolute) !== "manifest.json" || basename(dirname(absolute)) !== ".storybook") {
+      throw new Error(`External Storybook declaration or root does not exist: ${absolute}`, {cause: error})
+    }
   }
-  if (metadata.isDirectory()) {
+  if (metadata?.isDirectory()) {
     candidate = basename(absolute) === ".storybook"
       ? join(absolute, "manifest.json")
       : join(absolute, ".storybook", "manifest.json")
   }
-  return canonicalManifest(candidate)
+  if (basename(absolute) === "package.json" && metadata?.isFile()) {
+    candidate = join(dirname(absolute), ".storybook", "manifest.json")
+  }
+  try {
+    return await canonicalManifest(candidate)
+  } catch (error) {
+    if (!(error instanceof Error) || !/missing|does not exist/u.test(error.message)) throw error
+    const root = metadata?.isDirectory()
+      ? basename(absolute) === ".storybook" ? dirname(absolute) : absolute
+      : basename(absolute) === "package.json" ? dirname(absolute) : dirname(dirname(absolute))
+    const opened = await openExactOwnerFile(join(root, "package.json"), "External Storybook package.json", "missing")
+    await opened.handle.close()
+    return opened.path
+  }
+}
+
+async function sourceScopeRoot(path: string): Promise<string> {
+  return basename(path) === "package.json" ? await realpath(dirname(path)) : manifestScopeRoot(path)
 }
 
 async function canonicalManifest(path: string): Promise<string> {

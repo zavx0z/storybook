@@ -133,7 +133,7 @@
     "project": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schemaVersion", "kind", "id", "packages"],
+      "required": ["schemaVersion", "kind", "id"],
       "properties": {
         "$schema": {"$ref": "#/$defs/schemaReference"},
         "schemaVersion": {"const": 1},

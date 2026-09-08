@@ -26,10 +26,11 @@ one external storybook serve process
 
 ## Owner law
 
-Реальный package владеет `.storybook/manifest.json`, `catalog.json`, semantic
-order, story modules, README/resources и при необходимости structural runtime
-adapter. Project и workspace являются только сохранённой композицией ссылок на
-эти declarations. Они не владеют вторым catalog, frontend, server или runtime.
+Реальный package владеет metadata в package.json и необязательными
+`.storybook/manifest.json`, `catalog.json`, story modules, README/resources и
+structural runtime adapter. Состав структурного проекта приходит из workspaces
+через Bun.Glob; прежняя композиция без workspaces использует manifest.packages.
+Project и workspace владеют только композицией общего каталога.
 
 Корневой `@zavx0z/storybook` владеет schemas, discovery, validation, canonical
 graph, search/routing derived views, шестью областями Workbench, package
@@ -76,12 +77,15 @@ revision/MCP-протоколов, маршруты и идентификато�
 
 ## Declaration flow
 
-Единственный формат первого этапа — versioned JSON:
+Структура и манифест используют один нормализованный каталог:
 
 - `schemas/manifest.schema.json` описывает `workspace | project | package`
   declarations
 - `schemas/catalog.schema.json` описывает `category → subject → variant`
-- `<scope>/.storybook/manifest.json` является universal entry
+- выбранный каталог читается через package.json и необязательный манифест
+- пакет без манифеста остаётся выбираемым узлом каталога
+- discovery/workspaces.ts раскрывает состав и пути наблюдения средствами Bun
+- manifest.packages и package.json#workspaces не задаются одновременно
 - `<package>/.storybook/catalog.json` содержит только data и links на
   owner-owned resources
 

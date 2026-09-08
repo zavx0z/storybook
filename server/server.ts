@@ -1084,7 +1084,7 @@ function declarationFailures(snapshot: ExternalStorybookRegistrySnapshot): Reado
 export function externalStorybookStructuralWatchPaths(
   snapshot: ExternalStorybookRegistrySnapshot,
 ): readonly string[] {
-  return Object.freeze([...new Set([...snapshot.catalog.scopes.flatMap(scope => [join(scope.scopeRoot, "package.json"), ...(scope.recoveryPaths ?? [])]).filter(path => existsSync(dirname(path))), ...snapshot.graph.nodes.flatMap((node) => [
+  return Object.freeze([...new Set([...snapshot.catalog.scopes.flatMap(scope => [join(scope.scopeRoot, "package.json"), ...(scope.recoveryPaths ?? []), ...(scope.structurePaths ?? [])]).filter(path => existsSync(dirname(path))), ...snapshot.graph.nodes.flatMap((node) => [
     node.source.path,
     ...(node.kind === "package" && node.packageJsonPath !== null ? [node.packageJsonPath] : []),
     ...node.authorStyleSheets.map(({path}) => path),
@@ -1186,7 +1186,9 @@ function resourceOwnerRoot(snapshot: ExternalStorybookRegistrySnapshot, nodeId: 
     if (node.parentId === null) throw new Error(`Storybook resource node has no declaration owner: ${node.id}`)
     node = externalStorybookNode(snapshot.graph, node.parentId)
   }
-  return realpathSync(dirname(dirname(node.source.path)))
+  const owner = snapshot.catalog.scopes.find(scope => scope.canonicalId === node.id)
+  if (owner === undefined) throw new Error(`Storybook resource node has no catalog owner: ${node.id}`)
+  return owner.scopeRoot
 }
 
 function revisionAssetResponse(
@@ -1306,7 +1308,9 @@ function declarationPathMatches(
   const entry = snapshot.entries.find((candidate) => candidate.canonicalId === canonicalId)
   if (entry === undefined) return false
   try {
-    return realpathSync(scope) === entry.declarationPath || realpathSync(join(scope, ".storybook", "manifest.json")) === entry.declarationPath
+    const owner = snapshot.catalog.scopes.find(value => value.canonicalId === canonicalId)
+    const path = realpathSync(scope)
+    return path === entry.declarationPath || path === owner?.scopeRoot
   } catch {
     return false
   }

@@ -119,11 +119,12 @@ export async function createStorybookPackageCompilerPlugins(
   }
   const sourcePaths = Object.freeze([...new Set(input.moduleSourcePaths.map((path, index) =>
     canonicalSourcePath(path, index, packageRoot, projectRoot)))].sort(comparePaths))
-  const dependencyGraph = discoverOwnerDependencyGraph(projectRoot, packageRoot)
   const toolGraph = discoverOwnerDependencyGraph(
     canonicalDirectory(STORYBOOK_TOOL_ROOT, "Storybook tool root"),
     canonicalDirectory(STORYBOOK_TOOL_ROOT, "Storybook tool root"),
   )
+  const hasConsumerModules = sourcePaths.length > 0
+  const dependencyGraph = hasConsumerModules ? discoverOwnerDependencyGraph(projectRoot, packageRoot) : toolGraph
   const exactOwnerRoots = mergeOwnerPackageRoots(
     dependencyGraph.packageRootsByName,
     toolGraph.packageRootsByName,
@@ -131,7 +132,6 @@ export async function createStorybookPackageCompilerPlugins(
   const resolver = exactOwnerResolver({
     packageRootsByName: exactOwnerRoots,
   })
-  const hasConsumerModules = sourcePaths.length > 0
   const jsxImportSource = hasConsumerModules
     ? effectiveJsxImportSource(projectRoot, packageRoot, sourcePaths)
     : undefined

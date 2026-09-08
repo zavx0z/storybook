@@ -1,3 +1,4 @@
+import {deriveExternalStorybookScopeId} from "./declaration-law.ts"
 import {randomUUID} from "node:crypto"
 import {
   lstat,
@@ -61,7 +62,6 @@ type InitPlan = Readonly<{
 }>
 
 const PACKAGE_ID = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/u
-const LOCAL_ID = /^[a-z0-9]+(?:[._-][a-z0-9]+)*$/u
 
 const RUNTIME_STUB = `type StoryPresentation = Readonly<{
   protocol: "story-presentation/1"
@@ -182,6 +182,26 @@ async function compositionPlan(
   kind: "project" | "workspace",
   selectedDeclarations: readonly string[],
 ): Promise<InitPlan> {
+  if (kind === "project" && await Bun.file(join(root, "package.json")).exists()) {
+    const metadata = await Bun.file(join(root, "package.json")).json()
+    if (metadata.workspaces !== undefined) {
+      if (selectedDeclarations.length > 0) throw new Error("Structural project init uses workspaces without explicit declarations")
+      await resolveExternalStorybookDeclarations([root])
+      return Object.freeze({
+        manifest: Object.freeze({
+          $schema: EXTERNAL_STORYBOOK_MANIFEST_SCHEMA_URL,
+          schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
+          kind,
+          id: deriveExternalStorybookScopeId(basename(root)),
+          ...await readmeField(root),
+        }),
+        catalog: null,
+        runtime: null,
+        stories: false,
+        referencedDeclarations: Object.freeze([]),
+      })
+    }
+  }
   const collection = kind === "project" ? "packages" : "projects"
   const expectedChild = kind === "project" ? "package" : "project"
   const manifests = await explicitDeclarations(root, selectedDeclarations, expectedChild)
@@ -190,7 +210,7 @@ async function compositionPlan(
       `External Storybook ${kind} init requires explicit ${collection} declarations: ${root}`,
     )
   }
-  const id = scopeId(basename(root))
+  const id = deriveExternalStorybookScopeId(basename(root))
   await exactPackageMetadata(root, join(root, "package.json"))
   const declarationRoot = join(root, ".storybook")
   const references = Object.freeze(manifests.map((path) => Object.freeze({
@@ -335,14 +355,4 @@ function requiredText(label: string, value: unknown): string {
     throw new TypeError(`External Storybook init ${label} must be non-empty text`)
   }
   return value
-}
-
-function scopeId(value: string): string {
-  const id = value.normalize("NFKD")
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/gu, "-")
-    .replace(/^[._-]+|[._-]+$/gu, "")
-    .replace(/[._-]{2,}/gu, "-")
-  if (!LOCAL_ID.test(id)) throw new Error(`Cannot derive external Storybook scope id: ${value}`)
-  return id
 }

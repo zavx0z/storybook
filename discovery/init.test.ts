@@ -120,6 +120,20 @@ describe("external Storybook declaration init", () => {
     })
   })
 
+  test("initializes a structural project without repeating its workspace package list", async () => {
+    const root = fixtureRoot("structural-project")
+    writeFileSync(join(root, "package.json"), JSON.stringify({name: "project", label: "Project", workspaces: ["packages/*"]}))
+    const owner = join(root, "packages", "plain")
+    mkdirSync(owner, {recursive: true})
+    writePackage(owner, "@fixture/plain")
+    const result = await initExternalStorybookDeclaration({root, kind: "project"})
+    expect(json(result.manifestPath)).not.toHaveProperty("packages")
+    expect(result.referencedDeclarations).toEqual([])
+    const resolved = await resolveExternalStorybookDeclarations([root])
+    expect(resolved.scopes.some(scope => scope.id === "@fixture/plain")).toBeTrue()
+    expect(existsSync(join(owner, ".storybook"))).toBeFalse()
+  })
+
   test("uses only explicitly selected declarations in the supplied order", async () => {
     const workspace = fixtureRoot("workspace")
     writePackage(workspace, "fixture-workspace")
