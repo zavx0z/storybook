@@ -1,4 +1,5 @@
 {
+  "label": "Fixture A",
   "name": "@storybook-fixture/a",
   "private": true,
   "type": "module"

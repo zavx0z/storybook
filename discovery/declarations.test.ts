@@ -22,15 +22,30 @@ afterEach(async () => {
 })
 
 describe("external Storybook JSON declarations", () => {
+  test("rejects legacy manifest labels and requires owner metadata for every scope", async () => {
+    for (const relative of ["", "projects/alpha", "projects/alpha/packages/components"]) {
+      const root = await cloneFixture()
+      const owner = join(root, relative)
+      const manifest = join(owner, ".storybook/manifest.json")
+      await updateJson(manifest, value => ({...value, label: "Legacy name"}))
+      await expect(resolveExternalStorybookDeclarations([root])).rejects.toThrow("unknown field: label")
+      await updateJson(manifest, value => {
+        delete value.label
+        return value
+      })
+      await updateJson(join(owner, "package.json"), value => {
+        delete value.label
+        return value
+      })
+      await expect(resolveExternalStorybookDeclarations([root])).rejects.toThrow("package.json label")
+    }
+  })
+
   test("reads project and package labels from package.json on every resolution", async () => {
     const root = await cloneFixture()
     const project = join(root, "projects/alpha/package.json")
     await Bun.write(project, JSON.stringify({name: "alpha", label: "Первый проект"}))
     await updateJson(componentsPackageJson(root), value => ({...value, label: "Компоненты проекта"}))
-    await updateJson(componentsManifest(root), value => {
-      delete value.label
-      return value
-    })
     const first = await resolveExternalStorybookDeclarations([root])
     expect(first.scopes.find(scope => scope.id === "fixture-alpha")?.label).toBe("Первый проект")
     const before = declarationPackage(first.scopes, "@fixture/components")
@@ -54,6 +69,7 @@ describe("external Storybook JSON declarations", () => {
     for (const kind of ["workspace", "project", "package"]) {
       expect(manifest.$defs[kind].additionalProperties, kind).toBeFalse()
       expect(manifest.$defs[kind].properties.schemaVersion).toEqual({const: 1})
+      expect(manifest.$defs[kind].properties).not.toHaveProperty("label")
     }
     expect(manifest.$defs.authorStyleSheet.additionalProperties).toBeFalse()
     for (const kind of [
@@ -142,11 +158,10 @@ describe("external Storybook JSON declarations", () => {
     const alphaRoot = join(root, "projects", "alpha")
     const extraRoot = join(alphaRoot, "packages", "extra-docs")
     await cp(join(root, "projects", "beta", "packages", "docs"), extraRoot, {recursive: true})
-    await updateJson(join(extraRoot, "package.json"), (value) => ({...value, name: "@fixture/extra-docs"}))
+    await updateJson(join(extraRoot, "package.json"), (value) => ({...value, name: "@fixture/extra-docs", label: "Extra Docs"}))
     await updateJson(join(extraRoot, ".storybook", "manifest.json"), (value) => ({
       ...value,
       id: "@fixture/extra-docs",
-      label: "Extra Docs",
     }))
     await updateJson(join(alphaRoot, ".storybook", "manifest.json"), (value) => ({
       ...value,

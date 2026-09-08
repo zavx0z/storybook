@@ -69,7 +69,6 @@ const MANIFEST_KEYS = Object.freeze({
     "schemaVersion",
     "kind",
     "id",
-    "label",
     "readme",
     "projects",
   ]),
@@ -78,7 +77,6 @@ const MANIFEST_KEYS = Object.freeze({
     "schemaVersion",
     "kind",
     "id",
-    "label",
     "readme",
     "packages",
   ]),
@@ -87,7 +85,6 @@ const MANIFEST_KEYS = Object.freeze({
     "schemaVersion",
     "kind",
     "id",
-    "label",
     "packageJson",
     "readme",
     "runtime",
@@ -219,7 +216,7 @@ async function unavailableOwner(manifestPath: string): Promise<StorybookCatalogS
   const base = {
     schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION, kind, id,
     canonicalId: externalStorybookDeclarationId(kind, id), scopeRoot,
-    label: typeof metadata.label === "string" ? metadata.label : typeof record.label === "string" ? record.label : `${basename(scopeRoot)} (недоступен)`,
+    label: typeof metadata.label === "string" && metadata.label.trim().length > 0 ? metadata.label : `${basename(scopeRoot)} (недоступен)`,
     source: Object.freeze({path: manifestPath, pointer: ""}), readmePath: null,
     digest: createHash("sha256").update(manifestPath).digest("hex"),
   }
@@ -269,11 +266,12 @@ async function resolveManifestStrict(
     ? packageId(record.id, "External Storybook package id")
     : scopeId(record.id, `External Storybook ${kind} id`)
   const ownerPackagePath = join(scopeRoot, "package.json")
-  const ownerPackage = await Bun.file(ownerPackagePath).exists()
-    ? (await readJsonObject(await resolveContainedFile(scopeRoot, "package.json", scopeRoot, "owner package.json"), "Owner package.json")).record
-    : null
-  // Existing declarations remain readable during the structural migration.
-  const label = visibleText(ownerPackage !== null && Object.hasOwn(ownerPackage, "label") ? ownerPackage.label : record.label, `External Storybook ${kind} package.json label`)
+  state.recoveryPaths.add(ownerPackagePath)
+  const ownerPackage = (await readJsonObject(
+    await resolveContainedFile(scopeRoot, "package.json", scopeRoot, "owner package.json"),
+    "Owner package.json",
+  )).record
+  const label = visibleText(ownerPackage.label, `External Storybook ${kind} package.json label`)
   const digest = createHash("sha256").update(manifestDigest).update(JSON.stringify(label)).digest("hex")
   const previousScope = state.scopeIds.get(id)
   if (previousScope !== undefined) {

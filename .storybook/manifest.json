@@ -3,7 +3,6 @@
   "schemaVersion": 1,
   "kind": "package",
   "id": "@zavx0z/storybook",
-  "label": "External Storybook",
   "packageJson": "../package.json",
   "readme": "../README.md",
   "runtime": {

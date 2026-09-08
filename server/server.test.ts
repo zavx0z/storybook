@@ -356,13 +356,13 @@ describe("one external Storybook server", () => {
     })
     servers.push(running)
     const before = running.registry.snapshot()
-    const manifestPath = join(
+    const packageJsonPath = join(
       fixture.workspace,
-      "projects/alpha/packages/components/.storybook/manifest.json",
+      "projects/alpha/packages/components/package.json",
     )
-    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as Record<string, unknown>
-    manifest.label = "Components refreshed"
-    writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`)
+    const metadata = JSON.parse(readFileSync(packageJsonPath, "utf8")) as Record<string, unknown>
+    metadata.label = "Components refreshed"
+    writeFileSync(packageJsonPath, `${JSON.stringify(metadata, null, 2)}\n`)
 
     const refreshed = await controlPost(running, "/api/control/refresh", {})
     expect(refreshed.response.status).toBe(200)

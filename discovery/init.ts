@@ -36,7 +36,6 @@ export const EXTERNAL_STORYBOOK_CATALOG_SCHEMA_URL =
 export type InitExternalStorybookDeclarationOptions = Readonly<{
   root: string
   kind: StorybookCatalogScopeKind
-  label?: string
   declarations?: readonly string[]
   executable?: boolean
   stories?: boolean
@@ -103,8 +102,8 @@ export async function initExternalStorybookDeclaration(
   }
 
   const plan = kind === "package"
-    ? await packagePlan(root, optionalLabel(options.label), executable, stories)
-    : await compositionPlan(root, kind, optionalLabel(options.label), options.declarations ?? [])
+    ? await packagePlan(root, executable, stories)
+    : await compositionPlan(root, kind, options.declarations ?? [])
   const staging = join(root, `.storybook-init-${randomUUID()}`)
   await mkdir(staging)
   try {
@@ -132,19 +131,16 @@ export async function initExternalStorybookDeclaration(
 
 async function packagePlan(
   root: string,
-  requestedLabel: string | null,
   executable: boolean,
   stories: boolean,
 ): Promise<InitPlan> {
   const packageJsonPath = join(root, "package.json")
-  const packageName = await exactPackageName(root, packageJsonPath)
-  const label = requestedLabel ?? visibleName(packageName.slice(packageName.indexOf("/") + 1))
+  const {name: packageName, label} = await exactPackageMetadata(root, packageJsonPath)
   const manifest = {
     $schema: EXTERNAL_STORYBOOK_MANIFEST_SCHEMA_URL,
     schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
     kind: "package",
     id: packageName,
-    label,
     packageJson: "../package.json",
     ...await readmeField(root),
     ...(executable
@@ -184,7 +180,6 @@ async function packagePlan(
 async function compositionPlan(
   root: string,
   kind: "project" | "workspace",
-  requestedLabel: string | null,
   selectedDeclarations: readonly string[],
 ): Promise<InitPlan> {
   const collection = kind === "project" ? "packages" : "projects"
@@ -196,7 +191,7 @@ async function compositionPlan(
     )
   }
   const id = scopeId(basename(root))
-  const label = requestedLabel ?? visibleName(basename(root))
+  await exactPackageMetadata(root, join(root, "package.json"))
   const declarationRoot = join(root, ".storybook")
   const references = Object.freeze(manifests.map((path) => Object.freeze({
     declaration: jsonRelativePath(declarationRoot, path),
@@ -206,7 +201,6 @@ async function compositionPlan(
     schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
     kind,
     id,
-    label,
     ...await readmeField(root),
     ...(kind === "project" ? {packages: references} : {projects: references}),
   }
@@ -247,7 +241,7 @@ async function explicitDeclarations(
   return Object.freeze(manifests)
 }
 
-async function exactPackageName(root: string, path: string): Promise<string> {
+async function exactPackageMetadata(root: string, path: string): Promise<Readonly<{name: string; label: string}>> {
   let canonical: string
   try {
     canonical = await realpath(path)
@@ -271,7 +265,11 @@ async function exactPackageName(root: string, path: string): Promise<string> {
   if (typeof name !== "string" || !PACKAGE_ID.test(name)) {
     throw new Error(`External Storybook package init requires an exact package name: ${String(name)}`)
   }
-  return name
+  const label = requiredText("package.json label", (value as Record<string, unknown>).label)
+  if (/[\u0000-\u001f\u007f]/u.test(label)) {
+    throw new Error("External Storybook package.json label must not contain control characters")
+  }
+  return Object.freeze({name, label})
 }
 
 async function readmeField(root: string): Promise<Readonly<{readme?: "../README.md"}>> {
@@ -332,11 +330,6 @@ function optionalBoolean(label: string, value: unknown): boolean {
   return value
 }
 
-function optionalLabel(value: unknown): string | null {
-  if (value === undefined) return null
-  return requiredText("label", value)
-}
-
 function requiredText(label: string, value: unknown): string {
   if (typeof value !== "string" || value.trim().length === 0) {
     throw new TypeError(`External Storybook init ${label} must be non-empty text`)
@@ -352,10 +345,4 @@ function scopeId(value: string): string {
     .replace(/[._-]{2,}/gu, "-")
   if (!LOCAL_ID.test(id)) throw new Error(`Cannot derive external Storybook scope id: ${value}`)
   return id
-}
-
-function visibleName(value: string): string {
-  const label = value.replace(/[._-]+/gu, " ").trim()
-  if (label.length === 0) throw new Error(`Cannot derive external Storybook label: ${value}`)
-  return label[0]!.toUpperCase() + label.slice(1)
 }

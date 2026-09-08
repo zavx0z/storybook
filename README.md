@@ -151,7 +151,8 @@ composition; standalone projects/packages можно подключать одн
 Правила перехода «проект = структура» находятся в [archetypes/README.md](./archetypes/README.md).
 Состав задаётся явно и хранится списком абсолютных каталогов в `~/.storybook/projects.json`,
 отдельно от runtime cache. Названия читаются из `package.json#label` при открытии
-и обновлении. Декларации содержимого продолжают работать.
+и обновлении; это обязательное поле каждого корня и пакета. Manifest не содержит label.
+Декларации содержимого продолжают работать.
 
 Global landing показывает workspace groups, direct projects и direct packages.
 Каждый exact package identity отображается private lifecycle owner в один

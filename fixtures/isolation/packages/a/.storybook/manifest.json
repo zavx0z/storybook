@@ -3,7 +3,6 @@
   "schemaVersion": 1,
   "kind": "package",
   "id": "@storybook-fixture/a",
-  "label": "Fixture A",
   "packageJson": "../package.json",
   "readme": "../README.md",
   "runtime": {"module": "./runtime.ts", "export": "runtime"},

@@ -179,7 +179,7 @@ function createIsolationFixture() {
   roots.push(root)
   const projectRoot = join(root, "project")
   mkdirSync(join(projectRoot, ".storybook"), {recursive: true})
-  writeFileSync(join(projectRoot, "package.json"), JSON.stringify({name: "@fixture/project", private: true}))
+  writeFileSync(join(projectRoot, "package.json"), JSON.stringify({name: "@fixture/project", label: "Fixture Isolation", private: true}))
   const shared = join(projectRoot, "shared.ts")
   writeFileSync(shared, "export const shared = 'shared-1'\n")
   const packages = ["a", "b", "c"] as const
@@ -187,7 +187,6 @@ function createIsolationFixture() {
     schemaVersion: 1,
     kind: "project",
     id: "fixture-isolation",
-    label: "Fixture Isolation",
     packages: packages.map((id) => ({declaration: `../packages/${id}/.storybook/manifest.json`})),
   }, null, 2)}\n`)
   const stories = new Map<string, string>()
@@ -197,6 +196,7 @@ function createIsolationFixture() {
     mkdirSync(declarationRoot, {recursive: true})
     writeFileSync(join(packageRoot, "package.json"), JSON.stringify({
       name: `@fixture/${id}`,
+      label: `Fixture ${id.toUpperCase()}`,
       private: true,
       type: "module",
     }))
@@ -204,7 +204,6 @@ function createIsolationFixture() {
       schemaVersion: 1,
       kind: "package",
       id: `@fixture/${id}`,
-      label: `Fixture ${id.toUpperCase()}`,
       packageJson: "../package.json",
       runtime: {module: "./runtime.ts", export: "runtime"},
       catalog: "./catalog.json",

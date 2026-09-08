@@ -1,4 +1,5 @@
 {
+  "label": "Storybook Isolation",
   "name": "@storybook-fixture/project",
   "private": true,
   "type": "module"

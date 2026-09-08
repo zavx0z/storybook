@@ -122,7 +122,6 @@
         "schemaVersion": {"const": 1},
         "kind": {"const": "workspace"},
         "id": {"$ref": "#/$defs/scopeId"},
-        "label": {"$ref": "#/$defs/label"},
         "readme": {"$ref": "#/$defs/relativePath"},
         "projects": {
           "type": "array",
@@ -140,7 +139,6 @@
         "schemaVersion": {"const": 1},
         "kind": {"const": "project"},
         "id": {"$ref": "#/$defs/scopeId"},
-        "label": {"$ref": "#/$defs/label"},
         "readme": {"$ref": "#/$defs/relativePath"},
         "packages": {
           "type": "array",
@@ -158,7 +156,6 @@
         "schemaVersion": {"const": 1},
         "kind": {"const": "package"},
         "id": {"$ref": "#/$defs/packageId"},
-        "label": {"$ref": "#/$defs/label"},
         "packageJson": {"$ref": "#/$defs/relativePath"},
         "readme": {"$ref": "#/$defs/relativePath"},
         "runtime": {"$ref": "#/$defs/runtime"},

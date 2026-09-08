@@ -30,13 +30,20 @@ afterEach(() => {
 })
 
 describe("external Storybook declaration init", () => {
+  test("requires a package label before creating any declaration", async () => {
+    const root = packageRoot("missing-label", "@fixture/missing-label")
+    writeFileSync(join(root, "package.json"), JSON.stringify({name: "@fixture/missing-label"}))
+    await expect(initExternalStorybookDeclaration({root, kind: "package"}))
+      .rejects.toThrow("package.json label")
+    expect(existsSync(join(root, ".storybook"))).toBeFalse()
+  })
+
   test("creates only a package manifest and valid documentation catalog by default", async () => {
     const root = packageRoot("button", "@fixture/button")
     const packageJson = readFileSync(join(root, "package.json"), "utf8")
     const result = await initExternalStorybookDeclaration({
       root,
       kind: "package",
-      label: "Fixture Button",
     })
 
     expect(readdirSync(result.directory).sort()).toEqual(["catalog.json", "manifest.json"])
@@ -47,7 +54,6 @@ describe("external Storybook declaration init", () => {
       schemaVersion: 1,
       kind: "package",
       id: "@fixture/button",
-      label: "Fixture Button",
       packageJson: "../package.json",
       readme: "../README.md",
       catalog: "./catalog.json",
@@ -116,10 +122,12 @@ describe("external Storybook declaration init", () => {
 
   test("uses only explicitly selected declarations in the supplied order", async () => {
     const workspace = fixtureRoot("workspace")
+    writePackage(workspace, "fixture-workspace")
     mkdirSync(join(workspace, "projects"))
     for (const projectName of ["zeta", "alpha"]) {
       const project = join(workspace, "projects", projectName)
       mkdirSync(join(project, "packages"), {recursive: true})
+      writePackage(project, projectName)
       writeFileSync(join(project, "README.md"), `# ${projectName}\n`)
       for (const packageName of ["second", "first"]) {
         const owner = join(project, "packages", packageName)
@@ -137,7 +145,6 @@ describe("external Storybook declaration init", () => {
     const result = await initExternalStorybookDeclaration({
       root: workspace,
       kind: "workspace",
-      label: "Fixture Workspace",
       declarations: ["projects/alpha/.storybook/manifest.json", "projects/zeta/.storybook/manifest.json"],
     })
     expect(json(result.manifestPath).projects).toEqual([
@@ -196,7 +203,7 @@ function packageRoot(name: string, packageName: string): string {
 }
 
 function writePackage(root: string, name: string): void {
-  writeFileSync(join(root, "package.json"), `${JSON.stringify({name}, null, 2)}\n`)
+  writeFileSync(join(root, "package.json"), `${JSON.stringify({name, label: name === "@fixture/button" ? "Fixture Button" : name}, null, 2)}\n`)
   writeFileSync(join(root, "README.md"), `# ${name}\n`)
 }
 
