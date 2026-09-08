@@ -1,5 +1,6 @@
 import {afterEach, describe, expect, setDefaultTimeout, test} from "bun:test"
 import {
+  link,
   mkdir,
   mkdtemp,
   realpath,
@@ -197,16 +198,12 @@ describe("external Storybook package compiler", () => {
   })
 
   test("maps an exact Bun hardlink module mirror back to the declared package owner", async () => {
-    const projectRoot = await realpath(resolve(import.meta.dir, "../../webxr-space"))
-    const packageRoot = join(projectRoot, "ui")
-    const mirrorSource = resolve(
-      import.meta.dir,
-      "../node_modules/@zavx0z/ui/.storybook/stories/subjects/components-fields-toggle-button-group.ts",
-    )
+    const {packageRoot, source, mirrorSource} = await moduleMirrorFixture()
+    await link(source, mirrorSource)
 
     const plugins = await createStorybookPackageCompilerPlugins({
       packageRoot,
-      projectRoot,
+      projectRoot: packageRoot,
       moduleSourcePaths: [mirrorSource],
     })
 
@@ -214,6 +211,17 @@ describe("external Storybook package compiler", () => {
       "external-storybook-exact-owner-resolution",
       "zavx0z-template-jsx",
     ])
+  })
+
+  test("rejects a symlink module mirror even when it points to the declared owner", async () => {
+    const {packageRoot, source, mirrorSource} = await moduleMirrorFixture()
+    await symlink(source, mirrorSource, "file")
+
+    await expect(createStorybookPackageCompilerPlugins({
+      packageRoot,
+      projectRoot: packageRoot,
+      moduleSourcePaths: [mirrorSource],
+    })).rejects.toThrow("must be an exact non-symlink file")
   })
 
   test("limits exact owner resolution to governed ids while d3-dag re-exports d3-array", async () => {
@@ -276,6 +284,22 @@ export function createTemplateJsxBunPlugin() {
     })).rejects.toThrow("module source must be inside project root")
   })
 })
+
+async function moduleMirrorFixture() {
+  const root = await temporaryRoot()
+  const packageRoot = join(root, "owner")
+  const mirrorRoot = join(root, "node_modules", ".bun", "owner-mirror", "node_modules", "@fixture", "owner")
+  await mkdir(mirrorRoot, {recursive: true})
+  await writeJson(join(packageRoot, "package.json"), {name: "@fixture/owner"})
+  await writeJson(join(packageRoot, "tsconfig.json"), {
+    compilerOptions: {jsx: "react-jsx", jsxImportSource: "react"},
+  })
+  const source = join(packageRoot, "story.ts")
+  const mirrorSource = join(mirrorRoot, "story.ts")
+  await Bun.write(source, "export const story = true\n")
+  await link(join(packageRoot, "package.json"), join(mirrorRoot, "package.json"))
+  return {packageRoot, source, mirrorSource}
+}
 
 async function templateProjectFixture(adapterSource?: string): Promise<Readonly<{
   projectRoot: string
