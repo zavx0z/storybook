@@ -1,5 +1,5 @@
 /**
-Страница Storybook подключает один App через Browser attach.
+Страница Storybook подключает один App через Browser createRoot.
 
 Root владеет Document, Canvas, вводом и кадрами. Shell выбирает содержимое
 Workbench и наблюдает его готовую раскладку; управление ресурсами подключения
@@ -9,11 +9,11 @@ Workbench и наблюдает его готовую раскладку; упр
 */
 
 import {
-  attach as attachBrowserApplication,
-  type Root,
+  createRoot as createBrowserRoot,
+  type Presentation as Root,
   type RootLinkedAuthorStyleSheet,
   type RootProjection,
-} from "@zavx0z/browser"
+} from "@zavx0z/browser/integration"
 import {loadDocumentDefaultFont} from "@zavx0z/engine/default-font"
 import {STORYBOOK_FONT_FACES} from "./font-faces.ts"
 import {StorybookApp, type StorybookAppProps} from "./application.tsx"
@@ -59,7 +59,7 @@ export const EXTERNAL_STORYBOOK_CANVAS_ID = "external-storybook-canvas" as const
 export const EXTERNAL_STORYBOOK_DISPLAY_ID = "external-storybook-display" as const
 export const EXTERNAL_STORYBOOK_WORKBENCH_ID = "external-storybook-workbench" as const
 
-export type ExternalStorybookRootFactory = typeof attachBrowserApplication
+export type ExternalStorybookRootFactory = typeof createBrowserRoot
 
 export type ExternalStorybookNativeKey = Readonly<{
   key: string
@@ -75,7 +75,7 @@ export type CreateExternalStorybookShellOptions = Readonly<{
   canvas?: HTMLCanvasElement
   statusOwner?: string
   loadFont?: typeof loadDocumentDefaultFont
-  attach?: ExternalStorybookRootFactory
+  createRoot?: ExternalStorybookRootFactory
   authorStyleSheetSources?: readonly RootLinkedAuthorStyleSheet[]
 }>
 
@@ -146,28 +146,31 @@ export async function createExternalStorybookShell(
     pendingAuthorDiagnostics.push(value)
   }
   let workbench!: Workbench
-  const start = options.attach ?? attachBrowserApplication
-  const root = await start({
-    app: component(StorybookApp as unknown as CompiledTemplate<StorybookAppProps>, {
-      title: options.title,
-      statusOwner: options.statusOwner ?? options.title,
-      displayId: EXTERNAL_STORYBOOK_DISPLAY_ID,
-      hudId: EXTERNAL_STORYBOOK_WORKBENCH_ID,
-      onReady(value) { workbench = value },
-    }),
-    canvas,
+  const start = options.createRoot ?? createBrowserRoot
+  const application = start(canvas, {
     font,
     ...(options.loadFont === undefined ? {fontSources: STORYBOOK_FONT_FACES} : {}),
-    ...(authorStyleSheetSources[0] === undefined ? {} : {theme: authorStyleSheetSources[0]}),
     stylesheets: authorStyleSheetSources,
-    onStyleSheetError(error, source) {
+    onUncaughtError(error) {
       publishAuthorDiagnostic(Object.freeze({
         phase: "author-styles",
         message: error.message,
-        source: source?.id ?? null,
+        source: null,
       }))
     },
   })
+  application.render(component(StorybookApp as unknown as CompiledTemplate<StorybookAppProps>, {
+    title: options.title,
+    statusOwner: options.statusOwner ?? options.title,
+    displayId: EXTERNAL_STORYBOOK_DISPLAY_ID,
+    hudId: EXTERNAL_STORYBOOK_WORKBENCH_ID,
+    onReady(value) { workbench = value },
+  }))
+  let root: Root
+  try { root = await application.whenReady() } catch (error) {
+    application.unmount()
+    throw error
+  }
   const document = root.document
   const space = root.space
   const viewPoint = root.viewPoint

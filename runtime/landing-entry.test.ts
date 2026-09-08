@@ -1,3 +1,4 @@
+import {presentationRootFixture, type PresentationFixtureOptions} from "./browser-root.fixture.ts"
 import {createRoot} from "@zavx0z/component"
 import {createDocumentClipboardController} from "@zavx0z/browser/clipboard"
 import {describe, expect, test} from "bun:test"
@@ -9,11 +10,11 @@ import {
   type Node,
 } from "@zavx0z/dom"
 import type {
-  Root,
+  Presentation as Root,
   RootDocumentProjection,
   RootProjection,
   RootSpaceProjection,
-} from "@zavx0z/browser"
+} from "@zavx0z/browser/integration"
 import type {RenderFrame} from "@zavx0z/renderer"
 import {
   createSpaceElementFactories,
@@ -89,7 +90,7 @@ describe("external Storybook landing frontend", () => {
       }) as typeof fetch,
       location: {href: "http://localhost/", pathname: "/", reload() { reloads += 1 }},
       history: {pushState() {}},
-      shell: {canvas: {} as HTMLCanvasElement, loadFont: async () => ({}) as never, attach: fakeRootFactory(createFakeRootState())},
+      shell: {canvas: {} as HTMLCanvasElement, loadFont: async () => ({}) as never, createRoot: fakeRootFactory(createFakeRootState())},
     })
     try {
       const root = controller.shell.workbench.element
@@ -162,7 +163,7 @@ describe("external Storybook landing frontend", () => {
       shell: {
         canvas: {} as HTMLCanvasElement,
         loadFont: async () => ({}) as never,
-        attach: fakeRootFactory(experienceState),
+        createRoot: fakeRootFactory(experienceState),
       },
     })
 
@@ -280,7 +281,7 @@ describe("external Storybook landing frontend", () => {
       shell: {
         canvas: {} as HTMLCanvasElement,
         loadFont: async () => ({}) as never,
-        attach: fakeRootFactory(experienceState),
+        createRoot: fakeRootFactory(experienceState),
       },
     })
     try {
@@ -365,14 +366,18 @@ function createFakeRootState(): FakeRootState {
 function fakeRootFactory(
   state: FakeRootState = createFakeRootState(),
 ): ExternalStorybookRootFactory {
-  return async options => {
+  return presentationRootFixture(async options => {
     state.creations += 1
     const document = createDocument({elementFactories: createSpaceElementFactories()})
     const clipboard = createDocumentClipboardController(document)
-    const appRoot = createRoot(document)
+    const html = document.createElement("html")
+    const body = document.createElement("body")
+    html.append(body)
+    document.append(html)
+    const appRoot = createRoot(body)
     appRoot.render(options.app)
     appRoot.flush()
-    const space = document.documentElement as XRSpaceElement
+    const space = body.querySelector("xr-space") as XRSpaceElement
     const viewPoint = space.querySelector("xr-view-point") as XRViewPointElement
     const presented = new Set<(sequence: number) => void>()
     const documentProjections = new Map<XRDisplayElement | XRHUDElement, Readonly<{
@@ -483,7 +488,7 @@ function fakeRootFactory(
       },
     })
     return root
-  }
+  })
 }
 
 function fakeRenderFrame(

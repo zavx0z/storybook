@@ -1,14 +1,15 @@
+import {presentationRootFixture, type PresentationFixtureOptions} from "./browser-root.fixture.ts"
 import {createRoot} from "@zavx0z/component"
 import {createDocumentClipboardController} from "@zavx0z/browser/clipboard"
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
 import {createDocument, type Element} from "@zavx0z/dom"
 import type {
-  Root,
+  Presentation as Root,
   RootDocumentProjection,
   RootProjection,
   RootSpaceProjection,
-} from "@zavx0z/browser"
+} from "@zavx0z/browser/integration"
 import type {RenderFrame} from "@zavx0z/renderer"
 import {
   createSpaceElementFactories,
@@ -254,7 +255,7 @@ describe("external Storybook package frontend", () => {
         shell: {
           canvas: {} as HTMLCanvasElement,
           loadFont: async () => ({}) as never,
-          attach: fakeRootFactory(experienceState),
+          createRoot: fakeRootFactory(experienceState),
         },
       },
     })
@@ -385,7 +386,7 @@ describe("external Storybook package frontend", () => {
         shell: {
           canvas: {} as HTMLCanvasElement,
           loadFont: async () => ({}) as never,
-          attach: fakeRootFactory(experienceState),
+          createRoot: fakeRootFactory(experienceState),
         },
       },
     })
@@ -561,7 +562,7 @@ describe("external Storybook package frontend", () => {
         ...(baseEnvironment.shell ?? {}),
         canvas: {} as HTMLCanvasElement,
         loadFont: async () => ({}) as never,
-        attach: fakeRootFactory(experienceState),
+        createRoot: fakeRootFactory(experienceState),
       },
     }
     const contexts: StorybookRuntimeContext[] = []
@@ -805,7 +806,7 @@ describe("external Storybook package frontend", () => {
         ...baseEnvironment,
         shell: {
           ...(baseEnvironment.shell ?? {}),
-          attach: fakeRootFactory(experienceState),
+          createRoot: fakeRootFactory(experienceState),
         },
       }
       const controller = await startExternalStorybookPackage({
@@ -1140,7 +1141,7 @@ function environmentFixture(
     shell: {
       canvas: {} as HTMLCanvasElement,
       loadFont: async () => ({}) as never,
-      attach: fakeRootFactory(),
+      createRoot: fakeRootFactory(),
     },
   }
 }
@@ -1199,17 +1200,21 @@ function createFakeRootState(lifecycle: string[] = []): FakeRootState {
 function fakeRootFactory(
   state: FakeRootState = createFakeRootState(),
 ): ExternalStorybookRootFactory {
-  return async options => {
+  return presentationRootFixture(async options => {
     state.creations += 1
     state.lifecycle.push("root-create")
     state.stylesheets = Object.freeze((options.stylesheets ?? []).filter((source): source is Readonly<{id: string; link: HTMLLinkElement}> => typeof source !== "string"))
 
     const document = createDocument({elementFactories: createSpaceElementFactories()})
     const clipboard = createDocumentClipboardController(document)
-    const appRoot = createRoot(document)
+    const html = document.createElement("html")
+    const body = document.createElement("body")
+    html.append(body)
+    document.append(html)
+    const appRoot = createRoot(body)
     appRoot.render(options.app)
     appRoot.flush()
-    const space = document.documentElement as XRSpaceElement
+    const space = body.querySelector("xr-space") as XRSpaceElement
     const viewPoint = space.querySelector("xr-view-point") as XRViewPointElement
     state.document = document
     state.space = space
@@ -1325,7 +1330,7 @@ function fakeRootFactory(
       },
     })
     return root
-  }
+  })
 }
 
 function fakeRenderFrame(

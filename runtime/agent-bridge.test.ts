@@ -9,7 +9,7 @@ import {
 import type {
   RootPointerInput,
   RootWheelInput,
-} from "@zavx0z/browser"
+} from "@zavx0z/browser/integration"
 import {createDocumentRenderer} from "@zavx0z/renderer"
 import {
   createSpaceElementFactories,

@@ -4,7 +4,7 @@ import {externalStorybookBrowsePath} from "../catalog/graph.ts"
 
 import type {CustomEvent, Node as SemanticNode} from "@zavx0z/dom"
 import {createDomInspector} from "@zavx0z/devtools"
-import type {RootLinkedAuthorStyleSheet} from "@zavx0z/browser"
+import type {RootLinkedAuthorStyleSheet} from "@zavx0z/browser/integration"
 import {isCompiledTemplate, type CompiledTemplate} from "@zavx0z/template/compiled"
 import {
   WORKBENCH_EVENTS,

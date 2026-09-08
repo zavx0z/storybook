@@ -4,7 +4,7 @@ import {attachPickedDirectory, pickStorybookDirectory} from "./directory-picker.
 /** Global external Storybook landing entry. It never imports package runtime code. */
 
 import type {CustomEvent} from "@zavx0z/dom"
-import type {RootLinkedAuthorStyleSheet} from "@zavx0z/browser"
+import type {RootLinkedAuthorStyleSheet} from "@zavx0z/browser/integration"
 import {WORKBENCH_EVENTS, type WorkbenchCatalogAction, type WorkbenchCatalogManagement} from "../workbench/contract.ts"
 import {
   deriveExternalStorybookLanding,

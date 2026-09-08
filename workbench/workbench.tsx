@@ -27,8 +27,8 @@ export function Workbench(props: WorkbenchProps) {
   }), [])
   const view = useSyncExternalStore(model.subscribe, model.getSnapshot)
   useLayoutEffect(() => {
-    const space = document.documentElement
     const display = document.getElementById(props.displayId)
+    const space = display?.closest("xr-space")
     if (element.current === null || !(space instanceof XRSpaceElement) || !(display instanceof XRDisplayElement)) {
       throw new Error("Workbench requires its authored Space, Display and mounted root")
     }

@@ -278,7 +278,11 @@ export class StorybookPackageSession {
       generation: this.#generation,
       entryRelativePath: selected?.entryRelativePath ?? null,
       diagnostics: this.#resolutionError === null ? this.#diagnostics : Object.freeze([storybookDiagnostic("resolve", this.#resolutionError.replaceAll(`${this.descriptor.packageRoot}/`, ""), this.descriptor.sourcePath)]),
-      dependencyRealpaths: selected?.dependencyRealpaths ?? Object.freeze([]),
+      dependencyRealpaths: Object.freeze([...new Set([
+        ...(selected?.dependencyRealpaths ?? []),
+        ...(this.#record(this.#builtRevision)?.dependencyRealpaths ?? []),
+        ...(this.#record(this.#failedRevision)?.dependencyRealpaths ?? []),
+      ])]),
       revisions: Object.freeze([...this.#revisions.values()].map(revisionSnapshot)),
       subscribers: this.#subscribers,
       buildState: this.#resolutionError === null ? this.#buildState : "failed",

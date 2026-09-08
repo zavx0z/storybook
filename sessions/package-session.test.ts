@@ -1,6 +1,6 @@
 import {afterEach, describe, expect, test} from "bun:test"
 import {createHash} from "node:crypto"
-import {mkdtempSync, mkdirSync, rmSync, writeFileSync} from "node:fs"
+import {mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {STORYBOOK_PACKAGE_GRAPH_PROTOCOL, type StorybookPackageRevisionGraphSnapshot} from "./package-revision.ts"
@@ -20,6 +20,29 @@ afterEach(() => {
 })
 
 describe("working Storybook PackageSession lifecycle", () => {
+  test("tracks candidate dependencies while a different revision remains active", async () => {
+    const root = fixtureRoot("candidate-dependencies")
+    const firstPath = join(root, "first.ts")
+    const nextPath = join(root, "next.ts")
+    writeFileSync(firstPath, "first")
+    writeFileSync(nextPath, "next")
+    let dependency = firstPath
+    const session = createSession(descriptor(root, "@fixture/a"), async input => ({
+      ...successfulBuild(input.stagingDirectory),
+      dependencyRealpaths: [dependency],
+    }), [])
+    const first = await session.ensureBuilt()
+    const activation = session.beginActivation({revision: first.builtRevision!, viewId: "view-a", route: "category/subject/default"})
+    session.acknowledgeActivation({...activation, frameSequence: 1})
+    dependency = nextPath
+    session.reconfigure(descriptor(root, "@fixture/a", "two"))
+    const next = await session.ensureBuilt()
+    expect(next.activeRevision).toBe(first.builtRevision)
+    expect(next.dependencyRealpaths).toEqual(expect.arrayContaining([realpathSync(firstPath), realpathSync(nextPath)]))
+    expect(session.invalidate(nextPath)).toBe(true)
+    await session.dispose()
+  })
+
   test("keeps a successful build merely built until exact agent application", async () => {
     const root = fixtureRoot("activation")
     const events: StorybookPackageEvent[] = []

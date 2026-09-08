@@ -64,8 +64,9 @@ describe("external @zavx0z/storybook tool boundary", () => {
       "runtime/package-entry.ts",
     ].map((path) => Bun.file(join(root, path)).text()))
     const combined = sources.join("\n")
-    expect(combined).toContain('from "@zavx0z/browser"')
-    expect(combined).toContain("attachBrowserApplication")
+    expect(combined).toContain('from "@zavx0z/browser/integration"')
+    expect(combined).toContain("createBrowserRoot")
+    expect(combined).toContain("application.render(")
     expect(combined).toContain("root.document")
     expect(combined).toContain("root.space")
     expect(combined).toContain("root.viewPoint")

@@ -9,8 +9,9 @@ test("[STORYBOOK-EXPERIENCE-001] shell использует только нов�
     devDependencies: Readonly<Record<string, string>>
   }
 
-  expect(shell).toContain('from "@zavx0z/browser"')
-  expect(shell).toContain("attachBrowserApplication")
+  expect(shell).toContain('from "@zavx0z/browser/integration"')
+  expect(shell).toContain("createBrowserRoot")
+  expect(shell).toContain("application.render(")
   expect(shell).toContain("root.document")
   expect(shell).toContain("root.getProjection(")
   expect(shell).not.toContain("createDocumentSpaceRuntime")

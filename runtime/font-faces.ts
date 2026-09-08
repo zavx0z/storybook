@@ -1,4 +1,4 @@
-import type {BrowserFontFaceSource} from "@zavx0z/browser"
+import type {BrowserFontFaceSource} from "@zavx0z/browser/integration"
 
 /** Application font declarations; every file is served from its Engine owner. */
 export const STORYBOOK_FONT_FACES: readonly BrowserFontFaceSource[] = Object.freeze([

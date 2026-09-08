@@ -285,21 +285,36 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
     signal?: AbortSignal,
   ): Promise<Readonly<Record<string, unknown>>> {
     const view = this.#views.internal(viewId)
-    await this.#assertCurrentPackage(viewId, signal)
+    let bridgeAvailable = true
+    try {
+      await this.#assertCurrentPackage(viewId, signal)
+    } catch (error) {
+      if (!(error instanceof Error) || error.message !== "Storybook agent bridge is unavailable in the exact target") throw error
+      const target = (await this.#chrome.targets(signal)).find(target => target.targetId === view.targetId)
+      if (!target || new URL(target.url).origin !== view.origin ||
+        packageTargetIdentity(target.url)?.packageId !== view.packageId ||
+        !await this.#attestsPackage(target, view.packageId, signal ?? AbortSignal.timeout(5_000))) throw error
+      bridgeAvailable = false
+    }
     return withStorybookBrowserLock({
       root: this.#state.lockRoot(),
       scope: `package:${view.packageId}`,
       ...(signal === undefined ? {} : {signal}),
       ...(this.#processStart === undefined ? {} : {processStart: this.#processStart}),
     }, async () => {
-      const projection = objectResult(await this.#chrome.callBridge(view.targetId, "inspect", Object.freeze({
+      const projection = bridgeAvailable ? objectResult(await this.#chrome.callBridge(view.targetId, "inspect", Object.freeze({
         schemaVersion: 1,
         expectedPackageId: view.packageId,
         ...(input.include === undefined ? {} : {include: Object.freeze([...input.include])}),
         ...(input.maxDepth === undefined ? {} : {maxDepth: input.maxDepth}),
         ...(input.limit === undefined ? {} : {limit: input.limit}),
         ...(input.cursor === undefined ? {} : {cursor: input.cursor}),
-      }), signal), "Storybook inspect bridge result")
+      }), signal), "Storybook inspect bridge result") : Object.freeze({
+        ready: false,
+        bridgeAvailable: false,
+        diagnostics: [{phase: "bootstrap", message: "Storybook agent bridge is unavailable"}],
+        bootstrap: await this.#chrome.bridgeDiagnostics(view.targetId, signal),
+      })
       const includeConsole = input.include?.includes("console") ?? false
       const consoleEntries = includeConsole
         ? await this.#chrome.consoleEntries(view.targetId, 250, signal)

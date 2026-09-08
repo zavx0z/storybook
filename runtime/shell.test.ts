@@ -1,13 +1,13 @@
+import {presentationRootFixture, type PresentationFixtureOptions} from "./browser-root.fixture.ts"
 import {createRoot} from "@zavx0z/component"
 import {createDocumentClipboardController} from "@zavx0z/browser/clipboard"
 import {describe, expect, test} from "bun:test"
 import type {
-  AttachOptions,
-  Root,
+  Presentation as Root,
   RootDocumentProjection,
   RootLinkedAuthorStyleSheet,
   RootProjection,
-} from "@zavx0z/browser"
+} from "@zavx0z/browser/integration"
 import {
   createDocument,
   type Element,
@@ -37,7 +37,8 @@ describe("external Storybook shared Browser Root", () => {
     expect(shell.document).toBe(shell.root.document)
     expect(shell.space).toBe(shell.root.space)
     expect(shell.viewPoint).toBe(shell.root.viewPoint)
-    expect(shell.document.documentElement).toBe(shell.space)
+    expect(shell.document.documentElement?.localName).toBe("html")
+    expect(shell.space.parentElement?.localName).toBe("body")
     expect(shell.viewPoint.parentElement).toBe(shell.space)
     expect(viewPointValues(shell.viewPoint)).toMatchObject({
       x: 0,
@@ -95,7 +96,7 @@ describe("external Storybook shared Browser Root", () => {
       id: "@zavx0z/ui/themes/theme.css",
       link,
     }])
-    expect(state.options?.theme).toBe(state.options?.stylesheets?.[0])
+    expect(state.options?.stylesheets).toHaveLength(1)
     expect(shell.viewPoint.controls).toBe(false)
     shell.dispose()
   })
@@ -240,7 +241,7 @@ describe("external Storybook shared Browser Root", () => {
 
 type FakeRootState = {
   creations: number
-  options: AttachOptions | null
+  options: PresentationFixtureOptions | null
   root: Root | null
   pointerTarget: Element | null
   activeOwner: XRDisplayElement | XRHUDElement | null
@@ -300,7 +301,7 @@ async function createShell(
     browserDocument: {} as globalThis.Document,
     canvas: {width: 1024, height: 768} as HTMLCanvasElement,
     loadFont: async () => ({}) as never,
-    attach: fakeRootFactory(state),
+    createRoot: fakeRootFactory(state),
     ...(options.authorStyleSheetSources === undefined
       ? {}
       : {authorStyleSheetSources: options.authorStyleSheetSources}),
@@ -308,15 +309,19 @@ async function createShell(
 }
 
 function fakeRootFactory(state: FakeRootState): ExternalStorybookRootFactory {
-  return async options => {
+  return presentationRootFixture(async options => {
     state.creations += 1
     state.options = options
     const document = createDocument({elementFactories: createSpaceElementFactories()})
     const clipboard = createDocumentClipboardController(document)
-    const appRoot = createRoot(document)
+    const html = document.createElement("html")
+    const body = document.createElement("body")
+    html.append(body)
+    document.append(html)
+    const appRoot = createRoot(body)
     appRoot.render(options.app)
     appRoot.flush()
-    const space = document.documentElement as XRSpaceElement
+    const space = body.querySelector("xr-space") as XRSpaceElement
     const viewPoint = space.querySelector("xr-view-point") as XRViewPointElement
     const projections = new Map<XRDisplayElement | XRHUDElement, RootDocumentProjection>()
     const frames = new Map<XRDisplayElement | XRHUDElement, RenderFrame>()
@@ -439,7 +444,7 @@ function fakeRootFactory(state: FakeRootState): ExternalStorybookRootFactory {
       for (const listener of frameListeners.get(owner) ?? []) listener(frame)
     }
     return root
-  }
+  })
 }
 
 function fakeFrame(

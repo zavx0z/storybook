@@ -14,6 +14,21 @@ afterEach(() => {
 })
 
 describe("Storybook browser lifecycle service", () => {
+  test("inspect exposes bootstrap diagnostics for an attested page without a bridge", async () => {
+    const chrome = new FakeChrome()
+    const controller = createController(chrome)
+    const opened = await controller.openPackage(openInput(chrome))
+    chrome.markerOnlyTargetIds.add(chrome.targetId)
+    const result = await controller.inspect(opened.view.viewId, {include: ["state", "diagnostics", "console"]})
+    expect(result.ready).toBe(false)
+    expect(result.bridgeAvailable).toBe(false)
+    expect(result.bootstrap).toMatchObject({markers: {packageId: "@fixture/a"}})
+    expect(result.console).toEqual([])
+    expect(JSON.stringify(result)).not.toContain(chrome.targetId)
+    chrome.targetsValue = chrome.targetsValue.map(target => ({...target, url: "https://example.com/foreign"}))
+    await expect(controller.inspect(opened.view.viewId, {include: ["console"]})).rejects.toThrow("navigated away")
+  })
+
   test("reuses one package view and never returns the CDP target identity", async () => {
     const chrome = new FakeChrome()
     const controller = createController(chrome)
