@@ -37,7 +37,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     dependency = nextPath
     session.reconfigure(descriptor(root, "@fixture/a", "two"))
     const next = await session.ensureBuilt()
-    expect(next.activeRevision).toBe(first.builtRevision)
+    expect(next.activeRevision).toBe(first.builtRevision!)
     expect(next.dependencyRealpaths).toEqual(expect.arrayContaining([realpathSync(firstPath), realpathSync(nextPath)]))
     expect(session.invalidate(nextPath)).toBe(true)
     await session.dispose()

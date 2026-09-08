@@ -1,3 +1,4 @@
+import {indexedWorkbenchAuthorStyleSheetSources} from "./author-style-sheets.ts"
 import {navigatePackage} from "./package-navigation.ts"
 import {externalStorybookBrowsePath} from "../catalog/graph.ts"
 /** One package-tab realm driven by generated literal runtime/story loaders. */
@@ -1210,7 +1211,7 @@ function exactAuthorStyleSheetSources(
   graph: StorybookPackageRevisionGraphSnapshot | null,
   revisionBase: string | null,
 ): readonly RootLinkedAuthorStyleSheet[] {
-  if (graph === null) return Object.freeze([])
+  if (graph === null) return indexedWorkbenchAuthorStyleSheetSources(browserDocument)
   const styleSheets = mergeStorybookAuthorStyleSheets(
     graph.workbenchAuthorStyleSheets,
     graph.authorStyleSheets,

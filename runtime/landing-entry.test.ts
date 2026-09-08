@@ -1,3 +1,4 @@
+import {indexedWorkbenchAuthorStyleSheetSources} from "./author-style-sheets.ts"
 import {presentationRootFixture, type PresentationFixtureOptions} from "./browser-root.fixture.ts"
 import {createRoot} from "@zavx0z/component"
 import {createDocumentClipboardController} from "@zavx0z/browser/clipboard"
@@ -31,7 +32,6 @@ import {ExternalStorybookRegistry} from "../catalog/registry.ts"
 import type {StorybookPackageSessionSnapshot} from "../sessions/package-session.ts"
 import {createExternalStorybookClientSnapshot} from "./client-protocol.ts"
 import {
-  indexedLandingAuthorStyleSheetSources,
   startExternalStorybookLanding,
 } from "./landing-entry.ts"
 import type {ExternalStorybookRootFactory} from "./shell.ts"
@@ -311,7 +311,7 @@ describe("external Storybook landing frontend", () => {
       {specifier: "@zavx0z/ui/themes/theme.css", digest: "a".repeat(64), href: "/revision/theme.css"},
       {specifier: "@fixture/tokens.css", digest: "b".repeat(64), href: "/revision/tokens.css"},
     ])
-    expect(indexedLandingAuthorStyleSheetSources(document).map(({id}) => id)).toEqual([
+    expect(indexedWorkbenchAuthorStyleSheetSources(document).map(({id}) => id)).toEqual([
       "@zavx0z/ui/themes/theme.css",
       "@fixture/tokens.css",
     ])
@@ -320,12 +320,12 @@ describe("external Storybook landing frontend", () => {
       {specifier: "@zavx0z/ui/themes/theme.css", digest: "a".repeat(64), href: "/revision/a.css"},
       {specifier: "@zavx0z/ui/themes/theme.css", digest: "a".repeat(64), href: "/revision/b.css"},
     ])
-    expect(() => indexedLandingAuthorStyleSheetSources(duplicate)).toThrow("invalid or duplicate")
+    expect(() => indexedWorkbenchAuthorStyleSheetSources(duplicate)).toThrow("invalid or duplicate")
 
     const invalidDigest = indexedLinkDocument([
       {specifier: "@zavx0z/ui/themes/theme.css", digest: "invalid", href: "/revision/theme.css"},
     ])
-    expect(() => indexedLandingAuthorStyleSheetSources(invalidDigest)).toThrow("digest is invalid")
+    expect(() => indexedWorkbenchAuthorStyleSheetSources(invalidDigest)).toThrow("digest is invalid")
   })
 })
 

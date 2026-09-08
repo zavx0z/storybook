@@ -35,6 +35,50 @@ import type {ExternalStorybookRootFactory} from "./shell.ts"
 const fixtureRoot = join(import.meta.dir, "../discovery/fixtures/valid")
 
 describe("external Storybook package frontend", () => {
+  test.each([true, false])("fallback preserves the indexed Workbench stylesheet and rejects failed loading: loaded=%s", async loaded => {
+    const graph = await fixtureGraph()
+    const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-a"))
+    const environment = environmentFixture(snapshot, "/packages/%40fixture%2Fcomponents/")
+    const browserDocument = environment.browserDocument!
+    const attributes = new Map([
+      ["rel", "stylesheet"],
+      ["href", "/__storybook/revisions/%40zavx0z%2Fstorybook/host/workbench-author-style-sheets/0.css"],
+      ["data-external-storybook-author-style-sheet", "@zavx0z/ui/themes/theme.css"],
+      ["data-external-storybook-author-style-sheet-digest", "a".repeat(64)],
+    ])
+    const link = {
+      localName: "link",
+      ownerDocument: browserDocument,
+      sheet: loaded ? {} : null,
+      getAttribute: (name: string) => attributes.get(name) ?? null,
+    } as unknown as HTMLLinkElement
+    Object.assign(browserDocument, {
+      readyState: "complete",
+      querySelectorAll: () => [link],
+      getElementById: (id: string) => id === "external-storybook-author-style-sheet-0" ? link : null,
+    })
+    const state = createFakeRootState()
+    const pending = startExternalStorybookPackage({
+      packageId: "@fixture/components",
+      candidateRevision: null,
+      revisionUrl: null,
+      loadRuntime: null,
+      storyLoaders: new Map(),
+      environment: {...environment, shell: {...environment.shell, createRoot: fakeRootFactory(state)}},
+    })
+    if (!loaded) {
+      await expect(pending).rejects.toThrow("stylesheet failed before entry")
+      expect(state.creations).toBe(0)
+      return
+    }
+    const controller = await pending
+    try {
+      expect(state.stylesheets).toEqual([{id: "@zavx0z/ui/themes/theme.css", link}])
+      expect(state.creations).toBe(1)
+      expect(browserDocument.documentElement.dataset.externalStorybookPhase).toBe("ready")
+    } finally { await controller.dispose() }
+  })
+
   test.each(["display", "hud"] as const)("mounts %s overview children into the existing projection before owner continuation", async projection => {
     const graph = await fixtureGraph()
     const base = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-projection"))

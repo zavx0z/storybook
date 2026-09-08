@@ -44,7 +44,7 @@ const contracts = Object.freeze({
   ),
   authorStyles: contract(
     "Связанные стили автора и исходный текст root",
-    "Пакет объявляет упорядоченные exact public CSS exports собственного владельца или достижимой через manifest локальной зависимости. Каждая immutable revision создаёт одну native link на ресурс до загрузки module entry; все обязательные links должны быть ready до `createRoot(canvas).render(<StorybookApp />)`.",
+    "Пакет объявляет упорядоченные exact public CSS exports собственного владельца или достижимой через manifest локальной зависимости. Каждая immutable revision создаёт одну native link на ресурс до загрузки module entry; все обязательные links должны быть ready до `createRoot(canvas).render(<StorybookApp />)`. Landing и fallback до активации ревизии также передают уже объявленные сервером Workbench links; относительный theme.css у страницы пакета не запрашивается.",
     "Зависимости собранного кандидата отслеживаются вместе с зависимостями активной ревизии, чтобы исправление нового файла инициировало пересборку до активации. При сбое запуска до agent bridge inspect возвращает bootstrap markers и native console только для подтверждённой вкладки пакета; готовность при этом остаётся false. Global Source CSS берётся из объявленного author registry. Component Source CSS берётся только из authored provenance одного active ComponentRoot и показывается как исходный CSS с подсветкой. Dynamic declarations остаются inline в HTML. Cleanup освобождает Root раньше связанных ресурсов; Workbench chrome и generated selectors не входят в Source.",
     "stylesheets: [{id, link}]\nroot.unmount() → release links",
   ),
