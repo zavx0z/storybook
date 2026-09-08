@@ -127,13 +127,76 @@ export async function resolveExternalStorybookDeclarations(
         ? resolve(input) : join(resolve(input), ".storybook", "manifest.json"))
     })
     const declaration = await resolveManifest(manifestPath, state)
-    rootIds.push(declaration.canonicalId)
+    if (declaration.kind !== "package") {
+      rootIds.push(declaration.canonicalId)
+      continue
+    }
+    const repositoryId = deriveExternalStorybookScopeId(declaration.packageName)
+    const canonicalId = externalStorybookDeclarationId("project", repositoryId)
+    if (state.scopes.some(scope => scope.canonicalId === canonicalId)) throw new Error(`Duplicate repository identity: ${canonicalId}`)
+    const metadata = (await readJsonObject(declaration.packageJsonPath, "Repository package.json")).record
+    const members = metadata.workspaces === undefined ? {roots: [], watchPaths: []} :
+      await discoverWorkspacePackages(declaration.scopeRoot, metadata.workspaces)
+    const packageIds = [declaration.canonicalId]
+    for (const root of members.roots) {
+      const child = await resolveManifest(await resolveEntryManifest(root), state, true)
+      if (child.kind !== "package") throw new Error(`Workspace member must be a package: ${root}`)
+      packageIds.push(child.canonicalId)
+    }
+    state.scopes.push(Object.freeze({
+      schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
+      kind: "project",
+      id: repositoryId,
+      canonicalId,
+      label: declaration.label,
+      scopeRoot: declaration.scopeRoot,
+      source: Object.freeze({path: declaration.scopeRoot, pointer: ""}),
+      readmePath: declaration.readmePath,
+      digest: createHash("sha256").update(JSON.stringify([repositoryId, metadata.workspaces, packageIds])).digest("hex"),
+      packageIds: Object.freeze(packageIds),
+      structurePaths: Object.freeze([...members.watchPaths, declaration.packageJsonPath]),
+    }))
+    rootIds.push(canonicalId)
   }
+  nestPackageScopes(state.scopes)
   return Object.freeze({
     schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
     rootIds: Object.freeze(rootIds),
     scopes: Object.freeze([...state.scopes]),
   })
+}
+
+/** Directory containment affects navigation only, never package module ownership. */
+function nestPackageScopes(scopes: StorybookCatalogScope[]): void {
+  for (const project of [...scopes]) {
+    if (project.kind !== "project") continue
+    const memberIds = new Set(project.packageIds)
+    const includeChildren = (id: string): void => {
+      const parent = scopes.find(scope => scope.canonicalId === id)
+      if (parent?.kind !== "package") return
+      for (const childId of parent.packageIds ?? []) {
+        if (memberIds.has(childId)) continue
+        memberIds.add(childId)
+        includeChildren(childId)
+      }
+    }
+    for (const id of project.packageIds) includeChildren(id)
+    const members = scopes.filter(scope => scope.kind === "package" && memberIds.has(scope.canonicalId))
+    const children = new Map<string, string[]>()
+    for (const member of members) {
+      const parent = members.filter(candidate => candidate !== member &&
+        isContained(candidate.scopeRoot, member.scopeRoot))
+        .sort((left, right) => right.scopeRoot.length - left.scopeRoot.length)[0]
+      const parentId = parent?.canonicalId ?? project.canonicalId
+      const list = children.get(parentId) ?? []
+      list.push(member.canonicalId)
+      children.set(parentId, list)
+    }
+    for (const scope of [project, ...members]) {
+      const index = scopes.findIndex(candidate => candidate.canonicalId === scope.canonicalId)
+      scopes[index] = Object.freeze({...scope, packageIds: Object.freeze(children.get(scope.canonicalId) ?? [])}) as StorybookCatalogScope
+    }
+  }
 }
 
 /** Reads only the package-owned Workbench CSS contract, independently of its documentation catalog. */
@@ -175,8 +238,9 @@ async function resolveManifest(manifestPath: string, state: ResolveState, packag
     // Conflicting identities cannot be accepted by choosing an arbitrary winner.
     if (/Duplicate|Ambiguous|Cyclic|referenced more than once/u.test(message)) throw error
     const previous = state.previous.scopes.find(scope => scope.source.path === manifestPath || scope.scopeRoot === (basename(manifestPath) === "package.json" ? dirname(manifestPath) : dirname(dirname(manifestPath))))
-    const retained = previous === undefined ? [] : previousSubtree(state.previous, previous)
-    const owner = previous ?? await unavailableOwner(manifestPath)
+    const owner = previous?.kind === "package" ? Object.freeze({...previous, packageIds: Object.freeze([])}) :
+      previous ?? await unavailableOwner(manifestPath)
+    const retained = previous === undefined ? [] : previous.kind === "package" ? [owner] : previousSubtree(state.previous, previous)
     const recoveryPaths = Object.freeze([...new Set([
       manifestPath, ...state.recoveryPaths,
       ...(previous?.recoveryPaths ?? []),
@@ -194,7 +258,7 @@ async function resolveManifest(manifestPath: string, state: ResolveState, packag
 }
 
 function previousSubtree(catalog: StorybookCatalog, root: StorybookCatalogScope): StorybookCatalogScope[] {
-  const ids = root.kind === "workspace" ? root.projectIds : root.kind === "project" ? root.packageIds : []
+  const ids = root.kind === "workspace" ? root.projectIds : root.kind === "project" || root.kind === "package" ? root.packageIds ?? [] : []
   return [...ids.flatMap(id => {
     const child = catalog.scopes.find(scope => scope.canonicalId === id)
     return child === undefined ? [] : previousSubtree(catalog, child)

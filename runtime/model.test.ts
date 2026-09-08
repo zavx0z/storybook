@@ -13,52 +13,34 @@ import {
 const fixtureRoot = join(import.meta.dir, "../discovery/fixtures/valid")
 
 describe("external Storybook browser model", () => {
-  test("projects workspace children as grouped rows and independent roots as direct rows", async () => {
+  test("projects repositories and packages into one hierarchy", async () => {
     const graph = await fixtureGraph()
     const landing = deriveExternalStorybookLanding(graph)
-
-    expect(landing.catalogItems.map(({id}) => id)).toEqual([
-      "project:fixture-alpha",
-      "project:fixture-beta",
-      "package:@fixture/standalone",
+    expect(landing.catalogItems.map(item => [item.id, item.parentId ?? null])).toEqual([
+      ["workspace:fixture-workspace", null],
+      ["project:fixture-alpha", "workspace:fixture-workspace"],
+      ["package:@fixture/components", "project:fixture-alpha"],
+      ["project:fixture-beta", "workspace:fixture-workspace"],
+      ["package:@fixture/docs", "project:fixture-beta"],
+      ["project:fixture-standalone", null],
+      ["package:@fixture/standalone", "project:fixture-standalone"],
     ])
-    expect(landing.catalogItems.slice(0, 2).map(({group}) => group)).toEqual([
-      {id: "workspace:fixture-workspace", label: "Fixture Workspace"},
-      {id: "workspace:fixture-workspace", label: "Fixture Workspace"},
-    ])
-    expect(landing.catalogItems[2]?.group).toBeNull()
-    expect(landing.catalogItems.some(({id}) => id === "workspace:fixture-workspace")).toBeFalse()
-    expect("route" in landing.catalogItems[0]!.group!).toBeFalse()
-    expect(landing.catalogItems[0]?.searchText).toContain("components")
-    expect(Object.isFrozen(landing)).toBeTrue()
-    expect(Object.isFrozen(landing.catalogItems)).toBeTrue()
+    expect(landing.catalogItems.find(item => item.id === "package:@fixture/components")?.route).toBe("/browse/%40fixture%2Fcomponents/")
   })
 
-  test("selects project/package overviews and derives the exact package second panel", async () => {
+  test("selects repositories as overviews and places package contents in the second panel", async () => {
     const graph = await fixtureGraph()
-    const project = deriveExternalStorybookLandingSelection(graph, "project:fixture-alpha")
-    expect(project.catalogActiveId).toBe("project:fixture-alpha")
-    expect(project.secondaryItems.map(({id}) => id)).toEqual(["package:@fixture/components"])
-    expect(project.secondaryActiveId).toBeNull()
-    expect(project.overviewNode.id).toBe("project:fixture-alpha")
-    expect(project.overviewNode.kind).toBe("project")
-
-    const nestedPackage = deriveExternalStorybookLandingSelection(graph, "package:@fixture/components")
-    expect(nestedPackage.catalogActiveId).toBe("project:fixture-alpha")
-    expect(nestedPackage.secondaryActiveId).toBe("package:@fixture/components")
-    expect(nestedPackage.overviewNode.id).toBe("package:@fixture/components")
-
-    const standalone = deriveExternalStorybookLandingSelection(graph, "package:@fixture/standalone")
-    expect(standalone.catalogActiveId).toBe("package:@fixture/standalone")
-    expect(standalone.secondaryItems).toEqual([])
-    expect(standalone.overviewNode.id).toBe("package:@fixture/standalone")
-
-    expect(() => deriveExternalStorybookLandingSelection(graph, "workspace:fixture-workspace"))
-      .toThrow("workspace group toggle is not a route")
-    expect(() => deriveExternalStorybookLandingSelection(
-      graph,
-      "subject:@fixture/components/components/button",
-    )).toThrow("must be a project or package")
+    expect(deriveExternalStorybookLandingSelection(graph, "project:fixture-alpha").secondaryItems).toEqual([])
+    const selected = deriveExternalStorybookLandingSelection(graph, "package:@fixture/components")
+    expect(selected.catalogActiveId).toBe("package:@fixture/components")
+    expect(selected.secondaryItems.map(item => item.id)).toEqual([
+      "category:@fixture/components/foundation", "subject:@fixture/components/foundation/event-target",
+      "category:@fixture/components/components", "subject:@fixture/components/components/button",
+    ])
+    expect(selected.secondaryItems[1]?.parentId).toBe("category:@fixture/components/foundation")
+    expect(deriveExternalStorybookLandingSelection(graph, "workspace:fixture-workspace").secondaryItems).toEqual([])
+    expect(() => deriveExternalStorybookLandingSelection(graph, "subject:@fixture/components/components/button"))
+      .toThrow("must be a repository or package")
   })
 
   test("projects direct and optionally grouped categories without creating group routes", async () => {

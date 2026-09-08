@@ -1,3 +1,4 @@
+import {externalStorybookBrowsePath} from "../catalog/graph.ts"
 import type {WorkbenchBreadcrumb} from "../workbench/contract.ts"
 import {homeIcon} from "@zavx0z/ui/themes/icons"
 import type {StorybookPackageRevisionAncestor} from "../sessions/package-revision.ts"
@@ -45,6 +46,7 @@ function landingBreadcrumbs(
     id: node.id,
     label: node.label,
     route: "",
+    urlPath: externalStorybookBrowsePath(node),
     title: node.id,
   })))
 }
@@ -53,12 +55,12 @@ function packageBreadcrumbs(
   path: readonly ExternalStorybookClientNode[],
   revisionAncestors: readonly StorybookPackageRevisionAncestor[],
 ): readonly WorkbenchBreadcrumb[] {
-  const packageIndex = path.findIndex(node => node.kind === "package")
+  const packageIndex = path.findLastIndex(node => node.kind === "package")
   if (packageIndex < 0) {
     throw new Error(`Storybook breadcrumb path has no package root: ${path.at(-1)?.id ?? "unknown"}`)
   }
   const graphAncestors = path.slice(0, packageIndex)
-  if (graphAncestors.some(node => node.kind !== "workspace" && node.kind !== "project")) {
+  if (graphAncestors.some(node => node.kind !== "workspace" && node.kind !== "project" && node.kind !== "package")) {
     throw new Error("Storybook package breadcrumb ancestors must be workspace or project nodes")
   }
   if (revisionAncestors.length > 0 && graphAncestors.length > 0 &&
@@ -69,7 +71,7 @@ function packageBreadcrumbs(
     ? revisionAncestors
     : graphAncestors.map(node => Object.freeze({
       id: node.id,
-      kind: node.kind as "workspace" | "project",
+      kind: node.kind as "workspace" | "project" | "package",
       label: node.label,
       urlPath: node.urlPath,
     }))

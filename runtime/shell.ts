@@ -150,7 +150,7 @@ export async function createExternalStorybookShell(
   const root = await start({
     app: component(StorybookApp as unknown as CompiledTemplate<StorybookAppProps>, {
       title: options.title,
-      statusOwner: options.statusOwner ?? "MetaFor",
+      statusOwner: options.statusOwner ?? options.title,
       displayId: EXTERNAL_STORYBOOK_DISPLAY_ID,
       hudId: EXTERNAL_STORYBOOK_WORKBENCH_ID,
       onReady(value) { workbench = value },
@@ -158,6 +158,7 @@ export async function createExternalStorybookShell(
     canvas,
     font,
     ...(options.loadFont === undefined ? {fontSources: STORYBOOK_FONT_FACES} : {}),
+    ...(authorStyleSheetSources[0] === undefined ? {} : {theme: authorStyleSheetSources[0]}),
     stylesheets: authorStyleSheetSources,
     onStyleSheetError(error, source) {
       publishAuthorDiagnostic(Object.freeze({
@@ -484,7 +485,7 @@ export async function createExternalStorybookShell(
       workbench.update("status", {
         ...current,
         lead: "Создано для ",
-        owner: options.statusOwner ?? "MetaFor",
+        owner: options.statusOwner ?? options.title,
         detail: ` · ${detail}`,
       })
       root.invalidate()

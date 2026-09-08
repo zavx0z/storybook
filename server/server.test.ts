@@ -169,8 +169,8 @@ describe("one external Storybook server", () => {
     expect(html).toContain('<link rel="icon" href="data:,">')
     expect(html).toContain('<meta name="engine-default-font" content="/assets/inter-regular.ttf">')
     expect(html).not.toContain("jetbrains-mono-bold.ttf")
-    expect(html).toContain("<title>MetaFor</title>")
-    expect(html).not.toContain("<title>Storybook</title>")
+    expect(html).toContain("<title>Storybook</title>")
+    expect(html).not.toContain("<title>MetaFor</title>")
     const fontAsset = await fetch(new URL("/assets/inter-regular.ttf", running.origin))
     expect(fontAsset.status).toBe(200)
     expect(fontAsset.headers.get("content-type")).toBe("font/ttf")
@@ -309,7 +309,7 @@ describe("one external Storybook server", () => {
     const client = await fetchJson(new URL("/api/client", running.origin))
     expect(client.rootIds).toEqual([
       "workspace:fixture-workspace",
-      "package:@fixture/standalone",
+      "project:fixture-standalone",
     ])
     expect(client.packages).toHaveLength(3)
     expect(new Set(client.nodes.map((node: {urlPath: string}) => new URL(node.urlPath, running.origin).origin)))
@@ -806,6 +806,20 @@ describe("one external Storybook server", () => {
         ok: true,
         view: {viewId: lifecycle.viewId, packageId: "@fixture/standalone"},
       })
+    const packagePage = await fetch(new URL("/packages/%40fixture%2Fstandalone/", running.origin))
+    const packageToken = browserSessionToken(await packagePage.text())
+    const headers = {"content-type": "application/json", origin: running.origin, "x-storybook-session": packageToken}
+    const openedFromPackage = await fetch(new URL("/api/browser/open", running.origin), {
+      method: "POST", headers, body: JSON.stringify({packageId: "@fixture/standalone", route: ""}),
+    })
+    expect(openedFromPackage.status).toBe(200)
+    expect((await openedFromPackage.json()).viewId).toBe(lifecycle.viewId)
+    const graphBeforeMutation = running.registry.snapshot().graph.digest
+    const denied = await fetch(new URL("/api/browser/detach", running.origin), {
+      method: "POST", headers, body: JSON.stringify({scopeId: "project:fixture-standalone"}),
+    })
+    expect(denied.ok).toBeFalse()
+    expect(running.registry.snapshot().graph.digest).toBe(graphBeforeMutation)
   })
 
   test("bounds authenticated control bodies before parsing", async () => {

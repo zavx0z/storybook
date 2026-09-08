@@ -34,6 +34,9 @@
   Structural projects discover packages through package.json workspaces using
   Bun.Glob; manifest.packages remains for projects without workspaces. Packages
   without manifests stay visible. Never combine both composition sources.
+  Every selected root is a repository tree root; a root package remains a child
+  package, with its workspace packages discovered by the same rule. Navigation
+  ancestry never becomes executable ownership or a build dependency.
   The one global `$storybook` process owns registry,
   canonical graph, Workbench, PackageSessions, revisions, diagnostics and
   browser mechanics for exact production package identities.

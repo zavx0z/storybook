@@ -142,7 +142,7 @@ describe("external Storybook package frontend", () => {
     try {
       expect(runtimeLoads).toBe(0)
       expect(controller.currentRoute).toBe("components")
-      expect(controller.shell.workbench.controller.read("secondary.active")).toBeNull()
+      expect(controller.shell.workbench.controller.read("secondary.active")).toBe("category:@fixture/components/components")
       expect(controller.shell.document.querySelectorAll("[data-storybook-aggregate-overview]"))
         .toHaveLength(0)
     } finally {
@@ -194,7 +194,9 @@ describe("external Storybook package frontend", () => {
         browserDocument,
         location,
         history: historyFixture(location),
-        fetcher: (async () => new Response("# UI Components")) as unknown as typeof fetch,
+        fetcher: (async (input: RequestInfo | URL) => String(input) === "/api/client"
+          ? Response.json(createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, revision)))
+          : new Response("# UI Components")) as unknown as typeof fetch,
         createSocket: () => new FakeSocket(),
         async acknowledgeActivation({working}) {
           lifecycle.push("activation")
@@ -324,7 +326,7 @@ describe("external Storybook package frontend", () => {
         browserDocument,
         location: browserLocation,
         history,
-        fetcher: (async (input) => String(input) === "/api/client"
+        fetcher: (async (input: RequestInfo | URL) => String(input) === "/api/client"
           ? Response.json(snapshot)
           : new Response("# Owner README")) as typeof fetch,
         createSocket(url) {
@@ -349,9 +351,9 @@ describe("external Storybook package frontend", () => {
 
     await controller.navigate("components")
     expect(controller.shell.workbench.controller.read("catalog.active"))
-      .toBe("category:@fixture/components/components")
-    expect(controller.shell.workbench.controller.read("secondary.label")).toBe("Components")
-    expect(controller.shell.workbench.controller.read("secondary.active")).toBeNull()
+      .toBe("package:@fixture/components")
+    expect(controller.shell.workbench.controller.read("secondary.label")).toBe("Fixture Components")
+    expect(controller.shell.workbench.controller.read("secondary.active")).toBe("category:@fixture/components/components")
     expect(controller.shell.workbench.controller.read("scenarios.active")).toBeNull()
     const categoryOverview = controller.shell.workbench.controller.read("presentation").node
     expect((categoryOverview as Element | null)?.querySelectorAll("[data-storybook-aggregate-item]"))
@@ -371,7 +373,7 @@ describe("external Storybook package frontend", () => {
 
     await controller.navigate("components/button")
     expect(controller.shell.workbench.controller.read("catalog.active"))
-      .toBe("category:@fixture/components/components")
+      .toBe("package:@fixture/components")
     expect(controller.shell.workbench.controller.read("secondary.active"))
       .toBe("subject:@fixture/components/components/button")
     expect(controller.shell.workbench.controller.read("scenarios.active")).toBeNull()
@@ -442,7 +444,7 @@ describe("external Storybook package frontend", () => {
     expect(controller.currentRoute).toBe("components/button")
 
     socket.emit("open", {})
-    expect(socket.sent).toEqual([JSON.stringify({type: "subscribe", topic: "package:@fixture/components"})])
+    expect(socket.sent).toEqual([JSON.stringify({type: "subscribe", topic: "package:@fixture/components"}), JSON.stringify({type: "subscribe", topic: "catalog"})])
     const pathnameBeforeUpdate = browserLocation.pathname
     socket.emit("message", {data: JSON.stringify({
       type: "package.updated",

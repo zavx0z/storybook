@@ -65,9 +65,9 @@ export function createInitialWorkbenchState(
       initial?.["inspector.values"] ?? Object.freeze({}),
     ),
     status: validateWorkbenchStatus(initial?.status ?? {
-      lead: "Создано для ",
-      owner: "MetaFor",
-      detail: " · Storybook",
+      lead: "",
+      owner: initial?.title ?? "Storybook",
+      detail: "",
     }),
   }
   state["catalog.active"] = selectedId(

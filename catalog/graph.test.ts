@@ -21,7 +21,7 @@ describe("external Storybook normalized graph", () => {
 
     expect(first.rootIds).toEqual([
       "workspace:fixture-workspace",
-      "package:@fixture/standalone",
+      "project:fixture-standalone",
     ])
     expect(first.nodes.map(({id}) => id)).toEqual([
       "workspace:fixture-workspace",
@@ -35,6 +35,7 @@ describe("external Storybook normalized graph", () => {
       "variant:@fixture/components/components/button/outlined",
       "project:fixture-beta",
       "package:@fixture/docs",
+      "project:fixture-standalone",
       "package:@fixture/standalone",
       "category:@fixture/standalone/tools",
       "subject:@fixture/standalone/tools/diagnostics",

@@ -24,11 +24,13 @@ import {
   NAVIGATION_WINDOW_OVERSCAN,
   NAVIGATION_WINDOW_SIZE,
   retainedBlocks,
+  type RootBlock,
   windowedBlocks,
 } from "./windowing.ts"
 
 export type WorkbenchNavigationTreeProps = Readonly<{
   document: SemanticDocument
+  region?: "catalog" | "secondary"
   items: readonly WorkbenchNavigationItem[]
   activeId: string | null
   query: string
@@ -55,7 +57,7 @@ export function WorkbenchNavigationTree(props: WorkbenchNavigationTreeProps) {
 
   const projection = projectWorkbenchNavigation(props.items, props.query, collapsedGroupIds)
   const enabledRows = projection.rows.filter(workbenchNavigationRowEnabled)
-  const activeKey = props.activeId === null ? null : workbenchNavigationLeafKey(props.activeId)
+  const activeKey = workbenchNavigationRowKey(projection.rows.find(row => row.id === props.activeId))
   const effectiveFocusKey = focusKey !== null && enabledRows.some(row =>
     workbenchNavigationRowKey(row) === focusKey)
     ? focusKey
@@ -73,15 +75,16 @@ export function WorkbenchNavigationTree(props: WorkbenchNavigationTreeProps) {
     effectiveFocusKey,
     collapsedGroupIds,
   )
-  for (const block of visibleBlocks) {
-    if (block.kind === "leaf") createdLeafIdsRef.current.add(block.leaf.item.id)
-    if (block.kind === "group") {
-      createdGroupIdsRef.current.add(block.projection.group.id)
-      for (const child of block.children) {
-        if (child.kind === "leaf") createdLeafIdsRef.current.add(child.leaf.item.id)
+  const remember = (blocks: readonly RootBlock[]): void => {
+    for (const block of blocks) {
+      if (block.kind === "leaf") createdLeafIdsRef.current.add(block.leaf.item.id)
+      if (block.kind === "group") {
+        createdGroupIdsRef.current.add(block.projection.group.id)
+        remember(block.children)
       }
     }
   }
+  remember(visibleBlocks)
   const blocks = retainedBlocks(
     visibleBlocks,
     props.items,
@@ -137,16 +140,22 @@ export function WorkbenchNavigationTree(props: WorkbenchNavigationTreeProps) {
       return next
     })
     const groupKey = workbenchNavigationGroupKey(group.id)
-    if (collapsed && focusKey?.startsWith("leaf:") === true) {
-      const focusedItem = props.items.find(item =>
-        workbenchNavigationLeafKey(item.id) === focusKey)
-      if (focusedItem?.group?.id === group.id) focusRendered(groupKey)
+    if (collapsed) {
+      let parentId = projection.rows.find(row => workbenchNavigationRowKey(row) === focusKey)?.parentId
+      while (parentId !== null && parentId !== undefined) {
+        if (parentId === group.id) {
+          focusRendered(groupKey)
+          break
+        }
+        const parent = props.items.find(item => item.id === parentId)
+        parentId = parent?.parentId ?? parent?.group?.id
+      }
     }
     props.onGroupToggle(group, collapsed, source)
   }
   const activateLeaf = (item: WorkbenchNavigationItem, source: HTMLElement): void => {
     if (item.disabled) return
-    const key = workbenchNavigationLeafKey(item.id)
+    const key = workbenchNavigationRowKey(projection.rows.find(row => row.id === item.id)) ?? workbenchNavigationLeafKey(item.id)
     ensureRowWindow(key)
     focusRendered(key)
     props.onNavigate(item, source)
@@ -178,8 +187,8 @@ export function WorkbenchNavigationTree(props: WorkbenchNavigationTreeProps) {
       keyboard.preventDefault()
       if (current.kind === "group" && !collapsedGroupIds.has(current.id)) {
         toggleGroup(current.group.group, true, rowElement(currentKey) ?? treeRef.current!)
-      } else if (current.kind === "leaf" && current.parentId !== null) {
-        const parent = projection.rows.find(row => row.kind === "group" && row.id === current.parentId)
+      } else if (current.parentId !== null) {
+        const parent = projection.rows.find(row => row.id === current.parentId)
         if (parent !== undefined) focusRow(parent)
       }
       return
@@ -192,13 +201,15 @@ export function WorkbenchNavigationTree(props: WorkbenchNavigationTreeProps) {
         return
       }
       const child = projection.rows.find(row =>
-        row.kind === "leaf" && row.parentId === current.id && workbenchNavigationRowEnabled(row))
+        row.parentId === current.id && workbenchNavigationRowEnabled(row))
       if (child !== undefined) focusRow(child)
       return
     }
     if (!isActivationKey(keyboard.key)) return
     keyboard.preventDefault()
-    if (current.kind === "group") {
+    if (current.kind === "group" && current.group.group.item !== undefined) {
+      activateLeaf(current.group.group.item, rowElement(currentKey) ?? treeRef.current!)
+    } else if (current.kind === "group") {
       toggleGroup(
         current.group.group,
         !collapsedGroupIds.has(current.id),
@@ -214,7 +225,7 @@ export function WorkbenchNavigationTree(props: WorkbenchNavigationTreeProps) {
   }
 
   useLayoutEffect(() => {
-    const groupIds = new Set(props.items.flatMap(item => item.group === undefined ? [] : [item.group.id]))
+    const groupIds = new Set(projectWorkbenchNavigation(props.items, "", new Set()).rows.filter(row => row.kind === "group").map(row => row.id))
     setCollapsedGroupIds(current => {
       const next = new Set([...current].filter(id => groupIds.has(id)))
       return equalSets(current, next) ? current : next
@@ -240,7 +251,8 @@ export function WorkbenchNavigationTree(props: WorkbenchNavigationTreeProps) {
     if (tree === null) return
     for (const row of tree.querySelectorAll("[data-tree-row-key]")) {
       const key = row.getAttribute("data-tree-row-key")
-      const control = row.querySelector<HTMLButtonElement>("button")
+      const controlIndex = row.getAttribute("data-kind") === "group" && row.hasAttribute("data-id") ? 1 : 0
+      const control = row.querySelectorAll<HTMLButtonElement>("button")[controlIndex] ?? null
       if (control !== null) {
         control.tabIndex = key === effectiveFocusKey && !row.hasAttribute("hidden") ? 0 : -1
       }
@@ -282,14 +294,16 @@ export function WorkbenchNavigationTree(props: WorkbenchNavigationTreeProps) {
   }
 
   function rowControl(key: string | null): HTMLElement | null {
-    return rowElement(key)?.querySelector<HTMLButtonElement>("button") ?? null
+    const row = projection.rows.find(candidate => workbenchNavigationRowKey(candidate) === key)
+    const index = row?.kind === "group" && row.group.group.item !== undefined ? 1 : 0
+    return rowElement(key)?.querySelectorAll<HTMLButtonElement>("button")[index] ?? null
   }
 
   return <div
     ref={bindTree}
     role="tree"
-    aria-label="Catalog"
-    data-storybook-tree="catalog"
+    aria-label={props.region === "secondary" ? "Package contents" : "Catalog"}
+    data-storybook-tree={props.region ?? "catalog"}
     data-storybook-tree-total={String(projection.leaves.length)}
     data-storybook-tree-total-rows={String(projection.rows.length)}
     data-storybook-tree-materialized={String(materializedLeafCount(blocks))}
@@ -311,6 +325,7 @@ export function WorkbenchNavigationTree(props: WorkbenchNavigationTreeProps) {
       key={block.key}
       block={block}
       activeId={props.activeId}
+      collapsedIds={collapsedGroupIds}
       collapsed={block.kind === "group" && collapsedGroupIds.has(block.projection.group.id)}
       focusedKey={effectiveFocusKey}
       onLeaf={activateLeaf}

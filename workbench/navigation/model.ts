@@ -3,6 +3,7 @@
 export type WorkbenchNavigationGroup = Readonly<{
   id: string
   label: string
+  item?: WorkbenchNavigationItem
 }>
 
 export type WorkbenchNavigationItem = Readonly<{
@@ -13,18 +14,23 @@ export type WorkbenchNavigationItem = Readonly<{
   disabled?: boolean
   searchText?: string
   group?: WorkbenchNavigationGroup
+  parentId?: string
 }>
 
 export type WorkbenchNavigationGroupProjection = Readonly<{
   kind: "group"
   group: WorkbenchNavigationGroup
   items: readonly WorkbenchNavigationItem[]
+  children: readonly WorkbenchNavigationTopLevelProjection[]
+  parentId: string | null
+  depth: number
 }>
 
 export type WorkbenchNavigationLeafProjection = Readonly<{
   kind: "leaf"
   item: WorkbenchNavigationItem
   parentId: string | null
+  depth: number
 }>
 
 export type WorkbenchNavigationTopLevelProjection =
@@ -35,11 +41,14 @@ export type WorkbenchNavigationRow = Readonly<{
   kind: "group"
   id: string
   group: WorkbenchNavigationGroupProjection
+  parentId: string | null
+  depth: number
 }> | Readonly<{
   kind: "leaf"
   id: string
   item: WorkbenchNavigationItem
   parentId: string | null
+  depth: number
 }>
 
 export type WorkbenchNavigationProjection = Readonly<{
@@ -47,12 +56,6 @@ export type WorkbenchNavigationProjection = Readonly<{
   rows: readonly WorkbenchNavigationRow[]
   leaves: readonly WorkbenchNavigationLeafProjection[]
 }>
-
-type MutableGroupProjection = {
-  kind: "group"
-  group: WorkbenchNavigationGroup
-  items: WorkbenchNavigationItem[]
-}
 
 /** Validates and freezes navigation metadata before component rendering. */
 export function normalizeWorkbenchNavigationItems(
@@ -71,6 +74,7 @@ export function normalizeWorkbenchNavigationItems(
     if (itemIds.has(id)) throw new Error(`Duplicate ${label.toLowerCase()} item id: ${id}`)
     itemIds.add(id)
 
+    if (item.parentId !== undefined && item.group !== undefined) throw new Error(`${label} item cannot have both parentId and group`)
     let group: WorkbenchNavigationGroup | undefined
     if (item.group !== undefined) {
       if (item.group === null || typeof item.group !== "object") {
@@ -98,8 +102,20 @@ export function normalizeWorkbenchNavigationItems(
         ? {}
         : {searchText: stringValue(`${label} item searchText`, item.searchText)}),
       ...(group === undefined ? {} : {group}),
+      ...(item.parentId === undefined ? {} : {parentId: requiredText(`${label} parent id`, item.parentId)}),
     })
   })
+  const parents = new Map(items.map(item => [item.id, item.parentId]))
+  for (const item of items) {
+    const seen = new Set([item.id])
+    let parent = item.parentId
+    while (parent !== undefined) {
+      if (!parents.has(parent)) throw new Error(`Unknown ${label} parent: ${parent}`)
+      if (seen.has(parent)) throw new Error(`Cyclic ${label} navigation: ${parent}`)
+      seen.add(parent)
+      parent = parents.get(parent)
+    }
+  }
   return Object.freeze(items)
 }
 
@@ -110,56 +126,53 @@ export function projectWorkbenchNavigation(
   collapsedGroupIds: ReadonlySet<string>,
 ): WorkbenchNavigationProjection {
   const normalizedQuery = normalizeWorkbenchNavigationSearch(query)
-  const topLevel: Array<MutableGroupProjection | WorkbenchNavigationLeafProjection> = []
-  const groups = new Map<string, MutableGroupProjection>()
-  for (const item of items) {
-    if (item.group === undefined) {
-      if (matches(item, normalizedQuery)) {
-        topLevel.push(Object.freeze({kind: "leaf", item, parentId: null}))
-      }
-      continue
+  type Node = {id: string; item?: WorkbenchNavigationItem; group?: WorkbenchNavigationGroup; parentId: string | null; children: Node[]}
+  const nodes = new Map<string, Node>()
+  const order = new Map<string, number>()
+  const top: Node[] = []
+  for (const [index, item] of items.entries()) {
+    order.set(`leaf:${item.id}`, index)
+    if (item.group !== undefined && !nodes.has(`group:${item.group.id}`)) {
+      const node: Node = {id: item.group.id, group: item.group, parentId: null, children: []}
+      nodes.set(`group:${node.id}`, node)
+      order.set(`group:${node.id}`, index)
+      top.push(node)
     }
-    let group = groups.get(item.group.id)
-    if (group === undefined) {
-      group = {kind: "group", group: item.group, items: []}
-      groups.set(item.group.id, group)
-      topLevel.push(group)
-    }
-    if (matches(item, normalizedQuery)) group.items.push(item)
+    nodes.set(`leaf:${item.id}`, {id: item.id, item, parentId: item.parentId ?? item.group?.id ?? null, children: []})
   }
-
-  const normalizedTopLevel = topLevel.flatMap((entry): WorkbenchNavigationTopLevelProjection[] => {
-    if (entry.kind === "leaf") return [entry]
-    if (entry.items.length === 0 &&
-      !normalizeWorkbenchNavigationSearch(entry.group.label).includes(normalizedQuery)) return []
-    return [Object.freeze({
-      kind: "group" as const,
-      group: entry.group,
-      items: Object.freeze([...entry.items]),
-    })]
-  })
+  for (const item of items) {
+    const node = nodes.get(`leaf:${item.id}`)!
+    if (node.parentId === null) top.push(node)
+    else nodes.get(item.parentId === undefined ? `group:${node.parentId}` : `leaf:${node.parentId}`)!.children.push(node)
+  }
   const rows: WorkbenchNavigationRow[] = []
   const leaves: WorkbenchNavigationLeafProjection[] = []
-  for (const entry of normalizedTopLevel) {
-    if (entry.kind === "leaf") {
-      const row = Object.freeze({kind: "leaf" as const, id: entry.item.id, item: entry.item, parentId: null})
-      rows.push(row)
-      leaves.push(entry)
-      continue
+  const visit = (node: Node, depth: number): WorkbenchNavigationTopLevelProjection | null => {
+    const childEntries = node.children.map(child => visit(child, depth + 1)).filter(entry => entry !== null)
+    const matched = node.item === undefined
+      ? normalizeWorkbenchNavigationSearch(node.group!.label).includes(normalizedQuery)
+      : matches(node.item, normalizedQuery)
+    if (!matched && childEntries.length === 0) return null
+    if (node.group !== undefined || node.children.length > 0) {
+      return Object.freeze({kind: "group", group: node.group ?? {id: node.id, label: node.item!.label, item: node.item!},
+        items: Object.freeze(childEntries.flatMap(entry => entry.kind === "leaf" ? [entry.item] : entry.group.item ? [entry.group.item] : [])),
+        children: Object.freeze(childEntries), parentId: node.parentId, depth})
     }
-    rows.push(Object.freeze({kind: "group", id: entry.group.id, group: entry}))
-    if (collapsedGroupIds.has(entry.group.id)) continue
-    for (const item of entry.items) {
-      const leaf = Object.freeze({kind: "leaf" as const, item, parentId: entry.group.id})
-      leaves.push(leaf)
-      rows.push(Object.freeze({kind: "leaf", id: item.id, item, parentId: entry.group.id}))
-    }
+    return Object.freeze({kind: "leaf", item: node.item!, parentId: node.parentId, depth})
   }
-  return Object.freeze({
-    topLevel: Object.freeze(normalizedTopLevel),
-    rows: Object.freeze(rows),
-    leaves: Object.freeze(leaves),
-  })
+  top.sort((left, right) => order.get(`${left.item === undefined ? "group" : "leaf"}:${left.id}`)! - order.get(`${right.item === undefined ? "group" : "leaf"}:${right.id}`)!)
+  const topLevel = top.map(node => visit(node, 1)).filter(entry => entry !== null)
+  const append = (entry: WorkbenchNavigationTopLevelProjection): void => {
+    if (entry.kind === "leaf") {
+      leaves.push(entry)
+      rows.push(Object.freeze({kind: "leaf", id: entry.item.id, item: entry.item, parentId: entry.parentId, depth: entry.depth}))
+      return
+    }
+    rows.push(Object.freeze({kind: "group", id: entry.group.id, group: entry, parentId: entry.parentId, depth: entry.depth}))
+    if (!collapsedGroupIds.has(entry.group.id)) for (const child of entry.children) append(child)
+  }
+  for (const entry of topLevel) append(entry)
+  return Object.freeze({topLevel: Object.freeze(topLevel), rows: Object.freeze(rows), leaves: Object.freeze(leaves)})
 }
 
 export function workbenchNavigationRowEnabled(row: WorkbenchNavigationRow): boolean {

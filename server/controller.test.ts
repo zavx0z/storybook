@@ -150,7 +150,7 @@ describe.serial("external Storybook shared controller", () => {
     expect(ensured).toMatchObject({status: "success", server: "running"})
     expect(migrated.pid).not.toBe(legacyRecord.pid)
     expect(new URL(migrated.origin).port).toBe(new URL(legacyRecord.origin).port)
-    expect(migrated.attachedDeclarations).toContain(declarationPath)
+    expect(migrated.attachedDeclarations).toContain(realpathSync(fixture))
     expect(await new Response(legacy.stderr).text()).toBe("")
     expect(readExternalStorybookMigrationRecord(externalStorybookMigrationStatePath())).toBeNull()
     await controller.stop({schemaVersion: 1, confirm: true}, context())
@@ -196,7 +196,7 @@ describe.serial("external Storybook shared controller", () => {
 
       expect(ensured).toMatchObject({status: "success", server: "running"})
       expect(new URL(running.origin).port).not.toBe(new URL(occupied.url).port)
-      expect(running.attachedDeclarations).toContain(declarationPath)
+      expect(running.attachedDeclarations).toContain(realpathSync(fixture))
       await controller.stop({schemaVersion: 1, confirm: true}, context())
     } finally {
       occupied.stop(true)
@@ -227,7 +227,7 @@ describe.serial("external Storybook shared controller", () => {
   })
 
   test("keeps current declarations in the journal across an interrupted implementation upgrade", async () => {
-    const declarationPath = realpathSync(join(fixture, ".storybook", "manifest.json"))
+    const declarationPath = realpathSync(fixture)
     const controller = createExternalStorybookController({legacyStatePaths: []})
     await controller.ensure({schemaVersion: 1, roots: [fixture]}, context())
     const running = readExternalStorybookServerRecord(externalStorybookServerStatePath())

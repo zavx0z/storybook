@@ -246,15 +246,11 @@ async function explicitDeclarations(
   }
   if (manifests.length === 0) return Object.freeze([])
   const declarations = await resolveExternalStorybookDeclarations(manifests)
-  const byId = new Map(declarations.scopes.map((declaration) => [
-    declaration.canonicalId,
-    declaration,
-  ]))
-  for (const rootId of declarations.rootIds) {
-    const declaration = byId.get(rootId)
+  for (const path of manifests) {
+    const declaration = declarations.scopes.find(scope => scope.source.path === path)
     if (declaration?.kind !== expectedKind) {
       throw new Error(
-        `External Storybook selected declaration must be ${expectedKind}: ${declaration?.source.path ?? rootId}`,
+        `External Storybook selected declaration must be ${expectedKind}: ${declaration?.source.path ?? path}`,
       )
     }
   }

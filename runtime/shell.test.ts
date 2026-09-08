@@ -95,6 +95,7 @@ describe("external Storybook shared Browser Root", () => {
       id: "@zavx0z/ui/themes/theme.css",
       link,
     }])
+    expect(state.options?.theme).toBe(state.options?.stylesheets?.[0])
     expect(shell.viewPoint.controls).toBe(false)
     shell.dispose()
   })

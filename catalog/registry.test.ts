@@ -14,11 +14,11 @@ describe("external Storybook attached-root registry", () => {
     const snapshot = await registry.attach(join(fixtureRoot, "standalone"))
     expect(snapshot.entries.map(({canonicalId}) => canonicalId)).toEqual([
       "workspace:fixture-workspace",
-      "package:@fixture/standalone",
+      "project:fixture-standalone",
     ])
     expect(snapshot.graph.rootIds).toEqual(snapshot.entries.map(({canonicalId}) => canonicalId))
     expect(snapshot.entries[0]?.descendantIds).toContain("package:@fixture/components")
-    expect(snapshot.entries[1]?.rootKind).toBe("package")
+    expect(snapshot.entries[1]?.rootKind).toBe("project")
   })
 
   test("keeps the current graph untouched when a new root fails validation", async () => {
@@ -36,7 +36,7 @@ describe("external Storybook attached-root registry", () => {
     await registry.attachMany([fixtureRoot, join(fixtureRoot, "standalone")])
     const detached = await registry.detach("fixture-workspace")
     expect(detached.entries.map(({canonicalId}) => canonicalId)).toEqual([
-      "package:@fixture/standalone",
+      "project:fixture-standalone",
     ])
     expect(detached.graph.nodes.some(({id}) => id === "package:@fixture/components")).toBeFalse()
     expect(detached.graph.nodes.some(({id}) => id === "package:@fixture/standalone")).toBeTrue()

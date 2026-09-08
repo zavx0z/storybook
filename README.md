@@ -9,7 +9,7 @@
 передаёт нормализованный `StorybookCatalog` общему реестру. Граф, маршруты,
 сборка, Workbench и MCP используют этот результат. Реестр принимает источник
 при создании, поэтому дальнейшее обнаружение по структуре проекта сможет
-использовать ту же цепочку. Сам механизм «проект = структура» пока не добавлен.
+использовать ту же цепочку. Структура проекта задаёт иерархию репозитория и пакетов в общем графе.
 Границы модулей и сохранённые протоколы описаны в
 [архитектуре обнаружения](ARCHITECTURE.md#модули-и-граница-обнаружения).
 
@@ -51,7 +51,6 @@ escapes fail closed.
   "schemaVersion": 1,
   "kind": "package",
   "id": "@zavx0z/ui",
-  "label": "UI",
   "packageJson": "../package.json",
   "readme": "../README.md",
   "runtime": {"module": "./runtime.ts", "export": "runtime"},
@@ -276,8 +275,8 @@ fixed Workbench regions.
 StatusBar содержит production `@zavx0z/ui/navigation/breadcrumbs` с полным
 путём на landing overview и от workspace/project до текущего variant в package
 tab; прежняя плоская status-строка и package/subject в Inspector не дублируются.
-Native page title равен `MetaFor` на landing/self page и exact package label на
-остальных package pages; `Storybook` не добавляется.
+Native page title берётся из label выбранного узла. Общий каталог без выбора
+называется Storybook; пакетные вкладки используют собственный label.
 
 `context.present` является единственным atomic channel и принимает required
 `{node, componentRoot, source:{html,typescript}}` плюс selected widget values.
@@ -339,3 +338,9 @@ package-id `check` addresses the exact package in an already running registry.
 Current scope deliberately excludes Blender capture, accepted screenshots and
 visual diff. MCP capture is bounded evidence only; existing owner
 reference/evidence files remain linked resources for the following stage.
+
+Главная панель показывает сворачиваемое дерево репозиториев и вложенных пакетов.
+Вторая панель содержит категории и предметы выбранного пакета, dock — варианты.
+Выбор в каталоге имеет адрес `/browse/<package-id>/`; рабочая вкладка пакета
+остаётся на `/packages/<package-id>/<route>` и переиспользуется при открытии.
+Иерархия каталогов определяет навигацию, а сборки остаются независимыми по packageId.

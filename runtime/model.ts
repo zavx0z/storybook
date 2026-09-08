@@ -1,6 +1,7 @@
 /** Pure browser-facing projections of the canonical external Storybook graph. */
 
 import {
+  externalStorybookBrowsePath,
   type ExternalStorybookGraph,
   type ExternalStorybookGraphNode,
 } from "../catalog/graph.ts"
@@ -23,6 +24,7 @@ export type ExternalStorybookBrowserNavigationItem = Readonly<{
   title: string
   searchText: string
   group: StorybookPresentationGroup | null
+  parentId?: string
 }>
 
 export type ExternalStorybookBrowserVariantItem = Readonly<{
@@ -67,21 +69,11 @@ export type ExternalStorybookPackageTabModel = Readonly<{
 export function deriveExternalStorybookLanding(
   graph: BrowserGraph,
 ): ExternalStorybookLandingModel {
-  const items: ExternalStorybookBrowserNavigationItem[] = []
-  for (const rootId of graph.rootIds) {
-    const root = exactRoot(graph, rootId)
-    if (root.kind === "workspace") {
-      const group = Object.freeze({id: root.id, label: root.label})
-      for (const project of exactChildren(graph, root, "project")) {
-        items.push(navigationItem(graph, project, project.urlPath, group))
-      }
-      continue
-    }
-    if (root.kind !== "project" && root.kind !== "package") {
-      throw new Error(`External Storybook landing root is not selectable: ${root.id}`)
-    }
-    items.push(navigationItem(graph, root, root.urlPath, null))
-  }
+  const items = graph.nodes.filter(node => node.kind === "workspace" || node.kind === "project" || node.kind === "package")
+    .map(node => Object.freeze({
+      ...navigationItem(graph, node, externalStorybookBrowsePath(node), null),
+      ...(node.parentId === null ? {} : {parentId: node.parentId}),
+    }))
   return Object.freeze({catalogItems: Object.freeze(items)})
 }
 
@@ -91,46 +83,23 @@ export function deriveExternalStorybookLandingSelection(
   nodeId: string,
 ): ExternalStorybookLandingSelection {
   const selected = browserNode(graph, nodeId)
-  if (selected.kind === "workspace") {
-    throw new Error(`External Storybook workspace group toggle is not a route: ${nodeId}`)
-  }
-  if (selected.kind === "project") {
-    assertLandingProject(graph, selected)
-    return Object.freeze({
-      catalogActiveId: selected.id,
-      secondaryItems: packageItems(graph, selected),
-      secondaryActiveId: null,
-      overviewNode: selected,
-    })
-  }
-  if (selected.kind !== "package") {
-    throw new Error(`External Storybook landing selection must be a project or package: ${nodeId}`)
-  }
-  if (selected.parentId === null) {
-    if (!graph.rootIds.includes(selected.id)) {
-      throw new Error(`External Storybook standalone package is not an attached root: ${selected.id}`)
-    }
-    return Object.freeze({
-      catalogActiveId: selected.id,
-      secondaryItems: Object.freeze([]),
-      secondaryActiveId: null,
-      overviewNode: selected,
-    })
-  }
-  const project = browserNode(graph, selected.parentId)
-  if (project.kind !== "project") {
-    throw new Error(`External Storybook package parent is not a project: ${selected.id}`)
-  }
-  assertLandingProject(graph, project)
-  if (!project.childIds.includes(selected.id)) {
-    throw new Error(`External Storybook project does not own package: ${selected.id}`)
+  if (selected.kind !== "workspace" && selected.kind !== "project" && selected.kind !== "package") {
+    throw new Error(`External Storybook landing selection must be a repository or package: ${nodeId}`)
   }
   return Object.freeze({
-    catalogActiveId: project.id,
-    secondaryItems: packageItems(graph, project),
-    secondaryActiveId: selected.id,
+    catalogActiveId: selected.id,
+    secondaryItems: selected.kind === "package" ? deriveExternalStorybookPackageContents(graph, selected.packageId!) : Object.freeze([]),
+    secondaryActiveId: null,
     overviewNode: selected,
   })
+}
+
+export function deriveExternalStorybookPackageContents(graph: BrowserGraph, packageId: string): readonly ExternalStorybookBrowserNavigationItem[] {
+  return Object.freeze(graph.nodes.filter(node => node.packageId === packageId && (node.kind === "category" || node.kind === "subject"))
+    .map(node => Object.freeze({
+      ...navigationItem(graph, node, requiredRoute(node), node.kind === "category" ? nodeGroup(node) : null),
+      ...(node.kind === "subject" ? {parentId: node.parentId!} : {}),
+    })))
 }
 
 /**
@@ -149,7 +118,7 @@ export function deriveExternalStorybookPackageTab(
   }
   const selectedNode = resolveBrowserRoute(graph, packageId, routePath)
   assertPackageOwnership(packageNode, selectedNode)
-  const categories = exactChildren(graph, packageNode, "category")
+  const categories = packageNode.childIds.map(id => browserNode(graph, id)).filter(node => node.kind === "category")
   const catalogItems = Object.freeze(categories.map((category) =>
     navigationItem(
       graph,
@@ -194,14 +163,6 @@ export function deriveExternalStorybookPackageTab(
   })
 }
 
-function packageItems(
-  graph: BrowserGraph,
-  project: BrowserNode,
-): readonly ExternalStorybookBrowserNavigationItem[] {
-  return Object.freeze(exactChildren(graph, project, "package").map((item) =>
-    navigationItem(graph, item, item.urlPath, null)))
-}
-
 function navigationItem(
   graph: BrowserGraph,
   node: BrowserNode,
@@ -235,15 +196,6 @@ function variantItem(
   })
 }
 
-function exactRoot(
-  graph: BrowserGraph,
-  id: string,
-): BrowserNode {
-  const node = browserNode(graph, id)
-  if (node.parentId !== null) throw new Error(`External Storybook graph root has a parent: ${id}`)
-  return node
-}
-
 function exactChildren<Kind extends BrowserNode["kind"]>(
   graph: BrowserGraph,
   parent: BrowserNode,
@@ -269,24 +221,6 @@ function exactParent<Kind extends BrowserNode["kind"]>(
     throw new Error(`External Storybook graph parent mismatch: ${child.id}`)
   }
   return parent
-}
-
-function assertLandingProject(
-  graph: BrowserGraph,
-  project: BrowserNode,
-): void {
-  if (project.kind !== "project") throw new Error(`External Storybook landing item is not a project: ${project.id}`)
-  if (project.parentId === null) {
-    if (!graph.rootIds.includes(project.id)) {
-      throw new Error(`External Storybook standalone project is not an attached root: ${project.id}`)
-    }
-    return
-  }
-  const workspace = browserNode(graph, project.parentId)
-  if (workspace.kind !== "workspace" || !graph.rootIds.includes(workspace.id) ||
-    !workspace.childIds.includes(project.id)) {
-    throw new Error(`External Storybook project is not owned by an attached workspace: ${project.id}`)
-  }
 }
 
 function assertPackageOwnership(

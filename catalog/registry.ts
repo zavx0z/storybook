@@ -71,11 +71,14 @@ export class ExternalStorybookRegistry {
     if (this.#entries.length === 0) return this.#accept(incoming, incoming.rootIds.map(() => attachSource))
     const incomingRoots = incoming.scopes.filter(scope => incoming.rootIds.includes(scope.canonicalId))
     // An explicit ancestor replaces its already selected descendants, avoiding duplicate owners.
-    const incomingPaths = new Set(incoming.scopes.map(scope => scope.source.path))
-    const exactRoots = new Set(incomingRoots.map(scope => scope.source.path))
-    const kept = this.#entries.filter(entry => exactRoots.has(entry.declarationPath) || !incomingPaths.has(entry.declarationPath))
-    const represented = new Set(this.#catalog.scopes.map(scope => scope.source.path))
-    const added = incomingRoots.filter(scope => !represented.has(scope.source.path))
+    const incomingPaths = new Set(incoming.scopes.map(scope => scope.scopeRoot))
+    const exactRoots = new Set(incomingRoots.map(scope => scope.scopeRoot))
+    const kept = this.#entries.filter(entry => {
+      const root = this.#catalog.scopes.find(scope => scope.canonicalId === entry.canonicalId)!.scopeRoot
+      return exactRoots.has(root) || !incomingPaths.has(root)
+    })
+    const represented = new Set(this.#catalog.scopes.map(scope => scope.scopeRoot))
+    const added = incomingRoots.filter(scope => !represented.has(scope.scopeRoot))
     return this.#resolve(
       [...kept.map(entry => entry.declarationPath), ...added.map(scope => scope.source.path)],
       [...kept.map(entry => entry.attachSource), ...added.map(() => attachSource)],
@@ -89,7 +92,7 @@ export class ExternalStorybookRegistry {
     const scopes = new Map(this.#catalog.scopes.map(scope => [scope.canonicalId, scope]))
     const children = (id: string): readonly string[] => {
       const scope = scopes.get(id)!
-      return scope.kind === "workspace" ? scope.projectIds : scope.kind === "project" ? scope.packageIds : []
+      return scope.kind === "workspace" ? scope.projectIds : scope.kind === "project" || scope.kind === "package" ? scope.packageIds ?? [] : []
     }
     const contains = (id: string): boolean => id === removed || children(id).some(contains)
     const retain = (id: string): readonly string[] => id === removed ? [] :

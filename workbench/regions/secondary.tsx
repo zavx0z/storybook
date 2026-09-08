@@ -1,8 +1,10 @@
-import {WorkbenchNavigationList} from "../components/navigation-list.tsx"
+import {WorkbenchNavigationTree} from "../navigation/tree.tsx"
+import type {Document as SemanticDocument} from "@zavx0z/dom"
 import {WorkbenchRegionPanel} from "../components/region-panel.tsx"
 import type {WorkbenchNavigationItem} from "../contract.ts"
 
 export type SecondaryRegionProps = Readonly<{
+  document: SemanticDocument
   label: string
   items: readonly WorkbenchNavigationItem[]
   activeId: string | null
@@ -28,7 +30,11 @@ function SecondaryRegionContent(props: Readonly<{value: SecondaryRegionProps}>) 
         flex-grow: 1;
       `}
     >
-      <WorkbenchNavigationList
+      <WorkbenchNavigationTree
+        region="secondary"
+        document={value.document}
+        query=""
+        onGroupToggle={() => {}}
         items={value.items}
         activeId={value.activeId}
         onNavigate={value.onNavigate}

@@ -4,7 +4,7 @@ import {join} from "node:path"
 import {tmpdir} from "node:os"
 import {resolveExternalStorybookDeclarations} from "../discovery/declarations.ts"
 import {ExternalStorybookRegistry} from "../catalog/registry.ts"
-import {deriveExternalStorybookLandingSelection} from "../runtime/model.ts"
+import {deriveExternalStorybookLanding, deriveExternalStorybookLandingSelection} from "../runtime/model.ts"
 import {startExternalStorybookServer} from "./server.ts"
 
 const roots: string[] = []
@@ -28,13 +28,14 @@ async function fixture() {
   return {root, project}
 }
 
-test("lists and selects packages without manifests in the same secondary panel", async () => {
+test("lists and selects packages without manifests in the repository tree", async () => {
   const {project} = await fixture()
   const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
   const snapshot = await registry.attach(project)
   const selection = deriveExternalStorybookLandingSelection(snapshot.graph, "project:project")
-  expect(selection.secondaryItems.map(item => item.label)).toEqual(["A", "B"])
-  expect(deriveExternalStorybookLandingSelection(snapshot.graph, "package:@fixture/b").secondaryActiveId).toBe("package:@fixture/b")
+  expect(selection.secondaryItems).toEqual([])
+  expect(deriveExternalStorybookLanding(snapshot.graph).catalogItems.map(item => item.label)).toEqual(["Project", "A", "B"])
+  expect(deriveExternalStorybookLandingSelection(snapshot.graph, "package:@fixture/b").catalogActiveId).toBe("package:@fixture/b")
   const descriptor = registry.packageDescriptors().find(value => value.packageId === "@fixture/a")!
   expect(descriptor.runtime).toBeNull()
   expect(descriptor.variants).toEqual([])
@@ -66,8 +67,8 @@ test("updates optional manifests and workspace membership while preserving packa
   expect(changed.graph.nodes.filter(node => node.kind === "package").map(node => node.id)).toEqual(["package:@fixture/a", "package:@fixture/c"])
   expect(changed.catalog.scopes.some(scope => scope.resolutionError !== undefined)).toBeFalse()
   await registry.detach("package:@fixture/a")
-  expect(registry.snapshot().graph.rootIds).toEqual(["package:@fixture/c"])
-  expect((await registry.refresh()).graph.rootIds).toEqual(["package:@fixture/c"])
+  expect(registry.snapshot().graph.rootIds).toEqual(["project:fixture-c"])
+  expect((await registry.refresh()).graph.rootIds).toEqual(["project:fixture-c"])
 })
 
 test("rejects conflicting composition sources and duplicate package names", async () => {
@@ -105,3 +106,54 @@ test("watches structural additions and optional manifests and serves a manifest-
     await server.stop()
   }
 }, 120_000)
+
+test("nested packages share navigation ancestry without sharing revision content or failure", async () => {
+  const {project} = await fixture()
+  await write(join(project, "package.json"), {name: "project", label: "Project", workspaces: ["packages/**"]})
+  await write(join(project, "packages/a/child/package.json"), {name: "@fixture/child", label: "Child"})
+  const parentManifest = join(project, "packages/a/.storybook/manifest.json")
+  await write(parentManifest, {schemaVersion: 1, kind: "package", id: "@fixture/a", packageJson: "../package.json"})
+  const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
+  const first = await registry.attach(project)
+  const child = first.graph.nodes.find(node => node.id === "package:@fixture/child")!
+  expect(child.parentId).toBe("package:@fixture/a")
+  const original = registry.packageDescriptors().find(value => value.packageId === "@fixture/child")!
+  expect(original.graphSnapshot.nodes.every(node => node.packageId === "@fixture/child")).toBeTrue()
+  expect(original.graphSnapshot.ancestors.map(ancestor => ancestor.id)).toEqual(["project:project", "package:@fixture/a"])
+  await Bun.write(parentManifest, "{")
+  const failed = await registry.refresh()
+  expect(failed.catalog.scopes.find(scope => scope.id === "@fixture/a")?.resolutionError).toBeDefined()
+  expect(failed.catalog.scopes.find(scope => scope.id === "@fixture/child")?.resolutionError).toBeUndefined()
+  const updated = registry.packageDescriptors().find(value => value.packageId === "@fixture/child")!
+  expect(updated.graphSnapshot.packageGraphDigest).toBe(original.graphSnapshot.packageGraphDigest)
+})
+
+test("repository failures retain the nested graph and diagnose its sessions without leaking parent failures", async () => {
+  const {root, project} = await fixture()
+  await write(join(project, "package.json"), {name: "project", label: "Project", workspaces: ["packages/**"]})
+  await write(join(project, "packages/a/child/package.json"), {name: "@fixture/child", label: "Child"})
+  const server = await startExternalStorybookServer({declarations: [project], statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts")})
+  const refresh = async () => {
+    const response = await fetch(new URL("/api/control/refresh", server.origin), {
+      method: "POST", headers: {authorization: `Bearer ${server.record.controlToken}`, "content-type": "application/json"}, body: "{}",
+    })
+    expect(response.status).toBe(200)
+  }
+  try {
+    const projectManifest = join(project, ".storybook/manifest.json")
+    await Bun.write(projectManifest, "{")
+    await refresh()
+    expect(server.registry.snapshot().graph.nodes.find(node => node.id === "package:@fixture/child")?.parentId).toBe("package:@fixture/a")
+    expect(server.sessions.session("@fixture/child").snapshot().diagnostics[0]?.phase).toBe("resolve")
+    await write(projectManifest, {schemaVersion: 1, kind: "project", id: "project"})
+    await refresh()
+    expect(server.sessions.session("@fixture/child").snapshot().diagnostics).toEqual([])
+    await mkdir(join(project, "packages/a/.storybook"), {recursive: true})
+    await Bun.write(join(project, "packages/a/.storybook/manifest.json"), "{")
+    await refresh()
+    expect(server.sessions.session("@fixture/a").snapshot().diagnostics[0]?.phase).toBe("resolve")
+    expect(server.sessions.session("@fixture/child").snapshot().diagnostics).toEqual([])
+  } finally {
+    await server.stop()
+  }
+})

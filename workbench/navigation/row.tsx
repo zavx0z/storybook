@@ -17,6 +17,7 @@ export type NavigationRootBlockProps = Readonly<{
   block: RootBlock
   activeId: string | null
   collapsed: boolean
+  collapsedIds: ReadonlySet<string>
   focusedKey: string | null
   onLeaf(item: WorkbenchNavigationItem, source: HTMLElement): void
   removableIds?: readonly string[]
@@ -24,19 +25,14 @@ export type NavigationRootBlockProps = Readonly<{
   onGroup(group: WorkbenchNavigationGroup, source: HTMLElement): void
 }>
 
-type NavigationGroupBlockProps = Readonly<{
-  block: GroupBlock
-  activeId: string | null
-  focusedKey: string | null
-  onLeaf(item: WorkbenchNavigationItem, source: HTMLElement): void
-  removableIds?: readonly string[]
-  onRemove?: ((item: WorkbenchNavigationItem, source: HTMLElement) => void) | undefined
-}>
-
 type NavigationLeafButtonProps = Readonly<{
   item: WorkbenchNavigationItem
   active: boolean
   nested: boolean
+  depth?: number
+  branch?: boolean
+  collapsed?: boolean
+  onToggle?(source: HTMLElement): void
   onLeaf(item: WorkbenchNavigationItem, source: HTMLElement): void
   removableIds?: readonly string[]
   onRemove?: ((item: WorkbenchNavigationItem, source: HTMLElement) => void) | undefined
@@ -46,7 +42,8 @@ type NavigationLeafButtonProps = Readonly<{
 export function NavigationRootBlock(props: NavigationRootBlockProps) {
   const block = props.block
   const group = block.kind === "group" ? block.projection.group : null
-  const leaf = block.kind === "leaf" ? block.leaf : null
+  const leaf = block.kind === "leaf" ? block.leaf : block.kind === "group" && group?.item !== undefined
+    ? {item: group.item, depth: block.projection.depth} : null
   const children = block.kind === "group"
     ? block.children
     : Object.freeze([]) as readonly GroupBlock[]
@@ -61,7 +58,7 @@ export function NavigationRootBlock(props: NavigationRootBlockProps) {
   }
   return <div
     role={block.kind === "spacer" || block.hidden ? "presentation" : "treeitem"}
-    aria-level={block.kind === "spacer" || block.hidden ? undefined : "1"}
+    aria-level={block.kind === "spacer" || block.hidden ? undefined : String(block.kind === "group" ? block.projection.depth : block.leaf.depth)}
     aria-label={group?.label ?? leaf?.item.label}
     aria-expanded={group === null ? undefined : String(!props.collapsed)}
     aria-current={active ? "page" : undefined}
@@ -90,7 +87,7 @@ export function NavigationRootBlock(props: NavigationRootBlockProps) {
       }
     `}
   >
-    {group !== null ? <Button
+    {group !== null && leaf === null ? <Button
       label={group.label}
       startIcon={props.collapsed ? chevronRightIcon : chevronDownIcon}
       title={group.label}
@@ -108,6 +105,10 @@ export function NavigationRootBlock(props: NavigationRootBlockProps) {
       item={leaf.item}
       active={active}
       nested={false}
+      depth={leaf.depth}
+      branch={group !== null}
+      collapsed={props.collapsed}
+      onToggle={source => { if (group !== null) props.onGroup(group, source) }}
       onLeaf={props.onLeaf}
       removableIds={props.removableIds ?? []}
       onRemove={props.onRemove}
@@ -128,58 +129,19 @@ export function NavigationRootBlock(props: NavigationRootBlockProps) {
         }
       `}
     >
-      {children.map(child => <NavigationGroupBlock
+      {children.map(child => <NavigationRootBlock
         key={child.key}
         block={child}
         activeId={props.activeId}
+        collapsed={child.kind === "group" && props.collapsedIds.has(child.projection.group.id)}
+        collapsedIds={props.collapsedIds}
+        onGroup={props.onGroup}
         focusedKey={props.focusedKey}
         onLeaf={props.onLeaf}
         removableIds={props.removableIds ?? []}
         onRemove={props.onRemove}
       />)}
     </div>
-  </div>
-}
-
-/** Nested leaf and spacer row owner. */
-function NavigationGroupBlock(props: NavigationGroupBlockProps) {
-  const block = props.block
-  const leaf = block.kind === "leaf" ? block.leaf : null
-  const rowKey = leaf === null ? null : workbenchNavigationLeafKey(leaf.item.id)
-  const active = leaf !== null && leaf.item.id === props.activeId
-  const disabled = leaf?.item.disabled === true
-  return <div
-    role={block.kind === "spacer" || block.hidden ? "presentation" : "treeitem"}
-    aria-level={block.kind === "spacer" || block.hidden ? undefined : "2"}
-    aria-label={leaf?.item.label}
-    aria-current={active ? "page" : undefined}
-    aria-disabled={leaf === null ? undefined : String(disabled)}
-    data-tree-row-key={rowKey}
-    data-id={leaf?.item.id}
-    data-kind={block.kind}
-    data-focused={rowKey !== null && rowKey === props.focusedKey ? "true" : undefined}
-    hidden={block.hidden}
-    style={css`
-      box-sizing: border-box;
-      display: flex;
-      width: 100%;
-      height: ${block.kind === "spacer" ? block.rows * NAVIGATION_ROW_HEIGHT : NAVIGATION_ROW_HEIGHT}px;
-      min-height: ${block.kind === "spacer" ? block.rows * NAVIGATION_ROW_HEIGHT : NAVIGATION_ROW_HEIGHT}px;
-      overflow: clip;
-
-      &[hidden] {
-        display: none;
-      }
-    `}
-  >
-    {leaf !== null ? <NavigationLeafButton
-      item={leaf.item}
-      active={active}
-      nested={true}
-      onLeaf={props.onLeaf}
-      removableIds={props.removableIds ?? []}
-      onRemove={props.onRemove}
-    /> : null}
   </div>
 }
 
@@ -191,10 +153,12 @@ function NavigationLeafButton(props: NavigationLeafButtonProps) {
   const removable = props.removableIds?.includes(props.item.id) === true
   return <div style={css`
     position: relative;
+    box-sizing: border-box;
     display: flex;
     flex-direction: row;
     width: 100%;
     min-width: 0;
+    padding-left: ${Math.max(0, (props.depth ?? 1) - 1) * 16}px;
 
     --project-remove-opacity: 0;
     --project-remove-events: none;
@@ -204,6 +168,17 @@ function NavigationLeafButton(props: NavigationLeafButtonProps) {
       --project-remove-events: auto;
     }
   `}>
+    {props.branch ? <Button
+      label=""
+      aria-label={`${props.collapsed ? "Развернуть" : "Свернуть"} ${props.item.label}`}
+      startIcon={props.collapsed ? chevronRightIcon : chevronDownIcon}
+      variant="text"
+      tabIndex={-1}
+      onClick={event => {
+        event.stopPropagation()
+        props.onToggle?.(event.currentTarget)
+      }}
+    /> : null}
     <Button
       label={props.item.label}
       title={props.item.title ?? props.item.label}

@@ -26,8 +26,14 @@ describe("external Storybook self declaration", () => {
   test("uses the ordinary package path and preserves exact self routes", async () => {
     const declarations = await resolveExternalStorybookDeclarations([root])
     const graph = createExternalStorybookGraph(declarations)
-    expect(graph.rootIds).toEqual(["package:@zavx0z/storybook"])
-    const routes = externalStorybookRoutes(graph)
+    expect(graph.rootIds).toEqual(["project:zavx0z-storybook"])
+    expect(graph.nodes.find(node => node.id === "project:zavx0z-storybook")?.childIds).toEqual([
+      "package:@zavx0z/storybook",
+    ])
+    expect(graph.nodes.find(node => node.id === "package:@zavx0z/storybook")?.childIds.filter(id => id.startsWith("package:"))).toEqual([
+      "package:@zavx0z/storybook-browser-lifecycle", "package:@zavx0z/storybook-archetypes",
+    ])
+    const routes = externalStorybookRoutes(graph).filter(route => route.packageId === "@zavx0z/storybook")
     const leaves = routes.filter(({kind}) => kind === "variant").map(({path}) => path)
     const overviews = routes.filter(({kind}) => kind === "overview").map(({path}) => path)
     expect(leaves).toEqual([
@@ -109,7 +115,7 @@ describe("external Storybook self declaration", () => {
       expect(presentation.element.textContent).toContain("foreground: true")
       expect(presentation.element.textContent).toContain("CLI and MCP remain background-only")
       expect(presentation.source.typescript).toContain("openPackage")
-      expect(presentation.source.typescript).toContain("human landing action only")
+      expect(presentation.source.typescript).toContain("human browser navigation only")
     } finally {
       presentation.dispose()
     }

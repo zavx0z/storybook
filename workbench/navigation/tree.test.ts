@@ -55,6 +55,32 @@ const groupedItems = Object.freeze([
 ] satisfies readonly WorkbenchNavigationItem[])
 
 describe("compiled Storybook catalog navigation tree", () => {
+  test("renders selectable repository and nested package branches with independent disclosure", () => {
+    const workbench = createWorkbench([
+      {id: "repo", label: "Repository", route: "/projects/repo/"},
+      {id: "parent", label: "Parent", route: "/browse/parent/", parentId: "repo"},
+      {id: "child", label: "Child", route: "/browse/child/", parentId: "parent"},
+    ], "child")
+    const repo = findGroup(workbench, "repo")!
+    const parent = findGroup(workbench, "parent")!
+    const child = findLeaf(workbench, "child")!
+    expect(parent.getAttribute("aria-level")).toBe("2")
+    expect(child.getAttribute("aria-level")).toBe("3")
+    const navigated: string[] = []
+    workbench.element.addEventListener(WORKBENCH_EVENTS.navigate, event => navigated.push((event as CustomEvent<{id: string}>).detail.id))
+    const label = repo.querySelectorAll("button")[1]!
+    label.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    expect(navigated).toEqual(["repo"])
+    focusControl(child).focus()
+    repo.querySelector("button")!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    expect(repo.getAttribute("aria-expanded")).toBe("false")
+    expect(findLeaf(workbench, "child")).toBeUndefined()
+    expect(workbench.document.activeElement === label).toBeTrue()
+    repo.querySelector("button")!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    expect(findLeaf(workbench, "child")).toBe(child)
+    expect(navigated).toEqual(["repo"])
+  })
+
   test("expanded disclosure blocks occupy their header and every visible category row", () => {
     const projection = projectWorkbenchNavigation(groupedItems, "", new Set())
     const blocks = windowedBlocks(projection, 0, null, new Set())

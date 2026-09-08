@@ -92,6 +92,7 @@ export function WorkbenchView(props: WorkbenchViewProps) {
         onGroupToggle={props.onGroupToggle}
       />
       <SecondaryRegion
+        document={props.document}
         label={state["secondary.label"]}
         items={state["secondary.items"]}
         activeId={state["secondary.active"]}

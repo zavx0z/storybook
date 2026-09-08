@@ -1,3 +1,5 @@
+import {requestPackageView} from "./package-navigation.ts"
+import {externalStorybookBrowsePath} from "../catalog/graph.ts"
 /** One package-tab realm driven by generated literal runtime/story loaders. */
 
 import type {CustomEvent, Node as SemanticNode} from "@zavx0z/dom"
@@ -38,6 +40,8 @@ import {
 import {deriveStorybookBreadcrumbs} from "./breadcrumbs.ts"
 import {
   deriveExternalStorybookPackageTab,
+  deriveExternalStorybookLanding,
+  deriveExternalStorybookPackageContents,
   type ExternalStorybookBrowserNavigationItem,
   type ExternalStorybookBrowserVariantItem,
   type ExternalStorybookPackageTabModel,
@@ -216,6 +220,7 @@ export async function startExternalStorybookPackage(
     }
   })()
   const {snapshot, summary, graph, initialRoute, initialModel} = bootstrap
+  let navigationSnapshot = revisionGraph === null ? snapshot : await fetchExternalStorybookClientSnapshot(fetcher)
   browserDocument.documentElement.dataset.externalStorybookPhase = "shell"
   let shell: ExternalStorybookShell
   try {
@@ -833,7 +838,7 @@ export async function startExternalStorybookPackage(
     currentModel = model
     browserDocument.documentElement.dataset.externalStorybookPackage = "starting"
     browserDocument.documentElement.dataset.externalStorybookRoute = route
-    applyModel(shell, model)
+    applyModel(shell, model, navigationSnapshot, snapshot)
     shell.workbench.update("status", {
       lead: "",
       owner: packageId,
@@ -895,7 +900,21 @@ export async function startExternalStorybookPackage(
     await scheduleRoute(route)
   }
   const onNavigate = (event: unknown): void => {
-    const detail = (event as CustomEvent<{route: string; urlPath?: string}>).detail
+    const detail = (event as CustomEvent<{route: string; urlPath?: string; kind?: string; id?: string}>).detail
+    if (detail.kind === "catalog" && detail.id !== undefined) {
+      const node = externalStorybookClientNode(navigationSnapshot, detail.id)
+      if (node.kind === "package") {
+        if (node.packageId === packageId) void navigate("")
+        else void requestPackageView(fetcher, browserDocument, {packageId: node.packageId!, route: ""})
+          .catch(error => shell.reportDiagnostic(errorText(error)))
+      } else location.href = new URL(externalStorybookBrowsePath(node), location.href).href
+      return
+    }
+    if (detail.kind === "breadcrumb" && detail.id?.startsWith("package:") && detail.id !== `package:${packageId}`) {
+      void requestPackageView(fetcher, browserDocument, {packageId: detail.id.slice("package:".length), route: ""})
+        .catch(error => shell.reportDiagnostic(errorText(error)))
+      return
+    }
     if (detail.urlPath !== undefined) {
       location.href = new URL(detail.urlPath, location.href).href
       return
@@ -931,8 +950,19 @@ export async function startExternalStorybookPackage(
   )
   const onSocketOpen = (): void => {
     socket.send(JSON.stringify({type: "subscribe", topic: `package:${packageId}`}))
+    socket.send(JSON.stringify({type: "subscribe", topic: "catalog"}))
   }
   const onSocketMessage = (event: MessageEvent): void => {
+    let raw: {type?: string} | null = null
+    try { raw = JSON.parse(String(event.data)) } catch {}
+    if (raw?.type === "registry.updated") {
+      void fetchExternalStorybookClientSnapshot(fetcher).then(value => {
+        if (disposed) return
+        navigationSnapshot = value
+        applyModel(shell, currentModel, navigationSnapshot, snapshot)
+      }).catch(error => shell.reportDiagnostic(errorText(error)))
+      return
+    }
     const update = parsePackageEvent(event.data)
     if (update === null || update.packageId !== packageId) return
     if (update.type === "package.built") {
@@ -1087,17 +1117,14 @@ export async function startExternalStorybookPackage(
   })
 }
 
-function applyModel(shell: ExternalStorybookShell, model: ExternalStorybookPackageTabModel): void {
+function applyModel(shell: ExternalStorybookShell, model: ExternalStorybookPackageTabModel, navigation: ExternalStorybookClientSnapshot, content: ExternalStorybookClientSnapshot): void {
   shell.document.transaction(() => {
-    shell.workbench.update("catalog.label", model.packageNode.label)
-    shell.workbench.update("catalog.items", navigationItems(model.catalogItems))
-    shell.workbench.update("catalog.active", model.catalogActiveId)
-    shell.workbench.update(
-      "secondary.label",
-      model.catalogItems.find(({id}) => id === model.catalogActiveId)?.label ?? "Предметы",
-    )
-    shell.workbench.update("secondary.items", navigationItems(model.secondaryItems))
-    shell.workbench.update("secondary.active", model.secondaryActiveId)
+    shell.workbench.update("catalog.label", "Репозитории и пакеты")
+    shell.workbench.update("catalog.items", navigationItems(deriveExternalStorybookLanding(navigation).catalogItems))
+    shell.workbench.update("catalog.active", model.packageNode.id)
+    shell.workbench.update("secondary.label", model.packageNode.label)
+    shell.workbench.update("secondary.items", navigationItems(deriveExternalStorybookPackageContents(content, model.packageNode.packageId!)))
+    shell.workbench.update("secondary.active", model.secondaryActiveId ?? model.catalogActiveId)
     shell.workbench.update("scenarios.items", variantItems(model.variants))
     shell.workbench.update("scenarios.active", model.variantActiveId)
   })
@@ -1111,6 +1138,7 @@ function navigationItems(items: readonly ExternalStorybookBrowserNavigationItem[
     title: item.title,
     searchText: item.searchText,
     ...(item.group === null ? {} : {group: item.group}),
+    ...(item.parentId === undefined ? {} : {parentId: item.parentId}),
   })))
 }
 

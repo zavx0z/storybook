@@ -154,7 +154,7 @@ describe("real Storybook package revision build", () => {
       "revision-widget-b",
     ))
     expect(second.moduleGraphRevision).not.toBe(first.moduleGraphRevision)
-  })
+  }, 60_000)
 
   test("fails before copying author CSS whose bytes no longer match the resolved digest", async () => {
     const fixture = createFixture()

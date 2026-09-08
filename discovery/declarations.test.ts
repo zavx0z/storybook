@@ -104,9 +104,9 @@ describe("external Storybook JSON declarations", () => {
     expect(resolved.schemaVersion).toBe(EXTERNAL_STORYBOOK_SCHEMA_VERSION)
     expect(resolved.rootIds).toEqual([
       "workspace:fixture-workspace",
-      "package:@fixture/standalone",
+      "project:fixture-standalone",
     ])
-    expect(resolved.scopes).toHaveLength(6)
+    expect(resolved.scopes).toHaveLength(7)
     expect(Object.isFrozen(resolved)).toBeTrue()
     expect(Object.isFrozen(resolved.scopes)).toBeTrue()
 
@@ -177,7 +177,7 @@ describe("external Storybook JSON declarations", () => {
     ])
     expect(resolved.rootIds).toEqual([
       "project:fixture-alpha",
-      "package:@fixture/standalone",
+      "project:fixture-standalone",
     ])
     const project = resolved.scopes.find(({canonicalId}) => canonicalId === "project:fixture-alpha")
     expect(project?.kind).toBe("project")

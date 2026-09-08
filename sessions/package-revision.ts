@@ -19,11 +19,11 @@ import {
 } from "../discovery/declaration-law.ts"
 import {sha256Hex} from "../src/shared/sha256.ts"
 
-export const STORYBOOK_PACKAGE_GRAPH_PROTOCOL = "storybook-package-graph/3" as const
+export const STORYBOOK_PACKAGE_GRAPH_PROTOCOL = "storybook-package-graph/4" as const
 
 export type StorybookPackageRevisionAncestor = Readonly<{
   id: string
-  kind: "workspace" | "project"
+  kind: "workspace" | "project" | "package"
   label: string
   urlPath: string
 }>
@@ -141,7 +141,7 @@ export function createStorybookPackageRevisionGraphSnapshot(
   const packageNode = packageNodes[0]!
   const ancestors = Object.freeze(packageNode.structuralPath.slice(0, -1).map((id) => {
     const ancestor = graph.nodes.find(node => node.id === id)
-    if (ancestor === undefined || ancestor.kind !== "workspace" && ancestor.kind !== "project") {
+    if (ancestor === undefined || ancestor.kind !== "workspace" && ancestor.kind !== "project" && ancestor.kind !== "package") {
       throw new Error(`Storybook package ancestor is invalid: ${packageId}:${id}`)
     }
     return Object.freeze({
@@ -293,16 +293,19 @@ export function validateStorybookPackageRevisionGraphSnapshot(
   const routes = new Set(value.routes.map(({path}) => path))
   if (routes.size !== value.routes.length) throw new Error(`Duplicate Storybook package graph route: ${packageId}`)
   const ancestorKinds = value.ancestors.map(ancestor => ancestor?.kind)
-  const validAncestorSequence = ancestorKinds.length === 0 ||
-    ancestorKinds.length === 1 && ancestorKinds[0] === "project" ||
-    ancestorKinds.length === 2 && ancestorKinds[0] === "workspace" && ancestorKinds[1] === "project"
+  const packageStart = ancestorKinds.indexOf("package")
+  const containers = packageStart < 0 ? ancestorKinds : ancestorKinds.slice(0, packageStart)
+  const validAncestorSequence = (containers.length === 0 ||
+    containers.length === 1 && containers[0] === "project" ||
+    containers.length === 2 && containers[0] === "workspace" && containers[1] === "project") &&
+    (packageStart < 0 || ancestorKinds.slice(packageStart).every(kind => kind === "package"))
   if (!validAncestorSequence) {
     throw new Error(`Storybook package ancestor sequence is invalid: ${packageId}`)
   }
   const ancestorIds = new Set<string>()
   for (const [index, ancestor] of value.ancestors.entries()) {
     if (ancestor === null || typeof ancestor !== "object" ||
-      ancestor.kind !== "workspace" && ancestor.kind !== "project") {
+      ancestor.kind !== "workspace" && ancestor.kind !== "project" && ancestor.kind !== "package") {
       throw new TypeError(`Storybook package ancestor ${index} is invalid: ${packageId}`)
     }
     const id = requiredText("package ancestor id", ancestor.id)

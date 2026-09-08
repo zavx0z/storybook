@@ -507,3 +507,19 @@ consumer imports/dependencies удаляются после route/resource parit
 Существующие reference/evidence assets остаются immutable owner resources.
 Storybook MCP capture создаёт bounded evidence, но не Blender reference,
 accepted baseline, visual diff или owner acceptance state.
+
+## Repository navigation and isolated package content
+
+Every selected source root is a repository navigation root, including a root
+that also contains a package. Package containment follows canonical owner paths.
+The global graph carries repository and package ancestry; each immutable
+`storybook-package-graph/4` contains only its own package modules and resources,
+with ancestor identity, label and URL as metadata. Parent package content changes
+do not become child package build dependencies.
+
+Both Workbench pages use the recursive primary repository tree and a secondary
+category/subject tree for the selected package. Catalog selection uses `/browse/`
+URLs. Package workspaces retain `/packages/` URLs and one browser view per package.
+Authenticated browser navigation uses the same lifecycle controller; registry
+mutations retain their separate authority. Package sockets can subscribe to the
+read-only `catalog` topic without receiving other packages' execution events.

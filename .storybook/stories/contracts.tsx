@@ -27,7 +27,7 @@ const contracts = Object.freeze({
   ),
   catalog: contract(
     "Структура и манифест",
-    "Структура определяет состав пакетов через package.json#workspaces и Bun.Glob, включая звёздочки и исключения. Пакет без манифеста тоже видим и выбираем; его страница без исполняемых модулей использует только общие compiler owners Storybook. Манифест дополняет пакет содержимым; manifest.packages остаётся только для проектов без workspaces. JSON reader в discovery/declarations.ts передаёт нормализованный StorybookCatalog из catalog/catalog.t.ts. ExternalStorybookRegistry принимает StorybookCatalogResolver при создании; граф и подготовка сборки не импортируют JSON reader. Структура и манифест дают один граф. Состав структурного проекта больше не дублируется в манифесте. " +
+    "Главная панель — дерево репозиторий → пакет → вложенный пакет; вторая — категории и предметы выбранного пакета. Вложенность не объединяет сборки и ревизии. Адрес выбора /browse соответствует выбранному label, рабочая вкладка /packages остаётся изолированной. Структура определяет состав пакетов через package.json#workspaces и Bun.Glob, включая звёздочки и исключения. Пакет без манифеста тоже видим и выбираем; его страница без исполняемых модулей использует только общие compiler owners Storybook. Манифест дополняет пакет содержимым; manifest.packages остаётся только для проектов без workspaces. JSON reader в discovery/declarations.ts передаёт нормализованный StorybookCatalog из catalog/catalog.t.ts. ExternalStorybookRegistry принимает StorybookCatalogResolver при создании; граф и подготовка сборки не импортируют JSON reader. Структура и манифест дают один граф. Состав структурного проекта больше не дублируется в манифесте. " +
     "The catalog model is category → subject → variant with optional presentation groups and explicit migration routes. README uses @zavx0z/ui/views/markdown and the shared @zavx0z/ui/markdown parser (markdown-it CommonMark plus inert parse5 HTML projection). Resource discovery uses that same parser, including code-labelled links and admitted HTML images. Code blocks reuse CodeEditor.",
     "Нормализованный каталог сохраняет точные source references, порядок владельца и существующие маршруты. Ошибка декларации изолирована у её владельца: сохраняются проверенный каталог и рабочая ревизия пакета, соседние пакеты продолжают обновляться. При холодном старте проблемный пакет остаётся с диагностикой resolve. Landing и MCP доступны, после исправления пакет восстанавливается. catalog/registry.spec.ts проверяет эту границу на невизуальном пакете без .storybook. Владельцы реализации разделены на discovery, catalog, build, sessions, runtime, workbench и server; MCP и browser-lifecycle сохраняют свои границы. " +
     "The package owns semantic order, typed category identity and resources. Storybook owns the surrounding viewport and optional overview action. Markdown wrap defaults to true; fenced code retains its scrolling. Browser loads declared Engine-owned Inter and JetBrains Mono faces, and Renderer/WebGPU share face selection and exact metrics. Image dimensions and GIF animation reuse the WebGPU texture loader. GIF decoding pauses when all image consumers leave their viewport/clips and resumes from the saved frame position. GIF playback requires browser ImageDecoder support; otherwise a static frame remains with a diagnostic. Script, executable URLs and HTML event attributes are not materialized. List markers and table layout retain platform limitations.",
@@ -69,8 +69,8 @@ const contracts = Object.freeze({
   browserLifecycle: contract(
     "One logical target per package",
     "The private browser-lifecycle/ workspace package owns StorybookBrowserLifecycle and holds one tagged absent | reserved | owned target state for each exact packageId. Reservation precedes target creation, so repeated, concurrent and recovered opens reuse one operation and one opaque view identity; route and server origin only navigate that target.",
-    "Landing, CLI and MCP call the same openPackage application command and never open a tab independently. Duplicate logical state is unrepresentable. Only an authenticated human action in landing may pass `foreground: true` after exact target re-attestation; CLI and MCP remain background-only. Foreign or navigated-away user targets remain untouched.",
-    "await browserLifecycle.openPackage({packageId: \"@zavx0z/ui\", route, foreground: true})\n// human landing action only; CLI and MCP omit foreground",
+    "Landing, CLI and MCP call the same openPackage application command and never open a tab independently. Duplicate logical state is unrepresentable. Only an authenticated browser navigation action may pass `foreground: true` after exact target re-attestation; CLI and MCP remain background-only. Foreign or navigated-away user targets remain untouched.",
+    "await browserLifecycle.openPackage({packageId: \"@zavx0z/ui\", route, foreground: true})\n// human browser navigation only; CLI and MCP omit foreground",
   ),
   launcher: contract(
     "MCP and human adapters",
@@ -84,7 +84,7 @@ const contracts = Object.freeze({
       "storybook status",
       "storybook check @zavx0z/ui",
       "storybook stop",
-      "MCP and CLI stay background; only authenticated landing may request foreground",
+      "MCP and CLI stay background; only authenticated browser navigation may request foreground",
     ].join("\n"),
   ),
   scaffold: contract(

@@ -163,6 +163,8 @@ export type StorybookProject = StorybookCatalogScopeBase & Readonly<{
 
 export type StorybookPackage = StorybookCatalogScopeBase & Readonly<{
   kind: "package"
+  /** Nested workspace packages; their executable contents remain independently owned. */
+  packageIds?: readonly string[]
   packageJsonPath: string
   packageName: string
   authorStyleSheets: readonly StorybookAuthorStyleSheet[]

@@ -124,7 +124,7 @@ export function createExternalStorybookGraph(
       ? declaration.projectIds
       : declaration.kind === "project"
         ? declaration.packageIds
-        : declaration.catalog?.categories.map((category) => categoryNodeId(declaration.id, category.id)) ?? []
+        : [...(declaration.packageIds ?? []), ...(declaration.catalog?.categories.map((category) => categoryNodeId(declaration.id, category.id)) ?? [])]
     appendNode({
       id: canonicalId,
       kind: declaration.kind,
@@ -173,6 +173,7 @@ export function createExternalStorybookGraph(
       }
       return
     }
+    for (const packageId of declaration.packageIds ?? []) appendDeclaration(packageId, canonicalId, structuralPath)
     appendPackageCatalog(declaration, structuralPath, appendNode)
   }
 
@@ -457,4 +458,9 @@ function normalizeSearch(value: string): string {
 
 function digest(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex")
+}
+
+/** Catalog selection has its own URL; package workspaces keep their isolated page URL. */
+export function externalStorybookBrowsePath(node: Readonly<{kind: string; packageId: string | null; urlPath: string}>): string {
+  return node.kind === "package" ? `/browse/${encodeURIComponent(node.packageId!)}/` : node.urlPath
 }

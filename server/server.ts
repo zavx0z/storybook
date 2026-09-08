@@ -1,3 +1,4 @@
+import {externalStorybookBrowsePath} from "../catalog/graph.ts"
 import {StorybookDirectorySelection} from "./directory-selection.ts"
 import {readStorybookProjectSelection, storybookProjectSelectionPath, writeStorybookProjectSelection} from "./project-store.ts"
 import {randomBytes, randomUUID} from "node:crypto"
@@ -530,9 +531,6 @@ export async function startExternalStorybookServer(
           assertExternalStorybookRequestOrigin(request, server.url.origin, {required: true})
           const token = request.headers.get("x-storybook-session") ?? ""
           const grant = browserSessions.authorize(token)
-          if (grant.kind !== "registry") {
-            throw new Error("Only the Storybook landing session may request a package view")
-          }
           const body = await requestObject(request)
           assertExactRequestKeys(body, ["packageId", "route"])
           const packageId = requiredText("open packageId", body.packageId)
@@ -750,7 +748,7 @@ export async function startExternalStorybookServer(
           assertExactRequestKeys(record, ["type", "topic"])
           if (record.type !== "subscribe") throw new Error("Unknown Storybook WebSocket message")
           const topic = requiredText("subscription topic", record.topic)
-          if (topic !== "registry" && !topic.startsWith("package:")) {
+          if (topic !== "registry" && topic !== "catalog" && !topic.startsWith("package:")) {
             throw new Error(`Invalid Storybook subscription topic: ${topic}`)
           }
           if (!websocket.data.grant.allowedTopics.has(topic)) {
@@ -1072,12 +1070,16 @@ async function packagePageResponse(
 function declarationFailures(snapshot: ExternalStorybookRegistrySnapshot): ReadonlyMap<string, string> {
   const result = new Map<string, string>()
   const scopes = new Map(snapshot.catalog.scopes.map(scope => [scope.canonicalId, scope]))
-  const mark = (id: string, message: string): void => {
+  const mark = (id: string, message: string, descendPackages: boolean): void => {
     const scope = scopes.get(id)
     if (scope?.kind === "package") result.set(scope.id, message)
-    else for (const child of scope?.kind === "project" ? scope.packageIds : scope?.kind === "workspace" ? scope.projectIds : []) mark(child, message)
+    const children = scope?.kind === "workspace" ? scope.projectIds :
+      scope?.kind === "project" || scope?.kind === "package" && descendPackages ? scope.packageIds ?? [] : []
+    for (const child of children) mark(child, message, true)
   }
-  for (const scope of scopes.values()) if (scope.resolutionError !== undefined) mark(scope.canonicalId, scope.resolutionError)
+  for (const scope of scopes.values()) {
+    if (scope.resolutionError !== undefined) mark(scope.canonicalId, scope.resolutionError, scope.kind !== "package")
+  }
   return result
 }
 
@@ -1238,7 +1240,7 @@ function canonicalContainedFile(path: string, root: string): string | null {
 function isLandingPath(snapshot: ExternalStorybookRegistrySnapshot, pathname: string): boolean {
   if (pathname === "/") return true
   return snapshot.graph.nodes.some((node) =>
-    (node.kind === "workspace" || node.kind === "project") && node.urlPath === pathname)
+    (node.kind === "workspace" || node.kind === "project" || node.kind === "package") && externalStorybookBrowsePath(node) === pathname)
 }
 
 function resolveCheckPackages(
@@ -1321,7 +1323,7 @@ function matchesSubscription(
   event: StorybookPackageEvent | RegistryEvent,
 ): boolean {
   if (!("packageId" in event)) {
-    return subscriptions.has("registry")
+    return subscriptions.has("registry") || subscriptions.has("catalog")
   }
   return subscriptions.has("registry") || subscriptions.has(`package:${event.packageId}`)
 }
@@ -1372,7 +1374,7 @@ export class StorybookBrowserSessionRegistry {
     const token = randomBytes(32).toString("base64url")
     const allowedTopics = input.kind === "registry"
       ? new Set<string>(["registry"])
-      : new Set<string>([`package:${input.packageId}`])
+      : new Set<string>([`package:${input.packageId}`, "catalog"])
     const grant = Object.freeze({
       kind: input.kind,
       packageId: input.packageId,

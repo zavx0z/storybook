@@ -79,7 +79,7 @@ describe("external Storybook declaration init", () => {
       }],
     })
     const resolved = await resolveExternalStorybookDeclarations([root])
-    expect(resolved.rootIds).toEqual(["package:@fixture/button"])
+    expect(resolved.rootIds).toEqual(["project:fixture-button"])
     for (const forbidden of ["bunfig.toml", "build.ts", "server.ts", "package.json"]) {
       expect(existsSync(join(result.directory, forbidden))).toBeFalse()
     }

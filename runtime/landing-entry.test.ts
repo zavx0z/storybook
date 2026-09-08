@@ -43,7 +43,7 @@ describe("external Storybook landing frontend", () => {
     const full = createExternalStorybookGraph(catalog)
     const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
     await registry.configure([fixtureRoot, join(fixtureRoot, "standalone")])
-    const removed = (await registry.detach("project:fixture-alpha")).graph
+    const removed = (await registry.detach("workspace:fixture-workspace")).graph
     const empty = createExternalStorybookGraph({schemaVersion: 1, rootIds: [], scopes: []})
     let snapshot = createExternalStorybookClientSnapshot(empty, [])
     const changes: unknown[] = []
@@ -99,13 +99,13 @@ describe("external Storybook landing frontend", () => {
       expect(controller.shell.workbench.controller.read("catalog.management")?.error).toBe("")
       expect(changes).toEqual([{selectionToken: token}])
       expect(files.size).toBe(0)
-      expect(controller.shell.workbench.controller.read("catalog.items")).toHaveLength(3)
-      const removeButton = (root.querySelector('[aria-label="Удалить Fixture Alpha из каталога"]') as import("@zavx0z/dom").HTMLButtonElement)
+      expect(controller.shell.workbench.controller.read("catalog.items")).toHaveLength(7)
+      const removeButton = (root.querySelector('[aria-label="Удалить Fixture Workspace из каталога"]') as import("@zavx0z/dom").HTMLButtonElement)
       removeButton.click()
       await waitUntil(() => controller.shell.workbench.controller.read("catalog.management")?.pending === false)
-      expect(changes[1]).toEqual({scopeId: "project:fixture-alpha"})
+      expect(changes[1]).toEqual({scopeId: "workspace:fixture-workspace"})
       expect(controller.shell.workbench.controller.read("catalog.items").map(item => item.id))
-        .toEqual(["project:fixture-beta", "package:@fixture/standalone"])
+        .toEqual(["project:fixture-standalone", "package:@fixture/standalone"])
       expect(controller.shell.workbench.element).toBe(root)
       expect(reloads).toBe(0)
       button.click()
@@ -167,13 +167,11 @@ describe("external Storybook landing frontend", () => {
     })
 
     expect(dataset.externalStorybookLanding).toBe("ready")
-    expect(controller.shell.workbench.element.getAttribute("aria-label")).toBe("MetaFor")
-    expect(controller.shell.workbench.controller.read("catalog.items").map(({id, group}) => ({id, group})))
-      .toEqual([
-        {id: "project:fixture-alpha", group: {id: "workspace:fixture-workspace", label: "Fixture Workspace"}},
-        {id: "project:fixture-beta", group: {id: "workspace:fixture-workspace", label: "Fixture Workspace"}},
-        {id: "package:@fixture/standalone", group: undefined},
-      ])
+    expect(controller.shell.workbench.element.getAttribute("aria-label")).toBe("Storybook")
+    expect(controller.shell.workbench.controller.read("catalog.items").map(item => item.id)).toEqual([
+      "workspace:fixture-workspace", "project:fixture-alpha", "package:@fixture/components",
+      "project:fixture-beta", "package:@fixture/docs", "project:fixture-standalone", "package:@fixture/standalone",
+    ])
     expect(requests[0]).toBe("/api/client")
     expect(requests.at(-1)).toContain("project%3Afixture-alpha")
     expect(statusBreadcrumbLabels(controller)).toEqual([
@@ -184,7 +182,7 @@ describe("external Storybook landing frontend", () => {
     expect(controller.shell.workbench.controller.read("status").detail).toBe("")
 
     expect(controller.shell.workbench.controller.read("secondary.items").map(({id}) => id))
-      .toEqual(["package:@fixture/components"])
+      .toEqual([])
     expect(controller.shell.workbench.controller.read("presentation").node?.textContent)
       .toContain("project:fixture-alpha")
     const initialPresentation = controller.shell.workbench.controller.read("presentation").node
@@ -203,7 +201,7 @@ describe("external Storybook landing frontend", () => {
 
     await controller.select("project:fixture-alpha")
     expect(controller.shell.workbench.controller.read("secondary.items").map(({id}) => id))
-      .toEqual(["package:@fixture/components"])
+      .toEqual([])
     expect(pushed).toEqual(["/projects/fixture-beta/", "/projects/fixture-alpha/"])
     expect(controller.shell.workbench.controller.read("presentation").node?.textContent)
       .toContain("project:fixture-alpha")
@@ -214,7 +212,7 @@ describe("external Storybook landing frontend", () => {
     ])
 
     await controller.select("package:@fixture/components")
-    expect(controller.shell.workbench.controller.read("secondary.active")).toBe("package:@fixture/components")
+    expect(controller.shell.workbench.controller.read("catalog.active")).toBe("package:@fixture/components")
     expect(statusBreadcrumbLabels(controller)).toEqual([
       "Главная",
       "Fixture Workspace",
@@ -261,8 +259,10 @@ describe("external Storybook landing frontend", () => {
     expect(location.pathname).toBe("/projects/fixture-alpha/")
 
     await controller.select("package:@fixture/standalone")
-    expect(controller.shell.workbench.controller.read("secondary.items")).toEqual([])
-    expect(statusBreadcrumbLabels(controller)).toEqual(["Главная", "Standalone Fixture"])
+    expect(controller.shell.workbench.controller.read("secondary.items").map(item => item.id)).toEqual([
+      "category:@fixture/standalone/tools", "subject:@fixture/standalone/tools/diagnostics",
+    ])
+    expect(statusBreadcrumbLabels(controller)).toEqual(["Главная", "Standalone Fixture", "Standalone Fixture"])
     const directAction = descendants(controller.shell.display)
       .find((element) => element.nodeName === "BUTTON")
     click(directAction)
