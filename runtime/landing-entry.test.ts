@@ -213,11 +213,11 @@ describe("external Storybook landing frontend", () => {
     ])
 
     await controller.select("package:@fixture/components")
-    expect(location.href).toBe("http://127.0.0.1:3000/packages/%40fixture%2Fcomponents/")
+    expect(location.href).toBe("http://127.0.0.1:3000/pkg-fixture-components/")
     expect(opened).toEqual([])
     expect(descendants(controller.shell.display).some(element => element.textContent?.startsWith("Открыть "))).toBeFalse()
     await controller.select("package:@fixture/standalone")
-    expect(location.href).toBe("http://127.0.0.1:3000/packages/%40fixture%2Fstandalone/")
+    expect(location.href).toBe("http://127.0.0.1:3000/pkg-fixture-standalone/")
     expect(opened).toEqual([])
 
     const source = await Bun.file(join(import.meta.dir, "landing-entry.ts")).text()

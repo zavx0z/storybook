@@ -1,3 +1,4 @@
+import {storybookPackageRouteFromPathname} from "@zavx0z/storybook-browser-lifecycle/contract"
 import {indexedWorkbenchAuthorStyleSheetSources} from "./author-style-sheets.ts"
 import {navigatePackage} from "./package-navigation.ts"
 import {externalStorybookBrowsePath} from "../catalog/graph.ts"
@@ -27,7 +28,6 @@ import {
   type StorybookSpacePreview,
 } from "./runtime-protocol.ts"
 import {
-  decodeExternalStorybookPackagePath,
   encodeExternalStorybookPackagePath,
   EXTERNAL_STORYBOOK_CLIENT_PROTOCOL,
   type ExternalStorybookClientPackageSummary,
@@ -1149,31 +1149,9 @@ function variantItems(items: readonly ExternalStorybookBrowserVariantItem[]) {
 }
 
 function packageRouteFromPathname(pathname: string, packageId: string): string {
-  const segments = pathname.split("/")
-  if (segments[0] !== "" || segments[1] !== "packages" || segments[2] === undefined) {
-    throw new Error(`External Storybook package pathname is malformed: ${pathname}`)
-  }
-  const pathnamePackage = decodeExternalStorybookPackagePath(segments[2])
-  if (pathnamePackage !== packageId) {
-    throw new Error(`External Storybook package pathname belongs to ${pathnamePackage}, expected ${packageId}`)
-  }
-  const encodedRoute = segments.slice(3)
-  if (encodedRoute.at(-1) === "") encodedRoute.pop()
-  if (encodedRoute.some((segment) => segment.length === 0)) {
-    throw new Error(`External Storybook package pathname is malformed: ${pathname}`)
-  }
-  return encodedRoute.map((segment) => {
-    let decoded: string
-    try {
-      decoded = decodeURIComponent(segment)
-    } catch (error) {
-      throw new Error(`External Storybook route segment is malformed: ${segment}`, {cause: error})
-    }
-    if (encodeURIComponent(decoded) !== segment) {
-      throw new Error(`External Storybook route segment is not canonical: ${segment}`)
-    }
-    return decoded
-  }).join("/")
+  const route = storybookPackageRouteFromPathname(pathname, packageId)
+  if (route === null) throw new Error(`Unknown or ambiguous external Storybook package path: ${pathname}`)
+  return route
 }
 
 function revisionClientSnapshot(
@@ -1468,7 +1446,7 @@ function safeRevision(value: string): string {
 }
 
 function overviewDescription(kind: string, children: number): string {
-  if (kind === "directory") return "В этой директории нет README.md. Вложенные директории доступны в предметной панели."
+  if (kind === "directory") return "В этой директории нет README.md."
   if (kind === "package") return `${children} категорий. Выберите категорию слева.`
   if (kind === "category") return `${children} предметов. Выберите предмет во второй панели.`
   if (kind === "subject") return `${children} вариантов. Выберите вариант в нижней панели.`

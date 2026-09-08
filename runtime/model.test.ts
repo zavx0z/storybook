@@ -25,7 +25,7 @@ describe("external Storybook browser model", () => {
       ["project:fixture-standalone", null],
       ["package:@fixture/standalone", "project:fixture-standalone"],
     ])
-    expect(landing.catalogItems.find(item => item.id === "package:@fixture/components")?.route).toBe("/browse/%40fixture%2Fcomponents/")
+    expect(landing.catalogItems.find(item => item.id === "package:@fixture/components")?.route).toBe("/pkg-fixture-components/")
   })
 
   test("selects repositories as overviews and places package contents in the second panel", async () => {

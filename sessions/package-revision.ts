@@ -1,3 +1,4 @@
+import {storybookPackageUrlPath, storybookPackageRouteFromPathname} from "@zavx0z/storybook-browser-lifecycle/contract"
 import {
   externalStorybookRoutes,
   type ExternalStorybookGraph,
@@ -317,8 +318,9 @@ export function validateStorybookPackageRevisionGraphSnapshot(
     }
     const ownerId = requiredText("package ancestor owner id", id.slice(prefix.length))
     requiredText("package ancestor label", ancestor.label)
-    const expectedUrlPath = `/${ancestor.kind}s/${encodeURIComponent(ownerId)}/`
-    if (ancestor.urlPath !== expectedUrlPath) {
+    const expectedUrlPath = ancestor.kind === "package" ? storybookPackageUrlPath(ownerId) : `/${ancestor.kind}s/${encodeURIComponent(ownerId)}/`
+    const legacyPackagePath = ancestor.kind === "package" && ancestor.urlPath.endsWith("/") && storybookPackageRouteFromPathname(ancestor.urlPath, ownerId) === ""
+    if (ancestor.urlPath !== expectedUrlPath && !legacyPackagePath) {
       throw new Error(`Storybook package ancestor URL is not canonical: ${packageId}:${id}`)
     }
   }

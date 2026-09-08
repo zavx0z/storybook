@@ -44,7 +44,7 @@ describe("Storybook browser state", () => {
       packageId: "@fixture/a",
       cdpOrigin: "http://127.0.0.1:9222",
       browserIdentity: "a".repeat(64),
-      url: "http://127.0.0.1:43123/packages/%40fixture%2Fa/",
+      url: "http://127.0.0.1:43123/pkg-fixture-a/",
       baselineTargetIds: ["BEFORE_A", "BEFORE_B"],
     })
     expect(reserved).toMatchObject({phase: "reserved", targetId: null})

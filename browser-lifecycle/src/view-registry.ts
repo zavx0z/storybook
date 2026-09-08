@@ -1,9 +1,12 @@
+import {storybookPackageRouteFromPathname} from "./contract.ts"
 import {createHmac, randomBytes, timingSafeEqual} from "node:crypto"
 import type {
   ChromeTargetSummary,
   StorybookInternalView,
   StorybookPublicView,
 } from "./contract.ts"
+
+export type StorybookIdentifiedTarget = ChromeTargetSummary & Readonly<{packageId: string}>
 
 const VIEW_ID_PREFIX = "storybook-view-v1_"
 
@@ -20,7 +23,7 @@ export class StorybookViewRegistry {
     this.#secret = new Uint8Array(secret)
   }
 
-  synchronize(targets: readonly ChromeTargetSummary[], origin: string): readonly StorybookPublicView[] {
+  synchronize(targets: readonly StorybookIdentifiedTarget[], origin: string): readonly StorybookPublicView[] {
     const canonicalOrigin = loopbackOrigin(origin)
     const nextViews = new Map<string, StorybookInternalView>()
     for (const target of targets) {
@@ -62,7 +65,7 @@ export class StorybookViewRegistry {
       .map(publicView))
   }
 
-  register(target: ChromeTargetSummary, origin: string): StorybookPublicView {
+  register(target: StorybookIdentifiedTarget, origin: string): StorybookPublicView {
     this.synchronize([target, ...this.#otherTargets(target.targetId)], origin)
     const viewId = this.#viewIdByTarget.get(target.targetId)
     if (viewId === undefined) throw new Error(`Chrome target is not an exact Storybook package view: ${target.url}`)
@@ -116,15 +119,15 @@ export class StorybookViewRegistry {
     return left.length === right.length && timingSafeEqual(left, right)
   }
 
-  #otherTargets(excludedTargetId: string): ChromeTargetSummary[] {
+  #otherTargets(excludedTargetId: string): StorybookIdentifiedTarget[] {
     return [...this.#viewsById.values()].flatMap((view) => view.targetId === excludedTargetId
       ? []
-      : [{targetId: view.targetId, type: "page", title: view.title, url: view.url}])
+      : [{targetId: view.targetId, packageId: view.packageId, type: "page", title: view.title, url: view.url}])
   }
 }
 
 function storybookTargetIdentity(
-  target: ChromeTargetSummary,
+  target: StorybookIdentifiedTarget,
   origin: string,
 ): Readonly<{packageId: string; route: string}> | null {
   let url: URL
@@ -134,23 +137,9 @@ function storybookTargetIdentity(
     return null
   }
   if (url.origin !== origin || !validPreviewQuery(url) || url.hash.length > 0) return null
-  const segments = url.pathname.split("/")
-  if (segments[0] !== "" || segments[1] !== "packages" || segments[2] === undefined) return null
-  const packageId = canonicalDecode(segments[2])
-  if (!/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/u.test(packageId)) return null
-  const encodedRoute = segments.slice(3)
-  if (encodedRoute.at(-1) === "") encodedRoute.pop()
-  if (encodedRoute.some((segment) => segment.length === 0)) return null
-  const route = encodedRoute.map(canonicalDecode).join("/")
-  return Object.freeze({packageId, route})
-}
-
-function canonicalDecode(value: string): string {
-  const decoded = decodeURIComponent(value)
-  if (encodeURIComponent(decoded) !== value || decoded === "." || decoded === ".." || decoded.includes("\\")) {
-    throw new Error(`Non-canonical Storybook target path segment: ${value}`)
-  }
-  return decoded
+  const packageId = target.packageId
+  const route = storybookPackageRouteFromPathname(url.pathname, packageId)
+  return route === null ? null : Object.freeze({packageId, route})
 }
 
 function loopbackOrigin(value: string): string {

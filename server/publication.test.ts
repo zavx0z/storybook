@@ -21,6 +21,7 @@ test("publishes only after an agent check, notifies every matching tab, and rest
   await Bun.write(join(other, "package.json"), JSON.stringify({name: "@fixture/other", label: "Other"}))
   const packageJson = join(owner, "package.json")
   await Bun.write(packageJson, JSON.stringify({name: "@fixture/applied", label: "Applied"}))
+  await Bun.write(join(owner, "docs/README.md"), "# Package docs")
   const entry = join(root, "entry.ts")
   await Bun.write(entry, "export function startExternalStorybookPackage() {}\n")
   let server: ExternalStorybookRunningServer
@@ -66,7 +67,7 @@ test("publishes only after an agent check, notifies every matching tab, and rest
     return await response.json() as {ok: boolean}
   }
   const readPage = async (preview?: string) => {
-    const url = new URL("/packages/%40fixture%2Fapplied/", server.origin)
+    const url = new URL("/pkg-fixture-applied/", server.origin)
     if (preview) url.searchParams.set("preview", preview)
     const response = await fetch(url)
     expect(response.status).toBe(200)
@@ -138,6 +139,54 @@ test("publishes only after an agent check, notifies every matching tab, and rest
     expect(server.sessions.session("@fixture/applied").snapshot().builds).toBe(0)
     const synced = await connect(await readPage())
     await waitFor(() => synced.some(event => event.type === "package.applied-state" && event.revision === applied))
+    // Seed an older applied snapshot to exercise URL migration without replacing its working artifact.
+    for (const tab of tabs.splice(0)) tab.close()
+    await server.stop()
+    const receipts = await Array.fromAsync(new Bun.Glob("*/applied.json").scan({cwd: options.artifactRoot, absolute: true}))
+    const receiptPath = receipts[0]!
+    const receipt = await Bun.file(receiptPath).json()
+    const canonicalPath = "/pkg-fixture-applied/"
+    const legacyPath = "/packages/%40fixture%2Fapplied/"
+    const graph = receipt.graphSnapshot
+    graph.metadata.urlPath = graph.metadata.urlPath.replace(canonicalPath, legacyPath)
+    for (const node of graph.nodes) {
+      node.urlPath = node.urlPath.replace(canonicalPath, legacyPath)
+      if (node.kind === "directory") {
+        node.routePath = "~directories/docs"
+        node.urlPath = `${legacyPath}~directories/docs/`
+      }
+    }
+    for (const route of graph.routes) {
+      route.urlPath = route.urlPath.replace(canonicalPath, legacyPath)
+      if (route.nodeId.startsWith("directory:")) {
+        route.path = "~directories/docs"
+        route.urlPath = `${legacyPath}~directories/docs/`
+      }
+    }
+    const {packageGraphDigest: _previousDigest, ...unsigned} = graph
+    graph.packageGraphDigest = new Bun.CryptoHasher("sha256").update(JSON.stringify(unsigned)).digest("hex")
+    await Bun.write(receiptPath, JSON.stringify(receipt))
+    server = await startExternalStorybookServer(options)
+    const requestPath = (path: string) => fetch(new URL(path, server.origin), {redirect: "manual"})
+    expect((await requestPath(legacyPath)).status).toBe(200)
+    expect((await requestPath(canonicalPath)).headers.get("location")).toBe(legacyPath)
+    const legacyDirectory = `${legacyPath}~directories/docs/`
+    const directoryPath = `${canonicalPath}dir-docs`
+    expect((await requestPath(legacyDirectory)).status).toBe(200)
+    expect((await requestPath(directoryPath)).headers.get("location")).toBe(legacyDirectory)
+    expect((await control(false)).ok).toBeTrue()
+    const candidate = server.sessions.session("@fixture/applied").snapshot().builtRevision!
+    expect((await requestPath(`${legacyPath}?preview=${candidate}`)).headers.get("location"))
+      .toBe(`${canonicalPath}?preview=${candidate}`)
+    expect((await requestPath(`${legacyDirectory}?preview=${candidate}`)).headers.get("location"))
+      .toBe(`${directoryPath}?preview=${candidate}`)
+    last = {packageId: "@fixture/applied", route: "~directories/docs", revision: applied}
+    expect((await control(true)).ok).toBeTrue()
+    expect(last!.route).toBe("dir-docs")
+    expect((await requestPath(legacyDirectory)).headers.get("location")).toBe(directoryPath)
+    expect((await requestPath(legacyPath)).headers.get("location")).toBe(canonicalPath)
+    expect((await requestPath(canonicalPath)).status).toBe(200)
+
   } finally {
     for (const tab of tabs) tab.close()
     await server.stop()

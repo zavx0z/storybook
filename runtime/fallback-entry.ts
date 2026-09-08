@@ -1,12 +1,13 @@
-import {decodeExternalStorybookPackagePath} from "./client-protocol.ts"
+import {storybookPackageRouteFromPathname} from "@zavx0z/storybook-browser-lifecycle/contract"
 import {startExternalStorybookPackage} from "./package-entry.ts"
 
 function packageIdFromPathname(pathname: string): string {
-  const segments = pathname.split("/")
-  if (segments[0] !== "" || segments[1] !== "packages" || segments[2] === undefined) {
+  const packageId = document.querySelector<HTMLMetaElement>('meta[name="external-storybook-package-id"]')?.content
+  if (!packageId) throw new Error("Storybook fallback has no exact package identity")
+  if (storybookPackageRouteFromPathname(pathname, packageId) === null) {
     throw new Error(`External Storybook fallback pathname is malformed: ${pathname}`)
   }
-  return decodeExternalStorybookPackagePath(segments[2])
+  return packageId
 }
 
 if (typeof document !== "undefined") {

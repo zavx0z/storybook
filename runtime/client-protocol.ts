@@ -1,3 +1,4 @@
+import {storybookPackagePathSegment} from "@zavx0z/storybook-browser-lifecycle/contract"
 import {
   externalStorybookNode,
   type ExternalStorybookGraph,
@@ -151,27 +152,16 @@ export function createExternalStorybookClientSnapshot(
   })
 }
 
-/** Encodes one exact scoped package identity as a single URL path segment. */
+/** Encodes an exact package identity as the typed public URL segment. */
 export function encodeExternalStorybookPackagePath(packageId: string): string {
-  return encodeURIComponent(validatePackageId(packageId))
+  return `pkg-${storybookPackagePathSegment(validatePackageId(packageId))}`
 }
 
-/** Decodes only the canonical path representation emitted by the encoder. */
-export function decodeExternalStorybookPackagePath(path: string): string {
-  if (typeof path !== "string" || path.length === 0 || /[/?#\\]/u.test(path)) {
-    throw new Error(`Malformed external Storybook package path: ${String(path)}`)
-  }
-  let packageId: string
-  try {
-    packageId = decodeURIComponent(path)
-  } catch (error) {
-    throw new Error(`Malformed external Storybook package path: ${path}`, {cause: error})
-  }
-  validatePackageId(packageId)
-  if (encodeURIComponent(packageId) !== path) {
-    throw new Error(`Non-canonical external Storybook package path: ${path}`)
-  }
-  return packageId
+/** Resolves a lossy URL slug through exact known package identities, never by guessing a scope. */
+export function decodeExternalStorybookPackagePath(path: string, packageIds: readonly string[]): string {
+  const matches = packageIds.filter(packageId => path === encodeExternalStorybookPackagePath(packageId))
+  if (matches.length !== 1) throw new Error(`Unknown or ambiguous external Storybook package path: ${path}`)
+  return matches[0]!
 }
 
 /** Returns the one resource endpoint for an exact graph node identity. */

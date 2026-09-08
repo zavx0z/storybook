@@ -83,16 +83,19 @@ describe("external Storybook browser client protocol", () => {
   })
 
   test("encodes package identities as one exact canonical path segment", () => {
+    expect(encodeExternalStorybookPackagePath("@zavx0z/dom")).toBe("pkg-zavx0z-dom")
+    expect(encodeExternalStorybookPackagePath("bulk")).toBe("pkg-bulk")
     const encoded = encodeExternalStorybookPackagePath("@fixture/components")
-    expect(encoded).toBe("%40fixture%2Fcomponents")
-    expect(decodeExternalStorybookPackagePath(encoded)).toBe("@fixture/components")
+    expect(encoded).toBe("pkg-fixture-components")
+    expect(decodeExternalStorybookPackagePath(encoded, ["@fixture/components"])).toBe("@fixture/components")
     for (const path of [
       "@fixture/components",
       "%40fixture%2fcomponents",
       "%40fixture%2Fcomponents/extra",
       "%broken",
       "%40Fixture%2Fcomponents",
-    ]) expect(() => decodeExternalStorybookPackagePath(path)).toThrow()
+    ]) expect(() => decodeExternalStorybookPackagePath(path, ["@fixture/components"])).toThrow()
+    expect(() => decodeExternalStorybookPackagePath("pkg-fixture-components", ["@fixture/components", "fixture-components"])).toThrow("ambiguous")
     expect(() => encodeExternalStorybookPackagePath("fixture/components")).toThrow()
   })
 

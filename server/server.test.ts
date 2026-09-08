@@ -181,7 +181,7 @@ describe("one external Storybook server", () => {
     expect(script).toBeDefined()
     expect((await fetch(new URL(script!, running.origin))).status).toBe(200)
 
-    const packagePage = await fetch(new URL("/packages/%40fixture%2Fstandalone/", running.origin))
+    const packagePage = await fetch(new URL("/pkg-fixture-standalone/", running.origin))
     expect(packagePage.status).toBe(200)
     const packageHtml = await packagePage.text()
     expect(packageHtml).toContain("<title>Standalone Fixture</title>")
@@ -380,7 +380,7 @@ describe("one external Storybook server", () => {
     const fixture = serverFixture()
     const running = await startExternalStorybookServer({declarations: [fixture.standalone], statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
     servers.push(running)
-    const page = await fetch(new URL("/packages/%40fixture%2Fstandalone/", running.origin))
+    const page = await fetch(new URL("/pkg-fixture-standalone/", running.origin))
     const html = await page.text()
     expect(html).toContain("/__storybook/shared/")
     expect(html).not.toContain('name="external-storybook-activation-id"')
@@ -442,7 +442,7 @@ describe("one external Storybook server", () => {
       artifactRoot: fixture.artifactRoot,
     })
     servers.push(running)
-    const page = await fetch(new URL("/packages/%40fixture%2Fstandalone/", running.origin))
+    const page = await fetch(new URL("/pkg-fixture-standalone/", running.origin))
     const token = browserSessionToken(await page.text())
     const url = new URL(`/api/events?session=${encodeURIComponent(token)}`, running.origin)
     url.protocol = "ws:"
@@ -494,7 +494,7 @@ describe("one external Storybook server", () => {
     })
     servers.push(running)
     const components = await fetch(new URL(
-      "/packages/%40fixture%2Fcomponents/components/button/basic/contained",
+      "/pkg-fixture-components/components/button/basic/contained",
       running.origin,
     ))
     expect(components.status).toBe(200)
@@ -514,7 +514,7 @@ describe("one external Storybook server", () => {
     servers.push(running)
     const candidate = (await running.sessions.ensure("@fixture/components")).builtRevision!
     const page = await fetch(new URL(
-      `/packages/%40fixture%2Fcomponents/components/button/basic/contained?preview=${candidate}`,
+      `/pkg-fixture-components/components/button/basic/contained?preview=${candidate}`,
       running.origin,
     ))
     expect(page.status).toBe(200)
@@ -562,7 +562,7 @@ describe("one external Storybook server", () => {
     })
     servers.push(running)
     await fetch(new URL(
-      "/packages/%40fixture%2Fcomponents/components/button/basic/contained",
+      "/pkg-fixture-components/components/button/basic/contained",
       running.origin,
     ))
     const session = running.sessions.session("@fixture/components")
@@ -683,7 +683,7 @@ describe("one external Storybook server", () => {
     })
     servers.push(running)
     const page = await fetch(new URL(
-      "/packages/%40fixture%2Fcomponents/components/button/basic/contained",
+      "/pkg-fixture-components/components/button/basic/contained",
       running.origin,
     ))
     expect(page.status).toBe(200)
@@ -745,7 +745,7 @@ describe("one external Storybook server", () => {
         ok: true,
         view: {viewId: lifecycle.viewId, packageId: "@fixture/standalone"},
       })
-    const packagePage = await fetch(new URL("/packages/%40fixture%2Fstandalone/", running.origin))
+    const packagePage = await fetch(new URL("/pkg-fixture-standalone/", running.origin))
     const packageToken = browserSessionToken(await packagePage.text())
     const headers = {"content-type": "application/json", origin: running.origin, "x-storybook-session": packageToken}
     const openedFromPackage = await fetch(new URL("/api/browser/open", running.origin), {

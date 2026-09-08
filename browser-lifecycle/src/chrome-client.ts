@@ -216,7 +216,7 @@ export class StorybookCdpClient implements StorybookChromeClient {
       markers: {
         state: document.documentElement.dataset.externalStorybook ?? null,
         package: document.documentElement.dataset.externalStorybookPackage ?? null,
-        packageId: document.documentElement.dataset.externalStorybookPackageId ?? null,
+        packageId: document.documentElement.dataset.externalStorybookPackageId ?? document.querySelector('meta[name="external-storybook-package-id"]')?.content ?? null,
         route: document.documentElement.dataset.externalStorybookRoute ?? null,
         revision: document.documentElement.dataset.externalStorybookRevision ?? null,
         error: document.documentElement.dataset.externalStorybookError ?? null,

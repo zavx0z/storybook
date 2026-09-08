@@ -1,3 +1,4 @@
+import {storybookPackageRouteFromPathname} from "./contract.ts"
 import {afterEach, describe, expect, test} from "bun:test"
 import {mkdtempSync, rmSync} from "node:fs"
 import {tmpdir} from "node:os"
@@ -36,7 +37,7 @@ describe("Storybook browser lifecycle service", () => {
       origin: chrome.origin,
       packageId: "@fixture/a",
       route: "fixture/a/default",
-      url: `${chrome.origin}/packages/%40fixture%2Fa/fixture/a/default`,
+      url: `${chrome.origin}/pkg-fixture-a/fixture/a/default`,
     }
     const first = await controller.openPackage(input)
     const second = await controller.openPackage(input)
@@ -57,7 +58,7 @@ describe("Storybook browser lifecycle service", () => {
       targetId: "OLD_TARGET",
       type: "page",
       title: "Old Storybook",
-      url: "http://127.0.0.1:41000/packages/%40fixture%2Fa/fixture/a/default",
+      url: "http://127.0.0.1:41000/pkg-fixture-a/fixture/a/default",
     }]
     const opened = await createController(chrome).openPackage(openInput(chrome))
 
@@ -73,8 +74,8 @@ describe("Storybook browser lifecycle service", () => {
   test("reuses a matching package tab without closing peers or stealing focus", async () => {
     const chrome = new FakeChrome()
     chrome.targetsValue = [
-      {targetId: "OLD_A", type: "page", title: "A", url: "http://127.0.0.1:41000/packages/%40fixture%2Fa/fixture/a/default"},
-      {targetId: "OLD_B", type: "page", title: "B", url: "http://127.0.0.1:42000/packages/%40fixture%2Fa/fixture/a/default"},
+      {targetId: "OLD_A", type: "page", title: "A", url: "http://127.0.0.1:41000/pkg-fixture-a/fixture/a/default"},
+      {targetId: "OLD_B", type: "page", title: "B", url: "http://127.0.0.1:42000/pkg-fixture-a/fixture/a/default"},
     ]
     const opened = await createController(chrome).openPackage(openInput(chrome))
     expect(opened.reused).toBeTrue()
@@ -88,7 +89,7 @@ describe("Storybook browser lifecycle service", () => {
     const root = temporaryRoot()
     chrome.targetsValue = [
       {targetId: "USER", type: "page", title: "User", url: openInput(chrome).url},
-      {targetId: "AGENT", type: "page", title: "Agent", url: `${chrome.origin}/packages/%40fixture%2Fa/fixture/a/alternate`},
+      {targetId: "AGENT", type: "page", title: "Agent", url: `${chrome.origin}/pkg-fixture-a/fixture/a/alternate`},
     ]
     new StorybookBrowserState(join(root, "state")).writeTarget({packageId: "@fixture/a", cdpOrigin: chrome.cdp, browserIdentity: "a".repeat(64), targetId: "AGENT"})
     const views = await createController(chrome, root).listViews(chrome.origin)
@@ -104,10 +105,24 @@ describe("Storybook browser lifecycle service", () => {
     const opened = await controller.openPackage(openInput(chrome))
     chrome.targetsValue.push({targetId: "PEER", type: "page", title: "Peer", url: openInput(chrome).url})
     expect(await controller.listViews(chrome.origin)).toHaveLength(2)
-    chrome.targetsValue[0] = {...chrome.targetsValue[0]!, url: `${chrome.origin}/packages/%40fixture%2Fb/`}
+    chrome.targetsValue[0] = {...chrome.targetsValue[0]!, url: `${chrome.origin}/pkg-fixture-b/`}
     await expect(controller.interact({viewId: opened.view.viewId, action: "click", target: {role: "button", name: "Run"}}))
       .rejects.toThrow("navigated away")
     expect(chrome.closed).toEqual([])
+  })
+
+  test("preserves a recorded tab whose actual package differs despite the same readable slug", async () => {
+    const chrome = new FakeChrome()
+    const controller = createController(chrome)
+    const first = await controller.openPackage(openInput(chrome))
+    chrome.targetsValue[0] = {...chrome.targetsValue[0]!, url: chrome.targetsValue[0]!.url.replace(chrome.origin, "http://127.0.0.1:41000")}
+    chrome.identityPackageOverrides.set(chrome.targetId, "fixture-a")
+    const opened = await controller.openPackage(openInput(chrome))
+    expect(opened.reused).toBeFalse()
+    expect(opened.view.viewId).not.toBe(first.view.viewId)
+    expect(chrome.created).toBe(2)
+    expect(chrome.closed).toEqual([])
+    expect(chrome.navigations).toBe(0)
   })
 
   test("leaves an unattested foreign tab untouched", async () => {
@@ -202,7 +217,7 @@ describe("Storybook browser lifecycle service", () => {
       ...openInput(chrome),
       origin: "http://127.0.0.1:44123",
       route: "fixture/a/alternate",
-      url: "http://127.0.0.1:44123/packages/%40fixture%2Fa/fixture/a/alternate",
+      url: "http://127.0.0.1:44123/pkg-fixture-a/fixture/a/alternate",
     }
 
     chrome.throwAfterCreate = false
@@ -244,8 +259,8 @@ describe("Storybook browser lifecycle service", () => {
   test("reattests a duplicate immediately before close and preserves a tab navigated away by the user", async () => {
     const chrome = new FakeChrome()
     chrome.targetsValue = [
-      {targetId: "OLD_A", type: "page", title: "A", url: "http://127.0.0.1:41000/packages/%40fixture%2Fa/fixture/a/default"},
-      {targetId: "OLD_B", type: "page", title: "B", url: "http://127.0.0.1:42000/packages/%40fixture%2Fa/fixture/a/default"},
+      {targetId: "OLD_A", type: "page", title: "A", url: "http://127.0.0.1:41000/pkg-fixture-a/fixture/a/default"},
+      {targetId: "OLD_B", type: "page", title: "B", url: "http://127.0.0.1:42000/pkg-fixture-a/fixture/a/default"},
     ]
     chrome.foreignizeOnWaitReady = "OLD_B"
 
@@ -331,7 +346,7 @@ describe("Storybook browser lifecycle service", () => {
     const second = await controller.openPackage({
       ...openInput(chrome),
       route: "fixture/a/alternate",
-      url: `${chrome.origin}/packages/%40fixture%2Fa/fixture/a/alternate`,
+      url: `${chrome.origin}/pkg-fixture-a/fixture/a/alternate`,
     })
 
     expect(second.reused).toBeTrue()
@@ -343,8 +358,8 @@ describe("Storybook browser lifecycle service", () => {
   test("lists current views without normalizing or closing other tabs", async () => {
     const chrome = new FakeChrome()
     chrome.targetsValue = [
-      {targetId: "OLD_A", type: "page", title: "Old", url: "http://127.0.0.1:41000/packages/%40fixture%2Fa/fixture/a/default"},
-      {targetId: "CURRENT_A", type: "page", title: "Current", url: `${chrome.origin}/packages/%40fixture%2Fa/fixture/a/default`},
+      {targetId: "OLD_A", type: "page", title: "Old", url: "http://127.0.0.1:41000/pkg-fixture-a/fixture/a/default"},
+      {targetId: "CURRENT_A", type: "page", title: "Current", url: `${chrome.origin}/pkg-fixture-a/fixture/a/default`},
     ]
     const views = await createController(chrome).listViews(chrome.origin)
 
@@ -357,8 +372,8 @@ describe("Storybook browser lifecycle service", () => {
     const chrome = new FakeChrome()
     chrome.foreignTargetIds.add("OLD_A")
     chrome.targetsValue = [
-      {targetId: "OLD_A", type: "page", title: "Old", url: "http://127.0.0.1:41000/packages/%40fixture%2Fa/fixture/a/default"},
-      {targetId: "CURRENT_A", type: "page", title: "Current", url: `${chrome.origin}/packages/%40fixture%2Fa/fixture/a/default`},
+      {targetId: "OLD_A", type: "page", title: "Old", url: "http://127.0.0.1:41000/pkg-fixture-a/fixture/a/default"},
+      {targetId: "CURRENT_A", type: "page", title: "Current", url: `${chrome.origin}/pkg-fixture-a/fixture/a/default`},
     ]
 
     const views = await createController(chrome).listViews(chrome.origin)
@@ -370,8 +385,8 @@ describe("Storybook browser lifecycle service", () => {
     const chrome = new FakeChrome()
     chrome.legacyTargetIds.add("OLD_A")
     chrome.targetsValue = [
-      {targetId: "OLD_A", type: "page", title: "Old", url: "http://127.0.0.1:41000/packages/%40fixture%2Fa/fixture/a/default"},
-      {targetId: "CURRENT_A", type: "page", title: "Current", url: `${chrome.origin}/packages/%40fixture%2Fa/fixture/a/default`},
+      {targetId: "OLD_A", type: "page", title: "Old", url: "http://127.0.0.1:41000/pkg-fixture-a/fixture/a/default"},
+      {targetId: "CURRENT_A", type: "page", title: "Current", url: `${chrome.origin}/pkg-fixture-a/fixture/a/default`},
     ]
 
     const views = await createController(chrome).listViews(chrome.origin)
@@ -383,8 +398,8 @@ describe("Storybook browser lifecycle service", () => {
     const chrome = new FakeChrome()
     chrome.markerOnlyTargetIds.add("OLD_A")
     chrome.targetsValue = [
-      {targetId: "OLD_A", type: "page", title: "Old", url: "http://127.0.0.1:41000/packages/%40fixture%2Fa/fixture/a/default"},
-      {targetId: "CURRENT_A", type: "page", title: "Current", url: `${chrome.origin}/packages/%40fixture%2Fa/fixture/a/default`},
+      {targetId: "OLD_A", type: "page", title: "Old", url: "http://127.0.0.1:41000/pkg-fixture-a/fixture/a/default"},
+      {targetId: "CURRENT_A", type: "page", title: "Current", url: `${chrome.origin}/pkg-fixture-a/fixture/a/default`},
     ]
 
     const views = await createController(chrome).listViews(chrome.origin)
@@ -396,8 +411,8 @@ describe("Storybook browser lifecycle service", () => {
     const chrome = new FakeChrome()
     chrome.titleOnlyTargetIds.add("OLD_A")
     chrome.targetsValue = [
-      {targetId: "OLD_A", type: "page", title: "Fixture A", url: "http://127.0.0.1:41000/packages/%40fixture%2Fa/fixture/a/default"},
-      {targetId: "CURRENT_A", type: "page", title: "Current", url: `${chrome.origin}/packages/%40fixture%2Fa/fixture/a/default`},
+      {targetId: "OLD_A", type: "page", title: "Fixture A", url: "http://127.0.0.1:41000/pkg-fixture-a/fixture/a/default"},
+      {targetId: "CURRENT_A", type: "page", title: "Current", url: `${chrome.origin}/pkg-fixture-a/fixture/a/default`},
     ]
 
     const views = await createController(chrome).listViews(chrome.origin, undefined, [{
@@ -412,8 +427,8 @@ describe("Storybook browser lifecycle service", () => {
     const chrome = new FakeChrome()
     chrome.unavailableDiagnosticsTargetIds.add("OLD_A")
     chrome.targetsValue = [
-      {targetId: "OLD_A", type: "page", title: "Fixture A", url: "http://127.0.0.1:41000/packages/%40fixture%2Fa/fixture/a/default"},
-      {targetId: "CURRENT_A", type: "page", title: "Current", url: `${chrome.origin}/packages/%40fixture%2Fa/fixture/a/default`},
+      {targetId: "OLD_A", type: "page", title: "Fixture A", url: "http://127.0.0.1:41000/pkg-fixture-a/fixture/a/default"},
+      {targetId: "CURRENT_A", type: "page", title: "Current", url: `${chrome.origin}/pkg-fixture-a/fixture/a/default`},
     ]
 
     const views = await createController(chrome).listViews(chrome.origin, undefined, [{
@@ -427,8 +442,8 @@ describe("Storybook browser lifecycle service", () => {
   test("does not let another package's legacy duplicates block an exact open", async () => {
     const chrome = new FakeChrome()
     chrome.targetsValue = [
-      {targetId: "B1", type: "page", title: "B1", url: "http://127.0.0.1:41000/packages/%40fixture%2Fb/"},
-      {targetId: "B2", type: "page", title: "B2", url: "http://127.0.0.1:42000/packages/%40fixture%2Fb/"},
+      {targetId: "B1", type: "page", title: "B1", url: "http://127.0.0.1:41000/pkg-fixture-b/"},
+      {targetId: "B2", type: "page", title: "B2", url: "http://127.0.0.1:42000/pkg-fixture-b/"},
     ]
     const opened = await createController(chrome).openPackage(openInput(chrome))
 
@@ -444,7 +459,7 @@ describe("Storybook browser lifecycle service", () => {
       origin: chrome.origin,
       packageId: "@fixture/a",
       route: "fixture/a/default",
-      url: `${chrome.origin}/packages/%40fixture%2Fa/fixture/a/default`,
+      url: `${chrome.origin}/pkg-fixture-a/fixture/a/default`,
     })
     const capture = await controller.capture({
       viewId: opened.view.viewId,
@@ -470,7 +485,7 @@ describe("Storybook browser lifecycle service", () => {
       origin: chrome.origin,
       packageId: "@fixture/a",
       route: "fixture/a/default",
-      url: `${chrome.origin}/packages/%40fixture%2Fa/fixture/a/default`,
+      url: `${chrome.origin}/pkg-fixture-a/fixture/a/default`,
     })
     for (const area of ["page", "workbench", "canvas", "node"] as const) {
       const capture = await controller.capture({
@@ -499,7 +514,7 @@ describe("Storybook browser lifecycle service", () => {
       origin: chrome.origin,
       packageId: "@fixture/a",
       route: "fixture/a/default",
-      url: `${chrome.origin}/packages/%40fixture%2Fa/fixture/a/default`,
+      url: `${chrome.origin}/pkg-fixture-a/fixture/a/default`,
     })).rejects.toThrow("window.name")
     expect(chrome.activated).toEqual([])
   })
@@ -512,7 +527,7 @@ describe("Storybook browser lifecycle service", () => {
       origin: chrome.origin,
       packageId: "@fixture/a",
       route: "fixture/a/default",
-      url: `${chrome.origin}/packages/%40fixture%2Fa/fixture/a/default`,
+      url: `${chrome.origin}/pkg-fixture-a/fixture/a/default`,
       timeoutMs: 1_000,
     })
     expect(opened.identity.ready).toBeTrue()
@@ -528,7 +543,7 @@ describe("Storybook browser lifecycle service", () => {
       origin: chrome.origin,
       packageId: "@fixture/a",
       route: "fixture/a/default",
-      url: `${chrome.origin}/packages/%40fixture%2Fa/fixture/a/default`,
+      url: `${chrome.origin}/pkg-fixture-a/fixture/a/default`,
       expectedRevision: "revision-next",
     })
     expect(opened.identity.revision).toBe("revision-next")
@@ -543,7 +558,7 @@ describe("Storybook browser lifecycle service", () => {
       origin: hangingHealth.origin,
       packageId: "@fixture/a",
       route: "fixture/a/default",
-      url: `${hangingHealth.origin}/packages/%40fixture%2Fa/fixture/a/default`,
+      url: `${hangingHealth.origin}/pkg-fixture-a/fixture/a/default`,
       timeoutMs: 100,
     })).rejects.toMatchObject({name: "TimeoutError"})
 
@@ -553,7 +568,7 @@ describe("Storybook browser lifecycle service", () => {
       origin: chrome.origin,
       packageId: "@fixture/a",
       route: "fixture/a/default",
-      url: `${chrome.origin}/packages/%40fixture%2Fa/fixture/a/default`,
+      url: `${chrome.origin}/pkg-fixture-a/fixture/a/default`,
     })
     chrome.hangBridgeMethod = "interact"
     await expect(controller.interact({
@@ -571,6 +586,7 @@ class FakeChrome implements StorybookChromeClient {
   readonly targetId = "PRIVATE_TARGET"
   targetsValue: ChromeTargetSummary[] = []
   readonly foreignTargetIds = new Set<string>()
+  readonly identityPackageOverrides = new Map<string, string>()
   readonly legacyTargetIds = new Set<string>()
   readonly markerOnlyTargetIds = new Set<string>()
   readonly titleOnlyTargetIds = new Set<string>()
@@ -703,9 +719,10 @@ class FakeChrome implements StorybookChromeClient {
         throw new Error("Storybook agent bridge is unavailable in the exact target")
       }
       const current = this.targetsValue.find(({targetId: candidate}) => candidate === targetId)
-      const target = current === undefined
+      const decoded = current === undefined
         ? {packageId: "@fixture/a", route: "fixture/a/default"}
         : targetIdentity(current.url)
+      const target = {...decoded, packageId: this.identityPackageOverrides.get(targetId) ?? decoded.packageId}
       return {
       protocol: "external-storybook-agent-bridge/1",
       packageId: target.packageId,
@@ -738,11 +755,11 @@ class FakeChrome implements StorybookChromeClient {
 
 function targetIdentity(value: string): Readonly<{packageId: string; route: string}> {
   const url = new URL(value)
-  const segments = url.pathname.split("/")
-  return Object.freeze({
-    packageId: decodeURIComponent(segments[2]!),
-    route: segments.slice(3).filter(Boolean).map(decodeURIComponent).join("/"),
-  })
+  const parts = url.pathname.split("/")
+  const fallback = decodeURIComponent(parts[parts[1] === "packages" ? 2 : 1]!)
+  const packageId = ["@fixture/a", "@fixture/b", "@fixture/other", "a", "b"]
+    .find(id => storybookPackageRouteFromPathname(url.pathname, id) !== null) ?? fallback
+  return Object.freeze({packageId, route: storybookPackageRouteFromPathname(url.pathname, packageId) ?? ""})
 }
 
 function createController(chrome: StorybookChromeClient, root = temporaryRoot()): StorybookBrowserLifecycle {
@@ -764,7 +781,7 @@ function openInput(chrome: FakeChrome) {
     origin: chrome.origin,
     packageId: "@fixture/a",
     route: "fixture/a/default",
-    url: `${chrome.origin}/packages/%40fixture%2Fa/fixture/a/default`,
+    url: `${chrome.origin}/pkg-fixture-a/fixture/a/default`,
   }
 }
 

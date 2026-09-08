@@ -1,3 +1,4 @@
+import {storybookPackageRouteFromPathname} from "./contract.ts"
 import {resolve} from "node:path"
 import type {
   ChromeTargetSummary,
@@ -15,7 +16,7 @@ import {StorybookCaptureStore} from "./capture-store.ts"
 import {StorybookCdpClient} from "./chrome-client.ts"
 import {StorybookBrowserState} from "./browser-state.ts"
 import {withStorybookBrowserLock} from "./target-operation-lock.ts"
-import {StorybookViewRegistry} from "./view-registry.ts"
+import {StorybookViewRegistry, type StorybookIdentifiedTarget} from "./view-registry.ts"
 
 export type CreateStorybookBrowserLifecycleOptions = Readonly<{
   stateRoot: string
@@ -171,8 +172,8 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
       if (recorded?.phase === "owned" && recorded.cdpOrigin === cdpOrigin &&
         recorded.browserIdentity === browserIdentity &&
         recorded.targetId === target.targetId) {
-        const identity = packageTargetIdentity(target.url)
-        if (identity?.packageId === packageId) {
+        const identity = packageTargetIdentity(target.url, packageId)
+        if (identity?.packageId === packageId && await this.#attestsPackage(target, packageId, operationSignal, input.packageLabel)) {
           owned.push(target)
         } else {
           this.#state.clearTarget(packageId, target.targetId)
@@ -180,7 +181,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
         }
         continue
       }
-      const candidate = packageTargetIdentity(target.url)
+      const candidate = packageTargetIdentity(target.url, packageId)
       if (candidate?.packageId === packageId &&
         await this.#attestsPackage(target, packageId, operationSignal, input.packageLabel)) owned.push(target)
     }
@@ -241,7 +242,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
     if (current === undefined || new URL(current.url).origin !== origin) {
       throw new Error(`Storybook target did not become the exact package view for ${packageId}`)
     }
-    const view = this.#views.register(current, origin)
+    const view = this.#views.register({...current, packageId}, origin)
     return Object.freeze({
       view,
       identity,
@@ -260,21 +261,35 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
       exactPackageId(packageId),
       exactPackageLabel(label),
     ] as const))
-    const candidates = (await this.#chrome.targets(signal)).filter((target) =>
-      target.type === "page" && packageTargetIdentity(target.url) !== null &&
-      (labels === null || labels.has(packageTargetIdentity(target.url)!.packageId)))
-    const retained: ChromeTargetSummary[] = []
+    const candidates = (await this.#chrome.targets(signal)).filter(target =>
+      target.type === "page" && packageTargetPath(target.url) !== null && new URL(target.url).origin === canonicalOrigin)
+    const retained: StorybookIdentifiedTarget[] = []
     for (const target of candidates) {
-      const identity = packageTargetIdentity(target.url)!
-      if (new URL(target.url).origin !== canonicalOrigin) continue
-      if (await this.#attestsPackage(target, identity.packageId, signal ?? AbortSignal.timeout(5_000), labels?.get(identity.packageId))) {
-        retained.push(target)
+      let packageId: string | null = null
+      if (labels !== null) {
+        const matches = [...labels.keys()].filter(id => packageTargetIdentity(target.url, id) !== null)
+        if (matches.length > 1) throw new Error("Ambiguous Storybook package URL")
+        packageId = matches[0] ?? null
+      } else {
+        try {
+          packageId = bridgeIdentity(await this.#chrome.callBridge(target.targetId, "identity", {schemaVersion: 1}, signal)).packageId
+        } catch {
+          try {
+            const diagnostic = await this.#chrome.bridgeDiagnostics(target.targetId, signal)
+            const markers = objectResult(diagnostic.markers, "Storybook target markers")
+            packageId = typeof markers.packageId === "string" ? markers.packageId :
+              typeof diagnostic.viewName === "string" && diagnostic.viewName.startsWith("storybook:")
+                ? diagnostic.viewName.slice("storybook:".length) : null
+          } catch {}
+        }
+      }
+      if (packageId === null || packageTargetIdentity(target.url, packageId) === null) continue
+      if (await this.#attestsPackage(target, packageId, signal ?? AbortSignal.timeout(5_000), labels?.get(packageId))) {
+        retained.push({...target, packageId})
       }
     }
-    const preferred = new Set(retained.flatMap(target => {
-      const packageId = packageTargetIdentity(target.url)!.packageId
-      return this.#state.readTarget(packageId)?.targetId === target.targetId ? [target.targetId] : []
-    }))
+    const preferred = new Set(retained.flatMap(target =>
+      this.#state.readTarget(target.packageId)?.targetId === target.targetId ? [target.targetId] : []))
     retained.sort((left, right) => Number(preferred.has(right.targetId)) - Number(preferred.has(left.targetId)))
     return this.#views.synchronize(retained, canonicalOrigin)
   }
@@ -292,7 +307,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
       if (!(error instanceof Error) || error.message !== "Storybook agent bridge is unavailable in the exact target") throw error
       const target = (await this.#chrome.targets(signal)).find(target => target.targetId === view.targetId)
       if (!target || new URL(target.url).origin !== view.origin ||
-        packageTargetIdentity(target.url)?.packageId !== view.packageId ||
+        packageTargetIdentity(target.url, view.packageId)?.packageId !== view.packageId ||
         !await this.#attestsPackage(target, view.packageId, signal ?? AbortSignal.timeout(5_000))) throw error
       bridgeAvailable = false
     }
@@ -426,7 +441,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
       ...(this.#processStart === undefined ? {} : {processStart: this.#processStart}),
     }, async () => {
       const current = (await this.#chrome.targets(signal)).find(({targetId}) => targetId === view.targetId)
-      if (current !== undefined && packageTargetIdentity(current.url)?.packageId === view.packageId) {
+      if (current !== undefined && packageTargetIdentity(current.url, view.packageId)?.packageId === view.packageId) {
         const attested = await this.#attestsPackage(
           current,
           view.packageId,
@@ -457,7 +472,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
   async #assertCurrentPackage(viewId: string, signal?: AbortSignal): Promise<void> {
     const view = this.#views.internal(viewId)
     const target = (await this.#chrome.targets(signal)).find(target => target.targetId === view.targetId)
-    if (target === undefined || new URL(target.url).origin !== view.origin || packageTargetIdentity(target.url)?.packageId !== view.packageId) {
+    if (target === undefined || new URL(target.url).origin !== view.origin || packageTargetIdentity(target.url, view.packageId)?.packageId !== view.packageId) {
       throw new Error("Storybook view navigated away from the requested package")
     }
     const identity = bridgeIdentity(await this.#chrome.callBridge(view.targetId, "identity", {schemaVersion: 1}, signal))
@@ -482,7 +497,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
         const diagnostic = await this.#chrome.bridgeDiagnostics(target.targetId, signal)
         const markers = objectResult(diagnostic.markers, "Storybook target markers")
         const markerPackageId = markers.packageId
-        if (packageTargetIdentity(target.url)?.packageId !== packageId ||
+        if (packageTargetIdentity(target.url, packageId)?.packageId !== packageId ||
           typeof markerPackageId === "string" && markerPackageId !== packageId) return false
         const revisionPrefix = `/__storybook/revisions/${encodeURIComponent(packageId)}/`
         const ownsRevisionScript = Array.isArray(diagnostic.scripts) &&
@@ -491,10 +506,10 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
           diagnostic.viewName === `storybook:${packageId}` &&
             (markerPackageId === null || markerPackageId === undefined) ||
           ownsRevisionScript ||
-          packageLabel !== undefined && target.title === packageLabel
+          packageLabel !== undefined && legacyEncodedPackageTarget(target.url, packageId) && target.title === packageLabel
       } catch {
-        return packageTargetIdentity(target.url)?.packageId === packageId &&
-          packageLabel !== undefined && target.title === packageLabel
+        return packageTargetIdentity(target.url, packageId)?.packageId === packageId &&
+          packageLabel !== undefined && legacyEncodedPackageTarget(target.url, packageId) && target.title === packageLabel
       }
     }
   }
@@ -591,14 +606,7 @@ function exactPackageUrl(value: string, origin: string, packageId: string, route
   if (url.origin !== origin || !validPreviewQuery(url) || url.hash.length > 0) {
     throw new Error(`Storybook package URL must belong to the exact server origin: ${value}`)
   }
-  const prefix = `/packages/${encodeURIComponent(packageId)}/`
-  if (!url.pathname.startsWith(prefix)) throw new Error(`Storybook package URL belongs to another package: ${value}`)
-  const encodedRoute = url.pathname.slice(prefix.length).replace(/\/$/u, "")
-  const decodedRoute = encodedRoute.length === 0 ? "" : encodedRoute.split("/").map((segment) => {
-    const decoded = decodeURIComponent(segment)
-    if (encodeURIComponent(decoded) !== segment) throw new Error(`Non-canonical Storybook route segment: ${segment}`)
-    return decoded
-  }).join("/")
+  const decodedRoute = storybookPackageRouteFromPathname(url.pathname, packageId)
   if (decodedRoute !== route) throw new Error(`Storybook package URL route mismatch: ${decodedRoute}; expected ${route}`)
   return url.href
 }
@@ -612,35 +620,27 @@ function loopbackOrigin(value: string): string {
   return url.origin
 }
 
-function packageTargetIdentity(value: string): Readonly<{packageId: string; route: string}> | null {
-  let url: URL
+function packageTargetPath(value: string): Readonly<{segment: string; pathname: string}> | null {
   try {
-    url = new URL(value)
+    const url = new URL(value)
+    if (url.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(url.hostname) || !validPreviewQuery(url) || url.hash.length > 0) return null
+    const parts = url.pathname.split("/")
+    const segment = parts[parts[1] === "packages" ? 2 : 1]
+    return segment ? Object.freeze({segment, pathname: url.pathname}) : null
   } catch {
     return null
   }
-  if (url.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(url.hostname) ||
-    !validPreviewQuery(url) || url.hash.length > 0) return null
-  const segments = url.pathname.split("/")
-  if (segments[0] !== "" || segments[1] !== "packages" || segments[2] === undefined) return null
-  try {
-    const packageId = decodeURIComponent(segments[2])
-    if (encodeURIComponent(packageId) !== segments[2] ||
-      !/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/u.test(packageId)) return null
-    const encodedRoute = segments.slice(3)
-    if (encodedRoute.at(-1) === "") encodedRoute.pop()
-    if (encodedRoute.some((segment) => segment.length === 0)) return null
-    const route = encodedRoute.map((segment) => {
-      const decoded = decodeURIComponent(segment)
-      if (encodeURIComponent(decoded) !== segment || decoded === "." || decoded === ".." || decoded.includes("\\")) {
-        throw new Error("invalid route")
-      }
-      return decoded
-    }).join("/")
-    return Object.freeze({packageId, route})
-  } catch {
-    return null
-  }
+}
+
+function packageTargetIdentity(value: string, packageId: string): Readonly<{packageId: string; route: string}> | null {
+  const parsed = packageTargetPath(value)
+  const route = parsed === null ? null : storybookPackageRouteFromPathname(parsed.pathname, packageId)
+  return route === null ? null : Object.freeze({packageId, route})
+}
+
+function legacyEncodedPackageTarget(value: string, packageId: string): boolean {
+  const parsed = packageTargetPath(value)
+  return packageId.startsWith("@") && parsed?.pathname.startsWith("/packages/") === true && parsed.segment === encodeURIComponent(packageId)
 }
 
 function exactPackageId(value: unknown): string {

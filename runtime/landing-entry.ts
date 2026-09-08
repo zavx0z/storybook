@@ -349,7 +349,7 @@ function navigationItems(items: readonly ExternalStorybookBrowserNavigationItem[
 
 function overviewDescription(kind: string): string {
   if (kind === "project") return "Выберите пакет в главной панели или директорию в предметной панели."
-  if (kind === "directory") return "В этой директории нет README.md. Вложенные директории доступны в предметной панели."
+  if (kind === "directory") return "В этой директории нет README.md."
   return "Owner README для этого узла не объявлен."
 }
 

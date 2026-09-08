@@ -29,7 +29,7 @@ async function fixture() {
   return {root, project}
 }
 
-test("keeps packages in the primary tree and adds directory trees beside authored package contents", async () => {
+test("keeps packages in the primary tree and adds immediate directories beside authored package contents", async () => {
   const {project} = await fixture()
   const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
   const snapshot = await registry.configure([project])
@@ -38,15 +38,16 @@ test("keeps packages in the primary tree and adds directory trees beside authore
   expect(deriveExternalStorybookLanding(graph).catalogItems.map(item => item.label)).toEqual(["Repository", "Unit"])
   const rootId = graph.rootIds[0]!
   const repository = deriveExternalStorybookLandingSelection(graph, rootId)
-  expect(repository.secondaryItems.map(item => item.label)).toEqual(["docs", "guide"])
-  const nested = graph.nodes.find(node => node.kind === "directory" && node.packageId === null && node.label === "guide")!
+  expect(repository.secondaryItems.map(item => item.label)).toEqual(["docs"])
+  expect(graph.nodes.some(node => node.kind === "directory" && node.label === "guide")).toBeFalse()
+  const nested = graph.nodes.find(node => node.kind === "directory" && node.packageId === null && node.label === "docs")!
   expect(deriveExternalStorybookLandingSelection(graph, nested.id)).toMatchObject({catalogActiveId: rootId, secondaryActiveId: nested.id})
   const client = createExternalStorybookClientSnapshot(graph, [{
     packageId: "@fixture/unit", declarationDigest: "fixture", moduleGraphRevision: null,
     candidateRevision: null, activeRevision: null, lastGoodRevision: null, entryRelativePath: null,
     diagnostics: [], dependencyRealpaths: [], subscribers: 0, buildState: "idle", builds: 0,
   }])
-  expect(deriveStorybookBreadcrumbs(client, nested.id, {kind: "landing"}).map(item => item.label)).toEqual(["Главная", "Repository", "docs", "guide"])
+  expect(deriveStorybookBreadcrumbs(client, nested.id, {kind: "landing"}).map(item => item.label)).toEqual(["Главная", "Repository", "docs"])
   const contents = deriveExternalStorybookPackageContents(graph, "@fixture/unit")
   expect(contents.slice(0, 2).map(item => [item.label, item.group?.label ?? null])).toEqual([["Contract", "Authored"], ["Document", null]])
   const packageDoc = graph.nodes.find(node => node.kind === "directory" && node.packageId === "@fixture/unit" && node.label === "docs")!
@@ -55,6 +56,9 @@ test("keeps packages in the primary tree and adds directory trees beside authore
   expect(descriptor.graphSnapshot.nodes.some(node => node.id === nested.id)).toBeFalse()
   expect(descriptor.graphSnapshot.nodes.find(node => node.id === packageDoc.id)?.hasReadme).toBeTrue()
   const previous = descriptor.declarationDigest
+  await mkdir(join(project, "unit/docs/another-nested-directory"))
+  await registry.refresh()
+  expect(registry.packageDescriptors()[0]!.declarationDigest).toBe(previous)
   await mkdir(join(project, "another-repository-directory"))
   await registry.refresh()
   expect(registry.packageDescriptors()[0]!.declarationDigest).toBe(previous)
@@ -71,6 +75,11 @@ test("serves a directory overview and follows gitignore changes through the exis
     const docs = server.registry.snapshot().graph.nodes.find(node => node.kind === "directory" && node.packageId === null && node.label === "docs")!
     const page = await fetch(new URL(docs.urlPath, server.origin))
     expect(page.status).toBe(200)
+    expect((await fetch(new URL("/pkg-fixture-unit/dir-docs/dir-guide", server.origin))).status).toBe(404)
+    const legacyPath = docs.urlPath.replace("dir-docs", "~directories/docs/")
+    const redirected = await fetch(new URL(legacyPath, server.origin), {redirect: "manual"})
+    expect(redirected.status).toBe(308)
+    expect(redirected.headers.get("location")).toBe(docs.urlPath)
     const resource = `/__storybook/resources/nodes/${encodeURIComponent(docs.id)}/`
     expect(await (await fetch(new URL(resource, server.origin))).text()).toBe("# Repository documentation")
     await Bun.write(join(project, ".gitignore"), "dist/\ndocs/\n")

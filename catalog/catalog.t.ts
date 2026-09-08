@@ -135,13 +135,12 @@ export type StorybookPackageCatalog = Readonly<{
   categories: readonly StorybookCategory[]
 }>
 
-/** Ordinary filesystem directory owned by a repository or package, never an executable package. */
+/** Immediate filesystem directory of a repository or package; nested directories are not catalog entries. */
 export type StorybookDirectory = Readonly<{
   path: string
   relativePath: string
   name: string
   readmePath: string | null
-  children: readonly StorybookDirectory[]
 }>
 
 type StorybookCatalogScopeBase = Readonly<{

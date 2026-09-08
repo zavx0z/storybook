@@ -1,3 +1,4 @@
+import {storybookPackagePathSegment, storybookPackageUrlPath} from "@zavx0z/storybook-browser-lifecycle/contract"
 /** Immutable normalized graph and derived route/search views. */
 
 import {createHash} from "node:crypto"
@@ -102,8 +103,12 @@ export function createExternalStorybookGraph(
   const nodes: ExternalStorybookGraphNode[] = []
   const nodeIds = new Set<string>()
   const visitedDeclarations = new Set<string>()
+  const packagePaths = new Map<string, string>()
   const appendNode = (input: NodeInput): ExternalStorybookGraphNode => {
     if (nodeIds.has(input.id)) throw new Error(`Duplicate external Storybook graph identity: ${input.id}`)
+    if (input.packageId !== null && input.kind !== "directory" && input.routePath?.split("/")[0]?.startsWith("dir-")) {
+      throw new Error(`Storybook catalog route uses the reserved directory prefix: ${input.routePath}`)
+    }
     nodeIds.add(input.id)
     const node = Object.freeze({...input, digest: digest(input)})
     nodes.push(node)
@@ -120,6 +125,14 @@ export function createExternalStorybookGraph(
     }
     const declaration = declarationsById.get(canonicalId)
     if (declaration === undefined) throw new Error(`Unknown resolved external Storybook declaration: ${canonicalId}`)
+    if (declaration.kind === "package") {
+      const path = storybookPackagePathSegment(declaration.id)
+      const previous = packagePaths.get(path)
+      if (previous !== undefined && previous !== declaration.id) {
+        throw new Error(`Ambiguous Storybook package URL ${path}: ${previous} and ${declaration.id}`)
+      }
+      packagePaths.set(path, declaration.id)
+    }
     visitedDeclarations.add(canonicalId)
     const structuralPath = Object.freeze([...ancestors, canonicalId])
     const childIds = [...(declaration.kind === "workspace"
@@ -157,10 +170,11 @@ export function createExternalStorybookGraph(
     })
 
     const appendDirectory = (directory: StorybookDirectory, parentId: string, ancestors: readonly string[]): void => {
+      if (directory.relativePath !== directory.name || directory.name.includes("/")) throw new Error("Only immediate directories belong in the Storybook catalog")
       const id = directoryNodeId(canonicalId, directory.relativePath)
       const structuralPath = Object.freeze([...ancestors, id])
       // Encode each filesystem segment into an opaque route token, including names with ? or #.
-      const routePath = `~directories/${directory.relativePath.split("/").map(encodeURIComponent).join("/")}`
+      const routePath = `dir-${encodeURIComponent(directory.name)}`
       appendNode({
         id, kind: "directory", ownerId: declaration.id,
         packageId: declaration.kind === "package" ? declaration.id : null,
@@ -168,8 +182,8 @@ export function createExternalStorybookGraph(
         routePath: declaration.kind === "package" ? routePath : null,
         urlPath: declaration.kind === "package"
           ? packageRouteUrl(declaration.id, routePath, true)
-          : `${declarationUrl(declaration)}${routePath}/`,
-        childIds: Object.freeze(directory.children.map(child => directoryNodeId(canonicalId, child.relativePath))),
+          : `${declarationUrl(declaration)}${directory.relativePath.split("/").map(segment => `dir-${encodeURIComponent(segment)}`).join("/")}`,
+        childIds: Object.freeze([]),
         readmePath: directory.readmePath,
         source: Object.freeze({path: directory.path, pointer: ""}),
         searchTerms: searchTerms(directory.name, directory.relativePath),
@@ -177,7 +191,6 @@ export function createExternalStorybookGraph(
         presentation: null, presentationGroup: null, subjectKind: null, apiName: null,
         packageJsonPath: null, runtime: null, module: null,
       })
-      for (const child of directory.children) appendDirectory(child, id, structuralPath)
     }
     for (const directory of declaration.directories ?? []) appendDirectory(directory, canonicalId, structuralPath)
 
@@ -440,18 +453,15 @@ function declarationUrl(declaration: StorybookCatalogScope): string {
   const encoded = encodeURIComponent(declaration.id)
   if (declaration.kind === "workspace") return `/workspaces/${encoded}/`
   if (declaration.kind === "project") return `/projects/${encoded}/`
-  return `/packages/${encoded}/`
+  return storybookPackageUrlPath(declaration.id)
 }
 
 function directoryNodeId(scopeId: string, path: string): string {
   return `directory:${scopeId}/${path}`
 }
 
-function packageRouteUrl(packageId: string, route: string, overview: boolean): string {
-  const packageBase = `/packages/${encodeURIComponent(packageId)}`
-  if (route.length === 0) return `${packageBase}/`
-  const encodedRoute = route.split("/").map((segment) => encodeURIComponent(segment)).join("/")
-  return `${packageBase}/${encodedRoute}${overview ? "/" : ""}`
+function packageRouteUrl(packageId: string, route: string, _overview: boolean): string {
+  return storybookPackageUrlPath(packageId, route)
 }
 
 function validateDerivedRoutes(graph: ExternalStorybookGraph): void {
@@ -492,7 +502,7 @@ function digest(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex")
 }
 
-/** Catalog selection has its own URL; package workspaces keep their isolated page URL. */
+/** Catalog selection and package content use the canonical page URL. */
 export function externalStorybookBrowsePath(node: Readonly<{kind: string; packageId: string | null; urlPath: string}>): string {
-  return node.kind === "package" ? `/browse/${encodeURIComponent(node.packageId!)}/` : node.urlPath
+  return node.urlPath
 }

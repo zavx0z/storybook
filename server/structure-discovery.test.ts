@@ -98,7 +98,7 @@ test("watches structural additions and optional manifests and serves a manifest-
     await waitFor(() => server.registry.snapshot().catalog.scopes.some(scope => scope.id === "@fixture/c" && scope.source.path === manifest))
     await rm(manifest)
     await waitFor(() => server.registry.snapshot().catalog.scopes.some(scope => scope.id === "@fixture/c" && scope.source.path.endsWith("/package.json")))
-    const page = await fetch(new URL("/packages/%40fixture%2Fa/", server.origin))
+    const page = await fetch(new URL("/pkg-fixture-a/", server.origin))
     expect(page.status).toBe(200)
     expect(await page.text()).toContain("external-storybook-canvas")
     expect(server.sessions.session("@fixture/a").snapshot().diagnostics).toEqual([])

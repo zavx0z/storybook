@@ -37,12 +37,13 @@
   Every selected root is a repository tree root; a root package remains a child
   package, with its workspace packages discovered by the same rule. Navigation
   ancestry never becomes executable ownership or a build dependency.
-  Ordinary directories appear in the secondary tree beside authored catalog
+  Only immediate directories appear in the secondary panel beside authored catalog
   sections, with filesystem names and optional README overviews. Exclude src,
   .git, node_modules, .storybook, tests and test at every depth, plus Git-ignored
   paths using native Git ignore semantics.
   Do not infer a build-output exclusion from a directory name. Directory
-  discovery stops at package.json boundaries; it never changes package composition.
+  discovery never descends into these directories and stops at package.json
+  boundaries; it never changes package composition.
   The one global `$storybook` process owns registry,
   canonical graph, Workbench, PackageSessions, revisions, diagnostics and
   browser mechanics for exact production package identities.
@@ -102,6 +103,11 @@
   inspect the candidate with `storybook_open`/`storybook_inspect`, then explicitly
   apply with `storybook_check(live:true)` and wait for active. Build alone never
   updates user views. Failed checks preserve the applied revision.
+- Public package URLs use /pkg-scope-name for @scope/name; immediate directories
+  use one /dir-name segment. Never display nested directories or generate multiple
+  dir-name segments. Exact production
+  package identities stay unchanged; reject slug collisions instead of guessing
+  a package identity. Retain old applied URLs until a verified revision migrates them.
 - User navigation stays in the current tab. Agent open reuses a view currently
   showing its package or creates a background view; never retarget a view the
   user moved to another package. Multiple views per package are valid and all

@@ -2,7 +2,7 @@ import {lstat, readdir, realpath} from "node:fs/promises"
 import {dirname, join, relative} from "node:path"
 import type {StorybookDirectory} from "../catalog/catalog.t.ts"
 
-/** Reads ordinary directories without crossing package boundaries or following symlinks. */
+/** Reads only immediate ordinary directories; never traverses their descendants. */
 export async function discoverStorybookDirectories(
   root: string,
   packageRoots: ReadonlySet<string>,
@@ -47,7 +47,10 @@ export async function discoverStorybookDirectories(
         return null
       })
       if (packageInfo !== null) continue
+      watchPaths.add(path)
+      watchPaths.add(join(path, ".gitignore"))
       const readme = join(path, "README.md")
+      watchPaths.add(readme)
       const info = await lstat(readme).catch(error => {
         if (error.code !== "ENOENT") throw error
         return null
@@ -58,7 +61,6 @@ export async function discoverStorybookDirectories(
         relativePath: relative(root, path),
         name: entry.name,
         readmePath: info?.isFile() && !info.isSymbolicLink() && !hiddenReadme ? readme : null,
-        children: await visit(path),
       }))
     }
     return Object.freeze(result)

@@ -1,3 +1,4 @@
+import {storybookPackagePathMatches, storybookPackageRouteFromPathname, storybookCurrentRouteKey} from "@zavx0z/storybook-browser-lifecycle/contract"
 import {externalStorybookBrowsePath} from "../catalog/graph.ts"
 import {StorybookDirectorySelection} from "./directory-selection.ts"
 import {readStorybookProjectSelection, storybookProjectSelectionPath, writeStorybookProjectSelection} from "./project-store.ts"
@@ -267,7 +268,7 @@ export async function startExternalStorybookServer(
     const resolvedRoute = resolveExternalStorybookRoute(
       graph,
       input.packageId,
-      input.route,
+      storybookCurrentRouteKey(input.route),
     )
     const packageNode = graph.nodes.find((node) =>
       node.kind === "package" && node.packageId === input.packageId)
@@ -275,12 +276,14 @@ export async function startExternalStorybookServer(
     sessions.retryFailed(input.packageId)
     const packageState = await sessions.ensure(input.packageId)
     const expectedRevision = packageState.builtRevision ?? packageState.activeRevision ?? undefined
-    const previewUrl = new URL(resolvedRoute.urlPath, server.url)
+    const selectedRoute = expectedRevision === undefined ? resolvedRoute :
+      sessions.session(input.packageId).revisionGraphSnapshot(expectedRevision)?.routes.find(route => route.nodeId === resolvedRoute.nodeId) ?? resolvedRoute
+    const previewUrl = new URL(selectedRoute.urlPath, server.url)
     if (packageState.builtRevision != null) previewUrl.searchParams.set("preview", packageState.builtRevision)
     const openInput = {
       origin: server.url.origin,
       packageId: input.packageId,
-      route: input.route,
+      route: selectedRoute.path,
       url: previewUrl.href,
       packageLabel: externalStorybookPageTitle(packageNode.packageId, packageNode.label),
       ...(input.timeoutMs === undefined ? {} : {timeoutMs: input.timeoutMs}),
@@ -295,7 +298,7 @@ export async function startExternalStorybookServer(
       opened = await browserLifecycle.openPackage({
         origin: server.url.origin,
         packageId: input.packageId,
-        route: input.route,
+        route: selectedRoute.path,
         url: previewUrl.href,
         packageLabel: externalStorybookPageTitle(packageNode.packageId, packageNode.label),
         ...(input.timeoutMs === undefined ? {} : {timeoutMs: input.timeoutMs}),
@@ -583,7 +586,8 @@ export async function startExternalStorybookServer(
                 const existing = (await browserLifecycle.listViews(server.url.origin, request.signal, packages))
                   .find(view => view.packageId === packageId)
                 const routes = session.revisionGraphSnapshot(revision!)?.routes ?? []
-                const route = routes.some(route => route.path === existing?.route) ? existing!.route : ""
+                const currentRoute = storybookCurrentRouteKey(existing?.route ?? "")
+                const route = routes.some(route => route.path === currentRoute) ? currentRoute : ""
                 const opened = await openPackageView({packageId, route}, request.signal)
                 const inspected = await browserLifecycle.inspect(String(opened.viewId), {include: ["state", "diagnostics", "console"]}, request.signal)
                 if (opened.ok !== true || inspected.packageId !== packageId || inspected.route !== route || inspected.revision !== revision ||
@@ -702,13 +706,24 @@ export async function startExternalStorybookServer(
         if (url.pathname === "/schemas/manifest.schema.json" || url.pathname === "/schemas/catalog.schema.json") {
           return fileResponse(join(toolRoot, url.pathname), "application/schema+json; charset=utf-8")
         }
-        if (url.pathname.startsWith("/packages/") && request.method === "GET") {
+        if (request.method === "GET" && (url.pathname.startsWith("/packages/") || registry.snapshot().graph.nodes.some(node =>
+          node.kind === "package" && storybookPackageRouteFromPathname(url.pathname, node.packageId!) !== null))) {
           return packagePageResponse(url, registry, sessions, ensureSharedAssets, browserSessions, server.url.origin)
         }
         if (request.method === "GET" && url.pathname.startsWith("/browse/")) {
-          const packageId = decodeURIComponent(url.pathname.slice("/browse/".length).replace(/\/$/u, ""))
-          if (!registry.snapshot().graph.nodes.some(node => node.kind === "package" && node.packageId === packageId)) throw new Error("Unknown package")
-          return new Response(null, {status: 308, headers: {location: `/packages/${encodeURIComponent(packageId)}/`}})
+          const segment = url.pathname.slice("/browse/".length).replace(/\/$/u, "")
+          const matches = registry.snapshot().graph.nodes.filter(node => node.kind === "package" && storybookPackagePathMatches(segment, node.packageId!))
+          if (matches.length !== 1) throw new Error("Unknown or ambiguous package")
+          return new Response(null, {status: 308, headers: {location: matches[0]!.urlPath}})
+        }
+        if (request.method === "GET" && (url.pathname.startsWith("/projects/") || url.pathname.startsWith("/workspaces/"))) {
+          const graph = registry.snapshot().graph
+          const directory = graph.nodes.find(node => {
+            if (node.kind !== "directory" || node.packageId !== null) return false
+            const parent = graph.nodes.find(parent => parent.id === node.parentId)
+            return parent !== undefined && url.pathname === `${parent.urlPath}~directories/${encodeURIComponent(node.label)}/`
+          })
+          if (directory !== undefined) return new Response(null, {status: 308, headers: {location: `${directory.urlPath}${url.search}`}})
         }
         if (request.method === "GET" && isLandingPath(registry.snapshot(), url.pathname)) {
           await mutateRegistry(() => registry.refresh())
@@ -990,7 +1005,7 @@ async function packagePageResponse(
   browserSessions: StorybookBrowserSessionRegistry,
   origin: string,
 ): Promise<Response> {
-  const route = parsePackageRequest(url.pathname)
+  const route = parsePackageRequest(url.pathname, registry.snapshot().graph.nodes.filter(node => node.kind === "package").map(node => node.packageId!))
   const packageNode = registry.snapshot().graph.nodes.find((node) =>
     node.kind === "package" && node.packageId === route.packageId)
   if (packageNode === undefined) {
@@ -1003,7 +1018,11 @@ async function packagePageResponse(
   const preview = url.searchParams.get("preview")
   if ([...url.searchParams.keys()].some(key => key !== "preview") || (preview !== null && !/^[A-Za-z0-9_-]{1,256}$/u.test(preview))) throw new Error("Invalid package preview URL")
   const revision = preview ?? snapshot.activeRevision ?? snapshot.lastWorkingRevision ?? null
+  const currentNode = registry.snapshot().graph.nodes.find(node =>
+    node.packageId === route.packageId && node.routePath === storybookCurrentRouteKey(route.routePath))
   if (revision === null) {
+    if (currentNode === undefined) throw new Error(`Unknown Storybook route: ${route.packageId}:${route.routePath}`)
+    if (currentNode.urlPath !== url.pathname) return new Response(null, {status: 308, headers: {location: `${currentNode.urlPath}${url.search}`}})
     const assets = await ensureSharedAssets()
     const browserSession = browserSessions.issue({
       kind: "package",
@@ -1019,6 +1038,8 @@ async function packagePageResponse(
         browserSession.token,
         null,
         authorStyleSheets,
+        null,
+        route.packageId,
       ),
       origin,
     )
@@ -1028,11 +1049,12 @@ async function packagePageResponse(
   }
   const graphSnapshot = session.revisionGraphSnapshot(revision)
   if (graphSnapshot === null) throw new Error(`Storybook revision graph is missing: ${route.packageId}:${revision}`)
-  let resolvedRoute = graphSnapshot.routes.find(({path}) => path === route.routePath)
+  let resolvedRoute = graphSnapshot.routes.find(candidate => candidate.nodeId === currentNode?.id) ??
+    graphSnapshot.routes.find(({path}) => path === route.routePath)
   if (resolvedRoute === undefined && preview === null) resolvedRoute = graphSnapshot.routes.find(({path}) => path === "")
   if (resolvedRoute === undefined) throw new Error(`Unknown Storybook revision route: ${route.packageId}:${route.routePath}`)
   if (resolvedRoute.urlPath !== url.pathname) {
-    return new Response(null, {status: 308, headers: {location: resolvedRoute.urlPath}})
+    return new Response(null, {status: 308, headers: {location: `${resolvedRoute.urlPath}${url.search}`}})
   }
   const directory = session.revisionDirectory(revision)
   if (directory === null) throw new Error(`Active Storybook revision is missing: ${route.packageId}`)
@@ -1068,6 +1090,7 @@ async function packagePageResponse(
         href: `${revisionUrl}${styleSheet.url}`,
       })),
       snapshot.activeRevision ?? null,
+      route.packageId,
     ),
     origin,
   )
@@ -1100,31 +1123,13 @@ export function externalStorybookStructuralWatchPaths(
   ])])].filter(path => existsSync(dirname(path))).sort())
 }
 
-function parsePackageRequest(pathname: string): Readonly<{packageId: string, routePath: string}> {
-  const suffix = pathname.slice("/packages/".length)
-  const slash = suffix.indexOf("/")
-  if (slash < 0) throw new Error(`Malformed Storybook package route: ${pathname}`)
-  const encodedPackage = suffix.slice(0, slash)
-  let packageId: string
-  try {
-    packageId = decodeURIComponent(encodedPackage)
-  } catch {
-    throw new Error(`Malformed Storybook package identity: ${encodedPackage}`)
-  }
-  if (encodeURIComponent(packageId) !== encodedPackage) {
-    throw new Error(`Non-canonical Storybook package identity: ${encodedPackage}`)
-  }
-  const encodedRoute = suffix.slice(slash + 1).replace(/\/$/u, "")
-  const routePath = encodedRoute.length === 0
-    ? ""
-    : encodedRoute.split("/").map((segment) => {
-      const decoded = decodeURIComponent(segment)
-      if (encodeURIComponent(decoded) !== segment || decoded === "." || decoded === "..") {
-        throw new Error(`Non-canonical Storybook route segment: ${segment}`)
-      }
-      return decoded
-    }).join("/")
-  return Object.freeze({packageId, routePath})
+function parsePackageRequest(pathname: string, packageIds: readonly string[]): Readonly<{packageId: string, routePath: string}> {
+  const matches = packageIds.flatMap(packageId => {
+    const routePath = storybookPackageRouteFromPathname(pathname, packageId)
+    return routePath === null ? [] : [{packageId, routePath}]
+  })
+  if (matches.length !== 1) throw new Error(`Unknown or ambiguous Storybook package route: ${pathname}`)
+  return Object.freeze(matches[0]!)
 }
 
 function resourceResponse(snapshot: ExternalStorybookRegistrySnapshot, url: URL): Response {
@@ -1507,6 +1512,7 @@ function storybookHtml(
   fallbackRevision: string | null = null,
   authorStyleSheets: readonly StorybookHtmlAuthorStyleSheet[] = Object.freeze([]),
   appliedRevision: string | null = null,
+  packageId: string | null = null,
 ): string {
   const styleSheetLinks = authorStyleSheets.map((styleSheet, index) => [
     `    <link id="external-storybook-author-style-sheet-${index}" rel="stylesheet"`,
@@ -1522,6 +1528,7 @@ function storybookHtml(
     <link rel="icon" href="data:,">
     <meta name="engine-default-font" content="/assets/inter-regular.ttf">
     <meta name="external-storybook-browser-session" content="${escapeHtml(browserSessionToken)}">
+    <meta name="external-storybook-package-id" content="${escapeHtml(packageId ?? "")}">
     <meta name="external-storybook-applied-revision" content="${escapeHtml(appliedRevision ?? "")}">
     ${fallbackRevision === null ? "" : `<meta name="external-storybook-fallback-revision" content="${escapeHtml(fallbackRevision)}">`}
 ${styleSheetLinks.length === 0 ? "" : `${styleSheetLinks}\n`}

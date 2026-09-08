@@ -80,9 +80,25 @@ describe("external Storybook normalized graph", () => {
       "subject:@fixture/components/foundation/event-target",
     )
     expect(subject.childIds).toEqual([])
-    expect(subject.urlPath).toEndWith("/foundation/event-target/")
+    expect(subject.urlPath).toEndWith("/foundation/event-target")
     expect(() => externalStorybookNode(graph, "variant:missing"))
       .toThrow("Unknown external Storybook graph identity")
+  })
+
+  test("rejects different package identities that normalize to the same public URL", async () => {
+    const catalog = await fixtureDeclarations()
+    const collidingId = "package:fixture-components"
+    const scopes = catalog.scopes.map(scope => {
+      if (scope.kind === "package" && scope.id === "@fixture/docs") {
+        return {...scope, id: "fixture-components", canonicalId: collidingId, packageName: "fixture-components"}
+      }
+      if (scope.kind === "project") {
+        return {...scope, packageIds: scope.packageIds.map(id => id === "package:@fixture/docs" ? collidingId : id)}
+      }
+      return scope
+    })
+    expect(() => createExternalStorybookGraph({...catalog, scopes}))
+      .toThrow("Ambiguous Storybook package URL fixture-components")
   })
 
   test("keeps presentation groups as descriptors instead of semantic nodes", async () => {
