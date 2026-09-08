@@ -1,4 +1,4 @@
-import {requestPackageView} from "./package-navigation.ts"
+import {navigatePackage} from "./package-navigation.ts"
 import {externalStorybookBrowsePath} from "../catalog/graph.ts"
 import {attachPickedDirectory, pickStorybookDirectory} from "./directory-picker.ts"
 /** Global external Storybook landing entry. It never imports package runtime code. */
@@ -20,7 +20,6 @@ import {
   type ExternalStorybookShell,
 } from "./shell.ts"
 import type {ExternalStorybookClientSnapshot} from "./client-protocol.ts"
-import type {StorybookOverviewAction} from "./components/overview-action.ts"
 import {externalStorybookPageTitle} from "./page-title.ts"
 import {deriveStorybookBreadcrumbs, STORYBOOK_ROOT_BREADCRUMB} from "./breadcrumbs.ts"
 
@@ -28,7 +27,6 @@ export type StartExternalStorybookLandingOptions = Readonly<{
   fetcher?: typeof fetch
   browserDocument?: globalThis.Document
   pickDirectory?(): Promise<FileSystemDirectoryHandle>
-  openPackage?(input: Readonly<{packageId: string; route: string}>): Promise<void>
   createSocket?(url: string): LandingSocket
   location?: Pick<Location, "href" | "pathname" | "reload">
   history?: Pick<History, "pushState">
@@ -60,7 +58,6 @@ export async function startExternalStorybookLanding(
     authorStyleSheetSources: options.shell?.authorStyleSheetSources ??
       indexedLandingAuthorStyleSheetSources(browserDocument),
   })
-  const openPackage = options.openPackage ?? ((input) => requestPackageView(fetcher, browserDocument, input))
   const location = options.location ?? globalThis.location
   const history = options.history ?? globalThis.history
   let selectionRevision = 0
@@ -107,6 +104,12 @@ export async function startExternalStorybookLanding(
     assertActive(disposed)
     selectedNodeId = nodeId
     const revision = ++selectionRevision
+    const target = externalStorybookClientNode(snapshot, nodeId)
+    if (target.kind === "package") {
+      if (location === undefined) throw new Error("Storybook navigation requires a browser location")
+      navigatePackage(location, {packageId: target.packageId!, route: ""})
+      return
+    }
     const selection = deriveExternalStorybookLandingSelection(graph, nodeId)
     shell.document.transaction(() => {
       shell.workbench.update("catalog.active", selection.catalogActiveId)
@@ -131,25 +134,14 @@ export async function startExternalStorybookLanding(
     try {
       const readme = await readExternalStorybookNodeReadme(clientNode, fetcher)
       if (disposed || revision !== selectionRevision) return
-      const action = clientNode.kind === "package"
-        ? packageOpenAction(clientNode, (input) => {
-          void openPackage(input).then(() => {
-            shell.clearDiagnostics()
-          }).catch((error) => {
-            shell.reportDiagnostic(errorText(error))
-            shell.updateStatus(`${input.packageId} · open failed`)
-          })
-        })
-        : undefined
       if (readme === null) {
         shell.showMessage(
           `${clientNode.label} · Обзор`,
           clientNode.label,
           overviewDescription(clientNode.kind),
-          action,
         )
       } else {
-        shell.showMarkdown(`${clientNode.label} · README`, readme, clientNode.resourceUrl, action)
+        shell.showMarkdown(`${clientNode.label} · README`, readme, clientNode.resourceUrl)
       }
       shell.clearDiagnostics()
     } catch (error) {
@@ -213,7 +205,7 @@ export async function startExternalStorybookLanding(
     }
     const node = externalStorybookClientNode(snapshot, detail.id)
     if (node.kind === "category" || node.kind === "subject" || node.kind === "variant") {
-      void openPackage({packageId: node.packageId!, route: node.routePath!}).catch(error => shell.reportDiagnostic(errorText(error)))
+      if (location !== undefined) navigatePackage(location, {packageId: node.packageId!, route: node.routePath!})
       return
     }
     const navigation = detail.kind === "breadcrumb" && node.kind === "workspace"
@@ -361,24 +353,6 @@ function overviewDescription(kind: string): string {
   return "Owner README для этого узла не объявлен."
 }
 
-function packageOpenAction(
-  node: Readonly<{
-    id: string
-    label: string
-    packageId: string | null
-  }>,
-  openPackage: (input: Readonly<{packageId: string; route: string}>) => void,
-): StorybookOverviewAction {
-  const packageId = node.packageId
-  if (packageId === null) throw new Error(`Landing package has no package identity: ${node.id}`)
-  return Object.freeze({
-    label: `Открыть ${node.label}`,
-    title: `Открыть пакет ${packageId} в отдельной вкладке`,
-    activate() {
-      openPackage(Object.freeze({packageId, route: ""}))
-    },
-  })
-}
 
 async function requestRegistryChange(
   fetcher: typeof fetch,

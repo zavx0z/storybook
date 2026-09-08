@@ -45,6 +45,7 @@ export type StorybookBridgeIdentity = Readonly<{
   ready: boolean
   presented: boolean
   timeOrigin: number
+  frameSequence?: number
 }>
 
 export type StorybookBridgeClip = Readonly<{
@@ -89,7 +90,6 @@ export interface StorybookChromeClient {
   browserIdentity(signal?: AbortSignal): Promise<string>
   targets(signal?: AbortSignal): Promise<readonly ChromeTargetSummary[]>
   createTarget(url: string, signal?: AbortSignal): Promise<ChromeTargetSummary>
-  activateTarget(targetId: string, signal?: AbortSignal): Promise<void>
   closeTarget(targetId: string, signal?: AbortSignal): Promise<void>
   navigate(targetId: string, url: string, signal?: AbortSignal): Promise<void>
   waitReady(targetId: string, timeoutMs: number, signal?: AbortSignal): Promise<void>

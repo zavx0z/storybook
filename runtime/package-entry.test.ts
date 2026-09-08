@@ -95,6 +95,60 @@ describe("external Storybook package frontend", () => {
     }
   })
 
+  test("reconnects a package reader and follows a publication missed while disconnected", async () => {
+    const graph = await fixtureGraph()
+    const candidate = "preview-candidate"
+    const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, candidate))
+    const sockets: FakeSocket[] = []
+    let renewed = 0
+    const environment = {
+      ...environmentFixture(snapshot, "/packages/%40fixture%2Fcomponents/"),
+      browserDocument: {
+        documentElement: {dataset: {}},
+        querySelector: (selector: string) => selector.includes("applied-revision") ? {content: "older-applied"} : null,
+      } as unknown as globalThis.Document,
+      createSocket() {
+        const socket = new FakeSocket()
+        sockets.push(socket)
+        return socket
+      },
+      fetcher: (async (input: RequestInfo | URL) => {
+        if (String(input) === "/api/browser/session") {
+          renewed += 1
+          return Response.json({token: "a".repeat(43)})
+        }
+        if (String(input) === "/api/client") return Response.json(snapshot)
+        return new Response("# Package")
+      }) as typeof fetch,
+    }
+    const location = environment.location as LocationFixture
+    location.href += `?preview=${candidate}`
+    const controller = await startExternalStorybookPackage({
+      packageId: "@fixture/components", candidateRevision: candidate,
+      revisionUrl: `/__storybook/revisions/%40fixture%2Fcomponents/${candidate}/`,
+      loadRuntime: null, storyLoaders: new Map(), environment,
+    })
+    try {
+      sockets[0]!.emit("open", {})
+      sockets[0]!.emit("message", {data: JSON.stringify({type: "package.applied-state", packageId: "@fixture/components", revision: "older-applied"})})
+      expect(location.reloads).toBe(0)
+      sockets[0]!.emit("close", {})
+      const deadline = Date.now() + 3_000
+      while (sockets.length < 2 && Date.now() < deadline) await Bun.sleep(20)
+      expect(renewed).toBe(1)
+      expect(sockets).toHaveLength(2)
+      sockets[1]!.emit("open", {})
+      sockets[1]!.emit("message", {data: JSON.stringify({type: "package.applied-state", packageId: "@fixture/components", revision: "new-applied"})})
+      expect(location.reloads).toBe(1)
+      expect(location.href).not.toContain("preview=")
+    } finally {
+      await controller.dispose()
+    }
+    sockets.at(-1)!.emit("close", {})
+    await Bun.sleep(300)
+    expect(renewed).toBe(1)
+  })
+
   test("keeps a mixed Display/HUD category as an overview without remapping its children", async () => {
     const graph = await fixtureGraph()
     const base = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-mixed"))
@@ -150,7 +204,7 @@ describe("external Storybook package frontend", () => {
     }
   })
 
-  test("binds only exact revision-declared native author links before activation", async () => {
+  test("binds only exact revision-declared native author links before readiness", async () => {
     const graph = await fixtureGraph()
     const revision = "revision-theme"
     const revisionUrl = `/__storybook/revisions/%40fixture%2Fcomponents/${revision}/`
@@ -179,7 +233,6 @@ describe("external Storybook package frontend", () => {
     }))
     browserDocument.getElementById = (id) => links.get(id) ?? null
     const lifecycle: string[] = []
-    const acknowledged: boolean[] = []
     const experienceState = createFakeRootState(lifecycle)
     const location = locationFixture("/packages/%40fixture%2Fcomponents/")
     const controller = await startExternalStorybookPackage({
@@ -198,10 +251,6 @@ describe("external Storybook package frontend", () => {
           ? Response.json(createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, revision)))
           : new Response("# UI Components")) as unknown as typeof fetch,
         createSocket: () => new FakeSocket(),
-        async acknowledgeActivation({working}) {
-          lifecycle.push("activation")
-          acknowledged.push(working)
-        },
         shell: {
           canvas: {} as HTMLCanvasElement,
           loadFont: async () => ({}) as never,
@@ -210,12 +259,12 @@ describe("external Storybook package frontend", () => {
       },
     })
 
-    expect(acknowledged).toEqual([true])
+    expect(browserDocument.documentElement.dataset.externalStorybookPhase).toBe("ready")
     expect(experienceState.stylesheets.map(({id}) => id)).toEqual(
       revisionGraph.authorStyleSheets.map(({specifier}) => specifier),
     )
     expect(experienceState.stylesheets.map(({link}) => link)).toEqual([...links.values()])
-    expect(lifecycle.slice(0, 2)).toEqual(["root-create", "activation"])
+    expect(lifecycle[0]).toBe("root-create")
     expect(controller.shell.workbench.controller.read("status").breadcrumbs?.map(({label}) => label)).toEqual([
       "Главная",
       "Fixture Workspace",
@@ -446,6 +495,8 @@ describe("external Storybook package frontend", () => {
     socket.emit("open", {})
     expect(socket.sent).toEqual([JSON.stringify({type: "subscribe", topic: "package:@fixture/components"}), JSON.stringify({type: "subscribe", topic: "catalog"})])
     const pathnameBeforeUpdate = browserLocation.pathname
+    socket.emit("message", {data: JSON.stringify({type: "package.built", packageId: "@fixture/components", revision: "not-applied"})})
+    expect(browserLocation.reloads).toBe(0)
     socket.emit("message", {data: JSON.stringify({
       type: "package.updated",
       packageId: "@fixture/other",
@@ -583,7 +634,7 @@ describe("external Storybook package frontend", () => {
     })).rejects.toThrow("revision is not active or last-good")
   })
 
-  test("acknowledges a required author link that failed before module entry as non-working", async () => {
+  test("reports a required author link failure before module entry", async () => {
     const graph = await fixtureGraph()
     const candidate = "revision-author-failure"
     const revisionUrl = `/__storybook/revisions/%40fixture%2Fcomponents/${candidate}/`
@@ -615,15 +666,6 @@ describe("external Storybook package frontend", () => {
       } as unknown as HTMLLinkElement] as const
     }))
     browserDocument.getElementById = (id) => links.get(id) ?? null
-    const acknowledgements: Array<Readonly<{
-      packageId: string
-      revision: string
-      packageGraphDigest: string
-      route: string
-      working: boolean
-      frameSequence: number
-      diagnostic?: string
-    }>> = []
     await expect(startExternalStorybookPackage({
       packageId: "@fixture/components",
       candidateRevision: candidate,
@@ -635,18 +677,10 @@ describe("external Storybook package frontend", () => {
       environment: {
         ...environment,
         browserDocument,
-        acknowledgeActivation: async (value) => { acknowledgements.push(value) },
       },
     })).rejects.toThrow("failed before package entry")
-    expect(acknowledgements).toEqual([{
-      packageId: "@fixture/components",
-      revision: candidate,
-      packageGraphDigest: revisionGraph.packageGraphDigest,
-      route: "",
-      frameSequence: 0,
-      working: false,
-      diagnostic: "Required Storybook author stylesheet failed before package entry: @fixture/components/tokens.css",
-    }])
+    expect(browserDocument.documentElement.dataset.externalStorybookError)
+      .toContain("Required Storybook author stylesheet failed before package entry")
   })
 
   test("unmounts a partially mounted root when runtime/4 atomic source provenance fails", async () => {
@@ -755,7 +789,7 @@ describe("external Storybook package frontend", () => {
     }
   })
 
-  test("reports create, session, mount and first-frame failures without acknowledging working", async () => {
+  test("reports create, session, mount and first-frame failures as non-working", async () => {
     const graph = await fixtureGraph()
     const candidate = "revision-a"
     const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, candidate))
@@ -764,13 +798,11 @@ describe("external Storybook package frontend", () => {
         snapshot,
         "/packages/%40fixture%2Fcomponents/components/button/basic/contained",
       )
-      const acknowledgements: Array<Readonly<{working: boolean; diagnostic?: string}>> = []
       let invalidDispose = 0
       const experienceState = createFakeRootState()
       if (failure === "frame") experienceState.failRenderAt = 2
       const environment: ExternalStorybookPackageEnvironment = {
         ...baseEnvironment,
-        acknowledgeActivation: async (value) => { acknowledgements.push(value) },
         shell: {
           ...(baseEnvironment.shell ?? {}),
           attach: fakeRootFactory(experienceState),
@@ -807,16 +839,14 @@ describe("external Storybook package frontend", () => {
         storyLoaders: new Map([["components/button/basic/contained", async () => ({label: "Contained"})]]),
         environment,
       })
-      expect(acknowledgements).toHaveLength(1)
-      expect(acknowledgements[0]?.working, failure).toBeFalse()
-      expect(acknowledgements[0]?.diagnostic?.length, failure).toBeGreaterThan(0)
+      expect((environment.browserDocument as any).documentElement.dataset.externalStorybookError.length, failure).toBeGreaterThan(0)
       expect((environment.browserDocument as any).documentElement.dataset.externalStorybookPackage).toBe("error")
       await controller.dispose()
       if (failure === "session") expect(invalidDispose).toBe(1)
     }
   })
 
-  test("reloads the previous working revision after acknowledged candidate runtime failure", async () => {
+  test("keeps a failed candidate visible for agent inspection without publishing from the browser", async () => {
     const graph = await fixtureGraph()
     const candidate = "revision-a"
     const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, candidate))
@@ -829,12 +859,14 @@ describe("external Storybook package frontend", () => {
     }
     browserDocument.querySelector = (selector) => {
       if (selector.includes("browser-session")) return {content: "a".repeat(43)}
-      if (selector.includes("activation-id")) return {content: "activation-id"}
       if (selector.includes("fallback-revision")) return {content: "revision-working"}
       return null
     }
-    const fetcher = (async (_input: URL | RequestInfo, init?: RequestInit) =>
-      init?.method === "POST" ? Response.json({ok: false}) : Response.json(snapshot)) as typeof fetch
+    const posts: string[] = []
+    const fetcher = (async (input: URL | RequestInfo, init?: RequestInit) => {
+      if (init?.method === "POST") posts.push(String(input))
+      return Response.json(snapshot)
+    }) as typeof fetch
     const controller = await startExternalStorybookPackage({
       packageId: "@fixture/components",
       candidateRevision: candidate,
@@ -848,7 +880,8 @@ describe("external Storybook package frontend", () => {
       storyLoaders: new Map([["components/button/basic/contained", async () => ({})]]),
       environment: {...environment, fetcher},
     })
-    expect((environment.location as LocationFixture).reloads).toBe(1)
+    expect((environment.location as LocationFixture).reloads).toBe(0)
+    expect(posts).toEqual([])
     await controller.dispose()
   })
 

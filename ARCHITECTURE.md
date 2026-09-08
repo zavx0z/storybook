@@ -142,32 +142,22 @@ migration journal; journal переживает abort/crash и удаляетс�
 живой controller атомарно commit-ит его в `server.json`; superseded child не
 может публиковать canonical state.
 
-Global landing и все package tabs обслуживаются одним origin. Landing не
-импортирует package runtime/production code. URL package tab содержит exact
-package identity. Landing, CLI и MCP вызывают один typed `openPackage`; direct
-`window.open`, named-tab fallback и frontend-owned package open отсутствуют.
+Global landing и все package tabs обслуживаются одним origin. Пользователь
+выбирает пакет в текущей вкладке по `/packages/<package-id>/<route>`;
+`/browse/<package-id>/` перенаправляет туда. Landing не импортирует чужой runtime.
+Межпакетный переход загружает другую страницу в том же browser tab, а routes
+внутри пакета используют существующий Root.
 
-`@zavx0z/storybook-browser-lifecycle` сериализует operation между всеми
-adapters и хранит для exact `packageId` один tagged state:
+`@zavx0z/storybook-browser-lifecycle` владеет агентским `openPackage`. Package lock
+и reservation сериализуют создание рабочей вкладки. Повторный open предпочитает
+её, затем другую подтверждённую вкладку нужного пакета; если таких нет, создаёт
+фоновую. Переход пользователя на другой пакет лишает прежний viewId права
+управления и не навигируется назад агентом.
 
-```text
-absent → reserved(operationId) → owned(targetId)
-               │                       │
-               └──── retry/recover ────┘
-```
-
-Reservation возникает атомарно до `Target.createTarget`; поэтому concurrent
-call присоединяется к operation, а route или смена server instance/origin лишь
-навигирует тот же owned target. Timeout, abort и crash не превращают pending
-operation в разрешение создать второй target. Duplicate logical state не
-существует и не публикуется.
-
-Несколько attested physical targets допускаются только как вход legacy/crash
-recovery. Под package lock lifecycle выбирает retained target, повторно
-аттестует obsolete candidates непосредственно перед close и нормализует browser
-до публикации view/status. Неподтверждённые, foreign и navigated-away user
-targets не изменяются; невозможность safe recovery завершает operation fail
-closed, а не скрывает duplicate фильтрацией current origin.
+Несколько вкладок одного пакета допустимы и сохраняются. `status`/`views` только
+перечисляют их. ViewId содержит identity target и package; bridge повторно
+проверяет expectedPackageId перед операцией. Автоматического закрытия peers,
+перевода фокуса и UI-команды открытия новой вкладки нет.
 
 Одна package tab имеет один browser realm, один generated entry, один loaded
 runtime adapter, не более одной active subject session и один PackageSession
@@ -181,7 +171,7 @@ Landing и каждая package page владеют отдельным
 `@zavx0z/browser` Experience. Browser создаёт и освобождает единственные для
 страницы semantic Document, native Canvas, цикл кадров и owner ввода.
 Experience содержит exact `@zavx0z/space` `XRSpaceElement` и
-`XRViewPointElement`; именованные вкладки не разделяют эти объекты или
+`XRViewPointElement`; страницы не разделяют эти объекты или
 производные ресурсы Renderer/WebGPU.
 
 Весь Workbench монтируется в один `XRHUDElement`
@@ -409,10 +399,13 @@ buildState
 
 Candidate проходит declaration/path/export validation, compile, link, runtime
 protocol validation и атомарно публикуется как `built` immutable revision.
-Executable revision становится `active`/`lastWorking` только после browser
-acknowledgement: runtime module loaded, adapter/session validated,
-`runtime.create`, initial mount и presented frame. Failed activation не заменяет
-предыдущий working artifact и не меняет другие sessions.
+Обычная страница использует только применённую revision; агент видит кандидат
+через `?preview=<revision>`. Только `check(live:true)` проверяет ready/presented,
+exact revision/graph digest и console в рабочей вкладке, затем применяет её.
+Browser не получает права activation. Failed build/inspection сохраняет
+предыдущий working artifact и не меняет другие sessions. Перед publication
+атомарно записывается private applied receipt; он удерживает immutable артефакт
+и восстанавливает lastWorking после restart без чтения нового source bundle.
 
 Каждая revision содержит exact immutable package graph projection, route/loader
 table, declaration digest, resources и metadata. Package tab никогда не
@@ -422,10 +415,13 @@ children. Compile/protocol/activation имеют timeout и exact cancellation.
 
 Metafile-derived dependency index инвалидирует только sessions, реально
 содержащие изменённый canonical realpath. Shared dependency может независимо
-пересобрать A и B; C остаётся clean. Success публикует
-`package.built`, `package.updated`, scoped resource/metadata events или
-`package.failed`. Package tab слушает только свой authenticated ephemeral topic;
-landing получает registry и summary statuses.
+пересобрать A и B; C остаётся clean. Build публикует `package.built`; вкладки
+остаются на working revision. Применение публикует `package.updated` всем
+читателям этого пакета. Read-only renewal endpoint восстанавливает WebSocket
+subscription; `package.applied-state` передаёт текущую applied revision, чтобы
+переподключение не теряло update. Preview сравнивает её с исходной applied
+revision и не откатывается из-за первого subscription ack. Landing получает
+registry и summary statuses.
 
 Файловое изменение автоматически пересобирает только PackageSession с живым
 subscriber её package tab. Неактивная session сохраняет lastWorking, повышает
@@ -441,7 +437,7 @@ dispose idempotent и завершается до shell cleanup.
 Storybook MCP проецирует lifecycle commands, canonical search, opaque package
 views, event-driven wait, inspection, semantic interaction и capture. `viewId`
 является
-opaque capability derived from actual browser target and persistent private
+opaque capability derived from actual browser target, package identity and persistent private
 Storybook secret; CDP
 identity, Chrome profile, port и filesystem artifact path агенту не передаются.
 Public `origin` аналогично является HMAC identity, пригодной для one-origin
@@ -450,11 +446,9 @@ Public `origin` аналогично является HMAC identity, приго�
 Private browser lifecycle owner говорит с Chrome по direct CDP; MCP лишь
 делегирует ему opaque operation. `ai-macos`, `@meta/chrome` и browser CLI не
 используются. `Target.createTarget` всегда получает `background: true`;
-MCP/CLI open не отправляет target activation. Только аутентифицированное
-действие человека на landing после exact attestation может вызвать
-`Target.activateTarget` для уже выбранной package tab. `bringToFront`, focus
-emulation и OS focus не используются. Небраузерные lifecycle/query operations
-не требуют CDP.
+Ни MCP/CLI, ни пользовательская навигация не активируют другую вкладку.
+`bringToFront`, focus emulation и OS focus не используются. Небраузерные
+lifecycle/query operations не требуют CDP.
 
 `@zavx0z/devtools` из WebXR владеет идентификаторами элементов, снимками дерева,
 состояния и результатов Renderer. Storybook подключает `createDomInspector`
@@ -475,7 +469,7 @@ exact Canvas и возвращает bounded MCP image/resource.
 
 State record имеет mode `0600` и random master token. Destructive/control HTTP
 requires bearer token and canonical Origin/Host checks. Browser получает только
-scoped short-lived WebSocket/activation token; master token не попадает в page
+scoped short-lived read-only WebSocket token; master token не попадает в page
 source, MCP result или diagnostics.
 
 README/resources обслуживаются только по declaration-derived allow-list:
@@ -518,8 +512,7 @@ with ancestor identity, label and URL as metadata. Parent package content change
 do not become child package build dependencies.
 
 Both Workbench pages use the recursive primary repository tree and a secondary
-category/subject tree for the selected package. Catalog selection uses `/browse/`
-URLs. Package workspaces retain `/packages/` URLs and one browser view per package.
-Authenticated browser navigation uses the same lifecycle controller; registry
-mutations retain their separate authority. Package sockets can subscribe to the
+category/subject tree for the selected package. Selection navigates the current
+tab to `/packages/`; multiple tabs may show one package. Agent operations use
+the private lifecycle controller; registry mutations retain their separate authority. Package sockets can subscribe to the
 read-only `catalog` topic without receiving other packages' execution events.

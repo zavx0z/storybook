@@ -1,5 +1,5 @@
 import {createHash, randomUUID} from "node:crypto"
-import {existsSync, mkdirSync, realpathSync, renameSync, rmSync} from "node:fs"
+import {existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync} from "node:fs"
 import {isAbsolute, join, relative, resolve} from "node:path"
 import {StorybookBuildSemaphore, storybookAbortError} from "../build/build-semaphore.ts"
 import {
@@ -189,6 +189,7 @@ export class StorybookPackageSession {
   #activatingRevision: string | null = null
   #activeRevision: string | null = null
   #lastWorkingRevision: string | null = null
+  #persistedAppliedRevision: string | null = null
   #failedRevision: string | null = null
   #diagnostics: readonly StorybookPackageDiagnostic[] = Object.freeze([])
   #resolutionError: string | null = null
@@ -221,6 +222,7 @@ export class StorybookPackageSession {
     this.#retainedRevisionLimit = boundedDuration(
       options.retainedRevisionLimit ?? DEFAULT_RETAINED_REVISION_LIMIT, 0, 20, "retained revision limit",
     )
+    this.#restoreApplied()
   }
 
   get packageId(): string {
@@ -415,6 +417,7 @@ export class StorybookPackageSession {
     if (record.generation !== this.#generation || record.declarationDigest !== this.descriptor.declarationDigest) {
       throw new Error(`Storybook activation acknowledgement is stale: ${this.packageId}:${record.revision}`)
     }
+    this.#saveApplied(record)
     clearTimeout(activation.timer)
     record.activation = null
     record.status = "working"
@@ -667,7 +670,7 @@ export class StorybookPackageSession {
   }
 
   #collectRevisions(): void {
-    const protectedRevisions = new Set<string>()
+    const protectedRevisions = new Set<string>([this.#activeRevision, this.#lastWorkingRevision, this.#persistedAppliedRevision].filter((value): value is string => value !== null))
     if (!this.#disposed) {
       for (const revision of [
         this.#builtRevision, this.#activatingRevision, this.#activeRevision, this.#lastWorkingRevision,
@@ -689,8 +692,62 @@ export class StorybookPackageSession {
       this.#revisions.delete(revision)
       rmSync(this.#revisionDirectory(revision), {recursive: true, force: true})
     }
-    if (this.#revisions.size === 0) {
+    if (this.#revisions.size === 0 && !existsSync(this.#appliedPath())) {
       rmSync(join(this.#artifactRoot, packageDirectoryName(this.packageId)), {recursive: true, force: true})
+    }
+  }
+
+  #appliedPath(): string {
+    return join(this.#artifactRoot, packageDirectoryName(this.packageId), "applied.json")
+  }
+
+  #saveApplied(record: RevisionRecord): void {
+    const path = this.#appliedPath()
+    const temporary = `${path}.${randomUUID()}.tmp`
+    try {
+      writeFileSync(temporary, JSON.stringify({
+        version: 1, packageId: this.packageId, packageRoot: this.descriptor.packageRoot,
+        revision: record.revision, declarationDigest: record.declarationDigest,
+        graphSnapshot: record.graphSnapshot, moduleGraphRevision: record.moduleGraphRevision,
+        entryRelativePath: record.entryRelativePath, dependencyRealpaths: record.dependencyRealpaths,
+        createdAt: record.createdAt,
+      }), {mode: 0o600, flag: "wx"})
+      renameSync(temporary, path)
+      this.#persistedAppliedRevision = record.revision
+    } finally {
+      rmSync(temporary, {force: true})
+    }
+  }
+
+  #restoreApplied(): void {
+    const path = this.#appliedPath()
+    if (!existsSync(path)) return
+    try {
+      if (!lstatSync(path).isFile() || lstatSync(path).isSymbolicLink()) throw new Error("Applied revision receipt must be an exact file")
+      const value = JSON.parse(readFileSync(path, "utf8"))
+      if (value.version !== 1 || value.packageId !== this.packageId || value.packageRoot !== this.descriptor.packageRoot ||
+        typeof value.revision !== "string" || !/^[A-Za-z0-9_-]{1,256}$/u.test(value.revision)) throw new Error("Applied revision receipt has a different owner")
+      const graphSnapshot = validateStorybookPackageRevisionGraphSnapshot(value.graphSnapshot, this.packageId)
+      validateBuildResult(value, this.#revisionDirectory(value.revision))
+      const record: RevisionRecord = {
+        revision: value.revision, generation: 0, status: "working",
+        declarationDigest: graphSnapshot.declarationDigest, graphSnapshot,
+        moduleGraphRevision: value.moduleGraphRevision, entryRelativePath: value.entryRelativePath,
+        dependencyRealpaths: Object.freeze(value.dependencyRealpaths.map((path: unknown) => {
+          const checked = requiredText("applied dependency path", path)
+          if (!isAbsolute(checked)) throw new Error("Applied dependency path must be absolute")
+          return checked
+        })),
+        diagnostics: Object.freeze([]), createdAt: value.createdAt, activation: null, leases: new Set(),
+      }
+      this.#revisions.set(record.revision, record)
+      this.#persistedAppliedRevision = record.revision
+      this.#activeRevision = record.revision
+      this.#lastWorkingRevision = record.revision
+      this.#buildState = "active"
+    } catch (error) {
+      this.#diagnostics = Object.freeze([storybookDiagnostic("publish", error instanceof Error ? error.message : String(error), path)])
+      this.#buildState = "failed"
     }
   }
 

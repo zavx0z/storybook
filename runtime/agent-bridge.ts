@@ -18,6 +18,7 @@ export type StorybookAgentTarget = Readonly<{
 
 export type StorybookAgentBridgeRequest = Readonly<{
   protocol: typeof STORYBOOK_AGENT_BRIDGE_PROTOCOL
+  expectedPackageId?: string
   operation: "state" | "inspect" | "interact" | "capture"
   include?: readonly string[]
   maxDepth?: number
@@ -79,6 +80,9 @@ export function createStorybookAgentBridge(
     async invoke(request) {
       assertActive()
       validateRequest(request)
+      if (request.expectedPackageId !== undefined && request.expectedPackageId !== options.packageId) {
+        throw new Error("Storybook view navigated to another package")
+      }
       if (request.operation === "state") return state()
       if (request.operation === "inspect") return inspect(request)
       if (request.operation === "capture") return capture(request)

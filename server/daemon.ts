@@ -1,4 +1,4 @@
-import {rmSync} from "node:fs"
+import {collectUnpublishedStorybookArtifacts} from "../sessions/artifact-store.ts"
 import {startExternalStorybookServer} from "./server.ts"
 import {
   externalStorybookArtifactRoot,
@@ -22,7 +22,7 @@ export async function runExternalStorybookDaemon(
   if (inspection.state === "stale" && !inspection.replaceable) {
     throw new Error(`Refusing ambiguous Storybook daemon state: ${inspection.reason}`)
   }
-  rmSync(externalStorybookArtifactRoot(), {recursive: true, force: true})
+  collectUnpublishedStorybookArtifacts(externalStorybookArtifactRoot())
   let running: Awaited<ReturnType<typeof startExternalStorybookServer>>
   try {
     running = await startExternalStorybookServer({

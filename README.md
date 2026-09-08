@@ -94,8 +94,9 @@ README content запрещены.
 Для агента единственным интерфейсом являются Storybook MCP tools:
 
 ```text
-storybook_ensure → storybook_search → storybook_open → storybook_wait
-→ storybook_inspect → storybook_interact → storybook_capture
+storybook_ensure → storybook_search → storybook_check(live:false)
+→ storybook_open → storybook_inspect → storybook_interact → storybook_capture
+→ storybook_check(live:true) → storybook_wait(active)
 ```
 
 MCP скрывает daemon process, automatic port, Chrome/CDP identity и artifact
@@ -114,22 +115,28 @@ Replacement journal сохраняет declarations/port через abort или
 перезаписать canonical state: child пишет candidate, а `server.json` commit-ит
 только live controller — владелец lease.
 
-Browser lifecycle единолично принадлежит private nested package
-`@zavx0z/storybook-browser-lifecycle`. Canonical server композирует один его
-instance, а landing, CLI и MCP вызывают один `openPackage`
-через server-owned application boundary. Для exact
-`packageId` существует только `absent | reserved | owned target`: reservation
-создаётся до `Target.createTarget`, repeated/concurrent opens переиспользуют её
-и один target, а route или смена server origin только навигирует его. Direct
-`window.open`/named-tab fallback отсутствует.
+Пользователь выбирает пакет и его содержимое в текущей вкладке по адресу
+`/packages/<encoded-package-id>/<route>`. Дополнительной команды открытия
+новой вкладки в интерфейсе нет. Один пакет можно просматривать в нескольких
+вкладках; каждая страница сохраняет свой единственный Browser Root.
 
-Legacy confirmed duplicates являются recovery input, а не допустимым lifecycle
-state: owner нормализует их под package lock до публикации view и повторно
-аттестует obsolete target перед close. Foreign/user tabs остаются
-неприкосновенными. Новый target создаётся только в background; Storybook не
-активирует Chrome при CLI/MCP open и не зависит от `ai-macos`, `@meta/chrome`
-или browser CLI. Аутентифицированное нажатие человека на landing после всех
-проверок активирует exact существующую package tab через lifecycle owner.
+Browser lifecycle принадлежит private nested package
+`@zavx0z/storybook-browser-lifecycle`. Агент через `storybook_open` переиспользует
+свою вкладку нужного пакета либо другую уже открытую на этом пакете. Если такой
+нет, создаётся новая фоновая вкладка. Переключённая пользователем на другой пакет
+вкладка не возвращается назад; старый viewId теряет право управлять ею.
+Повторные и конкурентные opens сериализованы под package lock. Остальные
+вкладки сохраняются, Chrome не активируется.
+
+`storybook_check({scope, live: false})` собирает кандидат. `storybook_open`
+показывает его агенту с явным `?preview=<revision>`; обычные страницы продолжают
+показывать применённую версию. `storybook_check({scope, live: true})` проверяет
+точную ревизию, готовность, представленный кадр и console в рабочей вкладке
+агента и применяет её при успехе. Только применение отправляет `package.updated`
+во все вкладки этого пакета. Ошибка сохраняет lastWorking. Применённый артефакт
+переживает перезапуск сервера; переподключившаяся вкладка сверяет применённую
+ревизию, чтобы не пропустить обновление. Если применённой сборки ещё нет,
+обычная страница явно сообщает об этом.
 
 CLI ниже остаётся только human/diagnostic adapter:
 
@@ -341,6 +348,6 @@ reference/evidence files remain linked resources for the following stage.
 
 Главная панель показывает сворачиваемое дерево репозиториев и вложенных пакетов.
 Вторая панель содержит категории и предметы выбранного пакета, dock — варианты.
-Выбор в каталоге имеет адрес `/browse/<package-id>/`; рабочая вкладка пакета
-остаётся на `/packages/<package-id>/<route>` и переиспользуется при открытии.
+Выбор пакета открывает `/packages/<package-id>/<route>` в текущей вкладке.
+Агент использует совпадающую package tab или создаёт новую фоновую.
 Иерархия каталогов определяет навигацию, а сборки остаются независимыми по packageId.

@@ -187,7 +187,7 @@ describe("one external Storybook server", () => {
     expect(packageHtml).toContain("<title>Standalone Fixture</title>")
     expect(packageHtml).not.toContain("· Storybook</title>")
     const state = running.sessions.session("@fixture/standalone").snapshot()
-    expect(state.buildState).toBe("activating")
+    expect(state.buildState).toBe("built")
     expect(state.builtRevision).not.toBeNull()
     expect(state.activeRevision).toBeNull()
     const revisionReadme = await fetch(new URL(
@@ -376,78 +376,23 @@ describe("one external Storybook server", () => {
     expect(unchanged.body.registryRevision).toBe(stableRevision)
   })
 
-  test("promotes built revision only after exact browser activation acknowledgement", async () => {
+  test("user pages and browser requests cannot publish a built candidate", async () => {
     const fixture = serverFixture()
-    const running = await startExternalStorybookServer({
-      declarations: [fixture.standalone],
-      statePath: fixture.statePath,
-      artifactRoot: fixture.artifactRoot,
-    })
+    const running = await startExternalStorybookServer({declarations: [fixture.standalone], statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
     servers.push(running)
     const page = await fetch(new URL("/packages/%40fixture%2Fstandalone/", running.origin))
     const html = await page.text()
-    const token = browserSessionToken(html)
-    const activationId = browserActivationId(html)
-    const built = running.sessions.session("@fixture/standalone").snapshot()
-    expect(built.activeRevision).toBeNull()
-    expect(built.lastWorkingRevision).toBeNull()
-    expect(built.activatingRevision).not.toBeNull()
-    const response = await fetch(new URL("/api/browser/activation", running.origin), {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        origin: running.origin,
-        "x-storybook-session": token,
-      },
-      body: JSON.stringify({
-        activationId,
-        packageId: "@fixture/standalone",
-        revision: built.activatingRevision,
-        packageGraphDigest: built.packageGraphDigest,
-        route: "",
-        frameSequence: 1,
-        working: true,
-      }),
+    expect(html).toContain("/__storybook/shared/")
+    expect(html).not.toContain('name="external-storybook-activation-id"')
+    const state = running.sessions.session("@fixture/standalone").snapshot()
+    expect(state.builtRevision).not.toBeNull()
+    expect(state.activeRevision).toBeNull()
+    const rejected = await fetch(new URL("/api/browser/activation", running.origin), {
+      method: "POST", headers: {origin: running.origin, "content-type": "application/json", "x-storybook-session": browserSessionToken(html)},
+      body: JSON.stringify({packageId: "@fixture/standalone", revision: state.builtRevision, working: true}),
     })
-    expect(response.status).toBe(200)
-    const working = running.sessions.session("@fixture/standalone").snapshot()
-    expect(working.buildState).toBe("active")
-    expect(working.activeRevision).toBe(built.activatingRevision!)
-    expect(working.lastWorkingRevision).toBe(built.activatingRevision!)
-
-    const session = running.sessions.session("@fixture/standalone")
-    expect(session.invalidate(session.descriptor.sourcePath)).toBeTrue()
-    const next = await session.ensureBuilt()
-    const firstCandidatePage = await fetch(new URL("/packages/%40fixture%2Fstandalone/", running.origin))
-    const firstCandidateHtml = await firstCandidatePage.text()
-    expect(firstCandidateHtml).toContain(
-      `<meta name="external-storybook-fallback-revision" content="${working.activeRevision}">`,
-    )
-    const secondCandidatePage = await fetch(new URL("/packages/%40fixture%2Fstandalone/", running.origin))
-    expect(secondCandidatePage.status).toBe(200)
-    const secondCandidateHtml = await secondCandidatePage.text()
-    expect(browserActivationId(secondCandidateHtml)).not.toBe(browserActivationId(firstCandidateHtml))
-    const failedResponse = await fetch(new URL("/api/browser/activation", running.origin), {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        origin: running.origin,
-        "x-storybook-session": browserSessionToken(secondCandidateHtml),
-      },
-      body: JSON.stringify({
-        activationId: browserActivationId(secondCandidateHtml),
-        packageId: "@fixture/standalone",
-        revision: next.builtRevision,
-        packageGraphDigest: next.packageGraphDigest,
-        route: "",
-        frameSequence: 1,
-        working: false,
-        diagnostic: "mount failed",
-      }),
-    })
-    expect(failedResponse.status).toBe(200)
-    expect(session.snapshot().activeRevision).toBe(working.activeRevision)
-    expect(session.snapshot().lastWorkingRevision).toBe(working.lastWorkingRevision)
+    expect(rejected.ok).toBeFalse()
+    expect(running.sessions.session("@fixture/standalone").snapshot().activeRevision).toBeNull()
   }, 120_000)
 
   test("protects control routes and never exposes the master capability to browser responses", async () => {
@@ -554,7 +499,7 @@ describe("one external Storybook server", () => {
     ))
     expect(components.status).toBe(200)
     const componentState = running.sessions.session("@fixture/components").snapshot()
-    expect(componentState.buildState, JSON.stringify(componentState.diagnostics)).toBe("activating")
+    expect(componentState.buildState, JSON.stringify(componentState.diagnostics)).toBe("built")
     expect(running.sessions.session("@fixture/docs").snapshot().builds).toBe(0)
   }, 120_000)
 
@@ -567,8 +512,9 @@ describe("one external Storybook server", () => {
       packageBrowserEntryPath: fixture.packageEntry,
     })
     servers.push(running)
+    const candidate = (await running.sessions.ensure("@fixture/components")).builtRevision!
     const page = await fetch(new URL(
-      "/packages/%40fixture%2Fcomponents/components/button/basic/contained",
+      `/packages/%40fixture%2Fcomponents/components/button/basic/contained?preview=${candidate}`,
       running.origin,
     ))
     expect(page.status).toBe(200)
@@ -750,7 +696,7 @@ describe("one external Storybook server", () => {
     expect((await fetch(new URL("/api/health", running.origin))).status).toBe(200)
   })
 
-  test("routes landing and control opens through one canonical browser lifecycle", async () => {
+  test("reserves browser tab creation for the agent control surface", async () => {
     const fixture = serverFixture()
     const lifecycle = fakeBrowserLifecycle()
     const running = await startExternalStorybookServer({
@@ -790,17 +736,10 @@ describe("one external Storybook server", () => {
       packageId: "@fixture/standalone",
       viewId: lifecycle.viewId,
     })
-    expect(browser.status).toBe(200)
-    expect(await browser.json()).toMatchObject({
-      ok: true,
-      packageId: "@fixture/standalone",
-      viewId: lifecycle.viewId,
-    })
-    expect(lifecycle.opened).toHaveLength(2)
+    expect(browser.ok).toBeFalse()
+    expect(lifecycle.opened).toHaveLength(1)
     expect(new Set(lifecycle.opened.map(({packageId}) => packageId)))
       .toEqual(new Set(["@fixture/standalone"]))
-    expect(lifecycle.opened.filter(({foreground}) => foreground)).toHaveLength(1)
-    expect(lifecycle.opened.filter(({foreground}) => !foreground)).toHaveLength(1)
     expect(await controlGet(running, `/api/control/views/${encodeURIComponent(lifecycle.viewId)}`))
       .toMatchObject({
         ok: true,
@@ -812,8 +751,7 @@ describe("one external Storybook server", () => {
     const openedFromPackage = await fetch(new URL("/api/browser/open", running.origin), {
       method: "POST", headers, body: JSON.stringify({packageId: "@fixture/standalone", route: ""}),
     })
-    expect(openedFromPackage.status).toBe(200)
-    expect((await openedFromPackage.json()).viewId).toBe(lifecycle.viewId)
+    expect(openedFromPackage.ok).toBeFalse()
     const graphBeforeMutation = running.registry.snapshot().graph.digest
     const denied = await fetch(new URL("/api/browser/detach", running.origin), {
       method: "POST", headers, body: JSON.stringify({scopeId: "project:fixture-standalone"}),
@@ -890,16 +828,15 @@ describe("one external Storybook server", () => {
 function fakeBrowserLifecycle(): Readonly<{
   service: StorybookBrowserLifecycle
   viewId: string
-  opened: Array<Readonly<{packageId: string; route: string; foreground: boolean}>>
+  opened: Array<Readonly<{packageId: string; route: string}>>
 }> {
   const viewId = `storybook-view-v1_${"a".repeat(43)}`
-  const opened: Array<Readonly<{packageId: string; route: string; foreground: boolean}>> = []
+  const opened: Array<Readonly<{packageId: string; route: string}>> = []
   const service: StorybookBrowserLifecycle = {
     async openPackage(input) {
       opened.push(Object.freeze({
         packageId: input.packageId,
         route: input.route,
-        foreground: input.foreground === true,
       }))
       return Object.freeze({
         view: Object.freeze({
@@ -1035,12 +972,6 @@ function browserSessionToken(html: string): string {
   const token = html.match(/<meta name="external-storybook-browser-session" content="([A-Za-z0-9_-]+)">/u)?.[1]
   if (token === undefined) throw new Error("Storybook browser session token is missing")
   return token
-}
-
-function browserActivationId(html: string): string {
-  const value = html.match(/<meta name="external-storybook-activation-id" content="([a-f0-9-]+)">/u)?.[1]
-  if (value === undefined) throw new Error("Storybook browser activation ID is missing")
-  return value
 }
 
 function storybookSocket(url: string, origin: string): WebSocket {

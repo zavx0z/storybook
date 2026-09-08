@@ -23,17 +23,20 @@ describe("Storybook view registry", () => {
     expect(registry.internal(first[0]!.viewId).targetId).toBe("CDP-SECRET-TARGET")
   })
 
-  test("makes duplicate logical package views unrepresentable", () => {
+  test("keeps multiple views of a package and invalidates a handle when its tab changes package", () => {
     const registry = new StorybookViewRegistry(new Uint8Array(32).fill(9))
     const origin = "http://127.0.0.1:43123"
-    const retained = registry.synchronize([
+    const views = registry.synchronize([
       {targetId: "A", type: "page", title: "A", url: `${origin}/packages/%40fixture%2Fa/`},
+      {targetId: "B", type: "page", title: "B", url: `${origin}/packages/%40fixture%2Fa/example?preview=revision-a`},
     ], origin)
-    expect(() => registry.synchronize([
-      {targetId: "A", type: "page", title: "A", url: `${origin}/packages/%40fixture%2Fa/`},
-      {targetId: "B", type: "page", title: "B", url: `${origin}/packages/%40fixture%2Fa/example`},
-    ], origin)).toThrow("Duplicate Storybook logical package view")
-    expect(registry.list()).toEqual(retained)
+    expect(views).toHaveLength(2)
+    expect(views[0]!.viewId).not.toBe(views[1]!.viewId)
+    const changed = registry.synchronize([
+      {targetId: "A", type: "page", title: "Other", url: `${origin}/packages/%40fixture%2Fb/`},
+    ], origin)
+    expect(changed[0]!.viewId).not.toBe(views[0]!.viewId)
+    expect(() => registry.internal(views[0]!.viewId)).toThrow("Unknown")
   })
 
   test("ignores landing, foreign-origin and non-page targets", () => {

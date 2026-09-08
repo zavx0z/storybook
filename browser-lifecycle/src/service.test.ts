@@ -55,23 +55,44 @@ describe("Storybook browser lifecycle service", () => {
     })])
   })
 
-  test("normalizes only attested legacy duplicates before publishing one logical view", async () => {
+  test("reuses a matching package tab without closing peers or stealing focus", async () => {
     const chrome = new FakeChrome()
     chrome.targetsValue = [
       {targetId: "OLD_A", type: "page", title: "A", url: "http://127.0.0.1:41000/packages/%40fixture%2Fa/fixture/a/default"},
       {targetId: "OLD_B", type: "page", title: "B", url: "http://127.0.0.1:42000/packages/%40fixture%2Fa/fixture/a/default"},
     ]
-    const opened = await createController(chrome).openPackage({...openInput(chrome), foreground: true})
-
+    const opened = await createController(chrome).openPackage(openInput(chrome))
     expect(opened.reused).toBeTrue()
-    expect(chrome.closed).toEqual(["OLD_B"])
-    expect(chrome.activated).toEqual(["OLD_A"])
-    const closeIndex = chrome.targetOperations.indexOf("close:OLD_B")
-    const activateIndex = chrome.targetOperations.indexOf("activate:OLD_A")
-    expect(closeIndex).toBeGreaterThanOrEqual(0)
-    expect(activateIndex).toBeGreaterThan(closeIndex)
-    expect(chrome.targetOperations.slice(closeIndex + 1, activateIndex)).toContain("identity:OLD_A")
-    expect(chrome.targetsValue).toEqual([expect.objectContaining({targetId: "OLD_A"})])
+    expect(chrome.closed).toEqual([])
+    expect(chrome.activated).toEqual([])
+    expect(chrome.targetsValue).toHaveLength(2)
+  })
+
+  test("prefers the agent's existing matching view without changing its peers", async () => {
+    const chrome = new FakeChrome()
+    const root = temporaryRoot()
+    chrome.targetsValue = [
+      {targetId: "USER", type: "page", title: "User", url: openInput(chrome).url},
+      {targetId: "AGENT", type: "page", title: "Agent", url: `${chrome.origin}/packages/%40fixture%2Fa/fixture/a/alternate`},
+    ]
+    new StorybookBrowserState(join(root, "state")).writeTarget({packageId: "@fixture/a", cdpOrigin: chrome.cdp, browserIdentity: "a".repeat(64), targetId: "AGENT"})
+    const views = await createController(chrome, root).listViews(chrome.origin)
+    expect(views[0]?.route).toBe("fixture/a/alternate")
+    expect(chrome.navigations).toBe(0)
+    expect(chrome.activated).toEqual([])
+    expect(chrome.closed).toEqual([])
+  })
+
+  test("lists multiple current package views and refuses stale-handle interactions", async () => {
+    const chrome = new FakeChrome()
+    const controller = createController(chrome)
+    const opened = await controller.openPackage(openInput(chrome))
+    chrome.targetsValue.push({targetId: "PEER", type: "page", title: "Peer", url: openInput(chrome).url})
+    expect(await controller.listViews(chrome.origin)).toHaveLength(2)
+    chrome.targetsValue[0] = {...chrome.targetsValue[0]!, url: `${chrome.origin}/packages/%40fixture%2Fb/`}
+    await expect(controller.interact({viewId: opened.view.viewId, action: "click", target: {role: "button", name: "Run"}}))
+      .rejects.toThrow("navigated away")
+    expect(chrome.closed).toEqual([])
   })
 
   test("leaves an unattested foreign tab untouched", async () => {
@@ -181,7 +202,7 @@ describe("Storybook browser lifecycle service", () => {
     expect(chrome.created).toBe(1)
   })
 
-  test("reuses a recorded provisional target before its URL commits", async () => {
+  test("preserves a recorded tab that no longer shows the package", async () => {
     const chrome = new FakeChrome()
     const root = temporaryRoot()
     new StorybookBrowserState(join(root, "state")).writeTarget({
@@ -199,9 +220,10 @@ describe("Storybook browser lifecycle service", () => {
 
     const opened = await createController(chrome, root).openPackage(openInput(chrome))
 
-    expect(opened.reused).toBeTrue()
-    expect(chrome.created).toBe(0)
-    expect(chrome.navigations).toBe(1)
+    expect(opened.reused).toBeFalse()
+    expect(chrome.created).toBe(1)
+    expect(chrome.navigations).toBe(0)
+    expect(chrome.targetsValue.find(target => target.targetId === chrome.targetId)?.url).toBe("about:blank")
   })
 
   test("reattests a duplicate immediately before close and preserves a tab navigated away by the user", async () => {
@@ -303,7 +325,7 @@ describe("Storybook browser lifecycle service", () => {
     expect(chrome.created).toBe(1)
   })
 
-  test("normalizes attested physical duplicates before listing logical views", async () => {
+  test("lists current views without normalizing or closing other tabs", async () => {
     const chrome = new FakeChrome()
     chrome.targetsValue = [
       {targetId: "OLD_A", type: "page", title: "Old", url: "http://127.0.0.1:41000/packages/%40fixture%2Fa/fixture/a/default"},
@@ -313,10 +335,10 @@ describe("Storybook browser lifecycle service", () => {
 
     expect(views).toHaveLength(1)
     expect(views[0]).toMatchObject({packageId: "@fixture/a"})
-    expect(chrome.closed).toEqual(["OLD_A"])
+    expect(chrome.closed).toEqual([])
   })
 
-  test("fails closed when an exact duplicate cannot be reattested", async () => {
+  test("ignores a foreign-origin peer that cannot be attested", async () => {
     const chrome = new FakeChrome()
     chrome.foreignTargetIds.add("OLD_A")
     chrome.targetsValue = [
@@ -324,12 +346,12 @@ describe("Storybook browser lifecycle service", () => {
       {targetId: "CURRENT_A", type: "page", title: "Current", url: `${chrome.origin}/packages/%40fixture%2Fa/fixture/a/default`},
     ]
 
-    await expect(createController(chrome).listViews(chrome.origin))
-      .rejects.toThrow("duplicate package target attestation is indeterminate")
+    const views = await createController(chrome).listViews(chrome.origin)
+    expect(views).toHaveLength(1)
     expect(chrome.closed).toEqual([])
   })
 
-  test("normalizes an exact named legacy duplicate without modern package markers", async () => {
+  test("preserves a named legacy peer without modern package markers", async () => {
     const chrome = new FakeChrome()
     chrome.legacyTargetIds.add("OLD_A")
     chrome.targetsValue = [
@@ -339,10 +361,10 @@ describe("Storybook browser lifecycle service", () => {
 
     const views = await createController(chrome).listViews(chrome.origin)
     expect(views).toHaveLength(1)
-    expect(chrome.closed).toEqual(["OLD_A"])
+    expect(chrome.closed).toEqual([])
   })
 
-  test("normalizes an exact marker-owned legacy duplicate without window name", async () => {
+  test("preserves a marker-owned legacy peer without window name", async () => {
     const chrome = new FakeChrome()
     chrome.markerOnlyTargetIds.add("OLD_A")
     chrome.targetsValue = [
@@ -352,10 +374,10 @@ describe("Storybook browser lifecycle service", () => {
 
     const views = await createController(chrome).listViews(chrome.origin)
     expect(views).toHaveLength(1)
-    expect(chrome.closed).toEqual(["OLD_A"])
+    expect(chrome.closed).toEqual([])
   })
 
-  test("normalizes an exact canonical-title legacy error document", async () => {
+  test("preserves a legacy error document", async () => {
     const chrome = new FakeChrome()
     chrome.titleOnlyTargetIds.add("OLD_A")
     chrome.targetsValue = [
@@ -368,10 +390,10 @@ describe("Storybook browser lifecycle service", () => {
       label: "Fixture A",
     }])
     expect(views).toHaveLength(1)
-    expect(chrome.closed).toEqual(["OLD_A"])
+    expect(chrome.closed).toEqual([])
   })
 
-  test("normalizes an exact canonical-title target when diagnostics are unavailable", async () => {
+  test("preserves a target whose diagnostics are unavailable", async () => {
     const chrome = new FakeChrome()
     chrome.unavailableDiagnosticsTargetIds.add("OLD_A")
     chrome.targetsValue = [
@@ -384,7 +406,7 @@ describe("Storybook browser lifecycle service", () => {
       label: "Fixture A",
     }])
     expect(views).toHaveLength(1)
-    expect(chrome.closed).toEqual(["OLD_A"])
+    expect(chrome.closed).toEqual([])
   })
 
   test("does not let another package's legacy duplicates block an exact open", async () => {
@@ -463,7 +485,6 @@ describe("Storybook browser lifecycle service", () => {
       packageId: "@fixture/a",
       route: "fixture/a/default",
       url: `${chrome.origin}/packages/%40fixture%2Fa/fixture/a/default`,
-      foreground: true,
     })).rejects.toThrow("window.name")
     expect(chrome.activated).toEqual([])
   })
@@ -572,7 +593,7 @@ class FakeChrome implements StorybookChromeClient {
   async createTarget(url: string): Promise<ChromeTargetSummary> {
     this.created += 1
     const target = {
-      targetId: this.created === 1 ? this.targetId : `${this.targetId}_${this.created}`,
+      targetId: this.created === 1 && !this.targetsValue.some(target => target.targetId === this.targetId) ? this.targetId : `${this.targetId}_${this.created}`,
       type: "page",
       title: "Fixture",
       url,

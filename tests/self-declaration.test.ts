@@ -111,11 +111,11 @@ describe("external Storybook self declaration", () => {
       expect(presentation.element.textContent)
         .toContain("StorybookBrowserLifecycle")
       expect(presentation.element.textContent)
-        .toContain("Duplicate logical state is unrepresentable")
-      expect(presentation.element.textContent).toContain("foreground: true")
-      expect(presentation.element.textContent).toContain("CLI and MCP remain background-only")
+        .toContain("Multiple tabs may show the same package")
+      expect(presentation.element.textContent).toContain("User navigation stays in the current tab")
+      expect(presentation.element.textContent).toContain("Agent opens remain background-only")
       expect(presentation.source.typescript).toContain("openPackage")
-      expect(presentation.source.typescript).toContain("human browser navigation only")
+      expect(presentation.source.typescript).toContain("preserve all peers")
     } finally {
       presentation.dispose()
     }

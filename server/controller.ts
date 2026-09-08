@@ -392,90 +392,13 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
       scope: pathScope ?? canonicalScope(input.scope),
       live: input.live ?? false,
     }, operationContext.signal)
-    let publicPackages = Array.isArray(result.packages)
-      ? result.packages.map(publicPackageSnapshot).filter(Boolean)
-      : []
-    if (input.live === true && Array.isArray(result.packages)) {
-      const views = []
-      let timedOut = false
-      const listed = await client.read("/api/control/views", operationContext.signal)
-      const retainedRouteByPackage = new Map(Array.isArray(listed.views)
-        ? listed.views.flatMap((candidate) => candidate !== null && typeof candidate === "object" &&
-          typeof (candidate as Record<string, unknown>).packageId === "string" &&
-          typeof (candidate as Record<string, unknown>).route === "string"
-          ? [[
-            (candidate as Record<string, unknown>).packageId as string,
-            (candidate as Record<string, unknown>).route as string,
-          ] as const]
-          : [])
-        : [])
-      for (const candidate of result.packages) {
-        if (candidate === null || typeof candidate !== "object") continue
-        const packageRecord = candidate as Record<string, unknown>
-        const packageId = String(packageRecord.packageId)
-        const expectedRevision = typeof packageRecord.builtRevision === "string"
-          ? packageRecord.builtRevision
-          : typeof packageRecord.activeRevision === "string"
-            ? packageRecord.activeRevision
-            : null
-        try {
-          const opened = await this.open({
-            schemaVersion: 1,
-            packageId,
-            route: retainedRouteByPackage.get(packageId) ?? "",
-          }, operationContext)
-          views.push(Object.freeze({
-            ...opened,
-            expectedRevision,
-            revisionMatches: expectedRevision !== null && opened.revision === expectedRevision,
-          }))
-        } catch (error) {
-          if (operationContext.signal.aborted) {
-            if (context.signal.aborted) throw context.signal.reason ?? error
-            timedOut = true
-            break
-          }
-          views.push(Object.freeze({
-            status: "failed",
-            packageId,
-            error: Object.freeze({
-              code: error instanceof Error ? error.name : "Error",
-              message: error instanceof Error ? error.message : String(error),
-            }),
-          }))
-        }
-      }
-      if (!timedOut) {
-        const refreshed = await client.read("/api/control/status", operationContext.signal)
-        const checkedPackageIds = new Set(result.packages.flatMap((candidate) =>
-          candidate !== null && typeof candidate === "object" &&
-          typeof (candidate as Record<string, unknown>).packageId === "string"
-            ? [(candidate as Record<string, unknown>).packageId as string]
-            : []))
-        publicPackages = Array.isArray(refreshed.packages)
-          ? refreshed.packages
-            .filter((candidate) => candidate !== null && typeof candidate === "object" &&
-              checkedPackageIds.has(String((candidate as Record<string, unknown>).packageId)))
-            .map(publicPackageSnapshot).filter(Boolean)
-          : publicPackages
-      }
-      const ok = !timedOut && result.ok === true && views.every((view) => {
-        const value = view as Readonly<Record<string, unknown>>
-        return value.status === "success" && value.ready === true && value.revisionMatches === true
-      })
-      return Object.freeze({
-        status: timedOut ? "timeout" : ok ? "success" : "failed",
-        ok,
-        graphDigest: result.graphDigest,
-        packages: publicPackages,
-        views,
-      })
-    }
+    const packages = Array.isArray(result.packages) ? result.packages.map(publicPackageSnapshot).filter(Boolean) : []
     return Object.freeze({
       status: result.ok === true ? "success" : "failed",
       ok: result.ok === true,
       graphDigest: result.graphDigest,
-      packages: publicPackages,
+      packages,
+      ...(input.live === true ? {applied: result.applied === true, views: result.views ?? []} : {}),
     })
   }
 

@@ -30,6 +30,16 @@ import type {
 } from "./shell.ts"
 
 describe("external Storybook agent bridge inspection", () => {
+  test("rejects an interaction when the caller expected another package", async () => {
+    const fixture = createFixture()
+    try {
+      await expect(fixture.bridge.call("interact", {expectedPackageId: "@other/package", action: "click", target: {role: "button", name: "Run"}}))
+        .rejects.toThrow("another package")
+    } finally {
+      fixture.dispose()
+    }
+  })
+
   test("keeps stable node identities across compact, default and paginated projections", async () => {
     const fixture = createFixture()
     try {

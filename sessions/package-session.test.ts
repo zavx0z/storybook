@@ -20,7 +20,7 @@ afterEach(() => {
 })
 
 describe("working Storybook PackageSession lifecycle", () => {
-  test("keeps a successful build merely built until exact browser acknowledgement", async () => {
+  test("keeps a successful build merely built until exact agent application", async () => {
     const root = fixtureRoot("activation")
     const events: StorybookPackageEvent[] = []
     const session = createSession(descriptor(root, "@fixture/a"), successfulBuilder(), events)
@@ -83,7 +83,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     expect(failed.diagnostics[0]?.message).toBe("runtime.create failed")
   })
 
-  test("restarts the exact activation lease on a repeated candidate page request", async () => {
+  test("restarts the exact activation lease on a repeated agent verification", async () => {
     const root = fixtureRoot("activation-restart")
     const session = createSession(descriptor(root, "@fixture/a"), successfulBuilder(), [])
     const built = await session.ensureBuilt()
@@ -330,7 +330,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     expect(session.snapshot().buildState).toBe("disposed")
   })
 
-  test("retains leased history and collects it after release", async () => {
+  test("collects released history but preserves the applied revision across disposal", async () => {
     const root = fixtureRoot("retention")
     const session = createSession(
       descriptor(root, "@fixture/a", "one"),
@@ -360,7 +360,10 @@ describe("working Storybook PackageSession lifecycle", () => {
     await session.dispose()
     expect(session.revisionDirectory(activeRevision)).not.toBeNull()
     activeLease.release()
-    expect(session.revisionDirectory(activeRevision)).toBeNull()
+    expect(session.revisionDirectory(activeRevision)).not.toBeNull()
+    const restored = createSession(descriptor(root, "@fixture/a", "two"), successfulBuilder(), [])
+    expect(restored.snapshot().activeRevision).toBe(activeRevision)
+    expect(restored.snapshot().builds).toBe(0)
   })
 
   test("requires exact resources for separate Workbench and active author sheet collections", async () => {

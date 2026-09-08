@@ -1,4 +1,4 @@
-import {requestPackageView} from "./package-navigation.ts"
+import {navigatePackage} from "./package-navigation.ts"
 import {externalStorybookBrowsePath} from "../catalog/graph.ts"
 /** One package-tab realm driven by generated literal runtime/story loaders. */
 
@@ -116,15 +116,6 @@ export type ExternalStorybookPackageEnvironment = Readonly<{
     CreateExternalStorybookShellOptions,
     "title" | "browserDocument" | "authorStyleSheetSources"
   >
-  acknowledgeActivation?(input: Readonly<{
-    packageId: string
-    revision: string
-    packageGraphDigest: string
-    route: string
-    frameSequence: number
-    working: boolean
-    diagnostic?: string
-  }>): Promise<void>
   /** Focused lifecycle cancellation seam; browser production also uses pagehide. */
   lifecycleSignal?: AbortSignal
   /** Focused cleanup seam; production bounds uncooperative owner cleanup. */
@@ -240,23 +231,6 @@ export async function startExternalStorybookPackage(
     browserDocument.documentElement.dataset.externalStorybookPackage = "error"
     browserDocument.documentElement.dataset.externalStorybookPhase = "error"
     browserDocument.documentElement.dataset.externalStorybookError = diagnostic.slice(0, 2_048)
-    if (candidateRevision !== null) {
-      try {
-        await acknowledgeActivation(environment, browserDocument, {
-          packageId,
-          revision: candidateRevision,
-          packageGraphDigest: snapshot.graphDigest,
-          route: initialRoute,
-          frameSequence: 0,
-          working: false,
-          diagnostic,
-        })
-        const fallbackRevision = readMetaContent(browserDocument, "external-storybook-fallback-revision")
-        if (fallbackRevision !== undefined && fallbackRevision !== candidateRevision) location.reload()
-      } catch {
-        // The exact shell/bootstrap failure remains the primary diagnostic.
-      }
-    }
     throw error
   }
   const lifetime = new AbortController()
@@ -832,7 +806,7 @@ export async function startExternalStorybookPackage(
     const model = deriveExternalStorybookPackageTab(graph, packageId, route)
     if (revision !== navigationRevision || signal.aborted) return
     const presentationSubject = exactPresentationSubject(revisionGraph, snapshot, model)
-    if (presentationSubject !== null) await ensureInspectorRegistry(presentationSubject)
+    if (candidateRevision !== null && presentationSubject !== null) await ensureInspectorRegistry(presentationSubject)
     if (revision !== navigationRevision || signal.aborted) return
     currentRoute = route
     currentModel = model
@@ -857,7 +831,9 @@ export async function startExternalStorybookPackage(
         throw new Error(summary.diagnostics.map(({message}) => message).join("\n") ||
           `Package ${packageId} has no last-good revision`)
       }
-      if (model.selectedNode.kind === "variant") {
+      if (candidateRevision === null) {
+        shell.showMessage(model.packageNode.label, "Нет применённой сборки", "Пакет станет доступен после успешной проверки и применения агентом.")
+      } else if (model.selectedNode.kind === "variant") {
         await showVariant(model, revision, signal)
       } else {
         await showOverview(model, revision, signal)
@@ -881,7 +857,10 @@ export async function startExternalStorybookPackage(
     assertActive(disposed)
     const model = deriveExternalStorybookPackageTab(graph, packageId, route)
     if (location.pathname !== model.selectedNode.urlPath) {
-      history.pushState(null, "", model.selectedNode.urlPath)
+      const next = new URL(model.selectedNode.urlPath, location.href)
+      const preview = new URL(location.href).searchParams.get("preview")
+      if (preview !== null) next.searchParams.set("preview", preview)
+      history.pushState(null, "", `${next.pathname}${next.search}`)
     }
     const revision = ++navigationRevision
     routeAbort.abort()
@@ -905,14 +884,12 @@ export async function startExternalStorybookPackage(
       const node = externalStorybookClientNode(navigationSnapshot, detail.id)
       if (node.kind === "package") {
         if (node.packageId === packageId) void navigate("")
-        else void requestPackageView(fetcher, browserDocument, {packageId: node.packageId!, route: ""})
-          .catch(error => shell.reportDiagnostic(errorText(error)))
+        else navigatePackage(location, {packageId: node.packageId!, route: ""})
       } else location.href = new URL(externalStorybookBrowsePath(node), location.href).href
       return
     }
     if (detail.kind === "breadcrumb" && detail.id?.startsWith("package:") && detail.id !== `package:${packageId}`) {
-      void requestPackageView(fetcher, browserDocument, {packageId: detail.id.slice("package:".length), route: ""})
-        .catch(error => shell.reportDiagnostic(errorText(error)))
+      navigatePackage(location, {packageId: detail.id.slice("package:".length), route: ""})
       return
     }
     if (detail.urlPath !== undefined) {
@@ -943,18 +920,37 @@ export async function startExternalStorybookPackage(
   shell.workbench.element.addEventListener(WORKBENCH_EVENTS.scenario, onScenario)
   globalThis.addEventListener?.("popstate", onPopState)
 
-  const socket = createPackageSocket(
+  let socket = createPackageSocket(
     environment,
     location.href,
     readBrowserSessionToken(browserDocument),
   )
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  let reconnectDelay = 250
+  let observedApplied = readMetaContent(browserDocument, "external-storybook-applied-revision") || null
+  const followApplied = (revision: string | null, initial: boolean): void => {
+    if (disposed || revision === null) return
+    const url = new URL(location.href)
+    const changed = revision !== observedApplied
+    observedApplied = revision
+    if (initial && url.searchParams.has("preview") && !changed && revision !== candidateRevision) return
+    url.searchParams.delete("preview")
+    history.replaceState(null, "", `${url.pathname}${url.search}`)
+    if (revision !== candidateRevision) location.reload()
+  }
   const onSocketOpen = (): void => {
+    reconnectDelay = 250
     socket.send(JSON.stringify({type: "subscribe", topic: `package:${packageId}`}))
     socket.send(JSON.stringify({type: "subscribe", topic: "catalog"}))
   }
   const onSocketMessage = (event: MessageEvent): void => {
-    let raw: {type?: string} | null = null
+    if (disposed) return
+    let raw: {type?: string; packageId?: string; revision?: string | null} | null = null
     try { raw = JSON.parse(String(event.data)) } catch {}
+    if (raw?.type === "package.applied-state" && raw.packageId === packageId) {
+      followApplied(raw.revision ?? null, true)
+      return
+    }
     if (raw?.type === "registry.updated") {
       void fetchExternalStorybookClientSnapshot(fetcher).then(value => {
         if (disposed) return
@@ -966,11 +962,11 @@ export async function startExternalStorybookPackage(
     const update = parsePackageEvent(event.data)
     if (update === null || update.packageId !== packageId) return
     if (update.type === "package.built") {
-      if (update.revision !== candidateRevision) location.reload()
+      shell.updateStatus(`${packageId} · сборка готова к проверке и применению`)
       return
     }
     if (update.type === "package.updated") {
-      if (update.revision !== candidateRevision) location.reload()
+      followApplied(update.revision, false)
       return
     }
     if (update.type === "package.resources-updated" || update.type === "package.metadata-updated") {
@@ -996,8 +992,41 @@ export async function startExternalStorybookPackage(
     reportDiagnostic(`Package detached: ${packageId}`)
     shell.updateStatus(`${packageId} · detached`)
   }
-  socket.addEventListener("open", onSocketOpen)
-  socket.addEventListener("message", onSocketMessage)
+  const detachSocket = (): void => {
+    socket.removeEventListener("open", onSocketOpen)
+    socket.removeEventListener("message", onSocketMessage)
+    socket.removeEventListener("close", onSocketClose)
+  }
+  const onSocketClose = (): void => {
+    if (disposed || reconnectTimer !== null) return
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null
+      void (async () => {
+        try {
+          const response = await fetcher("/api/browser/session", {
+            method: "POST", headers: {"content-type": "application/json"},
+            body: JSON.stringify({packageId, revision: candidateRevision}), signal: lifetime.signal,
+          })
+          if (!response.ok) throw new Error("Package event session is unavailable")
+          const result = await response.json() as {token?: string}
+          if (disposed) return
+          if (typeof result.token !== "string") throw new Error("Invalid package event session")
+          detachSocket()
+          socket = createPackageSocket(environment, location.href, result.token)
+          attachSocket()
+        } catch {
+          reconnectDelay = Math.min(2_000, reconnectDelay * 2)
+          onSocketClose()
+        }
+      })()
+    }, reconnectDelay)
+  }
+  const attachSocket = (): void => {
+    socket.addEventListener("open", onSocketOpen)
+    socket.addEventListener("message", onSocketMessage)
+    socket.addEventListener("close", onSocketClose)
+  }
+  attachSocket()
 
   const dispose = async (reason?: unknown): Promise<void> => {
     if (disposePromise !== null) return disposePromise
@@ -1005,8 +1034,8 @@ export async function startExternalStorybookPackage(
     navigationRevision += 1
     lifetime.abort(reason)
     routeAbort.abort()
-    socket.removeEventListener("open", onSocketOpen)
-    socket.removeEventListener("message", onSocketMessage)
+    if (reconnectTimer !== null) clearTimeout(reconnectTimer)
+    detachSocket()
     socket.close()
     globalThis.removeEventListener?.("popstate", onPopState)
     globalThis.removeEventListener?.("pagehide", onPageHide)
@@ -1054,44 +1083,12 @@ export async function startExternalStorybookPackage(
       getModel: () => currentModel,
       navigate,
     })
-    if (candidateRevision !== null) {
-      browserDocument.documentElement.dataset.externalStorybookPhase = "activation"
-      await acknowledgeActivation(environment, browserDocument, {
-        packageId,
-        revision: candidateRevision,
-        packageGraphDigest: snapshot.graphDigest,
-        route: currentRoute,
-        frameSequence: shell.presentedFrameSequence,
-        working: true,
-      })
-    }
     browserDocument.documentElement.dataset.externalStorybookPhase = "ready"
   } catch (error) {
     browserDocument.documentElement.dataset.externalStorybookPhase = "error"
     if (disposed) {
       await dispose(environment.lifecycleSignal?.reason)
       throw lifetime.signal.reason ?? error
-    }
-    if (candidateRevision !== null) {
-      try {
-        await acknowledgeActivation(environment, browserDocument, {
-          packageId,
-          revision: candidateRevision,
-          packageGraphDigest: snapshot.graphDigest,
-          route: currentRoute,
-          frameSequence: shell.presentedFrameSequence,
-          working: false,
-          diagnostic: errorText(error),
-        })
-        const fallbackRevision = readMetaContent(browserDocument, "external-storybook-fallback-revision")
-        if (fallbackRevision !== undefined && fallbackRevision !== candidateRevision) {
-          browserDocument.documentElement.dataset.externalStorybookPhase = "fallback"
-          reloadingFallback = true
-          location.reload()
-        }
-      } catch {
-        // The isolated candidate error remains visible when acknowledgement itself fails.
-      }
     }
     if (!reloadingFallback) {
       agentBridge ??= createStorybookAgentBridge({
@@ -1488,37 +1485,6 @@ function isolatePackageError(
   shell.showMessage(`${model.selectedNode.label} · Ошибка`, model.selectedNode.label, message)
   shell.updateStatus(`${model.packageNode.ownerId} · isolated error`)
   console.error(error)
-}
-
-async function acknowledgeActivation(
-  environment: ExternalStorybookPackageEnvironment,
-  browserDocument: globalThis.Document,
-  input: Readonly<{
-    packageId: string
-    revision: string
-    packageGraphDigest: string
-    route: string
-    frameSequence: number
-    working: boolean
-    diagnostic?: string
-  }>,
-): Promise<void> {
-  if (environment.acknowledgeActivation !== undefined) {
-    await environment.acknowledgeActivation(input)
-    return
-  }
-  const activationId = readMetaContent(browserDocument, "external-storybook-activation-id")
-  const sessionToken = readBrowserSessionToken(browserDocument)
-  if (activationId === undefined || sessionToken === undefined) return
-  const response = await (environment.fetcher ?? globalThis.fetch)("/api/browser/activation", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-storybook-session": sessionToken,
-    },
-    body: JSON.stringify({...input, activationId}),
-  })
-  if (!response.ok) throw new Error(`Storybook activation acknowledgement failed: ${response.status}`)
 }
 
 function readBrowserSessionToken(browserDocument: globalThis.Document): string | undefined {

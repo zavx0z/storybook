@@ -41,6 +41,15 @@ describe("Storybook direct CDP client", () => {
     expect(evaluate.params.expression).not.toContain("<safe>")
   })
 
+  test("allows a busy page to initialize within the full readiness budget", async () => {
+    const cdp = new FakeCdp()
+    cdp.targets.push(cdp.target("TARGET_A", "http://127.0.0.1:43123/packages/a/"))
+    cdp.runtimeEnableDelayMs = 5_100
+    await cdp.client().waitReady("TARGET_A", 10_000)
+    expect(await cdp.client().callBridge("TARGET_A", "identity", {})).toEqual({ok: true})
+    expect(cdp.commands.some(({method}) => method === "Runtime.evaluate")).toBeTrue()
+  }, 15_000)
+
   test("creates targets in the background and never sends a focus command", async () => {
     const cdp = new FakeCdp()
     const client = cdp.client()
@@ -53,22 +62,6 @@ describe("Storybook direct CDP client", () => {
       background: true,
     })
     expect(cdp.commands.map(({method}) => method)).not.toContain("Target.activateTarget")
-    expect(cdp.commands.map(({method}) => method)).not.toContain("Page.bringToFront")
-    expect(cdp.commands.map(({method}) => method)).not.toContain("Emulation.setFocusEmulationEnabled")
-  })
-
-  test("activates only the exact target through the browser CDP domain", async () => {
-    const cdp = new FakeCdp()
-    cdp.targets.push(cdp.target("TARGET_A", "http://127.0.0.1:43123/packages/a/"))
-    const client = cdp.client()
-
-    await client.activateTarget("TARGET_A")
-
-    expect(cdp.commands.find(({method}) => method === "Target.activateTarget")).toEqual({
-      socket: "browser",
-      method: "Target.activateTarget",
-      params: {targetId: "TARGET_A"},
-    })
     expect(cdp.commands.map(({method}) => method)).not.toContain("Page.bringToFront")
     expect(cdp.commands.map(({method}) => method)).not.toContain("Emulation.setFocusEmulationEnabled")
   })
@@ -185,6 +178,7 @@ class FakeCdp {
   hiddenInventories = 0
   hiddenInventoryReads = 0
   responseDelayMs = 0
+  runtimeEnableDelayMs = 0
   requestTimeoutMs = 30_000
   dropCreateResponse = false
 
@@ -258,7 +252,7 @@ class FakeCdp {
       return {data: Buffer.from("png").toString("base64")}
     }
     return {}
-  }, this.responseDelayMs)
+  }, method => method === "Runtime.enable" ? this.runtimeEnableDelayMs : this.responseDelayMs)
 }
 
 class FakeSocket extends EventTarget implements StorybookCdpWebSocket {
@@ -267,7 +261,7 @@ class FakeSocket extends EventTarget implements StorybookCdpWebSocket {
   constructor(
     readonly url: string,
     readonly handle: (method: string, params: Readonly<Record<string, unknown>>) => Record<string, unknown> | null,
-    readonly responseDelayMs: number,
+    readonly responseDelayMs: (method: string) => number,
   ) {
     super()
     queueMicrotask(() => {
@@ -289,8 +283,9 @@ class FakeSocket extends EventTarget implements StorybookCdpWebSocket {
         data: JSON.stringify({id: request.id, result}),
       }))
     }
-    if (this.responseDelayMs === 0) queueMicrotask(respond)
-    else setTimeout(respond, this.responseDelayMs)
+    const delay = this.responseDelayMs(request.method)
+    if (delay === 0) queueMicrotask(respond)
+    else setTimeout(respond, delay)
   }
 
   close(): void {

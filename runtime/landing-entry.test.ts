@@ -117,7 +117,7 @@ describe("external Storybook landing frontend", () => {
     }
   })
 
-  test("renders mixed roots, project packages, owner README and delegates package views to the lifecycle owner", async () => {
+  test("renders repository overviews and navigates packages in the current tab", async () => {
     const graph = await fixtureGraph()
     const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph))
     const requests: string[] = []
@@ -212,65 +212,12 @@ describe("external Storybook landing frontend", () => {
     ])
 
     await controller.select("package:@fixture/components")
-    expect(controller.shell.workbench.controller.read("catalog.active")).toBe("package:@fixture/components")
-    expect(statusBreadcrumbLabels(controller)).toEqual([
-      "Главная",
-      "Fixture Workspace",
-      "Fixture Alpha",
-      "Fixture Components",
-    ])
-    expect(controller.shell.workbench.controller.read("status").detail).toBe("")
-    const nestedAction = descendants(controller.shell.display)
-      .find((element) => element.nodeName === "BUTTON")
-    expect(nestedAction?.textContent).toBe("Открыть Fixture Components")
-    click(nestedAction)
-    await Promise.resolve()
-    expect(opened.at(-1)).toEqual({
-      packageId: "@fixture/components",
-      route: "",
-    })
-    expect(statusBreadcrumbLabels(controller)).toEqual([
-      "Главная",
-      "Fixture Workspace",
-      "Fixture Alpha",
-      "Fixture Components",
-    ])
-
-    const workspaceBreadcrumb = controller.shell.workbench.elements.status.querySelector(
-      '[data-breadcrumb-id="workspace:fixture-workspace"] button',
-    ) as Element | null
-    click(workspaceBreadcrumb ?? undefined)
-    await waitFor(() => statusBreadcrumbLabels(controller).length === 2, "workspace breadcrumb navigation")
-    expect(statusBreadcrumbLabels(controller)).toEqual(["Главная", "Fixture Workspace"])
-    expect(location.pathname).toBe("/workspaces/fixture-workspace/")
-
-    await controller.select("package:@fixture/components")
-    const projectBreadcrumb = controller.shell.workbench.elements.status.querySelector(
-      '[data-breadcrumb-id="project:fixture-alpha"] button',
-    ) as Element | null
-    click(projectBreadcrumb ?? undefined)
-    await waitFor(() => statusBreadcrumbLabels(controller).length === 3 &&
-      location.pathname === "/projects/fixture-alpha/", "project breadcrumb navigation")
-    expect(statusBreadcrumbLabels(controller)).toEqual([
-      "Главная",
-      "Fixture Workspace",
-      "Fixture Alpha",
-    ])
-    expect(location.pathname).toBe("/projects/fixture-alpha/")
-
+    expect(location.href).toBe("http://127.0.0.1:3000/packages/%40fixture%2Fcomponents/")
+    expect(opened).toEqual([])
+    expect(descendants(controller.shell.display).some(element => element.textContent?.startsWith("Открыть "))).toBeFalse()
     await controller.select("package:@fixture/standalone")
-    expect(controller.shell.workbench.controller.read("secondary.items").map(item => item.id)).toEqual([
-      "category:@fixture/standalone/tools", "subject:@fixture/standalone/tools/diagnostics",
-    ])
-    expect(statusBreadcrumbLabels(controller)).toEqual(["Главная", "Standalone Fixture", "Standalone Fixture"])
-    const directAction = descendants(controller.shell.display)
-      .find((element) => element.nodeName === "BUTTON")
-    click(directAction)
-    await Promise.resolve()
-    expect(opened.at(-1)).toEqual({
-      packageId: "@fixture/standalone",
-      route: "",
-    })
+    expect(location.href).toBe("http://127.0.0.1:3000/packages/%40fixture%2Fstandalone/")
+    expect(opened).toEqual([])
 
     const source = await Bun.file(join(import.meta.dir, "landing-entry.ts")).text()
     const view = await Bun.file(join(import.meta.dir, "message-view.tsx")).text()

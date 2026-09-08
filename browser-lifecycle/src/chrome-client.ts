@@ -109,12 +109,6 @@ export class StorybookCdpClient implements StorybookChromeClient {
     }
   }
 
-  async activateTarget(targetId: string, signal?: AbortSignal): Promise<void> {
-    await this.#withBrowser((connection) => connection.command("Target.activateTarget", {
-      targetId: exactTargetId(targetId),
-    }, {signal, timeoutMs: 5_000}), signal)
-  }
-
   async closeTarget(targetId: string, signal?: AbortSignal): Promise<void> {
     const result = await this.#withBrowser((connection) => connection.command("Target.closeTarget", {
       targetId: exactTargetId(targetId),
@@ -267,7 +261,7 @@ export class StorybookCdpClient implements StorybookChromeClient {
     options: Readonly<{awaitPromise?: boolean; signal?: AbortSignal | undefined; timeoutMs: number}>,
   ): Promise<unknown> {
     return this.#withTarget(targetId, async (connection) => {
-      await connection.command("Runtime.enable", {}, {signal: options.signal, timeoutMs: 5_000})
+      await connection.command("Runtime.enable", {}, {signal: options.signal, timeoutMs: options.timeoutMs})
       const command = await connection.command("Runtime.evaluate", {
         expression,
         awaitPromise: options.awaitPromise ?? false,
@@ -454,7 +448,7 @@ async function waitReadyConnection(
   signal?: AbortSignal,
 ): Promise<void> {
   const deadline = Date.now() + boundedTimeout(timeoutMs, 100, 120_000)
-  await connection.command("Runtime.enable", {}, {signal, timeoutMs: 5_000})
+  await connection.command("Runtime.enable", {}, {signal, timeoutMs: Math.max(100, deadline - Date.now())})
   while (Date.now() < deadline) {
     signal?.throwIfAborted()
     try {

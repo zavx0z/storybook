@@ -127,9 +127,9 @@
       "subjects": [{
         "id": "contract",
         "kind": "capability",
-        "label": "One package target",
+        "label": "Package tabs and agent view",
         "apiName": "StorybookBrowserLifecycle",
-        "tags": ["browser", "target", "ownership", "singleton"],
+        "tags": ["browser", "target", "ownership", "tabs"],
         "aliases": [
           "@zavx0z/storybook-browser-lifecycle",
           "openPackage",

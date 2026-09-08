@@ -92,9 +92,14 @@
   layout beside the shared Workbench.
 - Package catalog JSON, current contracts and executable examples must remain
   aligned. A shared implementation change updates the matching self page.
-- After a stable source checkpoint, use `storybook_check` and
-  `storybook_wait`; do not restart the server or unrelated package views for a
-  package implementation change.
+- After a stable source checkpoint, build with `storybook_check(live:false)`,
+  inspect the candidate with `storybook_open`/`storybook_inspect`, then explicitly
+  apply with `storybook_check(live:true)` and wait for active. Build alone never
+  updates user views. Failed checks preserve the applied revision.
+- User navigation stays in the current tab. Agent open reuses a view currently
+  showing its package or creates a background view; never retarget a view the
+  user moved to another package. Multiple views per package are valid and all
+  follow successful application. Do not restart unrelated package views.
 
 ## Delivery safety
 

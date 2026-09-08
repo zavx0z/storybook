@@ -71,7 +71,6 @@ type StorybookBrowserSessionGrant = Readonly<{
   packageId: string | null
   revision: string | null
   viewId: string | null
-  activationId: string | null
   packageGraphDigest: string | null
   allowedTopics: ReadonlySet<string>
   expiresAt: number
@@ -260,7 +259,6 @@ export async function startExternalStorybookServer(
       packageId: string
       route: string
       timeoutMs?: number
-      foreground?: boolean
     }>,
     signal: AbortSignal,
   ): Promise<Readonly<Record<string, unknown>>> => {
@@ -276,16 +274,17 @@ export async function startExternalStorybookServer(
     if (packageNode === undefined) throw new Error(`Unknown Storybook package: ${input.packageId}`)
     sessions.retryFailed(input.packageId)
     const packageState = await sessions.ensure(input.packageId)
-    const expectedRevision = packageState.builtRevision ?? undefined
+    const expectedRevision = packageState.builtRevision ?? packageState.activeRevision ?? undefined
+    const previewUrl = new URL(resolvedRoute.urlPath, server.url)
+    if (packageState.builtRevision != null) previewUrl.searchParams.set("preview", packageState.builtRevision)
     const openInput = {
       origin: server.url.origin,
       packageId: input.packageId,
       route: input.route,
-      url: new URL(resolvedRoute.urlPath, server.url).href,
+      url: previewUrl.href,
       packageLabel: externalStorybookPageTitle(packageNode.packageId, packageNode.label),
       ...(input.timeoutMs === undefined ? {} : {timeoutMs: input.timeoutMs}),
       ...(expectedRevision === undefined ? {} : {expectedRevision}),
-      ...(input.foreground === undefined ? {} : {foreground: input.foreground}),
     }
     let opened
     try {
@@ -297,10 +296,9 @@ export async function startExternalStorybookServer(
         origin: server.url.origin,
         packageId: input.packageId,
         route: input.route,
-        url: new URL(resolvedRoute.urlPath, server.url).href,
+        url: previewUrl.href,
         packageLabel: externalStorybookPageTitle(packageNode.packageId, packageNode.label),
         ...(input.timeoutMs === undefined ? {} : {timeoutMs: input.timeoutMs}),
-        ...(input.foreground === undefined ? {} : {foreground: input.foreground}),
       }, signal)
     }
     const candidateMatches = expectedRevision === undefined || opened.identity.revision === expectedRevision
@@ -314,6 +312,7 @@ export async function startExternalStorybookServer(
       state: opened.identity.ready ? "ready" : "error",
       ready: opened.identity.ready,
       presented: opened.identity.presented,
+      frameSequence: opened.identity.frameSequence ?? 0,
       reused: opened.reused,
       ...(expectedRevision === undefined ? {} : {candidateRevision: expectedRevision}),
       workingFallback: opened.identity.ready && !candidateMatches,
@@ -480,66 +479,23 @@ export async function startExternalStorybookServer(
             data: Buffer.from(capture.png).toString("base64"),
           })
         }
+        if (url.pathname === "/api/browser/session" && request.method === "POST") {
+          assertExternalStorybookRequestOrigin(request, server.url.origin, {required: true})
+          const body = await requestObject(request)
+          assertExactRequestKeys(body, ["packageId", "revision"])
+          const packageId = requiredText("session packageId", body.packageId)
+          const session = sessions.session(packageId)
+          const requested = typeof body.revision === "string" ? body.revision : null
+          const revision = requested !== null && session.revisionDirectory(requested) !== null
+            ? requested : session.snapshot().activeRevision ?? null
+          const viewId = `browser:${randomUUID()}`
+          const lease = revision === null ? null : session.acquireRevisionLease(revision, viewId)
+          const reader = browserSessions.issue({kind: "package", packageId, revision, viewId, ...(lease === null ? {} : {release: lease.release})})
+          return responseJson({token: reader.token})
+        }
         if (url.pathname === "/api/client" && request.method === "GET") {
           const snapshot = registry.snapshot()
           return responseJson(createExternalStorybookClientSnapshot(snapshot.graph, sessions.snapshots()))
-        }
-        if (url.pathname === "/api/browser/activation" && request.method === "POST") {
-          assertExternalStorybookRequestOrigin(request, server.url.origin, {required: true})
-          const token = request.headers.get("x-storybook-session") ?? ""
-          const grant = browserSessions.authorize(token)
-          if (grant.kind !== "package" || grant.packageId === null || grant.revision === null ||
-            grant.viewId === null || grant.activationId === null || grant.packageGraphDigest === null) {
-            throw new Error("Storybook browser session has no activation authority")
-          }
-          const body = await requestObject(request)
-          assertExactRequestKeys(body, [
-            "activationId", "diagnostic", "frameSequence", "packageGraphDigest",
-            "packageId", "revision", "route", "working",
-          ])
-          const packageId = requiredText("activation packageId", body.packageId)
-          const revision = requiredText("activation revision", body.revision)
-          const activationId = requiredText("activation id", body.activationId)
-          const packageGraphDigest = requiredText("activation graph digest", body.packageGraphDigest)
-          const route = typeof body.route === "string" ? body.route : requiredText("activation route", body.route)
-          if (typeof body.working !== "boolean") throw new Error("Storybook activation working must be boolean")
-          if (packageId !== grant.packageId || revision !== grant.revision ||
-            activationId !== grant.activationId || packageGraphDigest !== grant.packageGraphDigest) {
-            throw new Error("Storybook browser activation does not match its scoped session")
-          }
-          const session = sessions.session(packageId)
-          const result = body.working === true
-            ? session.acknowledgeActivation({
-              revision,
-              activationId,
-              viewId: grant.viewId,
-              route,
-              packageGraphDigest,
-              frameSequence: Number(body.frameSequence),
-            })
-            : session.failActivation({
-              revision,
-              activationId,
-              diagnostic: storybookDiagnostic(
-                "activation",
-                typeof body.diagnostic === "string" ? body.diagnostic.slice(0, 4_096) : "Storybook browser activation failed",
-              ),
-            })
-          return responseJson({ok: body.working === true, package: result})
-        }
-        if (url.pathname === "/api/browser/open" && request.method === "POST") {
-          assertExternalStorybookRequestOrigin(request, server.url.origin, {required: true})
-          const token = request.headers.get("x-storybook-session") ?? ""
-          const grant = browserSessions.authorize(token)
-          const body = await requestObject(request)
-          assertExactRequestKeys(body, ["packageId", "route"])
-          const packageId = requiredText("open packageId", body.packageId)
-          const route = body.route === undefined || body.route === ""
-            ? ""
-            : requiredText("open route", body.route)
-          const result = await openPackageView({packageId, route, foreground: true}, request.signal)
-          const {package: _package, ...browserResult} = result
-          return responseJson(browserResult)
         }
         if (url.pathname === "/api/browser/directory" && request.method === "POST") {
           assertRegistryBrowserRequest(request)
@@ -613,8 +569,49 @@ export async function startExternalStorybookServer(
           const packageIds = resolveCheckPackages(refreshed, scope)
           for (const packageId of packageIds) sessions.retryFailed(packageId)
           const results = await Promise.all(packageIds.map((packageId) => sessions.ensure(packageId)))
-          const ok = results.every((snapshot) => packageBuildSucceeded(snapshot))
-          return responseJson({ok, graphDigest: registry.snapshot().graph.digest, packages: results})
+          let ok = results.every((snapshot) => packageBuildSucceeded(snapshot))
+          const views: Readonly<Record<string, unknown>>[] = []
+          if (ok && body.live === true) {
+            for (const result of results) {
+              const packageId = result.packageId
+              const session = sessions.session(packageId)
+              const revision = result.builtRevision ?? result.activeRevision ?? null
+              try {
+                const packages = registry.snapshot().graph.nodes
+                  .filter(node => node.kind === "package")
+                  .map(node => ({packageId: node.packageId!, label: node.label}))
+                const existing = (await browserLifecycle.listViews(server.url.origin, request.signal, packages))
+                  .find(view => view.packageId === packageId)
+                const routes = session.revisionGraphSnapshot(revision!)?.routes ?? []
+                const route = routes.some(route => route.path === existing?.route) ? existing!.route : ""
+                const opened = await openPackageView({packageId, route}, request.signal)
+                const inspected = await browserLifecycle.inspect(String(opened.viewId), {include: ["state", "diagnostics", "console"]}, request.signal)
+                if (opened.ok !== true || inspected.packageId !== packageId || inspected.route !== route || inspected.revision !== revision ||
+                  inspected.graphDigest !== session.revisionGraphSnapshot(revision!)?.packageGraphDigest ||
+                  inspected.ready !== true || inspected.presented !== true || Number(inspected.frameSequence) < 1 ||
+                  !Array.isArray(inspected.consoleErrors) || inspected.consoleErrors.length > 0) {
+                  throw new Error(`Package candidate did not pass live verification: ${packageId}`)
+                }
+                request.signal.throwIfAborted()
+                if (result.builtRevision != null) {
+                  const activation = session.beginActivation({revision: revision!, viewId: String(opened.viewId), route})
+                  session.acknowledgeActivation({...activation, frameSequence: Number(inspected.frameSequence)})
+                }
+                views.push({...opened, package: session.snapshot(), status: "success", applied: true})
+              } catch (error) {
+                ok = false
+                const message = error instanceof Error ? error.message : String(error)
+                if (result.builtRevision != null && session.snapshot().builtRevision === result.builtRevision) {
+                  const activation = session.beginActivation({revision: result.builtRevision, viewId: "agent-check", route: ""})
+                  session.failActivation({...activation, diagnostic: storybookDiagnostic("activation", message)})
+                }
+                views.push({packageId, status: "failed", error: {message}})
+                if (request.signal.aborted) break
+              }
+            }
+          }
+          return responseJson({ok, applied: body.live === true, graphDigest: registry.snapshot().graph.digest,
+            packages: packageIds.map(packageId => sessions.session(packageId).snapshot()), views})
         }
         if (url.pathname === "/api/control/wait" && request.method === "POST") {
           const body = await requestObject(request)
@@ -708,6 +705,11 @@ export async function startExternalStorybookServer(
         if (url.pathname.startsWith("/packages/") && request.method === "GET") {
           return packagePageResponse(url, registry, sessions, ensureSharedAssets, browserSessions, server.url.origin)
         }
+        if (request.method === "GET" && url.pathname.startsWith("/browse/")) {
+          const packageId = decodeURIComponent(url.pathname.slice("/browse/".length).replace(/\/$/u, ""))
+          if (!registry.snapshot().graph.nodes.some(node => node.kind === "package" && node.packageId === packageId)) throw new Error("Unknown package")
+          return new Response(null, {status: 308, headers: {location: `/packages/${encodeURIComponent(packageId)}/`}})
+        }
         if (request.method === "GET" && isLandingPath(registry.snapshot(), url.pathname)) {
           await mutateRegistry(() => registry.refresh())
           const assets = await ensureSharedAssets()
@@ -719,7 +721,6 @@ export async function startExternalStorybookServer(
               `/__storybook/shared/${assets.landingEntry}`,
               "landing",
               session.token,
-              null,
               null,
               authorStyleSheets,
             ),
@@ -760,6 +761,10 @@ export async function startExternalStorybookServer(
           }
           websocket.data.subscriptions.add(topic)
           websocket.send(JSON.stringify({type: "subscribed", topic}))
+          if (topic.startsWith("package:")) {
+            const packageId = topic.slice("package:".length)
+            websocket.send(JSON.stringify({type: "package.applied-state", packageId, revision: sessions.session(packageId).snapshot().activeRevision ?? null}))
+          }
         } catch (error) {
           websocket.send(JSON.stringify({type: "subscription.failed", message: errorText(error)}))
         }
@@ -992,9 +997,12 @@ async function packagePageResponse(
     throw new Error(`Unknown Storybook package page title owner: ${route.packageId}`)
   }
   const pageTitle = externalStorybookPageTitle(route.packageId, packageNode.label)
-  const snapshot = await sessions.ensure(route.packageId)
-  const revision = snapshot.builtRevision ?? snapshot.activatingRevision ??
-    snapshot.activeRevision ?? snapshot.lastWorkingRevision ?? snapshot.lastGoodRevision
+  const session = sessions.session(route.packageId)
+  const current = session.snapshot()
+  const snapshot = current.activeRevision === null ? await sessions.ensure(route.packageId) : current
+  const preview = url.searchParams.get("preview")
+  if ([...url.searchParams.keys()].some(key => key !== "preview") || (preview !== null && !/^[A-Za-z0-9_-]{1,256}$/u.test(preview))) throw new Error("Invalid package preview URL")
+  const revision = preview ?? snapshot.activeRevision ?? snapshot.lastWorkingRevision ?? null
   if (revision === null) {
     const assets = await ensureSharedAssets()
     const browserSession = browserSessions.issue({
@@ -1010,16 +1018,18 @@ async function packagePageResponse(
         null,
         browserSession.token,
         null,
-        null,
         authorStyleSheets,
       ),
       origin,
     )
   }
-  const session = sessions.session(route.packageId)
+  if (preview !== null && snapshot.revisions?.find(record => record.revision === preview)?.status === "failed") {
+    return new Response(null, {status: 308, headers: {location: url.pathname}})
+  }
   const graphSnapshot = session.revisionGraphSnapshot(revision)
   if (graphSnapshot === null) throw new Error(`Storybook revision graph is missing: ${route.packageId}:${revision}`)
-  const resolvedRoute = graphSnapshot.routes.find(({path}) => path === route.routePath)
+  let resolvedRoute = graphSnapshot.routes.find(({path}) => path === route.routePath)
+  if (resolvedRoute === undefined && preview === null) resolvedRoute = graphSnapshot.routes.find(({path}) => path === "")
   if (resolvedRoute === undefined) throw new Error(`Unknown Storybook revision route: ${route.packageId}:${route.routePath}`)
   if (resolvedRoute.urlPath !== url.pathname) {
     return new Response(null, {status: 308, headers: {location: resolvedRoute.urlPath}})
@@ -1032,9 +1042,6 @@ async function packagePageResponse(
   const fallbackRevision = snapshot.builtRevision === revision
     ? snapshot.activeRevision ?? snapshot.lastWorkingRevision ?? snapshot.lastGoodRevision
     : null
-  const activation = snapshot.builtRevision === revision
-    ? session.beginActivation({revision, viewId, route: route.routePath})
-    : null
   const lease = session.acquireRevisionLease(revision, viewId)
   const revisionUrl = revisionBase(route.packageId, revision)
   const script = `${revisionUrl}${revisionRecord.entryRelativePath}`
@@ -1043,17 +1050,15 @@ async function packagePageResponse(
     packageId: route.packageId,
     revision,
     viewId,
-    activationId: activation?.activationId ?? null,
     packageGraphDigest: graphSnapshot.packageGraphDigest,
     release: lease.release,
   })
   return htmlResponse(
     storybookHtml(
-      pageTitle,
+      externalStorybookPageTitle(route.packageId, graphSnapshot.metadata.label),
       script,
       null,
       browserSession.token,
-      activation?.activationId ?? null,
       fallbackRevision === revision ? null : fallbackRevision,
       mergeStorybookAuthorStyleSheets(
         graphSnapshot.workbenchAuthorStyleSheets,
@@ -1062,6 +1067,7 @@ async function packagePageResponse(
         ...styleSheet,
         href: `${revisionUrl}${styleSheet.url}`,
       })),
+      snapshot.activeRevision ?? null,
     ),
     origin,
   )
@@ -1355,7 +1361,6 @@ export class StorybookBrowserSessionRegistry {
     packageId: string | null
     revision: string | null
     viewId?: string | null
-    activationId?: string | null
     packageGraphDigest?: string | null
     release?: () => void
   }>): Readonly<{token: string, grant: StorybookBrowserSessionGrant}> {
@@ -1380,7 +1385,6 @@ export class StorybookBrowserSessionRegistry {
       packageId: input.packageId,
       revision: input.revision,
       viewId: input.viewId ?? null,
-      activationId: input.activationId ?? null,
       packageGraphDigest: input.packageGraphDigest ?? null,
       allowedTopics,
       expiresAt: this.#now() + this.#ttlMs,
@@ -1500,9 +1504,9 @@ function storybookHtml(
   script: string,
   entry: "landing" | null = null,
   browserSessionToken: string,
-  activationId: string | null,
   fallbackRevision: string | null = null,
   authorStyleSheets: readonly StorybookHtmlAuthorStyleSheet[] = Object.freeze([]),
+  appliedRevision: string | null = null,
 ): string {
   const styleSheetLinks = authorStyleSheets.map((styleSheet, index) => [
     `    <link id="external-storybook-author-style-sheet-${index}" rel="stylesheet"`,
@@ -1518,7 +1522,7 @@ function storybookHtml(
     <link rel="icon" href="data:,">
     <meta name="engine-default-font" content="/assets/inter-regular.ttf">
     <meta name="external-storybook-browser-session" content="${escapeHtml(browserSessionToken)}">
-    ${activationId === null ? "" : `<meta name="external-storybook-activation-id" content="${escapeHtml(activationId)}">`}
+    <meta name="external-storybook-applied-revision" content="${escapeHtml(appliedRevision ?? "")}">
     ${fallbackRevision === null ? "" : `<meta name="external-storybook-fallback-revision" content="${escapeHtml(fallbackRevision)}">`}
 ${styleSheetLinks.length === 0 ? "" : `${styleSheetLinks}\n`}
     <title>${escapeHtml(title)}</title>

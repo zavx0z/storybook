@@ -262,8 +262,9 @@ Unicode glyph fallback и font-dependent disclosure запрещены.
 Вторая панель показывает категории и предметы выбранного пакета своим деревом;
 варианты остаются в dock. Выбор репозитория показывает его README.
 
-Выбор пакета в каталоге имеет URL `/browse/<encoded-package-id>/`, изолированная
-рабочая вкладка — `/packages/<encoded-package-id>/<route>`. URL, native title и
+Выбор пакета и содержимого выполняется в текущей вкладке по URL
+`/packages/<encoded-package-id>/<route>`. Старый `/browse/<encoded-package-id>/`
+перенаправляет на этот адрес; промежуточной страницы с кнопкой открытия нет. URL, native title и
 breadcrumbs синхронизируются с выбором, включая Back/Forward. Название выбранного
 узла берётся из его label; общий каталог без выбора называется Storybook.
 
@@ -273,7 +274,8 @@ loaders, диагностика и lastWorking остаются в собств�
 модулей и ресурсов. Ошибка или изменение родительского пакета не меняет ревизию
 дочернего только из-за вложенности. Read-only topic `catalog` обновляет дерево;
 пакетная session не получает registry mutation rights. Переход к другому пакету
-делегируется общему browser lifecycle и переиспользует его отдельную вкладку.
+загружает его страницу в текущей вкладке. Routes внутри пакета переключают
+содержимое существующего Root. В интерфейсе нет команды открытия новой вкладки.
 
 ### `STORYBOOK-WORKBENCH-004` — safe README
 
@@ -398,13 +400,18 @@ Package build фиксирует canonical dependency realpaths. Две identiti
 Каждый package имеет собственные compiler context, module graph, watchers,
 generated entry, candidate/built/activating/active/lastWorking revisions,
 diagnostics, subscribers и build state. Build success публикует только `built`;
-active/lastWorking требует live create→mount→present acknowledgement.
+active/lastWorking требует явного агентского `check(live:true)`: точная candidate
+revision и graph digest, ready state, presented frame и отсутствие console errors
+проверяются перед применением. Обычный GET, preview и browser acknowledgement
+не дают права публиковать. `check(live:false)` только собирает.
 
 ### `STORYBOOK-SESSION-002` — last-good isolation
 
 Failed build/activation не меняет active/lastWorking artifact, server, graph или другие
 sessions. Без lastWorking только affected preview показывает isolated error.
-Исправление публикует новую revision и очищает diagnostics.
+После исправления агент проверяет и применяет новую revision. Применение атомарно
+сохраняет private receipt и артефакт; после перезапуска восстанавливается та же
+версия. Неприменённый кандидат не становится lastWorking при восстановлении.
 
 ### `STORYBOOK-SESSION-003` — dependency-aware update
 
@@ -416,9 +423,14 @@ Watcher канонизирует директории и настоящие syml
 
 Changed canonical realpath invalidates only sessions whose metafile graph его
 содержит. Package success/failure WebSocket events всегда содержат packageId.
-Affected tab сохраняет текущий route; unrelated tabs/global shell не reload.
-Автоматическая пересборка запускается только для package с живым subscriber
-его отдельной вкладки. Ранее собранный, но больше не просматриваемый package
+`package.built` не перезагружает страницы. Только `package.updated` после
+применения обновляет все вкладки пакета, сохраняя route, если он существует в
+новой ревизии. Удалённый route переводится в корень этого пакета. Другие пакеты
+не получают команду обновления. При разрыве WebSocket вкладка получает новый
+read-only reader token, переподписывается и сверяет `package.applied-state`;
+пропущенное применение тоже обновляет страницу. Agent preview сохраняет свой
+кандидат до следующего применения. Автоматическая пересборка запускается только
+для package с живым subscriber любой его вкладки. Ранее собранный, но больше не просматриваемый package
 только помечает новое generation и собирает последнюю версию при следующем
 open/subscribe. Явный `check` своего scope остаётся отдельным безусловным
 запросом сборки.
@@ -488,43 +500,35 @@ npm package/server/build/bunfig/port config. Для project/workspace соста
 
 ## Browser lifecycle
 
-### `STORYBOOK-BROWSER-001` — one logical target per exact package identity
+### `STORYBOOK-BROWSER-001` — a reusable agent view and independent user tabs
 
-Для каждого exact `packageId` private lifecycle хранит не более одного tagged
-state: `absent | reserved(operationId) | owned(targetId)`. Reservation создаётся
-атомарно под package-scoped cross-process lock до `Target.createTarget`; route,
-server instance и origin не входят в package target identity. Повторный,
-конкурентный или восстановленный `openPackage` присоединяется к существующей
-reservation либо переиспользует и навигирует existing owned target.
+Для exact `packageId` private lifecycle сохраняет предпочтительную рабочую
+вкладку агента и сериализует opens через `absent | reserved(operationId) |
+owned(targetId)` под package lock. Reservation предшествует созданию target;
+конкурентные вызовы и восстановление pending operation не создают лишних вкладок.
+Готовность Runtime ожидается в пределах общего бюджета открытия, без отдельного
+пятисекундного ограничения на большую страницу.
+При этом несколько физических вкладок одного пакета допустимы и видимы агенту.
 
-Второй owned target для того же `packageId` не является допустимым logical
-state: lifecycle не создаёт, не регистрирует и не публикует его. Timeout, abort
-или process crash на любом переходе reservation/create/navigation/readiness не
-разрешает retry создать следующий target; retry обязан восстановить pending
-operation/target либо fail closed.
+Перед повторным использованием проверяются настоящий URL и bridge identity.
+Если пользователь перешёл на другой пакет или сайт, вкладка сохраняется:
+агент использует другую вкладку нужного пакета либо создаёт новую в background.
 
-### `STORYBOOK-BROWSER-002` — one open command for every adapter
+### `STORYBOOK-BROWSER-002` — current-tab navigation and background agent open
 
-Landing action, CLI и MCP вызывают один typed application command
-`openPackage`, который делегирует exact package operation только
-`@zavx0z/storybook-browser-lifecycle`. Direct `window.open`/`globalThis.open`,
-named-tab fallback и server event, поручающий landing самостоятельно создать
-package tab, запрещены. Разные routes последовательно навигируют тот же target
-и сохраняют его opaque view identity. Только подтверждённое действие человека
-на landing после readiness, duplicate normalization и повторной target
-аттестации активирует exact package tab. CLI, MCP и другие автоматические
-вызовы не меняют активную вкладку.
+Пользовательская навигация использует текущую вкладку. CLI и MCP вызывают typed
+`openPackage` private lifecycle owner для рабочего просмотра. Новая вкладка
+всегда фоновая; lifecycle не активирует Chrome и не переводит фокус.
+`window.open`, named-tab fallback и отдельная UI-команда новой вкладки отсутствуют.
 
-### `STORYBOOK-BROWSER-003` — recovery is not normal deduplication
+### `STORYBOOK-BROWSER-003` — preserve peers and bind handles to packages
 
-Несколько physical targets, подтверждённых как старое ownership одного package,
-являются только legacy/crash recovery anomaly и не импортируются в logical
-state. Lifecycle под package lock выбирает один retained target, повторно
-аттестует каждый obsolete candidate непосредственно перед close и завершает
-normalization до публикации `open`, `status`, `views` или live `check` result.
-Unattested, foreign и navigated-away user targets не изменяются. Если safe
-normalization невозможна, operation fail closed и duplicate view не скрывается
-origin filter-ом.
+`status` и `views` только перечисляют подтверждённые вкладки текущего origin,
+не навигируют и не закрывают их. Несколько вкладок одного package не являются
+ошибкой или основанием для удаления. ViewId связан с physical target и packageId:
+переход A → B лишает старый handle права inspect/interact/capture. Непосредственно
+перед операцией повторно проверяется пакет, bridge отклоняет несовпадение.
+Foreign, navigated-away и остальные пользовательские вкладки сохраняются.
 
 ## MCP
 
@@ -553,19 +557,14 @@ capture templates. Это bounded derived projections canonical graph/sessions,
 
 ### `STORYBOOK-MCP-004` — opaque browser views
 
-Один package view является opaque projection единственного lifecycle-owned
-package target/realm. Agent получает opaque
-`viewId`, semantic state and capture metadata; port, PID, targetId, Chrome index,
-master token и private artifact path не раскрываются.
-MCP не владеет target records, reservations, discovery или reconciliation: он
-вызывает общий `openPackage` и публикует только result nested lifecycle owner.
-Смена server origin сохраняет тот же lifecycle target и opaque view identity;
-duplicate package view не является representable MCP state.
-Создание target — background-only. MCP/CLI open не активирует Chrome; только
-аутентифицированное действие человека на landing может передать явное
-`foreground` намерение lifecycle owner. OS focus, `ai-macos`, `@meta/chrome` и
-browser CLI как runtime dependency запрещены. Ensure, attach, search и
-`check(live:false)` не требуют доступного CDP.
+Каждая подтверждённая вкладка имеет opaque viewId, связанный с target и packageId.
+Agent получает semantic state and capture metadata; port, PID, targetId, Chrome
+index, master token и private artifact path не раскрываются. Несколько viewId
+одного package допустимы. MCP не владеет target records или reconciliation,
+а делегирует операции nested lifecycle owner. Смена origin сохраняет viewId,
+смена пакета его изменяет. Новые targets создаются в background; OS focus,
+`ai-macos`, `@meta/chrome` и browser CLI как runtime dependency запрещены.
+Ensure, attach, search и `check(live:false)` не требуют доступного CDP.
 
 ### `STORYBOOK-MCP-005` — semantic bridge
 
@@ -662,25 +661,19 @@ revision. Consumer boundary scan и owner parity fixtures доказывают �
 старых dependencies/imports/packages/wrappers, сохранение leaf routes,
 документированные overview remaps и отсутствие production story exports.
 
-Browser lifecycle tests доказывают package invariant на границах каждого
-перехода: repeated и concurrent landing/CLI/MCP opens, разные routes, server
-origin replacement, timeout/abort/crash после reservation и create, externally
-closed target и legacy duplicate recovery. Для exact package каждый trace имеет
-не более одного concurrent reservation/owned target; каждый concurrent/retry
-open episode имеет не более одного successful create и один stable opaque
-`viewId`. После подтверждённого external close следующий episode создаёт ровно
-один replacement; foreign targets сохраняются. Package-boundary scan доказывает,
-что direct CDP, target state и package lock принадлежат только
-`@zavx0z/storybook-browser-lifecycle`, а adapters не содержат параллельный open.
+Browser lifecycle tests покрывают повторные и конкурентные agent opens, разные
+routes, смену origin, timeout/abort/crash, закрытую вкладку, несколько вкладок
+пакета и переход пользователя на другой пакет. Повторный open переиспользует
+подходящую вкладку; list не меняет targets; старый package handle не управляет
+новым пакетом. Package-boundary scan сохраняет direct CDP и locks внутри
+`@zavx0z/storybook-browser-lifecycle`.
 
-Live acceptance выполняется на том же server: global landing, минимум три
-package tabs разных owners, exact ready routes, zero console errors, non-empty
-preview/canvas, scoped A failure/recovery и неизменные B/C/landing realms.
-Repeated landing + MCP opens и controlled server-origin replacement обязаны
-закончиться одним attested physical target на package; `status`, `views` и
-`check(live:true)` fail closed, если uniqueness нельзя подтвердить, не раскрывая
-private target identity.
-
+Publication integration доказывает: build и preview не применяют кандидат;
+успешный live-check обновляет всех читателей пакета, ошибка оставляет lastWorking,
+другой пакет не получает update. Применённая версия восстанавливается после
+restart, а потерянное событие восстанавливается при переподписке. Live inspection
+и capture проверяют exact route, ready/presented и console; это evidence, а не
+визуальная приёмка пользователем.
 
 ### `STORYBOOK-APP-001` — authored App and shared input
 

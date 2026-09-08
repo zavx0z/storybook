@@ -67,7 +67,7 @@ export function createStorybookMcpServer(options: CreateStorybookMcpServerOption
 
   server.registerTool("storybook_open", {
     title: "Open Storybook package view",
-    description: "Reuse or open the one opaque browser view for an exact package route.",
+    description: "Preview an exact package candidate in an existing matching tab or a new background tab; preserve other packages.",
     inputSchema: storybookOpenSchema,
     annotations: {idempotentHint: true},
   }, async (input, context) => invoke(controller, (value) => value.open(input, {signal: context.mcpReq.signal})))
@@ -101,9 +101,9 @@ export function createStorybookMcpServer(options: CreateStorybookMcpServerOption
 
   server.registerTool("storybook_check", {
     title: "Check Storybook package",
-    description: "Validate declarations, graph, build and optionally live activation with structured diagnostics.",
+    description: "Build a package candidate. With live=true, inspect the exact candidate and apply it on success to all tabs of that package; preserve the applied revision on failure.",
     inputSchema: storybookCheckSchema,
-    annotations: {readOnlyHint: true, idempotentHint: true},
+    annotations: {idempotentHint: true},
   }, async (input, context) => invoke(controller, (value) => value.check(input, {signal: context.mcpReq.signal})))
 
   server.registerTool("storybook_close", {
