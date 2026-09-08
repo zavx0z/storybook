@@ -315,7 +315,7 @@ exact `@zavx0z/space` `XRSpaceElement` и `XRViewPointElement`; package runtime
 Document на границе перед использованием собственных API.
 
 Весь Workbench является одним `XRHUDElement`
-`external-storybook-workbench`. Exact `XRDisplayElement`
+`external-storybook-workbench`. Exact `DisplayElement`
 `external-storybook-display` принимает Display stories; HUD stories используют
 `XRHUDElement`, а Space stories монтируются непосредственно в единственный
 `XRSpaceElement`. Host получает каждую projection только через

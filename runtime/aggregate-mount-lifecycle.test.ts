@@ -1,6 +1,7 @@
+import {DisplayElement} from "@zavx0z/dom/display"
 import {describe, expect, test} from "bun:test"
 import {createDocument, type Element} from "@zavx0z/dom"
-import {createSpaceElementFactories, XRDisplayElement} from "@zavx0z/space"
+import {createSpaceElementFactories} from "@zavx0z/space"
 import {
   disposeStorybookAggregateChildren,
   mountStorybookAggregateChildren,
@@ -17,13 +18,13 @@ describe("external Storybook aggregate mount lifecycle", () => {
   test("attaches a published owner root before its mount continuation, as a leaf does", async () => {
     const document = createDocument({elementFactories: createSpaceElementFactories()})
     const space = document.createElement("xr-space")
-    const display = document.createElement("xr-display")
+    const display = document.createElement("display")
     document.appendChild(space)
     space.appendChild(display)
-    expect(display).toBeInstanceOf(XRDisplayElement)
+    expect(display).toBeInstanceOf(DisplayElement)
 
     const signal = new AbortController().signal
-    const observedDisplays: XRDisplayElement[] = []
+    const observedDisplays: DisplayElement[] = []
     const adapter: StorybookRuntimeAdapter = {
       protocol: "storybook-runtime/4",
       create(context) {
@@ -111,7 +112,7 @@ describe("external Storybook aggregate mount lifecycle", () => {
       expect(children).toHaveLength(1)
       expect(observedDisplays).toEqual([display, display])
       expect(children[0]!.presentation.node.ownerDocument).toBe(document)
-      expect(document.querySelectorAll("xr-display")).toHaveLength(1)
+      expect(document.querySelectorAll("display")).toHaveLength(1)
     } finally {
       await disposeStorybookAggregateChildren(children)
     }
@@ -295,11 +296,11 @@ function ownerPresentation(context: StorybookRuntimeContext, id: string): Storyb
   }
 }
 
-function requiredDisplayAncestor(owner: Element): XRDisplayElement {
+function requiredDisplayAncestor(owner: Element): DisplayElement {
   let ancestor = owner.parentElement
   while (ancestor !== null) {
-    if (ancestor instanceof XRDisplayElement) return ancestor
+    if (ancestor instanceof DisplayElement) return ancestor
     ancestor = ancestor.parentElement
   }
-  throw new Error("Storybook owner mount continued after present without its host-owned XRDisplayElement")
+  throw new Error("Storybook owner mount continued after present without its host-owned DisplayElement")
 }

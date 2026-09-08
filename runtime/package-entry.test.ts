@@ -1,3 +1,4 @@
+import {DisplayElement} from "@zavx0z/dom/display"
 import {presentationRootFixture, type PresentationFixtureOptions} from "./browser-root.fixture.ts"
 import {createRoot} from "@zavx0z/component"
 import {createDocumentClipboardController} from "@zavx0z/browser/clipboard"
@@ -13,7 +14,6 @@ import type {
 import type {RenderFrame} from "@zavx0z/renderer"
 import {
   createSpaceElementFactories,
-  XRDisplayElement,
   XRHUDElement,
   XRSpaceElement,
   XRViewPointElement,
@@ -108,8 +108,8 @@ describe("external Storybook package frontend", () => {
                   source: {html: "<article></article>", typescript: "export const owner = {}"},
                 })
                 expect(context.projection).toBe(projection)
-                expect(node.closest(`xr-${projection}`)).toBeInstanceOf(
-                  projection === "display" ? XRDisplayElement : XRHUDElement,
+                expect(node.closest(projection === "display" ? "display" : "xr-hud")).toBeInstanceOf(
+                  projection === "display" ? DisplayElement : XRHUDElement,
                 )
                 mounts += 1
               },
@@ -127,7 +127,7 @@ describe("external Storybook package frontend", () => {
     })
     try {
       expect(mounts).toBe(2)
-      expect(controller.shell.document.querySelectorAll("xr-display")).toHaveLength(1)
+      expect(controller.shell.document.querySelectorAll("display")).toHaveLength(1)
       expect(controller.shell.document.querySelectorAll("xr-hud")).toHaveLength(1)
       const view = controller.shell.workbench.controller.read("presentation")
       expect(view.projection).toBe(projection)
@@ -414,7 +414,7 @@ describe("external Storybook package frontend", () => {
                   values: {props: {label: input.story.label}},
                 })
                 expect(node.ownerDocument).toBe(ownerContext.document)
-                expect(node.closest("xr-display")).toBeInstanceOf(XRDisplayElement)
+                expect(node.closest("display")).toBeInstanceOf(DisplayElement)
                 ownerContext.reportDiagnostic({phase: "runtime", message: "owner-ready"})
                 ownerContext.requestRender()
               },
@@ -1286,7 +1286,7 @@ function fakeRootFactory(
     state.space = space
 
     const presented = new Set<(sequence: number) => void>()
-    const documentProjections = new Map<XRDisplayElement | XRHUDElement, Readonly<{
+    const documentProjections = new Map<DisplayElement | XRHUDElement, Readonly<{
       projection: RootDocumentProjection
       subscribers: Set<(frame: RenderFrame) => void>
       setFrame(frame: RenderFrame): void
@@ -1301,7 +1301,7 @@ function fakeRootFactory(
     let disposed = false
 
     const documentProjection = (
-      owner: XRDisplayElement | XRHUDElement,
+      owner: DisplayElement | XRHUDElement,
     ): RootDocumentProjection => {
       const existing = documentProjections.get(owner)
       if (existing !== undefined) return existing.projection
@@ -1311,7 +1311,7 @@ function fakeRootFactory(
       const subscribers = new Set<(frame: RenderFrame) => void>()
       let frame: RenderFrame | null = null
       const projection: RootDocumentProjection = Object.freeze({
-        kind: owner instanceof XRDisplayElement ? "display" : "hud",
+        kind: owner instanceof DisplayElement ? "display" : "hud",
         owner,
         projectPoint: (point: {x: number; y: number}) => point,
         readFrame: () => frame,
@@ -1335,12 +1335,12 @@ function fakeRootFactory(
     }
 
     function getProjection(owner: XRSpaceElement): RootSpaceProjection
-    function getProjection(owner: XRDisplayElement | XRHUDElement): RootDocumentProjection
+    function getProjection(owner: DisplayElement | XRHUDElement): RootDocumentProjection
     function getProjection(
-      owner: XRSpaceElement | XRDisplayElement | XRHUDElement,
+      owner: XRSpaceElement | DisplayElement | XRHUDElement,
     ): RootProjection {
       if (owner === space) return spaceProjection
-      return documentProjection(owner as XRDisplayElement | XRHUDElement)
+      return documentProjection(owner as DisplayElement | XRHUDElement)
     }
 
     const root: Root = Object.freeze({
@@ -1401,7 +1401,7 @@ function fakeRootFactory(
 
 function fakeRenderFrame(
   document: ReturnType<typeof createDocument>,
-  root: XRDisplayElement | XRHUDElement,
+  root: DisplayElement | XRHUDElement,
   revision: number,
 ): RenderFrame {
   return Object.freeze({

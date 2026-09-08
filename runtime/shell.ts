@@ -1,3 +1,4 @@
+import {DisplayElement} from "@zavx0z/dom/display"
 /**
 Страница Storybook подключает один App через Browser createRoot.
 
@@ -25,7 +26,6 @@ import {
   type Node as SemanticNode,
 } from "@zavx0z/dom"
 import {
-  XRDisplayElement,
   XRHUDElement,
   XRSpaceElement,
   type XRViewPointElement,
@@ -86,7 +86,7 @@ export type ExternalStorybookShell = Readonly<{
   root: Root
   space: XRSpaceElement
   viewPoint: XRViewPointElement
-  display: XRDisplayElement
+  display: DisplayElement
   hud: XRHUDElement
   workbench: Workbench
   readonly presentedFrameSequence: number
@@ -176,7 +176,7 @@ export async function createExternalStorybookShell(
   const viewPoint = root.viewPoint
   const display = document.getElementById(EXTERNAL_STORYBOOK_DISPLAY_ID)
   const hud = document.getElementById(EXTERNAL_STORYBOOK_WORKBENCH_ID)
-  if (!(display instanceof XRDisplayElement) || !(hud instanceof XRHUDElement) || workbench === undefined) {
+  if (!(display instanceof DisplayElement) || !(hud instanceof XRHUDElement) || workbench === undefined) {
     root.unmount()
     throw new Error("Storybook App did not mount its Display, HUD and Workbench")
   }
@@ -217,20 +217,17 @@ export async function createExternalStorybookShell(
   const publishBounds = (bounds: StorybookPreviewBounds | null): void => {
     const visible = bounds !== null && bounds.width > 0 && bounds.height > 0 &&
       workbench.controller.read("presentation").projection === "display"
-    if (display.visible !== visible) display.visible = visible
     if (visible && bounds !== null) {
       // The HUD supplies layout bounds in CSS pixels. Project that rectangle
       // onto the existing front-facing Display through the authored camera.
-      const units = 2 * (display.y - viewPoint.y) * Math.tan(viewPoint.fov / 2) / bounds.viewportHeight
+      const units = 2 * (0 - viewPoint.y) * Math.tan(viewPoint.fov / 2) / bounds.viewportHeight
       const x = viewPoint.x + (bounds.x + bounds.width / 2 - bounds.viewportWidth / 2) * units
       const z = viewPoint.z + (bounds.viewportHeight / 2 - bounds.y - bounds.height / 2) * units
-      document.transaction(() => {
-        if (display.viewportWidth !== bounds.width) display.viewportWidth = bounds.width
-        if (display.viewportHeight !== bounds.height) display.viewportHeight = bounds.height
-        if (display.worldUnitsPerPixel !== units) display.worldUnitsPerPixel = units
-        if (display.x !== x) display.x = x
-        if (display.z !== z) display.z = z
-      })
+      const style = `--preview-width: ${bounds.width}px; --preview-height: ${bounds.height}px; --preview-x: ${x}mm; --preview-z: ${z}mm; --preview-scale: ${units / (25.4 / 96)}; --preview-visibility: visible`
+      if (display.getAttribute("style") !== style) display.setAttribute("style", style)
+    }
+    if (!visible && display.getAttribute("style") !== "--preview-visibility: hidden") {
+      display.setAttribute("style", "--preview-visibility: hidden")
     }
     if (sameBounds(latestBounds, bounds)) return
     latestBounds = bounds

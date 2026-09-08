@@ -1,3 +1,4 @@
+import {DisplayElement} from "@zavx0z/dom/display"
 import {presentationRootFixture, type PresentationFixtureOptions} from "./browser-root.fixture.ts"
 import {createRoot} from "@zavx0z/component"
 import {createDocumentClipboardController} from "@zavx0z/browser/clipboard"
@@ -13,10 +14,9 @@ import {
   type Element,
   type Node,
 } from "@zavx0z/dom"
-import {createDocumentRenderer, type RenderBox, type RenderFrame} from "@zavx0z/renderer"
+import {readDisplayStyle, createDocumentRenderer, type RenderBox, type RenderFrame} from "@zavx0z/renderer"
 import {
   createSpaceElementFactories,
-  XRDisplayElement,
   XRHUDElement,
   XRSpaceElement,
   XRViewPointElement,
@@ -49,7 +49,7 @@ describe("external Storybook shared Browser Root", () => {
       targetZ: 0,
       far: 2_000,
     })
-    expect(shell.display).toBeInstanceOf(XRDisplayElement)
+    expect(shell.display).toBeInstanceOf(DisplayElement)
     expect(shell.display.id).toBe(EXTERNAL_STORYBOOK_DISPLAY_ID)
     expect(shell.hud).toBeInstanceOf(XRHUDElement)
     expect(shell.hud.id).toBe(EXTERNAL_STORYBOOK_WORKBENCH_ID)
@@ -117,17 +117,17 @@ describe("external Storybook shared Browser Root", () => {
       null,
       {x: 12, y: 18, width: 640, height: 360, viewportWidth: 1024, viewportHeight: 768},
     ])
-    expect(shell.display.viewportWidth).toBe(640)
-    expect(shell.display.viewportHeight).toBe(360)
-    const scale = shell.display.worldUnitsPerPixel
+    const surface = readDisplayStyle(shell.document, shell.display)
+    expect(surface.viewport).toEqual({width: 640, height: 360})
+    const scale = surface.worldUnitsPerPixel * surface.transform.scale.x
     expect(scale).toBeCloseTo(2_000 * Math.tan(shell.viewPoint.fov / 2) / 768, 10)
-    expect(shell.display.x / scale + 512 - 320).toBeCloseTo(12, 10)
-    expect(384 - shell.display.z / scale - 180).toBeCloseTo(18, 10)
+    expect(surface.transform.position.x / scale + 512 - 320).toBeCloseTo(12, 10)
+    expect(384 - surface.transform.position.z / scale - 180).toBeCloseTo(18, 10)
     const renderer = createDocumentRenderer({
       document: shell.document,
       root: shell.display,
       viewport: {width: 640, height: 360},
-      styleSheets: ["xr-display { --widget-box-outline: #333333; }"],
+      styleSheets: ["display { --widget-box-outline: #333333; }"],
     })
     const frame = renderer.flush()
     expect(frame.boxByNode.get(shell.display)).toMatchObject({
@@ -140,10 +140,11 @@ describe("external Storybook shared Browser Root", () => {
       contentX: 180, contentY: 40, contentWidth: 480, contentHeight: 280,
     })
     expect(shell.display === display).toBe(true)
-    expect(display.viewportWidth).toBe(480)
-    expect(display.viewportHeight).toBe(280)
-    expect(display.x / display.worldUnitsPerPixel + 512 - 240).toBeCloseTo(180, 10)
-    expect(384 - display.z / display.worldUnitsPerPixel - 140).toBeCloseTo(40, 10)
+    const resized = readDisplayStyle(shell.document, display)
+    expect(resized.viewport).toEqual({width: 480, height: 280})
+    const resizedScale = resized.worldUnitsPerPixel * resized.transform.scale.x
+    expect(resized.transform.position.x / resizedScale + 512 - 240).toBeCloseTo(180, 10)
+    expect(384 - resized.transform.position.z / resizedScale - 140).toBeCloseTo(40, 10)
     const before = shell.presentedFrameSequence
     expect(shell.presentFrame()).toBeGreaterThan(before)
     expect(await shell.captureLastPresentedFramePng()).toBe(state.capture)
@@ -244,14 +245,14 @@ type FakeRootState = {
   options: PresentationFixtureOptions | null
   root: Root | null
   pointerTarget: Element | null
-  activeOwner: XRDisplayElement | XRHUDElement | null
+  activeOwner: DisplayElement | XRHUDElement | null
   activeTarget: Element | null
   keys: Array<Readonly<{
-    owner: XRDisplayElement | XRHUDElement
+    owner: DisplayElement | XRHUDElement
     target: Element
     input: Readonly<{type: "keydown" | "keyup"; key: string}>
   }>>
-  texts: Array<Readonly<{owner: XRDisplayElement | XRHUDElement; target: Element; text: string}>>
+  texts: Array<Readonly<{owner: DisplayElement | XRHUDElement; target: Element; text: string}>>
   spaceGestures: Array<Readonly<{
     kind: "orbit" | "pan"
     deltaX: number
@@ -260,7 +261,7 @@ type FakeRootState = {
   capture: Blob
   renderError: Error | null
   emitFrame(
-    owner: XRDisplayElement | XRHUDElement,
+    owner: DisplayElement | XRHUDElement,
     node: Node,
     box: Readonly<{
       contentX: number
@@ -323,20 +324,20 @@ function fakeRootFactory(state: FakeRootState): ExternalStorybookRootFactory {
     appRoot.flush()
     const space = body.querySelector("xr-space") as XRSpaceElement
     const viewPoint = space.querySelector("xr-view-point") as XRViewPointElement
-    const projections = new Map<XRDisplayElement | XRHUDElement, RootDocumentProjection>()
-    const frames = new Map<XRDisplayElement | XRHUDElement, RenderFrame>()
-    const frameListeners = new Map<XRDisplayElement | XRHUDElement, Set<(frame: RenderFrame) => void>>()
+    const projections = new Map<DisplayElement | XRHUDElement, RootDocumentProjection>()
+    const frames = new Map<DisplayElement | XRHUDElement, RenderFrame>()
+    const frameListeners = new Map<DisplayElement | XRHUDElement, Set<(frame: RenderFrame) => void>>()
     const presented = new Set<(sequence: number) => void>()
     let sequence = 0
     let disposed = false
 
     const documentProjection = (
-      owner: XRDisplayElement | XRHUDElement,
+      owner: DisplayElement | XRHUDElement,
     ): RootDocumentProjection => {
       let projection = projections.get(owner)
       if (projection !== undefined) return projection
       projection = Object.freeze({
-        kind: owner instanceof XRDisplayElement ? "display" as const : "hud" as const,
+        kind: owner instanceof DisplayElement ? "display" as const : "hud" as const,
         owner,
         projectPoint: (point: {x: number; y: number}) => point,
         readFrame: () => frames.get(owner) ?? fakeFrame(document, owner),
@@ -373,7 +374,7 @@ function fakeRootFactory(state: FakeRootState): ExternalStorybookRootFactory {
       zoom() {},
     })
     const getProjection = (
-      owner: XRSpaceElement | XRDisplayElement | XRHUDElement,
+      owner: XRSpaceElement | DisplayElement | XRHUDElement,
     ): RootProjection => owner instanceof XRSpaceElement
       ? spaceProjection
       : documentProjection(owner)
@@ -381,7 +382,7 @@ function fakeRootFactory(state: FakeRootState): ExternalStorybookRootFactory {
       input: {
         pointerDown() {
           state.activeTarget = state.pointerTarget
-          state.activeOwner = state.pointerTarget?.parentElement as XRDisplayElement | XRHUDElement
+          state.activeOwner = state.pointerTarget?.parentElement as DisplayElement | XRHUDElement
         },
         pointerMove() {},
         pointerUp() {},
@@ -400,14 +401,14 @@ function fakeRootFactory(state: FakeRootState): ExternalStorybookRootFactory {
         presented.add(listener)
         return () => presented.delete(listener)
       },
-      dispatchKey(owner: XRDisplayElement | XRHUDElement, target: Element, input: any) {
+      dispatchKey(owner: DisplayElement | XRHUDElement, target: Element, input: any) {
         if (state.activeOwner !== owner || state.activeTarget !== target) {
           throw new Error("Semantic key target does not own the Root native proxy")
         }
         state.keys.push({owner, target, input})
         return true
       },
-      dispatchText(owner: XRDisplayElement | XRHUDElement, target: Element, text: string) {
+      dispatchText(owner: DisplayElement | XRHUDElement, target: Element, text: string) {
         if (state.activeOwner !== owner || state.activeTarget !== target) {
           throw new Error("Semantic text target does not own the Root native proxy")
         }

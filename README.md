@@ -177,7 +177,7 @@ exact `@zavx0z/space` `XRSpaceElement` и `XRViewPointElement`; разные в�
 
 Весь Workbench монтируется как один `XRHUDElement`
 `external-storybook-workbench`. История с `projection: "display"` монтируется
-в настоящий `XRDisplayElement` `external-storybook-display`, история с
+в настоящий `DisplayElement` `external-storybook-display`, история с
 `projection: "hud"` — в `XRHUDElement`, а история с `projection: "space"` —
 непосредственно в тот же `XRSpaceElement` через
 `mountSpacePreview`. Ни одна история не создаёт второй Experience, Document,

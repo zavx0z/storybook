@@ -176,7 +176,7 @@ Experience содержит exact `@zavx0z/space` `XRSpaceElement` и
 
 Весь Workbench монтируется в один `XRHUDElement`
 `external-storybook-workbench`. Истории `projection: "display"` используют
-настоящий `XRDisplayElement` `external-storybook-display`; истории
+настоящий `DisplayElement` `external-storybook-display`; истории
 `projection: "hud"` используют HUD, а трёхмерные истории
 `projection: "space"` добавляют semantic content непосредственно в exact
 `context.space` через `mountSpacePreview`. Host получает каждую projection

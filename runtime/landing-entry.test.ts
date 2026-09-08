@@ -1,3 +1,4 @@
+import {DisplayElement} from "@zavx0z/dom/display"
 import {indexedWorkbenchAuthorStyleSheetSources} from "./author-style-sheets.ts"
 import {presentationRootFixture, type PresentationFixtureOptions} from "./browser-root.fixture.ts"
 import {createRoot} from "@zavx0z/component"
@@ -19,7 +20,6 @@ import type {
 import type {RenderFrame} from "@zavx0z/renderer"
 import {
   createSpaceElementFactories,
-  XRDisplayElement,
   XRHUDElement,
   XRSpaceElement,
   XRViewPointElement,
@@ -380,7 +380,7 @@ function fakeRootFactory(
     const space = body.querySelector("xr-space") as XRSpaceElement
     const viewPoint = space.querySelector("xr-view-point") as XRViewPointElement
     const presented = new Set<(sequence: number) => void>()
-    const documentProjections = new Map<XRDisplayElement | XRHUDElement, Readonly<{
+    const documentProjections = new Map<DisplayElement | XRHUDElement, Readonly<{
       projection: RootDocumentProjection
       subscribers: Set<(frame: RenderFrame) => void>
       setFrame(frame: RenderFrame): void
@@ -395,7 +395,7 @@ function fakeRootFactory(
     let disposed = false
 
     const documentProjection = (
-      owner: XRDisplayElement | XRHUDElement,
+      owner: DisplayElement | XRHUDElement,
     ): RootDocumentProjection => {
       const existing = documentProjections.get(owner)
       if (existing !== undefined) return existing.projection
@@ -405,7 +405,7 @@ function fakeRootFactory(
       const subscribers = new Set<(frame: RenderFrame) => void>()
       let frame: RenderFrame | null = null
       const projection: RootDocumentProjection = Object.freeze({
-        kind: owner instanceof XRDisplayElement ? "display" : "hud",
+        kind: owner instanceof DisplayElement ? "display" : "hud",
         owner,
         projectPoint: (point: {x: number; y: number}) => point,
         readFrame: () => frame,
@@ -429,12 +429,12 @@ function fakeRootFactory(
     }
 
     function getProjection(owner: XRSpaceElement): RootSpaceProjection
-    function getProjection(owner: XRDisplayElement | XRHUDElement): RootDocumentProjection
+    function getProjection(owner: DisplayElement | XRHUDElement): RootDocumentProjection
     function getProjection(
-      owner: XRSpaceElement | XRDisplayElement | XRHUDElement,
+      owner: XRSpaceElement | DisplayElement | XRHUDElement,
     ): RootProjection {
       if (owner === space) return spaceProjection
-      return documentProjection(owner as XRDisplayElement | XRHUDElement)
+      return documentProjection(owner as DisplayElement | XRHUDElement)
     }
 
     const root: Root = Object.freeze({
@@ -493,7 +493,7 @@ function fakeRootFactory(
 
 function fakeRenderFrame(
   document: ReturnType<typeof createDocument>,
-  root: XRDisplayElement | XRHUDElement,
+  root: DisplayElement | XRHUDElement,
   revision: number,
 ): RenderFrame {
   return Object.freeze({

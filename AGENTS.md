@@ -66,7 +66,7 @@
   `@zavx0z/space` `XRSpaceElement` и `XRViewPointElement`; package runtime не
   создаёт второй Root или owner.
 - Весь Workbench монтируется в одну HUD projection. Subject с
-  `projection: "display"` монтируется в настоящий `XRDisplayElement`, subject с
+  `projection: "display"` монтируется в настоящий `DisplayElement`, subject с
   `projection: "hud"` — в `XRHUDElement`, а трёхмерный subject с
   `projection: "space"` — непосредственно в тот же `XRSpaceElement`. Допустимы
   только `display | hud | space`.

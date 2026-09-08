@@ -47,7 +47,7 @@ test("[STORYBOOK-EXPERIENCE-002] Workbench принадлежит HUD, конт�
 
   expect(shell).toContain("root.space")
   expect(shell).toContain("root.viewPoint")
-  expect(shell).toContain("XRDisplayElement")
+  expect(shell).toContain("DisplayElement")
   expect(shell).toContain("XRHUDElement")
   const app = await Bun.file(resolve(import.meta.dir, "application.tsx")).text()
   expect(app).toContain("<HUD")

@@ -1,6 +1,7 @@
+import {DisplayElement} from "@zavx0z/dom/display"
 import {describe, expect, test} from "bun:test"
 import {createDocument, type HTMLButtonElement} from "@zavx0z/dom"
-import {createSpaceElementFactories, type XRDisplayElement} from "@zavx0z/space"
+import {createSpaceElementFactories} from "@zavx0z/space"
 import {createDocumentRenderer, createDocumentInteractionController} from "@zavx0z/renderer"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
 import {StorybookDisplay} from "../runtime/display-view.tsx"
@@ -12,23 +13,24 @@ import {
 describe("safe compiled Storybook Markdown", () => {
   test("a long README scrolls inside the bordered Display's content viewport", () => {
     const document = createDocument({elementFactories: createSpaceElementFactories()})
-    const display = createStorybookComponentPresentation<{id: string}, XRDisplayElement>(
+    const display = createStorybookComponentPresentation<{id: string}, DisplayElement>(
       document,
       StorybookDisplay as unknown as CompiledTemplate<{id: string}>,
       {id: "scroll-display"},
-      "xr-display",
+      "display",
     )
     const markdown = renderStorybookMarkdown({
       document,
       source: Array.from({length: 40}, (_, index) => `## Heading ${index}\n\nParagraph with enough content to fill the document.`).join("\n\n"),
     })
+    display.element.setAttribute("style", "--preview-width: 600px; --preview-height: 300px")
     document.append(display.element)
     display.element.append(markdown.element)
     const renderer = createDocumentRenderer({
       document,
       root: display.element,
       viewport: {width: 600, height: 300},
-      styleSheets: ["xr-display { --widget-box-outline: #333; --font-size-sm: 12px; }"],
+      styleSheets: ["display { --widget-box-outline: #333; --font-size-sm: 12px; }"],
     })
     const interaction = createDocumentInteractionController({document})
     try {
@@ -43,6 +45,7 @@ describe("safe compiled Storybook Markdown", () => {
       const scrolled = renderer.flush()
       expect(scrolled.scrolls.get(section)?.scrollTop).toBeGreaterThan(0)
       expect(scrolled.scrolls.get(display.element)?.scrollTop ?? 0).toBe(0)
+      display.element.setAttribute("style", "--preview-width: 600px; --preview-height: 200px")
       renderer.resize({width: 600, height: 200})
       const resized = renderer.flush()
       expect(resized.boxByNode.get(section)?.height).toBe(198)
