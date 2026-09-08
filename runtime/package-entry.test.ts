@@ -333,6 +333,28 @@ describe("external Storybook package frontend", () => {
     expect(lifecycle.at(-1)).toBe("root-dispose")
   })
 
+  test("navigates a directory in the existing package Root without creating a story runtime", async () => {
+    const graph = await fixtureGraph()
+    const directory = graph.nodes.find(node => node.kind === "directory" && node.packageId === "@fixture/components")!
+    const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-a"))
+    const environment = environmentFixture(snapshot, "/packages/%40fixture%2Fcomponents/")
+    let runtimeLoads = 0
+    const controller = await startExternalStorybookPackage({
+      packageId: "@fixture/components", candidateRevision: "revision-a",
+      revisionUrl: "/__storybook/revisions/%40fixture%2Fcomponents/revision-a/",
+      loadRuntime: async () => { runtimeLoads += 1; throw new Error("Directory must not load runtime") },
+      storyLoaders: new Map(), environment,
+    })
+    const document = controller.shell.document
+    await controller.navigate(directory.routePath!)
+    expect(controller.shell.document).toBe(document)
+    expect(controller.currentRoute).toBe(directory.routePath!)
+    expect(controller.shell.workbench.controller.read("secondary.active")).toBe(directory.id)
+    expect(runtimeLoads).toBe(0)
+    expect(controller.shell.workbench.controller.read("status").breadcrumbs?.at(-1)?.label).toBe(directory.label)
+    await controller.dispose()
+  })
+
   test("materializes real overview children without selecting their representative routes", async () => {
     const graph = await fixtureGraph()
     const candidate = "revision-a"
@@ -497,7 +519,7 @@ describe("external Storybook package frontend", () => {
     expect(controller.shell.workbench.controller.read("presentation").node?.textContent)
       .toBe("components/button/basic/contained:Contained")
     const diagnosticsCategory = controller.shell.workbench.elements.inspectorHost.querySelector(
-      'button[aria-label="Диагностика"]',
+      'button[title="Диагностика"]',
     ) as import("@zavx0z/dom").HTMLButtonElement
     diagnosticsCategory.click()
     expect(controller.shell.workbench.elements.inspectorHost.textContent).toContain("owner-ready")

@@ -135,12 +135,22 @@ export type StorybookPackageCatalog = Readonly<{
   categories: readonly StorybookCategory[]
 }>
 
+/** Ordinary filesystem directory owned by a repository or package, never an executable package. */
+export type StorybookDirectory = Readonly<{
+  path: string
+  relativePath: string
+  name: string
+  readmePath: string | null
+  children: readonly StorybookDirectory[]
+}>
+
 type StorybookCatalogScopeBase = Readonly<{
   /** Scoped discovery failure; content is the last validated snapshot or an empty owner shell. */
   resolutionError?: string
   recoveryPaths?: readonly string[]
   /** Owner structure paths observed for package discovery and optional manifest changes. */
   structurePaths?: readonly string[]
+  directories?: readonly StorybookDirectory[]
   schemaVersion: typeof EXTERNAL_STORYBOOK_SCHEMA_VERSION
   canonicalId: string
   id: string

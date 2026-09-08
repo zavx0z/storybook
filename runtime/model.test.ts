@@ -30,15 +30,15 @@ describe("external Storybook browser model", () => {
 
   test("selects repositories as overviews and places package contents in the second panel", async () => {
     const graph = await fixtureGraph()
-    expect(deriveExternalStorybookLandingSelection(graph, "project:fixture-alpha").secondaryItems).toEqual([])
+    expect(deriveExternalStorybookLandingSelection(graph, "project:fixture-alpha").secondaryItems.map(item => item.label)).toEqual(["packages"])
     const selected = deriveExternalStorybookLandingSelection(graph, "package:@fixture/components")
     expect(selected.catalogActiveId).toBe("package:@fixture/components")
-    expect(selected.secondaryItems.map(item => item.id)).toEqual([
+    expect(selected.secondaryItems.filter(item => !item.id.startsWith("directory:")).map(item => item.id)).toEqual([
       "category:@fixture/components/foundation", "subject:@fixture/components/foundation/event-target",
       "category:@fixture/components/components", "subject:@fixture/components/components/button",
     ])
     expect(selected.secondaryItems[1]?.parentId).toBe("category:@fixture/components/foundation")
-    expect(deriveExternalStorybookLandingSelection(graph, "workspace:fixture-workspace").secondaryItems).toEqual([])
+    expect(deriveExternalStorybookLandingSelection(graph, "workspace:fixture-workspace").secondaryItems.map(item => item.label)).toEqual(["projects"])
     expect(() => deriveExternalStorybookLandingSelection(graph, "subject:@fixture/components/components/button"))
       .toThrow("must be a repository or package")
   })

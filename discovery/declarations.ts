@@ -34,6 +34,7 @@ import {
 } from "../catalog/protocol.ts"
 
 import {discoverWorkspacePackages} from "./workspaces.ts"
+import {discoverStorybookDirectories} from "./directories.ts"
 import {createHash} from "node:crypto"
 import {constants} from "node:fs"
 import {lstat, open, realpath, readFile, stat} from "node:fs/promises"
@@ -159,6 +160,16 @@ export async function resolveExternalStorybookDeclarations(
     rootIds.push(canonicalId)
   }
   nestPackageScopes(state.scopes)
+  const packageRoots = new Set(state.scopes.map(scope => scope.scopeRoot))
+  for (const [index, scope] of state.scopes.entries()) {
+    if (scope.resolutionError !== undefined) continue
+    const found = await discoverStorybookDirectories(scope.scopeRoot, packageRoots)
+    state.scopes[index] = Object.freeze({
+      ...scope,
+      directories: found.directories,
+      structurePaths: Object.freeze([...new Set([...(scope.structurePaths ?? []), ...found.watchPaths])]),
+    })
+  }
   return Object.freeze({
     schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
     rootIds: Object.freeze(rootIds),

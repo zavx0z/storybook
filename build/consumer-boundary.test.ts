@@ -139,6 +139,7 @@ describe("external Storybook route baseline", () => {
       ],
       overviews: [
         "",
+        ...graph.nodes.filter(node => node.kind === "directory" && node.packageId === "@fixture/components").map(node => node.routePath!),
         "foundation",
         "foundation/event-target",
         "components",
@@ -193,6 +194,7 @@ describe("external Storybook route baseline", () => {
     expect(result.missingLeaves).toEqual([])
     expect(result.unexpectedLeaves.map(({path}) => path)).toEqual(["components/button/outlined"])
     expect(result.unexpectedOverviews.map(({path}) => path)).toEqual([
+      ...graph.nodes.filter(node => node.kind === "directory" && node.packageId === "@fixture/components").map(node => node.routePath!),
       "foundation",
       "foundation/event-target",
       "components",

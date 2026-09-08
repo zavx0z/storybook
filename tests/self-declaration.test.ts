@@ -27,7 +27,7 @@ describe("external Storybook self declaration", () => {
     const declarations = await resolveExternalStorybookDeclarations([root])
     const graph = createExternalStorybookGraph(declarations)
     expect(graph.rootIds).toEqual(["project:zavx0z-storybook"])
-    expect(graph.nodes.find(node => node.id === "project:zavx0z-storybook")?.childIds).toEqual([
+    expect(graph.nodes.find(node => node.id === "project:zavx0z-storybook")?.childIds.filter(id => !id.startsWith("directory:"))).toEqual([
       "package:@zavx0z/storybook",
     ])
     expect(graph.nodes.find(node => node.id === "package:@zavx0z/storybook")?.childIds.filter(id => id.startsWith("package:"))).toEqual([
@@ -35,7 +35,7 @@ describe("external Storybook self declaration", () => {
     ])
     const routes = externalStorybookRoutes(graph).filter(route => route.packageId === "@zavx0z/storybook")
     const leaves = routes.filter(({kind}) => kind === "variant").map(({path}) => path)
-    const overviews = routes.filter(({kind}) => kind === "overview").map(({path}) => path)
+    const overviews = routes.filter(({kind, nodeId}) => kind === "overview" && !nodeId.startsWith("directory:")).map(({path}) => path)
     expect(leaves).toEqual([
       "route-tree/contract/overview",
       "stories/contract/overview",

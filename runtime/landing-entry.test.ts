@@ -182,8 +182,8 @@ describe("external Storybook landing frontend", () => {
     ])
     expect(controller.shell.workbench.controller.read("status").detail).toBe("")
 
-    expect(controller.shell.workbench.controller.read("secondary.items").map(({id}) => id))
-      .toEqual([])
+    expect(controller.shell.workbench.controller.read("secondary.items").map(({label}) => label))
+      .toEqual(["packages"])
     expect(controller.shell.workbench.controller.read("presentation").node?.textContent)
       .toContain("project:fixture-alpha")
     const initialPresentation = controller.shell.workbench.controller.read("presentation").node
@@ -201,8 +201,8 @@ describe("external Storybook landing frontend", () => {
     ])
 
     await controller.select("project:fixture-alpha")
-    expect(controller.shell.workbench.controller.read("secondary.items").map(({id}) => id))
-      .toEqual([])
+    expect(controller.shell.workbench.controller.read("secondary.items").map(({label}) => label))
+      .toEqual(["packages"])
     expect(pushed).toEqual(["/projects/fixture-beta/", "/projects/fixture-alpha/"])
     expect(controller.shell.workbench.controller.read("presentation").node?.textContent)
       .toContain("project:fixture-alpha")

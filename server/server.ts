@@ -187,7 +187,7 @@ export async function startExternalStorybookServer(
     })
     const readmes = new Map<string, string[]>()
     for (const node of snapshot.graph.nodes) {
-      if (node.readmePath === null || node.kind !== "project" && node.kind !== "workspace") continue
+      if (node.readmePath === null || node.packageId !== null) continue
       const path = realpathSync(node.readmePath)
       const ids = readmes.get(path) ?? []
       ids.push(node.id)
@@ -1246,7 +1246,7 @@ function canonicalContainedFile(path: string, root: string): string | null {
 function isLandingPath(snapshot: ExternalStorybookRegistrySnapshot, pathname: string): boolean {
   if (pathname === "/") return true
   return snapshot.graph.nodes.some((node) =>
-    (node.kind === "workspace" || node.kind === "project" || node.kind === "package") && externalStorybookBrowsePath(node) === pathname)
+    (node.kind === "workspace" || node.kind === "project" || node.kind === "package" || node.kind === "directory" && node.packageId === null) && externalStorybookBrowsePath(node) === pathname)
 }
 
 function resolveCheckPackages(

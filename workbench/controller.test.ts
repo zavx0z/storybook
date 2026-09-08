@@ -435,7 +435,7 @@ function categoryButton(
   title: string,
 ): HTMLButtonElement {
   const button = [...workbench.elements.inspectorHost.querySelectorAll("button")]
-    .find(candidate => candidate.getAttribute("aria-label") === title) as HTMLButtonElement | undefined
+    .find(candidate => candidate.getAttribute("title") === title) as HTMLButtonElement | undefined
   if (button === undefined) throw new Error(`Missing Inspector category: ${title}`)
   return button
 }

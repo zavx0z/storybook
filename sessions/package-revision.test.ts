@@ -38,7 +38,7 @@ describe("exact Storybook package revision graph", () => {
         urlPath: "/projects/fixture-alpha/",
       },
     ])
-    expect(snapshot.routes.map(({path}) => path)).toEqual([
+    expect(snapshot.routes.filter(route => !route.nodeId.startsWith("directory:")).map(({path}) => path)).toEqual([
       "",
       "foundation",
       "foundation/event-target",

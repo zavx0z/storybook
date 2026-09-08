@@ -511,6 +511,24 @@ The global graph carries repository and package ancestry; each immutable
 with ancestor identity, label and URL as metadata. Parent package content changes
 do not become child package build dependencies.
 
+
+Предметная панель выбранного репозитория или пакета также показывает дерево
+обычных директорий рядом с разделами `catalog.json`. Название директории берётся
+из имени на диске, а выбор показывает её `README.md`, если он есть. `src`,
+`.git`, `node_modules`, `.storybook`, `tests` и `test` скрыты на любой глубине. Остальные исключения
+определяет Git через `git check-ignore --no-index`: учитываются вложенные
+`.gitignore` и правила с `!`, включая уже отслеживаемые Git каталоги.
+Имена `build` или `dist` сами по себе не являются основанием для исключения.
+Пакет с `package.json` не обходится как обычная директория; состав пакетов
+по-прежнему определяется workspaces или согласованной manifest-композицией.
+Symlink-директории не обходятся. Пустые директории остаются видимыми.
+
+Directory nodes проходят через тот же нормализованный каталог, граф, поиск и
+revision snapshot. Их маршруты используют отдельный префикс `~directories`;
+истории и маршруты JSON-каталога сохраняются. Изменения директорий и `.gitignore`
+наблюдает общий watcher. Изменение директории репозитория не меняет сборки его
+пакетов. Навигация внутри пакета использует его применённую ревизию и тот же Root.
+
 Both Workbench pages use the recursive primary repository tree and a secondary
 category/subject tree for the selected package. Selection navigates the current
 tab to `/packages/`; multiple tabs may show one package. Agent operations use

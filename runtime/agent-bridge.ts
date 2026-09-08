@@ -123,7 +123,8 @@ export function createStorybookAgentBridge(
       frameSequence: options.shell.presentedFrameSequence,
       selected: Object.freeze({
         categoryId: model.catalogActiveId,
-        subjectId: model.secondaryActiveId,
+        subjectId: model.selectedNode.kind === "directory" ? null : model.secondaryActiveId,
+        directoryId: model.selectedNode.kind === "directory" ? model.selectedNode.id : null,
         variantId: model.variantActiveId,
       }),
       canvas: Object.freeze({

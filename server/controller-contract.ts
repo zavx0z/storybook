@@ -32,7 +32,7 @@ export type StorybookSearchInput = Readonly<{
   schemaVersion: typeof STORYBOOK_MCP_SCHEMA_VERSION
   query: string
   packageId?: string | undefined
-  kinds?: readonly ("workspace" | "project" | "package" | "category" | "subject" | "variant")[] | undefined
+  kinds?: readonly ("workspace" | "project" | "package" | "directory" | "category" | "subject" | "variant")[] | undefined
   limit?: number | undefined
   cursor?: string | undefined
 }>

@@ -113,7 +113,7 @@ export async function startExternalStorybookLanding(
     const selection = deriveExternalStorybookLandingSelection(graph, nodeId)
     shell.document.transaction(() => {
       shell.workbench.update("catalog.active", selection.catalogActiveId)
-      shell.workbench.update("secondary.label", selection.overviewNode.label)
+      shell.workbench.update("secondary.label", externalStorybookClientNode(snapshot, selection.catalogActiveId).label)
       shell.workbench.update("secondary.items", navigationItems(selection.secondaryItems))
       shell.workbench.update("secondary.active", selection.secondaryActiveId)
       shell.workbench.update("scenarios.items", Object.freeze([]))
@@ -204,7 +204,7 @@ export async function startExternalStorybookLanding(
       return
     }
     const node = externalStorybookClientNode(snapshot, detail.id)
-    if (node.kind === "category" || node.kind === "subject" || node.kind === "variant") {
+    if (node.kind === "category" || node.kind === "subject" || node.kind === "variant" || node.kind === "directory" && node.packageId !== null) {
       if (location !== undefined) navigatePackage(location, {packageId: node.packageId!, route: node.routePath!})
       return
     }
@@ -256,7 +256,7 @@ export async function startExternalStorybookLanding(
     }
     const node = snapshot.nodes.find((candidate) => externalStorybookBrowsePath(candidate) === pathname)
     if (node?.kind === "workspace") await select(node.id, false)
-    else if (node?.kind === "project" || node?.kind === "package") await select(node.id, false)
+    else if (node?.kind === "project" || node?.kind === "package" || node?.kind === "directory") await select(node.id, false)
     else throw new Error(`Unknown external Storybook landing pathname: ${pathname}`)
   }
   const onPopState = (): void => {
@@ -348,8 +348,8 @@ function navigationItems(items: readonly ExternalStorybookBrowserNavigationItem[
 }
 
 function overviewDescription(kind: string): string {
-  if (kind === "project") return "Выберите пакет во второй панели."
-  if (kind === "package") return "Откройте пакет в отдельной вкладке для изучения его каталога."
+  if (kind === "project") return "Выберите пакет в главной панели или директорию в предметной панели."
+  if (kind === "directory") return "В этой директории нет README.md. Вложенные директории доступны в предметной панели."
   return "Owner README для этого узла не объявлен."
 }
 

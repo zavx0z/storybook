@@ -39,7 +39,7 @@ function landingBreadcrumbs(
   path: readonly ExternalStorybookClientNode[],
 ): readonly WorkbenchBreadcrumb[] {
   if (path.length === 0 || path.some(node =>
-    node.kind !== "workspace" && node.kind !== "project" && node.kind !== "package")) {
+    node.kind !== "workspace" && node.kind !== "project" && node.kind !== "package" && node.kind !== "directory")) {
     throw new Error("Storybook landing breadcrumb path must contain only declaration nodes")
   }
   return Object.freeze(path.map(node => Object.freeze({
@@ -77,7 +77,7 @@ function packageBreadcrumbs(
     }))
   const packagePath = path.slice(packageIndex)
   if (packagePath[0]?.kind !== "package" || packagePath.some(node =>
-    node.kind !== "package" && node.kind !== "category" && node.kind !== "subject" && node.kind !== "variant")) {
+    node.kind !== "package" && node.kind !== "directory" && node.kind !== "category" && node.kind !== "subject" && node.kind !== "variant")) {
     throw new Error(`Storybook package breadcrumb path is invalid: ${path.at(-1)?.id ?? "unknown"}`)
   }
   return Object.freeze([

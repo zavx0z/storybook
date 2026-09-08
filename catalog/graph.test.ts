@@ -23,7 +23,7 @@ describe("external Storybook normalized graph", () => {
       "workspace:fixture-workspace",
       "project:fixture-standalone",
     ])
-    expect(first.nodes.map(({id}) => id)).toEqual([
+    expect(first.nodes.filter(node => node.kind !== "directory").map(({id}) => id)).toEqual([
       "workspace:fixture-workspace",
       "project:fixture-alpha",
       "package:@fixture/components",
@@ -51,7 +51,7 @@ describe("external Storybook normalized graph", () => {
 
   test("keeps package, category and subject overviews distinct from variants", async () => {
     const graph = createExternalStorybookGraph(await fixtureDeclarations())
-    const routes = externalStorybookRoutes(graph).filter(({packageId}) => packageId === "@fixture/components")
+    const routes = externalStorybookRoutes(graph).filter(({packageId, nodeId}) => packageId === "@fixture/components" && !nodeId.startsWith("directory:"))
 
     expect(routes.map(({kind, path}) => [kind, path])).toEqual([
       ["overview", ""],

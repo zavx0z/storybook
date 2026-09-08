@@ -1258,6 +1258,7 @@ function exactPresentationSubject(
   snapshot: ExternalStorybookClientSnapshot,
   model: ExternalStorybookPackageTabModel,
 ): StorybookPresentationSubject | null {
+  if (model.selectedNode.kind === "directory") return null
   const subjectId = model.secondaryActiveId
   if (subjectId === null) return null
   const matches = (graph?.nodes ?? snapshot.nodes).filter(({id}) => id === subjectId)
@@ -1467,6 +1468,7 @@ function safeRevision(value: string): string {
 }
 
 function overviewDescription(kind: string, children: number): string {
+  if (kind === "directory") return "В этой директории нет README.md. Вложенные директории доступны в предметной панели."
   if (kind === "package") return `${children} категорий. Выберите категорию слева.`
   if (kind === "category") return `${children} предметов. Выберите предмет во второй панели.`
   if (kind === "subject") return `${children} вариантов. Выберите вариант в нижней панели.`

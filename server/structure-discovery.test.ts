@@ -33,7 +33,7 @@ test("lists and selects packages without manifests in the repository tree", asyn
   const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
   const snapshot = await registry.attach(project)
   const selection = deriveExternalStorybookLandingSelection(snapshot.graph, "project:project")
-  expect(selection.secondaryItems).toEqual([])
+  expect(selection.secondaryItems.map(item => item.label)).toEqual(["packages"])
   expect(deriveExternalStorybookLanding(snapshot.graph).catalogItems.map(item => item.label)).toEqual(["Project", "A", "B"])
   expect(deriveExternalStorybookLandingSelection(snapshot.graph, "package:@fixture/b").catalogActiveId).toBe("package:@fixture/b")
   const descriptor = registry.packageDescriptors().find(value => value.packageId === "@fixture/a")!

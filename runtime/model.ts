@@ -83,22 +83,36 @@ export function deriveExternalStorybookLandingSelection(
   nodeId: string,
 ): ExternalStorybookLandingSelection {
   const selected = browserNode(graph, nodeId)
-  if (selected.kind !== "workspace" && selected.kind !== "project" && selected.kind !== "package") {
+  if (selected.kind !== "workspace" && selected.kind !== "project" && selected.kind !== "package" && selected.kind !== "directory") {
     throw new Error(`External Storybook landing selection must be a repository or package: ${nodeId}`)
   }
+  const scope = directoryScope(graph, selected)
   return Object.freeze({
-    catalogActiveId: selected.id,
-    secondaryItems: selected.kind === "package" ? deriveExternalStorybookPackageContents(graph, selected.packageId!) : Object.freeze([]),
-    secondaryActiveId: null,
+    catalogActiveId: scope.id,
+    secondaryItems: scope.kind === "package" ? deriveExternalStorybookPackageContents(graph, scope.packageId!) : directoryItems(graph, scope.id),
+    secondaryActiveId: selected.kind === "directory" ? selected.id : null,
     overviewNode: selected,
   })
 }
 
 export function deriveExternalStorybookPackageContents(graph: BrowserGraph, packageId: string): readonly ExternalStorybookBrowserNavigationItem[] {
-  return Object.freeze(graph.nodes.filter(node => node.packageId === packageId && (node.kind === "category" || node.kind === "subject"))
+  return Object.freeze([...graph.nodes.filter(node => node.packageId === packageId && (node.kind === "category" || node.kind === "subject"))
     .map(node => Object.freeze({
       ...navigationItem(graph, node, requiredRoute(node), node.kind === "category" ? nodeGroup(node) : null),
       ...(node.kind === "subject" ? {parentId: node.parentId!} : {}),
+    })), ...directoryItems(graph, `package:${packageId}`)])
+}
+
+function directoryScope(graph: BrowserGraph, node: BrowserNode): BrowserNode {
+  while (node.kind === "directory" && node.parentId !== null) node = browserNode(graph, node.parentId)
+  return node
+}
+
+function directoryItems(graph: BrowserGraph, scopeId: string): readonly ExternalStorybookBrowserNavigationItem[] {
+  return Object.freeze(graph.nodes.filter(node => node.kind === "directory" && directoryScope(graph, node).id === scopeId)
+    .map(node => Object.freeze({
+      ...navigationItem(graph, node, node.routePath ?? node.urlPath, null),
+      ...(node.parentId === scopeId ? {} : {parentId: node.parentId!}),
     })))
 }
 
@@ -138,7 +152,7 @@ export function deriveExternalStorybookPackageTab(
     variant = selectedNode
     subject = exactParent(graph, variant, "subject")
     category = exactParent(graph, subject, "category")
-  } else if (selectedNode.kind !== "package") {
+  } else if (selectedNode.kind !== "package" && selectedNode.kind !== "directory") {
     throw new Error(`External Storybook package route selected an invalid node: ${selectedNode.id}`)
   }
 
@@ -157,7 +171,7 @@ export function deriveExternalStorybookPackageTab(
     catalogItems,
     catalogActiveId: category?.id ?? null,
     secondaryItems,
-    secondaryActiveId: subject?.id ?? null,
+    secondaryActiveId: selectedNode.kind === "directory" ? selectedNode.id : subject?.id ?? null,
     variants,
     variantActiveId: variant?.id ?? null,
   })

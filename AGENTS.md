@@ -37,6 +37,12 @@
   Every selected root is a repository tree root; a root package remains a child
   package, with its workspace packages discovered by the same rule. Navigation
   ancestry never becomes executable ownership or a build dependency.
+  Ordinary directories appear in the secondary tree beside authored catalog
+  sections, with filesystem names and optional README overviews. Exclude src,
+  .git, node_modules, .storybook, tests and test at every depth, plus Git-ignored
+  paths using native Git ignore semantics.
+  Do not infer a build-output exclusion from a directory name. Directory
+  discovery stops at package.json boundaries; it never changes package composition.
   The one global `$storybook` process owns registry,
   canonical graph, Workbench, PackageSessions, revisions, diagnostics and
   browser mechanics for exact production package identities.

@@ -14,6 +14,7 @@ import type {
   StorybookVariant,
   StorybookStoryPresentation,
   StorybookWidgetContributions,
+  StorybookDirectory,
 } from "./catalog.t.ts"
 import {
   EXTERNAL_STORYBOOK_SCHEMA_VERSION,
@@ -23,6 +24,7 @@ export type ExternalStorybookGraphNodeKind =
   | "workspace"
   | "project"
   | "package"
+  | "directory"
   | "category"
   | "subject"
   | "variant"
@@ -120,11 +122,12 @@ export function createExternalStorybookGraph(
     if (declaration === undefined) throw new Error(`Unknown resolved external Storybook declaration: ${canonicalId}`)
     visitedDeclarations.add(canonicalId)
     const structuralPath = Object.freeze([...ancestors, canonicalId])
-    const childIds = declaration.kind === "workspace"
+    const childIds = [...(declaration.kind === "workspace"
       ? declaration.projectIds
       : declaration.kind === "project"
         ? declaration.packageIds
-        : [...(declaration.packageIds ?? []), ...(declaration.catalog?.categories.map((category) => categoryNodeId(declaration.id, category.id)) ?? [])]
+        : [...(declaration.packageIds ?? []), ...(declaration.catalog?.categories.map((category) => categoryNodeId(declaration.id, category.id)) ?? [])]),
+      ...(declaration.directories ?? []).map(directory => directoryNodeId(canonicalId, directory.relativePath))]
     appendNode({
       id: canonicalId,
       kind: declaration.kind,
@@ -152,6 +155,31 @@ export function createExternalStorybookGraph(
       runtime: declaration.kind === "package" ? declaration.runtime : null,
       module: null,
     })
+
+    const appendDirectory = (directory: StorybookDirectory, parentId: string, ancestors: readonly string[]): void => {
+      const id = directoryNodeId(canonicalId, directory.relativePath)
+      const structuralPath = Object.freeze([...ancestors, id])
+      // Encode each filesystem segment into an opaque route token, including names with ? or #.
+      const routePath = `~directories/${directory.relativePath.split("/").map(encodeURIComponent).join("/")}`
+      appendNode({
+        id, kind: "directory", ownerId: declaration.id,
+        packageId: declaration.kind === "package" ? declaration.id : null,
+        label: directory.name, structuralPath, parentId,
+        routePath: declaration.kind === "package" ? routePath : null,
+        urlPath: declaration.kind === "package"
+          ? packageRouteUrl(declaration.id, routePath, true)
+          : `${declarationUrl(declaration)}${routePath}/`,
+        childIds: Object.freeze(directory.children.map(child => directoryNodeId(canonicalId, child.relativePath))),
+        readmePath: directory.readmePath,
+        source: Object.freeze({path: directory.path, pointer: ""}),
+        searchTerms: searchTerms(directory.name, directory.relativePath),
+        resources: Object.freeze([]), authorStyleSheets: Object.freeze([]), widgetContributions: null,
+        presentation: null, presentationGroup: null, subjectKind: null, apiName: null,
+        packageJsonPath: null, runtime: null, module: null,
+      })
+      for (const child of directory.children) appendDirectory(child, id, structuralPath)
+    }
+    for (const directory of declaration.directories ?? []) appendDirectory(directory, canonicalId, structuralPath)
 
     if (declaration.kind === "workspace") {
       for (const projectId of declaration.projectIds) {
@@ -413,6 +441,10 @@ function declarationUrl(declaration: StorybookCatalogScope): string {
   if (declaration.kind === "workspace") return `/workspaces/${encoded}/`
   if (declaration.kind === "project") return `/projects/${encoded}/`
   return `/packages/${encoded}/`
+}
+
+function directoryNodeId(scopeId: string, path: string): string {
+  return `directory:${scopeId}/${path}`
 }
 
 function packageRouteUrl(packageId: string, route: string, overview: boolean): string {

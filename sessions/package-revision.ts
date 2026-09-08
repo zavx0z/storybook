@@ -30,7 +30,7 @@ export type StorybookPackageRevisionAncestor = Readonly<{
 
 export type StorybookPackageRevisionGraphNode = Readonly<{
   id: string
-  kind: Extract<ExternalStorybookGraphNodeKind, "package" | "category" | "subject" | "variant">
+  kind: Extract<ExternalStorybookGraphNodeKind, "package" | "directory" | "category" | "subject" | "variant">
   ownerId: string
   packageId: string
   label: string
@@ -469,7 +469,7 @@ function validateAuthorStyleSheetSpecifier(specifier: string): void {
 function packageNodeKind(
   value: ExternalStorybookGraphNodeKind,
 ): StorybookPackageRevisionGraphNode["kind"] {
-  if (value === "package" || value === "category" || value === "subject" || value === "variant") return value
+  if (value === "package" || value === "directory" || value === "category" || value === "subject" || value === "variant") return value
   throw new Error(`Non-package node entered package graph projection: ${value}`)
 }
 
