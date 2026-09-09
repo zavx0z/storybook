@@ -54,28 +54,28 @@ describe("one external Storybook server", () => {
     expect((await browserChange("attach", {selectionToken: "missing"})).ok).toBeFalse()
     expect(running.registry.snapshot()).toEqual(beforeFailure)
 
-    const removed = await controlPost(running, "/api/control/detach", {scopeId: "project:fixture-alpha"})
+    const removed = await controlPost(running, "/api/control/detach", {scopeId: "package:fixture-alpha"})
     expect(removed.response.ok).toBeTrue()
-    expect(running.registry.snapshot().graph.nodes.some(node => node.id === "project:fixture-alpha")).toBeFalse()
-    expect(running.registry.snapshot().graph.nodes.some(node => node.id === "project:fixture-beta")).toBeTrue()
+    expect(running.registry.snapshot().graph.nodes.some(node => node.id === "package:fixture-alpha")).toBeFalse()
+    expect(running.registry.snapshot().graph.nodes.some(node => node.id === "package:fixture-beta")).toBeTrue()
     expect(readFileSync(workspaceFile, "utf8")).toBe(workspaceBytes)
     expect((await browserAttach(join(fixture.workspace, "projects/alpha"))).ok).toBeTrue()
     expect(running.registry.snapshot().entries).toHaveLength(3)
-    await controlPost(running, "/api/control/detach", {scopeId: "project:fixture-alpha"})
+    await controlPost(running, "/api/control/detach", {scopeId: "package:fixture-alpha"})
     await running.stop()
 
     running = await startExternalStorybookServer(options)
     servers.push(running)
     expect(running.registry.snapshot().entries).toHaveLength(2)
-    expect(running.registry.snapshot().graph.nodes.some(node => node.id === "project:fixture-alpha")).toBeFalse()
-    expect(running.registry.snapshot().graph.nodes.some(node => node.id === "project:fixture-beta")).toBeTrue()
+    expect(running.registry.snapshot().graph.nodes.some(node => node.id === "package:fixture-alpha")).toBeFalse()
+    expect(running.registry.snapshot().graph.nodes.some(node => node.id === "package:fixture-beta")).toBeTrue()
     const restored = await controlPost(running, "/api/control/attach", {roots: [join(fixture.workspace, "projects/alpha")]})
     expect(restored.response.ok).toBeTrue()
     expect(running.registry.snapshot().entries).toHaveLength(3)
-    expect(running.registry.snapshot().graph.nodes.some(node => node.id === "project:fixture-alpha")).toBeTrue()
+    expect(running.registry.snapshot().graph.nodes.some(node => node.id === "package:fixture-alpha")).toBeTrue()
 
-    await controlPost(running, "/api/control/detach", {scopeId: "project:fixture-alpha"})
-    await controlPost(running, "/api/control/detach", {scopeId: "project:fixture-beta"})
+    await controlPost(running, "/api/control/detach", {scopeId: "package:fixture-alpha"})
+    await controlPost(running, "/api/control/detach", {scopeId: "package:fixture-beta"})
     await controlPost(running, "/api/control/detach", {scopeId: "package:@fixture/standalone"})
     await running.stop()
     running = await startExternalStorybookServer(options)
@@ -244,7 +244,7 @@ describe("one external Storybook server", () => {
     expect((await fetch(new URL("/api/health", running.origin))).status).toBe(200)
   })
 
-  test("notifies a project README change without rebuilding packages or changing the server", async () => {
+  test("notifies a root package README change without rebuilding children or changing the server", async () => {
     const fixture = serverFixture()
     const entries = sharedEntriesFixture()
     const running = await startExternalStorybookServer({
@@ -268,19 +268,19 @@ describe("one external Storybook server", () => {
       socket.addEventListener("error", () => reject(new Error("README socket failed")), {once: true})
     })
     try {
-      socket.send(JSON.stringify({type: "subscribe", topic: "registry"}))
+      socket.send(JSON.stringify({type: "subscribe", topic: "package:fixture-alpha"}))
       await waitFor(() => messages.some(message => message.type === "subscribed"))
-      const builds = running.sessions.snapshots().map(snapshot => snapshot.builds)
+      const builds = running.sessions.snapshots().filter(snapshot => snapshot.packageId !== "fixture-alpha").map(snapshot => snapshot.builds)
       const instance = running.record.instanceId
       const revision = running.registry.snapshot().revision
       const readme = join(fixture.workspace, "projects/alpha/README.md")
       writeFileSync(readme, "# Updated project README\n")
       running.watch.notify(readme)
-      await waitFor(() => messages.some(message => message.type === "registry.readme-updated"))
-      expect(messages.find(message => message.type === "registry.readme-updated")?.nodeIds).toEqual(["project:fixture-alpha"])
+      await waitFor(() => messages.some(message => message.type === "package.metadata-updated"))
+      expect(messages.find(message => message.type === "package.metadata-updated")?.packageId).toBe("fixture-alpha")
       expect(messages.some(message => message.type === "registry.updated" || message.type === "shared.updated")).toBe(false)
       expect(running.registry.snapshot().revision).toBe(revision)
-      expect(running.sessions.snapshots().map(snapshot => snapshot.builds)).toEqual(builds)
+      expect(running.sessions.snapshots().filter(snapshot => snapshot.packageId !== "fixture-alpha").map(snapshot => snapshot.builds)).toEqual(builds)
       expect(running.record.instanceId).toBe(instance)
     } finally {
       socket.close()
@@ -308,10 +308,10 @@ describe("one external Storybook server", () => {
     expect(second.response.status).toBe(200)
     const client = await fetchJson(new URL("/api/client", running.origin))
     expect(client.rootIds).toEqual([
-      "workspace:fixture-workspace",
-      "project:fixture-standalone",
+      "package:fixture-workspace",
+      "package:@fixture/standalone",
     ])
-    expect(client.packages).toHaveLength(3)
+    expect(client.packages).toHaveLength(6)
     expect(new Set(client.nodes.map((node: {urlPath: string}) => new URL(node.urlPath, running.origin).origin)))
       .toEqual(new Set([running.origin]))
     const variant = client.nodes.find((node: {id: string}) =>
@@ -479,7 +479,7 @@ describe("one external Storybook server", () => {
     })
     servers.push(running)
     const client = await fetchJson(new URL("/api/client", running.origin))
-    const node = client.nodes.find((candidate: {id: string}) => candidate.id === "project:fixture-alpha")
+    const node = client.nodes.find((candidate: {id: string}) => candidate.id === "package:fixture-alpha")
     expect((await fetch(new URL(`${node.resourceUrl}linked.txt`, running.origin))).status).toBe(200)
     expect((await fetch(new URL(`${node.resourceUrl}hidden.txt`, running.origin))).status).toBe(404)
     expect((await fetch(new URL(`${node.resourceUrl}.storybook/manifest.json`, running.origin))).status).toBe(404)
@@ -497,7 +497,7 @@ describe("one external Storybook server", () => {
       "/pkg-fixture-components/components/button/basic/contained",
       running.origin,
     ))
-    expect(components.status).toBe(200)
+    expect(components.status, await components.clone().text()).toBe(200)
     const componentState = running.sessions.session("@fixture/components").snapshot()
     expect(componentState.buildState, JSON.stringify(componentState.diagnostics)).toBe("built")
     expect(running.sessions.session("@fixture/docs").snapshot().builds).toBe(0)
@@ -517,7 +517,7 @@ describe("one external Storybook server", () => {
       `/pkg-fixture-components/components/button/basic/contained?preview=${candidate}`,
       running.origin,
     ))
-    expect(page.status).toBe(200)
+    expect(page.status, await page.clone().text()).toBe(200)
     const html = await page.text()
     const session = running.sessions.session("@fixture/components")
     const state = session.snapshot()
@@ -657,7 +657,7 @@ describe("one external Storybook server", () => {
     unlinkSync(readme)
     symlinkSync(outside, readme)
     const client = await fetchJson(new URL("/api/client", running.origin))
-    const project = client.nodes.find((node: {id: string}) => node.id === "project:fixture-alpha")
+    const project = client.nodes.find((node: {id: string}) => node.id === "package:fixture-alpha")
     const response = await fetch(new URL(project.resourceUrl, running.origin))
     expect(response.status).toBe(404)
     expect(await response.text()).not.toContain("outside secret")
@@ -754,7 +754,7 @@ describe("one external Storybook server", () => {
     expect(openedFromPackage.ok).toBeFalse()
     const graphBeforeMutation = running.registry.snapshot().graph.digest
     const denied = await fetch(new URL("/api/browser/detach", running.origin), {
-      method: "POST", headers, body: JSON.stringify({scopeId: "project:fixture-standalone"}),
+      method: "POST", headers, body: JSON.stringify({scopeId: "package:@fixture/standalone"}),
     })
     expect(denied.ok).toBeFalse()
     expect(running.registry.snapshot().graph.digest).toBe(graphBeforeMutation)

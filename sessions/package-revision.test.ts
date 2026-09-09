@@ -26,16 +26,18 @@ describe("exact Storybook package revision graph", () => {
     expect(snapshot.rootId).toBe("package:@fixture/components")
     expect(snapshot.ancestors).toEqual([
       {
-        id: "workspace:fixture-workspace",
-        kind: "workspace",
+        id: "package:fixture-workspace",
+        parentId: null,
+        kind: "package",
         label: "Fixture Workspace",
-        urlPath: "/workspaces/fixture-workspace/",
+        urlPath: "/pkg-fixture-workspace/",
       },
       {
-        id: "project:fixture-alpha",
-        kind: "project",
+        id: "package:fixture-alpha",
+        parentId: "package:fixture-workspace",
+        kind: "package",
         label: "Fixture Alpha",
-        urlPath: "/projects/fixture-alpha/",
+        urlPath: "/pkg-fixture-alpha/",
       },
     ])
     expect(snapshot.routes.filter(route => !route.nodeId.startsWith("directory:")).map(({path}) => path)).toEqual([
@@ -148,7 +150,7 @@ describe("exact Storybook package revision graph", () => {
       ],
     })
     expect(() => validateStorybookPackageRevisionGraphSnapshot(mismatchedAncestorId))
-      .toThrow("ancestor identity does not match its kind")
+      .toThrow("ancestor sequence is invalid")
   })
 
   test("rejects duplicate specifiers and non-canonical author stylesheet revision URLs", async () => {

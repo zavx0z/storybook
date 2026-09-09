@@ -17,7 +17,7 @@ export type ExternalStorybookAttachSource = "cli" | "workspace" | "project" | "d
 
 export type ExternalStorybookRegistryEntry = Readonly<{
   declarationPath: string
-  rootKind: "workspace" | "project" | "package"
+  rootKind: "workspace" | "project" | "package" | "unavailable"
   canonicalId: string
   digest: string
   descendantIds: readonly string[]
@@ -96,7 +96,7 @@ export class ExternalStorybookRegistry {
     }
     const contains = (id: string): boolean => id === removed || children(id).some(contains)
     const retain = (id: string): readonly string[] => id === removed ? [] :
-      contains(id) ? children(id).flatMap(retain) : [scopes.get(id)!.source.path]
+      contains(id) ? children(id).flatMap(retain) : [scopes.get(id)!.scopeRoot]
     const paths = this.#catalog.rootIds.flatMap(retain)
     return this.#resolve(paths, paths.map(() => "direct-package"))
   }
@@ -178,7 +178,7 @@ function createEntries(
       .filter(({structuralPath}) => structuralPath[0] === rootId)
       .map(({id}) => id)
     return Object.freeze({
-      declarationPath: root.source.path,
+      declarationPath: root.scopeRoot,
       rootKind: root.kind,
       canonicalId: rootId,
       digest: rootNode.digest,

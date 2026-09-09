@@ -26,10 +26,9 @@ describe("external Storybook self declaration", () => {
   test("uses the ordinary package path and preserves exact self routes", async () => {
     const declarations = await resolveExternalStorybookDeclarations([root])
     const graph = createExternalStorybookGraph(declarations)
-    expect(graph.rootIds).toEqual(["project:zavx0z-storybook"])
-    expect(graph.nodes.find(node => node.id === "project:zavx0z-storybook")?.childIds.filter(id => !id.startsWith("directory:"))).toEqual([
-      "package:@zavx0z/storybook",
-    ])
+    expect(graph.rootIds).toEqual(["package:@zavx0z/storybook"])
+    expect(graph.nodes.filter(node => node.id === "package:@zavx0z/storybook")).toHaveLength(1)
+    expect(graph.nodes.some(node => node.kind === "project" || node.kind === "workspace")).toBeFalse()
     expect(graph.nodes.find(node => node.id === "package:@zavx0z/storybook")?.childIds.filter(id => id.startsWith("package:"))).toEqual([
       "package:@zavx0z/storybook-browser-lifecycle", "package:@zavx0z/storybook-archetypes",
     ])

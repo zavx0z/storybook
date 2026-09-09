@@ -156,6 +156,8 @@ type StorybookCatalogScopeBase = Readonly<{
   recoveryPaths?: readonly string[]
   /** Owner structure paths observed for package discovery and optional manifest changes. */
   structurePaths?: readonly string[]
+  /** Former navigation addresses used only for URL migration, never owner identity. */
+  legacyUrls?: readonly string[]
   directories?: readonly StorybookDirectory[]
   schemaVersion: typeof EXTERNAL_STORYBOOK_SCHEMA_VERSION
   canonicalId: string
@@ -193,6 +195,7 @@ export type StorybookCatalogScope =
   | StorybookWorkspace
   | StorybookProject
   | StorybookPackage
+  | (StorybookCatalogScopeBase & Readonly<{kind: "unavailable"}>)
 
 export type StorybookCatalog = Readonly<{
   schemaVersion: typeof EXTERNAL_STORYBOOK_SCHEMA_VERSION

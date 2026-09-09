@@ -28,13 +28,13 @@ export function externalStorybookPackageDescriptors(
   return Object.freeze(packages.filter(declaration => include === undefined || include.has(declaration.id)).map((declaration) => {
     mergeStorybookAuthorStyleSheets(workbenchAuthorStyleSheets, declaration.authorStyleSheets)
     const node = externalStorybookNode(graph, declaration.canonicalId)
-    const projectNode = [...node.structuralPath].reverse()
+    const projectNode = [...node.structuralPath]
       .map((id) => externalStorybookNode(graph, id))
-      .find(({kind}) => kind === "project")
+      .find(({kind}) => kind === "package")
     const projectDeclaration = projectNode === undefined
       ? null
       : catalog.scopes.find(({canonicalId}) => canonicalId === projectNode.id)
-    const projectRoot = projectDeclaration?.kind === "project"
+    const projectRoot = projectDeclaration !== undefined && projectDeclaration !== null
       ? projectDeclaration.scopeRoot
       : declaration.scopeRoot
     const variants = graph.nodes.flatMap((candidate) =>

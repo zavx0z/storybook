@@ -69,7 +69,7 @@ export type ExternalStorybookPackageTabModel = Readonly<{
 export function deriveExternalStorybookLanding(
   graph: BrowserGraph,
 ): ExternalStorybookLandingModel {
-  const items = graph.nodes.filter(node => node.kind === "workspace" || node.kind === "project" || node.kind === "package")
+  const items = graph.nodes.filter(node => node.kind === "workspace" || node.kind === "project" || node.kind === "package" || node.kind === "unavailable")
     .map(node => Object.freeze({
       ...navigationItem(graph, node, externalStorybookBrowsePath(node), null),
       ...(node.parentId === null ? {} : {parentId: node.parentId}),
@@ -83,7 +83,7 @@ export function deriveExternalStorybookLandingSelection(
   nodeId: string,
 ): ExternalStorybookLandingSelection {
   const selected = browserNode(graph, nodeId)
-  if (selected.kind !== "workspace" && selected.kind !== "project" && selected.kind !== "package" && selected.kind !== "directory") {
+  if (selected.kind !== "workspace" && selected.kind !== "project" && selected.kind !== "package" && selected.kind !== "directory" && selected.kind !== "unavailable") {
     throw new Error(`External Storybook landing selection must be a repository or package: ${nodeId}`)
   }
   const scope = directoryScope(graph, selected)

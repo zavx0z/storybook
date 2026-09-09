@@ -19,7 +19,7 @@ flowchart LR
   end
 
   subgraph NORMAL["Единый каталог и граф Storybook"]
-    REPO["Узел репозитория"]
+    REPO["Узел корневого пакета"]
     PACKAGE["Узел пакета<br/>отдельный packageId"]
     DIRECTORY["Узел директории"]
     DOC["Документ обзора"]
@@ -48,7 +48,7 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-  REPOSITORY["Репозиторий WebXR<br/>/webxr-space"]
+  REPOSITORY["Корневой пакет WebXR<br/>@zavx0z/webxr"]
 
   REPOSITORY --> DOM["Пакет DOM<br/>@zavx0z/dom"]
   REPOSITORY --> BROWSER["Пакет Browser"]
@@ -110,8 +110,8 @@ flowchart LR
 
 ```text
 ГЛАВНАЯ ПАНЕЛЬ
-└─ репозиторий                       ← подключённый путь + корневой package.json
-   └─ пакет                          ← workspaces + package.json
+└─ корневой пакет                    ← подключённый путь + package.json#name
+   └─ вложенный пакет                ← workspaces + package.json#name
       └─ вложенный пакет             ← физическая вложенность package roots
 
 ПРЕДМЕТНАЯ ПАНЕЛЬ ВЫБРАННОГО ПАКЕТА
@@ -128,7 +128,7 @@ flowchart LR
 └─ исполняемая история               ← manifest + catalog.json
 ```
 
-Корневой пакет остаётся отдельным дочерним пакетом репозитория. Пакеты без
+Корень репозитория представлен одним пакетом с identity = package.json#name. Пакеты без
 `.storybook/manifest.json` также отображаются. Директория с `package.json` не
 дублируется как обычная директория, а обнаружение директорий не пересекает
 границу пакета.

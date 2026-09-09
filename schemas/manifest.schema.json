@@ -121,7 +121,7 @@
         "$schema": {"$ref": "#/$defs/schemaReference"},
         "schemaVersion": {"const": 1},
         "kind": {"const": "workspace"},
-        "id": {"$ref": "#/$defs/scopeId"},
+        "id": {"$ref": "#/$defs/packageId"},
         "readme": {"$ref": "#/$defs/relativePath"},
         "projects": {
           "type": "array",
@@ -138,7 +138,7 @@
         "$schema": {"$ref": "#/$defs/schemaReference"},
         "schemaVersion": {"const": 1},
         "kind": {"const": "project"},
-        "id": {"$ref": "#/$defs/scopeId"},
+        "id": {"$ref": "#/$defs/packageId"},
         "readme": {"$ref": "#/$defs/relativePath"},
         "packages": {
           "type": "array",

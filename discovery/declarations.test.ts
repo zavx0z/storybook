@@ -47,7 +47,7 @@ describe("external Storybook JSON declarations", () => {
     await Bun.write(project, JSON.stringify({name: "alpha", label: "Первый проект"}))
     await updateJson(componentsPackageJson(root), value => ({...value, label: "Компоненты проекта"}))
     const first = await resolveExternalStorybookDeclarations([root])
-    expect(first.scopes.find(scope => scope.id === "fixture-alpha")?.label).toBe("Первый проект")
+    expect(first.scopes.find(scope => scope.id === "alpha")?.label).toBe("Первый проект")
     const before = declarationPackage(first.scopes, "@fixture/components")
     expect(before.label).toBe("Компоненты проекта")
     await updateJson(componentsPackageJson(root), value => ({...value, label: "Новое название"}))
@@ -103,10 +103,10 @@ describe("external Storybook JSON declarations", () => {
 
     expect(resolved.schemaVersion).toBe(EXTERNAL_STORYBOOK_SCHEMA_VERSION)
     expect(resolved.rootIds).toEqual([
-      "workspace:fixture-workspace",
-      "project:fixture-standalone",
+      "package:fixture-workspace",
+      "package:@fixture/standalone",
     ])
-    expect(resolved.scopes).toHaveLength(7)
+    expect(resolved.scopes).toHaveLength(6)
     expect(Object.isFrozen(resolved)).toBeTrue()
     expect(Object.isFrozen(resolved.scopes)).toBeTrue()
 
@@ -176,12 +176,12 @@ describe("external Storybook JSON declarations", () => {
       join(root, "standalone"),
     ])
     expect(resolved.rootIds).toEqual([
-      "project:fixture-alpha",
-      "project:fixture-standalone",
+      "package:fixture-alpha",
+      "package:@fixture/standalone",
     ])
-    const project = resolved.scopes.find(({canonicalId}) => canonicalId === "project:fixture-alpha")
-    expect(project?.kind).toBe("project")
-    if (project?.kind !== "project") throw new Error("Fixture project is missing")
+    const project = resolved.scopes.find(({canonicalId}) => canonicalId === "package:fixture-alpha")
+    expect(project?.kind).toBe("package")
+    if (project?.kind !== "package") throw new Error("Fixture package is missing")
     expect(project.packageIds).toEqual([
       "package:@fixture/components",
       "package:@fixture/extra-docs",

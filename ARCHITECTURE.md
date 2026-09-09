@@ -1,5 +1,11 @@
 # Внешняя архитектура Storybook
 
+Identity каждого владельца равна `package.json#name`. Корень репозитория —
+обычный пакет с собственным узлом, сборкой и ревизией. Дополнительных project
+или repository owners нет. Workspaces раскрываются у каждого пакета; имя
+директории и label не участвуют в identity. Старые project/workspace JSON
+читаются как формат композиции и нормализуются в пакетных владельцев.
+
 Пакеты без дополнительных деклараций используют `package.json` как источник
 каталога вместо metadata-only манифеста. Ссылки на стандартный корневой README
 не хранятся в манифестах и не генерируются. Нестандартные обзоры, исполняемые
@@ -9,8 +15,9 @@
 владеют корневым `README.md` рядом с `package.json`, обычная директория —
 модульным TSDoc `index.ts`. Resolver автоматически обнаруживает README и с
 манифестом, и без него; явно объявленный `readme` сохраняет приоритет.
-Отсутствие обзора не исключает узел из каталога. Обзор репозитория обновляется
-через общий каталог, обзор пакета публикуется в его применяемой ревизии.
+Отсутствие обзора не исключает узел из каталога. Обзор любого пакета, включая
+корень, публикуется в его применяемой ревизии. Содержание README здесь не
+регламентируется и принадлежит авторам пакета.
 
 `/Users/zavx0z/repozitarium/storybook` — самостоятельный development tool. Он
 не является dependency consumer project или production package и не переносит
@@ -274,10 +281,10 @@ only when the production component has another contract, for example Markdown
 `ol/ul` versus interactive `List`, or navigation tree versus `listbox`.
 
 Status region композирует production `@zavx0z/ui/navigation/breadcrumbs`
-внутри production StatusBar на landing, workspace/project/package overview и
-package route. Immutable revision несёт путь предков `workspace → project`,
+внутри production StatusBar на landing и страницах пакетов.
+Immutable revision несёт цепочку родительских пакетов,
 затем Breadcrumbs продолжает его узлами package graph. Переход к предку
-открывает его global overview и не расширяет package build. Обычный обзор не
+открывает страницу пакета и не расширяет сборку потомка. Обычный обзор не
 дублируется прежней плоской status-строкой. Inspector не повторяет
 package/subject строку.
 
@@ -298,8 +305,8 @@ state не записывается в declarations. Expanded disclosure block �
 и полный поток видимых category rows, поэтому следующий root row никогда их не
 перекрывает.
 
-Landing показывает workspace groups, direct standalone projects и direct
-packages без fake workspace. Package tab показывает categories (direct или
+Landing показывает одно дерево корневых и вложенных пакетов.
+Package tab показывает categories (direct или
 grouped), subjects во второй panel и variants в scenarios. Typed category может
 сама владеть semantic `kind/apiName`: так primary component использует ordinary
 subjects как свои sections без special-case в Workbench. У обычного subject

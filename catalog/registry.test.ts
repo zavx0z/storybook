@@ -13,12 +13,12 @@ describe("external Storybook attached-root registry", () => {
     await registry.attach(fixtureRoot)
     const snapshot = await registry.attach(join(fixtureRoot, "standalone"))
     expect(snapshot.entries.map(({canonicalId}) => canonicalId)).toEqual([
-      "workspace:fixture-workspace",
-      "project:fixture-standalone",
+      "package:fixture-workspace",
+      "package:@fixture/standalone",
     ])
     expect(snapshot.graph.rootIds).toEqual(snapshot.entries.map(({canonicalId}) => canonicalId))
     expect(snapshot.entries[0]?.descendantIds).toContain("package:@fixture/components")
-    expect(snapshot.entries[1]?.rootKind).toBe("project")
+    expect(snapshot.entries[1]?.rootKind).toBe("package")
   })
 
   test("keeps the current graph untouched when a new root fails validation", async () => {
@@ -36,7 +36,7 @@ describe("external Storybook attached-root registry", () => {
     await registry.attachMany([fixtureRoot, join(fixtureRoot, "standalone")])
     const detached = await registry.detach("fixture-workspace")
     expect(detached.entries.map(({canonicalId}) => canonicalId)).toEqual([
-      "project:fixture-standalone",
+      "package:@fixture/standalone",
     ])
     expect(detached.graph.nodes.some(({id}) => id === "package:@fixture/components")).toBeFalse()
     expect(detached.graph.nodes.some(({id}) => id === "package:@fixture/standalone")).toBeTrue()
@@ -47,7 +47,7 @@ describe("external Storybook attached-root registry", () => {
     await registry.attach(fixtureRoot)
     const descriptors = registry.packageDescriptors()
     const components = descriptors.find(({packageId}) => packageId === "@fixture/components")!
-    expect(components.projectRoot).toEndWith("/projects/alpha")
+    expect(components.projectRoot).toBe(fixtureRoot)
     expect(components.packageRoot).toEndWith("/projects/alpha/packages/components")
     expect(components.runtime?.export).toBe("runtime")
     expect(components.variants.map(({route}) => route)).toEqual([
@@ -108,10 +108,9 @@ describe("external Storybook attached-root registry", () => {
     expect(components.resourceFiles?.find(({sourcePath}) => sourcePath.endsWith("/docs/architecture.svg"))?.targetPath)
       .toEndWith("/docs/architecture.svg")
     const structural = externalStorybookStructuralWatchPaths(registry.snapshot())
-    // Эти README обновляют существующий документ через отдельное уведомление.
-    // Их правка не должна перестраивать граф пакетов.
-    expect(structural).not.toContain(join(fixtureRoot, "README.md"))
-    expect(structural).not.toContain(join(fixtureRoot, "projects/alpha/README.md"))
+    // README корневых пакетов наблюдаются как собственные метаданные.
+    expect(structural).toContain(join(fixtureRoot, "README.md"))
+    expect(structural).toContain(join(fixtureRoot, "projects/alpha/README.md"))
     expect(structural).toContain(join(fixtureRoot, "projects/alpha/packages/components/tokens.css"))
     expect(structural).toContain(join(fixtureRoot, "projects/alpha/packages/components/theme.css"))
   })

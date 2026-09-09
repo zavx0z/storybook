@@ -256,7 +256,7 @@ export async function startExternalStorybookLanding(
     }
     const node = snapshot.nodes.find((candidate) => externalStorybookBrowsePath(candidate) === pathname)
     if (node?.kind === "workspace") await select(node.id, false)
-    else if (node?.kind === "project" || node?.kind === "package" || node?.kind === "directory") await select(node.id, false)
+    else if (node?.kind === "project" || node?.kind === "package" || node?.kind === "directory" || node?.kind === "unavailable") await select(node.id, false)
     else throw new Error(`Unknown external Storybook landing pathname: ${pathname}`)
   }
   const onPopState = (): void => {

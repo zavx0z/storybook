@@ -20,12 +20,12 @@ describe("external Storybook normalized graph", () => {
     const second = createExternalStorybookGraph(await fixtureDeclarations())
 
     expect(first.rootIds).toEqual([
-      "workspace:fixture-workspace",
-      "project:fixture-standalone",
+      "package:fixture-workspace",
+      "package:@fixture/standalone",
     ])
     expect(first.nodes.filter(node => node.kind !== "directory").map(({id}) => id)).toEqual([
-      "workspace:fixture-workspace",
-      "project:fixture-alpha",
+      "package:fixture-workspace",
+      "package:fixture-alpha",
       "package:@fixture/components",
       "category:@fixture/components/foundation",
       "subject:@fixture/components/foundation/event-target",
@@ -33,9 +33,8 @@ describe("external Storybook normalized graph", () => {
       "subject:@fixture/components/components/button",
       "variant:@fixture/components/components/button/contained",
       "variant:@fixture/components/components/button/outlined",
-      "project:fixture-beta",
+      "package:fixture-beta",
       "package:@fixture/docs",
-      "project:fixture-standalone",
       "package:@fixture/standalone",
       "category:@fixture/standalone/tools",
       "subject:@fixture/standalone/tools/diagnostics",
@@ -92,7 +91,7 @@ describe("external Storybook normalized graph", () => {
       if (scope.kind === "package" && scope.id === "@fixture/docs") {
         return {...scope, id: "fixture-components", canonicalId: collidingId, packageName: "fixture-components"}
       }
-      if (scope.kind === "project") {
+      if (scope.kind === "package" && scope.packageIds !== undefined) {
         return {...scope, packageIds: scope.packageIds.map(id => id === "package:@fixture/docs" ? collidingId : id)}
       }
       return scope
@@ -124,7 +123,7 @@ describe("external Storybook normalized graph", () => {
       "variant:@fixture/components/components/button/contained",
     ])
     expect(searchExternalStorybookGraph(graph, "fixture workspace").map(({id}) => id)).toEqual([
-      "workspace:fixture-workspace",
+      "package:fixture-workspace",
     ])
     expect(searchExternalStorybookGraph(graph, "")).toBe(graph.nodes)
   })
@@ -158,8 +157,8 @@ describe("external Storybook normalized graph", () => {
     expect(variant.packageId).toBe("@fixture/components")
     expect(variant.parentId).toBe("subject:@fixture/components/components/button")
     expect(variant.structuralPath).toEqual([
-      "workspace:fixture-workspace",
-      "project:fixture-alpha",
+      "package:fixture-workspace",
+      "package:fixture-alpha",
       "package:@fixture/components",
       "category:@fixture/components/components",
       "subject:@fixture/components/components/button",

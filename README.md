@@ -1,5 +1,10 @@
 # External Storybook
 
+Корень репозитория — пакет. Identity равна точному `package.json#name`,
+название в интерфейсе берётся из `label`, выбранный путь задаёт местоположение.
+Один пакет имеет один узел и независимую ревизию; workspaces определяет
+вложенные пакеты без дополнительной project/repository оболочки.
+
 Один внешний Storybook для независимо принадлежащих владельцам пакетов и
 проектов. Потребитель не устанавливает и не импортирует
 `@zavx0z/storybook`: он хранит только JSON-декларации, собственные истории и
@@ -184,7 +189,7 @@ composition; standalone projects/packages можно подключать одн
 Пакеты без манифеста тоже видимы; манифесты добавляют содержимое. Прежний
 manifest.packages поддерживается только без workspaces.
 
-Global landing показывает workspace groups, direct projects и direct packages.
+Global landing показывает корневые и вложенные пакеты в одном дереве.
 Каждый exact package identity отображается private lifecycle owner в один
 reused package target `storybook:<package-id>` и получает один JS realm, one
 loaded runtime adapter, не более одной active subject session и one

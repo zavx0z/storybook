@@ -22,6 +22,7 @@ import {
 } from "./protocol.ts"
 
 export type ExternalStorybookGraphNodeKind =
+  | "unavailable"
   | "workspace"
   | "project"
   | "package"
@@ -126,6 +127,9 @@ export function createExternalStorybookGraph(
     }
     const declaration = declarationsById.get(canonicalId)
     if (declaration === undefined) throw new Error(`Unknown resolved external Storybook declaration: ${canonicalId}`)
+    if (declaration.kind !== "package" && declaration.kind !== "unavailable") {
+      throw new Error(`Normalized Storybook owners must be packages: ${canonicalId}`)
+    }
     if (declaration.kind === "package") {
       const path = storybookPackagePathSegment(declaration.id)
       const previous = packagePaths.get(path)
@@ -136,11 +140,8 @@ export function createExternalStorybookGraph(
     }
     visitedDeclarations.add(canonicalId)
     const structuralPath = Object.freeze([...ancestors, canonicalId])
-    const childIds = [...(declaration.kind === "workspace"
-      ? declaration.projectIds
-      : declaration.kind === "project"
-        ? declaration.packageIds
-        : [...(declaration.packageIds ?? []), ...(declaration.catalog?.categories.map((category) => categoryNodeId(declaration.id, category.id)) ?? [])]),
+    const childIds = [...(declaration.kind === "package"
+      ? [...(declaration.packageIds ?? []), ...(declaration.catalog?.categories.map((category) => categoryNodeId(declaration.id, category.id)) ?? [])] : []),
       ...(declaration.directories ?? []).map(directory => directoryNodeId(canonicalId, directory.relativePath))]
     appendNode({
       id: canonicalId,
@@ -196,26 +197,8 @@ export function createExternalStorybookGraph(
     }
     for (const directory of declaration.directories ?? []) appendDirectory(directory, canonicalId, structuralPath)
 
-    if (declaration.kind === "workspace") {
-      for (const projectId of declaration.projectIds) {
-        const project = declarationsById.get(projectId)
-        if (project?.kind !== "project") {
-          throw new Error(`External Storybook workspace child is not a project: ${projectId}`)
-        }
-        appendDeclaration(projectId, canonicalId, structuralPath)
-      }
-      return
-    }
-    if (declaration.kind === "project") {
-      for (const packageId of declaration.packageIds) {
-        const packageDeclaration = declarationsById.get(packageId)
-        if (packageDeclaration?.kind !== "package") {
-          throw new Error(`External Storybook project child is not a package: ${packageId}`)
-        }
-        appendDeclaration(packageId, canonicalId, structuralPath)
-      }
-      return
-    }
+    if (declaration.kind === "unavailable") return
+
     for (const packageId of declaration.packageIds ?? []) appendDeclaration(packageId, canonicalId, structuralPath)
     appendPackageCatalog(declaration, structuralPath, appendNode)
   }
@@ -453,6 +436,7 @@ function variantNodeId(
 
 function declarationUrl(declaration: StorybookCatalogScope): string {
   const encoded = encodeURIComponent(declaration.id)
+  if (declaration.kind === "unavailable") return `/unavailable/${encoded}/`
   if (declaration.kind === "workspace") return `/workspaces/${encoded}/`
   if (declaration.kind === "project") return `/projects/${encoded}/`
   return storybookPackageUrlPath(declaration.id)

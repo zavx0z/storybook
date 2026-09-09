@@ -9,6 +9,7 @@
 
 import type {
   StorybookCatalog,
+  StorybookPackage,
   StorybookCatalogScope,
   StorybookPackageCatalog,
   StorybookCatalogScopeKind,
@@ -128,38 +129,12 @@ export async function resolveExternalStorybookDeclarations(
         ? resolve(input) : join(resolve(input), ".storybook", "manifest.json"))
     })
     const declaration = await resolveManifest(manifestPath, state)
-    if (declaration.kind !== "package") {
-      rootIds.push(declaration.canonicalId)
-      continue
-    }
-    const repositoryId = deriveExternalStorybookScopeId(declaration.packageName)
-    const canonicalId = externalStorybookDeclarationId("project", repositoryId)
-    if (state.scopes.some(scope => scope.canonicalId === canonicalId)) throw new Error(`Duplicate repository identity: ${canonicalId}`)
-    const metadata = (await readJsonObject(declaration.packageJsonPath, "Repository package.json")).record
-    const members = metadata.workspaces === undefined ? {roots: [], watchPaths: []} :
-      await discoverWorkspacePackages(declaration.scopeRoot, metadata.workspaces)
-    const packageIds = [declaration.canonicalId]
-    for (const root of members.roots) {
-      const child = await resolveManifest(await resolveEntryManifest(root), state, true)
-      if (child.kind !== "package") throw new Error(`Workspace member must be a package: ${root}`)
-      packageIds.push(child.canonicalId)
-    }
-    state.scopes.push(Object.freeze({
-      schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
-      kind: "project",
-      id: repositoryId,
-      canonicalId,
-      label: declaration.label,
-      scopeRoot: declaration.scopeRoot,
-      source: Object.freeze({path: declaration.scopeRoot, pointer: ""}),
-      readmePath: declaration.readmePath,
-      digest: createHash("sha256").update(JSON.stringify([repositoryId, metadata.workspaces, packageIds])).digest("hex"),
-      packageIds: Object.freeze(packageIds),
-      structurePaths: Object.freeze([...members.watchPaths, declaration.packageJsonPath]),
-    }))
-    rootIds.push(canonicalId)
+    rootIds.push(declaration.canonicalId)
   }
-  nestPackageScopes(state.scopes)
+  const normalized = await normalizePackageOwners(state.scopes, rootIds)
+  state.scopes = normalized.scopes
+  rootIds.splice(0, rootIds.length, ...normalized.rootIds)
+  nestPackageScopes(state.scopes, rootIds)
   const packageRoots = new Set(state.scopes.map(scope => scope.scopeRoot))
   for (const [index, scope] of state.scopes.entries()) {
     if (scope.resolutionError !== undefined) continue
@@ -177,35 +152,75 @@ export async function resolveExternalStorybookDeclarations(
   })
 }
 
-/** Directory containment affects navigation only, never package module ownership. */
-function nestPackageScopes(scopes: StorybookCatalogScope[]): void {
-  for (const project of [...scopes]) {
-    if (project.kind !== "project") continue
-    const memberIds = new Set(project.packageIds)
-    const includeChildren = (id: string): void => {
-      const parent = scopes.find(scope => scope.canonicalId === id)
-      if (parent?.kind !== "package") return
-      for (const childId of parent.packageIds ?? []) {
-        if (memberIds.has(childId)) continue
-        memberIds.add(childId)
-        includeChildren(childId)
-      }
+/** Legacy composition files supply children, never a second owner identity. */
+async function normalizePackageOwners(scopes: readonly StorybookCatalogScope[], roots: readonly string[]) {
+  const identities = new Map<string, string>()
+  const names = new Map<string, string>()
+  for (const scope of scopes) {
+    if (scope.kind === "unavailable") {
+      names.set(scope.canonicalId, scope.id)
+      identities.set(scope.canonicalId, scope.canonicalId)
+      continue
     }
-    for (const id of project.packageIds) includeChildren(id)
-    const members = scopes.filter(scope => scope.kind === "package" && memberIds.has(scope.canonicalId))
+    const name = scope.kind === "package" ? scope.packageName : packageId(
+      (await readJsonObject(join(scope.scopeRoot, "package.json"), "Owner package.json")).record.name,
+      "Owner package.json name",
+    )
+    names.set(scope.canonicalId, name)
+    identities.set(scope.canonicalId, externalStorybookDeclarationId("package", name))
+  }
+  const normalized = scopes.map((scope): StorybookCatalogScope => {
+    if (scope.kind === "unavailable") return scope
+    const name = names.get(scope.canonicalId)!
+    const children = scope.kind === "workspace" ? scope.projectIds : scope.packageIds ?? []
+    const legacyUrls = scope.kind === "package"
+      ? roots.includes(scope.canonicalId) ? [`/projects/${deriveExternalStorybookScopeId(name)}/`] : []
+      : scope.legacyUrls ?? []
+    const {projectIds: _projects, ...base} = scope as StorybookCatalogScope & {projectIds?: readonly string[]}
+    const owner = scope.kind === "package" ? scope : {
+      ...base, kind: "package" as const,
+      packageName: name, packageJsonPath: join(scope.scopeRoot, "package.json"),
+      authorStyleSheets: Object.freeze([]), widgetContributions: null, runtime: null, catalog: null,
+    }
+    return Object.freeze({
+      ...owner,
+      kind: "package" as const,
+      id: name,
+      canonicalId: identities.get(scope.canonicalId)!,
+      packageIds: Object.freeze(children.map(id => identities.get(id)!)),
+      legacyUrls: Object.freeze([...new Set([...(scope.legacyUrls ?? []), ...legacyUrls])]),
+    })
+  })
+  return {scopes: normalized, rootIds: roots.map(id => identities.get(id)!)}
+}
+
+/** Directory containment affects navigation only, never package module ownership. */
+function nestPackageScopes(scopes: StorybookCatalogScope[], rootIds: readonly string[]): void {
+  for (const rootId of rootIds) {
+    const root = scopes.find(scope => scope.canonicalId === rootId)!
+    const memberIds = new Set<string>()
+    const include = (id: string): void => {
+      if (memberIds.has(id)) return
+      memberIds.add(id)
+      const owner = scopes.find(scope => scope.canonicalId === id)
+      if (owner?.kind === "package") for (const child of owner.packageIds ?? []) include(child)
+    }
+    include(rootId)
+    const members = scopes.filter(scope => memberIds.has(scope.canonicalId))
     const children = new Map<string, string[]>()
     for (const member of members) {
+      if (member === root) continue
       const parent = members.filter(candidate => candidate !== member &&
         isContained(candidate.scopeRoot, member.scopeRoot))
         .sort((left, right) => right.scopeRoot.length - left.scopeRoot.length)[0]
-      const parentId = parent?.canonicalId ?? project.canonicalId
+      const parentId = parent?.canonicalId ?? rootId
       const list = children.get(parentId) ?? []
       list.push(member.canonicalId)
       children.set(parentId, list)
     }
-    for (const scope of [project, ...members]) {
-      const index = scopes.findIndex(candidate => candidate.canonicalId === scope.canonicalId)
-      scopes[index] = Object.freeze({...scope, packageIds: Object.freeze(children.get(scope.canonicalId) ?? [])}) as StorybookCatalogScope
+    for (const member of members) {
+      const index = scopes.indexOf(member)
+      scopes[index] = Object.freeze({...member, packageIds: Object.freeze(children.get(member.canonicalId) ?? [])})
     }
   }
 }
@@ -249,9 +264,8 @@ async function resolveManifest(manifestPath: string, state: ResolveState, packag
     // Conflicting identities cannot be accepted by choosing an arbitrary winner.
     if (/Duplicate|Ambiguous|Cyclic|referenced more than once/u.test(message)) throw error
     const previous = state.previous.scopes.find(scope => scope.source.path === manifestPath || scope.scopeRoot === (basename(manifestPath) === "package.json" ? dirname(manifestPath) : dirname(dirname(manifestPath))))
-    const owner = previous?.kind === "package" ? Object.freeze({...previous, packageIds: Object.freeze([])}) :
-      previous ?? await unavailableOwner(manifestPath)
-    const retained = previous === undefined ? [] : previous.kind === "package" ? [owner] : previousSubtree(state.previous, previous)
+    const owner = previous ?? await unavailableOwner(manifestPath)
+    const retained = previous === undefined ? [] : previousSubtree(state.previous, previous)
     const recoveryPaths = Object.freeze([...new Set([
       manifestPath, ...state.recoveryPaths,
       ...(previous?.recoveryPaths ?? []),
@@ -281,24 +295,25 @@ async function unavailableOwner(manifestPath: string): Promise<StorybookCatalogS
   const object = (value: unknown): Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}
   const record = object(await readJsonObject(manifestPath, "Unavailable owner manifest").then(value => value.record).catch(() => null))
   const metadata = object(await readJsonObject(join(scopeRoot, "package.json"), "Unavailable owner package.json").then(value => value.record).catch(() => null))
-  let kind: StorybookCatalogScopeKind = record.kind === "workspace" || record.kind === "project" ? record.kind : "package"
+  let kind: StorybookCatalogScopeKind | "unavailable" = record.kind === "workspace" || record.kind === "project" ? record.kind : "package"
   let id: string
   try {
-    id = kind === "package" ? packageId(metadata.name ?? record.id, "Unavailable package identity") : scopeId(record.id, "Unavailable project identity")
+    id = packageId(metadata.name ?? (kind === "package" ? record.id : undefined), "Unavailable package identity")
   } catch {
     // An unavailable selected directory is a registration shell, never an invented package identity.
-    kind = "project"
+    kind = "unavailable"
     id = `unavailable-${createHash("sha256").update(scopeRoot).digest("hex").slice(0, 24)}`
   }
   const base = {
     schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION, kind, id,
-    canonicalId: externalStorybookDeclarationId(kind, id), scopeRoot,
+    canonicalId: `${kind}:${id}`, scopeRoot,
     label: typeof metadata.label === "string" && metadata.label.trim().length > 0 ? metadata.label : `${basename(scopeRoot)} (недоступен)`,
     source: Object.freeze({path: manifestPath, pointer: ""}), readmePath: null,
     digest: createHash("sha256").update(manifestPath).digest("hex"),
   }
   if (kind === "workspace") return Object.freeze({...base, kind, projectIds: Object.freeze([])})
   if (kind === "project") return Object.freeze({...base, kind, packageIds: Object.freeze([])})
+  if (kind === "unavailable") return Object.freeze({...base, kind})
   return Object.freeze({...base, kind, packageName: id, packageJsonPath: join(scopeRoot, "package.json"),
     authorStyleSheets: Object.freeze([]), widgetContributions: null, runtime: null, catalog: null})
 }
@@ -324,9 +339,9 @@ async function resolveManifestStrict(
   const record: Record<string, unknown> = structural
     ? {
       schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
-      kind: !packageOnly && sourceRecord.workspaces !== undefined ? "project" : "package",
-      id: !packageOnly && sourceRecord.workspaces !== undefined ? deriveExternalStorybookScopeId(basename(scopeRoot)) : sourceRecord.name,
-      ...(!packageOnly && sourceRecord.workspaces !== undefined ? {} : {packageJson: "./package.json"}),
+      kind: "package",
+      id: sourceRecord.name,
+      packageJson: "./package.json",
     }
     : sourceRecord
   const schemaVersion = record.schemaVersion
@@ -349,15 +364,14 @@ async function resolveManifestStrict(
         : ["schemaVersion", "kind", "id", "packageJson"],
   )
   optionalString(record, "$schema", `External Storybook ${kind} $schema`)
-  const id = kind === "package"
-    ? packageId(record.id, "External Storybook package id")
-    : scopeId(record.id, `External Storybook ${kind} id`)
+  const declaredId = packageId(record.id, `External Storybook ${kind} id`)
   const ownerPackagePath = join(scopeRoot, "package.json")
   state.recoveryPaths.add(ownerPackagePath)
   const ownerPackage = (await readJsonObject(
     await resolveContainedFile(scopeRoot, "package.json", scopeRoot, "owner package.json"),
     "Owner package.json",
   )).record
+  const id = packageId(ownerPackage.name, "Owner package.json name")
   const label = visibleText(ownerPackage.label, `External Storybook ${kind} package.json label`)
   let digest = createHash("sha256").update(manifestDigest).update(JSON.stringify(label)).digest("hex")
   const previousScope = state.scopeIds.get(id)
@@ -425,7 +439,7 @@ async function resolveManifestStrict(
         digest = createHash("sha256").update(digest).update(JSON.stringify(ownerPackage.workspaces)).update(JSON.stringify(discovered.roots)).digest("hex")
         for (const root of discovered.roots) {
           const source = await resolveEntryManifest(root)
-          const child = await resolveManifest(source, state, true)
+          const child = state.scopes.find(scope => scope.source.path === source) ?? await resolveManifest(source, state, true)
           if (child.kind !== "package") throw new Error(`Workspace member must be a package: ${root}`)
           packageIds.push(child.canonicalId)
         }
@@ -478,8 +492,8 @@ async function resolveManifestStrict(
         "External Storybook package.json",
       )
       const packageName = packageId(packageJson.name, "External Storybook package.json name")
-      if (packageName !== id) {
-        throw new Error(`External Storybook package id ${id} does not match package.json name ${packageName}`)
+      if (packageName !== declaredId) {
+        throw new Error(`External Storybook package id ${declaredId} does not match package.json name ${packageName}`)
       }
       const previousPackageOwner = state.packageJsonOwners.get(packageJsonPath)
       if (previousPackageOwner !== undefined) {
@@ -545,6 +559,18 @@ async function resolveManifestStrict(
         runtime,
         catalog,
       })
+      if (ownerPackage.workspaces !== undefined) {
+        const discovered = await discoverWorkspacePackages(scopeRoot, ownerPackage.workspaces)
+        structurePaths = [...structurePaths, ...discovered.watchPaths]
+        const packageIds: string[] = []
+        for (const root of discovered.roots) {
+          const source = await resolveEntryManifest(root)
+          const child = state.scopes.find(scope => scope.source.path === source) ?? await resolveManifest(source, state, true)
+          if (child.kind !== "package") throw new Error(`Workspace member must be a package: ${root}`)
+          packageIds.push(child.canonicalId)
+        }
+        declaration = Object.freeze({...declaration, packageIds: Object.freeze(packageIds)})
+      }
     }
     const optionalManifest = join(scopeRoot, ".storybook", "manifest.json")
     declaration = Object.freeze({...declaration, structurePaths: Object.freeze([
@@ -552,7 +578,7 @@ async function resolveManifestStrict(
       scopeRoot,
       join(scopeRoot, ".storybook"),
       optionalManifest,
-    ])})
+    ]), ...(kind === "package" ? {} : {legacyUrls: Object.freeze([`/${kind}s/${encodeURIComponent(String(record.id))}/`])})})
     state.completed.add(manifestPath)
     state.scopes.push(declaration)
     return declaration

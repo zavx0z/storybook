@@ -73,6 +73,8 @@ test("an unavailable configured repository remains registered without blocking h
     expect(server.sessions.session("@fixture/b").snapshot().diagnostics).toEqual([])
     const unavailable = server.registry.snapshot().catalog.scopes.find(scope => scope.scopeRoot.endsWith("temporarily-missing"))
     expect(unavailable?.resolutionError).toBeDefined()
+    expect(unavailable?.kind).toBe("unavailable")
+    expect(server.registry.packageDescriptors().some(descriptor => descriptor.packageRoot === missing)).toBeFalse()
     expect(JSON.parse(readFileSync(join(f.root, "state/projects.json"), "utf8"))).toContain(missing)
   } finally {
     await server.stop()

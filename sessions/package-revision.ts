@@ -24,6 +24,7 @@ export const STORYBOOK_PACKAGE_GRAPH_PROTOCOL = "storybook-package-graph/4" as c
 
 export type StorybookPackageRevisionAncestor = Readonly<{
   id: string
+  parentId?: string | null
   kind: "workspace" | "project" | "package"
   label: string
   urlPath: string
@@ -113,6 +114,7 @@ export type StorybookPackageRevisionGraphSnapshot = Readonly<{
   declarationDigest: string
   packageGraphDigest: string
   metadata: Readonly<{
+    parentId?: string | null
     label: string
     ownerId: string
     urlPath: string
@@ -148,6 +150,7 @@ export function createStorybookPackageRevisionGraphSnapshot(
     }
     return Object.freeze({
       id: ancestor.id,
+      parentId: ancestor.parentId,
       kind: ancestor.kind,
       label: ancestor.label,
       urlPath: ancestor.urlPath,
@@ -246,6 +249,7 @@ export function createStorybookPackageRevisionGraphSnapshot(
     packageId,
     declarationDigest: requiredText("declaration digest", declarationDigest),
     metadata: Object.freeze({
+      parentId: packageNode.parentId,
       label: packageNode.label,
       ownerId: packageNode.ownerId,
       urlPath: packageNode.urlPath,
@@ -306,6 +310,9 @@ export function validateStorybookPackageRevisionGraphSnapshot(
   if (!validAncestorSequence) {
     throw new Error(`Storybook package ancestor sequence is invalid: ${packageId}`)
   }
+  if (value.metadata.parentId !== undefined && value.metadata.parentId !== (value.ancestors.at(-1)?.id ?? null)) {
+    throw new Error(`Storybook package ancestor sequence is invalid: ${packageId}`)
+  }
   const ancestorIds = new Set<string>()
   for (const [index, ancestor] of value.ancestors.entries()) {
     if (ancestor === null || typeof ancestor !== "object" ||
@@ -313,6 +320,9 @@ export function validateStorybookPackageRevisionGraphSnapshot(
       throw new TypeError(`Storybook package ancestor ${index} is invalid: ${packageId}`)
     }
     const id = requiredText("package ancestor id", ancestor.id)
+    if (ancestor.parentId !== undefined && ancestor.parentId !== (value.ancestors[index - 1]?.id ?? null)) {
+      throw new Error(`Storybook package ancestor sequence is invalid: ${packageId}`)
+    }
     if (ancestorIds.has(id)) throw new Error(`Duplicate Storybook package ancestor: ${packageId}:${id}`)
     ancestorIds.add(id)
     const prefix = `${ancestor.kind}:`

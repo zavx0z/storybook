@@ -5,8 +5,6 @@ import {createRoot} from "@zavx0z/component"
 import {createDocumentClipboardController} from "@zavx0z/browser/clipboard"
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
-import {mkdtemp, rm} from "node:fs/promises"
-import {tmpdir} from "node:os"
 import {
   createDocument,
   readDocumentCompiledStyleSheets,
@@ -41,31 +39,39 @@ import type {ExternalStorybookRootFactory} from "./shell.ts"
 const fixtureRoot = join(import.meta.dir, "../discovery/fixtures/valid")
 
 describe("external Storybook landing frontend", () => {
-  test("renders a repository README discovered without a manifest readme field", async () => {
-    const root = await mkdtemp(join(tmpdir(), "storybook-repository-readme-"))
-    let controller: Awaited<ReturnType<typeof startExternalStorybookLanding>> | undefined
+  test("navigates root and nested packages through the same page contract", async () => {
+    const graph = await fixtureGraph()
+    const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph))
+    const location = {href: "http://127.0.0.1:3000/", pathname: "/", reload() {}}
+    const requests: string[] = []
+    const state = createFakeRootState()
+    const controller = await startExternalStorybookLanding({
+      browserDocument: {documentElement: {dataset: {}}, querySelector() { return null }} as unknown as Document,
+      location,
+      fetcher: (async input => {
+        requests.push(String(input))
+        return Response.json(snapshot)
+      }) as typeof fetch,
+      createSocket() { return {addEventListener() {}, removeEventListener() {}, send() {}, close() {}} },
+      shell: {canvas: {} as HTMLCanvasElement, loadFont: async () => ({}) as never, createRoot: fakeRootFactory(state)},
+    })
     try {
-      await Bun.write(join(root, "package.json"), JSON.stringify({name: "repository", label: "Repository", workspaces: []}))
-      await Bun.write(join(root, ".storybook/manifest.json"), JSON.stringify({schemaVersion: 1, kind: "project", id: "repository"}))
-      await Bun.write(join(root, "README.md"), "# Repository overview\n\nPurpose and responsibilities.")
-      const graph = createExternalStorybookGraph(await resolveExternalStorybookDeclarations([root]))
-      const snapshot = createExternalStorybookClientSnapshot(graph, [])
-      const overview = graph.nodes.find(node => node.id === "project:repository")!
-      controller = await startExternalStorybookLanding({
-        browserDocument: {documentElement: {dataset: {}}, querySelector() { return null }} as unknown as Document,
-        location: {href: "http://127.0.0.1:3000/projects/repository/", pathname: "/projects/repository/", reload() {}},
-        fetcher: (async input => String(input) === "/api/client"
-          ? Response.json(snapshot)
-          : new Response(await Bun.file(overview.readmePath!).text())) as typeof fetch,
-        createSocket() { return {addEventListener() {}, removeEventListener() {}, send() {}, close() {}} },
-        shell: {canvas: {} as HTMLCanvasElement, loadFont: async () => ({}) as never, createRoot: fakeRootFactory()},
-      })
-      expect(controller.shell.display.querySelector("article")?.textContent).toContain("Repository overview")
-      expect(controller.shell.display.querySelector("article")?.textContent).toContain("Purpose and responsibilities.")
-    } finally {
-      controller?.dispose()
-      await rm(root, {recursive: true, force: true})
-    }
+      expect(controller.shell.workbench.controller.read("catalog.items").map(item => item.id)).toEqual([
+        "package:fixture-workspace", "package:fixture-alpha", "package:@fixture/components",
+        "package:fixture-beta", "package:@fixture/docs", "package:@fixture/standalone",
+      ])
+      for (const [id, path] of [
+        ["package:fixture-workspace", "/pkg-fixture-workspace/"],
+        ["package:fixture-alpha", "/pkg-fixture-alpha/"],
+        ["package:@fixture/components", "/pkg-fixture-components/"],
+        ["package:@fixture/standalone", "/pkg-fixture-standalone/"],
+      ] as const) {
+        await controller.select(id)
+        expect(new URL(location.href).pathname).toBe(path)
+      }
+      expect(requests).toEqual(["/api/client"])
+      expect(state.creations).toBe(1)
+    } finally { controller.dispose() }
   })
 
   test("adds and removes projects through the catalog controls without reloading the Root", async () => {
@@ -73,7 +79,7 @@ describe("external Storybook landing frontend", () => {
     const full = createExternalStorybookGraph(catalog)
     const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
     await registry.configure([fixtureRoot, join(fixtureRoot, "standalone")])
-    const removed = (await registry.detach("workspace:fixture-workspace")).graph
+    const removed = (await registry.detach("package:fixture-workspace")).graph
     const empty = createExternalStorybookGraph({schemaVersion: 1, rootIds: [], scopes: []})
     let snapshot = createExternalStorybookClientSnapshot(empty, [])
     const changes: unknown[] = []
@@ -129,13 +135,13 @@ describe("external Storybook landing frontend", () => {
       expect(controller.shell.workbench.controller.read("catalog.management")?.error).toBe("")
       expect(changes).toEqual([{selectionToken: token}])
       expect(files.size).toBe(0)
-      expect(controller.shell.workbench.controller.read("catalog.items")).toHaveLength(7)
+      expect(controller.shell.workbench.controller.read("catalog.items")).toHaveLength(6)
       const removeButton = (root.querySelector('[aria-label="Удалить Fixture Workspace из каталога"]') as import("@zavx0z/dom").HTMLButtonElement)
       removeButton.click()
       await waitUntil(() => controller.shell.workbench.controller.read("catalog.management")?.pending === false)
-      expect(changes[1]).toEqual({scopeId: "workspace:fixture-workspace"})
+      expect(changes[1]).toEqual({scopeId: "package:fixture-workspace"})
       expect(controller.shell.workbench.controller.read("catalog.items").map(item => item.id))
-        .toEqual(["project:fixture-standalone", "package:@fixture/standalone"])
+        .toEqual(["package:@fixture/standalone"])
       expect(controller.shell.workbench.element).toBe(root)
       expect(reloads).toBe(0)
       button.click()
@@ -147,193 +153,7 @@ describe("external Storybook landing frontend", () => {
     }
   })
 
-  test("renders repository overviews and navigates packages in the current tab", async () => {
-    const graph = await fixtureGraph()
-    const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph))
-    const requests: string[] = []
-    const opened: Array<Readonly<{packageId: string, route: string}>> = []
-    const pushed: string[] = []
-    const location = {
-      href: "http://127.0.0.1:3000/projects/fixture-alpha/",
-      pathname: "/projects/fixture-alpha/",
-      reload() {},
-    }
-    const dataset: Record<string, string> = {}
-    const experienceState = createFakeRootState()
-    const controller = await startExternalStorybookLanding({
-      browserDocument: {
-        documentElement: {dataset},
-        querySelector(selector: string) {
-          return selector === 'meta[name="external-storybook-browser-session"]'
-            ? {content: "landing-session"}
-            : null
-        },
-      } as unknown as globalThis.Document,
-      fetcher: (async (input, init) => {
-        const url = String(input)
-        requests.push(url)
-        if (url === "/api/client") return Response.json(snapshot)
-        if (url === "/api/browser/open") {
-          opened.push(JSON.parse(String(init?.body)))
-          expect(init?.method).toBe("POST")
-          expect((init?.headers as Record<string, string>)["x-storybook-session"]).toBe("landing-session")
-          return Response.json({ok: true})
-        }
-        return new Response(`# ${decodeURIComponent(url.split("/").filter(Boolean).at(-1) ?? "README")}`)
-      }) as typeof fetch,
-      location,
-      history: {
-        pushState(_data, _unused, url) {
-          const path = String(url)
-          pushed.push(path)
-          location.pathname = path
-        },
-      },
-      shell: {
-        canvas: {} as HTMLCanvasElement,
-        loadFont: async () => ({}) as never,
-        createRoot: fakeRootFactory(experienceState),
-      },
-    })
 
-    expect(dataset.externalStorybookLanding).toBe("ready")
-    expect(controller.shell.workbench.element.getAttribute("aria-label")).toBe("Storybook")
-    expect(controller.shell.workbench.controller.read("catalog.items").map(item => item.id)).toEqual([
-      "workspace:fixture-workspace", "project:fixture-alpha", "package:@fixture/components",
-      "project:fixture-beta", "package:@fixture/docs", "project:fixture-standalone", "package:@fixture/standalone",
-    ])
-    expect(requests[0]).toBe("/api/client")
-    expect(requests.at(-1)).toContain("project%3Afixture-alpha")
-    expect(statusBreadcrumbLabels(controller)).toEqual([
-      "Главная",
-      "Fixture Workspace",
-      "Fixture Alpha",
-    ])
-    expect(controller.shell.workbench.controller.read("status").detail).toBe("")
-
-    expect(controller.shell.workbench.controller.read("secondary.items").map(({label}) => label))
-      .toEqual(["packages"])
-    expect(controller.shell.workbench.controller.read("presentation").node?.textContent)
-      .toContain("project:fixture-alpha")
-    const initialPresentation = controller.shell.workbench.controller.read("presentation").node
-    const semanticDocument = controller.shell.document
-    const initialStyleSheetCount = readDocumentCompiledStyleSheets(semanticDocument).styleSheets.length
-    expect(initialStyleSheetCount).toBeGreaterThan(0)
-
-    await controller.select("project:fixture-beta")
-    expect(pushed).toEqual(["/projects/fixture-beta/"])
-    expect(initialPresentation?.parentNode).toBeNull()
-    expect(statusBreadcrumbLabels(controller)).toEqual([
-      "Главная",
-      "Fixture Workspace",
-      "Fixture Beta",
-    ])
-
-    await controller.select("project:fixture-alpha")
-    expect(controller.shell.workbench.controller.read("secondary.items").map(({label}) => label))
-      .toEqual(["packages"])
-    expect(pushed).toEqual(["/projects/fixture-beta/", "/projects/fixture-alpha/"])
-    expect(controller.shell.workbench.controller.read("presentation").node?.textContent)
-      .toContain("project:fixture-alpha")
-    expect(statusBreadcrumbLabels(controller)).toEqual([
-      "Главная",
-      "Fixture Workspace",
-      "Fixture Alpha",
-    ])
-
-    await controller.select("package:@fixture/components")
-    expect(location.href).toBe("http://127.0.0.1:3000/pkg-fixture-components/")
-    expect(opened).toEqual([])
-    expect(descendants(controller.shell.display).some(element => element.textContent?.startsWith("Открыть "))).toBeFalse()
-    await controller.select("package:@fixture/standalone")
-    expect(location.href).toBe("http://127.0.0.1:3000/pkg-fixture-standalone/")
-    expect(opened).toEqual([])
-
-    const source = await Bun.file(join(import.meta.dir, "landing-entry.ts")).text()
-    const view = await Bun.file(join(import.meta.dir, "message-view.tsx")).text()
-    expect(source).not.toContain("runtime-protocol")
-    expect(source).not.toContain("loadRuntime")
-    expect(source).not.toContain("storyLoaders")
-    expect(source).not.toContain("createElement(")
-    expect(source).not.toContain("className")
-    expect(source).not.toContain("external-storybook-action")
-    expect(source).not.toContain("globalThis.open")
-    expect(source).not.toContain("window.open")
-    expect(view).toContain('from "./components/overview-action-button.tsx"')
-    expect(view).not.toContain("actionStyle")
-    const home = controller.shell.workbench.elements.status.querySelector(
-      '[data-breadcrumb-id="storybook:root"] button',
-    ) as Element
-    expect(home.textContent).toBe("")
-    expect(home.getAttribute("aria-label")).toBe("Главная")
-    click(home)
-    expect(location.pathname).toBe("/")
-    expect(statusBreadcrumbLabels(controller)).toEqual(["Главная"])
-    expect(controller.shell.workbench.controller.read("catalog.active")).toBeNull()
-    expect(controller.shell.workbench.controller.read("secondary.items")).toEqual([])
-    expect(controller.shell.document).toBe(semanticDocument)
-    expect(controller.shell.workbench.elements.status.querySelector('[aria-current="page"]')?.hasAttribute("disabled")).toBe(true)
-    controller.dispose()
-    expect(readDocumentCompiledStyleSheets(semanticDocument).styleSheets).toEqual([])
-    expect(experienceState.creations).toBe(1)
-    expect(experienceState.disposals).toBe(1)
-  })
-
-  test("updates only the selected README without recreating the document or reloading the page", async () => {
-    const graph = await fixtureGraph()
-    const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph))
-    const listeners = new Map<string, (event: any) => void>()
-    let source = "# First\n\nBefore"
-    let reads = 0
-    let reloads = 0
-    const experienceState = createFakeRootState()
-    const controller = await startExternalStorybookLanding({
-      browserDocument: {documentElement: {dataset: {}}, querySelector() { return null }} as unknown as Document,
-      location: {
-        href: "http://127.0.0.1:3000/projects/fixture-alpha/",
-        pathname: "/projects/fixture-alpha/",
-        reload() { reloads += 1 },
-      },
-      fetcher: (async input => {
-        if (String(input) === "/api/client") return Response.json(snapshot)
-        reads += 1
-        return new Response(source)
-      }) as typeof fetch,
-      createSocket() {
-        return {
-          addEventListener(type, listener) { listeners.set(type, listener) },
-          removeEventListener(type) { listeners.delete(type) },
-          send() {},
-          close() {},
-        }
-      },
-      shell: {
-        canvas: {} as HTMLCanvasElement,
-        loadFont: async () => ({}) as never,
-        createRoot: fakeRootFactory(experienceState),
-      },
-    })
-    try {
-      const article = controller.shell.display.querySelector("article")!
-      const workbench = controller.shell.workbench.element
-      const beforeReads = reads
-      listeners.get("message")?.({data: JSON.stringify({type: "registry.readme-updated", nodeIds: ["project:unrelated"]})})
-      expect(reads).toBe(beforeReads)
-      source = "# Second\n\nAfter"
-      listeners.get("message")?.({data: JSON.stringify({type: "registry.readme-updated", nodeIds: ["project:fixture-alpha"]})})
-      await waitFor(() => article.textContent.includes("After"), "selected README refresh")
-      expect(controller.shell.display.querySelector("article")).toBe(article)
-      expect(controller.shell.workbench.element).toBe(workbench)
-      expect(reads).toBe(beforeReads + 1)
-      expect(reloads).toBe(0)
-      expect(experienceState.creations).toBe(1)
-      expect(experienceState.disposals).toBe(0)
-      listeners.get("message")?.({data: JSON.stringify({type: "shared.updated", entry: "landing-new.js"})})
-      expect(reloads).toBe(1)
-    } finally {
-      controller.dispose()
-    }
-  })
 
   test("reads only bounded contiguous indexed Workbench author links", () => {
     const document = indexedLinkDocument([

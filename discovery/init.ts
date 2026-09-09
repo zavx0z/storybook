@@ -1,4 +1,3 @@
-import {deriveExternalStorybookScopeId} from "./declaration-law.ts"
 import {randomUUID} from "node:crypto"
 import {
   lstat,
@@ -192,7 +191,7 @@ async function compositionPlan(
           $schema: EXTERNAL_STORYBOOK_MANIFEST_SCHEMA_URL,
           schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
           kind,
-          id: deriveExternalStorybookScopeId(basename(root)),
+          id: metadata.name,
         }),
         catalog: null,
         runtime: null,
@@ -209,8 +208,7 @@ async function compositionPlan(
       `External Storybook ${kind} init requires explicit ${collection} declarations: ${root}`,
     )
   }
-  const id = deriveExternalStorybookScopeId(basename(root))
-  await exactPackageMetadata(root, join(root, "package.json"))
+  const {name: id} = await exactPackageMetadata(root, join(root, "package.json"))
   const declarationRoot = join(root, ".storybook")
   const references = Object.freeze(manifests.map((path) => Object.freeze({
     declaration: jsonRelativePath(declarationRoot, path),
@@ -246,7 +244,7 @@ async function explicitDeclarations(
   const declarations = await resolveExternalStorybookDeclarations(manifests)
   for (const path of manifests) {
     const declaration = declarations.scopes.find(scope => scope.source.path === path)
-    if (declaration?.kind !== expectedKind) {
+    if (declaration?.kind !== "package") {
       throw new Error(
         `External Storybook selected declaration must be ${expectedKind}: ${declaration?.source.path ?? path}`,
       )

@@ -1,6 +1,7 @@
 import {storybookPackagePathMatches, storybookPackageRouteFromPathname, storybookCurrentRouteKey} from "@zavx0z/storybook-browser-lifecycle/contract"
 import {externalStorybookBrowsePath} from "../catalog/graph.ts"
 import {StorybookDirectorySelection} from "./directory-selection.ts"
+import {StorybookPackageUrlMigrations} from "./package-url-migrations.ts"
 import {readStorybookProjectSelection, storybookProjectSelectionPath, writeStorybookProjectSelection} from "./project-store.ts"
 import {randomBytes, randomUUID} from "node:crypto"
 import {
@@ -118,6 +119,7 @@ export async function startExternalStorybookServer(
   const toolRoot = realpathSync(options.toolRoot ?? fileURLToPath(new URL("..", import.meta.url)))
   const implementationDigest = externalStorybookImplementationDigest(toolRoot)
   const statePath = resolve(options.statePath ?? externalStorybookServerStatePath())
+  const urlMigrations = new StorybookPackageUrlMigrations(`${statePath}.package-urls.json`)
   const artifactRoot = resolve(options.artifactRoot ?? externalStorybookArtifactRoot())
   const writeServerRecord = options.writeServerRecord ?? writeExternalStorybookServerRecord
   const browserLifecycle = options.browserLifecycle ?? createStorybookBrowserLifecycle({
@@ -182,6 +184,7 @@ export async function startExternalStorybookServer(
 
   const refreshStructuralWatch = (): void => {
     const snapshot = registry.snapshot()
+    urlMigrations.remember(snapshot.catalog)
     directorySelections.remember(snapshot.catalog.scopes.map(scope => scope.scopeRoot))
     watch.replace("__registry__", externalStorybookStructuralWatchPaths(snapshot), () => {
       void structuralRefresh.request()
@@ -708,7 +711,7 @@ export async function startExternalStorybookServer(
         }
         if (request.method === "GET" && (url.pathname.startsWith("/packages/") || registry.snapshot().graph.nodes.some(node =>
           node.kind === "package" && storybookPackageRouteFromPathname(url.pathname, node.packageId!) !== null))) {
-          return packagePageResponse(url, registry, sessions, ensureSharedAssets, browserSessions, server.url.origin)
+          return await packagePageResponse(url, registry, sessions, ensureSharedAssets, browserSessions, server.url.origin)
         }
         if (request.method === "GET" && url.pathname.startsWith("/browse/")) {
           const segment = url.pathname.slice("/browse/".length).replace(/\/$/u, "")
@@ -718,6 +721,8 @@ export async function startExternalStorybookServer(
         }
         if (request.method === "GET" && (url.pathname.startsWith("/projects/") || url.pathname.startsWith("/workspaces/"))) {
           const graph = registry.snapshot().graph
+          const migratedUrl = urlMigrations.resolve(url.pathname, graph)
+          if (migratedUrl !== null) return new Response(null, {status: 308, headers: {location: `${migratedUrl}${url.search}`}})
           const directory = graph.nodes.find(node => {
             if (node.kind !== "directory" || node.packageId !== null) return false
             const parent = graph.nodes.find(parent => parent.id === node.parentId)
@@ -1254,7 +1259,7 @@ function canonicalContainedFile(path: string, root: string): string | null {
 function isLandingPath(snapshot: ExternalStorybookRegistrySnapshot, pathname: string): boolean {
   if (pathname === "/") return true
   return snapshot.graph.nodes.some((node) =>
-    (node.kind === "workspace" || node.kind === "project" || node.kind === "package" || node.kind === "directory" && node.packageId === null) && externalStorybookBrowsePath(node) === pathname)
+    (node.kind === "unavailable" || node.kind === "package" || node.kind === "directory" && node.packageId === null) && externalStorybookBrowsePath(node) === pathname)
 }
 
 function resolveCheckPackages(

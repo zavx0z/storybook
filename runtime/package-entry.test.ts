@@ -317,10 +317,10 @@ describe("external Storybook package frontend", () => {
       "Fixture Components",
     ])
     const workspaceBreadcrumb = controller.shell.workbench.elements.status.querySelector(
-      '[data-breadcrumb-id="workspace:fixture-workspace"] button',
+      '[data-breadcrumb-id="package:fixture-workspace"] button',
     ) as import("@zavx0z/dom").HTMLButtonElement
     workspaceBreadcrumb.click()
-    expect(location.href).toBe("http://localhost/workspaces/fixture-workspace/")
+    expect(location.href).toBe("http://localhost/pkg-fixture-workspace/")
     const homeBreadcrumb = controller.shell.workbench.elements.status.querySelector(
       '[data-breadcrumb-id="storybook:root"] button',
     ) as import("@zavx0z/dom").HTMLButtonElement

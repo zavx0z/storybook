@@ -29,10 +29,16 @@
 - Node is a comparison candidate, not an assumed reference implementation.
 - `@zavx0z/storybook` is an external dev tool. It does not become a central
   owner of other repositories' stories.
-- Repositories and packages must own a README.md beside package.json as their
+- Every selected repository root is itself one package, with identity equal to
+  package.json#name. Path locates it; label names it in UI. Never create a second
+  project/repository owner or derive identity from the folder name. Workspaces
+  recursively discover child packages and preserve each package's own session.
+- Packages must own a README.md beside package.json as their
   overview. Discovery reads it by default with or without a manifest; an explicit
   manifest readme keeps priority. Missing documentation does not hide the owner.
   Ordinary directory overviews remain index.ts module TSDoc.
+  README contents belong to the package's authors; this workflow specifies
+  placement only and does not rewrite or prescribe their contents.
   Do not repeat the standard root README in manifests or generated declarations.
   Packages with no supplemental catalog, runtime, stylesheets, widgets or custom
   overview need no metadata-only manifest. Remove it after verifying owner and
@@ -42,8 +48,8 @@
   Structural projects discover packages through package.json workspaces using
   Bun.Glob; manifest.packages remains for projects without workspaces. Packages
   without manifests stay visible. Never combine both composition sources.
-  Every selected root is a repository tree root; a root package remains a child
-  package, with its workspace packages discovered by the same rule. Navigation
+  Every selected root is one package node, with its workspace packages
+  discovered by the same rule. Navigation
   ancestry never becomes executable ownership or a build dependency.
   Only immediate directories appear in the secondary panel beside authored catalog
   sections, with filesystem names and optional index.ts module TSDoc overviews.
