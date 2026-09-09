@@ -119,10 +119,10 @@ describe("external Storybook shared Browser Root", () => {
       {x: 12, y: 18, width: 640, height: 360, viewportWidth: 1024, viewportHeight: 768},
     ])
     const surface = readDisplayStyle(shell.document, shell.display)
-    expect(surface.viewport).toEqual({width: 2268, height: 1276})
-    expect(shell.display.width).toBe(600)
-    expect(shell.display.height).toBe(337.5)
-    expect(surface.pixels).toEqual({width: 2268, height: 1276})
+    expect(surface.viewport).toEqual({width: 640, height: 360})
+    expect(shell.display.width).toBeCloseTo(640 * 25.4 / 96)
+    expect(shell.display.height).toBeCloseTo(360 * 25.4 / 96)
+    expect(surface.pixels).toEqual({width: 640, height: 360})
     expect(surface.transform.scale).toEqual({x: 1, y: 1, z: 1})
     expect(surface.transform.position).toEqual({x: 0, y: 0, z: 0})
     expectDisplayFits(shell, {x: 12, y: 18, width: 640, height: 360})
@@ -143,7 +143,10 @@ describe("external Storybook shared Browser Root", () => {
     })
     expect(shell.display === display).toBe(true)
     const resized = readDisplayStyle(shell.document, display)
-    expect(resized).toEqual(surface)
+    expect(resized.viewport).toEqual({width: 480, height: 280})
+    expect(resized.transform).toEqual(surface.transform)
+    expect(resized.dpi.x).toBeCloseTo(96)
+    expect(resized.dpi.y).toBeCloseTo(96)
     expectDisplayFits(shell, {x: 180, y: 40, width: 480, height: 280})
     const before = shell.presentedFrameSequence
     expect(shell.presentFrame()).toBeGreaterThan(before)
@@ -152,25 +155,30 @@ describe("external Storybook shared Browser Root", () => {
     shell.dispose()
   })
 
-  test("camera fits both axes while physical display, content and focus survive HUD resize", async () => {
+  test("HUD and window resize recompute Display geometry and resolution while preserving content and focus", async () => {
     const state = createFakeRootState()
     const shell = await createShell(state)
     const button = shell.document.createElement("button")
-    shell.mountPreview("Fixed display", button)
+    shell.mountPreview("Adaptive display", button)
     button.focus()
     shell.display.scrollTop = 12
-    const surface = readDisplayStyle(shell.document, shell.display)
     const projection = shell.projectionFor(button)
-    for (const bounds of [
-      {x: 80, y: 20, width: 800, height: 180},
-      {x: 350, y: 30, width: 240, height: 650},
-      {x: 600, y: 400, width: 20, height: 200},
+    for (const {bounds, viewport} of [
+      {bounds: {x: 80, y: 20, width: 800, height: 180}, viewport: {width: 1024, height: 768}},
+      {bounds: {x: 350, y: 30, width: 240, height: 650}, viewport: {width: 800, height: 900}},
+      {bounds: {x: 600, y: 400, width: 20, height: 200}, viewport: {width: 1200, height: 700}},
+      {bounds: {x: 250.25, y: 30.5, width: 899.75, height: 739.5}, viewport: {width: 1600, height: 800}},
     ]) {
       state.emitFrame(shell.hud, shell.workbench.elements.previewHost, {
         contentX: bounds.x, contentY: bounds.y, contentWidth: bounds.width, contentHeight: bounds.height,
-      })
-      expectDisplayFits(shell, bounds)
-      expect(readDisplayStyle(shell.document, shell.display)).toEqual(surface)
+      }, viewport)
+      expectDisplayFits(shell, bounds, viewport)
+      const surface = readDisplayStyle(shell.document, shell.display)
+      expect(surface.viewport).toEqual({width: Math.round(bounds.width), height: Math.round(bounds.height)})
+      expect(shell.display.width).toBeCloseTo(bounds.width * 25.4 / 96)
+      expect(shell.display.height).toBeCloseTo(bounds.height * 25.4 / 96)
+      expect(surface.transform.scale).toEqual({x: 1, y: 1, z: 1})
+      expect(surface.transform.position).toEqual({x: 0, y: 0, z: 0})
       expect(shell.document.activeElement).toBe(button)
       expect(shell.display.scrollTop).toBe(12)
       expect(button.parentElement).toBe(shell.display)
@@ -179,7 +187,7 @@ describe("external Storybook shared Browser Root", () => {
       const unsubscribe = shell.document.subscribeMutations(() => { mutations++ })
       state.emitFrame(shell.hud, shell.workbench.elements.previewHost, {
         contentX: bounds.x, contentY: bounds.y, contentWidth: bounds.width, contentHeight: bounds.height,
-      })
+      }, viewport)
       expect(mutations).toBe(0)
       unsubscribe()
     }
@@ -312,6 +320,7 @@ type FakeRootState = {
       contentWidth: number
       contentHeight: number
     }>,
+    viewport?: Readonly<{width: number; height: number}>,
   ): void
 }
 
@@ -474,7 +483,7 @@ function fakeRootFactory(state: FakeRootState): ExternalStorybookRootFactory {
       },
     }) as unknown as Root
     state.root = root
-    state.emitFrame = (owner, node, box) => {
+    state.emitFrame = (owner, node, box, viewport = {width: 1024, height: 768}) => {
       const renderBox = {
         node,
         x: box.contentX,
@@ -483,7 +492,7 @@ function fakeRootFactory(state: FakeRootState): ExternalStorybookRootFactory {
         height: box.contentHeight,
         ...box,
       } as RenderBox
-      const frame = fakeFrame(document, owner, new Map([[node, renderBox]]))
+      const frame = {...fakeFrame(document, owner, new Map([[node, renderBox]])), viewport}
       frames.set(owner, frame)
       for (const listener of frameListeners.get(owner) ?? []) listener(frame)
     }
@@ -512,20 +521,23 @@ function fakeFrame(
 function expectDisplayFits(
   shell: Awaited<ReturnType<typeof createShell>>,
   bounds: Readonly<{x: number; y: number; width: number; height: number}>,
+  viewport = {width: 1024, height: 768},
 ) {
   const viewPoint = shell.viewPoint
   const camera = new ViewPoint({
     position: {x: viewPoint.x, y: viewPoint.y, z: viewPoint.z},
     target: {x: viewPoint.targetX, y: viewPoint.targetY, z: viewPoint.targetZ},
     fov: viewPoint.fov, near: viewPoint.near, far: viewPoint.far,
-    viewport: {left: 0, top: 0, width: 1024, height: 768},
+    viewport: {left: 0, top: 0, ...viewport},
   })
-  const corners = [new Vector3(-300, 0, 168.75), new Vector3(300, 0, -168.75)]
+  const width = shell.display.width
+  const height = shell.display.height
+  const corners = [new Vector3(-width / 2, 0, height / 2), new Vector3(width / 2, 0, -height / 2)]
     .map(point => point.applyMatrix4(camera.viewMatrix).applyMatrix4(camera.projectionMatrix))
-  const left = (corners[0]!.x + 1) * 512
-  const right = (corners[1]!.x + 1) * 512
-  const top = (1 - corners[0]!.y) * 384
-  const bottom = (1 - corners[1]!.y) * 384
+  const left = (corners[0]!.x + 1) * viewport.width / 2
+  const right = (corners[1]!.x + 1) * viewport.width / 2
+  const top = (1 - corners[0]!.y) * viewport.height / 2
+  const bottom = (1 - corners[1]!.y) * viewport.height / 2
   // Engine хранит матрицы в Float32; допустимая погрешность меньше 0,001 CSS px.
   expect(left).toBeGreaterThanOrEqual(bounds.x - 1e-3)
   expect(right).toBeLessThanOrEqual(bounds.x + bounds.width + 1e-3)
@@ -533,7 +545,14 @@ function expectDisplayFits(
   expect(bottom).toBeLessThanOrEqual(bounds.y + bounds.height + 1e-3)
   expect((left + right) / 2).toBeCloseTo(bounds.x + bounds.width / 2, 3)
   expect((top + bottom) / 2).toBeCloseTo(bounds.y + bounds.height / 2, 3)
-  expect((right - left) / (bottom - top)).toBeCloseTo(600 / 337.5, 4)
+  expect(left).toBeCloseTo(bounds.x, 3)
+  expect(right).toBeCloseTo(bounds.x + bounds.width, 3)
+  expect(top).toBeCloseTo(bounds.y, 3)
+  expect(bottom).toBeCloseTo(bounds.y + bounds.height, 3)
+  expect((right - left) / (bottom - top)).toBeCloseTo(bounds.width / bounds.height, 4)
+  const surface = readDisplayStyle(shell.document, shell.display)
+  expect((right - left) / surface.viewport.width).toBeCloseTo(1, 2)
+  expect((bottom - top) / surface.viewport.height).toBeCloseTo(1, 2)
   expect(Math.max((right - left) / bounds.width, (bottom - top) / bounds.height)).toBeCloseTo(1, 4)
   expect(-viewPoint.y).toBeLessThan(viewPoint.far)
 }

@@ -1,14 +1,14 @@
-/** Дисплей владеет своей рамкой, раскладкой и обрезкой содержимого. */
+/** Начальные метрики заменяются геометрией области HUD после её первой раскладки. */
 export function StorybookDisplay(props: Readonly<{id: string}>) {
   return (
     <display
       id={props.id}
-      width={600}
-      height={337.5}
+      width={960 * 25.4 / 96}
+      height={540 * 25.4 / 96}
       style={css`
         box-sizing: border-box;
-        width: 2268px;
-        height: 1276px;
+        width: var(--preview-resolution-width, 960px);
+        height: var(--preview-resolution-height, 540px);
         translate: 0 0 0;
         rotate: x 90deg;
         scale: 1;

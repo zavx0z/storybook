@@ -1,5 +1,4 @@
 import {DisplayElement} from "@zavx0z/dom/display"
-import {readDisplayStyle} from "@zavx0z/renderer"
 /**
 Страница Storybook подключает один App через Browser createRoot.
 
@@ -193,6 +192,7 @@ export async function createExternalStorybookShell(
   let unsubscribePresented = (): void => {}
   let latestBounds: StorybookPreviewBounds | null = null
   let fittedDisplayBounds: StorybookPreviewBounds | null = null
+  let displayResolutionStyle = ""
   let activeSpacePreview: BoundStorybookSpacePreview | null = null
   let activeShellPresentation: StorybookComponentPresentation | null = null
   let shellDiagnostics: unknown[] = [...pendingAuthorDiagnostics]
@@ -220,27 +220,32 @@ export async function createExternalStorybookShell(
     const visible = bounds !== null && bounds.width > 0 && bounds.height > 0 &&
       workbench.controller.read("presentation").projection === "display"
     if (visible && bounds !== null && !sameBounds(fittedDisplayBounds, bounds)) {
-      const surface = readDisplayStyle(document, display)
-      const width = surface.viewport.width * surface.worldUnitsPerPixel
-      const height = surface.viewport.height * surface.worldUnitsPerPixelY
-      // Вписываем неизменную поверхность в прямоугольник HUD по обеим осям.
-      // Параллельный сдвиг камеры и цели сохраняет фронтальный вид дисплея.
-      const units = Math.max(width / bounds.width, height / bounds.height)
+      // Служебный дисплей повторяет геометрию области HUD в метрике Space.
+      // Это перевод координат сцены, не физический размер монитора устройства.
+      const units = 25.4 / 96
+      const width = bounds.width * units
+      const height = bounds.height * units
       const distance = Math.max(viewPoint.near * 1.01, units * bounds.viewportHeight / (2 * Math.tan(viewPoint.fov / 2)))
       const projectedUnits = 2 * distance * Math.tan(viewPoint.fov / 2) / bounds.viewportHeight
       const x = (bounds.viewportWidth / 2 - bounds.x - bounds.width / 2) * projectedUnits
       const z = (bounds.y + bounds.height / 2 - bounds.viewportHeight / 2) * projectedUnits
       fittedDisplayBounds = bounds
-      writeViewPointSnapshot(document, viewPoint, {
-        position: {x, y: -distance, z},
-        target: {x, y: 0, z},
-        fov: viewPoint.fov,
-        near: viewPoint.near,
-        far: Math.max(viewPoint.far, distance + 1000),
+      displayResolutionStyle = `--preview-resolution-width: ${Math.max(1, Math.round(bounds.width))}px; --preview-resolution-height: ${Math.max(1, Math.round(bounds.height))}px;`
+      document.transaction(() => {
+        display.width = width
+        display.height = height
+        display.setAttribute("style", `${displayResolutionStyle} --preview-visibility: visible`)
+        writeViewPointSnapshot(document, viewPoint, {
+          position: {x, y: -distance, z},
+          target: {x, y: 0, z},
+          fov: viewPoint.fov,
+          near: viewPoint.near,
+          far: Math.max(viewPoint.far, distance + 1000),
+        })
       })
     }
     if (!visible) fittedDisplayBounds = null
-    const style = `--preview-visibility: ${visible ? "visible" : "hidden"}`
+    const style = `${displayResolutionStyle} --preview-visibility: ${visible ? "visible" : "hidden"}`
     if (display.getAttribute("style") !== style) display.setAttribute("style", style)
     if (sameBounds(latestBounds, bounds)) return
     latestBounds = bounds
