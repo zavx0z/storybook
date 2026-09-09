@@ -57,7 +57,6 @@ escapes fail closed.
   "kind": "package",
   "id": "@zavx0z/ui",
   "packageJson": "../package.json",
-  "readme": "../README.md",
   "runtime": {"module": "./runtime.ts", "export": "runtime"},
   "authorStyleSheets": [{"specifier": "@zavx0z/ui/themes/theme.css"}],
   "catalog": "./catalog.json"

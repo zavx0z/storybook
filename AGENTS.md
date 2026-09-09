@@ -33,6 +33,10 @@
   overview. Discovery reads it by default with or without a manifest; an explicit
   manifest readme keeps priority. Missing documentation does not hide the owner.
   Ordinary directory overviews remain index.ts module TSDoc.
+  Do not repeat the standard root README in manifests or generated declarations.
+  Packages with no supplemental catalog, runtime, stylesheets, widgets or custom
+  overview need no metadata-only manifest. Remove it after verifying owner and
+  navigation parity; retain nonstandard declarations until separately migrated.
 - A real package owns package.json metadata, optional JSON declarations,
   semantic order, stories/resources, optional structural runtime and acceptance.
   Structural projects discover packages through package.json workspaces using

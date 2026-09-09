@@ -101,6 +101,7 @@ export async function initExternalStorybookDeclaration(
     throw new Error(`External Storybook init refuses an existing declaration directory: ${directory}`)
   }
 
+  await validateRootReadme(root)
   const plan = kind === "package"
     ? await packagePlan(root, executable, stories)
     : await compositionPlan(root, kind, options.declarations ?? [])
@@ -142,7 +143,6 @@ async function packagePlan(
     kind: "package",
     id: packageName,
     packageJson: "../package.json",
-    ...await readmeField(root),
     ...(executable
       ? {runtime: {module: "./runtime.ts", export: "runtime"}}
       : {}),
@@ -193,7 +193,6 @@ async function compositionPlan(
           schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
           kind,
           id: deriveExternalStorybookScopeId(basename(root)),
-          ...await readmeField(root),
         }),
         catalog: null,
         runtime: null,
@@ -221,7 +220,6 @@ async function compositionPlan(
     schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
     kind,
     id,
-    ...await readmeField(root),
     ...(kind === "project" ? {packages: references} : {projects: references}),
   }
   return Object.freeze({
@@ -288,15 +286,14 @@ async function exactPackageMetadata(root: string, path: string): Promise<Readonl
   return Object.freeze({name, label})
 }
 
-async function readmeField(root: string): Promise<Readonly<{readme?: "../README.md"}>> {
+async function validateRootReadme(root: string): Promise<void> {
   const path = join(root, "README.md")
-  if (!await pathExists(path)) return Object.freeze({})
+  if (!await pathExists(path)) return
   const canonical = await realpath(path)
   const metadata = await stat(canonical)
   if (!metadata.isFile() || !isContained(root, canonical)) {
     throw new Error(`External Storybook README must be an owner file: ${path}`)
   }
-  return Object.freeze({readme: "../README.md"})
 }
 
 async function canonicalDirectory(value: string): Promise<string> {

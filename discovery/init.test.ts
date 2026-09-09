@@ -55,7 +55,6 @@ describe("external Storybook declaration init", () => {
       kind: "package",
       id: "@fixture/button",
       packageJson: "../package.json",
-      readme: "../README.md",
       catalog: "./catalog.json",
     })
     expect(json(result.catalogPath!)).toEqual({
@@ -80,6 +79,7 @@ describe("external Storybook declaration init", () => {
     })
     const resolved = await resolveExternalStorybookDeclarations([root])
     expect(resolved.rootIds).toEqual(["project:fixture-button"])
+    expect(resolved.scopes.find(scope => scope.id === "@fixture/button")?.readmePath).toBe(join(result.root, "README.md"))
     for (const forbidden of ["bunfig.toml", "build.ts", "server.ts", "package.json"]) {
       expect(existsSync(join(result.directory, forbidden))).toBeFalse()
     }
@@ -123,14 +123,17 @@ describe("external Storybook declaration init", () => {
   test("initializes a structural project without repeating its workspace package list", async () => {
     const root = fixtureRoot("structural-project")
     writeFileSync(join(root, "package.json"), JSON.stringify({name: "project", label: "Project", workspaces: ["packages/*"]}))
+    writeFileSync(join(root, "README.md"), "# Structural project")
     const owner = join(root, "packages", "plain")
     mkdirSync(owner, {recursive: true})
     writePackage(owner, "@fixture/plain")
     const result = await initExternalStorybookDeclaration({root, kind: "project"})
     expect(json(result.manifestPath)).not.toHaveProperty("packages")
+    expect(json(result.manifestPath)).not.toHaveProperty("readme")
     expect(result.referencedDeclarations).toEqual([])
     const resolved = await resolveExternalStorybookDeclarations([root])
     expect(resolved.scopes.some(scope => scope.id === "@fixture/plain")).toBeTrue()
+    expect(resolved.scopes.find(scope => scope.kind === "project")?.readmePath).toBe(join(result.root, "README.md"))
     expect(existsSync(join(owner, ".storybook"))).toBeFalse()
   })
 
