@@ -91,7 +91,7 @@ describe("external @zavx0z/storybook tool boundary", () => {
     expect(app).toContain("workbench/workbench.tsx")
     const protocol = await Bun.file(join(root, "runtime/runtime-protocol.ts")).text()
     expect(protocol).toContain("mountSpacePreview")
-    expect(protocol).toContain("space: XRSpaceElement")
+    expect(protocol).toContain("space: SpaceElement")
     expect(protocol).not.toContain("engineRenderer")
     expect(protocol).not.toContain("DocumentSpaceRuntime")
   })

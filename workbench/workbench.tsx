@@ -1,6 +1,6 @@
 import {DisplayElement} from "@zavx0z/dom/display"
 import {useLayoutEffect, useMemo, useRef, useSyncExternalStore} from "@zavx0z/component"
-import {XRSpaceElement} from "@zavx0z/space"
+import {SpaceElement} from "@zavx0z/dom/space"
 import type {HTMLDivElement as SemanticDiv} from "@zavx0z/dom"
 import type {Workbench as WorkbenchHandle} from "./contract.ts"
 import {createWorkbenchModel} from "./controller.ts"
@@ -29,8 +29,8 @@ export function Workbench(props: WorkbenchProps) {
   const view = useSyncExternalStore(model.subscribe, model.getSnapshot)
   useLayoutEffect(() => {
     const display = document.getElementById(props.displayId)
-    const space = display?.closest("xr-space")
-    if (element.current === null || !(space instanceof XRSpaceElement) || !(display instanceof DisplayElement)) {
+    const space = display?.closest("space")
+    if (element.current === null || !(space instanceof SpaceElement) || !(display instanceof DisplayElement)) {
       throw new Error("Workbench requires its authored Space, Display and mounted root")
     }
     props.onReady(model.bind(element.current as unknown as SemanticDiv, {space, display}))

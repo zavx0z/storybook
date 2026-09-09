@@ -17,7 +17,7 @@ import type {
 describe("external Storybook aggregate mount lifecycle", () => {
   test("attaches a published owner root before its mount continuation, as a leaf does", async () => {
     const document = createDocument({elementFactories: createSpaceElementFactories()})
-    const space = document.createElement("xr-space")
+    const space = document.createElement("space")
     const display = document.createElement("display")
     document.appendChild(space)
     space.appendChild(display)

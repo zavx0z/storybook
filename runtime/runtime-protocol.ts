@@ -2,7 +2,7 @@ import type {
   Document as SemanticDocument,
   Node as SemanticNode,
 } from "@zavx0z/dom"
-import type {XRSpaceElement} from "@zavx0z/space"
+import type {SpaceElement} from "@zavx0z/dom/space"
 import type {StorybookRuntimeStyleSheetRoot} from "./source-projection.ts"
 
 /** Exact structural marker implemented by executable owner runtimes. */
@@ -87,7 +87,7 @@ export type StorybookComponentRuntimeContext = StorybookRuntimeContextBase & Rea
 /** Declared spatial projection on the one semantic Root Space and ViewPoint. */
 export type StorybookSpaceRuntimeContext = StorybookRuntimeContextBase & Readonly<{
   projection: "space"
-  space: XRSpaceElement
+  space: SpaceElement
   mountSpacePreview(registration: StorybookSpacePreviewRegistration): StorybookSpacePreview
 }>
 

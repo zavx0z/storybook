@@ -25,11 +25,9 @@ import {
   type Document as SemanticDocument,
   type Node as SemanticNode,
 } from "@zavx0z/dom"
-import {
-  XRHUDElement,
-  XRSpaceElement,
-  type XRViewPointElement,
-} from "@zavx0z/space"
+import {XRHUDElement} from "@zavx0z/space"
+import {SpaceElement} from "@zavx0z/dom/space"
+import {type ViewPointElement} from "@zavx0z/dom/viewpoint"
 import type {
   Workbench,
   WorkbenchPresentationUpdate,
@@ -84,8 +82,8 @@ export type ExternalStorybookShell = Readonly<{
   browserDocument: globalThis.Document
   canvas: HTMLCanvasElement
   root: Root
-  space: XRSpaceElement
-  viewPoint: XRViewPointElement
+  space: SpaceElement
+  viewPoint: ViewPointElement
   display: DisplayElement
   hud: XRHUDElement
   workbench: Workbench
@@ -606,7 +604,7 @@ function canvasPixelRatio(
   return Number.isFinite(ratio) && ratio > 0 ? ratio : 1
 }
 
-function readViewPointSnapshot(viewPoint: XRViewPointElement): StorybookViewPointSnapshot {
+function readViewPointSnapshot(viewPoint: ViewPointElement): StorybookViewPointSnapshot {
   return Object.freeze({
     position: Object.freeze({x: viewPoint.x, y: viewPoint.y, z: viewPoint.z}),
     target: Object.freeze({
@@ -622,7 +620,7 @@ function readViewPointSnapshot(viewPoint: XRViewPointElement): StorybookViewPoin
 
 function writeViewPointSnapshot(
   document: SemanticDocument,
-  viewPoint: XRViewPointElement,
+  viewPoint: ViewPointElement,
   snapshot: StorybookViewPointSnapshot,
 ): void {
   document.transaction(() => {

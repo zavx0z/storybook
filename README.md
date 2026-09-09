@@ -198,14 +198,14 @@ independently updateable PackageSession. Landing не создаёт tab сам�
 Landing и каждая package page являются отдельным
 `@zavx0z/browser` Experience. Browser владеет единственными semantic Document,
 native Canvas, циклом кадров и вводом этой страницы. Внутри Experience находятся
-exact `@zavx0z/space` `XRSpaceElement` и `XRViewPointElement`; разные вкладки не
+exact `@zavx0z/dom/space` `SpaceElement` и `@zavx0z/dom/viewpoint` `ViewPointElement`; разные вкладки не
 разделяют этих владельцев.
 
 Весь Workbench монтируется как один `XRHUDElement`
 `external-storybook-workbench`. История с `projection: "display"` монтируется
 в настоящий `DisplayElement` `external-storybook-display`, история с
 `projection: "hud"` — в `XRHUDElement`, а история с `projection: "space"` —
-непосредственно в тот же `XRSpaceElement` через
+непосредственно в тот же `SpaceElement` через
 `mountSpacePreview`. Ни одна история не создаёт второй Experience, Document,
 Canvas, Space, ViewPoint, цикл кадров или owner ввода.
 

@@ -81,12 +81,12 @@
 - Landing и каждая package page владеют ровно одним
   `@zavx0z/browser` Root. Browser владеет его semantic Document, native
   Canvas, циклом кадров и вводом. Root содержит exact
-  `@zavx0z/space` `XRSpaceElement` и `XRViewPointElement`; package runtime не
+  `@zavx0z/dom/space` `SpaceElement` и `@zavx0z/dom/viewpoint` `ViewPointElement`; package runtime не
   создаёт второй Root или owner.
 - Весь Workbench монтируется в одну HUD projection. Subject с
   `projection: "display"` монтируется в настоящий `DisplayElement`, subject с
   `projection: "hud"` — в `XRHUDElement`, а трёхмерный subject с
-  `projection: "space"` — непосредственно в тот же `XRSpaceElement`. Допустимы
+  `projection: "space"` — непосредственно в тот же `SpaceElement`. Допустимы
   только `display | hud | space`.
 - Служебный Display Storybook заполняет фактическую область preview в HUD.
   Host явно пересчитывает физические атрибуты `width` и `height` как размеры

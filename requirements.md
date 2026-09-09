@@ -370,7 +370,7 @@ Overview читает настоящий owner file. Markdown subset не вып
 External landing и каждая package browser page владеют ровно одним
 `@zavx0z/browser` Root. Browser создаёт и освобождает semantic Document,
 native Canvas, цикл кадров и owner ввода этой страницы. Root содержит
-exact `@zavx0z/space` `XRSpaceElement` и `XRViewPointElement`; package runtime
+exact `@zavx0z/dom/space` `SpaceElement` и `@zavx0z/dom/viewpoint` `ViewPointElement`; package runtime
 не получает право создавать или заменять этих владельцев.
 
 В скомпилированном TSX свободное имя `document` имеет стандартный DOM-тип и
@@ -383,7 +383,7 @@ Document на границе перед использованием собст�
 `external-storybook-workbench`. Exact `DisplayElement`
 `external-storybook-display` принимает Display stories; HUD stories используют
 `XRHUDElement`, а Space stories монтируются непосредственно в единственный
-`XRSpaceElement`. Host получает каждую projection только через
+`SpaceElement`. Host получает каждую projection только через
 `root.getProjection(owner)`.
 Служебный Display заполняет всю фактическую область preview в HUD. Для её
 размеров `W × H` host явно задаёт физические атрибуты

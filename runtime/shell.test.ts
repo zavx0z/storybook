@@ -16,12 +16,9 @@ import {
   type Node,
 } from "@zavx0z/dom"
 import {readDisplayStyle, createDocumentRenderer, type RenderBox, type RenderFrame} from "@zavx0z/renderer"
-import {
-  createSpaceElementFactories,
-  XRHUDElement,
-  XRSpaceElement,
-  XRViewPointElement,
-} from "@zavx0z/space"
+import {createSpaceElementFactories, XRHUDElement} from "@zavx0z/space"
+import {SpaceElement} from "@zavx0z/dom/space"
+import {ViewPointElement} from "@zavx0z/dom/viewpoint"
 import {
   EXTERNAL_STORYBOOK_DISPLAY_ID,
   EXTERNAL_STORYBOOK_WORKBENCH_ID,
@@ -374,8 +371,8 @@ function fakeRootFactory(state: FakeRootState): ExternalStorybookRootFactory {
     const appRoot = createRoot(body)
     appRoot.render(options.app)
     appRoot.flush()
-    const space = body.querySelector("xr-space") as XRSpaceElement
-    const viewPoint = space.querySelector("xr-view-point") as XRViewPointElement
+    const space = body.querySelector("space") as SpaceElement
+    const viewPoint = space.querySelector("viewpoint") as ViewPointElement
     const projections = new Map<DisplayElement | XRHUDElement, RootDocumentProjection>()
     const frames = new Map<DisplayElement | XRHUDElement, RenderFrame>()
     const frameListeners = new Map<DisplayElement | XRHUDElement, Set<(frame: RenderFrame) => void>>()
@@ -426,8 +423,8 @@ function fakeRootFactory(state: FakeRootState): ExternalStorybookRootFactory {
       zoom() {},
     })
     const getProjection = (
-      owner: XRSpaceElement | DisplayElement | XRHUDElement,
-    ): RootProjection => owner instanceof XRSpaceElement
+      owner: SpaceElement | DisplayElement | XRHUDElement,
+    ): RootProjection => owner instanceof SpaceElement
       ? spaceProjection
       : documentProjection(owner)
     const root = Object.freeze({
@@ -557,7 +554,7 @@ function expectDisplayFits(
   expect(-viewPoint.y).toBeLessThan(viewPoint.far)
 }
 
-function viewPointValues(viewPoint: XRViewPointElement) {
+function viewPointValues(viewPoint: ViewPointElement) {
   return {
     x: viewPoint.x,
     y: viewPoint.y,

@@ -11,11 +11,8 @@ import type {
   RootWheelInput,
 } from "@zavx0z/browser/integration"
 import {createDocumentRenderer} from "@zavx0z/renderer"
-import {
-  createSpaceElementFactories,
-  XRHUDElement,
-  XRSpaceElement,
-} from "@zavx0z/space"
+import {createSpaceElementFactories, XRHUDElement} from "@zavx0z/space"
+import {SpaceElement} from "@zavx0z/dom/space"
 import type {ExternalStorybookPackageTabModel} from "./model.ts"
 import {
   createStorybookAgentBridge,
@@ -387,8 +384,8 @@ type InteractionCalls = Readonly<{
 
 function createFixture(): Fixture {
   const document = createDocument({elementFactories: createSpaceElementFactories()})
-  const space = document.createElement("xr-space") as XRSpaceElement
-  const viewPoint = document.createElement("xr-view-point")
+  const space = document.createElement("space") as SpaceElement
+  const viewPoint = document.createElement("viewpoint")
   const hud = document.createElement("xr-hud") as XRHUDElement
   hud.id = "external-storybook-workbench"
   const root = document.createElement("div")

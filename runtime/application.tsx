@@ -1,5 +1,3 @@
-import {Space} from "@zavx0z/space/staging/space"
-import {ViewPoint} from "@zavx0z/space/cameras/view-point"
 import {HUD} from "@zavx0z/space/portals/hud"
 import {Workbench} from "../workbench/workbench.tsx"
 import type {Workbench as WorkbenchHandle} from "../workbench/contract.ts"
@@ -20,10 +18,14 @@ export type StorybookAppProps = Readonly<{
 export function StorybookApp(props: StorybookAppProps) {
   const clipboard = getDocumentClipboardController(document as unknown as SemanticDocument)
   if (clipboard === null) throw new Error("Storybook requires the clipboard controller of its existing Browser Root")
-  return <Space>
-    <ViewPoint
-      position={{x: 0, y: -1000, z: 0}}
-      target={{x: 0, y: 0, z: 0}}
+  return <space>
+    <viewpoint
+      x={0}
+      y={-1000}
+      z={0}
+      targetX={0}
+      targetY={0}
+      targetZ={0}
       far={2000}
     />
     <StorybookDisplay id={props.displayId} />
@@ -36,5 +38,5 @@ export function StorybookApp(props: StorybookAppProps) {
       />
       <ClipboardMenu controller={clipboard} />
     </HUD>
-  </Space>
+  </space>
 }

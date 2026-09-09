@@ -459,8 +459,8 @@ function assertExperienceProjectionLaw(
 ): Readonly<Record<string, unknown>> {
   const nodes = semanticNodes(value)
   const byId = new Map(nodes.map((node) => [text(node.nodeId, "semantic nodeId"), node] as const))
-  const space = oneSemanticTag(nodes, "xr-space")
-  const viewPoint = oneSemanticTag(nodes, "xr-view-point")
+  const space = oneSemanticTag(nodes, "space")
+  const viewPoint = oneSemanticTag(nodes, "viewpoint")
   const display = oneSemanticTag(nodes, "display")
   const hud = oneSemanticTag(nodes, "xr-hud")
   const spaceId = text(space.nodeId, "Space nodeId")

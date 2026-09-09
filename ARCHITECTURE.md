@@ -206,8 +206,8 @@ executable variant. Browser никогда не выполняет arbitrary imp
 Landing и каждая package page владеют отдельным
 `@zavx0z/browser` Experience. Browser создаёт и освобождает единственные для
 страницы semantic Document, native Canvas, цикл кадров и owner ввода.
-Experience содержит exact `@zavx0z/space` `XRSpaceElement` и
-`XRViewPointElement`; страницы не разделяют эти объекты или
+Experience содержит exact `@zavx0z/space` `SpaceElement` и
+`ViewPointElement`; страницы не разделяют эти объекты или
 производные ресурсы Renderer/WebGPU.
 
 Весь Workbench монтируется в один `XRHUDElement`

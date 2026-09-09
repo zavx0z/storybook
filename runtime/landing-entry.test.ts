@@ -18,12 +18,9 @@ import type {
   RootSpaceProjection,
 } from "@zavx0z/browser/integration"
 import type {RenderFrame} from "@zavx0z/renderer"
-import {
-  createSpaceElementFactories,
-  XRHUDElement,
-  XRSpaceElement,
-  XRViewPointElement,
-} from "@zavx0z/space"
+import {createSpaceElementFactories, XRHUDElement} from "@zavx0z/space"
+import {SpaceElement} from "@zavx0z/dom/space"
+import {ViewPointElement} from "@zavx0z/dom/viewpoint"
 import {
   resolveExternalStorybookDeclarations,
 } from "../discovery/declarations.ts"
@@ -226,8 +223,8 @@ function fakeRootFactory(
     const appRoot = createRoot(body)
     appRoot.render(options.app)
     appRoot.flush()
-    const space = body.querySelector("xr-space") as XRSpaceElement
-    const viewPoint = space.querySelector("xr-view-point") as XRViewPointElement
+    const space = body.querySelector("space") as SpaceElement
+    const viewPoint = space.querySelector("viewpoint") as ViewPointElement
     const presented = new Set<(sequence: number) => void>()
     const documentProjections = new Map<DisplayElement | XRHUDElement, Readonly<{
       projection: RootDocumentProjection
@@ -277,10 +274,10 @@ function fakeRootFactory(
       return projection
     }
 
-    function getProjection(owner: XRSpaceElement): RootSpaceProjection
+    function getProjection(owner: SpaceElement): RootSpaceProjection
     function getProjection(owner: DisplayElement | XRHUDElement): RootDocumentProjection
     function getProjection(
-      owner: XRSpaceElement | DisplayElement | XRHUDElement,
+      owner: SpaceElement | DisplayElement | XRHUDElement,
     ): RootProjection {
       if (owner === space) return spaceProjection
       return documentProjection(owner as DisplayElement | XRHUDElement)
