@@ -26,6 +26,8 @@ async function fixture() {
   for (const path of ["docs/guide", "dist/generated", "src/hidden", "unit/docs/guide", "unit/docs/with # hash"]) await mkdir(join(project, path), {recursive: true})
   await Bun.write(join(project, "docs/README.md"), "# Repository documentation")
   await Bun.write(join(project, "unit/docs/README.md"), "# Package documentation")
+  await Bun.write(join(project, "docs/index.ts"), "/**\n# Repository module\n@packageDocumentation\n*/")
+  await Bun.write(join(project, "unit/docs/index.ts"), "/**\n# Package module\n@packageDocumentation\n*/\nthrow new Error('Never execute documentation')")
   return {root, project}
 }
 
@@ -54,7 +56,9 @@ test("keeps packages in the primary tree and adds immediate directories beside a
   expect(deriveExternalStorybookPackageTab(graph, "@fixture/unit", packageDoc.routePath!).selectedNode.id).toBe(packageDoc.id)
   const descriptor = registry.packageDescriptors()[0]!
   expect(descriptor.graphSnapshot.nodes.some(node => node.id === nested.id)).toBeFalse()
-  expect(descriptor.graphSnapshot.nodes.find(node => node.id === packageDoc.id)?.hasReadme).toBeTrue()
+  expect(descriptor.graphSnapshot.nodes.find(node => node.id === packageDoc.id)?.hasReadme).toBeFalse()
+  expect(descriptor.graphSnapshot.nodes.find(node => node.id === packageDoc.id)?.hasModuleDocumentation).toBeTrue()
+  expect(descriptor.resourceFiles?.find(file => file.targetPath.endsWith("module.md"))?.derivedContent).toBe("# Package module")
   const previous = descriptor.declarationDigest
   await mkdir(join(project, "unit/docs/another-nested-directory"))
   await registry.refresh()
@@ -81,7 +85,11 @@ test("serves a directory overview and follows gitignore changes through the exis
     expect(redirected.status).toBe(308)
     expect(redirected.headers.get("location")).toBe(docs.urlPath)
     const resource = `/__storybook/resources/nodes/${encodeURIComponent(docs.id)}/`
-    expect(await (await fetch(new URL(resource, server.origin))).text()).toBe("# Repository documentation")
+    expect(await (await fetch(new URL(resource, server.origin))).text()).toBe("# Repository module")
+    await Bun.write(join(project, "docs/index.ts"), "/**\n# Updated module\n@packageDocumentation\n*/")
+    const refreshed = Date.now() + 10_000
+    while (server.registry.snapshot().graph.nodes.find(node => node.id === docs.id)?.moduleDocumentation?.markdown !== "# Updated module" && Date.now() < refreshed) await Bun.sleep(50)
+    expect(await (await fetch(new URL(resource, server.origin))).text()).toBe("# Updated module")
     await Bun.write(join(project, ".gitignore"), "dist/\ndocs/\n")
     const until = Date.now() + 10_000
     while (server.registry.snapshot().graph.nodes.some(node => node.id === docs.id) && Date.now() < until) await Bun.sleep(50)

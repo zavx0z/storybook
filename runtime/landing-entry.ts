@@ -141,7 +141,7 @@ export async function startExternalStorybookLanding(
           overviewDescription(clientNode.kind),
         )
       } else {
-        shell.showMarkdown(`${clientNode.label} · README`, readme, clientNode.resourceUrl)
+        shell.showMarkdown(`${clientNode.label} · ${clientNode.hasModuleDocumentation ? "TSDoc" : "README"}`, readme, clientNode.resourceUrl)
       }
       shell.clearDiagnostics()
     } catch (error) {
@@ -349,7 +349,7 @@ function navigationItems(items: readonly ExternalStorybookBrowserNavigationItem[
 
 function overviewDescription(kind: string): string {
   if (kind === "project") return "Выберите пакет в главной панели или директорию в предметной панели."
-  if (kind === "directory") return "В этой директории нет README.md."
+  if (kind === "directory") return "В index.ts этой директории нет описания модуля с @packageDocumentation."
   return "Owner README для этого узла не объявлен."
 }
 

@@ -1145,7 +1145,8 @@ function resourceResponse(snapshot: ExternalStorybookRegistrySnapshot, url: URL)
   try {
     allowList = createExternalStorybookResourceAllowList({
       ownerRoot,
-      readmePath: node.readmePath,
+      readmePath: node.moduleDocumentation?.sourcePath ?? node.readmePath,
+      ...(node.moduleDocumentation ? {markdown: node.moduleDocumentation.markdown} : {}),
       declaredResources: node.resources,
     })
   } catch {
@@ -1170,9 +1171,11 @@ function resourceResponse(snapshot: ExternalStorybookRegistrySnapshot, url: URL)
       : fileResponse(path, contentType(path))
   }
   if ([...url.searchParams.keys()].length > 0) throw new Error("Unknown Storybook README resource query")
-  if (node.readmePath === null) return responseJson({error: "Node has no README"}, 404)
+  const overviewPath = node.moduleDocumentation?.sourcePath ?? node.readmePath
+  if (overviewPath === null) return responseJson({error: "Node has no documentation"}, 404)
   if (relativeSegments.length === 0 || relativeSegments.every((segment) => segment.length === 0)) {
-    const path = allowList.resolveReadmeFile(node.readmePath)
+    if (node.moduleDocumentation) return new Response(node.moduleDocumentation.markdown, {headers: {"content-type": "text/markdown; charset=utf-8"}})
+    const path = allowList.resolveReadmeFile(overviewPath)
     return path === null
       ? responseJson({error: "Unknown README resource"}, 404)
       : fileResponse(path, "text/markdown; charset=utf-8")
@@ -1186,7 +1189,7 @@ function resourceResponse(snapshot: ExternalStorybookRegistrySnapshot, url: URL)
     return decoded
   })
   const path = allowList.resolveReadmeFile(
-    resolve(dirname(node.readmePath), ...decodedSegments),
+    resolve(dirname(overviewPath), ...decodedSegments),
   )
   return path === null
     ? responseJson({error: "Unknown README resource"}, 404)

@@ -22,6 +22,8 @@ export type CreateExternalStorybookResourceAllowListInput = Readonly<{
   readmePath?: string | null
   declaredResources?: readonly (string | Readonly<{path: string}>)[]
   readmeMaxBytes?: number
+  /** Already extracted documentation; paths still resolve against the exact source file. */
+  markdown?: string
 }>
 
 /**
@@ -56,7 +58,7 @@ export function createExternalStorybookResourceAllowList(
     if (metadata.size > readmeMaxBytes) {
       throw new Error(`Storybook README exceeds ${readmeMaxBytes} bytes: ${readmePath}`)
     }
-    const source = readFileSync(readmePath, "utf8")
+    const source = input.markdown ?? readFileSync(readmePath, "utf8")
     for (const destination of localMarkdownDestinations(source)) {
       const asset = resolveLocalReadmeAsset(readmePath, destination, ownerRoot)
       if (asset === null) continue

@@ -47,6 +47,7 @@ export type ExternalStorybookGraphNode = Readonly<{
   parentId: string | null
   childIds: readonly string[]
   readmePath: string | null
+  moduleDocumentation?: import("./catalog.t.ts").StorybookModuleDocumentation
   resources: readonly StorybookResource[]
   authorStyleSheets: readonly StorybookAuthorStyleSheet[]
   widgetContributions: StorybookWidgetContributions | null
@@ -185,6 +186,7 @@ export function createExternalStorybookGraph(
           : `${declarationUrl(declaration)}${directory.relativePath.split("/").map(segment => `dir-${encodeURIComponent(segment)}`).join("/")}`,
         childIds: Object.freeze([]),
         readmePath: directory.readmePath,
+        ...(directory.moduleDocumentation ? {moduleDocumentation: directory.moduleDocumentation} : {}),
         source: Object.freeze({path: directory.path, pointer: ""}),
         searchTerms: searchTerms(directory.name, directory.relativePath),
         resources: Object.freeze([]), authorStyleSheets: Object.freeze([]), widgetContributions: null,

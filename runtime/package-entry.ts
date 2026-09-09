@@ -707,7 +707,7 @@ export async function startExternalStorybookPackage(
     const node = externalStorybookClientNode(snapshot, model.selectedNode.id)
     const readme = await readExternalStorybookNodeReadme(node, fetcher)
     if (disposed || revision !== navigationRevision) return
-    const label = readme === null ? `${node.label} · Обзор` : `${node.label} · README`
+    const label = readme === null ? `${node.label} · Обзор` : `${node.label} · ${node.hasModuleDocumentation ? "TSDoc" : "README"}`
     const presentationNode = readme === null
       ? shell.showMessage(label, node.label, overviewDescription(node.kind, node.childIds.length))
       : shell.showMarkdown(label, readme, node.resourceUrl)
@@ -1446,7 +1446,7 @@ function safeRevision(value: string): string {
 }
 
 function overviewDescription(kind: string, children: number): string {
-  if (kind === "directory") return "В этой директории нет README.md."
+  if (kind === "directory") return "В index.ts этой директории нет описания модуля с @packageDocumentation."
   if (kind === "package") return `${children} категорий. Выберите категорию слева.`
   if (kind === "category") return `${children} предметов. Выберите предмет во второй панели.`
   if (kind === "subject") return `${children} вариантов. Выберите вариант в нижней панели.`

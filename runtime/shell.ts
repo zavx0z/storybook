@@ -652,7 +652,7 @@ export async function readExternalStorybookNodeReadme(
   node: ExternalStorybookClientNode,
   fetcher: typeof fetch = globalThis.fetch,
 ): Promise<string | null> {
-  if (!node.hasReadme) return null
+  if (!node.hasReadme && !node.hasModuleDocumentation) return null
   const response = await fetcher(node.resourceUrl, {headers: {accept: "text/markdown, text/plain"}})
   if (!response.ok) throw new Error(`External Storybook README request failed: ${response.status}`)
   return response.text()

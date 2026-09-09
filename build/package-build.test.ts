@@ -28,6 +28,30 @@ afterEach(() => {
 })
 
 describe("real Storybook package revision build", () => {
+  test("publishes extracted module text without executing source and rejects changed source bytes", async () => {
+    const fixture = createFixture()
+    const sourcePath = join(fixture.root, "documentation.ts")
+    const source = '/** Module documentation */\nthrow new Error("Never execute")'
+    writeFileSync(sourcePath, source)
+    const descriptor = {
+      ...fixture.descriptor,
+      resourceFiles: [...fixture.descriptor.resourceFiles ?? [], {
+        sourcePath,
+        sourceRoot: fixture.root,
+        targetPath: "resources/module.md",
+        contentDigest: createHash("sha256").update(source).digest("hex"),
+        derivedContent: "# Module documentation",
+      }],
+    }
+    const build = createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry})
+    const staging = join(fixture.root, ".module-doc")
+    await build(buildInput(descriptor, staging, "module-doc"))
+    expect(readFileSync(join(staging, "resources/module.md"), "utf8")).toBe("# Module documentation")
+    writeFileSync(sourcePath, "Changed source")
+    await expect(build(buildInput(descriptor, join(fixture.root, ".changed-doc"), "changed-doc"))).rejects.toThrow("content changed after resolution")
+    expect(readFileSync(join(staging, "resources/module.md"), "utf8")).toBe("# Module documentation")
+  })
+
   test("canonicalizes an attested Bun hardlink mirror and rejects false same-name roots", () => {
     const root = mkdtempSync(join(tmpdir(), "storybook-owner-identity-"))
     roots.push(root)

@@ -20,6 +20,8 @@ export type StorybookPackageRevisionResourceFile = Readonly<{
   sourceRoot?: string
   targetPath: string
   contentDigest?: string
+  /** Derived text, published only after attesting its exact source bytes. */
+  derivedContent?: string
 }>
 
 export type StorybookPackageBuildDescriptor = Readonly<{
@@ -840,6 +842,9 @@ function normalizeDescriptor(value: StorybookPackageBuildDescriptor): StorybookP
       throw new Error(`Invalid Storybook revision resource target: ${String(targetPath)}`)
     }
     const contentDigest = file.contentDigest
+    if (file.derivedContent !== undefined && (typeof file.derivedContent !== "string" || contentDigest === undefined || sourceRoot === undefined)) {
+      throw new Error(`Derived revision resource requires attested source: ${targetPath}`)
+    }
     if (contentDigest !== undefined && !/^[a-f0-9]{64}$/u.test(contentDigest)) {
       throw new Error(`Invalid Storybook revision resource content digest: ${targetPath}`)
     }
@@ -848,6 +853,7 @@ function normalizeDescriptor(value: StorybookPackageBuildDescriptor): StorybookP
       ...(sourceRoot === undefined ? {} : {sourceRoot}),
       targetPath,
       ...(contentDigest === undefined ? {} : {contentDigest}),
+      ...(file.derivedContent === undefined ? {} : {derivedContent: file.derivedContent}),
     })
   }))
   const watchPaths = Object.freeze((value.watchPaths ?? []).map((entry) => {

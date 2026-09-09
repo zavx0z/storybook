@@ -29,6 +29,10 @@
 - Node is a comparison candidate, not an assumed reference implementation.
 - `@zavx0z/storybook` is an external dev tool. It does not become a central
   owner of other repositories' stories.
+- Repositories and packages must own a README.md beside package.json as their
+  overview. Discovery reads it by default with or without a manifest; an explicit
+  manifest readme keeps priority. Missing documentation does not hide the owner.
+  Ordinary directory overviews remain index.ts module TSDoc.
 - A real package owns package.json metadata, optional JSON declarations,
   semantic order, stories/resources, optional structural runtime and acceptance.
   Structural projects discover packages through package.json workspaces using
@@ -38,7 +42,10 @@
   package, with its workspace packages discovered by the same rule. Navigation
   ancestry never becomes executable ownership or a build dependency.
   Only immediate directories appear in the secondary panel beside authored catalog
-  sections, with filesystem names and optional README overviews. Exclude src,
+  sections, with filesystem names and optional index.ts module TSDoc overviews.
+  Directory descriptions come only from the leading @packageDocumentation block
+  of index.ts, without executing the module or falling back to README.md.
+  Existing README files remain untouched. Exclude src,
   .git, node_modules, .storybook, tests and test at every depth, plus Git-ignored
   paths using native Git ignore semantics.
   Do not infer a build-output exclusion from a directory name. Directory

@@ -5,6 +5,8 @@ import {createRoot} from "@zavx0z/component"
 import {createDocumentClipboardController} from "@zavx0z/browser/clipboard"
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
+import {mkdtemp, rm} from "node:fs/promises"
+import {tmpdir} from "node:os"
 import {
   createDocument,
   readDocumentCompiledStyleSheets,
@@ -39,6 +41,33 @@ import type {ExternalStorybookRootFactory} from "./shell.ts"
 const fixtureRoot = join(import.meta.dir, "../discovery/fixtures/valid")
 
 describe("external Storybook landing frontend", () => {
+  test("renders a repository README discovered without a manifest readme field", async () => {
+    const root = await mkdtemp(join(tmpdir(), "storybook-repository-readme-"))
+    let controller: Awaited<ReturnType<typeof startExternalStorybookLanding>> | undefined
+    try {
+      await Bun.write(join(root, "package.json"), JSON.stringify({name: "repository", label: "Repository", workspaces: []}))
+      await Bun.write(join(root, ".storybook/manifest.json"), JSON.stringify({schemaVersion: 1, kind: "project", id: "repository"}))
+      await Bun.write(join(root, "README.md"), "# Repository overview\n\nPurpose and responsibilities.")
+      const graph = createExternalStorybookGraph(await resolveExternalStorybookDeclarations([root]))
+      const snapshot = createExternalStorybookClientSnapshot(graph, [])
+      const overview = graph.nodes.find(node => node.id === "project:repository")!
+      controller = await startExternalStorybookLanding({
+        browserDocument: {documentElement: {dataset: {}}, querySelector() { return null }} as unknown as Document,
+        location: {href: "http://127.0.0.1:3000/projects/repository/", pathname: "/projects/repository/", reload() {}},
+        fetcher: (async input => String(input) === "/api/client"
+          ? Response.json(snapshot)
+          : new Response(await Bun.file(overview.readmePath!).text())) as typeof fetch,
+        createSocket() { return {addEventListener() {}, removeEventListener() {}, send() {}, close() {}} },
+        shell: {canvas: {} as HTMLCanvasElement, loadFont: async () => ({}) as never, createRoot: fakeRootFactory()},
+      })
+      expect(controller.shell.display.querySelector("article")?.textContent).toContain("Repository overview")
+      expect(controller.shell.display.querySelector("article")?.textContent).toContain("Purpose and responsibilities.")
+    } finally {
+      controller?.dispose()
+      await rm(root, {recursive: true, force: true})
+    }
+  })
+
   test("adds and removes projects through the catalog controls without reloading the Root", async () => {
     const catalog = await resolveExternalStorybookDeclarations([fixtureRoot, join(fixtureRoot, "standalone")])
     const full = createExternalStorybookGraph(catalog)

@@ -18,16 +18,38 @@ test("finds ordinary and empty directories, skips src and keeps packages as sepa
     await mkdir(join(root, path), {recursive: true})
   }
   await Bun.write(join(root, "docs/README.md"), "# Documentation")
+  await Bun.write(join(root, "docs/index.ts"), "/**\n# Module documentation\n@packageDocumentation\n*/\nexport const value = 1")
   await symlink(join(root, "docs"), join(root, "linked"))
   const result = await discoverStorybookDirectories(root, new Set([join(root, "packages/tool")]))
   expect(result.directories.map(directory => directory.name)).toEqual(["build", "docs", "empty", "packages"])
   const docs = result.directories.find(directory => directory.name === "docs")!
-  expect(docs.readmePath).toBe(join(root, "docs/README.md"))
+  expect(docs.readmePath).toBeNull()
+  expect(docs.moduleDocumentation?.markdown).toBe("# Module documentation")
+  expect(result.watchPaths).toContain(join(root, "docs/index.ts"))
+  expect(result.watchPaths).not.toContain(join(root, "docs/README.md"))
   expect(result.directories.some(directory => directory.relativePath.includes("/"))).toBeFalse()
   expect(result.watchPaths).not.toContain(join(root, "docs/guide"))
   expect((await discoverStorybookDirectories(join(root, "docs"), new Set())).directories.map(directory => directory.name)).toEqual(["guide"])
   expect(result.watchPaths).toContain(join(root, "empty"))
   expect(result.watchPaths).not.toContain(join(root, "packages/tool"))
+})
+
+test("README не заменяет отсутствующий, игнорируемый или symlink index.ts", async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "storybook-doc-source-")))
+  roots.push(root)
+  await Bun.spawn(["git", "init", "--quiet", root]).exited
+  await mkdir(join(root, "module"))
+  await Bun.write(join(root, "module/README.md"), "Не обзор")
+  const read = async () => (await discoverStorybookDirectories(root, new Set())).directories[0]!
+  expect((await read()).moduleDocumentation).toBeUndefined()
+  await Bun.write(join(root, "module/index.ts"), "/**\nОписание\n@packageDocumentation\n*/")
+  expect((await read()).moduleDocumentation?.markdown).toBe("Описание")
+  await Bun.write(join(root, ".gitignore"), "module/index.ts\n")
+  expect((await read()).moduleDocumentation).toBeUndefined()
+  await Bun.write(join(root, ".gitignore"), "")
+  await rm(join(root, "module/index.ts"))
+  await symlink(join(root, "module/README.md"), join(root, "module/index.ts"))
+  expect((await read()).moduleDocumentation).toBeUndefined()
 })
 
 test("uses Git ignore precedence, negation, nested files and ignored tracked directories", async () => {

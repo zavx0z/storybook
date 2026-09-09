@@ -42,6 +42,7 @@ export type ExternalStorybookClientNode = Readonly<{
   subjectKind: string | null
   apiName: string | null
   hasReadme: boolean
+  hasModuleDocumentation?: boolean
   resourceKinds: readonly StorybookResourceKind[]
   resourceUrl: string
   presentation: ExternalStorybookClientStoryPresentation | null
@@ -133,6 +134,7 @@ export function createExternalStorybookClientSnapshot(
     subjectKind: node.subjectKind,
     apiName: node.apiName,
     hasReadme: node.readmePath !== null,
+    ...(node.moduleDocumentation ? {hasModuleDocumentation: true} : {}),
     resourceKinds: Object.freeze([...new Set(node.resources.map(({kind}) => kind))]),
     resourceUrl: externalStorybookNodeResourceUrl(graph, node.id),
     presentation: node.presentation === null
@@ -237,6 +239,7 @@ function collectHiddenPaths(
   for (const node of graph.nodes) {
     paths.add(node.source.path)
     if (node.readmePath !== null) paths.add(node.readmePath)
+    if (node.moduleDocumentation) paths.add(node.moduleDocumentation.sourcePath)
     if (node.packageJsonPath !== null) paths.add(node.packageJsonPath)
     if (node.runtime !== null) paths.add(node.runtime.path)
     if (node.module !== null) paths.add(node.module.path)

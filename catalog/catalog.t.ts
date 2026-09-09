@@ -135,12 +135,19 @@ export type StorybookPackageCatalog = Readonly<{
   categories: readonly StorybookCategory[]
 }>
 
+export type StorybookModuleDocumentation = Readonly<{
+  sourcePath: string
+  sourceDigest: string
+  markdown: string
+}>
+
 /** Immediate filesystem directory of a repository or package; nested directories are not catalog entries. */
 export type StorybookDirectory = Readonly<{
   path: string
   relativePath: string
   name: string
   readmePath: string | null
+  moduleDocumentation?: StorybookModuleDocumentation
 }>
 
 type StorybookCatalogScopeBase = Readonly<{

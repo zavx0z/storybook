@@ -1,4 +1,6 @@
-import {lstat, readdir, realpath} from "node:fs/promises"
+import {constants} from "node:fs"
+import {lstat, open, readdir, realpath} from "node:fs/promises"
+import {readModuleDocumentation} from "./module-documentation.ts"
 import {dirname, join, relative} from "node:path"
 import type {StorybookDirectory} from "../catalog/catalog.t.ts"
 
@@ -49,18 +51,27 @@ export async function discoverStorybookDirectories(
       if (packageInfo !== null) continue
       watchPaths.add(path)
       watchPaths.add(join(path, ".gitignore"))
-      const readme = join(path, "README.md")
-      watchPaths.add(readme)
-      const info = await lstat(readme).catch(error => {
+      const entryPath = join(path, "index.ts")
+      watchPaths.add(entryPath)
+      const info = await lstat(entryPath).catch(error => {
         if (error.code !== "ENOENT") throw error
         return null
       })
-      const hiddenReadme = info === null ? false : (await ignored([readme])).has(readme)
+      let moduleDocumentation
+      if (info?.isFile() && !info.isSymbolicLink() && !(await ignored([entryPath])).has(entryPath)) {
+        const file = await open(entryPath, constants.O_RDONLY | constants.O_NOFOLLOW)
+        try {
+          const metadata = await file.stat()
+          if (!metadata.isFile() || metadata.size > 1_048_576) throw new Error(`Module documentation source exceeds limit or is not a file: ${entryPath}`)
+          moduleDocumentation = readModuleDocumentation(await file.readFile("utf8"), entryPath)
+        } finally { await file.close() }
+      }
       result.push(Object.freeze({
         path,
         relativePath: relative(root, path),
         name: entry.name,
-        readmePath: info?.isFile() && !info.isSymbolicLink() && !hiddenReadme ? readme : null,
+        readmePath: null,
+        ...(moduleDocumentation ? {moduleDocumentation} : {}),
       }))
     }
     return Object.freeze(result)

@@ -130,7 +130,11 @@ export async function buildStorybookPackageRevisionInProcess(
         throw storybookBuildError(storybookDiagnostic("publish", "Revision resource escaped staging", target))
       }
       mkdirSync(dirname(target), {recursive: true})
-      if (attestedBytes === null) copyFileSync(resource.sourcePath, target)
+      if (resource.derivedContent !== undefined) {
+        if (attestedBytes === null) throw new Error(`Derived resource has no attested source: ${resource.targetPath}`)
+        writeFileSync(target, resource.derivedContent)
+      }
+      else if (attestedBytes === null) copyFileSync(resource.sourcePath, target)
       else writeFileSync(target, attestedBytes)
     }
     const modules = [

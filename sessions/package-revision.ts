@@ -44,6 +44,7 @@ export type StorybookPackageRevisionGraphNode = Readonly<{
   subjectKind: string | null
   apiName: string | null
   hasReadme: boolean
+  hasModuleDocumentation?: boolean
   resourceKinds: readonly StorybookResourceKind[]
   resourceUrl: string
   presentation: StorybookPackageRevisionStoryPresentation | null
@@ -95,7 +96,7 @@ export type StorybookPackageRevisionLoader = Readonly<{
 
 export type StorybookPackageRevisionResourceLink = Readonly<{
   nodeId: string
-  kind: "readme" | StorybookResourceKind
+  kind: "readme" | "module-documentation" | StorybookResourceKind
   index: number
   url: string
 }>
@@ -168,8 +169,9 @@ export function createStorybookPackageRevisionGraphSnapshot(
     subjectKind: node.subjectKind,
     apiName: node.apiName,
     hasReadme: node.readmePath !== null,
+    ...(node.moduleDocumentation ? {hasModuleDocumentation: true} : {}),
     resourceKinds: Object.freeze([...new Set(node.resources.map(({kind}) => kind))]),
-    resourceUrl: node.readmePath === null
+    resourceUrl: node.moduleDocumentation ? revisionModuleDocumentationPath(node.id) : node.readmePath === null
       ? revisionNodeResourcePrefix(node.id)
       : revisionReadmeResourcePath(node.id),
     presentation: node.presentation === null
@@ -199,6 +201,7 @@ export function createStorybookPackageRevisionGraphSnapshot(
   const resources = Object.freeze(sourceNodes.flatMap((node): StorybookPackageRevisionResourceLink[] => {
     const kindIndexes = new Map<StorybookResourceKind, number>()
     return [
+      ...(node.moduleDocumentation ? [Object.freeze({nodeId: node.id, kind: "module-documentation" as const, index: 0, url: revisionModuleDocumentationPath(node.id)})] : []),
       ...(node.readmePath === null
         ? []
         : [Object.freeze({nodeId: node.id, kind: "readme" as const, index: 0, url: revisionReadmeResourcePath(node.id)})]),
@@ -482,6 +485,10 @@ function requiredRoute(value: string | null, nodeId: string): string {
 
 export function revisionNodeResourcePrefix(nodeId: string): string {
   return `resources/nodes/${encodeURIComponent(nodeId)}/`
+}
+
+export function revisionModuleDocumentationPath(nodeId: string): string {
+  return `${revisionNodeResourcePrefix(nodeId)}module.md`
 }
 
 export function revisionReadmeResourcePath(nodeId: string): string {

@@ -10,6 +10,7 @@ import {
   revisionAuthorStyleSheetPath,
   revisionDeclaredResourcePath,
   revisionReadmeResourcePath,
+  revisionModuleDocumentationPath,
   revisionWorkbenchAuthorStyleSheetPath,
 } from "../sessions/package-revision.ts"
 
@@ -50,10 +51,12 @@ export function externalStorybookPackageDescriptors(
       throw new Error(`Executable package has no Storybook runtime: ${declaration.id}`)
     }
     const readmeAssetsByNode = new Map(graph.nodes.flatMap((candidate) => {
-      if (candidate.packageId !== declaration.id || candidate.readmePath === null) return []
+      const overviewPath = candidate.moduleDocumentation?.sourcePath ?? candidate.readmePath
+      if (candidate.packageId !== declaration.id || overviewPath === null) return []
       const assets = createExternalStorybookResourceAllowList({
         ownerRoot: declaration.scopeRoot,
-        readmePath: candidate.readmePath,
+        readmePath: overviewPath,
+        ...(candidate.moduleDocumentation ? {markdown: candidate.moduleDocumentation.markdown} : {}),
         declaredResources: candidate.resources,
       }).entries.filter(({kind}) => kind === "readme-asset").map(({path}) => path)
       return [[candidate.id, Object.freeze(assets)] as const]
@@ -73,6 +76,7 @@ export function externalStorybookPackageDescriptors(
         candidate.packageId === declaration.id
           ? [
             ...(candidate.readmePath === null ? [] : [candidate.readmePath]),
+            ...(candidate.moduleDocumentation ? [candidate.moduleDocumentation.sourcePath] : []),
             ...(readmeAssetsByNode.get(candidate.id) ?? []),
             ...candidate.resources.map(({path}) => path),
           ]
@@ -103,6 +107,7 @@ export function externalStorybookPackageDescriptors(
         : [{path: declaration.readmePath, category: "metadata" as const}]),
       ...graph.nodes.flatMap((candidate) => candidate.packageId === declaration.id
         ? [
+          ...(candidate.moduleDocumentation ? [{path: candidate.moduleDocumentation.sourcePath, category: "declaration" as const}] : []),
           ...(candidate.readmePath === null
             ? []
             : [{path: candidate.readmePath, category: "metadata" as const}]),
@@ -130,14 +135,21 @@ export function externalStorybookPackageDescriptors(
         if (candidate.packageId !== declaration.id) return []
         const indexes = new Map<string, number>()
         return [
+          ...(candidate.moduleDocumentation ? [{
+            sourcePath: candidate.moduleDocumentation.sourcePath,
+            sourceRoot: declaration.scopeRoot,
+            contentDigest: candidate.moduleDocumentation.sourceDigest,
+            derivedContent: candidate.moduleDocumentation.markdown,
+            targetPath: revisionModuleDocumentationPath(candidate.id),
+          }] : []),
           ...(candidate.readmePath === null
             ? []
             : [{sourcePath: candidate.readmePath, targetPath: revisionReadmeResourcePath(candidate.id)}]),
-          ...(candidate.readmePath === null ? [] : (readmeAssetsByNode.get(candidate.id) ?? []).map((sourcePath) => ({
+          ...(candidate.readmePath === null && !candidate.moduleDocumentation ? [] : (readmeAssetsByNode.get(candidate.id) ?? []).map((sourcePath) => ({
             sourcePath,
             targetPath: join(
               dirname(revisionReadmeResourcePath(candidate.id)),
-              relative(dirname(candidate.readmePath!), sourcePath),
+              relative(dirname(candidate.moduleDocumentation?.sourcePath ?? candidate.readmePath!), sourcePath),
             ),
           }))),
           ...candidate.resources.map((resource) => {

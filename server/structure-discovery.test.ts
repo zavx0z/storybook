@@ -48,6 +48,26 @@ test("lists and selects packages without manifests in the repository tree", asyn
   expect(structural.graph.nodes.filter(node => node.kind === "package")).toHaveLength(2)
 })
 
+test("repository and package README are structural defaults even with a manifest", async () => {
+  const {project} = await fixture()
+  const packageRoot = join(project, "packages/a")
+  const manifest = join(packageRoot, ".storybook/manifest.json")
+  await write(manifest, {schemaVersion: 1, kind: "package", id: "@fixture/a", packageJson: "../package.json"})
+  const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
+  const initial = await registry.attach(project)
+  expect(initial.catalog.scopes.find(scope => scope.id === "project")?.structurePaths).toContain(join(project, "README.md"))
+  expect(initial.catalog.scopes.find(scope => scope.id === "@fixture/a")?.structurePaths).toContain(join(packageRoot, "README.md"))
+  await Bun.write(join(project, "README.md"), "# Repository overview")
+  await Bun.write(join(packageRoot, "README.md"), "# Package overview")
+  const updated = await registry.refresh()
+  expect(updated.graph.nodes.find(node => node.id === "project:project")?.readmePath).toBe(join(project, "README.md"))
+  expect(updated.graph.nodes.find(node => node.id === "package:@fixture/a")?.readmePath).toBe(join(packageRoot, "README.md"))
+  await Bun.write(join(packageRoot, "overview.md"), "# Explicit overview")
+  await write(manifest, {schemaVersion: 1, kind: "package", id: "@fixture/a", packageJson: "../package.json", readme: "../overview.md"})
+  const explicit = await registry.refresh()
+  expect(explicit.graph.nodes.find(node => node.id === "package:@fixture/a")?.readmePath).toBe(join(packageRoot, "overview.md"))
+})
+
 test("updates optional manifests and workspace membership while preserving package identities", async () => {
   const {project} = await fixture()
   const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)

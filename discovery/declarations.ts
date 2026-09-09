@@ -367,7 +367,7 @@ async function resolveManifestStrict(
   }
   state.scopeIds.set(id, manifestPath)
   const readmePath = record.readme === undefined
-    ? structural && await Bun.file(join(scopeRoot, "README.md")).exists()
+    ? await Bun.file(join(scopeRoot, "README.md")).exists()
       ? await resolveContainedFile(scopeRoot, "README.md", scopeRoot, "package README")
       : null
     : await resolveContainedFile(
@@ -381,7 +381,7 @@ async function resolveManifestStrict(
   state.visiting.push(manifestPath)
   try {
     let declaration: StorybookCatalogScope
-    let structurePaths: readonly string[] = []
+    let structurePaths: readonly string[] = [join(scopeRoot, "README.md")]
     if (kind === "workspace") {
       const references = declarationReferences(record.projects, "workspace projects")
       const projectIds: string[] = []
@@ -421,7 +421,7 @@ async function resolveManifestStrict(
       if (ownerPackage.workspaces !== undefined) {
         if (record.packages !== undefined) throw new Error("Project composition must use either package.json workspaces or manifest packages, not both")
         const discovered = await discoverWorkspacePackages(scopeRoot, ownerPackage.workspaces)
-        structurePaths = discovered.watchPaths
+        structurePaths = [...structurePaths, ...discovered.watchPaths]
         digest = createHash("sha256").update(digest).update(JSON.stringify(ownerPackage.workspaces)).update(JSON.stringify(discovered.roots)).digest("hex")
         for (const root of discovered.roots) {
           const source = await resolveEntryManifest(root)
