@@ -83,7 +83,7 @@
 - В сборке каждой страницы сохраняется по одной resolved identity для
   `@zavx0z/browser`, `@zavx0z/component`, `@zavx0z/devtools`, `@zavx0z/dom`, `@zavx0z/engine`,
   `@nodes/layout`, `@webxr/nodes`, `@nodes/tree`, `@nodes/parameters`,
-  `@nodes/sockets`, `@zavx0z/renderer`,
+  `@nodes/sockets`, `@zavx0z/renderer`, `@webxr/markdown`,
   `@zavx0z/space`, `@zavx0z/template`, `@zavx0z/ui` и `@zavx0z/webgpu`.
   Исторические package identities, compatibility aliases и
   generic Layout preview owners не возвращаются.

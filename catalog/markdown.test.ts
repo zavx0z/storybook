@@ -165,7 +165,7 @@ describe("safe compiled Storybook Markdown", () => {
     const action = await Bun.file(new URL("../runtime/components/overview-action-button.tsx", import.meta.url)).text()
     expect(source).not.toContain("createElement(")
     expect(source).not.toContain("storybookMarkdownCss")
-    expect(view).toContain('from "@zavx0z/ui/views/markdown"')
+    expect(view).toContain('from "@webxr/markdown"')
     expect(source).not.toContain("parseInline")
     expect(view).not.toContain("function MarkdownBlock")
     expect(view).toContain('from "./components/overview-action-button.tsx"')

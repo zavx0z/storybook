@@ -1,6 +1,6 @@
 import {readFileSync, realpathSync, statSync} from "node:fs"
 import {dirname, isAbsolute, relative, resolve} from "node:path"
-import {markdownDestinations} from "@zavx0z/ui/markdown"
+import {markdownDestinations} from "@webxr/markdown/parser"
 
 export const EXTERNAL_STORYBOOK_README_MAX_BYTES = 1_048_576
 
