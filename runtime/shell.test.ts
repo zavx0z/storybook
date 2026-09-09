@@ -119,8 +119,9 @@ describe("external Storybook shared Browser Root", () => {
       {x: 12, y: 18, width: 640, height: 360, viewportWidth: 1024, viewportHeight: 768},
     ])
     const surface = readDisplayStyle(shell.document, shell.display)
-    expect(surface.viewport.width).toBeCloseTo(600 * 96 / 25.4)
-    expect(surface.viewport.height).toBeCloseTo(337.5 * 96 / 25.4)
+    expect(surface.viewport).toEqual({width: 2268, height: 1276})
+    expect(shell.display.width).toBe(600)
+    expect(shell.display.height).toBe(337.5)
     expect(surface.pixels).toEqual({width: 2268, height: 1276})
     expect(surface.transform.scale).toEqual({x: 1, y: 1, z: 1})
     expect(surface.transform.position).toEqual({x: 0, y: 0, z: 0})

@@ -3,11 +3,12 @@ export function StorybookDisplay(props: Readonly<{id: string}>) {
   return (
     <display
       id={props.id}
-      dpi={96}
+      width={600}
+      height={337.5}
       style={css`
         box-sizing: border-box;
-        width: 600mm;
-        height: 337.5mm;
+        width: 2268px;
+        height: 1276px;
         translate: 0 0 0;
         rotate: x 90deg;
         scale: 1;

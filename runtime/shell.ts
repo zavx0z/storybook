@@ -222,7 +222,7 @@ export async function createExternalStorybookShell(
     if (visible && bounds !== null && !sameBounds(fittedDisplayBounds, bounds)) {
       const surface = readDisplayStyle(document, display)
       const width = surface.viewport.width * surface.worldUnitsPerPixel
-      const height = surface.viewport.height * surface.worldUnitsPerPixel
+      const height = surface.viewport.height * surface.worldUnitsPerPixelY
       // Вписываем неизменную поверхность в прямоугольник HUD по обеим осям.
       // Параллельный сдвиг камеры и цели сохраняет фронтальный вид дисплея.
       const units = Math.max(width / bounds.width, height / bounds.height)

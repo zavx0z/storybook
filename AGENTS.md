@@ -71,7 +71,8 @@
   `projection: "hud"` — в `XRHUDElement`, а трёхмерный subject с
   `projection: "space"` — непосредственно в тот же `XRSpaceElement`. Допустимы
   только `display | hud | space`.
-- Физический Display имеет постоянные CSS `width`, `height`, `scale: 1` и атрибут `dpi`.
+- Физический Display имеет постоянные атрибуты `width` и `height` в мм,
+  CSS `width` и `height` задают разрешение в px, `scale: 1`. `dpi` вычисляется по обеим осям.
   Вписывание в свободную область HUD и resize окна изменяют общий ViewPoint:
   дистанцию и параллельный сдвиг камеры с целью. Не менять размеры поверхности,
   её масштаб, матрицу или CSS viewport ради подгонки. Сохранять пропорции и поля.
