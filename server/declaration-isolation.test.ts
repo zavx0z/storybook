@@ -21,8 +21,7 @@ function fixture(broken = false) {
   for (const id of ["a", "b"]) {
     write(join(project, id, "package.json"), {name: `@fixture/${id}`, label: id})
     write(join(project, id, ".storybook/manifest.json"), {
-      schemaVersion: 1, kind: "package", id: `@fixture/${id}`,
-      packageJson: "../package.json", ...(id === "a" ? {catalog: "./catalog.json"} : {}),
+      schemaVersion: 1, ...(id === "a" ? {catalog: "./catalog.json"} : {}),
     })
   }
   write(join(project, "a/.storybook/catalog.json"), {

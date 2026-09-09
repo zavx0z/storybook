@@ -150,13 +150,10 @@
     "package": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schemaVersion", "kind", "id", "packageJson"],
+      "required": ["schemaVersion"],
       "properties": {
         "$schema": {"$ref": "#/$defs/schemaReference"},
         "schemaVersion": {"const": 1},
-        "kind": {"const": "package"},
-        "id": {"$ref": "#/$defs/packageId"},
-        "packageJson": {"$ref": "#/$defs/relativePath"},
         "readme": {"$ref": "#/$defs/relativePath"},
         "runtime": {"$ref": "#/$defs/runtime"},
         "catalog": {"$ref": "#/$defs/relativePath"},

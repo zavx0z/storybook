@@ -87,9 +87,6 @@ const MANIFEST_KEYS = Object.freeze({
   package: Object.freeze([
     "$schema",
     "schemaVersion",
-    "kind",
-    "id",
-    "packageJson",
     "readme",
     "runtime",
     "catalog",
@@ -230,11 +227,11 @@ export async function resolveExternalStorybookAuthorStyleSheets(root: string): P
   const manifestPath = await resolveEntryManifest(root)
   const scopeRoot = await manifestScopeRoot(manifestPath)
   const {record} = await readJsonObject(manifestPath, "Workbench manifest")
-  if (record.kind !== "package") throw new Error("Workbench stylesheet owner must be a package")
-  const packageJsonPath = await resolveContainedFile(dirname(manifestPath), requiredPath("packageJson", record.packageJson), scopeRoot, "packageJson")
+  assertExactKeys(record, "Workbench manifest", MANIFEST_KEYS.package, ["schemaVersion"])
+  if (record.schemaVersion !== EXTERNAL_STORYBOOK_SCHEMA_VERSION) throw new Error("Unsupported Workbench manifest schemaVersion")
+  const packageJsonPath = await resolveContainedFile(scopeRoot, "package.json", scopeRoot, "packageJson")
   const {record: metadata} = await readJsonObject(packageJsonPath, "Workbench package.json")
   const id = packageId(metadata.name, "Workbench package identity")
-  if (id !== record.id) throw new Error("Workbench package identity mismatch")
   return record.authorStyleSheets === undefined ? Object.freeze([]) :
     resolveAuthorStyleSheets(record.authorStyleSheets, metadata, packageJsonPath, id, scopeRoot)
 }
@@ -298,7 +295,7 @@ async function unavailableOwner(manifestPath: string): Promise<StorybookCatalogS
   let kind: StorybookCatalogScopeKind | "unavailable" = record.kind === "workspace" || record.kind === "project" ? record.kind : "package"
   let id: string
   try {
-    id = packageId(metadata.name ?? (kind === "package" ? record.id : undefined), "Unavailable package identity")
+    id = packageId(metadata.name, "Unavailable package identity")
   } catch {
     // An unavailable selected directory is a registration shell, never an invented package identity.
     kind = "unavailable"
@@ -339,16 +336,13 @@ async function resolveManifestStrict(
   const record: Record<string, unknown> = structural
     ? {
       schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
-      kind: "package",
-      id: sourceRecord.name,
-      packageJson: "./package.json",
     }
     : sourceRecord
   const schemaVersion = record.schemaVersion
   if (schemaVersion !== EXTERNAL_STORYBOOK_SCHEMA_VERSION) {
     throw new Error(`Unsupported external Storybook manifest schemaVersion: ${String(schemaVersion)}`)
   }
-  const kindValue = record.kind
+  const kindValue = record.kind ?? "package"
   if (kindValue !== "workspace" && kindValue !== "project" && kindValue !== "package") {
     throw new Error(`Unknown external Storybook manifest kind: ${String(kindValue)}`)
   }
@@ -361,10 +355,10 @@ async function resolveManifestStrict(
       ? ["schemaVersion", "kind", "id", "projects"]
       : kind === "project"
         ? ["schemaVersion", "kind", "id"]
-        : ["schemaVersion", "kind", "id", "packageJson"],
+        : ["schemaVersion"],
   )
   optionalString(record, "$schema", `External Storybook ${kind} $schema`)
-  const declaredId = packageId(record.id, `External Storybook ${kind} id`)
+  if (kind !== "package") packageId(record.id, `External Storybook ${kind} id`)
   const ownerPackagePath = join(scopeRoot, "package.json")
   state.recoveryPaths.add(ownerPackagePath)
   const ownerPackage = (await readJsonObject(
@@ -479,22 +473,13 @@ async function resolveManifestStrict(
       })
     } else {
       const packageJsonPath = await resolveContainedFile(
-        dirname(manifestPath),
-        requiredPath("package packageJson", record.packageJson),
+        scopeRoot,
+        "package.json",
         scopeRoot,
         "package packageJson",
       )
-      if (dirname(packageJsonPath) !== scopeRoot) {
-        throw new Error(`External Storybook packageJson must belong to the exact package root: ${packageJsonPath}`)
-      }
-      const {record: packageJson} = await readJsonObject(
-        packageJsonPath,
-        "External Storybook package.json",
-      )
-      const packageName = packageId(packageJson.name, "External Storybook package.json name")
-      if (packageName !== declaredId) {
-        throw new Error(`External Storybook package id ${declaredId} does not match package.json name ${packageName}`)
-      }
+      const packageJson = ownerPackage
+      const packageName = id
       const previousPackageOwner = state.packageJsonOwners.get(packageJsonPath)
       if (previousPackageOwner !== undefined) {
         throw new Error(`Ambiguous external Storybook package identity ${id}:\n${previousPackageOwner}\n${manifestPath}`)

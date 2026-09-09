@@ -22,6 +22,18 @@ afterEach(async () => {
 })
 
 describe("external Storybook JSON declarations", () => {
+  test("rejects package metadata overrides and resolves the owner from its package.json", async () => {
+    for (const [key, value] of [["id", "@foreign/owner"], ["packageJson", "../../foreign/package.json"], ["kind", "package"]] as const) {
+      const root = await cloneFixture()
+      await updateJson(componentsManifest(root), manifest => ({...manifest, [key]: value}))
+      await expect(resolveExternalStorybookDeclarations([root])).rejects.toThrow(`unknown field: ${key}`)
+    }
+    const catalog = await resolveExternalStorybookDeclarations([fixtureRoot])
+    const owner = declarationPackage(catalog.scopes, "@fixture/components")
+    expect(owner.packageName).toBe("@fixture/components")
+    expect(owner.packageJsonPath).toBe(join(owner.scopeRoot, "package.json"))
+  })
+
   test("rejects legacy manifest labels and requires owner metadata for every scope", async () => {
     for (const relative of ["", "projects/alpha", "projects/alpha/packages/components"]) {
       const root = await cloneFixture()
@@ -159,10 +171,6 @@ describe("external Storybook JSON declarations", () => {
     const extraRoot = join(alphaRoot, "packages", "extra-docs")
     await cp(join(root, "projects", "beta", "packages", "docs"), extraRoot, {recursive: true})
     await updateJson(join(extraRoot, "package.json"), (value) => ({...value, name: "@fixture/extra-docs", label: "Extra Docs"}))
-    await updateJson(join(extraRoot, ".storybook", "manifest.json"), (value) => ({
-      ...value,
-      id: "@fixture/extra-docs",
-    }))
     await updateJson(join(alphaRoot, ".storybook", "manifest.json"), (value) => ({
       ...value,
       packages: [
@@ -298,10 +306,11 @@ describe("external Storybook JSON declarations", () => {
 
   test("enforces package identity, containment and symlink-safe realpaths", async () => {
     const identity = await cloneFixture()
-    const packageJson = join(identity, "projects", "alpha", "packages", "components", "package.json")
+    const packageJson = join(identity, "projects", "beta", "packages", "docs", "package.json")
     await updateJson(packageJson, (value) => ({...value, name: "@fixture/other"}))
-    await expect(resolveExternalStorybookDeclarations([identity]))
-      .rejects.toThrow("does not match package.json name")
+    const renamed = await resolveExternalStorybookDeclarations([identity])
+    expect(renamed.scopes.find(scope => scope.id === "@fixture/other")?.canonicalId).toBe("package:@fixture/other")
+    expect(renamed.scopes.some(scope => scope.id === "@fixture/docs")).toBeFalse()
 
     const lexicalEscape = await cloneFixture()
     const packageManifest = join(
@@ -545,7 +554,6 @@ describe("external Storybook JSON declarations", () => {
     const self = await cloneFixture()
     await updateJson(componentsManifest(self), (value) => ({
       ...value,
-      id: "@zavx0z/storybook",
       authorStyleSheets: undefined,
       widgetContributions: {
         protocol: "widget-contribution/1",
@@ -572,7 +580,6 @@ describe("external Storybook JSON declarations", () => {
     const selfWithoutRegistry = await cloneFixture()
     await updateJson(componentsManifest(selfWithoutRegistry), (value) => ({
       ...value,
-      id: "@zavx0z/storybook",
       authorStyleSheets: undefined,
       widgetContributions: undefined,
     }))

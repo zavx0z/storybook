@@ -44,10 +44,9 @@ describe("external @zavx0z/storybook tool boundary", () => {
     const manifest = await Bun.file(join(root, ".storybook", "manifest.json")).json()
     expect(manifest).toMatchObject({
       schemaVersion: 1,
-      kind: "package",
-      id: "@zavx0z/storybook",
       catalog: "./catalog.json",
     })
+    for (const key of ["kind", "id", "packageJson"]) expect(manifest).not.toHaveProperty(key)
     for (const path of [
       ".storybook/runtime.ts",
       ".storybook/stories/contract-document.tsx",

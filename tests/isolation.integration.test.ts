@@ -202,9 +202,6 @@ function createIsolationFixture() {
     }))
     writeFileSync(join(declarationRoot, "manifest.json"), `${JSON.stringify({
       schemaVersion: 1,
-      kind: "package",
-      id: `@fixture/${id}`,
-      packageJson: "../package.json",
       runtime: {module: "./runtime.ts", export: "runtime"},
       catalog: "./catalog.json",
     }, null, 2)}\n`)

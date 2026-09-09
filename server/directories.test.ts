@@ -21,7 +21,7 @@ async function fixture() {
   await Bun.write(join(project, "package.json"), JSON.stringify({name: "fixture", label: "Repository", workspaces: ["unit"]}))
   await Bun.write(join(project, ".gitignore"), "dist/\n")
   await Bun.write(join(project, "unit/package.json"), JSON.stringify({name: "@fixture/unit", label: "Unit"}))
-  await Bun.write(join(project, "unit/.storybook/manifest.json"), JSON.stringify({schemaVersion: 1, kind: "package", id: "@fixture/unit", packageJson: "../package.json", catalog: "./catalog.json"}))
+  await Bun.write(join(project, "unit/.storybook/manifest.json"), JSON.stringify({schemaVersion: 1, catalog: "./catalog.json"}))
   await Bun.write(join(project, "unit/.storybook/catalog.json"), JSON.stringify({schemaVersion: 1, categories: [{id: "contract", label: "Contract", group: {id: "authored", label: "Authored"}, subjects: [{id: "document", kind: "document", label: "Document", presentation: {protocol: "story-presentation/1", projection: "display", widgets: ["source", "diagnostics"]}, variants: []}]}]}))
   for (const path of ["docs/guide", "dist/generated", "src/hidden", "unit/docs/guide", "unit/docs/with # hash"]) await mkdir(join(project, path), {recursive: true})
   await Bun.write(join(project, "docs/README.md"), "# Repository documentation")

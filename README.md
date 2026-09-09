@@ -49,7 +49,8 @@ Browser API возвращает handle, а не абсолютный путь. 
 - `<package>/.storybook/catalog.json`
 
 Paths разрешаются относительно declaration и canonicalize через `realpath`.
-Package manifest `id` обязан совпадать с настоящим `package.json#name`.
+Манифест пакета не дублирует `kind`, `id` и `packageJson`: они определяются
+структурно по `package.json` рядом с `.storybook`. Эти поля отклоняются.
 Unknown versions, cycles, duplicate identities/routes, missing exports and path
 escapes fail closed.
 
@@ -59,9 +60,6 @@ escapes fail closed.
 {
   "$schema": "https://raw.githubusercontent.com/zavx0z/storybook/main/schemas/manifest.schema.json",
   "schemaVersion": 1,
-  "kind": "package",
-  "id": "@zavx0z/ui",
-  "packageJson": "../package.json",
   "runtime": {"module": "./runtime.ts", "export": "runtime"},
   "authorStyleSheets": [{"specifier": "@zavx0z/ui/themes/theme.css"}],
   "catalog": "./catalog.json"

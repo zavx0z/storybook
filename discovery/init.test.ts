@@ -52,9 +52,6 @@ describe("external Storybook declaration init", () => {
     expect(manifest).toEqual({
       $schema: EXTERNAL_STORYBOOK_MANIFEST_SCHEMA_URL,
       schemaVersion: 1,
-      kind: "package",
-      id: "@fixture/button",
-      packageJson: "../package.json",
       catalog: "./catalog.json",
     })
     expect(json(result.catalogPath!)).toEqual({

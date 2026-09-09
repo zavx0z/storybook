@@ -139,9 +139,6 @@ async function packagePlan(
   const manifest = {
     $schema: EXTERNAL_STORYBOOK_MANIFEST_SCHEMA_URL,
     schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
-    kind: "package",
-    id: packageName,
-    packageJson: "../package.json",
     ...(executable
       ? {runtime: {module: "./runtime.ts", export: "runtime"}}
       : {}),

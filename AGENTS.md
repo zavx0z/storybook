@@ -43,6 +43,10 @@
   Packages with no supplemental catalog, runtime, stylesheets, widgets or custom
   overview need no metadata-only manifest. Remove it after verifying owner and
   navigation parity; retain nonstandard declarations until separately migrated.
+- Package manifests omit kind, id and packageJson; these fields are rejected.
+  Ownership comes only from the package.json beside the .storybook directory.
+  Init emits the same minimal manifest. Legacy project/workspace composition
+  remains a separate input format until its own migration.
 - A real package owns package.json metadata, optional JSON declarations,
   semantic order, stories/resources, optional structural runtime and acceptance.
   Structural projects discover packages through package.json workspaces using

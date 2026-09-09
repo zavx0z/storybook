@@ -1,7 +1,4 @@
 {
   "schemaVersion": 1,
-  "kind": "package",
-  "id": "@fixture/docs",
-  "packageJson": "../package.json",
   "readme": "../README.md"
 }
