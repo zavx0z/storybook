@@ -16,7 +16,8 @@ import {
   type Node,
 } from "@zavx0z/dom"
 import {readDisplayStyle, createDocumentRenderer, type RenderBox, type RenderFrame} from "@zavx0z/renderer"
-import {createSpaceElementFactories, XRHUDElement} from "@zavx0z/space"
+import {createSpaceElementFactories} from "@zavx0z/space"
+import {HUDElement} from "../../webxr-space/dom/hud/index.ts"
 import {SpaceElement} from "@zavx0z/dom/space"
 import {ViewPointElement} from "@zavx0z/dom/viewpoint"
 import {
@@ -49,7 +50,7 @@ describe("external Storybook shared Browser Root", () => {
     })
     expect(shell.display).toBeInstanceOf(DisplayElement)
     expect(shell.display.id).toBe(EXTERNAL_STORYBOOK_DISPLAY_ID)
-    expect(shell.hud).toBeInstanceOf(XRHUDElement)
+    expect(shell.hud).toBeInstanceOf(HUDElement)
     expect(shell.hud.id).toBe(EXTERNAL_STORYBOOK_WORKBENCH_ID)
     expect(shell.display.parentElement).toBe(shell.space)
     expect(shell.hud.parentElement).toBe(shell.space)
@@ -293,14 +294,14 @@ type FakeRootState = {
   options: PresentationFixtureOptions | null
   root: Root | null
   pointerTarget: Element | null
-  activeOwner: DisplayElement | XRHUDElement | null
+  activeOwner: DisplayElement | HUDElement | null
   activeTarget: Element | null
   keys: Array<Readonly<{
-    owner: DisplayElement | XRHUDElement
+    owner: DisplayElement | HUDElement
     target: Element
     input: Readonly<{type: "keydown" | "keyup"; key: string}>
   }>>
-  texts: Array<Readonly<{owner: DisplayElement | XRHUDElement; target: Element; text: string}>>
+  texts: Array<Readonly<{owner: DisplayElement | HUDElement; target: Element; text: string}>>
   spaceGestures: Array<Readonly<{
     kind: "orbit" | "pan"
     deltaX: number
@@ -309,7 +310,7 @@ type FakeRootState = {
   capture: Blob
   renderError: Error | null
   emitFrame(
-    owner: DisplayElement | XRHUDElement,
+    owner: DisplayElement | HUDElement,
     node: Node,
     box: Readonly<{
       contentX: number
@@ -373,15 +374,15 @@ function fakeRootFactory(state: FakeRootState): ExternalStorybookRootFactory {
     appRoot.flush()
     const space = body.querySelector("space") as SpaceElement
     const viewPoint = space.querySelector("viewpoint") as ViewPointElement
-    const projections = new Map<DisplayElement | XRHUDElement, RootDocumentProjection>()
-    const frames = new Map<DisplayElement | XRHUDElement, RenderFrame>()
-    const frameListeners = new Map<DisplayElement | XRHUDElement, Set<(frame: RenderFrame) => void>>()
+    const projections = new Map<DisplayElement | HUDElement, RootDocumentProjection>()
+    const frames = new Map<DisplayElement | HUDElement, RenderFrame>()
+    const frameListeners = new Map<DisplayElement | HUDElement, Set<(frame: RenderFrame) => void>>()
     const presented = new Set<(sequence: number) => void>()
     let sequence = 0
     let disposed = false
 
     const documentProjection = (
-      owner: DisplayElement | XRHUDElement,
+      owner: DisplayElement | HUDElement,
     ): RootDocumentProjection => {
       let projection = projections.get(owner)
       if (projection !== undefined) return projection
@@ -423,7 +424,7 @@ function fakeRootFactory(state: FakeRootState): ExternalStorybookRootFactory {
       zoom() {},
     })
     const getProjection = (
-      owner: SpaceElement | DisplayElement | XRHUDElement,
+      owner: SpaceElement | DisplayElement | HUDElement,
     ): RootProjection => owner instanceof SpaceElement
       ? spaceProjection
       : documentProjection(owner)
@@ -431,7 +432,7 @@ function fakeRootFactory(state: FakeRootState): ExternalStorybookRootFactory {
       input: {
         pointerDown() {
           state.activeTarget = state.pointerTarget
-          state.activeOwner = state.pointerTarget?.parentElement as DisplayElement | XRHUDElement
+          state.activeOwner = state.pointerTarget?.parentElement as DisplayElement | HUDElement
         },
         pointerMove() {},
         pointerUp() {},
@@ -450,14 +451,14 @@ function fakeRootFactory(state: FakeRootState): ExternalStorybookRootFactory {
         presented.add(listener)
         return () => presented.delete(listener)
       },
-      dispatchKey(owner: DisplayElement | XRHUDElement, target: Element, input: any) {
+      dispatchKey(owner: DisplayElement | HUDElement, target: Element, input: any) {
         if (state.activeOwner !== owner || state.activeTarget !== target) {
           throw new Error("Semantic key target does not own the Root native proxy")
         }
         state.keys.push({owner, target, input})
         return true
       },
-      dispatchText(owner: DisplayElement | XRHUDElement, target: Element, text: string) {
+      dispatchText(owner: DisplayElement | HUDElement, target: Element, text: string) {
         if (state.activeOwner !== owner || state.activeTarget !== target) {
           throw new Error("Semantic text target does not own the Root native proxy")
         }

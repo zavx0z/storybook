@@ -462,7 +462,7 @@ function assertExperienceProjectionLaw(
   const space = oneSemanticTag(nodes, "space")
   const viewPoint = oneSemanticTag(nodes, "viewpoint")
   const display = oneSemanticTag(nodes, "display")
-  const hud = oneSemanticTag(nodes, "xr-hud")
+  const hud = oneSemanticTag(nodes, "hud")
   const spaceId = text(space.nodeId, "Space nodeId")
 
   assert(space.parentId === null, "Experience Space is not the semantic root")

@@ -215,7 +215,7 @@ Experience содержит exact `@zavx0z/space` `SpaceElement` и
 `ViewPointElement`; страницы не разделяют эти объекты или
 производные ресурсы Renderer/WebGPU.
 
-Весь Workbench монтируется в один `XRHUDElement`
+Весь Workbench монтируется в один `HUDElement`
 `external-storybook-workbench`. Истории `projection: "display"` используют
 настоящий `DisplayElement` `external-storybook-display`; истории
 `projection: "hud"` используют HUD, а трёхмерные истории

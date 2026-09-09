@@ -25,7 +25,7 @@ import {
   type Document as SemanticDocument,
   type Node as SemanticNode,
 } from "@zavx0z/dom"
-import {XRHUDElement} from "@zavx0z/space"
+import {HUDElement} from "@zavx0z/dom/hud"
 import {SpaceElement} from "@zavx0z/dom/space"
 import {type ViewPointElement} from "@zavx0z/dom/viewpoint"
 import type {
@@ -85,7 +85,7 @@ export type ExternalStorybookShell = Readonly<{
   space: SpaceElement
   viewPoint: ViewPointElement
   display: DisplayElement
-  hud: XRHUDElement
+  hud: HUDElement
   workbench: Workbench
   readonly presentedFrameSequence: number
   projectionFor(node: SemanticNode): RootProjection
@@ -174,7 +174,7 @@ export async function createExternalStorybookShell(
   const viewPoint = root.viewPoint
   const display = document.getElementById(EXTERNAL_STORYBOOK_DISPLAY_ID)
   const hud = document.getElementById(EXTERNAL_STORYBOOK_WORKBENCH_ID)
-  if (!(display instanceof DisplayElement) || !(hud instanceof XRHUDElement) || workbench === undefined) {
+  if (!(display instanceof DisplayElement) || !(hud instanceof HUDElement) || workbench === undefined) {
     root.unmount()
     throw new Error("Storybook App did not mount its Display, HUD and Workbench")
   }

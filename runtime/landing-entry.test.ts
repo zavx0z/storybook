@@ -18,7 +18,8 @@ import type {
   RootSpaceProjection,
 } from "@zavx0z/browser/integration"
 import type {RenderFrame} from "@zavx0z/renderer"
-import {createSpaceElementFactories, XRHUDElement} from "@zavx0z/space"
+import {createSpaceElementFactories} from "@zavx0z/space"
+import {HUDElement} from "../../webxr-space/dom/hud/index.ts"
 import {SpaceElement} from "@zavx0z/dom/space"
 import {ViewPointElement} from "@zavx0z/dom/viewpoint"
 import {
@@ -226,7 +227,7 @@ function fakeRootFactory(
     const space = body.querySelector("space") as SpaceElement
     const viewPoint = space.querySelector("viewpoint") as ViewPointElement
     const presented = new Set<(sequence: number) => void>()
-    const documentProjections = new Map<DisplayElement | XRHUDElement, Readonly<{
+    const documentProjections = new Map<DisplayElement | HUDElement, Readonly<{
       projection: RootDocumentProjection
       subscribers: Set<(frame: RenderFrame) => void>
       setFrame(frame: RenderFrame): void
@@ -241,7 +242,7 @@ function fakeRootFactory(
     let disposed = false
 
     const documentProjection = (
-      owner: DisplayElement | XRHUDElement,
+      owner: DisplayElement | HUDElement,
     ): RootDocumentProjection => {
       const existing = documentProjections.get(owner)
       if (existing !== undefined) return existing.projection
@@ -275,12 +276,12 @@ function fakeRootFactory(
     }
 
     function getProjection(owner: SpaceElement): RootSpaceProjection
-    function getProjection(owner: DisplayElement | XRHUDElement): RootDocumentProjection
+    function getProjection(owner: DisplayElement | HUDElement): RootDocumentProjection
     function getProjection(
-      owner: SpaceElement | DisplayElement | XRHUDElement,
+      owner: SpaceElement | DisplayElement | HUDElement,
     ): RootProjection {
       if (owner === space) return spaceProjection
-      return documentProjection(owner as DisplayElement | XRHUDElement)
+      return documentProjection(owner as DisplayElement | HUDElement)
     }
 
     const root: Root = Object.freeze({
@@ -339,7 +340,7 @@ function fakeRootFactory(
 
 function fakeRenderFrame(
   document: ReturnType<typeof createDocument>,
-  root: DisplayElement | XRHUDElement,
+  root: DisplayElement | HUDElement,
   revision: number,
 ): RenderFrame {
   return Object.freeze({

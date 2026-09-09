@@ -1,4 +1,3 @@
-import {HUD} from "@zavx0z/space/portals/hud"
 import {Workbench} from "../workbench/workbench.tsx"
 import type {Workbench as WorkbenchHandle} from "../workbench/contract.ts"
 import {StorybookDisplay} from "./display-view.tsx"
@@ -29,7 +28,7 @@ export function StorybookApp(props: StorybookAppProps) {
       far={2000}
     />
     <StorybookDisplay id={props.displayId} />
-    <HUD id={props.hudId}>
+    <hud id={props.hudId}>
       <Workbench
         title={props.title}
         statusOwner={props.statusOwner}
@@ -37,6 +36,6 @@ export function StorybookApp(props: StorybookAppProps) {
         onReady={props.onReady}
       />
       <ClipboardMenu controller={clipboard} />
-    </HUD>
+    </hud>
   </space>
 }

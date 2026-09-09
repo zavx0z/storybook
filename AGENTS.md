@@ -89,7 +89,7 @@
   создаёт второй Root или owner.
 - Весь Workbench монтируется в одну HUD projection. Subject с
   `projection: "display"` монтируется в настоящий `DisplayElement`, subject с
-  `projection: "hud"` — в `XRHUDElement`, а трёхмерный subject с
+  `projection: "hud"` — в `HUDElement`, а трёхмерный subject с
   `projection: "space"` — непосредственно в тот же `SpaceElement`. Допустимы
   только `display | hud | space`.
 - Служебный Display Storybook заполняет фактическую область preview в HUD.

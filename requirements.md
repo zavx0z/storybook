@@ -385,10 +385,10 @@ exact `@zavx0z/dom/space` `SpaceElement` и `@zavx0z/dom/viewpoint` `ViewPointEl
 переменные не подменяются. Внутренний Workbench controller проверяет semantic
 Document на границе перед использованием собственных API.
 
-Весь Workbench является одним `XRHUDElement`
+Весь Workbench является одним `HUDElement`
 `external-storybook-workbench`. Exact `DisplayElement`
 `external-storybook-display` принимает Display stories; HUD stories используют
-`XRHUDElement`, а Space stories монтируются непосредственно в единственный
+`HUDElement`, а Space stories монтируются непосредственно в единственный
 `SpaceElement`. Host получает каждую projection только через
 `root.getProjection(owner)`.
 Служебный Display заполняет всю фактическую область preview в HUD. Для её

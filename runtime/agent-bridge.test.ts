@@ -11,7 +11,8 @@ import type {
   RootWheelInput,
 } from "@zavx0z/browser/integration"
 import {createDocumentRenderer} from "@zavx0z/renderer"
-import {createSpaceElementFactories, XRHUDElement} from "@zavx0z/space"
+import {createSpaceElementFactories} from "@zavx0z/space"
+import {HUDElement} from "../../webxr-space/dom/hud/index.ts"
 import {SpaceElement} from "@zavx0z/dom/space"
 import type {ExternalStorybookPackageTabModel} from "./model.ts"
 import {
@@ -386,7 +387,7 @@ function createFixture(): Fixture {
   const document = createDocument({elementFactories: createSpaceElementFactories()})
   const space = document.createElement("space") as SpaceElement
   const viewPoint = document.createElement("viewpoint")
-  const hud = document.createElement("xr-hud") as XRHUDElement
+  const hud = document.createElement("hud") as HUDElement
   hud.id = "external-storybook-workbench"
   const root = document.createElement("div")
   root.setAttribute("style", "display:block; width:640px; height:480px; background:#202124")

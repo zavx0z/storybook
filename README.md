@@ -199,10 +199,10 @@ native Canvas, циклом кадров и вводом этой страниц
 exact `@zavx0z/dom/space` `SpaceElement` и `@zavx0z/dom/viewpoint` `ViewPointElement`; разные вкладки не
 разделяют этих владельцев.
 
-Весь Workbench монтируется как один `XRHUDElement`
+Весь Workbench монтируется как один `HUDElement`
 `external-storybook-workbench`. История с `projection: "display"` монтируется
 в настоящий `DisplayElement` `external-storybook-display`, история с
-`projection: "hud"` — в `XRHUDElement`, а история с `projection: "space"` —
+`projection: "hud"` — в `HUDElement`, а история с `projection: "space"` —
 непосредственно в тот же `SpaceElement` через
 `mountSpacePreview`. Ни одна история не создаёт второй Experience, Document,
 Canvas, Space, ViewPoint, цикл кадров или owner ввода.
