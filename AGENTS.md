@@ -55,16 +55,23 @@
   Every selected root is one package node, with its workspace packages
   discovered by the same rule. Navigation
   ancestry never becomes executable ownership or a build dependency.
-  Only immediate directories appear in the secondary panel beside authored catalog
-  sections, with filesystem names and optional index.ts module TSDoc overviews.
-  Directory descriptions come only from the leading @packageDocumentation block
-  of index.ts, without executing the module or falling back to README.md.
-  Existing README files remain untouched. Exclude src,
-  .git, node_modules, .storybook, tests and test at every depth, plus Git-ignored
-  paths using native Git ignore semantics.
-  Do not infer a build-output exclusion from a directory name. Directory
-  discovery never descends into these directories and stops at package.json
-  boundaries; it never changes package composition.
+  Secondary navigation recursively discovers structural categories until a
+  directory with its own src marks a component/module boundary. Show that module
+  but never descend into its implementation. Exports and re-exports are not
+  classifiers; package exports define the public API independently of navigation.
+  Root, category and component index.ts files carry module TSDoc. Directory
+  descriptions come only from the leading @packageDocumentation block of their
+  index.ts, without executing the module or falling back to README.md.
+  Existing README files and their authored content remain untouched. Exclude src,
+  shared, .git, node_modules, .storybook, tests and test at every depth, plus
+  Git-ignored paths using native Git ignore semantics.
+  Do not infer a build-output exclusion from a directory name. Discovery stops
+  at package.json boundaries and never changes package composition.
+  Optional subject.directory is a package-relative path to a discovered module
+  with src. A single bound subject subsumes the structural row, inheriting its
+  filesystem name and TSDoc while retaining authored routes and variants. Multiple
+  subjects, such as Socket preset views, remain under that module row. Remove an
+  emptied legacy category after binding; unbound subjects keep their placement.
   The one global `$storybook` process owns registry,
   canonical graph, Workbench, PackageSessions, revisions, diagnostics and
   browser mechanics for exact production package identities.
@@ -75,7 +82,8 @@
   wrappers, root barrels, generated copies, or compatibility re-exports.
 - В сборке каждой страницы сохраняется по одной resolved identity для
   `@zavx0z/browser`, `@zavx0z/component`, `@zavx0z/devtools`, `@zavx0z/dom`, `@zavx0z/engine`,
-  `@zavx0z/layout`, `@zavx0z/nodes`, `@zavx0z/nodetree`, `@zavx0z/renderer`,
+  `@nodes/layout`, `@webxr/nodes`, `@nodes/tree`, `@nodes/parameters`,
+  `@nodes/sockets`, `@zavx0z/renderer`,
   `@zavx0z/space`, `@zavx0z/template`, `@zavx0z/ui` и `@zavx0z/webgpu`.
   Исторические package identities, compatibility aliases и
   generic Layout preview owners не возвращаются.
@@ -135,11 +143,13 @@
   inspect the candidate with `storybook_open`/`storybook_inspect`, then explicitly
   apply with `storybook_check(live:true)` and wait for active. Build alone never
   updates user views. Failed checks preserve the applied revision.
-- Public package URLs use /pkg-scope-name for @scope/name; immediate directories
-  use one /dir-name segment. Never display nested directories or generate multiple
-  dir-name segments. Exact production
-  package identities stay unchanged; reject slug collisions instead of guessing
-  a package identity. Retain old applied URLs until a verified revision migrates them.
+- Public package URLs use /pkg-scope-name for @scope/name. Structural paths encode
+  each directory segment: numeric/number becomes /dir-numeric/dir-number.
+  Accept only discovered directory chains, never arbitrary mixed directory/story
+  paths. Authored subject and variant routes remain unchanged by directory binding.
+  Exact production package identities stay unchanged; reject slug collisions
+  instead of guessing an identity. Retain old applied URLs until a verified
+  revision migrates them.
 - User navigation stays in the current tab. Agent open reuses a view currently
   showing its package or creates a background view; never retarget a view the
   user moved to another package. Multiple views per package are valid and all

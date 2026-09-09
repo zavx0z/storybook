@@ -96,11 +96,11 @@ export function deriveExternalStorybookLandingSelection(
 }
 
 export function deriveExternalStorybookPackageContents(graph: BrowserGraph, packageId: string): readonly ExternalStorybookBrowserNavigationItem[] {
-  return Object.freeze([...graph.nodes.filter(node => node.packageId === packageId && (node.kind === "category" || node.kind === "subject"))
+  return Object.freeze(graph.nodes.filter(node => node.packageId === packageId && (node.kind === "category" || node.kind === "subject" || node.kind === "directory"))
     .map(node => Object.freeze({
       ...navigationItem(graph, node, requiredRoute(node), node.kind === "category" ? nodeGroup(node) : null),
-      ...(node.kind === "subject" ? {parentId: node.parentId!} : {}),
-    })), ...directoryItems(graph, `package:${packageId}`)])
+      ...(node.parentId === `package:${packageId}` ? {} : {parentId: node.parentId!}),
+    })))
 }
 
 function directoryScope(graph: BrowserGraph, node: BrowserNode): BrowserNode {
@@ -147,18 +147,18 @@ export function deriveExternalStorybookPackageTab(
   if (selectedNode.kind === "category") category = selectedNode
   else if (selectedNode.kind === "subject") {
     subject = selectedNode
-    category = exactParent(graph, subject, "category")
+    category = subjectCategory(graph, subject)
   } else if (selectedNode.kind === "variant") {
     variant = selectedNode
     subject = exactParent(graph, variant, "subject")
-    category = exactParent(graph, subject, "category")
+    category = subjectCategory(graph, subject)
   } else if (selectedNode.kind !== "package" && selectedNode.kind !== "directory") {
     throw new Error(`External Storybook package route selected an invalid node: ${selectedNode.id}`)
   }
 
   const secondaryItems = category === null
     ? Object.freeze([]) as readonly ExternalStorybookBrowserNavigationItem[]
-    : Object.freeze(exactChildren(graph, category, "subject").map((item) =>
+    : Object.freeze(category.childIds.map(id => browserNode(graph, id)).filter(item => item.kind === "subject").map((item) =>
       navigationItem(graph, item, requiredRoute(item), null)))
   const variants = subject === null
     ? Object.freeze([]) as readonly ExternalStorybookBrowserVariantItem[]
@@ -192,6 +192,13 @@ function navigationItem(
     searchText: subtreeSearchText(graph, node),
     group,
   })
+}
+
+function subjectCategory(graph: BrowserGraph, subject: BrowserNode): BrowserNode | null {
+  if (subject.parentId === null) return null
+  const parent = browserNode(graph, subject.parentId)
+  if (!parent.childIds.includes(subject.id)) throw new Error(`Structural subject parent mismatch: ${subject.id}`)
+  return parent.kind === "category" || parent.kind === "directory" ? parent : null
 }
 
 function variantItem(

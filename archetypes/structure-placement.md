@@ -1,150 +1,144 @@
 # Что Storybook берёт из структуры и куда помещает
 
-Репозиторий и самостоятельный пакет имеют обязательный авторский обзор
-в `README.md` рядом с `package.json`. Стандартный файл обнаруживается и при
+Корень репозитория и самостоятельный пакет используют авторский обзор
+`README.md` рядом с `package.json`. Стандартный файл обнаруживается и при
 наличии манифеста; явный `manifest.readme` сохраняет приоритет. Если обзора
-пока нет, узел остаётся видимым. Обычная директория использует TSDoc `index.ts`.
+пока нет, узел остаётся видимым. Содержание README принадлежит авторам пакета.
+Обычная директория, категория и компонент используют TSDoc своего `index.ts`.
 
 ## От файлов на диске до панелей Storybook
 
 ```mermaid
 flowchart LR
   subgraph FS["Реальная структура репозитория"]
-    PATH["Подключённый путь<br/>/webxr-space"]
     ROOT["Корневой package.json<br/>name + label"]
     WS["package.json#workspaces"]
-    PKG["package.json пакета<br/>name + label"]
-    DIR["Непосредственные обычные директории"]
-    README["TSDoc модуля index.ts<br/>для директории"]
+    PKG["package.json дочернего пакета"]
+    CATEGORY["Промежуточные категории"]
+    MODULE["Директория компонента с src"]
+    DOC["index.ts<br/>TSDoc @packageDocumentation"]
   end
 
-  subgraph NORMAL["Единый каталог и граф Storybook"]
-    REPO["Узел корневого пакета"]
-    PACKAGE["Узел пакета<br/>отдельный packageId"]
-    DIRECTORY["Узел директории"]
-    DOC["Документ обзора"]
+  subgraph GRAPH["Единый каталог и граф"]
+    PACKAGE["Пакет с точным packageId"]
+    STRUCTURE["Категория → компонент"]
+    SUBJECT["Авторский subject и варианты"]
   end
 
   subgraph UI["Интерфейс"]
-    MAIN["Главная панель<br/>репозитории и пакеты"]
-    SECONDARY["Предметная панель<br/>непосредственные директории"]
-    CENTER["Центральная область<br/>TSDoc"]
+    MAIN["Главная панель<br/>дерево пакетов"]
+    SECONDARY["Предметная панель<br/>категории и компоненты"]
+    PREVIEW["Preview<br/>обзор или история"]
+    SCENARIOS["Сценарии"]
   end
 
-  PATH --> REPO
-  ROOT -->|"identity и подпись"| REPO
-  WS -->|"находит пакеты"| PKG
-  PKG -->|"identity, подпись, вложенность"| PACKAGE
-  DIR --> DIRECTORY
-  README --> DOC
-
-  REPO --> MAIN
+  ROOT --> PACKAGE
+  WS --> PKG
+  PKG --> PACKAGE
+  CATEGORY --> STRUCTURE
+  MODULE --> STRUCTURE
+  DOC --> PREVIEW
+  MODULE -. "subject.directory" .-> SUBJECT
   PACKAGE --> MAIN
-  DIRECTORY --> SECONDARY
-  DOC --> CENTER
+  STRUCTURE --> SECONDARY
+  SUBJECT --> SECONDARY
+  SUBJECT --> SCENARIOS
+  SUBJECT --> PREVIEW
 ```
 
-## Пример `webxr-space/dom/display`
+`package.json` задаёт независимое владение. Внутри пакета обнаружение проходит
+через промежуточные категории до директории с собственным `src/`.
+Эта директория становится модулем; её реализация и внутренние компоненты
+дальше не обходятся. `exports` и re-exports не определяют роль директории.
+Публичный API указывает на настоящие исходники независимо от навигации.
 
-```mermaid
-flowchart TB
-  REPOSITORY["Корневой пакет WebXR<br/>@zavx0z/webxr"]
+## Пример Nodes и числового параметра
 
-  REPOSITORY --> DOM["Пакет DOM<br/>@zavx0z/dom"]
-  REPOSITORY --> BROWSER["Пакет Browser"]
-  REPOSITORY --> RENDERER["Пакет Renderer"]
-
-  DOM --> DISPLAY["Непосредственная директория display/"]
-  DISPLAY --> DISPLAY_README["index.ts<br/>TSDoc @packageDocumentation"]
-  DISPLAY --> IMPLEMENTATION["index.ts<br/>публичные объявления"]
-  DISPLAY --> TESTS["tests/*.test.ts"]
-
-  DOM -. "главная панель" .-> MAIN["WebXR<br/>└─ DOM"]
-  DISPLAY -. "предметная панель" .-> SECONDARY["display"]
-  DISPLAY_README -. "центральная область" .-> CENTER["Описание модуля Display<br/>текст TSDoc"]
-
-  IMPLEMENTATION -. "пока не показывается автоматически" .-> HIDDEN["Не отображается"]
-  TESTS -. "пока только файлы/evidence" .-> HIDDEN
+```text
+webxr-space/
+├─ package.json                  @zavx0z/webxr
+└─ nodes/
+   ├─ package.json               @webxr/nodes
+   ├─ node/
+   │  ├─ index.ts                TSDoc компонента Node
+   │  └─ src/node.tsx            реализация; обход здесь остановлен
+   ├─ tree/package.json          @nodes/tree
+   ├─ layout/package.json        @nodes/layout
+   ├─ sockets/package.json       @nodes/sockets
+   └─ parameters/
+      ├─ package.json            @nodes/parameters
+      ├─ README.md               авторский обзор пакета
+      ├─ index.ts                модульный TSDoc
+      └─ numeric/
+         ├─ index.ts             TSDoc категории
+         └─ number/
+            ├─ index.ts          TSDoc компонента
+            ├─ src/number.tsx    реализация; обход здесь остановлен
+            └─ tests/            проверки компонента
 ```
 
-## Структурный и описательный слои
+Главная панель показывает `WebXR → Нодовая система → Параметры` по настоящим
+package roots. Предметная панель пакета `@nodes/parameters` раскрывает
+`numeric → number`. У структурного пути адрес
+`/pkg-nodes-parameters/dir-numeric/dir-number`: каждый сегмент имеет свой
+префикс `dir-`. Произвольные смешанные directory/story маршруты отклоняются.
 
-```mermaid
-flowchart LR
-  subgraph STRUCTURE["Структура"]
-    REPOS["Пути репозиториев"]
-    WORKSPACES["workspaces"]
-    PACKAGES["package.json"]
-    DIRECTORIES["непосредственные директории"]
-    READMES["TSDoc index.ts директории<br/>README остальных узлов"]
-  end
+## Как существующие сценарии связываются со структурой
 
-  subgraph DESCRIPTION["Манифест и каталог"]
-    MANIFEST["manifest.json<br/>runtime, stylesheets, widgets"]
-    CATALOG["catalog.json<br/>категории, предметы, варианты"]
-    STORIES["story modules и resources"]
-  end
+Каталог может указать `"directory": "numeric/number"` у subject.
+Путь разрешается относительно корня его пакета и должен обозначать уже
+обнаруженный модуль с `src/`. Категория, скрытая директория, отсутствующий
+модуль или путь за границей пакета не подходят.
 
-  subgraph PLACEMENT["Размещение"]
-    MAIN["Главная панель"]
-    SECONDARY["Предметная панель"]
-    SCENARIOS["Панель сценариев"]
-    PREVIEW["Preview"]
-    INSPECTOR["Inspector"]
-  end
+При одном subject строка `number` показывает сценарии этого subject,
+использует имя директории и её TSDoc. Отдельного дубля компонента не возникает.
+Объявленные subject/variant routes, API identity и presentation сохраняются,
+например `parameters/number/field`.
 
-  REPOS --> MAIN
-  WORKSPACES --> MAIN
-  PACKAGES --> MAIN
-  DIRECTORIES --> SECONDARY
-  READMES --> PREVIEW
-
-  MANIFEST --> PREVIEW
-  MANIFEST --> INSPECTOR
-  CATALOG --> SECONDARY
-  CATALOG --> SCENARIOS
-  STORIES --> PREVIEW
-```
+Несколько subjects одного модуля остаются дочерними строками его директории.
+Так 19 preset-представлений Socket могут принадлежать одному `socket/src`.
+Набор presets не становится набором новых компонентов или пакетов.
+Опустевшая прежняя JSON-категория убирается из навигации после переноса её
+привязанных subjects. Subjects без `directory` сохраняют прежнее размещение.
 
 ## Итоговое размещение
 
 ```text
 ГЛАВНАЯ ПАНЕЛЬ
-└─ корневой пакет                    ← подключённый путь + package.json#name
-   └─ вложенный пакет                ← workspaces + package.json#name
-      └─ вложенный пакет             ← физическая вложенность package roots
+└─ корневой пакет                ← выбранный путь + package.json#name
+   └─ дочерний пакет             ← workspaces + package.json#name
 
 ПРЕДМЕТНАЯ ПАНЕЛЬ ВЫБРАННОГО ПАКЕТА
-├─ непосредственная директория       ← структура
-└─ категория catalog.json            ← описание
-   └─ предмет                        ← описание
+├─ категория                     ← промежуточная директория
+│  └─ компонент                  ← директория с src
+│     └─ представления           ← несколько привязанных subjects, если есть
+└─ непривязанная JSON-категория
+   └─ subject
 
 ПАНЕЛЬ СЦЕНАРИЕВ
-└─ варианты предмета                 ← catalog.json
+└─ варианты subject              ← catalog.json; исходные routes
 
 ЦЕНТРАЛЬНАЯ ОБЛАСТЬ
-├─ TSDoc index.ts директории         ← структура
-├─ README остальных узлов            ← действующий контракт обзора
-└─ исполняемая история               ← manifest + catalog.json
+├─ TSDoc index.ts                ← категория или компонент
+├─ README пакета                 ← авторский пакетный обзор
+└─ исполняемая история           ← module.path + module.export
 ```
 
-Корень репозитория представлен одним пакетом с identity = package.json#name. Пакеты без
-`.storybook/manifest.json` также отображаются. Директория с `package.json` не
-дублируется как обычная директория, а обнаружение директорий не пересекает
-границу пакета.
+`src`, `shared`, `.git`, `node_modules`, `.storybook`, `tests`, `test`
+и исключённые Git пути скрыты на каждой глубине. Git ignore semantics
+учитывают вложенные `.gitignore` и правила с `!`; имена `build` и `dist`
+сами по себе ничего не исключают. Symlink-директории не обходятся.
+Директория с `package.json` не дублируется как обычная папка и останавливает
+обход; состав пакетов задаётся workspaces или согласованной manifest-композицией.
+Пустые директории и узлы без документации остаются видимыми.
 
-В предметной панели показываются только непосредственные директории выбранного
-репозитория или пакета. `src`, `.git`, `node_modules`, `.storybook`, `tests`,
-`test` и исключённые Git пути не отображаются. Публичный URL пакета использует
-форму `/pkg-scope-name`, а непосредственная директория — один сегмент
-`/dir-name`.
+Обзор директории читается только из начального `@packageDocumentation`
+её `index.ts`, без исполнения TypeScript и без README fallback.
+Корневой `index.ts` также содержит модульный TSDoc; это не подменяет README
+как пакетный обзор. Извлечение публичных объявлений и тестов в API, сценарии
+или Inspector не выводится автоматически из exports.
 
-Обзор директории берётся только из начального блока `@packageDocumentation`
-её `index.ts`, без исполнения кода. README.md сохраняется на диске, но не
-используется как источник или fallback для директории. При отсутствии описания
-директория остаётся видимой с явным сообщением. Изменения описания пакета
-попадают в пользовательские вкладки после сборки и применения ревизии.
-
-Структура уже находит `dom/display` и показывает модульный TSDoc. Извлечение
-публичных объявлений, тестов и будущих story-файлов в API, сценарии и
-Inspector-разделы остаётся следующим этапом.
+Структура, декларации, поиск, UI и MCP используют один нормализованный граф.
+Описание и ресурсы попадают в immutable revision; пользовательские вкладки
+получают изменения после успешной сборки и применения. Родительская
+вложенность не объединяет сборки, Stores, ревизии или runtime дочерних пакетов.

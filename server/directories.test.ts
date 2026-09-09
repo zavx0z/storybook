@@ -31,7 +31,7 @@ async function fixture() {
   return {root, project}
 }
 
-test("keeps packages in the primary tree and adds immediate directories beside authored package contents", async () => {
+test("keeps packages in the primary tree and discovers nested categories beside authored contents", async () => {
   const {project} = await fixture()
   const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
   const snapshot = await registry.configure([project])
@@ -40,8 +40,8 @@ test("keeps packages in the primary tree and adds immediate directories beside a
   expect(deriveExternalStorybookLanding(graph).catalogItems.map(item => item.label)).toEqual(["Repository", "Unit"])
   const rootId = graph.rootIds[0]!
   const repository = deriveExternalStorybookLandingSelection(graph, rootId)
-  expect(repository.secondaryItems.map(item => item.label)).toEqual(["docs"])
-  expect(graph.nodes.some(node => node.kind === "directory" && node.label === "guide")).toBeFalse()
+  expect(repository.secondaryItems.map(item => item.label)).toEqual(["docs", "guide"])
+  expect(graph.nodes.some(node => node.kind === "directory" && node.label === "guide")).toBeTrue()
   const nested = graph.nodes.find(node => node.kind === "directory" && node.packageId === "fixture" && node.label === "docs")!
   expect(deriveExternalStorybookLandingSelection(graph, nested.id)).toMatchObject({catalogActiveId: rootId, secondaryActiveId: nested.id})
   const client = createExternalStorybookClientSnapshot(graph, ["fixture", "@fixture/unit"].map(packageId => ({
@@ -51,7 +51,7 @@ test("keeps packages in the primary tree and adds immediate directories beside a
   })))
   expect(deriveStorybookBreadcrumbs(client, nested.id, {kind: "landing"}).map(item => item.label)).toEqual(["Главная", "Repository", "docs"])
   const contents = deriveExternalStorybookPackageContents(graph, "@fixture/unit")
-  expect(contents.slice(0, 2).map(item => [item.label, item.group?.label ?? null])).toEqual([["Contract", "Authored"], ["Document", null]])
+  expect(contents.filter(item => !item.id.startsWith("directory:")).map(item => [item.label, item.group?.label ?? null])).toEqual([["Contract", "Authored"], ["Document", null]])
   const packageDoc = graph.nodes.find(node => node.kind === "directory" && node.packageId === "@fixture/unit" && node.label === "docs")!
   expect(deriveExternalStorybookPackageTab(graph, "@fixture/unit", packageDoc.routePath!).selectedNode.id).toBe(packageDoc.id)
   const descriptor = registry.packageDescriptors().find(descriptor => descriptor.packageId === "@fixture/unit")!
@@ -62,10 +62,11 @@ test("keeps packages in the primary tree and adds immediate directories beside a
   const previous = descriptor.declarationDigest
   await mkdir(join(project, "unit/docs/another-nested-directory"))
   await registry.refresh()
-  expect(registry.packageDescriptors().find(descriptor => descriptor.packageId === "@fixture/unit")!.declarationDigest).toBe(previous)
+  const nestedRevision = registry.packageDescriptors().find(descriptor => descriptor.packageId === "@fixture/unit")!.declarationDigest
+  expect(nestedRevision).not.toBe(previous)
   await mkdir(join(project, "another-repository-directory"))
   await registry.refresh()
-  expect(registry.packageDescriptors().find(descriptor => descriptor.packageId === "@fixture/unit")!.declarationDigest).toBe(previous)
+  expect(registry.packageDescriptors().find(descriptor => descriptor.packageId === "@fixture/unit")!.declarationDigest).toBe(nestedRevision)
   await Bun.write(join(project, "unit/.gitignore"), "docs/\n")
   const changed = await registry.refresh()
   expect(deriveExternalStorybookPackageContents(changed.graph, "@fixture/unit").some(item => item.label === "docs")).toBeFalse()
@@ -79,7 +80,7 @@ test("serves a directory overview and follows gitignore changes through the exis
     const docs = server.registry.snapshot().graph.nodes.find(node => node.kind === "directory" && node.packageId === "fixture" && node.label === "docs")!
     const page = await fetch(new URL(docs.urlPath, server.origin))
     expect(page.status).toBe(200)
-    expect((await fetch(new URL("/pkg-fixture-unit/dir-docs/dir-guide", server.origin))).status).toBe(404)
+    expect((await fetch(new URL("/pkg-fixture-unit/dir-docs/dir-guide", server.origin))).status).toBe(200)
     const legacyPath = "/projects/" + (server.registry.snapshot().catalog.scopes.find(scope => scope.id === "fixture")?.legacyUrls?.[0]?.split("/")[2] ?? "fixture") + "/~directories/docs/"
     const redirected = await fetch(new URL(legacyPath, server.origin), {redirect: "manual"})
     expect(redirected.status).toBe(308)

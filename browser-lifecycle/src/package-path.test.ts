@@ -10,8 +10,9 @@ test("uses typed readable package and direct-directory segments without changing
   expect(storybookPackageRouteFromPathname(path, "@zavx0z/storybook")).toBe("dir-workbench")
   expect(storybookPackageUrlPath("@zavx0z/storybook", "workbench/contract")).toBe("/pkg-zavx0z-storybook/workbench/contract")
   expect(storybookPackageRouteFromPathname(path, "@zavx0z/dom")).toBeNull()
-  expect(storybookPackageRouteFromPathname(`${path}/dir-navigation`, "@zavx0z/storybook")).toBeNull()
-  expect(() => storybookPackageUrlPath("@zavx0z/storybook", "dir-workbench/dir-navigation")).toThrow("Nested directory")
+  expect(storybookPackageRouteFromPathname(`${path}/dir-navigation`, "@zavx0z/storybook")).toBe("dir-workbench/dir-navigation")
+  expect(storybookPackageUrlPath("@zavx0z/storybook", "dir-workbench/dir-navigation")).toBe(`${path}/dir-navigation`)
+  expect(storybookPackageRouteFromPathname(`${path}/wrong-segment`, "@zavx0z/storybook")).toBeNull()
   const escaped = "dir-with%20%23%20hash"
   expect(storybookPackageRouteFromPathname(storybookPackageUrlPath("@zavx0z/storybook", escaped), "@zavx0z/storybook")).toBe(escaped)
 })

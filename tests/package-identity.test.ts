@@ -20,9 +20,11 @@ const newFamily = Object.freeze({
   "@zavx0z/devtools": "devtools",
   "@zavx0z/dom": "dom",
   "@zavx0z/engine": "engine",
-  "@zavx0z/layout": "layout",
-  "@zavx0z/nodes": "nodes",
-  "@zavx0z/nodetree": "nodetree",
+  "@nodes/layout": "nodes/layout",
+  "@webxr/nodes": "nodes",
+  "@nodes/parameters": "nodes/parameters",
+  "@nodes/sockets": "nodes/sockets",
+  "@nodes/tree": "nodes/tree",
   "@zavx0z/renderer": "renderer",
   "@zavx0z/space": "space",
   "@zavx0z/template": "template",
@@ -81,9 +83,9 @@ describe("Storybook package identity", () => {
     assertOnePhysicalOwner(roots, "@zavx0z/ui", "ui", "buttons/button.tsx")
     assertOnePhysicalOwner(roots, "@zavx0z/browser", "browser", "src/index.ts")
     assertOnePhysicalOwner(roots, "@zavx0z/engine", "engine", "src/index.ts")
-    assertOnePhysicalOwner(roots, "@zavx0z/layout", "layout", "src/index.ts")
-    assertOnePhysicalOwner(roots, "@zavx0z/nodes", "nodes", "index.ts")
-    assertOnePhysicalOwner(roots, "@zavx0z/nodetree", "nodetree", "index.ts")
+    assertOnePhysicalOwner(roots, "@nodes/layout", "nodes/layout", "index.ts")
+    assertOnePhysicalOwner(roots, "@webxr/nodes", "nodes", "index.ts")
+    assertOnePhysicalOwner(roots, "@nodes/tree", "nodes/tree", "index.ts")
     assertOnePhysicalOwner(roots, "@zavx0z/space", "space", "src/index.ts")
     assertOnePhysicalOwner(roots, "@zavx0z/webgpu", "webgpu", "src/index.ts")
 

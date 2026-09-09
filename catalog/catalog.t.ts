@@ -103,6 +103,8 @@ export type StorybookVariant = Readonly<{
 }>
 
 export type StorybookSubject = Readonly<{
+  /** Exact package-relative structural module; independent from exports and API names. */
+  directory?: string
   id: string
   route: string
   kind: string
@@ -141,11 +143,13 @@ export type StorybookModuleDocumentation = Readonly<{
   markdown: string
 }>
 
-/** Immediate filesystem directory of a repository or package; nested directories are not catalog entries. */
+/** Filesystem category or module, classified by placement rather than exports. */
 export type StorybookDirectory = Readonly<{
   path: string
   relativePath: string
   name: string
+  parentRelativePath?: string
+  structuralRole?: "category" | "module" | "directory"
   readmePath: string | null
   moduleDocumentation?: StorybookModuleDocumentation
 }>

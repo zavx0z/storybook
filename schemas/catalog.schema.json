@@ -125,6 +125,7 @@
       "additionalProperties": false,
       "required": ["id", "kind", "label", "presentation", "variants"],
       "properties": {
+        "directory": {"$ref": "#/$defs/route"},
         "id": {"$ref": "#/$defs/id"},
         "kind": {"$ref": "#/$defs/id"},
         "label": {"$ref": "#/$defs/label"},

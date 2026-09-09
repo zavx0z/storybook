@@ -36,7 +36,7 @@ describe("external Storybook browser model", () => {
       "category:@fixture/components/foundation", "subject:@fixture/components/foundation/event-target",
       "category:@fixture/components/components", "subject:@fixture/components/components/button",
     ])
-    expect(selected.secondaryItems[1]?.parentId).toBe("category:@fixture/components/foundation")
+    expect(selected.secondaryItems.find(item => item.id === "subject:@fixture/components/foundation/event-target")?.parentId).toBe("category:@fixture/components/foundation")
     expect(deriveExternalStorybookLandingSelection(graph, "package:fixture-workspace").secondaryItems.map(item => item.label)).toEqual(["projects"])
     expect(() => deriveExternalStorybookLandingSelection(graph, "subject:@fixture/components/components/button"))
       .toThrow("must be a repository or package")

@@ -172,11 +172,11 @@ export function createExternalStorybookGraph(
     })
 
     const appendDirectory = (directory: StorybookDirectory, parentId: string, ancestors: readonly string[]): void => {
-      if (directory.relativePath !== directory.name || directory.name.includes("/")) throw new Error("Only immediate directories belong in the Storybook catalog")
+      if (directory.relativePath.split("/").at(-1) !== directory.name || directory.relativePath.split("/").some(part => !part || part === "." || part === "..")) throw new Error("Invalid structural directory path")
       const id = directoryNodeId(canonicalId, directory.relativePath)
       const structuralPath = Object.freeze([...ancestors, id])
       // Encode each filesystem segment into an opaque route token, including names with ? or #.
-      const routePath = `dir-${encodeURIComponent(directory.name)}`
+      const routePath = directory.relativePath.split("/").map(part => `dir-${encodeURIComponent(part)}`).join("/")
       appendNode({
         id, kind: "directory", ownerId: declaration.id,
         packageId: declaration.kind === "package" ? declaration.id : null,
@@ -195,7 +195,12 @@ export function createExternalStorybookGraph(
         packageJsonPath: null, runtime: null, module: null,
       })
     }
-    for (const directory of declaration.directories ?? []) appendDirectory(directory, canonicalId, structuralPath)
+    for (const directory of declaration.directories ?? []) {
+      const parentId = directory.parentRelativePath === undefined ? canonicalId : directoryNodeId(canonicalId, directory.parentRelativePath)
+      const parent = nodes.find(node => node.id === parentId)
+      if (parent === undefined) throw new Error(`Missing structural directory parent: ${parentId}`)
+      appendDirectory(directory, parentId, parent.structuralPath)
+    }
 
     if (declaration.kind === "unavailable") return
 
@@ -209,14 +214,92 @@ export function createExternalStorybookGraph(
     throw new Error(`Resolved external Storybook declarations contain unreachable nodes: ${unreachable.join(", ")}`)
   }
 
+  const structuralNodes = bindStructuralSubjects(nodes, declarations.scopes)
   const graphWithoutDigest = Object.freeze({
     schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
     rootIds: Object.freeze([...declarations.rootIds]),
-    nodes: Object.freeze(nodes),
+    nodes: structuralNodes,
   })
   const graph = Object.freeze({...graphWithoutDigest, digest: digest(graphWithoutDigest)})
   validateDerivedRoutes(graph)
   return graph
+}
+
+/**
+Supplement structural modules with authored scenarios without duplicating their rows.
+Several authored views of one module (for example Socket presets) remain its children.
+*/
+function bindStructuralSubjects(
+  initial: readonly ExternalStorybookGraphNode[],
+  scopes: readonly StorybookCatalogScope[],
+): readonly ExternalStorybookGraphNode[] {
+  const nodes = new Map(initial.map(node => [node.id, node]))
+  const order = new Map(initial.map((node, index) => [node.id, index]))
+  const removed = new Set<string>()
+  for (const scope of scopes) {
+    if (scope.kind !== "package" || scope.catalog === null) continue
+    const bindings = new Map<string, string[]>()
+    for (const category of scope.catalog.categories) {
+      for (const subject of category.subjects) {
+        if (subject.directory === undefined) continue
+        const directory = scope.directories?.find(item => item.relativePath === subject.directory)
+        if (directory?.structuralRole !== "module") {
+          throw new Error(`Storybook subject directory must be an existing module with src: ${scope.id}/${subject.directory}`)
+        }
+        const directoryId = directoryNodeId(scope.canonicalId, directory.relativePath)
+        const ids = bindings.get(directoryId) ?? []
+        ids.push(subjectNodeId(scope.id, category.id, subject.id))
+        bindings.set(directoryId, ids)
+      }
+    }
+    for (const [directoryId, subjects] of bindings) {
+      const directory = nodes.get(directoryId)!
+      if (subjects.length === 1) {
+        removed.add(directoryId)
+        order.set(subjects[0]!, order.get(directoryId)!)
+      }
+      for (const id of subjects) {
+        const subject = nodes.get(id)!
+        nodes.set(id, Object.freeze({
+          ...subject,
+          parentId: subjects.length === 1 ? directory.parentId : directoryId,
+          ...(subjects.length === 1 ? {
+            label: directory.label,
+            readmePath: null,
+            ...(directory.moduleDocumentation ? {moduleDocumentation: directory.moduleDocumentation} : {}),
+            source: directory.source,
+          } : {}),
+        }))
+      }
+    }
+    for (const category of scope.catalog.categories) {
+      if (category.subjects.every(subject => subject.directory !== undefined)) {
+        removed.add(categoryNodeId(scope.id, category.id))
+      }
+    }
+  }
+  const retained = [...nodes.values()].filter(node => !removed.has(node.id)).sort((left, right) => order.get(left.id)! - order.get(right.id)!)
+  const byId = new Map(retained.map(node => [node.id, node]))
+  const children = new Map<string, string[]>()
+  for (const node of retained) if (node.parentId !== null) {
+    const ids = children.get(node.parentId) ?? []
+    ids.push(node.id)
+    children.set(node.parentId, ids)
+  }
+  const pathFor = (node: ExternalStorybookGraphNode, visiting = new Set<string>()): readonly string[] => {
+    if (visiting.has(node.id)) throw new Error(`Structural navigation cycle: ${node.id}`)
+    visiting.add(node.id)
+    if (node.parentId === null) return [node.id]
+    const parent = byId.get(node.parentId)
+    if (parent === undefined) throw new Error(`Missing structural parent: ${node.parentId}`)
+    return [...pathFor(parent, visiting), node.id]
+  }
+  return Object.freeze(retained.map(node => {
+    const {digest: previousDigest, ...input} = node
+    const value = {...input, structuralPath: Object.freeze(pathFor(node)),
+      childIds: Object.freeze(children.get(node.id) ?? [])}
+    return Object.freeze({...value, digest: digest(value)})
+  }))
 }
 
 /** Derives canonical package-tab routes without creating another registry. */

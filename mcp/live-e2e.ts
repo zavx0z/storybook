@@ -53,7 +53,7 @@ try {
   "live UI check did not activate the exact runtime/4 revision")
   const nodesLiveChecked = await tool("storybook_check", {
     schemaVersion: 1,
-    scope: "@zavx0z/nodes",
+    scope: "@webxr/nodes",
     live: true,
     timeoutMs: 30_000,
   })
@@ -73,7 +73,7 @@ try {
   "live self check did not activate the exact runtime/4 revision")
   const searches = Object.fromEntries(await Promise.all([
     ["UI внутри Display", "@zavx0z/ui"],
-    ["Фиксированная", "@zavx0z/nodes"],
+    ["Фиксированная", "@webxr/nodes"],
     ["Package tab", "@zavx0z/storybook"],
     ["Package A", "@storybook-fixture/a"],
   ].map(async ([query, packageId]) => [query, await tool("storybook_search", {
@@ -88,7 +88,7 @@ try {
 
   for (const [key, packageId, route] of [
     ["ui", "@zavx0z/ui", "acceptance/experience/display/default"],
-    ["nodes", "@zavx0z/nodes", "layout/fixed/baseline/right"],
+    ["nodes", "@webxr/nodes", "layout/fixed/baseline/right"],
     ["self", "@zavx0z/storybook", "app/contract/overview"],
     ["a", "@storybook-fixture/a", "fixture/a/default"],
     ["b", "@storybook-fixture/b", "fixture/b/default"],

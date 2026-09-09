@@ -135,12 +135,26 @@ export async function resolveExternalStorybookDeclarations(
   const packageRoots = new Set(state.scopes.map(scope => scope.scopeRoot))
   for (const [index, scope] of state.scopes.entries()) {
     if (scope.resolutionError !== undefined) continue
-    const found = await discoverStorybookDirectories(scope.scopeRoot, packageRoots)
-    state.scopes[index] = Object.freeze({
-      ...scope,
-      directories: found.directories,
-      structurePaths: Object.freeze([...new Set([...(scope.structurePaths ?? []), ...found.watchPaths])]),
-    })
+    try {
+      const found = await discoverStorybookDirectories(scope.scopeRoot, packageRoots)
+      if (scope.kind === "package") for (const subject of scope.catalog?.categories.flatMap(category => category.subjects) ?? []) {
+        if (subject.directory !== undefined && !found.directories.some(directory => directory.relativePath === subject.directory && directory.structuralRole === "module")) {
+          throw new Error(`Storybook subject directory must be an existing module with src: ${scope.id}/${subject.directory}`)
+        }
+      }
+      state.scopes[index] = Object.freeze({
+        ...scope,
+        directories: found.directories,
+        structurePaths: Object.freeze([...new Set([...(scope.structurePaths ?? []), ...found.watchPaths])]),
+      })
+    } catch (error) {
+      if (previous === undefined) throw error
+      const retained = previous.scopes.find(item => item.id === scope.id)
+      state.scopes[index] = Object.freeze({...(retained ?? scope), resolutionError: error instanceof Error ? error.message : String(error),
+        ...(retained ? {} : {catalog: null}),
+        structurePaths: Object.freeze([...new Set([...(retained?.structurePaths ?? []), ...(scope.structurePaths ?? [])])]),
+      })
+    }
   }
   return Object.freeze({
     schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
@@ -627,10 +641,11 @@ async function resolveCatalog(
       assertExactKeys(
         subject,
         `Catalog ${subjectPointer}`,
-        ["id", "kind", "label", "route", "apiName", "readme", "tags", "aliases", "presentation", "variants"],
+        ["id", "kind", "label", "route", "apiName", "readme", "tags", "aliases", "presentation", "variants", "directory"],
         ["id", "kind", "label", "presentation", "variants"],
       )
       const subjectId = localId(subject.id, `Catalog ${subjectPointer} id`)
+      const directory = subject.directory === undefined ? undefined : routePath(subject.directory, `Catalog ${subjectPointer} directory`)
       assertUnique(subjectIds, subjectId, `Duplicate external Storybook subject id: ${id}/${subjectId}`)
       const subjectKind = localId(subject.kind, `Catalog ${subjectPointer} kind`)
       const subjectLabel = visibleText(subject.label, `Catalog ${subjectPointer} label`)
@@ -712,6 +727,7 @@ async function resolveCatalog(
         }))
       }
       subjects.push(Object.freeze({
+        ...(directory === undefined ? {} : {directory}),
         id: subjectId,
         route: subjectRoute,
         kind: subjectKind,

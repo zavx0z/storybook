@@ -4,7 +4,7 @@ import {readModuleDocumentation} from "./module-documentation.ts"
 import {dirname, join, relative} from "node:path"
 import type {StorybookDirectory} from "../catalog/catalog.t.ts"
 
-/** Reads only immediate ordinary directories; never traverses their descendants. */
+/** Reads category trees, stopping at module src and independent package boundaries. */
 export async function discoverStorybookDirectories(
   root: string,
   packageRoots: ReadonlySet<string>,
@@ -31,7 +31,7 @@ export async function discoverStorybookDirectories(
     watchPaths.add(join(parent, ".gitignore"))
     const result: StorybookDirectory[] = []
     const entries = (await readdir(parent, {withFileTypes: true}))
-      .filter(entry => entry.isDirectory() && !["src", ".git", "node_modules", ".storybook", "tests", "test"].includes(entry.name) && !packageRoots.has(join(parent, entry.name)))
+      .filter(entry => entry.isDirectory() && !["src", "shared", ".git", "node_modules", ".storybook", "tests", "test"].includes(entry.name) && !packageRoots.has(join(parent, entry.name)))
       .sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0)
     const excluded = await ignored(entries.map(entry => join(parent, entry.name)))
     for (const entry of entries) {
@@ -66,13 +66,24 @@ export async function discoverStorybookDirectories(
           moduleDocumentation = readModuleDocumentation(await file.readFile("utf8"), entryPath)
         } finally { await file.close() }
       }
+      const sourcePath = join(path, "src")
+      watchPaths.add(sourcePath)
+      const sourceInfo = await lstat(sourcePath).catch(error => {
+        if (error.code !== "ENOENT") throw error
+        return null
+      })
+      const isModule = sourceInfo?.isDirectory() === true && !sourceInfo.isSymbolicLink()
+      const children = isModule ? [] : await visit(path)
       result.push(Object.freeze({
         path,
         relativePath: relative(root, path),
         name: entry.name,
+        ...(parent === root ? {} : {parentRelativePath: relative(root, parent)}),
+        structuralRole: isModule ? "module" : children.some(child => child.structuralRole !== "directory") ? "category" : "directory",
         readmePath: null,
         ...(moduleDocumentation ? {moduleDocumentation} : {}),
       }))
+      result.push(...children)
     }
     return Object.freeze(result)
   }
