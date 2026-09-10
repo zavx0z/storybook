@@ -22,8 +22,8 @@ const contracts = Object.freeze({
   dependencies: contract(
     "Зависимости из структуры компонента",
     "Нормативные источники — requirements.md#component-dependencies и requirements.md#tabs-routes. Структурный spec даёт ожидаемый состав для представления Зависимости; его вкладка является адресуемым состоянием того же владельца. Эта страница показывает данные и исполнимый пример, не отдельные правила структуры.",
-    "Storybook читает параметры test.each без выполнения теста. expected задаёт ожидаемые uses и elements. GraphView и DiagramNode показывают их в существующем Display; DOM измеряет ноды, @nodes/layout размещает их. Источник наблюдается, данные входят в применяемую ревизию.",
-    'test.each([{name: "Example", file: "component/index.tsx", expected: {"component/index.tsx#Example": {uses: [], elements: ["article"]}}}])("Зависимости $name", callback)',
+    "Storybook читает параметры test.each без выполнения теста. expected задаёт ожидаемые uses и elements. GraphView и DiagramNode показывают их в существующем Display; DOM измеряет ноды, @nodes/layout размещает их. Источник наблюдается, данные входят в применяемую ревизию. Выбранный граф вписывается в фактическую область Display через GraphView.autoSize; несколько cases выбираются по одному. Pan/zoom сохраняется при resize после ручного жеста; «Вписать» возвращает подгонку.",
+    'test.each([{name: "Example", file: "component/index.tsx", expected: {"component/index.tsx#Example": {uses: [], elements: ["article"]}}}])("Зависимости $name", callback)\n// Общий просмотр внутри существующего Display\n<GraphView input={graph.input} layout={graph.layout} navigation="pan-zoom" autoSize={true} minScale={0} />',
   ),
   stories: contract(
     "Owner story modules",

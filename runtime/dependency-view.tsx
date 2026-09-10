@@ -1,11 +1,13 @@
 /**
 Показывает ожидаемый состав компонента через общий GraphView в существующем Display.
 Размеры нод измеряет DOM, раскладкой и маршрутами владеет @nodes/layout.
-Целевой компонент остаётся наверху; маркеры направлены к нему от составляющих. CSS центрирует всю группу.
+Целевой компонент остаётся наверху; маркеры направлены к нему от составляющих.
+Выбранный case вписывается при открытии; pan/zoom и resize обслуживает GraphView.
 
 @packageDocumentation
 */
 import {useMemo, useState} from "@zavx0z/component"
+import {SelectField} from "@zavx0z/ui/fields/select-field"
 import {DiagramNode} from "@nodes/node/diagram"
 import {GraphView, type GraphInput, type GraphLayoutComputer, type GraphNodeProps} from "@webxr/nodes/view"
 import {layoutTopDown} from "@nodes/layout/top-down"
@@ -35,7 +37,7 @@ function DependencyNode(props: GraphNodeProps) {
 }
 
 /** Числовую геометрию создаёт layout только после измерения настоящих элементов. */
-export function dependencyGraphInput(value: StorybookDependencyCase, onWidth?: (width: number) => void) {
+export function dependencyGraphInput(value: StorybookDependencyCase) {
   const nodes: GraphInput["nodes"][number][] = []
   const edges: {id: string, sourceNodeId: string, targetNodeId: string}[] = []
   for (const [id, entry] of Object.entries(value.graph)) {
@@ -56,7 +58,6 @@ export function dependencyGraphInput(value: StorybookDependencyCase, onWidth?: (
       edges,
       layoutOptions: {nodeSpacing: 32, layerSpacing: 48, padding: 16},
     })
-    onWidth?.(Math.max(1, result.bounds.x + result.bounds.width))
     return {
       bounds: result.bounds,
       nodes: result.nodes,
@@ -72,34 +73,25 @@ export function dependencyGraphInput(value: StorybookDependencyCase, onWidth?: (
 }
 
 function DependencyGraph(props: Readonly<{value: StorybookDependencyCase}>) {
-  const [width, setWidth] = useState<number | null>(null)
-  const graph = useMemo(() => dependencyGraphInput(props.value, setWidth), [props.value])
+  const graph = useMemo(() => dependencyGraphInput(props.value), [props.value])
   return (
-    <section
-      style={css`
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        flex: 0 0 auto;
-        min-width: 100%;
-        width: ${width === null ? "100%" : `${width}px`};
-      `}
-    >
-      <h2>{props.value.name}</h2>
-      <GraphView
-        input={graph.input}
-        layout={graph.layout}
-        navigation="scroll"
-        label={`Зависимости ${props.value.name}`}
-        style={css`
-          width: ${width === null ? "100%" : `${width}px`};
-        `}
-      />
-    </section>
+    <GraphView
+      input={graph.input}
+      layout={graph.layout}
+      navigation="pan-zoom"
+      autoSize={true}
+      minScale={0}
+      title={props.value.name}
+      label={`Зависимости ${props.value.name}`}
+    />
   )
 }
 
+/** Каждый case открывается в полной оставшейся области Display с новым первичным fit. */
 export function StorybookDependencyView(props: Readonly<{cases: readonly StorybookDependencyCase[]}>) {
+  const [selected, setSelected] = useState(0)
+  const index = selected < props.cases.length ? selected : 0
+  const value = props.cases[index]
   return (
     <section
       data-storybook-dependencies=""
@@ -111,27 +103,43 @@ export function StorybookDependencyView(props: Readonly<{cases: readonly Storybo
         height: 100%;
         min-width: 0;
         min-height: 0;
-        overflow: auto;
+        overflow: hidden;
       `}
     >
+      {props.cases.length > 1 ? <SelectField
+        label="Сценарий зависимостей"
+        value={String(index)}
+        options={props.cases.map((entry, entryIndex) => ({
+          key: String(entryIndex),
+          value: String(entryIndex),
+          label: entry.name,
+          title: entry.testName,
+        }))}
+        onChange={next => setSelected(Number(next))}
+      /> : null}
       <div
         style={css`
           display: flex;
           flex-direction: column;
-          align-items: flex-start;
-          justify-content: center;
-          flex: 0 0 auto;
+          flex: 1 1 0;
           width: 100%;
-          min-height: 100%;
-          gap: 12px;
+          min-width: 0;
+          min-height: 0;
+          overflow: hidden;
         `}
       >
-        {props.cases.map((value, index) => (
-          <DependencyGraph
-            key={index}
-            value={value}
-          />
-        ))}
+        <p
+          hidden={value !== undefined}
+          style={css`
+            &[hidden] {
+              display: none;
+            }
+          `}
+        >Нет сценариев зависимостей</p>
+        {value !== undefined ? <DependencyGraph
+          key={index}
+          value={value}
+        /> : null}
       </div>
     </section>
   )

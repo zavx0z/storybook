@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import {createDocument, acquireDocumentAuthorStyleSheetOwner} from "@zavx0z/dom"
+import {createDocument, acquireDocumentAuthorStyleSheetOwner, Event, WheelEvent, HTMLSelectElement} from "@zavx0z/dom"
 import {flushDocumentLayoutObservers} from "@zavx0z/dom/geometry"
 import {createDocumentRenderer} from "@renderer/html"
 import {layoutTopDown} from "@nodes/layout/top-down"
@@ -44,7 +44,7 @@ test("целевой компонент остаётся сверху с пре�
   }
 })
 
-test("CSS центрирует граф с подписью и оставляет большой граф доступным через scroll", async () => {
+test("[DEPENDENCIES-FIT] большой граф вписывается в Display, ручная навигация сохраняется при resize, новый case вписывается заново", async () => {
   const document = createDocument()
   const owner = document.createElement("div")
   owner.setAttribute("style", "width:100%;height:100%")
@@ -53,7 +53,12 @@ test("CSS центрирует граф с подписью и оставляе�
     textMeasurer: {measureTextAdvance: (text, size) => text.length * size * .5}})
   const styles = acquireDocumentAuthorStyleSheetOwner(document)
   styles.replace([{id: "theme", cssText: await Bun.file(Bun.resolveSync("@zavx0z/ui/themes/theme.css", import.meta.dir)).text()}])
-  const presentation = createDependencyPresentation(document, [value])
+  const leaves = Array.from({length: 48}, (_, index) => `leaf-${index}.tsx#Leaf${index}`)
+  const large = {...value, name: "Большой граф", graph: {
+    [ownerId]: {uses: leaves, elements: ["article"]},
+    ...Object.fromEntries(leaves.map(id => [id, {uses: [], elements: ["span"]}])),
+  }}
+  const presentation = createDependencyPresentation(document, [large, value])
   owner.append(presentation.element)
   const flush = async () => {
     for (let pass = 0; pass < 30; pass += 1) {
@@ -66,22 +71,49 @@ test("CSS центрирует граф с подписью и оставляе�
   }
   try {
     await flush()
-    const outer = presentation.element.getLayoutRect()!
-    const content = presentation.element.firstElementChild!.firstElementChild!.getLayoutRect()!
     const view = owner.querySelector("[data-graph-view]")!
-    const graph = view.getLayoutRect()!
+    const viewport = view.querySelector("[data-graph-viewport]")!
+    const firstNode = view.querySelector("[data-node-id]")!
+    const expectFit = () => {
+      const box = owner.querySelector("[data-graph-viewport]")!.getBoundingClientRect()
+      const nodes = owner.querySelectorAll("[data-node-id]")
+      expect(nodes.length).toBeGreaterThan(0)
+      for (const node of nodes) {
+        const rect = node.getBoundingClientRect()
+        expect(rect.left).toBeGreaterThanOrEqual(box.left - .01)
+        expect(rect.top).toBeGreaterThanOrEqual(box.top - .01)
+        expect(rect.right).toBeLessThanOrEqual(box.right + .01)
+        expect(rect.bottom).toBeLessThanOrEqual(box.bottom + .01)
+      }
+    }
     expect(owner.querySelector('[data-layout-pending="true"]')).toBeNull()
-    expect(graph.x + graph.width / 2).toBeCloseTo(outer.x + outer.width / 2)
-    expect(content.y + content.height / 2).toBeCloseTo(outer.y + outer.height / 2)
-    renderer.resize({width: 180, height: 80})
-    const frame = await flush()
-    const small = presentation.element.getLayoutRect()!
-    const large = presentation.element.firstElementChild!.firstElementChild!.getLayoutRect()!
+    expect(viewport.getLayoutRect()!.width).toBe(900)
+    expect(viewport.getLayoutRect()!.height).toBeLessThan(650)
+    expectFit()
+    expect(firstNode.getBoundingClientRect().width / firstNode.getLayoutRect()!.width).toBeLessThan(.16)
+    renderer.resize({width: 360, height: 280})
+    await flush()
+    expectFit()
     expect(owner.querySelector("[data-graph-view]")).toBe(view)
-    expect(large.x).toBeGreaterThanOrEqual(small.x)
-    expect(large.y).toBeGreaterThanOrEqual(small.y)
-    expect(frame.scrolls.get(presentation.element)?.maxScrollLeft).toBeGreaterThan(0)
-    expect(frame.scrolls.get(presentation.element)?.maxScrollTop).toBeGreaterThan(0)
+    expect(view.querySelector("[data-node-id]")).toBe(firstNode)
+    viewport.dispatchEvent(new WheelEvent("wheel", {deltaX: 80, deltaY: 50, bubbles: true, cancelable: true}))
+    await flush()
+    const surface = view.querySelector("[data-graph-scene]")!
+    const manual = surface.getAttribute("style")
+    renderer.resize({width: 480, height: 340})
+    const frame = await flush()
+    expect(surface.getAttribute("style")).toBe(manual)
+    expect(frame.scrolls.get(presentation.element)?.maxScrollLeft ?? 0).toBe(0)
+    expect(frame.scrolls.get(presentation.element)?.maxScrollTop ?? 0).toBe(0)
+    const select = owner.querySelector("select")!
+    if (!(select instanceof HTMLSelectElement)) throw new Error("Нет выбора case")
+    select.value = "1"
+    select.dispatchEvent(new Event("change", {bubbles: true}))
+    await flush()
+    expect(owner.querySelector("[data-graph-view]")).not.toBe(view)
+    expect(owner.querySelectorAll("[data-node-id]")).toHaveLength(4)
+    expectFit()
+    expect(owner.querySelectorAll("canvas")).toHaveLength(0)
   } finally {
     presentation.dispose()
     styles.release()
