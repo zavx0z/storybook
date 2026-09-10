@@ -653,6 +653,14 @@ create-команда запрещена, допустимо лишь сущес
 не очищаются: отсутствие доказательства отправки не доказывает её отсутствие.
 Клиент без optional createTargetWithDispatch сохраняет прежнюю консервативную
 границу до вызова createTarget; ошибки такого клиента не считаются unsent.
+Indeterminate error содержит bounded evidence из существующей reservation и
+уже завершённого inventory: protocol/phase/createSent, наличие сохранённого
+receipt, совпадение origin/URL без вывода query, число matching targets.
+До трёх targets только своего пакета проверяются read-only с бюджетом 1 с
+на target; ответ различает verified, not-ready, bootstrap-owned, not-attested,
+разное владение и indeterminate. Native target IDs, origin ports и query tokens
+не публикуются. Диагностика не меняет reservation/registry и не создаёт targets;
+нулевое число наблюдений не доказывает отсутствия исторической отправки.
 Готовность Runtime ожидается в пределах общего бюджета открытия, без отдельного
 пятисекундного ограничения на большую страницу.
 При этом несколько физических вкладок одного пакета допустимы и видимы агенту.

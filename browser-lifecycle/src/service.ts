@@ -14,7 +14,7 @@ import type {
 } from "./contract.ts"
 import {StorybookCaptureStore} from "./capture-store.ts"
 import {StorybookCdpClient} from "./chrome-client.ts"
-import {StorybookBrowserState} from "./browser-state.ts"
+import {StorybookBrowserState, type StorybookBrowserTargetRecord} from "./browser-state.ts"
 import {withStorybookBrowserLock} from "./target-operation-lock.ts"
 import {StorybookViewRegistry, type StorybookIdentifiedTarget} from "./view-registry.ts"
 
@@ -164,7 +164,8 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
       }
       reserved = candidates[0] ?? null
       if (reserved === null && recorded.createSent) {
-        throw new Error(`Storybook package target creation is indeterminate: ${packageId}`)
+        const evidence = await this.#reservationEvidence(recorded, targets, origin, url, operationSignal)
+        throw new Error(`Storybook package target creation is indeterminate: ${packageId}; evidence=${JSON.stringify(evidence)}`)
       }
     }
     const owned: ChromeTargetSummary[] = []
@@ -498,6 +499,89 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
     }
     const identity = bridgeIdentity(await this.#chrome.callBridge(view.targetId, "identity", {schemaVersion: 1}, signal))
     if (identity.packageId !== view.packageId) throw new Error("Storybook view navigated to another package")
+  }
+
+  /** Факты уже полученного inventory и до трёх read-only проверок своего пакета, без изменения reservation. */
+  async #reservationEvidence(
+    record: Extract<StorybookBrowserTargetRecord, {phase: "reserved"}>,
+    targets: readonly ChromeTargetSummary[],
+    origin: string,
+    requestedUrl: string,
+    operationSignal: AbortSignal,
+  ) {
+    const expected = new URL(record.url!)
+    const baseline = new Set(record.baselineTargetIds)
+    const matching = targets.filter(target => target.type === "page" &&
+      packageTargetIdentity(target.url, record.packageId)?.packageId === record.packageId)
+      .sort((left, right) => Number(baseline.has(left.targetId)) - Number(baseline.has(right.targetId)))
+    const observations = []
+    for (const target of matching.slice(0, 3)) {
+      operationSignal.throwIfAborted()
+      const signal = AbortSignal.any([operationSignal, AbortSignal.timeout(1_000)])
+      const actual = new URL(target.url)
+      let attestation: "verified" | "not-ready" | "different-package" | "bootstrap-owned" | "not-attested" | "indeterminate" = "indeterminate"
+      let ready: boolean | null = null
+      let presented: boolean | null = null
+      let runtimeErrorPresent: boolean | null = null
+      try {
+        const identity = bridgeIdentity(await this.#chrome.callBridge(target.targetId, "identity", {schemaVersion: 1}, signal))
+        attestation = identity.packageId !== record.packageId ? "different-package" : identity.ready ? "verified" : "not-ready"
+        ready = identity.ready
+        presented = identity.presented
+      } catch {
+        operationSignal.throwIfAborted()
+        if (!signal.aborted) {
+          try {
+            const diagnostic = await this.#chrome.bridgeDiagnostics(target.targetId, signal)
+            const markers = objectResult(diagnostic.markers, "Storybook reservation bootstrap markers")
+            attestation = typeof markers.packageId === "string" && markers.packageId !== record.packageId
+              ? "different-package"
+              : markers.packageId === record.packageId || diagnostic.viewName === `storybook:${record.packageId}`
+                ? "bootstrap-owned" : "not-attested"
+            runtimeErrorPresent = typeof markers.error === "string" && markers.error.length > 0
+          } catch {
+            operationSignal.throwIfAborted()
+          }
+        }
+      }
+      observations.push(Object.freeze({
+        index: observations.length,
+        path: actual.pathname.slice(0, 256),
+        inBaseline: baseline.has(target.targetId),
+        sameReservationUrl: target.url === record.url,
+        sameRequestedUrl: target.url === requestedUrl,
+        sameRequestedOrigin: actual.origin === origin,
+        attestation,
+        ready,
+        presented,
+        runtimeErrorPresent,
+      }))
+    }
+    return Object.freeze({
+      schemaVersion: 1,
+      packageId: record.packageId,
+      reservation: Object.freeze({
+        protocol: record.protocol,
+        phase: record.phase,
+        createSent: record.createSent,
+        recordedReceipt: false,
+        sendHistoryAvailable: false,
+        recordedAt: record.recordedAt,
+        expectedPath: expected.pathname.slice(0, 256),
+        sameRequestedOrigin: expected.origin === origin,
+        sameRequestedUrl: record.url === requestedUrl,
+        baselineCount: baseline.size,
+      }),
+      observation: Object.freeze({
+        inventoryCompleted: true,
+        sameBrowserSession: true,
+        observedAt: new Date().toISOString(),
+        matchingPackageCount: matching.length,
+        exactNewReservationUrlCount: targets.filter(target => !baseline.has(target.targetId) && target.url === record.url).length,
+        omittedCount: Math.max(0, matching.length - observations.length),
+        targets: Object.freeze(observations),
+      }),
+    })
   }
 
   async #attestsPackage(

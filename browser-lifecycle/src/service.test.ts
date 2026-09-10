@@ -15,6 +15,66 @@ afterEach(() => {
 })
 
 describe("Storybook browser lifecycle service", () => {
+  test.each(["verified", "not-ready", "bootstrap-owned", "indeterminate", "missing"])("indeterminate evidence различает наблюдение target и отсутствие receipt: %s", async outcome => {
+    const chrome = new FakeChrome()
+    const root = temporaryRoot()
+    const state = new StorybookBrowserState(join(root, "state"))
+    state.reserveTarget({
+      packageId: "@fixture/a", cdpOrigin: chrome.cdp, browserIdentity: await chrome.browserIdentity(),
+      url: `${chrome.origin}/pkg-fixture-a/expected?preview=SECRET_QUERY`, baselineTargetIds: ["PRIVATE_BASELINE"],
+    })
+    state.markCreateSent("@fixture/a")
+    const before = state.readTarget("@fixture/a")
+    if (outcome !== "missing") chrome.targetsValue = [{
+      targetId: "PRIVATE_BASELINE", type: "page", title: "A", url: `${chrome.origin}/pkg-fixture-a/observed?preview=ANOTHER_SECRET`,
+    }]
+    if (outcome === "not-ready") chrome.identityReady = false
+    if (outcome === "bootstrap-owned") chrome.markerOnlyTargetIds.add("PRIVATE_BASELINE")
+    if (outcome === "indeterminate") chrome.unavailableDiagnosticsTargetIds.add("PRIVATE_BASELINE")
+    const controller = createController(chrome, root)
+    let message = ""
+    try { await controller.openPackage(openInput(chrome)) } catch (error) {message = (error as Error).message}
+    expect(message).toContain("creation is indeterminate")
+    const evidence = JSON.parse(message.split("; evidence=")[1]!)
+    expect(evidence.reservation).toMatchObject({
+      protocol: "external-storybook-browser-target/3", phase: "reserved", createSent: true,
+      recordedReceipt: false, sendHistoryAvailable: false, expectedPath: "/pkg-fixture-a/expected",
+    })
+    expect(evidence.observation).toMatchObject({inventoryCompleted: true, sameBrowserSession: true, exactNewReservationUrlCount: 0})
+    if (outcome === "missing") expect(evidence.observation.targets).toEqual([])
+    else expect(evidence.observation.targets[0]).toMatchObject({
+      path: "/pkg-fixture-a/observed", inBaseline: true, sameReservationUrl: false, attestation: outcome,
+    })
+    for (const secret of ["SECRET_QUERY", "ANOTHER_SECRET", "PRIVATE_BASELINE", chrome.origin, chrome.cdp]) {
+      expect(message).not.toContain(secret)
+    }
+    expect(state.readTarget("@fixture/a")).toEqual(before)
+    expect(chrome.created).toBe(0)
+    expect(chrome.navigations).toBe(0)
+    expect(chrome.closed).toEqual([])
+  })
+
+  test("reservation evidence ограничивает read-only attestation тремя matching targets", async () => {
+    const chrome = new FakeChrome()
+    const root = temporaryRoot()
+    const state = new StorybookBrowserState(join(root, "state"))
+    state.reserveTarget({packageId: "@fixture/a", cdpOrigin: chrome.cdp, browserIdentity: await chrome.browserIdentity(),
+      url: `${chrome.origin}/pkg-fixture-a/expected`, baselineTargetIds: []})
+    state.markCreateSent("@fixture/a")
+    chrome.targetsValue = Array.from({length: 5}, (_, index) => ({
+      targetId: `PRIVATE_${index}`, type: "page", title: "A", url: `${chrome.origin}/pkg-fixture-a/observed-${index}`,
+    }))
+    chrome.targetsValue.push({targetId: "FOREIGN", type: "page", title: "B", url: `${chrome.origin}/pkg-fixture-b/`})
+    chrome.hangingTargetIds.add("FOREIGN")
+    let message = ""
+    try {await createController(chrome, root).openPackage(openInput(chrome))} catch (error) {message = (error as Error).message}
+    const evidence = JSON.parse(message.split("; evidence=")[1]!)
+    expect(evidence.observation).toMatchObject({matchingPackageCount: 5, omittedCount: 2})
+    expect(evidence.observation.targets).toHaveLength(3)
+    expect(chrome.identityCalls).toBe(3)
+    expect(chrome.created).toBe(0)
+  })
+
   test.each(["failure", "abort"])("сбой до create send освобождает reservation и допускает один retry: %s", async reason => {
     const chrome = new FakeChrome()
     const root = temporaryRoot()
@@ -699,6 +759,7 @@ class FakeChrome implements StorybookChromeClient {
   unavailableBridgeCalls = 0
   identityCalls = 0
   identityRevision = "revision-a"
+  identityReady = true
   revisionAfterNavigate: string | null = null
   navigations = 0
   hangHealth = false
@@ -838,7 +899,7 @@ class FakeChrome implements StorybookChromeClient {
       route: target.route,
       revision: this.identityRevision,
       graphDigest: "a".repeat(64),
-      ready: true,
+      ready: this.identityReady,
       presented: true,
       timeOrigin: 42,
       viewName: this.invalidIdentity ? "storybook:@fixture/other" : `storybook:${target.packageId}`,
