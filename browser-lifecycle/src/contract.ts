@@ -90,6 +90,8 @@ export interface StorybookChromeClient {
   browserIdentity(signal?: AbortSignal): Promise<string>
   targets(signal?: AbortSignal): Promise<readonly ChromeTargetSummary[]>
   createTarget(url: string, signal?: AbortSignal): Promise<ChromeTargetSummary>
+  /** Синхронно вызывает beforeSend непосредственно перед возможной отправкой create; до него target не создаётся. */
+  createTargetWithDispatch?(url: string, beforeSend: () => void, signal?: AbortSignal): Promise<ChromeTargetSummary>
   closeTarget(targetId: string, signal?: AbortSignal): Promise<void>
   navigate(targetId: string, url: string, signal?: AbortSignal): Promise<void>
   waitReady(targetId: string, timeoutMs: number, signal?: AbortSignal): Promise<void>

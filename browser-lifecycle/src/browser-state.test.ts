@@ -1,5 +1,5 @@
 import {afterEach, describe, expect, test} from "bun:test"
-import {mkdtempSync, rmSync, statSync} from "node:fs"
+import {mkdtempSync, readdirSync, rmSync, statSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {StorybookBrowserState} from "./browser-state.ts"
@@ -11,6 +11,32 @@ afterEach(() => {
 })
 
 describe("Storybook browser state", () => {
+  test("освобождает только доказанно неотправленную reservation, старый missing marker остаётся unknown", () => {
+    const root = temporaryRoot()
+    const state = new StorybookBrowserState(root)
+    const input = {
+      packageId: "@fixture/a",
+      cdpOrigin: "http://127.0.0.1:9222",
+      browserIdentity: "a".repeat(64),
+      url: "http://127.0.0.1:43123/pkg-fixture-a/",
+      baselineTargetIds: [],
+    }
+    state.reserveTarget(input)
+    expect(state.clearUnsentReservation(input.packageId)).toBeTrue()
+    expect(state.readTarget(input.packageId)).toBeNull()
+    state.reserveTarget(input)
+    state.markCreateSent(input.packageId)
+    expect(state.clearUnsentReservation(input.packageId)).toBeFalse()
+    const legacy: Record<string, unknown> = {...state.readTarget(input.packageId)}
+    delete legacy.createSent
+    const path = join(root, readdirSync(root).find(name => name.startsWith("target-"))!)
+    writeFileSync(path, JSON.stringify(legacy))
+    expect(state.readTarget(input.packageId)).toMatchObject({phase: "reserved", createSent: true})
+    expect(state.clearUnsentReservation(input.packageId)).toBeFalse()
+    state.writeTarget({...input, targetId: "OWNED"})
+    expect(state.clearUnsentReservation(input.packageId)).toBeFalse()
+  })
+
   test("persists one private view secret across lifecycle instances", () => {
     const root = temporaryRoot()
     const first = new StorybookBrowserState(root)

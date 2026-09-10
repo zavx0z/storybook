@@ -78,7 +78,7 @@ export class StorybookCdpConnection {
   command(
     method: string,
     params: Readonly<Record<string, unknown>> = Object.freeze({}),
-    options: Readonly<{signal?: AbortSignal | undefined; timeoutMs?: number}> = {},
+    options: Readonly<{signal?: AbortSignal | undefined; timeoutMs?: number; beforeSend?: () => void}> = {},
   ): Promise<Record<string, unknown>> {
     this.#assertOpen()
     const id = this.#nextId++
@@ -110,7 +110,10 @@ export class StorybookCdpConnection {
         return
       }
       try {
-        this.#socket.send(JSON.stringify({id, method: exactMethod(method), params}))
+        const message = JSON.stringify({id, method: exactMethod(method), params})
+        if (this.#socket.readyState !== WebSocket.OPEN) throw new Error("Storybook CDP socket is not open for sending")
+        options.beforeSend?.()
+        this.#socket.send(message)
       } catch (error) {
         finish(() => reject(error))
       }

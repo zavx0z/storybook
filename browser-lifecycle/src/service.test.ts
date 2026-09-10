@@ -15,6 +15,40 @@ afterEach(() => {
 })
 
 describe("Storybook browser lifecycle service", () => {
+  test.each(["failure", "abort"])("сбой до create send освобождает reservation и допускает один retry: %s", async reason => {
+    const chrome = new FakeChrome()
+    const root = temporaryRoot()
+    const controller = createController(chrome, root)
+    const state = new StorybookBrowserState(join(root, "state"))
+    const abort = new AbortController()
+    chrome.createPreflight = () => {
+      if (reason === "abort") abort.abort(new DOMException("До отправки", "AbortError"))
+      else throw new Error("Ошибка preflight")
+    }
+    await expect(controller.openPackage(openInput(chrome), abort.signal)).rejects.toThrow()
+    expect(chrome.created).toBe(0)
+    expect(state.readTarget("@fixture/a")).toBeNull()
+    chrome.createPreflight = null
+    const opened = await createController(chrome, root).openPackage(openInput(chrome))
+    expect(opened.identity.ready).toBeTrue()
+    expect(chrome.created).toBe(1)
+    expect(chrome.closed).toEqual([])
+  })
+
+  test("клиент без dispatch-контракта сохраняет неопределённую reservation при ошибке", async () => {
+    const chrome = new FakeChrome()
+    Object.defineProperty(chrome, "createTargetWithDispatch", {value: undefined})
+    chrome.createPreflight = () => {throw new Error("Неизвестна граница отправки")}
+    const root = temporaryRoot()
+    const controller = createController(chrome, root)
+    await expect(controller.openPackage(openInput(chrome))).rejects.toThrow("Неизвестна граница")
+    chrome.createPreflight = null
+    await expect(controller.openPackage(openInput(chrome))).rejects.toThrow("creation is indeterminate")
+    expect(chrome.created).toBe(0)
+    expect(new StorybookBrowserState(join(root, "state")).readTarget("@fixture/a"))
+      .toMatchObject({phase: "reserved", createSent: true})
+  })
+
   test.each([[false, false], [false, true], [true, false], [true, true]] as const)("незавершённый inventory сохраняет handles: abort=%s, known packages=%s", async (abort, knownPackages) => {
     const chrome = new FakeChrome()
     chrome.targetsValue = [
@@ -673,6 +707,7 @@ class FakeChrome implements StorybookChromeClient {
   throwAfterCreate = false
   deferCreatedTarget = false
   pendingTarget: ChromeTargetSummary | null = null
+  createPreflight: (() => void) | null = null
 
   async health(signal?: AbortSignal): Promise<void> {
     if (this.hangHealth) await hangUntilAbort(signal)
@@ -686,7 +721,13 @@ class FakeChrome implements StorybookChromeClient {
   async targets(): Promise<readonly ChromeTargetSummary[]> {
     return this.targetsValue
   }
-  async createTarget(url: string): Promise<ChromeTargetSummary> {
+  async createTargetWithDispatch(url: string, beforeSend: () => void, signal?: AbortSignal): Promise<ChromeTargetSummary> {
+    return this.createTarget(url, signal, beforeSend)
+  }
+  async createTarget(url: string, signal?: AbortSignal, beforeSend?: () => void): Promise<ChromeTargetSummary> {
+    this.createPreflight?.()
+    signal?.throwIfAborted()
+    beforeSend?.()
     this.created += 1
     const target = {
       targetId: this.created === 1 && !this.targetsValue.some(target => target.targetId === this.targetId) ? this.targetId : `${this.targetId}_${this.created}`,

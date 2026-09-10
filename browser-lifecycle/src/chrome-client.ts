@@ -87,9 +87,18 @@ export class StorybookCdpClient implements StorybookChromeClient {
   }
 
   async createTarget(url: string, signal?: AbortSignal): Promise<ChromeTargetSummary> {
+    return this.#createTarget(url, signal)
+  }
+
+  async createTargetWithDispatch(url: string, beforeSend: () => void, signal?: AbortSignal): Promise<ChromeTargetSummary> {
+    return this.#createTarget(url, signal, beforeSend)
+  }
+
+  async #createTarget(url: string, signal?: AbortSignal, beforeSend?: () => void): Promise<ChromeTargetSummary> {
     const targetUrl = absoluteHttpUrl(url)
     const before = new Set((await this.#targetInventory(signal)).map(({targetId}) => targetId))
     signal?.throwIfAborted()
+    let dispatched = false
     try {
       const result = await this.#withBrowser((connection) => {
         signal?.throwIfAborted()
@@ -98,11 +107,19 @@ export class StorybookCdpClient implements StorybookChromeClient {
         return connection.command("Target.createTarget", {
           url: targetUrl,
           background: true,
-        }, {timeoutMs: Math.min(this.#requestTimeoutMs, 10_000)})
+        }, {
+          timeoutMs: Math.min(this.#requestTimeoutMs, 10_000),
+          beforeSend() {
+            signal?.throwIfAborted()
+            beforeSend?.()
+            dispatched = true
+          },
+        })
       }, signal)
       const targetId = exactTargetId(result.targetId)
       return Object.freeze({targetId, type: "page", title: "", url: targetUrl})
     } catch (error) {
+      if (!dispatched) throw error
       const recovered = await this.#recoverCreatedTarget(targetUrl, before)
       if (recovered !== null) return recovered
       throw error

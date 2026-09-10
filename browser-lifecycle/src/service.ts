@@ -201,9 +201,19 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
           baselineTargetIds: targets.map(({targetId}) => targetId),
         })
       }
-      this.#state.markCreateSent(packageId)
-      const created = await this.#chrome.createTarget(url, operationSignal)
-      selected = created
+      const beforeSend = () => { this.#state.markCreateSent(packageId) }
+      try {
+        if (this.#chrome.createTargetWithDispatch !== undefined) {
+          selected = await this.#chrome.createTargetWithDispatch(url, beforeSend, operationSignal)
+        } else {
+          // Старый клиент не сообщает точку отправки: его ошибку нельзя считать доказанно безопасной для retry.
+          beforeSend()
+          selected = await this.#chrome.createTarget(url, operationSignal)
+        }
+      } catch (error) {
+        this.#state.clearUnsentReservation(packageId)
+        throw error
+      }
     }
     // Bind the reservation before navigation/readiness. A broken page remains
     // the package's one reusable target on the next lifecycle invocation.

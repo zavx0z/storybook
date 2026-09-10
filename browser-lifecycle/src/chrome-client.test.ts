@@ -18,6 +18,43 @@ afterEach(() => {
 })
 
 describe("Storybook direct CDP client", () => {
+  test.each(["failure", "abort"])("не сообщает create dispatch при неуспешном подключении: %s", async reason => {
+    const cdp = new FakeCdp()
+    const abort = new AbortController()
+    let dispatched = 0
+    const client = new StorybookCdpClient({
+      origin: cdp.origin,
+      fetcher: cdp.fetcher,
+      launchIfMissing: false,
+      webSocketFactory(url) {
+        if (reason === "failure") throw new Error("Preflight connection failed")
+        abort.abort(new DOMException("До отправки", "AbortError"))
+        return cdp.webSocketFactory(url)
+      },
+    })
+    await expect(client.createTargetWithDispatch("http://127.0.0.1:43123/packages/a/", () => {dispatched += 1}, abort.signal))
+      .rejects.toThrow()
+    expect(dispatched).toBe(0)
+    expect(cdp.commands.some(command => command.method === "Target.createTarget")).toBeFalse()
+    expect(cdp.targets).toHaveLength(0)
+  })
+
+  test("сообщает dispatch до send и сохраняет receipt после отмены вызывающего", async () => {
+    const cdp = new FakeCdp()
+    cdp.responseDelayMs = 30
+    const abort = new AbortController()
+    let dispatched = 0
+    const created = await cdp.client().createTargetWithDispatch("http://127.0.0.1:43123/packages/a/", () => {
+      expect(cdp.commands.some(command => command.method === "Target.createTarget")).toBeFalse()
+      dispatched += 1
+      setTimeout(() => abort.abort(new DOMException("После отправки", "AbortError")), 5)
+    }, abort.signal)
+    expect(abort.signal.aborted).toBeTrue()
+    expect(dispatched).toBe(1)
+    expect(created.targetId).toBe("TARGET_CREATED")
+    expect(cdp.commands.filter(command => command.method === "Target.createTarget")).toHaveLength(1)
+  })
+
   test("uses the exact page target and a fixed bridge expression", async () => {
     const cdp = new FakeCdp()
     cdp.targets.push({id: "UNRELATED", type: "service_worker", title: "Worker", url: ""})

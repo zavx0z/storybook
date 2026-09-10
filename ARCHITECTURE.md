@@ -61,6 +61,11 @@ graph, search/routing derived views, шестью областями Workbench, 
 build/revision lifecycle и diagnostics. Private nested
 `@zavx0z/storybook-browser-lifecycle` единолично владеет browser target
 reservations, attestation, navigation, readiness и exact-target operations.
+Reservation предшествует preflight; durable createSent записывается dispatch-aware
+драйвером перед native send. Только явный unsent разрешает освобождение записи.
+Неопределённая отправка и исторические записи без доказанного unsent сохраняются;
+клиент без dispatch-контракта остаётся консервативным. Receipt либо существующая
+однозначная reconciliation привязывает target до ожидания готовности страницы.
 Корень композирует один logical lifecycle owner; вложенный package не создаёт
 отдельный process, port, registry или graph. MCP является только агентской
 проекцией через общий controller; отдельный MCP registry или browser lifecycle

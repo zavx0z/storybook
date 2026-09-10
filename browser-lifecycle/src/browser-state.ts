@@ -129,6 +129,12 @@ export class StorybookBrowserState {
     return true
   }
 
+  clearUnsentReservation(packageId: string): boolean {
+    const record = this.readTarget(packageId)
+    if (record?.phase !== "reserved" || record.createSent) return false
+    return this.clearTarget(packageId)
+  }
+
   lockRoot(): string {
     const path = join(this.#root, "locks")
     ensurePrivateDirectory(path)
@@ -193,7 +199,8 @@ function validateRecord(value: unknown, packageId: string): StorybookBrowserTarg
       ...common,
       phase,
       targetId: null,
-      createSent: typeof record.createSent === "boolean" ? record.createSent : false,
+      // У старой записи без маркера нет доказательства, что команда не отправлялась.
+      createSent: typeof record.createSent === "boolean" ? record.createSent : true,
     })
 }
 
