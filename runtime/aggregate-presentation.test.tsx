@@ -1,6 +1,6 @@
 import {describe, expect, test} from "bun:test"
 import {createDocument, Element, type Document} from "@zavx0z/dom"
-import {createDocumentRenderer, type RenderBox} from "@zavx0z/renderer"
+import {createDocumentRenderer, type RenderBox} from "@renderer/html"
 import {
   STORYBOOK_PRESENTATION_PROTOCOL,
   type StorybookRuntimePresentationInput,

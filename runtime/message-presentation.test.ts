@@ -1,6 +1,6 @@
 import {describe, expect, test} from "bun:test"
 import {createDocument, type HTMLButtonElement} from "@zavx0z/dom"
-import {createDocumentRenderer} from "@zavx0z/renderer"
+import {createDocumentRenderer} from "@renderer/html"
 import {createStorybookMessagePresentation} from "./message-presentation.ts"
 
 describe("Storybook message presentation ownership", () => {

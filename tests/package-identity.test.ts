@@ -22,11 +22,12 @@ const newFamily = Object.freeze({
   "@zavx0z/engine": "engine",
   "@nodes/layout": "nodes/layout",
   "@webxr/nodes": "nodes",
+  "@nodes/node": "nodes/node",
   "@webxr/markdown": "markdown",
   "@nodes/parameters": "nodes/parameters",
   "@nodes/sockets": "nodes/sockets",
   "@nodes/tree": "nodes/tree",
-  "@zavx0z/renderer": "renderer",
+  "@renderer/html": "renderer/html",
   "@zavx0z/space": "space",
   "@zavx0z/template": "template",
   "@zavx0z/ui": "ui",
@@ -79,7 +80,7 @@ describe("Storybook package identity", () => {
     assertOnePhysicalOwner(roots, "@zavx0z/component", "component", "src/index.ts")
     assertOnePhysicalOwner(roots, "@zavx0z/devtools", "devtools", "inspector.ts")
     assertOnePhysicalOwner(roots, "@zavx0z/dom", "dom", "src/index.ts")
-    assertOnePhysicalOwner(roots, "@zavx0z/renderer", "renderer", "src/index.ts")
+    assertOnePhysicalOwner(roots, "@renderer/html", "renderer/html", "src/index.ts")
     assertOnePhysicalOwner(roots, "@webxr/markdown", "markdown", "markdown/src/markdown.tsx")
     assertOnePhysicalOwner(roots, "@zavx0z/template", "template", "compiled.ts")
     assertOnePhysicalOwner(roots, "@zavx0z/ui", "ui", "buttons/button.tsx")
@@ -107,7 +108,7 @@ describe("Storybook package identity", () => {
       ["@zavx0z/component", "component/src/index.ts"],
       ["@zavx0z/devtools", "devtools/inspector.ts"],
       ["@zavx0z/dom", "dom/src/index.ts"],
-      ["@zavx0z/renderer", "renderer/src/index.ts"],
+      ["@renderer/html", "renderer/html/src/index.ts"],
       ["@webxr/markdown", "markdown/markdown/src/markdown.tsx"],
       ["@webxr/markdown/parser", "markdown/parser/src/parser.ts"],
       ["@zavx0z/template/compiled", "template/compiled.ts"],

@@ -10,8 +10,7 @@ import type {
   RootPointerInput,
   RootWheelInput,
 } from "@zavx0z/browser/integration"
-import {createDocumentRenderer} from "@zavx0z/renderer"
-import {createDocumentInteractionController, hitTestProjection} from "@renderer/html"
+import {createDocumentInteractionController, createDocumentRenderer, hitTestProjection} from "@renderer/html"
 import {createSpaceElementFactories} from "@zavx0z/space"
 import {HUDElement} from "../../webxr-space/dom/hud/index.ts"
 import {SpaceElement} from "@zavx0z/dom/space"

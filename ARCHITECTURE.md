@@ -259,7 +259,7 @@ Shared shell source один для landing и package entries. Package build в
 только выбранный package graph, поэтому другая package production code в tab не
 попадает. Bun metafile фиксирует canonical dependency realpaths. Identities
 `@zavx0z/browser`, `@zavx0z/component`, `@zavx0z/devtools`, `@zavx0z/dom`, `@zavx0z/engine`,
-`@nodes/layout`, `@webxr/nodes`, `@nodes/tree`, `@zavx0z/renderer`,
+`@nodes/layout`, `@webxr/nodes`, `@nodes/tree`, `@renderer/html`,
 `@zavx0z/space`, `@zavx0z/template`, `@zavx0z/ui` и `@zavx0z/webgpu`
 проверяются до publish; разные realpath одного обязательного
 runtime и compatibility aliases fail closed.

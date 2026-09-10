@@ -528,7 +528,7 @@ linked owner dependencies снова проверяются fail closed.
 Package build фиксирует canonical dependency realpaths. Две identities
 обязательных `@zavx0z/browser`, `@zavx0z/component`, `@zavx0z/devtools`, `@zavx0z/dom`,
 `@zavx0z/engine`, `@nodes/layout`, `@webxr/nodes`, `@nodes/tree`,
-`@zavx0z/renderer`, `@zavx0z/space`, `@zavx0z/template`, `@zavx0z/ui` или
+`@renderer/html`, `@zavx0z/space`, `@zavx0z/template`, `@zavx0z/ui` или
 `@zavx0z/webgpu`, ambiguous resolution, foreign branded Node
 и incompatible protocol fail closed. Compatibility aliases запрещены.
 

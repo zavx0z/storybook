@@ -11,7 +11,7 @@ import type {
   RootProjection,
   RootSpaceProjection,
 } from "@zavx0z/browser/integration"
-import type {RenderFrame} from "@zavx0z/renderer"
+import type {RenderFrame} from "@renderer/html"
 import {createSpaceElementFactories} from "@zavx0z/space"
 import {HUDElement} from "../../webxr-space/dom/hud/index.ts"
 import {SpaceElement} from "@zavx0z/dom/space"

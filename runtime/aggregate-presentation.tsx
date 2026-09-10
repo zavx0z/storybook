@@ -1,7 +1,7 @@
 import {Pane} from "@zavx0z/ui/surfaces/pane"
 import {Typography} from "@zavx0z/ui/typography"
 import type {Document, Element} from "@zavx0z/dom"
-import type {RenderFrame} from "@zavx0z/renderer"
+import type {RenderFrame} from "@renderer/html"
 import type {
   StorybookRuntimePresentationInput,
 } from "./runtime-protocol.ts"

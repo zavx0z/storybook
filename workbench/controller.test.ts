@@ -7,7 +7,7 @@ import {
   type HTMLInputElement,
   type HTMLElement,
 } from "@zavx0z/dom"
-import {createDocumentRenderer} from "@zavx0z/renderer"
+import {createDocumentRenderer} from "@renderer/html"
 import {isCompiledTemplate} from "@zavx0z/template/compiled"
 import {uiIcons} from "@zavx0z/ui/themes/icons"
 import {

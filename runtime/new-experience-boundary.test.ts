@@ -24,7 +24,7 @@ test("[STORYBOOK-EXPERIENCE-001] shell использует только нов�
     "@zavx0z/component",
     "@zavx0z/dom",
     "@zavx0z/engine",
-    "@zavx0z/renderer",
+    "@renderer/html",
     "@zavx0z/space",
     "@zavx0z/template",
     "@zavx0z/ui",

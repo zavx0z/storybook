@@ -15,7 +15,7 @@ import {
   type Element,
   type Node,
 } from "@zavx0z/dom"
-import {readDisplayStyle, createDocumentRenderer, type RenderBox, type RenderFrame} from "@zavx0z/renderer"
+import {readDisplayStyle, createDocumentRenderer, type RenderBox, type RenderFrame} from "@renderer/html"
 import {createSpaceElementFactories} from "@zavx0z/space"
 import {HUDElement} from "../../webxr-space/dom/hud/index.ts"
 import {SpaceElement} from "@zavx0z/dom/space"
