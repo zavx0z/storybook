@@ -34,7 +34,7 @@ test("finds ordinary and empty directories, skips src and keeps packages as sepa
   expect(result.watchPaths).not.toContain(join(root, "packages/tool"))
 })
 
-test("README не заменяет отсутствующий, игнорируемый или symlink index.ts", async () => {
+test.each(["index.ts", "index.tsx"])("README не заменяет отсутствующий, игнорируемый или symlink %s", async entry => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "storybook-doc-source-")))
   roots.push(root)
   await Bun.spawn(["git", "init", "--quiet", root]).exited
@@ -42,14 +42,43 @@ test("README не заменяет отсутствующий, игнориру�
   await Bun.write(join(root, "module/README.md"), "Не обзор")
   const read = async () => (await discoverStorybookDirectories(root, new Set())).directories[0]!
   expect((await read()).moduleDocumentation).toBeUndefined()
-  await Bun.write(join(root, "module/index.ts"), "/**\nОписание\n@packageDocumentation\n*/")
+  await Bun.write(join(root, `module/${entry}`), "/**\nОписание\n@packageDocumentation\n*/")
   expect((await read()).moduleDocumentation?.markdown).toBe("Описание")
-  await Bun.write(join(root, ".gitignore"), "module/index.ts\n")
+  await Bun.write(join(root, ".gitignore"), `module/${entry}\n`)
   expect((await read()).moduleDocumentation).toBeUndefined()
+  expect((await read()).structuralRole).toBe("directory")
   await Bun.write(join(root, ".gitignore"), "")
-  await rm(join(root, "module/index.ts"))
-  await symlink(join(root, "module/README.md"), join(root, "module/index.ts"))
+  await rm(join(root, `module/${entry}`))
+  await symlink(join(root, "module/README.md"), join(root, `module/${entry}`))
   expect((await read()).moduleDocumentation).toBeUndefined()
+  expect((await read()).structuralRole).toBe("directory")
+})
+
+test("index.tsx завершает обход без src и владеет обзором при наличии index.ts", async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "storybook-tsx-entry-")))
+  roots.push(root)
+  await mkdir(join(root, "group/component/internal/deep"), {recursive: true})
+  await Bun.write(join(root, "group/index.ts"), '/**\nГруппа\n@packageDocumentation\n*/\nexport * from "./component"')
+  await Bun.write(join(root, "group/component/index.ts"), '/**\nСтарое описание\n@packageDocumentation\n*/')
+  const entry = join(root, "group/component/index.tsx")
+  await Bun.write(entry, '/**\nКомпонент\n@packageDocumentation\n*/\nexport function Component() { return <div /> }\nthrow new Error("Не исполнять")')
+  const found = await discoverStorybookDirectories(root, new Set())
+  expect(found.directories.map(dir => [dir.relativePath, dir.structuralRole])).toEqual([
+    ["group", "category"], ["group/component", "module"],
+  ])
+  expect(found.directories[1]?.moduleDocumentation?.markdown).toBe("Компонент")
+  expect(found.directories[1]?.moduleDocumentation?.sourcePath).toBe(entry)
+  expect(found.watchPaths).toContain(entry)
+  expect(found.watchPaths).toContain(join(root, "group/index.tsx"))
+  expect(found.watchPaths).not.toContain(join(root, "group/component/internal"))
+  await Bun.write(entry, 'export function Component() { return <div /> }')
+  const undocumented = (await discoverStorybookDirectories(root, new Set())).directories[1]!
+  expect(undocumented.structuralRole).toBe("module")
+  expect(undocumented.moduleDocumentation).toBeUndefined()
+  await rm(entry)
+  const restored = await discoverStorybookDirectories(root, new Set())
+  expect(restored.directories[1]?.moduleDocumentation?.markdown).toBe("Старое описание")
+  expect(restored.directories.some(dir => dir.relativePath === "group/component/internal/deep")).toBeTrue()
 })
 
 test("uses Git ignore precedence, negation, nested files and ignored tracked directories", async () => {

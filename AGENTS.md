@@ -36,7 +36,7 @@
 - Packages must own a README.md beside package.json as their
   overview. Discovery reads it by default with or without a manifest; an explicit
   manifest readme keeps priority. Missing documentation does not hide the owner.
-  Ordinary directory overviews remain index.ts module TSDoc.
+  Обзоры обычных директорий читаются из TSDoc index.tsx или index.ts.
   README contents belong to the package's authors; this workflow specifies
   placement only and does not rewrite or prescribe their contents.
   Do not repeat the standard root README in manifests or generated declarations.
@@ -55,20 +55,22 @@
   Every selected root is one package node, with its workspace packages
   discovered by the same rule. Navigation
   ancestry never becomes executable ownership or a build dependency.
-  Secondary navigation recursively discovers structural categories until a
-  directory with its own src marks a component/module boundary. Show that module
-  but never descend into its implementation. Exports and re-exports are not
-  classifiers; package exports define the public API independently of navigation.
-  Root, category and component index.ts files carry module TSDoc. Directory
-  descriptions come only from the leading @packageDocumentation block of their
-  index.ts, without executing the module or falling back to README.md.
+  Вторичная навигация рекурсивно раскрывает категории до собственного публичного
+  index.tsx или собственного src. index.tsx содержит реализацию компонента и не
+  требует src; src допустим для внутренних помощников и существующих модулей.
+  Общие помощники находятся в shared. Внутренности модуля не обходятся.
+  Обычный index.ts, включая barrel, сам по себе не завершает обход. Содержимое
+  exports и re-exports не классифицирует узлы; package exports задают публичный API.
+  Начальный @packageDocumentation читается из допустимого index.tsx, затем index.ts.
+  index.tsx имеет приоритет даже без TSDoc; игнорируемые файлы и symlink исключены.
+  Модули не исполняются, README не используется как fallback для директорий.
   Existing README files and their authored content remain untouched. Exclude src,
   shared, .git, node_modules, .storybook, tests and test at every depth, plus
   Git-ignored paths using native Git ignore semantics.
   Do not infer a build-output exclusion from a directory name. Discovery stops
   at package.json boundaries and never changes package composition.
-  Optional subject.directory is a package-relative path to a discovered module
-  with src. A single bound subject subsumes the structural row, inheriting its
+  Опциональный subject.directory — путь от корня пакета к обнаруженному модулю
+  с index.tsx или src. A single bound subject subsumes the structural row, inheriting its
   filesystem name and TSDoc while retaining authored routes and variants. Multiple
   subjects, such as Socket preset views, remain under that module row. Remove an
   emptied legacy category after binding; unbound subjects keep their placement.

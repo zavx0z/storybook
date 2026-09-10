@@ -28,9 +28,9 @@ afterEach(() => {
 })
 
 describe("real Storybook package revision build", () => {
-  test("publishes extracted module text without executing source and rejects changed source bytes", async () => {
+  test.each(["index.ts", "index.tsx"])("публикует TSDoc из %s без исполнения и отклоняет изменённый исходник", async entry => {
     const fixture = createFixture()
-    const sourcePath = join(fixture.root, "documentation.ts")
+    const sourcePath = join(fixture.root, entry)
     const source = '/** Module documentation */\nthrow new Error("Never execute")'
     writeFileSync(sourcePath, source)
     const descriptor = {

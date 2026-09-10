@@ -1,7 +1,7 @@
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
 import {createDocument} from "@zavx0z/dom"
-import {browserLifecycle} from "../.storybook/stories/contracts.tsx"
+import {browserLifecycle, catalog} from "../.storybook/stories/contracts.tsx"
 import {projects} from "../.storybook/stories/project-controls.tsx"
 import {parseExternalStorybookCli} from "../server/cli.ts"
 import {
@@ -13,6 +13,17 @@ import {createStorybookPackageRevisionGraphSnapshot} from "../sessions/package-r
 const root = resolve(import.meta.dir, "..")
 
 describe("external Storybook self declaration", () => {
+  test("пример каталога показывает компонент в index.tsx без обязательного src", () => {
+    const presentation = catalog.create(createDocument())
+    try {
+      expect(presentation.element.textContent).toContain("index.tsx без обязательного src")
+      expect(presentation.source.typescript).toContain("numeric/number/index.tsx")
+      expect(presentation.source.typescript).toContain("numeric/number/src/helper.ts")
+      expect(presentation.source.typescript).toContain('directory: "numeric/number"')
+    } finally {
+      presentation.dispose()
+    }
+  })
   test("renders the real catalog controls in the project-management example", () => {
     const presentation = projects.create(createDocument())
     try {

@@ -244,7 +244,7 @@ function bindStructuralSubjects(
         if (subject.directory === undefined) continue
         const directory = scope.directories?.find(item => item.relativePath === subject.directory)
         if (directory?.structuralRole !== "module") {
-          throw new Error(`Storybook subject directory must be an existing module with src: ${scope.id}/${subject.directory}`)
+          throw new Error(`Storybook subject directory must be an existing discovered module: ${scope.id}/${subject.directory}`)
         }
         const directoryId = directoryNodeId(scope.canonicalId, directory.relativePath)
         const ids = bindings.get(directoryId) ?? []

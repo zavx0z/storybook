@@ -4,7 +4,7 @@ import {readModuleDocumentation} from "./module-documentation.ts"
 import {dirname, join, relative} from "node:path"
 import type {StorybookDirectory} from "../catalog/catalog.t.ts"
 
-/** Reads category trees, stopping at module src and independent package boundaries. */
+/** Обходит категории до публичного index.tsx, собственного src или отдельного пакета. */
 export async function discoverStorybookDirectories(
   root: string,
   packageRoots: ReadonlySet<string>,
@@ -51,20 +51,26 @@ export async function discoverStorybookDirectories(
       if (packageInfo !== null) continue
       watchPaths.add(path)
       watchPaths.add(join(path, ".gitignore"))
-      const entryPath = join(path, "index.ts")
-      watchPaths.add(entryPath)
-      const info = await lstat(entryPath).catch(error => {
-        if (error.code !== "ENOENT") throw error
-        return null
-      })
+      const entryPaths = [join(path, "index.tsx"), join(path, "index.ts")]
+      for (const entryPath of entryPaths) watchPaths.add(entryPath)
+      const ignoredEntries = await ignored(entryPaths)
+      let publicEntry: string | undefined
       let moduleDocumentation
-      if (info?.isFile() && !info.isSymbolicLink() && !(await ignored([entryPath])).has(entryPath)) {
+      for (const entryPath of entryPaths) {
+        if (ignoredEntries.has(entryPath)) continue
+        const info = await lstat(entryPath).catch(error => {
+          if (error.code !== "ENOENT") throw error
+          return null
+        })
+        if (!info?.isFile() || info.isSymbolicLink()) continue
+        publicEntry = entryPath
         const file = await open(entryPath, constants.O_RDONLY | constants.O_NOFOLLOW)
         try {
           const metadata = await file.stat()
           if (!metadata.isFile() || metadata.size > 1_048_576) throw new Error(`Module documentation source exceeds limit or is not a file: ${entryPath}`)
           moduleDocumentation = readModuleDocumentation(await file.readFile("utf8"), entryPath)
         } finally { await file.close() }
+        break
       }
       const sourcePath = join(path, "src")
       watchPaths.add(sourcePath)
@@ -72,7 +78,7 @@ export async function discoverStorybookDirectories(
         if (error.code !== "ENOENT") throw error
         return null
       })
-      const isModule = sourceInfo?.isDirectory() === true && !sourceInfo.isSymbolicLink()
+      const isModule = publicEntry === entryPaths[0] || (sourceInfo?.isDirectory() === true && !sourceInfo.isSymbolicLink())
       const children = isModule ? [] : await visit(path)
       result.push(Object.freeze({
         path,

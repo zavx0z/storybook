@@ -139,7 +139,7 @@ export async function resolveExternalStorybookDeclarations(
       const found = await discoverStorybookDirectories(scope.scopeRoot, packageRoots)
       if (scope.kind === "package") for (const subject of scope.catalog?.categories.flatMap(category => category.subjects) ?? []) {
         if (subject.directory !== undefined && !found.directories.some(directory => directory.relativePath === subject.directory && directory.structuralRole === "module")) {
-          throw new Error(`Storybook subject directory must be an existing module with src: ${scope.id}/${subject.directory}`)
+          throw new Error(`Storybook subject directory must be an existing discovered module: ${scope.id}/${subject.directory}`)
         }
       }
       state.scopes[index] = Object.freeze({
