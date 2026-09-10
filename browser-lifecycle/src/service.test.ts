@@ -1,6 +1,6 @@
 import {storybookPackageRouteFromPathname} from "./contract.ts"
 import {afterEach, describe, expect, test} from "bun:test"
-import {mkdtempSync, rmSync} from "node:fs"
+import {mkdtempSync, readFileSync, readdirSync, rmSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {PNG} from "pngjs"
@@ -15,13 +15,66 @@ afterEach(() => {
 })
 
 describe("Storybook browser lifecycle service", () => {
+  test("unknown reservation переиспользует baseline peer, не превращая его в receipt", async () => {
+    const chrome = new FakeChrome()
+    const root = temporaryRoot()
+    const state = new StorybookBrowserState(join(root, "state"))
+    const expectedUrl = `${chrome.origin}/pkg-fixture-a/original?preview=old`
+    state.reserveTarget({packageId: "@fixture/a", cdpOrigin: chrome.cdp, browserIdentity: await chrome.browserIdentity(),
+      url: expectedUrl, baselineTargetIds: ["BASELINE", "FOREIGN"]})
+    state.markCreateSent("@fixture/a")
+    const stateFile = join(root, "state", readdirSync(join(root, "state")).find(name => name.startsWith("target-"))!)
+    const bytes = readFileSync(stateFile, "utf8")
+    const foreign = {targetId: "FOREIGN", type: "page", title: "B", url: `${chrome.origin}/pkg-fixture-b/`}
+    chrome.targetsValue = [{targetId: "BASELINE", type: "page", title: "A", url: `${chrome.origin}/pkg-fixture-a/`}, foreign]
+    chrome.hangingTargetIds.add("FOREIGN")
+    chrome.revisionAfterNavigate = "revision-next"
+    const controller = createController(chrome, root)
+    const input = {...openInput(chrome), expectedRevision: "revision-next"}
+    const opened = await controller.openPackage(input)
+    expect(opened.reused).toBeTrue()
+    expect(opened.identity).toMatchObject({ready: true, revision: "revision-next", route: input.route})
+    expect(chrome.navigatedTargets).toEqual(["BASELINE"])
+    expect(chrome.targetsValue.find(target => target.targetId === "FOREIGN")).toEqual(foreign)
+    expect(readFileSync(stateFile, "utf8")).toBe(bytes)
+    expect((await createController(chrome, root).openPackage(input)).view.viewId).toBe(opened.view.viewId)
+    expect(readFileSync(stateFile, "utf8")).toBe(bytes)
+    expect(chrome.created).toBe(0)
+    expect(chrome.closed).toEqual([])
+    chrome.targetsValue.push({targetId: "LATE_RECEIPT", type: "page", title: "A", url: expectedUrl})
+    await controller.openPackage(input)
+    expect(state.readTarget("@fixture/a")).toMatchObject({phase: "owned", targetId: "LATE_RECEIPT"})
+    expect(chrome.created).toBe(0)
+    expect(chrome.closed).toEqual([])
+  })
+
+  test.each(["wrong-package", "unverified", "revision", "readiness"])("unknown peer recovery сохраняет guards и запись при отказе: %s", async failure => {
+    const chrome = new FakeChrome()
+    const root = temporaryRoot()
+    const state = new StorybookBrowserState(join(root, "state"))
+    state.reserveTarget({packageId: "@fixture/a", cdpOrigin: chrome.cdp, browserIdentity: await chrome.browserIdentity(),
+      url: `${chrome.origin}/pkg-fixture-a/original`, baselineTargetIds: ["BASELINE"]})
+    state.markCreateSent("@fixture/a")
+    const before = state.readTarget("@fixture/a")
+    chrome.targetsValue = [{targetId: "BASELINE", type: "page", title: "A", url: openInput(chrome).url}]
+    if (failure === "wrong-package") chrome.identityPackageOverrides.set("BASELINE", "@fixture/b")
+    if (failure === "unverified") chrome.foreignTargetIds.add("BASELINE")
+    if (failure === "readiness") chrome.waitReady = async () => {throw new Error("Page readiness failed")}
+    const error = failure === "revision" ? "revision mismatch" : failure === "readiness" ? "readiness failed" : "creation is indeterminate"
+    await expect(createController(chrome, root).openPackage({...openInput(chrome), expectedRevision: "revision-next"})).rejects.toThrow(error)
+    expect(state.readTarget("@fixture/a")).toEqual(before)
+    expect(chrome.created).toBe(0)
+    expect(chrome.closed).toEqual([])
+    if (failure === "wrong-package" || failure === "unverified") expect(chrome.navigations).toBe(0)
+  })
+
   test.each(["verified", "not-ready", "bootstrap-owned", "indeterminate", "missing"])("indeterminate evidence различает наблюдение target и отсутствие receipt: %s", async outcome => {
     const chrome = new FakeChrome()
     const root = temporaryRoot()
     const state = new StorybookBrowserState(join(root, "state"))
     state.reserveTarget({
       packageId: "@fixture/a", cdpOrigin: chrome.cdp, browserIdentity: await chrome.browserIdentity(),
-      url: `${chrome.origin}/pkg-fixture-a/expected?preview=SECRET_QUERY`, baselineTargetIds: ["PRIVATE_BASELINE"],
+      url: `${chrome.origin}/pkg-fixture-a/expected?preview=SECRET_QUERY`, baselineTargetIds: [],
     })
     state.markCreateSent("@fixture/a")
     const before = state.readTarget("@fixture/a")
@@ -43,7 +96,7 @@ describe("Storybook browser lifecycle service", () => {
     expect(evidence.observation).toMatchObject({inventoryCompleted: true, sameBrowserSession: true, exactNewReservationUrlCount: 0})
     if (outcome === "missing") expect(evidence.observation.targets).toEqual([])
     else expect(evidence.observation.targets[0]).toMatchObject({
-      path: "/pkg-fixture-a/observed", inBaseline: true, sameReservationUrl: false, attestation: outcome,
+      path: "/pkg-fixture-a/observed", inBaseline: false, sameReservationUrl: false, attestation: outcome,
     })
     for (const secret of ["SECRET_QUERY", "ANOTHER_SECRET", "PRIVATE_BASELINE", chrome.origin, chrome.cdp]) {
       expect(message).not.toContain(secret)
@@ -762,6 +815,7 @@ class FakeChrome implements StorybookChromeClient {
   identityReady = true
   revisionAfterNavigate: string | null = null
   navigations = 0
+  readonly navigatedTargets: string[] = []
   hangHealth = false
   hangBridgeMethod: StorybookBridgeMethod | null = null
   foreignizeOnWaitReady: string | null = null
@@ -815,10 +869,11 @@ class FakeChrome implements StorybookChromeClient {
     this.targetOperations.push(`close:${targetId}`)
     this.targetsValue = this.targetsValue.filter((target) => target.targetId !== targetId)
   }
-  async navigate(_targetId: string, url: string): Promise<void> {
+  async navigate(targetId: string, url: string): Promise<void> {
     this.navigations += 1
+    this.navigatedTargets.push(targetId)
     if (this.revisionAfterNavigate !== null) this.identityRevision = this.revisionAfterNavigate
-    this.targetsValue = this.targetsValue.map((target) => ({...target, url}))
+    this.targetsValue = this.targetsValue.map((target) => target.targetId === targetId ? {...target, url} : target)
   }
   async waitReady(): Promise<void> {
     if (this.foreignizeOnWaitReady === null) return

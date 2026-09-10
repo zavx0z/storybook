@@ -154,6 +154,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
     const browserIdentity = await this.#chrome.browserIdentity(operationSignal)
     const recorded = this.#state.readTarget(packageId)
     let reserved: ChromeTargetSummary | null = null
+    let unresolved: Extract<StorybookBrowserTargetRecord, {phase: "reserved"}> | null = null
     if (recorded?.phase === "reserved" && recorded.cdpOrigin === cdpOrigin &&
       recorded.browserIdentity === browserIdentity && recorded.url !== null) {
       const baseline = new Set(recorded.baselineTargetIds)
@@ -164,13 +165,14 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
       }
       reserved = candidates[0] ?? null
       if (reserved === null && recorded.createSent) {
-        const evidence = await this.#reservationEvidence(recorded, targets, origin, url, operationSignal)
-        throw new Error(`Storybook package target creation is indeterminate: ${packageId}; evidence=${JSON.stringify(evidence)}`)
+        unresolved = recorded
       }
     }
     const owned: ChromeTargetSummary[] = []
     for (const target of targets) {
       if (target.type !== "page") continue
+      // Baseline peer после navigation не может ошибочно стать новым receipt исходной create-команды.
+      if (unresolved !== null && !unresolved.baselineTargetIds.includes(target.targetId)) continue
       if (recorded?.phase === "owned" && recorded.cdpOrigin === cdpOrigin &&
         recorded.browserIdentity === browserIdentity &&
         recorded.targetId === target.targetId) {
@@ -192,6 +194,10 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
       owned[0] ?? null
     const reused = selected !== null
     if (selected === null) {
+      if (unresolved !== null) {
+        const evidence = await this.#reservationEvidence(unresolved, targets, origin, url, operationSignal)
+        throw new Error(`Storybook package target creation is indeterminate: ${packageId}; evidence=${JSON.stringify(evidence)}`)
+      }
       if (recorded?.phase !== "reserved" || recorded.cdpOrigin !== cdpOrigin ||
         recorded.browserIdentity !== browserIdentity || recorded.url !== url) {
         this.#state.reserveTarget({
@@ -216,9 +222,8 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
         throw error
       }
     }
-    // Bind the reservation before navigation/readiness. A broken page remains
-    // the package's one reusable target on the next lifecycle invocation.
-    this.#state.writeTarget({packageId, cdpOrigin, browserIdentity, targetId: selected.targetId})
+    // Existing peer даёт доступ к пакету, но не доказывает receipt неизвестной create-команды.
+    if (unresolved === null) this.#state.writeTarget({packageId, cdpOrigin, browserIdentity, targetId: selected.targetId})
     if (selected.url !== url) await this.#chrome.navigate(selected.targetId, url, operationSignal)
     await this.#chrome.waitReady(selected.targetId, timeoutMs, operationSignal)
     if (reused && selected.url === url) {

@@ -661,6 +661,15 @@ receipt, совпадение origin/URL без вывода query, число m
 разное владение и indeterminate. Native target IDs, origin ports и query tokens
 не публикуются. Диагностика не меняет reservation/registry и не создаёт targets;
 нулевое число наблюдений не доказывает отсутствия исторической отправки.
+Unknown creation не блокирует переиспользование подтверждённого existing peer
+из сохранённого baseline того же browser session. Сначала выполняется обычная
+owner attestation; выбранный peer проходит прежние readiness, route и
+expectedRevision проверки. Reservation при таком reuse остаётся побайтно прежней:
+peer не становится receipt неизвестной create-команды. В этой ветке подходят
+только baseline targets, чтобы их последующая navigation не создала ложный late
+receipt. Без подходящего peer действует indeterminate/no-create; настоящий
+уникальный новый target на исходном reservation URL сохраняет прежний путь
+reconciliation. Чужие targets не закрываются и не перенаправляются.
 Готовность Runtime ожидается в пределах общего бюджета открытия, без отдельного
 пятисекундного ограничения на большую страницу.
 При этом несколько физических вкладок одного пакета допустимы и видимы агенту.
