@@ -694,8 +694,9 @@ export async function startExternalStorybookPackage(
     signal: AbortSignal,
   ): Promise<void> => {
     const dependencies = model.viewKind === "dependencies"
+    const contract = model.viewKind === "contract"
     disposeSpacePreview()
-    if (!dependencies && await showAggregateOverview(model, revision, signal)) return
+    if (!dependencies && !contract && await showAggregateOverview(model, revision, signal)) return
     await disposeAggregate()
     if (session !== null && mountedRoute !== null) {
       await session.session.unmount()
@@ -706,10 +707,12 @@ export async function startExternalStorybookPackage(
       await disposeSession(session)
     }
     const node = externalStorybookClientNode(snapshot, model.selectedNode.id)
-    const readme = dependencies ? null : await readExternalStorybookNodeReadme(node, fetcher)
+    const readme = contract || dependencies ? null : await readExternalStorybookNodeReadme(node, fetcher)
     if (disposed || revision !== navigationRevision) return
-    const label = dependencies ? `${node.label} · Зависимости` : readme === null ? `${node.label} · Обзор` : `${node.label} · ${node.hasModuleDocumentation ? "TSDoc" : "README"}`
-    const presentationNode = dependencies
+    const label = contract ? `${node.label} · Контракт` : dependencies ? `${node.label} · Зависимости` : readme === null ? `${node.label} · Обзор` : `${node.label} · ${node.hasModuleDocumentation ? "TSDoc" : "README"}`
+    const presentationNode = contract
+      ? await shell.showContract(label, node.contractDocuments!, signal)
+      : dependencies
       ? await shell.showDependencies(label, node.dependencyCases!, signal)
       : readme === null
       ? shell.showMessage(label, node.label, overviewDescription(node.kind, node.childIds.length))

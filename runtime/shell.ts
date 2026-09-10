@@ -93,6 +93,7 @@ export type ExternalStorybookShell = Readonly<{
   mountPreview(label: string, node: SemanticNode): void
   showMessage(label: string, title: string, detail: string, action?: StorybookOverviewAction): SemanticHTMLElement
   showMarkdown(label: string, source: string, baseUrl?: string, action?: StorybookOverviewAction): SemanticHTMLElement
+  showContract(label: string, documents: readonly import("../catalog/catalog.t.ts").StorybookContractDocument[], signal: AbortSignal): Promise<SemanticHTMLElement>
   showDependencies(label: string, cases: readonly import("../catalog/catalog.t.ts").StorybookDependencyCase[], signal: AbortSignal): Promise<SemanticHTMLElement>
   reportDiagnostic(value: unknown): void
   clearDiagnostics(): void
@@ -485,6 +486,11 @@ export async function createExternalStorybookShell(
     mountSpacePreview,
     showMessage,
     showMarkdown,
+    async showContract(label, documents, signal) {
+      const {createContractPresentation} = await import("./contract-view.tsx")
+      signal.throwIfAborted()
+      return mountShellPresentation(label, createContractPresentation(document, documents))
+    },
     async showDependencies(label, cases, signal) {
       const {createDependencyPresentation} = await import("./dependency-view.tsx")
       signal.throwIfAborted()

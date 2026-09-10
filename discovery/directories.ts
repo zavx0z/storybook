@@ -2,6 +2,7 @@ import {constants} from "node:fs"
 import {lstat, open, readdir, realpath} from "node:fs/promises"
 import {readModuleDocumentation} from "./module-documentation.ts"
 import {readDependencySpec} from "./dependency-spec.ts"
+import {readContractDocumentation} from "./contract-documentation.ts"
 import {dirname, join, relative} from "node:path"
 import type {StorybookDirectory} from "../catalog/catalog.t.ts"
 
@@ -81,7 +82,33 @@ export async function discoverStorybookDirectories(
       })
       const isModule = publicEntry === entryPaths[0] || (sourceInfo?.isDirectory() === true && !sourceInfo.isSymbolicLink())
       let dependencySpec
+      let contractDocumentation
       if (isModule) {
+        const contractDirectory = join(path, "contract")
+        const contractPaths = [join(contractDirectory, "input.ts"), join(contractDirectory, "output.ts")]
+        for (const watched of [contractDirectory, ...contractPaths]) watchPaths.add(watched)
+        const excludedContracts = await ignored([contractDirectory, ...contractPaths])
+        const contractInfo = await lstat(contractDirectory).catch(error => {
+          if (error.code !== "ENOENT") throw error
+          return null
+        })
+        const sources = []
+        const documents: import("../catalog/catalog.t.ts").StorybookContractDocument[] = []
+        if (contractInfo?.isDirectory() && !contractInfo.isSymbolicLink() && !excludedContracts.has(contractDirectory)) {
+          for (const [index, contractPath] of contractPaths.entries()) {
+            if (excludedContracts.has(contractPath)) continue
+            const info = await lstat(contractPath).catch(error => {
+              if (error.code !== "ENOENT") throw error
+              return null
+            })
+            if (!info?.isFile() || info.isSymbolicLink()) continue
+            const document = await readContractDocumentation(root, contractPath)
+            sources.push(...document.sources)
+            for (const source of document.sources) watchPaths.add(source.sourcePath)
+            documents.push({direction: index === 0 ? "input" : "output", document: document.document})
+          }
+        }
+        if (sources.length > 0) contractDocumentation = {sources, documents}
         const specDirectory = join(path, "spec")
         const specPath = join(specDirectory, "deps.spec.ts")
         watchPaths.add(specDirectory)
@@ -109,6 +136,7 @@ export async function discoverStorybookDirectories(
         readmePath: null,
         ...(moduleDocumentation ? {moduleDocumentation} : {}),
         ...(dependencySpec ? {dependencySpec} : {}),
+        ...(contractDocumentation ? {contractDocumentation} : {}),
       }))
       result.push(...children)
     }

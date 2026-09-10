@@ -78,6 +78,7 @@ export function externalStorybookPackageDescriptors(
             ...(candidate.readmePath === null ? [] : [candidate.readmePath]),
             ...(candidate.moduleDocumentation ? [candidate.moduleDocumentation.sourcePath] : []),
             ...(candidate.dependencySpec ? [candidate.dependencySpec.sourcePath] : []),
+            ...(candidate.contractDocumentation?.sources.map(source => source.sourcePath) ?? []),
             ...(readmeAssetsByNode.get(candidate.id) ?? []),
             ...candidate.resources.map(({path}) => path),
           ]
@@ -110,6 +111,7 @@ export function externalStorybookPackageDescriptors(
         ? [
           ...(candidate.moduleDocumentation ? [{path: candidate.moduleDocumentation.sourcePath, category: "declaration" as const}] : []),
           ...(candidate.dependencySpec ? [{path: candidate.dependencySpec.sourcePath, category: "declaration" as const}] : []),
+          ...(candidate.contractDocumentation?.sources.map(source => ({path: source.sourcePath, category: "declaration" as const})) ?? []),
           ...(candidate.readmePath === null
             ? []
             : [{path: candidate.readmePath, category: "metadata" as const}]),
@@ -137,6 +139,13 @@ export function externalStorybookPackageDescriptors(
         if (candidate.packageId !== declaration.id) return []
         const indexes = new Map<string, number>()
         return [
+          ...(candidate.contractDocumentation?.sources.map((source, index) => ({
+            sourcePath: source.sourcePath,
+            sourceRoot: dirname(source.sourcePath),
+            contentDigest: source.sourceDigest,
+            derivedContent: JSON.stringify(candidate.contractDocumentation!.documents),
+            targetPath: `${revisionModuleDocumentationPath(candidate.id)}.contract-${index}.json`,
+          })) ?? []),
           ...(candidate.moduleDocumentation ? [{
             sourcePath: candidate.moduleDocumentation.sourcePath,
             sourceRoot: declaration.scopeRoot,

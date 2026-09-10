@@ -142,6 +142,17 @@ export type StorybookModuleDocumentation = Readonly<{
   markdown: string
 }>
 
+export type StorybookContractDocument = Readonly<{
+  direction: "input" | "output"
+  document: import("@webxr/typedoc/model").TypeDocDocument
+}>
+
+/** Документация файлов contract/input.ts и contract/output.ts одного модуля. */
+export type StorybookContractDocumentation = Readonly<{
+  documents: readonly StorybookContractDocument[]
+  sources: readonly Readonly<{sourcePath: string; sourceDigest: string}>[]
+}>
+
 /** Ожидаемый состав из test.each; не является результатом выполнения теста. */
 export type StorybookDependencyCase = Readonly<{
   name: string
@@ -167,6 +178,7 @@ export type StorybookDirectory = Readonly<{
   readmePath: string | null
   moduleDocumentation?: StorybookModuleDocumentation
   dependencySpec?: StorybookDependencySpec
+  contractDocumentation?: StorybookContractDocumentation
 }>
 
 type StorybookCatalogScopeBase = Readonly<{

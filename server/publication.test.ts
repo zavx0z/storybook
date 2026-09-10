@@ -25,6 +25,7 @@ test("publishes only after an agent check, notifies every matching tab, and rest
   await Bun.write(join(owner, "tsconfig.json"), JSON.stringify({compilerOptions: {types: []}, include: ["**/*.ts", "**/*.tsx"]}))
   await Bun.write(join(owner, "component/index.tsx"), "export function Example() { return <article /> }\n")
   await Bun.write(join(owner, "component/spec/deps.spec.ts"), 'import {test} from "bun:test"\ntest.each([{name:"Example",file:"component/index.tsx",expected:{"component/index.tsx#Example":{uses:[],elements:["article"]}}}])("Состав $name", () => {})\n')
+  await Bun.write(join(owner, "component/contract/input.ts"), "export interface Input {label?: string}\n")
   const entry = join(root, "entry.ts")
   await Bun.write(entry, "export function startExternalStorybookPackage() {}\n")
   let server: ExternalStorybookRunningServer
@@ -123,6 +124,14 @@ test("publishes only after an agent check, notifies every matching tab, and rest
     expect(unknownTab.status).toBe(404)
     expect(unknownTab.headers.get("location")).toBeNull()
     expect((await unknownTab.json()).error).toContain("Unknown Storybook revision route")
+    const contractPage = await fetch(new URL(`/pkg-fixture-applied/dir-component/contract?preview=${first}`, server.origin), {redirect: "manual"})
+    expect(contractPage.status).toBe(200)
+    expect(await contractPage.text()).toContain(`/__storybook/revisions/%40fixture%2Fapplied/${first}/`)
+    const contractRoute = server.sessions.session("@fixture/applied").revisionGraphSnapshot(first)!.routes.find(route => route.path === "dir-component/contract")
+    expect(contractRoute?.kind).toBe("contract")
+    const unknownContract = await fetch(new URL(`/pkg-fixture-applied/dir-absent/contract?preview=${first}`, server.origin), {redirect: "manual"})
+    expect(unknownContract.status).toBe(404)
+    expect(unknownContract.headers.get("location")).toBeNull()
     const a = await connect(unpublished)
     const b = await connect(await readPage())
     const otherSession = await fetch(new URL("/api/browser/session", server.origin), {

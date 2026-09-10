@@ -2,6 +2,7 @@ import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
 import {createDocument} from "@zavx0z/dom"
 import {browserLifecycle, catalog} from "../.storybook/stories/contracts.tsx"
+import {typeContractExample} from "../.storybook/stories/type-contract.ts"
 import {projects} from "../.storybook/stories/project-controls.tsx"
 import {parseExternalStorybookCli} from "../server/cli.ts"
 import {
@@ -13,6 +14,17 @@ import {createStorybookPackageRevisionGraphSnapshot} from "../sessions/package-r
 const root = resolve(import.meta.dir, "..")
 
 describe("external Storybook self declaration", () => {
+  test("пример контракта использует TypeDoc для входа и выхода", () => {
+    const presentation = typeContractExample.create(createDocument())
+    try {
+      expect(presentation.element.querySelectorAll("[data-typedoc]")).toHaveLength(2)
+      expect(presentation.element.textContent).toContain("Входные данные")
+      expect(presentation.element.textContent).toContain("Выходные данные")
+      expect(presentation.element.textContent).toContain("ExampleInput")
+      expect(presentation.element.textContent).toContain("ExampleOutput")
+    } finally { presentation.dispose() }
+  })
+
   test("пример каталога показывает компонент в index.tsx без обязательного src", () => {
     const presentation = catalog.create(createDocument())
     try {
@@ -50,6 +62,8 @@ describe("external Storybook self declaration", () => {
       "route-tree/contract/overview",
       "stories/contract/overview",
       "stories/contract/dependencies",
+      "stories/contract/type-contract",
+      "stories/contract/type-contract-example",
       "stories/contract/dependency-example",
       "catalog/contract/overview",
       "workbench/contract/overview",

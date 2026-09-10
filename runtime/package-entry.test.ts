@@ -33,6 +33,62 @@ import type {ExternalStorybookRootFactory} from "./shell.ts"
 const fixtureRoot = join(import.meta.dir, "../discovery/fixtures/valid")
 
 describe("external Storybook package frontend", () => {
+  test.each(["components/button", "components/button/contract"])("[STORYBOOK-CONTRACT-DISPLAY] TypeDoc и history из %s в том же Display", async initialRoute => {
+    const base = await fixtureGraph()
+    const subjectId = "subject:@fixture/components/components/button"
+    const contractDocumentation = {sources: [], documents: [{direction: "input" as const, document: {
+      name: "input.ts", declarations: [{name: "Input", kind: "interface" as const,
+        signature: "export interface Input {label?: string}",
+        comment: {summary: "Описание входного контракта", examples: []},
+        members: [{name: "label", type: "string | undefined", optional: true, defaultValue: "Example", description: "Текст подписи"}],
+      }],
+    }}]}
+    const graph = {...base, nodes: base.nodes.map(node => node.id === subjectId
+      ? {...node, childIds: [], contractRoutePath: "components/button/contract", contractDocumentation}
+      : node)}
+    const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-contract"))
+    const environment = environmentFixture(snapshot, `/pkg-fixture-components/${initialRoute}?preview=revision-contract`)
+    const events = new EventTarget()
+    Object.defineProperty(environment.browserDocument, "defaultView", {value: events})
+    const controller = await startExternalStorybookPackage({
+      packageId: "@fixture/components", candidateRevision: "revision-contract",
+      revisionUrl: "/__storybook/revisions/%40fixture%2Fcomponents/revision-contract/",
+      loadRuntime: null, storyLoaders: new Map(), environment,
+    })
+    try {
+      const {document, display, workbench} = controller.shell
+      expect(controller.currentRoute).toBe(initialRoute)
+      expect(display.querySelector("[data-storybook-contract]") !== null).toBe(initialRoute.endsWith("/contract"))
+      const tab = [...workbench.element.querySelectorAll("button")].find(node => node.getAttribute("aria-label") === "Контракт") as HTMLButtonElement
+      tab.click()
+      const deadline = Date.now() + 10000
+      while (!display.querySelector("[data-typedoc]") && Date.now() < deadline) await Bun.sleep(10)
+      expect(display.querySelector("[data-typedoc]")).not.toBeNull()
+      expect(display.textContent).toContain("Текст подписи")
+      expect(display.querySelector("[data-token-category]")).not.toBeNull()
+      expect(display.textContent).toContain("Входные данные")
+      expect(display.textContent).not.toContain("Выходные данные")
+      expect(workbench.controller.read("tabs.active")).toBe(`contract:${subjectId}`)
+      expect(controller.currentRoute).toBe("components/button/contract")
+      expect(new URL(environment.location!.href).searchParams.get("preview")).toBe("revision-contract")
+      const subject = workbench.elements.secondary.querySelector(`[data-id="${subjectId}"] button`) as HTMLButtonElement
+      subject.click()
+      const until = Date.now() + 5000
+      while (controller.currentRoute !== "components/button" && Date.now() < until) await Bun.sleep(10)
+      expect(controller.currentRoute).toBe("components/button")
+      const location = environment.location! as LocationFixture
+      const url = new URL("/pkg-fixture-components/components/button/contract?preview=revision-contract", location.href)
+      location.pathname = url.pathname
+      location.href = url.href
+      events.dispatchEvent(new Event("popstate"))
+      const restored = Date.now() + 5000
+      while (!display.querySelector("[data-typedoc]") && Date.now() < restored) await Bun.sleep(10)
+      expect(display.querySelector("[data-typedoc]")).not.toBeNull()
+      expect(controller.shell.document).toBe(document)
+      expect(controller.shell.display).toBe(display)
+    } finally { await controller.dispose() }
+  })
+
   test.each(["components/button", "components/button/dependencies"])("[STORYBOOK-DEPS-DISPLAY] вкладка восстанавливается из %s, меняет URL и возвращается через предмет/history", async initialRoute => {
     const base = await fixtureGraph()
     const subjectId = "subject:@fixture/components/components/button"

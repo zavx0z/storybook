@@ -24,6 +24,7 @@ const newFamily = Object.freeze({
   "@webxr/nodes": "nodes",
   "@nodes/node": "nodes/node",
   "@webxr/markdown": "markdown",
+  "@webxr/typedoc": "typedoc",
   "@nodes/parameters": "nodes/parameters",
   "@nodes/sockets": "nodes/sockets",
   "@nodes/tree": "nodes/tree",
@@ -82,6 +83,7 @@ describe("Storybook package identity", () => {
     assertOnePhysicalOwner(roots, "@zavx0z/dom", "dom", "src/index.ts")
     assertOnePhysicalOwner(roots, "@renderer/html", "renderer/html", "src/index.ts")
     assertOnePhysicalOwner(roots, "@webxr/markdown", "markdown", "markdown/src/markdown.tsx")
+    assertOnePhysicalOwner(roots, "@webxr/typedoc", "typedoc", "typedoc/index.tsx")
     assertOnePhysicalOwner(roots, "@zavx0z/template", "template", "compiled.ts")
     assertOnePhysicalOwner(roots, "@zavx0z/ui", "ui", "buttons/button.tsx")
     assertOnePhysicalOwner(roots, "@zavx0z/browser", "browser", "src/index.ts")
@@ -111,6 +113,8 @@ describe("Storybook package identity", () => {
       ["@renderer/html", "renderer/html/src/index.ts"],
       ["@webxr/markdown", "markdown/markdown/src/markdown.tsx"],
       ["@webxr/markdown/parser", "markdown/parser/src/parser.ts"],
+      ["@webxr/typedoc", "typedoc/typedoc/index.tsx"],
+      ["@webxr/typedoc/parser", "typedoc/parser/index.ts"],
       ["@zavx0z/template/compiled", "template/compiled.ts"],
       ["@zavx0z/ui/buttons/button", "ui/buttons/button.tsx"],
     ] as const) {

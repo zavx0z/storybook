@@ -27,6 +27,8 @@
         "variants": [
           {"id": "overview", "label": "Overview", "route": "stories/contract/overview", "module": {"path": "./stories/contracts.tsx", "export": "stories"}},
           {"id": "dependencies", "label": "Зависимости из spec", "route": "stories/contract/dependencies", "module": {"path": "./stories/contracts.tsx", "export": "dependencies"}},
+          {"id": "type-contract", "label": "Входной и выходной контракт", "route": "stories/contract/type-contract", "module": {"path": "./stories/contracts.tsx", "export": "typeContract"}},
+          {"id": "type-contract-example", "label": "Пример TypeDoc", "route": "stories/contract/type-contract-example", "module": {"path": "./stories/type-contract.ts", "export": "typeContractExample"}},
           {"id": "dependency-example", "label": "Граф зависимостей", "route": "stories/contract/dependency-example", "module": {"path": "./stories/dependencies.ts", "export": "dependencyExample"}}
         ]
       }]

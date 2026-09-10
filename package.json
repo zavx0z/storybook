@@ -46,6 +46,7 @@
     "@zavx0z/ui": "file:../webxr-space/ui",
     "@zavx0z/webgpu": "file:../webxr-space/webgpu",
     "typescript": "^7.0.2",
+    "@webxr/typedoc": "file:../webxr-space/typedoc",
     "@webxr/markdown": "file:../webxr-space/markdown",
     "@nodes/node": "file:../webxr-space/nodes/node"
   }

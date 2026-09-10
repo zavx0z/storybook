@@ -25,6 +25,12 @@ const contracts = Object.freeze({
     "Storybook читает параметры test.each без выполнения теста. expected задаёт ожидаемые uses и elements. GraphView и DiagramNode показывают их в существующем Display; DOM измеряет ноды, @nodes/layout размещает их. Источник наблюдается, данные входят в применяемую ревизию. Выбранный граф вписывается в фактическую область Display через GraphView.autoSize; несколько cases выбираются по одному. Pan/zoom сохраняется при resize после ручного жеста; «Вписать» возвращает подгонку.",
     'test.each([{name: "Example", file: "component/index.tsx", expected: {"component/index.tsx#Example": {uses: [], elements: ["article"]}}}])("Зависимости $name", callback)\n// Общий просмотр внутри существующего Display\n<GraphView input={graph.input} layout={graph.layout} navigation="pan-zoom" autoSize={true} minScale={0} />',
   ),
+  typeContract: contract(
+    "Структурный контракт компонента",
+    "Нормативный источник — requirements.md#contract-documentation. Файлы contract/input.ts и contract/output.ts создают одну вкладку Контракт после Зависимостей; отсутствующий раздел не показывается.",
+    "Пакет @webxr/typedoc самостоятельно разбирает TypeScript 7 и отображает типы, поля, обязательность, значения по умолчанию, описания и примеры. Сигнатуры и типы подсвечивает существующий CodeEditor. Storybook отвечает за обнаружение, адрес владельца и ревизию. Код контракта не исполняется.",
+    'component/contract/input.ts → TypeDocDocument → <TypeDoc document={document} />\ncomponent/contract/output.ts → тот же контракт, раздел Выходные данные\nURL: <owner-route>/contract',
+  ),
   stories: contract(
     "Owner story modules",
     "A catalog stores one static module path and export name for each executable variant. Story modules import production owners, never Storybook.",
@@ -122,6 +128,7 @@ const contracts = Object.freeze({
 export const routeTree = contracts.routeTree
 export const stories = contracts.stories
 export const dependencies = contracts.dependencies
+export const typeContract = contracts.typeContract
 export const catalog = contracts.catalog
 export const workbench = contracts.workbench
 export const authorStyles = contracts.authorStyles
