@@ -49,6 +49,7 @@ export type ExternalStorybookGraphNode = Readonly<{
   childIds: readonly string[]
   readmePath: string | null
   moduleDocumentation?: import("./catalog.t.ts").StorybookModuleDocumentation
+  dependencySpec?: import("./catalog.t.ts").StorybookDependencySpec
   resources: readonly StorybookResource[]
   authorStyleSheets: readonly StorybookAuthorStyleSheet[]
   widgetContributions: StorybookWidgetContributions | null
@@ -188,6 +189,7 @@ export function createExternalStorybookGraph(
         childIds: Object.freeze([]),
         readmePath: directory.readmePath,
         ...(directory.moduleDocumentation ? {moduleDocumentation: directory.moduleDocumentation} : {}),
+        ...(directory.dependencySpec ? {dependencySpec: directory.dependencySpec} : {}),
         source: Object.freeze({path: directory.path, pointer: ""}),
         searchTerms: searchTerms(directory.name, directory.relativePath),
         resources: Object.freeze([]), authorStyleSheets: Object.freeze([]), widgetContributions: null,
@@ -263,6 +265,7 @@ function bindStructuralSubjects(
         nodes.set(id, Object.freeze({
           ...subject,
           parentId: subjects.length === 1 ? directory.parentId : directoryId,
+          ...(directory.dependencySpec ? {dependencySpec: directory.dependencySpec} : {}),
           ...(subjects.length === 1 ? {
             label: directory.label,
             readmePath: null,

@@ -1,6 +1,7 @@
 import {constants} from "node:fs"
 import {lstat, open, readdir, realpath} from "node:fs/promises"
 import {readModuleDocumentation} from "./module-documentation.ts"
+import {readDependencySpec} from "./dependency-spec.ts"
 import {dirname, join, relative} from "node:path"
 import type {StorybookDirectory} from "../catalog/catalog.t.ts"
 
@@ -79,6 +80,25 @@ export async function discoverStorybookDirectories(
         return null
       })
       const isModule = publicEntry === entryPaths[0] || (sourceInfo?.isDirectory() === true && !sourceInfo.isSymbolicLink())
+      let dependencySpec
+      if (isModule) {
+        const specDirectory = join(path, "spec")
+        const specPath = join(specDirectory, "deps.spec.ts")
+        watchPaths.add(specDirectory)
+        watchPaths.add(specPath)
+        const excludedSpecs = await ignored([specDirectory, specPath])
+        const directoryInfo = await lstat(specDirectory).catch(error => {
+          if (error.code !== "ENOENT") throw error
+          return null
+        })
+        if (directoryInfo?.isDirectory() && !directoryInfo.isSymbolicLink() && excludedSpecs.size === 0) {
+          const specInfo = await lstat(specPath).catch(error => {
+            if (error.code !== "ENOENT") throw error
+            return null
+          })
+          if (specInfo?.isFile() && !specInfo.isSymbolicLink()) dependencySpec = await readDependencySpec(root, specPath)
+        }
+      }
       const children = isModule ? [] : await visit(path)
       result.push(Object.freeze({
         path,
@@ -88,6 +108,7 @@ export async function discoverStorybookDirectories(
         structuralRole: isModule ? "module" : children.some(child => child.structuralRole !== "directory") ? "category" : "directory",
         readmePath: null,
         ...(moduleDocumentation ? {moduleDocumentation} : {}),
+        ...(dependencySpec ? {dependencySpec} : {}),
       }))
       result.push(...children)
     }

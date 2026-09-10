@@ -4,7 +4,7 @@ import {createRoot} from "@zavx0z/component"
 import {createDocumentClipboardController} from "@zavx0z/browser/clipboard"
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
-import {createDocument, type Element} from "@zavx0z/dom"
+import {createDocument, type Element, type HTMLButtonElement} from "@zavx0z/dom"
 import type {
   Presentation as Root,
   RootDocumentProjection,
@@ -33,6 +33,53 @@ import type {ExternalStorybookRootFactory} from "./shell.ts"
 const fixtureRoot = join(import.meta.dir, "../discovery/fixtures/valid")
 
 describe("external Storybook package frontend", () => {
+  test("[STORYBOOK-DEPS-DISPLAY] кнопка структурного spec показывает граф в том же Display и возвращает обзор", async () => {
+    const base = await fixtureGraph()
+    const subjectId = "subject:@fixture/components/components/button"
+    const cases = [{
+      name: "Example", file: "component/index.tsx", testName: "Зависимости",
+      graph: {"component/index.tsx#Example": {uses: [], elements: ["article"]}},
+    }]
+    const graph = {...base, nodes: base.nodes.map(node => node.id === subjectId
+      ? {...node, childIds: [], dependencySpec: {sourcePath: "/fixture/component/spec/deps.spec.ts", sourceDigest: "fixture", cases}}
+      : node)}
+    const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-deps"))
+    const controller = await startExternalStorybookPackage({
+      packageId: "@fixture/components",
+      candidateRevision: "revision-deps",
+      revisionUrl: "/__storybook/revisions/%40fixture%2Fcomponents/revision-deps/",
+      loadRuntime: null,
+      storyLoaders: new Map(),
+      environment: environmentFixture(snapshot, "/pkg-fixture-components/components/button"),
+    })
+    try {
+      const {document, display, workbench} = controller.shell
+      expect(workbench.controller.read("scenarios.items").map(item => item.label)).toEqual(["Обзор", "Зависимости"])
+      const button = [...workbench.element.querySelectorAll("button")].find(node => node.getAttribute("aria-label") === "Зависимости") as HTMLButtonElement
+      button.click()
+      const deadline = Date.now() + 10000
+      while (display.querySelector("[data-storybook-dependencies]") === null && Date.now() < deadline) await Bun.sleep(20)
+      expect(display.querySelector("[data-storybook-dependencies]")).not.toBeNull()
+      expect(workbench.controller.read("scenarios.active")).toBe("structural:dependencies")
+      expect(display.querySelectorAll("[data-graph-view]")).toHaveLength(1)
+      expect(display.textContent).toContain("Example")
+      expect(display.textContent).toContain("<article>")
+      expect(display.querySelector("[data-storybook-markdown]")).toBeNull()
+      const previous = display.querySelector("[data-storybook-dependencies]")!
+      const overview = [...workbench.element.querySelectorAll("button")].find(node => node.getAttribute("aria-label") === "Обзор") as HTMLButtonElement
+      overview.click()
+      const cleanupDeadline = Date.now() + 10000
+      while (previous.isConnected && Date.now() < cleanupDeadline) await Bun.sleep(20)
+      expect(previous.isConnected).toBe(false)
+      expect(controller.shell.document).toBe(document)
+      expect(controller.shell.display).toBe(display)
+      await controller.navigate("")
+      expect(workbench.controller.read("scenarios.items").some(item => item.id === "structural:dependencies")).toBe(false)
+    } finally {
+      await controller.dispose()
+    }
+  })
+
   test.each([true, false])("fallback preserves the indexed Workbench stylesheet and rejects failed loading: loaded=%s", async loaded => {
     const graph = await fixtureGraph()
     const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-a"))

@@ -24,7 +24,11 @@
         "label": "Story module boundary",
         "apiName": "module.path + module.export",
         "presentation": {"protocol": "story-presentation/1", "projection": "display", "widgets": ["props", "source", "diagnostics"]},
-        "variants": [{"id": "overview", "label": "Overview", "route": "stories/contract/overview", "module": {"path": "./stories/contracts.tsx", "export": "stories"}}]
+        "variants": [
+          {"id": "overview", "label": "Overview", "route": "stories/contract/overview", "module": {"path": "./stories/contracts.tsx", "export": "stories"}},
+          {"id": "dependencies", "label": "Зависимости из spec", "route": "stories/contract/dependencies", "module": {"path": "./stories/contracts.tsx", "export": "dependencies"}},
+          {"id": "dependency-example", "label": "Граф зависимостей", "route": "stories/contract/dependency-example", "module": {"path": "./stories/dependencies.ts", "export": "dependencyExample"}}
+        ]
       }]
     },
     {

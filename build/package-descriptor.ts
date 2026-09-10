@@ -77,6 +77,7 @@ export function externalStorybookPackageDescriptors(
           ? [
             ...(candidate.readmePath === null ? [] : [candidate.readmePath]),
             ...(candidate.moduleDocumentation ? [candidate.moduleDocumentation.sourcePath] : []),
+            ...(candidate.dependencySpec ? [candidate.dependencySpec.sourcePath] : []),
             ...(readmeAssetsByNode.get(candidate.id) ?? []),
             ...candidate.resources.map(({path}) => path),
           ]
@@ -108,6 +109,7 @@ export function externalStorybookPackageDescriptors(
       ...graph.nodes.flatMap((candidate) => candidate.packageId === declaration.id
         ? [
           ...(candidate.moduleDocumentation ? [{path: candidate.moduleDocumentation.sourcePath, category: "declaration" as const}] : []),
+          ...(candidate.dependencySpec ? [{path: candidate.dependencySpec.sourcePath, category: "declaration" as const}] : []),
           ...(candidate.readmePath === null
             ? []
             : [{path: candidate.readmePath, category: "metadata" as const}]),

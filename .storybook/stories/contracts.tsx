@@ -19,6 +19,12 @@ const contracts = Object.freeze({
     "Tile hosts connect to the existing declared Display/HUD projection before child mount; context.present validates and attaches the owner synchronously. Each tile independently scales its real owner to fit using the existing projection frames, preserving aspect ratio, authored dimensions and node identity through resize. Abort and failure release every session, owner node, fit subscription and aggregate wrapper. Subjects without variants remain documentation overviews. Mixed-projection categories remain README/navigation overviews without remapping children.",
     "// @zavx0z/dom → /pkg-zavx0z-dom/\n// @internal/visual → /pkg-internal-visual/\n// workbench → /pkg-zavx0z-storybook/dir-workbench\n// numeric/number → /pkg-nodes-parameters/dir-numeric/dir-number\n// Категории раскрываются до компонента с index.tsx или модуля с src\n// Bound stories retain their authored subject/variant routes\n// packageId remains the exact npm name\ncontext.present(owner)\n// Owner is synchronously attached to its existing Display/HUD projection.\n// Each tile: scale = min(1, availableWidth / ownerWidth, availableHeight / ownerHeight).\n// Viewport and owner resize refit the same production node.\n// Abort or failure releases every child, frame subscription and wrapper.",
   ),
+  dependencies: contract(
+    "Зависимости из структуры компонента",
+    "Файл spec/deps.spec.ts у обнаруженного модуля добавляет кнопку Зависимости. Обзор возвращает содержание модуля. Для этого не нужна запись в manifest или catalog.",
+    "Storybook читает параметры test.each без выполнения теста. expected задаёт ожидаемые uses и elements. GraphView и DiagramNode показывают их в существующем Display; DOM измеряет ноды, @nodes/layout размещает их. Источник наблюдается, данные входят в применяемую ревизию.",
+    'test.each([{name: "Example", file: "component/index.tsx", expected: {"component/index.tsx#Example": {uses: [], elements: ["article"]}}}])("Зависимости $name", callback)',
+  ),
   stories: contract(
     "Owner story modules",
     "A catalog stores one static module path and export name for each executable variant. Story modules import production owners, never Storybook.",
@@ -115,6 +121,7 @@ const contracts = Object.freeze({
 
 export const routeTree = contracts.routeTree
 export const stories = contracts.stories
+export const dependencies = contracts.dependencies
 export const catalog = contracts.catalog
 export const workbench = contracts.workbench
 export const authorStyles = contracts.authorStyles

@@ -49,6 +49,8 @@ describe("external Storybook self declaration", () => {
     expect(leaves).toEqual([
       "route-tree/contract/overview",
       "stories/contract/overview",
+      "stories/contract/dependencies",
+      "stories/contract/dependency-example",
       "catalog/contract/overview",
       "workbench/contract/overview",
       "workbench/presentation/primary",

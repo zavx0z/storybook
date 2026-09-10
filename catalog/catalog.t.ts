@@ -7,9 +7,8 @@
 Массивы сохраняют порядок владельца, а source указывает на точный исходник.
 Формат source.pointer принадлежит источнику: JSON reader использует JSON Pointer.
 
-Контракт сохраняет существующие виды узлов и протоколы представления.
-Извлечение структуры TypeScript и исполнение новых видов сценариев сюда
-не добавлены.
+Структурный spec/deps.spec.ts добавляет данные зависимостей к обнаруженному модулю.
+Исходник теста разбирается без исполнения; виды узлов каталога сохраняются.
 
 @see [Архитектура Storybook](../ARCHITECTURE.md)
 @packageDocumentation
@@ -143,6 +142,21 @@ export type StorybookModuleDocumentation = Readonly<{
   markdown: string
 }>
 
+/** Ожидаемый состав из test.each; не является результатом выполнения теста. */
+export type StorybookDependencyCase = Readonly<{
+  name: string
+  file: string
+  testName: string
+  graph: Readonly<Record<string, Readonly<{uses: readonly string[], elements: readonly string[]}>>>
+}>
+
+/** Проверенный структурный источник зависимостей конкретного модуля. */
+export type StorybookDependencySpec = Readonly<{
+  sourcePath: string
+  sourceDigest: string
+  cases: readonly StorybookDependencyCase[]
+}>
+
 /** Filesystem category or module, classified by placement rather than exports. */
 export type StorybookDirectory = Readonly<{
   path: string
@@ -152,6 +166,7 @@ export type StorybookDirectory = Readonly<{
   structuralRole?: "category" | "module" | "directory"
   readmePath: string | null
   moduleDocumentation?: StorybookModuleDocumentation
+  dependencySpec?: StorybookDependencySpec
 }>
 
 type StorybookCatalogScopeBase = Readonly<{
