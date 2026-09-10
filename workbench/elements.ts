@@ -20,8 +20,8 @@ export function readWorkbenchElements(root: HTMLDivElement): WorkbenchElements {
     displayHost: exactElement(root, '[data-storybook-projection="display"]', "Display projection host"),
     hudHost: exactElement(root, '[data-storybook-projection="hud"]', "HUD projection host"),
     spaceHost: exactElement(root, '[data-storybook-projection="space"]', "Space projection host"),
-    scenarios: exactElement(root, '[data-storybook-region="scenarios"]', "Scenarios region"),
-    scenarioItems: exactElement(root, '[data-storybook-part="scenario-items"]', "Scenario items") as HTMLDivElement,
+    tabs: exactElement(root, '[data-storybook-region="tabs"]', "Панель вкладок"),
+    tabItems: exactElement(root, '[data-storybook-part="tab-items"]', "Вкладки") as HTMLDivElement,
     inspectorHost: exactElement(root, '[data-storybook-region="inspector"]', "Inspector region") as HTMLDivElement,
     status: exactElement(root, '[data-storybook-region="status"]', "Status region"),
   })

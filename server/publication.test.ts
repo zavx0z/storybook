@@ -22,6 +22,9 @@ test("publishes only after an agent check, notifies every matching tab, and rest
   const packageJson = join(owner, "package.json")
   await Bun.write(packageJson, JSON.stringify({name: "@fixture/applied", label: "Applied"}))
   await Bun.write(join(owner, "docs/README.md"), "# Package docs")
+  await Bun.write(join(owner, "tsconfig.json"), JSON.stringify({compilerOptions: {types: []}, include: ["**/*.ts", "**/*.tsx"]}))
+  await Bun.write(join(owner, "component/index.tsx"), "export function Example() { return <article /> }\n")
+  await Bun.write(join(owner, "component/spec/deps.spec.ts"), 'import {test} from "bun:test"\ntest.each([{name:"Example",file:"component/index.tsx",expected:{"component/index.tsx#Example":{uses:[],elements:["article"]}}}])("Состав $name", () => {})\n')
   const entry = join(root, "entry.ts")
   await Bun.write(entry, "export function startExternalStorybookPackage() {}\n")
   let server: ExternalStorybookRunningServer
@@ -106,6 +109,20 @@ test("publishes only after an agent check, notifies every matching tab, and rest
     expect(unpublished).toContain("/__storybook/shared/")
     expect(await readPage(first)).toContain(`/__storybook/revisions/%40fixture%2Fapplied/${first}/`)
     expect(server.sessions.session("@fixture/applied").snapshot().activeRevision).toBeNull()
+    const dependenciesPath = "/pkg-fixture-applied/dir-component/dependencies"
+    const dependenciesPage = await fetch(new URL(`${dependenciesPath}?preview=${first}`, server.origin), {redirect: "manual"})
+    expect(dependenciesPage.status).toBe(200)
+    expect(await dependenciesPage.text()).toContain(`/__storybook/revisions/%40fixture%2Fapplied/${first}/`)
+    const openedDependencies = await fetch(new URL("/api/control/open", server.origin), {
+      method: "POST", headers: {authorization: `Bearer ${server.record.controlToken}`, "content-type": "application/json"},
+      body: JSON.stringify({packageId: "@fixture/applied", route: "dir-component/dependencies"}),
+    })
+    expect(await openedDependencies.json()).toMatchObject({ok: true, route: "dir-component/dependencies", revision: first})
+    const unknownTab = await fetch(new URL(`/pkg-fixture-applied/dir-absent/dependencies?preview=${first}`, server.origin), {redirect: "manual"})
+    // Синтаксис URL допустим, но ресурса в revision нет: 404 без подмены обзором.
+    expect(unknownTab.status).toBe(404)
+    expect(unknownTab.headers.get("location")).toBeNull()
+    expect((await unknownTab.json()).error).toContain("Unknown Storybook revision route")
     const a = await connect(unpublished)
     const b = await connect(await readPage())
     const otherSession = await fetch(new URL("/api/browser/session", server.origin), {
@@ -158,21 +175,26 @@ test("publishes only after an agent check, notifies every matching tab, and rest
     const canonicalPath = "/pkg-fixture-applied/"
     const legacyPath = "/packages/%40fixture%2Fapplied/"
     const graph = receipt.graphSnapshot
+    const legacyDirectoryId = graph.nodes.find((node: {kind: string; routePath: string}) =>
+      node.kind === "directory" && node.routePath === "dir-docs")?.id
+    expect(legacyDirectoryId).toBeDefined()
     graph.metadata.urlPath = graph.metadata.urlPath.replace(canonicalPath, legacyPath)
     for (const node of graph.nodes) {
       node.urlPath = node.urlPath.replace(canonicalPath, legacyPath)
-      if (node.kind === "directory") {
+      if (node.id === legacyDirectoryId) {
         node.routePath = "~directories/docs"
         node.urlPath = `${legacyPath}~directories/docs/`
       }
     }
     for (const route of graph.routes) {
       route.urlPath = route.urlPath.replace(canonicalPath, legacyPath)
-      if (route.nodeId.startsWith("directory:")) {
+      if (route.nodeId === legacyDirectoryId && route.kind === "overview") {
         route.path = "~directories/docs"
         route.urlPath = `${legacyPath}~directories/docs/`
       }
     }
+    // Исторический snapshot сохраняет разные директории и вкладки разными маршрутами.
+    expect(new Set(graph.routes.map((route: {path: string}) => route.path)).size).toBe(graph.routes.length)
     const {packageGraphDigest: _previousDigest, ...unsigned} = graph
     graph.packageGraphDigest = new Bun.CryptoHasher("sha256").update(JSON.stringify(unsigned)).digest("hex")
     await Bun.write(receiptPath, JSON.stringify(receipt))

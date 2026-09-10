@@ -5,13 +5,13 @@ import type {
   WorkbenchCatalogAction,
   WorkbenchNavigationItem,
   WorkbenchBreadcrumb,
-  WorkbenchScenarioItem,
+  WorkbenchTabItem,
   WorkbenchViewState,
 } from "./contract.ts"
 import {CatalogRegion} from "./regions/catalog.tsx"
 import {InspectorRegion} from "./regions/inspector.tsx"
 import {PreviewRegion} from "./regions/preview.tsx"
-import {ScenariosRegion} from "./regions/scenarios.tsx"
+import {TabsRegion} from "./regions/tabs.tsx"
 import {SecondaryRegion} from "./regions/secondary.tsx"
 import {StatusRegion} from "./regions/status.tsx"
 
@@ -26,7 +26,7 @@ export type WorkbenchViewProps = Readonly<{
   onCatalogSearch(value: string, source: HTMLElement): void
   onGroupToggle(group: WorkbenchNavigationGroup, collapsed: boolean, source: HTMLElement): void
   onSecondaryNavigate(item: WorkbenchNavigationItem, source: HTMLElement): void
-  onScenario(item: WorkbenchScenarioItem, source: HTMLElement): void
+  onTab(item: WorkbenchTabItem, source: HTMLElement): void
   onInspectorCategoryChange(id: string): void
   onInspectorQueryChange(query: string): void
   onStatusNavigate(item: WorkbenchBreadcrumb, source: HTMLElement): void
@@ -104,13 +104,12 @@ export function WorkbenchView(props: WorkbenchViewProps) {
         min-width: 0;
         min-height: 0;
         flex-grow: 1;
-        gap: 4px;
       `}>
-        <ScenariosRegion
-          label={state["scenarios.label"]}
-          items={state["scenarios.items"]}
-          activeId={state["scenarios.active"]}
-          onScenario={props.onScenario}
+        <TabsRegion
+          label={state["tabs.label"]}
+          items={state["tabs.items"]}
+          activeId={state["tabs.active"]}
+          onTab={props.onTab}
         />
         <PreviewRegion
           label={state["preview.label"]}

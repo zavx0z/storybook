@@ -3,6 +3,7 @@ import {
   createDocument,
   CustomEvent,
   Event,
+  KeyboardEvent,
   type HTMLButtonElement,
   type HTMLInputElement,
   type HTMLElement,
@@ -49,18 +50,18 @@ describe("compiled Storybook Workbench", () => {
     expect(workbench.elements.catalog.localName).toBe("nav")
     expect(workbench.elements.secondary.localName).toBe("nav")
     expect(workbench.elements.preview.localName).toBe("main")
-    expect(workbench.elements.scenarios.getAttribute("role")).toBe("toolbar")
+    expect(workbench.elements.tabs.getAttribute("role")).toBe("toolbar")
     for (const [region, label] of [
       [workbench.elements.catalog, "Каталог"],
       [workbench.elements.secondary, "Разделы"],
-      [workbench.elements.scenarios, "Сценарии"],
+      [workbench.elements.tabs, "Панель вкладок"],
       [workbench.elements.preview, "Кнопка Output"],
     ] as const) {
       expect(region.getAttribute("aria-label")).toBe(label)
       expect(region.querySelector("header")).toBeNull()
     }
     expect(workbench.elements.previewHost.getAttribute("aria-label")).toBe("Кнопка Output")
-    expect(workbench.elements.scenarios.textContent).toBe("")
+    expect(workbench.elements.tabs.textContent).toBe("")
     const status = workbench.elements.status.querySelector("footer") as HTMLElement | null
     expect(status?.getAttribute("role")).toBe("status")
     expect(status?.getAttribute("aria-label")).toBe(
@@ -77,11 +78,11 @@ describe("compiled Storybook Workbench", () => {
     })
     const layout = renderer.flush().boxByNode
     expect(layout.get(status!)).toMatchObject({width: 1_280, height: 24})
-    const scenariosBox = layout.get(workbench.elements.scenarios)
+    const tabsBox = layout.get(workbench.elements.tabs)
     const previewBox = layout.get(workbench.elements.preview)
-    expect(scenariosBox).toBeDefined()
+    expect(tabsBox).toBeDefined()
     expect(previewBox).toBeDefined()
-    expect((scenariosBox?.y ?? Infinity) + (scenariosBox?.height ?? Infinity))
+    expect((tabsBox?.y ?? Infinity) + (tabsBox?.height ?? Infinity))
       .toBeLessThanOrEqual(previewBox?.y ?? -Infinity)
     renderer.dispose()
     expect(workbench.element.querySelectorAll("aside")).toHaveLength(1)
@@ -197,9 +198,9 @@ describe("compiled Storybook Workbench", () => {
       {id: "button", label: "Кнопка", route: "components/button"},
       {id: "input", label: "Поле", route: "components/input"},
     ])
-    workbench.update("scenarios.items", [{id: "hover", label: "Hover"}])
-    expect(workbench.elements.scenarios.textContent).toBe("Hover")
-    expect(workbench.elements.scenarios.querySelector("header")).toBeNull()
+    workbench.update("tabs.items", [{id: "hover", label: "Hover", route: "components/button/hover"}])
+    expect(workbench.elements.tabs.textContent).toBe("Hover")
+    expect(workbench.elements.tabs.querySelector("header")).toBeNull()
     const events: Array<Readonly<{type: string; detail: unknown}>> = []
     for (const type of Object.values(WORKBENCH_EVENTS)) {
       workbench.element.addEventListener(type, event => {
@@ -222,10 +223,10 @@ describe("compiled Storybook Workbench", () => {
     expect(row(workbench, "input").textContent).toContain("Поле")
     expect(events[1]).toEqual({type: "storybooksearch", detail: {value: "поле"}})
 
-    const scenario = workbench.elements.scenarioItems.querySelector("button") as HTMLButtonElement
-    scenario.click()
-    expect(workbench.controller.read("scenarios.active")).toBe("hover")
-    expect(events[2]).toEqual({type: "storybookscenario", detail: {id: "hover"}})
+    const tab = workbench.elements.tabItems.querySelector("button") as HTMLButtonElement
+    tab.click()
+    expect(workbench.controller.read("tabs.active")).toBe("hover")
+    expect(events[2]).toEqual({type: "storybooktab", detail: {id: "hover", route: "components/button/hover"}})
 
     workbench.update("status", {
       lead: "",
@@ -244,6 +245,38 @@ describe("compiled Storybook Workbench", () => {
       type: "storybooknavigate",
       detail: {kind: "breadcrumb", id: "package", route: ""},
     })
+  })
+
+  test("повторный выбор активного предмета снова отправляет адрес его обзора", () => {
+    const document = createDocument()
+    const workbench = api.createWorkbench({
+      document,
+      parent: document,
+      initial: {
+        "secondary.items": [{id: "button", label: "Кнопка", route: "components/button"}],
+        "secondary.active": "button",
+        "tabs.items": [{id: "hover", label: "Hover", route: "components/button/hover"}],
+        "tabs.active": "hover",
+      },
+    })
+    try {
+      const events: unknown[] = []
+      workbench.element.addEventListener(WORKBENCH_EVENTS.navigate, event => {
+        events.push((event as CustomEvent).detail)
+      })
+      const button = workbench.elements.secondaryItems.querySelector('[data-id="button"] button') as HTMLButtonElement
+      button.click()
+      button.click()
+      button.focus()
+      button.dispatchEvent(new KeyboardEvent("keydown", {key: "Enter", bubbles: true, cancelable: true}))
+      expect(events).toEqual(Array.from({length: 3}, () => ({
+        kind: "secondary", id: "button", route: "components/button",
+      })))
+      expect(workbench.controller.read("secondary.active")).toBe("button")
+      expect(workbench.elements.secondaryItems.querySelector('[data-id="button"] button')).toBe(button)
+    } finally {
+      workbench.dispose()
+    }
   })
 
   test("defers standard widget contents until first disclosure and then retains their nodes", () => {

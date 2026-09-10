@@ -29,54 +29,15 @@
 - Node is a comparison candidate, not an assumed reference implementation.
 - `@zavx0z/storybook` is an external dev tool. It does not become a central
   owner of other repositories' stories.
-- Every selected repository root is itself one package, with identity equal to
-  package.json#name. Path locates it; label names it in UI. Never create a second
-  project/repository owner or derive identity from the folder name. Workspaces
-  recursively discover child packages and preserve each package's own session.
-- Packages must own a README.md beside package.json as their
-  overview. Discovery reads it by default with or without a manifest; an explicit
-  manifest readme keeps priority. Missing documentation does not hide the owner.
-  Обзоры обычных директорий читаются из TSDoc index.tsx или index.ts.
-  README contents belong to the package's authors; this workflow specifies
-  placement only and does not rewrite or prescribe their contents.
-  Do not repeat the standard root README in manifests or generated declarations.
-  Packages with no supplemental catalog, runtime, stylesheets, widgets or custom
-  overview need no metadata-only manifest. Remove it after verifying owner and
-  navigation parity; retain nonstandard declarations until separately migrated.
-- Package manifests omit kind, id and packageJson; these fields are rejected.
-  Ownership comes only from the package.json beside the .storybook directory.
-  Init emits the same minimal manifest. Legacy project/workspace composition
-  remains a separate input format until its own migration.
-- A real package owns package.json metadata, optional JSON declarations,
-  semantic order, stories/resources, optional structural runtime and acceptance.
-  Structural projects discover packages through package.json workspaces using
-  Bun.Glob; manifest.packages remains for projects without workspaces. Packages
-  without manifests stay visible. Never combine both composition sources.
-  Every selected root is one package node, with its workspace packages
-  discovered by the same rule. Navigation
-  ancestry never becomes executable ownership or a build dependency.
-  Вторичная навигация рекурсивно раскрывает категории до собственного публичного
-  index.tsx или собственного src. index.tsx содержит реализацию компонента и не
-  требует src; src допустим для внутренних помощников и существующих модулей.
-  Общие помощники находятся в shared. Внутренности модуля не обходятся.
-  Обычный index.ts, включая barrel, сам по себе не завершает обход. Содержимое
-  exports и re-exports не классифицирует узлы; package exports задают публичный API.
-  Начальный @packageDocumentation читается из допустимого index.tsx, затем index.ts.
-  index.tsx имеет приоритет даже без TSDoc; игнорируемые файлы и symlink исключены.
-  Модули не исполняются, README не используется как fallback для директорий.
-  Existing README files and their authored content remain untouched. Exclude src,
-  shared, .git, node_modules, .storybook, tests and test at every depth, plus
-  Git-ignored paths using native Git ignore semantics.
-  Do not infer a build-output exclusion from a directory name. Discovery stops
-  at package.json boundaries and never changes package composition.
-  Опциональный subject.directory — путь от корня пакета к обнаруженному модулю
-  с index.tsx или src. A single bound subject subsumes the structural row, inheriting its
-  filesystem name and TSDoc while retaining authored routes and variants. Multiple
-  subjects, such as Socket preset views, remain under that module row. Remove an
-  emptied legacy category after binding; unbound subjects keep their placement.
-  The one global `$storybook` process owns registry,
-  canonical graph, Workbench, PackageSessions, revisions, diagnostics and
-  browser mechanics for exact production package identities.
+- Перед созданием, миграцией или изменением структуры проекта агент обязан
+  прочитать [единые правила структуры проектов, пакетов и компонентов](requirements.md#structure-contract).
+  Это единственный нормативный источник для package identity, composition,
+  директорий, компонентов и их документации. Не поддерживать здесь или в
+  README/ARCHITECTURE/archetypes отдельные копии этих норм; менять их у владельца.
+  Связанные правила: [размещение компонентов](requirements.md#component-placement),
+  [Dependencies spec](requirements.md#component-dependencies) и [URL вкладок](requirements.md#tabs-routes).
+- Один внешний Storybook процесс владеет registry, canonical graph, Workbench,
+  PackageSessions, ревизиями, диагностикой и browser mechanics точных пакетов.
 - Consumer repositories and packages never depend on or import Storybook,
   including type-only imports. They own no Storybook process, port, server,
   build wrapper, launcher or private `@scope/storybook` package.
@@ -145,13 +106,9 @@
   inspect the candidate with `storybook_open`/`storybook_inspect`, then explicitly
   apply with `storybook_check(live:true)` and wait for active. Build alone never
   updates user views. Failed checks preserve the applied revision.
-- Public package URLs use /pkg-scope-name for @scope/name. Structural paths encode
-  each directory segment: numeric/number becomes /dir-numeric/dir-number.
-  Accept only discovered directory chains, never arbitrary mixed directory/story
-  paths. Authored subject and variant routes remain unchanged by directory binding.
-  Exact production package identities stay unchanged; reject slug collisions
-  instead of guessing an identity. Retain old applied URLs until a verified
-  revision migrates them.
+- Публичные адреса, вкладки и структурные пути определяются
+  [контрактом URL](requirements.md#tabs-routes) и [нормами структуры](requirements.md#structure-contract).
+  Агент проверяет эти правила у владельца, а не поддерживает отдельную копию здесь.
 - User navigation stays in the current tab. Agent open reuses a view currently
   showing its package or creates a background view; never retarget a view the
   user moved to another package. Multiple views per package are valid and all

@@ -82,8 +82,8 @@ export async function startExternalStorybookLanding(
       shell.workbench.update("catalog.active", null)
       shell.workbench.update("secondary.items", [])
       shell.workbench.update("secondary.active", null)
-      shell.workbench.update("scenarios.items", [])
-      shell.workbench.update("scenarios.active", null)
+      shell.workbench.update("tabs.items", [])
+      shell.workbench.update("tabs.active", null)
       shell.workbench.update("status", {
         lead: "",
         owner: "External Storybook",
@@ -116,8 +116,8 @@ export async function startExternalStorybookLanding(
       shell.workbench.update("secondary.label", externalStorybookClientNode(snapshot, selection.catalogActiveId).label)
       shell.workbench.update("secondary.items", navigationItems(selection.secondaryItems))
       shell.workbench.update("secondary.active", selection.secondaryActiveId)
-      shell.workbench.update("scenarios.items", Object.freeze([]))
-      shell.workbench.update("scenarios.active", null)
+      shell.workbench.update("tabs.items", Object.freeze([]))
+      shell.workbench.update("tabs.active", null)
       shell.workbench.update("status", {
         lead: "",
         owner: selection.overviewNode.label,

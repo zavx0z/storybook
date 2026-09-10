@@ -37,9 +37,9 @@ describe("Workbench component module boundary", () => {
       "catalog",
       "inspector",
       "preview",
-      "scenarios",
       "secondary",
       "status",
+      "tabs",
     ])
     const inspectorOwners = sources.flatMap(({path, source}) =>
       /<Inspector(?:\s|>)/u.test(source) ? [path] : [])
@@ -50,7 +50,7 @@ describe("Workbench component module boundary", () => {
       "CatalogRegion",
       "SecondaryRegion",
       "PreviewRegion",
-      "ScenariosRegion",
+      "TabsRegion",
       "InspectorRegion",
       "StatusRegion",
     ]) expect(view).toContain(`<${component}`)
@@ -112,7 +112,7 @@ describe("Workbench component module boundary", () => {
     for (const path of [
       join(root, "regions/catalog.tsx"),
       join(root, "regions/secondary.tsx"),
-      join(root, "regions/scenarios.tsx"),
+      join(root, "regions/tabs.tsx"),
       join(root, "regions/preview.tsx"),
     ]) {
       const source = readFileSync(path, "utf8")
@@ -129,7 +129,7 @@ describe("Workbench component module boundary", () => {
     for (const path of [
       join(root, "components/navigation-list.tsx"),
       join(root, "navigation/row.tsx"),
-      join(root, "regions/scenarios.tsx"),
+      join(root, "regions/tabs.tsx"),
     ]) {
       const source = readFileSync(path, "utf8")
       for (const opening of componentOpenings(source, "Button")) {

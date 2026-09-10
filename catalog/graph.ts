@@ -50,6 +50,7 @@ export type ExternalStorybookGraphNode = Readonly<{
   readmePath: string | null
   moduleDocumentation?: import("./catalog.t.ts").StorybookModuleDocumentation
   dependencySpec?: import("./catalog.t.ts").StorybookDependencySpec
+  dependencyRoutePath?: string
   resources: readonly StorybookResource[]
   authorStyleSheets: readonly StorybookAuthorStyleSheet[]
   widgetContributions: StorybookWidgetContributions | null
@@ -76,7 +77,7 @@ export type ExternalStorybookRoute = Readonly<{
   packageId: string
   path: string
   urlPath: string
-  kind: "overview" | "variant"
+  kind: "overview" | "variant" | "dependencies"
   nodeId: string
 }>
 
@@ -299,7 +300,9 @@ function bindStructuralSubjects(
   }
   return Object.freeze(retained.map(node => {
     const {digest: previousDigest, ...input} = node
-    const value = {...input, structuralPath: Object.freeze(pathFor(node)),
+    const value = {...input,
+      ...(input.dependencySpec && input.routePath !== null ? {dependencyRoutePath: `${input.routePath ? `${input.routePath}/` : ""}dependencies`} : {}),
+      structuralPath: Object.freeze(pathFor(node)),
       childIds: Object.freeze(children.get(node.id) ?? [])}
     return Object.freeze({...value, digest: digest(value)})
   }))
@@ -317,7 +320,13 @@ export function externalStorybookRoutes(
       urlPath: node.urlPath,
       kind: node.kind === "variant" ? "variant" : "overview",
       nodeId: node.id,
-    })]
+    }), ...(node.dependencyRoutePath === undefined ? [] : [Object.freeze({
+      packageId: node.packageId,
+      path: node.dependencyRoutePath,
+      urlPath: packageRouteUrl(node.packageId, node.dependencyRoutePath, false),
+      kind: "dependencies" as const,
+      nodeId: node.id,
+    })])]
   })
   return Object.freeze(routes)
 }

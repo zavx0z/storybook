@@ -18,7 +18,7 @@ import type {
   WorkbenchNavigationGroup,
   WorkbenchNavigationItem,
   WorkbenchPresentationUpdate,
-  WorkbenchScenarioItem,
+  WorkbenchTabItem,
   WorkbenchViewState,
 } from "./contract.ts"
 import {
@@ -109,11 +109,11 @@ export function createWorkbenchModel(options: Omit<CreateWorkbenchOptions, "docu
       detail: Object.freeze({kind: "secondary", id: item.id, route: item.route}),
     }))
   }
-  const onScenario = (item: WorkbenchScenarioItem, source: HTMLElement): void => {
-    update("scenarios.active", item.id)
-    source.dispatchEvent(new CustomEvent(WORKBENCH_EVENTS.scenario, {
+  const onTab = (item: WorkbenchTabItem, source: HTMLElement): void => {
+    update("tabs.active", item.id)
+    source.dispatchEvent(new CustomEvent(WORKBENCH_EVENTS.tab, {
       bubbles: true,
-      detail: Object.freeze({id: item.id}),
+      detail: Object.freeze({id: item.id, route: item.route}),
     }))
   }
   const onStatusNavigate = (item: WorkbenchBreadcrumb, source: HTMLElement): void => {
@@ -162,7 +162,7 @@ export function createWorkbenchModel(options: Omit<CreateWorkbenchOptions, "docu
       onCatalogSearch,
       onGroupToggle,
       onSecondaryNavigate,
-      onScenario,
+      onTab,
       onInspectorCategoryChange,
       onInspectorQueryChange,
       onStatusNavigate,

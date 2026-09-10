@@ -1,35 +1,15 @@
 # Внешняя архитектура Storybook
 
-Пакетный JSON-манифест описывает дополнительные настройки; kind, имя владельца
-и путь package.json определяются по структуре. Поля `kind`, `id`, `packageJson`
-в таком манифесте запрещены, в том числе в отдельном чтении Workbench stylesheet.
-Схема и генератор следуют этому же правилу.
-
-Identity каждого владельца равна `package.json#name`. Корень репозитория —
-обычный пакет с собственным узлом, сборкой и ревизией. Дополнительных project
-или repository owners нет. Workspaces раскрываются у каждого пакета; имя
-директории и label не участвуют в identity. Старые project/workspace JSON
-читаются как формат композиции и нормализуются в пакетных владельцев.
-
-Пакеты без дополнительных деклараций используют `package.json` как источник
-каталога вместо metadata-only манифеста. Ссылки на стандартный корневой README
-не хранятся в манифестах и не генерируются. Нестандартные обзоры, исполняемые
-каталоги, runtime и stylesheet остаются явными до собственного этапа миграции.
-
-Источник обзора зависит от вида узла: репозиторий и самостоятельный пакет
-владеют корневым `README.md` рядом с `package.json`, обычная директория —
-модульным TSDoc `index.tsx` или `index.ts`. Resolver автоматически обнаруживает README и с
-манифестом, и без него; явно объявленный `readme` сохраняет приоритет.
-Отсутствие обзора не исключает узел из каталога. Обзор любого пакета, включая
-корень, публикуется в его применяемой ревизии. Содержание README здесь не
-регламентируется и принадлежит авторам пакета.
+Архитектура реализует [единые нормативные правила структуры](requirements.md#structure-contract).
+Идентичность пакетов, назначение манифеста и источники документации определяются там;
+ниже описаны потоки данных, владельцы реализации и жизненный цикл инструмента.
 
 `/Users/zavx0z/repozitarium/storybook` — самостоятельный development tool. Он
 не является dependency consumer project или production package и не переносит
 к себе их stories, README, fixtures, tests, media или предметную семантику.
 
 ```text
-owner JSON declarations + owner resources
+structural discovery + optional owner JSON + owner resources
                     │
                     v
 one external storybook serve process
@@ -50,11 +30,7 @@ one external storybook serve process
 
 ## Owner law
 
-Реальный package владеет metadata в package.json и необязательными
-`.storybook/manifest.json`, `catalog.json`, story modules, README/resources и
-structural runtime adapter. Состав структурного проекта приходит из workspaces
-через Bun.Glob; прежняя композиция без workspaces использует manifest.packages.
-Project и workspace владеют только композицией общего каталога.
+Границы пакетов и их авторских данных заданы в [нормативном контракте](requirements.md#structure-contract).
 
 Корневой `@zavx0z/storybook` владеет schemas, discovery, validation, canonical
 graph, search/routing derived views, шестью областями Workbench, package
@@ -266,13 +242,17 @@ runtime и compatibility aliases fail closed.
 
 ## Workbench projection
 
+Панель вкладок связывает выбранное представление с URL. Её нормативный договор,
+включая Dependencies, возврат к обзору и навигацию истории, находится в
+[контракте Панели вкладок](requirements.md#tabs-routes).
+
 Fixed `workbench-layout/2` реализован одним compiled TSX ComponentRoot:
 
 ```text
-catalog | secondary | scenarios | preview | inspector | status
+catalog | secondary | tabs | preview | inspector | status
 ```
 
-`scenarios` — визуально неподписанная полоса кнопок непосредственно над
+`tabs` — визуально неподписанная полоса кнопок непосредственно над
 `preview`; её label используется только как доступное имя toolbar.
 `catalog`, `secondary` и `preview` также не имеют видимых headings: labels
 используются только как доступные имена regions.
@@ -322,7 +302,7 @@ state не записывается в declarations. Expanded disclosure block �
 
 Landing показывает одно дерево корневых и вложенных пакетов.
 Package tab показывает categories (direct или
-grouped), subjects во второй panel и variants в scenarios. Typed category может
+grouped), subjects во второй panel и variants в Панели вкладок. Typed category может
 сама владеть semantic `kind/apiName`: так primary component использует ordinary
 subjects как свои sections без special-case в Workbench. У обычного subject
 section segment остаётся optional variant grouping metadata.
@@ -572,101 +552,27 @@ accepted baseline, visual diff или owner acceptance state.
 
 ## Repository navigation and isolated package content
 
-Every selected source root is a repository navigation root, including a root
-that also contains a package. Package containment follows canonical owner paths.
-The global graph carries repository and package ancestry; each immutable
-`storybook-package-graph/4` contains only its own package modules and resources,
-with ancestor identity, label and URL as metadata. Parent package content changes
-do not become child package build dependencies.
+Глобальный граф несёт иерархию из [контракта структуры](requirements.md#structure-contract).
+Immutable `storybook-package-graph/4` содержит модули и ресурсы своего пакета;
+данные предков передаются как metadata, а не как исполняемые зависимости.
 
 
-Предметная панель выбранного пакета раскрывает структурные категории до
-директорий компонентов и модулей. Собственный публичный `index.tsx` является
-границей компонента без обязательного `src/`: сам компонент виден, его
-внутренности не обходятся. Реализация находится непосредственно в `index.tsx`,
-крупные внутренние помощники могут находиться в `src/`, общие — в `shared/`.
-Существующие модули с собственным `src/` сохраняют границу, включая невизуальные
-модули с `index.ts`. Сам по себе `index.ts`, включая barrel, не завершает обход:
-промежуточные директории раскрываются рекурсивно. Содержимое exports и re-exports
-не классифицирует узлы; публичные package exports задают API независимо от меню.
+Состав пакетов, границы каталогов, размещение компонентов и `subject.directory`
+определены в [едином нормативном разделе requirements.md](requirements.md#structure-contract).
+Эта страница описывает применение и устройство инструмента, не отдельные правила структуры.
 
-Название структурного узла берётся из имени на диске. Обзор категории или
-компонентной директории берётся только из начального TSDoc-блока
-`@packageDocumentation` её публичного `index.tsx`, а при отсутствии допустимого
-`index.tsx` — из `index.ts`. Игнорируемые Git файлы и symlink не выбираются.
-При наличии обоих файлов `index.tsx` имеет приоритет даже без TSDoc; описания
-не объединяются. Наличие допустимого `index.tsx` задаёт границу без анализа JSX
-или экспортов. Корневой `index.ts` или `index.tsx` также содержит
-модульный TSDoc, а пакетный обзор по-прежнему читается из авторского README.md.
-README.md не является источником или fallback для обычной директории;
-существующие файлы и их содержание сохраняются. Если публичный входной файл или описание
-отсутствуют, директория остаётся видимой с явным пустым обзором.
-TypeScript не исполняется. Markdown, блоки кода, @remarks и @example сохраняются
-в текстовой проекции; документация классов и функций в обзор не включается.
-Исходник наблюдается общим watcher; текст входит в снимок каталога и публикуется
-как module.md только после проверки digest исходника. Пакетные вкладки получают
-новое описание после успешной сборки и применения ревизии. Локальные ресурсы
-разрешаются относительно выбранного входного файла через общий Markdown allow-list. `src`, `shared`,
-`.git`, `node_modules`, `.storybook`, `tests` и `test` скрыты на любой глубине. Остальные исключения
-определяет Git через `git check-ignore --no-index`: учитываются вложенные
-`.gitignore` и правила с `!`, включая уже отслеживаемые Git каталоги.
-Имена `build` или `dist` сами по себе не являются основанием для исключения.
-Пакет с `package.json` не обходится как обычная директория; состав пакетов
-по-прежнему определяется workspaces или согласованной manifest-композицией.
-Symlink-директории не обходятся. Пустые директории остаются видимыми.
-Обход продолжается через категории и обычные директории до ближайшего модуля с `index.tsx` или `src/`.
-Иерархия самостоятельно обнаруженных пакетов в главной панели сохраняется.
-
-Directory nodes проходят через тот же нормализованный каталог, граф, поиск и
-revision snapshot. Каждый сегмент структурного пути кодируется отдельно:
-`numeric/number` даёт `/pkg-<package-slug>/dir-numeric/dir-number`.
-Цепочка после package URL состоит только из существующих `dir-` сегментов;
-произвольные смешанные directory/story пути не допускаются. Начальный `dir-`
-зарезервирован для структурных маршрутов. Истории JSON-каталога сохраняют
-объявленные subject/variant routes независимо от новой навигационной вложенности.
-
-Опциональный `subject.directory` связывает авторские сценарии с существующим
-модулем с `src/`; путь задаётся относительно корня пакета, например
-`numeric/number`, а не относительно `.storybook`. Несуществующий, скрытый,
-чужой пакетный путь или путь категории отклоняется. Один привязанный subject
-занимает место структурной строки модуля и получает её имя и TSDoc, сохраняя
-свои API identity, presentation и варианты. Несколько subjects одного модуля
-остаются под его строкой — например, представления Socket presets.
-Опустевшая после привязки прежняя JSON-категория удаляется из навигации.
-Без `directory` subject сохраняет своё объявленное размещение.
-
-Изменения директорий и `.gitignore` наблюдает общий watcher. Изменение директории
-родительского пакета не меняет сборки дочерних пакетов. Навигация внутри пакета
-использует его применённую ревизию и тот же Root.
-
-Both Workbench pages use the recursive primary repository tree and a secondary
-category/subject tree for the selected package. Selection navigates the current
-tab to `/packages/`; multiple tabs may show one package. Agent operations use
-the private lifecycle controller; registry mutations retain their separate authority. Package sockets can subscribe to the
-read-only `catalog` topic without receiving other packages' execution events.
+Обе страницы Workbench используют общий граф навигации. Private browser lifecycle
+выполняет операции вкладок; изменения registry сохраняют отдельную authority.
+Read-only topic `catalog` обновляет дерево без передачи событий исполнения чужих пакетов.
+Адреса представлений заданы [контрактом Панели вкладок](requirements.md#tabs-routes).
 
 
 ### Структурные зависимости компонента
 
-У обнаруженного модуля файл `spec/deps.spec.ts` добавляет кнопку «Зависимости»
-в верхнюю панель. JSON-декларация для этой возможности не нужна. «Обзор»
-возвращает обычное представление модуля; переключение содержимого не меняет
-его маршрут. При переходе к другому модулю выбирается его обычный обзор.
+Путь данных: `discovery/read-parameterized-tests.ts` читает AST → каталог сохраняет
+ожидаемый граф и digest → immutable revision передаёт данные браузеру → общий
+GraphView отображает их в существующем Display. Это отдельный потребитель
+нормализованного каталога, без второго дерева владельцев или графического runtime.
 
-Discovery читает `test.each` через TypeScript AST без импорта spec и выполнения
-тестов. Вариант содержит `{name, file, expected}`; `expected` — полный граф
-`путь#компонент → {uses, elements}`. Неразрешённые ссылки и неверный формат
-отклоняются. Это ожидаемый состав, а не свидетельство прохождения теста.
-`read-parameterized-tests.ts` и проверки извлечения принадлежат Storybook.
-
-Источник и digest входят в каталог и наблюдаются вместе со структурой.
-Изменение, создание и удаление файла меняют следующий снимок; действующая
-ревизия сохраняется до успешного применения. Игнорируемые файлы и symlink
-не подключаются. Привязанный к директории subject наследует эту возможность.
-Браузер получает данные графа из снимка ревизии, без исходного Bun-теста.
-
-Представление лениво загружает общий GraphView и DiagramNode. Компоненты
-и их нативные элементы показываются нодами; uses и elements задают связи.
-DOM измеряет реальные ноды, @nodes/layout рассчитывает расположение и маршруты.
-Граф монтируется в существующий Display и освобождается при смене содержимого.
-Markdown, дополнительный Document, Canvas или Renderer не создаются.
+Формат spec описан в [нормативном контракте зависимостей](requirements.md#component-dependencies),
+а переключение представления — в [контракте URL вкладок](requirements.md#tabs-routes).

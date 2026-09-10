@@ -15,7 +15,7 @@ import type {
 export const WORKBENCH_EVENTS = Object.freeze({
   navigate: "storybooknavigate",
   search: "storybooksearch",
-  scenario: "storybookscenario",
+  tab: "storybooktab",
   groupToggle: "storybookgrouptoggle",
   catalogAction: "storybookcatalogaction",
 } as const)
@@ -25,7 +25,7 @@ export const WORKBENCH_LAYOUT_PROTOCOL = "workbench-layout/2" as const
 export const WORKBENCH_REGIONS = Object.freeze([
   "catalog",
   "secondary",
-  "scenarios",
+  "tabs",
   "preview",
   "inspector",
   "status",
@@ -80,9 +80,11 @@ export type WorkbenchBreadcrumb = Readonly<{
   disabled?: boolean
 }>
 
-export type WorkbenchScenarioItem = Readonly<{
+/** Адресуемая вкладка панели; маршрут передаётся хосту вместе с выбором. */
+export type WorkbenchTabItem = Readonly<{
   id: string
   label: string
+  route: string
   title?: string
   disabled?: boolean
 }>
@@ -137,9 +139,9 @@ export type WorkbenchAddressMap = Readonly<{
   "secondary.active": string | null
   "preview.label": string
   presentation: WorkbenchPresentation
-  "scenarios.label": string
-  "scenarios.items": readonly WorkbenchScenarioItem[]
-  "scenarios.active": string | null
+  "tabs.label": string
+  "tabs.items": readonly WorkbenchTabItem[]
+  "tabs.active": string | null
   "inspector.registry": readonly WorkbenchInspectorWidgetRegistration[]
   "inspector.subject": WorkbenchInspectorSubject | null
   "inspector.values": WorkbenchInspectorValues
@@ -172,8 +174,8 @@ export type WorkbenchElements = Readonly<{
   displayHost: HTMLElement
   hudHost: HTMLElement
   spaceHost: HTMLElement
-  scenarios: HTMLElement
-  scenarioItems: HTMLDivElement
+  tabs: HTMLElement
+  tabItems: HTMLDivElement
   inspectorHost: HTMLDivElement
   status: HTMLElement
 }>

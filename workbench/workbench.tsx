@@ -47,7 +47,7 @@ export function Workbench(props: WorkbenchProps) {
     onCatalogSearch={view.onCatalogSearch}
     onGroupToggle={view.onGroupToggle}
     onSecondaryNavigate={view.onSecondaryNavigate}
-    onScenario={view.onScenario}
+    onTab={view.onTab}
     onInspectorCategoryChange={view.onInspectorCategoryChange}
     onInspectorQueryChange={view.onInspectorQueryChange}
     onStatusNavigate={view.onStatusNavigate}

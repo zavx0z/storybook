@@ -44,6 +44,7 @@ export type ExternalStorybookClientNode = Readonly<{
   hasReadme: boolean
   hasModuleDocumentation?: boolean
   dependencyCases?: readonly import("../catalog/catalog.t.ts").StorybookDependencyCase[]
+  dependencyRoutePath?: string
   resourceKinds: readonly StorybookResourceKind[]
   resourceUrl: string
   presentation: ExternalStorybookClientStoryPresentation | null
@@ -137,6 +138,7 @@ export function createExternalStorybookClientSnapshot(
     hasReadme: node.readmePath !== null,
     ...(node.moduleDocumentation ? {hasModuleDocumentation: true} : {}),
     ...(node.dependencySpec ? {dependencyCases: node.dependencySpec.cases} : {}),
+    ...(node.dependencyRoutePath === undefined ? {} : {dependencyRoutePath: node.dependencyRoutePath}),
     resourceKinds: Object.freeze([...new Set(node.resources.map(({kind}) => kind))]),
     resourceUrl: externalStorybookNodeResourceUrl(graph, node.id),
     presentation: node.presentation === null

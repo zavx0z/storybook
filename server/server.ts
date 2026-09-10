@@ -38,7 +38,7 @@ import {StorybookSharedBrowserAssets, type SharedBrowserAssets} from "../build/s
 import {createStorybookPackageCompilerPlugins} from "../build/compiler.ts"
 import type {StorybookPackageRevisionAuthorStyleSheet} from "../sessions/package-revision.ts"
 import {ExternalStorybookSessionManager} from "../sessions/session-manager.ts"
-import {externalStorybookNode, resolveExternalStorybookRoute} from "../catalog/graph.ts"
+import {externalStorybookNode, externalStorybookRoutes, resolveExternalStorybookRoute} from "../catalog/graph.ts"
 import {storybookDiagnostic, type StorybookPackageEvent} from "../sessions/package-session.ts"
 import {createExternalStorybookResourceAllowList} from "../catalog/resource-allowlist.ts"
 import {StorybookEventHub} from "./events.ts"
@@ -280,7 +280,7 @@ export async function startExternalStorybookServer(
     const packageState = await sessions.ensure(input.packageId)
     const expectedRevision = packageState.builtRevision ?? packageState.activeRevision ?? undefined
     const selectedRoute = expectedRevision === undefined ? resolvedRoute :
-      sessions.session(input.packageId).revisionGraphSnapshot(expectedRevision)?.routes.find(route => route.nodeId === resolvedRoute.nodeId) ?? resolvedRoute
+      sessions.session(input.packageId).revisionGraphSnapshot(expectedRevision)?.routes.find(route => route.nodeId === resolvedRoute.nodeId && route.kind === resolvedRoute.kind) ?? resolvedRoute
     const previewUrl = new URL(selectedRoute.urlPath, server.url)
     if (packageState.builtRevision != null) previewUrl.searchParams.set("preview", packageState.builtRevision)
     const openInput = {
@@ -1024,11 +1024,11 @@ async function packagePageResponse(
   const preview = url.searchParams.get("preview")
   if ([...url.searchParams.keys()].some(key => key !== "preview") || (preview !== null && !/^[A-Za-z0-9_-]{1,256}$/u.test(preview))) throw new Error("Invalid package preview URL")
   const revision = preview ?? snapshot.activeRevision ?? snapshot.lastWorkingRevision ?? null
-  const currentNode = registry.snapshot().graph.nodes.find(node =>
-    node.packageId === route.packageId && node.routePath === storybookCurrentRouteKey(route.routePath))
+  const currentRoute = externalStorybookRoutes(registry.snapshot().graph).find(candidate =>
+    candidate.packageId === route.packageId && candidate.path === storybookCurrentRouteKey(route.routePath))
   if (revision === null) {
-    if (currentNode === undefined) throw new Error(`Unknown Storybook route: ${route.packageId}:${route.routePath}`)
-    if (currentNode.urlPath !== url.pathname) return new Response(null, {status: 308, headers: {location: `${currentNode.urlPath}${url.search}`}})
+    if (currentRoute === undefined) throw new Error(`Unknown Storybook route: ${route.packageId}:${route.routePath}`)
+    if (currentRoute.urlPath !== url.pathname) return new Response(null, {status: 308, headers: {location: `${currentRoute.urlPath}${url.search}`}})
     const assets = await ensureSharedAssets()
     const browserSession = browserSessions.issue({
       kind: "package",
@@ -1055,9 +1055,9 @@ async function packagePageResponse(
   }
   const graphSnapshot = session.revisionGraphSnapshot(revision)
   if (graphSnapshot === null) throw new Error(`Storybook revision graph is missing: ${route.packageId}:${revision}`)
-  let resolvedRoute = graphSnapshot.routes.find(candidate => candidate.nodeId === currentNode?.id) ??
+  let resolvedRoute = graphSnapshot.routes.find(candidate => candidate.nodeId === currentRoute?.nodeId && candidate.kind === currentRoute?.kind) ??
     graphSnapshot.routes.find(({path}) => path === route.routePath)
-  if (resolvedRoute === undefined && preview === null) resolvedRoute = graphSnapshot.routes.find(({path}) => path === "")
+  if (resolvedRoute === undefined && preview === null && currentRoute !== undefined) resolvedRoute = graphSnapshot.routes.find(({path}) => path === "")
   if (resolvedRoute === undefined) throw new Error(`Unknown Storybook revision route: ${route.packageId}:${route.routePath}`)
   if (resolvedRoute.urlPath !== url.pathname) {
     return new Response(null, {status: 308, headers: {location: `${resolvedRoute.urlPath}${url.search}`}})

@@ -47,6 +47,7 @@ export type StorybookPackageRevisionGraphNode = Readonly<{
   hasReadme: boolean
   hasModuleDocumentation?: boolean
   dependencyCases?: readonly import("../catalog/catalog.t.ts").StorybookDependencyCase[]
+  dependencyRoutePath?: string
   resourceKinds: readonly StorybookResourceKind[]
   resourceUrl: string
   presentation: StorybookPackageRevisionStoryPresentation | null
@@ -86,7 +87,7 @@ export type StorybookPackageRevisionWidgetLoader = Readonly<{
 export type StorybookPackageRevisionRoute = Readonly<{
   path: string
   urlPath: string
-  kind: "overview" | "variant"
+  kind: "overview" | "variant" | "dependencies"
   nodeId: string
 }>
 
@@ -175,6 +176,7 @@ export function createStorybookPackageRevisionGraphSnapshot(
     hasReadme: node.readmePath !== null,
     ...(node.moduleDocumentation ? {hasModuleDocumentation: true} : {}),
     ...(node.dependencySpec ? {dependencyCases: node.dependencySpec.cases} : {}),
+    ...(node.dependencyRoutePath === undefined ? {} : {dependencyRoutePath: node.dependencyRoutePath}),
     resourceKinds: Object.freeze([...new Set(node.resources.map(({kind}) => kind))]),
     resourceUrl: node.moduleDocumentation ? revisionModuleDocumentationPath(node.id) : node.readmePath === null
       ? revisionNodeResourcePrefix(node.id)

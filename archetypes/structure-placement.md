@@ -1,10 +1,8 @@
 # Что Storybook берёт из структуры и куда помещает
 
-Корень репозитория и самостоятельный пакет используют авторский обзор
-`README.md` рядом с `package.json`. Стандартный файл обнаруживается и при
-наличии манифеста; явный `manifest.readme` сохраняет приоритет. Если обзора
-пока нет, узел остаётся видимым. Содержание README принадлежит авторам пакета.
-Обычная директория, категория и компонент используют TSDoc своего `index.ts`.
+Этот guide иллюстрирует путь данных от файлов до панелей. Единственный
+нормативный источник — [правила структуры в requirements.md](../requirements.md#structure-contract);
+здесь приведены схема и примеры, а не отдельный набор правил.
 
 ## От файлов на диске до панелей Storybook
 
@@ -15,8 +13,8 @@ flowchart LR
     WS["package.json#workspaces"]
     PKG["package.json дочернего пакета"]
     CATEGORY["Промежуточные категории"]
-    MODULE["Директория компонента с src"]
-    DOC["index.ts<br/>TSDoc @packageDocumentation"]
+    MODULE["Компонент index.tsx<br/>или существующий модуль src"]
+    DOC["index.tsx / index.ts<br/>TSDoc @packageDocumentation"]
   end
 
   subgraph GRAPH["Единый каталог и граф"]
@@ -29,7 +27,7 @@ flowchart LR
     MAIN["Главная панель<br/>дерево пакетов"]
     SECONDARY["Предметная панель<br/>категории и компоненты"]
     PREVIEW["Preview<br/>обзор или история"]
-    SCENARIOS["Сценарии"]
+    TABS["Панель вкладок<br/>варианты и Dependencies"]
   end
 
   ROOT --> PACKAGE
@@ -42,17 +40,19 @@ flowchart LR
   PACKAGE --> MAIN
   STRUCTURE --> SECONDARY
   SUBJECT --> SECONDARY
-  SUBJECT --> SCENARIOS
+  SUBJECT --> TABS
   SUBJECT --> PREVIEW
 ```
 
-`package.json` задаёт независимое владение. Внутри пакета обнаружение проходит
-через промежуточные категории до директории с собственным `src/`.
-Эта директория становится модулем; её реализация и внутренние компоненты
-дальше не обходятся. `exports` и re-exports не определяют роль директории.
-Публичный API указывает на настоящие исходники независимо от навигации.
+В этой схеме discovery передаёт сведения о пакетах, каталогах и документации
+в нормализованный граф. UI и MCP проецируют этот же результат; package exports
+остаются отдельным описанием API. Точные границы обхода заданы в
+[контракте каталогов и компонентов](../requirements.md#component-placement).
 
 ## Пример Nodes и числового параметра
+
+Это пример размещения с именами пакетов Nodes, а не полный снимок репозитория.
+Частный вычислительный helper показан как необязательный файл.
 
 ```text
 webxr-space/
@@ -60,46 +60,43 @@ webxr-space/
 └─ nodes/
    ├─ package.json               @webxr/nodes
    ├─ node/
-   │  ├─ index.ts                TSDoc компонента Node
-   │  └─ src/node.tsx            реализация; обход здесь остановлен
+   │  ├─ package.json            @nodes/node
+   │  ├─ README.md               обзор пакета
+   │  ├─ shared/                 код нескольких компонентов пакета
+   │  └─ diagram/index.tsx       компонент/композиция и TSDoc
    ├─ tree/package.json          @nodes/tree
    ├─ layout/package.json        @nodes/layout
    ├─ sockets/package.json       @nodes/sockets
    └─ parameters/
       ├─ package.json            @nodes/parameters
-      ├─ README.md               авторский обзор пакета
+      ├─ README.md               обзор пакета
       ├─ index.ts                модульный TSDoc
+      ├─ shared/                 общие помощники пакета
       └─ numeric/
          ├─ index.ts             TSDoc категории
          └─ number/
-            ├─ index.ts          TSDoc компонента
-            ├─ src/number.tsx    реализация; обход здесь остановлен
+            ├─ index.tsx         компонент и TSDoc
+            ├─ src/compute.ts    только если нужен крупный частный helper
             └─ tests/            проверки компонента
 ```
 
-Главная панель показывает `WebXR → Нодовая система → Параметры` по настоящим
-package roots. Предметная панель пакета `@nodes/parameters` раскрывает
-`numeric → number`. У структурного пути адрес
-`/pkg-nodes-parameters/dir-numeric/dir-number`: каждый сегмент имеет свой
-префикс `dir-`. Произвольные смешанные directory/story маршруты отклоняются.
+В примере главная панель показывает `WebXR → Нодовая система → Параметры`,
+а предметная панель `@nodes/parameters` — `numeric → number`. До привязки subject
+структурный обзор number имеет адрес `/pkg-nodes-parameters/dir-numeric/dir-number`.
+Если у него обнаружен dependency spec, представление Dependencies получает
+конечный `/dependencies` по [единому контракту URL](../requirements.md#tabs-routes).
 
 ## Как существующие сценарии связываются со структурой
 
-Каталог может указать `"directory": "numeric/number"` у subject.
-Путь разрешается относительно корня его пакета и должен обозначать уже
-обнаруженный модуль с `src/`. Категория, скрытая директория, отсутствующий
-модуль или путь за границей пакета не подходят.
+Пример привязки: `"directory": "numeric/number"` у authored subject.
+Она связывает сценарии с уже обнаруженным модулем из примера. Строка number
+может показывать авторские варианты, сохраняя их адреса, например
+`parameters/number/field`, без дублирования компонента.
 
-При одном subject строка `number` показывает сценарии этого subject,
-использует имя директории и её TSDoc. Отдельного дубля компонента не возникает.
-Объявленные subject/variant routes, API identity и presentation сохраняются,
-например `parameters/number/field`.
-
-Несколько subjects одного модуля остаются дочерними строками его директории.
-Так 19 preset-представлений Socket могут принадлежать одному `socket/src`.
-Набор presets не становится набором новых компонентов или пакетов.
-Опустевшая прежняя JSON-категория убирается из навигации после переноса её
-привязанных subjects. Subjects без `directory` сохраняют прежнее размещение.
+Несколько preset-представлений Socket иллюстрируют другой случай: разные views
+относятся к одному модулю, не становятся самостоятельными компонентами или
+пакетами. Нормативные правила one/many bindings и удаления опустевшей категории
+находятся в [контракте subject.directory](../requirements.md#component-placement).
 
 ## Итоговое размещение
 
@@ -110,33 +107,25 @@ package roots. Предметная панель пакета `@nodes/parameters
 
 ПРЕДМЕТНАЯ ПАНЕЛЬ ВЫБРАННОГО ПАКЕТА
 ├─ категория                     ← промежуточная директория
-│  └─ компонент                  ← директория с src
+│  └─ компонент                  ← каталог с index.tsx
 │     └─ представления           ← несколько привязанных subjects, если есть
 └─ непривязанная JSON-категория
    └─ subject
 
-ПАНЕЛЬ СЦЕНАРИЕВ
-└─ варианты subject              ← catalog.json; исходные routes
+ПАНЕЛЬ ВКЛАДОК
+├─ варианты subject              ← catalog.json; исходные routes
+└─ Dependencies                  ← найденный spec; собственный route
 
 ЦЕНТРАЛЬНАЯ ОБЛАСТЬ
-├─ TSDoc index.ts                ← категория или компонент
+├─ TSDoc index.tsx / index.ts    ← компонент или категория
 ├─ README пакета                 ← авторский пакетный обзор
 └─ исполняемая история           ← module.path + module.export
 ```
 
-`src`, `shared`, `.git`, `node_modules`, `.storybook`, `tests`, `test`
-и исключённые Git пути скрыты на каждой глубине. Git ignore semantics
-учитывают вложенные `.gitignore` и правила с `!`; имена `build` и `dist`
-сами по себе ничего не исключают. Symlink-директории не обходятся.
-Директория с `package.json` не дублируется как обычная папка и останавливает
-обход; состав пакетов задаётся workspaces или согласованной manifest-композицией.
-Пустые директории и узлы без документации остаются видимыми.
-
-Обзор директории читается только из начального `@packageDocumentation`
-её `index.ts`, без исполнения TypeScript и без README fallback.
-Корневой `index.ts` также содержит модульный TSDoc; это не подменяет README
-как пакетный обзор. Извлечение публичных объявлений и тестов в API, сценарии
-или Inspector не выводится автоматически из exports.
+Источники документации, исключения и правила package/module boundaries
+не повторяются здесь: см. [нормативный раздел](../requirements.md#structure-contract).
+Обзор открывается кликом по предмету, а адресуемые вкладки — по
+[контракту Панели вкладок](../requirements.md#tabs-routes).
 
 Структура, декларации, поиск, UI и MCP используют один нормализованный граф.
 Описание и ресурсы попадают в immutable revision; пользовательские вкладки

@@ -109,6 +109,7 @@ export function createStorybookAgentBridge(
       revision: options.revision,
       graphDigest: options.graphDigest,
       route: options.getRoute(),
+      pathname: options.shell.browserDocument.location?.pathname ?? null,
       viewName: options.shell.browserDocument.defaultView?.name ?? "",
       markers: Object.freeze({
         package: options.shell.browserDocument.documentElement.dataset.externalStorybookPackage ?? null,
@@ -132,6 +133,7 @@ export function createStorybookAgentBridge(
         subjectId: model.selectedNode.kind === "directory" ? null : model.secondaryActiveId,
         directoryId: model.selectedNode.kind === "directory" ? model.selectedNode.id : null,
         variantId: model.variantActiveId,
+        tabId: model.tabActiveId,
       }),
       canvas: Object.freeze({
         id: options.shell.canvas.id,

@@ -33,7 +33,7 @@ import type {ExternalStorybookRootFactory} from "./shell.ts"
 const fixtureRoot = join(import.meta.dir, "../discovery/fixtures/valid")
 
 describe("external Storybook package frontend", () => {
-  test("[STORYBOOK-DEPS-DISPLAY] кнопка структурного spec показывает граф в том же Display и возвращает обзор", async () => {
+  test.each(["components/button", "components/button/dependencies"])("[STORYBOOK-DEPS-DISPLAY] вкладка восстанавливается из %s, меняет URL и возвращается через предмет/history", async initialRoute => {
     const base = await fixtureGraph()
     const subjectId = "subject:@fixture/components/components/button"
     const cases = [{
@@ -41,40 +41,68 @@ describe("external Storybook package frontend", () => {
       graph: {"component/index.tsx#Example": {uses: [], elements: ["article"]}},
     }]
     const graph = {...base, nodes: base.nodes.map(node => node.id === subjectId
-      ? {...node, childIds: [], dependencySpec: {sourcePath: "/fixture/component/spec/deps.spec.ts", sourceDigest: "fixture", cases}}
+      ? {...node, childIds: [], dependencyRoutePath: "components/button/dependencies", dependencySpec: {sourcePath: "/fixture/component/spec/deps.spec.ts", sourceDigest: "fixture", cases}}
       : node)}
     const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-deps"))
+    const environment = environmentFixture(snapshot, `/pkg-fixture-components/${initialRoute}?preview=revision-deps`)
+    const events = new EventTarget()
+    Object.defineProperty(environment.browserDocument, "defaultView", {value: events})
     const controller = await startExternalStorybookPackage({
       packageId: "@fixture/components",
       candidateRevision: "revision-deps",
       revisionUrl: "/__storybook/revisions/%40fixture%2Fcomponents/revision-deps/",
       loadRuntime: null,
       storyLoaders: new Map(),
-      environment: environmentFixture(snapshot, "/pkg-fixture-components/components/button"),
+      environment,
     })
     try {
       const {document, display, workbench} = controller.shell
-      expect(workbench.controller.read("scenarios.items").map(item => item.label)).toEqual(["Обзор", "Зависимости"])
+      expect(controller.currentRoute).toBe(initialRoute)
+      expect(display.querySelector("[data-storybook-dependencies]") !== null).toBe(initialRoute.endsWith("/dependencies"))
+      expect(workbench.controller.read("tabs.items").map(item => item.label)).toEqual(["Зависимости"])
+      expect(workbench.controller.read("tabs.items")[0]?.route).toBe("components/button/dependencies")
       const button = [...workbench.element.querySelectorAll("button")].find(node => node.getAttribute("aria-label") === "Зависимости") as HTMLButtonElement
       button.click()
       const deadline = Date.now() + 10000
       while (display.querySelector("[data-storybook-dependencies]") === null && Date.now() < deadline) await Bun.sleep(20)
       expect(display.querySelector("[data-storybook-dependencies]")).not.toBeNull()
-      expect(workbench.controller.read("scenarios.active")).toBe("structural:dependencies")
+      expect(workbench.controller.read("tabs.active")).toBe(`dependencies:${subjectId}`)
+      expect(controller.currentRoute).toBe("components/button/dependencies")
+      expect(environment.location!.pathname).toBe("/pkg-fixture-components/components/button/dependencies")
+      expect(new URL(environment.location!.href).searchParams.get("preview")).toBe("revision-deps")
       expect(display.querySelectorAll("[data-graph-view]")).toHaveLength(1)
       expect(display.textContent).toContain("Example")
       expect(display.textContent).toContain("<article>")
       expect(display.querySelector("[data-storybook-markdown]")).toBeNull()
       const previous = display.querySelector("[data-storybook-dependencies]")!
-      const overview = [...workbench.element.querySelectorAll("button")].find(node => node.getAttribute("aria-label") === "Обзор") as HTMLButtonElement
-      overview.click()
+      const subject = workbench.elements.secondary.querySelector(`[data-id="${subjectId}"] button`) as HTMLButtonElement
+      subject.click()
       const cleanupDeadline = Date.now() + 10000
       while (previous.isConnected && Date.now() < cleanupDeadline) await Bun.sleep(20)
       expect(previous.isConnected).toBe(false)
+      expect(controller.currentRoute).toBe("components/button")
+      expect(workbench.controller.read("tabs.active")).toBeNull()
+      const historyCount = (environment.history as ReturnType<typeof historyFixture>).pushed.length
+      const restore = async (route: string) => {
+        const url = new URL(`/pkg-fixture-components/${route}?preview=revision-deps`, environment.location!.href)
+        const location = environment.location! as LocationFixture
+        location.pathname = url.pathname
+        location.href = url.href
+        events.dispatchEvent(new Event("popstate"))
+        const until = Date.now() + 5000
+        while ((controller.currentRoute !== route || environment.browserDocument!.documentElement.dataset.externalStorybookPackage !== "ready") && Date.now() < until) await Bun.sleep(10)
+        expect(controller.currentRoute).toBe(route)
+      }
+      await restore("components/button/dependencies")
+      expect(display.querySelector("[data-storybook-dependencies]")).not.toBeNull()
+      expect(workbench.controller.read("tabs.active")).toBe(`dependencies:${subjectId}`)
+      await restore("components/button")
+      expect(display.querySelector("[data-storybook-dependencies]")).toBeNull()
+      expect((environment.history as ReturnType<typeof historyFixture>).pushed).toHaveLength(historyCount)
       expect(controller.shell.document).toBe(document)
       expect(controller.shell.display).toBe(display)
       await controller.navigate("")
-      expect(workbench.controller.read("scenarios.items").some(item => item.id === "structural:dependencies")).toBe(false)
+      expect(workbench.controller.read("tabs.items").some(item => item.id === `dependencies:${subjectId}`)).toBe(false)
     } finally {
       await controller.dispose()
     }
@@ -515,7 +543,7 @@ describe("external Storybook package frontend", () => {
       .toBe("package:@fixture/components")
     expect(controller.shell.workbench.controller.read("secondary.label")).toBe("Fixture Components")
     expect(controller.shell.workbench.controller.read("secondary.active")).toBe("category:@fixture/components/components")
-    expect(controller.shell.workbench.controller.read("scenarios.active")).toBeNull()
+    expect(controller.shell.workbench.controller.read("tabs.active")).toBeNull()
     const categoryOverview = controller.shell.workbench.controller.read("presentation").node
     expect((categoryOverview as Element | null)?.querySelectorAll("[data-storybook-aggregate-item]"))
       .toHaveLength(1)
@@ -537,7 +565,7 @@ describe("external Storybook package frontend", () => {
       .toBe("package:@fixture/components")
     expect(controller.shell.workbench.controller.read("secondary.active"))
       .toBe("subject:@fixture/components/components/button")
-    expect(controller.shell.workbench.controller.read("scenarios.active")).toBeNull()
+    expect(controller.shell.workbench.controller.read("tabs.active")).toBeNull()
     expect(runtimeLoads).toBe(1)
     expect(containedLoads).toBe(2)
     expect(outlinedLoads).toBe(1)
@@ -577,16 +605,24 @@ describe("external Storybook package frontend", () => {
       "Button",
       "Contained",
     ])
-    await controller.navigate("components/button/outlined")
+    const outlinedTab = controller.shell.workbench.elements.tabItems.querySelector('button[aria-label="Outlined"]') as HTMLButtonElement
+    outlinedTab.click()
+    const tabDeadline = Date.now() + 5000
+    while ((controller.currentRoute !== "components/button/outlined" || dataset.externalStorybookPackage !== "ready") && Date.now() < tabDeadline) await Bun.sleep(10)
+    expect(browserLocation.pathname).toBe("/pkg-fixture-components/components/button/outlined")
     expect(runtimeLoads).toBe(1)
     expect(containedLoads).toBe(3)
     expect(outlinedLoads).toBe(2)
     expect(mounts).toBe(5)
-    expect(controller.shell.workbench.controller.read("scenarios.active"))
+    expect(controller.shell.workbench.controller.read("tabs.active"))
       .toBe("variant:@fixture/components/components/button/outlined")
 
-    await controller.navigate("components/button")
-    expect(controller.shell.workbench.controller.read("scenarios.active")).toBeNull()
+    const selectedSubject = controller.shell.workbench.elements.secondary.querySelector('[data-id="subject:@fixture/components/components/button"] button') as HTMLButtonElement
+    selectedSubject.click()
+    const overviewDeadline = Date.now() + 5000
+    while ((controller.currentRoute !== "components/button" || dataset.externalStorybookPackage !== "ready") && Date.now() < overviewDeadline) await Bun.sleep(10)
+    expect(browserLocation.pathname).toBe("/pkg-fixture-components/components/button")
+    expect(controller.shell.workbench.controller.read("tabs.active")).toBeNull()
     const restoredOverview = controller.shell.workbench.controller.read("presentation").node
     expect((restoredOverview as Element | null)?.querySelectorAll("[data-storybook-aggregate-item]"))
       .toHaveLength(2)
@@ -1205,9 +1241,10 @@ type LocationFixture = Pick<Location, "pathname" | "href" | "reload"> & {
 }
 
 function locationFixture(pathname: string): LocationFixture {
+  const url = new URL(pathname, "http://localhost")
   return {
-    pathname,
-    href: `http://localhost${pathname}`,
+    pathname: url.pathname,
+    href: url.href,
     reloads: 0,
     reload() {
       this.reloads += 1
@@ -1225,15 +1262,17 @@ function historyFixture(location: LocationFixture) {
       if (url === null) return
       const path = String(url)
       pushed.push(path)
-      location.pathname = path
-      location.href = `http://localhost${path}`
+      const next = new URL(path, location.href)
+      location.pathname = next.pathname
+      location.href = next.href
     },
     replaceState(_data: unknown, _unused: string, url: string | URL | null) {
       if (url === null) return
       const path = String(url)
       replaced.push(path)
-      location.pathname = path
-      location.href = `http://localhost${path}`
+      const next = new URL(path, location.href)
+      location.pathname = next.pathname
+      location.href = next.href
     },
   }
 }

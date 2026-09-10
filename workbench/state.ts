@@ -3,7 +3,7 @@ import type {
   WorkbenchAddress,
   WorkbenchCatalogManagement,
   WorkbenchAddressMap,
-  WorkbenchScenarioItem,
+  WorkbenchTabItem,
   WorkbenchStatus,
   WorkbenchViewState,
 } from "./contract.ts"
@@ -53,9 +53,9 @@ export function createInitialWorkbenchState(
     "secondary.active": null,
     "preview.label": requiredText("Preview label", initial?.["preview.label"] ?? "Предпросмотр"),
     presentation,
-    "scenarios.label": requiredText("Scenario label", initial?.["scenarios.label"] ?? "Сценарии"),
-    "scenarios.items": validateScenarioItems(initial?.["scenarios.items"] ?? Object.freeze([])),
-    "scenarios.active": null,
+    "tabs.label": requiredText("Название панели вкладок", initial?.["tabs.label"] ?? "Панель вкладок"),
+    "tabs.items": validateTabItems(initial?.["tabs.items"] ?? Object.freeze([])),
+    "tabs.active": null,
     "inspector.registry": registry,
     "inspector.subject": validateWorkbenchInspectorSubject(
       initial?.["inspector.subject"] ?? null,
@@ -80,10 +80,10 @@ export function createInitialWorkbenchState(
     initial?.["secondary.active"] ?? null,
     state["secondary.items"],
   )
-  state["scenarios.active"] = selectedId(
-    "Scenario",
-    initial?.["scenarios.active"] ?? null,
-    state["scenarios.items"],
+  state["tabs.active"] = selectedId(
+    "Вкладка",
+    initial?.["tabs.active"] ?? null,
+    state["tabs.items"],
   )
   return state
 }
@@ -137,16 +137,16 @@ export function updateWorkbenchState<Address extends WorkbenchAddress>(
     case "presentation":
       next.presentation = validateWorkbenchPresentation(value, document)
       break
-    case "scenarios.label":
-      next["scenarios.label"] = requiredText("Scenario label", value)
+    case "tabs.label":
+      next["tabs.label"] = requiredText("Название панели вкладок", value)
       break
-    case "scenarios.items":
-      next["scenarios.items"] = validateScenarioItems(value)
-      if (next["scenarios.active"] !== null && !next["scenarios.items"].some(item =>
-        item.id === next["scenarios.active"])) next["scenarios.active"] = null
+    case "tabs.items":
+      next["tabs.items"] = validateTabItems(value)
+      if (next["tabs.active"] !== null && !next["tabs.items"].some(item =>
+        item.id === next["tabs.active"])) next["tabs.active"] = null
       break
-    case "scenarios.active":
-      next["scenarios.active"] = selectedId("Scenario", value, next["scenarios.items"])
+    case "tabs.active":
+      next["tabs.active"] = selectedId("Вкладка", value, next["tabs.items"])
       break
     case "inspector.registry":
       next["inspector.registry"] = validateWorkbenchWidgetRegistry(value)
@@ -171,21 +171,22 @@ export function updateWorkbenchState<Address extends WorkbenchAddress>(
   return next
 }
 
-function validateScenarioItems(value: unknown): readonly WorkbenchScenarioItem[] {
-  if (!Array.isArray(value)) throw new TypeError("Scenario items must be an array")
+function validateTabItems(value: unknown): readonly WorkbenchTabItem[] {
+  if (!Array.isArray(value)) throw new TypeError("Список вкладок должен быть массивом")
   const ids = new Set<string>()
   return Object.freeze(value.map((candidate, index) => {
     if (candidate === null || typeof candidate !== "object") {
-      throw new TypeError(`Scenario item ${index} must be an object`)
+      throw new TypeError(`Вкладка ${index} должна быть объектом`)
     }
-    const item = candidate as WorkbenchScenarioItem
-    const id = requiredText("Scenario item id", item.id)
-    if (ids.has(id)) throw new Error(`Duplicate scenario item id: ${id}`)
+    const item = candidate as WorkbenchTabItem
+    const id = requiredText("Идентификатор вкладки", item.id)
+    if (ids.has(id)) throw new Error(`Повторный идентификатор вкладки: ${id}`)
     ids.add(id)
     return Object.freeze({
       id,
-      label: requiredText("Scenario item label", item.label),
-      ...(item.title === undefined ? {} : {title: stringValue("Scenario item title", item.title)}),
+      label: requiredText("Название вкладки", item.label),
+      route: stringValue("Адрес вкладки", item.route),
+      ...(item.title === undefined ? {} : {title: stringValue("Подсказка вкладки", item.title)}),
       ...(item.disabled === undefined ? {} : {disabled: Boolean(item.disabled)}),
     })
   }))

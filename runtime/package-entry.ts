@@ -692,8 +692,8 @@ export async function startExternalStorybookPackage(
     model: ExternalStorybookPackageTabModel,
     revision: number,
     signal: AbortSignal,
-    dependencies = false,
   ): Promise<void> => {
+    const dependencies = model.viewKind === "dependencies"
     disposeSpacePreview()
     if (!dependencies && await showAggregateOverview(model, revision, signal)) return
     await disposeAggregate()
@@ -805,7 +805,6 @@ export async function startExternalStorybookPackage(
     revision: number,
     signal: AbortSignal,
     failActivation = false,
-    dependencies = false,
   ): Promise<void> => {
     if (disposed) throw new Error("External Storybook package tab is disposed")
     const model = deriveExternalStorybookPackageTab(graph, packageId, route)
@@ -818,7 +817,6 @@ export async function startExternalStorybookPackage(
     browserDocument.documentElement.dataset.externalStorybookPackage = "starting"
     browserDocument.documentElement.dataset.externalStorybookRoute = route
     applyModel(shell, model, navigationSnapshot, snapshot)
-    if (dependencies) shell.workbench.update("scenarios.active", "structural:dependencies")
     shell.workbench.update("status", {
       lead: "",
       owner: packageId,
@@ -842,7 +840,7 @@ export async function startExternalStorybookPackage(
       } else if (model.selectedNode.kind === "variant") {
         await showVariant(model, revision, signal)
       } else {
-        await showOverview(model, revision, signal, dependencies)
+        await showOverview(model, revision, signal)
       }
       if (disposed || revision !== navigationRevision || signal.aborted) return
       const beforeFrame = shell.presentedFrameSequence
@@ -859,11 +857,11 @@ export async function startExternalStorybookPackage(
     }
   }
 
-  const scheduleRoute = (route: string, failActivation = false, dependencies = false): Promise<void> => {
+  const scheduleRoute = (route: string, failActivation = false): Promise<void> => {
     assertActive(disposed)
     const model = deriveExternalStorybookPackageTab(graph, packageId, route)
-    if (location.pathname !== model.selectedNode.urlPath) {
-      const next = new URL(model.selectedNode.urlPath, location.href)
+    if (location.pathname !== model.urlPath) {
+      const next = new URL(model.urlPath, location.href)
       const preview = new URL(location.href).searchParams.get("preview")
       if (preview !== null) next.searchParams.set("preview", preview)
       history.pushState(null, "", `${next.pathname}${next.search}`)
@@ -875,7 +873,7 @@ export async function startExternalStorybookPackage(
     const operation = operationTail
       .catch(() => {})
       .then(async () => {
-        await applyRoute(route, revision, signal, failActivation, dependencies)
+        await applyRoute(route, revision, signal, failActivation)
         if (disposed) throw lifetime.signal.reason ?? new DOMException("Aborted", "AbortError")
       })
     operationTail = operation.catch(() => {})
@@ -905,20 +903,14 @@ export async function startExternalStorybookPackage(
     const route = detail.route
     void navigate(route).catch((error) => isolatePackageError(browserDocument, shell, currentModel, error))
   }
-  const onScenario = (event: unknown): void => {
-    const id = (event as CustomEvent<{id: string}>).detail.id
-    const node = externalStorybookClientNode(snapshot, currentModel.selectedNode.id)
-    if (node.dependencyCases && (id === "structural:dependencies" || id === "structural:overview")) {
-      void scheduleRoute(currentRoute, false, id === "structural:dependencies")
-        .catch(error => isolatePackageError(browserDocument, shell, currentModel, error))
-      return
-    }
-    const item = currentModel.variants.find((variant) => variant.id === id)
+  const onTab = (event: unknown): void => {
+    const detail = (event as CustomEvent<{id: string; route: string}>).detail
+    const item = currentModel.tabs.find(tab => tab.id === detail.id && tab.route === detail.route)
     if (item === undefined) {
-      isolatePackageError(browserDocument, shell, currentModel, new Error(`Unknown Storybook variant item: ${id}`))
+      isolatePackageError(browserDocument, shell, currentModel, new Error(`Unknown Storybook tab: ${detail.id}`))
       return
     }
-    void navigate(item.route).catch((error) => isolatePackageError(browserDocument, shell, currentModel, error))
+    void navigate(item.route).catch(error => isolatePackageError(browserDocument, shell, currentModel, error))
   }
   const onPopState = (): void => {
     try {
@@ -929,8 +921,9 @@ export async function startExternalStorybookPackage(
     }
   }
   shell.workbench.element.addEventListener(WORKBENCH_EVENTS.navigate, onNavigate)
-  shell.workbench.element.addEventListener(WORKBENCH_EVENTS.scenario, onScenario)
-  globalThis.addEventListener?.("popstate", onPopState)
+  shell.workbench.element.addEventListener(WORKBENCH_EVENTS.tab, onTab)
+  const browserWindow = browserDocument.defaultView ?? globalThis
+  browserWindow.addEventListener?.("popstate", onPopState)
 
   let socket = createPackageSocket(
     environment,
@@ -1049,11 +1042,11 @@ export async function startExternalStorybookPackage(
     if (reconnectTimer !== null) clearTimeout(reconnectTimer)
     detachSocket()
     socket.close()
-    globalThis.removeEventListener?.("popstate", onPopState)
+    browserWindow.removeEventListener?.("popstate", onPopState)
     globalThis.removeEventListener?.("pagehide", onPageHide)
     environment.lifecycleSignal?.removeEventListener("abort", onPageHide)
     shell.workbench.element.removeEventListener(WORKBENCH_EVENTS.navigate, onNavigate)
-    shell.workbench.element.removeEventListener(WORKBENCH_EVENTS.scenario, onScenario)
+    shell.workbench.element.removeEventListener(WORKBENCH_EVENTS.tab, onTab)
     const cleanupTimeoutMs = boundedCleanupTimeout(environment.cleanupTimeoutMs ?? 5_000)
     disposePromise = (async () => {
       try {
@@ -1080,8 +1073,13 @@ export async function startExternalStorybookPackage(
   environment.lifecycleSignal?.addEventListener("abort", onPageHide, {once: true})
   if (environment.lifecycleSignal?.aborted === true) onPageHide()
 
-  const canonicalInitial = currentModel.selectedNode.urlPath
-  if (location.pathname !== canonicalInitial) history.replaceState(null, "", canonicalInitial)
+  const canonicalInitial = currentModel.urlPath
+  if (location.pathname !== canonicalInitial) {
+    const next = new URL(canonicalInitial, location.href)
+    const preview = new URL(location.href).searchParams.get("preview")
+    if (preview !== null) next.searchParams.set("preview", preview)
+    history.replaceState(null, "", `${next.pathname}${next.search}`)
+  }
   try {
     browserDocument.documentElement.dataset.externalStorybookPhase = "route"
     await scheduleRoute(currentRoute, true)
@@ -1134,15 +1132,9 @@ function applyModel(shell: ExternalStorybookShell, model: ExternalStorybookPacka
     shell.workbench.update("secondary.label", model.packageNode.label)
     shell.workbench.update("secondary.items", navigationItems(deriveExternalStorybookPackageContents(content, model.packageNode.packageId!)))
     shell.workbench.update("secondary.active", model.secondaryActiveId ?? model.catalogActiveId)
-    const node = externalStorybookClientNode(content, model.selectedNode.id)
-    shell.workbench.update("scenarios.items", [
-      ...(node.dependencyCases ? [
-        {id: "structural:overview", label: "Обзор"},
-        {id: "structural:dependencies", label: "Зависимости"},
-      ] : []),
-      ...variantItems(model.variants),
-    ])
-    shell.workbench.update("scenarios.active", model.variantActiveId ?? (node.dependencyCases ? "structural:overview" : null))
+    shell.workbench.update("tabs.label", "Панель вкладок")
+    shell.workbench.update("tabs.items", tabItems(model.tabs))
+    shell.workbench.update("tabs.active", model.tabActiveId)
   })
 }
 
@@ -1158,10 +1150,11 @@ function navigationItems(items: readonly ExternalStorybookBrowserNavigationItem[
   })))
 }
 
-function variantItems(items: readonly ExternalStorybookBrowserVariantItem[]) {
+function tabItems(items: readonly ExternalStorybookBrowserVariantItem[]) {
   return Object.freeze(items.map((item) => Object.freeze({
     id: item.id,
     label: item.label,
+    route: item.route,
     title: item.group === null ? item.title : `${item.group.label} · ${item.title}`,
   })))
 }

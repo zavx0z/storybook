@@ -589,6 +589,10 @@ function createFixture(options: Readonly<{
       }),
     ]),
     variantActiveId: null,
+    viewKind: "overview",
+    urlPath: "/pkg-fixture-storybook/controls/default",
+    tabs: [],
+    tabActiveId: null,
   } satisfies ExternalStorybookPackageTabModel
   const workbench = {
     document,
