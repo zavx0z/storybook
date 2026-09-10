@@ -64,7 +64,12 @@ reservations, attestation, navigation, readiness и exact-target operations.
 Корень композирует один logical lifecycle owner; вложенный package не создаёт
 отдельный process, port, registry или graph. MCP является только агентской
 проекцией через общий controller; отдельный MCP registry или browser lifecycle
-не допускается.
+не допускается. Наблюдение browser inventory применяется к view registry только
+целиком: abort или неопределённая транспортная ошибка не удаляет известные handles.
+Scoped status и live-check проверяют вкладки выбранного packageId; scoped
+reconciliation не меняет записи других пакетов и не выдаёт их за проверенные.
+Отсутствующий или сменивший пакет target удаляется из выбранного scope, а перед
+действием отдельно подтверждается его текущее владение.
 
 ## Модули и граница обнаружения
 

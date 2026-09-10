@@ -414,6 +414,7 @@ export async function startExternalStorybookServer(
           return responseJson({ok: true, view: browserLifecycle.getView(viewId)})
         }
         if (url.pathname === "/api/control/views" && request.method === "GET") {
+          const packageId = url.searchParams.has("packageId") ? requiredText("views packageId", url.searchParams.get("packageId")) : undefined
           const packages = registry.snapshot().graph.nodes.flatMap((node) =>
             node.kind === "package" && node.packageId !== null
               ? [{
@@ -423,7 +424,7 @@ export async function startExternalStorybookServer(
               : [])
           return responseJson({
             ok: true,
-            views: await browserLifecycle.listViews(server.url.origin, request.signal, packages),
+            views: await browserLifecycle.listViews(server.url.origin, request.signal, packages, packageId),
           })
         }
         if (url.pathname === "/api/control/inspect" && request.method === "POST") {
@@ -586,7 +587,7 @@ export async function startExternalStorybookServer(
                 const packages = registry.snapshot().graph.nodes
                   .filter(node => node.kind === "package")
                   .map(node => ({packageId: node.packageId!, label: node.label}))
-                const existing = (await browserLifecycle.listViews(server.url.origin, request.signal, packages))
+                const existing = (await browserLifecycle.listViews(server.url.origin, request.signal, packages, packageId))
                   .find(view => view.packageId === packageId)
                 const routes = session.revisionGraphSnapshot(revision!)?.routes ?? []
                 const currentRoute = storybookCurrentRouteKey(existing?.route ?? "")

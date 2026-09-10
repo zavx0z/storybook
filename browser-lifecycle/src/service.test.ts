@@ -15,6 +15,70 @@ afterEach(() => {
 })
 
 describe("Storybook browser lifecycle service", () => {
+  test.each([[false, false], [false, true], [true, false], [true, true]] as const)("незавершённый inventory сохраняет handles: abort=%s, known packages=%s", async (abort, knownPackages) => {
+    const chrome = new FakeChrome()
+    chrome.targetsValue = [
+      {targetId: "A", type: "page", title: "A", url: `${chrome.origin}/pkg-fixture-a/`},
+      {targetId: "B", type: "page", title: "B", url: `${chrome.origin}/packages/%40fixture%2Fb/`},
+    ]
+    const controller = createController(chrome)
+    const labels = [{packageId: "@fixture/a", label: "A"}, {packageId: "@fixture/b", label: "B"}]
+    const before = await controller.listViews(chrome.origin, undefined, labels)
+    chrome.targetsValue.reverse()
+    if (abort) chrome.hangingTargetIds.add("B")
+    else chrome.unavailableDiagnosticsTargetIds.add("B")
+    const listing = controller.listViews(chrome.origin, AbortSignal.timeout(100), knownPackages ? labels : undefined)
+    if (abort) await expect(listing).rejects.toMatchObject({name: "TimeoutError"})
+    else await expect(listing).rejects.toThrow("indeterminate")
+    for (const view of before) expect(controller.getView(view.viewId)).toEqual(view)
+    expect(chrome.created).toBe(0)
+    expect(chrome.closed).toEqual([])
+  })
+
+  test("scoped inventory и действие A не проверяют зависшую вкладку B", async () => {
+    const chrome = new FakeChrome()
+    chrome.targetsValue = [
+      {targetId: "A", type: "page", title: "A", url: `${chrome.origin}/pkg-fixture-a/`},
+      {targetId: "B", type: "page", title: "B", url: `${chrome.origin}/pkg-fixture-b/`},
+    ]
+    const controller = createController(chrome)
+    const labels = [{packageId: "@fixture/a", label: "A"}, {packageId: "@fixture/b", label: "B"}]
+    const before = await controller.listViews(chrome.origin, undefined, labels)
+    const a = before.find(view => view.packageId === "@fixture/a")!
+    const b = before.find(view => view.packageId === "@fixture/b")!
+    chrome.hangingTargetIds.add("B")
+    chrome.targetsValue[1] = {...chrome.targetsValue[1]!, title: "Непроверенное новое имя B"}
+    chrome.targetOperations.length = 0
+    const views = await controller.listViews(chrome.origin, AbortSignal.timeout(100), labels, "@fixture/a")
+    expect(views).toEqual([a])
+    expect(controller.getView(b.viewId)).toEqual(b)
+    await controller.interact({viewId: a.viewId, action: "click", target: {nodeId: "node:1"}})
+    expect(chrome.targetOperations).not.toContain("identity:B")
+    expect(chrome.created).toBe(0)
+    expect(chrome.closed).toEqual([])
+  })
+
+  test.each(["closed", "moved"])("scoped inventory удаляет доказанно устаревший A, сохраняя B: %s", async change => {
+    const chrome = new FakeChrome()
+    chrome.targetsValue = [
+      {targetId: "A", type: "page", title: "A", url: `${chrome.origin}/pkg-fixture-a/`},
+      {targetId: "B", type: "page", title: "B", url: `${chrome.origin}/pkg-fixture-b/`},
+    ]
+    const controller = createController(chrome)
+    const labels = [{packageId: "@fixture/a", label: "A"}, {packageId: "@fixture/b", label: "B"}]
+    const before = await controller.listViews(chrome.origin, undefined, labels)
+    const a = before.find(view => view.packageId === "@fixture/a")!
+    const b = before.find(view => view.packageId === "@fixture/b")!
+    if (change === "closed") chrome.targetsValue.shift()
+    else chrome.targetsValue[0] = {...chrome.targetsValue[0]!, url: `${chrome.origin}/pkg-fixture-b/changed`}
+    expect(await controller.listViews(chrome.origin, undefined, labels, "@fixture/a")).toEqual([])
+    expect(() => controller.getView(a.viewId)).toThrow("Unknown")
+    expect(controller.getView(b.viewId)).toEqual(b)
+    await expect(controller.interact({viewId: a.viewId, action: "click", target: {nodeId: "node:1"}})).rejects.toThrow("Unknown")
+    expect(chrome.created).toBe(0)
+    expect(chrome.closed).toEqual([])
+  })
+
   test("inspect exposes bootstrap diagnostics for an attested page without a bridge", async () => {
     const chrome = new FakeChrome()
     const controller = createController(chrome)
@@ -591,6 +655,7 @@ class FakeChrome implements StorybookChromeClient {
   readonly markerOnlyTargetIds = new Set<string>()
   readonly titleOnlyTargetIds = new Set<string>()
   readonly unavailableDiagnosticsTargetIds = new Set<string>()
+  readonly hangingTargetIds = new Set<string>()
   readonly closed: string[] = []
   readonly activated: string[] = []
   readonly targetOperations: string[] = []
@@ -665,7 +730,8 @@ class FakeChrome implements StorybookChromeClient {
   async consoleEntries(): Promise<readonly []> {
     return []
   }
-  async bridgeDiagnostics(targetId: string): Promise<Readonly<Record<string, unknown>>> {
+  async bridgeDiagnostics(targetId: string, signal?: AbortSignal): Promise<Readonly<Record<string, unknown>>> {
+    signal?.throwIfAborted()
     if (this.unavailableDiagnosticsTargetIds.has(targetId)) {
       throw new Error("diagnostics unavailable")
     }
@@ -704,6 +770,8 @@ class FakeChrome implements StorybookChromeClient {
     _params?: unknown,
     signal?: AbortSignal,
   ): Promise<unknown> {
+    signal?.throwIfAborted()
+    if (this.hangingTargetIds.has(targetId)) await hangUntilAbort(signal)
     if (this.hangBridgeMethod === method) await hangUntilAbort(signal)
     if (this.foreignTargetIds.has(targetId)) {
       throw new Error("Storybook agent bridge is unavailable in the exact target")

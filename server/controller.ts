@@ -488,7 +488,8 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
         candidate !== null && typeof candidate === "object" && (candidate as Record<string, unknown>).packageId === scope)
         .map(publicPackageSnapshot)
       : []
-    const viewsResult = includeViews ? await client.read("/api/control/views", signal) : null
+    const viewsPath = scope === undefined ? "/api/control/views" : `/api/control/views?packageId=${encodeURIComponent(scope)}`
+    const viewsResult = includeViews ? await client.read(viewsPath, signal) : null
     const views = viewsResult === null
       ? undefined
       : Array.isArray(viewsResult.views)

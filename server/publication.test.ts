@@ -27,6 +27,7 @@ test("publishes only after an agent check, notifies every matching tab, and rest
   let server: ExternalStorybookRunningServer
   let opened = 0
   let failInspection = false
+  const inventoryScopes: Array<string | undefined> = []
   let last: {packageId: string; route: string; revision: string} | null = null
   const viewId = `storybook-view-v1_${"a".repeat(43)}`
   const browser: StorybookBrowserLifecycle = {
@@ -42,7 +43,11 @@ test("publishes only after an agent check, notifies every matching tab, and rest
         reused: opened > 1,
       }
     },
-    async listViews() { return last ? [{viewId, packageId: last.packageId, route: last.route, title: "Applied"}] : [] },
+    async listViews(_origin, _signal, _packages, packageId) {
+      inventoryScopes.push(packageId)
+      if (packageId !== "@fixture/applied") throw new Error("Проверка чужого scope заблокирована fixture")
+      return last ? [{viewId, packageId: last.packageId, route: last.route, title: "Applied"}] : []
+    },
     getView() { return {viewId, packageId: "@fixture/applied", route: "", title: "Applied"} },
     async inspect() {
       return {packageId: last!.packageId, route: last!.route, revision: last!.revision,
@@ -111,6 +116,11 @@ test("publishes only after an agent check, notifies every matching tab, and rest
     const {token: otherToken} = await otherSession.json() as {token: string}
     const otherEvents = await connect(`<meta name="external-storybook-browser-session" content="${otherToken}">`, "@fixture/other")
     expect((await control(true)).ok).toBeTrue()
+    const scopedViews = await fetch(new URL("/api/control/views?packageId=%40fixture%2Fapplied", server.origin), {
+      headers: {authorization: `Bearer ${server.record.controlToken}`},
+    })
+    expect(scopedViews.status).toBe(200)
+    expect(inventoryScopes).toEqual(["@fixture/applied", "@fixture/applied"])
     await waitFor(() => [a, b].every(events => events.some(event => event.type === "package.updated" && event.revision === first)))
     expect(await readPage()).toContain(`/__storybook/revisions/%40fixture%2Fapplied/${first}/`)
     await Bun.write(packageJson, JSON.stringify({name: "@fixture/applied", label: "Changed"}))

@@ -49,6 +49,7 @@ export interface StorybookBrowserLifecycle {
     origin: string,
     signal?: AbortSignal,
     packages?: readonly Readonly<{packageId: string; label: string}>[],
+    packageId?: string,
   ): Promise<readonly StorybookPublicView[]>
   getView(viewId: string): StorybookPublicView
   inspect(
@@ -254,17 +255,21 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
     origin: string,
     signal?: AbortSignal,
     packages?: readonly Readonly<{packageId: string; label: string}>[],
+    packageId?: string,
   ): Promise<readonly StorybookPublicView[]> {
     await this.#chrome.health(signal)
     const canonicalOrigin = loopbackOrigin(origin)
+    const scope = packageId === undefined ? undefined : exactPackageId(packageId)
     const labels = packages === undefined ? null : new Map(packages.map(({packageId, label}) => [
       exactPackageId(packageId),
       exactPackageLabel(label),
     ] as const))
     const candidates = (await this.#chrome.targets(signal)).filter(target =>
-      target.type === "page" && packageTargetPath(target.url) !== null && new URL(target.url).origin === canonicalOrigin)
+      target.type === "page" && packageTargetPath(target.url) !== null && new URL(target.url).origin === canonicalOrigin &&
+      (scope === undefined || packageTargetIdentity(target.url, scope)?.packageId === scope))
     const retained: StorybookIdentifiedTarget[] = []
     for (const target of candidates) {
+      signal?.throwIfAborted()
       let packageId: string | null = null
       if (labels !== null) {
         const matches = [...labels.keys()].filter(id => packageTargetIdentity(target.url, id) !== null)
@@ -274,24 +279,30 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
         try {
           packageId = bridgeIdentity(await this.#chrome.callBridge(target.targetId, "identity", {schemaVersion: 1}, signal)).packageId
         } catch {
+          signal?.throwIfAborted()
           try {
             const diagnostic = await this.#chrome.bridgeDiagnostics(target.targetId, signal)
             const markers = objectResult(diagnostic.markers, "Storybook target markers")
             packageId = typeof markers.packageId === "string" ? markers.packageId :
               typeof diagnostic.viewName === "string" && diagnostic.viewName.startsWith("storybook:")
                 ? diagnostic.viewName.slice("storybook:".length) : null
-          } catch {}
+          } catch (error) {
+            signal?.throwIfAborted()
+            throw new Error("Storybook browser inventory observation is indeterminate", {cause: error})
+          }
         }
       }
       if (packageId === null || packageTargetIdentity(target.url, packageId) === null) continue
-      if (await this.#attestsPackage(target, packageId, signal ?? AbortSignal.timeout(5_000), labels?.get(packageId))) {
+      if (await this.#attestsPackage(target, packageId, signal ?? AbortSignal.timeout(5_000), labels?.get(packageId), true)) {
         retained.push({...target, packageId})
       }
     }
     const preferred = new Set(retained.flatMap(target =>
       this.#state.readTarget(target.packageId)?.targetId === target.targetId ? [target.targetId] : []))
     retained.sort((left, right) => Number(preferred.has(right.targetId)) - Number(preferred.has(left.targetId)))
-    return this.#views.synchronize(retained, canonicalOrigin)
+    // Только завершённое наблюдение заменяет registry; чужие пакеты не перепроверялись.
+    signal?.throwIfAborted()
+    return this.#views.synchronize(retained, canonicalOrigin, scope)
   }
 
   async inspect(
@@ -484,6 +495,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
     packageId: string,
     signal: AbortSignal,
     packageLabel?: string,
+    requireComplete = false,
   ): Promise<boolean> {
     try {
       return bridgeIdentity(await this.#chrome.callBridge(
@@ -493,6 +505,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
         signal,
       )).packageId === packageId
     } catch {
+      signal.throwIfAborted()
       try {
         const diagnostic = await this.#chrome.bridgeDiagnostics(target.targetId, signal)
         const markers = objectResult(diagnostic.markers, "Storybook target markers")
@@ -507,9 +520,14 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
             (markerPackageId === null || markerPackageId === undefined) ||
           ownsRevisionScript ||
           packageLabel !== undefined && legacyEncodedPackageTarget(target.url, packageId) && target.title === packageLabel
-      } catch {
-        return packageTargetIdentity(target.url, packageId)?.packageId === packageId &&
+      } catch (error) {
+        signal.throwIfAborted()
+        const legacy = packageTargetIdentity(target.url, packageId)?.packageId === packageId &&
           packageLabel !== undefined && legacyEncodedPackageTarget(target.url, packageId) && target.title === packageLabel
+        if (requireComplete) {
+          throw new Error(`Storybook package inventory observation is indeterminate: ${packageId}`, {cause: error})
+        }
+        return legacy
       }
     }
   }

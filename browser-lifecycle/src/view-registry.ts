@@ -23,10 +23,11 @@ export class StorybookViewRegistry {
     this.#secret = new Uint8Array(secret)
   }
 
-  synchronize(targets: readonly StorybookIdentifiedTarget[], origin: string): readonly StorybookPublicView[] {
+  synchronize(targets: readonly StorybookIdentifiedTarget[], origin: string, packageId?: string): readonly StorybookPublicView[] {
     const canonicalOrigin = loopbackOrigin(origin)
     const nextViews = new Map<string, StorybookInternalView>()
     for (const target of targets) {
+      if (packageId !== undefined && target.packageId !== packageId) continue
       if (target.type !== "page") continue
       let identity: ReturnType<typeof storybookTargetIdentity>
       try {
@@ -52,7 +53,7 @@ export class StorybookViewRegistry {
       nextViews.set(viewId, view)
     }
     for (const [viewId, view] of this.#viewsById) {
-      if (view.origin !== canonicalOrigin) continue
+      if (view.origin !== canonicalOrigin || packageId !== undefined && view.packageId !== packageId) continue
       this.#viewsById.delete(viewId)
       this.#viewIdByTarget.delete(view.targetId)
     }
@@ -61,7 +62,7 @@ export class StorybookViewRegistry {
       this.#viewIdByTarget.set(view.targetId, viewId)
     }
     return Object.freeze([...this.#viewsById.values()]
-      .filter((view) => view.origin === canonicalOrigin)
+      .filter((view) => view.origin === canonicalOrigin && (packageId === undefined || view.packageId === packageId))
       .map(publicView))
   }
 
