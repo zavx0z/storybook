@@ -11,6 +11,7 @@ import type {
   RootWheelInput,
 } from "@zavx0z/browser/integration"
 import {createDocumentRenderer} from "@zavx0z/renderer"
+import {createDocumentInteractionController, hitTestProjection} from "@renderer/html"
 import {createSpaceElementFactories} from "@zavx0z/space"
 import {HUDElement} from "../../webxr-space/dom/hud/index.ts"
 import {SpaceElement} from "@zavx0z/dom/space"
@@ -28,6 +29,41 @@ import type {
 } from "./shell.ts"
 
 describe("external Storybook agent bridge inspection", () => {
+  test("читает актуальную видимость native страницы без нового кадра или ввода", async () => {
+    let focused = true
+    const nativePage = {
+      visibilityState: "visible" as DocumentVisibilityState,
+      hasFocus: () => focused,
+    }
+    const fixture = createFixture({nativePage})
+    try {
+      const before = fixture.shell.presentedFrameSequence
+      const first = await fixture.bridge.call("inspect", {include: ["state"]}) as AgentInspection
+      expect(first.nativePage).toEqual({visibilityState: "visible", hasFocus: true})
+      nativePage.visibilityState = "hidden"
+      focused = false
+      const second = await fixture.bridge.call("inspect", {include: ["state"]}) as AgentInspection
+      expect(second.nativePage).toEqual({visibilityState: "hidden", hasFocus: false})
+      expect(first.nativePage).toEqual({visibilityState: "visible", hasFocus: true})
+      expect(first.frameSequence).toBe(before)
+      expect(second.frameSequence).toBe(before)
+      expect(second.revision).toBe(first.revision)
+      expect(fixture.shell.presentedFrameSequence).toBe(before)
+      expect(fixture.shell.canvas.hidden).toBeFalse()
+      expect(fixture.calls.pointerDowns).toHaveLength(0)
+      expect(fixture.calls.nativeKeys).toHaveLength(0)
+    } finally {fixture.dispose()}
+  })
+
+  test("отмечает недоступные native page сведения как null", async () => {
+    const fixture = createFixture()
+    try {
+      const inspected = await fixture.bridge.call("inspect", {include: ["state"]}) as AgentInspection
+      expect(inspected.nativePage).toEqual({visibilityState: null, hasFocus: null})
+      expect(inspected.frameSequence).toBe(0)
+    } finally {fixture.dispose()}
+  })
+
   test("rejects an interaction when the caller expected another package", async () => {
     const fixture = createFixture()
     try {
@@ -131,6 +167,41 @@ describe("external Storybook agent bridge inspection", () => {
 })
 
 describe("external Storybook agent bridge interaction", () => {
+  test.each([[1, false], [0.43, false], [0.43, true]] as const)("попадает в кнопку при scale %s, box fallback %s и единственной проекции", async (scale, omitRunHit) => {
+    const fixture = createFixture({realPointer: true, omitRunHit, projectionOffset: {x: 120, y: 80}})
+    try {
+      fixture.preview.setAttribute("style", `display:block; width:300px; height:140px; transform:translate(30px, 20px) scale(${scale}); transform-origin:top left`)
+      let clicks = 0
+      fixture.run.addEventListener("click", () => {clicks += 1})
+      fixture.shell.presentFrame()
+      const frame = fixture.shell.root.getProjection(fixture.shell.hud).readFrame()!
+      const hit = frame.hits.get(fixture.run) ?? frame.boxByNode.get(fixture.run)!
+      const expected = {
+        x: (hit.x + hit.width / 2) * hit.transform.scaleX + hit.transform.translateX,
+        y: (hit.y + hit.height / 2) * hit.transform.scaleY + hit.transform.translateY,
+      }
+      const inspected = await fixture.bridge.call("inspect") as AgentInspection
+      for (const target of [{role: "button", name: "Run exact"}, {nodeId: fixture.nodeIds(inspected).run}]) {
+        await fixture.bridge.call("interact", {action: "click", target})
+        const actual = fixture.calls.pointerDowns.at(-1)!
+        expect(actual.x).toBeCloseTo(expected.x + 120)
+        expect(actual.y).toBeCloseTo(expected.y + 80)
+        if (!omitRunHit) expect(hitTestProjection(frame, actual.x - 120, actual.y - 80)?.node).toBe(fixture.run)
+      }
+      expect(clicks).toBe(2)
+    } finally {fixture.dispose()}
+  })
+
+  test("отклоняет нечисловую клиентскую точку до доставки pointer", async () => {
+    const fixture = createFixture({realPointer: true, projectionOffset: {x: Number.POSITIVE_INFINITY, y: 0}})
+    try {
+      await expect(fixture.bridge.call("interact", {action: "click", target: {role: "button", name: "Run exact"}}))
+        .rejects.toThrow("non-finite client bounds")
+      expect(fixture.calls.pointerDowns).toHaveLength(0)
+      expect(fixture.calls.pointerUps).toHaveLength(0)
+    } finally {fixture.dispose()}
+  })
+
   test("resolves exact role and name and performs the complete bounded action vocabulary", async () => {
     const fixture = createFixture()
     try {
@@ -326,6 +397,7 @@ type AgentNode = Readonly<{
 }>
 
 type AgentInspection = Readonly<{
+  nativePage: Readonly<{visibilityState: DocumentVisibilityState | null; hasFocus: boolean | null}>
   protocol: string
   packageId: string
   revision: string
@@ -383,7 +455,12 @@ type InteractionCalls = Readonly<{
   nativeTexts: Array<Readonly<{target: SemanticElement; text: string}>>
 }>
 
-function createFixture(): Fixture {
+function createFixture(options: Readonly<{
+  nativePage?: Readonly<{visibilityState: DocumentVisibilityState; hasFocus(): boolean}>
+  realPointer?: boolean
+  omitRunHit?: boolean
+  projectionOffset?: Readonly<{x: number; y: number}>
+}> = {}): Fixture {
   const document = createDocument({elementFactories: createSpaceElementFactories()})
   const space = document.createElement("space") as SpaceElement
   const viewPoint = document.createElement("viewpoint")
@@ -429,22 +506,38 @@ function createFixture(): Fixture {
     nativeKeys: [],
     nativeTexts: [],
   }
+  const interaction = createDocumentInteractionController({document, hitTest: hitTestProjection})
+  const offset = options.projectionOffset ?? {x: 0, y: 0}
+  const localPointer = (input: RootPointerInput) => ({
+    ...input,
+    clientX: input.x - offset.x,
+    clientY: input.y - offset.y,
+  })
   const hudProjection = Object.freeze({
     kind: "hud" as const,
     owner: hud,
-    readFrame: () => renderer.flush(),
-    projectPoint: (point: {x: number; y: number}) => point,
+    readFrame() {
+      const frame = renderer.flush()
+      if (!options.omitRunHit) return frame
+      const hits = new Map(frame.hits)
+      hits.delete(run)
+      return {...frame, hits}
+    },
+    projectPoint: (point: {x: number; y: number}) => ({x: point.x + offset.x, y: point.y + offset.y}),
     subscribeFrames: () => () => {},
     pointerMove(inputValue: RootPointerInput) {
       calls.pointerMoves.push(inputValue)
+      if (options.realPointer) return interaction.pointerMove(renderer.flush(), localPointer(inputValue))
       return run
     },
     pointerDown(inputValue: RootPointerInput) {
       calls.pointerDowns.push(inputValue)
+      if (options.realPointer) return interaction.pointerDown(renderer.flush(), localPointer(inputValue))
       return run
     },
     pointerUp(inputValue: RootPointerInput) {
       calls.pointerUps.push(inputValue)
+      if (options.realPointer) return interaction.pointerUp(renderer.flush(), localPointer(inputValue))
       return run
     },
     wheel(inputValue: RootWheelInput) {
@@ -461,6 +554,8 @@ function createFixture(): Fixture {
   })
   const externalCanvas = canvas("external-storybook-canvas", 640, 480, {left: 0, top: 0})
   const browserDocument = {
+    get visibilityState() { return options.nativePage?.visibilityState },
+    hasFocus: options.nativePage?.hasFocus,
     defaultView: {name: "storybook-view"},
     documentElement: {
       dataset: {
@@ -573,6 +668,7 @@ function createFixture(): Fixture {
     },
     dispose() {
       bridge.dispose()
+      interaction.dispose()
       renderer.dispose()
       expect((globalThis as typeof globalThis & Record<string, unknown>)[STORYBOOK_AGENT_BRIDGE_GLOBAL]).toBeUndefined()
     },

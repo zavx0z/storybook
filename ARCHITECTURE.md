@@ -512,7 +512,11 @@ lifecycle/query operations не требуют CDP.
 
 Package-tab agent bridge проецирует существующий semantic Document, Workbench
 identities и current renderer frame. Он не создаёт второе дерево и не принимает
-raw JavaScript. Bounds берутся из exact `RenderFrame.boxByNode`; interaction
+raw JavaScript. Точка target берётся из hit текущего RenderFrame или box при
+отсутствии hit. CSS transform записи применяется к центру до единственного
+Browser.projectPoint; path presentationOwner разрешается через актуальный
+frame.presentationTransforms. Клиентские getBoundingClientRect не проецируются
+повторно, нечисловые координаты отклоняются до ввода. Interaction
 использует projection input и `experience.dispatchKey(...)` единственного
 Browser Experience. State и inspection содержат singular `canvas`, взятый
 непосредственно из Experience; native Document не сканируется в поисках

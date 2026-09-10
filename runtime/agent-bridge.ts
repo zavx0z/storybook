@@ -121,6 +121,12 @@ export function createStorybookAgentBridge(
       error: options.shell.browserDocument.documentElement.dataset.externalStorybookError ?? null,
       timeOrigin: performance.timeOrigin,
       frameSequence: options.shell.presentedFrameSequence,
+      nativePage: Object.freeze({
+        visibilityState: options.shell.browserDocument.visibilityState ?? null,
+        hasFocus: typeof options.shell.browserDocument.hasFocus === "function"
+          ? options.shell.browserDocument.hasFocus()
+          : null,
+      }),
       selected: Object.freeze({
         categoryId: model.catalogActiveId,
         subjectId: model.selectedNode.kind === "directory" ? null : model.secondaryActiveId,
@@ -282,30 +288,36 @@ async function applyNodeAction(
   inspector: DomInspector,
   shell: ExternalStorybookShell,
 ): Promise<void> {
-  const snapshot = inspector.snapshot(shell.space)
-  const record = snapshot.nodes.find(({id}) => inspector.nodeForId(id) === node)
-  const box = record?.hit ?? record?.box ?? null
-  const presentedPoint = (target: Node, bounds: typeof box) => {
+  const presentedPoint = (target: Node) => {
     const owner = shell.projectionFor(target)
-    if (owner.kind !== "space") {
-      return bounds === null ? null : owner.projectPoint({
-        x: bounds.x + bounds.width / 2,
-        y: bounds.y + bounds.height / 2,
-      })
+    const projection = owner.kind === "space" ? shell.root.getProjection(shell.hud) : owner
+    const frame = projection.readFrame()
+    const hit = owner.kind === "space" ? undefined : frame?.hits.get(target)
+    const preview = owner.kind === "space" ? frame?.boxByNode.get(shell.workbench.elements.previewHost) : undefined
+    const bounds = owner.kind === "space" ? preview : hit ?? frame?.boxByNode.get(target)
+    if (bounds === undefined) return null
+    const presentationOwner = hit?.path?.presentationOwner
+    const transform = presentationOwner === null || presentationOwner === undefined
+      ? bounds.transform
+      : frame?.presentationTransforms?.get(presentationOwner) ?? bounds.transform
+    // CSS transform переводит layout-точку в viewport проекции; Browser проецирует её один раз.
+    const x = preview === undefined ? bounds.x + bounds.width / 2 : preview.contentX + preview.contentWidth / 2
+    const y = preview === undefined ? bounds.y + bounds.height / 2 : preview.contentY + preview.contentHeight / 2
+    const point = {x: x * transform.scaleX + transform.translateX, y: y * transform.scaleY + transform.translateY}
+    if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) throw new Error("Storybook semantic target has non-finite projection bounds")
+    const clientPoint = projection.projectPoint(point)
+    if (clientPoint !== null && (!Number.isFinite(clientPoint.x) || !Number.isFinite(clientPoint.y))) {
+      throw new Error("Storybook semantic target has non-finite client bounds")
     }
-    const hud = shell.root.getProjection(shell.hud)
-    const preview = hud.readFrame()?.boxByNode.get(shell.workbench.elements.previewHost)
-    return preview === undefined ? null : hud.projectPoint({
-      x: preview.contentX + preview.contentWidth / 2,
-      y: preview.contentY + preview.contentHeight / 2,
-    })
+    return clientPoint
   }
-  const point = presentedPoint(node, box)
+  const point = presentedPoint(node)
   const pointer = (
     buttons: number,
     target: Readonly<{x: number; y: number}> | null = point,
   ) => {
     if (target === null) throw new Error("Storybook semantic target has no presented bounds")
+    if (!Number.isFinite(target.x) || !Number.isFinite(target.y)) throw new Error("Storybook semantic target has non-finite client bounds")
     return {x: target.x, y: target.y, pointerId: 1, pointerType: "mouse", button: 0, buttons}
   }
   if (action === "hover") shell.root.input.pointerMove(pointer(0))
@@ -320,10 +332,7 @@ async function applyNodeAction(
     if (request.destination !== undefined) {
       if (point === null) throw new Error("Storybook drag source requires presented bounds")
       const destination = resolveTarget(request.destination, inspector)
-      const target = snapshot.nodes.find(({id}) => inspector.nodeForId(id) === destination)
-      const destinationBox = target?.hit ?? target?.box ?? null
-      if (destinationBox === null) throw new Error("Storybook drag destination requires presented bounds")
-      const destinationClientPoint = presentedPoint(destination, destinationBox)
+      const destinationClientPoint = presentedPoint(destination)
       if (destinationClientPoint === null) throw new Error("Storybook drag destination is not presented")
       destinationPoint = destinationClientPoint
     } else {

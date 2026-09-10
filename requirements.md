@@ -708,6 +708,22 @@ Ensure, attach, search и `check(live:false)` не требуют доступн
 Inspection и interaction используют existing semantic Document, Workbench IDs
 и renderer frame. Target resolution exact nodeId либо exact role+name;
 ambiguity fail closed. Raw eval/coordinates не являются agent API.
+State и inspect возвращают nativePage.visibilityState и nativePage.hasFocus
+из native shell.browserDocument рядом с неизменными revision и frameSequence.
+Это чтение текущей видимости и фокуса страницы без нового кадра, RAF, таймера
+или смены фокуса; недоступное значение равно null. Semantic Document и
+canvas.hidden не заменяют состояние native страницы. Эти поля не утверждают
+наличие queued RAF или причину отсутствия нового presented frame.
+Для pointer и wheel выбирается hit текущего кадра, при его отсутствии — box.
+Центр сначала преобразуется CSS scale/translate выбранной записи, затем ровно
+одним Browser.projectPoint из viewport проекции в клиентские координаты.
+Для path с presentationOwner используется актуальный frame.presentationTransforms
+с fallback на hit.transform; обычные кнопки используют hit.transform.
+У пространственного target сохраняется центр preview HUD с его CSS transform.
+getBoundingClientRect уже содержит клиентские координаты и повторно не проецируется.
+Нечисловые точки отклоняются до доставки ввода. Regression agent-bridge использует
+реальный hitTestProjection и обработчик кнопки при scale 1 и 0.43 с переносом,
+проверяя exact role/name, nodeId и fallback на box.
 `createDomInspector` импортируется из `@zavx0z/devtools` в WebXR. Этот владелец
 предоставляет снимки, стабильные идентификаторы и освобождение ссылок;
 `readFrame(node)` читает готовый кадр нужной projection единственного Root.

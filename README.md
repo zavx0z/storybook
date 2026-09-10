@@ -389,6 +389,11 @@ Build/runtime/frame failure leaves server, graph, other packages and
 lastWorking artifact unchanged. Bun metafile realpaths invalidate only actual
 dependent sessions. Per-package queues share only a bounded compiler semaphore.
 
+Pointer-команды по nodeId или точному role/name учитывают CSS scale и перенос
+целевого элемента: центр hit (или box без hit) сначала преобразуется его CSS
+transform, затем один раз Browser.projectPoint. При auto-fit это сохраняет
+попадание в тот же элемент. Клиентские bounds повторно не проецируются.
+
 Browser inspection uses the existing semantic Document and
 `@zavx0z/devtools`; interaction uses projection input and
 `experience.dispatchKey(...)` единственного Browser Experience. Capture
