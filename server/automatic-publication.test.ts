@@ -20,12 +20,14 @@ test("subscribe and watch builds apply through exact existing-page evidence", as
   const staleViewId = `storybook-view-v1_${"b".repeat(43)}`
   let latest: {packageId: string, route: string, revision: string} | null = null
   const opened: string[] = []
+  let checkCurrentRevision = false
+  let newConsoleErrors: readonly unknown[] = []
   let running!: Awaited<ReturnType<typeof startExternalStorybookServer>>
   const browser: StorybookBrowserLifecycle = {
     async listViews(_origin, _signal, _packages, packageId) {
       return packageId === "@fixture/automatic"
         ? [
-          {viewId: staleViewId, packageId, route: "", title: "Old page"},
+          ...(!checkCurrentRevision ? [{viewId: staleViewId, packageId, route: "", title: "Old page"}] : []),
           {viewId, packageId, route: "", title: "Automatic"},
         ]
         : []
@@ -48,12 +50,14 @@ test("subscribe and watch builds apply through exact existing-page evidence", as
         presented: true,
         timeOrigin: 1,
         frameSequence: 2,
+        inPageApplied: true,
+        consoleErrors: newConsoleErrors,
       }
     },
     getView() {
       return {viewId, packageId: "@fixture/automatic", route: "", title: "Automatic"}
     },
-    async inspect(inspectedViewId) {
+    async inspect(inspectedViewId, options) {
       if (inspectedViewId === staleViewId) return {packageId: "@fixture/automatic", revision: "old-revision", preview: false, ready: true, presented: true}
       const loaded = latest?.revision ?? running.sessions.session("@fixture/automatic").snapshot().builtRevision
       if (loaded != null) return {
@@ -65,7 +69,9 @@ test("subscribe and watch builds apply through exact existing-page evidence", as
         presented: true,
         frameSequence: 2,
         graphDigest: running.sessions.session("@fixture/automatic").revisionGraphSnapshot(loaded)!.packageGraphDigest,
-        consoleErrors: [],
+        consoleErrors: checkCurrentRevision && options?.include?.includes("console")
+          ? [{level: "error", text: "Соединение было потеряно до проверки"}]
+          : [],
       }
       if (latest === null) return {packageId: "@fixture/automatic", preview: false}
       const current = latest!
@@ -187,6 +193,19 @@ test("subscribe and watch builds apply through exact existing-page evidence", as
       body: JSON.stringify({packageId: "@fixture/automatic", condition: "active", afterRevision: second, timeoutMs: 100}),
     })
     expect(await waiting.json()).toMatchObject({ok: false, timeout: true, currentRevision: null})
+
+    checkCurrentRevision = true
+    const buildsBeforeCheck = running.sessions.session("@fixture/automatic").snapshot().builds
+    const check = async () => (await fetch(new URL("/api/control/check", running.origin), {
+      method: "POST",
+      headers: {authorization: `Bearer ${running.record.controlToken}`, "content-type": "application/json"},
+      body: JSON.stringify({scope: "@fixture/automatic", live: true}),
+    })).json()
+    expect(await check()).toMatchObject({ok: true, applied: true})
+    expect(running.sessions.session("@fixture/automatic").snapshot().builds).toBe(buildsBeforeCheck)
+    newConsoleErrors = [{level: "error", text: "Новая ошибка при проверке"}]
+    expect(await check()).toMatchObject({ok: false, applied: false})
+    expect(running.sessions.session("@fixture/automatic").snapshot().activeRevision).toBe(second)
   } finally {
     socket?.close()
     if (running !== undefined) await running.stop()

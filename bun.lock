@@ -33,7 +33,7 @@
       },
     },
     "archetypes": {
-      "name": "@zavx0z/storybook-archetypes",
+      "name": "@storybook/archetypes",
       "version": "0.0.0",
     },
     "browser-lifecycle": {
@@ -214,7 +214,7 @@
 
     "@zavx0z/space": ["@zavx0z/space@file:../webxr-space/space", { "peerDependencies": { "@zavx0z/component": "*", "@zavx0z/dom": "*", "@zavx0z/engine": "*", "@zavx0z/template": "*" }, "optionalPeers": ["@zavx0z/component", "@zavx0z/dom", "@zavx0z/engine", "@zavx0z/template"] }],
 
-    "@zavx0z/storybook-archetypes": ["@zavx0z/storybook-archetypes@workspace:archetypes"],
+    "@storybook/archetypes": ["@storybook/archetypes@workspace:archetypes"],
 
     "@zavx0z/storybook-browser-lifecycle": ["@zavx0z/storybook-browser-lifecycle@workspace:browser-lifecycle"],
 

@@ -1021,7 +1021,7 @@ export async function startExternalStorybookServer(
                 let opened: Readonly<Record<string, unknown>>
                 if (existing === undefined) {
                   opened = await openPackageView({packageId, route}, request.signal)
-                } else if (result.builtRevision != null) {
+                } else if (result.builtRevision != null || browserLifecycle.applyRevision !== undefined) {
                   if (browserLifecycle.applyRevision === undefined) throw new Error("Storybook page restart is required to install in-page updates")
                   const updated = await browserLifecycle.applyRevision(existing.viewId, revision!, request.signal)
                   opened = Object.freeze({...updated, viewId: existing.viewId, ok: true})

@@ -1,6 +1,6 @@
 # Внешняя архитектура Storybook
 
-Архитектура реализует [единые нормативные правила структуры](requirements.md#structure-contract).
+Архитектура реализует [единые нормативные правила структуры](archetypes/README.md#structure-contract).
 Идентичность пакетов, назначение манифеста и источники документации определяются там;
 ниже описаны потоки данных, владельцы реализации и жизненный цикл инструмента.
 
@@ -30,7 +30,7 @@ one external storybook serve process
 
 ## Owner law
 
-Границы пакетов и их авторских данных заданы в [нормативном контракте](requirements.md#structure-contract).
+Границы пакетов и их авторских данных заданы в [нормативном контракте](archetypes/README.md#structure-contract).
 
 Корневой `@zavx0z/storybook` владеет schemas, discovery, validation, canonical
 graph, search/routing derived views, шестью областями Workbench, package
@@ -552,13 +552,13 @@ accepted baseline, visual diff или owner acceptance state.
 
 ## Repository navigation and isolated package content
 
-Глобальный граф несёт иерархию из [контракта структуры](requirements.md#structure-contract).
+Глобальный граф несёт иерархию из [контракта структуры](archetypes/README.md#structure-contract).
 Immutable `storybook-package-graph/4` содержит модули и ресурсы своего пакета;
 данные предков передаются как metadata, а не как исполняемые зависимости.
 
 
 Состав пакетов, границы каталогов, размещение компонентов и `subject.directory`
-определены в [едином нормативном разделе requirements.md](requirements.md#structure-contract).
+определены в [едином нормативном разделе README Archetypes](archetypes/README.md#structure-contract).
 Эта страница описывает применение и устройство инструмента, не отдельные правила структуры.
 
 Обе страницы Workbench используют общий граф навигации. Private browser lifecycle
@@ -574,5 +574,5 @@ Read-only topic `catalog` обновляет дерево без передач�
 GraphView отображает их в существующем Display. Это отдельный потребитель
 нормализованного каталога, без второго дерева владельцев или графического runtime.
 
-Формат spec описан в [нормативном контракте зависимостей](requirements.md#component-dependencies),
+Формат spec описан в [нормативном контракте зависимостей](archetypes/README.md#component-dependencies),
 а переключение представления — в [контракте URL вкладок](requirements.md#tabs-routes).

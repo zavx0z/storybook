@@ -1,9 +1,9 @@
 # External Storybook
 
-Автору и агенту: [единые правила структуры проектов, пакетов и компонентов](requirements.md#structure-contract).
+Автору и агенту: [единые правила структуры проектов, пакетов и компонентов](archetypes/README.md#structure-contract).
 Это нормативная точка входа; ниже приведены обзор инструмента, примеры и рабочий процесс.
 Содержание README и внутрикодовых описаний задаёт
-[единый стандарт документации](requirements.md#documentation-standard).
+[единый стандарт документации](archetypes/README.md#documentation-standard).
 
 Один внешний Storybook для независимо принадлежащих владельцам пакетов и
 проектов. Потребитель не устанавливает и не импортирует
@@ -20,7 +20,7 @@
 
 ## Declaration files
 
-Источники обзоров и правила деклараций описаны в [нормативном разделе](requirements.md#structure-contract).
+Источники обзоров и правила деклараций описаны в [нормативном разделе](archetypes/README.md#structure-contract).
 
 На главной странице кнопка «Добавить проект» справа от поиска открывает
 системный выбор папки через `showDirectoryPicker()`. Кнопка удаления справа от строки
@@ -36,7 +36,7 @@ Browser API возвращает handle, а не абсолютный путь. 
 
 
 Дополнительное содержимое пакета описывается JSON schema version 1.
-Связь деклараций со структурой определяет [нормативный контракт](requirements.md#structure-contract); файлы формата:
+Связь деклараций со структурой определяет [нормативный контракт](archetypes/README.md#structure-contract); файлы формата:
 
 - [`schemas/manifest.schema.json`](schemas/manifest.schema.json) —
   `workspace | project | package` declarations
@@ -45,7 +45,7 @@ Browser API возвращает handle, а не абсолютный путь. 
 - `<scope>/.storybook/manifest.json`
 - `<package>/.storybook/catalog.json`
 
-Resolver и схемы проверяют декларацию по [требованиям](requirements.md#structure-contract).
+Resolver и схемы проверяют декларацию по [требованиям](archetypes/README.md#structure-contract).
 Unknown versions, cycles, duplicate identities/routes, missing exports and path
 escapes fail closed.
 
@@ -121,7 +121,7 @@ README content запрещены.
 
 Промежуточная категория `numeric` раскрывается, модуль `number` получает своё
 имя и обзор из структуры, а вариант сохраняет `parameters/number/field`.
-Нормативная семантика `directory` описана в [контракте каталогов и компонентов](requirements.md#component-placement).
+Нормативная семантика `directory` описана в [контракте каталогов и компонентов](archetypes/README.md#component-placement).
 
 ## One server workflow
 
@@ -223,7 +223,7 @@ storybook init <root> --kind package|project|workspace
 существующего server не создают второй listener. Workspace — optional saved
 composition; standalone projects/packages можно подключать одновременно.
 
-Единые нормы находятся в [requirements.md](requirements.md#structure-contract); [archetypes](archetypes/README.md) служит навигатором по поясняющим материалам.
+Единые нормы и примеры собраны в [README Archetypes](archetypes/README.md#structure-contract).
 Состав задаётся явно и хранится списком абсолютных каталогов в `~/.storybook/projects.json`,
 отдельно от runtime cache. Названия читаются из `package.json#label` при открытии
 и обновлении; это обязательное поле каждого корня и пакета. Manifest не содержит label.
@@ -441,7 +441,7 @@ reference/evidence files remain linked resources for the following stage.
 
 
 Состав пакетов, границы каталогов, размещение компонентов и `subject.directory`
-определены в [едином нормативном разделе requirements.md](requirements.md#structure-contract).
+определены в [едином нормативном разделе README Archetypes](archetypes/README.md#structure-contract).
 Эта страница описывает применение и устройство инструмента, не отдельные правила структуры.
 
 Работа Панели вкладок и адреса представлений описаны в [контракте URL](requirements.md#tabs-routes).

@@ -30,15 +30,15 @@
 - `@zavx0z/storybook` is an external dev tool. It does not become a central
   owner of other repositories' stories.
 - Перед созданием, миграцией или изменением структуры проекта агент обязан
-  прочитать [единые правила структуры проектов, пакетов и компонентов](requirements.md#structure-contract).
+  прочитать [единые правила структуры проектов, пакетов и компонентов](archetypes/README.md#structure-contract).
   Это единственный нормативный источник для package identity, composition,
   директорий, компонентов и их документации. Не поддерживать здесь или в
-  README/ARCHITECTURE/archetypes отдельные копии этих норм; менять их у владельца.
-  Связанные правила: [размещение компонентов](requirements.md#component-placement),
-  [Dependencies spec](requirements.md#component-dependencies) и [URL вкладок](requirements.md#tabs-routes).
+  корневых README/ARCHITECTURE отдельные копии этих норм; менять их у владельца.
+  Связанные правила: [размещение компонентов](archetypes/README.md#component-placement),
+  [Dependencies spec](archetypes/README.md#component-dependencies) и [URL вкладок](requirements.md#tabs-routes).
 - Перед изменением README, модульных обзоров и TSDoc прочитать
-  [единый стандарт документации](requirements.md#documentation-standard).
-  Его содержание и классификация проверок принадлежат requirements, а не копии в навыке.
+  [единый стандарт документации](archetypes/README.md#documentation-standard).
+  Его содержание и классификация проверок принадлежат README Archetypes, а не копии в навыке.
 - Один внешний Storybook процесс владеет registry, canonical graph, Workbench,
   PackageSessions, ревизиями, диагностикой и browser mechanics точных пакетов.
 - Consumer repositories and packages never depend on or import Storybook,
@@ -110,7 +110,7 @@
   apply with `storybook_check(live:true)` and wait for active. Build alone never
   updates user views. Failed checks preserve the applied revision.
 - Публичные адреса, вкладки и структурные пути определяются
-  [контрактом URL](requirements.md#tabs-routes) и [нормами структуры](requirements.md#structure-contract).
+  [контрактом URL](requirements.md#tabs-routes) и [нормами структуры](archetypes/README.md#structure-contract).
   Агент проверяет эти правила у владельца, а не поддерживает отдельную копию здесь.
 - User navigation stays in the current tab. Agent open reuses a view currently
   showing its package or creates a background view; never retarget a view the
