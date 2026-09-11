@@ -34,21 +34,25 @@ test("finds ordinary and empty directories, skips src and keeps packages as sepa
   expect(result.watchPaths).not.toContain(join(root, "packages/tool"))
 })
 
-test("служебные types скрыты, существующий модуль types с собственным src сохраняется", async () => {
+test("types следует обычным границам каталогов, модулей и shared", async () => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "storybook-types-directory-")))
   roots.push(root)
   await mkdir(join(root, "types/private"), {recursive: true})
   await mkdir(join(root, "protocol/types/src"), {recursive: true})
+  await mkdir(join(root, "shared/types/internal"), {recursive: true})
   await Bun.write(join(root, "types/index.ts"), "export interface Helper {}")
   await Bun.write(join(root, "protocol/types/index.ts"), "/** Протокол раскладки.\n@packageDocumentation\n*/")
   const read = () => discoverStorybookDirectories(root, new Set())
   const found = await read()
   expect(found.directories.map(dir => [dir.relativePath, dir.structuralRole])).toEqual([
     ["protocol", "category"], ["protocol/types", "module"],
+    ["types", "directory"], ["types/private", "directory"],
   ])
   expect(found.watchPaths).toContain(join(root, "types/src"))
   await rm(join(root, "protocol/types/src"), {recursive: true})
-  expect((await read()).directories.map(dir => dir.relativePath)).toEqual(["protocol"])
+  expect((await read()).directories.map(dir => dir.relativePath)).toEqual([
+    "protocol", "protocol/types", "types", "types/private",
+  ])
 })
 
 test.each(["index.ts", "index.tsx"])("README не заменяет отсутствующий, игнорируемый или symlink %s", async entry => {
