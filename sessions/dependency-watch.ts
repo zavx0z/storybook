@@ -8,7 +8,8 @@ import {
 } from "node:fs"
 import {basename, dirname, join, resolve} from "node:path"
 
-export const STORYBOOK_DEPENDENCY_WATCH_INTERVAL_MS = 200
+/** Фоновый stat-опрос не чаще раза в секунду; явная проверка валидирует входы отдельно. */
+export const STORYBOOK_DEPENDENCY_WATCH_INTERVAL_MS = 1_000
 export const STORYBOOK_DEPENDENCY_WATCH_MIN_INTERVAL_MS = 25
 export const STORYBOOK_DEPENDENCY_WATCH_MAX_INTERVAL_MS = 5_000
 
@@ -218,6 +219,20 @@ export class StorybookDependencyWatchCoordinator {
     return this.#notifyCanonical(canonicalPath)
   }
 
+  /**
+  Возвращает объём наблюдения без обхода файлов и без запуска новых watchers.
+
+  @returns Число уникальных путей и владельцев, интервал опроса. Это параметры
+  работы watcher, а не измерение затрат CPU или числа фактически выполненных stat.
+  */
+  snapshot(): Readonly<{paths: number, owners: number, intervalMs: number}> {
+    return Object.freeze({
+      paths: this.#watchedPaths.size,
+      owners: this.#packages.size,
+      intervalMs: this.#intervalMs,
+    })
+  }
+
   /** Stops every owned watcher once. Repeated disposal is a no-op. */
   dispose(): void {
     if (this.#disposed) return
@@ -228,7 +243,9 @@ export class StorybookDependencyWatchCoordinator {
   }
 
   #createWatch(path: string): void {
-    const listener: StorybookDependencyWatchListener = () => {
+    const listener: StorybookDependencyWatchListener = (current, previous) => {
+      // watchFile сообщает начальный ENOENT даже без изменения отсутствующего пути.
+      if (current.nlink === 0 && previous.nlink === 0) return
       if (!this.#disposed) this.#notifyCanonical(path)
     }
     this.#watchFile(path, {persistent: false, interval: this.#intervalMs}, listener)

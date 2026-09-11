@@ -28,6 +28,19 @@ import type {
 } from "./shell.ts"
 
 describe("external Storybook agent bridge inspection", () => {
+  test("читает параметр Inspector без раскрытия остальных query данных", async () => {
+    const fixture = createFixture()
+    Object.defineProperty(fixture.shell.browserDocument, "location", {value: {
+      search: "?inspector=input&preview=revision-test&private=hidden",
+      href: "http://localhost/pkg-fixture/?inspector=input&preview=revision-test&private=hidden",
+    }})
+    try {
+      const value = await fixture.bridge.call("inspect", {include: ["state"]})
+      expect(value).toMatchObject({inspector: {parameter: "input"}, preview: true})
+      expect(JSON.stringify(value)).not.toContain("private=hidden")
+    } finally { fixture.dispose() }
+  })
+
   test("читает актуальную видимость native страницы без нового кадра или ввода", async () => {
     let focused = true
     const nativePage = {
@@ -298,6 +311,9 @@ describe("external Storybook agent bridge interaction", () => {
         action: "hover",
         target: {role: "button", name: "Run exact"},
       }))).rejects.toThrow("Ambiguous Storybook semantic target: button Run exact")
+      duplicate.setAttribute("style", "display:none")
+      await interact({action: "hover", target: {role: "button", name: "Run exact"}})
+      expect(fixture.calls.pointerMoves.at(-1)).toBeDefined()
       await expect(fixture.bridge.invoke(request("interact", {
         action: "hover",
         target: {role: "button", name: "Missing"},
@@ -643,6 +659,7 @@ function createFixture(options: Readonly<{
       navigations.push(nextRoute)
       route = nextRoute
     },
+    async applyRevision() {},
   })
 
   return Object.freeze({

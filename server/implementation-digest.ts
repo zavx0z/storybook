@@ -2,7 +2,7 @@ import {createHash} from "node:crypto"
 import {readdirSync, readFileSync, realpathSync} from "node:fs"
 import {join, relative, resolve, sep} from "node:path"
 
-const IMPLEMENTATION_DIGEST_PROTOCOL = "external-storybook-implementation/2"
+const IMPLEMENTATION_DIGEST_PROTOCOL = "external-storybook-implementation/3"
 
 const MCP_SIDE_SOURCE_FILES = new Set([
   "server/cli.ts",
@@ -17,26 +17,32 @@ const IMPLEMENTATION_FILES = Object.freeze([
   "package.json",
   "browser-lifecycle/package.json",
   "scripts/storybook-daemon.ts",
+  "runtime/client-protocol.ts",
+  "runtime/font-faces.ts",
+  "runtime/page-title.ts",
 ])
 
 const IMPLEMENTATION_TREES = Object.freeze([
   Object.freeze({path: "schemas", kind: "schema" as const}),
-  Object.freeze({path: "workbench", kind: "source" as const}),
   Object.freeze({path: "catalog", kind: "source" as const}),
   Object.freeze({path: "discovery", kind: "source" as const}),
   Object.freeze({path: "build", kind: "source" as const}),
   Object.freeze({path: "sessions", kind: "source" as const}),
-  Object.freeze({path: "runtime", kind: "source" as const}),
   Object.freeze({path: "server", kind: "source" as const}),
   Object.freeze({path: "src/shared", kind: "source" as const}),
   Object.freeze({path: "browser-lifecycle/src", kind: "source" as const}),
 ])
 
 /**
- * Hashes the checked-in implementation that an already-running daemon keeps
- * loaded or uses to build its browser runtime. Owner declarations, fixtures,
- * tests, generated artifacts and MCP transport code are deliberately outside
- * this identity and have their own lifecycle.
+Хеширует исходники, влияющие на резидентный код daemon.
+Браузерные runtime и Workbench принадлежат входам сборки и её watcher, поэтому
+их изменение не требует замены серверного процесса. Общие runtime-модули,
+которые сервер действительно импортирует, перечислены отдельно.
+
+@param toolRoot - Канонический корень Storybook с исходниками серверных владельцев.
+
+@returns Детерминированный SHA-256 резидентной реализации.
+Декларации, тесты, generated artifacts и MCP transport имеют собственный lifecycle.
  */
 export function externalStorybookImplementationDigest(toolRoot: string): string {
   const root = realpathSync(toolRoot)

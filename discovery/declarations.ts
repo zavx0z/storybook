@@ -67,6 +67,12 @@ type ResolveState = {
   visiting: string[]
 }
 
+/** Ограничивает дорогое структурное обнаружение уже помеченными владельцами. */
+export type ResolveExternalStorybookDeclarationsOptions = Readonly<{
+  dirtyScopeRoots?: readonly string[]
+  onAnalysisSession?: (kind: "contract" | "dependency") => void
+}>
+
 const MANIFEST_KEYS = Object.freeze({
   workspace: Object.freeze([
     "$schema",
@@ -103,6 +109,7 @@ const MANIFEST_KEYS = Object.freeze({
 export async function resolveExternalStorybookDeclarations(
   inputs: readonly string[],
   previous?: StorybookCatalog,
+  options?: ResolveExternalStorybookDeclarationsOptions,
 ): Promise<StorybookCatalog> {
   if (!Array.isArray(inputs) || inputs.length === 0) {
     throw new Error("External Storybook requires at least one declaration or root")
@@ -133,10 +140,23 @@ export async function resolveExternalStorybookDeclarations(
   rootIds.splice(0, rootIds.length, ...normalized.rootIds)
   nestPackageScopes(state.scopes, rootIds)
   const packageRoots = new Set(state.scopes.map(scope => scope.scopeRoot))
+  const dirtyScopeRoots = options?.dirtyScopeRoots === undefined
+    ? null
+    : new Set(options.dirtyScopeRoots.map(path => resolve(path)))
   for (const [index, scope] of state.scopes.entries()) {
     if (scope.resolutionError !== undefined) continue
+    const retained = previous?.scopes.find(candidate => candidate.scopeRoot === scope.scopeRoot)
+    if (dirtyScopeRoots !== null && retained !== undefined && retained.resolutionError === undefined &&
+      !dirtyScopeRoots.has(scope.scopeRoot) && sameDeclaration(scope, retained)) {
+      state.scopes[index] = Object.freeze({
+        ...scope,
+        ...(retained.directories === undefined ? {} : {directories: retained.directories}),
+        ...(retained.structurePaths === undefined ? {} : {structurePaths: retained.structurePaths}),
+      })
+      continue
+    }
     try {
-      const found = await discoverStorybookDirectories(scope.scopeRoot, packageRoots)
+      const found = await discoverStorybookDirectories(scope.scopeRoot, packageRoots, options?.onAnalysisSession)
       if (scope.kind === "package") for (const subject of scope.catalog?.categories.flatMap(category => category.subjects) ?? []) {
         if (subject.directory !== undefined && !found.directories.some(directory => directory.relativePath === subject.directory && directory.structuralRole === "module")) {
           throw new Error(`Storybook subject directory must be an existing discovered module: ${scope.id}/${subject.directory}`)
@@ -161,6 +181,12 @@ export async function resolveExternalStorybookDeclarations(
     rootIds: Object.freeze(rootIds),
     scopes: Object.freeze([...state.scopes]),
   })
+}
+
+function sameDeclaration(current: StorybookCatalogScope, previous: StorybookCatalogScope): boolean {
+  const structural = ({directories: _directories, structurePaths: _structurePaths, recoveryPaths: _recoveryPaths,
+    resolutionError: _resolutionError, ...declaration}: StorybookCatalogScope) => declaration
+  return JSON.stringify(structural(current)) === JSON.stringify(structural(previous))
 }
 
 /** Legacy composition files supply children, never a second owner identity. */

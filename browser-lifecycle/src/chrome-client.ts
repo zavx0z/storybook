@@ -552,7 +552,7 @@ function consoleLevel(type: string): string {
 }
 
 function bridgeMethod(value: StorybookBridgeMethod): StorybookBridgeMethod {
-  if (!["identity", "inspect", "interact", "capture"].includes(value)) {
+  if (!["identity", "inspect", "interact", "capture", "applyRevision"].includes(value)) {
     throw new Error(`Unsupported Storybook bridge method: ${String(value)}`)
   }
   return value

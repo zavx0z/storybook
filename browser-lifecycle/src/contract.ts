@@ -1,3 +1,5 @@
+export {validStorybookViewQuery} from "./view-query.ts"
+
 export type StorybookBrowserInteractionTarget = Readonly<{
   nodeId?: string | undefined
   role?: string | undefined
@@ -56,7 +58,7 @@ export type StorybookBridgeClip = Readonly<{
   scale?: number
 }>
 
-export type StorybookBridgeMethod = "identity" | "inspect" | "interact" | "capture"
+export type StorybookBridgeMethod = "identity" | "inspect" | "interact" | "capture" | "applyRevision"
 
 export type StorybookInternalView = Readonly<{
   viewId: string

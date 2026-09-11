@@ -22,15 +22,31 @@ import {
 import type {ExternalStorybookClientSnapshot} from "./client-protocol.ts"
 import {externalStorybookPageTitle} from "./page-title.ts"
 import {deriveStorybookBreadcrumbs, STORYBOOK_ROOT_BREADCRUMB} from "./breadcrumbs.ts"
+import {packageEventStatus, storybookConnectionStatus} from "./package-status.ts"
+import {
+  buildProgressStatus,
+  catalogProgressStatus,
+  readBuildProgress,
+  readCatalogProgress,
+  readSharedCacheProgress,
+  sharedCacheProgressStatus,
+} from "./build-progress.ts"
 
 export type StartExternalStorybookLandingOptions = Readonly<{
   fetcher?: typeof fetch
   browserDocument?: globalThis.Document
   pickDirectory?(): Promise<FileSystemDirectoryHandle>
   createSocket?(url: string): LandingSocket
+  readerToken?: string
+  navigatePackage?(input: Readonly<{packageId: string; route: string}>): Promise<void>
   location?: Pick<Location, "href" | "pathname" | "reload">
   history?: Pick<History, "pushState">
   shell?: Omit<CreateExternalStorybookShellOptions, "title" | "browserDocument">
+  pageScope?: Readonly<{
+    shell: ExternalStorybookShell
+    initialPathname: string
+    navigatePackage(input: Readonly<{packageId: string; route: string}>): Promise<void>
+  }>
 }>
 
 export type ExternalStorybookLandingController = Readonly<{
@@ -45,13 +61,16 @@ export async function startExternalStorybookLanding(
 ): Promise<ExternalStorybookLandingController> {
   const browserDocument = options.browserDocument ?? globalThis.document
   if (browserDocument === undefined) throw new Error("External Storybook landing Document is unavailable")
-  browserDocument.documentElement.dataset.externalStorybook = "starting"
-  browserDocument.documentElement.dataset.externalStorybookLanding = "starting"
+  const embeddedPageScope = options.pageScope
+  if (embeddedPageScope === undefined) {
+    browserDocument.documentElement.dataset.externalStorybook = "starting"
+    browserDocument.documentElement.dataset.externalStorybookLanding = "starting"
+  }
   const fetcher = options.fetcher ?? globalThis.fetch
   let snapshot = await fetchExternalStorybookClientSnapshot(fetcher)
   let graph = snapshot
   let landing = deriveExternalStorybookLanding(graph)
-  const shell = await createExternalStorybookShell({
+  const shell = embeddedPageScope?.shell ?? await createExternalStorybookShell({
     title: externalStorybookPageTitle(null),
     browserDocument,
     ...(options.shell ?? {}),
@@ -107,7 +126,9 @@ export async function startExternalStorybookLanding(
     const target = externalStorybookClientNode(snapshot, nodeId)
     if (target.kind === "package") {
       if (location === undefined) throw new Error("Storybook navigation requires a browser location")
-      navigatePackage(location, {packageId: target.packageId!, route: ""})
+      if (embeddedPageScope !== undefined) {
+        await embeddedPageScope.navigatePackage({packageId: target.packageId!, route: ""})
+      } else await navigatePackage({packageId: target.packageId!, route: ""}, options.navigatePackage)
       return
     }
     const selection = deriveExternalStorybookLandingSelection(graph, nodeId)
@@ -181,9 +202,9 @@ export async function startExternalStorybookLanding(
     try {
       if (action.action === "attach") {
         const directory = await (options.pickDirectory?.() ?? pickStorybookDirectory())
-        await attachPickedDirectory(directory, (operation, body) => requestRegistryChange(fetcher, browserDocument, {action: operation, body}))
+        await attachPickedDirectory(directory, (operation, body) => requestRegistryChange(fetcher, browserDocument, {action: operation, body}, options.readerToken))
       } else {
-        await requestRegistryChange(fetcher, browserDocument, {action: "detach", body: {scopeId: action.value!}})
+        await requestRegistryChange(fetcher, browserDocument, {action: "detach", body: {scopeId: action.value!}}, options.readerToken)
       }
       await refreshRegistry()
       updateManagement({pending: false})
@@ -205,7 +226,9 @@ export async function startExternalStorybookLanding(
     }
     const node = externalStorybookClientNode(snapshot, detail.id)
     if (node.kind === "category" || node.kind === "subject" || node.kind === "variant" || node.kind === "directory" && node.packageId !== null) {
-      if (location !== undefined) navigatePackage(location, {packageId: node.packageId!, route: node.routePath!})
+      if (embeddedPageScope !== undefined) {
+        followPageNavigation(embeddedPageScope.navigatePackage({packageId: node.packageId!, route: node.routePath!}))
+      } else followPageNavigation(navigatePackage({packageId: node.packageId!, route: node.routePath!}, options.navigatePackage))
       return
     }
     const navigation = detail.kind === "breadcrumb" && node.kind === "workspace"
@@ -214,12 +237,43 @@ export async function startExternalStorybookLanding(
     void navigation.catch((error) => isolateLandingError(browserDocument, shell, error))
   }
 
+  const followPageNavigation = (operation: Promise<void>): void => {
+    void operation.catch(error => {
+      shell.reportDiagnostic(errorText(error))
+      shell.updateStatus("Storybook · Переход не выполнен; показана текущая страница")
+    })
+  }
+
   shell.workbench.element.addEventListener(WORKBENCH_EVENTS.catalogAction, onCatalogAction)
   shell.workbench.element.addEventListener(WORKBENCH_EVENTS.navigate, onNavigate)
 
   const socket = createLandingSocket(options, location?.href)
-  const onSocketOpen = (): void => socket?.send(JSON.stringify({type: "subscribe", topic: "registry"}))
+  let socketOpened = false
+  if (socket !== null) shell.updateStatus(storybookConnectionStatus("connecting"))
+  const onSocketOpen = (): void => {
+    shell.updateStatus(storybookConnectionStatus(socketOpened ? "reconnected" : "connected"))
+    socketOpened = true
+    socket?.send(JSON.stringify({type: "subscribe", topic: "registry"}))
+  }
+  const onSocketClose = (): void => shell.updateStatus(storybookConnectionStatus("disconnected"))
   const onSocketMessage = (event: MessageEvent): void => {
+    let decoded: unknown
+    try { decoded = JSON.parse(String(event.data)) } catch {}
+    const progress = readBuildProgress(decoded)
+    if (progress !== null) {
+      shell.updateStatus(buildProgressStatus(progress))
+      return
+    }
+    const catalogProgress = readCatalogProgress(decoded)
+    if (catalogProgress !== null) {
+      shell.updateStatus(catalogProgressStatus(catalogProgress))
+      return
+    }
+    const sharedCacheProgress = readSharedCacheProgress(decoded)
+    if (sharedCacheProgress !== null) {
+      shell.updateStatus(sharedCacheProgressStatus(sharedCacheProgress))
+      return
+    }
     const update = parseLandingEvent(event.data)
     if (update === null) return
     if (update.type === "registry.readme-updated") {
@@ -232,24 +286,26 @@ export async function startExternalStorybookLanding(
     } else if (update.type === "registry.updated") {
       void refreshRegistry().catch(error => updateManagement({error: errorText(error)}))
     } else if (update.type === "shared.updated") {
-      location?.reload()
+      shell.updateStatus("Storybook · Обновление оболочки готово; требуется перезапуск страницы")
     } else if (update.type === "shared.failed") {
       shell.reportDiagnostic(update.message)
     } else if (update.type === "package.failed") {
-      shell.updateStatus(`${update.packageId} · build failed`)
+      shell.updateStatus(packageEventStatus(update.packageId, update.type))
     } else if (update.type === "package.updated") {
-      shell.updateStatus(`${update.packageId} · ${update.revision}`)
+      shell.updateStatus(packageEventStatus(update.packageId, update.type))
     } else if (update.type === "package.built") {
-      shell.updateStatus(`${update.packageId} · built · ${update.revision}`)
-    } else if (update.type === "package.resources-updated" || update.type === "package.metadata-updated") {
-      shell.updateStatus(`${update.packageId} · ${update.type}`)
+      shell.updateStatus(packageEventStatus(update.packageId, update.type))
+    } else if (update.type === "package.activating" || update.type === "package.code-updated" ||
+      update.type === "package.resources-updated" || update.type === "package.metadata-updated") {
+      shell.updateStatus(packageEventStatus(update.packageId, update.type))
     }
   }
   socket?.addEventListener("open", onSocketOpen)
+  socket?.addEventListener("close", onSocketClose)
   socket?.addEventListener("message", onSocketMessage)
 
   const applyLandingPath = async (): Promise<void> => {
-    const pathname = location?.pathname ?? "/"
+    const pathname = embeddedPageScope?.initialPathname ?? location?.pathname ?? "/"
     if (pathname === "/") {
       showRootOverview()
       return
@@ -262,7 +318,7 @@ export async function startExternalStorybookLanding(
   const onPopState = (): void => {
     void applyLandingPath().catch((error) => isolateLandingError(browserDocument, shell, error))
   }
-  globalThis.addEventListener?.("popstate", onPopState)
+  if (embeddedPageScope === undefined) globalThis.addEventListener?.("popstate", onPopState)
   await applyLandingPath()
 
   const dispose = (): void => {
@@ -272,13 +328,19 @@ export async function startExternalStorybookLanding(
     shell.workbench.element.removeEventListener(WORKBENCH_EVENTS.catalogAction, onCatalogAction)
     shell.workbench.element.removeEventListener(WORKBENCH_EVENTS.navigate, onNavigate)
     socket?.removeEventListener("open", onSocketOpen)
+    socket?.removeEventListener("close", onSocketClose)
     socket?.removeEventListener("message", onSocketMessage)
     socket?.close()
-    globalThis.removeEventListener?.("popstate", onPopState)
-    shell.dispose()
+    if (embeddedPageScope === undefined) globalThis.removeEventListener?.("popstate", onPopState)
+    if (embeddedPageScope === undefined) shell.dispose()
   }
-  globalThis.addEventListener?.("pagehide", dispose, {once: true})
+  if (embeddedPageScope === undefined) globalThis.addEventListener?.("pagehide", dispose, {once: true})
   shell.presentFrame()
+  shell.workbench.element.setAttribute("aria-label", browserDocument.title || "Storybook")
+  delete browserDocument.documentElement.dataset.externalStorybookPackage
+  delete browserDocument.documentElement.dataset.externalStorybookPackageId
+  delete browserDocument.documentElement.dataset.externalStorybookRevision
+  delete browserDocument.documentElement.dataset.externalStorybookRoute
   browserDocument.documentElement.dataset.externalStorybook = "ready"
   browserDocument.documentElement.dataset.externalStorybookLanding = "ready"
   return Object.freeze({get snapshot() { return snapshot }, shell, select, dispose})
@@ -329,7 +391,9 @@ function parseLandingEvent(value: unknown): any | null {
   if (record.type === "registry.updated" && typeof record.graphDigest === "string") return record
   if (record.type === "package.updated" && typeof record.packageId === "string" && typeof record.revision === "string") return record
   if (record.type === "package.built" && typeof record.packageId === "string" && typeof record.revision === "string") return record
-  if (["package.resources-updated", "package.metadata-updated"].includes(String(record.type)) &&
+  if (record.type === "package.activating" && typeof record.packageId === "string" &&
+    typeof record.revision === "string" && typeof record.activationId === "string") return record
+  if (["package.code-updated", "package.resources-updated", "package.metadata-updated"].includes(String(record.type)) &&
     typeof record.packageId === "string") return record
   if (record.type === "package.failed" && typeof record.packageId === "string") return record
   return null
@@ -358,8 +422,9 @@ async function requestRegistryChange(
   fetcher: typeof fetch,
   browserDocument: globalThis.Document,
   input: Readonly<{action: "directory" | "attach" | "detach"; body: Record<string, unknown>}>,
+  readerToken?: string,
 ): Promise<Record<string, unknown>> {
-  const session = browserDocument.querySelector<HTMLMetaElement>('meta[name="external-storybook-browser-session"]')?.content
+  const session = readerToken ?? browserDocument.querySelector<HTMLMetaElement>('meta[name="external-storybook-browser-session"]')?.content
   if (!session) throw new Error("Сессия каталога недоступна. Обновите страницу.")
   const response = await fetcher(`/api/browser/${input.action}`, {
     method: "POST",
@@ -390,13 +455,4 @@ function errorText(error: unknown): string {
 
 function assertActive(disposed: boolean): void {
   if (disposed) throw new Error("External Storybook landing is disposed")
-}
-
-if (typeof document !== "undefined") {
-  void startExternalStorybookLanding().catch((error) => {
-    document.documentElement.dataset.externalStorybook = "error"
-    document.documentElement.dataset.externalStorybookLanding = "error"
-    document.documentElement.dataset.externalStorybookError = errorText(error)
-    console.error(error)
-  })
 }

@@ -22,6 +22,86 @@ afterEach(async () => {
 })
 
 describe("one external Storybook server", () => {
+  test("shared worker восстанавливает проверенные ресурсы после перезапуска без компиляции", async () => {
+    const fixture = serverFixture()
+    const options = {
+      declarations: [fixture.standalone],
+      statePath: fixture.statePath,
+      artifactRoot: fixture.artifactRoot,
+      landingEntryPath: join(import.meta.dir, "fixtures/shared-landing.ts"),
+      fallbackEntryPath: join(import.meta.dir, "fixtures/shared-fallback.ts"),
+    }
+    let running = await startExternalStorybookServer(options)
+    servers.push(running)
+    const first = await fetch(new URL("/", running.origin))
+    const firstHtml = await first.text()
+    expect(first.status).toBe(200)
+    expect(firstHtml).toContain('<script type="module"')
+    expect(firstHtml).toContain("/__storybook/shared/styles/")
+    expect(running.sessions.buildSchedulerSnapshot().recent.at(-1)?.cache).toEqual({status: "miss", layer: "shared"})
+    await running.stop()
+    servers.splice(servers.indexOf(running), 1)
+    running = await startExternalStorybookServer(options)
+    servers.push(running)
+    const second = await fetch(new URL("/", running.origin))
+    expect(second.status).toBe(200)
+    expect(await second.text()).toContain('<script type="module"')
+    expect(running.sessions.buildSchedulerSnapshot().recent).toEqual([])
+    expect(running.sessions.snapshots().every(item => item.builds === 0)).toBe(true)
+    const fallback = await fetch(new URL("/pkg-fixture-standalone/?inspector=source", running.origin))
+    expect(fallback.status).toBe(200)
+    const packageHtml = await fallback.text()
+    expect(packageHtml).toContain('<script type="module"')
+    expect(packageHtml).toContain('"intent":"navigation-candidate"')
+    expect(running.sessions.buildSchedulerSnapshot().recent.filter(item => item.owner === "shared")).toEqual([])
+    expect(running.sessions.session("@fixture/standalone").snapshot().builds).toBe(1)
+    expect(running.sessions.session("@fixture/standalone").snapshot().activeRevision).toBeNull()
+    await running.stop()
+    servers.splice(servers.indexOf(running), 1)
+    const receipt = JSON.parse(readFileSync(join(fixture.artifactRoot, "shared/receipt.json"), "utf8"))
+    writeFileSync(join(fixture.artifactRoot, "shared", receipt.assets.landingEntry), "damaged output")
+    running = await startExternalStorybookServer(options)
+    servers.push(running)
+    expect(await (await fetch(new URL("/", running.origin))).text()).toContain('<script type="module"')
+    expect(running.sessions.buildSchedulerSnapshot().recent.at(-1)?.cache.status).toBe("miss")
+  }, 120_000)
+
+  test("status показывает preflight и нагрузку, не запрашивая сборку", async () => {
+    const fixture = serverFixture()
+    const running = await startExternalStorybookServer({
+      declarations: [fixture.standalone],
+      statePath: fixture.statePath,
+      artifactRoot: fixture.artifactRoot,
+    })
+    servers.push(running)
+    const before = running.registry.metrics()
+    const response = await fetch(new URL("/api/control/status?scope=%40fixture%2Fstandalone", running.origin), {
+      headers: {authorization: `Bearer ${running.record.controlToken}`},
+    })
+    expect(response.status).toBe(200)
+    const value = await response.json() as Record<string, any>
+    expect(value.preflight.packageIds).toEqual(["@fixture/standalone"])
+    expect(value.buildScheduler).toMatchObject({activeCount: 0, queuedCount: 0})
+    expect(value.packages.every((item: {builds: number}) => item.builds === 0)).toBe(true)
+    expect(value.discovery.resolverCalls).toBe(before.resolverCalls)
+    expect(value.dependencyWatch.paths).toBeGreaterThan(0)
+    expect(JSON.stringify(value.buildScheduler)).not.toContain('"pid"')
+  })
+
+  test("сообщает этапы запуска в порядке подготовки каталога и публикации сервера", async () => {
+    const fixture = serverFixture()
+    const phases: string[] = []
+    const running = await startExternalStorybookServer({
+      declarations: [fixture.standalone],
+      statePath: fixture.statePath,
+      artifactRoot: fixture.artifactRoot,
+      onStartupPhase: phase => phases.push(phase),
+    })
+    servers.push(running)
+    expect(phases).toEqual(["catalog", "sessions", "listen", "publication", "ready"])
+    expect(existsSync(fixture.statePath)).toBe(true)
+  })
+
   test("shares saved project selection between browser and MCP including nested removal and an empty restart", async () => {
     const fixture = serverFixture()
     const options = {declarations: [fixture.workspace], projectDirectory: fixture.workspace, statePath: fixture.statePath, artifactRoot: fixture.artifactRoot}
@@ -270,6 +350,18 @@ describe("one external Storybook server", () => {
     try {
       socket.send(JSON.stringify({type: "subscribe", topic: "package:fixture-alpha"}))
       await waitFor(() => messages.some(message => message.type === "subscribed"))
+      socket.send(JSON.stringify({type: "subscribe", topic: "catalog"}))
+      await waitFor(() => messages.some(message => message.type === "subscribed" && message.topic === "catalog"))
+      await running.sessions.buildScheduler.run({
+        packageId: null,
+        generation: null,
+        owner: "shared",
+        reason: "input-changed",
+      }, async context => {
+        context.setPhase("bundle")
+      }, new AbortController().signal)
+      await waitFor(() => messages.some(message => message.type === "build.progress" && message.packageId === null && message.state === "completed"))
+      expect(messages.some(message => message.type === "build.progress" && message.packageId === null && message.phase === "bundle" && message.state === "running")).toBe(true)
       const builds = running.sessions.snapshots().filter(snapshot => snapshot.packageId !== "fixture-alpha").map(snapshot => snapshot.builds)
       const instance = running.record.instanceId
       const revision = running.registry.snapshot().revision
@@ -687,7 +779,7 @@ describe("one external Storybook server", () => {
       running.origin,
     ))
     expect(page.status).toBe(200)
-    expect(await page.text()).toContain("/__storybook/shared/fallback-entry-")
+    expect(await page.text()).toContain("/__storybook/shared/entries/browser-entry-")
     const failed = running.sessions.session("@fixture/components").snapshot()
     expect(failed.buildState).toBe("failed")
     expect(failed.activeRevision).toBeNull()

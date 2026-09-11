@@ -19,7 +19,8 @@ export type StorybookAgentTarget = Readonly<{
 export type StorybookAgentBridgeRequest = Readonly<{
   protocol: typeof STORYBOOK_AGENT_BRIDGE_PROTOCOL
   expectedPackageId?: string
-  operation: "state" | "inspect" | "interact" | "capture"
+  operation: "state" | "inspect" | "interact" | "capture" | "applyRevision"
+  revision?: string
   include?: readonly string[]
   maxDepth?: number
   limit?: number
@@ -33,8 +34,9 @@ export type StorybookAgentBridgeRequest = Readonly<{
 
 export type StorybookAgentBridge = Readonly<{
   protocol: typeof STORYBOOK_AGENT_BRIDGE_PROTOCOL
-  call(method: "identity" | "inspect" | "interact" | "capture", params?: unknown): Promise<unknown>
+  call(method: "identity" | "inspect" | "interact" | "capture" | "applyRevision", params?: unknown): Promise<unknown>
   invoke(request: StorybookAgentBridgeRequest): Promise<unknown>
+  updateIdentity(packageId: string, revision: string, graphDigest: string): void
   dispose(): void
 }>
 
@@ -46,6 +48,8 @@ export type CreateStorybookAgentBridgeOptions = Readonly<{
   getRoute(): string
   getModel(): ExternalStorybookPackageTabModel
   navigate(route: string): Promise<void>
+  applyRevision(revision: string): Promise<void>
+  canApplyRevision?(): boolean
 }>
 
 export function createStorybookAgentBridge(
@@ -63,6 +67,9 @@ export function createStorybookAgentBridge(
     },
   })
   let disposed = false
+  let packageId = options.packageId
+  let revision = options.revision
+  let graphDigest = options.graphDigest
 
   const bridge: StorybookAgentBridge = Object.freeze({
     protocol: STORYBOOK_AGENT_BRIDGE_PROTOCOL,
@@ -80,13 +87,27 @@ export function createStorybookAgentBridge(
     async invoke(request) {
       assertActive()
       validateRequest(request)
-      if (request.expectedPackageId !== undefined && request.expectedPackageId !== options.packageId) {
+      if (request.expectedPackageId !== undefined && request.expectedPackageId !== packageId) {
         throw new Error("Storybook view navigated to another package")
       }
       if (request.operation === "state") return state()
+      if (request.operation === "applyRevision") {
+        if (request.expectedPackageId === undefined) {
+          throw new Error("Storybook applied revision requires an expected package identity")
+        }
+        const requestedRevision = boundedText(request.revision, 256, "revision")
+        await options.applyRevision(requestedRevision)
+        return state()
+      }
       if (request.operation === "inspect") return inspect(request)
       if (request.operation === "capture") return capture(request)
       return interact(request)
+    },
+    updateIdentity(nextPackageId, nextRevision, nextGraphDigest) {
+      assertActive()
+      packageId = boundedText(nextPackageId, 256, "package identity")
+      revision = boundedText(nextRevision, 256, "revision")
+      graphDigest = boundedText(nextGraphDigest, 256, "graph digest")
     },
     dispose() {
       if (disposed) return
@@ -105,11 +126,13 @@ export function createStorybookAgentBridge(
     const model = options.getModel()
     return Object.freeze({
       protocol: STORYBOOK_AGENT_BRIDGE_PROTOCOL,
-      packageId: options.packageId,
-      revision: options.revision,
-      graphDigest: options.graphDigest,
+      capabilities: Object.freeze({inPageUpdates: options.canApplyRevision?.() ?? false}),
+      packageId,
+      revision,
+      graphDigest,
       route: options.getRoute(),
       pathname: options.shell.browserDocument.location?.pathname ?? null,
+      preview: new URL(options.shell.browserDocument.location?.href ?? "http://storybook.invalid/").searchParams.has("preview"),
       viewName: options.shell.browserDocument.defaultView?.name ?? "",
       markers: Object.freeze({
         package: options.shell.browserDocument.documentElement.dataset.externalStorybookPackage ?? null,
@@ -134,6 +157,11 @@ export function createStorybookAgentBridge(
         directoryId: model.selectedNode.kind === "directory" ? model.selectedNode.id : null,
         variantId: model.variantActiveId,
         tabId: model.tabActiveId,
+      }),
+      inspector: Object.freeze({
+        selectedId: options.shell.workbench.controller?.selectedInspector?.() ?? null,
+        workspaceId: options.shell.workbench.controller?.read?.("inspector.subject")?.workspaceId ?? null,
+        parameter: new URLSearchParams(options.shell.browserDocument.location?.search ?? "").get("inspector"),
       }),
       canvas: Object.freeze({
         id: options.shell.canvas.id,
@@ -415,8 +443,12 @@ function resolveTarget(target: StorybookAgentTarget | undefined, inspector: DomI
     return role === target.role && accessibleName(semantic, attributes, byId, inspector) === target.name
   })
   if (matches.length === 0) throw new Error(`Unknown Storybook semantic target: ${target.role} ${target.name}`)
-  if (matches.length > 1) throw new Error(`Ambiguous Storybook semantic target: ${target.role} ${target.name}`)
-  return inspector.nodeForId(matches[0]!.id)!
+  // Скрытые retained панели могут содержать такие же кнопки, как активная.
+  const presented = matches.filter(node => node.box !== null && node.box !== undefined &&
+    node.box.width > 0 && node.box.height > 0)
+  const candidates = presented.length > 0 ? presented : matches
+  if (candidates.length > 1) throw new Error(`Ambiguous Storybook semantic target: ${target.role} ${target.name}`)
+  return inspector.nodeForId(candidates[0]!.id)!
 }
 
 function accessibleName(
@@ -479,7 +511,7 @@ function optionalBooleanAttribute(value: string | undefined): boolean | null {
 function validateRequest(value: StorybookAgentBridgeRequest): void {
   if (value === null || typeof value !== "object" || Array.isArray(value) ||
     value.protocol !== STORYBOOK_AGENT_BRIDGE_PROTOCOL ||
-    !["state", "inspect", "interact", "capture"].includes(value.operation)) {
+    !["state", "inspect", "interact", "capture", "applyRevision"].includes(value.operation)) {
     throw new Error("Invalid Storybook agent bridge request")
   }
 }

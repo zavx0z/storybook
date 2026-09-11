@@ -61,6 +61,8 @@ describe("external @zavx0z/storybook tool boundary", () => {
       "runtime/shell.ts",
       "runtime/landing-entry.ts",
       "runtime/package-entry.ts",
+      "runtime/page-entry.ts",
+      "runtime/browser-entry.ts",
     ].map((path) => Bun.file(join(root, path)).text()))
     const combined = sources.join("\n")
     expect(combined).toContain('from "@zavx0z/browser/integration"')

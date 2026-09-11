@@ -28,6 +28,16 @@ export type StorybookGeneratedLoaderInput = Readonly<{
   widgets: readonly StorybookGeneratedWidget[]
 }>
 
+export const STORYBOOK_REVISION_PAYLOAD_FILE = "revision-payload.js" as const
+
+export type StorybookGeneratedRevisionPayloadInput = Readonly<{
+  packageId: string
+  candidateRevision: string
+  sharedModuleEpoch: string
+  hostModuleEpoch?: string
+  graphSnapshot: unknown
+}>
+
 /**
 Generates one build-time module containing only literal canonical filesystem
 imports that were validated before source emission. Bun resolves these imports
@@ -130,6 +140,82 @@ export function generateStorybookLoaderSource(
     `  return loader()`,
     `}`,
     ``,
+  ].join("\n")
+}
+
+/** Генерирует entry revision payload без side effects для обновления внутри страницы. */
+export function generateStorybookRevisionPayloadSource(
+  input: StorybookGeneratedRevisionPayloadInput,
+): string {
+  const packageId = validateExternalStorybookPackageId(input.packageId, "Storybook revision payload package")
+  if (typeof input.candidateRevision !== "string" ||
+    !/^[A-Za-z0-9_-]{1,256}$/u.test(input.candidateRevision)) {
+    throw new Error(`Invalid Storybook candidate revision: ${String(input.candidateRevision)}`)
+  }
+  if (typeof input.sharedModuleEpoch !== "string" || input.sharedModuleEpoch.length === 0 ||
+    input.sharedModuleEpoch.length > 256 || hasControlCharacter(input.sharedModuleEpoch)) {
+    throw new Error(`Invalid Storybook shared module epoch: ${String(input.sharedModuleEpoch)}`)
+  }
+  if (input.graphSnapshot === null || typeof input.graphSnapshot !== "object" || Array.isArray(input.graphSnapshot)) {
+    throw new TypeError("Storybook revision payload graph snapshot must be an object")
+  }
+  return [
+    "import {",
+    "  loadStorybookPackageRuntime,",
+    "  STORYBOOK_PACKAGE_STORY_LOADERS,",
+    "  STORYBOOK_PACKAGE_WIDGET_LOADERS,",
+    "  storybookRevisionUrl,",
+    "} from \"./generated-loaders.ts\"",
+    "",
+    "export const STORYBOOK_APPLIED_REVISION = Object.freeze({",
+    "  protocol: \"storybook-page-realm/1\",",
+    `  packageId: ${jsString(packageId)},`,
+    `  candidateRevision: ${jsString(input.candidateRevision)},`,
+    `  sharedModuleEpoch: ${jsString(input.sharedModuleEpoch)},`,
+    ...(input.hostModuleEpoch === undefined
+      ? []
+      : [`  hostModuleEpoch: ${jsString(validateModuleEpoch(input.hostModuleEpoch, "host"))},`]),
+    "  revisionUrl: storybookRevisionUrl,",
+    `  graphSnapshot: ${JSON.stringify(input.graphSnapshot)},`,
+    "  loadRuntime: loadStorybookPackageRuntime,",
+    "  storyLoaders: STORYBOOK_PACKAGE_STORY_LOADERS,",
+    "  widgetLoaders: STORYBOOK_PACKAGE_WIDGET_LOADERS,",
+    "})",
+    "",
+  ].join("\n")
+}
+
+function validateModuleEpoch(value: string, label: string): string {
+  if (typeof value !== "string" || value.length === 0 || value.length > 256 || hasControlCharacter(value)) {
+    throw new Error(`Invalid Storybook ${label} module epoch: ${String(value)}`)
+  }
+  return value
+}
+
+/** Генерирует один bounded browser importer immutable payload ревизии пакета. */
+export function generateStorybookAppliedRevisionLoaderSource(packageIdValue: string): string {
+  const packageId = validateExternalStorybookPackageId(
+    packageIdValue,
+    "Storybook applied revision loader package",
+  )
+  const revisionBaseUrl = `/__storybook/revisions/${encodeURIComponent(packageId)}/`
+  return [
+    "async function loadAppliedRevision(revision, signal) {",
+    "  if (typeof revision !== \"string\" || !/^[A-Za-z0-9_-]{1,256}$/.test(revision)) {",
+    "    throw new Error(\"Invalid Storybook applied revision: \" + String(revision))",
+    "  }",
+    "  signal.throwIfAborted()",
+    `  const url = ${jsString(revisionBaseUrl)} + revision + \"/${STORYBOOK_REVISION_PAYLOAD_FILE}\"`,
+    "  const namespace = await import(url)",
+    "  signal.throwIfAborted()",
+    "  const payload = namespace.STORYBOOK_APPLIED_REVISION",
+    "  if (payload === null || typeof payload !== \"object\" ||",
+    "    payload.protocol !== \"storybook-page-realm/1\") {",
+    "    throw new Error(\"Invalid Storybook applied revision payload: \" + revision)",
+    "  }",
+    "  return payload",
+    "}",
+    "",
   ].join("\n")
 }
 

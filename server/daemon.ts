@@ -22,10 +22,16 @@ export async function runExternalStorybookDaemon(
   if (inspection.state === "stale" && !inspection.replaceable) {
     throw new Error(`Refusing ambiguous Storybook daemon state: ${inspection.reason}`)
   }
+  console.error("Storybook startup: artifacts")
   collectUnpublishedStorybookArtifacts(externalStorybookArtifactRoot())
+  /** Передаёт этап запуска в диагностический поток родительского controller. */
+  const onStartupPhase = (phase: string): void => {
+    console.error(`Storybook startup: ${phase}`)
+  }
   let running: Awaited<ReturnType<typeof startExternalStorybookServer>>
   try {
     running = await startExternalStorybookServer({
+      onStartupPhase,
       declarations: options.declarations ?? Object.freeze([]),
       ...(options.port === undefined ? {} : {port: options.port}),
       startLease: options.startLease,
@@ -33,6 +39,7 @@ export async function runExternalStorybookDaemon(
   } catch (error) {
     if ((options.port ?? 0) === 0 || !addressInUse(error)) throw error
     running = await startExternalStorybookServer({
+      onStartupPhase,
       declarations: options.declarations ?? Object.freeze([]),
       port: 0,
       startLease: options.startLease,

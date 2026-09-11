@@ -5,7 +5,7 @@ import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {PNG} from "pngjs"
 import {StorybookBrowserState} from "./browser-state.ts"
-import type {ChromeTargetSummary, StorybookBridgeMethod, StorybookChromeClient} from "./contract.ts"
+import type {ChromeTargetSummary, StorybookBridgeMethod, StorybookChromeClient, StorybookChromeConsoleEntry} from "./contract.ts"
 import {createStorybookBrowserLifecycle, type StorybookBrowserLifecycle} from "./service.ts"
 
 const roots: string[] = []
@@ -15,6 +15,73 @@ afterEach(() => {
 })
 
 describe("Storybook browser lifecycle service", () => {
+  test.each([false, true])("история консоли отделяется от ошибок обновления, newError=%s", async newError => {
+    const chrome = new FakeChrome()
+    const original = chrome.callBridge.bind(chrome)
+    chrome.callBridge = async (target, method, params, signal) => {
+      if (method === "applyRevision") chrome.identityRevision = (params as {revision: string}).revision
+      const result = await original(target, method === "applyRevision" ? "identity" : method, params, signal)
+      return method === "identity" || method === "applyRevision"
+        ? {...result as object, capabilities: {inPageUpdates: true}}
+        : result
+    }
+    chrome.consoleEntries = async () => [
+      {source: "console", type: "error", level: "error", text: "old", timestamp: 1},
+      ...(newError && chrome.identityRevision === "revision-b"
+        ? [{source: "console" as const, type: "error", level: "error" as const, text: "new", timestamp: 2}]
+        : []),
+    ]
+    const controller = createController(chrome)
+    const opened = await controller.openPackage(openInput(chrome))
+    const navigations = chrome.navigations
+    if (newError) {
+      await expect(controller.applyRevision!(opened.view.viewId, "revision-b")).rejects.toThrow("new revision reported console errors")
+      expect(chrome.identityRevision).toBe("revision-a")
+    } else {
+      expect(await controller.applyRevision!(opened.view.viewId, "revision-b")).toMatchObject({revision: "revision-b", consoleErrors: []})
+    }
+    expect(chrome.navigations).toBe(navigations)
+  })
+
+  test.each([false, true])("применение проверяет сохранение страницы, reload=%s", async reload => {
+    const chrome = new FakeChrome()
+    const original = chrome.callBridge.bind(chrome)
+    let origin = 42
+    let applied = 0
+    chrome.callBridge = async (targetId, method, params, signal) => {
+      if (method === "applyRevision") {
+        expect(params).toMatchObject({expectedPackageId: "@fixture/a", revision: "revision-b"})
+        applied += 1
+        chrome.identityRevision = "revision-b"
+        if (reload) origin += 1
+        const identity = await original(targetId, "identity", {}, signal) as object
+        return {...identity, timeOrigin: origin, capabilities: {inPageUpdates: true}}
+      }
+      const result = await original(targetId, method, params, signal)
+      return method === "identity" ? {...result as object, timeOrigin: origin, capabilities: {inPageUpdates: true}} : result
+    }
+    const controller = createController(chrome)
+    const opened = await controller.openPackage(openInput(chrome))
+    const url = chrome.targetsValue[0]!.url
+    const navigations = chrome.navigations
+    if (reload) await expect(controller.applyRevision!(opened.view.viewId, "revision-b")).rejects.toThrow("replaced its realm")
+    else expect(await controller.applyRevision!(opened.view.viewId, "revision-b")).toMatchObject({revision: "revision-b", timeOrigin: 42})
+    expect(applied).toBe(1)
+    expect(chrome.navigations).toBe(navigations)
+    expect(chrome.targetsValue[0]!.url).toBe(url)
+    expect(chrome.created).toBe(1)
+  })
+
+  test("старая страница не обновляется скрытой навигацией", async () => {
+    const chrome = new FakeChrome()
+    const controller = createController(chrome)
+    const opened = await controller.openPackage(openInput(chrome))
+    const navigations = chrome.navigations
+    await expect(controller.applyRevision!(opened.view.viewId, "revision-b")).rejects.toThrow("page restart is required")
+    expect(chrome.identityRevision).toBe("revision-a")
+    expect(chrome.navigations).toBe(navigations)
+  })
+
   test("unknown reservation переиспользует baseline peer, не превращая его в receipt", async () => {
     const chrome = new FakeChrome()
     const root = temporaryRoot()
@@ -263,6 +330,18 @@ describe("Storybook browser lifecycle service", () => {
     expect(chrome.activated).toEqual([])
   })
 
+  test("warm open сохраняет inspector без повторной навигации документа", async () => {
+    const chrome = new FakeChrome()
+    const controller = createController(chrome)
+    const input = openInput(chrome)
+    const first = await controller.openPackage({...input, url: `${input.url}?inspector=output`})
+    const before = chrome.navigations
+    const second = await controller.openPackage(input)
+    expect(second.view.viewId).toBe(first.view.viewId)
+    expect(chrome.navigations).toBe(before)
+    expect(chrome.targetsValue[0]?.url).toContain("inspector=output")
+  })
+
   test("adopts an attested package target from the previous server origin", async () => {
     const chrome = new FakeChrome()
     chrome.targetsValue = [{
@@ -293,6 +372,21 @@ describe("Storybook browser lifecycle service", () => {
     expect(chrome.closed).toEqual([])
     expect(chrome.activated).toEqual([])
     expect(chrome.targetsValue).toHaveLength(2)
+  })
+
+  test.each(["closed", "moved"])("reuse-only open does not create a target after the discovered page is %s", async state => {
+    const chrome = new FakeChrome()
+    chrome.targetsValue = [{targetId: "USER", type: "page", title: "User", url: openInput(chrome).url}]
+    const controller = createController(chrome)
+    const [view] = await controller.listViews(chrome.origin, undefined, [{packageId: "@fixture/a", label: "Fixture A"}])
+    expect(view).toBeDefined()
+    if (state === "closed") chrome.targetsValue = []
+    else chrome.targetsValue[0] = {...chrome.targetsValue[0]!, url: `${chrome.origin}/pkg-fixture-b/`}
+
+    await expect(controller.openPackage({...openInput(chrome), existingViewId: view!.viewId}))
+      .rejects.toThrow("existing package view is no longer available")
+    expect(chrome.created).toBe(0)
+    expect(chrome.targetsValue).toHaveLength(state === "closed" ? 0 : 1)
   })
 
   test("prefers the agent's existing matching view without changing its peers", async () => {
@@ -884,7 +978,7 @@ class FakeChrome implements StorybookChromeClient {
       ? {...target, url: "https://example.com/user-page"}
       : target)
   }
-  async consoleEntries(): Promise<readonly []> {
+  async consoleEntries(): Promise<readonly StorybookChromeConsoleEntry[]> {
     return []
   }
   async bridgeDiagnostics(targetId: string, signal?: AbortSignal): Promise<Readonly<Record<string, unknown>>> {

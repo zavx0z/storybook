@@ -17,6 +17,7 @@ import {
 } from "@zavx0z/browser/integration"
 import {loadDocumentDefaultFont} from "@zavx0z/engine/default-font"
 import {STORYBOOK_FONT_FACES} from "./font-faces.ts"
+import type {StorybookContractNavigationReady} from "./contract-view.tsx"
 import {StorybookApp, type StorybookAppProps} from "./application.tsx"
 import {component} from "@zavx0z/component"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
@@ -93,7 +94,7 @@ export type ExternalStorybookShell = Readonly<{
   mountPreview(label: string, node: SemanticNode): void
   showMessage(label: string, title: string, detail: string, action?: StorybookOverviewAction): SemanticHTMLElement
   showMarkdown(label: string, source: string, baseUrl?: string, action?: StorybookOverviewAction): SemanticHTMLElement
-  showContract(label: string, documents: readonly import("../catalog/catalog.t.ts").StorybookContractDocument[], signal: AbortSignal): Promise<SemanticHTMLElement>
+  showContract(label: string, documents: readonly import("../catalog/catalog.t.ts").StorybookContractDocument[], signal: AbortSignal, onReady?: StorybookContractNavigationReady, onScroll?: () => void): Promise<SemanticHTMLElement>
   showDependencies(label: string, cases: readonly import("../catalog/catalog.t.ts").StorybookDependencyCase[], signal: AbortSignal): Promise<SemanticHTMLElement>
   reportDiagnostic(value: unknown): void
   clearDiagnostics(): void
@@ -486,10 +487,27 @@ export async function createExternalStorybookShell(
     mountSpacePreview,
     showMessage,
     showMarkdown,
-    async showContract(label, documents, signal) {
+    async showContract(label, documents, signal, onReady, onScroll) {
       const {createContractPresentation} = await import("./contract-view.tsx")
       signal.throwIfAborted()
-      return mountShellPresentation(label, createContractPresentation(document, documents))
+      const presentation = createContractPresentation(document, documents, onReady, onScroll)
+      let previousViewport = ""
+      // Читаем уже показанную геометрию; подписка не создаёт собственных кадров.
+      const unsubscribe = root.subscribePresented(() => {
+        const element = presentation.element
+        const rect = element.getBoundingClientRect()
+        const viewport = [element.scrollTop, element.scrollLeft, rect.x, rect.y, rect.width, rect.height].join(":")
+        if (viewport === previousViewport) return
+        previousViewport = viewport
+        onScroll?.()
+      })
+      return mountShellPresentation(label, {
+        ...presentation,
+        dispose() {
+          unsubscribe()
+          presentation.dispose()
+        },
+      })
     },
     async showDependencies(label, cases, signal) {
       const {createDependencyPresentation} = await import("./dependency-view.tsx")

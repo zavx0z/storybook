@@ -28,6 +28,22 @@ export type StorybookPackageCompilerInput = Readonly<{
   moduleSourcePaths: readonly string[]
 }>
 
+/**
+@property sourceRoots - Канонические корни владельцев, из которых resolver и compiler могут читать код.
+
+@property adapterPath - Точный публичный адаптер Template, создающий compiler plugin.
+
+@property configPaths - Полная effective цепочка `tsconfig extends`, включая package configs.
+
+@property semanticSourceRoots - Корни, которые Template compiler добавляет в TypeScript program.
+*/
+export type StorybookPackageCompilerInputs = Readonly<{
+  sourceRoots: readonly string[]
+  adapterPath: string
+  configPaths: readonly string[]
+  semanticSourceRoots: readonly string[]
+}>
+
 type PackageManifest = Readonly<{
   declaredDependencies: ReadonlySet<string>
   root: string
@@ -42,7 +58,7 @@ type OwnerDependencyGraph = Readonly<{
   styleSourceRootIds: readonly string[]
 }>
 
-/** Resolves the exact manifest-reached owner roots governed by one compiler session. */
+/** Возвращает exact manifest-reached owner roots одной compiler session. */
 export function resolveStorybookCompilerSourceRoots(input: Readonly<{
   projectRoot: string
   packageRoot: string
@@ -53,6 +69,28 @@ export function resolveStorybookCompilerSourceRoots(input: Readonly<{
     throw new Error(`Storybook package root must be inside project root: ${packageRoot}`)
   }
   return discoverOwnerDependencyGraph(projectRoot, packageRoot).sourceRoots
+}
+
+/**
+Возвращает файловые границы реального compiler setup без создания plugin.
+
+Fingerprint сборки использует тот же consumer/tool owner graph и тот же выбор
+Template adapter, поэтому изменение resolver, exports, tsconfig или compiler owner
+не может остаться только скрытым побочным чтением `createStorybookPackageCompilerPlugins`.
+
+@throws Если source, owner graph, tsconfig или Template export не проходят те же
+проверки, что и при создании compiler plugin.
+*/
+export function resolveStorybookPackageCompilerInputs(
+  input: StorybookPackageCompilerInput,
+): StorybookPackageCompilerInputs {
+  const context = resolveCompilerContext(input)
+  return Object.freeze({
+    sourceRoots: context.sourceRoots,
+    adapterPath: context.adapterPath,
+    configPaths: context.configPaths,
+    semanticSourceRoots: context.compilerRoots.sourceRoots,
+  })
 }
 
 /** Resolves runtime imports to the same exact owner roots governed by compilation. */
@@ -100,15 +138,47 @@ type TemplatePluginFactory = (
 ) => unknown
 
 /**
-Creates fresh compiler plugins for one PackageSession candidate build.
+Создаёт свежие compiler plugins для одного candidate `PackageSession`.
 
-Compiler selection comes only from owner source paths and effective tsconfig
-files. Template JSX resolves its existing adapter through the owner dependency
-graph; declarations cannot inject plugin factories or executable callbacks.
+Compiler выбирается только по owner source paths и effective `tsconfig`.
+Template JSX получает adapter через owner dependency graph; declaration не может
+внедрить plugin factory или executable callback.
 */
 export async function createStorybookPackageCompilerPlugins(
   input: StorybookPackageCompilerInput,
 ): Promise<readonly Bun.BunPlugin[]> {
+  const context = resolveCompilerContext(input)
+  const resolver = exactOwnerResolver({
+    packageRootsByName: context.packageRootsByName,
+  })
+  const namespace = await import(pathToFileURL(context.adapterPath).href) as unknown
+  const factory = validateTemplatePluginFactory(namespace, context.adapterPath)
+  let candidate: unknown
+  try {
+    candidate = factory({
+      cwd: context.projectRoot,
+      persistent: false,
+      sourceRoots: context.compilerRoots.sourceRoots,
+      styleSourceRootIds: context.compilerRoots.styleSourceRootIds,
+    })
+  } catch (error) {
+    throw new Error(`Template JSX compiler factory failed: ${context.adapterPath}`, {cause: error})
+  }
+  const plugin = validateBunPlugin(candidate, context.adapterPath)
+  return Object.freeze([resolver, plugin])
+}
+
+/** Собирает единый compiler context для plugin setup и build-input fingerprint. */
+function resolveCompilerContext(
+  input: StorybookPackageCompilerInput,
+): Readonly<{
+  projectRoot: string
+  packageRootsByName: ReadonlyMap<string, string>
+  compilerRoots: Readonly<{sourceRoots: readonly string[]; styleSourceRootIds: readonly string[]}>
+  sourceRoots: readonly string[]
+  adapterPath: string
+  configPaths: readonly string[]
+}> {
   const projectRoot = canonicalDirectory(input.projectRoot, "Storybook project root")
   const packageRoot = canonicalDirectory(input.packageRoot, "Storybook package root")
   if (!inside(projectRoot, packageRoot)) {
@@ -119,22 +189,18 @@ export async function createStorybookPackageCompilerPlugins(
   }
   const sourcePaths = Object.freeze([...new Set(input.moduleSourcePaths.map((path, index) =>
     canonicalSourcePath(path, index, packageRoot, projectRoot)))].sort(comparePaths))
-  const toolGraph = discoverOwnerDependencyGraph(
-    canonicalDirectory(STORYBOOK_TOOL_ROOT, "Storybook tool root"),
-    canonicalDirectory(STORYBOOK_TOOL_ROOT, "Storybook tool root"),
-  )
+  const toolRoot = canonicalDirectory(STORYBOOK_TOOL_ROOT, "Storybook tool root")
+  const toolGraph = discoverOwnerDependencyGraph(toolRoot, toolRoot)
   const hasConsumerModules = sourcePaths.length > 0
   const dependencyGraph = hasConsumerModules ? discoverOwnerDependencyGraph(projectRoot, packageRoot) : toolGraph
-  const exactOwnerRoots = mergeOwnerPackageRoots(
+  const packageRootsByName = mergeOwnerPackageRoots(
     dependencyGraph.packageRootsByName,
     toolGraph.packageRootsByName,
   )
-  const resolver = exactOwnerResolver({
-    packageRootsByName: exactOwnerRoots,
-  })
-  const jsxImportSource = hasConsumerModules
-    ? effectiveJsxImportSource(projectRoot, packageRoot, sourcePaths)
-    : undefined
+  const effectiveConfig = hasConsumerModules
+    ? effectiveJsxCompilerConfig(projectRoot, packageRoot, sourcePaths)
+    : Object.freeze({jsxImportSource: undefined, configPaths: Object.freeze([])})
+  const jsxImportSource = effectiveConfig.jsxImportSource
   const compileOwnerTemplate = hasConsumerModules && jsxImportSource === TEMPLATE_JSX_IMPORT_SOURCE
   const templateRoot = compileOwnerTemplate
     ? dependencyGraph.packageRootsByName.get(TEMPLATE_JSX_IMPORT_SOURCE) ?? (
@@ -153,21 +219,17 @@ export async function createStorybookPackageCompilerPlugins(
     toolGraph,
   )
   const adapterPath = resolveTemplateAdapter(packageRoot, projectRoot, templateRoot)
-  const namespace = await import(pathToFileURL(adapterPath).href) as unknown
-  const factory = validateTemplatePluginFactory(namespace, adapterPath)
-  let candidate: unknown
-  try {
-    candidate = factory({
-      cwd: projectRoot,
-      persistent: false,
-      sourceRoots: compilerRoots.sourceRoots,
-      styleSourceRootIds: compilerRoots.styleSourceRootIds,
-    })
-  } catch (error) {
-    throw new Error(`Template JSX compiler factory failed: ${adapterPath}`, {cause: error})
-  }
-  const plugin = validateBunPlugin(candidate, adapterPath)
-  return Object.freeze([resolver, plugin])
+  return Object.freeze({
+    projectRoot,
+    packageRootsByName,
+    compilerRoots,
+    sourceRoots: Object.freeze([...new Set([
+      ...dependencyGraph.sourceRoots,
+      ...toolGraph.sourceRoots,
+    ])].sort(comparePaths)),
+    adapterPath,
+    configPaths: effectiveConfig.configPaths,
+  })
 }
 
 function mergeCompilerSourceRoots(
@@ -279,11 +341,12 @@ function resolveExactOwnerExport(
   return path
 }
 
-function effectiveJsxImportSource(
+/** Читает effective JSX owner и сохраняет каждый реально посещённый config. */
+function effectiveJsxCompilerConfig(
   projectRoot: string,
   packageRoot: string,
   sourcePaths: readonly string[],
-): string | undefined {
+): Readonly<{jsxImportSource: string | undefined; configPaths: readonly string[]}> {
   const configPaths = new Set<string>()
   for (const sourcePath of sourcePaths) {
     const configPath = findNearestTsconfig(dirname(sourcePath), projectRoot)
@@ -293,13 +356,16 @@ function effectiveJsxImportSource(
     const packageConfig = findNearestTsconfig(packageRoot, projectRoot)
     if (packageConfig !== null) configPaths.add(packageConfig)
   }
-  if (configPaths.size === 0) return undefined
+  if (configPaths.size === 0) {
+    return Object.freeze({jsxImportSource: undefined, configPaths: Object.freeze([])})
+  }
 
   const cache = new Map<string, string | undefined>()
+  const visited = new Set<string>()
   const values = [
     ...[...configPaths]
     .sort(comparePaths)
-    .map((path) => readTsconfigJsxImportSource(path, cache, new Set())),
+    .map((path) => readTsconfigJsxImportSource(path, cache, new Set(), visited)),
     ...sourcePaths.flatMap((path) => {
       const value = explicitJsxImportSource(path)
       return value === undefined ? [] : [value]
@@ -312,7 +378,10 @@ function effectiveJsxImportSource(
         values.map((value) => value ?? "<none>").join(", ")}`,
     )
   }
-  return values[0]
+  return Object.freeze({
+    jsxImportSource: values[0],
+    configPaths: Object.freeze([...visited].sort(comparePaths)),
+  })
 }
 
 function explicitJsxImportSource(path: string): string | undefined {
@@ -338,8 +407,10 @@ function readTsconfigJsxImportSource(
   configPath: string,
   cache: Map<string, string | undefined>,
   loading: Set<string>,
+  visited: Set<string>,
 ): string | undefined {
   const path = canonicalFile(configPath, "Storybook tsconfig")
+  visited.add(path)
   if (cache.has(path)) return cache.get(path)
   if (loading.has(path)) throw new Error(`Cyclic Storybook tsconfig extends: ${path}`)
   loading.add(path)
@@ -355,7 +426,7 @@ function readTsconfigJsxImportSource(
     if (specifiers === null) throw new TypeError(`Invalid tsconfig extends: ${path}`)
     for (const specifier of specifiers) {
       const parentPath = resolveExtendedTsconfig(specifier, dirname(path))
-      const parentValue = readTsconfigJsxImportSource(parentPath, cache, loading)
+      const parentValue = readTsconfigJsxImportSource(parentPath, cache, loading, visited)
       if (parentValue !== undefined) result = parentValue
     }
   }

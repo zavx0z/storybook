@@ -4,11 +4,26 @@ import {
   type StorybookPackageBuildWorkerJob,
   type StorybookPackageBuildWorkerResult,
 } from "./package-build.ts"
+import {
+  STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL,
+  type StorybookBuildPhaseEvent,
+  type StorybookBuildWorkerTransportEvent,
+} from "./build-phase.ts"
 
 const controller = new AbortController()
 const abort = (): void => controller.abort(new DOMException("Storybook package build worker terminated", "AbortError"))
 process.once("SIGTERM", abort)
 process.once("SIGINT", abort)
+
+const workerId = process.env.STORYBOOK_PACKAGE_BUILD_WORKER_ID
+if (workerId !== undefined) {
+  writeWorkerEvent({
+    protocol: STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL,
+    kind: "ready",
+    workerId,
+    pid: process.pid,
+  })
+}
 
 await main().finally(() => {
   process.off("SIGTERM", abort)
@@ -28,7 +43,10 @@ async function main(): Promise<void> {
     const build = await buildStorybookPackageRevisionInProcess({
       ...job.input,
       signal: controller.signal,
-    }, job.options)
+    }, {
+      ...job.options,
+      onPhase: writePhase,
+    })
     result = Object.freeze({ok: true, build})
   } catch (error) {
     result = Object.freeze({
@@ -39,6 +57,20 @@ async function main(): Promise<void> {
     process.exitCode = 1
   }
   await Bun.write(resultPath, `${JSON.stringify(result)}\n`)
+}
+
+/** Передаёт одну phase boundary в bounded однонаправленный stdout transport. */
+function writePhase(event: StorybookBuildPhaseEvent): void {
+  writeWorkerEvent({
+    protocol: STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL,
+    kind: "phase",
+    event,
+  })
+}
+
+/** Сериализует только объявленный worker event protocol одной JSONL строкой. */
+function writeWorkerEvent(event: StorybookBuildWorkerTransportEvent): void {
+  process.stdout.write(`${JSON.stringify(event)}\n`)
 }
 
 function diagnosticsFromError(

@@ -9,6 +9,7 @@ import {
   rmSync,
   symlinkSync,
   unlinkSync,
+  watch,
   writeFileSync,
 } from "node:fs"
 import {tmpdir} from "node:os"
@@ -16,18 +17,45 @@ import {join} from "node:path"
 import {
   canonicalizeStorybookPackageIdentities,
   createStorybookPackageRevisionBuilder,
+  isolatedStorybookSharedModuleEpoch,
 } from "./package-build.ts"
+import {storybookSharedBrowserIdentity} from "./shared-module-identity.ts"
 import {STORYBOOK_PACKAGE_GRAPH_PROTOCOL, type StorybookPackageRevisionGraphSnapshot} from "../sessions/package-revision.ts"
 import type {StorybookPackageBuildDescriptor} from "../sessions/package-session.ts"
 
 const roots: string[] = []
-setDefaultTimeout(20_000)
+setDefaultTimeout(60_000)
 
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, {recursive: true, force: true})
 })
 
 describe("real Storybook package revision build", () => {
+  test("копирует бинарный ресурс без ложного change исходника", async () => {
+    const fixture = createFixture()
+    const sourcePath = join(fixture.root, "image.gif")
+    const bytes = Buffer.from("GIF89a\u0000\u0001\u0002", "binary")
+    writeFileSync(sourcePath, bytes)
+    // macOS может доставить событие от создания файла уже после установки watcher.
+    await Bun.sleep(100)
+    const events: string[] = []
+    const watcher = watch(sourcePath, event => events.push(event))
+    try {
+      const build = createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry})
+      const staging = join(fixture.root, ".binary-resource")
+      await build(buildInput({
+        ...fixture.descriptor,
+        resourceFiles: [...fixture.descriptor.resourceFiles ?? [], {
+          sourcePath, targetPath: "resources/image.gif",
+        }],
+      }, staging, "binary-resource"))
+      await Bun.sleep(100)
+      expect(readFileSync(join(staging, "resources/image.gif")).equals(bytes)).toBe(true)
+      expect(readFileSync(sourcePath).equals(bytes)).toBe(true)
+      expect(events).toEqual([])
+    } finally { watcher.close() }
+  })
+
   test.each(["index.ts", "index.tsx"])("публикует TSDoc из %s без исполнения и отклоняет изменённый исходник", async entry => {
     const fixture = createFixture()
     const sourcePath = join(fixture.root, entry)
@@ -99,16 +127,78 @@ describe("real Storybook package revision build", () => {
     expect(result.dependencyRealpaths).toContain(realpathSync(fixture.story))
     expect(result.dependencyRealpaths).toContain(realpathSync(fixture.widget))
     expect(result.moduleGraphRevision).toMatch(/^[a-f0-9]{64}$/u)
+    expect(result.inputFingerprint.digest).toMatch(/^[a-f0-9]{64}$/u)
+    expect(result.inputFingerprint.files.map(({path}) => path)).toContain(realpathSync(fixture.story))
     expect(await Bun.file(join(staging, "author-style-sheets/0.css")).text()).toBe(
       await Bun.file(fixture.theme).text(),
     )
     expect(await Bun.file(join(staging, result.entryRelativePath)).text()).not.toContain("fixture story marker")
+    const isolatedPayload = await Bun.file(join(staging, "revision-payload.js")).text()
+    const isolatedEpoch = isolatedStorybookSharedModuleEpoch(fixture.descriptor.packageId, "revision-a")
+    expect(isolatedPayload).toContain(`sharedModuleEpoch: "${isolatedEpoch}"`)
+    expect(isolatedStorybookSharedModuleEpoch(fixture.descriptor.packageId, "revision-b"))
+      .not.toBe(isolatedEpoch)
     const chunks = await Array.fromAsync(new Bun.Glob("chunks/*.js").scan({cwd: staging, absolute: true}))
     expect(chunks.length).toBeGreaterThan(0)
     expect((await Promise.all(chunks.map((path) => Bun.file(path).text()))).join("\n"))
       .toContain("fixture story marker")
     expect((await Promise.all(chunks.map((path) => Bun.file(path).text()))).join("\n"))
       .toContain("fixture widget marker")
+  })
+
+  test("обычный компонент меняется при общей identity и эпохе platform imports", async () => {
+    const fixture = createFixture()
+    const domSource = realpathSync(join(import.meta.dir, "../node_modules/@zavx0z/dom/src/index.ts"))
+    const browserIdentity = storybookSharedBrowserIdentity(
+      "/__storybook/shared/entries/package-entry.js",
+      [{
+        specifier: "@zavx0z/dom",
+        sourcePath: domSource,
+        url: "/__storybook/shared/kernel/dom.js",
+      }],
+      "b".repeat(64),
+    )
+    const descriptor = {
+      ...fixture.descriptor,
+      runtime: null,
+      widgetModules: [],
+    }
+    writeFileSync(fixture.story, [
+      'import {Node} from "@zavx0z/dom"',
+      'export const story = {marker: "component-a", Node}',
+      "",
+    ].join("\n"))
+    const build = createStorybookPackageRevisionBuilder({
+      browserEntryPath: fixture.browserEntry,
+      sharedBrowserIdentity: browserIdentity,
+    })
+    const firstRoot = join(fixture.root, ".candidate-component-a")
+    await build(buildInput(descriptor, firstRoot, "component-a"))
+    writeFileSync(fixture.story, readFileSync(fixture.story, "utf8").replace("component-a", "component-b"))
+    const secondRoot = join(fixture.root, ".candidate-component-b")
+    await build(buildInput(descriptor, secondRoot, "component-b"))
+
+    const firstPayload = readFileSync(join(firstRoot, "revision-payload.js"), "utf8")
+    const secondPayload = readFileSync(join(secondRoot, "revision-payload.js"), "utf8")
+    const coldEntry = readFileSync(join(firstRoot, "entry.js"), "utf8")
+    const firstCode = await builtJavaScript(firstRoot)
+    const secondCode = await builtJavaScript(secondRoot)
+    expect(firstPayload).toContain("STORYBOOK_APPLIED_REVISION")
+    expect(secondPayload).toContain("STORYBOOK_APPLIED_REVISION")
+    expect(firstCode).toContain(`sharedModuleEpoch: "${browserIdentity.epoch}"`)
+    expect(secondCode).toContain(`sharedModuleEpoch: "${browserIdentity.epoch}"`)
+    expect(firstCode).toContain(`hostModuleEpoch: "${browserIdentity.hostModuleEpoch}"`)
+    expect(secondCode).toContain(`hostModuleEpoch: "${browserIdentity.hostModuleEpoch}"`)
+    expect(coldEntry).toContain(`hostModuleEpoch: "${browserIdentity.hostModuleEpoch}"`)
+    expect(coldEntry).toContain("startExternalStorybookPage")
+    expect(coldEntry).toContain("initialPayload:")
+    expect(coldEntry).not.toContain("startExternalStorybookPackage")
+    expect(firstCode).toContain("component-a")
+    expect(secondCode).toContain("component-b")
+    expect(firstCode).toContain('from "/__storybook/shared/kernel/dom.js"')
+    expect(secondCode).toContain('from "/__storybook/shared/kernel/dom.js"')
+    expect(firstCode).not.toContain("class Node")
+    expect(secondCode).not.toContain("class Node")
   })
 
   test("builds a declaration-only package from the shared Storybook compiler owner", async () => {
@@ -158,6 +248,82 @@ describe("real Storybook package revision build", () => {
       join(fixture.root, ".candidate-missing"),
       "revision-b",
     ))).rejects.toThrow()
+  })
+
+  test.each(["runtime", "variant", "widget"] as const)(
+    "отклоняет отсутствующий direct export для %s без отдельного exports bundle",
+    async (kind) => {
+      const fixture = createFixture()
+      const target = kind === "runtime" ? fixture.runtime : kind === "variant" ? fixture.story : fixture.widget
+      writeFileSync(target, "export const anotherExport = true\n")
+      const build = createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry})
+
+      await expect(build(buildInput(
+        fixture.descriptor,
+        join(fixture.root, `.candidate-missing-${kind}`),
+        `revision-missing-${kind}`,
+      ))).rejects.toThrow("does not export")
+    },
+  )
+
+  test.each(["runtime", "variant", "widget"] as const)(
+    "main bundle обходит dependency closure %s и отклоняет unresolved import",
+    async (kind) => {
+      const fixture = createFixture()
+      const target = kind === "runtime" ? fixture.runtime : kind === "variant" ? fixture.story : fixture.widget
+      const declared = readFileSync(target, "utf8")
+      writeFileSync(target, `import "./missing-dependency.ts"\n${declared}`)
+      const build = createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry})
+
+      await expect(build(buildInput(
+        fixture.descriptor,
+        join(fixture.root, `.candidate-unresolved-${kind}`),
+        `revision-unresolved-${kind}`,
+      ))).rejects.toThrow("missing-dependency")
+    },
+  )
+
+  test("main bundle проверяет broken named re-export, который direct scan считает объявленным", async () => {
+    const fixture = createFixture()
+    writeFileSync(join(fixture.root, "package", ".storybook", "dependency.ts"), "export const present = true\n")
+    writeFileSync(fixture.story, "export {missing as story} from './dependency.ts'\n")
+    const build = createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry})
+
+    await expect(build(buildInput(
+      fixture.descriptor,
+      join(fixture.root, ".candidate-broken-re-export"),
+      "revision-broken-re-export",
+    ))).rejects.toThrow()
+  })
+
+  test("передаёт ordered phases и exact worker lifecycle per operation", async () => {
+    const fixture = createFixture()
+    const phases: string[] = []
+    const workers: string[] = []
+    const build = createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry})
+
+    await build({
+      ...buildInput(fixture.descriptor, join(fixture.root, ".candidate-events"), "revision-events"),
+      onPhase: ({phase, state}) => phases.push(`${phase}:${state}`),
+      onWorkerLifecycle: ({state, workerId, pid}) => workers.push(`${state}:${workerId}:${pid}`),
+    })
+
+    expect(phases).toEqual([
+      "fingerprint:started",
+      "resources:started",
+      "resources:completed",
+      "exports:started",
+      "exports:completed",
+      "bundle:started",
+      "bundle:completed",
+      "protocol-build:started",
+      "protocol-build:completed",
+      "protocol-run:started",
+      "protocol-run:completed",
+      "fingerprint:completed",
+    ])
+    expect(workers).toHaveLength(2)
+    expect(workers[0]?.replace(/^started:/u, "")).toBe(workers[1]?.replace(/^exited:/u, ""))
   })
 
   test("includes component widget module bytes in the immutable module graph revision", async () => {
@@ -365,6 +531,11 @@ function buildInput(
     compileTimeoutMs: 30_000,
     protocolTimeoutMs: 2_000,
   }
+}
+
+async function builtJavaScript(root: string): Promise<string> {
+  const paths = await Array.fromAsync(new Bun.Glob("**/*.js").scan({cwd: root, absolute: true}))
+  return (await Promise.all(paths.map(path => Bun.file(path).text()))).join("\n")
 }
 
 function graphSnapshot(

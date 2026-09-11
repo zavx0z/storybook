@@ -37,6 +37,7 @@ import {
   type ExternalStorybookMigrationRecord,
   type ExternalStorybookServerRecord,
 } from "./server-state.ts"
+import {STORYBOOK_SERVER_START_TIMEOUT_MS} from "./timing.ts"
 
 type ClientSnapshot = Readonly<{
   graphDigest: string
@@ -46,6 +47,8 @@ type ClientSnapshot = Readonly<{
 }>
 
 type SpawnedStorybookDaemon = Bun.Subprocess<"ignore", "ignore", "pipe">
+
+const DAEMON_STDERR_TAIL_LENGTH = 2_048
 
 export type CreateExternalStorybookControllerOptions = Readonly<{
   daemonEntryPath?: string
@@ -95,7 +98,7 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
       const missing = roots.filter((root) => !attached.has(resolveManifestPath(root)))
       if (missing.length > 0) await client.control("/api/control/attach", {roots: missing}, context.signal)
     }
-    await client.control("/api/control/refresh", {}, context.signal)
+    await client.control("/api/control/refresh", {force: false}, context.signal)
     return this.#statusResult(record, false, context.signal)
   }
 
@@ -106,9 +109,11 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
       return Object.freeze({status: "success", server: inspection.state, reason: inspection.reason})
     }
     if (inspection.record.implementationDigest !== externalStorybookImplementationDigest(this.#toolRoot)) {
+      const current = await this.#statusResult(inspection.record, input.includeViews === true, context.signal, input.scope)
       return Object.freeze({
-        status: "success",
+        ...current,
         server: "stale",
+        running: true,
         reason: "Storybook implementation changed; storybook_ensure is required",
       })
     }
@@ -378,7 +383,7 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
   }
 
   async check(input: StorybookCheckInput, context: StorybookControllerContext): Promise<StorybookControllerResult> {
-    const timeoutSignal = AbortSignal.timeout(input.timeoutMs ?? 30_000)
+    const timeoutSignal = AbortSignal.timeout(input.timeoutMs ?? 120_000)
     const operationContext = Object.freeze({signal: AbortSignal.any([context.signal, timeoutSignal])})
     const pathScope = existsSync(input.scope) ? realpathSync(input.scope) : null
     if (pathScope !== null) {
@@ -388,10 +393,52 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
       ? await this.#ensureRunning(operationContext.signal)
       : await this.#requireRunning()
     const client = new ExternalStorybookControlClient(record)
-    const result = await client.control("/api/control/check", {
-      scope: pathScope ?? canonicalScope(input.scope),
-      live: input.live ?? false,
-    }, operationContext.signal)
+    let result: Readonly<Record<string, unknown>>
+    const before = new Map<string, Record<string, unknown>>()
+    try {
+      const baseline = await client.read("/api/control/status", operationContext.signal)
+      for (const item of Array.isArray(baseline.packages) ? baseline.packages : []) {
+        if (item !== null && typeof item === "object" && typeof (item as Record<string, unknown>).packageId === "string") {
+          before.set((item as Record<string, unknown>).packageId as string, item as Record<string, unknown>)
+        }
+      }
+      result = await client.control("/api/control/check", {
+        scope: pathScope ?? canonicalScope(input.scope),
+        live: input.live ?? false,
+      }, operationContext.signal)
+    } catch (error) {
+      if (context.signal.aborted || !(error instanceof Error) ||
+        error.name !== "TimeoutError" && !timeoutSignal.aborted) throw error
+      let observed: StorybookControllerResult
+      try {
+        observed = await this.#statusResult(record, false, AbortSignal.timeout(3_000), pathScope ?? canonicalScope(input.scope))
+      } catch { throw error }
+      const packages = Array.isArray(observed.packages) ? observed.packages as Record<string, unknown>[] : []
+      const pending = packages.filter(item => ["queued", "compiling", "building", "activating"].includes(String(item.buildState)))
+      const failed = packages.some(item => {
+        const previous = before.get(item.packageId as string)
+        return previous !== undefined && item.buildState === "failed" &&
+          (item.failedRevision !== previous.failedRevision || Number(item.generation) > Number(previous.generation))
+      })
+      const discovering = (observed.discovery as {refreshing?: unknown} | null)?.refreshing === true
+      return Object.freeze({
+        status: failed ? "failed" : "timeout",
+        ok: false,
+        waitingOnly: !failed,
+        checkResultKnown: false,
+        inProgress: pending.length > 0 || discovering,
+        operationIds: pending.flatMap(item => typeof item.pendingOperationId === "string" ? [item.pendingOperationId] : []),
+        packages,
+        buildScheduler: observed.buildScheduler ?? null,
+        error: {
+          code: failed ? "ObservedBuildFailure" : "CheckWaitTimeout",
+          message: failed ? "После начала проверки обнаружена новая ошибка сборки; актуальная диагностика пакетов приложена."
+            : pending.length > 0 || discovering
+            ? "Истёк срок ожидания ответа; работа продолжается. Проверьте её через status/wait, не запускайте повторную сборку."
+            : "Истёк срок ожидания проверки; актуальные состояния пакетов приложены.",
+        },
+      })
+    }
     const packages = Array.isArray(result.packages) ? result.packages.map(publicPackageSnapshot).filter(Boolean) : []
     return Object.freeze({
       status: result.ok === true ? "success" : "failed",
@@ -482,18 +529,26 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
     scope?: string,
   ): Promise<StorybookControllerResult> {
     const client = new ExternalStorybookControlClient(record)
-    const value = await client.read("/api/control/status", signal)
+    const value = await client.read(scope === undefined ? "/api/control/status" :
+      `/api/control/status?scope=${encodeURIComponent(scope)}`, signal)
+    const exactPackageScope = scope !== undefined && Array.isArray(value.packages) &&
+      value.packages.some(item => item !== null && typeof item === "object" && (item as Record<string, unknown>).packageId === scope)
+    const preflightIds = Array.isArray((value.preflight as {packageIds?: unknown})?.packageIds)
+      ? new Set((value.preflight as {packageIds: string[]}).packageIds)
+      : exactPackageScope ? new Set([scope!]) : null
     const packages = Array.isArray(value.packages)
-      ? value.packages.filter((candidate) => scope === undefined ||
-        candidate !== null && typeof candidate === "object" && (candidate as Record<string, unknown>).packageId === scope)
+      ? value.packages.filter((candidate) => scope === undefined || preflightIds === null ||
+        candidate !== null && typeof candidate === "object" &&
+        preflightIds.has((candidate as Record<string, unknown>).packageId as string))
         .map(publicPackageSnapshot)
       : []
-    const viewsPath = scope === undefined ? "/api/control/views" : `/api/control/views?packageId=${encodeURIComponent(scope)}`
+    const viewsPath = exactPackageScope ? `/api/control/views?packageId=${encodeURIComponent(scope!)}` : "/api/control/views"
     const viewsResult = includeViews ? await client.read(viewsPath, signal) : null
     const views = viewsResult === null
       ? undefined
       : Array.isArray(viewsResult.views)
-        ? viewsResult.views
+        ? viewsResult.views.filter(view => scope === undefined || preflightIds === null ||
+          view !== null && typeof view === "object" && preflightIds.has((view as Record<string, unknown>).packageId as string))
         : []
     return Object.freeze({
       status: "success",
@@ -507,6 +562,15 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
         : [],
       packages,
       declarationErrors: value.declarationErrors ?? [],
+      dependencyWatch: value.dependencyWatch ?? null,
+      sharedBuildError: value.sharedBuildError ?? null,
+      buildScheduler: value.buildScheduler ?? null,
+      discovery: value.discovery ?? null,
+      preflight: value.preflight ?? {
+        scopeResolved: scope === undefined || exactPackageScope,
+        packageIds: scope === undefined ? packages.map(item => item?.packageId) : exactPackageScope ? [scope] : null,
+      },
+      scopeProjection: scope === undefined ? "all" : preflightIds === null ? "unavailable" : "exact",
       ...(views === undefined ? {} : {views}),
     })
   }
@@ -531,7 +595,7 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
       !legacyStatePaths.some(existsSync) && migration === null) return inspection.record!
     let lease: ReturnType<typeof acquireExternalStorybookStartLease> | null = null
     try {
-      const leaseDeadline = Date.now() + 20_000
+      const leaseDeadline = Date.now() + STORYBOOK_SERVER_START_TIMEOUT_MS
       while (lease === null) {
         signal.throwIfAborted()
         try {
@@ -585,7 +649,7 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
       const child = this.#spawnDaemon({
         entryPath: this.#daemonEntryPath,
         toolRoot: this.#toolRoot,
-        declarations: Object.freeze([]),
+        declarations,
         ...(preferredPort === undefined ? {} : {preferredPort}),
         startLease: Object.freeze({path: lease.path, token: lease.token}),
       })
@@ -666,37 +730,80 @@ async function waitForRunning(
   child: SpawnedStorybookDaemon,
   startLease: Readonly<{path: string; token: string}>,
 ): Promise<ExternalStorybookServerRecord> {
-  const deadline = Date.now() + 20_000
-  while (Date.now() < deadline) {
-    signal.throwIfAborted()
-    if (child.exitCode !== null) {
-      const stderr = (await new Response(child.stderr).text()).trim()
-      throw new Error(stderr.length === 0
-        ? `Storybook daemon exited during startup with code ${child.exitCode}`
-        : `Storybook daemon exited during startup: ${stderr.slice(0, 4_096)}`)
-    }
-    publishExternalStorybookStartCandidate({
-      lease: startLease,
-      statePath: externalStorybookServerStatePath(),
-      toolRoot,
-      childPid: child.pid,
-    })
-    const inspection = await inspectExternalStorybookServer()
-    assertOwnedStorybookState(inspection, toolRoot)
-    if (compatibleRunningRecord(inspection, implementationDigest, toolRoot)) return inspection.record!
-    if (inspection.state === "running" && inspection.record !== null) {
-      const currentDigest = externalStorybookImplementationDigest(toolRoot)
-      if (compatibleRunningRecord(inspection, currentDigest, toolRoot)) return inspection.record
-      if (inspection.record.pid === child.pid) {
-        throw new Error("Storybook implementation changed while the daemon was starting")
+  const stderr = captureDaemonStderr(child.stderr)
+  const deadline = Date.now() + STORYBOOK_SERVER_START_TIMEOUT_MS
+  try {
+    while (Date.now() < deadline) {
+      signal.throwIfAborted()
+      if (child.exitCode !== null) {
+        await stderr.completed
+        throw new Error(`Storybook daemon exited during startup with code ${child.exitCode}`)
       }
+      publishExternalStorybookStartCandidate({
+        lease: startLease,
+        statePath: externalStorybookServerStatePath(),
+        toolRoot,
+        childPid: child.pid,
+      })
+      const inspection = await inspectExternalStorybookServer()
+      assertOwnedStorybookState(inspection, toolRoot)
+      if (compatibleRunningRecord(inspection, implementationDigest, toolRoot)) return inspection.record!
+      if (inspection.state === "running" && inspection.record !== null) {
+        const currentDigest = externalStorybookImplementationDigest(toolRoot)
+        if (compatibleRunningRecord(inspection, currentDigest, toolRoot)) return inspection.record
+        if (inspection.record.pid === child.pid) {
+          throw new Error("Storybook implementation changed while the daemon was starting")
+        }
+      }
+      if (inspection.state === "stale" && !inspection.replaceable) {
+        throw new Error(`Storybook daemon published ambiguous state: ${inspection.reason}`)
+      }
+      await Bun.sleep(50)
     }
-    if (inspection.state === "stale" && !inspection.replaceable) {
-      throw new Error(`Storybook daemon published ambiguous state: ${inspection.reason}`)
-    }
-    await Bun.sleep(50)
+    throw new DOMException("Storybook server start timed out", "TimeoutError")
+  } catch (error) {
+    throw withDaemonStderr(error, stderr.tail())
   }
-  throw new DOMException("Storybook server start timed out", "TimeoutError")
+}
+
+function captureDaemonStderr(stream: ReadableStream<Uint8Array>): Readonly<{
+  completed: Promise<void>
+  tail(): string
+}> {
+  let output = ""
+  const append = (value: string): void => {
+    output = `${output}${value}`.slice(-DAEMON_STDERR_TAIL_LENGTH)
+  }
+  const completed = (async (): Promise<void> => {
+    const reader = stream.getReader()
+    const decoder = new TextDecoder()
+    try {
+      while (true) {
+        const {done, value} = await reader.read()
+        if (done) break
+        append(decoder.decode(value, {stream: true}))
+      }
+      append(decoder.decode())
+    } catch (error) {
+      append(`\n[Storybook daemon stderr read failed: ${startupErrorText(error)}]`)
+    } finally {
+      reader.releaseLock()
+    }
+  })()
+  return Object.freeze({
+    completed,
+    tail: () => output.trim(),
+  })
+}
+
+function withDaemonStderr(error: unknown, stderr: string): Error {
+  if (stderr.length === 0) return error instanceof Error ? error : new Error(String(error))
+  const message = `${error instanceof Error ? error.message : String(error)}\nStorybook daemon stderr:\n${stderr}`
+  return error instanceof DOMException ? new DOMException(message, error.name) : new Error(message)
+}
+
+function startupErrorText(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 async function stopMismatchedDaemon(
@@ -912,6 +1019,16 @@ function publicPackageSnapshot(value: unknown) {
     buildState: record.buildState,
     diagnostics: sanitizeDiagnostics(record.diagnostics),
     builds: record.builds,
+    generation: record.generation,
+    requestedGeneration: record.requestedGeneration,
+    completedGeneration: record.completedGeneration,
+    subscribers: record.subscribers,
+    pendingOperationId: record.pendingOperationId,
+    lastBuildReason: record.lastBuildReason,
+    lastQueueDurationMs: record.lastQueueDurationMs,
+    lastExecutionDurationMs: record.lastExecutionDurationMs,
+    inputFreshness: record.inputFreshness,
+    cacheOutcome: record.cacheOutcome,
   })
 }
 

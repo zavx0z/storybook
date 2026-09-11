@@ -1,5 +1,9 @@
 import {describe, expect, test} from "bun:test"
-import {generateStorybookLoaderSource} from "./generated-loader.ts"
+import {
+  generateStorybookLoaderSource,
+  generateStorybookAppliedRevisionLoaderSource,
+  generateStorybookRevisionPayloadSource,
+} from "./generated-loader.ts"
 
 const runtime = Object.freeze({path: "/owner/package/.storybook/runtime.ts", export: "runtime"})
 
@@ -145,5 +149,34 @@ describe("external Storybook generated loader", () => {
     expect(source).toContain("const runtimeLoader = null")
     expect(source).toContain("export const loadStorybookPackageRuntime = null")
     expect(source).toContain("export function loadStorybookWidget(id)")
+  })
+
+  test("генерирует exact page-realm revision payload без side effects", () => {
+    const source = generateStorybookRevisionPayloadSource({
+      packageId: "@fixture/package",
+      candidateRevision: "revision-a",
+      sharedModuleEpoch: "shared-a",
+      hostModuleEpoch: "host-a",
+      graphSnapshot: {protocol: "storybook-package-graph/1"},
+    })
+
+    expect(source).toContain("export const STORYBOOK_APPLIED_REVISION")
+    expect(source).toContain('protocol: "storybook-page-realm/1"')
+    expect(source).toContain('sharedModuleEpoch: "shared-a"')
+    expect(source).toContain('hostModuleEpoch: "host-a"')
+    expect(source).toContain("storyLoaders: STORYBOOK_PACKAGE_STORY_LOADERS")
+    expect(source).not.toContain("startExternalStorybookPackage")
+    expect(source).not.toMatch(/\bdocument\b|\bwindow\b|\blocation\b/u)
+  })
+
+  test("генерирует bounded importer immutable ревизии без URL от сервера", () => {
+    const source = generateStorybookAppliedRevisionLoaderSource("@fixture/package")
+
+    expect(source).toContain('const url = "/__storybook/revisions/%40fixture%2Fpackage/" + revision + "/revision-payload.js"')
+    expect(source).toContain("const namespace = await import(url)")
+    expect(source).toContain("signal.throwIfAborted()")
+    expect(source).toContain('payload.protocol !== "storybook-page-realm/1"')
+    expect(source).not.toContain("revisionUrl")
+    expect(source).not.toContain("fetch(")
   })
 })

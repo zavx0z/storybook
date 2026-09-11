@@ -65,10 +65,14 @@ describe.serial("external Storybook shared controller", () => {
       ...running,
       implementationDigest: "0".repeat(64),
     }))
-    expect(await second.status({schemaVersion: 1}, context())).toMatchObject({
+    const staleStatus = await second.status({schemaVersion: 1}, context())
+    expect(staleStatus).toMatchObject({
       status: "success",
       server: "stale",
+      running: true,
     })
+    expect(Array.isArray(staleStatus.packages)).toBe(true)
+    expect(staleStatus.buildScheduler).toMatchObject({activeCount: 0, queuedCount: 0})
     const upgraded = await second.ensure({schemaVersion: 1, roots: []}, context())
     expect(upgraded.instanceId).not.toBe(ensured.instanceId)
     const upgradedRecord = readExternalStorybookServerRecord(statePath)
@@ -223,6 +227,44 @@ describe.serial("external Storybook shared controller", () => {
     } finally {
       if (previousMarker === undefined) delete Bun.env.STORYBOOK_SLOW_DAEMON_MARKER
       else Bun.env.STORYBOOK_SLOW_DAEMON_MARKER = previousMarker
+    }
+  })
+
+  test("allows catalog preparation beyond the old twenty-second startup cutoff", async () => {
+    const controller = createExternalStorybookController({
+      daemonEntryPath: join(import.meta.dir, "fixtures/delayed-ready-daemon.ts"),
+      legacyStatePaths: [],
+    })
+    try {
+      const result = await controller.ensure({schemaVersion: 1, roots: []}, {
+        signal: AbortSignal.timeout(60_000),
+      })
+      expect(result).toMatchObject({status: "success", server: "running"})
+    } finally {
+      await controller.stop({schemaVersion: 1, confirm: true}, context())
+    }
+  }, 65_000)
+
+  test("drains a full daemon stderr pipe and reports its startup phase", async () => {
+    const marker = join(stateRoot, "stderr-flood-daemon.pid")
+    const previousMarker = Bun.env.STORYBOOK_STDERR_FLOOD_DAEMON_MARKER
+    Bun.env.STORYBOOK_STDERR_FLOOD_DAEMON_MARKER = marker
+    try {
+      const controller = createExternalStorybookController({
+        daemonEntryPath: join(import.meta.dir, "fixtures/stderr-flood-daemon.ts"),
+        legacyStatePaths: [],
+      })
+      await expect(controller.ensure({schemaVersion: 1, roots: []}, {
+        signal: AbortSignal.timeout(3_000),
+      })).rejects.toThrow("Storybook startup: catalog")
+      await waitForPath(marker)
+      const pid = Number((await Bun.file(marker).text()).trim())
+      expect(processExists(pid)).toBeFalse()
+      expect(existsSync(`${externalStorybookServerStatePath()}.start.lock`)).toBeFalse()
+      expect(existsSync(externalStorybookServerStatePath())).toBeFalse()
+    } finally {
+      if (previousMarker === undefined) delete Bun.env.STORYBOOK_STDERR_FLOOD_DAEMON_MARKER
+      else Bun.env.STORYBOOK_STDERR_FLOOD_DAEMON_MARKER = previousMarker
     }
   })
 

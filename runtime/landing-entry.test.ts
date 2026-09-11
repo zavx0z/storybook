@@ -32,6 +32,7 @@ import {createExternalStorybookClientSnapshot} from "./client-protocol.ts"
 import {
   startExternalStorybookLanding,
 } from "./landing-entry.ts"
+import {storybookPackageUrlPath} from "@zavx0z/storybook-browser-lifecycle/contract"
 import type {ExternalStorybookRootFactory} from "./shell.ts"
 
 const fixtureRoot = join(import.meta.dir, "../discovery/fixtures/valid")
@@ -51,6 +52,11 @@ describe("external Storybook landing frontend", () => {
         return Response.json(snapshot)
       }) as typeof fetch,
       createSocket() { return {addEventListener() {}, removeEventListener() {}, send() {}, close() {}} },
+      async navigatePackage({packageId, route}) {
+        const next = new URL(storybookPackageUrlPath(packageId, route), location.href)
+        location.href = next.href
+        location.pathname = next.pathname
+      },
       shell: {canvas: {} as HTMLCanvasElement, loadFont: async () => ({}) as never, createRoot: fakeRootFactory(state)},
     })
     try {

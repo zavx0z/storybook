@@ -3,7 +3,10 @@ import {createHash} from "node:crypto"
 import {mkdtempSync, mkdirSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import {ExternalStorybookSessionManager} from "./session-manager.ts"
+import {
+  ExternalStorybookSessionManager,
+  storybookSessionAdditionalInputWatchPaths,
+} from "./session-manager.ts"
 import {StorybookDependencyWatchCoordinator} from "./dependency-watch.ts"
 import {STORYBOOK_PACKAGE_GRAPH_PROTOCOL, type StorybookPackageRevisionGraphSnapshot} from "./package-revision.ts"
 import type {
@@ -19,6 +22,23 @@ afterEach(() => {
 })
 
 describe("external Storybook PackageSession manager", () => {
+  test("registry-owned declaration не возвращается как code input watcher", () => {
+    const root = fixtureRoot()
+    const contract = join(root, "contract", "input.ts")
+    const code = join(root, "runtime.ts")
+    const resource = join(root, "asset.svg")
+    mkdirSync(join(root, "contract"), {recursive: true})
+    writeFileSync(contract, "/** Contract */\nexport interface Input {}\n")
+    writeFileSync(code, "export const runtime = true\n")
+    writeFileSync(resource, "<svg/>\n")
+
+    expect(storybookSessionAdditionalInputWatchPaths([
+      {path: contract, category: "declaration"},
+      {path: code, category: "code"},
+      {path: resource, category: "resource"},
+    ], [contract, code, resource])).toEqual([code, resource])
+  })
+
   test("sync adds, preserves, reconfigures and detaches exact sessions", async () => {
     const root = fixtureRoot()
     const events: StorybookPackageEvent[] = []
@@ -104,9 +124,53 @@ describe("external Storybook PackageSession manager", () => {
     await started
     const b = await manager.ensure("@fixture/b")
     expect(b.buildState).toBe("built")
-    expect(manager.session("@fixture/a").snapshot().buildState).toBe("building")
+    expect(manager.session("@fixture/a").snapshot().buildState).toBe("compiling")
     await manager.dispose()
     await a
+  })
+
+  test("distinguishes a queued package from the only admitted compiler", async () => {
+    const root = fixtureRoot()
+    let releaseA!: () => void
+    let markAStarted!: () => void
+    const aStarted = new Promise<void>((resolvePromise) => { markAStarted = resolvePromise })
+    const aGate = new Promise<void>((resolvePromise) => { releaseA = resolvePromise })
+    const startedPackages: string[] = []
+    const manager = new ExternalStorybookSessionManager({
+      artifactRoot: join(root, ".artifacts"),
+      buildConcurrency: 1,
+      buildRevision: async (input) => {
+        startedPackages.push(input.descriptor.packageId)
+        if (input.descriptor.packageId === "@fixture/a") {
+          markAStarted()
+          await aGate
+        }
+        return successfulBuild(input.stagingDirectory)
+      },
+    })
+    manager.sync([descriptor(root, "a"), descriptor(root, "b")])
+    const a = manager.ensure("@fixture/a", {owner: "open"})
+    await aStarted
+    const b = manager.ensure("@fixture/b", {owner: "check"})
+    await Bun.sleep(0)
+    expect(manager.session("@fixture/a").snapshot()).toMatchObject({
+      buildState: "compiling",
+      lastBuildReason: null,
+    })
+    expect(manager.session("@fixture/b").snapshot()).toMatchObject({
+      buildState: "queued",
+      lastBuildReason: null,
+    })
+    expect(startedPackages).toEqual(["@fixture/a"])
+    expect(manager.buildSchedulerSnapshot()).toMatchObject({
+      activeCount: 1,
+      queuedCount: 1,
+      active: [{packageId: "@fixture/a", owner: "open", reason: "missing", state: "running"}],
+      queued: [{packageId: "@fixture/b", owner: "check", reason: "missing", state: "queued"}],
+    })
+    releaseA()
+    await Promise.all([a, b])
+    await manager.dispose()
   })
 
   test("publishes a committed revision even when watcher projection fails", async () => {

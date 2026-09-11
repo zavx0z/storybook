@@ -119,6 +119,9 @@
 
 ## Delivery safety
 
+- Перед open/check и тяжёлыми проверками применять
+  [правило предварительной оценки нагрузки](requirements.md#build-preflight).
+  Не повторять запросы сборки без проверки уже выполняемой работы.
 - Storybook browser lifecycle is implemented inside Storybook MCP through its
   private direct-CDP controller. Never use `ai-macos`, `@meta/chrome`, a browser
   CLI/script or OS focus as a Storybook dependency or fallback.

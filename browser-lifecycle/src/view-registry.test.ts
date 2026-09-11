@@ -22,6 +22,11 @@ describe("Storybook view registry", () => {
       route: "components/button/default",
     })
     expect(registry.internal(first[0]!.viewId).targetId).toBe("CDP-SECRET-TARGET")
+    const selected = registry.synchronize(targets.map(target => ({
+      ...target, url: `${target.url}?preview=revision-a&inspector=output`,
+    })), "http://127.0.0.1:43123")
+    expect(selected[0]?.viewId).toBe(first[0]?.viewId)
+    expect(selected[0]?.route).toBe(first[0]?.route)
   })
 
   test("keeps multiple views of a package and invalidates a handle when its tab changes package", () => {

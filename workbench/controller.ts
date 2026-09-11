@@ -132,6 +132,10 @@ export function createWorkbenchModel(options: Omit<CreateWorkbenchOptions, "docu
     if (retained === null || !activeWorkbenchInspectorWidgets(state).some(widget => widget.id === id)) return
     retained.selectedId = id
     rerender()
+    element.dispatchEvent(new CustomEvent(WORKBENCH_EVENTS.inspector, {
+      bubbles: true,
+      detail: Object.freeze({id}),
+    }))
   }
   const onInspectorQueryChange = (query: string): void => {
     const retained = retainedWorkbenchInspectorState(state, inspectorStateBySubject)
@@ -145,12 +149,19 @@ export function createWorkbenchModel(options: Omit<CreateWorkbenchOptions, "docu
     retained.expanded.set(id, expanded)
     rerender()
   }
+  const onInspectorExpandedChange = (id: string, keys: readonly string[]): void => {
+    const retained = retainedWorkbenchInspectorState(state, inspectorStateBySubject)
+    if (retained === null || !activeWorkbenchInspectorWidgets(state).some(widget => widget.id === id)) return
+    retained.treeExpanded.set(id, Object.freeze([...keys]))
+    rerender()
+  }
 
   const renderState = (candidate: WorkbenchViewState): void => {
     const inspector = projectWorkbenchInspector(
       candidate,
       inspectorStateBySubject,
       onInspectorToggle,
+      onInspectorExpandedChange,
     )
     snapshot = {
       document,
@@ -219,6 +230,29 @@ export function createWorkbenchModel(options: Omit<CreateWorkbenchOptions, "docu
     if (elements !== undefined) syncWorkbenchPresentation(previousPresentation, presentation, elements, document, projectionHosts)
   }
 
+  /**
+  Выбирает доступную секцию текущего Inspector без смены Preview маршрута.
+
+  Runtime восстанавливает этот выбор из URL после публикации presentation;
+  `null` возвращает первое доступное значение рабочего пространства.
+  */
+  const selectInspector = (id: string | null): void => {
+    assertActive(disposed)
+    const retained = retainedWorkbenchInspectorState(state, inspectorStateBySubject)
+    if (retained === null) return
+    const widgets = activeWorkbenchInspectorWidgets(state)
+    const selected = id === null ? widgets[0]?.id ?? "" : id
+    if (!widgets.some(widget => widget.id === selected)) return
+    retained.selectedId = selected
+    rerender()
+  }
+
+  /** Возвращает retained выбор активного рабочего пространства Inspector. */
+  const selectedInspector = (): string | null => {
+    assertActive(disposed)
+    return retainedWorkbenchInspectorState(state, inspectorStateBySubject)?.selectedId || null
+  }
+
   const dispose = (): void => {
     if (disposed) return
     disposed = true
@@ -227,7 +261,7 @@ export function createWorkbenchModel(options: Omit<CreateWorkbenchOptions, "docu
     listeners.clear()
   }
 
-  const controller: WorkbenchController = Object.freeze({read, update, present, dispose})
+  const controller: WorkbenchController = Object.freeze({read, update, present, selectedInspector, selectInspector, dispose})
   return Object.freeze({
     getSnapshot: () => snapshot,
     subscribe(listener: () => void) {
@@ -239,7 +273,7 @@ export function createWorkbenchModel(options: Omit<CreateWorkbenchOptions, "docu
       elements = readWorkbenchElements(element)
       projectionHosts = validateWorkbenchProjectionHosts(hosts, document)
       syncWorkbenchPresentation(null, state.presentation, elements, document, projectionHosts)
-      return {document, element, elements, controller, update, present, dispose}
+      return {document, element, elements, controller, update, present, selectedInspector, selectInspector, dispose}
     },
     dispose,
   })

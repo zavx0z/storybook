@@ -53,6 +53,28 @@ export function StandardWidgetPanel(props: WidgetPanelProps) {
   </Panel>
 }
 
+/** Содержимое widget со своей шапкой, без дополнительной сворачиваемой панели. */
+export function CustomWidgetContent(props: WidgetPanelProps & Readonly<{
+  children: JsxSourceElement
+}>) {
+  return <div
+    hidden={props.hidden}
+    style={css`
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+      width: 100%;
+
+      &[hidden] {
+        display: none;
+      }
+    `}
+  >
+    {props.children}
+  </div>
+}
+
 export function CustomWidgetPanel(props: WidgetPanelProps & Readonly<{
   children: JsxSourceElement
 }>) {

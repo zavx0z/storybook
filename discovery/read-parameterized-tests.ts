@@ -35,6 +35,9 @@ export type ParameterizedDescribe = Readonly<{name: string, parameters: TestPara
 */
 export type ParameterizedTest = Readonly<{name: string, parameters: TestParameter[], describes: ParameterizedDescribe[]}>
 
+/** Результат разбора нескольких spec-файлов одной TypeScript API session. */
+export type ParameterizedTestsBatch = ReadonlyMap<string, readonly ParameterizedTest[]>
+
 function readLiteral(node: Node, source: SourceFile): TestParameter {
   if (isSatisfiesExpression(node) || isAsExpression(node) || isParenthesizedExpression(node)) {
     return readLiteral(node.expression, source)
@@ -83,45 +86,73 @@ boolean и null. Обёртки `satisfies`, `as` и скобки не вход�
 массивом либо содержат неподдерживаемое выражение.
 */
 export async function readParameterizedTests(root: string, file: string): Promise<ParameterizedTest[]> {
+  const batch = await readParameterizedTestsBatch(root, [file])
+  return [...batch.get(file) ?? []]
+}
+
+/**
+Читает несколько spec-файлов через один snapshot и одну TypeScript API session.
+
+@param root - Абсолютный корень проекта для разрешения tsconfig и импортов.
+
+@param files - Непустой набор уникальных абсолютных путей в порядке discovery.
+
+@returns Map с объявлениями каждого файла в исходном порядке.
+
+@throws Если общий snapshot или любой spec не соответствует поддерживаемой AST-форме.
+*/
+export async function readParameterizedTestsBatch(
+  root: string,
+  files: readonly string[],
+): Promise<ParameterizedTestsBatch> {
+  if (files.length === 0) return new Map()
+  if (new Set(files).size !== files.length) throw new Error("Spec batch не должен содержать повторные пути")
   const api = new API({cwd: root})
   try {
-    const snapshot = await api.updateSnapshot({openFiles: [file]})
-    const project = await snapshot.getDefaultProjectForFile(file)
-    const source = await project?.program.getSourceFile(file)
-    if (source === undefined) throw new Error(`Не найден исходный файл теста: ${file}`)
-
-    const tests: ParameterizedTest[] = []
-    const visit = (node: Node, describes: ParameterizedDescribe[]) => {
-      if (isCallExpression(node) && isCallExpression(node.expression)) {
-        const each = node.expression
-        const access = each.expression
-        if (isPropertyAccessExpression(access) && access.name.text === "each"
-          && isIdentifier(access.expression) && ["test", "describe"].includes(access.expression.text)) {
-          const kind = access.expression.text
-          const title = node.arguments[0]
-          const table = each.arguments[0]
-          if (title === undefined || table === undefined) throw new Error(`В ${kind}.each отсутствуют название или параметры`)
-          const name = readLiteral(title, source)
-          const parameters = readLiteral(table, source)
-          if (typeof name !== "string") throw new Error(`Название ${kind}.each должно быть строкой`)
-          if (!Array.isArray(parameters)) throw new Error(`Параметры ${kind}.each должны быть массивом`)
-          if (kind === "test") {
-            tests.push({name, parameters, describes})
-          } else {
-            const callback = node.arguments[1]
-            if (callback === undefined || (!isArrowFunction(callback) && !isFunctionExpression(callback))) {
-              throw new Error("Callback describe.each должен быть явной функцией")
-            }
-            visit(callback.body, [...describes, {name, parameters}])
-          }
-          return
-        }
-      }
-      node.forEachChild(child => visit(child, describes))
+    const snapshot = await api.updateSnapshot({openFiles: [...files]})
+    const result = new Map<string, readonly ParameterizedTest[]>()
+    for (const file of files) {
+      const project = await snapshot.getDefaultProjectForFile(file)
+      const source = await project?.program.getSourceFile(file)
+      if (source === undefined) throw new Error(`Не найден исходный файл теста: ${file}`)
+      result.set(file, readParameterizedTestsSource(source))
     }
-    visit(source, [])
-    return tests
+    return result
   } finally {
     await api.close()
   }
+}
+
+function readParameterizedTestsSource(source: SourceFile): readonly ParameterizedTest[] {
+  const tests: ParameterizedTest[] = []
+  const visit = (node: Node, describes: ParameterizedDescribe[]) => {
+    if (isCallExpression(node) && isCallExpression(node.expression)) {
+      const each = node.expression
+      const access = each.expression
+      if (isPropertyAccessExpression(access) && access.name.text === "each"
+        && isIdentifier(access.expression) && ["test", "describe"].includes(access.expression.text)) {
+        const kind = access.expression.text
+        const title = node.arguments[0]
+        const table = each.arguments[0]
+        if (title === undefined || table === undefined) throw new Error(`В ${kind}.each отсутствуют название или параметры`)
+        const name = readLiteral(title, source)
+        const parameters = readLiteral(table, source)
+        if (typeof name !== "string") throw new Error(`Название ${kind}.each должно быть строкой`)
+        if (!Array.isArray(parameters)) throw new Error(`Параметры ${kind}.each должны быть массивом`)
+        if (kind === "test") {
+          tests.push({name, parameters, describes})
+        } else {
+          const callback = node.arguments[1]
+          if (callback === undefined || (!isArrowFunction(callback) && !isFunctionExpression(callback))) {
+            throw new Error("Callback describe.each должен быть явной функцией")
+          }
+          visit(callback.body, [...describes, {name, parameters}])
+        }
+        return
+      }
+    }
+    node.forEachChild(child => visit(child, describes))
+  }
+  visit(source, [])
+  return tests
 }

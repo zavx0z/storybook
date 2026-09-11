@@ -8,21 +8,43 @@ import {createHash} from "node:crypto"
 import {constants} from "node:fs"
 import {open} from "node:fs/promises"
 import type {StorybookDependencyCase, StorybookDependencySpec} from "../catalog/catalog.t.ts"
-import {readParameterizedTests, type TestParameter} from "./read-parameterized-tests.ts"
+import {readParameterizedTestsBatch, type TestParameter} from "./read-parameterized-tests.ts"
 
 function object(value: TestParameter | undefined): value is {[key: string]: TestParameter} {
   return value !== null && typeof value === "object" && !Array.isArray(value)
 }
 
 export async function readDependencySpec(root: string, path: string): Promise<StorybookDependencySpec> {
+  return (await readDependencySpecs(root, [path])).get(path)!
+}
+
+/** Читает несколько dependency specs одной AST session, сохраняя побайтовую аттестацию каждого файла. */
+export async function readDependencySpecs(
+  root: string,
+  paths: readonly string[],
+): Promise<ReadonlyMap<string, StorybookDependencySpec>> {
+  const sources = new Map<string, string>()
+  for (const path of paths) sources.set(path, await readDependencySource(path))
+  const testsByPath = await readParameterizedTestsBatch(root, paths)
+  const specs = new Map<string, StorybookDependencySpec>()
+  for (const path of paths) specs.set(path, await dependencySpec(path, sources.get(path)!, testsByPath.get(path) ?? []))
+  return specs
+}
+
+async function readDependencySource(path: string): Promise<string> {
   const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW)
-  let source: string
   try {
     const info = await file.stat()
     if (!info.isFile() || info.size > 1_048_576) throw new Error(`Слишком большой или недопустимый deps.spec.ts: ${path}`)
-    source = await file.readFile("utf8")
+    return await file.readFile("utf8")
   } finally { await file.close() }
-  const tests = await readParameterizedTests(root, path)
+}
+
+async function dependencySpec(
+  path: string,
+  source: string,
+  tests: readonly import("./read-parameterized-tests.ts").ParameterizedTest[],
+): Promise<StorybookDependencySpec> {
   const cases: StorybookDependencyCase[] = []
   for (const test of tests) {
     for (const value of test.parameters) {

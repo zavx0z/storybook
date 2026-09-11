@@ -1,21 +1,24 @@
 import {constants} from "node:fs"
 import {lstat, open, readdir, realpath} from "node:fs/promises"
 import {readModuleDocumentation} from "./module-documentation.ts"
-import {readDependencySpec} from "./dependency-spec.ts"
-import {readContractDocumentation} from "./contract-documentation.ts"
-import {dirname, join, relative} from "node:path"
+import {readDependencySpecs} from "./dependency-spec.ts"
+import {readContractDocumentations} from "./contract-documentation.ts"
+import {basename, dirname, join, relative} from "node:path"
 import type {StorybookDirectory} from "../catalog/catalog.t.ts"
 
 /** Обходит категории до публичного index.tsx, собственного src или отдельного пакета. */
 export async function discoverStorybookDirectories(
   root: string,
   packageRoots: ReadonlySet<string>,
+  onAnalysisSession: (kind: "contract" | "dependency") => void = () => {},
 ): Promise<Readonly<{directories: readonly StorybookDirectory[]; watchPaths: readonly string[]}>> {
   root = await realpath(root)
   const repository = await runGit(root, ["rev-parse", "--show-toplevel"])
   if (repository.code !== 0 && !repository.error.includes("not a git repository")) throw new Error(repository.error)
   const gitRoot = repository.code === 0 ? await realpath(repository.output.trim()) : null
   const watchPaths = new Set<string>()
+  const contractPathsByDirectory = new Map<string, readonly string[]>()
+  const dependencyPathByDirectory = new Map<string, string>()
   if (gitRoot !== null) {
     for (let path = root;; path = dirname(path)) {
       watchPaths.add(join(path, ".gitignore"))
@@ -81,8 +84,6 @@ export async function discoverStorybookDirectories(
         return null
       })
       const isModule = publicEntry === entryPaths[0] || (sourceInfo?.isDirectory() === true && !sourceInfo.isSymbolicLink())
-      let dependencySpec
-      let contractDocumentation
       if (isModule) {
         const contractDirectory = join(path, "contract")
         const contractPaths = [join(contractDirectory, "input.ts"), join(contractDirectory, "output.ts")]
@@ -92,23 +93,19 @@ export async function discoverStorybookDirectories(
           if (error.code !== "ENOENT") throw error
           return null
         })
-        const sources = []
-        const documents: import("../catalog/catalog.t.ts").StorybookContractDocument[] = []
+        const foundContractPaths: string[] = []
         if (contractInfo?.isDirectory() && !contractInfo.isSymbolicLink() && !excludedContracts.has(contractDirectory)) {
-          for (const [index, contractPath] of contractPaths.entries()) {
+          for (const contractPath of contractPaths) {
             if (excludedContracts.has(contractPath)) continue
             const info = await lstat(contractPath).catch(error => {
               if (error.code !== "ENOENT") throw error
               return null
             })
             if (!info?.isFile() || info.isSymbolicLink()) continue
-            const document = await readContractDocumentation(root, contractPath)
-            sources.push(...document.sources)
-            for (const source of document.sources) watchPaths.add(source.sourcePath)
-            documents.push({direction: index === 0 ? "input" : "output", document: document.document})
+            foundContractPaths.push(contractPath)
           }
         }
-        if (sources.length > 0) contractDocumentation = {sources, documents}
+        if (foundContractPaths.length > 0) contractPathsByDirectory.set(path, Object.freeze(foundContractPaths))
         const specDirectory = join(path, "spec")
         const specPath = join(specDirectory, "deps.spec.ts")
         watchPaths.add(specDirectory)
@@ -123,7 +120,7 @@ export async function discoverStorybookDirectories(
             if (error.code !== "ENOENT") throw error
             return null
           })
-          if (specInfo?.isFile() && !specInfo.isSymbolicLink()) dependencySpec = await readDependencySpec(root, specPath)
+          if (specInfo?.isFile() && !specInfo.isSymbolicLink()) dependencyPathByDirectory.set(path, specPath)
         }
       }
       const children = isModule ? [] : await visit(path)
@@ -135,15 +132,38 @@ export async function discoverStorybookDirectories(
         structuralRole: isModule ? "module" : children.some(child => child.structuralRole !== "directory") ? "category" : "directory",
         readmePath: null,
         ...(moduleDocumentation ? {moduleDocumentation} : {}),
-        ...(dependencySpec ? {dependencySpec} : {}),
-        ...(contractDocumentation ? {contractDocumentation} : {}),
       }))
       result.push(...children)
     }
     return Object.freeze(result)
   }
-  const directories = await visit(root)
-  return Object.freeze({directories, watchPaths: Object.freeze([...watchPaths])})
+  const discovered = await visit(root)
+  const contractPaths = [...contractPathsByDirectory.values()].flat()
+  const dependencyPaths = [...dependencyPathByDirectory.values()]
+  if (contractPaths.length > 0) onAnalysisSession("contract")
+  const contracts = contractPaths.length === 0 ? new Map() : await readContractDocumentations(root, contractPaths)
+  if (dependencyPaths.length > 0) onAnalysisSession("dependency")
+  const dependencies = dependencyPaths.length === 0 ? new Map() : await readDependencySpecs(root, dependencyPaths)
+  const directories = discovered.map(directory => {
+    const ownedContracts = contractPathsByDirectory.get(directory.path) ?? []
+    const sources = ownedContracts.flatMap(path => contracts.get(path)?.sources ?? [])
+    for (const source of sources) watchPaths.add(source.sourcePath)
+    const documents = ownedContracts.flatMap((path): import("../catalog/catalog.t.ts").StorybookContractDocument[] => {
+      const contract = contracts.get(path)
+      return contract === undefined ? [] : [{
+        direction: basename(path) === "input.ts" ? "input" : "output",
+        document: contract.document,
+      }]
+    })
+    const dependencyPath = dependencyPathByDirectory.get(directory.path)
+    const dependencySpec = dependencyPath === undefined ? undefined : dependencies.get(dependencyPath)
+    return Object.freeze({
+      ...directory,
+      ...(dependencySpec === undefined ? {} : {dependencySpec}),
+      ...(documents.length === 0 ? {} : {contractDocumentation: {sources, documents}}),
+    })
+  })
+  return Object.freeze({directories: Object.freeze(directories), watchPaths: Object.freeze([...watchPaths])})
 }
 
 async function runGit(cwd: string, args: readonly string[], input?: string) {

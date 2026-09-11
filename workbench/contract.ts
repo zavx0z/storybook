@@ -16,6 +16,7 @@ export const WORKBENCH_EVENTS = Object.freeze({
   navigate: "storybooknavigate",
   search: "storybooksearch",
   tab: "storybooktab",
+  inspector: "storybookinspector",
   groupToggle: "storybookgrouptoggle",
   catalogAction: "storybookcatalogaction",
 } as const)
@@ -55,16 +56,49 @@ export type WorkbenchInspectorCustomWidgetRegistration = Readonly<{
   label: string
   title: string
   iconSrc?: string
-  component: CompiledTemplate<Readonly<{value: unknown}>>
+  /** false оставляет собственную шапку widget без дополнительной сворачиваемой панели. */
+  wrapInPanel?: boolean
+  component: CompiledTemplate<WorkbenchInspectorCustomWidgetProps>
+}>
+
+/**
+Свойства встроенного в Inspector custom widget.
+
+`expandedKeys` принадлежат рабочему пространству Inspector, а не временно
+смонтированному DOM widget. Поэтому раскрытие вложенной структуры переживает
+переход на другую вкладку и возврат к тому же workspace.
+
+@property value - Значение, связанное с registration текущей секции.
+
+@property expandedKeys - Retained раскрытые строки вложенной структуры widget.
+
+@property onExpandedChange - Записывает следующий набор раскрытых строк workspace.
+*/
+export type WorkbenchInspectorCustomWidgetProps = Readonly<{
+  value: unknown
+  expandedKeys: readonly string[]
+  onExpandedChange(keys: readonly string[]): void
 }>
 
 export type WorkbenchInspectorWidgetRegistration =
   | WorkbenchInspectorStandardWidgetRegistration
   | WorkbenchInspectorCustomWidgetRegistration
 
+/**
+Контекст Inspector, принадлежащий одному presentation workspace.
+
+@property packageId - Exact package identity, изолирующая состояние разных пакетов.
+
+@property subjectId - Domain identity предмета, показываемая вместе с workspace.
+
+@property [workspaceId] - Stable route-specific key для независимого retained state вкладки.
+
+@property widgetIds - Упорядоченные registrations, доступные в этом workspace.
+*/
 export type WorkbenchInspectorSubject = Readonly<{
   packageId: string
   subjectId: string
+  workspaceId?: string
   widgetIds: readonly string[]
 }>
 
@@ -157,6 +191,8 @@ export type WorkbenchController = Readonly<{
     value: WorkbenchAddressMap[Address],
   ): void
   present(value: WorkbenchPresentationUpdate): void
+  selectedInspector(): string | null
+  selectInspector(id: string | null): void
   dispose(): void
 }>
 
@@ -197,6 +233,8 @@ export type Workbench = Readonly<{
     value: WorkbenchAddressMap[Address],
   ): void
   present(value: WorkbenchPresentationUpdate): void
+  selectedInspector(): string | null
+  selectInspector(id: string | null): void
   dispose(): void
 }>
 

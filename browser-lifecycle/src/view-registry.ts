@@ -1,3 +1,4 @@
+import {validStorybookViewQuery} from "./view-query.ts"
 import {storybookPackageRouteFromPathname} from "./contract.ts"
 import {createHmac, randomBytes, timingSafeEqual} from "node:crypto"
 import type {
@@ -137,7 +138,7 @@ function storybookTargetIdentity(
   } catch {
     return null
   }
-  if (url.origin !== origin || !validPreviewQuery(url) || url.hash.length > 0) return null
+  if (url.origin !== origin || !validStorybookViewQuery(url) || url.hash.length > 0) return null
   const packageId = target.packageId
   const route = storybookPackageRouteFromPathname(url.pathname, packageId)
   return route === null ? null : Object.freeze({packageId, route})
@@ -165,9 +166,4 @@ function validateViewId(value: string): void {
   if (typeof value !== "string" || !/^storybook-view-v1_[A-Za-z0-9_-]{43}$/u.test(value)) {
     throw new Error(`Invalid Storybook view identity: ${String(value)}`)
   }
-}
-
-function validPreviewQuery(url: URL): boolean {
-  return url.search === "" || [...url.searchParams.keys()].length === 1 && url.searchParams.has("preview") &&
-    /^[A-Za-z0-9_-]{1,256}$/u.test(url.searchParams.get("preview") ?? "")
 }

@@ -1,16 +1,29 @@
 /** Вкладка контракта использует публичный TypeDoc в существующем Display. */
-import {TypeDoc} from "@webxr/typedoc"
+import {TypeDoc, type TypeDocProps} from "@webxr/typedoc"
 import type {Document} from "@zavx0z/dom"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
 import type {StorybookContractDocument} from "../catalog/catalog.t.ts"
 import {createStorybookComponentPresentation} from "./component-presentation.ts"
 
-type ContractViewProps = Readonly<{documents: readonly StorybookContractDocument[]}>
+/** Передаёт владельцу вкладки навигатор текущего направления; null отзывает его при unmount. */
+export type StorybookContractNavigationReady = (
+  direction: StorybookContractDocument["direction"],
+  navigation: Parameters<NonNullable<TypeDocProps["onReady"]>>[0],
+) => void
+
+type ContractViewProps = Readonly<{
+  documents: readonly StorybookContractDocument[]
+  onReady?: StorybookContractNavigationReady | undefined
+  onScroll?: (() => void) | undefined
+}>
 
 export function StorybookContractView(props: ContractViewProps) {
   return (
     <section
       data-storybook-contract=""
+      onScroll={event => {
+        if (event.target === event.currentTarget) props.onScroll?.()
+      }}
       style={css`
         box-sizing: border-box;
         display: flex;
@@ -29,17 +42,23 @@ export function StorybookContractView(props: ContractViewProps) {
           key={entry.direction}
           document={entry.document}
           title={entry.direction === "input" ? "Входные данные" : "Выходные данные"}
+          onReady={navigation => props.onReady?.(entry.direction, navigation)}
         />
       ))}
     </section>
   )
 }
 
-export function createContractPresentation(document: Document, documents: readonly StorybookContractDocument[]) {
+export function createContractPresentation(
+  document: Document,
+  documents: readonly StorybookContractDocument[],
+  onReady?: StorybookContractNavigationReady,
+  onScroll?: () => void,
+) {
   return createStorybookComponentPresentation(
     document,
     StorybookContractView as unknown as CompiledTemplate<ContractViewProps>,
-    {documents},
+    {documents, onReady, onScroll},
     "[data-storybook-contract]",
   )
 }

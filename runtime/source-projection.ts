@@ -45,13 +45,15 @@ export function projectStorybookSource(
     authorById.set(styleSheet.id, styleSheet)
   }
   const declaredIds = new Set<string>()
+  const semanticPackageStyleSheets = authorSnapshot.styleSheets.filter(({id}) =>
+    /^application-stylesheet-\d+$/u.test(id)).slice(-authorStyleSheetSpecifiers.length)
   const authorStyleSheets = Object.freeze(authorStyleSheetSpecifiers.map((value, index) => {
     const specifier = exactText(value, `author stylesheet ${index} specifier`)
     if (declaredIds.has(specifier)) {
       throw new Error(`Duplicate Storybook package author stylesheet specifier: ${specifier}`)
     }
     declaredIds.add(specifier)
-    const styleSheet = authorById.get(specifier)
+    const styleSheet = authorById.get(specifier) ?? semanticPackageStyleSheets[index]
     if (styleSheet === undefined) {
       throw new Error(`Storybook package author stylesheet is absent from the exact registry: ${specifier}`)
     }

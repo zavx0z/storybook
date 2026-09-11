@@ -24,7 +24,8 @@ test("[CONTRACT-DISCOVERY] вход/выход, обновление, удале
     await Bun.write(output, "export interface Output {ok: boolean}")
     expect((await read()).directories[0]!.contractDocumentation!.documents.map(value => value.direction)).toEqual(["input", "output"])
     await Bun.write(input, "export interface Input {count: number}")
-    expect((await read()).directories[0]!.contractDocumentation!.sources[0]!.sourceDigest).not.toBe(first.sources[0]!.sourceDigest)
+    const updatedInput = (await read()).directories[0]!.contractDocumentation!.sources.find(source => source.sourcePath === input)!
+    expect(updatedInput.sourceDigest).not.toBe(first.sources.find(source => source.sourcePath === input)!.sourceDigest)
     await rm(input)
     expect((await read()).directories[0]!.contractDocumentation!.documents.map(value => value.direction)).toEqual(["output"])
     await Bun.write(join(root, ".gitignore"), "component/contract/\n")

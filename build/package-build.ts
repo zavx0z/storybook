@@ -2,7 +2,6 @@ import {createHash, randomUUID} from "node:crypto"
 import {
   closeSync,
   constants,
-  copyFileSync,
   existsSync,
   fstatSync,
   mkdirSync,
@@ -17,10 +16,28 @@ import {dirname, extname, isAbsolute, join, relative, resolve, sep} from "node:p
 import {fileURLToPath} from "node:url"
 import {
   generateStorybookLoaderSource,
+  generateStorybookAppliedRevisionLoaderSource,
+  generateStorybookRevisionPayloadSource,
+  STORYBOOK_REVISION_PAYLOAD_FILE,
   type StorybookGeneratedVariant,
   type StorybookGeneratedWidget,
 } from "./generated-loader.ts"
 import {createStorybookPackageCompilerPlugins} from "./compiler.ts"
+import {
+  beginStorybookBuildInputAttestation,
+  createStorybookBuildInputFingerprintComputer,
+  parseStorybookBuildInputFingerprint,
+  sameStorybookBuildInputFingerprint,
+  type StorybookBuildInputFingerprint,
+} from "./build-input-fingerprint.ts"
+import {
+  parseStorybookBuildWorkerTransportEvent,
+  type StorybookBuildPhase,
+  type StorybookBuildPhaseEvent,
+  type StorybookBuildPhaseListener,
+  type StorybookBuildWorkerLifecycleListener,
+} from "./build-phase.ts"
+import {waitForStorybookOwnedChild} from "./child-process.ts"
 import {
   canonicalizeStorybookPackageFile,
   preferredStorybookPackageRoot,
@@ -34,6 +51,11 @@ import {
   type StorybookPackageRevisionResourceFile,
   type StorybookPackageRevisionBuilder,
 } from "../sessions/package-session.ts"
+import {
+  createStorybookSharedBrowserExternalPlugin,
+  validateStorybookSharedBrowserIdentity,
+} from "./shared-module-identity.ts"
+import type {StorybookSharedBrowserIdentity} from "./types/shared-module-identity.ts"
 
 export type StorybookCompilerPluginResolver = (
   input: Readonly<{
@@ -48,29 +70,63 @@ export type CreateStorybookPackageRevisionBuilderOptions = Readonly<{
   runtimeProtocolPath?: string
   workerPath?: string
   resolveCompilerPlugins?: StorybookCompilerPluginResolver
+  onPhase?: StorybookBuildPhaseListener
+  onWorkerLifecycle?: StorybookBuildWorkerLifecycleListener
+  sharedBrowserIdentity?: StorybookSharedBrowserIdentity
+  resolveSharedBrowserIdentity?(): Promise<StorybookSharedBrowserIdentity>
 }>
 
+/** Реальный builder result дополняет legacy session result полным cache evidence. */
+export type StorybookFingerprintingPackageRevisionBuild = Readonly<
+  Awaited<ReturnType<StorybookPackageRevisionBuilder>> & {
+    inputFingerprint: StorybookBuildInputFingerprint
+  }
+>
+
+/** Builder остаётся совместимым с session seam, но возвращает optional-to-session evidence. */
+export type StorybookFingerprintingPackageRevisionBuilder = (
+  input: StorybookFingerprintingPackageRevisionBuilderInput,
+) => Promise<StorybookFingerprintingPackageRevisionBuild>
+
+/** Per-operation observers привязываются scheduler context до вызова builder. */
+export type StorybookFingerprintingPackageRevisionBuilderInput = Readonly<
+  Parameters<StorybookPackageRevisionBuilder>[0] & {
+    onPhase?: StorybookBuildPhaseListener
+    onWorkerLifecycle?: StorybookBuildWorkerLifecycleListener
+  }
+>
+
+/** Receipt restore вызывает verifier без знания private browser/protocol entry paths. */
+export type StorybookBuildInputFingerprintVerifier = (
+  value: unknown,
+  descriptor: StorybookPackageBuildDescriptor,
+) => StorybookBuildInputFingerprint | null
+
 export type StorybookPackageBuildWorkerJob = Readonly<{
-  input: Omit<Parameters<StorybookPackageRevisionBuilder>[0], "signal">
+  input: Omit<
+    StorybookFingerprintingPackageRevisionBuilderInput,
+    "signal" | "onPhase" | "onWorkerLifecycle"
+  >
   options: Readonly<{
     browserEntryPath: string
     runtimeProtocolPath: string
+    sharedBrowserIdentity?: StorybookSharedBrowserIdentity
   }>
 }>
 
 export type StorybookPackageBuildWorkerResult = Readonly<{
   ok: true
-  build: Awaited<ReturnType<StorybookPackageRevisionBuilder>>
+  build: StorybookFingerprintingPackageRevisionBuild
 }> | Readonly<{
   ok: false
   message: string
   diagnostics: readonly Readonly<{phase: string, message: string, path: string | null}>[]
 }>
 
-/** Creates the real Bun browser builder used independently by each PackageSession. */
+/** Создаёт реальный Bun browser builder для независимых `PackageSession`. */
 export function createStorybookPackageRevisionBuilder(
   options: CreateStorybookPackageRevisionBuilderOptions = {},
-): StorybookPackageRevisionBuilder {
+): StorybookFingerprintingPackageRevisionBuilder {
   const browserEntryPath = realpathSync(options.browserEntryPath ?? fileURLToPath(
     new URL("../runtime/package-entry.ts", import.meta.url),
   ))
@@ -81,16 +137,76 @@ export function createStorybookPackageRevisionBuilder(
     new URL("./package-build-worker.ts", import.meta.url),
   ))
   if (options.resolveCompilerPlugins !== undefined) {
-    return (input) => buildStorybookPackageRevisionInProcess(input, options)
+    return async (input) => {
+      const sharedBrowserIdentity = await resolveSharedBrowserIdentity(options)
+      return buildStorybookPackageRevisionInProcess(input, {
+        ...options,
+        ...(sharedBrowserIdentity === undefined ? {} : {sharedBrowserIdentity}),
+      })
+    }
   }
-  return (input) => runPackageBuildWorker(input, {browserEntryPath, runtimeProtocolPath}, workerPath)
+  return async (input) => {
+    const sharedBrowserIdentity = await resolveSharedBrowserIdentity(options)
+    return runPackageBuildWorker(
+      input,
+      {
+        browserEntryPath,
+        runtimeProtocolPath,
+        ...(sharedBrowserIdentity === undefined ? {} : {sharedBrowserIdentity}),
+      },
+      workerPath,
+      options.onPhase,
+      options.onWorkerLifecycle,
+    )
+  }
 }
 
-/** In-process implementation used only inside the isolated package-build worker and focused seams. */
+/**
+Создаёт fail-closed verifier для persisted receipt evidence.
+
+Unknown/old/missing evidence, изменённый descriptor, source inventory, config,
+toolchain либо ABI возвращают `null`: session сохраняет lastWorking artifact, но
+не объявляет его cache hit и заказывает cold build. Compiler child не запускается.
+*/
+export function createStorybookBuildInputFingerprintVerifier(
+  options: Pick<
+    CreateStorybookPackageRevisionBuilderOptions,
+    "browserEntryPath" | "runtimeProtocolPath" | "sharedBrowserIdentity"
+  > = {},
+): StorybookBuildInputFingerprintVerifier {
+  const browserEntryPath = realpathSync(options.browserEntryPath ?? fileURLToPath(
+    new URL("../runtime/package-entry.ts", import.meta.url),
+  ))
+  const runtimeProtocolPath = realpathSync(options.runtimeProtocolPath ?? fileURLToPath(
+    new URL("../runtime/runtime-protocol.ts", import.meta.url),
+  ))
+  const compute = createStorybookBuildInputFingerprintComputer()
+  return (value, descriptor): StorybookBuildInputFingerprint | null => {
+    const persisted = parseStorybookBuildInputFingerprint(value)
+    if (persisted === null) return null
+    try {
+      const current = compute({
+        descriptor,
+        browserEntryPath,
+        runtimeProtocolPath,
+        ...(options.sharedBrowserIdentity === undefined
+          ? {}
+          : {sharedBrowserIdentity: validateStorybookSharedBrowserIdentity(options.sharedBrowserIdentity)}),
+        additionalFilePaths: persisted.files.map(({path}) => path),
+        resolutionDirectories: persisted.resolutionDirectories,
+      })
+      return sameStorybookBuildInputFingerprint(persisted, current) ? current : null
+    } catch {
+      return null
+    }
+  }
+}
+
+/** Выполняет сборку внутри isolated package worker либо focused test seam. */
 export async function buildStorybookPackageRevisionInProcess(
-  input: Parameters<StorybookPackageRevisionBuilder>[0],
+  input: StorybookFingerprintingPackageRevisionBuilderInput,
   options: CreateStorybookPackageRevisionBuilderOptions = {},
-): Promise<Awaited<ReturnType<StorybookPackageRevisionBuilder>>> {
+): Promise<StorybookFingerprintingPackageRevisionBuild> {
   input.signal.throwIfAborted()
   const browserEntryPath = realpathSync(options.browserEntryPath ?? fileURLToPath(
     new URL("../runtime/package-entry.ts", import.meta.url),
@@ -107,11 +223,29 @@ export async function buildStorybookPackageRevisionInProcess(
     projectRoot,
     moduleSourcePaths: sourcePaths,
   }))
+  const sharedBrowserIdentity = options.sharedBrowserIdentity === undefined
+    ? undefined
+    : validateStorybookSharedBrowserIdentity(options.sharedBrowserIdentity)
 
-  return (async () => {
+  return (async (): Promise<StorybookFingerprintingPackageRevisionBuild> => {
     const {descriptor, candidateRevision, revisionUrl, stagingDirectory} = input
+    const sharedModuleEpoch = sharedBrowserIdentity?.epoch ?? isolatedStorybookSharedModuleEpoch(
+      descriptor.packageId,
+      candidateRevision,
+    )
     input.signal.throwIfAborted()
     mkdirSync(stagingDirectory, {recursive: true})
+    const onPhase = input.onPhase ?? options.onPhase
+    emitPhase(onPhase, "fingerprint", "started")
+    const attestation = await beginStorybookBuildInputAttestation({
+      descriptor,
+      browserEntryPath,
+      runtimeProtocolPath,
+      stagingDirectory,
+      ...(sharedBrowserIdentity === undefined ? {} : {sharedBrowserIdentity}),
+    })
+    try {
+    emitPhase(onPhase, "resources", "started")
     for (const resource of descriptor.resourceFiles ?? []) {
       let attestedBytes: Buffer | null = null
       if (resource.contentDigest !== undefined) {
@@ -134,9 +268,15 @@ export async function buildStorybookPackageRevisionInProcess(
         if (attestedBytes === null) throw new Error(`Derived resource has no attested source: ${resource.targetPath}`)
         writeFileSync(target, resource.derivedContent)
       }
-      else if (attestedBytes === null) copyFileSync(resource.sourcePath, target)
+      // macOS copyFileSync может сообщать change исходника без изменения его байтов.
+      // Записываем проверенный снимок, сохраняя строгий guard реальных изменений.
+      else if (attestedBytes === null) writeFileSync(target, readAttestedRevisionResource({
+        ...resource,
+        sourceRoot: resource.sourceRoot ?? dirname(resource.sourcePath),
+      }))
       else writeFileSync(target, attestedBytes)
     }
+    emitPhase(onPhase, "resources", "completed")
     const modules = [
       ...(descriptor.runtime === null ? [] : [descriptor.runtime]),
       ...descriptor.variants.map(({module}) => module),
@@ -148,15 +288,16 @@ export async function buildStorybookPackageRevisionInProcess(
       projectRoot: descriptor.projectRoot,
       sourcePaths,
     })
-    const validationPlugins = Object.freeze([...(await resolvePlugins(compilerInput))])
     input.signal.throwIfAborted()
-    validatePlugins(validationPlugins)
-    await validateModuleExports(descriptor, validationPlugins, stagingDirectory)
+    emitPhase(onPhase, "exports", "started")
+    validateModuleExports(descriptor)
+    emitPhase(onPhase, "exports", "completed")
     const plugins = Object.freeze([...(await resolvePlugins(compilerInput))])
     validatePlugins(plugins)
 
     const loaderPath = join(stagingDirectory, "generated-loaders.ts")
-    const entryPath = join(stagingDirectory, "package-entry.ts")
+    const entryPath = join(stagingDirectory, "entry.ts")
+    const payloadPath = join(stagingDirectory, "revision-payload.ts")
     const graphPath = join(stagingDirectory, "package-graph.json")
     await Bun.write(graphPath, `${JSON.stringify(descriptor.graphSnapshot)}\n`)
     const variants: readonly StorybookGeneratedVariant[] = descriptor.variants.map(({route, module}) => ({
@@ -173,7 +314,7 @@ export async function buildStorybookPackageRevisionInProcess(
       variants,
       widgets,
     }))
-    await Bun.write(entryPath, [
+    await Bun.write(entryPath, sharedBrowserIdentity === undefined ? [
       `import {startExternalStorybookPackage} from ${JSON.stringify(browserEntryPath)}`,
       "import {",
       "  loadStorybookPackageRuntime,",
@@ -182,24 +323,47 @@ export async function buildStorybookPackageRevisionInProcess(
       "  storybookRevisionUrl,",
       "} from \"./generated-loaders.ts\"",
       "",
+      generateStorybookAppliedRevisionLoaderSource(descriptor.packageId),
       "await startExternalStorybookPackage({",
       `  packageId: ${JSON.stringify(descriptor.packageId)},`,
       `  candidateRevision: ${JSON.stringify(candidateRevision)},`,
+      `  sharedModuleEpoch: ${JSON.stringify(sharedModuleEpoch)},`,
       `  graphSnapshot: ${JSON.stringify(descriptor.graphSnapshot)},`,
       "  revisionUrl: storybookRevisionUrl,",
       "  loadRuntime: loadStorybookPackageRuntime,",
       "  storyLoaders: STORYBOOK_PACKAGE_STORY_LOADERS,",
       "  widgetLoaders: STORYBOOK_PACKAGE_WIDGET_LOADERS,",
+      "  environment: {loadAppliedRevision},",
+      "})",
+      "",
+    ].join("\n") : [
+      `import {startExternalStorybookPage} from ${JSON.stringify(sharedBrowserIdentity.packageEntryUrl)}`,
+      `import {STORYBOOK_APPLIED_REVISION} from "./revision-payload.ts"`,
+      "",
+      "await startExternalStorybookPage({",
+      "  initialPayload: STORYBOOK_APPLIED_REVISION,",
+      `  sharedModuleEpoch: ${JSON.stringify(sharedModuleEpoch)},`,
+      `  hostModuleEpoch: ${JSON.stringify(sharedBrowserIdentity.hostModuleEpoch)},`,
       "})",
       "",
     ].join("\n"))
+    await Bun.write(payloadPath, generateStorybookRevisionPayloadSource({
+      packageId: descriptor.packageId,
+      candidateRevision,
+      sharedModuleEpoch,
+      ...(sharedBrowserIdentity === undefined
+        ? {}
+        : {hostModuleEpoch: sharedBrowserIdentity.hostModuleEpoch}),
+      graphSnapshot: descriptor.graphSnapshot,
+    }))
 
     input.signal.throwIfAborted()
+    emitPhase(onPhase, "bundle", "started")
     const result = await Bun.build({
-      entrypoints: [entryPath],
+      entrypoints: [entryPath, payloadPath],
       outdir: stagingDirectory,
       naming: {
-        entry: "entry.[ext]",
+        entry: "[name].[ext]",
         chunk: "chunks/[name]-[hash].[ext]",
         asset: "assets/[name]-[hash].[ext]",
       },
@@ -210,34 +374,54 @@ export async function buildStorybookPackageRevisionInProcess(
       sourcemap: "external",
       minify: false,
       loader: {".wgsl": "text"},
-      plugins: [...plugins],
+      plugins: [
+        ...(sharedBrowserIdentity === undefined
+          ? []
+          : [createStorybookSharedBrowserExternalPlugin(sharedBrowserIdentity)]),
+        ...plugins,
+      ],
       metafile: true,
       throw: false,
     })
     if (!result.success) throw buildLogsError("compile", result.logs)
+    emitPhase(onPhase, "bundle", "completed")
     const metafile = result.metafile
     if (metafile === undefined) throw storybookBuildError(storybookDiagnostic("link", "Bun emitted no package metafile"))
+    validateBundledModuleExports(descriptor, metafile.outputs, descriptor.projectRoot)
     const stagingPrefix = `${realpathSync(stagingDirectory)}${sep}`
-    const dependencyRealpaths = canonicalizeStorybookPackageIdentities(canonicalBuildInputs(
+    let dependencyRealpaths = canonicalizeStorybookPackageIdentities(canonicalBuildInputs(
       metafile.inputs,
       descriptor.projectRoot,
     ).filter((path) => !path.startsWith(stagingPrefix)))
-    validateConsumerBoundary(dependencyRealpaths, descriptor, stagingDirectory)
     if (descriptor.runtime !== null) {
       const protocolPlugins = Object.freeze([...(await resolvePlugins(compilerInput))])
       validatePlugins(protocolPlugins)
-      await validateRuntimeProtocol(
+      const protocolInputs = await validateRuntimeProtocol(
         descriptor,
         runtimeProtocolPath,
         stagingDirectory,
         protocolPlugins,
         input.signal,
         input.protocolTimeoutMs,
+        onPhase,
       )
+      dependencyRealpaths = canonicalizeStorybookPackageIdentities([
+        ...dependencyRealpaths,
+        ...protocolInputs,
+      ])
     }
-    const entryOutput = result.outputs.find((output) => output.kind === "entry-point")
+    validateConsumerBoundary(dependencyRealpaths, descriptor, stagingDirectory)
+    if (sharedBrowserIdentity !== undefined) {
+      validateStorybookSharedBrowserIdentity(sharedBrowserIdentity)
+    }
+    const entryOutput = result.outputs.find((output) =>
+      output.kind === "entry-point" && basename(output.path) === "entry.js")
     if (entryOutput === undefined) {
       throw storybookBuildError(storybookDiagnostic("link", "Package build emitted no entry point"))
+    }
+    if (!result.outputs.some((output) =>
+      output.kind === "entry-point" && basename(output.path) === STORYBOOK_REVISION_PAYLOAD_FILE)) {
+      throw storybookBuildError(storybookDiagnostic("link", "Package build emitted no revision payload"))
     }
     const entryRelativePath = relative(stagingDirectory, entryOutput.path)
     const moduleGraphRevision = await buildRevisionDigest(
@@ -246,16 +430,21 @@ export async function buildStorybookPackageRevisionInProcess(
       result.outputs,
       metafile.inputs,
     )
-    rmSync(validationOutputPath(stagingDirectory), {recursive: true, force: true})
     rmSync(join(stagingDirectory, ".protocol"), {recursive: true, force: true})
-    for (const path of [loaderPath, entryPath, join(stagingDirectory, "validate-exports.ts"), join(stagingDirectory, "validate-runtime.ts")]) {
+    for (const path of [loaderPath, entryPath, payloadPath, join(stagingDirectory, "validate-runtime.ts")]) {
       rmSync(path, {force: true})
     }
+    const inputFingerprint = await attestation.complete(dependencyRealpaths)
+    emitPhase(onPhase, "fingerprint", "completed")
     return Object.freeze({
       moduleGraphRevision,
       dependencyRealpaths,
       entryRelativePath,
+      inputFingerprint,
     })
+    } finally {
+      attestation.dispose()
+    }
   })()
 }
 
@@ -306,16 +495,30 @@ function readAttestedRevisionResource(
 }
 
 async function runPackageBuildWorker(
-  input: Parameters<StorybookPackageRevisionBuilder>[0],
-  options: Readonly<{browserEntryPath: string, runtimeProtocolPath: string}>,
+  input: StorybookFingerprintingPackageRevisionBuilderInput,
+  options: Readonly<{
+    browserEntryPath: string
+    runtimeProtocolPath: string
+    sharedBrowserIdentity?: StorybookSharedBrowserIdentity
+  }>,
   workerPath: string,
-): Promise<Awaited<ReturnType<StorybookPackageRevisionBuilder>>> {
+  onPhase?: StorybookBuildPhaseListener,
+  onWorkerLifecycle?: StorybookBuildWorkerLifecycleListener,
+): Promise<StorybookFingerprintingPackageRevisionBuild> {
   input.signal.throwIfAborted()
   mkdirSync(input.stagingDirectory, {recursive: true})
   const nonce = randomUUID()
+  const startedAt = new Date().toISOString()
   const jobPath = join(input.stagingDirectory, `.build-job-${nonce}.json`)
   const resultPath = join(input.stagingDirectory, `.build-result-${nonce}.json`)
-  const {signal: _signal, ...serializableInput} = input
+  const {
+    signal: _signal,
+    onPhase: inputOnPhase,
+    onWorkerLifecycle: inputOnWorkerLifecycle,
+    ...serializableInput
+  } = input
+  const phaseListener = inputOnPhase ?? onPhase
+  const lifecycleListener = inputOnWorkerLifecycle ?? onWorkerLifecycle
   const job: StorybookPackageBuildWorkerJob = Object.freeze({
     input: serializableInput,
     options,
@@ -323,18 +526,42 @@ async function runPackageBuildWorker(
   await Bun.write(jobPath, `${JSON.stringify(job)}\n`)
   const child = Bun.spawn([process.execPath, workerPath, jobPath, resultPath], {
     cwd: input.descriptor.projectRoot,
-    env: {...Bun.env, STORYBOOK_PACKAGE_BUILD_WORKER: "1"},
+    env: {
+      ...Bun.env,
+      STORYBOOK_PACKAGE_BUILD_WORKER: "1",
+      STORYBOOK_PACKAGE_BUILD_WORKER_ID: nonce,
+    },
     stdin: "ignore",
-    stdout: "ignore",
+    stdout: "pipe",
     stderr: "pipe",
+    detached: true,
   })
+  let workerStarted = false
+  const workerPid = child.pid
   try {
-    const {exitCode, stderr} = await waitForChild(
+    const {exitCode, stderr} = await waitForStorybookOwnedChild({
       child,
-      input.signal,
-      input.compileTimeoutMs,
-      "Storybook package compile",
-    )
+      signal: input.signal,
+      timeoutMs: input.compileTimeoutMs,
+      label: "Storybook package compile",
+      processGroup: {leaderPid: workerPid},
+      hardKillDelayMs: 1_000,
+      readStdout: async (stream) => readWorkerEventStream(stream, {
+        workerId: nonce,
+        pid: workerPid,
+        onReady: () => {
+          if (workerStarted) return
+          workerStarted = true
+          notifyWorkerLifecycle(lifecycleListener, {
+            state: "started",
+            workerId: nonce,
+            pid: workerPid,
+            startedAt,
+          })
+        },
+        ...(phaseListener === undefined ? {} : {onPhase: phaseListener}),
+      }),
+    })
     input.signal.throwIfAborted()
     if (!existsSync(resultPath)) {
       throw storybookBuildError(storybookDiagnostic(
@@ -352,86 +579,150 @@ async function runPackageBuildWorker(
       ? diagnostics
       : storybookDiagnostic("compile", result.message))
   } finally {
+    const exitCode = await child.exited.catch(() => -1)
+    if (workerStarted) {
+      notifyWorkerLifecycle(lifecycleListener, {
+        state: "exited",
+        workerId: nonce,
+        pid: workerPid,
+        startedAt,
+        finishedAt: new Date().toISOString(),
+        exitCode,
+      })
+    }
     rmSync(jobPath, {force: true})
     rmSync(resultPath, {force: true})
   }
 }
 
-async function waitForChild(
-  child: any,
-  signal: AbortSignal,
-  timeoutMs: number,
-  label: string,
-): Promise<Readonly<{exitCode: number, stdout: string, stderr: string}>> {
-  let timedOut = false
-  let abortReason: unknown = null
-  let hardKill: ReturnType<typeof setTimeout> | null = null
-  const terminate = (reason: unknown, timeout: boolean): void => {
-    abortReason = reason
-    timedOut = timeout
-    try {
-      child.kill()
-      hardKill = setTimeout(() => {
-        try {
-          child.kill(9)
-        } catch {
-          // The exact child already exited.
-        }
-      }, 250)
-    } catch {
-      // The exact child already exited.
-    }
+async function resolveSharedBrowserIdentity(
+  options: CreateStorybookPackageRevisionBuilderOptions,
+): Promise<StorybookSharedBrowserIdentity | undefined> {
+  if (options.sharedBrowserIdentity !== undefined) {
+    return validateStorybookSharedBrowserIdentity(options.sharedBrowserIdentity)
   }
-  const onAbort = (): void => terminate(signal.reason, false)
-  signal.addEventListener("abort", onAbort, {once: true})
-  const timer = setTimeout(() => terminate(new Error(`${label} timed out after ${timeoutMs}ms`), true), timeoutMs)
+  if (options.resolveSharedBrowserIdentity === undefined) return undefined
+  return validateStorybookSharedBrowserIdentity(await options.resolveSharedBrowserIdentity())
+}
+
+/** Создаёт несовместимую между кандидатами эпоху для unshared transitional build. */
+export function isolatedStorybookSharedModuleEpoch(packageId: string, candidateRevision: string): string {
+  return createHash("sha256")
+    .update(`isolated\0${packageId}\0${candidateRevision}`)
+    .digest("hex")
+}
+
+/**
+Дренирует bounded worker stdout и передаёт phase events сразу при получении строки.
+
+Первый принятый lifecycle event обязан подтвердить exact launch nonce и PID.
+Malformed/лишние строки игнорируются и не получают права привязать scheduler к PID.
+*/
+async function readWorkerEventStream(
+  stream: unknown,
+  input: Readonly<{
+    workerId: string
+    pid: number
+    onReady(): void
+    onPhase?: StorybookBuildPhaseListener
+  }>,
+): Promise<string> {
+  if (stream === null || stream === undefined || typeof stream === "number") return ""
+  const reader = (stream as ReadableStream<Uint8Array>).getReader()
+  const decoder = new TextDecoder()
+  let buffered = ""
+  let consumed = 0
+  let ready = false
+  const limit = 64 * 1024
   try {
-    const [exitCode, stdout, stderr] = await Promise.all([
-      child.exited,
-      readBoundedStream(child.stdout, 64 * 1024),
-      readBoundedStream(child.stderr, 64 * 1024),
-    ])
-    if (signal.aborted) throw abortReason instanceof Error ? abortReason : signal.reason
-    if (timedOut) {
-      const error = storybookBuildError(storybookDiagnostic(
-        "timeout",
-        abortReason instanceof Error ? abortReason.message : `${label} timed out`,
-      ))
-      error.name = "TimeoutError"
-      throw error
+    while (true) {
+      const next = await reader.read()
+      if (next.done) break
+      if (consumed >= limit) continue
+      consumed += next.value.byteLength
+      if (consumed > limit) {
+        buffered = ""
+        continue
+      }
+      buffered += decoder.decode(next.value, {stream: true})
+      let newline = buffered.indexOf("\n")
+      while (newline >= 0) {
+        ready = consumeWorkerEventLine(buffered.slice(0, newline), input, ready)
+        buffered = buffered.slice(newline + 1)
+        newline = buffered.indexOf("\n")
+      }
     }
-    return Object.freeze({exitCode, stdout, stderr})
-  } finally {
-    clearTimeout(timer)
-    if (hardKill !== null) clearTimeout(hardKill)
-    signal.removeEventListener("abort", onAbort)
+    buffered += decoder.decode()
+    if (buffered.length > 0) consumeWorkerEventLine(buffered, input, ready)
+  } catch (error) {
+    await reader.cancel(error).catch(() => {})
+    throw error
+  }
+  return ""
+}
+
+/** Проверяет одну JSONL запись и не допускает подмену exact worker handshake. */
+function consumeWorkerEventLine(
+  line: string,
+  input: Readonly<{
+    workerId: string
+    pid: number
+    onReady(): void
+    onPhase?: StorybookBuildPhaseListener
+  }>,
+  ready: boolean,
+): boolean {
+  if (line.length === 0 || line.length > 8 * 1024) return ready
+  let decoded: unknown
+  try {
+    decoded = JSON.parse(line)
+  } catch {
+    return ready
+  }
+  const event = parseStorybookBuildWorkerTransportEvent(decoded)
+  if (event === null) return ready
+  if (event.kind === "ready") {
+    if (!ready && event.workerId === input.workerId && event.pid === input.pid) {
+      input.onReady()
+      return true
+    }
+    return ready
+  }
+  if (ready) notifyPhase(input.onPhase, event.event)
+  return ready
+}
+
+/** Создаёт timestamped phase boundary и изолирует build от observer exception. */
+function emitPhase(
+  listener: StorybookBuildPhaseListener | undefined,
+  phase: StorybookBuildPhase,
+  state: StorybookBuildPhaseEvent["state"],
+): void {
+  notifyPhase(listener, Object.freeze({phase, state, at: new Date().toISOString()}))
+}
+
+/** Observer не получает права ломать либо менять результат compiler operation. */
+function notifyPhase(
+  listener: StorybookBuildPhaseListener | undefined,
+  event: StorybookBuildPhaseEvent,
+): void {
+  try {
+    listener?.(event)
+  } catch {
+    // Scheduler observability не влияет на корректность compiler.
   }
 }
 
-async function readBoundedStream(stream: unknown, limit: number): Promise<string> {
-  if (stream === null || stream === undefined || typeof stream === "number") return ""
-  const reader = (stream as ReadableStream<Uint8Array>).getReader()
-  const chunks: Uint8Array[] = []
-  let length = 0
+/** Lifecycle observer изолирован от exact worker ownership и cancellation. */
+function notifyWorkerLifecycle(
+  listener: StorybookBuildWorkerLifecycleListener | undefined,
+  event: Parameters<StorybookBuildWorkerLifecycleListener>[0],
+): void {
   try {
-    while (length < limit) {
-      const next = await reader.read()
-      if (next.done) break
-      const remaining = limit - length
-      const chunk = next.value.byteLength <= remaining ? next.value : next.value.slice(0, remaining)
-      chunks.push(chunk)
-      length += chunk.byteLength
-    }
-  } finally {
-    await reader.cancel().catch(() => {})
+    listener?.(event)
+  } catch {
+    // Resource sampling не может менять worker lifecycle.
   }
-  const value = new Uint8Array(length)
-  let offset = 0
-  for (const chunk of chunks) {
-    value.set(chunk, offset)
-    offset += chunk.byteLength
-  }
-  return new TextDecoder().decode(value)
 }
 
 function isWorkerDiagnosticPhase(
@@ -441,12 +732,9 @@ function isWorkerDiagnosticPhase(
     .includes(value)
 }
 
-async function validateModuleExports(
+function validateModuleExports(
   descriptor: StorybookPackageBuildDescriptor,
-  plugins: readonly Bun.BunPlugin[],
-  stagingDirectory: string,
-): Promise<void> {
-  const validationPath = join(stagingDirectory, "validate-exports.ts")
+): void {
   const modules = [
     ...(descriptor.runtime === null ? [] : [descriptor.runtime]),
     ...descriptor.variants.map(({module}) => module),
@@ -454,25 +742,44 @@ async function validateModuleExports(
   ]
   if (modules.length === 0) return
   for (const module of modules) validateScannedExport(module.path, module.export)
-  await Bun.write(validationPath, [
-    ...modules.map((module, index) =>
-      `import {${module.export} as storybookExport${index}} from ${JSON.stringify(module.path)}`),
-    `void [${modules.map((_module, index) => `storybookExport${index}`).join(", ")}]`,
-    "",
-  ].join("\n"))
-  const validationOutput = validationOutputPath(stagingDirectory)
-  const result = await Bun.build({
-    entrypoints: [validationPath],
-    outdir: validationOutput,
-    target: "browser",
-    format: "esm",
-    splitting: false,
-    minify: false,
-    loader: {".wgsl": "text"},
-    plugins: [...plugins],
-    throw: false,
-  })
-  if (!result.success) throw buildLogsError("validate", result.logs)
+}
+
+/**
+Проверяет реальные namespace exports динамических chunks по main build metafile.
+
+В отличие от source scan эта проверка видит broken named re-export после resolver
+и tree shaking, но не создаёт второй Bun build и не исполняет author modules.
+*/
+function validateBundledModuleExports(
+  descriptor: StorybookPackageBuildDescriptor,
+  outputs: Readonly<Record<string, unknown>>,
+  projectRoot: string,
+): void {
+  const modules = [
+    ...(descriptor.runtime === null ? [] : [descriptor.runtime]),
+    ...descriptor.variants.map(({module}) => module),
+    ...descriptor.widgetModules.map(({module}) => module),
+  ]
+  const exportsByEntry = new Map<string, readonly string[]>()
+  for (const output of Object.values(outputs)) {
+    if (output === null || typeof output !== "object") continue
+    const record = output as Record<string, unknown>
+    if (typeof record.entryPoint !== "string" || !Array.isArray(record.exports) ||
+      !record.exports.every((value) => typeof value === "string")) continue
+    const entry = canonicalBuildInputs({[record.entryPoint]: {}}, projectRoot)[0]
+    if (entry !== undefined) exportsByEntry.set(entry, Object.freeze([...record.exports] as string[]))
+  }
+  for (const module of modules) {
+    const path = stableBuildInputPath(module.path)
+    const exports = exportsByEntry.get(path)
+    if (exports === undefined || !exports.includes(module.export)) {
+      throw storybookBuildError(storybookDiagnostic(
+        "validate",
+        `Bundled module does not export ${module.export}`,
+        module.path,
+      ))
+    }
+  }
 }
 
 function validateScannedExport(path: string, exportName: string): void {
@@ -507,10 +814,6 @@ function transpilerLoader(path: string): Bun.JavaScriptLoader {
   }
 }
 
-function validationOutputPath(stagingDirectory: string): string {
-  return join(stagingDirectory, ".validate")
-}
-
 async function validateRuntimeProtocol(
   descriptor: StorybookPackageBuildDescriptor,
   runtimeProtocolPath: string,
@@ -518,9 +821,10 @@ async function validateRuntimeProtocol(
   plugins: readonly Bun.BunPlugin[],
   signal: AbortSignal,
   timeoutMs: number,
-): Promise<void> {
+  onPhase?: StorybookBuildPhaseListener,
+): Promise<readonly string[]> {
   const runtime = descriptor.runtime
-  if (runtime === null) return
+  if (runtime === null) return Object.freeze([])
   const validationPath = join(stagingDirectory, "validate-runtime.ts")
   await Bun.write(validationPath, [
     `import {validateStorybookRuntimeAdapter} from ${JSON.stringify(runtimeProtocolPath)}`,
@@ -529,6 +833,7 @@ async function validateRuntimeProtocol(
     "",
   ].join("\n"))
   const outputDirectory = join(stagingDirectory, ".protocol")
+  emitPhase(onPhase, "protocol-build", "started")
   const build = await Bun.build({
     entrypoints: [validationPath],
     outdir: outputDirectory,
@@ -539,9 +844,14 @@ async function validateRuntimeProtocol(
     minify: false,
     loader: {".wgsl": "text"},
     plugins: [...plugins],
+    metafile: true,
     throw: false,
   })
   if (!build.success) throw buildLogsError("protocol", build.logs)
+  emitPhase(onPhase, "protocol-build", "completed")
+  if (build.metafile === undefined) {
+    throw storybookBuildError(storybookDiagnostic("protocol", "Runtime protocol build emitted no metafile", runtime.path))
+  }
   const entry = build.outputs.find(({kind}) => kind === "entry-point")
   if (entry === undefined) {
     throw storybookBuildError(storybookDiagnostic("protocol", "Runtime protocol build emitted no entry", runtime.path))
@@ -553,17 +863,22 @@ async function validateRuntimeProtocol(
     stdout: "pipe",
     stderr: "pipe",
   })
-  const {exitCode, stdout, stderr} = await waitForChild(
+  emitPhase(onPhase, "protocol-run", "started")
+  const {exitCode, stdout, stderr} = await waitForStorybookOwnedChild({
     child,
     signal,
     timeoutMs,
-    "Storybook runtime protocol validation",
-  )
+    label: "Storybook runtime protocol validation",
+  })
   if (exitCode !== 0) {
     const message = [stderr.trim(), stdout.trim()].filter(Boolean).join("\n") ||
       `Runtime protocol validation exited ${exitCode}`
     throw storybookBuildError(storybookDiagnostic("protocol", message, runtime.path))
   }
+  emitPhase(onPhase, "protocol-run", "completed")
+  const stagingPrefix = `${realpathSync(stagingDirectory)}${sep}`
+  return canonicalBuildInputs(build.metafile.inputs, descriptor.projectRoot)
+    .filter((path) => !path.startsWith(stagingPrefix))
 }
 
 export function canonicalBuildInputs(

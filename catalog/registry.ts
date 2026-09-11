@@ -1,6 +1,6 @@
 import type {
   StorybookCatalog,
-  StorybookCatalogResolver,
+  StorybookCatalogScope,
 } from "./catalog.t.ts"
 import {
   EXTERNAL_STORYBOOK_SCHEMA_VERSION,
@@ -12,6 +12,7 @@ import {
 } from "./graph.ts"
 import type {StorybookPackageBuildDescriptor} from "../sessions/package-session.ts"
 import {externalStorybookPackageDescriptors} from "../build/package-descriptor.ts"
+import {resolve} from "node:path"
 
 export type ExternalStorybookAttachSource = "cli" | "workspace" | "project" | "direct-package"
 
@@ -32,6 +33,35 @@ export type ExternalStorybookRegistrySnapshot = Readonly<{
   descriptors: readonly StorybookPackageBuildDescriptor[]
 }>
 
+/** Текущая причина следующего условного обновления реестра. */
+export type ExternalStorybookRegistryDirtySnapshot = Readonly<{
+  dirty: boolean
+  paths: readonly string[]
+  scopeRoots: readonly string[]
+}>
+
+/** Счётчики работы реестра без смешивания с общей длительностью операции. */
+export type ExternalStorybookRegistryMetrics = Readonly<{
+  refreshing: boolean
+  resolverCalls: number
+  graphRebuilds: number
+  cacheHits: number
+  typescriptApiSessions: Readonly<{
+    contract: number
+    dependency: number
+    total: number
+  }>
+}>
+
+type ExternalStorybookRegistryResolver = (
+  roots: readonly string[],
+  previous?: StorybookCatalog,
+  options?: Readonly<{
+    dirtyScopeRoots?: readonly string[]
+    onAnalysisSession?: (kind: "contract" | "dependency") => void
+  }>,
+) => Promise<StorybookCatalog>
+
 /**
 Атомарно принимает нормализованный каталог от выбранного источника.
 
@@ -44,8 +74,16 @@ export class ExternalStorybookRegistry {
   #entries: readonly ExternalStorybookRegistryEntry[] = Object.freeze([])
   #catalog: StorybookCatalog = emptyDeclarations()
   #graph: ExternalStorybookGraph = createExternalStorybookGraph(this.#catalog)
+  #dirtyPaths = new Set<string>()
+  #forceRefresh = false
+  #pendingRefresh: Promise<ExternalStorybookRegistrySnapshot> | null = null
+  #resolverCalls = 0
+  #graphRebuilds = 0
+  #cacheHits = 0
+  #contractAnalysisSessions = 0
+  #dependencyAnalysisSessions = 0
 
-  constructor(private readonly resolveCatalog: StorybookCatalogResolver) {}
+  constructor(private readonly resolveCatalog: ExternalStorybookRegistryResolver) {}
 
   snapshot(): ExternalStorybookRegistrySnapshot {
     return Object.freeze({
@@ -67,7 +105,7 @@ export class ExternalStorybookRegistry {
 
   async attachMany(inputs: readonly string[], attachSource: ExternalStorybookAttachSource = "cli"): Promise<ExternalStorybookRegistrySnapshot> {
     if (inputs.length === 0) return this.snapshot()
-    const incoming = await this.resolveCatalog([...new Set(inputs)])
+    const incoming = await this.#callResolver([...new Set(inputs)])
     if (this.#entries.length === 0) return this.#accept(incoming, incoming.rootIds.map(() => attachSource))
     const incomingRoots = incoming.scopes.filter(scope => incoming.rootIds.includes(scope.canonicalId))
     // An explicit ancestor replaces its already selected descendants, avoiding duplicate owners.
@@ -101,14 +139,122 @@ export class ExternalStorybookRegistry {
     return this.#resolve(paths, paths.map(() => "direct-package"))
   }
 
-  async refresh(): Promise<ExternalStorybookRegistrySnapshot> {
-    if (this.#entries.length === 0) return this.snapshot()
-    return this.#resolve(this.#entries.map(entry => entry.declarationPath), this.#entries.map(entry => entry.attachSource))
+  refresh(): Promise<ExternalStorybookRegistrySnapshot> {
+    if (this.#entries.length === 0) return Promise.resolve(this.snapshot())
+    this.#forceRefresh = true
+    return this.#requestRefresh()
   }
 
-  async #resolve(roots: readonly string[], sources: readonly ExternalStorybookAttachSource[]): Promise<ExternalStorybookRegistrySnapshot> {
-    const raw = roots.length === 0 ? emptyDeclarations() : await this.resolveCatalog(roots, this.#catalog)
+  /**
+  Помечает путь структурного источника для следующего условного обновления.
+
+  Точное совпадение с `structurePaths` помечает всех потребителей общего источника.
+  Неизвестный путь внутри пакета принадлежит ближайшему package root. Путь вне
+  известных владельцев переводит обновление в безопасный полный режим.
+
+  @param input - Абсолютный путь из общего watcher либо массив таких путей.
+  */
+  markDirty(input: string | readonly string[]): ExternalStorybookRegistryDirtySnapshot {
+    for (const path of typeof input === "string" ? [input] : input) {
+      if (typeof path !== "string" || path.length === 0) throw new TypeError("Storybook dirty path must be a non-empty string")
+      this.#dirtyPaths.add(resolve(path))
+    }
+    return this.dirtySnapshot()
+  }
+
+  /** Возвращает причины следующего условного обновления без запуска resolver. */
+  dirtySnapshot(): ExternalStorybookRegistryDirtySnapshot {
+    const paths = Object.freeze([...this.#dirtyPaths].sort())
+    return Object.freeze({
+      dirty: this.#forceRefresh || paths.length > 0,
+      paths,
+      scopeRoots: Object.freeze(this.#dirtyScopeRoots(paths)),
+    })
+  }
+
+  /** Возвращает отдельные показатели warm-hit, resolver и принятого graph candidate. */
+  metrics(): ExternalStorybookRegistryMetrics {
+    return Object.freeze({
+      refreshing: this.#pendingRefresh !== null,
+      resolverCalls: this.#resolverCalls,
+      graphRebuilds: this.#graphRebuilds,
+      cacheHits: this.#cacheHits,
+      typescriptApiSessions: Object.freeze({
+        contract: this.#contractAnalysisSessions,
+        dependency: this.#dependencyAnalysisSessions,
+        total: this.#contractAnalysisSessions + this.#dependencyAnalysisSessions,
+      }),
+    })
+  }
+
+  /**
+  Обновляет только помеченных владельцев и переиспользует текущий снимок при чистом реестре.
+
+  Параллельные запросы разделяют один Promise. Пометка, поступившая во время resolver,
+  выполняется следующим проходом до завершения этого Promise.
+  */
+  refreshIfNeeded(): Promise<ExternalStorybookRegistrySnapshot> {
+    if (this.#entries.length === 0) return Promise.resolve(this.snapshot())
+    if (!this.#forceRefresh && this.#dirtyPaths.size === 0 && this.#pendingRefresh === null) {
+      this.#cacheHits += 1
+      return Promise.resolve(this.snapshot())
+    }
+    return this.#requestRefresh()
+  }
+
+  #requestRefresh(): Promise<ExternalStorybookRegistrySnapshot> {
+    if (this.#pendingRefresh !== null) return this.#pendingRefresh
+    const pending = this.#drainRefreshes().finally(() => {
+      if (this.#pendingRefresh === pending) this.#pendingRefresh = null
+    })
+    this.#pendingRefresh = pending
+    return pending
+  }
+
+  async #drainRefreshes(): Promise<ExternalStorybookRegistrySnapshot> {
+    let snapshot = this.snapshot()
+    while (this.#forceRefresh || this.#dirtyPaths.size > 0) {
+      const force = this.#forceRefresh
+      const paths = [...this.#dirtyPaths]
+      this.#forceRefresh = false
+      this.#dirtyPaths.clear()
+      try {
+        snapshot = await this.#resolve(
+          this.#entries.map(entry => entry.declarationPath),
+          this.#entries.map(entry => entry.attachSource),
+          force ? undefined : {dirtyScopeRoots: this.#dirtyScopeRoots(paths)},
+        )
+      } catch (error) {
+        if (force) this.#forceRefresh = true
+        for (const path of paths) this.#dirtyPaths.add(path)
+        throw error
+      }
+    }
+    return snapshot
+  }
+
+  async #resolve(
+    roots: readonly string[],
+    sources: readonly ExternalStorybookAttachSource[],
+    options?: Readonly<{dirtyScopeRoots?: readonly string[]}>,
+  ): Promise<ExternalStorybookRegistrySnapshot> {
+    const raw = roots.length === 0 ? emptyDeclarations() : await this.#callResolver(roots, this.#catalog, options)
     return this.#accept(raw, sources)
+  }
+
+  async #callResolver(
+    roots: readonly string[],
+    previous?: StorybookCatalog,
+    options?: Readonly<{dirtyScopeRoots?: readonly string[]}>,
+  ): Promise<StorybookCatalog> {
+    this.#resolverCalls += 1
+    return this.resolveCatalog(roots, previous, {
+      ...options,
+      onAnalysisSession: kind => {
+        if (kind === "contract") this.#contractAnalysisSessions += 1
+        else this.#dependencyAnalysisSessions += 1
+      },
+    })
   }
 
   #accept(raw: StorybookCatalog, sources: readonly ExternalStorybookAttachSource[]): ExternalStorybookRegistrySnapshot {
@@ -125,7 +271,29 @@ export class ExternalStorybookRegistry {
       JSON.stringify(this.#catalog.scopes.map(scope => [scope.resolutionError, scope.structurePaths]))) return this.snapshot()
     this.#descriptors = descriptors
     this.#commit(entries, catalog, graph)
+    this.#graphRebuilds += 1
     return this.snapshot()
+  }
+
+  #dirtyScopeRoots(paths: readonly string[]): string[] {
+    const scopes = this.#catalog.scopes.filter((scope): scope is StorybookCatalogScope & {scopeRoot: string} => scope.kind === "package")
+    const roots = new Set<string>()
+    for (const path of paths) {
+      const exact = scopes.filter(scope => scopePaths(scope).has(path))
+      if (exact.length > 0) {
+        for (const scope of exact) roots.add(scope.scopeRoot)
+        continue
+      }
+      const contained = scopes
+        .filter(scope => path === scope.scopeRoot || path.startsWith(`${scope.scopeRoot}/`))
+        .sort((left, right) => right.scopeRoot.length - left.scopeRoot.length)
+      if (contained[0] !== undefined) {
+        roots.add(contained[0].scopeRoot)
+        continue
+      }
+      for (const scope of scopes) roots.add(scope.scopeRoot)
+    }
+    return [...roots].sort()
   }
 
   packageDescriptors(): readonly StorybookPackageBuildDescriptor[] {
@@ -186,6 +354,21 @@ function createEntries(
       attachSource: sources[index]!,
     })
   }))
+}
+
+function scopePaths(scope: StorybookCatalogScope): ReadonlySet<string> {
+  return new Set([
+    resolve(scope.source.path),
+    resolve(scope.scopeRoot),
+    resolve(scope.scopeRoot, "package.json"),
+    ...(scope.readmePath === null ? [] : [resolve(scope.readmePath)]),
+    ...(scope.structurePaths ?? []).map(path => resolve(path)),
+    ...(scope.kind === "package" ? [
+      resolve(scope.packageJsonPath),
+      ...scope.authorStyleSheets.flatMap(sheet => [resolve(sheet.path), resolve(sheet.ownerPackageJsonPath)]),
+      ...(scope.catalog?.sourcePaths ?? []).map(path => resolve(path)),
+    ] : []),
+  ])
 }
 
 function emptyDeclarations(): StorybookCatalog {

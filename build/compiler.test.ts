@@ -12,6 +12,7 @@ import {dirname, join, resolve} from "node:path"
 import {
   createStorybookPackageCompilerPlugins,
   resolveStorybookCompilerSourceRoots,
+  resolveStorybookPackageCompilerInputs,
 } from "./compiler.ts"
 
 const temporaryRoots: string[] = []
@@ -116,6 +117,16 @@ describe("external Storybook package compiler", () => {
       packageRoot: fixture.packageRoot,
     })
     for (const root of expectedOwnerSourceRoots) expect(ownerSourceRoots).toContain(root)
+    const compilerInputs = resolveStorybookPackageCompilerInputs(fixture.input)
+    expect(compilerInputs.configPaths).toEqual([
+      join(canonicalProjectRoot, "tsconfig.base.json"),
+      join(canonicalProjectRoot, "tsconfig.json"),
+    ])
+    expect(compilerInputs.adapterPath).toBe(join(
+      await realpath(fixture.templateRoot),
+      "compiler/bun.ts",
+    ))
+    expect(compilerInputs.semanticSourceRoots).toContain(canonicalProjectRoot)
   })
 
   test("reads JSONC extends and fails closed for conflicting module configs", async () => {

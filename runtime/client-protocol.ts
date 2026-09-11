@@ -308,7 +308,7 @@ function validatePackageId(value: string): string {
 }
 
 function validateBuildState(value: StorybookPackageBuildState): StorybookPackageBuildState {
-  if (!["idle", "building", "built", "activating", "active", "ready", "failed", "disposed"].includes(value)) {
+  if (!["idle", "queued", "compiling", "building", "built", "activating", "active", "ready", "failed", "disposed"].includes(value)) {
     throw new Error(`Unknown external Storybook package build state: ${String(value)}`)
   }
   return value

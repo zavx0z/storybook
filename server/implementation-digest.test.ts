@@ -1,7 +1,7 @@
 import {afterEach, describe, expect, test} from "bun:test"
-import {mkdirSync, mkdtempSync, rmSync, writeFileSync} from "node:fs"
+import {existsSync, readFileSync, statSync, mkdirSync, mkdtempSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
-import {join} from "node:path"
+import {dirname, join, relative, resolve} from "node:path"
 import {externalStorybookImplementationDigest} from "./implementation-digest.ts"
 
 const roots: string[] = []
@@ -11,6 +11,30 @@ afterEach(() => {
 })
 
 describe("external Storybook implementation digest", () => {
+  test("resident import graph keeps browser-only modules outside daemon identity", () => {
+    const root = resolve(import.meta.dir, "..")
+    const visited = new Set<string>()
+    const pending = [join(root, "scripts/storybook-daemon.ts")]
+    while (pending.length > 0) {
+      const path = pending.pop()!
+      if (visited.has(path)) continue
+      visited.add(path)
+      const loader = path.endsWith(".tsx") ? "tsx" : "ts"
+      const imports = new Bun.Transpiler({loader}).scan(readFileSync(path, "utf8")).imports
+      for (const entry of imports) {
+        if (!entry.path.startsWith(".")) continue
+        const base = resolve(dirname(path), entry.path)
+        const imported = [base, `${base}.ts`, `${base}.tsx`, join(base, "index.ts"), join(base, "index.tsx")]
+          .find(candidate => /\.tsx?$/u.test(candidate) && existsSync(candidate) && statSync(candidate).isFile())
+        if (imported !== undefined) pending.push(imported)
+      }
+    }
+    expect([...visited].map(path => relative(root, path))
+      .filter(path => path.startsWith("runtime/") || path.startsWith("workbench/")).sort()).toEqual([
+      "runtime/client-protocol.ts", "runtime/font-faces.ts", "runtime/page-title.ts",
+    ])
+  })
+
   test("is deterministic and changes with runtime implementation bytes", () => {
     const root = implementationFixture()
     const first = externalStorybookImplementationDigest(root)
@@ -30,7 +54,7 @@ describe("external Storybook implementation digest", () => {
     expect(externalStorybookImplementationDigest(root)).toBe(first)
   })
 
-  test("includes the browser lifecycle owner and browser runtime but excludes transport adapters", () => {
+  test("includes resident browser lifecycle but excludes browser bundles and transport adapters", () => {
     const root = implementationFixture()
     const first = externalStorybookImplementationDigest(root)
     writeFileSync(join(root, "browser-lifecycle/src/service.ts"), "browser lifecycle revision 2\n")
@@ -42,6 +66,9 @@ describe("external Storybook implementation digest", () => {
     expect(externalStorybookImplementationDigest(root)).toBe(lifecycleRevision)
 
     writeFileSync(join(root, "runtime/package-entry.ts"), "browser runtime revision 2\n")
+    writeFileSync(join(root, "workbench/controller.ts"), "workbench revision 2\n")
+    expect(externalStorybookImplementationDigest(root)).toBe(lifecycleRevision)
+    writeFileSync(join(root, "runtime/client-protocol.ts"), "client protocol revision 2\n")
     expect(externalStorybookImplementationDigest(root)).not.toBe(lifecycleRevision)
   })
 })
@@ -77,6 +104,9 @@ function implementationFixture(): string {
   writeFileSync(join(root, "server/cli.ts"), "cli revision 1\n")
   writeFileSync(join(root, "browser-lifecycle/src/service.ts"), "browser lifecycle revision 1\n")
   writeFileSync(join(root, "runtime/package-entry.ts"), "browser runtime revision 1\n")
+  for (const file of ["client-protocol.ts", "font-faces.ts", "page-title.ts"]) {
+    writeFileSync(join(root, "runtime", file), "resident runtime revision 1\n")
+  }
   writeFileSync(join(root, "server/server.test.ts"), "test revision 1\n")
   writeFileSync(join(root, "server/fixtures/owner.ts"), "owner revision 1\n")
   return root

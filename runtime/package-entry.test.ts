@@ -4,7 +4,7 @@ import {createRoot} from "@zavx0z/component"
 import {createDocumentClipboardController} from "@zavx0z/browser/clipboard"
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
-import {createDocument, type Element, type HTMLButtonElement} from "@zavx0z/dom"
+import {createDocument, DOMRect, Event as SemanticEvent, MouseEvent, readDocumentScrollIntoViewRequests, type Element, type HTMLButtonElement} from "@zavx0z/dom"
 import type {
   Presentation as Root,
   RootDocumentProjection,
@@ -21,14 +21,24 @@ import {
 } from "../discovery/declarations.ts"
 import {createExternalStorybookGraph, type ExternalStorybookGraph} from "../catalog/graph.ts"
 import type {StorybookPackageSessionSnapshot} from "../sessions/package-session.ts"
-import {createStorybookPackageRevisionGraphSnapshot} from "../sessions/package-revision.ts"
-import {STORYBOOK_RUNTIME_PROTOCOL, type StorybookRuntimeContext} from "./runtime-protocol.ts"
-import {createExternalStorybookClientSnapshot} from "./client-protocol.ts"
 import {
+  createStorybookPackageRevisionGraphSnapshot,
+  type StorybookPackageRevisionGraphSnapshot,
+} from "../sessions/package-revision.ts"
+import {
+  STORYBOOK_RUNTIME_PROTOCOL,
+  type StorybookRuntimeContext,
+  type StorybookRuntimeStoryInput,
+} from "./runtime-protocol.ts"
+import {createExternalStorybookClientSnapshot} from "./client-protocol.ts"
+import {sha256Hex} from "../src/shared/sha256.ts"
+import {
+  STORYBOOK_PAGE_REALM_PROTOCOL,
   startExternalStorybookPackage,
   type ExternalStorybookPackageEnvironment,
 } from "./package-entry.ts"
 import type {ExternalStorybookRootFactory} from "./shell.ts"
+import {startExternalStorybookPage, type ExternalStorybookPreparedPackageTarget} from "./page-entry.ts"
 
 const fixtureRoot = join(import.meta.dir, "../discovery/fixtures/valid")
 
@@ -40,7 +50,21 @@ describe("external Storybook package frontend", () => {
       name: "input.ts", declarations: [{name: "Input", kind: "interface" as const,
         signature: "export interface Input {label?: string}",
         comment: {summary: "Описание входного контракта", examples: []},
-        members: [{name: "label", type: "string | undefined", optional: true, defaultValue: "Example", description: "Текст подписи"}],
+        members: [
+          {name: "label", type: "string | undefined", optional: true, defaultValue: "Example", description: "Текст подписи"},
+          {name: "a.b", type: "string", optional: false, description: "Поле с точкой"},
+          {name: "a", type: "{b: number}", optional: false, description: "Вложенный объект", children: [
+            {name: "b", type: "number", optional: false, description: "Вложенное поле"},
+          ]},
+        ],
+      }],
+    }}, {direction: "output" as const, document: {
+      name: "output.ts", declarations: [{name: "Output", kind: "interface" as const,
+        signature: "export interface Output {result: {code: number}}",
+        comment: {summary: "Описание выходного контракта", examples: []},
+        members: [{name: "result", type: "{code: number}", optional: false, description: "Результат", children: [
+          {name: "code", type: "number", optional: false, description: "Код результата"},
+        ]}],
       }],
     }}]}
     const graph = {...base, nodes: base.nodes.map(node => node.id === subjectId
@@ -67,27 +91,185 @@ describe("external Storybook package frontend", () => {
       expect(display.textContent).toContain("Текст подписи")
       expect(display.querySelector("[data-token-category]")).not.toBeNull()
       expect(display.textContent).toContain("Входные данные")
-      expect(display.textContent).not.toContain("Выходные данные")
+      expect(display.textContent).toContain("Выходные данные")
       expect(workbench.controller.read("tabs.active")).toBe(`contract:${subjectId}`)
       expect(controller.currentRoute).toBe("components/button/contract")
       expect(new URL(environment.location!.href).searchParams.get("preview")).toBe("revision-contract")
+      expect(workbench.controller.read("inspector.subject")).toMatchObject({
+        packageId: "@fixture/components",
+        subjectId,
+        workspaceId: "contract:/pkg-fixture-components/components/button/contract",
+        widgetIds: ["storybook-contract-input", "storybook-contract-output"],
+      })
+      expect(workbench.elements.inspectorHost.querySelector('[data-widget="tree"]')?.textContent).toContain("Input")
+      expect(workbench.elements.inspectorHost.textContent).not.toContain("Параметры")
+      expect(workbench.elements.inspectorHost.querySelector('button[aria-expanded][title="Вход"]') === null).toBe(true)
+      expect([...workbench.elements.inspectorHost.querySelectorAll("button")]
+        .some(button => button.textContent?.trim() === "Вход" || button.textContent?.trim() === "Выход")).toBe(false)
+      expect(new URL(environment.location!.href).searchParams.get("inspector")).toBe("input")
+      const inputTree = workbench.elements.inspectorHost.querySelector('[data-widget="tree"]') as Element
+      const inputRootToggle = inputTree.querySelector('button[aria-label="Раскрыть"]') as HTMLButtonElement
+      inputRootToggle.click()
+      const inputItems = [...inputTree.querySelectorAll("[data-tree-id]")]
+      const dotted = inputItems.find(item => item.getAttribute("data-tree-id") === JSON.stringify(["input", "Input", "a.b"]))
+      const nested = inputItems.find(item => item.getAttribute("data-tree-id") === JSON.stringify(["input", "Input", "a"]))
+      expect(dotted).not.toBeNull()
+      expect(nested).not.toBeNull()
+      expect(dotted?.getAttribute("data-tree-id")).not.toBe(nested?.getAttribute("data-tree-id"))
+      const nestedToggle = nested?.querySelector('button[aria-label="Раскрыть"]') as HTMLButtonElement
+      nestedToggle.click()
+      expect(inputTree.textContent).toContain("b")
+      const nestedLeaf = [...inputTree.querySelectorAll("[data-tree-id]")].find(item =>
+        item.getAttribute("data-tree-id") === JSON.stringify(["input", "Input", "a", "b"]))!
+      const nestedDescription = [...display.querySelectorAll("[data-typedoc-member]")].find(item =>
+        item.getAttribute("data-typedoc-member") === "b")!
+      nestedLeaf.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+      expect(readDocumentScrollIntoViewRequests(document).at(-1)?.target === nestedDescription).toBe(true)
+      expect(nestedLeaf.getAttribute("aria-selected")).toBe("true")
+      const collapseAll = inputTree.querySelector('button[title="Свернуть всё"]') as HTMLButtonElement
+      const expandAll = inputTree.querySelector('button[title="Развернуть всё"]') as HTMLButtonElement
+      expect(inputTree.textContent).toContain("Входные поля")
+      collapseAll.click()
+      expect(inputTree.querySelectorAll('[aria-expanded="true"]')).toHaveLength(0)
+      expandAll.click()
+      expect(inputTree.querySelectorAll('[aria-expanded="true"]')).toHaveLength(2)
+      const contractViewport = display.querySelector("[data-storybook-contract]")!
+      contractViewport.getBoundingClientRect = () => new DOMRect(0, 100, 600, 200)
+      for (const target of [
+        ...display.querySelectorAll("[data-typedoc-declaration]"),
+        ...display.querySelectorAll("[data-typedoc-member]"),
+      ]) {
+        target.getBoundingClientRect = () => new DOMRect(0, 500, 400, 40)
+      }
+      nestedDescription.getBoundingClientRect = () => new DOMRect(0, 95, 400, 40)
+      collapseAll.click()
+      expect(inputTree.querySelector('button[title="Показать текущее место"]')).toBeNull()
+      controller.shell.presentFrame()
+      const revealedLeaf = [...inputTree.querySelectorAll("[data-tree-id]")].find(item =>
+        item.getAttribute("data-tree-id") === JSON.stringify(["input", "Input", "a", "b"]))!
+      expect(revealedLeaf.getAttribute("aria-selected")).toBe("true")
+      expect(inputTree.querySelectorAll('[aria-expanded="true"]')).toHaveLength(2)
+      expect(readDocumentScrollIntoViewRequests(document).at(-1)?.target === revealedLeaf).toBe(true)
+      const output = workbench.elements.inspectorHost.querySelector('button[title="Выход"]') as HTMLButtonElement
+      output.click()
+      expect(new URL(environment.location!.href).searchParams.get("inspector")).toBe("output")
+      expect(output.getAttribute("aria-pressed")).toBe("true")
+      expect(workbench.controller.read("inspector.values")["storybook-contract-output"])
+        .toMatchObject({direction: "output"})
+      const input = workbench.elements.inspectorHost.querySelector('button[title="Вход"]') as HTMLButtonElement
+      input.click()
+      expect(nested?.getAttribute("aria-expanded")).toBe("true")
       const subject = workbench.elements.secondary.querySelector(`[data-id="${subjectId}"] button`) as HTMLButtonElement
       subject.click()
       const until = Date.now() + 5000
       while (controller.currentRoute !== "components/button" && Date.now() < until) await Bun.sleep(10)
       expect(controller.currentRoute).toBe("components/button")
       const location = environment.location! as LocationFixture
-      const url = new URL("/pkg-fixture-components/components/button/contract?preview=revision-contract", location.href)
+      const url = new URL("/pkg-fixture-components/components/button/contract?preview=revision-contract&inspector=output", location.href)
       location.pathname = url.pathname
       location.href = url.href
       events.dispatchEvent(new Event("popstate"))
       const restored = Date.now() + 5000
       while (!display.querySelector("[data-typedoc]") && Date.now() < restored) await Bun.sleep(10)
       expect(display.querySelector("[data-typedoc]")).not.toBeNull()
+      expect(new URL(environment.location!.href).searchParams.get("inspector")).toBe("output")
       expect(controller.shell.document).toBe(document)
       expect(controller.shell.display).toBe(display)
     } finally { await controller.dispose() }
   })
+
+  test("[INSPECTOR-WORKSPACE] variant, contract и dependencies не смешивают Inspector и URL", async () => {
+    const base = await fixtureGraph()
+    const subjectId = "subject:@fixture/components/components/button"
+    const graph = {...base, nodes: base.nodes.map(node => node.id === subjectId
+      ? {...node,
+        contractRoutePath: "components/button/contract",
+        contractDocumentation: {sources: [], documents: [{direction: "input" as const, document: {
+          name: "input.ts", declarations: [{name: "Input", kind: "interface" as const,
+            signature: "export interface Input {value: string}",
+            comment: {summary: "Вход", examples: []},
+            members: [{name: "value", type: "string", optional: false, description: "Значение"}],
+          }],
+        }}]},
+        dependencyRoutePath: "components/button/dependencies",
+        dependencySpec: {sourcePath: "/fixture/deps.spec.ts", sourceDigest: "fixture", cases: []},
+      }
+      : node)}
+    const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-inspector"))
+    const environment = environmentFixture(snapshot, "/pkg-fixture-components/components/button/basic/contained?preview=revision-inspector")
+    const events = new EventTarget()
+    Object.defineProperty(environment.browserDocument, "defaultView", {value: events})
+    let ownerContext: StorybookRuntimeContext | null = null
+    const controller = await startExternalStorybookPackage({
+      packageId: "@fixture/components",
+      candidateRevision: "revision-inspector",
+      revisionUrl: "/__storybook/revisions/%40fixture%2Fcomponents/revision-inspector/",
+      async loadRuntime() {
+        return {
+          protocol: STORYBOOK_RUNTIME_PROTOCOL,
+          create(context: StorybookRuntimeContext) {
+            ownerContext = context
+            return {
+              mount({route}: StorybookRuntimeStoryInput) {
+                const node = context.document.createElement("article")
+                node.textContent = route
+                context.present({
+                  protocol: "story-presentation/1",
+                  node,
+                  componentRoot: {readStyleSheets: () => ({revision: 0, styleSheets: []})},
+                  source: {html: "<article></article>", typescript: "export const story = {}"},
+                  values: {props: {route}},
+                })
+              },
+              unmount() {},
+              dispose() {},
+            }
+          },
+        }
+      },
+      storyLoaders: new Map([["components/button/basic/contained", async () => ({})]]),
+      environment,
+    })
+    try {
+      const {workbench} = controller.shell
+      expect(workbench.controller.read("inspector.subject")).toMatchObject({
+        workspaceId: "variant:components/button/basic/contained",
+        widgetIds: ["props", "source", "diagnostics"],
+      })
+      const source = workbench.elements.inspectorHost.querySelector('button[title="Исходники"]') as HTMLButtonElement
+      source.click()
+      expect(new URL(environment.location!.href).searchParams.get("inspector")).toBe("source")
+
+      await controller.navigate("components/button/contract")
+      expect(workbench.controller.read("inspector.subject")).toMatchObject({
+        workspaceId: "contract:/pkg-fixture-components/components/button/contract",
+        widgetIds: ["storybook-contract-input"],
+      })
+      expect(new URL(environment.location!.href).searchParams.get("inspector")).toBe("input")
+      const location = environment.location! as LocationFixture
+      const invalid = new URL(location.href)
+      invalid.searchParams.set("inspector", "missing")
+      location.pathname = invalid.pathname
+      location.href = invalid.href
+      events.dispatchEvent(new Event("popstate"))
+      expect(new URL(location.href).searchParams.get("inspector")).toBe("input")
+      expect(() => ownerContext!.reportDiagnostic("late owner diagnostic")).toThrow("stale diagnostic")
+      expect(workbench.controller.read("inspector.subject")?.widgetIds).toEqual(["storybook-contract-input"])
+
+      await controller.navigate("components/button/dependencies")
+      expect(workbench.controller.read("inspector.subject")).toBeNull()
+      expect(new URL(environment.location!.href).searchParams.get("inspector")).toBeNull()
+
+      await controller.navigate("components/button/basic/contained")
+      expect(workbench.controller.read("inspector.subject")).toMatchObject({
+        workspaceId: "variant:components/button/basic/contained",
+      })
+      expect(workbench.controller.selectedInspector()).toBe("source")
+      expect(new URL(environment.location!.href).searchParams.get("inspector")).toBe("source")
+    } finally {
+      await controller.dispose()
+    }
+  }, 20_000)
 
   test.each(["components/button", "components/button/dependencies"])("[STORYBOOK-DEPS-DISPLAY] вкладка восстанавливается из %s, меняет URL и возвращается через предмет/history", async initialRoute => {
     const base = await fixtureGraph()
@@ -126,6 +308,8 @@ describe("external Storybook package frontend", () => {
       expect(controller.currentRoute).toBe("components/button/dependencies")
       expect(environment.location!.pathname).toBe("/pkg-fixture-components/components/button/dependencies")
       expect(new URL(environment.location!.href).searchParams.get("preview")).toBe("revision-deps")
+      expect(new URL(environment.location!.href).searchParams.get("inspector")).toBeNull()
+      expect(workbench.controller.read("inspector.subject")).toBeNull()
       expect(display.querySelectorAll("[data-graph-view]")).toHaveLength(1)
       expect(display.textContent).toContain("Example")
       expect(display.textContent).toContain("<article>")
@@ -306,14 +490,25 @@ describe("external Storybook package frontend", () => {
       sockets[0]!.emit("open", {})
       sockets[0]!.emit("message", {data: JSON.stringify({type: "package.applied-state", packageId: "@fixture/components", revision: "older-applied"})})
       expect(location.reloads).toBe(0)
+      expect(controller.shell.workbench.controller.read("status").detail).toContain("Кандидат готов; ожидание проверки и применения")
       sockets[0]!.emit("close", {})
+      expect(controller.shell.workbench.controller.read("status").detail).toContain("ожидание восстановления")
       const deadline = Date.now() + 3_000
       while (sockets.length < 2 && Date.now() < deadline) await Bun.sleep(20)
       expect(renewed).toBe(1)
       expect(sockets).toHaveLength(2)
       sockets[1]!.emit("open", {})
+      const restored = Date.now() + 3_000
+      while (!controller.shell.workbench.controller.read("status").detail.includes("Готов к запуску") && Date.now() < restored) {
+        await Bun.sleep(10)
+      }
+      expect(controller.shell.workbench.controller.read("status").detail).toContain("Готов к запуску")
       sockets[1]!.emit("message", {data: JSON.stringify({type: "package.applied-state", packageId: "@fixture/components", revision: "new-applied"})})
-      expect(location.reloads).toBe(1)
+      expect(location.reloads).toBe(0)
+      expect(location.href).toContain(`preview=${candidate}`)
+      sockets[1]!.emit("message", {data: JSON.stringify({type: "package.updated", packageId: "@fixture/components", revision: "new-applied"})})
+      expect(location.href).toContain(`preview=${candidate}`)
+      sockets[1]!.emit("message", {data: JSON.stringify({type: "package.updated", packageId: "@fixture/components", revision: candidate})})
       expect(location.href).not.toContain("preview=")
     } finally {
       await controller.dispose()
@@ -321,6 +516,514 @@ describe("external Storybook package frontend", () => {
     sockets.at(-1)!.emit("close", {})
     await Bun.sleep(300)
     expect(renewed).toBe(1)
+  })
+
+  test("applies an executable revision in the same page and restores the working revision after a failed mount", async () => {
+    const sourceGraph = await fixtureGraph()
+    const packageId = "@fixture/components"
+    const packageNode = sourceGraph.nodes.find(node => node.kind === "package" && node.packageId === packageId)!
+    const generatedRevisionGraph = createStorybookPackageRevisionGraphSnapshot(
+      sourceGraph,
+      packageId,
+      packageNode.digest,
+    )
+    const withoutAuthorStyles = {
+      ...generatedRevisionGraph,
+      authorStyleSheets: Object.freeze([]),
+      workbenchAuthorStyleSheets: Object.freeze([]),
+    }
+    const {packageGraphDigest: _digest, ...digestInput} = withoutAuthorStyles
+    const revisionGraph = Object.freeze({
+      ...withoutAuthorStyles,
+      packageGraphDigest: sha256Hex(JSON.stringify(digestInput)),
+    })
+    const initialRevision = "revision-page-a"
+    const nextRevision = "revision-page-b"
+    const automaticRevision = "revision-page-automatic"
+    const hostMismatchRevision = "revision-page-host-mismatch"
+    const failedRevision = "revision-page-failed"
+    const navigation = createExternalStorybookClientSnapshot(
+      sourceGraph,
+      packageSnapshots(sourceGraph, initialRevision),
+    )
+    const route = "components/button/basic/contained"
+    const socket = new FakeSocket()
+    const rootState = createFakeRootState()
+    const environment = environmentFixture(navigation, `/pkg-fixture-components/${route}`)
+    const revisionUrl = `/__storybook/revisions/%40fixture%2Fcomponents/${initialRevision}/`
+    const browserLocation = environment.location as LocationFixture
+    browserLocation.href += "?inspector=diagnostics"
+    const history = environment.history as ReturnType<typeof historyFixture>
+    const canvas = {} as HTMLCanvasElement
+
+    const storyLoaders = (label: string) => new Map(revisionGraph.loaders.map(({route}) => [
+      route,
+      async () => ({label}),
+    ] as const))
+    const widgetLoaders = () => new Map(revisionGraph.widgetLoaders.map(({id}) => [
+      id,
+      async () => ({}),
+    ] as const))
+    const runtimeLoader = (label: string, fail = false) => async () => ({
+      protocol: STORYBOOK_RUNTIME_PROTOCOL,
+      create(context: StorybookRuntimeContext) {
+        return {
+          mount(input: StorybookRuntimeStoryInput) {
+            if (fail) throw new Error(`${label} mount failed`)
+            const node = context.document.createElement("section")
+            node.textContent = `${label}:${input.route}`
+            context.present({
+              protocol: "story-presentation/1",
+              node,
+              componentRoot: {readStyleSheets: () => ({revision: 0, styleSheets: []})},
+              source: {html: `<section>${label}</section>`, typescript: `<Story label=${JSON.stringify(label)} />`},
+            })
+          },
+          unmount() {},
+          dispose() {},
+        }
+      },
+    })
+    const applied = new Map([
+      [nextRevision, {label: "next", fail: false, hostModuleEpoch: "fixture-host-epoch"}],
+      [automaticRevision, {label: "automatic", fail: false, hostModuleEpoch: "fixture-host-epoch"}],
+      [hostMismatchRevision, {label: "host-change", fail: false, hostModuleEpoch: "changed-host-epoch"}],
+      [failedRevision, {label: "broken", fail: true, hostModuleEpoch: "fixture-host-epoch"}],
+    ] as const)
+    const controller = await startExternalStorybookPackage({
+      packageId,
+      candidateRevision: initialRevision,
+      revisionUrl,
+      sharedModuleEpoch: "a".repeat(64),
+      hostModuleEpoch: "fixture-host-epoch",
+      graphSnapshot: revisionGraph,
+      loadRuntime: runtimeLoader("initial"),
+      storyLoaders: storyLoaders("initial"),
+      widgetLoaders: widgetLoaders(),
+      environment: {
+        ...environment,
+        createSocket: () => socket,
+        shell: {
+          canvas,
+          loadFont: async () => ({}) as never,
+          createRoot: fakeRootFactory(rootState),
+        },
+        async loadAppliedRevision(revision) {
+          const value = applied.get(revision as typeof nextRevision | typeof automaticRevision | typeof hostMismatchRevision | typeof failedRevision)
+          if (value === undefined) throw new Error(`Unknown applied revision: ${revision}`)
+          return {
+            protocol: STORYBOOK_PAGE_REALM_PROTOCOL,
+            packageId,
+            candidateRevision: revision,
+            revisionUrl: `/__storybook/revisions/%40fixture%2Fcomponents/${revision}/`,
+            sharedModuleEpoch: "a".repeat(64),
+            hostModuleEpoch: value.hostModuleEpoch,
+            graphSnapshot: revisionGraph,
+            loadRuntime: runtimeLoader(value.label, value.fail),
+            storyLoaders: storyLoaders(value.label),
+            widgetLoaders: widgetLoaders(),
+          }
+        },
+      },
+    })
+    try {
+      const root = controller.shell.root
+      const document = controller.shell.document
+      const progress = {
+        type: "build.progress",
+        operationId: "status-build",
+        packageId,
+        generation: 1,
+        owner: "watch",
+        state: "running",
+        phase: "bundle",
+        at: new Date().toISOString(),
+      }
+      socket.emit("message", {data: JSON.stringify(progress)})
+      expect(controller.shell.workbench.controller.read("status").detail).toContain("Компиляция интерфейса")
+      for (const type of ["catalog.progress", "shared.cache-progress"]) {
+        socket.emit("message", {data: JSON.stringify({type, state: type === "catalog.progress" ? "running" : "started"})})
+        socket.emit("message", {data: JSON.stringify({type, state: "completed", hit: true})})
+        expect(controller.shell.workbench.controller.read("status").detail).toContain("Компиляция интерфейса")
+      }
+      socket.emit("message", {data: JSON.stringify({...progress, packageId: null, owner: "shared", state: "completed", outcome: "failed"})})
+      expect(controller.shell.workbench.controller.read("status").detail).toContain("Ошибка обработки")
+      const presentation = controller.shell.workbench.controller.read("presentation").node as unknown as {scrollTop: number}
+      presentation.scrollTop = 73
+      controller.shell.workbench.elements.catalogItems.scrollTop = 96
+      const bridge = (globalThis as typeof globalThis & {
+        __EXTERNAL_STORYBOOK_AGENT_BRIDGE__: {
+          call(method: "applyRevision", params: unknown): Promise<any>
+        }
+      }).__EXTERNAL_STORYBOOK_AGENT_BRIDGE__
+      const next = await bridge.call("applyRevision", {
+        expectedPackageId: packageId,
+        revision: nextRevision,
+      })
+
+      expect(next.revision).toBe(nextRevision)
+      expect(next.route).toBe(route)
+      expect(controller.shell.root).toBe(root)
+      expect(controller.shell.document).toBe(document)
+      expect(controller.shell.canvas).toBe(canvas)
+      expect(rootState.creations).toBe(1)
+      expect(browserLocation.reloads).toBe(0)
+      expect(browserLocation.pathname).toBe(`/pkg-fixture-components/${route}`)
+      expect(new URL(browserLocation.href).searchParams.get("inspector")).toBe("diagnostics")
+      expect(controller.shell.workbench.controller.selectedInspector()).toBe("diagnostics")
+      expect(controller.shell.workbench.elements.catalogItems.scrollTop).toBe(96)
+      expect((controller.shell.workbench.controller.read("presentation").node as unknown as {scrollTop: number}).scrollTop).toBe(73)
+      expect(controller.shell.workbench.controller.read("presentation").node?.textContent).toContain("next")
+
+      socket.emit("message", {data: JSON.stringify({type: "package.updated", packageId, revision: nextRevision})})
+      socket.emit("message", {data: JSON.stringify({
+        type: "package.applied-state",
+        packageId,
+        revision: automaticRevision,
+      })})
+      const automaticDeadline = Date.now() + 3_000
+      while ((environment.browserDocument as any).documentElement.dataset.externalStorybookRevision !== automaticRevision &&
+        Date.now() < automaticDeadline) await Bun.sleep(10)
+      expect((environment.browserDocument as any).documentElement.dataset.externalStorybookRevision)
+        .toBe(automaticRevision)
+      expect(controller.shell.workbench.controller.read("presentation").node?.textContent).toContain("automatic")
+      expect(controller.shell.root).toBe(root)
+      expect(browserLocation.reloads).toBe(0)
+
+      await expect(bridge.call("applyRevision", {
+        expectedPackageId: packageId,
+        revision: hostMismatchRevision,
+      })).rejects.toThrow("host module epoch changed; page restart is required")
+      expect(controller.shell.root).toBe(root)
+      expect(controller.shell.document).toBe(document)
+      expect(controller.shell.canvas).toBe(canvas)
+      expect(rootState.creations).toBe(1)
+      expect(browserLocation.reloads).toBe(0)
+      expect((environment.browserDocument as any).documentElement.dataset.externalStorybookRevision)
+        .toBe(automaticRevision)
+      expect(controller.shell.workbench.controller.read("presentation").node?.textContent).toContain("automatic")
+
+      await expect(bridge.call("applyRevision", {
+        expectedPackageId: packageId,
+        revision: failedRevision,
+      })).rejects.toThrow("broken mount failed")
+      expect(controller.shell.root).toBe(root)
+      expect(controller.shell.document).toBe(document)
+      expect(controller.shell.canvas).toBe(canvas)
+      expect(rootState.creations).toBe(1)
+      expect(browserLocation.reloads).toBe(0)
+      expect((environment.browserDocument as any).documentElement.dataset.externalStorybookRevision)
+        .toBe(automaticRevision)
+      expect(controller.shell.workbench.controller.read("presentation").node?.textContent).toContain("automatic")
+      expect(history.pushed).toEqual([])
+    } finally {
+      await controller.dispose()
+    }
+  })
+
+  test("switches package scopes and rolls back a failed target inside one page Root", async () => {
+    const sourceGraph = await fixtureGraph()
+    const packageGraph = (packageId: string) => withoutAuthorStyleSheets(
+      createStorybookPackageRevisionGraphSnapshot(
+        sourceGraph,
+        packageId,
+        sourceGraph.nodes.find(node => node.kind === "package" && node.packageId === packageId)!.digest,
+      ),
+    )
+    const componentsGraph = packageGraph("@fixture/components")
+    const standaloneGraph = packageGraph("@fixture/standalone")
+    const initialRevision = "page-components"
+    const styleRevision = "page-standalone-style"
+    const standaloneRevision = "revision-good"
+    const failedRevision = "page-components-failed"
+    const snapshot = createExternalStorybookClientSnapshot(
+      sourceGraph,
+      packageSnapshots(sourceGraph, initialRevision),
+    )
+    const environment = environmentFixture(
+      snapshot,
+      "/pkg-fixture-components/components/button/basic/contained",
+    )
+    const location = environment.location as LocationFixture
+    const history = environment.history as ReturnType<typeof historyFixture>
+    const rootState = createFakeRootState()
+    const sockets: FakeSocket[] = []
+    const runtimeLoader = (label: string, fail = false) => async () => ({
+      protocol: STORYBOOK_RUNTIME_PROTOCOL,
+      create(context: StorybookRuntimeContext) {
+        return {
+          mount(input: StorybookRuntimeStoryInput) {
+            if (fail) throw new Error(`${label} package failed`)
+            const node = context.document.createElement("article")
+            node.textContent = `${label}:${input.route}`
+            context.present({
+              protocol: "story-presentation/1",
+              node,
+              componentRoot: {readStyleSheets: () => ({revision: 0, styleSheets: []})},
+              source: {html: `<article>${label}</article>`, typescript: `<Story label=${JSON.stringify(label)} />`},
+            })
+          },
+          unmount() {},
+          dispose() {},
+        }
+      },
+    })
+    const componentLoaders = (label: string) => new Map(componentsGraph.loaders.map(({route}) => [
+      route,
+      async () => ({label}),
+    ] as const))
+    const componentWidgets = () => new Map(componentsGraph.widgetLoaders.map(({id}) => [id, async () => ({})] as const))
+    const payload = (
+      packageId: string,
+      revision: string,
+      graphSnapshot: StorybookPackageRevisionGraphSnapshot,
+      loadRuntime: ReturnType<typeof runtimeLoader> | null,
+      storyLoaders: ReadonlyMap<string, () => Promise<unknown>>,
+    ) => ({
+      protocol: STORYBOOK_PAGE_REALM_PROTOCOL,
+      packageId,
+      candidateRevision: revision,
+      revisionUrl: `/__storybook/revisions/${encodeURIComponent(packageId)}/${revision}/`,
+      sharedModuleEpoch: "a".repeat(64),
+      hostModuleEpoch: "host-page",
+      graphSnapshot,
+      loadRuntime,
+      storyLoaders,
+      widgetLoaders: packageId === "@fixture/components" ? componentWidgets() : new Map(),
+    } as const)
+    const initialPayload = payload(
+      "@fixture/components",
+      initialRevision,
+      componentsGraph,
+      runtimeLoader("components"),
+      componentLoaders("components"),
+    )
+    const standaloneStyleSheet = Object.freeze({
+      specifier: "@fixture/standalone/theme.css",
+      url: "author-style-sheets/0.css",
+      contentDigest: "c".repeat(64),
+    })
+    const standaloneStyleWithoutDigest = {
+      ...standaloneGraph,
+      authorStyleSheets: Object.freeze([standaloneStyleSheet]),
+    }
+    const {packageGraphDigest: _standaloneDigest, ...standaloneStyleDigestInput} = standaloneStyleWithoutDigest
+    const standaloneStyleGraph = Object.freeze({
+      ...standaloneStyleWithoutDigest,
+      packageGraphDigest: sha256Hex(JSON.stringify(standaloneStyleDigestInput)),
+    })
+    const stylePayload = payload(
+      "@fixture/standalone",
+      styleRevision,
+      standaloneStyleGraph,
+      null,
+      new Map(),
+    )
+    const standalonePayload = payload(
+      "@fixture/standalone",
+      standaloneRevision,
+      standaloneGraph,
+      null,
+      new Map(),
+    )
+    const failedPayload = payload(
+      "@fixture/components",
+      failedRevision,
+      componentsGraph,
+      runtimeLoader("broken", true),
+      componentLoaders("broken"),
+    )
+    const target = (
+      packageId: string,
+      revision: string,
+      route: string,
+    ): ExternalStorybookPreparedPackageTarget => ({
+      kind: "revision",
+      packageId,
+      revision,
+      revisionUrl: `/__storybook/revisions/${encodeURIComponent(packageId)}/${revision}/`,
+      route,
+      urlPath: packageId === "@fixture/standalone"
+        ? "/pkg-fixture-standalone/"
+        : `/pkg-fixture-components/${route}`,
+      intent: "reader",
+      preview: false,
+      initialAppliedRevision: revision,
+      fallbackRevision: null,
+      readerToken: `${packageId}:${revision}`,
+    })
+    const initialTarget = target(
+      "@fixture/components",
+      initialRevision,
+      "components/button/basic/contained",
+    )
+    let failComponents = false
+    const controller = await startExternalStorybookPage({
+      initialTarget,
+      initialPayload,
+      sharedModuleEpoch: "a".repeat(64),
+      hostModuleEpoch: "host-page",
+      browserDocument: environment.browserDocument!,
+      location,
+      history,
+      fetcher: (async (input, init) => {
+        if (String(input) === "/api/client") return Response.json(snapshot)
+        if (String(input) === "/api/browser/session") return Response.json({token: `renewed-${String(init?.body).length}`})
+        return new Response(`# ${String(input)}`)
+      }) as typeof fetch,
+      createSocket() {
+        const socket = new FakeSocket()
+        sockets.push(socket)
+        return socket
+      },
+      shell: {
+        canvas: {} as HTMLCanvasElement,
+        loadFont: async () => ({}) as never,
+        createRoot: fakeRootFactory(rootState),
+      },
+      async prepareTarget(input) {
+        if (input.packageId === null) {
+          return {kind: "landing", pathname: input.route || "/", readerToken: "landing-reader"}
+        }
+        if (input.packageId === "@fixture/standalone") {
+          return target("@fixture/standalone", standaloneRevision, "")
+        }
+        if (input.packageId === "@fixture/components") {
+          return target(
+            "@fixture/components",
+            failComponents ? failedRevision : initialRevision,
+            input.route,
+          )
+        }
+        throw new Error("Unknown page target")
+      },
+      async loadAppliedRevision(packageId, revision) {
+        if (packageId === "@fixture/standalone" && revision === standaloneRevision) return standalonePayload
+        if (packageId === "@fixture/components" && revision === failedRevision) return failedPayload
+        if (packageId === "@fixture/standalone" && revision === styleRevision) return stylePayload
+        if (packageId === "@fixture/components" && revision === initialRevision) return initialPayload
+        throw new Error("Unknown page payload")
+      },
+    })
+    try {
+      const root = controller.shell.root
+      const document = controller.shell.document
+      const canvas = controller.shell.canvas
+      controller.shell.document.subscribeMutations(batch => {
+        for (const record of batch.records) {
+          if (record.type !== "childList") continue
+          for (const node of record.addedNodes) {
+            if ((node as {localName?: string}).localName === "link") {
+              queueMicrotask(() => node.dispatchEvent(new SemanticEvent("load")))
+            }
+          }
+        }
+      })
+      expect(controller.packageId).toBe("@fixture/components")
+      expect(controller.shell.workbench.controller.read("presentation").node?.textContent)
+        .toContain("components")
+      controller.shell.workbench.elements.catalogItems.scrollTop = 144
+      const sourceButton = controller.shell.workbench.elements.inspectorHost.querySelector(
+        'button[title="Исходники"]',
+      ) as HTMLButtonElement
+      sourceButton.click()
+      expect(new URL(location.href).searchParams.get("inspector")).toBe("source")
+      const pageBridge = (globalThis as typeof globalThis & {
+        __EXTERNAL_STORYBOOK_AGENT_BRIDGE__: {
+          call(method: "identity" | "applyRevision", params?: unknown): Promise<any>
+        }
+      }).__EXTERNAL_STORYBOOK_AGENT_BRIDGE__
+
+      await controller.navigatePackage({packageId: "@fixture/standalone", route: ""})
+      expect(controller.packageId).toBe("@fixture/standalone")
+      expect(controller.shell.root).toBe(root)
+      expect(controller.shell.document).toBe(document)
+      expect(controller.shell.canvas).toBe(canvas)
+      expect(rootState.creations).toBe(1)
+      expect(location.reloads).toBe(0)
+      expect(location.pathname).toBe("/pkg-fixture-standalone/")
+      expect((environment.browserDocument as any).title).toBe("Standalone Fixture")
+      expect(controller.shell.workbench.element.getAttribute("aria-label")).toBe("Standalone Fixture")
+      expect((environment.browserDocument as any).documentElement.dataset.externalStorybookPackageId)
+        .toBe("@fixture/standalone")
+      expect((environment.browserDocument as any).documentElement.dataset.externalStorybookLanding)
+        .toBeUndefined()
+      expect(controller.shell.workbench.controller.read("presentation").node?.textContent)
+        .toContain("/__storybook/revisions/")
+      expect(controller.shell.workbench.elements.catalogItems.scrollTop).toBe(144)
+      expect(new URL(location.href).searchParams.has("inspector")).toBeFalse()
+      await pageBridge.call("applyRevision", {
+        expectedPackageId: "@fixture/standalone",
+        revision: styleRevision,
+      })
+      expect(controller.packageId).toBe("@fixture/standalone")
+      expect(controller.shell.root).toBe(root)
+      expect(rootState.creations).toBe(1)
+      expect(controller.shell.document.querySelectorAll('link[data-external-storybook-package-style]'))
+        .toHaveLength(1)
+      expect(await pageBridge.call("identity")).toMatchObject({
+        packageId: "@fixture/standalone",
+        revision: styleRevision,
+      })
+
+      await controller.navigateLanding()
+      expect(controller.packageId).toBeNull()
+      expect(controller.shell.root).toBe(root)
+      expect(rootState.creations).toBe(1)
+      expect(location.pathname).toBe("/")
+      expect((environment.browserDocument as any).documentElement.dataset.externalStorybookLanding)
+        .toBe("ready")
+      expect((environment.browserDocument as any).documentElement.dataset.externalStorybookPackageId)
+        .toBeUndefined()
+
+      await controller.navigatePackage({packageId: "@fixture/standalone", route: ""})
+      expect(controller.packageId).toBe("@fixture/standalone")
+      expect(controller.shell.root).toBe(root)
+      expect(rootState.creations).toBe(1)
+      expect(location.pathname).toBe("/pkg-fixture-standalone/")
+
+      location.href = "http://localhost/pkg-fixture-components/components/button/basic/contained?inspector=source"
+      location.pathname = "/pkg-fixture-components/components/button/basic/contained"
+      globalThis.dispatchEvent(new globalThis.Event("popstate"))
+      const backDeadline = Date.now() + 3_000
+      while (controller.packageId !== "@fixture/components" && Date.now() < backDeadline) await Bun.sleep(10)
+      expect(controller.packageId).toBe("@fixture/components")
+      expect(new URL(location.href).searchParams.get("inspector")).toBe("source")
+      expect(controller.shell.workbench.controller.selectedInspector()).toBe("source")
+
+      await controller.navigatePackage({packageId: "@fixture/standalone", route: ""})
+      failComponents = true
+      location.href = "http://localhost/pkg-fixture-components/components/button/basic/contained?inspector=source"
+      location.pathname = "/pkg-fixture-components/components/button/basic/contained"
+      globalThis.dispatchEvent(new globalThis.Event("popstate"))
+      const failedBackDeadline = Date.now() + 3_000
+      while (location.pathname !== "/pkg-fixture-standalone/" && Date.now() < failedBackDeadline) await Bun.sleep(10)
+      expect(controller.packageId).toBe("@fixture/standalone")
+      expect(controller.shell.root).toBe(root)
+      expect(controller.shell.document).toBe(document)
+      expect(controller.shell.canvas).toBe(canvas)
+      expect(rootState.creations).toBe(1)
+      expect(location.reloads).toBe(0)
+      expect(location.pathname).toBe("/pkg-fixture-standalone/")
+      expect(history.pushed).toEqual([
+        "/pkg-fixture-components/components/button/basic/contained?inspector=source",
+        "/pkg-fixture-standalone/",
+        "/",
+        "/pkg-fixture-standalone/",
+        "/pkg-fixture-standalone/",
+      ])
+      const bridge = (globalThis as typeof globalThis & {
+        __EXTERNAL_STORYBOOK_AGENT_BRIDGE__: {call(method: "identity"): Promise<any>}
+      }).__EXTERNAL_STORYBOOK_AGENT_BRIDGE__
+      expect(await bridge.call("identity")).toMatchObject({
+        packageId: "@fixture/standalone",
+        revision: standaloneRevision,
+      })
+    } finally {
+      await controller.dispose()
+    }
+    expect(rootState.disposals).toBe(1)
+    expect(sockets.filter(socket => socket.closed).length).toBeGreaterThan(0)
   })
 
   test("keeps a mixed Display/HUD category as an overview without remapping its children", async () => {
@@ -409,6 +1112,8 @@ describe("external Storybook package frontend", () => {
     const lifecycle: string[] = []
     const experienceState = createFakeRootState(lifecycle)
     const location = locationFixture("/pkg-fixture-components/")
+    const packageTransitions: Array<Readonly<{packageId: string; route: string}>> = []
+    const landingTransitions: string[] = []
     const controller = await startExternalStorybookPackage({
       packageId: "@fixture/components",
       candidateRevision: revision,
@@ -425,6 +1130,8 @@ describe("external Storybook package frontend", () => {
           ? Response.json(createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, revision)))
           : new Response("# UI Components")) as unknown as typeof fetch,
         createSocket: () => new FakeSocket(),
+        async navigatePackage(input) { packageTransitions.push(input) },
+        async navigateLanding(pathname) { landingTransitions.push(pathname) },
         shell: {
           canvas: {} as HTMLCanvasElement,
           loadFont: async () => ({}) as never,
@@ -449,7 +1156,8 @@ describe("external Storybook package frontend", () => {
       '[data-breadcrumb-id="package:fixture-workspace"] button',
     ) as import("@zavx0z/dom").HTMLButtonElement
     workspaceBreadcrumb.click()
-    expect(location.href).toBe("http://localhost/pkg-fixture-workspace/")
+    expect(packageTransitions).toEqual([{packageId: "fixture-workspace", route: ""}])
+    expect(location.href).toBe("http://localhost/pkg-fixture-components/")
     const homeBreadcrumb = controller.shell.workbench.elements.status.querySelector(
       '[data-breadcrumb-id="storybook:root"] button',
     ) as import("@zavx0z/dom").HTMLButtonElement
@@ -457,7 +1165,8 @@ describe("external Storybook package frontend", () => {
     expect(homeBreadcrumb.getAttribute("aria-label")).toBe("Главная")
     expect(homeBreadcrumb.querySelector("img")).not.toBeNull()
     homeBreadcrumb.click()
-    expect(location.href).toBe("http://localhost/")
+    expect(landingTransitions).toEqual(["/"])
+    expect(location.href).toBe("http://localhost/pkg-fixture-components/")
     await controller.dispose()
     expect(lifecycle.at(-1)).toBe("root-dispose")
   })
@@ -688,6 +1397,7 @@ describe("external Storybook package frontend", () => {
       "/pkg-fixture-components/components",
       "/pkg-fixture-components/components/button",
       "/pkg-fixture-components/components/button/basic/contained",
+      "/pkg-fixture-components/components/button/basic/contained?inspector=diagnostics",
       "/pkg-fixture-components/components/button/outlined",
       "/pkg-fixture-components/components/button",
     ])
@@ -717,8 +1427,12 @@ describe("external Storybook package frontend", () => {
       packageId: "@fixture/components",
       revision: "revision-b",
     })})
-    expect(browserLocation.reloads).toBe(1)
+    expect(browserLocation.reloads).toBe(0)
     expect(browserLocation.pathname).toBe(pathnameBeforeUpdate)
+    const aggregateDiagnostics = controller.shell.workbench.elements.inspectorHost.querySelector(
+      'button[title="Диагностика"]',
+    ) as HTMLButtonElement
+    aggregateDiagnostics.click()
     socket.emit("message", {data: JSON.stringify({
       type: "package.failed",
       packageId: "@fixture/components",
@@ -1089,7 +1803,7 @@ describe("external Storybook package frontend", () => {
     await controller.dispose()
   })
 
-  test("aborts a hung candidate and reloads lastWorking on activation-timeout event", async () => {
+  test("aborts a hung candidate without reloading the page when no in-page fallback loader exists", async () => {
     const graph = await fixtureGraph()
     const candidate = "revision-timeout"
     const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, candidate))
@@ -1135,8 +1849,14 @@ describe("external Storybook package frontend", () => {
       revision: candidate,
       diagnostics: [{phase: "timeout", message: "activation timed out"}],
     })})
-    await expect(pending).rejects.toThrow(`Storybook candidate activation failed: ${candidate}`)
-    expect((environment.location as LocationFixture).reloads).toBe(1)
+    const controller = await pending
+    expect((environment.location as LocationFixture).reloads).toBe(0)
+    const rejectedDeadline = Date.now() + 1_000
+    while (!(environment.browserDocument as any).documentElement.dataset.externalStorybookUpdateError &&
+      Date.now() < rejectedDeadline) await Bun.sleep(10)
+    expect((environment.browserDocument as any).documentElement.dataset.externalStorybookUpdateError)
+      .toContain("identity-safe applied revision loader")
+    await controller.dispose()
     expect(socket.closed).toBeTrue()
   })
 
@@ -1377,6 +2097,21 @@ function packageSnapshots(
     buildState: "ready" as const,
     builds: 1,
   })] : []))
+}
+
+function withoutAuthorStyleSheets(
+  graph: StorybookPackageRevisionGraphSnapshot,
+): StorybookPackageRevisionGraphSnapshot {
+  const withoutStyles = {
+    ...graph,
+    authorStyleSheets: Object.freeze([]),
+    workbenchAuthorStyleSheets: Object.freeze([]),
+  }
+  const {packageGraphDigest: _digest, ...digestInput} = withoutStyles
+  return Object.freeze({
+    ...withoutStyles,
+    packageGraphDigest: sha256Hex(JSON.stringify(digestInput)),
+  })
 }
 
 type FakeRootState = {

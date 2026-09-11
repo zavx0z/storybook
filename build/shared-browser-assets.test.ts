@@ -7,6 +7,39 @@ import {StorybookSharedBrowserAssets, type SharedBrowserAssets} from "./shared-b
 const cleanups: Array<() => void> = []
 afterEach(() => { for (const cleanup of cleanups.splice(0).reverse()) cleanup() })
 
+test("dispose отменяет shared build и ждёт завершения его собственного lifecycle", async () => {
+  const watch = new StorybookDependencyWatchCoordinator({watchFile() {}, unwatchFile() {}})
+  let release!: () => void
+  let signal: AbortSignal | undefined
+  const gate = new Promise<void>(resolve => { release = resolve })
+  const errors: unknown[] = []
+  const cache = new StorybookSharedBrowserAssets({
+    watch,
+    subscribed: () => false,
+    updated() {},
+    failed: error => errors.push(error),
+    async build(currentSignal) {
+      signal = currentSignal
+      await gate
+      currentSignal.throwIfAborted()
+      throw new Error("unreachable")
+    },
+  })
+  const build = cache.ensure()
+  const outcome = build.then(() => null, error => error)
+  let disposed = false
+  const closing = cache.dispose().then(() => { disposed = true })
+  expect(signal?.aborted).toBe(true)
+  await Promise.resolve()
+  expect(disposed).toBe(false)
+  release()
+  await closing
+  expect((await outcome)?.message).toContain("disposed")
+  expect(disposed).toBe(true)
+  expect(errors).toEqual([])
+  watch.dispose()
+})
+
 function fixture() {
   const root = mkdtempSync(join(import.meta.dir, ".shared-test-"))
   cleanups.push(() => rmSync(root, {recursive: true, force: true}))
@@ -16,6 +49,7 @@ function fixture() {
   cleanups.push(() => watch.dispose())
   const updates: string[] = []
   const errors: unknown[] = []
+  const cacheProgress: Array<Readonly<{state: "started" | "completed", hit?: boolean}>> = []
   let builds = 0
   let pause: (() => Promise<void>) | null = null
   const cache = new StorybookSharedBrowserAssets({
@@ -23,6 +57,7 @@ function fixture() {
     subscribed: () => true,
     updated: assets => { updates.push(assets.landingEntry) },
     failed: error => { errors.push(error) },
+    cacheProgress: event => cacheProgress.push(event),
     async build(): Promise<SharedBrowserAssets> {
       builds += 1
       const content = readFileSync(path, "utf8")
@@ -32,7 +67,7 @@ function fixture() {
     },
   })
   cleanups.push(() => cache.dispose())
-  return {cache, watch, path, updates, errors, builds: () => builds, pause: (value: typeof pause) => { pause = value }}
+  return {cache, watch, path, updates, errors, cacheProgress, builds: () => builds, pause: (value: typeof pause) => { pause = value }}
 }
 
 describe("shared browser assets", () => {
@@ -46,6 +81,12 @@ describe("shared browser assets", () => {
     expect((await f.cache.ensure()).landingEntry).toBe("second.js")
     expect(f.builds()).toBe(2)
     expect(f.updates).toEqual(["second.js"])
+    expect(f.cacheProgress).toEqual([
+      {state: "started"},
+      {state: "completed", hit: true},
+      {state: "started"},
+      {state: "completed", hit: false},
+    ])
   })
 
   test("keeps the previous build on failure and retries after repair", async () => {

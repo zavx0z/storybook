@@ -56,7 +56,13 @@ export function validateWorkbenchWidgetRegistry(
     if (!isCompiledTemplate(widget.component)) {
       throw new TypeError(`Custom Inspector widget component must be a governed compiled template: ${id}`)
     }
-    return Object.freeze({id, kind: "custom" as const, label, title, ...icon, component: widget.component})
+    if (widget.wrapInPanel !== undefined && typeof widget.wrapInPanel !== "boolean") {
+      throw new TypeError(`Custom Inspector widget wrapInPanel must be boolean: ${id}`)
+    }
+    return Object.freeze({
+      id, kind: "custom" as const, label, title, ...icon, component: widget.component,
+      ...(widget.wrapInPanel === undefined ? {} : {wrapInPanel: widget.wrapInPanel}),
+    })
   })
   const standard = WORKBENCH_STANDARD_WIDGET_REGISTRY.map(({id}) => id)
   const presentStandard = result.filter(({kind}) => kind !== "custom").map(({id}) => id)
@@ -89,6 +95,9 @@ export function validateWorkbenchInspectorSubject(
   return Object.freeze({
     packageId: requiredText("Inspector subject packageId", subject.packageId),
     subjectId: requiredText("Inspector subject subjectId", subject.subjectId),
+    ...(subject.workspaceId === undefined
+      ? {}
+      : {workspaceId: requiredText("Inspector subject workspaceId", subject.workspaceId)}),
     widgetIds: Object.freeze(widgetIds),
   })
 }

@@ -30,6 +30,22 @@ afterEach(() => {
 })
 
 describe("shared external Storybook dependency watch", () => {
+  test("initial missing-file notification не запускает refresh, удаление и создание запускают", () => {
+    let listener!: StorybookDependencyWatchListener
+    let changes = 0
+    const coordinator = new StorybookDependencyWatchCoordinator({
+      watchFile(_path, _options, callback) { listener = callback },
+      unwatchFile() {},
+    })
+    coordinators.push(coordinator)
+    coordinator.replace("@fixture/a", [join(fixtureRoot(), "missing.ts")], () => { changes += 1 })
+    listener({nlink: 0} as Stats, {nlink: 0} as Stats)
+    expect(changes).toBe(0)
+    listener({nlink: 0} as Stats, {nlink: 1} as Stats)
+    listener({nlink: 1} as Stats, {nlink: 0} as Stats)
+    expect(changes).toBe(2)
+  })
+
   test("owns one canonical watcher for a dependency shared by A and B", () => {
     const root = fixtureRoot()
     const source = sourceFile(root, "shared.ts")
@@ -49,6 +65,7 @@ describe("shared external Storybook dependency watch", () => {
     coordinator.replace("@fixture/b", [alias, source], (path) => calls.push(`b:${path}`))
 
     const canonical = realpathSync(source)
+    expect(coordinator.snapshot()).toEqual({paths: 1, owners: 2, intervalMs: 75})
     expect(watcher.watchCalls).toEqual([{
       path: canonical,
       options: {persistent: false, interval: 75},
@@ -61,6 +78,8 @@ describe("shared external Storybook dependency watch", () => {
     watcher.emit(canonical)
     expect(calls).toEqual([`a:${canonical}`, `b:${canonical}`])
     expect(watcher.watchCalls).toHaveLength(1)
+    coordinator.dispose()
+    expect(coordinator.snapshot()).toEqual({paths: 0, owners: 0, intervalMs: 75})
   })
 
   test("replace updates ownership without restarting a retained shared watcher", () => {
