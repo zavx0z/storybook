@@ -91,7 +91,7 @@ describe("external Storybook package frontend", () => {
       expect(display.textContent).toContain("Текст подписи")
       expect(display.querySelector("[data-token-category]")).not.toBeNull()
       expect(display.textContent).toContain("Входные данные")
-      expect(display.textContent).toContain("Выходные данные")
+      expect(display.textContent).not.toContain("Выходные данные")
       expect(workbench.controller.read("tabs.active")).toBe(`contract:${subjectId}`)
       expect(controller.currentRoute).toBe("components/button/contract")
       expect(new URL(environment.location!.href).searchParams.get("preview")).toBe("revision-contract")
@@ -108,16 +108,14 @@ describe("external Storybook package frontend", () => {
         .some(button => button.textContent?.trim() === "Вход" || button.textContent?.trim() === "Выход")).toBe(false)
       expect(new URL(environment.location!.href).searchParams.get("inspector")).toBe("input")
       const inputTree = workbench.elements.inspectorHost.querySelector('[data-widget="tree"]') as Element
-      const inputRootToggle = inputTree.querySelector('button[aria-label="Раскрыть"]') as HTMLButtonElement
-      inputRootToggle.click()
+      expect(inputTree.querySelector('button[aria-label="Раскрыть"]')).toBeNull()
+      expect(inputTree.querySelectorAll('[aria-expanded="true"]')).toHaveLength(2)
       const inputItems = [...inputTree.querySelectorAll("[data-tree-id]")]
       const dotted = inputItems.find(item => item.getAttribute("data-tree-id") === JSON.stringify(["input", "Input", "a.b"]))
       const nested = inputItems.find(item => item.getAttribute("data-tree-id") === JSON.stringify(["input", "Input", "a"]))
       expect(dotted).not.toBeNull()
       expect(nested).not.toBeNull()
       expect(dotted?.getAttribute("data-tree-id")).not.toBe(nested?.getAttribute("data-tree-id"))
-      const nestedToggle = nested?.querySelector('button[aria-label="Раскрыть"]') as HTMLButtonElement
-      nestedToggle.click()
       expect(inputTree.textContent).toContain("b")
       const nestedLeaf = [...inputTree.querySelectorAll("[data-tree-id]")].find(item =>
         item.getAttribute("data-tree-id") === JSON.stringify(["input", "Input", "a", "b"]))!
@@ -126,12 +124,11 @@ describe("external Storybook package frontend", () => {
       nestedLeaf.dispatchEvent(new MouseEvent("click", {bubbles: true}))
       expect(readDocumentScrollIntoViewRequests(document).at(-1)?.target === nestedDescription).toBe(true)
       expect(nestedLeaf.getAttribute("aria-selected")).toBe("true")
-      const collapseAll = inputTree.querySelector('button[title="Свернуть всё"]') as HTMLButtonElement
-      const expandAll = inputTree.querySelector('button[title="Развернуть всё"]') as HTMLButtonElement
       expect(inputTree.textContent).toContain("Входные поля")
-      collapseAll.click()
-      expect(inputTree.querySelectorAll('[aria-expanded="true"]')).toHaveLength(0)
-      expandAll.click()
+      expect(inputTree.querySelector('button[title="Свернуть всё"]')).toBeNull()
+      expect(inputTree.querySelector('button[title="Развернуть всё"]')).toBeNull()
+      const collapseBranch = nested?.querySelector('button[aria-label="Свернуть"]') as HTMLButtonElement
+      collapseBranch.click()
       expect(inputTree.querySelectorAll('[aria-expanded="true"]')).toHaveLength(2)
       const contractViewport = display.querySelector("[data-storybook-contract]")!
       contractViewport.getBoundingClientRect = () => new DOMRect(0, 100, 600, 200)
@@ -140,24 +137,31 @@ describe("external Storybook package frontend", () => {
         ...display.querySelectorAll("[data-typedoc-member]"),
       ]) {
         target.getBoundingClientRect = () => new DOMRect(0, 500, 400, 40)
+        for (const child of target.children) {
+          if (!child.hasAttribute("data-typedoc-members")) child.getBoundingClientRect = () => target.getBoundingClientRect()
+        }
       }
       nestedDescription.getBoundingClientRect = () => new DOMRect(0, 95, 400, 40)
-      collapseAll.click()
       expect(inputTree.querySelector('button[title="Показать текущее место"]')).toBeNull()
       controller.shell.presentFrame()
       const revealedLeaf = [...inputTree.querySelectorAll("[data-tree-id]")].find(item =>
         item.getAttribute("data-tree-id") === JSON.stringify(["input", "Input", "a", "b"]))!
       expect(revealedLeaf.getAttribute("aria-selected")).toBe("true")
       expect(inputTree.querySelectorAll('[aria-expanded="true"]')).toHaveLength(2)
-      expect(readDocumentScrollIntoViewRequests(document).at(-1)?.target === revealedLeaf).toBe(true)
+      expect(readDocumentScrollIntoViewRequests(document).at(-1)?.target === revealedLeaf.querySelector("[data-tree-row]")).toBe(true)
       const output = workbench.elements.inspectorHost.querySelector('button[title="Выход"]') as HTMLButtonElement
       output.click()
       expect(new URL(environment.location!.href).searchParams.get("inspector")).toBe("output")
       expect(output.getAttribute("aria-pressed")).toBe("true")
+      expect(display.textContent).toContain("Выходные данные")
+      expect(display.textContent).not.toContain("Входные данные")
+      expect(display.querySelectorAll("[data-typedoc]")).toHaveLength(1)
       expect(workbench.controller.read("inspector.values")["storybook-contract-output"])
         .toMatchObject({direction: "output"})
       const input = workbench.elements.inspectorHost.querySelector('button[title="Вход"]') as HTMLButtonElement
       input.click()
+      expect(display.textContent).toContain("Входные данные")
+      expect(display.textContent).not.toContain("Выходные данные")
       expect(nested?.getAttribute("aria-expanded")).toBe("true")
       const subject = workbench.elements.secondary.querySelector(`[data-id="${subjectId}"] button`) as HTMLButtonElement
       subject.click()
@@ -173,6 +177,12 @@ describe("external Storybook package frontend", () => {
       while (!display.querySelector("[data-typedoc]") && Date.now() < restored) await Bun.sleep(10)
       expect(display.querySelector("[data-typedoc]")).not.toBeNull()
       expect(new URL(environment.location!.href).searchParams.get("inspector")).toBe("output")
+      expect(display.textContent).toContain("Выходные данные")
+      expect(display.textContent).not.toContain("Входные данные")
+      location.href = location.href.replace("inspector=output", "inspector=input")
+      events.dispatchEvent(new Event("popstate"))
+      expect(display.textContent).toContain("Входные данные")
+      expect(display.textContent).not.toContain("Выходные данные")
       expect(controller.shell.document).toBe(document)
       expect(controller.shell.display).toBe(display)
     } finally { await controller.dispose() }

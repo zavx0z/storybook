@@ -14,14 +14,14 @@ import {createStorybookPackageRevisionGraphSnapshot} from "../sessions/package-r
 const root = resolve(import.meta.dir, "..")
 
 describe("external Storybook self declaration", () => {
-  test("пример контракта использует TypeDoc для входа и выхода", () => {
+  test("пример контракта по умолчанию показывает только вход через TypeDoc", () => {
     const presentation = typeContractExample.create(createDocument())
     try {
-      expect(presentation.element.querySelectorAll("[data-typedoc]")).toHaveLength(2)
+      expect(presentation.element.querySelectorAll("[data-typedoc]")).toHaveLength(1)
       expect(presentation.element.textContent).toContain("Входные данные")
-      expect(presentation.element.textContent).toContain("Выходные данные")
+      expect(presentation.element.textContent).not.toContain("Выходные данные")
       expect(presentation.element.textContent).toContain("ExampleInput")
-      expect(presentation.element.textContent).toContain("ExampleOutput")
+      expect(presentation.element.textContent).not.toContain("ExampleOutput")
     } finally { presentation.dispose() }
   })
 
@@ -138,8 +138,8 @@ describe("external Storybook self declaration", () => {
         .toContain("StorybookBrowserLifecycle")
       expect(presentation.element.textContent)
         .toContain("Multiple tabs may show the same package")
-      expect(presentation.element.textContent).toContain("User navigation stays in the current tab")
-      expect(presentation.element.textContent).toContain("Agent opens remain background-only")
+      expect(presentation.element.textContent).toContain("Навигация между пакетами, их разделами и общим каталогом сохраняет одну оболочку, Root, Document и Canvas")
+      expect(presentation.element.textContent).toContain("Агент открывает вкладки в фоне")
       expect(presentation.source.typescript).toContain("openPackage")
       expect(presentation.source.typescript).toContain("preserve all peers")
     } finally {

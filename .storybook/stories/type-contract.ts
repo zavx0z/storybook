@@ -2,7 +2,7 @@ import {createContractPresentation} from "../../runtime/contract-view.tsx"
 import {defineSelfStory, serializeSelfElement} from "./story-types.ts"
 import type {StorybookContractDocument} from "../../catalog/catalog.t.ts"
 
-/** Тот же TypeDoc, который показывает вкладка структурного контракта. */
+/** Показывает вход по умолчанию тем же TypeDoc, что и вкладка структурного контракта. */
 export const typeContractExample = defineSelfStory(document => {
   const documents: readonly StorybookContractDocument[] = [{
     direction: "input",

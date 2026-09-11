@@ -371,6 +371,7 @@ export async function startExternalStorybookPackage(
   let currentModel = initialModel
   let navigationRevision = 0
   let activePresentationOperation: StorybookPresentationOperation | null = null
+  let selectContractDirection: ((id: string) => void) | null = null
   let activePresentationView: WorkbenchPresentationUpdate | null = null
   let routeDiagnostics: unknown[] = []
   let operationTail: Promise<void> = Promise.resolve()
@@ -843,6 +844,7 @@ export async function startExternalStorybookPackage(
     revision: number,
     signal: AbortSignal,
   ): Promise<void> => {
+    selectContractDirection = null
     const dependencies = model.viewKind === "dependencies"
     const contract = model.viewKind === "contract"
     disposeSpacePreview()
@@ -867,6 +869,10 @@ export async function startExternalStorybookPackage(
     type ContractLocation = ReturnType<NonNullable<Parameters<StorybookContractNavigationReady>[1]>["locate"]>
     const contractLocationListeners = new Map<string, Set<(location: ContractLocation) => void>>()
     let contractViewport: Element | null = null
+    const contractDirections = node.contractDocuments?.map(entry => entry.direction) ?? []
+    const requestedDirection = new URL(location.href).searchParams.get("inspector")
+    const initialDirection = contractDirections.find(direction => direction === requestedDirection)
+      ?? (contractDirections.includes("input") ? "input" : contractDirections[0] ?? "input")
     const presentationNode = contract
       ? await shell.showContract(label, node.contractDocuments!, signal, (direction, navigation) => {
         if (navigation === null) contractNavigators.delete(direction)
@@ -877,6 +883,16 @@ export async function startExternalStorybookPackage(
           const location = navigation.locate(contractViewport)
           for (const listener of contractLocationListeners.get(direction) ?? []) listener(location)
         }
+      }, {
+        initial: initialDirection,
+        subscribe(listener) {
+          const select = (id: string) => {
+            const direction = id === "storybook-contract-output" ? "output" : "input"
+            if (contractDirections.includes(direction)) listener(direction)
+          }
+          selectContractDirection = select
+          return () => { if (selectContractDirection === select) selectContractDirection = null }
+        },
       })
       : dependencies
       ? await shell.showDependencies(label, node.dependencyCases!, signal)
@@ -1128,9 +1144,11 @@ export async function startExternalStorybookPackage(
       return
     }
     const selected = subject.widgetIds.find(id => inspectorUrlId(id) === requested)
+      ?? (currentModel.viewKind === "contract" ? subject.widgetIds.find(id => inspectorUrlId(id) === "input") ?? subject.widgetIds[0] : null)
       ?? shell.workbench.controller.selectedInspector()
       ?? subject.widgetIds[0]!
     shell.workbench.controller.selectInspector(selected)
+    selectContractDirection?.(selected)
     const normalized = inspectorUrlId(selected)
     if (requested === normalized) return
     current.searchParams.set("inspector", normalized)
@@ -1376,6 +1394,7 @@ export async function startExternalStorybookPackage(
     if (subject === null || !subject.widgetIds.includes(id)) return
     const next = new URL(location.href)
     const value = inspectorUrlId(id)
+    selectContractDirection?.(id)
     if (next.searchParams.get("inspector") === value) return
     next.searchParams.set("inspector", value)
     history.pushState(null, "", `${next.pathname}${next.search}${next.hash}`)

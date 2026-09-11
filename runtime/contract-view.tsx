@@ -1,4 +1,5 @@
 /** Вкладка контракта использует публичный TypeDoc в существующем Display. */
+import {useLayoutEffect, useState} from "@zavx0z/component"
 import {TypeDoc, type TypeDocProps} from "@webxr/typedoc"
 import type {Document} from "@zavx0z/dom"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
@@ -11,13 +12,22 @@ export type StorybookContractNavigationReady = (
   navigation: Parameters<NonNullable<TypeDocProps["onReady"]>>[0],
 ) => void
 
+/** Передаёт выбор направления из URL и Inspector в существующий Display. */
+export type StorybookContractSelection = Readonly<{
+  initial: StorybookContractDocument["direction"]
+  subscribe(listener: (direction: StorybookContractDocument["direction"]) => void): () => void
+}>
+
 type ContractViewProps = Readonly<{
   documents: readonly StorybookContractDocument[]
+  selection?: StorybookContractSelection | undefined
   onReady?: StorybookContractNavigationReady | undefined
   onScroll?: (() => void) | undefined
 }>
 
 export function StorybookContractView(props: ContractViewProps) {
+  const [direction, setDirection] = useState(props.selection?.initial ?? props.documents[0]?.direction ?? "input")
+  useLayoutEffect(() => props.selection?.subscribe(setDirection), [props.selection])
   return (
     <section
       data-storybook-contract=""
@@ -37,7 +47,7 @@ export function StorybookContractView(props: ContractViewProps) {
         gap: 24px;
       `}
     >
-      {props.documents.map(entry => (
+      {props.documents.filter(entry => entry.direction === direction).map(entry => (
         <TypeDoc
           key={entry.direction}
           document={entry.document}
@@ -54,11 +64,12 @@ export function createContractPresentation(
   documents: readonly StorybookContractDocument[],
   onReady?: StorybookContractNavigationReady,
   onScroll?: () => void,
+  selection?: StorybookContractSelection,
 ) {
   return createStorybookComponentPresentation(
     document,
     StorybookContractView as unknown as CompiledTemplate<ContractViewProps>,
-    {documents, onReady, onScroll},
+    {documents, onReady, onScroll, selection},
     "[data-storybook-contract]",
   )
 }

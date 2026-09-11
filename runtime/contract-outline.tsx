@@ -1,5 +1,4 @@
 import {Tree, type TreeItem, type TreeHandle} from "@zavx0z/ui/widgets/tree"
-import {uiIcons} from "@zavx0z/ui/themes/icons"
 import {useLayoutEffect, useRef, useState} from "@zavx0z/component"
 import type {StorybookContractDocument} from "../catalog/catalog.t.ts"
 import type {WorkbenchInspectorCustomWidgetProps} from "../workbench/contract.ts"
@@ -22,8 +21,7 @@ type ContractOutlineValue = StorybookContractDocument & Readonly<{
 
 Значение приходит из уже проверенного снимка TypeDoc. Компонент не разбирает
 TypeScript-строки: вложенность берётся только из `TypeDocMember.children`.
-Раскрытие принадлежит workspace Inspector и передаётся через общий custom-widget
-contract, поэтому сохраняется при возврате на вкладку контракта.
+Все ветви постоянно раскрыты; выбор строки и навигация принадлежат Inspector.
 
 @param props - Контрактный документ и состояние раскрытия, предоставленные
 Workbench для текущей секции Inspector.
@@ -31,6 +29,7 @@ Workbench для текущей секции Inspector.
 export function StorybookContractOutline(props: WorkbenchInspectorCustomWidgetProps) {
   const document = props.value as ContractOutlineValue
   const items = contractOutlineItems(document)
+  const expandedKeys = expandableKeys(items)
   const [selectedKeys, setSelectedKeys] = useState<readonly string[]>([])
   const tree = useRef<TreeHandle | null>(null)
   const pendingReveal = useRef<string | null>(null)
@@ -40,7 +39,7 @@ export function StorybookContractOutline(props: WorkbenchInspectorCustomWidgetPr
       tree.current.reveal(pendingReveal.current)
       pendingReveal.current = null
     }
-  }, [props.expandedKeys, selectedKeys])
+  }, [selectedKeys])
   const navigate = (id: string) => {
     const [, declaration, ...path] = JSON.parse(id) as string[]
     if (declaration !== undefined && document.navigate(declaration, path)) setSelectedKeys([id])
@@ -51,9 +50,7 @@ export function StorybookContractOutline(props: WorkbenchInspectorCustomWidgetPr
     const id = treeItemId(...parts)
     if (lastLocation.current === id) return
     lastLocation.current = id
-    const ancestors = location.path.map((_, index) => treeItemId(...parts.slice(0, index + 2)))
     pendingReveal.current = id
-    props.onExpandedChange([...new Set([...props.expandedKeys, ...ancestors])])
     setSelectedKeys([id])
   }
   useLayoutEffect(() => {
@@ -64,24 +61,10 @@ export function StorybookContractOutline(props: WorkbenchInspectorCustomWidgetPr
   return <Tree
     title={document.direction === "input" ? "Входные поля" : "Выходные поля"}
     items={items}
-    expandedKeys={props.expandedKeys}
+    expandedKeys={expandedKeys}
     selectedKeys={selectedKeys}
     emptyLabel="В контракте нет полей"
-    actions={[
-      {
-        id: "collapse-all",
-        label: "Свернуть всё",
-        iconSrc: uiIcons.collapse,
-        onAction: () => props.onExpandedChange([]),
-      },
-      {
-        id: "expand-all",
-        label: "Развернуть всё",
-        iconSrc: uiIcons.expand,
-        onAction: () => props.onExpandedChange(expandableKeys(items)),
-      },
-    ]}
-    onExpandedChange={keys => props.onExpandedChange(keys)}
+    onExpandedChange={() => {}}
     onSelectionChange={keys => { if (keys[0] !== undefined) navigate(keys[0]) }}
     onActivate={navigate}
     onReady={handle => { tree.current = handle }}
