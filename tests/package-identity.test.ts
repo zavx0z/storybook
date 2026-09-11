@@ -82,7 +82,7 @@ describe("Storybook package identity", () => {
     assertOnePhysicalOwner(roots, "@zavx0z/devtools", "devtools", "inspector.ts")
     assertOnePhysicalOwner(roots, "@zavx0z/dom", "dom", "src/index.ts")
     assertOnePhysicalOwner(roots, "@renderer/html", "renderer/html", "src/index.ts")
-    assertOnePhysicalOwner(roots, "@webxr/markdown", "markdown", "markdown/src/markdown.tsx")
+    assertOnePhysicalOwner(roots, "@webxr/markdown", "markdown", "markdown/index.tsx")
     assertOnePhysicalOwner(roots, "@webxr/typedoc", "typedoc", "typedoc/index.tsx")
     assertOnePhysicalOwner(roots, "@zavx0z/template", "template", "compiled.ts")
     assertOnePhysicalOwner(roots, "@zavx0z/ui", "ui", "buttons/button.tsx")
@@ -111,7 +111,7 @@ describe("Storybook package identity", () => {
       ["@zavx0z/devtools", "devtools/inspector.ts"],
       ["@zavx0z/dom", "dom/src/index.ts"],
       ["@renderer/html", "renderer/html/src/index.ts"],
-      ["@webxr/markdown", "markdown/markdown/src/markdown.tsx"],
+      ["@webxr/markdown", "markdown/markdown/index.tsx"],
       ["@webxr/markdown/parser", "markdown/parser/src/parser.ts"],
       ["@webxr/typedoc", "typedoc/typedoc/index.tsx"],
       ["@webxr/typedoc/parser", "typedoc/parser/index.ts"],

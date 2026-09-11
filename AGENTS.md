@@ -36,6 +36,9 @@
   README/ARCHITECTURE/archetypes отдельные копии этих норм; менять их у владельца.
   Связанные правила: [размещение компонентов](requirements.md#component-placement),
   [Dependencies spec](requirements.md#component-dependencies) и [URL вкладок](requirements.md#tabs-routes).
+- Перед изменением README, модульных обзоров и TSDoc прочитать
+  [единый стандарт документации](requirements.md#documentation-standard).
+  Его содержание и классификация проверок принадлежат requirements, а не копии в навыке.
 - Один внешний Storybook процесс владеет registry, canonical graph, Workbench,
   PackageSessions, ревизиями, диагностикой и browser mechanics точных пакетов.
 - Consumer repositories and packages never depend on or import Storybook,

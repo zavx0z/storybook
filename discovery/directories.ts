@@ -81,6 +81,7 @@ export async function discoverStorybookDirectories(
         return null
       })
       const isModule = publicEntry === entryPaths[0] || (sourceInfo?.isDirectory() === true && !sourceInfo.isSymbolicLink())
+      if (entry.name === "types" && !isModule) continue
       let dependencySpec
       let contractDocumentation
       if (isModule) {

@@ -76,7 +76,9 @@ webxr-space/
          ├─ index.ts             TSDoc категории
          └─ number/
             ├─ index.tsx         компонент и TSDoc
-            ├─ src/compute.ts    только если нужен крупный частный helper
+            ├─ src/compute.ts    частные вычисления компонента
+            ├─ types/            вспомогательные типы
+            ├─ contract/input.ts входной контракт и его TSDoc
             └─ tests/            проверки компонента
 ```
 

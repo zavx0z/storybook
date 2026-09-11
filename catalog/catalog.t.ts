@@ -144,7 +144,7 @@ export type StorybookModuleDocumentation = Readonly<{
 
 export type StorybookContractDocument = Readonly<{
   direction: "input" | "output"
-  document: import("@webxr/typedoc/model").TypeDocDocument
+  document: import("@webxr/typedoc/parser/contract/output").AnalyzeTypeDocOutput["document"]
 }>
 
 /** Документация файлов contract/input.ts и contract/output.ts одного модуля. */
