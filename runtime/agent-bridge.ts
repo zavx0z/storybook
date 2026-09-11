@@ -50,6 +50,8 @@ export type CreateStorybookAgentBridgeOptions = Readonly<{
   navigate(route: string): Promise<void>
   applyRevision(revision: string): Promise<void>
   canApplyRevision?(): boolean
+  /** Ожидает завершения смены package scope перед чтением или действием. */
+  waitForStableScope?(): Promise<void>
 }>
 
 export function createStorybookAgentBridge(
@@ -73,8 +75,12 @@ export function createStorybookAgentBridge(
 
   const bridge: StorybookAgentBridge = Object.freeze({
     protocol: STORYBOOK_AGENT_BRIDGE_PROTOCOL,
-    call(method, params) {
-      if (method === "identity") return Promise.resolve(state())
+    async call(method, params) {
+      if (method === "identity") {
+        await options.waitForStableScope?.()
+        assertActive()
+        return state()
+      }
       const record = params !== null && typeof params === "object" && !Array.isArray(params)
         ? params as Record<string, unknown>
         : {}
@@ -85,6 +91,7 @@ export function createStorybookAgentBridge(
       } as StorybookAgentBridgeRequest)
     },
     async invoke(request) {
+      await options.waitForStableScope?.()
       assertActive()
       validateRequest(request)
       if (request.expectedPackageId !== undefined && request.expectedPackageId !== packageId) {
@@ -97,6 +104,9 @@ export function createStorybookAgentBridge(
         }
         const requestedRevision = boundedText(request.revision, 256, "revision")
         await options.applyRevision(requestedRevision)
+        await options.waitForStableScope?.()
+        assertActive()
+        if (request.expectedPackageId !== packageId) throw new Error("Storybook view navigated to another package")
         return state()
       }
       if (request.operation === "inspect") return inspect(request)
@@ -238,6 +248,7 @@ export function createStorybookAgentBridge(
       const node = resolveTarget(request.target, inspector)
       await applyNodeAction(action, node, request, inspector, options.shell)
     }
+    await options.waitForStableScope?.()
     const frameSequence = options.shell.presentFrame()
     if (frameSequence <= before) throw new Error("Storybook interaction did not present a new frame")
     return Object.freeze({ok: true, action, frameSequence, state: state()})

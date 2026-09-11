@@ -837,8 +837,15 @@ describe("external Storybook package frontend", () => {
       new Map(),
     )
     let hostStarts = 0
+    let pauseHost = false
+    let hostEntered: (() => void) | undefined
+    let resumeHost: (() => void) | undefined
     const nextHost = async (input: Parameters<typeof startExternalStorybookPackage>[0]) => {
       hostStarts += 1
+      if (pauseHost) await new Promise<void>(resolve => {
+        resumeHost = resolve
+        hostEntered?.()
+      })
       return startExternalStorybookPackage(input)
     }
     const stylePayload = {...styleBase, hostModuleEpoch: "host-styles", startPackage: nextHost}
@@ -968,7 +975,33 @@ describe("external Storybook package frontend", () => {
       expect(controller.packageId).toBe("@fixture/components")
       expect(hostStarts).toBe(0)
       compatibility = "valid"
-      await controller.navigatePackage({packageId: "@fixture/standalone", route: ""})
+      pauseHost = true
+      const mounting = new Promise<void>(resolve => { hostEntered = resolve })
+      const navigating = controller.navigatePackage({packageId: "@fixture/standalone", route: ""})
+      await mounting
+      expect(controller.packageId).toBeNull()
+      let inspectionSettled = false
+      const inspection = pageBridge.call("identity").then(
+        identity => {
+          inspectionSettled = true
+          return {identity, error: null}
+        },
+        error => {
+          inspectionSettled = true
+          return {identity: null, error}
+        },
+      )
+      const staleApplication = pageBridge.call("applyRevision", {
+        expectedPackageId: "@fixture/components", revision: initialRevision,
+      }).then(() => null, error => error)
+      await Bun.sleep(0)
+      const settledDuringMount = inspectionSettled
+      pauseHost = false
+      resumeHost!()
+      await navigating
+      expect(settledDuringMount).toBe(false)
+      expect(await inspection).toMatchObject({identity: {packageId: "@fixture/standalone"}, error: null})
+      expect((await staleApplication)?.message).toContain("another package")
       expect(hostStarts).toBe(1)
       expect(controller.packageId).toBe("@fixture/standalone")
       expect(controller.shell.root).toBe(root)
@@ -1056,6 +1089,7 @@ describe("external Storybook package frontend", () => {
         revision: standaloneRevision,
       })
     } finally {
+      resumeHost?.()
       await controller.dispose()
     }
     expect(rootState.disposals).toBe(1)

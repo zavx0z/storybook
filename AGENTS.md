@@ -31,8 +31,9 @@
   owner of other repositories' stories.
 - Перед созданием, миграцией или изменением структуры проекта агент обязан
   прочитать [единые правила структуры проектов, пакетов и компонентов](archetypes/README.md#structure-contract).
-  Это единственный нормативный источник для package identity, composition,
-  директорий, компонентов и их документации. Не поддерживать здесь или в
+  Это нормативная точка входа. Правила создания пакетов, package identity,
+  composition и exports принадлежат [README Package](archetypes/package/README.md);
+  правила директорий, компонентов и общей документации — README Archetypes. Не поддерживать здесь или в
   корневых README/ARCHITECTURE отдельные копии этих норм; менять их у владельца.
   Связанные правила: [размещение компонентов](archetypes/README.md#component-placement),
   [Dependencies spec](archetypes/README.md#component-dependencies) и [URL вкладок](requirements.md#tabs-routes).

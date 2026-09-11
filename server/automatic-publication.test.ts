@@ -22,6 +22,8 @@ test("subscribe and watch builds apply through exact existing-page evidence", as
   const opened: string[] = []
   let checkCurrentRevision = false
   let newConsoleErrors: readonly unknown[] = []
+  let leaveDuringApplication = false
+  let canceledApplications = 0
   let running!: Awaited<ReturnType<typeof startExternalStorybookServer>>
   const browser: StorybookBrowserLifecycle = {
     async listViews(_origin, _signal, _packages, packageId) {
@@ -37,6 +39,10 @@ test("subscribe and watch builds apply through exact existing-page evidence", as
     },
     async applyRevision(currentViewId, revision) {
       if (currentViewId === staleViewId) throw new Error("Old shell: page restart is required")
+      if (leaveDuringApplication) {
+        canceledApplications += 1
+        throw new Error("Storybook agent bridge call failed: AbortError: Storybook view navigated to another package")
+      }
       expect(currentViewId).toBe(viewId)
       latest = {packageId: "@fixture/automatic", route: "", revision}
       opened.push(revision)
@@ -206,6 +212,21 @@ test("subscribe and watch builds apply through exact existing-page evidence", as
     newConsoleErrors = [{level: "error", text: "Новая ошибка при проверке"}]
     expect(await check()).toMatchObject({ok: false, applied: false})
     expect(running.sessions.session("@fixture/automatic").snapshot().activeRevision).toBe(second)
+
+    newConsoleErrors = []
+    leaveDuringApplication = true
+    await Bun.write(entry, "export function startExternalStorybookPackage() { return 'after-navigation' }\n")
+    running.watch.notify(entry)
+    await waitFor(() => canceledApplications > 0)
+    const deferred = running.sessions.session("@fixture/automatic").snapshot()
+    expect(deferred.buildState).toBe("built")
+    expect(deferred.builtRevision).toBeString()
+    expect(deferred.failedRevision).toBeNull()
+    expect(deferred.activeRevision).toBe(second)
+    expect(deferred.diagnostics).toEqual([])
+    leaveDuringApplication = false
+    expect(await check()).toMatchObject({ok: true, applied: true})
+    expect(running.sessions.session("@fixture/automatic").snapshot().activeRevision).toBe(deferred.builtRevision!)
   } finally {
     socket?.close()
     if (running !== undefined) await running.stop()

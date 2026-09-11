@@ -6,6 +6,7 @@ import {createCatalogRefresh} from "./catalog-refresh.ts"
 import {
   StorybookAutomaticActivationCoordinator,
   assertStorybookActivationEvidence,
+  isStorybookNavigationSupersededError,
   type StorybookAutomaticActivationCandidate,
 } from "./automatic-activation.ts"
 import {preparingHtmlResponse} from "./preparing-html.ts"
@@ -544,9 +545,13 @@ export async function startExternalStorybookServer(
     const eligible: Array<{view: typeof candidates[number], loaded: boolean}> = []
     for (const view of candidates) {
       if (view.packageId !== candidate.packageId) continue
-      const state = await browserLifecycle.inspect(view.viewId, {include: ["state"]}, signal)
-      if (state.preview === true) continue
-      eligible.push({view, loaded: state.revision === candidate.revision && state.ready === true && state.presented === true})
+      try {
+        const state = await browserLifecycle.inspect(view.viewId, {include: ["state"]}, signal)
+        if (state.preview === true || state.packageId !== candidate.packageId) continue
+        eligible.push({view, loaded: state.revision === candidate.revision && state.ready === true && state.presented === true})
+      } catch (error) {
+        if (!isStorybookNavigationSupersededError(error)) throw error
+      }
     }
     if (eligible.length === 0) return "deferred"
     eligible.sort((left, right) => Number(right.loaded) - Number(left.loaded))
@@ -565,16 +570,23 @@ export async function startExternalStorybookServer(
       try {
         updated = await browserLifecycle.applyRevision(existing.viewId, candidate.revision, signal)
       } catch (error) {
+        if (isStorybookNavigationSupersededError(error)) continue
         if (!errorText(error).includes("page restart is required") && !errorText(error).includes("does not support in-page")) throw error
         incompatible = error
         continue
       }
       const opened = Object.freeze({...updated, ok: true, viewId: existing.viewId})
-      await verifyAndMaybeApplyOpenedCandidate(candidate, selectedRoute.path, opened, signal, true)
+      try {
+        await verifyAndMaybeApplyOpenedCandidate(candidate, selectedRoute.path, opened, signal, true)
+      } catch (error) {
+        if (isStorybookNavigationSupersededError(error)) continue
+        throw error
+      }
       forgetAutomaticCandidate(candidate)
       return "applied"
     }
-    throw incompatible
+    if (incompatible !== undefined) throw incompatible
+    return "deferred"
   }
 
   /** Сохраняет lastWorking и фиксирует scoped activation diagnostic только для всё ещё current candidate. */
@@ -586,6 +598,7 @@ export async function startExternalStorybookServer(
     const snapshot = session.snapshot()
     forgetAutomaticCandidate(candidate)
     if (snapshot.builtRevision !== candidate.revision) return
+    if (isStorybookNavigationSupersededError(error)) return
     if (errorText(error).includes("page restart is required") || errorText(error).includes("does not support in-page")) {
       publish({type: "package.restart-required", packageId: candidate.packageId, revision: candidate.revision})
       return
@@ -1041,6 +1054,7 @@ export async function startExternalStorybookServer(
                 ok = false
                 const message = error instanceof Error ? error.message : String(error)
                 if (result.builtRevision != null && session.snapshot().builtRevision === result.builtRevision &&
+                  !isStorybookNavigationSupersededError(error) &&
                   !message.includes("page restart is required")) {
                   const activation = session.beginActivation({revision: result.builtRevision, viewId: "agent-check", route: ""})
                   session.failActivation({...activation, diagnostic: storybookDiagnostic("activation", message)})

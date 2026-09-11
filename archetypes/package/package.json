@@ -1,0 +1,10 @@
+{
+  "name": "@archetypes/package",
+  "label": "Структура пакета",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Архетип структуры отдельного пакета",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

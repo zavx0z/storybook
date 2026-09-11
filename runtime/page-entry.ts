@@ -460,6 +460,16 @@ export async function startExternalStorybookPage(
       navigate: route => requirePackageScope(active).controller.navigate(route),
       applyRevision: revision => applyPageRevision(requirePackageScope(active).target.packageId, revision),
       canApplyRevision: () => requirePackageScope(active).controller.canApplyRevision(),
+      async waitForStableScope() {
+        let pending: Promise<void>
+        do {
+          pending = transitionTail
+          await pending
+        } while (pending !== transitionTail)
+        if (disposed || active?.kind !== "package") {
+          throw new DOMException("Storybook view navigated away from the requested package", "AbortError")
+        }
+      },
     })
   }
 
@@ -578,8 +588,10 @@ export async function startExternalStorybookPage(
   */
   function applyPageRevision(packageId: string, revision: string): Promise<void> {
     const operation = transitionTail.catch(() => {}).then(async () => {
-      const current = requirePackageScope(active)
-      if (current.target.packageId !== packageId) throw new DOMException("Package scope changed", "AbortError")
+      const current = active
+      if (current?.kind !== "package" || current.target.packageId !== packageId) {
+        throw new DOMException("Storybook view navigated to another package", "AbortError")
+      }
       if (current.controller.revision === revision) return
       const prepared = await prepareTarget({
         packageId,
