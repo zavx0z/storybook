@@ -1,6 +1,6 @@
 import {readFileSync, realpathSync, statSync} from "node:fs"
 import {dirname, isAbsolute, relative, resolve} from "node:path"
-import {markdownDestinations} from "@webxr/markdown/parser"
+import {markdownDestinations} from "@webxr/markdown/destinations"
 
 export const EXTERNAL_STORYBOOK_README_MAX_BYTES = 1_048_576
 
@@ -91,10 +91,10 @@ export function createExternalStorybookResourceAllowList(
   })
 }
 
-/** Reuses the production parser for Markdown and admitted HTML destinations. */
+/** Получает адреса через публичную сущность Markdown и оставляет только локальные ресурсы. */
 export function localMarkdownDestinations(source: string): readonly string[] {
   if (typeof source !== "string") throw new TypeError("Storybook Markdown source must be text")
-  const destinations = markdownDestinations(source).filter(localDestination)
+  const destinations = markdownDestinations({source}).destinations.filter(localDestination)
   return Object.freeze([...new Set(destinations)])
 }
 
