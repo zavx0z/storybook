@@ -28,6 +28,19 @@ import type {
 } from "./shell.ts"
 
 describe("external Storybook agent bridge inspection", () => {
+  test("ошибка перехода видна в диагностике независимо от выбранной секции Inspector", async () => {
+    const fixture = createFixture()
+    try {
+      fixture.shell.browserDocument.documentElement.dataset.externalStorybookNavigationError = "Переход не выполнен: несовместимая версия"
+      expect(await fixture.bridge.call("inspect", {include: ["diagnostics"]})).toMatchObject({
+        error: "Переход не выполнен: несовместимая версия",
+        diagnostics: ["Переход не выполнен: несовместимая версия"],
+      })
+      delete fixture.shell.browserDocument.documentElement.dataset.externalStorybookNavigationError
+      expect(await fixture.bridge.call("inspect", {include: ["diagnostics"]})).toMatchObject({diagnostics: []})
+    } finally { fixture.dispose() }
+  })
+
   test("читает параметр Inspector без раскрытия остальных query данных", async () => {
     const fixture = createFixture()
     Object.defineProperty(fixture.shell.browserDocument, "location", {value: {

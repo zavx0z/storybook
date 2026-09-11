@@ -74,6 +74,7 @@ export function validateStorybookSharedBrowserIdentity(
     throw new TypeError("Invalid shared Storybook browser identity")
   }
   const packageEntryUrl = validateSharedUrl(value.packageEntryUrl, "package entry")
+  const packageHostUrl = value.packageHostUrl === undefined ? undefined : validateSharedUrl(value.packageHostUrl, "package host")
   if (typeof value.epoch !== "string" || !/^[a-f0-9]{64}$/u.test(value.epoch)) {
     throw new Error(`Invalid shared Storybook browser epoch: ${String(value.epoch)}`)
   }
@@ -129,6 +130,7 @@ export function validateStorybookSharedBrowserIdentity(
     epoch: value.epoch,
     hostModuleEpoch: value.hostModuleEpoch,
     packageEntryUrl,
+    ...(packageHostUrl === undefined ? {} : {packageHostUrl}),
     modules: Object.freeze(modules),
     sourceFiles: Object.freeze(sourceFiles),
   })
@@ -162,6 +164,7 @@ export function storybookSharedBrowserIdentity(
     path: sourcePath,
     contentDigest: createHash("sha256").update(readFileSync(sourcePath)).digest("hex"),
   })),
+  packageHostUrl?: string,
 ): StorybookSharedBrowserIdentity {
   const epoch = createHash("sha256").update(JSON.stringify({
     modules: modules.map(({specifier, url}) => ({specifier, url})),
@@ -171,6 +174,7 @@ export function storybookSharedBrowserIdentity(
     epoch,
     hostModuleEpoch,
     packageEntryUrl,
+    ...(packageHostUrl === undefined ? {} : {packageHostUrl}),
     modules,
     sourceFiles,
   })

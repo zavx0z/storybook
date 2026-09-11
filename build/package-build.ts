@@ -353,7 +353,8 @@ export async function buildStorybookPackageRevisionInProcess(
       sharedModuleEpoch,
       ...(sharedBrowserIdentity === undefined
         ? {}
-        : {hostModuleEpoch: sharedBrowserIdentity.hostModuleEpoch}),
+        : {hostModuleEpoch: sharedBrowserIdentity.hostModuleEpoch,
+          ...(sharedBrowserIdentity.packageHostUrl === undefined ? {} : {packageHostUrl: sharedBrowserIdentity.packageHostUrl})}),
       graphSnapshot: descriptor.graphSnapshot,
     }))
 

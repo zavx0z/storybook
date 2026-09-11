@@ -21,6 +21,7 @@ export type StorybookSharedBrowserIdentity = Readonly<{
   epoch: string
   hostModuleEpoch: string
   packageEntryUrl: string
+  packageHostUrl?: string
   modules: readonly StorybookSharedBrowserModule[]
   sourceFiles: readonly StorybookSharedBrowserSourceFile[]
 }>

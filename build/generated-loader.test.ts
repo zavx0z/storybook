@@ -169,6 +169,20 @@ describe("external Storybook generated loader", () => {
     expect(source).not.toMatch(/\bdocument\b|\bwindow\b|\blocation\b/u)
   })
 
+  test("пакет получает exact контроллер своей host-сборки без создания страницы", () => {
+    const source = generateStorybookRevisionPayloadSource({
+      packageId: "@fixture/package",
+      candidateRevision: "revision-a",
+      sharedModuleEpoch: "shared-a",
+      hostModuleEpoch: "host-a",
+      packageHostUrl: "/__storybook/shared/entries/package-entry-abc.js",
+      graphSnapshot: {},
+    })
+    expect(source).toContain('import {startExternalStorybookPackage} from "/__storybook/shared/entries/package-entry-abc.js"')
+    expect(source).toContain("startPackage: startExternalStorybookPackage")
+    expect(source).not.toContain("startExternalStorybookPage(")
+  })
+
   test("генерирует bounded importer immutable ревизии без URL от сервера", () => {
     const source = generateStorybookAppliedRevisionLoaderSource("@fixture/package")
 

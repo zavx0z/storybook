@@ -35,6 +35,7 @@ export type StorybookGeneratedRevisionPayloadInput = Readonly<{
   candidateRevision: string
   sharedModuleEpoch: string
   hostModuleEpoch?: string
+  packageHostUrl?: string
   graphSnapshot: unknown
 }>
 
@@ -159,7 +160,14 @@ export function generateStorybookRevisionPayloadSource(
   if (input.graphSnapshot === null || typeof input.graphSnapshot !== "object" || Array.isArray(input.graphSnapshot)) {
     throw new TypeError("Storybook revision payload graph snapshot must be an object")
   }
+  if (input.packageHostUrl !== undefined && (!input.packageHostUrl.startsWith("/__storybook/shared/") ||
+    !input.packageHostUrl.endsWith(".js") || input.packageHostUrl.includes("..") || hasControlCharacter(input.packageHostUrl))) {
+    throw new Error("Invalid Storybook package host URL")
+  }
   return [
+    ...(input.packageHostUrl === undefined ? [] : [
+      `import {startExternalStorybookPackage} from ${jsString(input.packageHostUrl)}`,
+    ]),
     "import {",
     "  loadStorybookPackageRuntime,",
     "  STORYBOOK_PACKAGE_STORY_LOADERS,",
@@ -177,6 +185,7 @@ export function generateStorybookRevisionPayloadSource(
       : [`  hostModuleEpoch: ${jsString(validateModuleEpoch(input.hostModuleEpoch, "host"))},`]),
     "  revisionUrl: storybookRevisionUrl,",
     `  graphSnapshot: ${JSON.stringify(input.graphSnapshot)},`,
+    ...(input.packageHostUrl === undefined ? [] : ["  startPackage: startExternalStorybookPackage,"]),
     "  loadRuntime: loadStorybookPackageRuntime,",
     "  storyLoaders: STORYBOOK_PACKAGE_STORY_LOADERS,",
     "  widgetLoaders: STORYBOOK_PACKAGE_WIDGET_LOADERS,",

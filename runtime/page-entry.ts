@@ -272,9 +272,14 @@ export async function startExternalStorybookPage(
       target.revision,
       signal,
     )
-    if (payload.sharedModuleEpoch !== options.sharedModuleEpoch ||
-      (payload.hostModuleEpoch ?? null) !== (options.hostModuleEpoch ?? null)) {
+    if (payload.sharedModuleEpoch !== options.sharedModuleEpoch) {
       throw new Error(`Storybook page module epoch changed; page restart is required: ${target.packageId}:${target.revision}`)
+    }
+    if (payload.startPackage !== undefined && typeof payload.startPackage !== "function") {
+      throw new Error(`Storybook package host is invalid: ${target.packageId}:${target.revision}`)
+    }
+    if ((payload.hostModuleEpoch ?? null) !== (options.hostModuleEpoch ?? null) && payload.startPackage === undefined) {
+      throw new Error(`Storybook page host changed without a compatible package controller; page restart is required: ${target.packageId}:${target.revision}`)
     }
     return payload
   }
@@ -346,6 +351,7 @@ export async function startExternalStorybookPage(
     initialRoute: target.route,
     navigatePackage,
     navigateLanding,
+    applyRevision: (revision: string) => applyPageRevision(target.packageId, revision),
     /** После серверного acknowledgement последующее переподключение возвращает ordinary reader. */
     revisionConfirmed(revision: string) {
       if (active?.kind !== "package" || active.target.packageId !== target.packageId || active.controller.revision !== revision) return
@@ -384,12 +390,13 @@ export async function startExternalStorybookPage(
     address = createStorybookScopeAddress(target, location, history, value => { activeAddress = value }),
   ): Promise<ActivePackagePageScope> => {
     const deferredSocket = createDeferredStorybookSocket(() => eventSocket(target))
-    const controller = await startExternalStorybookPackage({
+    const startPackage = payload?.startPackage ?? startExternalStorybookPackage
+    const controller = await startPackage({
       packageId: target.packageId,
       candidateRevision: target.revision,
       revisionUrl: target.revisionUrl,
       sharedModuleEpoch: options.sharedModuleEpoch,
-      ...(options.hostModuleEpoch === undefined ? {} : {hostModuleEpoch: options.hostModuleEpoch}),
+      ...((payload?.hostModuleEpoch ?? options.hostModuleEpoch) === undefined ? {} : {hostModuleEpoch: payload?.hostModuleEpoch ?? options.hostModuleEpoch}),
       ...(payload === null ? {} : {graphSnapshot: payload.graphSnapshot}),
       loadRuntime: payload?.loadRuntime ?? null,
       storyLoaders: payload?.storyLoaders ?? new Map(),
@@ -451,7 +458,7 @@ export async function startExternalStorybookPage(
       getRoute: () => requirePackageScope(active).controller.currentRoute,
       getModel: () => requirePackageScope(active).controller.currentModel,
       navigate: route => requirePackageScope(active).controller.navigate(route),
-      applyRevision: revision => requirePackageScope(active).controller.applyRevision(revision),
+      applyRevision: revision => applyPageRevision(requirePackageScope(active).target.packageId, revision),
       canApplyRevision: () => requirePackageScope(active).controller.canApplyRevision(),
     })
   }
@@ -544,6 +551,7 @@ export async function startExternalStorybookPage(
       .catch(() => {})
       .then(async () => {
         if (disposed) throw new Error("External Storybook page is disposed")
+        delete browserDocument.documentElement.dataset.externalStorybookNavigationError
         shell.updateStatus("Storybook · Подготовка выбранного пакета")
         const pending = request.packageId === null
           ? null
@@ -559,6 +567,39 @@ export async function startExternalStorybookPage(
           pending?.dispose()
         }
       })
+    transitionTail = operation.catch(() => {})
+    return operation
+  }
+
+  /**
+  Заменяет контроллер пакета вместе с его payload, сохраняя общий Root и оболочку.
+  Новая host-реализация приходит из того же immutable payload; platform epoch
+  по-прежнему проверяется до освобождения текущего scope. Ошибка mount откатывается.
+  */
+  function applyPageRevision(packageId: string, revision: string): Promise<void> {
+    const operation = transitionTail.catch(() => {}).then(async () => {
+      const current = requirePackageScope(active)
+      if (current.target.packageId !== packageId) throw new DOMException("Package scope changed", "AbortError")
+      if (current.controller.revision === revision) return
+      const prepared = await prepareTarget({
+        packageId,
+        route: current.controller.currentRoute,
+        intent: "preview",
+        requestedRevision: revision,
+      }, pageLifetime.signal)
+      if (prepared.kind !== "revision" || prepared.packageId !== packageId || prepared.revision !== revision) {
+        throw new Error("Storybook revision preparation returned a different target")
+      }
+      const payload = await loadPayload(prepared, pageLifetime.signal)
+      const target = await renewPackageTarget({
+        ...prepared,
+        intent: current.target.intent,
+        preview: current.target.preview,
+      })
+      const snapshot = await fetchExternalStorybookClientSnapshot(fetcher)
+      await install(target, payload, null)
+      navigationSnapshot = snapshot
+    })
     transitionTail = operation.catch(() => {})
     return operation
   }

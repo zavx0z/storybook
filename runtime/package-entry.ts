@@ -94,6 +94,7 @@ export type ExternalStorybookAppliedRevision = Readonly<{
   revisionUrl: string
   sharedModuleEpoch: string
   hostModuleEpoch?: string
+  startPackage?: typeof startExternalStorybookPackage
   graphSnapshot: StorybookPackageRevisionGraphSnapshot
   loadRuntime: ExternalStorybookRuntimeLoader
   storyLoaders: ReadonlyMap<string, ExternalStorybookStoryLoader>
@@ -195,6 +196,7 @@ export type ExternalStorybookPackageEnvironment = Readonly<{
     initialRoute: string
     navigatePackage(input: Readonly<{packageId: string; route: string}>): Promise<void>
     navigateLanding(pathname: string): Promise<void>
+    applyRevision?(revision: string): Promise<void>
     revisionApplied(payload: ExternalStorybookAppliedRevision): void
     revisionConfirmed(revision: string): void
     prepareRevisionStyleSheets(
@@ -1361,6 +1363,7 @@ export async function startExternalStorybookPackage(
 
   const applyRevision = (revision: string): Promise<void> => {
     const requested = safeRevision(revision)
+    if (embeddedPageScope?.applyRevision !== undefined) return embeddedPageScope.applyRevision(requested)
     const operation = appliedRevisionTail
       .catch(() => {})
       .then(async () => {
@@ -1401,7 +1404,9 @@ export async function startExternalStorybookPackage(
   }
 
   const followPageNavigation = (operation: Promise<void>): void => {
+    delete browserDocument.documentElement.dataset.externalStorybookNavigationError
     void operation.catch(error => {
+      browserDocument.documentElement.dataset.externalStorybookNavigationError = errorText(error).slice(0, 4096)
       reportDiagnostic(error)
       shell.updateStatus("Storybook · Переход не выполнен; показана текущая страница")
     })

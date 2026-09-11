@@ -142,7 +142,8 @@ export function createStorybookAgentBridge(
       }),
       ready: options.shell.browserDocument.documentElement.dataset.externalStorybookPackage === "ready",
       presented: options.shell.presentedFrameSequence > 0,
-      error: options.shell.browserDocument.documentElement.dataset.externalStorybookError ?? null,
+      error: options.shell.browserDocument.documentElement.dataset.externalStorybookNavigationError ??
+        options.shell.browserDocument.documentElement.dataset.externalStorybookError ?? null,
       timeOrigin: performance.timeOrigin,
       frameSequence: options.shell.presentedFrameSequence,
       nativePage: Object.freeze({

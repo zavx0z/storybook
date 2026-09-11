@@ -731,7 +731,7 @@ describe("external Storybook package frontend", () => {
     }
   })
 
-  test("switches package scopes and rolls back a failed target inside one page Root", async () => {
+  test("switches package scopes across host updates and rolls back inside one page Root", async () => {
     const sourceGraph = await fixtureGraph()
     const packageGraph = (packageId: string) => withoutAuthorStyleSheets(
       createStorybookPackageRevisionGraphSnapshot(
@@ -822,20 +822,28 @@ describe("external Storybook package frontend", () => {
       ...standaloneStyleWithoutDigest,
       packageGraphDigest: sha256Hex(JSON.stringify(standaloneStyleDigestInput)),
     })
-    const stylePayload = payload(
+    const styleBase = payload(
       "@fixture/standalone",
       styleRevision,
       standaloneStyleGraph,
       null,
       new Map(),
     )
-    const standalonePayload = payload(
+    const standaloneBase = payload(
       "@fixture/standalone",
       standaloneRevision,
       standaloneGraph,
       null,
       new Map(),
     )
+    let hostStarts = 0
+    const nextHost = async (input: Parameters<typeof startExternalStorybookPackage>[0]) => {
+      hostStarts += 1
+      return startExternalStorybookPackage(input)
+    }
+    const stylePayload = {...styleBase, hostModuleEpoch: "host-styles", startPackage: nextHost}
+    const standalonePayload = {...standaloneBase, hostModuleEpoch: "host-next", startPackage: nextHost}
+    let compatibility: "valid" | "kernel" | "missing-host" = "valid"
     const failedPayload = payload(
       "@fixture/components",
       failedRevision,
@@ -896,7 +904,7 @@ describe("external Storybook package frontend", () => {
           return {kind: "landing", pathname: input.route || "/", readerToken: "landing-reader"}
         }
         if (input.packageId === "@fixture/standalone") {
-          return target("@fixture/standalone", standaloneRevision, "")
+          return target("@fixture/standalone", input.requestedRevision ?? standaloneRevision, "")
         }
         if (input.packageId === "@fixture/components") {
           return target(
@@ -908,7 +916,14 @@ describe("external Storybook package frontend", () => {
         throw new Error("Unknown page target")
       },
       async loadAppliedRevision(packageId, revision) {
-        if (packageId === "@fixture/standalone" && revision === standaloneRevision) return standalonePayload
+        if (packageId === "@fixture/standalone" && revision === standaloneRevision) {
+          if (compatibility === "kernel") return {...standalonePayload, sharedModuleEpoch: "b".repeat(64)}
+          if (compatibility === "missing-host") {
+            const {startPackage, ...missingHost} = standalonePayload
+            return missingHost
+          }
+          return standalonePayload
+        }
         if (packageId === "@fixture/components" && revision === failedRevision) return failedPayload
         if (packageId === "@fixture/standalone" && revision === styleRevision) return stylePayload
         if (packageId === "@fixture/components" && revision === initialRevision) return initialPayload
@@ -944,7 +959,17 @@ describe("external Storybook package frontend", () => {
         }
       }).__EXTERNAL_STORYBOOK_AGENT_BRIDGE__
 
+      compatibility = "kernel"
+      await expect(controller.navigatePackage({packageId: "@fixture/standalone", route: ""}))
+        .rejects.toThrow("page module epoch changed")
+      compatibility = "missing-host"
+      await expect(controller.navigatePackage({packageId: "@fixture/standalone", route: ""}))
+        .rejects.toThrow("without a compatible package controller")
+      expect(controller.packageId).toBe("@fixture/components")
+      expect(hostStarts).toBe(0)
+      compatibility = "valid"
       await controller.navigatePackage({packageId: "@fixture/standalone", route: ""})
+      expect(hostStarts).toBe(1)
       expect(controller.packageId).toBe("@fixture/standalone")
       expect(controller.shell.root).toBe(root)
       expect(controller.shell.document).toBe(document)
@@ -969,6 +994,7 @@ describe("external Storybook package frontend", () => {
       expect(controller.packageId).toBe("@fixture/standalone")
       expect(controller.shell.root).toBe(root)
       expect(rootState.creations).toBe(1)
+      expect(hostStarts).toBe(2)
       expect(controller.shell.document.querySelectorAll('link[data-external-storybook-package-style]'))
         .toHaveLength(1)
       expect(await pageBridge.call("identity")).toMatchObject({

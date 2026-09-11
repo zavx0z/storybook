@@ -92,10 +92,12 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
     "0".repeat(64),
     kernelSourceFiles,
   )
+  const packageHostPath = realpathSync(fileURLToPath(new URL("../runtime/package-entry.ts", import.meta.url)))
   const hostEntryPoints = [...new Set([
     realpathSync(input.landingEntryPath),
     realpathSync(input.fallbackEntryPath),
     packageEntryPath,
+    packageHostPath,
   ])]
   const hostPlugins = await createStorybookPackageCompilerPlugins({
     packageRoot: input.toolRoot,
@@ -140,6 +142,7 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
     })),
     hostModuleEpoch,
     kernelSourceFiles,
+    `/__storybook/shared/${emittedEntry(host, staging, packageHostPath)}`,
   )
   onPhase?.({phase: "resources", state: "started", at: new Date().toISOString()})
   const authorStyleSheets = styles.map((style, index) => {
