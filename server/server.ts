@@ -733,7 +733,10 @@ export async function startExternalStorybookServer(
           browserSessions.authorize(request.headers.get("x-storybook-session") ?? "")
           return responseJson({entries: mcpRequests.read()})
         }
-        if (url.pathname === "/api/control/storybook") return await storybookRest(request, toolRoot)
+        if (url.pathname === "/api/control/storybook") {
+          // Успешный обзор имеет предметную форму без lifecycle status; ошибки сохраняют явный статус.
+          return await storybookRest(request, toolRoot)
+        }
         if (url.pathname === "/api/control/status" && request.method === "GET") {
           const snapshot = registry.snapshot()
           const packageIds = resolveCheckPackages(snapshot, url.searchParams.get("scope"))

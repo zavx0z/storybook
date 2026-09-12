@@ -49,10 +49,10 @@ export async function storybookRest(request: Request, root: string): Promise<Res
       .map(async ([name, entry]) => {
         const readme = Bun.file(resolve(root, "archetypes", dirname(entry), "README.md"))
         const source = await readme.exists() ? await readme.text() : ""
-        const description = /^#\s+(.+)$/mu.exec(source)?.[1] ?? "Описание пока не задано"
+        const description = readDefinitionDescription(source, name)
         return {node: `archetypes/${name.slice(2)}`, description}
       }))
-    return Response.json({status: "success", schemaVersion: 1, node, description: manifest.description, children})
+    return Response.json({node, description: manifest.description, children})
   }
   if (node !== "root") {
     return Response.json({status: "unavailable", error: "Раздел пока не доступен"}, {status: 404})
@@ -66,10 +66,17 @@ export async function storybookRest(request: Request, root: string): Promise<Res
     return {node, description: manifest.description}
   }))
   return Response.json({
-    status: "success",
-    schemaVersion: 1,
     node: "root",
-    description: "Archetypes описывает правила структуры; валидатор применяет существующие спецификации и возвращает отчёт.",
+    description: "Выберите archetypes для решений о структуре и ответственности; validator — для проверки уже оформленной структуры существующей спецификацией.",
     children,
   })
+}
+
+function readDefinitionDescription(source: string, exportName: string): string {
+  const blocks = source.trim().split(/\r?\n\r?\n/u)
+  const description = blocks[1]?.replace(/\s+/gu, " ").trim()
+  if (!description || description.startsWith("#") || description.startsWith("```")) {
+    throw new Error(`README определения ${exportName} не содержит описания назначения`)
+  }
+  return description
 }

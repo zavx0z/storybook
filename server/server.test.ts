@@ -38,8 +38,10 @@ describe("one external Storybook server", () => {
       headers: {authorization: `Bearer ${running.record.controlToken}`, "content-type": "application/json"},
       body: "{}",
     })
-    const value = await response.json() as {children: {node: string}[]}
+    const value = await response.json() as {node: string, description: string, children: {node: string, description: string}[]}
+    expect(Object.keys(value).sort()).toEqual(["children", "description", "node"])
     expect(value.children.map(node => node.node)).toEqual(["archetypes", "validator"])
+    expect(value.children.every(node => node.description.length > 40)).toBe(true)
     expect(running.sessions.snapshots().every(item => item.builds === 0)).toBe(true)
   })
 

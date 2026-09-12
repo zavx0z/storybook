@@ -224,7 +224,7 @@ async function invokeCapture(
   }
 }
 
-function resultContent(result: StorybookControllerResult): CallToolResult {
+function resultContent(result: Readonly<Record<string, unknown>>): CallToolResult {
   const structuredContent = serializableRecord(result)
   return {
     content: [{type: "text", text: JSON.stringify(structuredContent)}],
@@ -268,7 +268,7 @@ function errorContent(error: unknown): CallToolResult {
   }))
 }
 
-function serializableRecord(value: StorybookControllerResult): Record<string, unknown> {
+function serializableRecord(value: Readonly<Record<string, unknown>>): Record<string, unknown> {
   const serialized = JSON.stringify(value)
   if (serialized === undefined) throw new Error("Storybook controller result is not JSON-serializable")
   const parsed = sanitizeMcpValue(JSON.parse(serialized))

@@ -26,7 +26,9 @@ describe("Storybook MCP stdio", () => {
       controllerFactory: () => { loads += 1; throw new Error("Контроллер не должен загружаться") },
       request: async (input) => {
         const response = await storybookRest(new Request("http://localhost/api/control/storybook", {method: "POST", body: JSON.stringify(input)}), fileURLToPath(new URL("../", import.meta.url)))
-        return response.json()
+        const value = await response.json() as Record<string, unknown>
+        if (!response.ok) throw new Error(String(value.error))
+        return value
       },
     })
     servers.push(server)
@@ -34,9 +36,18 @@ describe("Storybook MCP stdio", () => {
     await Promise.all([server.connect(serverTransport), client.connect(clientTransport)])
     try {
       const result = await client.callTool({name: "storybook", arguments: {}})
-      expect(result.structuredContent).toMatchObject({
-        status: "success", node: "root", children: [{node: "archetypes"}, {node: "validator"}],
+      expect(result.structuredContent).toEqual({
+        node: "root",
+        description: "Выберите archetypes для решений о структуре и ответственности; validator — для проверки уже оформленной структуры существующей спецификацией.",
+        children: [
+          {node: "archetypes", description: "Помогает решить, где разместить сущность, когда выделить пакет или категорию и как оформить ответственность, зависимости, контракты и проверки"},
+          {node: "validator", description: "Проверяет выбранный пакет, категорию или сущность существующей спецификацией и возвращает структурированный отчёт Bun"},
+        ],
       })
+      expect(result.isError).not.toBeTrue()
+      const failed = await client.callTool({name: "storybook", arguments: {node: "missing"}})
+      expect(failed.isError).toBeTrue()
+      expect(failed.structuredContent).toMatchObject({status: "failed", error: {message: "Раздел пока не доступен"}})
       expect(loads).toBe(0)
     } finally {
       await client.close()
