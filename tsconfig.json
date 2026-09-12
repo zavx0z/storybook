@@ -20,6 +20,9 @@
     "exactOptionalPropertyTypes": true
   },
   "include": [
+    "validator/**/*.ts",
+    "archetypes/**/*.ts",
+    "archetypes/**/*.tsx",
     "catalog/**/*.ts",
     "discovery/**/*.ts",
     "build/**/*.ts",

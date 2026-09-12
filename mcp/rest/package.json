@@ -1,0 +1,10 @@
+{
+  "name": "@mcp/rest",
+  "label": "Storybook REST",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "HTTP-интерфейс постепенного раскрытия Storybook",
+  "exports": {".": "./index.ts", "./requests": "./requests/index.ts"},
+  "scripts": {"test": "bun test ./spec"}
+}

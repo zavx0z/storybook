@@ -5,6 +5,7 @@
   "private": true,
   "type": "module",
   "packageManager": "bun@1.4.0",
+  "workspaces": ["rest"],
   "scripts": {
     "start": "bun run stdio.ts",
     "test": "bun test",

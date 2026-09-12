@@ -8,7 +8,9 @@
   "packageManager": "bun@1.4.0",
   "workspaces": [
     "browser-lifecycle",
-    "archetypes"
+    "archetypes",
+    "validator",
+    "mcp/rest"
   ],
   "bin": {
     "storybook": "./scripts/storybook.ts"
@@ -19,11 +21,13 @@
     "build": "bun scripts/storybook.ts check .",
     "typecheck": "tsc --noEmit --pretty false",
     "browser-lifecycle:check": "bun run --cwd browser-lifecycle check",
+    "test:validator": "bun run --cwd validator test",
     "test": "STORYBOOK_SKIP_ISOLATION=1 bun test catalog discovery build sessions runtime workbench server tests src --max-concurrency=1 && bun test tests/isolation.integration.test.ts --max-concurrency=1",
     "mcp:check": "bun run --cwd mcp check",
     "check": "bun run browser-lifecycle:check && bun run typecheck && bun run test && bun run mcp:check && bun run build"
   },
   "dependencies": {
+    "@mcp/rest": "workspace:*",
     "@zavx0z/storybook-browser-lifecycle": "workspace:*"
   },
   "devDependencies": {

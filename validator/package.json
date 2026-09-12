@@ -1,0 +1,17 @@
+{
+  "name": "@storybook/validator",
+  "label": "Валидатор",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Запуск существующих спецификаций и структурированный отчёт Bun",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "test": "bun test ./spec"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.11.1"
+  }
+}
