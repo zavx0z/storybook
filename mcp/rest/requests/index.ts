@@ -7,6 +7,7 @@ export interface McpRequestRecord {
   status: "running" | "success" | "failed"
   input: string
   result: string
+  captureId?: string
 }
 
 /** Создаёт ограниченный журнал одного HTTP-сервера; сохраняет последние 200 обращений. */
@@ -23,6 +24,7 @@ export function createMcpRequestJournal() {
         id: entry.id, tool: entry.tool, startedAt: entry.startedAt,
         durationMs: typeof entry.durationMs === "number" ? entry.durationMs : null,
         status: entry.status as McpRequestRecord["status"],
+        ...(typeof entry.captureId === "string" && /^capture_[A-Za-z0-9_-]+$/.test(entry.captureId) ? {captureId: entry.captureId} : {}),
         input: String(entry.input ?? ""),
         result: String(entry.result ?? ""),
       })

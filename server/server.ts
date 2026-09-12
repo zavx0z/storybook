@@ -721,6 +721,13 @@ export async function startExternalStorybookServer(
           mcpRequests.write(await requestObject(request))
           return responseJson({status: "success"})
         }
+        if (url.pathname.startsWith("/api/browser/mcp-captures/") && request.method === "GET") {
+          assertExternalStorybookRequestOrigin(request, server.url.origin, {required: false})
+          browserSessions.authorize(request.headers.get("x-storybook-session") ?? "")
+          const captureId = decodeURIComponent(url.pathname.slice("/api/browser/mcp-captures/".length))
+          const capture = browserLifecycle.readCapture(captureId)
+          return new Response(new Uint8Array(capture.png), {headers: {"content-type": "image/png", "cache-control": "private, no-store"}})
+        }
         if (url.pathname === "/api/browser/mcp-requests" && request.method === "GET") {
           assertExternalStorybookRequestOrigin(request, server.url.origin, {required: false})
           browserSessions.authorize(request.headers.get("x-storybook-session") ?? "")

@@ -547,6 +547,60 @@ describe("one external Storybook server", () => {
     expect((await fetch(new URL("/api/health", running.origin))).status).toBe(200)
   })
 
+  test("выдаёт сохранённый снимок журнала только авторизованной browser-сессии", async () => {
+    const fixture = serverFixture()
+    const lifecycle = fakeBrowserLifecycle()
+    const png = new Uint8Array([137, 80, 78, 71])
+    const running = await startExternalStorybookServer({
+      declarations: [fixture.standalone],
+      statePath: fixture.statePath,
+      artifactRoot: fixture.artifactRoot,
+      browserLifecycle: {
+        ...lifecycle.service,
+        readCapture(captureId) {
+          expect(captureId).toBe("capture_fixture")
+          return {
+            metadata: {
+              captureId,
+              resourceUri: `storybook://captures/${captureId}`,
+              mimeType: "image/png",
+              width: 1,
+              height: 1,
+              bytes: png.byteLength,
+              sha256: "a".repeat(64),
+              packageId: "@fixture/standalone",
+              route: "",
+              graphDigest: "b".repeat(64),
+              revision: "fixture-revision",
+              area: "page",
+              consoleErrors: [],
+              capturedAt: "2026-09-12T00:00:00.000Z",
+            },
+            png,
+          }
+        },
+      },
+    })
+    servers.push(running)
+
+    const unauthorized = await fetch(new URL("/api/browser/mcp-captures/capture_fixture", running.origin))
+    expect(unauthorized.ok).toBeFalse()
+
+    const session = await fetch(new URL("/api/browser/registry-session", running.origin), {
+      method: "POST",
+      headers: {origin: running.origin, "content-type": "application/json"},
+      body: "{}",
+    })
+    const {readerToken} = await session.json() as {readerToken: string}
+    const response = await fetch(new URL("/api/browser/mcp-captures/capture_fixture", running.origin), {
+      headers: {origin: running.origin, "x-storybook-session": readerToken},
+    })
+    expect(response.status).toBe(200)
+    expect(response.headers.get("content-type")).toBe("image/png")
+    expect(response.headers.get("cache-control")).toBe("private, no-store")
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(png)
+  })
+
   test("authorizes one ephemeral WebSocket session only for its exact scope", async () => {
     const fixture = serverFixture()
     const running = await startExternalStorybookServer({

@@ -15,6 +15,18 @@ describe("Журнал MCP", () => {
     expect(entry!.status).toBe("success")
   })
 
+  test("снимок остаётся в ответе MCP, а журнал хранит ссылку без base64", async () => {
+    const journal = createMcpRequestJournal()
+    const result = {status: "success", captureId: "capture_fixture", image: {mimeType: "image/png", data: "a".repeat(200000)}}
+    const returned = await traceMcpRequest("storybook_capture", {}, async () => result, async entry => {
+      expect(JSON.stringify(entry).length).toBeLessThan(65536)
+      journal.write(entry)
+    })
+    expect(returned).toBe(result)
+    expect(journal.read()[0]).toMatchObject({status: "success", captureId: "capture_fixture"})
+    expect(JSON.parse(journal.read()[0]!.result)).toEqual({status: "success", captureId: "capture_fixture"})
+  })
+
   test("ошибка записывается как JSON и возвращается вызывающему коду", async () => {
     const journal = createMcpRequestJournal()
     await expect(traceMcpRequest("storybook", {}, async () => {throw new Error("Нет раздела")}, async entry => journal.write(entry)))

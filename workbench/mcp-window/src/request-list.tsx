@@ -1,4 +1,4 @@
-import {memo, useLayoutEffect, useRef} from "@zavx0z/component"
+import {memo, useEffect, useLayoutEffect, useRef, useState} from "@zavx0z/component"
 import {CodeEditor} from "@zavx0z/ui/views/code-editor"
 import type {McpRequestRecord} from "@mcp/rest/requests"
 
@@ -34,6 +34,58 @@ function JsonField(props: Readonly<{title: string, value: string}>) {
   </section>
 }
 
+/** Загружает небольшое превью сохранённого снимка отдельно от JSON журнала. */
+function CapturePreview(props: Readonly<{captureId: string}>) {
+  const [src, setSrc] = useState("")
+  const [error, setError] = useState("")
+  useEffect(() => {
+    const abort = new AbortController()
+    let objectUrl = ""
+    void (async () => {
+      const session = await fetch("/api/browser/registry-session", {method: "POST", headers: {"content-type": "application/json"}, body: "{}", signal: abort.signal})
+      if (!session.ok) throw new Error("Не удалось открыть сессию снимка")
+      const {readerToken} = await session.json()
+      const response = await fetch(`/api/browser/mcp-captures/${encodeURIComponent(props.captureId)}`, {headers: {"x-storybook-session": readerToken}, signal: abort.signal})
+      if (!response.ok) throw new Error("Снимок недоступен")
+      const blob = await response.blob()
+      if (abort.signal.aborted) return
+      objectUrl = URL.createObjectURL(blob)
+      setSrc(objectUrl)
+    })().catch(cause => {
+      if (!abort.signal.aborted) setError(cause instanceof Error ? cause.message : String(cause))
+    })
+    return () => {
+      abort.abort()
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [props.captureId])
+  return <div style={css`
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  `}>
+    <div>Снимок</div>
+    {src !== "" ? <CaptureImage src={src} /> : <CaptureMessage text={error || "Загрузка снимка…"} />}
+  </div>
+}
+
+function CaptureImage(props: Readonly<{src: string}>) {
+  return <img
+    src={props.src}
+    alt="Снимок Storybook"
+    style={css`
+      width: 240px;
+      max-width: 100%;
+      height: 140px;
+      object-fit: contain;
+    `}
+  />
+}
+
+function CaptureMessage(props: Readonly<{text: string}>) {
+  return <div>{props.text}</div>
+}
+
 /** Одна запись журнала; запрос и результат выводятся текстом без интерпретации разметки. */
 function RequestRow(props: Readonly<{entry: McpRequestRecord}>) {
   const time = new Date(props.entry.startedAt).toLocaleTimeString()
@@ -51,6 +103,7 @@ function RequestRow(props: Readonly<{entry: McpRequestRecord}>) {
   `}>
     <div>{time} · {props.entry.tool} · {props.entry.status} · {duration}</div>
     <JsonField title="Параметры запроса" value={props.entry.input} />
+    {props.entry.captureId ? <CapturePreview captureId={props.entry.captureId} /> : null}
     <JsonField title="Ответ" value={props.entry.result} />
   </article>
 }

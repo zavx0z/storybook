@@ -25,8 +25,12 @@ export async function traceMcpRequest<T>(
   await record({...entry, status: "running", durationMs: null, result: ""})
   try {
     const result = await operation()
+    const capture = tool === "storybook_capture" && result && typeof result === "object"
+      ? result as {captureId?: unknown, image?: unknown} : undefined
+    const captureId = typeof capture?.captureId === "string" ? capture.captureId : undefined
+    const report = captureId === undefined ? result : Object.fromEntries(Object.entries(result as object).filter(([key]) => key !== "image"))
     const status = result && typeof result === "object" ? (result as {status?: unknown}).status : undefined
-    await record({...entry, durationMs: Date.now() - startedAt, status: ["failed", "timeout", "unavailable"].includes(String(status)) ? "failed" : "success", result: JSON.stringify(sanitizeMcpValue(result), null, 2) ?? "null"})
+    await record({...entry, durationMs: Date.now() - startedAt, status: ["failed", "timeout", "unavailable"].includes(String(status)) ? "failed" : "success", ...(captureId === undefined ? {} : {captureId}), result: JSON.stringify(sanitizeMcpValue(report), null, 2) ?? "null"})
     return result
   } catch (error) {
     await record({...entry, durationMs: Date.now() - startedAt, status: "failed", result: JSON.stringify({error: sanitizeMcpString(error instanceof Error ? error.message : String(error))}, null, 2)})
