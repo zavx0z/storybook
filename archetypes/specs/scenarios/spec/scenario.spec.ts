@@ -5,8 +5,13 @@
 
 @packageDocumentation
 */
-import {describe, test} from "bun:test"
+import {describe, test, mock} from "bun:test"
 import {resolve} from "node:path"
+
+const readScenarioMock = mock(async (input: {path: string}) => {
+  const {readScenario} = await import("@archetypes/specs/scenarios")
+  return readScenario(input)
+})
 
 const scenarioPath = (path: string) => resolve(import.meta.dir, "../../..", path)
 const inputPath = process.env.SPEC_PATH
@@ -18,22 +23,13 @@ describe.each([
       path: inputPath ?? scenarioPath("package/package-json/spec/scenario.spec.ts"),
     },
   },
-])("$name", ({props}) => {
-  describe.each([
-    {
-      runtime: async () => {
-        const {readScenario} = await import("@archetypes/specs/scenarios")
-        return readScenario(props)
-      },
-    },
-  ])("Исполнение и сбор сценария", async ({runtime}) => {
-    const result = await runtime()
+])("$name", async ({props}) => {
+  const result = await readScenarioMock(props)
 
-    /**
-    @remarks
-    Проверки механизма перенесены в test. Требования к данным результата
-    этого сценария предстоит определить отдельно.
-    */
-    test.todo("Данные прочитанного сценария", () => {})
-  })
+  /**
+  @remarks
+  Проверки механизма перенесены в test. Требования к данным результата
+  этого сценария предстоит определить отдельно.
+  */
+  test.todo("Данные прочитанного сценария", () => {})
 })

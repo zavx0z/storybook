@@ -3,9 +3,19 @@
  SPEC_DIRECTORY выбирает проверяемую директорию; по умолчанию проверяется эта spec.
  @packageDocumentation
  */
-import {describe, expect, test} from "bun:test"
+import {describe, expect, mock, test} from "bun:test"
 import {resolve} from "node:path"
 import {fileURLToPath} from "node:url"
+
+const checkSkipRemarksMock = mock(async (input: {path: string}) => {
+  const {checkSkipRemarks} = await import("./fixture/skip-remarks.ts")
+  return checkSkipRemarks(input.path)
+})
+
+const findUndocumentedSkipsMock = mock(async (input: {path: string}) => {
+  const {findUndocumentedSkips} = await import("./fixture/skip-remarks.ts")
+  return findUndocumentedSkips(input.path)
+})
 
 const fixture = fileURLToPath(new URL("./fixture/skip-remarks/", import.meta.url))
 
@@ -17,12 +27,8 @@ describe.each([
     fail: "Перед каждым пропуском должен быть TSDoc с непустым @remarks",
   },
 ])("$name", ({props, expected, fail}) => {
-  test.each([{
-    runtime: async () => {
-    }
-  }])("Проверяет пояснения пропусков", async () => {
-    const {checkSkipRemarks} = await import("./fixture/skip-remarks.ts")
-    const actual = await checkSkipRemarks(props.path)
+  test("Проверяет пояснения пропусков", async () => {
+    const actual = await checkSkipRemarksMock(props)
     expect(actual, fail).toEqual(expected)
   }, 35_000)
 })
@@ -47,12 +53,8 @@ describe.each([
     fail: "Пустой remarks не объясняет пропуск"
   },
 ])("$name", ({props, expected, fail}) => {
-  test.each([{
-    runtime: async () => {
-    }
-  }])("Распознаёт наличие пояснения", async () => {
-    const {findUndocumentedSkips} = await import("./fixture/skip-remarks.ts")
-    const actual = await findUndocumentedSkips(props.path)
+  test("Распознаёт наличие пояснения", async () => {
+    const actual = await findUndocumentedSkipsMock(props)
     expect(actual, fail).toEqual(expected)
   }, 35_000)
 })

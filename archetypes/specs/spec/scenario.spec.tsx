@@ -5,8 +5,7 @@
 Сценарии вызывают [findSpec](../index.ts): у репозитория, пакета, категории и сущности
 находится только непосредственно принадлежащая им директория `spec`.
 Вложенные владельцы не обходятся; состав найденной спецификации здесь не проверяется.
-`test.each` задаёт `runtime()`, который получает `props` группы через замыкание
-и запускает поиск по указанному пути
+Mock-функция получает `props` выбранного сценария и запускает поиск по указанному пути
 и возвращает фактический результат. Тест сравнивает его с ожидаемым;
 этот же результат предназначен для отображения человеку и представления через MCP.
 
@@ -21,9 +20,14 @@
 
 @packageDocumentation
 */
-import {describe, expect, test} from "bun:test"
+import {describe, expect, mock, test} from "bun:test"
 import {resolve} from "node:path"
 import {fileURLToPath} from "node:url"
+
+const findSpecMock = mock(async (input: {path: string}) => {
+  const {findSpec} = await import("@storybook/archetypes/specs")
+  return findSpec(input.path)
+})
 
 const fixture = fileURLToPath(new URL("./fixture/", import.meta.url))
 const inputPath = process.env.SPEC_PATH
@@ -55,15 +59,8 @@ describe.each([
     expected: resolve(inputPath ?? resolve(fixture, "repository/package/category/entity"), "spec"),
   },
 ])("$name", ({props, expected, fail}) => {
-  test.each([
-    {
-      runtime: async () => {
-        const {findSpec} = await import("@storybook/archetypes/specs")
-        return findSpec(props.path)
-      },
-    },
-  ])("Находит только непосредственную директорию spec", async ({runtime}) => {
-    const actual = await runtime()
+  test("Находит только непосредственную директорию spec", async () => {
+    const actual = await findSpecMock(props)
     expect(actual, fail).toBe(expected)
   })
 })

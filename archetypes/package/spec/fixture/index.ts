@@ -23,7 +23,7 @@ import {
 
 const root = fileURLToPath(new URL("../../../../", import.meta.url))
 
-/** Читает имена вариантов текущего формата; вычисления props и runtime не выполняются. */
+/** Читает имена вариантов текущего формата без вычисления props и исполнения mock-функций. */
 async function readScenarioNames(path: string): Promise<string[]> {
   const api = new API({cwd: root})
   try {

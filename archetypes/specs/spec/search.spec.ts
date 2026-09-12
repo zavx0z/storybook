@@ -5,10 +5,14 @@ SPEC_PATH задаёт входной путь; по умолчанию испо
 
 @packageDocumentation
 */
-import {describe, expect, test} from "bun:test"
+import {describe, expect, mock, test} from "bun:test"
 import {resolve} from "node:path"
 import {fileURLToPath} from "node:url"
-import {findSpec} from "@storybook/archetypes/specs"
+
+const findSpecMock = mock(async (input: {path: string}) => {
+  const {findSpec} = await import("@storybook/archetypes/specs")
+  return findSpec(input.path)
+})
 
 const fixture = fileURLToPath(new URL("./fixture/", import.meta.url))
 const inputPath = process.env.SPEC_PATH
@@ -37,12 +41,8 @@ describe.each([
     expected: null,
   },
 ])("$name", ({props, expected, fail}) => {
-  test.each([
-    {
-      runtime: async () => {},
-    },
-  ])("Находит только непосредственную директорию spec", async () => {
-    const actual = await findSpec(props.path)
+  test("Находит только непосредственную директорию spec", async () => {
+    const actual = await findSpecMock(props)
     expect(actual, fail).toBe(expected)
   })
 })

@@ -7,9 +7,13 @@ SPEC_DIRECTORY задаёт проверяемую директорию, SPEC_FI
 
 @packageDocumentation
 */
-import {describe, expect, test} from "bun:test"
+import {describe, expect, mock, test} from "bun:test"
 import {resolve} from "node:path"
-import {checkSpecParameterization} from "./fixture"
+
+const checkParameterizationMock = mock(async (input: {path: string}) => {
+  const {checkSpecParameterization} = await import("./fixture")
+  return checkSpecParameterization(input.path)
+})
 
 /** Разрешает путь относительно файловых фикстур этой спецификации. */
 const fixturePath = (path: string) => resolve(import.meta.dir, "fixture", path)
@@ -41,12 +45,8 @@ describe.each([
     fail: "Псевдоним describe не отменяет обязательность each",
   },
 ])("$name", ({props, expected, fail}) => {
-  test.each([
-    {
-      runtime: async () => {},
-    },
-  ])("Проверяет параметризацию объявлений", async () => {
-    const actual = await checkSpecParameterization(props.path)
+  test("Проверяет параметризацию объявлений", async () => {
+    const actual = await checkParameterizationMock(props)
     expect(actual, fail).toEqual(expected)
   })
 })
