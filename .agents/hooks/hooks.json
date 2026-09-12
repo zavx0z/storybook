@@ -1,0 +1,18 @@
+{
+  "description": "Проверка явного выбора модели при делегировании.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^(mcp__codex_app__(create_thread|send_message_to_thread)|spawn_agent|collaboration\\.spawn_agent|functions\\.collaboration\\.spawn_agent)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"/Users/zavx0z/.bun/bin/bun\" \"/Users/zavx0z/repozitarium/storybook/.agents/hooks/model-selection.ts\"",
+            "timeout": 5,
+            "statusMessage": "Проверка выбора модели"
+          }
+        ]
+      }
+    ]
+  }
+}
