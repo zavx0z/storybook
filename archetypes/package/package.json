@@ -1,0 +1,14 @@
+{
+  "name": "@archetypes/package",
+  "label": "Пакет",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Определяет состав пакета: README, package.json и index",
+  "exports": {
+    ".": "./index.ts",
+    "./readme": "./readme/index.ts",
+    "./package-json": "./package-json/index.ts",
+    "./index": "./index/index.ts"
+  }
+}
