@@ -58,7 +58,7 @@ export type ExternalStorybookPackageTabModel = Readonly<{
   secondaryActiveId: string | null
   variants: readonly ExternalStorybookBrowserVariantItem[]
   variantActiveId: string | null
-  viewKind: "overview" | "variant" | "dependencies" | "contract"
+  viewKind: "overview" | "variant" | "dependencies" | "contract" | "scenarios"
   urlPath: string
   tabs: readonly ExternalStorybookBrowserVariantItem[]
   tabActiveId: string | null
@@ -136,7 +136,7 @@ export function deriveExternalStorybookPackageTab(
     throw new Error(`External Storybook package tab identity is invalid: ${packageId}`)
   }
   const selectedNode = resolveBrowserRoute(graph, packageId, routePath)
-  const viewKind = selectedNode.contractRoutePath === routePath ? "contract" : selectedNode.dependencyRoutePath === routePath ? "dependencies" : selectedNode.kind === "variant" ? "variant" : "overview"
+  const viewKind = selectedNode.scenariosRoutePath === routePath ? "scenarios" : selectedNode.contractRoutePath === routePath ? "contract" : selectedNode.dependencyRoutePath === routePath ? "dependencies" : selectedNode.kind === "variant" ? "variant" : "overview"
   assertPackageOwnership(packageNode, selectedNode)
   const categories = packageNode.childIds.map(id => browserNode(graph, id)).filter(node => node.kind === "category")
   const catalogItems = Object.freeze(categories.map((category) =>
@@ -191,6 +191,16 @@ export function deriveExternalStorybookPackageTab(
     group: null,
   })]
 
+  const scenariosTab = tabOwner.scenariosRoutePath === undefined ? [] : [Object.freeze({
+    id: `scenarios:${tabOwner.id}`,
+    label: "Сценарии",
+    route: tabOwner.scenariosRoutePath,
+    urlPath: storybookPackageUrlPath(packageId, tabOwner.scenariosRoutePath),
+    title: `Сценарии ${tabOwner.label}`,
+    searchText: "Сценарии Scenarios",
+    group: null,
+  })]
+
   return Object.freeze({
     packageNode,
     selectedNode,
@@ -201,9 +211,9 @@ export function deriveExternalStorybookPackageTab(
     variants,
     variantActiveId: variant?.id ?? null,
     viewKind,
-    urlPath: viewKind === "dependencies" || viewKind === "contract" ? storybookPackageUrlPath(packageId, routePath) : selectedNode.urlPath,
-    tabs: Object.freeze([...dependencyTab, ...contractTab, ...variants]),
-    tabActiveId: viewKind === "contract" ? contractTab[0]!.id : viewKind === "dependencies" ? dependencyTab[0]!.id : variant?.id ?? null,
+    urlPath: viewKind === "dependencies" || viewKind === "contract" || viewKind === "scenarios" ? storybookPackageUrlPath(packageId, routePath) : selectedNode.urlPath,
+    tabs: Object.freeze([...dependencyTab, ...contractTab, ...scenariosTab, ...variants]),
+    tabActiveId: viewKind === "scenarios" ? scenariosTab[0]!.id : viewKind === "contract" ? contractTab[0]!.id : viewKind === "dependencies" ? dependencyTab[0]!.id : variant?.id ?? null,
   })
 }
 
@@ -327,7 +337,7 @@ function resolveBrowserRoute(
     throw new Error(`Malformed external Storybook route lookup: ${routePath}`)
   }
   const matches = graph.nodes.filter((node) =>
-    node.packageId === packageId && (node.routePath === routePath || node.dependencyRoutePath === routePath || node.contractRoutePath === routePath))
+    node.packageId === packageId && (node.routePath === routePath || node.dependencyRoutePath === routePath || node.contractRoutePath === routePath || node.scenariosRoutePath === routePath))
   if (matches.length === 0) throw new Error(`Unknown external Storybook route: ${packageId}:${routePath}`)
   if (matches.length > 1) throw new Error(`Ambiguous external Storybook route: ${packageId}:${routePath}`)
   return matches[0]!

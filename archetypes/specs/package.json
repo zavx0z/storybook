@@ -1,0 +1,21 @@
+{
+  "name": "@archetypes/specs",
+  "label": "Спецификации",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Зависимости, контракты, сценарии и фикстуры спецификаций",
+  "scripts": {
+    "test:spec:repository": "bun test ./spec --test-name-pattern '^(?!.*Spec (пакета|категории|сущности))'",
+    "test:spec:package": "bun test ./spec --test-name-pattern '^(?!.*Spec (репозитория|категории|сущности))'",
+    "test:spec:category": "bun test ./spec --test-name-pattern '^(?!.*Spec (репозитория|пакета|сущности))'",
+    "test:spec:entity": "bun test ./spec --test-name-pattern '^(?!.*Spec (репозитория|пакета|категории))'"
+  },
+  "exports": {
+    ".": "./index.ts",
+    "./deps": "./deps/index.ts",
+    "./contracts": "./contracts/index.ts",
+    "./scenarios": "./scenarios/index.ts",
+    "./fixtures": "./fixtures/index.ts"
+  }
+}

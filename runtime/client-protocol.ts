@@ -46,6 +46,7 @@ export type ExternalStorybookClientNode = Readonly<{
   dependencyCases?: readonly import("../catalog/catalog.t.ts").StorybookDependencyCase[]
   dependencyRoutePath?: string
   contractRoutePath?: string
+  scenariosRoutePath?: string
   contractDocuments?: readonly import("../catalog/catalog.t.ts").StorybookContractDocument[]
   resourceKinds: readonly StorybookResourceKind[]
   resourceUrl: string
@@ -143,6 +144,7 @@ export function createExternalStorybookClientSnapshot(
     ...(node.dependencyRoutePath === undefined ? {} : {dependencyRoutePath: node.dependencyRoutePath}),
     ...(node.contractDocumentation ? {contractDocuments: node.contractDocumentation.documents} : {}),
     ...(node.contractRoutePath === undefined ? {} : {contractRoutePath: node.contractRoutePath}),
+    ...(node.scenariosRoutePath === undefined ? {} : {scenariosRoutePath: node.scenariosRoutePath}),
     resourceKinds: Object.freeze([...new Set(node.resources.map(({kind}) => kind))]),
     resourceUrl: externalStorybookNodeResourceUrl(graph, node.id),
     presentation: node.presentation === null

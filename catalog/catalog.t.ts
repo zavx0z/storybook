@@ -168,6 +168,11 @@ export type StorybookDependencySpec = Readonly<{
   cases: readonly StorybookDependencyCase[]
 }>
 
+/** Найденные scenario.spec.ts(x); наличие не означает разбор или выполнение сценариев. */
+export type StorybookScenarioSpec = Readonly<{
+  sourcePaths: readonly string[]
+}>
+
 /** Filesystem category or module, classified by placement rather than exports. */
 export type StorybookDirectory = Readonly<{
   path: string
@@ -179,6 +184,7 @@ export type StorybookDirectory = Readonly<{
   moduleDocumentation?: StorybookModuleDocumentation
   dependencySpec?: StorybookDependencySpec
   contractDocumentation?: StorybookContractDocumentation
+  scenarioSpec?: StorybookScenarioSpec
 }>
 
 type StorybookCatalogScopeBase = Readonly<{

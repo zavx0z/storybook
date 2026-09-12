@@ -150,7 +150,7 @@ export function storybookPackageUrlPath(packageId: string, route = ""): string {
   const base = `/pkg-${storybookPackagePathSegment(packageId)}/`
   if (route.startsWith("dir-")) {
     const parts = route.split("/")
-    const directories = ["dependencies", "contract"].includes(parts.at(-1) ?? "") ? parts.slice(0, -1) : parts
+    const directories = ["dependencies", "contract", "scenarios"].includes(parts.at(-1) ?? "") ? parts.slice(0, -1) : parts
     if (directories.some(part => !part.startsWith("dir-") || part.length === 4)) throw new Error("Invalid structural directory route")
     return `${base}${route}`
   }
@@ -176,7 +176,7 @@ export function storybookPackageRouteFromPathname(pathname: string, packageId: s
       return value
     })
     if (!legacy && parts[0]?.startsWith("dir-")) {
-      const directories = ["dependencies", "contract"].includes(parts.at(-1) ?? "") ? parts.slice(0, -1) : parts
+      const directories = ["dependencies", "contract", "scenarios"].includes(parts.at(-1) ?? "") ? parts.slice(0, -1) : parts
       if (directories.some(part => !part.startsWith("dir-") || part.length === 4)) return null
       return parts.join("/")
     }

@@ -11,7 +11,7 @@ import {SelectField} from "@zavx0z/ui/fields/select-field"
 import {DiagramNode} from "@nodes/node/diagram"
 import {GraphView, type GraphInput, type GraphLayoutComputer, type GraphNodeProps} from "@webxr/nodes/view"
 import {layoutTopDown} from "@nodes/layout/top-down"
-import {createCubicLinkRoute} from "@webxr/nodes/link"
+import {createCubicLinkRoute} from "@webxr/nodes/routing/link-path"
 import type {StorybookDependencyCase} from "../catalog/catalog.t.ts"
 import type {Document} from "@zavx0z/dom"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
@@ -53,10 +53,12 @@ export function dependencyGraphInput(value: StorybookDependencyCase) {
   }
   const layout: GraphLayoutComputer = measurements => {
     const result = layoutTopDown({
-      attachment: "contour",
-      nodes: measurements.map(node => ({id: node.id, width: node.width, height: node.height, shape: "rectangle" as const})),
-      edges,
-      layoutOptions: {nodeSpacing: 32, layerSpacing: 48, padding: 16},
+      graph: {
+        attachment: "contour",
+        nodes: measurements.map(node => ({id: node.id, width: node.width, height: node.height, shape: "rectangle" as const})),
+        edges,
+        layoutOptions: {nodeSpacing: 32, layerSpacing: 48, padding: 16},
+      },
     })
     return {
       bounds: result.bounds,

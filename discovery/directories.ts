@@ -18,6 +18,7 @@ export async function discoverStorybookDirectories(
   const gitRoot = repository.code === 0 ? await realpath(repository.output.trim()) : null
   const watchPaths = new Set<string>()
   const contractPathsByDirectory = new Map<string, readonly string[]>()
+  const scenarioPathsByDirectory = new Map<string, readonly string[]>()
   const dependencyPathByDirectory = new Map<string, string>()
   if (gitRoot !== null) {
     for (let path = root;; path = dirname(path)) {
@@ -123,6 +124,29 @@ export async function discoverStorybookDirectories(
           if (specInfo?.isFile() && !specInfo.isSymbolicLink()) dependencyPathByDirectory.set(path, specPath)
         }
       }
+      if (isModule || publicEntry !== undefined) {
+        const specDirectory = join(path, "spec")
+        watchPaths.add(specDirectory)
+        const directoryInfo = await lstat(specDirectory).catch(error => {
+          if (error.code !== "ENOENT") throw error
+          return null
+        })
+        const scenarioPaths = [join(specDirectory, "scenario.spec.ts"), join(specDirectory, "scenario.spec.tsx")]
+        for (const scenarioPath of scenarioPaths) watchPaths.add(scenarioPath)
+        const excludedScenarios = await ignored([specDirectory, ...scenarioPaths])
+        if (directoryInfo?.isDirectory() && !directoryInfo.isSymbolicLink() && !excludedScenarios.has(specDirectory)) {
+          const found: string[] = []
+          for (const scenarioPath of scenarioPaths) {
+            if (excludedScenarios.has(scenarioPath)) continue
+            const info = await lstat(scenarioPath).catch(error => {
+              if (error.code !== "ENOENT") throw error
+              return null
+            })
+            if (info?.isFile() && !info.isSymbolicLink()) found.push(scenarioPath)
+          }
+          if (found.length > 0) scenarioPathsByDirectory.set(path, Object.freeze(found))
+        }
+      }
       const children = isModule ? [] : await visit(path)
       result.push(Object.freeze({
         path,
@@ -155,11 +179,13 @@ export async function discoverStorybookDirectories(
         document: contract.document,
       }]
     })
+    const scenarioPaths = scenarioPathsByDirectory.get(directory.path)
     const dependencyPath = dependencyPathByDirectory.get(directory.path)
     const dependencySpec = dependencyPath === undefined ? undefined : dependencies.get(dependencyPath)
     return Object.freeze({
       ...directory,
       ...(dependencySpec === undefined ? {} : {dependencySpec}),
+      ...(scenarioPaths === undefined ? {} : {scenarioSpec: {sourcePaths: scenarioPaths}}),
       ...(documents.length === 0 ? {} : {contractDocumentation: {sources, documents}}),
     })
   })

@@ -53,6 +53,8 @@ export type ExternalStorybookGraphNode = Readonly<{
   dependencyRoutePath?: string
   contractDocumentation?: import("./catalog.t.ts").StorybookContractDocumentation
   contractRoutePath?: string
+  scenarioSpec?: import("./catalog.t.ts").StorybookScenarioSpec
+  scenariosRoutePath?: string
   resources: readonly StorybookResource[]
   authorStyleSheets: readonly StorybookAuthorStyleSheet[]
   widgetContributions: StorybookWidgetContributions | null
@@ -79,7 +81,7 @@ export type ExternalStorybookRoute = Readonly<{
   packageId: string
   path: string
   urlPath: string
-  kind: "overview" | "variant" | "dependencies" | "contract"
+  kind: "overview" | "variant" | "dependencies" | "contract" | "scenarios"
   nodeId: string
 }>
 
@@ -194,6 +196,7 @@ export function createExternalStorybookGraph(
         ...(directory.moduleDocumentation ? {moduleDocumentation: directory.moduleDocumentation} : {}),
         ...(directory.dependencySpec ? {dependencySpec: directory.dependencySpec} : {}),
           ...(directory.contractDocumentation ? {contractDocumentation: directory.contractDocumentation} : {}),
+          ...(directory.scenarioSpec ? {scenarioSpec: directory.scenarioSpec} : {}),
         source: Object.freeze({path: directory.path, pointer: ""}),
         searchTerms: searchTerms(directory.name, directory.relativePath),
         resources: Object.freeze([]), authorStyleSheets: Object.freeze([]), widgetContributions: null,
@@ -271,6 +274,7 @@ function bindStructuralSubjects(
           parentId: subjects.length === 1 ? directory.parentId : directoryId,
           ...(directory.dependencySpec ? {dependencySpec: directory.dependencySpec} : {}),
           ...(directory.contractDocumentation ? {contractDocumentation: directory.contractDocumentation} : {}),
+          ...(directory.scenarioSpec ? {scenarioSpec: directory.scenarioSpec} : {}),
           ...(subjects.length === 1 ? {
             label: directory.label,
             readmePath: null,
@@ -307,6 +311,7 @@ function bindStructuralSubjects(
     const value = {...input,
       ...(input.dependencySpec && input.routePath !== null ? {dependencyRoutePath: `${input.routePath ? `${input.routePath}/` : ""}dependencies`} : {}),
       ...(input.contractDocumentation && input.routePath !== null ? {contractRoutePath: `${input.routePath ? `${input.routePath}/` : ""}contract`} : {}),
+      ...(input.scenarioSpec?.sourcePaths.length && input.routePath !== null ? {scenariosRoutePath: `${input.routePath ? `${input.routePath}/` : ""}scenarios`} : {}),
       structuralPath: Object.freeze(pathFor(node)),
       childIds: Object.freeze(children.get(node.id) ?? [])}
     return Object.freeze({...value, digest: digest(value)})
@@ -336,6 +341,12 @@ export function externalStorybookRoutes(
       path: node.contractRoutePath,
       urlPath: packageRouteUrl(node.packageId, node.contractRoutePath, false),
       kind: "contract" as const,
+      nodeId: node.id,
+    })]), ...(node.scenariosRoutePath === undefined ? [] : [Object.freeze({
+      packageId: node.packageId,
+      path: node.scenariosRoutePath,
+      urlPath: packageRouteUrl(node.packageId, node.scenariosRoutePath, false),
+      kind: "scenarios" as const,
       nodeId: node.id,
     })])]
   })

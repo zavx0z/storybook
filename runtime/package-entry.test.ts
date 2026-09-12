@@ -43,6 +43,41 @@ import {startExternalStorybookPage, type ExternalStorybookPreparedPackageTarget}
 const fixtureRoot = join(import.meta.dir, "../discovery/fixtures/valid")
 
 describe("external Storybook package frontend", () => {
+  test.each(["components/button", "components/button/scenarios"])("[SCENARIOS-TAB] пустое представление из %s без запуска runtime", async initialRoute => {
+    const base = await fixtureGraph()
+    const subjectId = "subject:@fixture/components/components/button"
+    const graph = {...base, nodes: base.nodes.map(node => node.id === subjectId
+      ? {...node, childIds: [], scenariosRoutePath: "components/button/scenarios"}
+      : node)}
+    const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-scenarios"))
+    const environment = environmentFixture(snapshot, `/pkg-fixture-components/${initialRoute}`)
+    const controller = await startExternalStorybookPackage({
+      packageId: "@fixture/components",
+      candidateRevision: "revision-scenarios",
+      revisionUrl: "/__storybook/revisions/%40fixture%2Fcomponents/revision-scenarios/",
+      loadRuntime: null,
+      storyLoaders: new Map(),
+      environment,
+    })
+    try {
+      const {workbench, display, document} = controller.shell
+      const tab = [...workbench.element.querySelectorAll("button")]
+        .find(node => node.getAttribute("aria-label") === "Сценарии") as HTMLButtonElement
+      expect(tab).toBeDefined()
+      if (initialRoute !== "components/button/scenarios") {
+        tab.click()
+        const deadline = Date.now() + 5000
+        while ((controller.currentRoute !== "components/button/scenarios" || !display.textContent?.includes("Сценарии")) && Date.now() < deadline) await Bun.sleep(10)
+      }
+      expect(controller.currentRoute).toBe("components/button/scenarios")
+      expect(workbench.controller.read("tabs.active")).toBe(`scenarios:${subjectId}`)
+      expect(workbench.controller.read("inspector.subject")).toBeNull()
+      expect(new URL(environment.location!.href).pathname).toBe("/pkg-fixture-components/components/button/scenarios")
+      expect(display.textContent).toContain("Сценарии")
+      expect(controller.shell.document === document).toBe(true)
+    } finally { await controller.dispose() }
+  })
+
   test.each(["components/button", "components/button/contract"])("[STORYBOOK-CONTRACT-DISPLAY] TypeDoc и history из %s в том же Display", async initialRoute => {
     const base = await fixtureGraph()
     const subjectId = "subject:@fixture/components/components/button"
@@ -873,7 +908,7 @@ describe("external Storybook package frontend", () => {
         : `/pkg-fixture-components/${route}`,
       intent: "reader",
       preview: false,
-      initialAppliedRevision: revision,
+      initialAppliedRevision: packageId === "@fixture/standalone" ? standaloneRevision : revision,
       fallbackRevision: null,
       readerToken: `${packageId}:${revision}`,
     })
@@ -1034,6 +1069,15 @@ describe("external Storybook package frontend", () => {
         packageId: "@fixture/standalone",
         revision: styleRevision,
       })
+      const candidateSocket = sockets.at(-1)!
+      candidateSocket.emit("message", {data: JSON.stringify({
+        type: "package.applied-state", packageId: "@fixture/standalone", revision: standaloneRevision,
+      })})
+      expect(await pageBridge.call("identity")).toMatchObject({revision: styleRevision})
+      candidateSocket.emit("message", {data: JSON.stringify({
+        type: "package.updated", packageId: "@fixture/standalone", revision: styleRevision,
+      })})
+      expect(await pageBridge.call("identity")).toMatchObject({revision: styleRevision})
 
       await controller.navigateLanding()
       expect(controller.packageId).toBeNull()

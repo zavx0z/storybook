@@ -78,6 +78,7 @@ export function externalStorybookPackageDescriptors(
             ...(candidate.readmePath === null ? [] : [candidate.readmePath]),
             ...(candidate.moduleDocumentation ? [candidate.moduleDocumentation.sourcePath] : []),
             ...(candidate.dependencySpec ? [candidate.dependencySpec.sourcePath] : []),
+            ...(candidate.scenarioSpec?.sourcePaths ?? []),
             ...(candidate.contractDocumentation?.sources.map(source => source.sourcePath) ?? []),
             ...(readmeAssetsByNode.get(candidate.id) ?? []),
             ...candidate.resources.map(({path}) => path),
@@ -111,6 +112,7 @@ export function externalStorybookPackageDescriptors(
         ? [
           ...(candidate.moduleDocumentation ? [{path: candidate.moduleDocumentation.sourcePath, category: "declaration" as const}] : []),
           ...(candidate.dependencySpec ? [{path: candidate.dependencySpec.sourcePath, category: "declaration" as const}] : []),
+          ...(candidate.scenarioSpec?.sourcePaths.map(path => ({path, category: "declaration" as const})) ?? []),
           ...(candidate.contractDocumentation?.sources.map(source => ({path: source.sourcePath, category: "declaration" as const})) ?? []),
           ...(candidate.readmePath === null
             ? []

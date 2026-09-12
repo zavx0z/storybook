@@ -3,7 +3,7 @@ import {createDocument, acquireDocumentAuthorStyleSheetOwner, Event, WheelEvent,
 import {flushDocumentLayoutObservers} from "@zavx0z/dom/geometry"
 import {createDocumentRenderer} from "@renderer/html"
 import {layoutTopDown} from "@nodes/layout/top-down"
-import {createCubicLinkRoute, projectLinkArrowheads, projectLinkEndpoints, projectLinkRoute} from "@webxr/nodes/link"
+import {createCubicLinkRoute, projectLinkArrowheads, projectLinkEndpoints, projectLinkRoute} from "@webxr/nodes/routing/link-path"
 import {createDependencyPresentation, dependencyGraphInput} from "./dependency-view.tsx"
 
 const ownerId = "owner.tsx#Owner"
@@ -21,14 +21,16 @@ test("целевой компонент остаётся сверху с пре�
   const measurements = graph.input.nodes.map(node => ({id: node.id, width: 100, height: 40, anchors: []}))
   const scene = await graph.layout(measurements)
   const expected = layoutTopDown({
-    attachment: "contour",
-    nodes: measurements.map(node => ({...node, shape: "rectangle" as const})),
-    edges: [
-      {id: JSON.stringify([ownerId, leafId]), sourceNodeId: ownerId, targetNodeId: leafId},
-      {id: ownerElement, sourceNodeId: ownerId, targetNodeId: ownerElement},
-      {id: leafElement, sourceNodeId: leafId, targetNodeId: leafElement},
-    ],
-    layoutOptions: {nodeSpacing: 32, layerSpacing: 48, padding: 16},
+    graph: {
+      attachment: "contour",
+      nodes: measurements.map(node => ({...node, shape: "rectangle" as const})),
+      edges: [
+        {id: JSON.stringify([ownerId, leafId]), sourceNodeId: ownerId, targetNodeId: leafId},
+        {id: ownerElement, sourceNodeId: ownerId, targetNodeId: ownerElement},
+        {id: leafElement, sourceNodeId: leafId, targetNodeId: leafElement},
+      ],
+      layoutOptions: {nodeSpacing: 32, layerSpacing: 48, padding: 16},
+    },
   })
   expect(scene.nodes).toEqual(expected.nodes)
   expect(JSON.stringify(value)).toBe(before)

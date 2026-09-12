@@ -849,8 +849,9 @@ export async function startExternalStorybookPackage(
     selectContractDirection = null
     const dependencies = model.viewKind === "dependencies"
     const contract = model.viewKind === "contract"
+    const scenarios = model.viewKind === "scenarios"
     disposeSpacePreview()
-    if (!dependencies && !contract && await showAggregateOverview(model, revision, signal)) return
+    if (!dependencies && !contract && !scenarios && await showAggregateOverview(model, revision, signal)) return
     await disposeAggregate()
     if (session !== null && mountedRoute !== null) {
       await session.session.unmount()
@@ -861,9 +862,9 @@ export async function startExternalStorybookPackage(
       await disposeSession(session)
     }
     const node = externalStorybookClientNode(snapshot, model.selectedNode.id)
-    const readme = contract || dependencies ? null : await readExternalStorybookNodeReadme(node, fetcher)
+    const readme = contract || dependencies || scenarios ? null : await readExternalStorybookNodeReadme(node, fetcher)
     if (disposed || revision !== navigationRevision) return
-    const label = contract ? `${node.label} · Контракт` : dependencies ? `${node.label} · Зависимости` : readme === null ? `${node.label} · Обзор` : `${node.label} · ${node.hasModuleDocumentation ? "TSDoc" : "README"}`
+    const label = scenarios ? `${node.label} · Сценарии` : contract ? `${node.label} · Контракт` : dependencies ? `${node.label} · Зависимости` : readme === null ? `${node.label} · Обзор` : `${node.label} · ${node.hasModuleDocumentation ? "TSDoc" : "README"}`
     const contractNavigators = new Map<
       Parameters<StorybookContractNavigationReady>[0],
       NonNullable<Parameters<StorybookContractNavigationReady>[1]>
@@ -875,7 +876,9 @@ export async function startExternalStorybookPackage(
     const requestedDirection = new URL(location.href).searchParams.get("inspector")
     const initialDirection = contractDirections.find(direction => direction === requestedDirection)
       ?? (contractDirections.includes("input") ? "input" : contractDirections[0] ?? "input")
-    const presentationNode = contract
+    const presentationNode = scenarios
+      ? shell.showMessage(label, "Сценарии", "")
+      : contract
       ? await shell.showContract(label, node.contractDocuments!, signal, (direction, navigation) => {
         if (navigation === null) contractNavigators.delete(direction)
         else contractNavigators.set(direction, navigation)
@@ -937,14 +940,14 @@ export async function startExternalStorybookPackage(
           workspaceId: `contract:${model.urlPath}`,
           widgetIds: contractWidgets,
         })
-        : dependencies || overviewSubject === null || subjectPresentation === null
+        : dependencies || scenarios || overviewSubject === null || subjectPresentation === null
         ? null
         : Object.freeze({
           packageId,
           subjectId: overviewSubject.id,
           widgetIds: subjectPresentation.widgets,
         }),
-      inspectorValues: contractValues ?? Object.freeze({diagnostics: Object.freeze([...routeDiagnostics])}),
+      inspectorValues: scenarios ? Object.freeze({}) : contractValues ?? Object.freeze({diagnostics: Object.freeze([...routeDiagnostics])}),
     })
     publishPresentation(next)
     shell.requestRender()
@@ -1497,6 +1500,11 @@ export async function startExternalStorybookPackage(
     (new URL(location.href).searchParams.has("preview") ? "preview" : "reader")
   let observedApplied = environment.initialAppliedRevision ??
     (readMetaContent(browserDocument, "external-storybook-applied-revision") || null)
+  // Пересозданный scope кандидата не откатывается по первому сообщению о прежней рабочей версии.
+  if (embeddedPageScope !== undefined && readerIntent === "reader" &&
+    candidateRevision !== null && candidateRevision !== observedApplied) {
+    readerIntent = "navigation-candidate"
+  }
   shell.updateStatus(storybookConnectionStatus("connecting"))
   const followApplied = (revision: string | null, initial: boolean): void => {
     if (disposed) return

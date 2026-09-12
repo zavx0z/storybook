@@ -4,10 +4,23 @@
   "version": "0.0.0",
   "private": true,
   "description": "Единые требования к структуре проектов, пакетов, директорий, сущностей и контрактов",
-  "exports": {
-    ".": "./index.ts"
-  },
   "workspaces": [
-    "package"
-  ]
+    "specs"
+  ],
+  "exports": {
+    ".": "./index.ts",
+    "./repository": "./repository/index.ts",
+    "./package": "./package/index.ts",
+    "./category": "./category/index.ts",
+    "./entity": "./entity/index.ts",
+    "./specs": "./specs/index.ts"
+  },
+  "scripts": {
+    "test:spec:repository": "bun run --cwd ./specs test:spec:repository",
+    "test:spec:package": "bun run --cwd ./specs test:spec:package",
+    "test:spec:category": "bun run --cwd ./specs test:spec:category",
+    "test:spec:entity": "bun run --cwd ./specs test:spec:entity",
+    "test:package:minimal": "bun test ./package/spec --test-name-pattern '^(?!.*(Пакет с вложенным пакетом))'",
+    "test:package:package": "bun test ./package/spec --test-name-pattern '^(?!.*(Минимальный пакет))'"
+  }
 }
