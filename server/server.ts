@@ -2029,7 +2029,7 @@ function htmlResponse(value: string, origin: string): Response {
         "script-src 'self'",
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' data: blob:",
-        `connect-src 'self' data: ${websocket.origin}`,
+        `connect-src 'self' data: blob: ${websocket.origin}`,
         "object-src 'none'",
         "base-uri 'none'",
         "form-action 'none'",

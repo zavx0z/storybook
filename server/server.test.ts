@@ -539,7 +539,7 @@ describe("one external Storybook server", () => {
     expect(browserSessionToken(html)).not.toBe(running.record.controlToken)
     expect(landing.headers.get("content-security-policy")).toContain("frame-ancestors 'none'")
     expect(landing.headers.get("content-security-policy"))
-      .toContain(`connect-src 'self' data: ws://${new URL(running.origin).host}`)
+      .toContain(`connect-src 'self' data: blob: ws://${new URL(running.origin).host}`)
     expect(landing.headers.get("content-security-policy")).toContain("img-src 'self' data: blob:")
 
     const refusedStop = await controlPost(running, "/api/control/stop", {confirm: false})
