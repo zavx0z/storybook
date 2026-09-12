@@ -6,7 +6,7 @@ import type {McpRequestRecord} from "@mcp/rest/requests"
 function JsonField(props: Readonly<{title: string, value: string}>) {
   let value = props.value
   try { value = JSON.stringify(JSON.parse(value), null, 2) } catch {}
-  const height = Math.min(18, Math.max(1, value.split("\n").length)) * 16 + 18
+  const height = Math.max(1, value.split("\n").length) * 16 + 30
   return <section style={css`
     display: flex;
     flex-direction: column;
@@ -27,6 +27,7 @@ function JsonField(props: Readonly<{title: string, value: string}>) {
         max-width: 100%;
         min-width: 0;
         height: var(--journal-field-height);
+        overflow-y: hidden;
         flex-shrink: 0;
       `}
     />
