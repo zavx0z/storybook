@@ -20,6 +20,7 @@ function JsonField(props: Readonly<{title: string, value: string}>) {
       value={value}
       languageId="json"
       readOnly={true}
+      showLineNumbers={false}
       style={css`
         --journal-field-height: ${height}px;
 

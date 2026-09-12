@@ -10,7 +10,7 @@ export interface McpRequestRecord {
   captureId?: string
 }
 
-/** Создаёт ограниченный журнал одного HTTP-сервера; сохраняет последние 200 обращений. */
+/** Создаёт ограниченный журнал одного HTTP-сервера; сохраняет последние 20 обращений. */
 export function createMcpRequestJournal() {
   const records = new Map<string, McpRequestRecord>()
   return {
@@ -28,7 +28,7 @@ export function createMcpRequestJournal() {
         input: String(entry.input ?? ""),
         result: String(entry.result ?? ""),
       })
-      while (records.size > 200) records.delete(records.keys().next().value!)
+      while (records.size > 20) records.delete(records.keys().next().value!)
     },
     read(): readonly McpRequestRecord[] {
       return [...records.values()].sort((a, b) => b.startedAt - a.startedAt).map(entry => ({...entry}))

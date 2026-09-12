@@ -27,6 +27,12 @@ describe("Журнал MCP", () => {
     expect(JSON.parse(journal.read()[0]!.result)).toEqual({status: "success", captureId: "capture_fixture"})
   })
 
+  test("журнал сохраняет только последние двадцать запросов", () => {
+    const journal = createMcpRequestJournal()
+    for (let index = 0; index < 25; index++) journal.write({id: String(index), tool: "storybook", startedAt: index, status: "success", input: "{}", result: "{}"})
+    expect(journal.read().map(entry => entry.id)).toEqual(Array.from({length: 20}, (_, index) => String(24 - index)))
+  })
+
   test("ошибка записывается как JSON и возвращается вызывающему коду", async () => {
     const journal = createMcpRequestJournal()
     await expect(traceMcpRequest("storybook", {}, async () => {throw new Error("Нет раздела")}, async entry => journal.write(entry)))

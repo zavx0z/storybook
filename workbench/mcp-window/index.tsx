@@ -101,7 +101,7 @@ export function McpWindow(props: McpWindowProps) {
   >
     <Window
       title="Журнал MCP"
-      subtitle="Последние 200 запросов · перетащите заголовок"
+      subtitle=""
       active={true}
       minimized={minimized}
       layout="fill"
