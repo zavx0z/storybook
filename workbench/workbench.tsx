@@ -7,6 +7,7 @@ import {createWorkbenchModel} from "./controller.ts"
 import {WorkbenchView} from "./view.tsx"
 
 export type WorkbenchProps = Readonly<{
+  onMcpOpen?: (() => void) | undefined
   title: string
   statusOwner: string
   displayId: string
@@ -37,6 +38,7 @@ export function Workbench(props: WorkbenchProps) {
     return () => model.dispose()
   }, [model])
   return <WorkbenchView
+    onMcpOpen={props.onMcpOpen}
     document={view.document}
     onElement={node => { element.current = node }}
     state={view.state}

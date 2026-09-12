@@ -16,6 +16,7 @@ import {SecondaryRegion} from "./regions/secondary.tsx"
 import {StatusRegion} from "./regions/status.tsx"
 
 export type WorkbenchViewProps = Readonly<{
+  onMcpOpen?: (() => void) | undefined
   document: SemanticDocument
   onElement?: ((node: HTMLDivElement | null) => void) | undefined
   state: WorkbenchViewState
@@ -126,6 +127,7 @@ export function WorkbenchView(props: WorkbenchViewProps) {
       >{props.children}</InspectorRegion>
     </div>
     <StatusRegion
+      onMcpOpen={props.onMcpOpen}
       status={state.status}
       onNavigate={props.onStatusNavigate}
     />

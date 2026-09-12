@@ -12,6 +12,7 @@ import type {
 } from "@zavx0z/browser/integration"
 import {
   createDocument,
+  MouseEvent,
   type Element,
   type Node,
 } from "@zavx0z/dom"
@@ -28,6 +29,31 @@ import {
 } from "./shell.ts"
 
 describe("external Storybook shared Browser Root", () => {
+  test("открытие и закрытие MCP сохраняет камеру и дисплей", async () => {
+    const shell = await createShell(createFakeRootState())
+    try {
+      shell.viewPoint.x = 71
+      shell.viewPoint.y = -333
+      shell.viewPoint.z = 19
+      shell.display.width = 321
+      shell.display.height = 123
+      const before = viewPointValues(shell.viewPoint)
+      const display = shell.display
+      const button = shell.document.querySelector('[aria-label="Открыть журнал MCP"]')!
+      button.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+      await Promise.resolve()
+      const dialog = shell.document.querySelector('[data-mcp-window]')!
+      expect(dialog.hasAttribute("hidden")).toBe(false)
+      expect(viewPointValues(shell.viewPoint)).toEqual(before)
+      expect([display.width, display.height]).toEqual([321, 123])
+      dialog.querySelector('button[title="Закрыть"]')?.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+      await Promise.resolve()
+      expect(viewPointValues(shell.viewPoint)).toEqual(before)
+    } finally {
+      shell.dispose()
+    }
+  })
+
   test("creates one semantic Space/ViewPoint/Display/HUD and mounts the Workbench in HUD", async () => {
     const state = createFakeRootState()
     const shell = await createShell(state)

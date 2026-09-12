@@ -165,6 +165,19 @@ export async function createExternalStorybookShell(
     statusOwner: options.statusOwner ?? options.title,
     displayId: EXTERNAL_STORYBOOK_DISPLAY_ID,
     hudId: EXTERNAL_STORYBOOK_WORKBENCH_ID,
+    async loadMcpRequests() {
+      const session = await fetch("/api/browser/registry-session", {
+        method: "POST",
+        headers: {"content-type": "application/json"},
+        body: "{}",
+      })
+      if (!session.ok) throw new Error("Не удалось открыть сессию журнала MCP")
+      const {readerToken: token} = await session.json()
+      if (typeof token !== "string") throw new Error("Нет сессии Storybook для чтения журнала")
+      const response = await fetch("/api/browser/mcp-requests", {headers: {"x-storybook-session": token}})
+      if (!response.ok) throw new Error("Не удалось получить журнал MCP")
+      return (await response.json()).entries
+    },
     onReady(value) { workbench = value },
   }))
   let root: Root

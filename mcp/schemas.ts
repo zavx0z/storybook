@@ -21,6 +21,12 @@ const limit = z.number().int().min(1).max(200)
 const uniqueList = <Schema extends z.ZodType>(schema: Schema, maximum: number) => z.array(schema).max(maximum)
   .refine((values) => new Set(values.map((value) => JSON.stringify(value))).size === values.length, "list must be unique")
 
+export const storybookSchema = z.strictObject({
+  node: boundedId.optional(),
+  action: boundedId.optional(),
+  input: z.record(z.string(), z.unknown()).optional(),
+})
+
 export const storybookEnsureSchema = z.strictObject({
   schemaVersion,
   roots: uniqueList(boundedPath, 32).optional(),
@@ -55,6 +61,7 @@ export const storybookOpenSchema = z.strictObject({
   schemaVersion,
   packageId,
   route: route.optional(),
+  recover: z.boolean().optional().describe("Явное восстановление зависшей попытки открытия, если вкладки пакета отсутствуют"),
 })
 
 export const storybookWaitSchema = z.strictObject({
@@ -185,6 +192,7 @@ export const storybookStopSchema = z.strictObject({
 })
 
 export const STORYBOOK_TOOL_SCHEMAS = Object.freeze({
+  storybook: storybookSchema,
   storybook_ensure: storybookEnsureSchema,
   storybook_status: storybookStatusSchema,
   storybook_attach: storybookAttachSchema,

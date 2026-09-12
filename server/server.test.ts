@@ -22,6 +22,27 @@ afterEach(async () => {
 })
 
 describe("one external Storybook server", () => {
+  test("корневой REST возвращает два раздела без сборки", async () => {
+    const fixture = serverFixture()
+    const running = await startExternalStorybookServer({
+      declarations: [fixture.standalone],
+      statePath: fixture.statePath,
+      artifactRoot: fixture.artifactRoot,
+    })
+    servers.push(running)
+    const url = new URL("/api/control/storybook", running.origin)
+    const unauthorized = await fetch(url)
+    expect(unauthorized.status).toBe(401)
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {authorization: `Bearer ${running.record.controlToken}`, "content-type": "application/json"},
+      body: "{}",
+    })
+    const value = await response.json() as {children: {id: string}[]}
+    expect(value.children.map(node => node.id)).toEqual(["archetypes", "validator"])
+    expect(running.sessions.snapshots().every(item => item.builds === 0)).toBe(true)
+  })
+
   test("shared worker восстанавливает проверенные ресурсы после перезапуска без компиляции", async () => {
     const fixture = serverFixture()
     const options = {

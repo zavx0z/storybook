@@ -1,5 +1,7 @@
 import {storybookPackagePathMatches, storybookPackageRouteFromPathname, storybookCurrentRouteKey, validStorybookViewQuery} from "@zavx0z/storybook-browser-lifecycle/contract"
 import {externalStorybookBrowsePath} from "../catalog/graph.ts"
+import {storybookRest} from "@mcp/rest"
+import {createMcpRequestJournal} from "@mcp/rest/requests"
 import {StorybookDirectorySelection} from "./directory-selection.ts"
 import {StorybookPackageUrlMigrations} from "./package-url-migrations.ts"
 import {createCatalogRefresh} from "./catalog-refresh.ts"
@@ -382,6 +384,7 @@ export async function startExternalStorybookServer(
       route: string
       timeoutMs?: number
       existingViewId?: string
+      recover?: boolean
     }>,
     signal: AbortSignal,
   ): Promise<Readonly<Record<string, unknown>>> => {
@@ -406,6 +409,7 @@ export async function startExternalStorybookServer(
       previewUrl.searchParams.set("preview", packageState.builtRevision)
     }
     const openInput = {
+      ...(input.recover === undefined ? {} : {recover: input.recover}),
       origin: server.url.origin,
       packageId: input.packageId,
       route: selectedRoute.path,
@@ -655,6 +659,7 @@ export async function startExternalStorybookServer(
   const ensureSharedAssets = (): Promise<SharedBrowserAssets> => sharedAssets.ensure()
 
 
+  const mcpRequests = createMcpRequestJournal()
   let server!: Bun.Server<StorybookWebSocketData>
   try {
     options.onStartupPhase?.("listen")
@@ -712,6 +717,16 @@ export async function startExternalStorybookServer(
             packages: client.packages,
           })
         }
+        if (url.pathname === "/api/control/mcp-requests" && request.method === "POST") {
+          mcpRequests.write(await requestObject(request))
+          return responseJson({status: "success"})
+        }
+        if (url.pathname === "/api/browser/mcp-requests" && request.method === "GET") {
+          assertExternalStorybookRequestOrigin(request, server.url.origin, {required: false})
+          browserSessions.authorize(request.headers.get("x-storybook-session") ?? "")
+          return responseJson({entries: mcpRequests.read()})
+        }
+        if (url.pathname === "/api/control/storybook") return await storybookRest(request, toolRoot)
         if (url.pathname === "/api/control/status" && request.method === "GET") {
           const snapshot = registry.snapshot()
           const packageIds = resolveCheckPackages(snapshot, url.searchParams.get("scope"))
@@ -1112,7 +1127,8 @@ export async function startExternalStorybookServer(
         }
         if (url.pathname === "/api/control/open" && request.method === "POST") {
           const body = await requestObject(request)
-          assertExactRequestKeys(body, ["packageId", "route", "timeoutMs"])
+          assertExactRequestKeys(body, ["packageId", "route", "timeoutMs", "recover"])
+          if (body.recover !== undefined && typeof body.recover !== "boolean") throw new Error("open recover must be boolean")
           const packageId = requiredText("open packageId", body.packageId)
           const route = body.route === undefined || body.route === ""
             ? ""
@@ -1132,6 +1148,7 @@ export async function startExternalStorybookServer(
           return responseJson(await openPackageView({
             packageId,
             route,
+            ...(body.recover === undefined ? {} : {recover: body.recover as boolean}),
             ...(body.timeoutMs === undefined ? {} : {timeoutMs: Number(body.timeoutMs)}),
             ...(existingViewId === undefined ? {} : {existingViewId}),
           }, request.signal))

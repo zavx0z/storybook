@@ -6,6 +6,7 @@ import type {
 } from "../server/controller-contract.ts"
 import {registerStorybookResources, type StorybookControllerAccessor} from "./resources.ts"
 import {
+  storybookSchema,
   storybookAttachSchema,
   storybookCaptureSchema,
   storybookCheckSchema,
@@ -21,15 +22,33 @@ import {
   storybookWaitSchema,
 } from "./schemas.ts"
 import {sanitizeMcpString, sanitizeMcpValue} from "./public-boundary.ts"
+import {requestStorybook} from "./root-client.ts"
+import {recordMcpRequest, traceMcpRequest} from "./request-log.ts"
 
 export type CreateStorybookMcpServerOptions = Readonly<{
   controller?: ExternalStorybookController
   controllerFactory?: () => ExternalStorybookController | Promise<ExternalStorybookController>
+  request?: typeof requestStorybook
+  recordRequest?: typeof recordMcpRequest
 }>
 
 export function createStorybookMcpServer(options: CreateStorybookMcpServerOptions = {}): McpServer {
   const controller = controllerAccessor(options)
   const server = new McpServer({name: "storybook", version: "1.0.0"})
+
+  server.registerTool("storybook", {
+    title: "Storybook",
+    description: "Пустой запрос возвращает доступные разделы Storybook. Сейчас доступны только обзоры Archetypes и Валидатора.",
+    inputSchema: storybookSchema,
+    annotations: {readOnlyHint: true, idempotentHint: true},
+  }, async (input, context) => {
+    try {
+      return resultContent(await traceMcpRequest("storybook", input,
+        () => (options.request ?? requestStorybook)(input, context.mcpReq.signal), options.recordRequest ?? recordMcpRequest))
+    } catch (error) {
+      return errorContent(error)
+    }
+  })
 
   server.registerTool("storybook_ensure", {
     title: "Ensure external Storybook",
@@ -129,6 +148,14 @@ function controllerAccessor(options: CreateStorybookMcpServerOptions): Storybook
   return () => {
     pending ??= Promise.resolve(options.controller ?? options.controllerFactory?.() ?? loadCanonicalController())
       .then(validateController)
+      .then(controller => new Proxy(controller, {
+        get(target, key, receiver) {
+          const value = Reflect.get(target, key, receiver)
+          if (typeof value !== "function" || typeof key !== "string") return value
+          return (...args: unknown[]) => traceMcpRequest(`storybook_${key}`, args[0],
+            () => value.apply(target, args), options.recordRequest ?? recordMcpRequest)
+        },
+      }))
       .catch((error) => {
         pending = null
         throw error

@@ -6,6 +6,7 @@ import type {McpServer} from "@modelcontextprotocol/server"
 import type {ExternalStorybookController} from "../server/controller-contract.ts"
 import {STORYBOOK_TOOL_NAMES} from "./schemas.ts"
 import {createStorybookMcpServer} from "./server.ts"
+import {storybookRest} from "./rest"
 
 const MCP_ENTRY = fileURLToPath(new URL("./stdio.ts", import.meta.url))
 const transports: Array<{close(): Promise<void>}> = []
@@ -17,6 +18,31 @@ afterEach(async () => {
 })
 
 describe("Storybook MCP stdio", () => {
+  test("storybook возвращает REST-обзор без загрузки контроллера", async () => {
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
+    let loads = 0
+    const server = createStorybookMcpServer({
+      recordRequest: async () => {},
+      controllerFactory: () => { loads += 1; throw new Error("Контроллер не должен загружаться") },
+      request: async (input) => {
+        const response = await storybookRest(new Request("http://localhost/api/control/storybook", {method: "POST", body: JSON.stringify(input)}), fileURLToPath(new URL("../", import.meta.url)))
+        return response.json()
+      },
+    })
+    servers.push(server)
+    const client = createClient()
+    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)])
+    try {
+      const result = await client.callTool({name: "storybook", arguments: {}})
+      expect(result.structuredContent).toMatchObject({
+        status: "success", node: "root", children: [{id: "archetypes"}, {id: "validator"}],
+      })
+      expect(loads).toBe(0)
+    } finally {
+      await client.close()
+    }
+  })
+
   test("connects from /tmp without cwd override and advertises exact tools/resources but no prompts", async () => {
     const transport = new StdioClientTransport({
       command: process.execPath,
@@ -204,7 +230,7 @@ function createClient(): Client {
 
 async function inMemoryClient(controller: ExternalStorybookController & {calls: string[]}) {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
-  const server = createStorybookMcpServer({controller})
+  const server = createStorybookMcpServer({controller, recordRequest: async () => {}})
   servers.push(server)
   const client = createClient()
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)])

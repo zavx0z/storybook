@@ -36,6 +36,8 @@ export type StorybookBrowserOpenInput = Readonly<{
   expectedRevision?: string
   /** Точная обнаруженная вкладка; её исчезновение или переход отклоняются без создания target. */
   existingViewId?: string
+  /** Явно разрешает новую попытку после завершённого inventory без вкладок пакета. */
+  recover?: boolean
 }>
 
 export type StorybookBrowserCaptureResult = StoredStorybookCapture & Readonly<{
@@ -214,9 +216,21 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
     if (selected === null) {
       if (unresolved !== null) {
         const evidence = await this.#reservationEvidence(unresolved, targets, origin, url, operationSignal)
-        throw new Error(`Storybook package target creation is indeterminate: ${packageId}; evidence=${JSON.stringify(evidence)}`)
+        const packagePagePresent = targets.some(target => {
+          if (target.type !== "page") return false
+          try {
+            return storybookPackageRouteFromPathname(new URL(target.url).pathname, packageId) !== null
+          } catch {
+            return false
+          }
+        })
+        if (input.recover !== true || packagePagePresent) {
+          throw new Error(`Storybook package target creation is indeterminate: ${packageId}; evidence=${JSON.stringify(evidence)}`)
+        }
+        operationSignal.throwIfAborted()
+        this.#state.clearTarget(packageId)
       }
-      if (recorded?.phase !== "reserved" || recorded.cdpOrigin !== cdpOrigin ||
+      if (unresolved !== null || recorded?.phase !== "reserved" || recorded.cdpOrigin !== cdpOrigin ||
         recorded.browserIdentity !== browserIdentity || recorded.url !== url) {
         this.#state.reserveTarget({
           packageId,

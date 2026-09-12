@@ -41,6 +41,7 @@ export type StorybookOpenInput = Readonly<{
   schemaVersion: typeof STORYBOOK_MCP_SCHEMA_VERSION
   packageId: string
   route?: string | undefined
+  recover?: boolean | undefined
 }>
 
 export type StorybookWaitInput = Readonly<{

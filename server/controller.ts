@@ -175,6 +175,7 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
     const result = await client.control("/api/control/open", {
       packageId: input.packageId,
       route: input.route ?? "",
+      ...(input.recover === undefined ? {} : {recover: input.recover}),
     }, context.signal)
     const {package: packageSnapshot, ok, ...publicResult} = result
     const projectedPackage = publicPackageSnapshot(packageSnapshot)

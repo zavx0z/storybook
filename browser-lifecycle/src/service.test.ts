@@ -494,6 +494,37 @@ describe("Storybook browser lifecycle service", () => {
     expect(chrome.created).toBe(1)
   })
 
+  test.each([false, true])("явное восстановление сохраняет появившуюся вкладку: %s", async appeared => {
+    const chrome = new FakeChrome()
+    const root = temporaryRoot()
+    chrome.deferCreatedTarget = true
+    chrome.throwAfterCreate = true
+    await expect(createController(chrome, root).openPackage(openInput(chrome)))
+      .rejects.toThrow("simulated owner crash")
+    chrome.throwAfterCreate = false
+    chrome.deferCreatedTarget = false
+    if (appeared) chrome.materializeCreatedTarget()
+
+    const opened = await createController(chrome, root).openPackage({...openInput(chrome), recover: true})
+    expect(opened.reused).toBe(appeared)
+    expect(chrome.created).toBe(appeared ? 1 : 2)
+    expect(chrome.closed).toEqual([])
+  })
+
+  test("восстановление не сбрасывает запись при неподтверждённой вкладке пакета", async () => {
+    const chrome = new FakeChrome()
+    const root = temporaryRoot()
+    chrome.deferCreatedTarget = true
+    chrome.throwAfterCreate = true
+    await expect(createController(chrome, root).openPackage(openInput(chrome)))
+      .rejects.toThrow("simulated owner crash")
+    chrome.throwAfterCreate = false
+    chrome.targetsValue.push({targetId: "UNKNOWN", type: "page", title: "Unknown", url: openInput(chrome).url + "?other=1"})
+    await expect(createController(chrome, root).openPackage({...openInput(chrome), recover: true}))
+      .rejects.toThrow("target creation is indeterminate")
+    expect(chrome.created).toBe(1)
+  })
+
   test("reopens the same owned URL once when an earlier bootstrap left no bridge", async () => {
     const chrome = new FakeChrome()
     const input = openInput(chrome)
