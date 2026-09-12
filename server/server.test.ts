@@ -38,8 +38,8 @@ describe("one external Storybook server", () => {
       headers: {authorization: `Bearer ${running.record.controlToken}`, "content-type": "application/json"},
       body: "{}",
     })
-    const value = await response.json() as {children: {id: string}[]}
-    expect(value.children.map(node => node.id)).toEqual(["archetypes", "validator"])
+    const value = await response.json() as {children: {node: string}[]}
+    expect(value.children.map(node => node.node)).toEqual(["archetypes", "validator"])
     expect(running.sessions.snapshots().every(item => item.builds === 0)).toBe(true)
   })
 

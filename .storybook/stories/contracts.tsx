@@ -75,7 +75,7 @@ const contracts = Object.freeze({
   ),
   server: contract(
     "One server and origin",
-    "One daemon owns automatic-port HTTP/WebSocket state for every attached root and package tab; MCP connection lifetime is independent. Новая точка storybook({}) запрашивает корневой обзор HTTP API: только Archetypes и Валидатор, без выполнения действий.",
+    "One daemon owns automatic-port HTTP/WebSocket state for every attached root and package tab; MCP connection lifetime is independent. Новая точка storybook({}) запрашивает корневой обзор HTTP API: Archetypes и Валидатор; node: archetypes раскрывает определения из экспортов. Дочерние разделы содержат только node и description, действия не выполняются.",
     "The shared controller migrates verified legacy TMPDIR state, rejects foreign checkouts and fences daemon publication with one atomic startup lease; no consumer owns a listener or port.",
     "storybook serve ./workspace\nstorybook_ensure({roots})\nstorybook({}) → HTTP /api/control/storybook → Archetypes, Валидатор",
   ),

@@ -35,7 +35,7 @@ describe("Storybook MCP stdio", () => {
     try {
       const result = await client.callTool({name: "storybook", arguments: {}})
       expect(result.structuredContent).toMatchObject({
-        status: "success", node: "root", children: [{id: "archetypes"}, {id: "validator"}],
+        status: "success", node: "root", children: [{node: "archetypes"}, {node: "validator"}],
       })
       expect(loads).toBe(0)
     } finally {
