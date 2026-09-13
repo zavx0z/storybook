@@ -5,8 +5,8 @@
 Сценарии вызывают [findSpec](../src/find-spec.ts): у репозитория, пакета, категории и сущности
 находится только непосредственно принадлежащая им директория `spec`.
 Вложенные владельцы не обходятся; состав найденной спецификации здесь не проверяется.
-Mock-функция получает `props` выбранного сценария и запускает поиск по указанному пути
-и возвращает фактический результат. Тест сравнивает его с ожидаемым;
+Тест напрямую запускает поиск по пути из `props` выбранного сценария
+и сравнивает фактический результат с ожидаемым;
 этот же результат предназначен для отображения человеку и представления через MCP.
 
 Одни и те же правила предназначены для проверки проектов, визуализации человеку
@@ -16,18 +16,14 @@ Mock-функция получает `props` выбранного сценари
 применимый вариант выбирается фильтром имени теста `--test-name-pattern`.
 Без переменной каждый вариант использует собственную файловую фикстуру.
 
-Поле `fail` в параметрах группы задаёт сообщение ошибки для `expect(actual, fail)`.
+Каждый тест передаёт сообщение с названием варианта непосредственно в `expect`.
 
 @packageDocumentation
 */
-import {describe, expect, mock, test} from "bun:test"
-import {resolve} from "node:path"
+import {describe, expect, test} from "bun:test"
+import {dirname, resolve} from "node:path"
 import {fileURLToPath} from "node:url"
-
-const findSpecMock = mock(async (input: {path: string}) => {
-  const {findSpec} = await import("../src/find-spec")
-  return findSpec(input.path)
-})
+import {readSpec} from "@archetypes/specs"
 
 const fixture = fileURLToPath(new URL("./fixture/", import.meta.url))
 const inputPath = process.env.SPEC_PATH
@@ -35,32 +31,43 @@ const inputPath = process.env.SPEC_PATH
 /** Четыре варианта размещения спецификации у непосредственного владельца. */
 describe.each([
   {
-    name: "Spec репозитория",
-    fail: "Должна быть найдена директория spec непосредственно в репозитории",
+    name: "Репозиторий",
     props: {path: inputPath ?? resolve(fixture, "repository")},
     expected: resolve(inputPath ?? resolve(fixture, "repository"), "spec"),
   },
   {
-    name: "Spec пакета",
-    fail: "Должна быть найдена директория spec непосредственно в пакете",
+    name: "Пакет",
     props: {path: inputPath ?? resolve(fixture, "repository/package")},
     expected: resolve(inputPath ?? resolve(fixture, "repository/package"), "spec"),
   },
   {
-    name: "Spec категории",
-    fail: "Должна быть найдена директория spec непосредственно в категории",
+    name: "Категория",
     props: {path: inputPath ?? resolve(fixture, "repository/package/category")},
     expected: resolve(inputPath ?? resolve(fixture, "repository/package/category"), "spec"),
   },
   {
-    name: "Spec сущности",
-    fail: "Должна быть найдена директория spec непосредственно в сущности",
+    name: "Сущность",
     props: {path: inputPath ?? resolve(fixture, "repository/package/category/entity")},
     expected: resolve(inputPath ?? resolve(fixture, "repository/package/category/entity"), "spec"),
   },
-])("$name", ({props, expected, fail}) => {
-  test("Находит только непосредственную директорию spec", async () => {
-    const actual = await findSpecMock(props)
-    expect(actual, fail).toBe(expected)
+])("$name", async ({name, props, expected}) => {
+  const result = await readSpec(props)
+
+  test("Находит только непосредственную директорию spec", () => {
+    expect(
+      result?.scenario ? dirname(result.scenario.path) : null,
+      `Ожидается, что ${name.toLowerCase()} содержит найденную директорию spec непосредственно на своём уровне`,
+    ).toBe(expected)
+  })
+
+  test("Возвращает данные выполненного сценария", () => {
+    expect(
+      result?.scenario,
+      `Спецификация, которой владеет ${name.toLowerCase()}, должна возвращать данные выполненного сценария`,
+    ).toEqual(expect.objectContaining({
+      path: resolve(expected, "scenario.spec.ts"),
+      exitCode: expect.any(Number),
+      calls: expect.any(Array),
+    }))
   })
 })
