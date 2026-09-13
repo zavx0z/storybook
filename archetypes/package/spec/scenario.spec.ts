@@ -1,12 +1,6 @@
-import {afterAll, describe, spyOn} from "bun:test"
+import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import * as packageModule from "@storybook/archetypes/package"
-
-const readPackageSpy = spyOn(packageModule, "readPackage")
-
-afterAll(() => {
-  readPackageSpy.mockRestore()
-})
+import {readPackage} from "@storybook/archetypes/package"
 
 const packagePath = (path: string) => resolve(import.meta.dir, "../..", path)
 const inputPath = process.env.PACKAGE_PATH
@@ -26,6 +20,10 @@ describe.each([
       path: inputPath ?? packagePath("specs"),
     },
   },
-])("$name", ({props}) => {
-  packageModule.readPackage(props)
+])("$name", async ({props}) => {
+  const result = await readPackage(props)
+
+  test("Возвращает результат чтения пакета", () => {
+    expect(result, "readPackage должна возвращать результат чтения пакета").toBeDefined()
+  })
 })
