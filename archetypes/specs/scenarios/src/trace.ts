@@ -1,6 +1,12 @@
+/**
+Управляет дочерним Bun и получает завершённую историю через IPC.
+
+@packageDocumentation
+*/
 import {resolve} from "node:path"
-import type {TraceScenarioInput} from "../contract/trace-input"
-import type {TraceCall, TraceScenarioOutput} from "../contract/trace-output"
+import {discover} from "./discover"
+import type {ReadScenarioInput} from "../contract/input"
+import type {TraceCall, ReadScenarioOutput} from "../contract/output"
 
 interface TraceCallMessage {
   readonly type: "storybook:trace-call"
@@ -11,50 +17,33 @@ interface TraceCompleteMessage {
   readonly type: "storybook:trace-complete"
 }
 
+/** Проверяет вид IPC сообщения перед добавлением записи в отчёт. */
 function isTraceCallMessage(value: unknown): value is TraceCallMessage {
   return typeof value === "object" && value !== null
     && Reflect.get(value, "type") === "storybook:trace-call"
     && typeof Reflect.get(value, "call") === "object"
 }
 
+/** Распознаёт запрос подтверждения перед выходом дочернего процесса. */
 function isTraceCompleteMessage(value: unknown): value is TraceCompleteMessage {
   return typeof value === "object" && value !== null
     && Reflect.get(value, "type") === "storybook:trace-complete"
 }
 
 /**
-Запускает существующий сценарий настоящим Bun Test и наблюдает выбранные exports.
+Запускает сценарий с автоматически определёнными импортами и preload его пакета.
+Инструментирует код только в дочернем процессе, не изменяя файл на диске.
 
-Дочерний preload не подменяет lifecycle Bun Test. Runtime plugin добавляет
-async context внутрь тел callbacks только в памяти дочернего процесса;
-файл сценария на диске не меняется. Выбранные module exports получают
-прозрачную обёртку, а завершённые наблюдения передаются по IPC.
-
-Эксперимент распознаёт прямые `describe` и `test` с block-bodied callback,
-`describe.each`, `test.each` и модификаторы вроде `test.concurrent`. Для each names
-поддержаны `$field` и `$nested.field`; printf placeholders, переименованные
-imports, concise arrow bodies и принадлежность вызовов из hooks пока не разрешаются.
-Снимок значения читает own enumerable string fields без вызова getters;
-functions, accessors, promises и циклы получают явные tagged values.
-
-@param input - Файл теста и явный список наблюдаемых public exports.
-
-@returns Код и вывод Bun Test вместе с вызовами после завершения всех Promise.
-@throws Ошибка запуска, таймаут или отсутствие завершающего IPC report.
-
-@example
-```ts
-const result = await traceScenario({
-  path: "./scenario.spec.ts",
-  observe: [{module: "@scope/package", exports: ["readPackage"]}],
-})
-```
+@param input - Путь к исполняемому сценарию.
+@returns Вызовы с аргументами, исходами и контекстом Bun Test.
+@throws Ошибка определения среды, запуска или получения завершающего отчёта.
 */
-export async function traceScenario(input: TraceScenarioInput): Promise<TraceScenarioOutput> {
+export async function traceScenario(input: ReadScenarioInput): Promise<ReadScenarioOutput> {
   const path = resolve(input.path)
+  const configuration = await discover(path)
   const env: NodeJS.ProcessEnv = {
     ...process.env,
-    STORYBOOK_TRACE_CONFIG: Buffer.from(JSON.stringify({path, observe: input.observe})).toString("base64url"),
+    STORYBOOK_TRACE_CONFIG: Buffer.from(JSON.stringify(configuration)).toString("base64url"),
   }
   delete env.BUN_INSPECT
   delete env.BUN_INSPECT_NOTIFY
@@ -63,6 +52,7 @@ export async function traceScenario(input: TraceScenarioInput): Promise<TraceSce
   let complete = false
   const child = Bun.spawn({
     cmd: [process.execPath, "test", "--preload", resolve(import.meta.dir, "trace-preload.ts"), path],
+    cwd: configuration.cwd,
     env,
     stdout: "pipe",
     stderr: "pipe",

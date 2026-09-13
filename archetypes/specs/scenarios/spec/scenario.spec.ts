@@ -1,35 +1,63 @@
 /**
-Проверяет сбор через readScenario на сценарии package.json.
-Каркас предназначен для проверок данных публичного результата.
-Проверки внутреннего механизма находятся в test.
+Описывает результаты чтения серверного и компонентного сценариев.
+Полная история каждого варианта сохраняется штатным snapshot-механизмом Bun.
 
 @packageDocumentation
 */
-import {describe, test, mock} from "bun:test"
+import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
+import {readScenario, type ReadScenarioInput} from "@archetypes/specs/scenarios"
 
-const readScenarioMock = mock(async (input: {path: string}) => {
-  const {readScenario} = await import("@archetypes/specs/scenarios")
-  return readScenario(input)
-})
+const archetypes = resolve(import.meta.dir, "../../..")
+const webxr = resolve(archetypes, "../../webxr-space")
 
-const scenarioPath = (path: string) => resolve(import.meta.dir, "../../..", path)
-const inputPath = process.env.SPEC_PATH
+type Scenario = {
+  name: string
+  props: ReadScenarioInput
+  expected: {name: string, describe: string[], test: string | null, outcome: {type: string}}[]
+}
 
 describe.each([
   {
-    name: "Чтение сценария",
+    name: "Трассировка серверной функции",
     props: {
-      path: inputPath ?? scenarioPath("package/package-json/spec/scenario.spec.ts"),
+      path: resolve(archetypes, "package/spec/scenario.spec.ts"),
     },
+    expected: ["Корневой пакет", "Вложенный пакет"].map(name => ({
+      name: "readPackage", describe: [name], test: null, outcome: {type: "resolve"},
+    })),
   },
-])("$name", async ({props}) => {
-  const result = await readScenarioMock(props)
+  {
+    name: "Трассировка компонента",
+    props: {
+      path: resolve(webxr, "nodes/node/diagram/spec/scenario.spec.tsx"),
+    },
+    expected: [
+      ...["Прямоугольник", "Овал", "Круг"].flatMap(name => [
+        {name: "createHeadless", describe: [name], test: null, outcome: {type: "return"}},
+        {name: "createHeadless.render", describe: [name], test: null, outcome: {type: "resolve"}},
+      ]),
+      ...["Прямоугольник", "Овал", "Круг"].map(name => ({
+        name: "createHeadless.screenshot", describe: [name],
+        test: "снимок соответствует собственным границам", outcome: {type: "resolve"},
+      })),
+    ],
+  },
+] satisfies Scenario[])("$name", async ({props, expected}) => {
+  const result = await readScenario(props)
 
-  /**
-  @remarks
-  Проверки механизма перенесены в test. Требования к данным результата
-  этого сценария предстоит определить отдельно.
-  */
-  test.todo("Данные прочитанного сценария", () => {})
+  test("содержит вызовы с группами и результатами", () => {
+    const calls = result.calls.filter(call => expected.some(item => item.name === call.name))
+
+    expect(calls, "История должна содержать вызовы выбранного сценария").toMatchObject(expected)
+  })
+
+  test("сохраняет полный результат", () => {
+    const snapshot = {
+      ...result,
+      stderr: result.stderr.replace(/ \[\d+(?:\.\d+)?(?:ms|s)\]/g, ""),
+    }
+
+    expect(snapshot, "Результат должен совпадать с сохранённым снимком").toMatchSnapshot()
+  })
 })

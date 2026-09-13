@@ -273,7 +273,7 @@ exports[`полная история имеет читаемый snapshot 1`] = 
         "line": 24,
         "path": "<archetypes>/archetypes/package/spec/scenario.spec.ts",
       },
-      "module": "@storybook/archetypes/package",
+      "module": "/Users/zavx0z/repozitarium/storybook/archetypes/package/index.ts",
       "name": "readPackage",
       "outcome": {
         "type": "resolve",
@@ -310,7 +310,7 @@ exports[`полная история имеет читаемый snapshot 1`] = 
         "line": 24,
         "path": "<archetypes>/archetypes/package/spec/scenario.spec.ts",
       },
-      "module": "@storybook/archetypes/package",
+      "module": "/Users/zavx0z/repozitarium/storybook/archetypes/package/index.ts",
       "name": "readPackage",
       "outcome": {
         "type": "resolve",

@@ -5,35 +5,22 @@
 */
 import {beforeAll, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import {traceScenario} from "../index"
-import type {TraceScenarioOutput} from "../index"
+import {readScenario} from "../index"
+import type {ReadScenarioOutput} from "../index"
 
 const fixturePath = resolve(import.meta.dir, "fixture/trace-scenario.test.ts")
 const fixtureModule = resolve(import.meta.dir, "fixture/trace-functions.ts")
 const packageScenarioPath = resolve(import.meta.dir, "../../../package/spec/scenario.spec.ts")
-let fixture: TraceScenarioOutput
-let packageScenario: TraceScenarioOutput
+let fixture: ReadScenarioOutput
+let packageScenario: ReadScenarioOutput
 
 beforeAll(async () => {
   [fixture, packageScenario] = await Promise.all([
-    traceScenario({
+    readScenario({
       path: fixturePath,
-      observe: [{
-        module: fixtureModule,
-        exports: [
-          "delayedValue",
-          "identityPromise",
-          "mutateValue",
-          "overlappingValue",
-          "receiverValue",
-          "throwValue",
-          "rejectValue",
-        ],
-      }],
     }),
-    traceScenario({
+    readScenario({
       path: packageScenarioPath,
-      observe: [{module: "@storybook/archetypes/package", exports: ["readPackage"]}],
     }),
   ])
 }, 30_000)
