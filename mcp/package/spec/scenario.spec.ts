@@ -1,37 +1,35 @@
 /**
- Проверяет минимальный ответ сущности package в MCP.
+Проверяет получение данных Package через вариант «Пакет» спецификации Specs.
 
- Вариант выбирает узел `archetypes` и передаёт путь к минимальной фикстуре
- package.json. Сценарий проверяет только node, description из manifest и пустые
- children; обход структуры пакета здесь не выполняется.
-
- @packageDocumentation
- */
+@packageDocumentation
+*/
 import {describe, expect, test} from "bun:test"
 import {fileURLToPath} from "node:url"
 import {readPackageNode} from ".."
 
-const fixture = fileURLToPath(new URL("./fixture/archetypes/", import.meta.url))
-
 describe.each([
   {
-    name: "Корневой пакет",
+    name: "Пакет",
     props: {
-      node: "archetypes",
-      path: fixture
+      path: fileURLToPath(new URL("../../../archetypes/package/", import.meta.url))
     },
     expected: {
-      node: "archetypes",
-      description: "Описание узла Archetypes из package.json",
-      children: []
+      result: {
+        scenario: expect.objectContaining({
+          path: fileURLToPath(new URL("../../../archetypes/package/spec/scenario.spec.ts", import.meta.url)),
+          exitCode: 0,
+          calls: expect.arrayContaining([
+            expect.objectContaining({name: "readPackage", describe: ["Корневой пакет"]}),
+            expect.objectContaining({name: "readPackage", describe: ["Вложенный пакет"]}),
+          ]),
+        }),
+      },
     },
   },
-])("$name", ({props, expected}) => {
-  test.each([{
-    runtime: async () => {
-      return readPackageNode(props.node, props.path)
-    }
-  }])("Возвращает описание из package.json и пустые children", async ({runtime}) => {
-    expect(await runtime()).toEqual(expected)
+])("$name", async ({props, expected}) => {
+  const result = await readPackageNode(props.path)
+
+  test("Возвращает результат чтения спецификации пакета", () => {
+    expect(result).toEqual(expected)
   })
 })

@@ -29,9 +29,10 @@ describe.each([
     expected: "error",
     fail: "Прерванная проверка не должна возвращать успешный статус",
   },
-])("$name", ({props, expected, fail}) => {
-  test.each([{runtime: async () => {}}])("Возвращает состояние выполнения", async () => {
-    const actual = await validate(props)
+])("$name", async ({props, expected, fail}) => {
+  const actual = await validate(props)
+
+  test("Возвращает состояние выполнения", () => {
     expect(actual.status, fail).toBe(expected)
-  }, 35_000)
+  })
 })

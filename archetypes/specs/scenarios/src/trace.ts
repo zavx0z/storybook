@@ -44,6 +44,7 @@ export async function traceScenario(input: ReadScenarioInput): Promise<ReadScena
   const configuration = await discover(path)
   const env: NodeJS.ProcessEnv = {
     ...process.env,
+    ...input.env,
     STORYBOOK_TRACE_CONFIG: Buffer.from(JSON.stringify(configuration)).toString("base64url"),
   }
   delete env.BUN_INSPECT
@@ -52,7 +53,8 @@ export async function traceScenario(input: ReadScenarioInput): Promise<ReadScena
   const calls: TraceCall[] = []
   let complete = false
   const child = Bun.spawn({
-    cmd: [process.execPath, "test", "--preload", resolve(import.meta.dir, "trace-preload.ts"), path],
+    cmd: [process.execPath, "test", "--preload", resolve(import.meta.dir, "trace-preload.ts"), path,
+      ...(input.testNamePattern === undefined ? [] : ["--test-name-pattern", input.testNamePattern])],
     cwd: configuration.cwd,
     env,
     stdout: "pipe",

@@ -5,9 +5,9 @@
 
 @packageDocumentation
 */
-import {beforeAll, describe, expect, test} from "bun:test"
+import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import {runTests, type BunTestResult} from "../src/run-tests.ts"
+import {runTests} from "../src/run-tests.ts"
 import {transformReport} from "../src/transform-report.ts"
 
 const root = resolve(import.meta.dir, "../..")
@@ -37,13 +37,11 @@ describe.each([
     expected: {exitCode: 0, status: "passed", total: 2, passed: 1, failed: 0, skipped: 1},
     fail: "Проверки реального пакета должны сохранять выполненные и пропущенные тесты",
   },
-])("$name", ({props, expected, fail}) => {
-  let raw: BunTestResult
-  beforeAll(async () => {
-    raw = await runTests(props)
-  }, 35_000)
+])("$name", async ({props, expected, fail}) => {
+  const raw = await runTests(props)
+  const report = transformReport(raw)
 
-  test.each([{runtime: async () => {}}])("Исходный результат Bun", () => {
+  test("Исходный результат Bun", () => {
     expect({...raw}, fail).toMatchObject({
       path: props.path,
       specification: props.specification,
@@ -56,8 +54,7 @@ describe.each([
     })
   })
 
-  test.each([{runtime: async () => {}}])("Преобразованный отчёт", () => {
-    const report = transformReport(raw)
+  test("Преобразованный отчёт", () => {
     expect({
       status: report.status,
       path: report.path,

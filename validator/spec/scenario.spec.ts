@@ -17,9 +17,10 @@ describe.each([
     expected: {total: 4, passed: 1, failed: 0, skipped: 3, errors: 0},
     fail: "Validate должен вернуть преобразованный результат только выбранной проверки",
   },
-])("$name", ({props, expected, fail}) => {
-  test.each([{runtime: async () => {}}])("Запускает и преобразует", async () => {
-    const actual = await validate(props)
+])("$name", async ({props, expected, fail}) => {
+  const actual = await validate(props)
+
+  test("Запускает и преобразует", () => {
     expect(actual, fail).toMatchObject({status: "passed", summary: expected, error: null})
-  }, 35_000)
+  })
 })
