@@ -1,30 +1,41 @@
 /**
-Находит служебную директорию спецификации у непосредственного владельца.
+Читает данные спецификации у непосредственного владельца.
 
 @packageDocumentation
 */
-import {lstat} from "node:fs/promises"
 import {resolve} from "node:path"
+import {readScenario} from "./scenarios"
+import type {ReadSpecInput} from "./contract/input"
+import type {ReadSpecOutput} from "./contract/output"
+import {findSpec} from "./src/find-spec"
 
+export type {ReadSpecInput, ReadSpecOutput}
 
 /**
-Проверяет только непосредственную дочернюю директорию spec.
-Проверки содержимого выполняются отдельно пакетом валидатора.
+Находит непосредственную директорию spec и читает результат её сценария.
 
-@param path - Путь к директории поиска; относительный путь считается от cwd.
-@returns Абсолютный путь к spec либо null, если директории нет.
-Файлы и символические ссылки с именем spec не считаются директорией спецификации.
-@throws Ошибки файловой системы, кроме отсутствия пути.
+@param path - Директория владельца спецификации.
+@returns Данные сценария либо null, если директории spec нет.
+Поле scenario равно null, если файл сценария отсутствует.
+@throws Ошибки чтения и запуска сценария; ошибка при наличии обоих расширений.
 */
-export async function findSpec(path: string): Promise<string | null> {
-  const candidate = resolve(path, "spec")
-  try {
-    const info = await lstat(candidate)
-    if (!info.isDirectory()) return null
-    return candidate
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code
-    if (code === "ENOENT" || code === "ENOTDIR") return null
-    throw error
+export async function readSpec({path}: ReadSpecInput): Promise<ReadSpecOutput> {
+  const specPath = await findSpec(path)
+  if (specPath === null) return null
+
+  const scenarioPaths = [
+    resolve(specPath, "scenario.spec.ts"),
+    resolve(specPath, "scenario.spec.tsx"),
+  ]
+  const existingPaths = []
+  for (const scenarioPath of scenarioPaths) {
+    if (await Bun.file(scenarioPath).exists()) existingPaths.push(scenarioPath)
+  }
+  if (existingPaths.length > 1) {
+    throw new Error("Спецификация содержит одновременно scenario.spec.ts и scenario.spec.tsx")
+  }
+
+  return {
+    scenario: existingPaths[0] ? await readScenario({path: existingPaths[0]}) : null,
   }
 }

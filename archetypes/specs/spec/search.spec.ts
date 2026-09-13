@@ -10,7 +10,7 @@ import {resolve} from "node:path"
 import {fileURLToPath} from "node:url"
 
 const findSpecMock = mock(async (input: {path: string}) => {
-  const {findSpec} = await import("@storybook/archetypes/specs")
+  const {findSpec} = await import("../src/find-spec")
   return findSpec(input.path)
 })
 

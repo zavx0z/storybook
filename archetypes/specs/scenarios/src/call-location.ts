@@ -4,7 +4,7 @@
 @packageDocumentation
 */
 import {fileURLToPath} from "node:url"
-import type {TraceLocation} from "../contract/output"
+import type {TraceLocation} from "./types"
 
 /** Берёт первый внешний frame из stack, используя номера строк Bun sourcemap. */
 export function callLocation(stack: string | undefined): TraceLocation | null {
@@ -17,4 +17,3 @@ export function callLocation(stack: string | undefined): TraceLocation | null {
   }
   return null
 }
-

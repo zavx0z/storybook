@@ -8,21 +8,8 @@
 import {traceScenario} from "./src/trace"
 import type {ReadScenarioInput} from "./contract/input"
 import type {ReadScenarioOutput} from "./contract/output"
-import type {
-  TraceCall,
-  TraceLocation,
-  TraceOutcome,
-  TraceValue,
-} from "./contract/output"
 
-export type {
-  ReadScenarioInput,
-  ReadScenarioOutput,
-  TraceCall,
-  TraceLocation,
-  TraceOutcome,
-  TraceValue,
-}
+export type {ReadScenarioInput, ReadScenarioOutput}
 
 /**
 Запускает настоящий Bun Test и возвращает вызовы выбранных функций и методов.

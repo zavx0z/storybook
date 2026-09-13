@@ -8,7 +8,7 @@ import {currentContext} from "./context"
 import {serialize} from "./serialize"
 import {callLocation} from "./call-location"
 import {queue} from "./pending"
-import type {TraceCall, TraceOutcome, TraceValue} from "../contract/output"
+import type {TraceCall, TraceOutcome, TraceValue} from "./types"
 
 type Registrar = (...args: unknown[]) => unknown
 let nextCallId = 0
@@ -88,4 +88,3 @@ export function observe(module: string, name: string, original: Registrar, metho
     }
   }
 }
-

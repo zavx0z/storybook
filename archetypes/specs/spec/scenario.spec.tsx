@@ -2,7 +2,7 @@
 Сценарии размещения служебной директории спецификации.
 
 `describe.each` задаёт владельца и ожидаемый путь в файловой фикстуре.
-Сценарии вызывают [findSpec](../index.ts): у репозитория, пакета, категории и сущности
+Сценарии вызывают [findSpec](../src/find-spec.ts): у репозитория, пакета, категории и сущности
 находится только непосредственно принадлежащая им директория `spec`.
 Вложенные владельцы не обходятся; состав найденной спецификации здесь не проверяется.
 Mock-функция получает `props` выбранного сценария и запускает поиск по указанному пути
@@ -25,7 +25,7 @@ import {resolve} from "node:path"
 import {fileURLToPath} from "node:url"
 
 const findSpecMock = mock(async (input: {path: string}) => {
-  const {findSpec} = await import("@storybook/archetypes/specs")
+  const {findSpec} = await import("../src/find-spec")
   return findSpec(input.path)
 })
 

@@ -6,7 +6,8 @@
 import {resolve} from "node:path"
 import {discover} from "./discover"
 import type {ReadScenarioInput} from "../contract/input"
-import type {TraceCall, ReadScenarioOutput} from "../contract/output"
+import type {ReadScenarioOutput} from "../contract/output"
+import type {TraceCall} from "./types"
 
 interface TraceCallMessage {
   readonly type: "storybook:trace-call"

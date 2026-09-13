@@ -1,5 +1,5 @@
 /** Значение, переносимое из дочернего Bun без потери JSON primitives. */
-export type TraceValue =
+type TraceValue =
   | null
   | boolean
   | number
@@ -12,7 +12,7 @@ export type TraceValue =
 
 `resolve` и `reject` фиксируют значение только после завершения Promise.
 */
-export type TraceOutcome =
+type TraceOutcome =
   | {readonly type: "return", readonly value: TraceValue}
   | {readonly type: "resolve", readonly value: TraceValue}
   | {readonly type: "throw", readonly error: TraceValue}
@@ -27,7 +27,7 @@ export type TraceOutcome =
 
 @property column - Номер колонки с единицы.
 */
-export interface TraceLocation {
+interface TraceLocation {
   readonly path: string
   readonly line: number
   readonly column: number
@@ -40,7 +40,7 @@ export interface TraceLocation {
 
 @property completed - Порядковый номер фактического завершения вызова.
 
-@property module - Модуль, выбранный входным контрактом.
+@property module - Разрешённый путь импортированного модуля сценария.
 
 @property name - Имя export или выбранного метода в форме `export.method`.
 
@@ -54,7 +54,7 @@ export interface TraceLocation {
 
 @property location - Первый caller frame вне preload implementation.
 */
-export interface TraceCall {
+interface TraceCall {
   readonly id: number
   readonly completed: number
   readonly module: string

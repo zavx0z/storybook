@@ -4,7 +4,7 @@ Promise, ошибки, функции и циклы представлены я�
 
 @packageDocumentation
 */
-import type {TraceValue} from "../contract/output"
+import type {TraceValue} from "./types"
 
 /** Читает собственные enumerable properties; native hidden state не раскрывается. */
 export async function serialize(value: unknown, seen = new Map<object, string>(), path = "$"): Promise<TraceValue> {
@@ -46,4 +46,3 @@ export async function serialize(value: unknown, seen = new Map<object, string>()
   }))
   return Object.fromEntries(entries)
 }
-
