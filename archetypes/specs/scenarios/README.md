@@ -18,6 +18,31 @@
 `test/inspector-environment.test.ts`. Их вспомогательные файлы находятся в
 `test/fixture`. В `spec/scenario.spec.ts` остаётся каркас проверок данных результата.
 
+## Эксперимент наблюдения вызовов
+
+`traceScenario({path, observe})` запускает тот же существующий файл настоящим
+`bun test --preload`, не меняя его на диске и не подменяя `describe`, `test` или
+`expect`. Preload регистрирует runtime plugin, который добавляет context scopes
+внутрь тел callbacks загружаемого сценария, а выбранные public module exports
+оборачивает автоматически. Фактические arguments снимаются до вызова, Promise
+сохраняет identity для сценария и наблюдается после завершения, а исходы и место
+вызова передаются родителю по IPC. Завершающий message подтверждается обратным
+ack до выхода дочернего процесса.
+
+В результате каждый вызов содержит иерархию `describe`, текущий `test` или
+`null`, имя export, arguments, `return | resolve | throw | reject`, место,
+порядок начала и порядок завершения. Проверка `test.concurrent` одновременно
+доказывает два активных вызова, обратный порядок завершения и раздельный async
+context.
+
+Текущий срез распознаёт прямые imports с именами `describe` и `test`, callbacks
+с block body, `describe.each`, `test.each` и модификаторы наподобие
+`test.concurrent`. В each names разрешаются `$field` и `$nested.field`.
+Переименованные imports, printf placeholders, concise arrow body и отдельная
+принадлежность вызовов из hooks пока не входят в контракт эксперимента.
+Сериализация читает own enumerable string fields без вызова getters; functions,
+accessors, promises и циклы представлены явными tagged values.
+
 ## Подготовка данных и тело теста
 
 Вызов проверяемой функции оформляется через штатный `mock` из `bun:test`

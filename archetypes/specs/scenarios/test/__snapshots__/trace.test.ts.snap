@@ -1,0 +1,336 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`полная история имеет читаемый snapshot 1`] = `
+{
+  "fixture": [
+    {
+      "args": [
+        "describe",
+        1,
+      ],
+      "completed": 0,
+      "describe": [
+        "Обычная группа",
+      ],
+      "location": {
+        "column": 24,
+        "line": 13,
+        "path": "<archetypes>/archetypes/specs/scenarios/test/fixture/trace-scenario.test.ts",
+      },
+      "module": "/Users/zavx0z/repozitarium/storybook/archetypes/specs/scenarios/test/fixture/trace-functions.ts",
+      "name": "delayedValue",
+      "outcome": {
+        "type": "resolve",
+        "value": {
+          "value": "describe",
+        },
+      },
+      "test": null,
+    },
+    {
+      "args": [
+        "each-one",
+        1,
+      ],
+      "completed": 1,
+      "describe": [
+        "Первый вариант",
+      ],
+      "location": {
+        "column": 24,
+        "line": 24,
+        "path": "<archetypes>/archetypes/specs/scenarios/test/fixture/trace-scenario.test.ts",
+      },
+      "module": "/Users/zavx0z/repozitarium/storybook/archetypes/specs/scenarios/test/fixture/trace-functions.ts",
+      "name": "delayedValue",
+      "outcome": {
+        "type": "resolve",
+        "value": {
+          "value": "each-one",
+        },
+      },
+      "test": null,
+    },
+    {
+      "args": [
+        "each-two",
+        1,
+      ],
+      "completed": 2,
+      "describe": [
+        "Второй вариант",
+      ],
+      "location": {
+        "column": 24,
+        "line": 24,
+        "path": "<archetypes>/archetypes/specs/scenarios/test/fixture/trace-scenario.test.ts",
+      },
+      "module": "/Users/zavx0z/repozitarium/storybook/archetypes/specs/scenarios/test/fixture/trace-functions.ts",
+      "name": "delayedValue",
+      "outcome": {
+        "type": "resolve",
+        "value": {
+          "value": "each-two",
+        },
+      },
+      "test": null,
+    },
+    {
+      "args": [
+        "root",
+        1,
+      ],
+      "completed": 3,
+      "describe": [],
+      "location": {
+        "column": 16,
+        "line": 32,
+        "path": "<archetypes>/archetypes/specs/scenarios/test/fixture/trace-scenario.test.ts",
+      },
+      "module": "/Users/zavx0z/repozitarium/storybook/archetypes/specs/scenarios/test/fixture/trace-functions.ts",
+      "name": "delayedValue",
+      "outcome": {
+        "type": "resolve",
+        "value": {
+          "value": "root",
+        },
+      },
+      "test": "test без describe",
+    },
+    {
+      "args": [
+        "slow",
+        30,
+      ],
+      "completed": 5,
+      "describe": [
+        "Параллельные тесты",
+      ],
+      "location": {
+        "column": 18,
+        "line": 37,
+        "path": "<archetypes>/archetypes/specs/scenarios/test/fixture/trace-scenario.test.ts",
+      },
+      "module": "/Users/zavx0z/repozitarium/storybook/archetypes/specs/scenarios/test/fixture/trace-functions.ts",
+      "name": "overlappingValue",
+      "outcome": {
+        "type": "resolve",
+        "value": {
+          "activeAtStart": 1,
+          "value": "slow",
+        },
+      },
+      "test": "медленный",
+    },
+    {
+      "args": [
+        "fast",
+        1,
+      ],
+      "completed": 4,
+      "describe": [
+        "Параллельные тесты",
+      ],
+      "location": {
+        "column": 18,
+        "line": 42,
+        "path": "<archetypes>/archetypes/specs/scenarios/test/fixture/trace-scenario.test.ts",
+      },
+      "module": "/Users/zavx0z/repozitarium/storybook/archetypes/specs/scenarios/test/fixture/trace-functions.ts",
+      "name": "overlappingValue",
+      "outcome": {
+        "type": "resolve",
+        "value": {
+          "activeAtStart": 2,
+          "value": "fast",
+        },
+      },
+      "test": "быстрый",
+    },
+    {
+      "args": [
+        {
+          "$type": "promise",
+          "status": "fulfilled",
+          "value": "identity",
+        },
+      ],
+      "completed": 6,
+      "describe": [],
+      "location": {
+        "column": 10,
+        "line": 48,
+        "path": "<archetypes>/archetypes/specs/scenarios/test/fixture/trace-scenario.test.ts",
+      },
+      "module": "/Users/zavx0z/repozitarium/storybook/archetypes/specs/scenarios/test/fixture/trace-functions.ts",
+      "name": "identityPromise",
+      "outcome": {
+        "type": "resolve",
+        "value": "identity",
+      },
+      "test": "Promise identity",
+    },
+    {
+      "args": [
+        "value",
+      ],
+      "completed": 7,
+      "describe": [],
+      "location": {
+        "column": 24,
+        "line": 52,
+        "path": "<archetypes>/archetypes/specs/scenarios/test/fixture/trace-scenario.test.ts",
+      },
+      "module": "/Users/zavx0z/repozitarium/storybook/archetypes/specs/scenarios/test/fixture/trace-functions.ts",
+      "name": "receiverValue",
+      "outcome": {
+        "type": "return",
+        "value": "receiver:value",
+      },
+      "test": "this вызова",
+    },
+    {
+      "args": [
+        {
+          "state": "before",
+        },
+      ],
+      "completed": 8,
+      "describe": [],
+      "location": {
+        "column": 10,
+        "line": 57,
+        "path": "<archetypes>/archetypes/specs/scenarios/test/fixture/trace-scenario.test.ts",
+      },
+      "module": "/Users/zavx0z/repozitarium/storybook/archetypes/specs/scenarios/test/fixture/trace-functions.ts",
+      "name": "mutateValue",
+      "outcome": {
+        "type": "return",
+        "value": "after",
+      },
+      "test": "аргумент может быть изменён функцией",
+    },
+    {
+      "args": [
+        "boom",
+      ],
+      "completed": 9,
+      "describe": [],
+      "location": {
+        "column": 36,
+        "line": 61,
+        "path": "<archetypes>/archetypes/specs/scenarios/test/fixture/trace-scenario.test.ts",
+      },
+      "module": "/Users/zavx0z/repozitarium/storybook/archetypes/specs/scenarios/test/fixture/trace-functions.ts",
+      "name": "throwValue",
+      "outcome": {
+        "error": {
+          "$type": "error",
+          "message": "sync:boom",
+          "name": "Error",
+        },
+        "type": "throw",
+      },
+      "test": "синхронная ошибка",
+    },
+    {
+      "args": [
+        "boom",
+      ],
+      "completed": 10,
+      "describe": [],
+      "location": {
+        "column": 10,
+        "line": 65,
+        "path": "<archetypes>/archetypes/specs/scenarios/test/fixture/trace-scenario.test.ts",
+      },
+      "module": "/Users/zavx0z/repozitarium/storybook/archetypes/specs/scenarios/test/fixture/trace-functions.ts",
+      "name": "rejectValue",
+      "outcome": {
+        "error": {
+          "$type": "error",
+          "message": "async:boom",
+          "name": "Error",
+        },
+        "type": "reject",
+      },
+      "test": "отклонённый Promise",
+    },
+  ],
+  "packageScenario": [
+    {
+      "args": [
+        {
+          "path": "/Users/zavx0z/repozitarium/storybook/archetypes",
+        },
+      ],
+      "completed": 0,
+      "describe": [
+        "Корневой пакет",
+      ],
+      "location": {
+        "column": 24,
+        "line": 24,
+        "path": "<archetypes>/archetypes/package/spec/scenario.spec.ts",
+      },
+      "module": "@storybook/archetypes/package",
+      "name": "readPackage",
+      "outcome": {
+        "type": "resolve",
+        "value": {
+          "packageJson": {
+            "description": "Помогает решить, где разместить сущность, когда выделить пакет или категорию и как оформить ответственность, зависимости, контракты и проверки",
+            "exports": {
+              ".": "./index.ts",
+              "./category": "./category/index.ts",
+              "./entity": "./entity/index.ts",
+              "./package": "./package/index.ts",
+              "./repository": "./repository/index.ts",
+              "./specs": "./specs/index.ts",
+            },
+            "label": "Правила структуры проектов",
+            "name": "@storybook/archetypes",
+          },
+        },
+      },
+      "test": null,
+    },
+    {
+      "args": [
+        {
+          "path": "/Users/zavx0z/repozitarium/storybook/archetypes/specs",
+        },
+      ],
+      "completed": 1,
+      "describe": [
+        "Вложенный пакет",
+      ],
+      "location": {
+        "column": 24,
+        "line": 24,
+        "path": "<archetypes>/archetypes/package/spec/scenario.spec.ts",
+      },
+      "module": "@storybook/archetypes/package",
+      "name": "readPackage",
+      "outcome": {
+        "type": "resolve",
+        "value": {
+          "packageJson": {
+            "description": "Зависимости, контракты, сценарии и фикстуры спецификаций",
+            "exports": {
+              ".": "./index.ts",
+              "./contracts": "./contracts/index.ts",
+              "./deps": "./deps/index.ts",
+              "./fixtures": "./fixtures/index.ts",
+              "./scenarios": "./scenarios/index.ts",
+            },
+            "label": "Спецификации",
+            "name": "@archetypes/specs",
+          },
+        },
+      },
+      "test": null,
+    },
+  ],
+}
+`;
