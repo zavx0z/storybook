@@ -1,8 +1,16 @@
-# Границы пакета и владение ресурсами
+# Что принадлежит пакету, а что — Storybook
 
-Черновой материал из прежних описаний. Требует сверки с текущим кодом и принятыми решениями; положения о README, форматах файлов и способах исполнения могут быть устаревшими.
+Пакет владеет своим содержимым и ресурсами. Storybook предоставляет внешнее
+средство их просмотра. Эта заметка удерживает границу между этими ответственностями.
 
-### `STORYBOOK-EXT-001` — внешний tool
+```mermaid
+flowchart LR
+  package["Пакет"] --> data["Код, спецификации и ресурсы"]
+  tool["Внешний Storybook"] --> read["Чтение и представление"]
+  data --> read
+```
+
+### Почему Storybook остаётся внешним инструментом
 
 Consumer project/package не содержит dependency, devDependency,
 peerDependency, type import или runtime import `@zavx0z/storybook`, private
@@ -10,13 +18,13 @@ package `@scope/storybook`, package-local server/build/launcher либо соб�
 Storybook port/process. Shared repository может иметь implementation
 dependencies.
 
-### `STORYBOOK-EXT-002` — owner data and resources
+### Какие данные и ресурсы принадлежат пакету
 
 Package владеет versioned JSON manifest/catalog, semantic ordering,
 README/stories/fixtures/tests/media/references и optional structural runtime.
 Declaration хранит links, а не copied source/README/CSS или executable code.
 
-### `STORYBOOK-EXT-003` — optional composition
+### Отдельный пакет и несколько подключённых проектов
 
 Standalone package, one-package project, multi-package project, workspace и
 несколько independently attached roots поддерживаются одинаково. Workspace не

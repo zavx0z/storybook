@@ -1,9 +1,11 @@
 # Сценарии
 
-- [Представление сценариев в интерфейсе и MCP](./notes/presentation.md)
-- [Чтение сценария](./notes/reading.md)
-- [Ответственности src](./notes/implementation.md)
-- [Данные и проверки](./notes/checks.md)
-- [Подготовка данных и тело теста](./notes/authoring.md)
-- [Предстоящая проверка](./notes/pending-checks.md)
-- [`STORYBOOK-SCENARIOS-001` — структурные сценарии](notes/draft-structural-scenarios.md)
+## Заметки
+
+- [Как сценарий задаёт каталог и содержимое](./notes/presentation.md)
+- [Как получить данные выполненного сценария](./notes/reading.md)
+- [Как собирается история вызовов](./notes/implementation.md)
+- [Что проверяют сценарии трассировки](./notes/checks.md)
+- [Где вызвать функцию и как проверить результат](./notes/authoring.md)
+- [Какие проверки сценариев ещё нужно оформить](./notes/pending-checks.md)
+- [Как сценарии появляются в интерфейсе](./notes/draft-structural-scenarios.md)

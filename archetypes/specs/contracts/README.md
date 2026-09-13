@@ -1,3 +1,5 @@
 # Заметки
 
-- [`STORYBOOK-CONTRACT-001` — структурный контракт](notes/draft-contracts.md)
+## Заметки
+
+- [Как описывать и показывать входные и выходные данные](./notes/draft-contracts.md)

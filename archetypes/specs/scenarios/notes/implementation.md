@@ -1,14 +1,34 @@
-# Ответственности src
+# Как собирается история вызовов
 
-- `discover.ts` находит владельца и собирает конфигурацию запуска.
-- `imports.ts` разбирает и разрешает статические runtime imports.
-- `preloads.ts` читает параметры подготовки среды из конфигурации пакета.
-- `jsx-runtime.ts` определяет JSX transport из exports владельца preload.
-- `trace.ts` запускает процесс, принимает записи и возвращает результат.
-- `trace-preload.ts` подключает части сборщика в дочернем Bun.
-- `instrument.ts` добавляет контекст в callback bodies через TypeScript AST.
-- `context.ts` хранит варианты групп и асинхронный контекст тестов.
-- `observe.ts` записывает вызовы, аргументы и порядок завершения.
-- `serialize.ts` переносит значения без вызова getters.
-- `call-location.ts` находит внешний frame вызова.
-- `pending.ts` ожидает завершения отправок до итогового IPC report.
+Сборщик сначала определяет среду сценария, затем запускает дочерний Bun.
+В дочернем процессе он связывает вызовы с группами и тестами и передаёт записи
+родителю. Родитель возвращает итог после завершающего отчёта.
+
+```mermaid
+flowchart TD
+  discover["Определение среды"] --> trace["Запуск дочернего Bun"]
+  trace --> preload["Подключение наблюдения"]
+  preload --> context["Группа и тест"]
+  context --> observe["Вызов функции или метода"]
+  observe --> serialize["Перенос аргументов и результата"]
+  serialize --> pending["Завершение отправки записей"]
+  pending --> result["Итоговая история в родителе"]
+```
+
+## Подготовка и запуск
+
+- [discover.ts](../src/discover.ts) находит пакет и собирает конфигурацию запуска.
+- [imports.ts](../src/imports.ts) разбирает и разрешает статические импорты исполняемого кода.
+- [preloads.ts](../src/preloads.ts) читает подготовку среды из конфигурации пакета.
+- [jsx-runtime.ts](../src/jsx-runtime.ts) определяет JSX transport по exports владельца preload.
+- [trace.ts](../src/trace.ts) запускает процесс, принимает записи и возвращает результат.
+
+## Наблюдение в дочернем процессе
+
+- [trace-preload.ts](../src/trace-preload.ts) подключает части сборщика.
+- [instrument.ts](../src/instrument.ts) добавляет контекст в callback bodies через TypeScript AST.
+- [context.ts](../src/context.ts) хранит варианты групп и асинхронный контекст тестов.
+- [observe.ts](../src/observe.ts) записывает аргументы, исходы и порядок завершения вызовов.
+- [serialize.ts](../src/serialize.ts) переносит значения без вызова getters.
+- [call-location.ts](../src/call-location.ts) находит внешний frame вызова.
+- [pending.ts](../src/pending.ts) ожидает завершения отправок перед итоговым IPC report.

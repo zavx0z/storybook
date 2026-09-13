@@ -1,4 +1,6 @@
 # Структура репозитория
 
-- [Структура репозитория](./notes/structure.md)
-- [`STORYBOOK-PROJECTS-001` — управляемая композиция](notes/draft-composition.md)
+## Заметки
+
+- [Что объединяет репозиторий](./notes/structure.md)
+- [Как добавлять и убирать репозитории в Storybook](./notes/draft-composition.md)
