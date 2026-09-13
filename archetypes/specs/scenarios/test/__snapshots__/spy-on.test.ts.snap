@@ -1,0 +1,87 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`Получена история spyOn из завершённого запуска 1`] = `
+[
+  {
+    "history": {
+      "calls": [
+        [
+          {
+            "path": "/Users/zavx0z/repozitarium/storybook/archetypes",
+          },
+        ],
+        [
+          {
+            "path": "/Users/zavx0z/repozitarium/storybook/archetypes/specs",
+          },
+        ],
+      ],
+      "contexts": [
+        {
+          "readPackage": {
+            "name": "readPackage",
+            "type": "function",
+          },
+        },
+        {
+          "readPackage": {
+            "name": "readPackage",
+            "type": "function",
+          },
+        },
+      ],
+      "instances": [],
+      "invocationCallOrder": [
+        1,
+        2,
+      ],
+      "results": [
+        {
+          "type": "return",
+          "value": {
+            "status": "fulfilled",
+            "type": "promise",
+            "value": {
+              "packageJson": {
+                "description": "Помогает решить, где разместить сущность, когда выделить пакет или категорию и как оформить ответственность, зависимости, контракты и проверки",
+                "exports": {
+                  ".": "./index.ts",
+                  "./category": "./category/index.ts",
+                  "./entity": "./entity/index.ts",
+                  "./package": "./package/index.ts",
+                  "./repository": "./repository/index.ts",
+                  "./specs": "./specs/index.ts",
+                },
+                "label": "Правила структуры проектов",
+                "name": "@storybook/archetypes",
+              },
+            },
+          },
+        },
+        {
+          "type": "return",
+          "value": {
+            "status": "fulfilled",
+            "type": "promise",
+            "value": {
+              "packageJson": {
+                "description": "Зависимости, контракты, сценарии и фикстуры спецификаций",
+                "exports": {
+                  ".": "./index.ts",
+                  "./contracts": "./contracts/index.ts",
+                  "./deps": "./deps/index.ts",
+                  "./fixtures": "./fixtures/index.ts",
+                  "./scenarios": "./scenarios/index.ts",
+                },
+                "label": "Спецификации",
+                "name": "@archetypes/specs",
+              },
+            },
+          },
+        },
+      ],
+    },
+    "name": "readPackage",
+  },
+]
+`;
