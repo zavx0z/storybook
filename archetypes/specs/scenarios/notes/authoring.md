@@ -21,7 +21,7 @@ callback `describe.each`, до регистрации тестов. Асинхр
 
 ```ts
 describe.each([
-  {name: "Пакет", props: {path: resolvePath("repository/package")}},
+  {name: "Пакет", props: {path: resolvePath("fixture/repository/package")}},
 ])("$name", async ({name, props}) => {
   const result = await readSpec(props)
 

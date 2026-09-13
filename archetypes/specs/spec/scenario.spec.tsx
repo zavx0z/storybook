@@ -31,19 +31,19 @@ const resolvePath = createFixture(process.env.SPEC_PATH)
 describe.each([
   {
     name: "Репозиторий",
-    props: {path: resolvePath("repository")},
+    props: {path: resolvePath("fixture/repository")},
   },
   {
     name: "Пакет",
-    props: {path: resolvePath("repository/package")},
+    props: {path: resolvePath("fixture/repository/package")},
   },
   {
     name: "Категория",
-    props: {path: resolvePath("repository/package/category")},
+    props: {path: resolvePath("fixture/repository/package/category")},
   },
   {
     name: "Сущность",
-    props: {path: resolvePath("repository/package/category/entity")},
+    props: {path: resolvePath("fixture/repository/package/category/entity")},
   },
 ])("$name", async ({name, props}) => {
   const result = await readSpec(props)
