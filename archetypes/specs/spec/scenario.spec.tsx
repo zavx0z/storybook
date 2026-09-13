@@ -22,42 +22,37 @@
 */
 import {describe, expect, test} from "bun:test"
 import {dirname, resolve} from "node:path"
-import {fileURLToPath} from "node:url"
 import {readSpec} from "@archetypes/specs"
+import {createFixture} from "../../shared/fixtures"
 
-const fixture = fileURLToPath(new URL("./fixture/", import.meta.url))
-const inputPath = process.env.SPEC_PATH
+const resolvePath = createFixture(process.env.SPEC_PATH)
 
 /** Четыре варианта размещения спецификации у непосредственного владельца. */
 describe.each([
   {
     name: "Репозиторий",
-    props: {path: inputPath ?? resolve(fixture, "repository")},
-    expected: resolve(inputPath ?? resolve(fixture, "repository"), "spec"),
+    props: {path: resolvePath("repository")},
   },
   {
     name: "Пакет",
-    props: {path: inputPath ?? resolve(fixture, "repository/package")},
-    expected: resolve(inputPath ?? resolve(fixture, "repository/package"), "spec"),
+    props: {path: resolvePath("repository/package")},
   },
   {
     name: "Категория",
-    props: {path: inputPath ?? resolve(fixture, "repository/package/category")},
-    expected: resolve(inputPath ?? resolve(fixture, "repository/package/category"), "spec"),
+    props: {path: resolvePath("repository/package/category")},
   },
   {
     name: "Сущность",
-    props: {path: inputPath ?? resolve(fixture, "repository/package/category/entity")},
-    expected: resolve(inputPath ?? resolve(fixture, "repository/package/category/entity"), "spec"),
+    props: {path: resolvePath("repository/package/category/entity")},
   },
-])("$name", async ({name, props, expected}) => {
+])("$name", async ({name, props}) => {
   const result = await readSpec(props)
 
   test("Находит только непосредственную директорию spec", () => {
     expect(
       result?.scenario ? dirname(result.scenario.path) : null,
       `Ожидается, что ${name.toLowerCase()} содержит найденную директорию spec непосредственно на своём уровне`,
-    ).toBe(expected)
+    ).toBe(resolve(props.path, "spec"))
   })
 
   test("Возвращает данные выполненного сценария", () => {
@@ -65,7 +60,7 @@ describe.each([
       result?.scenario,
       `Спецификация, которой владеет ${name.toLowerCase()}, должна возвращать данные выполненного сценария`,
     ).toEqual(expect.objectContaining({
-      path: resolve(expected, "scenario.spec.ts"),
+      path: resolve(props.path, "spec", "scenario.spec.ts"),
       exitCode: expect.any(Number),
       calls: expect.any(Array),
     }))
