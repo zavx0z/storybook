@@ -32,4 +32,17 @@ describe.each([
   test("Возвращает результат чтения спецификации пакета", () => {
     expect(result).toEqual(expected)
   })
+
+  test("Сохраняет результат чтения спецификации", () => {
+    expect({
+      ...result,
+      result: result.result && {
+        ...result.result,
+        scenario: result.result.scenario && {
+          ...result.result.scenario,
+          stderr: result.result.scenario.stderr.replace(/ \[\d+(?:\.\d+)?(?:ms|s)\]/g, ""),
+        },
+      },
+    }).toMatchSnapshot()
+  })
 })

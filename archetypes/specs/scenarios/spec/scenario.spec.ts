@@ -46,13 +46,43 @@ describe.each([
 ] satisfies Scenario[])("$name", async ({props, expected}) => {
   const result = await readScenario(props)
 
+  test("Ключи результата", () => {
+    expect(result, "Результат должен содержать ровно ключи path, exitCode, stdout, stderr и calls с ожидаемыми типами значений").toEqual({
+      path: expect.any(String),
+      exitCode: expect.any(Number),
+      stdout: expect.any(String),
+      stderr: expect.any(String),
+      calls: expect.any(Array),
+    })
+  })
+
+  test("path содержит абсолютный путь исполненного сценария", () => {
+    expect(result.path, "Путь результата должен соответствовать переданному сценарию").toBe(resolve(props.path))
+  })
+
+  test("exitCode подтверждает успешное завершение сценария", () => {
+    expect(result.exitCode, "Положительный сценарий должен завершиться без ошибок").toBe(0)
+  })
+
+  test("stdout содержит стандартный вывод Bun Test", () => {
+    expect(result.stdout, "Стандартный вывод должен содержать заголовок запущенного Bun Test").toContain("bun test")
+  })
+
+  test("stderr содержит отчёт о выполненных тестах", () => {
+    expect(result.stderr, "Диагностический вывод должен содержать итоги успешного сценария").toMatch(/\d+ pass\s+0 fail/)
+  })
+
+  test("calls содержит историю фактических вызовов", () => {
+    expect(result.calls.length, "Исполнение сценария должно дать наблюдаемые вызовы").toBeGreaterThan(0)
+  })
+
   test("содержит вызовы с группами и результатами", () => {
     const calls = result.calls.filter(call => expected.some(item => item.name === call.name))
 
     expect(calls, "История должна содержать вызовы выбранного сценария").toMatchObject(expected)
   })
 
-  test("сохраняет полный результат", () => {
+  test("Соответствие результата снимку", () => {
     const snapshot = {
       ...result,
       stderr: result.stderr.replace(/ \[\d+(?:\.\d+)?(?:ms|s)\]/g, ""),

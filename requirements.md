@@ -8,27 +8,27 @@
 
 <a id="structure-contract"></a>
 
-[Структура проектов и пакетов](archetypes/README.md#structure-contract).
+[Структура проектов и пакетов](archetypes/notes/draft-structure.md).
 
 <a id="documentation-standard"></a>
 
-[Стандарт документации](archetypes/README.md#documentation-standard).
+[Стандарт документации](archetypes/notes/draft-documentation.md).
 
 <a id="component-placement"></a>
 
-[Размещение сущностей и экспорты](archetypes/README.md#component-placement).
+[Размещение сущностей и экспорты](archetypes/entity/notes/draft-placement.md).
 
 <a id="component-dependencies"></a>
 
-[Структурные зависимости](archetypes/README.md#component-dependencies).
+[Структурные зависимости](archetypes/specs/deps/notes/draft-dependencies.md).
 
 <a id="contract-documentation"></a>
 
-[Контракты](archetypes/README.md#contract-documentation).
+[Контракты](archetypes/specs/contracts/notes/draft-contracts.md).
 
 <a id="component-scenarios"></a>
 
-[Сценарии](archetypes/README.md#component-scenarios).
+[Сценарии](archetypes/specs/scenarios/notes/draft-structural-scenarios.md).
 
 ## Владельцы реализации Storybook
 
@@ -120,7 +120,7 @@ Package-level `widgetContributions` использует exact
 `diagnostics`. Variant exact-наследует subject; package default и variant
 override запрещены.
 
-Правила привязки `subject.directory` определены в [контракте каталогов и компонентов](archetypes/README.md#component-placement); presentation и widgets остаются ответственностью этого раздела.
+Правила привязки `subject.directory` определены в [контракте каталогов и компонентов](archetypes/entity/notes/draft-placement.md); presentation и widgets остаются ответственностью этого раздела.
 
 ## Workbench
 
@@ -184,7 +184,7 @@ key/retained-state identity Storybook и замыкается consumer callback-
 
 Вкладка «Зависимости» показывает граф и не объявляет секций Inspector.
 Вкладка «Контракт» объявляет только собственные секции входа и выхода по
-[правилу отображения контракта](archetypes/README.md#contract-documentation). Параметры ноды,
+[правилу отображения контракта](archetypes/specs/contracts/notes/draft-contracts.md). Параметры ноды,
 её исходники, события и диагностика не наследуются этими вкладками.
 Исполняемый вариант использует собственное объявленное представление;
 существующая композиция обзора с одним дочерним предметом сохраняет свой
@@ -250,7 +250,7 @@ Unicode glyph fallback и font-dependent disclosure запрещены.
 
 ### `STORYBOOK-WORKBENCH-003` — landing and package tab semantics
 
-Главная и предметная панели отображают иерархию из [единого контракта структуры](archetypes/README.md#structure-contract).
+Главная и предметная панели отображают иерархию из [единого контракта структуры](archetypes/notes/draft-structure.md).
 
 Стрелка сворачивает ветвь, подпись выбирает узел. Поиск сохраняет путь к совпадению,
 клавиши работают на любой глубине, а скрытие сохраняет identity уже созданных
@@ -295,7 +295,7 @@ lease и диагностики. Контроллер сначала готов�
 загрузки HTML или подписки. Ошибка проверки сохраняет lastWorking.
 
 
-Правила состава дерева и границ модулей заданы в [едином нормативном разделе](archetypes/README.md#structure-contract).
+Правила состава дерева и границ модулей заданы в [едином нормативном разделе](archetypes/notes/draft-structure.md).
 
 
 Публичный адрес пакета использует читаемый slug: `@zavx0z/dom` становится

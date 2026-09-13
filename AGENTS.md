@@ -30,15 +30,15 @@
 - `@zavx0z/storybook` is an external dev tool. It does not become a central
   owner of other repositories' stories.
 - Перед созданием, миграцией или изменением структуры проекта агент обязан
-  прочитать [единые правила структуры проектов, пакетов и компонентов](archetypes/README.md#structure-contract).
+  прочитать [единые правила структуры проектов, пакетов и компонентов](archetypes/notes/draft-structure.md).
   Это нормативная точка входа. Правила создания пакетов, package identity,
   composition и exports принадлежат [TSDoc Package](archetypes/package/index.ts);
   правила директорий, компонентов и общей документации — README Archetypes. Не поддерживать здесь или в
   корневых README/ARCHITECTURE отдельные копии этих норм; менять их у владельца.
-  Связанные правила: [размещение компонентов](archetypes/README.md#component-placement),
-  [Dependencies spec](archetypes/README.md#component-dependencies) и [URL вкладок](requirements.md#tabs-routes).
+  Связанные правила: [размещение компонентов](archetypes/entity/notes/draft-placement.md),
+  [Dependencies spec](archetypes/specs/deps/notes/draft-dependencies.md) и [URL вкладок](requirements.md#tabs-routes).
 - Перед изменением README, модульных обзоров и TSDoc прочитать
-  [единый стандарт документации](archetypes/README.md#documentation-standard).
+  [единый стандарт документации](archetypes/notes/draft-documentation.md).
   Его содержание и классификация проверок принадлежат README Archetypes, а не копии в навыке.
 - Один внешний Storybook процесс владеет registry, canonical graph, Workbench,
   PackageSessions, ревизиями, диагностикой и browser mechanics точных пакетов.
@@ -111,7 +111,7 @@
   apply with `storybook_check(live:true)` and wait for active. Build alone never
   updates user views. Failed checks preserve the applied revision.
 - Публичные адреса, вкладки и структурные пути определяются
-  [контрактом URL](requirements.md#tabs-routes) и [нормами структуры](archetypes/README.md#structure-contract).
+  [контрактом URL](requirements.md#tabs-routes) и [нормами структуры](archetypes/notes/draft-structure.md).
   Агент проверяет эти правила у владельца, а не поддерживает отдельную копию здесь.
 - User navigation stays in the current tab. Agent open reuses a view currently
   showing its package or creates a background view; never retarget a view the

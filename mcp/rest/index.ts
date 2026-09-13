@@ -48,7 +48,11 @@ export async function storybookRest(request: Request, root: string): Promise<Res
       .filter(([name]) => name.startsWith("./"))
       .map(async ([name, entry]) => {
         const readme = Bun.file(resolve(root, "archetypes", dirname(entry), "README.md"))
-        const source = await readme.exists() ? await readme.text() : ""
+        let source = await readme.exists() ? await readme.text() : ""
+        const note = source.match(/^- \[[^\]]+\]\(\.\/notes\/([a-z0-9-]+\.md)\)$/m)
+        if (note?.[1]) {
+          source = await Bun.file(resolve(root, "archetypes", dirname(entry), "notes", note[1])).text()
+        }
         const description = readDefinitionDescription(source, name)
         return {node: `archetypes/${name.slice(2)}`, description}
       }))
