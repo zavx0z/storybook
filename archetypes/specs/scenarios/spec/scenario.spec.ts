@@ -50,7 +50,7 @@ describe.each([
   const result = await readScenario(props)
 
   test("Ключи результата", () => {
-    expect(result, "Состав полей показывает, какие данные о выполнении сценария доступны человеку и агенту").toEqual({
+    expect(result, "Состав данных о выполнении сценария").toEqual({
       path: expect.any(String),
       exitCode: expect.any(Number),
       stdout: expect.any(String),
@@ -60,29 +60,56 @@ describe.each([
   })
 
   test("Путь сценария", () => {
-    expect(result.path, "Путь позволяет связать результат с исполненным файлом сценария").toBe(resolve(props.path))
+    expect(result.path, "Файл сценария, которому принадлежит результат выполнения").toBe(resolve(props.path))
   })
 
   test("Код завершения", () => {
-    expect(result.exitCode, "По коду завершения определяется, закончился ли запуск сценария без ошибок").toBe(0)
+    expect(result.exitCode, "Итог запуска Bun Test: ноль при успешном завершении").toBe(0)
   })
 
-  test("Стандартный вывод", () => {
-    expect(result.stdout, "Сообщения процесса сохраняются для просмотра того, что Bun Test вывел во время запуска").toContain("bun test")
+  describe("Стандартный вывод", () => {
+    test("Содержимое", () => {
+      expect(result.stdout, "Сообщения Bun Test во время выполнения сценария").toContain("bun test")
+    })
+
+    test("Версия Bun", () => {
+      expect(
+        result.stdout.match(/^bun test v([^\s]+)/m)?.[1],
+        "Версия среды, в которой выполнен сценарий",
+      ).toMatch(/^\d+\.\d+\.\d+/)
+    })
   })
 
-  test("Диагностический вывод", () => {
-    expect(result.stderr, "Диагностический отчёт нужен для разбора итогов проверок и причин ошибок сценария").toMatch(/\d+ pass\s+0 fail/)
+  describe("Диагностический вывод", () => {
+    test("Содержимое", () => {
+      expect(result.stderr, "Итоги проверок и причины ошибок сценария").toMatch(/\d+ pass\s+0 fail/)
+    })
+
+    test("Успешные проверки", () => {
+      expect(
+        result.stderr.split("\n").filter(line => line.startsWith("(pass) ")),
+        "Проверки, подтвердившие поведение сценария",
+      ).not.toHaveLength(0)
+    })
+
+    test("Количество ошибок", () => {
+      expect(
+        Number(result.stderr.match(/^\s*(\d+) fail\s*$/m)?.[1]),
+        "Число проверок с неподтверждённым ожидаемым результатом",
+      ).toBe(0)
+    })
   })
 
-  test("Количество вызовов", () => {
-    expect(result.calls.length, "По количеству вызовов видно, собрала ли трассировка записи выполнения").toBeGreaterThan(0)
-  })
+  describe("Вызовы", () => {
+    test("Количество", () => {
+      expect(result.calls.length, "Число зарегистрированных вызовов функций и методов").toBeGreaterThan(0)
+    })
 
-  test("Вызовы с группами и результатами", () => {
-    const calls = result.calls.filter(call => expected.some(item => item.name === call.name))
+    test("Группы и результаты", () => {
+      const calls = result.calls.filter(call => expected.some(item => item.name === call.name))
 
-    expect(calls, "Связь вызовов с группами, тестами и исходами показывает, что выполнилось в каждом варианте и чем завершилось").toMatchObject(expected)
+      expect(calls, "Выполненные функции и методы, их группы, тесты и исходы").toMatchObject(expected)
+    })
   })
 
   test("Полный результат", () => {
@@ -91,6 +118,6 @@ describe.each([
       stderr: result.stderr.replace(/ \[\d+(?:\.\d+)?(?:ms|s)\]/g, ""),
     }
 
-    expect(snapshot, "Полные данные сохраняются для разбора результата и выявления изменений, пока отдельные проверки ещё формируются").toMatchSnapshot()
+    expect(snapshot, "Все данные выполнения сценария, кроме меняющихся длительностей в диагностическом выводе").toMatchSnapshot()
   })
 })
