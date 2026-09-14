@@ -41,6 +41,7 @@ describe.each([
         scenario: result.result.scenario && {
           ...result.result.scenario,
           stderr: result.result.scenario.stderr.replace(/ \[\d+(?:\.\d+)?(?:ms|s)\]/g, ""),
+          junit: result.result.scenario.junit.replace(/\btime="[^"]*"/g, 'time="<duration>"').split("\n"),
         },
       },
     }).toMatchSnapshot()

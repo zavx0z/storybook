@@ -6,11 +6,11 @@ AsyncLocalStorage применяется к test, но не оборачивае
 @packageDocumentation
 */
 import {AsyncLocalStorage} from "node:async_hooks"
+import {observeExpect} from "./assertions"
+import {observeMatcher} from "./matcher-metadata"
+import {addGroup, addTest, condition, declare, rootContext, type Declaration, type GroupContext} from "./records"
 
-interface TraceContext {
-  readonly describe: readonly string[]
-  readonly test: string | null
-}
+type TraceContext = GroupContext
 
 const context = new AsyncLocalStorage<TraceContext>()
 const eachTables = new Map<string, {readonly rows: readonly unknown[], index: number}>()
@@ -31,41 +31,66 @@ function renderName(template: unknown, values: readonly unknown[]): string {
 }
 
 interface TraceRuntime {
+  expect: typeof observeExpect
+  matcher: typeof observeMatcher
+  condition: typeof condition
+  testRegistrar(declaration: Declaration, parent: TraceContext | undefined, original: (...args: unknown[]) => unknown): (...args: unknown[]) => unknown
   /** Исполняет оригинальную регистрацию Bun без переноса её в AsyncLocalStorage. */
-  register(site: string, parent: string | null, callback: () => unknown): unknown
+  register(declaration: Declaration, callback: () => unknown): unknown
   /** Сохраняет таблицу each до вызова параметризованного регистратора. */
   table(site: string, rows: readonly unknown[]): readonly unknown[]
   /** Передаёт выбранную группу в замыкание вложенных тестов. */
   describe(site: string, name: unknown, callback: (group: TraceContext) => unknown, parent?: TraceContext): unknown
   /** Выбирает имя очередного варианта и сохраняет его отдельно от остальных. */
   describeEach(site: string, name: unknown, callback: (group: TraceContext) => unknown, parent?: TraceContext): unknown
-  /** Изолирует асинхронные вызовы одного теста от параллельных тестов. */
-  test(site: string, name: unknown, callback: () => unknown, parent?: TraceContext): unknown
-  /** Связывает асинхронные вызовы с конкретной строкой test.each. */
-  testEach(site: string, name: unknown, callback: () => unknown, parent?: TraceContext): unknown
 }
 
 let synchronousContext: TraceContext | undefined
 
 /** Потребляет следующую строку each в порядке регистрации Bun. */
-function takeEachName(site: string, name: unknown): string {
+function takeEachCase(site: string, name: unknown) {
   const table = eachTables.get(site)
   if (!table) throw new Error(`Не зарегистрирована each table ${site}`)
   const row = table.rows[table.index++]
-  return renderName(name, [row])
+  return {label: renderName(name, [row]), row}
 }
 
 /** Методы, вызываемые вставками AST; исходные registrars Bun остаются без подмены. */
 export const runtime: TraceRuntime = {
-  register(site, parent, callback) {
+  expect: observeExpect,
+  matcher: observeMatcher,
+  condition,
+  register(declaration, callback) {
+    declare(declaration)
     return callback()
+  },
+  testRegistrar(declaration, parent = rootContext, original) {
+    declare(declaration)
+    return (...args: unknown[]) => {
+      const [label, callback, ...options] = args
+      if (typeof callback !== "function") return Reflect.apply(original, undefined, args)
+      const rows = declaration.each ? eachTables.get(declaration.site)?.rows ?? [] : [undefined]
+      const candidates = rows.map(row => ({
+        args: declaration.each ? (Array.isArray(row) ? row : [row]) : [],
+        test: addTest(declaration, declaration.each ? renderName(label, [row]) : String(label), parent),
+        used: false,
+      }))
+      const wrapped = function(this: unknown, ...values: unknown[]) {
+          const candidate = candidates.find(item => !item.used && item.args.every((value, index) => Object.is(value, values[index])))
+          if (!candidate) throw new Error(`Не найден вариант теста ${String(label)}`)
+          candidate.used = true
+          return context.run({...parent, test: candidate.test.label, testId: candidate.test.id}, () => Reflect.apply(callback, this, values))
+      }
+      Object.defineProperty(wrapped, "length", {value: callback.length})
+      return Reflect.apply(original, undefined, [label, wrapped, ...options])
+    }
   },
   table(site, rows) {
     eachTables.set(site, {rows, index: 0})
     return rows
   },
-  describe(site, name, callback, parent = {describe: [], test: null}) {
-    const selected = {describe: [...parent.describe, String(name)], test: null}
+  describe(site, name, callback, parent = rootContext) {
+    const selected = addGroup(site, String(name), parent, null)
     const previous = synchronousContext
     synchronousContext = selected
     try {
@@ -74,8 +99,9 @@ export const runtime: TraceRuntime = {
       synchronousContext = previous
     }
   },
-  describeEach(site, name, callback, parent = {describe: [], test: null}) {
-    const selected = {describe: [...parent.describe, takeEachName(site, name)], test: null}
+  describeEach(site, name, callback, parent = rootContext) {
+    const selectedCase = takeEachCase(site, name)
+    const selected = addGroup(site, selectedCase.label, parent, selectedCase.row)
     const previous = synchronousContext
     synchronousContext = selected
     try {
@@ -83,17 +109,10 @@ export const runtime: TraceRuntime = {
     } finally {
       synchronousContext = previous
     }
-  },
-  test(site, name, callback, parent = {describe: [], test: null}) {
-    return context.run({describe: parent.describe, test: String(name)}, callback)
-  },
-  testEach(site, name, callback, parent = {describe: [], test: null}) {
-    return context.run({describe: parent.describe, test: takeEachName(site, name)}, callback)
   },
 }
 
 /** Возвращает контекст исполняемого теста либо синхронной регистрации группы. */
 export function currentContext(): TraceContext {
-  return context.getStore() ?? synchronousContext ?? {describe: [], test: null}
+  return context.getStore() ?? synchronousContext ?? rootContext
 }
-

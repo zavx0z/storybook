@@ -77,6 +77,52 @@ interface TraceCall {
   readonly location: TraceLocation | null
 }
 
+/** Фактически достигнутое утверждение expect с данными и исходом matcher. */
+interface ScenarioAssertion {
+  readonly id: number
+  readonly site: string
+  readonly describe: readonly string[]
+  readonly test: string | null
+  readonly testId: number | null
+  readonly customFailMessage: string | null
+  readonly actual: TraceValue
+  readonly matcher: string
+  readonly modifiers: readonly string[]
+  readonly expected: readonly TraceValue[]
+  readonly status: "passed" | "failed"
+  readonly error: TraceValue | null
+  readonly location: TraceLocation | null
+}
+
+/** Группа, зарегистрированная исходным describe, с сохранением вложенности. */
+interface ScenarioGroup {
+  readonly id: number
+  readonly parentId: number | null
+  readonly label: string
+  readonly parameters: TraceValue
+  readonly location: TraceLocation
+  readonly mode: "run" | "skip" | "todo"
+  readonly skipReason: string | null
+}
+
+/** Тест из исходного сценария и его состояние в штатном отчёте Bun. */
+interface ScenarioTest {
+  readonly id: number
+  readonly groupId: number | null
+  readonly label: string
+  readonly location: TraceLocation
+  readonly mode: "run" | "skip" | "todo"
+  readonly status: "passed" | "failed" | "skipped" | "todo" | "not-executed" | "error"
+  readonly message: string | null
+  readonly skipReason: string | null
+  readonly assertions: readonly {
+    readonly site: string
+    readonly location: TraceLocation
+    readonly source: string
+    readonly customFailMessage: string | null
+  }[]
+}
+
 /**
 Результат отдельного запуска настоящего Bun Test.
 
@@ -92,6 +138,10 @@ interface TraceCall {
 @property stderr - Диагностический вывод дочернего процесса.
 
 @property calls - Вызовы в порядке их начала, а не завершения Promise.
+@property assertions - Достигнутые expect в порядке обращения, с отдельным исходом каждого matcher.
+@property groups - Зарегистрированные группы с параметрами вариантов и родительскими идентификаторами.
+@property tests - Объявления пунктов, исходные expect и состояния из штатного JUnit Bun.
+@property junit - Полный неизменённый XML штатного отчёта этого же запуска.
 */
 export interface ReadScenarioOutput {
   readonly path: string
@@ -99,4 +149,8 @@ export interface ReadScenarioOutput {
   readonly stdout: string
   readonly stderr: string
   readonly calls: readonly TraceCall[]
+  readonly assertions: readonly ScenarioAssertion[]
+  readonly groups: readonly ScenarioGroup[]
+  readonly tests: readonly ScenarioTest[]
+  readonly junit: string
 }

@@ -32,3 +32,7 @@ flowchart TD
 - [serialize.ts](../src/serialize.ts) переносит значения без вызова getters.
 - [call-location.ts](../src/call-location.ts) находит внешний frame вызова.
 - [pending.ts](../src/pending.ts) ожидает завершения отправок перед итоговым IPC report.
+- [records.ts](../src/records.ts) сохраняет группы и пункты с устойчивой принадлежностью внутри запуска.
+- [assertions.ts](../src/assertions.ts) наблюдает native matchers, сохраняя данные и отдельные исходы.
+- [report.ts](../src/report.ts) сопоставляет пункты со штатным JUnit без повторного запуска.
+- [source-location.ts](../src/source-location.ts) убирает смещение колонок, внесённое инструментацией.

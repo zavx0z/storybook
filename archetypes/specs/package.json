@@ -4,6 +4,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "dependencies": {
+    "fast-xml-parser": "^5.11.1"
+  },
   "description": "Зависимости, контракты, сценарии и фикстуры спецификаций",
   "scripts": {
     "test:spec:repository": "bun test ./spec --test-name-pattern '^Репозиторий(?: |$)'",

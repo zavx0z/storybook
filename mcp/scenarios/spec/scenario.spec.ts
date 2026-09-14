@@ -1,140 +1,155 @@
 /**
-Каркас ответа MCP со сценариями выбранного репозитория, сущности или пакета.
+Ответ MCP со сценариями выбранного репозитория, сущности или пакета.
 
 @packageDocumentation
 */
 import {describe, expect, test} from "bun:test"
+import {resolve} from "node:path"
+import {readScenario} from "@archetypes/specs/scenarios"
+import {presentScenarios, type ScenariosInput} from "../index"
 
-describe.todo.each([
-  {name: "Репозиторий"},
-  {name: "Сущность"},
-  {name: "Пакет"},
-])("$name", ({name}) => {
+describe.each([
+  {name: "Репозиторий", kind: "repository"},
+  {name: "Сущность", kind: "entity"},
+  {name: "Пакет", kind: "package"},
+] as const)("$name", async ({name, kind}) => {
+  const owner = {kind, path: resolve(import.meta.dir, "fixture", kind)}
+  const source = resolve(owner.path, "spec/scenario.spec.ts")
+  const raw = await readScenario({path: source})
+  const before = JSON.stringify(raw)
+  const input: ScenariosInput = {owner, source, prepared: {revision: "fixture-revision", result: raw}}
+  const result = presentScenarios(input)
+  const variant = result.variants[0]!
+  const category = variant.categories[0]!
+  const item = category.items[0]!
+  const checks = category.categories[0]!
+  const mismatch = checks.items.find(item => item.label === "Несоответствие")!
+
   describe("Принадлежность", () => {
     test("Владелец", () => {
       expect(
-        undefined,
+        result.owner,
         `Выбранный владелец типа «${name.toLowerCase()}», к которому относятся сценарии ответа`,
-      ).toBeDefined()
+      ).toEqual(owner)
     })
 
     test("Источник", () => {
       expect(
-        undefined,
+        result.source,
         "Исходный сценарий, из которого получены варианты, проверки и данные",
-      ).toBeDefined()
+      ).toBe(source)
     })
 
     test("Границы", () => {
       expect(
-        undefined,
+        () => presentScenarios({...input, owner: {...owner, path: resolve(owner.path, "..")}}),
         "Сценарии выбранного владельца с сохранением принадлежности, без смешивания с вложенными владельцами",
-      ).toBeDefined()
+      ).toThrow("не принадлежит")
     })
   })
 
   describe("Каталог сценариев", () => {
     test("Варианты", () => {
       expect(
-        undefined,
+        result.variants.length,
         `Варианты использования, которые описывает ${name.toLowerCase()} в своих сценариях`,
-      ).toBeDefined()
+      ).toBe(2)
     })
 
     test("Названия", () => {
       expect(
-        undefined,
+        result.variants.map(variant => variant.label),
         "Фактические названия вариантов из параметризации исходного сценария",
-      ).toBeDefined()
+      ).toEqual(["Обычный", "Пустой"])
     })
 
     test("Входные данные", () => {
       expect(
-        undefined,
+        variant.parameters,
         "Входные данные каждого варианта, с которыми получены его результаты",
-      ).toBeDefined()
+      ).toEqual({name: "Обычный", props: {value: 7}})
     })
 
     test("Порядок", () => {
       expect(
-        undefined,
+        result.variants.map(variant => variant.id),
         "Последовательность вариантов из исходного сценария",
-      ).toBeDefined()
+      ).toEqual(raw.groups.filter(group => group.parentId === null).map(group => group.id))
     })
   })
 
   describe("Категории", () => {
     test("Темы", () => {
       expect(
-        undefined,
+        variant.categories.map(category => category.label),
         "Названия вложенных групп, объединяющих связанные пункты",
-      ).toBeDefined()
+      ).toEqual(["Данные"])
     })
 
     test("Вложенность", () => {
       expect(
-        undefined,
+        category.categories.map(category => [category.label, category.items.map(item => item.label)]),
         "Принадлежность подкатегорий и пунктов своим родительским категориям",
-      ).toBeDefined()
+      ).toEqual([["Проверки", ["Внешняя служба", "Дополнение", "Несоответствие"]]])
     })
 
     test("Пункты варианта", () => {
       expect(
-        undefined,
+        variant.items.map(item => item.label),
         "Пункты непосредственно внутри варианта без искусственной дополнительной категории",
-      ).toBeDefined()
+      ).toEqual(["Значение"])
     })
   })
 
   describe("Пункт", () => {
     test("label", () => {
       expect(
-        undefined,
+        item.label,
         "Название пункта из label соответствующего test",
-      ).toBeDefined()
+      ).toBe("Состав")
     })
 
     test("Принадлежность", () => {
       expect(
-        undefined,
+        item.groupId,
         "Вариант и цепочка категорий, к которым относится пункт",
-      ).toBeDefined()
+      ).toBe(category.id)
     })
 
     describe("Утверждения", () => {
       test("Состав", () => {
         expect(
-          undefined,
+          item.assertions.length,
           "Одно или несколько утверждений expect внутри одного пункта",
-        ).toBeDefined()
+        ).toBe(2)
       })
 
       test("customFailMessage", () => {
         expect(
-          undefined,
+          item.assertions.map(assertion => assertion.customFailMessage),
           "Авторское описание назначения данных каждого утверждения",
-        ).toBeDefined()
+        ).toEqual(["Текст выбранного варианта", "Коллекция выбранного варианта"])
       })
 
       test("actual", () => {
         expect(
-          undefined,
+          item.assertions.map(assertion => assertion.actual),
           "Фактические данные каждого выполненного утверждения",
-        ).toBeDefined()
+        ).toEqual(["", []])
       })
 
       test("Условие", () => {
         expect(
-          undefined,
+          item.assertions.map(({matcher, modifiers, expected}) => ({matcher, modifiers, expected})),
           "Применённый matcher, его модификаторы и ожидаемые значения",
-        ).toBeDefined()
+        ).toEqual([{matcher: "toBe", modifiers: [], expected: [""]}, {matcher: "toEqual", modifiers: [], expected: [[]]}])
       })
 
       test("Порядок", () => {
         expect(
-          undefined,
+          item.assertions.map(assertion => assertion.id),
           "Последовательность утверждений внутри исходного теста",
-        ).toBeDefined()
+        ).toEqual([...item.assertions.map(assertion => assertion.id)].sort((a, b) => a - b))
       })
     })
   })
@@ -142,35 +157,35 @@ describe.todo.each([
   describe("Результаты проверок", () => {
     test("Состояние пункта", () => {
       expect(
-        undefined,
+        checks.items.map(item => item.status),
         "Результат теста: выполнен успешно, завершился ошибкой, пропущен или ещё не реализован",
-      ).toBeDefined()
+      ).toEqual(["skipped", "todo", "passed"])
     })
 
     test("Состояние утверждения", () => {
       expect(
-        undefined,
+        {states: mismatch.assertions.map(assertion => assertion.status), unexecuted: mismatch.unexecuted.length},
         "Результат отдельного expect либо отсутствие выполнения после прерывания теста",
-      ).toBeDefined()
+      ).toEqual({states: ["failed"], unexecuted: 1})
     })
 
     test("Несоответствие", () => {
       expect(
-        undefined,
+        mismatch.assertions[0],
         "Ожидаемое и фактическое значения вместе с описанием нарушенного требования",
-      ).toBeDefined()
+      ).toMatchObject({actual: "", expected: [""], matcher: "toBe", modifiers: ["not"], customFailMessage: "Непустой текст результата", status: "failed", error: expect.any(Object)})
     })
 
     test("Причина пропуска", () => {
       expect(
-        undefined,
+        checks.items[0]?.skipReason,
         "Доступное пояснение условия, из-за которого проверка не выполнялась",
-      ).toBeDefined()
+      ).toBe("Вариант не использует внешнюю службу.")
     })
   })
 
   describe("Данные ответа", () => {
-    test("Готовый результат", () => {
+    test.todo("Готовый результат", () => {
       expect(
         undefined,
         "Данные сценариев, подготовленные при сборке и сохранённые в кэше",
@@ -179,46 +194,46 @@ describe.todo.each([
 
     test("Согласованность", () => {
       expect(
-        undefined,
+        result.revision,
         "Каталог, утверждения и результаты из одного согласованного состояния сценария",
-      ).toBeDefined()
+      ).toBe("fixture-revision")
     })
 
     test("Подготовка для MCP", () => {
       expect(
-        undefined,
+        Object.keys(result),
         "Представление данных для ответа MCP поверх полного результата инспектора",
-      ).toBeDefined()
+      ).toEqual(["owner", "source", "status", "revision", "variants", "items"])
     })
 
     test("Полнота источника", () => {
       expect(
-        undefined,
+        JSON.stringify(raw),
         "Сохранённые исходные данные для валидации независимо от представления ответа MCP",
-      ).toBeDefined()
+      ).toBe(before)
     })
   })
 
   describe("Отсутствующие данные", () => {
     test("Нет сценариев", () => {
       expect(
-        undefined,
+        presentScenarios({owner, source: null, prepared: null}).status,
         "Явное отсутствие сценариев у выбранного владельца",
-      ).toBeDefined()
+      ).toBe("absent")
     })
 
     test("Нет результата", () => {
       expect(
-        undefined,
+        presentScenarios({owner, source, prepared: null}).status,
         "Отсутствие подготовленного результата, отличимое от пустого значения actual",
-      ).toBeDefined()
+      ).toBe("pending")
     })
 
     test("Пустое значение", () => {
       expect(
-        undefined,
+        result.variants[1]?.items[0]?.assertions[0],
         "Полученные null, пустая строка и пустая коллекция как данные, а не признак отсутствия выполнения",
-      ).toBeDefined()
+      ).toMatchObject({actual: null, status: "passed"})
     })
   })
 })

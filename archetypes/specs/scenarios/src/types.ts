@@ -17,3 +17,8 @@ export type TraceOutcome = TraceCall["outcome"]
 
 /** Определённая точка вызова без варианта отсутствия stack frame. */
 export type TraceLocation = NonNullable<TraceCall["location"]>
+
+/** Одно достигнутое утверждение из выходного контракта. */
+export type ScenarioAssertion = ReadScenarioOutput["assertions"][number]
+export type ScenarioGroup = ReadScenarioOutput["groups"][number]
+export type ScenarioTest = ReadScenarioOutput["tests"][number]

@@ -6,6 +6,7 @@
 @packageDocumentation
 */
 import type {TraceValue} from "./types"
+import {matcherMetadata} from "./matcher-metadata"
 
 /** Путь по закодированному снимку: ключи объектов и числовые индексы массивов. */
 type ValuePath = readonly (string | number)[]
@@ -42,6 +43,11 @@ async function capture(
   if (knownPath !== undefined) return {$type: "reference", path: [...knownPath]}
   seen.set(value, path)
   const nextAncestors = new Map(ancestors).set(value, path)
+  const matcher = matcherMetadata(value)
+  if (matcher) return {
+    $type: "matcher", name: matcher.name, modifiers: [...matcher.modifiers],
+    args: await capture(matcher.args, seen, [...path, "args"], nextAncestors),
+  }
   if (value instanceof Promise) {
     try {
       return {

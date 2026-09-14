@@ -9,6 +9,8 @@ import {runtime} from "./context"
 import {instrument} from "./instrument"
 import {observe} from "./observe"
 import {drain} from "./pending"
+import {readAssertions} from "./assertions"
+import {readRecords} from "./records"
 import type {discover} from "./discover"
 
 type Registrar = (...args: unknown[]) => unknown
@@ -47,6 +49,8 @@ for (const selection of configuration.observe) {
 
 bunTest.afterAll(async () => {
   await drain()
+  process.send?.({type: "storybook:assertions", assertions: await readAssertions()})
+  process.send?.({type: "storybook:records", ...await readRecords()})
   await new Promise<void>((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error("Не получен IPC ack")), 5_000)
     process.once("message", message => {

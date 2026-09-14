@@ -4,10 +4,13 @@
 @packageDocumentation
 */
 import {resolve} from "node:path"
+import {mkdtemp, readFile, rm} from "node:fs/promises"
+import {tmpdir} from "node:os"
+import {applyReport} from "./report"
 import {discover} from "./discover"
 import type {ReadScenarioInput} from "../contract/input"
 import type {ReadScenarioOutput} from "../contract/output"
-import type {TraceCall} from "./types"
+import type {ScenarioAssertion, ScenarioGroup, ScenarioTest, TraceCall} from "./types"
 
 interface TraceCallMessage {
   readonly type: "storybook:trace-call"
@@ -51,29 +54,48 @@ export async function traceScenario(input: ReadScenarioInput): Promise<ReadScena
   delete env.BUN_INSPECT_NOTIFY
 
   const calls: TraceCall[] = []
+  let assertions: readonly ScenarioAssertion[] = []
+  let groups: readonly ScenarioGroup[] = []
+  let tests: readonly ScenarioTest[] = []
   let complete = false
-  const child = Bun.spawn({
-    cmd: [process.execPath, "test", "--preload", resolve(import.meta.dir, "trace-preload.ts"), path,
-      ...(input.testNamePattern === undefined ? [] : ["--test-name-pattern", input.testNamePattern])],
-    cwd: configuration.cwd,
-    env,
-    stdout: "pipe",
-    stderr: "pipe",
-    timeout: 30_000,
-    ipc(message, subprocess) {
-      if (isTraceCallMessage(message)) calls.push(message.call)
-      if (isTraceCompleteMessage(message)) {
-        complete = true
-        subprocess.send({type: "storybook:trace-ack"})
-      }
-    },
-  })
-  const [exitCode, stdout, stderr] = await Promise.all([
-    child.exited,
-    new Response(child.stdout).text(),
-    new Response(child.stderr).text(),
-  ])
-  if (!complete) throw new Error(`Не получен завершающий IPC report: ${stderr}`)
-  calls.sort((left, right) => left.id - right.id)
-  return {path, exitCode, stdout, stderr, calls}
+  const directory = await mkdtemp(resolve(tmpdir(), "scenario-report-"))
+  const reportPath = resolve(directory, "report.xml")
+  try {
+    const child = Bun.spawn({
+      cmd: [process.execPath, "test", "--reporter=junit", "--reporter-outfile", reportPath, "--preload", resolve(import.meta.dir, "trace-preload.ts"), path,
+        ...(input.testNamePattern === undefined ? [] : ["--test-name-pattern", input.testNamePattern])],
+      cwd: configuration.cwd,
+      env,
+      stdout: "pipe",
+      stderr: "pipe",
+      timeout: 30_000,
+      ipc(message, subprocess) {
+        if (isTraceCallMessage(message)) calls.push(message.call)
+        if (typeof message === "object" && message !== null
+          && Reflect.get(message, "type") === "storybook:assertions"
+          && Array.isArray(Reflect.get(message, "assertions"))) {
+          assertions = Reflect.get(message, "assertions")
+        }
+        if (typeof message === "object" && message !== null && Reflect.get(message, "type") === "storybook:records") {
+          groups = Reflect.get(message, "groups")
+          tests = Reflect.get(message, "tests")
+        }
+        if (isTraceCompleteMessage(message)) {
+          complete = true
+          subprocess.send({type: "storybook:trace-ack"})
+        }
+      },
+    })
+    const [exitCode, stdout, stderr] = await Promise.all([
+      child.exited,
+      new Response(child.stdout).text(),
+      new Response(child.stderr).text(),
+    ])
+    if (!complete) throw new Error(`Не получен завершающий IPC report: ${stderr}`)
+    const junit = await readFile(reportPath, "utf8").catch(error => { throw new Error(`Не прочитан JUnit: ${stderr}`, {cause: error}) })
+    calls.sort((left, right) => left.id - right.id)
+    return {path, exitCode, stdout, stderr, calls, assertions, groups, tests: applyReport(junit, groups, tests), junit}
+  } finally {
+    await rm(directory, {recursive: true, force: true})
+  }
 }

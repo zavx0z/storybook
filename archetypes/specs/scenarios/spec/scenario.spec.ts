@@ -6,10 +6,11 @@
 */
 import {describe, expect, test} from "bun:test"
 import {createFixture} from "../../../shared/fixtures"
+import {inspectScenarioSource} from "./fixture"
 
 const resolvePath = createFixture(process.env.SCENARIO_PATH)
 
-describe.todo.each([
+describe.each([
   {
     name: "Сценарий функции",
     props: {path: resolvePath("../../../package/spec/scenario.spec.ts")},
@@ -19,7 +20,8 @@ describe.todo.each([
     props: {path: resolvePath("../../../../../webxr-space/nodes/node/diagram/spec/scenario.spec.tsx")},
   },
 ])("$name", async ({name, props}) => {
-  const source = await Bun.file(props.path).text()
+  const result = await inspectScenarioSource(props.path)
+  const source = result.text
 
   describe("Проверяемый пример", () => {
     test("Исходный код", () => {
@@ -32,28 +34,28 @@ describe.todo.each([
 
 
   describe("Предмет сценария", () => {
-    test("Назначение", () => {
+    test.todo("Назначение", () => {
       expect(
         undefined,
         "Описываемая функция или компонент и задача, которую они решают",
       ).toBeDefined()
     })
 
-    test("Возможности", () => {
+    test.todo("Возможности", () => {
       expect(
         undefined,
         "Поддерживаемые способы использования и наблюдаемое поведение",
       ).toBeDefined()
     })
 
-    test("Условия применения", () => {
+    test.todo("Условия применения", () => {
       expect(
         undefined,
         "Условия, при которых описываемый способ использования применим",
       ).toBeDefined()
     })
 
-    test("Ограничения", () => {
+    test.todo("Ограничения", () => {
       expect(
         undefined,
         "Границы поддерживаемого поведения и недопустимые способы использования",
@@ -62,14 +64,14 @@ describe.todo.each([
   })
 
   describe("Варианты использования", () => {
-    test("Различия вариантов", () => {
+    test.todo("Различия вариантов", () => {
       expect(
         undefined,
         "Конкретные случаи, отличающиеся входными данными, условиями или ожидаемым поведением",
       ).toBeDefined()
     })
 
-    test("Входные данные", () => {
+    test.todo("Входные данные", () => {
       expect(
         undefined,
         "Значения, с которыми выполняется конкретный пример",
@@ -81,7 +83,7 @@ describe.todo.each([
       ).toBeDefined()
     })
 
-    test("Граничные случаи", () => {
+    test.todo("Граничные случаи", () => {
       expect(
         undefined,
         "Допустимые крайние, пустые и необязательные значения, существенные для использования",
@@ -90,21 +92,21 @@ describe.todo.each([
   })
 
   describe("Описываемый результат", () => {
-    test("Наблюдаемое поведение", () => {
+    test.todo("Наблюдаемое поведение", () => {
       expect(
         undefined,
         "Возвращённые данные, изменение состояния или другой наблюдаемый эффект",
       ).toBeDefined()
     })
 
-    test("Смысл данных", () => {
+    test.todo("Смысл данных", () => {
       expect(
         undefined,
         "Назначение полученных значений и связь с входными условиями",
       ).toBeDefined()
     })
 
-    test("Подтверждение", () => {
+    test.todo("Подтверждение", () => {
       expect(
         undefined,
         "Проверяемые условия, подтверждающие каждое описанное свойство поведения",
@@ -113,35 +115,35 @@ describe.todo.each([
   })
 
   describe("Последовательность описания", () => {
-    test("Общая картина", () => {
+    test.todo("Общая картина", () => {
       expect(
         undefined,
         "Назначение и возможности перед разбором отдельных свойств и деталей",
       ).toBeDefined()
     })
 
-    test("Связанные темы", () => {
+    test.todo("Связанные темы", () => {
       expect(
         undefined,
         "Смысловая принадлежность пунктов категориям и подкатегориям",
       ).toBeDefined()
     })
 
-    test("Глубина", () => {
+    test.todo("Глубина", () => {
       expect(
         undefined,
         "Детализация до уровня, необходимого для понимания использования и ограничений",
       ).toBeDefined()
     })
 
-    test("Достаточность примера", () => {
+    test.todo("Достаточность примера", () => {
       expect(
         undefined,
         "Связь входных условий, фактического результата и его проверок без обращения к внутренней реализации",
       ).toBeDefined()
     })
 
-    test("Согласованность", () => {
+    test.todo("Согласованность", () => {
       expect(
         undefined,
         "Названия, описания и условия проверок, выражающие одно и то же поведение",
@@ -150,14 +152,14 @@ describe.todo.each([
   })
 
   describe("Пояснения и утверждения", () => {
-    test("Целостность пункта", () => {
+    test.todo("Целостность пункта", () => {
       expect(
         undefined,
         "Одно самостоятельное свойство или поведение в одном test",
       ).toBeDefined()
     })
 
-    test("Несколько expect", () => {
+    test.todo("Несколько expect", () => {
       expect(
         undefined,
         "Связанные условия одного свойства с отдельными actual и customFailMessage",
@@ -169,7 +171,7 @@ describe.todo.each([
       ).toBeDefined()
     })
 
-    test("Независимые свойства", () => {
+    test.todo("Независимые свойства", () => {
       expect(
         undefined,
         "Отдельные test для свойств с независимыми результатами проверок",
@@ -178,12 +180,12 @@ describe.todo.each([
 
     test("Нативные средства", () => {
       expect(
-        undefined,
+        result.native,
         "Обычные describe, test, expect, matchers и hooks без дополнительного языка описания",
-      ).toBeDefined()
+      ).toEqual(expect.arrayContaining(["describe", "test", "expect"]))
     })
 
-    test("Дополнительный текст", () => {
+    test.todo("Дополнительный текст", () => {
       expect(
         undefined,
         "Краткое пояснение только той существенной мысли, которую не раскрывают примеры, проверки и их структура",
@@ -192,7 +194,7 @@ describe.todo.each([
   })
 
   describe("Размещение", () => {
-    test("Единый источник", () => {
+    test.todo("Единый источник", () => {
       expect(
         undefined,
         "Варианты и проверки в самом spec-файле, без повторного описания в сторонних декларациях",
@@ -201,26 +203,26 @@ describe.todo.each([
 
     test("Файл сценария", () => {
       expect(
-        undefined,
+        result.path,
         "spec/scenario.spec.ts или spec/scenario.spec.tsx рядом с непосредственным владельцем",
-      ).toBeDefined()
+      ).toMatch(/\/spec\/scenario\.spec\.tsx?$/u)
     })
 
-    test("Положительные случаи", () => {
+    test.todo("Положительные случаи", () => {
       expect(
         undefined,
         "Поддерживаемое поведение с ожидаемым успешным результатом",
       ).toBeDefined()
     })
 
-    test("Ошибки и отказы", () => {
+    test.todo("Ошибки и отказы", () => {
       expect(
         undefined,
         "Проверки ожидаемых ошибок в отдельных spec-файлах того же владельца, вне положительных сценариев",
       ).toBeDefined()
     })
 
-    test("Тесты реализации", () => {
+    test.todo("Тесты реализации", () => {
       expect(
         undefined,
         "Проверки внутренних механизмов в test, отдельно от руководства по использованию",
@@ -231,19 +233,19 @@ describe.todo.each([
   describe("Вариант", () => {
     test("Параметризация", () => {
       expect(
-        undefined,
+        result.unparameterized,
         `Именованные варианты, которые описывает ${name.toLowerCase()}, во внешнем describe.each`,
-      ).toBeDefined()
+      ).toEqual([])
     })
 
-    test("Входные данные", () => {
+    test.todo("Входные данные", () => {
       expect(
         undefined,
         `Данные, с которыми выполняется ${name.toLowerCase()}, в параметрах выбранного варианта`,
       ).toBeDefined()
     })
 
-    test("Общий результат", () => {
+    test.todo("Общий результат", () => {
       expect(
         undefined,
         "Один результат выполнения для всех пунктов выбранного варианта",
@@ -252,21 +254,21 @@ describe.todo.each([
   })
 
   describe("Категории", () => {
-    test("Группировка пунктов", () => {
+    test.todo("Группировка пунктов", () => {
       expect(
         undefined,
         "Связанные пункты одной темы во вложенном describe",
       ).toBeDefined()
     })
 
-    test("Вложенность", () => {
+    test.todo("Вложенность", () => {
       expect(
         undefined,
         "Категории с подкатегориями и пунктами по смыслу описываемых данных",
       ).toBeDefined()
     })
 
-    test("Параметризация категорий", () => {
+    test.todo("Параметризация категорий", () => {
       expect(
         undefined,
         "Обычный describe для категории; describe.each при наличии собственных вариантов",
@@ -277,19 +279,19 @@ describe.todo.each([
   describe("Пункт", () => {
     test("Объявления", () => {
       expect(
-        undefined,
+        result.hidden,
         "Явные describe и test по контракту; обход actual не генерирует проверки автоматически",
-      ).toBeDefined()
+      ).toEqual([])
     })
 
-    test("Массивы", () => {
+    test.todo("Массивы", () => {
       expect(
         undefined,
         "Порядок элементов и состав массива, включая пустой массив",
       ).toBeDefined()
     })
 
-    test("Простые значения", () => {
+    test.todo("Простые значения", () => {
       expect(
         undefined,
         "Отдельные проверки значений строк, чисел и других примитивов без выдуманных ключей объекта",
@@ -297,14 +299,14 @@ describe.todo.each([
     })
 
     describe("label", () => {
-      test("Название данных", () => {
+      test.todo("Название данных", () => {
         expect(
           undefined,
           "Короткое предметное название пункта сценария",
         ).toBeDefined()
       })
 
-      test("Содержание названия", () => {
+      test.todo("Содержание названия", () => {
         expect(
           undefined,
           "Предмет пункта без пересказа механизма проверки и перечисления его полей",
@@ -313,21 +315,21 @@ describe.todo.each([
     })
 
     describe("customFailMessage", () => {
-      test("Описание назначения", () => {
+      test.todo("Описание назначения", () => {
         expect(
           undefined,
           "Предметное описание назначения данных при чтении сценария и при ошибке проверки",
         ).toBeDefined()
       })
 
-      test("Описательная форма", () => {
+      test.todo("Описательная форма", () => {
         expect(
           undefined,
           "Конкретное описание без повторения matcher и оборотов «должно», «нужен для», «позволяет»",
         ).toBeDefined()
       })
 
-      test("Контекст варианта", () => {
+      test.todo("Контекст варианта", () => {
         expect(
           undefined,
           "Название варианта в контексте предложения, без отдельного префикса с двоеточием и дублирующих параметров",
@@ -336,21 +338,21 @@ describe.todo.each([
 
       test("Размещение", () => {
         expect(
-          undefined,
+          result.assertions.filter(assertion => !assertion.inline).map(assertion => assertion.message),
           "customFailMessage непосредственно во втором аргументе expect",
-        ).toBeDefined()
+        ).toEqual([])
       })
     })
 
     describe("actual", () => {
-      test("Фактические данные", () => {
+      test.todo("Фактические данные", () => {
         expect(
           undefined,
           "Полученные данные из общего результата выбранного варианта",
         ).toBeDefined()
       })
 
-      test("Вложенные данные", () => {
+      test.todo("Вложенные данные", () => {
         expect(
           undefined,
           "Части результата в явно описанных категориях и пунктах",
@@ -358,21 +360,21 @@ describe.todo.each([
       })
     })
 
-    test("Условие проверки", () => {
+    test.todo("Условие проверки", () => {
       expect(
         undefined,
         "Требование к данным из контракта, независимо от фактического состава actual",
       ).toBeDefined()
     })
 
-    test("Параметризация проверок", () => {
+    test.todo("Параметризация проверок", () => {
       expect(
         undefined,
         "test.each для повторения одной проверки с разными данными",
       ).toBeDefined()
     })
 
-    test("Состав данных", () => {
+    test.todo("Состав данных", () => {
       expect(
         undefined,
         "Полный ожидаемый состав объекта через toEqual; фактические ключи actual не задают ожидаемый контракт",
@@ -381,7 +383,7 @@ describe.todo.each([
   })
 
   describe("Исполнение", () => {
-    test("Импорт", () => {
+    test.todo("Импорт", () => {
       expect(
         undefined,
         "Проверяемая функция или компонент импортируется напрямую из публичного входа владельца",
@@ -390,40 +392,40 @@ describe.todo.each([
 
     test("Наблюдение вызовов", () => {
       expect(
-        undefined,
+        result.native.filter(name => ["mock", "spyOn"].includes(name)),
         "Прямые вызовы без ручных mock и spyOn ради получения истории выполнения",
-      ).toBeDefined()
+      ).toEqual([])
     })
 
-    test("Ресурсы отдельного теста", () => {
+    test.todo("Ресурсы отдельного теста", () => {
       expect(
         undefined,
         "Подготовка и освобождение ресурсов отдельного теста сохраняются в его hooks и не заменяются общим изменяемым состоянием",
       ).toBeDefined()
     })
 
-    test("Прямой вызов", () => {
+    test.todo("Прямой вызов", () => {
       expect(
         undefined,
         "Вызов проверяемой функции в describe перед тестами, без декларации runtime",
       ).toBeDefined()
     })
 
-    test("Асинхронное выполнение", () => {
+    test.todo("Асинхронное выполнение", () => {
       expect(
         undefined,
         "Получение результата через await в async callback варианта",
       ).toBeDefined()
     })
 
-    test("Общая подготовка", () => {
+    test.todo("Общая подготовка", () => {
       expect(
         undefined,
         "Общие неизменяемые данные на уровне модуля; результат конкретного варианта внутри его describe",
       ).toBeDefined()
     })
 
-    test("Жизненный цикл", () => {
+    test.todo("Жизненный цикл", () => {
       expect(
         undefined,
         "Создание и освобождение ресурсов через штатные хуки Bun Test",
@@ -432,21 +434,21 @@ describe.todo.each([
   })
 
   describe("Фикстуры и пути", () => {
-    test("Подготовка данных", () => {
+    test.todo("Подготовка данных", () => {
       expect(
         undefined,
         "Фикстура подготавливает данные; объявления describe, test и expect остаются в сценарии",
       ).toBeDefined()
     })
 
-    test("Внешний путь", () => {
+    test.todo("Внешний путь", () => {
       expect(
         undefined,
         "Переменная окружения явно передаётся помощнику в файле проверки",
       ).toBeDefined()
     })
 
-    test("Путь по умолчанию", () => {
+    test.todo("Путь по умолчанию", () => {
       expect(
         undefined,
         "Явный путь примера при отсутствии внешнего пути, относительно вызывающего файла",
@@ -455,7 +457,7 @@ describe.todo.each([
   })
 
   describe("Неприменимые и незавершённые проверки", () => {
-    test("Условный пропуск", () => {
+    test.todo("Условный пропуск", () => {
       expect(
         undefined,
         "skipIf для проверки, неприменимой к выбранному варианту",
@@ -464,16 +466,16 @@ describe.todo.each([
 
     test("Причина пропуска", () => {
       expect(
-        undefined,
+        result.undocumentedSkips,
         "TSDoc с @remarks перед условно или постоянно пропускаемым тестом или группой: условие и причина",
-      ).toBeDefined()
+      ).toEqual([])
     })
 
     test("Незавершённая проверка", () => {
       expect(
-        undefined,
+        result.tests.filter(test => !test.todo && test.assertions === 0).map(test => test.label),
         "todo обозначает незавершённость без дублирующего комментария; пустое тело обычного test не заменяет проверку",
-      ).toBeDefined()
+      ).toEqual([])
     })
   })
 })

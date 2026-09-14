@@ -60,7 +60,11 @@ describe.each([
       label: `${call.id}: ${call.name} — ${"value" in call.outcome ? "значение" : "ошибка"}`,
       root: "value" in call.outcome ? call.outcome.value : call.outcome.error,
     },
-  ]).map(snapshot => ({...snapshot, ...inspectSnapshot(snapshot.root)}))
+  ]).concat(result.assertions.flatMap(assertion => [
+    {label: `expect ${assertion.id} — actual`, root: assertion.actual},
+    {label: `expect ${assertion.id} — expected`, root: assertion.expected},
+    {label: `expect ${assertion.id} — ошибка`, root: assertion.error},
+  ])).map(snapshot => ({...snapshot, ...inspectSnapshot(snapshot.root)}))
 
   test("Ключи результата", () => {
     expect(result, "Состав данных о выполнении сценария").toEqual({
@@ -69,6 +73,10 @@ describe.each([
       stdout: expect.any(String),
       stderr: expect.any(String),
       calls: expect.any(Array),
+      assertions: expect.any(Array),
+      groups: expect.any(Array),
+      tests: expect.any(Array),
+      junit: expect.any(String),
     })
   })
 
@@ -78,6 +86,61 @@ describe.each([
 
   test("Код завершения", () => {
     expect(result.exitCode, "Итог запуска Bun Test: ноль при успешном завершении").toBe(0)
+  })
+
+  describe("Группы", () => {
+    describe.each(result.groups.map(group => ({label: `${group.id}: ${group.label}`, group})))("$label", ({group}) => {
+      test("Ключи", () => {
+        expect(group, "Состав группы и её положения в сценарии").toEqual({
+          id: expect.any(Number), parentId: group.parentId === null ? null : expect.any(Number),
+          label: expect.any(String), parameters: group.parameters === null ? null : expect.anything(),
+          location: {path: expect.any(String), line: expect.any(Number), column: expect.any(Number)},
+          mode: expect.stringMatching(/^(run|skip|todo)$/),
+          skipReason: group.skipReason === null ? null : expect.any(String),
+        })
+      })
+      test("Принадлежность", () => {
+        expect(group.parentId, "Родительская группа либо корень сценария").toBeOneOf([null, ...result.groups.filter(parent => parent.id < group.id).map(parent => parent.id)])
+      })
+    })
+  })
+
+  describe("Пункты", () => {
+    describe.each(result.tests.map(item => ({label: `${item.id}: ${item.label}`, item})))("$label", ({item}) => {
+      test("Ключи", () => {
+        expect(item, "Состав пункта и штатный результат проверки").toEqual({
+          id: expect.any(Number), groupId: item.groupId === null ? null : expect.any(Number), label: expect.any(String),
+          location: {path: expect.any(String), line: expect.any(Number), column: expect.any(Number)},
+          mode: expect.stringMatching(/^(run|skip|todo)$/), status: expect.stringMatching(/^(passed|failed|skipped|todo|not-executed|error)$/),
+          message: item.message === null ? null : expect.any(String), skipReason: item.skipReason === null ? null : expect.any(String),
+          assertions: item.assertions.map(assertion => ({site: expect.any(String), source: expect.any(String), customFailMessage: assertion.customFailMessage === null ? null : expect.any(String), location: {path: expect.any(String), line: expect.any(Number), column: expect.any(Number)}})),
+        })
+      })
+      test("Принадлежность", () => {
+        expect(item.groupId, "Группа пункта без подмены совпадающим названием").toBeOneOf([null, ...result.groups.map(group => group.id)])
+      })
+    })
+  })
+
+  describe("Утверждения", () => {
+    describe.each(result.assertions.map(assertion => ({label: `${assertion.id}: ${assertion.customFailMessage}`, assertion})))("$label", ({assertion}) => {
+      test("Ключи", () => {
+        expect(assertion, "Состав достигнутого утверждения и результата matcher").toEqual({
+          id: expect.any(Number), site: expect.any(String), describe: expect.any(Array), test: assertion.test === null ? null : expect.any(String),
+          testId: assertion.testId === null ? null : expect.any(Number), customFailMessage: assertion.customFailMessage === null ? null : expect.any(String),
+          actual: assertion.actual === null ? null : expect.anything(), matcher: expect.any(String), modifiers: expect.any(Array), expected: expect.any(Array),
+          status: expect.stringMatching(/^(passed|failed)$/), error: assertion.error === null ? null : expect.anything(),
+          location: {path: expect.any(String), line: expect.any(Number), column: expect.any(Number)},
+        })
+      })
+      test("Принадлежность", () => {
+        expect(assertion.testId, "Пункт, в котором выполнено утверждение").toBeOneOf([null, ...result.tests.map(test => test.id)])
+      })
+    })
+  })
+
+  test("Штатный отчёт", () => {
+    expect(result.junit, "Исходные сведения Bun о выполнении пунктов").toContain("<testsuites")
   })
 
   describe("Стандартный вывод", () => {
@@ -95,7 +158,7 @@ describe.each([
 
   describe("Диагностический вывод", () => {
     test("Содержимое", () => {
-      expect(result.stderr, "Итоги проверок и причины ошибок сценария").toMatch(/\d+ pass\s+0 fail/)
+      expect(result.stderr, "Итоги проверок и причины ошибок сценария").toMatch(/\d+ pass[\s\S]*\n\s*0 fail/)
     })
 
     test("Успешные проверки", () => {
@@ -368,7 +431,7 @@ describe.each([
             test("Вид", () => {
               expect(type, "Виды значений, которым требуется служебное представление").toBeOneOf([
                 "undefined", "bigint", "symbol", "function", "error", "date",
-                "accessor", "promise", "unreadable", "unsupported",
+                "accessor", "promise", "unreadable", "unsupported", "matcher",
               ])
             })
 
@@ -390,6 +453,7 @@ describe.each([
                   : {$type: "promise", status: "rejected", error: value.error === null ? null : expect.anything()},
                 unreadable: {$type: "unreadable", error: value.error === null ? null : expect.anything()},
                 unsupported: {$type: "unsupported", value: expect.any(String)},
+                matcher: {$type: "matcher", name: expect.any(String), modifiers: expect.any(Array), args: expect.any(Array)},
               }
 
               expect(value, "Полный состав служебной записи выбранного вида").toEqual(formats[type]!)
