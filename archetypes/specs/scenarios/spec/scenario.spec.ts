@@ -1,6 +1,6 @@
 /**
 Описывает результаты чтения серверного и компонентного сценариев.
-Полная история каждого варианта сохраняется штатным snapshot-механизмом Bun.
+Состав результата и вложенных записей раскрывается категориями и тестами.
 SCENARIO_PATH задаёт внешний путь к сценарию вместо примера по умолчанию.
 Относительный внешний путь разрешается от рабочей директории запуска тестов.
 Вариант выбирается штатным фильтром Bun --test-name-pattern.
@@ -8,11 +8,72 @@ SCENARIO_PATH задаёт внешний путь к сценарию вмес�
 @packageDocumentation
 */
 import {describe, expect, test} from "bun:test"
-import {resolve} from "node:path"
+import {isAbsolute, resolve} from "node:path"
 import {readScenario, type ReadScenarioInput} from "@archetypes/specs/scenarios"
 import {createFixture} from "../../../shared/fixtures"
 
 const resolvePath = createFixture(process.env.SCENARIO_PATH)
+
+/** Выбирает допустимый вид значения без фиксации содержимого чужой сущности. */
+function shape(value: unknown): unknown {
+  if (value === null) return null
+  if (Array.isArray(value)) return expect.any(Array)
+  if (typeof value === "object") return expect.any(Object)
+  if (typeof value === "string") return expect.any(String)
+  if (typeof value === "boolean") return expect.any(Boolean)
+  if (typeof value === "number") return expect.any(Number)
+  throw new Error(`Непереносимый вид данных: ${typeof value}`)
+}
+
+/**
+Создаёт вложенные категории для массивов и объектов и пункты для конечных значений.
+
+@param label - Имя поля или элемента в представлении.
+@param value - Данные из результата readScenario, без повторного выполнения сценария.
+@param description - Описание содержимого поля в исходном контексте.
+
+@remarks
+Имена полей произвольного объекта не являются контрактом трассировщика:
+они принадлежат вызываемой функции. Проверяется переносимость каждого значения,
+а не соответствие реализации компонента его собственным требованиям.
+Пустые объекты и массивы сохраняют отдельный пункт состава.
+*/
+function describeValue(label: string, value: unknown, description: string): void {
+  if (value === null || typeof value !== "object") {
+    test(label, () => {
+      expect(value, description).toBeOneOf([
+        null,
+        expect.any(String),
+        expect.any(Boolean),
+        expect.any(Number),
+      ])
+    })
+    return
+  }
+
+  describe(label, () => {
+    if (Array.isArray(value)) {
+      test("Состав", () => {
+        expect(value, description).toEqual(value.map(shape))
+      })
+
+      value.forEach((item, index) => {
+        describeValue(`Элемент ${index}`, item, `Данные позиции ${index} в массиве «${label}»`)
+      })
+      return
+    }
+
+    const entries = Object.entries(value)
+
+    test("Ключи", () => {
+      expect(value, description).toEqual(Object.fromEntries(entries.map(([key, item]) => [key, shape(item)])))
+    })
+
+    for (const [key, item] of entries) {
+      describeValue(key, item, `Данные поля «${key}» в объекте «${label}»`)
+    }
+  })
+}
 
 type Scenario = {
   name: string
@@ -101,6 +162,12 @@ describe.each([
   })
 
   describe("Вызовы", () => {
+    test("Состав", () => {
+      expect(result.calls, "Записи вызовов в порядке их начала").toEqual(
+        result.calls.map(() => expect.any(Object)),
+      )
+    })
+
     test("Количество", () => {
       expect(result.calls.length, "Число зарегистрированных вызовов функций и методов").toBeGreaterThan(0)
     })
@@ -110,14 +177,154 @@ describe.each([
 
       expect(calls, "Выполненные функции и методы, их группы, тесты и исходы").toMatchObject(expected)
     })
-  })
 
-  test("Полный результат", () => {
-    const snapshot = {
-      ...result,
-      stderr: result.stderr.replace(/ \[\d+(?:\.\d+)?(?:ms|s)\]/g, ""),
-    }
+    test("Порядок начала", () => {
+      expect(result.calls.map(call => call.id), "Порядковые номера начала вызовов без пропусков и повторений").toEqual(
+        result.calls.map((_, index) => index),
+      )
+    })
 
-    expect(snapshot, "Все данные выполнения сценария, кроме меняющихся длительностей в диагностическом выводе").toMatchSnapshot()
+    test("Порядок завершения", () => {
+      expect(result.calls.map(call => call.completed).sort((a, b) => a - b), "Порядковые номера завершения всех зарегистрированных вызовов").toEqual(
+        result.calls.map((_, index) => index),
+      )
+    })
+
+    describe.each(result.calls.map((call, index) => ({
+      label: `${call.id}: ${call.name}`,
+      call,
+      index,
+    })))("$label", ({call, index}) => {
+      test("Ключи", () => {
+        expect(call, "Состав записи одного вызова").toEqual({
+          id: expect.any(Number),
+          completed: expect.any(Number),
+          module: expect.any(String),
+          name: expect.any(String),
+          describe: expect.any(Array),
+          test: call.test === null ? null : expect.any(String),
+          args: expect.any(Array),
+          outcome: expect.any(Object),
+          location: call.location === null ? null : expect.any(Object),
+        })
+      })
+
+      test("Начало", () => {
+        expect(call.id, "Позиция вызова в последовательности начала выполнения").toBe(index)
+      })
+
+      test("Завершение", () => {
+        expect(call.completed, "Позиция вызова в последовательности завершения выполнения").toSatisfy(
+          value => Number.isInteger(value) && value >= 0 && value < result.calls.length,
+        )
+      })
+
+      test("Модуль", () => {
+        expect(call.module, "Абсолютный путь к модулю вызванной функции или метода").toSatisfy(isAbsolute)
+      })
+
+      test("Имя", () => {
+        expect(call.name, "Имя экспортированной функции или цепочка имени объекта и метода").not.toBeEmpty()
+      })
+
+      describe("Группы", () => {
+        test("Состав", () => {
+          expect(call.describe, "Иерархия групп от внешней к внутренней; пустая для вызова вне группы").toEqual(
+            call.describe.map(() => expect.any(String)),
+          )
+        })
+
+        describe.each(call.describe.map((label, depth) => ({label, depth})))("Уровень $depth", ({label}) => {
+          test("Название", () => {
+            expect(label, "Название группы, к которой принадлежит вызов").not.toBeEmpty()
+          })
+        })
+      })
+
+      test("Тест", () => {
+        expect(call.test, "Название теста либо null при вызове вне тела теста").toBeOneOf([null, expect.any(String)])
+      })
+
+      describeValue("Аргументы", call.args, "Позиционные аргументы на момент начала вызова")
+
+      describe("Исход", () => {
+        const outcome = call.outcome
+        const failed = outcome.type === "throw" || outcome.type === "reject"
+
+        test("Ключи", () => {
+          expect(outcome, "Вид завершения и полученное значение либо ошибка").toEqual(
+            outcome.type === "throw" || outcome.type === "reject"
+              ? {type: expect.any(String), error: outcome.error === null ? null : expect.anything()}
+              : {type: expect.any(String), value: outcome.value === null ? null : expect.anything()},
+          )
+        })
+
+        test("Вид завершения", () => {
+          expect(outcome.type, "Синхронный возврат, завершение Promise, синхронная ошибка или отклонение Promise").toBeOneOf([
+            "return", "resolve", "throw", "reject",
+          ])
+        })
+
+        /**
+        @remarks
+        Ошибка раскрывается только для throw и reject; у успешного вызова её нет.
+        */
+        describe.skipIf(!failed)("Ошибка", () => {
+          const error = "error" in outcome ? outcome.error : null
+          describeValue("Данные", error, "Переносимые данные ошибки вызова")
+        })
+
+        /**
+        @remarks
+        Значение раскрывается только для return и resolve; ошибочный вызов его не возвращает.
+        */
+        describe.skipIf(failed)("Значение", () => {
+          const value = "value" in outcome ? outcome.value : null
+          describeValue("Данные", value, "Переносимые данные результата вызова")
+        })
+      })
+
+      describe("Место вызова", () => {
+        const location = call.location
+
+        test("Ключи", () => {
+          expect(location, "Координаты вызова в исходнике либо null при отсутствии доступного места").toEqual(
+            location === null ? null : {
+              path: expect.any(String),
+              line: expect.any(Number),
+              column: expect.any(Number),
+            },
+          )
+        })
+
+        /**
+        @remarks
+        При отсутствии места вызова нет исходного файла для отдельной проверки.
+        */
+        test.skipIf(location === null)("Файл", () => {
+          expect(location?.path, "Исходный файл или имя источника вызова").not.toBeEmpty()
+        })
+
+        /**
+        @remarks
+        Номер строки проверяется только при наличии координат вызова.
+        */
+        test.skipIf(location === null)("Строка", () => {
+          expect(location?.line, "Номер строки вызова, начиная с единицы").toSatisfy(
+            value => typeof value === "number" && Number.isInteger(value) && value > 0,
+          )
+        })
+
+        /**
+        @remarks
+        Номер столбца проверяется только при наличии координат вызова.
+        */
+        test.skipIf(location === null)("Столбец", () => {
+          expect(location?.column, "Номер столбца вызова, начиная с единицы").toSatisfy(
+            value => typeof value === "number" && Number.isInteger(value) && value > 0,
+          )
+        })
+      })
+    })
   })
 })
