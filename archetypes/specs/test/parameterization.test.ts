@@ -7,6 +7,10 @@ test("учитывает только внешний describe без each", asyn
   expect(await findUnparameterizedDescribes(resolve(import.meta.dir, "fixture/nested-describe.ts"))).toEqual(["describe"])
 })
 
-test("принимает явные категории сценария трассировки", async () => {
+test("принимает явные категории теста readScenario", async () => {
+  expect(await findUnparameterizedDescribes(resolve(import.meta.dir, "../scenarios/test/read-scenario.test.ts"))).toEqual([])
+})
+
+test("принимает каркас сценариев функций и компонентов", async () => {
   expect(await findUnparameterizedDescribes(resolve(import.meta.dir, "../scenarios/spec/scenario.spec.ts"))).toEqual([])
 })

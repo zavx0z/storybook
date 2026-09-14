@@ -11,11 +11,11 @@ import {fileURLToPath} from "node:url"
 
 @param inputPath - Явно переданный внешний путь; undefined включает локальные фикстуры.
 @returns Функция, принимающая fixturePath и возвращающая абсолютный выбранный путь.
-Относительный fixturePath разрешается от директории ближайшего файла .spec.ts
-или .spec.tsx в стеке вызова; абсолютный сохраняется. Директория fixture не добавляется.
+Относительный fixturePath разрешается от директории ближайшего файла .spec.ts(x)
+или .test.ts(x) в стеке вызова; абсолютный сохраняется. Директория fixture не добавляется.
 Внешний inputPath разрешается от cwd при инициализации.
 Переменные окружения здесь не читаются; внешний путь не требует поиска в стеке.
-@throws Если при отсутствии внешнего пути файл спецификации не найден в стеке.
+@throws Если при отсутствии внешнего пути файл проверки не найден в стеке.
 */
 export function createFixture(
   inputPath: string | undefined,
@@ -26,12 +26,12 @@ export function createFixture(
   }
 
   for (const line of new Error().stack?.split("\n").slice(1) ?? []) {
-    const match = line.match(/(?:\(|at )((?:file:\/\/)?[^()]+\.spec\.tsx?):\d+:\d+\)?$/)
+    const match = line.match(/(?:\(|at )((?:file:\/\/)?[^()]+\.(?:spec|test)\.tsx?):\d+:\d+\)?$/)
     if (!match?.[1]) continue
     const path = match[1].startsWith("file://") ? fileURLToPath(match[1]) : match[1]
     if (!isAbsolute(path)) continue
     const root = dirname(path)
     return (fixturePath: string) => resolve(root, fixturePath)
   }
-  throw new Error("Не удалось определить файл спецификации для относительного пути")
+  throw new Error("Не удалось определить файл проверки для относительного пути")
 }

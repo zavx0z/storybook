@@ -5,7 +5,7 @@
 @packageDocumentation
 */
 import {describe, expect, test} from "bun:test"
-import {inspectSnapshot} from "../spec/fixture"
+import {inspectSnapshot} from "./fixture/snapshot"
 
 test("ссылка на корень и ссылочные ключи с пунктуацией", () => {
   const result = inspectSnapshot({

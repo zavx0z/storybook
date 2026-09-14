@@ -21,7 +21,7 @@ interface Marker {
 
 @param root - Корень одного снимка args, outcome.value либо outcome.error.
 @returns Метки, экранированные объекты, сведения о разрешении ссылок и непереносимые значения.
-Ожидаемые формы меток задаются в самом сценарии независимо от этих данных.
+Ожидаемые формы меток задаются в тесте readScenario независимо от этих данных.
 */
 export function inspectSnapshot(root: unknown) {
   const markers: Marker[] = []

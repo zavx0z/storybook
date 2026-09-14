@@ -1,441 +1,479 @@
 /**
-Описывает результаты чтения серверного, компонентного и связанного набора данных.
-Состав результата и вложенных записей раскрывается категориями и тестами.
-SCENARIO_PATH задаёт внешний путь к сценарию вместо примера по умолчанию.
-Относительный внешний путь разрешается от рабочей директории запуска тестов.
-Вариант выбирается штатным фильтром Bun --test-name-pattern.
+Руководство по содержанию и написанию сценариев функций и компонентов.
+Исходники примеров читаются как данные, без выполнения описанного в них кода.
 
 @packageDocumentation
 */
 import {describe, expect, test} from "bun:test"
-import {isAbsolute, resolve} from "node:path"
-import {readScenario, type ReadScenarioInput} from "@archetypes/specs/scenarios"
 import {createFixture} from "../../../shared/fixtures"
-import {inspectSnapshot} from "./fixture"
 
 const resolvePath = createFixture(process.env.SCENARIO_PATH)
 
-type Scenario = {
-  name: string
-  props: ReadScenarioInput
-  expected: {name: string, describe: string[], test: string | null, outcome: {type: string}}[]
-}
-
-describe.each([
+describe.todo.each([
   {
-    name: "Трассировка серверной функции",
-    props: {
-      path: resolvePath("../../../package/spec/scenario.spec.ts"),
-    },
-    expected: ["Корневой пакет", "Вложенный пакет"].map(name => ({
-      name: "readPackage", describe: [name], test: null, outcome: {type: "resolve"},
-    })),
+    name: "Сценарий функции",
+    props: {path: resolvePath("../../../package/spec/scenario.spec.ts")},
   },
   {
-    name: "Трассировка компонента",
-    props: {
-      path: resolvePath("../../../../../webxr-space/nodes/node/diagram/spec/scenario.spec.tsx"),
-    },
-    expected: [
-      ...["Прямоугольник", "Овал", "Круг"].flatMap(name => [
-        {name: "createHeadless", describe: [name], test: null, outcome: {type: "return"}},
-        {name: "createHeadless.render", describe: [name], test: null, outcome: {type: "resolve"}},
-      ]),
-      ...["Прямоугольник", "Овал", "Круг"].map(name => ({
-        name: "createHeadless.screenshot", describe: [name],
-        test: "снимок соответствует собственным границам", outcome: {type: "resolve"},
-      })),
-    ],
+    name: "Сценарий компонента",
+    props: {path: resolvePath("../../../../../webxr-space/nodes/node/diagram/spec/scenario.spec.tsx")},
   },
-  {
-    name: "Трассировка связанных данных",
-    props: {path: resolvePath("../test/fixture/value-scenario.test.ts")},
-    expected: [{name: "mixedValue", describe: ["Значения"], test: null, outcome: {type: "return"}}],
-  },
-] satisfies Scenario[])("$name", async ({props, expected}) => {
-  const result = await readScenario(props)
-  const snapshots = result.calls.flatMap(call => [
-    {label: `${call.id}: ${call.name} — аргументы`, root: call.args},
-    {
-      label: `${call.id}: ${call.name} — ${"value" in call.outcome ? "значение" : "ошибка"}`,
-      root: "value" in call.outcome ? call.outcome.value : call.outcome.error,
-    },
-  ]).map(snapshot => ({...snapshot, ...inspectSnapshot(snapshot.root)}))
+])("$name", async ({name, props}) => {
+  const source = await Bun.file(props.path).text()
 
-  test("Ключи результата", () => {
-    expect(result, "Состав данных о выполнении сценария").toEqual({
-      path: expect.any(String),
-      exitCode: expect.any(Number),
-      stdout: expect.any(String),
-      stderr: expect.any(String),
-      calls: expect.any(Array),
-    })
-  })
-
-  test("Путь сценария", () => {
-    expect(result.path, "Файл сценария, которому принадлежит результат выполнения").toBe(resolve(props.path))
-  })
-
-  test("Код завершения", () => {
-    expect(result.exitCode, "Итог запуска Bun Test: ноль при успешном завершении").toBe(0)
-  })
-
-  describe("Стандартный вывод", () => {
-    test("Содержимое", () => {
-      expect(result.stdout, "Сообщения Bun Test во время выполнения сценария").toContain("bun test")
-    })
-
-    test("Версия Bun", () => {
+  describe("Проверяемый пример", () => {
+    test("Исходный код", () => {
       expect(
-        result.stdout.match(/^bun test v([^\s]+)/m)?.[1],
-        "Версия среды, в которой выполнен сценарий",
-      ).toMatch(/^\d+\.\d+\.\d+/)
+        source,
+        "Реальный исходник для разбора правил написания сценариев",
+      ).toBeString()
     })
   })
 
-  describe("Диагностический вывод", () => {
-    test("Содержимое", () => {
-      expect(result.stderr, "Итоги проверок и причины ошибок сценария").toMatch(/\d+ pass\s+0 fail/)
-    })
 
-    test("Успешные проверки", () => {
+  describe("Предмет сценария", () => {
+    test("Назначение", () => {
       expect(
-        result.stderr.split("\n").filter(line => line.startsWith("(pass) ")),
-        "Проверки, подтвердившие поведение сценария",
-      ).not.toHaveLength(0)
+        undefined,
+        "Описываемая функция или компонент и задача, которую они решают",
+      ).toBeDefined()
     })
 
-    test("Количество ошибок", () => {
+    test("Возможности", () => {
       expect(
-        Number(result.stderr.match(/^\s*(\d+) fail\s*$/m)?.[1]),
-        "Число проверок с неподтверждённым ожидаемым результатом",
-      ).toBe(0)
+        undefined,
+        "Поддерживаемые способы использования и наблюдаемое поведение",
+      ).toBeDefined()
+    })
+
+    test("Условия применения", () => {
+      expect(
+        undefined,
+        "Условия, при которых описываемый способ использования применим",
+      ).toBeDefined()
+    })
+
+    test("Ограничения", () => {
+      expect(
+        undefined,
+        "Границы поддерживаемого поведения и недопустимые способы использования",
+      ).toBeDefined()
     })
   })
 
-  describe("Вызовы", () => {
-    test("Состав", () => {
-      expect(result.calls, "Записи вызовов в порядке их начала").toEqual(
-        result.calls.map(() => expect.any(Object)),
-      )
+  describe("Варианты использования", () => {
+    test("Различия вариантов", () => {
+      expect(
+        undefined,
+        "Конкретные случаи, отличающиеся входными данными, условиями или ожидаемым поведением",
+      ).toBeDefined()
     })
 
-    test("Количество", () => {
-      expect(result.calls.length, "Число зарегистрированных вызовов функций и методов").toBeGreaterThan(0)
+    test("Входные данные", () => {
+      expect(
+        undefined,
+        "Значения, с которыми выполняется конкретный пример",
+      ).toBeDefined()
+
+      expect(
+        undefined,
+        "Смысл входных величин, их единицы и допустимые диапазоны",
+      ).toBeDefined()
     })
 
-    /**
-    @remarks
-    Имена вызовов относятся к примерам по умолчанию. Для внешнего SCENARIO_PATH
-    этот пример не применяется; общий контракт результата проверяется полностью.
-    */
-    test.skipIf(process.env.SCENARIO_PATH !== undefined)("Группы и результаты", () => {
-      const calls = result.calls.filter(call => expected.some(item => item.name === call.name))
-
-      expect(calls, "Выполненные функции и методы, их группы, тесты и исходы").toMatchObject(expected)
-    })
-
-    test("Порядок начала", () => {
-      expect(result.calls.map(call => call.id), "Порядковые номера начала вызовов без пропусков и повторений").toEqual(
-        result.calls.map((_, index) => index),
-      )
-    })
-
-    test("Порядок завершения", () => {
-      expect(result.calls.map(call => call.completed).sort((a, b) => a - b), "Порядковые номера завершения всех зарегистрированных вызовов").toEqual(
-        result.calls.map((_, index) => index),
-      )
-    })
-
-    describe.each(result.calls.map((call, index) => ({
-      label: `${call.id}: ${call.name}`,
-      call,
-      index,
-    })))("$label", ({call, index}) => {
-      test("Ключи", () => {
-        expect(call, "Состав записи одного вызова").toEqual({
-          id: expect.any(Number),
-          completed: expect.any(Number),
-          module: expect.any(String),
-          name: expect.any(String),
-          describe: expect.any(Array),
-          test: call.test === null ? null : expect.any(String),
-          args: expect.any(Array),
-          outcome: expect.any(Object),
-          location: call.location === null ? null : expect.any(Object),
-        })
-      })
-
-      test("Начало", () => {
-        expect(call.id, "Позиция вызова в последовательности начала выполнения").toBe(index)
-      })
-
-      test("Завершение", () => {
-        expect(call.completed, "Позиция вызова в последовательности завершения выполнения").toSatisfy(
-          value => Number.isInteger(value) && value >= 0 && value < result.calls.length,
-        )
-      })
-
-      test("Модуль", () => {
-        expect(call.module, "Абсолютный путь к модулю вызванной функции или метода").toSatisfy(isAbsolute)
-      })
-
-      test("Имя", () => {
-        expect(call.name, "Имя экспортированной функции или цепочка имени объекта и метода").not.toBeEmpty()
-      })
-
-      describe("Группы", () => {
-        test("Состав", () => {
-          expect(call.describe, "Иерархия групп от внешней к внутренней; пустая для вызова вне группы").toEqual(
-            call.describe.map(() => expect.any(String)),
-          )
-        })
-
-        describe.each(call.describe.map((label, depth) => ({label, depth})))("Уровень $depth", ({label}) => {
-          test("Название", () => {
-            expect(label, "Название группы, к которой принадлежит вызов").not.toBeEmpty()
-          })
-        })
-      })
-
-      test("Тест", () => {
-        expect(call.test, "Название теста либо null при вызове вне тела теста").toBeOneOf([null, expect.any(String)])
-      })
-
-      test("Аргументы", () => {
-        expect(call.args, "Позиционные аргументы на момент начала вызова").toBeArray()
-      })
-
-      describe("Исход", () => {
-        const outcome = call.outcome
-        const failed = outcome.type === "throw" || outcome.type === "reject"
-
-        test("Ключи", () => {
-          expect(outcome, "Вид завершения и полученное значение либо ошибка").toEqual(
-            outcome.type === "throw" || outcome.type === "reject"
-              ? {type: expect.any(String), error: outcome.error === null ? null : expect.anything()}
-              : {type: expect.any(String), value: outcome.value === null ? null : expect.anything()},
-          )
-        })
-
-        test("Вид завершения", () => {
-          expect(outcome.type, "Синхронный возврат, завершение Promise, синхронная ошибка или отклонение Promise").toBeOneOf([
-            "return", "resolve", "throw", "reject",
-          ])
-        })
-
-        /**
-        @remarks
-        Ошибка раскрывается только для throw и reject; у успешного вызова её нет.
-        */
-        describe.skipIf(!failed)("Ошибка", () => {
-          const error = "error" in outcome ? outcome.error : null
-          test("Содержимое", () => {
-            expect(error, "Данные ошибки в переносимом формате снимка").toBeOneOf([
-              null, expect.any(String), expect.any(Number), expect.any(Boolean), expect.any(Object),
-            ])
-          })
-        })
-
-        /**
-        @remarks
-        Значение раскрывается только для return и resolve; ошибочный вызов его не возвращает.
-        */
-        describe.skipIf(failed)("Значение", () => {
-          const value = "value" in outcome ? outcome.value : null
-          test("Содержимое", () => {
-            expect(value, "Возвращённые данные в переносимом формате снимка").toBeOneOf([
-              null, expect.any(String), expect.any(Number), expect.any(Boolean), expect.any(Object),
-            ])
-          })
-        })
-      })
-
-      describe("Место вызова", () => {
-        const location = call.location
-
-        test("Ключи", () => {
-          expect(location, "Координаты вызова в исходнике либо null при отсутствии доступного места").toEqual(
-            location === null ? null : {
-              path: expect.any(String),
-              line: expect.any(Number),
-              column: expect.any(Number),
-            },
-          )
-        })
-
-        /**
-        @remarks
-        При отсутствии места вызова нет исходного файла для отдельной проверки.
-        */
-        test.skipIf(location === null)("Файл", () => {
-          expect(location?.path, "Исходный файл или имя источника вызова").not.toBeEmpty()
-        })
-
-        /**
-        @remarks
-        Номер строки проверяется только при наличии координат вызова.
-        */
-        test.skipIf(location === null)("Строка", () => {
-          expect(location?.line, "Номер строки вызова, начиная с единицы").toSatisfy(
-            value => typeof value === "number" && Number.isInteger(value) && value > 0,
-          )
-        })
-
-        /**
-        @remarks
-        Номер столбца проверяется только при наличии координат вызова.
-        */
-        test.skipIf(location === null)("Столбец", () => {
-          expect(location?.column, "Номер столбца вызова, начиная с единицы").toSatisfy(
-            value => typeof value === "number" && Number.isInteger(value) && value > 0,
-          )
-        })
-      })
+    test("Граничные случаи", () => {
+      expect(
+        undefined,
+        "Допустимые крайние, пустые и необязательные значения, существенные для использования",
+      ).toBeDefined()
     })
   })
-  describe("Формат снимков", () => {
-    describe.each(snapshots)("$label", ({root, markers, references, escaped, invalidValues}) => {
-      test("Содержимое", () => {
-        expect(root, "Данные одного независимого снимка без очистки для представления").toBeOneOf([
-          null, expect.any(String), expect.any(Number), expect.any(Boolean), expect.any(Object),
-        ])
+
+  describe("Описываемый результат", () => {
+    test("Наблюдаемое поведение", () => {
+      expect(
+        undefined,
+        "Возвращённые данные, изменение состояния или другой наблюдаемый эффект",
+      ).toBeDefined()
+    })
+
+    test("Смысл данных", () => {
+      expect(
+        undefined,
+        "Назначение полученных значений и связь с входными условиями",
+      ).toBeDefined()
+    })
+
+    test("Подтверждение", () => {
+      expect(
+        undefined,
+        "Проверяемые условия, подтверждающие каждое описанное свойство поведения",
+      ).toBeDefined()
+    })
+  })
+
+  describe("Последовательность описания", () => {
+    test("Общая картина", () => {
+      expect(
+        undefined,
+        "Назначение и возможности перед разбором отдельных свойств и деталей",
+      ).toBeDefined()
+    })
+
+    test("Связанные темы", () => {
+      expect(
+        undefined,
+        "Смысловая принадлежность пунктов категориям и подкатегориям",
+      ).toBeDefined()
+    })
+
+    test("Глубина", () => {
+      expect(
+        undefined,
+        "Детализация до уровня, необходимого для понимания использования и ограничений",
+      ).toBeDefined()
+    })
+
+    test("Достаточность примера", () => {
+      expect(
+        undefined,
+        "Связь входных условий, фактического результата и его проверок без обращения к внутренней реализации",
+      ).toBeDefined()
+    })
+
+    test("Согласованность", () => {
+      expect(
+        undefined,
+        "Названия, описания и условия проверок, выражающие одно и то же поведение",
+      ).toBeDefined()
+    })
+  })
+
+  describe("Пояснения и утверждения", () => {
+    test("Целостность пункта", () => {
+      expect(
+        undefined,
+        "Одно самостоятельное свойство или поведение в одном test",
+      ).toBeDefined()
+    })
+
+    test("Несколько expect", () => {
+      expect(
+        undefined,
+        "Связанные условия одного свойства с отдельными actual и customFailMessage",
+      ).toBeDefined()
+
+      expect(
+        undefined,
+        "Прекращение теста при первом невыполненном утверждении",
+      ).toBeDefined()
+    })
+
+    test("Независимые свойства", () => {
+      expect(
+        undefined,
+        "Отдельные test для свойств с независимыми результатами проверок",
+      ).toBeDefined()
+    })
+
+    test("Нативные средства", () => {
+      expect(
+        undefined,
+        "Обычные describe, test, expect, matchers и hooks без дополнительного языка описания",
+      ).toBeDefined()
+    })
+
+    test("Дополнительный текст", () => {
+      expect(
+        undefined,
+        "Краткое пояснение только той существенной мысли, которую не раскрывают примеры, проверки и их структура",
+      ).toBeDefined()
+    })
+  })
+
+  describe("Размещение", () => {
+    test("Единый источник", () => {
+      expect(
+        undefined,
+        "Варианты и проверки в самом spec-файле, без повторного описания в сторонних декларациях",
+      ).toBeDefined()
+    })
+
+    test("Файл сценария", () => {
+      expect(
+        undefined,
+        "spec/scenario.spec.ts или spec/scenario.spec.tsx рядом с непосредственным владельцем",
+      ).toBeDefined()
+    })
+
+    test("Положительные случаи", () => {
+      expect(
+        undefined,
+        "Поддерживаемое поведение с ожидаемым успешным результатом",
+      ).toBeDefined()
+    })
+
+    test("Ошибки и отказы", () => {
+      expect(
+        undefined,
+        "Проверки ожидаемых ошибок в отдельных spec-файлах того же владельца, вне положительных сценариев",
+      ).toBeDefined()
+    })
+
+    test("Тесты реализации", () => {
+      expect(
+        undefined,
+        "Проверки внутренних механизмов в test, отдельно от руководства по использованию",
+      ).toBeDefined()
+    })
+  })
+
+  describe("Вариант", () => {
+    test("Параметризация", () => {
+      expect(
+        undefined,
+        `Именованные варианты, которые описывает ${name.toLowerCase()}, во внешнем describe.each`,
+      ).toBeDefined()
+    })
+
+    test("Входные данные", () => {
+      expect(
+        undefined,
+        `Данные, с которыми выполняется ${name.toLowerCase()}, в параметрах выбранного варианта`,
+      ).toBeDefined()
+    })
+
+    test("Общий результат", () => {
+      expect(
+        undefined,
+        "Один результат выполнения для всех пунктов выбранного варианта",
+      ).toBeDefined()
+    })
+  })
+
+  describe("Категории", () => {
+    test("Группировка пунктов", () => {
+      expect(
+        undefined,
+        "Связанные пункты одной темы во вложенном describe",
+      ).toBeDefined()
+    })
+
+    test("Вложенность", () => {
+      expect(
+        undefined,
+        "Категории с подкатегориями и пунктами по смыслу описываемых данных",
+      ).toBeDefined()
+    })
+
+    test("Параметризация категорий", () => {
+      expect(
+        undefined,
+        "Обычный describe для категории; describe.each при наличии собственных вариантов",
+      ).toBeDefined()
+    })
+  })
+
+  describe("Пункт", () => {
+    test("Объявления", () => {
+      expect(
+        undefined,
+        "Явные describe и test по контракту; обход actual не генерирует проверки автоматически",
+      ).toBeDefined()
+    })
+
+    test("Массивы", () => {
+      expect(
+        undefined,
+        "Порядок элементов и состав массива, включая пустой массив",
+      ).toBeDefined()
+    })
+
+    test("Простые значения", () => {
+      expect(
+        undefined,
+        "Отдельные проверки значений строк, чисел и других примитивов без выдуманных ключей объекта",
+      ).toBeDefined()
+    })
+
+    describe("label", () => {
+      test("Название данных", () => {
+        expect(
+          undefined,
+          "Короткое предметное название пункта сценария",
+        ).toBeDefined()
       })
 
-      test("Переносимость", () => {
-        expect(invalidValues, "Значения снимка без прямых циклов, getters и непереносимых JSON-значений").toEqual([])
+      test("Содержание названия", () => {
+        expect(
+          undefined,
+          "Предмет пункта без пересказа механизма проверки и перечисления его полей",
+        ).toBeDefined()
+      })
+    })
+
+    describe("customFailMessage", () => {
+      test("Описание назначения", () => {
+        expect(
+          undefined,
+          "Предметное описание назначения данных при чтении сценария и при ошибке проверки",
+        ).toBeDefined()
       })
 
-      describe("Ссылки", () => {
-        test("Состав", () => {
-          expect(references.map(item => item.value), "Ссылки на общие объекты внутри этого снимка").toEqual(
-            references.map(() => ({$type: "reference", path: expect.any(Array)})),
-          )
-        })
-
-        describe.each(references)("$label", ({value, resolved, targetIsObject}) => {
-          test("Ключи", () => {
-            expect(value, "Вид служебной записи и путь к сохранённому объекту").toEqual({
-              $type: "reference",
-              path: expect.any(Array),
-            })
-          })
-
-          test("Путь", () => {
-            expect(value.path, "Ключи объектов и индексы массивов от корня снимка; пустой путь обозначает корень").toSatisfy(
-              path => Array.isArray(path) && path.every(segment => typeof segment === "string"
-                || (typeof segment === "number" && Number.isSafeInteger(segment) && segment >= 0)),
-            )
-          })
-
-          test("Цель", () => {
-            expect({resolved, targetIsObject}, "Существующий объект данных этого снимка, без перехода в прототип или другую ссылку").toEqual({
-              resolved: true,
-              targetIsObject: true,
-            })
-          })
-        })
+      test("Описательная форма", () => {
+        expect(
+          undefined,
+          "Конкретное описание без повторения matcher и оборотов «должно», «нужен для», «позволяет»",
+        ).toBeDefined()
       })
 
-      describe("Экранированные объекты", () => {
-        test("Состав", () => {
-          expect(escaped.map(item => item.value), "Пользовательские объекты с собственным полем $type").toEqual(
-            escaped.map(() => ({$type: "object", value: expect.any(Object)})),
-          )
-        })
-
-        describe.each(escaped)("$label", ({value}) => {
-          test("Ключи", () => {
-            expect(value, "Обёртка, отделяющая пользовательский объект от служебных меток").toEqual({
-              $type: "object",
-              value: expect.any(Object),
-            })
-          })
-
-          test("Поля пользователя", () => {
-            expect(value.value, "Исходные поля объекта, включая пользовательский $type").toSatisfy(
-              fields => fields !== null && typeof fields === "object" && !Array.isArray(fields)
-                && Object.hasOwn(fields, "$type"),
-            )
-          })
-        })
+      test("Контекст варианта", () => {
+        expect(
+          undefined,
+          "Название варианта в контексте предложения, без отдельного префикса с двоеточием и дублирующих параметров",
+        ).toBeDefined()
       })
 
-      describe("Специальные значения", () => {
-        describe.each(markers.filter(item => item.type !== "reference" && item.type !== "object"))(
-          "$label",
-          ({type, value}) => {
-            test("Вид", () => {
-              expect(type, "Виды значений, которым требуется служебное представление").toBeOneOf([
-                "undefined", "bigint", "symbol", "function", "error", "date",
-                "accessor", "promise", "unreadable", "unsupported",
-              ])
-            })
-
-            test("Ключи", () => {
-              const formats: Record<string, Record<string, unknown>> = {
-                undefined: {$type: "undefined"},
-                bigint: {$type: "bigint", value: expect.any(String)},
-                symbol: {$type: "symbol", value: expect.any(String)},
-                function: {$type: "function", name: expect.any(String)},
-                error: {$type: "error", name: expect.any(String), message: expect.any(String)},
-                date: {$type: "date", value: expect.any(String)},
-                accessor: {
-                  $type: "accessor",
-                  get: value.get === null ? null : expect.any(String),
-                  set: value.set === null ? null : expect.any(String),
-                },
-                promise: value.status === "fulfilled"
-                  ? {$type: "promise", status: "fulfilled", value: value.value === null ? null : expect.anything()}
-                  : {$type: "promise", status: "rejected", error: value.error === null ? null : expect.anything()},
-                unreadable: {$type: "unreadable", error: value.error === null ? null : expect.anything()},
-                unsupported: {$type: "unsupported", value: expect.any(String)},
-              }
-
-              expect(value, "Полный состав служебной записи выбранного вида").toEqual(formats[type]!)
-            })
-
-            /**
-            @remarks
-            Числовая запись проверяется только у метки bigint.
-            */
-            test.skipIf(type !== "bigint")("Целое число", () => {
-              expect(value.value, "Десятичная запись целого числа без ограничения точности JSON Number").toMatch(/^-?(?:0|[1-9]\d*)$/)
-            })
-
-            /**
-            @remarks
-            Временная метка присутствует только у date.
-            */
-            test.skipIf(type !== "date")("Дата", () => {
-              expect(value.value, "Дата в полном формате ISO UTC").toSatisfy(
-                date => typeof date === "string" && Number.isFinite(Date.parse(date))
-                  && new Date(date).toISOString() === date,
-              )
-            })
-
-            /**
-            @remarks
-            Состояние завершения относится только к Promise.
-            */
-            test.skipIf(type !== "promise")("Состояние Promise", () => {
-              expect(value.status, "Полученное значение либо причина отклонения Promise").toBeOneOf(["fulfilled", "rejected"])
-            })
-
-            /**
-            @remarks
-            Имена getter и setter относятся только к accessor.
-            */
-            test.skipIf(type !== "accessor")("Accessor", () => {
-              expect({get: value.get, set: value.set}, "Имена getter и setter без выполнения их кода").toSatisfy(
-                item => (item.get === null || typeof item.get === "string")
-                  && (item.set === null || typeof item.set === "string")
-                  && (item.get !== null || item.set !== null),
-              )
-            })
-          },
-        )
+      test("Размещение", () => {
+        expect(
+          undefined,
+          "customFailMessage непосредственно во втором аргументе expect",
+        ).toBeDefined()
       })
+    })
+
+    describe("actual", () => {
+      test("Фактические данные", () => {
+        expect(
+          undefined,
+          "Полученные данные из общего результата выбранного варианта",
+        ).toBeDefined()
+      })
+
+      test("Вложенные данные", () => {
+        expect(
+          undefined,
+          "Части результата в явно описанных категориях и пунктах",
+        ).toBeDefined()
+      })
+    })
+
+    test("Условие проверки", () => {
+      expect(
+        undefined,
+        "Требование к данным из контракта, независимо от фактического состава actual",
+      ).toBeDefined()
+    })
+
+    test("Параметризация проверок", () => {
+      expect(
+        undefined,
+        "test.each для повторения одной проверки с разными данными",
+      ).toBeDefined()
+    })
+
+    test("Состав данных", () => {
+      expect(
+        undefined,
+        "Полный ожидаемый состав объекта через toEqual; фактические ключи actual не задают ожидаемый контракт",
+      ).toBeDefined()
+    })
+  })
+
+  describe("Исполнение", () => {
+    test("Импорт", () => {
+      expect(
+        undefined,
+        "Проверяемая функция или компонент импортируется напрямую из публичного входа владельца",
+      ).toBeDefined()
+    })
+
+    test("Наблюдение вызовов", () => {
+      expect(
+        undefined,
+        "Прямые вызовы без ручных mock и spyOn ради получения истории выполнения",
+      ).toBeDefined()
+    })
+
+    test("Ресурсы отдельного теста", () => {
+      expect(
+        undefined,
+        "Подготовка и освобождение ресурсов отдельного теста сохраняются в его hooks и не заменяются общим изменяемым состоянием",
+      ).toBeDefined()
+    })
+
+    test("Прямой вызов", () => {
+      expect(
+        undefined,
+        "Вызов проверяемой функции в describe перед тестами, без декларации runtime",
+      ).toBeDefined()
+    })
+
+    test("Асинхронное выполнение", () => {
+      expect(
+        undefined,
+        "Получение результата через await в async callback варианта",
+      ).toBeDefined()
+    })
+
+    test("Общая подготовка", () => {
+      expect(
+        undefined,
+        "Общие неизменяемые данные на уровне модуля; результат конкретного варианта внутри его describe",
+      ).toBeDefined()
+    })
+
+    test("Жизненный цикл", () => {
+      expect(
+        undefined,
+        "Создание и освобождение ресурсов через штатные хуки Bun Test",
+      ).toBeDefined()
+    })
+  })
+
+  describe("Фикстуры и пути", () => {
+    test("Подготовка данных", () => {
+      expect(
+        undefined,
+        "Фикстура подготавливает данные; объявления describe, test и expect остаются в сценарии",
+      ).toBeDefined()
+    })
+
+    test("Внешний путь", () => {
+      expect(
+        undefined,
+        "Переменная окружения явно передаётся помощнику в файле проверки",
+      ).toBeDefined()
+    })
+
+    test("Путь по умолчанию", () => {
+      expect(
+        undefined,
+        "Явный путь примера при отсутствии внешнего пути, относительно вызывающего файла",
+      ).toBeDefined()
+    })
+  })
+
+  describe("Неприменимые и незавершённые проверки", () => {
+    test("Условный пропуск", () => {
+      expect(
+        undefined,
+        "skipIf для проверки, неприменимой к выбранному варианту",
+      ).toBeDefined()
+    })
+
+    test("Причина пропуска", () => {
+      expect(
+        undefined,
+        "TSDoc с @remarks перед условно или постоянно пропускаемым тестом или группой: условие и причина",
+      ).toBeDefined()
+    })
+
+    test("Незавершённая проверка", () => {
+      expect(
+        undefined,
+        "todo обозначает незавершённость без дублирующего комментария; пустое тело обычного test не заменяет проверку",
+      ).toBeDefined()
     })
   })
 })

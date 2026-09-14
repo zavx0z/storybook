@@ -15,6 +15,8 @@
 
 ## Architecture process
 
+- При работе над сценариями Archetypes и их ответами MCP соблюдать
+  [порядок уточнения сценариев в ходе разработки](notes/scenario-development.md).
 - Production owners are grouped in `discovery`, `catalog`, `build`, `sessions`,
   `runtime`, `workbench` and `server`. `src/shared` contains private shared
   mechanisms. Keep direct imports to the current owner; do not restore aliases
