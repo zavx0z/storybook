@@ -1,5 +1,5 @@
 /**
-Описывает результаты чтения серверного и компонентного сценариев.
+Описывает результаты чтения серверного, компонентного и связанного набора данных.
 Состав результата и вложенных записей раскрывается категориями и тестами.
 SCENARIO_PATH задаёт внешний путь к сценарию вместо примера по умолчанию.
 Относительный внешний путь разрешается от рабочей директории запуска тестов.
@@ -11,69 +11,9 @@ import {describe, expect, test} from "bun:test"
 import {isAbsolute, resolve} from "node:path"
 import {readScenario, type ReadScenarioInput} from "@archetypes/specs/scenarios"
 import {createFixture} from "../../../shared/fixtures"
+import {inspectSnapshot} from "./fixture"
 
 const resolvePath = createFixture(process.env.SCENARIO_PATH)
-
-/** Выбирает допустимый вид значения без фиксации содержимого чужой сущности. */
-function shape(value: unknown): unknown {
-  if (value === null) return null
-  if (Array.isArray(value)) return expect.any(Array)
-  if (typeof value === "object") return expect.any(Object)
-  if (typeof value === "string") return expect.any(String)
-  if (typeof value === "boolean") return expect.any(Boolean)
-  if (typeof value === "number") return expect.any(Number)
-  throw new Error(`Непереносимый вид данных: ${typeof value}`)
-}
-
-/**
-Создаёт вложенные категории для массивов и объектов и пункты для конечных значений.
-
-@param label - Имя поля или элемента в представлении.
-@param value - Данные из результата readScenario, без повторного выполнения сценария.
-@param description - Описание содержимого поля в исходном контексте.
-
-@remarks
-Имена полей произвольного объекта не являются контрактом трассировщика:
-они принадлежат вызываемой функции. Проверяется переносимость каждого значения,
-а не соответствие реализации компонента его собственным требованиям.
-Пустые объекты и массивы сохраняют отдельный пункт состава.
-*/
-function describeValue(label: string, value: unknown, description: string): void {
-  if (value === null || typeof value !== "object") {
-    test(label, () => {
-      expect(value, description).toBeOneOf([
-        null,
-        expect.any(String),
-        expect.any(Boolean),
-        expect.any(Number),
-      ])
-    })
-    return
-  }
-
-  describe(label, () => {
-    if (Array.isArray(value)) {
-      test("Состав", () => {
-        expect(value, description).toEqual(value.map(shape))
-      })
-
-      value.forEach((item, index) => {
-        describeValue(`Элемент ${index}`, item, `Данные позиции ${index} в массиве «${label}»`)
-      })
-      return
-    }
-
-    const entries = Object.entries(value)
-
-    test("Ключи", () => {
-      expect(value, description).toEqual(Object.fromEntries(entries.map(([key, item]) => [key, shape(item)])))
-    })
-
-    for (const [key, item] of entries) {
-      describeValue(key, item, `Данные поля «${key}» в объекте «${label}»`)
-    }
-  })
-}
 
 type Scenario = {
   name: string
@@ -107,8 +47,20 @@ describe.each([
       })),
     ],
   },
+  {
+    name: "Трассировка связанных данных",
+    props: {path: resolvePath("../test/fixture/value-scenario.test.ts")},
+    expected: [{name: "mixedValue", describe: ["Значения"], test: null, outcome: {type: "return"}}],
+  },
 ] satisfies Scenario[])("$name", async ({props, expected}) => {
   const result = await readScenario(props)
+  const snapshots = result.calls.flatMap(call => [
+    {label: `${call.id}: ${call.name} — аргументы`, root: call.args},
+    {
+      label: `${call.id}: ${call.name} — ${"value" in call.outcome ? "значение" : "ошибка"}`,
+      root: "value" in call.outcome ? call.outcome.value : call.outcome.error,
+    },
+  ]).map(snapshot => ({...snapshot, ...inspectSnapshot(snapshot.root)}))
 
   test("Ключи результата", () => {
     expect(result, "Состав данных о выполнении сценария").toEqual({
@@ -172,7 +124,12 @@ describe.each([
       expect(result.calls.length, "Число зарегистрированных вызовов функций и методов").toBeGreaterThan(0)
     })
 
-    test("Группы и результаты", () => {
+    /**
+    @remarks
+    Имена вызовов относятся к примерам по умолчанию. Для внешнего SCENARIO_PATH
+    этот пример не применяется; общий контракт результата проверяется полностью.
+    */
+    test.skipIf(process.env.SCENARIO_PATH !== undefined)("Группы и результаты", () => {
       const calls = result.calls.filter(call => expected.some(item => item.name === call.name))
 
       expect(calls, "Выполненные функции и методы, их группы, тесты и исходы").toMatchObject(expected)
@@ -245,7 +202,9 @@ describe.each([
         expect(call.test, "Название теста либо null при вызове вне тела теста").toBeOneOf([null, expect.any(String)])
       })
 
-      describeValue("Аргументы", call.args, "Позиционные аргументы на момент начала вызова")
+      test("Аргументы", () => {
+        expect(call.args, "Позиционные аргументы на момент начала вызова").toBeArray()
+      })
 
       describe("Исход", () => {
         const outcome = call.outcome
@@ -271,7 +230,11 @@ describe.each([
         */
         describe.skipIf(!failed)("Ошибка", () => {
           const error = "error" in outcome ? outcome.error : null
-          describeValue("Данные", error, "Переносимые данные ошибки вызова")
+          test("Содержимое", () => {
+            expect(error, "Данные ошибки в переносимом формате снимка").toBeOneOf([
+              null, expect.any(String), expect.any(Number), expect.any(Boolean), expect.any(Object),
+            ])
+          })
         })
 
         /**
@@ -280,7 +243,11 @@ describe.each([
         */
         describe.skipIf(failed)("Значение", () => {
           const value = "value" in outcome ? outcome.value : null
-          describeValue("Данные", value, "Переносимые данные результата вызова")
+          test("Содержимое", () => {
+            expect(value, "Возвращённые данные в переносимом формате снимка").toBeOneOf([
+              null, expect.any(String), expect.any(Number), expect.any(Boolean), expect.any(Object),
+            ])
+          })
         })
       })
 
@@ -324,6 +291,150 @@ describe.each([
             value => typeof value === "number" && Number.isInteger(value) && value > 0,
           )
         })
+      })
+    })
+  })
+  describe("Формат снимков", () => {
+    describe.each(snapshots)("$label", ({root, markers, references, escaped, invalidValues}) => {
+      test("Содержимое", () => {
+        expect(root, "Данные одного независимого снимка без очистки для представления").toBeOneOf([
+          null, expect.any(String), expect.any(Number), expect.any(Boolean), expect.any(Object),
+        ])
+      })
+
+      test("Переносимость", () => {
+        expect(invalidValues, "Значения снимка без прямых циклов, getters и непереносимых JSON-значений").toEqual([])
+      })
+
+      describe("Ссылки", () => {
+        test("Состав", () => {
+          expect(references.map(item => item.value), "Ссылки на общие объекты внутри этого снимка").toEqual(
+            references.map(() => ({$type: "reference", path: expect.any(Array)})),
+          )
+        })
+
+        describe.each(references)("$label", ({value, resolved, targetIsObject}) => {
+          test("Ключи", () => {
+            expect(value, "Вид служебной записи и путь к сохранённому объекту").toEqual({
+              $type: "reference",
+              path: expect.any(Array),
+            })
+          })
+
+          test("Путь", () => {
+            expect(value.path, "Ключи объектов и индексы массивов от корня снимка; пустой путь обозначает корень").toSatisfy(
+              path => Array.isArray(path) && path.every(segment => typeof segment === "string"
+                || (typeof segment === "number" && Number.isSafeInteger(segment) && segment >= 0)),
+            )
+          })
+
+          test("Цель", () => {
+            expect({resolved, targetIsObject}, "Существующий объект данных этого снимка, без перехода в прототип или другую ссылку").toEqual({
+              resolved: true,
+              targetIsObject: true,
+            })
+          })
+        })
+      })
+
+      describe("Экранированные объекты", () => {
+        test("Состав", () => {
+          expect(escaped.map(item => item.value), "Пользовательские объекты с собственным полем $type").toEqual(
+            escaped.map(() => ({$type: "object", value: expect.any(Object)})),
+          )
+        })
+
+        describe.each(escaped)("$label", ({value}) => {
+          test("Ключи", () => {
+            expect(value, "Обёртка, отделяющая пользовательский объект от служебных меток").toEqual({
+              $type: "object",
+              value: expect.any(Object),
+            })
+          })
+
+          test("Поля пользователя", () => {
+            expect(value.value, "Исходные поля объекта, включая пользовательский $type").toSatisfy(
+              fields => fields !== null && typeof fields === "object" && !Array.isArray(fields)
+                && Object.hasOwn(fields, "$type"),
+            )
+          })
+        })
+      })
+
+      describe("Специальные значения", () => {
+        describe.each(markers.filter(item => item.type !== "reference" && item.type !== "object"))(
+          "$label",
+          ({type, value}) => {
+            test("Вид", () => {
+              expect(type, "Виды значений, которым требуется служебное представление").toBeOneOf([
+                "undefined", "bigint", "symbol", "function", "error", "date",
+                "accessor", "promise", "unreadable", "unsupported",
+              ])
+            })
+
+            test("Ключи", () => {
+              const formats: Record<string, Record<string, unknown>> = {
+                undefined: {$type: "undefined"},
+                bigint: {$type: "bigint", value: expect.any(String)},
+                symbol: {$type: "symbol", value: expect.any(String)},
+                function: {$type: "function", name: expect.any(String)},
+                error: {$type: "error", name: expect.any(String), message: expect.any(String)},
+                date: {$type: "date", value: expect.any(String)},
+                accessor: {
+                  $type: "accessor",
+                  get: value.get === null ? null : expect.any(String),
+                  set: value.set === null ? null : expect.any(String),
+                },
+                promise: value.status === "fulfilled"
+                  ? {$type: "promise", status: "fulfilled", value: value.value === null ? null : expect.anything()}
+                  : {$type: "promise", status: "rejected", error: value.error === null ? null : expect.anything()},
+                unreadable: {$type: "unreadable", error: value.error === null ? null : expect.anything()},
+                unsupported: {$type: "unsupported", value: expect.any(String)},
+              }
+
+              expect(value, "Полный состав служебной записи выбранного вида").toEqual(formats[type]!)
+            })
+
+            /**
+            @remarks
+            Числовая запись проверяется только у метки bigint.
+            */
+            test.skipIf(type !== "bigint")("Целое число", () => {
+              expect(value.value, "Десятичная запись целого числа без ограничения точности JSON Number").toMatch(/^-?(?:0|[1-9]\d*)$/)
+            })
+
+            /**
+            @remarks
+            Временная метка присутствует только у date.
+            */
+            test.skipIf(type !== "date")("Дата", () => {
+              expect(value.value, "Дата в полном формате ISO UTC").toSatisfy(
+                date => typeof date === "string" && Number.isFinite(Date.parse(date))
+                  && new Date(date).toISOString() === date,
+              )
+            })
+
+            /**
+            @remarks
+            Состояние завершения относится только к Promise.
+            */
+            test.skipIf(type !== "promise")("Состояние Promise", () => {
+              expect(value.status, "Полученное значение либо причина отклонения Promise").toBeOneOf(["fulfilled", "rejected"])
+            })
+
+            /**
+            @remarks
+            Имена getter и setter относятся только к accessor.
+            */
+            test.skipIf(type !== "accessor")("Accessor", () => {
+              expect({get: value.get, set: value.set}, "Имена getter и setter без выполнения их кода").toSatisfy(
+                item => (item.get === null || typeof item.get === "string")
+                  && (item.set === null || typeof item.set === "string")
+                  && (item.get !== null || item.set !== null),
+              )
+            })
+          },
+        )
       })
     })
   })

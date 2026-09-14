@@ -45,7 +45,8 @@ export async function checkSpecParameterization(path: string): Promise<readonly 
 }
 
 /**
-Находит объявления describe, в цепочке которых отсутствует each.
+Находит внешние объявления describe, в цепочке которых отсутствует each.
+Вложенные describe внутри callback внешнего варианта задают категории и допускаются без each.
 Обычные test допустимы: параметризация отдельного теста необязательна.
 Учитывает именованные импорты из bun:test, их псевдонимы и модификаторы skipIf/only/skip.
 Вызовы настройки each и skipIf сами по себе не считаются объявлениями тестов.
@@ -87,19 +88,21 @@ export async function findUnparameterizedDescribes(path: string): Promise<readon
       return null
     }
     const violations: string[] = []
-    const visit = (node: Node) => {
+    const visit = (node: Node, insideDescribe = false) => {
+      let groupCallback: Node | undefined
       if (isCallExpression(node)) {
         const declaration = chain(node.expression)
         const title = node.arguments[0]
         const callback = node.arguments[1]
         const factory = isPropertyAccessExpression(node.expression)
           && ["each", "skipIf", "if", "todoIf"].includes(node.expression.name.text)
-        if (declaration && !declaration.each && !factory
+        if (declaration && !factory
           && ((title && isStringLiteral(title)) || (callback && (isArrowFunction(callback) || isFunctionExpression(callback))))) {
-          violations.push(declaration.name)
+          if (!declaration.each && !insideDescribe) violations.push(declaration.name)
+          groupCallback = callback
         }
       }
-      node.forEachChild(visit)
+      node.forEachChild(child => visit(child, insideDescribe || child === groupCallback))
     }
     visit(source)
     return violations

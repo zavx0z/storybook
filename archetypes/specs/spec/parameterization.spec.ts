@@ -24,7 +24,7 @@ describe.each([
     name: "Describe использует each",
     props: {path: inputPath ?? fixturePath("parameterization/spec")},
     expected: [],
-    fail: "Все объявления describe должны использовать each",
+    fail: "Внешние describe задают варианты через each; вложенные describe задают категории",
   },
   {
     name: "Test допускается без each",
@@ -36,13 +36,13 @@ describe.each([
     name: "Параметризация сохраняется при условном запуске",
     props: {path: inputPath ?? fixturePath("parameterization/each.ts")},
     expected: [],
-    fail: "Условный запуск не отменяет обязательность each у describe",
+    fail: "Условный запуск внешнего describe сохраняет параметризацию вариантов",
   },
   {
     name: "Псевдонимы describe используют each",
     props: {path: inputPath ?? fixturePath("parameterization/aliases-each.ts")},
     expected: [],
-    fail: "Псевдоним describe не отменяет обязательность each",
+    fail: "Внешние варианты через псевдоним describe сохраняют параметризацию each",
   },
 ])("$name", ({props, expected, fail}) => {
   test("Проверяет параметризацию объявлений", async () => {
