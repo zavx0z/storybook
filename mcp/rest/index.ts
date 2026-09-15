@@ -5,7 +5,7 @@
 @packageDocumentation
 */
 import {resolve} from "node:path"
-import {findScenario, readChildren, readDescription, resolveArchetype} from "./src/structure"
+import {findScenario, readChildren, readDescription, readTitle, resolveArchetype} from "./src/structure"
 import type {ReadScenariosInput, ReadScenariosOutput} from "./scenarios"
 
 /**
@@ -58,7 +58,7 @@ export async function storybookRest(
     return Response.json({status: "failed", error: "Для дерева доступны variant и section; режим data возвращает все данные"}, {status: 400})
   }
   const options: Pick<ReadScenariosInput, "format" | "selection"> = query.action === "data" ? {format: "data"} : {
-    format: "tree", selection: {...(variant === undefined ? {} : {variant: variant as string}), ...(section === undefined ? {} : {section: section as string[]})},
+    format: "document", selection: {...(variant === undefined ? {} : {variant: variant as string}), ...(section === undefined ? {} : {section: section as string[]})},
   }
   const node = query.node ?? "root"
   if (node === "archetypes" || node.startsWith("archetypes/")) {
@@ -76,6 +76,11 @@ export async function storybookRest(
       if (!source && query.input !== undefined) return Response.json({status: "failed", error: "Выбор темы доступен у раздела со сценарием"}, {status: 400})
       if (source && !readScenarios) return Response.json({status: "unavailable", error: "Чтение сценариев не подключено"}, {status: 503})
       const result = source ? await readScenarios!({path: directory, source, ...options}) : null
+      if (result && options.format === "document") return Response.json({
+        node, title: await readTitle(directory),
+        ...(description ? {content: [{text: description}]} : {}),
+        ...result.scenarios,
+      })
       return Response.json({
         node, description, ...(children.length ? {children} : {}),
         ...result,

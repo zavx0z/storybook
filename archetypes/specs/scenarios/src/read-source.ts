@@ -6,10 +6,10 @@ import {
   isTemplateExpression, isBlock, isExpressionStatement, isObjectLiteralExpression, isPropertyAssignment, isShorthandPropertyAssignment, isComputedPropertyName, isNumericLiteral,
 } from "typescript/unstable/ast/is"
 import {resolve} from "node:path"
-import {findUnparameterizedDescribes} from "../../../spec/fixture"
+import type {ScenarioSource} from "./types"
 
 /** Читает объявления как данные; не регистрирует и не исполняет тесты проверяемого исходника. */
-export async function inspectScenarioSource(input: string) {
+export async function readScenarioSource(input: string): Promise<ScenarioSource> {
   const path = resolve(input)
   const text = await Bun.file(path).text()
   const api = new API({cwd: process.cwd()})
@@ -39,13 +39,16 @@ export async function inspectScenarioSource(input: string) {
       }
       return null
     }
-    const assertions: {actual: string, message: string | null, inline: boolean}[] = []
-    const tests: {label: string, assertions: number, todo: boolean, source: string, each: boolean}[] = []
+    const assertions: ScenarioSource["assertions"][number][] = []
+    const tests: (Omit<ScenarioSource["tests"][number], "assertions"> & {assertions: number})[] = []
     const groups: {source: string, header: string, setup: string, depth: number, each: boolean}[] = []
     const checks: {source: string, matcher: string, explicitObject: boolean}[] = []
     const hooks: {name: string, source: string}[] = []
-    const hidden: string[] = []
-    const undocumentedSkips: string[] = []
+    const registrations: ScenarioSource["registrations"][number][] = []
+    const locationOf = (node: Node) => {
+      const prefix = text.slice(0, node.getStart(file))
+      return {path, line: prefix.split("\n").length, column: prefix.length - prefix.lastIndexOf("\n")}
+    }
     const textOf = (node: Node) => {
       const start = node.getStart(file)
       const indent = text.slice(text.lastIndexOf("\n", start - 1) + 1, start)
@@ -73,16 +76,25 @@ export async function inspectScenarioSource(input: string) {
         if (owner?.name === "expect" && owner.modifiers.length === 0) {
           const message = node.arguments[1]
           assertions.push({actual: node.arguments[0] ? textOf(node.arguments[0]) : "", message: message ? textOf(message) : null,
-            inline: !!message && (isStringLiteral(message) || isNoSubstitutionTemplateLiteral(message) || isTemplateExpression(message))})
+            inline: !!message && (isStringLiteral(message) || isNoSubstitutionTemplateLiteral(message) || isTemplateExpression(message)), location: locationOf(node)})
           if (currentTest) currentTest.assertions++
         }
         const callback = node.arguments[1]
+        const factory = isPropertyAccessExpression(node.expression) && ["each", "skipIf", "if", "todoIf"].includes(node.expression.name.text)
+        if (owner && ["describe", "test", "it"].includes(owner.name) && !factory
+          && ((node.arguments[0] && isStringLiteral(node.arguments[0])) || (callback && (isArrowFunction(callback) || isFunctionExpression(callback))))) {
+          const prefix = text.slice(node.getFullStart(), node.getStart(file))
+          const comment = /\/\*\*((?:(?!\*\/)[\s\S])*)\*\/\s*$/u.exec(prefix)?.[1]
+          const normalized = comment?.replace(/^\s*\* ?/gmu, "")
+          const remarks = normalized?.match(/(?:^|\n)\s*@remarks\b([\s\S]*)/u)?.[1]?.split(/\n\s*@\w+/u)[0]?.trim() || null
+          registrations.push({kind: owner.name === "describe" ? "describe" : "test", label: node.arguments[0] ? textOf(node.arguments[0]) : "",
+            modifiers: owner.modifiers, depth, scope, remarks, location: locationOf(node)})
+        }
         if (owner && ["describe", "test", "it"].includes(owner.name) && callback && (isArrowFunction(callback) || isFunctionExpression(callback))) {
           callbackNode = callback
           const label = node.arguments[0] ? textOf(node.arguments[0]) : ""
-          if (scope === "helper") hidden.push(label)
           if (owner.name !== "describe") {
-            selectedTest = {label, assertions: 0, todo: owner.modifiers.some(name => ["todo", "todoIf"].includes(name)), source: textOf(node), each: owner.modifiers.includes("each")}
+            selectedTest = {label, assertions: 0, todo: owner.modifiers.some(name => ["todo", "todoIf"].includes(name)), skippable: owner.modifiers.some(name => ["skip", "skipIf", "if"].includes(name)), source: textOf(node), each: owner.modifiers.includes("each"), location: locationOf(node)}
             tests.push(selectedTest)
           } else {
             groupCallback = callback
@@ -92,10 +104,6 @@ export async function inspectScenarioSource(input: string) {
             groups.push({source: textOf(node), header: text.slice(node.getStart(file), callback.body.getStart(file)),
               setup: statements.slice(0, first < 0 ? statements.length : first).map(textOf).join("\n"), depth, each: owner.modifiers.includes("each")})
           }
-          if (owner.modifiers.some(name => ["skip", "skipIf", "if"].includes(name))) {
-            const prefix = text.slice(node.getFullStart(), node.getStart(file))
-            if (!/@remarks\s+\S/u.test(prefix)) undocumentedSkips.push(label)
-          }
         }
       }
       node.forEachChild(child => visit(child, selectedTest,
@@ -104,8 +112,7 @@ export async function inspectScenarioSource(input: string) {
     }
     visit(file, null, "module", 0)
     return {
-      path, text, native: [...native.values()], imports, assertions, tests, hidden, undocumentedSkips, groups, checks, hooks,
-      unparameterized: await findUnparameterizedDescribes(path),
+      path, text, native: [...native.values()], imports, assertions, tests, groups, checks, hooks, registrations,
     }
   } finally {
     await api.close()

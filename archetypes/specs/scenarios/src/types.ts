@@ -22,3 +22,12 @@ export type TraceLocation = NonNullable<TraceCall["location"]>
 export type ScenarioAssertion = ReadScenarioOutput["assertions"][number]
 export type ScenarioGroup = ReadScenarioOutput["groups"][number]
 export type ScenarioTest = ReadScenarioOutput["tests"][number]
+
+/** Сведения об исходнике для документации и валидации. */
+export type ScenarioSource = ReadScenarioOutput["source"]
+
+/** Результаты проверок сценария. */
+export type ScenarioValidation = ReadScenarioOutput["validation"]
+
+/** Данные одного запуска до присоединения структуры и валидации. */
+export type ScenarioExecution = Omit<ReadScenarioOutput, "source" | "validation">

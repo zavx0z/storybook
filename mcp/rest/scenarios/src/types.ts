@@ -8,8 +8,8 @@ export interface ScenariosInput {
 }
 
 /** Выбор дерева либо его темы; имена берутся из самого сценария. */
-export interface ScenariosTreeOptions {
-  readonly format: "tree"
+export interface ScenariosDocumentOptions {
+  readonly format: "document"
   readonly variant?: string
   readonly section?: readonly string[]
 }
@@ -19,6 +19,7 @@ interface ScenarioItem {
   readonly id: number
   readonly groupId: number | null
   readonly label: string
+  readonly location: ReadScenarioOutput["tests"][number]["location"]
   readonly status: ReadScenarioOutput["tests"][number]["status"]
   readonly message: string | null
   readonly skipReason: string | null
@@ -29,6 +30,7 @@ interface ScenarioItem {
 interface ScenarioCategory {
   readonly id: number
   readonly label: string
+  readonly location: ReadScenarioOutput["groups"][number]["location"]
   readonly parameters: ReadScenarioOutput["groups"][number]["parameters"]
   readonly categories: readonly ScenarioCategory[]
   readonly items: readonly ScenarioItem[]
@@ -40,39 +42,27 @@ export interface ScenariosOutput {
   readonly source: string | null
   readonly status: "absent" | "pending" | "ready"
   readonly revision: string | null
+  readonly validation: ReadScenarioOutput["validation"] | null
   readonly variants: readonly ScenarioCategory[]
   readonly items: readonly ScenarioItem[]
 }
 
-interface ScenarioTreeAssertion {
-  readonly customFailMessage?: string
-  readonly actual: ReadScenarioOutput["assertions"][number]["actual"]
-  readonly matcher: string
-  readonly expected: ReadScenarioOutput["assertions"][number]["expected"]
-  readonly status: "passed" | "failed"
-  readonly modifiers?: readonly string[]
-  readonly error?: ReadScenarioOutput["assertions"][number]["error"]
+/** Абзац документа с пояснением и предметным значением или примером. */
+export interface ScenarioContent {
+  readonly text?: string
+  readonly value?: ReadScenarioOutput["assertions"][number]["actual"]
 }
 
-interface ScenarioTreeItem {
-  readonly label: string
-  readonly status: ReadScenarioOutput["tests"][number]["status"]
-  readonly assertions?: readonly ScenarioTreeAssertion[]
-  readonly unexecuted?: readonly {readonly customFailMessage: string | null}[]
-  readonly message?: string
-  readonly skipReason?: string
+/** Раздел документа; вложенность и порядок следуют исходному сценарию. */
+export interface ScenarioSection {
+  readonly title: string
+  readonly content?: readonly ScenarioContent[]
+  readonly sections?: readonly ScenarioSection[]
+  readonly notes?: readonly string[]
 }
 
-interface ScenarioTreeGroup {
-  readonly label: string
-  readonly parameters?: ReadScenarioOutput["groups"][number]["parameters"]
-  readonly children?: readonly ScenarioTreeGroup[]
-  readonly items?: readonly ScenarioTreeItem[]
-}
-
-/** Структура и содержание в одном дереве; пустые структурные списки отсутствуют, значения actual сохраняются. */
-export interface ScenariosTree {
-  readonly status: ScenariosOutput["status"]
-  readonly variants?: readonly ScenarioTreeGroup[]
-  readonly items?: readonly ScenarioTreeItem[]
+/** Документ для чтения: пояснения, примеры, предметные данные и вложенные разделы. */
+export interface ScenariosDocument {
+  readonly sections?: readonly ScenarioSection[]
+  readonly notes?: readonly string[]
 }

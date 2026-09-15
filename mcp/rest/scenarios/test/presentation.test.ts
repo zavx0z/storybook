@@ -1,14 +1,16 @@
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
 import {readScenario} from "@archetypes/specs/scenarios"
-import type {ScenariosInput} from "../src/types"
+import type {ScenariosInput, ScenarioSection} from "../src/types"
 import {presentScenarios} from "../src/presentation"
+import {readScenarios} from ".."
 
-describe("Границы представления", async () => {
+describe("Документация из сценария", async () => {
   const owner = {kind: "repository" as const, path: resolve(import.meta.dir, "../spec/fixture/repository")}
   const source = resolve(owner.path, "spec/scenario.spec.ts")
   const raw = await readScenario({path: source})
   const input: ScenariosInput = {owner, source, prepared: {revision: "test", result: raw}}
+  const document = presentScenarios(input, {format: "document"})
 
   test("Чужой результат не смешивается с выбранным исходником", () => {
     expect(() => presentScenarios({...input, source: resolve(owner.path, "spec/scenario.spec.tsx")})).toThrow("другому сценарию")
@@ -16,81 +18,114 @@ describe("Границы представления", async () => {
   test("Ревизия не подменяется отсутствующим значением", () => {
     expect(() => presentScenarios({...input, prepared: {revision: "", result: raw}})).toThrow("ревизия")
   })
-  test("Редактирование ответа не меняет полный результат валидации", () => {
-    const before = JSON.stringify(raw)
-    const result = presentScenarios(input)
-    Reflect.set(result.variants[0]!.items[0]!.assertions[0]!, "actual", "changed")
-    expect(JSON.stringify(raw)).toBe(before)
+  test("Документ использует только предметные ключи структуры", () => {
+    const visit = (section: ScenarioSection) => {
+      expect(Object.keys(section).filter(key => !["title", "content", "sections", "notes"].includes(key))).toEqual([])
+      for (const paragraph of section.content ?? []) expect(Object.keys(paragraph).filter(key => !["text", "value"].includes(key))).toEqual([])
+      for (const child of section.sections ?? []) visit(child)
+    }
+    expect(Object.keys(document)).toEqual(["sections"])
+    for (const section of document.sections ?? []) visit(section)
   })
-  test("У незавершённого пункта остаётся описание, но нет выдуманных actual", () => {
-    const result = presentScenarios(input)
-    const item = result.variants[0]!.categories[0]!.categories[0]!.items[1]!
-    expect({status: item.status, reached: item.assertions, planned: item.unexecuted.map(item => item.customFailMessage)})
-      .toEqual({status: "todo", reached: [], planned: ["Незавершённое требование"]})
+  test("Пункты и темы сохраняют общий порядок исходника", () => {
+    expect(document.sections?.[0]?.sections?.map(section => section.title)).toEqual(["Значение", "Данные"])
+    expect(document.sections?.[0]?.sections?.[1]?.sections?.map(section => section.title)).toEqual(["Состав", "Проверки"])
   })
-  test("Структура и содержание не дублируются", () => {
-    const tree = presentScenarios(input, {format: "tree"})
-    expect(Object.keys(tree)).toEqual(["status", "variants"])
-    expect(Object.keys(tree.variants![0]!)).toEqual(["label", "parameters", "children", "items"])
-    expect(Object.keys(tree.variants![0]!.children![0]!.children![0]!)).toEqual(["label", "items"])
-    expect(Object.keys(tree.variants![0]!.items![0]!.assertions![0]!)).toEqual(["customFailMessage", "actual", "matcher", "expected", "status"])
-    expect(presentScenarios({...input, prepared: {revision: "another-run", result: raw}}, {format: "tree"})).toEqual(tree)
-  })
-  test("Редактирование дерева не меняет источник", () => {
+  test("Редактирование документа не меняет источник", () => {
     const before = JSON.stringify(input)
-    const tree = presentScenarios(input, {format: "tree"})
-    Reflect.set(tree.variants![0]!.items![0]!.assertions![0]!, "actual", "changed")
+    const copy = presentScenarios(input, {format: "document"})
+    Reflect.set(copy.sections![0]!.sections![0]!.content![0]!, "value", "changed")
     expect(JSON.stringify(input)).toBe(before)
   })
-  test("Незавершённость и ожидаемый провал не маскируются успешным тестом", () => {
-    const items = presentScenarios(input, {format: "tree"}).variants![0]!.children![0]!.children![0]!.items!
-    expect(items[0]).toMatchObject({status: "skipped", skipReason: "Вариант не использует внешнюю службу."})
-    expect(items[1]).toEqual({label: "Дополнение", status: "todo", unexecuted: [{customFailMessage: "Незавершённое требование"}]})
-    expect(items[2]).toMatchObject({status: "passed", assertions: [{status: "failed", actual: "", expected: [""], modifiers: ["not"], error: expect.any(Object)}], unexecuted: [{customFailMessage: "Проверка после прерывания"}]})
+  test("Смена идентификатора запуска не меняет документ", () => {
+    expect(presentScenarios({...input, prepared: {revision: "another-run", result: raw}}, {format: "document"})).toEqual(document)
   })
-  test("Путь выбора читается из самого дерева", () => {
-    const tree = presentScenarios(input, {format: "tree"})
-    const variant = tree.variants![0]!
-    const parent = variant.children![0]!
-    const child = parent.children![0]!
-    const selected = presentScenarios(input, {format: "tree", variant: variant.label, section: [parent.label, child.label]})
-    expect(selected).toEqual({status: "ready", variants: [{label: variant.label, parameters: {name: "Обычный", props: {value: 7}}, children: [{label: parent.label, children: [child]}]}]})
+  test("Описание связано со своим значением при нескольких утверждениях", () => {
+    expect(document.sections?.[0]?.sections?.[1]?.sections?.[0]?.content).toEqual([
+      {text: "Текст выбранного варианта", value: ""},
+      {text: "Коллекция выбранного варианта", value: []},
+    ])
   })
-  test("Неверный выбор не подменяется всем деревом", () => {
-    expect(() => presentScenarios(input, {format: "tree", variant: "Обычный", section: ["Нет темы"]})).toThrow("Тема не найдена")
-    expect(() => presentScenarios(input, {format: "tree", section: ["Данные"]})).toThrow("сначала укажите вариант")
-    expect(() => presentScenarios(input, {format: "tree", variant: "Нет варианта"})).toThrow("Вариант не найден")
+  test("Незавершённые и неприменимые примеры остаются явно обозначенными", () => {
+    const sections = document.sections![0]!.sections![1]!.sections![1]!.sections!
+    expect(sections[0]).toEqual({title: "Внешняя служба", content: [{text: "Ответ внешней службы"}], notes: ["Вариант не использует внешнюю службу."]})
+    expect(sections[1]).toEqual({title: "Дополнение", content: [{text: "Незавершённое требование"}], notes: ["Этот раздел ещё требует подтверждения."]})
+    expect(sections[2]).toEqual({title: "Несоответствие", content: [{text: "Непустой текст результата", value: ""}, {text: "Проверка после прерывания"}], notes: ["Пример показывает ожидаемое несоответствие условию."]})
+  })
+  test("Ошибка примера не выглядит подтверждённым результатом", () => {
+    const result = structuredClone(raw)
+    Reflect.set(result.tests[0]!, "status", "failed")
+    expect(presentScenarios({...input, prepared: {revision: "test", result}}, {format: "document"}).sections?.[0]?.sections?.[0]?.notes)
+      .toEqual(["Пример завершился ошибкой; описанный результат не подтверждён."])
+  })
+  test("Путь выбора состоит из заголовков самого документа", () => {
+    const variant = document.sections![0]!
+    const parent = variant.sections![1]!
+    const child = parent.sections![1]!
+    expect(presentScenarios(input, {format: "document", variant: variant.title, section: [parent.title, child.title]}))
+      .toEqual({sections: [{title: variant.title, sections: [{title: parent.title, sections: [child]}]}]})
+  })
+  test("Неверный выбор не подменяется всем документом", () => {
+    expect(() => presentScenarios(input, {format: "document", variant: "Обычный", section: ["Нет темы"]})).toThrow("Тема не найдена")
+    expect(() => presentScenarios(input, {format: "document", section: ["Данные"]})).toThrow("сначала укажите вариант")
+    expect(() => presentScenarios(input, {format: "document", variant: "Нет варианта"})).toThrow("Вариант не найден")
+  })
+  test("Конечный раздел выбирается по той же цепочке заголовков", () => {
+    expect(presentScenarios(input, {format: "document", variant: "Обычный", section: ["Данные", "Состав"]}))
+      .toEqual({sections: [{title: "Обычный", sections: [{title: "Данные", sections: [document.sections![0]!.sections![1]!.sections![0]!]}]}]})
+    expect(() => presentScenarios(input, {format: "document", variant: "Обычный", section: ["Данные", "Состав", "Нет подраздела"]})).toThrow("Тема не найдена")
   })
   test("Одноимённые категории не объединяются", () => {
     const result = structuredClone(raw)
     const category = result.groups.find(group => group.label === "Данные")!
     Reflect.set(result, "groups", [...result.groups, {...category, id: 999}])
     const duplicated = {...input, prepared: {revision: "test", result}}
-    expect(presentScenarios(duplicated, {format: "tree"}).variants![0]!.children).toHaveLength(2)
-    expect(() => presentScenarios(duplicated, {format: "tree", variant: "Обычный", section: ["Данные"]})).toThrow("неоднозначно")
+    expect(presentScenarios(duplicated, {format: "document"}).sections![0]!.sections!.filter(section => section.title === "Данные")).toHaveLength(2)
+    expect(() => presentScenarios(duplicated, {format: "document", variant: "Обычный", section: ["Данные"]})).toThrow("неоднозначно")
   })
-  test("Пустая категория остаётся без пустых children и items", () => {
+  test("Пустой раздел сохраняет заголовок без пустых списков", () => {
     const result = structuredClone(raw)
     Reflect.set(result, "groups", [{...result.groups[0]!, parameters: null}])
     Reflect.set(result, "tests", [])
-    expect(presentScenarios({...input, prepared: {revision: "test", result}}, {format: "tree"})).toEqual({status: "ready", variants: [{label: "Обычный"}]})
+    expect(presentScenarios({...input, prepared: {revision: "test", result}}, {format: "document"})).toEqual({sections: [{title: "Обычный"}]})
   })
-  test("Пункты без describe остаются на корневом уровне", () => {
+  test("Пункты без describe остаются корневыми разделами", () => {
     const result = structuredClone(raw)
     Reflect.set(result, "groups", [])
     Reflect.set(result, "tests", [{...result.tests[0]!, groupId: null}])
-    const tree = presentScenarios({...input, prepared: {revision: "test", result}}, {format: "tree"})
-    expect(Object.keys(tree)).toEqual(["status", "items"])
-    expect(tree.items![0]!.label).toBe("Значение")
+    expect(presentScenarios({...input, prepared: {revision: "test", result}}, {format: "document"}).sections?.[0]?.title).toBe("Значение")
   })
-  test("Отсутствие и ожидание результата различаются без пустых деревьев", () => {
-    expect(presentScenarios({owner, source: null, prepared: null}, {format: "tree"})).toEqual({status: "absent"})
-    expect(presentScenarios({owner, source, prepared: null}, {format: "tree"})).toEqual({status: "pending"})
+  test("Отсутствие и ожидание документа различимы", () => {
+    expect(presentScenarios({owner, source: null, prepared: null}, {format: "document"})).toEqual({notes: ["Документация сценария отсутствует."]})
+    expect(presentScenarios({owner, source, prepared: null}, {format: "document"})).toEqual({notes: ["Документация сценария ещё не подготовлена."]})
   })
-  test.each([null, "", [], {}, false, 0, "строка с Markdown"].map(value => ({value})))("Фактическое значение: %j", ({value}) => {
+  test.each([null, "", [], {}, false, 0, {label: "Поле предметных данных", customFailMessage: "Тоже данные"}].map(value => ({value})))("Предметные значения сохраняются: %j", ({value}) => {
     const result = structuredClone(raw)
     Reflect.set(result.assertions[0]!, "actual", value)
-    const tree = presentScenarios({...input, prepared: {revision: "test", result}}, {format: "tree"})
-    expect(tree.variants![0]!.items![0]!.assertions![0]!.actual).toEqual(value)
+    expect(presentScenarios({...input, prepared: {revision: "test", result}}, {format: "document"}).sections?.[0]?.sections?.[0]?.content?.[0]?.value).toEqual(value)
+  })
+  test("Диагностический каталог сохраняет условия и исходные описания", () => {
+    const data = presentScenarios(input)
+    expect(data.validation).toEqual(raw.validation)
+    expect(data.variants[0]!.items[0]!.assertions[0]).toMatchObject({matcher: "toBe", expected: [7], actual: 7, customFailMessage: "Значение выбранного варианта"})
+    expect(data.variants[0]!.categories[0]!.categories[0]!.items[1]).toMatchObject({status: "todo", unexecuted: [{customFailMessage: "Незавершённое требование"}]})
+  })
+  test("Нарушения валидации видны в документе без тестовой структуры", () => {
+    const result = structuredClone(raw)
+    Reflect.set(result.validation, "status", "failed")
+    expect(presentScenarios({...input, prepared: {revision: "invalid", result}}, {format: "document"}).notes)
+      .toEqual(["В оформлении или выполнении сценария обнаружены нарушения. Подробности доступны в диагностике."])
+  })
+})
+
+describe.each([
+  {name: "Функция", path: "function", title: "Несколько чисел", topic: "Итог", item: "Сумма", value: 5},
+  {name: "Компонент", path: "component", title: "Доступная команда", topic: "Использование", item: "Подпись", value: "Продолжить"},
+])("Документация: $name", async ({path: fixture, title, topic, item, value}) => {
+  const path = resolve(import.meta.dir, "../../../../archetypes/specs/scenarios/spec/fixture", fixture)
+  const source = resolve(path, "spec", fixture === "component" ? "scenario.spec.tsx" : "scenario.spec.ts")
+  const result = await readScenarios({path, source})
+  test("Одна форма раскрывает предметные данные разных сущностей", () => {
+    expect(!("status" in result.scenarios) && result.scenarios.sections?.find(section => section.title === title)?.sections?.find(section => section.title === topic)?.sections?.find(section => section.title === item)?.content?.[0]?.value).toEqual(value)
   })
 })

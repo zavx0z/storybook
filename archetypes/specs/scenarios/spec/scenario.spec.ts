@@ -1,7 +1,6 @@
 import {describe, expect, test} from "bun:test"
 import {createFixture} from "../../../shared/fixtures"
-import {readScenario} from ".."
-import {inspectScenarioSource} from "./fixture"
+import {readScenario} from "@archetypes/specs/scenarios"
 
 const resolvePath = createFixture(process.env.SCENARIO_PATH)
 
@@ -9,14 +8,16 @@ describe.each([
   {name: "Сценарий функции", props: {path: resolvePath("fixture/function/spec/scenario.spec.ts")}},
   {name: "Сценарий компонента", props: {path: resolvePath("fixture/component/spec/scenario.spec.tsx")}},
 ])("$name", async ({props}) => {
-  const result = await inspectScenarioSource(props.path)
-  const execution = await readScenario({path: props.path})
-  const variant = result.groups.find(group => group.depth === 0)
-  const category = result.groups.find(group => group.depth > 0)
-  const multiple = result.tests.find(item => item.assertions > 1)
-  const repeated = result.tests.find(item => item.each)
-  const objectExample = result.checks.find(check => check.matcher === "toEqual" && check.explicitObject)
-  const cleanupHooks = result.hooks.filter(hook => hook.name === "afterAll" || hook.name === "afterEach")
+  const result = await readScenario({path: props.path})
+  const source = result.source
+  const variant = source.groups.find(group => group.depth === 0)
+  const category = source.groups.find(group => group.depth > 0)
+  const multiple = source.tests.find(item => item.assertions > 1)
+  const repeated = source.tests.find(item => item.each)
+  const objectExample = source.checks.find(check => check.matcher === "toEqual" && check.explicitObject)
+  const cleanupHooks = source.hooks.filter(hook => hook.name === "afterAll" || hook.name === "afterEach")
+  const skipped = source.tests.find(item => item.skippable)
+  const unfinished = source.tests.find(item => item.todo)
 
   describe("Назначение и границы", () => {
     test.todo("Исполняемая документация", () => {
@@ -40,36 +41,26 @@ describe.each([
   })
 
   describe("Пример целиком", () => {
-    test("Исходник", () => {
+    test("Сценарий целиком", () => {
       expect(
-        result.text,
-        "Это исходник настоящего исполняемого примера. Дальнейшие фрагменты читаются из этого же файла, а не поддерживаются отдельными копиями.",
-      ).toMatch(/\S/u)
-    })
-    test("Исполнение примера", () => {
-      expect(
-        execution.exitCode,
-        "Пример выполняется обычным Bun Test и подтверждает заявленный положительный результат. Ошибка запуска или проверки остаётся видимой.",
-      ).toBe(0)
+        source.text,
+        "Работающий пример объединяет варианты использования, получение результата и раскрытие его свойств. Ниже те же приёмы разобраны по темам; фрагменты взяты из этого исходника.",
+      ).toSatisfy(source => /\S/u.test(source) && result.exitCode === 0)
     })
     test("Нативные средства", () => {
       expect(
-        result.native.map(name => name === "it" ? "test" : name),
+        source.native.map(name => name === "it" ? "test" : name),
         "Автор использует обычные describe, test и expect из bun:test. Для категорий, параметризации, условий и подготовки ресурсов используются возможности самого тестового API, без отдельного языка сценариев.",
-      ).toEqual(expect.arrayContaining(["describe", "test", "expect"]))
+      ).toSatisfy(() => result.validation.checks.find(check => check.rule === "native-api")?.status === "passed")
     })
   })
 
   describe("Варианты и темы", () => {
     test("Внешний вариант", () => {
       expect(
-        result.unparameterized,
-        "Внешний describe.each задаёт именованные варианты использования. Строка параметризации содержит данные конкретного примера; отдельный вариант появляется при существенном различии входов, условий или результата.",
-      ).toEqual([])
-      expect(
         variant?.header,
-        "В таблице видно имя варианта и передаваемые данные; callback получает выбранную строку.",
-      ).toMatch(/\S/u)
+        "Внешний describe.each задаёт именованные варианты использования. Строка параметризации содержит данные конкретного примера; отдельный вариант появляется при существенном различии входов, условий или результата.",
+      ).toSatisfy(source => typeof source === "string" && /\S/u.test(source) && result.validation.checks.find(check => check.rule === "parameterization")?.status === "passed")
     })
     test.todo("От общего к частному", () => {
       expect(
@@ -86,16 +77,16 @@ describe.each([
     })
     test("Явная структура", () => {
       expect(
-        result.hidden,
+        category?.source ?? variant?.source,
         "Объявления describe и test находятся в самом сценарии. Обход actual не создаёт категории и проверки автоматически; фикстуры и помощники не прячут регистрацию тестов.",
-      ).toEqual([])
+      ).toSatisfy(source => typeof source === "string" && /\S/u.test(source) && result.validation.checks.find(check => check.rule === "explicit-registration")?.status === "passed")
     })
   })
 
   describe("Пункт и его описание", () => {
     test("Пример пункта", () => {
       expect(
-        result.tests[0]?.source,
+        source.tests[0]?.source,
         "Фрагмент test из исполняемого примера показывает название пункта, его данные и условие проверки.",
       ).toMatch(/\S/u)
     })
@@ -105,11 +96,11 @@ describe.each([
         "test раскрывает самостоятельное свойство или поведение. Его label — короткое предметное название, а не пересказ matcher и не список всех полей результата.",
       ).toBeDefined()
     })
-    test("customFailMessage", () => {
+    test("Описание пункта", () => {
       expect(
-        result.assertions.filter(assertion => !assertion.inline).map(assertion => assertion.message),
-        "customFailMessage находится непосредственно во втором аргументе expect. Это конкретное описательное пояснение назначения данных, понятное и при чтении, и при ошибке проверки.",
-      ).toEqual([])
+        source.tests.find(item => item.assertions > 0)?.source,
+        "Название test кратко обозначает предмет, а второй аргумент expect объясняет смысл данных. Пишите это пояснение непосредственно рядом с данными: оно читается как часть документации и объясняет нарушенное требование при ошибке.",
+      ).toSatisfy(source => typeof source === "string" && /\S/u.test(source) && result.validation.checks.find(check => check.rule === "inline-description")?.status === "passed")
     })
     test.todo("Формулировка", () => {
       expect(
@@ -133,19 +124,14 @@ describe.each([
   })
 
   describe("Результат и проверяемые условия", () => {
-    test("Вызовы варианта", () => {
-      const variants = execution.groups.filter(group => group.parentId === null)
-      expect(variants.length, "Выполненный пример содержит реальные варианты, а не пустую таблицу each").toBeGreaterThan(0)
-      expect(
-        variants.filter(group => !execution.calls.some(call => call.test === null && call.describe[0] === group.label)).map(group => group.label),
-        "У каждого выполненного варианта есть прикладной вызов вне тела test — при подготовке либо в hooks. Его принадлежность сохраняется после await; этот факт сам по себе не доказывает общий поток данных всех проверок.",
-      ).toEqual([])
+    test("Получение результата", () => {
       expect(
         variant?.setup,
-        "Фрагмент подготовки первого варианта показывает прямой вызов перед проверками. Асинхронный результат получается через await; отдельная декларация runtime не используется.",
-      ).toMatch(/\S/u)
+        "Вызовите сущность с данными выбранного варианта перед проверками её результата. Асинхронное выполнение дождитесь через await. Полученное значение служит основой для раскрытия его состава и отдельных свойств.",
+      ).toSatisfy(source => typeof source === "string" && /\S/u.test(source)
+        && result.validation.checks.find(check => check.rule === "variant-setup")?.status === "passed")
     })
-    test.todo("actual", () => {
+    test.todo("Данные результата", () => {
       expect(
         undefined,
         "actual содержит данные, полученные из выполненного примера, либо нужную часть этих данных. Возвращённое значение, состояние и побочные эффекты различаются по смыслу; проверки не подменяют результат повторным вычислением реализации.",
@@ -194,9 +180,9 @@ describe.each([
     })
     test("Прямое выполнение", () => {
       expect(
-        result.native.filter(name => ["mock", "spyOn"].includes(name)),
-        "История выполнения получается из прямого вызова. Ручные mock и spyOn не оборачивают функцию только ради наблюдения за ней.",
-      ).toEqual([])
+        variant?.setup,
+        "Вызывайте функцию или компонент напрямую через публичный API. Для наблюдения за выполнением не требуются ручные mock и spyOn.",
+      ).toSatisfy(source => typeof source === "string" && /\S/u.test(source) && result.validation.checks.find(check => check.rule === "direct-execution")?.status === "passed")
     })
     test.todo("Общая подготовка", () => {
       expect(
@@ -205,10 +191,10 @@ describe.each([
       ).toBeDefined()
     })
     /** @remarks В примере может не быть hook завершения. */
-    test.skipIf(cleanupHooks.length === 0)("Hook завершения", () => {
+    test.skipIf(cleanupHooks.length === 0)("Завершение жизненного цикла", () => {
       expect(
         cleanupHooks.map(hook => hook.source).join("\n"),
-        "Код afterAll или afterEach показывает место завершения жизненного цикла. Одно наличие hook ещё не подтверждает, что все ресурсы освобождены.",
+        "afterAll завершает общие ресурсы варианта после его проверок. afterEach завершает ресурсы отдельного теста. В примере освобождение находится рядом с созданием ресурса.",
       ).toMatch(/\S/u)
     })
     test.todo("Освобождение ресурсов", () => {
@@ -219,22 +205,16 @@ describe.each([
     })
   })
 
-  describe("Фикстуры и внешний запуск", () => {
+  describe("Фикстуры", () => {
     test.todo("Граница фикстуры", () => {
       expect(
         undefined,
         "Фикстура подготавливает исходные данные и необходимую среду. Варианты, темы, test и expect остаются в сценарии: читатель видит, что именно описано и проверено.",
       ).toBeDefined()
     })
-    test.todo("Передача пути", () => {
-      expect(
-        undefined,
-        "Проверка, принимающая внешний путь, явно передаёт переменную окружения помощнику в начале файла. В параметрах варианта виден путь примера по умолчанию; относительный путь примера считается от файла сценария, внешний относительный путь — от рабочей директории запуска.",
-      ).toBeDefined()
-    })
     test("Расположение файла", () => {
       expect(
-        result.path.split("/").slice(-2).join("/"),
+        source.path.split("/").slice(-2).join("/"),
         "Сценарий находится в непосредственной spec своего владельца: scenario.spec.ts либо scenario.spec.tsx. Варианты и проверки не дублируются во внешних декларациях.",
       ).toMatch(/^spec\/scenario\.spec\.tsx?$/u)
     })
@@ -247,17 +227,19 @@ describe.each([
         "scenario.spec описывает поддерживаемое использование с ожидаемым успешным результатом. Ожидаемые ошибки и отказы проверяются отдельными spec-файлами того же владельца; внутренние механизмы реализации — отдельными test.",
       ).toBeDefined()
     })
-    test("Неприменимый случай", () => {
+    /** @remarks В этом примере нет условно пропускаемых пунктов. */
+    test.skipIf(!skipped)("Неприменимый случай", () => {
       expect(
-        result.undocumentedSkips,
+        skipped?.source,
         "skipIf обозначает неприменимость к выбранному варианту. Перед условно или постоянно пропускаемым тестом либо группой находится @remarks с условием и причиной; пропуск не выдаётся за успешную проверку.",
-      ).toEqual([])
+      ).toSatisfy(source => typeof source === "string" && /\S/u.test(source) && result.validation.checks.find(check => check.rule === "skip-description")?.status === "passed")
     })
-    test("Незавершённая проверка", () => {
+    /** @remarks В этом примере нет незавершённых пунктов. */
+    test.skipIf(!unfinished)("Незавершённая проверка", () => {
       expect(
-        result.tests.filter(item => !item.todo && item.assertions === 0).map(item => item.label),
+        unfinished?.source,
         "todo обозначает ещё не реализованную проверку без дублирующего комментария. Пустое тело обычного test не заменяет проверку, а наличие текста требования не доказывает его выполнение.",
-      ).toEqual([])
+      ).toSatisfy(source => typeof source === "string" && /\S/u.test(source) && result.validation.checks.find(check => check.rule === "assertions")?.status === "passed")
     })
     test.todo("Смысловая оценка", () => {
       expect(

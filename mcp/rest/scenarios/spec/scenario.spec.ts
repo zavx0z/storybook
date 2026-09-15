@@ -20,7 +20,7 @@ describe.each([
   const before = JSON.stringify(raw)
   const input: ScenariosInput = {owner, source, prepared: {revision: "fixture-revision", result: raw}}
   const result = presentScenarios(input)
-  const tree = presentScenarios(input, {format: "tree"})
+  const document = presentScenarios(input, {format: "document"})
   const variant = result.variants[0]!
   const category = variant.categories[0]!
   const item = category.items[0]!
@@ -187,47 +187,39 @@ describe.each([
   })
 
   describe("Данные ответа", () => {
-    test("Дерево", () => {
+    test("Разделы документа", () => {
       expect(
-        tree,
-        "Варианты, категории и пункты в одном дереве без отдельного оглавления, Markdown-копии и случайной ревизии",
-      ).toMatchObject({
-        status: "ready",
-        variants: [
-          {label: "Обычный", children: [{label: "Данные", items: [{label: "Состав"}], children: [{label: "Проверки"}]}]},
-          {label: "Пустой", children: [{label: "Данные", items: [{label: "Состав"}], children: [{label: "Проверки"}]}]},
-        ],
-      })
-    })
-    test("Конечная категория", () => {
-      expect(
-        Object.keys(tree.variants![0]!.children![0]!.children![0]!),
-        "Категория без подкатегорий содержит только своё название и пункты, без пустого children",
-      ).toEqual(["label", "items"])
-    })
-    test("Описание и данные пункта", () => {
-      expect(
-        tree.variants![0]!.children![0]!.items![0]!.assertions,
-        "Каждый expect связывает customFailMessage с actual, условием и состоянием; пустые значения данных сохраняются",
+        document.sections?.map(section => ({title: section.title, sections: section.sections?.map(child => child.title)})),
+        "Варианты и вложенные темы документации с сохранением порядка исходника",
       ).toEqual([
-        {customFailMessage: "Текст выбранного варианта", actual: "", matcher: "toBe", expected: [""], status: "passed"},
-        {customFailMessage: "Коллекция выбранного варианта", actual: [], matcher: "toEqual", expected: [[]], status: "passed"},
+        {title: "Обычный", sections: ["Значение", "Данные"]},
+        {title: "Пустой", sections: ["Значение", "Данные"]},
       ])
     })
-    test("Незавершённые требования", () => {
+    test("Описание и данные", () => {
       expect(
-        tree.variants![0]!.children![0]!.children![0]!.items![1],
-        "У невыполненного expect остаётся описание, но нет выдуманного фактического значения; исходник доступен в диагностическом отчёте",
+        document.sections?.[0]?.sections?.[1]?.sections?.[0],
+        "Пояснения связаны с предметными значениями, включая пустую строку и коллекцию",
       ).toEqual({
-        label: "Дополнение", status: "todo",
-        unexecuted: [{customFailMessage: "Незавершённое требование"}],
+        title: "Состав",
+        content: [{text: "Текст выбранного варианта", value: ""}, {text: "Коллекция выбранного варианта", value: []}],
+      })
+    })
+    test("Незавершённый раздел", () => {
+      expect(
+        document.sections?.[0]?.sections?.[1]?.sections?.[1]?.sections?.[1],
+        "Неподтверждённое положение сохраняет пояснение без выдуманных данных",
+      ).toEqual({
+        title: "Дополнение",
+        content: [{text: "Незавершённое требование"}],
+        notes: ["Этот раздел ещё требует подтверждения."],
       })
     })
     test("Выбор темы", () => {
       expect(
-        presentScenarios(input, {format: "tree", variant: "Обычный", section: ["Данные", "Проверки"]}),
-        "Выбранная тема с родительской цепочкой, без соседних тем и посторонних вариантов",
-      ).toMatchObject({variants: [{label: "Обычный", children: [{label: "Данные", children: [{label: "Проверки"}]}]}]})
+        presentScenarios(input, {format: "document", variant: "Обычный", section: ["Данные", "Проверки"]}),
+        "Выбранная тема со своей родительской цепочкой",
+      ).toMatchObject({sections: [{title: "Обычный", sections: [{title: "Данные", sections: [{title: "Проверки"}]}]}]})
     })
     test.todo("Готовый результат", () => {
       expect(
@@ -247,7 +239,7 @@ describe.each([
       expect(
         Object.keys(result),
         "Представление данных для ответа MCP поверх полного результата инспектора",
-      ).toEqual(["owner", "source", "status", "revision", "variants", "items"])
+      ).toEqual(["owner", "source", "status", "revision", "validation", "variants", "items"])
     })
 
     test("Полнота источника", () => {

@@ -77,6 +77,8 @@ describe.each([
       groups: expect.any(Array),
       tests: expect.any(Array),
       junit: expect.any(String),
+      source: expect.any(Object),
+      validation: expect.any(Object),
     })
   })
 

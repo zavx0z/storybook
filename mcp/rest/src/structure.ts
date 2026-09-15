@@ -1,4 +1,4 @@
-import {dirname, relative, resolve, sep} from "node:path"
+import {basename, dirname, relative, resolve, sep} from "node:path"
 import {realpath} from "node:fs/promises"
 
 /** Читает непосредственные публичные входы пакета; дерево маршрутов отдельно не хранится. */
@@ -40,6 +40,12 @@ export async function readDescription(directory: string): Promise<string> {
   if (note?.[1]) source = await Bun.file(resolve(directory, "notes", note[1])).text()
   const paragraph = source.trim().split(/\r?\n\r?\n/u)[1]?.replace(/\s+/gu, " ").trim()
   return paragraph && !paragraph.startsWith("#") && !paragraph.startsWith("```") ? paragraph : ""
+}
+
+/** Читает заголовок документа у его владельца; имя директории сохраняется при отсутствии заголовка. */
+export async function readTitle(directory: string): Promise<string> {
+  const file = Bun.file(resolve(directory, "README.md"))
+  return await file.exists() ? (await file.text()).match(/^#\s+(.+)$/mu)?.[1]?.trim() ?? basename(directory) : basename(directory)
 }
 
 /** Находит единственный сценарный файл непосредственно у выбранного владельца. */

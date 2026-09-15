@@ -9,8 +9,7 @@ import {tmpdir} from "node:os"
 import {applyReport} from "./report"
 import {discover} from "./discover"
 import type {ReadScenarioInput} from "../contract/input"
-import type {ReadScenarioOutput} from "../contract/output"
-import type {ScenarioAssertion, ScenarioGroup, ScenarioTest, TraceCall} from "./types"
+import type {ScenarioAssertion, ScenarioExecution, ScenarioGroup, ScenarioTest, TraceCall} from "./types"
 
 interface TraceCallMessage {
   readonly type: "storybook:trace-call"
@@ -42,7 +41,7 @@ function isTraceCompleteMessage(value: unknown): value is TraceCompleteMessage {
 @returns Вызовы с аргументами, исходами и контекстом Bun Test.
 @throws Ошибка определения среды, запуска или получения завершающего отчёта.
 */
-export async function traceScenario(input: ReadScenarioInput): Promise<ReadScenarioOutput> {
+export async function traceScenario(input: ReadScenarioInput): Promise<ScenarioExecution> {
   const path = resolve(input.path)
   const configuration = await discover(path)
   const env: NodeJS.ProcessEnv = {

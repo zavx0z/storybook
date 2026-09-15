@@ -197,17 +197,180 @@ exports[`Пакет Сохраняет результат чтения спец�
         "<?xml version="1.0" encoding="UTF-8"?>",
         "<testsuites name="bun test" tests="2" assertions="2" failures="0" skipped="0" time="<duration>">",
         "  <testsuite name="spec/scenario.spec.ts" file="spec/scenario.spec.ts" tests="2" assertions="2" failures="0" skipped="0" time="<duration>" hostname="repositarium">",
-        "    <testsuite name="Корневой пакет" file="spec/scenario.spec.ts" line="8" tests="1" assertions="1" failures="0" skipped="0" time="<duration>" hostname="repositarium">",
-        "      <testcase name="Возвращает результат чтения пакета" classname="Корневой пакет" time="<duration>" file="spec/scenario.spec.ts" line="26" assertions="1" />",
+        "    <testsuite name="Корневой пакет" file="spec/scenario.spec.ts" line="82" tests="1" assertions="1" failures="0" skipped="0" time="<duration>" hostname="repositarium">",
+        "      <testcase name="Возвращает результат чтения пакета" classname="Корневой пакет" time="<duration>" file="spec/scenario.spec.ts" line="82" assertions="1" />",
         "    </testsuite>",
-        "    <testsuite name="Вложенный пакет" file="spec/scenario.spec.ts" line="8" tests="1" assertions="1" failures="0" skipped="0" time="<duration>" hostname="repositarium">",
-        "      <testcase name="Возвращает результат чтения пакета" classname="Вложенный пакет" time="<duration>" file="spec/scenario.spec.ts" line="26" assertions="1" />",
+        "    <testsuite name="Вложенный пакет" file="spec/scenario.spec.ts" line="82" tests="1" assertions="1" failures="0" skipped="0" time="<duration>" hostname="repositarium">",
+        "      <testcase name="Возвращает результат чтения пакета" classname="Вложенный пакет" time="<duration>" file="spec/scenario.spec.ts" line="82" assertions="1" />",
         "    </testsuite>",
         "  </testsuite>",
         "</testsuites>",
         "",
       ],
       "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
+      "source": {
+        "assertions": [
+          {
+            "actual": "result",
+            "inline": true,
+            "location": {
+              "column": 5,
+              "line": 27,
+              "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
+            },
+            "message": ""readPackage должна возвращать результат чтения пакета"",
+          },
+        ],
+        "checks": [
+          {
+            "explicitObject": false,
+            "matcher": "toBeDefined",
+            "source": "expect(result, "readPackage должна возвращать результат чтения пакета").toBeDefined()",
+          },
+        ],
+        "groups": [
+          {
+            "depth": 0,
+            "each": true,
+            "header": 
+"describe.each([
+  {
+    name: "Корневой пакет",
+    fail: "Корневой пакет должен непосредственно принадлежать репозиторию",
+    props: {
+      path: inputPath ?? packagePath("."),
+    },
+  },
+  {
+    name: "Вложенный пакет",
+    fail: "Вложенный пакет должен непосредственно принадлежать содержащему его пакету",
+    props: {
+      path: inputPath ?? packagePath("specs"),
+    },
+  },
+])("$name", async ({props}) => "
+,
+            "setup": "const result = await readPackage(props)",
+            "source": 
+"describe.each([
+  {
+    name: "Корневой пакет",
+    fail: "Корневой пакет должен непосредственно принадлежать репозиторию",
+    props: {
+      path: inputPath ?? packagePath("."),
+    },
+  },
+  {
+    name: "Вложенный пакет",
+    fail: "Вложенный пакет должен непосредственно принадлежать содержащему его пакету",
+    props: {
+      path: inputPath ?? packagePath("specs"),
+    },
+  },
+])("$name", async ({props}) => {
+  const result = await readPackage(props)
+
+  test("Возвращает результат чтения пакета", () => {
+    expect(result, "readPackage должна возвращать результат чтения пакета").toBeDefined()
+  })
+})"
+,
+          },
+        ],
+        "hooks": [],
+        "imports": [
+          "bun:test",
+          "node:path",
+          "@storybook/archetypes/package",
+        ],
+        "native": [
+          "describe",
+          "expect",
+          "test",
+        ],
+        "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
+        "registrations": [
+          {
+            "depth": 0,
+            "kind": "describe",
+            "label": ""$name"",
+            "location": {
+              "column": 1,
+              "line": 8,
+              "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
+            },
+            "modifiers": [
+              "each",
+            ],
+            "remarks": null,
+            "scope": "module",
+          },
+          {
+            "depth": 1,
+            "kind": "test",
+            "label": ""Возвращает результат чтения пакета"",
+            "location": {
+              "column": 3,
+              "line": 26,
+              "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
+            },
+            "modifiers": [],
+            "remarks": null,
+            "scope": "native",
+          },
+        ],
+        "tests": [
+          {
+            "assertions": 1,
+            "each": false,
+            "label": ""Возвращает результат чтения пакета"",
+            "location": {
+              "column": 3,
+              "line": 26,
+              "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
+            },
+            "skippable": false,
+            "source": 
+"test("Возвращает результат чтения пакета", () => {
+  expect(result, "readPackage должна возвращать результат чтения пакета").toBeDefined()
+})"
+,
+            "todo": false,
+          },
+        ],
+        "text": 
+"import {describe, expect, test} from "bun:test"
+import {resolve} from "node:path"
+import {readPackage} from "@storybook/archetypes/package"
+
+const packagePath = (path: string) => resolve(import.meta.dir, "../..", path)
+const inputPath = process.env.PACKAGE_PATH
+
+describe.each([
+  {
+    name: "Корневой пакет",
+    fail: "Корневой пакет должен непосредственно принадлежать репозиторию",
+    props: {
+      path: inputPath ?? packagePath("."),
+    },
+  },
+  {
+    name: "Вложенный пакет",
+    fail: "Вложенный пакет должен непосредственно принадлежать содержащему его пакету",
+    props: {
+      path: inputPath ?? packagePath("specs"),
+    },
+  },
+])("$name", async ({props}) => {
+  const result = await readPackage(props)
+
+  test("Возвращает результат чтения пакета", () => {
+    expect(result, "readPackage должна возвращать результат чтения пакета").toBeDefined()
+  })
+})
+"
+,
+      },
       "stderr": 
 "
 spec/scenario.spec.ts:
@@ -278,6 +441,86 @@ Ran 2 tests across 1 file.
           "status": "passed",
         },
       ],
+      "validation": {
+        "checks": [
+          {
+            "issues": [],
+            "rule": "native-api",
+            "status": "passed",
+          },
+          {
+            "issues": [],
+            "rule": "file-location",
+            "status": "passed",
+          },
+          {
+            "issues": [],
+            "rule": "parameterization",
+            "status": "passed",
+          },
+          {
+            "issues": [],
+            "rule": "explicit-registration",
+            "status": "passed",
+          },
+          {
+            "issues": [],
+            "rule": "inline-description",
+            "status": "passed",
+          },
+          {
+            "issues": [],
+            "rule": "direct-execution",
+            "status": "passed",
+          },
+          {
+            "issues": [],
+            "rule": "skip-description",
+            "status": "passed",
+          },
+          {
+            "issues": [],
+            "rule": "assertions",
+            "status": "passed",
+          },
+          {
+            "issues": [],
+            "rule": "variant-setup",
+            "status": "passed",
+          },
+          {
+            "issues": [],
+            "rule": "execution",
+            "status": "passed",
+          },
+          {
+            "issues": [],
+            "rule": "public-entry",
+            "status": "not-checked",
+          },
+          {
+            "issues": [],
+            "rule": "fixture-ownership",
+            "status": "not-checked",
+          },
+          {
+            "issues": [],
+            "rule": "result-dataflow",
+            "status": "not-checked",
+          },
+          {
+            "issues": [],
+            "rule": "resource-cleanup",
+            "status": "not-checked",
+          },
+          {
+            "issues": [],
+            "rule": "meaning",
+            "status": "not-checked",
+          },
+        ],
+        "status": "incomplete",
+      },
     },
   },
 }

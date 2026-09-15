@@ -13,15 +13,13 @@ import {presentScenarios} from "./src/presentation"
 export type {ReadScenariosInput, ReadScenariosOutput}
 
 /** Проверяет принадлежность до запуска теста. Кэширование ещё не подключено. */
-export async function readScenarios({path, source, format = "tree", selection}: ReadScenariosInput): Promise<ReadScenariosOutput> {
+export async function readScenarios({path, source, format = "document", selection}: ReadScenariosInput): Promise<ReadScenariosOutput> {
   if (format === "data" && selection !== undefined) throw new Error("Режим data возвращает все данные без выбора темы")
   const owner = {path, kind: await Bun.file(resolve(path, "package.json")).exists() ? "package" as const : "entity" as const}
   presentScenarios({owner, source, prepared: null})
   const result = await readScenario({path: source})
-  return {
-    scenarios: presentScenarios(
-      {owner, source, prepared: {revision: randomUUID(), result}},
-      format === "tree" ? {format: "tree", ...selection} : undefined,
-    ),
-  }
+  const input = {owner, source, prepared: {revision: randomUUID(), result}}
+  return format === "document"
+    ? {scenarios: presentScenarios(input, {format: "document", ...selection})}
+    : {scenarios: presentScenarios(input)}
 }

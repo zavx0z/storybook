@@ -2,7 +2,7 @@
 export interface ReadScenariosInput {
   readonly path: string
   readonly source: string
-  readonly format?: "tree" | "data"
+  readonly format?: "document" | "data"
   readonly selection?: {
     readonly variant?: string
     readonly section?: readonly string[]

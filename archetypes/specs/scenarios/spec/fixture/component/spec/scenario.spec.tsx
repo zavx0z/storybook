@@ -1,6 +1,6 @@
 import {afterAll, describe, expect, test} from "bun:test"
 import {createHeadless} from "@immersive/headless"
-import {Command} from ".."
+import {Command} from "@fixture/scenario-component"
 
 describe.each([
   {name: "Доступная команда", props: {label: "Продолжить", disabled: false}},

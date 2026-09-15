@@ -125,6 +125,60 @@ interface ScenarioTest {
   }[]
 }
 
+/** Структура исходника до выполнения, включая фрагменты для документации и факты для валидации. */
+interface ScenarioSource {
+  readonly path: string
+  readonly text: string
+  readonly native: readonly string[]
+  readonly imports: readonly string[]
+  readonly assertions: readonly {
+    readonly actual: string
+    readonly message: string | null
+    readonly inline: boolean
+    readonly location: TraceLocation
+  }[]
+  readonly tests: readonly {
+    readonly label: string
+    readonly assertions: number
+    readonly todo: boolean
+    readonly skippable: boolean
+    readonly source: string
+    readonly each: boolean
+    readonly location: TraceLocation
+  }[]
+  readonly groups: readonly {
+    readonly source: string
+    readonly header: string
+    readonly setup: string
+    readonly depth: number
+    readonly each: boolean
+  }[]
+  readonly checks: readonly {readonly source: string, readonly matcher: string, readonly explicitObject: boolean}[]
+  readonly hooks: readonly {readonly name: string, readonly source: string}[]
+  readonly registrations: readonly {
+    readonly kind: "describe" | "test"
+    readonly label: string
+    readonly modifiers: readonly string[]
+    readonly depth: number
+    readonly scope: "module" | "native" | "helper"
+    readonly remarks: string | null
+    readonly location: TraceLocation
+  }[]
+}
+
+/** Результаты применения правил: незавершённые проверки не считаются пройденными. */
+interface ScenarioValidation {
+  readonly status: "passed" | "failed" | "incomplete"
+  readonly checks: readonly {
+    readonly rule: string
+    readonly status: "passed" | "failed" | "not-checked"
+    readonly issues: readonly {
+      readonly message: string
+      readonly location: TraceLocation | null
+    }[]
+  }[]
+}
+
 /**
 Результат отдельного запуска настоящего Bun Test.
 
@@ -144,6 +198,8 @@ interface ScenarioTest {
 @property groups - Зарегистрированные группы с параметрами вариантов и родительскими идентификаторами.
 @property tests - Объявления пунктов, исходные expect и состояния из штатного JUnit Bun.
 @property junit - Полный неизменённый XML штатного отчёта этого же запуска.
+@property source - Структура и фрагменты исполненного исходника.
+@property validation - Результаты проверок оформления и выполнения; не реализованные проверки обозначены явно.
 */
 export interface ReadScenarioOutput {
   readonly path: string
@@ -155,4 +211,6 @@ export interface ReadScenarioOutput {
   readonly groups: readonly ScenarioGroup[]
   readonly tests: readonly ScenarioTest[]
   readonly junit: string
+  readonly source: ScenarioSource
+  readonly validation: ScenarioValidation
 }

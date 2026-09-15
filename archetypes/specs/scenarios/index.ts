@@ -1,25 +1,30 @@
 /**
-Исполняет сценарий настоящим Bun Test.
+Читает, выполняет и проверяет сценарий.
 
-Возвращает группы, тесты, утверждения, наблюдаемые вызовы и исходный отчёт runner.
+Возвращает структуру исходника, данные выполнения и результаты валидации.
 
 @packageDocumentation
 */
 import {traceScenario} from "./src/trace"
+import {readScenarioSource} from "./src/read-source"
+import {validateScenario} from "./src/validate"
 import type {ReadScenarioInput} from "./contract/input"
 import type {ReadScenarioOutput} from "./contract/output"
 
 export type {ReadScenarioInput, ReadScenarioOutput}
 
 /**
-Запускает настоящий Bun Test и собирает данные его выполнения.
+Получает структуру исходника, выполняет его настоящим Bun Test и применяет правила архетипа.
 
 @param input - Путь к сценарию; среда запуска определяется из его пакета.
 
-@returns Группы, пункты, expect с фактическими значениями, вызовы с контекстом,
-код завершения, stdout, stderr и исходный JUnit одного запуска.
+@returns Структура исходника, данные одного запуска и отчёт валидации.
+Нарушения оформления и выполненных проверок возвращаются в validation;
+нереализованные проверки не считаются пройденными.
 @throws Ошибка запуска, таймаут или отсутствие завершающего отчёта.
 */
 export async function readScenario(input: ReadScenarioInput): Promise<ReadScenarioOutput> {
-  return traceScenario(input)
+  const source = await readScenarioSource(input.path)
+  const execution = await traceScenario({...input, path: source.path})
+  return {...execution, source, validation: validateScenario(source, execution)}
 }

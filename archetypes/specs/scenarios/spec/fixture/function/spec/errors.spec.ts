@@ -1,5 +1,5 @@
 import {describe, expect, test} from "bun:test"
-import {summarizeNumbers} from ".."
+import {summarizeNumbers} from "@fixture/scenario-function"
 
 describe.each([
   {name: "Бесконечность", props: {values: [Infinity]}},

@@ -1,6 +1,6 @@
-import type {ScenariosOutput, ScenariosTree} from "../src/types"
+import type {ScenariosOutput, ScenariosDocument} from "../src/types"
 
-/** Данные для поля scenarios HTTP-ответа: дерево либо диагностический каталог. */
+/** Предметная документация либо диагностический каталог для HTTP-ответа. */
 export interface ReadScenariosOutput {
-  readonly scenarios: ScenariosTree | ScenariosOutput
+  readonly scenarios: ScenariosDocument | ScenariosOutput
 }

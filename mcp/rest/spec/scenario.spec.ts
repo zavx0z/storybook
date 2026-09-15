@@ -81,52 +81,57 @@ describe("Спецификации из структуры", () => {
   })
 })
 
-describe("Руководство из выполненного теста", async () => {
+describe("Документация из выполненного сценария", async () => {
   const request = (body: object) => storybookRest(new Request("http://localhost", {method: "POST", body: JSON.stringify(body)}), root, readScenarios)
   const result = await (await request({node: "archetypes/specs/scenarios"})).json()
 
-  test("Варианты", () => {
-    expect(result.scenarios.variants.map((entry: {label: string}) => entry.label), "Варианты из параметризации руководства").toEqual(["Сценарий функции", "Сценарий компонента"])
+  test("Заголовок и назначение", () => {
+    expect(result.title).toBe("Сценарии")
+    expect(result.content[0].text).toContain("структурированная исполняемая документация")
+    expect(Object.keys(result)).toEqual(["node", "title", "content", "sections"])
   })
-  test("Темы и содержание", () => {
-    expect(result.scenarios.variants[0].children.map((entry: {label: string}) => entry.label), "Категории со своим содержимым").toEqual([
+  test("Варианты и темы раскрываются разделами", () => {
+    expect(result.sections.map((entry: {title: string}) => entry.title)).toEqual(["Сценарий функции", "Сценарий компонента"])
+    expect(result.sections[0].sections.map((entry: {title: string}) => entry.title)).toEqual([
       "Назначение и границы", "Пример целиком", "Варианты и темы", "Пункт и его описание",
-      "Результат и проверяемые условия", "Подготовка и жизненный цикл", "Фикстуры и внешний запуск", "Ошибки, пропуски и незавершённость",
+      "Результат и проверяемые условия", "Подготовка и жизненный цикл", "Фикстуры", "Ошибки, пропуски и незавершённость",
     ])
-    expect(result.scenarios.variants[0].children[1].items[0].assertions[0].actual).toContain("summarizeNumbers(props)")
-    expect(result.scenarios.variants[1].children[1].items[0].assertions[0].actual).toContain("<Command")
   })
-  test("Единое дерево", () => {
-    expect(Object.keys(result), "Ответ без пустой навигации, Markdown и отдельного оглавления").toEqual(["node", "description", "scenarios"])
-    expect(Object.keys(result.scenarios), "Дерево без случайной ревизии запуска").toEqual(["status", "variants"])
-    expect(Object.keys(result.scenarios.variants[0].children[0])).toEqual(["label", "items"])
+  test("Примеры используют публичные входы своих пакетов", () => {
+    expect(result.sections[0].sections[1].sections[0].content[0].value).toContain('from "@fixture/scenario-function"')
+    expect(result.sections[1].sections[1].sections[0].content[0].value).toContain('from "@fixture/scenario-component"')
   })
-  test("Условие сопоставления", () => {
-    expect(
-      result.scenarios.variants[0].children[1].items[0].assertions[0].expected,
-      "Условие из установленного пакета инспектора сохраняет шаблон и флаги RegExp, а не пустой объект",
-    ).toEqual([{$type: "regexp", source: "\\S", flags: "u", lastIndex: 0}])
+  test("Пояснение раскрывает предмет вместе с примером", () => {
+    const section = result.sections[0].sections[3].sections.find((section: {title: string}) => section.title === "Описание пункта")
+    expect(section.content[0].text).toContain("объясняет смысл данных")
+    expect(section.content[0].value).toContain('expect(result, "Исходные числа, количество элементов и сумма набора")')
+    expect(Object.keys(section)).toEqual(["title", "content"])
   })
-  test("Причина пропуска", () => {
-    const item = result.scenarios.variants[0].children[3].items.find((item: {label: string}) => item.label === "Связанные утверждения")
-    expect(item.status, "Применимый пункт действительно выполнен").toBe("passed")
-    expect(item.skipReason, "У выполненного пункта нет ложной причины пропуска").toBeUndefined()
+  test("Служебные списки нарушений не заменяют примеры руководства", () => {
+    const paragraphs: {text?: string, value?: unknown}[] = []
+    const visit = (section: {content?: typeof paragraphs, sections?: any[]}) => {
+      paragraphs.push(...section.content ?? [])
+      for (const child of section.sections ?? []) visit(child)
+    }
+    visit(result)
+    expect(paragraphs.filter(paragraph => Array.isArray(paragraph.value) && paragraph.value.length === 0)).toEqual([])
   })
-  test("Смысловые требования", () => {
-    expect(result.scenarios.variants[0].children[0].items[0], "Незавершённая оценка остаётся при описываемом пункте").toMatchObject({
-      label: "Исполняемая документация", status: "todo", unexecuted: [{customFailMessage: expect.any(String)}],
+  test("Неподтверждённые положения обозначены без выдуманных данных", () => {
+    expect(result.sections[0].sections[0].sections[0]).toEqual({
+      title: "Исполняемая документация",
+      content: [{text: expect.any(String)}],
+      notes: ["Этот раздел ещё требует подтверждения."],
     })
-    expect(result.scenarios.variants[0].children[0].items[0].assertions).toBeUndefined()
   })
-  test("Полные данные отдельно", async () => {
+  test("Диагностика сохраняет исходные условия", async () => {
     const data = await (await request({node: "archetypes/specs/scenarios", action: "data"})).json()
-    expect(data.scenarios.source, "Тот же тест-руководство остаётся источником данных").toBe(`${root}archetypes/specs/scenarios/spec/scenario.spec.ts`)
+    expect(data.scenarios.source).toBe(`${root}archetypes/specs/scenarios/spec/scenario.spec.ts`)
     expect(data.scenarios.variants[0].categories[0].items[0]).toMatchObject({label: "Исполняемая документация", status: "todo", assertions: [], unexecuted: [{customFailMessage: expect.any(String)}]})
+    expect(data.scenarios.variants[0].categories[1].items[0].assertions[0].matcher).toBe("toSatisfy")
   }, 20000)
-  test("Одна тема без потери её содержания", async () => {
+  test("Выбранная тема совпадает с разделом полного документа", async () => {
     const selected = await (await request({node: "archetypes/specs/scenarios", input: {variant: "Сценарий функции", section: ["Пункт и его описание"]}})).json()
-    expect(selected.scenarios.variants).toHaveLength(1)
-    expect(selected.scenarios.variants[0].children).toHaveLength(1)
-    expect(selected.scenarios.variants[0].children[0]).toEqual(result.scenarios.variants[0].children[3])
+    expect(selected.sections).toHaveLength(1)
+    expect(selected.sections[0].sections).toEqual([result.sections[0].sections[3]])
   }, 20000)
 })
