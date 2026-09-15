@@ -84,20 +84,28 @@ describe("external Storybook normalized graph", () => {
       .toThrow("Unknown external Storybook graph identity")
   })
 
-  test("rejects different package identities that normalize to the same public URL", async () => {
+  test("отклоняет два подключённых корня с одинаковым публичным именем", async () => {
     const catalog = await fixtureDeclarations()
-    const collidingId = "package:fixture-components"
-    const scopes = catalog.scopes.map(scope => {
-      if (scope.kind === "package" && scope.id === "@fixture/docs") {
-        return {...scope, id: "fixture-components", canonicalId: collidingId, packageName: "fixture-components"}
-      }
-      if (scope.kind === "package" && scope.packageIds !== undefined) {
-        return {...scope, packageIds: scope.packageIds.map(id => id === "package:@fixture/docs" ? collidingId : id)}
-      }
-      return scope
-    })
-    expect(() => createExternalStorybookGraph({...catalog, scopes}))
-      .toThrow("Ambiguous Storybook package URL fixture-components")
+    const scopes = catalog.scopes.map(scope => scope.id === "@fixture/standalone" && scope.kind === "package"
+      ? {...scope, packageName: "@fixture/fixture-workspace"} : scope)
+    expect(() => createExternalStorybookGraph({...catalog, scopes})).toThrow("Ambiguous Storybook package URL /fixture-workspace")
+  })
+
+  test("адрес вложенного пакета следует физической структуре корня", async () => {
+    const graph = createExternalStorybookGraph(await fixtureDeclarations())
+    expect(externalStorybookNode(graph, "package:@fixture/components").urlPath)
+      .toBe("/fixture-workspace/projects/alpha/packages/components")
+  })
+
+  test("публикует представления сущности через query view", async () => {
+    const base = createExternalStorybookGraph(await fixtureDeclarations())
+    const subject = externalStorybookNode(base, "subject:@fixture/components/components/button")
+    const graph = {...base, nodes: base.nodes.map(node => node.id === subject.id ? {...node,
+      dependencyRoutePath: "components/button/dependencies", contractRoutePath: "components/button/contract",
+      scenariosRoutePath: "components/button/scenarios"} : node)}
+    expect(externalStorybookRoutes(graph).filter(route => route.nodeId === subject.id).map(route => route.urlPath)).toEqual([
+      subject.urlPath, `${subject.urlPath}?view=dependencies`, `${subject.urlPath}?view=contract`, `${subject.urlPath}?view=scenarios`,
+    ])
   })
 
   test("keeps presentation groups as descriptors instead of semantic nodes", async () => {

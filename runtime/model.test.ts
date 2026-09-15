@@ -24,7 +24,21 @@ describe("external Storybook browser model", () => {
       ["package:@fixture/docs", "package:fixture-beta"],
       ["package:@fixture/standalone", null],
     ])
-    expect(landing.catalogItems.find(item => item.id === "package:@fixture/components")?.route).toBe("/pkg-fixture-components/")
+    expect(landing.catalogItems.find(item => item.id === "package:@fixture/components")?.route).toBe("/fixture-workspace/projects/alpha/packages/components")
+  })
+
+  test("отделяет представление сценариев от одноимённой сущности", async () => {
+    const base = await fixtureGraph()
+    const subject = base.nodes.find(node => node.id === "subject:@fixture/components/components/button")!
+    const child = {...subject, id: "directory:package:@fixture/components/components/button/scenarios", kind: "directory" as const,
+      parentId: subject.id, childIds: [], routePath: "dir-components/dir-button/dir-scenarios", urlPath: `${subject.urlPath}/scenarios`}
+    const graph = {...base, nodes: [...base.nodes.map(node => node.id === subject.id
+      ? {...node, scenariosRoutePath: "components/button/scenarios"} : node), child]}
+    const scenarios = deriveExternalStorybookPackageTab(graph, "@fixture/components", "components/button/scenarios")
+    const entity = deriveExternalStorybookPackageTab(graph, "@fixture/components", child.routePath)
+    expect([scenarios.urlPath, entity.urlPath]).toEqual([
+      `${subject.urlPath}?view=scenarios`, `${subject.urlPath}/scenarios`,
+    ])
   })
 
   test("selects repositories as overviews and places package contents in the second panel", async () => {

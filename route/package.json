@@ -1,0 +1,24 @@
+{
+  "name": "@storybook/route",
+  "label": "Структурные маршруты",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Разрешает публичные структурные адреса зарегистрированных пакетов",
+  "exports": {
+    ".": "./index.ts",
+    "./address": "./address/index.ts",
+    "./children": "./children/index.ts",
+    "./directories": "./directories/index.ts",
+    "./ignored": "./ignored/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --project tsconfig.json --pretty false",
+    "test": "bun test ./spec",
+    "check": "bun run typecheck && bun run test"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.0",
+    "typescript": "^7.0.2"
+  }
+}

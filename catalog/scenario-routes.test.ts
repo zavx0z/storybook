@@ -6,7 +6,6 @@ import {externalStorybookPackageDescriptors} from "../build/package-descriptor.t
 import {createExternalStorybookClientSnapshot} from "../runtime/client-protocol.ts"
 import {deriveExternalStorybookPackageTab} from "../runtime/model.ts"
 import {createStorybookPackageRevisionGraphSnapshot} from "../sessions/package-revision.ts"
-import {storybookPackageRouteFromPathname} from "@zavx0z/storybook-browser-lifecycle/contract"
 
 async function fixture(bound: boolean, collision = false) {
   const catalog = await resolveExternalStorybookDeclarations([join(import.meta.dir, "../discovery/fixtures/valid/standalone")])
@@ -36,7 +35,7 @@ test.each([false, true])("[SCENARIOS-ROUTE] присутствие файла д
   const route = resolveExternalStorybookRoute(graph, packageId, `${base}/scenarios`)
   expect(route.kind).toBe("scenarios")
   expect(route.nodeId).toBe(resolveExternalStorybookRoute(graph, packageId, base).nodeId)
-  expect(storybookPackageRouteFromPathname(route.urlPath, packageId)).toBe(`${base}/scenarios`)
+  expect(route.urlPath).toBe("/standalone/module?view=scenarios")
   const client = createExternalStorybookClientSnapshot(graph, [{packageId, declarationDigest: "fixture", moduleGraphRevision: null, candidateRevision: null, activeRevision: "active", lastGoodRevision: "active", entryRelativePath: "entry.js", diagnostics: [], dependencyRealpaths: [], subscribers: 0, buildState: "active", builds: 0}])
   for (const data of [graph, client]) {
     const model = deriveExternalStorybookPackageTab(data, packageId, `${base}/scenarios`)

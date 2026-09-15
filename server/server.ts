@@ -1,3 +1,4 @@
+import {resolveStorybookRoute, storybookRouteRoots, readPreparedStorybookSpec} from "./route"
 import {storybookPackagePathMatches, storybookPackageRouteFromPathname, storybookCurrentRouteKey, validStorybookViewQuery} from "@zavx0z/storybook-browser-lifecycle/contract"
 import {externalStorybookBrowsePath} from "../catalog/graph.ts"
 import {storybookRest} from "@mcp/rest"
@@ -743,7 +744,10 @@ export async function startExternalStorybookServer(
         }
         if (url.pathname === "/api/control/storybook") {
           // Успешный обзор имеет предметную форму без lifecycle status; ошибки сохраняют явный статус.
-          return await storybookRest(request, toolRoot, readScenarios, () => ({entries: mcpRequests.summary(), lastWriteError: journalWriteError}))
+          return await storybookRest(request, toolRoot, readScenarios, () => ({entries: mcpRequests.summary(), lastWriteError: journalWriteError}), {
+            roots: storybookRouteRoots(registry.snapshot()),
+            readPreparedSpec: path => readPreparedStorybookSpec(path, registry.snapshot(), sessions),
+          })
         }
         if (url.pathname === "/api/control/status" && request.method === "GET") {
           const snapshot = registry.snapshot()
@@ -861,6 +865,15 @@ export async function startExternalStorybookServer(
           assertExactRequestKeys(await requestObject(request), [])
           const reader = browserSessions.issue({kind: "registry", packageId: null, revision: null})
           return responseJson({protocol: "storybook-registry-reader/1", readerToken: reader.token})
+        }
+        if (url.pathname === "/api/browser/route" && request.method === "POST") {
+          assertExternalStorybookRequestOrigin(request, server.url.origin, {required: true})
+          const body = await requestObject(request)
+          assertExactRequestKeys(body, ["route"])
+          if (typeof body.route !== "string" || body.route.length > 2048) throw new Error("Маршрут должен быть ограниченной строкой")
+          await refreshCatalog()
+          const target = await resolveStorybookRoute(body.route, registry.snapshot())
+          return target === null ? responseJson({error: "Маршрут не найден"}, 404) : responseJson(target)
         }
         if (url.pathname === "/api/browser/prepare" && request.method === "POST") {
           assertExternalStorybookRequestOrigin(request, server.url.origin, {required: true})
@@ -1204,6 +1217,15 @@ export async function startExternalStorybookServer(
         if (url.pathname === "/schemas/manifest.schema.json" || url.pathname === "/schemas/catalog.schema.json") {
           return fileResponse(join(toolRoot, url.pathname), "application/schema+json; charset=utf-8")
         }
+        if (request.method === "GET" && !url.pathname.startsWith("/api/") && url.pathname !== "/") {
+          const publicRoute = await resolveStorybookRoute(url.pathname + url.search, registry.snapshot())
+          if (publicRoute !== null) {
+            return await packagePageResponse(url, registry, sessions, ensureSharedAssets, browserSessions, server.url.origin, request.signal, prepareSharedIdentity, {
+              packageId: publicRoute.packageId,
+              routePath: publicRoute.route,
+            })
+          }
+        }
         if (request.method === "GET" && (url.pathname.startsWith("/packages/") || registry.snapshot().graph.nodes.some(node =>
           node.kind === "package" && storybookPackageRouteFromPathname(url.pathname, node.packageId!) !== null))) {
           return await packagePageResponse(url, registry, sessions, ensureSharedAssets, browserSessions, server.url.origin, request.signal, prepareSharedIdentity)
@@ -1433,8 +1455,9 @@ async function packagePageResponse(
   origin: string,
   signal: AbortSignal,
   prepareSharedIdentity: (signal: AbortSignal) => Promise<void>,
+  resolvedRoute?: Readonly<{packageId: string; routePath: string}>,
 ): Promise<Response> {
-  const route = parsePackageRequest(url.pathname, registry.snapshot().graph.nodes.filter(node => node.kind === "package").map(node => node.packageId!))
+  const route = resolvedRoute ?? parsePackageRequest(url.pathname, registry.snapshot().graph.nodes.filter(node => node.kind === "package").map(node => node.packageId!))
   const packageNode = registry.snapshot().graph.nodes.find((node) =>
     node.kind === "package" && node.packageId === route.packageId)
   if (packageNode === undefined) {
@@ -1468,11 +1491,14 @@ async function packagePageResponse(
     },
   })
   if (target.kind === "redirect-preview") {
-    return new Response(null, {status: 308, headers: {location: url.pathname}})
+    const fallback = new URL(url)
+    fallback.searchParams.delete("preview")
+    return new Response(null, {status: 308, headers: {location: `${fallback.pathname}${fallback.search}`}})
   }
   if (target.kind === "fallback") {
     if (currentRoute === undefined) throw new Error(`Unknown Storybook route: ${route.packageId}:${route.routePath}`)
-    if (currentRoute.urlPath !== url.pathname) return new Response(null, {status: 308, headers: {location: `${currentRoute.urlPath}${url.search}`}})
+    const canonical = canonicalPackageAddress(currentRoute.urlPath, url)
+    if (canonical !== `${url.pathname}${url.search}`) return new Response(null, {status: 308, headers: {location: canonical}})
     return preparingHtmlResponse(async () => {
     const assets = await ensureSharedAssets()
     const browserSession = browserSessions.issue({
@@ -1511,8 +1537,9 @@ async function packagePageResponse(
     )
     }, htmlResponse("", origin).headers, signal)
   }
-  if (target.route.urlPath !== url.pathname) {
-    return new Response(null, {status: 308, headers: {location: `${target.route.urlPath}${url.search}`}})
+  const canonical = canonicalPackageAddress(target.route.urlPath, url)
+  if (canonical !== `${url.pathname}${url.search}`) {
+    return new Response(null, {status: 308, headers: {location: canonical}})
   }
   const viewId = `browser:${randomUUID()}`
   const lease = session.acquireRevisionLease(target.revision, viewId)
@@ -1560,6 +1587,15 @@ async function packagePageResponse(
     ),
     origin,
   )
+}
+
+/** Сохраняет состояние страницы при переходе к адресу выбранного представления ревизии. */
+function canonicalPackageAddress(address: string, current: URL): string {
+  const target = new URL(address, current)
+  for (const [key, value] of current.searchParams) {
+    if (key !== "view") target.searchParams.set(key, value)
+  }
+  return `${target.pathname}${target.search}`
 }
 
 function declarationFailures(snapshot: ExternalStorybookRegistrySnapshot): ReadonlyMap<string, string> {

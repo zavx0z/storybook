@@ -53,12 +53,12 @@ async function validateContractDocumentation(
   result: AnalyzeTypeDocOutput,
 ) {
   if (readModuleDocumentation(source, path)) throw new Error(`Контракт не должен содержать документацию пакета: ${path}`)
-  if (result.document.declarations.length !== 1 || result.document.declarations[0]!.kind !== "interface") {
-    throw new Error(`Контракт должен экспортировать ровно один interface: ${path}`)
+  if (result.document.declarations.length !== 1 || !["interface", "type"].includes(result.document.declarations[0]!.kind)) {
+    throw new Error(`Контракт должен экспортировать ровно один основной interface или type: ${path}`)
   }
   const declaration = result.document.declarations[0]!
-  if (!/^export\s+(?:default\s+)?(?:declare\s+)?interface\s/u.test(declaration.signature) || !source.includes(declaration.signature) || /\bextends\b[\s\S]*\{\s*\}$/u.test(declaration.signature)) {
-    throw new Error(`Интерфейс должен быть объявлен в самом контракте: ${path}`)
+  if (!/^export\s+(?:default\s+)?(?:declare\s+)?(?:interface|type)\s/u.test(declaration.signature) || !source.includes(declaration.signature) || /\bextends\b[\s\S]*\{\s*\}$/u.test(declaration.signature)) {
+    throw new Error(`Основной контракт должен быть объявлен в самом файле: ${path}`)
   }
   const digest = createHash("sha256").update(source).digest("hex")
   if (!result.sources.some(entry => entry.path === path && entry.digest === digest)) {

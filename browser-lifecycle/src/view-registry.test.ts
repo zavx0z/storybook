@@ -29,6 +29,18 @@ describe("Storybook view registry", () => {
     expect(selected[0]?.route).toBe(first[0]?.route)
   })
 
+  test("получает принадлежность структурного адреса из подтверждённого bridge", () => {
+    const registry = new StorybookViewRegistry(new Uint8Array(32).fill(7))
+    const origin = "http://127.0.0.1:43123"
+    const views = registry.synchronize([{
+      targetId: "STRUCTURAL", packageId: "@nodes/node", route: "diagram/scenarios",
+      type: "page", title: "Diagram", url: `${origin}/webxr/nodes/node/diagram?view=scenarios&variant=Круг`,
+    }], origin)
+    expect(views.map(({packageId, route}) => ({packageId, route}))).toEqual([
+      {packageId: "@nodes/node", route: "diagram/scenarios"},
+    ])
+  })
+
   test("keeps multiple views of a package and invalidates a handle when its tab changes package", () => {
     const registry = new StorybookViewRegistry(new Uint8Array(32).fill(9))
     const origin = "http://127.0.0.1:43123"

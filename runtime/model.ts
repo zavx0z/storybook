@@ -1,5 +1,6 @@
+import {formatRouteAddress} from "@storybook/route/address"
+
 /** Pure browser-facing projections of the canonical external Storybook graph. */
-import {storybookPackageUrlPath} from "@zavx0z/storybook-browser-lifecycle/contract"
 
 import {
   externalStorybookBrowsePath,
@@ -175,7 +176,7 @@ export function deriveExternalStorybookPackageTab(
     id: `dependencies:${tabOwner.id}`,
     label: "Зависимости",
     route: tabOwner.dependencyRoutePath,
-    urlPath: storybookPackageUrlPath(packageId, tabOwner.dependencyRoutePath),
+    urlPath: viewUrlPath(tabOwner.urlPath, "dependencies"),
     title: `Зависимости ${tabOwner.label}`,
     searchText: "Зависимости Dependencies",
     group: null,
@@ -185,7 +186,7 @@ export function deriveExternalStorybookPackageTab(
     id: `contract:${tabOwner.id}`,
     label: "Контракт",
     route: tabOwner.contractRoutePath,
-    urlPath: storybookPackageUrlPath(packageId, tabOwner.contractRoutePath),
+    urlPath: viewUrlPath(tabOwner.urlPath, "contract"),
     title: `Контракт ${tabOwner.label}`,
     searchText: "Контракт Input Output",
     group: null,
@@ -195,7 +196,7 @@ export function deriveExternalStorybookPackageTab(
     id: `scenarios:${tabOwner.id}`,
     label: "Сценарии",
     route: tabOwner.scenariosRoutePath,
-    urlPath: storybookPackageUrlPath(packageId, tabOwner.scenariosRoutePath),
+    urlPath: viewUrlPath(tabOwner.urlPath, "scenarios"),
     title: `Сценарии ${tabOwner.label}`,
     searchText: "Сценарии Scenarios",
     group: null,
@@ -211,10 +212,17 @@ export function deriveExternalStorybookPackageTab(
     variants,
     variantActiveId: variant?.id ?? null,
     viewKind,
-    urlPath: viewKind === "dependencies" || viewKind === "contract" || viewKind === "scenarios" ? storybookPackageUrlPath(packageId, routePath) : selectedNode.urlPath,
+    urlPath: viewKind === "dependencies" || viewKind === "contract" || viewKind === "scenarios" ? viewUrlPath(selectedNode.urlPath, viewKind) : selectedNode.urlPath,
     tabs: Object.freeze([...dependencyTab, ...contractTab, ...scenariosTab, ...variants]),
     tabActiveId: viewKind === "scenarios" ? scenariosTab[0]!.id : viewKind === "contract" ? contractTab[0]!.id : viewKind === "dependencies" ? dependencyTab[0]!.id : variant?.id ?? null,
   })
+}
+
+function viewUrlPath(ownerPath: string, view: "dependencies" | "contract" | "scenarios"): string {
+  if (ownerPath.startsWith("/pkg-") || ownerPath.startsWith("/packages/")) {
+    return `${ownerPath.replace(/\/$/u, "")}/${view}`
+  }
+  return formatRouteAddress({node: ownerPath.slice(1).split("/").map(decodeURIComponent).join("/"), view})
 }
 
 function navigationItem(

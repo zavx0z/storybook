@@ -32,10 +32,13 @@ describe("Storybook MCP stdio", () => {
     const client = createClient()
     await Promise.all([server.connect(serverTransport), client.connect(clientTransport)])
     try {
-      const result = await client.callTool({name: "storybook", arguments: {node: "archetypes/specs/scenarios"}})
+      const result = await client.callTool({name: "storybook", arguments: {
+        node: "storybook/archetypes/specs/scenarios",
+        input: {view: "scenarios"},
+      }})
       expect(result.isError).not.toBeTrue()
       expect(result.structuredContent).toMatchObject({
-        node: "archetypes/specs/scenarios",
+        node: "storybook/archetypes/specs/scenarios",
         title: "Сценарии",
         sections: [{title: "Сценарий функции"}, {title: "Сценарий компонента"}],
       })
@@ -66,9 +69,9 @@ describe("Storybook MCP stdio", () => {
       const result = await client.callTool({name: "storybook", arguments: {}})
       expect(result.structuredContent).toEqual({
         node: "root",
-        description: "Выберите archetypes для правил структуры, чтения и встроенной проверки объектов.",
+        description: "Выберите подключённый корень и раскрывайте его публичную структуру.",
         children: [
-          {node: "archetypes", description: "Помогает решить, где разместить сущность, когда выделить пакет или категорию и как оформить ответственность, зависимости, контракты и проверки"},
+          {node: "storybook", description: "One external declaration-driven Storybook server for independently owned packages."},
         ],
       })
       expect(result.isError).not.toBeTrue()

@@ -622,25 +622,55 @@ export async function startExternalStorybookPage(
   }
 
   async function navigateLanding(pathname = "/"): Promise<void> {
-    await transition({packageId: null, route: pathname, intent: "navigation"}, false)
+    if (pathname === "/") await transition({packageId: null, route: pathname, intent: "navigation"}, false)
+    else {
+      const target = await resolveAddress(pathname)
+      await transition({packageId: target.packageId, route: target.route, intent: "navigation"}, false)
+    }
+  }
+
+  const resolveAddress = async (address: string): Promise<Readonly<{packageId: string; route: string; urlPath: string}>> => {
+    const requested = new URL(address, location.href)
+    for (const key of [...requested.searchParams.keys()]) {
+      if (key !== "view" && key !== "variant") requested.searchParams.delete(key)
+    }
+    const response = await fetcher("/api/browser/route", {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({route: `${requested.pathname}${requested.search}`}),
+      signal: pageLifetime.signal,
+    })
+    if (!response.ok) throw new Error(`Unknown Storybook address: ${address}`)
+    const value = await response.json() as Record<string, unknown>
+    if (typeof value.packageId !== "string" || typeof value.route !== "string" || typeof value.urlPath !== "string") {
+      throw new Error("Storybook route resolver response is invalid")
+    }
+    return {packageId: value.packageId, route: value.route, urlPath: value.urlPath}
   }
 
   const onPopState = (): void => {
     const pathname = location.pathname
-    if (pathname === "/" || !pathname.startsWith("/pkg-")) {
+    const current = new URL(location.href)
+    const workspace = active?.kind === "package" ? new URL(active.controller.currentModel.urlPath, current) : null
+    if (active?.kind === "package" && workspace?.pathname === pathname &&
+      (workspace.searchParams.get("view") ?? "overview") === (current.searchParams.get("view") ?? "overview")) {
+      if (typeof active.controller.restoreAddress === "function") active.controller.restoreAddress()
+      activeAddress = currentPageAddress(location)
+      return
+    }
+    if (pathname === "/") {
       followHistoryTransition(transition({packageId: null, route: pathname, intent: "navigation"}, null))
       return
     }
-    const node = navigationSnapshot.nodes.find(candidate => candidate.urlPath === pathname)
-    if (node?.packageId === null || node?.packageId === undefined) {
-      shell.reportDiagnostic(`Unknown Storybook history address: ${pathname}`)
-      return
-    }
-    followHistoryTransition(transition({packageId: node.packageId, route: node.routePath ?? "", intent: "navigation"}, null))
+    followHistoryTransition((async () => {
+      const target = await resolveAddress(currentPageAddress(location))
+      await transition({packageId: target.packageId, route: target.route, intent: "navigation"}, null)
+    })())
   }
 
   const followHistoryTransition = (operation: Promise<void>): void => {
     void operation.catch(error => {
+      history.replaceState(null, "", activeAddress)
       shell.reportDiagnostic(error)
       shell.updateStatus("Storybook · History-переход отклонён; восстановлена текущая страница")
     })
@@ -788,7 +818,11 @@ function createStorybookScopeAddress(
 ): StorybookScopeAddress {
   let committed = false
   let draft = new URL(pageLocation.href)
-  draft.pathname = target.kind === "landing" ? target.pathname : target.urlPath
+  const destination = new URL(target.kind === "landing" ? target.pathname : target.urlPath, draft)
+  draft.pathname = destination.pathname
+  draft.searchParams.delete("view")
+  const view = destination.searchParams.get("view")
+  if (view !== null) draft.searchParams.set("view", view)
   draft.searchParams.delete("preview")
   if (target.kind !== "landing" && target.intent === "preview" && target.revision !== null) {
     draft.searchParams.set("preview", target.revision)

@@ -45,12 +45,15 @@ export interface ScenariosOutput {
   readonly validation: ReadScenarioOutput["validation"] | null
   readonly variants: readonly ScenarioCategory[]
   readonly items: readonly ScenarioItem[]
+  readonly preview?: ReadScenarioOutput["preview"]
 }
 
 /** Абзац документа с пояснением и предметным значением или примером. */
 export interface ScenarioContent {
   readonly text?: string
   readonly value?: ReadScenarioOutput["assertions"][number]["actual"]
+    | NonNullable<ReadScenarioOutput["preview"]>["variants"][number]["props"]
+    | NonNullable<ReadScenarioOutput["preview"]>["variants"][number]["points"]
 }
 
 /** Раздел документа; вложенность и порядок следуют исходному сценарию. */

@@ -52,6 +52,15 @@ export function presentScenarios(input: ScenariosInput, options?: ScenariosDocum
       category.items.push(item)
     }
   }
-  const data: ScenariosOutput = {owner, source, status: "ready", revision, validation: structuredClone(result.validation), variants, items}
+  const data: ScenariosOutput = {
+    owner,
+    source,
+    status: "ready",
+    revision,
+    validation: structuredClone(result.validation),
+    variants,
+    items,
+    ...(result.preview === undefined ? {} : {preview: structuredClone(result.preview)}),
+  }
   return options ? presentDocument(data, options) : data
 }

@@ -1,4 +1,3 @@
-import {storybookPackageUrlPath, storybookPackageRouteFromPathname} from "@zavx0z/storybook-browser-lifecycle/contract"
 import {
   externalStorybookRoutes,
   type ExternalStorybookGraph,
@@ -339,12 +338,12 @@ export function validateStorybookPackageRevisionGraphSnapshot(
     if (!id.startsWith(prefix)) {
       throw new Error(`Storybook package ancestor identity does not match its kind: ${packageId}:${id}`)
     }
-    const ownerId = requiredText("package ancestor owner id", id.slice(prefix.length))
+    requiredText("package ancestor owner id", id.slice(prefix.length))
     requiredText("package ancestor label", ancestor.label)
-    const expectedUrlPath = ancestor.kind === "package" ? storybookPackageUrlPath(ownerId) : `/${ancestor.kind}s/${encodeURIComponent(ownerId)}/`
-    const legacyPackagePath = ancestor.kind === "package" && ancestor.urlPath.endsWith("/") && storybookPackageRouteFromPathname(ancestor.urlPath, ownerId) === ""
-    if (ancestor.urlPath !== expectedUrlPath && !legacyPackagePath) {
-      throw new Error(`Storybook package ancestor URL is not canonical: ${packageId}:${id}`)
+    if (typeof ancestor.urlPath !== "string" || !ancestor.urlPath.startsWith("/") ||
+      ancestor.urlPath.startsWith("//") || /[?#\\]/u.test(ancestor.urlPath) ||
+      new URL(ancestor.urlPath, "http://storybook.invalid").pathname !== ancestor.urlPath) {
+      throw new Error(`Storybook package ancestor URL is invalid: ${packageId}:${id}`)
     }
   }
   for (const loader of value.loaders) {

@@ -3,7 +3,7 @@
 
 @param url - Разобранный адрес; origin и путь проверяются вызывающим владельцем.
 
-@returns Допустимы только уникальные preview и inspector. Выбор доступной секции
+@returns Допустимы только уникальные preview, inspector, view и variant. Выбор доступной секции
 проверяет runtime; параметр не меняет принадлежность страницы пакету.
 */
 export function validStorybookViewQuery(url: URL): boolean {
@@ -13,7 +13,9 @@ export function validStorybookViewQuery(url: URL): boolean {
     seen.add(key)
     if (key === "preview") {
       if (!/^[A-Za-z0-9_-]{1,256}$/u.test(value)) return false
-    } else if (key === "inspector") {
+    } else if (key === "view") {
+      if (!["overview", "scenarios", "contract", "dependencies"].includes(value)) return false
+    } else if (key === "inspector" || key === "variant") {
       if (value.length === 0 || value.length > 256 || /[\u0000-\u001f\u007f]/u.test(value)) return false
     } else return false
   }
@@ -34,5 +36,7 @@ export function sameStorybookViewUrl(left: string, right: string): boolean {
   const b = new URL(right)
   return a.origin === b.origin && a.pathname === b.pathname && a.hash === b.hash &&
     a.searchParams.get("preview") === b.searchParams.get("preview") &&
-    a.searchParams.get("inspector") === b.searchParams.get("inspector")
+    a.searchParams.get("inspector") === b.searchParams.get("inspector") &&
+    a.searchParams.get("variant") === b.searchParams.get("variant") &&
+    (a.searchParams.get("view") ?? "overview") === (b.searchParams.get("view") ?? "overview")
 }

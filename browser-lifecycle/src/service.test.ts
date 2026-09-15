@@ -15,6 +15,29 @@ afterEach(() => {
 })
 
 describe("Storybook browser lifecycle service", () => {
+  test.each([false, true])("структурный адрес требует точную identity bridge, mismatch=%s", async mismatch => {
+    const chrome = new FakeChrome()
+    const original = chrome.callBridge.bind(chrome)
+    chrome.callBridge = async (target, method, params, signal) => {
+      const result = await original(target, method, params, signal)
+      if (method !== "identity") return result
+      const packageId = mismatch ? "@fixture/b" : "@fixture/a"
+      const route = "diagram/scenarios"
+      return {...result as object, packageId, route, viewName: `storybook:${packageId}`,
+        markers: {package: "ready", packageId, route, revision: chrome.identityRevision}}
+    }
+    const controller = createController(chrome)
+    const input = {...openInput(chrome), route: "diagram/scenarios",
+      url: `${chrome.origin}/webxr/nodes/node/diagram?view=scenarios&variant=Круг`}
+    if (mismatch) await expect(controller.openPackage(input)).rejects.toThrow("bridge identity mismatch")
+    else {
+      const opened = await controller.openPackage(input)
+      expect(opened.view).toMatchObject({packageId: "@fixture/a", route: "diagram/scenarios"})
+      expect(await controller.listViews(chrome.origin, undefined, [{packageId: "@fixture/a", label: "A"}]))
+        .toEqual([opened.view])
+    }
+  })
+
   test.each([false, true])("история консоли отделяется от ошибок обновления, newError=%s", async newError => {
     const chrome = new FakeChrome()
     const original = chrome.callBridge.bind(chrome)

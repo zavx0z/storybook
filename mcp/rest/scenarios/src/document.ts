@@ -46,16 +46,22 @@ export function presentDocument(data: ScenariosOutput, options: ScenariosDocumen
     ...items.map(value => ({location: value.location, section: item(value)})),
   ]).map(value => value.section)
   const group = (value: Category, path: readonly string[] = []): ScenarioSection => {
+    const preview = data.preview?.variants.find(variant => variant.id === String(value.id))
+    const content: ScenarioContent[] = preview === undefined ? [] : [
+      {text: "Декларация компонента", value: preview.source},
+      {text: "Конкретные props варианта", value: structuredClone(preview.props)},
+      {text: "Пункты представления", value: structuredClone(preview.points)},
+    ]
     if (path.length) {
       const selected = [...value.categories, ...value.items].filter(child => child.label === path[0])
       if (selected.length !== 1) throw new Error("Тема не найдена или её имя неоднозначно")
       const child = selected[0]!
-      if ("categories" in child) return {title: value.label, sections: [group(child, path.slice(1))]}
+      if ("categories" in child) return {title: value.label, ...(content.length ? {content} : {}), sections: [group(child, path.slice(1))]}
       if (path.length !== 1) throw new Error("Тема не найдена или её имя неоднозначно")
-      return {title: value.label, sections: [item(child)]}
+      return {title: value.label, ...(content.length ? {content} : {}), sections: [item(child)]}
     }
     const children = sections(value.categories, value.items)
-    return {title: value.label, ...(children.length ? {sections: children} : {})}
+    return {title: value.label, ...(content.length ? {content} : {}), ...(children.length ? {sections: children} : {})}
   }
   if (data.status !== "ready") return {notes: [data.status === "absent" ? "Документация сценария отсутствует." : "Документация сценария ещё не подготовлена."]}
   const content = options.variant === undefined ? sections(variants, data.items) : variants.map(variant => group(variant, options.section))

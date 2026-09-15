@@ -187,8 +187,8 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
       if (recorded?.phase === "owned" && recorded.cdpOrigin === cdpOrigin &&
         recorded.browserIdentity === browserIdentity &&
         recorded.targetId === target.targetId) {
-        const identity = packageTargetIdentity(target.url, packageId)
-        if (identity?.packageId === packageId && await this.#attestsPackage(target, packageId, operationSignal, input.packageLabel)) {
+        const candidate = mayAttestPackageTarget(target.url, packageId)
+        if (candidate && await this.#attestsPackage(target, packageId, operationSignal, input.packageLabel)) {
           owned.push(target)
         } else {
           this.#state.clearTarget(packageId, target.targetId)
@@ -196,15 +196,15 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
         }
         continue
       }
-      const candidate = packageTargetIdentity(target.url, packageId)
-      if (candidate?.packageId === packageId &&
+      const candidate = mayAttestPackageTarget(target.url, packageId)
+      if (candidate &&
         await this.#attestsPackage(target, packageId, operationSignal, input.packageLabel)) owned.push(target)
     }
     let requiredTarget = requiredView === null
       ? null
       : targets.find(target => target.targetId === requiredView.targetId) ?? null
     if (requiredView !== null && (requiredTarget === null || requiredTarget.type !== "page" ||
-      packageTargetIdentity(requiredTarget.url, packageId)?.packageId !== packageId ||
+      !mayAttestPackageTarget(requiredTarget.url, packageId) ||
       !await this.#attestsPackage(requiredTarget, packageId, operationSignal, input.packageLabel))) {
       this.#state.clearTarget(packageId, requiredView.targetId)
       this.#views.forgetTarget(requiredView.targetId)
@@ -219,7 +219,11 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
         const packagePagePresent = targets.some(target => {
           if (target.type !== "page") return false
           try {
-            return storybookPackageRouteFromPathname(new URL(target.url).pathname, packageId) !== null
+            const observed = new URL(target.url)
+            const reservedAddress = new URL(unresolved!.url!)
+            // Неподтверждённый query не разрешает повторить уже отправленное создание.
+            return storybookPackageRouteFromPathname(observed.pathname, packageId) !== null ||
+              observed.origin === reservedAddress.origin && observed.pathname === reservedAddress.pathname
           } catch {
             return false
           }
@@ -293,7 +297,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
     if (current === undefined || new URL(current.url).origin !== origin) {
       throw new Error(`Storybook target did not become the exact package view for ${packageId}`)
     }
-    const view = this.#views.register({...current, packageId}, origin)
+    const view = this.#views.register({...current, packageId, route: identity.route}, origin)
     return Object.freeze({
       view,
       identity,
@@ -316,35 +320,38 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
     ] as const))
     const candidates = (await this.#chrome.targets(signal)).filter(target =>
       target.type === "page" && packageTargetPath(target.url) !== null && new URL(target.url).origin === canonicalOrigin &&
-      (scope === undefined || packageTargetIdentity(target.url, scope)?.packageId === scope))
+      (scope === undefined || mayAttestPackageTarget(target.url, scope)))
     const retained: StorybookIdentifiedTarget[] = []
     for (const target of candidates) {
       signal?.throwIfAborted()
       let packageId: string | null = null
-      if (labels !== null) {
-        const matches = [...labels.keys()].filter(id => packageTargetIdentity(target.url, id) !== null)
-        if (matches.length > 1) throw new Error("Ambiguous Storybook package URL")
-        packageId = matches[0] ?? null
-      } else {
+      let observedRoute: string | undefined
+      try {
+        const identity = bridgeIdentity(await this.#chrome.callBridge(target.targetId, "identity", {schemaVersion: 1}, signal))
+        packageId = identity.packageId
+        observedRoute = identity.route
+      } catch {
+        signal?.throwIfAborted()
         try {
-          packageId = bridgeIdentity(await this.#chrome.callBridge(target.targetId, "identity", {schemaVersion: 1}, signal)).packageId
-        } catch {
-          signal?.throwIfAborted()
-          try {
-            const diagnostic = await this.#chrome.bridgeDiagnostics(target.targetId, signal)
-            const markers = objectResult(diagnostic.markers, "Storybook target markers")
-            packageId = typeof markers.packageId === "string" ? markers.packageId :
-              typeof diagnostic.viewName === "string" && diagnostic.viewName.startsWith("storybook:")
-                ? diagnostic.viewName.slice("storybook:".length) : null
-          } catch (error) {
-            signal?.throwIfAborted()
-            throw new Error("Storybook browser inventory observation is indeterminate", {cause: error})
+          const diagnostic = await this.#chrome.bridgeDiagnostics(target.targetId, signal)
+          const markers = objectResult(diagnostic.markers, "Storybook target markers")
+          packageId = typeof markers.packageId === "string" ? markers.packageId :
+            typeof diagnostic.viewName === "string" && diagnostic.viewName.startsWith("storybook:")
+              ? diagnostic.viewName.slice("storybook:".length) : null
+          observedRoute = typeof markers.route === "string" ? markers.route : undefined
+          if (packageId === null && labels !== null) {
+            const matches = [...labels.keys()].filter(id => storybookPackageRouteFromPathname(new URL(target.url).pathname, id) !== null)
+            packageId = matches.length === 1 ? matches[0]! : null
           }
+        } catch (error) {
+          signal?.throwIfAborted()
+          throw new Error("Storybook browser inventory observation is indeterminate", {cause: error})
         }
       }
-      if (packageId === null || packageTargetIdentity(target.url, packageId) === null) continue
+      if (packageId !== null && (scope !== undefined && scope !== packageId || labels !== null && !labels.has(packageId))) continue
+      if (packageId === null || !mayAttestPackageTarget(target.url, packageId)) continue
       if (await this.#attestsPackage(target, packageId, signal ?? AbortSignal.timeout(5_000), labels?.get(packageId), true)) {
-        retained.push({...target, packageId})
+        retained.push({...target, packageId, ...(observedRoute === undefined ? {} : {route: observedRoute})})
       }
     }
     const preferred = new Set(retained.flatMap(target =>
@@ -416,7 +423,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
       if (!(error instanceof Error) || error.message !== "Storybook agent bridge is unavailable in the exact target") throw error
       const target = (await this.#chrome.targets(signal)).find(target => target.targetId === view.targetId)
       if (!target || new URL(target.url).origin !== view.origin ||
-        packageTargetIdentity(target.url, view.packageId)?.packageId !== view.packageId ||
+        !mayAttestPackageTarget(target.url, view.packageId) ||
         !await this.#attestsPackage(target, view.packageId, signal ?? AbortSignal.timeout(5_000))) throw error
       bridgeAvailable = false
     }
@@ -550,7 +557,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
       ...(this.#processStart === undefined ? {} : {processStart: this.#processStart}),
     }, async () => {
       const current = (await this.#chrome.targets(signal)).find(({targetId}) => targetId === view.targetId)
-      if (current !== undefined && packageTargetIdentity(current.url, view.packageId)?.packageId === view.packageId) {
+      if (current !== undefined && mayAttestPackageTarget(current.url, view.packageId)) {
         const attested = await this.#attestsPackage(
           current,
           view.packageId,
@@ -581,7 +588,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
   async #assertCurrentPackage(viewId: string, signal?: AbortSignal): Promise<void> {
     const view = this.#views.internal(viewId)
     const target = (await this.#chrome.targets(signal)).find(target => target.targetId === view.targetId)
-    if (target === undefined || new URL(target.url).origin !== view.origin || packageTargetIdentity(target.url, view.packageId)?.packageId !== view.packageId) {
+    if (target === undefined || new URL(target.url).origin !== view.origin || !mayAttestPackageTarget(target.url, view.packageId)) {
       throw new Error("Storybook view navigated away from the requested package")
     }
     const identity = bridgeIdentity(await this.#chrome.callBridge(view.targetId, "identity", {schemaVersion: 1}, signal))
@@ -599,7 +606,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
     const expected = new URL(record.url!)
     const baseline = new Set(record.baselineTargetIds)
     const matching = targets.filter(target => target.type === "page" &&
-      packageTargetIdentity(target.url, record.packageId)?.packageId === record.packageId)
+      mayAttestPackageTarget(target.url, record.packageId))
       .sort((left, right) => Number(baseline.has(left.targetId)) - Number(baseline.has(right.targetId)))
     const observations = []
     for (const target of matching.slice(0, 3)) {
@@ -691,7 +698,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
         const diagnostic = await this.#chrome.bridgeDiagnostics(target.targetId, signal)
         const markers = objectResult(diagnostic.markers, "Storybook target markers")
         const markerPackageId = markers.packageId
-        if (packageTargetIdentity(target.url, packageId)?.packageId !== packageId ||
+        if (!mayAttestPackageTarget(target.url, packageId) ||
           typeof markerPackageId === "string" && markerPackageId !== packageId) return false
         const revisionPrefix = `/__storybook/revisions/${encodeURIComponent(packageId)}/`
         const ownsRevisionScript = Array.isArray(diagnostic.scripts) &&
@@ -703,7 +710,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
           packageLabel !== undefined && legacyEncodedPackageTarget(target.url, packageId) && target.title === packageLabel
       } catch (error) {
         signal.throwIfAborted()
-        const legacy = packageTargetIdentity(target.url, packageId)?.packageId === packageId &&
+        const legacy = mayAttestPackageTarget(target.url, packageId) &&
           packageLabel !== undefined && legacyEncodedPackageTarget(target.url, packageId) && target.title === packageLabel
         if (requireComplete) {
           throw new Error(`Storybook package inventory observation is indeterminate: ${packageId}`, {cause: error})
@@ -806,7 +813,8 @@ function exactPackageUrl(value: string, origin: string, packageId: string, route
     throw new Error(`Storybook package URL must belong to the exact server origin: ${value}`)
   }
   const decodedRoute = storybookPackageRouteFromPathname(url.pathname, packageId)
-  if (decodedRoute !== route) throw new Error(`Storybook package URL route mismatch: ${decodedRoute}; expected ${route}`)
+  if ((url.pathname.startsWith("/pkg-") || url.pathname.startsWith("/packages/")) && decodedRoute !== route) throw new Error(`Storybook package URL route mismatch: ${decodedRoute}; expected ${route}`)
+  if (url.pathname === "/") throw new Error("Storybook package URL cannot be landing")
   return url.href
 }
 
@@ -831,10 +839,14 @@ function packageTargetPath(value: string): Readonly<{segment: string; pathname: 
   }
 }
 
-function packageTargetIdentity(value: string, packageId: string): Readonly<{packageId: string; route: string}> | null {
+/** Структурный адрес разрешает проверку bridge, но сам не доказывает принадлежность пакету. */
+function mayAttestPackageTarget(value: string, packageId: string): boolean {
   const parsed = packageTargetPath(value)
-  const route = parsed === null ? null : storybookPackageRouteFromPathname(parsed.pathname, packageId)
-  return route === null ? null : Object.freeze({packageId, route})
+  if (parsed === null) return false
+  if (parsed.pathname.startsWith("/pkg-") || parsed.pathname.startsWith("/packages/")) {
+    return storybookPackageRouteFromPathname(parsed.pathname, packageId) !== null
+  }
+  return true
 }
 
 function legacyEncodedPackageTarget(value: string, packageId: string): boolean {

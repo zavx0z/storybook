@@ -53,7 +53,7 @@ describe("external Storybook self declaration", () => {
     expect(graph.nodes.filter(node => node.id === "package:@zavx0z/storybook")).toHaveLength(1)
     expect(graph.nodes.some(node => node.kind === "project" || node.kind === "workspace")).toBeFalse()
     expect(graph.nodes.find(node => node.id === "package:@zavx0z/storybook")?.childIds.filter(id => id.startsWith("package:"))).toEqual([
-      "package:@storybook/app", "package:@zavx0z/storybook-browser-lifecycle", "package:@storybook/archetypes", "package:@mcp/rest",
+      "package:@storybook/app", "package:@storybook/route", "package:@zavx0z/storybook-browser-lifecycle", "package:@storybook/archetypes", "package:@mcp/rest",
     ])
     const routes = externalStorybookRoutes(graph).filter(route => route.packageId === "@zavx0z/storybook")
     const leaves = routes.filter(({kind}) => kind === "variant").map(({path}) => path)

@@ -7,7 +7,7 @@ import type {
   StorybookPublicView,
 } from "./contract.ts"
 
-export type StorybookIdentifiedTarget = ChromeTargetSummary & Readonly<{packageId: string}>
+export type StorybookIdentifiedTarget = ChromeTargetSummary & Readonly<{packageId: string; route?: string}>
 
 const VIEW_ID_PREFIX = "storybook-view-v1_"
 
@@ -124,7 +124,7 @@ export class StorybookViewRegistry {
   #otherTargets(excludedTargetId: string): StorybookIdentifiedTarget[] {
     return [...this.#viewsById.values()].flatMap((view) => view.targetId === excludedTargetId
       ? []
-      : [{targetId: view.targetId, packageId: view.packageId, type: "page", title: view.title, url: view.url}])
+      : [{targetId: view.targetId, packageId: view.packageId, type: "page", title: view.title, url: view.url, route: view.route}])
   }
 }
 
@@ -140,7 +140,8 @@ function storybookTargetIdentity(
   }
   if (url.origin !== origin || !validStorybookViewQuery(url) || url.hash.length > 0) return null
   const packageId = target.packageId
-  const route = storybookPackageRouteFromPathname(url.pathname, packageId)
+  if (url.pathname === "/") return null
+  const route = target.route ?? storybookPackageRouteFromPathname(url.pathname, packageId)
   return route === null ? null : Object.freeze({packageId, route})
 }
 

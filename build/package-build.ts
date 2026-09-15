@@ -14,7 +14,8 @@ import {
 } from "node:fs"
 import {dirname, extname, isAbsolute, join, relative, resolve, sep} from "node:path"
 import {fileURLToPath} from "node:url"
-import {readScenario, supportsScenarioPreview} from "@archetypes/specs/scenarios"
+import {readSpec} from "@archetypes/specs"
+import {supportsScenarioPreview, type ReadScenarioOutput} from "@archetypes/specs/scenarios"
 import {
   generateStorybookLoaderSource,
   generateStorybookAppliedRevisionLoaderSource,
@@ -279,7 +280,11 @@ export async function buildStorybookPackageRevisionInProcess(
       else writeFileSync(target, attestedBytes)
     }
     emitPhase(onPhase, "resources", "completed")
-    const scenarios = await prepareStorybookScenarios(descriptor, input.signal)
+    const scenarios = await prepareStorybookScenarios(descriptor, input.signal, (nodeId, result) => {
+      const directory = join(stagingDirectory, "scenarios")
+      mkdirSync(directory, {recursive: true})
+      writeFileSync(join(directory, `${encodeURIComponent(nodeId)}.json`), JSON.stringify(result))
+    })
     const modules = [
       ...(descriptor.runtime === null ? [] : [descriptor.runtime]),
       ...descriptor.variants.map(({module}) => module),
@@ -752,6 +757,7 @@ function isWorkerDiagnosticPhase(
 export async function prepareStorybookScenarios(
   descriptor: StorybookPackageBuildDescriptor,
   signal: AbortSignal,
+  onPrepared?: (nodeId: string, result: ReadScenarioOutput) => void,
 ): Promise<readonly StorybookGeneratedScenario[]> {
   const prepared: StorybookGeneratedScenario[] = []
   for (const spec of descriptor.scenarioSpecs ?? []) {
@@ -762,9 +768,10 @@ export async function prepareStorybookScenarios(
     }
     if (supported.length !== 1) continue
     signal.throwIfAborted()
-    const result = await readScenario({path: supported[0]!})
+    const result = (await readSpec({path: dirname(dirname(supported[0]!))}))?.scenario
     signal.throwIfAborted()
-    if (result.preview === undefined) continue
+    if (result?.preview === undefined) continue
+    onPrepared?.(spec.nodeId, result)
     prepared.push(Object.freeze({
       nodeId: spec.nodeId,
       module: Object.freeze({

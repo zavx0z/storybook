@@ -129,3 +129,33 @@ describe.each([
     expect(!("status" in result.scenarios) && result.scenarios.sections?.find(section => section.title === title)?.sections?.find(section => section.title === topic)?.sections?.find(section => section.title === item)?.content?.[0]?.value).toEqual(value)
   })
 })
+
+test("вариант компонента содержит ту же декларацию, props и пункты, что preview", async () => {
+  const path = resolve(import.meta.dir, "../../../../archetypes/specs/scenarios/spec/fixture/component")
+  const source = resolve(path, "spec/scenario.spec.tsx")
+  const raw = await readScenario({path: source})
+  const prepared = {revision: "component-preview", result: {scenario: raw}}
+  const data = await readScenarios({path, source, format: "data", prepared})
+  const document = await readScenarios({path, source, prepared})
+  if (!("preview" in data.scenarios) || !("sections" in document.scenarios)) throw new Error("Ожидается компонентный сценарий")
+  const preview = data.scenarios.preview?.variants[0]!
+  expect(document.scenarios.sections?.[0]?.content).toEqual([
+    {text: "Декларация компонента", value: preview.source},
+    {text: "Конкретные props варианта", value: preview.props},
+    {text: "Пункты представления", value: preview.points},
+  ])
+}, 20_000)
+
+test("подготовленная спецификация сохраняет ревизию без нового запуска", async () => {
+  const path = resolve(import.meta.dir, "../../../../archetypes/specs/scenarios/spec/fixture/function")
+  const source = resolve(path, "spec/scenario.spec.ts")
+  const raw = await readScenario({path: source})
+  const result = await readScenarios({path, source, format: "data", prepared: {revision: "applied-revision", result: {scenario: raw}}})
+  expect("revision" in result.scenarios ? result.scenarios.revision : null).toBe("applied-revision")
+})
+
+test("подготовленное отсутствие не запускает существующий сценарий заново", async () => {
+  const path = resolve(import.meta.dir, "../../../../archetypes/specs/scenarios/spec/fixture/function")
+  const result = await readScenarios({path, format: "data", prepared: {revision: "applied-absent", result: null}})
+  expect("status" in result.scenarios ? result.scenarios.status : null).toBe("absent")
+})

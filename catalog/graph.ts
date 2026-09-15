@@ -1,7 +1,9 @@
-import {storybookPackagePathSegment, storybookPackageUrlPath} from "@zavx0z/storybook-browser-lifecycle/contract"
+import {storybookPackageUrlPath} from "@zavx0z/storybook-browser-lifecycle/contract"
 /** Immutable normalized graph and derived route/search views. */
 
 import {createHash} from "node:crypto"
+import {relative} from "node:path"
+import {formatRouteAddress} from "@storybook/route/address"
 import type {
   StorybookModuleReference,
   StorybookPresentationGroup,
@@ -112,6 +114,7 @@ export function createExternalStorybookGraph(
   const nodeIds = new Set<string>()
   const visitedDeclarations = new Set<string>()
   const packagePaths = new Map<string, string>()
+  const packageAddresses = new Map<string, string>()
   const appendNode = (input: NodeInput): ExternalStorybookGraphNode => {
     if (nodeIds.has(input.id)) throw new Error(`Duplicate external Storybook graph identity: ${input.id}`)
     if (input.packageId !== null && input.kind !== "directory" && input.routePath?.split("/")[0]?.startsWith("dir-")) {
@@ -137,7 +140,11 @@ export function createExternalStorybookGraph(
       throw new Error(`Normalized Storybook owners must be packages: ${canonicalId}`)
     }
     if (declaration.kind === "package") {
-      const path = storybookPackagePathSegment(declaration.id)
+      const root = declarationsById.get(ancestors[0] ?? canonicalId)!
+      const rootName = (root.kind === "package" ? root.packageName : root.id).split("/").at(-1)!
+      const nested = relative(root.scopeRoot, declaration.scopeRoot).split("/").filter(Boolean)
+      const path = formatRouteAddress({node: [rootName, ...nested].join("/")})
+      packageAddresses.set(declaration.id, path)
       const previous = packagePaths.get(path)
       if (previous !== undefined && previous !== declaration.id) {
         throw new Error(`Ambiguous Storybook package URL ${path}: ${previous} and ${declaration.id}`)
@@ -161,6 +168,11 @@ export function createExternalStorybookGraph(
       parentId,
       childIds: Object.freeze([...childIds]),
       readmePath: declaration.readmePath,
+      ...(declaration.kind === "package" ? {
+        ...(declaration.scenarioSpec === undefined ? {} : {scenarioSpec: declaration.scenarioSpec}),
+        ...(declaration.contractDocumentation === undefined ? {} : {contractDocumentation: declaration.contractDocumentation}),
+        ...(declaration.dependencySpec === undefined ? {} : {dependencySpec: declaration.dependencySpec}),
+      } : {}),
       resources: Object.freeze([]),
       authorStyleSheets: declaration.kind === "package"
         ? declaration.authorStyleSheets
@@ -223,11 +235,27 @@ export function createExternalStorybookGraph(
     throw new Error(`Resolved external Storybook declarations contain unreachable nodes: ${unreachable.join(", ")}`)
   }
 
-  const structuralNodes = bindStructuralSubjects(nodes, declarations.scopes)
+  const structuralNodes = bindStructuralSubjects(nodes, declarations.scopes).map(node => {
+    if (node.packageId === null) return node
+    const base = packageAddresses.get(node.packageId)!
+    const scope = declarationsById.get(`package:${node.packageId}`)!
+    const subjects = scope.kind === "package" ? scope.catalog?.categories.flatMap(category =>
+      category.subjects.map(subject => ({id: subjectNodeId(scope.id, category.id, subject.id), directory: subject.directory}))) ?? [] : []
+    const binding = subjects.find(subject => subject.id === node.id)?.directory
+    const directory = node.kind === "directory"
+      ? relative(scope.scopeRoot, node.source.path)
+      : node.kind === "subject" && binding !== undefined && subjects.filter(subject => subject.directory === binding).length === 1
+        ? binding : undefined
+    const suffix = directory ?? node.routePath ?? ""
+    const urlPath = suffix ? formatRouteAddress({node: `${base.slice(1).split("/").map(decodeURIComponent).join("/")}/${suffix}`}) : base
+    const {digest: previousDigest, ...input} = node
+    const value = {...input, urlPath}
+    return Object.freeze({...value, digest: digest(value)})
+  })
   const graphWithoutDigest = Object.freeze({
     schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
     rootIds: Object.freeze([...declarations.rootIds]),
-    nodes: structuralNodes,
+    nodes: Object.freeze(structuralNodes),
   })
   const graph = Object.freeze({...graphWithoutDigest, digest: digest(graphWithoutDigest)})
   validateDerivedRoutes(graph)
@@ -333,19 +361,19 @@ export function externalStorybookRoutes(
     }), ...(node.dependencyRoutePath === undefined ? [] : [Object.freeze({
       packageId: node.packageId,
       path: node.dependencyRoutePath,
-      urlPath: packageRouteUrl(node.packageId, node.dependencyRoutePath, false),
+      urlPath: formatRouteAddress({node: node.urlPath.slice(1).split("/").map(decodeURIComponent).join("/"), view: "dependencies"}),
       kind: "dependencies" as const,
       nodeId: node.id,
     })]), ...(node.contractRoutePath === undefined ? [] : [Object.freeze({
       packageId: node.packageId,
       path: node.contractRoutePath,
-      urlPath: packageRouteUrl(node.packageId, node.contractRoutePath, false),
+      urlPath: formatRouteAddress({node: node.urlPath.slice(1).split("/").map(decodeURIComponent).join("/"), view: "contract"}),
       kind: "contract" as const,
       nodeId: node.id,
     })]), ...(node.scenariosRoutePath === undefined ? [] : [Object.freeze({
       packageId: node.packageId,
       path: node.scenariosRoutePath,
-      urlPath: packageRouteUrl(node.packageId, node.scenariosRoutePath, false),
+      urlPath: formatRouteAddress({node: node.urlPath.slice(1).split("/").map(decodeURIComponent).join("/"), view: "scenarios"}),
       kind: "scenarios" as const,
       nodeId: node.id,
     })])]

@@ -1,7 +1,6 @@
 import {ScenarioInspector} from "@storybook/app/inspector"
 import type {ScenarioAppInput} from "@storybook/app/contract/input"
 import {createScenarioPresentation} from "./scenario-presentation"
-import {storybookPackageRouteFromPathname} from "@zavx0z/storybook-browser-lifecycle/contract"
 import {indexedWorkbenchAuthorStyleSheetSources} from "./author-style-sheets.ts"
 import {navigatePackage} from "./package-navigation.ts"
 import {externalStorybookBrowsePath} from "../catalog/graph.ts"
@@ -248,6 +247,7 @@ export type ExternalStorybookPackageController = Readonly<{
   get currentRoute(): string
   get currentModel(): ExternalStorybookPackageTabModel
   navigate(route: string): Promise<void>
+  restoreAddress(): void
   applyRevision(revision: string): Promise<void>
   canApplyRevision(): boolean
   dispose(): Promise<void>
@@ -309,7 +309,7 @@ export async function startExternalStorybookPackage(
           throw new Error(`External Storybook story loader route is not a variant: ${route}`)
         }
       }
-      const initialRoute = environment.pageScope?.initialRoute ?? packageRouteFromPathname(location.pathname, packageId)
+      const initialRoute = environment.pageScope?.initialRoute ?? packageRouteFromAddress(location.href, packageId, snapshot)
       return Object.freeze({
         snapshot,
         summary,
@@ -397,10 +397,14 @@ export async function startExternalStorybookPackage(
   let agentBridge: StorybookAgentBridge | null = null
   let activeSpacePreview: StorybookSpacePreview | null = null
   let scenarioPresentation: ReturnType<typeof createScenarioPresentation> | null = null
+  let stopScenarioSelection: (() => void) | null = null
+  let restoringScenarioSelection = false
   let stopScenarioCentering = () => {}
   const disposeScenario = (): void => {
     stopScenarioCentering()
     stopScenarioCentering = () => {}
+    stopScenarioSelection?.()
+    stopScenarioSelection = null
     scenarioPresentation?.dispose()
     scenarioPresentation = null
   }
@@ -906,6 +910,14 @@ export async function startExternalStorybookPackage(
       const input = await abortable(scenarioLoader(), signal)
       if (disposed || revision !== navigationRevision || signal.aborted) return
       scenarioPresentation = createScenarioPresentation(shell.document, input)
+      restoreScenarioSelection()
+      const app = scenarioPresentation.app
+      stopScenarioSelection = app.subscribe(() => {
+        if (restoringScenarioSelection) return
+        const next = new URL(location.href)
+        next.searchParams.set("variant", app.getSnapshot().title)
+        history.pushState(null, "", `${next.pathname}${next.search}`)
+      })
     }
     const presentationNode = scenarios
       ? scenarioPresentation?.element ?? shell.showMessage(label, "Сценарии", "Для этой спецификации пока нет общей исполняемой фикстуры")
@@ -1142,7 +1154,7 @@ export async function startExternalStorybookPackage(
   ): Promise<void> => {
     assertActive(disposed)
     const model = deriveExternalStorybookPackageTab(graph, packageId, route)
-    if (updateHistory && location.pathname !== model.urlPath) {
+    if (updateHistory && !sameWorkspaceAddress(location.href, model.urlPath)) {
       const next = new URL(model.urlPath, location.href)
       const preview = new URL(location.href).searchParams.get("preview")
       if (preview !== null) next.searchParams.set("preview", preview)
@@ -1178,6 +1190,26 @@ export async function startExternalStorybookPackage(
   Неверное значение и отсутствие Inspector нормализуются через replaceState,
   чтобы URL всегда описывал реально выбранную либо пустую секцию.
   */
+  const restoreScenarioSelection = (): void => {
+    if (scenarioPresentation === null) return
+    const app = scenarioPresentation.app
+    const url = new URL(location.href)
+    const requested = url.searchParams.get("variant")
+    const matches = app.variants.filter(variant => variant.title === requested)
+    if (matches.length > 1) throw new Error(`Неоднозначное название варианта сценария: ${requested}`)
+    const selected = matches[0] ?? app.variants[0]!
+    restoringScenarioSelection = true
+    try {
+      app.select(selected.id)
+    } finally {
+      restoringScenarioSelection = false
+    }
+    if (requested !== null && requested !== selected.title) {
+      url.searchParams.delete("variant")
+      history.replaceState(null, "", `${url.pathname}${url.search}`)
+    }
+  }
+
   const restoreInspectorSelection = (): void => {
     const subject = shell.workbench.controller.read("inspector.subject")
     const current = new URL(location.href)
@@ -1514,9 +1546,10 @@ export async function startExternalStorybookPackage(
   }
   const onPopState = (): void => {
     try {
-      const route = packageRouteFromPathname(location.pathname, packageId)
+      const route = packageRouteFromAddress(location.href, packageId, graph)
       if (route === currentRoute) {
         restoreInspectorSelection()
+        restoreScenarioSelection()
         return
       }
       void scheduleRoute(route)
@@ -1782,10 +1815,13 @@ export async function startExternalStorybookPackage(
   if (environment.lifecycleSignal?.aborted === true) onPageHide()
 
   const canonicalInitial = currentModel.urlPath
-  if (embeddedPageScope === undefined && location.pathname !== canonicalInitial) {
-    const next = new URL(canonicalInitial, location.href)
-    const preview = new URL(location.href).searchParams.get("preview")
-    if (preview !== null) next.searchParams.set("preview", preview)
+  if (embeddedPageScope === undefined && !sameWorkspaceAddress(location.href, canonicalInitial)) {
+    const next = new URL(location.href)
+    const canonical = new URL(canonicalInitial, location.href)
+    next.pathname = canonical.pathname
+    next.searchParams.delete("view")
+    const view = canonical.searchParams.get("view")
+    if (view !== null) next.searchParams.set("view", view)
     history.replaceState(null, "", `${next.pathname}${next.search}`)
   }
   try {
@@ -1849,6 +1885,10 @@ export async function startExternalStorybookPackage(
       return currentModel
     },
     navigate,
+    restoreAddress() {
+      restoreInspectorSelection()
+      restoreScenarioSelection()
+    },
     applyRevision,
     canApplyRevision: () => environment.loadAppliedRevision !== undefined && sharedModuleEpoch !== null && /^[a-f0-9]{64}$/u.test(sharedModuleEpoch),
     dispose,
@@ -1890,10 +1930,23 @@ function tabItems(items: readonly ExternalStorybookBrowserVariantItem[]) {
   })))
 }
 
-function packageRouteFromPathname(pathname: string, packageId: string): string {
-  const route = storybookPackageRouteFromPathname(pathname, packageId)
-  if (route === null) throw new Error(`Unknown or ambiguous external Storybook package path: ${pathname}`)
-  return route
+function sameWorkspaceAddress(left: string, right: string): boolean {
+  const a = new URL(left, "http://storybook.invalid")
+  const b = new URL(right, a)
+  return a.pathname.replace(/\/$/u, "") === b.pathname.replace(/\/$/u, "") &&
+    (a.searchParams.get("view") ?? "overview") === (b.searchParams.get("view") ?? "overview")
+}
+
+function packageRouteFromAddress(address: string, packageId: string, graph: ExternalStorybookClientSnapshot): string {
+  for (const node of graph.nodes) {
+    if (node.packageId !== packageId || node.routePath === null) continue
+    for (const route of [node.routePath, node.dependencyRoutePath, node.contractRoutePath, node.scenariosRoutePath]) {
+      if (route === undefined) continue
+      const model = deriveExternalStorybookPackageTab(graph, packageId, route)
+      if (sameWorkspaceAddress(address, model.urlPath)) return route
+    }
+  }
+  throw new Error(`External Storybook address is not in the applied package graph: ${address}`)
 }
 
 function revisionClientSnapshot(

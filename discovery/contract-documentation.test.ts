@@ -35,10 +35,13 @@ test("[CONTRACT-DISCOVERY] вход/выход, обновление, удале
     await symlink(join(root, "component/index.tsx"), input)
     expect((await read()).directories[0]!.contractDocumentation).toBeUndefined()
     await rm(input)
+    await Bun.write(output, "export type Output = {value: string} | null")
+    const nullable = (await read()).directories[0]!.contractDocumentation!
+    expect(nullable.documents[0]!.document.declarations[0]).toMatchObject({kind: "type", name: "Output"})
+    await rm(output)
     await Bun.write(join(root, "component/definition.ts"), "export interface Input {value: string}")
     for (const source of [
       "export interface Input {}\nexport interface Extra {}",
-      "export type Input = {value: string}",
       '/** Обзор пакета.\n@packageDocumentation\n*/\nexport interface Input {}',
       'export type {Input} from "../definition.ts"',
       'import type {Input as Base} from "../definition.ts"; export interface Input extends Base {}',

@@ -36,7 +36,7 @@ test.each([false, true])("Dependencies — собственный маршрут
   const route = resolveExternalStorybookRoute(graph, packageId, path)
   expect(route.kind).toBe("dependencies")
   expect(route.nodeId).toBe(resolveExternalStorybookRoute(graph, packageId, base).nodeId)
-  expect(storybookPackageRouteFromPathname(route.urlPath, packageId)).toBe(path)
+  expect(route.urlPath).toBe("/standalone/module?view=dependencies")
   const client = createExternalStorybookClientSnapshot(graph, [{
     packageId, declarationDigest: "fixture", moduleGraphRevision: null, candidateRevision: null,
     activeRevision: "active", lastGoodRevision: "active", entryRelativePath: "entry.js", diagnostics: [],

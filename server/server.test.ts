@@ -47,7 +47,7 @@ describe("one external Storybook server", () => {
     expect(running.sessions.snapshots().every(item => item.builds === 0)).toBeTrue()
   })
 
-  test("корневой REST возвращает Archetypes без сборки", async () => {
+  test("корневой REST возвращает подключённые корни без сборки", async () => {
     const fixture = serverFixture()
     const running = await startExternalStorybookServer({
       declarations: [fixture.standalone],
@@ -65,8 +65,8 @@ describe("one external Storybook server", () => {
     })
     const value = await response.json() as {node: string, description: string, children: {node: string, description: string}[]}
     expect(Object.keys(value).sort()).toEqual(["children", "description", "node"])
-    expect(value.children.map(node => node.node)).toEqual(["archetypes"])
-    expect(value.children.every(node => node.description.length > 40)).toBe(true)
+    expect(value.children.map(node => node.node)).toEqual(["standalone"])
+    expect(value.children.every(node => typeof node.description === "string")).toBe(true)
     expect(running.sessions.snapshots().every(item => item.builds === 0)).toBe(true)
   })
 

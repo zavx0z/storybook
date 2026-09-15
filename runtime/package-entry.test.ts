@@ -32,6 +32,7 @@ import {
   type StorybookRuntimeContext,
   type StorybookRuntimeStoryInput,
 } from "./runtime-protocol.ts"
+import {deriveExternalStorybookPackageTab} from "./model.ts"
 import {createExternalStorybookClientSnapshot} from "./client-protocol.ts"
 import {sha256Hex} from "../src/shared/sha256.ts"
 import {
@@ -52,7 +53,7 @@ describe("external Storybook package frontend", () => {
       ? {...node, childIds: [], scenariosRoutePath: "components/button/scenarios"}
       : node)}
     const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-scenarios"))
-    const environment = environmentFixture(snapshot, "/pkg-fixture-components/components/button/scenarios")
+    const environment = environmentFixture(snapshot, "/fixture-workspace/projects/alpha/packages/components/components/button?view=scenarios&variant=Второй")
     let loads = 0
     const controller = await startExternalStorybookPackage({
       packageId: "@fixture/components",
@@ -64,8 +65,8 @@ describe("external Storybook package frontend", () => {
         loads++
         return {
           template: StatefulFixture as unknown as CompiledTemplate<Record<string, unknown>>,
-          variants: ["Первый", "Второй", "Третий"].map(title => ({
-            id: title, title, props: {name: title}, source: `<StatefulFixture name="${title}" />`, points: [{title: "Описание"}],
+          variants: ["Первый", "Второй", "Третий"].map((title, index) => ({
+            id: String(index), title, props: {name: title}, source: `<StatefulFixture name="${title}" />`, points: [{title: "Описание"}],
           })),
         }
       }]]),
@@ -78,10 +79,17 @@ describe("external Storybook package frontend", () => {
       expect(element.ownerDocument).toBe(document)
       expect(workbench.controller.read("inspector.subject")?.widgetIds).toEqual(["storybook-scenarios"])
       const app = workbench.controller.read("inspector.values")["storybook-scenarios"] as {select(id: string): void}
-      app.select("Третий")
+      expect(element.textContent).toBe("Второй: 0")
+      app.select("2")
       await Promise.resolve()
       expect(display.querySelector("[data-fixture]")).toBe(element)
       expect(element.textContent).toBe("Третий: 0")
+      expect(new URL(environment.location!.href).searchParams.get("variant")).toBe("Третий")
+      environment.history!.replaceState(null, "", "?view=scenarios&variant=Второй")
+      controller.restoreAddress()
+      await Promise.resolve()
+      expect(display.querySelector("[data-fixture]")).toBe(element)
+      expect(element.textContent).toBe("Второй: 0")
       expect(loads).toBe(1)
     } finally { await controller.dispose() }
   })
@@ -93,7 +101,7 @@ describe("external Storybook package frontend", () => {
       ? {...node, childIds: [], scenariosRoutePath: "components/button/scenarios"}
       : node)}
     const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-scenarios"))
-    const environment = environmentFixture(snapshot, `/pkg-fixture-components/${initialRoute}`)
+    const environment = environmentFixture(snapshot, fixtureAddress(snapshot, initialRoute))
     const controller = await startExternalStorybookPackage({
       packageId: "@fixture/components",
       candidateRevision: "revision-scenarios",
@@ -115,7 +123,8 @@ describe("external Storybook package frontend", () => {
       expect(controller.currentRoute).toBe("components/button/scenarios")
       expect(workbench.controller.read("tabs.active")).toBe(`scenarios:${subjectId}`)
       expect(workbench.controller.read("inspector.subject")).toBeNull()
-      expect(new URL(environment.location!.href).pathname).toBe("/pkg-fixture-components/components/button/scenarios")
+      expect(new URL(environment.location!.href).pathname).toBe("/fixture-workspace/projects/alpha/packages/components/components/button")
+      expect(new URL(environment.location!.href).searchParams.get("view")).toBe("scenarios")
       expect(display.textContent).toContain("Сценарии")
       expect(controller.shell.document === document).toBe(true)
     } finally { await controller.dispose() }
@@ -149,7 +158,7 @@ describe("external Storybook package frontend", () => {
       ? {...node, childIds: [], contractRoutePath: "components/button/contract", contractDocumentation}
       : node)}
     const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-contract"))
-    const environment = environmentFixture(snapshot, `/pkg-fixture-components/${initialRoute}?preview=revision-contract`)
+    const environment = environmentFixture(snapshot, fixtureAddress(snapshot, initialRoute, "preview=revision-contract"))
     const events = new EventTarget()
     Object.defineProperty(environment.browserDocument, "defaultView", {value: events})
     const controller = await startExternalStorybookPackage({
@@ -176,7 +185,7 @@ describe("external Storybook package frontend", () => {
       expect(workbench.controller.read("inspector.subject")).toMatchObject({
         packageId: "@fixture/components",
         subjectId,
-        workspaceId: "contract:/pkg-fixture-components/components/button/contract",
+        workspaceId: "contract:/fixture-workspace/projects/alpha/packages/components/components/button?view=contract",
         widgetIds: ["storybook-contract-input", "storybook-contract-output"],
       })
       expect(workbench.elements.inspectorHost.querySelector('[data-widget="tree"]')?.textContent).toContain("Input")
@@ -247,7 +256,7 @@ describe("external Storybook package frontend", () => {
       while (controller.currentRoute !== "components/button" && Date.now() < until) await Bun.sleep(10)
       expect(controller.currentRoute).toBe("components/button")
       const location = environment.location! as LocationFixture
-      const url = new URL("/pkg-fixture-components/components/button/contract?preview=revision-contract&inspector=output", location.href)
+      const url = new URL("/fixture-workspace/projects/alpha/packages/components/components/button?view=contract&preview=revision-contract&inspector=output", location.href)
       location.pathname = url.pathname
       location.href = url.href
       events.dispatchEvent(new Event("popstate"))
@@ -284,7 +293,7 @@ describe("external Storybook package frontend", () => {
       }
       : node)}
     const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-inspector"))
-    const environment = environmentFixture(snapshot, "/pkg-fixture-components/components/button/basic/contained?preview=revision-inspector")
+    const environment = environmentFixture(snapshot, "/fixture-workspace/projects/alpha/packages/components/components/button/basic/contained?preview=revision-inspector")
     const events = new EventTarget()
     Object.defineProperty(environment.browserDocument, "defaultView", {value: events})
     let ownerContext: StorybookRuntimeContext | null = null
@@ -330,7 +339,7 @@ describe("external Storybook package frontend", () => {
 
       await controller.navigate("components/button/contract")
       expect(workbench.controller.read("inspector.subject")).toMatchObject({
-        workspaceId: "contract:/pkg-fixture-components/components/button/contract",
+        workspaceId: "contract:/fixture-workspace/projects/alpha/packages/components/components/button?view=contract",
         widgetIds: ["storybook-contract-input"],
       })
       expect(new URL(environment.location!.href).searchParams.get("inspector")).toBe("input")
@@ -370,7 +379,7 @@ describe("external Storybook package frontend", () => {
       ? {...node, childIds: [], dependencyRoutePath: "components/button/dependencies", dependencySpec: {sourcePath: "/fixture/component/spec/deps.spec.ts", sourceDigest: "fixture", cases}}
       : node)}
     const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-deps"))
-    const environment = environmentFixture(snapshot, `/pkg-fixture-components/${initialRoute}?preview=revision-deps`)
+    const environment = environmentFixture(snapshot, fixtureAddress(snapshot, initialRoute, "preview=revision-deps"))
     const events = new EventTarget()
     Object.defineProperty(environment.browserDocument, "defaultView", {value: events})
     const controller = await startExternalStorybookPackage({
@@ -394,7 +403,8 @@ describe("external Storybook package frontend", () => {
       expect(display.querySelector("[data-storybook-dependencies]")).not.toBeNull()
       expect(workbench.controller.read("tabs.active")).toBe(`dependencies:${subjectId}`)
       expect(controller.currentRoute).toBe("components/button/dependencies")
-      expect(environment.location!.pathname).toBe("/pkg-fixture-components/components/button/dependencies")
+      expect(environment.location!.pathname).toBe("/fixture-workspace/projects/alpha/packages/components/components/button")
+      expect(new URL(environment.location!.href).searchParams.get("view")).toBe("dependencies")
       expect(new URL(environment.location!.href).searchParams.get("preview")).toBe("revision-deps")
       expect(new URL(environment.location!.href).searchParams.get("inspector")).toBeNull()
       expect(workbench.controller.read("inspector.subject")).toBeNull()
@@ -412,7 +422,7 @@ describe("external Storybook package frontend", () => {
       expect(workbench.controller.read("tabs.active")).toBeNull()
       const historyCount = (environment.history as ReturnType<typeof historyFixture>).pushed.length
       const restore = async (route: string) => {
-        const url = new URL(`/pkg-fixture-components/${route}?preview=revision-deps`, environment.location!.href)
+        const url = new URL(fixtureAddress(snapshot, route, "preview=revision-deps"), environment.location!.href)
         const location = environment.location! as LocationFixture
         location.pathname = url.pathname
         location.href = url.href
@@ -439,7 +449,7 @@ describe("external Storybook package frontend", () => {
   test.each([true, false])("fallback preserves the indexed Workbench stylesheet and rejects failed loading: loaded=%s", async loaded => {
     const graph = await fixtureGraph()
     const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-a"))
-    const environment = environmentFixture(snapshot, "/pkg-fixture-components/")
+    const environment = environmentFixture(snapshot, "/fixture-workspace/projects/alpha/packages/components/")
     const browserDocument = environment.browserDocument!
     const attributes = new Map([
       ["rel", "stylesheet"],
@@ -524,7 +534,7 @@ describe("external Storybook package frontend", () => {
         ["components/button/basic/contained", async () => ({})],
         ["components/button/outlined", async () => ({})],
       ]),
-      environment: environmentFixture(snapshot, "/pkg-fixture-components/components/button"),
+      environment: environmentFixture(snapshot, "/fixture-workspace/projects/alpha/packages/components/components/button"),
     })
     try {
       expect(mounts).toBe(2)
@@ -548,7 +558,7 @@ describe("external Storybook package frontend", () => {
     const sockets: FakeSocket[] = []
     let renewed = 0
     const environment = {
-      ...environmentFixture(snapshot, "/pkg-fixture-components/"),
+      ...environmentFixture(snapshot, "/fixture-workspace/projects/alpha/packages/components/"),
       browserDocument: {
         documentElement: {dataset: {}},
         querySelector: (selector: string) => selector.includes("applied-revision") ? {content: "older-applied"} : null,
@@ -637,7 +647,7 @@ describe("external Storybook package frontend", () => {
     const route = "components/button/basic/contained"
     const socket = new FakeSocket()
     const rootState = createFakeRootState()
-    const environment = environmentFixture(navigation, `/pkg-fixture-components/${route}`)
+    const environment = environmentFixture(navigation, `/fixture-workspace/projects/alpha/packages/components/${route}`)
     const revisionUrl = `/__storybook/revisions/%40fixture%2Fcomponents/${initialRevision}/`
     const browserLocation = environment.location as LocationFixture
     browserLocation.href += "?inspector=diagnostics"
@@ -756,7 +766,7 @@ describe("external Storybook package frontend", () => {
       expect(controller.shell.canvas).toBe(canvas)
       expect(rootState.creations).toBe(1)
       expect(browserLocation.reloads).toBe(0)
-      expect(browserLocation.pathname).toBe(`/pkg-fixture-components/${route}`)
+      expect(browserLocation.pathname).toBe(`/fixture-workspace/projects/alpha/packages/components/${route}`)
       expect(new URL(browserLocation.href).searchParams.get("inspector")).toBe("diagnostics")
       expect(controller.shell.workbench.controller.selectedInspector()).toBe("diagnostics")
       expect(controller.shell.workbench.elements.catalogItems.scrollTop).toBe(96)
@@ -830,7 +840,7 @@ describe("external Storybook package frontend", () => {
     )
     const environment = environmentFixture(
       snapshot,
-      "/pkg-fixture-components/components/button/basic/contained",
+      "/fixture-workspace/projects/alpha/packages/components/components/button/basic/contained",
     )
     const location = environment.location as LocationFixture
     const history = environment.history as ReturnType<typeof historyFixture>
@@ -947,8 +957,8 @@ describe("external Storybook package frontend", () => {
       revisionUrl: `/__storybook/revisions/${encodeURIComponent(packageId)}/${revision}/`,
       route,
       urlPath: packageId === "@fixture/standalone"
-        ? "/pkg-fixture-standalone/"
-        : `/pkg-fixture-components/${route}`,
+        ? "/standalone/"
+        : `/fixture-workspace/projects/alpha/packages/components/${route}`,
       intent: "reader",
       preview: false,
       initialAppliedRevision: packageId === "@fixture/standalone" ? standaloneRevision : revision,
@@ -971,6 +981,16 @@ describe("external Storybook package frontend", () => {
       history,
       fetcher: (async (input, init) => {
         if (String(input) === "/api/client") return Response.json(snapshot)
+        if (String(input) === "/api/browser/route") {
+          const {route} = JSON.parse(String(init?.body)) as {route: string}
+          const requested = new URL(route, "http://localhost")
+          expect([...requested.searchParams.keys()].every(key => key === "variant" || key === "view")).toBe(true)
+          const pathname = requested.pathname.replace(/\/$/u, "")
+          const node = snapshot.nodes.find(node => node.urlPath.replace(/\/$/u, "") === pathname)
+          return node?.packageId === null || node === undefined
+            ? new Response(null, {status: 404})
+            : Response.json({packageId: node.packageId, route: node.routePath, urlPath: node.urlPath})
+        }
         if (String(input) === "/api/browser/session") return Response.json({token: `renewed-${String(init?.body).length}`})
         return new Response(`# ${String(input)}`)
       }) as typeof fetch,
@@ -1087,7 +1107,7 @@ describe("external Storybook package frontend", () => {
       expect(controller.shell.canvas).toBe(canvas)
       expect(rootState.creations).toBe(1)
       expect(location.reloads).toBe(0)
-      expect(location.pathname).toBe("/pkg-fixture-standalone/")
+      expect(location.pathname).toBe("/standalone/")
       expect((environment.browserDocument as any).title).toBe("Standalone Fixture")
       expect(controller.shell.workbench.element.getAttribute("aria-label")).toBe("Standalone Fixture")
       expect((environment.browserDocument as any).documentElement.dataset.externalStorybookPackageId)
@@ -1136,10 +1156,10 @@ describe("external Storybook package frontend", () => {
       expect(controller.packageId).toBe("@fixture/standalone")
       expect(controller.shell.root).toBe(root)
       expect(rootState.creations).toBe(1)
-      expect(location.pathname).toBe("/pkg-fixture-standalone/")
+      expect(location.pathname).toBe("/standalone/")
 
-      location.href = "http://localhost/pkg-fixture-components/components/button/basic/contained?inspector=source"
-      location.pathname = "/pkg-fixture-components/components/button/basic/contained"
+      location.href = "http://localhost/fixture-workspace/projects/alpha/packages/components/components/button/basic/contained?inspector=source"
+      location.pathname = "/fixture-workspace/projects/alpha/packages/components/components/button/basic/contained"
       globalThis.dispatchEvent(new globalThis.Event("popstate"))
       const backDeadline = Date.now() + 3_000
       while (controller.packageId !== "@fixture/components" && Date.now() < backDeadline) await Bun.sleep(10)
@@ -1149,24 +1169,24 @@ describe("external Storybook package frontend", () => {
 
       await controller.navigatePackage({packageId: "@fixture/standalone", route: ""})
       failComponents = true
-      location.href = "http://localhost/pkg-fixture-components/components/button/basic/contained?inspector=source"
-      location.pathname = "/pkg-fixture-components/components/button/basic/contained"
+      location.href = "http://localhost/fixture-workspace/projects/alpha/packages/components/components/button/basic/contained?inspector=source"
+      location.pathname = "/fixture-workspace/projects/alpha/packages/components/components/button/basic/contained"
       globalThis.dispatchEvent(new globalThis.Event("popstate"))
       const failedBackDeadline = Date.now() + 3_000
-      while (location.pathname !== "/pkg-fixture-standalone/" && Date.now() < failedBackDeadline) await Bun.sleep(10)
+      while (location.pathname !== "/standalone/" && Date.now() < failedBackDeadline) await Bun.sleep(10)
       expect(controller.packageId).toBe("@fixture/standalone")
       expect(controller.shell.root).toBe(root)
       expect(controller.shell.document).toBe(document)
       expect(controller.shell.canvas).toBe(canvas)
       expect(rootState.creations).toBe(1)
       expect(location.reloads).toBe(0)
-      expect(location.pathname).toBe("/pkg-fixture-standalone/")
+      expect(location.pathname).toBe("/standalone/")
       expect(history.pushed).toEqual([
-        "/pkg-fixture-components/components/button/basic/contained?inspector=source",
-        "/pkg-fixture-standalone/",
+        "/fixture-workspace/projects/alpha/packages/components/components/button/basic/contained?inspector=source",
+        "/standalone/",
         "/",
-        "/pkg-fixture-standalone/",
-        "/pkg-fixture-standalone/",
+        "/standalone/",
+        "/standalone/",
       ])
       const bridge = (globalThis as typeof globalThis & {
         __EXTERNAL_STORYBOOK_AGENT_BRIDGE__: {call(method: "identity"): Promise<any>}
@@ -1202,7 +1222,7 @@ describe("external Storybook package frontend", () => {
           id: hudSubjectId,
           childIds: [hudVariantId],
           routePath: "components/hud-button",
-          urlPath: "/pkg-fixture-components/components/hud-button",
+          urlPath: "/fixture-workspace/projects/alpha/packages/components/components/hud-button",
           presentation,
         },
         {
@@ -1210,7 +1230,7 @@ describe("external Storybook package frontend", () => {
           id: hudVariantId,
           parentId: hudSubjectId,
           routePath: "components/hud-button/contained",
-          urlPath: "/pkg-fixture-components/components/hud-button/contained",
+          urlPath: "/fixture-workspace/projects/alpha/packages/components/components/hud-button/contained",
           presentation,
         },
       ],
@@ -1225,7 +1245,7 @@ describe("external Storybook package frontend", () => {
         throw new Error("Mixed projection overview must not execute child runtimes")
       },
       storyLoaders: new Map(),
-      environment: environmentFixture(snapshot, "/pkg-fixture-components/components"),
+      environment: environmentFixture(snapshot, "/fixture-workspace/projects/alpha/packages/components/components"),
     })
     try {
       expect(runtimeLoads).toBe(0)
@@ -1268,7 +1288,7 @@ describe("external Storybook package frontend", () => {
     browserDocument.getElementById = (id) => links.get(id) ?? null
     const lifecycle: string[] = []
     const experienceState = createFakeRootState(lifecycle)
-    const location = locationFixture("/pkg-fixture-components/")
+    const location = locationFixture("/fixture-workspace/projects/alpha/packages/components/")
     const packageTransitions: Array<Readonly<{packageId: string; route: string}>> = []
     const landingTransitions: string[] = []
     const controller = await startExternalStorybookPackage({
@@ -1314,7 +1334,7 @@ describe("external Storybook package frontend", () => {
     ) as import("@zavx0z/dom").HTMLButtonElement
     workspaceBreadcrumb.click()
     expect(packageTransitions).toEqual([{packageId: "fixture-workspace", route: ""}])
-    expect(location.href).toBe("http://localhost/pkg-fixture-components/")
+    expect(location.href).toBe("http://localhost/fixture-workspace/projects/alpha/packages/components/")
     const homeBreadcrumb = controller.shell.workbench.elements.status.querySelector(
       '[data-breadcrumb-id="storybook:root"] button',
     ) as import("@zavx0z/dom").HTMLButtonElement
@@ -1323,7 +1343,7 @@ describe("external Storybook package frontend", () => {
     expect(homeBreadcrumb.querySelector("img")).not.toBeNull()
     homeBreadcrumb.click()
     expect(landingTransitions).toEqual(["/"])
-    expect(location.href).toBe("http://localhost/pkg-fixture-components/")
+    expect(location.href).toBe("http://localhost/fixture-workspace/projects/alpha/packages/components/")
     await controller.dispose()
     expect(lifecycle.at(-1)).toBe("root-dispose")
   })
@@ -1332,7 +1352,7 @@ describe("external Storybook package frontend", () => {
     const graph = await fixtureGraph()
     const directory = graph.nodes.find(node => node.kind === "directory" && node.packageId === "@fixture/components")!
     const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-a"))
-    const environment = environmentFixture(snapshot, "/pkg-fixture-components/")
+    const environment = environmentFixture(snapshot, "/fixture-workspace/projects/alpha/packages/components/")
     let runtimeLoads = 0
     const controller = await startExternalStorybookPackage({
       packageId: "@fixture/components", candidateRevision: "revision-a",
@@ -1356,7 +1376,7 @@ describe("external Storybook package frontend", () => {
     const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, candidate))
     const dataset: Record<string, string> = {}
     const browserDocument = {documentElement: {dataset}} as unknown as globalThis.Document
-    const browserLocation = locationFixture("/pkg-fixture-components/")
+    const browserLocation = locationFixture("/fixture-workspace/projects/alpha/packages/components/")
     const history = historyFixture(browserLocation)
     const socket = new FakeSocket()
     const experienceState = createFakeRootState()
@@ -1531,7 +1551,7 @@ describe("external Storybook package frontend", () => {
     outlinedTab.click()
     const tabDeadline = Date.now() + 5000
     while ((controller.currentRoute !== "components/button/outlined" || dataset.externalStorybookPackage !== "ready") && Date.now() < tabDeadline) await Bun.sleep(10)
-    expect(browserLocation.pathname).toBe("/pkg-fixture-components/components/button/outlined")
+    expect(browserLocation.pathname).toBe("/fixture-workspace/projects/alpha/packages/components/components/button/outlined")
     expect(runtimeLoads).toBe(1)
     expect(containedLoads).toBe(3)
     expect(outlinedLoads).toBe(2)
@@ -1543,7 +1563,7 @@ describe("external Storybook package frontend", () => {
     selectedSubject.click()
     const overviewDeadline = Date.now() + 5000
     while ((controller.currentRoute !== "components/button" || dataset.externalStorybookPackage !== "ready") && Date.now() < overviewDeadline) await Bun.sleep(10)
-    expect(browserLocation.pathname).toBe("/pkg-fixture-components/components/button")
+    expect(browserLocation.pathname).toBe("/fixture-workspace/projects/alpha/packages/components/components/button")
     expect(controller.shell.workbench.controller.read("tabs.active")).toBeNull()
     const restoredOverview = controller.shell.workbench.controller.read("presentation").node
     expect((restoredOverview as Element | null)?.querySelectorAll("[data-storybook-aggregate-item]"))
@@ -1551,12 +1571,12 @@ describe("external Storybook package frontend", () => {
     expect(restoredOverview?.textContent).toContain("Contained")
     expect(restoredOverview?.textContent).toContain("Outlined")
     expect(history.pushed).toEqual([
-      "/pkg-fixture-components/components",
-      "/pkg-fixture-components/components/button",
-      "/pkg-fixture-components/components/button/basic/contained",
-      "/pkg-fixture-components/components/button/basic/contained?inspector=diagnostics",
-      "/pkg-fixture-components/components/button/outlined",
-      "/pkg-fixture-components/components/button",
+      "/fixture-workspace/projects/alpha/packages/components/components",
+      "/fixture-workspace/projects/alpha/packages/components/components/button",
+      "/fixture-workspace/projects/alpha/packages/components/components/button/basic/contained",
+      "/fixture-workspace/projects/alpha/packages/components/components/button/basic/contained?inspector=diagnostics",
+      "/fixture-workspace/projects/alpha/packages/components/components/button/outlined",
+      "/fixture-workspace/projects/alpha/packages/components/components/button",
     ])
     const beforeUnknown = [...history.pushed]
     await expect(controller.navigate("missing")).rejects.toThrow("Unknown external Storybook route")
@@ -1627,7 +1647,7 @@ describe("external Storybook package frontend", () => {
     )
     const baseEnvironment = environmentFixture(
       snapshot,
-      "/pkg-fixture-components/components/button/basic/contained",
+      "/fixture-workspace/projects/alpha/packages/components/components/button/basic/contained",
     )
     const experienceState = createFakeRootState()
     const environment: ExternalStorybookPackageEnvironment = {
@@ -1699,13 +1719,13 @@ describe("external Storybook package frontend", () => {
     } as const
     await expect(startExternalStorybookPackage({
       ...base,
-      environment: environmentFixture(snapshot, "/pkg-fixture-standalone/"),
-    })).rejects.toThrow("Unknown or ambiguous external Storybook package path")
+      environment: environmentFixture(snapshot, "/standalone/"),
+    })).rejects.toThrow("External Storybook address is not in the applied package graph")
     await expect(startExternalStorybookPackage({
       ...base,
       candidateRevision: "revision-other",
       revisionUrl: "/__storybook/revisions/%40fixture%2Fcomponents/revision-other/",
-      environment: environmentFixture(snapshot, "/pkg-fixture-components/"),
+      environment: environmentFixture(snapshot, "/fixture-workspace/projects/alpha/packages/components/"),
     })).rejects.toThrow("revision is not active or last-good")
   })
 
@@ -1720,7 +1740,7 @@ describe("external Storybook package frontend", () => {
     )
     const environment = environmentFixture(
       createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, candidate)),
-      "/pkg-fixture-components/",
+      "/fixture-workspace/projects/alpha/packages/components/",
     )
     const browserDocument = {
       documentElement: {dataset: {}},
@@ -1764,7 +1784,7 @@ describe("external Storybook package frontend", () => {
     const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, candidate))
     const environment = environmentFixture(
       snapshot,
-      "/pkg-fixture-components/components/button/basic/contained",
+      "/fixture-workspace/projects/alpha/packages/components/components/button/basic/contained",
     )
     let unmounts = 0
     let rootActive = true
@@ -1819,7 +1839,7 @@ describe("external Storybook package frontend", () => {
     for (const violation of ["missing", "double", "derived", "unselected"] as const) {
       const environment = environmentFixture(
         snapshot,
-        "/pkg-fixture-components/components/button/basic/contained",
+        "/fixture-workspace/projects/alpha/packages/components/components/button/basic/contained",
       )
       let unmounts = 0
       const controller = await startExternalStorybookPackage({
@@ -1871,7 +1891,7 @@ describe("external Storybook package frontend", () => {
     for (const failure of ["create", "session", "mount", "frame"] as const) {
       const baseEnvironment = environmentFixture(
         snapshot,
-        "/pkg-fixture-components/components/button/basic/contained",
+        "/fixture-workspace/projects/alpha/packages/components/components/button/basic/contained",
       )
       let invalidDispose = 0
       const experienceState = createFakeRootState()
@@ -1927,7 +1947,7 @@ describe("external Storybook package frontend", () => {
     const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, candidate))
     const environment = environmentFixture(
       snapshot,
-      "/pkg-fixture-components/components/button/basic/contained",
+      "/fixture-workspace/projects/alpha/packages/components/components/button/basic/contained",
     )
     const browserDocument = environment.browserDocument as unknown as {
       querySelector(selector: string): {content: string} | null
@@ -1966,7 +1986,7 @@ describe("external Storybook package frontend", () => {
     const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, candidate))
     const environment = environmentFixture(
       snapshot,
-      "/pkg-fixture-components/components/button/basic/contained",
+      "/fixture-workspace/projects/alpha/packages/components/components/button/basic/contained",
     )
     const socket = new FakeSocket()
     const browserDocument = environment.browserDocument as unknown as {
@@ -2021,7 +2041,7 @@ describe("external Storybook package frontend", () => {
     const graph = await fixtureGraph()
     const candidate = "revision-a"
     const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, candidate))
-    const environment = environmentFixture(snapshot, "/pkg-fixture-components/")
+    const environment = environmentFixture(snapshot, "/fixture-workspace/projects/alpha/packages/components/")
     let concurrent = 0
     let maximum = 0
     let startFirst!: () => void
@@ -2100,7 +2120,7 @@ describe("external Storybook package frontend", () => {
       },
       storyLoaders: new Map([["components/button/basic/contained", async () => ({})]]),
       environment: {
-        ...environmentFixture(snapshot, "/pkg-fixture-components/components/button/basic/contained"),
+        ...environmentFixture(snapshot, "/fixture-workspace/projects/alpha/packages/components/components/button/basic/contained"),
         lifecycleSignal: cancellation.signal,
       },
     })
@@ -2128,7 +2148,7 @@ describe("external Storybook package frontend", () => {
       },
       storyLoaders: new Map([["components/button/basic/contained", async () => ({})]]),
       environment: {
-        ...environmentFixture(snapshot, "/pkg-fixture-components/components/button/basic/contained"),
+        ...environmentFixture(snapshot, "/fixture-workspace/projects/alpha/packages/components/components/button/basic/contained"),
         lifecycleSignal: hungCancellation.signal,
         cleanupTimeoutMs: 10,
       },
@@ -2208,6 +2228,13 @@ function historyFixture(location: LocationFixture) {
       location.href = next.href
     },
   }
+}
+
+function fixtureAddress(snapshot: ReturnType<typeof createExternalStorybookClientSnapshot>, route: string, query = ""): string {
+  const model = deriveExternalStorybookPackageTab(snapshot, "@fixture/components", route)
+  const address = new URL(model.urlPath, "http://localhost")
+  for (const [key, value] of new URLSearchParams(query)) address.searchParams.set(key, value)
+  return `${address.pathname}${address.search}`
 }
 
 function environmentFixture(

@@ -8,6 +8,7 @@
   "packageManager": "bun@1.4.0",
   "workspaces": [
     "app",
+    "route",
     "browser-lifecycle",
     "archetypes",
     "mcp/rest"
@@ -21,13 +22,15 @@
     "build": "bun scripts/storybook.ts check .",
     "typecheck": "tsc --noEmit --pretty false",
     "browser-lifecycle:check": "bun run --cwd browser-lifecycle check",
+    "route:check": "bun run --cwd route check",
     "archetypes:check": "bun test archetypes --path-ignore-patterns '**/fixture/**' --max-concurrency=1",
     "test": "STORYBOOK_SKIP_ISOLATION=1 bun test catalog discovery build sessions runtime workbench server tests src --max-concurrency=1 && bun test tests/isolation.integration.test.ts --max-concurrency=1",
     "mcp:check": "bun run --cwd mcp check",
-    "check": "bun run browser-lifecycle:check && bun run typecheck && bun run archetypes:check && bun run test && bun run mcp:check && bun run build"
+    "check": "bun run browser-lifecycle:check && bun run typecheck && bun run route:check && bun run archetypes:check && bun run test && bun run mcp:check && bun run build"
   },
   "dependencies": {
     "@storybook/app": "workspace:*",
+    "@storybook/route": "workspace:*",
     "@mcp/rest": "workspace:*",
     "@zavx0z/storybook-browser-lifecycle": "workspace:*"
   },

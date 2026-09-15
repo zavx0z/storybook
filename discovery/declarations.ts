@@ -151,6 +151,11 @@ export async function resolveExternalStorybookDeclarations(
       state.scopes[index] = Object.freeze({
         ...scope,
         ...(retained.directories === undefined ? {} : {directories: retained.directories}),
+        ...(scope.kind === "package" && retained.kind === "package" ? {
+          ...(retained.scenarioSpec === undefined ? {} : {scenarioSpec: retained.scenarioSpec}),
+          ...(retained.contractDocumentation === undefined ? {} : {contractDocumentation: retained.contractDocumentation}),
+          ...(retained.dependencySpec === undefined ? {} : {dependencySpec: retained.dependencySpec}),
+        } : {}),
         ...(retained.structurePaths === undefined ? {} : {structurePaths: retained.structurePaths}),
       })
       continue
@@ -165,6 +170,7 @@ export async function resolveExternalStorybookDeclarations(
       state.scopes[index] = Object.freeze({
         ...scope,
         directories: found.directories,
+        ...(scope.kind === "package" ? found.rootMetadata : {}),
         structurePaths: Object.freeze([...new Set([...(scope.structurePaths ?? []), ...found.watchPaths])]),
       })
     } catch (error) {
@@ -185,7 +191,12 @@ export async function resolveExternalStorybookDeclarations(
 
 function sameDeclaration(current: StorybookCatalogScope, previous: StorybookCatalogScope): boolean {
   const structural = ({directories: _directories, structurePaths: _structurePaths, recoveryPaths: _recoveryPaths,
-    resolutionError: _resolutionError, ...declaration}: StorybookCatalogScope) => declaration
+    resolutionError: _resolutionError, ...declaration}: StorybookCatalogScope) => {
+    if (declaration.kind !== "package") return declaration
+    const {scenarioSpec: _scenarioSpec, contractDocumentation: _contractDocumentation,
+      dependencySpec: _dependencySpec, ...owner} = declaration
+    return owner
+  }
   return JSON.stringify(structural(current)) === JSON.stringify(structural(previous))
 }
 

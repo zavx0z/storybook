@@ -206,6 +206,9 @@ describe("real Storybook package revision build", () => {
     const result = await build(buildInput(descriptor, staging, "revision-scenario"))
     const code = await builtJavaScript(staging)
 
+    const prepared = await Bun.file(join(staging, "scenarios", `${encodeURIComponent("subject:@fixture/package/category/subject")}.json`)).json()
+    expect(prepared.path).toBe(realpathSync(scenarioPath))
+    expect(prepared.preview.variants.map((variant: {title: string}) => variant.title)).toEqual(["Доступная команда", "Недоступная команда"])
     expect(code).toContain("Доступная команда")
     expect(result.dependencyRealpaths).toContain(realpathSync(scenarioPath))
     expect(result.dependencyRealpaths).toContain(realpathSync(fixturePath))
