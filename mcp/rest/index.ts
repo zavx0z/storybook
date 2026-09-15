@@ -94,7 +94,6 @@ export async function storybookRest(
   }
   const entries = [
     {node: "archetypes", source: resolve(root, "archetypes/package.json")},
-    {node: "validator", source: resolve(root, "validator/package.json")},
   ]
   const children = await Promise.all(entries.map(async ({node, source}) => {
     const manifest = await Bun.file(source).json() as {description: string}
@@ -102,7 +101,7 @@ export async function storybookRest(
   }))
   return Response.json({
     node: "root",
-    description: "Выберите archetypes для решений о структуре и ответственности; validator — для проверки уже оформленной структуры существующей спецификацией.",
+    description: "Выберите archetypes для правил структуры, чтения и встроенной проверки объектов.",
     children,
   })
 }

@@ -75,9 +75,9 @@ const contracts = Object.freeze({
   ),
   server: contract(
     "One server and origin",
-    "Единый процесс владеет HTTP/WebSocket и автоматическим портом для всех подключённых корней и пакетов. Время жизни MCP-подключения независимо. storybook({}) возвращает корневой обзор Archetypes и Валидатора; node: archetypes раскрывает определения из экспортов. У раздела со сценарием обычный ответ является JSON-документом: node, title, content и вложенные sections. Абзацы text/value связывают пояснения с предметными данными; notes обозначают ограничения подтверждения. readScenario объединяет структуру исходника, выполнение и валидацию; непроверенные требования остаются явно обозначенными. Технический каталог с результатами валидации доступен через action=data. MCP передаёт ответ HTTP-сервера без знания его предметной структуры.",
+    "Единый процесс владеет HTTP/WebSocket и автоматическим портом для всех подключённых корней и пакетов. Время жизни MCP-подключения независимо. storybook({}) возвращает корневой обзор Archetypes со встроенной валидацией; node: archetypes раскрывает определения из экспортов. У раздела со сценарием обычный ответ является JSON-документом: node, title, content и вложенные sections. Абзацы text/value связывают пояснения с предметными данными; notes обозначают ограничения подтверждения. readScenario объединяет структуру исходника, выполнение и валидацию; непроверенные требования остаются явно обозначенными. Технический каталог с результатами валидации доступен через action=data. MCP передаёт ответ HTTP-сервера без знания его предметной структуры.",
     "The shared controller migrates verified legacy TMPDIR state, rejects foreign checkouts and fences daemon publication with one atomic startup lease; no consumer owns a listener or port.",
-    "storybook serve ./workspace\nstorybook_ensure({roots})\nstorybook({}) → HTTP /api/control/storybook → Archetypes, Валидатор\nstorybook({node: \"archetypes/specs/scenarios\"}) → {node, title, content, sections} → абзацы {text, value}",
+    "storybook serve ./workspace\nstorybook_ensure({roots})\nstorybook({}) → HTTP /api/control/storybook → Archetypes\nstorybook({node: \"archetypes/specs/scenarios\"}) → {node, title, content, sections} → абзацы {text, value}",
   ),
   browserLifecycle: contract(
     "Current-tab navigation and background agent views",

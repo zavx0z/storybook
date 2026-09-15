@@ -5,7 +5,6 @@ import {readScenarios} from "../scenarios"
 
 const root = fileURLToPath(new URL("../../../", import.meta.url))
 const archetypesDescription = "Помогает решить, где разместить сущность, когда выделить пакет или категорию и как оформить ответственность, зависимости, контракты и проверки"
-const validatorDescription = "Проверяет выбранный пакет, категорию или сущность существующей спецификацией и возвращает структурированный отчёт Bun"
 
 test("диагностика журнала не запускает сценарий и не передаёт содержимое записей", async () => {
   const summary = {entries: [{id: "one", status: "success", resultBytes: 150000}], lastWriteError: null}
@@ -18,15 +17,14 @@ describe.each([
   {name: "GET без параметров", method: "GET", body: undefined},
   {name: "POST без параметров", method: "POST", body: "{}"},
 ])("$name", ({method, body}) => {
-  test("Возвращает только Archetypes и Валидатор", async () => {
+  test("Возвращает Archetypes со встроенной валидацией", async () => {
     const response = await storybookRest(new Request("http://localhost/api/control/storybook", {method, ...(body === undefined ? {} : {body})}), root)
     const value = await response.json()
     expect(value).toEqual({
       node: "root",
-      description: "Выберите archetypes для решений о структуре и ответственности; validator — для проверки уже оформленной структуры существующей спецификацией.",
+      description: "Выберите archetypes для правил структуры, чтения и встроенной проверки объектов.",
       children: [
         {node: "archetypes", description: archetypesDescription},
-        {node: "validator", description: validatorDescription},
       ],
     })
   })

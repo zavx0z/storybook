@@ -36,9 +36,10 @@ describe("Storybook MCP stdio", () => {
       expect(result.isError).not.toBeTrue()
       expect(result.structuredContent).toMatchObject({
         node: "archetypes/specs/scenarios",
-        scenarios: {status: "ready", variants: [{label: "Сценарий функции"}, {label: "Сценарий компонента"}]},
+        title: "Сценарии",
+        sections: [{title: "Сценарий функции"}, {title: "Сценарий компонента"}],
       })
-      expect(Object.keys(result.structuredContent!)).toEqual(["node", "description", "scenarios"])
+      expect(Object.keys(result.structuredContent!)).toEqual(["node", "title", "content", "sections"])
       expect(JSON.parse((result.content as {type: string, text: string}[])[0]!.text), "Полный JSON-ответ HTTP-сервера без отдельной текстовой проекции документа").toEqual(result.structuredContent)
     } finally {
       await client.close()
@@ -65,10 +66,9 @@ describe("Storybook MCP stdio", () => {
       const result = await client.callTool({name: "storybook", arguments: {}})
       expect(result.structuredContent).toEqual({
         node: "root",
-        description: "Выберите archetypes для решений о структуре и ответственности; validator — для проверки уже оформленной структуры существующей спецификацией.",
+        description: "Выберите archetypes для правил структуры, чтения и встроенной проверки объектов.",
         children: [
           {node: "archetypes", description: "Помогает решить, где разместить сущность, когда выделить пакет или категорию и как оформить ответственность, зависимости, контракты и проверки"},
-          {node: "validator", description: "Проверяет выбранный пакет, категорию или сущность существующей спецификацией и возвращает структурированный отчёт Bun"},
         ],
       })
       expect(result.isError).not.toBeTrue()

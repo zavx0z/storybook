@@ -9,6 +9,7 @@
         "@zavx0z/storybook-browser-lifecycle": "workspace:*",
       },
       "devDependencies": {
+        "@archetypes/specs": "workspace:archetypes/specs",
         "@immersive/headless": "workspace:../webxr-space/headless",
         "@nodes/layout": "workspace:../webxr-space/nodes/layout",
         "@nodes/node": "workspace:../webxr-space/nodes/node",
@@ -314,6 +315,12 @@
       "name": "@storybook/archetypes",
       "version": "0.0.0",
     },
+    "archetypes/specs": {
+      "name": "@archetypes/specs",
+      "dependencies": {
+        "fast-xml-parser": "^5.11.1",
+      },
+    },
     "browser-lifecycle": {
       "name": "@zavx0z/storybook-browser-lifecycle",
       "version": "0.0.0",
@@ -333,18 +340,11 @@
         "@archetypes/specs": "link:@archetypes/specs",
       },
     },
-    "validator": {
-      "name": "@storybook/validator",
-      "version": "0.0.0",
-      "dependencies": {
-        "fast-xml-parser": "^5.11.1",
-      },
-    },
   },
   "packages": {
     "@antfu/install-pkg": ["@antfu/install-pkg@2.0.1", "", { "dependencies": { "package-manager-detector": "^1.7.0", "tinyexec": "^1.2.4" } }, "sha512-iCKVQcIC0e3oDxEfs3SHQGW+ovhBMZmS1TE+bTk50rVyMCBmCfClv7Qi3HQKlumYwvjb/iIMeWCW2i67q6kFfQ=="],
 
-    "@archetypes/specs": ["@archetypes/specs@link:@archetypes/specs", {}],
+    "@archetypes/specs": ["@archetypes/specs@workspace:archetypes/specs"],
 
     "@braintree/sanitize-url": ["@braintree/sanitize-url@7.1.2", "", {}, "sha512-jigsZK+sMF/cuiB7sERuo9V7N9jx+dhmHHnQyDSVdpZwVutaBu7WvNYqMDLSgFgfB30n452TP3vjDAvFC973mA=="],
 
@@ -379,8 +379,6 @@
     "@renderer/html": ["@renderer/html@workspace:../webxr-space/renderer/html"],
 
     "@storybook/archetypes": ["@storybook/archetypes@workspace:archetypes"],
-
-    "@storybook/validator": ["@storybook/validator@workspace:validator"],
 
     "@types/bun": ["@types/bun@1.4.0", "", { "dependencies": { "bun-types": "1.4.0" } }, "sha512-K+lZULY23vRgK/CfTjFIV+tyifaNdSMlPh9j+6mQ/cLfpOznLyAuzgV/JQysyECpkBQLVMSyvjlr2fBUSA9wFQ=="],
 
@@ -715,6 +713,8 @@
     "uuid": ["uuid@14.0.2", "", { "bin": { "uuid": "dist-node/bin/uuid" } }, "sha512-xZe/16rV4aa+HGSOCiY2YeLT1OybRLrrkL/Rqaq7p7GMVXjFh+6wN4oMYgjFmnSnhY8t6Xpdl2l9qmnHYuMHwQ=="],
 
     "xml-naming": ["xml-naming@0.3.0", "", {}, "sha512-ghig2TBE/H11aOVgmahA3MhimvkBr6JIYknH/Dhdk10nXwdbIqBJsbfMxpvFPG8bAw77gN29aQWvKpmVoPlvPQ=="],
+
+    "@mcp/rest/@archetypes/specs": ["@archetypes/specs@link:@archetypes/specs", {}],
 
     "cytoscape-fcose/cose-base": ["cose-base@2.2.0", "", { "dependencies": { "layout-base": "^2.0.0" } }, "sha512-AzlgcsCbUMymkADOJtQm3wO9S3ltPfYOFD5033keQn9NJzIbtnZj+UdBJe7DYml/8TdbtHJW3j58SOnKhWY/5g=="],
 

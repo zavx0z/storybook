@@ -10,7 +10,7 @@ describe("Журнал MCP", () => {
   })
   test("сохраняет полный запрос и ответ длиннее прежнего ограничения", async () => {
     const journal = createMcpRequestJournal()
-    const input = {node: "validator", text: "я".repeat(17000)}
+    const input = {node: "archetypes", text: "я".repeat(17000)}
     const result = {status: "success", nested: {text: "а".repeat(18000)}, items: [true, null, 42]}
     const returned = await traceMcpRequest("storybook", input, async () => result, async entry => journal.write(entry))
     const [entry] = journal.read()
