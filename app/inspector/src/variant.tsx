@@ -32,7 +32,6 @@ function ScenarioPoints(props: Readonly<{variant: Variant}>) {
 export function ScenarioVariant(props: Readonly<{key?: string; app: ScenarioApp; variant: Variant; expanded: boolean}>) {
   return <Panel
     label={props.variant.title}
-    title={props.variant.title}
     expanded={props.expanded}
     onToggle={expanded => { if (expanded) props.app.select(props.variant.id) }}
   >

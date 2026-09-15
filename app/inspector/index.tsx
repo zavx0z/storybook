@@ -18,7 +18,6 @@ export function ScenarioInspector(props: Readonly<{value: unknown}>) {
     `}
   >
     <CodeEditor
-      title="Декларация компонента"
       languageId="typescript"
       readOnly={true}
       value={selected.source}

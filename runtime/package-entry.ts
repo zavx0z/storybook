@@ -920,7 +920,7 @@ export async function startExternalStorybookPackage(
       })
     }
     const presentationNode = scenarios
-      ? scenarioPresentation?.element ?? shell.showMessage(label, "Сценарии", "Для этой спецификации пока нет общей исполняемой фикстуры")
+      ? scenarioPresentation?.element ?? shell.showMessage(label, "Сценарии", "Для этой спецификации пока нет подготовленного представления")
       : contract
       ? await shell.showContract(label, node.contractDocuments!, signal, (direction, navigation) => {
         if (navigation === null) contractNavigators.delete(direction)

@@ -9,7 +9,8 @@
     "./contract/input": "./contract/input.ts",
     "./contract/output": "./contract/output.ts",
     "./inspector": "./inspector/index.tsx",
-    "./preview": "./preview/index.tsx"
+    "./preview": "./preview/index.tsx",
+    "./result": "./result/index.tsx"
   },
   "peerDependencies": {
     "@archetypes/specs": "*",

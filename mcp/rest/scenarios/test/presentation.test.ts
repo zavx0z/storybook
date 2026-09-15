@@ -138,6 +138,7 @@ test("вариант компонента содержит ту же декла�
   const data = await readScenarios({path, source, format: "data", prepared})
   const document = await readScenarios({path, source, prepared})
   if (!("preview" in data.scenarios) || !("sections" in document.scenarios)) throw new Error("Ожидается компонентный сценарий")
+  if (data.scenarios.preview?.kind !== "component") throw new Error("Ожидается preview компонента")
   const preview = data.scenarios.preview?.variants[0]!
   expect(document.scenarios.sections?.[0]?.content).toEqual([
     {text: "Декларация компонента", value: preview.source},

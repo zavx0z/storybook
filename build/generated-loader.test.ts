@@ -1,4 +1,7 @@
 import {describe, expect, test} from "bun:test"
+import {mkdtemp, rm, writeFile} from "node:fs/promises"
+import {tmpdir} from "node:os"
+import {join} from "node:path"
 import {
   generateStorybookLoaderSource,
   generateStorybookAppliedRevisionLoaderSource,
@@ -158,6 +161,7 @@ describe("external Storybook generated loader", () => {
       variants: [],
       widgets: [],
       scenarios: [{
+        kind: "component",
         nodeId: "subject:@fixture/example/component",
         module: {path: "/owner/component/fixture.tsx", export: "Fixture"},
         variants: [{
@@ -174,6 +178,29 @@ describe("external Storybook generated loader", () => {
     expect(source).toContain('import("/owner/component/fixture.tsx")')
     expect(source).toContain('template: namespace["Fixture"]')
     expect(source).toContain('"id":"rectangle"')
+  })
+
+  test("представление функции загружается как данные без серверного import", async () => {
+    const source = generateStorybookLoaderSource({
+      revisionUrl: "/__storybook/revisions/example/function/", runtime: null, variants: [], widgets: [],
+      scenarios: [{
+        kind: "function", nodeId: "subject:@fixture/example/readPackage",
+        variants: [{id: "root", title: "Корневой пакет", source: 'await readPackage({path: "root"})', points: [{title: "Данные пакета"}],
+          calls: [{id: 1, source: 'await readPackage({path: "root"})', outcome: {type: "resolve", value: {name: "root", empty: []}}}]}],
+      }],
+    })
+    expect(new Bun.Transpiler({loader: "js"}).scan(source).imports, "Браузерный загрузчик функции не импортирует исполняемые модули").toEqual([])
+    const directory = await mkdtemp(join(tmpdir(), "storybook-function-loader-"))
+    try {
+      const path = join(directory, "loader.mjs")
+      await writeFile(path, source)
+      const module = await import(path)
+      const input = await module.STORYBOOK_PACKAGE_SCENARIO_LOADERS.get("subject:@fixture/example/readPackage")()
+      expect(input).toMatchObject({kind: "function", variants: [{calls: [{outcome: {type: "resolve", value: {name: "root", empty: []}}}]}]})
+      expect(input).not.toHaveProperty("template")
+    } finally {
+      await rm(directory, {recursive: true, force: true})
+    }
   })
 
   test("генерирует exact page-realm revision payload без side effects", () => {

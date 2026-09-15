@@ -6,7 +6,7 @@
 */
 import type {ReadScenarioOutput} from "../contract/output"
 
-/** Preview компонента, производный от единственного публичного выходного контракта. */
+/** Представление компонента или функции, производное от публичного выходного контракта. */
 export type ScenarioPreview = NonNullable<ReadScenarioOutput["preview"]>
 
 /** Запись вызова в публичном результате. */

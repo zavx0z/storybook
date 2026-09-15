@@ -64,6 +64,7 @@ describe("external Storybook package frontend", () => {
       scenarioLoaders: new Map([[subjectId, async () => {
         loads++
         return {
+          kind: "component" as const,
           template: StatefulFixture as unknown as CompiledTemplate<Record<string, unknown>>,
           variants: ["Первый", "Второй", "Третий"].map((title, index) => ({
             id: String(index), title, props: {name: title}, source: `<StatefulFixture name="${title}" />`, points: [{title: "Описание"}],

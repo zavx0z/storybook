@@ -46,7 +46,8 @@ export function presentDocument(data: ScenariosOutput, options: ScenariosDocumen
     ...items.map(value => ({location: value.location, section: item(value)})),
   ]).map(value => value.section)
   const group = (value: Category, path: readonly string[] = []): ScenarioSection => {
-    const preview = data.preview?.variants.find(variant => variant.id === String(value.id))
+    const preview = data.preview?.kind === "component"
+      ? data.preview.variants.find(variant => variant.id === String(value.id)) : undefined
     const content: ScenarioContent[] = preview === undefined ? [] : [
       {text: "Декларация компонента", value: preview.source},
       {text: "Конкретные props варианта", value: structuredClone(preview.props)},

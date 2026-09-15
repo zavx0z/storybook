@@ -91,7 +91,8 @@ interface TraceCall {
 @property variants - Варианты внешнего `describe.each` с фактическими props,
 готовым исходником JSX и пунктами сценария.
 */
-interface ScenarioPreview {
+interface ComponentScenarioPreview {
+  readonly kind: "component"
   readonly module: {
     readonly path: string
     readonly export: string
@@ -107,6 +108,25 @@ interface ScenarioPreview {
     }[]
   }[]
 }
+
+/** Снимки вызовов функции; исполняемого браузерного модуля здесь нет. */
+interface FunctionScenarioPreview {
+  readonly kind: "function"
+  readonly variants: readonly {
+    readonly id: string
+    readonly title: string
+    readonly source: string
+    readonly points: ComponentScenarioPreview["variants"][number]["points"]
+    readonly calls: readonly {
+      readonly id: number
+      readonly source: string
+      readonly outcome: TraceOutcome
+    }[]
+  }[]
+}
+
+/** Компонент монтируется из fixture, функция показывается по сохранённым вызовам. */
+type ScenarioPreview = ComponentScenarioPreview | FunctionScenarioPreview
 
 /** Фактически достигнутое утверждение expect с данными и исходом matcher. */
 interface ScenarioAssertion {
@@ -230,8 +250,9 @@ interface ScenarioValidation {
 @property source - Структура и фрагменты исполненного исходника.
 @property validation - Результаты проверок оформления и выполнения; не реализованные проверки обозначены явно.
 
-@property [preview] - Представление вариантов компонента, когда сценарий использует
-поддержанную общую fixture и переносимые props.
+@property [preview] - Представление компонента с общей fixture либо снимков прямых
+вызовов функции из публичного входа описываемой сущности. Серверный код не передаётся
+в браузер для повторного исполнения.
 */
 export interface ReadScenarioOutput {
   readonly path: string

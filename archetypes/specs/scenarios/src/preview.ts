@@ -1,5 +1,5 @@
 /**
-Извлекает preview компонента из общей fixture без исполнения исходного AST.
+Соединяет статическое описание компонента или функции с данными выполненного сценария.
 
 @packageDocumentation
 */
@@ -30,6 +30,8 @@ import {
 } from "typescript/unstable/ast/is"
 import type {ReadScenarioInput} from "../contract/input"
 import type {ScenarioExecution, ScenarioPreview, TraceValue} from "./types"
+import {createFunctionPreview, inspectFunctionScenario} from "./function-preview"
+import {isPortable, previewPoints} from "./preview-values"
 
 /** Runtime import fixture в исходнике сценария. */
 interface FixtureBinding {
@@ -230,15 +232,6 @@ async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | n
   }
 }
 
-/** Проверяет, что сериализованное значение можно однозначно напечатать как JSON/TS literal. */
-function isPortable(value: TraceValue): boolean {
-  if (value === null || typeof value === "boolean" || typeof value === "string") return true
-  if (typeof value === "number") return Number.isFinite(value)
-  if (Array.isArray(value)) return value.every(item => item !== undefined && isPortable(item))
-  if (typeof value !== "object" || Object.hasOwn(value, "$type")) return false
-  return Object.values(value).every(isPortable)
-}
-
 /** Подставляет фактические props в JSX fixture, не вычисляя выражения исходника. */
 function renderSource(descriptor: PreviewDescriptor, props: Readonly<Record<string, TraceValue>>): string | null {
   let jsx = descriptor.jsx
@@ -256,33 +249,23 @@ function renderSource(descriptor: PreviewDescriptor, props: Readonly<Record<stri
   return `${descriptor.componentImport}\n\n${jsx}`
 }
 
-/** Возвращает путь групп от внешнего варианта до пункта. */
-function pointTitle(groupId: number | null, variantId: number, execution: ScenarioExecution, label: string): string | null {
-  const labels = [label]
-  let current = groupId
-  while (current !== null && current !== variantId) {
-    const group = execution.groups.find(item => item.id === current)
-    if (!group) return null
-    labels.unshift(group.label)
-    current = group.parentId
-  }
-  return current === variantId ? labels.join(" / ") : null
-}
-
 /**
 Проверяет поддержку preview статически и не исполняет scenario.spec.
 
-@param input - Путь к сценарию компонента.
-@returns `true`, если scenario и fixture образуют поддержанную пару.
+@param input - Путь к сценарию компонента или функции.
+@returns `true` для поддержанной компонентной fixture или прямого вызова функции.
 */
 export async function supportsScenarioPreview(input: Pick<ReadScenarioInput, "path">): Promise<boolean> {
-  return await inspectScenario(input.path) !== null
+  return await inspectScenario(input.path) !== null || await inspectFunctionScenario(input.path) !== null
 }
 
-/** Собирает preview из статической fixture и фактических вызовов выбранных вариантов. */
+/** Собирает представление из статической связи и снимков того же запуска; повторных вызовов нет. */
 export async function createScenarioPreview(path: string, execution: ScenarioExecution): Promise<ScenarioPreview | undefined> {
   const descriptor = await inspectScenario(path)
-  if (!descriptor) return undefined
+  if (!descriptor) {
+    const functionDescriptor = await inspectFunctionScenario(path)
+    return functionDescriptor ? createFunctionPreview(functionDescriptor, execution) : undefined
+  }
   const calls = execution.calls.filter(call => call.groupId !== null
     && call.test === null
     && call.name.endsWith(".render")
@@ -290,7 +273,7 @@ export async function createScenarioPreview(path: string, execution: ScenarioExe
     && call.location.line === descriptor.renderLine)
   const topLevel = execution.groups.filter(group => group.parentId === null)
   if (calls.length === 0 || calls.length !== topLevel.length) return undefined
-  const variants: ScenarioPreview["variants"][number][] = []
+  const variants: Extract<ScenarioPreview, {kind: "component"}>["variants"][number][] = []
   const seen = new Set<number>()
   for (const call of calls) {
     const group = execution.groups.find(item => item.id === call.groupId)
@@ -300,12 +283,7 @@ export async function createScenarioPreview(path: string, execution: ScenarioExe
     const source = renderSource(descriptor, props as Readonly<Record<string, TraceValue>>)
     if (!source) return undefined
     seen.add(group.id)
-    const points = execution.tests.flatMap(test => {
-      const title = pointTitle(test.groupId, group.id, execution, test.label)
-      if (!title) return []
-      const content = test.assertions.map(assertion => assertion.customFailMessage).filter((value): value is string => value !== null).join("\n")
-      return [{title, ...(content ? {content} : {})}]
-    })
+    const points = previewPoints(execution, group.id)
     variants.push({
       id: String(group.id),
       title: group.label,
@@ -315,6 +293,7 @@ export async function createScenarioPreview(path: string, execution: ScenarioExe
     })
   }
   return {
+    kind: "component",
     module: {path: descriptor.fixturePath, export: descriptor.fixtureExport},
     variants,
   }

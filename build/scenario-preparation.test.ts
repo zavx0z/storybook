@@ -10,11 +10,11 @@ test("готовит один preview только для однозначног
     import.meta.dir,
     "../archetypes/specs/scenarios/spec/fixture/component/spec/scenario.spec.tsx",
   )
-  const unsupported = resolve(import.meta.dir, "../archetypes/package/spec/scenario.spec.ts")
+  const functionSource = resolve(import.meta.dir, "../archetypes/package/spec/scenario.spec.ts")
   const descriptor = {
     scenarioSpecs: [
       {nodeId: "subject:supported", sourcePaths: [supported]},
-      {nodeId: "subject:unsupported", sourcePaths: [unsupported]},
+      {nodeId: "subject:function", sourcePaths: [functionSource]},
       {nodeId: "subject:ambiguous", sourcePaths: [supported, supported]},
     ],
   } as unknown as StorybookPackageBuildDescriptor
@@ -22,13 +22,19 @@ test("готовит один preview только для однозначног
   const result = await prepareStorybookScenarios(descriptor, new AbortController().signal)
 
   expect(result).toMatchObject([{
+    kind: "component",
     nodeId: "subject:supported",
     module: {
       path: realpathSync(resolve(import.meta.dir, "../archetypes/specs/scenarios/spec/fixture/component/spec/fixture/index.tsx")),
       export: "CommandFixture",
     },
     variants: [{title: "Доступная команда"}, {title: "Недоступная команда"}],
+  }, {
+    kind: "function",
+    nodeId: "subject:function",
+    variants: [{title: "Корневой пакет"}, {title: "Вложенный пакет"}],
   }])
+  expect(result[1]).not.toHaveProperty("module")
 }, 30_000)
 
 test("не исполняет неподдержанный scenario во время подготовки", async () => {

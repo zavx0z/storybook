@@ -50,6 +50,7 @@ describe.each([
   {name: "недоступного", disabled: true},
 ])("JSX $name варианта", ({disabled}) => {
   test("содержит import компонента и конкретные props", () => {
+    if (result.preview?.kind !== "component") throw new Error("Нет представления компонента")
     const source = result.preview?.variants.find(variant => variant.props.disabled === disabled)?.source
     expect(source).toBe(`import {Command} from "@fixture/scenario-component"
 
@@ -68,9 +69,10 @@ test("исходники всех вариантов остаются синта
   })).toEqual(["Доступная команда", "Недоступная команда"])
 })
 
-test("обычный сценарий функции не получает выдуманный preview", async () => {
+test("сценарий функции получает снимки вызовов без компонентной fixture", async () => {
   const functionPath = resolve(import.meta.dir, "../spec/fixture/function/spec/scenario.spec.ts")
-  expect(await supportsScenarioPreview({path: functionPath})).toBeFalse()
+  expect(await supportsScenarioPreview({path: functionPath})).toBeTrue()
+  expect((await readScenario({path: functionPath})).preview).toMatchObject({kind: "function"})
 })
 
 test("непереносимые props оставляют поддержанную fixture без preview", async () => {

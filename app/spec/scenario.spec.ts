@@ -2,6 +2,7 @@ import {createRoot} from "@zavx0z/component"
 import {createDocument, Event} from "@zavx0z/dom"
 import {expect, test} from "bun:test"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
+import type {ScenarioAppInput} from "../contract/input"
 import {createScenarioPresentation} from "../../runtime/scenario-presentation"
 import {ScenarioInspector} from "../inspector"
 import {StatefulFixture} from "./fixture"
@@ -9,6 +10,7 @@ import {StatefulFixture} from "./fixture"
 test("выбор варианта сохраняет компонент и его состояние, обновляя общий Editor и аккордеон", async () => {
   const document = createDocument()
   const presentation = createScenarioPresentation(document, {
+    kind: "component",
     template: StatefulFixture as unknown as CompiledTemplate<Record<string, unknown>>,
     variants: ["Первый", "Второй", "Третий"].map((title, index) => ({
       id: String(index), title, props: {name: title},
@@ -21,6 +23,7 @@ test("выбор варианта сохраняет компонент и ег�
   inspector.render(ScenarioInspector as unknown as CompiledTemplate<{value: unknown}>, {value: presentation.app})
   const button = presentation.element.querySelector("[data-fixture]")!
   try {
+    expect(inspectorHost.querySelector('[title="Декларация компонента"]'), "Редактор декларации не перекрывается повторяющей его назначение подсказкой").toBeNull()
     button.dispatchEvent(new Event("click"))
     await Promise.resolve()
     for (const variant of presentation.app.variants.slice(1).concat(presentation.app.variants.slice(0, 1))) {
@@ -34,6 +37,51 @@ test("выбор варианта сохраняет компонент и ег�
       expect(inspectorHost.querySelectorAll('[aria-expanded="true"]')).toHaveLength(1)
       expect(inspectorHost.textContent).toContain(variant.title)
     }
+  } finally {
+    inspector.unmount()
+    presentation.dispose()
+  }
+})
+
+test("снимки функции переключаются в редакторе JSON без template и новых вызовов", async () => {
+  const document = createDocument()
+  const input: ScenarioAppInput = {
+    kind: "function",
+    variants: [
+      {id: "root", title: "Корневой пакет", source: 'await readPackage({path: "root"})', points: [{title: "Данные пакета", content: "Содержимое package.json"}],
+        calls: [{id: 1, source: 'await readPackage({path: "root"})', outcome: {type: "resolve", value: {name: "root", empty: []}}}]},
+      {id: "nested", title: "Вложенный пакет", source: 'await readPackage({path: "nested"})', points: [{title: "Данные пакета"}],
+        calls: [{id: 2, source: 'await readPackage({path: "nested"})', outcome: {type: "resolve", value: {name: "nested", enabled: false}}}]},
+      {id: "error", title: "Ошибка чтения", source: 'await readPackage({path: "missing"})', points: [{title: "Причина ошибки"}],
+        calls: [{id: 3, source: 'await readPackage({path: "missing"})', outcome: {type: "reject", error: {message: "Файл отсутствует"}}}]},
+    ],
+  }
+  const original = JSON.stringify(input)
+  const presentation = createScenarioPresentation(document, input)
+  const inspectorHost = document.createElement("aside")
+  const inspector = createRoot(inspectorHost)
+  inspector.render(ScenarioInspector as unknown as CompiledTemplate<{value: unknown}>, {value: presentation.app})
+  const editor = presentation.element.querySelector('[data-language-id="json"]')!
+  try {
+    expect(editor).not.toBeNull()
+    expect(editor.getAttribute("title"), "Редактор результата не создаёт всплывающую подсказку").toBeNull()
+    expect(editor.getAttribute("aria-readonly")).toBe("true")
+    expect(presentation.element.textContent).toContain('"root"')
+    for (const variant of input.variants.slice(1)) {
+      const toggle = [...inspectorHost.querySelectorAll("button")].find(item => item.textContent === variant.title)!
+      toggle.dispatchEvent(new Event("click"))
+      inspector.flush()
+      presentation.componentRoot.flush()
+      await Promise.resolve()
+      expect(presentation.app.getSnapshot().source).toBe(variant.source)
+      expect(presentation.element.querySelector('[data-language-id="json"]')).toBe(editor)
+      expect(inspectorHost.querySelector('[data-language-id="typescript"]')?.textContent).toContain("readPackage")
+      expect(inspectorHost.querySelectorAll('[aria-expanded="true"]')).toHaveLength(1)
+    }
+    expect(presentation.element.textContent).toContain("Ошибка выполнения")
+    expect(presentation.element.textContent).toContain("Файл отсутствует")
+    expect(JSON.stringify(input), "Просмотр не изменяет подготовленные снимки").toBe(original)
+    expect(presentation.center()).toBeFalse()
   } finally {
     inspector.unmount()
     presentation.dispose()

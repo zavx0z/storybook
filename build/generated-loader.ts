@@ -1,4 +1,5 @@
 import {isAbsolute, normalize} from "node:path"
+import type {ScenarioPreview} from "@archetypes/specs/scenarios"
 import {
   validateExternalStorybookExportName,
   validateExternalStorybookPackageId,
@@ -26,19 +27,10 @@ export type StorybookGeneratedScenarioPoint = Readonly<{
   content?: string
 }>
 
-export type StorybookGeneratedScenarioVariant = Readonly<{
-  id: string
-  title: string
-  props: Readonly<Record<string, unknown>>
-  source: string
-  points: readonly StorybookGeneratedScenarioPoint[]
-}>
+export type StorybookGeneratedScenarioVariant = Extract<ScenarioPreview, {kind: "component"}>["variants"][number]
+type FunctionScenarioVariant = Extract<ScenarioPreview, {kind: "function"}>["variants"][number]
 
-export type StorybookGeneratedScenario = Readonly<{
-  nodeId: string
-  module: StorybookGeneratedModule
-  variants: readonly StorybookGeneratedScenarioVariant[]
-}>
+export type StorybookGeneratedScenario = ScenarioPreview & Readonly<{nodeId: string}>
 
 export type StorybookGeneratedLoaderInput = Readonly<{
   revisionUrl: string
@@ -116,8 +108,14 @@ export function generateStorybookLoaderSource(
     if (!Array.isArray(scenario.variants)) {
       throw new TypeError(`Storybook scenario variants must be a list: ${nodeId}`)
     }
+    if (scenario.kind === "function") {
+      if (Object.hasOwn(scenario, "module")) throw new TypeError("Серверный модуль не входит в браузерное представление функции")
+      return Object.freeze({nodeId, kind: "function" as const, variants: validateFunctionVariants(scenario.variants, nodeId)})
+    }
+    if (scenario.kind !== "component") throw new TypeError(`Unknown Storybook scenario kind: ${nodeId}`)
     return Object.freeze({
       nodeId,
+      kind: "component" as const,
       module: validateModule(scenario.module, `scenario ${nodeId}`),
       variants: validateScenarioVariants(scenario.variants, nodeId),
     })
@@ -136,10 +134,15 @@ export function generateStorybookLoaderSource(
   const scenarioVariants = scenarios.map(({variants}, index) =>
     `const scenarioVariants${index} = Object.freeze(${jsonSource(variants, `scenario ${index} variants`)})`
   ).join("\n")
-  const scenarioEntries = scenarios.map(({nodeId, module}, index) => [
-    `  [${jsString(nodeId)}, () =>`,
-    `    import(${jsString(module.url)}).then((namespace) => Object.freeze({`,
-    `      template: namespace[${jsString(module.export)}],`,
+  const scenarioEntries = scenarios.map((scenario, index) => scenario.kind === "function" ? [
+    `  [${jsString(scenario.nodeId)}, () => Promise.resolve(Object.freeze({`,
+    `    kind: "function", variants: scenarioVariants${index},`,
+    `  }))],`,
+  ].join("\n") : [
+    `  [${jsString(scenario.nodeId)}, () =>`,
+    `    import(${jsString(scenario.module.url)}).then((namespace) => Object.freeze({`,
+    `      kind: "component",`,
+    `      template: namespace[${jsString(scenario.module.export)}],`,
     `      variants: scenarioVariants${index},`,
     `    }))],`,
   ].join("\n")).join("\n")
@@ -353,6 +356,38 @@ function requiredScenarioText(value: unknown, label: string): string {
     throw new Error(`${label} must be non-empty text without control characters`)
   }
   return value
+}
+
+/** Проверяет готовые снимки; этот путь не принимает модуль или callback функции. */
+function validateFunctionVariants(variants: readonly FunctionScenarioVariant[], nodeId: string): readonly FunctionScenarioVariant[] {
+  const ids = new Set<string>()
+  return Object.freeze(variants.map(variant => {
+    if (variant === null || typeof variant !== "object") throw new TypeError(`Invalid function variant: ${nodeId}`)
+    const id = validateGraphNodeId(variant.id, "Function variant id")
+    if (ids.has(id)) throw new Error(`Duplicate Storybook scenario variant id: ${nodeId}:${id}`)
+    ids.add(id)
+    const title = requiredScenarioText(variant.title, "Function variant title")
+    if (typeof variant.source !== "string" || !Array.isArray(variant.points) || !Array.isArray(variant.calls)) {
+      throw new TypeError(`Invalid function variant data: ${nodeId}:${id}`)
+    }
+    const points = variant.points.map(point => {
+      const title = requiredScenarioText(point.title, "Function point title")
+      if (point.content !== undefined && typeof point.content !== "string") throw new TypeError("Invalid function point content")
+      return {title, ...(point.content === undefined ? {} : {content: point.content})}
+    })
+    const callIds = new Set<number>()
+    const calls = variant.calls.map(call => {
+      if (!Number.isSafeInteger(call.id) || call.id < 0 || callIds.has(call.id) || typeof call.source !== "string") throw new TypeError("Invalid function call")
+      callIds.add(call.id)
+      const outcome = call.outcome
+      if (!outcome || !["return", "resolve", "throw", "reject"].includes(outcome.type)
+        || !Object.hasOwn(outcome, outcome.type === "return" || outcome.type === "resolve" ? "value" : "error")) throw new TypeError("Invalid function outcome")
+      return {id: call.id, source: call.source, outcome}
+    })
+    const normalized = {id, title, source: variant.source, points, calls}
+    jsonSource(normalized, `function scenario ${nodeId}:${id}`)
+    return Object.freeze(normalized)
+  }))
 }
 
 function jsonSource(value: unknown, label: string): string {

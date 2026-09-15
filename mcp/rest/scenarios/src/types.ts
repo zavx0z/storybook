@@ -52,7 +52,7 @@ export interface ScenariosOutput {
 export interface ScenarioContent {
   readonly text?: string
   readonly value?: ReadScenarioOutput["assertions"][number]["actual"]
-    | NonNullable<ReadScenarioOutput["preview"]>["variants"][number]["props"]
+    | Extract<NonNullable<ReadScenarioOutput["preview"]>, {kind: "component"}>["variants"][number]["props"]
     | NonNullable<ReadScenarioOutput["preview"]>["variants"][number]["points"]
 }
 

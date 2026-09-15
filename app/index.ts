@@ -5,11 +5,12 @@ import type {ScenarioApp} from "./contract/output"
 /**
 Связывает общий Editor и единственный preview выбором варианта сценария.
 
-Первый вариант открыт сразу. Выбор другого меняет только снимок props и
-декларации; жизненным циклом semantic Document и монтированием владеет host.
+Первый вариант открыт сразу. Выбор другого меняет снимок декларации и данных;
+функции не исполняются при выборе. Монтированием компонента владеет host.
 */
 export function createScenarioApp(input: ScenarioAppInput): ScenarioApp {
-  if (!isCompiledTemplate(input.template)) throw new TypeError("Фикстура сценария должна быть compiled template")
+  if (input.kind === "component" && !isCompiledTemplate(input.template)) throw new TypeError("Фикстура сценария должна быть compiled template")
+  if (input.kind !== "component" && input.kind !== "function") throw new TypeError("Неизвестное представление сценария")
   const first = input.variants[0]
   if (first === undefined) throw new Error("Для просмотра сценария нужен хотя бы один вариант")
   const byId = new Map(input.variants.map(variant => [variant.id, variant]))
@@ -17,7 +18,7 @@ export function createScenarioApp(input: ScenarioAppInput): ScenarioApp {
   let selected = first
   const listeners = new Set<() => void>()
   return Object.freeze({
-    template: input.template,
+    kind: input.kind,
     variants: input.variants,
     getSnapshot: () => selected,
     subscribe(listener: () => void) {

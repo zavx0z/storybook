@@ -289,7 +289,7 @@ export async function buildStorybookPackageRevisionInProcess(
       ...(descriptor.runtime === null ? [] : [descriptor.runtime]),
       ...descriptor.variants.map(({module}) => module),
       ...descriptor.widgetModules.map(({module}) => module),
-      ...scenarios.map(({module}) => module),
+      ...scenarios.flatMap(scenario => scenario.kind === "component" ? [scenario.module] : []),
     ]
     const sourcePaths = Object.freeze(modules.map(({path}) => path))
     const compilerInput = Object.freeze({
@@ -751,8 +751,9 @@ function isWorkerDiagnosticPhase(
 Подготавливает только однозначные preview-сценарии текущей package revision.
 
 Статический probe не исполняет Bun Test. `readScenario` запускается ровно один
-раз для node, у которого найден один поддержанный fixture source; старые,
-неподдержанные и неоднозначные формы остаются вне executable loader table.
+раз для node, у которого найден один поддержанный source. Компонент получает
+fixture loader, функция — только данные. Неподдержанные и неоднозначные формы
+не исполняются при подготовке.
 */
 export async function prepareStorybookScenarios(
   descriptor: StorybookPackageBuildDescriptor,
@@ -772,13 +773,16 @@ export async function prepareStorybookScenarios(
     signal.throwIfAborted()
     if (result?.preview === undefined) continue
     onPrepared?.(spec.nodeId, result)
-    prepared.push(Object.freeze({
-      nodeId: spec.nodeId,
+    const preview = result.preview
+    prepared.push(Object.freeze(preview.kind === "function" ? {
+      nodeId: spec.nodeId, ...preview,
+    } : {
+      nodeId: spec.nodeId, kind: "component" as const,
       module: Object.freeze({
-        path: stableBuildInputPath(result.preview.module.path),
-        export: result.preview.module.export,
+        path: stableBuildInputPath(preview.module.path),
+        export: preview.module.export,
       }),
-      variants: result.preview.variants,
+      variants: preview.variants,
     }))
   }
   return Object.freeze(prepared)
@@ -792,7 +796,7 @@ function validateModuleExports(
     ...(descriptor.runtime === null ? [] : [descriptor.runtime]),
     ...descriptor.variants.map(({module}) => module),
     ...descriptor.widgetModules.map(({module}) => module),
-    ...scenarios.map(({module}) => module),
+    ...scenarios.flatMap(scenario => scenario.kind === "component" ? [scenario.module] : []),
   ]
   if (modules.length === 0) return
   for (const module of modules) validateScannedExport(module.path, module.export)
@@ -814,7 +818,7 @@ function validateBundledModuleExports(
     ...(descriptor.runtime === null ? [] : [descriptor.runtime]),
     ...descriptor.variants.map(({module}) => module),
     ...descriptor.widgetModules.map(({module}) => module),
-    ...scenarios.map(({module}) => module),
+    ...scenarios.flatMap(scenario => scenario.kind === "component" ? [scenario.module] : []),
   ]
   const exportsByEntry = new Map<string, readonly string[]>()
   for (const output of Object.values(outputs)) {

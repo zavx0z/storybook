@@ -2,6 +2,7 @@ import {createRoot} from "@zavx0z/component"
 import {createScenarioApp} from "@storybook/app"
 import type {ScenarioAppInput} from "@storybook/app/contract/input"
 import {ScenarioPreview, type ScenarioPreviewPlacement} from "@storybook/app/preview"
+import {ScenarioResult} from "@storybook/app/result"
 import type {Document} from "@zavx0z/dom"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
 import {createStorybookComponentPresentation} from "./component-presentation"
@@ -9,22 +10,33 @@ import {createStorybookComponentPresentation} from "./component-presentation"
 /**
 Монтирует общую фикстуру в Document страницы и центрирует её по готовой раскладке.
 Переход между вариантами сохраняет ComponentRoot и semantic Element компонента.
+Для функции монтируется только редактор сохранённого результата в том же Document.
 */
 export function createScenarioPresentation(document: Document, input: ScenarioAppInput) {
   const app = createScenarioApp(input)
+  if (input.kind === "function") {
+    const template = ScenarioResult as unknown as CompiledTemplate<{app: typeof app}>
+    const view = createStorybookComponentPresentation(document, template, {app}, "[data-scenario-result]")
+    return Object.freeze({...view, app, center: () => false})
+  }
+  const fixtureProps = () => {
+    const selected = app.getSnapshot()
+    if (!("props" in selected)) throw new TypeError("Нет props компонента")
+    return selected.props
+  }
   let placement: ScenarioPreviewPlacement = {x: 0, y: 0}
   const template = ScenarioPreview as unknown as CompiledTemplate<Parameters<typeof ScenarioPreview>[0]>
   const view = createStorybookComponentPresentation(document, template, {placement}, "[data-scenario-preview]")
   const stage = view.element.querySelector("[data-scenario-stage]")!
   const fixtureRoot = createRoot(stage)
   try {
-    fixtureRoot.render(app.template, app.getSnapshot().props)
+    fixtureRoot.render(input.template, fixtureProps())
   } catch (error) {
     fixtureRoot.unmount()
     view.dispose()
     throw error
   }
-  const unsubscribe = app.subscribe(() => fixtureRoot.render(app.template, app.getSnapshot().props))
+  const unsubscribe = app.subscribe(() => fixtureRoot.render(input.template, fixtureProps()))
   let disposed = false
   return Object.freeze({
     ...view,

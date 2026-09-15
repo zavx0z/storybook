@@ -21,7 +21,7 @@ exports[`Пакет Сохраняет результат чтения спец�
               "name": "@storybook/archetypes",
             },
           },
-          "customFailMessage": "readPackage должна возвращать результат чтения пакета",
+          "customFailMessage": "Содержимое package.json выбранного пакета",
           "describe": [
             "Корневой пакет",
           ],
@@ -30,14 +30,14 @@ exports[`Пакет Сохраняет результат чтения спец�
           "id": 0,
           "location": {
             "column": 5,
-            "line": 27,
+            "line": 25,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "matcher": "toBeDefined",
           "modifiers": [],
-          "site": "expect:781",
+          "site": "expect:586",
           "status": "passed",
-          "test": "Возвращает результат чтения пакета",
+          "test": "Данные пакета",
           "testId": 0,
         },
         {
@@ -55,7 +55,7 @@ exports[`Пакет Сохраняет результат чтения спец�
               "name": "@archetypes/specs",
             },
           },
-          "customFailMessage": "readPackage должна возвращать результат чтения пакета",
+          "customFailMessage": "Содержимое package.json выбранного пакета",
           "describe": [
             "Вложенный пакет",
           ],
@@ -64,14 +64,14 @@ exports[`Пакет Сохраняет результат чтения спец�
           "id": 1,
           "location": {
             "column": 5,
-            "line": 27,
+            "line": 25,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "matcher": "toBeDefined",
           "modifiers": [],
-          "site": "expect:781",
+          "site": "expect:586",
           "status": "passed",
-          "test": "Возвращает результат чтения пакета",
+          "test": "Данные пакета",
           "testId": 1,
         },
       ],
@@ -86,10 +86,11 @@ exports[`Пакет Сохраняет результат чтения спец�
           "describe": [
             "Корневой пакет",
           ],
+          "groupId": 0,
           "id": 0,
           "location": {
             "column": 24,
-            "line": 24,
+            "line": 22,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "module": "/Users/zavx0z/repozitarium/storybook/archetypes/package/index.ts",
@@ -124,10 +125,11 @@ exports[`Пакет Сохраняет результат чтения спец�
           "describe": [
             "Вложенный пакет",
           ],
+          "groupId": 1,
           "id": 1,
           "location": {
             "column": 24,
-            "line": 24,
+            "line": 22,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "module": "/Users/zavx0z/repozitarium/storybook/archetypes/package/index.ts",
@@ -164,7 +166,6 @@ exports[`Пакет Сохраняет результат чтения спец�
           },
           "mode": "run",
           "parameters": {
-            "fail": "Корневой пакет должен непосредственно принадлежать репозиторию",
             "name": "Корневой пакет",
             "props": {
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes",
@@ -183,7 +184,6 @@ exports[`Пакет Сохраняет результат чтения спец�
           },
           "mode": "run",
           "parameters": {
-            "fail": "Вложенный пакет должен непосредственно принадлежать содержащему его пакету",
             "name": "Вложенный пакет",
             "props": {
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/specs",
@@ -198,16 +198,110 @@ exports[`Пакет Сохраняет результат чтения спец�
         "<testsuites name="bun test" tests="2" assertions="2" failures="0" skipped="0" time="<duration>">",
         "  <testsuite name="spec/scenario.spec.ts" file="spec/scenario.spec.ts" tests="2" assertions="2" failures="0" skipped="0" time="<duration>" hostname="repositarium">",
         "    <testsuite name="Корневой пакет" file="spec/scenario.spec.ts" line="82" tests="1" assertions="1" failures="0" skipped="0" time="<duration>" hostname="repositarium">",
-        "      <testcase name="Возвращает результат чтения пакета" classname="Корневой пакет" time="<duration>" file="spec/scenario.spec.ts" line="82" assertions="1" />",
+        "      <testcase name="Данные пакета" classname="Корневой пакет" time="<duration>" file="spec/scenario.spec.ts" line="82" assertions="1" />",
         "    </testsuite>",
         "    <testsuite name="Вложенный пакет" file="spec/scenario.spec.ts" line="82" tests="1" assertions="1" failures="0" skipped="0" time="<duration>" hostname="repositarium">",
-        "      <testcase name="Возвращает результат чтения пакета" classname="Вложенный пакет" time="<duration>" file="spec/scenario.spec.ts" line="82" assertions="1" />",
+        "      <testcase name="Данные пакета" classname="Вложенный пакет" time="<duration>" file="spec/scenario.spec.ts" line="82" assertions="1" />",
         "    </testsuite>",
         "  </testsuite>",
         "</testsuites>",
         "",
       ],
       "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
+      "preview": {
+        "kind": "function",
+        "variants": [
+          {
+            "calls": [
+              {
+                "id": 0,
+                "outcome": {
+                  "type": "resolve",
+                  "value": {
+                    "packageJson": {
+                      "description": "Помогает решить, где разместить сущность, когда выделить пакет или категорию и как оформить ответственность, зависимости, контракты и проверки",
+                      "exports": {
+                        ".": "./index.ts",
+                        "./category": "./category/index.ts",
+                        "./entity": "./entity/index.ts",
+                        "./package": "./package/index.ts",
+                        "./repository": "./repository/index.ts",
+                        "./specs": "./specs/index.ts",
+                      },
+                      "label": "Правила структуры проектов",
+                      "name": "@storybook/archetypes",
+                    },
+                  },
+                },
+                "source": 
+"await readPackage({
+  "path": "/Users/zavx0z/repozitarium/storybook/archetypes"
+})"
+,
+              },
+            ],
+            "id": "0",
+            "points": [
+              {
+                "content": "Содержимое package.json выбранного пакета",
+                "title": "Данные пакета",
+              },
+            ],
+            "source": 
+"import {readPackage} from "@archetypes/package"
+
+await readPackage({
+  "path": "/Users/zavx0z/repozitarium/storybook/archetypes"
+})"
+,
+            "title": "Корневой пакет",
+          },
+          {
+            "calls": [
+              {
+                "id": 1,
+                "outcome": {
+                  "type": "resolve",
+                  "value": {
+                    "packageJson": {
+                      "description": "Зависимости, контракты, сценарии и фикстуры спецификаций",
+                      "exports": {
+                        ".": "./index.ts",
+                        "./contracts": "./contracts/index.ts",
+                        "./deps": "./deps/index.ts",
+                        "./fixtures": "./fixtures/index.ts",
+                        "./scenarios": "./scenarios/index.ts",
+                      },
+                      "label": "Спецификации",
+                      "name": "@archetypes/specs",
+                    },
+                  },
+                },
+                "source": 
+"await readPackage({
+  "path": "/Users/zavx0z/repozitarium/storybook/archetypes/specs"
+})"
+,
+              },
+            ],
+            "id": "1",
+            "points": [
+              {
+                "content": "Содержимое package.json выбранного пакета",
+                "title": "Данные пакета",
+              },
+            ],
+            "source": 
+"import {readPackage} from "@archetypes/package"
+
+await readPackage({
+  "path": "/Users/zavx0z/repozitarium/storybook/archetypes/specs"
+})"
+,
+            "title": "Вложенный пакет",
+          },
+        ],
+      },
       "source": {
         "assertions": [
           {
@@ -215,17 +309,17 @@ exports[`Пакет Сохраняет результат чтения спец�
             "inline": true,
             "location": {
               "column": 5,
-              "line": 27,
+              "line": 25,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
-            "message": ""readPackage должна возвращать результат чтения пакета"",
+            "message": ""Содержимое package.json выбранного пакета"",
           },
         ],
         "checks": [
           {
             "explicitObject": false,
             "matcher": "toBeDefined",
-            "source": "expect(result, "readPackage должна возвращать результат чтения пакета").toBeDefined()",
+            "source": "expect(result, "Содержимое package.json выбранного пакета").toBeDefined()",
           },
         ],
         "groups": [
@@ -236,14 +330,12 @@ exports[`Пакет Сохраняет результат чтения спец�
 "describe.each([
   {
     name: "Корневой пакет",
-    fail: "Корневой пакет должен непосредственно принадлежать репозиторию",
     props: {
       path: inputPath ?? packagePath("."),
     },
   },
   {
     name: "Вложенный пакет",
-    fail: "Вложенный пакет должен непосредственно принадлежать содержащему его пакету",
     props: {
       path: inputPath ?? packagePath("specs"),
     },
@@ -255,14 +347,12 @@ exports[`Пакет Сохраняет результат чтения спец�
 "describe.each([
   {
     name: "Корневой пакет",
-    fail: "Корневой пакет должен непосредственно принадлежать репозиторию",
     props: {
       path: inputPath ?? packagePath("."),
     },
   },
   {
     name: "Вложенный пакет",
-    fail: "Вложенный пакет должен непосредственно принадлежать содержащему его пакету",
     props: {
       path: inputPath ?? packagePath("specs"),
     },
@@ -270,8 +360,8 @@ exports[`Пакет Сохраняет результат чтения спец�
 ])("$name", async ({props}) => {
   const result = await readPackage(props)
 
-  test("Возвращает результат чтения пакета", () => {
-    expect(result, "readPackage должна возвращать результат чтения пакета").toBeDefined()
+  test("Данные пакета", () => {
+    expect(result, "Содержимое package.json выбранного пакета").toBeDefined()
   })
 })"
 ,
@@ -281,7 +371,7 @@ exports[`Пакет Сохраняет результат чтения спец�
         "imports": [
           "bun:test",
           "node:path",
-          "@storybook/archetypes/package",
+          "@archetypes/package",
         ],
         "native": [
           "describe",
@@ -308,10 +398,10 @@ exports[`Пакет Сохраняет результат чтения спец�
           {
             "depth": 1,
             "kind": "test",
-            "label": ""Возвращает результат чтения пакета"",
+            "label": ""Данные пакета"",
             "location": {
               "column": 3,
-              "line": 26,
+              "line": 24,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "modifiers": [],
@@ -323,16 +413,16 @@ exports[`Пакет Сохраняет результат чтения спец�
           {
             "assertions": 1,
             "each": false,
-            "label": ""Возвращает результат чтения пакета"",
+            "label": ""Данные пакета"",
             "location": {
               "column": 3,
-              "line": 26,
+              "line": 24,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "skippable": false,
             "source": 
-"test("Возвращает результат чтения пакета", () => {
-  expect(result, "readPackage должна возвращать результат чтения пакета").toBeDefined()
+"test("Данные пакета", () => {
+  expect(result, "Содержимое package.json выбранного пакета").toBeDefined()
 })"
 ,
             "todo": false,
@@ -341,7 +431,7 @@ exports[`Пакет Сохраняет результат чтения спец�
         "text": 
 "import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import {readPackage} from "@storybook/archetypes/package"
+import {readPackage} from "@archetypes/package"
 
 const packagePath = (path: string) => resolve(import.meta.dir, "../..", path)
 const inputPath = process.env.PACKAGE_PATH
@@ -349,14 +439,12 @@ const inputPath = process.env.PACKAGE_PATH
 describe.each([
   {
     name: "Корневой пакет",
-    fail: "Корневой пакет должен непосредственно принадлежать репозиторию",
     props: {
       path: inputPath ?? packagePath("."),
     },
   },
   {
     name: "Вложенный пакет",
-    fail: "Вложенный пакет должен непосредственно принадлежать содержащему его пакету",
     props: {
       path: inputPath ?? packagePath("specs"),
     },
@@ -364,8 +452,8 @@ describe.each([
 ])("$name", async ({props}) => {
   const result = await readPackage(props)
 
-  test("Возвращает результат чтения пакета", () => {
-    expect(result, "readPackage должна возвращать результат чтения пакета").toBeDefined()
+  test("Данные пакета", () => {
+    expect(result, "Содержимое package.json выбранного пакета").toBeDefined()
   })
 })
 "
@@ -374,8 +462,8 @@ describe.each([
       "stderr": 
 "
 spec/scenario.spec.ts:
-(pass) Корневой пакет > Возвращает результат чтения пакета
-(pass) Вложенный пакет > Возвращает результат чтения пакета
+(pass) Корневой пакет > Данные пакета
+(pass) Вложенный пакет > Данные пакета
 
  2 pass
  0 fail
@@ -391,22 +479,22 @@ Ran 2 tests across 1 file.
         {
           "assertions": [
             {
-              "customFailMessage": "readPackage должна возвращать результат чтения пакета",
+              "customFailMessage": "Содержимое package.json выбранного пакета",
               "location": {
                 "column": 5,
-                "line": 27,
+                "line": 25,
                 "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
               },
-              "site": "expect:781",
-              "source": "expect(result, "readPackage должна возвращать результат чтения пакета")",
+              "site": "expect:586",
+              "source": "expect(result, "Содержимое package.json выбранного пакета")",
             },
           ],
           "groupId": 0,
           "id": 0,
-          "label": "Возвращает результат чтения пакета",
+          "label": "Данные пакета",
           "location": {
             "column": 3,
-            "line": 26,
+            "line": 24,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "message": null,
@@ -417,22 +505,22 @@ Ran 2 tests across 1 file.
         {
           "assertions": [
             {
-              "customFailMessage": "readPackage должна возвращать результат чтения пакета",
+              "customFailMessage": "Содержимое package.json выбранного пакета",
               "location": {
                 "column": 5,
-                "line": 27,
+                "line": 25,
                 "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
               },
-              "site": "expect:781",
-              "source": "expect(result, "readPackage должна возвращать результат чтения пакета")",
+              "site": "expect:586",
+              "source": "expect(result, "Содержимое package.json выбранного пакета")",
             },
           ],
           "groupId": 1,
           "id": 1,
-          "label": "Возвращает результат чтения пакета",
+          "label": "Данные пакета",
           "location": {
             "column": 3,
-            "line": 26,
+            "line": 24,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "message": null,
