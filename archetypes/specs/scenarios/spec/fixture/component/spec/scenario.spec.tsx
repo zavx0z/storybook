@@ -1,6 +1,6 @@
 import {afterAll, describe, expect, test} from "bun:test"
 import {createHeadless} from "@immersive/headless"
-import {Command} from "@fixture/scenario-component"
+import {CommandFixture} from "./fixture"
 
 describe.each([
   {name: "Доступная команда", props: {label: "Продолжить", disabled: false}},
@@ -8,12 +8,7 @@ describe.each([
 ])("$name", async ({props}) => {
   const headless = createHeadless({width: 400, height: 160})
   afterAll(() => headless.dispose())
-  const result = await headless.render(
-    <Command
-      label={props.label}
-      disabled={props.disabled}
-    />,
-  )
+  const result = await headless.render(CommandFixture, props)
 
   test("Состав представления", () => {
     expect({tag: result.localName, text: result.textContent, disabled: result.hasAttribute("disabled")}, "Кнопка с подписью и состоянием доступности").toEqual({

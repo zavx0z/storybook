@@ -47,6 +47,10 @@ export function externalStorybookPackageDescriptors(
     const widgetModules = declaration.widgetContributions?.items.flatMap((item) => item.kind === "component"
       ? [{id: item.id, module: {path: item.module.path, export: item.module.exportName}}]
       : []) ?? []
+    const scenarioSpecs = graph.nodes.flatMap((candidate) =>
+      candidate.packageId === declaration.id && candidate.scenarioSpec !== undefined
+        ? [{nodeId: candidate.id, sourcePaths: Object.freeze([...candidate.scenarioSpec.sourcePaths])}]
+        : [])
     if (variants.length > 0 && declaration.runtime === null) {
       throw new Error(`Executable package has no Storybook runtime: ${declaration.id}`)
     }
@@ -194,6 +198,7 @@ export function externalStorybookPackageDescriptors(
         : {path: declaration.runtime.path, export: declaration.runtime.exportName},
       variants: Object.freeze(variants),
       widgetModules: Object.freeze(widgetModules),
+      scenarioSpecs: Object.freeze(scenarioSpecs),
       watchedPaths: Object.freeze([...new Set(watchedPaths)]),
     })
   }))

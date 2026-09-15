@@ -21,11 +21,31 @@ export type StorybookGeneratedWidget = Readonly<{
   module: StorybookGeneratedModule
 }>
 
+export type StorybookGeneratedScenarioPoint = Readonly<{
+  title: string
+  content?: string
+}>
+
+export type StorybookGeneratedScenarioVariant = Readonly<{
+  id: string
+  title: string
+  props: Readonly<Record<string, unknown>>
+  source: string
+  points: readonly StorybookGeneratedScenarioPoint[]
+}>
+
+export type StorybookGeneratedScenario = Readonly<{
+  nodeId: string
+  module: StorybookGeneratedModule
+  variants: readonly StorybookGeneratedScenarioVariant[]
+}>
+
 export type StorybookGeneratedLoaderInput = Readonly<{
   revisionUrl: string
   runtime: StorybookGeneratedModule | null
   variants: readonly StorybookGeneratedVariant[]
   widgets: readonly StorybookGeneratedWidget[]
+  scenarios?: readonly StorybookGeneratedScenario[]
 }>
 
 export const STORYBOOK_REVISION_PAYLOAD_FILE = "revision-payload.js" as const
@@ -57,6 +77,9 @@ export function generateStorybookLoaderSource(
   }
   if (!Array.isArray(input.variants)) throw new TypeError("Storybook generated loader variants must be a list")
   if (!Array.isArray(input.widgets)) throw new TypeError("Storybook generated loader widgets must be a list")
+  if (input.scenarios !== undefined && !Array.isArray(input.scenarios)) {
+    throw new TypeError("Storybook generated loader scenarios must be a list")
+  }
   const revisionUrl = validateRevisionUrl(input.revisionUrl)
   const runtime = input.runtime === null ? null : validateModule(input.runtime, "runtime")
   const routes = new Set<string>()
@@ -82,6 +105,23 @@ export function generateStorybookLoaderSource(
     widgetIds.add(id)
     return Object.freeze({id, module: validateModule(widget.module, `widget ${id}`)})
   })
+  const scenarioNodeIds = new Set<string>()
+  const scenarios = (input.scenarios ?? []).map((scenario, index) => {
+    if (scenario === null || typeof scenario !== "object" || Array.isArray(scenario)) {
+      throw new TypeError(`Storybook scenario ${index} must be an object`)
+    }
+    const nodeId = validateGraphNodeId(scenario.nodeId, `Storybook scenario ${index} nodeId`)
+    if (scenarioNodeIds.has(nodeId)) throw new Error(`Duplicate Storybook scenario node: ${nodeId}`)
+    scenarioNodeIds.add(nodeId)
+    if (!Array.isArray(scenario.variants)) {
+      throw new TypeError(`Storybook scenario variants must be a list: ${nodeId}`)
+    }
+    return Object.freeze({
+      nodeId,
+      module: validateModule(scenario.module, `scenario ${nodeId}`),
+      variants: validateScenarioVariants(scenario.variants, nodeId),
+    })
+  }).sort((left, right) => left.nodeId < right.nodeId ? -1 : left.nodeId > right.nodeId ? 1 : 0)
 
   const routeEntries = variants.map(({route, module}) => [
     `  [${jsString(route)}, () =>`,
@@ -93,6 +133,16 @@ export function generateStorybookLoaderSource(
     `    import(${jsString(module.url)}).then((namespace) => namespace[${jsString(module.export)}])],`,
   ].join("\n")).join("\n")
   const widgetValues = widgets.map(({id}) => `  ${jsString(id)},`).join("\n")
+  const scenarioVariants = scenarios.map(({variants}, index) =>
+    `const scenarioVariants${index} = Object.freeze(${jsonSource(variants, `scenario ${index} variants`)})`
+  ).join("\n")
+  const scenarioEntries = scenarios.map(({nodeId, module}, index) => [
+    `  [${jsString(nodeId)}, () =>`,
+    `    import(${jsString(module.url)}).then((namespace) => Object.freeze({`,
+    `      template: namespace[${jsString(module.export)}],`,
+    `      variants: scenarioVariants${index},`,
+    `    }))],`,
+  ].join("\n")).join("\n")
 
   return [
     ...(runtime === null
@@ -102,6 +152,8 @@ export function generateStorybookLoaderSource(
         `  import(${jsString(runtime.url)}).then((namespace) => namespace[${jsString(runtime.export)}])`,
       ]),
     ``,
+    scenarioVariants,
+    ...(scenarioVariants === "" ? [] : [``]),
     `export const STORYBOOK_PACKAGE_STORY_LOADERS = new Map([`,
     routeEntries,
     `])`,
@@ -115,6 +167,9 @@ export function generateStorybookLoaderSource(
     `])`,
     `export const storybookWidgetContributionIds = Object.freeze([`,
     widgetValues,
+    `])`,
+    `export const STORYBOOK_PACKAGE_SCENARIO_LOADERS = new Map([`,
+    scenarioEntries,
     `])`,
     ``,
     ...(runtime === null
@@ -170,6 +225,7 @@ export function generateStorybookRevisionPayloadSource(
     ]),
     "import {",
     "  loadStorybookPackageRuntime,",
+    "  STORYBOOK_PACKAGE_SCENARIO_LOADERS,",
     "  STORYBOOK_PACKAGE_STORY_LOADERS,",
     "  STORYBOOK_PACKAGE_WIDGET_LOADERS,",
     "  storybookRevisionUrl,",
@@ -187,6 +243,7 @@ export function generateStorybookRevisionPayloadSource(
     `  graphSnapshot: ${JSON.stringify(input.graphSnapshot)},`,
     ...(input.packageHostUrl === undefined ? [] : ["  startPackage: startExternalStorybookPackage,"]),
     "  loadRuntime: loadStorybookPackageRuntime,",
+    "  scenarioLoaders: STORYBOOK_PACKAGE_SCENARIO_LOADERS,",
     "  storyLoaders: STORYBOOK_PACKAGE_STORY_LOADERS,",
     "  widgetLoaders: STORYBOOK_PACKAGE_WIDGET_LOADERS,",
     "})",
@@ -241,6 +298,97 @@ function validateModule(
     url: path,
     export: exportName,
   })
+}
+
+function validateGraphNodeId(value: unknown, label: string): string {
+  if (typeof value !== "string" || value.length === 0 || value.length > 2048 || hasControlCharacter(value)) {
+    throw new Error(`${label} must be bounded non-empty text without control characters`)
+  }
+  return value
+}
+
+function validateScenarioVariants(
+  variants: readonly StorybookGeneratedScenarioVariant[],
+  nodeId: string,
+): readonly StorybookGeneratedScenarioVariant[] {
+  const ids = new Set<string>()
+  return Object.freeze(variants.map((variant, index) => {
+    if (variant === null || typeof variant !== "object" || Array.isArray(variant)) {
+      throw new TypeError(`Storybook scenario variant ${index} must be an object: ${nodeId}`)
+    }
+    const id = validateGraphNodeId(variant.id, `Storybook scenario variant ${index} id`)
+    if (ids.has(id)) throw new Error(`Duplicate Storybook scenario variant id: ${nodeId}:${id}`)
+    ids.add(id)
+    const title = requiredScenarioText(variant.title, `Storybook scenario variant ${id} title`)
+    if (variant.props === null || typeof variant.props !== "object" || Array.isArray(variant.props)) {
+      throw new TypeError(`Storybook scenario variant props must be an object: ${nodeId}:${id}`)
+    }
+    if (typeof variant.source !== "string") {
+      throw new TypeError(`Storybook scenario variant source must be text: ${nodeId}:${id}`)
+    }
+    if (!Array.isArray(variant.points)) {
+      throw new TypeError(`Storybook scenario variant points must be a list: ${nodeId}:${id}`)
+    }
+    const points = Object.freeze(variant.points.map((point, pointIndex) => {
+      if (point === null || typeof point !== "object" || Array.isArray(point)) {
+        throw new TypeError(`Storybook scenario point ${pointIndex} must be an object: ${nodeId}:${id}`)
+      }
+      const pointTitle = requiredScenarioText(point.title, `Storybook scenario point ${pointIndex} title`)
+      if (point.content !== undefined && typeof point.content !== "string") {
+        throw new TypeError(`Storybook scenario point content must be text: ${nodeId}:${id}`)
+      }
+      return Object.freeze({
+        title: pointTitle,
+        ...(point.content === undefined ? {} : {content: point.content}),
+      })
+    }))
+    const normalized = Object.freeze({id, title, props: variant.props, source: variant.source, points})
+    jsonSource(normalized, `scenario variant ${nodeId}:${id}`)
+    return normalized
+  }))
+}
+
+function requiredScenarioText(value: unknown, label: string): string {
+  if (typeof value !== "string" || value.trim().length === 0 || hasControlCharacter(value)) {
+    throw new Error(`${label} must be non-empty text without control characters`)
+  }
+  return value
+}
+
+function jsonSource(value: unknown, label: string): string {
+  validateJsonValue(value, label, new Set())
+  let source: string | undefined
+  try {
+    source = JSON.stringify(value)
+  } catch (error) {
+    throw new TypeError(`Storybook ${label} must contain JSON values`, {cause: error})
+  }
+  if (source === undefined) throw new TypeError(`Storybook ${label} must contain JSON values`)
+  return source
+    .replaceAll("<", "\\u003c")
+    .replaceAll("\u2028", "\\u2028")
+    .replaceAll("\u2029", "\\u2029")
+}
+
+function validateJsonValue(value: unknown, label: string, ancestors: Set<object>): void {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) throw new TypeError(`Storybook ${label} must contain finite JSON numbers`)
+    return
+  }
+  if (typeof value !== "object") throw new TypeError(`Storybook ${label} must contain JSON values`)
+  if (ancestors.has(value)) throw new TypeError(`Storybook ${label} must not contain cycles`)
+  ancestors.add(value)
+  if (Array.isArray(value)) {
+    for (const item of value) validateJsonValue(item, label, ancestors)
+  } else {
+    const prototype = Object.getPrototypeOf(value)
+    if (prototype !== Object.prototype && prototype !== null) {
+      throw new TypeError(`Storybook ${label} must contain plain JSON objects`)
+    }
+    for (const item of Object.values(value)) validateJsonValue(item, label, ancestors)
+  }
+  ancestors.delete(value)
 }
 
 function validateRevisionUrl(value: string): string {

@@ -1,0 +1,20 @@
+{
+  "name": "@storybook/app",
+  "label": "Просмотр сценариев",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts",
+    "./contract/input": "./contract/input.ts",
+    "./contract/output": "./contract/output.ts",
+    "./inspector": "./inspector/index.tsx",
+    "./preview": "./preview/index.tsx"
+  },
+  "peerDependencies": {
+    "@archetypes/specs": "*",
+    "@zavx0z/component": "*",
+    "@zavx0z/template": "*",
+    "@zavx0z/ui": "*"
+  }
+}

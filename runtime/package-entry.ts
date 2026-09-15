@@ -1,3 +1,6 @@
+import {ScenarioInspector} from "@storybook/app/inspector"
+import type {ScenarioAppInput} from "@storybook/app/contract/input"
+import {createScenarioPresentation} from "./scenario-presentation"
 import {storybookPackageRouteFromPathname} from "@zavx0z/storybook-browser-lifecycle/contract"
 import {indexedWorkbenchAuthorStyleSheetSources} from "./author-style-sheets.ts"
 import {navigatePackage} from "./package-navigation.ts"
@@ -80,6 +83,7 @@ import {
   sharedCacheProgressStatus,
 } from "./build-progress.ts"
 
+export type ExternalStorybookScenarioLoader = () => Promise<ScenarioAppInput>
 export type ExternalStorybookStoryLoader = () => Promise<unknown>
 export type ExternalStorybookWidgetLoader = () => Promise<unknown>
 export type ExternalStorybookRuntimeLoader = (() => Promise<unknown>) | null
@@ -99,6 +103,7 @@ export type ExternalStorybookAppliedRevision = Readonly<{
   loadRuntime: ExternalStorybookRuntimeLoader
   storyLoaders: ReadonlyMap<string, ExternalStorybookStoryLoader>
   widgetLoaders?: ReadonlyMap<string, ExternalStorybookWidgetLoader>
+  scenarioLoaders?: ReadonlyMap<string, ExternalStorybookScenarioLoader>
 }>
 
 export type ExternalStorybookSocket = Readonly<{
@@ -143,7 +148,15 @@ type ScrollableStorybookElement = {
   scrollLeft: number
 }
 
-const CONTRACT_OUTLINE_WIDGETS = Object.freeze([
+const BUILTIN_INSPECTOR_WIDGETS = Object.freeze([
+  Object.freeze({
+    id: "storybook-scenarios",
+    kind: "custom" as const,
+    label: "С",
+    title: "Сценарии",
+    wrapInPanel: false,
+    component: ScenarioInspector as unknown as CompiledTemplate<WorkbenchInspectorCustomWidgetProps>,
+  }),
   Object.freeze({
     id: "storybook-contract-input",
     kind: "custom" as const,
@@ -221,6 +234,7 @@ export type StartExternalStorybookPackageInput = Readonly<{
   loadRuntime: ExternalStorybookRuntimeLoader
   storyLoaders: ReadonlyMap<string, ExternalStorybookStoryLoader>
   widgetLoaders?: ReadonlyMap<string, ExternalStorybookWidgetLoader>
+  scenarioLoaders?: ReadonlyMap<string, ExternalStorybookScenarioLoader>
   graphSnapshot?: StorybookPackageRevisionGraphSnapshot
   environment?: ExternalStorybookPackageEnvironment
 }>
@@ -324,6 +338,7 @@ export async function startExternalStorybookPackage(
   let loadRuntime = input.loadRuntime
   let storyLoaders = initialStoryLoaders
   let widgetLoaders = initialWidgetLoaders
+  let scenarioLoaders = input.scenarioLoaders ?? new Map<string, ExternalStorybookScenarioLoader>()
   let revisionGraph = initialRevisionGraph
   let currentPayload: ExternalStorybookAppliedRevision | null =
     candidateRevision === null || revisionUrl === null || revisionGraph === null || sharedModuleEpoch === null
@@ -339,6 +354,7 @@ export async function startExternalStorybookPackage(
         loadRuntime,
         storyLoaders,
         widgetLoaders,
+        scenarioLoaders,
       })
   let navigationSnapshot = revisionGraph === null ? snapshot : await fetchExternalStorybookClientSnapshot(fetcher)
   browserDocument.documentElement.dataset.externalStorybookPhase = "shell"
@@ -380,6 +396,14 @@ export async function startExternalStorybookPackage(
   let disposePromise: Promise<void> | null = null
   let agentBridge: StorybookAgentBridge | null = null
   let activeSpacePreview: StorybookSpacePreview | null = null
+  let scenarioPresentation: ReturnType<typeof createScenarioPresentation> | null = null
+  let stopScenarioCentering = () => {}
+  const disposeScenario = (): void => {
+    stopScenarioCentering()
+    stopScenarioCentering = () => {}
+    scenarioPresentation?.dispose()
+    scenarioPresentation = null
+  }
   const customWidgetComponents = new Map<
     string,
     CompiledTemplate<WorkbenchInspectorCustomWidgetProps>
@@ -397,10 +421,10 @@ export async function startExternalStorybookPackage(
 
   /** Публикует базовый реестр и уже загруженные custom widgets пакета. */
   const publishInspectorRegistry = (): void => {
-    const customRegistry: WorkbenchInspectorCustomWidgetRegistration[] = [...CONTRACT_OUTLINE_WIDGETS]
+    const customRegistry: WorkbenchInspectorCustomWidgetRegistration[] = [...BUILTIN_INSPECTOR_WIDGETS]
     for (const item of revisionGraph?.widgetContributions?.items ?? []) {
       if (item.kind !== "component") continue
-      if (CONTRACT_OUTLINE_WIDGETS.some(widget => widget.id === item.id)) {
+      if (BUILTIN_INSPECTOR_WIDGETS.some(widget => widget.id === item.id)) {
         throw new Error(`Storybook widget contribution uses reserved Inspector id: ${item.id}`)
       }
       const component = customWidgetComponents.get(item.id)
@@ -850,6 +874,7 @@ export async function startExternalStorybookPackage(
     const dependencies = model.viewKind === "dependencies"
     const contract = model.viewKind === "contract"
     const scenarios = model.viewKind === "scenarios"
+    disposeScenario()
     disposeSpacePreview()
     if (!dependencies && !contract && !scenarios && await showAggregateOverview(model, revision, signal)) return
     await disposeAggregate()
@@ -876,8 +901,14 @@ export async function startExternalStorybookPackage(
     const requestedDirection = new URL(location.href).searchParams.get("inspector")
     const initialDirection = contractDirections.find(direction => direction === requestedDirection)
       ?? (contractDirections.includes("input") ? "input" : contractDirections[0] ?? "input")
+    const scenarioLoader = scenarios ? scenarioLoaders.get(node.id) : undefined
+    if (scenarioLoader !== undefined) {
+      const input = await abortable(scenarioLoader(), signal)
+      if (disposed || revision !== navigationRevision || signal.aborted) return
+      scenarioPresentation = createScenarioPresentation(shell.document, input)
+    }
     const presentationNode = scenarios
-      ? shell.showMessage(label, "Сценарии", "")
+      ? scenarioPresentation?.element ?? shell.showMessage(label, "Сценарии", "Для этой спецификации пока нет общей исполняемой фикстуры")
       : contract
       ? await shell.showContract(label, node.contractDocuments!, signal, (direction, navigation) => {
         if (navigation === null) contractNavigators.delete(direction)
@@ -933,7 +964,9 @@ export async function startExternalStorybookPackage(
     const next = Object.freeze({
       label,
       presentation: Object.freeze({node: presentationNode, projection: "display" as const}),
-      inspectorSubject: contract
+      inspectorSubject: scenarios && scenarioPresentation !== null
+        ? Object.freeze({packageId, subjectId: node.id, workspaceId: `scenarios:${model.urlPath}`, widgetIds: Object.freeze(["storybook-scenarios"])})
+        : contract
         ? Object.freeze({
           packageId,
           subjectId: node.id,
@@ -947,9 +980,15 @@ export async function startExternalStorybookPackage(
           subjectId: overviewSubject.id,
           widgetIds: subjectPresentation.widgets,
         }),
-      inspectorValues: scenarios ? Object.freeze({}) : contractValues ?? Object.freeze({diagnostics: Object.freeze([...routeDiagnostics])}),
+      inspectorValues: scenarios ? Object.freeze(scenarioPresentation === null ? {} : {"storybook-scenarios": scenarioPresentation.app}) : contractValues ?? Object.freeze({diagnostics: Object.freeze([...routeDiagnostics])}),
     })
-    publishPresentation(next)
+    publishPresentation(next, scenarioPresentation !== null)
+    if (scenarioPresentation !== null) {
+      const mounted = scenarioPresentation
+      stopScenarioCentering = shell.root.getProjection(shell.display).subscribeFrames(() => {
+        if (mounted.center()) shell.requestRender()
+      })
+    }
     shell.requestRender()
   }
 
@@ -970,6 +1009,7 @@ export async function startExternalStorybookPackage(
     const presentation = requiredSubjectPresentation(subject)
     disposeSpacePreview()
     await disposeAggregate()
+    disposeScenario()
     shell.showMessage(`${model.selectedNode.label} · Загрузка`, model.selectedNode.label, "Загрузка owner story…")
     const [runtimeRecord, story] = await abortable(Promise.all([ensureSession(subject), loader()]), signal)
     if (disposed || revision !== navigationRevision || signal.aborted) return
@@ -1202,6 +1242,7 @@ export async function startExternalStorybookPackage(
   }
 
   const disposeMountedExecution = async (reason?: unknown): Promise<void> => {
+    disposeScenario()
     disposeSpacePreview()
     await disposeAggregate()
     const current = session
@@ -1220,6 +1261,7 @@ export async function startExternalStorybookPackage(
     loadRuntime: ExternalStorybookRuntimeLoader
     storyLoaders: ReadonlyMap<string, ExternalStorybookStoryLoader>
     widgetLoaders: ReadonlyMap<string, ExternalStorybookWidgetLoader>
+    scenarioLoaders: ReadonlyMap<string, ExternalStorybookScenarioLoader>
     revisionGraph: StorybookPackageRevisionGraphSnapshot | null
     snapshot: ExternalStorybookClientSnapshot
     summary: ExternalStorybookClientPackageSummary
@@ -1240,6 +1282,7 @@ export async function startExternalStorybookPackage(
     loadRuntime,
     storyLoaders,
     widgetLoaders,
+    scenarioLoaders,
     revisionGraph,
     snapshot,
     summary,
@@ -1256,6 +1299,7 @@ export async function startExternalStorybookPackage(
     loadRuntime = binding.loadRuntime
     storyLoaders = binding.storyLoaders
     widgetLoaders = binding.widgetLoaders
+    scenarioLoaders = binding.scenarioLoaders
     revisionGraph = binding.revisionGraph
     snapshot = binding.snapshot
     summary = binding.summary
@@ -1308,6 +1352,7 @@ export async function startExternalStorybookPackage(
       loadRuntime: payload.loadRuntime,
       storyLoaders: validateStoryLoaders(payload.storyLoaders),
       widgetLoaders: validateWidgetLoaders(payload.widgetLoaders ?? new Map()),
+      scenarioLoaders: payload.scenarioLoaders ?? new Map(),
       revisionGraph: payload.graphSnapshot,
       snapshot: nextSnapshot,
       summary: nextSummary,
@@ -1723,6 +1768,7 @@ export async function startExternalStorybookPackage(
           await settleBefore(Promise.resolve(session.session.dispose()), deadline)
         }
       } finally {
+        disposeScenario()
         agentBridge?.dispose()
         presentationInspector.dispose()
         if (embeddedPageScope === undefined) shell.dispose()

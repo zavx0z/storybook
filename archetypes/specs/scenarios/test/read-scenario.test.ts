@@ -79,6 +79,7 @@ describe.each([
       junit: expect.any(String),
       source: expect.any(Object),
       validation: expect.any(Object),
+      ...(result.preview === undefined ? {} : {preview: expect.any(Object)}),
     })
   })
 
@@ -223,6 +224,7 @@ describe.each([
           completed: expect.any(Number),
           module: expect.any(String),
           name: expect.any(String),
+          groupId: call.groupId === null ? null : expect.any(Number),
           describe: expect.any(Array),
           test: call.test === null ? null : expect.any(String),
           args: expect.any(Array),

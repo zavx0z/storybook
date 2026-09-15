@@ -7,6 +7,7 @@
   "type": "module",
   "packageManager": "bun@1.4.0",
   "workspaces": [
+    "app",
     "browser-lifecycle",
     "archetypes",
     "mcp/rest"
@@ -26,6 +27,7 @@
     "check": "bun run browser-lifecycle:check && bun run typecheck && bun run archetypes:check && bun run test && bun run mcp:check && bun run build"
   },
   "dependencies": {
+    "@storybook/app": "workspace:*",
     "@mcp/rest": "workspace:*",
     "@zavx0z/storybook-browser-lifecycle": "workspace:*"
   },

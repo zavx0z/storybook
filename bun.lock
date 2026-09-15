@@ -6,6 +6,7 @@
       "name": "@zavx0z/storybook",
       "dependencies": {
         "@mcp/rest": "workspace:*",
+        "@storybook/app": "workspace:*",
         "@zavx0z/storybook-browser-lifecycle": "workspace:*",
       },
       "devDependencies": {
@@ -311,6 +312,16 @@
         "@zavx0z/engine",
       ],
     },
+    "app": {
+      "name": "@storybook/app",
+      "version": "0.0.0",
+      "peerDependencies": {
+        "@archetypes/specs": "*",
+        "@zavx0z/component": "*",
+        "@zavx0z/template": "*",
+        "@zavx0z/ui": "*",
+      },
+    },
     "archetypes": {
       "name": "@storybook/archetypes",
       "version": "0.0.0",
@@ -377,6 +388,8 @@
     "@nodes/tree": ["@nodes/tree@workspace:../webxr-space/nodes/tree"],
 
     "@renderer/html": ["@renderer/html@workspace:../webxr-space/renderer/html"],
+
+    "@storybook/app": ["@storybook/app@workspace:app"],
 
     "@storybook/archetypes": ["@storybook/archetypes@workspace:archetypes"],
 

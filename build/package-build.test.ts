@@ -146,6 +146,71 @@ describe("real Storybook package revision build", () => {
       .toContain("fixture widget marker")
   })
 
+  test("включает поддержанный scenario preview и его fixture closure в package revision", async () => {
+    const fixture = createFixture()
+    const scenarioRoot = join(fixture.root, "scenario")
+    const scenarioPath = join(scenarioRoot, "spec/scenario.spec.tsx")
+    const fixturePath = join(scenarioRoot, "spec/fixture.tsx")
+    mkdirSync(join(scenarioRoot, "spec"), {recursive: true})
+    writeFileSync(join(scenarioRoot, "component.tsx"), [
+      "/** @jsxImportSource @zavx0z/template */",
+      "export function Command(props: Readonly<{label: string, disabled: boolean}>) {",
+      "  return <button disabled={props.disabled}>{props.label}</button>",
+      "}",
+      "",
+    ].join("\n"))
+    writeFileSync(fixturePath, [
+      "/** @jsxImportSource @zavx0z/template */",
+      'import {Command} from "../component"',
+      "export function CommandFixture(props: Readonly<{label: string, disabled: boolean}>) {",
+      "  return <Command label={props.label} disabled={props.disabled} />",
+      "}",
+      "",
+    ].join("\n"))
+    writeFileSync(join(scenarioRoot, "spec/host.ts"), [
+      "export function createHost() {",
+      "  return {",
+      "    render(_template: (props: Readonly<Record<string, unknown>>) => unknown, props: Readonly<Record<string, unknown>>) {",
+      "      return props",
+      "    },",
+      "  }",
+      "}",
+      "",
+    ].join("\n"))
+    writeFileSync(scenarioPath, [
+      'import {describe, expect, test} from "bun:test"',
+      'import {CommandFixture} from "./fixture"',
+      'import {createHost} from "./host"',
+      "const host = createHost()",
+      "describe.each([",
+      '  {name: "Доступная команда", props: {label: "Продолжить", disabled: false}},',
+      '  {name: "Недоступная команда", props: {label: "Продолжить", disabled: true}},',
+      '])(\"$name\", async ({props}) => {',
+      "  const result = host.render(CommandFixture, props)",
+      '  test("Представление", () => {',
+      '    expect(result, "Команда создаётся").toBeDefined()',
+      "  })",
+      "})",
+      "",
+    ].join("\n"))
+    const descriptor = {
+      ...fixture.descriptor,
+      scenarioSpecs: [{
+        nodeId: "subject:@fixture/package/category/subject",
+        sourcePaths: [realpathSync(scenarioPath)],
+      }],
+    }
+    const staging = join(fixture.root, ".candidate-scenario")
+    const build = createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry})
+
+    const result = await build(buildInput(descriptor, staging, "revision-scenario"))
+    const code = await builtJavaScript(staging)
+
+    expect(code).toContain("Доступная команда")
+    expect(result.dependencyRealpaths).toContain(realpathSync(scenarioPath))
+    expect(result.dependencyRealpaths).toContain(realpathSync(fixturePath))
+  })
+
   test("обычный компонент меняется при общей identity и эпохе platform imports", async () => {
     const fixture = createFixture()
     const domSource = realpathSync(join(import.meta.dir, "../node_modules/@zavx0z/dom/src/index.ts"))

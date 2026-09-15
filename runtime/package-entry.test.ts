@@ -1,3 +1,5 @@
+import {StatefulFixture} from "../app/spec/fixture"
+import type {CompiledTemplate} from "@zavx0z/template/compiled"
 import {DisplayElement} from "@zavx0z/dom/display"
 import {presentationRootFixture, type PresentationFixtureOptions} from "./browser-root.fixture.ts"
 import {createRoot} from "@zavx0z/component"
@@ -43,6 +45,47 @@ import {startExternalStorybookPage, type ExternalStorybookPreparedPackageTarget}
 const fixtureRoot = join(import.meta.dir, "../discovery/fixtures/valid")
 
 describe("external Storybook package frontend", () => {
+  test("[SCENARIOS-APP] загружает fixture один раз и сохраняет ноду при выборе варианта", async () => {
+    const base = await fixtureGraph()
+    const subjectId = "subject:@fixture/components/components/button"
+    const graph = {...base, nodes: base.nodes.map(node => node.id === subjectId
+      ? {...node, childIds: [], scenariosRoutePath: "components/button/scenarios"}
+      : node)}
+    const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-scenarios"))
+    const environment = environmentFixture(snapshot, "/pkg-fixture-components/components/button/scenarios")
+    let loads = 0
+    const controller = await startExternalStorybookPackage({
+      packageId: "@fixture/components",
+      candidateRevision: "revision-scenarios",
+      revisionUrl: "/__storybook/revisions/%40fixture%2Fcomponents/revision-scenarios/",
+      loadRuntime: null,
+      storyLoaders: new Map(),
+      scenarioLoaders: new Map([[subjectId, async () => {
+        loads++
+        return {
+          template: StatefulFixture as unknown as CompiledTemplate<Record<string, unknown>>,
+          variants: ["Первый", "Второй", "Третий"].map(title => ({
+            id: title, title, props: {name: title}, source: `<StatefulFixture name="${title}" />`, points: [{title: "Описание"}],
+          })),
+        }
+      }]]),
+      environment,
+    })
+    try {
+      const {display, document, workbench} = controller.shell
+      const element = display.querySelector("[data-fixture]")!
+      expect(element).not.toBeNull()
+      expect(element.ownerDocument).toBe(document)
+      expect(workbench.controller.read("inspector.subject")?.widgetIds).toEqual(["storybook-scenarios"])
+      const app = workbench.controller.read("inspector.values")["storybook-scenarios"] as {select(id: string): void}
+      app.select("Третий")
+      await Promise.resolve()
+      expect(display.querySelector("[data-fixture]")).toBe(element)
+      expect(element.textContent).toBe("Третий: 0")
+      expect(loads).toBe(1)
+    } finally { await controller.dispose() }
+  })
+
   test.each(["components/button", "components/button/scenarios"])("[SCENARIOS-TAB] пустое представление из %s без запуска runtime", async initialRoute => {
     const base = await fixtureGraph()
     const subjectId = "subject:@fixture/components/components/button"

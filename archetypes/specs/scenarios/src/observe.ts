@@ -50,6 +50,7 @@ export function observe(module: string, name: string, original: Registrar, metho
       id,
       module,
       name,
+      groupId: active.groupId,
       describe: active.describe,
       test: active.test,
       location: callLocation(new Error().stack),

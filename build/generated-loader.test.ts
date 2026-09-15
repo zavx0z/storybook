@@ -151,6 +151,31 @@ describe("external Storybook generated loader", () => {
     expect(source).toContain("export function loadStorybookWidget(id)")
   })
 
+  test("передаёт подготовленные варианты через один literal fixture import на node", () => {
+    const source = generateStorybookLoaderSource({
+      revisionUrl: "/__storybook/revisions/example/rev-scenarios/",
+      runtime: null,
+      variants: [],
+      widgets: [],
+      scenarios: [{
+        nodeId: "subject:@fixture/example/component",
+        module: {path: "/owner/component/fixture.tsx", export: "Fixture"},
+        variants: [{
+          id: "rectangle",
+          title: "Прямоугольник",
+          props: {shape: "rectangle"},
+          source: "<Fixture shape=\"rectangle\" />",
+          points: [{title: "Форма", content: "rectangle"}],
+        }],
+      }],
+    })
+
+    expect(source).toContain("STORYBOOK_PACKAGE_SCENARIO_LOADERS = new Map")
+    expect(source).toContain('import("/owner/component/fixture.tsx")')
+    expect(source).toContain('template: namespace["Fixture"]')
+    expect(source).toContain('"id":"rectangle"')
+  })
+
   test("генерирует exact page-realm revision payload без side effects", () => {
     const source = generateStorybookRevisionPayloadSource({
       packageId: "@fixture/package",
@@ -165,6 +190,7 @@ describe("external Storybook generated loader", () => {
     expect(source).toContain('sharedModuleEpoch: "shared-a"')
     expect(source).toContain('hostModuleEpoch: "host-a"')
     expect(source).toContain("storyLoaders: STORYBOOK_PACKAGE_STORY_LOADERS")
+    expect(source).toContain("scenarioLoaders: STORYBOOK_PACKAGE_SCENARIO_LOADERS")
     expect(source).not.toContain("startExternalStorybookPackage")
     expect(source).not.toMatch(/\bdocument\b|\bwindow\b|\blocation\b/u)
   })

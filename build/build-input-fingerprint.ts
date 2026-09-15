@@ -349,6 +349,7 @@ export function resolveStorybookPackageBuildInputFingerprintPlan(
     files: [
       descriptor.sourcePath,
       ...descriptorModules(descriptor).map(({path}) => path),
+      ...(descriptor.scenarioSpecs ?? []).flatMap(({sourcePaths}) => sourcePaths),
       ...(descriptor.resourceFiles ?? []).map(({sourcePath}) => sourcePath),
       input.browserEntryPath,
       input.runtimeProtocolPath,

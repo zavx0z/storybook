@@ -401,6 +401,7 @@ export async function startExternalStorybookPage(
       loadRuntime: payload?.loadRuntime ?? null,
       storyLoaders: payload?.storyLoaders ?? new Map(),
       widgetLoaders: payload?.widgetLoaders ?? new Map(),
+      scenarioLoaders: payload?.scenarioLoaders ?? new Map(),
       environment: {
         browserDocument,
         location: address.location,

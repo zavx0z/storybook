@@ -14,12 +14,14 @@ import {
 } from "node:fs"
 import {dirname, extname, isAbsolute, join, relative, resolve, sep} from "node:path"
 import {fileURLToPath} from "node:url"
+import {readScenario, supportsScenarioPreview} from "@archetypes/specs/scenarios"
 import {
   generateStorybookLoaderSource,
   generateStorybookAppliedRevisionLoaderSource,
   generateStorybookRevisionPayloadSource,
   STORYBOOK_REVISION_PAYLOAD_FILE,
   type StorybookGeneratedVariant,
+  type StorybookGeneratedScenario,
   type StorybookGeneratedWidget,
 } from "./generated-loader.ts"
 import {createStorybookPackageCompilerPlugins} from "./compiler.ts"
@@ -277,10 +279,12 @@ export async function buildStorybookPackageRevisionInProcess(
       else writeFileSync(target, attestedBytes)
     }
     emitPhase(onPhase, "resources", "completed")
+    const scenarios = await prepareStorybookScenarios(descriptor, input.signal)
     const modules = [
       ...(descriptor.runtime === null ? [] : [descriptor.runtime]),
       ...descriptor.variants.map(({module}) => module),
       ...descriptor.widgetModules.map(({module}) => module),
+      ...scenarios.map(({module}) => module),
     ]
     const sourcePaths = Object.freeze(modules.map(({path}) => path))
     const compilerInput = Object.freeze({
@@ -290,7 +294,7 @@ export async function buildStorybookPackageRevisionInProcess(
     })
     input.signal.throwIfAborted()
     emitPhase(onPhase, "exports", "started")
-    validateModuleExports(descriptor)
+    validateModuleExports(descriptor, scenarios)
     emitPhase(onPhase, "exports", "completed")
     const plugins = Object.freeze([...(await resolvePlugins(compilerInput))])
     validatePlugins(plugins)
@@ -313,11 +317,13 @@ export async function buildStorybookPackageRevisionInProcess(
       runtime: descriptor.runtime,
       variants,
       widgets,
+      scenarios,
     }))
     await Bun.write(entryPath, sharedBrowserIdentity === undefined ? [
       `import {startExternalStorybookPackage} from ${JSON.stringify(browserEntryPath)}`,
       "import {",
       "  loadStorybookPackageRuntime,",
+      "  STORYBOOK_PACKAGE_SCENARIO_LOADERS,",
       "  STORYBOOK_PACKAGE_STORY_LOADERS,",
       "  STORYBOOK_PACKAGE_WIDGET_LOADERS,",
       "  storybookRevisionUrl,",
@@ -331,6 +337,7 @@ export async function buildStorybookPackageRevisionInProcess(
       `  graphSnapshot: ${JSON.stringify(descriptor.graphSnapshot)},`,
       "  revisionUrl: storybookRevisionUrl,",
       "  loadRuntime: loadStorybookPackageRuntime,",
+      "  scenarioLoaders: STORYBOOK_PACKAGE_SCENARIO_LOADERS,",
       "  storyLoaders: STORYBOOK_PACKAGE_STORY_LOADERS,",
       "  widgetLoaders: STORYBOOK_PACKAGE_WIDGET_LOADERS,",
       "  environment: {loadAppliedRevision},",
@@ -388,12 +395,14 @@ export async function buildStorybookPackageRevisionInProcess(
     emitPhase(onPhase, "bundle", "completed")
     const metafile = result.metafile
     if (metafile === undefined) throw storybookBuildError(storybookDiagnostic("link", "Bun emitted no package metafile"))
-    validateBundledModuleExports(descriptor, metafile.outputs, descriptor.projectRoot)
+    validateBundledModuleExports(descriptor, scenarios, metafile.outputs, descriptor.projectRoot)
     const stagingPrefix = `${realpathSync(stagingDirectory)}${sep}`
     let dependencyRealpaths = canonicalizeStorybookPackageIdentities(canonicalBuildInputs(
       metafile.inputs,
       descriptor.projectRoot,
-    ).filter((path) => !path.startsWith(stagingPrefix)))
+    ).filter((path) => !path.startsWith(stagingPrefix)).concat(
+      (descriptor.scenarioSpecs ?? []).flatMap(({sourcePaths}) => sourcePaths.map(stableBuildInputPath)),
+    ))
     if (descriptor.runtime !== null) {
       const protocolPlugins = Object.freeze([...(await resolvePlugins(compilerInput))])
       validatePlugins(protocolPlugins)
@@ -733,13 +742,50 @@ function isWorkerDiagnosticPhase(
     .includes(value)
 }
 
+/**
+Подготавливает только однозначные preview-сценарии текущей package revision.
+
+Статический probe не исполняет Bun Test. `readScenario` запускается ровно один
+раз для node, у которого найден один поддержанный fixture source; старые,
+неподдержанные и неоднозначные формы остаются вне executable loader table.
+*/
+export async function prepareStorybookScenarios(
+  descriptor: StorybookPackageBuildDescriptor,
+  signal: AbortSignal,
+): Promise<readonly StorybookGeneratedScenario[]> {
+  const prepared: StorybookGeneratedScenario[] = []
+  for (const spec of descriptor.scenarioSpecs ?? []) {
+    const supported: string[] = []
+    for (const path of spec.sourcePaths) {
+      signal.throwIfAborted()
+      if (await supportsScenarioPreview({path}).catch(() => false)) supported.push(path)
+    }
+    if (supported.length !== 1) continue
+    signal.throwIfAborted()
+    const result = await readScenario({path: supported[0]!})
+    signal.throwIfAborted()
+    if (result.preview === undefined) continue
+    prepared.push(Object.freeze({
+      nodeId: spec.nodeId,
+      module: Object.freeze({
+        path: stableBuildInputPath(result.preview.module.path),
+        export: result.preview.module.export,
+      }),
+      variants: result.preview.variants,
+    }))
+  }
+  return Object.freeze(prepared)
+}
+
 function validateModuleExports(
   descriptor: StorybookPackageBuildDescriptor,
+  scenarios: readonly StorybookGeneratedScenario[],
 ): void {
   const modules = [
     ...(descriptor.runtime === null ? [] : [descriptor.runtime]),
     ...descriptor.variants.map(({module}) => module),
     ...descriptor.widgetModules.map(({module}) => module),
+    ...scenarios.map(({module}) => module),
   ]
   if (modules.length === 0) return
   for (const module of modules) validateScannedExport(module.path, module.export)
@@ -753,6 +799,7 @@ function validateModuleExports(
 */
 function validateBundledModuleExports(
   descriptor: StorybookPackageBuildDescriptor,
+  scenarios: readonly StorybookGeneratedScenario[],
   outputs: Readonly<Record<string, unknown>>,
   projectRoot: string,
 ): void {
@@ -760,6 +807,7 @@ function validateBundledModuleExports(
     ...(descriptor.runtime === null ? [] : [descriptor.runtime]),
     ...descriptor.variants.map(({module}) => module),
     ...descriptor.widgetModules.map(({module}) => module),
+    ...scenarios.map(({module}) => module),
   ]
   const exportsByEntry = new Map<string, readonly string[]>()
   for (const output of Object.values(outputs)) {

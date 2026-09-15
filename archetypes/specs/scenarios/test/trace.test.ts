@@ -38,8 +38,8 @@ test("обычный describe сохраняет вызов до регистр�
 
 test("describe.each сохраняет фактические названия и аргументы вариантов", () => {
   expect(fixture.calls.filter(call => String(call.args[0]).startsWith("each-"))).toMatchObject([
-    {describe: ["Первый вариант"], test: null, args: ["each-one", 1]},
-    {describe: ["Второй вариант"], test: null, args: ["each-two", 1]},
+    {groupId: 1, describe: ["Первый вариант"], test: null, args: ["each-one", 1]},
+    {groupId: 2, describe: ["Второй вариант"], test: null, args: ["each-two", 1]},
   ])
 })
 

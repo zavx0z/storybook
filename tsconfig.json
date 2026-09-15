@@ -20,6 +20,8 @@
     "exactOptionalPropertyTypes": true
   },
   "include": [
+    "app/**/*.ts",
+    "app/**/*.tsx",
     "archetypes/**/*.ts",
     "archetypes/**/*.tsx",
     "catalog/**/*.ts",
@@ -39,5 +41,5 @@
     ".storybook/**/*.ts",
     ".storybook/**/*.tsx"
   ],
-  "exclude": ["dist", "node_modules", ".refactor-audit"]
+  "exclude": ["dist", "node_modules", ".refactor-audit", "app/tmp"]
 }

@@ -6,6 +6,9 @@
 */
 import type {ReadScenarioOutput} from "../contract/output"
 
+/** Preview компонента, производный от единственного публичного выходного контракта. */
+export type ScenarioPreview = NonNullable<ReadScenarioOutput["preview"]>
+
 /** Запись вызова в публичном результате. */
 export type TraceCall = ReadScenarioOutput["calls"][number]
 
@@ -30,4 +33,4 @@ export type ScenarioSource = ReadScenarioOutput["source"]
 export type ScenarioValidation = ReadScenarioOutput["validation"]
 
 /** Данные одного запуска до присоединения структуры и валидации. */
-export type ScenarioExecution = Omit<ReadScenarioOutput, "source" | "validation">
+export type ScenarioExecution = Omit<ReadScenarioOutput, "source" | "validation" | "preview">

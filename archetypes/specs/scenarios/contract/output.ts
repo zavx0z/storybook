@@ -55,6 +55,9 @@ interface TraceLocation {
 
 @property name - Имя export или выбранного метода в форме `export.method`.
 
+@property groupId - Идентификатор фактического варианта или вложенной группы,
+в контексте которой начался вызов.
+
 @property describe - Иерархия фактических group names от внешней к внутренней.
 
 @property test - Имя текущего test или `null` для вызова в callback describe.
@@ -72,11 +75,37 @@ interface TraceCall {
   readonly completed: number
   readonly module: string
   readonly name: string
+  readonly groupId: number | null
   readonly describe: readonly string[]
   readonly test: string | null
   readonly args: readonly TraceValue[]
   readonly outcome: TraceOutcome
   readonly location: TraceLocation | null
+}
+
+/**
+Данные одного компонента для просмотра исполненных вариантов сценария.
+
+@property module - Общая fixture, которая объявляет JSX компонента.
+
+@property variants - Варианты внешнего `describe.each` с фактическими props,
+готовым исходником JSX и пунктами сценария.
+*/
+interface ScenarioPreview {
+  readonly module: {
+    readonly path: string
+    readonly export: string
+  }
+  readonly variants: readonly {
+    readonly id: string
+    readonly title: string
+    readonly props: Readonly<Record<string, unknown>>
+    readonly source: string
+    readonly points: readonly {
+      readonly title: string
+      readonly content?: string
+    }[]
+  }[]
 }
 
 /** Фактически достигнутое утверждение expect с данными и исходом matcher. */
@@ -200,6 +229,9 @@ interface ScenarioValidation {
 @property junit - Полный неизменённый XML штатного отчёта этого же запуска.
 @property source - Структура и фрагменты исполненного исходника.
 @property validation - Результаты проверок оформления и выполнения; не реализованные проверки обозначены явно.
+
+@property [preview] - Представление вариантов компонента, когда сценарий использует
+поддержанную общую fixture и переносимые props.
 */
 export interface ReadScenarioOutput {
   readonly path: string
@@ -213,4 +245,5 @@ export interface ReadScenarioOutput {
   readonly junit: string
   readonly source: ScenarioSource
   readonly validation: ScenarioValidation
+  readonly preview?: ScenarioPreview
 }

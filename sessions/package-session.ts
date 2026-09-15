@@ -33,6 +33,10 @@ import {STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS} from "../server/timing.ts"
 export type StorybookPackageModule = Readonly<{path: string, export: string}>
 export type StorybookPackageVariantModule = Readonly<{route: string, module: StorybookPackageModule}>
 export type StorybookPackageWidgetModule = Readonly<{id: string, module: StorybookPackageModule}>
+export type StorybookPackageScenarioSpec = Readonly<{
+  nodeId: string
+  sourcePaths: readonly string[]
+}>
 export type StorybookPackageRevisionResourceFile = Readonly<{
   sourcePath: string
   sourceRoot?: string
@@ -53,6 +57,7 @@ export type StorybookPackageBuildDescriptor = Readonly<{
   runtime: StorybookPackageModule | null
   variants: readonly StorybookPackageVariantModule[]
   widgetModules: readonly StorybookPackageWidgetModule[]
+  scenarioSpecs?: readonly StorybookPackageScenarioSpec[]
   watchedPaths?: readonly string[]
   watchPaths?: readonly StorybookCategorizedWatchPath[]
 }>
@@ -1097,6 +1102,27 @@ function normalizeDescriptor(value: StorybookPackageBuildDescriptor): StorybookP
       throw new Error(`Storybook package widget loader export does not match graph snapshot: ${packageId}:${widget.id}`)
     }
   }
+  const scenarioSpecs = Object.freeze((value.scenarioSpecs ?? []).map((spec, index) => {
+    if (spec === null || typeof spec !== "object" || Array.isArray(spec)) {
+      throw new TypeError(`Storybook scenario spec ${index} must be an object`)
+    }
+    const nodeId = requiredText(`scenario spec ${index} nodeId`, spec.nodeId)
+    const sourcePaths = Object.freeze(spec.sourcePaths.map(safeRealpath))
+    if (sourcePaths.length === 0) {
+      throw new Error(`Storybook scenario spec has no source paths: ${nodeId}`)
+    }
+    if (new Set(sourcePaths).size !== sourcePaths.length) {
+      throw new Error(`Storybook scenario spec has duplicate source paths: ${nodeId}`)
+    }
+    const graphNode = graphSnapshot.nodes.find(({id}) => id === nodeId)
+    if (graphNode?.scenariosRoutePath === undefined) {
+      throw new Error(`Storybook scenario spec has no graph scenarios route: ${nodeId}`)
+    }
+    return Object.freeze({nodeId, sourcePaths})
+  }))
+  if (new Set(scenarioSpecs.map(({nodeId}) => nodeId)).size !== scenarioSpecs.length) {
+    throw new Error(`Duplicate Storybook scenario spec node: ${packageId}`)
+  }
   const resourceFiles = Object.freeze((value.resourceFiles ?? []).map((file) => {
     const sourcePath = realpathSync(file.sourcePath)
     const sourceRoot = file.sourceRoot === undefined ? undefined : realpathSync(file.sourceRoot)
@@ -1173,6 +1199,7 @@ function normalizeDescriptor(value: StorybookPackageBuildDescriptor): StorybookP
     runtime,
     variants,
     widgetModules,
+    scenarioSpecs,
     ...(value.watchedPaths === undefined
       ? {}
       : {watchedPaths: Object.freeze(value.watchedPaths.map(safeRealpath))}),
@@ -1188,6 +1215,7 @@ function sameDescriptor(left: StorybookPackageBuildDescriptor, right: StorybookP
     JSON.stringify(left.runtime) === JSON.stringify(right.runtime) &&
     JSON.stringify(left.variants) === JSON.stringify(right.variants) &&
     JSON.stringify(left.widgetModules) === JSON.stringify(right.widgetModules) &&
+    JSON.stringify(left.scenarioSpecs ?? []) === JSON.stringify(right.scenarioSpecs ?? []) &&
     JSON.stringify(left.resourceFiles ?? []) === JSON.stringify(right.resourceFiles ?? []) &&
     JSON.stringify(left.watchPaths ?? []) === JSON.stringify(right.watchPaths ?? []) &&
     JSON.stringify(left.watchedPaths ?? []) === JSON.stringify(right.watchedPaths ?? [])
@@ -1203,6 +1231,7 @@ function declaredPaths(descriptor: StorybookPackageBuildDescriptor): Set<string>
     ...(descriptor.runtime === null ? [] : [descriptor.runtime.path]),
     ...descriptor.variants.map(({module}) => module.path),
     ...descriptor.widgetModules.map(({module}) => module.path),
+    ...(descriptor.scenarioSpecs ?? []).flatMap(({sourcePaths}) => sourcePaths),
     ...(descriptor.resourceFiles ?? []).map(({sourcePath}) => sourcePath),
     ...(descriptor.watchPaths ?? []).map(({path}) => path),
     ...(descriptor.watchedPaths ?? []),

@@ -33,7 +33,7 @@ const contracts = Object.freeze({
   ),
   stories: contract(
     "Owner story modules",
-    "A catalog stores one static module path and export name for each executable variant. Story modules import production owners, never Storybook." + " Структурные сценарии определены в archetypes/README.md#component-scenarios: spec/scenario.spec.ts или spec/scenario.spec.tsx, включая пустой файл, добавляют вкладку Сценарии по адресу owner/scenarios. Без файла вкладки нет; содержимое spec на этом этапе не исполняется и Inspector пуст.",
+    "A catalog stores one static module path and export name for each executable variant. Story modules import production owners, never Storybook." + " Структурные сценарии определены в archetypes/README.md#component-scenarios: spec/scenario.spec.ts или spec/scenario.spec.tsx, включая пустой файл, добавляют вкладку Сценарии по адресу owner/scenarios. Без файла вкладки нет. Discovery читает структуру без исполнения; сборка подготавливает варианты поддерживаемой общей фикстуры через readScenario. В Inspector общий Editor показывает JSX с конкретными props, ниже открыт один вариант с его пунктами. В Display один экземпляр компонента меняет props и сохраняет состояние; host центрирует его по реальным границам без изменения размеров.",
     "The external PackageSession validates exports and emits literal lazy imports before browser delivery.",
     "export const contained = createContainedButtonStory()",
   ),

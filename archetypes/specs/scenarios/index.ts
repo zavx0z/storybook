@@ -8,10 +8,13 @@
 import {traceScenario} from "./src/trace"
 import {readScenarioSource} from "./src/read-source"
 import {validateScenario} from "./src/validate"
+import {createScenarioPreview, supportsScenarioPreview} from "./src/preview"
 import type {ReadScenarioInput} from "./contract/input"
 import type {ReadScenarioOutput} from "./contract/output"
+import type {ScenarioPreview} from "./src/types"
 
-export type {ReadScenarioInput, ReadScenarioOutput}
+export type {ReadScenarioInput, ReadScenarioOutput, ScenarioPreview}
+export {supportsScenarioPreview}
 
 /**
 Получает структуру исходника, выполняет его настоящим Bun Test и применяет правила архетипа.
@@ -26,5 +29,11 @@ export type {ReadScenarioInput, ReadScenarioOutput}
 export async function readScenario(input: ReadScenarioInput): Promise<ReadScenarioOutput> {
   const source = await readScenarioSource(input.path)
   const execution = await traceScenario({...input, path: source.path})
-  return {...execution, source, validation: validateScenario(source, execution)}
+  const preview = await createScenarioPreview(source.path, execution)
+  return {
+    ...execution,
+    source,
+    validation: validateScenario(source, execution),
+    ...(preview === undefined ? {} : {preview}),
+  }
 }
