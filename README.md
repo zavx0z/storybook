@@ -443,6 +443,15 @@ has no special package server or second registry.
 bun run check
 ```
 
+Общий `check` запускает проверки Archetypes отдельным этапом `archetypes:check`.
+Этот этап выполняет `.spec.ts(x)` и `.test.ts(x)` внутри `archetypes`; файлы
+в директориях `fixture` используются вызывающими проверками и отдельно не запускаются.
+Ошибка этапа останавливает последующие проверки и сборку. Для отдельного запуска:
+
+```bash
+bun run archetypes:check
+```
+
 A path-scoped `check` ensures the canonical daemon, attaches that declaration
 root and leaves the shared server available for later CLI/MCP clients. A
 package-id `check` addresses the exact package in an already running registry.
