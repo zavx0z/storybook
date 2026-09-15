@@ -22,6 +22,31 @@ afterEach(async () => {
 })
 
 describe("one external Storybook server", () => {
+  test("журнал MCP принимает полный большой ответ через HTTP и завершает running", async () => {
+    const fixture = serverFixture()
+    const running = await startExternalStorybookServer({declarations: [fixture.standalone], statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
+    servers.push(running)
+    const entry = {id: "large-result", tool: "storybook", startedAt: Date.now(), input: JSON.stringify({node: "archetypes/specs/scenarios"})}
+    const begin = await controlPost(running, "/api/control/mcp-requests", {...entry, status: "running", durationMs: null, result: ""})
+    expect(begin.response.status).toBe(200)
+    const result = JSON.stringify({description: "данные".repeat(25000), tail: "конец ответа"}, null, 2)
+    const complete = {...entry, status: "success", durationMs: 100, result}
+    expect(new TextEncoder().encode(JSON.stringify(complete)).byteLength).toBeGreaterThan(65_536)
+    const write = await controlPost(running, "/api/control/mcp-requests", complete)
+    expect(write.response.status).toBe(200)
+    const session = await fetch(new URL("/api/browser/registry-session", running.origin), {method: "POST", headers: {origin: running.origin, "content-type": "application/json"}, body: "{}"})
+    expect(session.status).toBe(200)
+    const {readerToken} = await session.json()
+    const response = await fetch(new URL("/api/browser/mcp-requests", running.origin), {headers: {origin: running.origin, "x-storybook-session": readerToken}})
+    expect(response.status).toBe(200)
+    const {entries} = await response.json()
+    expect(entries).toEqual([{...complete}])
+    expect(JSON.parse(entries[0].result).tail).toBe("конец ответа")
+    const oversized = await controlPost(running, "/api/control/mcp-requests", {...complete, result: "x".repeat(8 * 1024 * 1024)})
+    expect(oversized.response.status).toBe(413)
+    expect(running.sessions.snapshots().every(item => item.builds === 0)).toBeTrue()
+  })
+
   test("корневой REST возвращает два раздела без сборки", async () => {
     const fixture = serverFixture()
     const running = await startExternalStorybookServer({

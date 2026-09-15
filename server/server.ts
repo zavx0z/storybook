@@ -70,6 +70,7 @@ import {
 import {STORYBOOK_SERVER_IDLE_TIMEOUT_SECONDS, STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS} from "./timing.ts"
 
 const STORYBOOK_CONTROL_BODY_MAX_BYTES = 65_536
+const STORYBOOK_MCP_JOURNAL_BODY_MAX_BYTES = 8 * 1024 * 1024
 const STORYBOOK_WEBSOCKET_MESSAGE_MAX_BYTES = 8_192
 const STORYBOOK_BROWSER_SESSION_TTL_MS = 120_000
 const STORYBOOK_BROWSER_SESSION_MAX_ENTRIES = 1_024
@@ -661,6 +662,7 @@ export async function startExternalStorybookServer(
 
 
   const mcpRequests = createMcpRequestJournal()
+  let journalWriteError: {at: string, message: string} | null = null
   let server!: Bun.Server<StorybookWebSocketData>
   try {
     options.onStartupPhase?.("listen")
@@ -719,7 +721,12 @@ export async function startExternalStorybookServer(
           })
         }
         if (url.pathname === "/api/control/mcp-requests" && request.method === "POST") {
-          mcpRequests.write(await requestObject(request))
+          try {
+            mcpRequests.write(await requestObject(request, STORYBOOK_MCP_JOURNAL_BODY_MAX_BYTES))
+          } catch (error) {
+            journalWriteError = {at: new Date().toISOString(), message: errorText(error)}
+            throw error
+          }
           return responseJson({status: "success"})
         }
         if (url.pathname.startsWith("/api/browser/mcp-captures/") && request.method === "GET") {
@@ -736,7 +743,7 @@ export async function startExternalStorybookServer(
         }
         if (url.pathname === "/api/control/storybook") {
           // Успешный обзор имеет предметную форму без lifecycle status; ошибки сохраняют явный статус.
-          return await storybookRest(request, toolRoot, readScenarios)
+          return await storybookRest(request, toolRoot, readScenarios, () => ({entries: mcpRequests.summary(), lastWriteError: journalWriteError}))
         }
         if (url.pathname === "/api/control/status" && request.method === "GET") {
           const snapshot = registry.snapshot()
@@ -755,6 +762,7 @@ export async function startExternalStorybookServer(
             packages: packageStates,
             dependencyWatch: watch.snapshot(),
             sharedBuildError,
+            requestJournal: {entries: mcpRequests.summary(), lastWriteError: journalWriteError},
             buildScheduler: sessions.buildSchedulerSnapshot({sampleResources: true}),
             discovery: {...registry.metrics(), dirty: dirty.dirty, dirtyPaths: dirty.paths.length, dirtyOwners: dirty.scopeRoots.length},
             preflight: {
@@ -2075,13 +2083,13 @@ function contentType(path: string): string {
   return "application/octet-stream"
 }
 
-async function requestObject(request: Request): Promise<Record<string, unknown>> {
+async function requestObject(request: Request, maxBytes = STORYBOOK_CONTROL_BODY_MAX_BYTES): Promise<Record<string, unknown>> {
   const contentLength = request.headers.get("content-length")
   if (contentLength !== null && (!/^(?:0|[1-9][0-9]*)$/u.test(contentLength) ||
-    Number(contentLength) > STORYBOOK_CONTROL_BODY_MAX_BYTES)) {
+    Number(contentLength) > maxBytes)) {
     throw new StorybookRequestError(413, "Storybook request body is too large")
   }
-  const source = await boundedRequestText(request, STORYBOOK_CONTROL_BODY_MAX_BYTES)
+  const source = await boundedRequestText(request, maxBytes)
   let value: unknown
   try {
     value = JSON.parse(source)

@@ -3,6 +3,11 @@ import {traceMcpRequest} from "./server/src/request-log"
 import {createMcpRequestJournal} from "@mcp/rest/requests"
 
 describe("Журнал MCP", () => {
+  test("сводка показывает доставленный объём UTF-8 без содержимого ответа", () => {
+    const journal = createMcpRequestJournal()
+    journal.write({id: "summary", tool: "storybook", startedAt: 1, durationMs: 2, status: "success", input: "{}", result: "я".repeat(100000)})
+    expect(journal.summary()).toEqual([{id: "summary", tool: "storybook", startedAt: 1, durationMs: 2, status: "success", inputBytes: 2, resultBytes: 200000}])
+  })
   test("сохраняет полный запрос и ответ длиннее прежнего ограничения", async () => {
     const journal = createMcpRequestJournal()
     const input = {node: "validator", text: "я".repeat(17000)}

@@ -19,6 +19,7 @@ export async function storybookRest(
   request: Request,
   root: string,
   readScenarios?: (input: ReadScenariosInput) => Promise<ReadScenariosOutput>,
+  readJournal?: () => unknown,
 ): Promise<Response> {
   if (request.method !== "GET" && request.method !== "POST") {
     return Response.json({status: "failed", error: "Поддерживаются GET и POST"}, {status: 405, headers: {Allow: "GET, POST"}})
@@ -40,6 +41,11 @@ export async function storybookRest(
     return Response.json({status: "failed", error: "Ожидается объект запроса"}, {status: 400})
   }
   const query = input as Record<string, unknown>
+  if (query.action === "journal" && (query.node === undefined || query.node === "root")
+    && Object.keys(query).every(key => key === "action" || key === "node")) {
+    if (!readJournal) return Response.json({status: "unavailable", error: "Диагностика журнала не подключена"}, {status: 503})
+    return Response.json({node: "root", description: "Состояние доставки записей журнала MCP без содержимого ответов", children: [], requestJournal: readJournal()})
+  }
   if (Object.keys(query).some(key => !["node", "action", "input"].includes(key)) ||
     (query.node !== undefined && typeof query.node !== "string") || (query.action !== undefined && query.action !== "data")) {
     return Response.json({status: "failed", error: "Ожидаются node, необязательный action=data и выбор темы в input"}, {status: 400})

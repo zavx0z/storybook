@@ -1,0 +1,28 @@
+// Прежний интеграционный тест окна, сохранённый для будущей адаптации в app.
+import {expect, test} from "bun:test"
+import type {CompiledTemplate} from "@zavx0z/template/compiled"
+import type {McpWindowProps} from "../index"
+import {command, createWindowHost} from "../spec/fixture"
+
+const {McpWindow} = await import("../index.tsx")
+
+test("документ читается как Markdown, а полный JSON доступен без изменения данных", async () => {
+  const host = createWindowHost()
+  const documentation = "# Сценарии\n\n## Пункт\n\nОдно самостоятельное свойство в одном тесте.\n\n```ts\nexpect(result.count).toBe(2)\n```\n"
+  const payload = {documentation, contents: [{variant: "Сценарий функции", sections: [["Пункт"]]}], verification: {passed: 1, unchecked: 0}}
+  const entry = command("document", "success", JSON.stringify(payload, null, 2))
+  try {
+    host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, {open: true, onClose() {}, load: async () => [entry]})
+    await host.settle()
+    expect(host.container.querySelector("[data-markdown]")?.textContent).toContain("Одно самостоятельное свойство в одном тесте.")
+    expect(host.container.querySelector("[data-markdown] h1")?.textContent).toBe("Сценарии")
+    await host.click("Показать JSON ответа")
+    expect(host.container.querySelector("[data-markdown]")).toBeNull()
+    expect(host.container.querySelectorAll("code")[1]?.textContent).toBe(entry.result)
+    await host.click("Читать документ")
+    expect(host.container.querySelector("[data-markdown]")?.textContent).toContain("expect(result.count).toBe(2)")
+    expect(JSON.parse(entry.result)).toEqual(payload)
+  } finally {
+    host.dispose()
+  }
+}, 15000)

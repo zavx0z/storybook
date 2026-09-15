@@ -1,9 +1,11 @@
 import {memo, useEffect, useLayoutEffect, useRef, useState} from "@zavx0z/component"
 import {CodeEditor} from "@zavx0z/ui/views/code-editor"
+import {Button} from "@zavx0z/ui/buttons/button"
 import type {McpRequestRecord} from "@mcp/rest/requests"
+import {selectRequest} from "./selected-request"
 
 /** Форматирует также старые компактные записи; высота зависит от числа строк. */
-function JsonField(props: Readonly<{title: string, value: string}>) {
+function JsonFieldView(props: Readonly<{title: string, value: string}>) {
   let value = props.value
   try { value = JSON.stringify(JSON.parse(value), null, 2) } catch {}
   const height = Math.max(1, value.split("\n").length) * 16 + 30
@@ -34,6 +36,8 @@ function JsonField(props: Readonly<{title: string, value: string}>) {
     />
   </section>
 }
+
+const JsonField = memo(JsonFieldView)
 
 /** Загружает небольшое превью сохранённого снимка отдельно от JSON журнала. */
 function CapturePreview(props: Readonly<{captureId: string}>) {
@@ -109,31 +113,83 @@ function RequestRow(props: Readonly<{entry: McpRequestRecord}>) {
   </article>
 }
 
-/** Содержимое журнала передаётся в Window как единый компонент. */
+/** Отрисовывает полный ответ только выбранной команды, сохраняя доступ к истории. */
 function RequestListView(props: Readonly<{entries: readonly McpRequestRecord[], error: string}>) {
   const list = useRef<HTMLDivElement | null>(null)
-  const newestId = props.entries[0]?.id
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const {entry, index, olderId, newerId} = selectRequest(props.entries, selectedId)
+  const selectedEntries = entry === null ? [] : [entry]
+  const position = entry === null ? "" : `Команда ${index + 1} из ${props.entries.length}`
   useLayoutEffect(() => {
     if (list.current) list.current.scrollTop = 0
-  }, [newestId])
+  }, [entry?.id])
   return <div
-    ref={list}
     style={css`
       box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
       width: 100%;
       max-width: 100%;
       min-width: 0;
       height: 100%;
-      overflow-y: auto;
-      overflow-x: hidden;
+      min-height: 0;
     `}
   >
     <div hidden={props.error === ""}>{props.error}</div>
     <div hidden={props.entries.length !== 0}>Запросов пока нет.</div>
-    {props.entries.map(entry => <RequestRow
-      key={entry.id}
-      entry={entry}
-    />)}
+    <div
+      role="toolbar"
+      aria-label="Команды журнала MCP"
+      hidden={entry === null}
+      style={css`
+        display: flex;
+        flex-wrap: wrap;
+        flex-shrink: 0;
+        align-items: center;
+        gap: 6px;
+        padding: 6px;
+
+        &[hidden] {
+          display: none;
+        }
+      `}
+    >
+      <Button
+        label="Предыдущая команда"
+        size="small"
+        disabled={olderId === null}
+        onClick={() => setSelectedId(olderId)}
+      />
+      <span>{position}</span>
+      <Button
+        label="Следующая команда"
+        size="small"
+        disabled={newerId === null}
+        onClick={() => setSelectedId(newerId)}
+      />
+      <Button
+        label="Следить за последней"
+        size="small"
+        disabled={selectedId === null}
+        onClick={() => setSelectedId(null)}
+      />
+    </div>
+    <div
+      ref={list}
+      style={css`
+        flex: 1;
+        min-height: 0;
+        width: 100%;
+        min-width: 0;
+        overflow-y: auto;
+        overflow-x: hidden;
+      `}
+    >
+      {selectedEntries.map(entry => <RequestRow
+        key={entry.id}
+        entry={entry}
+      />)}
+    </div>
   </div>
 }
 

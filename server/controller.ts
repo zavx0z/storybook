@@ -565,6 +565,7 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
       declarationErrors: value.declarationErrors ?? [],
       dependencyWatch: value.dependencyWatch ?? null,
       sharedBuildError: value.sharedBuildError ?? null,
+      requestJournal: value.requestJournal ?? null,
       buildScheduler: value.buildScheduler ?? null,
       discovery: value.discovery ?? null,
       preflight: value.preflight ?? {

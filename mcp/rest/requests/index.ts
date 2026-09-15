@@ -33,5 +33,12 @@ export function createMcpRequestJournal() {
     read(): readonly McpRequestRecord[] {
       return [...records.values()].sort((a, b) => b.startedAt - a.startedAt).map(entry => ({...entry}))
     },
+    /** Диагностика доставки без повторной передачи больших входов и ответов. */
+    summary() {
+      return [...records.values()].sort((a, b) => b.startedAt - a.startedAt).map(entry => ({
+        id: entry.id, tool: entry.tool, startedAt: entry.startedAt, durationMs: entry.durationMs,
+        status: entry.status, inputBytes: Buffer.byteLength(entry.input), resultBytes: Buffer.byteLength(entry.result),
+      }))
+    },
   }
 }

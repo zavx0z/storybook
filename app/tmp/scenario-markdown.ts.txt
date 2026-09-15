@@ -1,0 +1,91 @@
+// Сохранённый прежний форматировщик. Не подключать к MCP; требует адаптации к будущему app.
+import type {ScenariosDocumentOptions} from "../contract/input"
+import type {ScenarioDocumentation, ScenariosOutput} from "../contract/output"
+
+type Category = ScenariosOutput["variants"][number]
+type Item = ScenariosOutput["items"][number]
+type Section = ScenarioDocumentation["contents"][number]["sections"][number]
+
+const heading = (value: string) => value.replace(/[\r\n]+/g, " ").replace(/[\\`*_\[\]<>#]/g, "\\$&")
+const fenced = (source: string) => {
+  const width = Math.max(3, ...[...source.matchAll(/`+/g)].map(match => match[0].length + 1))
+  const fence = "`".repeat(width)
+  return `${fence}\n${source}\n${fence}`
+}
+
+/** Описания — основной текст, факты проверки — отдельный итог; исходный каталог не изменяется. */
+export function formatDocumentation(data: ScenariosOutput, options: ScenariosDocumentOptions): ScenarioDocumentation {
+  const section = (category: Category): Section => ({
+    label: category.label,
+    children: category.categories.map(section),
+  })
+  const contents = data.variants.map(variant => ({
+    variant: variant.label,
+    sections: variant.categories.map(section),
+  }))
+  const variants = options.variant === undefined ? data.variants : data.variants.filter(variant => variant.label === options.variant)
+  if (options.variant !== undefined && variants.length !== 1) throw new Error("Вариант не найден или его имя неоднозначно")
+  if (options.section?.length && options.variant === undefined) throw new Error("Для выбора темы сначала укажите вариант")
+  const selected = variants.map(variant => {
+    let category = variant
+    for (const name of options.section ?? []) {
+      const matches = category.categories.filter(child => child.label === name)
+      if (matches.length !== 1) throw new Error("Тема не найдена или её имя неоднозначно")
+      category = matches[0]!
+    }
+    return category
+  })
+  const verification = {passed: 0, failed: 0, unchecked: 0, skipped: 0}
+  const unchecked: string[] = []
+  const skipped: string[] = []
+  const lines = [options.section?.length ? `# ${heading(options.variant!)}` : "# Сценарии"]
+  if (data.status !== "ready") {
+    lines.push(data.status === "absent" ? "У выбранного владельца нет сценария." : "Результат сценария ещё не подготовлен.")
+  } else {
+    if (!options.section?.length) {
+      lines.push("## Оглавление")
+      const sectionLines = (sections: readonly Section[], depth: number): string[] => sections.flatMap(section => [
+        `${"  ".repeat(depth)}- ${heading(section.label)}`,
+        ...sectionLines(section.children, depth + 1),
+      ])
+      for (const entry of contents.filter(entry => options.variant === undefined || entry.variant === options.variant)) {
+        lines.push([`- **${heading(entry.variant)}**`, ...sectionLines(entry.sections, 1)].join("\n"))
+      }
+    }
+    const renderItem = (item: Item, depth: number, path: readonly string[]) => {
+      lines.push(`${"#".repeat(Math.min(6, depth))} ${heading(item.label)}`)
+      const descriptions = [...item.assertions.map(assertion => assertion.customFailMessage), ...item.unexecuted.map(assertion => assertion.customFailMessage)]
+        .filter((message): message is string => message !== null && message.trim() !== "")
+      if (!descriptions.length) lines.push("Авторское описание этого пункта не получено; его данные остаются в полном отчёте.")
+      for (const description of new Set(descriptions)) lines.push(description)
+      // Текстовые примеры уже являются результатом теста; числовые показатели и нарушения остаются в режиме данных.
+      for (const example of new Set(item.assertions.flatMap(assertion => typeof assertion.actual === "string" && assertion.actual.trim() ? [assertion.actual] : []))) {
+        lines.push(fenced(example))
+      }
+      const fullLabel = [...path, item.label].join(" → ")
+      if (item.status === "passed") verification.passed++
+      else if (item.status === "failed" || item.status === "error") {
+        verification.failed++
+        lines.push("**Проверка примера не прошла.**", fenced(item.message ?? "Причина не предоставлена runner."))
+      } else if (item.status === "skipped") {
+        verification.skipped++
+        skipped.push(`${fullLabel}${item.skipReason ? ` — ${item.skipReason}` : ""}`)
+      } else {
+        verification.unchecked++
+        unchecked.push(fullLabel)
+      }
+    }
+    const renderCategory = (category: Category, depth: number, parent: readonly string[]) => {
+      lines.push(`${"#".repeat(Math.min(6, depth))} ${heading(category.label)}`)
+      const path = [...parent, category.label]
+      for (const item of category.items) renderItem(item, depth + 1, path)
+      for (const child of category.categories) renderCategory(child, depth + 1, path)
+    }
+    for (const category of selected) renderCategory(category, 2, [])
+    if (options.variant === undefined) for (const item of data.items) renderItem(item, 2, [])
+    lines.push("## Состояние проверок", `Выполнено успешно: ${verification.passed}. Ошибок: ${verification.failed}. Без реализованной проверки: ${verification.unchecked}. Пропущено: ${verification.skipped}.`, "Прохождение отдельных проверок не доказывает полноту сценария и не заменяет смысловую оценку описания.")
+    if (unchecked.length) lines.push("Отметка todo означает отсутствие реализованной проверки, а не необязательность описанного правила. Наличие текста не доказывает его выполнение.", ...unchecked.map(label => `- ${heading(label)}`))
+    if (skipped.length) lines.push("### Неприменимые проверки", ...skipped.map(label => `- ${heading(label)}`))
+  }
+  return {documentation: lines.join("\n\n") + "\n", revision: data.revision, contents, verification}
+}

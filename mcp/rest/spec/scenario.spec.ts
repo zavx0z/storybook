@@ -7,6 +7,13 @@ const root = fileURLToPath(new URL("../../../", import.meta.url))
 const archetypesDescription = "Помогает решить, где разместить сущность, когда выделить пакет или категорию и как оформить ответственность, зависимости, контракты и проверки"
 const validatorDescription = "Проверяет выбранный пакет, категорию или сущность существующей спецификацией и возвращает структурированный отчёт Bun"
 
+test("диагностика журнала не запускает сценарий и не передаёт содержимое записей", async () => {
+  const summary = {entries: [{id: "one", status: "success", resultBytes: 150000}], lastWriteError: null}
+  const response = await storybookRest(new Request("http://localhost", {method: "POST", body: '{"action":"journal"}'}), root,
+    async () => { throw new Error("Сценарий не запускается для диагностики") }, () => summary)
+  expect(await response.json()).toEqual({node: "root", description: "Состояние доставки записей журнала MCP без содержимого ответов", children: [], requestJournal: summary})
+})
+
 describe.each([
   {name: "GET без параметров", method: "GET", body: undefined},
   {name: "POST без параметров", method: "POST", body: "{}"},
