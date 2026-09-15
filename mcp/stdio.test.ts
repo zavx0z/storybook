@@ -4,9 +4,10 @@ import {Client, InMemoryTransport} from "@modelcontextprotocol/client"
 import {getDefaultEnvironment, StdioClientTransport} from "@modelcontextprotocol/client/stdio"
 import type {McpServer} from "@modelcontextprotocol/server"
 import type {ExternalStorybookController} from "../server/controller-contract.ts"
-import {STORYBOOK_TOOL_NAMES} from "./schemas.ts"
-import {createStorybookMcpServer} from "./server.ts"
+import {STORYBOOK_TOOL_NAMES} from "./server/src/schemas"
+import {createStorybookMcpServer} from "./server"
 import {storybookRest} from "./rest"
+import {readScenarios} from "@mcp/rest/scenarios"
 
 const MCP_ENTRY = fileURLToPath(new URL("./stdio.ts", import.meta.url))
 const transports: Array<{close(): Promise<void>}> = []
@@ -18,6 +19,32 @@ afterEach(async () => {
 })
 
 describe("Storybook MCP stdio", () => {
+  test("storybook передаёт данные сценарного теста через протокол MCP", async () => {
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
+    const server = createStorybookMcpServer({
+      recordRequest: async () => {},
+      request: async input => {
+        const response = await storybookRest(new Request("http://localhost", {method: "POST", body: JSON.stringify(input)}), fileURLToPath(new URL("../", import.meta.url)), readScenarios)
+        return await response.json()
+      },
+    })
+    servers.push(server)
+    const client = createClient()
+    await Promise.all([server.connect(serverTransport), client.connect(clientTransport)])
+    try {
+      const result = await client.callTool({name: "storybook", arguments: {node: "archetypes/specs/scenarios"}})
+      expect(result.isError).not.toBeTrue()
+      expect(result.structuredContent).toMatchObject({
+        node: "archetypes/specs/scenarios",
+        scenarios: {status: "ready", variants: [{label: "Сценарий функции"}, {label: "Сценарий компонента"}]},
+      })
+      expect(Object.keys(result.structuredContent!)).toEqual(["node", "description", "scenarios"])
+      expect(JSON.parse((result.content as {type: string, text: string}[])[0]!.text), "Полный JSON-ответ HTTP-сервера без отдельной текстовой проекции документа").toEqual(result.structuredContent)
+    } finally {
+      await client.close()
+    }
+  }, 30_000)
+
   test("storybook возвращает REST-обзор без загрузки контроллера", async () => {
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
     let loads = 0

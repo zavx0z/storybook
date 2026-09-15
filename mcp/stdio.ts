@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import {serveStdio} from "@modelcontextprotocol/server/stdio"
-import {createStorybookMcpServer} from "./server.ts"
+import {createStorybookMcpServer} from "./server"
 
 const handle = serveStdio(
   () => createStorybookMcpServer(),

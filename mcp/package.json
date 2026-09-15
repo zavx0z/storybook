@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {"./proxy": "./proxy/index.ts", "./server": "./server/index.ts"},
   "packageManager": "bun@1.4.0",
   "workspaces": ["rest"],
   "scripts": {
@@ -13,11 +14,11 @@
     "check": "bun run typecheck && bun run test"
   },
   "dependencies": {
-    "@archetypes/specs": "file:../archetypes/specs",
     "@modelcontextprotocol/server": "^2.0.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@mcp/rest": "workspace:*",
     "@modelcontextprotocol/client": "^2.0.0",
     "@types/bun": "^1.4.0",
     "typescript": "^7.0.2"

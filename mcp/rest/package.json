@@ -5,6 +5,7 @@
   "private": true,
   "type": "module",
   "description": "HTTP-интерфейс постепенного раскрытия Storybook",
-  "exports": {".": "./index.ts", "./requests": "./requests/index.ts"},
-  "scripts": {"test": "bun test ./spec"}
+  "exports": {".": "./index.ts", "./requests": "./requests/index.ts", "./scenarios": "./scenarios/index.ts", "./package": "./package/index.ts"},
+  "scripts": {"test": "bun test ./spec ./scenarios ./package"},
+  "dependencies": {"@archetypes/specs": "file:../../archetypes/specs"}
 }

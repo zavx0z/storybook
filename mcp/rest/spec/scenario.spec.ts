@@ -1,6 +1,7 @@
 import {describe, expect, test} from "bun:test"
 import {storybookRest} from ".."
 import {fileURLToPath} from "node:url"
+import {readScenarios} from "../scenarios"
 
 const root = fileURLToPath(new URL("../../../", import.meta.url))
 const archetypesDescription = "Помогает решить, где разместить сущность, когда выделить пакет или категорию и как оформить ответственность, зависимости, контракты и проверки"
@@ -57,4 +58,57 @@ test("неизвестный раздел сохраняет явную ошиб
   const response = await storybookRest(new Request("http://localhost/api/control/storybook", {method: "POST", body: JSON.stringify({node: "missing"})}), root)
   expect(response.status).toBe(404)
   expect(await response.json()).toEqual({status: "unavailable", error: "Раздел пока не доступен"})
+})
+
+describe("Спецификации из структуры", () => {
+  test("Вложенный пакет раскрывает свои публичные входы", async () => {
+    const response = await storybookRest(new Request("http://localhost", {method: "POST", body: JSON.stringify({node: "archetypes/specs"})}), root)
+    expect((await response.json()).children.map((child: {node: string}) => child.node), "Публичные разделы пакета Specs").toEqual([
+      "archetypes/specs/deps", "archetypes/specs/contracts", "archetypes/specs/scenarios", "archetypes/specs/fixtures",
+    ])
+  })
+
+  test("Технические директории не становятся маршрутами", async () => {
+    const response = await storybookRest(new Request("http://localhost", {method: "POST", body: JSON.stringify({node: "archetypes/specs/src"})}), root)
+    expect(response.status, "Граница публичных входов владельца").toBe(404)
+  })
+})
+
+describe("Руководство из выполненного теста", async () => {
+  const request = (body: object) => storybookRest(new Request("http://localhost", {method: "POST", body: JSON.stringify(body)}), root, readScenarios)
+  const result = await (await request({node: "archetypes/specs/scenarios"})).json()
+
+  test("Варианты", () => {
+    expect(result.scenarios.variants.map((entry: {label: string}) => entry.label), "Варианты из параметризации руководства").toEqual(["Сценарий функции", "Сценарий компонента"])
+  })
+  test("Темы и содержание", () => {
+    expect(result.scenarios.variants[0].children.map((entry: {label: string}) => entry.label), "Категории со своим содержимым").toEqual([
+      "Назначение и границы", "Пример целиком", "Варианты и темы", "Пункт и его описание",
+      "Результат и проверяемые условия", "Подготовка и жизненный цикл", "Фикстуры и внешний запуск", "Ошибки, пропуски и незавершённость",
+    ])
+    expect(result.scenarios.variants[0].children[1].items[0].assertions[0].actual).toContain("summarizeNumbers(props)")
+    expect(result.scenarios.variants[1].children[1].items[0].assertions[0].actual).toContain("<Command")
+  })
+  test("Единое дерево", () => {
+    expect(Object.keys(result), "Ответ без пустой навигации, Markdown и отдельного оглавления").toEqual(["node", "description", "scenarios"])
+    expect(Object.keys(result.scenarios), "Дерево без случайной ревизии запуска").toEqual(["status", "variants"])
+    expect(Object.keys(result.scenarios.variants[0].children[0])).toEqual(["label", "items"])
+  })
+  test("Смысловые требования", () => {
+    expect(result.scenarios.variants[0].children[0].items[0], "Незавершённая оценка остаётся при описываемом пункте").toMatchObject({
+      label: "Исполняемая документация", status: "todo", unexecuted: [{customFailMessage: expect.any(String)}],
+    })
+    expect(result.scenarios.variants[0].children[0].items[0].assertions).toBeUndefined()
+  })
+  test("Полные данные отдельно", async () => {
+    const data = await (await request({node: "archetypes/specs/scenarios", action: "data"})).json()
+    expect(data.scenarios.source, "Тот же тест-руководство остаётся источником данных").toBe(`${root}archetypes/specs/scenarios/spec/scenario.spec.ts`)
+    expect(data.scenarios.variants[0].categories[0].items[0]).toMatchObject({label: "Исполняемая документация", status: "todo", assertions: [], unexecuted: [{customFailMessage: expect.any(String)}]})
+  }, 20000)
+  test("Одна тема без потери её содержания", async () => {
+    const selected = await (await request({node: "archetypes/specs/scenarios", input: {variant: "Сценарий функции", section: ["Пункт и его описание"]}})).json()
+    expect(selected.scenarios.variants).toHaveLength(1)
+    expect(selected.scenarios.variants[0].children).toHaveLength(1)
+    expect(selected.scenarios.variants[0].children[0]).toEqual(result.scenarios.variants[0].children[3])
+  }, 20000)
 })

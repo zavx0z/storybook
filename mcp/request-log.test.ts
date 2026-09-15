@@ -1,5 +1,5 @@
 import {describe, expect, test} from "bun:test"
-import {traceMcpRequest} from "./request-log"
+import {traceMcpRequest} from "./server/src/request-log"
 import {createMcpRequestJournal} from "@mcp/rest/requests"
 
 describe("Журнал MCP", () => {

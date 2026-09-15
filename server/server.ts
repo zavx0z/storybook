@@ -1,6 +1,7 @@
 import {storybookPackagePathMatches, storybookPackageRouteFromPathname, storybookCurrentRouteKey, validStorybookViewQuery} from "@zavx0z/storybook-browser-lifecycle/contract"
 import {externalStorybookBrowsePath} from "../catalog/graph.ts"
 import {storybookRest} from "@mcp/rest"
+import {readScenarios} from "@mcp/rest/scenarios"
 import {createMcpRequestJournal} from "@mcp/rest/requests"
 import {StorybookDirectorySelection} from "./directory-selection.ts"
 import {StorybookPackageUrlMigrations} from "./package-url-migrations.ts"
@@ -735,7 +736,7 @@ export async function startExternalStorybookServer(
         }
         if (url.pathname === "/api/control/storybook") {
           // Успешный обзор имеет предметную форму без lifecycle status; ошибки сохраняют явный статус.
-          return await storybookRest(request, toolRoot)
+          return await storybookRest(request, toolRoot, readScenarios)
         }
         if (url.pathname === "/api/control/status" && request.method === "GET") {
           const snapshot = registry.snapshot()

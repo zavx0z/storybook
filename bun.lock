@@ -53,6 +53,9 @@
     "mcp/rest": {
       "name": "@mcp/rest",
       "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/specs": "file:../../archetypes/specs",
+      },
     },
     "validator": {
       "name": "@storybook/validator",
@@ -434,6 +437,8 @@
     "uuid": ["uuid@14.0.2", "", { "bin": { "uuid": "dist-node/bin/uuid" } }, "sha512-xZe/16rV4aa+HGSOCiY2YeLT1OybRLrrkL/Rqaq7p7GMVXjFh+6wN4oMYgjFmnSnhY8t6Xpdl2l9qmnHYuMHwQ=="],
 
     "xml-naming": ["xml-naming@0.3.0", "", {}, "sha512-ghig2TBE/H11aOVgmahA3MhimvkBr6JIYknH/Dhdk10nXwdbIqBJsbfMxpvFPG8bAw77gN29aQWvKpmVoPlvPQ=="],
+
+    "@mcp/rest/@archetypes/specs": ["@archetypes/specs@file:archetypes/specs", { "dependencies": { "fast-xml-parser": "^5.11.1" } }],
 
     "cytoscape-fcose/cose-base": ["cose-base@2.2.0", "", { "dependencies": { "layout-base": "^2.0.0" } }, "sha512-AzlgcsCbUMymkADOJtQm3wO9S3ltPfYOFD5033keQn9NJzIbtnZj+UdBJe7DYml/8TdbtHJW3j58SOnKhWY/5g=="],
 

@@ -4,16 +4,22 @@
 
 @packageDocumentation
 */
-import {dirname, resolve} from "node:path"
+import {resolve} from "node:path"
+import {findScenario, readChildren, readDescription, resolveArchetype} from "./src/structure"
+import type {ReadScenariosInput, ReadScenariosOutput} from "./scenarios"
 
 /**
-Возвращает корневой обзор или определения Archetypes без сборки и выполнения проверок.
+Раскрывает структуру Archetypes; у конечного раздела получает данные его сценарного теста.
 
 @param request - GET без параметров либо POST с необязательным node.
 @param root - Канонический корень Storybook, заданный подключающим сервером.
 @returns JSON-обзор; дочерние разделы содержат только node и description.
 */
-export async function storybookRest(request: Request, root: string): Promise<Response> {
+export async function storybookRest(
+  request: Request,
+  root: string,
+  readScenarios?: (input: ReadScenariosInput) => Promise<ReadScenariosOutput>,
+): Promise<Response> {
   if (request.method !== "GET" && request.method !== "POST") {
     return Response.json({status: "failed", error: "Поддерживаются GET и POST"}, {status: 405, headers: {Allow: "GET, POST"}})
   }
@@ -34,29 +40,43 @@ export async function storybookRest(request: Request, root: string): Promise<Res
     return Response.json({status: "failed", error: "Ожидается объект запроса"}, {status: 400})
   }
   const query = input as Record<string, unknown>
-  if (Object.keys(query).some(key => key !== "node") ||
-    (query.node !== undefined && typeof query.node !== "string")) {
-    return Response.json({status: "failed", error: "Допускается только строковый параметр node"}, {status: 400})
+  if (Object.keys(query).some(key => !["node", "action", "input"].includes(key)) ||
+    (query.node !== undefined && typeof query.node !== "string") || (query.action !== undefined && query.action !== "data")) {
+    return Response.json({status: "failed", error: "Ожидаются node, необязательный action=data и выбор темы в input"}, {status: 400})
+  }
+  const selection = query.input ?? {}
+  if (!selection || typeof selection !== "object" || Array.isArray(selection) || Object.keys(selection).some(key => !["variant", "section"].includes(key))) return Response.json({status: "failed", error: "Некорректный выбор темы"}, {status: 400})
+  const {variant, section} = selection as Record<string, unknown>
+  const label = (value: unknown): value is string => typeof value === "string" && value.length > 0 && value.length <= 512
+  if ((variant !== undefined && !label(variant)) || (section !== undefined && (!Array.isArray(section) || section.length > 8 || !section.every(label))) || (query.action === "data" && query.input !== undefined)) {
+    return Response.json({status: "failed", error: "Для дерева доступны variant и section; режим data возвращает все данные"}, {status: 400})
+  }
+  const options: Pick<ReadScenariosInput, "format" | "selection"> = query.action === "data" ? {format: "data"} : {
+    format: "tree", selection: {...(variant === undefined ? {} : {variant: variant as string}), ...(section === undefined ? {} : {section: section as string[]})},
   }
   const node = query.node ?? "root"
-  if (node === "archetypes") {
-    const manifest = await Bun.file(resolve(root, "archetypes/package.json")).json() as {
-      description: string
-      exports: Record<string, string>
+  if (node === "archetypes" || node.startsWith("archetypes/")) {
+    try {
+      const directory = await resolveArchetype(root, node)
+      if (!directory) return Response.json({status: "unavailable", error: "Раздел пока не доступен"}, {status: 404})
+      const children = await Promise.all((await readChildren(directory)).map(async child => ({
+        node: `${node}/${child.name}`,
+        description: await readDescription(child.path),
+      })))
+      const description = node === "archetypes"
+        ? (await Bun.file(resolve(directory, "package.json")).json()).description
+        : await readDescription(directory)
+      const source = children.length === 0 ? await findScenario(directory) : null
+      if (!source && query.input !== undefined) return Response.json({status: "failed", error: "Выбор темы доступен у раздела со сценарием"}, {status: 400})
+      if (source && !readScenarios) return Response.json({status: "unavailable", error: "Чтение сценариев не подключено"}, {status: 503})
+      const result = source ? await readScenarios!({path: directory, source, ...options}) : null
+      return Response.json({
+        node, description, ...(children.length ? {children} : {}),
+        ...result,
+      })
+    } catch (error) {
+      return Response.json({status: "failed", error: error instanceof Error ? error.message : String(error)}, {status: 500})
     }
-    const children = await Promise.all(Object.entries(manifest.exports)
-      .filter(([name]) => name.startsWith("./"))
-      .map(async ([name, entry]) => {
-        const readme = Bun.file(resolve(root, "archetypes", dirname(entry), "README.md"))
-        let source = await readme.exists() ? await readme.text() : ""
-        const note = source.match(/^- \[[^\]]+\]\(\.\/notes\/([a-z0-9-]+\.md)\)$/m)
-        if (note?.[1]) {
-          source = await Bun.file(resolve(root, "archetypes", dirname(entry), "notes", note[1])).text()
-        }
-        const description = readDefinitionDescription(source, name)
-        return {node: `archetypes/${name.slice(2)}`, description}
-      }))
-    return Response.json({node, description: manifest.description, children})
   }
   if (node !== "root") {
     return Response.json({status: "unavailable", error: "Раздел пока не доступен"}, {status: 404})
@@ -74,13 +94,4 @@ export async function storybookRest(request: Request, root: string): Promise<Res
     description: "Выберите archetypes для решений о структуре и ответственности; validator — для проверки уже оформленной структуры существующей спецификацией.",
     children,
   })
-}
-
-function readDefinitionDescription(source: string, exportName: string): string {
-  const blocks = source.trim().split(/\r?\n\r?\n/u)
-  const description = blocks[1]?.replace(/\s+/gu, " ").trim()
-  if (!description || description.startsWith("#") || description.startsWith("```")) {
-    throw new Error(`README определения ${exportName} не содержит описания назначения`)
-  }
-  return description
 }

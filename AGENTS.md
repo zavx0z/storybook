@@ -17,6 +17,10 @@
 
 - При работе над сценариями Archetypes и их ответами MCP соблюдать
   [порядок уточнения сценариев в ходе разработки](notes/scenario-development.md).
+- Перед изменением MCP читать исполняемые контракты
+  [HTTP-прокси](mcp/proxy/spec/scenario.spec.ts) и
+  [адаптера MCP](mcp/server/spec/scenario.spec.ts);
+  границы зависимостей проверяются в [boundary.test.ts](mcp/proxy/test/boundary.test.ts).
 - Production owners are grouped in `discovery`, `catalog`, `build`, `sessions`,
   `runtime`, `workbench` and `server`. `src/shared` contains private shared
   mechanisms. Keep direct imports to the current owner; do not restore aliases
