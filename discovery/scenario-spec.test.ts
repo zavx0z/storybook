@@ -2,6 +2,9 @@ import {expect, test} from "bun:test"
 import {mkdtemp, mkdir, rm, symlink} from "node:fs/promises"
 import {join} from "node:path"
 import {discoverStorybookDirectories} from "./directories.ts"
+import {resolveExternalStorybookDeclarations} from "./declarations.ts"
+import {createExternalStorybookGraph, externalStorybookRoutes} from "../catalog/graph.ts"
+import {deriveExternalStorybookPackageTab} from "../runtime/model.ts"
 
 test.each(["component", "operation", "operation-without-src", "documentation"])("[SCENARIOS-PRESENCE] пустой файл, обе формы, удаление и исключения: %s", async kind => {
   const root = await mkdtemp(join(import.meta.dir, "../tests/.scenarios-"))
@@ -44,5 +47,35 @@ test.each(["component", "operation", "operation-without-src", "documentation"])(
     await rm(ts)
     await mkdir(tsx)
     expect((await read()).directories[0]!.scenarioSpec).toBeUndefined()
+  } finally { await rm(root, {recursive: true, force: true}) }
+})
+
+test("[ROOT-VIEWS] корневые сценарии Specs отличаются от дочерней сущности scenarios", async () => {
+  const root = await mkdtemp(join(import.meta.dir, "../tests/.root-views-"))
+  try {
+    await Bun.write(join(root, "package.json"), JSON.stringify({name: "@fixture/specs", label: "Specs", exports: {"./scenarios": "./scenarios/index.ts"}}))
+    await mkdir(join(root, "spec"), {recursive: true})
+    await mkdir(join(root, "scenarios/spec"), {recursive: true})
+    await Bun.write(join(root, "scenarios/index.ts"), "export const scenarios = true")
+    const parentSpec = join(root, "spec/scenario.spec.tsx")
+    const childSpec = join(root, "scenarios/spec/scenario.spec.ts")
+    await Bun.write(parentSpec, 'throw new Error("Корневой сценарий нельзя выполнять при discovery")')
+    await Bun.write(childSpec, 'throw new Error("Дочерний сценарий нельзя выполнять при discovery")')
+    const discovery = await discoverStorybookDirectories(root, new Set())
+    expect(discovery.rootMetadata.scenarioSpec?.sourcePaths).toEqual([parentSpec])
+    expect(discovery.directories.some(directory => directory.relativePath === "")).toBe(false)
+    expect(discovery.watchPaths).toContain(parentSpec)
+    const graph = createExternalStorybookGraph(await resolveExternalStorybookDeclarations([root]))
+    const routes = externalStorybookRoutes(graph)
+    expect(routes.map(route => route.urlPath)).toEqual([
+      "/specs", "/specs?view=scenarios", "/specs/scenarios", "/specs/scenarios?view=scenarios",
+    ])
+    const parentView = deriveExternalStorybookPackageTab(graph, "@fixture/specs", "scenarios")
+    const childView = deriveExternalStorybookPackageTab(graph, "@fixture/specs", "dir-scenarios")
+    expect([parentView.selectedNode.kind, parentView.urlPath, childView.selectedNode.kind, childView.urlPath]).toEqual([
+      "package", "/specs?view=scenarios", "directory", "/specs/scenarios",
+    ])
+    await rm(parentSpec)
+    expect((await discoverStorybookDirectories(root, new Set())).rootMetadata.scenarioSpec).toBeUndefined()
   } finally { await rm(root, {recursive: true, force: true}) }
 })

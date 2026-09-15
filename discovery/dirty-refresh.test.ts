@@ -107,6 +107,34 @@ test("dirty owner повторно анализирует только свой 
   })
 }, 30000)
 
+test("dirty refresh сохраняет корневые specs чистого пакета и замечает удаление своего", async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "storybook-root-dirty-")))
+  roots.push(root)
+  await Bun.write(join(root, "package.json"), JSON.stringify({name: "@fixture/root", label: "Root", workspaces: ["child"]}))
+  await Bun.write(join(root, "child/package.json"), JSON.stringify({name: "@fixture/child", label: "Child"}))
+  const ownSpec = join(root, "spec/scenario.spec.ts")
+  const childSpec = join(root, "child/spec/scenario.spec.ts")
+  await Bun.write(ownSpec, 'throw new Error("Discovery не исполняет root spec")')
+  await Bun.write(childSpec, 'throw new Error("Discovery не исполняет child spec")')
+  const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
+  const initial = await registry.attach(root)
+  const original = initial.catalog.scopes.find(scope => scope.id === "@fixture/root")!
+  if (original.kind !== "package") throw new Error("Ожидался package root")
+  expect(original.scenarioSpec?.sourcePaths).toEqual([ownSpec])
+  await Bun.write(childSpec, 'throw new Error("Изменённый child spec не исполняется")')
+  registry.markDirty(childSpec)
+  const updated = (await registry.refreshIfNeeded()).catalog.scopes.find(scope => scope.id === "@fixture/root")!
+  if (updated.kind !== "package") throw new Error("Ожидался package root")
+  expect(updated.scenarioSpec).toBe(original.scenarioSpec)
+  await rm(ownSpec)
+  registry.markDirty(ownSpec)
+  const refreshed = await registry.refreshIfNeeded()
+  const removed = refreshed.catalog.scopes.find(scope => scope.id === "@fixture/root")!
+  if (removed.kind !== "package") throw new Error("Ожидался package root")
+  expect(removed.scenarioSpec).toBeUndefined()
+  expect(refreshed.graph.nodes.find(node => node.id === removed.canonicalId)?.scenariosRoutePath).toBeUndefined()
+})
+
 function dependencySource(name: string, element: string): string {
   const component = name.toUpperCase()
   return `import {test} from "bun:test"
