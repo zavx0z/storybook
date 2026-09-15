@@ -1,16 +1,11 @@
 /**
-Сценарии размещения служебной директории спецификации.
+Сценарии чтения спецификации непосредственного владельца.
 
 `describe.each` задаёт владельца и ожидаемый путь в файловой фикстуре.
-Сценарии вызывают [findSpec](../src/find-spec.ts): у репозитория, пакета, категории и сущности
-находится только непосредственно принадлежащая им директория `spec`.
-Вложенные владельцы не обходятся; состав найденной спецификации здесь не проверяется.
-Тест напрямую запускает поиск по пути из `props` выбранного сценария
-и сравнивает фактический результат с ожидаемым;
-этот же результат предназначен для отображения человеку и представления через MCP.
-
-Одни и те же правила предназначены для проверки проектов, визуализации человеку
-и представления агенту через MCP. Контракт извлечения параметров ещё разрабатывается.
+{@link readSpec} выполняет сценарий из непосредственной директории `spec`
+выбранного владельца, без обхода вложенных владельцев. Фикстуры проверяют имена своих
+директорий; проверки результата чтения сопоставляют группу, пункт и данные expect
+с выбранным примером.
 
 `SPEC_PATH` задаёт путь владельца вместо пути фикстуры. При внешней проверке
 применимый вариант выбирается фильтром имени теста `--test-name-pattern`.
@@ -21,7 +16,7 @@
 @packageDocumentation
 */
 import {describe, expect, test} from "bun:test"
-import {dirname, resolve} from "node:path"
+import {basename, dirname, resolve} from "node:path"
 import {readSpec} from "@archetypes/specs"
 import {createFixture} from "../../shared/fixtures"
 
@@ -64,5 +59,33 @@ describe.each([
       exitCode: expect.any(Number),
       calls: expect.any(Array),
     }))
+  })
+
+  /** @remarks Состав примера относится к локальной фикстуре; внешний SPEC_PATH содержит собственные пункты и данные. */
+  test.skipIf(process.env.SPEC_PATH !== undefined)("Данные примера", () => {
+    expect(
+      result?.scenario && {
+        exitCode: result.scenario.exitCode,
+        groups: result.scenario.groups.map(group => group.label),
+        tests: result.scenario.tests.map(item => ({label: item.label, status: item.status})),
+        assertions: result.scenario.assertions.map(assertion => ({
+          actual: assertion.actual,
+          matcher: assertion.matcher,
+          expected: assertion.expected,
+          status: assertion.status,
+        })),
+      },
+      `Выполненный сценарий ${name.toLowerCase()} с пунктом проверки имени собственной директории и его фактическими данными`,
+    ).toEqual({
+      exitCode: 0,
+      groups: [name],
+      tests: [{label: "Имя директории", status: "passed"}],
+      assertions: [{
+        actual: basename(props.path),
+        matcher: "toBe",
+        expected: [basename(props.path)],
+        status: "passed",
+      }],
+    })
   })
 })
