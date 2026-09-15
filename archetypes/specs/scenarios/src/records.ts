@@ -51,7 +51,7 @@ export function addGroup(site: string, label: string, parent: GroupContext, para
   if (!declaration) throw new Error(`Нет объявления группы ${site}`)
   const id = groups.length
   const selectedMode = mode(site, parent)
-  const skipReason = declaration.skipReason ?? parent.skipReason
+  const skipReason = selectedMode !== "skip" ? null : parent.mode === "skip" ? parent.skipReason : declaration.skipReason
   groups.push({value: {id, parentId: parent.groupId, label, location: declaration.location, mode: selectedMode, skipReason}, parameters: serialize(parameters)})
   return {describe: [...parent.describe, label], test: null, groupId: id, testId: null, mode: selectedMode, skipReason}
 }
@@ -67,7 +67,7 @@ export function addTest(declaration: Declaration, label: string, parent: GroupCo
     mode: selectedMode,
     status: selectedMode === "skip" ? "skipped" : selectedMode === "todo" ? "todo" : "not-executed",
     message: null,
-    skipReason: declaration.skipReason ?? parent.skipReason,
+    skipReason: selectedMode !== "skip" ? null : parent.mode === "skip" ? parent.skipReason : declaration.skipReason,
     assertions: declaration.assertions,
   }
   tests.push(value)

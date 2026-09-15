@@ -80,6 +80,7 @@ export function inspectSnapshot(root: unknown) {
           (markerType === "promise" && (key === "value" || key === "error"))
           || (markerType === "unreadable" && key === "error")
           || (markerType === "matcher" && key === "args")
+          || (markerType === "regexp" && (key === "lastIndex" || key === "properties"))
         )),
       })
     }
@@ -109,7 +110,7 @@ export function inspectSnapshot(root: unknown) {
     const targetPath = Array.isArray(path) ? JSON.stringify(path) : ""
     const targetMarker = markers.find(item => item.label === targetPath)
     const objectMarker = targetMarker === undefined
-      || ["object", "promise", "error", "date", "unreadable", "matcher"].includes(targetMarker.type)
+      || ["object", "promise", "error", "date", "regexp", "unreadable", "matcher"].includes(targetMarker.type)
     const targetIsObject = resolved && dataLocations.has(targetPath) && nodes.has(targetPath) && target !== null
       && typeof target === "object" && objectMarker
     return {...marker, resolved, targetIsObject}

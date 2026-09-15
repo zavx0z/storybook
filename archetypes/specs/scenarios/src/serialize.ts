@@ -1,5 +1,5 @@
 /**
-Переносит значения в JSON-совместимый снимок без выполнения getters.
+Переносит значения в JSON-совместимый снимок; enumerable properties читает без выполнения getters.
 Повторные ссылки и циклы сохраняются ссылками на первую запись объекта.
 Каждый вызов serialize создаёт независимый снимок.
 
@@ -12,7 +12,7 @@ import {matcherMetadata} from "./matcher-metadata"
 type ValuePath = readonly (string | number)[]
 
 /**
-Читает собственные enumerable properties; native hidden state не раскрывается.
+Читает собственные enumerable properties и явно поддержанные специальные значения.
 
 @param value - Значение на момент создания снимка.
 @returns Переносимые данные с однозначными ссылками внутри этого снимка.
@@ -37,12 +37,30 @@ async function capture(
   if (typeof value === "bigint") return {$type: "bigint", value: String(value)}
   if (typeof value === "symbol") return {$type: "symbol", value: value.description ?? ""}
   if (typeof value === "function") return {$type: "function", name: value.name}
-  if (value === null || typeof value === "boolean" || typeof value === "number" || typeof value === "string") return value
+  if (typeof value === "number") return Number.isFinite(value) && !Object.is(value, -0)
+    ? value : {$type: "number", value: Object.is(value, -0) ? "-0" : String(value)}
+  if (value === null || typeof value === "boolean" || typeof value === "string") return value
   if (typeof value !== "object") return {$type: "unsupported", value: String(value)}
   const knownPath = seen.get(value)
   if (knownPath !== undefined) return {$type: "reference", path: [...knownPath]}
   seen.set(value, path)
   const nextAncestors = new Map(ancestors).set(value, path)
+  if (value instanceof RegExp) {
+    // Native getters читают внутреннее состояние, не вызывая переопределённые свойства объекта.
+    const source = Object.getOwnPropertyDescriptor(RegExp.prototype, "source")!.get!.call(value) as string
+    const flags = [
+      ["hasIndices", "d"], ["global", "g"], ["ignoreCase", "i"], ["multiline", "m"],
+      ["dotAll", "s"], ["unicode", "u"], ["unicodeSets", "v"], ["sticky", "y"],
+    ].filter(([key]) => Object.getOwnPropertyDescriptor(RegExp.prototype, key!)?.get?.call(value))
+      .map(([, flag]) => flag).join("")
+    const lastIndex = capture(Object.getOwnPropertyDescriptor(value, "lastIndex")?.value, seen, [...path, "lastIndex"], nextAncestors)
+    const properties = Object.keys(value).length ? captureProperties(value, seen, [...path, "properties"], nextAncestors) : undefined
+    return {
+      $type: "regexp", source, flags,
+      lastIndex: await lastIndex,
+      ...(properties === undefined ? {} : {properties: await properties}),
+    }
+  }
   const matcher = matcherMetadata(value)
   if (matcher) return {
     $type: "matcher", name: matcher.name, modifiers: [...matcher.modifiers],
@@ -72,6 +90,16 @@ async function capture(
   if (Array.isArray(value)) {
     return Promise.all(value.map((item, index) => capture(item, seen, [...path, index], nextAncestors)))
   }
+  return captureProperties(value, seen, path, nextAncestors)
+}
+
+/** Сохраняет собственные поля обычного объекта или дополнительные поля специального значения. */
+async function captureProperties(
+  value: object,
+  seen: Map<object, ValuePath>,
+  path: ValuePath,
+  ancestors: ReadonlyMap<object, ValuePath>,
+): Promise<TraceValue> {
   const keys = Object.keys(value)
   const escaped = keys.includes("$type")
   const propertiesPath = escaped ? [...path, "value"] : path
@@ -84,11 +112,11 @@ async function capture(
         get: descriptor.get?.name ?? null,
         set: descriptor.set?.name ?? null,
       }] as const
-      return [key, await capture(descriptor?.value, seen, propertyPath, nextAncestors)] as const
+      return [key, await capture(descriptor?.value, seen, propertyPath, ancestors)] as const
     } catch (error) {
       return [key, {
         $type: "unreadable",
-        error: await capture(error, seen, [...propertyPath, "error"], nextAncestors),
+        error: await capture(error, seen, [...propertyPath, "error"], ancestors),
       }] as const
     }
   }))

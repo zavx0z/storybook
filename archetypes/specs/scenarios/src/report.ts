@@ -33,7 +33,7 @@ export function applyReport(xml: string, groups: readonly ScenarioGroup[], tests
     const failure = ((item.failure ?? item.error ?? []) as Record<string, unknown>[])[0]
     const status: ScenarioTest["status"] = item.error !== undefined ? "error" : item.failure !== undefined ? "failed"
       : item.skipped !== undefined ? test.mode === "todo" ? "todo" : "skipped" : "passed"
-    return {...test, status, message: failure ? String(failure["#text"] ?? failure.message ?? "") : null}
+    return {...test, status, skipReason: status === "skipped" ? test.skipReason : null, message: failure ? String(failure["#text"] ?? failure.message ?? "") : null}
   })
   if (remaining.length) throw new Error(`Инспектор не зарегистрировал ${remaining.length} тестов из JUnit`)
   return result

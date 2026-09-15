@@ -7,6 +7,8 @@
 Объект источника с собственным $type представлен {$type: "object", value: {...}};
 это отличает пользовательские данные от служебных меток.
 Полное описание формата находится в notes/value-format.md.
+NaN, бесконечности и -0 представлены меткой number со строковым value.
+RegExp сохраняет source, flags, lastIndex и дополнительные properties при наличии.
 */
 type TraceValue =
   | null

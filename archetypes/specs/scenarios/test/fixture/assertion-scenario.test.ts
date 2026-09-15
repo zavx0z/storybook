@@ -9,6 +9,12 @@ describe.each([{name: "Первый", value: 1}, {name: "Второй", value: 2
   test("Асимметричные условия", () => {
     expect({number: value, text: "value"}, "Состав и типы результата").toEqual({number: expect.any(Number), text: expect.any(String)})
   })
+  test("Шаблон", () => {
+    expect("VALUE", "Условие сопоставления строки").toMatch(/(?<word>value)/iu)
+  })
+  test.each([{name: "NaN", value: NaN}, {name: "-0", value: -0}])("$name", ({value}) => {
+    expect(value, "Точное специальное числовое значение").toBe(value)
+  })
   describe("Число", () => {
     test("Повторное утверждение", () => {
       const assertion = expect(value, "Положительное значение варианта")
@@ -25,12 +31,24 @@ describe.each([{name: "Первый", value: 1}, {name: "Второй", value: 2
     test.skipIf(value > 0)("Пропуск", () => {
       expect(value, "Неприменимая проверка").toBe(0)
     })
+    /** @remarks Ноль исключается из этого примера. */
+    test.skipIf(value === 0)("Выполненный условный тест", () => {
+      expect(value, "Значение применимого примера").toBeGreaterThan(0)
+    })
     test.todo("Позже", () => {
       expect(value, "Незавершённое требование").toBe(0)
     })
     test.failing("Ожидаемое падение", () => {
       expect(value, "Отрицательный пример").toBe(0)
     })
+  })
+})
+
+/** @remarks Родительская группа неприменима. */
+describe.skip("Родительский пропуск", () => {
+  /** @remarks Собственное условие этого теста не сработало. */
+  test.skipIf(false)("Унаследованный пропуск", () => {
+    expect(true, "Тело неприменимого теста не выполняется").toBeFalse()
   })
 })
 

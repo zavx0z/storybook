@@ -21,3 +21,15 @@ describe("Структурный разбор исходника", async () => {
     expect(result.undocumentedSkips).toEqual(['"Без пояснения"'])
   })
 })
+
+describe("Точность примеров руководства", async () => {
+  const result = await inspectScenarioSource(resolve(import.meta.dir, "fixture/shape-examples.ts"))
+
+  test("toEqual с числом, массивом или spread не выдаётся за явный состав объекта", () => {
+    expect(result.checks.map(check => check.explicitObject)).toEqual([false, false, true, false, false, true])
+  })
+  test("beforeAll не выдаётся за hook завершения", () => {
+    expect(result.hooks.map(hook => hook.name)).toEqual(["beforeAll"])
+    expect(result.hooks.filter(hook => hook.name === "afterAll" || hook.name === "afterEach")).toEqual([])
+  })
+})

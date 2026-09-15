@@ -61,6 +61,7 @@ export async function instrument(path: string, source: string): Promise<string> 
       for (const item of named.elements) bindings.set(item.name.text, item.propertyName?.text ?? item.name.text)
     }
     const insertions: Insertion[] = []
+    const nativeBindings = new Set<number>()
     let siteIndex = 0
     const locationAt = (position: number) => {
       const before = source.slice(0, position)
@@ -68,6 +69,16 @@ export async function instrument(path: string, source: string): Promise<string> 
     }
     const visit = (node: Node, parentGroup: string | null): void => {
       if (isCallExpression(node)) {
+        let callee = node.expression
+        while (isCallExpression(callee) || isPropertyAccessExpression(callee)) callee = callee.expression
+        if (isIdentifier(callee) && ["describe", "test", "it", "beforeAll", "afterAll", "beforeEach", "afterEach"].includes(bindings.get(callee.text) ?? "")) {
+          const start = callee.getStart(file)
+          if (!nativeBindings.has(start)) {
+            nativeBindings.add(start)
+            insertions.push({position: start, text: 'globalThis[Symbol.for("storybook.trace")].native(', order: 1})
+            insertions.push({position: callee.end, text: ")", order: 0})
+          }
+        }
         if (isPropertyAccessExpression(node.expression)) {
           const matcher = node.expression.name.text
           let target = node.expression.expression
@@ -142,11 +153,11 @@ export async function instrument(path: string, source: string): Promise<string> 
           const method = selectedEach ? `${owner}Each` : owner
           const argumentsText = `${JSON.stringify(site)},${source.slice(name.getStart(file), name.end)}`
           insertions.push({
-            position: node.getStart(file),
-            text: `globalThis[Symbol.for("storybook.trace")].register(${declaration},()=>((`,
+            position: node.expression.getStart(file),
+            text: `globalThis[Symbol.for("storybook.trace")].register(${declaration},`,
             order: 0,
           })
-          insertions.push({position: node.end, text: ")))", order: 1})
+          insertions.push({position: node.expression.end, text: ")", order: 1})
           insertions.push({
             position: callback.body.getStart(file) + 1,
             text: `return globalThis[Symbol.for("storybook.trace")].${method}(${argumentsText},${asynchronous ? "async " : ""}(${owner === "describe" ? groupVariable : ""})=>{`,

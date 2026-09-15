@@ -13,6 +13,8 @@ export function mixedValue(): Record<string, unknown> {
     nestedUser: {$type: "object", first: shared, second: shared},
     absent: undefined,
     integer: 12345678901234567890n,
+    numbers: [NaN, Infinity, -Infinity, -0],
+    pattern: /значение/giu,
     symbol: Symbol("значение"),
     date: new Date("2026-01-01T00:00:00.000Z"),
     promise: Promise.resolve({value: "готово"}),

@@ -28,6 +28,9 @@ flowchart TD
 - [trace-preload.ts](../src/trace-preload.ts) подключает части сборщика.
 - [instrument.ts](../src/instrument.ts) добавляет контекст в callback bodies через TypeScript AST.
 - [context.ts](../src/context.ts) хранит варианты групп и асинхронный контекст тестов.
+- Нативная регистрация выполняется в исходном контексте Bun, отдельно от
+  добавленного контекста наблюдения. Аргументы вычисляются в исходной позиции;
+  пользовательские callbacks возвращаются в свой контекст выполнения.
 - [observe.ts](../src/observe.ts) записывает аргументы, исходы и порядок завершения вызовов.
 - [serialize.ts](../src/serialize.ts) переносит значения без вызова getters.
 - [call-location.ts](../src/call-location.ts) находит внешний frame вызова.

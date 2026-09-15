@@ -7,6 +7,56 @@ import {expect, test} from "bun:test"
 import {serialize} from "../src/serialize"
 import {restoreSnapshot} from "./fixture/restore-snapshot"
 
+test.each([
+  {value: NaN, encoded: "NaN"},
+  {value: Infinity, encoded: "Infinity"},
+  {value: -Infinity, encoded: "-Infinity"},
+  {value: -0, encoded: "-0"},
+])("сохраняет число $encoded после JSON-передачи", async ({value, encoded}) => {
+  const snapshot = JSON.parse(JSON.stringify(await serialize(value)))
+  expect(snapshot).toEqual({$type: "number", value: encoded})
+  expect(Object.is(Number(snapshot.value), value)).toBeTrue()
+})
+
+test("сохраняет условие RegExp, флаги, позицию и общую ссылку", async () => {
+  const pattern = /a+/gim
+  pattern.lastIndex = 3
+  const snapshot = JSON.parse(JSON.stringify(await serialize([pattern, pattern])))
+  expect(snapshot).toEqual([
+    {$type: "regexp", source: "a+", flags: "gim", lastIndex: 3},
+    {$type: "reference", path: [0]},
+  ])
+  const restored = new RegExp(snapshot[0].source, snapshot[0].flags)
+  restored.lastIndex = snapshot[0].lastIndex
+  expect(restored.exec("xxaaaa")).toEqual(pattern.exec("xxaaaa"))
+  expect(restored.lastIndex).toBe(pattern.lastIndex)
+})
+
+test("RegExp сохраняет дополнительные поля, ссылки и пользовательский $type", async () => {
+  const pattern = Object.assign(/x/, {$type: "custom", self: null as unknown, data: {value: 7}})
+  pattern.self = pattern
+  expect(await serialize(pattern)).toEqual({
+    $type: "regexp", source: "x", flags: "", lastIndex: 0,
+    properties: {$type: "object", value: {$type: "custom", self: {$type: "reference", path: []}, data: {value: 7}}},
+  })
+})
+
+test("чтение RegExp не выполняет пользовательские getters", async () => {
+  const pattern = /a+/gi
+  let reads = 0
+  for (const key of ["source", "flags", "global"]) Object.defineProperty(pattern, key, {get() { reads++; throw new Error("Пользовательский getter") }})
+  expect(await serialize(pattern)).toEqual({$type: "regexp", source: "a+", flags: "gi", lastIndex: 0})
+  expect(reads).toBe(0)
+})
+
+test("поля и позиция RegExp фиксируются до последующей мутации", async () => {
+  const pattern = Object.assign(/x/g, {custom: "до"})
+  const snapshot = serialize(pattern)
+  pattern.custom = "после"
+  pattern.lastIndex = 4
+  expect(await snapshot).toEqual({$type: "regexp", source: "x", flags: "g", lastIndex: 0, properties: {custom: "до"}})
+})
+
 test("не вызывает getter при чтении значения", async () => {
   let calls = 0
   await serialize({

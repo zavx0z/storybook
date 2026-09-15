@@ -25,6 +25,19 @@ describe("Утверждения и штатные исходы", async () => {
       text: {$type: "matcher", name: "any", modifiers: [], args: [{$type: "function", name: "String"}]},
     }])
   })
+  test("Условие RegExp доходит до общего отчёта", () => {
+    expect(result.assertions.find(item => item.test === "Шаблон")?.expected).toEqual([{
+      $type: "regexp", source: "(?<word>value)", flags: "iu", lastIndex: 0,
+    }])
+  })
+  test("Специальные числа сохраняются и в actual, и в expected", () => {
+    for (const name of ["NaN", "-0"]) {
+      const assertion = result.assertions.find(item => item.test === name)!
+      expect({actual: assertion.actual, expected: assertion.expected}).toEqual({
+        actual: {$type: "number", value: name}, expected: [{$type: "number", value: name}],
+      })
+    }
+  })
   test("Первая ошибка прекращает выполнение последующих expect", () => {
     const selected = result.tests.find(item => item.label === "Прерывание")!
     expect({status: selected.status, declared: selected.assertions.length, reached: result.assertions.filter(item => item.testId === selected.id).length})
@@ -44,6 +57,15 @@ describe("Утверждения и штатные исходы", async () => {
   test("Причина пропуска сохраняется из исходника", () => {
     expect(result.tests.find(item => item.label === "Пропуск")?.skipReason).toBe("Число этого варианта не требует специальной проверки.")
   })
+  test("Применимые тесты и группы не получают ложную причину пропуска", () => {
+    expect(result.tests.filter(item => item.label === "Выполненный условный тест").map(item => ({status: item.status, skipReason: item.skipReason}))).toEqual([
+      {status: "passed", skipReason: null}, {status: "passed", skipReason: null},
+    ])
+    expect(result.groups.find(group => group.label === "Ошибки")?.skipReason).toBeNull()
+  })
+  test("Пропущенный родитель передаёт свою причину, а не несработавшее условие ребёнка", () => {
+    expect(result.tests.find(item => item.label === "Унаследованный пропуск")).toMatchObject({status: "skipped", skipReason: "Родительская группа неприменима."})
+  })
   test("Описание todo доступно без исполнения тела", () => {
     expect(result.tests.find(item => item.label === "Позже")?.assertions[0]).toMatchObject({
       customFailMessage: "Незавершённое требование", source: 'expect(value, "Незавершённое требование")',
@@ -51,7 +73,7 @@ describe("Утверждения и штатные исходы", async () => {
   })
   test("Группы сохраняют параметры и родителей", () => {
     expect(result.groups.filter(item => item.parentId === null).map(item => [item.label, item.parameters])).toEqual([
-      ["Первый", {name: "Первый", value: 1}], ["Второй", {name: "Второй", value: 2}], ["Ошибки", null],
+      ["Первый", {name: "Первый", value: 1}], ["Второй", {name: "Второй", value: 2}], ["Родительский пропуск", null], ["Ошибки", null],
     ])
   })
   test("Штатный отчёт сохраняется целиком", () => {

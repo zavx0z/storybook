@@ -101,6 +101,17 @@ describe("Руководство из выполненного теста", asyn
     expect(Object.keys(result.scenarios), "Дерево без случайной ревизии запуска").toEqual(["status", "variants"])
     expect(Object.keys(result.scenarios.variants[0].children[0])).toEqual(["label", "items"])
   })
+  test("Условие сопоставления", () => {
+    expect(
+      result.scenarios.variants[0].children[1].items[0].assertions[0].expected,
+      "Условие из установленного пакета инспектора сохраняет шаблон и флаги RegExp, а не пустой объект",
+    ).toEqual([{$type: "regexp", source: "\\S", flags: "u", lastIndex: 0}])
+  })
+  test("Причина пропуска", () => {
+    const item = result.scenarios.variants[0].children[3].items.find((item: {label: string}) => item.label === "Связанные утверждения")
+    expect(item.status, "Применимый пункт действительно выполнен").toBe("passed")
+    expect(item.skipReason, "У выполненного пункта нет ложной причины пропуска").toBeUndefined()
+  })
   test("Смысловые требования", () => {
     expect(result.scenarios.variants[0].children[0].items[0], "Незавершённая оценка остаётся при описываемом пункте").toMatchObject({
       label: "Исполняемая документация", status: "todo", unexecuted: [{customFailMessage: expect.any(String)}],

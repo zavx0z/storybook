@@ -430,7 +430,7 @@ describe.each([
           ({type, value}) => {
             test("Вид", () => {
               expect(type, "Виды значений, которым требуется служебное представление").toBeOneOf([
-                "undefined", "bigint", "symbol", "function", "error", "date",
+                "undefined", "number", "bigint", "symbol", "function", "error", "date", "regexp",
                 "accessor", "promise", "unreadable", "unsupported", "matcher",
               ])
             })
@@ -438,11 +438,17 @@ describe.each([
             test("Ключи", () => {
               const formats: Record<string, Record<string, unknown>> = {
                 undefined: {$type: "undefined"},
+                number: {$type: "number", value: expect.any(String)},
                 bigint: {$type: "bigint", value: expect.any(String)},
                 symbol: {$type: "symbol", value: expect.any(String)},
                 function: {$type: "function", name: expect.any(String)},
                 error: {$type: "error", name: expect.any(String), message: expect.any(String)},
                 date: {$type: "date", value: expect.any(String)},
+                regexp: {
+                  $type: "regexp", source: expect.any(String), flags: expect.any(String),
+                  lastIndex: value.lastIndex === null ? null : expect.anything(),
+                  ...(value.properties === undefined ? {} : {properties: expect.any(Object)}),
+                },
                 accessor: {
                   $type: "accessor",
                   get: value.get === null ? null : expect.any(String),
@@ -457,6 +463,17 @@ describe.each([
               }
 
               expect(value, "Полный состав служебной записи выбранного вида").toEqual(formats[type]!)
+            })
+
+            /** @remarks Специальная числовая запись присутствует только у number. */
+            test.skipIf(type !== "number")("Специальное число", () => {
+              expect(value.value, "Числа, которые обычный JSON не различает").toBeOneOf(["NaN", "Infinity", "-Infinity", "-0"])
+            })
+
+            /** @remarks Шаблон и флаги присутствуют только у regexp. */
+            test.skipIf(type !== "regexp")("Регулярное выражение", () => {
+              const restored = new RegExp(value.source as string, value.flags as string)
+              expect({source: restored.source, flags: restored.flags}, "Восстанавливаемое условие с точными флагами").toEqual({source: value.source as string, flags: value.flags as string})
             })
 
             /**

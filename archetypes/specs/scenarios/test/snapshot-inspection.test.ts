@@ -63,6 +63,17 @@ test("ссылка не переходит в соседний снимок", ()
   expect(inspectSnapshot({ref: {$type: "reference", path: ["target"]}}).references[0]?.resolved).toBeFalse()
 })
 
+test("RegExp является объектом, а специальное число — нет", () => {
+  const result = inspectSnapshot({
+    pattern: {$type: "regexp", source: "x", flags: "g", lastIndex: 0},
+    repeated: {$type: "reference", path: ["pattern"]},
+    number: {$type: "number", value: "NaN"},
+    invalid: {$type: "reference", path: ["number"]},
+  })
+  expect(result.references.map(item => item.targetIsObject)).toEqual([true, false])
+  expect(result.invalidValues).toEqual([])
+})
+
 test("пустые коллекции, null и примитивы остаются допустимыми данными", () => {
   expect(inspectSnapshot([{}, [], null, false, 0, ""]).invalidValues).toEqual([])
 })

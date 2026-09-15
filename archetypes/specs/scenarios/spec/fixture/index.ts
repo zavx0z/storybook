@@ -3,7 +3,7 @@ import type {Node} from "typescript/unstable/ast"
 import {
   isArrowFunction, isCallExpression, isFunctionExpression, isFunctionDeclaration, isIdentifier, isImportDeclaration,
   isNamedImports, isPropertyAccessExpression, isStringLiteral, isNoSubstitutionTemplateLiteral,
-  isTemplateExpression, isBlock, isExpressionStatement,
+  isTemplateExpression, isBlock, isExpressionStatement, isObjectLiteralExpression, isPropertyAssignment, isShorthandPropertyAssignment, isComputedPropertyName, isNumericLiteral,
 } from "typescript/unstable/ast/is"
 import {resolve} from "node:path"
 import {findUnparameterizedDescribes} from "../../../spec/fixture"
@@ -42,8 +42,8 @@ export async function inspectScenarioSource(input: string) {
     const assertions: {actual: string, message: string | null, inline: boolean}[] = []
     const tests: {label: string, assertions: number, todo: boolean, source: string, each: boolean}[] = []
     const groups: {source: string, header: string, setup: string, depth: number, each: boolean}[] = []
-    const checks: {source: string, matcher: string}[] = []
-    const hooks: string[] = []
+    const checks: {source: string, matcher: string, explicitObject: boolean}[] = []
+    const hooks: {name: string, source: string}[] = []
     const hidden: string[] = []
     const undocumentedSkips: string[] = []
     const textOf = (node: Node) => {
@@ -59,8 +59,17 @@ export async function inspectScenarioSource(input: string) {
       let selectedTest = currentTest
       if (isCallExpression(node)) {
         const owner = chain(node.expression)
-        if (owner?.name === "expect" && owner.modifiers.at(-1)?.startsWith("to")) checks.push({source: textOf(node), matcher: owner.modifiers.at(-1)!})
-        if (owner && ["beforeAll", "afterAll", "beforeEach", "afterEach"].includes(owner.name)) hooks.push(textOf(node))
+        if (owner?.name === "expect" && owner.modifiers.at(-1)?.startsWith("to")) {
+          const expected = node.arguments[0]
+          checks.push({
+            source: textOf(node), matcher: owner.modifiers.at(-1)!,
+            explicitObject: !!expected && isObjectLiteralExpression(expected)
+              && expected.properties.every(property => (isPropertyAssignment(property) || isShorthandPropertyAssignment(property))
+                && (!isComputedPropertyName(property.name) || isStringLiteral(property.name.expression)
+                  || isNoSubstitutionTemplateLiteral(property.name.expression) || isNumericLiteral(property.name.expression))),
+          })
+        }
+        if (owner && ["beforeAll", "afterAll", "beforeEach", "afterEach"].includes(owner.name)) hooks.push({name: owner.name, source: textOf(node)})
         if (owner?.name === "expect" && owner.modifiers.length === 0) {
           const message = node.arguments[1]
           assertions.push({actual: node.arguments[0] ? textOf(node.arguments[0]) : "", message: message ? textOf(message) : null,

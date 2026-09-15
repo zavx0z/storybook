@@ -1,7 +1,8 @@
 /**
 Связывает вызовы с группами и асинхронными тестами.
 Группа передаётся вложенным тестам через замыкание конкретного варианта.
-AsyncLocalStorage применяется к test, но не оборачивает регистрацию describe: это нарушает lifecycle Bun.
+AsyncLocalStorage сохраняет выполнение describe и test, в том числе после await.
+Нативные registrars выполняются в исходном контексте runner; callbacks возвращаются в контекст вызвавшего кода.
 
 @packageDocumentation
 */
@@ -13,6 +14,8 @@ import {addGroup, addTest, condition, declare, rootContext, type Declaration, ty
 type TraceContext = GroupContext
 
 const context = new AsyncLocalStorage<TraceContext>()
+// Регистрация Bun внутри добавленного ALS нарушает обработку each; данные аргументов при этом вычисляются снаружи.
+const registerInRunnerContext = AsyncLocalStorage.snapshot()
 const eachTables = new Map<string, {readonly rows: readonly unknown[], index: number}>()
 
 /** Подставляет поля строки each в шаблон названия без изменения таблицы. */
@@ -31,12 +34,13 @@ function renderName(template: unknown, values: readonly unknown[]): string {
 }
 
 interface TraceRuntime {
+  native(original: (...args: unknown[]) => unknown): (...args: unknown[]) => unknown
   expect: typeof observeExpect
   matcher: typeof observeMatcher
   condition: typeof condition
   testRegistrar(declaration: Declaration, parent: TraceContext | undefined, original: (...args: unknown[]) => unknown): (...args: unknown[]) => unknown
-  /** Исполняет оригинальную регистрацию Bun без переноса её в AsyncLocalStorage. */
-  register(declaration: Declaration, callback: () => unknown): unknown
+  /** Сохраняет объявление и оставляет вызов регистратора в исходной синтаксической позиции. */
+  register(declaration: Declaration, original: (...args: unknown[]) => unknown): (...args: unknown[]) => unknown
   /** Сохраняет таблицу each до вызова параметризованного регистратора. */
   table(site: string, rows: readonly unknown[]): readonly unknown[]
   /** Передаёт выбранную группу в замыкание вложенных тестов. */
@@ -57,12 +61,36 @@ function takeEachCase(site: string, name: unknown) {
 
 /** Методы, вызываемые вставками AST; исходные registrars Bun остаются без подмены. */
 export const runtime: TraceRuntime = {
+  native(original) {
+    const wrap = (target: (...args: unknown[]) => unknown, receiver?: unknown): typeof target => new Proxy(target, {
+      get(object, key) {
+        const value = registerInRunnerContext(() => Reflect.get(object, key, object))
+        return typeof value === "function" ? wrap(value, object) : value
+      },
+      apply(object, thisArg, args) {
+        const caller = AsyncLocalStorage.snapshot()
+        const position = typeof args[0] === "function" ? 0 : typeof args[1] === "function" ? 1 : -1
+        const prepared = [...args]
+        if (position >= 0) {
+          const callback = args[position] as (...values: unknown[]) => unknown
+          const bound = function(this: unknown, ...values: unknown[]) {
+            return caller(() => Reflect.apply(callback, this, values))
+          }
+          Object.defineProperty(bound, "length", {value: callback.length})
+          prepared[position] = bound
+        }
+        const value = registerInRunnerContext(() => Reflect.apply(object, receiver ?? thisArg, prepared))
+        return typeof value === "function" ? wrap(value as typeof target) : value
+      },
+    })
+    return wrap(original)
+  },
   expect: observeExpect,
   matcher: observeMatcher,
   condition,
-  register(declaration, callback) {
+  register(declaration, original) {
     declare(declaration)
-    return callback()
+    return original
   },
   testRegistrar(declaration, parent = rootContext, original) {
     declare(declaration)
@@ -94,7 +122,7 @@ export const runtime: TraceRuntime = {
     const previous = synchronousContext
     synchronousContext = selected
     try {
-      return callback(selected)
+      return context.run(selected, () => callback(selected))
     } finally {
       synchronousContext = previous
     }
@@ -105,7 +133,7 @@ export const runtime: TraceRuntime = {
     const previous = synchronousContext
     synchronousContext = selected
     try {
-      return callback(selected)
+      return context.run(selected, () => callback(selected))
     } finally {
       synchronousContext = previous
     }
