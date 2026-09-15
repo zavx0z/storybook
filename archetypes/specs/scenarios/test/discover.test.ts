@@ -25,3 +25,9 @@ test("находит preload и JSX runtime компонента", async () => {
     jsxImportSource: "@immersive/headless",
   })
 })
+
+test("путь ./spec в команде тестов сохраняет preload примера", async () => {
+  const result = await discover(resolve(import.meta.dir, "../spec/fixture/component/spec/scenario.spec.tsx"))
+  expect(result.preload).toContain(Bun.resolveSync("@immersive/headless/preload", import.meta.dir))
+  expect(result.jsxImportSource).toBe("@immersive/headless")
+})

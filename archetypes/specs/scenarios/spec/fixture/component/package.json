@@ -1,0 +1,7 @@
+{
+  "name": "@fixture/scenario-component",
+  "private": true,
+  "type": "module",
+  "exports": {".": "./index.tsx"},
+  "scripts": {"test": "bun test --preload @immersive/headless/preload ./spec"}
+}

@@ -1,0 +1,7 @@
+{
+  "name": "@fixture/scenario-function",
+  "private": true,
+  "type": "module",
+  "exports": {".": "./index.ts"},
+  "scripts": {"test": "bun test ./spec"}
+}

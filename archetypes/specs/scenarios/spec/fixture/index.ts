@@ -3,7 +3,7 @@ import type {Node} from "typescript/unstable/ast"
 import {
   isArrowFunction, isCallExpression, isFunctionExpression, isFunctionDeclaration, isIdentifier, isImportDeclaration,
   isNamedImports, isPropertyAccessExpression, isStringLiteral, isNoSubstitutionTemplateLiteral,
-  isTemplateExpression,
+  isTemplateExpression, isBlock, isExpressionStatement,
 } from "typescript/unstable/ast/is"
 import {resolve} from "node:path"
 import {findUnparameterizedDescribes} from "../../../spec/fixture"
@@ -40,15 +40,27 @@ export async function inspectScenarioSource(input: string) {
       return null
     }
     const assertions: {actual: string, message: string | null, inline: boolean}[] = []
-    const tests: {label: string, assertions: number, todo: boolean}[] = []
+    const tests: {label: string, assertions: number, todo: boolean, source: string, each: boolean}[] = []
+    const groups: {source: string, header: string, setup: string, depth: number, each: boolean}[] = []
+    const checks: {source: string, matcher: string}[] = []
+    const hooks: string[] = []
     const hidden: string[] = []
     const undocumentedSkips: string[] = []
-    const textOf = (node: Node) => text.slice(node.getStart(file), node.end)
-    const visit = (node: Node, currentTest: typeof tests[number] | null, scope: "module" | "native" | "helper") => {
+    const textOf = (node: Node) => {
+      const start = node.getStart(file)
+      const indent = text.slice(text.lastIndexOf("\n", start - 1) + 1, start)
+      const source = text.slice(start, node.end)
+      if (!/^[ \t]*$/u.test(indent)) return source
+      return source.split("\n").map((line, index) => index > 0 && line.startsWith(indent) ? line.slice(indent.length) : line).join("\n")
+    }
+    const visit = (node: Node, currentTest: typeof tests[number] | null, scope: "module" | "native" | "helper", depth: number) => {
       let callbackNode: Node | undefined
+      let groupCallback: Node | undefined
       let selectedTest = currentTest
       if (isCallExpression(node)) {
         const owner = chain(node.expression)
+        if (owner?.name === "expect" && owner.modifiers.at(-1)?.startsWith("to")) checks.push({source: textOf(node), matcher: owner.modifiers.at(-1)!})
+        if (owner && ["beforeAll", "afterAll", "beforeEach", "afterEach"].includes(owner.name)) hooks.push(textOf(node))
         if (owner?.name === "expect" && owner.modifiers.length === 0) {
           const message = node.arguments[1]
           assertions.push({actual: node.arguments[0] ? textOf(node.arguments[0]) : "", message: message ? textOf(message) : null,
@@ -61,8 +73,15 @@ export async function inspectScenarioSource(input: string) {
           const label = node.arguments[0] ? textOf(node.arguments[0]) : ""
           if (scope === "helper") hidden.push(label)
           if (owner.name !== "describe") {
-            selectedTest = {label, assertions: 0, todo: owner.modifiers.some(name => ["todo", "todoIf"].includes(name))}
+            selectedTest = {label, assertions: 0, todo: owner.modifiers.some(name => ["todo", "todoIf"].includes(name)), source: textOf(node), each: owner.modifiers.includes("each")}
             tests.push(selectedTest)
+          } else {
+            groupCallback = callback
+            const statements = isBlock(callback.body) ? [...callback.body.statements] : []
+            const first = statements.findIndex(statement => isExpressionStatement(statement) && isCallExpression(statement.expression)
+              && ["describe", "test", "it"].includes(chain(statement.expression.expression)?.name ?? ""))
+            groups.push({source: textOf(node), header: text.slice(node.getStart(file), callback.body.getStart(file)),
+              setup: statements.slice(0, first < 0 ? statements.length : first).map(textOf).join("\n"), depth, each: owner.modifiers.includes("each")})
           }
           if (owner.modifiers.some(name => ["skip", "skipIf", "if"].includes(name))) {
             const prefix = text.slice(node.getFullStart(), node.getStart(file))
@@ -71,11 +90,12 @@ export async function inspectScenarioSource(input: string) {
         }
       }
       node.forEachChild(child => visit(child, selectedTest,
-        child === callbackNode ? "native" : (isArrowFunction(child) || isFunctionExpression(child) || isFunctionDeclaration(child)) ? "helper" : scope))
+        child === callbackNode ? "native" : (isArrowFunction(child) || isFunctionExpression(child) || isFunctionDeclaration(child)) ? "helper" : scope,
+        child === groupCallback ? depth + 1 : depth))
     }
-    visit(file, null, "module")
+    visit(file, null, "module", 0)
     return {
-      path, text, native: [...native.values()], imports, assertions, tests, hidden, undocumentedSkips,
+      path, text, native: [...native.values()], imports, assertions, tests, hidden, undocumentedSkips, groups, checks, hooks,
       unparameterized: await findUnparameterizedDescribes(path),
     }
   } finally {

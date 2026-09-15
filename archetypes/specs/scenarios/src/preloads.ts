@@ -29,7 +29,10 @@ export async function readPreloads(cwd: string, path: string): Promise<string[]>
       if (!token.startsWith("-")) targets.push(token)
     }
     const local = relative(cwd, path)
-    if (!targets.length || targets.some((target: string) => local === target || local.startsWith(`${target.replace(/\/$/, "")}/`))) {
+    if (!targets.length || targets.some((target: string) => {
+      const selected = relative(cwd, resolve(cwd, target))
+      return local === selected || local.startsWith(`${selected.replace(/\/$/, "")}/`)
+    })) {
       for (const value of values) preload.add(value)
     }
   }
