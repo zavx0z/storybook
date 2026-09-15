@@ -9,30 +9,306 @@
         "@zavx0z/storybook-browser-lifecycle": "workspace:*",
       },
       "devDependencies": {
-        "@immersive/headless": "file:../webxr-space/headless",
-        "@nodes/layout": "file:../webxr-space/nodes/layout",
-        "@nodes/node": "file:../webxr-space/nodes/node",
-        "@nodes/parameters": "file:../webxr-space/nodes/parameters",
-        "@nodes/sockets": "file:../webxr-space/nodes/sockets",
-        "@nodes/tree": "file:../webxr-space/nodes/tree",
-        "@renderer/html": "file:../webxr-space/renderer/html",
+        "@immersive/headless": "workspace:../webxr-space/headless",
+        "@nodes/layout": "workspace:../webxr-space/nodes/layout",
+        "@nodes/node": "workspace:../webxr-space/nodes/node",
+        "@nodes/parameters": "workspace:../webxr-space/nodes/parameters",
+        "@nodes/sockets": "workspace:../webxr-space/nodes/sockets",
+        "@nodes/tree": "workspace:../webxr-space/nodes/tree",
+        "@renderer/html": "workspace:../webxr-space/renderer/html",
         "@types/bun": "^1.4.0",
         "@webgpu/types": "^0.1.68",
-        "@webxr/markdown": "file:../webxr-space/markdown",
-        "@webxr/nodes": "file:../webxr-space/nodes",
-        "@webxr/typedoc": "file:../webxr-space/typedoc",
-        "@zavx0z/browser": "file:../webxr-space/browser",
-        "@zavx0z/component": "file:../webxr-space/component",
-        "@zavx0z/devtools": "file:../webxr-space/devtools",
-        "@zavx0z/dom": "file:../webxr-space/dom",
-        "@zavx0z/engine": "file:../webxr-space/engine",
+        "@webxr/markdown": "workspace:../webxr-space/markdown",
+        "@webxr/nodes": "workspace:../webxr-space/nodes",
+        "@webxr/typedoc": "workspace:../webxr-space/typedoc",
+        "@zavx0z/browser": "workspace:../webxr-space/browser",
+        "@zavx0z/component": "workspace:../webxr-space/component",
+        "@zavx0z/devtools": "workspace:../webxr-space/devtools",
+        "@zavx0z/dom": "workspace:../webxr-space/dom",
+        "@zavx0z/engine": "workspace:../webxr-space/engine",
         "@zavx0z/highlighter": "link:@zavx0z/highlighter",
-        "@zavx0z/space": "file:../webxr-space/space",
-        "@zavx0z/template": "file:../webxr-space/template",
-        "@zavx0z/ui": "file:../webxr-space/ui",
-        "@zavx0z/webgpu": "file:../webxr-space/webgpu",
+        "@zavx0z/space": "workspace:../webxr-space/space",
+        "@zavx0z/template": "workspace:../webxr-space/template",
+        "@zavx0z/ui": "workspace:../webxr-space/ui",
+        "@zavx0z/webgpu": "workspace:../webxr-space/webgpu",
         "typescript": "^7.0.2",
       },
+    },
+    "../webxr-space/browser": {
+      "name": "@zavx0z/browser",
+      "peerDependencies": {
+        "@renderer/html": "*",
+        "@zavx0z/component": "*",
+        "@zavx0z/dom": "*",
+        "@zavx0z/engine": "*",
+        "@zavx0z/space": "*",
+        "@zavx0z/template": "*",
+        "@zavx0z/webgpu": "*",
+      },
+      "optionalPeers": [
+        "@renderer/html",
+        "@zavx0z/component",
+        "@zavx0z/dom",
+        "@zavx0z/engine",
+        "@zavx0z/space",
+        "@zavx0z/template",
+        "@zavx0z/webgpu",
+      ],
+    },
+    "../webxr-space/component": {
+      "name": "@zavx0z/component",
+      "peerDependencies": {
+        "@zavx0z/dom": "*",
+        "@zavx0z/template": "*",
+      },
+      "optionalPeers": [
+        "@zavx0z/dom",
+        "@zavx0z/template",
+      ],
+    },
+    "../webxr-space/devtools": {
+      "name": "@zavx0z/devtools",
+      "peerDependencies": {
+        "@renderer/html": "*",
+        "@zavx0z/dom": "*",
+      },
+      "optionalPeers": [
+        "@renderer/html",
+        "@zavx0z/dom",
+      ],
+    },
+    "../webxr-space/dom": {
+      "name": "@zavx0z/dom",
+      "peerDependencies": {
+        "typescript": "7.0.2",
+      },
+    },
+    "../webxr-space/engine": {
+      "name": "@zavx0z/engine",
+    },
+    "../webxr-space/headless": {
+      "name": "@immersive/headless",
+      "dependencies": {
+        "bun-webgpu": "0.1.7",
+      },
+      "peerDependencies": {
+        "@renderer/html": "*",
+        "@zavx0z/component": "*",
+        "@zavx0z/dom": "*",
+        "@zavx0z/engine": "*",
+        "@zavx0z/template": "*",
+        "@zavx0z/ui": "*",
+        "@zavx0z/webgpu": "*",
+      },
+      "optionalPeers": [
+        "@renderer/html",
+        "@zavx0z/component",
+        "@zavx0z/dom",
+        "@zavx0z/engine",
+        "@zavx0z/template",
+        "@zavx0z/ui",
+        "@zavx0z/webgpu",
+      ],
+    },
+    "../webxr-space/markdown": {
+      "name": "@webxr/markdown",
+      "dependencies": {
+        "markdown-it": "15.0.1",
+        "mermaid": "11.17.2",
+        "parse5": "8.0.1",
+      },
+      "devDependencies": {
+        "@renderer/html": "*",
+        "@zavx0z/highlighter": "link:@zavx0z/highlighter",
+      },
+      "peerDependencies": {
+        "@nodes/layout": "*",
+        "@nodes/node": "*",
+        "@webxr/nodes": "*",
+        "@zavx0z/component": "*",
+        "@zavx0z/dom": "*",
+        "@zavx0z/template": "*",
+        "@zavx0z/ui": "*",
+      },
+      "optionalPeers": [
+        "@nodes/layout",
+        "@nodes/node",
+        "@webxr/nodes",
+        "@zavx0z/component",
+        "@zavx0z/dom",
+        "@zavx0z/template",
+        "@zavx0z/ui",
+      ],
+    },
+    "../webxr-space/nodes": {
+      "name": "@webxr/nodes",
+      "peerDependencies": {
+        "@nodes/layout": "*",
+        "@nodes/node": "*",
+        "@nodes/parameters": "*",
+        "@nodes/sockets": "*",
+        "@nodes/tree": "*",
+        "@zavx0z/component": "*",
+        "@zavx0z/dom": "*",
+        "@zavx0z/template": "*",
+        "@zavx0z/ui": "*",
+      },
+      "optionalPeers": [
+        "@nodes/layout",
+        "@nodes/node",
+        "@nodes/parameters",
+        "@nodes/sockets",
+        "@nodes/tree",
+        "@zavx0z/component",
+        "@zavx0z/dom",
+        "@zavx0z/template",
+        "@zavx0z/ui",
+      ],
+    },
+    "../webxr-space/nodes/layout": {
+      "name": "@nodes/layout",
+      "dependencies": {
+        "@dagrejs/dagre": "3.1.1",
+        "d3-dag": "0.9.1",
+      },
+    },
+    "../webxr-space/nodes/node": {
+      "name": "@nodes/node",
+      "devDependencies": {
+        "@immersive/headless": "*",
+      },
+      "peerDependencies": {
+        "@nodes/parameters": "*",
+        "@nodes/sockets": "*",
+        "@nodes/tree": "*",
+        "@zavx0z/component": "*",
+        "@zavx0z/template": "*",
+        "@zavx0z/ui": "*",
+      },
+      "optionalPeers": [
+        "@nodes/parameters",
+        "@nodes/sockets",
+        "@nodes/tree",
+        "@zavx0z/component",
+        "@zavx0z/template",
+        "@zavx0z/ui",
+      ],
+    },
+    "../webxr-space/nodes/parameters": {
+      "name": "@nodes/parameters",
+      "peerDependencies": {
+        "@nodes/sockets": "*",
+        "@nodes/tree": "*",
+        "@zavx0z/component": "*",
+        "@zavx0z/template": "*",
+        "@zavx0z/ui": "*",
+      },
+      "optionalPeers": [
+        "@nodes/sockets",
+        "@nodes/tree",
+        "@zavx0z/component",
+        "@zavx0z/template",
+        "@zavx0z/ui",
+      ],
+    },
+    "../webxr-space/nodes/sockets": {
+      "name": "@nodes/sockets",
+      "peerDependencies": {
+        "@nodes/tree": "*",
+        "@zavx0z/component": "*",
+        "@zavx0z/template": "*",
+      },
+      "optionalPeers": [
+        "@nodes/tree",
+        "@zavx0z/component",
+        "@zavx0z/template",
+      ],
+    },
+    "../webxr-space/nodes/tree": {
+      "name": "@nodes/tree",
+    },
+    "../webxr-space/renderer/html": {
+      "name": "@renderer/html",
+      "peerDependencies": {
+        "@zavx0z/dom": "*",
+      },
+      "optionalPeers": [
+        "@zavx0z/dom",
+      ],
+    },
+    "../webxr-space/space": {
+      "name": "@zavx0z/space",
+      "peerDependencies": {
+        "@zavx0z/component": "*",
+        "@zavx0z/dom": "*",
+        "@zavx0z/engine": "*",
+        "@zavx0z/template": "*",
+      },
+      "optionalPeers": [
+        "@zavx0z/component",
+        "@zavx0z/dom",
+        "@zavx0z/engine",
+        "@zavx0z/template",
+      ],
+    },
+    "../webxr-space/template": {
+      "name": "@zavx0z/template",
+      "peerDependencies": {
+        "@zavx0z/dom": "*",
+        "typescript": "7.0.2",
+      },
+      "optionalPeers": [
+        "@zavx0z/dom",
+        "typescript",
+      ],
+    },
+    "../webxr-space/typedoc": {
+      "name": "@webxr/typedoc",
+      "dependencies": {
+        "typescript": "7.0.2",
+      },
+      "peerDependencies": {
+        "@webxr/markdown": "*",
+        "@zavx0z/component": "*",
+        "@zavx0z/template": "*",
+        "@zavx0z/ui": "*",
+      },
+      "optionalPeers": [
+        "@webxr/markdown",
+        "@zavx0z/component",
+        "@zavx0z/template",
+        "@zavx0z/ui",
+      ],
+    },
+    "../webxr-space/ui": {
+      "name": "@zavx0z/ui",
+      "dependencies": {
+        "@zavx0z/highlighter": "link:@zavx0z/highlighter",
+      },
+      "peerDependencies": {
+        "@zavx0z/component": "*",
+        "@zavx0z/dom": "*",
+        "@zavx0z/template": "*",
+      },
+      "optionalPeers": [
+        "@zavx0z/component",
+        "@zavx0z/dom",
+        "@zavx0z/template",
+      ],
+    },
+    "../webxr-space/webgpu": {
+      "name": "@zavx0z/webgpu",
+      "devDependencies": {
+        "@webgpu/types": "0.1.72",
+      },
+      "peerDependencies": {
+        "@renderer/html": "*",
+        "@zavx0z/engine": "*",
+      },
+      "optionalPeers": [
+        "@renderer/html",
+        "@zavx0z/engine",
+      ],
     },
     "archetypes": {
       "name": "@storybook/archetypes",
@@ -54,7 +330,7 @@
       "name": "@mcp/rest",
       "version": "0.0.0",
       "dependencies": {
-        "@archetypes/specs": "file:../../archetypes/specs",
+        "@archetypes/specs": "link:@archetypes/specs",
       },
     },
     "validator": {
@@ -68,6 +344,8 @@
   "packages": {
     "@antfu/install-pkg": ["@antfu/install-pkg@2.0.1", "", { "dependencies": { "package-manager-detector": "^1.7.0", "tinyexec": "^1.2.4" } }, "sha512-iCKVQcIC0e3oDxEfs3SHQGW+ovhBMZmS1TE+bTk50rVyMCBmCfClv7Qi3HQKlumYwvjb/iIMeWCW2i67q6kFfQ=="],
 
+    "@archetypes/specs": ["@archetypes/specs@link:@archetypes/specs", {}],
+
     "@braintree/sanitize-url": ["@braintree/sanitize-url@7.1.2", "", {}, "sha512-jigsZK+sMF/cuiB7sERuo9V7N9jx+dhmHHnQyDSVdpZwVutaBu7WvNYqMDLSgFgfB30n452TP3vjDAvFC973mA=="],
 
     "@chevrotain/types": ["@chevrotain/types@11.1.2", "", {}, "sha512-U+HFai5+zmJCkK86QsaJtoITlboZHBqrVketcO2ROv865xfCMSFpELQoz1GkX5GzME8pTa+3kbKrZHQtI0gdbw=="],
@@ -80,7 +358,7 @@
 
     "@iconify/utils": ["@iconify/utils@3.1.7", "", { "dependencies": { "@antfu/install-pkg": "^2.0.1", "@iconify/types": "^2.0.0", "import-meta-resolve": "^4.2.0" } }, "sha512-JZHlwdID+dy+lTgbYC8NEC4zeugqeYsc6jewvzb4c58kHauJn+X7rNwQjxz5p2qSjqaEeQoLkCIQ9v/H4PK0/w=="],
 
-    "@immersive/headless": ["@immersive/headless@file:../webxr-space/headless", { "dependencies": { "bun-webgpu": "0.1.7" }, "peerDependencies": { "@renderer/html": "*", "@zavx0z/component": "*", "@zavx0z/dom": "*", "@zavx0z/engine": "*", "@zavx0z/template": "*", "@zavx0z/ui": "*", "@zavx0z/webgpu": "*" }, "optionalPeers": ["@renderer/html", "@zavx0z/component", "@zavx0z/dom", "@zavx0z/engine", "@zavx0z/template", "@zavx0z/ui", "@zavx0z/webgpu"] }],
+    "@immersive/headless": ["@immersive/headless@workspace:../webxr-space/headless"],
 
     "@mcp/rest": ["@mcp/rest@workspace:mcp/rest"],
 
@@ -88,17 +366,17 @@
 
     "@nodable/entities": ["@nodable/entities@3.0.0", "", {}, "sha512-8L9xFeTYKhm49xfIypoe2W5wV1m/3Z58kT+7kR9A8OyFxcPduI4VmxaUMQyKYrRjUoLLSXv6EKKID5Tvj9cUVw=="],
 
-    "@nodes/layout": ["@nodes/layout@file:../webxr-space/nodes/layout", { "dependencies": { "@dagrejs/dagre": "3.1.1", "d3-dag": "0.9.1" } }],
+    "@nodes/layout": ["@nodes/layout@workspace:../webxr-space/nodes/layout"],
 
-    "@nodes/node": ["@nodes/node@file:../webxr-space/nodes/node", { "peerDependencies": { "@nodes/parameters": "*", "@nodes/sockets": "*", "@nodes/tree": "*", "@zavx0z/component": "*", "@zavx0z/template": "*", "@zavx0z/ui": "*" }, "optionalPeers": ["@nodes/parameters", "@nodes/sockets", "@nodes/tree", "@zavx0z/component", "@zavx0z/template", "@zavx0z/ui"] }],
+    "@nodes/node": ["@nodes/node@workspace:../webxr-space/nodes/node"],
 
-    "@nodes/parameters": ["@nodes/parameters@file:../webxr-space/nodes/parameters", { "peerDependencies": { "@nodes/sockets": "*", "@nodes/tree": "*", "@zavx0z/component": "*", "@zavx0z/template": "*", "@zavx0z/ui": "*" }, "optionalPeers": ["@nodes/sockets", "@nodes/tree", "@zavx0z/component", "@zavx0z/template", "@zavx0z/ui"] }],
+    "@nodes/parameters": ["@nodes/parameters@workspace:../webxr-space/nodes/parameters"],
 
-    "@nodes/sockets": ["@nodes/sockets@file:../webxr-space/nodes/sockets", { "peerDependencies": { "@nodes/tree": "*", "@zavx0z/component": "*", "@zavx0z/template": "*" }, "optionalPeers": ["@nodes/tree", "@zavx0z/component", "@zavx0z/template"] }],
+    "@nodes/sockets": ["@nodes/sockets@workspace:../webxr-space/nodes/sockets"],
 
-    "@nodes/tree": ["@nodes/tree@file:../webxr-space/nodes/tree", {}],
+    "@nodes/tree": ["@nodes/tree@workspace:../webxr-space/nodes/tree"],
 
-    "@renderer/html": ["@renderer/html@file:../webxr-space/renderer/html", { "peerDependencies": { "@zavx0z/dom": "*" }, "optionalPeers": ["@zavx0z/dom"] }],
+    "@renderer/html": ["@renderer/html@workspace:../webxr-space/renderer/html"],
 
     "@storybook/archetypes": ["@storybook/archetypes@workspace:archetypes"],
 
@@ -220,33 +498,33 @@
 
     "@webgpu/types": ["@webgpu/types@0.1.72", "", {}, "sha512-0cF7RFM2edNoiIS1ODJp0/Gzv4/xSXhwoR0YCza+OWpJWtn4wmo9DvK91aLlH9+uUnwIriP7ZiC3WitmyhuzBw=="],
 
-    "@webxr/markdown": ["@webxr/markdown@file:../webxr-space/markdown", { "dependencies": { "markdown-it": "15.0.1", "mermaid": "11.17.2", "parse5": "8.0.1" }, "devDependencies": { "@zavx0z/highlighter": "link:@zavx0z/highlighter" }, "peerDependencies": { "@nodes/layout": "*", "@nodes/node": "*", "@webxr/nodes": "*", "@zavx0z/component": "*", "@zavx0z/dom": "*", "@zavx0z/template": "*", "@zavx0z/ui": "*" }, "optionalPeers": ["@nodes/layout", "@nodes/node", "@webxr/nodes", "@zavx0z/component", "@zavx0z/dom", "@zavx0z/template", "@zavx0z/ui"] }],
+    "@webxr/markdown": ["@webxr/markdown@workspace:../webxr-space/markdown"],
 
-    "@webxr/nodes": ["@webxr/nodes@file:../webxr-space/nodes", { "peerDependencies": { "@nodes/layout": "*", "@nodes/parameters": "*", "@nodes/sockets": "*", "@nodes/tree": "*", "@zavx0z/component": "*", "@zavx0z/dom": "*", "@zavx0z/template": "*", "@zavx0z/ui": "*" }, "optionalPeers": ["@nodes/layout", "@nodes/parameters", "@nodes/sockets", "@nodes/tree", "@zavx0z/component", "@zavx0z/dom", "@zavx0z/template", "@zavx0z/ui"] }],
+    "@webxr/nodes": ["@webxr/nodes@workspace:../webxr-space/nodes"],
 
-    "@webxr/typedoc": ["@webxr/typedoc@file:../webxr-space/typedoc", { "dependencies": { "typescript": "7.0.2" }, "peerDependencies": { "@webxr/markdown": "*", "@zavx0z/component": "*", "@zavx0z/template": "*" }, "optionalPeers": ["@webxr/markdown", "@zavx0z/component", "@zavx0z/template"] }],
+    "@webxr/typedoc": ["@webxr/typedoc@workspace:../webxr-space/typedoc"],
 
-    "@zavx0z/browser": ["@zavx0z/browser@file:../webxr-space/browser", { "peerDependencies": { "@zavx0z/dom": "*", "@zavx0z/engine": "*", "@zavx0z/renderer": "*", "@zavx0z/space": "*", "@zavx0z/webgpu": "*" }, "optionalPeers": ["@zavx0z/dom", "@zavx0z/engine", "@zavx0z/renderer", "@zavx0z/space", "@zavx0z/webgpu"] }],
+    "@zavx0z/browser": ["@zavx0z/browser@workspace:../webxr-space/browser"],
 
-    "@zavx0z/component": ["@zavx0z/component@file:../webxr-space/component", { "peerDependencies": { "@zavx0z/dom": "*", "@zavx0z/template": "*" }, "optionalPeers": ["@zavx0z/dom", "@zavx0z/template"] }],
+    "@zavx0z/component": ["@zavx0z/component@workspace:../webxr-space/component"],
 
-    "@zavx0z/devtools": ["@zavx0z/devtools@file:../webxr-space/devtools", { "peerDependencies": { "@zavx0z/dom": "*", "@zavx0z/renderer": "*" }, "optionalPeers": ["@zavx0z/dom", "@zavx0z/renderer"] }],
+    "@zavx0z/devtools": ["@zavx0z/devtools@workspace:../webxr-space/devtools"],
 
-    "@zavx0z/dom": ["@zavx0z/dom@file:../webxr-space/dom", { "peerDependencies": { "typescript": "7.0.2" } }],
+    "@zavx0z/dom": ["@zavx0z/dom@workspace:../webxr-space/dom"],
 
-    "@zavx0z/engine": ["@zavx0z/engine@file:../webxr-space/engine", {}],
+    "@zavx0z/engine": ["@zavx0z/engine@workspace:../webxr-space/engine"],
 
     "@zavx0z/highlighter": ["@zavx0z/highlighter@link:@zavx0z/highlighter", {}],
 
-    "@zavx0z/space": ["@zavx0z/space@file:../webxr-space/space", { "peerDependencies": { "@zavx0z/component": "*", "@zavx0z/dom": "*", "@zavx0z/engine": "*", "@zavx0z/template": "*" }, "optionalPeers": ["@zavx0z/component", "@zavx0z/dom", "@zavx0z/engine", "@zavx0z/template"] }],
+    "@zavx0z/space": ["@zavx0z/space@workspace:../webxr-space/space"],
 
     "@zavx0z/storybook-browser-lifecycle": ["@zavx0z/storybook-browser-lifecycle@workspace:browser-lifecycle"],
 
-    "@zavx0z/template": ["@zavx0z/template@file:../webxr-space/template", { "peerDependencies": { "@zavx0z/dom": "*", "typescript": "7.0.2" }, "optionalPeers": ["@zavx0z/dom", "typescript"] }],
+    "@zavx0z/template": ["@zavx0z/template@workspace:../webxr-space/template"],
 
-    "@zavx0z/ui": ["@zavx0z/ui@file:../webxr-space/ui", { "dependencies": { "@zavx0z/highlighter": "link:@zavx0z/highlighter", "markdown-it": "15.0.1", "parse5": "8.0.1" }, "peerDependencies": { "@zavx0z/component": "*", "@zavx0z/dom": "*", "@zavx0z/template": "*" }, "optionalPeers": ["@zavx0z/component", "@zavx0z/dom", "@zavx0z/template"] }],
+    "@zavx0z/ui": ["@zavx0z/ui@workspace:../webxr-space/ui"],
 
-    "@zavx0z/webgpu": ["@zavx0z/webgpu@file:../webxr-space/webgpu", { "devDependencies": { "@webgpu/types": "0.1.72" }, "peerDependencies": { "@zavx0z/engine": "*", "@zavx0z/renderer": "*" }, "optionalPeers": ["@zavx0z/engine", "@zavx0z/renderer"] }],
+    "@zavx0z/webgpu": ["@zavx0z/webgpu@workspace:../webxr-space/webgpu"],
 
     "anynum": ["anynum@1.0.1", "", {}, "sha512-N6//FLET/tXYNM/F6ABca1oH6fWB+KlTt909Le28WMDBk8oaT4vY17DCrwg2MvmuqUKt3Ni4N5dGJ/EoBgcO6A=="],
 
@@ -437,8 +715,6 @@
     "uuid": ["uuid@14.0.2", "", { "bin": { "uuid": "dist-node/bin/uuid" } }, "sha512-xZe/16rV4aa+HGSOCiY2YeLT1OybRLrrkL/Rqaq7p7GMVXjFh+6wN4oMYgjFmnSnhY8t6Xpdl2l9qmnHYuMHwQ=="],
 
     "xml-naming": ["xml-naming@0.3.0", "", {}, "sha512-ghig2TBE/H11aOVgmahA3MhimvkBr6JIYknH/Dhdk10nXwdbIqBJsbfMxpvFPG8bAw77gN29aQWvKpmVoPlvPQ=="],
-
-    "@mcp/rest/@archetypes/specs": ["@archetypes/specs@file:archetypes/specs", { "dependencies": { "fast-xml-parser": "^5.11.1" } }],
 
     "cytoscape-fcose/cose-base": ["cose-base@2.2.0", "", { "dependencies": { "layout-base": "^2.0.0" } }, "sha512-AzlgcsCbUMymkADOJtQm3wO9S3ltPfYOFD5033keQn9NJzIbtnZj+UdBJe7DYml/8TdbtHJW3j58SOnKhWY/5g=="],
 

@@ -7,5 +7,5 @@
   "description": "HTTP-интерфейс постепенного раскрытия Storybook",
   "exports": {".": "./index.ts", "./requests": "./requests/index.ts", "./scenarios": "./scenarios/index.ts", "./package": "./package/index.ts"},
   "scripts": {"test": "bun test ./spec ./scenarios ./package"},
-  "dependencies": {"@archetypes/specs": "file:../../archetypes/specs"}
+  "dependencies": {"@archetypes/specs": "link:@archetypes/specs"}
 }

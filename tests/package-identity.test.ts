@@ -1,5 +1,6 @@
 import {describe, expect, test} from "bun:test"
 import {
+  lstatSync,
   readdirSync,
   readFileSync,
   realpathSync,
@@ -15,6 +16,7 @@ const root = realpathSync.native(resolve(import.meta.dir, ".."))
 const monorepoRoot = realpathSync.native(resolve(root, "../webxr-space"))
 
 const newFamily = Object.freeze({
+  "@immersive/headless": "headless",
   "@zavx0z/browser": "browser",
   "@zavx0z/component": "component",
   "@zavx0z/devtools": "devtools",
@@ -36,13 +38,40 @@ const newFamily = Object.freeze({
 } as const)
 
 describe("Storybook package identity", () => {
+  test.each(Object.entries(newFamily))("исходники %s", (name, directory) => {
+    const installed = join(root, "node_modules", name)
+    expect(lstatSync(installed).isSymbolicLink(), "Зависимость связана с исходниками символической ссылкой").toBeTrue()
+    expect(realpathSync.native(installed), "Изменения файлов видны непосредственно из канонического пакета")
+      .toBe(realpathSync.native(join(monorepoRoot, directory)))
+  })
+
+  test("Highlighter имеет один источник для Storybook и UI", () => {
+    const canonical = realpathSync.native(resolve(root, "../highlighter"))
+    expect(realpathSync.native(join(root, "node_modules/@zavx0z/highlighter")), "Пакет Highlighter связан со своим репозиторием").toBe(canonical)
+    expect(
+      realpathSync.native(Bun.resolveSync("@zavx0z/highlighter", root)),
+      "Корень Storybook и UI используют один публичный вход Highlighter",
+    ).toBe(realpathSync.native(Bun.resolveSync("@zavx0z/highlighter", join(monorepoRoot, "ui"))))
+  })
+
+  test.each([
+    {name: "REST для сервера", from: ".", specifier: "@mcp/rest", entry: "mcp/rest/index.ts"},
+    {name: "REST для проверок MCP", from: "mcp", specifier: "@mcp/rest", entry: "mcp/rest/index.ts"},
+    {name: "Specs для REST", from: "mcp/rest", specifier: "@archetypes/specs", entry: "archetypes/specs/index.ts"},
+  ])("$name", ({from, specifier, entry}) => {
+    expect(
+      realpathSync.native(Bun.resolveSync(specifier, resolve(root, from))),
+      "Публичный импорт указывает на исходник пакета, а не на установленную копию",
+    ).toBe(realpathSync.native(resolve(root, entry)))
+  })
+
   test("declares only the new WebXR package family", () => {
     const manifest = readJson(join(root, "package.json")) as {
       devDependencies: Record<string, string>
     }
 
     for (const [name, directory] of Object.entries(newFamily)) {
-      expect(manifest.devDependencies[name], name).toBe(`file:../webxr-space/${directory}`)
+      expect(manifest.devDependencies[name], name).toBe(`workspace:../webxr-space/${directory}`)
     }
     expect(manifest.devDependencies["@zavx0z/react"]).toBeUndefined()
     expect(manifest.devDependencies["@zavx0z/dom-devtools"]).toBeUndefined()
