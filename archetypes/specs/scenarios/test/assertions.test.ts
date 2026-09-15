@@ -9,6 +9,17 @@ describe("Утверждения и штатные исходы", async () => {
   test("Обычные значения не означают отсутствие выполнения", () => {
     expect(result.assertions.filter(item => item.test === "Значения").map(item => item.actual)).toEqual([null, "", [], null, "", []])
   })
+  test("Getter массива не выполняется при сборе actual и передаче отчёта", () => {
+    expect(result.assertions.filter(item => item.test === "Accessor массива").map(item => ({
+      actual: item.actual,
+      status: item.status,
+    }))).toEqual([
+      {actual: [{$type: "accessor", get: "get", set: null}], status: "passed"},
+      {actual: 0, status: "passed"},
+      {actual: [{$type: "accessor", get: "get", set: null}], status: "passed"},
+      {actual: 0, status: "passed"},
+    ])
+  })
   test("Несколько matcher одного expect сохраняются отдельно", () => {
     expect(result.assertions.filter(item => item.test === "Повторное утверждение").map(item => [item.matcher, item.modifiers])).toEqual([
       ["toBeGreaterThan", []], ["toBe", ["not"]], ["toBeGreaterThan", []], ["toBe", ["not"]],

@@ -6,6 +6,18 @@ describe.each([{name: "Первый", value: 1}, {name: "Второй", value: 2
     expect("", "Пустой текст результата").toBe("")
     expect([], "Пустая коллекция результата").toEqual([])
   })
+  test("Accessor массива", () => {
+    let reads = 0
+    const input: unknown[] = []
+    Object.defineProperty(input, "0", {
+      get() {
+        reads++
+        return value
+      },
+    })
+    expect(input, "Массив с вычисляемым элементом").toBeArray()
+    expect(reads, "Наблюдение за actual не выполняет getter элемента").toBe(0)
+  })
   test("Асимметричные условия", () => {
     expect({number: value, text: "value"}, "Состав и типы результата").toEqual({number: expect.any(Number), text: expect.any(String)})
   })

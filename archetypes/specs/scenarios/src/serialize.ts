@@ -88,7 +88,19 @@ async function capture(
   }
   if (value instanceof Date) return {$type: "date", value: value.toISOString()}
   if (Array.isArray(value)) {
-    return Promise.all(value.map((item, index) => capture(item, seen, [...path, index], nextAncestors)))
+    const items = new Array<Promise<TraceValue>>(value.length)
+    for (let index = 0; index < items.length; index++) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, index)
+      if (!descriptor) continue
+      items[index] = "value" in descriptor
+        ? capture(descriptor.value, seen, [...path, index], nextAncestors)
+        : Promise.resolve({
+          $type: "accessor",
+          get: descriptor.get?.name ?? null,
+          set: descriptor.set?.name ?? null,
+        })
+    }
+    return Promise.all(items)
   }
   return captureProperties(value, seen, path, nextAncestors)
 }

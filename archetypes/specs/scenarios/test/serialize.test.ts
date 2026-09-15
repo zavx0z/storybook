@@ -68,6 +68,60 @@ test("не вызывает getter при чтении значения", async 
   expect(calls, "Сериализация не должна исполнять getter").toBe(0)
 })
 
+test.each([
+  {name: "перечисляемый", enumerable: true},
+  {name: "неперечисляемый", enumerable: false},
+])("сохраняет $name getter элемента массива без выполнения", async ({enumerable}) => {
+  let reads = 0
+  const input: unknown[] = []
+  Object.defineProperty(input, "0", {
+    enumerable,
+    get() {
+      reads++
+      return 7
+    },
+  })
+
+  const snapshot = JSON.parse(JSON.stringify(await serialize(input)))
+  expect(reads, "Чтение описания элемента без вызова его getter").toBe(0)
+  expect(snapshot).toEqual([{$type: "accessor", get: "get", set: null}])
+})
+
+test("сохраняет getter и setter массива без вызова и замены", async () => {
+  let calls = 0
+  const input: unknown[] = []
+  Object.defineProperty(input, "0", {
+    get() {
+      calls++
+      throw new Error("Getter элемента не участвует в снятии снимка")
+    },
+    set(_value: unknown) {
+      calls++
+    },
+  })
+  const descriptor = Object.getOwnPropertyDescriptor(input, "0")
+
+  expect(await serialize(input)).toEqual([{$type: "accessor", get: "get", set: "set"}])
+  expect(calls).toBe(0)
+  expect(Object.getOwnPropertyDescriptor(input, "0")).toEqual(descriptor)
+})
+
+test("обходит массив без чтения его map и итератора", async () => {
+  let reads = 0
+  const input = [1, 2]
+  for (const key of ["map", Symbol.iterator]) {
+    Object.defineProperty(input, key, {
+      get() {
+        reads++
+        throw new Error("Пользовательский обход массива не участвует в снятии снимка")
+      },
+    })
+  }
+
+  expect(await serialize(input)).toEqual([1, 2])
+  expect(reads).toBe(0)
+})
+
 test("обозначает циклическую ссылку", async () => {
   const value: {self?: unknown} = {}
   value.self = value
