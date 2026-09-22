@@ -1,11 +1,12 @@
 /**
-Результат native Git ignore query и пути, влияющие на его правила.
+Результат проверки исключений средствами Git и пути к влияющим на неё правилам.
 
-@property ignored - Переданные пути, исключённые действующими `.gitignore`.
+@property ignored - Переданные пути, исключённые действующими правилами `.gitignore`.
 
-@property repository - Реальный Git root либо `null` вне repository.
+@property repository - Фактический корень Git-репозитория либо `null` вне репозитория.
 
-@property watchPaths - `.gitignore` от package root до Git root включительно.
+@property watchPaths - Файлы `.gitignore` от корня пакета до корня Git-репозитория
+включительно.
 */
 export type ReadRouteIgnoredOutput = {
   readonly ignored: readonly string[]

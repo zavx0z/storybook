@@ -1,9 +1,10 @@
 import type {ReadScenarioOutput} from "../scenarios"
 
 /**
-Данные спецификации либо null, если директория spec отсутствует.
+Прочитанная спецификация либо `null`, если директория `spec` отсутствует.
 
-Поле scenario содержит результат запуска сценария либо null, если файла нет.
+@property scenario - Результат запуска сценария {@link ReadScenarioOutput}
+либо `null`, если в спецификации нет файла сценария.
 */
 export type ReadSpecOutput = {
   readonly scenario: ReadScenarioOutput | null

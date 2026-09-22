@@ -1,12 +1,13 @@
 /**
-Входной контракт проверки Git exclusions.
+Условия проверки путей по правилам исключения Git.
 
-@property root - Корень package-owned структуры.
+@property root - Корень структуры, принадлежащей пакету.
 
-@property paths - Проверяемые пути внутри `root`, включая ещё не созданные markers.
+@property paths - Проверяемые пути внутри `root`, включая ещё не созданные файлы,
+по которым определяется структура.
 
-@property [repository] - Ранее определённый Git root для повторного вызова;
-`null` явно обозначает отсутствие Git repository.
+@property [repository] - Ранее определённый корень Git-репозитория для повторного
+вызова. `null` явно обозначает отсутствие Git-репозитория.
 */
 export interface ReadRouteIgnoredInput {
   readonly root: string

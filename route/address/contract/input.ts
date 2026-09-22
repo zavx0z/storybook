@@ -4,9 +4,9 @@
 @property node - Канонический путь из декодированных сегментов без ведущего `/`.
 
 @property [view=overview] - Выбранное представление владельца. `overview`
-не добавляется в query.
+не добавляется в строку запроса.
 
-@property [variant] - Необязательный вариант, добавляемый в query.
+@property [variant] - Вариант, добавляемый в строку запроса.
 */
 export interface FormatRouteAddressInput {
   readonly node: string

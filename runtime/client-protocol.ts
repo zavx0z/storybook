@@ -18,15 +18,79 @@ import type {
   StorybookPackageSessionSnapshot,
 } from "../sessions/package-session.ts"
 
+/**
+Маркер версии сериализуемого протокола между сервером и страницей Storybook.
+*/
 export const EXTERNAL_STORYBOOK_CLIENT_PROTOCOL = "external-storybook-client/1" as const
+/**
+Префикс адресов ресурсов узлов канонического графа.
+*/
 export const EXTERNAL_STORYBOOK_RESOURCE_PREFIX = "/__storybook/resources/nodes/" as const
 
+/**
+Правила представления истории, передаваемые браузеру.
+
+@property protocol - Маркер протокола представления истории.
+
+@property projection - Проекция размещения содержимого.
+
+@property widgets - Идентификаторы секций инспектора в порядке показа.
+*/
 export type ExternalStorybookClientStoryPresentation = Readonly<{
   protocol: typeof STORYBOOK_STORY_PRESENTATION_PROTOCOL
   projection: StorybookStoryProjection
   widgets: readonly string[]
 }>
 
+/**
+Сериализованное представление узла канонического графа для браузера.
+
+@property id - Идентификатор узла графа.
+
+@property kind - Вид узла графа.
+
+@property ownerId - Идентификатор владельца узла.
+
+@property packageId - Идентификатор связанного пакета либо `null`.
+
+@property label - Отображаемое название.
+
+@property parentId - Идентификатор родителя либо `null` для корня.
+
+@property childIds - Идентификаторы дочерних узлов в порядке графа.
+
+@property urlPath - Публичный путь URL узла.
+
+@property routePath - Маршрут внутри пакета либо `null`.
+
+@property searchTerms - Слова и имена для поиска узла.
+
+@property group - Группа представления либо `null`.
+
+@property subjectKind - Предметный вид сущности либо `null`.
+
+@property apiName - Имя в программном интерфейсе либо `null`.
+
+@property hasReadme - Наличие README у узла.
+
+@property [hasModuleDocumentation] - Наличие документации входного модуля.
+
+@property [dependencyCases] - Ожидаемые варианты зависимостей из спецификации.
+
+@property [dependencyRoutePath] - Маршрут просмотра зависимостей.
+
+@property [contractRoutePath] - Маршрут просмотра контракта.
+
+@property [scenariosRoutePath] - Маршрут просмотра сценариев.
+
+@property [contractDocuments] - Разобранные документы входа и выхода.
+
+@property resourceKinds - Представленные виды ресурсов без повторений.
+
+@property resourceUrl - Адрес чтения ресурса узла.
+
+@property presentation - Проекция и секции инспектора либо `null`, если представление не задано.
+*/
 export type ExternalStorybookClientNode = Readonly<{
   id: string
   kind: ExternalStorybookGraphNodeKind
@@ -53,11 +117,46 @@ export type ExternalStorybookClientNode = Readonly<{
   presentation: ExternalStorybookClientStoryPresentation | null
 }>
 
+/**
+Диагностическое сообщение для браузера без внутренних путей владельца.
+
+@property phase - Этап, к которому относится сообщение.
+
+@property message - Текст с заменёнными внутренними путями.
+*/
 export type ExternalStorybookClientDiagnostic = Readonly<{
   phase: StorybookPackageDiagnostic["phase"]
   message: string
 }>
 
+/**
+Сводка ревизий, состояния сборки и диагностики одной сессии пакета.
+
+Отсутствующая ревизия обозначается `null`; сборка кандидата сама по себе
+не означает его применения к представлениям.
+
+@property packageId - Идентификатор пакета.
+
+@property declarationDigest - Контрольный отпечаток декларации пакета.
+
+@property moduleGraphRevision - Ревизия графа модулей либо `null`.
+
+@property candidateRevision - Текущий кандидат ревизии либо `null`.
+
+@property builtRevision - Собранная ревизия либо `null`.
+
+@property activatingRevision - Ревизия, проходящая применение, либо `null`.
+
+@property activeRevision - Применённая ревизия либо `null`.
+
+@property lastWorkingRevision - Последняя рабочая ревизия для восстановления либо `null`.
+
+@property lastGoodRevision - Последняя успешная ревизия, сохранённая в снимке сессии, либо `null`.
+
+@property buildState - Состояние сборки пакета.
+
+@property diagnostics - Диагностические сообщения для браузера.
+*/
 export type ExternalStorybookClientPackageSummary = Readonly<{
   packageId: string
   declarationDigest: string
@@ -72,6 +171,19 @@ export type ExternalStorybookClientPackageSummary = Readonly<{
   diagnostics: readonly ExternalStorybookClientDiagnostic[]
 }>
 
+/**
+Согласованный снимок графа и сессий пакетов для страницы Storybook.
+
+@property protocol - Маркер {@link EXTERNAL_STORYBOOK_CLIENT_PROTOCOL}.
+
+@property graphDigest - Контрольный отпечаток исходного графа.
+
+@property rootIds - Идентификаторы корней в порядке исходного графа.
+
+@property nodes - Сериализованные узлы графа.
+
+@property packages - Сводки сессий обнаруженных пакетов.
+*/
 export type ExternalStorybookClientSnapshot = Readonly<{
   protocol: typeof EXTERNAL_STORYBOOK_CLIENT_PROTOCOL
   graphDigest: string
@@ -81,9 +193,19 @@ export type ExternalStorybookClientSnapshot = Readonly<{
 }>
 
 /**
-Projects the canonical graph and its exact PackageSession snapshots into the
-serializable browser protocol. No navigation, search or build registry is
-created: array order and identities remain owned by the source graph.
+Преобразует канонический граф и снимки его сессий пакетов в браузерный протокол.
+
+Отдельный реестр навигации, поиска или сборки не создаётся: порядок массивов
+и идентификаторы сохраняются из исходного графа. Внутренние пути в диагностике скрываются.
+
+@param graph - Канонический граф подключённых владельцев.
+
+@param sessionSnapshots - Снимки сессий пакетов этого графа, без пропусков и повторений.
+
+@returns Сериализуемый {@link ExternalStorybookClientSnapshot}.
+
+@throws Ошибка при несогласованных ссылках графа, повторной, неизвестной
+или отсутствующей сессии, недопустимой ревизии или диагностике.
 */
 export function createExternalStorybookClientSnapshot(
   graph: ExternalStorybookGraph,
@@ -164,19 +286,30 @@ export function createExternalStorybookClientSnapshot(
   })
 }
 
-/** Encodes an exact package identity as the typed public URL segment. */
+/**
+Преобразует точный идентификатор пакета в типизированный сегмент публичного URL.
+
+@throws Ошибка при недопустимом идентификаторе пакета.
+*/
 export function encodeExternalStorybookPackagePath(packageId: string): string {
   return `pkg-${storybookPackagePathSegment(validatePackageId(packageId))}`
 }
 
-/** Resolves a lossy URL slug through exact known package identities, never by guessing a scope. */
+/**
+Находит пакет по публичному сегменту URL среди известных точных идентификаторов.
+Область имён не восстанавливается догадкой из сокращённого адреса.
+
+@throws Ошибка, если совпадение отсутствует или неоднозначно.
+*/
 export function decodeExternalStorybookPackagePath(path: string, packageIds: readonly string[]): string {
   const matches = packageIds.filter(packageId => path === encodeExternalStorybookPackagePath(packageId))
   if (matches.length !== 1) throw new Error(`Unknown or ambiguous external Storybook package path: ${path}`)
   return matches[0]!
 }
 
-/** Returns the one resource endpoint for an exact graph node identity. */
+/**
+Возвращает адрес единственного ресурса для узла с указанным идентификатором в графе.
+*/
 export function externalStorybookNodeResourceUrl(
   graph: ExternalStorybookGraph,
   nodeId: string,
@@ -185,6 +318,9 @@ export function externalStorybookNodeResourceUrl(
   return `${EXTERNAL_STORYBOOK_RESOURCE_PREFIX}${encodeURIComponent(node.id)}/`
 }
 
+/**
+Проверяет и подготавливает сводку ревизий пакета для браузера.
+*/
 function projectPackageSummary(
   snapshot: StorybookPackageSessionSnapshot,
   hiddenPaths: readonly string[],
@@ -209,6 +345,9 @@ function projectPackageSummary(
   })
 }
 
+/**
+Проверяет диагностическое сообщение и скрывает внутренние пути владельца.
+*/
 function projectDiagnostic(
   diagnostic: StorybookPackageDiagnostic,
   hiddenPaths: readonly string[],
@@ -241,6 +380,9 @@ function projectDiagnostic(
   return Object.freeze({phase: diagnostic.phase, message})
 }
 
+/**
+Собирает внутренние пути из графа и снимков сессий для скрытия в диагностике.
+*/
 function collectHiddenPaths(
   graph: ExternalStorybookGraph,
   snapshots: readonly StorybookPackageSessionSnapshot[],
@@ -273,6 +415,9 @@ function collectHiddenPaths(
     .sort((left, right) => right.length - left.length || (left < right ? -1 : left > right ? 1 : 0)))
 }
 
+/**
+Проверяет уникальность узлов и согласованность ссылок на корни, родителей и детей.
+*/
 function validateGraphReferences(graph: ExternalStorybookGraph): void {
   if (graph === null || typeof graph !== "object" || !Array.isArray(graph.nodes)) {
     throw new TypeError("External Storybook client graph must be an object")
@@ -301,6 +446,9 @@ function validateGraphReferences(graph: ExternalStorybookGraph): void {
   }
 }
 
+/**
+Проверяет допустимую форму точного идентификатора пакета.
+*/
 function validatePackageId(value: string): string {
   if (typeof value !== "string" ||
     !/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/u.test(value)) {
@@ -309,6 +457,9 @@ function validatePackageId(value: string): string {
   return value
 }
 
+/**
+Проверяет принадлежность состояния сборки поддерживаемому словарю.
+*/
 function validateBuildState(value: StorybookPackageBuildState): StorybookPackageBuildState {
   if (!["idle", "queued", "compiling", "building", "built", "activating", "active", "ready", "failed", "disposed"].includes(value)) {
     throw new Error(`Unknown external Storybook package build state: ${String(value)}`)
@@ -316,10 +467,16 @@ function validateBuildState(value: StorybookPackageBuildState): StorybookPackage
   return value
 }
 
+/**
+Сохраняет отсутствие ревизии либо проверяет её непустое значение.
+*/
 function optionalRevision(value: string | null, label: string): string | null {
   return value === null ? null : safeRevision(value, label)
 }
 
+/**
+Проверяет непустое обозначение ревизии без управляющих символов и разделителей пути.
+*/
 function safeRevision(value: string, label: string): string {
   if (typeof value !== "string" || value.length === 0 || /[\u0000-\u001f\u007f/\\]/u.test(value)) {
     throw new Error(`Invalid external Storybook ${label}: ${String(value)}`)
