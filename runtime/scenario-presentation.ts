@@ -8,7 +8,7 @@ import type {CompiledTemplate} from "@zavx0z/template/compiled"
 import {createStorybookComponentPresentation} from "./component-presentation"
 
 /**
-Монтирует общую фикстуру в Document страницы и центрирует её по готовой раскладке.
+Монтирует общую фикстуру после успешного теста и центрирует её по готовой раскладке.
 Переход между вариантами сохраняет ComponentRoot и semantic Element компонента.
 Для функции монтируется только редактор сохранённого результата в том же Document.
 */
@@ -24,22 +24,27 @@ export function createScenarioPresentation(document: Document, input: ScenarioAp
   }
   const fixtureProps = () => {
     const selected = app.getSnapshot()
-    if (!("props" in selected)) throw new TypeError("Нет props компонента")
+    if (!("props" in selected) || selected.props === undefined) throw new TypeError("Нет props компонента")
     return selected.props
   }
   let placement: ScenarioPreviewPlacement = {x: 0, y: 0}
   const template = ScenarioPreview as unknown as CompiledTemplate<Parameters<typeof ScenarioPreview>[0]>
-  const view = createStorybookComponentPresentation(document, template, {placement}, "[data-scenario-preview]")
+  const view = createStorybookComponentPresentation(document, template, {placement, app}, "[data-scenario-preview]")
   const stage = view.element.querySelector("[data-scenario-stage]")!
   const fixtureRoot = createRoot(stage)
-  try {
+  const updateFixture = () => {
+    if (input.run !== undefined && app.getSnapshot().execution?.status !== "passed") return
     fixtureRoot.render(input.template, fixtureProps())
+  }
+  try {
+    updateFixture()
   } catch (error) {
+    app.dispose()
     fixtureRoot.unmount()
     view.dispose()
     throw error
   }
-  const unsubscribe = app.subscribe(() => fixtureRoot.render(input.template, fixtureProps()))
+  const unsubscribe = app.subscribe(updateFixture)
   let disposed = false
   return Object.freeze({
     ...view,
@@ -53,6 +58,7 @@ export function createScenarioPresentation(document: Document, input: ScenarioAp
     },
     app,
     center() {
+      if (input.run !== undefined && app.getSnapshot().execution?.status !== "passed") return false
       const element = stage.firstElementChild
       if (element === null || !view.element.isConnected) return false
       const viewport = view.element.getBoundingClientRect()
@@ -62,7 +68,7 @@ export function createScenarioPresentation(document: Document, input: ScenarioAp
       const dy = viewport.y + viewport.height / 2 - bounds.y - bounds.height / 2
       if (!Number.isFinite(dx) || !Number.isFinite(dy) || Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) return false
       placement = {x: placement.x + dx, y: placement.y + dy}
-      view.componentRoot.render(template, {placement})
+      view.componentRoot.render(template, {placement, app})
       return true
     },
   })

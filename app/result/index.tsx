@@ -10,7 +10,7 @@ import {ScenarioCallResult} from "./src/call"
 */
 export function ScenarioResult(props: Readonly<{app: ScenarioApp}>) {
   const selected = useSyncExternalStore(props.app.subscribe, props.app.getSnapshot)
-  if (!("calls" in selected)) throw new TypeError("Нет снимков вызовов функции")
+  const calls = "calls" in selected ? selected.calls : []
   const failedTests = selected.execution?.tests?.filter(test => test.status === "failed" || test.status === "error") ?? []
   const progress = selected.execution?.progress
   const stage = progress?.phase === "queued" ? "Ожидание запуска"
@@ -50,12 +50,12 @@ export function ScenarioResult(props: Readonly<{app: ScenarioApp}>) {
         text={`${test.label}: ${test.message ?? test.status}`}
       />
     ))}
-    {selected.calls.length === 0 && selected.execution === undefined ? <Typography text="В этом варианте нет выполненных вызовов" /> : null}
-    {selected.calls.map((call, index) => <ScenarioCallResult
+    {calls.length === 0 && selected.execution === undefined ? <Typography text="В этом варианте нет выполненных вызовов" /> : null}
+    {calls.map((call, index) => <ScenarioCallResult
       key={String(index)}
       call={call}
       index={index}
-      multiple={selected.calls.length > 1}
+      multiple={calls.length > 1}
     />)}
   </section>
 }

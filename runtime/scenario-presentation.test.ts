@@ -7,6 +7,66 @@ import {createScenarioPresentation} from "./scenario-presentation"
 import {ScenarioInspector} from "@storybook/app/inspector"
 import {StatefulFixture} from "../app/spec/fixture"
 
+test("Компонент монтируется только после успешного теста с проверенными props", async () => {
+  type Run = NonNullable<ScenarioAppInput["run"]>
+  const pending: {resolve: (result: Awaited<ReturnType<Run>>) => void, signal: AbortSignal}[] = []
+  const presentation = createScenarioPresentation(createDocument(), {
+    kind: "component",
+    template: StatefulFixture as unknown as CompiledTemplate<Record<string, unknown>>,
+    variants: ["Первый", "Второй", "Третий"].map((title, index) => ({
+      id: String(index), title, props: {name: title}, source: title, points: [],
+    })),
+    run: (_, signal) => new Promise(resolve => pending.push({resolve, signal})),
+  })
+  const complete = (status: "passed" | "failed", name: string) => ({
+    source: name, props: {name}, calls: [], points: [], execution: {status, tests: []},
+  })
+  const stage = presentation.element.querySelector("[data-scenario-stage]")!
+  try {
+    await Promise.resolve()
+    expect(stage.querySelector("[data-fixture]")).toBeNull()
+    expect(stage.getAttribute("data-hidden")).toBe("true")
+    pending[0]!.resolve(complete("failed", "Не показывать"))
+    await Bun.sleep(0)
+    presentation.componentRoot.flush()
+    expect(stage.querySelector("[data-fixture]")).toBeNull()
+    expect(presentation.element.textContent).toContain("Проверки завершились с ошибками")
+
+    presentation.app.select("1")
+    await Promise.resolve()
+    pending[1]!.resolve(complete("passed", "Проверенное имя"))
+    await Bun.sleep(0)
+    presentation.componentRoot.flush()
+    const button = stage.querySelector("[data-fixture]")!
+    expect(button.textContent).toBe("Проверенное имя: 0")
+    expect(stage.getAttribute("data-hidden")).toBe("false")
+    button.dispatchEvent(new Event("click"))
+    await Bun.sleep(0)
+
+    presentation.app.select("2")
+    await Promise.resolve()
+    presentation.componentRoot.flush()
+    expect(stage.getAttribute("data-hidden")).toBe("true")
+    expect(button.textContent).toBe("Проверенное имя: 1")
+    pending[2]!.resolve(complete("failed", "Ошибка третьего"))
+    await Bun.sleep(0)
+    presentation.componentRoot.flush()
+    expect(stage.getAttribute("data-hidden")).toBe("true")
+    expect(button.textContent).toBe("Проверенное имя: 1")
+
+    presentation.app.select("1")
+    await Promise.resolve()
+    pending[3]!.resolve(complete("passed", "Возврат"))
+    await Bun.sleep(0)
+    presentation.componentRoot.flush()
+    expect(stage.querySelector("[data-fixture]")).toBe(button)
+    expect(button.textContent).toBe("Возврат: 1")
+    expect(stage.getAttribute("data-hidden")).toBe("false")
+  } finally {
+    presentation.dispose()
+  }
+})
+
 test("Живой вывод заменяется результатом только после завершения", async () => {
   type Run = NonNullable<Extract<ScenarioAppInput, {kind: "function"}>["run"]>
   let progress!: Parameters<Run>[2]

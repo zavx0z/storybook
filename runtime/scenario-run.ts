@@ -6,7 +6,7 @@ export function createScenarioRun(
   packageId: string,
   nodeId: string,
   revision: string,
-): NonNullable<Extract<ScenarioAppInput, {kind: "function"}>["run"]> {
+): NonNullable<ScenarioAppInput["run"]> {
   return async (variant, signal, onProgress) => {
     const session = await fetcher("/api/browser/session", {
       method: "POST",
@@ -31,7 +31,7 @@ export function createScenarioRun(
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
     let pending = ""
-    let result: Awaited<ReturnType<NonNullable<Extract<ScenarioAppInput, {kind: "function"}>["run"]>>> | undefined
+    let result: Awaited<ReturnType<NonNullable<ScenarioAppInput["run"]>>> | undefined
     const readEvent = (line: string) => {
       if (!line.trim()) return
       const event = JSON.parse(line)

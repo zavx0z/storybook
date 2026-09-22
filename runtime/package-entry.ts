@@ -910,10 +910,10 @@ export async function startExternalStorybookPackage(
     if (scenarioLoader !== undefined) {
       const input = await abortable(scenarioLoader(), signal)
       if (disposed || revision !== navigationRevision || signal.aborted) return
-      scenarioPresentation = createScenarioPresentation(shell.document, input.kind === "function" ? {
+      scenarioPresentation = createScenarioPresentation(shell.document, {
         ...input,
         run: createScenarioRun(fetcher, packageId, node.id, candidateRevision!),
-      } : input)
+      })
       restoreScenarioSelection()
       const app = scenarioPresentation.app
       let selectedId = app.getSnapshot().id

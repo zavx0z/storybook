@@ -95,6 +95,14 @@ describe("external Storybook package frontend", () => {
       : node)}
     const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-scenarios"))
     const environment = environmentFixture(snapshot, "/fixture-workspace/projects/alpha/packages/components/components/button?view=scenarios&variant=Второй")
+    const originalFetcher = environment.fetcher!
+    const fetcher = (async (url: RequestInfo | URL, init?: RequestInit) => {
+      if (String(url) === "/api/browser/session") return Response.json({token: "session"})
+      if (String(url) !== "/api/browser/scenarios/run") return originalFetcher(url, init)
+      const request = JSON.parse(String(init!.body))
+      return Response.json({source: "Проверенный вариант", props: request.props, calls: [], points: [],
+        execution: {status: "passed", tests: [{label: "Компонент", status: "passed", message: null}]}})
+    }) as typeof fetch
     let loads = 0
     const controller = await startExternalStorybookPackage({
       packageId: "@fixture/components",
@@ -112,9 +120,10 @@ describe("external Storybook package frontend", () => {
           })),
         }
       }]]),
-      environment,
+      environment: {...environment, fetcher},
     })
     try {
+      await Bun.sleep(0)
       const {display, document, workbench} = controller.shell
       const element = display.querySelector("[data-fixture]")!
       expect(element).not.toBeNull()
@@ -123,13 +132,13 @@ describe("external Storybook package frontend", () => {
       const app = workbench.controller.read("inspector.values")["storybook-scenarios"] as {select(id: string): void}
       expect(element.textContent).toBe("Второй: 0")
       app.select("2")
-      await Promise.resolve()
+      await Bun.sleep(0)
       expect(display.querySelector("[data-fixture]")).toBe(element)
       expect(element.textContent).toBe("Третий: 0")
       expect(new URL(environment.location!.href).searchParams.get("variant")).toBe("Третий")
       environment.history!.replaceState(null, "", "?view=scenarios&variant=Второй")
       controller.restoreAddress()
-      await Promise.resolve()
+      await Bun.sleep(0)
       expect(display.querySelector("[data-fixture]")).toBe(element)
       expect(element.textContent).toBe("Второй: 0")
       expect(loads).toBe(1)

@@ -5,7 +5,7 @@ import type {ScenarioApp} from "./contract/output"
 /**
 Связывает общий Editor и единственный preview выбором варианта сценария.
 
-Первый вариант открыт сразу. При наличии host.run выбор функции запускает её тест.
+Первый вариант выбран сразу. При наличии host.run выбор запускает его тест.
 Предыдущий запрос отменяется; поздний ответ не меняет выбранный вариант.
 Монтированием компонента владеет host.
 */
@@ -22,7 +22,7 @@ export function createScenarioApp(input: ScenarioAppInput): ScenarioApp {
   let disposed = false
   const notify = () => { for (const listener of listeners) listener() }
   const start = () => {
-    if (input.kind !== "function" || input.run === undefined) return
+    if (input.run === undefined) return
     controller?.abort()
     const current = new AbortController()
     controller = current
@@ -62,7 +62,7 @@ export function createScenarioApp(input: ScenarioAppInput): ScenarioApp {
       if (variant === undefined) throw new Error(`Неизвестный вариант сценария: ${id}`)
       if (variant.id === selected.id) return
       selected = variant
-      if (input.kind === "function" && input.run !== undefined) start()
+      if (input.run !== undefined) start()
       else notify()
     },
     dispose() {

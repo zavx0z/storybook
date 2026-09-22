@@ -33,7 +33,7 @@ export function createStorybookScenarioRunner() {
       if (!await file.exists()) throw new Error("В ревизии нет подготовленного сценария")
       const prepared = await file.json() as ReadScenarioOutput
       if (!node.scenarioSpec.sourcePaths.includes(prepared.path)) throw new Error("Источник сценария принадлежит другому владельцу")
-      if (prepared.preview?.kind !== "function") throw new Error("Запуск предназначен для сценариев функций")
+      if (prepared.preview === undefined) throw new Error("В ревизии нет представления сценария")
       const variant = prepared.preview.variants.findIndex(item => item.id === input.variantId)
       if (variant < 0) throw new Error("Вариант сценария не найден")
       if (await Bun.file(prepared.path).text() !== prepared.source.text) {
@@ -42,16 +42,20 @@ export function createStorybookScenarioRunner() {
       const result = await readScenario({path: prepared.path, props: input.props, variant, signal,
         ...(onProgress === undefined ? {} : {onProgress})})
       signal.throwIfAborted()
-      if (result.preview?.kind !== "function" || result.preview.variants.length !== 1) {
+      if (result.preview?.kind !== prepared.preview.kind || result.preview.variants.length !== 1) {
         throw new Error("Запуск не вернул результат выбранного варианта")
       }
       const selected = result.preview.variants[0]!
+      const passed = result.exitCode === 0 && result.tests.some(test => test.status === "passed")
+        && !result.tests.some(test => test.status === "failed" || test.status === "error" || test.status === "not-executed")
       return {
         source: selected.source,
         points: selected.points,
-        calls: selected.calls,
+        calls: "calls" in selected ? selected.calls : [],
+        ...(result.preview.kind === "component" && "props" in selected ? {props: selected.props} : {}),
         execution: {
-          status: result.exitCode === 0 ? "passed" as const : "failed" as const,
+          status: passed ? "passed" as const : "failed" as const,
+          ...(result.tests.some(test => test.status === "passed") ? {} : {message: "В выбранном варианте нет успешных проверок"}),
           tests: result.tests.map(({label, status, message}) => ({label, status, message})),
         },
       }
