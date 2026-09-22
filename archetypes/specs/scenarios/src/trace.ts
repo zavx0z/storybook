@@ -33,6 +33,28 @@ function isTraceCompleteMessage(value: unknown): value is TraceCompleteMessage {
     && Reflect.get(value, "type") === "storybook:trace-complete"
 }
 
+/** Читает поток сразу, сохраняя полный текст и передавая наблюдателю целые символы UTF-8. */
+async function readOutput(
+  stream: ReadableStream<Uint8Array>,
+  source: "stdout" | "stderr",
+  onProgress: ReadScenarioInput["onProgress"],
+): Promise<string> {
+  const reader = stream.getReader()
+  const decoder = new TextDecoder()
+  let output = ""
+  try {
+    while (true) {
+      const chunk = await reader.read()
+      const text = chunk.done ? decoder.decode() : decoder.decode(chunk.value, {stream: true})
+      output += text
+      if (text) onProgress?.({phase: "running", stream: source, text})
+      if (chunk.done) return output
+    }
+  } finally {
+    reader.releaseLock()
+  }
+}
+
 /**
 Запускает сценарий с автоматически определёнными импортами и preload его пакета.
 Инструментирует код только в дочернем процессе, не изменяя файл на диске.
@@ -60,6 +82,7 @@ export async function traceScenario(input: ReadScenarioInput): Promise<ScenarioE
   let removeAbortListener = () => {}
   try {
     input.signal?.throwIfAborted()
+    input.onProgress?.({phase: "running"})
     const child = Bun.spawn({
       cmd: [process.execPath, "test", "--reporter=junit", "--reporter-outfile", reportPath, "--preload", resolve(import.meta.dir, "trace-preload.ts"), path,
         ...(input.testNamePattern === undefined ? [] : ["--test-name-pattern", input.testNamePattern])],
@@ -91,8 +114,8 @@ export async function traceScenario(input: ReadScenarioInput): Promise<ScenarioE
     removeAbortListener = () => input.signal?.removeEventListener("abort", abort)
     const [exitCode, stdout, stderr] = await Promise.all([
       child.exited,
-      new Response(child.stdout).text(),
-      new Response(child.stderr).text(),
+      readOutput(child.stdout, "stdout", input.onProgress),
+      readOutput(child.stderr, "stderr", input.onProgress),
     ])
     input.signal?.throwIfAborted()
     if (!complete) throw new Error(`Не получен завершающий IPC report: ${stderr}`)

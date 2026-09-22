@@ -31,7 +31,12 @@ export function createScenarioApp(input: ScenarioAppInput): ScenarioApp {
     notify()
     void Promise.resolve().then(() => {
       current.signal.throwIfAborted()
-      return input.run!(variant, current.signal)
+      return input.run!(variant, current.signal, progress => {
+        if (disposed || current.signal.aborted) return
+        const output = (selected.execution?.progress?.output ?? "") + (progress.text ?? "")
+        selected = {...selected, execution: {status: "running", progress: {phase: progress.phase, output}}}
+        notify()
+      })
     }).then(result => {
       if (disposed || current.signal.aborted) return
       selected = {...variant, ...result}

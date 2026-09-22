@@ -30,6 +30,10 @@ export {supportsScenarioPreview}
 */
 export async function readScenario(input: ReadScenarioInput): Promise<ReadScenarioOutput> {
   input.signal?.throwIfAborted()
+  const onProgress: NonNullable<ReadScenarioInput["onProgress"]> = progress => {
+    try { input.onProgress?.(progress) } catch { /* Наблюдение не влияет на результат теста. */ }
+  }
+  onProgress({phase: "preparing"})
   if (input.variant !== undefined && (!Number.isSafeInteger(input.variant) || input.variant < 0)) {
     throw new TypeError("variant должен быть неотрицательным индексом строки")
   }
@@ -39,7 +43,8 @@ export async function readScenario(input: ReadScenarioInput): Promise<ReadScenar
   if (input.variant !== undefined && (outerGroups.length !== 1 || !outerGroups[0]!.each)) {
     throw new Error("Выбор варианта требует единственного внешнего describe.each")
   }
-  const execution = await traceScenario({...input, path: source.path})
+  const execution = await traceScenario({...input, path: source.path, onProgress})
+  onProgress({phase: "reporting"})
   const preview = await createScenarioPreview(source.path, execution, Object.keys(input.props ?? {}), input.variant ?? 0)
   return {
     ...execution,

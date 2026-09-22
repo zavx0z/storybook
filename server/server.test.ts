@@ -62,12 +62,13 @@ describe("one external Storybook server", () => {
     const prepared = await Bun.file(join(session.revisionDirectory(revision)!, "scenarios", `${encodeURIComponent(nodeId)}.json`)).json()
     const originalCalls = readFileSync(logPath, "utf8")
     const requestBody = {nodeId, revision, variantId: prepared.preview.variants[1].id, props: {value: "override", logPath}}
-    const send = async (body = requestBody) => {
+    const send = async (body = requestBody, stream = false) => {
       const grant = await fetch(new URL("/api/browser/session", running.origin), {method: "POST",
         headers: {origin: running.origin, "content-type": "application/json"}, body: JSON.stringify({packageId, revision})})
       const {token} = await grant.json()
       return fetch(new URL("/api/browser/scenarios/run", running.origin), {method: "POST",
-        headers: {origin: running.origin, "content-type": "application/json", "x-storybook-session": token},
+        headers: {origin: running.origin, "content-type": "application/json", "x-storybook-session": token,
+          accept: stream ? "application/x-ndjson" : "application/json"},
         body: JSON.stringify(body)})
     }
     const unauthorized = await fetch(new URL("/api/browser/scenarios/run", running.origin), {method: "POST",
@@ -85,6 +86,12 @@ describe("one external Storybook server", () => {
     expect(readFileSync(logPath, "utf8").slice(originalCalls.length)).toBe("override\noverride\n")
     expect((await send({...requestBody, nodeId: "package:another"})).ok).toBeFalse()
     expect(readFileSync(logPath, "utf8").slice(originalCalls.length)).toBe("override\noverride\n")
+    const stream = await send(requestBody, true)
+    expect(stream.headers.get("content-type")).toContain("application/x-ndjson")
+    const events = (await stream.text()).trim().split("\n").map(line => JSON.parse(line))
+    expect(events[0]).toEqual({type: "progress", progress: {phase: "queued"}})
+    expect(events.some(event => event.progress?.text?.includes("Значение"))).toBeTrue()
+    expect(events.at(-1)?.result.execution.status).toBe("passed")
   })
 
   test("журнал MCP принимает полный большой ответ через HTTP и завершает running", async () => {

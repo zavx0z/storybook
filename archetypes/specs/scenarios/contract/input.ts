@@ -16,6 +16,10 @@
 При выборе регистрируется только эта строка, включая её подготовку и проверки.
 
 @property [signal] - Отмена запуска; дочерний процесс завершается при отмене.
+
+@property [onProgress] - Этапы и фрагменты stdout/stderr до готовности полного отчёта.
+Вывод отражает ход выполнения; итоговые статусы проверок принадлежат результату Bun.
+Исключение наблюдателя не изменяет выполнение теста.
 */
 export interface ReadScenarioInput {
   readonly path: string
@@ -23,4 +27,9 @@ export interface ReadScenarioInput {
   readonly testNamePattern?: string
   readonly variant?: number
   readonly signal?: AbortSignal
+  readonly onProgress?: (progress: {
+    phase: "queued" | "preparing" | "running" | "reporting"
+    text?: string
+    stream?: "stdout" | "stderr"
+  }) => void
 }

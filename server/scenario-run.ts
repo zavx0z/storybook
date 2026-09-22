@@ -1,5 +1,5 @@
 import {resolve} from "node:path"
-import {readScenario, type ReadScenarioOutput} from "@archetypes/specs/scenarios"
+import {readScenario, type ReadScenarioInput, type ReadScenarioOutput} from "@archetypes/specs/scenarios"
 import type {ExternalStorybookRegistrySnapshot} from "../catalog/registry"
 import type {ExternalStorybookSessionManager} from "../sessions/session-manager"
 
@@ -20,7 +20,9 @@ export function createStorybookScenarioRunner() {
     snapshot: ExternalStorybookRegistrySnapshot,
     sessions: ExternalStorybookSessionManager,
     signal: AbortSignal,
+    onProgress?: ReadScenarioInput["onProgress"],
   ) => {
+    onProgress?.({phase: "queued"})
     const execute = async () => {
       signal.throwIfAborted()
       const node = snapshot.graph.nodes.find(node => node.id === input.nodeId && node.packageId === packageId)
@@ -37,7 +39,8 @@ export function createStorybookScenarioRunner() {
       if (await Bun.file(prepared.path).text() !== prepared.source.text) {
         throw new Error("Сценарий изменился. Дождитесь обновления страницы")
       }
-      const result = await readScenario({path: prepared.path, props: input.props, variant, signal})
+      const result = await readScenario({path: prepared.path, props: input.props, variant, signal,
+        ...(onProgress === undefined ? {} : {onProgress})})
       signal.throwIfAborted()
       if (result.preview?.kind !== "function" || result.preview.variants.length !== 1) {
         throw new Error("Запуск не вернул результат выбранного варианта")

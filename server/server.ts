@@ -1,5 +1,7 @@
 import {resolveStorybookRoute, storybookRouteRoots, readPreparedStorybookSpec} from "./route"
 import {createStorybookScenarioRunner} from "./scenario-run"
+import {streamScenarioRun} from "./scenario-stream"
+import type {ReadScenarioInput} from "@archetypes/specs/scenarios"
 import {storybookPackagePathMatches, storybookPackageRouteFromPathname, storybookCurrentRouteKey, validStorybookViewQuery} from "@zavx0z/storybook-browser-lifecycle/contract"
 import {externalStorybookBrowsePath} from "../catalog/graph.ts"
 import {storybookRest} from "@mcp/rest"
@@ -875,16 +877,22 @@ export async function startExternalStorybookServer(
           if (body.props === null || typeof body.props !== "object" || Array.isArray(body.props)) {
             throw new TypeError("props должен быть объектом параметров")
           }
-          try {
-            return responseJson(await runScenario({
-              nodeId: requiredText("scenario nodeId", body.nodeId),
-              revision,
-              variantId: requiredText("scenario variantId", body.variantId),
-              props: body.props as Record<string, unknown>,
-            }, grant.packageId, registry.snapshot(), sessions, request.signal))
-          } finally {
-            browserSessions.release(token)
+          const input = {
+            nodeId: requiredText("scenario nodeId", body.nodeId),
+            revision,
+            variantId: requiredText("scenario variantId", body.variantId),
+            props: body.props as Record<string, unknown>,
           }
+          const execute = async (signal: AbortSignal, onProgress?: ReadScenarioInput["onProgress"]) => {
+            try {
+              return await runScenario(input, grant.packageId!, registry.snapshot(), sessions, signal, onProgress)
+            } finally {
+              browserSessions.release(token)
+            }
+          }
+          return request.headers.get("accept")?.includes("application/x-ndjson")
+            ? streamScenarioRun(request.signal, execute)
+            : responseJson(await execute(request.signal))
         }
         if (url.pathname === "/api/browser/registry-session" && request.method === "POST") {
           assertExternalStorybookRequestOrigin(request, server.url.origin, {required: true})

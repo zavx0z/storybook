@@ -1,4 +1,4 @@
-import type {ScenarioPreview} from "@archetypes/specs/scenarios"
+import type {ReadScenarioInput, ScenarioPreview} from "@archetypes/specs/scenarios"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
 
 /** Только компонент содержит template; host запускает тест функции при выборе варианта. */
@@ -14,6 +14,7 @@ export type ScenarioAppInput =
     readonly run?: (
       variant: Extract<ScenarioPreview, {kind: "function"}>["variants"][number],
       signal: AbortSignal,
+      onProgress: NonNullable<ReadScenarioInput["onProgress"]>,
     ) => Promise<{
       source: string
       calls: Extract<ScenarioPreview, {kind: "function"}>["variants"][number]["calls"]

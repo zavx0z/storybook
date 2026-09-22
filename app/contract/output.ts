@@ -1,4 +1,5 @@
 import type {ScenarioAppInput} from "./input"
+import type {ReadScenarioInput} from "@archetypes/specs/scenarios"
 
 /**
 Общий выбор для Editor и Display; повторный выбор текущего варианта не пересоздаёт представление.
@@ -12,6 +13,10 @@ export interface ScenarioApp {
     readonly execution?: {
       readonly status: "running" | "passed" | "failed"
       readonly message?: string
+      readonly progress?: {
+        readonly phase: Parameters<NonNullable<ReadScenarioInput["onProgress"]>>[0]["phase"]
+        readonly output: string
+      }
       readonly tests?: readonly {label: string, status: string, message: string | null}[]
     }
   }

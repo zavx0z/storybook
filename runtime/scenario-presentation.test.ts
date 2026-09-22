@@ -7,6 +7,35 @@ import {createScenarioPresentation} from "./scenario-presentation"
 import {ScenarioInspector} from "@storybook/app/inspector"
 import {StatefulFixture} from "../app/spec/fixture"
 
+test("Живой вывод заменяется результатом только после завершения", async () => {
+  type Run = NonNullable<Extract<ScenarioAppInput, {kind: "function"}>["run"]>
+  let progress!: Parameters<Run>[2]
+  let finish!: (result: Awaited<ReturnType<Run>>) => void
+  const presentation = createScenarioPresentation(createDocument(), {
+    kind: "function",
+    variants: [{id: "0", title: "Пример", source: "run()", calls: [], points: []}],
+    run: (_, __, onProgress) => new Promise(resolve => {
+      progress = onProgress
+      finish = resolve
+    }),
+  })
+  try {
+    await Promise.resolve()
+    progress({phase: "running", text: "(pass) Первая проверка\n"})
+    presentation.componentRoot.flush()
+    expect(presentation.element.textContent).toContain("Первая проверка")
+    expect(presentation.element.textContent).not.toContain("Проверки пройдены")
+    finish({source: "run()", points: [], calls: [{id: 0, source: "run()", outcome: {type: "return", value: "готово"}}],
+      execution: {status: "passed", tests: []}})
+    await Bun.sleep(0)
+    presentation.componentRoot.flush()
+    expect(presentation.element.textContent).toContain("готово")
+    expect(presentation.element.textContent).not.toContain("Первая проверка")
+  } finally {
+    presentation.dispose()
+  }
+})
+
 test("выбор варианта сохраняет компонент и его состояние, обновляя общий Editor и аккордеон", async () => {
   const document = createDocument()
   const presentation = createScenarioPresentation(document, {

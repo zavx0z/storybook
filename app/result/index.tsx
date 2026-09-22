@@ -1,5 +1,6 @@
 import {useSyncExternalStore} from "@zavx0z/component"
 import {Typography} from "@zavx0z/ui/typography"
+import {CodeEditor} from "@zavx0z/ui/views/code-editor"
 import type {ScenarioApp} from "../contract/output"
 import {ScenarioCallResult} from "./src/call"
 
@@ -11,6 +12,11 @@ export function ScenarioResult(props: Readonly<{app: ScenarioApp}>) {
   const selected = useSyncExternalStore(props.app.subscribe, props.app.getSnapshot)
   if (!("calls" in selected)) throw new TypeError("Нет снимков вызовов функции")
   const failedTests = selected.execution?.tests?.filter(test => test.status === "failed" || test.status === "error") ?? []
+  const progress = selected.execution?.progress
+  const stage = progress?.phase === "queued" ? "Ожидание запуска"
+    : progress?.phase === "preparing" ? "Подготовка теста"
+    : progress?.phase === "reporting" ? "Подготовка результата" : "Запуск теста"
+  const output = progress?.output.replace(/\u001b\[[0-9;]*m/gu, "") ?? ""
   return <section
     data-scenario-result=""
     style={css`
@@ -24,7 +30,18 @@ export function ScenarioResult(props: Readonly<{app: ScenarioApp}>) {
       overflow: auto;
     `}
   >
-    {selected.execution?.status === "running" ? <Typography text="Выполняется тест…" /> : null}
+    {selected.execution?.status === "running" ? <Typography text={stage} /> : null}
+    {selected.execution?.status === "running" ? <CodeEditor
+      languageId="plaintext"
+      readOnly={true}
+      value={output || "Ожидание вывода Bun…"}
+      style={css`
+        flex: 1;
+        width: 100%;
+        height: 100%;
+        min-height: 180px;
+      `}
+    /> : null}
     {selected.execution?.status === "passed" ? <Typography text="Проверки пройдены" /> : null}
     {selected.execution?.status === "failed" ? <Typography text={selected.execution.message ?? "Проверки завершились с ошибками"} /> : null}
     {failedTests.map((test, index) => (
