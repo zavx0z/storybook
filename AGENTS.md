@@ -1,19 +1,19 @@
-# @zavx0z/storybook agent rules
+# Правила для агентов @zavx0z/storybook
 
-## Workspace boundary
+## Границы рабочего пространства
 
-- The canonical primary checkout is
+- Основной канонический checkout —
   `/Users/zavx0z/repozitarium/storybook`.
-- Related canonical checkouts are
+- Связанные канонические checkout'ы —
   `/Users/zavx0z/repozitarium/webxr-space`,
-  `/Users/zavx0z/repozitarium/renderer`, and
+  `/Users/zavx0z/repozitarium/renderer` и
   `/Users/zavx0z/repozitarium/metafor`.
-- Never use `/Users/zavx0z/production` or another archival checkout.
-- Preserve every supplied branch, dirty worktree, listener, browser target, and
-  unrelated file. Do not create branches, clones, or worktrees without a new
-  explicit owner request.
+- Не использовать `/Users/zavx0z/production` или другой архивный checkout.
+- Сохранять все предоставленные ветки, незакоммиченные изменения в рабочих деревьях,
+  слушающие соединения, цели браузера и посторонние файлы. Не создавать ветки,
+  клоны или Git worktree без нового прямого поручения Владимира.
 
-## Architecture process
+## Порядок работы с архитектурой
 
 - При работе над сценариями Archetypes и их ответами MCP соблюдать
   [порядок уточнения сценариев в ходе разработки](notes/scenario-development.md).
@@ -21,20 +21,22 @@
   [HTTP-прокси](mcp/proxy/spec/scenario.spec.ts) и
   [адаптера MCP](mcp/server/spec/scenario.spec.ts);
   границы зависимостей проверяются в [boundary.test.ts](mcp/proxy/test/boundary.test.ts).
-- Production owners are grouped in `discovery`, `catalog`, `build`, `sessions`,
-  `runtime`, `workbench` and `server`. `src/shared` contains private shared
-  mechanisms. Keep direct imports to the current owner; do not restore aliases
-  or forwarding files under the retired `src/external` tree.
-- `catalog/catalog.t.ts` owns the normalized discovery result. JSON discovery
-  remains the default resolver composed by the server. Registry and graph must
-  not import the JSON reader; additional discovery mechanisms use this same
-  catalog boundary and do not create parallel registries or UI/MCP models.
+- Владельцы рабочего кода сгруппированы в `discovery`, `catalog`, `build`, `sessions`,
+  `runtime`, `workbench` и `server`. `src/shared` содержит частные общие механизмы.
+  Импортировать напрямую из действующего владельца; не восстанавливать псевдонимы
+  или перенаправляющие файлы в выведенном из использования дереве `src/external`.
+- `catalog/catalog.t.ts` владеет нормализованным результатом обнаружения.
+  Обнаружение через JSON остаётся механизмом разрешения по умолчанию, подключаемым
+  сервером. Реестр и граф не импортируют средство чтения JSON; дополнительные
+  механизмы обнаружения используют ту же границу каталога и не создают параллельные
+  реестры или модели UI/MCP.
 
-- Start read-only. Before implementation, audit every existing Storybook and
-  present one evidence-backed owner law and a staged migration plan.
-- Node is a comparison candidate, not an assumed reference implementation.
-- `@zavx0z/storybook` is an external dev tool. It does not become a central
-  owner of other repositories' stories.
+- Начинать с изучения без правок. Перед реализацией провести аудит всех существующих
+  Storybook и представить единый закон распределения ответственности, подтверждённый
+  свидетельствами, и поэтапный план миграции.
+- Node — кандидат для сравнения, а не заранее выбранная эталонная реализация.
+- `@zavx0z/storybook` — внешний инструмент разработки. Он не становится центральным
+  владельцем историй других репозиториев.
 - Перед созданием, миграцией или изменением структуры проекта агент обязан
   прочитать [единые правила структуры проектов, пакетов и компонентов](archetypes/notes/draft-structure.md).
   Это нормативная точка входа. Правила создания пакетов, package identity,
@@ -48,11 +50,12 @@
   Его содержание и классификация проверок принадлежат README Archetypes, а не копии в навыке.
 - Один внешний Storybook процесс владеет registry, canonical graph, Workbench,
   PackageSessions, ревизиями, диагностикой и browser mechanics точных пакетов.
-- Consumer repositories and packages never depend on or import Storybook,
-  including type-only imports. They own no Storybook process, port, server,
-  build wrapper, launcher or private `@scope/storybook` package.
-- Import exact owners directly. Do not add compatibility aliases, `paths`,
-  wrappers, root barrels, generated copies, or compatibility re-exports.
+- Репозитории и пакеты-потребители не зависят от Storybook и не импортируют его,
+  включая импорты только типов. Они не владеют процессом, портом, сервером Storybook,
+  обёрткой сборки, средством запуска или частным пакетом `@scope/storybook`.
+- Импортировать напрямую из точных владельцев. Не добавлять псевдонимы совместимости,
+  `paths`, обёртки, корневые файлы со сводными реэкспортами, сгенерированные копии
+  или реэкспорты ради совместимости.
 - В сборке каждой страницы сохраняется по одной resolved identity для
   `@zavx0z/browser`, `@zavx0z/component`, `@zavx0z/devtools`, `@zavx0z/dom`, `@zavx0z/engine`,
   `@nodes/layout`, `@webxr/nodes`, `@nodes/tree`, `@nodes/parameters`,
@@ -90,52 +93,60 @@
 - Шрифт страницы загружается через exact `@zavx0z/engine/default-font` и asset
   `@zavx0z/engine/fonts/inter-regular.ttf`; копии шрифта и запасные owner paths
   запрещены.
-- This repository owns its own declaration-driven documentation. Every public contract,
-  visible shared behavior, route rule, or example change updates the matching
-  self-documentation page and executable example in the same slice. A change is
-  not complete while `bun run check` leaves that documentation stale.
-- Storybook MCP is the only agent control surface. Agents use `storybook_*`
-  tools for lifecycle, search, views, wait, inspection, interaction and capture;
-  they never call the Storybook CLI, browser scripts, ports or CDP identities.
-- CLI remains a human/diagnostic adapter to the same
-  `ExternalStorybookController`; MCP must never spawn or parse it.
+- Репозиторий владеет собственной документацией, управляемой декларациями.
+  Каждое изменение публичного контракта, наблюдаемого общего поведения, правила
+  маршрутизации или примера сопровождается обновлением соответствующей страницы
+  собственной документации и исполняемого примера в той же порции изменений.
+  Изменение не завершено, пока `bun run check` оставляет эту документацию устаревшей.
+- Storybook MCP — единственный интерфейс управления для агента. Агенты используют
+  инструменты `storybook_*` для жизненного цикла, поиска, представлений, ожидания,
+  инспекции, взаимодействия и снимков; они не обращаются к Storybook CLI,
+  браузерным скриптам, портам или идентификаторам CDP.
+- CLI остаётся адаптером для человека и диагностики к тому же
+  `ExternalStorybookController`; MCP не запускает CLI и не разбирает его вывод.
 
-## Self documentation lifecycle
+## Жизненный цикл собственной документации
 
-- Self documentation is the ordinary root `.storybook/manifest.json` package
-  declaration `@zavx0z/storybook`. It is attached to the same single external
-  automatic-port server and does not compose stories owned by UI, Node, Engine,
-  Renderer, or MetaFor.
-- The root page is the same six-region WebGPU Workbench supplied to consumers.
-  Every public subpath is a normal typed story in its catalog; live examples
-  are variants inside that same route tree. Do not create a second DOM docs
-  layout beside the shared Workbench.
-- Package catalog JSON, current contracts and executable examples must remain
-  aligned. A shared implementation change updates the matching self page.
-- After a stable source checkpoint, build with `storybook_check(live:false)`,
-  inspect the candidate with `storybook_open`/`storybook_inspect`, then explicitly
-  apply with `storybook_check(live:true)` and wait for active. Build alone never
-  updates user views. Failed checks preserve the applied revision.
+- Собственная документация — обычная декларация пакета `@zavx0z/storybook`
+  в корневом `.storybook/manifest.json`. Она подключается к тому же единому внешнему
+  серверу с автоматическим выбором порта и не объединяет истории, принадлежащие
+  UI, Node, Engine, Renderer или MetaFor.
+- Корневая страница — тот же WebGPU Workbench из шести областей, который получают
+  потребители. Каждый публичный подпуть — обычная типизированная история в его
+  каталоге; живые примеры являются вариантами в том же дереве маршрутов.
+  Не создавать отдельную DOM-разметку документации рядом с общим Workbench.
+- JSON-каталог пакета, действующие контракты и исполняемые примеры должны оставаться
+  согласованными. Изменение общей реализации обновляет соответствующую страницу
+  собственной документации.
+- После завершения согласованной порции правок исходников выполнить сборку через
+  `storybook_check(live:false)`, проверить кандидата через
+  `storybook_open`/`storybook_inspect`, затем явно применить его через
+  `storybook_check(live:true)` и дождаться состояния `active`. Одна только сборка
+  не обновляет пользовательские представления. Неуспешные проверки сохраняют
+  применённую ревизию.
 - Публичные адреса, вкладки и структурные пути определяются
   [контрактом URL](requirements.md#tabs-routes) и [нормами структуры](archetypes/notes/draft-structure.md).
   Агент проверяет эти правила у владельца, а не поддерживает отдельную копию здесь.
-- User navigation stays in the current tab. Agent open reuses a view currently
-  showing its package or creates a background view; never retarget a view the
-  user moved to another package. Multiple views per package are valid and all
-  follow successful application. Do not restart unrelated package views.
+- Пользовательская навигация остаётся в текущей вкладке. Открытие агентом повторно
+  использует представление, в котором сейчас показан нужный пакет, или создаёт
+  фоновое представление; не перенаправлять представление, которое пользователь
+  переключил на другой пакет. Несколько представлений одного пакета допустимы;
+  все они обновляются после успешного применения. Не перезапускать представления
+  посторонних пакетов.
 
-## Delivery safety
+## Безопасность внесения и применения изменений
 
 - Перед open/check и тяжёлыми проверками применять
   [правило предварительной оценки нагрузки](requirements.md#build-preflight).
   Не повторять запросы сборки без проверки уже выполняемой работы.
-- Storybook browser lifecycle is implemented inside Storybook MCP through its
-  private direct-CDP controller. Never use `ai-macos`, `@meta/chrome`, a browser
-  CLI/script or OS focus as a Storybook dependency or fallback.
-- Do not push, create a pull request, deploy Pages, dispatch workflows, or
-  create a GitHub repository without a separate explicit owner request.
-- Do not stop the one existing external Storybook merely to inspect it. Use
-  status/attach/check and preserve its registry, listener and package tabs.
-- Automated captures are evidence candidates, not owner acceptance.
-- TypeScript and JavaScript changes use no trailing semicolons unless syntax
-  requires one.
+- Жизненный цикл браузера Storybook реализован внутри Storybook MCP через его
+  частный контроллер прямого доступа к CDP. Не использовать `ai-macos`, `@meta/chrome`,
+  браузерный CLI, скрипт или фокус ОС как зависимость Storybook или запасной способ работы.
+- Не выполнять push, не создавать pull request, не развёртывать Pages, не запускать
+  workflows и не создавать репозиторий GitHub без отдельного прямого поручения Владимира.
+- Не останавливать единственный действующий внешний Storybook только ради его
+  изучения. Использовать status/attach/check и сохранять его реестр, слушающее
+  соединение и вкладки пакетов.
+- Автоматические снимки — кандидаты в свидетельства, а не приёмка Владимиром.
+- Изменяемый TypeScript и JavaScript писать без точек с запятой в конце,
+  кроме случаев, когда они требуются синтаксисом.

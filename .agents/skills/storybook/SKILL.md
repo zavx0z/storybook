@@ -1,32 +1,38 @@
 ---
 name: storybook
-description: "Use the Storybook MCP as the only agent interface for the one external declaration-driven Storybook server, graph, package views, inspection, interaction, and capture."
+description: "Использовать Storybook MCP как единственный интерфейс агента для работы с единым внешним сервером Storybook, управляемым декларациями: графом, представлениями пакетов, инспекцией, взаимодействием и снимками."
 ---
 
-# Storybook MCP workflow
+# Порядок работы через Storybook MCP
 
-1. Use only `storybook_*` MCP tools. Do not call Storybook shell scripts, CLI,
-   browser eval, Chrome/CDP identities, ports, coordinates, or PNG paths.
-2. Start with `storybook_status`; use `storybook_ensure` when the canonical
-   server or required declarations are absent.
-3. Find the exact package/category/subject/variant through `storybook_search`,
-   then open its exact route with `storybook_open`. It reuses a tab currently on
-   that package or opens a background tab without disturbing other packages.
-4. After source changes, build with `storybook_check(live:false)`. Open and
-   inspect the candidate, then explicitly apply with `storybook_check(live:true)`
-   and use `storybook_wait` for active. Only successful application updates every
-   tab of that package. Never force a manual reload. If the user navigates away,
-   reopen the package through MCP instead of acting on the old view handle.
-5. Use `storybook_inspect` for state, diagnostics, console, semantic, layout,
-   display and canvas evidence. Use stable semantic node IDs or exact
-   role+name, never raw coordinates.
-6. Use `storybook_interact` for hover/focus/click/key/type/wheel/scenario state.
-7. Use `storybook_capture` for page/Workbench/preview/canvas/node PNG evidence.
-   A capture is not an accepted Blender reference or visual baseline.
-8. Do not call `storybook_detach` or `storybook_stop` unless the task explicitly
-   requires that destructive action. `storybook_stop` always needs confirmation.
-9. Never change another package to bypass the package that failed. Preserve its
-   lastWorking revision and report its scoped diagnostics.
-10. If inspection or interaction reports a missing platform capability, record
-    the exact behavior and owner. Do not patch DOM, Renderer, TSX, Engine, UI,
-    Node, or MetaFor from Storybook as a workaround.
+1. Использовать только MCP-инструменты `storybook_*`. Не обращаться к shell-скриптам
+   Storybook, CLI, выполнению кода в браузере, идентификаторам Chrome/CDP, портам,
+   координатам или путям PNG.
+2. Начинать с `storybook_status`; использовать `storybook_ensure`, если канонический
+   сервер или необходимые декларации отсутствуют.
+3. Найти точный пакет, категорию, предмет или вариант через `storybook_search`,
+   затем открыть его точный маршрут через `storybook_open`. Инструмент повторно
+   использует вкладку этого пакета или открывает фоновую вкладку, не затрагивая
+   другие пакеты.
+4. После изменения исходников выполнить сборку через `storybook_check(live:false)`.
+   Открыть и проверить кандидата, затем явно применить его через
+   `storybook_check(live:true)` и дождаться состояния `active` через `storybook_wait`.
+   Только успешное применение обновляет все вкладки этого пакета. Не вызывать
+   принудительную ручную перезагрузку. Если пользователь перешёл на другую страницу,
+   снова открыть пакет через MCP, а не действовать через старый идентификатор представления.
+5. Использовать `storybook_inspect` для получения свидетельств о состоянии,
+   диагностике, консоли, семантическом дереве, раскладке, Display и Canvas.
+   Использовать стабильные семантические идентификаторы узлов или точную пару
+   «роль + имя», а не координаты.
+6. Использовать `storybook_interact` для наведения, фокуса, нажатий, ввода текста,
+   прокрутки и изменения состояния сценария.
+7. Использовать `storybook_capture` для получения PNG-снимков страницы, Workbench,
+   области предпросмотра, Canvas или узла. Снимок не является принятым эталоном
+   Blender или утверждённым визуальным образцом.
+8. Не вызывать `storybook_detach` или `storybook_stop`, если задача явно не требует
+   этого разрушительного действия. `storybook_stop` всегда требует подтверждения.
+9. Не изменять другой пакет ради обхода ошибки в текущем. Сохранять его ревизию
+   `lastWorking` и сообщать диагностику, относящуюся к этому пакету.
+10. Если инспекция или взаимодействие выявляет отсутствующую возможность платформы,
+    зафиксировать точное поведение и ответственного владельца. Не исправлять DOM,
+    Renderer, TSX, Engine, UI, Node или MetaFor из задачи Storybook ради обхода проблемы.
