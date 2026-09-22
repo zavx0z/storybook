@@ -3,8 +3,57 @@ import type {CompiledTemplate} from "@zavx0z/template/compiled"
 import type {McpWindowProps} from "../index"
 import type {McpRequestRecord} from "@mcp/rest/requests"
 import {command, createWindowHost, largeResponse} from "./fixture"
+import {defaultMcpWindowState} from "../src/state"
 
 const {McpWindow} = await import("../index.tsx")
+
+describe.each([
+  {name: "Восстановление открытого окна", open: true},
+  {name: "Восстановление закрытого окна", open: false},
+])("$name", async ({open}) => {
+  const host = createWindowHost()
+  afterAll(() => host.dispose())
+  const initialState = {...defaultMcpWindowState(), open, mode: "address" as const, geometry: {x: 64, y: 54, width: 690, height: 480}}
+  host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, {open, initialState, onClose() {}})
+  await host.settle()
+  test("Видимость", () => {
+    expect(host.container.querySelector('[data-mcp-window]')!.hasAttribute("hidden"), "Окно восстанавливает сохранённую видимость").toBe(!open)
+  })
+  test("Режим", () => {
+    expect(host.button("Текущий адрес → MCP").hasAttribute("disabled"), "Сохранённый режим выбран при первом отображении").toBeTrue()
+  })
+  test.skipIf(!open)("Геометрия", () => {
+    expect(host.bounds(host.container.querySelector('[data-mcp-window]')!), "Сохранённые положение и размер").toEqual(initialState.geometry)
+  })
+})
+
+describe.each([{name: "Два режима MCP", address: "/storybook/archetypes?view=scenarios&variant=Пример"}])("$name", async ({address}) => {
+  const host = createWindowHost()
+  afterAll(() => host.dispose())
+  const requests: {node: string}[] = []
+  const response = {node: "storybook/archetypes", sections: [{title: "Пример", content: [{text: "Ответ MCP"}]}]}
+  const props: McpWindowProps = {open: true, onClose() {}, load: async () => [command("agent")], addressSource: {
+    readAddress: () => address,
+    async request(input) {
+      requests.push(input)
+      return {result: response, failed: false}
+    },
+  }}
+  host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, props)
+  await host.settle()
+  const agent = host.container.querySelector("article")?.textContent
+  await host.click("Текущий адрес → MCP")
+  const codes = host.container.querySelector('[data-mcp-address]')!.querySelectorAll("code")
+  test("Вызовы агента", () => {
+    expect(agent, "Первый режим показывает настоящее обращение из источника журнала").toContain("storybook-agent")
+  })
+  test("Адрес", () => {
+    expect(requests, "Путь и параметры адресной строки напрямую адресуют MCP").toEqual([{node: address.slice(1)}])
+  })
+  test("Запрос и ответ", () => {
+    expect([...codes].map(code => JSON.parse(code.textContent)), "Второй режим показывает точный запрос и полный публичный ответ").toEqual([{node: address.slice(1)}, response])
+  })
+})
 
 describe.each([
   {name: "Пустой журнал", open: true, entries: [], error: null},

@@ -7,6 +7,7 @@ import {externalStorybookBrowsePath} from "../catalog/graph.ts"
 import {storybookRest} from "@mcp/rest"
 import {readScenarios} from "@mcp/rest/scenarios"
 import {createMcpRequestJournal} from "@mcp/rest/requests"
+import {proxyContent, errorContent} from "../mcp/server/src/response"
 import {StorybookDirectorySelection} from "./directory-selection.ts"
 import {StorybookPackageUrlMigrations} from "./package-url-migrations.ts"
 import {createCatalogRefresh} from "./catalog-refresh.ts"
@@ -668,6 +669,12 @@ export async function startExternalStorybookServer(
   const mcpRequests = createMcpRequestJournal()
   const runScenario = createStorybookScenarioRunner()
   let journalWriteError: {at: string, message: string} | null = null
+  /** Один предметный обработчик для MCP-прокси и просмотра ответа по адресу UI. */
+  const readStorybook = (request: Request) => storybookRest(request, toolRoot, readScenarios,
+    () => ({entries: mcpRequests.summary(), lastWriteError: journalWriteError}), {
+      roots: storybookRouteRoots(registry.snapshot()),
+      readPreparedSpec: path => readPreparedStorybookSpec(path, registry.snapshot(), sessions),
+    })
   let server!: Bun.Server<StorybookWebSocketData>
   try {
     options.onStartupPhase?.("listen")
@@ -746,12 +753,28 @@ export async function startExternalStorybookServer(
           browserSessions.authorize(request.headers.get("x-storybook-session") ?? "")
           return responseJson({entries: mcpRequests.read()})
         }
+        if (url.pathname === "/api/browser/mcp-address" && request.method === "POST") {
+          assertExternalStorybookRequestOrigin(request, server.url.origin, {required: true})
+          browserSessions.authorize(request.headers.get("x-storybook-session") ?? "")
+          const input = await requestObject(request)
+          assertExactRequestKeys(input, ["node"])
+          if (typeof input.node !== "string") throw new Error("Ожидается адрес раздела")
+          try {
+            const reply = await readStorybook(new Request(new URL("/api/control/storybook", server.url.origin), {
+              method: "POST",
+              body: JSON.stringify(input),
+              signal: request.signal,
+            }))
+            const result = await reply.json()
+            if (!reply.ok) throw new Error(typeof result.error === "string" ? result.error : `Storybook control API failed with ${reply.status}`)
+            return responseJson(proxyContent(result))
+          } catch (error) {
+            return responseJson(errorContent(error))
+          }
+        }
         if (url.pathname === "/api/control/storybook") {
           // Успешный обзор имеет предметную форму без lifecycle status; ошибки сохраняют явный статус.
-          return await storybookRest(request, toolRoot, readScenarios, () => ({entries: mcpRequests.summary(), lastWriteError: journalWriteError}), {
-            roots: storybookRouteRoots(registry.snapshot()),
-            readPreparedSpec: path => readPreparedStorybookSpec(path, registry.snapshot(), sessions),
-          })
+          return await readStorybook(request)
         }
         if (url.pathname === "/api/control/status" && request.method === "GET") {
           const snapshot = registry.snapshot()

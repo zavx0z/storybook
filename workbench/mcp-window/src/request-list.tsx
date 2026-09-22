@@ -114,7 +114,7 @@ function RequestRow(props: Readonly<{entry: McpRequestRecord}>) {
 }
 
 /** Отрисовывает полный ответ только выбранной команды, сохраняя доступ к истории. */
-function RequestListView(props: Readonly<{entries: readonly McpRequestRecord[], error: string}>) {
+function RequestListView(props: Readonly<{entries: readonly McpRequestRecord[], error: string, history?: boolean}>) {
   const list = useRef<HTMLDivElement | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const {entry, index, olderId, newerId} = selectRequest(props.entries, selectedId)
@@ -140,7 +140,7 @@ function RequestListView(props: Readonly<{entries: readonly McpRequestRecord[], 
     <div
       role="toolbar"
       aria-label="Команды журнала MCP"
-      hidden={entry === null}
+      hidden={entry === null || props.history === false}
       style={css`
         display: flex;
         flex-wrap: wrap;

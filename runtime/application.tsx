@@ -7,9 +7,14 @@ import {ClipboardMenu} from "@zavx0z/ui/menus/clipboard-menu"
 import {useState} from "@zavx0z/component"
 import {McpWindow} from "../workbench/mcp-window"
 import type {McpRequestRecord} from "@mcp/rest/requests"
+import type {McpAddressSource} from "../workbench/mcp-window/src/address-request"
+import type {McpWindowState} from "../workbench/mcp-window/src/state"
 
 export type StorybookAppProps = Readonly<{
   loadMcpRequests?: (() => Promise<readonly McpRequestRecord[]>) | undefined
+  mcpAddressSource?: McpAddressSource | undefined
+  mcpWindowState?: McpWindowState | undefined
+  saveMcpWindowState?: ((state: McpWindowState) => void) | undefined
   title: string
   statusOwner: string
   displayId: string
@@ -37,13 +42,16 @@ export function StorybookApp(props: StorybookAppProps) {
       hudId={props.hudId}
       onReady={props.onReady}
       loadMcpRequests={props.loadMcpRequests}
+      mcpAddressSource={props.mcpAddressSource}
+      mcpWindowState={props.mcpWindowState}
+      saveMcpWindowState={props.saveMcpWindowState}
     />
   </space>
 }
 
 /** Состояние окон HUD не обновляет начальные параметры камеры и дисплея. */
 function StorybookHUD(props: StorybookAppProps) {
-  const [mcpOpen, setMcpOpen] = useState(false)
+  const [mcpOpen, setMcpOpen] = useState(() => props.mcpWindowState?.open ?? false)
   const clipboard = getDocumentClipboardController(document as unknown as SemanticDocument)
   if (clipboard === null) throw new Error("Storybook requires the clipboard controller of its existing Browser Root")
   return <hud id={props.hudId}>
@@ -59,6 +67,9 @@ function StorybookHUD(props: StorybookAppProps) {
         open={mcpOpen}
         onClose={() => setMcpOpen(false)}
         load={props.loadMcpRequests}
+        addressSource={props.mcpAddressSource}
+        initialState={props.mcpWindowState}
+        onStateChange={props.saveMcpWindowState}
       />
     </hud>
 }

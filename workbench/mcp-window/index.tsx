@@ -1,12 +1,29 @@
+/**
+Окно MCP показывает обращения агента и ответ для текущего адреса Storybook.
+
+В режиме «Вызовы агента» доступны параметры, полный ответ и история команд.
+«Текущий адрес → MCP» передаёт путь и параметры адресной строки тому же
+обработчику MCP. Смена адреса обновляет результат; «Обновить ответ» перечитывает
+тот же адрес. Неподдерживаемые адреса показывают настоящую ошибку MCP.
+Положение, размер, видимость, свёрнутость и режим восстанавливаются после
+перезагрузки из локальных настроек браузера.
+
+@packageDocumentation
+*/
 import {useEffect, useRef, useState} from "@zavx0z/component"
 import {Window} from "@zavx0z/ui/surfaces/window"
-import {RequestList} from "./src/request-list.tsx"
+import {McpContent} from "./src/content"
+import type {McpAddressSource} from "./src/address-request"
 import type {McpRequestRecord} from "@mcp/rest/requests"
+import {defaultMcpWindowState, type McpWindowState} from "./src/state"
 
 export type McpWindowProps = Readonly<{
   open: boolean
   onClose(): void
   load?: (() => Promise<readonly McpRequestRecord[]>) | undefined
+  addressSource?: McpAddressSource | undefined
+  initialState?: McpWindowState | undefined
+  onStateChange?: ((state: McpWindowState) => void) | undefined
 }>
 
 /** Окно журнала в существующем HUD; перемещение и размер используют публичные pointer-события DOM. */
@@ -14,11 +31,15 @@ export function McpWindow(props: McpWindowProps) {
   const element = useRef<HTMLDivElement | null>(null)
   const [entries, setEntries] = useState<readonly McpRequestRecord[]>([])
   const [error, setError] = useState("")
-  const [minimized, setMinimized] = useState(false)
-  const [geometry, setGeometry] = useState({x: 24, y: 24, width: 620, height: 400})
+  const [mode, setMode] = useState(() => props.initialState?.mode ?? "agent")
+  const [minimized, setMinimized] = useState(() => props.initialState?.minimized ?? false)
+  const [geometry, setGeometry] = useState(() => props.initialState?.geometry ?? defaultMcpWindowState().geometry)
   const gesture = useRef<{mode: "move" | "resize", pointer: number, x: number, y: number, box: typeof geometry} | null>(null)
   useEffect(() => {
-    if (!props.open || !props.load) return
+    props.onStateChange?.({open: props.open, mode, minimized, geometry})
+  }, [props.open, mode, minimized, geometry, props.onStateChange])
+  useEffect(() => {
+    if (!props.open || mode !== "agent" || !props.load) return
     let active = true
     let timer: ReturnType<typeof setTimeout> | undefined
     const refresh = async () => {
@@ -45,7 +66,7 @@ export function McpWindow(props: McpWindowProps) {
       active = false
       clearTimeout(timer)
     }
-  }, [props.open, props.load])
+  }, [props.open, props.load, mode])
   const start = (event: PointerEvent, mode: "move" | "resize") => {
     if (event.button !== 0 || !element.current) return
     gesture.current = {mode, pointer: event.pointerId, x: event.clientX, y: event.clientY, box: geometry}
@@ -109,7 +130,14 @@ export function McpWindow(props: McpWindowProps) {
       onMinimizedChange={setMinimized}
       onAction={() => props.onClose()}
     >
-      <RequestList entries={entries} error={error} />
+      <McpContent
+        open={props.open}
+        mode={mode}
+        onMode={setMode}
+        entries={entries}
+        error={error}
+        addressSource={props.addressSource}
+      />
     </Window>
     <button
       type="button"

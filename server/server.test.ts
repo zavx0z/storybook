@@ -22,6 +22,45 @@ afterEach(async () => {
 })
 
 describe("one external Storybook server", () => {
+  test("адресный режим возвращает тот же ответ, что MCP, и не пишет в журнал агента", async () => {
+    const {Client, InMemoryTransport} = await import("@modelcontextprotocol/client")
+    const {createStorybookMcpServer} = await import("../mcp/server")
+    const {ExternalStorybookControlClient} = await import("./control-client")
+    const fixture = serverFixture()
+    const running = await startExternalStorybookServer({declarations: [fixture.standalone], statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
+    servers.push(running)
+    const control = new ExternalStorybookControlClient(running.record)
+    const mcp = createStorybookMcpServer({request: (input, signal) => control.control("/api/control/storybook", input, signal), recordRequest: async () => {}})
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
+    const client = new Client({name: "address-parity", version: "1"})
+    await Promise.all([mcp.connect(serverTransport), client.connect(clientTransport)])
+    const session = await fetch(new URL("/api/browser/registry-session", running.origin), {method: "POST", headers: {origin: running.origin, "content-type": "application/json"}, body: "{}"})
+    const {readerToken} = await session.json()
+    const endpoint = new URL("/api/browser/mcp-address", running.origin)
+    const read = (input: unknown, token = readerToken, origin = running.origin) => fetch(endpoint, {
+      method: "POST",
+      headers: {origin, "content-type": "application/json", "x-storybook-session": token},
+      body: JSON.stringify(input),
+    })
+    try {
+      for (const node of ["root", "standalone", "standalone?view=overview", "missing", "standalone?view=scenarios&variant=%D0%9A%D1%80%D1%83%D0%B3", "standalone?unsupported=1"]) {
+        const browser = await read({node})
+        expect(browser.status).toBe(200)
+        const expected = await client.callTool({name: "storybook", arguments: {node}})
+        expect(await browser.json()).toEqual(expected)
+      }
+      expect((await read({node: "root"}, "invalid")).status).toBe(401)
+      expect((await read({node: "root"}, readerToken, "https://example.com")).ok).toBeFalse()
+      expect((await read({node: "root", action: "journal"})).ok).toBeFalse()
+      const journal = await fetch(new URL("/api/browser/mcp-requests", running.origin), {headers: {"x-storybook-session": readerToken}})
+      expect(await journal.json()).toEqual({entries: []})
+      expect(running.sessions.snapshots().every(item => item.builds === 0)).toBeTrue()
+    } finally {
+      await client.close()
+      await mcp.close()
+    }
+  })
+
   test("выбор серверного сценария выполняет свежий тест с props", async () => {
     const fixture = serverFixture()
     const logPath = join(fixture.root, "scenario-runs.log")
