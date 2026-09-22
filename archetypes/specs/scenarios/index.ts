@@ -29,10 +29,18 @@ export {supportsScenarioPreview}
 @throws Ошибка запуска, таймаут или отсутствие завершающего отчёта.
 */
 export async function readScenario(input: ReadScenarioInput): Promise<ReadScenarioOutput> {
+  input.signal?.throwIfAborted()
+  if (input.variant !== undefined && (!Number.isSafeInteger(input.variant) || input.variant < 0)) {
+    throw new TypeError("variant должен быть неотрицательным индексом строки")
+  }
   if (input.props !== undefined) validateRunProps(input.props)
   const source = await readScenarioSource(input.path)
+  const outerGroups = source.groups.filter(group => group.depth === 0)
+  if (input.variant !== undefined && (outerGroups.length !== 1 || !outerGroups[0]!.each)) {
+    throw new Error("Выбор варианта требует единственного внешнего describe.each")
+  }
   const execution = await traceScenario({...input, path: source.path})
-  const preview = await createScenarioPreview(source.path, execution, Object.keys(input.props ?? {}))
+  const preview = await createScenarioPreview(source.path, execution, Object.keys(input.props ?? {}), input.variant ?? 0)
   return {
     ...execution,
     source,

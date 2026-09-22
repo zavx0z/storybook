@@ -1,4 +1,5 @@
 import {resolveStorybookRoute, storybookRouteRoots, readPreparedStorybookSpec} from "./route"
+import {createStorybookScenarioRunner} from "./scenario-run"
 import {storybookPackagePathMatches, storybookPackageRouteFromPathname, storybookCurrentRouteKey, validStorybookViewQuery} from "@zavx0z/storybook-browser-lifecycle/contract"
 import {externalStorybookBrowsePath} from "../catalog/graph.ts"
 import {storybookRest} from "@mcp/rest"
@@ -663,6 +664,7 @@ export async function startExternalStorybookServer(
 
 
   const mcpRequests = createMcpRequestJournal()
+  const runScenario = createStorybookScenarioRunner()
   let journalWriteError: {at: string, message: string} | null = null
   let server!: Bun.Server<StorybookWebSocketData>
   try {
@@ -859,6 +861,30 @@ export async function startExternalStorybookServer(
             metadata: capture.metadata,
             data: Buffer.from(capture.png).toString("base64"),
           })
+        }
+        if (url.pathname === "/api/browser/scenarios/run" && request.method === "POST") {
+          assertExternalStorybookRequestOrigin(request, server.url.origin, {required: true})
+          const token = request.headers.get("x-storybook-session") ?? ""
+          const grant = browserSessions.authorize(token)
+          const body = await requestObject(request, STORYBOOK_MCP_JOURNAL_BODY_MAX_BYTES)
+          assertExactRequestKeys(body, ["nodeId", "revision", "variantId", "props"])
+          const revision = requiredText("scenario revision", body.revision)
+          if (grant.kind !== "package" || grant.packageId === null || grant.revision !== revision) {
+            throw new ExternalStorybookSecurityError("invalid-browser-session", 403, "Запуск не принадлежит сессии пакета")
+          }
+          if (body.props === null || typeof body.props !== "object" || Array.isArray(body.props)) {
+            throw new TypeError("props должен быть объектом параметров")
+          }
+          try {
+            return responseJson(await runScenario({
+              nodeId: requiredText("scenario nodeId", body.nodeId),
+              revision,
+              variantId: requiredText("scenario variantId", body.variantId),
+              props: body.props as Record<string, unknown>,
+            }, grant.packageId, registry.snapshot(), sessions, request.signal))
+          } finally {
+            browserSessions.release(token)
+          }
         }
         if (url.pathname === "/api/browser/registry-session" && request.method === "POST") {
           assertExternalStorybookRequestOrigin(request, server.url.origin, {required: true})

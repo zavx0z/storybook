@@ -18,10 +18,12 @@ const context = new AsyncLocalStorage<TraceContext>()
 const registerInRunnerContext = AsyncLocalStorage.snapshot()
 const eachTables = new Map<string, {readonly rows: readonly unknown[], index: number}>()
 let runProps: Readonly<Record<string, unknown>> | undefined
+let runVariant: number | undefined
 
 /** Настраивает подстановку до загрузки сценария в отдельном дочернем процессе. */
-export function setRunProps(props: Readonly<Record<string, unknown>> | undefined): void {
+export function setRunProps(props: Readonly<Record<string, unknown>> | undefined, variant?: number): void {
   runProps = props
+  runVariant = variant
 }
 
 /** Подставляет поля строки each в шаблон названия без изменения таблицы. */
@@ -120,7 +122,9 @@ export const runtime: TraceRuntime = {
     }
   },
   table(site, rows, outerDescribe = false) {
-    const prepared = !outerDescribe || runProps === undefined ? rows : rows.map(row => {
+    if (outerDescribe && runVariant !== undefined && runVariant >= rows.length) throw new RangeError("Вариант сценария не найден")
+    const selected = outerDescribe && runVariant !== undefined ? [rows[runVariant]] : rows
+    const prepared = !outerDescribe || runProps === undefined ? selected : selected.map(row => {
       if (row === null || typeof row !== "object" || Array.isArray(row) || !Object.hasOwn(row, "props")) return row
       const props = Reflect.get(row, "props")
       if (props === null || typeof props !== "object" || Array.isArray(props)) {

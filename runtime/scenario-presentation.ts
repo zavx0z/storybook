@@ -17,7 +17,10 @@ export function createScenarioPresentation(document: Document, input: ScenarioAp
   if (input.kind === "function") {
     const template = ScenarioResult as unknown as CompiledTemplate<{app: typeof app}>
     const view = createStorybookComponentPresentation(document, template, {app}, "[data-scenario-result]")
-    return Object.freeze({...view, app, center: () => false})
+    return Object.freeze({...view, app, center: () => false, dispose() {
+      app.dispose()
+      view.dispose()
+    }})
   }
   const fixtureProps = () => {
     const selected = app.getSnapshot()
@@ -43,6 +46,7 @@ export function createScenarioPresentation(document: Document, input: ScenarioAp
     dispose() {
       if (disposed) return
       disposed = true
+      app.dispose()
       unsubscribe()
       fixtureRoot.unmount()
       view.dispose()

@@ -1,6 +1,7 @@
 import {ScenarioInspector} from "@storybook/app/inspector"
 import type {ScenarioAppInput} from "@storybook/app/contract/input"
 import {createScenarioPresentation} from "./scenario-presentation"
+import {createScenarioRun} from "./scenario-run"
 import {indexedWorkbenchAuthorStyleSheetSources} from "./author-style-sheets.ts"
 import {navigatePackage} from "./package-navigation.ts"
 import {externalStorybookBrowsePath} from "../catalog/graph.ts"
@@ -909,11 +910,17 @@ export async function startExternalStorybookPackage(
     if (scenarioLoader !== undefined) {
       const input = await abortable(scenarioLoader(), signal)
       if (disposed || revision !== navigationRevision || signal.aborted) return
-      scenarioPresentation = createScenarioPresentation(shell.document, input)
+      scenarioPresentation = createScenarioPresentation(shell.document, input.kind === "function" ? {
+        ...input,
+        run: createScenarioRun(fetcher, packageId, node.id, candidateRevision!),
+      } : input)
       restoreScenarioSelection()
       const app = scenarioPresentation.app
+      let selectedId = app.getSnapshot().id
       stopScenarioSelection = app.subscribe(() => {
         if (restoringScenarioSelection) return
+        if (selectedId === app.getSnapshot().id) return
+        selectedId = app.getSnapshot().id
         const next = new URL(location.href)
         next.searchParams.set("variant", app.getSnapshot().title)
         history.pushState(null, "", `${next.pathname}${next.search}`)

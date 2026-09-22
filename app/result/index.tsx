@@ -4,12 +4,13 @@ import type {ScenarioApp} from "../contract/output"
 import {ScenarioCallResult} from "./src/call"
 
 /**
-Показывает полные снимки исходов в редакторе JSON без вызова серверной функции.
+Показывает состояние запуска теста и полные исходы вызовов в редакторе JSON.
 Специальные значения сохраняют метки инспектора, ошибки не подменяются результатом.
 */
 export function ScenarioResult(props: Readonly<{app: ScenarioApp}>) {
   const selected = useSyncExternalStore(props.app.subscribe, props.app.getSnapshot)
   if (!("calls" in selected)) throw new TypeError("Нет снимков вызовов функции")
+  const failedTests = selected.execution?.tests?.filter(test => test.status === "failed" || test.status === "error") ?? []
   return <section
     data-scenario-result=""
     style={css`
@@ -23,7 +24,16 @@ export function ScenarioResult(props: Readonly<{app: ScenarioApp}>) {
       overflow: auto;
     `}
   >
-    {selected.calls.length === 0 ? <Typography text="В этом варианте нет выполненных вызовов" /> : null}
+    {selected.execution?.status === "running" ? <Typography text="Выполняется тест…" /> : null}
+    {selected.execution?.status === "passed" ? <Typography text="Проверки пройдены" /> : null}
+    {selected.execution?.status === "failed" ? <Typography text={selected.execution.message ?? "Проверки завершились с ошибками"} /> : null}
+    {failedTests.map((test, index) => (
+      <Typography
+        key={String(index)}
+        text={`${test.label}: ${test.message ?? test.status}`}
+      />
+    ))}
+    {selected.calls.length === 0 && selected.execution === undefined ? <Typography text="В этом варианте нет выполненных вызовов" /> : null}
     {selected.calls.map((call, index) => <ScenarioCallResult
       key={String(index)}
       call={call}

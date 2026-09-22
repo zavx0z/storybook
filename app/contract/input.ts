@@ -1,7 +1,7 @@
 import type {ScenarioPreview} from "@archetypes/specs/scenarios"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
 
-/** Только компонент содержит исполняемый template; функция передаёт сохранённые данные. */
+/** Только компонент содержит template; host запускает тест функции при выборе варианта. */
 export type ScenarioAppInput =
   | {
     readonly kind: "component"
@@ -11,4 +11,16 @@ export type ScenarioAppInput =
   | {
     readonly kind: "function"
     readonly variants: Extract<ScenarioPreview, {kind: "function"}>["variants"]
+    readonly run?: (
+      variant: Extract<ScenarioPreview, {kind: "function"}>["variants"][number],
+      signal: AbortSignal,
+    ) => Promise<{
+      source: string
+      calls: Extract<ScenarioPreview, {kind: "function"}>["variants"][number]["calls"]
+      points: Extract<ScenarioPreview, {kind: "function"}>["variants"][number]["points"]
+      execution: {
+        status: "passed" | "failed"
+        tests: readonly {label: string, status: string, message: string | null}[]
+      }
+    }>
   }

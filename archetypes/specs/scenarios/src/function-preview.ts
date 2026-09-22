@@ -26,7 +26,7 @@ import {
   isStringLiteral,
 } from "typescript/unstable/ast/is"
 import type {ScenarioExecution, ScenarioPreview, TraceValue} from "./types"
-import {previewPoints} from "./preview-values"
+import {isPortable, previewPoints} from "./preview-values"
 
 interface SourceReference {
   readonly path: readonly (string | number)[]
@@ -266,6 +266,7 @@ export function createFunctionPreview(
   descriptor: FunctionDescriptor,
   execution: ScenarioExecution,
   overriddenProps: readonly string[] = [],
+  variantOffset = 0,
 ): Extract<ScenarioPreview, {kind: "function"}> | undefined {
   const groups = execution.groups.filter(group => group.parentId === null)
   const variants: Extract<ScenarioPreview, {kind: "function"}>["variants"][number][] = []
@@ -281,7 +282,7 @@ export function createFunctionPreview(
         && item.column === call.location.column)
       const references = new Map<string, SourceReference>()
       for (const index of location?.propsArgumentIndexes ?? []) {
-        for (const reference of descriptor.referencesByVariant[variantIndex] ?? []) {
+        for (const reference of descriptor.referencesByVariant[variantIndex + variantOffset] ?? []) {
           if (typeof reference.path[0] === "string" && overriddenProps.includes(reference.path[0])) continue
           const located = {...reference, path: [index, ...reference.path]}
           references.set(JSON.stringify(located.path), located)
@@ -296,9 +297,15 @@ export function createFunctionPreview(
       })
     }
     const imports = [...new Set([descriptor.importSource, ...usedImports])]
+    const parameters = group.parameters
+    const rawProps = parameters !== null && typeof parameters === "object" && !Array.isArray(parameters)
+      ? (parameters as Record<string, TraceValue>).props : undefined
+    const props = rawProps !== null && typeof rawProps === "object" && !Array.isArray(rawProps)
+      ? Object.fromEntries(Object.entries(rawProps as Record<string, TraceValue>).filter(([, value]) => isPortable(value))) : {}
     variants.push({
       id: String(group.id),
       title: group.label,
+      props,
       source: `${imports.join("\n")}\n\n${calls.map(call => call.source).join("\n\n")}`,
       points: previewPoints(execution, group.id),
       calls,

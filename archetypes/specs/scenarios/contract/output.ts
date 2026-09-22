@@ -119,6 +119,8 @@ interface FunctionScenarioPreview {
   readonly variants: readonly {
     readonly id: string
     readonly title: string
+    /** JSON-поля исходных props для повторного запуска; исполняемые значения остаются в тесте. */
+    readonly props?: Readonly<Record<string, unknown>>
     readonly source: string
     readonly points: ComponentScenarioPreview["variants"][number]["points"]
     readonly calls: readonly {

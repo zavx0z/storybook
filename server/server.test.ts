@@ -22,6 +22,71 @@ afterEach(async () => {
 })
 
 describe("one external Storybook server", () => {
+  test("выбор серверного сценария выполняет свежий тест с props", async () => {
+    const fixture = serverFixture()
+    const logPath = join(fixture.root, "scenario-runs.log")
+    writeFileSync(join(fixture.standalone, "package.json"), JSON.stringify({
+      name: "@fixture/standalone", label: "Standalone Fixture", version: "0.0.0", private: true, type: "module",
+      exports: {".": "./index.ts"},
+    }))
+    writeFileSync(join(fixture.standalone, "index.ts"), [
+      'import {appendFileSync} from "node:fs"',
+      'import {randomUUID} from "node:crypto"',
+      '/** Сохраняет свидетельство каждого фактического вызова. */',
+      'export function evaluate(props: {value: string, logPath: string}) {',
+      '  appendFileSync(props.logPath, props.value + "\\n")',
+      '  return {value: props.value, stamp: randomUUID()}',
+      '}',
+    ].join("\n"))
+    mkdirSync(join(fixture.standalone, "spec"))
+    writeFileSync(join(fixture.standalone, "spec/scenario.spec.ts"), [
+      'import {describe, expect, test} from "bun:test"',
+      'import {evaluate} from "@fixture/standalone"',
+      'describe.each([',
+      `  {name: "Первый", props: {value: "a", logPath: ${JSON.stringify(logPath)}}},`,
+      `  {name: "Второй", props: {value: "b", logPath: ${JSON.stringify(logPath)}}},`,
+      '])("$name", ({props}) => {',
+      '  const result = evaluate(props)',
+      '  test("Значение", () => { expect(result.value, "Вход передан функции").toBe(props.value) })',
+      '})',
+    ].join("\n"))
+    const running = await startExternalStorybookServer({declarations: [fixture.standalone],
+      statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
+    servers.push(running)
+    const packageId = "@fixture/standalone"
+    const session = running.sessions.session(packageId)
+    const built = await running.sessions.ensure(packageId)
+    const revision = built.builtRevision!
+    expect(revision, JSON.stringify(built.diagnostics)).toBeString()
+    const nodeId = `package:${packageId}`
+    const prepared = await Bun.file(join(session.revisionDirectory(revision)!, "scenarios", `${encodeURIComponent(nodeId)}.json`)).json()
+    const originalCalls = readFileSync(logPath, "utf8")
+    const requestBody = {nodeId, revision, variantId: prepared.preview.variants[1].id, props: {value: "override", logPath}}
+    const send = async (body = requestBody) => {
+      const grant = await fetch(new URL("/api/browser/session", running.origin), {method: "POST",
+        headers: {origin: running.origin, "content-type": "application/json"}, body: JSON.stringify({packageId, revision})})
+      const {token} = await grant.json()
+      return fetch(new URL("/api/browser/scenarios/run", running.origin), {method: "POST",
+        headers: {origin: running.origin, "content-type": "application/json", "x-storybook-session": token},
+        body: JSON.stringify(body)})
+    }
+    const unauthorized = await fetch(new URL("/api/browser/scenarios/run", running.origin), {method: "POST",
+      headers: {origin: running.origin, "content-type": "application/json"}, body: JSON.stringify(requestBody)})
+    expect(unauthorized.status).toBe(401)
+    const first = await send()
+    expect(first.status, await first.clone().text()).toBe(200)
+    const firstResult = await first.json()
+    const second = await send()
+    expect(second.status, await second.clone().text()).toBe(200)
+    const secondResult = await second.json()
+    expect(firstResult.execution).toEqual({status: "passed", tests: [{label: "Значение", status: "passed", message: null}]})
+    expect(firstResult.calls[0].outcome.value.value).toBe("override")
+    expect(secondResult.calls[0].outcome.value.stamp).not.toBe(firstResult.calls[0].outcome.value.stamp)
+    expect(readFileSync(logPath, "utf8").slice(originalCalls.length)).toBe("override\noverride\n")
+    expect((await send({...requestBody, nodeId: "package:another"})).ok).toBeFalse()
+    expect(readFileSync(logPath, "utf8").slice(originalCalls.length)).toBe("override\noverride\n")
+  })
+
   test("журнал MCP принимает полный большой ответ через HTTP и завершает running", async () => {
     const fixture = serverFixture()
     const running = await startExternalStorybookServer({declarations: [fixture.standalone], statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})

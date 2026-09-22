@@ -384,7 +384,8 @@ function validateFunctionVariants(variants: readonly FunctionScenarioVariant[], 
         || !Object.hasOwn(outcome, outcome.type === "return" || outcome.type === "resolve" ? "value" : "error")) throw new TypeError("Invalid function outcome")
       return {id: call.id, source: call.source, outcome}
     })
-    const normalized = {id, title, source: variant.source, points, calls}
+    const normalized = {id, title, source: variant.source, points, calls,
+      ...(variant.props === undefined ? {} : {props: variant.props})}
     jsonSource(normalized, `function scenario ${nodeId}:${id}`)
     return Object.freeze(normalized)
   }))

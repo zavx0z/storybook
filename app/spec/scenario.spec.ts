@@ -112,6 +112,7 @@ describe.each([
       getSnapshot: expect.any(Function),
       select: expect.any(Function),
       subscribe: expect.any(Function),
+      dispose: expect.any(Function),
     })
   })
 

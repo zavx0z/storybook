@@ -46,6 +46,47 @@ import {startExternalStorybookPage, type ExternalStorybookPreparedPackageTarget}
 const fixtureRoot = join(import.meta.dir, "../discovery/fixtures/valid")
 
 describe("external Storybook package frontend", () => {
+  test("выбор функции запрашивает новый запуск с props и обновляет результат", async () => {
+    const base = await fixtureGraph()
+    const subjectId = "subject:@fixture/components/components/button"
+    const graph = {...base, nodes: base.nodes.map(node => node.id === subjectId
+      ? {...node, childIds: [], scenariosRoutePath: "components/button/scenarios"} : node)}
+    const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-run"))
+    const environment = environmentFixture(snapshot, "/fixture-workspace/projects/alpha/packages/components/components/button?view=scenarios")
+    const requests: {variantId: string, props: {value: string}}[] = []
+    const originalFetcher = environment.fetcher!
+    const fetcher = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/browser/session") return Response.json({token: "session"})
+      if (String(input) !== "/api/browser/scenarios/run") return originalFetcher(input, init)
+      const body = JSON.parse(String(init!.body))
+      requests.push(body)
+      return Response.json({source: `run(${JSON.stringify(body.props)})`, points: [],
+        calls: [{id: 0, source: "run()", outcome: {type: "return", value: `${body.props.value}-${requests.length}`}}],
+        execution: {status: "passed", tests: [{label: "Значение", status: "passed", message: null}]}})
+    }) as typeof fetch
+    const controller = await startExternalStorybookPackage({packageId: "@fixture/components", candidateRevision: "revision-run",
+      revisionUrl: "/__storybook/revisions/%40fixture%2Fcomponents/revision-run/", loadRuntime: null, storyLoaders: new Map(),
+      scenarioLoaders: new Map([[subjectId, async () => ({kind: "function" as const,
+        variants: ["a", "b"].map(id => ({id, title: id, source: id, props: {value: id}, points: [], calls: []}))})]]),
+      environment: {...environment, fetcher}})
+    try {
+      await Bun.sleep(0)
+      const app = controller.shell.workbench.controller.read("inspector.values")["storybook-scenarios"] as {select(id: string): void}
+      expect(app, JSON.stringify(environment.browserDocument!.documentElement.dataset)).toBeDefined()
+      app.select("b")
+      await Bun.sleep(0)
+      app.select("a")
+      await Bun.sleep(0)
+      expect(requests.map(({variantId, props}) => ({variantId, props}))).toEqual([
+        {variantId: "a", props: {value: "a"}}, {variantId: "b", props: {value: "b"}}, {variantId: "a", props: {value: "a"}},
+      ])
+      expect(controller.shell.display.textContent).toContain("a-3")
+      expect(controller.shell.display.textContent).toContain("Проверки пройдены")
+    } finally {
+      await controller.dispose()
+    }
+  })
+
   test("[SCENARIOS-APP] загружает fixture один раз и сохраняет ноду при выборе варианта", async () => {
     const base = await fixtureGraph()
     const subjectId = "subject:@fixture/components/components/button"

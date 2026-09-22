@@ -11,9 +11,16 @@
 Без props используются исходные варианты. Вложенные describe.each и test.each не изменяются.
 
 @property [testNamePattern] - Штатный фильтр имён групп и тестов Bun.
+
+@property [variant] - Индекс строки единственного внешнего describe.each, начиная с нуля.
+При выборе регистрируется только эта строка, включая её подготовку и проверки.
+
+@property [signal] - Отмена запуска; дочерний процесс завершается при отмене.
 */
 export interface ReadScenarioInput {
   readonly path: string
   readonly props?: Readonly<Record<string, unknown>>
   readonly testNamePattern?: string
+  readonly variant?: number
+  readonly signal?: AbortSignal
 }

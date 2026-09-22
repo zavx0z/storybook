@@ -264,11 +264,12 @@ export async function createScenarioPreview(
   path: string,
   execution: ScenarioExecution,
   overriddenProps: readonly string[] = [],
+  variantOffset = 0,
 ): Promise<ScenarioPreview | undefined> {
   const descriptor = await inspectScenario(path)
   if (!descriptor) {
     const functionDescriptor = await inspectFunctionScenario(path)
-    return functionDescriptor ? createFunctionPreview(functionDescriptor, execution, overriddenProps) : undefined
+    return functionDescriptor ? createFunctionPreview(functionDescriptor, execution, overriddenProps, variantOffset) : undefined
   }
   const calls = execution.calls.filter(call => call.groupId !== null
     && call.test === null

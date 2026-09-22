@@ -69,6 +69,38 @@ test("Исходник вызова показывает подставленн�
   expect(variant?.source).toBe('import {evaluate as run} from "@fixture/function-preview"\n\nawait run({\n  "value": "Внешнее значение"\n})\n\nawait run({\n  "value": null\n})')
 })
 
+test("Выбранный вариант выполняется без подготовки соседних вариантов", async () => {
+  const result = await readScenario({
+    path: resolve(import.meta.dir, "fixture/run-props.test.ts"),
+    variant: 1,
+    props: {path: "selected"},
+  })
+  expect(result.groups.filter(group => group.parentId === null).map(group => group.label)).toEqual(["Второй"])
+  expect(result.assertions.filter(item => item.test === "Параметры").map(item => item.actual)).toEqual([
+    {path: "selected", keep: 2, settings: {original: true}, text: ""},
+  ])
+})
+
+test("Выбранный импортированный аргумент сохраняет исходный импорт", async () => {
+  const result = await readScenario({
+    path: resolve(import.meta.dir, "fixture/function-preview/spec/scenario.spec.ts"),
+    variant: 7,
+    props: {},
+  })
+  expect(result.preview?.variants.map(item => item.title)).toEqual(["Импортированная функция"])
+  expect(result.preview?.variants[0]?.source).toContain('"value": sampleValue')
+})
+
+test("Отменённый запуск не выполняет тест", async () => {
+  const controller = new AbortController()
+  controller.abort(new Error("Отменено"))
+  await expect(readScenario({
+    path: resolve(import.meta.dir, "fixture/run-props.test.ts"),
+    variant: 0,
+    signal: controller.signal,
+  })).rejects.toThrow("Отменено")
+})
+
 test("Цикл и вычисляемое поле отклоняются без исполнения getter", async () => {
   let reads = 0
   const props = {

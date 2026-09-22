@@ -57,13 +57,15 @@ export async function traceScenario(input: ReadScenarioInput): Promise<ScenarioE
   let complete = false
   const directory = await mkdtemp(resolve(tmpdir(), "scenario-report-"))
   const reportPath = resolve(directory, "report.xml")
+  let removeAbortListener = () => {}
   try {
+    input.signal?.throwIfAborted()
     const child = Bun.spawn({
       cmd: [process.execPath, "test", "--reporter=junit", "--reporter-outfile", reportPath, "--preload", resolve(import.meta.dir, "trace-preload.ts"), path,
         ...(input.testNamePattern === undefined ? [] : ["--test-name-pattern", input.testNamePattern])],
       cwd: configuration.cwd,
       env,
-      stdin: new Blob([JSON.stringify({configuration, ...(input.props === undefined ? {} : {props: input.props})})]),
+      stdin: new Blob([JSON.stringify({configuration, props: input.props, variant: input.variant})]),
       stdout: "pipe",
       stderr: "pipe",
       timeout: 30_000,
@@ -84,16 +86,21 @@ export async function traceScenario(input: ReadScenarioInput): Promise<ScenarioE
         }
       },
     })
+    const abort = () => { child.kill() }
+    input.signal?.addEventListener("abort", abort, {once: true})
+    removeAbortListener = () => input.signal?.removeEventListener("abort", abort)
     const [exitCode, stdout, stderr] = await Promise.all([
       child.exited,
       new Response(child.stdout).text(),
       new Response(child.stderr).text(),
     ])
+    input.signal?.throwIfAborted()
     if (!complete) throw new Error(`Не получен завершающий IPC report: ${stderr}`)
     const junit = await readFile(reportPath, "utf8").catch(error => { throw new Error(`Не прочитан JUnit: ${stderr}`, {cause: error}) })
     calls.sort((left, right) => left.id - right.id)
     return {path, exitCode, stdout, stderr, calls, assertions, groups, tests: applyReport(junit, groups, tests), junit}
   } finally {
+    removeAbortListener()
     await rm(directory, {recursive: true, force: true})
   }
 }
