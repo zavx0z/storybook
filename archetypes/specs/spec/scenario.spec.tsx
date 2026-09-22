@@ -7,9 +7,8 @@
 директорий; проверки результата чтения сопоставляют группу, пункт и данные expect
 с выбранным примером.
 
-`SPEC_PATH` задаёт путь владельца вместо пути фикстуры. При внешней проверке
-применимый вариант выбирается фильтром имени теста `--test-name-pattern`.
-Без переменной каждый вариант использует собственную файловую фикстуру.
+Внешний запуск передаёт путь владельца через props.path.
+Применимые проверки выбираются штатным фильтром имени теста.
 
 Каждый тест передаёт сообщение с названием варианта непосредственно в `expect`.
 
@@ -18,27 +17,24 @@
 import {describe, expect, test} from "bun:test"
 import {basename, dirname, resolve} from "node:path"
 import {readSpec} from "@archetypes/specs"
-import {createFixture} from "../../shared/fixtures"
-
-const resolvePath = createFixture(process.env.SPEC_PATH)
 
 /** Четыре варианта размещения спецификации у непосредственного владельца. */
 describe.each([
   {
     name: "Репозиторий",
-    props: {path: resolvePath("fixture/repository")},
+    props: {path: resolve(import.meta.dir, "fixture/repository")},
   },
   {
     name: "Пакет",
-    props: {path: resolvePath("fixture/repository/package")},
+    props: {path: resolve(import.meta.dir, "fixture/repository/package")},
   },
   {
     name: "Категория",
-    props: {path: resolvePath("fixture/repository/package/category")},
+    props: {path: resolve(import.meta.dir, "fixture/repository/package/category")},
   },
   {
     name: "Сущность",
-    props: {path: resolvePath("fixture/repository/package/category/entity")},
+    props: {path: resolve(import.meta.dir, "fixture/repository/package/category/entity")},
   },
 ])("$name", async ({name, props}) => {
   const result = await readSpec(props)
@@ -61,8 +57,13 @@ describe.each([
     }))
   })
 
-  /** @remarks Состав примера относится к локальной фикстуре; внешний SPEC_PATH содержит собственные пункты и данные. */
-  test.skipIf(process.env.SPEC_PATH !== undefined)("Данные примера", () => {
+  /** @remarks Конкретные данные относятся только к файловым примерам этой спецификации. */
+  test.skipIf(![
+    resolve(import.meta.dir, "fixture/repository"),
+    resolve(import.meta.dir, "fixture/repository/package"),
+    resolve(import.meta.dir, "fixture/repository/package/category"),
+    resolve(import.meta.dir, "fixture/repository/package/category/entity"),
+  ].includes(props.path))("Данные примера", () => {
     expect(
       result?.scenario && {
         exitCode: result.scenario.exitCode,

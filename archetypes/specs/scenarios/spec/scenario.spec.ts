@@ -1,14 +1,12 @@
 import {describe, expect, test} from "bun:test"
-import {createFixture} from "../../../shared/fixtures"
+import {resolve} from "node:path"
 import {readScenario} from "@archetypes/specs/scenarios"
 
-const resolvePath = createFixture(process.env.SCENARIO_PATH)
-
 describe.each([
-  {name: "Сценарий функции", props: {path: resolvePath("fixture/function/spec/scenario.spec.ts")}},
-  {name: "Сценарий компонента", props: {path: resolvePath("fixture/component/spec/scenario.spec.tsx")}},
+  {name: "Сценарий функции", props: {path: resolve(import.meta.dir, "fixture/function/spec/scenario.spec.ts")}},
+  {name: "Сценарий компонента", props: {path: resolve(import.meta.dir, "fixture/component/spec/scenario.spec.tsx")}},
 ])("$name", async ({props}) => {
-  const result = await readScenario({path: props.path})
+  const result = await readScenario(props)
   const source = result.source
   const variant = source.groups.find(group => group.depth === 0)
   const category = source.groups.find(group => group.depth > 0)

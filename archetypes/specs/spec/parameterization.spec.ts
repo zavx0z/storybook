@@ -1,6 +1,6 @@
 /**
 Общие правила параметризации для любой спецификации.
-SPEC_DIRECTORY задаёт проверяемую директорию, SPEC_FILE — отдельный исходник.
+props.path задаёт проверяемую директорию или отдельный исходник.
 Если внешний путь не передан, каждый вариант использует свой пример.
 Все проверки выполняются и при прямом запуске, и при вызове из валидатора.
 Исходники читаются без исполнения. Ошибочный входной путь приводит к ошибке.
@@ -15,32 +15,28 @@ const checkParameterizationMock = mock(async (input: {path: string}) => {
   return checkSpecParameterization(input.path)
 })
 
-/** Разрешает путь относительно файловых фикстур этой спецификации. */
-const fixturePath = (path: string) => resolve(import.meta.dir, "fixture", path)
-const inputPath = process.env.SPEC_DIRECTORY ?? process.env.SPEC_FILE
-
 describe.each([
   {
     name: "Describe использует each",
-    props: {path: inputPath ?? fixturePath("parameterization/spec")},
+    props: {path: resolve(import.meta.dir, "fixture/parameterization/spec")},
     expected: [],
     fail: "Внешние describe задают варианты через each; вложенные describe задают категории",
   },
   {
     name: "Test допускается без each",
-    props: {path: inputPath ?? fixturePath("parameterization/plain-test.ts")},
+    props: {path: resolve(import.meta.dir, "fixture/parameterization/plain-test.ts")},
     expected: [],
     fail: "Обычные test внутри параметризованных describe должны соответствовать стандарту",
   },
   {
     name: "Параметризация сохраняется при условном запуске",
-    props: {path: inputPath ?? fixturePath("parameterization/each.ts")},
+    props: {path: resolve(import.meta.dir, "fixture/parameterization/each.ts")},
     expected: [],
     fail: "Условный запуск внешнего describe сохраняет параметризацию вариантов",
   },
   {
     name: "Псевдонимы describe используют each",
-    props: {path: inputPath ?? fixturePath("parameterization/aliases-each.ts")},
+    props: {path: resolve(import.meta.dir, "fixture/parameterization/aliases-each.ts")},
     expected: [],
     fail: "Внешние варианты через псевдоним describe сохраняют параметризацию each",
   },

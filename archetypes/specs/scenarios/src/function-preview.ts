@@ -265,6 +265,7 @@ export async function inspectFunctionScenario(pathInput: string): Promise<Functi
 export function createFunctionPreview(
   descriptor: FunctionDescriptor,
   execution: ScenarioExecution,
+  overriddenProps: readonly string[] = [],
 ): Extract<ScenarioPreview, {kind: "function"}> | undefined {
   const groups = execution.groups.filter(group => group.parentId === null)
   const variants: Extract<ScenarioPreview, {kind: "function"}>["variants"][number][] = []
@@ -281,6 +282,7 @@ export function createFunctionPreview(
       const references = new Map<string, SourceReference>()
       for (const index of location?.propsArgumentIndexes ?? []) {
         for (const reference of descriptor.referencesByVariant[variantIndex] ?? []) {
+          if (typeof reference.path[0] === "string" && overriddenProps.includes(reference.path[0])) continue
           const located = {...reference, path: [index, ...reference.path]}
           references.set(JSON.stringify(located.path), located)
         }

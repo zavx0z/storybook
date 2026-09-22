@@ -17,6 +17,12 @@ const context = new AsyncLocalStorage<TraceContext>()
 // Регистрация Bun внутри добавленного ALS нарушает обработку each; данные аргументов при этом вычисляются снаружи.
 const registerInRunnerContext = AsyncLocalStorage.snapshot()
 const eachTables = new Map<string, {readonly rows: readonly unknown[], index: number}>()
+let runProps: Readonly<Record<string, unknown>> | undefined
+
+/** Настраивает подстановку до загрузки сценария в отдельном дочернем процессе. */
+export function setRunProps(props: Readonly<Record<string, unknown>> | undefined): void {
+  runProps = props
+}
 
 /** Подставляет поля строки each в шаблон названия без изменения таблицы. */
 function renderName(template: unknown, values: readonly unknown[]): string {
@@ -42,7 +48,7 @@ interface TraceRuntime {
   /** Сохраняет объявление и оставляет вызов регистратора в исходной синтаксической позиции. */
   register(declaration: Declaration, original: (...args: unknown[]) => unknown): (...args: unknown[]) => unknown
   /** Сохраняет таблицу each до вызова параметризованного регистратора. */
-  table(site: string, rows: readonly unknown[]): readonly unknown[]
+  table(site: string, rows: readonly unknown[], outerDescribe?: boolean): readonly unknown[]
   /** Передаёт выбранную группу в замыкание вложенных тестов. */
   describe(site: string, name: unknown, callback: (group: TraceContext) => unknown, parent?: TraceContext): unknown
   /** Выбирает имя очередного варианта и сохраняет его отдельно от остальных. */
@@ -113,9 +119,17 @@ export const runtime: TraceRuntime = {
       return Reflect.apply(original, undefined, [label, wrapped, ...options])
     }
   },
-  table(site, rows) {
-    eachTables.set(site, {rows, index: 0})
-    return rows
+  table(site, rows, outerDescribe = false) {
+    const prepared = !outerDescribe || runProps === undefined ? rows : rows.map(row => {
+      if (row === null || typeof row !== "object" || Array.isArray(row) || !Object.hasOwn(row, "props")) return row
+      const props = Reflect.get(row, "props")
+      if (props === null || typeof props !== "object" || Array.isArray(props)) {
+        throw new TypeError("Для подстановки props вариант должен содержать объект props")
+      }
+      return {...row, props: {...props, ...structuredClone(runProps)}}
+    })
+    eachTables.set(site, {rows: prepared, index: 0})
+    return prepared
   },
   describe(site, name, callback, parent = rootContext) {
     const selected = addGroup(site, String(name), parent, null)

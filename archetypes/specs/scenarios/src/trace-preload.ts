@@ -5,7 +5,7 @@
 */
 import {resolve} from "node:path"
 import * as bunTest from "bun:test"
-import {runtime} from "./context"
+import {runtime, setRunProps} from "./context"
 import {instrument} from "./instrument"
 import {observe} from "./observe"
 import {drain} from "./pending"
@@ -16,9 +16,11 @@ import type {discover} from "./discover"
 type Registrar = (...args: unknown[]) => unknown
 Reflect.set(globalThis, Symbol.for("storybook.trace"), runtime)
 
-const encodedConfig = process.env.STORYBOOK_TRACE_CONFIG
-if (!encodedConfig) throw new Error("Не задан список наблюдаемых exports")
-const configuration = JSON.parse(Buffer.from(encodedConfig, "base64url").toString()) as Awaited<ReturnType<typeof discover>>
+const {configuration, props} = JSON.parse(await Bun.stdin.text()) as {
+  configuration: Awaited<ReturnType<typeof discover>>
+  props?: Readonly<Record<string, unknown>>
+}
+setRunProps(props)
 const scenarioPath = resolve(configuration.path)
 
 Bun.plugin({

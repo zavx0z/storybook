@@ -46,8 +46,6 @@ export async function traceScenario(input: ReadScenarioInput): Promise<ScenarioE
   const configuration = await discover(path)
   const env: NodeJS.ProcessEnv = {
     ...process.env,
-    ...input.env,
-    STORYBOOK_TRACE_CONFIG: Buffer.from(JSON.stringify(configuration)).toString("base64url"),
   }
   delete env.BUN_INSPECT
   delete env.BUN_INSPECT_NOTIFY
@@ -65,6 +63,7 @@ export async function traceScenario(input: ReadScenarioInput): Promise<ScenarioE
         ...(input.testNamePattern === undefined ? [] : ["--test-name-pattern", input.testNamePattern])],
       cwd: configuration.cwd,
       env,
+      stdin: new Blob([JSON.stringify({configuration, ...(input.props === undefined ? {} : {props: input.props})})]),
       stdout: "pipe",
       stderr: "pipe",
       timeout: 30_000,

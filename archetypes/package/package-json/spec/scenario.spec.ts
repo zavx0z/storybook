@@ -6,15 +6,12 @@ const readPackageJsonMock = mock(async (input: {path: string}) => {
   return readPackageJson(input)
 })
 
-const packageJsonPath = (path: string) => resolve(import.meta.dir, "../..", path)
-const inputPath = process.env.PACKAGE_JSON_PATH
-
 describe.each([
   {
     name: "package.json",
     fail: "Содержимое package.json должно соответствовать контракту пакета",
     props: {
-      path: inputPath ?? packageJsonPath("package.json"),
+      path: resolve(import.meta.dir, "../../package.json"),
     },
   },
 ])("$name", async ({props}) => {

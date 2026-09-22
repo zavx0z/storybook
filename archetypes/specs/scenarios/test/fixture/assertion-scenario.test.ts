@@ -64,13 +64,14 @@ describe.skip("Родительский пропуск", () => {
   })
 })
 
-/** @remarks Ошибки включаются только внешним тестом инспектора. */
-describe.skipIf(!process.env.TRACE_ASSERTIONS_FAILURE)("Ошибки", () => {
-  test("Прерывание", () => {
+describe.each([{name: "Ошибки", props: {failures: false}}])("$name", ({props}) => {
+  /** @remarks Ошибки включаются только внешним тестом инспектора. */
+  test.skipIf(!props.failures)("Прерывание", () => {
     expect(1, "Первое требование").toBe(2)
     expect(3, "Недостигнутое требование").toBe(3)
   })
-  test("Число утверждений", () => {
+  /** @remarks Ошибки включаются только внешним тестом инспектора. */
+  test.skipIf(!props.failures)("Число утверждений", () => {
     expect.assertions(2)
     expect(1, "Единственное достигнутое утверждение").toBe(1)
   })

@@ -2,20 +2,17 @@ import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
 import {readPackage} from "@archetypes/package"
 
-const packagePath = (path: string) => resolve(import.meta.dir, "../..", path)
-const inputPath = process.env.PACKAGE_PATH
-
 describe.each([
   {
     name: "Корневой пакет",
     props: {
-      path: inputPath ?? packagePath("."),
+      path: resolve(import.meta.dir, "../.."),
     },
   },
   {
     name: "Вложенный пакет",
     props: {
-      path: inputPath ?? packagePath("specs"),
+      path: resolve(import.meta.dir, "../../specs"),
     },
   },
 ])("$name", async ({props}) => {

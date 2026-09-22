@@ -4,7 +4,7 @@ import {readScenario} from "../index"
 
 describe("Утверждения и штатные исходы", async () => {
   const path = resolve(import.meta.dir, "fixture/assertion-scenario.test.ts")
-  const result = await readScenario({path, env: {TRACE_ASSERTIONS_FAILURE: "1"}})
+  const result = await readScenario({path, props: {failures: true}})
 
   test("Обычные значения не означают отсутствие выполнения", () => {
     expect(result.assertions.filter(item => item.test === "Значения").map(item => item.actual)).toEqual([null, "", [], null, "", []])
@@ -84,7 +84,8 @@ describe("Утверждения и штатные исходы", async () => {
   })
   test("Группы сохраняют параметры и родителей", () => {
     expect(result.groups.filter(item => item.parentId === null).map(item => [item.label, item.parameters])).toEqual([
-      ["Первый", {name: "Первый", value: 1}], ["Второй", {name: "Второй", value: 2}], ["Родительский пропуск", null], ["Ошибки", null],
+      ["Первый", {name: "Первый", value: 1}], ["Второй", {name: "Второй", value: 2}], ["Родительский пропуск", null],
+      ["Ошибки", {name: "Ошибки", props: {failures: true}}],
     ])
   })
   test("Штатный отчёт сохраняется целиком", () => {

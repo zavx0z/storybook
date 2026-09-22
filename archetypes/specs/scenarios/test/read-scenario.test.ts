@@ -1,8 +1,7 @@
 /**
 Проверяет результат функции readScenario на серверном, компонентном и связанном наборе данных.
 Это проверка реализации чтения, а не спецификация оформления сценариев.
-SCENARIO_PATH задаёт внешний путь к сценарию вместо примера по умолчанию.
-Относительный внешний путь разрешается от рабочей директории запуска тестов.
+props.path задаёт внешний путь к сценарию вместо примера по умолчанию.
 Вариант выбирается штатным фильтром Bun --test-name-pattern.
 
 @packageDocumentation
@@ -10,10 +9,7 @@ SCENARIO_PATH задаёт внешний путь к сценарию вмес�
 import {describe, expect, test} from "bun:test"
 import {isAbsolute, resolve} from "node:path"
 import {readScenario, type ReadScenarioInput} from "@archetypes/specs/scenarios"
-import {createFixture} from "../../../shared/fixtures"
 import {inspectSnapshot} from "./fixture/snapshot"
-
-const resolvePath = createFixture(process.env.SCENARIO_PATH)
 
 type Scenario = {
   name: string
@@ -25,7 +21,7 @@ describe.each([
   {
     name: "Трассировка серверной функции",
     props: {
-      path: resolvePath("../../../package/spec/scenario.spec.ts"),
+      path: resolve(import.meta.dir, "../../../package/spec/scenario.spec.ts"),
     },
     expected: ["Корневой пакет", "Вложенный пакет"].map(name => ({
       name: "readPackage", describe: [name], test: null, outcome: {type: "resolve"},
@@ -34,7 +30,7 @@ describe.each([
   {
     name: "Трассировка компонента",
     props: {
-      path: resolvePath("../../../../../webxr-space/nodes/node/diagram/spec/scenario.spec.tsx"),
+      path: resolve(import.meta.dir, "../../../../../webxr-space/nodes/node/diagram/spec/scenario.spec.tsx"),
     },
     expected: [
       ...["Прямоугольник", "Овал", "Круг"].flatMap(name => [
@@ -49,7 +45,7 @@ describe.each([
   },
   {
     name: "Трассировка связанных данных",
-    props: {path: resolvePath("fixture/value-scenario.test.ts")},
+    props: {path: resolve(import.meta.dir, "fixture/value-scenario.test.ts")},
     expected: [{name: "mixedValue", describe: ["Значения"], test: null, outcome: {type: "return"}}],
   },
 ] satisfies Scenario[])("$name", async ({props, expected}) => {
@@ -192,10 +188,14 @@ describe.each([
 
     /**
     @remarks
-    Имена вызовов относятся к примерам по умолчанию. Для внешнего SCENARIO_PATH
+    Имена вызовов относятся к примерам по умолчанию. Для внешнего props.path
     этот пример не применяется; общий контракт результата проверяется полностью.
     */
-    test.skipIf(process.env.SCENARIO_PATH !== undefined)("Группы и результаты", () => {
+    test.skipIf(![
+      resolve(import.meta.dir, "../../../package/spec/scenario.spec.ts"),
+      resolve(import.meta.dir, "../../../../../webxr-space/nodes/node/diagram/spec/scenario.spec.tsx"),
+      resolve(import.meta.dir, "fixture/value-scenario.test.ts"),
+    ].includes(props.path))("Группы и результаты", () => {
       const calls = result.calls.filter(call => expected.some(item => item.name === call.name))
 
       expect(calls, "Выполненные функции и методы, их группы, тесты и исходы").toMatchObject(expected)

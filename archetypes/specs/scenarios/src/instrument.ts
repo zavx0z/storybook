@@ -141,7 +141,7 @@ export async function instrument(path: string, source: string): Promise<string> 
           const declaration = JSON.stringify({site, location, modifiers, each: selectedEach !== null, assertions, skipReason})
           if (selectedEach?.arguments[0]) {
             insertions.push({position: selectedEach.arguments[0].getStart(file), text: `globalThis[Symbol.for("storybook.trace")].table(${JSON.stringify(site)},(`, order: 0})
-            insertions.push({position: selectedEach.arguments[0].end, text: "))", order: 1})
+            insertions.push({position: selectedEach.arguments[0].end, text: `),${owner === "describe" && parentGroup === null})`, order: 1})
           }
           if (owner === "test") {
             insertions.push({position: node.expression.getStart(file), text: `globalThis[Symbol.for("storybook.trace")].testRegistrar(${declaration},${parentGroup ?? "undefined"},`, order: 0})

@@ -1,6 +1,6 @@
 /**
  Проверяет пояснения пропусков в TSDoc.
- SPEC_DIRECTORY выбирает проверяемую директорию; по умолчанию проверяется эта spec.
+ props.path выбирает проверяемую директорию; по умолчанию проверяется эта spec.
  @packageDocumentation
  */
 import {describe, expect, mock, test} from "bun:test"
@@ -22,7 +22,7 @@ const fixture = fileURLToPath(new URL("./fixture/skip-remarks/", import.meta.url
 describe.each([
   {
     name: "Каждый пропуск объяснён в remarks",
-    props: {path: process.env.SPEC_DIRECTORY ?? fileURLToPath(new URL("./", import.meta.url))},
+    props: {path: fileURLToPath(new URL("./", import.meta.url))},
     expected: [],
     fail: "Перед каждым пропуском должен быть TSDoc с непустым @remarks",
   },

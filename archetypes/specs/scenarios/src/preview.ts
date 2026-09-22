@@ -260,11 +260,15 @@ export async function supportsScenarioPreview(input: Pick<ReadScenarioInput, "pa
 }
 
 /** Собирает представление из статической связи и снимков того же запуска; повторных вызовов нет. */
-export async function createScenarioPreview(path: string, execution: ScenarioExecution): Promise<ScenarioPreview | undefined> {
+export async function createScenarioPreview(
+  path: string,
+  execution: ScenarioExecution,
+  overriddenProps: readonly string[] = [],
+): Promise<ScenarioPreview | undefined> {
   const descriptor = await inspectScenario(path)
   if (!descriptor) {
     const functionDescriptor = await inspectFunctionScenario(path)
-    return functionDescriptor ? createFunctionPreview(functionDescriptor, execution) : undefined
+    return functionDescriptor ? createFunctionPreview(functionDescriptor, execution, overriddenProps) : undefined
   }
   const calls = execution.calls.filter(call => call.groupId !== null
     && call.test === null
