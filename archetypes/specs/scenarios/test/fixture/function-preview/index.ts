@@ -4,3 +4,8 @@ export async function evaluate(input: {value?: unknown, fail?: boolean, special?
   if (input.special) return NaN
   return input.value
 }
+
+/** Значение-функция для проверки статически подтверждённой ссылки в исходнике preview. */
+export function sampleValue() {
+  return "sample"
+}

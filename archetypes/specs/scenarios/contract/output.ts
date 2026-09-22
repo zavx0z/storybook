@@ -109,7 +109,11 @@ interface ComponentScenarioPreview {
   }[]
 }
 
-/** Снимки вызовов функции; исполняемого браузерного модуля здесь нет. */
+/**
+Снимки вызовов функции; исполняемого браузерного модуля здесь нет.
+Статически подтверждённые импортированные значения сохраняются в source как
+именованные ссылки с исходным import, а не преобразуются в JSON.
+*/
 interface FunctionScenarioPreview {
   readonly kind: "function"
   readonly variants: readonly {

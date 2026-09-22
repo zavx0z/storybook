@@ -1,5 +1,5 @@
 import {afterAll, describe, expect, test} from "bun:test"
-import {evaluate as run} from "@fixture/function-preview"
+import {evaluate as run, sampleValue} from "@fixture/function-preview"
 
 describe.each([
   {name: "Ноль", props: {value: 0}},
@@ -9,6 +9,7 @@ describe.each([
   {name: "Пустой объект", props: {value: {}}},
   {name: "Не задано", props: {}},
   {name: "Специальное число", props: {special: true}},
+  {name: "Импортированная функция", props: {value: sampleValue}},
   {name: "Ошибка", props: {fail: true}},
 ])("$name", async ({props}) => {
   let first: unknown

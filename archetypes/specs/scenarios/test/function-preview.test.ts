@@ -49,10 +49,17 @@ describe("Точность снимков функции", async () => {
     ])
   })
   test("Несколько вызовов и hooks на одной строке", () => {
-    expect(preview.variants.map(variant => variant.calls.length), "Прямые обращения не смешиваются с вызовом очистки на той же строке").toEqual(Array(8).fill(2))
-    expect(preview.variants.map(variant => variant.calls[1]?.outcome)).toEqual(Array(8).fill({type: "resolve", value: null}))
-    expect(result.calls.filter(call => call.name === "evaluate")).toHaveLength(24)
+    expect(preview.variants.map(variant => variant.calls.length), "Прямые обращения не смешиваются с вызовом очистки на той же строке").toEqual(Array(9).fill(2))
+    expect(preview.variants.map(variant => variant.calls[1]?.outcome)).toEqual(Array(9).fill({type: "resolve", value: null}))
+    expect(result.calls.filter(call => call.name === "evaluate")).toHaveLength(27)
     expect(preview.variants.every(variant => variant.source.includes("evaluate as run") && !variant.source.includes("Очистка"))).toBeTrue()
+  })
+  test("Импортированное значение", () => {
+    const source = preview.variants.find(variant => variant.title === "Импортированная функция")?.source
+    expect(source, "Импортированная функция остаётся именованной ссылкой в восстановленном вызове").toContain(
+      'import {sampleValue} from "@fixture/function-preview"',
+    )
+    expect(source, "Вызов использует исходное имя вместо служебной метки функции").toContain('"value": sampleValue')
   })
   test("Отказ", () => {
     expect(preview.variants.at(-1)?.calls[0]?.outcome).toMatchObject({type: "reject", error: {message: "Ошибка примера"}})
