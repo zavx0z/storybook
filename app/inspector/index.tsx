@@ -14,7 +14,10 @@ export function ScenarioInspector(props: Readonly<{value: unknown}>) {
       flex-direction: column;
       width: 100%;
       min-width: 0;
+      height: 100%;
+      min-height: 0;
       gap: 6px;
+      overflow: hidden;
     `}
   >
     <CodeEditor
@@ -25,13 +28,27 @@ export function ScenarioInspector(props: Readonly<{value: unknown}>) {
         width: 100%;
         height: 260px;
         min-height: 180px;
+        flex-shrink: 0;
       `}
     />
-    {app.variants.map(variant => <ScenarioVariant
-      key={variant.id}
-      app={app}
-      variant={variant}
-      expanded={selected.id === variant.id}
-    />)}
+    <div
+      data-scenario-variants=""
+      style={css`
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        flex-grow: 1;
+        gap: 6px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+      `}
+    >
+      {app.variants.map(variant => <ScenarioVariant
+        key={variant.id}
+        app={app}
+        variant={variant}
+        expanded={selected.id === variant.id}
+      />)}
+    </div>
   </section>
 }

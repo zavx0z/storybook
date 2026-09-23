@@ -3,6 +3,7 @@ import {createDocument, Event} from "@zavx0z/dom"
 import {expect, test} from "bun:test"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
 import type {ScenarioAppInput} from "@storybook/app/contract/input"
+import {createDocumentRenderer} from "@renderer/html"
 import {createScenarioPresentation} from "./scenario-presentation"
 import {ScenarioInspector} from "@storybook/app/inspector"
 import {StatefulFixture} from "../app/spec/fixture"
@@ -129,6 +130,50 @@ test("выбор варианта сохраняет компонент и ег�
     }
   } finally {
     inspector?.unmount()
+    presentation.dispose()
+  }
+})
+
+test("Editor остаётся сверху, пока прокручивается только список вариантов", () => {
+  const document = createDocument()
+  const presentation = createScenarioPresentation(document, {
+    kind: "component",
+    template: StatefulFixture as unknown as CompiledTemplate<Record<string, unknown>>,
+    variants: [{
+      id: "long",
+      title: "Длинный сценарий",
+      props: {name: "Длинный сценарий"},
+      source: '<StatefulFixture name="Длинный сценарий" />',
+      points: Array.from({length: 80}, (_, index) => ({
+        title: `Пункт ${index + 1}`,
+        content: "Подробное описание пункта сценария",
+      })),
+    }],
+  })
+  const inspectorHost = document.createElement("aside")
+  inspectorHost.setAttribute("style", "display:flex;width:400px;height:600px")
+  document.append(inspectorHost)
+  const inspector = createRoot(inspectorHost)
+  inspector.render(ScenarioInspector as unknown as CompiledTemplate<{value: unknown}>, {value: presentation.app})
+  const renderer = createDocumentRenderer({
+    document,
+    root: inspectorHost,
+    viewport: {width: 400, height: 600},
+  })
+  try {
+    const editor = inspectorHost.querySelector('[data-language-id="typescript"]')!
+    const variants = inspectorHost.querySelector("[data-scenario-variants]")!
+    const initial = renderer.flush()
+    const editorBox = initial.boxByNode.get(editor)
+    expect(initial.boxByNode.get(inspectorHost.querySelector("[data-scenario-inspector]")!)?.height).toBe(600)
+    expect(initial.scrolls.get(variants)?.maxScrollTop).toBeGreaterThan(0)
+    variants.scrollTop = 160
+    const scrolled = renderer.flush()
+    expect(scrolled.scrolls.get(variants)?.scrollTop).toBe(160)
+    expect(scrolled.boxByNode.get(editor)).toEqual(editorBox)
+  } finally {
+    renderer.dispose()
+    inspector.unmount()
     presentation.dispose()
   }
 })
