@@ -31,8 +31,9 @@ describe("external Storybook browser model", () => {
   test("одна навигация продолжает пакет до предмета и берёт его данные из применённой ревизии", async () => {
     const graph = await fixtureGraph()
     const subjectId = "subject:@fixture/components/components/button"
-    const applied = {...graph, nodes: graph.nodes.map(node => node.id === subjectId
-      ? {...node, label: "Применённая кнопка"} : node)}
+    const applied = {...graph, rootIds: ["package:@fixture/components"], nodes: graph.nodes.filter(node => node.packageId === "@fixture/components")
+      .map(node => node.kind === "package" ? {...node, parentId: null}
+        : node.id === subjectId ? {...node, label: "Применённая кнопка"} : node)}
     const items = deriveExternalStorybookNavigationTree(graph, {packageId: "@fixture/components", graph: applied})
     const packageNode = items.find(item => item.id === "package:@fixture/components")!
     const category = items.find(item => item.id === "category:@fixture/components/components")!

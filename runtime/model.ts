@@ -82,6 +82,8 @@ export function deriveExternalStorybookLanding(
 /**
 Проецирует один навигационный путь от подключённого корня до предмета.
 Ветвь открытого пакета берётся из его точной применённой ревизии.
+Родитель самого пакета остаётся из общего графа: изолированная ревизия не владеет
+его положением среди подключённых репозиториев и вложенных пакетов.
 */
 export function deriveExternalStorybookNavigationTree(
   graph: BrowserGraph,
@@ -108,7 +110,15 @@ export function deriveExternalStorybookNavigationTree(
     if (!visible(node)) continue
     if (exactPackage !== undefined && node.packageId === exactPackage.packageId) {
       if (node.kind === "package" && node.id === `package:${exactPackage.packageId}`) {
-        result.push(...packageItems)
+        result.push(...packageItems.map(packageItem => {
+          if (packageItem.id !== node.id) return packageItem
+          const {parentId: _isolatedParent, ...content} = packageItem
+          return Object.freeze({
+            ...content,
+            expandable: content.expandable || node.childIds.some(id => graphVisibleIds.has(id)),
+            ...(node.parentId === null ? {} : {parentId: node.parentId}),
+          })
+        }))
       }
       continue
     }

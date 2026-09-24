@@ -1,7 +1,8 @@
 import {TextField, type TextFieldProps} from "@zavx0z/ui/fields/text-field"
 import {Button} from "@zavx0z/ui/buttons/button"
-import {plusIcon} from "@zavx0z/ui/themes/icons"
+import {collapseAllIcon, expandAllIcon, plusIcon, selectOpenedItemIcon} from "@zavx0z/ui/themes/icons"
 import type {Document as SemanticDocument} from "@zavx0z/dom"
+import {useRef} from "@zavx0z/component"
 import {WorkbenchRegionPanel} from "../components/region-panel.tsx"
 import type {
   WorkbenchNavigationGroup,
@@ -9,7 +10,7 @@ import type {
   WorkbenchCatalogAction,
   WorkbenchCatalogManagement,
 } from "../contract.ts"
-import {WorkbenchNavigationTree} from "../navigation/ui-tree.tsx"
+import {WorkbenchNavigationTree, type WorkbenchNavigationTreeHandle} from "../navigation/ui-tree.tsx"
 import type {NavigationExpansion} from "../navigation/persistence.ts"
 
 export type CatalogRegionProps = Readonly<{
@@ -28,6 +29,7 @@ export type CatalogRegionProps = Readonly<{
 
 function CatalogRegionContent(props: Readonly<{value: CatalogRegionProps}>) {
   const value = props.value
+  const tree = useRef<WorkbenchNavigationTreeHandle | null>(null)
   const onSearch: NonNullable<TextFieldProps["onInput"]> = (search, event) => {
     value.onSearch(search, event.currentTarget)
   }
@@ -61,6 +63,37 @@ function CatalogRegionContent(props: Readonly<{value: CatalogRegionProps}>) {
           --text-field-width: 100%;
         `}
         onInput={onSearch}
+      />
+      <Button
+        label=""
+        startIcon={selectOpenedItemIcon}
+        title="Найти текущую страницу в дереве"
+        aria-label="Найти текущую страницу в дереве"
+        disabled={value.activeId === null}
+        onClick={event => tree.current?.revealActive(event.currentTarget)}
+        style={css`
+          flex-shrink: 0;
+        `}
+      />
+      <Button
+        label=""
+        startIcon={expandAllIcon}
+        title="Развернуть всё дерево"
+        aria-label="Развернуть всё дерево"
+        onClick={() => tree.current?.expandAll()}
+        style={css`
+          flex-shrink: 0;
+        `}
+      />
+      <Button
+        label=""
+        startIcon={collapseAllIcon}
+        title="Свернуть всё дерево"
+        aria-label="Свернуть всё дерево"
+        onClick={() => tree.current?.collapseAll()}
+        style={css`
+          flex-shrink: 0;
+        `}
       />
       {value.management !== null ? <Button
         label=""
@@ -102,6 +135,8 @@ function CatalogRegionContent(props: Readonly<{value: CatalogRegionProps}>) {
         query={value.search}
         onNavigate={value.onNavigate}
         onGroupToggle={value.onGroupToggle}
+        onSearch={value.onSearch}
+        onReady={handle => { tree.current = handle }}
         navigationExpansion={value.navigationExpansion}
         removableIds={value.management?.removableIds ?? []}
         onRemove={(item, source) => value.onAction({action: "detach", value: item.id}, source)}

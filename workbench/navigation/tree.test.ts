@@ -74,6 +74,9 @@ describe("compiled Storybook catalog navigation tree", () => {
     expect(findLeaf(workbench, "child")).toBeUndefined()
     expect(workbench.document.activeElement === repo).toBeTrue()
     repo.querySelector("button")!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    expect(findLeaf(workbench, "child")).toBeUndefined()
+    expect(findGroup(workbench, "parent")?.getAttribute("aria-expanded")).toBe("false")
+    clickGroup(findGroup(workbench, "parent")!)
     expect(findLeaf(workbench, "child") === child).toBeTrue()
     expect(navigated).toEqual(["repo"])
   })
@@ -194,6 +197,67 @@ describe("compiled Storybook catalog navigation tree", () => {
       expect(findGroup(restored, "elements")?.getAttribute("aria-expanded")).toBe("false")
       expect(findGroup(restored, "dom")?.getAttribute("aria-expanded")).toBe("true")
     } finally { restored.dispose() }
+  })
+
+  test("сворачивание родителя рекурсивно сворачивает потомков и сохраняет их состояние", () => {
+    let collapsedIds: readonly string[] = []
+    const expansion = (): NavigationExpansion => ({
+      initialCollapsedIds: collapsedIds,
+      save(ids) { collapsedIds = [...ids] },
+    })
+    const items = [
+      {id: "repo", label: "Repository", route: "/projects/repo/"},
+      {id: "package", label: "Package", route: "/browse/package/", parentId: "repo"},
+      {id: "directory", label: "Directory", route: "/browse/directory/", parentId: "package"},
+      {id: "subject", label: "Subject", route: "/browse/subject/", parentId: "directory"},
+    ] as const
+    const first = createWorkbench(items, "subject", expansion())
+    clickGroup(findGroup(first, "repo")!)
+    expect(collapsedIds).toEqual(["repo", "package", "directory"])
+    clickGroup(findGroup(first, "repo")!)
+    expect(findGroup(first, "package")?.getAttribute("aria-expanded")).toBe("false")
+    expect(collapsedIds).toEqual(["package", "directory"])
+    first.dispose()
+
+    const restored = createWorkbench(items, "subject", expansion())
+    try {
+      expect(findGroup(restored, "repo")?.getAttribute("aria-expanded")).toBe("true")
+      expect(findGroup(restored, "package")?.getAttribute("aria-expanded")).toBe("false")
+    } finally { restored.dispose() }
+  })
+
+  test("кнопки рядом с поиском управляют полным деревом и находят текущую страницу", () => {
+    let collapsedIds: readonly string[] = []
+    const workbench = createWorkbench([
+      {id: "repo", label: "Repository", route: "/projects/repo/"},
+      {id: "package", label: "Package", route: "/browse/package/", parentId: "repo"},
+      {id: "subject", label: "Subject", route: "/browse/subject/", parentId: "package"},
+      {id: "other", label: "Other", route: "/browse/other/"},
+    ], "subject", {initialCollapsedIds: [], save(ids) { collapsedIds = [...ids] }})
+    const toolbar = workbench.element.querySelector('[data-storybook-part="catalog-search"]') as Element
+    const button = (label: string): HTMLButtonElement => {
+      const result = toolbar.querySelector(`button[aria-label="${label}"]`) as HTMLButtonElement | null
+      if (result === null) throw new Error(`Missing toolbar button: ${label}`)
+      return result
+    }
+    expect(button("Найти текущую страницу в дереве")).toBeDefined()
+    workbench.update("catalog.search", "Other")
+    button("Свернуть всё дерево").dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    expect(collapsedIds).toEqual(["repo", "package"])
+    expect(findLeaf(workbench, "subject")).toBeUndefined()
+    workbench.update("catalog.search", "")
+    button("Развернуть всё дерево").dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    expect(collapsedIds).toEqual([])
+    expect(findLeaf(workbench, "subject")).toBeDefined()
+
+    button("Свернуть всё дерево").dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    workbench.update("catalog.search", "Other")
+    button("Найти текущую страницу в дереве").dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    expect(workbench.controller.read("catalog.search")).toBe("")
+    expect(findGroup(workbench, "repo")?.getAttribute("aria-expanded")).toBe("true")
+    expect(findGroup(workbench, "package")?.getAttribute("aria-expanded")).toBe("true")
+    expect(findLeaf(workbench, "subject")?.getAttribute("aria-current")).toBe("page")
+    expect(collapsedIds).toEqual([])
   })
 
   test("implements visible-row keyboard navigation and tree disclosure rules", () => {
