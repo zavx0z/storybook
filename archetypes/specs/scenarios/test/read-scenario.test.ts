@@ -23,7 +23,7 @@ describe.each([
     props: {
       path: resolve(import.meta.dir, "../../../package/spec/scenario.spec.ts"),
     },
-    expected: ["Корневой пакет", "Вложенный пакет"].map(name => ({
+    expected: ["Архетип пакета"].map(name => ({
       name: "readPackage", describe: [name], test: null, outcome: {type: "resolve"},
     })),
   },

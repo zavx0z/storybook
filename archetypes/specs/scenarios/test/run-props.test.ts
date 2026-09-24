@@ -52,7 +52,6 @@ test("Путь передаётся непосредственно сценар�
   })
   expect(result.calls.filter(call => call.name === "readPackage").map(call => call.args)).toEqual([
     [{path: resolve(import.meta.dir, "../..")}],
-    [{path: resolve(import.meta.dir, "../..")}],
   ])
 })
 

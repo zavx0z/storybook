@@ -70,21 +70,14 @@ test("ошибки содержат завершённые значения", ()
   ])
 })
 
-test("неизменённый package scenario даёт две группы readPackage", () => {
+test("package scenario сохраняет вызов и данные выбранного пакета", () => {
   expect(packageScenario.calls).toMatchObject([
     {
       name: "readPackage",
-      describe: ["Корневой пакет"],
+      describe: ["Архетип пакета"],
       test: null,
-      args: [{path: resolve(import.meta.dir, "../../..")}],
-      outcome: {type: "resolve", value: {packageJson: {name: "@storybook/archetypes"}}},
-    },
-    {
-      name: "readPackage",
-      describe: ["Вложенный пакет"],
-      test: null,
-      args: [{path: resolve(import.meta.dir, "../..")}],
-      outcome: {type: "resolve", value: {packageJson: {name: "@archetypes/specs"}}},
+      args: [{path: resolve(import.meta.dir, "../../../package")}],
+      outcome: {type: "resolve", value: {packageJson: {name: "@archetypes/package"}, index: {unchecked: []}}},
     },
   ])
 })
@@ -121,7 +114,11 @@ test("полная история имеет читаемый snapshot", () => {
       line: location.line,
       column: location.column,
     }})),
-    packageScenario: packageScenario.calls.map(({id, location, ...call}) => ({...call, location: location && {
+    packageScenario: packageScenario.calls.map(({id, location, ...call}) => ({...call,
+      // Строки README сохраняются целиком; массив избегает хвостовых пробелов сериализатора Bun.
+      outcome: JSON.parse(JSON.stringify(call.outcome, (key, value: unknown) =>
+        key === "content" && typeof value === "string" ? value.split("\n") : value)),
+      location: location && {
       path: location.path.replace(resolve(import.meta.dir, "../../../.."), "<archetypes>"),
       line: location.line,
       column: location.column,

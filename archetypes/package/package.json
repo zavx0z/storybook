@@ -4,11 +4,14 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Определяет состав пакета: README, package.json и index",
+  "description": "Объясняет и проверяет назначение пакета, принадлежность публичных входов и наличие их контрактов",
   "exports": {
     ".": "./index.ts",
     "./readme": "./readme/index.ts",
     "./package-json": "./package-json/index.ts",
     "./index": "./index/index.ts"
+  },
+  "scripts": {
+    "test:package": "bun test ./spec --test-name-pattern '^Архетип пакета(?: |$)'"
   }
 }

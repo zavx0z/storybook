@@ -10,9 +10,9 @@ describe("Представление readPackage", async () => {
     expect(await supportsScenarioPreview({path}), "Прямой вызов публичной функции распознаётся без компонентной фикстуры").toBeTrue()
   })
   test("Варианты и результаты", () => {
-    expect(result.preview, "Представление функции содержит оба выполненных варианта").toMatchObject({
+    expect(result.preview, "Представление функции содержит выполненный пример архетипа").toMatchObject({
       kind: "function",
-      variants: [{title: "Корневой пакет"}, {title: "Вложенный пакет"}],
+      variants: [{title: "Архетип пакета"}],
     })
     if (result.preview?.kind !== "function") throw new Error("Нет представления функции")
     for (const variant of result.preview.variants) {
