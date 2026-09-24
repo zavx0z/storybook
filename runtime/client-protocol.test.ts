@@ -34,6 +34,14 @@ describe("external Storybook browser client protocol", () => {
     })
 
     const client = createExternalStorybookClientSnapshot(graph, snapshots)
+    expect(client.nodes.find(({id}) => id === "package:fixture-workspace")).toMatchObject({
+      label: "Fixture Workspace",
+      directoryName: "valid",
+    })
+    expect(client.nodes.find(({id}) => id === "package:@fixture/components")).toMatchObject({
+      label: "Fixture Components",
+      directoryName: "components",
+    })
     const subject = client.nodes.find(({id}) =>
       id === "subject:@fixture/components/foundation/event-target")!
     const variant = client.nodes.find(({id}) =>
@@ -49,6 +57,7 @@ describe("external Storybook browser client protocol", () => {
       hasReadme: true,
       resourceKinds: [],
     })
+    expect(subject).not.toHaveProperty("directoryName")
     expect(variant.group).toEqual({id: "basic", label: "Basic"})
     expect(variant.resourceKinds).toEqual(["fixture", "test", "reference", "asset"])
     expect(variant.resourceUrl).toBe(externalStorybookNodeResourceUrl(graph, variant.id))

@@ -113,8 +113,12 @@ export function deriveExternalStorybookNavigationTree(
         result.push(...packageItems.map(packageItem => {
           if (packageItem.id !== node.id) return packageItem
           const {parentId: _isolatedParent, ...content} = packageItem
+          const directoryName = packageDirectoryName(node) ?? node.label
           return Object.freeze({
             ...content,
+            label: directoryName,
+            title: packageItem.title,
+            searchText: `${directoryName} ${packageItem.title} ${packageItem.searchText}`,
             expandable: content.expandable || node.childIds.some(id => graphVisibleIds.has(id)),
             ...(node.parentId === null ? {} : {parentId: node.parentId}),
           })
@@ -226,21 +230,34 @@ function viewUrlPath(ownerPath: string, view: "dependencies" | "contract" | "sce
   return formatRouteAddress({node: ownerPath.slice(1).split("/").map(decodeURIComponent).join("/"), view})
 }
 
+/** Отделяет имя физической папки в дереве от объявленного названия пакета. */
 function navigationItem(
   graph: BrowserGraph,
   node: BrowserNode,
   route: string,
   group: StorybookPresentationGroup | null,
 ): ExternalStorybookBrowserNavigationItem {
+  const directoryName = packageDirectoryName(node)
   return Object.freeze({
     id: node.id,
-    label: node.label,
+    label: directoryName ?? node.label,
     route,
     urlPath: node.urlPath,
-    title: node.apiName ?? node.label,
-    searchText: subtreeSearchText(graph, node),
+    title: node.kind === "package" ? node.label : node.apiName ?? node.label,
+    searchText: `${directoryName ?? ""} ${node.kind === "package" ? node.label : ""} ${subtreeSearchText(graph, node)}`.trim(),
     group,
   })
+}
+
+/** Совмещает browser-safe имя папки с исходным графом, который доступен только серверу. */
+function packageDirectoryName(node: BrowserNode): string | null {
+  if (node.kind !== "package") return null
+  if ("directoryName" in node && typeof node.directoryName === "string") return node.directoryName
+  if ("packageJsonPath" in node && typeof node.packageJsonPath === "string") {
+    const parts = node.packageJsonPath.replaceAll("\\", "/").split("/").filter(Boolean)
+    return parts.length > 1 ? parts.at(-2)! : null
+  }
+  return null
 }
 
 function subjectCategory(graph: BrowserGraph, subject: BrowserNode): BrowserNode | null {

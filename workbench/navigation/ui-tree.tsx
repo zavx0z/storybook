@@ -202,7 +202,7 @@ function leafItem(item: WorkbenchNavigationItem, props: WorkbenchNavigationTreeP
 function removeActions(item: WorkbenchNavigationItem, props: WorkbenchNavigationTreeProps) {
   return props.removableIds?.includes(item.id) && props.onRemove !== undefined ? [{
     id: "remove",
-    label: `Удалить ${item.label} из каталога`,
+    label: `Удалить ${item.title ?? item.label} из каталога`,
     iconSrc: closeIcon,
     onAction: (event: Event) => props.onRemove?.(item, event.currentTarget as HTMLElement),
   }] : []

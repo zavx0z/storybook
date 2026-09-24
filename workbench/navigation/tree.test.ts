@@ -52,6 +52,17 @@ const groupedItems = Object.freeze([
 ] satisfies readonly WorkbenchNavigationItem[])
 
 describe("compiled Storybook catalog navigation tree", () => {
+  test("показывает имя папки пакета и оставляет его label подсказкой", () => {
+    const workbench = createWorkbench([
+      {id: "webxr", label: "webxr-space", title: "WebXR", route: "/webxr"},
+      {id: "engine", label: "engine", title: "Движок", route: "/webxr/engine", parentId: "webxr"},
+    ], "engine")
+    expect(findGroup(workbench, "webxr")?.querySelector('[data-tree-label]')?.textContent).toBe("webxr-space")
+    expect(findGroup(workbench, "webxr")?.querySelector('[data-tree-label]')?.getAttribute("title")).toBe("WebXR")
+    expect(findLeaf(workbench, "engine")?.querySelector('[data-tree-label]')?.textContent).toBe("engine")
+    expect(findLeaf(workbench, "engine")?.querySelector('[data-tree-label]')?.getAttribute("title")).toBe("Движок")
+  })
+
   test("renders selectable repository and nested package branches with independent disclosure", () => {
     const workbench = createWorkbench([
       {id: "repo", label: "Repository", route: "/projects/repo/"},

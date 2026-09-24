@@ -26,13 +26,21 @@ describe("external Storybook browser model", () => {
       ["package:@fixture/standalone", null],
     ])
     expect(landing.catalogItems.find(item => item.id === "package:@fixture/components")?.route).toBe("/fixture-workspace/projects/alpha/packages/components")
+    expect(landing.catalogItems.map(({id, label, title}) => [id, label, title])).toEqual([
+      ["package:fixture-workspace", "valid", "Fixture Workspace"],
+      ["package:fixture-alpha", "alpha", "Fixture Alpha"],
+      ["package:@fixture/components", "components", "Fixture Components"],
+      ["package:fixture-beta", "beta", "Fixture Beta"],
+      ["package:@fixture/docs", "docs", "Fixture Docs"],
+      ["package:@fixture/standalone", "standalone", "Standalone Fixture"],
+    ])
   })
 
   test("одна навигация продолжает пакет до предмета и берёт его данные из применённой ревизии", async () => {
     const graph = await fixtureGraph()
     const subjectId = "subject:@fixture/components/components/button"
     const applied = {...graph, rootIds: ["package:@fixture/components"], nodes: graph.nodes.filter(node => node.packageId === "@fixture/components")
-      .map(node => node.kind === "package" ? {...node, parentId: null}
+      .map(node => node.kind === "package" ? {...node, label: "Применённый пакет", parentId: null}
         : node.id === subjectId ? {...node, label: "Применённая кнопка"} : node)}
     const items = deriveExternalStorybookNavigationTree(graph, {packageId: "@fixture/components", graph: applied})
     const packageNode = items.find(item => item.id === "package:@fixture/components")!
@@ -41,6 +49,10 @@ describe("external Storybook browser model", () => {
     expect([packageNode.parentId, category.parentId, subject.parentId]).toEqual([
       "package:fixture-alpha", packageNode.id, category.id,
     ])
+    expect([packageNode.label, packageNode.title]).toEqual(["components", "Применённый пакет"])
+    expect(category.label).toBe("Components")
+    expect(packageNode.searchText).toContain("components")
+    expect(packageNode.searchText).toContain("Применённый пакет")
     expect(subject.label).toBe("Применённая кнопка")
     expect(items.some(item => item.id.startsWith("variant:"))).toBeFalse()
     expect(new Set(items.map(item => item.id)).size).toBe(items.length)

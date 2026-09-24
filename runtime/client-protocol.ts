@@ -1,4 +1,5 @@
 import {storybookPackagePathSegment} from "@zavx0z/storybook-browser-lifecycle/contract"
+import {basename, dirname} from "node:path"
 import {
   externalStorybookNode,
   type ExternalStorybookGraph,
@@ -53,7 +54,9 @@ export type ExternalStorybookClientStoryPresentation = Readonly<{
 
 @property packageId - Идентификатор связанного пакета либо `null`.
 
-@property label - Отображаемое название.
+@property label - Объявленное название для заголовка и контекста пакета.
+
+@property [directoryName] - Имя директории пакета для дерева; абсолютный путь не передаётся.
 
 @property parentId - Идентификатор родителя либо `null` для корня.
 
@@ -97,6 +100,7 @@ export type ExternalStorybookClientNode = Readonly<{
   ownerId: string
   packageId: string | null
   label: string
+  directoryName?: string
   parentId: string | null
   childIds: readonly string[]
   urlPath: string
@@ -250,6 +254,7 @@ export function createExternalStorybookClientSnapshot(
     ownerId: node.ownerId,
     packageId: node.packageId,
     label: node.label,
+    ...(node.kind === "package" ? {directoryName: packageDirectoryName(node)} : {}),
     parentId: node.parentId,
     childIds: Object.freeze([...node.childIds]),
     urlPath: node.urlPath,
@@ -284,6 +289,14 @@ export function createExternalStorybookClientSnapshot(
     nodes: Object.freeze(nodes),
     packages: Object.freeze(packages),
   })
+}
+
+/** Берёт только имя физической директории из точного package.json владельца. */
+function packageDirectoryName(node: ExternalStorybookGraph["nodes"][number]): string {
+  if (node.packageJsonPath === null) throw new Error(`Storybook package has no package.json: ${node.id}`)
+  const name = basename(dirname(node.packageJsonPath))
+  if (name.length === 0) throw new Error(`Storybook package directory has no name: ${node.id}`)
+  return name
 }
 
 /**
