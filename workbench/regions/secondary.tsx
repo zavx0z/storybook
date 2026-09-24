@@ -1,4 +1,4 @@
-import {WorkbenchNavigationTree} from "../navigation/tree.tsx"
+import {WorkbenchNavigationTree} from "../navigation/ui-tree.tsx"
 import type {Document as SemanticDocument} from "@zavx0z/dom"
 import {WorkbenchRegionPanel} from "../components/region-panel.tsx"
 import type {WorkbenchNavigationItem} from "../contract.ts"

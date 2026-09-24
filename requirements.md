@@ -231,16 +231,16 @@ semantic/API contract подходит. Caller
 `style` содержит только contextual placement; он не повторяет owner padding,
 control height, font, border, background, focus, selected, disabled или shadow.
 Storybook-owned intrinsic остаётся только там, где он несёт другую семантику:
-navigation tree, document markup, projection host или fixed region layout.
+document markup, projection host или fixed region layout.
 
 ### `STORYBOOK-WORKBENCH-002` — restored Navigation Tree
 
-Canonical graph использует compiled TSX `WorkbenchNavigationTree` с direct
-rows, optional groups, disclosure, search, pointer/standard keyboard
-navigation, stable keys, active/disabled/focus and bounded hidden-row
-projection. Pure model/windowing, row components и tree session lifecycle
-являются отдельными модулями. Group toggle не навигирует. Collapse/focus
-принадлежат session, не JSON.
+Canonical graph проецируется адаптером `WorkbenchNavigationTree` в общий
+`@zavx0z/ui/widgets/tree`. UI владеет строками, disclosure, клавиатурой,
+фокусом и ограниченной отрисовкой большого дерева; Storybook владеет поиском
+по графу, адресами переходов, действием удаления и состоянием раскрытия.
+Group toggle не навигирует. Collapse/focus принадлежат компонентному состоянию,
+не JSON.
 Expanded disclosure занимает в layout строку заголовка и все видимые строки
 своих category children; следующий root row начинается только после них.
 Перекрытие либо clipping primary category rows запрещены.

@@ -447,7 +447,7 @@ export type WorkbenchElements = Readonly<{
   body: HTMLDivElement
   catalog: HTMLElement
   catalogSearch: HTMLInputElement
-  catalogItems: HTMLDivElement
+  catalogItems: HTMLElement
   secondary: HTMLElement
   secondaryItems: HTMLDivElement
   preview: HTMLElement

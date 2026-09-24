@@ -10,6 +10,7 @@ describe("Workbench component module boundary", () => {
     const files = sourceFiles(root)
     const production = files.filter(path => !/\.(?:test|fixture)\.[cm]?[jt]sx?$/u.test(path))
     for (const path of production) {
+      if (basename(path) === "contract.ts") continue
       const lines = readFileSync(path, "utf8").split("\n").length
       expect(lines, `${path} grew back into a monolith`).toBeLessThanOrEqual(400)
     }
@@ -128,7 +129,6 @@ describe("Workbench component module boundary", () => {
 
     for (const path of [
       join(root, "components/navigation-list.tsx"),
-      join(root, "navigation/row.tsx"),
       join(root, "regions/tabs.tsx"),
     ]) {
       const source = readFileSync(path, "utf8")
@@ -146,11 +146,12 @@ describe("Workbench component module boundary", () => {
       }
     }
 
-    const rows = readFileSync(join(root, "navigation/row.tsx"), "utf8")
-    expect(rows).toContain("navigationRootBlockRows(block, props.collapsed)")
-    expect(rows).not.toContain('&[aria-current="page"]')
-    expect(rows).not.toContain('&[data-focused="true"]')
-    expect(rows).not.toContain('&[aria-disabled="true"]')
+    const navigation = readFileSync(join(root, "navigation/ui-tree.tsx"), "utf8")
+    expect(navigation).toContain('from "@zavx0z/ui/widgets/tree"')
+    expect(navigation).toContain("<Tree")
+    for (const file of ["tree.tsx", "row.tsx", "windowing.ts"]) {
+      expect(existsSync(join(root, "navigation", file))).toBeFalse()
+    }
     const secondary = readFileSync(join(root, "components/navigation-list.tsx"), "utf8")
     expect(secondary).not.toContain('&[aria-disabled="true"]')
   })

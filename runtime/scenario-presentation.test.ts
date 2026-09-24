@@ -1,5 +1,5 @@
 import {createRoot} from "@zavx0z/component"
-import {createDocument, Event} from "@zavx0z/dom"
+import {createDocument, Event, type HTMLElement} from "@zavx0z/dom"
 import {expect, test} from "bun:test"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
 import type {ScenarioAppInput} from "@storybook/app/contract/input"
@@ -162,7 +162,7 @@ test("Editor остаётся сверху, пока прокручиваетс�
   })
   try {
     const editor = inspectorHost.querySelector('[data-language-id="typescript"]')!
-    const variants = inspectorHost.querySelector("[data-scenario-variants]")!
+    const variants = inspectorHost.querySelector("[data-scenario-variants]") as HTMLElement
     const initial = renderer.flush()
     const editorBox = initial.boxByNode.get(editor)
     expect(initial.boxByNode.get(inspectorHost.querySelector("[data-scenario-inspector]")!)?.height).toBe(600)

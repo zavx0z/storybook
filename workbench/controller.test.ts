@@ -4,6 +4,7 @@ import {
   CustomEvent,
   Event,
   KeyboardEvent,
+  MouseEvent,
   type HTMLButtonElement,
   type HTMLInputElement,
   type HTMLElement,
@@ -77,7 +78,8 @@ describe("compiled Storybook Workbench", () => {
       viewport: {width: 1_280, height: 720},
     })
     const layout = renderer.flush().boxByNode
-    expect(layout.get(status!)).toMatchObject({width: 1_280, height: 24})
+    expect(layout.get(workbench.elements.status)?.width).toBe(1_280)
+    expect(layout.get(status!)?.height).toBe(24)
     const tabsBox = layout.get(workbench.elements.tabs)
     const previewBox = layout.get(workbench.elements.preview)
     expect(tabsBox).toBeDefined()
@@ -208,7 +210,8 @@ describe("compiled Storybook Workbench", () => {
       })
     }
 
-    buttonIn(row(workbench, "button")).click()
+    row(workbench, "button").querySelector('[data-tree-row]')!
+      .dispatchEvent(new MouseEvent("click", {bubbles: true}))
     expect(workbench.controller.read("catalog.active")).toBe("button")
     expect(events[0]).toEqual({
       type: "storybooknavigate",
@@ -264,16 +267,17 @@ describe("compiled Storybook Workbench", () => {
       workbench.element.addEventListener(WORKBENCH_EVENTS.navigate, event => {
         events.push((event as CustomEvent).detail)
       })
-      const button = workbench.elements.secondaryItems.querySelector('[data-id="button"] button') as HTMLButtonElement
-      button.click()
-      button.click()
-      button.focus()
-      button.dispatchEvent(new KeyboardEvent("keydown", {key: "Enter", bubbles: true, cancelable: true}))
+      const item = workbench.elements.secondaryItems.querySelector('[data-tree-id="button"]') as HTMLElement
+      const itemRow = item.querySelector('[data-tree-row]') as HTMLElement
+      itemRow.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+      itemRow.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+      item.focus()
+      item.dispatchEvent(new KeyboardEvent("keydown", {key: "Enter", bubbles: true, cancelable: true}))
       expect(events).toEqual(Array.from({length: 3}, () => ({
         kind: "secondary", id: "button", route: "components/button",
       })))
       expect(workbench.controller.read("secondary.active")).toBe("button")
-      expect(workbench.elements.secondaryItems.querySelector('[data-id="button"] button')).toBe(button)
+      expect(workbench.elements.secondaryItems.querySelector('[data-tree-id="button"]') === item).toBeTrue()
     } finally {
       workbench.dispose()
     }
@@ -420,7 +424,7 @@ describe("compiled Storybook Workbench", () => {
     const widgetPanel = await Bun.file(new URL("./inspector/widget-panel.tsx", import.meta.url)).text()
     const inspectorRegistry = await Bun.file(new URL("./inspector/registry.ts", import.meta.url)).text()
     const sourceWidget = await Bun.file(new URL("./inspector/source-widget.tsx", import.meta.url)).text()
-    const navigation = await Bun.file(new URL("./navigation/tree.tsx", import.meta.url)).text()
+    const navigation = await Bun.file(new URL("./navigation/ui-tree.tsx", import.meta.url)).text()
     expect(controller).not.toContain("createElement(")
     expect(controller).not.toContain("StorybookDom")
     expect(inspector).toContain('from "@zavx0z/ui/widgets/inspector"')
@@ -450,17 +454,11 @@ function row(
   id: string,
   required = true,
 ): HTMLElement | null {
-  const value = [...workbench.elements.catalogItems.querySelectorAll("[data-id]")]
-    .find(element => element.getAttribute("data-id") === id &&
+  const value = [...workbench.elements.catalogItems.querySelectorAll("[data-tree-id]")]
+    .find(element => !element.hasAttribute("hidden") && element.getAttribute("data-tree-id") === id &&
       element.getAttribute("role") === "treeitem") ?? null
   if (required && value === null) throw new Error(`Missing catalog row: ${id}`)
   return value as HTMLElement | null
-}
-
-function buttonIn(element: ReturnType<typeof row>): HTMLButtonElement {
-  const button = element?.querySelector("button") as HTMLButtonElement | null
-  if (button === null) throw new Error("Navigation row has no production Button")
-  return button
 }
 
 function categoryButton(

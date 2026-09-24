@@ -9,7 +9,7 @@ import type {
   WorkbenchCatalogAction,
   WorkbenchCatalogManagement,
 } from "../contract.ts"
-import {WorkbenchNavigationTree} from "../navigation/tree.tsx"
+import {WorkbenchNavigationTree} from "../navigation/ui-tree.tsx"
 
 export type CatalogRegionProps = Readonly<{
   document: SemanticDocument

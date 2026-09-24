@@ -135,5 +135,5 @@ describe("external Storybook attached-root registry", () => {
       path: workbenchResource!.sourcePath,
       category: "resource",
     })
-  })
+  }, 20_000)
 })

@@ -12,7 +12,7 @@ export function readWorkbenchElements(root: HTMLDivElement): WorkbenchElements {
     body: exactElement(root, '[data-storybook-workbench-part="body"]', "Workbench body") as HTMLDivElement,
     catalog: exactElement(root, '[data-storybook-region="catalog"]', "Catalog region"),
     catalogSearch: exactElement(root, '[data-storybook-part="catalog-search"] input', "Catalog search") as HTMLInputElement,
-    catalogItems: exactElement(root, '[data-storybook-tree="catalog"]', "Catalog items") as HTMLDivElement,
+    catalogItems: exactElement(root, '[data-storybook-part="catalog-items"] [role="tree"]', "Catalog items"),
     secondary: exactElement(root, '[data-storybook-region="secondary"]', "Secondary region"),
     secondaryItems: exactElement(root, '[data-storybook-part="secondary-items"]', "Secondary items") as HTMLDivElement,
     preview: exactElement(root, '[data-storybook-region="preview"]', "Preview region"),
