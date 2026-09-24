@@ -126,6 +126,7 @@ export type ExternalStorybookServerOptions = Readonly<{
   fallbackEntryPath?: string
   packageBrowserEntryPath?: string
   browserLifecycle?: StorybookBrowserLifecycle
+  /** Каталог записей о вкладках этого сервера; профиль общего Chrome от него не зависит. */
   browserStateRoot?: string
   captureRoot?: string
   writeServerRecord?: typeof writeExternalStorybookServerRecord

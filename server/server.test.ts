@@ -27,7 +27,7 @@ describe("one external Storybook server", () => {
     const {createStorybookMcpServer} = await import("../mcp/server")
     const {ExternalStorybookControlClient} = await import("./control-client")
     const fixture = serverFixture()
-    const running = await startExternalStorybookServer({declarations: [fixture.standalone], statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
+    const running = await startTestServer({declarations: [fixture.standalone], statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
     servers.push(running)
     const control = new ExternalStorybookControlClient(running.record)
     const mcp = createStorybookMcpServer({request: (input, signal) => control.control("/api/control/storybook", input, signal), recordRequest: async () => {}})
@@ -89,7 +89,7 @@ describe("one external Storybook server", () => {
       '  test("Значение", () => { expect(result.value, "Вход передан функции").toBe(props.value) })',
       '})',
     ].join("\n"))
-    const running = await startExternalStorybookServer({declarations: [fixture.standalone],
+    const running = await startTestServer({declarations: [fixture.standalone],
       statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
     servers.push(running)
     const packageId = "@fixture/standalone"
@@ -135,7 +135,7 @@ describe("one external Storybook server", () => {
 
   test("журнал MCP принимает полный большой ответ через HTTP и завершает running", async () => {
     const fixture = serverFixture()
-    const running = await startExternalStorybookServer({declarations: [fixture.standalone], statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
+    const running = await startTestServer({declarations: [fixture.standalone], statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
     servers.push(running)
     const entry = {id: "large-result", tool: "storybook", startedAt: Date.now(), input: JSON.stringify({node: "archetypes/specs/scenarios"})}
     const begin = await controlPost(running, "/api/control/mcp-requests", {...entry, status: "running", durationMs: null, result: ""})
@@ -160,7 +160,7 @@ describe("one external Storybook server", () => {
 
   test("корневой REST возвращает подключённые корни без сборки", async () => {
     const fixture = serverFixture()
-    const running = await startExternalStorybookServer({
+    const running = await startTestServer({
       declarations: [fixture.standalone],
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
@@ -190,7 +190,7 @@ describe("one external Storybook server", () => {
       landingEntryPath: join(import.meta.dir, "fixtures/shared-landing.ts"),
       fallbackEntryPath: join(import.meta.dir, "fixtures/shared-fallback.ts"),
     }
-    let running = await startExternalStorybookServer(options)
+    let running = await startTestServer(options)
     servers.push(running)
     const first = await fetch(new URL("/", running.origin))
     const firstHtml = await first.text()
@@ -200,7 +200,7 @@ describe("one external Storybook server", () => {
     expect(running.sessions.buildSchedulerSnapshot().recent.at(-1)?.cache).toEqual({status: "miss", layer: "shared"})
     await running.stop()
     servers.splice(servers.indexOf(running), 1)
-    running = await startExternalStorybookServer(options)
+    running = await startTestServer(options)
     servers.push(running)
     const second = await fetch(new URL("/", running.origin))
     expect(second.status).toBe(200)
@@ -219,7 +219,7 @@ describe("one external Storybook server", () => {
     servers.splice(servers.indexOf(running), 1)
     const receipt = JSON.parse(readFileSync(join(fixture.artifactRoot, "shared/receipt.json"), "utf8"))
     writeFileSync(join(fixture.artifactRoot, "shared", receipt.assets.landingEntry), "damaged output")
-    running = await startExternalStorybookServer(options)
+    running = await startTestServer(options)
     servers.push(running)
     expect(await (await fetch(new URL("/", running.origin))).text()).toContain('<script type="module"')
     expect(running.sessions.buildSchedulerSnapshot().recent.at(-1)?.cache.status).toBe("miss")
@@ -227,7 +227,7 @@ describe("one external Storybook server", () => {
 
   test("status показывает preflight и нагрузку, не запрашивая сборку", async () => {
     const fixture = serverFixture()
-    const running = await startExternalStorybookServer({
+    const running = await startTestServer({
       declarations: [fixture.standalone],
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
@@ -250,7 +250,7 @@ describe("one external Storybook server", () => {
   test("сообщает этапы запуска в порядке подготовки каталога и публикации сервера", async () => {
     const fixture = serverFixture()
     const phases: string[] = []
-    const running = await startExternalStorybookServer({
+    const running = await startTestServer({
       declarations: [fixture.standalone],
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
@@ -273,7 +273,7 @@ describe("one external Storybook server", () => {
       fallbackEntryPath: entries.fallback,
       browserLifecycle: fakeBrowserLifecycle().service,
     }
-    let running = await startExternalStorybookServer(options)
+    let running = await startTestServer(options)
     servers.push(running)
     const workspaceFile = join(fixture.workspace, ".storybook/manifest.json")
     const workspaceBytes = readFileSync(workspaceFile, "utf8")
@@ -312,7 +312,7 @@ describe("one external Storybook server", () => {
     await controlPost(running, "/api/control/detach", {scopeId: "package:fixture-alpha"})
     await running.stop()
 
-    running = await startExternalStorybookServer(options)
+    running = await startTestServer(options)
     servers.push(running)
     expect(running.registry.snapshot().entries).toHaveLength(2)
     expect(running.registry.snapshot().graph.nodes.some(node => node.id === "package:fixture-alpha")).toBeFalse()
@@ -326,7 +326,7 @@ describe("one external Storybook server", () => {
     await controlPost(running, "/api/control/detach", {scopeId: "package:fixture-beta"})
     await controlPost(running, "/api/control/detach", {scopeId: "package:@fixture/standalone"})
     await running.stop()
-    running = await startExternalStorybookServer(options)
+    running = await startTestServer(options)
     servers.push(running)
     expect(running.registry.snapshot().entries).toEqual([])
     const empty = await fetch(new URL("/", running.origin))
@@ -348,7 +348,7 @@ describe("one external Storybook server", () => {
     writeFileSync(dependency, 'export const title = "project"\n')
     filesystem.linkSync(dependency, mirror)
     writeFileSync(entries.landing, 'import {title} from "./shared.ts"\ndocument.title = title\n')
-    const running = await startExternalStorybookServer({
+    const running = await startTestServer({
       declarations: [fixture.workspace],
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
@@ -409,7 +409,7 @@ describe("one external Storybook server", () => {
 
   test("serves the shared landing bundle and a lazily built documentation package on one origin", async () => {
     const fixture = serverFixture()
-    const running = await startExternalStorybookServer({
+    const running = await startTestServer({
       declarations: [fixture.standalone],
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
@@ -462,7 +462,7 @@ describe("one external Storybook server", () => {
     const dependency = join(entries.root, "code-view.ts")
     writeFileSync(dependency, 'export const height = "160px"\n')
     writeFileSync(entries.landing, 'import {height} from "./code-view.ts"\ndocument.title = height\n')
-    const running = await startExternalStorybookServer({
+    const running = await startTestServer({
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
       landingEntryPath: entries.landing,
@@ -499,7 +499,7 @@ describe("one external Storybook server", () => {
   test("notifies a root package README change without rebuilding children or changing the server", async () => {
     const fixture = serverFixture()
     const entries = sharedEntriesFixture()
-    const running = await startExternalStorybookServer({
+    const running = await startTestServer({
       declarations: [fixture.workspace],
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
@@ -559,7 +559,7 @@ describe("one external Storybook server", () => {
 
   test("owns one automatic origin and atomically attaches independent roots", async () => {
     const fixture = serverFixture()
-    const running = await startExternalStorybookServer({
+    const running = await startTestServer({
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
       landingEntryPath: fixture.landingEntry,
@@ -595,7 +595,7 @@ describe("one external Storybook server", () => {
 
   test("wires structural files and separately owned landing README watches", async () => {
     const fixture = serverFixture()
-    const running = await startExternalStorybookServer({
+    const running = await startTestServer({
       declarations: [fixture.workspace],
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
@@ -619,7 +619,7 @@ describe("one external Storybook server", () => {
 
   test("explicit refresh reconciles an attached declaration even when its watch event was missed", async () => {
     const fixture = serverFixture()
-    const running = await startExternalStorybookServer({
+    const running = await startTestServer({
       declarations: [fixture.workspace],
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
@@ -648,7 +648,7 @@ describe("one external Storybook server", () => {
 
   test("user pages and browser requests cannot publish a built candidate", async () => {
     const fixture = serverFixture()
-    const running = await startExternalStorybookServer({declarations: [fixture.standalone], statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
+    const running = await startTestServer({declarations: [fixture.standalone], statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
     servers.push(running)
     const page = await fetch(new URL("/pkg-fixture-standalone/", running.origin))
     const html = await page.text()
@@ -669,7 +669,7 @@ describe("one external Storybook server", () => {
 
   test("protects control routes and never exposes the master capability to browser responses", async () => {
     const fixture = serverFixture()
-    const running = await startExternalStorybookServer({
+    const running = await startTestServer({
       declarations: [fixture.standalone],
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
@@ -710,7 +710,7 @@ describe("one external Storybook server", () => {
     const fixture = serverFixture()
     const lifecycle = fakeBrowserLifecycle()
     const png = new Uint8Array([137, 80, 78, 71])
-    const running = await startExternalStorybookServer({
+    const running = await startTestServer({
       declarations: [fixture.standalone],
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
@@ -762,7 +762,7 @@ describe("one external Storybook server", () => {
 
   test("authorizes one ephemeral WebSocket session only for its exact scope", async () => {
     const fixture = serverFixture()
-    const running = await startExternalStorybookServer({
+    const running = await startTestServer({
       declarations: [fixture.standalone],
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
@@ -798,7 +798,7 @@ describe("one external Storybook server", () => {
     writeFileSync(linked, "linked asset\n")
     writeFileSync(hidden, "hidden owner file\n")
     writeFileSync(readme, "# Fixture Alpha\n\n[linked](./linked.txt)\n")
-    const running = await startExternalStorybookServer({
+    const running = await startTestServer({
       declarations: [fixture.workspace],
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
@@ -813,7 +813,7 @@ describe("one external Storybook server", () => {
 
   test("builds only the requested executable package revision", async () => {
     const fixture = serverFixture()
-    const running = await startExternalStorybookServer({
+    const running = await startTestServer({
       declarations: [fixture.workspace],
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
@@ -831,7 +831,7 @@ describe("one external Storybook server", () => {
 
   test("serves ordered revision-scoped author resources for the semantic stylesheet registry", async () => {
     const fixture = serverFixture()
-    const running = await startExternalStorybookServer({
+    const running = await startTestServer({
       declarations: [fixture.workspace],
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
@@ -874,7 +874,7 @@ describe("one external Storybook server", () => {
 
   test("refreshes author CSS content digest before publishing its next immutable revision", async () => {
     const fixture = serverFixture()
-    const running = await startExternalStorybookServer({
+    const running = await startTestServer({
       declarations: [fixture.workspace],
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
@@ -919,7 +919,7 @@ describe("one external Storybook server", () => {
 
   test("failed attach leaves registry and sessions unchanged", async () => {
     const fixture = serverFixture()
-    const running = await startExternalStorybookServer({
+    const running = await startTestServer({
       declarations: [fixture.workspace],
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
@@ -944,7 +944,7 @@ describe("one external Storybook server", () => {
   test("rolls back graph, sessions and state when post-validation publication fails", async () => {
     const fixture = serverFixture()
     let writes = 0
-    const running = await startExternalStorybookServer({
+    const running = await startTestServer({
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
       writeServerRecord(path, record) {
@@ -965,7 +965,7 @@ describe("one external Storybook server", () => {
 
   test("fails closed when an attached README is replaced by an escaping symlink", async () => {
     const fixture = serverFixture()
-    const running = await startExternalStorybookServer({
+    const running = await startTestServer({
       declarations: [fixture.workspace],
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
@@ -996,7 +996,7 @@ describe("one external Storybook server", () => {
       "export const outlined = broken",
       "",
     ].join("\n"))
-    const running = await startExternalStorybookServer({
+    const running = await startTestServer({
       declarations: [fixture.workspace],
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
@@ -1019,7 +1019,7 @@ describe("one external Storybook server", () => {
   test("reserves browser tab creation for the agent control surface", async () => {
     const fixture = serverFixture()
     const lifecycle = fakeBrowserLifecycle()
-    const running = await startExternalStorybookServer({
+    const running = await startTestServer({
       declarations: [fixture.standalone],
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
@@ -1082,7 +1082,7 @@ describe("one external Storybook server", () => {
 
   test("bounds authenticated control bodies before parsing", async () => {
     const fixture = serverFixture()
-    const running = await startExternalStorybookServer({
+    const running = await startTestServer({
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
     })
@@ -1105,7 +1105,7 @@ describe("one external Storybook server", () => {
     const port = reservation.port
     reservation.stop(true)
     if (port === undefined) throw new Error("Bun test server did not allocate a port")
-    await expect(startExternalStorybookServer({
+    await expect(startTestServer({
       port,
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
@@ -1120,7 +1120,7 @@ describe("one external Storybook server", () => {
 
   test("detach keeps the shared server alive and stop removes only owned state", async () => {
     const fixture = serverFixture()
-    const running = await startExternalStorybookServer({
+    const running = await startTestServer({
       declarations: [fixture.workspace, fixture.standalone],
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
@@ -1144,6 +1144,11 @@ describe("one external Storybook server", () => {
     servers.splice(servers.indexOf(running), 1)
   })
 })
+
+/** HTTP-проверки не запускают Chrome; browser-сценарии явно внедряют свой adapter. */
+function startTestServer(options: Parameters<typeof startExternalStorybookServer>[0]) {
+  return startExternalStorybookServer({browserLifecycle: fakeBrowserLifecycle().service, ...options})
+}
 
 function fakeBrowserLifecycle(): Readonly<{
   service: StorybookBrowserLifecycle

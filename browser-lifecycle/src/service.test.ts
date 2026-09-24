@@ -367,13 +367,17 @@ describe("Storybook browser lifecycle service", () => {
 
   test("adopts an attested package target from the previous server origin", async () => {
     const chrome = new FakeChrome()
+    const root = temporaryRoot()
     chrome.targetsValue = [{
       targetId: "OLD_TARGET",
       type: "page",
       title: "Old Storybook",
       url: "http://127.0.0.1:41000/pkg-fixture-a/fixture/a/default",
     }]
-    const opened = await createController(chrome).openPackage(openInput(chrome))
+    new StorybookBrowserState(join(root, "state")).writeTarget({
+      packageId: "@fixture/a", cdpOrigin: chrome.cdp, browserIdentity: await chrome.browserIdentity(), targetId: "OLD_TARGET",
+    })
+    const opened = await createController(chrome, root).openPackage(openInput(chrome))
 
     expect(opened.reused).toBeTrue()
     expect(chrome.created).toBe(0)
@@ -387,7 +391,7 @@ describe("Storybook browser lifecycle service", () => {
   test("reuses a matching package tab without closing peers or stealing focus", async () => {
     const chrome = new FakeChrome()
     chrome.targetsValue = [
-      {targetId: "OLD_A", type: "page", title: "A", url: "http://127.0.0.1:41000/pkg-fixture-a/fixture/a/default"},
+      {targetId: "OLD_A", type: "page", title: "A", url: `${chrome.origin}/pkg-fixture-a/fixture/a/default`},
       {targetId: "OLD_B", type: "page", title: "B", url: "http://127.0.0.1:42000/pkg-fixture-a/fixture/a/default"},
     ]
     const opened = await createController(chrome).openPackage(openInput(chrome))
@@ -395,6 +399,26 @@ describe("Storybook browser lifecycle service", () => {
     expect(chrome.closed).toEqual([])
     expect(chrome.activated).toEqual([])
     expect(chrome.targetsValue).toHaveLength(2)
+  })
+
+  test("новый server state не присваивает вкладку другого origin в общем Chrome", async () => {
+    const chrome = new FakeChrome()
+    const peer = {targetId: "PEER_SERVER", type: "page", title: "A", url: "http://127.0.0.1:41000/pkg-fixture-a/fixture/a/default"}
+    chrome.targetsValue = [peer]
+    const opened = await createController(chrome).openPackage(openInput(chrome))
+    expect(opened.reused).toBeFalse()
+    expect(chrome.created).toBe(1)
+    expect(chrome.targetsValue).toContainEqual(peer)
+    expect(chrome.navigations).toBe(0)
+    expect(chrome.closed).toEqual([])
+  })
+
+  test("просмотр вкладок не вызывает запуск или health с запуском браузера", async () => {
+    const chrome = new FakeChrome()
+    chrome.ensure = async () => { throw new Error("inventory cannot launch Chrome") }
+    chrome.health = async () => { throw new Error("inventory cannot bootstrap Chrome") }
+    expect(await createController(chrome).listViews(chrome.origin)).toEqual([])
+    expect(chrome.created).toBe(0)
   })
 
   test.each(["closed", "moved"])("reuse-only open does not create a target after the discovered page is %s", async state => {
@@ -974,6 +998,9 @@ class FakeChrome implements StorybookChromeClient {
 
   async health(signal?: AbortSignal): Promise<void> {
     if (this.hangHealth) await hangUntilAbort(signal)
+  }
+  async ensure(signal?: AbortSignal): Promise<void> {
+    await this.health(signal)
   }
   async cdpOrigin(): Promise<string> {
     return this.cdp

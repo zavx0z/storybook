@@ -81,7 +81,6 @@ export function createStorybookBrowserLifecycle(
   return new DefaultStorybookBrowserLifecycle({
     state: new StorybookBrowserState(stateRoot),
     chrome: options.chrome ?? new StorybookCdpClient({
-      stateRoot,
       ...(options.processStart === undefined ? {} : {processStart: options.processStart}),
     }),
     captures: new StorybookCaptureStore({root: resolve(options.captureRoot)}),
@@ -159,7 +158,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
     if (requiredView !== null && (requiredView.packageId !== packageId || requiredView.origin !== origin)) {
       throw new Error(`Storybook existing view does not match the requested package: ${packageId}`)
     }
-    await this.#chrome.health(operationSignal)
+    await this.#chrome.ensure(operationSignal)
     let targets = await this.#chrome.targets(operationSignal)
     const cdpOrigin = await this.#chrome.cdpOrigin(operationSignal)
     const browserIdentity = await this.#chrome.browserIdentity(operationSignal)
@@ -197,7 +196,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
         continue
       }
       const candidate = mayAttestPackageTarget(target.url, packageId)
-      if (candidate &&
+      if (candidate && new URL(target.url).origin === origin &&
         await this.#attestsPackage(target, packageId, operationSignal, input.packageLabel)) owned.push(target)
     }
     let requiredTarget = requiredView === null
@@ -311,7 +310,6 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
     packages?: readonly Readonly<{packageId: string; label: string}>[],
     packageId?: string,
   ): Promise<readonly StorybookPublicView[]> {
-    await this.#chrome.health(signal)
     const canonicalOrigin = loopbackOrigin(origin)
     const scope = packageId === undefined ? undefined : exactPackageId(packageId)
     const labels = packages === undefined ? null : new Map(packages.map(({packageId, label}) => [

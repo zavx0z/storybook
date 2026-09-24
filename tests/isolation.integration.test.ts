@@ -20,6 +20,16 @@ describe("one-server package isolation", () => {
       declarations: [fixture.projectRoot],
       statePath: join(fixture.root, "state", "server.json"),
       artifactRoot: join(fixture.root, "artifacts"),
+      browserLifecycle: {
+        async listViews() { return [] },
+        openPackage: unexpectedBrowserAction,
+        getView: unexpectedBrowserAction,
+        inspect: unexpectedBrowserAction,
+        interact: unexpectedBrowserAction,
+        capture: unexpectedBrowserAction,
+        close: unexpectedBrowserAction,
+        readCapture: unexpectedBrowserAction,
+      },
     })
     servers.push(running)
     await Promise.all([
@@ -111,6 +121,11 @@ describe("one-server package isolation", () => {
 })
 
 type SocketEvent = Readonly<Record<string, any> & {type: string}>
+
+/** Изоляция сборок проверяет HTTP и события, а не взаимодействие с настоящим браузером. */
+function unexpectedBrowserAction(): never {
+  throw new Error("Package isolation must not control a real browser")
+}
 
 async function packageSocket(origin: string, packageId: string, route: string) {
   const page = await fetch(new URL(`/packages/${encodeURIComponent(packageId)}/${route}`, origin))

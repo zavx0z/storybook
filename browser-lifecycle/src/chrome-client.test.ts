@@ -156,11 +156,12 @@ describe("Storybook direct CDP client", () => {
     expect(cdp.hiddenInventoryReads).toBe(2)
   })
 
-  test("bootstraps its own private Chrome profile when no direct endpoint exists", async () => {
+  test("явное открытие сериализует запуск общего профиля между клиентами", async () => {
     const root = mkdtempSync(join(tmpdir(), "storybook-owned-chrome-"))
     roots.push(root)
     let command: readonly string[] | null = null
-    const client = new StorybookCdpClient({
+    let launches = 0
+    const options = {
       stateRoot: root,
       chromeBinary: "/Applications/Fake Chrome",
       fetcher: (async (input) => {
@@ -171,21 +172,47 @@ describe("Storybook direct CDP client", () => {
           webSocketDebuggerUrl: "ws://127.0.0.1:9333/devtools/browser/OWNED",
         })
       }) as typeof fetch,
-      spawnChrome: (value) => {
+      spawnChrome: (value: readonly string[]) => {
+        launches += 1
         command = value
         const profile = join(root, "chrome-profile")
         mkdirSync(profile, {recursive: true})
         writeFileSync(join(profile, "DevToolsActivePort"), "9333\n/devtools/browser/OWNED\n")
       },
-    })
+    }
+    const client = new StorybookCdpClient(options)
+    const peer = new StorybookCdpClient(options)
 
+    expect(await client.targets()).toEqual([])
+    await expect(client.health()).rejects.toThrow("unavailable")
+    await expect(client.cdpOrigin()).rejects.toThrow("unavailable")
+    expect(launches).toBe(0)
+    await Promise.all([client.ensure(), peer.ensure()])
     expect(await client.cdpOrigin()).toBe("http://127.0.0.1:9333")
+    expect(await peer.cdpOrigin()).toBe("http://127.0.0.1:9333")
+    expect(launches).toBe(1)
     const launched = command as readonly string[] | null
     if (launched === null) throw new Error("owned Chrome was not launched")
     expect(launched).toContain("--remote-debugging-port=0")
     expect(launched).toContain(`--user-data-dir=${join(root, "chrome-profile")}`)
     expect(JSON.stringify(launched)).not.toContain("ai-macos")
     expect(JSON.stringify(launched)).not.toContain("@meta/chrome")
+  })
+
+  test("реальный запуск не допускает отдельный профиль временного сервера", () => {
+    expect(() => new StorybookCdpClient({stateRoot: join(tmpdir(), "private-storybook-browser")}))
+      .toThrow("must use the shared browser profile")
+  })
+
+  test("недоступный известный браузер не запускается при чтении inventory", async () => {
+    let launches = 0
+    const client = new StorybookCdpClient({
+      origin: "http://127.0.0.1:9333",
+      fetcher: (async (_input): Promise<Response> => { throw new Error("connection refused") }) as typeof fetch,
+      spawnChrome: () => { launches += 1 },
+    })
+    await expect(client.targets()).rejects.toThrow("connection refused")
+    expect(launches).toBe(0)
   })
 
   test("rejects redirects and a browser WebSocket outside the exact loopback endpoint", async () => {

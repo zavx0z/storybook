@@ -234,9 +234,10 @@ export type StorybookChromeConsoleEntry = Readonly<{
 */
 export interface StorybookChromeClient {
   /**
-  Проверяет доступность браузерного подключения; его получение может запустить
-  принадлежащий Storybook браузер согласно настройкам клиента.
+  Явно обеспечивает подключение для открытия страницы; может запустить общий браузер.
   */
+  ensure(signal?: AbortSignal): Promise<void>
+  /** Проверяет существующее подключение без запуска браузера. */
   health(signal?: AbortSignal): Promise<void>
   /**
   Возвращает локальный адрес подключения к Chrome DevTools Protocol.
@@ -247,7 +248,8 @@ export interface StorybookChromeClient {
   */
   browserIdentity(signal?: AbortSignal): Promise<string>
   /**
-  Читает список доступных целей Chrome без передачи адресов отладочных соединений.
+  Читает список целей без запуска Chrome. При отсутствии подключения возвращает
+  пустой список; ошибка уже известного соединения остаётся ошибкой.
   */
   targets(signal?: AbortSignal): Promise<readonly ChromeTargetSummary[]>
   /**

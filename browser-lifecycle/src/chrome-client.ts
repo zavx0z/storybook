@@ -1,6 +1,7 @@
 import {createHash} from "node:crypto"
-import {existsSync, mkdirSync, readFileSync, unlinkSync} from "node:fs"
+import {existsSync, mkdirSync, readFileSync} from "node:fs"
 import {join, resolve} from "node:path"
+import {homedir} from "node:os"
 import {StorybookCdpConnection, type StorybookCdpWebSocketFactory} from "./cdp-connection.ts"
 import {withStorybookBrowserLock} from "./target-operation-lock.ts"
 import type {
@@ -18,6 +19,7 @@ export type StorybookCdpClientOptions = Readonly<{
   webSocketFactory?: StorybookCdpWebSocketFactory
   requestTimeoutMs?: number
   launchIfMissing?: boolean
+  /** Подмена корня допустима только с внедрённым запускателем в тестах клиента. */
   stateRoot?: string
   chromeBinary?: string
   spawnChrome?: (command: readonly string[]) => void
@@ -39,7 +41,6 @@ export class StorybookCdpClient implements StorybookChromeClient {
   readonly #chromeBinary: string | undefined
   readonly #spawnChrome: (command: readonly string[]) => void
   readonly #processStart: StorybookProcessStart | undefined
-  #originPromise: Promise<string> | null = null
 
   constructor(options: StorybookCdpClientOptions = {}) {
     const configured = options.origin ?? Bun.env.STORYBOOK_CDP_ORIGIN
@@ -48,29 +49,28 @@ export class StorybookCdpClient implements StorybookChromeClient {
     this.#webSocketFactory = options.webSocketFactory
     this.#requestTimeoutMs = boundedTimeout(options.requestTimeoutMs ?? 30_000, 100, 120_000)
     this.#launchIfMissing = options.launchIfMissing ?? true
-    this.#stateRoot = resolve(options.stateRoot ?? join(process.cwd(), ".storybook-browser-lifecycle"))
+    this.#stateRoot = resolve(options.stateRoot ?? sharedStorybookBrowserRoot())
+    if (options.spawnChrome === undefined && this.#stateRoot !== sharedStorybookBrowserRoot()) {
+      throw new Error("Storybook Chrome must use the shared browser profile")
+    }
     this.#chromeBinary = options.chromeBinary
     this.#spawnChrome = options.spawnChrome ?? ((command) => spawnOwnedChrome(command, this.#stateRoot))
     this.#processStart = options.processStart
   }
 
   async health(signal?: AbortSignal): Promise<void> {
-    const origin = await this.cdpOrigin(signal)
-    try {
-      await this.#version(origin, signal)
-    } catch (error) {
-      if (this.#configuredOrigin !== null) throw error
-      this.#originPromise = null
-      await this.#version(await this.cdpOrigin(signal), signal)
-    }
+    await this.cdpOrigin(signal)
   }
 
-  cdpOrigin(signal?: AbortSignal): Promise<string> {
-    this.#originPromise ??= this.#resolveOrigin(signal).catch((error) => {
-      this.#originPromise = null
-      throw error
-    })
-    return this.#originPromise
+  /** Только явное открытие страницы вправе запустить общий Chrome. */
+  async ensure(signal?: AbortSignal): Promise<void> {
+    await this.#resolveOrigin(signal)
+  }
+
+  async cdpOrigin(signal?: AbortSignal): Promise<string> {
+    const origin = await this.#existingOrigin(signal)
+    if (origin === null) throw new Error("Storybook Chrome CDP is unavailable")
+    return origin
   }
 
   async browserIdentity(signal?: AbortSignal): Promise<string> {
@@ -333,7 +333,8 @@ export class StorybookCdpClient implements StorybookChromeClient {
   }
 
   async #targetInventory(signal?: AbortSignal): Promise<readonly StorybookCdpTarget[]> {
-    const origin = await this.cdpOrigin(signal)
+    const origin = await this.#existingOrigin(signal)
+    if (origin === null) return Object.freeze([])
     const value = await this.#json(new URL("/json/list", origin), signal, 5_000)
     if (!Array.isArray(value)) throw new Error("Storybook CDP returned no target inventory")
     return Object.freeze(value.flatMap((candidate, index) => {
@@ -366,19 +367,27 @@ export class StorybookCdpClient implements StorybookChromeClient {
     return response.json()
   }
 
+  /** Читает существующее соединение; ошибка соединения не становится пустым inventory. */
+  async #existingOrigin(signal?: AbortSignal): Promise<string | null> {
+    signal?.throwIfAborted()
+    const origin = this.#configuredOrigin ?? ownedChromeOrigin(this.#stateRoot)
+    if (origin === null) return null
+    await this.#version(origin, signal)
+    return origin
+  }
+
   async #resolveOrigin(signal?: AbortSignal): Promise<string> {
+    signal?.throwIfAborted()
     if (this.#configuredOrigin !== null) {
       await this.#version(this.#configuredOrigin, signal)
       return this.#configuredOrigin
     }
-    for (const candidate of [ownedChromeOrigin(this.#stateRoot), "http://127.0.0.1:9222"]) {
-      if (candidate === null) continue
-      try {
-        await this.#version(candidate, signal)
-        return candidate
-      } catch {
-        // Try the next owned/direct endpoint before launching Chrome.
-      }
+    try {
+      const existing = await this.#existingOrigin(signal)
+      if (existing !== null) return existing
+    } catch {
+      signal?.throwIfAborted()
+      // Явный open может восстановить Chrome только с тем же общим профилем.
     }
     if (!this.#launchIfMissing) throw new Error("Storybook Chrome CDP is unavailable")
     return withStorybookBrowserLock({
@@ -399,8 +408,7 @@ export class StorybookCdpClient implements StorybookChromeClient {
       }
       const profile = join(this.#stateRoot, "chrome-profile")
       mkdirSync(profile, {recursive: true, mode: 0o700})
-      const activePort = join(profile, "DevToolsActivePort")
-      if (existsSync(activePort)) unlinkSync(activePort)
+      signal?.throwIfAborted()
       const binary = this.#chromeBinary ?? discoverChromeBinary()
       this.#spawnChrome([
         binary,
@@ -450,6 +458,11 @@ export class StorybookCdpClient implements StorybookChromeClient {
     }
     return null
   }
+}
+
+/** Единственный профиль Chrome не зависит от checkout, server state и временных каталогов тестов. */
+function sharedStorybookBrowserRoot(): string {
+  return resolve(homedir(), "Library", "Caches", "zavx0z-external-storybook", "browser")
 }
 
 class StorybookCdpTargetTransition extends Error {
