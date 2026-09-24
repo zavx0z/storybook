@@ -1,6 +1,7 @@
 {
   "name": "@zavx0z/storybook-browser-lifecycle",
   "label": "Вкладки Storybook",
+  "description": "Управляет единым браузером Chrome и вкладками Storybook: открытием, проверкой готовности и закрытием.",
   "version": "0.0.0",
   "private": true,
   "type": "module",

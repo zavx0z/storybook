@@ -39,7 +39,7 @@ export function createStorybookMcpServer(options: CreateStorybookMcpServerInput 
 
   server.registerTool("storybook", {
     title: "Storybook",
-    description: "Читает зарегистрированные пакеты Storybook. Пустой запрос показывает корневые пакеты. node — точный адрес пакета через /, без query, fragment и внутренних директорий. Ответ может перечислять только вложенные пакеты; внутренняя структура пока не раскрывается.",
+    description: "Открывает корневой вход Storybook MCP или направление по path. Ответ содержит description и children; необязательный label уточняет название. Выберите направление по описанию и передайте его path следующему вызову. Пустой вызов возвращает к корню. Адреса пока заканчиваются на зарегистрированных пакетах, без параметров URL, фрагмента адреса и внутренних директорий.",
     inputSchema: storybookSchema,
     annotations: {readOnlyHint: true, idempotentHint: true},
   }, async (input, context) => {
@@ -52,90 +52,90 @@ export function createStorybookMcpServer(options: CreateStorybookMcpServerInput 
   })
 
   server.registerTool("storybook_ensure", {
-    title: "Ensure external Storybook",
-    description: "Start or reuse the one canonical Storybook server and atomically attach optional roots.",
+    title: "Запуск Storybook",
+    description: "Запускает или использует действующий единый сервер Storybook и при необходимости атомарно подключает указанные корни.",
     inputSchema: storybookEnsureSchema,
     annotations: {idempotentHint: true},
   }, async (input, context) => invoke(controller, (value) => value.ensure(input, {signal: context.mcpReq.signal})))
 
   server.registerTool("storybook_status", {
-    title: "Read Storybook status",
-    description: "Read canonical server, registry, package-session and optional view state without starting it.",
+    title: "Состояние Storybook",
+    description: "Возвращает состояние сервера, реестра, сессий пакетов и при необходимости представлений, не запуская сервер.",
     inputSchema: storybookStatusSchema,
     annotations: {idempotentHint: true},
   }, async (input, context) => invoke(controller, (value) => value.status(input, {signal: context.mcpReq.signal})))
 
   server.registerTool("storybook_attach", {
-    title: "Attach Storybook declaration root",
-    description: "Add a package, project or workspace to the saved Storybook catalog. Reuses existing entries and restores previously removed branches.",
+    title: "Подключение проекта к Storybook",
+    description: "Добавляет пакет, проект или рабочее пространство в сохранённый каталог Storybook. Использует существующие записи и восстанавливает ранее удалённые ветви.",
     inputSchema: storybookAttachSchema,
   }, async (input, context) => invoke(controller, (value) => value.attach(input, {signal: context.mcpReq.signal})))
 
   server.registerTool("storybook_detach", {
-    title: "Detach Storybook scope",
-    description: "Remove one project, package or workspace branch from the saved Storybook catalog and close its package views. Repository files are preserved.",
+    title: "Удаление из каталога Storybook",
+    description: "Удаляет одну ветвь проекта, пакета или рабочего пространства из сохранённого каталога Storybook и закрывает её представления. Файлы репозитория сохраняются.",
     inputSchema: storybookDetachSchema,
     annotations: {destructiveHint: true},
   }, async (input, context) => invoke(controller, (value) => value.detach(input, {signal: context.mcpReq.signal})))
 
   server.registerTool("storybook_search", {
-    title: "Search Storybook graph",
-    description: "Search the canonical graph with bounded pagination.",
+    title: "Поиск в Storybook",
+    description: "Ищет в едином графе Storybook и возвращает ограниченную страницу результатов.",
     inputSchema: storybookSearchSchema,
     annotations: {readOnlyHint: true, idempotentHint: true},
   }, async (input, context) => invoke(controller, (value) => value.search(input, {signal: context.mcpReq.signal})))
 
   server.registerTool("storybook_open", {
-    title: "Open Storybook package view",
-    description: "Preview an exact package candidate in an existing matching tab or a new background tab; preserve other packages.",
+    title: "Открытие представления Storybook",
+    description: "Открывает кандидата выбранного пакета в подходящей существующей или новой фоновой вкладке, сохраняя представления других пакетов.",
     inputSchema: storybookOpenSchema,
     annotations: {idempotentHint: true},
   }, async (input, context) => invoke(controller, (value) => value.open(input, {signal: context.mcpReq.signal})))
 
   server.registerTool("storybook_wait", {
-    title: "Wait for Storybook state",
-    description: "Wait event-first for an exact package/view revision condition.",
+    title: "Ожидание состояния Storybook",
+    description: "Ожидает указанного состояния ревизии пакета или представления по событиям.",
     inputSchema: storybookWaitSchema,
     annotations: {readOnlyHint: true},
   }, async (input, context) => invoke(controller, (value) => value.wait(input, {signal: context.mcpReq.signal})))
 
   server.registerTool("storybook_inspect", {
-    title: "Inspect Storybook view",
-    description: "Read bounded state, diagnostics, console, semantic, layout, display or canvas projection.",
+    title: "Инспекция представления Storybook",
+    description: "Возвращает состояние, диагностику, консоль, семантическое дерево, раскладку, Display или Canvas с ограничением объёма ответа.",
     inputSchema: storybookInspectSchema,
     annotations: {readOnlyHint: true, idempotentHint: true},
   }, async (input, context) => invoke(controller, (value) => value.inspect(input, {signal: context.mcpReq.signal})))
 
   server.registerTool("storybook_interact", {
-    title: "Interact with Storybook view",
-    description: "Perform a bounded semantic action without raw coordinates, JavaScript or CDP identity.",
+    title: "Взаимодействие со Storybook",
+    description: "Выполняет ограниченное действие над семантической целью без координат, произвольного JavaScript и идентификаторов CDP.",
     inputSchema: storybookInteractSchema,
   }, async (input, context) => invoke(controller, (value) => value.interact(input, {signal: context.mcpReq.signal})))
 
   server.registerTool("storybook_capture", {
-    title: "Capture Storybook view",
-    description: "Capture an exact rendered region as PNG image content and a bounded artifact resource.",
+    title: "Снимок представления Storybook",
+    description: "Создаёт PNG-снимок выбранной отрисованной области и возвращает изображение вместе с ограниченным ресурсом результата.",
     inputSchema: storybookCaptureSchema,
     annotations: {readOnlyHint: true},
   }, async (input, context) => invokeCapture(controller, input, context.mcpReq.signal))
 
   server.registerTool("storybook_check", {
-    title: "Check Storybook package",
-    description: "Build a package candidate. With live=true, inspect the exact candidate and apply it on success to all tabs of that package; preserve the applied revision on failure.",
+    title: "Проверка пакета Storybook",
+    description: "Собирает кандидата пакета. При live=true проверяет его и в случае успеха применяет ко всем вкладкам этого пакета. При ошибке сохраняет применённую ревизию.",
     inputSchema: storybookCheckSchema,
     annotations: {idempotentHint: true},
   }, async (input, context) => invoke(controller, (value) => value.check(input, {signal: context.mcpReq.signal})))
 
   server.registerTool("storybook_close", {
-    title: "Close Storybook view",
-    description: "Close only one exact opaque Storybook package view.",
+    title: "Закрытие представления Storybook",
+    description: "Закрывает только одно представление пакета Storybook по его точному идентификатору.",
     inputSchema: storybookCloseSchema,
     annotations: {destructiveHint: true},
   }, async (input, context) => invoke(controller, (value) => value.close(input, {signal: context.mcpReq.signal})))
 
   server.registerTool("storybook_stop", {
-    title: "Stop external Storybook",
-    description: "Explicitly stop only the owned canonical Storybook server. Requires confirm=true.",
+    title: "Остановка Storybook",
+    description: "Явно останавливает только принадлежащий этому инструменту единый сервер Storybook. Требуется confirm=true.",
     inputSchema: storybookStopSchema,
     annotations: {destructiveHint: true, idempotentHint: true},
   }, async (input, context) => invoke(controller, (value) => value.stop(input, {signal: context.mcpReq.signal})))

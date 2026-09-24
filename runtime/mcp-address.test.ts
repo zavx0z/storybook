@@ -3,7 +3,7 @@ import {createMcpAddressSource} from "./mcp-address"
 
 test("browser-сессия переносит запрос и публичный MCP-ответ без управляющего токена", async () => {
   const calls: {url: string, init: RequestInit | undefined}[] = []
-  const input = {node: "storybook/archetypes/package"}
+  const input = {path: "storybook/archetypes/package"}
   const response = {status: "failed", error: {code: "Error", message: "Раздел пока не доступен"}}
   const source = createMcpAddressSource(() => "/missing?view=scenarios", (async (url, init) => {
     calls.push({url: String(url), init})

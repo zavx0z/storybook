@@ -1,0 +1,10 @@
+{
+  "name": "@mcp/children",
+  "label": "Навигация MCP",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Единообразно описывает выбранное направление и доступные переходы для агента",
+  "exports": {".": "./index.ts"},
+  "scripts": {"test": "bun test ./spec ./test"}
+}

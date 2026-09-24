@@ -670,15 +670,19 @@ export async function startExternalStorybookServer(
   const runScenario = createStorybookScenarioRunner()
   let journalWriteError: {at: string, message: string} | null = null
   /** Один предметный обработчик для MCP-прокси и просмотра ответа по адресу UI. */
-  const mcpPackages = () => {
-    const packages = registry.snapshot().graph.nodes.filter(node => node.kind === "package")
+  const mcpEntries = () => {
+    const snapshot = registry.snapshot()
+    const packages = snapshot.graph.nodes.filter(node => node.kind === "package")
+    const descriptions = new Map(snapshot.catalog.scopes.map(scope => [scope.canonicalId, scope.description ?? ""]))
     return packages.map(node => ({
-      node: node.urlPath.slice(1),
-      title: node.label,
+      path: node.urlPath.slice(1),
+      label: node.label,
+      description: descriptions.get(node.id) ?? "",
       parent: packages.find(parent => parent.id === node.parentId)?.urlPath.slice(1) ?? null,
     }))
   }
-  const readStorybook = (request: Request) => storybookRest(request, {packages: mcpPackages()})
+  const readStorybook = (request: Request) => storybookRest(request, {entries: mcpEntries()})
+
   let server!: Bun.Server<StorybookWebSocketData>
   try {
     options.onStartupPhase?.("listen")
@@ -765,13 +769,13 @@ export async function startExternalStorybookServer(
           if (typeof source.address !== "string" || !source.address.startsWith("/") || source.address.startsWith("//")) {
             throw new Error("Ожидается локальный адрес страницы")
           }
-          let input: {node?: string} | null = null
+          let input: {path?: string} | null = null
           try {
             const pathname = source.address.split(/[?#]/u)[0]!.slice(1)
-            const owner = mcpPackages().filter(item => pathname === item.node || pathname.startsWith(`${item.node}/`))
-              .sort((a, b) => b.node.length - a.node.length)[0]
+            const owner = mcpEntries().filter(item => pathname === item.path || pathname.startsWith(`${item.path}/`))
+              .sort((a, b) => b.path.length - a.path.length)[0]
             if (pathname !== "" && owner === undefined) throw new Error("Страница не принадлежит зарегистрированному пакету")
-            input = owner === undefined ? {} : {node: owner.node}
+            input = owner === undefined ? {} : {path: owner.path}
             const reply = await readStorybook(new Request(new URL("/api/control/storybook", server.url.origin), {
               method: "POST",
               body: JSON.stringify(input),

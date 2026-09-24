@@ -5,20 +5,20 @@
 @packageDocumentation
 */
 import {resolveMcpAddress} from "@mcp/address"
+import {readMcpRoot} from "@mcp/root"
+import {readMcpChildren, type ReadMcpChildrenInput} from "@mcp/children"
 
 /**
-Пакетные узлы canonical graph, переданные сервером без повторного discovery.
+Навигационная проекция canonical graph без повторного discovery.
 
-@property packages - Адрес, подпись и адрес родительского пакета; null означает корень.
+@property entries - Адрес, название, назначение и адрес родителя каждого владельца.
 */
-export interface StorybookRestOptions {
-  readonly packages: readonly {readonly node: string, readonly title: string, readonly parent: string | null}[]
-}
+export type StorybookRestOptions = Pick<ReadMcpChildrenInput, "entries">
 
 /**
 Отдаёт корневые пакеты либо один пакет и его непосредственно вложенные пакеты.
 
-@param request - GET без query либо POST с единственным необязательным node.
+@param request - GET без query либо POST с единственным необязательным path.
 @param options - Проекция действующего каталога; обычные директории в неё не входят.
 @returns JSON с пакетными адресами. Запрос не читает исходники и не выполняет сценарии.
 */
@@ -40,16 +40,19 @@ export async function storybookRest(request: Request, options: StorybookRestOpti
     }
   }
   if (input === null || typeof input !== "object" || Array.isArray(input)
-    || Object.keys(input).some(key => key !== "node")
-    || ("node" in input && typeof input.node !== "string")) {
-    return Response.json({status: "failed", error: "Ожидается только необязательный node — адрес пакета"}, {status: 400})
+    || Object.keys(input).some(key => key !== "path")
+    || ("path" in input && typeof input.path !== "string")) {
+    return Response.json({status: "failed", error: "Ожидается только необязательный path — адрес пакета"}, {status: 400})
   }
-  const node = "node" in input ? input.node as string : undefined
+  const path = "path" in input ? input.path as string : undefined
   try {
-    const address = node === undefined ? null : resolveMcpAddress({address: node, packages: options.packages.map(item => item.node)})
-    const selected = options.packages.find(item => item.node === address)
-    const packages = options.packages.filter(item => item.parent === address).map(({node, title}) => ({node, title}))
-    return Response.json(selected === undefined ? {packages} : {node: selected.node, title: selected.title, packages})
+    if (path === undefined) return Response.json(readMcpRoot(options))
+    const address = resolveMcpAddress({address: path, packages: options.entries.map(item => item.path)})
+    const selected = options.entries.find(item => item.path === address)!
+    return Response.json(readMcpChildren({
+      path: selected.path, ...(selected.label === undefined ? {} : {label: selected.label}),
+      description: selected.description, entries: options.entries,
+    }))
   } catch (error) {
     return Response.json({status: "failed", error: error instanceof Error ? error.message : String(error)},
       {status: error instanceof TypeError ? 400 : 404})

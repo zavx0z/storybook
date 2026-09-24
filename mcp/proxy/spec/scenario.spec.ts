@@ -3,14 +3,14 @@ import {exerciseProxy} from "./fixture"
 
 describe.each([
   {name: "Развитие HTTP-ответа", steps: [
-    {reply: {node: "example", children: []}},
+    {reply: {path: "example", children: []}},
     {reply: {future: {items: [null, "", 0, false, []]}}},
-    {reply: {status: "new-domain-state", node: false, children: "not a navigation array", description: {arbitrary: true}}},
+    {reply: {status: "new-domain-state", path: false, children: "not a navigation array", description: {arbitrary: true}}},
   ]},
   {name: "Статус как предметные данные", steps: [{reply: {status: "failed", value: 42}}, {reply: {status: "unavailable", value: null}}]},
   {name: "Смена HTTP-сервера", steps: [{reply: {first: true}}, {reply: {next: true}, switchServer: true}]},
 ])("$name", async ({steps}) => {
-  const request = {node: "example"}
+  const request = {path: "example"}
   const result = await exerciseProxy(steps, request)
 
   test("Ответ", () => {

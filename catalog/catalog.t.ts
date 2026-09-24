@@ -444,6 +444,9 @@ export type StorybookDirectory = Readonly<{
 
 @property label - Отображаемое название.
 
+@property [description] - Авторское назначение из непосредственного package.json;
+отсутствие не заменяется подписью.
+
 @property source - Исходная декларация владельца.
 
 @property scopeRoot - Физический корень области.
@@ -462,6 +465,7 @@ type StorybookCatalogScopeBase = Readonly<{
   canonicalId: string
   id: string
   label: string
+  description?: string
   source: StorybookSourceReference
   scopeRoot: string
   readmePath: string | null

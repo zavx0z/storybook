@@ -9,7 +9,7 @@ export interface ProxyStep {
 }
 
 /** Изолированный HTTP-стенд не меняет запись действующего Storybook и не регистрирует тесты. */
-export async function exerciseProxy(steps: readonly ProxyStep[], request: StorybookProxyInput = {node: "example"}) {
+export async function exerciseProxy(steps: readonly ProxyStep[], request: StorybookProxyInput = {path: "example"}) {
   const child = Bun.spawn([process.execPath, new URL("./worker.ts", import.meta.url).pathname], {
     stdin: new Blob([JSON.stringify({steps, request})]), stdout: "pipe", stderr: "pipe",
   })

@@ -7,7 +7,10 @@ import type {ExternalStorybookController} from "../server/controller-contract.ts
 import {STORYBOOK_TOOL_NAMES} from "./server/src/schemas"
 import {createStorybookMcpServer} from "./server"
 import {storybookRest} from "./rest"
-const catalog = {packages: [{node: "storybook", title: "Storybook", parent: null}, {node: "storybook/archetypes/package", title: "Пакет", parent: "storybook"}]}
+const catalog = {entries: [
+  {path: "example", label: "Пример", description: "Проект с примерами", parent: null},
+  {path: "example/button", label: "Кнопка", description: "Действие пользователя", parent: "example"},
+]}
 
 const MCP_ENTRY = fileURLToPath(new URL("./stdio.ts", import.meta.url))
 const transports: Array<{close(): Promise<void>}> = []
@@ -33,15 +36,16 @@ describe("Storybook MCP stdio", () => {
     await Promise.all([server.connect(serverTransport), client.connect(clientTransport)])
     try {
       const result = await client.callTool({name: "storybook", arguments: {
-        node: "storybook/archetypes/package",
+        path: "example/button",
       }})
       expect(result.isError).not.toBeTrue()
       expect(result.structuredContent).toMatchObject({
-        node: "storybook/archetypes/package",
-        title: "Пакет",
-        packages: [],
+        path: "example/button",
+        label: "Кнопка",
+        description: "Действие пользователя",
+        children: [],
       })
-      expect(Object.keys(result.structuredContent!)).toEqual(["node", "title", "packages"])
+      expect(Object.keys(result.structuredContent!)).toEqual(["path", "label", "description", "children"])
       expect(JSON.parse((result.content as {type: string, text: string}[])[0]!.text), "Полный JSON-ответ HTTP-сервера без отдельной текстовой проекции документа").toEqual(result.structuredContent)
     } finally {
       await client.close()
@@ -67,10 +71,17 @@ describe("Storybook MCP stdio", () => {
     try {
       const result = await client.callTool({name: "storybook", arguments: {}})
       expect(result.structuredContent).toEqual({
-        packages: [{node: "storybook", title: "Storybook"}],
+        label: "Вход Storybook MCP",
+        description: expect.stringContaining("path"),
+        children: [{path: "example", label: "Пример", description: "Проект с примерами"}],
       })
       expect(result.isError).not.toBeTrue()
-      const failed = await client.callTool({name: "storybook", arguments: {node: "missing"}})
+      const root = result.structuredContent as {children: {path: string, label: string, description: string}[]}
+      const child = root.children[0]!
+      const selected = await client.callTool({name: "storybook", arguments: {path: child.path}})
+      expect(selected.structuredContent).toMatchObject(child)
+      expect((await client.callTool({name: "storybook", arguments: {node: child.path}})).isError).toBeTrue()
+      const failed = await client.callTool({name: "storybook", arguments: {path: "missing"}})
       expect(failed.isError).toBeTrue()
       expect(failed.structuredContent).toMatchObject({status: "failed", error: {message: "Адрес не принадлежит зарегистрированному пакету: missing"}})
       expect(loads).toBe(0)
@@ -93,6 +104,7 @@ describe("Storybook MCP stdio", () => {
 
     const tools = await client.listTools()
     expect(tools.tools.map(({name}) => name)).toEqual([...STORYBOOK_TOOL_NAMES])
+    expect(Object.keys(tools.tools.find(tool => tool.name === "storybook")!.inputSchema.properties ?? {})).toEqual(["path"])
     for (const tool of tools.tools) {
       expect(tool.inputSchema).toMatchObject({type: "object", additionalProperties: false})
     }

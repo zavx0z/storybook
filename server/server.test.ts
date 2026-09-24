@@ -22,6 +22,20 @@ afterEach(async () => {
 })
 
 describe("one external Storybook server", () => {
+  test("MCP Root работает без подключённых проектов", async () => {
+    const fixture = serverFixture()
+    const running = await startTestServer({declarations: [], statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
+    servers.push(running)
+    const response = await fetch(new URL("/api/control/storybook", running.origin), {
+      method: "POST",
+      headers: {authorization: `Bearer ${running.record.controlToken}`, "content-type": "application/json"},
+      body: "{}",
+    })
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({label: "Вход Storybook MCP", description: expect.stringContaining("path"), children: []})
+    expect(running.sessions.snapshots()).toEqual([])
+  })
+
   test("адресный режим возвращает тот же ответ, что MCP, и не пишет в журнал агента", async () => {
     const {Client, InMemoryTransport} = await import("@modelcontextprotocol/client")
     const {createStorybookMcpServer} = await import("../mcp/server")
@@ -46,12 +60,12 @@ describe("one external Storybook server", () => {
       for (const address of ["/", "/standalone", "/standalone?view=overview", "/standalone/internal?view=scenarios&inspector=x", "/standalone?preview=candidate"]) {
         const browser = await read({address})
         expect(browser.status).toBe(200)
-        const input = address === "/" ? {} : {node: "standalone"}
+        const input = address === "/" ? {} : {path: "standalone"}
         const expected = await client.callTool({name: "storybook", arguments: input})
         expect(await browser.json()).toEqual({input, ...expected})
       }
-      for (const node of ["standalone/internal", "standalone?view=scenarios"]) {
-        expect((await client.callTool({name: "storybook", arguments: {node}})).isError).toBeTrue()
+      for (const path of ["standalone/internal", "standalone?view=scenarios"]) {
+        expect((await client.callTool({name: "storybook", arguments: {path}})).isError).toBeTrue()
       }
       const missing = await (await read({address: "/missing?view=scenarios"})).json()
       expect(missing).toMatchObject({input: null, isError: true})
@@ -166,6 +180,8 @@ describe("one external Storybook server", () => {
 
   test("корневой REST возвращает подключённые корни без сборки", async () => {
     const fixture = serverFixture()
+    const metadata = JSON.parse(readFileSync(join(fixture.standalone, "package.json"), "utf8"))
+    writeFileSync(join(fixture.standalone, "package.json"), JSON.stringify({...metadata, description: "Назначение подключённого проекта"}))
     const running = await startTestServer({
       declarations: [fixture.standalone],
       statePath: fixture.statePath,
@@ -180,9 +196,12 @@ describe("one external Storybook server", () => {
       headers: {authorization: `Bearer ${running.record.controlToken}`, "content-type": "application/json"},
       body: "{}",
     })
-    const value = await response.json() as {node: string, description: string, children: {node: string, description: string}[]}
-    expect(Object.keys(value).sort()).toEqual(["children", "description", "node"])
-    expect(value.children.map(node => node.node)).toEqual(["standalone"])
+    const value = await response.json() as {label: string, description: string, children: {path: string, label: string, description: string}[]}
+    expect(Object.keys(value).sort()).toEqual(["children", "description", "label"])
+    expect(value.children.map(child => child.path)).toEqual(["standalone"])
+    expect(value.label).toBe("Вход Storybook MCP")
+    expect(value.description).toContain("path")
+    expect(value.children[0]?.description).toBe("Назначение подключённого проекта")
     expect(value.children.every(node => typeof node.description === "string")).toBe(true)
     expect(running.sessions.snapshots().every(item => item.builds === 0)).toBe(true)
   })

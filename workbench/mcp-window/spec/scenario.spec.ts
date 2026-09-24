@@ -31,8 +31,8 @@ describe.each([{name: "Два режима MCP", address: "/storybook/archetypes
   const host = createWindowHost()
   afterAll(() => host.dispose())
   const requests: string[] = []
-  const input = {node: "storybook/archetypes"}
-  const response = {node: input.node, title: "Archetypes", packages: []}
+  const input = {path: "storybook/archetypes"}
+  const response = {path: input.path, title: "Archetypes", packages: []}
   const props: McpWindowProps = {open: true, onClose() {}, load: async () => [command("agent")], addressSource: {
     readAddress: () => address,
     async request(address) {

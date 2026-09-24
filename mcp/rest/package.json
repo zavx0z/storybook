@@ -1,11 +1,23 @@
 {
   "name": "@mcp/rest",
-  "label": "Storybook REST",
+  "label": "HTTP-интерфейс Storybook",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "description": "HTTP-интерфейс постепенного раскрытия Storybook",
-  "exports": {".": "./index.ts", "./requests": "./requests/index.ts", "./scenarios": "./scenarios/index.ts", "./package": "./package/index.ts"},
-  "scripts": {"test": "bun test ./spec ./scenarios ./package"},
-  "dependencies": {"@archetypes/specs": "link:@archetypes/specs", "@mcp/address": "workspace:*"}
+  "exports": {
+    ".": "./index.ts",
+    "./requests": "./requests/index.ts",
+    "./scenarios": "./scenarios/index.ts",
+    "./package": "./package/index.ts"
+  },
+  "scripts": {
+    "test": "bun test ./spec ./scenarios ./package"
+  },
+  "dependencies": {
+    "@archetypes/specs": "link:@archetypes/specs",
+    "@mcp/address": "workspace:*",
+    "@mcp/children": "workspace:*",
+    "@mcp/root": "workspace:*"
+  }
 }

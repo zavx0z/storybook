@@ -356,6 +356,7 @@ async function unavailableOwner(manifestPath: string): Promise<StorybookCatalogS
     schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION, kind, id,
     canonicalId: `${kind}:${id}`, scopeRoot,
     label: typeof metadata.label === "string" && metadata.label.trim().length > 0 ? metadata.label : `${basename(scopeRoot)} (недоступен)`,
+    ...(typeof metadata.description === "string" ? {description: metadata.description} : {}),
     source: Object.freeze({path: manifestPath, pointer: ""}), readmePath: null,
     digest: createHash("sha256").update(manifestPath).digest("hex"),
   }
@@ -418,7 +419,8 @@ async function resolveManifestStrict(
   )).record
   const id = packageId(ownerPackage.name, "Owner package.json name")
   const label = visibleText(ownerPackage.label, `External Storybook ${kind} package.json label`)
-  let digest = createHash("sha256").update(manifestDigest).update(JSON.stringify(label)).digest("hex")
+  const description = typeof ownerPackage.description === "string" ? ownerPackage.description : undefined
+  let digest = createHash("sha256").update(manifestDigest).update(JSON.stringify(label)).update(description ?? "").digest("hex")
   const previousScope = state.scopeIds.get(id)
   if (previousScope !== undefined) {
     const identity = kind === "package" ? "Ambiguous external Storybook package identity" : "Duplicate external Storybook scope id"
@@ -469,6 +471,7 @@ async function resolveManifestStrict(
         canonicalId,
         id,
         label,
+        ...(description === undefined ? {} : {description}),
         source: Object.freeze({path: manifestPath, pointer: ""}),
         scopeRoot,
         readmePath,
@@ -516,6 +519,7 @@ async function resolveManifestStrict(
         canonicalId,
         id,
         label,
+        ...(description === undefined ? {} : {description}),
         source: Object.freeze({path: manifestPath, pointer: ""}),
         scopeRoot,
         readmePath,
@@ -584,6 +588,7 @@ async function resolveManifestStrict(
         canonicalId,
         id,
         label,
+        ...(description === undefined ? {} : {description}),
         source: Object.freeze({path: manifestPath, pointer: ""}),
         scopeRoot,
         readmePath,

@@ -141,7 +141,9 @@ override запрещены.
 динамически определяет [Route](route/README.md) по файлам владельца.
 Адреса инструмента `storybook` ограничены пакетами по
 [контракту MCP Address](mcp/address/README.md); параметры и внутренние пути UI
-не становятся адресами этого этапа MCP.
+не становятся адресами этого этапа MCP. Независимый вход описан у
+[MCP Root](mcp/root/README.md), общая навигационная форма — у
+[MCP Children](mcp/children/README.md).
 Immutable revision,
 прямое открытие, reload, back/forward, выбранная вкладка, preview и Inspector
 согласованы с URL. Preview query сохраняется при навигации. На overview ни одна

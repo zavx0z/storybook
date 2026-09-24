@@ -4,7 +4,7 @@ import {createStorybookMcpServer} from ".."
 
 describe.each([{
   name: "Неизменный MCP при развитии HTTP-ответа",
-  responses: [{node: "example", children: []}, {newField: {enabled: true}}, {status: "failed", arbitrary: 12}],
+  responses: [{path: "example", children: []}, {newField: {enabled: true}}, {status: "failed", arbitrary: 12}],
 }])("$name", async ({responses: expected}) => {
   let current = 0
   let controllerLoads = 0
@@ -19,7 +19,7 @@ describe.each([{
   const results: Awaited<ReturnType<Client["callTool"]>>[] = []
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)])
   try {
-    for (let index = 0; index < expected.length; index++) results.push(await client.callTool({name: "storybook", arguments: {node: "example"}}))
+    for (let index = 0; index < expected.length; index++) results.push(await client.callTool({name: "storybook", arguments: {path: "example"}}))
   } finally {
     await client.close()
     await server.close()

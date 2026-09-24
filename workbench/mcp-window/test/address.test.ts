@@ -21,9 +21,9 @@ describe("MCP по адресной строке", () => {
       readAddress: () => address,
       async request(address) {
         requests.push(address)
-        const node = address.startsWith("/webxr/") ? "webxr/nodes/node"
+        const path = address.startsWith("/webxr/") ? "webxr/nodes/node"
           : address.startsWith("/storybook/") ? "storybook/archetypes" : address.slice(1)
-        const input = node === "" ? {} : {node}
+        const input = path === "" ? {} : {path}
         return {input, result: {...input, tail: "Полный ответ"}, failed: false}
       },
     }}
@@ -31,7 +31,7 @@ describe("MCP по адресной строке", () => {
     expect(requests).toHaveLength(0)
     await host.click("Текущий адрес → MCP")
     expect(requests).toEqual([address])
-    expect(JSON.parse(result())).toEqual({node: "webxr/nodes/node", tail: "Полный ответ"})
+    expect(JSON.parse(result())).toEqual({path: "webxr/nodes/node", tail: "Полный ответ"})
     expect(host.container.querySelector('[data-mcp-address]')?.textContent).not.toContain("?view=")
     expect(host.container.querySelector('[data-mcp-address]')?.textContent).not.toContain("/diagram")
     await Bun.sleep(550)
@@ -42,7 +42,7 @@ describe("MCP по адресной строке", () => {
     await host.click("Обновить ответ")
     expect(requests).toHaveLength(3)
     address = "/"
-    await host.waitFor(() => !result().includes('"node"'))
+    await host.waitFor(() => !result().includes('"path"'))
     expect(requests.at(-1)).toBe("/")
     await host.click("Вызовы агента")
     const count = requests.length
@@ -61,7 +61,7 @@ describe("MCP по адресной строке", () => {
 
   test("поздний ответ прежнего адреса не заменяет текущий; ошибка MCP показана целиком", async () => {
     let address = "/old"
-    const pending = Promise.withResolvers<{input: {node?: string} | null, result: unknown, failed: boolean}>()
+    const pending = Promise.withResolvers<{input: {path?: string} | null, result: unknown, failed: boolean}>()
     let previousSignal: AbortSignal | undefined
     const failure = {status: "failed", error: {code: "Error", message: "Раздел пока не доступен"}}
     await render({open: true, onClose() {}, addressSource: {
@@ -78,7 +78,7 @@ describe("MCP по адресной строке", () => {
     address = "/missing?future=1"
     await host.waitFor(() => result().includes("Раздел пока не доступен"))
     expect(previousSignal?.aborted).toBeTrue()
-    pending.resolve({input: {node: "old"}, result: {stale: true}, failed: false})
+    pending.resolve({input: {path: "old"}, result: {stale: true}, failed: false})
     await host.settle()
     expect(JSON.parse(result())).toEqual(failure)
     expect(host.container.querySelector('[data-mcp-address] article')?.textContent).toContain(" · failed · ")

@@ -1,12 +1,21 @@
 {
   "name": "@zavx0z/storybook-mcp",
-  "label": "Storybook MCP",
+  "label": "Инструменты Storybook MCP",
+  "description": "Предоставляет агенту навигацию, управление и диагностику единого сервера Storybook через MCP.",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": {"./proxy": "./proxy/index.ts", "./server": "./server/index.ts"},
+  "exports": {
+    "./proxy": "./proxy/index.ts",
+    "./server": "./server/index.ts"
+  },
   "packageManager": "bun@1.4.0",
-  "workspaces": ["rest", "address"],
+  "workspaces": [
+    "rest",
+    "address",
+    "children",
+    "root"
+  ],
   "scripts": {
     "start": "bun run stdio.ts",
     "test": "bun test",
@@ -24,6 +33,8 @@
     "@mcp/rest": "workspace:*",
     "@modelcontextprotocol/client": "^2.0.0",
     "@types/bun": "^1.4.0",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "@mcp/children": "workspace:*",
+    "@mcp/root": "workspace:*"
   }
 }

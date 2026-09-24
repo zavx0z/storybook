@@ -3,7 +3,7 @@
   "label": "Storybook",
   "version": "0.0.0",
   "private": true,
-  "description": "One external declaration-driven Storybook server for independently owned packages.",
+  "description": "Единый внешний сервер Storybook для независимых пакетов с декларативным описанием.",
   "type": "module",
   "packageManager": "bun@1.4.0",
   "workspaces": [
@@ -12,7 +12,9 @@
     "browser-lifecycle",
     "archetypes",
     "mcp/rest",
-    "mcp/address"
+    "mcp/address",
+    "mcp/children",
+    "mcp/root"
   ],
   "bin": {
     "storybook": "./scripts/storybook.ts"
@@ -34,7 +36,9 @@
     "@storybook/app": "workspace:*",
     "@storybook/route": "workspace:*",
     "@mcp/rest": "workspace:*",
-    "@zavx0z/storybook-browser-lifecycle": "workspace:*"
+    "@zavx0z/storybook-browser-lifecycle": "workspace:*",
+    "@mcp/children": "workspace:*",
+    "@mcp/root": "workspace:*"
   },
   "devDependencies": {
     "@archetypes/specs": "workspace:archetypes/specs",

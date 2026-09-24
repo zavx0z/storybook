@@ -12,8 +12,8 @@ export function registerStorybookResources(
     "storybook-state",
     "storybook://state",
     {
-      title: "External Storybook state",
-      description: "Bounded canonical server, registry, package-session and view state.",
+      title: "Состояние Storybook",
+      description: "Состояние единого сервера, реестра, сессий пакетов и представлений с ограничением объёма ответа.",
       mimeType: "application/json",
     },
     async (uri, context) => resourceContents(await read(controller, uri, context.mcpReq.signal)),
@@ -22,8 +22,8 @@ export function registerStorybookResources(
     "storybook-graph",
     "storybook://graph",
     {
-      title: "External Storybook graph summary",
-      description: "Bounded first page of the canonical declaration graph.",
+      title: "Обзор графа Storybook",
+      description: "Первая ограниченная страница единого графа деклараций.",
       mimeType: "application/json",
     },
     async (uri, context) => resourceContents(await read(controller, uri, context.mcpReq.signal)),
@@ -33,21 +33,21 @@ export function registerStorybookResources(
     controller,
     "storybook-package",
     "storybook://packages/{encodedPackageId}",
-    "Exact Storybook package state and structural graph projection.",
+    "Состояние выбранного пакета Storybook и его структура в общем графе.",
   )
   registerTemplate(
     server,
     controller,
     "storybook-view",
     "storybook://views/{viewId}",
-    "Exact opaque Storybook browser view state.",
+    "Состояние представления Storybook по его точному идентификатору.",
   )
   registerTemplate(
     server,
     controller,
     "storybook-capture",
     "storybook://captures/{captureId}",
-    "Bounded PNG capture artifact and exact revision metadata.",
+    "PNG-снимок с ограничением объёма и сведения о его точной ревизии.",
   )
 }
 
