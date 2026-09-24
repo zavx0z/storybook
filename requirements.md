@@ -547,6 +547,9 @@ Published revision содержит immutable package graph/route/resource snaps
 Compile/protocol/activation имеют timeouts; detach/reconfigure отменяют exact
 candidate. Worker создаётся в собственной process group: завершение подтверждается
 для него и его потомков, без поиска и остановки процессов по имени команды.
+Кратковременный EPERM при проверке завершающейся группы не подменяет исходную
+отмену: signal 0 повторяется в ограниченном окне до подтверждённого исчезновения.
+Постоянный отказ доступа остаётся ошибкой, а не признаком успешного завершения.
 Package compile получает отдельный bounded budget 120 секунд: это покрывает
 fresh Template/TypeScript initialization на поддерживаемом Intel host, но не
 ослабляет per-candidate cancellation или exact child termination. HTTP/WebSocket

@@ -52,9 +52,9 @@ export type StorybookOwnedChildWaitInput = Readonly<{
 /**
 Ожидает exact spawned child и подтверждает его завершение при success, abort и timeout.
 
-Helper никогда не ищет процессы по PID/command и не сигналит descendants или чужие
-processes. Владелец worker обязан сам завершить принадлежащих ему descendants по
-своему AbortSignal; увеличенный parent grace даёт ему время подтвердить cleanup.
+Helper сигналит только полученный child handle либо его явно заданную detached
+группу. Он не ищет процессы по имени команды. Завершение группы подтверждается
+после выхода worker; постоянная ошибка проверки не считается успешной очисткой.
 
 @throws Исходная abort reason либо `TimeoutError` после подтверждённого exit.
 */
@@ -125,11 +125,11 @@ export async function waitForStorybookOwnedChild(
       await confirmOwnedProcessGroupExit(input.processGroup.leaderPid, hardKillDelayMs)
     }
     if (!terminationRequested && input.processGroup !== undefined &&
-      ownedProcessGroupExists(input.processGroup.leaderPid)) {
+      await ownedProcessGroupExists(input.processGroup.leaderPid)) {
       try {
         process.kill(-input.processGroup.leaderPid, "SIGKILL")
       } catch (error) {
-        if (!isMissingProcessError(error)) throw error
+        if (!isMissingProcessError(error) && !isProcessPermissionError(error)) throw error
       }
       await confirmOwnedProcessGroupExit(input.processGroup.leaderPid, 0)
       throw new Error(`${input.label} worker exited before its owned descendants`)
@@ -175,33 +175,47 @@ Bounded подтверждает исчезновение detached group пос�
 */
 async function confirmOwnedProcessGroupExit(leaderPid: number, graceMs: number): Promise<void> {
   const termDeadline = Date.now() + graceMs
-  while (ownedProcessGroupExists(leaderPid) && Date.now() < termDeadline) {
+  const killDeadline = termDeadline + 1_000
+  while (await ownedProcessGroupExists(leaderPid, killDeadline) && Date.now() < termDeadline) {
     await new Promise<void>((resolve) => setTimeout(resolve, 10))
   }
-  if (!ownedProcessGroupExists(leaderPid)) return
+  if (!(await ownedProcessGroupExists(leaderPid, killDeadline))) return
   try {
     process.kill(-leaderPid, "SIGKILL")
   } catch (error) {
-    if (!isMissingProcessError(error)) throw error
+    if (!isMissingProcessError(error) && !isProcessPermissionError(error)) throw error
   }
-  const killDeadline = Date.now() + 1_000
-  while (ownedProcessGroupExists(leaderPid) && Date.now() < killDeadline) {
+  while (await ownedProcessGroupExists(leaderPid, killDeadline) && Date.now() < killDeadline) {
     await new Promise<void>((resolve) => setTimeout(resolve, 10))
   }
-  if (ownedProcessGroupExists(leaderPid)) {
+  if (await ownedProcessGroupExists(leaderPid, killDeadline)) {
     throw new Error(`Storybook owned process group ${leaderPid} did not exit after SIGKILL`)
   }
 }
 
-/** Проверяет существование exact PGID без перечисления host processes. */
-function ownedProcessGroupExists(leaderPid: number): boolean {
-  try {
-    process.kill(-leaderPid, 0)
-    return true
-  } catch (error) {
-    if (isMissingProcessError(error)) return false
-    throw error
+/**
+Проверяет exact PGID без перечисления процессов. Darwin может вернуть EPERM,
+когда в ещё существующей группе остались только zombie: killpg1 пропускает их.
+Повторяется только signal 0 до подтверждённого ESRCH; постоянный EPERM остаётся ошибкой.
+
+См. [реализацию killpg1](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_sig.c).
+*/
+async function ownedProcessGroupExists(leaderPid: number, deadline = Date.now() + 1_000): Promise<boolean> {
+  while (true) {
+    try {
+      process.kill(-leaderPid, 0)
+      return true
+    } catch (error) {
+      if (isMissingProcessError(error)) return false
+      if (!isProcessPermissionError(error) || Date.now() >= deadline) throw error
+      await new Promise<void>(resolve => setTimeout(resolve, 10))
+    }
   }
+}
+
+/** EPERM требует подтверждения состояния группы, а не признания её завершённой. */
+function isProcessPermissionError(error: unknown): boolean {
+  return error instanceof Error && "code" in error && error.code === "EPERM"
 }
 
 /** ESRCH означает, что exact PID/PGID больше не существует. */
