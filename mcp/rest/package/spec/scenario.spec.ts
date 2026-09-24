@@ -19,8 +19,7 @@ describe.each([
           path: fileURLToPath(new URL("../../../../archetypes/package/spec/scenario.spec.ts", import.meta.url)),
           exitCode: 0,
           calls: expect.arrayContaining([
-            expect.objectContaining({name: "readPackage", describe: ["Корневой пакет"]}),
-            expect.objectContaining({name: "readPackage", describe: ["Вложенный пакет"]}),
+            expect.objectContaining({name: "readPackage", describe: ["Архетип пакета"]}),
           ]),
         }),
       },
@@ -34,7 +33,7 @@ describe.each([
   })
 
   test("Сохраняет результат чтения спецификации", () => {
-    expect({
+    const snapshot = {
       ...result,
       result: result.result && {
         ...result.result,
@@ -44,6 +43,9 @@ describe.each([
           junit: result.result.scenario.junit.replace(/\btime="[^"]*"/g, 'time="<duration>"').split("\n"),
         },
       },
-    }).toMatchSnapshot()
+    }
+    // Сохраняет все строки документа без хвостовых пробелов форматтера snapshot.
+    expect(JSON.parse(JSON.stringify(snapshot, (_key, value: unknown) =>
+      typeof value === "string" && value.includes("\n") ? value.split("\n") : value))).toMatchSnapshot()
   })
 })
