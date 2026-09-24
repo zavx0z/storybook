@@ -1,84 +1,42 @@
 # Как файлы становятся панелями Storybook
 
-Схемы показывают, как найденные пакеты, сущности и их описания попадали в панели
-Storybook. Это карта прежнего представления; названия маршрутов и старые
-декларативные variants сохранены для сверки, а не как подтверждение текущего UI.
-
-## От файлов на диске до панелей Storybook
+Панели показывают структуру владельца, описанную в
+[правилах Archetypes](draft-structure.md). Обнаружение передаёт пакеты и
+физические директории в один нормализованный граф; UI и MCP проецируют
+тот же результат.
 
 ```mermaid
 flowchart LR
-  subgraph FS["Реальная структура репозитория"]
-    ROOT["Корневой package.json<br/>name + label"]
-    WS["package.json#workspaces"]
-    PKG["package.json дочернего пакета"]
-    CATEGORY["Промежуточные категории"]
-    MODULE["Компонент index.tsx<br/>или существующий модуль src"]
-    DOC["index.tsx / index.ts<br/>TSDoc @packageDocumentation"]
+  subgraph FS["Исходники владельца"]
+    PACKAGE["package.json и workspaces"]
+    DIRECTORY["Публичные директории"]
+    README["README пакета"]
+    TSDOC["Модульный TSDoc"]
+    CONTRACT["contract/input.ts и output.ts"]
+    DEPS["spec/deps.spec.ts"]
+    SCENARIOS["scenario.spec.ts(x)"]
   end
-
-  subgraph GRAPH["Единый каталог и граф"]
-    PACKAGE["Пакет с точным packageId"]
-    STRUCTURE["Категория → компонент"]
-    SUBJECT["Авторский subject и варианты"]
+  subgraph GRAPH["Единый граф"]
+    NODES["Пакеты и физические директории"]
   end
-
-  subgraph UI["Интерфейс"]
-    MAIN["Главная панель<br/>дерево пакетов"]
-    SECONDARY["Предметная панель<br/>категории и компоненты"]
-    PREVIEW["Preview<br/>обзор или история"]
-    TABS["Панель вкладок<br/>варианты и Dependencies"]
+  subgraph UI["Workbench"]
+    TREE["Дерево навигации"]
+    PREVIEW["Обзор"]
+    TABS["Контракт · Зависимости · Сценарии"]
   end
-
-  ROOT --> PACKAGE
-  WS --> PKG
-  PKG --> PACKAGE
-  CATEGORY --> STRUCTURE
-  MODULE --> STRUCTURE
-  DOC --> PREVIEW
-  MODULE -. "subject.directory" .-> SUBJECT
-  PACKAGE --> MAIN
-  STRUCTURE --> SECONDARY
-  SUBJECT --> SECONDARY
-  SUBJECT --> TABS
-  SUBJECT --> PREVIEW
+  PACKAGE --> NODES
+  DIRECTORY --> NODES
+  NODES --> TREE
+  README --> PREVIEW
+  TSDOC --> PREVIEW
+  CONTRACT --> TABS
+  DEPS --> TABS
+  SCENARIOS --> TABS
 ```
 
-В этой схеме discovery передаёт сведения о пакетах, каталогах и документации
-в нормализованный граф. UI и MCP проецируют этот же результат; package exports
-остаются отдельным описанием API. Точные границы обхода заданы в
-[контракте каталогов и компонентов](../entity/notes/draft-placement.md).
-
-## Размещение существующих декларативных представлений
-
-```text
-ГЛАВНАЯ ПАНЕЛЬ
-└─ корневой пакет                ← выбранный путь + package.json#name
-   └─ дочерний пакет             ← workspaces + package.json#name
-
-ПРЕДМЕТНАЯ ПАНЕЛЬ ВЫБРАННОГО ПАКЕТА
-├─ категория                     ← промежуточная директория
-│  └─ компонент                  ← каталог с index.tsx
-│     └─ представления           ← несколько привязанных subjects, если есть
-└─ непривязанная JSON-категория
-   └─ subject
-
-ПАНЕЛЬ ВКЛАДОК
-├─ варианты subject              ← catalog.json; исходные routes
-└─ Dependencies                  ← найденный spec; собственный route
-
-ЦЕНТРАЛЬНАЯ ОБЛАСТЬ
-├─ TSDoc index.tsx / index.ts    ← компонент или категория
-├─ README пакета                 ← авторский пакетный обзор
-└─ исполняемая история           ← module.path + module.export
-```
-
-Источники документации, исключения и границы пакетов и модулей определены
-в [разделе требований выше](draft-structure.md).
-Обзор открывается кликом по предмету, а адресуемые вкладки — по
-[контракту Панели вкладок](../../requirements.md#tabs-routes).
-
-Структура, декларации, поиск, UI и MCP используют один нормализованный граф.
-Описание и ресурсы попадают в immutable revision; пользовательские вкладки
-получают изменения после успешной сборки и применения. Родительская
-вложенность не объединяет сборки, Stores, ревизии или runtime дочерних пакетов.
+Пакет получает обзор из README; публичная директория — из модульного TSDoc,
+если он есть. Вкладки появляются только при найденных файлах владельца.
+Обзор и вкладки используют [один адресный контракт](../../requirements.md#tabs-routes).
+Вложенный пакет имеет собственную ревизию и исполнение сценариев, даже когда
+его физический путь проходит через директории родителя. `package.json#exports`
+описывает публичный API пакета и не определяет узлы навигации.

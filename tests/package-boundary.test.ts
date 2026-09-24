@@ -40,20 +40,11 @@ describe("external @zavx0z/storybook tool boundary", () => {
     ]) expect(existsSync(join(root, path)), path).toBeFalse()
   })
 
-  test("self documentation is an ordinary declaration without Storybook imports", async () => {
-    const manifest = await Bun.file(join(root, ".storybook", "manifest.json")).json()
-    expect(manifest).toMatchObject({
-      schemaVersion: 1,
-      catalog: "./catalog.json",
-    })
-    for (const key of ["kind", "id", "packageJson"]) expect(manifest).not.toHaveProperty(key)
-    for (const path of [
-      ".storybook/runtime.ts",
-      ".storybook/stories/contract-document.tsx",
-      ".storybook/stories/contracts.tsx",
-      ".storybook/stories/presentation.tsx",
-      ".storybook/stories/story-types.ts",
-    ]) expect(await Bun.file(join(root, path)).text(), path).not.toContain("@zavx0z/storybook")
+  test("self documentation follows its package structure", async () => {
+    const manifest = await Bun.file(join(root, "package.json")).json()
+    expect(manifest.name).toBe("@zavx0z/storybook")
+    expect(await Bun.file(join(root, "README.md")).text()).toContain("Storybook")
+    expect(existsSync(join(root, ".storybook"))).toBeFalse()
   })
 
   test("shared browser shell uses one public Browser Root without low-level owners", async () => {
@@ -90,10 +81,6 @@ describe("external @zavx0z/storybook tool boundary", () => {
     expect(combined).not.toContain("STORYBOOK_DOM")
     expect(combined).toContain("workbench/contract.ts")
     expect(app).toContain("workbench/workbench.tsx")
-    const protocol = await Bun.file(join(root, "runtime/runtime-protocol.ts")).text()
-    expect(protocol).toContain("mountSpacePreview")
-    expect(protocol).toContain("space: SpaceElement")
-    expect(protocol).not.toContain("engineRenderer")
-    expect(protocol).not.toContain("DocumentSpaceRuntime")
+    expect(combined).not.toContain("createDocumentSpaceRuntime")
   })
 })

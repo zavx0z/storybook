@@ -1,37 +1,21 @@
-import {
-  externalStorybookRoutes,
-  type ExternalStorybookGraph,
-  type ExternalStorybookGraphNodeKind,
-} from "../catalog/graph.ts"
-import type {
-  StorybookStoryProjection,
-  StorybookPresentationGroup,
-  StorybookResourceKind,
-} from "../catalog/catalog.t.ts"
-import {
-  STORYBOOK_STANDARD_WIDGET_IDS,
-  STORYBOOK_STORY_PRESENTATION_PROTOCOL,
-  STORYBOOK_WIDGET_CONTRIBUTION_PROTOCOL,
-} from "../catalog/protocol.ts"
-import {
-  validateExternalStorybookExportName,
-  validateExternalStorybookPackageId,
-} from "../discovery/declaration-law.ts"
+/** Browser-safe structural graph carried by one immutable package revision. */
+import {externalStorybookRoutes, type ExternalStorybookGraph} from "../catalog/graph.ts"
+import type {StorybookAuthorStyleSheet} from "../catalog/catalog.t.ts"
 import {sha256Hex} from "../src/shared/sha256.ts"
 
-export const STORYBOOK_PACKAGE_GRAPH_PROTOCOL = "storybook-package-graph/4" as const
+export const STORYBOOK_PACKAGE_GRAPH_PROTOCOL = "storybook-package-graph/5" as const
 
 export type StorybookPackageRevisionAncestor = Readonly<{
   id: string
-  parentId?: string | null
-  kind: "workspace" | "project" | "package"
+  parentId: string | null
+  kind: "package" | "directory" | "unavailable"
   label: string
   urlPath: string
 }>
 
 export type StorybookPackageRevisionGraphNode = Readonly<{
   id: string
-  kind: Extract<ExternalStorybookGraphNodeKind, "package" | "directory" | "category" | "subject" | "variant">
+  kind: "package" | "directory"
   ownerId: string
   packageId: string
   label: string
@@ -40,9 +24,6 @@ export type StorybookPackageRevisionGraphNode = Readonly<{
   urlPath: string
   routePath: string
   searchTerms: readonly string[]
-  group: StorybookPresentationGroup | null
-  subjectKind: string | null
-  apiName: string | null
   hasReadme: boolean
   hasModuleDocumentation?: boolean
   dependencyCases?: readonly import("../catalog/catalog.t.ts").StorybookDependencyCase[]
@@ -50,58 +31,19 @@ export type StorybookPackageRevisionGraphNode = Readonly<{
   contractRoutePath?: string
   scenariosRoutePath?: string
   contractDocuments?: readonly import("../catalog/catalog.t.ts").StorybookContractDocument[]
-  resourceKinds: readonly StorybookResourceKind[]
   resourceUrl: string
-  presentation: StorybookPackageRevisionStoryPresentation | null
-}>
-
-export type StorybookPackageRevisionStoryPresentation = Readonly<{
-  protocol: typeof STORYBOOK_STORY_PRESENTATION_PROTOCOL
-  projection: StorybookStoryProjection
-  widgets: readonly string[]
-}>
-
-export type StorybookPackageRevisionStandardWidgetContribution = Readonly<{
-  id: string
-  kind: "standard"
-}>
-
-export type StorybookPackageRevisionComponentWidgetContribution = Readonly<{
-  id: string
-  kind: "component"
-  label: string
-}>
-
-export type StorybookPackageRevisionWidgetContribution =
-  | StorybookPackageRevisionStandardWidgetContribution
-  | StorybookPackageRevisionComponentWidgetContribution
-
-export type StorybookPackageRevisionWidgetContributions = Readonly<{
-  protocol: typeof STORYBOOK_WIDGET_CONTRIBUTION_PROTOCOL
-  items: readonly StorybookPackageRevisionWidgetContribution[]
-}>
-
-export type StorybookPackageRevisionWidgetLoader = Readonly<{
-  id: string
-  exportName: string
 }>
 
 export type StorybookPackageRevisionRoute = Readonly<{
   path: string
   urlPath: string
-  kind: "overview" | "variant" | "dependencies" | "contract" | "scenarios"
+  kind: "overview" | "dependencies" | "contract" | "scenarios"
   nodeId: string
-}>
-
-export type StorybookPackageRevisionLoader = Readonly<{
-  route: string
-  nodeId: string
-  exportName: string
 }>
 
 export type StorybookPackageRevisionResourceLink = Readonly<{
   nodeId: string
-  kind: "readme" | "module-documentation" | StorybookResourceKind
+  kind: "readme" | "module-documentation"
   index: number
   url: string
 }>
@@ -118,7 +60,7 @@ export type StorybookPackageRevisionGraphSnapshot = Readonly<{
   declarationDigest: string
   packageGraphDigest: string
   metadata: Readonly<{
-    parentId?: string | null
+    parentId: string | null
     label: string
     ownerId: string
     urlPath: string
@@ -127,29 +69,24 @@ export type StorybookPackageRevisionGraphSnapshot = Readonly<{
   rootId: string
   nodes: readonly StorybookPackageRevisionGraphNode[]
   routes: readonly StorybookPackageRevisionRoute[]
-  loaders: readonly StorybookPackageRevisionLoader[]
   resources: readonly StorybookPackageRevisionResourceLink[]
-  authorStyleSheets: readonly StorybookPackageRevisionAuthorStyleSheet[]
   workbenchAuthorStyleSheets: readonly StorybookPackageRevisionAuthorStyleSheet[]
-  widgetContributions: StorybookPackageRevisionWidgetContributions | null
-  widgetLoaders: readonly StorybookPackageRevisionWidgetLoader[]
 }>
 
-/** Creates the exact browser-safe graph projection carried by one package revision. */
+/** Creates the exact package projection without executable or author-declared loaders. */
 export function createStorybookPackageRevisionGraphSnapshot(
   graph: ExternalStorybookGraph,
   packageId: string,
   declarationDigest: string,
+  workbenchStyles: readonly StorybookAuthorStyleSheet[] = [],
 ): StorybookPackageRevisionGraphSnapshot {
-  const sourceNodes = graph.nodes.filter((node) => node.packageId === packageId)
-  const packageNodes = sourceNodes.filter((node) => node.kind === "package")
-  if (packageNodes.length !== 1) {
-    throw new Error(`Storybook package graph must contain one package node: ${packageId}`)
-  }
+  const sourceNodes = graph.nodes.filter(node => node.packageId === packageId)
+  const packageNodes = sourceNodes.filter(node => node.kind === "package")
+  if (packageNodes.length !== 1) throw new Error(`Storybook package graph must contain one package node: ${packageId}`)
   const packageNode = packageNodes[0]!
-  const ancestors = Object.freeze(packageNode.structuralPath.slice(0, -1).map((id) => {
+  const ancestors = Object.freeze(packageNode.structuralPath.slice(0, -1).map(id => {
     const ancestor = graph.nodes.find(node => node.id === id)
-    if (ancestor === undefined || ancestor.kind !== "workspace" && ancestor.kind !== "project" && ancestor.kind !== "package") {
+    if (ancestor === undefined || ancestor.kind !== "package" && ancestor.kind !== "directory" && ancestor.kind !== "unavailable") {
       throw new Error(`Storybook package ancestor is invalid: ${packageId}:${id}`)
     }
     return Object.freeze({
@@ -161,98 +98,50 @@ export function createStorybookPackageRevisionGraphSnapshot(
     })
   }))
   const nodeIds = new Set(sourceNodes.map(({id}) => id))
-  const nodes = Object.freeze(sourceNodes.map((node): StorybookPackageRevisionGraphNode => Object.freeze({
-    id: node.id,
-    kind: packageNodeKind(node.kind),
-    ownerId: node.ownerId,
-    packageId,
-    label: node.label,
-    parentId: node.kind === "package" ? null : node.parentId,
-    childIds: Object.freeze(node.childIds.filter((id) => nodeIds.has(id))),
-    urlPath: node.urlPath,
-    routePath: requiredRoute(node.routePath, node.id),
-    searchTerms: Object.freeze([...node.searchTerms]),
-    group: node.presentationGroup === null ? null : Object.freeze({...node.presentationGroup}),
-    subjectKind: node.subjectKind,
-    apiName: node.apiName,
-    hasReadme: node.readmePath !== null,
-    ...(node.moduleDocumentation ? {hasModuleDocumentation: true} : {}),
-    ...(node.dependencySpec ? {dependencyCases: node.dependencySpec.cases} : {}),
-    ...(node.dependencyRoutePath === undefined ? {} : {dependencyRoutePath: node.dependencyRoutePath}),
-    ...(node.contractDocumentation ? {contractDocuments: node.contractDocumentation.documents} : {}),
-    ...(node.contractRoutePath === undefined ? {} : {contractRoutePath: node.contractRoutePath}),
-    ...(node.scenariosRoutePath === undefined ? {} : {scenariosRoutePath: node.scenariosRoutePath}),
-    resourceKinds: Object.freeze([...new Set(node.resources.map(({kind}) => kind))]),
-    resourceUrl: node.moduleDocumentation ? revisionModuleDocumentationPath(node.id) : node.readmePath === null
-      ? revisionNodeResourcePrefix(node.id)
-      : revisionReadmeResourcePath(node.id),
-    presentation: node.presentation === null
-      ? null
-      : Object.freeze({
-        protocol: node.presentation.protocol,
-        projection: node.presentation.projection,
-        widgets: Object.freeze([...node.presentation.widgets]),
-      }),
-  })))
+  const nodes = Object.freeze(sourceNodes.map((node): StorybookPackageRevisionGraphNode => {
+    if (node.kind !== "package" && node.kind !== "directory") {
+      throw new Error(`Non-package node entered package graph projection: ${node.kind}`)
+    }
+    return Object.freeze({
+      id: node.id,
+      kind: node.kind,
+      ownerId: node.ownerId,
+      packageId,
+      label: node.label,
+      parentId: node.kind === "package" ? null : node.parentId,
+      childIds: Object.freeze(node.childIds.filter(id => nodeIds.has(id))),
+      urlPath: node.urlPath,
+      routePath: requiredRoute(node.routePath, node.id),
+      searchTerms: Object.freeze([...node.searchTerms]),
+      hasReadme: node.readmePath !== null,
+      ...(node.moduleDocumentation ? {hasModuleDocumentation: true} : {}),
+      ...(node.dependencySpec ? {dependencyCases: node.dependencySpec.cases} : {}),
+      ...(node.dependencyRoutePath === undefined ? {} : {dependencyRoutePath: node.dependencyRoutePath}),
+      ...(node.contractDocumentation ? {contractDocuments: node.contractDocumentation.documents} : {}),
+      ...(node.contractRoutePath === undefined ? {} : {contractRoutePath: node.contractRoutePath}),
+      ...(node.scenariosRoutePath === undefined ? {} : {scenariosRoutePath: node.scenariosRoutePath}),
+      resourceUrl: node.moduleDocumentation ? revisionModuleDocumentationPath(node.id) : node.readmePath === null
+        ? revisionNodeResourcePrefix(node.id)
+        : revisionReadmeResourcePath(node.id),
+    })
+  }))
   const routes = Object.freeze(externalStorybookRoutes(graph)
-    .filter((route) => route.packageId === packageId)
+    .filter(route => route.packageId === packageId)
     .map((route): StorybookPackageRevisionRoute => Object.freeze({
       path: route.path,
       urlPath: route.urlPath,
       kind: route.kind,
       nodeId: route.nodeId,
     })))
-  const loaders = Object.freeze(sourceNodes.flatMap((node): StorybookPackageRevisionLoader[] =>
-    node.kind === "variant" && node.module !== null
-      ? [Object.freeze({
-        route: requiredRoute(node.routePath, node.id),
-        nodeId: node.id,
-        exportName: node.module.exportName,
-      })]
-      : []))
-  const resources = Object.freeze(sourceNodes.flatMap((node): StorybookPackageRevisionResourceLink[] => {
-    const kindIndexes = new Map<StorybookResourceKind, number>()
-    return [
-      ...(node.moduleDocumentation ? [Object.freeze({nodeId: node.id, kind: "module-documentation" as const, index: 0, url: revisionModuleDocumentationPath(node.id)})] : []),
-      ...(node.readmePath === null
-        ? []
-        : [Object.freeze({nodeId: node.id, kind: "readme" as const, index: 0, url: revisionReadmeResourcePath(node.id)})]),
-      ...node.resources.map((resource) => {
-        const index = kindIndexes.get(resource.kind) ?? 0
-        kindIndexes.set(resource.kind, index + 1)
-        return Object.freeze({
-          nodeId: node.id,
-          kind: resource.kind,
-          index,
-          url: revisionDeclaredResourcePath(node.id, resource.kind, index, resource.path),
-        })
-      }),
-    ]
-  }))
-  const authorStyleSheets = Object.freeze(packageNode.authorStyleSheets.map((styleSheet, index) => Object.freeze({
+  const resources = Object.freeze(sourceNodes.flatMap((node): StorybookPackageRevisionResourceLink[] => [
+    ...(node.moduleDocumentation ? [Object.freeze({nodeId: node.id, kind: "module-documentation" as const, index: 0, url: revisionModuleDocumentationPath(node.id)})] : []),
+    ...(node.readmePath === null ? [] : [Object.freeze({nodeId: node.id, kind: "readme" as const, index: 0, url: revisionReadmeResourcePath(node.id)})]),
+  ]))
+  const workbenchAuthorStyleSheets = Object.freeze(workbenchStyles.map((styleSheet, index) => Object.freeze({
     specifier: styleSheet.specifier,
-    url: revisionAuthorStyleSheetPath(index),
+    url: revisionWorkbenchAuthorStyleSheetPath(index),
     contentDigest: styleSheet.contentDigest,
   })))
-  const workbenchPackageNode = graph.nodes.find((node) =>
-    node.kind === "package" && node.packageId === "@zavx0z/storybook")
-  const workbenchAuthorStyleSheets = Object.freeze((workbenchPackageNode?.authorStyleSheets ?? [])
-    .map((styleSheet, index) => Object.freeze({
-      specifier: styleSheet.specifier,
-      url: revisionWorkbenchAuthorStyleSheetPath(index),
-      contentDigest: styleSheet.contentDigest,
-    })))
-  const widgetContributions = packageNode.widgetContributions === null
-    ? null
-    : Object.freeze({
-      protocol: packageNode.widgetContributions.protocol,
-      items: Object.freeze(packageNode.widgetContributions.items.map((item) => Object.freeze(item.kind === "standard"
-        ? {id: item.id, kind: item.kind}
-        : {id: item.id, kind: item.kind, label: item.label}))),
-    })
-  const widgetLoaders = Object.freeze(packageNode.widgetContributions?.items.flatMap((item) => item.kind === "component"
-    ? [Object.freeze({id: item.id, exportName: item.module.exportName})]
-    : []) ?? [])
   const snapshotWithoutDigest = Object.freeze({
     protocol: STORYBOOK_PACKAGE_GRAPH_PROTOCOL,
     packageId,
@@ -267,19 +156,13 @@ export function createStorybookPackageRevisionGraphSnapshot(
     rootId: packageNode.id,
     nodes,
     routes,
-    loaders,
     resources,
-    authorStyleSheets,
     workbenchAuthorStyleSheets,
-    widgetContributions,
-    widgetLoaders,
   })
-  return Object.freeze({
-    ...snapshotWithoutDigest,
-    packageGraphDigest: digest(snapshotWithoutDigest),
-  })
+  return Object.freeze({...snapshotWithoutDigest, packageGraphDigest: digest(snapshotWithoutDigest)})
 }
 
+/** Rejects stale protocol shapes and broken structural links before activation. */
 export function validateStorybookPackageRevisionGraphSnapshot(
   value: StorybookPackageRevisionGraphSnapshot,
   expectedPackageId?: string,
@@ -290,6 +173,7 @@ export function validateStorybookPackageRevisionGraphSnapshot(
   if (value.protocol !== STORYBOOK_PACKAGE_GRAPH_PROTOCOL) {
     throw new Error(`Unsupported Storybook package graph protocol: ${String(value.protocol)}`)
   }
+  assertKeys(value, ["protocol", "packageId", "declarationDigest", "packageGraphDigest", "metadata", "ancestors", "rootId", "nodes", "routes", "resources", "workbenchAuthorStyleSheets"], "package graph")
   const packageId = requiredText("graph packageId", value.packageId)
   if (expectedPackageId !== undefined && packageId !== expectedPackageId) {
     throw new Error(`Storybook package graph identity mismatch: ${packageId}, expected ${expectedPackageId}`)
@@ -297,209 +181,105 @@ export function validateStorybookPackageRevisionGraphSnapshot(
   requiredText("graph declarationDigest", value.declarationDigest)
   requiredText("graph packageGraphDigest", value.packageGraphDigest)
   if (!Array.isArray(value.ancestors) || !Array.isArray(value.nodes) || !Array.isArray(value.routes) ||
-    !Array.isArray(value.loaders) || !Array.isArray(value.resources) ||
-    !Array.isArray(value.authorStyleSheets) || !Array.isArray(value.workbenchAuthorStyleSheets) ||
-    !Array.isArray(value.widgetLoaders)) {
+    !Array.isArray(value.resources) || !Array.isArray(value.workbenchAuthorStyleSheets)) {
     throw new TypeError(`Storybook package graph collections are invalid: ${packageId}`)
   }
   const {packageGraphDigest: _digest, ...withoutDigest} = value
-  const actual = digest(withoutDigest)
-  if (actual !== value.packageGraphDigest) {
-    throw new Error(`Storybook package graph digest mismatch: ${packageId}`)
-  }
-  const routes = new Set(value.routes.map(({path}) => path))
-  if (routes.size !== value.routes.length) throw new Error(`Duplicate Storybook package graph route: ${packageId}`)
-  const ancestorKinds = value.ancestors.map(ancestor => ancestor?.kind)
-  const packageStart = ancestorKinds.indexOf("package")
-  const containers = packageStart < 0 ? ancestorKinds : ancestorKinds.slice(0, packageStart)
-  const validAncestorSequence = (containers.length === 0 ||
-    containers.length === 1 && containers[0] === "project" ||
-    containers.length === 2 && containers[0] === "workspace" && containers[1] === "project") &&
-    (packageStart < 0 || ancestorKinds.slice(packageStart).every(kind => kind === "package"))
-  if (!validAncestorSequence) {
-    throw new Error(`Storybook package ancestor sequence is invalid: ${packageId}`)
-  }
-  if (value.metadata.parentId !== undefined && value.metadata.parentId !== (value.ancestors.at(-1)?.id ?? null)) {
-    throw new Error(`Storybook package ancestor sequence is invalid: ${packageId}`)
-  }
+  if (digest(withoutDigest) !== value.packageGraphDigest) throw new Error(`Storybook package graph digest mismatch: ${packageId}`)
   const ancestorIds = new Set<string>()
   for (const [index, ancestor] of value.ancestors.entries()) {
     if (ancestor === null || typeof ancestor !== "object" ||
-      ancestor.kind !== "workspace" && ancestor.kind !== "project" && ancestor.kind !== "package") {
+      ancestor.kind !== "package" && ancestor.kind !== "directory" && ancestor.kind !== "unavailable") {
       throw new TypeError(`Storybook package ancestor ${index} is invalid: ${packageId}`)
     }
     const id = requiredText("package ancestor id", ancestor.id)
-    if (ancestor.parentId !== undefined && ancestor.parentId !== (value.ancestors[index - 1]?.id ?? null)) {
-      throw new Error(`Storybook package ancestor sequence is invalid: ${packageId}`)
+    if (ancestorIds.has(id) || ancestor.parentId !== (value.ancestors[index - 1]?.id ?? null)) {
+      throw new Error(`Storybook package ancestor sequence is invalid: ${packageId}:${id}`)
     }
-    if (ancestorIds.has(id)) throw new Error(`Duplicate Storybook package ancestor: ${packageId}:${id}`)
     ancestorIds.add(id)
-    const prefix = `${ancestor.kind}:`
-    if (!id.startsWith(prefix)) {
-      throw new Error(`Storybook package ancestor identity does not match its kind: ${packageId}:${id}`)
-    }
-    requiredText("package ancestor owner id", id.slice(prefix.length))
     requiredText("package ancestor label", ancestor.label)
-    if (typeof ancestor.urlPath !== "string" || !ancestor.urlPath.startsWith("/") ||
-      ancestor.urlPath.startsWith("//") || /[?#\\]/u.test(ancestor.urlPath) ||
-      new URL(ancestor.urlPath, "http://storybook.invalid").pathname !== ancestor.urlPath) {
-      throw new Error(`Storybook package ancestor URL is invalid: ${packageId}:${id}`)
-    }
+    validateUrl(ancestor.urlPath, `Storybook package ancestor URL is invalid: ${packageId}:${id}`)
   }
-  for (const loader of value.loaders) {
-    if (!routes.has(loader.route)) throw new Error(`Storybook loader has no graph route: ${packageId}:${loader.route}`)
+  if (value.metadata.parentId !== (value.ancestors.at(-1)?.id ?? null)) {
+    throw new Error(`Storybook package ancestor sequence is invalid: ${packageId}`)
   }
-  validateRevisionAuthorStyleSheets(value.authorStyleSheets, packageId, revisionAuthorStyleSheetPath)
-  validateRevisionAuthorStyleSheets(
-    value.workbenchAuthorStyleSheets,
-    packageId,
-    revisionWorkbenchAuthorStyleSheetPath,
-  )
-  const contributionIds = validateRevisionWidgetContributions(value.widgetContributions, packageId)
-  validateRevisionWidgetLoaders(value.widgetLoaders, value.widgetContributions, packageId)
-  const nodesById = new Map(value.nodes.map((node) => [node.id, node] as const))
+  const nodes = new Map(value.nodes.map(node => [node.id, node] as const))
+  if (nodes.size !== value.nodes.length || value.rootId !== `package:${packageId}` || nodes.get(value.rootId)?.kind !== "package") {
+    throw new Error(`Storybook package root is invalid: ${packageId}`)
+  }
   for (const node of value.nodes) {
-    const presentation = node.presentation
-    if (node.kind === "subject" || node.kind === "variant") {
-      validateRevisionStoryPresentation(presentation, contributionIds, `${packageId}:${node.id}`)
-    } else if (presentation !== null) {
-      throw new Error(`Storybook presentation is only valid on subject and variant nodes: ${node.id}`)
+    assertKeys(node, ["id", "kind", "ownerId", "packageId", "label", "parentId", "childIds", "urlPath", "routePath", "searchTerms", "hasReadme", "hasModuleDocumentation", "dependencyCases", "dependencyRoutePath", "contractRoutePath", "scenariosRoutePath", "contractDocuments", "resourceUrl"], `package node ${node.id}`)
+    if (node.kind !== "package" && node.kind !== "directory" || node.packageId !== packageId) {
+      throw new Error(`Storybook package node is invalid: ${packageId}:${node.id}`)
     }
-    if (node.kind !== "variant") continue
-    const parent = node.parentId === null ? undefined : nodesById.get(node.parentId)
-    if (parent?.kind !== "subject" || JSON.stringify(parent.presentation) !== JSON.stringify(presentation)) {
-      throw new Error(`Storybook variant presentation does not inherit its subject: ${node.id}`)
+    if (node.id === value.rootId ? node.parentId !== null : node.parentId === null || !nodes.get(node.parentId)?.childIds.includes(node.id)) {
+      throw new Error(`Storybook package parent is invalid: ${packageId}:${node.id}`)
+    }
+    for (const childId of node.childIds) {
+      if (nodes.get(childId)?.parentId !== node.id) throw new Error(`Storybook package child is invalid: ${packageId}:${childId}`)
+    }
+    requiredRoute(node.routePath, node.id)
+    validateUrl(node.urlPath, `Storybook package URL is invalid: ${packageId}:${node.id}`)
+  }
+  const routePaths = new Set<string>()
+  for (const route of value.routes) {
+    if (routePaths.has(route.path) || !nodes.has(route.nodeId) ||
+      route.kind !== "overview" && route.kind !== "dependencies" && route.kind !== "contract" && route.kind !== "scenarios") {
+      throw new Error(`Storybook package route is invalid: ${packageId}:${route.path}`)
+    }
+    routePaths.add(route.path)
+  }
+  for (const resource of value.resources) {
+    assertKeys(resource, ["nodeId", "kind", "index", "url"], "package resource")
+    const node = nodes.get(resource.nodeId)
+    const valid = resource.kind === "readme"
+      ? node?.hasReadme === true && resource.url === revisionReadmeResourcePath(resource.nodeId)
+      : resource.kind === "module-documentation"
+        ? node?.hasModuleDocumentation === true && resource.url === revisionModuleDocumentationPath(resource.nodeId)
+        : false
+    if (node === undefined || resource.index !== 0 || !valid) {
+      throw new Error(`Storybook package resource is invalid: ${packageId}:${resource.nodeId}`)
     }
   }
+  validateWorkbenchStyleSheets(value.workbenchAuthorStyleSheets, packageId)
   return value
 }
 
-function validateRevisionAuthorStyleSheets(
-  styleSheets: readonly StorybookPackageRevisionAuthorStyleSheet[],
-  packageId: string,
-  revisionPath: (index: number) => string,
-): void {
+function validateWorkbenchStyleSheets(styleSheets: readonly StorybookPackageRevisionAuthorStyleSheet[], packageId: string): void {
   const specifiers = new Set<string>()
   for (const [index, styleSheet] of styleSheets.entries()) {
-    if (styleSheet === null || typeof styleSheet !== "object") {
-      throw new TypeError(`Storybook author stylesheet must be an object: ${packageId}:${index}`)
+    const specifier = requiredText("Workbench stylesheet specifier", styleSheet?.specifier)
+    if (specifiers.has(specifier) || styleSheet.url !== revisionWorkbenchAuthorStyleSheetPath(index) ||
+      typeof styleSheet.contentDigest !== "string" || !/^[a-f0-9]{64}$/u.test(styleSheet.contentDigest)) {
+      throw new Error(`Storybook Workbench stylesheet is invalid: ${packageId}:${specifier}`)
     }
-    const specifier = requiredText("author stylesheet specifier", styleSheet.specifier)
-    validateAuthorStyleSheetSpecifier(specifier)
-    if (specifiers.has(specifier)) throw new Error(`Duplicate Storybook author stylesheet specifier: ${specifier}`)
     specifiers.add(specifier)
-    if (styleSheet.url !== revisionPath(index)) {
-      throw new Error(`Storybook author stylesheet URL is not canonical: ${specifier}`)
-    }
-    if (typeof styleSheet.contentDigest !== "string" || !/^[a-f0-9]{64}$/u.test(styleSheet.contentDigest)) {
-      throw new Error(`Storybook author stylesheet content digest is invalid: ${specifier}`)
-    }
   }
 }
 
-function validateRevisionWidgetContributions(
-  value: StorybookPackageRevisionWidgetContributions | null,
-  packageId: string,
-): Set<string> {
-  const available = new Set<string>(STORYBOOK_STANDARD_WIDGET_IDS)
-  const reserved = new Set<string>(STORYBOOK_STANDARD_WIDGET_IDS)
-  if (value === null) return available
-  if (value.protocol !== STORYBOOK_WIDGET_CONTRIBUTION_PROTOCOL || !Array.isArray(value.items) || value.items.length > 32) {
-    throw new Error(`Invalid Storybook widget contribution registry: ${packageId}`)
-  }
-  const ids = new Set<string>()
-  const standardIds: string[] = []
-  for (const item of value.items) {
-    if (item === null || typeof item !== "object") throw new TypeError(`Storybook widget contribution must be an object: ${packageId}`)
-    const id = requiredText("widget contribution id", item.id)
-    if (ids.has(id)) throw new Error(`Duplicate Storybook widget contribution id: ${packageId}:${id}`)
-    ids.add(id)
-    if (item.kind === "standard") {
-      if (packageId !== "@zavx0z/storybook" || !reserved.has(id) ||
-        Object.keys(item).some((key) => key !== "id" && key !== "kind")) {
-        throw new Error(`Invalid standard Storybook widget contribution: ${packageId}:${id}`)
-      }
-      standardIds.push(id)
-    } else if (item.kind === "component") {
-      if (reserved.has(id) || requiredText("widget contribution label", item.label).length === 0 ||
-        Object.keys(item).some((key) => key !== "id" && key !== "kind" && key !== "label")) {
-        throw new Error(`Invalid component Storybook widget contribution: ${packageId}:${id}`)
-      }
-      available.add(id)
-    } else {
-      throw new Error(`Unknown Storybook widget contribution kind: ${packageId}:${id}`)
-    }
-  }
-  if (packageId === "@zavx0z/storybook" &&
-    JSON.stringify(standardIds) !== JSON.stringify(STORYBOOK_STANDARD_WIDGET_IDS)) {
-    throw new Error(`Storybook standard widget registry is incomplete or unordered: ${packageId}`)
-  }
-  if (packageId === "@zavx0z/storybook" && value.items.slice(0, STORYBOOK_STANDARD_WIDGET_IDS.length)
-    .some((item, index) => item.kind !== "standard" || item.id !== STORYBOOK_STANDARD_WIDGET_IDS[index])) {
-    throw new Error(`Storybook standard widget registry does not precede component contributions: ${packageId}`)
-  }
-  return available
+function assertKeys(value: object, allowed: readonly string[], label: string): void {
+  const known = new Set(allowed)
+  const unexpected = Object.keys(value).find(key => !known.has(key))
+  if (unexpected !== undefined) throw new Error(`Unexpected Storybook ${label} field: ${unexpected}`)
 }
 
-function validateRevisionWidgetLoaders(
-  loaders: readonly StorybookPackageRevisionWidgetLoader[],
-  contributions: StorybookPackageRevisionWidgetContributions | null,
-  packageId: string,
-): void {
-  const componentIds = contributions?.items.flatMap((item) => item.kind === "component" ? [item.id] : []) ?? []
-  if (loaders.length !== componentIds.length) throw new Error(`Storybook widget loader count mismatch: ${packageId}`)
-  const ids = new Set<string>()
-  for (const [index, loader] of loaders.entries()) {
-    if (loader === null || typeof loader !== "object") throw new TypeError(`Storybook widget loader must be an object: ${packageId}:${index}`)
-    const id = requiredText("widget loader id", loader.id)
-    validateExternalStorybookExportName(loader.exportName, "Storybook widget loader export")
-    if (ids.has(id) || id !== componentIds[index]) throw new Error(`Storybook widget loader order mismatch: ${packageId}:${id}`)
-    ids.add(id)
-  }
-}
-
-function validateRevisionStoryPresentation(
-  value: StorybookPackageRevisionStoryPresentation | null,
-  availableWidgets: ReadonlySet<string>,
-  label: string,
-): void {
-  if (value === null || value.protocol !== STORYBOOK_STORY_PRESENTATION_PROTOCOL ||
-    (value.projection !== "display" && value.projection !== "hud" && value.projection !== "space") ||
-    !Array.isArray(value.widgets) || value.widgets.length < 2 || value.widgets.length > 32) {
-    throw new Error(`Invalid Storybook story presentation: ${label}`)
-  }
-  const widgets = new Set(value.widgets)
-  if (widgets.size !== value.widgets.length || !widgets.has("source") || !widgets.has("diagnostics")) {
-    throw new Error(`Invalid Storybook story presentation widgets: ${label}`)
-  }
-  for (const widget of widgets) {
-    if (!availableWidgets.has(widget)) throw new Error(`Unknown Storybook story presentation widget: ${label}:${widget}`)
-  }
-}
-
-function validateAuthorStyleSheetSpecifier(specifier: string): void {
-  const segments = specifier.split("/")
-  const packageName = specifier.startsWith("@")
-    ? segments.length >= 3 ? `${segments[0]}/${segments[1]}` : ""
-    : segments[0] ?? ""
-  validateExternalStorybookPackageId(packageName, "Storybook author stylesheet package")
-  const subpath = specifier.slice(packageName.length + 1)
-  if (!subpath.endsWith(".css") || /[\\?#*]/u.test(subpath) ||
-    subpath.split("/").some((segment) => segment.length === 0 || segment === "." || segment === "..")) {
-    throw new Error(`Storybook author stylesheet specifier is invalid: ${specifier}`)
-  }
-}
-
-function packageNodeKind(
-  value: ExternalStorybookGraphNodeKind,
-): StorybookPackageRevisionGraphNode["kind"] {
-  if (value === "package" || value === "directory" || value === "category" || value === "subject" || value === "variant") return value
-  throw new Error(`Non-package node entered package graph projection: ${value}`)
+function requiredText(label: string, value: unknown): string {
+  if (typeof value !== "string" || value.length === 0) throw new TypeError(`Storybook ${label} must be non-empty text`)
+  return value
 }
 
 function requiredRoute(value: string | null, nodeId: string): string {
   if (value === null) throw new Error(`Storybook package graph node has no route: ${nodeId}`)
   return value
+}
+
+function validateUrl(path: string, message: string): void {
+  if (typeof path !== "string" || !path.startsWith("/") || path.startsWith("//") || /[?#\\]/u.test(path) ||
+    new URL(path, "http://storybook.invalid").pathname !== path) throw new Error(message)
+}
+
+function digest(value: unknown): string {
+  return sha256Hex(JSON.stringify(value))
 }
 
 export function revisionNodeResourcePrefix(nodeId: string): string {
@@ -514,39 +294,9 @@ export function revisionReadmeResourcePath(nodeId: string): string {
   return `${revisionNodeResourcePrefix(nodeId)}readme.md`
 }
 
-export function revisionDeclaredResourcePath(
-  nodeId: string,
-  kind: StorybookResourceKind,
-  index: number,
-  sourcePath = "",
-): string {
-  const filename = sourcePath.replaceAll("\\", "/").split("/").at(-1) ?? ""
-  const dot = filename.lastIndexOf(".")
-  const extension = dot <= 0 ? "" : filename.slice(dot).toLowerCase()
-  return `${revisionNodeResourcePrefix(nodeId)}${kind}/${index}${extension}`
-}
-
-export function revisionAuthorStyleSheetPath(index: number): string {
-  if (!Number.isSafeInteger(index) || index < 0) {
-    throw new TypeError(`Storybook author stylesheet index must be a non-negative integer: ${String(index)}`)
-  }
-  return `author-style-sheets/${index}.css`
-}
-
 export function revisionWorkbenchAuthorStyleSheetPath(index: number): string {
   if (!Number.isSafeInteger(index) || index < 0) {
-    throw new TypeError(`Storybook Workbench author stylesheet index must be a non-negative integer: ${String(index)}`)
+    throw new TypeError(`Storybook Workbench stylesheet index must be a non-negative integer: ${String(index)}`)
   }
   return `workbench-author-style-sheets/${index}.css`
-}
-
-function requiredText(label: string, value: unknown): string {
-  if (typeof value !== "string" || value.trim().length === 0) {
-    throw new TypeError(`Storybook package ${label} must be non-empty text`)
-  }
-  return value
-}
-
-function digest(value: unknown): string {
-  return sha256Hex(JSON.stringify(value))
 }

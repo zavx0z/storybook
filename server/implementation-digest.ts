@@ -23,14 +23,14 @@ const IMPLEMENTATION_FILES = Object.freeze([
 ])
 
 const IMPLEMENTATION_TREES = Object.freeze([
-  Object.freeze({path: "schemas", kind: "schema" as const}),
-  Object.freeze({path: "catalog", kind: "source" as const}),
-  Object.freeze({path: "discovery", kind: "source" as const}),
-  Object.freeze({path: "build", kind: "source" as const}),
-  Object.freeze({path: "sessions", kind: "source" as const}),
-  Object.freeze({path: "server", kind: "source" as const}),
-  Object.freeze({path: "src/shared", kind: "source" as const}),
-  Object.freeze({path: "browser-lifecycle/src", kind: "source" as const}),
+  "catalog",
+  "discovery",
+  "route",
+  "build",
+  "sessions",
+  "server",
+  "src/shared",
+  "browser-lifecycle/src",
 ])
 
 /**
@@ -42,7 +42,7 @@ const IMPLEMENTATION_TREES = Object.freeze([
 @param toolRoot - Канонический корень Storybook с исходниками серверных владельцев.
 
 @returns Детерминированный SHA-256 резидентной реализации.
-Декларации, тесты, generated artifacts и MCP transport имеют собственный lifecycle.
+Тесты, артефакты сборки и MCP transport имеют собственный жизненный цикл.
  */
 export function externalStorybookImplementationDigest(toolRoot: string): string {
   const root = realpathSync(toolRoot)
@@ -68,9 +68,9 @@ export function externalStorybookImplementationDigest(toolRoot: string): string 
 
 function implementationTreeFiles(
   root: string,
-  tree: Readonly<{path: string; kind: "schema" | "source"}>,
+  tree: string,
 ): readonly string[] {
-  const directory = resolve(root, tree.path)
+  const directory = resolve(root, tree)
   const canonicalDirectory = realpathSync(directory)
   if (canonicalDirectory !== directory) {
     throw new Error(`External Storybook implementation tree must be canonical: ${directory}`)
@@ -79,18 +79,18 @@ function implementationTreeFiles(
   const visit = (current: string): void => {
     for (const entry of readdirSync(current, {withFileTypes: true}).sort((left, right) =>
       compareText(left.name, right.name))) {
+      if (["node_modules", ".git", "fixtures", "fixture"].includes(entry.name)) continue
       const path = join(current, entry.name)
       if (entry.isSymbolicLink()) {
         throw new Error(`External Storybook implementation tree cannot contain symlinks: ${path}`)
       }
       if (entry.isDirectory()) {
-        if (tree.kind === "source" && entry.name === "fixtures") continue
         visit(path)
         continue
       }
       if (!entry.isFile()) continue
       const relativePath = portableRelativePath(root, path)
-      if (tree.kind === "schema" ? relativePath.endsWith(".json") : isRuntimeSource(relativePath)) {
+      if (isRuntimeSource(relativePath)) {
         files.push(path)
       }
     }

@@ -6,11 +6,7 @@ import {
   statSync,
 } from "node:fs"
 import {basename, dirname, extname, join, relative, resolve, sep} from "node:path"
-import {
-  externalStorybookRoutes,
-  type ExternalStorybookGraph,
-  type ExternalStorybookRoute,
-} from "../catalog/graph.ts"
+
 
 const EXCLUDED_DIRECTORIES = new Set(["node_modules", ".git", "dist"])
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"])
@@ -30,49 +26,6 @@ export type StorybookConsumerBoundaryViolation = Readonly<{
   path: string
   kind: StorybookConsumerBoundaryViolationKind
   detail: string
-}>
-
-export type StorybookRouteBaseline = Readonly<{
-  packageId: string
-  leaves: readonly string[]
-  overviews: readonly string[]
-  unknownRoutesFailClosed: true
-  overviewFallback: false
-}>
-
-export type StorybookRouteRemap = Readonly<{
-  kind: "package"
-  fromPackageId: string
-  toPackageId: string
-  reason: string
-}> | Readonly<{
-  kind: "route"
-  fromPackageId: string
-  fromPath: string
-  toPackageId: string
-  toPath: string
-  reason: string
-}>
-
-export type StorybookMappedRoute = Readonly<{
-  packageId: string
-  path: string
-}>
-
-export type StorybookRouteBaselineComparison = Readonly<{
-  ok: boolean
-  expectedLeaves: readonly StorybookMappedRoute[]
-  actualLeaves: readonly StorybookMappedRoute[]
-  missingLeaves: readonly StorybookMappedRoute[]
-  unexpectedLeaves: readonly StorybookMappedRoute[]
-  leafOrderMatches: boolean
-  expectedOverviews: readonly StorybookMappedRoute[]
-  actualOverviews: readonly StorybookMappedRoute[]
-  missingOverviews: readonly StorybookMappedRoute[]
-  unexpectedOverviews: readonly StorybookMappedRoute[]
-  overviewOrderMatches: boolean
-  unknownRoutesFailClosed: true
-  overviewFallback: false
 }>
 
 /**
@@ -98,58 +51,6 @@ export function scanStorybookConsumerBoundaries(
     compareText(left.kind, right.kind) ||
     compareText(left.detail, right.detail))
   return Object.freeze(violations)
-}
-
-/** Compares an ordered legacy route fixture with routes derived from one graph. */
-export function compareRouteBaseline(
-  baseline: StorybookRouteBaseline,
-  graph: ExternalStorybookGraph,
-  remaps: readonly StorybookRouteRemap[] = Object.freeze([]),
-): StorybookRouteBaselineComparison {
-  validateBaselineInvariants(baseline)
-  if (!Array.isArray(remaps)) throw new TypeError("Storybook route remaps must be a list")
-  const mapping = validateRouteRemaps(remaps)
-  const graphRoutes = externalStorybookRoutes(graph)
-  const graphPackageIds = new Set(graph.nodes
-    .filter(({kind}) => kind === "package")
-    .map(({packageId}) => packageId!))
-
-  const expectedLeaves = mapBaselineRoutes(baseline.packageId, baseline.leaves, mapping)
-  const expectedOverviews = mapBaselineRoutes(baseline.packageId, baseline.overviews, mapping)
-  const targetPackageIds = new Set([
-    ...expectedLeaves.map(({packageId}) => packageId),
-    ...expectedOverviews.map(({packageId}) => packageId),
-  ])
-  for (const packageId of targetPackageIds) {
-    if (!graphPackageIds.has(packageId)) {
-      throw new Error(`Unknown Storybook route-remap target package: ${packageId}`)
-    }
-  }
-  const actualLeaves = mappedGraphRoutes(graphRoutes, targetPackageIds, "variant")
-  const actualOverviews = mappedGraphRoutes(graphRoutes, targetPackageIds, "overview")
-  const missingLeaves = subtractRoutes(expectedLeaves, actualLeaves)
-  const unexpectedLeaves = subtractRoutes(actualLeaves, expectedLeaves)
-  const missingOverviews = subtractRoutes(expectedOverviews, actualOverviews)
-  const unexpectedOverviews = subtractRoutes(actualOverviews, expectedOverviews)
-  const leafOrderMatches = sameRoutes(expectedLeaves, actualLeaves)
-  const overviewOrderMatches = sameRoutes(expectedOverviews, actualOverviews)
-  return Object.freeze({
-    ok: missingLeaves.length === 0 && unexpectedLeaves.length === 0 &&
-      missingOverviews.length === 0 && unexpectedOverviews.length === 0 &&
-      leafOrderMatches && overviewOrderMatches,
-    expectedLeaves,
-    actualLeaves,
-    missingLeaves,
-    unexpectedLeaves,
-    leafOrderMatches,
-    expectedOverviews,
-    actualOverviews,
-    missingOverviews,
-    unexpectedOverviews,
-    overviewOrderMatches,
-    unknownRoutesFailClosed: true,
-    overviewFallback: false,
-  })
 }
 
 function scanConnectedRoot(
@@ -355,127 +256,6 @@ function validateConnectedRoot(value: string, index: number): string {
     throw new Error(`Storybook connected root must own package.json: ${root}`)
   }
   return root
-}
-
-function validateBaselineInvariants(baseline: StorybookRouteBaseline): void {
-  if (baseline === null || typeof baseline !== "object") {
-    throw new TypeError("Storybook route baseline must be an object")
-  }
-  validatePackageId(baseline.packageId, "baseline package")
-  if (!Array.isArray(baseline.leaves) || !Array.isArray(baseline.overviews)) {
-    throw new TypeError("Storybook route baseline leaves and overviews must be lists")
-  }
-  if (baseline.unknownRoutesFailClosed !== true || baseline.overviewFallback !== false) {
-    throw new Error("Storybook route baseline must require unknown fail-closed and no overview fallback")
-  }
-  const leaves = baseline.leaves.map((path) => normalizeRoutePath(path, "baseline leaf"))
-  const overviews = baseline.overviews.map((path) => normalizeRoutePath(path, "baseline overview"))
-  if (new Set(leaves).size !== leaves.length || new Set(overviews).size !== overviews.length) {
-    throw new Error("Storybook route baseline must not contain duplicate routes")
-  }
-  if (leaves.some((path) => overviews.includes(path))) {
-    throw new Error("Storybook route baseline cannot classify one route as leaf and overview")
-  }
-}
-
-function validateRouteRemaps(remaps: readonly StorybookRouteRemap[]): Readonly<{
-  packageRemaps: ReadonlyMap<string, string>
-  routeRemaps: ReadonlyMap<string, StorybookMappedRoute>
-}> {
-  const packageRemaps = new Map<string, string>()
-  const routeRemaps = new Map<string, StorybookMappedRoute>()
-  for (const [index, remap] of remaps.entries()) {
-    if (remap === null || typeof remap !== "object") {
-      throw new TypeError(`Storybook route remap ${index} must be an object`)
-    }
-    if (typeof remap.reason !== "string" || remap.reason.trim().length === 0) {
-      throw new Error(`Storybook route remap ${index} must document its reason`)
-    }
-    const fromPackageId = validatePackageId(remap.fromPackageId, `route remap ${index} source package`)
-    const toPackageId = validatePackageId(remap.toPackageId, `route remap ${index} target package`)
-    if (remap.kind === "package") {
-      if (packageRemaps.has(fromPackageId)) {
-        throw new Error(`Duplicate Storybook package remap: ${fromPackageId}`)
-      }
-      packageRemaps.set(fromPackageId, toPackageId)
-      continue
-    }
-    if (remap.kind !== "route") {
-      throw new Error(
-        `Unknown Storybook route remap kind: ${String((remap as {kind: unknown}).kind)}`,
-      )
-    }
-    const fromPath = normalizeRoutePath(remap.fromPath, `route remap ${index} source path`)
-    const toPath = normalizeRoutePath(remap.toPath, `route remap ${index} target path`)
-    const key = routeKey({packageId: fromPackageId, path: fromPath})
-    if (routeRemaps.has(key)) throw new Error(`Duplicate Storybook route remap: ${fromPackageId}:${fromPath}`)
-    routeRemaps.set(key, Object.freeze({packageId: toPackageId, path: toPath}))
-  }
-  return Object.freeze({packageRemaps, routeRemaps})
-}
-
-function mapBaselineRoutes(
-  packageId: string,
-  paths: readonly string[],
-  mapping: Readonly<{
-    packageRemaps: ReadonlyMap<string, string>
-    routeRemaps: ReadonlyMap<string, StorybookMappedRoute>
-  }>,
-): readonly StorybookMappedRoute[] {
-  return Object.freeze(paths.map((value) => {
-    const path = normalizeRoutePath(value, "baseline route")
-    const exact = mapping.routeRemaps.get(routeKey({packageId, path}))
-    if (exact !== undefined) return exact
-    return Object.freeze({
-      packageId: mapping.packageRemaps.get(packageId) ?? packageId,
-      path,
-    })
-  }))
-}
-
-function mappedGraphRoutes(
-  routes: readonly ExternalStorybookRoute[],
-  packageIds: ReadonlySet<string>,
-  kind: ExternalStorybookRoute["kind"],
-): readonly StorybookMappedRoute[] {
-  return Object.freeze(routes
-    .filter((route) => route.kind === kind && packageIds.has(route.packageId))
-    .map(({packageId, path}) => Object.freeze({packageId, path})))
-}
-
-function subtractRoutes(
-  left: readonly StorybookMappedRoute[],
-  right: readonly StorybookMappedRoute[],
-): readonly StorybookMappedRoute[] {
-  const rightKeys = new Set(right.map(routeKey))
-  return Object.freeze(left.filter((route) => !rightKeys.has(routeKey(route))))
-}
-
-function sameRoutes(
-  left: readonly StorybookMappedRoute[],
-  right: readonly StorybookMappedRoute[],
-): boolean {
-  return left.length === right.length && left.every((route, index) => routeKey(route) === routeKey(right[index]!))
-}
-
-function normalizeRoutePath(value: string, label: string): string {
-  if (typeof value !== "string" || value.startsWith("/") || value.endsWith("/") ||
-    value.includes("//") || value.includes("\\") || /[?#]/u.test(value) ||
-    value.split("/").some((segment) => segment === "." || segment === "..")) {
-    throw new Error(`Malformed Storybook ${label}: ${String(value)}`)
-  }
-  return value
-}
-
-function validatePackageId(value: string, label: string): string {
-  if (typeof value !== "string" || !PACKAGE_ID.test(value)) {
-    throw new Error(`Invalid Storybook ${label}: ${String(value)}`)
-  }
-  return value
-}
-
-function routeKey(route: StorybookMappedRoute): string {
-  return `${route.packageId}\0${route.path}`
 }
 
 function violation(

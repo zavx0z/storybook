@@ -8,7 +8,6 @@ const privateNames = new Set([
   "fixture",
   ".git",
   "node_modules",
-  ".storybook",
   "tests",
   "test",
 ])

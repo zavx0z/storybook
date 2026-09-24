@@ -44,199 +44,76 @@ private state; landing, CLI и MCP остаются adapters этого owner.
 consumer API. Consumer repositories по-прежнему не зависят от Storybook и не
 импортируют browser lifecycle даже type-only.
 
-## Declarations and graph
+## Структурный граф
 
-### `STORYBOOK-DECL-001` — one JSON format
+### `STORYBOOK-GRAPH-001` — один физический граф
 
-Canonical files — `.storybook/manifest.json` и package-local
-`.storybook/catalog.json`, `schemaVersion: 1`. YAML, functions, load callbacks,
-eval и executable JSON expressions запрещены. Unknown version/kind/field,
-cycles, duplicate ids/routes, ambiguous package identity, missing/escaping path
-fail closed.
-Category может опционально объявить только парную semantic identity
-`kind + apiName`. Это позволяет component-owned primary category выразить свои
-sections ordinary subjects без package-specific navigation hardcode.
+Пакеты определяются `package.json` и workspaces. Один immutable graph содержит
+`package` и реальные публичные `directory`; `unavailable` сохраняет локальную
+ошибку обнаружения. Порядок, владение, source path, URL и digest принадлежат
+этому графу. Навигация, поиск, маршруты, сборка и MCP являются его производными
+представлениями. Параллельные реестры UI/MCP/build запрещены.
 
-### `STORYBOOK-GRAPH-001` — one immutable graph
+### `STORYBOOK-GRAPH-002` — обзор и структурные представления
 
-Workspace/project/package/category/subject/variant nodes, presentation groups,
-resources, structural and URL paths, owners, ordering, source locations and
-digests находятся в одном serializable normalized graph. Navigation, search,
-routing, build and UI indexes — только derived views. UI/MCP/build/docs parallel
-registries запрещены.
-
-### `STORYBOOK-GRAPH-002` — real overview state
-
-Package, category и subject overview существуют независимо от descendants.
-Unknown route получает 404/fail-closed; overview никогда не выбирает случайную
-первую variant. Arrays сохраняют owner semantic order.
-Category overview материализует по одному bounded representative detail каждого
-immediate subject; subject overview материализует все direct variants. Каждый
-child получает отдельную runtime session и real production root внутри одного
-same-Document aggregate. Representative не меняет URL, active subject/variant
-либо dock selection. Labels-only cards и message вместо executable children
-запрещены, кроме package README и явно неподдерживаемого Space aggregate.
-Aggregate hosts подключаются к существующей declared Display/HUD projection
-до первого child mount. `context.present` проверяет и синхронно подключает
-exact owner node к его tile: продолжение mount уже видит host-owned projection,
-как у отдельной variant. Publication после abort, вне mount или повторная
-publication отклоняется. При частичном failure/navigation host освобождает
-все child sessions и nodes, включая поздно завершившийся create; ошибка cleanup
-не оставляет aggregate wrapper. Новые projection roots не создаются.
-Subjects без variants остаются read-only overview states и не требуют
-representative. Обзор с разными declared projections использует owner README
-либо navigation overview; host не переносит HUD child в Display или наоборот.
-Если overview содержит ровно один executable child, Inspector сохраняет
-presentation contract его exact subject и получает runtime values этого
-representative, не выбирая subject/variant в navigation. Поэтому single-subject
-category показывает те же owner controls, что и representative story. При
-нескольких children Storybook не выбирает произвольный Inspector owner.
-Aggregate parent владеет обычным CSS `row` layout с `flex-wrap: wrap`
-и `align-content: flex-start`: пока
-bounded child tiles помещаются, они делят строку, затем Renderer переносит
-следующий tile на новую компактную строку от cross-start с точным `gap: 8px`.
-Единственный child заполняет доступный preview,
-а `overflow-y` остаётся только scroll fallback для малой высоты viewport.
-Ручные coordinates и измерение ширины для packing tiles запрещены.
-Внутри каждого tile host показывает owner целиком с сохранением пропорций:
-`scale = min(1, availableWidth / ownerWidth, availableHeight / ownerHeight)`.
-Compiled TSX stage центрирует root через CSS transform/custom properties;
-исходные dimensions, inline styles и identity owner не меняются. Размеры
-берутся из готового frame существующей projection, при resize viewport или
-owner fit пересчитывается без накопления предыдущего масштаба. Subscription
-освобождается вместе с aggregate, отдельный frame lifecycle не создаётся.
-
-### `STORYBOOK-DECL-002` — subject presentation and widgets
-
-Package-level `widgetContributions` использует exact
-`widget-contribution/1`: до 32 package-wide unique items. Owner-defined v1 item
-имеет только `kind: "component"`, label и exact governed TSX module/export;
-компонент получает только `{value}`. Reserved standard ids
-`props, source, events, diagnostics, dom, layout, display, reference` объявляет
-ровно один self package `@zavx0z/storybook` в этом порядке.
-
-Каждый catalog subject обязан иметь `story-presentation/1` с projection
-`display | hud | space` и ordered unique widgets 2..32, включая `source` и
-`diagnostics`. Variant exact-наследует subject; package default и variant
-override запрещены.
-
-Правила привязки `subject.directory` определены в [контракте каталогов и компонентов](archetypes/entity/notes/draft-placement.md); presentation и widgets остаются ответственностью этого раздела.
+Пакет и физическая директория имеют собственный обзор. README пакета и модульный
+TSDoc директории являются источниками описания. `contract/input.ts`,
+`contract/output.ts`, `spec/deps.spec.ts` и `scenario.spec.ts(x)` открывают
+встроенные представления только у владельца, где они найдены. Неизвестный
+маршрут получает 404/fail-closed. Проектные `.storybook` manifest/catalog,
+виртуальные category/subject/variant, runtime/presentation/widget declarations
+и каталоговые author styles не используются.
 
 ## Workbench
 
 <a id="tabs-routes"></a>
 
-### `STORYBOOK-WORKBENCH-001` — одна оболочка из пяти областей
+### `STORYBOOK-WORKBENCH-001` — одна оболочка и адресные вкладки
 
-Панель вкладок (`TabsRegion`, region `tabs`) использует WorkbenchTabItem
-с обязательными id, label и route. tabs.label/items/active и событие storybooktab
-с detail {id, route} описывают только эту UI-полосу; сценарии исполнения историй
-остаются сценариями. Отдельной вкладки «Обзор» нет: клик по самому предмету,
-включая повторный клик по уже выбранному, открывает его базовый overview URL.
-Авторские декларативные истории сохраняют свои адреса. Найденные зависимости,
-контракт и сценарии становятся представлениями того же владельца, выбранными
-параметром `view`: например, `webxr/nodes/node/diagram?view=scenarios`.
-Путь содержит только сущности; папка или публичная сущность `scenarios` не
-конфликтует с одноимённым представлением родителя. Доступные представления
-динамически определяет [Route](route/README.md) по файлам владельца.
-Адреса инструмента `storybook` ограничены пакетами по
-[контракту MCP Address](mcp/address/README.md); параметры и внутренние пути UI
-не становятся адресами этого этапа MCP. Независимый вход описан у
-[MCP Root](mcp/root/README.md), общая навигационная форма — у
-[MCP Children](mcp/children/README.md).
-Immutable revision,
-прямое открытие, reload, back/forward, выбранная вкладка, preview и Inspector
-согласованы с URL. Preview query сохраняется при навигации. На overview ни одна
-вкладка не выбрана. MCP state показывает логический route, selected.tabId и
-native pathname; действие по вкладке проверяет одновременно её id и route.
-Кнопки Панели вкладок прилегают к Preview без нижнего gap и бокового padding;
-их собственные стили и геометрия не меняются.
+<a id="tabs-routes"></a>
 
-Fixed `workbench-layout/3` владеет ровно `catalog`, `tabs`,
-`preview`, `inspector`, `status` в этом порядке. `tabs` является визуально
-неподписанной полосой кнопок непосредственно над `preview`; её label остаётся
-только доступным именем toolbar. `catalog` и `preview` также не
-рендерят видимые headings: их labels остаются только доступными именами regions.
-Project/runtime не декларирует layout и не заменяет navigation. Видимый shell
-является одним compiled TSX ComponentRoot и содержит ровно один production
-`@zavx0z/ui/widgets/inspector#Inspector`; rail/content являются его
-внутренностями, а не package slots. Inspector получает direct keyed
-`@zavx0z/ui/surfaces/panel#Panel` children;
-category `panelIds` связывает rail с widget panels. Domain `widget.id` остаётся
-key/retained-state identity Storybook и замыкается consumer callback-ом вокруг
-`Panel.onToggle(expanded, event)`, но не становится prop-ом Panel.
+Панель вкладок (`TabsRegion`, region `tabs`) использует WorkbenchTabItem с
+обязательными id, label и route. Доступные представления выбранного пакета или
+физической директории — обзор, контракт, зависимости и сценарии. Их URL и
+выбор задаёт [Route](route/README.md): путь содержит только физические узлы,
+а `view` выбирает встроенное представление. Прямое открытие, reload,
+back/forward, Inspector и preview согласованы с адресом. MCP state сообщает
+логический route, selected.tabId и native pathname; событие вкладки проверяет
+её id и route.
+Кнопки Tabs прилегают к Preview без нижнего gap и бокового padding; их
+собственные стили и геометрия не меняются. Preview query сохраняется при
+навигации.
 
-<a id="tab-workspace"></a>
+Fixed `workbench-layout/3` владеет `catalog`, `tabs`, `preview`, `inspector`,
+`status`. `tabs` — визуально неподписанная полоса непосредственно над preview;
+её label служит доступным именем toolbar. `catalog` и `preview` также не
+рендерят видимые headings. Оболочка содержит один production
+`@zavx0z/ui/widgets/inspector#Inspector`; его секции встроены в Storybook и
+не объявляются пакетом. Workbench не заменяет navigation или production UI
+владельцев локальной разметкой.
 
-Выбранная вкладка задаёт рабочее пространство: содержимое области просмотра,
-его проекцию в Display/HUD/Space и собственный набор секций и данных Inspector.
-Переход публикует их согласованно через один presentation update. Совпадение
-предмета у двух вкладок не означает общий набор секций. Состояние выбранной
-секции, поиска и раскрытия относится к рабочему пространству вкладки и
-восстанавливается при возвращении; оно не переносится в другую вкладку предмета.
-Обновления завершённого или отменённого представления не восстанавливают его
-инспектор поверх текущего. Общие Document, Display и Inspector сохраняются.
+Выбранная вкладка владеет содержимым preview и Inspector. Состояние раскрытия
+и выбранной секции сохраняется для её рабочего пространства. Параметр
+`inspector` в URL отражает доступную секцию; неизвестное значение нормализуется
+через replaceState. Вкладка «Зависимости» не объявляет секций Inspector,
+«Контракт» показывает только вход и выход по
+[контракту](archetypes/specs/contracts/notes/draft-contracts.md). Синхронизация
+адреса принадлежит runtime, Inspector не управляет browser history.
+Выбор секции не перемонтирует представление; back/forward восстанавливает
+секцию и сохраняет остальные параметры адреса. Содержимое тяжёлой встроенной
+секции создаётся при первом выборе и раскрытии, затем сохраняется при
+сворачивании. Секции другого представления не подставляются как fallback.
 
-Выбранная секция Inspector отражается query-параметром `inspector` текущего
-адреса. Для контракта используются `input` и `output`, для обычных секций —
-их публичные идентификаторы, например `props` и `source`. Выбор секции меняет
-параметр без смены пути и повторного монтирования предмета. Прямое открытие,
-перезагрузка и browser back/forward восстанавливают секцию по адресу;
-остальные параметры, включая `preview`, сохраняются. При переходе к рабочему
-пространству без секций параметр удаляется. Неизвестное или недоступное значение
-нормализуется к доступной секции через replaceState без ошибки всей страницы.
-Синхронизация адреса принадлежит runtime, Inspector не управляет browser history.
-
-Вкладка «Зависимости» показывает граф и не объявляет секций Inspector.
-Вкладка «Контракт» объявляет только собственные секции входа и выхода по
-[правилу отображения контракта](archetypes/specs/contracts/notes/draft-contracts.md). Параметры ноды,
-её исходники, события и диагностика не наследуются этими вкладками.
-Исполняемый вариант использует собственное объявленное представление;
-существующая композиция обзора с одним дочерним предметом сохраняет свой
-явный контракт Inspector. Пустой набор не подменяется секциями соседней вкладки.
-
-Содержимое standard widget создаётся при первом одновременном выборе и раскрытии
-панели. До этого скрытые «Исходники» не материализуют редакторы подсвеченного
-текста. После первого раскрытия те же nodes сохраняются при сворачивании и
-переключениях, а новые values продолжают поступать обычным props-путём.
-Standard Inspector registry импортирует только exact named icon assets и
-передаёт их в optional category `iconSrc`; aggregate `uiIcons` не попадает в
-Workbench bundle. Буквенные labels остаются semantic fallback, но не заменяют
-видимые SVG. Search использует production Inspector slot. Каждый landing,
-workspace/project/package overview и package route начинает путь с иконки дома,
-ведущей в общий каталог `/`. На самой главной странице эта иконка — текущий
-неактивный сегмент. Она не создаёт искусственного родителя declaration-графа.
-Далее показывается полный существующий путь
-`package → nested package → category → subject → variant` через production
-`@zavx0z/ui/navigation/breadcrumbs` внутри StatusBar; Inspector не дублирует
-package/subject context. Обычный переход не оставляет рядом прежнюю плоскую
-строку `owner · route · overview`.
-
-Внутренний owner module называется `workbench`: controller, state,
-presentation, navigation, каждый region и Inspector projection разделены по
-своим обязанностям. Semantic DOM является runtime substrate, а не именем
-Workbench domain. Каждый TSX component владеет своим `style={css``}`; общий
-визуал переиспользуется только через настоящий component, не module-level
-`CssStyle` fragments. Базовые declarations имеют одну каноническую форму:
-пишутся напрямую в `css```, без избыточного `& { ... }`; `&` остаётся
-только для реального nested pseudo-state или attribute selector. Неэкспортируемый
-style fragment, который потребляется одним `style` site, запрещён: declarations
-встраиваются в owning TSX element. Private module CSS fragment допустим только
-при нескольких реальных same-module style consumers и не экспортируется;
-публичная общая тема является exact `.css` export. Workbench shared visual всё
-равно выражается component-ом.
-
-Workbench components обязаны композировать exact production owners
-`@zavx0z/ui/surfaces/pane`, `@zavx0z/ui/buttons/button`,
-`@zavx0z/ui/fields/text-field`, `@zavx0z/ui/typography`,
-`@zavx0z/ui/widgets/inspector`, `@zavx0z/ui/surfaces/panel`, concrete Fields,
-`@zavx0z/ui/views/code-editor`, `@zavx0z/ui/navigation/breadcrumbs` и
-`@zavx0z/ui/feedback/status-bar`, когда их
-semantic/API contract подходит. Caller
-`style` содержит только contextual placement; он не повторяет owner padding,
-control height, font, border, background, focus, selected, disabled или shadow.
-Storybook-owned intrinsic остаётся только там, где он несёт другую семантику:
-document markup, projection host или fixed region layout.
+Workbench использует production компоненты UI для навигации, вкладок, полей,
+панелей, редактора, breadcrumbs и StatusBar. Caller styles задают их размещение,
+не повторяя визуальный контракт владельца. Домашний breadcrumb ведёт в общий
+каталог `/`; далее путь состоит из физических пакетов и директорий. Общая тема
+принадлежит Storybook и подключается через публичный `.css` export UI.
+Видимый shell остаётся одним compiled TSX ComponentRoot. Inspector получает
+direct keyed `@zavx0z/ui/surfaces/panel#Panel` children; rail/content остаются
+его внутренними частями. Компоненты Workbench пишут CSS в собственном
+`style={css\`\`}`. Общие production owners сохраняют свои padding, focus,
+selected, disabled и shadow, а Storybook задаёт только контекстное размещение.
 
 ### `STORYBOOK-WORKBENCH-002` — restored Navigation Tree
 
@@ -246,8 +123,7 @@ Canonical graph проецируется адаптером `WorkbenchNavigation
 по графу, адресами переходов, действием удаления и состоянием раскрытия.
 Физические пакеты и директории показывают имена своих каталогов. У пакета его
 объявленный `package.json#label` остаётся подсказкой при наведении на подпись;
-поиск находит и имя каталога, и label. Виртуальные категории и предметы без
-собственной директории сохраняют объявленные названия. Заголовок страницы,
+поиск находит и имя каталога, и label. Заголовок страницы,
 breadcrumbs и package identity продолжают использовать свои доменные данные.
 Group toggle не навигирует. Свёрнутые ID узлов сохраняются для текущего origin
 в `localStorage` и восстанавливаются после перезагрузки; некорректная или
@@ -261,197 +137,85 @@ Group toggle не навигирует. Свёрнутые ID узлов сох�
 следующую строку при выходе из видимой области. При переключении пакетов их
 родители и порядок берутся из общего графа; изолированная ревизия обновляет
 содержимое пакета, сохраняя его место в иерархии.
-Expanded disclosure занимает в layout строку заголовка и все видимые строки
-своих category children; следующий root row начинается только после них.
-Перекрытие либо clipping primary category rows запрещены.
+Expanded disclosure занимает строку заголовка и все видимые дочерние строки;
+следующий root row начинается только после них. Перекрытие и clipping запрещены.
 Group Button materializes exact `chevronDownIcon`/`chevronRightIcon` через
 standard `<img>` и сохраняет image identity при toggle. Текстовые `▾/▸`,
 Unicode glyph fallback и font-dependent disclosure запрещены.
 
-### `STORYBOOK-WORKBENCH-003` — landing and package tab semantics
+### `STORYBOOK-WORKBENCH-003` — landing и package tab
 
-Одна левая панель отображает иерархию из [единого контракта структуры](archetypes/notes/draft-structure.md).
+Одна левая панель показывает иерархию из
+[контракта структуры](archetypes/notes/draft-structure.md). Стрелка сворачивает
+ветвь, подпись выбирает узел. Поиск сохраняет путь к совпадению, клавиши
+работают на любой глубине. Удаление из интерфейса применяется к выбранным
+корневым путям и не удаляет файлы. Открытый пакет раскрывается до физических
+директорий; выбранный узел показывает свой обзор и доступные представления.
 
-Стрелка сворачивает ветвь, подпись выбирает узел. Поиск сохраняет путь к совпадению,
-клавиши работают на любой глубине, а скрытие сохраняет identity уже созданных
-строк. Удаление из интерфейса применяется к выбранным корневым путям.
-Пакет раскрывается в том же дереве до своих директорий, категорий и предметов.
-Открытый пакет использует навигационные данные своей применённой ревизии;
-варианты остаются в Панели вкладок. Выбор репозитория показывает его README.
+Выбор выполняется в текущей вкладке по структурному адресу [Route](route/README.md).
+URL, native title и breadcrumbs синхронизируются с выбором и Back/Forward.
+Пакетная вкладка использует общий граф для размещения пакета, а содержимое —
+из своей immutable `storybook-package-graph/5` ревизии. Цепочка предков
+включает реальные вложенные директории; изменения родителя сами по себе не
+меняют ревизию дочернего пакета. Topic `catalog` обновляет дерево, сохраняя
+изолированные PackageSession.
 
-Выбор пакета и содержимого выполняется в текущей вкладке по URL
-структурному адресу из [Route](route/README.md). Старый `/browse/<package-slug>/`
-перенаправляет на этот адрес; промежуточной страницы с кнопкой открытия нет. URL, native title и
-breadcrumbs синхронизируются с выбором, включая Back/Forward. Название выбранного
-узла берётся из его label; общий каталог без выбора называется Storybook.
-
-Пакетная вкладка использует текущий общий граф только для навигации. Её содержимое,
-loaders, диагностика и lastWorking остаются в собственной immutable ревизии.
-`storybook-package-graph/4` хранит цепочку предков пакета как metadata, без чужих
-модулей и ресурсов. Ошибка или изменение родительского пакета не меняет ревизию
-дочернего только из-за вложенности. Read-only topic `catalog` обновляет дерево;
-пакетная session не получает registry mutation rights. Один контроллер страницы
-владеет оболочкой, Root, Document, Canvas и вводом на всём протяжении навигации.
-Переходы между пакетами, их разделами и общим каталогом заменяют только выбранное
-содержимое в этой оболочке. URL меняется через History API; `location.href`,
-полная загрузка документа и создание второго Root не используются для внутренней
-навигации. Back/Forward проходит через тот же контроллер. В интерфейсе нет
-команды открытия новой вкладки.
-
-Контекст пакета остаётся отдельным неизменяемым владельцем runtime, подписки,
-lease и диагностики. Контроллер сначала готовит следующую ревизию и её стили,
-затем заменяет контекст; ошибка возвращает прежнее содержимое и адрес.
-Завершение старой асинхронной операции не может изменить новый пакет.
-Состояние Inspector сохраняется раздельно по пакету и рабочему пространству.
-Стабильные стили Workbench принадлежат оболочке; стили пакета подключаются
-через публичные semantic `link[rel=stylesheet]` того же Document и освобождаются
-при смене контекста. Собственный CSS parser и отдельный Renderer не создаются.
-
-Первое открытие и переход внутри страницы используют один resolver подготовки
-пакета. Обычная навигация выбирает готового кандидата перед прежней применённой
-ревизией и запрашивает проверку готового кадра перед подтверждением применения.
-Явный предпросмотр агента не применяется автоматически, в том числе после
-переподключения. Загруженная ревизия, режим подготовки и действительно применённая
-ревизия передаются раздельно: кандидат не становится applied от одного факта
-загрузки HTML или подписки. Ошибка проверки сохраняет lastWorking.
-
-
-Правила состава дерева и границ модулей заданы в [едином нормативном разделе](archetypes/notes/draft-structure.md).
-
-
-Публичная структурная адресация App и MCP принадлежит
-[Route](route/README.md). Один адрес разрешается по текущей ветке подключённого
-корня. Граф сохраняет навигационную и package identity, но не заменяет проверку
-существования публичного владельца общим resolver.
-
-Ранее применённые ревизии сохраняют собственные адреса до проверенного применения
-новой ревизии. Приватные адреса immutable artifacts не меняются. Bootstrap и
-browser lifecycle подтверждают exact packageId через metadata и bridge;
-идентичность пакета не выводится из одной строки URL.
+Один контроллер страницы владеет Root, Document, Canvas и вводом. Внутренняя
+навигация заменяет выбранное содержимое через History API без reload и второго
+Root. Подготовка новой ревизии и её применение разделены; ошибка сохраняет
+lastWorking. Общая тема Workbench остаётся у оболочки. Идентичность пакета
+подтверждается metadata и bridge, а не выводится из slug URL.
+При переходе контроллер сначала готовит следующий контекст; завершение старой
+асинхронной операции не может изменить новый пакет. Состояние Inspector
+сохраняется раздельно по пакету и выбранному представлению. Явный preview
+агента не применяется автоматически. Загруженная и действительно применённая
+ревизии остаются разными состояниями.
 
 ### `STORYBOOK-WORKBENCH-004` — safe README
 
 Overview читает настоящий owner file. Markdown subset не выполняет HTML/JS;
 ошибка локальна node. Plain-text fallback явный и безопасный.
 
-### `STORYBOOK-WORKBENCH-005` — one page Root
+### `STORYBOOK-WORKBENCH-005` — один Root на страницу
 
-External landing и каждая package browser page владеют ровно одним
-`@zavx0z/browser` Root. Browser создаёт и освобождает semantic Document,
-native Canvas, цикл кадров и owner ввода этой страницы. Root содержит
-exact `@zavx0z/dom/space` `SpaceElement` и `@zavx0z/dom/viewpoint` `ViewPointElement`; package runtime
-не получает право создавать или заменять этих владельцев.
+Landing и каждая package page владеют ровно одним `@zavx0z/browser` Root.
+Browser создаёт semantic Document, native Canvas, Space, ViewPoint, цикл кадров
+и owner ввода. Весь Workbench монтируется в один HUD. Структурные обзоры и
+сценарии используют этот Experience; они не создают второй Root или semantic
+Document. Host default font загружается из exact
+`@zavx0z/engine/fonts/inter-regular.ttf` через публичный export.
+В compiled TSX свободное имя `document` связано Template с semantic Document
+компонента, в том числе после `await`. Native document и одноимённые локальные
+переменные его не подменяют. Внутренний контроллер проверяет Document перед
+использованием его API.
 
-В скомпилированном TSX свободное имя `document` имеет стандартный DOM-тип и
-связывается Template с Document компонента. Обработчики и продолжения после
-`await` сохраняют эту ссылку. Native document страницы и локальные одноимённые
-переменные не подменяются. Внутренний Workbench controller проверяет semantic
-Document на границе перед использованием собственных API.
-
-Весь Workbench является одним `HUDElement`
-`external-storybook-workbench`. Exact `DisplayElement`
-`external-storybook-display` принимает Display stories; HUD stories используют
-`HUDElement`, а Space stories монтируются непосредственно в единственный
-`SpaceElement`. Host получает каждую projection только через
-`root.getProjection(owner)`.
-Служебный Display заполняет всю фактическую область preview в HUD. Для её
-размеров `W × H` host явно задаёт физические атрибуты
-`width = W × 25.4 / 96`, `height = H × 25.4 / 96` в миллиметрах и
-CSS-разрешение `round(W) × round(H)` в px. Масштаб — `1`; `dpi` вычисляется
-по обеим осям. Дистанция и параллельный сдвиг ViewPoint с целью совмещают
-поверхность с границами preview. Resize окна и панелей обновляет физические
-размеры, CSS viewport, матрицу и раскладку; DOM identity, фокус и состояние
-компонентов сохраняются, прокрутка следует ограничениям нового viewport.
-Фиксированные размеры и пропорции служебного Display не используются.
-Коэффициент сцены `25.4 / 96` не зависит от размеров/PPI монитора или DPR.
-Размер шрифта не уменьшается для подгонки, стандартная прямая отрисовка
-сохраняется. Эта политика host не переопределяет авторские характеристики
-физических дисплеев, моделируемых в отдельных демонстрациях.
-Исходный ViewPoint двумерной рабочей среды смотрит перпендикулярно Display. Display
-и HUD должны находиться строго ближе дальней плоскости ViewPoint, чтобы прямоугольники,
-текст и input проектировались одинаково и читаемо.
-
-Host default font загружается через `@zavx0z/engine/default-font` из exact
-asset export `@zavx0z/engine/fonts/inter-regular.ttf` и публикуется без копии
-либо fallback по `/assets/inter-regular.ttf`; HTML meta указывает на тот же URL
-до запуска page runtime.
-
-На всём lifecycle page создаётся ровно один Root; owner session не может
-передать runtime `styleSheets` или пересоздать Document, Canvas, Space,
-ViewPoint, цикл кадров либо owner ввода. Named package tabs остаются отдельными
-Roots и не разделяют эти объекты или runtime state.
-
-### `STORYBOOK-WORKBENCH-006` — one shared Space
-
-Только subject с `projection: "space"` получает `context.space`, тождественный
-`root.space`, и narrow `mountSpacePreview`. Owner добавляет трёхмерный
-semantic content непосредственно в exact Space; Browser Root применяет
-camera к единственному `root.viewPoint` и вычисляет logical/DPR preview
-bounds. Display, HUD и Workbench являются same-Document projection roots.
-Owner не получает implementation objects Renderer/Browser и не создаёт второй
-Root, Document, Canvas, Space, ViewPoint, listener set или RAF.
+Служебный Display занимает фактическую область preview. Для размеров `W × H`
+его физические атрибуты равны `W × 25.4 / 96` и `H × 25.4 / 96` мм, CSS viewport —
+`round(W) × round(H)` px, scale — `1`. Resize обновляет поверхность и ViewPoint
+на тех же semantic nodes. Фиксированные размеры, PPI устройства и уменьшение
+шрифта для подгонки не используются. Авторские характеристики физического
+дисплея в отдельном сценарии сохраняются.
+Для двумерной среды ViewPoint смотрит перпендикулярно Display; Display и HUD
+находятся строго ближе дальней плоскости. Обновление размеров сохраняет DOM
+identity, фокус и состояние компонентов; прокрутка ограничивается новым
+viewport. Named package tabs имеют собственные Roots и не разделяют их
+Document, Canvas, Space или input state.
 
 ## Runtime and build
 
-### `STORYBOOK-RUNTIME-001` — structural adapter
+### `STORYBOOK-RUNTIME-001` — структурные сценарии
 
-Adapter marker — exact `storybook-runtime/4`. Он создаёт package execution
-session, монтирует/обновляет/unmount-ит loaded story, принимает AbortSignal,
-idempotently dispose-ится и на каждый mount/update ровно один раз вызывает
-atomic `context.present({protocol:"story-presentation/1", node, componentRoot,
-source, values?})`.
-Он не импортирует Storybook, не владеет graph/navigation/server и не передаёт
-Node между разными Document realms.
+Исполнение примеров принадлежит существующему структурному механизму сценариев.
+Пакет не объявляет runtime adapter, загрузчики вариантов, presentation contract
+или custom Inspector widgets. Оболочка владеет встроенными секциями Inspector;
+Browser предоставляет один Document и Space без второго lifecycle.
 
-### `STORYBOOK-STYLE-001` — exact linked author resources
+### `STORYBOOK-STYLE-001` — общая тема Workbench
 
-Package-level ordered `authorStyleSheets` содержит только strict public CSS
-export `specifier` self-owner либо exact transitively manifest-reached local
-dependency. Resolver требует exact package identity, exact string export
-target, canonical contained `.css`, unique specifier/file и SHA-256 bytes.
-Self Workbench sheets идут первыми, active package sheets вторыми; одинаковые
-specifier+bytes дают одну ссылку, conflicting bytes fail closed. Immutable
-revision materializes bytes. Стабильные Workbench sheets подключаются annotated
-native `<link>` до module entry и передаются Browser Root через `stylesheets`.
-Стили текущего пакета принадлежат semantic `<link rel="stylesheet">` того же
-Document: page controller ждёт их `load`, затем заменяет прежний набор атомарно
-со scope пакета, а при ошибке восстанавливает прежние links. Native Document
-не дублирует стили пакета. Повторная загрузка через fetch и сканирование
-`document.styleSheets` запрещены; load/CSSOM/import/nesting/grouping errors
-fail closed. Cleanup освобождает package links и затем завершает общий Root.
-
-### `STORYBOOK-SOURCE-001` — root-scoped authored source
-
-Runtime/4 передаёт required `source:{html,typescript}` и `componentRoot` только
-в atomic `context.present`. Host читает один immutable
-`componentRoot.readStyleSheets()` snapshot, сохраняет first-adoption order,
-deduplicates source records и требует `source.kind: "authored-css"` у каждого
-adopted sheet. Structured CSS facet содержит отдельно exact declared
-`authorStyleSheets[{specifier, cssText}]` и exact active-root
-`componentStyleSheets[{moduleId, componentName, cssText}]`. Legacy `css` string,
-session `styleSheets`, generated CSS reverse parsing и Document-wide filtering
-запрещены. Raw CSS показывается с CSS highlighting без `<style>` или fences;
-dynamic declarations видны как inline style в HTML facet.
-`dom`, `layout`, `display` выводятся из current semantic node/frame, diagnostics
-из `reportDiagnostic`; эти derived keys запрещены в runtime `values`.
-
-### `STORYBOOK-LOADER-001` — generated static lazy boundaries
-
-Validated declaration генерирует static import expression на runtime и каждую
-variant. Module path/export проверяются build-time. Runtime загружается только
-в package tab. Exact leaf загружает только выбранную variant; category/subject
-overview загружает только bounded representative/direct descendants своего
-поддерева для real aggregate, не меняя selection. Unrelated variants остаются
-unloaded. Browser arbitrary dynamic import, eval и giant all-package bundle
-запрещены. Failed old import становится retryable через новый immutable revision
-URL.
-
-Package без runtime, variants и custom widget modules считается
-declaration-only. Для него собирается только generated entry и общий Workbench:
-их compiler dependencies принадлежат `@zavx0z/storybook`. Package не обязан
-объявлять `@zavx0z/template` ради общего shell. Как только package объявляет
-хотя бы один исполняемый author module, его effective `jsxImportSource` и exact
-linked owner dependencies снова проверяются fail closed.
+Storybook получает тему из exact public CSS export
+`@zavx0z/ui/themes/theme.css`, фиксирует bytes и digest в immutable revision
+и подключает один native `<link>` к той же странице. Каталог пакета не задаёт
+`authorStyleSheets`; стили компонента остаются у его production владельца.
 
 ### `STORYBOOK-IDENTITY-001` — one module identity per package realm
 
@@ -495,8 +259,8 @@ sessions. Без lastWorking только affected preview показывает 
 перезапуска восстанавливается та же версия. Неприменённый кандидат не становится
 lastWorking при восстановлении.
 
-Receipt v2 хранит versioned fingerprint полного набора входов сборки: declaration
-и graph, resources, runtime и protocol closure, config/lock/exports, compiler и
+Receipt v2 хранит versioned fingerprint полного набора входов сборки: структуру
+пакета, graph, README/TSDoc и сценарии, config/lock/exports, compiler и
 toolchain, а также TypeScript semantic inputs. Только подтверждённое совпадение
 текущих байтов позволяет восстановить текущую generation без новой компиляции.
 Отсутствующее или неизвестное evidence сохраняет старый артефакт как fallback,
@@ -515,7 +279,7 @@ toolchain, а также TypeScript semantic inputs. Только подтвер
 
 Watcher канонизирует директории и настоящие symlinks, сохраняя basename
 обычного файла. Hardlink-копия Bun не становится владельцем исходника:
-изменение возвращаемого runtime realpath или атомарная замена inode не создают
+атомарная замена inode не создаёт
 ложный конфликт между подписчиками. Настоящее перенаправление symlink при
 сохранённом старом владельце отклоняется до изменения registrations.
 
@@ -573,10 +337,9 @@ CheckWaitTimeout содержит актуальные packages, очередь 
 не объявляется результатом нового check: новая ошибка сопоставляется с baseline
 generation/failedRevision, а неизвестный результат всей проверки помечается явно.
 
-Cold package build выполняет один browser Bun.build и при наличии runtime один
-protocol Bun.build. Прямые exports проверяются scan, а фактические dynamic-module
-exports — из browser metafile; отсутствующий или сломанный реэкспорт отклоняется
-без исполнения author story. Повторный отдельный exports bundle не создаётся.
+Cold package build выполняет один browser Bun.build. Прямые exports и фактические
+зависимости проверяются до публикации; повторный отдельный exports bundle не
+создаётся.
 Общая оболочка хранит собственный receipt по тому же fingerprint plan; cache hit
 проверяет входы и digest выходных файлов и не вызывает Bun.build.
 CSS общей оболочки хранится в тех же immutable shared assets. GET landing/fallback
@@ -591,8 +354,8 @@ process-global plugin state с unit и server integration suite.
 
 ### `STORYBOOK-RUNTIME-002` — serialized cleanup
 
-Create/unmount/mount/update/present/dispose строго последовательны. Pending
-create/mount получает AbortSignal; поздняя session dispose-ится до shell cleanup.
+Создание и освобождение структурного сценария последовательны. Pending
+исполнение получает AbortSignal; поздняя работа не заменяет текущий обзор.
 
 ## Server and CLI
 
@@ -666,7 +429,7 @@ Status не вызывает discovery или build demand. Состояния q
 полученных замеров, не доказанный абсолютный пик. Изменившаяся реализация daemon
 не скрывает нагрузку ещё работающего процесса: read-only status сохраняет
 её проекцию и отдельно сообщает, что для новых управляющих действий нужен ensure.
-Declarations и preferred port до destructive replacement сохраняются в private
+Выбранные корни и preferred port до destructive replacement сохраняются в private
 migration journal до успешной публикации/attach; daemon publication требует
 актуальный fencing token startup lease. Daemon пишет token-scoped candidate,
 canonical `server.json` атомарно commit-ит только live lease owner.
@@ -680,10 +443,9 @@ sessions и уведомляет связанные tabs, не останавл�
 ### `STORYBOOK-CLI-001` — external commands
 
 Поддерживаются `serve [root...]`, `attach <root>`, `detach <scope-id>`,
-`open <package-id> [route]`, `status`, `check <scope-or-path>`, `stop` и
-`init <root> --kind package|project|workspace`. Init создаёт declarations, не
-npm package/server/build/bunfig/port config. Для project/workspace состав задаётся
-явными повторяемыми `--declaration <manifest>`; поиска соседних declarations нет.
+`open <package-id> [route]`, `status`, `check <scope-or-path>` и `stop`.
+`serve` и `attach` принимают физический корень с `package.json`; workspaces
+раскрываются по этому файлу. Команда создания проектных деклараций отсутствует.
 
 ## Browser lifecycle
 
@@ -865,11 +627,11 @@ State record mode `0600`; random master token required for control API. Host,
 Origin and browser WebSocket scoped token проверяются. Stop requires
 `confirm: true`; MCP disconnect never stops server.
 
-### `STORYBOOK-SECURITY-002` — declared resource allow-list
+### `STORYBOOK-SECURITY-002` — structural resource allow-list
 
-README endpoint читает exact declared README and precomputed local assets only.
-Declared resources addressed by kind/index. Undeclared siblings, traversal,
-symlink escapes and arbitrary owner-root reads fail closed.
+README endpoint читает найденный README и заранее обнаруженные локальные assets.
+Посторонние соседние файлы, traversal, symlink escapes и произвольное чтение
+owner-root отклоняются.
 
 ### `STORYBOOK-RETENTION-001` — bounded artifacts
 
@@ -881,10 +643,8 @@ without exposing filesystem paths.
 
 ### `STORYBOOK-PERF-001` — bounded lazy startup
 
-Server startup/landing не собирает и не загружает all stories/runtimes.
-Variant остаётся unloaded, пока не выбрана exact leaf либо её bounded subtree не
-открыт как category/subject aggregate. Clean session не rebuild-ится,
-declaration metadata bounded, hidden catalog rows не eager materialize.
+Server startup/landing не собирает и не исполняет все сценарии.
+Clean session не rebuild-ится; скрытые строки каталога не materialize eager.
 Attach, refresh, status и search не создают спрос на compiler; такой спрос
 создают только exact package view либо явно вызванный check.
 
@@ -935,11 +695,9 @@ story; multi-region authoring, arbitrary owner picking и post-processing graph
 
 ## Acceptance matrix
 
-`bun run check` обязан покрывать standalone package, one/multi-package project,
-multi-project workspace и одновременно attached independent roots; invalid
-versions, cycles, identities, paths and exports fail closed. Canonical graph
-tests покрывают direct/grouped navigation, real overviews, search/order and
-unknown routes.
+`bun run check` обязан покрывать самостоятельный пакет, вложенные workspaces
+и одновременно подключённые независимые корни; неверные identity, пути и
+циклы fail closed. Граф проверяет физическую навигацию, обзоры и unknown routes.
 
 Persistent fixture packages A/B/C доказывают one-origin session isolation:
 A-only update не rebuild/reload B/C, shared A+B dependency не затрагивает C,

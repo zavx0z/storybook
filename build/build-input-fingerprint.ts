@@ -40,7 +40,6 @@ const BUILD_ABI = Object.freeze({
   browserSplitting: true,
   sourcemap: "external",
   minify: false,
-  runtimeProtocol: "storybook-runtime/4",
   loader: {".wgsl": "text"},
 })
 const SHARED_BUILD_ABI = Object.freeze({
@@ -118,7 +117,6 @@ Package adapter input совпадает с фактическими entry/proto
 
 @property browserEntryPath - Host entry основного browser bundle.
 
-@property runtimeProtocolPath - Валидатор `storybook-runtime/4` отдельного protocol bundle.
 
 @property [stagingDirectory] - Candidate output, исключённый из source inventory.
 
@@ -129,7 +127,6 @@ Package adapter input совпадает с фактическими entry/proto
 export type StorybookBuildInputFingerprintRequest = Readonly<{
   descriptor: StorybookPackageBuildDescriptor
   browserEntryPath: string
-  runtimeProtocolPath: string
   sharedBrowserIdentity?: StorybookSharedBrowserIdentity
   stagingDirectory?: string
   additionalFilePaths?: readonly string[]
@@ -324,7 +321,7 @@ export function resolveStorybookPackageBuildInputFingerprintPlan(
   input: StorybookBuildInputFingerprintRequest,
 ): StorybookBuildInputFingerprintPlan {
   const descriptor = input.descriptor
-  const moduleSourcePaths = descriptorModules(descriptor).map(({path}) => path)
+  const moduleSourcePaths = (descriptor.scenarioSpecs ?? []).flatMap(({sourcePaths}) => sourcePaths)
   const compilerInput: StorybookPackageCompilerInput = {
     packageRoot: descriptor.packageRoot,
     projectRoot: descriptor.projectRoot,
@@ -348,11 +345,9 @@ export function resolveStorybookPackageBuildInputFingerprintPlan(
     ],
     files: [
       descriptor.sourcePath,
-      ...descriptorModules(descriptor).map(({path}) => path),
       ...(descriptor.scenarioSpecs ?? []).flatMap(({sourcePaths}) => sourcePaths),
       ...(descriptor.resourceFiles ?? []).map(({sourcePath}) => sourcePath),
       input.browserEntryPath,
-      input.runtimeProtocolPath,
       ...compiler.configPaths,
       ...(input.additionalFilePaths ?? []),
     ],
@@ -816,17 +811,6 @@ function readCachedFile(
   return evidence
 }
 
-/** Возвращает executable modules, влияющие на loader, exports и protocol validation. */
-function descriptorModules(
-  descriptor: StorybookPackageBuildDescriptor,
-): readonly Readonly<{path: string; export: string}>[] {
-  return Object.freeze([
-    ...(descriptor.runtime === null ? [] : [descriptor.runtime]),
-    ...descriptor.variants.map(({module}) => module),
-    ...descriptor.widgetModules.map(({module}) => module),
-  ])
-}
-
 /** Рекурсивно собирает bounded owner inventory, не заходя в ambient install/cache roots. */
 function collectInventory(
   root: string,
@@ -1166,7 +1150,7 @@ function ignoredRelativePath(root: string, path: string): boolean {
   return local.split(sep).some(ignoredDirectoryName)
 }
 
-/** Исключает ambient installs/caches и package candidate artifacts, но не `.storybook`. */
+/** Исключает установленные зависимости, кэши и артефакты сборки из исходников пакета. */
 function ignoredDirectoryName(value: string): boolean {
   return IGNORED_DIRECTORY_NAMES.has(value) || value.startsWith(".candidate-")
 }

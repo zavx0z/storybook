@@ -3,7 +3,7 @@
 
 @property name - Публичная package identity.
 
-@property workspaces - Объявленные пути вложенных пакетов.
+@property workspaces - Раскрытые существующие пути вложенных пакетов относительно владельца.
 
 */
 export interface PackageManifest {

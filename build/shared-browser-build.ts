@@ -8,7 +8,7 @@ import type {SharedBrowserBuildInput} from "./types/shared-browser.ts"
 import {beginStorybookSharedBuildInputAttestation} from "./build-input-fingerprint.ts"
 import {createHash} from "node:crypto"
 import type {StorybookBuildPhaseListener} from "./build-phase.ts"
-import {resolveExternalStorybookAuthorStyleSheets} from "../discovery/declarations.ts"
+import {readWorkbenchStyleSheets} from "./workbench-theme.ts"
 import {
   createStorybookSharedBrowserExternalPlugin,
   createStorybookSharedBrowserModuleEntries,
@@ -39,7 +39,7 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
   const moduleEntryDirectory = join(dirname(input.root), ".shared-owner-module-entries")
   try {
   onPhase?.({phase: "resources", state: "started", at: new Date().toISOString()})
-  const styles = await resolveExternalStorybookAuthorStyleSheets(input.toolRoot)
+  const styles = await readWorkbenchStyleSheets(input.toolRoot)
   const staging = input.stagingDirectory
   rmSync(staging, {recursive: true, force: true})
   mkdirSync(staging, {recursive: true})

@@ -2,7 +2,7 @@ import {expect, test} from "bun:test"
 import {mkdtempSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import {resolveExternalStorybookDeclarations} from "../discovery/declarations.ts"
+import {discoverStorybookPackages} from "../discovery/packages.ts"
 import {ExternalStorybookRegistry} from "./registry.ts"
 
 test("обновляет ресурсы README при прежнем графе после добавления и удаления ссылки", async () => {
@@ -14,7 +14,7 @@ test("обновляет ресурсы README при прежнем графе 
     writeFileSync(join(root, "package.json"), JSON.stringify({name: "@fixture/resources", label: "Ресурсы"}))
     writeFileSync(readme, "[Размещение](placement.md)")
     writeFileSync(oldDocument, "# Размещение")
-    const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
+    const registry = new ExternalStorybookRegistry(discoverStorybookPackages)
     const initial = await registry.attach(root)
     const initialRebuilds = registry.metrics().graphRebuilds
     expect(initial.descriptors[0]!.resourceFiles?.some(file => file.sourcePath === oldDocument)).toBe(true)

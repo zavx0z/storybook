@@ -1,77 +1,52 @@
-import {expect, test} from "bun:test"
+import {afterEach, expect, test} from "bun:test"
+import {mkdtemp, mkdir, realpath, rm} from "node:fs/promises"
+import {tmpdir} from "node:os"
 import {join} from "node:path"
-import {resolveExternalStorybookDeclarations} from "../discovery/declarations.ts"
+import {discoverStorybookPackages} from "../discovery/packages.ts"
 import {createExternalStorybookGraph, resolveExternalStorybookRoute} from "./graph.ts"
 import {externalStorybookPackageDescriptors} from "../build/package-descriptor.ts"
-import {createExternalStorybookClientSnapshot} from "../runtime/client-protocol.ts"
 import {deriveExternalStorybookPackageTab} from "../runtime/model.ts"
 import {createStorybookPackageRevisionGraphSnapshot} from "../sessions/package-revision.ts"
 
-async function fixture(bound: boolean, collision = false) {
-  const catalog = await resolveExternalStorybookDeclarations([join(import.meta.dir, "../discovery/fixtures/valid/standalone")])
-  const scope = catalog.scopes[0]!
-  if (scope.kind !== "package") throw new Error("Нужен пакет")
-  const category = scope.catalog!.categories[0]!
-  const subject = category.subjects[0]!
-  return {...catalog, scopes: [{...scope,
-    directories: [{path: join(scope.scopeRoot, "module"), relativePath: "module", name: "module", structuralRole: "module" as const, readmePath: null,
-      contractDocumentation: {sources: [{sourcePath: join(scope.scopeRoot, "module/contract/input.ts"), sourceDigest: "fixture"}], documents: [{direction: "input" as const, document: {name: "Input", declarations: []}}]},
-      scenarioSpec: {sourcePaths: [join(scope.scopeRoot, "module/spec/scenario.spec.ts"), join(scope.scopeRoot, "module/spec/scenario.spec.tsx")]},
-      dependencySpec: {sourcePath: "deps.spec.ts", sourceDigest: "fixture", cases: []},
-    }],
-    catalog: {...scope.catalog!, categories: [{...category, subjects: [{...subject,
-      ...(bound ? {directory: "module"} : {}),
-      variants: [{id: "basic", label: "Basic", route: collision ? `${subject.route}/scenarios` : `${subject.route}/basic`, group: null, module: null, resources: [], presentation: subject.presentation, source: subject.source}],
-    }]}]},
-  }]}
+const roots: string[] = []
+afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, {recursive: true, force: true}))) })
+
+async function fixture() {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "storybook-scenario-routes-")))
+  roots.push(root)
+  await Bun.write(join(root, "package.json"), JSON.stringify({name: "@fixture/scenarios"}))
+  await mkdir(join(root, "module/spec"), {recursive: true})
+  await Bun.write(join(root, "module/index.ts"), "export const module = true")
+  const scenarioPath = join(root, "module/spec/scenario.spec.ts")
+  await Bun.write(scenarioPath, "throw new Error('Discovery must not execute scenarios')")
+  return {root, scenarioPath}
 }
 
-test.each([false, true])("[SCENARIOS-ROUTE] присутствие файла даёт одну вкладку и собственный URL, binding=%s", async bound => {
-  const catalog = await fixture(bound)
+test("[SCENARIOS-ROUTE] structural spec creates one view in graph, client model and revision", async () => {
+  const {root, scenarioPath} = await fixture()
+  const catalog = await discoverStorybookPackages([root])
   const graph = createExternalStorybookGraph(catalog)
-  const packageId = "@fixture/standalone"
-  const scope = catalog.scopes[0]!
-  const base = bound ? scope.catalog.categories[0]!.subjects[0]!.route : "dir-module"
-  const route = resolveExternalStorybookRoute(graph, packageId, `${base}/scenarios`)
+  const packageId = "@fixture/scenarios"
+  const route = resolveExternalStorybookRoute(graph, packageId, "dir-module/scenarios")
   expect(route.kind).toBe("scenarios")
-  expect(route.nodeId).toBe(resolveExternalStorybookRoute(graph, packageId, base).nodeId)
-  expect(route.urlPath).toBe("/standalone/module?view=scenarios")
-  const client = createExternalStorybookClientSnapshot(graph, [{packageId, declarationDigest: "fixture", moduleGraphRevision: null, candidateRevision: null, activeRevision: "active", lastGoodRevision: "active", entryRelativePath: "entry.js", diagnostics: [], dependencyRealpaths: [], subscribers: 0, buildState: "active", builds: 0}])
-  for (const data of [graph, client]) {
-    const model = deriveExternalStorybookPackageTab(data, packageId, `${base}/scenarios`)
-    expect(model.tabs.slice(0, 3).map(item => item.label)).toEqual(["Зависимости", "Контракт", "Сценарии"])
-    expect(model.tabs.find(item => item.id === model.tabActiveId)?.route).toBe(`${base}/scenarios`)
-    expect(model.viewKind).toBe("scenarios")
-    expect(model.urlPath).toBe(route.urlPath)
-    expect(deriveExternalStorybookPackageTab(data, packageId, base).tabActiveId).toBeNull()
-  }
+  expect(route.nodeId).toBe("directory:package:@fixture/scenarios/module")
+  expect(route.urlPath).toBe("/scenarios/module?view=scenarios")
+  const model = deriveExternalStorybookPackageTab(graph, packageId, route.path)
+  expect(model.viewKind).toBe("scenarios")
+  expect(model.tabs.map(tab => tab.label)).toEqual(["Обзор", "Сценарии"])
+  expect(model.urlPath).toBe(route.urlPath)
   const revision = createStorybookPackageRevisionGraphSnapshot(graph, packageId, "fixture")
-  expect(revision.routes.find(item => item.path === `${base}/scenarios`)).toMatchObject({nodeId: route.nodeId, kind: "scenarios"})
-  expect(revision.nodes.find(item => item.id === route.nodeId)?.contractDocuments?.[0]?.direction).toBe("input")
-  expect(() => resolveExternalStorybookRoute(graph, packageId, "dir-missing/scenarios")).toThrow()
+  expect(revision.routes.find(item => item.path === route.path)).toMatchObject({nodeId: route.nodeId, kind: "scenarios"})
   const descriptor = externalStorybookPackageDescriptors(catalog, graph)[0]!
-  expect(revision.nodes.find(item => item.id === route.nodeId)?.scenariosRoutePath).toBe(`${base}/scenarios`)
-  const scenarioPath = join(scope.scopeRoot, "module/spec/scenario.spec.ts")
+  expect(descriptor.scenarioSpecs).toContainEqual({nodeId: route.nodeId, sourcePaths: [scenarioPath]})
   expect(descriptor.watchPaths).toContainEqual({path: scenarioPath, category: "declaration"})
-  const inputPath = join(scope.scopeRoot, "module/contract/input.ts")
-  expect(descriptor.watchPaths).toContainEqual({path: inputPath, category: "declaration"})
-  expect(descriptor.resourceFiles?.some(file => file.sourcePath === inputPath && file.contentDigest === "fixture" && file.derivedContent?.includes('"direction":"input"'))).toBe(true)
-
 })
 
-test("[SCENARIOS-COLLISION] вкладка не перекрывает авторский variant", async () => {
-  const catalog = await fixture(true, true)
-  expect(() => createExternalStorybookGraph(catalog)).toThrow("Duplicate normalized external Storybook route")
-})
-
-test("[SCENARIOS-ABSENT] без файла нет вкладки и маршрута", async () => {
-  const catalog = await fixture(false)
-  const scopes = catalog.scopes.map(scope => ({...scope, directories: scope.directories?.map(directory => {
-    const {scenarioSpec, ...withoutScenario} = directory
-    return withoutScenario
-  })}))
-  const graph = createExternalStorybookGraph({...catalog, scopes})
-  const model = deriveExternalStorybookPackageTab(graph, "@fixture/standalone", "dir-module")
-  expect(model.tabs.some(tab => tab.label === "Сценарии")).toBe(false)
-  expect(() => resolveExternalStorybookRoute(graph, "@fixture/standalone", "dir-module/scenarios")).toThrow()
+test("[SCENARIOS-ABSENT] removing the spec removes only the scenarios view", async () => {
+  const {root, scenarioPath} = await fixture()
+  await rm(scenarioPath)
+  const graph = createExternalStorybookGraph(await discoverStorybookPackages([root]))
+  const model = deriveExternalStorybookPackageTab(graph, "@fixture/scenarios", "dir-module")
+  expect(model.tabs.map(tab => tab.label)).toEqual(["Обзор"])
+  expect(() => resolveExternalStorybookRoute(graph, "@fixture/scenarios", "dir-module/scenarios")).toThrow()
 })

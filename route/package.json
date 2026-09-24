@@ -10,7 +10,8 @@
     "./address": "./address/index.ts",
     "./children": "./children/index.ts",
     "./directories": "./directories/index.ts",
-    "./ignored": "./ignored/index.ts"
+    "./ignored": "./ignored/index.ts",
+    "./workspaces": "./workspaces/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --project tsconfig.json --pretty false",

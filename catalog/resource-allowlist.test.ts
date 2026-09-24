@@ -14,19 +14,16 @@ afterEach(() => {
 })
 
 describe("external Storybook resource allow-list", () => {
-  test("admits only the exact README, declared resources and literal local assets", () => {
+  test("admits only the exact README and literal local assets", () => {
     const fixture = resourceFixture()
     const allowList = createExternalStorybookResourceAllowList({
       ownerRoot: fixture.ownerRoot,
       readmePath: fixture.readme,
-      declaredResources: [{path: fixture.reference}],
     })
 
     expect(allowList.resolveReadmeFile(fixture.readme)).toBe(fixture.readme)
     expect(allowList.resolveReadmeFile(fixture.asset)).toBe(fixture.asset)
-    expect(allowList.resolveDeclaredResource(fixture.reference)).toBe(fixture.reference)
     expect(allowList.resolveReadmeFile(fixture.secret)).toBeNull()
-    expect(allowList.resolveDeclaredResource(fixture.secret)).toBeNull()
     expect(allowList.resolveReadmeFile(fixture.reference)).toBeNull()
     expect(allowList.entries.every(Object.isFrozen)).toBeTrue()
     expect(Object.isFrozen(allowList.entries)).toBeTrue()
@@ -64,11 +61,10 @@ describe("external Storybook resource allow-list", () => {
     const allowList = createExternalStorybookResourceAllowList({
       ownerRoot: fixture.ownerRoot,
       readmePath: fixture.readme,
-      declaredResources: [fixture.reference],
     })
-    unlinkSync(fixture.reference)
-    symlinkSync(outside, fixture.reference)
-    expect(allowList.resolveDeclaredResource(fixture.reference)).toBeNull()
+    unlinkSync(fixture.asset)
+    symlinkSync(outside, fixture.asset)
+    expect(allowList.resolveReadmeFile(fixture.asset)).toBeNull()
   })
 
   test("shares a bounded literal destination extractor", () => {

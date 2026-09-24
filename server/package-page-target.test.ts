@@ -67,8 +67,8 @@ function targetFixture(options: Readonly<{
   builtRoutes?: readonly ReturnType<typeof route>[]
 }> = {}) {
   const packageId = "@fixture/package"
-  const activeRoutes = [route("", "package-a", "overview"), route("example", "example", "variant")]
-  const builtRoutes = options.builtRoutes ?? [route("", "package-b", "overview"), route("example", "example", "variant")]
+  const activeRoutes = [route("", "package-a", "overview"), route("dir-example", "example", "overview")]
+  const builtRoutes = options.builtRoutes ?? [route("", "package-b", "overview"), route("dir-example", "example", "overview")]
   const revisions = new Map<string, StorybookPackagePageRevision>([
     ["revision-a", {graphSnapshot: graph(packageId, activeRoutes), entryRelativePath: "entry.js", status: "working"}],
     ["revision-b", {
@@ -104,15 +104,15 @@ function targetFixture(options: Readonly<{
   return {
     input: {
       packageId,
-      routePath: "example",
-      currentRoute: {nodeId: "example", kind: "variant" as const},
+      routePath: "dir-example",
+      currentRoute: {nodeId: "example", kind: "overview" as const},
       snapshot,
       readRevision: (revision: string) => revisions.get(revision) ?? null,
     },
   }
 }
 
-function route(path: string, nodeId: string, kind: "overview" | "variant") {
+function route(path: string, nodeId: string, kind: "overview") {
   return {path, nodeId, kind, urlPath: `/pkg-fixture-package/${path}`}
 }
 

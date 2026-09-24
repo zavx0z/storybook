@@ -31,7 +31,6 @@ describe("Storybook build input fingerprint", () => {
     const request = {
       descriptor: fixture.descriptor,
       browserEntryPath: fixture.browserEntry,
-      runtimeProtocolPath: fixture.runtimeProtocol,
       additionalFilePaths: [fixture.externalDependency],
     }
     const baseline = compute(request)
@@ -45,9 +44,9 @@ describe("Storybook build input fingerprint", () => {
     expect(baseline.files.map(({path}) => path)).toContain(realpathSync(fixture.externalDependency))
     expect(watchPaths).toContain(realpathSync(fixture.nestedDirectory))
 
-    writeFileSync(fixture.runtime, "export const runtime = {protocol: 'storybook-runtime/4', changed: true}\n")
+    writeFileSync(fixture.module, "export const module = {changed: true}\n")
     expect(compute(request).digest).not.toBe(baseline.digest)
-    writeFileSync(fixture.runtime, fixture.runtimeSource)
+    writeFileSync(fixture.module, fixture.moduleSource)
 
     writeFileSync(fixture.tsconfigBase, JSON.stringify({compilerOptions: {jsxImportSource: "react"}}))
     expect(compute(request).digest).not.toBe(baseline.digest)
@@ -82,12 +81,10 @@ describe("Storybook build input fingerprint", () => {
     const request = {
       descriptor: fixture.descriptor,
       browserEntryPath: fixture.browserEntry,
-      runtimeProtocolPath: fixture.runtimeProtocol,
     }
     const evidence = compute(request)
     const verify = createStorybookBuildInputFingerprintVerifier({
       browserEntryPath: fixture.browserEntry,
-      runtimeProtocolPath: fixture.runtimeProtocol,
     })
 
     expect(verify(evidence, fixture.descriptor)?.digest).toBe(evidence.digest)
@@ -95,7 +92,7 @@ describe("Storybook build input fingerprint", () => {
     expect(parseStorybookBuildInputFingerprint({...evidence, digest: "0".repeat(64)})).toBeNull()
     expect(storybookBuildInputFingerprintWatchPaths({...evidence, watchDirectories: undefined})).toBeNull()
 
-    writeFileSync(fixture.runtime, "export const runtime = {protocol: 'storybook-runtime/4', mismatch: true}\n")
+    writeFileSync(fixture.module, "export const module = {mismatch: true}\n")
     expect(verify(evidence, fixture.descriptor)).toBeNull()
   })
 
@@ -105,7 +102,6 @@ describe("Storybook build input fingerprint", () => {
     const input = {
       descriptor: fixture.descriptor,
       browserEntryPath: fixture.browserEntry,
-      runtimeProtocolPath: fixture.runtimeProtocol,
       stagingDirectory,
     }
     const stable = await beginStorybookBuildInputAttestation(input)
@@ -118,8 +114,8 @@ describe("Storybook build input fingerprint", () => {
     stable.dispose()
 
     const changed = await beginStorybookBuildInputAttestation(input)
-    writeFileSync(fixture.runtime, "export const transient = true\n")
-    writeFileSync(fixture.runtime, fixture.runtimeSource)
+    writeFileSync(fixture.module, "export const transient = true\n")
+    writeFileSync(fixture.module, fixture.moduleSource)
     await Bun.sleep(10)
     await expect(changed.complete()).rejects.toThrow("changed during compilation")
     changed.dispose()
@@ -170,7 +166,6 @@ describe("Storybook build input fingerprint", () => {
     const input = {
       descriptor: fixture.descriptor,
       browserEntryPath: fixture.browserEntry,
-      runtimeProtocolPath: fixture.runtimeProtocol,
     }
     const plan = resolveStorybookPackageBuildInputFingerprintPlan(input)
     const dependencyRoot = realpathSync(fixture.dependencyRoot)
@@ -190,12 +185,11 @@ describe("Storybook build input fingerprint", () => {
 /** Создаёт minimal package descriptor, сохраняя реальные private build entry inputs. */
 function createFixture(): Readonly<{
   root: string
-  runtime: string
-  runtimeSource: string
+  module: string
+  moduleSource: string
   tsconfigBase: string
   tsconfigSource: string
   browserEntry: string
-  runtimeProtocol: string
   externalDependency: string
   externalRoot: string
   globalTypes: string
@@ -206,25 +200,23 @@ function createFixture(): Readonly<{
   const root = mkdtempSync(join(tmpdir(), "storybook-fingerprint-"))
   const externalRoot = mkdtempSync(join(tmpdir(), "storybook-fingerprint-external-"))
   roots.push(root, externalRoot)
-  mkdirSync(join(root, ".storybook"), {recursive: true})
-  const sourcePath = join(root, ".storybook", "manifest.json")
-  const runtime = join(root, ".storybook", "runtime.ts")
-  const runtimeSource = "export const runtime = {protocol: 'storybook-runtime/4'}\n"
+  const sourcePath = join(root, "package.json")
+  const module = join(root, "module/spec/scenario.spec.ts")
+  const moduleSource = "export const scenario = true\n"
   const tsconfigBase = join(root, "tsconfig.base.json")
   const tsconfigSource = JSON.stringify({compilerOptions: {jsxImportSource: "@zavx0z/template"}})
   const browserEntry = join(import.meta.dir, "../runtime/package-entry.ts")
-  const runtimeProtocol = join(import.meta.dir, "../runtime/runtime-protocol.ts")
   const externalDependency = join(externalRoot, "dependency.ts")
   const globalTypes = join(root, "global.d.ts")
   const globalTypesSource = "declare global { const ambientFingerprint: true }\nexport {}\n"
   const nestedDirectory = join(root, "types", "nested")
   mkdirSync(nestedDirectory, {recursive: true})
+  mkdirSync(join(root, "module/spec"), {recursive: true})
   writeFileSync(join(root, "package.json"), JSON.stringify({
     name: "@fixture/fingerprint",
     devDependencies: {"@zavx0z/template": "0.0.0"},
   }))
-  writeFileSync(sourcePath, "{}\n")
-  writeFileSync(runtime, runtimeSource)
+  writeFileSync(module, moduleSource)
   writeFileSync(tsconfigBase, tsconfigSource)
   writeFileSync(join(root, "tsconfig.json"), JSON.stringify({extends: "./tsconfig.base.json"}))
   writeFileSync(externalDependency, "export const external = true\n")
@@ -236,24 +228,22 @@ function createFixture(): Readonly<{
     sourcePath,
     declarationDigest: "fixture-declaration",
     graphSnapshot: {
-      protocol: "storybook-package-graph/4",
+      protocol: "storybook-package-graph/5",
       packageId: "@fixture/fingerprint",
       declarationDigest: "fixture-declaration",
       packageGraphDigest: "fixture-graph",
     },
     resourceFiles: [],
-    runtime: {path: runtime, export: "runtime"},
-    variants: [],
-    widgetModules: [],
+    scenarioSpecs: [{nodeId: "directory:package:@fixture/fingerprint/module", sourcePaths: [module]}],
+    watchedPaths: [module],
   } as unknown as StorybookPackageBuildDescriptor
   return Object.freeze({
     root,
-    runtime,
-    runtimeSource,
+    module,
+    moduleSource,
     tsconfigBase,
     tsconfigSource,
     browserEntry,
-    runtimeProtocol,
     externalDependency,
     externalRoot,
     globalTypes,
@@ -314,14 +304,12 @@ function createHoistedDependencyFixture(): Readonly<{
   dependency: string
   dependencySource: string
   browserEntry: string
-  runtimeProtocol: string
   descriptor: StorybookPackageBuildDescriptor
 }> {
   const workspace = mkdtempSync(join(tmpdir(), "storybook-hoisted-fingerprint-"))
   roots.push(workspace)
   mkdirSync(join(workspace, ".git"), {recursive: true})
   const packageRoot = join(workspace, "packages", "owner")
-  const declarationRoot = join(packageRoot, ".storybook")
   const dependencyRoot = join(workspace, "node_modules")
   const dependencyPackage = join(
     dependencyRoot,
@@ -331,14 +319,13 @@ function createHoistedDependencyFixture(): Readonly<{
     "@fixture",
     "hoisted",
   )
-  mkdirSync(declarationRoot, {recursive: true})
+  mkdirSync(packageRoot, {recursive: true})
   mkdirSync(join(dependencyPackage, "dist"), {recursive: true})
-  const sourcePath = join(declarationRoot, "manifest.json")
-  const runtime = join(declarationRoot, "runtime.ts")
+  const sourcePath = join(packageRoot, "package.json")
+  const module = join(packageRoot, "module.ts")
   const dependency = join(dependencyPackage, "dist", "index.js")
   const dependencySource = "export const hoisted = true\n"
   const browserEntry = join(import.meta.dir, "../runtime/package-entry.ts")
-  const runtimeProtocol = join(import.meta.dir, "../runtime/runtime-protocol.ts")
   writeFileSync(join(packageRoot, "package.json"), JSON.stringify({
     name: "@fixture/nested-owner",
     devDependencies: {"@zavx0z/template": "0.0.0"},
@@ -350,8 +337,7 @@ function createHoistedDependencyFixture(): Readonly<{
     name: "@fixture/hoisted",
     exports: {".": "./dist/index.js"},
   }))
-  writeFileSync(sourcePath, "{}\n")
-  writeFileSync(runtime, "export const runtime = {protocol: 'storybook-runtime/4'}\n")
+  writeFileSync(module, "export const module = true\n")
   writeFileSync(dependency, dependencySource)
   const descriptor = {
     packageId: "@fixture/nested-owner",
@@ -360,22 +346,19 @@ function createHoistedDependencyFixture(): Readonly<{
     sourcePath,
     declarationDigest: "nested-declaration",
     graphSnapshot: {
-      protocol: "storybook-package-graph/4",
+      protocol: "storybook-package-graph/5",
       packageId: "@fixture/nested-owner",
       declarationDigest: "nested-declaration",
       packageGraphDigest: "nested-graph",
     },
     resourceFiles: [],
-    runtime: {path: runtime, export: "runtime"},
-    variants: [],
-    widgetModules: [],
+    watchedPaths: [module],
   } as unknown as StorybookPackageBuildDescriptor
   return Object.freeze({
     dependencyRoot,
     dependency,
     dependencySource,
     browserEntry,
-    runtimeProtocol,
     descriptor,
   })
 }

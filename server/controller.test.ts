@@ -113,7 +113,7 @@ describe.serial("external Storybook shared controller", () => {
 
   test("durably adopts the pre-capability TMPDIR daemon after an interrupted replacement", async () => {
     const toolRoot = realpathSync(join(import.meta.dir, ".."))
-    const declarationPath = realpathSync(join(fixture, ".storybook", "manifest.json"))
+    const declarationPath = realpathSync(join(fixture, "package.json"))
     const legacyStatePath = join(stateRoot, "legacy-tmp", "server.json")
     const legacy = Bun.spawn([
       process.execPath,
@@ -181,7 +181,7 @@ describe.serial("external Storybook shared controller", () => {
   test("falls back to an automatic port when a preserved legacy port is occupied", async () => {
     const occupied = Bun.serve({hostname: "127.0.0.1", port: 0, fetch: () => new Response("occupied")})
     try {
-      const declarationPath = realpathSync(join(fixture, ".storybook", "manifest.json"))
+      const declarationPath = realpathSync(join(fixture, "package.json"))
       const current = createExternalStorybookServerRecord({
         toolRoot: join(import.meta.dir, ".."),
         origin: occupied.url.origin,

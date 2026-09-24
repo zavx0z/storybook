@@ -195,10 +195,7 @@ describe("external Storybook package compiler", () => {
   test("builds the real webxr UI with exact tool owners satisfying declared peers", async () => {
     const projectRoot = await realpath(resolve(import.meta.dir, "../../webxr-space"))
     const packageRoot = join(projectRoot, "ui")
-    const source = join(
-      packageRoot,
-      ".storybook/stories/compiled/compiled-button-production-story.tsx",
-    )
+    const source = join(packageRoot, "buttons/button.tsx")
     const plugins = await createStorybookPackageCompilerPlugins({
       packageRoot,
       projectRoot,

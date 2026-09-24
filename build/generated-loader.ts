@@ -3,23 +3,11 @@ import type {ScenarioPreview} from "@archetypes/specs/scenarios"
 import {
   validateExternalStorybookExportName,
   validateExternalStorybookPackageId,
-  validateExternalStorybookRoute,
-  validateExternalStorybookScopeId,
-} from "../discovery/declaration-law.ts"
+} from "../discovery/identity.ts"
 
 export type StorybookGeneratedModule = Readonly<{
   path: string
   export: string
-}>
-
-export type StorybookGeneratedVariant = Readonly<{
-  route: string
-  module: StorybookGeneratedModule
-}>
-
-export type StorybookGeneratedWidget = Readonly<{
-  id: string
-  module: StorybookGeneratedModule
 }>
 
 export type StorybookGeneratedScenarioPoint = Readonly<{
@@ -34,9 +22,6 @@ export type StorybookGeneratedScenario = ScenarioPreview & Readonly<{nodeId: str
 
 export type StorybookGeneratedLoaderInput = Readonly<{
   revisionUrl: string
-  runtime: StorybookGeneratedModule | null
-  variants: readonly StorybookGeneratedVariant[]
-  widgets: readonly StorybookGeneratedWidget[]
   scenarios?: readonly StorybookGeneratedScenario[]
 }>
 
@@ -67,36 +52,10 @@ export function generateStorybookLoaderSource(
   if (input === null || typeof input !== "object" || Array.isArray(input)) {
     throw new TypeError("Storybook generated loader input must be an object")
   }
-  if (!Array.isArray(input.variants)) throw new TypeError("Storybook generated loader variants must be a list")
-  if (!Array.isArray(input.widgets)) throw new TypeError("Storybook generated loader widgets must be a list")
   if (input.scenarios !== undefined && !Array.isArray(input.scenarios)) {
     throw new TypeError("Storybook generated loader scenarios must be a list")
   }
   const revisionUrl = validateRevisionUrl(input.revisionUrl)
-  const runtime = input.runtime === null ? null : validateModule(input.runtime, "runtime")
-  const routes = new Set<string>()
-  const variants = input.variants.map((variant, index) => {
-    if (variant === null || typeof variant !== "object" || Array.isArray(variant)) {
-      throw new TypeError(`Storybook variant ${index} must be an object`)
-    }
-    const route = validateExternalStorybookRoute(variant.route, `Storybook variant ${index} route`)
-    if (routes.has(route)) throw new Error(`Duplicate Storybook variant route: ${route}`)
-    routes.add(route)
-    return Object.freeze({
-      route,
-      module: validateModule(variant.module, `variant ${route}`),
-    })
-  }).sort((left, right) => left.route < right.route ? -1 : left.route > right.route ? 1 : 0)
-  const widgetIds = new Set<string>()
-  const widgets = input.widgets.map((widget, index) => {
-    if (widget === null || typeof widget !== "object" || Array.isArray(widget)) {
-      throw new TypeError(`Storybook widget ${index} must be an object`)
-    }
-    const id = validateExternalStorybookScopeId(widget.id, `Storybook widget ${index} id`)
-    if (widgetIds.has(id)) throw new Error(`Duplicate Storybook widget id: ${id}`)
-    widgetIds.add(id)
-    return Object.freeze({id, module: validateModule(widget.module, `widget ${id}`)})
-  })
   const scenarioNodeIds = new Set<string>()
   const scenarios = (input.scenarios ?? []).map((scenario, index) => {
     if (scenario === null || typeof scenario !== "object" || Array.isArray(scenario)) {
@@ -121,16 +80,6 @@ export function generateStorybookLoaderSource(
     })
   }).sort((left, right) => left.nodeId < right.nodeId ? -1 : left.nodeId > right.nodeId ? 1 : 0)
 
-  const routeEntries = variants.map(({route, module}) => [
-    `  [${jsString(route)}, () =>`,
-    `    import(${jsString(module.url)}).then((namespace) => namespace[${jsString(module.export)}])],`,
-  ].join("\n")).join("\n")
-  const routeValues = variants.map(({route}) => `  ${jsString(route)},`).join("\n")
-  const widgetEntries = widgets.map(({id, module}) => [
-    `  [${jsString(id)}, () =>`,
-    `    import(${jsString(module.url)}).then((namespace) => namespace[${jsString(module.export)}])],`,
-  ].join("\n")).join("\n")
-  const widgetValues = widgets.map(({id}) => `  ${jsString(id)},`).join("\n")
   const scenarioVariants = scenarios.map(({variants}, index) =>
     `const scenarioVariants${index} = Object.freeze(${jsonSource(variants, `scenario ${index} variants`)})`
   ).join("\n")
@@ -148,56 +97,11 @@ export function generateStorybookLoaderSource(
   ].join("\n")).join("\n")
 
   return [
-    ...(runtime === null
-      ? [`const runtimeLoader = null`]
-      : [
-        `const runtimeLoader = () =>`,
-        `  import(${jsString(runtime.url)}).then((namespace) => namespace[${jsString(runtime.export)}])`,
-      ]),
-    ``,
     scenarioVariants,
-    ...(scenarioVariants === "" ? [] : [``]),
-    `export const STORYBOOK_PACKAGE_STORY_LOADERS = new Map([`,
-    routeEntries,
-    `])`,
-    ``,
     `export const storybookRevisionUrl = ${jsString(revisionUrl)}`,
-    `export const storybookVariantRoutes = Object.freeze([`,
-    routeValues,
-    `])`,
-    `export const STORYBOOK_PACKAGE_WIDGET_LOADERS = new Map([`,
-    widgetEntries,
-    `])`,
-    `export const storybookWidgetContributionIds = Object.freeze([`,
-    widgetValues,
-    `])`,
     `export const STORYBOOK_PACKAGE_SCENARIO_LOADERS = new Map([`,
     scenarioEntries,
     `])`,
-    ``,
-    ...(runtime === null
-      ? [`export const loadStorybookPackageRuntime = null`]
-      : [
-        `export function loadStorybookPackageRuntime() {`,
-        `  return runtimeLoader()`,
-        `}`,
-      ]),
-    ``,
-    `export function loadStorybookVariant(route) {`,
-    `  const loader = STORYBOOK_PACKAGE_STORY_LOADERS.get(route)`,
-    `  if (loader === undefined) {`,
-    `    throw new Error("Unknown Storybook variant route: " + String(route))`,
-    `  }`,
-    `  return loader()`,
-    `}`,
-    ``,
-    `export function loadStorybookWidget(id) {`,
-    `  const loader = STORYBOOK_PACKAGE_WIDGET_LOADERS.get(id)`,
-    `  if (loader === undefined) {`,
-    `    throw new Error("Unknown Storybook widget contribution: " + String(id))`,
-    `  }`,
-    `  return loader()`,
-    `}`,
     ``,
   ].join("\n")
 }
@@ -227,10 +131,7 @@ export function generateStorybookRevisionPayloadSource(
       `import {startExternalStorybookPackage} from ${jsString(input.packageHostUrl)}`,
     ]),
     "import {",
-    "  loadStorybookPackageRuntime,",
     "  STORYBOOK_PACKAGE_SCENARIO_LOADERS,",
-    "  STORYBOOK_PACKAGE_STORY_LOADERS,",
-    "  STORYBOOK_PACKAGE_WIDGET_LOADERS,",
     "  storybookRevisionUrl,",
     "} from \"./generated-loaders.ts\"",
     "",
@@ -245,10 +146,7 @@ export function generateStorybookRevisionPayloadSource(
     "  revisionUrl: storybookRevisionUrl,",
     `  graphSnapshot: ${JSON.stringify(input.graphSnapshot)},`,
     ...(input.packageHostUrl === undefined ? [] : ["  startPackage: startExternalStorybookPackage,"]),
-    "  loadRuntime: loadStorybookPackageRuntime,",
     "  scenarioLoaders: STORYBOOK_PACKAGE_SCENARIO_LOADERS,",
-    "  storyLoaders: STORYBOOK_PACKAGE_STORY_LOADERS,",
-    "  widgetLoaders: STORYBOOK_PACKAGE_WIDGET_LOADERS,",
     "})",
     "",
   ].join("\n")

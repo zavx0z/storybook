@@ -1,5 +1,9 @@
 # External Storybook migration evidence
 
+Historical evidence of the 2026-08-29 migration. The declaration architecture
+recorded below was superseded by the [structural migration](STRUCTURAL-MIGRATION.md)
+on 2026-09-24; these counts and routes are not current requirements.
+
 Migration date: 2026-08-29. No branch, worktree, commit, push, deployment or
 workflow dispatch was created.
 

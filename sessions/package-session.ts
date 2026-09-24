@@ -25,14 +25,12 @@ import {
   type StorybookCategorizedWatchPath,
 } from "./dependency-watch.ts"
 import {
+  STORYBOOK_PACKAGE_GRAPH_PROTOCOL,
   validateStorybookPackageRevisionGraphSnapshot,
   type StorybookPackageRevisionGraphSnapshot,
 } from "./package-revision.ts"
 import {STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS} from "../server/timing.ts"
 
-export type StorybookPackageModule = Readonly<{path: string, export: string}>
-export type StorybookPackageVariantModule = Readonly<{route: string, module: StorybookPackageModule}>
-export type StorybookPackageWidgetModule = Readonly<{id: string, module: StorybookPackageModule}>
 export type StorybookPackageScenarioSpec = Readonly<{
   nodeId: string
   sourcePaths: readonly string[]
@@ -54,9 +52,6 @@ export type StorybookPackageBuildDescriptor = Readonly<{
   declarationDigest: string
   graphSnapshot: StorybookPackageRevisionGraphSnapshot
   resourceFiles?: readonly StorybookPackageRevisionResourceFile[]
-  runtime: StorybookPackageModule | null
-  variants: readonly StorybookPackageVariantModule[]
-  widgetModules: readonly StorybookPackageWidgetModule[]
   scenarioSpecs?: readonly StorybookPackageScenarioSpec[]
   watchedPaths?: readonly string[]
   watchPaths?: readonly StorybookCategorizedWatchPath[]
@@ -178,7 +173,6 @@ export type StorybookPackageRevisionBuilder = (input: Readonly<{
   stagingDirectory: string
   signal: AbortSignal
   compileTimeoutMs: number
-  protocolTimeoutMs: number
   onPhase?: StorybookBuildPhaseListener
   onWorkerLifecycle?: StorybookBuildWorkerLifecycleListener
 }>) => Promise<StorybookPackageRevisionBuild>
@@ -205,7 +199,6 @@ export type StorybookPackageSessionOptions = Readonly<{
   buildSemaphore?: StorybookBuildSemaphore
   rebuildDelayMs?: number
   compileTimeoutMs?: number
-  protocolTimeoutMs?: number
   activationTimeoutMs?: number
   retainedRevisionLimit?: number
 }>
@@ -236,7 +229,6 @@ type ActivationRecord = {
 
 type RunningBuild = Readonly<{generation: number, operationId: string, controller: AbortController}>
 
-const DEFAULT_PROTOCOL_TIMEOUT_MS = 10_000
 const DEFAULT_ACTIVATION_TIMEOUT_MS = 15_000
 const DEFAULT_RETAINED_REVISION_LIMIT = 3
 
@@ -252,7 +244,6 @@ export class StorybookPackageSession {
   readonly #ownsBuildScheduler: boolean
   readonly #rebuildDelayMs: number
   readonly #compileTimeoutMs: number
-  readonly #protocolTimeoutMs: number
   readonly #activationTimeoutMs: number
   readonly #retainedRevisionLimit: number
   readonly #revisions = new Map<string, RevisionRecord>()
@@ -300,9 +291,6 @@ export class StorybookPackageSession {
     this.#rebuildDelayMs = boundedDuration(options.rebuildDelayMs ?? 40, 0, 60_000, "rebuild delay")
     this.#compileTimeoutMs = boundedDuration(
       options.compileTimeoutMs ?? STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS, 100, 10 * 60_000, "compile timeout",
-    )
-    this.#protocolTimeoutMs = boundedDuration(
-      options.protocolTimeoutMs ?? DEFAULT_PROTOCOL_TIMEOUT_MS, 100, 60_000, "protocol timeout",
     )
     this.#activationTimeoutMs = boundedDuration(
       options.activationTimeoutMs ?? DEFAULT_ACTIVATION_TIMEOUT_MS, 100, 60_000, "activation timeout",
@@ -753,7 +741,6 @@ export class StorybookPackageSession {
             stagingDirectory,
             signal: controller.signal,
             compileTimeoutMs: this.#compileTimeoutMs,
-            protocolTimeoutMs: this.#protocolTimeoutMs,
             onPhase: ({phase, state}) => {
               if (state === "started") context.setPhase(phase)
             },
@@ -982,6 +969,11 @@ export class StorybookPackageSession {
       const value = JSON.parse(readFileSync(path, "utf8"))
       if ((value.version !== 1 && value.version !== 2) || value.packageId !== this.packageId || value.packageRoot !== this.descriptor.packageRoot ||
         typeof value.revision !== "string" || !/^[A-Za-z0-9_-]{1,256}$/u.test(value.revision)) throw new Error("Applied revision receipt has a different owner")
+      // Ревизия другого формата не является ошибкой исходников пакета и не загружается.
+      if (typeof value.graphSnapshot?.protocol === "string" && value.graphSnapshot.protocol !== STORYBOOK_PACKAGE_GRAPH_PROTOCOL) {
+        this.#cacheOutcome = Object.freeze({status: "miss", layer: "receipt"})
+        return
+      }
       const graphSnapshot = validateStorybookPackageRevisionGraphSnapshot(value.graphSnapshot, this.packageId)
       validateBuildResult(value, this.#revisionDirectory(value.revision))
       const persistedFingerprint = value.version === 2
@@ -1076,32 +1068,6 @@ function normalizeDescriptor(value: StorybookPackageBuildDescriptor): StorybookP
   if (graphSnapshot.declarationDigest !== declarationDigest) {
     throw new Error(`Storybook package graph declaration digest mismatch: ${packageId}`)
   }
-  const variants = Object.freeze([...value.variants].map((variant) => Object.freeze({
-    route: requiredText("variant route", variant.route),
-    module: normalizeModule(variant.module),
-  })))
-  const routes = new Set(variants.map(({route}) => route))
-  if (routes.size !== variants.length) throw new Error(`Duplicate package variant route: ${packageId}`)
-  if (JSON.stringify([...routes].sort()) !== JSON.stringify(graphSnapshot.loaders.map(({route}) => route).sort())) {
-    throw new Error(`Storybook package loader table does not match graph snapshot: ${packageId}`)
-  }
-  const runtime = value.runtime === null ? null : normalizeModule(value.runtime)
-  const widgetModules = Object.freeze([...value.widgetModules].map((widget) => Object.freeze({
-    id: requiredText("widget module id", widget.id),
-    module: normalizeModule(widget.module),
-  })))
-  if (new Set(widgetModules.map(({id}) => id)).size !== widgetModules.length) {
-    throw new Error(`Duplicate package widget module id: ${packageId}`)
-  }
-  if (JSON.stringify(widgetModules.map(({id}) => id)) !==
-    JSON.stringify(graphSnapshot.widgetLoaders.map(({id}) => id))) {
-    throw new Error(`Storybook package widget loader table does not match graph snapshot: ${packageId}`)
-  }
-  for (const [index, widget] of widgetModules.entries()) {
-    if (widget.module.export !== graphSnapshot.widgetLoaders[index]?.exportName) {
-      throw new Error(`Storybook package widget loader export does not match graph snapshot: ${packageId}:${widget.id}`)
-    }
-  }
   const scenarioSpecs = Object.freeze((value.scenarioSpecs ?? []).map((spec, index) => {
     if (spec === null || typeof spec !== "object" || Array.isArray(spec)) {
       throw new TypeError(`Storybook scenario spec ${index} must be an object`)
@@ -1164,7 +1130,6 @@ function normalizeDescriptor(value: StorybookPackageBuildDescriptor): StorybookP
   const resourceByTarget = new Map(resourceFiles.map((file) => [file.targetPath, file] as const))
   for (const styleSheets of [
     graphSnapshot.workbenchAuthorStyleSheets,
-    graphSnapshot.authorStyleSheets,
   ] as const) {
     for (const styleSheet of styleSheets) {
       const file = resourceByTarget.get(styleSheet.url)
@@ -1175,17 +1140,10 @@ function normalizeDescriptor(value: StorybookPackageBuildDescriptor): StorybookP
     }
   }
   for (const file of resourceFiles) {
-    if (file.targetPath.startsWith("author-style-sheets/") &&
-      !graphSnapshot.authorStyleSheets.some(({url}) => url === file.targetPath)) {
-      throw new Error(`Undeclared Storybook author stylesheet resource target: ${file.targetPath}`)
-    }
     if (file.targetPath.startsWith("workbench-author-style-sheets/") &&
       !graphSnapshot.workbenchAuthorStyleSheets.some(({url}) => url === file.targetPath)) {
       throw new Error(`Undeclared Storybook Workbench author stylesheet resource target: ${file.targetPath}`)
     }
-  }
-  if (runtime === null && variants.length > 0) {
-    throw new Error(`Executable variants require a package runtime: ${packageId}`)
   }
   return Object.freeze({
     packageId,
@@ -1196,9 +1154,6 @@ function normalizeDescriptor(value: StorybookPackageBuildDescriptor): StorybookP
     resourceFiles,
     watchPaths,
     graphSnapshot,
-    runtime,
-    variants,
-    widgetModules,
     scenarioSpecs,
     ...(value.watchedPaths === undefined
       ? {}
@@ -1212,25 +1167,15 @@ function sameDescriptor(left: StorybookPackageBuildDescriptor, right: StorybookP
     left.packageRoot === right.packageRoot &&
     left.projectRoot === right.projectRoot &&
     left.sourcePath === right.sourcePath &&
-    JSON.stringify(left.runtime) === JSON.stringify(right.runtime) &&
-    JSON.stringify(left.variants) === JSON.stringify(right.variants) &&
-    JSON.stringify(left.widgetModules) === JSON.stringify(right.widgetModules) &&
     JSON.stringify(left.scenarioSpecs ?? []) === JSON.stringify(right.scenarioSpecs ?? []) &&
     JSON.stringify(left.resourceFiles ?? []) === JSON.stringify(right.resourceFiles ?? []) &&
     JSON.stringify(left.watchPaths ?? []) === JSON.stringify(right.watchPaths ?? []) &&
     JSON.stringify(left.watchedPaths ?? []) === JSON.stringify(right.watchedPaths ?? [])
 }
 
-function normalizeModule(value: StorybookPackageModule): StorybookPackageModule {
-  return Object.freeze({path: realpathSync(value.path), export: requiredText("module export", value.export)})
-}
-
 function declaredPaths(descriptor: StorybookPackageBuildDescriptor): Set<string> {
   return new Set([
     descriptor.sourcePath,
-    ...(descriptor.runtime === null ? [] : [descriptor.runtime.path]),
-    ...descriptor.variants.map(({module}) => module.path),
-    ...descriptor.widgetModules.map(({module}) => module.path),
     ...(descriptor.scenarioSpecs ?? []).flatMap(({sourcePaths}) => sourcePaths),
     ...(descriptor.resourceFiles ?? []).map(({sourcePath}) => sourcePath),
     ...(descriptor.watchPaths ?? []).map(({path}) => path),

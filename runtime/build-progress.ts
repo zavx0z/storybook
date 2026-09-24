@@ -16,8 +16,6 @@ const phaseLabels = Object.freeze({
   bundle: "Компиляция интерфейса",
   kernel: "Сборка общих модулей",
   host: "Сборка оболочки Storybook",
-  "protocol-build": "Компиляция проверки протокола",
-  "protocol-run": "Проверка протокола",
   publish: "Локальная публикация ревизии",
 } satisfies Record<StorybookBuildPhase, string>)
 

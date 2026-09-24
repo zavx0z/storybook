@@ -55,7 +55,7 @@ import type {
   StorybookSpacePreview,
   StorybookSpacePreviewCamera,
   StorybookSpacePreviewRegistration,
-} from "./runtime-protocol.ts"
+} from "./space-preview.ts"
 
 export const EXTERNAL_STORYBOOK_CANVAS_ID = "external-storybook-canvas" as const
 export const EXTERNAL_STORYBOOK_DISPLAY_ID = "external-storybook-display" as const
@@ -734,22 +734,8 @@ function validateClientSnapshot(value: unknown): ExternalStorybookClientSnapshot
   for (const node of snapshot.nodes) {
     if (node === null || typeof node !== "object" || typeof node.id !== "string" || ids.has(node.id) ||
       !Array.isArray(node.childIds) || !Array.isArray(node.searchTerms) ||
-      typeof node.resourceUrl !== "string" || !Array.isArray(node.resourceKinds)) {
+      typeof node.resourceUrl !== "string" || !["package", "directory", "unavailable"].includes(node.kind)) {
       throw new Error(`Invalid external Storybook client node: ${String(node?.id)}`)
-    }
-    if (node.kind === "subject" || node.kind === "variant") {
-      const presentation = node.presentation
-      if (presentation === null || presentation === undefined ||
-        presentation.protocol !== "story-presentation/1" ||
-        (presentation.projection !== "display" && presentation.projection !== "hud" &&
-          presentation.projection !== "space") ||
-        !Array.isArray(presentation.widgets) || presentation.widgets.length < 2 ||
-        new Set(presentation.widgets).size !== presentation.widgets.length ||
-        !presentation.widgets.includes("source") || !presentation.widgets.includes("diagnostics")) {
-        throw new Error(`Invalid external Storybook client presentation: ${node.id}`)
-      }
-    } else if (node.presentation !== null) {
-      throw new Error(`Unexpected external Storybook client presentation: ${node.id}`)
     }
     ids.add(node.id)
   }

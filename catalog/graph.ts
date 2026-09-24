@@ -1,37 +1,16 @@
-import {storybookPackageUrlPath} from "@zavx0z/storybook-browser-lifecycle/contract"
-/** Immutable normalized graph and derived route/search views. */
-
+/** Единый граф пакетов и реальных публичных директорий. */
 import {createHash} from "node:crypto"
-import {relative} from "node:path"
+import {dirname, relative} from "node:path"
 import {formatRouteAddress} from "@storybook/route/address"
 import type {
-  StorybookModuleReference,
-  StorybookPresentationGroup,
-  StorybookResource,
-  StorybookAuthorStyleSheet,
-  StorybookCategory,
-  StorybookCatalogScope,
-  StorybookCatalog,
-  StorybookPackage,
-  StorybookSubject,
-  StorybookVariant,
-  StorybookStoryPresentation,
-  StorybookWidgetContributions,
-  StorybookDirectory,
+  StorybookCatalog, StorybookCatalogScope,
 } from "./catalog.t.ts"
-import {
-  EXTERNAL_STORYBOOK_SCHEMA_VERSION,
-} from "./protocol.ts"
+import {EXTERNAL_STORYBOOK_SCHEMA_VERSION} from "./protocol.ts"
 
 export type ExternalStorybookGraphNodeKind =
   | "unavailable"
-  | "workspace"
-  | "project"
   | "package"
   | "directory"
-  | "category"
-  | "subject"
-  | "variant"
 
 export type ExternalStorybookGraphSource = Readonly<{
   path: string
@@ -57,18 +36,9 @@ export type ExternalStorybookGraphNode = Readonly<{
   contractRoutePath?: string
   scenarioSpec?: import("./catalog.t.ts").StorybookScenarioSpec
   scenariosRoutePath?: string
-  resources: readonly StorybookResource[]
-  authorStyleSheets: readonly StorybookAuthorStyleSheet[]
-  widgetContributions: StorybookWidgetContributions | null
-  presentation: StorybookStoryPresentation | null
   searchTerms: readonly string[]
   source: ExternalStorybookGraphSource
-  presentationGroup: StorybookPresentationGroup | null
-  subjectKind: string | null
-  apiName: string | null
   packageJsonPath: string | null
-  runtime: StorybookModuleReference | null
-  module: StorybookModuleReference | null
   digest: string
 }>
 
@@ -83,270 +53,115 @@ export type ExternalStorybookRoute = Readonly<{
   packageId: string
   path: string
   urlPath: string
-  kind: "overview" | "variant" | "dependencies" | "contract" | "scenarios"
+  kind: "overview" | "dependencies" | "contract" | "scenarios"
   nodeId: string
 }>
 
 type NodeInput = Omit<ExternalStorybookGraphNode, "digest">
 
-/**
- * Creates the only structural registry used by navigation, routing, search and
- * later build/MCP projections. Declaration arrays retain owner semantic order.
- */
-export function createExternalStorybookGraph(
-  declarations: StorybookCatalog,
-): ExternalStorybookGraph {
-  if (declarations.schemaVersion !== EXTERNAL_STORYBOOK_SCHEMA_VERSION) {
-    throw new Error(`Unsupported resolved external Storybook schema: ${String(declarations.schemaVersion)}`)
-  }
-  const declarationsById = new Map<string, StorybookCatalogScope>()
-  for (const declaration of declarations.scopes) {
-    if (declarationsById.has(declaration.canonicalId)) {
-      throw new Error(`Duplicate resolved external Storybook declaration: ${declaration.canonicalId}`)
-    }
-    declarationsById.set(declaration.canonicalId, declaration)
-  }
-  if (new Set(declarations.rootIds).size !== declarations.rootIds.length) {
-    throw new Error("Duplicate external Storybook graph root identity")
-  }
-
+/** Строит навигацию только из package.json/workspaces и обнаруженных директорий. */
+export function createExternalStorybookGraph(catalog: StorybookCatalog): ExternalStorybookGraph {
+  if (catalog.schemaVersion !== EXTERNAL_STORYBOOK_SCHEMA_VERSION) throw new Error("Unsupported Storybook catalog version")
+  const owners = new Map(catalog.scopes.map(scope => [scope.canonicalId, scope]))
+  if (owners.size !== catalog.scopes.length) throw new Error("Duplicate Storybook package identity")
   const nodes: ExternalStorybookGraphNode[] = []
-  const nodeIds = new Set<string>()
-  const visitedDeclarations = new Set<string>()
-  const packagePaths = new Map<string, string>()
-  const packageAddresses = new Map<string, string>()
-  const appendNode = (input: NodeInput): ExternalStorybookGraphNode => {
-    if (nodeIds.has(input.id)) throw new Error(`Duplicate external Storybook graph identity: ${input.id}`)
-    if (input.packageId !== null && input.kind !== "directory" && input.routePath?.split("/")[0]?.startsWith("dir-")) {
-      throw new Error(`Storybook catalog route uses the reserved directory prefix: ${input.routePath}`)
+  const byId = new Map<string, ExternalStorybookGraphNode>()
+  const visited = new Set<string>()
+  const addresses = new Set<string>()
+  const append = (input: NodeInput): void => {
+    if (byId.has(input.id)) throw new Error(`Duplicate Storybook node: ${input.id}`)
+    const withViews = {
+      ...input,
+      ...(input.dependencySpec ? {dependencyRoutePath: [input.routePath, "dependencies"].filter(Boolean).join("/")} : {}),
+      ...(input.contractDocumentation ? {contractRoutePath: [input.routePath, "contract"].filter(Boolean).join("/")} : {}),
+      ...(input.scenarioSpec ? {scenariosRoutePath: [input.routePath, "scenarios"].filter(Boolean).join("/")} : {}),
     }
-    nodeIds.add(input.id)
-    const node = Object.freeze({...input, digest: digest(input)})
+    const node = Object.freeze({...withViews, digest: digest(withViews)})
     nodes.push(node)
-    return node
+    byId.set(node.id, node)
   }
-
-  const appendDeclaration = (
-    canonicalId: string,
-    parentId: string | null,
-    ancestors: readonly string[],
-  ): void => {
-    if (visitedDeclarations.has(canonicalId)) {
-      throw new Error(`External Storybook declaration has more than one graph parent: ${canonicalId}`)
+  const visit = (id: string, parentId: string | null, ancestors: readonly string[], root: StorybookCatalogScope): void => {
+    const scope = owners.get(id)
+    if (!scope || scope.kind !== "package" && scope.kind !== "unavailable") throw new Error(`Unknown structural package: ${id}`)
+    if (visited.has(id)) throw new Error(`Package referenced more than once: ${id}`)
+    visited.add(id)
+    const rootName = root.id.split("/").at(-1)!
+    const segments = [rootName, ...relative(root.scopeRoot, scope.scopeRoot).split("/").filter(Boolean)]
+    if (segments.some(segment => segment === "..")) throw new Error(`Package escapes its structural root: ${id}`)
+    const urlPath = scope.kind === "unavailable" ? `/unavailable/${encodeURIComponent(scope.id)}/` : formatRouteAddress({node: segments.join("/")})
+    if (addresses.has(urlPath)) throw new Error(`Ambiguous Storybook package URL: ${urlPath}`)
+    addresses.add(urlPath)
+    const parentScope = parentId === null ? undefined : owners.get(parentId)
+    const containingDirectory = parentScope === undefined ? undefined : byId.get(directoryNodeId(parentScope.canonicalId,
+      relative(parentScope.scopeRoot, dirname(scope.scopeRoot)).split("\\").join("/")))
+    if (containingDirectory !== undefined) {
+      parentId = containingDirectory.id
+      ancestors = containingDirectory.structuralPath
     }
-    const declaration = declarationsById.get(canonicalId)
-    if (declaration === undefined) throw new Error(`Unknown resolved external Storybook declaration: ${canonicalId}`)
-    if (declaration.kind !== "package" && declaration.kind !== "unavailable") {
-      throw new Error(`Normalized Storybook owners must be packages: ${canonicalId}`)
-    }
-    if (declaration.kind === "package") {
-      const root = declarationsById.get(ancestors[0] ?? canonicalId)!
-      const rootName = (root.kind === "package" ? root.packageName : root.id).split("/").at(-1)!
-      const nested = relative(root.scopeRoot, declaration.scopeRoot).split("/").filter(Boolean)
-      const path = formatRouteAddress({node: [rootName, ...nested].join("/")})
-      packageAddresses.set(declaration.id, path)
-      const previous = packagePaths.get(path)
-      if (previous !== undefined && previous !== declaration.id) {
-        throw new Error(`Ambiguous Storybook package URL ${path}: ${previous} and ${declaration.id}`)
-      }
-      packagePaths.set(path, declaration.id)
-    }
-    visitedDeclarations.add(canonicalId)
-    const structuralPath = Object.freeze([...ancestors, canonicalId])
-    const childIds = [...(declaration.kind === "package"
-      ? [...(declaration.packageIds ?? []), ...(declaration.catalog?.categories.map((category) => categoryNodeId(declaration.id, category.id)) ?? [])] : []),
-      ...(declaration.directories ?? []).map(directory => directoryNodeId(canonicalId, directory.relativePath))]
-    appendNode({
-      id: canonicalId,
-      kind: declaration.kind,
-      ownerId: declaration.id,
-      packageId: declaration.kind === "package" ? declaration.id : null,
-      label: declaration.label,
-      structuralPath,
-      urlPath: declarationUrl(declaration),
-      routePath: declaration.kind === "package" ? "" : null,
-      parentId,
-      childIds: Object.freeze([...childIds]),
-      readmePath: declaration.readmePath,
-      ...(declaration.kind === "package" ? {
-        ...(declaration.scenarioSpec === undefined ? {} : {scenarioSpec: declaration.scenarioSpec}),
-        ...(declaration.contractDocumentation === undefined ? {} : {contractDocumentation: declaration.contractDocumentation}),
-        ...(declaration.dependencySpec === undefined ? {} : {dependencySpec: declaration.dependencySpec}),
+    const structuralPath = Object.freeze([...ancestors, id])
+    append({
+      id, kind: scope.kind, ownerId: scope.id, packageId: scope.kind === "package" ? scope.id : null,
+      label: scope.label, structuralPath, parentId, childIds: [], urlPath,
+      routePath: scope.kind === "package" ? "" : null,
+      readmePath: scope.readmePath,
+      ...(scope.kind === "package" ? {
+        ...(scope.scenarioSpec ? {scenarioSpec: scope.scenarioSpec} : {}),
+        ...(scope.contractDocumentation ? {contractDocumentation: scope.contractDocumentation} : {}),
+        ...(scope.dependencySpec ? {dependencySpec: scope.dependencySpec} : {}),
       } : {}),
-      resources: Object.freeze([]),
-      authorStyleSheets: declaration.kind === "package"
-        ? declaration.authorStyleSheets
-        : Object.freeze([]),
-      widgetContributions: declaration.kind === "package" ? declaration.widgetContributions : null,
-      presentation: null,
-      searchTerms: searchTerms(declaration.id, declaration.label),
-      source: Object.freeze({...declaration.source}),
-      presentationGroup: null,
-      subjectKind: null,
-      apiName: null,
-      packageJsonPath: declaration.kind === "package" ? declaration.packageJsonPath : null,
-      runtime: declaration.kind === "package" ? declaration.runtime : null,
-      module: null,
+      source: scope.source, searchTerms: searchTerms(scope.id, scope.label),
+      packageJsonPath: scope.kind === "package" ? scope.packageJsonPath : null,
     })
-
-    const appendDirectory = (directory: StorybookDirectory, parentId: string, ancestors: readonly string[]): void => {
-      if (directory.relativePath.split("/").at(-1) !== directory.name || directory.relativePath.split("/").some(part => !part || part === "." || part === "..")) throw new Error("Invalid structural directory path")
-      const id = directoryNodeId(canonicalId, directory.relativePath)
-      const structuralPath = Object.freeze([...ancestors, id])
-      // Encode each filesystem segment into an opaque route token, including names with ? or #.
-      const routePath = directory.relativePath.split("/").map(part => `dir-${encodeURIComponent(part)}`).join("/")
-      appendNode({
-        id, kind: "directory", ownerId: declaration.id,
-        packageId: declaration.kind === "package" ? declaration.id : null,
-        label: directory.name, structuralPath, parentId,
-        routePath: declaration.kind === "package" ? routePath : null,
-        urlPath: declaration.kind === "package"
-          ? packageRouteUrl(declaration.id, routePath, true)
-          : `${declarationUrl(declaration)}${directory.relativePath.split("/").map(segment => `dir-${encodeURIComponent(segment)}`).join("/")}`,
-        childIds: Object.freeze([]),
+    for (const directory of scope.directories ?? []) {
+      const relativeSegments = directory.relativePath.split("/")
+      if (relativeSegments.at(-1) !== directory.name || relativeSegments.some(part => !part || part === "." || part === "..")) throw new Error("Invalid structural directory path")
+      const directoryId = directoryNodeId(id, directory.relativePath)
+      const parent = directory.parentRelativePath === undefined ? id : directoryNodeId(id, directory.parentRelativePath)
+      const parentNode = byId.get(parent)
+      if (!parentNode) throw new Error(`Missing directory parent: ${parent}`)
+      append({
+        id: directoryId, kind: "directory", ownerId: scope.id, packageId: scope.kind === "package" ? scope.id : null,
+        label: directory.name, parentId: parent, structuralPath: [...parentNode.structuralPath, directoryId], childIds: [],
+        routePath: relativeSegments.map(part => `dir-${encodeURIComponent(part)}`).join("/"),
+        urlPath: formatRouteAddress({node: [...segments, ...relativeSegments].join("/")}),
         readmePath: directory.readmePath,
         ...(directory.moduleDocumentation ? {moduleDocumentation: directory.moduleDocumentation} : {}),
         ...(directory.dependencySpec ? {dependencySpec: directory.dependencySpec} : {}),
-          ...(directory.contractDocumentation ? {contractDocumentation: directory.contractDocumentation} : {}),
-          ...(directory.scenarioSpec ? {scenarioSpec: directory.scenarioSpec} : {}),
-        source: Object.freeze({path: directory.path, pointer: ""}),
-        searchTerms: searchTerms(directory.name, directory.relativePath),
-        resources: Object.freeze([]), authorStyleSheets: Object.freeze([]), widgetContributions: null,
-        presentation: null, presentationGroup: null, subjectKind: null, apiName: null,
-        packageJsonPath: null, runtime: null, module: null,
+        ...(directory.contractDocumentation ? {contractDocumentation: directory.contractDocumentation} : {}),
+        ...(directory.scenarioSpec ? {scenarioSpec: directory.scenarioSpec} : {}),
+        source: {path: directory.path, pointer: ""}, searchTerms: searchTerms(directory.name, directory.relativePath),
+        packageJsonPath: null,
       })
     }
-    for (const directory of declaration.directories ?? []) {
-      const parentId = directory.parentRelativePath === undefined ? canonicalId : directoryNodeId(canonicalId, directory.parentRelativePath)
-      const parent = nodes.find(node => node.id === parentId)
-      if (parent === undefined) throw new Error(`Missing structural directory parent: ${parentId}`)
-      appendDirectory(directory, parentId, parent.structuralPath)
-    }
-
-    if (declaration.kind === "unavailable") return
-
-    for (const packageId of declaration.packageIds ?? []) appendDeclaration(packageId, canonicalId, structuralPath)
-    appendPackageCatalog(declaration, structuralPath, appendNode)
+    if (scope.kind === "package") for (const child of scope.packageIds ?? []) visit(child, id, structuralPath, root)
   }
-
-  for (const rootId of declarations.rootIds) appendDeclaration(rootId, null, Object.freeze([]))
-  if (visitedDeclarations.size !== declarationsById.size) {
-    const unreachable = [...declarationsById.keys()].filter((id) => !visitedDeclarations.has(id))
-    throw new Error(`Resolved external Storybook declarations contain unreachable nodes: ${unreachable.join(", ")}`)
+  for (const id of catalog.rootIds) {
+    const root = owners.get(id)
+    if (!root) throw new Error(`Unknown Storybook root: ${id}`)
+    visit(id, null, [], root)
   }
-
-  const structuralNodes = bindStructuralSubjects(nodes, declarations.scopes).map(node => {
-    if (node.packageId === null) return node
-    const base = packageAddresses.get(node.packageId)!
-    const scope = declarationsById.get(`package:${node.packageId}`)!
-    const subjects = scope.kind === "package" ? scope.catalog?.categories.flatMap(category =>
-      category.subjects.map(subject => ({id: subjectNodeId(scope.id, category.id, subject.id), directory: subject.directory}))) ?? [] : []
-    const binding = subjects.find(subject => subject.id === node.id)?.directory
-    const directory = node.kind === "directory"
-      ? relative(scope.scopeRoot, node.source.path)
-      : node.kind === "subject" && binding !== undefined && subjects.filter(subject => subject.directory === binding).length === 1
-        ? binding : undefined
-    const suffix = directory ?? node.routePath ?? ""
-    const urlPath = suffix ? formatRouteAddress({node: `${base.slice(1).split("/").map(decodeURIComponent).join("/")}/${suffix}`}) : base
-    const {digest: previousDigest, ...input} = node
-    const value = {...input, urlPath}
-    return Object.freeze({...value, digest: digest(value)})
-  })
-  const graphWithoutDigest = Object.freeze({
-    schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
-    rootIds: Object.freeze([...declarations.rootIds]),
-    nodes: Object.freeze(structuralNodes),
-  })
-  const graph = Object.freeze({...graphWithoutDigest, digest: digest(graphWithoutDigest)})
-  validateDerivedRoutes(graph)
-  return graph
-}
-
-/**
-Supplement structural modules with authored scenarios without duplicating their rows.
-Several authored views of one module (for example Socket presets) remain its children.
-*/
-function bindStructuralSubjects(
-  initial: readonly ExternalStorybookGraphNode[],
-  scopes: readonly StorybookCatalogScope[],
-): readonly ExternalStorybookGraphNode[] {
-  const nodes = new Map(initial.map(node => [node.id, node]))
-  const order = new Map(initial.map((node, index) => [node.id, index]))
-  const removed = new Set<string>()
-  for (const scope of scopes) {
-    if (scope.kind !== "package" || scope.catalog === null) continue
-    const bindings = new Map<string, string[]>()
-    for (const category of scope.catalog.categories) {
-      for (const subject of category.subjects) {
-        if (subject.directory === undefined) continue
-        const directory = scope.directories?.find(item => item.relativePath === subject.directory)
-        if (directory?.structuralRole !== "module") {
-          throw new Error(`Storybook subject directory must be an existing discovered module: ${scope.id}/${subject.directory}`)
-        }
-        const directoryId = directoryNodeId(scope.canonicalId, directory.relativePath)
-        const ids = bindings.get(directoryId) ?? []
-        ids.push(subjectNodeId(scope.id, category.id, subject.id))
-        bindings.set(directoryId, ids)
-      }
-    }
-    for (const [directoryId, subjects] of bindings) {
-      const directory = nodes.get(directoryId)!
-      if (subjects.length === 1) {
-        removed.add(directoryId)
-        order.set(subjects[0]!, order.get(directoryId)!)
-      }
-      for (const id of subjects) {
-        const subject = nodes.get(id)!
-        nodes.set(id, Object.freeze({
-          ...subject,
-          parentId: subjects.length === 1 ? directory.parentId : directoryId,
-          ...(directory.dependencySpec ? {dependencySpec: directory.dependencySpec} : {}),
-          ...(directory.contractDocumentation ? {contractDocumentation: directory.contractDocumentation} : {}),
-          ...(directory.scenarioSpec ? {scenarioSpec: directory.scenarioSpec} : {}),
-          ...(subjects.length === 1 ? {
-            label: directory.label,
-            readmePath: null,
-            ...(directory.moduleDocumentation ? {moduleDocumentation: directory.moduleDocumentation} : {}),
-            source: directory.source,
-          } : {}),
-        }))
-      }
-    }
-    for (const category of scope.catalog.categories) {
-      if (category.subjects.every(subject => subject.directory !== undefined)) {
-        removed.add(categoryNodeId(scope.id, category.id))
-      }
-    }
-  }
-  const retained = [...nodes.values()].filter(node => !removed.has(node.id)).sort((left, right) => order.get(left.id)! - order.get(right.id)!)
-  const byId = new Map(retained.map(node => [node.id, node]))
+  if (visited.size !== owners.size) throw new Error("Unreachable structural packages")
   const children = new Map<string, string[]>()
-  for (const node of retained) if (node.parentId !== null) {
+  for (const node of nodes) if (node.parentId !== null) {
     const ids = children.get(node.parentId) ?? []
     ids.push(node.id)
     children.set(node.parentId, ids)
   }
-  const pathFor = (node: ExternalStorybookGraphNode, visiting = new Set<string>()): readonly string[] => {
-    if (visiting.has(node.id)) throw new Error(`Structural navigation cycle: ${node.id}`)
-    visiting.add(node.id)
-    if (node.parentId === null) return [node.id]
-    const parent = byId.get(node.parentId)
-    if (parent === undefined) throw new Error(`Missing structural parent: ${node.parentId}`)
-    return [...pathFor(parent, visiting), node.id]
-  }
-  return Object.freeze(retained.map(node => {
-    const {digest: previousDigest, ...input} = node
-    const value = {...input,
-      ...(input.dependencySpec && input.routePath !== null ? {dependencyRoutePath: `${input.routePath ? `${input.routePath}/` : ""}dependencies`} : {}),
-      ...(input.contractDocumentation && input.routePath !== null ? {contractRoutePath: `${input.routePath ? `${input.routePath}/` : ""}contract`} : {}),
-      ...(input.scenarioSpec?.sourcePaths.length && input.routePath !== null ? {scenariosRoutePath: `${input.routePath ? `${input.routePath}/` : ""}scenarios`} : {}),
-      structuralPath: Object.freeze(pathFor(node)),
-      childIds: Object.freeze(children.get(node.id) ?? [])}
-    return Object.freeze({...value, digest: digest(value)})
-  }))
+  const complete = nodes.map(node => {
+    const {digest: _digest, ...value} = node
+    const updated = {...value, childIds: Object.freeze(children.get(node.id) ?? [])}
+    return Object.freeze({...updated, digest: digest(updated)})
+  })
+  const value = Object.freeze({schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION, rootIds: Object.freeze([...catalog.rootIds]), nodes: Object.freeze(complete)})
+  const graph = Object.freeze({...value, digest: digest(value)})
+  validateDerivedRoutes(graph)
+  return graph
 }
 
-/** Derives canonical package-tab routes without creating another registry. */
+function directoryNodeId(scopeId: string, path: string): string {
+  return `directory:${scopeId}/${path}`
+}
+
 export function externalStorybookRoutes(
   graph: ExternalStorybookGraph,
 ): readonly ExternalStorybookRoute[] {
@@ -356,7 +171,7 @@ export function externalStorybookRoutes(
       packageId: node.packageId,
       path: node.routePath,
       urlPath: node.urlPath,
-      kind: node.kind === "variant" ? "variant" : "overview",
+      kind: "overview",
       nodeId: node.id,
     }), ...(node.dependencyRoutePath === undefined ? [] : [Object.freeze({
       packageId: node.packageId,
@@ -407,8 +222,7 @@ export function externalStorybookNode(
 }
 
 /**
- * Searches normalized labels, ids, API names, tags, aliases, routes and
- * presentation-group metadata while preserving semantic graph order.
+ * Searches normalized package and directory names while preserving graph order.
  */
 export function searchExternalStorybookGraph(
   graph: ExternalStorybookGraph,
@@ -420,179 +234,6 @@ export function searchExternalStorybookGraph(
     const haystack = node.searchTerms.join(" ")
     return tokens.every((token) => haystack.includes(token))
   }))
-}
-
-function appendPackageCatalog(
-  declaration: StorybookPackage,
-  packagePath: readonly string[],
-  appendNode: (input: NodeInput) => ExternalStorybookGraphNode,
-): void {
-  const catalog = declaration.catalog
-  if (catalog === null) return
-  for (const category of catalog.categories) {
-    const categoryId = categoryNodeId(declaration.id, category.id)
-    const categoryPath = Object.freeze([...packagePath, categoryId])
-    appendNode({
-      id: categoryId,
-      kind: "category",
-      ownerId: declaration.id,
-      packageId: declaration.id,
-      label: category.label,
-      structuralPath: categoryPath,
-      urlPath: packageRouteUrl(declaration.id, category.route, true),
-      routePath: category.route,
-      parentId: declaration.canonicalId,
-      childIds: Object.freeze(category.subjects.map((subject) =>
-        subjectNodeId(declaration.id, category.id, subject.id))),
-      readmePath: null,
-      resources: Object.freeze([]),
-      authorStyleSheets: Object.freeze([]),
-      widgetContributions: null,
-      presentation: null,
-      searchTerms: searchTerms(
-        category.id,
-        category.label,
-        category.route,
-        category.kind,
-        category.apiName,
-        category.group?.id,
-        category.group?.label,
-      ),
-      source: Object.freeze({...category.source}),
-      presentationGroup: category.group,
-      subjectKind: category.kind,
-      apiName: category.apiName,
-      packageJsonPath: null,
-      runtime: null,
-      module: null,
-    })
-    for (const subject of category.subjects) {
-      appendSubject(declaration, category, subject, categoryPath, appendNode)
-    }
-  }
-}
-
-function appendSubject(
-  declaration: StorybookPackage,
-  category: StorybookCategory,
-  subject: StorybookSubject,
-  categoryPath: readonly string[],
-  appendNode: (input: NodeInput) => ExternalStorybookGraphNode,
-): void {
-  const id = subjectNodeId(declaration.id, category.id, subject.id)
-  const structuralPath = Object.freeze([...categoryPath, id])
-  const route = subject.route
-  appendNode({
-    id,
-    kind: "subject",
-    ownerId: declaration.id,
-    packageId: declaration.id,
-    label: subject.label,
-    structuralPath,
-    urlPath: packageRouteUrl(declaration.id, route, true),
-    routePath: route,
-    parentId: categoryNodeId(declaration.id, category.id),
-    childIds: Object.freeze(subject.variants.map((variant) =>
-      variantNodeId(declaration.id, category.id, subject.id, variant.id))),
-    readmePath: subject.readmePath,
-    resources: Object.freeze([]),
-    authorStyleSheets: Object.freeze([]),
-    widgetContributions: null,
-    presentation: subject.presentation,
-    searchTerms: searchTerms(
-      subject.id,
-      subject.kind,
-      subject.label,
-      subject.apiName,
-      ...subject.tags,
-      ...subject.aliases,
-    ),
-    source: Object.freeze({...subject.source}),
-    presentationGroup: null,
-    subjectKind: subject.kind,
-    apiName: subject.apiName,
-    packageJsonPath: null,
-    runtime: null,
-    module: null,
-  })
-  for (const variant of subject.variants) {
-    appendVariant(declaration, category, subject, variant, structuralPath, appendNode)
-  }
-}
-
-function appendVariant(
-  declaration: StorybookPackage,
-  category: StorybookCategory,
-  subject: StorybookSubject,
-  variant: StorybookVariant,
-  subjectPath: readonly string[],
-  appendNode: (input: NodeInput) => ExternalStorybookGraphNode,
-): void {
-  const id = variantNodeId(declaration.id, category.id, subject.id, variant.id)
-  appendNode({
-    id,
-    kind: "variant",
-    ownerId: declaration.id,
-    packageId: declaration.id,
-    label: variant.label,
-    structuralPath: Object.freeze([...subjectPath, id]),
-    urlPath: packageRouteUrl(declaration.id, variant.route, false),
-    routePath: variant.route,
-    parentId: subjectNodeId(declaration.id, category.id, subject.id),
-    childIds: Object.freeze([]),
-    readmePath: null,
-    resources: variant.resources,
-    authorStyleSheets: Object.freeze([]),
-    widgetContributions: null,
-    presentation: variant.presentation,
-    searchTerms: searchTerms(
-      variant.id,
-      variant.label,
-      variant.route,
-      variant.group?.id,
-      variant.group?.label,
-    ),
-    source: Object.freeze({...variant.source}),
-    presentationGroup: variant.group,
-    subjectKind: null,
-    apiName: null,
-    packageJsonPath: null,
-    runtime: null,
-    module: variant.module,
-  })
-}
-
-function categoryNodeId(packageId: string, categoryId: string): string {
-  return `category:${packageId}/${categoryId}`
-}
-
-function subjectNodeId(packageId: string, categoryId: string, subjectId: string): string {
-  return `subject:${packageId}/${categoryId}/${subjectId}`
-}
-
-function variantNodeId(
-  packageId: string,
-  categoryId: string,
-  subjectId: string,
-  variantId: string,
-): string {
-  return `variant:${packageId}/${categoryId}/${subjectId}/${variantId}`
-}
-
-function declarationUrl(declaration: StorybookCatalogScope): string {
-  const encoded = encodeURIComponent(declaration.id)
-  if (declaration.kind === "unavailable") return `/unavailable/${encoded}/`
-  if (declaration.kind === "workspace") return `/workspaces/${encoded}/`
-  if (declaration.kind === "project") return `/projects/${encoded}/`
-  return storybookPackageUrlPath(declaration.id)
-}
-
-function directoryNodeId(scopeId: string, path: string): string {
-  return `directory:${scopeId}/${path}`
-}
-
-function packageRouteUrl(packageId: string, route: string, _overview: boolean): string {
-  return storybookPackageUrlPath(packageId, route)
 }
 
 function validateDerivedRoutes(graph: ExternalStorybookGraph): void {

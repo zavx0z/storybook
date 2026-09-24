@@ -34,7 +34,6 @@ export type ExternalStorybookSessionManagerOptions = Readonly<{
   buildConcurrency?: number
   rebuildDelayMs?: number
   compileTimeoutMs?: number
-  protocolTimeoutMs?: number
   activationTimeoutMs?: number
   retainedRevisionLimit?: number
 }>
@@ -52,7 +51,6 @@ export class ExternalStorybookSessionManager {
   readonly #ownsBuildScheduler: boolean
   readonly #rebuildDelayMs: number | undefined
   readonly #compileTimeoutMs: number | undefined
-  readonly #protocolTimeoutMs: number | undefined
   readonly #activationTimeoutMs: number | undefined
   readonly #retainedRevisionLimit: number | undefined
   readonly #sessions = new Map<string, StorybookPackageSession>()
@@ -67,7 +65,6 @@ export class ExternalStorybookSessionManager {
     this.#publish = options.publish ?? (() => {})
     this.#rebuildDelayMs = options.rebuildDelayMs
     this.#compileTimeoutMs = options.compileTimeoutMs
-    this.#protocolTimeoutMs = options.protocolTimeoutMs
     this.#activationTimeoutMs = options.activationTimeoutMs
     this.#retainedRevisionLimit = options.retainedRevisionLimit
     if (options.buildScheduler !== undefined && options.buildSemaphore !== undefined) {
@@ -117,7 +114,6 @@ export class ExternalStorybookSessionManager {
           buildScheduler: this.#buildScheduler,
           ...(this.#rebuildDelayMs === undefined ? {} : {rebuildDelayMs: this.#rebuildDelayMs}),
           ...(this.#compileTimeoutMs === undefined ? {} : {compileTimeoutMs: this.#compileTimeoutMs}),
-          ...(this.#protocolTimeoutMs === undefined ? {} : {protocolTimeoutMs: this.#protocolTimeoutMs}),
           ...(this.#activationTimeoutMs === undefined ? {} : {activationTimeoutMs: this.#activationTimeoutMs}),
           ...(this.#retainedRevisionLimit === undefined ? {} : {retainedRevisionLimit: this.#retainedRevisionLimit}),
           publish: (event) => this.#onSessionEvent(event),
@@ -225,8 +221,6 @@ export class ExternalStorybookSessionManager {
   #replaceWatch(session: StorybookPackageSession): void {
     const descriptor = session.descriptor
     const paths = [
-      ...(descriptor.runtime === null ? [] : [{path: descriptor.runtime.path, category: "code" as const}]),
-      ...descriptor.variants.map(({module}) => ({path: module.path, category: "code" as const})),
       ...(descriptor.watchPaths ?? (descriptor.watchedPaths ?? []).map((path) => ({path, category: "code" as const}))),
       ...session.snapshot().dependencyRealpaths.map((path) => ({path, category: "code" as const})),
       ...storybookSessionAdditionalInputWatchPaths(

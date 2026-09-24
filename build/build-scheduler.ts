@@ -576,8 +576,6 @@ function normalizePhase(phase: StorybookBuildPhase): StorybookBuildPhase {
     "bundle",
     "kernel",
     "host",
-    "protocol-build",
-    "protocol-run",
     "publish",
   ].includes(phase)) {
     throw new Error(`Invalid Storybook build phase: ${String(phase)}`)

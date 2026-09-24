@@ -67,40 +67,6 @@ describe("Текущая публичная структура", () => {
     })
   })
 
-  test("Открывает exact authored story корневой документации", async () => {
-    expect(await resolveRoute({route: "storybook/stories/contract/overview", roots})).toMatchObject({
-      package: {id: "@zavx0z/storybook", path: storybookPath},
-      directory: resolve(storybookPath, ".storybook/stories"),
-      relativePath: "stories/contract/overview",
-      view: "story",
-    })
-  })
-
-  test("Открывает authored overview категории корневой документации", async () => {
-    expect(await resolveRoute({route: "storybook/stories", roots})).toMatchObject({
-      directory: storybookPath,
-      relativePath: "stories",
-      view: "story",
-    })
-  })
-
-  test("Открывает authored overview предмета корневой документации", async () => {
-    expect(await resolveRoute({route: "storybook/stories/contract", roots})).toMatchObject({
-      directory: storybookPath,
-      relativePath: "stories/contract",
-      view: "story",
-    })
-  })
-
-  test("Открывает прежний ParameterNode variant", async () => {
-    expect(await resolveRoute({route: "webxr/nodes/node/components/node/basic", roots})).toMatchObject({
-      package: {id: "@nodes/node", path: resolve(webxrPath, "nodes/node")},
-      directory: resolve(webxrPath, "nodes/node/.storybook/stories"),
-      relativePath: "components/node/basic",
-      view: "story",
-    })
-  })
-
   test("Строит browser-safe адрес", () => {
     expect(formatRouteAddress({node: "storybook/сущность", view: "scenarios", variant: "Круг"})).toBe(
       "/storybook/%D1%81%D1%83%D1%89%D0%BD%D0%BE%D1%81%D1%82%D1%8C?view=scenarios&variant=%D0%9A%D1%80%D1%83%D0%B3",
@@ -203,10 +169,8 @@ describe.each([
   {name: "дважды кодированный slash", route: "webxr/nodes/node/diagram%252Fcontract"},
   {name: "приватная spec", route: "webxr/nodes/node/diagram/spec"},
   {name: "незарегистрированный корень", route: "unknown/nodes"},
-  {name: "необъявленная authored story", route: "storybook/stories/contract/missing"},
   {name: "прежний suffix сценариев", route: "webxr/nodes/node/diagram/scenarios"},
   {name: "недоступный view", route: "storybook/archetypes/specs?view=dependencies"},
-  {name: "view authored story", route: "storybook/stories/contract/overview?view=scenarios"},
 ])("Недоступен $name", ({route}) => {
   test("Возвращает null", async () => {
     expect(await resolveRoute({route, roots})).toBeNull()

@@ -955,9 +955,7 @@ function canonicalRoots(values: readonly string[]): readonly string[] {
 
 function resolveManifestPath(root: string): string {
   const direct = resolve(root)
-  if (direct.endsWith("/.storybook/manifest.json") || direct.endsWith("/package.json")) return realpathSync(direct)
-  const manifest = join(direct, ".storybook", "manifest.json")
-  return realpathSync(existsSync(manifest) ? manifest : join(direct, "package.json"))
+  return realpathSync(direct.endsWith("/package.json") ? direct : join(direct, "package.json"))
 }
 
 function canonicalScope(value: string): string {

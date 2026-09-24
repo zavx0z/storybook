@@ -1,7 +1,6 @@
 import {existsSync} from "node:fs"
 import {isAbsolute, resolve} from "node:path"
 import {createExternalStorybookController} from "./controller.ts"
-import {initExternalStorybookDeclaration} from "../discovery/init.ts"
 
 export type ExternalStorybookCliIo = Readonly<{
   stdout(value: string): void
@@ -16,31 +15,12 @@ export type ExternalStorybookCliCommand =
   | Readonly<{action: "status"}>
   | Readonly<{action: "check", scope: string | null}>
   | Readonly<{action: "stop"}>
-  | Readonly<{
-    action: "init"
-    root: string
-    kind: "workspace" | "project" | "package"
-    executable: boolean
-    stories: boolean
-    declarations?: readonly string[]
-  }>
 
 export async function runExternalStorybookCli(
   args: readonly string[],
   io: ExternalStorybookCliIo = consoleIo,
 ): Promise<number> {
   const command = parseExternalStorybookCli(args)
-  if (command.action === "init") {
-    const result = await initExternalStorybookDeclaration({
-      root: inputPath(command.root),
-      kind: command.kind,
-      executable: command.executable,
-      stories: command.stories,
-      ...(command.declarations === undefined ? {} : {declarations: command.declarations}),
-    })
-    io.stdout(json({action: "init", ...result}))
-    return 0
-  }
   const controller = createExternalStorybookController()
   const context = Object.freeze({signal: AbortSignal.timeout(120_000)})
   let result: Readonly<Record<string, unknown>>
@@ -88,56 +68,19 @@ export function parseExternalStorybookCli(args: readonly string[]): ExternalStor
   if (action === "status" && rest.length === 0) return Object.freeze({action})
   if (action === "check" && rest.length <= 1) return Object.freeze({action, scope: rest[0] ?? null})
   if (action === "stop" && rest.length === 0) return Object.freeze({action})
-  if (action === "init") return parseInit(rest)
   usage()
-}
-
-function parseInit(args: readonly string[]): ExternalStorybookCliCommand {
-  const root = args[0]
-  if (root === undefined) usage()
-  let kind: "workspace" | "project" | "package" | null = null
-  let executable = false
-  let stories = false
-  const declarations: string[] = []
-  for (let index = 1; index < args.length; index += 1) {
-    const argument = args[index]
-    if (argument === "--executable") {
-      executable = true
-      continue
-    }
-    if (argument === "--stories") {
-      stories = true
-      continue
-    }
-    if (argument === "--declaration") {
-      const path = args[++index]
-      if (path === undefined || path.startsWith("--")) usage()
-      declarations.push(path)
-      continue
-    }
-    if (argument !== "--kind" || kind !== null) usage()
-    const value = args[index + 1]
-    if (value !== "workspace" && value !== "project" && value !== "package") usage()
-    kind = value
-    index += 1
-  }
-  if (kind === null) usage()
-  if ((executable || stories) && kind !== "package") usage()
-  return Object.freeze({action: "init", root, kind, executable, stories,
-    ...(declarations.length === 0 ? {} : {declarations: Object.freeze(declarations)})})
 }
 
 function usage(): never {
   throw new Error([
     "Usage:",
-    "  storybook serve [declaration-or-root...]",
-    "  storybook attach <declaration-or-root>",
+    "  storybook serve [project-root...]",
+    "  storybook attach <project-root>",
     "  storybook detach <scope-id>",
     "  storybook open <package-id> [route]",
     "  storybook status",
     "  storybook check [scope-id-or-path]",
     "  storybook stop",
-    "  storybook init <root> --kind <package|project|workspace> [--executable] [--stories] [--declaration <manifest>...]",
   ].join("\n"))
 }
 

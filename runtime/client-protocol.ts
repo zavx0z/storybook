@@ -6,14 +6,6 @@ import {
   type ExternalStorybookGraphNodeKind,
 } from "../catalog/graph.ts"
 import type {
-  StorybookPresentationGroup,
-  StorybookResourceKind,
-  StorybookStoryProjection,
-} from "../catalog/catalog.t.ts"
-import {
-  STORYBOOK_STORY_PRESENTATION_PROTOCOL,
-} from "../catalog/protocol.ts"
-import type {
   StorybookPackageBuildState,
   StorybookPackageDiagnostic,
   StorybookPackageSessionSnapshot,
@@ -27,21 +19,6 @@ export const EXTERNAL_STORYBOOK_CLIENT_PROTOCOL = "external-storybook-client/1" 
 Префикс адресов ресурсов узлов канонического графа.
 */
 export const EXTERNAL_STORYBOOK_RESOURCE_PREFIX = "/__storybook/resources/nodes/" as const
-
-/**
-Правила представления истории, передаваемые браузеру.
-
-@property protocol - Маркер протокола представления истории.
-
-@property projection - Проекция размещения содержимого.
-
-@property widgets - Идентификаторы секций инспектора в порядке показа.
-*/
-export type ExternalStorybookClientStoryPresentation = Readonly<{
-  protocol: typeof STORYBOOK_STORY_PRESENTATION_PROTOCOL
-  projection: StorybookStoryProjection
-  widgets: readonly string[]
-}>
 
 /**
 Сериализованное представление узла канонического графа для браузера.
@@ -68,12 +45,6 @@ export type ExternalStorybookClientStoryPresentation = Readonly<{
 
 @property searchTerms - Слова и имена для поиска узла.
 
-@property group - Группа представления либо `null`.
-
-@property subjectKind - Предметный вид сущности либо `null`.
-
-@property apiName - Имя в программном интерфейсе либо `null`.
-
 @property hasReadme - Наличие README у узла.
 
 @property [hasModuleDocumentation] - Наличие документации входного модуля.
@@ -88,11 +59,8 @@ export type ExternalStorybookClientStoryPresentation = Readonly<{
 
 @property [contractDocuments] - Разобранные документы входа и выхода.
 
-@property resourceKinds - Представленные виды ресурсов без повторений.
-
 @property resourceUrl - Адрес чтения ресурса узла.
 
-@property presentation - Проекция и секции инспектора либо `null`, если представление не задано.
 */
 export type ExternalStorybookClientNode = Readonly<{
   id: string
@@ -106,9 +74,6 @@ export type ExternalStorybookClientNode = Readonly<{
   urlPath: string
   routePath: string | null
   searchTerms: readonly string[]
-  group: StorybookPresentationGroup | null
-  subjectKind: string | null
-  apiName: string | null
   hasReadme: boolean
   hasModuleDocumentation?: boolean
   dependencyCases?: readonly import("../catalog/catalog.t.ts").StorybookDependencyCase[]
@@ -116,9 +81,7 @@ export type ExternalStorybookClientNode = Readonly<{
   contractRoutePath?: string
   scenariosRoutePath?: string
   contractDocuments?: readonly import("../catalog/catalog.t.ts").StorybookContractDocument[]
-  resourceKinds: readonly StorybookResourceKind[]
   resourceUrl: string
-  presentation: ExternalStorybookClientStoryPresentation | null
 }>
 
 /**
@@ -260,11 +223,6 @@ export function createExternalStorybookClientSnapshot(
     urlPath: node.urlPath,
     routePath: node.routePath,
     searchTerms: Object.freeze([...node.searchTerms]),
-    group: node.presentationGroup === null
-      ? null
-      : Object.freeze({...node.presentationGroup}),
-    subjectKind: node.subjectKind,
-    apiName: node.apiName,
     hasReadme: node.readmePath !== null,
     ...(node.moduleDocumentation ? {hasModuleDocumentation: true} : {}),
     ...(node.dependencySpec ? {dependencyCases: node.dependencySpec.cases} : {}),
@@ -272,15 +230,7 @@ export function createExternalStorybookClientSnapshot(
     ...(node.contractDocumentation ? {contractDocuments: node.contractDocumentation.documents} : {}),
     ...(node.contractRoutePath === undefined ? {} : {contractRoutePath: node.contractRoutePath}),
     ...(node.scenariosRoutePath === undefined ? {} : {scenariosRoutePath: node.scenariosRoutePath}),
-    resourceKinds: Object.freeze([...new Set(node.resources.map(({kind}) => kind))]),
     resourceUrl: externalStorybookNodeResourceUrl(graph, node.id),
-    presentation: node.presentation === null
-      ? null
-      : Object.freeze({
-        protocol: node.presentation.protocol,
-        projection: node.presentation.projection,
-        widgets: Object.freeze([...node.presentation.widgets]),
-      }),
   }))
   return Object.freeze({
     protocol: EXTERNAL_STORYBOOK_CLIENT_PROTOCOL,
@@ -407,10 +357,6 @@ function collectHiddenPaths(
     if (node.moduleDocumentation) paths.add(node.moduleDocumentation.sourcePath)
     for (const source of node.contractDocumentation?.sources ?? []) paths.add(source.sourcePath)
     if (node.packageJsonPath !== null) paths.add(node.packageJsonPath)
-    if (node.runtime !== null) paths.add(node.runtime.path)
-    if (node.module !== null) paths.add(node.module.path)
-    for (const styleSheet of node.authorStyleSheets) paths.add(styleSheet.path)
-    for (const resource of node.resources) paths.add(resource.path)
   }
   for (const snapshot of snapshots) {
     if (Array.isArray(snapshot.dependencyRealpaths)) {

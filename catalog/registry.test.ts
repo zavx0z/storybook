@@ -1,4 +1,4 @@
-import {resolveExternalStorybookDeclarations} from "../discovery/declarations.ts"
+import {discoverStorybookPackages} from "../discovery/packages.ts"
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
 import {ExternalStorybookRegistry} from "./registry.ts"
@@ -8,8 +8,8 @@ const fixtureRoot = join(import.meta.dir, "../discovery/fixtures/valid")
 const storybookRoot = join(import.meta.dir, "..")
 
 describe("external Storybook attached-root registry", () => {
-  test("atomically attaches workspace and independent package without a fake workspace", async () => {
-    const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
+  test("atomically attaches nested workspaces and an independent package", async () => {
+    const registry = new ExternalStorybookRegistry(discoverStorybookPackages)
     await registry.attach(fixtureRoot)
     const snapshot = await registry.attach(join(fixtureRoot, "standalone"))
     expect(snapshot.entries.map(({canonicalId}) => canonicalId)).toEqual([
@@ -22,7 +22,7 @@ describe("external Storybook attached-root registry", () => {
   })
 
   test("keeps the current graph untouched when a new root fails validation", async () => {
-    const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
+    const registry = new ExternalStorybookRegistry(discoverStorybookPackages)
     const before = await registry.attach(fixtureRoot)
     await expect(registry.attach(join(fixtureRoot, "missing"))).rejects.toThrow()
     const after = registry.snapshot()
@@ -31,109 +31,47 @@ describe("external Storybook attached-root registry", () => {
     expect(after.entries).toBe(before.entries)
   })
 
-  test("detaches only the selected subtree and leaves the server registry usable", async () => {
-    const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
+  test("detaches only the selected subtree", async () => {
+    const registry = new ExternalStorybookRegistry(discoverStorybookPackages)
     await registry.attachMany([fixtureRoot, join(fixtureRoot, "standalone")])
     const detached = await registry.detach("fixture-workspace")
-    expect(detached.entries.map(({canonicalId}) => canonicalId)).toEqual([
-      "package:@fixture/standalone",
-    ])
+    expect(detached.entries.map(({canonicalId}) => canonicalId)).toEqual(["package:@fixture/standalone"])
     expect(detached.graph.nodes.some(({id}) => id === "package:@fixture/components")).toBeFalse()
     expect(detached.graph.nodes.some(({id}) => id === "package:@fixture/standalone")).toBeTrue()
   })
 
-  test("derives independent package build descriptors from graph owners", async () => {
-    const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
+  test("derives independent build descriptors from structural owners", async () => {
+    const registry = new ExternalStorybookRegistry(discoverStorybookPackages)
     await registry.attach(fixtureRoot)
-    const descriptors = registry.packageDescriptors()
-    const components = descriptors.find(({packageId}) => packageId === "@fixture/components")!
-    expect(components.projectRoot).toBe(fixtureRoot)
-    expect(components.packageRoot).toEndWith("/projects/alpha/packages/components")
-    expect(components.runtime?.export).toBe("runtime")
-    expect(components.variants.map(({route}) => route)).toEqual([
-      "components/button/basic/contained",
-      "components/button/outlined",
+    const descriptor = registry.packageDescriptors().find(({packageId}) => packageId === "@fixture/components")!
+    expect(descriptor.projectRoot).toBe(fixtureRoot)
+    expect(descriptor.packageRoot).toEndWith("/projects/alpha/packages/components")
+    expect(descriptor.sourcePath).toEndWith("/projects/alpha/packages/components/package.json")
+    expect(descriptor.declarationDigest).toMatch(/^[a-f0-9]{64}$/u)
+    expect(descriptor.graphSnapshot.nodes.map(node => node.id)).toEqual([
+      "package:@fixture/components",
+      "directory:package:@fixture/components/docs",
     ])
-    expect(components.declarationDigest).toMatch(/^[a-f0-9]{64}$/u)
-    expect(components.watchPaths).toContainEqual({
-      path: join(fixtureRoot, "projects/alpha/packages/components/docs/architecture.svg"),
-      category: "resource",
-    })
-    expect(components.watchPaths).toContainEqual({
-      path: join(fixtureRoot, "projects/alpha/packages/components/tokens.css"),
-      category: "resource",
-    })
-    expect(components.watchPaths).toContainEqual({
-      path: join(fixtureRoot, "projects/alpha/packages/components/theme.css"),
-      category: "resource",
-    })
-    expect(components.watchPaths).toContainEqual({
-      path: join(fixtureRoot, "projects/alpha/packages/components/.storybook/runtime.ts"),
-      category: "code",
-    })
-    expect(components.watchPaths).toContainEqual({
-      path: join(fixtureRoot, "projects/alpha/packages/components/.storybook/stories/button.ts"),
-      category: "code",
-    })
-    expect(components.watchPaths).toContainEqual({
-      path: join(fixtureRoot, "projects/alpha/packages/components/.storybook/widgets/fixture-controls.tsx"),
-      category: "code",
-    })
-    expect(components.widgetModules).toEqual([{
-      id: "fixture-controls",
-      module: {
-        path: join(fixtureRoot, "projects/alpha/packages/components/.storybook/widgets/fixture-controls.tsx"),
-        export: "FixtureControlsWidget",
-      },
-    }])
-    expect(components.graphSnapshot.widgetLoaders).toEqual([{
-      id: "fixture-controls",
-      exportName: "FixtureControlsWidget",
-    }])
-    expect(components.resourceFiles?.filter(({targetPath}) => targetPath.startsWith("author-style-sheets/")))
-      .toEqual([
-        {
-          sourcePath: join(fixtureRoot, "projects/alpha/packages/components/tokens.css"),
-          sourceRoot: join(fixtureRoot, "projects/alpha/packages/components"),
-          targetPath: "author-style-sheets/0.css",
-          contentDigest: components.graphSnapshot.authorStyleSheets[0]!.contentDigest,
-        },
-        {
-          sourcePath: join(fixtureRoot, "projects/alpha/packages/components/theme.css"),
-          sourceRoot: join(fixtureRoot, "projects/alpha/packages/components"),
-          targetPath: "author-style-sheets/1.css",
-          contentDigest: components.graphSnapshot.authorStyleSheets[1]!.contentDigest,
-        },
-      ])
-    expect(components.resourceFiles?.find(({sourcePath}) => sourcePath.endsWith("/docs/architecture.svg"))?.targetPath)
-      .toEndWith("/docs/architecture.svg")
+    expect(descriptor.graphSnapshot.routes.map(route => route.path)).toEqual(["", "dir-docs"])
+    expect(descriptor.watchPaths).toContainEqual({path: descriptor.sourcePath, category: "metadata"})
+    expect(descriptor.watchPaths).toContainEqual({path: join(descriptor.packageRoot, "README.md"), category: "metadata"})
     const structural = externalStorybookStructuralWatchPaths(registry.snapshot())
-    // README корневых пакетов наблюдаются как собственные метаданные.
-    expect(structural).toContain(join(fixtureRoot, "README.md"))
-    expect(structural).toContain(join(fixtureRoot, "projects/alpha/README.md"))
-    expect(structural).toContain(join(fixtureRoot, "projects/alpha/packages/components/tokens.css"))
-    expect(structural).toContain(join(fixtureRoot, "projects/alpha/packages/components/theme.css"))
+    expect(structural).toContain(join(fixtureRoot, "package.json"))
+    expect(structural).toContain(join(fixtureRoot, "projects/alpha/package.json"))
+    expect(structural).toContain(descriptor.sourcePath)
   })
 
-  test("copies and watches Workbench author sheets separately for every package revision", async () => {
-    const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
+  test("copies and watches one Workbench theme for each package revision", async () => {
+    const registry = new ExternalStorybookRegistry(discoverStorybookPackages)
     await registry.attachMany([storybookRoot, fixtureRoot])
-    const components = registry.packageDescriptors()
-      .find(({packageId}) => packageId === "@fixture/components")!
-    expect(components.graphSnapshot.workbenchAuthorStyleSheets.map(({specifier, url}) => ({specifier, url})))
-      .toEqual([{
-        specifier: "@zavx0z/ui/themes/theme.css",
-        url: "workbench-author-style-sheets/0.css",
-      }])
-    const workbenchResource = components.resourceFiles?.find(({targetPath}) =>
-      targetPath === "workbench-author-style-sheets/0.css")
-    expect(workbenchResource).toMatchObject({
-      contentDigest: components.graphSnapshot.workbenchAuthorStyleSheets[0]!.contentDigest,
-    })
-    expect(workbenchResource?.sourcePath).toEndWith("/ui/themes/theme.css")
-    expect(components.watchPaths).toContainEqual({
-      path: workbenchResource!.sourcePath,
-      category: "resource",
-    })
+    const descriptor = registry.packageDescriptors().find(({packageId}) => packageId === "@fixture/components")!
+    expect(descriptor.graphSnapshot.workbenchAuthorStyleSheets.map(({specifier, url}) => ({specifier, url}))).toEqual([{
+      specifier: "@zavx0z/ui/themes/theme.css",
+      url: "workbench-author-style-sheets/0.css",
+    }])
+    const resource = descriptor.resourceFiles?.find(({targetPath}) => targetPath === "workbench-author-style-sheets/0.css")
+    expect(resource?.contentDigest).toBe(descriptor.graphSnapshot.workbenchAuthorStyleSheets[0]!.contentDigest)
+    expect(resource?.sourcePath).toEndWith("/ui/themes/theme.css")
+    expect(descriptor.watchPaths).toContainEqual({path: resource!.sourcePath, category: "resource"})
   }, 20_000)
 })

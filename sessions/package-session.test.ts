@@ -1,6 +1,6 @@
 import {afterEach, describe, expect, test} from "bun:test"
 import {createHash} from "node:crypto"
-import {mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync} from "node:fs"
+import {existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {STORYBOOK_PACKAGE_GRAPH_PROTOCOL, type StorybookPackageRevisionGraphSnapshot} from "./package-revision.ts"
@@ -67,7 +67,7 @@ describe("working Storybook PackageSession lifecycle", () => {
       dependencyRealpaths: [dependency],
     }), [])
     const first = await session.ensureBuilt()
-    const activation = session.beginActivation({revision: first.builtRevision!, viewId: "view-a", route: "category/subject/default"})
+    const activation = session.beginActivation({revision: first.builtRevision!, viewId: "view-a", route: "dir-module"})
     session.acknowledgeActivation({...activation, frameSequence: 1})
     dependency = nextPath
     session.reconfigure(descriptor(root, "@fixture/a", "two"))
@@ -91,7 +91,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     const activation = session.beginActivation({
       revision: built.builtRevision!,
       viewId: "view-a",
-      route: "category/subject/default",
+      route: "dir-module",
     })
     expect(() => session.acknowledgeActivation({
       ...activation,
@@ -120,14 +120,14 @@ describe("working Storybook PackageSession lifecycle", () => {
     const session = createSession(descriptor(root, "@fixture/a", "one"), successfulBuilder(), events)
     const first = await session.ensureBuilt()
     const firstActivation = session.beginActivation({
-      revision: first.builtRevision!, viewId: "view-a", route: "category/subject/default",
+      revision: first.builtRevision!, viewId: "view-a", route: "dir-module",
     })
     const working = session.acknowledgeActivation({...firstActivation, frameSequence: 1})
 
     session.reconfigure(descriptor(root, "@fixture/a", "two"))
     const second = await session.ensureBuilt()
     const secondActivation = session.beginActivation({
-      revision: second.builtRevision!, viewId: "view-a", route: "category/subject/default",
+      revision: second.builtRevision!, viewId: "view-a", route: "dir-module",
     })
     const failed = session.failActivation({
       revision: secondActivation.revision,
@@ -146,10 +146,10 @@ describe("working Storybook PackageSession lifecycle", () => {
     const session = createSession(descriptor(root, "@fixture/a"), successfulBuilder(), [])
     const built = await session.ensureBuilt()
     const first = session.beginActivation({
-      revision: built.builtRevision!, viewId: "view-first", route: "category/subject/default",
+      revision: built.builtRevision!, viewId: "view-first", route: "dir-module",
     })
     const second = session.beginActivation({
-      revision: built.builtRevision!, viewId: "view-second", route: "category/subject/default",
+      revision: built.builtRevision!, viewId: "view-second", route: "dir-module",
     })
     expect(second.activationId).not.toBe(first.activationId)
     expect(() => session.acknowledgeActivation({...first, frameSequence: 1})).toThrow("stale")
@@ -162,12 +162,12 @@ describe("working Storybook PackageSession lifecycle", () => {
     const root = fixtureRoot("compile-failure")
     let fail = false
     const session = createSession(descriptor(root, "@fixture/a"), async (input) => {
-      if (fail) throw storybookBuildError(storybookDiagnostic("compile", "Unexpected token", input.descriptor.runtime!.path))
+      if (fail) throw storybookBuildError(storybookDiagnostic("compile", "Unexpected token", input.descriptor.sourcePath))
       return successfulBuild(input.stagingDirectory)
     }, [])
     const first = await session.ensureBuilt()
     const activation = session.beginActivation({
-      revision: first.builtRevision!, viewId: "view-a", route: "category/subject/default",
+      revision: first.builtRevision!, viewId: "view-a", route: "dir-module",
     })
     const working = session.acknowledgeActivation({...activation, frameSequence: 1})
     fail = true
@@ -243,7 +243,7 @@ describe("working Storybook PackageSession lifecycle", () => {
   test("does not restart a failed package while it has no subscribers", async () => {
     const root = fixtureRoot("inactive-failure")
     const session = createSession(descriptor(root, "@fixture/a", "one"), async (input) => {
-      throw storybookBuildError(storybookDiagnostic("compile", "broken fixture", input.descriptor.runtime!.path))
+      throw storybookBuildError(storybookDiagnostic("compile", "broken fixture", input.descriptor.sourcePath))
     }, [])
     await session.ensureBuilt()
     expect(session.snapshot()).toMatchObject({subscribers: 0, builds: 1, buildState: "failed"})
@@ -252,7 +252,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     await Bun.sleep(20)
     expect(session.snapshot()).toMatchObject({subscribers: 0, generation: 2, builds: 1})
 
-    expect(session.invalidate(session.descriptor.variants[0]!.module.path)).toBeTrue()
+    expect(session.invalidate(session.descriptor.watchedPaths![0]!)).toBeTrue()
     await Bun.sleep(20)
     expect(session.snapshot()).toMatchObject({subscribers: 0, generation: 3, builds: 1})
   })
@@ -262,13 +262,13 @@ describe("working Storybook PackageSession lifecycle", () => {
     let fail = false
     const session = createSession(descriptor(root, "@fixture/a"), async (input) => {
       if (fail) {
-        throw storybookBuildError(storybookDiagnostic("compile", "broken fixture", input.descriptor.runtime!.path))
+        throw storybookBuildError(storybookDiagnostic("compile", "broken fixture", input.descriptor.sourcePath))
       }
       return successfulBuild(input.stagingDirectory)
     }, [])
     const unsubscribe = session.subscribe()
     await waitFor(() => session.snapshot().buildState === "built")
-    const source = session.descriptor.variants[0]!.module.path
+    const source = session.descriptor.watchedPaths![0]!
 
     fail = true
     expect(session.invalidate(source)).toBeTrue()
@@ -290,7 +290,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     )
     const unsubscribeFirst = session.subscribe()
     await waitFor(() => session.snapshot().builds === 1 && session.snapshot().buildState === "built")
-    const source = session.descriptor.variants[0]!.module.path
+    const source = session.descriptor.watchedPaths![0]!
 
     expect(session.invalidate(source)).toBeTrue()
     unsubscribeFirst()
@@ -398,7 +398,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     )
     const first = await session.ensureBuilt()
     const firstActivation = session.beginActivation({
-      revision: first.builtRevision!, viewId: "view-a", route: "category/subject/default",
+      revision: first.builtRevision!, viewId: "view-a", route: "dir-module",
     })
     const firstWorking = session.acknowledgeActivation({...firstActivation, frameSequence: 1})
     const oldRevision = firstWorking.activeRevision!
@@ -407,7 +407,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     session.reconfigure(descriptor(root, "@fixture/a", "two"))
     const second = await session.ensureBuilt()
     const secondActivation = session.beginActivation({
-      revision: second.builtRevision!, viewId: "view-a", route: "category/subject/default",
+      revision: second.builtRevision!, viewId: "view-a", route: "dir-module",
     })
     session.acknowledgeActivation({...secondActivation, frameSequence: 2})
     expect(session.revisionDirectory(oldRevision)).not.toBeNull()
@@ -450,7 +450,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     const first = createSession(value, builder, [])
     const built = await first.ensureBuilt()
     const activation = first.beginActivation({
-      revision: built.builtRevision!, viewId: "view-a", route: "category/subject/default",
+      revision: built.builtRevision!, viewId: "view-a", route: "dir-module",
     })
     first.acknowledgeActivation({...activation, frameSequence: 1})
     await first.dispose()
@@ -487,6 +487,46 @@ describe("working Storybook PackageSession lifecycle", () => {
     await restored.dispose()
   })
 
+  test("retired graph receipt becomes a cold cache miss while malformed receipt still fails", async () => {
+    const root = fixtureRoot("receipt-retired-graph")
+    const value = descriptor(root, "@fixture/a")
+    let builds = 0
+    const builder: StorybookPackageRevisionBuilder = async ({stagingDirectory}) => {
+      builds += 1
+      return successfulBuild(stagingDirectory)
+    }
+    const first = createSession(value, builder, [])
+    const built = await first.ensureBuilt()
+    const activation = first.beginActivation({revision: built.builtRevision!, viewId: "view-a", route: "dir-module"})
+    first.acknowledgeActivation({...activation, frameSequence: 1})
+    await first.dispose()
+
+    const artifactRoot = join(root, ".artifacts")
+    const ownerDirectories = readdirSync(artifactRoot).filter(name => existsSync(join(artifactRoot, name, "applied.json")))
+    expect(ownerDirectories).toHaveLength(1)
+    const receiptPath = join(artifactRoot, ownerDirectories[0]!, "applied.json")
+    const receipt = JSON.parse(readFileSync(receiptPath, "utf8"))
+    writeFileSync(receiptPath, JSON.stringify({...receipt, graphSnapshot: {
+      ...receipt.graphSnapshot, protocol: "storybook-package-graph/4",
+    }}))
+
+    const restored = createSession(value, builder, [])
+    expect(restored.snapshot()).toMatchObject({buildState: "idle", diagnostics: [], activeRevision: null,
+      lastWorkingRevision: null, builds: 0})
+    const fresh = await restored.ensureBuilt()
+    expect(fresh).toMatchObject({buildState: "built", activeRevision: null, builds: 1})
+    expect(restored.revisionGraphSnapshot(fresh.builtRevision!)?.protocol).toBe(STORYBOOK_PACKAGE_GRAPH_PROTOCOL)
+    expect(builds).toBe(2)
+    await restored.dispose()
+
+    const {protocol: _protocol, ...withoutProtocol} = receipt.graphSnapshot
+    writeFileSync(receiptPath, JSON.stringify({...receipt, graphSnapshot: withoutProtocol}))
+    const malformed = createSession(value, builder, [])
+    expect(malformed.snapshot().buildState).toBe("failed")
+    expect(malformed.snapshot().diagnostics[0]?.phase).toBe("publish")
+    await malformed.dispose()
+  })
+
   test("explicit revalidation detects a fingerprint change before the watcher tick", async () => {
     const root = fixtureRoot("receipt-v2-explicit-revalidation")
     const value = descriptor(root, "@fixture/a")
@@ -507,7 +547,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     const first = createSession(value, builder, [])
     const built = await first.ensureBuilt()
     const activation = first.beginActivation({
-      revision: built.builtRevision!, viewId: "view-a", route: "category/subject/default",
+      revision: built.builtRevision!, viewId: "view-a", route: "dir-module",
     })
     first.acknowledgeActivation({...activation, frameSequence: 1})
     await first.dispose()
@@ -555,7 +595,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     }), [])
     const built = await first.ensureBuilt()
     const activation = first.beginActivation({
-      revision: built.builtRevision!, viewId: "view-a", route: "category/subject/default",
+      revision: built.builtRevision!, viewId: "view-a", route: "dir-module",
     })
     first.acknowledgeActivation({...activation, frameSequence: 1})
     await first.dispose()
@@ -691,90 +731,49 @@ async function waitFor(predicate: () => boolean, timeoutMs = 1_000): Promise<voi
 }
 
 function descriptor(root: string, packageId: string, version = "one"): StorybookPackageBuildDescriptor {
-  const runtime = join(root, "runtime.ts")
-  const story = join(root, "story.ts")
-  const manifest = join(root, "manifest.json")
-  writeFileSync(runtime, "export const runtime = {}\n")
-  writeFileSync(story, "export const story = {}\n")
-  writeFileSync(manifest, "{}\n")
+  const packageJsonPath = join(root, "package.json")
+  const modulePath = join(root, "module.ts")
+  writeFileSync(packageJsonPath, JSON.stringify({name: packageId}))
+  writeFileSync(modulePath, "export const module = true\n")
   const declarationDigest = `digest-${version}`
   return {
     packageId,
     packageRoot: root,
     projectRoot: root,
-    sourcePath: manifest,
+    sourcePath: packageJsonPath,
     declarationDigest,
     graphSnapshot: graphSnapshot(packageId, declarationDigest),
-    runtime: {path: runtime, export: "runtime"},
-    variants: [{route: "category/subject/default", module: {path: story, export: "story"}}],
-    widgetModules: [],
+    watchedPaths: [modulePath],
   }
 }
 
 function graphSnapshot(packageId: string, declarationDigest: string): StorybookPackageRevisionGraphSnapshot {
   const packageNodeId = `package:${packageId}`
-  const subjectNodeId = `subject:${packageId}/category/subject`
-  const variantNodeId = `variant:${packageId}/category/subject/default`
-  const presentation = {
-    protocol: "story-presentation/1" as const,
-    projection: "display" as const,
-    widgets: ["source", "diagnostics"],
-  }
+  const directoryNodeId = `directory:${packageNodeId}/module`
+  const urlPath = `/packages/${encodeURIComponent(packageId)}/`
   const withoutDigest = {
     protocol: STORYBOOK_PACKAGE_GRAPH_PROTOCOL,
     packageId,
     declarationDigest,
-    metadata: {label: packageId, ownerId: packageId, urlPath: `/packages/${encodeURIComponent(packageId)}/`},
+    metadata: {parentId: null, label: packageId, ownerId: packageId, urlPath},
     ancestors: [],
     rootId: packageNodeId,
     nodes: [
-      {
-        id: packageNodeId, kind: "package" as const, ownerId: packageId, packageId, label: packageId,
-        parentId: null, childIds: [subjectNodeId], urlPath: `/packages/${encodeURIComponent(packageId)}/`, routePath: "",
-        searchTerms: [packageId], group: null, subjectKind: null, apiName: null, hasReadme: false,
-        resourceKinds: [], resourceUrl: `/__storybook/resources/nodes/${encodeURIComponent(packageNodeId)}/`,
-        presentation: null,
-      },
-      {
-        id: subjectNodeId, kind: "subject" as const, ownerId: packageId, packageId, label: "Subject",
-        parentId: packageNodeId, childIds: [variantNodeId],
-        urlPath: `/packages/${encodeURIComponent(packageId)}/category/subject/`, routePath: "category/subject",
-        searchTerms: ["subject"], group: null, subjectKind: "fixture", apiName: null, hasReadme: false,
-        resourceKinds: [], resourceUrl: `/__storybook/resources/nodes/${encodeURIComponent(subjectNodeId)}/`,
-        presentation,
-      },
-      {
-        id: variantNodeId, kind: "variant" as const, ownerId: packageId, packageId, label: "Default",
-        parentId: subjectNodeId, childIds: [],
-        urlPath: `/packages/${encodeURIComponent(packageId)}/category/subject/default`,
-        routePath: "category/subject/default", searchTerms: ["default"], group: null, subjectKind: null,
-        apiName: null, hasReadme: false, resourceKinds: [],
-        resourceUrl: `/__storybook/resources/nodes/${encodeURIComponent(variantNodeId)}/`,
-        presentation,
-      },
+      {id: packageNodeId, kind: "package" as const, ownerId: packageId, packageId, label: packageId,
+        parentId: null, childIds: [directoryNodeId], urlPath, routePath: "", searchTerms: [packageId],
+        hasReadme: false, resourceUrl: `resources/nodes/${encodeURIComponent(packageNodeId)}/`},
+      {id: directoryNodeId, kind: "directory" as const, ownerId: packageId, packageId, label: "module",
+        parentId: packageNodeId, childIds: [], urlPath: `${urlPath}module`, routePath: "dir-module", searchTerms: ["module"],
+        hasReadme: false, resourceUrl: `resources/nodes/${encodeURIComponent(directoryNodeId)}/`},
     ],
     routes: [
-      {path: "", urlPath: `/packages/${encodeURIComponent(packageId)}/`, kind: "overview" as const, nodeId: packageNodeId},
-      {
-        path: "category/subject", urlPath: `/packages/${encodeURIComponent(packageId)}/category/subject/`,
-        kind: "overview" as const, nodeId: subjectNodeId,
-      },
-      {
-        path: "category/subject/default",
-        urlPath: `/packages/${encodeURIComponent(packageId)}/category/subject/default`,
-        kind: "variant" as const,
-        nodeId: variantNodeId,
-      },
+      {path: "", urlPath, kind: "overview" as const, nodeId: packageNodeId},
+      {path: "dir-module", urlPath: `${urlPath}module`, kind: "overview" as const, nodeId: directoryNodeId},
     ],
-    loaders: [{route: "category/subject/default", nodeId: variantNodeId, exportName: "story"}],
     resources: [],
-    authorStyleSheets: [],
     workbenchAuthorStyleSheets: [],
-    widgetContributions: null,
-    widgetLoaders: [],
   }
-  return Object.freeze({
-    ...withoutDigest,
+  return Object.freeze({...withoutDigest,
     packageGraphDigest: createHash("sha256").update(JSON.stringify(withoutDigest)).digest("hex"),
   })
 }

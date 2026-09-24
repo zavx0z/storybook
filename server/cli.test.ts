@@ -9,32 +9,15 @@ describe("external Storybook CLI", () => {
       declarations: ["workspace", "package"],
     })
     expect(parseExternalStorybookCli(["attach", "project"])).toEqual({action: "attach", path: "project"})
-    expect(parseExternalStorybookCli(["detach", "project:ui"])).toEqual({action: "detach", scopeId: "project:ui"})
-    expect(parseExternalStorybookCli(["open", "@fixture/components", "components/button/default"])).toEqual({
+    expect(parseExternalStorybookCli(["detach", "@fixture/ui"])).toEqual({action: "detach", scopeId: "@fixture/ui"})
+    expect(parseExternalStorybookCli(["open", "@fixture/components", "dir-button"])).toEqual({
       action: "open",
       packageId: "@fixture/components",
-      route: "components/button/default",
+      route: "dir-button",
     })
     expect(parseExternalStorybookCli(["status"])).toEqual({action: "status"})
     expect(parseExternalStorybookCli(["check"])).toEqual({action: "check", scope: null})
     expect(parseExternalStorybookCli(["stop"])).toEqual({action: "stop"})
-  })
-
-  test("initializes declarations instead of npm packages", () => {
-    expect(parseExternalStorybookCli([
-      "init",
-      "packages/components",
-      "--kind",
-      "package",
-      "--executable",
-      "--stories",
-    ])).toEqual({
-      action: "init",
-      root: "packages/components",
-      kind: "package",
-      executable: true,
-      stories: true,
-    })
   })
 
   test("canonicalizes a running-server path scope without rewriting a package identity", () => {
@@ -51,7 +34,7 @@ describe("external Storybook CLI", () => {
       ["restart", "@ui/storybook"],
       ["build", "@ui/storybook"],
       ["attach"],
-      ["init", "root", "--kind", "project", "--executable"],
+      ["init", "root"],
     ]) expect(() => parseExternalStorybookCli(args)).toThrow("Usage")
   })
 })

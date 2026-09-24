@@ -81,7 +81,6 @@ describe("Storybook package identity", () => {
     expect(manifest.devDependencies["@zavx0z/renderer-webgpu"]).toBeUndefined()
 
     const legacyImports = sourceFiles([
-      join(root, ".storybook"),
       join(root, "catalog"),
       join(root, "discovery"),
       join(root, "build"),
@@ -93,12 +92,6 @@ describe("Storybook package identity", () => {
     ]).filter((path) => hasLegacyOwnerImport(readFileSync(path, "utf8")))
     expect(legacyImports).toEqual([])
 
-    const selfManifest = readJson(join(root, ".storybook", "manifest.json")) as {
-      authorStyleSheets: readonly Readonly<{specifier: string}>[]
-    }
-    expect(selfManifest.authorStyleSheets).toEqual([{
-      specifier: "@zavx0z/ui/themes/theme.css",
-    }])
   })
 
   test("[STORYBOOK-IDENTITY-001] keeps one physical root per same-name new owner", () => {

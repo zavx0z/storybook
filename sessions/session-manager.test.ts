@@ -197,7 +197,7 @@ describe("external Storybook PackageSession manager", () => {
     await manager.ensure("@fixture/watch")
     failWatch = true
     const session = manager.session("@fixture/watch")
-    expect(session.invalidate(session.descriptor.variants[0]!.module.path)).toBeTrue()
+    expect(session.invalidate(session.descriptor.watchedPaths![0]!)).toBeTrue()
     const result = await session.ensureBuilt()
     expect(result.buildState).toBe("built")
     expect(result.activeRevision).toBeNull()
@@ -272,90 +272,49 @@ function descriptor(
 ): StorybookPackageBuildDescriptor {
   const packageRoot = join(root, id)
   mkdirSync(packageRoot, {recursive: true})
-  const manifest = join(packageRoot, "manifest.json")
-  const runtime = join(packageRoot, "runtime.ts")
-  const story = join(packageRoot, "story.ts")
-  writeFileSync(manifest, "{}\n")
-  writeFileSync(runtime, "export const runtime = {}\n")
-  writeFileSync(story, "export const story = {}\n")
+  const sourcePath = join(packageRoot, "package.json")
+  const modulePath = join(packageRoot, "module.ts")
+  writeFileSync(sourcePath, JSON.stringify({name: `@fixture/${id}`}))
+  writeFileSync(modulePath, "export const module = true\n")
   return {
     packageId: `@fixture/${id}`,
     packageRoot,
     projectRoot: root,
-    sourcePath: manifest,
+    sourcePath,
     declarationDigest,
     watchPaths,
+    watchedPaths: [modulePath],
     graphSnapshot: graphSnapshot(`@fixture/${id}`, declarationDigest),
-    runtime: {path: runtime, export: "runtime"},
-    variants: [{route: "category/subject/default", module: {path: story, export: "story"}}],
-    widgetModules: [],
   }
 }
 
 function graphSnapshot(packageId: string, declarationDigest: string): StorybookPackageRevisionGraphSnapshot {
   const packageNode = `package:${packageId}`
-  const subjectNode = `subject:${packageId}/category/subject`
-  const variantNode = `variant:${packageId}/category/subject/default`
-  const presentation = {
-    protocol: "story-presentation/1" as const,
-    projection: "display" as const,
-    widgets: ["source", "diagnostics"],
-  }
+  const directoryNode = `directory:${packageNode}/module`
+  const urlPath = `/packages/${encodeURIComponent(packageId)}/`
   const withoutDigest = {
     protocol: STORYBOOK_PACKAGE_GRAPH_PROTOCOL,
     packageId,
     declarationDigest,
-    metadata: {label: packageId, ownerId: packageId, urlPath: `/packages/${encodeURIComponent(packageId)}/`},
+    metadata: {parentId: null, label: packageId, ownerId: packageId, urlPath},
     ancestors: [],
     rootId: packageNode,
     nodes: [
-      {
-        id: packageNode, kind: "package" as const, ownerId: packageId, packageId, label: packageId,
-        parentId: null, childIds: [subjectNode], urlPath: `/packages/${encodeURIComponent(packageId)}/`, routePath: "",
-        searchTerms: [packageId], group: null, subjectKind: null, apiName: null, hasReadme: false,
-        resourceKinds: [], resourceUrl: `/__storybook/resources/nodes/${encodeURIComponent(packageNode)}/`,
-        presentation: null,
-      },
-      {
-        id: subjectNode, kind: "subject" as const, ownerId: packageId, packageId, label: "Subject",
-        parentId: packageNode, childIds: [variantNode],
-        urlPath: `/packages/${encodeURIComponent(packageId)}/category/subject/`, routePath: "category/subject",
-        searchTerms: ["subject"], group: null, subjectKind: "fixture", apiName: null, hasReadme: false,
-        resourceKinds: [], resourceUrl: `/__storybook/resources/nodes/${encodeURIComponent(subjectNode)}/`,
-        presentation,
-      },
-      {
-        id: variantNode, kind: "variant" as const, ownerId: packageId, packageId, label: "Default",
-        parentId: subjectNode, childIds: [],
-        urlPath: `/packages/${encodeURIComponent(packageId)}/category/subject/default`,
-        routePath: "category/subject/default", searchTerms: ["default"], group: null, subjectKind: null,
-        apiName: null, hasReadme: false, resourceKinds: [],
-        resourceUrl: `/__storybook/resources/nodes/${encodeURIComponent(variantNode)}/`,
-        presentation,
-      },
+      {id: packageNode, kind: "package" as const, ownerId: packageId, packageId, label: packageId,
+        parentId: null, childIds: [directoryNode], urlPath, routePath: "", searchTerms: [packageId],
+        hasReadme: false, resourceUrl: `resources/nodes/${encodeURIComponent(packageNode)}/`},
+      {id: directoryNode, kind: "directory" as const, ownerId: packageId, packageId, label: "module",
+        parentId: packageNode, childIds: [], urlPath: `${urlPath}module`, routePath: "dir-module", searchTerms: ["module"],
+        hasReadme: false, resourceUrl: `resources/nodes/${encodeURIComponent(directoryNode)}/`},
     ],
     routes: [
-      {path: "", urlPath: `/packages/${encodeURIComponent(packageId)}/`, kind: "overview" as const, nodeId: packageNode},
-      {
-        path: "category/subject", urlPath: `/packages/${encodeURIComponent(packageId)}/category/subject/`,
-        kind: "overview" as const, nodeId: subjectNode,
-      },
-      {
-        path: "category/subject/default",
-        urlPath: `/packages/${encodeURIComponent(packageId)}/category/subject/default`,
-        kind: "variant" as const,
-        nodeId: variantNode,
-      },
+      {path: "", urlPath, kind: "overview" as const, nodeId: packageNode},
+      {path: "dir-module", urlPath: `${urlPath}module`, kind: "overview" as const, nodeId: directoryNode},
     ],
-    loaders: [{route: "category/subject/default", nodeId: variantNode, exportName: "story"}],
     resources: [],
-    authorStyleSheets: [],
     workbenchAuthorStyleSheets: [],
-    widgetContributions: null,
-    widgetLoaders: [],
   }
-  return Object.freeze({
-    ...withoutDigest,
+  return Object.freeze({...withoutDigest,
     packageGraphDigest: createHash("sha256").update(JSON.stringify(withoutDigest)).digest("hex"),
   })
 }

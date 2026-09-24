@@ -1,6 +1,5 @@
 import {createStorybookAgentBridge, type StorybookAgentBridge} from "./agent-bridge.ts"
 import {indexedWorkbenchAuthorStyleSheetSources} from "./author-style-sheets.ts"
-import {mergeStorybookAuthorStyleSheets} from "../catalog/author-style-sheets.ts"
 import type {ExternalStorybookClientSnapshot} from "./client-protocol.ts"
 import {
   startExternalStorybookLanding,
@@ -12,7 +11,6 @@ import {
   type ExternalStorybookPackageController,
   type ExternalStorybookSocket,
 } from "./package-entry.ts"
-import {createStorybookPackageStyleSheetOwner} from "./package-style-sheets.ts"
 import {loadStorybookAppliedRevision} from "./revision-loader.ts"
 import {
   buildProgressStatus,
@@ -255,7 +253,6 @@ export async function startExternalStorybookPage(
     ...(options.shell ?? {}),
     authorStyleSheetSources: indexedWorkbenchAuthorStyleSheetSources(browserDocument),
   })
-  const styleOwner = createStorybookPackageStyleSheetOwner(shell)
   let active: ActivePageScope | null = null
   let bridge: StorybookAgentBridge | null = null
   let disposed = false
@@ -375,13 +372,7 @@ export async function startExternalStorybookPage(
       }
       syncBridge()
     },
-    prepareRevisionStyleSheets(payload: ExternalStorybookAppliedRevision, signal: AbortSignal) {
-      return styleOwner.prepare(
-        payload.revisionUrl,
-        packageOwnedAuthorStyleSheets(payload),
-        signal,
-      )
-    },
+
   })
 
   const startPackageScope = async (
@@ -398,9 +389,6 @@ export async function startExternalStorybookPage(
       sharedModuleEpoch: options.sharedModuleEpoch,
       ...((payload?.hostModuleEpoch ?? options.hostModuleEpoch) === undefined ? {} : {hostModuleEpoch: payload?.hostModuleEpoch ?? options.hostModuleEpoch}),
       ...(payload === null ? {} : {graphSnapshot: payload.graphSnapshot}),
-      loadRuntime: payload?.loadRuntime ?? null,
-      storyLoaders: payload?.storyLoaders ?? new Map(),
-      widgetLoaders: payload?.widgetLoaders ?? new Map(),
       scenarioLoaders: payload?.scenarioLoaders ?? new Map(),
       environment: {
         browserDocument,
@@ -459,6 +447,7 @@ export async function startExternalStorybookPage(
       getRoute: () => requirePackageScope(active).controller.currentRoute,
       getModel: () => requirePackageScope(active).controller.currentModel,
       navigate: route => requirePackageScope(active).controller.navigate(route),
+      selectScenario: value => requirePackageScope(active).controller.selectScenario(value),
       applyRevision: revision => applyPageRevision(requirePackageScope(active).target.packageId, revision),
       canApplyRevision: () => requirePackageScope(active).controller.canApplyRevision(),
       async waitForStableScope() {
@@ -518,15 +507,9 @@ export async function startExternalStorybookPage(
     const previous = active
     const scroll = readPageScroll(shell)
     const previousAddress = activeAddress
-    const styleTransaction = await styleOwner.prepare(
-      payload?.revisionUrl ?? "",
-      payload === null ? [] : packageOwnedAuthorStyleSheets(payload),
-      pageLifetime.signal,
-    )
     try {
       await disposeScope(previous)
       active = null
-      await styleTransaction.commit()
       active = target.kind === "landing"
         ? await startLandingScope(target)
         : await startPackageScope(target, payload)
@@ -535,11 +518,9 @@ export async function startExternalStorybookPage(
       activeAddress = active.address.address
       if (active.kind === "package") active.connect()
       restorePageScroll(shell, scroll)
-      styleTransaction.release()
     } catch (error) {
       if (active !== null) await disposeScope(active)
       active = null
-      await styleTransaction.rollback()
       history.replaceState(null, "", previousAddress)
       activeAddress = previousAddress
       if (previous !== null) {
@@ -692,7 +673,6 @@ export async function startExternalStorybookPage(
     active = null
     bridge?.dispose()
     bridge = null
-    styleOwner.clear()
     shell.dispose()
   }
   const onPageHide = (): void => { void dispose() }
@@ -764,18 +744,6 @@ function isScrollablePageElement(value: unknown): value is ScrollablePageElement
   return value !== null && typeof value === "object" &&
     typeof (value as {scrollTop?: unknown}).scrollTop === "number" &&
     typeof (value as {scrollLeft?: unknown}).scrollLeft === "number"
-}
-
-/** Вычитает exact shared Workbench sheets из валидированного merged revision set. */
-function packageOwnedAuthorStyleSheets(
-  payload: ExternalStorybookAppliedRevision,
-) {
-  const workbench = new Set(payload.graphSnapshot.workbenchAuthorStyleSheets.map(({specifier, contentDigest}) =>
-    `${specifier}\0${contentDigest}`))
-  return mergeStorybookAuthorStyleSheets(
-    payload.graphSnapshot.workbenchAuthorStyleSheets,
-    payload.graphSnapshot.authorStyleSheets,
-  ).filter(({specifier, contentDigest}) => !workbench.has(`${specifier}\0${contentDigest}`))
 }
 
 /**

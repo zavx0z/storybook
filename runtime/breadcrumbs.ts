@@ -14,7 +14,7 @@ export type StorybookBreadcrumbScope =
     ancestors: readonly StorybookPackageRevisionAncestor[]
   }>
 
-/** Общий каталог является корнем навигации, независимо от корней declaration-графа. */
+/** Общий каталог является корнем навигации, независимо от подключённых путей. */
 export const STORYBOOK_ROOT_BREADCRUMB: WorkbenchBreadcrumb = Object.freeze({
   id: "storybook:root",
   label: "Главная",
@@ -39,8 +39,8 @@ function landingBreadcrumbs(
   path: readonly ExternalStorybookClientNode[],
 ): readonly WorkbenchBreadcrumb[] {
   if (path.length === 0 || path.some(node =>
-    node.kind !== "workspace" && node.kind !== "project" && node.kind !== "package" && node.kind !== "directory")) {
-    throw new Error("Storybook landing breadcrumb path must contain only declaration nodes")
+    node.kind !== "package" && node.kind !== "directory" && node.kind !== "unavailable")) {
+    throw new Error("Storybook landing breadcrumb path must contain only physical nodes")
   }
   return Object.freeze(path.map(node => Object.freeze({
     id: node.id,
@@ -60,8 +60,8 @@ function packageBreadcrumbs(
     throw new Error(`Storybook breadcrumb path has no package root: ${path.at(-1)?.id ?? "unknown"}`)
   }
   const graphAncestors = path.slice(0, packageIndex)
-  if (graphAncestors.some(node => node.kind !== "workspace" && node.kind !== "project" && node.kind !== "package")) {
-    throw new Error("Storybook package breadcrumb ancestors must be workspace or project nodes")
+  if (graphAncestors.some(node => node.kind !== "package" && node.kind !== "directory" && node.kind !== "unavailable")) {
+    throw new Error("Storybook package breadcrumb ancestors must be physical nodes")
   }
   if (revisionAncestors.length > 0 && graphAncestors.length > 0 &&
     JSON.stringify(revisionAncestors.map(({id}) => id)) !== JSON.stringify(graphAncestors.map(({id}) => id))) {
@@ -71,13 +71,13 @@ function packageBreadcrumbs(
     ? revisionAncestors
     : graphAncestors.map(node => Object.freeze({
       id: node.id,
-      kind: node.kind as "workspace" | "project" | "package",
+      kind: node.kind as "package" | "directory" | "unavailable",
       label: node.label,
       urlPath: node.urlPath,
     }))
   const packagePath = path.slice(packageIndex)
   if (packagePath[0]?.kind !== "package" || packagePath.some(node =>
-    node.kind !== "package" && node.kind !== "directory" && node.kind !== "category" && node.kind !== "subject" && node.kind !== "variant")) {
+    node.kind !== "package" && node.kind !== "directory")) {
     throw new Error(`Storybook package breadcrumb path is invalid: ${path.at(-1)?.id ?? "unknown"}`)
   }
   return Object.freeze([

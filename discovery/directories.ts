@@ -120,7 +120,6 @@ export async function discoverStorybookDirectories(
         relativePath: relative(root, path),
         name: entry.name,
         ...(parent === root ? {} : {parentRelativePath: relative(root, parent)}),
-        structuralRole: isModule ? "module" : children.some(child => child.structuralRole !== "directory") ? "category" : "directory",
         readmePath: null,
         ...(moduleDocumentation ? {moduleDocumentation} : {}),
       }))

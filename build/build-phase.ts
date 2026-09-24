@@ -10,8 +10,6 @@ export type StorybookBuildPhase =
   | "bundle"
   | "kernel"
   | "host"
-  | "protocol-build"
-  | "protocol-run"
   | "publish"
 
 /**
@@ -127,8 +125,6 @@ function isStorybookBuildPhase(value: unknown): value is StorybookBuildPhase {
     "bundle",
     "kernel",
     "host",
-    "protocol-build",
-    "protocol-run",
     "publish",
   ].includes(String(value))
 }

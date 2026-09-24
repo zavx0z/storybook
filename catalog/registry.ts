@@ -14,11 +14,11 @@ import type {StorybookPackageBuildDescriptor} from "../sessions/package-session.
 import {externalStorybookPackageDescriptors} from "../build/package-descriptor.ts"
 import {resolve} from "node:path"
 
-export type ExternalStorybookAttachSource = "cli" | "workspace" | "project" | "direct-package"
+export type ExternalStorybookAttachSource = "cli" | "direct-package"
 
 export type ExternalStorybookRegistryEntry = Readonly<{
   declarationPath: string
-  rootKind: "workspace" | "project" | "package" | "unavailable"
+  rootKind: "package" | "unavailable"
   canonicalId: string
   digest: string
   descendantIds: readonly string[]
@@ -72,7 +72,7 @@ export class ExternalStorybookRegistry {
   #revision = 0
   #descriptors: readonly StorybookPackageBuildDescriptor[] = Object.freeze([])
   #entries: readonly ExternalStorybookRegistryEntry[] = Object.freeze([])
-  #catalog: StorybookCatalog = emptyDeclarations()
+  #catalog: StorybookCatalog = emptyCatalog()
   #graph: ExternalStorybookGraph = createExternalStorybookGraph(this.#catalog)
   #dirtyPaths = new Set<string>()
   #forceRefresh = false
@@ -130,7 +130,7 @@ export class ExternalStorybookRegistry {
     const scopes = new Map(this.#catalog.scopes.map(scope => [scope.canonicalId, scope]))
     const children = (id: string): readonly string[] => {
       const scope = scopes.get(id)!
-      return scope.kind === "workspace" ? scope.projectIds : scope.kind === "project" || scope.kind === "package" ? scope.packageIds ?? [] : []
+      return scope.kind === "package" ? scope.packageIds ?? [] : []
     }
     const contains = (id: string): boolean => id === removed || children(id).some(contains)
     const retain = (id: string): readonly string[] => id === removed ? [] :
@@ -238,7 +238,7 @@ export class ExternalStorybookRegistry {
     sources: readonly ExternalStorybookAttachSource[],
     options?: Readonly<{dirtyScopeRoots?: readonly string[]}>,
   ): Promise<ExternalStorybookRegistrySnapshot> {
-    const raw = roots.length === 0 ? emptyDeclarations() : await this.#callResolver(roots, this.#catalog, options)
+    const raw = roots.length === 0 ? emptyCatalog() : await this.#callResolver(roots, this.#catalog, options)
     return this.#accept(raw, sources)
   }
 
@@ -302,7 +302,7 @@ export class ExternalStorybookRegistry {
     return this.#descriptors
   }
 
-  /** Explicitly selected roots and their declared descendants. */
+  /** Explicitly selected roots and their physical descendants. */
   async sourceRoots(): Promise<readonly string[]> {
     if (this.#entries.length === 0) return Object.freeze([])
     const raw = this.#catalog
@@ -342,7 +342,7 @@ function createEntries(
   }
   return Object.freeze(catalog.rootIds.map((rootId, index) => {
     const root = catalog.scopes.find(({canonicalId}) => canonicalId === rootId)
-    if (root === undefined) throw new Error(`External Storybook root declaration is missing: ${rootId}`)
+    if (root === undefined) throw new Error(`External Storybook root is missing: ${rootId}`)
     const rootNode = externalStorybookNode(graph, rootId)
     const descendantIds = graph.nodes
       .filter(({structuralPath}) => structuralPath[0] === rootId)
@@ -367,13 +367,11 @@ function scopePaths(scope: StorybookCatalogScope): ReadonlySet<string> {
     ...(scope.structurePaths ?? []).map(path => resolve(path)),
     ...(scope.kind === "package" ? [
       resolve(scope.packageJsonPath),
-      ...scope.authorStyleSheets.flatMap(sheet => [resolve(sheet.path), resolve(sheet.ownerPackageJsonPath)]),
-      ...(scope.catalog?.sourcePaths ?? []).map(path => resolve(path)),
     ] : []),
   ])
 }
 
-function emptyDeclarations(): StorybookCatalog {
+function emptyCatalog(): StorybookCatalog {
   return Object.freeze({
     schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
     rootIds: Object.freeze([]),

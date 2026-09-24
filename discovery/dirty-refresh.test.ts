@@ -3,7 +3,7 @@ import {mkdtemp, mkdir, realpath, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {ExternalStorybookRegistry} from "../catalog/registry.ts"
-import {resolveExternalStorybookDeclarations} from "./declarations.ts"
+import {discoverStorybookPackages} from "./packages.ts"
 
 const roots: string[] = []
 
@@ -44,7 +44,7 @@ test("dirty owner повторно анализирует только свой 
     return {name, packageRoot, spec, importedType}
   }))
 
-  const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
+  const registry = new ExternalStorybookRegistry(discoverStorybookPackages)
   const initial = await registry.attach(root)
   const initialB = initial.catalog.scopes.find(scope => scope.id === "@fixture/b")!.directories
   expect(registry.metrics()).toMatchObject({
@@ -116,7 +116,7 @@ test("dirty refresh сохраняет корневые specs чистого п�
   const childSpec = join(root, "child/spec/scenario.spec.ts")
   await Bun.write(ownSpec, 'throw new Error("Discovery не исполняет root spec")')
   await Bun.write(childSpec, 'throw new Error("Discovery не исполняет child spec")')
-  const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
+  const registry = new ExternalStorybookRegistry(discoverStorybookPackages)
   const initial = await registry.attach(root)
   const original = initial.catalog.scopes.find(scope => scope.id === "@fixture/root")!
   if (original.kind !== "package") throw new Error("Ожидался package root")

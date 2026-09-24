@@ -602,24 +602,10 @@ function createFixture(options: Readonly<{
   const model = {
     packageNode: {} as never,
     selectedNode: {} as never,
-    categoryId: "category:controls",
-    subjectId: "subject:run",
-    variants: Object.freeze([
-      Object.freeze({
-        id: "variant:alternate",
-        label: "Alternate",
-        route: "/controls/alternate",
-        urlPath: "/package/fixture/controls/alternate",
-        title: "Alternate",
-        searchText: "alternate",
-        group: null,
-      }),
-    ]),
-    variantActiveId: null,
     viewKind: "overview",
     urlPath: "/pkg-fixture-storybook/controls/default",
-    tabs: [],
-    tabActiveId: null,
+    tabs: [{id: "overview:controls", label: "Обзор", route: "dir-controls", urlPath: "/pkg-fixture-storybook/controls", title: "Обзор", searchText: "Обзор"}],
+    tabActiveId: "overview:controls",
   } satisfies ExternalStorybookPackageTabModel
   const workbench = {
     document,
@@ -669,6 +655,11 @@ function createFixture(options: Readonly<{
     async navigate(nextRoute) {
       navigations.push(nextRoute)
       route = nextRoute
+    },
+    selectScenario(value) {
+      if (value !== "variant:alternate") throw new Error("Unknown scenario")
+      navigations.push("/controls/alternate")
+      route = "/controls/alternate"
     },
     async applyRevision() {},
   })

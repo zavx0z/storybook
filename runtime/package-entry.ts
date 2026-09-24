@@ -5,12 +5,11 @@ import {createScenarioRun} from "./scenario-run"
 import {indexedWorkbenchAuthorStyleSheetSources} from "./author-style-sheets.ts"
 import {navigatePackage} from "./package-navigation.ts"
 import {externalStorybookBrowsePath} from "../catalog/graph.ts"
-/** One package-tab realm driven by generated literal runtime/story loaders. */
+/** Вкладка структурного владельца с подготовленными сценариями. */
 
-import type {CustomEvent, Node as SemanticNode} from "@zavx0z/dom"
-import {createDomInspector} from "@zavx0z/devtools"
+import type {CustomEvent} from "@zavx0z/dom"
 import type {RootLinkedAuthorStyleSheet} from "@zavx0z/browser/integration"
-import {isCompiledTemplate, type CompiledTemplate} from "@zavx0z/template/compiled"
+import type {CompiledTemplate} from "@zavx0z/template/compiled"
 import {arrowDownIcon, arrowUpIcon} from "@zavx0z/ui/themes/icons"
 import {
   WORKBENCH_EVENTS,
@@ -19,19 +18,8 @@ import {
   type WorkbenchPresentationUpdate,
 } from "../workbench/contract.ts"
 import {WORKBENCH_STANDARD_WIDGET_REGISTRY} from "../workbench/inspector/registry.ts"
-import {mergeStorybookAuthorStyleSheets} from "../catalog/author-style-sheets.ts"
 import {externalStorybookPageTitle} from "./page-title.ts"
 import {createStorybookAgentBridge, type StorybookAgentBridge} from "./agent-bridge.ts"
-import {
-  STORYBOOK_PRESENTATION_PROTOCOL,
-  validateStorybookRuntimeAdapter,
-  validateStorybookRuntimeSession,
-  type StorybookRuntimeAdapter,
-  type StorybookRuntimeContext,
-  type StorybookRuntimePresentationInput,
-  type StorybookRuntimeSession,
-  type StorybookSpacePreview,
-} from "./runtime-protocol.ts"
 import {
   encodeExternalStorybookPackagePath,
   EXTERNAL_STORYBOOK_CLIENT_PROTOCOL,
@@ -41,14 +29,13 @@ import {
 import {
   validateStorybookPackageRevisionGraphSnapshot,
   type StorybookPackageRevisionGraphSnapshot,
-  type StorybookPackageRevisionStoryPresentation,
 } from "../sessions/package-revision.ts"
 import {deriveStorybookBreadcrumbs} from "./breadcrumbs.ts"
 import {
   deriveExternalStorybookPackageTab,
   deriveExternalStorybookNavigationTree,
   type ExternalStorybookBrowserNavigationItem,
-  type ExternalStorybookBrowserVariantItem,
+  type ExternalStorybookBrowserTabItem,
   type ExternalStorybookPackageTabModel,
 } from "./model.ts"
 import {
@@ -59,17 +46,6 @@ import {
   type CreateExternalStorybookShellOptions,
   type ExternalStorybookShell,
 } from "./shell.ts"
-import {projectStorybookSource} from "./source-projection.ts"
-import {
-  createStorybookAggregatePresentation,
-  type StorybookAggregatePresentation,
-} from "./aggregate-presentation.tsx"
-import {
-  disposeStorybookAggregateChildren,
-  mountStorybookAggregateChildren,
-  planStorybookOverview,
-  type MountedStorybookAggregateChild,
-} from "./aggregate-runtime.ts"
 import {StorybookContractOutline} from "./contract-outline.tsx"
 import type {StorybookContractNavigationReady} from "./contract-view.tsx"
 import {packageBuildStatus, packageEventStatus, storybookConnectionStatus} from "./package-status.ts"
@@ -83,9 +59,6 @@ import {
 } from "./build-progress.ts"
 
 export type ExternalStorybookScenarioLoader = () => Promise<ScenarioAppInput>
-export type ExternalStorybookStoryLoader = () => Promise<unknown>
-export type ExternalStorybookWidgetLoader = () => Promise<unknown>
-export type ExternalStorybookRuntimeLoader = (() => Promise<unknown>) | null
 
 export const STORYBOOK_PAGE_REALM_PROTOCOL = "storybook-page-realm/1" as const
 
@@ -99,9 +72,7 @@ export type ExternalStorybookAppliedRevision = Readonly<{
   hostModuleEpoch?: string
   startPackage?: typeof startExternalStorybookPackage
   graphSnapshot: StorybookPackageRevisionGraphSnapshot
-  loadRuntime: ExternalStorybookRuntimeLoader
-  storyLoaders: ReadonlyMap<string, ExternalStorybookStoryLoader>
-  widgetLoaders?: ReadonlyMap<string, ExternalStorybookWidgetLoader>
+
   scenarioLoaders?: ReadonlyMap<string, ExternalStorybookScenarioLoader>
 }>
 
@@ -110,36 +81,6 @@ export type ExternalStorybookSocket = Readonly<{
   removeEventListener(type: string, listener: (event: any) => void): void
   send(data: string): void
   close(): void
-}>
-
-type BoundStorybookRuntimeSession = Readonly<{
-  subjectId: string
-  projection: StorybookPackageRevisionStoryPresentation["projection"]
-  context: StorybookRuntimeContext
-  abort: AbortController
-  session: StorybookRuntimeSession
-}>
-
-type StorybookPresentationOperation = {
-  revision: number
-  subjectId: string
-  route: string
-  projection: StorybookPackageRevisionStoryPresentation["projection"]
-  presented: boolean
-  presentedNode: SemanticNode | null
-  spaceNode: SemanticNode | null
-}
-
-type StorybookPresentationSubject = Readonly<{
-  id: string
-  kind: "subject"
-  presentation: StorybookPackageRevisionStoryPresentation
-}>
-
-type MountedStorybookAggregate = Readonly<{
-  presentation: StorybookAggregatePresentation
-  children: readonly MountedStorybookAggregateChild[]
-  stopFitting(): void
 }>
 
 type ScrollableStorybookElement = {
@@ -211,14 +152,6 @@ export type ExternalStorybookPackageEnvironment = Readonly<{
     applyRevision?(revision: string): Promise<void>
     revisionApplied(payload: ExternalStorybookAppliedRevision): void
     revisionConfirmed(revision: string): void
-    prepareRevisionStyleSheets(
-      payload: ExternalStorybookAppliedRevision,
-      signal: AbortSignal,
-    ): Promise<Readonly<{
-      commit(): Promise<void>
-      rollback(): Promise<void>
-      release(): void
-    }>>
   }>
 }>
 
@@ -230,9 +163,7 @@ export type StartExternalStorybookPackageInput = Readonly<{
   sharedModuleEpoch?: string
   /** Digest of the Storybook host implementation bound into the retained shell. */
   hostModuleEpoch?: string
-  loadRuntime: ExternalStorybookRuntimeLoader
-  storyLoaders: ReadonlyMap<string, ExternalStorybookStoryLoader>
-  widgetLoaders?: ReadonlyMap<string, ExternalStorybookWidgetLoader>
+
   scenarioLoaders?: ReadonlyMap<string, ExternalStorybookScenarioLoader>
   graphSnapshot?: StorybookPackageRevisionGraphSnapshot
   environment?: ExternalStorybookPackageEnvironment
@@ -247,6 +178,7 @@ export type ExternalStorybookPackageController = Readonly<{
   get currentRoute(): string
   get currentModel(): ExternalStorybookPackageTabModel
   navigate(route: string): Promise<void>
+  selectScenario(value: string): void
   restoreAddress(): void
   applyRevision(revision: string): Promise<void>
   canApplyRevision(): boolean
@@ -259,11 +191,6 @@ export async function startExternalStorybookPackage(
   const packageId = exactPackageId(input.packageId)
   const initialCandidateRevision = input.candidateRevision === null ? null : safeRevision(input.candidateRevision)
   validateRevisionUrl(packageId, initialCandidateRevision, input.revisionUrl)
-  const initialStoryLoaders = validateStoryLoaders(input.storyLoaders)
-  const initialWidgetLoaders = validateWidgetLoaders(input.widgetLoaders ?? new Map())
-  if (input.loadRuntime !== null && typeof input.loadRuntime !== "function") {
-    throw new TypeError("External Storybook runtime loader must be a function or null")
-  }
   const environment = input.environment ?? {}
   const embeddedPageScope = environment.pageScope
   const browserDocument = environment.browserDocument ?? globalThis.document
@@ -287,7 +214,6 @@ export async function startExternalStorybookPackage(
   const initialRevisionGraph = input.graphSnapshot === undefined
     ? null
     : validateStorybookPackageRevisionGraphSnapshot(input.graphSnapshot, packageId)
-  validateRevisionWidgetLoaderKeys(initialRevisionGraph, initialWidgetLoaders)
   const bootstrap = await (async () => {
     try {
       const snapshot = initialRevisionGraph === null
@@ -298,16 +224,6 @@ export async function startExternalStorybookPackage(
         summary.builtRevision !== initialCandidateRevision && summary.activatingRevision !== initialCandidateRevision &&
         summary.activeRevision !== initialCandidateRevision && summary.lastWorkingRevision !== initialCandidateRevision) {
         throw new Error(`External Storybook revision is not active or last-good, built, activating, or last-working: ${initialCandidateRevision}`)
-      }
-      if (initialCandidateRevision === null && (input.loadRuntime !== null || initialStoryLoaders.size > 0)) {
-        throw new Error(`Unavailable Storybook package cannot receive executable loaders: ${packageId}`)
-      }
-      for (const [route, loader] of initialStoryLoaders) {
-        if (typeof loader !== "function") throw new TypeError(`External Storybook story loader is not callable: ${route}`)
-        const model = deriveExternalStorybookPackageTab(snapshot, packageId, route)
-        if (model.selectedNode.kind !== "variant") {
-          throw new Error(`External Storybook story loader route is not a variant: ${route}`)
-        }
       }
       const initialRoute = environment.pageScope?.initialRoute ?? packageRouteFromAddress(location.href, packageId, snapshot)
       return Object.freeze({
@@ -335,10 +251,7 @@ export async function startExternalStorybookPackage(
   const hostModuleEpoch = input.hostModuleEpoch === undefined
     ? null
     : exactBoundedText(input.hostModuleEpoch, 256, "host module epoch")
-  let loadRuntime = input.loadRuntime
-  let storyLoaders = initialStoryLoaders
-  let widgetLoaders = initialWidgetLoaders
-  let scenarioLoaders = input.scenarioLoaders ?? new Map<string, ExternalStorybookScenarioLoader>()
+  let scenarioLoaders = validateScenarioLoaders(input.scenarioLoaders, snapshot)
   let revisionGraph = initialRevisionGraph
   let currentPayload: ExternalStorybookAppliedRevision | null =
     candidateRevision === null || revisionUrl === null || revisionGraph === null || sharedModuleEpoch === null
@@ -351,9 +264,7 @@ export async function startExternalStorybookPackage(
         sharedModuleEpoch,
         ...(hostModuleEpoch === null ? {} : {hostModuleEpoch}),
         graphSnapshot: revisionGraph,
-        loadRuntime,
-        storyLoaders,
-        widgetLoaders,
+
         scenarioLoaders,
       })
   let navigationSnapshot = revisionGraph === null ? snapshot : await fetchExternalStorybookClientSnapshot(fetcher)
@@ -380,22 +291,15 @@ export async function startExternalStorybookPackage(
   }
   const lifetime = new AbortController()
   let routeAbort = new AbortController()
-  let runtimeAdapterPromise: Promise<StorybookRuntimeAdapter> | null = null
-  let session: BoundStorybookRuntimeSession | null = null
-  let sessionPromise: Promise<BoundStorybookRuntimeSession> | null = null
-  let aggregate: MountedStorybookAggregate | null = null
-  let mountedRoute: string | null = null
   let currentRoute = initialRoute
   let currentModel = initialModel
   let navigationRevision = 0
-  let activePresentationOperation: StorybookPresentationOperation | null = null
   let selectContractDirection: ((id: string) => void) | null = null
   let activePresentationView: WorkbenchPresentationUpdate | null = null
   let routeDiagnostics: unknown[] = []
   let operationTail: Promise<void> = Promise.resolve()
   let disposePromise: Promise<void> | null = null
   let agentBridge: StorybookAgentBridge | null = null
-  let activeSpacePreview: StorybookSpacePreview | null = null
   let scenarioPresentation: ReturnType<typeof createScenarioPresentation> | null = null
   let stopScenarioSelection: (() => void) | null = null
   let restoringScenarioSelection = false
@@ -408,74 +312,10 @@ export async function startExternalStorybookPackage(
     scenarioPresentation?.dispose()
     scenarioPresentation = null
   }
-  const customWidgetComponents = new Map<
-    string,
-    CompiledTemplate<WorkbenchInspectorCustomWidgetProps>
-  >()
   let reloadingFallback = false
   let disposed = false
-  const presentationInspector = createDomInspector({
-    document: shell.document,
-    readFrame(node) {
-      const projection = shell.projectionFor(node)
-      return projection.kind === "space" ? null : projection.readFrame()
-    },
-  })
-  let derivedPresentationSignature = ""
-
-  /** Публикует базовый реестр и уже загруженные custom widgets пакета. */
   const publishInspectorRegistry = (): void => {
-    const customRegistry: WorkbenchInspectorCustomWidgetRegistration[] = [...BUILTIN_INSPECTOR_WIDGETS]
-    for (const item of revisionGraph?.widgetContributions?.items ?? []) {
-      if (item.kind !== "component") continue
-      if (BUILTIN_INSPECTOR_WIDGETS.some(widget => widget.id === item.id)) {
-        throw new Error(`Storybook widget contribution uses reserved Inspector id: ${item.id}`)
-      }
-      const component = customWidgetComponents.get(item.id)
-      if (component === undefined) continue
-      customRegistry.push(Object.freeze({
-        id: item.id,
-        kind: "custom",
-        label: item.label,
-        title: item.label,
-        component,
-      }))
-    }
-    shell.workbench.update("inspector.registry", Object.freeze([
-      ...WORKBENCH_STANDARD_WIDGET_REGISTRY,
-      ...customRegistry,
-    ]))
-  }
-
-  /** Загружает custom widgets предмета и обновляет общий реестр Inspector. */
-  const ensureInspectorRegistry = async (
-    subject: StorybookPresentationSubject,
-  ): Promise<void> => {
-    const presentation = requiredSubjectPresentation(subject)
-    const customItems = revisionGraph?.widgetContributions?.items.filter((item) =>
-      item.kind === "component" && presentation.widgets.includes(item.id)) ?? []
-    for (const item of customItems) {
-      if (customWidgetComponents.has(item.id)) continue
-      const loader = widgetLoaders.get(item.id)
-      if (loader === undefined) {
-        throw new Error(`Storybook presentation widget has no exact loader: ${packageId}:${item.id}`)
-      }
-      const candidate = await loader()
-      if (!isCompiledTemplate(candidate)) {
-        throw new TypeError(`Storybook component widget is not governed compiled TSX: ${packageId}:${item.id}`)
-      }
-      customWidgetComponents.set(
-        item.id,
-        candidate as CompiledTemplate<WorkbenchInspectorCustomWidgetProps>,
-      )
-    }
-    publishInspectorRegistry()
-  }
-
-  const disposeSpacePreview = (): void => {
-    const preview = activeSpacePreview
-    activeSpacePreview = null
-    preview?.dispose()
+    shell.workbench.update("inspector.registry", Object.freeze([...WORKBENCH_STANDARD_WIDGET_REGISTRY, ...BUILTIN_INSPECTOR_WIDGETS]))
   }
 
   /**
@@ -514,361 +354,6 @@ export async function startExternalStorybookPackage(
     refreshDiagnostics()
   }
 
-  const refreshDerivedPresentation = (): boolean => {
-    const current = activePresentationView
-    const node = current?.presentation.node
-    const widgetIds = current?.inspectorSubject?.widgetIds ?? Object.freeze([])
-    if (current === null || node === null ||
-      !widgetIds.some((id) => id === "dom" || id === "layout" || id === "display")) return false
-    const snapshot = presentationInspector.snapshot(node)
-    const root = snapshot.nodes.find(({id}) => id === snapshot.root)
-    if (root === undefined) throw new Error("Storybook DOM Inspector omitted the presentation root")
-    const derived = Object.freeze({
-      ...(widgetIds.includes("dom") ? {dom: snapshot} : {}),
-      ...(widgetIds.includes("layout") ? {layout: root.box ?? null} : {}),
-      ...(widgetIds.includes("display") ? {
-        display: Object.freeze({
-          hit: root.hit ?? null,
-          display: root.display ?? Object.freeze([]),
-        }),
-      } : {}),
-    })
-    const signature = JSON.stringify(derived)
-    if (signature === derivedPresentationSignature) return false
-    derivedPresentationSignature = signature
-    const next = Object.freeze({
-      ...current,
-      inspectorValues: Object.freeze({...current.inspectorValues, ...derived}),
-    })
-    publishPresentation(next)
-    return true
-  }
-
-  const activeOperation = (
-    subjectId: string,
-    projection: StorybookPackageRevisionStoryPresentation["projection"],
-  ): StorybookPresentationOperation => {
-    const operation = activePresentationOperation
-    if (operation === null || operation.revision !== navigationRevision ||
-      operation.subjectId !== subjectId || operation.projection !== projection ||
-      routeAbort.signal.aborted) {
-      throw new Error("External Storybook runtime attempted a stale presentation")
-    }
-    return operation
-  }
-
-  const createContext = (
-    subject: StorybookPresentationSubject,
-    abort: AbortController,
-  ): StorybookRuntimeContext => {
-    const presentation = requiredSubjectPresentation(subject)
-    const signal = AbortSignal.any([lifetime.signal, abort.signal])
-    const base = {
-      document: shell.document,
-      signal,
-      present(value: StorybookRuntimePresentationInput) {
-        const operation = activeOperation(subject.id, presentation.projection)
-        if (operation.presented) {
-          throw new Error("Storybook runtime mount/update published more than one atomic presentation")
-        }
-        const committed = exactRuntimePresentation(
-          value,
-          shell,
-          presentation,
-          revisionGraph?.authorStyleSheets.map(({specifier}) => specifier) ?? Object.freeze([]),
-          routeDiagnostics,
-        )
-        if (operation.spaceNode !== null && operation.spaceNode !== committed.node) {
-          throw new Error("Storybook Space preview node differs from the atomic presentation node")
-        }
-        operation.presented = true
-        operation.presentedNode = committed.node
-        const next = Object.freeze({
-          label: currentModel.selectedNode.label,
-          presentation: Object.freeze({
-            node: committed.node,
-            projection: presentation.projection,
-          }),
-          inspectorSubject: Object.freeze({
-            packageId,
-            subjectId: subject.id,
-            workspaceId: `variant:${operation.route}`,
-            widgetIds: presentation.widgets,
-          }),
-          inspectorValues: committed.inspectorValues,
-        })
-        publishPresentation(next, true)
-      },
-      reportDiagnostic(value: unknown) {
-        const selectedSubject = exactPresentationSubject(revisionGraph, snapshot, currentModel)
-        const inspector = activePresentationView?.inspectorSubject
-        if (signal.aborted || currentModel.selectedNode.kind !== "variant" ||
-          selectedSubject?.id !== subject.id || inspector?.workspaceId !== `variant:${currentRoute}`) {
-          throw new Error("External Storybook runtime attempted a stale diagnostic")
-        }
-        reportDiagnostic(value)
-      },
-      requestRender() {
-        shell.requestRender()
-      },
-    } as const
-    if (presentation.projection !== "space") {
-      return Object.freeze({...base, projection: presentation.projection})
-    }
-    return Object.freeze({
-      ...base,
-      projection: "space" as const,
-      space: shell.space,
-      mountSpacePreview(registration: Parameters<ExternalStorybookShell["mountSpacePreview"]>[1]) {
-        const operation = activeOperation(subject.id, presentation.projection)
-        if (operation.spaceNode !== null) {
-          throw new Error("Storybook runtime mount/update registered more than one Space preview")
-        }
-        operation.spaceNode = registration.node
-        if (operation.presentedNode !== null && operation.presentedNode !== registration.node) {
-          throw new Error("Storybook Space preview node differs from the atomic presentation node")
-        }
-        disposeSpacePreview()
-        const preview = shell.mountSpacePreview(currentModel.selectedNode.label, registration)
-        activeSpacePreview = preview
-        return preview
-      },
-    })
-  }
-
-  const ensureRuntimeAdapter = (): Promise<StorybookRuntimeAdapter> => {
-    if (runtimeAdapterPromise !== null) return runtimeAdapterPromise
-    if (loadRuntime === null) {
-      throw new Error(`Executable Storybook variant has no runtime: ${packageId}`)
-    }
-    runtimeAdapterPromise = Promise.resolve()
-      .then(() => loadRuntime!())
-      .then(validateStorybookRuntimeAdapter)
-    return runtimeAdapterPromise
-  }
-
-  const disposeSession = async (record: BoundStorybookRuntimeSession | null): Promise<void> => {
-    if (record === null) return
-    record.abort.abort(new DOMException("Storybook subject session disposed", "AbortError"))
-    await record.session.dispose()
-    if (session === record) session = null
-  }
-
-  const disposeAggregate = async (): Promise<void> => {
-    const current = aggregate
-    aggregate = null
-    if (current === null) return
-    current.stopFitting()
-    try {
-      await disposeStorybookAggregateChildren(current.children)
-    } finally {
-      current.presentation.dispose()
-    }
-  }
-
-  const ensureSession = async (
-    subject: StorybookPresentationSubject,
-  ): Promise<BoundStorybookRuntimeSession> => {
-    const presentation = requiredSubjectPresentation(subject)
-    if (session !== null && session.subjectId === subject.id &&
-      session.projection === presentation.projection) return session
-    if (sessionPromise !== null) {
-      const pending = await sessionPromise
-      if (pending.subjectId === subject.id && pending.projection === presentation.projection) return pending
-    }
-    if (session !== null) {
-      if (mountedRoute !== null) {
-        await session.session.unmount()
-        mountedRoute = null
-      }
-      await disposeSession(session)
-    }
-    const abort = new AbortController()
-    const context = createContext(subject, abort)
-    const pending = ensureRuntimeAdapter()
-      .then((adapter) => adapter.create(context))
-      .then(async (candidate) => {
-        let created: StorybookRuntimeSession
-        try {
-          created = validateStorybookRuntimeSession(candidate)
-        } catch (error) {
-          await bestEffortDispose(candidate)
-          throw error
-        }
-        if (disposed || lifetime.signal.aborted || abort.signal.aborted) {
-          await created.dispose()
-          throw lifetime.signal.reason ?? abort.signal.reason ?? new DOMException("Aborted", "AbortError")
-        }
-        const record = Object.freeze({
-          subjectId: subject.id,
-          projection: presentation.projection,
-          context,
-          abort,
-          session: created,
-        })
-        session = record
-        return record
-      })
-      .finally(() => {
-        if (sessionPromise === pending) sessionPromise = null
-      })
-    sessionPromise = pending
-    return pending
-  }
-
-  const showAggregateOverview = async (
-    model: ExternalStorybookPackageTabModel,
-    revision: number,
-    signal: AbortSignal,
-  ): Promise<boolean> => {
-    const plan = planStorybookOverview(snapshot, model)
-    const projection = plan[0]?.subject.presentation.projection
-    if (projection === undefined || projection === "space" || plan.some(({subject}) =>
-      subject.presentation.projection !== projection)) return false
-    await disposeAggregate()
-    if (session !== null) {
-      if (mountedRoute !== null) {
-        await session.session.unmount()
-        mountedRoute = null
-      }
-      await disposeSession(session)
-    }
-    let children: readonly MountedStorybookAggregateChild[] = Object.freeze([])
-    let pendingPresentation: StorybookAggregatePresentation | null = null
-    let stopFitting = () => {}
-    try {
-      const aggregateSignal = AbortSignal.any([lifetime.signal, signal])
-      const adapter = await abortable(ensureRuntimeAdapter(), aggregateSignal)
-      if (disposed || revision !== navigationRevision || signal.aborted) {
-        throw signal.reason ?? new DOMException("Storybook aggregate navigation superseded", "AbortError")
-      }
-      const node = externalStorybookClientNode(snapshot, model.selectedNode.id)
-      const aggregatePresentation = createStorybookAggregatePresentation(
-        shell.document,
-        `${node.label} · Обзор`,
-        plan,
-      )
-      pendingPresentation = aggregatePresentation
-      const mountingView: WorkbenchPresentationUpdate = Object.freeze({
-        label: `${node.label} · Обзор`,
-        presentation: Object.freeze({node: aggregatePresentation.element, projection}),
-        inspectorSubject: null,
-        inspectorValues: Object.freeze({diagnostics: Object.freeze([...routeDiagnostics])}),
-      })
-      publishPresentation(mountingView, true)
-      stopFitting = shell.root.getProjection(projection === "display" ? shell.display : shell.hud)
-        .subscribeFrames(frame => {
-          if (aggregatePresentation.fitToFrame(frame)) shell.requestRender()
-        })
-      children = await mountStorybookAggregateChildren({
-        document: shell.document,
-        adapter,
-        plan,
-        signal: aggregateSignal,
-        async loadStory(route) {
-          const loader = storyLoaders.get(route)
-          if (loader === undefined) {
-            throw new Error(`Storybook aggregate representative has no exact loader: ${route}`)
-          }
-          return loader()
-        },
-        present(item, value) {
-          return aggregatePresentation.present(item.id, value)
-        },
-        validatePresentation(value, presentation) {
-          exactRuntimePresentation(
-            value,
-            shell,
-            presentation,
-            revisionGraph?.authorStyleSheets.map(({specifier}) => specifier) ?? Object.freeze([]),
-            routeDiagnostics,
-          )
-        },
-        reportDiagnostic,
-        requestRender: () => shell.requestRender(),
-      })
-      if (disposed || revision !== navigationRevision || signal.aborted) {
-        throw signal.reason ?? new DOMException("Storybook aggregate navigation superseded", "AbortError")
-      }
-      const selectedSubject = exactPresentationSubject(revisionGraph, snapshot, model)
-      const overviewSubject = selectedSubject ?? (
-        plan.length === 1 && children.length === 1 ? plan[0]!.subject : null
-      )
-      const representative = children.length === 1 ? children[0]!.presentation : null
-      let inspectorValues: Readonly<Record<string, unknown>> = Object.freeze({
-        diagnostics: Object.freeze([...routeDiagnostics]),
-      })
-      let inspectorSubject: WorkbenchPresentationUpdate["inspectorSubject"] = null
-      if (overviewSubject === null) {
-        projectStorybookSource(
-          aggregatePresentation.source,
-          aggregatePresentation.componentRoot,
-          shell.document,
-          revisionGraph?.authorStyleSheets.map(({specifier}) => specifier) ?? Object.freeze([]),
-        )
-      } else {
-        await ensureInspectorRegistry(overviewSubject)
-        if (disposed || revision !== navigationRevision || signal.aborted) {
-          throw signal.reason ?? new DOMException(
-            "Storybook aggregate Inspector setup superseded",
-            "AbortError",
-          )
-        }
-        const subjectPresentation = requiredSubjectPresentation(overviewSubject)
-        const committed = exactRuntimePresentation(
-          Object.freeze({
-            protocol: STORYBOOK_PRESENTATION_PROTOCOL,
-            node: aggregatePresentation.element,
-            componentRoot: aggregatePresentation.componentRoot,
-            source: aggregatePresentation.source,
-            ...(representative?.values === undefined
-              ? {}
-              : {values: representative.values}),
-          }),
-          shell,
-          subjectPresentation,
-          revisionGraph?.authorStyleSheets.map(({specifier}) => specifier) ?? Object.freeze([]),
-          routeDiagnostics,
-        )
-        inspectorValues = committed.inspectorValues
-        inspectorSubject = Object.freeze({
-          packageId,
-          subjectId: overviewSubject.id,
-          widgetIds: subjectPresentation.widgets,
-        })
-      }
-      const next = Object.freeze({
-        label: `${node.label} · Обзор`,
-        presentation: Object.freeze({
-          node: aggregatePresentation.element,
-          projection,
-        }),
-        inspectorSubject,
-        inspectorValues,
-      })
-      publishPresentation(next)
-      shell.requestRender()
-      aggregate = Object.freeze({
-        presentation: aggregatePresentation,
-        children: Object.freeze([...children]),
-        stopFitting,
-      })
-      pendingPresentation = null
-      return true
-    } catch (error) {
-      stopFitting()
-      try {
-        await disposeStorybookAggregateChildren(children, error, true)
-      } finally {
-        if (activePresentationView?.presentation.node === pendingPresentation?.element) {
-          activePresentationView = null
-        }
-        pendingPresentation?.dispose()
-      }
-      throw error
-    }
-  }
-
   const showOverview = async (
     model: ExternalStorybookPackageTabModel,
     revision: number,
@@ -879,17 +364,6 @@ export async function startExternalStorybookPackage(
     const contract = model.viewKind === "contract"
     const scenarios = model.viewKind === "scenarios"
     disposeScenario()
-    disposeSpacePreview()
-    if (!dependencies && !contract && !scenarios && await showAggregateOverview(model, revision, signal)) return
-    await disposeAggregate()
-    if (session !== null && mountedRoute !== null) {
-      await session.session.unmount()
-      mountedRoute = null
-    }
-    const overviewSubject = exactPresentationSubject(revisionGraph, snapshot, model)
-    if (session !== null && session.subjectId !== overviewSubject?.id) {
-      await disposeSession(session)
-    }
     const node = externalStorybookClientNode(snapshot, model.selectedNode.id)
     const readme = contract || dependencies || scenarios ? null : await readExternalStorybookNodeReadme(node, fetcher)
     if (disposed || revision !== navigationRevision) return
@@ -954,9 +428,6 @@ export async function startExternalStorybookPackage(
       ? shell.showMessage(label, node.label, overviewDescription(node.kind, node.childIds.length))
       : shell.showMarkdown(label, readme, node.resourceUrl)
     contractViewport = presentationNode as unknown as Element
-    const subjectPresentation = overviewSubject === null
-      ? null
-      : requiredSubjectPresentation(overviewSubject)
     const contractWidgets = contract
       ? Object.freeze((node.contractDocuments ?? []).map(({direction}) =>
         direction === "input" ? "storybook-contract-input" : "storybook-contract-output"))
@@ -991,13 +462,7 @@ export async function startExternalStorybookPackage(
           workspaceId: `contract:${model.urlPath}`,
           widgetIds: contractWidgets,
         })
-        : dependencies || scenarios || overviewSubject === null || subjectPresentation === null
-        ? null
-        : Object.freeze({
-          packageId,
-          subjectId: overviewSubject.id,
-          widgetIds: subjectPresentation.widgets,
-        }),
+        : null,
       inspectorValues: scenarios ? Object.freeze(scenarioPresentation === null ? {} : {"storybook-scenarios": scenarioPresentation.app}) : contractValues ?? Object.freeze({diagnostics: Object.freeze([...routeDiagnostics])}),
     })
     publishPresentation(next, scenarioPresentation !== null)
@@ -1010,74 +475,6 @@ export async function startExternalStorybookPackage(
     shell.requestRender()
   }
 
-  const showVariant = async (
-    model: ExternalStorybookPackageTabModel,
-    revision: number,
-    signal: AbortSignal,
-  ): Promise<void> => {
-    const route = model.selectedNode.routePath
-    if (route === null) throw new Error(`External Storybook variant has no route: ${model.selectedNode.id}`)
-    const loader = storyLoaders.get(route)
-    if (loader === undefined) {
-      await showOverview(model, revision, signal)
-      return
-    }
-    const subject = exactPresentationSubject(revisionGraph, snapshot, model)
-    if (subject === null) throw new Error(`Executable Storybook variant has no presentation subject: ${route}`)
-    const presentation = requiredSubjectPresentation(subject)
-    disposeSpacePreview()
-    await disposeAggregate()
-    disposeScenario()
-    shell.showMessage(`${model.selectedNode.label} · Загрузка`, model.selectedNode.label, "Загрузка owner story…")
-    const [runtimeRecord, story] = await abortable(Promise.all([ensureSession(subject), loader()]), signal)
-    if (disposed || revision !== navigationRevision || signal.aborted) return
-    const storyInput = Object.freeze({route, story, signal})
-    const operation: StorybookPresentationOperation = {
-      revision,
-      subjectId: subject.id,
-      route,
-      projection: presentation.projection,
-      presented: false,
-      presentedNode: null,
-      spaceNode: null,
-    }
-    activePresentationOperation = operation
-    try {
-      if (mountedRoute !== null && runtimeRecord.session.update !== undefined) {
-        await abortable(Promise.resolve(runtimeRecord.session.update(storyInput)), signal)
-        if (disposed || revision !== navigationRevision || signal.aborted) return
-      } else {
-        if (mountedRoute !== null) await abortable(Promise.resolve(runtimeRecord.session.unmount()), signal)
-        mountedRoute = null
-        if (disposed || revision !== navigationRevision || signal.aborted) return
-        await abortable(Promise.resolve(runtimeRecord.session.mount(storyInput)), signal)
-        if (disposed || revision !== navigationRevision || signal.aborted) {
-          await runtimeRecord.session.unmount()
-          disposeSpacePreview()
-          return
-        }
-      }
-      if (!operation.presented) {
-        throw new Error(`Storybook runtime mount/update published no atomic presentation: ${route}`)
-      }
-      if (operation.spaceNode !== null && operation.spaceNode !== operation.presentedNode) {
-        throw new Error("Storybook Space preview node differs from the atomic presentation node")
-      }
-      mountedRoute = route
-    } catch (error) {
-      mountedRoute = null
-      disposeSpacePreview()
-      try {
-        await runtimeRecord.session.unmount()
-      } catch (cleanupError) {
-        throw new AggregateError([error, cleanupError], `Storybook failed to clean up route ${route}`)
-      }
-      throw error
-    } finally {
-      if (activePresentationOperation === operation) activePresentationOperation = null
-    }
-  }
-
   const applyRoute = async (
     route: string,
     revision: number,
@@ -1087,8 +484,6 @@ export async function startExternalStorybookPackage(
     if (disposed) throw new Error("External Storybook package tab is disposed")
     const model = deriveExternalStorybookPackageTab(graph, packageId, route)
     if (revision !== navigationRevision || signal.aborted) return
-    const presentationSubject = exactPresentationSubject(revisionGraph, snapshot, model)
-    if (candidateRevision !== null && presentationSubject !== null) await ensureInspectorRegistry(presentationSubject)
     if (revision !== navigationRevision || signal.aborted) return
     currentRoute = route
     currentModel = model
@@ -1114,7 +509,6 @@ export async function startExternalStorybookPackage(
       inspectorSubject: null,
       inspectorValues: Object.freeze({}),
     }), true)
-    derivedPresentationSignature = ""
     for (const diagnostic of summary.diagnostics) reportDiagnostic(diagnostic)
     try {
       if (candidateRevision === null && summary.buildState === "failed") {
@@ -1123,8 +517,6 @@ export async function startExternalStorybookPackage(
       }
       if (candidateRevision === null) {
         shell.showMessage(model.packageNode.label, "Нет применённой сборки", "Пакет станет доступен после успешной проверки и применения агентом.")
-      } else if (model.selectedNode.kind === "variant") {
-        await showVariant(model, revision, signal)
       } else {
         await showOverview(model, revision, signal)
       }
@@ -1132,7 +524,6 @@ export async function startExternalStorybookPackage(
       const beforeFrame = shell.presentedFrameSequence
       let frameSequence = shell.presentFrame()
       if (frameSequence <= beforeFrame) throw new Error("Storybook activation did not present a new frame")
-      if (refreshDerivedPresentation()) frameSequence = shell.presentFrame()
       if (disposed || revision !== navigationRevision || signal.aborted) return
       restoreInspectorSelection()
       browserDocument.title = externalStorybookPageTitle(packageId, model.packageNode.label)
@@ -1196,6 +587,14 @@ export async function startExternalStorybookPackage(
   Неверное значение и отсутствие Inspector нормализуются через replaceState,
   чтобы URL всегда описывал реально выбранную либо пустую секцию.
   */
+  const selectScenario = (value: string): void => {
+    if (scenarioPresentation === null) throw new Error("На текущей странице нет сценариев")
+    const app = scenarioPresentation.app
+    const matches = app.variants.filter(variant => variant.id === value || variant.title === value)
+    if (matches.length !== 1) throw new Error(`Неизвестный или неоднозначный вариант сценария: ${value}`)
+    app.select(matches[0]!.id)
+  }
+
   const restoreScenarioSelection = (): void => {
     if (scenarioPresentation === null) return
     const app = scenarioPresentation.app
@@ -1277,74 +676,45 @@ export async function startExternalStorybookPackage(
       scrollable.scrollLeft = presentation.left
     }
   }
-
-  const disposeMountedExecution = async (reason?: unknown): Promise<void> => {
-    disposeScenario()
-    disposeSpacePreview()
-    await disposeAggregate()
-    const current = session
-    if (current === null) return
-    if (mountedRoute !== null) {
-      await current.session.unmount()
-      mountedRoute = null
-    }
-    current.abort.abort(reason)
-    await disposeSession(current)
-  }
+  const disposeMountedExecution = async (_reason?: unknown): Promise<void> => { disposeScenario() }
 
   type RevisionBinding = Readonly<{
     candidateRevision: string | null
     revisionUrl: string | null
-    loadRuntime: ExternalStorybookRuntimeLoader
-    storyLoaders: ReadonlyMap<string, ExternalStorybookStoryLoader>
-    widgetLoaders: ReadonlyMap<string, ExternalStorybookWidgetLoader>
+
     scenarioLoaders: ReadonlyMap<string, ExternalStorybookScenarioLoader>
     revisionGraph: StorybookPackageRevisionGraphSnapshot | null
     snapshot: ExternalStorybookClientSnapshot
     summary: ExternalStorybookClientPackageSummary
     graph: ExternalStorybookClientSnapshot
-    runtimeAdapterPromise: Promise<StorybookRuntimeAdapter> | null
-    customWidgets: readonly [string, CompiledTemplate<WorkbenchInspectorCustomWidgetProps>][]
+
     payload: ExternalStorybookAppliedRevision | null
-    styleTransaction: Readonly<{
-      commit(): Promise<void>
-      rollback(): Promise<void>
-      release(): void
-    }> | null
   }>
 
   const readRevisionBinding = (): RevisionBinding => Object.freeze({
     candidateRevision,
     revisionUrl,
-    loadRuntime,
-    storyLoaders,
-    widgetLoaders,
+
     scenarioLoaders,
     revisionGraph,
     snapshot,
     summary,
     graph,
-    runtimeAdapterPromise,
-    customWidgets: Object.freeze([...customWidgetComponents.entries()]),
+
     payload: currentPayload,
-    styleTransaction: null,
   })
 
   const writeRevisionBinding = (binding: RevisionBinding): void => {
     candidateRevision = binding.candidateRevision
     revisionUrl = binding.revisionUrl
-    loadRuntime = binding.loadRuntime
-    storyLoaders = binding.storyLoaders
-    widgetLoaders = binding.widgetLoaders
+
     scenarioLoaders = binding.scenarioLoaders
     revisionGraph = binding.revisionGraph
     snapshot = binding.snapshot
     summary = binding.summary
     graph = binding.graph
-    runtimeAdapterPromise = binding.runtimeAdapterPromise
+
     currentPayload = binding.payload
-    customWidgetComponents.clear()
-    for (const [id, component] of binding.customWidgets) customWidgetComponents.set(id, component)
     publishInspectorRegistry()
   }
 
@@ -1370,34 +740,25 @@ export async function startExternalStorybookPackage(
     if (nextHostModuleEpoch !== hostModuleEpoch) {
       throw new Error(`Storybook host module epoch changed; page restart is required: ${packageId}:${revision}`)
     }
-    const styleTransaction = embeddedPageScope === undefined
-      ? (assertCompatibleAuthorStyleSheets(revisionGraph, payload.graphSnapshot), null)
-      : await embeddedPageScope.prepareRevisionStyleSheets(payload, signal)
+    assertCompatibleAuthorStyleSheets(revisionGraph, payload.graphSnapshot)
     const nextSnapshot = revisionClientSnapshot(
       payload.graphSnapshot,
       payload.candidateRevision,
       payload.revisionUrl,
     )
     const nextSummary = exactPackageSummary(nextSnapshot, packageId)
-    const preparedAdapter = payload.loadRuntime === null
-      ? null
-      : await Promise.resolve(payload.loadRuntime()).then(validateStorybookRuntimeAdapter)
     signal.throwIfAborted()
     return Object.freeze({
       candidateRevision: payload.candidateRevision,
       revisionUrl: payload.revisionUrl,
-      loadRuntime: payload.loadRuntime,
-      storyLoaders: validateStoryLoaders(payload.storyLoaders),
-      widgetLoaders: validateWidgetLoaders(payload.widgetLoaders ?? new Map()),
+
       scenarioLoaders: payload.scenarioLoaders ?? new Map(),
       revisionGraph: payload.graphSnapshot,
       snapshot: nextSnapshot,
       summary: nextSummary,
       graph: nextSnapshot,
-      runtimeAdapterPromise: preparedAdapter === null ? null : Promise.resolve(preparedAdapter),
-      customWidgets: Object.freeze([]),
+
       payload,
-      styleTransaction,
     })
   }
 
@@ -1416,7 +777,6 @@ export async function startExternalStorybookPackage(
     const revision = ++navigationRevision
     routeAbort = new AbortController()
     await disposeMountedExecution(reason)
-    await next.styleTransaction?.commit()
     writeRevisionBinding(next)
     try {
       await applyRoute(nextRoute, revision, routeAbort.signal, true)
@@ -1426,10 +786,8 @@ export async function startExternalStorybookPackage(
       delete browserDocument.documentElement.dataset.externalStorybookUpdateError
       agentBridge?.updateIdentity(packageId, next.candidateRevision ?? "unavailable", next.snapshot.graphDigest)
       if (next.payload !== null) embeddedPageScope?.revisionApplied(next.payload)
-      next.styleTransaction?.release()
     } catch (error) {
       await disposeMountedExecution(error)
-      await next.styleTransaction?.rollback()
       writeRevisionBinding(previous)
       const rollbackRevision = ++navigationRevision
       routeAbort.abort(error)
@@ -1460,9 +818,6 @@ export async function startExternalStorybookPackage(
         const swap = operationTail
           .catch(() => {})
           .then(async () => {
-            if (sessionPromise !== null) {
-              throw new Error(`Storybook pending runtime cannot change page realm; page restart is required: ${packageId}:${requested}`)
-            }
             shell.updateStatus("Пакет · Обновление содержимого страницы")
             await applyPreparedRevision(prepared)
             shell.updateStatus("Пакет · Обновление показано; проверка применения")
@@ -1797,18 +1152,9 @@ export async function startExternalStorybookPackage(
         const deadline = Date.now() + cleanupTimeoutMs
         await settleBefore(appliedRevisionTail, deadline)
         await settleBefore(operationTail, deadline)
-        if (sessionPromise !== null) await settleBefore(sessionPromise, deadline)
-        if (aggregate !== null) await settleBefore(disposeAggregate(), deadline)
-        if (session !== null) {
-          disposeSpacePreview()
-          if (mountedRoute !== null) await settleBefore(Promise.resolve(session.session.unmount()), deadline)
-          session.abort.abort(reason)
-          await settleBefore(Promise.resolve(session.session.dispose()), deadline)
-        }
       } finally {
         disposeScenario()
         agentBridge?.dispose()
-        presentationInspector.dispose()
         if (embeddedPageScope === undefined) shell.dispose()
       }
     })()
@@ -1842,6 +1188,7 @@ export async function startExternalStorybookPackage(
       getRoute: () => currentRoute,
       getModel: () => currentModel,
       navigate,
+      selectScenario,
       applyRevision,
       canApplyRevision: () => environment.loadAppliedRevision !== undefined && sharedModuleEpoch !== null && /^[a-f0-9]{64}$/u.test(sharedModuleEpoch),
     })
@@ -1865,6 +1212,7 @@ export async function startExternalStorybookPackage(
         getRoute: () => currentRoute,
         getModel: () => currentModel,
         navigate,
+        selectScenario,
         applyRevision,
         canApplyRevision: () => environment.loadAppliedRevision !== undefined && sharedModuleEpoch !== null && /^[a-f0-9]{64}$/u.test(sharedModuleEpoch),
       })
@@ -1890,6 +1238,7 @@ export async function startExternalStorybookPackage(
       return currentModel
     },
     navigate,
+    selectScenario,
     restoreAddress() {
       restoreInspectorSelection()
       restoreScenarioSelection()
@@ -1906,7 +1255,7 @@ function applyModel(shell: ExternalStorybookShell, model: ExternalStorybookPacka
     shell.workbench.update("catalog.items", navigationItems(deriveExternalStorybookNavigationTree(navigation, {
       packageId: model.packageNode.packageId!, graph: content,
     })))
-    shell.workbench.update("catalog.active", model.subjectId ?? model.selectedNode.id)
+    shell.workbench.update("catalog.active", model.selectedNode.id)
     shell.workbench.update("tabs.label", "Панель вкладок")
     shell.workbench.update("tabs.items", tabItems(model.tabs))
     shell.workbench.update("tabs.active", model.tabActiveId)
@@ -1921,17 +1270,16 @@ function navigationItems(items: readonly ExternalStorybookBrowserNavigationItem[
     title: item.title,
     searchText: item.searchText,
     ...(item.expandable === undefined ? {} : {expandable: item.expandable}),
-    ...(item.group === null ? {} : {group: item.group}),
     ...(item.parentId === undefined ? {} : {parentId: item.parentId}),
   })))
 }
 
-function tabItems(items: readonly ExternalStorybookBrowserVariantItem[]) {
+function tabItems(items: readonly ExternalStorybookBrowserTabItem[]) {
   return Object.freeze(items.map((item) => Object.freeze({
     id: item.id,
     label: item.label,
     route: item.route,
-    title: item.group === null ? item.title : `${item.group.label} · ${item.title}`,
+    title: item.title,
   })))
 }
 
@@ -1990,10 +1338,7 @@ function exactAuthorStyleSheetSources(
   revisionBase: string | null,
 ): readonly RootLinkedAuthorStyleSheet[] {
   if (graph === null) return indexedWorkbenchAuthorStyleSheetSources(browserDocument)
-  const styleSheets = mergeStorybookAuthorStyleSheets(
-    graph.workbenchAuthorStyleSheets,
-    graph.authorStyleSheets,
-  )
+  const styleSheets = graph.workbenchAuthorStyleSheets
   if (styleSheets.length === 0) return Object.freeze([])
   if (revisionBase === null) {
     throw new Error(`Storybook author stylesheets require a package revision: ${graph.packageId}`)
@@ -2031,156 +1376,20 @@ function exactPackageSummary(
   return matches[0]!
 }
 
-function exactPresentationSubject(
-  graph: StorybookPackageRevisionGraphSnapshot | null,
-  snapshot: ExternalStorybookClientSnapshot,
-  model: ExternalStorybookPackageTabModel,
-): StorybookPresentationSubject | null {
-  if (model.selectedNode.kind === "directory") return null
-  const subjectId = model.subjectId
-  if (subjectId === null) return null
-  const matches = (graph?.nodes ?? snapshot.nodes).filter(({id}) => id === subjectId)
-  const subject = matches[0]
-  if (matches.length !== 1 || subject?.kind !== "subject" || subject.presentation === null) {
-    throw new Error(`Storybook package model has no exact presentation subject: ${subjectId}`)
-  }
-  return Object.freeze({id: subject.id, kind: "subject", presentation: subject.presentation})
-}
-
-function exactRuntimePresentation(
-  value: StorybookRuntimePresentationInput,
-  shell: ExternalStorybookShell,
-  presentation: StorybookPackageRevisionStoryPresentation,
-  authorStyleSheetSpecifiers: readonly string[],
-  diagnostics: readonly unknown[],
-): Readonly<{
-  node: SemanticNode
-  inspectorValues: Readonly<Record<string, unknown>>
-}> {
-  const input = exactRecord(value, "Storybook runtime presentation")
-  assertExactKeys(
-    input,
-    "Storybook runtime presentation",
-    ["protocol", "node", "componentRoot", "source", "values"],
-    ["protocol", "node", "componentRoot", "source"],
-  )
-  if (input.protocol !== STORYBOOK_PRESENTATION_PROTOCOL) {
-    throw new Error(`Unsupported Storybook presentation protocol: ${String(input.protocol)}`)
-  }
-  const node = input.node as SemanticNode
-  if (node === null || typeof node !== "object" || node.ownerDocument !== shell.document) {
-    throw new TypeError("Storybook atomic presentation node must belong to the exact semantic Document")
-  }
-  const source = projectStorybookSource(
-    input.source,
-    input.componentRoot as StorybookRuntimePresentationInput["componentRoot"],
-    shell.document,
-    authorStyleSheetSpecifiers,
-  )
-  const values = input.values === undefined
-    ? Object.freeze({}) as Readonly<Record<string, unknown>>
-    : exactRecord(input.values, "Storybook presentation values")
-  const selected = new Set(presentation.widgets)
-  const derived = new Set(["source", "diagnostics", "dom", "layout", "display"])
-  for (const key of Object.keys(values)) {
-    if (derived.has(key)) {
-      throw new Error(`Storybook presentation value is host-derived and forbidden: ${key}`)
-    }
-    if (!selected.has(key)) {
-      throw new Error(`Storybook presentation value is unknown or unselected: ${key}`)
-    }
-  }
-  const inspectorValues: Record<string, unknown> = {}
-  for (const id of presentation.widgets) {
-    if (id === "source") inspectorValues[id] = source
-    else if (id === "diagnostics") inspectorValues[id] = Object.freeze([...diagnostics])
-    else if (id === "dom") inspectorValues[id] = semanticNodeValue(node)
-    else if (id === "layout") inspectorValues[id] = Object.freeze({state: "current-frame"})
-    else if (id === "display") inspectorValues[id] = Object.freeze({state: "current-frame"})
-    else inspectorValues[id] = values[id]
-  }
-  return Object.freeze({node, inspectorValues: Object.freeze(inspectorValues)})
-}
-
-function semanticNodeValue(node: SemanticNode): Readonly<Record<string, unknown>> {
-  const candidate = node as SemanticNode & Readonly<{
-    nodeName?: unknown
-    localName?: unknown
-    textContent?: unknown
-    getAttributeNames?(): readonly string[]
-    getAttribute?(name: string): string | null
-  }>
-  const attributes = typeof candidate.getAttributeNames === "function" &&
-    typeof candidate.getAttribute === "function"
-    ? Object.freeze(Object.fromEntries(candidate.getAttributeNames().map((name) =>
-      [name, candidate.getAttribute!(name)] as const)))
-    : Object.freeze({})
-  return Object.freeze({
-    nodeName: typeof candidate.nodeName === "string" ? candidate.nodeName : null,
-    localName: typeof candidate.localName === "string" ? candidate.localName : null,
-    textContent: typeof candidate.textContent === "string" ? candidate.textContent : null,
-    attributes,
-  })
-}
-
-function assertExactKeys(
-  value: Record<string, unknown>,
-  label: string,
-  allowed: readonly string[],
-  required: readonly string[],
-): void {
-  const allowedKeys = new Set(allowed)
-  for (const key of Object.keys(value)) {
-    if (!allowedKeys.has(key)) throw new TypeError(`${label} has an unknown field: ${key}`)
-  }
-  for (const key of required) {
-    if (!Object.hasOwn(value, key)) throw new TypeError(`${label} is missing required field: ${key}`)
-  }
-}
-
-function exactRecord(value: unknown, label: string): Record<string, unknown> {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    throw new TypeError(`${label} must be an object`)
-  }
-  return value as Record<string, unknown>
-}
-
-function requiredSubjectPresentation(
-  subject: StorybookPresentationSubject,
-): StorybookPackageRevisionStoryPresentation {
-  if (subject.kind !== "subject" || subject.presentation === null) {
-    throw new Error(`Storybook subject has no required presentation: ${subject.id}`)
-  }
-  return subject.presentation
-}
-
-function validateStoryLoaders(
-  value: ReadonlyMap<string, ExternalStorybookStoryLoader>,
-): ReadonlyMap<string, ExternalStorybookStoryLoader> {
-  if (!(value instanceof Map)) throw new TypeError("External Storybook storyLoaders must be a Map")
-  return value
-}
-
-function validateWidgetLoaders(
-  value: ReadonlyMap<string, ExternalStorybookWidgetLoader>,
-): ReadonlyMap<string, ExternalStorybookWidgetLoader> {
-  if (!(value instanceof Map)) throw new TypeError("External Storybook widgetLoaders must be a Map")
+/** Проверяет только подготовленные сценарии; неподдержанный preview может не иметь загрузчика. */
+function validateScenarioLoaders(
+  value: ReadonlyMap<string, ExternalStorybookScenarioLoader> | undefined,
+  graph: Readonly<{nodes: readonly Readonly<{id: string; scenariosRoutePath?: string}>[]}>,
+): ReadonlyMap<string, ExternalStorybookScenarioLoader> {
+  if (value === undefined) return new Map()
+  if (!(value instanceof Map)) throw new TypeError("Загрузчики сценариев должны быть Map")
+  const owners = new Set(graph.nodes.filter(node => node.scenariosRoutePath !== undefined).map(node => node.id))
+  const loaders = new Map<string, ExternalStorybookScenarioLoader>()
   for (const [id, loader] of value) {
-    if (typeof id !== "string" || id.length === 0 || typeof loader !== "function") {
-      throw new TypeError(`External Storybook widget loader is invalid: ${String(id)}`)
-    }
+    if (!owners.has(id) || typeof loader !== "function") throw new Error(`Некорректный загрузчик сценария: ${String(id)}`)
+    loaders.set(id, loader)
   }
-  return value
-}
-
-function validateRevisionWidgetLoaderKeys(
-  graph: StorybookPackageRevisionGraphSnapshot | null,
-  loaders: ReadonlyMap<string, ExternalStorybookWidgetLoader>,
-): void {
-  const expected = graph?.widgetLoaders.map(({id}) => id) ?? Object.freeze([])
-  if (JSON.stringify([...loaders.keys()]) !== JSON.stringify(expected)) {
-    throw new Error(`Storybook widget loader registry does not match its revision: ${graph?.packageId ?? "unavailable"}`)
-  }
+  return loaders
 }
 
 function validateAppliedRevision(
@@ -2203,21 +1412,7 @@ function validateAppliedRevision(
   }
   validateRevisionUrl(packageId, revision, value.revisionUrl)
   const graph = validateStorybookPackageRevisionGraphSnapshot(value.graphSnapshot, packageId)
-  const storyLoaders = validateStoryLoaders(value.storyLoaders)
-  const widgetLoaders = validateWidgetLoaders(value.widgetLoaders ?? new Map())
-  if (value.loadRuntime !== null && typeof value.loadRuntime !== "function") {
-    throw new TypeError("Storybook applied revision runtime loader must be a function or null")
-  }
-  const expectedRoutes = graph.loaders.map(({route}) => route).sort()
-  const actualRoutes = [...storyLoaders.keys()].sort()
-  if (JSON.stringify(actualRoutes) !== JSON.stringify(expectedRoutes)) {
-    throw new Error(`Storybook story loader registry does not match its applied revision: ${packageId}`)
-  }
-  validateRevisionWidgetLoaderKeys(graph, widgetLoaders)
-  if (value.loadRuntime === null && storyLoaders.size > 0) {
-    throw new Error(`Executable Storybook applied revision has no runtime: ${packageId}:${revision}`)
-  }
-  return Object.freeze({...value, graphSnapshot: graph, storyLoaders, widgetLoaders})
+  return Object.freeze({...value, graphSnapshot: graph, scenarioLoaders: validateScenarioLoaders(value.scenarioLoaders, graph)})
 }
 
 function assertCompatibleAuthorStyleSheets(
@@ -2226,7 +1421,6 @@ function assertCompatibleAuthorStyleSheets(
 ): void {
   const signature = (graph: StorybookPackageRevisionGraphSnapshot) => JSON.stringify([
     ...graph.workbenchAuthorStyleSheets.map(({specifier, contentDigest}) => ({specifier, contentDigest})),
-    ...graph.authorStyleSheets.map(({specifier, contentDigest}) => ({specifier, contentDigest})),
   ])
   if (current === null) {
     if (signature(next) !== "[]") {
@@ -2333,9 +1527,7 @@ function safeRevision(value: string): string {
 
 function overviewDescription(kind: string, children: number): string {
   if (kind === "directory") return "В index.ts этой директории нет описания модуля с @packageDocumentation."
-  if (kind === "package") return `${children} категорий. Выберите категорию слева.`
-  if (kind === "category") return `${children} предметов. Выберите предмет во второй панели.`
-  if (kind === "subject") return `${children} вариантов. Выберите вариант в нижней панели.`
+  if (kind === "package") return `${children} вложенных пакетов и директорий. Выберите элемент в дереве.`
   return "Documentation-only variant."
 }
 

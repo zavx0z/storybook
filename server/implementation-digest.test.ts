@@ -1,5 +1,5 @@
 import {afterEach, describe, expect, test} from "bun:test"
-import {existsSync, readFileSync, statSync, mkdirSync, mkdtempSync, rmSync, writeFileSync} from "node:fs"
+import {existsSync, readFileSync, statSync, symlinkSync, mkdirSync, mkdtempSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {dirname, join, relative, resolve} from "node:path"
 import {externalStorybookImplementationDigest} from "./implementation-digest.ts"
@@ -44,6 +44,9 @@ describe("external Storybook implementation digest", () => {
 
     writeFileSync(join(root, "server/server.ts"), "export const revision = 2\n")
     expect(externalStorybookImplementationDigest(root)).not.toBe(first)
+    const beforeRoute = externalStorybookImplementationDigest(root)
+    writeFileSync(join(root, "route/index.ts"), "export const resolveRoute = () => null\n")
+    expect(externalStorybookImplementationDigest(root)).not.toBe(beforeRoute)
   })
 
   test("excludes tests and owner fixtures from daemon identity", () => {
@@ -51,6 +54,8 @@ describe("external Storybook implementation digest", () => {
     const first = externalStorybookImplementationDigest(root)
     writeFileSync(join(root, "server/server.test.ts"), "test revision 2\n")
     writeFileSync(join(root, "server/fixtures/owner.ts"), "owner revision 2\n")
+    mkdirSync(join(root, "route/node_modules"), {recursive: true})
+    symlinkSync(join(root, "server/server.ts"), join(root, "route/node_modules/dependency.ts"))
     expect(externalStorybookImplementationDigest(root)).toBe(first)
   })
 
@@ -77,11 +82,11 @@ function implementationFixture(): string {
   const root = mkdtempSync(join(tmpdir(), "storybook-implementation-digest-"))
   roots.push(root)
   for (const directory of [
-    "schemas",
     "scripts",
     "workbench",
     "catalog",
     "discovery",
+    "route",
     "build",
     "sessions",
     "src/shared",
@@ -96,7 +101,6 @@ function implementationFixture(): string {
   writeFileSync(join(root, "package.json"), "{}\n")
   writeFileSync(join(root, "browser-lifecycle/package.json"), "{}\n")
   writeFileSync(join(root, "scripts/storybook-daemon.ts"), "daemon\n")
-  writeFileSync(join(root, "schemas/manifest.schema.json"), "{}\n")
   writeFileSync(join(root, "workbench/controller.ts"), "export const workbench = true\n")
   writeFileSync(join(root, "server/server.ts"), "export const revision = 1\n")
   writeFileSync(join(root, "server/controller.ts"), "controller revision 1\n")

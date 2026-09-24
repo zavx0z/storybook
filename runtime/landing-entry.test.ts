@@ -1,4 +1,5 @@
 import {DisplayElement} from "@zavx0z/dom/display"
+import {ScenarioInspector} from "@storybook/app/inspector"
 import {indexedWorkbenchAuthorStyleSheetSources} from "./author-style-sheets.ts"
 import {presentationRootFixture, type PresentationFixtureOptions} from "./browser-root.fixture.ts"
 import {createRoot} from "@zavx0z/component"
@@ -23,8 +24,8 @@ import {HUDElement} from "../../webxr-space/dom/hud/index.ts"
 import {SpaceElement} from "@zavx0z/dom/space"
 import {ViewPointElement} from "@zavx0z/dom/viewpoint"
 import {
-  resolveExternalStorybookDeclarations,
-} from "../discovery/declarations.ts"
+  discoverStorybookPackages,
+} from "../discovery/packages.ts"
 import {createExternalStorybookGraph, type ExternalStorybookGraph} from "../catalog/graph.ts"
 import {ExternalStorybookRegistry} from "../catalog/registry.ts"
 import type {StorybookPackageSessionSnapshot} from "../sessions/package-session.ts"
@@ -65,8 +66,8 @@ describe("external Storybook landing frontend", () => {
         "package:fixture-workspace", "package:fixture-alpha", "package:@fixture/components",
         "package:fixture-beta", "package:@fixture/docs", "package:@fixture/standalone",
       ])
-      expect(navigation.find(item => item.id === "subject:@fixture/components/components/button")?.parentId)
-        .toBe("category:@fixture/components/components")
+      expect(navigation.find(item => item.id === "directory:package:@fixture/components/docs")?.parentId)
+        .toBe("package:@fixture/components")
       for (const [id, path] of [
         ["package:fixture-workspace", "/pkg-fixture-workspace/"],
         ["package:fixture-alpha", "/pkg-fixture-alpha/"],
@@ -82,9 +83,9 @@ describe("external Storybook landing frontend", () => {
   })
 
   test("adds and removes projects through the catalog controls without reloading the Root", async () => {
-    const catalog = await resolveExternalStorybookDeclarations([fixtureRoot, join(fixtureRoot, "standalone")])
+    const catalog = await discoverStorybookPackages([fixtureRoot, join(fixtureRoot, "standalone")])
     const full = createExternalStorybookGraph(catalog)
-    const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
+    const registry = new ExternalStorybookRegistry(discoverStorybookPackages)
     await registry.configure([fixtureRoot, join(fixtureRoot, "standalone")])
     const removed = (await registry.detach("package:fixture-workspace")).graph
     const empty = createExternalStorybookGraph({schemaVersion: 1, rootIds: [], scopes: []})
@@ -161,6 +162,35 @@ describe("external Storybook landing frontend", () => {
     }
   })
 
+  test("clears a previous package Inspector when landing reuses the page shell", async () => {
+    const graph = await fixtureGraph()
+    const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph))
+    const browserDocument = {documentElement: {dataset: {}}, querySelector() { return null }} as unknown as Document
+    const options = {
+      browserDocument,
+      location: {href: "http://localhost/", pathname: "/", reload() {}},
+      fetcher: (async () => Response.json(snapshot)) as unknown as typeof fetch,
+      createSocket() { return {addEventListener() {}, removeEventListener() {}, send() {}, close() {}} },
+      shell: {canvas: {} as HTMLCanvasElement, loadFont: async () => ({}) as never, createRoot: fakeRootFactory(createFakeRootState())},
+    }
+    const first = await startExternalStorybookLanding(options)
+    const workbench = first.shell.workbench
+    const registry = workbench.controller.read("inspector.registry")
+    workbench.update("inspector.subject", {packageId: "@fixture/components", subjectId: "stale", workspaceId: "stale", widgetIds: ["source"]})
+    workbench.update("inspector.values", {source: "stale"})
+    workbench.update("inspector.registry", [...registry, {
+      id: "fixture-custom", kind: "custom", label: "X", title: "Fixture", component: ScenarioInspector,
+    }] as never)
+    const second = await startExternalStorybookLanding({...options, pageScope: {
+      shell: first.shell, initialPathname: "/", async navigatePackage() {},
+    }})
+    try {
+      expect(workbench.controller.read("inspector.subject")).toBeNull()
+      expect(workbench.controller.read("inspector.values")).toEqual({})
+      expect(workbench.controller.read("inspector.registry")).toEqual(registry)
+    } finally { second.dispose(); first.dispose() }
+  })
+
 
 
   test("reads only bounded contiguous indexed Workbench author links", () => {
@@ -187,7 +217,7 @@ describe("external Storybook landing frontend", () => {
 })
 
 async function fixtureGraph(): Promise<ExternalStorybookGraph> {
-  return createExternalStorybookGraph(await resolveExternalStorybookDeclarations([
+  return createExternalStorybookGraph(await discoverStorybookPackages([
     fixtureRoot,
     join(fixtureRoot, "standalone"),
   ]))

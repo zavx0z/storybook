@@ -13,27 +13,24 @@ test("готовит один preview только для однозначног
   const functionSource = resolve(import.meta.dir, "../archetypes/package/spec/scenario.spec.ts")
   const descriptor = {
     scenarioSpecs: [
-      {nodeId: "subject:supported", sourcePaths: [supported]},
-      {nodeId: "subject:function", sourcePaths: [functionSource]},
-      {nodeId: "subject:ambiguous", sourcePaths: [supported, supported]},
+      {nodeId: "directory:package:@fixture/scenarios/component", sourcePaths: [supported]},
+      {nodeId: "package:@archetypes/package", sourcePaths: [functionSource]},
+      {nodeId: "directory:package:@fixture/scenarios/ambiguous", sourcePaths: [supported, supported]},
     ],
   } as unknown as StorybookPackageBuildDescriptor
 
   const result = await prepareStorybookScenarios(descriptor, new AbortController().signal)
 
-  expect(result).toMatchObject([{
-    kind: "component",
-    nodeId: "subject:supported",
-    module: {
-      path: realpathSync(resolve(import.meta.dir, "../archetypes/specs/scenarios/spec/fixture/component/spec/fixture/index.tsx")),
-      export: "CommandFixture",
-    },
-    variants: [{title: "Доступная команда"}, {title: "Недоступная команда"}],
-  }, {
-    kind: "function",
-    nodeId: "subject:function",
-    variants: [{title: "Корневой пакет"}, {title: "Вложенный пакет"}],
-  }])
+  expect(result.map(item => [item.kind, item.nodeId])).toEqual([
+    ["component", "directory:package:@fixture/scenarios/component"],
+    ["function", "package:@archetypes/package"],
+  ])
+  expect(result[0]).toMatchObject({module: {
+    path: realpathSync(resolve(import.meta.dir, "../archetypes/specs/scenarios/spec/fixture/component/spec/fixture/index.tsx")),
+    export: "CommandFixture",
+  }})
+  expect(result[0]?.variants.map(variant => variant.title)).toEqual(["Доступная команда", "Недоступная команда"])
+  expect(result[1]?.variants.map(variant => variant.title)).toEqual(["Архетип пакета"])
   expect(result[1]).not.toHaveProperty("module")
 }, 30_000)
 
@@ -43,7 +40,7 @@ test("не исполняет неподдержанный scenario во вре�
   writeFileSync(path, 'throw new Error("Этот source нельзя исполнять")\n')
   try {
     const descriptor = {
-      scenarioSpecs: [{nodeId: "subject:unsupported", sourcePaths: [path]}],
+      scenarioSpecs: [{nodeId: "directory:package:@fixture/unsupported/module", sourcePaths: [path]}],
     } as unknown as StorybookPackageBuildDescriptor
 
     expect(await prepareStorybookScenarios(descriptor, new AbortController().signal)).toEqual([])

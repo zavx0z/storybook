@@ -30,7 +30,7 @@ export type ResolveRouteOutput = {
     readonly path: string
   }
   readonly relativePath: string
-  readonly view: "overview" | "scenarios" | "contract" | "dependencies" | "story"
+  readonly view: "overview" | "scenarios" | "contract" | "dependencies"
   readonly views: readonly ("scenarios" | "contract" | "dependencies")[]
   readonly variant?: string
 } | null

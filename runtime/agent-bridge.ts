@@ -48,6 +48,7 @@ export type CreateStorybookAgentBridgeOptions = Readonly<{
   getRoute(): string
   getModel(): ExternalStorybookPackageTabModel
   navigate(route: string): Promise<void>
+  selectScenario?(value: string): void
   applyRevision(revision: string): Promise<void>
   canApplyRevision?(): boolean
   /** Ожидает завершения смены package scope перед чтением или действием. */
@@ -163,10 +164,8 @@ export function createStorybookAgentBridge(
           : null,
       }),
       selected: Object.freeze({
-        categoryId: model.categoryId,
-        subjectId: model.subjectId,
+        nodeId: model.selectedNode.id,
         directoryId: model.selectedNode.kind === "directory" ? model.selectedNode.id : null,
-        variantId: model.variantActiveId,
         tabId: model.tabActiveId,
       }),
       inspector: Object.freeze({
@@ -240,10 +239,8 @@ export function createStorybookAgentBridge(
       if (typeof request.value !== "string" || request.value.length === 0 || request.value.length > 256) {
         throw new Error("Storybook scenario value must be a bounded route or variant id")
       }
-      const model = options.getModel()
-      const scenario = model.variants.find(({id, route}) => id === request.value || route === request.value)
-      if (scenario === undefined) throw new Error(`Unknown Storybook scenario: ${request.value}`)
-      await options.navigate(scenario.route)
+      if (options.selectScenario === undefined) throw new Error("На текущей странице нет сценариев")
+      options.selectScenario(request.value)
     } else {
       const node = resolveTarget(request.target, inspector)
       await applyNodeAction(action, node, request, inspector, options.shell)

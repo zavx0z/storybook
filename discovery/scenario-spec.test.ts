@@ -2,7 +2,7 @@ import {expect, test} from "bun:test"
 import {mkdtemp, mkdir, rm, symlink} from "node:fs/promises"
 import {join} from "node:path"
 import {discoverStorybookDirectories} from "./directories.ts"
-import {resolveExternalStorybookDeclarations} from "./declarations.ts"
+import {discoverStorybookPackages} from "./packages.ts"
 import {createExternalStorybookGraph, externalStorybookRoutes} from "../catalog/graph.ts"
 import {deriveExternalStorybookPackageTab} from "../runtime/model.ts"
 
@@ -65,7 +65,7 @@ test("[ROOT-VIEWS] корневые сценарии Specs отличаются 
     expect(discovery.rootMetadata.scenarioSpec?.sourcePaths).toEqual([parentSpec])
     expect(discovery.directories.some(directory => directory.relativePath === "")).toBe(false)
     expect(discovery.watchPaths).toContain(parentSpec)
-    const graph = createExternalStorybookGraph(await resolveExternalStorybookDeclarations([root]))
+    const graph = createExternalStorybookGraph(await discoverStorybookPackages([root]))
     const routes = externalStorybookRoutes(graph)
     expect(routes.map(route => route.urlPath)).toEqual([
       "/specs", "/specs?view=scenarios", "/specs/scenarios", "/specs/scenarios?view=scenarios",

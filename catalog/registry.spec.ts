@@ -1,5 +1,5 @@
 import {afterEach, describe, expect, test} from "bun:test"
-import {existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync} from "node:fs"
+import {existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {join} from "node:path"
 import {tmpdir} from "node:os"
 import type {StorybookCatalog, StorybookPackage} from "./catalog.t.ts"
@@ -25,19 +25,13 @@ describe("Источник нормализованного каталога", (
     const snapshot = await registry.attach(root)
     expect(calls).toEqual([[root]])
     expect(existsSync(join(root, ".storybook"))).toBeFalse()
-    expect(externalStorybookRoutes(snapshot.graph).map(({path}) => path)).toEqual([
-      "",
-      "transformations",
-      "transformations/identity",
-    ])
-    expect(externalStorybookNode(snapshot.graph, "subject:@fixture/structure/transformations/identity").source)
-      .toEqual({path: join(root, "identity.ts"), pointer: "export:identity"})
+    expect(externalStorybookRoutes(snapshot.graph).map(({path}) => path)).toEqual(["", "dir-identity"])
+    expect(externalStorybookNode(snapshot.graph, "directory:package:@fixture/structure/identity").source)
+      .toEqual({path: join(root, "identity"), pointer: ""})
     const descriptor = registry.packageDescriptors()[0]!
     expect(descriptor.sourcePath).toBe(join(root, "package.json"))
-    expect(descriptor.watchPaths).toContainEqual({path: join(root, "identity.ts"), category: "declaration"})
-    expect(descriptor.runtime).toBeNull()
-    expect(descriptor.variants).toEqual([])
-    expect(descriptor.widgetModules).toEqual([])
+    expect(descriptor.watchPaths).toContainEqual({path: join(root, "identity/index.ts"), category: "declaration"})
+    expect(descriptor.graphSnapshot.nodes.map(node => node.kind)).toEqual(["package", "directory"])
   })
 
   test("сохраняет рабочий граф при ошибке источника и конфликте идентичности", async () => {
@@ -55,7 +49,7 @@ describe("Источник нормализованного каталога", (
     expect(registry.snapshot()).toEqual(working)
 
     candidate = {...valid, scopes: [...valid.scopes, ...valid.scopes]}
-    await expect(registry.refresh()).rejects.toThrow("Duplicate resolved external Storybook declaration")
+    await expect(registry.refresh()).rejects.toThrow("Duplicate Storybook package identity")
     expect(registry.snapshot()).toEqual(working)
   })
 
@@ -106,7 +100,7 @@ describe("Источник нормализованного каталога", (
       return documentationCatalog(root)
     })
     await registry.attach(root)
-    registry.markDirty(join(root, "identity.ts"))
+    registry.markDirty(join(root, "identity/index.ts"))
     const first = registry.refreshIfNeeded()
     await entered
     registry.markDirty(join(root, "package.json"))
@@ -127,13 +121,13 @@ describe("Источник нормализованного каталога", (
     })
     const working = await registry.attach(root)
     failure = true
-    registry.markDirty(join(root, "identity.ts"))
+    registry.markDirty(join(root, "identity/index.ts"))
     await expect(registry.refreshIfNeeded()).rejects.toThrow("source failed")
     expect(registry.snapshot().revision).toBe(working.revision)
     expect(registry.snapshot().graph).toBe(working.graph)
     expect(registry.dirtySnapshot()).toEqual({
       dirty: true,
-      paths: [join(root, "identity.ts")],
+      paths: [join(root, "identity/index.ts")],
       scopeRoots: [root],
     })
   })
@@ -157,7 +151,8 @@ function fixtureRoot(): string {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "storybook-catalog-source-")))
   roots.push(root)
   writeFileSync(join(root, "package.json"), JSON.stringify({name: "@fixture/structure"}))
-  writeFileSync(join(root, "identity.ts"), "export const identity = (value: unknown) => value\n")
+  mkdirSync(join(root, "identity"))
+  writeFileSync(join(root, "identity/index.ts"), "export const identity = (value: unknown) => value\n")
   return root
 }
 
@@ -169,11 +164,10 @@ function sharedSourceCatalog(left: string, right: string, shared: string): Story
     packageName: id,
     label: id,
     scopeRoot: root,
-    source: Object.freeze({path: join(root, "package.json"), pointer: "/name"}),
+    source: Object.freeze({path: join(root, "package.json"), pointer: ""}),
     packageJsonPath: join(root, "package.json"),
     structurePaths: Object.freeze([shared]),
     digest: id,
-    catalog: null,
   })
   return Object.freeze({
     schemaVersion: 1,

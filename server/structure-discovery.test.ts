@@ -2,15 +2,13 @@ import {afterEach, expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm} from "node:fs/promises"
 import {join} from "node:path"
 import {tmpdir} from "node:os"
-import {resolveExternalStorybookDeclarations} from "../discovery/declarations.ts"
+import {discoverStorybookPackages} from "../discovery/packages.ts"
 import {ExternalStorybookRegistry} from "../catalog/registry.ts"
 import {deriveExternalStorybookLanding, deriveExternalStorybookLandingSelection, deriveExternalStorybookNavigationTree} from "../runtime/model.ts"
 import {startExternalStorybookServer} from "./server.ts"
 
 const roots: string[] = []
-afterEach(async () => {
-  await Promise.all(roots.splice(0).map(root => rm(root, {recursive: true, force: true})))
-})
+afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, {recursive: true, force: true}))) })
 
 async function write(path: string, value: unknown) {
   await mkdir(join(path, ".."), {recursive: true})
@@ -22,160 +20,85 @@ async function fixture() {
   roots.push(root)
   const project = join(root, "project")
   await write(join(project, "package.json"), {name: "project", label: "Project", workspaces: ["packages/*"]})
-  await write(join(project, ".storybook/manifest.json"), {schemaVersion: 1, kind: "project", id: "project"})
   await write(join(project, "packages/a/package.json"), {name: "@fixture/a", label: "A"})
   await write(join(project, "packages/b/package.json"), {name: "@fixture/b", label: "B"})
   return {root, project}
 }
 
-test("lists and selects packages without manifests in the repository tree", async () => {
+test("lists packages and physical containers from package.json/workspaces", async () => {
   const {project} = await fixture()
-  const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
+  const registry = new ExternalStorybookRegistry(discoverStorybookPackages)
   const snapshot = await registry.attach(project)
-  const selection = deriveExternalStorybookLandingSelection(snapshot.graph, "package:project")
-  expect(selection.overviewNode.id).toBe("package:project")
+  expect(deriveExternalStorybookLandingSelection(snapshot.graph, "package:project").overviewNode.id).toBe("package:project")
   expect(deriveExternalStorybookNavigationTree(snapshot.graph).filter(item => item.parentId === "package:project").map(item => item.label)).toContain("packages")
-  expect(deriveExternalStorybookLanding(snapshot.graph).catalogItems.map(item => item.label)).toEqual(["Project", "A", "B"])
-  expect(deriveExternalStorybookLandingSelection(snapshot.graph, "package:@fixture/b").overviewNode.id).toBe("package:@fixture/b")
-  const descriptor = registry.packageDescriptors().find(value => value.packageId === "@fixture/a")!
-  expect(descriptor.runtime).toBeNull()
-  expect(descriptor.variants).toEqual([])
-  expect(snapshot.catalog.scopes.find(scope => scope.id === "@fixture/a")?.source.path).toBe(join(project, "packages/a/package.json"))
-  await rm(join(project, ".storybook"), {recursive: true})
-  const structural = await registry.refresh()
-  expect(structural.graph.rootIds).toEqual(["package:project"])
-  expect(structural.catalog.scopes.some(scope => scope.resolutionError !== undefined)).toBeFalse()
-  expect(structural.catalog.scopes.find(scope => scope.id === "project")?.source.path).toBe(join(project, "package.json"))
-  expect(structural.graph.nodes.filter(node => node.kind === "package")).toHaveLength(3)
+  expect(deriveExternalStorybookLanding(snapshot.graph).catalogItems.map(item => item.title)).toEqual(["Project", "A", "B"])
+  const descriptor = registry.packageDescriptors().find(item => item.packageId === "@fixture/a")!
+  expect(descriptor.sourcePath).toBe(join(project, "packages/a/package.json"))
+  expect(descriptor.graphSnapshot.nodes.every(node => node.packageId === "@fixture/a")).toBeTrue()
 })
 
-test("repository and package README are structural defaults even with a manifest", async () => {
+test("README additions refresh the existing package overview", async () => {
   const {project} = await fixture()
-  const packageRoot = join(project, "packages/a")
-  const manifest = join(packageRoot, ".storybook/manifest.json")
-  await write(manifest, {schemaVersion: 1})
-  const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
-  const initial = await registry.attach(project)
-  expect(initial.catalog.scopes.find(scope => scope.id === "project")?.structurePaths).toContain(join(project, "README.md"))
-  expect(initial.catalog.scopes.find(scope => scope.id === "@fixture/a")?.structurePaths).toContain(join(packageRoot, "README.md"))
+  const registry = new ExternalStorybookRegistry(discoverStorybookPackages)
+  const before = await registry.attach(project)
+  expect(before.catalog.scopes.find(scope => scope.id === "project")?.structurePaths).toContain(join(project, "README.md"))
   await Bun.write(join(project, "README.md"), "# Repository overview")
-  await Bun.write(join(packageRoot, "README.md"), "# Package overview")
-  const updated = await registry.refresh()
-  expect(updated.graph.nodes.find(node => node.id === "package:project")?.readmePath).toBe(join(project, "README.md"))
-  expect(updated.graph.nodes.find(node => node.id === "package:@fixture/a")?.readmePath).toBe(join(packageRoot, "README.md"))
-  await Bun.write(join(packageRoot, "overview.md"), "# Explicit overview")
-  await write(manifest, {schemaVersion: 1, readme: "../overview.md"})
-  const explicit = await registry.refresh()
-  expect(explicit.graph.nodes.find(node => node.id === "package:@fixture/a")?.readmePath).toBe(join(packageRoot, "overview.md"))
+  await Bun.write(join(project, "packages/a/README.md"), "# Package overview")
+  const after = await registry.refresh()
+  expect(after.graph.nodes.find(node => node.id === "package:project")?.readmePath).toBe(join(project, "README.md"))
+  expect(after.graph.nodes.find(node => node.id === "package:@fixture/a")?.readmePath).toBe(join(project, "packages/a/README.md"))
 })
 
-test("updates optional manifests and workspace membership while preserving package identities", async () => {
+test("workspace membership updates without changing retained package identity", async () => {
   const {project} = await fixture()
-  const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
+  const registry = new ExternalStorybookRegistry(discoverStorybookPackages)
   await registry.attach(project)
-  const manifest = join(project, "packages/a/.storybook/manifest.json")
-  await write(manifest, {schemaVersion: 1})
-  const supplemented = await registry.refresh()
-  expect(supplemented.catalog.scopes.find(scope => scope.id === "@fixture/a")?.source.path).toBe(manifest)
-  await Bun.write(manifest, "{")
-  const failed = await registry.refresh()
-  expect(failed.catalog.scopes.find(scope => scope.id === "@fixture/a")?.resolutionError).toBeDefined()
-  expect(failed.catalog.scopes.find(scope => scope.id === "@fixture/b")?.resolutionError).toBeUndefined()
-  await rm(manifest)
   await write(join(project, "packages/c/package.json"), {name: "@fixture/c", label: "C"})
   await rm(join(project, "packages/b"), {recursive: true})
   const changed = await registry.refresh()
-  expect(changed.graph.nodes.filter(node => node.kind === "package").map(node => node.id)).toEqual(["package:project", "package:@fixture/a", "package:@fixture/c"])
+  expect(changed.graph.nodes.filter(node => node.kind === "package").map(node => node.id)).toEqual([
+    "package:project", "package:@fixture/a", "package:@fixture/c",
+  ])
   expect(changed.catalog.scopes.some(scope => scope.resolutionError !== undefined)).toBeFalse()
-  await registry.detach("package:@fixture/a")
-  expect(registry.snapshot().graph.rootIds).toEqual(["package:@fixture/c"])
-  expect((await registry.refresh()).graph.rootIds).toEqual(["package:@fixture/c"])
 })
 
-test("rejects conflicting composition sources and duplicate package names", async () => {
+test("duplicate package names fail closed", async () => {
   const {project} = await fixture()
-  const manifest = join(project, ".storybook/manifest.json")
-  await write(manifest, {schemaVersion: 1, kind: "project", id: "project", packages: []})
-  await expect(resolveExternalStorybookDeclarations([project])).rejects.toThrow("either")
-  await rm(manifest)
   await write(join(project, "packages/b/package.json"), {name: "@fixture/a", label: "Other A"})
-  await expect(resolveExternalStorybookDeclarations([project])).rejects.toThrow("Ambiguous")
+  await expect(discoverStorybookPackages([project])).rejects.toThrow("Duplicate package identity")
 })
 
-test("watches structural additions and optional manifests and serves a manifest-free package", async () => {
+test("watcher discovers a new workspace package and serves its structural page", async () => {
   const {root, project} = await fixture()
   await Bun.write(join(project, "packages/a/README.md"), "# Structural A\n")
   const server = await startExternalStorybookServer({declarations: [project], statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts")})
-  const waitFor = async (predicate: () => boolean) => {
-    const deadline = Date.now() + 10_000
-    while (!predicate() && Date.now() < deadline) await Bun.sleep(50)
-    expect(predicate()).toBeTrue()
-  }
   try {
     await write(join(project, "packages/c/package.json"), {name: "@fixture/c", label: "C"})
     await waitFor(() => server.registry.snapshot().graph.nodes.some(node => node.id === "package:@fixture/c"))
-    const manifest = join(project, "packages/c/.storybook/manifest.json")
-    await write(manifest, {schemaVersion: 1})
-    await waitFor(() => server.registry.snapshot().catalog.scopes.some(scope => scope.id === "@fixture/c" && scope.source.path === manifest))
-    await rm(manifest)
-    await waitFor(() => server.registry.snapshot().catalog.scopes.some(scope => scope.id === "@fixture/c" && scope.source.path.endsWith("/package.json")))
     const page = await fetch(new URL("/pkg-fixture-a/", server.origin))
     expect(page.status).toBe(200)
     expect(await page.text()).toContain("external-storybook-canvas")
     expect(server.sessions.session("@fixture/a").snapshot().diagnostics).toEqual([])
-  } finally {
-    await server.stop()
-  }
+  } finally { await server.stop() }
 }, 120_000)
 
-test("nested packages share navigation ancestry without sharing revision content or failure", async () => {
+test("nested package failure retains its previous subtree and leaves sibling healthy", async () => {
   const {project} = await fixture()
   await write(join(project, "package.json"), {name: "project", label: "Project", workspaces: ["packages/**"]})
   await write(join(project, "packages/a/child/package.json"), {name: "@fixture/child", label: "Child"})
-  const parentManifest = join(project, "packages/a/.storybook/manifest.json")
-  await write(parentManifest, {schemaVersion: 1})
-  const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
+  const registry = new ExternalStorybookRegistry(discoverStorybookPackages)
   const first = await registry.attach(project)
-  const child = first.graph.nodes.find(node => node.id === "package:@fixture/child")!
-  expect(child.parentId).toBe("package:@fixture/a")
-  const original = registry.packageDescriptors().find(value => value.packageId === "@fixture/child")!
-  expect(original.graphSnapshot.nodes.every(node => node.packageId === "@fixture/child")).toBeTrue()
-  expect(original.graphSnapshot.ancestors.map(ancestor => ancestor.id)).toEqual(["package:project", "package:@fixture/a"])
-  await Bun.write(parentManifest, "{")
+  const original = first.graph.nodes.find(node => node.id === "package:@fixture/child")!
+  expect(original.parentId).toBe("package:@fixture/a")
+  await Bun.write(join(project, "packages/a/package.json"), "{")
   const failed = await registry.refresh()
   expect(failed.catalog.scopes.find(scope => scope.id === "@fixture/a")?.resolutionError).toBeDefined()
-  expect(failed.catalog.scopes.find(scope => scope.id === "@fixture/child")?.resolutionError).toBeUndefined()
-  const updated = registry.packageDescriptors().find(value => value.packageId === "@fixture/child")!
-  expect(updated.graphSnapshot.packageGraphDigest).toBe(original.graphSnapshot.packageGraphDigest)
+  expect(failed.catalog.scopes.find(scope => scope.id === "@fixture/b")?.resolutionError).toBeUndefined()
+  expect(failed.graph.nodes.find(node => node.id === original.id)?.parentId).toBe(original.parentId)
 })
 
-test("repository failures retain the nested graph and diagnose its sessions without leaking parent failures", async () => {
-  const {root, project} = await fixture()
-  await write(join(project, "package.json"), {name: "project", label: "Project", workspaces: ["packages/**"]})
-  await write(join(project, "packages/a/child/package.json"), {name: "@fixture/child", label: "Child"})
-  const server = await startExternalStorybookServer({declarations: [project], statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts")})
-  const refresh = async () => {
-    const response = await fetch(new URL("/api/control/refresh", server.origin), {
-      method: "POST", headers: {authorization: `Bearer ${server.record.controlToken}`, "content-type": "application/json"}, body: "{}",
-    })
-    expect(response.status).toBe(200)
-  }
-  try {
-    const projectManifest = join(project, ".storybook/manifest.json")
-    await Bun.write(projectManifest, "{")
-    await refresh()
-    expect(server.registry.snapshot().graph.nodes.find(node => node.id === "package:@fixture/child")?.parentId).toBe("package:@fixture/a")
-    expect(server.sessions.session("project").snapshot().diagnostics[0]?.phase).toBe("resolve")
-    expect(server.sessions.session("@fixture/child").snapshot().diagnostics).toEqual([])
-    await write(projectManifest, {schemaVersion: 1, kind: "project", id: "project"})
-    await refresh()
-    expect(server.sessions.session("@fixture/child").snapshot().diagnostics).toEqual([])
-    await mkdir(join(project, "packages/a/.storybook"), {recursive: true})
-    await Bun.write(join(project, "packages/a/.storybook/manifest.json"), "{")
-    await refresh()
-    expect(server.sessions.session("@fixture/a").snapshot().diagnostics[0]?.phase).toBe("resolve")
-    expect(server.sessions.session("@fixture/child").snapshot().diagnostics).toEqual([])
-  } finally {
-    await server.stop()
-  }
-})
+async function waitFor(predicate: () => boolean, timeoutMs = 10_000) {
+  const deadline = Date.now() + timeoutMs
+  while (!predicate() && Date.now() < deadline) await Bun.sleep(50)
+  expect(predicate()).toBeTrue()
+}

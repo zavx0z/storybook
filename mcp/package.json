@@ -28,8 +28,8 @@
   },
   "devDependencies": {
     "@mcp/address": "workspace:*",
-    "@archetypes/specs": "workspace:../archetypes/specs",
-    "@storybook/route": "workspace:../route",
+    "@archetypes/specs": "workspace:*",
+    "@storybook/route": "workspace:*",
     "@mcp/rest": "workspace:*",
     "@modelcontextprotocol/client": "^2.0.0",
     "@types/bun": "^1.4.0",

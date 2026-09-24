@@ -21,9 +21,7 @@ import {
   generateStorybookAppliedRevisionLoaderSource,
   generateStorybookRevisionPayloadSource,
   STORYBOOK_REVISION_PAYLOAD_FILE,
-  type StorybookGeneratedVariant,
   type StorybookGeneratedScenario,
-  type StorybookGeneratedWidget,
 } from "./generated-loader.ts"
 import {createStorybookPackageCompilerPlugins} from "./compiler.ts"
 import {
@@ -70,7 +68,6 @@ export type StorybookCompilerPluginResolver = (
 
 export type CreateStorybookPackageRevisionBuilderOptions = Readonly<{
   browserEntryPath?: string
-  runtimeProtocolPath?: string
   workerPath?: string
   resolveCompilerPlugins?: StorybookCompilerPluginResolver
   onPhase?: StorybookBuildPhaseListener
@@ -112,7 +109,6 @@ export type StorybookPackageBuildWorkerJob = Readonly<{
   >
   options: Readonly<{
     browserEntryPath: string
-    runtimeProtocolPath: string
     sharedBrowserIdentity?: StorybookSharedBrowserIdentity
   }>
 }>
@@ -133,9 +129,6 @@ export function createStorybookPackageRevisionBuilder(
   const browserEntryPath = realpathSync(options.browserEntryPath ?? fileURLToPath(
     new URL("../runtime/package-entry.ts", import.meta.url),
   ))
-  const runtimeProtocolPath = realpathSync(options.runtimeProtocolPath ?? fileURLToPath(
-    new URL("../runtime/runtime-protocol.ts", import.meta.url),
-  ))
   const workerPath = realpathSync(options.workerPath ?? fileURLToPath(
     new URL("./package-build-worker.ts", import.meta.url),
   ))
@@ -154,7 +147,6 @@ export function createStorybookPackageRevisionBuilder(
       input,
       {
         browserEntryPath,
-        runtimeProtocolPath,
         ...(sharedBrowserIdentity === undefined ? {} : {sharedBrowserIdentity}),
       },
       workerPath,
@@ -174,14 +166,11 @@ toolchain либо ABI возвращают `null`: session сохраняет l
 export function createStorybookBuildInputFingerprintVerifier(
   options: Pick<
     CreateStorybookPackageRevisionBuilderOptions,
-    "browserEntryPath" | "runtimeProtocolPath" | "sharedBrowserIdentity"
+    "browserEntryPath" | "sharedBrowserIdentity"
   > = {},
 ): StorybookBuildInputFingerprintVerifier {
   const browserEntryPath = realpathSync(options.browserEntryPath ?? fileURLToPath(
     new URL("../runtime/package-entry.ts", import.meta.url),
-  ))
-  const runtimeProtocolPath = realpathSync(options.runtimeProtocolPath ?? fileURLToPath(
-    new URL("../runtime/runtime-protocol.ts", import.meta.url),
   ))
   const compute = createStorybookBuildInputFingerprintComputer()
   return (value, descriptor): StorybookBuildInputFingerprint | null => {
@@ -191,7 +180,6 @@ export function createStorybookBuildInputFingerprintVerifier(
       const current = compute({
         descriptor,
         browserEntryPath,
-        runtimeProtocolPath,
         ...(options.sharedBrowserIdentity === undefined
           ? {}
           : {sharedBrowserIdentity: validateStorybookSharedBrowserIdentity(options.sharedBrowserIdentity)}),
@@ -213,9 +201,6 @@ export async function buildStorybookPackageRevisionInProcess(
   input.signal.throwIfAborted()
   const browserEntryPath = realpathSync(options.browserEntryPath ?? fileURLToPath(
     new URL("../runtime/package-entry.ts", import.meta.url),
-  ))
-  const runtimeProtocolPath = realpathSync(options.runtimeProtocolPath ?? fileURLToPath(
-    new URL("../runtime/runtime-protocol.ts", import.meta.url),
   ))
   const resolvePlugins = options.resolveCompilerPlugins ?? (async ({
     packageRoot,
@@ -243,7 +228,6 @@ export async function buildStorybookPackageRevisionInProcess(
     const attestation = await beginStorybookBuildInputAttestation({
       descriptor,
       browserEntryPath,
-      runtimeProtocolPath,
       stagingDirectory,
       ...(sharedBrowserIdentity === undefined ? {} : {sharedBrowserIdentity}),
     })
@@ -286,9 +270,6 @@ export async function buildStorybookPackageRevisionInProcess(
       writeFileSync(join(directory, `${encodeURIComponent(nodeId)}.json`), JSON.stringify(result))
     })
     const modules = [
-      ...(descriptor.runtime === null ? [] : [descriptor.runtime]),
-      ...descriptor.variants.map(({module}) => module),
-      ...descriptor.widgetModules.map(({module}) => module),
       ...scenarios.flatMap(scenario => scenario.kind === "component" ? [scenario.module] : []),
     ]
     const sourcePaths = Object.freeze(modules.map(({path}) => path))
@@ -309,28 +290,14 @@ export async function buildStorybookPackageRevisionInProcess(
     const payloadPath = join(stagingDirectory, "revision-payload.ts")
     const graphPath = join(stagingDirectory, "package-graph.json")
     await Bun.write(graphPath, `${JSON.stringify(descriptor.graphSnapshot)}\n`)
-    const variants: readonly StorybookGeneratedVariant[] = descriptor.variants.map(({route, module}) => ({
-      route,
-      module,
-    }))
-    const widgets: readonly StorybookGeneratedWidget[] = descriptor.widgetModules.map(({id, module}) => ({
-      id,
-      module,
-    }))
     await Bun.write(loaderPath, generateStorybookLoaderSource({
       revisionUrl,
-      runtime: descriptor.runtime,
-      variants,
-      widgets,
       scenarios,
     }))
     await Bun.write(entryPath, sharedBrowserIdentity === undefined ? [
       `import {startExternalStorybookPackage} from ${JSON.stringify(browserEntryPath)}`,
       "import {",
-      "  loadStorybookPackageRuntime,",
       "  STORYBOOK_PACKAGE_SCENARIO_LOADERS,",
-      "  STORYBOOK_PACKAGE_STORY_LOADERS,",
-      "  STORYBOOK_PACKAGE_WIDGET_LOADERS,",
       "  storybookRevisionUrl,",
       "} from \"./generated-loaders.ts\"",
       "",
@@ -341,10 +308,7 @@ export async function buildStorybookPackageRevisionInProcess(
       `  sharedModuleEpoch: ${JSON.stringify(sharedModuleEpoch)},`,
       `  graphSnapshot: ${JSON.stringify(descriptor.graphSnapshot)},`,
       "  revisionUrl: storybookRevisionUrl,",
-      "  loadRuntime: loadStorybookPackageRuntime,",
       "  scenarioLoaders: STORYBOOK_PACKAGE_SCENARIO_LOADERS,",
-      "  storyLoaders: STORYBOOK_PACKAGE_STORY_LOADERS,",
-      "  widgetLoaders: STORYBOOK_PACKAGE_WIDGET_LOADERS,",
       "  environment: {loadAppliedRevision},",
       "})",
       "",
@@ -408,23 +372,6 @@ export async function buildStorybookPackageRevisionInProcess(
     ).filter((path) => !path.startsWith(stagingPrefix)).concat(
       (descriptor.scenarioSpecs ?? []).flatMap(({sourcePaths}) => sourcePaths.map(stableBuildInputPath)),
     ))
-    if (descriptor.runtime !== null) {
-      const protocolPlugins = Object.freeze([...(await resolvePlugins(compilerInput))])
-      validatePlugins(protocolPlugins)
-      const protocolInputs = await validateRuntimeProtocol(
-        descriptor,
-        runtimeProtocolPath,
-        stagingDirectory,
-        protocolPlugins,
-        input.signal,
-        input.protocolTimeoutMs,
-        onPhase,
-      )
-      dependencyRealpaths = canonicalizeStorybookPackageIdentities([
-        ...dependencyRealpaths,
-        ...protocolInputs,
-      ])
-    }
     validateConsumerBoundary(dependencyRealpaths, descriptor, stagingDirectory)
     if (sharedBrowserIdentity !== undefined) {
       validateStorybookSharedBrowserIdentity(sharedBrowserIdentity)
@@ -446,7 +393,7 @@ export async function buildStorybookPackageRevisionInProcess(
       metafile.inputs,
     )
     rmSync(join(stagingDirectory, ".protocol"), {recursive: true, force: true})
-    for (const path of [loaderPath, entryPath, payloadPath, join(stagingDirectory, "validate-runtime.ts")]) {
+    for (const path of [loaderPath, entryPath, payloadPath]) {
       rmSync(path, {force: true})
     }
     const inputFingerprint = await attestation.complete(dependencyRealpaths)
@@ -513,7 +460,6 @@ async function runPackageBuildWorker(
   input: StorybookFingerprintingPackageRevisionBuilderInput,
   options: Readonly<{
     browserEntryPath: string
-    runtimeProtocolPath: string
     sharedBrowserIdentity?: StorybookSharedBrowserIdentity
   }>,
   workerPath: string,
@@ -793,9 +739,6 @@ function validateModuleExports(
   scenarios: readonly StorybookGeneratedScenario[],
 ): void {
   const modules = [
-    ...(descriptor.runtime === null ? [] : [descriptor.runtime]),
-    ...descriptor.variants.map(({module}) => module),
-    ...descriptor.widgetModules.map(({module}) => module),
     ...scenarios.flatMap(scenario => scenario.kind === "component" ? [scenario.module] : []),
   ]
   if (modules.length === 0) return
@@ -815,9 +758,6 @@ function validateBundledModuleExports(
   projectRoot: string,
 ): void {
   const modules = [
-    ...(descriptor.runtime === null ? [] : [descriptor.runtime]),
-    ...descriptor.variants.map(({module}) => module),
-    ...descriptor.widgetModules.map(({module}) => module),
     ...scenarios.flatMap(scenario => scenario.kind === "component" ? [scenario.module] : []),
   ]
   const exportsByEntry = new Map<string, readonly string[]>()
@@ -872,73 +812,6 @@ function transpilerLoader(path: string): Bun.JavaScriptLoader {
     case ".cjs": return "js"
     default: return "ts"
   }
-}
-
-async function validateRuntimeProtocol(
-  descriptor: StorybookPackageBuildDescriptor,
-  runtimeProtocolPath: string,
-  stagingDirectory: string,
-  plugins: readonly Bun.BunPlugin[],
-  signal: AbortSignal,
-  timeoutMs: number,
-  onPhase?: StorybookBuildPhaseListener,
-): Promise<readonly string[]> {
-  const runtime = descriptor.runtime
-  if (runtime === null) return Object.freeze([])
-  const validationPath = join(stagingDirectory, "validate-runtime.ts")
-  await Bun.write(validationPath, [
-    `import {validateStorybookRuntimeAdapter} from ${JSON.stringify(runtimeProtocolPath)}`,
-    `import {${runtime.export} as candidate} from ${JSON.stringify(runtime.path)}`,
-    "validateStorybookRuntimeAdapter(candidate)",
-    "",
-  ].join("\n"))
-  const outputDirectory = join(stagingDirectory, ".protocol")
-  emitPhase(onPhase, "protocol-build", "started")
-  const build = await Bun.build({
-    entrypoints: [validationPath],
-    outdir: outputDirectory,
-    naming: {entry: "protocol.[ext]"},
-    target: "bun",
-    format: "esm",
-    splitting: false,
-    minify: false,
-    loader: {".wgsl": "text"},
-    plugins: [...plugins],
-    metafile: true,
-    throw: false,
-  })
-  if (!build.success) throw buildLogsError("protocol", build.logs)
-  emitPhase(onPhase, "protocol-build", "completed")
-  if (build.metafile === undefined) {
-    throw storybookBuildError(storybookDiagnostic("protocol", "Runtime protocol build emitted no metafile", runtime.path))
-  }
-  const entry = build.outputs.find(({kind}) => kind === "entry-point")
-  if (entry === undefined) {
-    throw storybookBuildError(storybookDiagnostic("protocol", "Runtime protocol build emitted no entry", runtime.path))
-  }
-  const child = Bun.spawn([process.execPath, entry.path], {
-    cwd: descriptor.projectRoot,
-    env: {...Bun.env, STORYBOOK_PROTOCOL_VALIDATION: "1"},
-    stdin: "ignore",
-    stdout: "pipe",
-    stderr: "pipe",
-  })
-  emitPhase(onPhase, "protocol-run", "started")
-  const {exitCode, stdout, stderr} = await waitForStorybookOwnedChild({
-    child,
-    signal,
-    timeoutMs,
-    label: "Storybook runtime protocol validation",
-  })
-  if (exitCode !== 0) {
-    const message = [stderr.trim(), stdout.trim()].filter(Boolean).join("\n") ||
-      `Runtime protocol validation exited ${exitCode}`
-    throw storybookBuildError(storybookDiagnostic("protocol", message, runtime.path))
-  }
-  emitPhase(onPhase, "protocol-run", "completed")
-  const stagingPrefix = `${realpathSync(stagingDirectory)}${sep}`
-  return canonicalBuildInputs(build.metafile.inputs, descriptor.projectRoot)
-    .filter((path) => !path.startsWith(stagingPrefix))
 }
 
 export function canonicalBuildInputs(

@@ -43,7 +43,7 @@ test("[STORYBOOK-EXPERIENCE-001] shell использует только нов�
 test("[STORYBOOK-EXPERIENCE-002] Workbench принадлежит HUD, контент — Display или Space", async () => {
   const shell = await Bun.file(resolve(import.meta.dir, "shell.ts")).text()
   const presentation = await Bun.file(resolve(root, "workbench/presentation.ts")).text()
-  const protocol = await Bun.file(resolve(root, "runtime/runtime-protocol.ts")).text()
+  const spacePreview = await Bun.file(resolve(root, "runtime/space-preview.ts")).text()
 
   expect(shell).toContain("root.space")
   expect(shell).toContain("root.viewPoint")
@@ -58,8 +58,7 @@ test("[STORYBOOK-EXPERIENCE-002] Workbench принадлежит HUD, конт�
   expect(presentation).toContain('projection === "hud"')
   expect(presentation).toContain('projection !== "space"')
   expect(presentation).not.toContain('projection === "world"')
-  expect(protocol).toContain('"storybook-runtime/4"')
-  expect(protocol).toContain('projection: "space"')
-  expect(protocol).not.toContain("@engine/core")
-  expect(protocol).not.toContain('projection: "world"')
+  expect(spacePreview).toContain("StorybookSpacePreviewRegistration")
+  expect(spacePreview).toContain("node: SemanticNode")
+  expect(spacePreview).not.toContain("@engine/core")
 })

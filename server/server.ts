@@ -8,7 +8,6 @@ import {storybookRest} from "@mcp/rest"
 import {createMcpRequestJournal} from "@mcp/rest/requests"
 import {proxyContent, errorContent} from "../mcp/server/src/response"
 import {StorybookDirectorySelection} from "./directory-selection.ts"
-import {StorybookPackageUrlMigrations} from "./package-url-migrations.ts"
 import {createCatalogRefresh} from "./catalog-refresh.ts"
 import {
   StorybookAutomaticActivationCoordinator,
@@ -49,7 +48,8 @@ import {STORYBOOK_FONT_FACES} from "../runtime/font-faces.ts"
 import {StorybookDependencyWatchCoordinator, StorybookDirtyRefreshCoordinator} from "../sessions/dependency-watch.ts"
 import {assertExternalStorybookStartLease, externalStorybookArtifactRoot, createExternalStorybookServerRecord, externalStorybookServerStatePath, readExternalStorybookServerRecord, writeExternalStorybookServerRecord, writeExternalStorybookStartCandidate, type ExternalStorybookServerRecord} from "./server-state.ts"
 import {ExternalStorybookRegistry, type ExternalStorybookRegistrySnapshot} from "../catalog/registry.ts"
-import {resolveExternalStorybookDeclarations, resolveExternalStorybookAuthorStyleSheets} from "../discovery/declarations.ts"
+import {discoverStorybookPackages} from "../discovery/packages.ts"
+import {readWorkbenchStyleSheets} from "../build/workbench-theme.ts"
 import type {StorybookCatalogResolver} from "../catalog/catalog.t.ts"
 import {createStorybookPackageRevisionBuilder, createStorybookBuildInputFingerprintVerifier} from "../build/package-build.ts"
 import {StorybookSharedBrowserAssets, type SharedBrowserAssets} from "../build/shared-browser-assets.ts"
@@ -151,7 +151,6 @@ export async function startExternalStorybookServer(
   const toolRoot = realpathSync(options.toolRoot ?? fileURLToPath(new URL("..", import.meta.url)))
   const implementationDigest = externalStorybookImplementationDigest(toolRoot)
   const statePath = resolve(options.statePath ?? externalStorybookServerStatePath())
-  const urlMigrations = new StorybookPackageUrlMigrations(`${statePath}.package-urls.json`)
   const artifactRoot = resolve(options.artifactRoot ?? externalStorybookArtifactRoot())
   const writeServerRecord = options.writeServerRecord ?? writeExternalStorybookServerRecord
   const browserLifecycle = options.browserLifecycle ?? createStorybookBrowserLifecycle({
@@ -160,7 +159,7 @@ export async function startExternalStorybookServer(
   })
   mkdirSync(artifactRoot, {recursive: true, mode: 0o700})
   chmodSync(artifactRoot, 0o700)
-  const registry = new ExternalStorybookRegistry(options.resolveCatalog ?? resolveExternalStorybookDeclarations)
+  const registry = new ExternalStorybookRegistry(options.resolveCatalog ?? discoverStorybookPackages)
   const selectionPath = options.projectSelectionPath ?? (options.statePath === undefined
     ? storybookProjectSelectionPath() : join(dirname(statePath), "projects.json"))
   const savedSelection = readStorybookProjectSelection(selectionPath)
@@ -297,7 +296,6 @@ export async function startExternalStorybookServer(
 
   const refreshStructuralWatch = (): void => {
     const snapshot = registry.snapshot()
-    urlMigrations.remember(snapshot.catalog)
     directorySelections.remember(snapshot.catalog.scopes.map(scope => scope.scopeRoot))
     watch.replace("__registry__", externalStorybookStructuralWatchPaths(snapshot), path => {
       registry.markDirty(path)
@@ -678,7 +676,8 @@ export async function startExternalStorybookServer(
       path: node.urlPath.slice(1),
       label: node.label,
       description: descriptions.get(node.id) ?? "",
-      parent: packages.find(parent => parent.id === node.parentId)?.urlPath.slice(1) ?? null,
+      parent: [...node.structuralPath].reverse().slice(1)
+        .map(id => packages.find(parent => parent.id === id)).find(Boolean)?.urlPath.slice(1) ?? null,
     }))
   }
   const readStorybook = (request: Request) => storybookRest(request, {entries: mcpEntries()})
@@ -1287,9 +1286,6 @@ export async function startExternalStorybookServer(
           const fontPath = fileURLToPath(import.meta.resolve(`@zavx0z/engine/fonts/${name}`))
           return fileResponse(fontPath, "font/ttf")
         }
-        if (url.pathname === "/schemas/manifest.schema.json" || url.pathname === "/schemas/catalog.schema.json") {
-          return fileResponse(join(toolRoot, url.pathname), "application/schema+json; charset=utf-8")
-        }
         if (request.method === "GET" && !url.pathname.startsWith("/api/") && url.pathname !== "/") {
           const publicRoute = await resolveStorybookRoute(url.pathname + url.search, registry.snapshot())
           if (publicRoute !== null) {
@@ -1308,17 +1304,6 @@ export async function startExternalStorybookServer(
           const matches = registry.snapshot().graph.nodes.filter(node => node.kind === "package" && storybookPackagePathMatches(segment, node.packageId!))
           if (matches.length !== 1) throw new Error("Unknown or ambiguous package")
           return new Response(null, {status: 308, headers: {location: matches[0]!.urlPath}})
-        }
-        if (request.method === "GET" && (url.pathname.startsWith("/projects/") || url.pathname.startsWith("/workspaces/"))) {
-          const graph = registry.snapshot().graph
-          const migratedUrl = urlMigrations.resolve(url.pathname, graph)
-          if (migratedUrl !== null) return new Response(null, {status: 308, headers: {location: `${migratedUrl}${url.search}`}})
-          const directory = graph.nodes.find(node => {
-            if (node.kind !== "directory" || node.packageId !== null) return false
-            const parent = graph.nodes.find(parent => parent.id === node.parentId)
-            return parent !== undefined && url.pathname === `${parent.urlPath}~directories/${encodeURIComponent(node.label)}/`
-          })
-          if (directory !== undefined) return new Response(null, {status: 308, headers: {location: `${directory.urlPath}${url.search}`}})
         }
         if (request.method === "GET" && isLandingPath(registry.snapshot(), url.pathname)) {
           return preparingHtmlResponse(async () => {
@@ -1476,7 +1461,7 @@ export async function startExternalStorybookServer(
 }
 
 async function defaultWorkbenchStyles() {
-  return resolveExternalStorybookAuthorStyleSheets(fileURLToPath(new URL("../", import.meta.url)))
+  return readWorkbenchStyleSheets(fileURLToPath(new URL("../", import.meta.url)))
 }
 
 /** Проецирует immutable CSS той же shared-сборки без запуска self-documentation package. */
@@ -1677,8 +1662,7 @@ function declarationFailures(snapshot: ExternalStorybookRegistrySnapshot): Reado
   const mark = (id: string, message: string, descendPackages: boolean): void => {
     const scope = scopes.get(id)
     if (scope?.kind === "package") result.set(scope.id, message)
-    const children = scope?.kind === "workspace" ? scope.projectIds :
-      scope?.kind === "project" || scope?.kind === "package" && descendPackages ? scope.packageIds ?? [] : []
+    const children = scope?.kind === "package" && descendPackages ? scope.packageIds ?? [] : []
     for (const child of children) mark(child, message, true)
   }
   for (const scope of scopes.values()) {
@@ -1693,8 +1677,6 @@ export function externalStorybookStructuralWatchPaths(
   return Object.freeze([...new Set([...snapshot.catalog.scopes.flatMap(scope => [join(scope.scopeRoot, "package.json"), ...(scope.recoveryPaths ?? []), ...(scope.structurePaths ?? [])]).filter(path => existsSync(dirname(path))), ...snapshot.graph.nodes.flatMap((node) => [
     node.source.path,
     ...(node.kind === "package" && node.packageJsonPath !== null ? [node.packageJsonPath] : []),
-    ...node.authorStyleSheets.map(({path}) => path),
-    ...node.authorStyleSheets.map(({ownerPackageJsonPath}) => ownerPackageJsonPath),
   ])])].filter(path => existsSync(dirname(path))).sort())
 }
 
@@ -1722,28 +1704,9 @@ function resourceResponse(snapshot: ExternalStorybookRegistrySnapshot, url: URL)
       ownerRoot,
       readmePath: node.moduleDocumentation?.sourcePath ?? node.readmePath,
       ...(node.moduleDocumentation ? {markdown: node.moduleDocumentation.markdown} : {}),
-      declaredResources: node.resources,
     })
   } catch {
     return responseJson({error: "Unknown Storybook resource"}, 404)
-  }
-  const kind = url.searchParams.get("kind")
-  if (kind !== null) {
-    if ([...url.searchParams.keys()].some((key) => key !== "kind" && key !== "index")) {
-      throw new Error("Unknown Storybook resource query")
-    }
-    if (!new Set(["fixture", "test", "media", "reference", "evidence", "asset"]).has(kind)) {
-      throw new Error(`Unknown Storybook resource kind: ${kind}`)
-    }
-    const indexValue = url.searchParams.get("index") ?? "0"
-    if (!/^(?:0|[1-9][0-9]*)$/u.test(indexValue)) throw new Error(`Invalid Storybook resource index: ${indexValue}`)
-    const resources = node.resources.filter((resource) => resource.kind === kind)
-    const resource = resources[Number(indexValue)]
-    if (resource === undefined) return responseJson({error: "Unknown node resource"}, 404)
-    const path = allowList.resolveDeclaredResource(resource.path)
-    return path === null
-      ? responseJson({error: "Unknown node resource"}, 404)
-      : fileResponse(path, contentType(path))
   }
   if ([...url.searchParams.keys()].length > 0) throw new Error("Unknown Storybook README resource query")
   const overviewPath = node.moduleDocumentation?.sourcePath ?? node.readmePath
@@ -1773,7 +1736,7 @@ function resourceResponse(snapshot: ExternalStorybookRegistrySnapshot, url: URL)
 
 function resourceOwnerRoot(snapshot: ExternalStorybookRegistrySnapshot, nodeId: string): string {
   let node = externalStorybookNode(snapshot.graph, nodeId)
-  while (node.kind !== "workspace" && node.kind !== "project" && node.kind !== "package") {
+  while (node.kind !== "package") {
     if (node.parentId === null) throw new Error(`Storybook resource node has no declaration owner: ${node.id}`)
     node = externalStorybookNode(snapshot.graph, node.parentId)
   }

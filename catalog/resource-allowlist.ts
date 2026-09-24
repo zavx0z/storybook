@@ -5,7 +5,7 @@ import {markdownDestinations} from "@webxr/markdown/destinations"
 export const EXTERNAL_STORYBOOK_README_MAX_BYTES = 1_048_576
 
 export type ExternalStorybookResourceAllowListEntry = Readonly<{
-  kind: "readme" | "declared-resource" | "readme-asset"
+  kind: "readme" | "readme-asset"
   path: string
 }>
 
@@ -14,20 +14,18 @@ export type ExternalStorybookResourceAllowList = Readonly<{
   readmePath: string | null
   entries: readonly ExternalStorybookResourceAllowListEntry[]
   resolveReadmeFile(path: string): string | null
-  resolveDeclaredResource(path: string): string | null
 }>
 
 export type CreateExternalStorybookResourceAllowListInput = Readonly<{
   ownerRoot: string
   readmePath?: string | null
-  declaredResources?: readonly (string | Readonly<{path: string}>)[]
   readmeMaxBytes?: number
   /** Already extracted documentation; paths still resolve against the exact source file. */
   markdown?: string
 }>
 
 /**
- * Creates one immutable exact-file allow-list for a declaration snapshot.
+ * Creates one immutable exact-file allow-list for a structural snapshot.
  *
  * Local README assets are derived from the same inert Markdown/HTML model as
  * the view. An arbitrary sibling inside the owner root is never admitted.
@@ -45,7 +43,6 @@ export function createExternalStorybookResourceAllowList(
   }
 
   const readmeFiles = new Set<string>()
-  const declaredResources = new Set<string>()
   const entries = new Map<string, ExternalStorybookResourceAllowListEntry>()
   const append = (kind: ExternalStorybookResourceAllowListEntry["kind"], path: string): void => {
     if (!entries.has(path)) entries.set(path, Object.freeze({kind, path}))
@@ -67,13 +64,6 @@ export function createExternalStorybookResourceAllowList(
     }
   }
 
-  for (const [index, value] of (input.declaredResources ?? []).entries()) {
-    const source = typeof value === "string" ? value : value.path
-    const path = canonicalOwnedFile(source, ownerRoot, `Storybook declared resource ${index}`)
-    declaredResources.add(path)
-    append("declared-resource", path)
-  }
-
   const frozenEntries = Object.freeze([...entries.values()].sort((left, right) =>
     left.path < right.path ? -1 : left.path > right.path ? 1 : 0))
   return Object.freeze({
@@ -83,10 +73,6 @@ export function createExternalStorybookResourceAllowList(
     resolveReadmeFile(path: string): string | null {
       const canonical = safeCanonicalOwnedFile(path, ownerRoot)
       return canonical !== null && readmeFiles.has(canonical) ? canonical : null
-    },
-    resolveDeclaredResource(path: string): string | null {
-      const canonical = safeCanonicalOwnedFile(path, ownerRoot)
-      return canonical !== null && declaredResources.has(canonical) ? canonical : null
     },
   })
 }

@@ -3,7 +3,7 @@ import {mkdtemp, mkdir, realpath, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {discoverStorybookDirectories} from "./directories.ts"
-import {resolveExternalStorybookDeclarations} from "./declarations.ts"
+import {discoverStorybookPackages} from "./packages.ts"
 import {createExternalStorybookGraph} from "../catalog/graph.ts"
 import {deriveExternalStorybookNavigationTree, deriveExternalStorybookPackageTab} from "../runtime/model.ts"
 import {createStorybookPackageRevisionGraphSnapshot} from "../sessions/package-revision.ts"
@@ -25,39 +25,28 @@ test.each(["index.ts", "index.tsx"])("категории и привязка п�
   await Bun.write(join(root, "numeric/slider/index.tsx"), '/**\nПолзунок с внутренним помощником.\n@packageDocumentation\n*/\nexport function Slider() { return <div /> }')
   await Bun.write(join(root, "nested/package.json"), JSON.stringify({name: "@fixture/child", label: "Child"}))
   const found = await discoverStorybookDirectories(root, new Set())
-  expect(found.directories.map(dir => [dir.relativePath, dir.structuralRole]), "index.tsx не требует src, index.ts категории не останавливает обход").toEqual([
-    ["numeric", "category"], ["numeric/number", "module"], ["numeric/slider", "module"],
+  expect(found.directories.map(dir => dir.relativePath), "index.tsx не требует src, index.ts категории не останавливает обход").toEqual([
+    "numeric", "numeric/number", "numeric/slider",
   ])
   expect(found.directories[0]?.moduleDocumentation?.markdown, "Реэкспорты не меняют роль категории").toBe("Числовые параметры.")
   expect(found.watchPaths.some(file => file.includes("/shared/hidden")), "Служебный shared не обходится").toBeFalse()
-  await Bun.write(join(root, ".storybook/catalog.json"), JSON.stringify({schemaVersion: 1, categories: [{id: "legacy", label: "Legacy", subjects: [{
-    id: "number", kind: "component", label: "Число", directory: "numeric/number", route: "parameters/number", presentation: {protocol: "story-presentation/1", projection: "display", widgets: ["source", "diagnostics"]},
-    variants: [{id: "default", label: "Обычное", route: "parameters/number/default"}],
-  }]}]}))
-  await Bun.write(join(root, ".storybook/manifest.json"), JSON.stringify({schemaVersion: 1, catalog: "./catalog.json"}))
-  const graph = createExternalStorybookGraph(await resolveExternalStorybookDeclarations([root]))
+  const graph = createExternalStorybookGraph(await discoverStorybookPackages([root]))
   const rows = deriveExternalStorybookNavigationTree(graph).filter(row =>
     row.id !== "package:@fixture/parameters" &&
     graph.nodes.find(node => node.id === row.id)?.packageId === "@fixture/parameters")
-  expect(rows.map(row => row.label), "Предмет не дублируется директорией и старой категорией").toEqual(["numeric", "number", "slider"])
-  const subject = graph.nodes.find(node => node.kind === "subject")!
-  expect(subject.id).toBe("subject:@fixture/parameters/legacy/number")
-  expect(subject.packageId).toBe("@fixture/parameters")
-  expect(subject.routePath).toBe("parameters/number")
-  expect(subject.parentId, "Принадлежность определяется директорией категории").toBe("directory:package:@fixture/parameters/numeric")
-  expect(subject.moduleDocumentation?.markdown, "Описание берётся из публичного файла компонента").toBe("Редактирование числа.")
-  expect(subject.moduleDocumentation?.sourcePath).toBe(join(root, `numeric/number/${entry}`))
-  expect(deriveExternalStorybookPackageTab(graph, "@fixture/parameters", "parameters/number/default").variants, "Сценарии остаются в манифесте").toHaveLength(1)
-  expect(createStorybookPackageRevisionGraphSnapshot(graph, "@fixture/parameters", "structural").nodes.some(node => node.id === subject.id), "Снимок ревизии содержит тот же предмет").toBeTrue()
-  const accepted = await resolveExternalStorybookDeclarations([root])
-  const catalogFile = Bun.file(join(root, ".storybook/catalog.json"))
-  const catalog = await catalogFile.json()
-  for (const invalid of ["shared/base", "numeric", "numeric/missing", "numeric/number/src/private"]) {
-    catalog.categories[0].subjects[0].directory = invalid
-    await Bun.write(catalogFile, JSON.stringify(catalog))
-    await expect(resolveExternalStorybookDeclarations([root]), "Скрытая или несуществующая директория не создаётся декларацией").rejects.toThrow("existing discovered module")
-    const retained = await resolveExternalStorybookDeclarations([root], accepted)
-    expect(retained.scopes[0]?.resolutionError, "Ошибка остаётся локальной диагностикой владельца").toContain("existing discovered module")
-    expect(createExternalStorybookGraph(retained).nodes.find(node => node.id === subject.id)?.parentId, "Последняя проверенная структура сохраняется").toBe(subject.parentId)
-  }
+  expect(rows.map(row => row.label)).toEqual(["numeric", "number", "slider"])
+  const module = graph.nodes.find(node => node.id === "directory:package:@fixture/parameters/numeric/number")!
+  expect(module.kind).toBe("directory")
+  expect(module.packageId).toBe("@fixture/parameters")
+  expect(module.routePath).toBe("dir-numeric/dir-number")
+  expect(module.parentId).toBe("directory:package:@fixture/parameters/numeric")
+  expect(module.moduleDocumentation?.markdown).toBe("Редактирование числа.")
+  expect(module.moduleDocumentation?.sourcePath).toBe(join(root, `numeric/number/${entry}`))
+  expect(deriveExternalStorybookPackageTab(graph, "@fixture/parameters", "dir-numeric/dir-number").selectedNode.id).toBe(module.id)
+  expect(createStorybookPackageRevisionGraphSnapshot(graph, "@fixture/parameters", "structural").nodes.some(node => node.id === module.id)).toBeTrue()
+  const accepted = await discoverStorybookPackages([root])
+  await Bun.write(join(root, "package.json"), "{invalid")
+  const retained = await discoverStorybookPackages([root], accepted)
+  expect(retained.scopes[0]?.resolutionError).toBeDefined()
+  expect(createExternalStorybookGraph(retained).nodes.find(node => node.id === module.id)?.parentId).toBe(module.parentId)
 })

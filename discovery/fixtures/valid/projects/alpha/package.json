@@ -1,5 +1,6 @@
 {
   "name": "fixture-alpha",
   "label": "Fixture Alpha",
-  "private": true
+  "private": true,
+  "workspaces": ["packages/*"]
 }

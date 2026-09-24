@@ -2,25 +2,16 @@ import {afterEach, describe, expect, test} from "bun:test"
 import {mkdir, mkdtemp, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {dirname, join} from "node:path"
-import {
-  resolveExternalStorybookDeclarations,
-} from "../discovery/declarations.ts"
-import {createExternalStorybookGraph} from "../catalog/graph.ts"
-import {
-  compareRouteBaseline,
-  scanStorybookConsumerBoundaries,
-  type StorybookRouteBaseline,
-} from "./consumer-boundary.ts"
+import {scanStorybookConsumerBoundaries} from "./consumer-boundary.ts"
 
 const roots: string[] = []
-const graphFixtureRoot = join(import.meta.dir, "../discovery/fixtures/valid")
 
 afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, {recursive: true, force: true})))
 })
 
 describe("external Storybook consumer boundary", () => {
-  test("accepts declaration-only owner roots and excludes generated/dependency trees", async () => {
+  test("accepts ordinary owner roots and excludes generated/dependency trees", async () => {
     const root = await temporaryRoot("clean")
     await writeJson(join(root, "package.json"), {
       name: "@fixture/clean",
@@ -30,8 +21,6 @@ describe("external Storybook consumer boundary", () => {
     await Bun.write(join(root, "src", "example.ts"), String.raw`export const example = ` + "`" + String.raw`
 import type {Example} from "@zavx0z/storybook/app"
 ` + "`\n")
-    await Bun.write(join(root, ".storybook", "runtime.ts"), "export const runtime = {}\n")
-    await Bun.write(join(root, ".storybook", "stories", "button.ts"), "export const story = {}\n")
     await Bun.write(join(root, "templates", "package.json"), String.raw`{
       "name": {{packageNameJson}},
       "scripts": {"build": {{buildScriptJson}}}
@@ -127,115 +116,6 @@ import type {Example} from "@zavx0z/storybook/app"
     expect(() => scanStorybookConsumerBoundaries([dirname(root)])).toThrow("own package.json")
   })
 })
-
-describe("external Storybook route baseline", () => {
-  test("proves exact leaf/overview parity through a documented package remap", async () => {
-    const graph = await fixtureGraph()
-    const baseline: StorybookRouteBaseline = {
-      packageId: "@legacy/components",
-      leaves: [
-        "components/button/basic/contained",
-        "components/button/outlined",
-      ],
-      overviews: [
-        "",
-        ...graph.nodes.filter(node => node.kind === "directory" && node.packageId === "@fixture/components").map(node => node.routePath!),
-        "foundation",
-        "foundation/event-target",
-        "components",
-        "components/button",
-      ],
-      unknownRoutesFailClosed: true,
-      overviewFallback: false,
-    }
-    const result = compareRouteBaseline(baseline, graph, [{
-      kind: "package",
-      fromPackageId: "@legacy/components",
-      toPackageId: "@fixture/components",
-      reason: "Private package removal preserves the owner package routes",
-    }])
-
-    expect(result.ok).toBeTrue()
-    expect(result.missingLeaves).toEqual([])
-    expect(result.unexpectedOverviews).toEqual([])
-    expect(result.leafOrderMatches).toBeTrue()
-    expect(result.overviewOrderMatches).toBeTrue()
-    expect(result.unknownRoutesFailClosed).toBeTrue()
-    expect(result.overviewFallback).toBeFalse()
-  })
-
-  test("supports documented exact route remaps and reports parity gaps", async () => {
-    const graph = await fixtureGraph()
-    const baseline: StorybookRouteBaseline = {
-      packageId: "@legacy/components",
-      leaves: ["legacy/contained"],
-      overviews: [""],
-      unknownRoutesFailClosed: true,
-      overviewFallback: false,
-    }
-    const result = compareRouteBaseline(baseline, graph, [
-      {
-        kind: "package",
-        fromPackageId: "@legacy/components",
-        toPackageId: "@fixture/components",
-        reason: "Package owner remap",
-      },
-      {
-        kind: "route",
-        fromPackageId: "@legacy/components",
-        fromPath: "legacy/contained",
-        toPackageId: "@fixture/components",
-        toPath: "components/button/basic/contained",
-        reason: "Documented legacy deep-link override",
-      },
-    ])
-
-    expect(result.ok).toBeFalse()
-    expect(result.missingLeaves).toEqual([])
-    expect(result.unexpectedLeaves.map(({path}) => path)).toEqual(["components/button/outlined"])
-    expect(result.unexpectedOverviews.map(({path}) => path)).toEqual([
-      ...graph.nodes.filter(node => node.kind === "directory" && node.packageId === "@fixture/components").map(node => node.routePath!),
-      "foundation",
-      "foundation/event-target",
-      "components",
-      "components/button",
-    ])
-  })
-
-  test("fails closed for undocumented remaps, unknown targets and fallback baselines", async () => {
-    const graph = await fixtureGraph()
-    const baseline: StorybookRouteBaseline = {
-      packageId: "@legacy/components",
-      leaves: [],
-      overviews: [""],
-      unknownRoutesFailClosed: true,
-      overviewFallback: false,
-    }
-    expect(() => compareRouteBaseline(baseline, graph, [{
-      kind: "package",
-      fromPackageId: "@legacy/components",
-      toPackageId: "@fixture/components",
-      reason: "",
-    }])).toThrow("document its reason")
-    expect(() => compareRouteBaseline(baseline, graph, [{
-      kind: "package",
-      fromPackageId: "@legacy/components",
-      toPackageId: "@fixture/missing",
-      reason: "Missing target",
-    }])).toThrow("Unknown Storybook route-remap target package")
-    expect(() => compareRouteBaseline({
-      ...baseline,
-      overviewFallback: true,
-    } as unknown as StorybookRouteBaseline, graph)).toThrow("no overview fallback")
-  })
-})
-
-async function fixtureGraph() {
-  return createExternalStorybookGraph(await resolveExternalStorybookDeclarations([
-    graphFixtureRoot,
-    join(graphFixtureRoot, "standalone"),
-  ]))
-}
 
 async function temporaryRoot(label: string): Promise<string> {
   const root = await mkdtemp(join(tmpdir(), `storybook-consumer-${label}-`))

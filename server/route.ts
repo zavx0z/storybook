@@ -43,7 +43,7 @@ export async function resolveStorybookRoute(route: string, snapshot: ExternalSto
   return {
     packageId: resolved.package.id,
     route: localRoute,
-    urlPath: formatRouteAddress({node: resolved.node, ...(resolved.view === "story" ? {} : {view: resolved.view})}),
+    urlPath: formatRouteAddress({node: resolved.node, view: resolved.view}),
     ...(resolved.variant === undefined ? {} : {variant: resolved.variant}),
   }
 }
@@ -51,13 +51,8 @@ export async function resolveStorybookRoute(route: string, snapshot: ExternalSto
 /** Сопоставляет физического владельца с его уже существующим узлом навигации. */
 function routeOwnerNode(route: NonNullable<ResolveRouteOutput>, snapshot: ExternalStorybookRegistrySnapshot) {
   const candidates = snapshot.graph.nodes.filter(node => node.packageId === route.package.id)
-  if (route.view === "story") {
-    const matches = candidates.filter(node => ["category", "subject", "variant"].includes(node.kind) && node.routePath === route.relativePath)
-    return matches.length === 1 ? matches[0] : undefined
-  }
   if (route.directory === route.package.path) return candidates.find(node => node.kind === "package")
   return candidates.find(node => node.kind === "directory" && node.source.path === route.directory)
-    ?? candidates.find(node => node.kind === "subject" && node.source.path === route.directory)
 }
 
 /**

@@ -1,26 +1,26 @@
 import {lstat, readFile, realpath} from "node:fs/promises"
 import {isAbsolute, relative, resolve, sep} from "node:path"
+import {readWorkspacePackages} from "@storybook/route/workspaces"
 import type {PackageManifest} from "./types"
 
 const privateSegments = new Set(["spec", "src", "fixture", "node_modules"])
 
 /** Читает только package identity и workspace composition из package.json. */
 export async function readPackageManifest(packagePath: string): Promise<PackageManifest | null> {
-  let value: unknown
   try {
     const manifestPath = resolve(packagePath, "package.json")
     const info = await lstat(manifestPath)
     if (!info.isFile() || info.isSymbolicLink()) return null
-    value = JSON.parse(await readFile(manifestPath, "utf8"))
+    const value: unknown = JSON.parse(await readFile(manifestPath, "utf8"))
+    if (!isRecord(value) || typeof value.name !== "string") return null
+    const workspaces = value.workspaces === undefined
+      ? []
+      : (await readWorkspacePackages({root: packagePath, value: value.workspaces})).roots
+        .map(path => relative(packagePath, path).split(sep).join("/"))
+    return {name: value.name, workspaces}
   } catch {
     return null
   }
-  if (!isRecord(value) || typeof value.name !== "string") return null
-
-  const workspaces = Array.isArray(value.workspaces)
-    ? value.workspaces.filter((item): item is string => typeof item === "string")
-    : []
-  return {name: value.name, workspaces}
 }
 
 /** Проверяет, что сегмент может участвовать в публичном структурном пути. */

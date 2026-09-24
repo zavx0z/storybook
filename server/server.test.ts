@@ -300,7 +300,7 @@ describe("one external Storybook server", () => {
     }
     let running = await startTestServer(options)
     servers.push(running)
-    const workspaceFile = join(fixture.workspace, ".storybook/manifest.json")
+    const workspaceFile = join(fixture.workspace, "package.json")
     const workspaceBytes = readFileSync(workspaceFile, "utf8")
     const html = await (await fetch(new URL("/", running.origin))).text()
     const session = html.match(/name="external-storybook-browser-session" content="([^"]+)"/u)?.[1]
@@ -609,11 +609,9 @@ describe("one external Storybook server", () => {
     expect(client.packages).toHaveLength(6)
     expect(new Set(client.nodes.map((node: {urlPath: string}) => new URL(node.urlPath, running.origin).origin)))
       .toEqual(new Set([running.origin]))
-    const variant = client.nodes.find((node: {id: string}) =>
-      node.id === "variant:@fixture/components/components/button/contained")
-    const reference = await fetch(new URL(`${variant.resourceUrl}?kind=reference&index=0`, running.origin))
-    expect(reference.status).toBe(200)
-    expect(await reference.text()).toContain("button-contained")
+    const directory = client.nodes.find((node: {id: string}) =>
+      node.id === "directory:package:@fixture/components/docs")
+    expect(directory).toMatchObject({kind: "directory", routePath: "dir-docs"})
     expect(running.record.attachedDeclarations).toHaveLength(2)
     expect(running.record.controlToken).toMatch(/^[A-Za-z0-9_-]{43}$/u)
   })
@@ -627,11 +625,11 @@ describe("one external Storybook server", () => {
     })
     servers.push(running)
     const watched = [
-      join(fixture.workspace, ".storybook/manifest.json"),
+      join(fixture.workspace, "package.json"),
       join(fixture.workspace, "README.md"),
-      join(fixture.workspace, "projects/alpha/.storybook/manifest.json"),
+      join(fixture.workspace, "projects/alpha/package.json"),
       join(fixture.workspace, "projects/alpha/README.md"),
-      join(fixture.workspace, "projects/alpha/packages/components/.storybook/catalog.json"),
+      join(fixture.workspace, "projects/alpha/packages/components/README.md"),
       join(fixture.workspace, "projects/alpha/packages/components/package.json"),
     ]
     for (const path of watched) {
@@ -642,7 +640,7 @@ describe("one external Storybook server", () => {
     expect(running.watch.notify(unrelated)).toBe(0)
   })
 
-  test("explicit refresh reconciles an attached declaration even when its watch event was missed", async () => {
+  test("explicit refresh reconciles an attached package structure even when its watch event was missed", async () => {
     const fixture = serverFixture()
     const running = await startTestServer({
       declarations: [fixture.workspace],
@@ -814,7 +812,7 @@ describe("one external Storybook server", () => {
     socket.close()
   }, 120_000)
 
-  test("serves only declared README files, resources and literal local README assets", async () => {
+  test("serves only README files and literal local README assets", async () => {
     const fixture = serverFixture()
     const project = join(fixture.workspace, "projects", "alpha")
     const readme = join(project, "README.md")
@@ -833,10 +831,10 @@ describe("one external Storybook server", () => {
     const node = client.nodes.find((candidate: {id: string}) => candidate.id === "package:fixture-alpha")
     expect((await fetch(new URL(`${node.resourceUrl}linked.txt`, running.origin))).status).toBe(200)
     expect((await fetch(new URL(`${node.resourceUrl}hidden.txt`, running.origin))).status).toBe(404)
-    expect((await fetch(new URL(`${node.resourceUrl}.storybook/manifest.json`, running.origin))).status).toBe(404)
+    expect((await fetch(new URL(`${node.resourceUrl}package.json`, running.origin))).status).toBe(404)
   })
 
-  test("builds only the requested executable package revision", async () => {
+  test("builds only the requested structural package revision", async () => {
     const fixture = serverFixture()
     const running = await startTestServer({
       declarations: [fixture.workspace],
@@ -845,7 +843,7 @@ describe("one external Storybook server", () => {
     })
     servers.push(running)
     const components = await fetch(new URL(
-      "/pkg-fixture-components/components/button/basic/contained",
+      "/pkg-fixture-components/",
       running.origin,
     ))
     expect(components.status, await components.clone().text()).toBe(200)
@@ -854,92 +852,19 @@ describe("one external Storybook server", () => {
     expect(running.sessions.session("@fixture/docs").snapshot().builds).toBe(0)
   }, 120_000)
 
-  test("serves ordered revision-scoped author resources for the semantic stylesheet registry", async () => {
+  test("serves the revision-scoped Workbench theme", async () => {
     const fixture = serverFixture()
-    const running = await startTestServer({
-      declarations: [fixture.workspace],
-      statePath: fixture.statePath,
-      artifactRoot: fixture.artifactRoot,
-      packageBrowserEntryPath: fixture.packageEntry,
-    })
+    const running = await startTestServer({declarations: [fixture.workspace], statePath: fixture.statePath,
+      artifactRoot: fixture.artifactRoot, packageBrowserEntryPath: fixture.packageEntry})
     servers.push(running)
-    const candidate = (await running.sessions.ensure("@fixture/components")).builtRevision!
-    const page = await fetch(new URL(
-      `/pkg-fixture-components/components/button/basic/contained?preview=${candidate}`,
-      running.origin,
-    ))
-    expect(page.status, await page.clone().text()).toBe(200)
-    const html = await page.text()
-    const session = running.sessions.session("@fixture/components")
-    const state = session.snapshot()
-    const revision = state.builtRevision ?? state.activatingRevision
-    if (revision === null || revision === undefined) throw new Error("Fixture revision is missing")
-    const graph = session.revisionGraphSnapshot(revision)
-    if (graph === null) throw new Error("Fixture revision graph is missing")
-    expect(graph.authorStyleSheets.map(({specifier, url}) => ({specifier, url}))).toEqual([
-      {specifier: "@fixture/components/tokens.css", url: "author-style-sheets/0.css"},
-      {specifier: "@fixture/components/theme.css", url: "author-style-sheets/1.css"},
-    ])
-    const revisionUrl = `/__storybook/revisions/%40fixture%2Fcomponents/${revision}/`
-    expect(html).toContain(`"payloadUrl":"${revisionUrl}revision-payload.js"`)
-    for (const styleSheet of graph.authorStyleSheets) {
-      expect(html).not.toContain(`data-external-storybook-author-style-sheet="${styleSheet.specifier}"`)
-    }
-    for (const [index, styleSheet] of graph.authorStyleSheets.entries()) {
-      const response = await fetch(new URL(`${revisionUrl}${styleSheet.url}`, running.origin))
-      expect(response.status).toBe(200)
-      expect(response.headers.get("content-type")).toBe("text/css; charset=utf-8")
-      expect(await response.text()).toBe(await Bun.file(join(
-        fixture.workspace,
-        `projects/alpha/packages/components/${index === 0 ? "tokens.css" : "theme.css"}`,
-      )).text())
-    }
-    expect(html).not.toContain(join(fixture.workspace, "projects/alpha/packages/components"))
-  }, 120_000)
-
-  test("refreshes author CSS content digest before publishing its next immutable revision", async () => {
-    const fixture = serverFixture()
-    const running = await startTestServer({
-      declarations: [fixture.workspace],
-      statePath: fixture.statePath,
-      artifactRoot: fixture.artifactRoot,
-      packageBrowserEntryPath: fixture.packageEntry,
-    })
-    servers.push(running)
-    await fetch(new URL(
-      "/pkg-fixture-components/components/button/basic/contained",
-      running.origin,
-    ))
-    const session = running.sessions.session("@fixture/components")
-    const before = session.snapshot()
-    const beforeRevision = before.builtRevision ?? before.activatingRevision
-    if (beforeRevision === null || beforeRevision === undefined) throw new Error("Fixture revision is missing")
-    const beforeGraph = session.revisionGraphSnapshot(beforeRevision)
-    if (beforeGraph === null) throw new Error("Fixture revision graph is missing")
-    const beforeDigest = beforeGraph.authorStyleSheets[0]?.contentDigest
-    const registryRevision = running.registry.snapshot().revision
-    const tokens = join(fixture.workspace, "projects/alpha/packages/components/tokens.css")
-    writeFileSync(tokens, ":root { --fixture-accent: #ffffff; }\n")
-    expect(running.watch.notify(tokens)).toBeGreaterThan(1)
-    await waitFor(() => running.registry.snapshot().revision > registryRevision)
     const built = await running.sessions.ensure("@fixture/components")
-    const nextRevision = built.builtRevision ?? built.activatingRevision
-    if (nextRevision === null || nextRevision === undefined) throw new Error("Next fixture revision is missing")
-    const nextGraph = session.revisionGraphSnapshot(nextRevision)
-    if (nextGraph === null) throw new Error("Next fixture revision graph is missing")
-    expect(nextRevision).not.toBe(beforeRevision)
-    expect(nextGraph.authorStyleSheets[0]?.contentDigest).not.toBe(beforeDigest)
-    expect(nextGraph.packageGraphDigest).not.toBe(beforeGraph.packageGraphDigest)
-    const previousResponse = await fetch(new URL(
-      `/__storybook/revisions/%40fixture%2Fcomponents/${beforeRevision}/author-style-sheets/0.css`,
-      running.origin,
-    ))
-    expect(await previousResponse.text()).toBe(":root { --fixture-accent: #35c7d8; }\n")
-    const response = await fetch(new URL(
-      `/__storybook/revisions/%40fixture%2Fcomponents/${nextRevision}/author-style-sheets/0.css`,
-      running.origin,
-    ))
-    expect(await response.text()).toBe(":root { --fixture-accent: #ffffff; }\n")
+    const revision = built.builtRevision!
+    const graph = running.sessions.session("@fixture/components").revisionGraphSnapshot(revision)!
+    expect(graph.workbenchAuthorStyleSheets.map(({specifier}) => specifier)).toEqual(["@zavx0z/ui/themes/theme.css"])
+    const resource = graph.workbenchAuthorStyleSheets[0]!
+    const response = await fetch(new URL(`/__storybook/revisions/%40fixture%2Fcomponents/${revision}/${resource.url}`, running.origin))
+    expect(response.status).toBe(200)
+    expect(response.headers.get("content-type")).toBe("text/css; charset=utf-8")
   }, 120_000)
 
   test("failed attach leaves registry and sessions unchanged", async () => {
@@ -957,7 +882,7 @@ describe("one external Storybook server", () => {
     const failed = await controlPost(running, "/api/control/attach", {
       roots: [fixture.standalone, join(fixture.root, "missing")],
     })
-    expect(failed.response.status).toBe(404)
+    expect(failed.response.status).toBe(400)
     const after = await controlGet(running, "/api/control/status")
     expect(after.graphDigest).toBe(before.graphDigest)
     expect(after.entries).toEqual(before.entries)
@@ -1008,31 +933,15 @@ describe("one external Storybook server", () => {
     expect(await response.text()).not.toContain("outside secret")
   })
 
-  test("shows an isolated shared shell when a package has no last-good revision", async () => {
+  test("shows an isolated shell when a structural package has no last-good revision", async () => {
     const fixture = serverFixture()
-    const storyDirectory = join(
-      fixture.workspace,
-      "projects/alpha/packages/components/.storybook/stories",
-    )
-    writeFileSync(join(storyDirectory, "broken.ts"), "export const broken = {\n")
-    writeFileSync(join(storyDirectory, "button.ts"), [
-      'import {broken} from "./broken.ts"',
-      "export const contained = broken",
-      "export const outlined = broken",
-      "",
-    ].join("\n"))
-    const running = await startTestServer({
-      declarations: [fixture.workspace],
-      statePath: fixture.statePath,
-      artifactRoot: fixture.artifactRoot,
-    })
+    writeFileSync(fixture.packageEntry, "export const broken = {\n")
+    const running = await startTestServer({declarations: [fixture.workspace], statePath: fixture.statePath,
+      artifactRoot: fixture.artifactRoot, packageBrowserEntryPath: fixture.packageEntry})
     servers.push(running)
-    const page = await fetch(new URL(
-      "/pkg-fixture-components/components/button/basic/contained",
-      running.origin,
-    ))
+    const page = await fetch(new URL("/pkg-fixture-components/", running.origin))
     expect(page.status).toBe(200)
-    expect(await page.text()).toContain("/__storybook/shared/entries/browser-entry-")
+    expect(await page.text()).toContain("external-storybook-canvas")
     const failed = running.sessions.session("@fixture/components").snapshot()
     expect(failed.buildState).toBe("failed")
     expect(failed.activeRevision).toBeNull()
@@ -1272,17 +1181,6 @@ function serverFixture(): Readonly<{
   const workspace = join(root, "workspace")
   mkdirSync(workspace, {recursive: true})
   Bun.spawnSync(["cp", "-R", `${source}/.`, workspace])
-  for (const [directory, workspaces] of [
-    ["", ["projects/alpha", "projects/beta"]],
-    ["projects/alpha", ["packages/components"]],
-    ["projects/beta", ["packages/docs"]],
-  ] as const) {
-    const path = join(workspace, directory, "package.json")
-    writeFileSync(path, JSON.stringify({...JSON.parse(readFileSync(path, "utf8")), workspaces}))
-    const manifestPath = join(workspace, directory, ".storybook/manifest.json")
-    const {kind: _kind, id: _id, projects: _projects, packages: _packages, ...manifest} = JSON.parse(readFileSync(manifestPath, "utf8"))
-    writeFileSync(manifestPath, JSON.stringify(manifest))
-  }
   const entries = mkdtempSync(join(import.meta.dir, "fixtures/.shared-browser-"))
   roots.push(entries)
   const landingEntry = join(entries, "landing-entry.ts")

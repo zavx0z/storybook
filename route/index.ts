@@ -9,8 +9,7 @@ import {readRouteIgnored} from "./ignored"
 import type {ResolveRouteInput} from "./contract/input"
 import type {ResolveRouteOutput} from "./contract/output"
 import {isRouteRootName, parseRoute} from "./src/address"
-import {isPublicSegment, readPackageManifest, readRootPath} from "./src/files"
-import {readAuthoredStory} from "./src/story"
+import {readPackageManifest, readRootPath} from "./src/files"
 import {enterWorkspace, readAvailableViews} from "./src/structure"
 import type {RoutePosition} from "./src/types"
 
@@ -85,33 +84,16 @@ export async function resolveRoute({route, roots}: ResolveRouteInput): Promise<R
       continue
     }
 
-    const authoredSegments = [...position.relativeSegments, ...segments.slice(index)]
-    if (!authoredSegments.every(isPublicSegment)) return null
-    const authoredRoute = authoredSegments.join("/")
-    if (parsed.view !== undefined) return null
-    const story = await readAuthoredStory(rootPath, position.packagePath, authoredRoute)
-    if (story === null) return null
-    position = {
-      ...position,
-      relativeSegments: authoredRoute.split("/"),
-      directory: story.directory,
-      scenarioOwner: false,
-      moduleOwner: false,
-      stopsTraversal: true,
-    }
-    view = "story"
-    break
+    return null
   }
 
-  const availableViews = view === "story"
-    ? [] as const
-    : await readAvailableViews(
-      rootPath,
-      position.directory,
-      position.scenarioOwner,
-      position.moduleOwner,
-      repository,
-    ).catch(() => null)
+  const availableViews = await readAvailableViews(
+    rootPath,
+    position.directory,
+    position.scenarioOwner,
+    position.moduleOwner,
+    repository,
+  ).catch(() => null)
   if (availableViews === null) return null
   const views: NonNullable<ResolveRouteOutput>["views"] = availableViews
   if (parsed.view !== undefined) {

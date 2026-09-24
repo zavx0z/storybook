@@ -3,7 +3,7 @@ import {mkdtemp, mkdir, realpath, rm} from "node:fs/promises"
 import {join} from "node:path"
 import {tmpdir} from "node:os"
 import {ExternalStorybookRegistry} from "../catalog/registry.ts"
-import {resolveExternalStorybookDeclarations} from "../discovery/declarations.ts"
+import {discoverStorybookPackages} from "../discovery/packages.ts"
 import {deriveExternalStorybookLanding, deriveExternalStorybookLandingSelection, deriveExternalStorybookPackageTab, deriveExternalStorybookNavigationTree} from "../runtime/model.ts"
 import {createExternalStorybookClientSnapshot} from "../runtime/client-protocol.ts"
 import {deriveStorybookBreadcrumbs} from "../runtime/breadcrumbs.ts"
@@ -21,8 +21,6 @@ async function fixture() {
   await Bun.write(join(project, "package.json"), JSON.stringify({name: "fixture", label: "Repository", workspaces: ["unit"]}))
   await Bun.write(join(project, ".gitignore"), "dist/\n")
   await Bun.write(join(project, "unit/package.json"), JSON.stringify({name: "@fixture/unit", label: "Unit"}))
-  await Bun.write(join(project, "unit/.storybook/manifest.json"), JSON.stringify({schemaVersion: 1, catalog: "./catalog.json"}))
-  await Bun.write(join(project, "unit/.storybook/catalog.json"), JSON.stringify({schemaVersion: 1, categories: [{id: "contract", label: "Contract", group: {id: "authored", label: "Authored"}, subjects: [{id: "document", kind: "document", label: "Document", presentation: {protocol: "story-presentation/1", projection: "display", widgets: ["source", "diagnostics"]}, variants: []}]}]}))
   for (const path of ["docs/guide", "dist/generated", "src/hidden", "unit/docs/guide", "unit/docs/with # hash"]) await mkdir(join(project, path), {recursive: true})
   await Bun.write(join(project, "docs/README.md"), "# Repository documentation")
   await Bun.write(join(project, "unit/docs/README.md"), "# Package documentation")
@@ -31,13 +29,13 @@ async function fixture() {
   return {root, project}
 }
 
-test("keeps packages in the primary tree and discovers nested categories beside authored contents", async () => {
+test("keeps packages and physical directories in the same navigation tree", async () => {
   const {project} = await fixture()
-  const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
+  const registry = new ExternalStorybookRegistry(discoverStorybookPackages)
   const snapshot = await registry.configure([project])
   expect(snapshot.catalog.scopes.flatMap(scope => scope.resolutionError === undefined ? [] : [scope.resolutionError])).toEqual([])
   const graph = snapshot.graph
-  expect(deriveExternalStorybookLanding(graph).catalogItems.map(item => item.label)).toEqual(["Repository", "Unit"])
+  expect(deriveExternalStorybookLanding(graph).catalogItems.map(item => item.title)).toEqual(["Repository", "Unit"])
   const rootId = graph.rootIds[0]!
   const repository = deriveExternalStorybookLandingSelection(graph, rootId)
   expect(repository.overviewNode.id).toBe(rootId)
@@ -52,11 +50,7 @@ test("keeps packages in the primary tree and discovers nested categories beside 
     diagnostics: [], dependencyRealpaths: [], subscribers: 0, buildState: "idle", builds: 0,
   })))
   expect(deriveStorybookBreadcrumbs(client, nested.id, {kind: "landing"}).map(item => item.label)).toEqual(["Главная", "Repository", "docs"])
-  expect(navigation.filter(item => item.id.includes("@fixture/unit") && !item.id.startsWith("directory:") && item.id !== "package:@fixture/unit")
-    .map(item => [item.label, item.parentId])).toEqual([
-      ["Contract", "package:@fixture/unit"],
-      ["Document", "category:@fixture/unit/contract"],
-    ])
+  expect(navigation.some(item => item.id.startsWith("category:") || item.id.startsWith("subject:"))).toBeFalse()
   const packageDoc = graph.nodes.find(node => node.kind === "directory" && node.packageId === "@fixture/unit" && node.label === "docs")!
   expect(deriveExternalStorybookPackageTab(graph, "@fixture/unit", packageDoc.routePath!).selectedNode.id).toBe(packageDoc.id)
   const descriptor = registry.packageDescriptors().find(descriptor => descriptor.packageId === "@fixture/unit")!
@@ -86,10 +80,6 @@ test("serves a directory overview and follows gitignore changes through the exis
     const page = await fetch(new URL(docs.urlPath, server.origin))
     expect(page.status).toBe(200)
     expect((await fetch(new URL("/pkg-fixture-unit/dir-docs/dir-guide", server.origin))).status).toBe(200)
-    const legacyPath = "/projects/" + (server.registry.snapshot().catalog.scopes.find(scope => scope.id === "fixture")?.legacyUrls?.[0]?.split("/")[2] ?? "fixture") + "/~directories/docs/"
-    const redirected = await fetch(new URL(legacyPath, server.origin), {redirect: "manual"})
-    expect(redirected.status).toBe(308)
-    expect(redirected.headers.get("location")).toBe(docs.urlPath)
     const resource = `/__storybook/resources/nodes/${encodeURIComponent(docs.id)}/`
     expect(await (await fetch(new URL(resource, server.origin))).text()).toBe("# Repository module")
     await Bun.write(join(project, "docs/index.ts"), "/**\n# Updated module\n@packageDocumentation\n*/")

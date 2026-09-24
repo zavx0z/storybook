@@ -44,9 +44,9 @@ test("types следует обычным границам каталогов, �
   await Bun.write(join(root, "protocol/types/index.ts"), "/** Протокол раскладки.\n@packageDocumentation\n*/")
   const read = () => discoverStorybookDirectories(root, new Set())
   const found = await read()
-  expect(found.directories.map(dir => [dir.relativePath, dir.structuralRole])).toEqual([
-    ["protocol", "category"], ["protocol/types", "module"],
-    ["types", "directory"], ["types/private", "directory"],
+  expect(found.directories.map(dir => [dir.relativePath, dir.relativePath])).toEqual([
+    ["protocol", "protocol"], ["protocol/types", "protocol/types"],
+    ["types", "types"], ["types/private", "types/private"],
   ])
   expect(found.watchPaths).toContain(join(root, "types/src"))
   await rm(join(root, "protocol/types/src"), {recursive: true})
@@ -67,12 +67,12 @@ test.each(["index.ts", "index.tsx"])("README не заменяет отсутс�
   expect((await read()).moduleDocumentation?.markdown).toBe("Описание")
   await Bun.write(join(root, ".gitignore"), `module/${entry}\n`)
   expect((await read()).moduleDocumentation).toBeUndefined()
-  expect((await read()).structuralRole).toBe("directory")
+  expect((await read()).relativePath).toBe("module")
   await Bun.write(join(root, ".gitignore"), "")
   await rm(join(root, `module/${entry}`))
   await symlink(join(root, "module/README.md"), join(root, `module/${entry}`))
   expect((await read()).moduleDocumentation).toBeUndefined()
-  expect((await read()).structuralRole).toBe("directory")
+  expect((await read()).relativePath).toBe("module")
 })
 
 test("index.tsx завершает обход без src и владеет обзором при наличии index.ts", async () => {
@@ -84,8 +84,8 @@ test("index.tsx завершает обход без src и владеет об�
   const entry = join(root, "group/component/index.tsx")
   await Bun.write(entry, '/**\nКомпонент\n@packageDocumentation\n*/\nexport function Component() { return <div /> }\nthrow new Error("Не исполнять")')
   const found = await discoverStorybookDirectories(root, new Set())
-  expect(found.directories.map(dir => [dir.relativePath, dir.structuralRole])).toEqual([
-    ["group", "category"], ["group/component", "module"],
+  expect(found.directories.map(dir => [dir.relativePath, dir.relativePath])).toEqual([
+    ["group", "group"], ["group/component", "group/component"],
   ])
   expect(found.directories[1]?.moduleDocumentation?.markdown).toBe("Компонент")
   expect(found.directories[1]?.moduleDocumentation?.sourcePath).toBe(entry)
@@ -94,7 +94,7 @@ test("index.tsx завершает обход без src и владеет об�
   expect(found.watchPaths).not.toContain(join(root, "group/component/internal"))
   await Bun.write(entry, 'export function Component() { return <div /> }')
   const undocumented = (await discoverStorybookDirectories(root, new Set())).directories[1]!
-  expect(undocumented.structuralRole).toBe("module")
+  expect(undocumented.relativePath).toBe("group/component")
   expect(undocumented.moduleDocumentation).toBeUndefined()
   await rm(entry)
   const restored = await discoverStorybookDirectories(root, new Set())

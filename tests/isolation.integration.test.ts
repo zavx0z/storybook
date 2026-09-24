@@ -2,6 +2,7 @@ import {afterEach, describe, expect, test} from "bun:test"
 import {mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
+import {storybookPackageUrlPath} from "@zavx0z/storybook-browser-lifecycle/contract"
 import {startExternalStorybookServer, type ExternalStorybookRunningServer} from "../server/server.ts"
 
 const roots: string[] = []
@@ -9,287 +10,128 @@ const servers: ExternalStorybookRunningServer[] = []
 const isolationTest = process.env.STORYBOOK_SKIP_ISOLATION === "1" ? test.skip : test
 
 afterEach(async () => {
-  await Promise.all(servers.splice(0).map((server) => server.stop()))
+  await Promise.all(servers.splice(0).map(server => server.stop()))
   for (const root of roots.splice(0)) rmSync(root, {recursive: true, force: true})
 })
 
-describe("one-server package isolation", () => {
-  isolationTest("isolates A/B/C updates, last-good failures and shared dependencies", async () => {
-    const fixture = createIsolationFixture()
+describe("one-server structural package isolation", () => {
+  isolationTest("A metadata update and failure preserve B/C revisions and A last working revision", async () => {
+    const fixture = createFixture()
     const running = await startExternalStorybookServer({
-      declarations: [fixture.projectRoot],
-      statePath: join(fixture.root, "state", "server.json"),
+      declarations: [fixture.projectRoot], statePath: join(fixture.root, "state/server.json"),
       artifactRoot: join(fixture.root, "artifacts"),
       browserLifecycle: {
         async listViews() { return [] },
-        openPackage: unexpectedBrowserAction,
-        getView: unexpectedBrowserAction,
-        inspect: unexpectedBrowserAction,
-        interact: unexpectedBrowserAction,
-        capture: unexpectedBrowserAction,
-        close: unexpectedBrowserAction,
+        openPackage: unexpectedBrowserAction, getView: unexpectedBrowserAction,
+        inspect: unexpectedBrowserAction, interact: unexpectedBrowserAction,
+        capture: unexpectedBrowserAction, close: unexpectedBrowserAction,
         readCapture: unexpectedBrowserAction,
       },
     })
     servers.push(running)
-    await Promise.all([
-      running.sessions.ensure("@fixture/a"),
-      running.sessions.ensure("@fixture/b"),
-    ])
-    activateSession(running, "@fixture/a", "catalog/a/default")
-    activateSession(running, "@fixture/b", "catalog/b/default")
-    const aSocket = await packageSocket(running.origin, "@fixture/a", "catalog/a/default")
-    const bSocket = await packageSocket(running.origin, "@fixture/b", "catalog/b/default")
-    const initialA = running.sessions.session("@fixture/a").snapshot()
-    const initialB = running.sessions.session("@fixture/b").snapshot()
-    expect(initialA.buildState, JSON.stringify(initialA.diagnostics)).toBe("active")
-    expect(initialB.buildState, JSON.stringify(initialB.diagnostics)).toBe("active")
-    expect(initialA.subscribers).toBe(1)
-    expect(initialB.subscribers).toBe(1)
-    expect(running.sessions.session("@fixture/c").snapshot().builds).toBe(0)
-    aSocket.clear()
-    bSocket.clear()
+    await Promise.all([running.sessions.ensure("@fixture/a"), running.sessions.ensure("@fixture/b")])
+    activate(running, "@fixture/a")
+    activate(running, "@fixture/b")
+    const aSocket = await packageSocket(running.origin, "@fixture/a")
+    const bSocket = await packageSocket(running.origin, "@fixture/b")
+    try {
+      const firstA = running.sessions.session("@fixture/a").snapshot()
+      const firstB = running.sessions.session("@fixture/b").snapshot()
+      expect(firstA.buildState).toBe("active")
+      expect(firstB.buildState).toBe("active")
+      expect(running.sessions.session("@fixture/c").snapshot().builds).toBe(0)
+      aSocket.clear()
+      bSocket.clear()
 
-    writeFileSync(fixture.aStory, storySource("A2", "../../../shared.ts"))
-    await waitFor(() => {
-      const snapshot = running.sessions.session("@fixture/a").snapshot()
-      return snapshot.builds >= 2 && snapshot.buildState === "built" &&
-        snapshot.builtRevision !== initialA.activeRevision
-    })
-    expect(await aSocket.waitFor("package.built")).toMatchObject({packageId: "@fixture/a"})
-    const builtA = running.sessions.session("@fixture/a").snapshot()
-    expect(builtA.activeRevision).toBe(initialA.activeRevision)
-    activateSession(running, "@fixture/a", "catalog/a/default")
-    const updatedA = running.sessions.session("@fixture/a").snapshot()
-    expect(updatedA.activeRevision).not.toBe(initialA.activeRevision)
-    expect(running.sessions.session("@fixture/b").snapshot().activeRevision).toBe(initialB.activeRevision)
-    expect(running.sessions.session("@fixture/c").snapshot().builds).toBe(0)
-    expect(await aSocket.waitFor("package.updated")).toMatchObject({packageId: "@fixture/a"})
-    expect(bSocket.messages.some(({type}) => type === "package.updated")).toBeFalse()
+      writeFileSync(fixture.aMetadata, JSON.stringify({name: "@fixture/a", label: "A2"}))
+      await waitFor(() => running.sessions.session("@fixture/a").snapshot().builtRevision !== firstA.activeRevision &&
+        running.sessions.session("@fixture/a").snapshot().buildState === "built")
+      expect(await aSocket.waitFor("package.built")).toMatchObject({packageId: "@fixture/a"})
+      activate(running, "@fixture/a")
+      const updatedA = running.sessions.session("@fixture/a").snapshot()
+      expect(updatedA.activeRevision).not.toBe(firstA.activeRevision)
+      expect(running.sessions.session("@fixture/b").snapshot().activeRevision).toBe(firstB.activeRevision)
+      expect(running.sessions.session("@fixture/c").snapshot().builds).toBe(0)
+      expect(bSocket.messages.some(event => event.type === "package.updated")).toBeFalse()
 
-    const lastGood = updatedA.lastGoodRevision
-    aSocket.clear()
-    writeFileSync(fixture.aStory, "export const story = {\n")
-    await waitFor(() => running.sessions.session("@fixture/a").snapshot().buildState === "failed")
-    const failedA = running.sessions.session("@fixture/a").snapshot()
-    expect(failedA.activeRevision).toBe(updatedA.activeRevision)
-    expect(failedA.lastGoodRevision).toBe(lastGood)
-    expect(failedA.diagnostics.length).toBeGreaterThan(0)
-    expect(running.sessions.session("@fixture/b").snapshot().buildState).toBe("active")
-    expect(await aSocket.waitFor("package.failed")).toMatchObject({packageId: "@fixture/a"})
+      writeFileSync(fixture.aMetadata, "{")
+      await waitFor(() => running.sessions.session("@fixture/a").snapshot().buildState === "failed")
+      const failedA = running.sessions.session("@fixture/a").snapshot()
+      expect(failedA.activeRevision).toBe(updatedA.activeRevision)
+      expect(failedA.lastWorkingRevision).toBe(updatedA.lastWorkingRevision)
+      expect(failedA.diagnostics[0]?.phase).toBe("resolve")
+      expect(running.sessions.session("@fixture/b").snapshot().activeRevision).toBe(firstB.activeRevision)
 
-    aSocket.clear()
-    writeFileSync(fixture.aStory, storySource("A3", "../../../shared.ts"))
-    await waitFor(() => {
-      const snapshot = running.sessions.session("@fixture/a").snapshot()
-      return snapshot.buildState === "built" && snapshot.builtRevision !== updatedA.activeRevision
-    })
-    activateSession(running, "@fixture/a", "catalog/a/default")
-    expect(running.sessions.session("@fixture/a").snapshot().diagnostics).toEqual([])
-    expect(await aSocket.waitFor("package.updated")).toMatchObject({packageId: "@fixture/a"})
-
-    aSocket.clear()
-    bSocket.clear()
-    const beforeSharedA = running.sessions.session("@fixture/a").snapshot().builds
-    const beforeSharedB = running.sessions.session("@fixture/b").snapshot().builds
-    writeFileSync(fixture.shared, "export const shared = 'shared-2'\n")
-    await waitFor(() =>
-      running.sessions.session("@fixture/a").snapshot().builds > beforeSharedA &&
-      running.sessions.session("@fixture/b").snapshot().builds > beforeSharedB)
-    await waitFor(() =>
-      running.sessions.session("@fixture/a").snapshot().buildState === "built" &&
-      running.sessions.session("@fixture/b").snapshot().buildState === "built")
-    activateSession(running, "@fixture/a", "catalog/a/default")
-    activateSession(running, "@fixture/b", "catalog/b/default")
-    expect(await aSocket.waitFor("package.updated")).toMatchObject({packageId: "@fixture/a"})
-    expect(await bSocket.waitFor("package.updated")).toMatchObject({packageId: "@fixture/b"})
-    expect(running.sessions.session("@fixture/c").snapshot().builds).toBe(0)
-
-    const beforeShellA = running.sessions.session("@fixture/a").snapshot().builds
-    const beforeShellB = running.sessions.session("@fixture/b").snapshot().builds
-    const sharedShell = realpathSync(join(import.meta.dir, "../runtime/package-entry.ts"))
-    // Уведомление может включать корневой пакет; ниже проверяются фактические сборки A/B/C.
-    expect(running.sessions.notifyDependency(sharedShell)).toBeGreaterThanOrEqual(2)
-    await waitFor(() =>
-      running.sessions.session("@fixture/a").snapshot().builds > beforeShellA &&
-      running.sessions.session("@fixture/b").snapshot().builds > beforeShellB)
-    expect(running.sessions.session("@fixture/c").snapshot().builds).toBe(0)
-    expect((await fetch(new URL("/api/health", running.origin))).status).toBe(200)
-    aSocket.close()
-    bSocket.close()
+      writeFileSync(fixture.aMetadata, JSON.stringify({name: "@fixture/a", label: "A3"}))
+      await waitFor(() => running.sessions.session("@fixture/a").snapshot().buildState === "built")
+      activate(running, "@fixture/a")
+      expect(running.sessions.session("@fixture/a").snapshot().diagnostics).toEqual([])
+      expect((await fetch(new URL("/api/health", running.origin))).status).toBe(200)
+    } finally {
+      aSocket.close()
+      bSocket.close()
+    }
   }, 180_000)
 })
 
-type SocketEvent = Readonly<Record<string, any> & {type: string}>
-
-/** Изоляция сборок проверяет HTTP и события, а не взаимодействие с настоящим браузером. */
-function unexpectedBrowserAction(): never {
-  throw new Error("Package isolation must not control a real browser")
+function createFixture() {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "storybook-isolation-")))
+  roots.push(root)
+  const projectRoot = join(root, "project")
+  const packages = ["a", "b", "c"] as const
+  mkdirSync(projectRoot, {recursive: true})
+  writeFileSync(join(projectRoot, "package.json"), JSON.stringify({name: "@fixture/project", workspaces: ["packages/*"]}))
+  for (const id of packages) {
+    const packageRoot = join(projectRoot, "packages", id)
+    mkdirSync(packageRoot, {recursive: true})
+    writeFileSync(join(packageRoot, "package.json"), JSON.stringify({name: `@fixture/${id}`, label: id.toUpperCase()}))
+    writeFileSync(join(packageRoot, "README.md"), `# ${id.toUpperCase()}\n`)
+  }
+  return {root, projectRoot, aMetadata: join(projectRoot, "packages/a/package.json")}
 }
 
-async function packageSocket(origin: string, packageId: string, route: string) {
-  const page = await fetch(new URL(`/packages/${encodeURIComponent(packageId)}/${route}`, origin))
+function unexpectedBrowserAction(): never { throw new Error("Isolation test must not control a real browser") }
+
+function activate(running: ExternalStorybookRunningServer, packageId: string): void {
+  const session = running.sessions.session(packageId)
+  const revision = session.snapshot().builtRevision
+  if (revision === null || revision === undefined) throw new Error(`Package is not built: ${packageId}`)
+  const activation = session.beginActivation({revision, viewId: `test:${packageId}`, route: ""})
+  session.acknowledgeActivation({...activation, frameSequence: 1})
+}
+
+type SocketEvent = Readonly<Record<string, any> & {type: string}>
+async function packageSocket(origin: string, packageId: string) {
+  const page = await fetch(new URL(storybookPackageUrlPath(packageId, ""), origin))
   expect(page.status).toBe(200)
-  const token = (await page.text()).match(
-    /<meta name="external-storybook-browser-session" content="([A-Za-z0-9_-]+)">/u,
-  )?.[1]
-  if (token === undefined) throw new Error("Storybook package browser session is missing")
+  const targetSource = (await page.text()).match(/<script type="application\/json" id="external-storybook-page-target">([^<]*)<\/script>/u)?.[1]
+  if (targetSource === undefined) throw new Error("Missing package page target")
+  const target = JSON.parse(targetSource) as {kind?: string; packageId?: string; readerToken?: string}
+  if (target.packageId !== packageId || typeof target.readerToken !== "string") {
+    throw new Error(`Invalid package page target: ${packageId}`)
+  }
+  const token = target.readerToken
   const url = new URL(`/api/events?session=${encodeURIComponent(token)}`, origin)
   url.protocol = "ws:"
-  const Constructor = WebSocket as unknown as new (
-    url: string,
-    options: Readonly<{headers: Readonly<Record<string, string>>}>,
-  ) => WebSocket
-  const socket = new Constructor(url.href, {headers: {origin}})
+  const Constructor = WebSocket as unknown as new (url: string, options: Readonly<{headers: Readonly<Record<string, string>>}>) => WebSocket
+  const socket = new Constructor(url.href, {headers: {Origin: origin}})
   const messages: SocketEvent[] = []
   await new Promise<void>((resolvePromise, reject) => {
     socket.addEventListener("open", () => resolvePromise(), {once: true})
-    socket.addEventListener("error", () => reject(new Error("Storybook test WebSocket failed")), {once: true})
+    socket.addEventListener("error", () => reject(new Error("WebSocket failed")), {once: true})
   })
-  socket.addEventListener("message", (event) => {
-    if (typeof event.data !== "string") return
-    const value = JSON.parse(event.data) as SocketEvent
-    messages.push(value)
-  })
-  socket.send(JSON.stringify({type: "subscribe", topic: `package:${packageId}`}))
-  await waitFor(() => messages.some(({type}) => type === "subscribed"))
-  return {
-    messages,
-    clear() {
-      messages.splice(0)
-    },
-    async waitFor(type: string): Promise<SocketEvent> {
-      await waitFor(() => messages.some((event) => event.type === type))
-      return messages.find((event) => event.type === type)!
-    },
-    close() {
-      socket.close()
-    },
+  socket.addEventListener("message", event => { messages.push(JSON.parse(String(event.data))) })
+  try {
+    socket.send(JSON.stringify({type: "subscribe", topic: `package:${packageId}`}))
+    await waitFor(() => messages.some(event => event.type === "subscribed" || event.type === "subscription.failed"))
+    const failed = messages.find(event => event.type === "subscription.failed")
+    if (failed !== undefined) throw new Error(`Package subscription failed: ${String(failed.message)}`)
+  } catch (error) {
+    socket.close()
+    throw error
   }
-}
-
-function activateSession(
-  running: ExternalStorybookRunningServer,
-  packageId: string,
-  route: string,
-): void {
-  const session = running.sessions.session(packageId)
-  const before = session.snapshot()
-  const revision = before.builtRevision
-  if (revision === null || revision === undefined) {
-    throw new Error(`Fixture package is not built: ${packageId}: ${JSON.stringify(before.diagnostics)}`)
-  }
-  const activation = session.beginActivation({revision, viewId: `test:${packageId}`, route})
-  session.acknowledgeActivation({
-    revision,
-    activationId: activation.activationId,
-    viewId: activation.viewId,
-    route,
-    packageGraphDigest: activation.packageGraphDigest,
-    frameSequence: 1,
-  })
-}
-
-function createIsolationFixture() {
-  const root = mkdtempSync(join(tmpdir(), "storybook-isolation-"))
-  roots.push(root)
-  const projectRoot = join(root, "project")
-  mkdirSync(join(projectRoot, ".storybook"), {recursive: true})
-  writeFileSync(join(projectRoot, "package.json"), JSON.stringify({name: "@fixture/project", label: "Fixture Isolation", private: true, workspaces: ["packages/a", "packages/b", "packages/c"]}))
-  const shared = join(projectRoot, "shared.ts")
-  writeFileSync(shared, "export const shared = 'shared-1'\n")
-  const packages = ["a", "b", "c"] as const
-  writeFileSync(join(projectRoot, ".storybook", "manifest.json"), `${JSON.stringify({
-    schemaVersion: 1,
-  }, null, 2)}\n`)
-  const stories = new Map<string, string>()
-  for (const id of packages) {
-    const packageRoot = join(projectRoot, "packages", id)
-    const declarationRoot = join(packageRoot, ".storybook")
-    mkdirSync(declarationRoot, {recursive: true})
-    writeFileSync(join(packageRoot, "package.json"), JSON.stringify({
-      name: `@fixture/${id}`,
-      label: `Fixture ${id.toUpperCase()}`,
-      private: true,
-      type: "module",
-    }))
-    writeFileSync(join(declarationRoot, "manifest.json"), `${JSON.stringify({
-      schemaVersion: 1,
-      runtime: {module: "./runtime.ts", export: "runtime"},
-      catalog: "./catalog.json",
-    }, null, 2)}\n`)
-    writeFileSync(join(declarationRoot, "catalog.json"), `${JSON.stringify({
-      schemaVersion: 1,
-      categories: [{
-        id: "catalog",
-        label: "Catalog",
-        subjects: [{
-          id,
-          kind: "fixture",
-          label: id.toUpperCase(),
-          presentation: {
-            protocol: "story-presentation/1",
-            projection: "display",
-            widgets: ["source", "diagnostics"],
-          },
-          variants: [{
-            id: "default",
-            label: "Default",
-            route: `catalog/${id}/default`,
-            module: {path: "./story.ts", export: "story"},
-          }],
-        }],
-      }],
-    }, null, 2)}\n`)
-    writeFileSync(join(declarationRoot, "runtime.ts"), [
-      "export const runtime = Object.freeze({",
-      "  protocol: 'storybook-runtime/4',",
-      "  create(context) {",
-      "    let mounted = null",
-      "    const remove = () => {",
-      "      if (mounted?.parentNode != null) mounted.parentNode.removeChild(mounted)",
-      "      mounted = null",
-      "    }",
-      "    return Object.freeze({",
-      "      mount(input) {",
-      "        remove()",
-      "        const node = context.document.createElement('p')",
-      "        node.textContent = String(input.story)",
-      "        context.present(Object.freeze({",
-      "          protocol: 'story-presentation/1',",
-      "          node,",
-      "          componentRoot: Object.freeze({readStyleSheets: () => Object.freeze({revision: 1, styleSheets: Object.freeze([])})}),",
-      "          source: Object.freeze({html: '<p></p>', typescript: `export const story = ${JSON.stringify(String(input.story))}`}),",
-      "        }))",
-      "        mounted = node",
-      "      },",
-      "      unmount: remove,",
-      "      dispose: remove,",
-      "    })",
-      "  },",
-      "})",
-      "",
-    ].join("\n"))
-    const story = join(declarationRoot, "story.ts")
-    writeFileSync(story, id === "c"
-      ? "export const story = 'C'\n"
-      : storySource(id.toUpperCase(), "../../../shared.ts"))
-    stories.set(id, story)
-  }
-  return {
-    root,
-    projectRoot,
-    shared,
-    aStory: stories.get("a")!,
-  }
-}
-
-function storySource(label: string, sharedPath: string): string {
-  return [
-    `import {shared} from ${JSON.stringify(sharedPath)}`,
-    `export const story = ${JSON.stringify(label)} + shared`,
-    "",
-  ].join("\n")
+  return {messages, clear() { messages.splice(0) }, close() { socket.close() },
+    async waitFor(type: string) { await waitFor(() => messages.some(event => event.type === type)); return messages.find(event => event.type === type)! }}
 }
 
 async function waitFor(predicate: () => boolean, timeoutMs = 40_000): Promise<void> {

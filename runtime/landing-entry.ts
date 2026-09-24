@@ -1,3 +1,4 @@
+import {WORKBENCH_STANDARD_WIDGET_REGISTRY} from "../workbench/inspector/registry.ts"
 import {navigatePackage} from "./package-navigation.ts"
 import {externalStorybookBrowsePath} from "../catalog/graph.ts"
 import {attachPickedDirectory, pickStorybookDirectory} from "./directory-picker.ts"
@@ -91,6 +92,11 @@ export async function startExternalStorybookLanding(
     shell.workbench.update("catalog.management", management)
   }
   updateManagement()
+  shell.document.transaction(() => {
+    shell.workbench.update("inspector.subject", null)
+    shell.workbench.update("inspector.values", Object.freeze({}))
+    shell.workbench.update("inspector.registry", WORKBENCH_STANDARD_WIDGET_REGISTRY)
+  })
 
   shell.workbench.update("catalog.label", "Репозитории и пакеты")
   shell.workbench.update("catalog.items", navigationItems(deriveExternalStorybookNavigationTree(graph)))
@@ -111,7 +117,7 @@ export async function startExternalStorybookLanding(
       shell.showMessage(
         "External Storybook · Обзор",
         "External Storybook",
-        "Выберите проект или самостоятельный пакет. Workspace используется только как раскрываемая композиция.",
+        "Выберите пакет в дереве или добавьте директорию проекта.",
       )
     })
   }
@@ -181,8 +187,7 @@ export async function startExternalStorybookLanding(
     updateManagement()
     if (selectedNodeId !== null && graph.nodes.some(node => node.id === selectedNodeId)) {
       const node = externalStorybookClientNode(snapshot, selectedNodeId)
-      if (node.kind === "workspace") await select(node.id)
-      else await select(node.id, false)
+      await select(node.id, false)
     } else {
       showRootOverview()
       if (location !== undefined && history !== undefined && location.pathname !== "/") {
@@ -221,15 +226,13 @@ export async function startExternalStorybookLanding(
       return
     }
     const node = externalStorybookClientNode(snapshot, detail.id)
-    if (node.kind === "category" || node.kind === "subject" || node.kind === "variant" || node.kind === "directory" && node.packageId !== null) {
+    if (node.kind === "directory" && node.packageId !== null) {
       if (embeddedPageScope !== undefined) {
         followPageNavigation(embeddedPageScope.navigatePackage({packageId: node.packageId!, route: node.routePath!}))
       } else followPageNavigation(navigatePackage({packageId: node.packageId!, route: node.routePath!}, options.navigatePackage))
       return
     }
-    const navigation = detail.kind === "breadcrumb" && node.kind === "workspace"
-      ? select(node.id, true)
-      : select(node.id)
+    const navigation = select(node.id)
     void navigation.catch((error) => isolateLandingError(browserDocument, shell, error))
   }
 
@@ -275,9 +278,7 @@ export async function startExternalStorybookLanding(
     if (update.type === "registry.readme-updated") {
       if (selectedNodeId === null || !update.nodeIds.includes(selectedNodeId)) return
       const node = externalStorybookClientNode(snapshot, selectedNodeId)
-      const refreshed = node.kind === "workspace"
-        ? select(node.id, false)
-        : select(node.id, false)
+      const refreshed = select(node.id, false)
       void refreshed.catch(error => isolateLandingError(browserDocument, shell, error))
     } else if (update.type === "registry.updated") {
       void refreshRegistry().catch(error => updateManagement({error: errorText(error)}))
@@ -307,8 +308,7 @@ export async function startExternalStorybookLanding(
       return
     }
     const node = snapshot.nodes.find((candidate) => externalStorybookBrowsePath(candidate) === pathname)
-    if (node?.kind === "workspace") await select(node.id, false)
-    else if (node?.kind === "project" || node?.kind === "package" || node?.kind === "directory" || node?.kind === "unavailable") await select(node.id, false)
+    if (node?.kind === "package" || node?.kind === "directory" || node?.kind === "unavailable") await select(node.id, false)
     else throw new Error(`Unknown external Storybook landing pathname: ${pathname}`)
   }
   const onPopState = (): void => {
@@ -403,13 +403,11 @@ function navigationItems(items: readonly ExternalStorybookBrowserNavigationItem[
     title: item.title,
     searchText: item.searchText,
     ...(item.expandable === undefined ? {} : {expandable: item.expandable}),
-    ...(item.group === null ? {} : {group: item.group}),
     ...(item.parentId === undefined ? {} : {parentId: item.parentId}),
   })))
 }
 
 function overviewDescription(kind: string): string {
-  if (kind === "project") return "Выберите пакет в главной панели или директорию в предметной панели."
   if (kind === "directory") return "В index.ts этой директории нет описания модуля с @packageDocumentation."
   return "Owner README для этого узла не объявлен."
 }
