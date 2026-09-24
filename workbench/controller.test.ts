@@ -29,7 +29,7 @@ beforeAll(async () => {
 }, 30_000)
 
 describe("compiled Storybook Workbench", () => {
-  test("creates one ComponentRoot, six exact regions and one production Inspector", () => {
+  test("creates one ComponentRoot, five exact regions and one production Inspector", () => {
     const document = createDocument()
     const workbench = api.createWorkbench({
       document,
@@ -45,16 +45,14 @@ describe("compiled Storybook Workbench", () => {
     expect(document.documentElement).toBe(workbench.element)
     expect(workbench.element.getAttribute("aria-label")).toBe("UI Storybook")
     expect(workbench.element.getAttribute("role")).toBe("application")
-    expect(WORKBENCH_LAYOUT_PROTOCOL).toBe("workbench-layout/2")
+    expect(WORKBENCH_LAYOUT_PROTOCOL).toBe("workbench-layout/3")
     expect(Array.from(workbench.element.querySelectorAll("[data-storybook-region]")).map((element) =>
       element.getAttribute("data-storybook-region"))).toEqual([...WORKBENCH_REGIONS])
     expect(workbench.elements.catalog.localName).toBe("nav")
-    expect(workbench.elements.secondary.localName).toBe("nav")
     expect(workbench.elements.preview.localName).toBe("main")
     expect(workbench.elements.tabs.getAttribute("role")).toBe("toolbar")
     for (const [region, label] of [
       [workbench.elements.catalog, "Каталог"],
-      [workbench.elements.secondary, "Разделы"],
       [workbench.elements.tabs, "Панель вкладок"],
       [workbench.elements.preview, "Кнопка Output"],
     ] as const) {
@@ -256,8 +254,8 @@ describe("compiled Storybook Workbench", () => {
       document,
       parent: document,
       initial: {
-        "secondary.items": [{id: "button", label: "Кнопка", route: "components/button"}],
-        "secondary.active": "button",
+        "catalog.items": [{id: "button", label: "Кнопка", route: "components/button"}],
+        "catalog.active": "button",
         "tabs.items": [{id: "hover", label: "Hover", route: "components/button/hover"}],
         "tabs.active": "hover",
       },
@@ -267,17 +265,17 @@ describe("compiled Storybook Workbench", () => {
       workbench.element.addEventListener(WORKBENCH_EVENTS.navigate, event => {
         events.push((event as CustomEvent).detail)
       })
-      const item = workbench.elements.secondaryItems.querySelector('[data-tree-id="button"]') as HTMLElement
+      const item = workbench.elements.catalogItems.querySelector('[data-tree-id="button"]') as HTMLElement
       const itemRow = item.querySelector('[data-tree-row]') as HTMLElement
       itemRow.dispatchEvent(new MouseEvent("click", {bubbles: true}))
       itemRow.dispatchEvent(new MouseEvent("click", {bubbles: true}))
       item.focus()
       item.dispatchEvent(new KeyboardEvent("keydown", {key: "Enter", bubbles: true, cancelable: true}))
       expect(events).toEqual(Array.from({length: 3}, () => ({
-        kind: "secondary", id: "button", route: "components/button",
+        kind: "catalog", id: "button", route: "components/button",
       })))
-      expect(workbench.controller.read("secondary.active")).toBe("button")
-      expect(workbench.elements.secondaryItems.querySelector('[data-tree-id="button"]') === item).toBeTrue()
+      expect(workbench.controller.read("catalog.active")).toBe("button")
+      expect(workbench.elements.catalogItems.querySelector('[data-tree-id="button"]') === item).toBeTrue()
     } finally {
       workbench.dispose()
     }

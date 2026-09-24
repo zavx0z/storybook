@@ -4,7 +4,7 @@ import {join} from "node:path"
 import {tmpdir} from "node:os"
 import {resolveExternalStorybookDeclarations} from "../discovery/declarations.ts"
 import {ExternalStorybookRegistry} from "../catalog/registry.ts"
-import {deriveExternalStorybookLanding, deriveExternalStorybookLandingSelection} from "../runtime/model.ts"
+import {deriveExternalStorybookLanding, deriveExternalStorybookLandingSelection, deriveExternalStorybookNavigationTree} from "../runtime/model.ts"
 import {startExternalStorybookServer} from "./server.ts"
 
 const roots: string[] = []
@@ -33,9 +33,10 @@ test("lists and selects packages without manifests in the repository tree", asyn
   const registry = new ExternalStorybookRegistry(resolveExternalStorybookDeclarations)
   const snapshot = await registry.attach(project)
   const selection = deriveExternalStorybookLandingSelection(snapshot.graph, "package:project")
-  expect(selection.secondaryItems.map(item => item.label)).toEqual(["packages"])
+  expect(selection.overviewNode.id).toBe("package:project")
+  expect(deriveExternalStorybookNavigationTree(snapshot.graph).filter(item => item.parentId === "package:project").map(item => item.label)).toContain("packages")
   expect(deriveExternalStorybookLanding(snapshot.graph).catalogItems.map(item => item.label)).toEqual(["Project", "A", "B"])
-  expect(deriveExternalStorybookLandingSelection(snapshot.graph, "package:@fixture/b").catalogActiveId).toBe("package:@fixture/b")
+  expect(deriveExternalStorybookLandingSelection(snapshot.graph, "package:@fixture/b").overviewNode.id).toBe("package:@fixture/b")
   const descriptor = registry.packageDescriptors().find(value => value.packageId === "@fixture/a")!
   expect(descriptor.runtime).toBeNull()
   expect(descriptor.variants).toEqual([])

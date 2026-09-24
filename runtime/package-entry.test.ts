@@ -301,8 +301,8 @@ describe("external Storybook package frontend", () => {
       expect(display.textContent).toContain("Входные данные")
       expect(display.textContent).not.toContain("Выходные данные")
       expect(nested?.getAttribute("aria-expanded")).toBe("true")
-      const subject = workbench.elements.secondary.querySelector(`[data-id="${subjectId}"] button`) as HTMLButtonElement
-      subject.click()
+      const subject = workbench.elements.catalogItems.querySelector(`[data-tree-id="${subjectId}"] [data-tree-row]`) as Element
+      subject.dispatchEvent(new MouseEvent("click", {bubbles: true}))
       const until = Date.now() + 5000
       while (controller.currentRoute !== "components/button" && Date.now() < until) await Bun.sleep(10)
       expect(controller.currentRoute).toBe("components/button")
@@ -464,8 +464,8 @@ describe("external Storybook package frontend", () => {
       expect(display.textContent).toContain("<article>")
       expect(display.querySelector("[data-storybook-markdown]")).toBeNull()
       const previous = display.querySelector("[data-storybook-dependencies]")!
-      const subject = workbench.elements.secondary.querySelector(`[data-id="${subjectId}"] button`) as HTMLButtonElement
-      subject.click()
+      const subject = workbench.elements.catalogItems.querySelector(`[data-tree-id="${subjectId}"] [data-tree-row]`) as Element
+      subject.dispatchEvent(new MouseEvent("click", {bubbles: true}))
       const cleanupDeadline = Date.now() + 10000
       while (previous.isConnected && Date.now() < cleanupDeadline) await Bun.sleep(20)
       expect(previous.isConnected).toBe(false)
@@ -1301,7 +1301,7 @@ describe("external Storybook package frontend", () => {
     try {
       expect(runtimeLoads).toBe(0)
       expect(controller.currentRoute).toBe("components")
-      expect(controller.shell.workbench.controller.read("secondary.active")).toBe("category:@fixture/components/components")
+      expect(controller.shell.workbench.controller.read("catalog.active")).toBe("category:@fixture/components/components")
       expect(controller.shell.document.querySelectorAll("[data-storybook-aggregate-overview]"))
         .toHaveLength(0)
     } finally {
@@ -1415,7 +1415,7 @@ describe("external Storybook package frontend", () => {
     await controller.navigate(directory.routePath!)
     expect(controller.shell.document).toBe(document)
     expect(controller.currentRoute).toBe(directory.routePath!)
-    expect(controller.shell.workbench.controller.read("secondary.active")).toBe(directory.id)
+    expect(controller.shell.workbench.controller.read("catalog.active")).toBe(directory.id)
     expect(runtimeLoads).toBe(0)
     expect(controller.shell.workbench.controller.read("status").breadcrumbs?.at(-1)?.label).toBe(directory.label)
     await controller.dispose()
@@ -1533,9 +1533,7 @@ describe("external Storybook package frontend", () => {
 
     await controller.navigate("components")
     expect(controller.shell.workbench.controller.read("catalog.active"))
-      .toBe("package:@fixture/components")
-    expect(controller.shell.workbench.controller.read("secondary.label")).toBe("Fixture Components")
-    expect(controller.shell.workbench.controller.read("secondary.active")).toBe("category:@fixture/components/components")
+      .toBe("category:@fixture/components/components")
     expect(controller.shell.workbench.controller.read("tabs.active")).toBeNull()
     const categoryOverview = controller.shell.workbench.controller.read("presentation").node
     expect((categoryOverview as Element | null)?.querySelectorAll("[data-storybook-aggregate-item]"))
@@ -1555,8 +1553,6 @@ describe("external Storybook package frontend", () => {
 
     await controller.navigate("components/button")
     expect(controller.shell.workbench.controller.read("catalog.active"))
-      .toBe("package:@fixture/components")
-    expect(controller.shell.workbench.controller.read("secondary.active"))
       .toBe("subject:@fixture/components/components/button")
     expect(controller.shell.workbench.controller.read("tabs.active")).toBeNull()
     expect(runtimeLoads).toBe(1)
@@ -1610,8 +1606,8 @@ describe("external Storybook package frontend", () => {
     expect(controller.shell.workbench.controller.read("tabs.active"))
       .toBe("variant:@fixture/components/components/button/outlined")
 
-    const selectedSubject = controller.shell.workbench.elements.secondary.querySelector('[data-id="subject:@fixture/components/components/button"] button') as HTMLButtonElement
-    selectedSubject.click()
+    const selectedSubject = controller.shell.workbench.elements.catalogItems.querySelector('[data-tree-id="subject:@fixture/components/components/button"] [data-tree-row]') as Element
+    selectedSubject.dispatchEvent(new MouseEvent("click", {bubbles: true}))
     const overviewDeadline = Date.now() + 5000
     while ((controller.currentRoute !== "components/button" || dataset.externalStorybookPackage !== "ready") && Date.now() < overviewDeadline) await Bun.sleep(10)
     expect(browserLocation.pathname).toBe("/fixture-workspace/projects/alpha/packages/components/components/button")

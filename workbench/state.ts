@@ -42,15 +42,6 @@ export function createInitialWorkbenchState(
       initial?.["catalog.items"] ?? Object.freeze([]),
     ),
     "catalog.active": null,
-    "secondary.label": requiredText(
-      "Secondary navigation label",
-      initial?.["secondary.label"] ?? "Разделы",
-    ),
-    "secondary.items": normalizeWorkbenchNavigationItems(
-      "Secondary navigation",
-      initial?.["secondary.items"] ?? Object.freeze([]),
-    ),
-    "secondary.active": null,
     "preview.label": requiredText("Preview label", initial?.["preview.label"] ?? "Предпросмотр"),
     presentation,
     "tabs.label": requiredText("Название панели вкладок", initial?.["tabs.label"] ?? "Панель вкладок"),
@@ -74,11 +65,6 @@ export function createInitialWorkbenchState(
     "Catalog",
     initial?.["catalog.active"] ?? null,
     state["catalog.items"],
-  )
-  state["secondary.active"] = selectedId(
-    "Secondary navigation",
-    initial?.["secondary.active"] ?? null,
-    state["secondary.items"],
   )
   state["tabs.active"] = selectedId(
     "Вкладка",
@@ -115,21 +101,6 @@ export function updateWorkbenchState<Address extends WorkbenchAddress>(
       break
     case "catalog.active":
       next["catalog.active"] = selectedId("Catalog", value, next["catalog.items"])
-      break
-    case "secondary.label":
-      next["secondary.label"] = requiredText("Secondary navigation label", value)
-      break
-    case "secondary.items":
-      next["secondary.items"] = normalizeWorkbenchNavigationItems("Secondary navigation", value)
-      if (next["secondary.active"] !== null && !next["secondary.items"].some(item =>
-        item.id === next["secondary.active"])) next["secondary.active"] = null
-      break
-    case "secondary.active":
-      next["secondary.active"] = selectedId(
-        "Secondary navigation",
-        value,
-        next["secondary.items"],
-      )
       break
     case "preview.label":
       next["preview.label"] = requiredText("Preview label", value)

@@ -1,4 +1,4 @@
-import {useLayoutEffect, useState} from "@zavx0z/component"
+import {useState} from "@zavx0z/component"
 import type {Document as SemanticDocument} from "@zavx0z/dom"
 import {Tree, type TreeItem} from "@zavx0z/ui/widgets/tree"
 import {closeIcon} from "@zavx0z/ui/themes/icons"
@@ -8,10 +8,10 @@ import {
   type WorkbenchNavigationItem,
   type WorkbenchNavigationTopLevelProjection,
 } from "./model.ts"
+import type {NavigationExpansion} from "./persistence.ts"
 
 export type WorkbenchNavigationTreeProps = Readonly<{
   document: SemanticDocument
-  region?: "catalog" | "secondary"
   items: readonly WorkbenchNavigationItem[]
   activeId: string | null
   query: string
@@ -19,11 +19,14 @@ export type WorkbenchNavigationTreeProps = Readonly<{
   onRemove?: ((item: WorkbenchNavigationItem, source: HTMLElement) => void) | undefined
   onNavigate(item: WorkbenchNavigationItem, source: HTMLElement): void
   onGroupToggle(group: WorkbenchNavigationGroup, collapsed: boolean, source: HTMLElement): void
+  navigationExpansion?: NavigationExpansion | undefined
 }>
 
 /** Передаёт навигацию Storybook общему UI Tree без передачи ему смысла маршрутов. */
 export function WorkbenchNavigationTree(props: WorkbenchNavigationTreeProps) {
-  const [collapsedIds, setCollapsedIds] = useState<ReadonlySet<string>>(new Set())
+  const [collapsedIds, setCollapsedIds] = useState<ReadonlySet<string>>(
+    () => new Set(props.navigationExpansion?.initialCollapsedIds ?? []),
+  )
   const projection = projectWorkbenchNavigation(props.items, props.query, new Set())
   const groups = new Map<string, WorkbenchNavigationGroup>()
   const items = treeItems(projection.topLevel, props, groups)
@@ -31,17 +34,15 @@ export function WorkbenchNavigationTree(props: WorkbenchNavigationTreeProps) {
   const expandedKeys = [...groups].filter(([, group]) => !collapsedIds.has(group.id)).map(([treeId]) => treeId)
   const selectable = new Map(props.items.map(item => [item.id, item]))
 
-  useLayoutEffect(() => {
-    setCollapsedIds(current => {
-      const next = new Set([...current].filter(id => [...groups.values()].some(group => group.id === id)))
-      return next.size === current.size ? current : next
-    })
-  }, [props.items])
-
   const onExpandedChange = (keys: readonly string[], event: Event): void => {
-    const next = new Set([...groups].filter(([treeId]) => !keys.includes(treeId)).map(([, group]) => group.id))
+    const next = new Set(collapsedIds)
+    for (const [treeId, group] of groups) {
+      if (keys.includes(treeId)) next.delete(group.id)
+      else next.add(group.id)
+    }
     const changed = [...groups.values()].find(group => collapsedIds.has(group.id) !== next.has(group.id))
     setCollapsedIds(next)
+    props.navigationExpansion?.save([...next])
     if (changed !== undefined) props.onGroupToggle(changed, next.has(changed.id), event.currentTarget as HTMLElement)
   }
   const navigate = (id: string, event: Event): void => {
@@ -50,7 +51,7 @@ export function WorkbenchNavigationTree(props: WorkbenchNavigationTreeProps) {
   }
 
   return <Tree
-    title={props.region === "secondary" ? "Package contents" : "Catalog"}
+    title="Catalog"
     items={items}
     expandedKeys={expandedKeys}
     selectedKeys={props.activeId === null ? [] : [props.activeId]}
@@ -70,7 +71,10 @@ function treeItems(
   groups: Map<string, WorkbenchNavigationGroup>,
 ): readonly TreeItem[] {
   return entries.map(entry => {
-    if (entry.kind === "leaf") return leafItem(entry.item, props)
+    if (entry.kind === "leaf") {
+      if (entry.item.expandable === true) groups.set(entry.item.id, {id: entry.item.id, label: entry.item.label, item: entry.item})
+      return leafItem(entry.item, props)
+    }
     const group = entry.group
     const item = group.item
     const treeId = item?.id ?? `group:${group.id}`
@@ -96,6 +100,7 @@ function leafItem(item: WorkbenchNavigationItem, props: WorkbenchNavigationTreeP
     label: item.label,
     title: item.title ?? item.label,
     disabled: item.disabled,
+    expandable: item.expandable,
     current: item.id === props.activeId,
     actions: removeActions(item, props),
   }

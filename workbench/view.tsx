@@ -12,21 +12,21 @@ import {CatalogRegion} from "./regions/catalog.tsx"
 import {InspectorRegion} from "./regions/inspector.tsx"
 import {PreviewRegion} from "./regions/preview.tsx"
 import {TabsRegion} from "./regions/tabs.tsx"
-import {SecondaryRegion} from "./regions/secondary.tsx"
 import {StatusRegion} from "./regions/status.tsx"
+import type {NavigationExpansion} from "./navigation/persistence.ts"
 
 export type WorkbenchViewProps = Readonly<{
   onMcpOpen?: (() => void) | undefined
   document: SemanticDocument
   onElement?: ((node: HTMLDivElement | null) => void) | undefined
   state: WorkbenchViewState
+  navigationExpansion?: NavigationExpansion | undefined
   inspectorSelectedId: string
   inspectorQuery: string
   onCatalogAction(action: WorkbenchCatalogAction, source: HTMLElement): void
   onCatalogNavigate(item: WorkbenchNavigationItem, source: HTMLElement): void
   onCatalogSearch(value: string, source: HTMLElement): void
   onGroupToggle(group: WorkbenchNavigationGroup, collapsed: boolean, source: HTMLElement): void
-  onSecondaryNavigate(item: WorkbenchNavigationItem, source: HTMLElement): void
   onTab(item: WorkbenchTabItem, source: HTMLElement): void
   onInspectorCategoryChange(id: string): void
   onInspectorQueryChange(query: string): void
@@ -34,7 +34,7 @@ export type WorkbenchViewProps = Readonly<{
   children: readonly JsxSourceElement[]
 }>
 
-/** One compiled six-region Workbench composition. */
+/** Композиция пяти областей Workbench с одним левым деревом. */
 export function WorkbenchView(props: WorkbenchViewProps) {
   const state = props.state
   const content = state.presentation.projection !== "hud"
@@ -91,13 +91,7 @@ export function WorkbenchView(props: WorkbenchViewProps) {
         onNavigate={props.onCatalogNavigate}
         onSearch={props.onCatalogSearch}
         onGroupToggle={props.onGroupToggle}
-      />
-      <SecondaryRegion
-        document={props.document}
-        label={state["secondary.label"]}
-        items={state["secondary.items"]}
-        activeId={state["secondary.active"]}
-        onNavigate={props.onSecondaryNavigate}
+        navigationExpansion={props.navigationExpansion}
       />
       <div style={css`
         display: flex;

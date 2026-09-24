@@ -9,12 +9,14 @@ import {McpWindow} from "../workbench/mcp-window"
 import type {McpRequestRecord} from "@mcp/rest/requests"
 import type {McpAddressSource} from "../workbench/mcp-window/src/address-request"
 import type {McpWindowState} from "../workbench/mcp-window/src/state"
+import type {NavigationExpansion} from "../workbench/navigation/persistence.ts"
 
 export type StorybookAppProps = Readonly<{
   loadMcpRequests?: (() => Promise<readonly McpRequestRecord[]>) | undefined
   mcpAddressSource?: McpAddressSource | undefined
   mcpWindowState?: McpWindowState | undefined
   saveMcpWindowState?: ((state: McpWindowState) => void) | undefined
+  navigationExpansion?: NavigationExpansion | undefined
   title: string
   statusOwner: string
   displayId: string
@@ -45,6 +47,7 @@ export function StorybookApp(props: StorybookAppProps) {
       mcpAddressSource={props.mcpAddressSource}
       mcpWindowState={props.mcpWindowState}
       saveMcpWindowState={props.saveMcpWindowState}
+      navigationExpansion={props.navigationExpansion}
     />
   </space>
 }
@@ -61,6 +64,7 @@ function StorybookHUD(props: StorybookAppProps) {
         statusOwner={props.statusOwner}
         displayId={props.displayId}
         onReady={props.onReady}
+        navigationExpansion={props.navigationExpansion}
       />
       <ClipboardMenu controller={clipboard} />
       <McpWindow

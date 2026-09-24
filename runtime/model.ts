@@ -26,6 +26,7 @@ export type ExternalStorybookBrowserNavigationItem = Readonly<{
   title: string
   searchText: string
   group: StorybookPresentationGroup | null
+  expandable?: boolean
   parentId?: string
 }>
 
@@ -44,19 +45,14 @@ export type ExternalStorybookLandingModel = Readonly<{
 }>
 
 export type ExternalStorybookLandingSelection = Readonly<{
-  catalogActiveId: string
-  secondaryItems: readonly ExternalStorybookBrowserNavigationItem[]
-  secondaryActiveId: string | null
   overviewNode: BrowserNode
 }>
 
 export type ExternalStorybookPackageTabModel = Readonly<{
   packageNode: BrowserNode
   selectedNode: BrowserNode
-  catalogItems: readonly ExternalStorybookBrowserNavigationItem[]
-  catalogActiveId: string | null
-  secondaryItems: readonly ExternalStorybookBrowserNavigationItem[]
-  secondaryActiveId: string | null
+  categoryId: string | null
+  subjectId: string | null
   variants: readonly ExternalStorybookBrowserVariantItem[]
   variantActiveId: string | null
   viewKind: "overview" | "variant" | "dependencies" | "contract" | "scenarios"
@@ -83,7 +79,45 @@ export function deriveExternalStorybookLanding(
   return Object.freeze({catalogItems: Object.freeze(items)})
 }
 
-/** Resolves one selectable landing row or second-panel package exactly. */
+/**
+Проецирует один навигационный путь от подключённого корня до предмета.
+Ветвь открытого пакета берётся из его точной применённой ревизии.
+*/
+export function deriveExternalStorybookNavigationTree(
+  graph: BrowserGraph,
+  exactPackage?: Readonly<{packageId: string; graph: BrowserGraph}>,
+): readonly ExternalStorybookBrowserNavigationItem[] {
+  const visible = (node: BrowserNode): boolean => node.kind !== "variant"
+  const graphVisibleIds = new Set(graph.nodes.filter(visible).map(node => node.id))
+  const packageVisibleIds = exactPackage === undefined ? null :
+    new Set(exactPackage.graph.nodes.filter(visible).map(node => node.id))
+  const route = (node: BrowserNode): string =>
+    node.kind === "workspace" || node.kind === "project" || node.kind === "package" || node.kind === "unavailable"
+      ? externalStorybookBrowsePath(node)
+      : node.routePath ?? node.urlPath
+  const item = (source: BrowserGraph, node: BrowserNode, ids: ReadonlySet<string>): ExternalStorybookBrowserNavigationItem => Object.freeze({
+    ...navigationItem(source, node, route(node), null),
+    expandable: node.childIds.some(id => ids.has(id)),
+    ...(node.parentId === null ? {} : {parentId: node.parentId}),
+  })
+  const packageItems = exactPackage === undefined ? [] : exactPackage.graph.nodes
+    .filter(node => node.packageId === exactPackage.packageId && visible(node))
+    .map(node => item(exactPackage.graph, node, packageVisibleIds!))
+  const result: ExternalStorybookBrowserNavigationItem[] = []
+  for (const node of graph.nodes) {
+    if (!visible(node)) continue
+    if (exactPackage !== undefined && node.packageId === exactPackage.packageId) {
+      if (node.kind === "package" && node.id === `package:${exactPackage.packageId}`) {
+        result.push(...packageItems)
+      }
+      continue
+    }
+    result.push(item(graph, node, graphVisibleIds))
+  }
+  return Object.freeze(result)
+}
+
+/** Разрешает один точный обзор главной страницы из общего дерева. */
 export function deriveExternalStorybookLandingSelection(
   graph: BrowserGraph,
   nodeId: string,
@@ -92,41 +126,13 @@ export function deriveExternalStorybookLandingSelection(
   if (selected.kind !== "workspace" && selected.kind !== "project" && selected.kind !== "package" && selected.kind !== "directory" && selected.kind !== "unavailable") {
     throw new Error(`External Storybook landing selection must be a repository or package: ${nodeId}`)
   }
-  const scope = directoryScope(graph, selected)
-  return Object.freeze({
-    catalogActiveId: scope.id,
-    secondaryItems: scope.kind === "package" ? deriveExternalStorybookPackageContents(graph, scope.packageId!) : directoryItems(graph, scope.id),
-    secondaryActiveId: selected.kind === "directory" ? selected.id : null,
-    overviewNode: selected,
-  })
-}
-
-export function deriveExternalStorybookPackageContents(graph: BrowserGraph, packageId: string): readonly ExternalStorybookBrowserNavigationItem[] {
-  return Object.freeze(graph.nodes.filter(node => node.packageId === packageId && (node.kind === "category" || node.kind === "subject" || node.kind === "directory"))
-    .map(node => Object.freeze({
-      ...navigationItem(graph, node, requiredRoute(node), node.kind === "category" ? nodeGroup(node) : null),
-      ...(node.parentId === `package:${packageId}` ? {} : {parentId: node.parentId!}),
-    })))
-}
-
-function directoryScope(graph: BrowserGraph, node: BrowserNode): BrowserNode {
-  while (node.kind === "directory" && node.parentId !== null) node = browserNode(graph, node.parentId)
-  return node
-}
-
-function directoryItems(graph: BrowserGraph, scopeId: string): readonly ExternalStorybookBrowserNavigationItem[] {
-  return Object.freeze(graph.nodes.filter(node => node.kind === "directory" && directoryScope(graph, node).id === scopeId)
-    .map(node => Object.freeze({
-      ...navigationItem(graph, node, node.routePath ?? node.urlPath, null),
-      ...(node.parentId === scopeId ? {} : {parentId: node.parentId!}),
-    })))
+  return Object.freeze({overviewNode: selected})
 }
 
 /**
- * Projects one exact package route into catalog, secondary and variants regions.
- * Package/category/subject overviews remain real selected nodes; a variant is
- * selected only for its exact route.
- */
+Проецирует точный маршрут пакета в выбранный предмет и вкладки его вариантов.
+Обзоры пакета, категории и предмета остаются самостоятельными адресами.
+*/
 export function deriveExternalStorybookPackageTab(
   graph: BrowserGraph,
   packageId: string,
@@ -139,15 +145,6 @@ export function deriveExternalStorybookPackageTab(
   const selectedNode = resolveBrowserRoute(graph, packageId, routePath)
   const viewKind = selectedNode.scenariosRoutePath === routePath ? "scenarios" : selectedNode.contractRoutePath === routePath ? "contract" : selectedNode.dependencyRoutePath === routePath ? "dependencies" : selectedNode.kind === "variant" ? "variant" : "overview"
   assertPackageOwnership(packageNode, selectedNode)
-  const categories = packageNode.childIds.map(id => browserNode(graph, id)).filter(node => node.kind === "category")
-  const catalogItems = Object.freeze(categories.map((category) =>
-    navigationItem(
-      graph,
-      category,
-      requiredRoute(category),
-      nodeGroup(category),
-    )))
-
   let category: BrowserNode | null = null
   let subject: BrowserNode | null = null
   let variant: BrowserNode | null = null
@@ -163,10 +160,6 @@ export function deriveExternalStorybookPackageTab(
     throw new Error(`External Storybook package route selected an invalid node: ${selectedNode.id}`)
   }
 
-  const secondaryItems = category === null
-    ? Object.freeze([]) as readonly ExternalStorybookBrowserNavigationItem[]
-    : Object.freeze(category.childIds.map(id => browserNode(graph, id)).filter(item => item.kind === "subject").map((item) =>
-      navigationItem(graph, item, requiredRoute(item), null)))
   const variants = subject === null
     ? Object.freeze([]) as readonly ExternalStorybookBrowserVariantItem[]
     : Object.freeze(exactChildren(graph, subject, "variant").map((item) =>
@@ -205,10 +198,8 @@ export function deriveExternalStorybookPackageTab(
   return Object.freeze({
     packageNode,
     selectedNode,
-    catalogItems,
-    catalogActiveId: category?.id ?? null,
-    secondaryItems,
-    secondaryActiveId: selectedNode.kind === "directory" ? selectedNode.id : subject?.id ?? null,
+    categoryId: category?.id ?? null,
+    subjectId: subject?.id ?? null,
     variants,
     variantActiveId: variant?.id ?? null,
     viewKind,

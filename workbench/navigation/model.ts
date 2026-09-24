@@ -12,6 +12,7 @@ export type WorkbenchNavigationItem = Readonly<{
   route: string
   title?: string
   disabled?: boolean
+  expandable?: boolean
   searchText?: string
   group?: WorkbenchNavigationGroup
   parentId?: string
@@ -98,6 +99,7 @@ export function normalizeWorkbenchNavigationItems(
         ? {}
         : {title: stringValue(`${label} item title`, item.title)}),
       ...(item.disabled === undefined ? {} : {disabled: Boolean(item.disabled)}),
+      ...(item.expandable === undefined ? {} : {expandable: Boolean(item.expandable)}),
       ...(item.searchText === undefined
         ? {}
         : {searchText: stringValue(`${label} item searchText`, item.searchText)}),

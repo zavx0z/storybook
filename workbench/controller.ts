@@ -1,4 +1,4 @@
-/** One compiled six-region Storybook Workbench controller. */
+/** Контроллер одного Workbench с пятью областями и общим деревом навигации. */
 
 import {
   CustomEvent,
@@ -102,13 +102,6 @@ export function createWorkbenchModel(options: Omit<CreateWorkbenchOptions, "docu
       detail: Object.freeze({kind: "catalog", id: group.id, collapsed}),
     }))
   }
-  const onSecondaryNavigate = (item: WorkbenchNavigationItem, source: HTMLElement): void => {
-    update("secondary.active", item.id)
-    source.dispatchEvent(new CustomEvent(WORKBENCH_EVENTS.navigate, {
-      bubbles: true,
-      detail: Object.freeze({kind: "secondary", id: item.id, route: item.route}),
-    }))
-  }
   const onTab = (item: WorkbenchTabItem, source: HTMLElement): void => {
     update("tabs.active", item.id)
     source.dispatchEvent(new CustomEvent(WORKBENCH_EVENTS.tab, {
@@ -166,13 +159,13 @@ export function createWorkbenchModel(options: Omit<CreateWorkbenchOptions, "docu
     snapshot = {
       document,
       state: candidate,
+      navigationExpansion: options.navigationExpansion,
       inspectorSelectedId: inspector.selectedId,
       inspectorQuery: inspector.query,
       onCatalogNavigate,
       onCatalogAction,
       onCatalogSearch,
       onGroupToggle,
-      onSecondaryNavigate,
       onTab,
       onInspectorCategoryChange,
       onInspectorQueryChange,

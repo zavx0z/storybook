@@ -46,8 +46,7 @@ import {
 import {deriveStorybookBreadcrumbs} from "./breadcrumbs.ts"
 import {
   deriveExternalStorybookPackageTab,
-  deriveExternalStorybookLanding,
-  deriveExternalStorybookPackageContents,
+  deriveExternalStorybookNavigationTree,
   type ExternalStorybookBrowserNavigationItem,
   type ExternalStorybookBrowserVariantItem,
   type ExternalStorybookPackageTabModel,
@@ -1246,7 +1245,6 @@ export async function startExternalStorybookPackage(
   }>[] => {
     const elements: unknown[] = [
       shell.workbench.elements.catalogItems,
-      shell.workbench.elements.secondaryItems,
       shell.workbench.elements.tabItems,
       shell.workbench.elements.inspectorHost,
       activePresentationView?.presentation.node,
@@ -1503,13 +1501,13 @@ export async function startExternalStorybookPackage(
     const detail = (event as CustomEvent<{route: string; urlPath?: string; kind?: string; id?: string}>).detail
     if (detail.kind === "catalog" && detail.id !== undefined) {
       const node = externalStorybookClientNode(navigationSnapshot, detail.id)
-      if (node.kind === "package") {
-        if (node.packageId === packageId) void navigate("")
-        else if (embeddedPageScope !== undefined) {
-          followPageNavigation(embeddedPageScope.navigatePackage({packageId: node.packageId!, route: ""}))
-        } else followPageNavigation(navigatePackage({packageId: node.packageId!, route: ""}, environment.navigatePackage))
+      if (node.packageId === packageId) {
+        const exact = externalStorybookClientNode(snapshot, node.id)
+        void navigate(exact.routePath ?? "").catch(error => isolatePackageError(browserDocument, shell, currentModel, error))
       } else if (node.packageId !== null && embeddedPageScope !== undefined) {
         followPageNavigation(embeddedPageScope.navigatePackage({packageId: node.packageId, route: node.routePath ?? ""}))
+      } else if (node.packageId !== null) {
+        followPageNavigation(navigatePackage({packageId: node.packageId, route: node.routePath ?? ""}, environment.navigatePackage))
       } else if (embeddedPageScope !== undefined) {
         followPageNavigation(embeddedPageScope.navigateLanding(externalStorybookBrowsePath(node)))
       } else if (environment.navigateLanding !== undefined) {
@@ -1905,11 +1903,10 @@ export async function startExternalStorybookPackage(
 function applyModel(shell: ExternalStorybookShell, model: ExternalStorybookPackageTabModel, navigation: ExternalStorybookClientSnapshot, content: ExternalStorybookClientSnapshot): void {
   shell.document.transaction(() => {
     shell.workbench.update("catalog.label", "Репозитории и пакеты")
-    shell.workbench.update("catalog.items", navigationItems(deriveExternalStorybookLanding(navigation).catalogItems))
-    shell.workbench.update("catalog.active", model.packageNode.id)
-    shell.workbench.update("secondary.label", model.packageNode.label)
-    shell.workbench.update("secondary.items", navigationItems(deriveExternalStorybookPackageContents(content, model.packageNode.packageId!)))
-    shell.workbench.update("secondary.active", model.secondaryActiveId ?? model.catalogActiveId)
+    shell.workbench.update("catalog.items", navigationItems(deriveExternalStorybookNavigationTree(navigation, {
+      packageId: model.packageNode.packageId!, graph: content,
+    })))
+    shell.workbench.update("catalog.active", model.subjectId ?? model.selectedNode.id)
     shell.workbench.update("tabs.label", "Панель вкладок")
     shell.workbench.update("tabs.items", tabItems(model.tabs))
     shell.workbench.update("tabs.active", model.tabActiveId)
@@ -1923,6 +1920,7 @@ function navigationItems(items: readonly ExternalStorybookBrowserNavigationItem[
     route: item.route,
     title: item.title,
     searchText: item.searchText,
+    ...(item.expandable === undefined ? {} : {expandable: item.expandable}),
     ...(item.group === null ? {} : {group: item.group}),
     ...(item.parentId === undefined ? {} : {parentId: item.parentId}),
   })))
@@ -2039,7 +2037,7 @@ function exactPresentationSubject(
   model: ExternalStorybookPackageTabModel,
 ): StorybookPresentationSubject | null {
   if (model.selectedNode.kind === "directory") return null
-  const subjectId = model.secondaryActiveId
+  const subjectId = model.subjectId
   if (subjectId === null) return null
   const matches = (graph?.nodes ?? snapshot.nodes).filter(({id}) => id === subjectId)
   const subject = matches[0]

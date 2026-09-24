@@ -163,8 +163,8 @@ export function createStorybookAgentBridge(
           : null,
       }),
       selected: Object.freeze({
-        categoryId: model.catalogActiveId,
-        subjectId: model.selectedNode.kind === "directory" ? null : model.secondaryActiveId,
+        categoryId: model.categoryId,
+        subjectId: model.subjectId,
         directoryId: model.selectedNode.kind === "directory" ? model.selectedNode.id : null,
         variantId: model.variantActiveId,
         tabId: model.tabActiveId,

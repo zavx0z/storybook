@@ -29,7 +29,7 @@ describe("Workbench component module boundary", () => {
     }
   })
 
-  test("composes six region owners and one production Inspector", () => {
+  test("composes five region owners and one production Inspector", () => {
     const files = sourceFiles(root).filter(path => path.endsWith(".tsx"))
     const sources = files.map(path => ({path, source: readFileSync(path, "utf8")}))
     const regions = sources.flatMap(({source}) =>
@@ -38,7 +38,6 @@ describe("Workbench component module boundary", () => {
       "catalog",
       "inspector",
       "preview",
-      "secondary",
       "status",
       "tabs",
     ])
@@ -49,7 +48,6 @@ describe("Workbench component module boundary", () => {
     const view = readFileSync(join(root, "view.tsx"), "utf8")
     for (const component of [
       "CatalogRegion",
-      "SecondaryRegion",
       "PreviewRegion",
       "TabsRegion",
       "InspectorRegion",
@@ -112,7 +110,6 @@ describe("Workbench component module boundary", () => {
     expect(existsSync(join(root, "components/region-heading.tsx"))).toBeFalse()
     for (const path of [
       join(root, "regions/catalog.tsx"),
-      join(root, "regions/secondary.tsx"),
       join(root, "regions/tabs.tsx"),
       join(root, "regions/preview.tsx"),
     ]) {
@@ -152,8 +149,7 @@ describe("Workbench component module boundary", () => {
     for (const file of ["tree.tsx", "row.tsx", "windowing.ts"]) {
       expect(existsSync(join(root, "navigation", file))).toBeFalse()
     }
-    const secondary = readFileSync(join(root, "components/navigation-list.tsx"), "utf8")
-    expect(secondary).not.toContain('&[aria-disabled="true"]')
+    expect(existsSync(join(root, "regions/secondary.tsx"))).toBeFalse()
   })
 })
 

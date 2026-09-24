@@ -333,10 +333,10 @@ implementation objects Browser, Renderer или WebGPU.
 включая Dependencies, возврат к обзору и навигацию истории, находится в
 [контракте Панели вкладок](requirements.md#tabs-routes).
 
-Fixed `workbench-layout/2` owns exactly `catalog`, `secondary`, `tabs`,
+Fixed `workbench-layout/3` owns exactly `catalog`, `tabs`,
 `preview`, `inspector`, `status`. `tabs` — визуально неподписанная полоса
 кнопок непосредственно над `preview`; её label остаётся только доступным именем
-toolbar. `catalog`, `secondary` и `preview` также не рендерят видимые headings:
+toolbar. `catalog` и `preview` также не рендерят видимые headings:
 их labels остаются только доступными именами regions. Один compiled Workbench
 ComponentRoot использует production `@zavx0z/ui/widgets/inspector`; runtime не может
 добавить или заменить region. Runtime owns only package-specific presentation
@@ -347,7 +347,7 @@ story использует `experience.getProjection(display)`, а Space story �
 `experience.getProjection(experience.space)`.
 
 Workbench implementation живёт в `workbench`: controller/state,
-presentation, navigation, six region components и Inspector widgets разделены
+presentation, navigation, пять region components и Inspector widgets разделены
 на точных owners. `src/dom` отсутствует, потому что semantic DOM — substrate,
 не домен shell. CSS находится внутри owning TSX components: base declarations пишутся
 напрямую, `&` остаётся только для nested selectors, а single-use local style не
@@ -356,9 +356,10 @@ presentation, navigation, six region components и Inspector widgets разде�
 получает direct keyed production `@zavx0z/ui/surfaces/panel` children;
 Storybook замыкает widget id
 в toggle callback, не расширяя Panel domain identity.
-В primary catalog disclosure group занимает собственный header и полный поток
-видимых category rows; secondary показывает subjects выбранной category, а dock
-— только variants выбранного subject.
+Единственное левое дерево продолжает путь от репозитория через пакет до
+директорий, категорий и предметов. Disclosure group занимает собственный
+header и полный поток видимых дочерних строк; dock показывает только variants
+выбранного subject. Свёрнутые ветви восстанавливаются по ID после перезагрузки.
 На category overview preview показывает real bounded representative каждого
 immediate subject; на subject overview — все direct variants. Child stories
 имеют отдельные runtime/4 sessions, но один Browser Experience;
@@ -371,7 +372,7 @@ tiles в компактные строки от cross-start, single child зап
 и runtime values этого representative без изменения navigation selection.
 Aggregate с несколькими children не выбирает произвольный Inspector owner.
 Category может быть typed primary component (`kind + apiName`); тогда её
-ordinary subjects являются secondary sections, а dock показывает variants
+ordinary subjects остаются её дочерними строками, а dock показывает variants
 выбранной section. Shared Storybook не содержит списков promoted package routes.
 Production `@zavx0z/ui/surfaces/pane`, `@zavx0z/ui/buttons/button`,
 `@zavx0z/ui/fields/text-field`, `@zavx0z/ui/typography`,

@@ -9,6 +9,7 @@ import {WORKBENCH_EVENTS, type WorkbenchCatalogAction, type WorkbenchCatalogMana
 import {
   deriveExternalStorybookLanding,
   deriveExternalStorybookLandingSelection,
+  deriveExternalStorybookNavigationTree,
   type ExternalStorybookBrowserNavigationItem,
 } from "./model.ts"
 import {
@@ -92,15 +93,13 @@ export async function startExternalStorybookLanding(
   updateManagement()
 
   shell.workbench.update("catalog.label", "Репозитории и пакеты")
-  shell.workbench.update("catalog.items", navigationItems(landing.catalogItems))
+  shell.workbench.update("catalog.items", navigationItems(deriveExternalStorybookNavigationTree(graph)))
   const showRootOverview = (): void => {
     selectedNodeId = null
     browserDocument.title = externalStorybookPageTitle(null)
     selectionRevision += 1
     shell.document.transaction(() => {
       shell.workbench.update("catalog.active", null)
-      shell.workbench.update("secondary.items", [])
-      shell.workbench.update("secondary.active", null)
       shell.workbench.update("tabs.items", [])
       shell.workbench.update("tabs.active", null)
       shell.workbench.update("status", {
@@ -133,10 +132,7 @@ export async function startExternalStorybookLanding(
     }
     const selection = deriveExternalStorybookLandingSelection(graph, nodeId)
     shell.document.transaction(() => {
-      shell.workbench.update("catalog.active", selection.catalogActiveId)
-      shell.workbench.update("secondary.label", externalStorybookClientNode(snapshot, selection.catalogActiveId).label)
-      shell.workbench.update("secondary.items", navigationItems(selection.secondaryItems))
-      shell.workbench.update("secondary.active", selection.secondaryActiveId)
+      shell.workbench.update("catalog.active", nodeId)
       shell.workbench.update("tabs.items", Object.freeze([]))
       shell.workbench.update("tabs.active", null)
       shell.workbench.update("status", {
@@ -181,7 +177,7 @@ export async function startExternalStorybookLanding(
     snapshot = updated
     graph = updated
     landing = deriveExternalStorybookLanding(graph)
-    shell.workbench.update("catalog.items", navigationItems(landing.catalogItems))
+    shell.workbench.update("catalog.items", navigationItems(deriveExternalStorybookNavigationTree(graph)))
     updateManagement()
     if (selectedNodeId !== null && graph.nodes.some(node => node.id === selectedNodeId)) {
       const node = externalStorybookClientNode(snapshot, selectedNodeId)
@@ -406,6 +402,7 @@ function navigationItems(items: readonly ExternalStorybookBrowserNavigationItem[
     route: item.route,
     title: item.title,
     searchText: item.searchText,
+    ...(item.expandable === undefined ? {} : {expandable: item.expandable}),
     ...(item.group === null ? {} : {group: item.group}),
     ...(item.parentId === undefined ? {} : {parentId: item.parentId}),
   })))

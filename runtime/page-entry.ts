@@ -731,7 +731,6 @@ type ExternalStorybookPageScroll = Readonly<{
 function readPageScroll(shell: ExternalStorybookShell): ExternalStorybookPageScroll {
   const values: unknown[] = [
     shell.workbench.elements.catalogItems,
-    shell.workbench.elements.secondaryItems,
     shell.workbench.elements.tabItems,
     shell.workbench.elements.inspectorHost,
     shell.workbench.elements.previewHost,

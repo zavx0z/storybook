@@ -5,12 +5,14 @@ import type {HTMLDivElement as SemanticDiv} from "@zavx0z/dom"
 import type {Workbench as WorkbenchHandle} from "./contract.ts"
 import {createWorkbenchModel} from "./controller.ts"
 import {WorkbenchView} from "./view.tsx"
+import type {NavigationExpansion} from "./navigation/persistence.ts"
 
 export type WorkbenchProps = Readonly<{
   onMcpOpen?: (() => void) | undefined
   title: string
   statusOwner: string
   displayId: string
+  navigationExpansion?: NavigationExpansion | undefined
   onReady(workbench: WorkbenchHandle): void
 }>
 
@@ -19,10 +21,10 @@ export function Workbench(props: WorkbenchProps) {
   const element = useRef<HTMLDivElement | null>(null)
   const model = useMemo(() => createWorkbenchModel({
     document,
+    navigationExpansion: props.navigationExpansion,
     initial: {
       title: props.title,
       "catalog.label": "Каталог",
-      "secondary.label": "Пакеты",
       "preview.label": "Обзор",
       status: {lead: "Создано для ", owner: props.statusOwner, detail: " · External Storybook"},
     },
@@ -42,13 +44,13 @@ export function Workbench(props: WorkbenchProps) {
     document={view.document}
     onElement={node => { element.current = node }}
     state={view.state}
+    navigationExpansion={view.navigationExpansion}
     inspectorSelectedId={view.inspectorSelectedId}
     inspectorQuery={view.inspectorQuery}
     onCatalogNavigate={view.onCatalogNavigate}
     onCatalogAction={view.onCatalogAction}
     onCatalogSearch={view.onCatalogSearch}
     onGroupToggle={view.onGroupToggle}
-    onSecondaryNavigate={view.onSecondaryNavigate}
     onTab={view.onTab}
     onInspectorCategoryChange={view.onInspectorCategoryChange}
     onInspectorQueryChange={view.onInspectorQueryChange}

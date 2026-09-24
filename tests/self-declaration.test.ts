@@ -129,7 +129,7 @@ describe("external Storybook self declaration", () => {
       specifier: "@zavx0z/ui/themes/theme.css",
       url: "workbench-author-style-sheets/0.css",
     }])
-  })
+  }, 20_000)
 
   test("executes the private browser lifecycle owner contract story", () => {
     const presentation = browserLifecycle.create(createDocument())

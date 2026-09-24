@@ -11,6 +11,7 @@ import type {
   WorkbenchNavigationGroup,
   WorkbenchNavigationItem,
 } from "./navigation/model.ts"
+import type {NavigationExpansion} from "./navigation/persistence.ts"
 
 /**
 Имена семантических событий, передаваемых из рабочей области принимающей стороне.
@@ -27,14 +28,13 @@ export const WORKBENCH_EVENTS = Object.freeze({
 /**
 Маркер версии контракта раскладки рабочей области Storybook.
 */
-export const WORKBENCH_LAYOUT_PROTOCOL = "workbench-layout/2" as const
+export const WORKBENCH_LAYOUT_PROTOCOL = "workbench-layout/3" as const
 
 /**
-Именованные области раскладки: каталог, содержание, вкладки, просмотр, инспектор и строка состояния.
+Именованные области раскладки: каталог, вкладки, просмотр, инспектор и строка состояния.
 */
 export const WORKBENCH_REGIONS = Object.freeze([
   "catalog",
-  "secondary",
   "tabs",
   "preview",
   "inspector",
@@ -313,12 +313,6 @@ export type WorkbenchCatalogAction = Readonly<{
 
 @property catalog.active - Идентификатор выбранного элемента каталога либо `null`.
 
-@property secondary.label - Название дополнительной области содержания.
-
-@property secondary.items - Элементы дополнительной навигации.
-
-@property secondary.active - Идентификатор выбранного дополнительного элемента либо `null`.
-
 @property preview.label - Название области просмотра.
 
 @property presentation - Публикуемое семантическое содержимое и его проекция.
@@ -344,9 +338,6 @@ export type WorkbenchAddressMap = Readonly<{
   "catalog.search": string
   "catalog.items": readonly WorkbenchNavigationItem[]
   "catalog.active": string | null
-  "secondary.label": string
-  "secondary.items": readonly WorkbenchNavigationItem[]
-  "secondary.active": string | null
   "preview.label": string
   presentation: WorkbenchPresentation
   "tabs.label": string
@@ -420,10 +411,6 @@ export type WorkbenchController = Readonly<{
 
 @property catalogItems - Контейнер элементов каталога.
 
-@property secondary - Дополнительная область содержания.
-
-@property secondaryItems - Контейнер дополнительной навигации.
-
 @property preview - Область просмотра.
 
 @property previewHost - Контейнер размещения содержимого просмотра.
@@ -448,8 +435,6 @@ export type WorkbenchElements = Readonly<{
   catalog: HTMLElement
   catalogSearch: HTMLInputElement
   catalogItems: HTMLElement
-  secondary: HTMLElement
-  secondaryItems: HTMLDivElement
   preview: HTMLElement
   previewHost: HTMLElement
   displayHost: HTMLElement
@@ -471,12 +456,15 @@ export type WorkbenchElements = Readonly<{
 @property [projectionHosts] - Внешние узлы проекций {@link WorkbenchProjectionHosts}.
 
 @property [initial] - Начальные значения выбранных адресов {@link WorkbenchAddressMap}.
+
+@property [navigationExpansion] - Восстановление и сохранение раскрытия дерева.
 */
 export type CreateWorkbenchOptions = Readonly<{
   document: Document
   parent?: Node
   projectionHosts?: WorkbenchProjectionHosts
   initial?: Partial<WorkbenchAddressMap>
+  navigationExpansion?: NavigationExpansion | undefined
 }>
 
 /**

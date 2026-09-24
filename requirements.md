@@ -126,7 +126,7 @@ override запрещены.
 
 <a id="tabs-routes"></a>
 
-### `STORYBOOK-WORKBENCH-001` — one six-region shell
+### `STORYBOOK-WORKBENCH-001` — одна оболочка из пяти областей
 
 Панель вкладок (`TabsRegion`, region `tabs`) использует WorkbenchTabItem
 с обязательными id, label и route. tabs.label/items/active и событие storybooktab
@@ -147,10 +147,10 @@ native pathname; действие по вкладке проверяет одн�
 Кнопки Панели вкладок прилегают к Preview без нижнего gap и бокового padding;
 их собственные стили и геометрия не меняются.
 
-Fixed `workbench-layout/2` владеет ровно `catalog`, `secondary`, `tabs`,
+Fixed `workbench-layout/3` владеет ровно `catalog`, `tabs`,
 `preview`, `inspector`, `status` в этом порядке. `tabs` является визуально
 неподписанной полосой кнопок непосредственно над `preview`; её label остаётся
-только доступным именем toolbar. `catalog`, `secondary` и `preview` также не
+только доступным именем toolbar. `catalog` и `preview` также не
 рендерят видимые headings: их labels остаются только доступными именами regions.
 Project/runtime не декларирует layout и не заменяет navigation. Видимый shell
 является одним compiled TSX ComponentRoot и содержит ровно один production
@@ -239,8 +239,9 @@ Canonical graph проецируется адаптером `WorkbenchNavigation
 `@zavx0z/ui/widgets/tree`. UI владеет строками, disclosure, клавиатурой,
 фокусом и ограниченной отрисовкой большого дерева; Storybook владеет поиском
 по графу, адресами переходов, действием удаления и состоянием раскрытия.
-Group toggle не навигирует. Collapse/focus принадлежат компонентному состоянию,
-не JSON.
+Group toggle не навигирует. Свёрнутые ID узлов сохраняются для текущего origin
+в `localStorage` и восстанавливаются после перезагрузки; некорректная или
+недоступная запись не мешает навигации. Фокус не сохраняется как часть раскрытия.
 Expanded disclosure занимает в layout строку заголовка и все видимые строки
 своих category children; следующий root row начинается только после них.
 Перекрытие либо clipping primary category rows запрещены.
@@ -250,12 +251,13 @@ Unicode glyph fallback и font-dependent disclosure запрещены.
 
 ### `STORYBOOK-WORKBENCH-003` — landing and package tab semantics
 
-Главная и предметная панели отображают иерархию из [единого контракта структуры](archetypes/notes/draft-structure.md).
+Одна левая панель отображает иерархию из [единого контракта структуры](archetypes/notes/draft-structure.md).
 
 Стрелка сворачивает ветвь, подпись выбирает узел. Поиск сохраняет путь к совпадению,
 клавиши работают на любой глубине, а скрытие сохраняет identity уже созданных
 строк. Удаление из интерфейса применяется к выбранным корневым путям.
-Вторая панель показывает категории и предметы выбранного пакета своим деревом;
+Пакет раскрывается в том же дереве до своих директорий, категорий и предметов.
+Открытый пакет использует навигационные данные своей применённой ревизии;
 варианты остаются в Панели вкладок. Выбор репозитория показывает его README.
 
 Выбор пакета и содержимого выполняется в текущей вкладке по URL

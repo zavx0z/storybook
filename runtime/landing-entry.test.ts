@@ -60,10 +60,13 @@ describe("external Storybook landing frontend", () => {
       shell: {canvas: {} as HTMLCanvasElement, loadFont: async () => ({}) as never, createRoot: fakeRootFactory(state)},
     })
     try {
-      expect(controller.shell.workbench.controller.read("catalog.items").map(item => item.id)).toEqual([
+      const navigation = controller.shell.workbench.controller.read("catalog.items")
+      expect(navigation.filter(item => item.id.startsWith("package:")).map(item => item.id)).toEqual([
         "package:fixture-workspace", "package:fixture-alpha", "package:@fixture/components",
         "package:fixture-beta", "package:@fixture/docs", "package:@fixture/standalone",
       ])
+      expect(navigation.find(item => item.id === "subject:@fixture/components/components/button")?.parentId)
+        .toBe("category:@fixture/components/components")
       for (const [id, path] of [
         ["package:fixture-workspace", "/pkg-fixture-workspace/"],
         ["package:fixture-alpha", "/pkg-fixture-alpha/"],
@@ -139,13 +142,14 @@ describe("external Storybook landing frontend", () => {
       expect(controller.shell.workbench.controller.read("catalog.management")?.error).toBe("")
       expect(changes).toEqual([{selectionToken: token}])
       expect(files.size).toBe(0)
-      expect(controller.shell.workbench.controller.read("catalog.items")).toHaveLength(6)
+      expect(controller.shell.workbench.controller.read("catalog.items").filter(item => item.id.startsWith("package:"))).toHaveLength(6)
       const removeButton = (root.querySelector('[aria-label="Удалить Fixture Workspace из каталога"]') as import("@zavx0z/dom").HTMLButtonElement)
       removeButton.click()
       await waitUntil(() => controller.shell.workbench.controller.read("catalog.management")?.pending === false)
       expect(changes[1]).toEqual({scopeId: "package:fixture-workspace"})
       expect(controller.shell.workbench.controller.read("catalog.items").map(item => item.id))
-        .toEqual(["package:@fixture/standalone"])
+        .toContain("package:@fixture/standalone")
+      expect(controller.shell.workbench.controller.read("catalog.items").some(item => item.id === "package:fixture-workspace")).toBeFalse()
       expect(controller.shell.workbench.element).toBe(root)
       expect(reloads).toBe(0)
       button.click()

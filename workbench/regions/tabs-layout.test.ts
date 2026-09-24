@@ -51,15 +51,13 @@ for (const projection of ["display", "hud", "space"] as const) {
         expect(second.x - first.x - first.width).toBe(2)
         expect(strip.height).toBe(first.height + row.padding.top)
 
-        // Меняется только граница вкладок и Preview; остальные интервалы Workbench сохранены.
+        // Каталог и Preview разделены одним промежутком после объединения навигации.
         const body = boxes.get(workbench.elements.body)!
         const catalog = boxes.get(workbench.elements.catalog)!
-        const secondary = boxes.get(workbench.elements.secondary)!
         const inspector = boxes.get(workbench.elements.inspectorHost)!
         const status = boxes.get(workbench.elements.status)!
         expect(body.padding).toEqual({top: 4, right: 4, bottom: 4, left: 4})
-        expect(secondary.x - catalog.x - catalog.width).toBe(4)
-        expect(strip.x - secondary.x - secondary.width).toBe(4)
+        expect(strip.x - catalog.x - catalog.width).toBe(4)
         expect(inspector.x - strip.x - strip.width).toBe(4)
         expect(status.y - preview.y - preview.height).toBe(4)
       } finally {

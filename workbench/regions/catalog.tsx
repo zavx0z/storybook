@@ -10,6 +10,7 @@ import type {
   WorkbenchCatalogManagement,
 } from "../contract.ts"
 import {WorkbenchNavigationTree} from "../navigation/ui-tree.tsx"
+import type {NavigationExpansion} from "../navigation/persistence.ts"
 
 export type CatalogRegionProps = Readonly<{
   document: SemanticDocument
@@ -22,6 +23,7 @@ export type CatalogRegionProps = Readonly<{
   onNavigate(item: WorkbenchNavigationItem, source: HTMLElement): void
   onSearch(value: string, source: HTMLElement): void
   onGroupToggle(group: WorkbenchNavigationGroup, collapsed: boolean, source: HTMLElement): void
+  navigationExpansion?: NavigationExpansion | undefined
 }>
 
 function CatalogRegionContent(props: Readonly<{value: CatalogRegionProps}>) {
@@ -100,6 +102,7 @@ function CatalogRegionContent(props: Readonly<{value: CatalogRegionProps}>) {
         query={value.search}
         onNavigate={value.onNavigate}
         onGroupToggle={value.onGroupToggle}
+        navigationExpansion={value.navigationExpansion}
         removableIds={value.management?.removableIds ?? []}
         onRemove={(item, source) => value.onAction({action: "detach", value: item.id}, source)}
       />
@@ -114,8 +117,8 @@ export function CatalogRegion(props: CatalogRegionProps) {
     aria-label={props.label}
     style={css`
       display: flex;
-      flex: 0 0 196px;
-      width: 196px;
+      flex: 0 0 300px;
+      width: 300px;
       min-height: 0;
     `}
   >

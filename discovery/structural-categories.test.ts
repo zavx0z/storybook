@@ -5,7 +5,7 @@ import {join} from "node:path"
 import {discoverStorybookDirectories} from "./directories.ts"
 import {resolveExternalStorybookDeclarations} from "./declarations.ts"
 import {createExternalStorybookGraph} from "../catalog/graph.ts"
-import {deriveExternalStorybookPackageContents, deriveExternalStorybookPackageTab} from "../runtime/model.ts"
+import {deriveExternalStorybookNavigationTree, deriveExternalStorybookPackageTab} from "../runtime/model.ts"
 import {createStorybookPackageRevisionGraphSnapshot} from "../sessions/package-revision.ts"
 
 const roots: string[] = []
@@ -36,7 +36,9 @@ test.each(["index.ts", "index.tsx"])("категории и привязка п�
   }]}]}))
   await Bun.write(join(root, ".storybook/manifest.json"), JSON.stringify({schemaVersion: 1, catalog: "./catalog.json"}))
   const graph = createExternalStorybookGraph(await resolveExternalStorybookDeclarations([root]))
-  const rows = deriveExternalStorybookPackageContents(graph, "@fixture/parameters")
+  const rows = deriveExternalStorybookNavigationTree(graph).filter(row =>
+    row.id !== "package:@fixture/parameters" &&
+    graph.nodes.find(node => node.id === row.id)?.packageId === "@fixture/parameters")
   expect(rows.map(row => row.label), "Предмет не дублируется директорией и старой категорией").toEqual(["numeric", "number", "slider"])
   const subject = graph.nodes.find(node => node.kind === "subject")!
   expect(subject.id).toBe("subject:@fixture/parameters/legacy/number")

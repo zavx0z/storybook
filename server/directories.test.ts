@@ -4,7 +4,7 @@ import {join} from "node:path"
 import {tmpdir} from "node:os"
 import {ExternalStorybookRegistry} from "../catalog/registry.ts"
 import {resolveExternalStorybookDeclarations} from "../discovery/declarations.ts"
-import {deriveExternalStorybookLanding, deriveExternalStorybookLandingSelection, deriveExternalStorybookPackageTab, deriveExternalStorybookPackageContents} from "../runtime/model.ts"
+import {deriveExternalStorybookLanding, deriveExternalStorybookLandingSelection, deriveExternalStorybookPackageTab, deriveExternalStorybookNavigationTree} from "../runtime/model.ts"
 import {createExternalStorybookClientSnapshot} from "../runtime/client-protocol.ts"
 import {deriveStorybookBreadcrumbs} from "../runtime/breadcrumbs.ts"
 import {startExternalStorybookServer, externalStorybookStructuralWatchPaths} from "./server.ts"
@@ -40,18 +40,23 @@ test("keeps packages in the primary tree and discovers nested categories beside 
   expect(deriveExternalStorybookLanding(graph).catalogItems.map(item => item.label)).toEqual(["Repository", "Unit"])
   const rootId = graph.rootIds[0]!
   const repository = deriveExternalStorybookLandingSelection(graph, rootId)
-  expect(repository.secondaryItems.map(item => item.label)).toEqual(["docs", "guide"])
+  expect(repository.overviewNode.id).toBe(rootId)
+  const navigation = deriveExternalStorybookNavigationTree(graph)
+  expect(navigation.filter(item => item.id.includes("package:fixture/docs") && item.id.startsWith("directory:")).map(item => item.label)).toEqual(["docs", "guide"])
   expect(graph.nodes.some(node => node.kind === "directory" && node.label === "guide")).toBeTrue()
   const nested = graph.nodes.find(node => node.kind === "directory" && node.packageId === "fixture" && node.label === "docs")!
-  expect(deriveExternalStorybookLandingSelection(graph, nested.id)).toMatchObject({catalogActiveId: rootId, secondaryActiveId: nested.id})
+  expect(deriveExternalStorybookLandingSelection(graph, nested.id).overviewNode.id).toBe(nested.id)
   const client = createExternalStorybookClientSnapshot(graph, ["fixture", "@fixture/unit"].map(packageId => ({
     packageId, declarationDigest: "fixture", moduleGraphRevision: null,
     candidateRevision: null, activeRevision: null, lastGoodRevision: null, entryRelativePath: null,
     diagnostics: [], dependencyRealpaths: [], subscribers: 0, buildState: "idle", builds: 0,
   })))
   expect(deriveStorybookBreadcrumbs(client, nested.id, {kind: "landing"}).map(item => item.label)).toEqual(["Главная", "Repository", "docs"])
-  const contents = deriveExternalStorybookPackageContents(graph, "@fixture/unit")
-  expect(contents.filter(item => !item.id.startsWith("directory:")).map(item => [item.label, item.group?.label ?? null])).toEqual([["Contract", "Authored"], ["Document", null]])
+  expect(navigation.filter(item => item.id.includes("@fixture/unit") && !item.id.startsWith("directory:") && item.id !== "package:@fixture/unit")
+    .map(item => [item.label, item.parentId])).toEqual([
+      ["Contract", "package:@fixture/unit"],
+      ["Document", "category:@fixture/unit/contract"],
+    ])
   const packageDoc = graph.nodes.find(node => node.kind === "directory" && node.packageId === "@fixture/unit" && node.label === "docs")!
   expect(deriveExternalStorybookPackageTab(graph, "@fixture/unit", packageDoc.routePath!).selectedNode.id).toBe(packageDoc.id)
   const descriptor = registry.packageDescriptors().find(descriptor => descriptor.packageId === "@fixture/unit")!
@@ -69,7 +74,7 @@ test("keeps packages in the primary tree and discovers nested categories beside 
   expect(registry.packageDescriptors().find(descriptor => descriptor.packageId === "@fixture/unit")!.declarationDigest).toBe(nestedRevision)
   await Bun.write(join(project, "unit/.gitignore"), "docs/\n")
   const changed = await registry.refresh()
-  expect(deriveExternalStorybookPackageContents(changed.graph, "@fixture/unit").some(item => item.label === "docs")).toBeFalse()
+  expect(deriveExternalStorybookNavigationTree(changed.graph).some(item => item.id.includes("@fixture/unit") && item.label === "docs")).toBeFalse()
   expect(externalStorybookStructuralWatchPaths(changed)).toContain(join(project, "unit/.gitignore"))
 })
 

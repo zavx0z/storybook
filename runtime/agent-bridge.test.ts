@@ -602,10 +602,8 @@ function createFixture(options: Readonly<{
   const model = {
     packageNode: {} as never,
     selectedNode: {} as never,
-    catalogItems: Object.freeze([]),
-    catalogActiveId: "category:controls",
-    secondaryItems: Object.freeze([]),
-    secondaryActiveId: "subject:run",
+    categoryId: "category:controls",
+    subjectId: "subject:run",
     variants: Object.freeze([
       Object.freeze({
         id: "variant:alternate",

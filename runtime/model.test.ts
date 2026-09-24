@@ -7,6 +7,7 @@ import {createExternalStorybookGraph} from "../catalog/graph.ts"
 import {
   deriveExternalStorybookLanding,
   deriveExternalStorybookLandingSelection,
+  deriveExternalStorybookNavigationTree,
   deriveExternalStorybookPackageTab,
 } from "./model.ts"
 
@@ -27,6 +28,23 @@ describe("external Storybook browser model", () => {
     expect(landing.catalogItems.find(item => item.id === "package:@fixture/components")?.route).toBe("/fixture-workspace/projects/alpha/packages/components")
   })
 
+  test("одна навигация продолжает пакет до предмета и берёт его данные из применённой ревизии", async () => {
+    const graph = await fixtureGraph()
+    const subjectId = "subject:@fixture/components/components/button"
+    const applied = {...graph, nodes: graph.nodes.map(node => node.id === subjectId
+      ? {...node, label: "Применённая кнопка"} : node)}
+    const items = deriveExternalStorybookNavigationTree(graph, {packageId: "@fixture/components", graph: applied})
+    const packageNode = items.find(item => item.id === "package:@fixture/components")!
+    const category = items.find(item => item.id === "category:@fixture/components/components")!
+    const subject = items.find(item => item.id === subjectId)!
+    expect([packageNode.parentId, category.parentId, subject.parentId]).toEqual([
+      "package:fixture-alpha", packageNode.id, category.id,
+    ])
+    expect(subject.label).toBe("Применённая кнопка")
+    expect(items.some(item => item.id.startsWith("variant:"))).toBeFalse()
+    expect(new Set(items.map(item => item.id)).size).toBe(items.length)
+  })
+
   test("отделяет представление сценариев от одноимённой сущности", async () => {
     const base = await fixtureGraph()
     const subject = base.nodes.find(node => node.id === "subject:@fixture/components/components/button")!
@@ -41,37 +59,26 @@ describe("external Storybook browser model", () => {
     ])
   })
 
-  test("selects repositories as overviews and places package contents in the second panel", async () => {
+  test("выбирает обзор из того же дерева репозиториев и пакетов", async () => {
     const graph = await fixtureGraph()
-    expect(deriveExternalStorybookLandingSelection(graph, "package:fixture-alpha").secondaryItems.map(item => item.label)).toEqual(["packages"])
     const selected = deriveExternalStorybookLandingSelection(graph, "package:@fixture/components")
-    expect(selected.catalogActiveId).toBe("package:@fixture/components")
-    expect(selected.secondaryItems.filter(item => !item.id.startsWith("directory:")).map(item => item.id)).toEqual([
-      "category:@fixture/components/foundation", "subject:@fixture/components/foundation/event-target",
-      "category:@fixture/components/components", "subject:@fixture/components/components/button",
-    ])
-    expect(selected.secondaryItems.find(item => item.id === "subject:@fixture/components/foundation/event-target")?.parentId).toBe("category:@fixture/components/foundation")
-    expect(deriveExternalStorybookLandingSelection(graph, "package:fixture-workspace").secondaryItems.map(item => item.label)).toEqual(["projects"])
+    expect(selected.overviewNode.id).toBe("package:@fixture/components")
+    expect(deriveExternalStorybookLandingSelection(graph, "package:fixture-workspace").overviewNode.id).toBe("package:fixture-workspace")
     expect(() => deriveExternalStorybookLandingSelection(graph, "subject:@fixture/components/components/button"))
       .toThrow("must be a repository or package")
   })
 
-  test("projects direct and optionally grouped categories without creating group routes", async () => {
+  test("пакетный обзор не выбирает дочерний предмет", async () => {
     const graph = await fixtureGraph()
     const model = deriveExternalStorybookPackageTab(graph, "@fixture/components", "")
 
     expect(model.selectedNode.id).toBe("package:@fixture/components")
-    expect(model.catalogItems.map(({id}) => id)).toEqual([
+    expect(deriveExternalStorybookNavigationTree(graph).filter(item => item.parentId === model.packageNode.id && item.id.startsWith("category:")).map(({id}) => id)).toEqual([
       "category:@fixture/components/foundation",
       "category:@fixture/components/components",
     ])
-    expect(model.catalogItems[0]?.group).toBeNull()
-    expect(model.catalogItems[1]?.group).toEqual({id: "ui", label: "UI"})
-    expect("route" in model.catalogItems[1]!.group!).toBeFalse()
-    expect(model.catalogItems[0]?.searchText).toContain("event-target")
-    expect(model.catalogItems[1]?.searchText).toContain("кнопка")
-    expect(model.catalogActiveId).toBeNull()
-    expect(model.secondaryItems).toEqual([])
+    expect(model.categoryId).toBeNull()
+    expect(model.subjectId).toBeNull()
     expect(model.variants).toEqual([])
   })
 
@@ -79,16 +86,13 @@ describe("external Storybook browser model", () => {
     const graph = await fixtureGraph()
     const category = deriveExternalStorybookPackageTab(graph, "@fixture/components", "components")
     expect(category.selectedNode.kind).toBe("category")
-    expect(category.catalogActiveId).toBe("category:@fixture/components/components")
-    expect(category.secondaryItems.map(({id}) => id)).toEqual([
-      "subject:@fixture/components/components/button",
-    ])
-    expect(category.secondaryActiveId).toBeNull()
+    expect(category.categoryId).toBe("category:@fixture/components/components")
+    expect(category.subjectId).toBeNull()
     expect(category.variants).toEqual([])
 
     const subject = deriveExternalStorybookPackageTab(graph, "@fixture/components", "components/button")
     expect(subject.selectedNode.kind).toBe("subject")
-    expect(subject.secondaryActiveId).toBe("subject:@fixture/components/components/button")
+    expect(subject.subjectId).toBe("subject:@fixture/components/components/button")
     expect(subject.variantActiveId).toBeNull()
     expect(subject.variants.map(({id}) => id)).toEqual([
       "variant:@fixture/components/components/button/contained",
@@ -108,8 +112,8 @@ describe("external Storybook browser model", () => {
     expect(variant.selectedNode.kind).toBe("variant")
     expect(variant.selectedNode.id).toBe("variant:@fixture/components/components/button/contained")
     expect(variant.variantActiveId).toBe("variant:@fixture/components/components/button/contained")
-    expect(variant.catalogActiveId).toBe("category:@fixture/components/components")
-    expect(variant.secondaryActiveId).toBe("subject:@fixture/components/components/button")
+    expect(variant.categoryId).toBe("category:@fixture/components/components")
+    expect(variant.subjectId).toBe("subject:@fixture/components/components/button")
   })
 
   test("supports variant-free subject overviews and fails closed for unknown package routes", async () => {

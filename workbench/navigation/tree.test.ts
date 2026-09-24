@@ -17,6 +17,7 @@ import type {
 } from "../contract.ts"
 import {chevronDownIcon, chevronRightIcon} from "@zavx0z/ui/themes/icons"
 import {WORKBENCH_EVENTS} from "../contract.ts"
+import type {NavigationExpansion} from "./persistence.ts"
 import type * as ControllerModule from "../controller.ts"
 import {loadCompiledWorkbench} from "../../src/workbench/testing/compile-workbench.ts"
 
@@ -137,7 +138,7 @@ describe("compiled Storybook catalog navigation tree", () => {
 
     workbench.update("catalog.items", [groupedItems[0]!])
     workbench.update("catalog.items", groupedItems)
-    expect(findGroup(workbench, "elements")?.getAttribute("aria-expanded")).toBe("true")
+    expect(findGroup(workbench, "elements")?.getAttribute("aria-expanded")).toBe("false")
   })
 
   test("toggles only the selected group by pointer and never navigates from its row", () => {
@@ -175,6 +176,24 @@ describe("compiled Storybook catalog navigation tree", () => {
       type: "storybookgrouptoggle",
       detail: {kind: "catalog", id: "dom", collapsed: false},
     })
+  })
+
+  test("восстанавливает свёрнутые ветви в новом Workbench", () => {
+    let collapsedIds: readonly string[] = []
+    const expansion = (): NavigationExpansion => ({
+      initialCollapsedIds: collapsedIds,
+      save(ids) { collapsedIds = [...ids] },
+    })
+    const first = createWorkbench(groupedItems, null, expansion())
+    clickGroup(findGroup(first, "elements")!)
+    expect(collapsedIds).toEqual(["elements"])
+    first.dispose()
+
+    const restored = createWorkbench(groupedItems, null, expansion())
+    try {
+      expect(findGroup(restored, "elements")?.getAttribute("aria-expanded")).toBe("false")
+      expect(findGroup(restored, "dom")?.getAttribute("aria-expanded")).toBe("true")
+    } finally { restored.dispose() }
   })
 
   test("implements visible-row keyboard navigation and tree disclosure rules", () => {
@@ -402,11 +421,13 @@ describe("compiled Storybook catalog navigation tree", () => {
 function createWorkbench(
   items: readonly WorkbenchNavigationItem[],
   active: string | null = null,
+  navigationExpansion?: NavigationExpansion,
 ): Workbench {
   const document = createDocument()
   return api.createWorkbench({
     document,
     parent: document,
+    ...(navigationExpansion === undefined ? {} : {navigationExpansion}),
     initial: {
       "catalog.items": items,
       "catalog.active": active,

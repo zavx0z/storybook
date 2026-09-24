@@ -1,6 +1,7 @@
 import {DisplayElement} from "@zavx0z/dom/display"
 import {createMcpAddressSource} from "./mcp-address"
 import {createMcpWindowPersistence} from "../workbench/mcp-window/src/state"
+import {createNavigationExpansion} from "../workbench/navigation/persistence.ts"
 /**
 Страница Storybook подключает один App через Browser createRoot.
 
@@ -163,6 +164,7 @@ export async function createExternalStorybookShell(
     },
   })
   const mcpWindow = createMcpWindowPersistence(() => browserDocument.defaultView!.localStorage)
+  const navigationExpansion = createNavigationExpansion(() => browserDocument.defaultView!.localStorage)
   application.render(component(StorybookApp as unknown as CompiledTemplate<StorybookAppProps>, {
     title: options.title,
     statusOwner: options.statusOwner ?? options.title,
@@ -171,6 +173,7 @@ export async function createExternalStorybookShell(
     mcpAddressSource: createMcpAddressSource(() => `${browserDocument.location.pathname}${browserDocument.location.search}`),
     mcpWindowState: mcpWindow.initialState,
     saveMcpWindowState: mcpWindow.save,
+    navigationExpansion,
     async loadMcpRequests() {
       const session = await fetch("/api/browser/registry-session", {
         method: "POST",

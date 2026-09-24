@@ -55,7 +55,7 @@
         {
           "id": "contract",
           "kind": "contract",
-          "label": "Six-region shell",
+          "label": "Одно дерево навигации",
           "apiName": "Workbench",
           "presentation": {"protocol": "story-presentation/1", "projection": "display", "widgets": ["props", "source", "diagnostics"]},
         "variants": [{"id": "overview", "label": "Overview", "route": "workbench/contract/overview", "module": {"path": "./stories/contracts.tsx", "export": "workbench"}}]
