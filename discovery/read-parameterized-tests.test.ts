@@ -1,5 +1,7 @@
 import {expect, test} from "bun:test"
 import {resolve} from "node:path"
+import {mkdtemp, rm} from "node:fs/promises"
+import {tmpdir} from "node:os"
 import {readParameterizedTests} from "./read-parameterized-tests.ts"
 
 const root = resolve(import.meta.dir, "../../webxr-space")
@@ -29,67 +31,26 @@ test("[DIAGRAM-TEST-PARAMETERS] чтение spec возвращает назв�
   ])
 })
 
-test("[DIAGRAM-STORY-PARAMETERS] чтение story возвращает варианты describe, название теста и исходник runtime", async () => {
-  const declarations = await readParameterizedTests(root, resolve(root, "nodes/node/diagram/spec/story.spec.tsx"))
-
-  expect(declarations, "Story должен вернуть три варианта describe.each и вложенный test.each с исходником runtime").toEqual([
-    {
-      name: "[DIAGRAM-STORY] DiagramNode отображает вариант и сохраняет его PNG",
-      describes: [
-        {
-          name: "$name",
-          parameters: [
-            {
-              name: "Прямоугольник",
-              props: {
-                id: "rectangle",
-                description: "Описание занимает всю ноду",
-                rect: {x: 40, y: 20, width: 240, height: 100},
-                shape: "rectangle",
-              },
-              expectedSize: {width: 240, height: 100},
-            },
-            {
-              name: "Овал",
-              props: {
-                id: "oval",
-                description: "Описание занимает всю ноду",
-                rect: {x: 40, y: 20, width: 240, height: 100},
-                shape: "oval",
-              },
-              expectedSize: {width: 240, height: 100},
-            },
-            {
-              name: "Круг",
-              props: {
-                id: "circle",
-                description: "Описание занимает всю ноду",
-                rect: {x: 40, y: 20, width: 240, height: 100},
-                shape: "circle",
-              },
-              expectedSize: {width: 240, height: 240},
-            },
-          ],
-        },
-      ],
-      parameters: [
-        {
-          runtime: {
-            kind: "function",
-            source: `async (props: DiagramNodeProps) => {
-          const {DiagramNode} = await import("../index.tsx")
-          return (
-            <DiagramNode
-              id={props.id}
-              description={props.description}
-              rect={props.rect}
-              shape={props.shape}
-            />
-          )
-        }`,
-          },
-        },
-      ],
-    },
-  ])
+test("[TEST-PARAMETERS-NESTED] сохраняет describe.each и исходник функции без исполнения", async () => {
+  const fixture = await mkdtemp(resolve(tmpdir(), "storybook-parameterized-tests-"))
+  const runtime = `async (props: {name: string}) => {
+    const {Example} = await import("./missing.tsx")
+    return <Example name={props.name} />
+  }`
+  try {
+    await Bun.write(resolve(fixture, "tsconfig.json"), JSON.stringify({compilerOptions: {types: []}, include: ["*.tsx"]}))
+    const file = resolve(fixture, "scenario.spec.tsx")
+    await Bun.write(file, `import {describe, test} from "bun:test"
+describe.each([{name: "Первый", props: {size: 10}}, {name: "Второй", props: {size: 20}}])("$name", () => {
+  test.each([{runtime: ${runtime}}])("$runtime сохраняется", () => {})
+})`)
+    expect(await readParameterizedTests(fixture, file)).toEqual([{
+      name: "$runtime сохраняется",
+      describes: [{name: "$name", parameters: [
+        {name: "Первый", props: {size: 10}},
+        {name: "Второй", props: {size: 20}},
+      ]}],
+      parameters: [{runtime: {kind: "function", source: runtime}}],
+    }])
+  } finally { await rm(fixture, {recursive: true, force: true}) }
 })

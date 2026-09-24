@@ -53,7 +53,7 @@ test("legacy composition identity is ignored and former URLs survive declaration
   const after = await registry.refresh()
   expect(after.graph.rootIds).toEqual(before.graph.rootIds)
   const history = new StorybookPackageUrlMigrations(historyPath)
-  expect(history.resolve("/projects/former-project/", after.graph)).toBe("/pkg-fixture-root/")
+  expect(history.resolve("/projects/former-project/", after.graph)).toBe("/root")
   expect(history.resolve("/projects/unknown/", after.graph)).toBeNull()
   expect(history.resolve("/projects/former-project/", {schemaVersion: 1, rootIds: [], nodes: [], digest: "empty"})).toBeNull()
 })

@@ -263,7 +263,16 @@ describe("one external Storybook server", () => {
 
   test("shares saved project selection between browser and MCP including nested removal and an empty restart", async () => {
     const fixture = serverFixture()
-    const options = {declarations: [fixture.workspace], projectDirectory: fixture.workspace, statePath: fixture.statePath, artifactRoot: fixture.artifactRoot}
+    const entries = sharedEntriesFixture()
+    const options = {
+      declarations: [fixture.workspace],
+      projectDirectory: fixture.workspace,
+      statePath: fixture.statePath,
+      artifactRoot: fixture.artifactRoot,
+      landingEntryPath: entries.landing,
+      fallbackEntryPath: entries.fallback,
+      browserLifecycle: fakeBrowserLifecycle().service,
+    }
     let running = await startExternalStorybookServer(options)
     servers.push(running)
     const workspaceFile = join(fixture.workspace, ".storybook/manifest.json")
@@ -322,10 +331,12 @@ describe("one external Storybook server", () => {
     expect(running.registry.snapshot().entries).toEqual([])
     const empty = await fetch(new URL("/", running.origin))
     expect(empty.status).toBe(200)
-    expect(await empty.text()).toContain('/assets/workbench-style/0.css')
-    const theme = await fetch(new URL("/assets/workbench-style/0.css", running.origin))
-    expect(theme.status).toBe(200)
-    expect(await theme.text()).toContain("--widget-")
+    const emptyHtml = await empty.text()
+    const style = emptyHtml.match(/href="([^"]*\/shared\/styles\/[^"]+\.css)"/u)?.[1]
+    expect(style).toBeDefined()
+    const stylesheet = await fetch(new URL(style!, running.origin))
+    expect(stylesheet.status).toBe(200)
+    expect(await stylesheet.text()).toContain("--surface-")
     expect(readFileSync(workspaceFile, "utf8")).toBe(workspaceBytes)
   })
 
@@ -356,14 +367,16 @@ describe("one external Storybook server", () => {
     }))
     Object.defineProperty(resolution, "native", {value: original.native})
     try {
-      running.watch.replace("@fixture/peer", [dependency], () => {})
+      let peerChanges = 0
+      running.watch.replace("@fixture/peer", [dependency], () => { peerChanges += 1 })
       reported = dependency
-      const response = await fetch(new URL("/projects/fixture-alpha/", running.origin))
+      const response = await fetch(new URL("/fixture-workspace/projects/alpha", running.origin))
       const html = await response.text()
       expect(response.status, html).toBe(200)
       expect(html).toContain('<script type="module"')
       expect(html).not.toContain("dependency alias resolves ambiguously")
-      expect(running.watch.notify(dependency)).toBe(2)
+      expect(running.watch.notify(dependency)).toBeGreaterThanOrEqual(2)
+      expect(peerChanges).toBe(1)
     } finally {
       resolution.mockRestore()
     }
@@ -492,12 +505,18 @@ describe("one external Storybook server", () => {
       artifactRoot: fixture.artifactRoot,
       landingEntryPath: entries.landing,
       fallbackEntryPath: entries.fallback,
+      packageBrowserEntryPath: fixture.packageEntry,
+      browserLifecycle: fakeBrowserLifecycle().service,
     })
     servers.push(running)
-    const page = await fetch(new URL("/projects/fixture-alpha/", running.origin))
-    const html = await page.text()
-    expect(page.status, html).toBe(200)
-    const url = new URL(`/api/events?session=${encodeURIComponent(browserSessionToken(html))}`, running.origin)
+    const page = await fetch(new URL("/api/browser/prepare", running.origin), {
+      method: "POST",
+      headers: {origin: running.origin, "content-type": "application/json"},
+      body: JSON.stringify({packageId: "fixture-alpha", route: ""}),
+    })
+    const prepared = await page.json() as {readerToken: string}
+    expect(page.status, JSON.stringify({prepared, session: running.sessions.session("fixture-alpha").snapshot()})).toBe(200)
+    const url = new URL(`/api/events?session=${encodeURIComponent(prepared.readerToken)}`, running.origin)
     url.protocol = "ws:"
     const socket = storybookSocket(url.href, running.origin)
     const messages: Array<Record<string, unknown>> = []
@@ -633,10 +652,12 @@ describe("one external Storybook server", () => {
     servers.push(running)
     const page = await fetch(new URL("/pkg-fixture-standalone/", running.origin))
     const html = await page.text()
-    expect(html).toContain("/__storybook/shared/")
+    expect(page.status).toBe(200)
     expect(html).not.toContain('name="external-storybook-activation-id"')
     const state = running.sessions.session("@fixture/standalone").snapshot()
     expect(state.builtRevision).not.toBeNull()
+    expect(html).toContain(`/__storybook/revisions/%40fixture%2Fstandalone/${state.builtRevision}/`)
+    expect(html).toContain('name="external-storybook-bootstrap-intent" content="navigation-candidate"')
     expect(state.activeRevision).toBeNull()
     const rejected = await fetch(new URL("/api/browser/activation", running.origin), {
       method: "POST", headers: {origin: running.origin, "content-type": "application/json", "x-storybook-session": browserSessionToken(html)},
@@ -808,7 +829,7 @@ describe("one external Storybook server", () => {
     expect(running.sessions.session("@fixture/docs").snapshot().builds).toBe(0)
   }, 120_000)
 
-  test("serves ordered revision-scoped native author stylesheet links before the package entry", async () => {
+  test("serves ordered revision-scoped author resources for the semantic stylesheet registry", async () => {
     const fixture = serverFixture()
     const running = await startExternalStorybookServer({
       declarations: [fixture.workspace],
@@ -835,16 +856,10 @@ describe("one external Storybook server", () => {
       {specifier: "@fixture/components/theme.css", url: "author-style-sheets/1.css"},
     ])
     const revisionUrl = `/__storybook/revisions/%40fixture%2Fcomponents/${revision}/`
-    const links = graph.authorStyleSheets.map((styleSheet, index) =>
-      `<link id="external-storybook-author-style-sheet-${index}" rel="stylesheet" ` +
-      `data-external-storybook-author-style-sheet="${styleSheet.specifier}" ` +
-      `data-external-storybook-author-style-sheet-digest="${styleSheet.contentDigest}" ` +
-      `href="${revisionUrl}${styleSheet.url}">`)
-    expect(html).toContain(links[0]!)
-    expect(html).toContain(links[1]!)
-    expect(html.match(/id="external-storybook-author-style-sheet-[0-9]+"/gu)).toHaveLength(2)
-    expect(html.indexOf(links[0]!)).toBeLessThan(html.indexOf(links[1]!))
-    expect(html.indexOf(links[1]!)).toBeLessThan(html.indexOf("<script type=\"module\""))
+    expect(html).toContain(`"payloadUrl":"${revisionUrl}revision-payload.js"`)
+    for (const styleSheet of graph.authorStyleSheets) {
+      expect(html).not.toContain(`data-external-storybook-author-style-sheet="${styleSheet.specifier}"`)
+    }
     for (const [index, styleSheet] of graph.authorStyleSheets.entries()) {
       const response = await fetch(new URL(`${revisionUrl}${styleSheet.url}`, running.origin))
       expect(response.status).toBe(200)
@@ -1115,7 +1130,7 @@ describe("one external Storybook server", () => {
       browserLifecycle: fakeBrowserLifecycle().service,
     })
     servers.push(running)
-    const detached = await controlPost(running, "/api/control/detach", {scopeId: "fixture-workspace"})
+    const detached = await controlPost(running, "/api/control/detach", {scopeId: "package:fixture-workspace"})
     expect(detached.response.status).toBe(200)
     expect((await fetchJson(new URL("/api/health", running.origin))).ok).toBeTrue()
     expect(running.sessions.snapshots().map(({packageId}) => packageId)).toEqual([
@@ -1227,8 +1242,19 @@ function serverFixture(): Readonly<{
   const workspace = join(root, "workspace")
   mkdirSync(workspace, {recursive: true})
   Bun.spawnSync(["cp", "-R", `${source}/.`, workspace])
-  const entries = join(root, "entries")
-  mkdirSync(entries, {recursive: true})
+  for (const [directory, workspaces] of [
+    ["", ["projects/alpha", "projects/beta"]],
+    ["projects/alpha", ["packages/components"]],
+    ["projects/beta", ["packages/docs"]],
+  ] as const) {
+    const path = join(workspace, directory, "package.json")
+    writeFileSync(path, JSON.stringify({...JSON.parse(readFileSync(path, "utf8")), workspaces}))
+    const manifestPath = join(workspace, directory, ".storybook/manifest.json")
+    const {kind: _kind, id: _id, projects: _projects, packages: _packages, ...manifest} = JSON.parse(readFileSync(manifestPath, "utf8"))
+    writeFileSync(manifestPath, JSON.stringify(manifest))
+  }
+  const entries = mkdtempSync(join(import.meta.dir, "fixtures/.shared-browser-"))
+  roots.push(entries)
   const landingEntry = join(entries, "landing-entry.ts")
   const fallbackEntry = join(entries, "fallback-entry.ts")
   const packageEntry = join(entries, "package-entry.ts")

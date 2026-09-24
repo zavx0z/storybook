@@ -45,7 +45,7 @@ describe("external Storybook agent tooling", () => {
 
   test("keeps the one Storybook skill MCP-only and non-executable", async () => {
     const skill = await Bun.file(join(root, ".agents/skills/storybook/SKILL.md")).text()
-    expect(skill).toContain("Use only `storybook_*` MCP tools")
+    expect(skill).toContain("Использовать только MCP-инструменты `storybook_*`")
     expect(skill).toContain("storybook_search")
     expect(skill).toContain("storybook_capture")
     expect(skill).not.toContain("storybook.sh")

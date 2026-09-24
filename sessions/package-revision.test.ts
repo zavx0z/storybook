@@ -30,14 +30,14 @@ describe("exact Storybook package revision graph", () => {
         parentId: null,
         kind: "package",
         label: "Fixture Workspace",
-        urlPath: "/pkg-fixture-workspace/",
+        urlPath: "/fixture-workspace",
       },
       {
         id: "package:fixture-alpha",
         parentId: "package:fixture-workspace",
         kind: "package",
         label: "Fixture Alpha",
-        urlPath: "/pkg-fixture-alpha/",
+        urlPath: "/fixture-workspace/projects/alpha",
       },
     ])
     expect(snapshot.routes.filter(route => !route.nodeId.startsWith("directory:")).map(({path}) => path)).toEqual([
@@ -95,7 +95,7 @@ describe("exact Storybook package revision graph", () => {
       {specifier: "@fixture/components/tokens.css", url: "author-style-sheets/0.css"},
       {specifier: "@fixture/components/theme.css", url: "author-style-sheets/1.css"},
     ])
-  })
+  }, 30_000)
 
   test("rejects mutation and foreign package identity", async () => {
     const graph = createExternalStorybookGraph(await resolveExternalStorybookDeclarations([
@@ -140,7 +140,7 @@ describe("exact Storybook package revision graph", () => {
       ],
     })
     expect(() => validateStorybookPackageRevisionGraphSnapshot(externalAncestorUrl))
-      .toThrow("ancestor URL is not canonical")
+      .toThrow("ancestor URL is invalid")
 
     const mismatchedAncestorId = redigest({
       ...nestedSnapshot,

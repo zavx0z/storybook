@@ -400,13 +400,15 @@ export `specifier` self-owner либо exact transitively manifest-reached local
 dependency. Resolver требует exact package identity, exact string export
 target, canonical contained `.css`, unique specifier/file и SHA-256 bytes.
 Self Workbench sheets идут первыми, active package sheets вторыми; одинаковые
-specifier+bytes дают один native link, conflicting bytes fail closed. Immutable
-revision materializes bytes и создаёт один annotated native `<link>`
-до module entry. Browser Root получает только exact declared links через
-`stylesheets`, ждёт `ready` до первого кадра `attach(...)`, не загружает
-CSS повторно и не сканирует `document.styleSheets`;
-load/CSSOM/import/nesting/grouping errors fail closed. Cleanup строго вызывает
-`root.unmount()` перед release/dispose linked author resources.
+specifier+bytes дают одну ссылку, conflicting bytes fail closed. Immutable
+revision materializes bytes. Стабильные Workbench sheets подключаются annotated
+native `<link>` до module entry и передаются Browser Root через `stylesheets`.
+Стили текущего пакета принадлежат semantic `<link rel="stylesheet">` того же
+Document: page controller ждёт их `load`, затем заменяет прежний набор атомарно
+со scope пакета, а при ошибке восстанавливает прежние links. Native Document
+не дублирует стили пакета. Повторная загрузка через fetch и сканирование
+`document.styleSheets` запрещены; load/CSSOM/import/nesting/grouping errors
+fail closed. Cleanup освобождает package links и затем завершает общий Root.
 
 ### `STORYBOOK-SOURCE-001` — root-scoped authored source
 

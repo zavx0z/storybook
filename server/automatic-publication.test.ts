@@ -126,7 +126,7 @@ test("subscribe and watch builds apply through exact existing-page evidence", as
       protocol: "storybook-package-prepare/1",
       packageId: "@fixture/automatic",
       route: "",
-      urlPath: "/pkg-fixture-automatic/",
+      urlPath: "/automatic",
       intent: "navigation-candidate",
       preview: false,
       initialAppliedRevision: null,
