@@ -11,7 +11,8 @@
     "route",
     "browser-lifecycle",
     "archetypes",
-    "mcp/rest"
+    "mcp/rest",
+    "mcp/address"
   ],
   "bin": {
     "storybook": "./scripts/storybook.ts"
@@ -29,6 +30,7 @@
     "check": "bun run browser-lifecycle:check && bun run typecheck && bun run route:check && bun run archetypes:check && bun run test && bun run mcp:check && bun run build"
   },
   "dependencies": {
+    "@mcp/address": "workspace:*",
     "@storybook/app": "workspace:*",
     "@storybook/route": "workspace:*",
     "@mcp/rest": "workspace:*",

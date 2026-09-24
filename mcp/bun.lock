@@ -10,6 +10,7 @@
       },
       "devDependencies": {
         "@archetypes/specs": "workspace:../archetypes/specs",
+        "@mcp/address": "workspace:*",
         "@mcp/rest": "workspace:*",
         "@modelcontextprotocol/client": "^2.0.0",
         "@storybook/route": "workspace:../route",
@@ -30,17 +31,23 @@
         "typescript": "^7.0.2",
       },
     },
+    "address": {
+      "name": "@mcp/address",
+      "version": "0.0.0",
+    },
     "rest": {
       "name": "@mcp/rest",
       "version": "0.0.0",
       "dependencies": {
         "@archetypes/specs": "link:@archetypes/specs",
-        "@storybook/route": "workspace:*",
+        "@mcp/address": "workspace:*",
       },
     },
   },
   "packages": {
     "@archetypes/specs": ["@archetypes/specs@workspace:../archetypes/specs"],
+
+    "@mcp/address": ["@mcp/address@workspace:address"],
 
     "@mcp/rest": ["@mcp/rest@workspace:rest"],
 

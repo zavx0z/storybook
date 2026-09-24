@@ -5,6 +5,7 @@
     "": {
       "name": "@zavx0z/storybook",
       "dependencies": {
+        "@mcp/address": "workspace:*",
         "@mcp/rest": "workspace:*",
         "@storybook/app": "workspace:*",
         "@storybook/route": "workspace:*",
@@ -345,12 +346,16 @@
         "typescript": "^7.0.2",
       },
     },
+    "mcp/address": {
+      "name": "@mcp/address",
+      "version": "0.0.0",
+    },
     "mcp/rest": {
       "name": "@mcp/rest",
       "version": "0.0.0",
       "dependencies": {
         "@archetypes/specs": "link:@archetypes/specs",
-        "@storybook/route": "workspace:*",
+        "@mcp/address": "workspace:*",
       },
     },
     "route": {
@@ -380,6 +385,8 @@
     "@iconify/utils": ["@iconify/utils@3.1.7", "", { "dependencies": { "@antfu/install-pkg": "^2.0.1", "@iconify/types": "^2.0.0", "import-meta-resolve": "^4.2.0" } }, "sha512-JZHlwdID+dy+lTgbYC8NEC4zeugqeYsc6jewvzb4c58kHauJn+X7rNwQjxz5p2qSjqaEeQoLkCIQ9v/H4PK0/w=="],
 
     "@immersive/headless": ["@immersive/headless@workspace:../webxr-space/headless"],
+
+    "@mcp/address": ["@mcp/address@workspace:mcp/address"],
 
     "@mcp/rest": ["@mcp/rest@workspace:mcp/rest"],
 

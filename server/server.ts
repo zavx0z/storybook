@@ -1,11 +1,10 @@
-import {resolveStorybookRoute, storybookRouteRoots, readPreparedStorybookSpec} from "./route"
+import {resolveStorybookRoute} from "./route"
 import {createStorybookScenarioRunner} from "./scenario-run"
 import {streamScenarioRun} from "./scenario-stream"
 import type {ReadScenarioInput} from "@archetypes/specs/scenarios"
 import {storybookPackagePathMatches, storybookPackageRouteFromPathname, storybookCurrentRouteKey, validStorybookViewQuery} from "@zavx0z/storybook-browser-lifecycle/contract"
 import {externalStorybookBrowsePath} from "../catalog/graph.ts"
 import {storybookRest} from "@mcp/rest"
-import {readScenarios} from "@mcp/rest/scenarios"
 import {createMcpRequestJournal} from "@mcp/rest/requests"
 import {proxyContent, errorContent} from "../mcp/server/src/response"
 import {StorybookDirectorySelection} from "./directory-selection.ts"
@@ -671,11 +670,15 @@ export async function startExternalStorybookServer(
   const runScenario = createStorybookScenarioRunner()
   let journalWriteError: {at: string, message: string} | null = null
   /** Один предметный обработчик для MCP-прокси и просмотра ответа по адресу UI. */
-  const readStorybook = (request: Request) => storybookRest(request, toolRoot, readScenarios,
-    () => ({entries: mcpRequests.summary(), lastWriteError: journalWriteError}), {
-      roots: storybookRouteRoots(registry.snapshot()),
-      readPreparedSpec: path => readPreparedStorybookSpec(path, registry.snapshot(), sessions),
-    })
+  const mcpPackages = () => {
+    const packages = registry.snapshot().graph.nodes.filter(node => node.kind === "package")
+    return packages.map(node => ({
+      node: node.urlPath.slice(1),
+      title: node.label,
+      parent: packages.find(parent => parent.id === node.parentId)?.urlPath.slice(1) ?? null,
+    }))
+  }
+  const readStorybook = (request: Request) => storybookRest(request, {packages: mcpPackages()})
   let server!: Bun.Server<StorybookWebSocketData>
   try {
     options.onStartupPhase?.("listen")
@@ -757,10 +760,18 @@ export async function startExternalStorybookServer(
         if (url.pathname === "/api/browser/mcp-address" && request.method === "POST") {
           assertExternalStorybookRequestOrigin(request, server.url.origin, {required: true})
           browserSessions.authorize(request.headers.get("x-storybook-session") ?? "")
-          const input = await requestObject(request)
-          assertExactRequestKeys(input, ["node"])
-          if (typeof input.node !== "string") throw new Error("Ожидается адрес раздела")
+          const source = await requestObject(request)
+          assertExactRequestKeys(source, ["address"])
+          if (typeof source.address !== "string" || !source.address.startsWith("/") || source.address.startsWith("//")) {
+            throw new Error("Ожидается локальный адрес страницы")
+          }
+          let input: {node?: string} | null = null
           try {
+            const pathname = source.address.split(/[?#]/u)[0]!.slice(1)
+            const owner = mcpPackages().filter(item => pathname === item.node || pathname.startsWith(`${item.node}/`))
+              .sort((a, b) => b.node.length - a.node.length)[0]
+            if (pathname !== "" && owner === undefined) throw new Error("Страница не принадлежит зарегистрированному пакету")
+            input = owner === undefined ? {} : {node: owner.node}
             const reply = await readStorybook(new Request(new URL("/api/control/storybook", server.url.origin), {
               method: "POST",
               body: JSON.stringify(input),
@@ -768,9 +779,9 @@ export async function startExternalStorybookServer(
             }))
             const result = await reply.json()
             if (!reply.ok) throw new Error(typeof result.error === "string" ? result.error : `Storybook control API failed with ${reply.status}`)
-            return responseJson(proxyContent(result))
+            return responseJson({input, ...proxyContent(result)})
           } catch (error) {
-            return responseJson(errorContent(error))
+            return responseJson({input, ...errorContent(error)})
           }
         }
         if (url.pathname === "/api/control/storybook") {

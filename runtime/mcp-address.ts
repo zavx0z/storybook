@@ -4,7 +4,7 @@ import type {McpAddressSource} from "../workbench/mcp-window/src/address-request
 export function createMcpAddressSource(readAddress: () => string, fetcher: typeof fetch = fetch): McpAddressSource {
   return {
     readAddress,
-    async request(input, signal) {
+    async request(address, signal) {
       const session = await fetcher("/api/browser/registry-session", {
         method: "POST",
         headers: {"content-type": "application/json"},
@@ -16,12 +16,12 @@ export function createMcpAddressSource(readAddress: () => string, fetcher: typeo
       const response = await fetcher("/api/browser/mcp-address", {
         method: "POST",
         headers: {"content-type": "application/json", "x-storybook-session": readerToken},
-        body: JSON.stringify(input),
+        body: JSON.stringify({address}),
         signal,
       })
       if (!response.ok) throw new Error(`Не удалось прочитать MCP-ответ: HTTP ${response.status}`)
       const reply = await response.json()
-      return {result: reply.structuredContent, failed: reply.isError === true}
+      return {input: reply.input, result: reply.structuredContent, failed: reply.isError === true}
     },
   }
 }

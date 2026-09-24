@@ -23,8 +23,6 @@ const uniqueList = <Schema extends z.ZodType>(schema: Schema, maximum: number) =
 
 export const storybookSchema = z.strictObject({
   node: boundedId.optional(),
-  action: boundedId.optional(),
-  input: z.record(z.string(), z.unknown()).optional(),
 })
 
 export const storybookEnsureSchema = z.strictObject({

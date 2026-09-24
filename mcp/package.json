@@ -6,7 +6,7 @@
   "type": "module",
   "exports": {"./proxy": "./proxy/index.ts", "./server": "./server/index.ts"},
   "packageManager": "bun@1.4.0",
-  "workspaces": ["rest"],
+  "workspaces": ["rest", "address"],
   "scripts": {
     "start": "bun run stdio.ts",
     "test": "bun test",
@@ -18,6 +18,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@mcp/address": "workspace:*",
     "@archetypes/specs": "workspace:../archetypes/specs",
     "@storybook/route": "workspace:../route",
     "@mcp/rest": "workspace:*",

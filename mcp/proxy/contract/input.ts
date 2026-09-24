@@ -3,14 +3,9 @@
 
 Пустой запрос запрашивает доступные разделы и инструкции сервера.
 
-@property [node] - Адресуемый раздел; допустимые значения определяет HTTP-сервер.
-
-@property [action] - Действие выбранного раздела; передаётся серверу без преобразования.
-
-@property [input] - Параметры действия. Их поля и ограничения определяет HTTP-сервер.
+@property [node] - Точный адрес зарегистрированного пакета без параметров
+и внутренних директорий. Отсутствие поля выбирает каталог корневых пакетов.
 */
 export interface StorybookProxyInput {
   readonly node?: string | undefined
-  readonly action?: string | undefined
-  readonly input?: Record<string, unknown> | undefined
 }

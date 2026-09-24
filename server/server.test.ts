@@ -43,15 +43,21 @@ describe("one external Storybook server", () => {
       body: JSON.stringify(input),
     })
     try {
-      for (const node of ["root", "standalone", "standalone?view=overview", "missing", "standalone?view=scenarios&variant=%D0%9A%D1%80%D1%83%D0%B3", "standalone?unsupported=1"]) {
-        const browser = await read({node})
+      for (const address of ["/", "/standalone", "/standalone?view=overview", "/standalone/internal?view=scenarios&inspector=x", "/standalone?preview=candidate"]) {
+        const browser = await read({address})
         expect(browser.status).toBe(200)
-        const expected = await client.callTool({name: "storybook", arguments: {node}})
-        expect(await browser.json()).toEqual(expected)
+        const input = address === "/" ? {} : {node: "standalone"}
+        const expected = await client.callTool({name: "storybook", arguments: input})
+        expect(await browser.json()).toEqual({input, ...expected})
       }
-      expect((await read({node: "root"}, "invalid")).status).toBe(401)
-      expect((await read({node: "root"}, readerToken, "https://example.com")).ok).toBeFalse()
-      expect((await read({node: "root", action: "journal"})).ok).toBeFalse()
+      for (const node of ["standalone/internal", "standalone?view=scenarios"]) {
+        expect((await client.callTool({name: "storybook", arguments: {node}})).isError).toBeTrue()
+      }
+      const missing = await (await read({address: "/missing?view=scenarios"})).json()
+      expect(missing).toMatchObject({input: null, isError: true})
+      expect((await read({address: "/"}, "invalid")).status).toBe(401)
+      expect((await read({address: "/"}, readerToken, "https://example.com")).ok).toBeFalse()
+      expect((await read({address: "/", action: "journal"})).ok).toBeFalse()
       const journal = await fetch(new URL("/api/browser/mcp-requests", running.origin), {headers: {"x-storybook-session": readerToken}})
       expect(await journal.json()).toEqual({entries: []})
       expect(running.sessions.snapshots().every(item => item.builds === 0)).toBeTrue()

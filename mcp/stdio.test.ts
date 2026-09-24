@@ -7,7 +7,7 @@ import type {ExternalStorybookController} from "../server/controller-contract.ts
 import {STORYBOOK_TOOL_NAMES} from "./server/src/schemas"
 import {createStorybookMcpServer} from "./server"
 import {storybookRest} from "./rest"
-import {readScenarios} from "@mcp/rest/scenarios"
+const catalog = {packages: [{node: "storybook", title: "Storybook", parent: null}, {node: "storybook/archetypes/package", title: "Пакет", parent: "storybook"}]}
 
 const MCP_ENTRY = fileURLToPath(new URL("./stdio.ts", import.meta.url))
 const transports: Array<{close(): Promise<void>}> = []
@@ -19,12 +19,12 @@ afterEach(async () => {
 })
 
 describe("Storybook MCP stdio", () => {
-  test("storybook передаёт данные сценарного теста через протокол MCP", async () => {
+  test("storybook передаёт адрес пакета через протокол MCP", async () => {
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
     const server = createStorybookMcpServer({
       recordRequest: async () => {},
       request: async input => {
-        const response = await storybookRest(new Request("http://localhost", {method: "POST", body: JSON.stringify(input)}), fileURLToPath(new URL("../", import.meta.url)), readScenarios)
+        const response = await storybookRest(new Request("http://localhost", {method: "POST", body: JSON.stringify(input)}), catalog)
         return await response.json()
       },
     })
@@ -33,16 +33,15 @@ describe("Storybook MCP stdio", () => {
     await Promise.all([server.connect(serverTransport), client.connect(clientTransport)])
     try {
       const result = await client.callTool({name: "storybook", arguments: {
-        node: "storybook/archetypes/specs/scenarios",
-        input: {view: "scenarios"},
+        node: "storybook/archetypes/package",
       }})
       expect(result.isError).not.toBeTrue()
       expect(result.structuredContent).toMatchObject({
-        node: "storybook/archetypes/specs/scenarios",
-        title: "Сценарии",
-        sections: [{title: "Сценарий функции"}, {title: "Сценарий компонента"}],
+        node: "storybook/archetypes/package",
+        title: "Пакет",
+        packages: [],
       })
-      expect(Object.keys(result.structuredContent!)).toEqual(["node", "title", "content", "sections"])
+      expect(Object.keys(result.structuredContent!)).toEqual(["node", "title", "packages"])
       expect(JSON.parse((result.content as {type: string, text: string}[])[0]!.text), "Полный JSON-ответ HTTP-сервера без отдельной текстовой проекции документа").toEqual(result.structuredContent)
     } finally {
       await client.close()
@@ -56,7 +55,7 @@ describe("Storybook MCP stdio", () => {
       recordRequest: async () => {},
       controllerFactory: () => { loads += 1; throw new Error("Контроллер не должен загружаться") },
       request: async (input) => {
-        const response = await storybookRest(new Request("http://localhost/api/control/storybook", {method: "POST", body: JSON.stringify(input)}), fileURLToPath(new URL("../", import.meta.url)))
+        const response = await storybookRest(new Request("http://localhost/api/control/storybook", {method: "POST", body: JSON.stringify(input)}), catalog)
         const value = await response.json() as Record<string, unknown>
         if (!response.ok) throw new Error(String(value.error))
         return value
@@ -68,16 +67,12 @@ describe("Storybook MCP stdio", () => {
     try {
       const result = await client.callTool({name: "storybook", arguments: {}})
       expect(result.structuredContent).toEqual({
-        node: "root",
-        description: "Выберите подключённый корень и раскрывайте его публичную структуру.",
-        children: [
-          {node: "storybook", description: "One external declaration-driven Storybook server for independently owned packages."},
-        ],
+        packages: [{node: "storybook", title: "Storybook"}],
       })
       expect(result.isError).not.toBeTrue()
       const failed = await client.callTool({name: "storybook", arguments: {node: "missing"}})
       expect(failed.isError).toBeTrue()
-      expect(failed.structuredContent).toMatchObject({status: "failed", error: {message: "Раздел пока не доступен"}})
+      expect(failed.structuredContent).toMatchObject({status: "failed", error: {message: "Адрес не принадлежит зарегистрированному пакету: missing"}})
       expect(loads).toBe(0)
     } finally {
       await client.close()

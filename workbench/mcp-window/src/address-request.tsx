@@ -3,14 +3,14 @@ import {Button} from "@zavx0z/ui/buttons/button"
 import type {McpRequestRecord} from "@mcp/rest/requests"
 import {RequestList} from "./request-list"
 
-/** Источник адресной строки и публичного ответа того же обработчика, который вызывает MCP. */
+/** Находит пакет открытой страницы и возвращает его точный MCP-запрос и ответ. */
 export interface McpAddressSource {
   readAddress(): string
-  request(input: {node: string}, signal: AbortSignal): Promise<{result: unknown, failed: boolean}>
+  request(address: string, signal: AbortSignal): Promise<{input: {node?: string} | null, result: unknown, failed: boolean}>
 }
 
 /**
-Показывает запрос по pathname и query без восстановления адреса из состояния UI.
+Показывает только адрес пакета, разрешённый сервером по pathname страницы.
 Смена адреса отменяет прежнее чтение; неизменный адрес не запускает повторное выполнение.
 */
 export function AddressRequest(props: Readonly<{active: boolean, source?: McpAddressSource | undefined}>) {
@@ -31,7 +31,6 @@ export function AddressRequest(props: Readonly<{active: boolean, source?: McpAdd
       pending?.abort()
       const controller = new AbortController()
       pending = controller
-      const input = {node: next === "/" ? "root" : next.replace(/^\//u, "")}
       const startedAt = Date.now()
       const record: McpRequestRecord = {
         id: `address-${startedAt}-${refresh}`,
@@ -39,16 +38,18 @@ export function AddressRequest(props: Readonly<{active: boolean, source?: McpAdd
         startedAt,
         durationMs: null,
         status: "running",
-        input: JSON.stringify(input, null, 2),
+        input: "",
         result: "",
       }
-      setAddress(next)
+      setAddress("Определение пакета…")
       setEntry(record)
-      void source.request(input, controller.signal).then(reply => {
+      void source.request(next, controller.signal).then(reply => {
         if (disposed || controller.signal.aborted) return
-        setEntry({...record, status: reply.failed ? "failed" : "success", durationMs: Date.now() - startedAt, result: JSON.stringify(reply.result, null, 2)})
+        setAddress(reply.input === null ? "Пакет не найден" : reply.input.node ?? "Каталог пакетов")
+        setEntry({...record, input: reply.input === null ? "" : JSON.stringify(reply.input, null, 2), status: reply.failed ? "failed" : "success", durationMs: Date.now() - startedAt, result: JSON.stringify(reply.result, null, 2)})
       }).catch(error => {
         if (disposed || controller.signal.aborted) return
+        setAddress("Не удалось определить пакет")
         setEntry({...record, status: "failed", durationMs: Date.now() - startedAt, result: JSON.stringify({error: error instanceof Error ? error.message : String(error)}, null, 2)})
       })
     }

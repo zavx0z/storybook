@@ -39,9 +39,9 @@ export function createStorybookMcpServer(options: CreateStorybookMcpServerInput 
 
   server.registerTool("storybook", {
     title: "Storybook",
-    description: "Передаёт запрос HTTP-серверу Storybook. Пустой запрос возвращает доступные разделы и дальнейшие инструкции. node, action и input передаются серверу без предметной интерпретации; структура ответа определяется сервером.",
+    description: "Читает зарегистрированные пакеты Storybook. Пустой запрос показывает корневые пакеты. node — точный адрес пакета через /, без query, fragment и внутренних директорий. Ответ может перечислять только вложенные пакеты; внутренняя структура пока не раскрывается.",
     inputSchema: storybookSchema,
-    annotations: {readOnlyHint: false, idempotentHint: false},
+    annotations: {readOnlyHint: true, idempotentHint: true},
   }, async (input, context) => {
     try {
       return proxyContent(await traceMcpRequest("storybook", input,

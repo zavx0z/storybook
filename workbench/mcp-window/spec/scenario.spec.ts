@@ -30,13 +30,14 @@ describe.each([
 describe.each([{name: "Два режима MCP", address: "/storybook/archetypes?view=scenarios&variant=Пример"}])("$name", async ({address}) => {
   const host = createWindowHost()
   afterAll(() => host.dispose())
-  const requests: {node: string}[] = []
-  const response = {node: "storybook/archetypes", sections: [{title: "Пример", content: [{text: "Ответ MCP"}]}]}
+  const requests: string[] = []
+  const input = {node: "storybook/archetypes"}
+  const response = {node: input.node, title: "Archetypes", packages: []}
   const props: McpWindowProps = {open: true, onClose() {}, load: async () => [command("agent")], addressSource: {
     readAddress: () => address,
-    async request(input) {
-      requests.push(input)
-      return {result: response, failed: false}
+    async request(address) {
+      requests.push(address)
+      return {input, result: response, failed: false}
     },
   }}
   host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, props)
@@ -48,10 +49,10 @@ describe.each([{name: "Два режима MCP", address: "/storybook/archetypes
     expect(agent, "Первый режим показывает настоящее обращение из источника журнала").toContain("storybook-agent")
   })
   test("Адрес", () => {
-    expect(requests, "Путь и параметры адресной строки напрямую адресуют MCP").toEqual([{node: address.slice(1)}])
+    expect(requests, "Адрес страницы используется для определения пакета-владельца").toEqual([address])
   })
   test("Запрос и ответ", () => {
-    expect([...codes].map(code => JSON.parse(code.textContent)), "Второй режим показывает точный запрос и полный публичный ответ").toEqual([{node: address.slice(1)}, response])
+    expect([...codes].map(code => JSON.parse(code.textContent)), "Второй режим показывает точный запрос и полный публичный ответ").toEqual([input, response])
   })
 })
 
