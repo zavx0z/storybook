@@ -6,7 +6,7 @@
 [у общего владельца](../../notes/draft-documentation.md).
 
 - [Имя и состав вложенных пакетов](../package-json/notes/draft-identity.md).
-- [Откуда берётся описание пакета](../readme/notes/draft-overview.md).
+- [Откуда берётся описание пакета](./draft-overview.md).
 - [Какие входы и типы публикует пакет](draft-exports.md).
 - [Как обнаруживаются пакеты и изолируются ошибки](draft-discovery.md).
 - [Какие ресурсы принадлежат пакету](draft-ownership.md).

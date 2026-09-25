@@ -115,9 +115,9 @@ test("полная история имеет читаемый snapshot", () => {
       column: location.column,
     }})),
     packageScenario: packageScenario.calls.map(({id, location, ...call}) => ({...call,
-      // Строки README сохраняются целиком; массив избегает хвостовых пробелов сериализатора Bun.
+      // Строки TSDoc сохраняются целиком; массив избегает хвостовых пробелов сериализатора Bun.
       outcome: JSON.parse(JSON.stringify(call.outcome, (key, value: unknown) =>
-        key === "content" && typeof value === "string" ? value.split("\n") : value)),
+        key === "markdown" && typeof value === "string" ? value.split("\n") : value)),
       location: location && {
       path: location.path.replace(resolve(import.meta.dir, "../../../.."), "<archetypes>"),
       line: location.line,

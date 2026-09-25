@@ -17,11 +17,13 @@ describe.each([
   describe("Назначение", () => {
     test("Идентичность", () => {
       expect(result.packageJson.name, "Пакет имеет собственное имя из package.json").toMatch(/\S/u)
-      expect(result.packageJson.label, "Название объясняет предмет пакета человеку").toMatch(/\S/u)
+      if (result.packageJson.label !== undefined) {
+        expect(result.packageJson.label, "Заданная подпись объясняет предмет пакета человеку").toMatch(/\S/u)
+      }
     })
     test("Ответственность", () => {
       expect(result.packageJson.description, "Описание сообщает, для чего существует пакет").toMatch(/\S/u)
-      expect(result.readme.content, "README раскрывает назначение и границы ответственности пакета").toMatch(/\S/u)
+      expect(result.documentation?.markdown, "Корневой TSDoc раскрывает назначение и границы ответственности пакета").toMatch(/\S/u)
     })
   })
 

@@ -7,7 +7,7 @@
   "description": "Объясняет и проверяет назначение пакета, принадлежность публичных входов и наличие их контрактов",
   "exports": {
     ".": "./index.ts",
-    "./readme": "./readme/index.ts",
+    "./documentation": "./documentation/index.ts",
     "./package-json": "./package-json/index.ts",
     "./index": "./index/index.ts"
   },

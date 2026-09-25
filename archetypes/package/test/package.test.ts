@@ -3,8 +3,9 @@ import {mkdtemp, mkdir, rm, symlink, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {resolve} from "node:path"
 import {readPackage} from "@archetypes/package"
+import {readModuleDocumentation} from "@archetypes/package/documentation"
 import {readPackageIndex} from "@archetypes/package/index"
-import {readPackageReadme} from "@archetypes/package/readme"
+import {readPackageJson} from "@archetypes/package/package-json"
 import {readScenario} from "@archetypes/specs/scenarios"
 
 const root = await mkdtemp(resolve(tmpdir(), "archetype-package-"))
@@ -18,7 +19,7 @@ async function fixture(name: string, extension = "ts") {
     name: `@fixture/${name}`, label: name, description: "Файловый пример пакета",
     exports: {".": `./index.${extension}`},
   }))
-  await writeFile(resolve(path, `index.${extension}`), 'throw new Error("Код проверяемого пакета не должен исполняться")')
+  await writeFile(resolve(path, `index.${extension}`), '/**\nОписание модуля.\n@packageDocumentation\n*/\nthrow new Error("Код проверяемого пакета не должен исполняться")')
   await writeFile(resolve(path, "contract/input.ts"), "export interface Input {}")
   await writeFile(resolve(path, "contract/output.ts"), "export interface Output {}")
   await writeFile(resolve(path, "README.md"), `# ${name}\n\nНазначение пакета.\n`)
@@ -30,22 +31,67 @@ describe("Чтение состава пакета", () => {
     const path = await fixture(`component-${extension}`, extension)
     const result = await readPackage({path})
     expect(result.packageJson.name).toBe(`@fixture/component-${extension}`)
-    expect(result.readme.content).toContain("Назначение пакета")
+    expect(result.documentation?.markdown).toBe("Описание модуля.")
+    expect(result.documentation?.sourcePath).toBe(resolve(path, `index.${extension}`))
     expect(result.index.entries).toEqual([{
       path: ".", target: `./index.${extension}`, conditions: [], status: "owned", code: true, entrypoint: true,
       input: "./contract/input.ts", output: "./contract/output.ts",
     }])
   })
 
-  test("Отсутствующий и пустой README различаются", async () => {
+  test("README не влияет на чтение пакета, отсутствие TSDoc явно видно", async () => {
     const path = await fixture("overview")
-    await writeFile(resolve(path, "README.md"), "")
-    expect(await readPackageReadme({path})).toEqual({content: ""})
-    await rm(resolve(path, "README.md"))
-    expect(await readPackageReadme({path})).toEqual({content: null})
-    await symlink(resolve(root, "component-ts/README.md"), resolve(path, "README.md"))
-    expect(await readPackageReadme({path})).toEqual({content: null})
+    const initial = await readPackage({path})
+    await writeFile(resolve(path, "README.md"), "Совсем другой текст")
+    expect(await readPackage({path})).toEqual(initial)
+    await writeFile(resolve(path, "index.ts"), "export const value = 1")
+    expect((await readPackage({path})).documentation).toBeNull()
   })
+
+  test("Корневой index.tsx имеет приоритет, а его TSDoc меняет результат", async () => {
+    const path = await fixture("documentation")
+    await writeFile(resolve(path, "index.tsx"), "/**\nПриоритетный обзор.\n@packageDocumentation\n*/\nexport const value = 1")
+    const first = await readPackage({path})
+    expect(first.documentation?.markdown).toBe("Приоритетный обзор.")
+    await writeFile(resolve(path, "index.tsx"), "/**\nИзменённый обзор.\n@packageDocumentation\n*/\nexport const value = 1")
+    const next = await readPackage({path})
+    expect(next.documentation?.markdown).toBe("Изменённый обзор.")
+    expect(next.documentation?.sourceDigest).not.toBe(first.documentation?.sourceDigest)
+  })
+
+  test("Существующий index.tsx без TSDoc не подменяется описанием index.ts", async () => {
+    const path = await fixture("tsx-without-documentation")
+    await writeFile(resolve(path, "index.tsx"), "export const value = 1")
+    expect((await readPackage({path})).documentation).toBeNull()
+  })
+
+  test("Symlink на исходник не читается за пределами пакета", async () => {
+    const path = await fixture("linked-documentation")
+    await rm(resolve(path, "index.ts"))
+    await writeFile(resolve(root, "outside.ts"), "/**\nЧужое описание.\n@packageDocumentation\n*/")
+    await symlink(resolve(root, "outside.ts"), resolve(path, "index.ts"))
+    expect((await readPackage({path})).documentation).toBeNull()
+  })
+
+  test("Исходник ограничен одним МиБ", async () => {
+    const path = await fixture("large-documentation")
+    await writeFile(resolve(path, "index.ts"), `/**\nОписание.\n@packageDocumentation\n*/\n${"x".repeat(1024 * 1024)}`)
+    await expect(readPackage({path})).rejects.toThrow(RangeError)
+    expect(() => readModuleDocumentation({source: "x".repeat(1024 * 1024 + 1), path: "index.ts"})).toThrow(RangeError)
+  })
+
+  test("label можно опустить, но нельзя задать значением другого типа", async () => {
+    const path = await fixture("optional-label")
+    const manifestPath = resolve(path, "package.json")
+    const manifest = {name: "@fixture/optional-label", description: "Пакет без подписи", exports: {".": "./index.ts"}}
+    await writeFile(manifestPath, JSON.stringify(manifest))
+    expect(await readPackageJson({path: manifestPath})).toEqual(manifest)
+    expect((await readPackage({path})).packageJson).toEqual(manifest)
+    const scenario = await readScenario({path: resolve(import.meta.dir, "../spec/scenario.spec.ts"), props: {path}})
+    expect(scenario.exitCode).toBe(0)
+    await writeFile(manifestPath, JSON.stringify({...manifest, label: 42}))
+    await expect(readPackageJson({path: manifestPath})).rejects.toThrow(TypeError)
+  }, 30_000)
 
   test("Граница владельца и отсутствующие файлы видимы отдельно", async () => {
     const path = await fixture("ownership")

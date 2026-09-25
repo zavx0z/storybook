@@ -8,17 +8,17 @@
 
 ```mermaid
 flowchart TB
-  package["Пакет"] --> readme["README: указатель на заметки"]
+  package["Пакет"] --> docs["Корневой index: модульный TSDoc"]
   package --> manifest["package.json"]
   package --> entry["index"]
 ```
 
 Пакет `@archetypes/package` владеет чтением трёх частей файлового состава:
-`readme`, `package-json` и `index`. [readPackage](../index.ts) объединяет
+`documentation`, `package-json` и `index`. [readPackage](../index.ts) объединяет
 их результаты для выбранной директории. `package.json` сообщает идентичность и
-npm metadata; exports связывают публичные пути с кодом и ресурсами. Нынешний
-`readPackage` ещё возвращает README; принятый смысл пакета переносится в код,
-контракты, TSDoc и spec, а README остаётся указателем на заметки.
+npm metadata; exports связывают публичные пути с кодом и ресурсами. Модульное
+описание читается из корневого `index.tsx` или `index.ts`, если оно там есть.
+README остаётся указателем на заметки.
 
 [Сценарий пакета](../spec/scenario.spec.ts) проверяет существование и принадлежность
 файлов входов, отсутствие кодовых псевдонимов и наличие контрактов. Условные
