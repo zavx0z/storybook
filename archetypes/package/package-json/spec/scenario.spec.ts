@@ -19,7 +19,6 @@ describe.each([
 
   const fields = [
     {field: "name"},
-    {field: "label"},
     {field: "description"},
     {field: "exports"},
   ]
@@ -29,7 +28,11 @@ describe.each([
   })
 
   test("Не содержит других полей", () => {
-    const extraFields = Object.keys(result ?? {}).filter(key => !fields.some(({field}) => field === key))
+    const extraFields = Object.keys(result ?? {}).filter(key => key !== "label" && !fields.some(({field}) => field === key))
     expect(extraFields, "В package.json не должно быть полей вне проверяемого состава").toEqual([])
+  })
+
+  test("Подпись необязательна, но заданная подпись содержательна", () => {
+    if (result.label !== undefined) expect(result.label, "Заданная подпись объясняет предмет пакета человеку").toMatch(/\S/u)
   })
 })

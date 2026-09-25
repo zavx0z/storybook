@@ -1,5 +1,5 @@
 /**
-Извлекает из package.json имя, отображаемое название, описание и публичные экспорты.
+Извлекает из package.json имя, необязательное название, описание и публичные экспорты.
 
 @packageDocumentation
 */
@@ -14,11 +14,12 @@ export type {ReadPackageJsonInput, ReadPackageJsonOutput}
 
 @param path - Путь к файлу; относительный путь разрешается от текущей рабочей директории.
 
-@returns Имя, отображаемое название, описание и карта публичных экспортов пакета.
+@returns Имя, возможное отображаемое название, описание и карта публичных экспортов пакета.
 
 @throws Ошибка чтения файла или разбора JSON.
 @throws TypeError, если манифест не является объектом, отсутствует обязательное
-поле либо имя, название и описание не являются строками, а exports — объектом.
+поле либо имя и описание не являются строками, заданное название не строка,
+а exports — объектом.
 */
 export async function readPackageJson({path}: ReadPackageJsonInput): Promise<ReadPackageJsonOutput> {
   const manifest: unknown = await Bun.file(path).json()
@@ -26,15 +27,15 @@ export async function readPackageJson({path}: ReadPackageJsonInput): Promise<Rea
     throw new TypeError("package.json должен содержать объект")
   }
   if (!("name" in manifest) || typeof manifest.name !== "string"
-    || !("label" in manifest) || typeof manifest.label !== "string"
+    || ("label" in manifest && typeof manifest.label !== "string")
     || !("description" in manifest) || typeof manifest.description !== "string"
     || !("exports" in manifest) || manifest.exports === null
     || typeof manifest.exports !== "object" || Array.isArray(manifest.exports)) {
-    throw new TypeError("package.json должен содержать строки name, label, description и объект exports")
+    throw new TypeError("package.json должен содержать строки name, description, необязательную строку label и объект exports")
   }
   return {
     name: manifest.name,
-    label: manifest.label,
+    ...("label" in manifest ? {label: manifest.label as string} : {}),
     description: manifest.description,
     exports: manifest.exports as Readonly<Record<string, unknown>>,
   }

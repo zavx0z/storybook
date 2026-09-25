@@ -3,7 +3,7 @@
 
 @property name - Идентификатор пакета из манифеста.
 
-@property label - Отображаемое название пакета.
+@property [label] - Необязательное отображаемое название пакета.
 
 @property description - Краткое описание назначения пакета.
 
@@ -11,7 +11,7 @@
 */
 export interface ReadPackageJsonOutput {
   readonly name: string
-  readonly label: string
+  readonly label?: string
   readonly description: string
   readonly exports: Readonly<Record<string, unknown>>
 }
