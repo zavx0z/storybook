@@ -2,8 +2,10 @@
 
 ## Требования к структуре
 
-Требования к проектам, пакетам, директориям, сущностям и их документации
-собраны в [README Archetypes](archetypes/README.md).
+Требования к проектам, пакетам, директориям и сущностям раскрываются через
+[указатель Archetypes](archetypes/README.md) на код и заметки владельцев.
+Принятое направление — [знание из кода](MANIFEST.md); роль временных заметок
+и README определена [их жизненным циклом](archetypes/notes/note-lifecycle.md).
 Правила внешнего сервера, Workbench и выполнения остаются в этом документе.
 
 <a id="structure-contract"></a>
@@ -56,21 +58,23 @@ consumer API. Consumer repositories по-прежнему не зависят о
 
 ### `STORYBOOK-GRAPH-002` — обзор и структурные представления
 
-Пакет и физическая директория имеют собственный обзор. README пакета и модульный
-TSDoc директории являются источниками описания. `contract/input.ts`,
+Пакет и физическая директория имеют собственный обзор, выводимый из кода и
+его TSDoc. `contract/input.ts`,
 `contract/output.ts`, `spec/deps.spec.ts` и `scenario.spec.ts(x)` открывают
 встроенные представления только у владельца, где они найдены. Неизвестный
 маршрут получает 404/fail-closed. Проектные `.storybook` manifest/catalog,
 виртуальные category/subject/variant, runtime/presentation/widget declarations
 и каталоговые author styles не используются.
 
+Текущий reader README ещё присутствует в реализации. Это незавершённый переход
+к источникам из кода, а не второе нормативное основание для MCP; граница
+зафиксирована [у владельца прежнего обзора](archetypes/package/readme/notes/draft-overview.md).
+
 ## Workbench
 
 <a id="tabs-routes"></a>
 
 ### `STORYBOOK-WORKBENCH-001` — одна оболочка и адресные вкладки
-
-<a id="tabs-routes"></a>
 
 Панель вкладок (`TabsRegion`, region `tabs`) использует WorkbenchTabItem с
 обязательными id, label и route. Доступные представления выбранного пакета или
@@ -171,10 +175,12 @@ lastWorking. Общая тема Workbench остаётся у оболочки.
 агента не применяется автоматически. Загруженная и действительно применённая
 ревизии остаются разными состояниями.
 
-### `STORYBOOK-WORKBENCH-004` — safe README
+### `STORYBOOK-WORKBENCH-004` — безопасное представление текста
 
-Overview читает настоящий owner file. Markdown subset не выполняет HTML/JS;
-ошибка локальна node. Plain-text fallback явный и безопасный.
+Представление сохраняет принадлежность сведений их владельцу. Markdown из TSDoc
+не исполняет HTML/JS; ошибка отображения локальна выбранному узлу. Явное текстовое
+отображение не подменяет данные. Те же ограничения действуют для ещё существующего
+reader README, пока этот разрыв реализации не устранён.
 
 ### `STORYBOOK-WORKBENCH-005` — один Root на страницу
 
@@ -269,10 +275,10 @@ toolchain, а также TypeScript semantic inputs. Только подтвер
 
 ### `STORYBOOK-SESSION-003` — dependency-aware update
 
-Состав ресурсов страницы обновляется по текущему README, даже если дерево пакетов
-и digest графа не изменились. Добавление или удаление локальной ссылки обновляет
+Состав ресурсов страницы обновляется по актуальному содержимому владельца,
+даже если дерево пакетов и digest графа не изменились. Добавление или удаление локальной ссылки обновляет
 дескриптор сборки, список копируемых ресурсов и наблюдаемых файлов. При переносе
-документа в README удалённый файл не остаётся обязательным входом следующей сборки.
+сведений между исходниками удалённый файл не остаётся обязательным входом следующей сборки.
 Изменение только дескриптора создаёт новую ревизию реестра для синхронизации сессий,
 не подменяя его изменением графа. Неизменившийся состав не создаёт новую ревизию.
 Регрессия проверяется в `catalog/registry-resources.test.ts`.
@@ -629,7 +635,9 @@ Origin and browser WebSocket scoped token проверяются. Stop requires
 
 ### `STORYBOOK-SECURITY-002` — structural resource allow-list
 
-README endpoint читает найденный README и заранее обнаруженные локальные assets.
+Ресурсы документации читаются только по проверенному списку принадлежащих владельцу
+файлов. Существующий README endpoint ограничен найденным файлом и его заранее
+обнаруженными локальными assets; его наличие не задаёт источник будущего MCP-контракта.
 Посторонние соседние файлы, traversal, symlink escapes и произвольное чтение
 owner-root отклоняются.
 
@@ -679,16 +687,18 @@ host-эпохи. Корректно собранный несовместимы�
 
 ### `STORYBOOK-MIGRATION-001` — no parallel old mode
 
-До завершения сохраняются route/resource baselines. После parity удаляются все
-private Storybook packages, wrappers, consumer dependencies/imports и old
-package lifecycle. Production exports не расширяются stories. References/evidence
-сохраняются у owner.
+Используется один структурный путь без параллельного декларативного режима.
+Потребители не содержат частных серверов Storybook, обёрток его запуска или
+зависимостей на него. Публичные экспорты не расширяются ради отдельного каталога
+историй. Проверки поведения, fixtures и свидетельства остаются у владельцев.
 
 ### `STORYBOOK-SCOPE-001` — current exclusions
 
 Blender capture, screenshot/accepted baselines, pixel/perceptual diff,
-Reference/Actual/Diff UI, full TypeScript/TSDoc discovery и production component
-redesign не реализуются. MCP capture остаётся evidence, не accepted reference.
+Reference/Actual/Diff UI и перепроектирование production компонентов не входят
+в этот срез. MCP capture остаётся свидетельством, а не принятым эталоном.
+Полнота извлечения знаний из TypeScript/TSDoc пока не подтверждена;
+это незавершённость реализации, а не отказ от направления «код — знание».
 Space projection ограничена одним bounded live region текущей package
 story; multi-region authoring, arbitrary owner picking и post-processing graph
 не следуют из этого контракта.
@@ -702,9 +712,9 @@ story; multi-region authoring, arbitrary owner picking и post-processing graph
 Persistent fixture packages A/B/C доказывают one-origin session isolation:
 A-only update не rebuild/reload B/C, shared A+B dependency не затрагивает C,
 failed A сохраняет lastWorking и diagnostics, исправление публикует новую
-revision. Consumer boundary scan и owner parity fixtures доказывают отсутствие
-старых dependencies/imports/packages/wrappers, сохранение leaf routes,
-документированные overview remaps и отсутствие production story exports.
+revision. Consumer boundary scan проверяет отсутствие зависимостей, импортов
+и обёрток Storybook в потребителях. Маршрутные проверки подтверждают адреса
+физических пакетов и директорий; отдельные таблицы прежних историй не задают маршрут.
 
 Browser lifecycle tests покрывают повторные и конкурентные agent opens, разные
 routes, смену origin, timeout/abort/crash, закрытую вкладку, несколько вкладок

@@ -5,4 +5,4 @@
 - [Какие части принадлежат сущности](./notes/structure.md)
 - [Как сокращать импорт директории](./notes/imports.md)
 - [Где размещать сущность, её помощники и общие части](./notes/draft-placement.md)
-- [Как связать готовые представления с сущностью](./notes/draft-subject-binding.md)
+- [Как связать готовые представления с сущностью](./notes/presentation-ownership.md)

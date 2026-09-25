@@ -20,9 +20,11 @@ dependencies.
 
 ### Какие данные и ресурсы принадлежат пакету
 
-Package владеет versioned JSON manifest/catalog, semantic ordering,
-README/stories/fixtures/tests/media/references и optional structural runtime.
-Declaration хранит links, а не copied source/README/CSS или executable code.
+Пакет владеет кодом, публичными контрактами и exports, TSDoc, исполняемыми
+spec и их результатами, fixtures, tests и ресурсами. Семантический порядок
+получается из структуры и исполняемых источников владельца. README указывает
+на временные заметки. Проектный JSON manifest/catalog, перечни вкладок,
+widget contributions и overrides автор не создаёт.
 
 ### Отдельный пакет и несколько подключённых проектов
 

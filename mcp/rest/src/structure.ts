@@ -1,6 +1,6 @@
 import {basename, resolve} from "node:path"
 
-/** Сохраняет действующее чтение назначения из заметки либо README владельца. */
+/** Читает описание из Markdown. Текущий пакетный вход MCP этот helper не вызывает. */
 export async function readDescription(directory: string): Promise<string> {
   const readme = Bun.file(resolve(directory, "README.md"))
   let source = await readme.exists() ? await readme.text() : ""

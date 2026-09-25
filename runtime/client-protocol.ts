@@ -104,7 +104,8 @@ export type ExternalStorybookClientDiagnostic = Readonly<{
 
 @property packageId - Идентификатор пакета.
 
-@property declarationDigest - Контрольный отпечаток декларации пакета.
+@property declarationDigest - Контрольный отпечаток метаданных и структурного графа пакета.
+Историческое имя поля не означает наличие проектной декларации Storybook.
 
 @property moduleGraphRevision - Ревизия графа модулей либо `null`.
 

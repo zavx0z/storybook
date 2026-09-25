@@ -51,11 +51,11 @@ export type StorybookStatusInput = Readonly<{
 }>
 
 /**
-Подключение корня пакета, проекта или рабочего пространства к каталогу.
+Подключение физического пакета и его workspaces к каталогу.
 
 @property schemaVersion - Версия запроса, равная {@link STORYBOOK_MCP_SCHEMA_VERSION}.
 
-@property root - Путь к подключаемому корню деклараций.
+@property root - Путь к подключаемому пакету с package.json.
 */
 export type StorybookAttachInput = Readonly<{
   schemaVersion: typeof STORYBOOK_MCP_SCHEMA_VERSION

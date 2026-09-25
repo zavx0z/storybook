@@ -2,23 +2,24 @@
 
 Разные способы обнаружения должны отдавать сведения в один общий формат.
 Тогда граф, сборка, интерфейс и MCP используют одинаковые данные.
-Граница формата находится в [catalog.t.ts](../../catalog/catalog.t.ts),
-JSON-источник — в [declarations.ts](../../discovery/declarations.ts).
+Граница формата находится в [catalog.t.ts](../../catalog/catalog.t.ts).
+Физические пакеты обнаруживаются в [packages.ts](../../discovery/packages.ts).
 
 ```mermaid
 flowchart LR
-  json["JSON-объявления"] --> catalog["Нормализованный каталог"]
-  other["Другие источники"] --> catalog
+  packages["package.json и структура кода"] --> catalog["Нормализованный каталог"]
+  specs["Публичные контракты, TSDoc и результаты spec"] --> catalog
   catalog --> graph["Общий граф"]
   graph --> build["Сборка"]
   graph --> view["Интерфейс и MCP"]
 ```
 
 `catalog/catalog.t.ts` владеет общим контрактом обнаруженного содержания.
-`discovery/declarations.ts` реализует действующий JSON resolver. Реестр принимает
-resolver при создании; граф и подготовка сборки не импортируют JSON reader.
-Источник проверяет свои файлы, а граф сохраняет точные identities, semantic
-order, маршруты, source references и ресурсные связи.
+`discovery/packages.ts` читает физические `package.json`, workspaces и публичные
+директории. Каталог нормализует результаты обнаружения для графа, сборки,
+интерфейса и MCP. Источники сохраняют принадлежность, порядок, маршруты и
+ссылки на код и ресурсы. Проектный JSON resolver не является источником
+каталога и не входит в авторский контракт.
 
 [Обнаружение и независимость пакетов](../package/notes/draft-discovery.md).
 

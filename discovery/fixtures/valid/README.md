@@ -1,3 +1,3 @@
 # Fixture Workspace
 
-Declaration resolver fixture.
+Structural discovery fixture.

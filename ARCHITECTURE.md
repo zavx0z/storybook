@@ -1,8 +1,10 @@
 # Внешняя архитектура Storybook
 
-Архитектура реализует [единые нормативные правила структуры](archetypes/notes/draft-structure.md).
-Идентичность пакетов и источники документации определяются там;
-ниже описаны потоки данных, владельцы реализации и жизненный цикл инструмента.
+Принятое направление задано [манифестом «Код — знание»](MANIFEST.md)
+и [правилами структуры](archetypes/notes/draft-structure.md).
+Ниже описаны владельцы и фактические потоки реализации. Чтение README ещё
+сохранилось в коде и отмечено отдельно как разрыв с этим направлением;
+оно не определяет новый контракт документации MCP.
 
 `/Users/zavx0z/repozitarium/storybook` — самостоятельный development tool. Он
 не является dependency consumer project или production package и не переносит
@@ -32,7 +34,7 @@ one external Storybook serve process
 Границы пакетов и их авторских данных заданы в [нормативном контракте](archetypes/notes/draft-structure.md).
 
 Корневой `@zavx0z/storybook` владеет discovery, validation, canonical
-graph, search/routing derived views, шестью областями Workbench, package
+graph, search/routing derived views, областями Workbench, package
 build/revision lifecycle и diagnostics. Private nested
 `@zavx0z/storybook-browser-lifecycle` единолично владеет browser target
 reservations, attestation, navigation, readiness и exact-target operations.
@@ -61,7 +63,7 @@ resolver при создании; граф использует нормализ
 
 | Владелец | Ответственность |
 | --- | --- |
-| `discovery/` | Пакеты, workspaces, директории, README, TSDoc и структурные spec |
+| `discovery/` | Пакеты, workspaces, директории, TSDoc и структурные spec; пока также чтение README |
 | `catalog/` | Нормализованные типы, граф, реестр, маршруты, поиск и ресурсы документации |
 | `build/` | Входы сборки, общая тема и браузерные ресурсы |
 | `sessions/` | Ревизии пакетов, активация, подписки и наблюдение за зависимостями |
@@ -74,7 +76,7 @@ resolver при создании; граф использует нормализ
 
 Каждый узел графа имеет точную ссылку на физический источник. Пакеты получают
 идентичность из `package.json`; workspaces раскрывают вложенные пакеты, а
-публичные директории дают промежуточные узлы. README, модульный TSDoc,
+публичные директории дают промежуточные узлы. Модульный TSDoc,
 контракты, зависимости и сценарии прикрепляются к своему владельцу. Граф
 содержит только `package`, `directory` и локально `unavailable` при ошибке
 обнаружения. Навигация, поиск, маршруты и представления выводятся из него.
@@ -107,11 +109,10 @@ migration journal; journal переживает abort/crash и удаляетс�
 живой controller атомарно commit-ит его в `server.json`; superseded child не
 может публиковать canonical state.
 
-Global landing и все package tabs обслуживаются одним origin. Пользователь
-выбирает пакет в текущей вкладке по `/pkg-<package-slug>/<route>`;
-`/browse/<package-slug>/` перенаправляет туда. Landing не импортирует чужой runtime.
-Межпакетный переход загружает другую страницу в том же browser tab, а routes
-внутри пакета используют существующий Root.
+Корневой экран и страницы пакетов обслуживаются одним origin. Пользователь
+выбирает пакет или директорию по физическому адресу, который разрешает
+[Route](route/index.ts). Переход внутри страницы сохраняет Root и меняет
+содержимое через общий контроллер; корневой экран не исполняет код потребителя.
 
 `@zavx0z/storybook-browser-lifecycle` владеет агентским `openPackage`. Package lock
 и reservation сериализуют создание рабочей вкладки. Повторный open предпочитает
@@ -125,21 +126,12 @@ Global landing и все package tabs обслуживаются одним orig
 перевода фокуса и UI-команды открытия новой вкладки нет.
 
 
-Публичный адрес пакета использует читаемый slug: `@zavx0z/dom` становится
-`/pkg-zavx0z-dom/`, `@internal/visual` — `/pkg-internal-visual/`.
-У имени удаляется начальный `@`, разделитель scope `/` заменяется на `-`;
-имена без scope сохраняются. В URL к slug добавляется `pkg-`, а к имени
-каждого сегмента структурного пути директории — `dir-`. Настоящий packageId в package.json, imports,
-сборках, ревизиях и MCP остаётся неизменным. Slug разрешается через каталог;
-разные packageId с одинаковым slug отклоняются при построении графа.
-
-Старые encoded URL распознаются по exact packageId. Применённая ревизия со
-старым форматом продолжает обслуживаться по своему прежнему адресу, пока агент
-не проверит и не применит новую сборку. После применения старые ссылки переходят
-на новый адрес с сохранением route и preview query. Приватные адреса immutable
-артефактов не переименовываются. Bootstrap получает exact packageId из native
-HTML metadata; browser lifecycle подтверждает пакет через bridge/metadata,
-поскольку один slug не позволяет восстановить исходное npm-имя.
+Публичная адресация UI следует зарегистрированному корню и физической структуре;
+конкретный пакет подтверждается metadata и bridge. Npm identity, адрес навигации
+и приватный адрес артефакта выполняют разные задачи и не подменяют друг друга.
+Пакеты определяются общим [читателем workspaces](route/workspaces/index.ts),
+который используют discovery и Route. Детали URL и встроенных представлений
+принадлежат [контракту вкладок](requirements.md#tabs-routes).
 
 Одна package tab имеет один browser realm и одну активную ревизию
 PackageSession. Обзор и встроенные представления читают структурный snapshot
@@ -202,10 +194,14 @@ Inspector и StatusBar. Breadcrumbs проходят по физическим �
 Workbench поступает из exact `.css` export UI, без каталоговых CSS-деклараций
 пакета. В каждой странице Browser владеет одним Root, Document, Canvas и Space.
 
-README читается по разрешённому ресурсу владельца. Общий renderer поддерживает
-ограниченный Markdown; embedded HTML/JavaScript не выполняются. Ошибка README
-локальна выбранному узлу. Сценарии выполняет структурный механизм сценариев
-в существующем Browser Experience.
+Сценарии выполняет структурный механизм в существующем Browser Experience.
+Форматированный текст TSDoc не исполняет встроенный HTML/JavaScript.
+
+Оставшийся разрыв реализации: `readPackage` и discovery пока читают README,
+а runtime показывает его через разрешённый ресурс владельца. Безопасность
+этого reader сохраняется, но он не является целевым источником документации.
+README должен оставаться указателем, а сведения переходить в код по
+[жизненному циклу заметок](archetypes/notes/note-lifecycle.md).
 
 ## Controller adapters
 
@@ -289,6 +285,14 @@ check остаётся самостоятельным источником сп�
 
 ## MCP semantic viewport
 
+Публичный вход `storybook` принимает только необязательный `path`.
+[Address](mcp/address/index.ts) ограничивает его зарегистрированным пакетом:
+без query, фрагментов и внутренних директорий. [Root](mcp/root/index.ts) и
+[Children](mcp/children/index.ts) возвращают описание и непосредственные
+пакетные переходы, с необязательным label. Внутреннее содержание пакета пока
+не раскрывается этим входом. Формат следующего шага должен выводиться из кода;
+отдельный Markdown-документ или ручная схема сведений для MCP не добавляются.
+
 Storybook MCP проецирует lifecycle commands, canonical search, opaque package
 views, event-driven wait, inspection, semantic interaction и capture. `viewId`
 является
@@ -346,10 +350,10 @@ and capture stores retain active/lastWorking/leased data plus bounded recent TTL
 
 ## Migration boundary
 
-Private packages `@engine/storybook`, `@ui/storybook`, `@nodes/storybook`,
-`@quantum/storybook`, package-local server/build/bootstrap scripts и all
-consumer imports/dependencies удаляются после route/resource parity. Renderer
-получает только реальные DOM-owned stories; retired Layout не оживляется.
+Проектные декларации и их запасной режим удалены. Потребители не владеют
+частным Storybook, его сервером, сборкой или запуском и не импортируют инструмент.
+Реальные проверки компонентов сохраняются у их владельцев в обычных тестах
+и структурных сценариях. Отдельные каталоги историй не определяют публичные входы.
 
 Существующие reference/evidence assets остаются у своих владельцев.
 Storybook MCP capture создаёт bounded evidence, но не Blender reference,
@@ -363,7 +367,7 @@ Immutable `storybook-package-graph/5` содержит структурные у
 
 
 Состав пакетов, физические директории и размещение компонентов
-определены в [едином нормативном разделе README Archetypes](archetypes/notes/draft-structure.md).
+определены у [владельцев структурных правил](archetypes/notes/draft-structure.md).
 Эта страница описывает применение и устройство инструмента, не отдельные правила структуры.
 
 Обе страницы Workbench используют общий граф навигации. Private browser lifecycle

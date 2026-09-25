@@ -13,7 +13,7 @@ webxr-space/
    ├─ package.json               @webxr/nodes
    ├─ node/
    │  ├─ package.json            @nodes/node
-   │  ├─ README.md               обзор пакета
+   │  ├─ README.md               указатель на заметки
    │  ├─ shared/                 код нескольких компонентов пакета
    │  └─ diagram/index.tsx       компонент/композиция и TSDoc
    ├─ tree/package.json          @nodes/tree
@@ -21,7 +21,7 @@ webxr-space/
    ├─ sockets/package.json       @nodes/sockets
    └─ parameters/
       ├─ package.json            @nodes/parameters
-      ├─ README.md               обзор пакета
+      ├─ README.md               указатель на заметки
       ├─ index.ts                модульный TSDoc
       ├─ shared/                 общие помощники пакета
       └─ numeric/
@@ -35,7 +35,9 @@ webxr-space/
 ```
 
 В примере главная панель показывает `WebXR → Нодовая система → Параметры`,
-а предметная панель `@nodes/parameters` — `numeric → number`. До привязки subject
-структурный обзор number имеет адрес `/pkg-nodes-parameters/dir-numeric/dir-number`.
-Если у него обнаружен dependency spec, представление Dependencies получает
-конечный `/dependencies` по [единому контракту URL](../../../requirements.md#tabs-routes).
+а предметная панель `@nodes/parameters` — `numeric → number`. Публичный
+pathname обзора number следует физическому пути корня пакета и его видимым
+директориям `numeric/number`. Если у модуля обнаружен dependency spec,
+встроенное представление выбирается `?view=dependencies`. Точную адресацию
+определяют [Route](../../../route/README.md) и
+[контракт вкладок](../../../requirements.md#tabs-routes).

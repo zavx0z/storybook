@@ -2,7 +2,7 @@
 
 ## Заметки
 
-- [Документация в JSON](notes/presentation.md)
+- [Подготовленное представление сценариев](notes/presentation.md)
 
 ## Состав
 

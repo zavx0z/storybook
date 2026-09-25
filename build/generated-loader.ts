@@ -37,14 +37,14 @@ export type StorybookGeneratedRevisionPayloadInput = Readonly<{
 }>
 
 /**
-Generates one build-time module containing only literal canonical filesystem
-imports that were validated before source emission. Bun resolves these imports
-and rewrites them to immutable revision-scoped browser chunks.
+Генерирует загрузчики подготовленных структурных сценариев.
+Компонент получает буквальный импорт проверенного модуля; результат сценария
+функции передаётся как данные без импорта серверного кода в браузер.
 
-The private route map prevents a declaration value from becoming an arbitrary
-browser import. A successful later candidate is published below a different
-immutable `revisionUrl`, so its rewritten chunks can be retried without reusing
-the rejected browser module URL from an older revision.
+Карта по идентификаторам владельцев не допускает произвольного браузерного импорта.
+Bun связывает модули с неизменяемыми ресурсами конкретной ревизии. Следующая
+ревизия получает собственный адрес, поэтому не переиспользует модуль отклонённого
+кандидата.
 */
 export function generateStorybookLoaderSource(
   input: StorybookGeneratedLoaderInput,
