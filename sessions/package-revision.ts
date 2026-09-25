@@ -3,7 +3,7 @@ import {externalStorybookRoutes, type ExternalStorybookGraph} from "../catalog/g
 import type {StorybookAuthorStyleSheet} from "../catalog/catalog.t.ts"
 import {sha256Hex} from "../src/shared/sha256.ts"
 
-export const STORYBOOK_PACKAGE_GRAPH_PROTOCOL = "storybook-package-graph/5" as const
+export const STORYBOOK_PACKAGE_GRAPH_PROTOCOL = "storybook-package-graph/6" as const
 
 export type StorybookPackageRevisionAncestor = Readonly<{
   id: string
@@ -24,7 +24,6 @@ export type StorybookPackageRevisionGraphNode = Readonly<{
   urlPath: string
   routePath: string
   searchTerms: readonly string[]
-  hasReadme: boolean
   hasModuleDocumentation?: boolean
   dependencyCases?: readonly import("../catalog/catalog.t.ts").StorybookDependencyCase[]
   dependencyRoutePath?: string
@@ -43,7 +42,7 @@ export type StorybookPackageRevisionRoute = Readonly<{
 
 export type StorybookPackageRevisionResourceLink = Readonly<{
   nodeId: string
-  kind: "readme" | "module-documentation"
+  kind: "module-documentation"
   index: number
   url: string
 }>
@@ -113,16 +112,13 @@ export function createStorybookPackageRevisionGraphSnapshot(
       urlPath: node.urlPath,
       routePath: requiredRoute(node.routePath, node.id),
       searchTerms: Object.freeze([...node.searchTerms]),
-      hasReadme: node.readmePath !== null,
       ...(node.moduleDocumentation ? {hasModuleDocumentation: true} : {}),
       ...(node.dependencySpec ? {dependencyCases: node.dependencySpec.cases} : {}),
       ...(node.dependencyRoutePath === undefined ? {} : {dependencyRoutePath: node.dependencyRoutePath}),
       ...(node.contractDocumentation ? {contractDocuments: node.contractDocumentation.documents} : {}),
       ...(node.contractRoutePath === undefined ? {} : {contractRoutePath: node.contractRoutePath}),
       ...(node.scenariosRoutePath === undefined ? {} : {scenariosRoutePath: node.scenariosRoutePath}),
-      resourceUrl: node.moduleDocumentation ? revisionModuleDocumentationPath(node.id) : node.readmePath === null
-        ? revisionNodeResourcePrefix(node.id)
-        : revisionReadmeResourcePath(node.id),
+      resourceUrl: node.moduleDocumentation ? revisionModuleDocumentationPath(node.id) : revisionNodeResourcePrefix(node.id),
     })
   }))
   const routes = Object.freeze(externalStorybookRoutes(graph)
@@ -135,7 +131,6 @@ export function createStorybookPackageRevisionGraphSnapshot(
     })))
   const resources = Object.freeze(sourceNodes.flatMap((node): StorybookPackageRevisionResourceLink[] => [
     ...(node.moduleDocumentation ? [Object.freeze({nodeId: node.id, kind: "module-documentation" as const, index: 0, url: revisionModuleDocumentationPath(node.id)})] : []),
-    ...(node.readmePath === null ? [] : [Object.freeze({nodeId: node.id, kind: "readme" as const, index: 0, url: revisionReadmeResourcePath(node.id)})]),
   ]))
   const workbenchAuthorStyleSheets = Object.freeze(workbenchStyles.map((styleSheet, index) => Object.freeze({
     specifier: styleSheet.specifier,
@@ -208,7 +203,7 @@ export function validateStorybookPackageRevisionGraphSnapshot(
     throw new Error(`Storybook package root is invalid: ${packageId}`)
   }
   for (const node of value.nodes) {
-    assertKeys(node, ["id", "kind", "ownerId", "packageId", "label", "parentId", "childIds", "urlPath", "routePath", "searchTerms", "hasReadme", "hasModuleDocumentation", "dependencyCases", "dependencyRoutePath", "contractRoutePath", "scenariosRoutePath", "contractDocuments", "resourceUrl"], `package node ${node.id}`)
+    assertKeys(node, ["id", "kind", "ownerId", "packageId", "label", "parentId", "childIds", "urlPath", "routePath", "searchTerms", "hasModuleDocumentation", "dependencyCases", "dependencyRoutePath", "contractRoutePath", "scenariosRoutePath", "contractDocuments", "resourceUrl"], `package node ${node.id}`)
     if (node.kind !== "package" && node.kind !== "directory" || node.packageId !== packageId) {
       throw new Error(`Storybook package node is invalid: ${packageId}:${node.id}`)
     }
@@ -232,11 +227,8 @@ export function validateStorybookPackageRevisionGraphSnapshot(
   for (const resource of value.resources) {
     assertKeys(resource, ["nodeId", "kind", "index", "url"], "package resource")
     const node = nodes.get(resource.nodeId)
-    const valid = resource.kind === "readme"
-      ? node?.hasReadme === true && resource.url === revisionReadmeResourcePath(resource.nodeId)
-      : resource.kind === "module-documentation"
-        ? node?.hasModuleDocumentation === true && resource.url === revisionModuleDocumentationPath(resource.nodeId)
-        : false
+    const valid = resource.kind === "module-documentation" && node?.hasModuleDocumentation === true
+      && resource.url === revisionModuleDocumentationPath(resource.nodeId)
     if (node === undefined || resource.index !== 0 || !valid) {
       throw new Error(`Storybook package resource is invalid: ${packageId}:${resource.nodeId}`)
     }
@@ -288,10 +280,6 @@ export function revisionNodeResourcePrefix(nodeId: string): string {
 
 export function revisionModuleDocumentationPath(nodeId: string): string {
   return `${revisionNodeResourcePrefix(nodeId)}module.md`
-}
-
-export function revisionReadmeResourcePath(nodeId: string): string {
-  return `${revisionNodeResourcePrefix(nodeId)}readme.md`
 }
 
 export function revisionWorkbenchAuthorStyleSheetPath(index: number): string {

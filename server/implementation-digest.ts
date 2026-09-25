@@ -16,6 +16,7 @@ const IMPLEMENTATION_FILES = Object.freeze([
   "bunfig.toml",
   "package.json",
   "browser-lifecycle/package.json",
+  "archetypes/package/package.json",
   "scripts/storybook-daemon.ts",
   "runtime/client-protocol.ts",
   "runtime/font-faces.ts",
@@ -25,6 +26,7 @@ const IMPLEMENTATION_FILES = Object.freeze([
 const IMPLEMENTATION_TREES = Object.freeze([
   "catalog",
   "discovery",
+  "archetypes/package/documentation",
   "route",
   "build",
   "sessions",

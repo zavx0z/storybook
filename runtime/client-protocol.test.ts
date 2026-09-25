@@ -31,7 +31,7 @@ describe("structural browser client protocol", () => {
     expect(directory.resourceUrl).toBe(externalStorybookNodeResourceUrl(graph, directory.id))
     expect(client.packages.find(item => item.packageId === "@fixture/components")?.diagnostics[0]?.message).toBe("Unexpected token in [owner-path]")
     const serialized = JSON.stringify(client)
-    for (const forbidden of [fixtureRoot, hiddenDiagnostic, '"packageJsonPath"', '"readmePath"', '"dependencyRealpaths"', '"entryRelativePath"']) {
+    for (const forbidden of [fixtureRoot, hiddenDiagnostic, '"packageJsonPath"', '"readmePath"', '"hasReadme"', '"dependencyRealpaths"', '"entryRelativePath"']) {
       expect(serialized).not.toContain(forbidden)
     }
     expect(JSON.parse(serialized)).toEqual(client)

@@ -17,7 +17,7 @@ import {
   createExternalStorybookShell,
   externalStorybookClientNode,
   fetchExternalStorybookClientSnapshot,
-  readExternalStorybookNodeReadme,
+  readExternalStorybookNodeDocumentation,
   type CreateExternalStorybookShellOptions,
   type ExternalStorybookShell,
 } from "./shell.ts"
@@ -155,16 +155,16 @@ export async function startExternalStorybookLanding(
       history.pushState(null, "", externalStorybookBrowsePath(clientNode))
     }
     try {
-      const readme = await readExternalStorybookNodeReadme(clientNode, fetcher)
+      const documentation = await readExternalStorybookNodeDocumentation(clientNode, fetcher)
       if (disposed || revision !== selectionRevision) return
-      if (readme === null) {
+      if (documentation === null) {
         shell.showMessage(
           `${clientNode.label} · Обзор`,
           clientNode.label,
           overviewDescription(clientNode.kind),
         )
       } else {
-        shell.showMarkdown(`${clientNode.label} · ${clientNode.hasModuleDocumentation ? "TSDoc" : "README"}`, readme, clientNode.resourceUrl)
+        shell.showMarkdown(`${clientNode.label} · TSDoc`, documentation, clientNode.resourceUrl)
       }
       shell.clearDiagnostics()
     } catch (error) {
@@ -275,12 +275,7 @@ export async function startExternalStorybookLanding(
     }
     const update = parseLandingEvent(event.data)
     if (update === null) return
-    if (update.type === "registry.readme-updated") {
-      if (selectedNodeId === null || !update.nodeIds.includes(selectedNodeId)) return
-      const node = externalStorybookClientNode(snapshot, selectedNodeId)
-      const refreshed = select(node.id, false)
-      void refreshed.catch(error => isolateLandingError(browserDocument, shell, error))
-    } else if (update.type === "registry.updated") {
+    if (update.type === "registry.updated") {
       void refreshRegistry().catch(error => updateManagement({error: errorText(error)}))
     } else if (update.type === "shared.updated") {
       shell.updateStatus("Storybook · Обновление оболочки готово; требуется перезапуск страницы")
@@ -380,8 +375,6 @@ function parseLandingEvent(value: unknown): any | null {
   }
   if (parsed === null || typeof parsed !== "object" || !("type" in parsed)) return null
   const record = parsed as Record<string, unknown>
-  if (record.type === "registry.readme-updated" && Array.isArray(record.nodeIds) &&
-    record.nodeIds.every(id => typeof id === "string")) return record
   if (record.type === "shared.updated" && typeof record.entry === "string") return record
   if (record.type === "shared.failed" && typeof record.message === "string") return record
   if (record.type === "registry.updated" && typeof record.graphDigest === "string") return record
@@ -409,7 +402,7 @@ function navigationItems(items: readonly ExternalStorybookBrowserNavigationItem[
 
 function overviewDescription(kind: string): string {
   if (kind === "directory") return "В index.ts этой директории нет описания модуля с @packageDocumentation."
-  return "Owner README для этого узла не объявлен."
+  return "В исходнике этого пакета нет TSDoc с @packageDocumentation."
 }
 
 

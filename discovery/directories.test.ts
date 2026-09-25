@@ -23,7 +23,6 @@ test("finds ordinary and empty directories, skips src and keeps packages as sepa
   const result = await discoverStorybookDirectories(root, new Set([join(root, "packages/tool")]))
   expect(result.directories.map(directory => directory.name)).toEqual(["build", "docs", "empty", "packages"])
   const docs = result.directories.find(directory => directory.name === "docs")!
-  expect(docs.readmePath).toBeNull()
   expect(docs.moduleDocumentation?.markdown).toBe("# Module documentation")
   expect(result.watchPaths).toContain(join(root, "docs/index.ts"))
   expect(result.watchPaths).not.toContain(join(root, "docs/README.md"))
@@ -73,6 +72,29 @@ test.each(["index.ts", "index.tsx"])("README не заменяет отсутс�
   await symlink(join(root, "module/README.md"), join(root, `module/${entry}`))
   expect((await read()).moduleDocumentation).toBeUndefined()
   expect((await read()).relativePath).toBe("module")
+})
+
+test("корень читает приоритетный index.tsx и наблюдает оба исходника без README", async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "storybook-root-documentation-")))
+  roots.push(root)
+  await Bun.spawn(["git", "init", "--quiet", root]).exited
+  const ts = join(root, "index.ts")
+  const tsx = join(root, "index.tsx")
+  await Bun.write(join(root, "README.md"), "# Старый обзор")
+  await Bun.write(ts, "/**\nОписание TS\n@packageDocumentation\n*/")
+  await Bun.write(tsx, '/**\nОписание TSX\n@packageDocumentation\n*/\nthrow new Error("Не исполнять")')
+  const read = () => discoverStorybookDirectories(root, new Set())
+  const preferred = await read()
+  expect(preferred.rootMetadata.moduleDocumentation?.markdown).toBe("Описание TSX")
+  expect(preferred.rootMetadata.moduleDocumentation?.sourcePath).toBe(tsx)
+  expect(preferred.watchPaths).toContain(ts)
+  expect(preferred.watchPaths).toContain(tsx)
+  expect(preferred.watchPaths).not.toContain(join(root, "README.md"))
+  await Bun.write(join(root, ".gitignore"), "index.tsx\n")
+  expect((await read()).rootMetadata.moduleDocumentation?.markdown).toBe("Описание TS")
+  await rm(ts)
+  await symlink(join(root, "README.md"), ts)
+  expect((await read()).rootMetadata.moduleDocumentation).toBeUndefined()
 })
 
 test("index.tsx завершает обход без src и владеет обзором при наличии index.ts", async () => {

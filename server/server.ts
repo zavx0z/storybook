@@ -301,17 +301,7 @@ export async function startExternalStorybookServer(
       registry.markDirty(path)
       void structuralRefresh.request()
     })
-    const readmes = new Map<string, string[]>()
-    for (const node of snapshot.graph.nodes) {
-      if (node.readmePath === null || node.packageId !== null) continue
-      const path = realpathSync(node.readmePath)
-      const ids = readmes.get(path) ?? []
-      ids.push(node.id)
-      readmes.set(path, ids)
-    }
-    watch.replace("__landing_readmes__", [...readmes.keys()], path => {
-      publish(Object.freeze({type: "registry.readme-updated", nodeIds: Object.freeze(readmes.get(path) ?? [])}))
-    })
+
   }
 
   const commitRegistry = (snapshot: ExternalStorybookRegistrySnapshot): void => {
@@ -1239,22 +1229,11 @@ export async function startExternalStorybookServer(
             : requiredText("open route", body.route)
           automaticCandidates.delete(packageId)
           automaticActivation?.cancel(packageId)
-          const packageLabels = registry.snapshot().graph.nodes.flatMap(node =>
-            node.kind === "package" && node.packageId !== null
-              ? [{packageId: node.packageId, label: externalStorybookPageTitle(node.packageId, node.label)}]
-              : [])
-          const existingViewId = (await browserLifecycle.listViews(
-            server.url.origin,
-            request.signal,
-            packageLabels,
-            packageId,
-          )).find(view => view.packageId === packageId)?.viewId
           return responseJson(await openPackageView({
             packageId,
             route,
             ...(body.recover === undefined ? {} : {recover: body.recover as boolean}),
             ...(body.timeoutMs === undefined ? {} : {timeoutMs: Number(body.timeoutMs)}),
-            ...(existingViewId === undefined ? {} : {existingViewId}),
           }, request.signal))
         }
         if (url.pathname === "/api/control/stop" && request.method === "POST") {
@@ -1493,9 +1472,6 @@ type RegistryEvent = Readonly<{
   type: "registry.failed"
   message: string
 }> | Readonly<{
-  type: "registry.readme-updated"
-  nodeIds: readonly string[]
-}> | Readonly<{
   type: "shared.updated"
   entry: string
 }> | Readonly<{
@@ -1702,42 +1678,40 @@ function resourceResponse(snapshot: ExternalStorybookRegistrySnapshot, url: URL)
   try {
     allowList = createExternalStorybookResourceAllowList({
       ownerRoot,
-      readmePath: node.moduleDocumentation?.sourcePath ?? node.readmePath,
-      ...(node.moduleDocumentation ? {markdown: node.moduleDocumentation.markdown} : {}),
+      sourcePath: node.moduleDocumentation?.sourcePath ?? null,
+      markdown: node.moduleDocumentation?.markdown ?? "",
     })
   } catch {
     return responseJson({error: "Unknown Storybook resource"}, 404)
   }
-  if ([...url.searchParams.keys()].length > 0) throw new Error("Unknown Storybook README resource query")
-  const overviewPath = node.moduleDocumentation?.sourcePath ?? node.readmePath
+  if ([...url.searchParams.keys()].length > 0) throw new Error("Unknown Storybook documentation resource query")
+  const overviewPath = node.moduleDocumentation?.sourcePath ?? null
   if (overviewPath === null) return responseJson({error: "Node has no documentation"}, 404)
   if (relativeSegments.length === 0 || relativeSegments.every((segment) => segment.length === 0)) {
-    if (node.moduleDocumentation) return new Response(node.moduleDocumentation.markdown, {headers: {"content-type": "text/markdown; charset=utf-8"}})
-    const path = allowList.resolveReadmeFile(overviewPath)
-    return path === null
-      ? responseJson({error: "Unknown README resource"}, 404)
-      : fileResponse(path, "text/markdown; charset=utf-8")
+    return allowList.resolveSourceFile(overviewPath) === null
+      ? responseJson({error: "Unknown documentation source"}, 404)
+      : new Response(node.moduleDocumentation!.markdown, {headers: {"content-type": "text/markdown; charset=utf-8"}})
   }
   const decodedSegments = relativeSegments.filter(Boolean).map((segment) => {
     const decoded = decodeURIComponent(segment)
     if (decoded.length === 0 || decoded === "." || decoded === ".." || decoded.includes("\\") ||
       encodeURIComponent(decoded) !== segment) {
-      throw new Error(`Unsafe Storybook README resource path: ${pathname}`)
+      throw new Error(`Unsafe Storybook documentation resource path: ${pathname}`)
     }
     return decoded
   })
-  const path = allowList.resolveReadmeFile(
+  const path = allowList.resolveAsset(
     resolve(dirname(overviewPath), ...decodedSegments),
   )
   return path === null
-    ? responseJson({error: "Unknown README resource"}, 404)
+    ? responseJson({error: "Unknown documentation resource"}, 404)
     : fileResponse(path, contentType(path))
 }
 
 function resourceOwnerRoot(snapshot: ExternalStorybookRegistrySnapshot, nodeId: string): string {
   let node = externalStorybookNode(snapshot.graph, nodeId)
   while (node.kind !== "package") {
-    if (node.parentId === null) throw new Error(`Storybook resource node has no declaration owner: ${node.id}`)
+    if (node.parentId === null) throw new Error(`Storybook resource node has no package owner: ${node.id}`)
     node = externalStorybookNode(snapshot.graph, node.parentId)
   }
   const owner = snapshot.catalog.scopes.find(scope => scope.canonicalId === node.id)
@@ -2229,7 +2203,7 @@ function statusForError(error: unknown): number {
     return error.status
   }
   const message = errorText(error)
-  if (/Unknown|not found|does not exist|has no README/iu.test(message)) return 404
+  if (/Unknown|not found|does not exist|has no documentation/iu.test(message)) return 404
   if (/duplicate|ambiguous|already/iu.test(message)) return 409
   return 400
 }

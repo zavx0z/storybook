@@ -2,9 +2,8 @@
 
 Принятое направление задано [манифестом «Код — знание»](MANIFEST.md)
 и [правилами структуры](archetypes/notes/draft-structure.md).
-Ниже описаны владельцы и фактические потоки реализации. Чтение README ещё
-сохранилось в коде и отмечено отдельно как разрыв с этим направлением;
-оно не определяет новый контракт документации MCP.
+Ниже описаны владельцы и фактические потоки реализации. Обзоры извлекаются
+из исходников единым читателем TSDoc; README служит указателем для человека.
 
 `/Users/zavx0z/repozitarium/storybook` — самостоятельный development tool. Он
 не является dependency consumer project или production package и не переносит
@@ -63,7 +62,7 @@ resolver при создании; граф использует нормализ
 
 | Владелец | Ответственность |
 | --- | --- |
-| `discovery/` | Пакеты, workspaces, директории, TSDoc и структурные spec; пока также чтение README |
+| `discovery/` | Пакеты, workspaces, директории, TSDoc и структурные spec |
 | `catalog/` | Нормализованные типы, граф, реестр, маршруты, поиск и ресурсы документации |
 | `build/` | Входы сборки, общая тема и браузерные ресурсы |
 | `sessions/` | Ревизии пакетов, активация, подписки и наблюдение за зависимостями |
@@ -197,11 +196,12 @@ Workbench поступает из exact `.css` export UI, без каталог�
 Сценарии выполняет структурный механизм в существующем Browser Experience.
 Форматированный текст TSDoc не исполняет встроенный HTML/JavaScript.
 
-Оставшийся разрыв реализации: `readPackage` и discovery пока читают README,
-а runtime показывает его через разрешённый ресурс владельца. Безопасность
-этого reader сохраняется, но он не является целевым источником документации.
-README должен оставаться указателем, а сведения переходить в код по
-[жизненному циклу заметок](archetypes/notes/note-lifecycle.md).
+`readPackage` и discovery используют единый
+[читатель модульного TSDoc](archetypes/package/documentation/index.ts).
+Для корня и директории выбирается обычный `index.tsx`, затем `index.ts`;
+у выбранного исходника без `@packageDocumentation` описание отсутствует.
+README не подставляется. Текст публикуется только вместе с проверенным digest
+исходника; локальные ресурсы разрешаются относительно этого исходника.
 
 ## Controller adapters
 
@@ -260,7 +260,7 @@ Browser не получает права activation. Failed build/inspection с�
 атомарно записывается private applied receipt; он удерживает immutable артефакт
 и восстанавливает lastWorking после restart без чтения нового source bundle.
 
-Каждая revision содержит exact immutable package graph projection, routes, structural digest, README/TSDoc resources и metadata. Package tab никогда не
+Каждая revision содержит exact immutable package graph projection, routes, structural digest, TSDoc resources и metadata. Package tab никогда не
 соединяет старый bundle с новым global graph. Build queue последовательна только
 внутри одной PackageSession; общий semaphore лишь ограничивает число compiler
 children. Compile/protocol/activation имеют timeout и exact cancellation.
@@ -335,8 +335,9 @@ requires bearer token and canonical Origin/Host checks. Browser получает
 scoped short-lived read-only WebSocket token; master token не попадает в page
 source, MCP result или diagnostics.
 
-README/resources обслуживаются только по структурному allow-list:
-найденный README и заранее обнаруженные локальные assets этого README.
+Ресурсы обзора обслуживаются по структурному allow-list: точный исходник
+TSDoc и явно связанные с извлечённым описанием локальные assets. Служебный
+endpoint возвращает извлечённый TSDoc, а не содержимое соседнего Markdown-файла.
 Revision assets, captures and state reject traversal/symlink escapes. Revision
 and capture stores retain active/lastWorking/leased data plus bounded recent TTL,
 а остальное удаляют.
@@ -362,7 +363,7 @@ accepted baseline, visual diff или owner acceptance state.
 ## Repository navigation and isolated package content
 
 Глобальный граф несёт иерархию из [контракта структуры](archetypes/notes/draft-structure.md).
-Immutable `storybook-package-graph/5` содержит структурные узлы и документацию своего пакета;
+Immutable `storybook-package-graph/6` содержит структурные узлы и документацию своего пакета;
 данные предков передаются как metadata, а не как исполняемые зависимости.
 
 

@@ -467,14 +467,14 @@ describe("one external Storybook server", () => {
     expect(state.buildState).toBe("built")
     expect(state.builtRevision).not.toBeNull()
     expect(state.activeRevision).toBeNull()
-    const revisionReadme = await fetch(new URL(
+    const revisionDocumentation = await fetch(new URL(
       `/__storybook/revisions/%40fixture%2Fstandalone/${state.builtRevision}/resources/nodes/${
         encodeURIComponent("package:@fixture/standalone")
-      }/readme.md`,
+      }/module.md`,
       running.origin,
     ))
-    expect(revisionReadme.status).toBe(200)
-    expect(await revisionReadme.text()).toContain("Standalone")
+    expect(revisionDocumentation.status).toBe(200)
+    expect(await revisionDocumentation.text()).toContain("Standalone")
     expect(new URL(packagePage.url).origin).toBe(running.origin)
     const checked = await controlPost(running, "/api/control/check", {scope: "@fixture/standalone"})
     expect(checked.response.status).toBe(200)
@@ -521,7 +521,7 @@ describe("one external Storybook server", () => {
     expect((await fetch(new URL("/api/health", running.origin))).status).toBe(200)
   })
 
-  test("notifies a root package README change without rebuilding children or changing the server", async () => {
+  test("notifies a root package TSDoc change without rebuilding children or changing the server", async () => {
     const fixture = serverFixture()
     const entries = sharedEntriesFixture()
     const running = await startTestServer({
@@ -548,7 +548,7 @@ describe("one external Storybook server", () => {
     socket.addEventListener("message", event => { messages.push(JSON.parse(String(event.data))) })
     await new Promise<void>((resolve, reject) => {
       socket.addEventListener("open", () => resolve(), {once: true})
-      socket.addEventListener("error", () => reject(new Error("README socket failed")), {once: true})
+      socket.addEventListener("error", () => reject(new Error("documentation socket failed")), {once: true})
     })
     try {
       socket.send(JSON.stringify({type: "subscribe", topic: "package:fixture-alpha"}))
@@ -568,13 +568,12 @@ describe("one external Storybook server", () => {
       const builds = running.sessions.snapshots().filter(snapshot => snapshot.packageId !== "fixture-alpha").map(snapshot => snapshot.builds)
       const instance = running.record.instanceId
       const revision = running.registry.snapshot().revision
-      const readme = join(fixture.workspace, "projects/alpha/README.md")
-      writeFileSync(readme, "# Updated project README\n")
-      running.watch.notify(readme)
-      await waitFor(() => messages.some(message => message.type === "package.metadata-updated"))
-      expect(messages.find(message => message.type === "package.metadata-updated")?.packageId).toBe("fixture-alpha")
-      expect(messages.some(message => message.type === "registry.updated" || message.type === "shared.updated")).toBe(false)
-      expect(running.registry.snapshot().revision).toBe(revision)
+      const documentation = join(fixture.workspace, "projects/alpha/index.ts")
+      writeFileSync(documentation, "/**\n# Updated project documentation\n@packageDocumentation\n*/\n")
+      running.watch.notify(documentation)
+      await waitFor(() => messages.some(message => message.type === "registry.updated"))
+      expect(running.registry.snapshot().revision).not.toBe(revision)
+      expect(messages.some(message => message.type === "shared.updated")).toBe(false)
       expect(running.sessions.snapshots().filter(snapshot => snapshot.packageId !== "fixture-alpha").map(snapshot => snapshot.builds)).toEqual(builds)
       expect(running.record.instanceId).toBe(instance)
     } finally {
@@ -616,7 +615,7 @@ describe("one external Storybook server", () => {
     expect(running.record.controlToken).toMatch(/^[A-Za-z0-9_-]{43}$/u)
   })
 
-  test("wires structural files and separately owned landing README watches", async () => {
+  test("wires structural files and source documentation watches", async () => {
     const fixture = serverFixture()
     const running = await startTestServer({
       declarations: [fixture.workspace],
@@ -626,15 +625,16 @@ describe("one external Storybook server", () => {
     servers.push(running)
     const watched = [
       join(fixture.workspace, "package.json"),
-      join(fixture.workspace, "README.md"),
+      join(fixture.workspace, "index.ts"),
       join(fixture.workspace, "projects/alpha/package.json"),
-      join(fixture.workspace, "projects/alpha/README.md"),
-      join(fixture.workspace, "projects/alpha/packages/components/README.md"),
+      join(fixture.workspace, "projects/alpha/index.ts"),
+      join(fixture.workspace, "projects/alpha/packages/components/index.ts"),
       join(fixture.workspace, "projects/alpha/packages/components/package.json"),
     ]
     for (const path of watched) {
       expect(running.watch.notify(path)).toBeGreaterThan(0)
     }
+    expect(running.watch.notify(join(fixture.workspace, "projects/alpha/README.md"))).toBe(0)
     const unrelated = join(fixture.workspace, "unrelated.txt")
     writeFileSync(unrelated, "unrelated")
     expect(running.watch.notify(unrelated)).toBe(0)
@@ -812,15 +812,15 @@ describe("one external Storybook server", () => {
     socket.close()
   }, 120_000)
 
-  test("serves only README files and literal local README assets", async () => {
+  test("serves only TSDoc source and literal local documentation assets", async () => {
     const fixture = serverFixture()
     const project = join(fixture.workspace, "projects", "alpha")
-    const readme = join(project, "README.md")
+    const documentation = join(project, "index.ts")
     const linked = join(project, "linked.txt")
     const hidden = join(project, "hidden.txt")
     writeFileSync(linked, "linked asset\n")
     writeFileSync(hidden, "hidden owner file\n")
-    writeFileSync(readme, "# Fixture Alpha\n\n[linked](./linked.txt)\n")
+    writeFileSync(documentation, "/**\n# Fixture Alpha\n\n[linked](./linked.txt)\n@packageDocumentation\n*/\n")
     const running = await startTestServer({
       declarations: [fixture.workspace],
       statePath: fixture.statePath,
@@ -829,9 +829,11 @@ describe("one external Storybook server", () => {
     servers.push(running)
     const client = await fetchJson(new URL("/api/client", running.origin))
     const node = client.nodes.find((candidate: {id: string}) => candidate.id === "package:fixture-alpha")
+    expect(await (await fetch(new URL(node.resourceUrl, running.origin))).text()).toContain("Fixture Alpha")
     expect((await fetch(new URL(`${node.resourceUrl}linked.txt`, running.origin))).status).toBe(200)
     expect((await fetch(new URL(`${node.resourceUrl}hidden.txt`, running.origin))).status).toBe(404)
     expect((await fetch(new URL(`${node.resourceUrl}package.json`, running.origin))).status).toBe(404)
+    expect((await fetch(new URL(`${node.resourceUrl}README.md`, running.origin))).status).toBe(404)
   })
 
   test("builds only the requested structural package revision", async () => {
@@ -913,7 +915,7 @@ describe("one external Storybook server", () => {
     expect((await controlGet(running, "/api/control/status")).entries).toEqual([])
   })
 
-  test("fails closed when an attached README is replaced by an escaping symlink", async () => {
+  test("fails closed when an attached TSDoc source is replaced by an escaping symlink", async () => {
     const fixture = serverFixture()
     const running = await startTestServer({
       declarations: [fixture.workspace],
@@ -921,11 +923,11 @@ describe("one external Storybook server", () => {
       artifactRoot: fixture.artifactRoot,
     })
     servers.push(running)
-    const readme = join(fixture.workspace, "projects/alpha/README.md")
+    const documentation = join(fixture.workspace, "projects/alpha/index.ts")
     const outside = join(fixture.root, "outside-secret.md")
     writeFileSync(outside, "outside secret\n")
-    unlinkSync(readme)
-    symlinkSync(outside, readme)
+    unlinkSync(documentation)
+    symlinkSync(outside, documentation)
     const client = await fetchJson(new URL("/api/client", running.origin))
     const project = client.nodes.find((node: {id: string}) => node.id === "package:fixture-alpha")
     const response = await fetch(new URL(project.resourceUrl, running.origin))
@@ -957,7 +959,13 @@ describe("one external Storybook server", () => {
       declarations: [fixture.standalone],
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
-      browserLifecycle: lifecycle.service,
+      browserLifecycle: {
+        ...lifecycle.service,
+        async listViews(...args) {
+          if (lifecycle.opened.length === 0) throw new Error("Browser has not started")
+          return lifecycle.service.listViews(...args)
+        },
+      },
     })
     servers.push(running)
     const landing = await fetch(new URL("/", running.origin))
@@ -1181,6 +1189,12 @@ function serverFixture(): Readonly<{
   const workspace = join(root, "workspace")
   mkdirSync(workspace, {recursive: true})
   Bun.spawnSync(["cp", "-R", `${source}/.`, workspace])
+  for (const [path, title] of [
+    ["index.ts", "Fixture workspace"],
+    ["projects/alpha/index.ts", "Fixture Alpha"],
+    ["projects/alpha/packages/components/index.ts", "Fixture Components"],
+    ["standalone/index.ts", "Standalone"],
+  ] as const) writeFileSync(join(workspace, path), `/**\n# ${title}\n@packageDocumentation\n*/\n`)
   const entries = mkdtempSync(join(import.meta.dir, "fixtures/.shared-browser-"))
   roots.push(entries)
   const landingEntry = join(entries, "landing-entry.ts")

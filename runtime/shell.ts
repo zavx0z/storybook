@@ -698,13 +698,13 @@ export async function fetchExternalStorybookClientSnapshot(
   return validateClientSnapshot(await response.json())
 }
 
-export async function readExternalStorybookNodeReadme(
+export async function readExternalStorybookNodeDocumentation(
   node: ExternalStorybookClientNode,
   fetcher: typeof fetch = globalThis.fetch,
 ): Promise<string | null> {
-  if (!node.hasReadme && !node.hasModuleDocumentation) return null
+  if (!node.hasModuleDocumentation) return null
   const response = await fetcher(node.resourceUrl, {headers: {accept: "text/markdown, text/plain"}})
-  if (!response.ok) throw new Error(`External Storybook README request failed: ${response.status}`)
+  if (!response.ok) throw new Error(`External Storybook documentation request failed: ${response.status}`)
   return response.text()
 }
 

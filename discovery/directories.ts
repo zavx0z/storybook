@@ -2,13 +2,14 @@ import {readRouteDirectories} from "@storybook/route/directories"
 import {readRouteIgnored} from "@storybook/route/ignored"
 import {constants} from "node:fs"
 import {lstat, open, realpath} from "node:fs/promises"
-import {readModuleDocumentation} from "./module-documentation.ts"
+import {readModuleDocumentation} from "@archetypes/package/documentation"
 import {readDependencySpecs} from "./dependency-spec.ts"
 import {readContractDocumentations} from "./contract-documentation.ts"
 import {basename, join, relative} from "node:path"
 import type {StorybookDirectory} from "../catalog/catalog.t.ts"
 
-type ViewMetadata = Pick<StorybookDirectory, "scenarioSpec" | "contractDocumentation" | "dependencySpec">
+type ViewMetadata = Pick<StorybookDirectory, "moduleDocumentation" | "scenarioSpec" | "contractDocumentation" | "dependencySpec">
+const MAX_MODULE_SOURCE_BYTES = 1_048_576
 
 /** Обходит категории до публичного index.tsx, собственного src или отдельного пакета. */
 export async function discoverStorybookDirectories(
@@ -24,6 +25,36 @@ export async function discoverStorybookDirectories(
   const dependencyPathByDirectory = new Map<string, string>()
   const ignored = async (paths: readonly string[]): Promise<ReadonlySet<string>> =>
     new Set((await readRouteIgnored({root, paths, repository: visibility.repository})).ignored)
+  const readDocumentation = async (path: string): Promise<StorybookDirectory["moduleDocumentation"]> => {
+    const file = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW)
+    try {
+      const metadata = await file.stat()
+      if (!metadata.isFile() || metadata.size > MAX_MODULE_SOURCE_BYTES) throw new Error(`Module documentation source exceeds limit or is not a file: ${path}`)
+      const buffer = Buffer.allocUnsafe(MAX_MODULE_SOURCE_BYTES + 1)
+      let bytes = 0
+      while (bytes < buffer.length) {
+        const chunk = await file.read(buffer, bytes, buffer.length - bytes, null)
+        if (chunk.bytesRead === 0) break
+        bytes += chunk.bytesRead
+      }
+      if (bytes > MAX_MODULE_SOURCE_BYTES) throw new Error(`Module documentation source exceeds limit or is not a file: ${path}`)
+      return readModuleDocumentation({source: buffer.toString("utf8", 0, bytes), path}) ?? undefined
+    } finally { await file.close() }
+  }
+  const rootEntries = [join(root, "index.tsx"), join(root, "index.ts")]
+  for (const path of rootEntries) watchPaths.add(path)
+  const excludedRootEntries = await ignored(rootEntries)
+  let rootDocumentation: StorybookDirectory["moduleDocumentation"]
+  for (const path of rootEntries) {
+    if (excludedRootEntries.has(path)) continue
+    const metadata = await lstat(path).catch(error => {
+      if (error.code !== "ENOENT") throw error
+      return null
+    })
+    if (!metadata?.isFile() || metadata.isSymbolicLink()) continue
+    rootDocumentation = await readDocumentation(path)
+    break
+  }
   const collectViews = async (path: string, moduleOwner: boolean, scenarioOwner: boolean): Promise<void> => {
     if (moduleOwner) {
       const contractDirectory = join(path, "contract")
@@ -102,15 +133,7 @@ export async function discoverStorybookDirectories(
       const entryPaths = [join(path, "index.tsx"), join(path, "index.ts")]
       for (const entryPath of entryPaths) watchPaths.add(entryPath)
       const publicEntry = entry.entry === null ? undefined : join(path, entry.entry === "tsx" ? "index.tsx" : "index.ts")
-      let moduleDocumentation
-      if (publicEntry !== undefined) {
-        const file = await open(publicEntry, constants.O_RDONLY | constants.O_NOFOLLOW)
-        try {
-          const metadata = await file.stat()
-          if (!metadata.isFile() || metadata.size > 1_048_576) throw new Error(`Module documentation source exceeds limit or is not a file: ${publicEntry}`)
-          moduleDocumentation = readModuleDocumentation(await file.readFile("utf8"), publicEntry)
-        } finally { await file.close() }
-      }
+      const moduleDocumentation = publicEntry === undefined ? undefined : await readDocumentation(publicEntry)
       watchPaths.add(join(path, "src"))
       const isModule = entry.module
       await collectViews(path, isModule, isModule || publicEntry !== undefined)
@@ -120,7 +143,6 @@ export async function discoverStorybookDirectories(
         relativePath: relative(root, path),
         name: entry.name,
         ...(parent === root ? {} : {parentRelativePath: relative(root, parent)}),
-        readmePath: null,
         ...(moduleDocumentation ? {moduleDocumentation} : {}),
       }))
       result.push(...children)
@@ -155,7 +177,10 @@ export async function discoverStorybookDirectories(
       ...(documents.length === 0 ? {} : {contractDocumentation: {sources, documents}}),
     })
   }
-  const rootMetadata = viewMetadata(root)
+  const rootMetadata = Object.freeze({
+    ...viewMetadata(root),
+    ...(rootDocumentation ? {moduleDocumentation: rootDocumentation} : {}),
+  })
   const directories = discovered.map(directory => Object.freeze({...directory, ...viewMetadata(directory.path)}))
   return Object.freeze({directories: Object.freeze(directories), rootMetadata, watchPaths: Object.freeze([...watchPaths])})
 }

@@ -16,7 +16,6 @@ export function documentationCatalog(root: string): StorybookCatalog {
       label: "Преобразования",
       source: Object.freeze({path: packageJsonPath, pointer: ""}),
       scopeRoot: root,
-      readmePath: null,
       digest: "package-input-1",
       packageJsonPath,
       packageName: "@fixture/structure",
@@ -27,7 +26,6 @@ export function documentationCatalog(root: string): StorybookCatalog {
         relativePath: "identity",
         name: "identity",
         structuralRole: "module",
-        readmePath: null,
         moduleDocumentation: Object.freeze({
           sourcePath: modulePath,
           sourceDigest: "module-input-1",

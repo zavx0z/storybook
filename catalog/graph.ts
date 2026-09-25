@@ -28,7 +28,6 @@ export type ExternalStorybookGraphNode = Readonly<{
   routePath: string | null
   parentId: string | null
   childIds: readonly string[]
-  readmePath: string | null
   moduleDocumentation?: import("./catalog.t.ts").StorybookModuleDocumentation
   dependencySpec?: import("./catalog.t.ts").StorybookDependencySpec
   dependencyRoutePath?: string
@@ -103,7 +102,7 @@ export function createExternalStorybookGraph(catalog: StorybookCatalog): Externa
       id, kind: scope.kind, ownerId: scope.id, packageId: scope.kind === "package" ? scope.id : null,
       label: scope.label, structuralPath, parentId, childIds: [], urlPath,
       routePath: scope.kind === "package" ? "" : null,
-      readmePath: scope.readmePath,
+      ...(scope.moduleDocumentation ? {moduleDocumentation: scope.moduleDocumentation} : {}),
       ...(scope.kind === "package" ? {
         ...(scope.scenarioSpec ? {scenarioSpec: scope.scenarioSpec} : {}),
         ...(scope.contractDocumentation ? {contractDocumentation: scope.contractDocumentation} : {}),
@@ -124,7 +123,6 @@ export function createExternalStorybookGraph(catalog: StorybookCatalog): Externa
         label: directory.name, parentId: parent, structuralPath: [...parentNode.structuralPath, directoryId], childIds: [],
         routePath: relativeSegments.map(part => `dir-${encodeURIComponent(part)}`).join("/"),
         urlPath: formatRouteAddress({node: [...segments, ...relativeSegments].join("/")}),
-        readmePath: directory.readmePath,
         ...(directory.moduleDocumentation ? {moduleDocumentation: directory.moduleDocumentation} : {}),
         ...(directory.dependencySpec ? {dependencySpec: directory.dependencySpec} : {}),
         ...(directory.contractDocumentation ? {contractDocumentation: directory.contractDocumentation} : {}),

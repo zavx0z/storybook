@@ -39,20 +39,8 @@ export type StorybookAuthorStyleSheet = Readonly<{
   contentDigest: string
 }>
 
-/**
-Документация входного модуля, извлечённая из исходника.
-
-@property sourcePath - Путь к исходному модулю.
-
-@property sourceDigest - Контрольный отпечаток исходника.
-
-@property markdown - Извлечённое описание в формате Markdown.
-*/
-export type StorybookModuleDocumentation = Readonly<{
-  sourcePath: string
-  sourceDigest: string
-  markdown: string
-}>
+/** Документация входного модуля из контракта владельца пакета. */
+export type StorybookModuleDocumentation = NonNullable<ReturnType<typeof import("@archetypes/package/documentation").readModuleDocumentation>>
 
 /**
 Разобранное описание одного направления контракта.
@@ -132,8 +120,6 @@ export type StorybookScenarioSpec = Readonly<{
 
 @property [parentRelativePath] - Относительный путь родительской директории.
 
-@property readmePath - Путь к README либо `null`.
-
 @property [moduleDocumentation] - Документация входного модуля при её наличии.
 
 @property [dependencySpec] - Спецификация зависимостей при её наличии.
@@ -147,7 +133,6 @@ export type StorybookDirectory = Readonly<{
   relativePath: string
   name: string
   parentRelativePath?: string
-  readmePath: string | null
   moduleDocumentation?: StorybookModuleDocumentation
   dependencySpec?: StorybookDependencySpec
   contractDocumentation?: StorybookContractDocumentation
@@ -162,8 +147,7 @@ export type StorybookDirectory = Readonly<{
 
 @property [recoveryPaths] - Пути, наблюдаемые для восстановления после ошибки обнаружения.
 
-@property [structurePaths] - Пути структуры владельца для обнаружения пакетов
-и изменений необязательных манифестов.
+@property [structurePaths] - Пути структуры и исходников владельца для обновления каталога.
 
 @property [directories] - Обнаруженные директории владельца.
 
@@ -182,7 +166,7 @@ export type StorybookDirectory = Readonly<{
 
 @property scopeRoot - Физический корень области.
 
-@property readmePath - Путь к README либо `null`.
+@property [moduleDocumentation] - Документация корневого входного модуля при её наличии.
 
 @property digest - Контрольный отпечаток области каталога.
 */
@@ -198,7 +182,7 @@ type StorybookCatalogScopeBase = Readonly<{
   description?: string
   source: StorybookSourceReference
   scopeRoot: string
-  readmePath: string | null
+  moduleDocumentation?: StorybookModuleDocumentation
   digest: string
 }>
 

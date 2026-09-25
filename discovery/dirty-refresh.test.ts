@@ -135,6 +135,31 @@ test("dirty refresh сохраняет корневые specs чистого п�
   expect(refreshed.graph.nodes.find(node => node.id === removed.canonicalId)?.scenariosRoutePath).toBeUndefined()
 })
 
+test("dirty refresh обновляет документацию корневого index при неизменном package.json", async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "storybook-root-module-dirty-")))
+  roots.push(root)
+  await Bun.write(join(root, "package.json"), JSON.stringify({name: "@fixture/root"}))
+  const entry = join(root, "index.ts")
+  const registry = new ExternalStorybookRegistry(discoverStorybookPackages)
+  const initial = await registry.attach(root)
+  const owner = initial.catalog.scopes[0]!
+  expect(owner.structurePaths).toContain(entry)
+  expect(owner.moduleDocumentation).toBeUndefined()
+  await Bun.write(entry, "/**\nПервое описание\n@packageDocumentation\n*/")
+  registry.markDirty(entry)
+  const added = await registry.refreshIfNeeded()
+  expect(added.graph.nodes[0]?.moduleDocumentation?.markdown).toBe("Первое описание")
+  await Bun.write(entry, "/**\nНовое описание\n@packageDocumentation\n*/")
+  registry.markDirty(entry)
+  const changed = await registry.refreshIfNeeded()
+  expect(changed.graph.nodes[0]?.moduleDocumentation?.markdown).toBe("Новое описание")
+  await rm(entry)
+  registry.markDirty(entry)
+  const removed = await registry.refreshIfNeeded()
+  expect(removed.graph.nodes[0]?.moduleDocumentation).toBeUndefined()
+  expect(removed.graph.digest).not.toBe(changed.graph.digest)
+})
+
 function dependencySource(name: string, element: string): string {
   const component = name.toUpperCase()
   return `import {test} from "bun:test"

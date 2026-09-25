@@ -22,7 +22,7 @@ test("publishes only after an agent check, notifies every matching tab, and rest
   await Bun.write(join(other, "package.json"), JSON.stringify({name: "@fixture/other", label: "Other"}))
   const packageJson = join(owner, "package.json")
   await Bun.write(packageJson, JSON.stringify({name: "@fixture/applied", label: "Applied"}))
-  await Bun.write(join(owner, "docs/README.md"), "# Package docs")
+  await Bun.write(join(owner, "docs/index.ts"), "/**\n# Package docs\n@packageDocumentation\n*/\n")
   await Bun.write(join(owner, "tsconfig.json"), JSON.stringify({compilerOptions: {types: []}, include: ["**/*.ts", "**/*.tsx"]}))
   await Bun.write(join(owner, "component/index.tsx"), "export function Example() { return <article /> }\n")
   await Bun.write(join(owner, "component/spec/deps.spec.ts"), 'import {test} from "bun:test"\ntest.each([{name:"Example",file:"component/index.tsx",expected:{"component/index.tsx#Example":{uses:[],elements:["article"]}}}])("Состав $name", () => {})\n')

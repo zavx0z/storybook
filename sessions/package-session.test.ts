@@ -761,10 +761,10 @@ function graphSnapshot(packageId: string, declarationDigest: string): StorybookP
     nodes: [
       {id: packageNodeId, kind: "package" as const, ownerId: packageId, packageId, label: packageId,
         parentId: null, childIds: [directoryNodeId], urlPath, routePath: "", searchTerms: [packageId],
-        hasReadme: false, resourceUrl: `resources/nodes/${encodeURIComponent(packageNodeId)}/`},
+        hasModuleDocumentation: false, resourceUrl: `resources/nodes/${encodeURIComponent(packageNodeId)}/`},
       {id: directoryNodeId, kind: "directory" as const, ownerId: packageId, packageId, label: "module",
         parentId: packageNodeId, childIds: [], urlPath: `${urlPath}module`, routePath: "dir-module", searchTerms: ["module"],
-        hasReadme: false, resourceUrl: `resources/nodes/${encodeURIComponent(directoryNodeId)}/`},
+        hasModuleDocumentation: false, resourceUrl: `resources/nodes/${encodeURIComponent(directoryNodeId)}/`},
     ],
     routes: [
       {path: "", urlPath, kind: "overview" as const, nodeId: packageNodeId},

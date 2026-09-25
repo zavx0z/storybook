@@ -13,7 +13,7 @@ async function fixture() {
   const catalog = await discoverStorybookPackages([join(import.meta.dir, "../discovery/fixtures/valid/standalone")])
   const scope = catalog.scopes[0]!
   const scopes = [{...scope, directories: [{path: join(scope.scopeRoot, "module"), relativePath: "module", name: "module",
-    structuralRole: "module" as const, readmePath: null,
+    structuralRole: "module" as const,
     dependencySpec: {sourcePath: join(scope.scopeRoot, "module/spec/deps.spec.ts"), sourceDigest: "fixture", cases: []},
   }]}]
   return {...catalog, scopes}

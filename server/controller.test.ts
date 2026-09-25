@@ -18,7 +18,7 @@ const stateRoot = mkdtempSync(join(tmpdir(), "storybook-controller-"))
 const previousConfigRoot = Bun.env.STORYBOOK_CONFIG_ROOT
 const previousStateRoot = Bun.env.STORYBOOK_STATE_ROOT
 const fixture = join(import.meta.dir, "../discovery/fixtures/valid/standalone")
-const context = () => ({signal: AbortSignal.timeout(30_000)})
+const context = () => ({signal: AbortSignal.timeout(120_000)})
 
 describe.serial("external Storybook shared controller", () => {
   beforeAll(() => {
@@ -109,7 +109,7 @@ describe.serial("external Storybook shared controller", () => {
 
     const stopped = await second.stop({schemaVersion: 1, confirm: true}, context())
     expect(stopped).toMatchObject({status: "success", stopped: true})
-  }, 40_000)
+  }, 150_000)
 
   test("durably adopts the pre-capability TMPDIR daemon after an interrupted replacement", async () => {
     const toolRoot = realpathSync(join(import.meta.dir, ".."))

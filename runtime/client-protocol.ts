@@ -45,8 +45,6 @@ export const EXTERNAL_STORYBOOK_RESOURCE_PREFIX = "/__storybook/resources/nodes/
 
 @property searchTerms - Слова и имена для поиска узла.
 
-@property hasReadme - Наличие README у узла.
-
 @property [hasModuleDocumentation] - Наличие документации входного модуля.
 
 @property [dependencyCases] - Ожидаемые варианты зависимостей из спецификации.
@@ -74,7 +72,6 @@ export type ExternalStorybookClientNode = Readonly<{
   urlPath: string
   routePath: string | null
   searchTerms: readonly string[]
-  hasReadme: boolean
   hasModuleDocumentation?: boolean
   dependencyCases?: readonly import("../catalog/catalog.t.ts").StorybookDependencyCase[]
   dependencyRoutePath?: string
@@ -224,7 +221,6 @@ export function createExternalStorybookClientSnapshot(
     urlPath: node.urlPath,
     routePath: node.routePath,
     searchTerms: Object.freeze([...node.searchTerms]),
-    hasReadme: node.readmePath !== null,
     ...(node.moduleDocumentation ? {hasModuleDocumentation: true} : {}),
     ...(node.dependencySpec ? {dependencyCases: node.dependencySpec.cases} : {}),
     ...(node.dependencyRoutePath === undefined ? {} : {dependencyRoutePath: node.dependencyRoutePath}),
@@ -354,7 +350,6 @@ function collectHiddenPaths(
   const paths = new Set<string>()
   for (const node of graph.nodes) {
     paths.add(node.source.path)
-    if (node.readmePath !== null) paths.add(node.readmePath)
     if (node.moduleDocumentation) paths.add(node.moduleDocumentation.sourcePath)
     for (const source of node.contractDocumentation?.sources ?? []) paths.add(source.sourcePath)
     if (node.packageJsonPath !== null) paths.add(node.packageJsonPath)

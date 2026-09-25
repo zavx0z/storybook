@@ -2,7 +2,7 @@
 import {createHash} from "node:crypto"
 import {constants} from "node:fs"
 import {open, readFile} from "node:fs/promises"
-import {readModuleDocumentation} from "./module-documentation.ts"
+import {readModuleDocumentation} from "@archetypes/package/documentation"
 import {analyzeTypeDoc} from "@webxr/typedoc/parser"
 import {analyzeTypeDocs} from "@webxr/typedoc/batch"
 import type {AnalyzeTypeDocOutput} from "@webxr/typedoc/parser/contract/output"
@@ -52,7 +52,7 @@ async function validateContractDocumentation(
   source: string,
   result: AnalyzeTypeDocOutput,
 ) {
-  if (readModuleDocumentation(source, path)) throw new Error(`Контракт не должен содержать документацию пакета: ${path}`)
+  if (readModuleDocumentation({source, path})) throw new Error(`Контракт не должен содержать документацию пакета: ${path}`)
   if (result.document.declarations.length !== 1 || !["interface", "type"].includes(result.document.declarations[0]!.kind)) {
     throw new Error(`Контракт должен экспортировать ровно один основной interface или type: ${path}`)
   }

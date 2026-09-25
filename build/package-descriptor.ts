@@ -7,7 +7,6 @@ import {createExternalStorybookResourceAllowList} from "../catalog/resource-allo
 import type {StorybookPackageBuildDescriptor} from "../sessions/package-session.ts"
 import {
   createStorybookPackageRevisionGraphSnapshot,
-  revisionReadmeResourcePath,
   revisionModuleDocumentationPath,
   revisionWorkbenchAuthorStyleSheetPath,
 } from "../sessions/package-revision.ts"
@@ -37,30 +36,28 @@ export function externalStorybookPackageDescriptors(
       candidate.packageId === declaration.id && candidate.scenarioSpec !== undefined
         ? [{nodeId: candidate.id, sourcePaths: Object.freeze([...candidate.scenarioSpec.sourcePaths])}]
         : [])
-    const readmeAssetsByNode = new Map(graph.nodes.flatMap((candidate) => {
-      const overviewPath = candidate.moduleDocumentation?.sourcePath ?? candidate.readmePath
-      if (candidate.packageId !== declaration.id || overviewPath === null) return []
+    const documentationAssetsByNode = new Map(graph.nodes.flatMap((candidate) => {
+      const documentation = candidate.moduleDocumentation
+      if (candidate.packageId !== declaration.id || documentation === undefined) return []
       const assets = createExternalStorybookResourceAllowList({
         ownerRoot: declaration.scopeRoot,
-        readmePath: overviewPath,
-        ...(candidate.moduleDocumentation ? {markdown: candidate.moduleDocumentation.markdown} : {}),
-      }).entries.filter(({kind}) => kind === "readme-asset").map(({path}) => path)
+        sourcePath: documentation.sourcePath,
+        markdown: documentation.markdown,
+      }).entries.filter(({kind}) => kind === "documentation-asset").map(({path}) => path)
       return [[candidate.id, Object.freeze(assets)] as const]
     }))
     const watchedPaths = [
       declaration.source.path,
-      ...(declaration.readmePath === null ? [] : [declaration.readmePath]),
       ...workbenchAuthorStyleSheets.map(({path}) => path),
       ...workbenchAuthorStyleSheets.map(({ownerPackageJsonPath}) => ownerPackageJsonPath),
       ...graph.nodes.flatMap((candidate) =>
         candidate.packageId === declaration.id
           ? [
-            ...(candidate.readmePath === null ? [] : [candidate.readmePath]),
             ...(candidate.moduleDocumentation ? [candidate.moduleDocumentation.sourcePath] : []),
             ...(candidate.dependencySpec ? [candidate.dependencySpec.sourcePath] : []),
             ...(candidate.scenarioSpec?.sourcePaths ?? []),
             ...(candidate.contractDocumentation?.sources.map(source => source.sourcePath) ?? []),
-            ...(readmeAssetsByNode.get(candidate.id) ?? []),
+            ...(documentationAssetsByNode.get(candidate.id) ?? []),
           ]
           : []),
     ]
@@ -73,19 +70,13 @@ export function externalStorybookPackageDescriptors(
         category: "declaration" as const,
       })),
       ...workbenchAuthorStyleSheets.map(({path}) => ({path, category: "resource" as const})),
-      ...(declaration.readmePath === null
-        ? []
-        : [{path: declaration.readmePath, category: "metadata" as const}]),
       ...graph.nodes.flatMap((candidate) => candidate.packageId === declaration.id
         ? [
           ...(candidate.moduleDocumentation ? [{path: candidate.moduleDocumentation.sourcePath, category: "declaration" as const}] : []),
           ...(candidate.dependencySpec ? [{path: candidate.dependencySpec.sourcePath, category: "declaration" as const}] : []),
           ...(candidate.scenarioSpec?.sourcePaths.map(path => ({path, category: "declaration" as const})) ?? []),
           ...(candidate.contractDocumentation?.sources.map(source => ({path: source.sourcePath, category: "declaration" as const})) ?? []),
-          ...(candidate.readmePath === null
-            ? []
-            : [{path: candidate.readmePath, category: "metadata" as const}]),
-          ...(readmeAssetsByNode.get(candidate.id) ?? [])
+          ...(documentationAssetsByNode.get(candidate.id) ?? [])
             .map((path) => ({path, category: "resource" as const})),
         ]
         : []),
@@ -115,14 +106,11 @@ export function externalStorybookPackageDescriptors(
             derivedContent: candidate.moduleDocumentation.markdown,
             targetPath: revisionModuleDocumentationPath(candidate.id),
           }] : []),
-          ...(candidate.readmePath === null
-            ? []
-            : [{sourcePath: candidate.readmePath, targetPath: revisionReadmeResourcePath(candidate.id)}]),
-          ...(candidate.readmePath === null && !candidate.moduleDocumentation ? [] : (readmeAssetsByNode.get(candidate.id) ?? []).map((sourcePath) => ({
+          ...(!candidate.moduleDocumentation ? [] : (documentationAssetsByNode.get(candidate.id) ?? []).map((sourcePath) => ({
             sourcePath,
             targetPath: join(
-              dirname(revisionReadmeResourcePath(candidate.id)),
-              relative(dirname(candidate.moduleDocumentation?.sourcePath ?? candidate.readmePath!), sourcePath),
+              dirname(revisionModuleDocumentationPath(candidate.id)),
+              relative(dirname(candidate.moduleDocumentation!.sourcePath), sourcePath),
             ),
           }))),
 

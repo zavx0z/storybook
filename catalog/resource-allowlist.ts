@@ -1,78 +1,77 @@
-import {readFileSync, realpathSync, statSync} from "node:fs"
+import {realpathSync, statSync} from "node:fs"
 import {dirname, isAbsolute, relative, resolve} from "node:path"
 import {markdownDestinations} from "@webxr/markdown/destinations"
 
-export const EXTERNAL_STORYBOOK_README_MAX_BYTES = 1_048_576
+export const EXTERNAL_STORYBOOK_DOCUMENTATION_MAX_BYTES = 1_048_576
 
 export type ExternalStorybookResourceAllowListEntry = Readonly<{
-  kind: "readme" | "readme-asset"
+  kind: "source" | "documentation-asset"
   path: string
 }>
 
 export type ExternalStorybookResourceAllowList = Readonly<{
   ownerRoot: string
-  readmePath: string | null
+  sourcePath: string | null
   entries: readonly ExternalStorybookResourceAllowListEntry[]
-  resolveReadmeFile(path: string): string | null
+  resolveSourceFile(path: string): string | null
+  resolveAsset(path: string): string | null
 }>
 
+/** Проверенное описание извлечено из кода; файл не читается как Markdown. */
 export type CreateExternalStorybookResourceAllowListInput = Readonly<{
   ownerRoot: string
-  readmePath?: string | null
-  readmeMaxBytes?: number
-  /** Already extracted documentation; paths still resolve against the exact source file. */
-  markdown?: string
+  sourcePath: string | null
+  markdown: string
+  maxBytes?: number
 }>
 
 /**
- * Creates one immutable exact-file allow-list for a structural snapshot.
- *
- * Local README assets are derived from the same inert Markdown/HTML model as
- * the view. An arbitrary sibling inside the owner root is never admitted.
- */
+Сохраняет точный исходник TSDoc и только явно связанные с ним локальные ресурсы.
+Извлечение текста принадлежит читателю кода; этот список проверяет владение и
+разрешает ресурсы относительно исходника. Соседние файлы сами по себе не доступны.
+*/
 export function createExternalStorybookResourceAllowList(
   input: CreateExternalStorybookResourceAllowListInput,
 ): ExternalStorybookResourceAllowList {
   const ownerRoot = canonicalDirectory(input.ownerRoot, "Storybook resource owner root")
-  const readmePath = input.readmePath === undefined || input.readmePath === null
+  const sourcePath = input.sourcePath === null
     ? null
-    : canonicalOwnedFile(input.readmePath, ownerRoot, "Storybook README")
-  const readmeMaxBytes = input.readmeMaxBytes ?? EXTERNAL_STORYBOOK_README_MAX_BYTES
-  if (!Number.isSafeInteger(readmeMaxBytes) || readmeMaxBytes <= 0) {
-    throw new Error(`Invalid Storybook README byte limit: ${String(readmeMaxBytes)}`)
+    : canonicalOwnedFile(input.sourcePath, ownerRoot, "Storybook documentation source")
+  if (sourcePath !== null && resolve(input.sourcePath!) !== sourcePath) {
+    throw new Error(`Storybook documentation source must not be a symlink: ${input.sourcePath}`)
   }
-
-  const readmeFiles = new Set<string>()
-  const entries = new Map<string, ExternalStorybookResourceAllowListEntry>()
-  const append = (kind: ExternalStorybookResourceAllowListEntry["kind"], path: string): void => {
-    if (!entries.has(path)) entries.set(path, Object.freeze({kind, path}))
+  const maxBytes = input.maxBytes ?? EXTERNAL_STORYBOOK_DOCUMENTATION_MAX_BYTES
+  if (!Number.isSafeInteger(maxBytes) || maxBytes <= 0) {
+    throw new Error(`Invalid Storybook documentation byte limit: ${String(maxBytes)}`)
   }
-
-  if (readmePath !== null) {
-    readmeFiles.add(readmePath)
-    append("readme", readmePath)
-    const metadata = statSync(readmePath)
-    if (metadata.size > readmeMaxBytes) {
-      throw new Error(`Storybook README exceeds ${readmeMaxBytes} bytes: ${readmePath}`)
+  if (typeof input.markdown !== "string" || Buffer.byteLength(input.markdown) > maxBytes) {
+    throw new Error(`Storybook documentation exceeds ${maxBytes} bytes or is not text`)
+  }
+  const assets = new Set<string>()
+  const entries: ExternalStorybookResourceAllowListEntry[] = []
+  if (sourcePath !== null) {
+    if (statSync(sourcePath).size > maxBytes) {
+      throw new Error(`Storybook documentation source exceeds ${maxBytes} bytes: ${sourcePath}`)
     }
-    const source = input.markdown ?? readFileSync(readmePath, "utf8")
-    for (const destination of localMarkdownDestinations(source)) {
-      const asset = resolveLocalReadmeAsset(readmePath, destination, ownerRoot)
-      if (asset === null) continue
-      readmeFiles.add(asset)
-      append("readme-asset", asset)
+    entries.push(Object.freeze({kind: "source", path: sourcePath}))
+    for (const destination of localMarkdownDestinations(input.markdown)) {
+      const asset = resolveLocalDocumentationAsset(sourcePath, destination, ownerRoot)
+      if (asset === null || asset === sourcePath || assets.has(asset)) continue
+      assets.add(asset)
+      entries.push(Object.freeze({kind: "documentation-asset", path: asset}))
     }
   }
-
-  const frozenEntries = Object.freeze([...entries.values()].sort((left, right) =>
-    left.path < right.path ? -1 : left.path > right.path ? 1 : 0))
   return Object.freeze({
     ownerRoot,
-    readmePath,
-    entries: frozenEntries,
-    resolveReadmeFile(path: string): string | null {
+    sourcePath,
+    entries: Object.freeze(entries.sort((left, right) => left.path.localeCompare(right.path))),
+    resolveSourceFile(path: string): string | null {
       const canonical = safeCanonicalOwnedFile(path, ownerRoot)
-      return canonical !== null && readmeFiles.has(canonical) ? canonical : null
+      return canonical !== null && canonical === sourcePath ? canonical : null
+    },
+    resolveAsset(path: string): string | null {
+      const canonical = safeCanonicalOwnedFile(path, ownerRoot)
+      return canonical !== null && assets.has(canonical) ? canonical : null
     },
   })
 }
@@ -84,7 +83,7 @@ export function localMarkdownDestinations(source: string): readonly string[] {
   return Object.freeze([...new Set(destinations)])
 }
 
-function resolveLocalReadmeAsset(readmePath: string, destination: string, ownerRoot: string): string | null {
+function resolveLocalDocumentationAsset(sourcePath: string, destination: string, ownerRoot: string): string | null {
   const withoutFragment = destination.split("#", 1)[0]!
   if (withoutFragment.length === 0 || withoutFragment.includes("?")) return null
   let decoded: string
@@ -100,7 +99,7 @@ function resolveLocalReadmeAsset(readmePath: string, destination: string, ownerR
   } catch {
     return null
   }
-  return safeCanonicalOwnedFile(resolve(dirname(readmePath), decoded), ownerRoot)
+  return safeCanonicalOwnedFile(resolve(dirname(sourcePath), decoded), ownerRoot)
 }
 
 function localDestination(value: string): boolean {

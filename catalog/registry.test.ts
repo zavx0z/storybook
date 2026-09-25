@@ -54,11 +54,13 @@ describe("external Storybook attached-root registry", () => {
     ])
     expect(descriptor.graphSnapshot.routes.map(route => route.path)).toEqual(["", "dir-docs"])
     expect(descriptor.watchPaths).toContainEqual({path: descriptor.sourcePath, category: "metadata"})
-    expect(descriptor.watchPaths).toContainEqual({path: join(descriptor.packageRoot, "README.md"), category: "metadata"})
+    expect(descriptor.watchPaths).not.toContainEqual({path: join(descriptor.packageRoot, "README.md"), category: "metadata"})
     const structural = externalStorybookStructuralWatchPaths(registry.snapshot())
     expect(structural).toContain(join(fixtureRoot, "package.json"))
     expect(structural).toContain(join(fixtureRoot, "projects/alpha/package.json"))
     expect(structural).toContain(descriptor.sourcePath)
+    expect(structural).toContain(join(descriptor.packageRoot, "index.tsx"))
+    expect(structural).toContain(join(descriptor.packageRoot, "index.ts"))
   })
 
   test("copies and watches one Workbench theme for each package revision", async () => {

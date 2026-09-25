@@ -47,6 +47,9 @@ describe("external Storybook implementation digest", () => {
     const beforeRoute = externalStorybookImplementationDigest(root)
     writeFileSync(join(root, "route/index.ts"), "export const resolveRoute = () => null\n")
     expect(externalStorybookImplementationDigest(root)).not.toBe(beforeRoute)
+    const beforeDocumentation = externalStorybookImplementationDigest(root)
+    writeFileSync(join(root, "archetypes/package/documentation/index.ts"), "export const reader = () => null\n")
+    expect(externalStorybookImplementationDigest(root)).not.toBe(beforeDocumentation)
   })
 
   test("excludes tests and owner fixtures from daemon identity", () => {
@@ -86,6 +89,7 @@ function implementationFixture(): string {
     "workbench",
     "catalog",
     "discovery",
+    "archetypes/package/documentation",
     "route",
     "build",
     "sessions",
@@ -99,6 +103,7 @@ function implementationFixture(): string {
   writeFileSync(join(root, "bun.lock"), "lock\n")
   writeFileSync(join(root, "bunfig.toml"), "[loader]\n")
   writeFileSync(join(root, "package.json"), "{}\n")
+  writeFileSync(join(root, "archetypes/package/package.json"), "{}\n")
   writeFileSync(join(root, "browser-lifecycle/package.json"), "{}\n")
   writeFileSync(join(root, "scripts/storybook-daemon.ts"), "daemon\n")
   writeFileSync(join(root, "workbench/controller.ts"), "export const workbench = true\n")

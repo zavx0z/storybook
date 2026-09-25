@@ -28,7 +28,8 @@ describe("structural package revision graph", () => {
       "directory:package:@fixture/components/docs",
     ])
     expect(snapshot.routes.map(route => route.path)).toEqual(["", "dir-docs"])
-    expect(snapshot.resources.some(resource => resource.nodeId === snapshot.rootId && resource.kind === "readme")).toBeTrue()
+    expect(snapshot.resources.every(resource => resource.kind === "module-documentation")).toBeTrue()
+    expect(snapshot.nodes.every(node => !Object.hasOwn(node, "hasReadme"))).toBeTrue()
     expect(JSON.stringify(snapshot)).not.toContain(fixtureRoot)
     expect(snapshot.packageGraphDigest).toMatch(/^[a-f0-9]{64}$/u)
   })
@@ -66,6 +67,12 @@ describe("structural package revision graph", () => {
     expect(() => validateStorybookPackageRevisionGraphSnapshot(redigest({...snapshot,
       workbenchAuthorStyleSheets: [{specifier: "@zavx0z/ui/themes/theme.css", url: "theme.css", contentDigest: "a".repeat(64)}],
     }))).toThrow("Workbench stylesheet is invalid")
+    expect(() => validateStorybookPackageRevisionGraphSnapshot(redigest({...snapshot,
+      resources: [{nodeId: snapshot.rootId, kind: "readme", index: 0, url: `resources/nodes/${encodeURIComponent(snapshot.rootId)}/readme.md`} as never],
+    }))).toThrow("package resource is invalid")
+    expect(() => validateStorybookPackageRevisionGraphSnapshot(redigest({...snapshot,
+      nodes: [{...root!, hasReadme: true} as never, ...snapshot.nodes.slice(1)],
+    }))).toThrow("Unexpected Storybook package node")
   })
 })
 

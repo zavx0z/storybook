@@ -85,7 +85,7 @@ function createFixture() {
     const packageRoot = join(projectRoot, "packages", id)
     mkdirSync(packageRoot, {recursive: true})
     writeFileSync(join(packageRoot, "package.json"), JSON.stringify({name: `@fixture/${id}`, label: id.toUpperCase()}))
-    writeFileSync(join(packageRoot, "README.md"), `# ${id.toUpperCase()}\n`)
+    writeFileSync(join(packageRoot, "index.ts"), `/**\n# ${id.toUpperCase()}\n@packageDocumentation\n*/\n`)
   }
   return {root, projectRoot, aMetadata: join(projectRoot, "packages/a/package.json")}
 }

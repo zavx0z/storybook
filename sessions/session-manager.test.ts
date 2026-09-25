@@ -214,6 +214,7 @@ describe("external Storybook PackageSession manager", () => {
       "catalog.json",
       "package.json",
       "README.md",
+      "module-doc.ts",
       "fixture.json",
       "reference.json",
       "media.png",
@@ -231,7 +232,7 @@ describe("external Storybook PackageSession manager", () => {
       {path: files["catalog.json"]!, category: "declaration"},
       {path: files["package.json"]!, category: "metadata"},
       {path: files["package.json"]!, category: "code"},
-      {path: files["README.md"]!, category: "metadata"},
+      {path: files["module-doc.ts"]!, category: "metadata"},
       ...["fixture.json", "reference.json", "media.png", "evidence.json", "asset.svg"]
         .map((name) => ({path: files[name]!, category: "resource" as const})),
       {path: files["shared.ts"]!, category: "code"},
@@ -254,12 +255,13 @@ describe("external Storybook PackageSession manager", () => {
       "package.metadata-updated",
       "package.code-updated",
     ])
-    expect(emitted(files["README.md"]!)).toEqual(["package.metadata-updated"])
+    expect(emitted(files["module-doc.ts"]!)).toEqual(["package.metadata-updated"])
     for (const name of ["fixture.json", "reference.json", "media.png", "evidence.json", "asset.svg"]) {
       expect(emitted(files[name]!)).toEqual(["package.resources-updated"])
     }
     expect(emitted(files["shared.ts"]!)).toEqual(["package.code-updated"])
     expect(manager.notifyDependency(files["unrelated.txt"]!)).toBe(0)
+    expect(manager.notifyDependency(files["README.md"]!)).toBe(0)
     await manager.dispose()
   })
 })
@@ -302,10 +304,10 @@ function graphSnapshot(packageId: string, declarationDigest: string): StorybookP
     nodes: [
       {id: packageNode, kind: "package" as const, ownerId: packageId, packageId, label: packageId,
         parentId: null, childIds: [directoryNode], urlPath, routePath: "", searchTerms: [packageId],
-        hasReadme: false, resourceUrl: `resources/nodes/${encodeURIComponent(packageNode)}/`},
+        hasModuleDocumentation: false, resourceUrl: `resources/nodes/${encodeURIComponent(packageNode)}/`},
       {id: directoryNode, kind: "directory" as const, ownerId: packageId, packageId, label: "module",
         parentId: packageNode, childIds: [], urlPath: `${urlPath}module`, routePath: "dir-module", searchTerms: ["module"],
-        hasReadme: false, resourceUrl: `resources/nodes/${encodeURIComponent(directoryNode)}/`},
+        hasModuleDocumentation: false, resourceUrl: `resources/nodes/${encodeURIComponent(directoryNode)}/`},
     ],
     routes: [
       {path: "", urlPath, kind: "overview" as const, nodeId: packageNode},

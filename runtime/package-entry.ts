@@ -42,7 +42,7 @@ import {
   createExternalStorybookShell,
   externalStorybookClientNode,
   fetchExternalStorybookClientSnapshot,
-  readExternalStorybookNodeReadme,
+  readExternalStorybookNodeDocumentation,
   type CreateExternalStorybookShellOptions,
   type ExternalStorybookShell,
 } from "./shell.ts"
@@ -365,9 +365,9 @@ export async function startExternalStorybookPackage(
     const scenarios = model.viewKind === "scenarios"
     disposeScenario()
     const node = externalStorybookClientNode(snapshot, model.selectedNode.id)
-    const readme = contract || dependencies || scenarios ? null : await readExternalStorybookNodeReadme(node, fetcher)
+    const documentation = contract || dependencies || scenarios ? null : await readExternalStorybookNodeDocumentation(node, fetcher)
     if (disposed || revision !== navigationRevision) return
-    const label = scenarios ? `${node.label} · Сценарии` : contract ? `${node.label} · Контракт` : dependencies ? `${node.label} · Зависимости` : readme === null ? `${node.label} · Обзор` : `${node.label} · ${node.hasModuleDocumentation ? "TSDoc" : "README"}`
+    const label = scenarios ? `${node.label} · Сценарии` : contract ? `${node.label} · Контракт` : dependencies ? `${node.label} · Зависимости` : documentation === null ? `${node.label} · Обзор` : `${node.label} · TSDoc`
     const contractNavigators = new Map<
       Parameters<StorybookContractNavigationReady>[0],
       NonNullable<Parameters<StorybookContractNavigationReady>[1]>
@@ -424,9 +424,9 @@ export async function startExternalStorybookPackage(
       })
       : dependencies
       ? await shell.showDependencies(label, node.dependencyCases!, signal)
-      : readme === null
+      : documentation === null
       ? shell.showMessage(label, node.label, overviewDescription(node.kind, node.childIds.length))
-      : shell.showMarkdown(label, readme, node.resourceUrl)
+      : shell.showMarkdown(label, documentation, node.resourceUrl)
     contractViewport = presentationNode as unknown as Element
     const contractWidgets = contract
       ? Object.freeze((node.contractDocuments ?? []).map(({direction}) =>

@@ -221,10 +221,10 @@ function graphSnapshot(packageId: string, declarationDigest: string): StorybookP
     nodes: [
       {id: packageNode, kind: "package" as const, ownerId: packageId, packageId, label: packageId,
         parentId: null, childIds: [directoryNode], urlPath, routePath: "", searchTerms: [packageId],
-        hasReadme: false, resourceUrl: `resources/nodes/${encodeURIComponent(packageNode)}/`},
+        hasModuleDocumentation: false, resourceUrl: `resources/nodes/${encodeURIComponent(packageNode)}/`},
       {id: directoryNode, kind: "directory" as const, ownerId: packageId, packageId, label: "module",
         parentId: packageNode, childIds: [], urlPath: `${urlPath}module`, routePath: "dir-module", searchTerms: ["module"],
-        hasReadme: false, resourceUrl: `resources/nodes/${encodeURIComponent(directoryNode)}/`},
+        hasModuleDocumentation: false, resourceUrl: `resources/nodes/${encodeURIComponent(directoryNode)}/`},
     ],
     routes: [{path: "", urlPath, kind: "overview" as const, nodeId: packageNode},
       {path: "dir-module", urlPath: `${urlPath}module`, kind: "overview" as const, nodeId: directoryNode}],

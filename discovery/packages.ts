@@ -55,20 +55,14 @@ export async function discoverStorybookPackages(
       const label = data.label === undefined ? name : data.label
       if (typeof label !== "string" || label.trim().length === 0) throw new Error(`Invalid package label: ${path}`)
       const workspace = data.workspaces === undefined ? {roots: [], watchPaths: [root]} : await readWorkspacePackages({root, value: data.workspaces})
-      const readmePath = join(root, "README.md")
-      const readme = await lstat(readmePath).catch(error => {
-        if (error.code !== "ENOENT") throw error
-        return null
-      })
       let entry: StorybookPackage = Object.freeze({
         schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
         kind: "package", id: name, canonicalId: `package:${name}`, label,
         ...(typeof data.description === "string" ? {description: data.description} : {}),
         source: Object.freeze({path, pointer: ""}), scopeRoot: root,
-        readmePath: readme?.isFile() && !readme.isSymbolicLink() ? readmePath : null,
         digest: createHash("sha256").update(source).digest("hex"),
         packageJsonPath: path, packageName: name,
-        structurePaths: Object.freeze([path, readmePath, ...workspace.watchPaths]),
+        structurePaths: Object.freeze([path, ...workspace.watchPaths]),
       })
       scopes.set(root, entry)
       const children: string[] = []
@@ -103,7 +97,7 @@ export async function discoverStorybookPackages(
       const failed: StorybookCatalogScope = Object.freeze({
         schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
         kind: "unavailable", id, canonicalId: `unavailable:${id}`, label: `${basename(root)} (недоступен)`,
-        source: {path: join(root, "package.json"), pointer: ""}, scopeRoot: root, readmePath: null,
+        source: {path: join(root, "package.json"), pointer: ""}, scopeRoot: root,
         digest: createHash("sha256").update(root).digest("hex"), resolutionError: message,
         structurePaths: [root, join(root, "package.json")],
       })

@@ -37,16 +37,16 @@ test("lists packages and physical containers from package.json/workspaces", asyn
   expect(descriptor.graphSnapshot.nodes.every(node => node.packageId === "@fixture/a")).toBeTrue()
 })
 
-test("README additions refresh the existing package overview", async () => {
+test("README additions do not become package documentation", async () => {
   const {project} = await fixture()
   const registry = new ExternalStorybookRegistry(discoverStorybookPackages)
   const before = await registry.attach(project)
-  expect(before.catalog.scopes.find(scope => scope.id === "project")?.structurePaths).toContain(join(project, "README.md"))
   await Bun.write(join(project, "README.md"), "# Repository overview")
   await Bun.write(join(project, "packages/a/README.md"), "# Package overview")
   const after = await registry.refresh()
-  expect(after.graph.nodes.find(node => node.id === "package:project")?.readmePath).toBe(join(project, "README.md"))
-  expect(after.graph.nodes.find(node => node.id === "package:@fixture/a")?.readmePath).toBe(join(project, "packages/a/README.md"))
+  expect(after.graph.nodes.find(node => node.id === "package:project")?.moduleDocumentation).toBeUndefined()
+  expect(after.graph.nodes.find(node => node.id === "package:@fixture/a")?.moduleDocumentation).toBeUndefined()
+  expect(after.graph).toEqual(before.graph)
 })
 
 test("workspace membership updates without changing retained package identity", async () => {
@@ -70,7 +70,7 @@ test("duplicate package names fail closed", async () => {
 
 test("watcher discovers a new workspace package and serves its structural page", async () => {
   const {root, project} = await fixture()
-  await Bun.write(join(project, "packages/a/README.md"), "# Structural A\n")
+  await Bun.write(join(project, "packages/a/index.ts"), "/**\n# Structural A\n@packageDocumentation\n*/\n")
   const server = await startExternalStorybookServer({declarations: [project], statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts")})
   try {
     await write(join(project, "packages/c/package.json"), {name: "@fixture/c", label: "C"})

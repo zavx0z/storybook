@@ -15,7 +15,7 @@ async function fixture() {
   const scope = catalog.scopes[0]!
   const inputPath = join(scope.scopeRoot, "module/contract/input.ts")
   const scopes = [{...scope, directories: [{path: join(scope.scopeRoot, "module"), relativePath: "module", name: "module",
-    structuralRole: "module" as const, readmePath: null,
+    structuralRole: "module" as const,
     contractDocumentation: {sources: [{sourcePath: inputPath, sourceDigest: "fixture"}],
       documents: [{direction: "input" as const, document: {name: "Input", declarations: []}}]},
   }]}]

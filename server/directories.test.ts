@@ -55,7 +55,6 @@ test("keeps packages and physical directories in the same navigation tree", asyn
   expect(deriveExternalStorybookPackageTab(graph, "@fixture/unit", packageDoc.routePath!).selectedNode.id).toBe(packageDoc.id)
   const descriptor = registry.packageDescriptors().find(descriptor => descriptor.packageId === "@fixture/unit")!
   expect(descriptor.graphSnapshot.nodes.some(node => node.id === nested.id)).toBeFalse()
-  expect(descriptor.graphSnapshot.nodes.find(node => node.id === packageDoc.id)?.hasReadme).toBeFalse()
   expect(descriptor.graphSnapshot.nodes.find(node => node.id === packageDoc.id)?.hasModuleDocumentation).toBeTrue()
   expect(descriptor.resourceFiles?.find(file => file.targetPath.endsWith("module.md"))?.derivedContent).toBe("# Package module")
   const previous = descriptor.declarationDigest

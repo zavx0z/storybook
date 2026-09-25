@@ -16,6 +16,7 @@ import {
 } from "./build-input-fingerprint.ts"
 import {createStorybookBuildInputFingerprintVerifier} from "./package-build.ts"
 import type {StorybookPackageBuildDescriptor} from "../sessions/package-session.ts"
+import {STORYBOOK_PACKAGE_GRAPH_PROTOCOL} from "../sessions/package-revision.ts"
 
 const roots: string[] = []
 setDefaultTimeout(60_000)
@@ -228,7 +229,7 @@ function createFixture(): Readonly<{
     sourcePath,
     declarationDigest: "fixture-declaration",
     graphSnapshot: {
-      protocol: "storybook-package-graph/5",
+      protocol: STORYBOOK_PACKAGE_GRAPH_PROTOCOL,
       packageId: "@fixture/fingerprint",
       declarationDigest: "fixture-declaration",
       packageGraphDigest: "fixture-graph",
@@ -346,7 +347,7 @@ function createHoistedDependencyFixture(): Readonly<{
     sourcePath,
     declarationDigest: "nested-declaration",
     graphSnapshot: {
-      protocol: "storybook-package-graph/5",
+      protocol: STORYBOOK_PACKAGE_GRAPH_PROTOCOL,
       packageId: "@fixture/nested-owner",
       declarationDigest: "nested-declaration",
       packageGraphDigest: "nested-graph",

@@ -39,7 +39,8 @@
     "@mcp/rest": "workspace:*",
     "@zavx0z/storybook-browser-lifecycle": "workspace:*",
     "@mcp/children": "workspace:*",
-    "@mcp/root": "workspace:*"
+    "@mcp/root": "workspace:*",
+    "@archetypes/package": "workspace:archetypes/package"
   },
   "devDependencies": {
     "@archetypes/specs": "workspace:archetypes/specs",

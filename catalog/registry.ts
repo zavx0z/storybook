@@ -363,7 +363,6 @@ function scopePaths(scope: StorybookCatalogScope): ReadonlySet<string> {
     resolve(scope.source.path),
     resolve(scope.scopeRoot),
     resolve(scope.scopeRoot, "package.json"),
-    ...(scope.readmePath === null ? [] : [resolve(scope.readmePath)]),
     ...(scope.structurePaths ?? []).map(path => resolve(path)),
     ...(scope.kind === "package" ? [
       resolve(scope.packageJsonPath),
