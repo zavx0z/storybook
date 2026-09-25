@@ -50,7 +50,7 @@ export const storybookSearchSchema = z.strictObject({
   schemaVersion,
   query: z.string().min(1).max(512),
   packageId: packageId.optional(),
-  kinds: uniqueList(z.enum(["workspace", "project", "package", "directory", "category", "subject", "variant", "unavailable"]), 8).optional(),
+  kinds: uniqueList(z.enum(["package", "directory", "unavailable"]), 3).optional(),
   limit: limit.optional(),
   cursor: cursor.optional(),
 })
