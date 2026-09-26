@@ -206,3 +206,46 @@ describe.each([{name: "Работа с окном", entries: [command("latest"),
     })
   })
 })
+
+describe.each([{name: "Выделение JSON поверх соседней панели"}])("$name", async () => {
+  const host = createWindowHost()
+  const entry = command("selection", "success", JSON.stringify({description: "Путь к сценарию"}))
+  try {
+    host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, {open: true, onClose() {}, load: async () => [entry]})
+    let frame = await host.settle()
+    const code = host.container.querySelectorAll("code")[1]!
+    const text = frame.displayList.find(item => item.kind === "text" && code.contains(item.node) && item.text.includes("Путь"))!
+    if (text.kind !== "text") throw new Error("Нет текста ответа")
+    const background = host.document.createElement("div")
+    background.setAttribute("style", `position:absolute;left:0;top:${text.y + text.lineHeight}px;width:1000px;height:20px;font-size:14px;line-height:20px`)
+    background.textContent = "Текст соседней панели ".repeat(20)
+    host.container.insertBefore(background, host.container.firstChild)
+    frame = await host.settle()
+    const point = {
+      clientX: text.x + (text.width ?? 100) * (text.text.indexOf("Путь") / text.text.length),
+      clientY: text.y + text.lineHeight / 2,
+      pointerId: 21,
+      buttons: 1,
+    }
+    host.input.pointerDown(frame, point)
+    const startedInCode = code.contains(host.document.getSelection().anchorNode)
+    const end = {...point, clientX: point.clientX + 100, clientY: point.clientY + text.lineHeight}
+    host.input.pointerMove(frame, end)
+    host.input.pointerUp(frame, {...end, buttons: 0})
+    const selection = host.document.getSelection()
+    const anchorInCode = code.contains(selection.anchorNode)
+    const focusInCode = code.contains(selection.focusNode)
+    const selected = selection.toString()
+    test("Начало у слова Путь", () => {
+      expect(startedInCode, "Нажатие начинает выделение внутри ответа").toBeTrue()
+      expect(selected.startsWith("Путь к сценарию"), "Выделенный текст начинается у выбранного слова").toBeTrue()
+    })
+    test("Граница поля", () => {
+      expect(anchorInCode && focusInCode, "Оба конца диапазона остаются в JSON-поле").toBeTrue()
+      expect(selected, "Фоновая панель не попадает в выделение").not.toContain("Текст соседней панели")
+      expect(selected, "Заголовок окна не попадает в выделение").not.toContain("Журнал MCP")
+    })
+  } finally {
+    host.dispose()
+  }
+})

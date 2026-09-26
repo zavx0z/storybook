@@ -4,7 +4,7 @@ import {Button} from "@zavx0z/ui/buttons/button"
 import type {McpRequestRecord} from "@mcp/rest/requests"
 import {selectRequest} from "./selected-request"
 
-/** Форматирует также старые компактные записи; высота зависит от числа строк. */
+/** Форматирует полный JSON; выделение, начатое в поле, ограничено его текстом. */
 function JsonFieldView(props: Readonly<{title: string, value: string}>) {
   let value = props.value
   try { value = JSON.stringify(JSON.parse(value), null, 2) } catch {}
@@ -32,6 +32,7 @@ function JsonFieldView(props: Readonly<{title: string, value: string}>) {
         height: var(--journal-field-height);
         overflow-y: hidden;
         flex-shrink: 0;
+        user-select: contain;
       `}
     />
   </section>
