@@ -3,12 +3,12 @@ import {CodeEditor} from "@zavx0z/ui/views/code-editor"
 import {Button} from "@zavx0z/ui/buttons/button"
 import type {McpRequestRecord} from "@mcp/rest/requests"
 import {selectRequest} from "./selected-request"
+import {formatJson} from "./format-json"
 
 /** Форматирует полный JSON; выделение, начатое в поле, ограничено его текстом. */
 function JsonFieldView(props: Readonly<{title: string, value: string}>) {
-  let value = props.value
-  try { value = JSON.stringify(JSON.parse(value), null, 2) } catch {}
-  const height = Math.max(1, value.split("\n").length) * 16 + 30
+  const {text: value, softBreaks} = formatJson(props.value)
+  const height = Math.max(1, value.split("\n").length + softBreaks.length) * 16 + 30
   return <section style={css`
     display: flex;
     flex-direction: column;
@@ -23,6 +23,8 @@ function JsonFieldView(props: Readonly<{title: string, value: string}>) {
       languageId="json"
       readOnly={true}
       showLineNumbers={false}
+      softBreaks={softBreaks}
+      showFormattingCharacters={false}
       style={css`
         --journal-field-height: ${height}px;
 
