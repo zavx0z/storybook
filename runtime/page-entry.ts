@@ -120,9 +120,11 @@ export type ExternalStorybookPagePrepareInput = Readonly<{
 
 @property [initialPayload] - Уже импортированный payload generated package entry; исключает повторный import.
 
-@property sharedModuleEpoch - Identity платформенных ESM owners, общих для всех scopes страницы.
+@property [initialHistory] - При передаче управления новой платформе сохраняет семантику перехода: push для выбора пакета, replace для обновления.
 
-@property [hostModuleEpoch] - Identity Storybook host implementation, создавшего retained shell.
+@property sharedModuleEpoch - Identity платформенных ESM owners текущей среды; определяет сохранение Root при HMR.
+
+@property [hostModuleEpoch] - Identity контроллеров Storybook; её изменение передаёт живую оболочку новой реализации.
 
 @property [browserDocument] - Native Document страницы; semantic Document принадлежит {@link ExternalStorybookShell}.
 
@@ -136,6 +138,8 @@ export type ExternalStorybookPagePrepareInput = Readonly<{
 
 @property [shell] - Seams создания одного {@link ExternalStorybookShell}; package scopes не получают право его dispose.
 
+@property [retainedShell] - Живая оболочка той же платформы для HMR контроллера страницы. Владение передаётся после успешного монтирования.
+
 @property [prepareTarget] - Server resolver target. Default вызывает {@link prepareExternalStorybookPageTarget}.
 
 @property [loadAppliedRevision] - Generic exact package/revision payload loader. Default использует {@link loadStorybookAppliedRevision}.
@@ -143,6 +147,7 @@ export type ExternalStorybookPagePrepareInput = Readonly<{
 export type StartExternalStorybookPageOptions = Readonly<{
   initialTarget?: ExternalStorybookPreparedPageTarget
   initialPayload?: ExternalStorybookAppliedRevision | null
+  initialHistory?: "push" | "replace"
   sharedModuleEpoch: string
   hostModuleEpoch?: string
   browserDocument?: globalThis.Document
@@ -151,6 +156,7 @@ export type StartExternalStorybookPageOptions = Readonly<{
   fetcher?: typeof fetch
   createSocket?(url: string): ExternalStorybookSocket
   shell?: Omit<CreateExternalStorybookShellOptions, "title" | "browserDocument" | "authorStyleSheetSources">
+  retainedShell?: ExternalStorybookShell
   prepareTarget?(
     input: ExternalStorybookPagePrepareInput,
     signal: AbortSignal,
@@ -165,7 +171,7 @@ export type StartExternalStorybookPageOptions = Readonly<{
 /**
 Page-level lifecycle одного Root, Canvas и Workbench.
 
-@property shell - Stable {@link ExternalStorybookShell}, общий для landing и всех package scopes.
+@property shell - Текущая {@link ExternalStorybookShell}; сохраняется между scopes и host-обновлениями, заменяется вместе с платформой.
 
 @property packageId - Текущий committed package либо `null` на landing.
 
@@ -208,19 +214,21 @@ type ActiveLandingPageScope = {
 type ActivePageScope = ActivePackagePageScope | ActiveLandingPageScope
 
 /**
-Создаёт один page owner и заменяет только package/landing scopes внутри его shell.
+Создаёт один page owner с динамическим обновлением пакетов и платформы.
 
 Каждый переход сначала получает server target, payload, pending status и semantic
 styles. Старый scope освобождается только перед mount; ошибка восстанавливает его
 payload, styles, socket, Inspector, scroll и последний committed URL. `popstate`
 использует тот же pipeline, поэтому незавершённый history target не становится
 адресом рабочей страницы.
+Смена платформы передаёт тот же native Canvas контроллеру из нового payload:
+он создаёт согласованные Root и semantic Document после освобождения прежних.
 
 @param options - Epochs page realm, cold target и узкие transport seams.
 
 @returns Контроллер, который должен быть освобождён через {@link ExternalStorybookPageController.dispose}.
 
-@throws При отсутствии browser environment, несовместимой module epoch, ошибке prepare/mount или невозможности rollback.
+@throws При отсутствии browser environment или dynamic entry, ошибке prepare/mount или невозможности rollback.
 
 @example
 ```ts
@@ -247,7 +255,7 @@ export async function startExternalStorybookPage(
     prepareExternalStorybookPageTarget(fetcher, input, signal))
   const pageLifetime = new AbortController()
   let navigationSnapshot = await fetchExternalStorybookClientSnapshot(fetcher)
-  const shell = await createExternalStorybookShell({
+  const shell = options.retainedShell ?? await createExternalStorybookShell({
     title: "Storybook",
     browserDocument,
     ...(options.shell ?? {}),
@@ -256,6 +264,7 @@ export async function startExternalStorybookPage(
   let active: ActivePageScope | null = null
   let bridge: StorybookAgentBridge | null = null
   let disposed = false
+  let replacement: ExternalStorybookPageController | null = null
   let transitionTail: Promise<void> = Promise.resolve()
   let activeAddress = `${location.pathname}${new URL(location.href).search}${new URL(location.href).hash}`
 
@@ -269,8 +278,8 @@ export async function startExternalStorybookPage(
       target.revision,
       signal,
     )
-    if (payload.sharedModuleEpoch !== options.sharedModuleEpoch) {
-      throw new Error(`Storybook page module epoch changed; page restart is required: ${target.packageId}:${target.revision}`)
+    if (payload.sharedModuleEpoch !== options.sharedModuleEpoch && typeof payload.startPage !== "function") {
+      throw new Error(`Storybook revision has no dynamic platform entry: ${target.packageId}:${target.revision}`)
     }
     if (payload.startPackage !== undefined && typeof payload.startPackage !== "function") {
       throw new Error(`Storybook package host is invalid: ${target.packageId}:${target.revision}`)
@@ -535,6 +544,97 @@ export async function startExternalStorybookPage(
     }
   }
 
+  /**
+  Передаёт владение Canvas новой модульной среде в том же browser realm.
+  Предыдущие scope и listeners освобождаются перед созданием следующего контроллера.
+  При совпадении платформы передаётся живая оболочка; при смене — освобождается Root.
+  При ошибке новая среда освобождает свои ресурсы, а прежняя монтируется из своего payload.
+  */
+  const replacePage = async (
+    target: ExternalStorybookPreparedPackageTarget,
+    payload: ExternalStorybookAppliedRevision,
+    replaceAddress: boolean | null,
+  ): Promise<void> => {
+    const startPage = payload.startPage
+    if (typeof startPage !== "function") throw new Error("Storybook dynamic platform entry is unavailable")
+    const previous = active
+    if (previous === null) throw new Error("Storybook platform replacement requires an active scope")
+    const scroll = readPageScroll(shell)
+    const previousAddress = activeAddress
+    const shellOptions = {...options.shell, canvas: shell.canvas}
+    const catalogSearch = shell.workbench.controller.read("catalog.search")
+    let retainedShell = payload.sharedModuleEpoch === options.sharedModuleEpoch ? shell : undefined
+    const {retainedShell: _previousShell, ...pageOptions} = options
+    globalThis.removeEventListener?.("popstate", onPopState)
+    globalThis.removeEventListener?.("pagehide", onPageHide)
+    await disposeScope(previous)
+    active = null
+    bridge?.dispose()
+    bridge = null
+    if (retainedShell === undefined) shell.dispose()
+    try {
+      replacement = await startPage({
+        ...pageOptions,
+        browserDocument,
+        location,
+        history,
+        shell: shellOptions,
+        ...(retainedShell === undefined ? {} : {retainedShell}),
+        sharedModuleEpoch: payload.sharedModuleEpoch,
+        ...(payload.hostModuleEpoch === undefined ? {} : {hostModuleEpoch: payload.hostModuleEpoch}),
+        initialTarget: target,
+        initialPayload: payload,
+        initialHistory: replaceAddress === false ? "push" : "replace",
+      })
+      replacement.shell.workbench.controller.update("catalog.search", catalogSearch)
+      restorePageScroll(replacement.shell, scroll)
+    } catch (error) {
+      if (replacement !== null) {
+        await replacement.dispose()
+        replacement = null
+        retainedShell = undefined
+      }
+      history.replaceState(null, "", previousAddress)
+      try {
+        const restoredTarget = previous.kind === "package"
+          ? await renewPackageTarget(previous.target)
+          : await prepareTarget({packageId: null, route: previous.target.pathname, intent: "navigation"}, pageLifetime.signal)
+        replacement = await startExternalStorybookPage({
+          ...pageOptions,
+          browserDocument,
+          location,
+          history,
+          shell: shellOptions,
+          ...(retainedShell === undefined ? {} : {retainedShell}),
+          initialTarget: restoredTarget,
+          initialPayload: previous.kind === "package" ? previous.payload : null,
+          initialHistory: "replace",
+        })
+        replacement.shell.workbench.controller.update("catalog.search", catalogSearch)
+        restorePageScroll(replacement.shell, scroll)
+      } catch (rollbackError) {
+        throw new AggregateError([error, rollbackError], "Storybook failed to restore its platform")
+      }
+      throw error
+    } finally {
+      pageLifetime.abort(new DOMException("Storybook platform ownership transferred", "AbortError"))
+    }
+  }
+
+  /** Выбирает границу HMR по identity платформы до монтирования объектов нового пакета. */
+  const installPrepared = async (
+    target: ExternalStorybookPreparedPageTarget,
+    payload: ExternalStorybookAppliedRevision | null,
+    replaceAddress: boolean | null,
+  ): Promise<void> => {
+    if (target.kind !== "landing" && payload !== null && (
+      payload.sharedModuleEpoch !== options.sharedModuleEpoch ||
+      typeof payload.startPage === "function" && (payload.hostModuleEpoch ?? null) !== (options.hostModuleEpoch ?? null)
+    )) {
+      await replacePage(target, payload, replaceAddress)
+    } else await install(target, payload, replaceAddress)
+  }
+
   const transition = (
     request: ExternalStorybookPagePrepareInput,
     replaceAddress: boolean | null,
@@ -543,6 +643,11 @@ export async function startExternalStorybookPage(
       .catch(() => {})
       .then(async () => {
         if (disposed) throw new Error("External Storybook page is disposed")
+        if (replacement !== null) {
+          if (request.packageId === null) await replacement.navigateLanding(request.route)
+          else await replacement.navigatePackage({packageId: request.packageId, route: request.route})
+          return
+        }
         delete browserDocument.documentElement.dataset.externalStorybookNavigationError
         shell.updateStatus("Storybook · Подготовка выбранного пакета")
         const pending = request.packageId === null
@@ -553,7 +658,7 @@ export async function startExternalStorybookPage(
           const payload = target.kind === "landing" ? null : await loadPayload(target, pageLifetime.signal)
           const preparedNavigation = await fetchExternalStorybookClientSnapshot(fetcher)
           pending?.dispose()
-          await install(target, payload, replaceAddress)
+          await installPrepared(target, payload, replaceAddress)
           navigationSnapshot = preparedNavigation
         } finally {
           pending?.dispose()
@@ -565,8 +670,8 @@ export async function startExternalStorybookPage(
 
   /**
   Заменяет контроллер пакета вместе с его payload, сохраняя общий Root и оболочку.
-  Новая host-реализация приходит из того же immutable payload; platform epoch
-  по-прежнему проверяется до освобождения текущего scope. Ошибка mount откатывается.
+  Новая host-реализация приходит из того же immutable payload. Смена платформы
+  передаёт Canvas новой среде; ошибка mount восстанавливает предыдущую среду.
   */
   function applyPageRevision(packageId: string, revision: string): Promise<void> {
     const operation = transitionTail.catch(() => {}).then(async () => {
@@ -591,7 +696,7 @@ export async function startExternalStorybookPage(
         preview: current.target.preview,
       })
       const snapshot = await fetchExternalStorybookClientSnapshot(fetcher)
-      await install(target, payload, null)
+      await installPrepared(target, payload, null)
       navigationSnapshot = snapshot
     })
     transitionTail = operation.catch(() => {})
@@ -599,10 +704,12 @@ export async function startExternalStorybookPage(
   }
 
   async function navigatePackage(input: Readonly<{packageId: string; route: string}>): Promise<void> {
+    if (replacement !== null) return replacement.navigatePackage(input)
     await transition({packageId: input.packageId, route: input.route, intent: "navigation"}, false)
   }
 
   async function navigateLanding(pathname = "/"): Promise<void> {
+    if (replacement !== null) return replacement.navigateLanding(pathname)
     if (pathname === "/") await transition({packageId: null, route: pathname, intent: "navigation"}, false)
     else {
       const target = await resolveAddress(pathname)
@@ -657,10 +764,17 @@ export async function startExternalStorybookPage(
     })
   }
 
-  const initialPayload = options.initialPayload ?? (
-    initialTarget.kind === "landing" ? null : await loadPayload(initialTarget, pageLifetime.signal)
-  )
-  await install(initialTarget, initialPayload, null)
+  try {
+    const initialPayload = options.initialPayload ?? (
+      initialTarget.kind === "landing" ? null : await loadPayload(initialTarget, pageLifetime.signal)
+    )
+    await install(initialTarget, initialPayload, options.initialHistory === "push" ? false : null)
+  } catch (error) {
+    ;(bridge as StorybookAgentBridge | null)?.dispose()
+    if (options.retainedShell === undefined) shell.dispose()
+    pageLifetime.abort(error)
+    throw error
+  }
   globalThis.addEventListener?.("popstate", onPopState)
 
   const dispose = async (): Promise<void> => {
@@ -669,6 +783,11 @@ export async function startExternalStorybookPage(
     pageLifetime.abort(new DOMException("External Storybook page disposed", "AbortError"))
     globalThis.removeEventListener?.("popstate", onPopState)
     await transitionTail.catch(() => {})
+    globalThis.removeEventListener?.("pagehide", onPageHide)
+    if (replacement !== null) {
+      await replacement.dispose()
+      return
+    }
     await disposeScope(active)
     active = null
     bridge?.dispose()
@@ -679,11 +798,13 @@ export async function startExternalStorybookPage(
   globalThis.addEventListener?.("pagehide", onPageHide, {once: true})
 
   return Object.freeze({
-    shell,
+    get shell() { return replacement?.shell ?? shell },
     get packageId() {
+      if (replacement !== null) return replacement.packageId
       return active?.kind === "package" ? active.target.packageId : null
     },
     get route() {
+      if (replacement !== null) return replacement.route
       return active?.kind === "package" ? active.controller.currentRoute : active?.target.pathname ?? "/"
     },
     navigatePackage,
@@ -703,7 +824,7 @@ type ScrollablePageElement = {scrollTop: number; scrollLeft: number}
 
 /** Stable host positions и позиция заменяемого presentation root. */
 type ExternalStorybookPageScroll = Readonly<{
-  stable: readonly Readonly<{element: ScrollablePageElement; top: number; left: number}>[]
+  stable: readonly Readonly<{top: number; left: number}>[]
   presentation: Readonly<{top: number; left: number}> | null
 }>
 
@@ -716,7 +837,7 @@ function readPageScroll(shell: ExternalStorybookShell): ExternalStorybookPageScr
     shell.workbench.elements.previewHost,
   ]
   const stable = Object.freeze(values.filter(isScrollablePageElement)
-    .map(element => Object.freeze({element, top: element.scrollTop, left: element.scrollLeft})))
+    .map(element => Object.freeze({top: element.scrollTop, left: element.scrollLeft})))
   const presentation = shell.workbench.controller.read("presentation").node
   return Object.freeze({
     stable,
@@ -728,10 +849,14 @@ function readPageScroll(shell: ExternalStorybookShell): ExternalStorybookPageScr
 
 /** Возвращает stable host scroll и переносит presentation position на новый root. */
 function restorePageScroll(shell: ExternalStorybookShell, scroll: ExternalStorybookPageScroll): void {
-  for (const value of scroll.stable) {
-    value.element.scrollTop = value.top
-    value.element.scrollLeft = value.left
-  }
+  const elements = [shell.workbench.elements.catalogItems, shell.workbench.elements.tabItems,
+    shell.workbench.elements.inspectorHost, shell.workbench.elements.previewHost].filter(isScrollablePageElement)
+  scroll.stable.forEach((value, index) => {
+    const element = elements[index]
+    if (element === undefined) return
+    element.scrollTop = value.top
+    element.scrollLeft = value.left
+  })
   const presentation = shell.workbench.controller.read("presentation").node
   if (scroll.presentation !== null && isScrollablePageElement(presentation)) {
     presentation.scrollTop = scroll.presentation.top

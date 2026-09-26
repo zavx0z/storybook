@@ -105,6 +105,17 @@ export function createStorybookAgentBridge(
         }
         const requestedRevision = boundedText(request.revision, 256, "revision")
         await options.applyRevision(requestedRevision)
+        if (disposed) {
+          const next = (globalThis as typeof globalThis & Record<string, unknown>)[STORYBOOK_AGENT_BRIDGE_GLOBAL] as StorybookAgentBridge | undefined
+          if (next === undefined || next === bridge || next.protocol !== STORYBOOK_AGENT_BRIDGE_PROTOCOL) {
+            throw new Error("Storybook platform did not install its agent bridge")
+          }
+          const result = await next.call("identity") as {packageId?: string; revision?: string}
+          if (result.packageId !== request.expectedPackageId || result.revision !== requestedRevision) {
+            throw new Error("Storybook platform application returned another package or revision")
+          }
+          return result
+        }
         await options.waitForStableScope?.()
         assertActive()
         if (request.expectedPackageId !== packageId) throw new Error("Storybook view navigated to another package")

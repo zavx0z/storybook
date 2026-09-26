@@ -18,6 +18,8 @@ import {createStorybookPackageRevisionGraphSnapshot} from "../sessions/package-r
 import {deriveExternalStorybookPackageTab} from "./model.ts"
 import {createExternalStorybookClientSnapshot} from "./client-protocol.ts"
 import {STORYBOOK_PAGE_REALM_PROTOCOL, startExternalStorybookPackage, type ExternalStorybookPackageEnvironment} from "./package-entry.ts"
+import {startExternalStorybookPage, type ExternalStorybookPreparedPackageTarget} from "./page-entry.ts"
+import {STORYBOOK_AGENT_BRIDGE_GLOBAL, type StorybookAgentBridge} from "./agent-bridge.ts"
 import type {ExternalStorybookRootFactory} from "./shell.ts"
 
 const fixtureRoot = join(import.meta.dir, "../discovery/fixtures/valid")
@@ -119,7 +121,129 @@ describe("structural package frontend", () => {
     } finally { await controller.dispose() }
     expect(state.disposals).toBe(1)
   })
+
+  test("HMR платформы сохраняет browser Document, Canvas, адрес и действующий bridge", async () => {
+    const fixture = await pageFixture()
+    const page = fixture.page
+    const canvas = page.shell.canvas
+    const document = page.shell.document
+    const browserDocument = page.shell.browserDocument
+    const before = await currentBridge().call("identity") as {timeOrigin: number}
+    page.shell.workbench.controller.update("catalog.search", "docs")
+    page.shell.workbench.elements.catalogItems.scrollTop = 57
+    try {
+      const result = await currentBridge().call("applyRevision", {
+        expectedPackageId: packageId, revision: "revision-b",
+      })
+      expect(result).toMatchObject({packageId, revision: "revision-b", timeOrigin: before.timeOrigin})
+      expect(page.shell.browserDocument).toBe(browserDocument)
+      expect(page.shell.canvas).toBe(canvas)
+      expect(page.shell.document).not.toBe(document)
+      expect(page.shell.workbench.elements.catalogItems.scrollTop).toBe(57)
+      expect(page.shell.workbench.controller.read("catalog.search")).toBe("docs")
+      expect(fixture.location.href).toBe(`http://localhost${packagePath}`)
+      expect(fixture.location.reloads).toBe(0)
+      expect(fixture.state.lifecycle).toEqual(["root-create", "root-dispose", "root-create"])
+      const nextDocument = page.shell.document
+      await currentBridge().call("applyRevision", {expectedPackageId: packageId, revision: "revision-c"})
+      expect(page.shell.document).toBe(nextDocument)
+      expect(fixture.state.creations).toBe(2)
+      await page.navigatePackage({packageId, route: "dir-docs"})
+      expect(page.route).toBe("dir-docs")
+    } finally { await page.dispose() }
+    expect(fixture.state.disposals).toBe(2)
+  })
+
+  test("ошибка HMR после создания новой оболочки восстанавливает прежнюю среду и освобождает кандидат", async () => {
+    const fixture = await pageFixture(true)
+    const canvas = fixture.page.shell.canvas
+    try {
+      await expect(currentBridge().call("applyRevision", {
+        expectedPackageId: packageId, revision: "revision-b",
+      })).rejects.toThrow("new platform mount failed")
+      expect(await currentBridge().call("identity")).toMatchObject({packageId, revision: "revision-a"})
+      expect(fixture.page.shell.canvas).toBe(canvas)
+      expect(fixture.state.lifecycle).toEqual([
+        "root-create", "root-dispose", "root-create", "root-dispose", "root-create",
+      ])
+      expect(fixture.location.reloads).toBe(0)
+      expect(fixture.location.href).toBe(`http://localhost${packagePath}`)
+    } finally { await fixture.page.dispose() }
+    expect(fixture.state.disposals).toBe(fixture.state.creations)
+  })
+
+  test("переход с HMR добавляет один history entry и сохраняет запрошенный маршрут", async () => {
+    const fixture = await pageFixture()
+    try {
+      await fixture.page.navigatePackage({packageId, route: "dir-docs"})
+      expect(fixture.page.route).toBe("dir-docs")
+      expect(fixture.history.pushed).toEqual([`${packagePath}/docs`])
+      expect(fixture.location.reloads).toBe(0)
+      expect(fixture.state.lifecycle).toEqual(["root-create", "root-dispose", "root-create"])
+    } finally { await fixture.page.dispose() }
+  })
+
+  test("HMR контроллера страницы сохраняет Root и semantic Document той же платформы", async () => {
+    const fixture = await pageFixture(false, false)
+    const shell = fixture.page.shell
+    try {
+      await currentBridge().call("applyRevision", {expectedPackageId: packageId, revision: "revision-b"})
+      expect(fixture.page.shell).toBe(shell)
+      expect(fixture.state.lifecycle).toEqual(["root-create"])
+      expect(await currentBridge().call("identity")).toMatchObject({revision: "revision-b"})
+    } finally { await fixture.page.dispose() }
+    expect(fixture.state.disposals).toBe(1)
+  })
 })
+
+/** Текущая точка входа переживает замену платформенного экземпляра bridge. */
+function currentBridge(): StorybookAgentBridge {
+  return (globalThis as typeof globalThis & Record<string, unknown>)[STORYBOOK_AGENT_BRIDGE_GLOBAL] as StorybookAgentBridge
+}
+
+/** Реальный page controller с управляемыми immutable payloads и наблюдаемым Root lifecycle. */
+async function pageFixture(failPlatformMount = false, changePlatform = true) {
+  const graph = await fixtureGraph()
+  const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-a"))
+  const environment = environmentFixture(snapshot, packagePath)
+  const location = environment.location as LocationFixture
+  const history = environment.history as ReturnType<typeof historyFixture>
+  Object.assign(environment.browserDocument!, {location})
+  const state = createFakeRootState()
+  const payload = (revision: string) => ({
+    protocol: STORYBOOK_PAGE_REALM_PROTOCOL,
+    packageId,
+    candidateRevision: revision,
+    revisionUrl: `/__storybook/revisions/%40fixture%2Fcomponents/${revision}/`,
+    sharedModuleEpoch: (revision === "revision-a" || !changePlatform ? "a" : "b").repeat(64),
+    hostModuleEpoch: (revision === "revision-a" ? "a" : "b").repeat(64),
+    graphSnapshot: createStorybookPackageRevisionGraphSnapshot(graph, packageId, revision),
+    startPage: startExternalStorybookPage,
+    startPackage: failPlatformMount && revision === "revision-b"
+      ? async () => { throw new Error("new platform mount failed") }
+      : startExternalStorybookPackage,
+  })
+  const target = (revision: string, route = ""): ExternalStorybookPreparedPackageTarget => ({
+    kind: "revision", packageId, revision,
+    revisionUrl: payload(revision).revisionUrl,
+    route, urlPath: deriveExternalStorybookPackageTab(snapshot, packageId, route).urlPath,
+    intent: "reader", preview: false, initialAppliedRevision: "revision-a", fallbackRevision: null,
+    readerToken: "fixture-reader",
+  })
+  const page = await startExternalStorybookPage({
+    browserDocument: environment.browserDocument!, location, history: environment.history!,
+    sharedModuleEpoch: "a".repeat(64),
+    hostModuleEpoch: "a".repeat(64),
+    initialTarget: target("revision-a"), initialPayload: payload("revision-a"),
+    shell: {...environment.shell!, createRoot: fakeRootFactory(state)},
+    fetcher: (async input => String(input).includes("/api/browser/session")
+      ? Response.json({token: "fixture-reader"}) : Response.json(snapshot)) as typeof fetch,
+    createSocket: () => new FakeSocket(),
+    prepareTarget: async input => target(input.requestedRevision ?? "revision-c", input.route),
+    loadAppliedRevision: async (_packageId, revision) => payload(revision),
+  })
+  return {page, state, location, history}
+}
 
 async function fixtureGraphWithScenarios(): Promise<ExternalStorybookGraph> {
   const catalog = await discoverStorybookPackages([fixtureRoot, join(fixtureRoot, "standalone")])

@@ -4,8 +4,8 @@ import {startExternalStorybookPage} from "./page-entry.ts"
 Читает подтверждённую сервером эпоху executable shared либо host module set.
 
 Значение существует только в cold HTML bootstrap и связывает lifetime текущей
-страницы с exact module identities: {@link startExternalStorybookPage} отклоняет
-later payload другой эпохи до same-page application.
+начальной среды с exact module identities. {@link startExternalStorybookPage}
+передаёт Canvas новой среде при динамическом обновлении платформы.
 
 @param kind - `shared` для общего kernel или `host` для browser entry modules.
 

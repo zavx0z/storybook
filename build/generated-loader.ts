@@ -33,6 +33,7 @@ export type StorybookGeneratedRevisionPayloadInput = Readonly<{
   sharedModuleEpoch: string
   hostModuleEpoch?: string
   packageHostUrl?: string
+  packageEntryUrl?: string
   graphSnapshot: unknown
 }>
 
@@ -126,7 +127,14 @@ export function generateStorybookRevisionPayloadSource(
     !input.packageHostUrl.endsWith(".js") || input.packageHostUrl.includes("..") || hasControlCharacter(input.packageHostUrl))) {
     throw new Error("Invalid Storybook package host URL")
   }
+  if (input.packageEntryUrl !== undefined && (!input.packageEntryUrl.startsWith("/__storybook/shared/") ||
+    !input.packageEntryUrl.endsWith(".js") || input.packageEntryUrl.includes("..") || hasControlCharacter(input.packageEntryUrl))) {
+    throw new Error("Invalid Storybook page entry URL")
+  }
   return [
+    ...(input.packageEntryUrl === undefined ? [] : [
+      `import {startExternalStorybookPage} from ${jsString(input.packageEntryUrl)}`,
+    ]),
     ...(input.packageHostUrl === undefined ? [] : [
       `import {startExternalStorybookPackage} from ${jsString(input.packageHostUrl)}`,
     ]),
@@ -146,6 +154,7 @@ export function generateStorybookRevisionPayloadSource(
     "  revisionUrl: storybookRevisionUrl,",
     `  graphSnapshot: ${JSON.stringify(input.graphSnapshot)},`,
     ...(input.packageHostUrl === undefined ? [] : ["  startPackage: startExternalStorybookPackage,"]),
+    ...(input.packageEntryUrl === undefined ? [] : ["  startPage: startExternalStorybookPage,"]),
     "  scenarioLoaders: STORYBOOK_PACKAGE_SCENARIO_LOADERS,",
     "})",
     "",

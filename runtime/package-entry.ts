@@ -1,4 +1,5 @@
 import {ScenarioInspector} from "@storybook/app/inspector"
+import type {startExternalStorybookPage} from "./page-entry.ts"
 import type {ScenarioAppInput} from "@storybook/app/contract/input"
 import {createScenarioPresentation} from "./scenario-presentation"
 import {createScenarioRun} from "./scenario-run"
@@ -62,7 +63,12 @@ export type ExternalStorybookScenarioLoader = () => Promise<ScenarioAppInput>
 
 export const STORYBOOK_PAGE_REALM_PROTOCOL = "storybook-page-realm/1" as const
 
-/** Immutable executable payload prepared for an in-page applied revision swap. */
+/**
+Immutable executable payload для динамической замены ревизии внутри страницы.
+
+@property [startPage] - При смене платформы принимает Canvas и монтирует согласованную среду.
+@property [startPackage] - Обновляет контекст пакета при сохранении текущей платформы.
+*/
 export type ExternalStorybookAppliedRevision = Readonly<{
   protocol: typeof STORYBOOK_PAGE_REALM_PROTOCOL
   packageId: string
@@ -71,6 +77,7 @@ export type ExternalStorybookAppliedRevision = Readonly<{
   sharedModuleEpoch: string
   hostModuleEpoch?: string
   startPackage?: typeof startExternalStorybookPackage
+  startPage?: typeof startExternalStorybookPage
   graphSnapshot: StorybookPackageRevisionGraphSnapshot
 
   scenarioLoaders?: ReadonlyMap<string, ExternalStorybookScenarioLoader>
@@ -846,6 +853,7 @@ export async function startExternalStorybookPackage(
   const followPageNavigation = (operation: Promise<void>): void => {
     delete browserDocument.documentElement.dataset.externalStorybookNavigationError
     void operation.catch(error => {
+      if (disposed) return
       browserDocument.documentElement.dataset.externalStorybookNavigationError = errorText(error).slice(0, 4096)
       reportDiagnostic(error)
       shell.updateStatus("Storybook · Переход не выполнен; показана текущая страница")
@@ -965,9 +973,11 @@ export async function startExternalStorybookPackage(
       return
     }
     void applyRevision(revision).then(() => {
+      if (disposed) return
       observedApplied = revision
       shell.updateStatus("Пакет · Текущая версия готова")
     }).catch(error => {
+      if (disposed) return
       reportDiagnostic(error)
       browserDocument.documentElement.dataset.externalStorybookUpdateError = errorText(error).slice(0, 2_048)
       shell.updateStatus("Пакет · Обновление отклонено")
