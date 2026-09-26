@@ -1,22 +1,31 @@
 {
   "name": "@storybook/app",
   "label": "Просмотр сценариев",
-  "description": "Связывает код использования, выбор варианта сценария, его выполнение и показ результата или компонента.",
+  "description": "Читает и выполняет сценарии, связывает код использования, выбор варианта и показ результата, компонента или руководства.",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "exports": {
     ".": "./index.ts",
+    "./scenarios": "./scenarios/index.ts",
+    "./spec-reader": "./spec-reader/index.ts",
     "./contract/input": "./contract/input.ts",
     "./contract/output": "./contract/output.ts",
     "./inspector": "./inspector/index.tsx",
     "./preview": "./preview/index.tsx",
     "./result": "./result/index.tsx"
   },
+  "scripts": {
+    "check": "bun test . --path-ignore-patterns '**/fixture/**' --max-concurrency=1"
+  },
   "peerDependencies": {
-    "@archetypes/specs": "*",
     "@zavx0z/component": "*",
     "@zavx0z/template": "*",
     "@zavx0z/ui": "*"
+  },
+  "dependencies": {
+    "@archetypes/specs": "workspace:*",
+    "fast-xml-parser": "^5.11.1",
+    "typescript": "^7.0.2"
   }
 }

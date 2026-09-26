@@ -2,7 +2,7 @@ import {createHash} from "node:crypto"
 import {readdirSync, readFileSync, realpathSync} from "node:fs"
 import {join, relative, resolve, sep} from "node:path"
 
-const IMPLEMENTATION_DIGEST_PROTOCOL = "external-storybook-implementation/3"
+const IMPLEMENTATION_DIGEST_PROTOCOL = "external-storybook-implementation/4"
 
 const MCP_SIDE_SOURCE_FILES = new Set([
   "server/cli.ts",
@@ -17,6 +17,8 @@ const IMPLEMENTATION_FILES = Object.freeze([
   "package.json",
   "browser-lifecycle/package.json",
   "archetypes/package/package.json",
+  "archetypes/specs/package.json",
+  "app/package.json",
   "scripts/storybook-daemon.ts",
   "runtime/client-protocol.ts",
   "runtime/font-faces.ts",
@@ -27,6 +29,9 @@ const IMPLEMENTATION_TREES = Object.freeze([
   "catalog",
   "discovery",
   "archetypes/package/documentation",
+  "archetypes/specs/scenarios/validation",
+  "app/scenarios",
+  "app/spec-reader",
   "route",
   "build",
   "sessions",

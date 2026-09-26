@@ -72,7 +72,7 @@ describe("Границы транспортных сущностей", async () 
     for (const path of files) {
       for (const specifier of imports(await readSource(path))) {
         const resolved = specifier.startsWith(".") ? relative(root, resolve(dirname(path), specifier)) : specifier
-        if (/^(?:mcp\/rest|archetypes|@mcp\/rest|@archetypes)(?:\/|$)/u.test(resolved)) violations.push(resolved)
+        if (/^(?:mcp\/rest|archetypes|app|@mcp\/rest|@archetypes|@storybook\/app)(?:\/|$)/u.test(resolved)) violations.push(resolved)
       }
     }
     expect(violations, "Регистрация MCP не переносит предметную логику в транспортный процесс").toEqual([])
@@ -80,8 +80,8 @@ describe("Границы транспортных сущностей", async () 
 
   test("предметные зависимости не принадлежат runtime-пакету MCP", async () => {
     const manifest = await Bun.file(resolve(root, "mcp/package.json")).json()
-    expect(Object.keys(manifest.dependencies).filter(name => /^(?:@archetypes\/|@mcp\/rest$)/u.test(name))).toEqual([])
+    expect(Object.keys(manifest.dependencies).filter(name => /^(?:@archetypes\/|@mcp\/rest$|@storybook\/app$)/u.test(name))).toEqual([])
     const rest = await Bun.file(resolve(root, "mcp/rest/package.json")).json()
-    expect(rest.dependencies["@archetypes/specs"]).toBe("link:@archetypes/specs")
+    expect(rest.dependencies["@storybook/app"]).toBe("workspace:../../app")
   })
 })

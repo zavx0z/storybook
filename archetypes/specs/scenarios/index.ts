@@ -1,55 +1,30 @@
 /**
-Читает, выполняет и проверяет сценарий.
-
-Возвращает структуру исходника, данные выполнения и результаты валидации.
+Объясняет написание сценария по его файлу и структуре владельца.
+Чтение и запуск поручает App; из полного отчёта выбирает кодовые примеры и проверки.
 
 @packageDocumentation
 */
-import {traceScenario} from "./src/trace"
-import {validateRunProps} from "./src/run-props"
-import {readScenarioSource} from "./src/read-source"
-import {validateScenario} from "./src/validate"
-import {createScenarioPreview, supportsScenarioPreview} from "./src/preview"
-import type {ReadScenarioInput} from "./contract/input"
-import type {ReadScenarioOutput} from "./contract/output"
-import type {ScenarioPreview} from "./src/types"
+import {basename, dirname, resolve} from "node:path"
+import {readScenario} from "@storybook/app/scenarios"
+import {createScenarioGuide} from "../shared/scenario-guide"
+import type {ReadScenarioGuideInput} from "./contract/input"
+import type {ReadScenarioGuideOutput} from "./contract/output"
 
-export type {ReadScenarioInput, ReadScenarioOutput, ScenarioPreview}
-export {supportsScenarioPreview}
+export type {ReadScenarioGuideInput, ReadScenarioGuideOutput}
 
 /**
-Получает структуру исходника, выполняет его настоящим Bun Test и применяет правила архетипа.
+Читает указанный сценарий через App и собирает руководство его написания.
+Связанные файлы определяет рядом со сценарием; передавать технический отчёт не требуется.
 
-@param input - Путь к сценарию и необязательные именованные props;
-среда запуска определяется из его пакета.
-
-@returns Структура исходника, данные одного запуска и отчёт валидации.
-Нарушения оформления и выполненных проверок возвращаются в validation;
-нереализованные проверки не считаются пройденными.
-@throws Ошибка запуска, таймаут или отсутствие завершающего отчёта.
+@param input - Путь к файлу сценария его непосредственного владельца.
+@returns Файлы примера, исходный код и результаты проверки сценария.
+@throws TypeError, если путь не указывает на spec/scenario.spec.ts либо spec/scenario.spec.tsx.
+@throws Ошибки чтения и запуска сценария из App.
 */
-export async function readScenario(input: ReadScenarioInput): Promise<ReadScenarioOutput> {
-  input.signal?.throwIfAborted()
-  const onProgress: NonNullable<ReadScenarioInput["onProgress"]> = progress => {
-    try { input.onProgress?.(progress) } catch { /* Наблюдение не влияет на результат теста. */ }
+export async function readScenarioGuide({path}: ReadScenarioGuideInput): Promise<ReadScenarioGuideOutput> {
+  const source = resolve(path)
+  if (basename(dirname(source)) !== "spec" || !/^scenario\.spec\.tsx?$/u.test(basename(source))) {
+    throw new TypeError("Укажите файл spec/scenario.spec.ts либо spec/scenario.spec.tsx владельца")
   }
-  onProgress({phase: "preparing"})
-  if (input.variant !== undefined && (!Number.isSafeInteger(input.variant) || input.variant < 0)) {
-    throw new TypeError("variant должен быть неотрицательным индексом строки")
-  }
-  if (input.props !== undefined) validateRunProps(input.props)
-  const source = await readScenarioSource(input.path)
-  const outerGroups = source.groups.filter(group => group.depth === 0)
-  if (input.variant !== undefined && (outerGroups.length !== 1 || !outerGroups[0]!.each)) {
-    throw new Error("Выбор варианта требует единственного внешнего describe.each")
-  }
-  const execution = await traceScenario({...input, path: source.path, onProgress})
-  onProgress({phase: "reporting"})
-  const preview = await createScenarioPreview(source.path, execution, Object.keys(input.props ?? {}), input.variant ?? 0)
-  return {
-    ...execution,
-    source,
-    validation: validateScenario(source, execution),
-    ...(preview === undefined ? {} : {preview}),
-  }
+  return createScenarioGuide(await readScenario({path: source}))
 }

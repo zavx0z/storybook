@@ -6,7 +6,7 @@ import {readPackage} from "@archetypes/package"
 import {readModuleDocumentation} from "@archetypes/package/documentation"
 import {readPackageIndex} from "@archetypes/package/index"
 import {readPackageJson} from "@archetypes/package/package-json"
-import {readScenario} from "@archetypes/specs/scenarios"
+import {readScenario} from "@storybook/app/scenarios"
 
 const root = await mkdtemp(resolve(tmpdir(), "archetype-package-"))
 afterAll(() => rm(root, {recursive: true, force: true}))

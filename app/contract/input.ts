@@ -1,4 +1,4 @@
-import type {ReadScenarioInput, ScenarioPreview} from "@archetypes/specs/scenarios"
+import type {ReadScenarioInput, ScenarioPreview} from "@storybook/app/scenarios"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
 
 /**

@@ -320,8 +320,12 @@
     "app": {
       "name": "@storybook/app",
       "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/specs": "workspace:*",
+        "fast-xml-parser": "^5.11.1",
+        "typescript": "^7.0.2",
+      },
       "peerDependencies": {
-        "@archetypes/specs": "*",
         "@zavx0z/component": "*",
         "@zavx0z/template": "*",
         "@zavx0z/ui": "*",
@@ -337,7 +341,7 @@
     "archetypes/specs": {
       "name": "@archetypes/specs",
       "dependencies": {
-        "fast-xml-parser": "^5.11.1",
+        "@storybook/app": "workspace:../../app",
       },
     },
     "browser-lifecycle": {
@@ -360,7 +364,6 @@
         "zod": "^4.4.3",
       },
       "devDependencies": {
-        "@archetypes/specs": "workspace:*",
         "@mcp/address": "workspace:*",
         "@mcp/children": "workspace:*",
         "@mcp/rest": "workspace:*",
@@ -383,10 +386,10 @@
       "name": "@mcp/rest",
       "version": "0.0.0",
       "dependencies": {
-        "@archetypes/specs": "link:@archetypes/specs",
         "@mcp/address": "workspace:*",
         "@mcp/children": "workspace:*",
         "@mcp/root": "workspace:*",
+        "@storybook/app": "workspace:../../app",
       },
     },
     "mcp/root": {
@@ -819,8 +822,6 @@
     "xml-naming": ["xml-naming@0.3.0", "", {}, "sha512-ghig2TBE/H11aOVgmahA3MhimvkBr6JIYknH/Dhdk10nXwdbIqBJsbfMxpvFPG8bAw77gN29aQWvKpmVoPlvPQ=="],
 
     "zod": ["zod@4.6.5", "", {}, "sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q=="],
-
-    "@mcp/rest/@archetypes/specs": ["@archetypes/specs@link:@archetypes/specs", {}],
 
     "cytoscape-fcose/cose-base": ["cose-base@2.2.0", "", { "dependencies": { "layout-base": "^2.0.0" } }, "sha512-AzlgcsCbUMymkADOJtQm3wO9S3ltPfYOFD5033keQn9NJzIbtnZj+UdBJe7DYml/8TdbtHJW3j58SOnKhWY/5g=="],
 

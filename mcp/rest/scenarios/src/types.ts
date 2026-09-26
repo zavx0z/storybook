@@ -1,4 +1,4 @@
-import type {ReadScenarioOutput} from "@archetypes/specs/scenarios"
+import type {ReadScenarioOutput} from "@storybook/app/scenarios"
 
 /** Подготовленный источник одной ревизии; отсутствие файла и отсутствие результата различаются. */
 export interface ScenariosInput {

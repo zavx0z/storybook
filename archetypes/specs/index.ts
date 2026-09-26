@@ -1,41 +1,24 @@
 /**
-Читает данные спецификации у непосредственного владельца.
+Показывает правила и примеры написания спецификации выбранного владельца.
+Чтение и запуск сценария поручает приложению Storybook.
 
 @packageDocumentation
 */
-import {resolve} from "node:path"
-import {readScenario} from "./scenarios"
-import type {ReadSpecInput} from "./contract/input"
-import type {ReadSpecOutput} from "./contract/output"
-import {findSpec} from "./src/find-spec"
+import {readSpec} from "@storybook/app/spec-reader"
+import {createScenarioGuide} from "./shared/scenario-guide"
+import type {ReadSpecGuideInput} from "./contract/input"
+import type {ReadSpecGuideOutput} from "./contract/output"
 
-export type {ReadSpecInput, ReadSpecOutput}
+export type {ReadSpecGuideInput, ReadSpecGuideOutput}
 
 /**
-Находит непосредственную директорию spec и читает результат её сценария.
+Находит непосредственный сценарий владельца и показывает его структуру и код.
 
-@param path - Директория владельца спецификации.
-@returns Данные сценария либо null, если директории spec нет.
-Поле scenario равно null, если файл сценария отсутствует.
-@throws Ошибки чтения и запуска сценария; ошибка при наличии обоих расширений.
+@param input - Путь к владельцу спецификации.
+@returns Руководство либо null, если у выбранного владельца нет сценария.
+@throws Ошибки чтения и запуска спецификации из App.
 */
-export async function readSpec({path}: ReadSpecInput): Promise<ReadSpecOutput> {
-  const specPath = await findSpec(path)
-  if (specPath === null) return null
-
-  const scenarioPaths = [
-    resolve(specPath, "scenario.spec.ts"),
-    resolve(specPath, "scenario.spec.tsx"),
-  ]
-  const existingPaths = []
-  for (const scenarioPath of scenarioPaths) {
-    if (await Bun.file(scenarioPath).exists()) existingPaths.push(scenarioPath)
-  }
-  if (existingPaths.length > 1) {
-    throw new Error("Спецификация содержит одновременно scenario.spec.ts и scenario.spec.tsx")
-  }
-
-  return {
-    scenario: existingPaths[0] ? await readScenario({path: existingPaths[0]}) : null,
-  }
+export async function readSpecGuide({path}: ReadSpecGuideInput): Promise<ReadSpecGuideOutput> {
+  const result = await readSpec({path})
+  return result?.scenario ? createScenarioGuide(result.scenario) : null
 }

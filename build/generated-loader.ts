@@ -1,5 +1,5 @@
 import {isAbsolute, normalize} from "node:path"
-import type {ScenarioPreview} from "@archetypes/specs/scenarios"
+import type {ScenarioPreview} from "@storybook/app/scenarios"
 import {
   validateExternalStorybookExportName,
   validateExternalStorybookPackageId,

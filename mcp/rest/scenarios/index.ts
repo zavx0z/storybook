@@ -5,7 +5,7 @@
 */
 import {randomUUID} from "node:crypto"
 import {resolve} from "node:path"
-import {readSpec} from "@archetypes/specs"
+import {readSpec} from "@storybook/app/spec-reader"
 import type {ReadScenariosInput} from "./contract/input"
 import type {ReadScenariosOutput} from "./contract/output"
 import {presentScenarios} from "./src/presentation"

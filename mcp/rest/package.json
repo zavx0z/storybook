@@ -15,7 +15,7 @@
     "test": "bun test ./spec ./scenarios ./package"
   },
   "dependencies": {
-    "@archetypes/specs": "link:@archetypes/specs",
+    "@storybook/app": "workspace:../../app",
     "@mcp/address": "workspace:*",
     "@mcp/children": "workspace:*",
     "@mcp/root": "workspace:*"

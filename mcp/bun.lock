@@ -9,7 +9,6 @@
         "zod": "^4.4.3",
       },
       "devDependencies": {
-        "@archetypes/specs": "workspace:../archetypes/specs",
         "@mcp/address": "workspace:*",
         "@mcp/children": "workspace:*",
         "@mcp/rest": "workspace:*",
@@ -20,10 +19,24 @@
         "typescript": "^7.0.2",
       },
     },
+    "../app": {
+      "name": "@storybook/app",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/specs": "workspace:*",
+        "fast-xml-parser": "^5.11.1",
+        "typescript": "^7.0.2",
+      },
+      "peerDependencies": {
+        "@zavx0z/component": "*",
+        "@zavx0z/template": "*",
+        "@zavx0z/ui": "*",
+      },
+    },
     "../archetypes/specs": {
       "name": "@archetypes/specs",
       "dependencies": {
-        "fast-xml-parser": "^5.11.1",
+        "@storybook/app": "workspace:../../app",
       },
     },
     "../route": {
@@ -45,10 +58,10 @@
       "name": "@mcp/rest",
       "version": "0.0.0",
       "dependencies": {
-        "@archetypes/specs": "link:@archetypes/specs",
         "@mcp/address": "workspace:*",
         "@mcp/children": "workspace:*",
         "@mcp/root": "workspace:*",
+        "@storybook/app": "workspace:../../app",
       },
     },
     "root": {
@@ -61,6 +74,8 @@
   },
   "packages": {
     "@archetypes/specs": ["@archetypes/specs@workspace:../archetypes/specs"],
+
+    "@storybook/app": ["@storybook/app@workspace:../app"],
 
     "@mcp/address": ["@mcp/address@workspace:address"],
 
@@ -166,6 +181,5 @@
 
     "zod": ["zod@4.4.3", "", {}, "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ=="],
 
-    "@mcp/rest/@archetypes/specs": ["@archetypes/specs@link:@archetypes/specs", {}],
   }
 }

@@ -1,0 +1,55 @@
+/**
+Читает, выполняет и проверяет сценарий.
+
+Возвращает структуру исходника, данные выполнения и результаты валидации.
+
+@packageDocumentation
+*/
+import {traceScenario} from "./src/trace"
+import {validateRunProps} from "./src/run-props"
+import {readScenarioSource} from "./src/read-source"
+import {validateScenario} from "@archetypes/specs/scenarios/validation"
+import {createScenarioPreview, supportsScenarioPreview} from "./src/preview"
+import type {ReadScenarioInput} from "./contract/input"
+import type {ReadScenarioOutput} from "./contract/output"
+import type {ScenarioPreview} from "./src/types"
+
+export type {ReadScenarioInput, ReadScenarioOutput, ScenarioPreview}
+export {supportsScenarioPreview}
+
+/**
+Получает структуру исходника, выполняет его настоящим Bun Test и применяет правила архетипа.
+
+@param input - Путь к сценарию и необязательные именованные props;
+среда запуска определяется из его пакета.
+
+@returns Структура исходника, данные одного запуска и отчёт валидации.
+Нарушения оформления и выполненных проверок возвращаются в validation;
+нереализованные проверки не считаются пройденными.
+@throws Ошибка запуска, таймаут или отсутствие завершающего отчёта.
+*/
+export async function readScenario(input: ReadScenarioInput): Promise<ReadScenarioOutput> {
+  input.signal?.throwIfAborted()
+  const onProgress: NonNullable<ReadScenarioInput["onProgress"]> = progress => {
+    try { input.onProgress?.(progress) } catch { /* Наблюдение не влияет на результат теста. */ }
+  }
+  onProgress({phase: "preparing"})
+  if (input.variant !== undefined && (!Number.isSafeInteger(input.variant) || input.variant < 0)) {
+    throw new TypeError("variant должен быть неотрицательным индексом строки")
+  }
+  if (input.props !== undefined) validateRunProps(input.props)
+  const source = await readScenarioSource(input.path)
+  const outerGroups = source.groups.filter(group => group.depth === 0)
+  if (input.variant !== undefined && (outerGroups.length !== 1 || !outerGroups[0]!.each)) {
+    throw new Error("Выбор варианта требует единственного внешнего describe.each")
+  }
+  const execution = await traceScenario({...input, path: source.path, onProgress})
+  onProgress({phase: "reporting"})
+  const preview = await createScenarioPreview(source.path, execution, Object.keys(input.props ?? {}), input.variant ?? 0)
+  return {
+    ...execution,
+    source,
+    validation: validateScenario(source, execution),
+    ...(preview === undefined ? {} : {preview}),
+  }
+}

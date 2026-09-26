@@ -5,7 +5,7 @@
 */
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import {readScenario} from "@archetypes/specs/scenarios"
+import {readScenario} from "@storybook/app/scenarios"
 import type {ScenariosInput} from "../src/types"
 import {presentScenarios} from "../src/presentation"
 

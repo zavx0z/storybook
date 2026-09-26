@@ -1,12 +1,14 @@
 import {CodeEditor} from "@zavx0z/ui/views/code-editor"
 import {Typography} from "@zavx0z/ui/typography"
 import type {ScenarioAppInput} from "../../contract/input"
+import {isScenarioGuide, ScenarioGuideResult} from "./guide"
 
 type Call = Extract<ScenarioAppInput, {kind: "function"}>["variants"][number]["calls"][number]
 
-/** Один редактор удерживается на месте при смене снимка выбранного варианта. */
+/** Выбирает кодовое представление руководства либо полный JSON исхода вызова. */
 export function ScenarioCallResult(props: Readonly<{key?: string, call: Call, index: number, multiple: boolean}>) {
   const outcome = props.call.outcome
+  const guide = "value" in outcome && isScenarioGuide(outcome.value) ? outcome.value : null
   return <section
     data-scenario-call={String(props.call.id)}
     style={css`
@@ -20,7 +22,7 @@ export function ScenarioCallResult(props: Readonly<{key?: string, call: Call, in
   >
     {props.multiple ? <Typography text={`Вызов ${props.index + 1}`} /> : null}
     {outcome.type === "throw" || outcome.type === "reject" ? <Typography text="Ошибка выполнения" /> : null}
-    <CodeEditor
+    {guide !== null ? <ScenarioGuideResult guide={guide} /> : <CodeEditor
       languageId="json"
       readOnly={true}
       value={JSON.stringify("value" in outcome ? outcome.value : outcome.error, null, 2)}
@@ -30,6 +32,6 @@ export function ScenarioCallResult(props: Readonly<{key?: string, call: Call, in
         height: 100%;
         min-height: 0;
       `}
-    />
+    />}
   </section>
 }

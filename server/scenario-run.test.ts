@@ -2,13 +2,13 @@ import {expect, test} from "bun:test"
 import {mkdtemp, mkdir, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {resolve} from "node:path"
-import {readScenario} from "@archetypes/specs/scenarios"
+import {readScenario} from "@storybook/app/scenarios"
 import {createStorybookScenarioRunner} from "./scenario-run"
 import type {ExternalStorybookRegistrySnapshot} from "../catalog/registry"
 import type {ExternalStorybookSessionManager} from "../sessions/session-manager"
 
 test("Сервер выполняет настоящий компонентный тест и возвращает проверенные props", async () => {
-  const path = resolve(import.meta.dir, "../archetypes/specs/scenarios/spec/fixture/component/spec/scenario.spec.tsx")
+  const path = resolve(import.meta.dir, "../app/scenarios/spec/fixture/component/spec/scenario.spec.tsx")
   const prepared = await readScenario({path})
   if (prepared.preview?.kind !== "component") throw new Error("Нет компонентного сценария")
   const root = await mkdtemp(resolve(tmpdir(), "storybook-component-run-"))

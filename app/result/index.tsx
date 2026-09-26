@@ -5,7 +5,8 @@ import type {ScenarioApp} from "../contract/output"
 import {ScenarioCallResult} from "./src/call"
 
 /**
-Показывает состояние запуска теста и полные исходы вызовов в редакторе JSON.
+Показывает состояние запуска и исходы вызовов. Руководство отображается как
+структура файлов и примеры кода, остальные данные сохраняются в редакторе JSON.
 Специальные значения сохраняют метки инспектора, ошибки не подменяются результатом.
 */
 export function ScenarioResult(props: Readonly<{app: ScenarioApp}>) {

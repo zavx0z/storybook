@@ -1,3 +1,10 @@
+/**
+Читает, выполняет и показывает сценарии выбранного владельца.
+Полный отчёт доступен техническим потребителям; руководства Archetypes
+отображаются как структура файлов и исходные примеры.
+
+@packageDocumentation
+*/
 import {isCompiledTemplate} from "@zavx0z/template/compiled"
 import type {ScenarioAppInput} from "./contract/input"
 import type {ScenarioApp} from "./contract/output"

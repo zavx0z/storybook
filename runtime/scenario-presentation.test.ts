@@ -8,6 +8,44 @@ import {createScenarioPresentation} from "./scenario-presentation"
 import {ScenarioInspector} from "@storybook/app/inspector"
 import {StatefulFixture} from "../app/spec/fixture"
 
+test("руководство Archetypes показывает файлы и код без JSON-упаковки", async () => {
+  const code = 'describe.each([{name: "Пример", props: {value: 1}}])("$name", ({props}) => {\n  test("Значение", () => expect(props.value).toBe(1))\n})'
+  const presentation = createScenarioPresentation(createDocument(), {
+    kind: "function",
+    variants: [
+      {id: "guide", title: "Руководство", source: "readScenarioGuide(input)", points: [], calls: [{
+        id: 1,
+        source: "readScenarioGuide(input)",
+        outcome: {type: "return", value: {
+          kind: "scenario-guide",
+          files: [{path: "spec/scenario.spec.ts", role: "scenario"}],
+          examples: [{title: "Сценарий целиком", code}],
+          checks: [{rule: "meaning", status: "not-checked", issues: []}],
+        }},
+      }]},
+      {id: "data", title: "Данные", source: "readData()", points: [], calls: [{
+        id: 2,
+        source: "readData()",
+        outcome: {type: "return", value: {count: 3}},
+      }]},
+    ],
+  })
+  try {
+    expect(presentation.element.querySelector("[data-scenario-guide]")).not.toBeNull()
+    expect(presentation.element.textContent).toContain("Структура файлов")
+    expect(presentation.element.textContent).toContain("spec/scenario.spec.ts — сценарий")
+    expect(presentation.element.querySelector('[data-language-id="typescript"]')?.textContent).toContain("describe.each")
+    expect(presentation.element.querySelector('[data-language-id="json"]')).toBeNull()
+    presentation.app.select("data")
+    await Promise.resolve()
+    presentation.componentRoot.flush()
+    expect(presentation.element.querySelector("[data-scenario-guide]")).toBeNull()
+    expect(presentation.element.querySelector('[data-language-id="json"]')?.textContent).toContain('"count"')
+  } finally {
+    presentation.dispose()
+  }
+})
+
 test("Компонент монтируется только после успешного теста с проверенными props", async () => {
   type Run = NonNullable<ScenarioAppInput["run"]>
   const pending: {resolve: (result: Awaited<ReturnType<Run>>) => void, signal: AbortSignal}[] = []

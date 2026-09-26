@@ -1,7 +1,7 @@
 import {resolveStorybookRoute} from "./route"
 import {createStorybookScenarioRunner} from "./scenario-run"
 import {streamScenarioRun} from "./scenario-stream"
-import type {ReadScenarioInput} from "@archetypes/specs/scenarios"
+import type {ReadScenarioInput} from "@storybook/app/scenarios"
 import {storybookPackagePathMatches, storybookPackageRouteFromPathname, storybookCurrentRouteKey, validStorybookViewQuery} from "@zavx0z/storybook-browser-lifecycle/contract"
 import {externalStorybookBrowsePath} from "../catalog/graph.ts"
 import {storybookRest} from "@mcp/rest"

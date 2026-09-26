@@ -1,5 +1,5 @@
 import type {ScenarioAppInput} from "./input"
-import type {ReadScenarioInput} from "@archetypes/specs/scenarios"
+import type {ReadScenarioInput} from "@storybook/app/scenarios"
 
 /**
 Согласованное состояние редактора и области просмотра выбранного сценария.

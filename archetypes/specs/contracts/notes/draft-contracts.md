@@ -128,8 +128,8 @@ Inspector этого рабочего пространства содержит 
 
 ## Что сверить с кодом
 
-[ReadSpecInput](../../contract/input.ts) показывает применение interface,
-а [ReadSpecOutput](../../contract/output.ts) — необходимое применение type
+[ReadSpecGuideInput](../../contract/input.ts) показывает применение interface,
+а [ReadSpecGuideOutput](../../contract/output.ts) — необходимое применение type
 для результата, допускающего null. Оба соответствуют принятому правилу.
-[Внутренние типы сборщика](../../scenarios/src/types.ts) показывают один
+[Внутренние типы сборщика](../../../../app/scenarios/src/types.ts) показывают один
 из существующих вариантов размещения, а не окончательно выбранный общий стандарт.

@@ -1,8 +1,8 @@
 import {formatRouteAddress} from "@storybook/route/address"
 import {resolveRoute, type ResolveRouteInput, type ResolveRouteOutput} from "@storybook/route"
 import {dirname, resolve} from "node:path"
-import type {ReadSpecOutput} from "@archetypes/specs"
-import type {ReadScenarioOutput} from "@archetypes/specs/scenarios"
+import type {ReadSpecOutput} from "@storybook/app/spec-reader"
+import type {ReadScenarioOutput} from "@storybook/app/scenarios"
 import type {ExternalStorybookRegistrySnapshot} from "../catalog/registry"
 import type {ExternalStorybookSessionManager} from "../sessions/session-manager"
 

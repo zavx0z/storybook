@@ -1,4 +1,4 @@
-import type {ReadSpecOutput} from "@archetypes/specs"
+import type {ReadSpecOutput} from "@storybook/app/spec-reader"
 
 /**
 Выбор сценария и формы его представления в HTTP-ответе.

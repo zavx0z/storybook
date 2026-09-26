@@ -14,8 +14,8 @@ import {
 } from "node:fs"
 import {dirname, extname, isAbsolute, join, relative, resolve, sep} from "node:path"
 import {fileURLToPath} from "node:url"
-import {readSpec} from "@archetypes/specs"
-import {supportsScenarioPreview, type ReadScenarioOutput} from "@archetypes/specs/scenarios"
+import {readSpec} from "@storybook/app/spec-reader"
+import {supportsScenarioPreview, type ReadScenarioOutput} from "@storybook/app/scenarios"
 import {
   generateStorybookLoaderSource,
   generateStorybookAppliedRevisionLoaderSource,

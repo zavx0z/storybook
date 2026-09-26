@@ -1,6 +1,6 @@
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import {readScenario} from "@archetypes/specs/scenarios"
+import {readScenario} from "@storybook/app/scenarios"
 import type {ScenariosInput, ScenarioSection} from "../src/types"
 import {presentScenarios} from "../src/presentation"
 import {readScenarios} from ".."
@@ -122,7 +122,7 @@ describe.each([
   {name: "Функция", path: "function", title: "Несколько чисел", topic: "Итог", item: "Сумма", value: 5},
   {name: "Компонент", path: "component", title: "Доступная команда", topic: "Использование", item: "Подпись", value: "Продолжить"},
 ])("Документация: $name", async ({path: fixture, title, topic, item, value}) => {
-  const path = resolve(import.meta.dir, "../../../../archetypes/specs/scenarios/spec/fixture", fixture)
+  const path = resolve(import.meta.dir, "../../../../app/scenarios/spec/fixture", fixture)
   const source = resolve(path, "spec", fixture === "component" ? "scenario.spec.tsx" : "scenario.spec.ts")
   const result = await readScenarios({path, source})
   test("Одна форма раскрывает предметные данные разных сущностей", () => {
@@ -131,7 +131,7 @@ describe.each([
 })
 
 test("вариант компонента содержит ту же декларацию, props и пункты, что preview", async () => {
-  const path = resolve(import.meta.dir, "../../../../archetypes/specs/scenarios/spec/fixture/component")
+  const path = resolve(import.meta.dir, "../../../../app/scenarios/spec/fixture/component")
   const source = resolve(path, "spec/scenario.spec.tsx")
   const raw = await readScenario({path: source})
   const prepared = {revision: "component-preview", result: {scenario: raw}}
@@ -148,7 +148,7 @@ test("вариант компонента содержит ту же декла�
 }, 20_000)
 
 test("подготовленная спецификация сохраняет ревизию без нового запуска", async () => {
-  const path = resolve(import.meta.dir, "../../../../archetypes/specs/scenarios/spec/fixture/function")
+  const path = resolve(import.meta.dir, "../../../../app/scenarios/spec/fixture/function")
   const source = resolve(path, "spec/scenario.spec.ts")
   const raw = await readScenario({path: source})
   const result = await readScenarios({path, source, format: "data", prepared: {revision: "applied-revision", result: {scenario: raw}}})
@@ -156,7 +156,7 @@ test("подготовленная спецификация сохраняет �
 })
 
 test("подготовленное отсутствие не запускает существующий сценарий заново", async () => {
-  const path = resolve(import.meta.dir, "../../../../archetypes/specs/scenarios/spec/fixture/function")
+  const path = resolve(import.meta.dir, "../../../../app/scenarios/spec/fixture/function")
   const result = await readScenarios({path, format: "data", prepared: {revision: "applied-absent", result: null}})
   expect("status" in result.scenarios ? result.scenarios.status : null).toBe("absent")
 })

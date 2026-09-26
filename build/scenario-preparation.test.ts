@@ -8,7 +8,7 @@ import type {StorybookPackageBuildDescriptor} from "../sessions/package-session.
 test("готовит один preview только для однозначного поддержанного scenario source", async () => {
   const supported = resolve(
     import.meta.dir,
-    "../archetypes/specs/scenarios/spec/fixture/component/spec/scenario.spec.tsx",
+    "../app/scenarios/spec/fixture/component/spec/scenario.spec.tsx",
   )
   const functionSource = resolve(import.meta.dir, "../archetypes/package/spec/scenario.spec.ts")
   const descriptor = {
@@ -26,7 +26,7 @@ test("готовит один preview только для однозначног
     ["function", "package:@archetypes/package"],
   ])
   expect(result[0]).toMatchObject({module: {
-    path: realpathSync(resolve(import.meta.dir, "../archetypes/specs/scenarios/spec/fixture/component/spec/fixture/index.tsx")),
+    path: realpathSync(resolve(import.meta.dir, "../app/scenarios/spec/fixture/component/spec/fixture/index.tsx")),
     export: "CommandFixture",
   }})
   expect(result[0]?.variants.map(variant => variant.title)).toEqual(["Доступная команда", "Недоступная команда"])
