@@ -5,6 +5,7 @@ import type {ReadScenarioInput} from "@storybook/app/scenarios"
 import {storybookPackagePathMatches, storybookPackageRouteFromPathname, storybookCurrentRouteKey, validStorybookViewQuery} from "@zavx0z/storybook-browser-lifecycle/contract"
 import {externalStorybookBrowsePath} from "../catalog/graph.ts"
 import {storybookRest} from "@mcp/rest"
+import {storybookMcpEntries} from "../catalog/mcp"
 import {createMcpRequestJournal} from "@mcp/rest/requests"
 import {proxyContent, errorContent} from "../mcp/server/src/response"
 import {StorybookDirectorySelection} from "./directory-selection.ts"
@@ -658,18 +659,7 @@ export async function startExternalStorybookServer(
   const runScenario = createStorybookScenarioRunner()
   let journalWriteError: {at: string, message: string} | null = null
   /** Один предметный обработчик для MCP-прокси и просмотра ответа по адресу UI. */
-  const mcpEntries = () => {
-    const snapshot = registry.snapshot()
-    const packages = snapshot.graph.nodes.filter(node => node.kind === "package")
-    const descriptions = new Map(snapshot.catalog.scopes.map(scope => [scope.canonicalId, scope.description ?? ""]))
-    return packages.map(node => ({
-      path: node.urlPath.slice(1),
-      label: node.label,
-      description: descriptions.get(node.id) ?? "",
-      parent: [...node.structuralPath].reverse().slice(1)
-        .map(id => packages.find(parent => parent.id === id)).find(Boolean)?.urlPath.slice(1) ?? null,
-    }))
-  }
+  const mcpEntries = () => storybookMcpEntries(registry.snapshot())
   const readStorybook = (request: Request) => storybookRest(request, {entries: mcpEntries()})
 
   let server!: Bun.Server<StorybookWebSocketData>
@@ -761,9 +751,8 @@ export async function startExternalStorybookServer(
           let input: {path?: string} | null = null
           try {
             const pathname = source.address.split(/[?#]/u)[0]!.slice(1)
-            const owner = mcpEntries().filter(item => pathname === item.path || pathname.startsWith(`${item.path}/`))
-              .sort((a, b) => b.path.length - a.path.length)[0]
-            if (pathname !== "" && owner === undefined) throw new Error("Страница не принадлежит зарегистрированному пакету")
+            const owner = mcpEntries().find(item => pathname === item.path)
+            if (pathname !== "" && owner === undefined) throw new Error("Страница отсутствует в публичной структуре")
             input = owner === undefined ? {} : {path: owner.path}
             const reply = await readStorybook(new Request(new URL("/api/control/storybook", server.url.origin), {
               method: "POST",

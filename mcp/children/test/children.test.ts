@@ -45,3 +45,10 @@ test("Лист и отсутствующее авторское описание
   expect(root.description).toBe("Описание не задано владельцем.")
   expect(root.children[0]?.description).toBe("Описание не задано владельцем.")
 })
+
+test("Краткое назначение помогает выбрать владельца, полный обзор раскрывается после выбора", () => {
+  const entry = {path: "library", description: "# Library\n\nПодробный обзор и условия использования.", summary: "Обработка текста", parent: null}
+  const root = readMcpChildren({description: "Вход", entries: [entry]})
+  expect(root.children).toEqual([{path: "library", description: "Обработка текста"}])
+  expect(readMcpChildren({...entry, entries: []}).description).toBe(entry.description)
+})

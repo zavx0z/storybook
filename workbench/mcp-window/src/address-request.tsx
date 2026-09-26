@@ -3,14 +3,14 @@ import {Button} from "@zavx0z/ui/buttons/button"
 import type {McpRequestRecord} from "@mcp/rest/requests"
 import {RequestList} from "./request-list"
 
-/** Находит пакет открытой страницы и возвращает его точный MCP-запрос и ответ. */
+/** Находит владельца открытой страницы и возвращает его точный MCP-запрос и ответ. */
 export interface McpAddressSource {
   readAddress(): string
   request(address: string, signal: AbortSignal): Promise<{input: {path?: string} | null, result: unknown, failed: boolean}>
 }
 
 /**
-Показывает только адрес пакета, разрешённый сервером по pathname страницы.
+Показывает адрес владельца, разрешённый сервером по pathname страницы.
 Смена адреса отменяет прежнее чтение; неизменный адрес не запускает повторное выполнение.
 */
 export function AddressRequest(props: Readonly<{active: boolean, source?: McpAddressSource | undefined}>) {

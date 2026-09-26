@@ -22,7 +22,7 @@ const uniqueList = <Schema extends z.ZodType>(schema: Schema, maximum: number) =
   .refine((values) => new Set(values.map((value) => JSON.stringify(value))).size === values.length, "list must be unique")
 
 export const storybookSchema = z.strictObject({
-  path: boundedId.optional().describe("Адрес из path выбранного элемента children. Без параметров и внутренних директорий."),
+  path: boundedId.optional().describe("Адрес из path выбранного элемента children. Без параметров URL и fragment."),
 })
 
 export const storybookEnsureSchema = z.strictObject({

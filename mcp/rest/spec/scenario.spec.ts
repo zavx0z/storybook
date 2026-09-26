@@ -1,4 +1,7 @@
 import {describe, expect, test} from "bun:test"
+import {createHash} from "node:crypto"
+import {join} from "node:path"
+import {readContractDocumentation} from "../../../discovery/contract-documentation"
 import {storybookRest} from ".."
 
 const entries = [
@@ -51,10 +54,10 @@ test.each([
   expect((await read(input)).status).toBe(400)
 })
 
-test.each(["shop/src", "shop/ui/button/readme", "shop.ui.button", "missing"])("Не пакет: %s", async path => {
+test.each(["shop/src", "shop/ui/button/readme", "shop.ui.button", "missing"])("Адрес вне публичной структуры: %s", async path => {
   const result = await read({path})
   expect(result.status).toBe(404)
-  expect((await result.json()).error).toContain("зарегистрированному пакету")
+  expect((await result.json()).error).toContain("публичной структуре")
 })
 
 test("GET и пустой POST выбирают независимый Root; пустой каталог допустим", async () => {
@@ -64,4 +67,36 @@ test("GET и пустой POST выбирают независимый Root; п�
   expect((await storybookRest(new Request("http://localhost?view=scenarios"), {entries})).status).toBe(400)
   expect((await storybookRest(new Request("http://localhost", {method: "POST", body: "{"}), {entries})).status).toBe(400)
   expect((await storybookRest(new Request("http://localhost", {method: "DELETE"}), {entries})).status).toBe(405)
+})
+
+describe.each([{name: "Функция с контрактом", props: {path: "text/trim"}}])("$name", async ({props}) => {
+  const owner = join(import.meta.dir, "fixture/library/text/trim")
+  const input = await Bun.file(join(owner, "contract/input.ts")).text()
+  const output = await Bun.file(join(owner, "contract/output.ts")).text()
+  const scenario = await Bun.file(join(owner, "spec/scenario.spec.ts")).text()
+  const inputSchema = (await readContractDocumentation(owner, join(owner, "contract/input.ts"))).document.declarations[0]!.schema!
+  const outputSchema = (await readContractDocumentation(owner, join(owner, "contract/output.ts"))).document.declarations[0]!.schema!
+  const response = await storybookRest(new Request("http://localhost", {
+    method: "POST", body: JSON.stringify(props),
+  }), {entries: [{
+    path: props.path,
+    description: "Удаляет пробелы по краям текста.",
+    parent: "text",
+    sources: {
+      input: {path: join(owner, "contract/input.ts"), digest: createHash("sha256").update(input).digest("hex"), schema: inputSchema},
+      output: {path: join(owner, "contract/output.ts"), digest: createHash("sha256").update(output).digest("hex"), schema: outputSchema},
+      scenarios: [join(owner, "spec/scenario.spec.ts")],
+    },
+  }]})
+  const result = await response.json()
+
+  test("Условия использования", () => {
+    expect(result, "Адрес раскрывает назначение, JSON Schema контрактов и исполняемый пример владельца").toEqual({
+      path: props.path, description: "Удаляет пробелы по краям текста.", children: [], input: inputSchema, output: outputSchema, scenarios: [scenario],
+    })
+  })
+  test("Единое описание условия", () => {
+    expect(result.scenarios[0], "То же сообщение expect объясняет сохранение содержимого в коде, MCP и отчёте Bun")
+      .toContain('expect(result, "Пробелы по краям удалены, содержимое текста сохранено").toBe(expected)')
+  })
 })

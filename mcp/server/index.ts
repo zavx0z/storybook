@@ -39,7 +39,7 @@ export function createStorybookMcpServer(options: CreateStorybookMcpServerInput 
 
   server.registerTool("storybook", {
     title: "Storybook",
-    description: "Открывает корневой вход Storybook MCP или направление по path. Ответ содержит description и children; необязательный label уточняет название. Выберите направление по описанию и передайте его path следующему вызову. Пустой вызов возвращает к корню. Адреса пока заканчиваются на зарегистрированных пакетах, без параметров URL, фрагмента адреса и внутренних директорий.",
+    description: "Открывает корневой вход Storybook MCP или направление по path. Ответ содержит назначение и children; у выбранного владельца input и output содержат JSON Schema с описаниями, а scenarios — примеры использования. Выберите направление по описанию и передайте его path следующему вызову. Пустой вызов возвращает к корню. Чтение не выполняет код. Используйте адреса из children, без параметров URL и фрагмента адреса.",
     inputSchema: storybookSchema,
     annotations: {readOnlyHint: true, idempotentHint: true},
   }, async (input, context) => {

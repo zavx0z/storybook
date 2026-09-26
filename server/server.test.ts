@@ -41,6 +41,15 @@ describe("one external Storybook server", () => {
     const {createStorybookMcpServer} = await import("../mcp/server")
     const {ExternalStorybookControlClient} = await import("./control-client")
     const fixture = serverFixture()
+    mkdirSync(join(fixture.standalone, "text/trim/contract"), {recursive: true})
+    mkdirSync(join(fixture.standalone, "text/trim/spec"), {recursive: true})
+    writeFileSync(join(fixture.standalone, "text/trim/index.ts"), '/** Удаляет пробелы.\n@packageDocumentation\n*/\nexport const trim = (text: string) => text.trim()')
+    const inputSource = '/** Исходный текст. */\nexport type Input = string'
+    const outputSource = '/** Текст без отступов. */\nexport type Output = string'
+    const scenarioSource = 'throw new Error("Чтение не должно исполнять сценарий")'
+    writeFileSync(join(fixture.standalone, "text/trim/contract/input.ts"), inputSource)
+    writeFileSync(join(fixture.standalone, "text/trim/contract/output.ts"), outputSource)
+    writeFileSync(join(fixture.standalone, "text/trim/spec/scenario.spec.ts"), scenarioSource)
     const running = await startTestServer({declarations: [fixture.standalone], statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
     servers.push(running)
     const control = new ExternalStorybookControlClient(running.record)
@@ -57,18 +66,24 @@ describe("one external Storybook server", () => {
       body: JSON.stringify(input),
     })
     try {
-      for (const address of ["/", "/standalone", "/standalone?view=overview", "/standalone/internal?view=scenarios&inspector=x", "/standalone?preview=candidate"]) {
+      for (const address of ["/", "/standalone", "/standalone?view=overview", "/standalone/text", "/standalone/text/trim?view=scenarios&inspector=x", "/standalone?preview=candidate"]) {
         const browser = await read({address})
         expect(browser.status).toBe(200)
-        const input = address === "/" ? {} : {path: "standalone"}
+        const input = address === "/" ? {} : {path: address.split("?")[0]!.slice(1)}
         const expected = await client.callTool({name: "storybook", arguments: input})
         expect(await browser.json()).toEqual({input, ...expected})
       }
+      const content = await client.callTool({name: "storybook", arguments: {path: "standalone/text/trim"}})
+      expect(content.structuredContent).toMatchObject({
+        description: "Удаляет пробелы.", input: {type: "string", description: "Исходный текст."},
+        output: {type: "string", description: "Текст без отступов."}, scenarios: [scenarioSource], children: [],
+      })
       for (const path of ["standalone/internal", "standalone?view=scenarios"]) {
         expect((await client.callTool({name: "storybook", arguments: {path}})).isError).toBeTrue()
       }
       const missing = await (await read({address: "/missing?view=scenarios"})).json()
       expect(missing).toMatchObject({input: null, isError: true})
+      expect(await (await read({address: "/standalone/internal?view=scenarios"})).json()).toMatchObject({input: null, isError: true})
       expect((await read({address: "/"}, "invalid")).status).toBe(401)
       expect((await read({address: "/"}, readerToken, "https://example.com")).ok).toBeFalse()
       expect((await read({address: "/", action: "journal"})).ok).toBeFalse()

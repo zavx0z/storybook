@@ -1,0 +1,7 @@
+{
+  "name": "@fixture/lazy-content",
+  "label": "Текст",
+  "description": "Функции подготовки текста",
+  "type": "module",
+  "exports": {"./text/trim": "./text/trim/index.ts"}
+}

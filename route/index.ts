@@ -78,7 +78,7 @@ export async function resolveRoute({route, roots}: ResolveRouteInput): Promise<R
         relativeSegments: [...position.relativeSegments, segment],
         directory: physical.path,
         scenarioOwner: physical.module || physical.entry !== null,
-        moduleOwner: physical.module,
+        moduleOwner: physical.module || physical.entry !== null,
         stopsTraversal: physical.module,
       }
       continue

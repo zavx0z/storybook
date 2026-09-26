@@ -55,67 +55,36 @@ export async function discoverStorybookDirectories(
     rootDocumentation = await readDocumentation(path)
     break
   }
-  const collectViews = async (path: string, moduleOwner: boolean, scenarioOwner: boolean): Promise<void> => {
-    if (moduleOwner) {
-      const contractDirectory = join(path, "contract")
-      const contractPaths = [join(contractDirectory, "input.ts"), join(contractDirectory, "output.ts")]
-      for (const watched of [contractDirectory, ...contractPaths]) watchPaths.add(watched)
-      const excludedContracts = await ignored([contractDirectory, ...contractPaths])
-      const contractInfo = await lstat(contractDirectory).catch(error => {
+  const collectViews = async (path: string, hasEntry: boolean): Promise<void> => {
+    if (!hasEntry) return
+    for (const [name, files] of [
+      ["contract", ["input.ts", "output.ts"]],
+      ["spec", ["deps.spec.ts", "scenario.spec.ts", "scenario.spec.tsx"]],
+    ] as const) {
+      const directory = join(path, name)
+      const paths = files.map(file => join(directory, file))
+      for (const watched of [directory, ...paths]) watchPaths.add(watched)
+      const excluded = await ignored([directory, ...paths])
+      const info = await lstat(directory).catch(error => {
         if (error.code !== "ENOENT") throw error
         return null
       })
-      const foundContractPaths: string[] = []
-      if (contractInfo?.isDirectory() && !contractInfo.isSymbolicLink() && !excludedContracts.has(contractDirectory)) {
-        for (const contractPath of contractPaths) {
-          if (excludedContracts.has(contractPath)) continue
-          const info = await lstat(contractPath).catch(error => {
-            if (error.code !== "ENOENT") throw error
-            return null
-          })
-          if (!info?.isFile() || info.isSymbolicLink()) continue
-          foundContractPaths.push(contractPath)
-        }
-      }
-      if (foundContractPaths.length > 0) contractPathsByDirectory.set(path, Object.freeze(foundContractPaths))
-      const specDirectory = join(path, "spec")
-      const specPath = join(specDirectory, "deps.spec.ts")
-      watchPaths.add(specDirectory)
-      watchPaths.add(specPath)
-      const excludedSpecs = await ignored([specDirectory, specPath])
-      const directoryInfo = await lstat(specDirectory).catch(error => {
-        if (error.code !== "ENOENT") throw error
-        return null
-      })
-      if (directoryInfo?.isDirectory() && !directoryInfo.isSymbolicLink() && excludedSpecs.size === 0) {
-        const specInfo = await lstat(specPath).catch(error => {
+      if (!info?.isDirectory() || info.isSymbolicLink() || excluded.has(directory)) continue
+      const found: string[] = []
+      for (const source of paths) {
+        if (excluded.has(source)) continue
+        const file = await lstat(source).catch(error => {
           if (error.code !== "ENOENT") throw error
           return null
         })
-        if (specInfo?.isFile() && !specInfo.isSymbolicLink()) dependencyPathByDirectory.set(path, specPath)
+        if (file?.isFile() && !file.isSymbolicLink()) found.push(source)
       }
-    }
-    if (scenarioOwner) {
-      const specDirectory = join(path, "spec")
-      watchPaths.add(specDirectory)
-      const directoryInfo = await lstat(specDirectory).catch(error => {
-        if (error.code !== "ENOENT") throw error
-        return null
-      })
-      const scenarioPaths = [join(specDirectory, "scenario.spec.ts"), join(specDirectory, "scenario.spec.tsx")]
-      for (const scenarioPath of scenarioPaths) watchPaths.add(scenarioPath)
-      const excludedScenarios = await ignored([specDirectory, ...scenarioPaths])
-      if (directoryInfo?.isDirectory() && !directoryInfo.isSymbolicLink() && !excludedScenarios.has(specDirectory)) {
-        const found: string[] = []
-        for (const scenarioPath of scenarioPaths) {
-          if (excludedScenarios.has(scenarioPath)) continue
-          const info = await lstat(scenarioPath).catch(error => {
-            if (error.code !== "ENOENT") throw error
-            return null
-          })
-          if (info?.isFile() && !info.isSymbolicLink()) found.push(scenarioPath)
-        }
-        if (found.length > 0) scenarioPathsByDirectory.set(path, Object.freeze(found))
+      if (name === "contract" && found.length) contractPathsByDirectory.set(path, Object.freeze(found))
+      if (name === "spec") {
+        const dependency = found.find(source => basename(source) === "deps.spec.ts")
+        if (dependency !== undefined) dependencyPathByDirectory.set(path, dependency)
+        const scenarios = found.filter(source => source !== dependency)
+        if (scenarios.length) scenarioPathsByDirectory.set(path, Object.freeze(scenarios))
       }
     }
   }
@@ -136,7 +105,7 @@ export async function discoverStorybookDirectories(
       const moduleDocumentation = publicEntry === undefined ? undefined : await readDocumentation(publicEntry)
       watchPaths.add(join(path, "src"))
       const isModule = entry.module
-      await collectViews(path, isModule, isModule || publicEntry !== undefined)
+      await collectViews(path, isModule || publicEntry !== undefined)
       const children = isModule ? [] : await visit(path)
       result.push(Object.freeze({
         path,
@@ -149,7 +118,7 @@ export async function discoverStorybookDirectories(
     }
     return Object.freeze(result)
   }
-  await collectViews(root, true, true)
+  await collectViews(root, true)
   const discovered = await visit(root)
   const contractPaths = [...contractPathsByDirectory.values()].flat()
   const dependencyPaths = [...dependencyPathByDirectory.values()]

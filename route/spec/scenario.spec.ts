@@ -96,18 +96,18 @@ describe("Изменяемая структура без предварител�
   test("Не открывает private и Git-ignored директории", async () => {
     const root = await createPackage({exports: {}})
     await Bun.spawn(["git", "init", "--quiet", root]).exited
-    for (const path of ["spec/child", "src/child", "shared/child", "fixture/child", ".hidden/child", "ignored/child"]) {
+    for (const path of ["spec/child", "contract/child", "src/child", "shared/child", "fixture/child", ".hidden/child", "ignored/child"]) {
       await mkdir(resolve(root, path), {recursive: true})
     }
     await Bun.write(resolve(root, ".gitignore"), "ignored/\n")
     const privateRoots = [{name: "private", path: root}]
 
     expect(await Promise.all([
-      ...["spec", "src", "shared", "fixture", ".hidden", "ignored"].map(path => (
+      ...["spec", "contract", "src", "shared", "fixture", ".hidden", "ignored"].map(path => (
         resolveRoute({route: `private/${path}`, roots: privateRoots})
       )),
       readRouteChildren({route: "private", roots: privateRoots}),
-    ])).toEqual([null, null, null, null, null, null, []])
+    ])).toEqual([null, null, null, null, null, null, null, []])
   })
 
   test("Тот же resolver видит созданного после первого вызова ребёнка", async () => {

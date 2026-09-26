@@ -10,6 +10,7 @@
 @property entries - Доступные адреса в порядке каталога. parent указывает адрес
 непосредственного родителя; null обозначает верхний уровень. path, label и
 description принадлежат самому владельцу, независимо от типа его содержимого.
+Необязательный summary содержит отдельное краткое назначение для списка переходов.
 */
 export interface ReadMcpChildrenInput {
   readonly path?: string
@@ -19,6 +20,7 @@ export interface ReadMcpChildrenInput {
     readonly path: string
     readonly label?: string
     readonly description: string
+    readonly summary?: string
     readonly parent: string | null
   }[]
 }

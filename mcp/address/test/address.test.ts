@@ -1,7 +1,7 @@
 import {describe, expect, test} from "bun:test"
 import {resolveMcpAddress} from "@mcp/address"
 
-const packages = ["storybook", "storybook/archetypes/package", "library.v2"]
+const paths = ["storybook", "storybook/archetypes/package", "library.v2"]
 
 describe.each([
   "storybook/archetypes/package?view=scenarios", "storybook/archetypes/package?inspector=x",
@@ -10,6 +10,6 @@ describe.each([
   "/storybook", "storybook/", "storybook//package", "storybook/../package", "",
 ])("Недопустимый адрес %s", address => {
   test("Не подменяется адресом родителя", () => {
-    expect(() => resolveMcpAddress({address, packages}), "Параметры, внутренние пути и альтернативная адресация не принимаются").toThrow()
+    expect(() => resolveMcpAddress({address, paths}), "Параметры, внутренние пути и альтернативная адресация не принимаются").toThrow()
   })
 })

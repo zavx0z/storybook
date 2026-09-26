@@ -1,26 +1,29 @@
 /**
-Читает только пакетную проекцию единственного каталога Storybook.
-Внутренние директории, сценарии и параметры не раскрываются этим этапом MCP.
+Раскрывает выбранного владельца из единственного каталога Storybook.
+Структура задаёт переходы; контракты раскрываются как JSON Schema, сценарии сохраняют авторский код.
 
 @packageDocumentation
 */
 import {resolveMcpAddress} from "@mcp/address"
 import {readMcpRoot} from "@mcp/root"
 import {readMcpChildren, type ReadMcpChildrenInput} from "@mcp/children"
+import {readMcpContent, type McpContentSources} from "./src/content"
 
 /**
 Навигационная проекция canonical graph без повторного discovery.
 
-@property entries - Адрес, название, назначение и адрес родителя каждого владельца.
+@property entries - Публичные адреса, назначение, родитель и проверенные источники каждого владельца.
 */
-export type StorybookRestOptions = Pick<ReadMcpChildrenInput, "entries">
+export interface StorybookRestOptions {
+  readonly entries: readonly (ReadMcpChildrenInput["entries"][number] & {readonly sources?: McpContentSources})[]
+}
 
 /**
-Отдаёт корневые пакеты либо один пакет и его непосредственно вложенные пакеты.
+Отдаёт корневые направления либо содержание выбранного владельца и его детей.
 
 @param request - GET без query либо POST с единственным необязательным path.
-@param options - Проекция действующего каталога; обычные директории в неё не входят.
-@returns JSON с пакетными адресами. Запрос не читает исходники и не выполняет сценарии.
+@param options - Публичная структура действующего каталога с источниками контрактов и сценариев.
+@returns Назначение, схемы контрактов, сценарии и непосредственные переходы. Чтение не выполняет код и не запускает сборку.
 */
 export async function storybookRest(request: Request, options: StorybookRestOptions): Promise<Response> {
   if (request.method !== "GET" && request.method !== "POST") {
@@ -42,17 +45,18 @@ export async function storybookRest(request: Request, options: StorybookRestOpti
   if (input === null || typeof input !== "object" || Array.isArray(input)
     || Object.keys(input).some(key => key !== "path")
     || ("path" in input && typeof input.path !== "string")) {
-    return Response.json({status: "failed", error: "Ожидается только необязательный path — адрес пакета"}, {status: 400})
+    return Response.json({status: "failed", error: "Ожидается только необязательный path — адрес из children"}, {status: 400})
   }
   const path = "path" in input ? input.path as string : undefined
   try {
     if (path === undefined) return Response.json(readMcpRoot(options))
-    const address = resolveMcpAddress({address: path, packages: options.entries.map(item => item.path)})
+    const address = resolveMcpAddress({address: path, paths: options.entries.map(item => item.path)})
     const selected = options.entries.find(item => item.path === address)!
-    return Response.json(readMcpChildren({
+    const navigation = readMcpChildren({
       path: selected.path, ...(selected.label === undefined ? {} : {label: selected.label}),
       description: selected.description, entries: options.entries,
-    }))
+    })
+    return Response.json({...navigation, ...await readMcpContent(selected.sources)})
   } catch (error) {
     return Response.json({status: "failed", error: error instanceof Error ? error.message : String(error)},
       {status: error instanceof TypeError ? 400 : 404})

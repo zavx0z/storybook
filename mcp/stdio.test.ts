@@ -83,7 +83,7 @@ describe("Storybook MCP stdio", () => {
       expect((await client.callTool({name: "storybook", arguments: {node: child.path}})).isError).toBeTrue()
       const failed = await client.callTool({name: "storybook", arguments: {path: "missing"}})
       expect(failed.isError).toBeTrue()
-      expect(failed.structuredContent).toMatchObject({status: "failed", error: {message: "Адрес не принадлежит зарегистрированному пакету: missing"}})
+      expect(failed.structuredContent).toMatchObject({status: "failed", error: {message: "Адрес отсутствует в публичной структуре: missing"}})
       expect(loads).toBe(0)
     } finally {
       await client.close()

@@ -1,0 +1,4 @@
+{
+  "compilerOptions": {"types": [], "noEmit": true},
+  "include": ["text/trim/contract/*.ts"]
+}

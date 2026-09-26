@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Адресует только зарегистрированные пакеты: без параметров и внутренних директорий",
+  "description": "Проверяет адрес публичного владельца или категории из каталога Storybook",
   "exports": {".": "./index.ts"},
   "scripts": {"test": "bun test ./spec ./test"}
 }

@@ -5,6 +5,7 @@ const privateNames = new Set([
   "src",
   "shared",
   "spec",
+  "contract",
   "fixture",
   ".git",
   "node_modules",

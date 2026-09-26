@@ -2,7 +2,7 @@ import {describe, expect, test} from "bun:test"
 import {readMcpChildren} from "@mcp/children"
 
 const entries = [
-  {path: "shop/button", label: "Кнопка", description: "Команды пользователя в интерфейсе магазина.", parent: "shop"},
+  {path: "shop/button", label: "Кнопка", description: "Команды пользователя в интерфейсе магазина.\n\nДополнительные условия доступны при выборе кнопки.", parent: "shop"},
   {path: "shop/button/icons", label: "Значки", description: "Значки действий кнопки.", parent: "shop/button"},
 ]
 

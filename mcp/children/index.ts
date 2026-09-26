@@ -25,8 +25,9 @@ export function readMcpChildren({path, label, description, entries}: ReadMcpChil
     description: describe(description),
     children: entries.filter(entry => entry.parent === (path ?? null))
       .map(entry => {
-        const childLabel = navigationLabel(entry.path, entry.label, entry.description)
-        return {path: entry.path, ...(childLabel === undefined ? {} : {label: childLabel}), description: describe(entry.description)}
+        const description = describe(entry.summary ?? entry.description).split(/\n\s*\n/u)[0]!
+        const childLabel = navigationLabel(entry.path, entry.label, description)
+        return {path: entry.path, ...(childLabel === undefined ? {} : {label: childLabel}), description}
       }),
   }
 }

@@ -19,7 +19,7 @@ export type {ReadMcpRootInput, ReadMcpRootOutput}
 export function readMcpRoot({entries}: ReadMcpRootInput): ReadMcpRootOutput {
   return readMcpChildren({
     label: "Вход Storybook MCP",
-    description: "Выберите подключённый проект, компонент или библиотеку по описанию. Для перехода передайте path выбранного элемента children в следующий вызов storybook. Пустой вызов возвращает к этому входу.",
+    description: "Выберите подключённый проект, компонент или библиотеку по описанию. Для перехода передайте path выбранного элемента children в следующий вызов storybook. Выбранный владелец раскрывает input и output как JSON Schema с описаниями. Пустой вызов возвращает к этому входу.",
     entries,
   })
 }

@@ -17,7 +17,7 @@ describe.each([
     expect(result.replies, "JSON HTTP-сервера без проверки, добавления и удаления предметных полей в одном работающем прокси").toEqual(steps.map(step => step.reply))
   })
   test("Запрос", () => {
-    expect(result.requests.map(entry => entry.input), "Переданный пакетный адрес без предметной интерпретации").toEqual(steps.map(() => request))
+    expect(result.requests.map(entry => entry.input), "Переданный адрес без предметной интерпретации").toEqual(steps.map(() => request))
   })
   test("Транспорт", () => {
     expect(result.requests.map(({path, authorized}) => ({path, authorized})), "Фиксированная HTTP-точка входа с действующей авторизацией").toEqual(steps.map(() => ({path: "/api/control/storybook", authorized: true})))
