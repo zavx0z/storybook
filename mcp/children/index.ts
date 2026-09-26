@@ -12,6 +12,7 @@ export type {ReadMcpChildrenInput, ReadMcpChildrenOutput}
 
 /**
 Возвращает текущий контекст и только его непосредственных детей в порядке каталога.
+Назначение description стоит первым и у текущего контекста, и у каждого ребёнка.
 
 @param input - Авторское название, назначение и доступные адреса.
 @returns Новый ответ без изменения входных данных и без раскрытия соседних ветвей.
@@ -20,14 +21,14 @@ export function readMcpChildren({path, label, description, entries}: ReadMcpChil
   const describe = (value: string) => value.trim().length > 0 ? value : "Описание не задано владельцем."
   const currentLabel = navigationLabel(path, label, description)
   return {
+    description: describe(description),
     ...(path === undefined ? {} : {path}),
     ...(currentLabel === undefined ? {} : {label: currentLabel}),
-    description: describe(description),
     children: entries.filter(entry => entry.parent === (path ?? null))
       .map(entry => {
         const description = describe(entry.summary ?? entry.description).split(/\n\s*\n/u)[0]!
         const childLabel = navigationLabel(entry.path, entry.label, description)
-        return {path: entry.path, ...(childLabel === undefined ? {} : {label: childLabel}), description}
+        return {description, path: entry.path, ...(childLabel === undefined ? {} : {label: childLabel})}
       }),
   }
 }

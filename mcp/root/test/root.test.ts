@@ -10,6 +10,6 @@ test("Добавление и удаление проектов не меняе�
   expect(attached.description).toBe(before.description)
   expect(attached.children).toEqual([{path: "other", label: "Другой проект", description: "Авторское назначение"}])
   expect(removed).toEqual(before)
-  expect(Object.keys(before)).toEqual(["label", "description", "children"])
+  expect(Object.keys(before)).toEqual(["description", "label", "children"])
   expect(removed).not.toHaveProperty("path")
 })

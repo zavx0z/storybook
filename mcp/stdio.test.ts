@@ -45,7 +45,7 @@ describe("Storybook MCP stdio", () => {
         description: "Действие пользователя",
         children: [],
       })
-      expect(Object.keys(result.structuredContent!)).toEqual(["path", "label", "description", "children"])
+      expect(Object.keys(result.structuredContent!)).toEqual(["description", "path", "label", "children"])
       expect(JSON.parse((result.content as {type: string, text: string}[])[0]!.text), "Полный JSON-ответ HTTP-сервера без отдельной текстовой проекции документа").toEqual(result.structuredContent)
     } finally {
       await client.close()

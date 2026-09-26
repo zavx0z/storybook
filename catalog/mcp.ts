@@ -22,9 +22,9 @@ export function storybookMcpEntries(snapshot: Pick<ExternalStorybookRegistrySnap
     const output = contract("output")
     const summary = descriptions.get(node.id)?.trim()
     return {
+      description: node.moduleDocumentation?.markdown ?? descriptions.get(node.id) ?? "",
       path: paths.get(node.id)!,
       label: node.label,
-      description: node.moduleDocumentation?.markdown ?? descriptions.get(node.id) ?? "",
       ...(summary ? {summary} : {}),
       parent: node.parentId === null ? null : paths.get(node.parentId) ?? null,
       sources: {

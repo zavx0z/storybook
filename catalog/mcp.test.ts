@@ -24,7 +24,7 @@ describe("Код владельца через общий каталог", async
     const category = (await read(entry)).children.find((child: {path: string}) => child.path.endsWith("/text"))
     const result = await read(category.path)
     expect(result.children.map((child: {path: string}) => child.path)).toEqual([`${entry}/text/trim`])
-    expect(Object.keys(result)).toEqual(["path", "description", "children"])
+    expect(Object.keys(result)).toEqual(["description", "path", "children"])
   })
 
   test("Назначение, типы и примеры берутся из тех же исходников, что видит автор", async () => {
@@ -35,7 +35,7 @@ describe("Код владельца через общий каталог", async
     expect(result.output).toEqual({type: "string", description: "Текст без пробелов по краям; строка из одних пробелов становится пустой."})
     expect(result.scenarios).toEqual([await Bun.file(join(root, "text/trim/spec/scenario.spec.ts")).text()])
     expect(result.children).toEqual([])
-    expect(Object.keys(result)).toEqual(["path", "description", "children", "input", "output", "scenarios"])
+    expect(Object.keys(result)).toEqual(["description", "path", "children", "input", "output", "scenarios"])
     expect(JSON.stringify(result)).not.toContain(root)
     expect(await resolveRoute({route: `${selected.path}?view=contract`, roots: [{name: "lazy-content", path: root}]}))
       .toMatchObject({view: "contract", directory: join(root, "text/trim")})
