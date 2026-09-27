@@ -1,11 +1,15 @@
 import {afterAll, describe, expect, test} from "bun:test"
 import {createHeadless} from "@immersive/headless"
-import {ChildrenFixture} from "./fixture/children"
+import {Container} from "@fixture/scenario-component"
 
-describe.each([{name: "Без дочернего элемента", props: {label: "Подпись"}}])("$name", async ({props}) => {
+describe.each([{name: "Без дочернего элемента", props: {label: "Подпись"} as {label: string; children?: undefined}}])("$name", async ({props}) => {
   const headless = createHeadless({width: 320, height: 160})
   afterAll(() => headless.dispose())
-  const element = await headless.render(ChildrenFixture, props)
+  const element = await headless.render(
+    <Container label={props.label}>
+      {props.children}
+    </Container>,
+  )
   test("Содержимое", () => {
     expect(element.textContent, "Необязательный children отсутствует, а подпись сохраняется").toBe(props.label)
   })

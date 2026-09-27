@@ -17,6 +17,7 @@ export interface ValidateScenarioInput {
   readonly source: {
     readonly path: string
     readonly native: readonly string[]
+    readonly renders: readonly {readonly method: string; readonly arguments: number; readonly jsx: boolean; readonly location: ScenarioValidationLocation}[]
     readonly registrations: readonly {
       readonly kind: "describe" | "test"
       readonly depth: number

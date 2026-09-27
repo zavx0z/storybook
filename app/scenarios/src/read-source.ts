@@ -1,7 +1,7 @@
 import {API} from "typescript/unstable/async"
 import type {Node} from "typescript/unstable/ast"
 import {
-  isArrowFunction, isCallExpression, isFunctionExpression, isFunctionDeclaration, isIdentifier, isImportDeclaration,
+  isJsxElement, isJsxSelfClosingElement, isJsxFragment, isParenthesizedExpression, isArrowFunction, isCallExpression, isFunctionExpression, isFunctionDeclaration, isIdentifier, isImportDeclaration,
   isNamedImports, isPropertyAccessExpression, isStringLiteral, isNoSubstitutionTemplateLiteral,
   isTemplateExpression, isBlock, isExpressionStatement, isObjectLiteralExpression, isPropertyAssignment, isShorthandPropertyAssignment, isComputedPropertyName, isNumericLiteral,
 } from "typescript/unstable/ast/is"
@@ -39,6 +39,7 @@ export async function readScenarioSource(input: string): Promise<ScenarioSource>
       }
       return null
     }
+    const renders: ScenarioSource["renders"][number][] = []
     const assertions: ScenarioSource["assertions"][number][] = []
     const tests: (Omit<ScenarioSource["tests"][number], "assertions"> & {assertions: number})[] = []
     const groups: {source: string, header: string, setup: string, depth: number, each: boolean}[] = []
@@ -61,6 +62,11 @@ export async function readScenarioSource(input: string): Promise<ScenarioSource>
       let groupCallback: Node | undefined
       let selectedTest = currentTest
       if (isCallExpression(node)) {
+        if (isPropertyAccessExpression(node.expression) && ["render", "renderComponent"].includes(node.expression.name.text)) {
+          let argument = node.arguments[0]
+          while (argument && isParenthesizedExpression(argument)) argument = argument.expression
+          renders.push({method: node.expression.name.text, arguments: node.arguments.length, jsx: !!argument && (isJsxElement(argument) || isJsxSelfClosingElement(argument) || isJsxFragment(argument)), location: locationOf(node)})
+        }
         const owner = chain(node.expression)
         if (owner?.name === "expect" && owner.modifiers.at(-1)?.startsWith("to")) {
           const expected = node.arguments[0]
@@ -112,7 +118,7 @@ export async function readScenarioSource(input: string): Promise<ScenarioSource>
     }
     visit(file, null, "module", 0)
     return {
-      path, text, native: [...native.values()], imports, assertions, tests, groups, checks, hooks, registrations,
+      path, text, native: [...native.values()], imports, assertions, tests, groups, checks, hooks, registrations, renders,
     }
   } finally {
     await api.close()

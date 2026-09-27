@@ -268,28 +268,29 @@ export async function buildStorybookPackageRevisionInProcess(
       else writeFileSync(target, attestedBytes)
     }
     emitPhase(onPhase, "resources", "completed")
-    const scenarios = await prepareStorybookScenarios(descriptor, input.signal, (nodeId, result) => {
+    let scenarios = await prepareStorybookScenarios(descriptor, input.signal, (nodeId, result) => {
       const directory = join(stagingDirectory, "scenarios")
       mkdirSync(directory, {recursive: true})
       writeFileSync(join(directory, `${encodeURIComponent(nodeId)}.json`), JSON.stringify(result))
     })
-    const modules = [
-      ...scenarios.flatMap(scenario => scenario.kind === "component" ? [scenario.module] : []),
-    ]
-    const sourcePaths = Object.freeze(modules.map(({path}) => path))
-    const jsxModules = generateStorybookJsxModules(scenarios)
+    const sourcePaths = Object.freeze(scenarios.flatMap(scenario => scenario.kind === "component" ? [scenario.module.path] : []))
     const generatedSourceRoot = join(stagingDirectory, "scenario-jsx")
-    if (jsxModules.length) {
+    const jsxModules = generateStorybookJsxModules(scenarios)
+    const componentModules = scenarios.flatMap((scenario, index) => scenario.kind === "component" && scenario.module.source
+      ? [{path: `./scenario-jsx/component-${index}.tsx`, source: scenario.module.source}] : [])
+    if (jsxModules.length || componentModules.length) {
       mkdirSync(generatedSourceRoot, {recursive: true})
       await Bun.write(join(generatedSourceRoot, "tsconfig.json"), JSON.stringify({
         compilerOptions: {target: "ESNext", module: "ESNext", moduleResolution: "Bundler",
           jsx: "react-jsx", jsxImportSource: dirname(Bun.resolveSync("@zavx0z/template/jsx-runtime", import.meta.dir)), noEmit: true, allowImportingTsExtensions: true, strict: true, skipLibCheck: true},
         include: ["*.tsx"],
       }))
-      for (const module of jsxModules) await Bun.write(join(stagingDirectory, module.path), module.source)
+      for (const module of [...jsxModules, ...componentModules]) await Bun.write(join(stagingDirectory, module.path), module.source)
     }
+    scenarios = scenarios.map((scenario, index) => scenario.kind === "component" && scenario.module.source
+      ? {...scenario, module: {path: join(generatedSourceRoot, `component-${index}.tsx`), export: scenario.module.export}} : scenario)
     const compilerInput = Object.freeze({
-      ...(jsxModules.length ? {generatedSourceRoot} : {}),
+      ...(jsxModules.length || componentModules.length ? {generatedSourceRoot} : {}),
       packageRoot: descriptor.packageRoot,
       projectRoot: descriptor.projectRoot,
       sourcePaths,
@@ -728,7 +729,7 @@ export async function prepareStorybookScenarios(
     const supported: string[] = []
     for (const path of spec.sourcePaths) {
       signal.throwIfAborted()
-      if (await supportsScenarioPreview({path}).catch(() => false)) supported.push(path)
+      if (await supportsScenarioPreview({path})) supported.push(path)
     }
     if (supported.length !== 1) continue
     signal.throwIfAborted()
@@ -744,6 +745,7 @@ export async function prepareStorybookScenarios(
       module: Object.freeze({
         path: stableBuildInputPath(preview.module.path),
         export: preview.module.export,
+        ...(preview.module.source ? {source: preview.module.source} : {}),
       }),
       variants: preview.variants,
     }))

@@ -100,21 +100,19 @@ interface TraceCall {
 
 @property kind - Признак компонентного представления `component`.
 
-@property module - Общая тестовая заготовка, объявляющая JSX компонента.
-`path` обозначает путь к модулю, `export` — имя экспортируемой заготовки.
+@property module - Исходный сценарий и извлечённая из его render декларация JSX.
+`path` указывает на сценарий, `source` содержит производный модуль для штатной
+компиляции, `export` — его вход. Автор не создаёт отдельную компонентную фикстуру.
 
-@property variants - Параметризованные примеры, вызывающие общую fixture.
-`path` сохраняет вложенность названий describe, `selection` — индексы строк
-параметризации от внешней таблицы к примеру. title содержит полный путь названий.
-Каждый содержит идентификатор `id`, название `title`, фактические свойства `props`,
-подготовленный исходник `source` и пункты `points` с заголовком и пояснением при наличии.
-Прямая fixture раскрывается в JSX публичного компонента с данными варианта.
-Если fixture содержит подготовку, состояние или обработчики, `source` сохраняет
-её полный модуль и использование с данными варианта: эти части примера не скрываются.
+@property variants - Параметризованные примеры непосредственного render JSX.
+`path` сохраняет вложенность названий describe, `selection` — индексы строк.
+Каждый вариант содержит `id`, `title`, входные `props`, исходник использования
+`source` и проверяемые пункты `points`. JSX берётся из единственного аргумента
+render; значения выбранного варианта подставляются в его выражения.
 `jsxProps` сохраняет авторские JSX-поля отдельно от JSON-props: исходное выражение
 и его импорты с публичным specifier, локальным именем, export и разрешённым путём.
 Сборщик компилирует их штатным Template; снимки функций mount/render не исполняются.
-Поддержаны парные теги fixture с прямым `{props.children}` и JSX в литерале строки
+Поддержаны парные теги компонента с прямым `{props.children}` и JSX в литерале строки
 внешнего describe.each с импортированными компонентами и литеральными параметрами.
 Выбор строки сохраняет исходный индекс; переданные JSON-overrides имеют приоритет.
 */
@@ -123,6 +121,7 @@ interface ComponentScenarioPreview {
   readonly module: {
     readonly path: string
     readonly export: string
+    readonly source?: string
   }
   readonly variants: readonly {
     readonly id: string
@@ -318,6 +317,8 @@ interface ScenarioTest {
 
 @property hooks - Имена и исходники обработчиков жизненного цикла тестов.
 
+@property renders - Вызовы отображения: имя метода, число аргументов и наличие JSX в аргументе.
+
 @property registrations - Места регистрации `describe` и `test`: названия, модификаторы,
 вложенность, область объявления, замечания и положение в файле.
 */
@@ -350,6 +351,7 @@ interface ScenarioSource {
   }[]
   readonly checks: readonly {readonly source: string, readonly matcher: string, readonly explicitObject: boolean}[]
   readonly hooks: readonly {readonly name: string, readonly source: string}[]
+  readonly renders: readonly {readonly method: string; readonly arguments: number; readonly jsx: boolean; readonly location: TraceLocation}[]
   readonly registrations: readonly {
     readonly kind: "describe" | "test"
     readonly label: string

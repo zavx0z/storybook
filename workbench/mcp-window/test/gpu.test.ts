@@ -22,10 +22,10 @@ test.skipIf(process.env.MCP_WINDOW_GPU !== "1")("GPU: running → полный �
   console.info("GPU: подготовлен ответ", Buffer.byteLength(record!.result))
   try {
     const template = JournalGpuContent as unknown as CompiledTemplate<{entries: readonly McpRequestRecord[]}>
-    const element = await headless.render(template, {entries})
+    const element = await headless.renderComponent(template, {entries})
     console.info("GPU: первый кадр", Math.round(performance.now() - started))
     entries = [{...record!, id: "gpu"}]
-    await headless.render(template, {entries})
+    await headless.renderComponent(template, {entries})
     console.info("GPU: обновление ответа", Math.round(performance.now() - started))
     const first = await headless.screenshot(element)
     console.info("GPU: полный кадр", Math.round(performance.now() - started))

@@ -18,14 +18,13 @@ import {
   isIdentifier,
   isImportDeclaration,
   isJsxElement,
+  isJsxFragment,
   isJsxExpression,
   isJsxSelfClosingElement,
-  isJsxSpreadAttribute,
   isNamedImports,
   isObjectBindingPattern,
   isParenthesizedExpression,
   isPropertyAccessExpression,
-  isReturnStatement,
   isStringLiteral,
 } from "typescript/unstable/ast/is"
 import type {ReadScenarioInput} from "../contract/input"
@@ -34,8 +33,8 @@ import {createFunctionPreview, inspectFunctionScenario} from "./function-preview
 import {readJsxProps, jsxPropImport, type JsxProp} from "./preview-jsx"
 import {isPortable, previewPoints} from "./preview-values"
 
-/** Runtime import fixture в исходнике сценария. */
-interface FixtureBinding {
+/** Runtime import компонента в исходнике сценария. */
+interface ComponentBinding {
   readonly module: string
   readonly export: string
 }
@@ -48,19 +47,20 @@ interface Replacement {
   readonly child?: boolean
 }
 
-/** Проверенная статическая связь scenario, fixture и JSX компонента. */
+/** Проверенная статическая связь сценария и JSX публичного компонента. */
 interface PreviewDescriptor {
   readonly scenarioPath: string
   readonly renderLines: readonly number[]
   readonly tables: readonly {line: number; jsxProps: readonly Readonly<Record<string, JsxProp | null>>[]}[]
-  readonly fixturePath: string
-  readonly fixtureExport: string
+  readonly componentPath: string
+  readonly componentExport: string
+  readonly moduleSource: string
   readonly presentation: {
     readonly componentImport: string
     readonly jsx: string
     readonly jsxStart: number
     readonly replacements: readonly Replacement[]
-  } | {readonly source: string}
+  }
 }
 
 /** Возвращает координату строки узла с единицы. */
@@ -76,7 +76,7 @@ function unwrap(node: Node): Node {
 }
 
 /** Находит импорт runtime-значения по локальному имени. */
-function importedBinding(statement: Node, localName: string): FixtureBinding | null {
+function importedBinding(statement: Node, localName: string): ComponentBinding | null {
   if (!isImportDeclaration(statement) || !isStringLiteral(statement.moduleSpecifier)) return null
   const clause = statement.importClause
   if (!clause || clause.phaseModifier === SyntaxKind.TypeKeyword) return null
@@ -98,86 +98,28 @@ function componentImport(statement: Node, localName: string): string | null {
     : `import {${binding.export} as ${localName}} from ${module}`
 }
 
-/** Читает настоящую fixture; подготовка, состояние и обработчики остаются в показываемом исходнике. */
-async function readFixture(path: string, exportName: string): Promise<Omit<PreviewDescriptor, "scenarioPath" | "renderLines" | "tables"> | null> {
-  const text = await Bun.file(path).text()
-  const api = new API({cwd: process.cwd()})
-  try {
-    const snapshot = await api.updateSnapshot({openFiles: [path]})
-    const project = await snapshot.getDefaultProjectForFile(path)
-    const file = await project?.program.getSourceFile(path)
-    if (!file) return null
-    const declaration = file.statements.find(statement => isFunctionDeclaration(statement)
-      && statement.name?.text === exportName
-      && statement.modifiers?.some(modifier => modifier.kind === SyntaxKind.ExportKeyword))
-    if (!declaration || !isFunctionDeclaration(declaration) || !declaration.body || declaration.parameters.length !== 1) return null
-    const parameter = declaration.parameters[0]?.name
-    if (!parameter || !isIdentifier(parameter)) return null
-    const statements = [...declaration.body.statements]
-    const statement = statements.at(-1)
-    if (!statement || !isReturnStatement(statement) || !statement.expression) return null
-    const returned = unwrap(statement.expression)
-    if (!isJsxElement(returned) && !isJsxSelfClosingElement(returned)) return null
-    const readDirectJsx = (): Exclude<PreviewDescriptor["presentation"], {source: string}> | null => {
-      if (statements.length !== 1) return null
-      const opening = isJsxElement(returned) ? returned.openingElement : returned
-      if (!isIdentifier(opening.tagName)) return null
-      const componentName = opening.tagName.text
-      const importSource = file.statements.map(statement => componentImport(statement, componentName)).find(Boolean)
-      if (!importSource) return null
-      const replacements: Replacement[] = []
-      for (const attribute of opening.attributes.properties) {
-        if (isJsxSpreadAttribute(attribute)) return null
-        const initializer = attribute.initializer
-        if (!initializer || isStringLiteral(initializer)) continue
-        if (!isJsxExpression(initializer) || !initializer.expression
-          || !isPropertyAccessExpression(initializer.expression)
-          || !isIdentifier(initializer.expression.expression)
-          || initializer.expression.expression.text !== parameter.text) return null
-        replacements.push({
-          start: initializer.expression.getStart(file),
-          end: initializer.expression.end,
-          property: initializer.expression.name.text,
-        })
-      }
-      if (isJsxElement(returned)) {
-        for (const child of returned.children) {
-          if (child.kind === SyntaxKind.JsxText) continue
-          if (!isJsxExpression(child) || !child.expression
-            || !isPropertyAccessExpression(child.expression)
-            || !isIdentifier(child.expression.expression)
-            || child.expression.expression.text !== parameter.text) return null
-          replacements.push({start: child.getStart(file), end: child.end,
-            property: child.expression.name.text, child: true})
-        }
-      }
-      if (replacements.length === 0) return null
-      const jsxStart = returned.getStart(file)
-      return {
-        componentImport: importSource,
-        jsx: text.slice(jsxStart, returned.end),
-        jsxStart,
-        replacements,
-      }
-    }
-    return {fixturePath: path, fixtureExport: exportName, presentation: readDirectJsx() ?? {source: text.trim()}}
-  } finally {
-    await api.close()
-  }
-}
-
-/** Находит единственную пару `render(Fixture, props)` и проверяет fixture тем же parser. */
+/** Находит JSX непосредственно в единственном аргументе render сценария. */
 async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | null> {
   const scenarioPath = resolve(pathInput)
   const text = await Bun.file(scenarioPath).text()
-  if (!/\.render\s*\(/u.test(text)) return null
+  if (!/\.render(?:Component)?\s*\(/u.test(text)) return null
   const api = new API({cwd: process.cwd()})
   try {
     const snapshot = await api.updateSnapshot({openFiles: [scenarioPath]})
     const project = await snapshot.getDefaultProjectForFile(scenarioPath)
     const file = await project?.program.getSourceFile(scenarioPath)
     if (!file) return null
-    const imports = new Map<string, FixtureBinding>()
+    const validateRender = (node: Node): void => {
+      if (isCallExpression(node) && isPropertyAccessExpression(node.expression) && ["render", "renderComponent"].includes(node.expression.name.text)) {
+        const argument = node.arguments[0] && unwrap(node.arguments[0])
+        if (node.expression.name.text !== "render" || node.arguments.length !== 1 || !argument || (!isJsxElement(argument) && !isJsxSelfClosingElement(argument) && !isJsxFragment(argument))) {
+          throw new Error(`${scenarioPath}:${lineAt(text, node.getStart(file))}: render принимает один аргумент — JSX компонента с props непосредственно в сценарии`)
+        }
+      }
+      node.forEachChild(validateRender)
+    }
+    validateRender(file)
+    const imports = new Map<string, ComponentBinding>()
     const describeBindings = new Set<string>()
     for (const statement of file.statements) {
       if (!isImportDeclaration(statement) || !statement.importClause) continue
@@ -200,16 +142,16 @@ async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | n
         if (binding) imports.set(name, binding)
       }
     }
-    const renders: {binding: FixtureBinding, line: number}[] = []
+    const renders: {binding: ComponentBinding, line: number, jsx: Node, propsName: string}[] = []
     const visit = (node: Node, propsName: string): void => {
       if (isArrowFunction(node) || isFunctionExpression(node) || isFunctionDeclaration(node)) return
       if (isCallExpression(node) && isPropertyAccessExpression(node.expression)
-        && node.expression.name.text === "render" && node.arguments.length >= 2
-        && isIdentifier(node.arguments[1]!) && node.arguments[1]!.text === propsName) {
-        const fixture = node.arguments[0]
-        if (fixture && isIdentifier(fixture)) {
-          const binding = imports.get(fixture.text)
-          if (binding) renders.push({binding, line: lineAt(text, node.getStart(file))})
+        && node.expression.name.text === "render" && node.arguments.length === 1) {
+        const jsx = unwrap(node.arguments[0]!)
+        if (isJsxElement(jsx) || isJsxSelfClosingElement(jsx)) {
+          const opening = isJsxElement(jsx) ? jsx.openingElement : jsx
+          const binding = isIdentifier(opening.tagName) ? imports.get(opening.tagName.text) : undefined
+          if (binding) renders.push({binding, line: lineAt(text, node.getStart(file)), jsx, propsName})
         }
       }
       node.forEachChild(child => visit(child, propsName))
@@ -250,13 +192,45 @@ async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | n
     scan([...file.statements])
     if (tables.length === 0 || renders.length === 0) return null
     const render = renders[0]!
-    let fixturePath: string
+    let componentPath: string
     try {
-      fixturePath = Bun.resolveSync(render.binding.module, dirname(scenarioPath))
-      if (renders.some(item => item.binding.export !== render.binding.export || Bun.resolveSync(item.binding.module, dirname(scenarioPath)) !== fixturePath)) return null
+      componentPath = Bun.resolveSync(render.binding.module, dirname(scenarioPath))
+      if (renders.some(item => item.binding.export !== render.binding.export || Bun.resolveSync(item.binding.module, dirname(scenarioPath)) !== componentPath)) return null
     } catch { return null }
-    const fixture = await readFixture(fixturePath, render.binding.export)
-    return fixture ? {...fixture, scenarioPath, renderLines: renders.map(item => item.line), tables} : null
+    const jsx = render.jsx
+    const used = new Set<string>()
+    const replacements: Replacement[] = []
+    const visitProps = (node: Node, parent?: Node): void => {
+      if (isIdentifier(node) && imports.has(node.text)) used.add(node.text)
+      if (parent && isJsxElement(parent) && isJsxExpression(node) && node.expression
+        && isPropertyAccessExpression(node.expression) && isIdentifier(node.expression.expression)
+        && node.expression.expression.text === render.propsName) {
+        replacements.push({start: node.getStart(file), end: node.end, property: node.expression.name.text, child: true})
+        return
+      }
+      if (isPropertyAccessExpression(node) && isIdentifier(node.expression) && node.expression.text === render.propsName) {
+        replacements.push({start: node.getStart(file), end: node.end, property: node.name.text})
+        return
+      }
+      node.forEachChild(child => visitProps(child, node))
+    }
+    visitProps(jsx)
+    if (!isJsxElement(jsx) && !isJsxSelfClosingElement(jsx)) return null
+    const name = isJsxElement(jsx) ? jsx.openingElement.tagName : jsx.tagName
+    if (!isIdentifier(name)) return null
+    const importLines = [...used].flatMap(local => file.statements.map(statement => componentImport(statement, local)).filter((line): line is string => line !== null))
+    const importSource = importLines.join("\n")
+    const absoluteImports = [...used].flatMap(local => {
+      const binding = imports.get(local)!
+      const line = file.statements.map(statement => componentImport(statement, local)).find(Boolean)
+      return line ? [line.replace(JSON.stringify(binding.module), JSON.stringify(Bun.resolveSync(binding.module, dirname(scenarioPath))))] : []
+    }).join("\n")
+    return {
+      componentPath: scenarioPath, componentExport: "ScenarioComponent",
+      moduleSource: `${absoluteImports}\n\nexport function ScenarioComponent(${render.propsName}: Parameters<typeof ${name.text}>[0]) {\n  return ${text.slice(jsx.getStart(file), jsx.end)}\n}\n`,
+      scenarioPath, renderLines: renders.map(item => item.line), tables,
+      presentation: {componentImport: importSource, jsx: text.slice(jsx.getStart(file), jsx.end), jsxStart: jsx.getStart(file), replacements},
+    }
   } finally {
     await api.close()
   }
@@ -270,18 +244,9 @@ function formatJsxChild(source: string): string {
   return [lines[0], ...lines.slice(1).map(line => line.slice(margin))].join("\n")
 }
 
-/** Подставляет фактические props в JSX fixture; отсутствующее поле сохраняет обычное значение undefined. */
+/** Подставляет фактические props в JSX сценария; отсутствующее поле сохраняет обычное значение undefined. */
 function renderSource(descriptor: PreviewDescriptor, props: Readonly<Record<string, TraceValue>>, jsxProps: Readonly<Record<string, JsxProp>>): string | null {
   const presentation = descriptor.presentation
-  if ("source" in presentation) {
-    const imports = new Set<string>()
-    const attributes = [`  {...${JSON.stringify(props, null, 2).replaceAll("\n", "\n  ")}}`]
-    for (const [name, value] of Object.entries(jsxProps)) {
-      for (const binding of value.imports) imports.add(jsxPropImport(binding))
-      attributes.push(`  ${name}={${formatJsxChild(value.source).replaceAll("\n", "\n  ")}}`)
-    }
-    return [...imports, presentation.source, `<${descriptor.fixtureExport}\n${attributes.join("\n")}\n/>`].join("\n\n")
-  }
   const imports = new Set([presentation.componentImport])
   let jsx = presentation.jsx
   for (const replacement of [...presentation.replacements].sort((left, right) => right.start - left.start)) {
@@ -306,7 +271,7 @@ function renderSource(descriptor: PreviewDescriptor, props: Readonly<Record<stri
 Проверяет поддержку preview статически и не исполняет scenario.spec.
 
 @param input - Путь к сценарию компонента или функции.
-@returns `true` для поддержанной компонентной fixture или прямого вызова функции.
+@returns `true` для JSX компонента внутри render или прямого вызова функции.
 */
 export async function supportsScenarioPreview(input: Pick<ReadScenarioInput, "path">): Promise<boolean> {
   return await inspectScenario(input.path) !== null || await inspectFunctionScenario(input.path) !== null
@@ -357,7 +322,8 @@ export async function createScenarioPreview(
       }
     })
     for (const key of overriddenProps) delete jsxProps[key]
-    const captured = call.args[1]
+    const captured = group.parameters && typeof group.parameters === "object" && !Array.isArray(group.parameters)
+      ? (group.parameters as Readonly<Record<string, TraceValue>>).props : undefined
     const props = captured && !Array.isArray(captured) && typeof captured === "object"
       ? Object.fromEntries(Object.entries(captured).filter(([key]) => !Object.hasOwn(jsxProps, key))) : captured
     if (!props || Array.isArray(props) || typeof props !== "object" || !isPortable(props)) return undefined
@@ -378,7 +344,7 @@ export async function createScenarioPreview(
   }
   return {
     kind: "component",
-    module: {path: descriptor.fixturePath, export: descriptor.fixtureExport},
+    module: {path: descriptor.componentPath, export: descriptor.componentExport, source: descriptor.moduleSource},
     variants,
   }
 }

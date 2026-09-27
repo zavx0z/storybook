@@ -83,11 +83,11 @@ describe("structural package revision build", () => {
     expect(payload).not.toContain("widgetLoaders")
   })
 
-  test("includes a prepared component scenario and its fixture dependency closure", async () => {
+  test("includes inline JSX and its component dependency closure", async () => {
     const fixture = createFixture()
     const scenarioPath = join(fixture.packageRoot, "module/spec/scenario.spec.tsx")
     const componentPath = join(fixture.packageRoot, "module/index.tsx")
-    const fixturePath = join(fixture.packageRoot, "module/spec/fixture.tsx")
+    unlinkSync(join(fixture.packageRoot, "module/index.ts"))
     mkdirSync(join(fixture.packageRoot, "module/spec"), {recursive: true})
     writeFileSync(componentPath, [
       "/** @jsxImportSource @zavx0z/template */",
@@ -95,36 +95,44 @@ describe("structural package revision build", () => {
       "  return <button>{props.label}</button>",
       "}", "",
     ].join("\n"))
-    writeFileSync(fixturePath, [
-      "/** @jsxImportSource @zavx0z/template */",
-      'import {Command} from "../index"',
-      "export function CommandFixture(props: Readonly<{label: string}>) {",
-      "  return <Command label={props.label} />",
-      "}", "",
-    ].join("\n"))
     writeFileSync(join(fixture.packageRoot, "module/spec/host.ts"), [
       "export function createHost() {",
-      "  return {render(_template: (props: Readonly<Record<string, unknown>>) => unknown, props: Readonly<Record<string, unknown>>) { return props }}",
+      "  return {render(value: unknown) { return value }}",
       "}", "",
     ].join("\n"))
+    writeFileSync(join(fixture.packageRoot, "tsconfig.json"), JSON.stringify({
+      compilerOptions: {jsx: "preserve", jsxImportSource: "@zavx0z/template", module: "ESNext", moduleResolution: "Bundler", target: "ESNext"},
+      include: ["**/*.ts", "**/*.tsx"],
+    }))
+    mkdirSync(join(fixture.root, "node_modules", "@immersive"), {recursive: true})
+    symlinkSync(realpathSync(join(import.meta.dir, "../node_modules/@immersive/headless")), join(fixture.root, "node_modules", "@immersive/headless"))
+    writeFileSync(join(fixture.packageRoot, "preload.ts"), [
+      'import {afterAll} from "bun:test"',
+      'import {createHeadless} from "@immersive/headless"',
+      `const host = createHeadless({projectRoot: ${JSON.stringify(fixture.packageRoot)}})`,
+      'afterAll(() => host.dispose())',
+    ].join("\n"))
+    writeFileSync(join(fixture.packageRoot, "package.json"), JSON.stringify({
+      name: "@fixture/package", type: "module", scripts: {test: "bun test --preload ./preload.ts --preload @immersive/headless"},
+    }))
     writeFileSync(scenarioPath, [
       'import {describe, expect, test} from "bun:test"',
-      'import {CommandFixture} from "./fixture"',
+      'import {Command} from "../index"',
       'import {createHost} from "./host"',
       "const host = createHost()",
       'describe.each([{name: "Команда", props: {label: "Продолжить"}}])("$name", async ({props}) => {',
-      "  const result = host.render(CommandFixture, props)",
+      "  const result = host.render(<Command label={props.label} />)",
       '  test("Представление", () => { expect(result).toBeDefined() })',
       "})", "",
     ].join("\n"))
     const nodeId = "directory:package:@fixture/package/module"
-    const descriptor = {...fixture.descriptor, scenarioSpecs: [{nodeId, sourcePaths: [realpathSync(scenarioPath)]}]}
+    const descriptor = {...fixture.descriptor, watchedPaths: [componentPath], scenarioSpecs: [{nodeId, sourcePaths: [realpathSync(scenarioPath)]}]}
     const staging = join(fixture.root, ".scenario")
     const result = await createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry})(buildInput(descriptor, staging, "scenario"))
     const prepared = await Bun.file(join(staging, "scenarios", `${encodeURIComponent(nodeId)}.json`)).json()
     expect(prepared.preview.variants.map((variant: {title: string}) => variant.title)).toEqual(["Команда"])
     expect(result.dependencyRealpaths).toContain(realpathSync(scenarioPath))
-    expect(result.dependencyRealpaths).toContain(realpathSync(fixturePath))
+    expect(result.dependencyRealpaths).toContain(realpathSync(componentPath))
   })
 
   test("rejects changed or symlinked Workbench stylesheet resources", async () => {
@@ -184,7 +192,7 @@ describe("structural package revision build", () => {
 })
 
 function createFixture(): Readonly<{root: string; packageRoot: string; browserEntry: string; descriptor: StorybookPackageBuildDescriptor}> {
-  const root = mkdtempSync(join(tmpdir(), "storybook-package-build-"))
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "storybook-package-build-")))
   roots.push(root)
   const packageRoot = join(root, "package")
   mkdirSync(join(packageRoot, "module"), {recursive: true})

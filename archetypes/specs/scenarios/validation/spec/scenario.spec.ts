@@ -17,6 +17,7 @@ describe.each([
   const location = {path, line: 1, column: 1}
   const result = validateScenario({
     path,
+    renders: [],
     native: ["describe", "test", "expect"],
     registrations: [{kind: "describe", depth: 0, modifiers: ["each"], scope: "module", label: "Пример", location, remarks: null}],
     assertions: [{inline, message: "Смысл проверяемого значения", location}],

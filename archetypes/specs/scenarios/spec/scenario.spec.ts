@@ -28,7 +28,6 @@ describe.each([
     files: [
       {path: "spec/scenario.spec.tsx", role: "scenario"},
       {path: "index.tsx", role: "public-entry"},
-      {path: "spec/fixture/index.tsx", role: "fixture"},
     ],
   },
 ])("$name", async ({props, files}) => {
@@ -209,6 +208,12 @@ describe.each([
         setup,
         "Вызывайте функцию или компонент напрямую через публичный API. Для наблюдения за выполнением не требуются ручные mock и spyOn.",
       ).toSatisfy(source => typeof source === "string" && /\S/u.test(source) && guide.checks.find(check => check.rule === "direct-execution")?.status === "passed")
+    })
+    test("JSX непосредственно в render", () => {
+      expect(
+        guide.checks.find(check => check.rule === "render-jsx")?.status,
+        "В сценарии компонента render принимает ровно один аргумент: JSX компонента с props непосредственно в месте вызова. Storybook извлекает и исполняет эту же декларацию.",
+      ).toBe("passed")
     })
     test.todo("Общая подготовка", () => {
       expect(

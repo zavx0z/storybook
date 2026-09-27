@@ -39,6 +39,10 @@ export function validateScenario(source: ValidateScenarioInput["source"], execut
   add("inline-description", source.assertions.filter(item => !item.inline).map(item => ({
     message: item.message === null ? "У expect отсутствует описание данных" : "Описание данных вынесено из второго аргумента expect", location: item.location,
   })))
+  add("render-jsx", source.renders.filter(render => render.method !== "render" || render.arguments !== 1 || !render.jsx).map(render => ({
+    message: "В сценарии render принимает ровно один аргумент: JSX компонента с props непосредственно в месте вызова.",
+    location: render.location,
+  })))
   add("direct-execution", source.native.filter(name => name === "mock" || name === "spyOn").map(name => ({
     message: `Сценарий использует импорт ${name}`, location,
   })))

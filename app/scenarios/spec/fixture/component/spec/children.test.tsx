@@ -1,7 +1,7 @@
 import {afterAll, describe, expect, test} from "bun:test"
 import {createHeadless} from "@immersive/headless"
 import {Badge as Content} from "@fixture/scenario-component"
-import {ChildrenFixture} from "./fixture/children"
+import {Container} from "@fixture/scenario-component"
 
 describe.each([
   {name: "label", props: {label: "Подпись", children: null}},
@@ -9,7 +9,11 @@ describe.each([
 ])("$name", async ({props}) => {
   const headless = createHeadless({width: 400, height: 160})
   afterAll(() => headless.dispose())
-  const element = await headless.render(ChildrenFixture, props)
+  const element = await headless.render(
+    <Container label={props.label}>
+      {props.children}
+    </Container>,
+  )
 
   describe("Контент", () => {
     test("Передача", () => {

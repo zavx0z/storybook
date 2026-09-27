@@ -26,8 +26,8 @@ test("готовит один preview только для однозначног
     ["function", "package:@archetypes/package"],
   ])
   expect(result[0]).toMatchObject({module: {
-    path: realpathSync(resolve(import.meta.dir, "../app/scenarios/spec/fixture/component/spec/fixture/index.tsx")),
-    export: "CommandFixture",
+    path: realpathSync(supported),
+    export: "ScenarioComponent",
   }})
   expect(result[0]?.variants.map(variant => variant.title)).toEqual(["Доступная команда", "Недоступная команда"])
   expect(result[1]?.variants.map(variant => variant.title)).toEqual(["Архетип пакета"])
@@ -48,3 +48,10 @@ test("не исполняет неподдержанный scenario во вре�
     rmSync(root, {recursive: true, force: true})
   }
 })
+
+
+test("сборка отклоняет раздельные Component и props вместо незаметного пропуска сценария", async () => {
+  const path = resolve(import.meta.dir, "../app/scenarios/spec/fixture/component/spec/separate-props.test.tsx")
+  const descriptor = {scenarioSpecs: [{nodeId: "invalid", sourcePaths: [path]}]} as unknown as StorybookPackageBuildDescriptor
+  await expect(prepareStorybookScenarios(descriptor, new AbortController().signal)).rejects.toThrow("render принимает один аргумент")
+}, 30_000)

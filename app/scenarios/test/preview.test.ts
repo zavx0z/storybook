@@ -1,7 +1,10 @@
-/** Проверяет статическое извлечение fixture и соединение с фактическими вариантами. @packageDocumentation */
+/** Проверяет извлечение JSX из render и соединение с фактическими вариантами. @packageDocumentation */
 import {beforeAll, describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
 import {readScenario, supportsScenarioPreview, type ReadScenarioOutput} from "@storybook/app/scenarios"
+
+import {readScenarioSource} from "../src/read-source"
+import {validateScenario} from "@archetypes/specs/scenarios/validation"
 
 const path = resolve(import.meta.dir, "../spec/fixture/component/spec/scenario.spec.tsx")
 let result: ReadScenarioOutput
@@ -14,15 +17,15 @@ beforeAll(async () => {
   ])
 }, 30_000)
 
-test("статический probe распознаёт общую fixture без исполнения сценария", async () => {
+test("статический probe распознаёт JSX внутри render без исполнения сценария", async () => {
   expect(await supportsScenarioPreview({path})).toBeTrue()
 })
 
 test("preview сохраняет модуль и фактические варианты", () => {
   expect(result.preview).toMatchObject({
     module: {
-      path: resolve(import.meta.dir, "../spec/fixture/component/spec/fixture/index.tsx"),
-      export: "CommandFixture",
+      path,
+      export: "ScenarioComponent",
     },
     variants: [
       {
@@ -55,9 +58,9 @@ describe.each([
     expect(source).toBe(`import {Command} from "@fixture/scenario-component"
 
 <Command
-    label={"Продолжить"}
-    disabled={${disabled}}
-  />`)
+      label={"Продолжить"}
+      disabled={${disabled}}
+    />`)
   })
 })
 
@@ -75,7 +78,7 @@ test("сценарий функции получает снимки вызово
   expect((await readScenario({path: functionPath})).preview).toMatchObject({kind: "function"})
 })
 
-test("непереносимые props оставляют поддержанную fixture без preview", async () => {
+test("непереносимые props оставляют поддержанный сценарий без preview", async () => {
   expect({
     supported: await supportsScenarioPreview({path: nonportable.path}),
     preview: nonportable.preview,
@@ -90,19 +93,23 @@ test("отсутствующее необязательное поле не ск
   expect(value.preview?.variants[0]?.source).toContain("{undefined}")
 })
 
-test("пример со состоянием показывает настоящий компонент, подготовку и обработчики", async () => {
-  const path = resolve(import.meta.dir, "../spec/fixture/component/spec/stateful.test.tsx")
-  expect(await supportsScenarioPreview({path})).toBeTrue()
-  const value = await readScenario({path})
+test("render с компонентом и отдельными props отклоняется до сборки", async () => {
+  const path = resolve(import.meta.dir, "../spec/fixture/component/spec/separate-props.test.tsx")
+  await expect(supportsScenarioPreview({path})).rejects.toThrow("render принимает один аргумент")
+  const validation = validateScenario(await readScenarioSource(path), result)
+  expect(validation.checks.find(check => check.rule === "render-jsx")).toMatchObject({status: "failed", issues: [expect.any(Object), expect.any(Object)]})
+}, 30_000)
+
+test("состояние компонента не превращается в обвязку показываемого примера", async () => {
+  const value = await readScenario({path: resolve(import.meta.dir, "../spec/fixture/component/spec/stateful.test.tsx")})
   expect(value.exitCode).toBe(0)
-  expect(value.preview?.kind).toBe("component")
-  const variant = value.preview?.variants[0]!
-  const fixture = await Bun.file(resolve(import.meta.dir, "../spec/fixture/component/spec/fixture/stateful.tsx")).text()
-  expect(variant.source).toContain(fixture.trim())
-  expect(variant.source).toContain('<StatefulFixture\n')
-  expect(variant.source).toContain('"label": "Продолжить"')
-  expect(variant.props).toEqual({label: "Продолжить", disabled: false})
-  new Bun.Transpiler({loader: "tsx"}).transformSync(variant.source)
+  expect(value.preview?.variants[0]?.source).toContain("<StatefulCommand")
+  expect(value.preview?.variants[0]?.source).toBe(`import {StatefulCommand} from "@fixture/scenario-component"
+
+<StatefulCommand
+      label={"Продолжить"}
+      disabled={false}
+    />`)
 }, 30_000)
 
 test("парные теги сохраняют JSX children и выбранный запуск без сериализации шаблона", async () => {
@@ -118,7 +125,7 @@ test("парные теги сохраняют JSX children и выбранны�
   expect(child.jsxProps?.children?.source).toBe('<Content label="Дочерний компонент" />')
   expect(child.source).toContain('import {Badge as Content} from "@fixture/scenario-component"')
   expect(child.source).toContain('<Container label={null}>')
-  expect(child.source).toContain('    <Content label="Дочерний компонент" />')
+  expect(child.source).toContain('      <Content label="Дочерний компонент" />')
   expect(child.source).not.toContain("{<")
   expect(child.points[0]?.title).toBe("Контент / Передача")
   const selected = await readScenario({path, variant: 1, props: child.props})
