@@ -31,12 +31,16 @@ export async function createScenarioGuide(report: ReadScenarioOutput): Promise<R
       {title: "Вариант использования", code: group.header},
       ...(group.setup.trim() ? [{title: "Подготовка варианта", code: group.setup}] : []),
     ]),
+    ...report.source.groups.filter(group => group.depth > 0).map(group => ({title: "Категория", code: group.source})),
     ...[
       {title: "Пункт сценария", test: report.source.tests.find(test => !test.todo && !test.each && !test.skippable)},
+      {title: "Связанные утверждения", test: report.source.tests.find(test => test.assertions > 1)},
       {title: "Параметризация пунктов", test: report.source.tests.find(test => test.each)},
       {title: "Условный пропуск", test: report.source.tests.find(test => test.skippable)},
       {title: "Незавершённый пункт", test: report.source.tests.find(test => test.todo)},
     ].flatMap(({title, test}) => test ? [{title, code: test.source}] : []),
+    ...report.source.checks.filter(check => check.matcher === "toEqual" && check.explicitObject).slice(0, 1)
+      .map(check => ({title: "Состав объекта", code: check.source})),
     ...report.source.hooks.map(hook => ({
       title: `${hook.name.startsWith("after") ? "Освобождение" : "Подготовка"} ресурсов: ${hook.name}`,
       code: hook.source,
