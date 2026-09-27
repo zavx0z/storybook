@@ -26,6 +26,8 @@ export type StorybookPackageCompilerInput = Readonly<{
   packageRoot: string
   projectRoot: string
   moduleSourcePaths: readonly string[]
+  /** Только подготовленные JSX-модули текущей сборки, без изменения исходников владельца. */
+  generatedSourceRoot?: string
 }>
 
 /**
@@ -158,8 +160,8 @@ export async function createStorybookPackageCompilerPlugins(
     candidate = factory({
       cwd: context.projectRoot,
       persistent: false,
-      sourceRoots: context.compilerRoots.sourceRoots,
-      styleSourceRootIds: context.compilerRoots.styleSourceRootIds,
+      sourceRoots: [...context.compilerRoots.sourceRoots, ...(input.generatedSourceRoot ? [input.generatedSourceRoot] : [])],
+      styleSourceRootIds: [...context.compilerRoots.styleSourceRootIds, ...(input.generatedSourceRoot ? ["storybook-scenario-jsx"] : [])],
     })
   } catch (error) {
     throw new Error(`Template JSX compiler factory failed: ${context.adapterPath}`, {cause: error})

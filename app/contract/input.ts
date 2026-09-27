@@ -23,6 +23,8 @@ export type ScenarioAppInput = (
   | {
     readonly kind: "component"
     readonly template: CompiledTemplate<Record<string, unknown>>
+    /** Дополняет проверенные JSON-props JSX-значениями из модулей той же ревизии. */
+    readonly resolveProps?: (variantId: string, props: Readonly<Record<string, unknown>>) => Readonly<Record<string, unknown>>
     readonly variants: Extract<ScenarioPreview, {kind: "component"}>["variants"]
   }
   | {

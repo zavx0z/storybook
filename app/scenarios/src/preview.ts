@@ -31,6 +31,7 @@ import {
 import type {ReadScenarioInput} from "../contract/input"
 import type {ScenarioExecution, ScenarioPreview, TraceValue} from "./types"
 import {createFunctionPreview, inspectFunctionScenario} from "./function-preview"
+import {readJsxProps, jsxPropImport, type JsxProp} from "./preview-jsx"
 import {isPortable, previewPoints} from "./preview-values"
 
 /** Runtime import fixture в исходнике сценария. */
@@ -44,12 +45,14 @@ interface Replacement {
   readonly start: number
   readonly end: number
   readonly property: string
+  readonly child?: boolean
 }
 
 /** Проверенная статическая связь scenario, fixture и JSX компонента. */
 interface PreviewDescriptor {
   readonly scenarioPath: string
   readonly renderLine: number
+  readonly jsxProps: readonly Readonly<Record<string, JsxProp>>[]
   readonly fixturePath: string
   readonly fixtureExport: string
   readonly componentImport: string
@@ -94,7 +97,7 @@ function componentImport(statement: Node, localName: string): string | null {
 }
 
 /** Читает поддержанный export fixture и прямые обращения `props.<field>` внутри JSX. */
-async function readFixture(path: string, exportName: string): Promise<Omit<PreviewDescriptor, "scenarioPath" | "renderLine"> | null> {
+async function readFixture(path: string, exportName: string): Promise<Omit<PreviewDescriptor, "scenarioPath" | "renderLine" | "jsxProps"> | null> {
   const text = await Bun.file(path).text()
   const api = new API({cwd: process.cwd()})
   try {
@@ -112,12 +115,14 @@ async function readFixture(path: string, exportName: string): Promise<Omit<Previ
     const statement = statements[0]
     if (statements.length !== 1 || !statement || !isReturnStatement(statement) || !statement.expression) return null
     const returned = unwrap(statement.expression)
-    if (isJsxElement(returned) || !isJsxSelfClosingElement(returned) || !isIdentifier(returned.tagName)) return null
-    const componentName = returned.tagName.text
+    if (!isJsxElement(returned) && !isJsxSelfClosingElement(returned)) return null
+    const opening = isJsxElement(returned) ? returned.openingElement : returned
+    if (!isIdentifier(opening.tagName)) return null
+    const componentName = opening.tagName.text
     const importSource = file.statements.map(statement => componentImport(statement, componentName)).find(Boolean)
     if (!importSource) return null
     const replacements: Replacement[] = []
-    for (const attribute of returned.attributes.properties) {
+    for (const attribute of opening.attributes.properties) {
       if (isJsxSpreadAttribute(attribute)) return null
       const initializer = attribute.initializer
       if (!initializer || isStringLiteral(initializer)) continue
@@ -130,6 +135,17 @@ async function readFixture(path: string, exportName: string): Promise<Omit<Previ
         end: initializer.expression.end,
         property: initializer.expression.name.text,
       })
+    }
+    if (isJsxElement(returned)) {
+      for (const child of returned.children) {
+        if (child.kind === SyntaxKind.JsxText) continue
+        if (!isJsxExpression(child) || !child.expression
+          || !isPropertyAccessExpression(child.expression)
+          || !isIdentifier(child.expression.expression)
+          || child.expression.expression.text !== parameter.text) return null
+        replacements.push({start: child.getStart(file), end: child.end,
+          property: child.expression.name.text, child: true})
+      }
     }
     if (replacements.length === 0) return null
     const jsxStart = returned.getStart(file)
@@ -195,6 +211,7 @@ async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | n
       node.forEachChild(child => visit(child, propsName))
     }
     let variants = 0
+    let jsxProps: readonly Readonly<Record<string, JsxProp>>[] = []
     for (const statement of file.statements) {
       if (!isExpressionStatement(statement) || !isCallExpression(statement.expression)) continue
       const registration = statement.expression
@@ -214,6 +231,8 @@ async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | n
       })
       if (!props || !isBindingElement(props) || !props.name || !isIdentifier(props.name)) continue
       const propsName = props.name.text
+      const table = registration.expression.arguments[0]
+      if (table) jsxProps = readJsxProps(table, file, imports)
       variants++
       callback.body.forEachChild(child => visit(child, propsName))
     }
@@ -226,27 +245,40 @@ async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | n
       return null
     }
     const fixture = await readFixture(fixturePath, render.binding.export)
-    return fixture ? {...fixture, scenarioPath, renderLine: render.line} : null
+    return fixture ? {...fixture, scenarioPath, renderLine: render.line, jsxProps} : null
   } finally {
     await api.close()
   }
 }
 
+/** Убирает отступ исходной таблицы, сохраняя взаимные отступы внутри JSX. */
+function formatJsxChild(source: string): string {
+  const lines = source.split("\n")
+  const rest = lines.slice(1).filter(line => line.trim().length > 0)
+  const margin = rest.length ? Math.min(...rest.map(line => /^\s*/u.exec(line)![0].length)) : 0
+  return [lines[0], ...lines.slice(1).map(line => line.slice(margin))].join("\n")
+}
+
 /** Подставляет фактические props в JSX fixture, не вычисляя выражения исходника. */
-function renderSource(descriptor: PreviewDescriptor, props: Readonly<Record<string, TraceValue>>): string | null {
+function renderSource(descriptor: PreviewDescriptor, props: Readonly<Record<string, TraceValue>>, jsxProps: Readonly<Record<string, JsxProp>>): string | null {
+  const imports = new Set([descriptor.componentImport])
   let jsx = descriptor.jsx
   for (const replacement of [...descriptor.replacements].sort((left, right) => right.start - left.start)) {
-    if (!Object.hasOwn(props, replacement.property)) return null
+    const authored = jsxProps[replacement.property]
+    if (!authored && !Object.hasOwn(props, replacement.property)) return null
     const value = props[replacement.property]!
-    if (!isPortable(value)) return null
+    if (!authored && !isPortable(value)) return null
+    for (const binding of authored?.imports ?? []) imports.add(jsxPropImport(binding))
     const start = replacement.start - descriptor.jsxStart
     const end = replacement.end - descriptor.jsxStart
     const lineStart = jsx.lastIndexOf("\n", start - 1) + 1
     const indent = /^\s*/u.exec(jsx.slice(lineStart, start))?.[0] ?? ""
-    const source = JSON.stringify(value, null, 2).replaceAll("\n", `\n${indent}`)
+    const literal = authored ? formatJsxChild(authored.source) : JSON.stringify(value, null, 2)
+    const expression = replacement.child && !authored ? `{${literal}}` : literal
+    const source = expression.replaceAll("\n", `\n${indent}`)
     jsx = jsx.slice(0, start) + source + jsx.slice(end)
   }
-  return `${descriptor.componentImport}\n\n${jsx}`
+  return `${[...imports].join("\n")}\n\n${jsx}`
 }
 
 /**
@@ -280,12 +312,16 @@ export async function createScenarioPreview(
   if (calls.length === 0 || calls.length !== topLevel.length) return undefined
   const variants: Extract<ScenarioPreview, {kind: "component"}>["variants"][number][] = []
   const seen = new Set<number>()
-  for (const call of calls) {
+  for (const [index, call] of calls.entries()) {
     const group = execution.groups.find(item => item.id === call.groupId)
-    const props = call.args[1]
+    const captured = call.args[1]
+    const jsxProps = Object.fromEntries(Object.entries(descriptor.jsxProps[index + variantOffset] ?? {})
+      .filter(([key]) => !overriddenProps.includes(key)))
+    const props = captured && !Array.isArray(captured) && typeof captured === "object"
+      ? Object.fromEntries(Object.entries(captured).filter(([key]) => !Object.hasOwn(jsxProps, key))) : captured
     if (!group || group.parentId !== null || seen.has(group.id)
       || !props || Array.isArray(props) || typeof props !== "object" || !isPortable(props)) return undefined
-    const source = renderSource(descriptor, props as Readonly<Record<string, TraceValue>>)
+    const source = renderSource(descriptor, props as Readonly<Record<string, TraceValue>>, jsxProps)
     if (!source) return undefined
     seen.add(group.id)
     const points = previewPoints(execution, group.id)
@@ -294,6 +330,7 @@ export async function createScenarioPreview(
       title: group.label,
       props: props as Readonly<Record<string, unknown>>,
       source,
+      ...(Object.keys(jsxProps).length ? {jsxProps} : {}),
       points,
     })
   }

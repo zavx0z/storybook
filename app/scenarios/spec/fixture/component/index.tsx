@@ -9,3 +9,16 @@ export function Command(props: CommandProps) {
     disabled={props.disabled}
   >{props.label}</button>
 }
+
+/** Контейнер использует обычный children transport Template. */
+export function Container(props: Readonly<{label: string | null; children?: import("@zavx0z/template/jsx-runtime").JsxSourceElement | null | undefined}>) {
+  return <section data-container="">
+    <span>{props.label}</span>
+    {props.children}
+  </section>
+}
+
+/** Дочерний компонент для проверки переносимости авторского JSX. */
+export function Badge(props: Readonly<{label: string}>) {
+  return <span data-badge="">{props.label}</span>
+}

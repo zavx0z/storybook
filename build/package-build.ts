@@ -18,6 +18,7 @@ import {readSpec} from "@storybook/app/spec-reader"
 import {supportsScenarioPreview, type ReadScenarioOutput} from "@storybook/app/scenarios"
 import {
   generateStorybookLoaderSource,
+  generateStorybookJsxModules,
   generateStorybookAppliedRevisionLoaderSource,
   generateStorybookRevisionPayloadSource,
   STORYBOOK_REVISION_PAYLOAD_FILE,
@@ -63,6 +64,7 @@ export type StorybookCompilerPluginResolver = (
     packageRoot: string
     projectRoot: string
     sourcePaths: readonly string[]
+    generatedSourceRoot?: string
   }>,
 ) => Promise<readonly Bun.BunPlugin[]>
 
@@ -206,10 +208,12 @@ export async function buildStorybookPackageRevisionInProcess(
     packageRoot,
     projectRoot,
     sourcePaths,
+    generatedSourceRoot,
   }) => createStorybookPackageCompilerPlugins({
     packageRoot,
     projectRoot,
     moduleSourcePaths: sourcePaths,
+    ...(generatedSourceRoot === undefined ? {} : {generatedSourceRoot}),
   }))
   const sharedBrowserIdentity = options.sharedBrowserIdentity === undefined
     ? undefined
@@ -273,7 +277,19 @@ export async function buildStorybookPackageRevisionInProcess(
       ...scenarios.flatMap(scenario => scenario.kind === "component" ? [scenario.module] : []),
     ]
     const sourcePaths = Object.freeze(modules.map(({path}) => path))
+    const jsxModules = generateStorybookJsxModules(scenarios)
+    const generatedSourceRoot = join(stagingDirectory, "scenario-jsx")
+    if (jsxModules.length) {
+      mkdirSync(generatedSourceRoot, {recursive: true})
+      await Bun.write(join(generatedSourceRoot, "tsconfig.json"), JSON.stringify({
+        compilerOptions: {target: "ESNext", module: "ESNext", moduleResolution: "Bundler",
+          jsx: "react-jsx", jsxImportSource: dirname(Bun.resolveSync("@zavx0z/template/jsx-runtime", import.meta.dir)), noEmit: true, allowImportingTsExtensions: true, strict: true, skipLibCheck: true},
+        include: ["*.tsx"],
+      }))
+      for (const module of jsxModules) await Bun.write(join(stagingDirectory, module.path), module.source)
+    }
     const compilerInput = Object.freeze({
+      ...(jsxModules.length ? {generatedSourceRoot} : {}),
       packageRoot: descriptor.packageRoot,
       projectRoot: descriptor.projectRoot,
       sourcePaths,

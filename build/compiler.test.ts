@@ -516,3 +516,35 @@ function resolveWithPlugin(plugin: Bun.BunPlugin, path: string): Readonly<{path?
   }
   return result as Readonly<{path?: string}>
 }
+
+test("generated JSX outside the owner becomes an executable compiled child", async () => {
+  const {generateStorybookJsxModules} = await import("./generated-loader.ts")
+  const projectRoot = await realpath(resolve(import.meta.dir, "../../webxr-space"))
+  const packageRoot = join(projectRoot, "ui")
+  const source = join(packageRoot, "buttons/button.tsx")
+  const root = await temporaryRoot()
+  const generatedSourceRoot = join(root, "scenario-jsx")
+  await mkdir(generatedSourceRoot)
+  await writeJson(join(generatedSourceRoot, "tsconfig.json"), {compilerOptions: {
+    target: "ESNext", module: "ESNext", moduleResolution: "Bundler", jsx: "react-jsx",
+    jsxImportSource: dirname(Bun.resolveSync("@zavx0z/template/jsx-runtime", import.meta.dir)), noEmit: true, allowImportingTsExtensions: true, skipLibCheck: true,
+  }, include: ["*.tsx"]})
+  const modules = generateStorybookJsxModules([{
+    kind: "component", nodeId: "fixture", module: {path: source, export: "Button"},
+    variants: [{id: "child", title: "child", props: {}, source: "", points: [], jsxProps: {
+      children: {source: '<Button label="Дочерний" />', imports: [
+        {local: "Button", imported: "Button", specifier: "@zavx0z/ui/buttons/button", path: source},
+      ]},
+    }}],
+  }])
+  for (const module of modules) await Bun.write(join(root, module.path), module.source)
+  const plugins = await createStorybookPackageCompilerPlugins({packageRoot, projectRoot,
+    moduleSourcePaths: [source], generatedSourceRoot})
+  const result = await Bun.build({entrypoints: [join(root, modules[0]!.path)],
+    outdir: join(root, "out"), format: "esm", target: "bun", plugins: [...plugins]})
+  expect(result.success, result.logs.map(({message}) => message).join("\n")).toBeTrue()
+  const loaded = await import(result.outputs.find(item => item.kind === "entry-point")!.path)
+  expect(loaded.ScenarioJsx.displayName).toBe("ScenarioJsx")
+  expect(typeof loaded.ScenarioJsx.mount).toBe("function")
+  expect(typeof loaded.ScenarioJsx.render).toBe("function")
+}, 30_000)

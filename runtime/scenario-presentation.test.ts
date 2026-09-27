@@ -1,4 +1,4 @@
-import {createRoot} from "@zavx0z/component"
+import {component, createRoot} from "@zavx0z/component"
 import {createDocument, Event, type HTMLElement} from "@zavx0z/dom"
 import {expect, test} from "bun:test"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
@@ -265,4 +265,34 @@ test("снимки функции переключаются в редактор
     inspector?.unmount()
     presentation.dispose()
   }
+})
+
+test("JSX children добавляются после отчёта, выбор сохраняет родительский элемент", async () => {
+  const {ChildrenFixture, Content} = await import("../app/scenarios/spec/fixture/component/spec/fixture/children.tsx")
+  const presentation = createScenarioPresentation(createDocument(), {
+    kind: "component",
+    template: ChildrenFixture as unknown as CompiledTemplate<Record<string, unknown>>,
+    variants: [
+      {id: "label", title: "label", props: {label: "Подпись", children: null}, source: "label", points: []},
+      {id: "children", title: "children", props: {label: null}, source: "children", points: []},
+    ],
+    resolveProps: (id, props) => id === "children" ? {children: component(Content as unknown as CompiledTemplate, {}), ...props} : props,
+    run: async variant => ({source: variant.source, props: variant.props ?? {}, calls: [], points: [],
+      execution: {status: "passed", tests: [{label: "Контент", status: "passed", message: null}]}}),
+  })
+  const stage = presentation.element.querySelector("[data-scenario-stage]")!
+  try {
+    await Bun.sleep(0)
+    const parent = stage.querySelector("[data-container]")!
+    expect(parent.textContent).toBe("Подпись")
+    presentation.app.select("children")
+    await Bun.sleep(0)
+    expect(stage.querySelector("[data-container]")).toBe(parent)
+    expect(parent.querySelector("[data-badge]")?.textContent).toBe("Дочерний компонент")
+    presentation.app.select("label")
+    await Bun.sleep(0)
+    expect(stage.querySelector("[data-container]")).toBe(parent)
+    expect(parent.textContent).toBe("Подпись")
+    expect(parent.querySelector("[data-badge]")).toBeNull()
+  } finally { presentation.dispose() }
 })

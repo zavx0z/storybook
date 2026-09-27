@@ -106,6 +106,12 @@ interface TraceCall {
 @property variants - Варианты внешнего `describe.each` в порядке показа.
 Каждый содержит идентификатор `id`, название `title`, фактические свойства `props`,
 подготовленный исходник `source` и пункты `points` с заголовком и пояснением при наличии.
+`jsxProps` сохраняет авторские JSX-поля отдельно от JSON-props: исходное выражение
+и его импорты с публичным specifier, локальным именем, export и разрешённым путём.
+Сборщик компилирует их штатным Template; снимки функций mount/render не исполняются.
+Поддержаны парные теги fixture с прямым `{props.children}` и JSX в литерале строки
+внешнего describe.each с импортированными компонентами и литеральными параметрами.
+Выбор строки сохраняет исходный индекс; переданные JSON-overrides имеют приоритет.
 */
 interface ComponentScenarioPreview {
   readonly kind: "component"
@@ -117,6 +123,11 @@ interface ComponentScenarioPreview {
     readonly id: string
     readonly title: string
     readonly props: Readonly<Record<string, unknown>>
+    /** JSX-поля собираются отдельно; compiled templates не сериализуются в props. */
+    readonly jsxProps?: Readonly<Record<string, {
+      readonly source: string
+      readonly imports: readonly {local: string; imported: string; specifier: string; path: string}[]
+    }>>
     readonly source: string
     readonly points: readonly {
       readonly title: string

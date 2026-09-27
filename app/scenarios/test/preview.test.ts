@@ -81,3 +81,25 @@ test("непереносимые props оставляют поддержанну
     preview: nonportable.preview,
   }).toEqual({supported: true, preview: undefined})
 })
+
+test("парные теги сохраняют JSX children и выбранный запуск без сериализации шаблона", async () => {
+  const path = resolve(import.meta.dir, "../spec/fixture/component/spec/children.test.tsx")
+  expect(await supportsScenarioPreview({path})).toBeTrue()
+  const result = await readScenario({path})
+  expect(result.exitCode).toBe(0)
+  expect(result.preview?.kind).toBe("component")
+  if (result.preview?.kind !== "component") throw new Error("Нет preview")
+  expect(result.preview.variants.map(item => item.title)).toEqual(["label", "children"])
+  const child = result.preview.variants[1]!
+  expect(child.props).toEqual({label: null})
+  expect(child.jsxProps?.children?.source).toBe('<Content label="Дочерний компонент" />')
+  expect(child.source).toContain('import {Badge as Content} from "@fixture/scenario-component"')
+  expect(child.source).toContain('<Container label={null}>')
+  expect(child.source).toContain('    <Content label="Дочерний компонент" />')
+  expect(child.source).not.toContain("{<")
+  expect(child.points[0]?.title).toBe("Контент / Передача")
+  const selected = await readScenario({path, variant: 1, props: child.props})
+  expect(selected.exitCode).toBe(0)
+  expect(selected.preview?.variants).toHaveLength(1)
+  expect(selected.preview?.variants[0]?.source).toBe(child.source)
+}, 30_000)

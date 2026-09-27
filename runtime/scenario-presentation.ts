@@ -25,7 +25,7 @@ export function createScenarioPresentation(document: Document, input: ScenarioAp
   const fixtureProps = () => {
     const selected = app.getSnapshot()
     if (!("props" in selected) || selected.props === undefined) throw new TypeError("Нет props компонента")
-    return selected.props
+    return input.resolveProps?.(selected.id, selected.props) ?? selected.props
   }
   let placement: ScenarioPreviewPlacement = {x: 0, y: 0}
   const template = ScenarioPreview as unknown as CompiledTemplate<Parameters<typeof ScenarioPreview>[0]>

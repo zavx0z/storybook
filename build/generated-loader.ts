@@ -90,14 +90,19 @@ export function generateStorybookLoaderSource(
     `  }))],`,
   ].join("\n") : [
     `  [${jsString(scenario.nodeId)}, () =>`,
-    `    import(${jsString(scenario.module.url)}).then((namespace) => Object.freeze({`,
+    `    Promise.all([import(${jsString(scenario.module.url)})${jsxEntries(scenario.variants, index).map(entry => `, import(${jsString(entry.path)})`).join("")}]).then(([namespace, ...jsxModules]) => Object.freeze({`,
     `      kind: "component",`,
     `      template: namespace[${jsString(scenario.module.export)}],`,
+    ...(jsxEntries(scenario.variants, index).length ? [
+      `      resolveProps: (id, props) => ({...Object.fromEntries(${JSON.stringify(jsxEntries(scenario.variants, index).map(({id, property}) => ({id, property})))}.flatMap((entry, i) => entry.id === id ? [[entry.property, bindStorybookJsx(jsxModules[i].ScenarioJsx, {})]] : [])), ...props}),`,
+    ] : []),
     `      variants: scenarioVariants${index},`,
     `    }))],`,
   ].join("\n")).join("\n")
 
   return [
+    ...(scenarios.some(scenario => scenario.kind === "component" && scenario.variants.some(variant => variant.jsxProps))
+      ? ['import {component as bindStorybookJsx} from "@zavx0z/component"'] : []),
     scenarioVariants,
     `export const storybookRevisionUrl = ${jsString(revisionUrl)}`,
     `export const STORYBOOK_PACKAGE_SCENARIO_LOADERS = new Map([`,
@@ -252,7 +257,8 @@ function validateScenarioVariants(
         ...(point.content === undefined ? {} : {content: point.content}),
       })
     }))
-    const normalized = Object.freeze({id, title, props: variant.props, source: variant.source, points})
+    const normalized = Object.freeze({id, title, props: variant.props, source: variant.source, points,
+      ...(variant.jsxProps === undefined ? {} : {jsxProps: variant.jsxProps})})
     jsonSource(normalized, `scenario variant ${nodeId}:${id}`)
     return normalized
   }))
@@ -411,4 +417,23 @@ function jsString(value: string): string {
     .replaceAll("<", "\\u003c")
     .replaceAll("\u2028", "\\u2028")
     .replaceAll("\u2029", "\\u2029")
+}
+
+/** Тот же порядок модулей используется при записи файлов и построении lazy loader. */
+function jsxEntries(variants: readonly StorybookGeneratedScenarioVariant[], scenarioIndex: number) {
+  return variants.flatMap((variant, variantIndex) => Object.entries(variant.jsxProps ?? {}).map(([property, value], propertyIndex) => ({
+    id: variant.id, property, value, path: `./scenario-jsx/${scenarioIndex}-${variantIndex}-${propertyIndex}.tsx`,
+  })))
+}
+
+/** JSX исходного сценария компилируется штатным Template вместе с fixture; Bun Test в браузер не импортируется. */
+export function generateStorybookJsxModules(scenarios: readonly StorybookGeneratedScenario[]) {
+  return [...scenarios].sort((left, right) => left.nodeId < right.nodeId ? -1 : left.nodeId > right.nodeId ? 1 : 0)
+    .flatMap((scenario, index) => scenario.kind !== "component" ? [] : jsxEntries(scenario.variants, index).map(entry => ({
+      path: entry.path,
+      source: [...entry.value.imports.map(binding => binding.imported === "default"
+        ? `import ${binding.local} from ${jsString(binding.path)}`
+        : `import {${binding.imported}${binding.imported === binding.local ? "" : ` as ${binding.local}`}} from ${jsString(binding.path)}`),
+        `export function ScenarioJsx() {\n  return ${entry.value.source}\n}`, ""].join("\n"),
+    })))
 }
