@@ -82,6 +82,29 @@ test("непереносимые props оставляют поддержанну
   }).toEqual({supported: true, preview: undefined})
 })
 
+test("отсутствующее необязательное поле не скрывает рабочий вариант", async () => {
+  const value = await readScenario({path: resolve(import.meta.dir, "../spec/fixture/component/spec/optional.test.tsx")})
+  expect(value.exitCode).toBe(0)
+  expect(value.preview?.kind).toBe("component")
+  expect(value.preview?.variants[0]?.props).toEqual({label: "Подпись"})
+  expect(value.preview?.variants[0]?.source).toContain("{undefined}")
+})
+
+test("пример со состоянием показывает настоящий компонент, подготовку и обработчики", async () => {
+  const path = resolve(import.meta.dir, "../spec/fixture/component/spec/stateful.test.tsx")
+  expect(await supportsScenarioPreview({path})).toBeTrue()
+  const value = await readScenario({path})
+  expect(value.exitCode).toBe(0)
+  expect(value.preview?.kind).toBe("component")
+  const variant = value.preview?.variants[0]!
+  const fixture = await Bun.file(resolve(import.meta.dir, "../spec/fixture/component/spec/fixture/stateful.tsx")).text()
+  expect(variant.source).toContain(fixture.trim())
+  expect(variant.source).toContain('<StatefulFixture\n')
+  expect(variant.source).toContain('"label": "Продолжить"')
+  expect(variant.props).toEqual({label: "Продолжить", disabled: false})
+  new Bun.Transpiler({loader: "tsx"}).transformSync(variant.source)
+}, 30_000)
+
 test("парные теги сохраняют JSX children и выбранный запуск без сериализации шаблона", async () => {
   const path = resolve(import.meta.dir, "../spec/fixture/component/spec/children.test.tsx")
   expect(await supportsScenarioPreview({path})).toBeTrue()

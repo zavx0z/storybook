@@ -55,10 +55,12 @@ interface PreviewDescriptor {
   readonly tables: readonly {line: number; jsxProps: readonly Readonly<Record<string, JsxProp | null>>[]}[]
   readonly fixturePath: string
   readonly fixtureExport: string
-  readonly componentImport: string
-  readonly jsx: string
-  readonly jsxStart: number
-  readonly replacements: readonly Replacement[]
+  readonly presentation: {
+    readonly componentImport: string
+    readonly jsx: string
+    readonly jsxStart: number
+    readonly replacements: readonly Replacement[]
+  } | {readonly source: string}
 }
 
 /** Возвращает координату строки узла с единицы. */
@@ -96,7 +98,7 @@ function componentImport(statement: Node, localName: string): string | null {
     : `import {${binding.export} as ${localName}} from ${module}`
 }
 
-/** Читает поддержанный export fixture и прямые обращения `props.<field>` внутри JSX. */
+/** Читает настоящую fixture; подготовка, состояние и обработчики остаются в показываемом исходнике. */
 async function readFixture(path: string, exportName: string): Promise<Omit<PreviewDescriptor, "scenarioPath" | "renderLines" | "tables"> | null> {
   const text = await Bun.file(path).text()
   const api = new API({cwd: process.cwd()})
@@ -112,51 +114,53 @@ async function readFixture(path: string, exportName: string): Promise<Omit<Previ
     const parameter = declaration.parameters[0]?.name
     if (!parameter || !isIdentifier(parameter)) return null
     const statements = [...declaration.body.statements]
-    const statement = statements[0]
-    if (statements.length !== 1 || !statement || !isReturnStatement(statement) || !statement.expression) return null
+    const statement = statements.at(-1)
+    if (!statement || !isReturnStatement(statement) || !statement.expression) return null
     const returned = unwrap(statement.expression)
     if (!isJsxElement(returned) && !isJsxSelfClosingElement(returned)) return null
-    const opening = isJsxElement(returned) ? returned.openingElement : returned
-    if (!isIdentifier(opening.tagName)) return null
-    const componentName = opening.tagName.text
-    const importSource = file.statements.map(statement => componentImport(statement, componentName)).find(Boolean)
-    if (!importSource) return null
-    const replacements: Replacement[] = []
-    for (const attribute of opening.attributes.properties) {
-      if (isJsxSpreadAttribute(attribute)) return null
-      const initializer = attribute.initializer
-      if (!initializer || isStringLiteral(initializer)) continue
-      if (!isJsxExpression(initializer) || !initializer.expression
-        || !isPropertyAccessExpression(initializer.expression)
-        || !isIdentifier(initializer.expression.expression)
-        || initializer.expression.expression.text !== parameter.text) return null
-      replacements.push({
-        start: initializer.expression.getStart(file),
-        end: initializer.expression.end,
-        property: initializer.expression.name.text,
-      })
-    }
-    if (isJsxElement(returned)) {
-      for (const child of returned.children) {
-        if (child.kind === SyntaxKind.JsxText) continue
-        if (!isJsxExpression(child) || !child.expression
-          || !isPropertyAccessExpression(child.expression)
-          || !isIdentifier(child.expression.expression)
-          || child.expression.expression.text !== parameter.text) return null
-        replacements.push({start: child.getStart(file), end: child.end,
-          property: child.expression.name.text, child: true})
+    const readDirectJsx = (): Exclude<PreviewDescriptor["presentation"], {source: string}> | null => {
+      if (statements.length !== 1) return null
+      const opening = isJsxElement(returned) ? returned.openingElement : returned
+      if (!isIdentifier(opening.tagName)) return null
+      const componentName = opening.tagName.text
+      const importSource = file.statements.map(statement => componentImport(statement, componentName)).find(Boolean)
+      if (!importSource) return null
+      const replacements: Replacement[] = []
+      for (const attribute of opening.attributes.properties) {
+        if (isJsxSpreadAttribute(attribute)) return null
+        const initializer = attribute.initializer
+        if (!initializer || isStringLiteral(initializer)) continue
+        if (!isJsxExpression(initializer) || !initializer.expression
+          || !isPropertyAccessExpression(initializer.expression)
+          || !isIdentifier(initializer.expression.expression)
+          || initializer.expression.expression.text !== parameter.text) return null
+        replacements.push({
+          start: initializer.expression.getStart(file),
+          end: initializer.expression.end,
+          property: initializer.expression.name.text,
+        })
+      }
+      if (isJsxElement(returned)) {
+        for (const child of returned.children) {
+          if (child.kind === SyntaxKind.JsxText) continue
+          if (!isJsxExpression(child) || !child.expression
+            || !isPropertyAccessExpression(child.expression)
+            || !isIdentifier(child.expression.expression)
+            || child.expression.expression.text !== parameter.text) return null
+          replacements.push({start: child.getStart(file), end: child.end,
+            property: child.expression.name.text, child: true})
+        }
+      }
+      if (replacements.length === 0) return null
+      const jsxStart = returned.getStart(file)
+      return {
+        componentImport: importSource,
+        jsx: text.slice(jsxStart, returned.end),
+        jsxStart,
+        replacements,
       }
     }
-    if (replacements.length === 0) return null
-    const jsxStart = returned.getStart(file)
-    return {
-      fixturePath: path,
-      fixtureExport: exportName,
-      componentImport: importSource,
-      jsx: text.slice(jsxStart, returned.end),
-      jsxStart,
-      replacements,
-    }
+    return {fixturePath: path, fixtureExport: exportName, presentation: readDirectJsx() ?? {source: text.trim()}}
   } finally {
     await api.close()
   }
@@ -266,21 +270,31 @@ function formatJsxChild(source: string): string {
   return [lines[0], ...lines.slice(1).map(line => line.slice(margin))].join("\n")
 }
 
-/** Подставляет фактические props в JSX fixture, не вычисляя выражения исходника. */
+/** Подставляет фактические props в JSX fixture; отсутствующее поле сохраняет обычное значение undefined. */
 function renderSource(descriptor: PreviewDescriptor, props: Readonly<Record<string, TraceValue>>, jsxProps: Readonly<Record<string, JsxProp>>): string | null {
-  const imports = new Set([descriptor.componentImport])
-  let jsx = descriptor.jsx
-  for (const replacement of [...descriptor.replacements].sort((left, right) => right.start - left.start)) {
+  const presentation = descriptor.presentation
+  if ("source" in presentation) {
+    const imports = new Set<string>()
+    const attributes = [`  {...${JSON.stringify(props, null, 2).replaceAll("\n", "\n  ")}}`]
+    for (const [name, value] of Object.entries(jsxProps)) {
+      for (const binding of value.imports) imports.add(jsxPropImport(binding))
+      attributes.push(`  ${name}={${formatJsxChild(value.source).replaceAll("\n", "\n  ")}}`)
+    }
+    return [...imports, presentation.source, `<${descriptor.fixtureExport}\n${attributes.join("\n")}\n/>`].join("\n\n")
+  }
+  const imports = new Set([presentation.componentImport])
+  let jsx = presentation.jsx
+  for (const replacement of [...presentation.replacements].sort((left, right) => right.start - left.start)) {
     const authored = jsxProps[replacement.property]
-    if (!authored && !Object.hasOwn(props, replacement.property)) return null
+    const present = Object.hasOwn(props, replacement.property)
     const value = props[replacement.property]!
-    if (!authored && !isPortable(value)) return null
+    if (!authored && present && !isPortable(value)) return null
     for (const binding of authored?.imports ?? []) imports.add(jsxPropImport(binding))
-    const start = replacement.start - descriptor.jsxStart
-    const end = replacement.end - descriptor.jsxStart
+    const start = replacement.start - presentation.jsxStart
+    const end = replacement.end - presentation.jsxStart
     const lineStart = jsx.lastIndexOf("\n", start - 1) + 1
     const indent = /^\s*/u.exec(jsx.slice(lineStart, start))?.[0] ?? ""
-    const literal = authored ? formatJsxChild(authored.source) : JSON.stringify(value, null, 2)
+    const literal = authored ? formatJsxChild(authored.source) : present ? JSON.stringify(value, null, 2) : "undefined"
     const expression = replacement.child && !authored ? `{${literal}}` : literal
     const source = expression.replaceAll("\n", `\n${indent}`)
     jsx = jsx.slice(0, start) + source + jsx.slice(end)
