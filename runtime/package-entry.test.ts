@@ -194,6 +194,37 @@ describe("structural package frontend", () => {
     } finally { await fixture.page.dispose() }
     expect(fixture.state.disposals).toBe(1)
   })
+
+  test.each([false, true])("запросы bridge во время HMR завершаются на рабочей среде, rollback=%s", async failMount => {
+    const entered = Promise.withResolvers<void>()
+    const release = Promise.withResolvers<void>()
+    const fixture = await pageFixture(failMount, true, async () => {
+      entered.resolve()
+      await release.promise
+    })
+    const bridge = currentBridge()
+    try {
+      const applying = Promise.allSettled([bridge.call("applyRevision", {expectedPackageId: packageId, revision: "revision-b"})])
+      await entered.promise
+      const observing = Promise.allSettled([
+        bridge.call("identity"),
+        bridge.call("inspect", {expectedPackageId: packageId, include: ["state"]}),
+        bridge.call("inspect", {expectedPackageId: "@fixture/another", include: ["state"]}),
+      ])
+      release.resolve()
+      expect((await applying)[0]?.status).toBe(failMount ? "rejected" : "fulfilled")
+      const revision = failMount ? "revision-a" : "revision-b"
+      expect(await observing, "Ожидающие запросы читают рабочую ревизию и сохраняют проверку владельца")
+        .toMatchObject([
+          {status: "fulfilled", value: {packageId, revision}},
+          {status: "fulfilled", value: {packageId, revision}},
+          {status: "rejected", reason: expect.objectContaining({message: "Storybook view navigated to another package"})},
+        ])
+    } finally {
+      release.resolve()
+      await fixture.page.dispose()
+    }
+  })
 })
 
 /** Текущая точка входа переживает замену платформенного экземпляра bridge. */
@@ -202,7 +233,7 @@ function currentBridge(): StorybookAgentBridge {
 }
 
 /** Реальный page controller с управляемыми immutable payloads и наблюдаемым Root lifecycle. */
-async function pageFixture(failPlatformMount = false, changePlatform = true) {
+async function pageFixture(failPlatformMount = false, changePlatform = true, beforePrepare?: () => Promise<void>) {
   const graph = await fixtureGraph()
   const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-a"))
   const environment = environmentFixture(snapshot, packagePath)
@@ -239,7 +270,10 @@ async function pageFixture(failPlatformMount = false, changePlatform = true) {
     fetcher: (async input => String(input).includes("/api/browser/session")
       ? Response.json({token: "fixture-reader"}) : Response.json(snapshot)) as typeof fetch,
     createSocket: () => new FakeSocket(),
-    prepareTarget: async input => target(input.requestedRevision ?? "revision-c", input.route),
+    prepareTarget: async input => {
+      await beforePrepare?.()
+      return target(input.requestedRevision ?? "revision-c", input.route)
+    },
     loadAppliedRevision: async (_packageId, revision) => payload(revision),
   })
   return {page, state, location, history}

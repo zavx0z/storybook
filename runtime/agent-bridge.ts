@@ -51,8 +51,8 @@ export type CreateStorybookAgentBridgeOptions = Readonly<{
   selectScenario?(value: string): void
   applyRevision(revision: string): Promise<void>
   canApplyRevision?(): boolean
-  /** Ожидает завершения смены package scope перед чтением или действием. */
-  waitForStableScope?(): Promise<void>
+  /** Ожидает смены scope; при HMR возвращает bridge, принявший владение страницей. */
+  waitForStableScope?(): Promise<StorybookAgentBridge | void>
 }>
 
 export function createStorybookAgentBridge(
@@ -78,7 +78,8 @@ export function createStorybookAgentBridge(
     protocol: STORYBOOK_AGENT_BRIDGE_PROTOCOL,
     async call(method, params) {
       if (method === "identity") {
-        await options.waitForStableScope?.()
+        const next = await options.waitForStableScope?.()
+        if (next !== undefined) return next.call(method, params)
         assertActive()
         return state()
       }
@@ -92,7 +93,8 @@ export function createStorybookAgentBridge(
       } as StorybookAgentBridgeRequest)
     },
     async invoke(request) {
-      await options.waitForStableScope?.()
+      const next = await options.waitForStableScope?.()
+      if (next !== undefined) return next.invoke(request)
       assertActive()
       validateRequest(request)
       if (request.expectedPackageId !== undefined && request.expectedPackageId !== packageId) {
@@ -105,18 +107,14 @@ export function createStorybookAgentBridge(
         }
         const requestedRevision = boundedText(request.revision, 256, "revision")
         await options.applyRevision(requestedRevision)
-        if (disposed) {
-          const next = (globalThis as typeof globalThis & Record<string, unknown>)[STORYBOOK_AGENT_BRIDGE_GLOBAL] as StorybookAgentBridge | undefined
-          if (next === undefined || next === bridge || next.protocol !== STORYBOOK_AGENT_BRIDGE_PROTOCOL) {
-            throw new Error("Storybook platform did not install its agent bridge")
-          }
-          const result = await next.call("identity") as {packageId?: string; revision?: string}
+        const appliedBridge = await options.waitForStableScope?.()
+        if (appliedBridge !== undefined) {
+          const result = await appliedBridge.call("identity") as {packageId?: string; revision?: string}
           if (result.packageId !== request.expectedPackageId || result.revision !== requestedRevision) {
             throw new Error("Storybook platform application returned another package or revision")
           }
           return result
         }
-        await options.waitForStableScope?.()
         assertActive()
         if (request.expectedPackageId !== packageId) throw new Error("Storybook view navigated to another package")
         return state()
@@ -256,7 +254,11 @@ export function createStorybookAgentBridge(
       const node = resolveTarget(request.target, inspector)
       await applyNodeAction(action, node, request, inspector, options.shell)
     }
-    await options.waitForStableScope?.()
+    const next = await options.waitForStableScope?.()
+    if (next !== undefined) {
+      const identity = await next.call("identity") as {frameSequence: number}
+      return Object.freeze({ok: true, action, frameSequence: identity.frameSequence, state: identity})
+    }
     const frameSequence = options.shell.presentFrame()
     if (frameSequence <= before) throw new Error("Storybook interaction did not present a new frame")
     return Object.freeze({ok: true, action, frameSequence, state: state()})

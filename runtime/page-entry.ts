@@ -1,4 +1,4 @@
-import {createStorybookAgentBridge, type StorybookAgentBridge} from "./agent-bridge.ts"
+import {createStorybookAgentBridge, STORYBOOK_AGENT_BRIDGE_GLOBAL, type StorybookAgentBridge} from "./agent-bridge.ts"
 import {indexedWorkbenchAuthorStyleSheetSources} from "./author-style-sheets.ts"
 import type {ExternalStorybookClientSnapshot} from "./client-protocol.ts"
 import {
@@ -465,6 +465,11 @@ export async function startExternalStorybookPage(
           pending = transitionTail
           await pending
         } while (pending !== transitionTail)
+        if (!disposed && replacement !== null) {
+          const next = (globalThis as typeof globalThis & Record<string, unknown>)[STORYBOOK_AGENT_BRIDGE_GLOBAL] as StorybookAgentBridge | undefined
+          if (next === undefined || next === bridge) throw new Error("Storybook platform did not install its agent bridge")
+          return next
+        }
         if (disposed || active?.kind !== "package") {
           throw new DOMException("Storybook view navigated away from the requested package", "AbortError")
         }
