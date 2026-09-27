@@ -1,6 +1,8 @@
 # Границы инструмента и незавершённые направления
 
-Направление задаёт [манифест](../../MANIFEST.md), размещение ответственности — [Archetypes](../../archetypes/notes/draft-structure.md).
+Общие принципы задают [Основания](../../.agents/rules/foundations.md),
+их применение к Storybook — [архитектура](../../ARCHITECTURE.md),
+размещение ответственности — [Archetypes](../../archetypes/notes/draft-structure.md).
 
 ## Структурная модель
 
