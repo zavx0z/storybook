@@ -188,7 +188,8 @@ lastWorking. Общая тема Workbench остаётся у оболочки.
 
 Landing и каждая package page владеют ровно одним `@zavx0z/browser` Root.
 Browser создаёт semantic Document, native Canvas, Space, ViewPoint, цикл кадров
-и owner ввода. Весь Workbench монтируется в один HUD. Структурные обзоры и
+и owner ввода. Весь Workbench, его меню и окна монтируются в один Display пространства.
+HUD остаётся пустым до явного размещения в нём других компонентов. Структурные обзоры и
 сценарии используют этот Experience; они не создают второй Root или semantic
 Document. Host default font загружается из exact
 `@zavx0z/engine/fonts/inter-regular.ttf` через публичный export.
@@ -197,7 +198,8 @@ Document. Host default font загружается из exact
 переменные его не подменяют. Внутренний контроллер проверяет Document перед
 использованием его API.
 
-Служебный Display занимает фактическую область preview. Для размеров `W × H`
+Служебный Display занимает весь viewport страницы; preview — обычная область
+его раскладки наряду с каталогом, вкладками, инспектором и строкой состояния. Для размеров `W × H`
 его физические атрибуты равны `W × 25.4 / 96` и `H × 25.4 / 96` мм, CSS viewport —
 `round(W) × round(H)` px, scale — `1`. Resize обновляет поверхность и ViewPoint
 на тех же semantic nodes. Фиксированные размеры, PPI устройства и уменьшение
@@ -600,7 +602,7 @@ canvas.hidden не заменяют состояние native страницы. 
 одним Browser.projectPoint из viewport проекции в клиентские координаты.
 Для path с presentationOwner используется актуальный frame.presentationTransforms
 с fallback на hit.transform; обычные кнопки используют hit.transform.
-У пространственного target сохраняется центр preview HUD с его CSS transform.
+У пространственного target сохраняется центр preview Workbench с его CSS transform.
 getBoundingClientRect уже содержит клиентские координаты и повторно не проецируется.
 Нечисловые точки отклоняются до доставки ввода. Regression agent-bridge использует
 реальный hitTestProjection и обработчик кнопки при scale 1 и 0.43 с переносом,
@@ -609,7 +611,7 @@ getBoundingClientRect уже содержит клиентские коорди�
 предоставляет снимки, стабильные идентификаторы и освобождение ссылок;
 `readFrame(node)` читает готовый кадр нужной projection единственного Root.
 Диагностические панели и команды агента не требуют исходный Renderer checkout.
-`key` активирует exact Workbench HUD owner в существующем Browser Root,
+`key` активирует exact Workbench Display owner в существующем Browser Root,
 фокусирует semantic target и вызывает `root.dispatchKey(...)` только
 после проверки exact Document/owner/target/native proxy. Modifiers сохраняются;
 ownership/proxy mismatch fail closed. Bridge не fabricate-ит semantic

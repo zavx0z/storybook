@@ -212,10 +212,10 @@ export async function createExternalStorybookShell(
     resolve(sequence: number): void
   }>>()
   let unsubscribeFrame = (): void => {}
+  let unsubscribeViewport = (): void => {}
   let unsubscribePresented = (): void => {}
   let latestBounds: StorybookPreviewBounds | null = null
-  let fittedDisplayBounds: StorybookPreviewBounds | null = null
-  let displayResolutionStyle = ""
+  let fittedViewport = ""
   let activeSpacePreview: BoundStorybookSpacePreview | null = null
   let activeShellPresentation: StorybookComponentPresentation | null = null
   let shellDiagnostics: unknown[] = [...pendingAuthorDiagnostics]
@@ -239,37 +239,29 @@ export async function createExternalStorybookShell(
   }
   if (shellDiagnostics.length > 0) publishShellDiagnostics()
 
-  const publishBounds = (bounds: StorybookPreviewBounds | null): void => {
-    const visible = bounds !== null && bounds.width > 0 && bounds.height > 0 &&
-      workbench.controller.read("presentation").projection === "display"
-    if (visible && bounds !== null && !sameBounds(fittedDisplayBounds, bounds)) {
-      // Служебный дисплей повторяет геометрию области HUD в метрике Space.
-      // Это перевод координат сцены, не физический размер монитора устройства.
-      const units = 25.4 / 96
-      const width = bounds.width * units
-      const height = bounds.height * units
-      const distance = Math.max(viewPoint.near * 1.01, units * bounds.viewportHeight / (2 * Math.tan(viewPoint.fov / 2)))
-      const projectedUnits = 2 * distance * Math.tan(viewPoint.fov / 2) / bounds.viewportHeight
-      const x = (bounds.viewportWidth / 2 - bounds.x - bounds.width / 2) * projectedUnits
-      const z = (bounds.y + bounds.height / 2 - bounds.viewportHeight / 2) * projectedUnits
-      fittedDisplayBounds = bounds
-      displayResolutionStyle = `--preview-resolution-width: ${Math.max(1, Math.round(bounds.width))}px; --preview-resolution-height: ${Math.max(1, Math.round(bounds.height))}px;`
-      document.transaction(() => {
-        display.width = width
-        display.height = height
-        display.setAttribute("style", `${displayResolutionStyle} --preview-visibility: visible`)
-        writeViewPointSnapshot(document, viewPoint, {
-          position: {x, y: -distance, z},
-          target: {x, y: 0, z},
-          fov: viewPoint.fov,
-          near: viewPoint.near,
-          far: Math.max(viewPoint.far, distance + 1000),
-        })
+  /** Пустой HUD предоставляет viewport общего Root, независимо от CSS-размеров Display. */
+  const fitWorkbench = (viewport: Readonly<{width: number; height: number}>): void => {
+    if (viewport.width <= 0 || viewport.height <= 0) return
+    const key = `${viewport.width}:${viewport.height}`
+    if (key === fittedViewport) return
+    fittedViewport = key
+    const units = 25.4 / 96
+    document.transaction(() => {
+      display.width = viewport.width * units
+      display.height = viewport.height * units
+      display.setAttribute("style", `--workbench-resolution-width: ${Math.round(viewport.width)}px; --workbench-resolution-height: ${Math.round(viewport.height)}px;`)
+      if (activeSpacePreview !== null) return
+      const distance = Math.max(viewPoint.near * 1.01, units * viewport.height / (2 * Math.tan(viewPoint.fov / 2)))
+      writeViewPointSnapshot(document, viewPoint, {
+        position: {x: 0, y: -distance, z: 0},
+        target: {x: 0, y: 0, z: 0},
+        fov: viewPoint.fov,
+        near: viewPoint.near,
+        far: Math.max(viewPoint.far, distance + 1000),
       })
-    }
-    if (!visible) fittedDisplayBounds = null
-    const style = `${displayResolutionStyle} --preview-visibility: ${visible ? "visible" : "hidden"}`
-    if (display.getAttribute("style") !== style) display.setAttribute("style", style)
+    })
+  }
+  const publishBounds = (bounds: StorybookPreviewBounds | null): void => {
     if (sameBounds(latestBounds, bounds)) return
     latestBounds = bounds
     for (const listener of [...boundsListeners]) listener(bounds)
@@ -282,7 +274,8 @@ export async function createExternalStorybookShell(
         waiter.resolve(sequence)
       }
     })
-    unsubscribeFrame = hudProjection.subscribeFrames(frame => {
+    unsubscribeViewport = hudProjection.subscribeFrames(frame => fitWorkbench(frame.viewport))
+    unsubscribeFrame = displayProjection.subscribeFrames(frame => {
       const box = frame.boxByNode.get(workbench.elements.previewHost)
       publishBounds(box === undefined
         ? null
@@ -298,6 +291,7 @@ export async function createExternalStorybookShell(
     root.render()
   } catch (error) {
     unsubscribeFrame()
+    unsubscribeViewport()
     unsubscribePresented()
     workbench.dispose()
     root.unmount()
@@ -634,6 +628,7 @@ export async function createExternalStorybookShell(
       activeShellPresentation?.dispose()
       activeShellPresentation = null
       unsubscribeFrame()
+      unsubscribeViewport()
       unsubscribePresented()
       boundsListeners.clear()
       for (const waiter of frameWaiters) waiter.resolve(root.presentedFrame)

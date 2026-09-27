@@ -36,44 +36,47 @@ export function StorybookApp(props: StorybookAppProps) {
       targetZ={0}
       far={2000}
     />
-    <StorybookDisplay id={props.displayId} />
-    <StorybookHUD
+    <StorybookDisplay id={props.displayId}>
+      <StorybookSurface
+        title={props.title}
+        statusOwner={props.statusOwner}
+        displayId={props.displayId}
+        hudId={props.hudId}
+        onReady={props.onReady}
+        loadMcpRequests={props.loadMcpRequests}
+        mcpAddressSource={props.mcpAddressSource}
+        mcpWindowState={props.mcpWindowState}
+        saveMcpWindowState={props.saveMcpWindowState}
+        navigationExpansion={props.navigationExpansion}
+      />
+    </StorybookDisplay>
+    <hud id={props.hudId} />
+  </space>
+}
+
+/** Workbench и его окна принадлежат Display; изменение окон сохраняет камеру и поверхность. */
+function StorybookSurface(props: StorybookAppProps) {
+  const [mcpOpen, setMcpOpen] = useState(() => props.mcpWindowState?.open ?? false)
+  const clipboard = getDocumentClipboardController(document as unknown as SemanticDocument)
+  if (clipboard === null) throw new Error("Storybook requires the clipboard controller of its existing Browser Root")
+  return <>
+    <Workbench
+      onMcpOpen={() => setMcpOpen(true)}
       title={props.title}
       statusOwner={props.statusOwner}
       displayId={props.displayId}
       hudId={props.hudId}
       onReady={props.onReady}
-      loadMcpRequests={props.loadMcpRequests}
-      mcpAddressSource={props.mcpAddressSource}
-      mcpWindowState={props.mcpWindowState}
-      saveMcpWindowState={props.saveMcpWindowState}
       navigationExpansion={props.navigationExpansion}
     />
-  </space>
-}
-
-/** Состояние окон HUD не обновляет начальные параметры камеры и дисплея. */
-function StorybookHUD(props: StorybookAppProps) {
-  const [mcpOpen, setMcpOpen] = useState(() => props.mcpWindowState?.open ?? false)
-  const clipboard = getDocumentClipboardController(document as unknown as SemanticDocument)
-  if (clipboard === null) throw new Error("Storybook requires the clipboard controller of its existing Browser Root")
-  return <hud id={props.hudId}>
-      <Workbench
-        onMcpOpen={() => setMcpOpen(true)}
-        title={props.title}
-        statusOwner={props.statusOwner}
-        displayId={props.displayId}
-        onReady={props.onReady}
-        navigationExpansion={props.navigationExpansion}
-      />
-      <ClipboardMenu controller={clipboard} />
-      <McpWindow
-        open={mcpOpen}
-        onClose={() => setMcpOpen(false)}
-        load={props.loadMcpRequests}
-        addressSource={props.mcpAddressSource}
-        initialState={props.mcpWindowState}
-        onStateChange={props.saveMcpWindowState}
-      />
-    </hud>
+    <ClipboardMenu controller={clipboard} />
+    <McpWindow
+      open={mcpOpen}
+      onClose={() => setMcpOpen(false)}
+      load={props.loadMcpRequests}
+      addressSource={props.mcpAddressSource}
+      initialState={props.mcpWindowState}
+      onStateChange={props.saveMcpWindowState}
+    />
+  </>
 }

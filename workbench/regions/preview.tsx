@@ -24,6 +24,10 @@ function PreviewRegionContent(props: Readonly<{value: PreviewRegionProps}>) {
       data-active-projection={value.projection}
       style={css`
         position: relative;
+        box-sizing: border-box;
+        border: 1px solid var(--widget-box-outline);
+        border-radius: 4px;
+        overflow: hidden;
         display: flex;
         flex-direction: column;
         min-height: 0;
@@ -40,6 +44,8 @@ function PreviewRegionContent(props: Readonly<{value: PreviewRegionProps}>) {
           flex-direction: column;
           width: 100%;
           height: 100%;
+          min-width: 0;
+          min-height: 0;
           align-items: center;
           justify-content: center;
 

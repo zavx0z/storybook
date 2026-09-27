@@ -1,3 +1,4 @@
+import {HUDElement} from "@zavx0z/dom/hud"
 import {DisplayElement} from "@zavx0z/dom/display"
 import {useLayoutEffect, useMemo, useRef, useSyncExternalStore} from "@zavx0z/component"
 import {SpaceElement} from "@zavx0z/dom/space"
@@ -12,6 +13,7 @@ export type WorkbenchProps = Readonly<{
   title: string
   statusOwner: string
   displayId: string
+  hudId: string
   navigationExpansion?: NavigationExpansion | undefined
   onReady(workbench: WorkbenchHandle): void
 }>
@@ -33,10 +35,11 @@ export function Workbench(props: WorkbenchProps) {
   useLayoutEffect(() => {
     const display = document.getElementById(props.displayId)
     const space = display?.closest("space")
-    if (element.current === null || !(space instanceof SpaceElement) || !(display instanceof DisplayElement)) {
+    const hud = document.getElementById(props.hudId)
+    if (element.current === null || !(space instanceof SpaceElement) || !(display instanceof DisplayElement) || !(hud instanceof HUDElement)) {
       throw new Error("Workbench requires its authored Space, Display and mounted root")
     }
-    props.onReady(model.bind(element.current as unknown as SemanticDiv, {space, display}))
+    props.onReady(model.bind(element.current as unknown as SemanticDiv, {space, hud}))
     return () => model.dispose()
   }, [model])
   return <WorkbenchView

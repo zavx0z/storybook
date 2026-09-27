@@ -50,6 +50,8 @@ export function WorkbenchView(props: WorkbenchViewProps) {
       flex-direction: column;
       width: 100%;
       height: 100%;
+      min-width: 0;
+      min-height: 0;
       overflow: clip;
       background: rgb(var(--surface-925));
       color: var(--widget-regular-content);

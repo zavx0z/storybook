@@ -340,7 +340,8 @@ async function applyNodeAction(
 ): Promise<void> {
   const presentedPoint = (target: Node) => {
     const owner = shell.projectionFor(target)
-    const projection = owner.kind === "space" ? shell.root.getProjection(shell.hud) : owner
+    const projection = owner.kind === "space" ? shell.projectionFor(shell.workbench.element) : owner
+    if (projection.kind === "space") return null
     const frame = projection.readFrame()
     const hit = owner.kind === "space" ? undefined : frame?.hits.get(target)
     const preview = owner.kind === "space" ? frame?.boxByNode.get(shell.workbench.elements.previewHost) : undefined

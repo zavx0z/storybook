@@ -42,7 +42,7 @@ export function syncWorkbenchPresentation(
   const host = next.projection === "display"
     ? projectionHosts.display ?? elements.displayHost
     : next.projection === "hud"
-      ? elements.hudHost
+      ? projectionHosts.hud ?? elements.hudHost
       : projectionHosts.space ?? elements.spaceHost
   if (next.node.parentNode !== host) host.appendChild(next.node)
 }
@@ -52,8 +52,8 @@ export function validateWorkbenchProjectionHosts(
   document: Document,
 ): WorkbenchProjectionHosts {
   if (value === undefined) return Object.freeze({})
-  const output: {display?: Node; space?: Node} = {}
-  for (const kind of ["display", "space"] as const) {
+  const output: {display?: Node; hud?: Node; space?: Node} = {}
+  for (const kind of ["display", "hud", "space"] as const) {
     const node = value[kind]
     if (node === undefined) continue
     assertNodeInDocument(node, document, `Workbench ${kind} projection host`)

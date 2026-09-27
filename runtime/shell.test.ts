@@ -54,7 +54,7 @@ describe("external Storybook shared Browser Root", () => {
     }
   })
 
-  test("creates one semantic Space/ViewPoint/Display/HUD and mounts the Workbench in HUD", async () => {
+  test("creates one semantic Space/ViewPoint/Display/HUD and mounts the Workbench in Display and leaves HUD empty", async () => {
     const state = createFakeRootState()
     const shell = await createShell(state)
 
@@ -80,11 +80,13 @@ describe("external Storybook shared Browser Root", () => {
     expect(shell.hud.id).toBe(EXTERNAL_STORYBOOK_WORKBENCH_ID)
     expect(shell.display.parentElement).toBe(shell.space)
     expect(shell.hud.parentElement).toBe(shell.space)
-    expect(shell.workbench.element.parentElement).toBe(shell.hud)
+    expect(shell.workbench.element.parentElement).toBe(shell.display)
+    expect(shell.hud.childNodes.length).toBe(0)
+    expect(shell.display.contains(shell.document.querySelector("[data-mcp-window]"))).toBeTrue()
 
     const displayNode = shell.document.createElement("button")
     shell.mountPreview("Display", displayNode)
-    expect(displayNode.parentNode === shell.display).toBe(true)
+    expect(displayNode.parentNode === shell.workbench.elements.displayHost).toBe(true)
     expect(shell.projectionFor(displayNode).kind).toBe("display")
 
     const hudNode = shell.document.createElement("button")
@@ -94,7 +96,7 @@ describe("external Storybook shared Browser Root", () => {
       inspectorSubject: null,
       inspectorValues: {},
     })
-    expect(shell.workbench.elements.hudHost.firstChild).toBe(hudNode)
+    expect(shell.hud.firstChild).toBe(hudNode)
     expect(shell.hud.contains(hudNode)).toBeTrue()
     expect(shell.projectionFor(hudNode).kind).toBe("hud")
 
@@ -129,9 +131,10 @@ describe("external Storybook shared Browser Root", () => {
   test("uses Root frames for bounds, acknowledgement and capture", async () => {
     const state = createFakeRootState()
     const shell = await createShell(state)
+    state.emitFrame(shell.hud, shell.hud, {contentX: 0, contentY: 0, contentWidth: 1024, contentHeight: 768})
     const bounds: unknown[] = []
     const unsubscribe = shell.subscribePreviewBounds(value => bounds.push(value))
-    state.emitFrame(shell.hud, shell.workbench.elements.previewHost, {
+    state.emitFrame(shell.display, shell.workbench.elements.previewHost, {
       contentX: 12,
       contentY: 18,
       contentWidth: 640,
@@ -143,13 +146,13 @@ describe("external Storybook shared Browser Root", () => {
       {x: 12, y: 18, width: 640, height: 360, viewportWidth: 1024, viewportHeight: 768},
     ])
     const surface = readDisplayStyle(shell.document, shell.display)
-    expect(surface.viewport).toEqual({width: 640, height: 360})
-    expect(shell.display.width).toBeCloseTo(640 * 25.4 / 96)
-    expect(shell.display.height).toBeCloseTo(360 * 25.4 / 96)
-    expect(surface.pixels).toEqual({width: 640, height: 360})
+    expect(surface.viewport).toEqual({width: 1024, height: 768})
+    expect(shell.display.width).toBeCloseTo(1024 * 25.4 / 96)
+    expect(shell.display.height).toBeCloseTo(768 * 25.4 / 96)
+    expect(surface.pixels).toEqual({width: 1024, height: 768})
     expect(surface.transform.scale).toEqual({x: 1, y: 1, z: 1})
     expect(surface.transform.position).toEqual({x: 0, y: 0, z: 0})
-    expectDisplayFits(shell, {x: 12, y: 18, width: 640, height: 360})
+    expectDisplayFits(shell, {x: 0, y: 0, width: 1024, height: 768})
     const renderer = createDocumentRenderer({
       document: shell.document,
       root: shell.display,
@@ -158,20 +161,19 @@ describe("external Storybook shared Browser Root", () => {
     })
     const frame = renderer.flush()
     expect(frame.boxByNode.get(shell.display)?.width).toBeCloseTo(surface.viewport.width)
-    expect(frame.boxByNode.get(shell.display)?.contentWidth).toBeCloseTo(surface.viewport.width - 2)
-    expect(frame.displayList.some(item => item.kind === "rect" && item.node === shell.display)).toBe(true)
+    expect(frame.boxByNode.get(shell.display)?.contentWidth).toBeCloseTo(surface.viewport.width)
     renderer.dispose()
     const display = shell.display
-    state.emitFrame(shell.hud, shell.workbench.elements.previewHost, {
+    state.emitFrame(shell.display, shell.workbench.elements.previewHost, {
       contentX: 180, contentY: 40, contentWidth: 480, contentHeight: 280,
     })
     expect(shell.display === display).toBe(true)
     const resized = readDisplayStyle(shell.document, display)
-    expect(resized.viewport).toEqual({width: 480, height: 280})
+    expect(resized.viewport).toEqual({width: 1024, height: 768})
     expect(resized.transform).toEqual(surface.transform)
     expect(resized.dpi.x).toBeCloseTo(96)
     expect(resized.dpi.y).toBeCloseTo(96)
-    expectDisplayFits(shell, {x: 180, y: 40, width: 480, height: 280})
+    expectDisplayFits(shell, {x: 0, y: 0, width: 1024, height: 768})
     const before = shell.presentedFrameSequence
     expect(shell.presentFrame()).toBeGreaterThan(before)
     expect(await shell.captureLastPresentedFramePng()).toBe(state.capture)
@@ -179,7 +181,7 @@ describe("external Storybook shared Browser Root", () => {
     shell.dispose()
   })
 
-  test("HUD and window resize recompute Display geometry and resolution while preserving content and focus", async () => {
+  test("Window resize recomputes full Workbench Display geometry and resolution while preserving content and focus", async () => {
     const state = createFakeRootState()
     const shell = await createShell(state)
     const button = shell.document.createElement("button")
@@ -193,23 +195,24 @@ describe("external Storybook shared Browser Root", () => {
       {bounds: {x: 600, y: 400, width: 20, height: 200}, viewport: {width: 1200, height: 700}},
       {bounds: {x: 250.25, y: 30.5, width: 899.75, height: 739.5}, viewport: {width: 1600, height: 800}},
     ]) {
-      state.emitFrame(shell.hud, shell.workbench.elements.previewHost, {
+      state.emitFrame(shell.hud, shell.hud, {contentX: 0, contentY: 0, contentWidth: viewport.width, contentHeight: viewport.height}, viewport)
+      state.emitFrame(shell.display, shell.workbench.elements.previewHost, {
         contentX: bounds.x, contentY: bounds.y, contentWidth: bounds.width, contentHeight: bounds.height,
       }, viewport)
-      expectDisplayFits(shell, bounds, viewport)
+      expectDisplayFits(shell, {x: 0, y: 0, ...viewport}, viewport)
       const surface = readDisplayStyle(shell.document, shell.display)
-      expect(surface.viewport).toEqual({width: Math.round(bounds.width), height: Math.round(bounds.height)})
-      expect(shell.display.width).toBeCloseTo(bounds.width * 25.4 / 96)
-      expect(shell.display.height).toBeCloseTo(bounds.height * 25.4 / 96)
+      expect(surface.viewport).toEqual(viewport)
+      expect(shell.display.width).toBeCloseTo(viewport.width * 25.4 / 96)
+      expect(shell.display.height).toBeCloseTo(viewport.height * 25.4 / 96)
       expect(surface.transform.scale).toEqual({x: 1, y: 1, z: 1})
       expect(surface.transform.position).toEqual({x: 0, y: 0, z: 0})
       expect(shell.document.activeElement).toBe(button)
       expect(shell.display.scrollTop).toBe(12)
-      expect(button.parentElement).toBe(shell.display)
+      expect(button.parentElement).toBe(shell.workbench.elements.displayHost)
       expect(shell.projectionFor(button)).toBe(projection)
       let mutations = 0
       const unsubscribe = shell.document.subscribeMutations(() => { mutations++ })
-      state.emitFrame(shell.hud, shell.workbench.elements.previewHost, {
+      state.emitFrame(shell.display, shell.workbench.elements.previewHost, {
         contentX: bounds.x, contentY: bounds.y, contentWidth: bounds.width, contentHeight: bounds.height,
       }, viewport)
       expect(mutations).toBe(0)
@@ -218,9 +221,37 @@ describe("external Storybook shared Browser Root", () => {
     shell.dispose()
   })
 
+  test("Workbench ограничивает высокое содержимое viewport Display и сохраняет строку состояния", async () => {
+    const state = createFakeRootState()
+    const shell = await createShell(state)
+    const content = shell.document.createElement("section")
+    content.setAttribute("style", "height: 100%; width: 100%; min-height: 0; display: flex; flex-direction: column; overflow: auto")
+    const tall = shell.document.createElement("div")
+    tall.setAttribute("style", "height: 2000px; flex-shrink: 0")
+    content.appendChild(tall)
+    shell.mountPreview("Высокое содержимое", content)
+    state.emitFrame(shell.hud, shell.hud, {contentX: 0, contentY: 0, contentWidth: 1024, contentHeight: 768})
+    const renderer = createDocumentRenderer({document: shell.document, root: shell.display, viewport: {width: 1024, height: 768}})
+    try {
+      const frame = renderer.flush()
+      expect(frame.boxByNode.get(shell.workbench.element)?.height).toBe(768)
+      const status = frame.boxByNode.get(shell.workbench.elements.status)
+      expect(status).toBeDefined()
+      expect(status!.y + status!.height).toBe(768)
+      const preview = frame.boxByNode.get(shell.workbench.elements.previewHost)!
+      expect(frame.boxByNode.get(content)?.height).toBe(preview.contentHeight)
+      expect(frame.boxByNode.get(tall)?.height).toBeGreaterThan(preview.contentHeight)
+      expect(shell.hud.childNodes.length).toBe(0)
+    } finally {
+      renderer.dispose()
+      shell.dispose()
+    }
+  })
+
   test("routes Space camera gestures through the semantic ViewPoint and restores its preset", async () => {
     const state = createFakeRootState()
     const shell = await createShell(state)
+    state.emitFrame(shell.hud, shell.hud, {contentX: 0, contentY: 0, contentWidth: 1024, contentHeight: 768})
     const node = shell.document.createElement("xr-group")
     const restored = viewPointValues(shell.viewPoint)
     const preview = shell.mountSpacePreview("Space", {
@@ -241,17 +272,17 @@ describe("external Storybook shared Browser Root", () => {
       targetZ: 3,
     })
     expect(shell.viewPoint.controls).toBe(true)
-    state.emitFrame(shell.hud, shell.workbench.elements.previewHost, {
+    state.emitFrame(shell.display, shell.workbench.elements.previewHost, {
       contentX: 80, contentY: 40, contentWidth: 500, contentHeight: 600,
     })
     expect(viewPointValues(shell.viewPoint)).toMatchObject({x: 10, y: -20, z: 30})
     preview.dispose()
     expect(viewPointValues(shell.viewPoint)).toEqual(restored)
     shell.mountPreview("Display again", shell.document.createElement("button"))
-    state.emitFrame(shell.hud, shell.workbench.elements.previewHost, {
+    state.emitFrame(shell.display, shell.workbench.elements.previewHost, {
       contentX: 80, contentY: 40, contentWidth: 500, contentHeight: 600,
     })
-    expectDisplayFits(shell, {x: 80, y: 40, width: 500, height: 600})
+    expectDisplayFits(shell, {x: 0, y: 0, width: 1024, height: 768})
     shell.dispose()
   })
 
@@ -458,7 +489,7 @@ function fakeRootFactory(state: FakeRootState): ExternalStorybookRootFactory {
       input: {
         pointerDown() {
           state.activeTarget = state.pointerTarget
-          state.activeOwner = state.pointerTarget?.parentElement as DisplayElement | HUDElement
+          state.activeOwner = (state.pointerTarget?.closest("display") ?? state.pointerTarget?.closest("hud")) as DisplayElement | HUDElement
         },
         pointerMove() {},
         pointerUp() {},

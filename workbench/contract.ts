@@ -264,10 +264,13 @@ export type WorkbenchPresentationUpdate = Readonly<{
 
 @property [display] - Узел размещения на поверхности отображения.
 
+@property [hud] - Узел размещения явно выбранной экранной проекции.
+
 @property [space] - Узел размещения в общем пространстве.
 */
 export type WorkbenchProjectionHosts = Readonly<{
   display?: Node
+  hud?: Node
   space?: Node
 }>
 
