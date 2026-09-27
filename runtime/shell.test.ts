@@ -54,7 +54,7 @@ describe("external Storybook shared Browser Root", () => {
     }
   })
 
-  test("creates one semantic Space/ViewPoint/Display/HUD and mounts the Workbench in Display and leaves HUD empty", async () => {
+  test("creates one semantic Space/ViewPoint/Display/HUD and mounts the Workbench in Display and mounts camera controls in HUD", async () => {
     const state = createFakeRootState()
     const shell = await createShell(state)
 
@@ -81,7 +81,7 @@ describe("external Storybook shared Browser Root", () => {
     expect(shell.display.parentElement).toBe(shell.space)
     expect(shell.hud.parentElement).toBe(shell.space)
     expect(shell.workbench.element.parentElement).toBe(shell.display)
-    expect(shell.hud.childNodes.length).toBe(0)
+    expect(shell.hud.querySelector('[aria-label="Управление ViewPoint"]')).not.toBeNull()
     expect(shell.display.contains(shell.document.querySelector("[data-mcp-window]"))).toBeTrue()
 
     const displayNode = shell.document.createElement("button")
@@ -96,7 +96,7 @@ describe("external Storybook shared Browser Root", () => {
       inspectorSubject: null,
       inspectorValues: {},
     })
-    expect(shell.hud.firstChild).toBe(hudNode)
+    expect(shell.hud.querySelector("[data-tab]")).not.toBeNull()
     expect(shell.hud.contains(hudNode)).toBeTrue()
     expect(shell.projectionFor(hudNode).kind).toBe("hud")
 
@@ -110,6 +110,73 @@ describe("external Storybook shared Browser Root", () => {
     expect(spaceNode.parentElement).toBe(shell.space)
     expect(shell.projectionFor(spaceNode).kind).toBe("space")
     shell.dispose()
+  })
+
+  test("новая сессия восстанавливает заморозку и обзор после первого вписывания", async () => {
+    const saved = new Map<string, string>()
+    const storage = {getItem: (key: string) => saved.get(key) ?? null, setItem: (key: string, value: string) => { saved.set(key, value) }}
+    const frame = {contentX: 0, contentY: 0, contentWidth: 1024, contentHeight: 768}
+    const firstState = createFakeRootState()
+    const first = await createShell(firstState, {storage})
+    firstState.emitFrame(first.hud, first.hud, frame)
+    first.document.querySelector('[aria-label="Разморозить ViewPoint"]')!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    first.viewPoint.dollyTo(420)
+    first.viewPoint.x = 12
+    first.viewPoint.targetX = 12
+    const expected = viewPointValues(first.viewPoint)
+    first.dispose()
+    const secondState = createFakeRootState()
+    const second = await createShell(secondState, {storage})
+    try {
+      secondState.emitFrame(second.hud, second.hud, frame)
+      expect(second.viewPoint.controls).toBe(true)
+      expect(viewPointValues(second.viewPoint)).toEqual(expected)
+      secondState.emitFrame(second.hud, second.hud, frame)
+      expect(viewPointValues(second.viewPoint)).toEqual(expected)
+      second.document.querySelector('[aria-label="Вписать в область просмотра"]')!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+      expect(viewPointValues(second.viewPoint)).not.toEqual(expected)
+    } finally { second.dispose() }
+  })
+
+  test("HUD Tab управляет тем же ViewPoint и повторно вписывает Display", async () => {
+    const state = createFakeRootState()
+    const shell = await createShell(state)
+    try {
+      state.emitFrame(shell.hud, shell.hud, {contentX: 0, contentY: 0, contentWidth: 1024, contentHeight: 768})
+      const camera = shell.viewPoint
+      const display = shell.display
+      const tab = shell.hud.querySelector("[data-tab]")!
+      const click = async (name: string) => {
+        const button = shell.hud.querySelector(`[aria-label="${name}"]`)!
+        expect(button).not.toBeNull()
+        button.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+        await Bun.sleep(0)
+      }
+      expect(camera.controls).toBe(false)
+      await click("Разморозить ViewPoint")
+      expect(camera.controls).toBe(true)
+      const initialDistance = -camera.y
+      await click("Приблизить ViewPoint")
+      expect(-camera.y).toBeCloseTo(initialDistance / 1.2)
+      await click("Отдалить ViewPoint")
+      expect(-camera.y).toBeCloseTo(initialDistance)
+      await click("Заморозить ViewPoint")
+      expect(camera.controls).toBe(false)
+      camera.x = 300
+      camera.targetX = 200
+      camera.y *= 2
+      await click("Вписать в область просмотра")
+      expectDisplayFits(shell, {x: 0, y: 0, width: 1024, height: 768})
+      expect(camera.controls).toBe(false)
+      expect(shell.viewPoint).toBe(camera)
+      expect(shell.display).toBe(display)
+      expect(shell.hud.querySelector("[data-tab]")).toBe(tab)
+      expect(shell.document.querySelectorAll("viewpoint")).toHaveLength(1)
+      expect(shell.workbench.element.parentElement).toBe(display)
+      camera.controls = true
+      await Bun.sleep(0)
+      expect(shell.hud.querySelector('[aria-label="Заморозить ViewPoint"]')).not.toBeNull()
+    } finally { shell.dispose() }
   })
 
   test("passes exact linked author styles to createRoot", async () => {
@@ -241,7 +308,7 @@ describe("external Storybook shared Browser Root", () => {
       const preview = frame.boxByNode.get(shell.workbench.elements.previewHost)!
       expect(frame.boxByNode.get(content)?.height).toBe(preview.contentHeight)
       expect(frame.boxByNode.get(tall)?.height).toBeGreaterThan(preview.contentHeight)
-      expect(shell.hud.childNodes.length).toBe(0)
+      expect(shell.hud.querySelector('[aria-label="Управление ViewPoint"]')).not.toBeNull()
     } finally {
       renderer.dispose()
       shell.dispose()
@@ -402,11 +469,12 @@ async function createShell(
   state: FakeRootState,
   options: Readonly<{
     authorStyleSheetSources?: readonly RootLinkedAuthorStyleSheet[]
+    storage?: Pick<Storage, "getItem" | "setItem">
   }> = {},
 ) {
   return createExternalStorybookShell({
     title: "Fixture Storybook",
-    browserDocument: {} as globalThis.Document,
+    browserDocument: {defaultView: {localStorage: options.storage}} as globalThis.Document,
     canvas: {width: 1024, height: 768} as HTMLCanvasElement,
     loadFont: async () => ({}) as never,
     createRoot: fakeRootFactory(state),

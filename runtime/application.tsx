@@ -1,3 +1,5 @@
+import {ViewPointTab} from "../workbench/viewpoint-tab"
+import type {ViewPointTabProps} from "../workbench/viewpoint-tab/contract/input"
 import {Workbench} from "../workbench/workbench.tsx"
 import type {Workbench as WorkbenchHandle} from "../workbench/contract.ts"
 import {StorybookDisplay} from "./display-view.tsx"
@@ -17,6 +19,7 @@ export type StorybookAppProps = Readonly<{
   mcpWindowState?: McpWindowState | undefined
   saveMcpWindowState?: ((state: McpWindowState) => void) | undefined
   navigationExpansion?: NavigationExpansion | undefined
+  viewPointControls: ViewPointTabProps["controls"]
   title: string
   statusOwner: string
   displayId: string
@@ -38,6 +41,7 @@ export function StorybookApp(props: StorybookAppProps) {
     />
     <StorybookDisplay id={props.displayId}>
       <StorybookSurface
+        viewPointControls={props.viewPointControls}
         title={props.title}
         statusOwner={props.statusOwner}
         displayId={props.displayId}
@@ -50,7 +54,9 @@ export function StorybookApp(props: StorybookAppProps) {
         navigationExpansion={props.navigationExpansion}
       />
     </StorybookDisplay>
-    <hud id={props.hudId} />
+    <hud id={props.hudId}>
+      <ViewPointTab controls={props.viewPointControls} />
+    </hud>
   </space>
 }
 

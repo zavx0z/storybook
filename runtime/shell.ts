@@ -1,3 +1,5 @@
+import {createViewPointPersistence} from "../workbench/viewpoint-tab/src/persistence"
+import {createViewPointControls} from "../workbench/viewpoint-tab/src/controller"
 import {DisplayElement} from "@zavx0z/dom/display"
 import {createMcpAddressSource} from "./mcp-address"
 import {createMcpWindowPersistence} from "../workbench/mcp-window/src/state"
@@ -163,10 +165,12 @@ export async function createExternalStorybookShell(
       }))
     },
   })
+  const viewPointControls = createViewPointControls(createViewPointPersistence(() => browserDocument.defaultView!.localStorage))
   const mcpWindow = createMcpWindowPersistence(() => browserDocument.defaultView!.localStorage)
   const navigationExpansion = createNavigationExpansion(() => browserDocument.defaultView!.localStorage)
   application.render(component(StorybookApp as unknown as CompiledTemplate<StorybookAppProps>, {
     title: options.title,
+    viewPointControls,
     statusOwner: options.statusOwner ?? options.title,
     displayId: EXTERNAL_STORYBOOK_DISPLAY_ID,
     hudId: EXTERNAL_STORYBOOK_WORKBENCH_ID,
@@ -191,6 +195,7 @@ export async function createExternalStorybookShell(
   }))
   let root: Root
   try { root = await application.whenReady() } catch (error) {
+    viewPointControls.dispose()
     application.unmount()
     throw error
   }
@@ -200,6 +205,7 @@ export async function createExternalStorybookShell(
   const display = document.getElementById(EXTERNAL_STORYBOOK_DISPLAY_ID)
   const hud = document.getElementById(EXTERNAL_STORYBOOK_WORKBENCH_ID)
   if (!(display instanceof DisplayElement) || !(hud instanceof HUDElement) || workbench === undefined) {
+    viewPointControls.dispose()
     root.unmount()
     throw new Error("Storybook App did not mount its Display, HUD and Workbench")
   }
@@ -216,7 +222,9 @@ export async function createExternalStorybookShell(
   let unsubscribePresented = (): void => {}
   let latestBounds: StorybookPreviewBounds | null = null
   let fittedViewport = ""
+  let latestViewport: Readonly<{width: number; height: number}> | null = null
   let activeSpacePreview: BoundStorybookSpacePreview | null = null
+  let mountingSpacePreview = false
   let activeShellPresentation: StorybookComponentPresentation | null = null
   let shellDiagnostics: unknown[] = [...pendingAuthorDiagnostics]
   let disposed = false
@@ -239,11 +247,12 @@ export async function createExternalStorybookShell(
   }
   if (shellDiagnostics.length > 0) publishShellDiagnostics()
 
-  /** Пустой HUD предоставляет viewport общего Root, независимо от CSS-размеров Display. */
-  const fitWorkbench = (viewport: Readonly<{width: number; height: number}>): void => {
+  /** HUD предоставляет viewport общего Root, независимо от CSS-размеров Display. */
+  const fitWorkbench = (viewport: Readonly<{width: number; height: number}>, force = false): void => {
     if (viewport.width <= 0 || viewport.height <= 0) return
+    latestViewport = viewport
     const key = `${viewport.width}:${viewport.height}`
-    if (key === fittedViewport) return
+    if (!force && key === fittedViewport) return
     fittedViewport = key
     const units = 25.4 / 96
     document.transaction(() => {
@@ -260,7 +269,13 @@ export async function createExternalStorybookShell(
         far: Math.max(viewPoint.far, distance + 1000),
       })
     })
+    viewPointControls.restoreCamera()
   }
+  viewPointControls.bind(viewPoint, () => {
+    if (activeSpacePreview !== null) activeSpacePreview.resetViewPoint()
+    else if (latestViewport !== null) fitWorkbench(latestViewport, true)
+    root.invalidate()
+  }, () => activeSpacePreview === null && !mountingSpacePreview)
   const publishBounds = (bounds: StorybookPreviewBounds | null): void => {
     if (sameBounds(latestBounds, bounds)) return
     latestBounds = bounds
@@ -293,6 +308,7 @@ export async function createExternalStorybookShell(
     unsubscribeFrame()
     unsubscribeViewport()
     unsubscribePresented()
+    viewPointControls.dispose()
     workbench.dispose()
     root.unmount()
     throw error
@@ -336,6 +352,8 @@ export async function createExternalStorybookShell(
     mountPreviewNode(label, registration.node, "space")
     const initialViewPoint = spaceViewPointSnapshot(registration.camera)
     const restoredViewPoint = readViewPointSnapshot(viewPoint)
+    const restoredControls = viewPoint.controls
+    mountingSpacePreview = true
     viewPoint.controls = registration.cameraGestures !== false
     writeViewPointSnapshot(document, viewPoint, initialViewPoint)
     const startedFrame = root.presentedFrame
@@ -387,7 +405,7 @@ export async function createExternalStorybookShell(
         unsubscribeBounds()
         unsubscribeBounds = () => {}
         if (!root.disposed) {
-          viewPoint.controls = false
+          viewPoint.controls = restoredControls
           writeViewPointSnapshot(document, viewPoint, restoredViewPoint)
           root.invalidate()
         }
@@ -395,6 +413,7 @@ export async function createExternalStorybookShell(
       },
     })
     activeSpacePreview = controller
+    mountingSpacePreview = false
     boundsListeners.add(applyBounds)
     unsubscribeBounds = () => boundsListeners.delete(applyBounds)
     applyBounds(latestBounds)
@@ -624,6 +643,7 @@ export async function createExternalStorybookShell(
     dispose() {
       if (disposed) return
       disposed = true
+      viewPointControls.dispose()
       activeSpacePreview?.dispose()
       activeShellPresentation?.dispose()
       activeShellPresentation = null
