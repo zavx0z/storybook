@@ -25,6 +25,7 @@ function PreviewRegionContent(props: Readonly<{value: PreviewRegionProps}>) {
       style={css`
         position: relative;
         box-sizing: border-box;
+        background: rgb(var(--surface-925));
         border: 1px solid var(--widget-box-outline);
         border-radius: 4px;
         overflow: hidden;
@@ -34,6 +35,10 @@ function PreviewRegionContent(props: Readonly<{value: PreviewRegionProps}>) {
         flex-grow: 1;
         align-items: center;
         justify-content: center;
+
+        &[data-active-projection="space"] {
+          background: transparent;
+        }
       `}
     >
       <div
