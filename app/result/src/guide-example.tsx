@@ -16,7 +16,7 @@ export function ScenarioGuideExample(props: Readonly<{key?: string, title: strin
   >
     <Typography text={props.title} />
     <CodeEditor
-      languageId="typescript"
+      languageId="tsx"
       readOnly={true}
       value={props.code}
       style={css`

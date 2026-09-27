@@ -21,7 +21,7 @@ export function ScenarioInspector(props: Readonly<{value: unknown}>) {
     `}
   >
     <CodeEditor
-      languageId="typescript"
+      languageId="tsx"
       readOnly={true}
       value={selected.source}
       style={css`
