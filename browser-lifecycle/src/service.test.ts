@@ -499,7 +499,7 @@ describe("Storybook browser lifecycle service", () => {
     const root = temporaryRoot()
     chrome.unavailableBridgeCalls = Number.MAX_SAFE_INTEGER
     await expect(createController(chrome, root).openPackage({...openInput(chrome), timeoutMs: 100}))
-      .rejects.toMatchObject({name: "TimeoutError"})
+      .rejects.toMatchObject({name: "TimeoutError", message: expect.stringContaining('"readyState":"complete"')})
 
     chrome.unavailableBridgeCalls = 0
     const opened = await createController(chrome, root).openPackage(openInput(chrome))
@@ -943,7 +943,7 @@ describe("Storybook browser lifecycle service", () => {
       route: "fixture/a/default",
       url: `${hangingHealth.origin}/pkg-fixture-a/fixture/a/default`,
       timeoutMs: 100,
-    })).rejects.toMatchObject({name: "TimeoutError"})
+    })).rejects.toMatchObject({name: "TimeoutError", message: expect.stringContaining("Chrome connection")})
 
     const chrome = new FakeChrome()
     const controller = createController(chrome)

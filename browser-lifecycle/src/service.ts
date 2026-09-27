@@ -45,6 +45,8 @@ export type StorybookBrowserCaptureResult = StoredStorybookCapture & Readonly<{
 }>
 
 export interface StorybookBrowserLifecycle {
+  /** Открывает точный пакет. Ошибка сохраняет name и указывает этап; после таймаута bridge
+  отдельно читается диагностика страницы с ограничением в две секунды. */
   openPackage(input: StorybookBrowserOpenInput, signal?: AbortSignal): Promise<Readonly<{
     view: StorybookPublicView
     identity: StorybookBridgeIdentity
@@ -123,6 +125,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
     const timeoutMs = boundedTimeout(input.timeoutMs ?? 30_000)
     const timeout = AbortSignal.timeout(timeoutMs)
     const operationSignal = signal === undefined ? timeout : AbortSignal.any([signal, timeout])
+    let phase = "package lock"
     return withStorybookBrowserLock({
       root: this.#state.lockRoot(),
       scope: `package:${packageId}`,
@@ -136,7 +139,11 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
       route,
       url,
       timeoutMs,
-    }, operationSignal))
+    }, operationSignal, next => { phase = next })).catch(error => {
+      const failure = new Error(`Storybook open failed during ${phase}: ${error instanceof Error ? error.message : String(error)}`, {cause: error})
+      if (error instanceof Error) failure.name = error.name
+      throw failure
+    })
   }
 
   async #openLocked(
@@ -148,6 +155,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
       timeoutMs: number
     }>,
     operationSignal: AbortSignal,
+    reportPhase: (phase: string) => void,
   ): Promise<Readonly<{
     view: StorybookPublicView
     identity: StorybookBridgeIdentity
@@ -158,7 +166,9 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
     if (requiredView !== null && (requiredView.packageId !== packageId || requiredView.origin !== origin)) {
       throw new Error(`Storybook existing view does not match the requested package: ${packageId}`)
     }
+    reportPhase("Chrome connection")
     await this.#chrome.ensure(operationSignal)
+    reportPhase("target inventory")
     let targets = await this.#chrome.targets(operationSignal)
     const cdpOrigin = await this.#chrome.cdpOrigin(operationSignal)
     const browserIdentity = await this.#chrome.browserIdentity(operationSignal)
@@ -178,6 +188,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
         unresolved = recorded
       }
     }
+    reportPhase("target attestation")
     const owned: ChromeTargetSummary[] = []
     for (const target of targets) {
       if (target.type !== "page") continue
@@ -243,6 +254,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
           baselineTargetIds: targets.map(({targetId}) => targetId),
         })
       }
+      reportPhase("target creation")
       const beforeSend = () => { this.#state.markCreateSent(packageId) }
       try {
         if (this.#chrome.createTargetWithDispatch !== undefined) {
@@ -261,7 +273,9 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
     const navigationUrl = preserveStorybookInspector(url, selected.url)
     const sameDestination = sameStorybookViewUrl(selected.url, navigationUrl)
     if (unresolved === null) this.#state.writeTarget({packageId, cdpOrigin, browserIdentity, targetId: selected.targetId})
+    reportPhase("page navigation")
     if (!sameDestination) await this.#chrome.navigate(selected.targetId, navigationUrl, operationSignal)
+    reportPhase("page readiness")
     await this.#chrome.waitReady(selected.targetId, timeoutMs, operationSignal)
     if (reused && sameDestination) {
       try {
@@ -274,6 +288,7 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
         await this.#chrome.waitReady(selected.targetId, timeoutMs, operationSignal)
       }
     }
+    reportPhase("agent bridge")
     let identity = await this.#waitBridgeIdentity(selected.targetId, timeoutMs, operationSignal)
     if (identity.packageId !== packageId || identity.route !== route) {
       throw new Error(`Storybook bridge identity mismatch: expected ${packageId}:${route}`)
@@ -725,29 +740,36 @@ class DefaultStorybookBrowserLifecycle implements StorybookBrowserLifecycle {
   ): Promise<StorybookBridgeIdentity> {
     const deadline = Date.now() + boundedTimeout(timeoutMs)
     let unavailable: unknown = null
-    while (Date.now() < deadline) {
-      signal?.throwIfAborted()
-      try {
-        return bridgeIdentity(await this.#chrome.callBridge(
-          targetId,
-          "identity",
-          Object.freeze({schemaVersion: 1}),
-          signal,
-        ))
-      } catch (error) {
-        if (!(error instanceof Error) || error.message !== "Storybook agent bridge is unavailable in the exact target") {
-          throw error
+    try {
+      while (Date.now() < deadline) {
+        signal?.throwIfAborted()
+        try {
+          return bridgeIdentity(await this.#chrome.callBridge(
+            targetId,
+            "identity",
+            Object.freeze({schemaVersion: 1}),
+            signal,
+          ))
+        } catch (error) {
+          if (!(error instanceof Error) || error.message !== "Storybook agent bridge is unavailable in the exact target") {
+            throw error
+          }
+          unavailable = error
         }
-        unavailable = error
+        await Bun.sleep(Math.min(50, Math.max(1, deadline - Date.now())))
       }
-      await Bun.sleep(Math.min(50, Math.max(1, deadline - Date.now())))
+    } catch (error) {
+      if (!signal?.aborted) throw error
+      unavailable = error
     }
-    const entries = await this.#chrome.consoleEntries(targetId, 250, signal).catch(() => Object.freeze([]))
+    // Истёкший deadline не должен уничтожать read-only причину сбоя загрузки страницы.
+    const diagnosticSignal = AbortSignal.timeout(2_000)
+    const entries = await this.#chrome.consoleEntries(targetId, 250, diagnosticSignal).catch(() => Object.freeze([]))
     const diagnostics = consoleErrors(entries)
       .map(({text}) => typeof text === "string" ? text : "browser error")
       .slice(0, 5)
       .join(" | ")
-    const bridgeDiagnostics = await this.#chrome.bridgeDiagnostics(targetId, signal)
+    const bridgeDiagnostics = await this.#chrome.bridgeDiagnostics(targetId, diagnosticSignal)
       .then((value) => JSON.stringify(value))
       .catch(() => "unavailable")
     throw new DOMException(
