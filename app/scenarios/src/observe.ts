@@ -41,9 +41,9 @@ function attachMethods(module: string, name: string, value: unknown): unknown {
   return value
 }
 
-/** Оборачивает функцию и собственные методы её результата, сохраняя this и исходный Promise. */
+/** Наблюдает вызовы и конструирование, сохраняя this, прототип, new.target и исходный Promise. */
 export function observe(module: string, name: string, original: Registrar, methods = true): Registrar {
-  return function(this: unknown, ...args: unknown[]) {
+  const invoke = (receiver: unknown, args: unknown[], newTarget?: Function) => {
     const id = nextCallId++
     const active = currentContext()
     const call = {
@@ -57,7 +57,9 @@ export function observe(module: string, name: string, original: Registrar, metho
     }
     const serializedArgs = serialize(args) as Promise<readonly TraceValue[]>
     try {
-      const result = Reflect.apply(original, this, args)
+      const result = newTarget === undefined
+        ? Reflect.apply(original, receiver, args)
+        : Reflect.construct(original, args, newTarget)
       if (result instanceof Promise) {
         const completion = result.then(
           async value => ({
@@ -88,4 +90,8 @@ export function observe(module: string, name: string, original: Registrar, metho
       throw error
     }
   }
+  return new Proxy(original, {
+    apply(_target, receiver, args) { return invoke(receiver, args) },
+    construct(_target, args, newTarget) { return invoke(undefined, args, newTarget) as object },
+  })
 }
