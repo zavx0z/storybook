@@ -258,6 +258,8 @@ function validateScenarioVariants(
       })
     }))
     const normalized = Object.freeze({id, title, props: variant.props, source: variant.source, points,
+      ...(variant.path === undefined ? {} : {path: variant.path}),
+      ...(variant.selection === undefined ? {} : {selection: variant.selection}),
       ...(variant.jsxProps === undefined ? {} : {jsxProps: variant.jsxProps})})
     jsonSource(normalized, `scenario variant ${nodeId}:${id}`)
     return normalized

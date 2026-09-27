@@ -16,12 +16,13 @@ import type {discover} from "./discover"
 type Registrar = (...args: unknown[]) => unknown
 Reflect.set(globalThis, Symbol.for("storybook.trace"), runtime)
 
-const {configuration, props, variant} = JSON.parse(await Bun.stdin.text()) as {
+const {configuration, props, variant, variantPath} = JSON.parse(await Bun.stdin.text()) as {
   configuration: Awaited<ReturnType<typeof discover>>
   props?: Readonly<Record<string, unknown>>
   variant?: number
+  variantPath?: readonly number[]
 }
-setRunProps(props, variant)
+setRunProps(props, variant, variantPath)
 const scenarioPath = resolve(configuration.path)
 
 Bun.plugin({

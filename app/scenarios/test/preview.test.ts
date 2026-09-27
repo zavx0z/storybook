@@ -103,3 +103,26 @@ test("парные теги сохраняют JSX children и выбранны�
   expect(selected.preview?.variants).toHaveLength(1)
   expect(selected.preview?.variants[0]?.source).toBe(child.source)
 }, 30_000)
+
+test("вложенные describe.each сохраняют дерево, JSX родителя и точный путь запуска", async () => {
+  const path = resolve(import.meta.dir, "../spec/fixture/component/spec/nested.test.tsx")
+  expect(await supportsScenarioPreview({path})).toBeTrue()
+  const result = await readScenario({path})
+  expect(result.exitCode).toBe(0)
+  if (result.preview?.kind !== "component") throw new Error("Нет preview")
+  expect(result.preview.variants.map(item => item.title)).toEqual([
+    "label / Слева", "label / Справа", "children / Слева", "children / Справа",
+  ])
+  expect(result.preview.variants.map(item => item.selection)).toEqual([[0, 0], [0, 1], [1, 0], [1, 1]])
+  const child = result.preview.variants[3]!
+  expect(child.path).toEqual(["children", "Справа"])
+  expect(child.props).toEqual({label: null, side: "right"})
+  expect(child.source).toContain('<Content label="Дочерний компонент" />')
+  const selected = await readScenario({path, variantPath: [1, 1], props: child.props})
+  expect(selected.exitCode).toBe(0)
+  expect(selected.groups.map(group => group.label)).toEqual(["children", "Справа"])
+  expect(selected.tests).toHaveLength(1)
+  expect(selected.calls.filter(call => call.name.endsWith(".render"))).toHaveLength(1)
+  expect(selected.preview?.variants[0]?.source).toBe(child.source)
+  expect(selected.preview?.variants[0]).toMatchObject({selection: [1, 1], path: ["children", "Справа"]})
+}, 30_000)

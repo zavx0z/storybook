@@ -1,9 +1,9 @@
-import {ScenarioVariant} from "./src/variant"
+import {ScenarioTree} from "./src/tree"
 import {useSyncExternalStore} from "@zavx0z/component"
 import {CodeEditor} from "@zavx0z/ui/views/code-editor"
 import type {ScenarioApp} from "../contract/output"
 
-/** Один Editor с декларацией и аккордеон пунктов выбранного варианта. */
+/** Один Editor с декларацией и дерево describe с пунктами выбранного варианта. */
 export function ScenarioInspector(props: Readonly<{value: unknown}>) {
   const app = props.value as ScenarioApp
   const selected = useSyncExternalStore(app.subscribe, app.getSnapshot)
@@ -43,12 +43,10 @@ export function ScenarioInspector(props: Readonly<{value: unknown}>) {
         scrollbar-width: thin;
       `}
     >
-      {app.variants.map(variant => <ScenarioVariant
-        key={variant.id}
+      <ScenarioTree
         app={app}
-        variant={variant}
-        expanded={selected.id === variant.id}
-      />)}
+        selectedId={selected.id}
+      />
     </div>
   </section>
 }

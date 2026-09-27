@@ -296,3 +296,31 @@ test("JSX children добавляются после отчёта, выбор с
     expect(parent.querySelector("[data-badge]")).toBeNull()
   } finally { presentation.dispose() }
 })
+
+test("Inspector сохраняет два уровня describe.each и выбирает вложенный пример", async () => {
+  const document = createDocument()
+  const presentation = createScenarioPresentation(document, {
+    kind: "component",
+    template: StatefulFixture as unknown as CompiledTemplate<Record<string, unknown>>,
+    variants: ["label", "children"].flatMap((content, outer) => ["Слева", "Справа"].map((side, inner) => ({
+      id: `${outer}:${inner}`, title: `${content} / ${side}`, path: [content, side], selection: [outer, inner],
+      props: {name: `${content}:${side}`}, source: `<StatefulFixture name="${content}:${side}" />`, points: [],
+    }))),
+  })
+  const host = document.createElement("aside")
+  const inspector = createRoot(host)
+  try {
+    inspector.render(ScenarioInspector as unknown as CompiledTemplate<{value: unknown}>, {value: presentation.app})
+    const headings = [...host.querySelectorAll("button")].filter(node => node.hasAttribute("aria-expanded"))
+    expect(headings.map(node => node.textContent)).toEqual(["label", "Слева", "Справа", "children", "Слева", "Справа"])
+    headings[5]!.dispatchEvent(new Event("click"))
+    inspector.flush()
+    await Promise.resolve()
+    expect(presentation.app.getSnapshot()).toMatchObject({id: "1:1", title: "children / Справа"})
+    expect(presentation.element.querySelector("[data-fixture]")?.textContent).toBe("children:Справа: 0")
+    expect(host.querySelectorAll('[aria-expanded="true"]')).toHaveLength(3)
+  } finally {
+    inspector.unmount()
+    presentation.dispose()
+  }
+})

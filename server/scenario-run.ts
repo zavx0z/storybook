@@ -39,7 +39,10 @@ export function createStorybookScenarioRunner() {
       if (await Bun.file(prepared.path).text() !== prepared.source.text) {
         throw new Error("Сценарий изменился. Дождитесь обновления страницы")
       }
-      const result = await readScenario({path: prepared.path, props: input.props, variant, signal,
+      const preparedVariant = prepared.preview.variants[variant]!
+      const selection = "selection" in preparedVariant ? preparedVariant.selection : undefined
+      const result = await readScenario({path: prepared.path, props: input.props,
+        ...(selection === undefined ? {variant} : {variantPath: selection}), signal,
         ...(onProgress === undefined ? {} : {onProgress})})
       signal.throwIfAborted()
       if (result.preview?.kind !== prepared.preview.kind || result.preview.variants.length !== 1) {

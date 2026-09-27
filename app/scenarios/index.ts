@@ -37,15 +37,19 @@ export async function readScenario(input: ReadScenarioInput): Promise<ReadScenar
   if (input.variant !== undefined && (!Number.isSafeInteger(input.variant) || input.variant < 0)) {
     throw new TypeError("variant должен быть неотрицательным индексом строки")
   }
+  if (input.variantPath !== undefined && (input.variant !== undefined || !Array.isArray(input.variantPath)
+    || input.variantPath.length === 0 || input.variantPath.some(index => !Number.isSafeInteger(index) || index < 0))) {
+    throw new TypeError("variantPath должен содержать неотрицательные индексы и не совмещаться с variant")
+  }
   if (input.props !== undefined) validateRunProps(input.props)
   const source = await readScenarioSource(input.path)
   const outerGroups = source.groups.filter(group => group.depth === 0)
-  if (input.variant !== undefined && (outerGroups.length !== 1 || !outerGroups[0]!.each)) {
+  if ((input.variant !== undefined || input.variantPath !== undefined) && (outerGroups.length !== 1 || !outerGroups[0]!.each)) {
     throw new Error("Выбор варианта требует единственного внешнего describe.each")
   }
   const execution = await traceScenario({...input, path: source.path, onProgress})
   onProgress({phase: "reporting"})
-  const preview = await createScenarioPreview(source.path, execution, Object.keys(input.props ?? {}), input.variant ?? 0)
+  const preview = await createScenarioPreview(source.path, execution, Object.keys(input.props ?? {}), input.variant ?? 0, input.variantPath ?? (input.variant === undefined ? undefined : [input.variant]))
   return {
     ...execution,
     source,

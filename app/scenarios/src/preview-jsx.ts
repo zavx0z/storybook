@@ -63,19 +63,19 @@ function jsxProp(node: Node, file: SourceFile, imports: ReadonlyMap<string, Bind
 }
 
 /** Строки внешней таблицы сопоставляются с результатом выполнения по исходному индексу. */
-export function readJsxProps(table: Node, file: SourceFile, imports: ReadonlyMap<string, Binding>): readonly Readonly<Record<string, JsxProp>>[] {
+export function readJsxProps(table: Node, file: SourceFile, imports: ReadonlyMap<string, Binding>): readonly Readonly<Record<string, JsxProp | null>>[] {
   const value = unwrap(table)
   if (!isArrayLiteralExpression(value)) return []
   return value.elements.map(row => {
     const props = field(row, "props")
     if (!props || !isObjectLiteralExpression(unwrap(props))) return {}
-    const result: Record<string, JsxProp> = {}
+    const result: Record<string, JsxProp | null> = {}
     const object = unwrap(props)
     if (!isObjectLiteralExpression(object)) return result
     for (const property of object.properties) {
       if (!isPropertyAssignment(property) || (!isIdentifier(property.name) && !isStringLiteral(property.name))) continue
       const value = jsxProp(property.initializer, file, imports)
-      if (value) result[property.name.text] = value
+      result[property.name.text] = value
     }
     return result
   })

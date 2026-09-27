@@ -10,6 +10,7 @@ import {readScenario} from "@storybook/app/scenarios"
 
 describe.each([
   {name: "Отчёт функции", props: {path: resolve(import.meta.dir, "fixture/function/spec/scenario.spec.ts")}},
+  {name: "Вложенные варианты", props: {path: resolve(import.meta.dir, "fixture/component/spec/nested.test.tsx")}},
   {name: "Компонент с children", props: {path: resolve(import.meta.dir, "fixture/component/spec/children.test.tsx")}},
   {name: "Отчёт компонента", props: {path: resolve(import.meta.dir, "fixture/component/spec/scenario.spec.tsx")}},
 ])("$name", async ({props}) => {

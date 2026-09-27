@@ -51,8 +51,8 @@ interface Replacement {
 /** Проверенная статическая связь scenario, fixture и JSX компонента. */
 interface PreviewDescriptor {
   readonly scenarioPath: string
-  readonly renderLine: number
-  readonly jsxProps: readonly Readonly<Record<string, JsxProp>>[]
+  readonly renderLines: readonly number[]
+  readonly tables: readonly {line: number; jsxProps: readonly Readonly<Record<string, JsxProp | null>>[]}[]
   readonly fixturePath: string
   readonly fixtureExport: string
   readonly componentImport: string
@@ -97,7 +97,7 @@ function componentImport(statement: Node, localName: string): string | null {
 }
 
 /** Читает поддержанный export fixture и прямые обращения `props.<field>` внутри JSX. */
-async function readFixture(path: string, exportName: string): Promise<Omit<PreviewDescriptor, "scenarioPath" | "renderLine" | "jsxProps"> | null> {
+async function readFixture(path: string, exportName: string): Promise<Omit<PreviewDescriptor, "scenarioPath" | "renderLines" | "tables"> | null> {
   const text = await Bun.file(path).text()
   const api = new API({cwd: process.cwd()})
   try {
@@ -210,42 +210,49 @@ async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | n
       }
       node.forEachChild(child => visit(child, propsName))
     }
-    let variants = 0
-    let jsxProps: readonly Readonly<Record<string, JsxProp>>[] = []
-    for (const statement of file.statements) {
-      if (!isExpressionStatement(statement) || !isCallExpression(statement.expression)) continue
-      const registration = statement.expression
-      if (!isCallExpression(registration.expression)
-        || !isPropertyAccessExpression(registration.expression.expression)
-        || registration.expression.expression.name.text !== "each"
-        || !isIdentifier(registration.expression.expression.expression)
-        || !describeBindings.has(registration.expression.expression.expression.text)) continue
-      const callback = registration.arguments.find(argument => isArrowFunction(argument) || isFunctionExpression(argument))
-      if (!callback || (!isArrowFunction(callback) && !isFunctionExpression(callback)) || !isBlock(callback.body)) continue
-      const parameter = callback.parameters[0]?.name
-      if (!parameter || !isObjectBindingPattern(parameter)) continue
-      const props = parameter.elements.find(element => {
-        if (!element || !isBindingElement(element) || !element.name || !isIdentifier(element.name)) return false
-        const name = element.propertyName ?? element.name
-        return !!name && isIdentifier(name) && name.text === "props"
-      })
-      if (!props || !isBindingElement(props) || !props.name || !isIdentifier(props.name)) continue
-      const propsName = props.name.text
-      const table = registration.expression.arguments[0]
-      if (table) jsxProps = readJsxProps(table, file, imports)
-      variants++
-      callback.body.forEachChild(child => visit(child, propsName))
+    const tables: PreviewDescriptor["tables"][number][] = []
+    const scan = (statements: readonly Node[]): void => {
+      for (const statement of statements) {
+        if (!isExpressionStatement(statement) || !isCallExpression(statement.expression)) continue
+        const registration = statement.expression
+        const callback = registration.arguments.find(argument => isArrowFunction(argument) || isFunctionExpression(argument))
+        if (!callback || (!isArrowFunction(callback) && !isFunctionExpression(callback)) || !isBlock(callback.body)) continue
+        const plain = isIdentifier(registration.expression) && describeBindings.has(registration.expression.text)
+        const each = isCallExpression(registration.expression)
+          && isPropertyAccessExpression(registration.expression.expression)
+          && registration.expression.expression.name.text === "each"
+          && isIdentifier(registration.expression.expression.expression)
+          && describeBindings.has(registration.expression.expression.expression.text)
+        if (!plain && !each) continue
+        if (each && isCallExpression(registration.expression)) {
+          const table = registration.expression.arguments[0]
+          if (table) tables.push({line: lineAt(text, registration.getStart(file)), jsxProps: readJsxProps(table, file, imports)})
+          const parameter = callback.parameters[0]?.name
+          if (parameter && isObjectBindingPattern(parameter)) {
+            const props = parameter.elements.find(element => {
+              if (!isBindingElement(element) || !element.name || !isIdentifier(element.name)) return false
+              const name = element.propertyName ?? element.name
+              return isIdentifier(name) && name.text === "props"
+            })
+            if (props && isBindingElement(props) && props.name && isIdentifier(props.name)) {
+              const propsName = props.name.text
+              callback.body.forEachChild(child => visit(child, propsName))
+            }
+          }
+        }
+        scan([...callback.body.statements])
+      }
     }
-    if (variants !== 1 || renders.length !== 1) return null
+    scan([...file.statements])
+    if (tables.length === 0 || renders.length === 0) return null
     const render = renders[0]!
     let fixturePath: string
     try {
       fixturePath = Bun.resolveSync(render.binding.module, dirname(scenarioPath))
-    } catch {
-      return null
-    }
+      if (renders.some(item => item.binding.export !== render.binding.export || Bun.resolveSync(item.binding.module, dirname(scenarioPath)) !== fixturePath)) return null
+    } catch { return null }
     const fixture = await readFixture(fixturePath, render.binding.export)
-    return fixture ? {...fixture, scenarioPath, renderLine: render.line, jsxProps} : null
+    return fixture ? {...fixture, scenarioPath, renderLines: renders.map(item => item.line), tables} : null
   } finally {
     await api.close()
   }
@@ -297,6 +304,7 @@ export async function createScenarioPreview(
   execution: ScenarioExecution,
   overriddenProps: readonly string[] = [],
   variantOffset = 0,
+  selectedPath?: readonly number[],
 ): Promise<ScenarioPreview | undefined> {
   const descriptor = await inspectScenario(path)
   if (!descriptor) {
@@ -307,27 +315,47 @@ export async function createScenarioPreview(
     && call.test === null
     && call.name.endsWith(".render")
     && call.location?.path === descriptor.scenarioPath
-    && call.location.line === descriptor.renderLine)
-  const topLevel = execution.groups.filter(group => group.parentId === null)
-  if (calls.length === 0 || calls.length !== topLevel.length) return undefined
+    && descriptor.renderLines.includes(call.location.line))
+  if (calls.length === 0) return undefined
   const variants: Extract<ScenarioPreview, {kind: "component"}>["variants"][number][] = []
   const seen = new Set<number>()
-  for (const [index, call] of calls.entries()) {
+  for (const call of calls) {
     const group = execution.groups.find(item => item.id === call.groupId)
+    if (!group || group.parameters === null || seen.has(group.id)) return undefined
+    const ancestry = [group]
+    let parent = group.parentId
+    while (parent !== null) {
+      const ancestor = execution.groups.find(item => item.id === parent)
+      if (!ancestor) return undefined
+      ancestry.unshift(ancestor)
+      parent = ancestor.parentId
+    }
+    const parameterized = ancestry.filter(item => item.parameters !== null)
+    const selection = parameterized.map((item, index) => selectedPath?.[index] ?? execution.groups
+      .filter(sibling => sibling.parentId === item.parentId && sibling.location.path === item.location.path && sibling.location.line === item.location.line)
+      .findIndex(sibling => sibling.id === item.id))
+    const jsxProps: Record<string, JsxProp> = {}
+    parameterized.forEach((item, index) => {
+      const table = descriptor.tables.find(table => table.line === item.location.line)
+      for (const [key, value] of Object.entries(table?.jsxProps[selection[index]!] ?? {})) {
+        if (value) jsxProps[key] = value
+        else delete jsxProps[key]
+      }
+    })
+    for (const key of overriddenProps) delete jsxProps[key]
     const captured = call.args[1]
-    const jsxProps = Object.fromEntries(Object.entries(descriptor.jsxProps[index + variantOffset] ?? {})
-      .filter(([key]) => !overriddenProps.includes(key)))
     const props = captured && !Array.isArray(captured) && typeof captured === "object"
       ? Object.fromEntries(Object.entries(captured).filter(([key]) => !Object.hasOwn(jsxProps, key))) : captured
-    if (!group || group.parentId !== null || seen.has(group.id)
-      || !props || Array.isArray(props) || typeof props !== "object" || !isPortable(props)) return undefined
+    if (!props || Array.isArray(props) || typeof props !== "object" || !isPortable(props)) return undefined
     const source = renderSource(descriptor, props as Readonly<Record<string, TraceValue>>, jsxProps)
     if (!source) return undefined
     seen.add(group.id)
     const points = previewPoints(execution, group.id)
     variants.push({
       id: String(group.id),
-      title: group.label,
+      title: ancestry.map(item => item.label).join(" / "),
+      selection,
+      ...(ancestry.length > 1 ? {path: ancestry.map(item => item.label)} : {}),
       props: props as Readonly<Record<string, unknown>>,
       source,
       ...(Object.keys(jsxProps).length ? {jsxProps} : {}),

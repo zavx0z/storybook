@@ -103,7 +103,9 @@ interface TraceCall {
 @property module - Общая тестовая заготовка, объявляющая JSX компонента.
 `path` обозначает путь к модулю, `export` — имя экспортируемой заготовки.
 
-@property variants - Варианты внешнего `describe.each` в порядке показа.
+@property variants - Параметризованные примеры, вызывающие общую fixture.
+`path` сохраняет вложенность названий describe, `selection` — индексы строк
+параметризации от внешней таблицы к примеру. title содержит полный путь названий.
 Каждый содержит идентификатор `id`, название `title`, фактические свойства `props`,
 подготовленный исходник `source` и пункты `points` с заголовком и пояснением при наличии.
 `jsxProps` сохраняет авторские JSX-поля отдельно от JSON-props: исходное выражение
@@ -122,6 +124,9 @@ interface ComponentScenarioPreview {
   readonly variants: readonly {
     readonly id: string
     readonly title: string
+    /** Исходная вложенность названий и индексов describe.each. */
+    readonly path?: readonly string[]
+    readonly selection?: readonly number[]
     readonly props: Readonly<Record<string, unknown>>
     /** JSX-поля собираются отдельно; compiled templates не сериализуются в props. */
     readonly jsxProps?: Readonly<Record<string, {

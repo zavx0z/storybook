@@ -29,9 +29,9 @@ function ScenarioPoints(props: Readonly<{variant: Variant}>) {
 }
 
 /** Управляемая секция: открытие выбирает вариант в общем состоянии App. */
-export function ScenarioVariant(props: Readonly<{key?: string; app: ScenarioApp; variant: Variant; expanded: boolean}>) {
+export function ScenarioVariant(props: Readonly<{key?: string; app: ScenarioApp; variant: Variant; expanded: boolean; label?: string}>) {
   return <Panel
-    label={props.variant.title}
+    label={props.label ?? props.variant.title}
     expanded={props.expanded}
     onToggle={expanded => { if (expanded) props.app.select(props.variant.id) }}
   >

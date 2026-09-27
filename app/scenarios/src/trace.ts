@@ -88,7 +88,7 @@ export async function traceScenario(input: ReadScenarioInput): Promise<ScenarioE
         ...(input.testNamePattern === undefined ? [] : ["--test-name-pattern", input.testNamePattern])],
       cwd: configuration.cwd,
       env,
-      stdin: new Blob([JSON.stringify({configuration, props: input.props, variant: input.variant})]),
+      stdin: new Blob([JSON.stringify({configuration, props: input.props, variant: input.variant, variantPath: input.variantPath})]),
       stdout: "pipe",
       stderr: "pipe",
       timeout: 30_000,

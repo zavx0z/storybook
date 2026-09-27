@@ -16,14 +16,19 @@ type TraceContext = GroupContext
 const context = new AsyncLocalStorage<TraceContext>()
 // Регистрация Bun внутри добавленного ALS нарушает обработку each; данные аргументов при этом вычисляются снаружи.
 const registerInRunnerContext = AsyncLocalStorage.snapshot()
-const eachTables = new Map<string, {readonly rows: readonly unknown[], index: number}>()
+const eachTables = new Map<string, {readonly rows: readonly unknown[], readonly indices: readonly number[], index: number}>()
 let runProps: Readonly<Record<string, unknown>> | undefined
 let runVariant: number | undefined
+let runPath: readonly number[] | undefined
+const groupPaths = new Map<number | null, readonly number[]>()
+const tableKey = (site: string, parent: GroupContext) => `${site}:${parent.groupId ?? "root"}`
 
 /** Настраивает подстановку до загрузки сценария в отдельном дочернем процессе. */
-export function setRunProps(props: Readonly<Record<string, unknown>> | undefined, variant?: number): void {
+export function setRunProps(props: Readonly<Record<string, unknown>> | undefined, variant?: number, path?: readonly number[]): void {
   runProps = props
   runVariant = variant
+  runPath = path
+  groupPaths.clear()
 }
 
 /** Подставляет поля строки each в шаблон названия без изменения таблицы. */
@@ -50,7 +55,7 @@ interface TraceRuntime {
   /** Сохраняет объявление и оставляет вызов регистратора в исходной синтаксической позиции. */
   register(declaration: Declaration, original: (...args: unknown[]) => unknown): (...args: unknown[]) => unknown
   /** Сохраняет таблицу each до вызова параметризованного регистратора. */
-  table(site: string, rows: readonly unknown[], outerDescribe?: boolean): readonly unknown[]
+  table(site: string, rows: readonly unknown[], outerDescribe?: boolean, describeTable?: boolean, parent?: TraceContext): readonly unknown[]
   /** Передаёт выбранную группу в замыкание вложенных тестов. */
   describe(site: string, name: unknown, callback: (group: TraceContext) => unknown, parent?: TraceContext): unknown
   /** Выбирает имя очередного варианта и сохраняет его отдельно от остальных. */
@@ -60,11 +65,12 @@ interface TraceRuntime {
 let synchronousContext: TraceContext | undefined
 
 /** Потребляет следующую строку each в порядке регистрации Bun. */
-function takeEachCase(site: string, name: unknown) {
-  const table = eachTables.get(site)
+function takeEachCase(site: string, name: unknown, parent: TraceContext) {
+  const table = eachTables.get(tableKey(site, parent))
   if (!table) throw new Error(`Не зарегистрирована each table ${site}`)
-  const row = table.rows[table.index++]
-  return {label: renderName(name, [row]), row}
+  const index = table.index++
+  const row = table.rows[index]
+  return {label: renderName(name, [row]), row, index: table.indices[index]!}
 }
 
 /** Методы, вызываемые вставками AST; исходные registrars Bun остаются без подмены. */
@@ -105,7 +111,7 @@ export const runtime: TraceRuntime = {
     return (...args: unknown[]) => {
       const [label, callback, ...options] = args
       if (typeof callback !== "function") return Reflect.apply(original, undefined, args)
-      const rows = declaration.each ? eachTables.get(declaration.site)?.rows ?? [] : [undefined]
+      const rows = declaration.each ? eachTables.get(tableKey(declaration.site, parent))?.rows ?? [] : [undefined]
       const candidates = rows.map(row => ({
         args: declaration.each ? (Array.isArray(row) ? row : [row]) : [],
         test: addTest(declaration, declaration.each ? renderName(label, [row]) : String(label), parent),
@@ -121,10 +127,14 @@ export const runtime: TraceRuntime = {
       return Reflect.apply(original, undefined, [label, wrapped, ...options])
     }
   },
-  table(site, rows, outerDescribe = false) {
-    if (outerDescribe && runVariant !== undefined && runVariant >= rows.length) throw new RangeError("Вариант сценария не найден")
-    const selected = outerDescribe && runVariant !== undefined ? [rows[runVariant]] : rows
-    const prepared = !outerDescribe || runProps === undefined ? selected : selected.map(row => {
+  table(site, rows, outerDescribe = false, describeTable = false, parent = rootContext) {
+    const depth = (groupPaths.get(parent.groupId) ?? []).length
+    const requested = runPath && describeTable ? runPath[depth] : outerDescribe ? runVariant : undefined
+    if (requested !== undefined && requested >= rows.length) throw new RangeError("Вариант сценария не найден")
+    const indices = requested === undefined ? rows.map((_, index) => index) : [requested]
+    const selected = indices.map(index => rows[index])
+    const applyProps = runPath ? describeTable && depth === runPath.length - 1 : outerDescribe
+    const prepared = !applyProps || runProps === undefined ? selected : selected.map(row => {
       if (row === null || typeof row !== "object" || Array.isArray(row) || !Object.hasOwn(row, "props")) return row
       const props = Reflect.get(row, "props")
       if (props === null || typeof props !== "object" || Array.isArray(props)) {
@@ -132,11 +142,12 @@ export const runtime: TraceRuntime = {
       }
       return {...row, props: {...props, ...structuredClone(runProps)}}
     })
-    eachTables.set(site, {rows: prepared, index: 0})
+    eachTables.set(tableKey(site, parent), {rows: prepared, indices, index: 0})
     return prepared
   },
   describe(site, name, callback, parent = rootContext) {
     const selected = addGroup(site, String(name), parent, null)
+    groupPaths.set(selected.groupId, groupPaths.get(parent.groupId) ?? [])
     const previous = synchronousContext
     synchronousContext = selected
     try {
@@ -146,8 +157,9 @@ export const runtime: TraceRuntime = {
     }
   },
   describeEach(site, name, callback, parent = rootContext) {
-    const selectedCase = takeEachCase(site, name)
+    const selectedCase = takeEachCase(site, name, parent)
     const selected = addGroup(site, selectedCase.label, parent, selectedCase.row)
+    groupPaths.set(selected.groupId, [...(groupPaths.get(parent.groupId) ?? []), selectedCase.index])
     const previous = synchronousContext
     synchronousContext = selected
     try {
