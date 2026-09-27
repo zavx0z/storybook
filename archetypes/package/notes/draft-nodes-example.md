@@ -40,4 +40,4 @@ pathname обзора number следует физическому пути ко
 директориям `numeric/number`. Если у модуля обнаружен dependency spec,
 встроенное представление выбирается `?view=dependencies`. Точную адресацию
 определяют [Route](../../../route/README.md) и
-[контракт вкладок](../../../requirements.md#tabs-routes).
+[контракт вкладок](../../../workbench/notes/workspace.md#tabs-routes).

@@ -137,7 +137,7 @@ migration journal; journal переживает abort/crash и удаляетс�
 и приватный адрес артефакта выполняют разные задачи и не подменяют друг друга.
 Пакеты определяются общим [читателем workspaces](route/workspaces/index.ts),
 который используют discovery и Route. Детали URL и встроенных представлений
-принадлежат [контракту вкладок](requirements.md#tabs-routes).
+принадлежат [контракту вкладок](workbench/notes/workspace.md#tabs-routes).
 
 Одна package tab имеет один browser realm и одну активную ревизию
 PackageSession. Обзор и встроенные представления читают структурный snapshot
@@ -189,7 +189,7 @@ runtime и compatibility aliases fail closed.
 ## Workbench projection
 
 Панель вкладок связывает выбранное представление с URL по
-[контракту Панели вкладок](requirements.md#tabs-routes). Обзор принадлежит
+[контракту Панели вкладок](workbench/notes/workspace.md#tabs-routes). Обзор принадлежит
 самому пакету или физической директории; «Контракт», «Зависимости» и «Сценарии»
 доступны только при наличии соответствующих структурных источников.
 
@@ -381,7 +381,7 @@ Immutable `storybook-package-graph/6` содержит структурные у
 Обе страницы Workbench используют общий граф навигации. Private browser lifecycle
 выполняет операции вкладок; изменения registry сохраняют отдельную authority.
 Read-only topic `catalog` обновляет дерево без передачи событий исполнения чужих пакетов.
-Адреса представлений заданы [контрактом Панели вкладок](requirements.md#tabs-routes).
+Адреса представлений заданы [контрактом Панели вкладок](workbench/notes/workspace.md#tabs-routes).
 
 
 ### Структурные зависимости компонента
@@ -392,4 +392,4 @@ GraphView отображает их в существующем Display. Это 
 нормализованного каталога, без второго дерева владельцев или графического runtime.
 
 Формат spec описан в [нормативном контракте зависимостей](archetypes/specs/deps/notes/draft-dependencies.md),
-а переключение представления — в [контракте URL вкладок](requirements.md#tabs-routes).
+а переключение представления — в [контракте URL вкладок](workbench/notes/workspace.md#tabs-routes).

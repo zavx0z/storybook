@@ -1,0 +1,56 @@
+# Одна среда страницы и её представления
+
+Среду создаёт [оболочка](../shell.ts), её состав задаёт [приложение](../application.tsx). [Динамическое обновление](updates.md) определяет передачу владения новой реализации.
+
+## Root, Display и HUD
+
+Landing и каждая package page владеют ровно одним `@zavx0z/browser` Root.
+Страница передаёт Browser один native Canvas. Browser владеет semantic Document,
+Space, ViewPoint, циклом кадров и вводом. Весь Workbench, его меню и окна монтируются в один Display пространства.
+HUD остаётся пустым до явного размещения в нём других компонентов. Структурные обзоры и
+сценарии используют этот Experience; они не создают второй Root или semantic
+Document. Host default font загружается из exact
+`@zavx0z/engine/fonts/inter-regular.ttf` через публичный export.
+В compiled TSX свободное имя `document` связано Template с semantic Document
+компонента, в том числе после `await`. Native document и одноимённые локальные
+переменные его не подменяют. Внутренний контроллер проверяет Document перед
+использованием его API.
+
+Служебный Display занимает весь viewport страницы; preview — обычная область
+его раскладки наряду с каталогом, вкладками, инспектором и строкой состояния. Для размеров `W × H`
+его физические атрибуты равны `W × 25.4 / 96` и `H × 25.4 / 96` мм, CSS viewport —
+`round(W) × round(H)` px, scale — `1`. Resize обновляет поверхность и ViewPoint
+на тех же semantic nodes. Фиксированные размеры, PPI устройства и уменьшение
+шрифта для подгонки не используются. Авторские характеристики физического
+дисплея в отдельном сценарии сохраняются.
+Для двумерной среды ViewPoint смотрит перпендикулярно Display; Display и HUD
+находятся строго ближе дальней плоскости. Обновление размеров сохраняет DOM
+identity, фокус и состояние компонентов; прокрутка ограничивается новым
+viewport. Named package tabs имеют собственные Roots и не разделяют их
+Document, Canvas, Space или input state.
+
+## Композиция приложения и общий ввод
+
+Landing и package pages запускают один `StorybookApp` через публичный
+`@zavx0z/browser.createRoot`. App объявляет свой Space, ViewPoint, Display и HUD
+в TSX; Browser не создаёт второй semantic каркас. Component владеет App,
+его refs и cleanup. После `render` оболочка ожидает готовность приложения через
+`whenReady()`; представленный кадр проверяется перед применением ревизии.
+
+MCP pointer и wheel actions сначала преобразуют точку semantic target через
+`getProjection(owner).projectPoint` в native client coordinates, затем
+вызывают общий `root.input`. Они не вызывают input выбранной проекции
+напрямую и не обходят hit/occlusion/capture. Для Space gestures используется
+тот же input. Drag может пересечь границу Display/HUD; capture сохраняется.
+
+## Исполнение структурных сценариев
+
+Исполнение примеров принадлежит существующему структурному механизму сценариев.
+Пакет не объявляет runtime adapter, загрузчики вариантов, presentation contract
+или custom Inspector widgets. Оболочка владеет встроенными секциями Inspector;
+Browser предоставляет один Document и Space без второго lifecycle.
+
+## Последовательное освобождение
+
+Создание и освобождение структурного сценария последовательны. Pending
+исполнение получает AbortSignal; поздняя работа не заменяет текущий обзор.

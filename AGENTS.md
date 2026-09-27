@@ -49,7 +49,7 @@
   на код и ещё не перенесённые заметки. Не поддерживать здесь или в
   корневых README/ARCHITECTURE отдельные копии этих норм; менять их у владельца.
   Связанные правила: [размещение компонентов](archetypes/entity/notes/draft-placement.md),
-  [Dependencies spec](archetypes/specs/deps/notes/draft-dependencies.md) и [URL вкладок](requirements.md#tabs-routes).
+  [Dependencies spec](archetypes/specs/deps/notes/draft-dependencies.md) и [URL вкладок](workbench/notes/workspace.md#tabs-routes).
 - Перед изменением README, модульных обзоров и TSDoc прочитать
   [единый стандарт документации](archetypes/notes/draft-documentation.md).
   Неперенесённые правила и классификация проверок остаются в этой заметке;
@@ -128,7 +128,7 @@
   не обновляет пользовательские представления. Неуспешные проверки сохраняют
   применённую ревизию.
 - Публичные адреса, вкладки и структурные пути определяются
-  [контрактом URL](requirements.md#tabs-routes) и [нормами структуры](archetypes/notes/draft-structure.md).
+  [контрактом URL](workbench/notes/workspace.md#tabs-routes) и [нормами структуры](archetypes/notes/draft-structure.md).
   Агент проверяет эти правила у владельца, а не поддерживает отдельную копию здесь.
 - Пользовательская навигация остаётся в текущей вкладке. Открытие агентом повторно
   использует представление, в котором сейчас показан нужный пакет, или создаёт
@@ -140,7 +140,7 @@
 ## Безопасность внесения и применения изменений
 
 - Перед open/check и тяжёлыми проверками применять
-  [правило предварительной оценки нагрузки](requirements.md#build-preflight).
+  [правило предварительной оценки нагрузки](build/notes/preflight.md).
   Не повторять запросы сборки без проверки уже выполняемой работы.
 - Жизненный цикл браузера Storybook реализован внутри Storybook MCP через его
   частный контроллер прямого доступа к CDP. Не использовать `ai-macos`, `@meta/chrome`,

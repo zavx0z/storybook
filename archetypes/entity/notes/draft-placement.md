@@ -86,7 +86,7 @@ revision snapshot. Публичный pathname следует пути выбр�
 корня и реальным видимым директориям: `numeric/number` остаётся
 `numeric/number` внутри адреса своего пакета. Встроенное представление выбирается
 только UI query-параметром `view`; правило маршрутизации принадлежит
-[Route](../../../route/README.md) и [контракту вкладок](../../../requirements.md#tabs-routes).
+[Route](../../../route/README.md) и [контракту вкладок](../../../workbench/notes/workspace.md#tabs-routes).
 `routePath` с внутренними `dir-` сегментами не задаёт публичный URL. MCP пока
 адресует только пакет целиком, без директорий, представлений и вариантов;
 эта граница описана в [MCP Address](../../../mcp/address/README.md).
