@@ -34,20 +34,13 @@ import {readJsxProps, jsxPropImport, type JsxProp} from "./preview-jsx"
 import {validateScenario} from "@archetypes/specs/scenarios/validation"
 import {readScenarioSource} from "./read-source"
 import {readPreviewSetup} from "./preview-setup"
+import {readPreviewSource, type PreviewReplacement} from "./preview-source"
 import {isPortable, previewPoints} from "./preview-values"
 
 /** Runtime import компонента в исходнике сценария. */
 interface ComponentBinding {
   readonly module: string
   readonly export: string
-}
-
-/** Диапазон прямого обращения к одному полю props внутри JSX. */
-interface Replacement {
-  readonly start: number
-  readonly end: number
-  readonly property?: string
-  readonly child?: boolean
 }
 
 /** Проверенная статическая связь сценария и JSX публичного компонента. */
@@ -61,7 +54,7 @@ interface PreviewDescriptor {
   readonly presentation: {
     readonly componentImport: string
     readonly source: string
-    readonly replacements: readonly Replacement[]
+    readonly replacements: readonly PreviewReplacement[]
   }
 }
 
@@ -201,55 +194,30 @@ async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | n
     if (!propsType || propsType.isErrorType()) throw new Error(`${scenarioPath}: TypeScript не определил тип props сценария`)
     const propsTypeSource = await project!.checker.typeToString(propsType, undefined, NodeBuilderFlags.NoTruncation | NodeBuilderFlags.UseFullyQualifiedType)
     const used = new Set<string>()
-    const importReferences: Node[] = []
-    const replacements: Replacement[] = []
-    const replacementNodes: Node[] = []
-    let offset = 0
-    const visitProps = (node: Node, parent?: Node): void => {
-      if (isIdentifier(node) && imports.has(node.text)) importReferences.push(node)
-      if (parent && isJsxElement(parent) && isJsxExpression(node) && node.expression
-        && isPropertyAccessExpression(node.expression) && isIdentifier(node.expression.expression)
-        && node.expression.expression.text === render.propsName) {
-        replacementNodes.push(node.expression.expression)
-        replacements.push({start: node.getStart(file) + offset, end: node.end + offset, property: node.expression.name.text, child: true})
-        return
-      }
-      if (isPropertyAccessExpression(node) && isIdentifier(node.expression) && node.expression.text === render.propsName) {
-        replacementNodes.push(node.expression)
-        replacements.push({start: node.getStart(file) + offset, end: node.end + offset, property: node.name.text})
-        return
-      }
-      if (isIdentifier(node) && node.text === render.propsName) {
-        replacementNodes.push(node)
-        replacements.push({start: node.getStart(file) + offset, end: node.end + offset})
-        return
-      }
-      node.forEachChild(child => visitProps(child, node))
+    const {source, replacements, importReferences} = await readPreviewSource(file, jsx, setup, render.propsNode, project!.checker)
+    const runtimeReferences: Node[] = []
+    const collectRuntimeImports = (node: Node): void => {
+      if (isIdentifier(node)) runtimeReferences.push(node)
+      node.forEachChild(collectRuntimeImports)
     }
-    let source = ""
-    for (const fragment of [...setup, jsx]) {
-      if (source) source += fragment === jsx ? "\n\n;" : "\n"
-      offset = source.length - fragment.getStart(file)
-      visitProps(fragment)
-      source += text.slice(fragment.getStart(file), fragment.end)
-    }
-    const propsSymbols = await project!.checker.getSymbolAtLocation([render.propsNode, ...replacementNodes])
-    const boundReplacements = replacements.filter((_, index) => propsSymbols[index + 1]?.id === propsSymbols[0]?.id)
-    const importSymbols = await project!.checker.getSymbolAtLocation([...importNodes, ...importReferences])
+    for (const node of [...setup, jsx]) collectRuntimeImports(node)
+    const importSymbols = await project!.checker.getSymbolAtLocation([...importNodes, ...importReferences, ...runtimeReferences])
     const importNames = new Map(importSymbols.slice(0, importNodes.length).flatMap((symbol, index) => {
       const node = importNodes[index]!
       return symbol && isIdentifier(node) ? [[symbol.id, node.text] as const] : []
     }))
-    for (const symbol of importSymbols.slice(importNodes.length)) {
+    for (const symbol of importSymbols.slice(importNodes.length, importNodes.length + importReferences.length)) {
       const name = symbol && importNames.get(symbol.id)
       if (name) used.add(name)
     }
     if (!isJsxElement(jsx) && !isJsxSelfClosingElement(jsx)) return null
     const name = isJsxElement(jsx) ? jsx.openingElement.tagName : jsx.tagName
     if (!isIdentifier(name)) return null
-    const importLines = [...used].flatMap(local => file.statements.map(statement => componentImport(statement, local)).filter((line): line is string => line !== null))
+    const importLines = [...imports.keys()].filter(local => used.has(local)).flatMap(local => file.statements.map(statement => componentImport(statement, local)).filter((line): line is string => line !== null))
     const importSource = importLines.join("\n")
-    const absoluteImports = [...used].flatMap(local => {
+    const runtimeImports = new Set(importSymbols.slice(importNodes.length + importReferences.length)
+      .flatMap(symbol => symbol && importNames.has(symbol.id) ? [importNames.get(symbol.id)!] : []))
+    const absoluteImports = [...runtimeImports].flatMap(local => {
       const binding = imports.get(local)!
       if (binding.module === "bun:test" && binding.export === "mock") return []
       const line = file.statements.map(statement => componentImport(statement, local)).find(Boolean)
@@ -282,7 +250,7 @@ async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | n
       componentPath: scenarioPath, componentExport: "ScenarioComponent",
       moduleSource: `${absoluteImports}\n\nexport function ScenarioComponent(${render.propsName}: ${propsTypeSource}) {\n${browserFragments.slice(0, -1).join("\n")}\n  return ${browserFragments.at(-1)}\n}\n`,
       scenarioPath, renderLines: renders.map(item => item.line), tables,
-      presentation: {componentImport: importSource, source, replacements: boundReplacements},
+      presentation: {componentImport: importSource, source, replacements},
     }
   } finally {
     await api.close()

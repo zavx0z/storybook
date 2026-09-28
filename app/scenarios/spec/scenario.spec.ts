@@ -36,4 +36,19 @@ describe.each([
     expect(report.preview?.variants.length, "Варианты того же запуска доступны приложению").toBeGreaterThan(0)
     expect(report.validation.checks.length, "Приложение сохраняет полный результат правил Archetypes").toBeGreaterThan(0)
   })
+  /** @remarks Конкретный пример JSX принадлежит варианту отчёта компонента. */
+  describe.skipIf(props.path !== resolve(import.meta.dir, "fixture/component/spec/scenario.spec.tsx"))("Параметры компонента", () => {
+    test("Значения в JSX", () => {
+      expect(report.preview?.variants[0]?.source,
+        "Выбранные значения и callback видны в своих атрибутах компонента; пример раскрывает подготовленные props в месте использования",
+      ).toBe(`import {mock} from "bun:test"
+import {Command} from "@fixture/scenario-component"
+
+<Command
+      label={"Продолжить"}
+      disabled={false}
+      onActivate={mock<(label: string) => void>()}
+    />`)
+    })
+  })
 })

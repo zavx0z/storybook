@@ -70,15 +70,10 @@ describe.each([
     expect(source).toBe(`import {mock} from "bun:test"
 import {Command} from "@fixture/scenario-component"
 
-const props = {...{
-  "label": "Продолжить",
-  "disabled": ${disabled}
-}, onActivate: mock<(label: string) => void>()}
-
-;<Command
-      label={props.label}
-      disabled={props.disabled}
-      onActivate={props.onActivate}
+<Command
+      label={"Продолжить"}
+      disabled={${disabled}}
+      onActivate={mock<(label: string) => void>()}
     />`)
   })
 })
