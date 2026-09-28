@@ -255,8 +255,8 @@ async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | n
       const line = file.statements.map(statement => componentImport(statement, local)).find(Boolean)
       return line ? [line.replace(JSON.stringify(binding.module), JSON.stringify(Bun.resolveSync(binding.module, dirname(scenarioPath))))] : []
     }).join("\n")
-    const browserSetup: string[] = []
-    for (const statement of setup) {
+    const browserFragments: string[] = []
+    for (const statement of [...setup, jsx]) {
       const mocks: Node[] = []
       const visitMock = (node: Node): void => {
         if (isCallExpression(node) && isIdentifier(node.expression)) {
@@ -276,11 +276,11 @@ async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | n
         const value = implementation ? text.slice(implementation.getStart(file), implementation.end) : "() => undefined"
         body = body.slice(0, node.getStart(file) - statement.getStart(file)) + value + body.slice(node.end - statement.getStart(file))
       }
-      browserSetup.push(body)
+      browserFragments.push(body)
     }
     return {
       componentPath: scenarioPath, componentExport: "ScenarioComponent",
-      moduleSource: `${absoluteImports}\n\nexport function ScenarioComponent(${render.propsName}: ${propsTypeSource}) {\n${browserSetup.join("\n")}\n  return ${text.slice(jsx.getStart(file), jsx.end)}\n}\n`,
+      moduleSource: `${absoluteImports}\n\nexport function ScenarioComponent(${render.propsName}: ${propsTypeSource}) {\n${browserFragments.slice(0, -1).join("\n")}\n  return ${browserFragments.at(-1)}\n}\n`,
       scenarioPath, renderLines: renders.map(item => item.line), tables,
       presentation: {componentImport: importSource, source, replacements: boundReplacements},
     }

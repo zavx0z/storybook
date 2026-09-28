@@ -10,6 +10,17 @@ const path = resolve(import.meta.dir, "../spec/fixture/component/spec/scenario.s
 let result: ReadScenarioOutput
 let nonportable: ReadScenarioOutput
 
+test("mock внутри JSX сохраняет callback в браузерном модуле", async () => {
+  const report = await readScenario({path: resolve(import.meta.dir, "../spec/fixture/component/spec/inline-mock.test.tsx")})
+  expect(report.exitCode).toBe(0)
+  if (report.preview?.kind !== "component") throw new Error("Нет представления компонента")
+  const source = report.preview.module.source
+  expect(source).toContain('const labels: string[] = []')
+  expect(source).toContain('onActivate={(label: string) => { labels.push(label) }}')
+  expect(source).not.toContain('record(')
+  expect(source).not.toContain('bun:test')
+}, 15000)
+
 beforeAll(async () => {
   [result, nonportable] = await Promise.all([
     readScenario({path}),
