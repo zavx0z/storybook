@@ -96,7 +96,7 @@ function collectSourceReferences(
   })
 }
 
-/** Печатает переносимое значение, заменяя подтверждённые импорты исходными именами. */
+/** Печатает значения и undefined как TypeScript; подтверждённые импорты сохраняет исходными именами. */
 function renderValue(
   value: TraceValue,
   path: readonly (string | number)[],
@@ -120,7 +120,7 @@ function renderValue(
     if (items.some(item => item === null)) return null
     return `[\n${items.map(item => `${childIndentation}${item}`).join(",\n")}\n${indentation}]`
   }
-  if (Object.hasOwn(value, "$type")) return null
+  if (Object.hasOwn(value, "$type")) return Reflect.get(value, "$type") === "undefined" ? "undefined" : null
   const entries = Object.entries(value)
   if (entries.length === 0) return "{}"
   const fields = entries.map(([key, item]) => {

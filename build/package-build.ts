@@ -737,7 +737,9 @@ export async function prepareStorybookScenarios(
     signal.throwIfAborted()
     const invocation = result?.validation.checks.find(check => ["single-invocation", "general-particular"].includes(check.rule) && check.status === "failed")
     if (invocation) throw new Error(invocation.issues.map(issue => `${issue.location?.path ?? supported[0]}:${issue.location?.line ?? 1}: ${issue.message}`).join("\n"))
-    if (result?.preview === undefined) continue
+    if (result?.preview === undefined) {
+      throw new Error(`Не удалось подготовить представление распознанного сценария ${supported[0]}: проверьте наблюдённый вызов и представимость его аргументов`)
+    }
     onPrepared?.(spec.nodeId, result)
     const preview = result.preview
     prepared.push(Object.freeze(preview.kind === "function" ? {

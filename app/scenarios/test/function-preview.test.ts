@@ -49,9 +49,9 @@ describe("Точность снимков функции", async () => {
     ])
   })
   test("Один вызов на вариант", () => {
-    expect(preview.variants.map(variant => variant.calls.length)).toEqual(Array(10).fill(1))
+    expect(preview.variants.map(variant => variant.calls.length)).toEqual(Array(11).fill(1))
     expect(preview.variants.find(variant => variant.title === "Null")?.calls[0]?.outcome).toEqual({type: "resolve", value: null})
-    expect(result.calls.filter(call => call.name === "evaluate")).toHaveLength(10)
+    expect(result.calls.filter(call => call.name === "evaluate")).toHaveLength(11)
     expect(result.validation.checks.find(check => check.rule === "single-invocation")?.status).toBe("passed")
   })
   test("Импортированное значение", () => {
@@ -60,6 +60,18 @@ describe("Точность снимков функции", async () => {
       'import {sampleValue} from "@fixture/function-preview"',
     )
     expect(source, "Вызов использует исходное имя вместо служебной метки функции").toContain('"value": sampleValue')
+  })
+  test("undefined сохраняется внутри объектов и массивов без потери соседних вариантов", () => {
+    const variant = preview.variants.find(variant => variant.title === "Вложенный undefined")!
+    expect(variant.source).toContain('"slot": undefined')
+    expect(variant.source).not.toContain('"$type"')
+    const argument = variant.calls[0]!.source.match(/^await run\(([\s\S]*)\)$/u)![1]!
+    const value = new Function(`return (${argument})`)() as {value: {children: {slot?: string | undefined}[], values: unknown[]}}
+    expect(value).toEqual({value: {children: [{}, {slot: ""}, {slot: undefined}], values: [undefined, null]}})
+    expect(Object.hasOwn(value.value.children[2]!, "slot"), "Явное undefined отличается от отсутствующего поля").toBeTrue()
+    expect(variant.calls[0]!.outcome).toEqual({type: "resolve", value: {
+      children: [{}, {slot: ""}, {slot: {$type: "undefined"}}], values: [{$type: "undefined"}, null],
+    }})
   })
   test("Отказ", () => {
     expect(preview.variants.at(-1)?.calls[0]?.outcome).toMatchObject({type: "reject", error: {message: "Ошибка примера"}})

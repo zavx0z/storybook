@@ -3,7 +3,7 @@ import {createHash} from "node:crypto"
 import {linkSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, unlinkSync, watch, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import {canonicalizeStorybookPackageIdentities, createStorybookPackageRevisionBuilder, isolatedStorybookSharedModuleEpoch} from "./package-build.ts"
+import {canonicalizeStorybookPackageIdentities, createStorybookPackageRevisionBuilder, isolatedStorybookSharedModuleEpoch, prepareStorybookScenarios} from "./package-build.ts"
 import {STORYBOOK_PACKAGE_GRAPH_PROTOCOL, type StorybookPackageRevisionGraphSnapshot} from "../sessions/package-revision.ts"
 import type {StorybookPackageBuildDescriptor} from "../sessions/package-session.ts"
 
@@ -12,6 +12,29 @@ setDefaultTimeout(60_000)
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, {recursive: true, force: true}) })
 
 describe("structural package revision build", () => {
+  test("распознанный сценарий с непредставимым аргументом не исчезает молча", async () => {
+    const root = mkdtempSync(join(tmpdir(), "storybook-unrepresentable-"))
+    roots.push(root)
+    mkdirSync(join(root, "spec"))
+    writeFileSync(join(root, "package.json"), JSON.stringify({name: "@fixture/unrepresentable", type: "module", exports: {".": "./index.ts"}}))
+    writeFileSync(join(root, "tsconfig.json"), JSON.stringify({compilerOptions: {target: "ESNext", module: "ESNext", moduleResolution: "Bundler", noEmit: true}}))
+    writeFileSync(join(root, "index.ts"), 'export function inspect(input: {value: () => number}) { return input.value() }\n')
+    const path = join(root, "spec/scenario.spec.ts")
+    writeFileSync(path, [
+      'import {describe, expect, test} from "bun:test"',
+      'import {inspect} from "@fixture/unrepresentable"',
+      'describe.each([{name: "Колбэк", props: {value: () => 1}}])("$name", ({props}) => {',
+      '  const result = inspect(props)',
+      '  test("Результат", () => { expect(result, "Функция выполнена").toBe(1) })',
+      '})',
+    ].join("\n"))
+    const descriptor = {scenarioSpecs: [{nodeId: "scenario", sourcePaths: [path]}]} as unknown as StorybookPackageBuildDescriptor
+    let failure: unknown
+    try { await prepareStorybookScenarios(descriptor, new AbortController().signal) } catch (error) { failure = error }
+    expect(failure).toBeInstanceOf(Error)
+    expect((failure as Error).message).toContain("Не удалось подготовить представление распознанного сценария")
+    expect((failure as Error).message).toContain(path)
+  })
   test("copies a binary resource without changing its source", async () => {
     const fixture = createFixture()
     const sourcePath = join(fixture.packageRoot, "image.gif")

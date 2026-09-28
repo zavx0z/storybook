@@ -10,6 +10,7 @@ describe.each([
   {name: "Не задано", props: {}},
   {name: "Специальное число", props: {special: true}},
   {name: "Null", props: {value: null}},
+  {name: "Вложенный undefined", props: {value: {children: [{}, {slot: ""}, {slot: undefined}], values: [undefined, null]}}},
   {name: "Импортированная функция", props: {value: sampleValue}},
   {name: "Ошибка", props: {fail: true}},
 ])("$name", async ({props}) => {
