@@ -6,6 +6,7 @@ import type {HTMLDivElement as SemanticDiv} from "@zavx0z/dom"
 import type {Workbench as WorkbenchHandle} from "./contract.ts"
 import type {createWorkbenchModel} from "./controller.ts"
 import {WorkbenchView} from "./view.tsx"
+import {selectWorkbenchNavigationBranch} from "./navigation/branch.ts"
 
 export type WorkbenchProps = Readonly<{
   mcpOpen?: boolean | undefined
@@ -16,11 +17,19 @@ export type WorkbenchProps = Readonly<{
   onReady(workbench: WorkbenchHandle): void
 }>
 
-/** document привязывается компилятором к Document этого приложения, включая callbacks. */
+/**
+Workbench в Display показывает каталог от текущего узла вглубь.
+Это проекция полного каталога модели: HUD продолжает получать всю иерархию.
+document привязывается компилятором к Document этого приложения, включая callbacks.
+*/
 export function Workbench(props: WorkbenchProps) {
   const element = useRef<HTMLDivElement | null>(null)
   const model = props.model
   const view = useSyncExternalStore(model.subscribe, model.getSnapshot)
+  const displayState = {
+    ...view.state,
+    "catalog.items": selectWorkbenchNavigationBranch(view.state["catalog.items"], view.state["catalog.active"]),
+  }
   useLayoutEffect(() => {
     const display = document.getElementById(props.displayId)
     const space = display?.closest("space")
@@ -35,7 +44,7 @@ export function Workbench(props: WorkbenchProps) {
     onMcpOpenChange={props.onMcpOpenChange}
     document={view.document}
     onElement={node => { element.current = node }}
-    state={view.state}
+    state={displayState}
     navigationExpansion={view.navigationExpansion}
     inspectorSelectedId={view.inspectorSelectedId}
     inspectorQuery={view.inspectorQuery}
