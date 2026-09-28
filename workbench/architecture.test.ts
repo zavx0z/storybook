@@ -70,6 +70,8 @@ describe("Workbench component module boundary", () => {
       "color:",
     ]) expect(panel).not.toContain(declaration)
     expect(preview).not.toContain("WorkbenchRegionPanel")
+    expect(preview).toContain('from "@zavx0z/ui/surfaces/pane"')
+    expect(preview).toContain('<Pane')
     expect(preview).not.toContain("border:")
   })
 
