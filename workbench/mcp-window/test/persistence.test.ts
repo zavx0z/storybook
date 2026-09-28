@@ -34,29 +34,27 @@ test("перемещение, размер, режим и закрытие пе�
     frame = await host.settle()
     host.input.pointerUp(frame, {...point, clientX: point.clientX + 40, clientY: point.clientY + 30})
     frame = await host.settle()
-    const resize = host.bounds(host.button("Изменить размер окна MCP"))
-    const handle = {clientX: resize.x + 10, clientY: resize.y + 10, pointerId: 8}
+    const resize = host.bounds(host.container.querySelector('[data-window-resize="se"]')!)
+    const handle = {clientX: resize.x + 5, clientY: resize.y + 5, pointerId: 8}
     host.input.pointerDown(frame, handle)
     host.input.pointerMove(frame, {...handle, clientX: handle.clientX + 70, clientY: handle.clientY + 80, buttons: 1})
     frame = await host.settle()
     host.input.pointerUp(frame, {...handle, clientX: handle.clientX + 70, clientY: handle.clientY + 80})
     await host.click("Текущий адрес → MCP")
-    await host.click("Minimize")
-    expect(createMcpWindowPersistence(storage).initialState).toEqual({open: true, mode: "address", minimized: true, geometry: {x: 64, y: 54, width: 690, height: 480}})
+    expect(createMcpWindowPersistence(storage).initialState).toEqual({open: true, mode: "address", geometry: {x: 64, y: 54, width: 690, height: 480}})
     host.dispose()
     host = createWindowHost()
     await mount()
-    const element = host.container.querySelector('[data-mcp-window]')!
+    const element = host.container.querySelector('[data-window]')!
     expect(element.hasAttribute("hidden")).toBeFalse()
     expect(host.bounds(element)).toEqual({x: 64, y: 54, width: 690, height: 480})
-    await host.click("Restore")
     expect(host.button("Текущий адрес → MCP").hasAttribute("disabled")).toBeTrue()
-    await host.click("Закрыть")
+    await host.click("Скрыть Журнал MCP")
     host.dispose()
     host = createWindowHost()
     await mount()
-    expect(host.container.querySelector('[data-mcp-window]')!.hasAttribute("hidden")).toBeTrue()
-    expect(createMcpWindowPersistence(storage).initialState).toEqual({open: false, mode: "address", minimized: false, geometry: {x: 64, y: 54, width: 690, height: 480}})
+    expect(host.container.querySelector('[data-window]')!.hasAttribute("hidden")).toBeTrue()
+    expect(createMcpWindowPersistence(storage).initialState).toEqual({open: false, mode: "address", geometry: {x: 64, y: 54, width: 690, height: 480}})
   } finally {
     host.dispose()
   }
@@ -69,5 +67,11 @@ test("повреждённое или запрещённое хранилище 
   const broken = createMcpWindowPersistence(() => ({getItem: () => "{", setItem() {}}))
   expect(broken.initialState).toEqual(defaultMcpWindowState())
   const partial = createMcpWindowPersistence(() => ({getItem: () => JSON.stringify({open: true, mode: "invalid", geometry: {x: -10, y: "bad", width: 1, height: null}}), setItem() {}}))
-  expect(partial.initialState).toEqual({open: true, mode: "agent", minimized: false, geometry: {x: 0, y: 24, width: 320, height: 400}})
+  expect(partial.initialState).toEqual({open: true, mode: "agent", geometry: {x: 0, y: 24, width: 320, height: 400}})
+})
+
+
+test("старое сворачивание шапки восстанавливается как скрытое окно", () => {
+  const state = createMcpWindowPersistence(() => ({getItem: () => JSON.stringify({open: true, minimized: true}), setItem() {}}))
+  expect(state.initialState.open).toBeFalse()
 })

@@ -10,6 +10,6 @@ import type {CatalogPanelProps} from "../../catalog-panel/contract/input.ts"
 false раскрывает панель. Последующее переключение принадлежит Minimap.
 */
 export interface MinimapProps {
-  readonly catalog: Omit<CatalogPanelProps, "onHide">
+  readonly catalog: CatalogPanelProps
   readonly initialCollapsed?: boolean | undefined
 }

@@ -3,7 +3,7 @@ import {
   type BreadcrumbsItem,
 } from "@zavx0z/ui/navigation/breadcrumbs"
 import {StatusBar} from "@zavx0z/ui/feedback/status-bar"
-import {Button} from "@zavx0z/ui/buttons/button"
+import {WindowControl} from "@zavx0z/ui/surfaces/window/control"
 import type {
   WorkbenchBreadcrumb,
   WorkbenchStatus,
@@ -12,7 +12,8 @@ import type {
 export type StatusRegionProps = Readonly<{
   status: WorkbenchStatus
   onNavigate(item: WorkbenchBreadcrumb, source: HTMLElement): void
-  onMcpOpen?: (() => void) | undefined
+  mcpOpen?: boolean | undefined
+  onMcpOpenChange?: ((open: boolean) => void) | undefined
 }>
 
 /** Retained Workbench status region. */
@@ -51,12 +52,11 @@ export function StatusRegion(props: StatusRegionProps) {
         }}
       />
     </StatusBar>
-    <Button
+    <WindowControl
+      windowId="storybook-mcp-window"
       label="MCP"
-      title="Открыть журнал запросов MCP"
-      aria-label="Открыть журнал MCP"
-      size="small"
-      onClick={() => props.onMcpOpen?.()}
+      open={props.mcpOpen ?? false}
+      onOpenChange={open => props.onMcpOpenChange?.(open)}
     />
   </div>
 }

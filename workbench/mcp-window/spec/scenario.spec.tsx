@@ -41,6 +41,7 @@ describe.each([
       addressSource={props.addressSource}
     />,
   )
+  const shell = element.querySelector("[data-window]")!
   const initialLoads = props.load.mock.calls.slice()
   const button = (name: string) => [...element.querySelectorAll("button")].find(button => button.getAttribute("aria-label") === name || button.textContent === name)!
   const click = async (name: string) => {
@@ -51,11 +52,11 @@ describe.each([
   const first = input.open && mode === "agent" ? input.entries[0] : undefined
 
   test("Назначение", () => {
-    expect({role: element.getAttribute("role"), label: element.getAttribute("aria-label")},
+    expect({role: shell.getAttribute("role"), label: shell.getAttribute("aria-label")},
       "Окно просмотра команд и полных ответов MCP").toEqual({role: "dialog", label: "Журнал MCP"})
   })
   test("Видимость", () => {
-    expect(!element.hasAttribute("hidden"), "Окно отображается при open=true").toBe(input.open)
+    expect(!shell.hasAttribute("hidden"), "Окно отображается при open=true").toBe(input.open)
   })
   test("Источник журнала", () => {
     expect(initialLoads.length > 0, "Открытый журнал читает источник; скрытое окно и адресный режим не запрашивают журнал").toBe(input.open && mode === "agent")
@@ -68,12 +69,12 @@ describe.each([
   /** @remarks Геометрия и действия применимы к открытому окну; скрытое окно не участвует в раскладке. */
   describe.skipIf(!input.open)("Открытое окно", () => {
     test("Положение и размер", () => {
-      expect(element.getBoundingClientRect().toJSON(), "Окно использует сохранённую геометрию либо начальные размеры").toMatchObject(input.initialState?.geometry ?? {x: 24, y: 24, width: 620, height: 400})
+      expect(shell.getBoundingClientRect().toJSON(), "Окно использует сохранённую геометрию либо начальные размеры").toMatchObject(input.initialState?.geometry ?? {x: 24, y: 24, width: 620, height: 400})
     })
     test("Запрос закрытия", async () => {
-      await click("Закрыть")
+      await click("Скрыть Журнал MCP")
       expect(props.onClose.mock.calls, "Окно передаёт запрос родителю через onClose").toEqual([[]])
-      expect(element.hasAttribute("hidden"), "Видимость остаётся под управлением переданного open").toBeFalse()
+      expect(shell.hasAttribute("hidden"), "Видимость остаётся под управлением переданного open").toBeFalse()
     })
   })
 
@@ -95,13 +96,7 @@ describe.each([
     test("Состояние", () => {
       expect(element.querySelector("article")?.textContent, "Статус выполнения выбранной команды").toContain(` · ${first!.status} · `)
     })
-    test("Сворачивание и восстановление", async () => {
-      const code = element.querySelector("code")!
-      await click("Minimize")
-      expect(code.getBoundingClientRect().height > 0, "Свёрнутое окно сохраняет журнал, скрывая содержимое").toBeFalse()
-      await click("Restore")
-      expect(code.getBoundingClientRect().height > 0, "Развёрнутое окно возвращает тот же редактор").toBeTrue()
-    })
+
   })
 
   /** @remarks Навигация по истории имеет смысл при нескольких командах. */

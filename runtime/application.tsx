@@ -81,7 +81,8 @@ function StorybookSurface(props: StorybookAppProps & Readonly<{model: ReturnType
   if (clipboard === null) throw new Error("Storybook requires the clipboard controller of its existing Browser Root")
   return <>
     <Workbench
-      onMcpOpen={() => setMcpOpen(true)}
+      mcpOpen={mcpOpen}
+      onMcpOpenChange={setMcpOpen}
       model={props.model}
       displayId={props.displayId}
       hudId={props.hudId}

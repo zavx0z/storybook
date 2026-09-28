@@ -15,7 +15,7 @@ const render = async (props: McpWindowProps) => {
   return host.settle()
 }
 const resultText = () => host.container.querySelectorAll("code")[1]?.textContent ?? ""
-const window = () => host.container.querySelector('[data-mcp-window]')!
+const window = () => host.container.querySelector('[data-window]')!
 
 describe("Открытие и завершение", () => {
   test("закрытие передаётся родителю, повторное открытие читает свежий журнал", async () => {
@@ -27,7 +27,7 @@ describe("Открытие и завершение", () => {
     expect(loads).toBe(0)
     await render({...props, open: true})
     expect(resultText()).toBe(entries[0]!.result)
-    await host.click("Закрыть")
+    await host.click("Скрыть Журнал MCP")
     expect(closeRequests).toBe(1)
     expect(window().hasAttribute("hidden")).toBeFalse()
     await render(props)
@@ -42,13 +42,17 @@ describe("Открытие и завершение", () => {
 
   test("сворачивание скрывает содержимое и resize, восстановление сохраняет полный ответ", async () => {
     const entry = command("ready")
-    await render({open: true, onClose() {}, load: async () => [entry]})
+    const props: McpWindowProps = {open: true, onClose() {
+      host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, {...props, open: false})
+    }, load: async () => [entry]}
+    await render(props)
     const code = host.container.querySelector("code")!
-    const minimized = await host.click("Minimize")
-    expect(minimized.boxByNode.has(code)).toBeFalse()
-    expect(host.button("Изменить размер окна MCP").hasAttribute("hidden")).toBeTrue()
-    const restored = await host.click("Restore")
+    const hidden = await host.click("Скрыть Журнал MCP")
+    expect(hidden.boxByNode.has(code)).toBeFalse()
+    expect(hidden.boxByNode.has(host.container.querySelector('[data-window-resize="se"]')!)).toBeFalse()
+    const restored = await render(props)
     expect(restored.boxByNode.has(code)).toBeTrue()
+    expect(host.container.querySelector("code")).toBe(code)
     expect(resultText()).toBe(entry.result)
   })
 
@@ -143,7 +147,7 @@ describe("Большие ответы", () => {
     expect(resultText()).toBe(changed.result)
     await host.click("Следить за последней")
     expect(resultText()).toBe(entries[0]!.result)
-    await host.click("Закрыть")
+    await host.click("Скрыть Журнал MCP")
   }, 30000)
 })
 
@@ -160,7 +164,7 @@ describe("Положение и размер", () => {
     host.input.pointerCancel(frame, point)
     host.input.pointerMove(frame, {...point, clientX: point.clientX + 200, clientY: point.clientY + 200, buttons: 1})
     await host.settle()
-    expect(host.bounds(window())).toEqual({x: 0, y: 0, width: 620, height: 400})
+    expect(host.bounds(window())).toEqual({x: 24, y: 24, width: 620, height: 400})
     expect(window().hasPointerCapture(5)).toBeFalse()
   })
 
@@ -180,8 +184,8 @@ describe("Положение и размер", () => {
 
   test("resize изменяет размер окна, соблюдает минимум и прекращается после pointerup", async () => {
     let frame = await render({open: true, onClose() {}, load: async () => []})
-    const box = host.bounds(host.button("Изменить размер окна MCP"))
-    const point = {clientX: box.x + 10, clientY: box.y + 10, pointerId: 9}
+    const box = host.bounds(host.container.querySelector('[data-window-resize="se"]')!)
+    const point = {clientX: box.x + 5, clientY: box.y + 5, pointerId: 9}
     host.input.pointerDown(frame, point)
     host.input.pointerMove(frame, {...point, clientX: point.clientX + 70, clientY: point.clientY + 80, buttons: 1})
     frame = await host.settle()
@@ -189,7 +193,7 @@ describe("Положение и размер", () => {
     host.input.pointerMove(frame, {...point, clientX: point.clientX - 1000, clientY: point.clientY - 1000, buttons: 1})
     frame = await host.settle()
     expect(host.bounds(window())).toEqual({x: 24, y: 24, width: 320, height: 200})
-    host.input.pointerUp(frame, point)
+    host.input.pointerUp(frame, {...point, clientX: point.clientX - 1000, clientY: point.clientY - 1000})
     host.input.pointerMove(frame, {...point, clientX: point.clientX + 300, buttons: 0})
     await host.settle()
     expect(host.bounds(window())).toEqual({x: 24, y: 24, width: 320, height: 200})

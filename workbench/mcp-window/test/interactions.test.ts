@@ -13,7 +13,7 @@ describe.each([{name: "Работа с окном", entries: [command("latest"),
   const props: McpWindowProps = {open: true, onClose: () => { closeRequests++ }, load: async () => entries}
   host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, props)
   await host.settle()
-  const element = host.container.querySelector('[data-mcp-window]')!
+  const element = host.container.querySelector('[data-window]')!
 
   await host.click("Предыдущая команда")
   const previous = host.container.querySelectorAll("code")[1]!.textContent
@@ -35,9 +35,11 @@ describe.each([{name: "Работа с окном", entries: [command("latest"),
   })
 
   const code = host.container.querySelector("code")!
-  const minimizedFrame = await host.click("Minimize")
+  host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, {...props, open: false})
+  const minimizedFrame = await host.settle()
   const minimized = !minimizedFrame.boxByNode.has(code)
-  const restoredFrame = await host.click("Restore")
+  host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, props)
+  const restoredFrame = await host.settle()
   const restored = restoredFrame.boxByNode.has(code)
   describe("Содержимое", () => {
     test("Сворачивание", () => {
@@ -58,8 +60,8 @@ describe.each([{name: "Работа с окном", entries: [command("latest"),
   host.input.pointerUp(frame, {...point, clientX: point.clientX + 40, clientY: point.clientY + 30})
   await host.settle()
   const moved = host.bounds(element)
-  const handle = host.bounds(host.button("Изменить размер окна MCP"))
-  const resizePoint = {clientX: handle.x + 10, clientY: handle.y + 10, pointerId: 2}
+  const handle = host.bounds(host.container.querySelector('[data-window-resize="se"]')!)
+  const resizePoint = {clientX: handle.x + 5, clientY: handle.y + 5, pointerId: 2}
   frame = await host.settle()
   host.input.pointerDown(frame, resizePoint)
   host.input.pointerMove(frame, {...resizePoint, clientX: resizePoint.clientX + 60, clientY: resizePoint.clientY + 40, buttons: 1})
@@ -77,7 +79,7 @@ describe.each([{name: "Работа с окном", entries: [command("latest"),
     })
   })
 
-  await host.click("Закрыть")
+  await host.click("Скрыть Журнал MCP")
   const requested = closeRequests
   host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, {...props, open: false})
   const closed = !(await host.settle()).boxByNode.has(element)

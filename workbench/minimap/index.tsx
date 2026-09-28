@@ -6,16 +6,17 @@ Minimap показывает каталог в HUD того же Experience. П�
 
 @packageDocumentation
 */
-import {useState} from "@zavx0z/component"
-import {Button} from "@zavx0z/ui/buttons/button"
+import {useId, useState} from "@zavx0z/component"
+import {Window} from "@zavx0z/ui/surfaces/window"
+import {WindowControl} from "@zavx0z/ui/surfaces/window/control"
 import {Tab} from "@zavx0z/ui/surfaces/tab"
 import {CatalogPanel} from "../catalog-panel"
-import {WorkbenchRegionPanel} from "../components/region-panel.tsx"
 import type {MinimapProps} from "./contract/input.ts"
 export type {MinimapProps} from "./contract/input.ts"
 
-/** Скрывает поверхность через CSS, сохраняя дерево и Tab в текущем Document. */
+/** Компонует общую оболочку Window и WindowControl в Tab того же Document. */
 export function Minimap(props: MinimapProps) {
+  const id = useId()
   const [collapsed, setCollapsed] = useState(props.initialCollapsed ?? false)
   return <div
     data-storybook-minimap=""
@@ -28,43 +29,28 @@ export function Minimap(props: MinimapProps) {
       pointer-events: none;
     `}
   >
-    <nav
-      aria-label="Minimap"
-      data-minimap-panel=""
-      hidden={collapsed}
-      style={css`
-        position: absolute;
-        top: 8px;
-        left: 8px;
-        display: flex;
-        width: 300px;
-        height: 480px;
-        max-width: calc(100% - 16px);
-        max-height: calc(100% - 16px);
-        min-height: 0;
-        pointer-events: auto;
-
-        &[hidden] {
-          display: none;
-        }
-      `}
+    <Window
+      id={id}
+      title="Minimap"
+      open={!collapsed}
+      onOpenChange={open => setCollapsed(!open)}
+      geometry={{x: 8, y: 8, width: 300, height: 480}}
+      movable={true}
+      resizable={true}
     >
-      <WorkbenchRegionPanel>
-        <CatalogPanel
-          label={props.catalog.label}
-          search={props.catalog.search}
-          items={props.catalog.items}
-          activeId={props.catalog.activeId}
-          management={props.catalog.management}
-          onAction={props.catalog.onAction}
-          onNavigate={props.catalog.onNavigate}
-          onSearch={props.catalog.onSearch}
-          onGroupToggle={props.catalog.onGroupToggle}
-          navigationExpansion={props.catalog.navigationExpansion}
-          onHide={() => setCollapsed(true)}
-        />
-      </WorkbenchRegionPanel>
-    </nav>
+      <CatalogPanel
+        label={props.catalog.label}
+        search={props.catalog.search}
+        items={props.catalog.items}
+        activeId={props.catalog.activeId}
+        management={props.catalog.management}
+        onAction={props.catalog.onAction}
+        onNavigate={props.catalog.onNavigate}
+        onSearch={props.catalog.onSearch}
+        onGroupToggle={props.catalog.onGroupToggle}
+        navigationExpansion={props.catalog.navigationExpansion}
+      />
+    </Window>
     <div
       hidden={!collapsed}
       data-minimap-tab=""
@@ -85,10 +71,11 @@ export function Minimap(props: MinimapProps) {
         label="Minimap"
         position={{edge: "left", offset: .5}}
       >
-        <Button
+        <WindowControl
+          windowId={id}
           label="Minimap"
-          aria-label="Открыть Minimap"
-          onClick={() => setCollapsed(false)}
+          open={!collapsed}
+          onOpenChange={open => setCollapsed(!open)}
         />
       </Tab>
     </div>

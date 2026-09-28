@@ -2,13 +2,12 @@
 export interface McpWindowState {
   open: boolean
   mode: "agent" | "address"
-  minimized: boolean
   geometry: {x: number, y: number, width: number, height: number}
 }
 
 /** Начальное закрытое окно до первого сохранения пользовательских настроек. */
 export function defaultMcpWindowState(): McpWindowState {
-  return {open: false, mode: "agent", minimized: false, geometry: {x: 24, y: 24, width: 620, height: 400}}
+  return {open: false, mode: "agent", geometry: {x: 24, y: 24, width: 620, height: 400}}
 }
 
 /**
@@ -23,7 +22,8 @@ export function createMcpWindowPersistence(storage: () => Pick<Storage, "getItem
     if (value && typeof value === "object") {
       if (typeof value.open === "boolean") initialState.open = value.open
       if (value.mode === "agent" || value.mode === "address") initialState.mode = value.mode
-      if (typeof value.minimized === "boolean") initialState.minimized = value.minimized
+      // Старое сворачивание шапки восстанавливается как скрытая оболочка.
+      if (value.minimized === true) initialState.open = false
       for (const field of ["x", "y", "width", "height"] as const) {
         const number = value.geometry?.[field]
         const minimum = field === "width" ? 320 : field === "height" ? 200 : 0

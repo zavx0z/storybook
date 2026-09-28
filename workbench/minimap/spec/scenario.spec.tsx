@@ -33,7 +33,7 @@ describe.each([
       initialCollapsed={props.initialCollapsed}
     />,
   )
-  const panel = element.querySelector("[data-minimap-panel]")!
+  const panel = element.querySelector("[data-window]")!
   const tab = element.querySelector("[data-minimap-tab]")!
 
   test("Начальная видимость", () => {
@@ -42,7 +42,7 @@ describe.each([
   })
 
   test("Скрытие и восстановление дерева", async () => {
-    element.querySelector('[aria-label="Открыть Minimap"]')?.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    if (panel.hasAttribute("hidden")) element.querySelector('button[aria-label="Minimap"]')!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
     await headless.screenshot(element)
     const tree = panel.querySelector('[role="tree"]')!
     element.querySelector('[aria-label="Свернуть всё дерево"]')!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
@@ -55,7 +55,7 @@ describe.each([
     expect(panel.hasAttribute("hidden"), "Кнопка скрывает панель").toBeTrue()
     expect(tab.hasAttribute("hidden"), "Вместо панели доступен Tab").toBeFalse()
     expect(tab.querySelector('[data-tab]')!.getAttribute("data-ready"), "Tab получает размеры HUD после скрытия панели").toBe("true")
-    element.querySelector('[aria-label="Открыть Minimap"]')?.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    if (panel.hasAttribute("hidden")) element.querySelector('button[aria-label="Minimap"]')!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
     await headless.screenshot(element)
     expect(panel.hasAttribute("hidden"), "Кнопка таба возвращает панель").toBeFalse()
     expect(panel.querySelector('[role="tree"]') === tree, "Скрытие сохраняет экземпляр дерева").toBeTrue()
@@ -65,7 +65,7 @@ describe.each([
   })
 
   test("Переход по каталогу", async () => {
-    element.querySelector('[aria-label="Открыть Minimap"]')?.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    if (panel.hasAttribute("hidden")) element.querySelector('button[aria-label="Minimap"]')!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
     await headless.screenshot(element)
     const row = panel.querySelector('[data-tree-id="component"] [data-tree-row]')!
     row.dispatchEvent(new MouseEvent("click", {bubbles: true}))

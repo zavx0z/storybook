@@ -8,7 +8,8 @@ import type {createWorkbenchModel} from "./controller.ts"
 import {WorkbenchView} from "./view.tsx"
 
 export type WorkbenchProps = Readonly<{
-  onMcpOpen?: (() => void) | undefined
+  mcpOpen?: boolean | undefined
+  onMcpOpenChange?: ((open: boolean) => void) | undefined
   model: ReturnType<typeof createWorkbenchModel>
   displayId: string
   hudId: string
@@ -30,7 +31,8 @@ export function Workbench(props: WorkbenchProps) {
     props.onReady(model.bind(element.current as unknown as SemanticDiv, {space, hud}))
   }, [model])
   return <WorkbenchView
-    onMcpOpen={props.onMcpOpen}
+    mcpOpen={props.mcpOpen}
+    onMcpOpenChange={props.onMcpOpenChange}
     document={view.document}
     onElement={node => { element.current = node }}
     state={view.state}

@@ -1,5 +1,6 @@
 import {resolve} from "node:path"
 import {createRoot} from "@zavx0z/component"
+import {flushDocumentLayoutObservers} from "@zavx0z/dom/geometry"
 import {createDocument, MouseEvent} from "@zavx0z/dom"
 import type {Element} from "@zavx0z/dom"
 import {createDocumentInteractionController, createDocumentRenderer} from "@renderer/html"
@@ -18,6 +19,9 @@ export function createWindowHost() {
   let disposed = false
   const settle = async () => {
     await Bun.sleep(0)
+    component.flush()
+    renderer.flush()
+    flushDocumentLayoutObservers(document)
     component.flush()
     return renderer.flush()
   }

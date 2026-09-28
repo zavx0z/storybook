@@ -1,13 +1,13 @@
 /**
 Общая панель каталога Display и Minimap: поиск, текущее место, раскрытие дерева
-и управление подключёнными проектами. Дополнительное действие скрытия задаёт
-принимающая поверхность. Навигация использует один каталог Workbench.
+и управление подключёнными проектами. Навигация использует один каталог Workbench;
+управление видимостью принадлежит принимающему Window.
 
 @packageDocumentation
 */
 import {TextField, type TextFieldProps} from "@zavx0z/ui/fields/text-field"
 import {Button} from "@zavx0z/ui/buttons/button"
-import {collapseAllIcon, expandAllIcon, plusIcon, selectOpenedItemIcon, minusIcon} from "@zavx0z/ui/themes/icons"
+import {collapseAllIcon, expandAllIcon, plusIcon, selectOpenedItemIcon} from "@zavx0z/ui/themes/icons"
 import {useRef} from "@zavx0z/component"
 import {WorkbenchNavigationTree, type WorkbenchNavigationTreeHandle} from "../navigation/ui-tree.tsx"
 import type {CatalogPanelProps} from "./contract/input.ts"
@@ -81,18 +81,6 @@ export function CatalogPanel(value: CatalogPanelProps) {
           flex-shrink: 0;
         `}
       />
-      {value.onHide !== undefined ? (
-        <Button
-          label=""
-          startIcon={minusIcon}
-          title="Скрыть"
-          aria-label="Скрыть Minimap"
-          onClick={() => value.onHide?.()}
-          style={css`
-            flex-shrink: 0;
-          `}
-        />
-      ) : null}
       {value.management !== null ? <Button
         label=""
         startIcon={plusIcon}

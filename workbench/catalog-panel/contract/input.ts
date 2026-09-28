@@ -14,7 +14,6 @@ import type {NavigationExpansion} from "../../navigation/persistence.ts"
 @property onSearch - Публикует новый запрос, включая очистку при поиске текущего места.
 @property onGroupToggle - Сообщает об изменении раскрытия отдельной ветви.
 @property [navigationExpansion] - Восстанавливает и сохраняет раскрытие дерева.
-@property [onHide] - Сворачивает принимающую панель; без callback кнопка отсутствует.
 */
 export interface CatalogPanelProps {
   label: string
@@ -27,5 +26,4 @@ export interface CatalogPanelProps {
   onSearch(value: string, source: HTMLElement): void
   onGroupToggle(group: WorkbenchNavigationGroup, collapsed: boolean, source: HTMLElement): void
   navigationExpansion?: NavigationExpansion | undefined
-  readonly onHide?: (() => void) | undefined
 }

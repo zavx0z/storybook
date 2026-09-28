@@ -16,7 +16,8 @@ import {StatusRegion} from "./regions/status.tsx"
 import type {NavigationExpansion} from "./navigation/persistence.ts"
 
 export type WorkbenchViewProps = Readonly<{
-  onMcpOpen?: (() => void) | undefined
+  mcpOpen?: boolean | undefined
+  onMcpOpenChange?: ((open: boolean) => void) | undefined
   document: SemanticDocument
   onElement?: ((node: HTMLDivElement | null) => void) | undefined
   state: WorkbenchViewState
@@ -122,7 +123,8 @@ export function WorkbenchView(props: WorkbenchViewProps) {
       >{props.children}</InspectorRegion>
     </div>
     <StatusRegion
-      onMcpOpen={props.onMcpOpen}
+      mcpOpen={props.mcpOpen}
+      onMcpOpenChange={props.onMcpOpenChange}
       status={state.status}
       onNavigate={props.onStatusNavigate}
     />
