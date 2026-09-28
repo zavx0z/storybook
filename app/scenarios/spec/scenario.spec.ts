@@ -45,10 +45,10 @@ describe.each([
 import {Command} from "@fixture/scenario-component"
 
 <Command
-      label={"Продолжить"}
-      disabled={false}
-      onActivate={mock<(label: string) => void>()}
-    />`)
+  label={"Продолжить"}
+  disabled={false}
+  onActivate={mock<(label: string) => void>()}
+/>`)
     })
   })
 })

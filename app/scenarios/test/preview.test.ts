@@ -71,10 +71,10 @@ describe.each([
 import {Command} from "@fixture/scenario-component"
 
 <Command
-      label={"Продолжить"}
-      disabled={${disabled}}
-      onActivate={mock<(label: string) => void>()}
-    />`)
+  label={"Продолжить"}
+  disabled={${disabled}}
+  onActivate={mock<(label: string) => void>()}
+/>`)
   })
 })
 
@@ -131,9 +131,9 @@ test("состояние компонента не превращается в �
   expect(value.preview?.variants[0]?.source).toBe(`import {StatefulCommand} from "@fixture/scenario-component"
 
 <StatefulCommand
-      label={"Продолжить"}
-      disabled={false}
-    />`)
+  label={"Продолжить"}
+  disabled={false}
+/>`)
 }, 30_000)
 
 test("парные теги сохраняют JSX children и выбранный запуск без сериализации шаблона", async () => {
@@ -149,7 +149,7 @@ test("парные теги сохраняют JSX children и выбранны�
   expect(child.jsxProps?.children?.source).toBe('<Content label="Дочерний компонент" />')
   expect(child.source).toContain('import {Badge as Content} from "@fixture/scenario-component"')
   expect(child.source).toContain('<Container label={null}>')
-  expect(child.source).toContain('      <Content label="Дочерний компонент" />')
+  expect(child.source).toContain('  <Content label="Дочерний компонент" />')
   expect(child.source).not.toContain("{<")
   expect(child.points[0]?.title).toBe("Контент / Передача")
   const selected = await readScenario({path, variant: 1, props: child.props})

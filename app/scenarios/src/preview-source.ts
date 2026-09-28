@@ -2,7 +2,7 @@ import type {Project} from "typescript/unstable/async"
 import {NodeFlags} from "typescript/unstable/ast"
 import type {Node, SourceFile, VariableStatement} from "typescript/unstable/ast"
 import {
-  isArrowFunction, isBinaryExpression, isConditionalExpression, isFunctionExpression, isIdentifier, isJsxElement, isJsxExpression, isObjectLiteralExpression,
+  isArrowFunction, isBinaryExpression, isConditionalExpression, isFunctionExpression, isIdentifier, isJsxElement, isJsxExpression, isJsxText, isObjectLiteralExpression,
   isPropertyAccessExpression, isPropertyAssignment, isSpreadAssignment, isStringLiteral,
 } from "typescript/unstable/ast/is"
 
@@ -17,6 +17,7 @@ export interface PreviewReplacement {
 /**
 Раскрывает поля подготовленного объекта прямо в JSX по символам TypeScript.
 Общие ссылки сохраняют объявления, чтобы пример не создавал повторные callback.
+Отступ внешнего render снимается с кода с сохранением вложенности и текста литералов.
 Исполняемый модуль использует исходную подготовку; здесь строится только его показ.
 */
 export async function readPreviewSource(file: SourceFile, jsx: Node, setup: readonly VariableStatement[], props: Node, checker: Project["checker"]) {
@@ -79,7 +80,17 @@ export async function readPreviewSource(file: SourceFile, jsx: Node, setup: read
     const root = pending.pop()!
     let source = ""
     const replacements: PreviewReplacement[] = []
-    const emit = (node: Node, field?: string, child = false): void => {
+    const indentation = (text: string, position: number): number => {
+      const line = text.slice(text.lastIndexOf("\n", position - 1) + 1, position)
+      return /^[ \t]*/u.exec(line)![0].length
+    }
+    const base = indentation(file.text, root.getStart(file))
+    const emit = (node: Node, field?: string, child = false, shift = base): void => {
+      const append = (start: number, end: number, layout = true): void => {
+        const text = file.text.slice(start, end)
+        source += layout ? text.replace(/(\r?\n)([ \t]*)/gu, (_, newline: string, spaces: string) =>
+          newline + (shift < 0 ? " ".repeat(-shift) + spaces : spaces.slice(Math.min(shift, spaces.length)))) : text
+      }
       if (ids.get(node) === propsId) {
         const start = source.length
         source += file.text.slice(node.getStart(file), node.end)
@@ -98,7 +109,8 @@ export async function readPreviewSource(file: SourceFile, jsx: Node, setup: read
         if (value) {
           const grouped = isBinaryExpression(value.node) || isConditionalExpression(value.node)
           if (grouped) source += "("
-          emit(value.node, value.property)
+          const movedShift = indentation(file.text, value.node.getStart(file)) - indentation(source, source.length)
+          emit(value.node, value.property, false, movedShift)
           if (grouped) source += ")"
           return
         }
@@ -113,12 +125,14 @@ export async function readPreviewSource(file: SourceFile, jsx: Node, setup: read
         }
       }
       let position = node.getStart(file)
+      let hasChildren = false
       node.forEachChild(part => {
-        source += file.text.slice(position, part.getStart(file))
-        emit(part)
+        hasChildren = true
+        append(position, part.getStart(file))
+        emit(part, undefined, false, shift)
         position = part.end
       })
-      source += file.text.slice(position, node.end)
+      append(position, node.end, hasChildren || isJsxText(node))
     }
     emit(root)
     fragments.set(root, {source, replacements})

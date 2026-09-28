@@ -45,10 +45,17 @@ describe.each([
     expected: '<Panel open={input} onChange={mock((input: boolean) => input)} />',
     fields: ["open"],
   },
+  {
+    name: "Отступ render снимается с JSX, но сохраняется внутри строки",
+    setup: 'const props = {...input}',
+    jsx: '<Panel\n      open={props.open}\n    >\n      <Child\n        title={`первая\n        вторая`}\n      />\n    </Panel>',
+    expected: '<Panel\n  open={input}\n>\n  <Child\n    title={`первая\n        вторая`}\n  />\n</Panel>',
+    fields: ["open"],
+  },
 ])("$name", ({name, setup, jsx, expected, fields}) => {
   test("JSX сохраняет значения и связи", async () => {
     const path = join(directory, `${name}.tsx`)
-    await Bun.write(path, `declare function mock<T>(value?: T): T\ndeclare function Panel(props: any): any\nconst input = {open: true}\n${setup}\nconst view = ${jsx}`)
+    await Bun.write(path, `declare function mock<T>(value?: T): T\ndeclare function Panel(props: any): any\nconst input = {open: true}\n${setup}\nconst view =\n    ${jsx}`)
     const api = new API({cwd: process.cwd()})
     try {
       const snapshot = await api.updateSnapshot({openFiles: [path]})
