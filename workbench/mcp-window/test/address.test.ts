@@ -1,7 +1,8 @@
 import {afterEach, beforeEach, describe, expect, test} from "bun:test"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
 import type {McpWindowProps} from "../index"
-import {command, createWindowHost} from "../spec/fixture"
+import {createWindowHost} from "../spec/fixture"
+import {command} from "../spec/fixture/records"
 
 const {McpWindow} = await import("../index.tsx")
 let host: ReturnType<typeof createWindowHost>

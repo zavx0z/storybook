@@ -36,6 +36,6 @@
 
 ## Состав
 
-- [Сценарий использования](spec/scenario.spec.ts)
+- [Сценарий использования](spec/scenario.spec.tsx)
 - [Жизненный цикл и регрессии](test/window.test.ts)
 - [Проверки списка ответов](request-list.test.ts)
