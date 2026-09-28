@@ -8,7 +8,8 @@ Landing и каждая package page владеют ровно одним `@zavx
 Страница передаёт Browser один native Canvas. Browser владеет semantic Document,
 Space, ViewPoint, циклом кадров и вводом. Весь Workbench, его меню и окна монтируются в один Display пространства.
 HUD содержит перетаскиваемый Tab управления ViewPoint: приближение, отдаление,
-заморозку жестов и вписывание. Остальная область HUD свободна. Структурные обзоры и
+заморозку жестов и вписывание. [Minimap](../../workbench/minimap/index.tsx)
+показывает в HUD тот же каталог; кнопка скрытия сворачивает его в Tab. Структурные обзоры и
 сценарии используют этот Experience; они не создают второй Root или semantic
 Document. Host default font загружается из exact
 `@zavx0z/engine/fonts/inter-regular.ttf` через публичный export.

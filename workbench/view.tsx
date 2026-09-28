@@ -83,7 +83,6 @@ export function WorkbenchView(props: WorkbenchViewProps) {
       `}
     >
       <CatalogRegion
-        document={props.document}
         label={state["catalog.label"]}
         management={state["catalog.management"]}
         onAction={props.onCatalogAction}

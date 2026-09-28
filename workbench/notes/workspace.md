@@ -51,6 +51,11 @@ selected, disabled и shadow, а Storybook задаёт только конте�
 
 ## Дерево навигации
 
+[CatalogPanel](../catalog-panel/index.tsx) используется в Display и
+[Minimap](../minimap/index.tsx) в HUD. Поиск и выбранная страница принадлежат
+общей модели Workbench. Minimap скрывается в Tab без размонтирования дерева;
+нажатие на кнопку таба восстанавливает панель.
+
 Canonical graph проецируется адаптером `WorkbenchNavigationTree` в общий
 `@zavx0z/ui/widgets/tree`. UI владеет строками, disclosure, клавиатурой,
 фокусом и ограниченной отрисовкой большого дерева; Storybook владеет поиском

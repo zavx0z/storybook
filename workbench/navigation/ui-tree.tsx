@@ -1,5 +1,4 @@
 import {useLayoutEffect, useRef, useState} from "@zavx0z/component"
-import type {Document as SemanticDocument} from "@zavx0z/dom"
 import {Tree, type TreeHandle, type TreeItem} from "@zavx0z/ui/widgets/tree"
 import {closeIcon} from "@zavx0z/ui/themes/icons"
 import {
@@ -11,7 +10,6 @@ import {
 import type {NavigationExpansion} from "./persistence.ts"
 
 export type WorkbenchNavigationTreeProps = Readonly<{
-  document: SemanticDocument
   items: readonly WorkbenchNavigationItem[]
   activeId: string | null
   query: string

@@ -75,19 +75,23 @@ export function createWorkbenchModel(options: Omit<CreateWorkbenchOptions, "docu
   let elements!: Workbench["elements"]
   let rerender = (): void => {}
 
+  /** События HUD проходят через тот же Workbench, на который подписана маршрутизация. */
+  const catalogEventTarget = (source: HTMLElement): HTMLElement =>
+    element !== undefined && !element.contains(source) ? element : source
+
   const onCatalogNavigate = (item: WorkbenchNavigationItem, source: HTMLElement): void => {
     update("catalog.active", item.id)
-    source.dispatchEvent(new CustomEvent(WORKBENCH_EVENTS.navigate, {
+    catalogEventTarget(source).dispatchEvent(new CustomEvent(WORKBENCH_EVENTS.navigate, {
       bubbles: true,
       detail: Object.freeze({kind: "catalog", id: item.id, route: item.route}),
     }))
   }
   const onCatalogAction = (action: WorkbenchCatalogAction, source: HTMLElement): void => {
-    source.dispatchEvent(new CustomEvent(WORKBENCH_EVENTS.catalogAction, {bubbles: true, detail: Object.freeze({...action})}))
+    catalogEventTarget(source).dispatchEvent(new CustomEvent(WORKBENCH_EVENTS.catalogAction, {bubbles: true, detail: Object.freeze({...action})}))
   }
   const onCatalogSearch = (value: string, source: HTMLElement): void => {
     update("catalog.search", value)
-    source.dispatchEvent(new CustomEvent(WORKBENCH_EVENTS.search, {
+    catalogEventTarget(source).dispatchEvent(new CustomEvent(WORKBENCH_EVENTS.search, {
       bubbles: true,
       detail: Object.freeze({value}),
     }))
@@ -97,7 +101,7 @@ export function createWorkbenchModel(options: Omit<CreateWorkbenchOptions, "docu
     collapsed: boolean,
     source: HTMLElement,
   ): void => {
-    source.dispatchEvent(new CustomEvent(WORKBENCH_EVENTS.groupToggle, {
+    catalogEventTarget(source).dispatchEvent(new CustomEvent(WORKBENCH_EVENTS.groupToggle, {
       bubbles: true,
       detail: Object.freeze({kind: "catalog", id: group.id, collapsed}),
     }))

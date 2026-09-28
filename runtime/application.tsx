@@ -1,3 +1,5 @@
+import {createWorkbenchModel} from "../workbench/controller.ts"
+import {WorkbenchMinimap} from "../workbench/minimap/src/workbench-minimap.tsx"
 import {ViewPointTab} from "../workbench/viewpoint-tab"
 import type {ViewPointTabProps} from "../workbench/viewpoint-tab/contract/input"
 import {Workbench} from "../workbench/workbench.tsx"
@@ -6,7 +8,7 @@ import {StorybookDisplay} from "./display-view.tsx"
 import {getDocumentClipboardController} from "@zavx0z/browser/clipboard"
 import type {Document as SemanticDocument} from "@zavx0z/dom"
 import {ClipboardMenu} from "@zavx0z/ui/menus/clipboard-menu"
-import {useState} from "@zavx0z/component"
+import {useLayoutEffect, useMemo, useState} from "@zavx0z/component"
 import {McpWindow} from "../workbench/mcp-window"
 import type {McpRequestRecord} from "@mcp/rest/requests"
 import type {McpAddressSource} from "../workbench/mcp-window/src/address-request"
@@ -29,6 +31,17 @@ export type StorybookAppProps = Readonly<{
 
 /** One authored scene: right-handed Z-up, all spatial distances in millimetres. */
 export function StorybookApp(props: StorybookAppProps) {
+  const model = useMemo(() => createWorkbenchModel({
+    document,
+    navigationExpansion: props.navigationExpansion,
+    initial: {
+      title: props.title,
+      "catalog.label": "Каталог",
+      "preview.label": "Обзор",
+      status: {lead: "Создано для ", owner: props.statusOwner, detail: " · External Storybook"},
+    },
+  }), [])
+  useLayoutEffect(() => () => model.dispose(), [model])
   return <space>
     <viewpoint
       x={0}
@@ -41,6 +54,7 @@ export function StorybookApp(props: StorybookAppProps) {
     />
     <StorybookDisplay id={props.displayId}>
       <StorybookSurface
+        model={model}
         viewPointControls={props.viewPointControls}
         title={props.title}
         statusOwner={props.statusOwner}
@@ -51,29 +65,27 @@ export function StorybookApp(props: StorybookAppProps) {
         mcpAddressSource={props.mcpAddressSource}
         mcpWindowState={props.mcpWindowState}
         saveMcpWindowState={props.saveMcpWindowState}
-        navigationExpansion={props.navigationExpansion}
       />
     </StorybookDisplay>
     <hud id={props.hudId}>
       <ViewPointTab controls={props.viewPointControls} />
+      <WorkbenchMinimap model={model} />
     </hud>
   </space>
 }
 
 /** Workbench и его окна принадлежат Display; изменение окон сохраняет камеру и поверхность. */
-function StorybookSurface(props: StorybookAppProps) {
+function StorybookSurface(props: StorybookAppProps & Readonly<{model: ReturnType<typeof createWorkbenchModel>}>) {
   const [mcpOpen, setMcpOpen] = useState(() => props.mcpWindowState?.open ?? false)
   const clipboard = getDocumentClipboardController(document as unknown as SemanticDocument)
   if (clipboard === null) throw new Error("Storybook requires the clipboard controller of its existing Browser Root")
   return <>
     <Workbench
       onMcpOpen={() => setMcpOpen(true)}
-      title={props.title}
-      statusOwner={props.statusOwner}
+      model={props.model}
       displayId={props.displayId}
       hudId={props.hudId}
       onReady={props.onReady}
-      navigationExpansion={props.navigationExpansion}
     />
     <ClipboardMenu controller={clipboard} />
     <McpWindow

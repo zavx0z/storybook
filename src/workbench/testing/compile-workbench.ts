@@ -42,7 +42,8 @@ plugin({
     templateCompiler.setup({
       ...builder,
       onLoad(options, callback) {
-        return builder.onLoad(options, arguments_ => callback({
+        // Сценарии сохраняют JSX transport и обработку инспектором до production-компилятора.
+        return builder.onLoad({...options, filter: /^(?!.*\.(?:spec|test)\.tsx$).*\.(?:[cm]?jsx|[cm]?tsx)$/}, arguments_ => callback({
           ...arguments_,
           path: ownerSourcePath(arguments_.path),
         }))
