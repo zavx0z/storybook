@@ -153,5 +153,8 @@ describe("Чтение состава пакета", () => {
     const result = await readScenario({path: resolve(import.meta.dir, "../spec/scenario.spec.ts"), props: {path}})
     expect(result.exitCode).toBe(0)
     expect(result.tests.find(point => point.label === "Полнота раскрытия exports")?.status).toBe("todo")
+    expect(result.tests.find(point => point.label === "Полнота файловой проверки")?.status).toBe("skipped")
+    expect(result.validation.checks.find(check => check.rule === "general-particular")?.status).toBe("passed")
+    expect(result.preview?.kind, "Незавершённая проверка шаблона exports не блокирует представление функции").toBe("function")
   }, 30_000)
 })

@@ -32,9 +32,6 @@ describe.each([
       expect(result.packageJson.exports, "Публичные пути объявлены самим пакетом").toBeObject()
       expect(result.index.entries, "Каждый раскрытый вход показывает файл, условия и доступные контракты").toBeArray()
     })
-    test.todoIf(result.index.unchecked.length > 0)("Полнота раскрытия exports", () => {
-      expect(result.index.unchecked, "Все объявления этого примера входят в область файловой проверки").toEqual([])
-    })
     test("Принадлежность файлов", () => {
       const unavailable = result.index.entries.filter(entry => entry.status !== "owned" && entry.status !== "blocked")
       expect(unavailable, "Каждый открытый публичный путь ведёт к существующему файлу своего пакета").toEqual([])
@@ -67,6 +64,20 @@ describe.each([
     })
     test.todo("Функции обогащения изменяют только данные переданного объекта $, не добавляя методы и подписки", () => {
       expect(undefined, "Размещение мутирующих функций и Store ещё уточняется; файловое чтение не проверяет эффекты").toBeDefined()
+    })
+  })
+
+  /** @remarks Полнота файловой проверки применима, когда все объявления exports раскрыты. */
+  describe.skipIf(result.index.unchecked.length > 0)("Раскрытые exports", () => {
+    test("Полнота файловой проверки", () => {
+      expect(result.index.unchecked, "Все объявления этого примера входят в область файловой проверки").toEqual([])
+    })
+  })
+
+  /** @remarks Нераскрытые объявления требуют отдельной проверки; при полном раскрытии exports тема неприменима. */
+  describe.skipIf(result.index.unchecked.length === 0)("Нераскрытые exports", () => {
+    test.todo("Полнота раскрытия exports", () => {
+      expect(result.index.unchecked, "Все объявления этого примера входят в область файловой проверки").toEqual([])
     })
   })
 })
