@@ -5,6 +5,7 @@
 @packageDocumentation
 */
 import {basename, dirname} from "node:path"
+import {generalParticular} from "./src/general-particular"
 import {singleInvocation} from "./src/single-invocation"
 import type {ValidateScenarioInput} from "./contract/input"
 import type {ValidateScenarioOutput} from "./contract/output"
@@ -53,7 +54,7 @@ export function validateScenario(source: ValidateScenarioInput["source"], execut
   add("assertions", source.tests.filter(item => !item.todo && item.assertions === 0).map(item => ({
     message: `Обычный тест ${item.label} не содержит expect`, location: item.location,
   })))
-  checks.push(singleInvocation(source, execution))
+  checks.push(generalParticular(source), singleInvocation(source, execution))
   if (execution) {
     const variants = execution.groups.filter(group => group.parentId === null)
     const setupObserved = variants.length > 0 && variants.every(group => execution.calls.some(call => call.test === null && call.describe[0] === group.label))

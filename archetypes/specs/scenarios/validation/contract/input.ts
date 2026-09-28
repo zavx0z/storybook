@@ -23,7 +23,7 @@ export interface ValidateScenarioInput {
       readonly kind: "describe" | "test"
       readonly depth: number
       readonly modifiers: readonly string[]
-      readonly scope: "module" | "native" | "helper"
+      readonly scope: "module" | "native" | "helper" | "indirect"
       readonly label: string
       readonly location: ScenarioValidationLocation
       readonly remarks: string | null

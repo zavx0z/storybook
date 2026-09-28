@@ -25,6 +25,8 @@ export async function createScenarioGuide(report: ReadScenarioOutput): Promise<R
       break
     }
   }
+  const condition = report.source.registrations.find(item => item.kind === "describe" && item.modifiers.includes("skipIf"))
+  const conditional = condition && report.source.groups.find(group => group.location.line === condition.location.line && group.location.column === condition.location.column)
   const examples = [
     {title: "Сценарий целиком", code: report.source.text},
     ...report.source.groups.filter(group => group.depth === 0).flatMap(group => [
@@ -32,12 +34,13 @@ export async function createScenarioGuide(report: ReadScenarioOutput): Promise<R
       ...(group.setup.trim() ? [{title: "Подготовка варианта", code: group.setup}] : []),
     ]),
     ...report.source.groups.filter(group => group.depth > 0).map(group => ({title: "Категория", code: group.source})),
+    ...(conditional ? [{title: "Условный пропуск", code: conditional.source}] : []),
     ...[
       {title: "Пункт сценария", test: report.source.tests.find(test => !test.todo && !test.each && !test.skippable)},
       {title: "Проверка callback", test: report.source.tests.find(test => test.source.includes(".mock.calls"))},
       {title: "Связанные утверждения", test: report.source.tests.find(test => test.assertions > 1)},
       {title: "Параметризация пунктов", test: report.source.tests.find(test => test.each)},
-      {title: "Условный пропуск", test: report.source.tests.find(test => test.skippable)},
+      {title: "Условный пропуск", test: conditional ? undefined : report.source.tests.find(test => test.skippable)},
       {title: "Незавершённый пункт", test: report.source.tests.find(test => test.todo)},
     ].flatMap(({title, test}) => test ? [{title, code: test.source}] : []),
     ...report.source.checks.filter(check => check.matcher === "toEqual" && check.explicitObject).slice(0, 1)

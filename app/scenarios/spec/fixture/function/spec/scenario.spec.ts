@@ -30,12 +30,16 @@ describe.each([
     test.each(result.values.map((value, index) => ({name: `Число ${index + 1}`, value})))("$name", ({value}) => {
       expect(Number.isFinite(value), "Конечное число в составе результата").toBeTrue()
     })
-    /** @remarks Пустой набор не содержит первого числа. */
-    test.skipIf(props.values.length === 0)("Первое число", () => {
-      expect(result.values[0], "Первое число сохраняет исходное положение в наборе").toBe(props.values[0])
-    })
+
     test.todo("Большой набор", () => {
       expect(undefined, "Сумма большого набора требует отдельного примера").toBeDefined()
+    })
+  })
+
+  /** @remarks Пустой набор не содержит первого числа. */
+  describe.skipIf(props.values.length === 0)("Непустой набор", () => {
+    test("Первое число", () => {
+      expect(result.values[0], "Первое число сохраняет исходное положение в наборе").toBe(props.values[0])
     })
   })
 })

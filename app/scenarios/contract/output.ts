@@ -350,6 +350,7 @@ interface ScenarioSource {
     readonly location: TraceLocation
   }[]
   readonly groups: readonly {
+    readonly location: TraceLocation
     readonly source: string
     readonly header: string
     readonly setup: string
@@ -364,7 +365,7 @@ interface ScenarioSource {
     readonly label: string
     readonly modifiers: readonly string[]
     readonly depth: number
-    readonly scope: "module" | "native" | "helper"
+    readonly scope: "module" | "native" | "helper" | "indirect"
     readonly remarks: string | null
     readonly location: TraceLocation
   }[]

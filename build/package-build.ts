@@ -735,7 +735,7 @@ export async function prepareStorybookScenarios(
     signal.throwIfAborted()
     const result = (await readSpec({path: dirname(dirname(supported[0]!))}))?.scenario
     signal.throwIfAborted()
-    const invocation = result?.validation.checks.find(check => check.rule === "single-invocation" && check.status === "failed")
+    const invocation = result?.validation.checks.find(check => ["single-invocation", "general-particular"].includes(check.rule) && check.status === "failed")
     if (invocation) throw new Error(invocation.issues.map(issue => `${issue.location?.path ?? supported[0]}:${issue.location?.line ?? 1}: ${issue.message}`).join("\n"))
     if (result?.preview === undefined) continue
     onPrepared?.(spec.nodeId, result)

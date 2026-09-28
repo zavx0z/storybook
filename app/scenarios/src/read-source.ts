@@ -83,10 +83,12 @@ export async function readScenarioSource(input: string): Promise<ScenarioSource>
     const renders: ScenarioSource["renders"][number][] = []
     const assertions: ScenarioSource["assertions"][number][] = []
     const tests: (Omit<ScenarioSource["tests"][number], "assertions"> & {assertions: number})[] = []
-    const groups: {source: string, header: string, setup: string, depth: number, each: boolean}[] = []
+    const groups: ScenarioSource["groups"][number][] = []
     const checks: {source: string, matcher: string, explicitObject: boolean}[] = []
     const hooks: {name: string, source: string}[] = []
     const registrations: ScenarioSource["registrations"][number][] = []
+    const ancestors: Node[] = []
+    const nativeBodies = new Set<Node>([file])
     const locationOf = (node: Node) => {
       const prefix = text.slice(0, node.getStart(file))
       return {path, line: prefix.split("\n").length, column: prefix.length - prefix.lastIndexOf("\n")}
@@ -143,10 +145,13 @@ export async function readScenarioSource(input: string): Promise<ScenarioSource>
           const normalized = comment?.replace(/^\s*\* ?/gmu, "")
           const remarks = normalized?.match(/(?:^|\n)\s*@remarks\b([\s\S]*)/u)?.[1]?.split(/\n\s*@\w+/u)[0]?.trim() || null
           registrations.push({kind: owner.name === "describe" ? "describe" : "test", label: node.arguments[0] ? textOf(node.arguments[0]) : "",
-            modifiers: owner.modifiers, depth, scope, remarks, location: locationOf(node)})
+            modifiers: owner.modifiers, depth,
+            scope: scope === "helper" || (ancestors.at(-1) && isExpressionStatement(ancestors.at(-1)!) && nativeBodies.has(ancestors.at(-2)!)) ? scope : "indirect",
+            remarks, location: locationOf(node)})
         }
         if (owner && ["describe", "test", "it"].includes(owner.name) && callback && (isArrowFunction(callback) || isFunctionExpression(callback))) {
           callbackNode = callback
+          if (isBlock(callback.body)) nativeBodies.add(callback.body)
           const label = node.arguments[0] ? textOf(node.arguments[0]) : ""
           if (owner.name !== "describe") {
             selectedTest = {label, assertions: 0, todo: owner.modifiers.some(name => ["todo", "todoIf"].includes(name)), skippable: owner.modifiers.some(name => ["skip", "skipIf", "if"].includes(name)), source: textOf(node), each: owner.modifiers.includes("each"), location: locationOf(node)}
@@ -157,14 +162,16 @@ export async function readScenarioSource(input: string): Promise<ScenarioSource>
             const statements = isBlock(callback.body) ? [...callback.body.statements] : []
             const first = statements.findIndex(statement => isExpressionStatement(statement) && isCallExpression(statement.expression)
               && ["describe", "test", "it"].includes(chain(statement.expression.expression)?.name ?? ""))
-            groups.push({source: textOf(node), header: text.slice(node.getStart(file), callback.body.getStart(file)),
+            groups.push({location: locationOf(node), source: textOf(node), header: text.slice(node.getStart(file), callback.body.getStart(file)),
               setup: statements.slice(0, first < 0 ? statements.length : first).map(textOf).join("\n"), depth, each: owner.modifiers.includes("each")})
           }
         }
       }
+      ancestors.push(node)
       node.forEachChild(child => visit(child, selectedTest,
         child === callbackNode ? "native" : (isArrowFunction(child) || isFunctionExpression(child) || isFunctionDeclaration(child)) ? "helper" : scope,
         child === groupCallback ? depth + 1 : depth, child === eachCallback ? locationOf(node) : variant))
+      ancestors.pop()
     }
     visit(file, null, "module", 0, null)
     if (subjectBindings.length) {

@@ -58,35 +58,37 @@ describe.each([
   })
 
   /** @remarks Конкретные данные относятся только к файловым примерам этой спецификации. */
-  test.skipIf(![
+  describe.skipIf(![
     resolve(import.meta.dir, "fixture/repository"),
     resolve(import.meta.dir, "fixture/repository/package"),
     resolve(import.meta.dir, "fixture/repository/package/category"),
     resolve(import.meta.dir, "fixture/repository/package/category/entity"),
-  ].includes(props.path))("Данные примера", () => {
-    expect(
-      result?.scenario && {
-        exitCode: result.scenario.exitCode,
-        groups: result.scenario.groups.map(group => group.label),
-        tests: result.scenario.tests.map(item => ({label: item.label, status: item.status})),
-        assertions: result.scenario.assertions.map(assertion => ({
-          actual: assertion.actual,
-          matcher: assertion.matcher,
-          expected: assertion.expected,
-          status: assertion.status,
-        })),
-      },
-      `Выполненный сценарий ${name.toLowerCase()} с пунктом проверки имени собственной директории и его фактическими данными`,
-    ).toEqual({
-      exitCode: 0,
-      groups: [name],
-      tests: [{label: "Имя директории", status: "passed"}],
-      assertions: [{
-        actual: basename(props.path),
-        matcher: "toBe",
-        expected: [basename(props.path)],
-        status: "passed",
-      }],
+  ].includes(props.path))("Файловые примеры", () => {
+    test("Данные примера", () => {
+      expect(
+        result?.scenario && {
+          exitCode: result.scenario.exitCode,
+          groups: result.scenario.groups.map(group => group.label),
+          tests: result.scenario.tests.map(item => ({label: item.label, status: item.status})),
+          assertions: result.scenario.assertions.map(assertion => ({
+            actual: assertion.actual,
+            matcher: assertion.matcher,
+            expected: assertion.expected,
+            status: assertion.status,
+          })),
+        },
+        `Выполненный сценарий ${name.toLowerCase()} с пунктом проверки имени собственной директории и его фактическими данными`,
+      ).toEqual({
+        exitCode: 0,
+        groups: [name],
+        tests: [{label: "Имя директории", status: "passed"}],
+        assertions: [{
+          actual: basename(props.path),
+          matcher: "toBe",
+          expected: [basename(props.path)],
+          status: "passed",
+        }],
+      })
     })
   })
 })

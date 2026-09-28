@@ -333,7 +333,7 @@ function renderSource(descriptor: PreviewDescriptor, props: Readonly<Record<stri
 */
 export async function supportsScenarioPreview(input: Pick<ReadScenarioInput, "path">): Promise<boolean> {
   const source = await readScenarioSource(input.path)
-  const check = validateScenario(source).checks.find(check => ["render-jsx", "single-invocation"].includes(check.rule) && check.status === "failed")
+  const check = validateScenario(source).checks.find(check => ["render-jsx", "single-invocation", "general-particular"].includes(check.rule) && check.status === "failed")
   if (check) throw new Error(check.issues.map(issue => `${issue.location?.path ?? source.path}:${issue.location?.line ?? 1}: ${issue.message}`).join("\n"))
   return await inspectScenario(input.path) !== null || await inspectFunctionScenario(input.path) !== null
 }
