@@ -548,3 +548,64 @@ test("generated JSX outside the owner becomes an executable compiled child", asy
   expect(typeof loaded.ScenarioJsx.mount).toBe("function")
   expect(typeof loaded.ScenarioJsx.render).toBe("function")
 }, 30_000)
+
+test("слоты each проходят генерацию, штатную компиляцию и переключение без замены родителя", async () => {
+  const {readScenario} = await import("@storybook/app/scenarios")
+  const {generateStorybookJsxModules, generateStorybookLoaderSource} = await import("./generated-loader")
+  const projectRoot = await realpath(resolve(import.meta.dir, ".."))
+  const packageRoot = join(projectRoot, "app/scenarios/spec/fixture/slots")
+  const report = await readScenario({path: join(packageRoot, "spec/scenario.spec.tsx")})
+  if (report.preview?.kind !== "component") throw new Error(report.stderr)
+  const preview = report.preview
+  const root = await temporaryRoot()
+  const generatedSourceRoot = join(root, "scenario-jsx")
+  await mkdir(generatedSourceRoot)
+  await writeJson(join(generatedSourceRoot, "tsconfig.json"), {compilerOptions: {
+    target: "ESNext", module: "ESNext", moduleResolution: "Bundler", jsx: "react-jsx",
+    jsxImportSource: dirname(Bun.resolveSync("@zavx0z/template/jsx-runtime", import.meta.dir)),
+    strict: true, noEmit: true, allowImportingTsExtensions: true, skipLibCheck: true,
+  }, include: ["*.tsx"]})
+  const scenarios = [{...preview, nodeId: "slots", module: {path: join(generatedSourceRoot, "component.tsx"), export: "ScenarioComponent"}}]
+  await Bun.write(scenarios[0]!.module.path, preview.module.source!)
+  for (const module of generateStorybookJsxModules(scenarios)) await Bun.write(join(root, module.path), module.source)
+  await Bun.write(join(root, "loader.ts"), generateStorybookLoaderSource({revisionUrl: "/__storybook/revisions/%40fixture%2Fscenario-slots/test/", scenarios}))
+  await Bun.write(join(root, "entry.ts"), `
+import {createRoot} from "@zavx0z/component"
+import {createDocument} from "@zavx0z/dom"
+import {STORYBOOK_PACKAGE_SCENARIO_LOADERS} from "./loader"
+export async function verify() {
+  const scenario = await STORYBOOK_PACKAGE_SCENARIO_LOADERS.get("slots")()
+  const document = createDocument()
+  const host = document.createElement("div")
+  const root = createRoot(host)
+  const rows = []
+  let parent
+  try {
+    for (const variant of scenario.variants) {
+      root.render(scenario.template, scenario.resolveProps(variant.id, variant.props))
+      parent ??= host.querySelector("section")
+      rows.push({
+        sameParent: host.querySelector("section") === parent,
+        header: host.querySelector("header").textContent,
+        body: host.querySelector("main").textContent,
+        slots: host.querySelectorAll("slot").length,
+      })
+    }
+    return rows
+  } finally {
+    root.unmount()
+  }
+}
+`)
+  const plugins = await createStorybookPackageCompilerPlugins({packageRoot, projectRoot,
+    moduleSourcePaths: [preview.module.path], generatedSourceRoot})
+  const result = await Bun.build({entrypoints: [join(root, "entry.ts")], outdir: join(root, "out"),
+    format: "esm", target: "bun", plugins: [...plugins]})
+  expect(result.success, result.logs.map(log => log.message).join("\n")).toBeTrue()
+  const module = await import(result.outputs.find(output => output.kind === "entry-point")!.path)
+  expect(await module.verify()).toEqual([
+    {sameParent: true, header: "Заголовок", body: "Содержимое", slots: 0},
+    {sameParent: true, header: "", body: "", slots: 0},
+    {sameParent: true, header: "Заголовок", body: "", slots: 0},
+  ])
+}, 60000)

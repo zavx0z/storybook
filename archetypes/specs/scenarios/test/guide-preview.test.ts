@@ -3,7 +3,7 @@ import {resolve} from "node:path"
 import {readScenario, supportsScenarioPreview} from "@storybook/app/scenarios"
 
 test.each([
-  {name: "Руководство сценариев", path: resolve(import.meta.dir, "../spec/scenario.spec.ts"), count: 2},
+  {name: "Руководство сценариев", path: resolve(import.meta.dir, "../spec/scenario.spec.ts"), count: 3},
   {name: "Руководство спецификаций", path: resolve(import.meta.dir, "../../spec/scenario.spec.ts"), count: 4},
 ])("$name доступно в App как кодовый пример", async ({name, path, count}) => {
   expect(await supportsScenarioPreview({path}), "Статический просмотр распознаёт прямой публичный вызов Archetypes").toBeTrue()

@@ -30,7 +30,7 @@ import {
 import type {ReadScenarioInput} from "../contract/input"
 import type {ScenarioExecution, ScenarioPreview, TraceValue} from "./types"
 import {createFunctionPreview, inspectFunctionScenario} from "./function-preview"
-import {readJsxProps, jsxPropImport, type JsxProp} from "./preview-jsx"
+import {readJsxProps, readJsxSlots, jsxPropImport, type JsxProp} from "./preview-jsx"
 import {validateScenario} from "@archetypes/specs/scenarios/validation"
 import {readScenarioSource} from "./read-source"
 import {readPreviewSetup} from "./preview-setup"
@@ -47,7 +47,8 @@ interface ComponentBinding {
 interface PreviewDescriptor {
   readonly scenarioPath: string
   readonly renderLines: readonly number[]
-  readonly tables: readonly {line: number; jsxProps: readonly Readonly<Record<string, JsxProp | null>>[]}[]
+  readonly tables: readonly {line: number; jsxProps: readonly Readonly<Record<string, JsxProp | null>>[]; slots: readonly Readonly<Record<string, JsxProp | null>>[]}[]
+  readonly hasSlots: boolean
   readonly componentPath: string
   readonly componentExport: string
   readonly moduleSource: string
@@ -132,8 +133,8 @@ async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | n
         }
       }
     }
-    const renders: {binding: ComponentBinding, line: number, jsx: Node, propsName: string, propsNode: Node, scope: readonly Node[]}[] = []
-    const visit = (node: Node, propsName: string, propsNode: Node, scope: readonly Node[]): void => {
+    const renders: {binding: ComponentBinding, line: number, jsx: Node, propsName: string, propsNode: Node, slotsNode: Node | undefined, scope: readonly Node[]}[] = []
+    const visit = (node: Node, propsName: string, propsNode: Node, slotsNode: Node | undefined, scope: readonly Node[]): void => {
       if (isArrowFunction(node) || isFunctionExpression(node) || isFunctionDeclaration(node)) return
       if (isCallExpression(node) && isPropertyAccessExpression(node.expression)
         && node.expression.name.text === "render" && node.arguments.length === 1) {
@@ -141,10 +142,10 @@ async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | n
         if (isJsxElement(jsx) || isJsxSelfClosingElement(jsx)) {
           const opening = isJsxElement(jsx) ? jsx.openingElement : jsx
           const binding = isIdentifier(opening.tagName) ? imports.get(opening.tagName.text) : undefined
-          if (binding) renders.push({binding, line: lineAt(text, node.getStart(file)), jsx, propsName, propsNode, scope})
+          if (binding) renders.push({binding, line: lineAt(text, node.getStart(file)), jsx, propsName, propsNode, slotsNode, scope})
         }
       }
-      node.forEachChild(child => visit(child, propsName, propsNode, scope))
+      node.forEachChild(child => visit(child, propsName, propsNode, slotsNode, scope))
     }
     const tables: PreviewDescriptor["tables"][number][] = []
     const scan = (statements: readonly Node[]): void => {
@@ -162,7 +163,7 @@ async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | n
         if (!plain && !each) continue
         if (each && isCallExpression(registration.expression)) {
           const table = registration.expression.arguments[0]
-          if (table) tables.push({line: lineAt(text, registration.getStart(file)), jsxProps: readJsxProps(table, file, imports)})
+          if (table) tables.push({line: lineAt(text, registration.getStart(file)), jsxProps: readJsxProps(table, file, imports), slots: readJsxSlots(table, file, imports)})
           const parameter = callback.parameters[0]?.name
           if (parameter && isObjectBindingPattern(parameter)) {
             const props = parameter.elements.find(element => {
@@ -172,8 +173,14 @@ async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | n
             })
             if (props && isBindingElement(props) && props.name && isIdentifier(props.name)) {
               const propsNode = props.name
+              const slots = parameter.elements.find(element => {
+                if (!element.name) return false
+                const name = element.propertyName ?? element.name
+                return isIdentifier(name) && name.text === "slots"
+              })
+              const slotsNode = slots?.name && isIdentifier(slots.name) ? slots.name : undefined
               const scope = [...callback.body.statements]
-              callback.body.forEachChild(child => visit(child, propsNode.text, propsNode, scope))
+              callback.body.forEachChild(child => visit(child, propsNode.text, propsNode, slotsNode, scope))
             }
           }
         }
@@ -194,7 +201,7 @@ async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | n
     if (!propsType || propsType.isErrorType()) throw new Error(`${scenarioPath}: TypeScript не определил тип props сценария`)
     const propsTypeSource = await project!.checker.typeToString(propsType, undefined, NodeBuilderFlags.NoTruncation | NodeBuilderFlags.UseFullyQualifiedType)
     const used = new Set<string>()
-    const {source, replacements, importReferences} = await readPreviewSource(file, jsx, setup, render.propsNode, project!.checker)
+    const {source, replacements, importReferences} = await readPreviewSource(file, jsx, setup, render.propsNode, project!.checker, render.slotsNode)
     const runtimeReferences: Node[] = []
     const collectRuntimeImports = (node: Node): void => {
       if (isIdentifier(node)) runtimeReferences.push(node)
@@ -226,27 +233,45 @@ async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | n
     const browserFragments: string[] = []
     for (const statement of [...setup, jsx]) {
       const mocks: Node[] = []
+      const slotReads: {node: Node; name: string}[] = []
       const visitMock = (node: Node): void => {
         if (isCallExpression(node) && isIdentifier(node.expression)) {
           const binding = imports.get(node.expression.text)
           if (binding?.module === "bun:test" && binding.export === "mock") mocks.push(node)
         }
+        if (render.slotsNode && isJsxExpression(node) && node.expression && isPropertyAccessExpression(node.expression)) {
+          if (node.expression.expression.getText(file) === render.slotsNode.getText(file)) {
+            slotReads.push({node, name: node.expression.name.text})
+          }
+        }
         node.forEachChild(visitMock)
       }
       visitMock(statement)
       let body = text.slice(statement.getStart(file), statement.end)
-      for (const node of mocks.sort((a, b) => b.pos - a.pos)) {
+      const edits: {start: number; end: number; value: string}[] = []
+      for (const read of slotReads) {
+        if (!render.slotsNode || !isJsxExpression(read.node) || !read.node.expression || !isPropertyAccessExpression(read.node.expression)) continue
+        const [binding, reference] = await project!.checker.getSymbolAtLocation([render.slotsNode, read.node.expression.expression])
+        if (!binding || reference?.id !== binding.id) continue
+        const value = read.name === "default" ? "<slot />" : `<slot name=${JSON.stringify(read.name)} slot=${JSON.stringify(read.name)} />`
+        edits.push({start: read.node.getStart(file), end: read.node.end, value})
+      }
+      for (const node of mocks) {
         if (!isCallExpression(node) || !isIdentifier(node.expression)) continue
         const symbol = await project!.checker.getSymbolAtLocation(node.expression)
         if (!symbol || importNames.get(symbol.id) !== node.expression.text) continue
         // Журнал native mock принадлежит Bun. В браузер переносится только поведение callback.
         const implementation = node.arguments[0]
         const value = implementation ? text.slice(implementation.getStart(file), implementation.end) : "() => undefined"
-        body = body.slice(0, node.getStart(file) - statement.getStart(file)) + value + body.slice(node.end - statement.getStart(file))
+        edits.push({start: node.getStart(file), end: node.end, value})
+      }
+      for (const edit of edits.sort((a, b) => b.start - a.start)) {
+        body = body.slice(0, edit.start - statement.getStart(file)) + edit.value + body.slice(edit.end - statement.getStart(file))
       }
       browserFragments.push(body)
     }
     return {
+      hasSlots: render.slotsNode !== undefined,
       componentPath: scenarioPath, componentExport: "ScenarioComponent",
       moduleSource: `${absoluteImports}\n\nexport function ScenarioComponent(${render.propsName}: ${propsTypeSource}) {\n${browserFragments.slice(0, -1).join("\n")}\n  return ${browserFragments.at(-1)}\n}\n`,
       scenarioPath, renderLines: renders.map(item => item.line), tables,
@@ -266,11 +291,29 @@ function formatJsxChild(source: string): string {
 }
 
 /** Подставляет фактические props в JSX сценария; отсутствующее поле сохраняет обычное значение undefined. */
-function renderSource(descriptor: PreviewDescriptor, props: Readonly<Record<string, TraceValue>>, jsxProps: Readonly<Record<string, JsxProp>>): string | null {
+function renderSource(descriptor: PreviewDescriptor, props: Readonly<Record<string, TraceValue>>, jsxProps: Readonly<Record<string, JsxProp>>, slots: Readonly<Record<string, JsxProp | null>>): string | null {
   const presentation = descriptor.presentation
   const imports = new Set([presentation.componentImport])
   let jsx = presentation.source
   for (const replacement of [...presentation.replacements].sort((left, right) => right.start - left.start)) {
+    if (replacement.slot !== undefined) {
+      const value = slots[replacement.slot]
+      if (!value && replacement.child) {
+        const lineStart = jsx.lastIndexOf("\n", replacement.start - 1) + 1
+        const newline = jsx.indexOf("\n", replacement.end)
+        const lineEnd = newline < 0 ? jsx.length : newline
+        const alone = !jsx.slice(lineStart, replacement.start).trim() && !jsx.slice(replacement.end, lineEnd).trim()
+        jsx = alone
+          ? jsx.slice(0, lineStart) + jsx.slice(newline < 0 ? lineEnd : newline + 1)
+          : jsx.slice(0, replacement.start) + jsx.slice(replacement.end)
+        continue
+      }
+      for (const binding of value?.imports ?? []) imports.add(jsxPropImport(binding))
+      const indent = /^[ \t]*/u.exec(jsx.slice(jsx.lastIndexOf("\n", replacement.start - 1) + 1, replacement.start))![0]
+      const expression = value ? formatJsxChild(value.source) : replacement.child ? "" : "undefined"
+      jsx = jsx.slice(0, replacement.start) + expression.replaceAll("\n", `\n${indent}`) + jsx.slice(replacement.end)
+      continue
+    }
     const authored = replacement.property === undefined ? undefined : jsxProps[replacement.property]
     const present = replacement.property === undefined || Object.hasOwn(props, replacement.property)
     const value = replacement.property === undefined ? props : props[replacement.property]!
@@ -343,8 +386,10 @@ export async function createScenarioPreview(
       .filter(sibling => sibling.parentId === item.parentId && sibling.location.path === item.location.path && sibling.location.line === item.location.line)
       .findIndex(sibling => sibling.id === item.id))
     const jsxProps: Record<string, JsxProp> = {}
+    const slots: Record<string, JsxProp | null> = {}
     parameterized.forEach((item, index) => {
       const table = descriptor.tables.find(table => table.line === item.location.line)
+      Object.assign(slots, table?.slots[selection[index]!])
       for (const [key, value] of Object.entries(table?.jsxProps[selection[index]!] ?? {})) {
         if (value) jsxProps[key] = value
         else delete jsxProps[key]
@@ -356,7 +401,7 @@ export async function createScenarioPreview(
     const props = captured && !Array.isArray(captured) && typeof captured === "object"
       ? Object.fromEntries(Object.entries(captured).filter(([key]) => !Object.hasOwn(jsxProps, key))) : captured
     if (!props || Array.isArray(props) || typeof props !== "object" || !isPortable(props)) return undefined
-    const source = renderSource(descriptor, props as Readonly<Record<string, TraceValue>>, jsxProps)
+    const source = renderSource(descriptor, props as Readonly<Record<string, TraceValue>>, jsxProps, slots)
     if (!source) return undefined
     seen.add(group.id)
     const points = previewPoints(execution, group.id)
@@ -368,6 +413,7 @@ export async function createScenarioPreview(
       props: props as Readonly<Record<string, unknown>>,
       source,
       ...(Object.keys(jsxProps).length ? {jsxProps} : {}),
+      ...(descriptor.hasSlots ? {slots} : {}),
       points,
     })
   }

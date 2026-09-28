@@ -10,6 +10,7 @@ import {
 export interface PreviewReplacement {
   readonly start: number
   readonly end: number
+  readonly slot?: string
   readonly property?: string
   readonly child?: boolean
 }
@@ -20,8 +21,8 @@ export interface PreviewReplacement {
 Отступ внешнего render снимается с кода с сохранением вложенности и текста литералов.
 Исполняемый модуль использует исходную подготовку; здесь строится только его показ.
 */
-export async function readPreviewSource(file: SourceFile, jsx: Node, setup: readonly VariableStatement[], props: Node, checker: Project["checker"]) {
-  const identifiers: Node[] = [props]
+export async function readPreviewSource(file: SourceFile, jsx: Node, setup: readonly VariableStatement[], props: Node, checker: Project["checker"], slots?: Node) {
+  const identifiers: Node[] = [props, ...(slots ? [slots] : [])]
   const parents = new Map<Node, Node>()
   const collect = (node: Node): void => {
     if (isIdentifier(node)) identifiers.push(node)
@@ -31,6 +32,7 @@ export async function readPreviewSource(file: SourceFile, jsx: Node, setup: read
   const symbols = await checker.getSymbolAtLocation(identifiers)
   const ids = new Map(identifiers.map((node, index) => [node, symbols[index]?.id]))
   const propsId = symbols[0]?.id
+  const slotsId = slots ? ids.get(slots) : undefined
   const declarations = new Map(setup.flatMap(statement => statement.declarationList.declarations.flatMap(declaration => {
     const id = ids.get(declaration.name)
     return id === undefined ? [] : [[id, {statement, declaration}] as const]
@@ -90,6 +92,19 @@ export async function readPreviewSource(file: SourceFile, jsx: Node, setup: read
         const text = file.text.slice(start, end)
         source += layout ? text.replace(/(\r?\n)([ \t]*)/gu, (_, newline: string, spaces: string) =>
           newline + (shift < 0 ? " ".repeat(-shift) + spaces : spaces.slice(Math.min(shift, spaces.length)))) : text
+      }
+      if (slotsId !== undefined && isPropertyAccessExpression(node) && ids.get(node.expression) === slotsId) {
+        const start = source.length
+        source += file.text.slice(node.getStart(file), node.end)
+        replacements.push({start, end: source.length, slot: node.name.text})
+        return
+      }
+      if (slotsId !== undefined && isJsxExpression(node) && node.expression && isJsxElement(parents.get(node)!)
+        && isPropertyAccessExpression(node.expression) && ids.get(node.expression.expression) === slotsId) {
+        const start = source.length
+        source += file.text.slice(node.getStart(file), node.end)
+        replacements.push({start, end: source.length, slot: node.expression.name.text, child: true})
+        return
       }
       if (ids.get(node) === propsId) {
         const start = source.length

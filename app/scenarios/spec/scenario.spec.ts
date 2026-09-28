@@ -9,6 +9,7 @@ import {resolve} from "node:path"
 import {readScenario} from "@storybook/app/scenarios"
 
 describe.each([
+  {name: "Компонент со слотами", props: {path: resolve(import.meta.dir, "fixture/slots/spec/scenario.spec.tsx")}},
   {name: "Отчёт функции", props: {path: resolve(import.meta.dir, "fixture/function/spec/scenario.spec.ts")}},
   {name: "Вложенные варианты", props: {path: resolve(import.meta.dir, "fixture/component/spec/nested.test.tsx")}},
   {name: "Компонент с children", props: {path: resolve(import.meta.dir, "fixture/component/spec/children.test.tsx")}},

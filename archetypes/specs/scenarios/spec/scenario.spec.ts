@@ -31,6 +31,14 @@ describe.each([
       {path: "index.tsx", role: "public-entry"},
     ],
   },
+  {
+    name: "Компонент со слотами",
+    props: {path: resolve(import.meta.dir, "../../../../app/scenarios/spec/fixture/slots/spec/scenario.spec.tsx")},
+    files: [
+      {path: "spec/scenario.spec.tsx", role: "scenario"},
+      {path: "index.tsx", role: "public-entry"},
+    ],
+  },
 ])("$name", async ({props, files}) => {
   const guide = await readScenarioGuide(props)
   const source = guide.examples[0]?.code ?? ""
@@ -353,4 +361,18 @@ describe.each([
       ).toSatisfy(source => typeof source === "string" && /\S/u.test(source) && guide.checks.find(check => check.rule === "assertions")?.status === "passed")
     })
   })
+  /** @remarks Передача слотов раскрывается на компоненте с именованной и безымянной областью. */
+  describe.skipIf(!source.includes("slots:"))("Слоты компонента", () => {
+    test("Данные варианта", () => {
+      expect(variant,
+        "Строка each хранит свойства компонента в props, а разметку слотов в отдельном объекте slots. Ключ default обозначает безымянный слот; остальные ключи называют именованные слоты. Значения задаются непосредственным JSX, обычными полями без this и геттеров. Отсутствующий слот не объявляется. Когда slots целиком отсутствует, деструктуризация slots = {} даёт пустой набор; undefined среди дочерних элементов пропускается Template.",
+      ).toContain('slots = {}')
+    })
+    test("Передача содержимого", () => {
+      expect(setup,
+        "Единственный render содержит JSX описываемого компонента с props в атрибутах и slots внутри его парных тегов. Именованное содержимое использует штатный атрибут slot на передаваемом узле. Безымянное содержимое передаётся из slots.default. Состав слотов задан строкой each; место вызова прямо передаёт его без условий выбора варианта.",
+      ).toSatisfy(code => typeof code === "string" && code.includes("{slots.header}") && code.includes("{slots.default}"))
+    })
+  })
+
 })

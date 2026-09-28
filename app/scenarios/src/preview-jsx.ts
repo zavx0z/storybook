@@ -2,7 +2,7 @@ import {dirname} from "node:path"
 import type {Node, SourceFile} from "typescript/unstable/ast"
 import {
   isArrayLiteralExpression, isAsExpression, isIdentifier, isJsxElement,
-  isJsxExpression, isJsxSelfClosingElement, isJsxSpreadAttribute, isObjectLiteralExpression,
+  isJsxExpression, isJsxFragment, isJsxSelfClosingElement, isJsxSpreadAttribute, isObjectLiteralExpression,
   isParenthesizedExpression, isPropertyAssignment, isSatisfiesExpression, isStringLiteral,
 } from "typescript/unstable/ast/is"
 import type {ScenarioPreview} from "./types"
@@ -29,7 +29,7 @@ function field(node: Node, name: string): Node | undefined {
 /** Сохраняет JSX с импортированными компонентами и литеральными параметрами для штатной сборки. */
 function jsxProp(node: Node, file: SourceFile, imports: ReadonlyMap<string, Binding>): JsxProp | null {
   const root = unwrap(node)
-  if (!isJsxElement(root) && !isJsxSelfClosingElement(root)) return null
+  if (!isJsxElement(root) && !isJsxSelfClosingElement(root) && !isJsxFragment(root)) return null
   const used = new Map<string, JsxProp["imports"][number]>()
   let supported = true
   const visit = (current: Node): void => {
@@ -49,7 +49,7 @@ function jsxProp(node: Node, file: SourceFile, imports: ReadonlyMap<string, Bind
     if (isJsxSpreadAttribute(current)) supported = false
     if (isJsxExpression(current) && current.expression) {
       const expression = unwrap(current.expression)
-      if (isJsxElement(expression) || isJsxSelfClosingElement(expression)) visit(expression)
+      if (isJsxElement(expression) || isJsxSelfClosingElement(expression) || isJsxFragment(expression)) visit(expression)
       else {
         try { JSON.parse(file.text.slice(expression.getStart(file), expression.end)) }
         catch { supported = false }
@@ -78,6 +78,35 @@ export function readJsxProps(table: Node, file: SourceFile, imports: ReadonlyMap
       result[property.name.text] = value
     }
     return result
+  })
+}
+
+/** Слоты строки each содержат непосредственный JSX либо явный null. */
+export function readJsxSlots(table: Node, file: SourceFile, imports: ReadonlyMap<string, Binding>): readonly Readonly<Record<string, JsxProp | null>>[] {
+  const value = unwrap(table)
+  if (!isArrayLiteralExpression(value)) return []
+  return value.elements.map(row => {
+    const slots = field(row, "slots")
+    if (!slots) {
+      const object = unwrap(row)
+      if (isObjectLiteralExpression(object) && object.properties.some(item => "name" in item && item.name
+        && (isIdentifier(item.name) || isStringLiteral(item.name)) && item.name.text === "slots")) {
+        throw new Error(`${file.fileName}: slots задаётся обычным полем объекта each`)
+      }
+      return {}
+    }
+    const object = unwrap(slots)
+    if (!isObjectLiteralExpression(object)) throw new Error(`${file.fileName}: slots задаётся объектом с именами слотов`)
+    return Object.fromEntries(object.properties.map(item => {
+      if (!isPropertyAssignment(item) || (!isIdentifier(item.name) && !isStringLiteral(item.name))) {
+        throw new Error(`${file.fileName}: слот задаётся именованным полем с JSX либо null`)
+      }
+      const source = file.text.slice(item.initializer.getStart(file), item.initializer.end)
+      if (source === "null") return [item.name.text, null]
+      const jsx = jsxProp(item.initializer, file, imports)
+      if (!jsx) throw new Error(`${file.fileName}: слот ${item.name.text} содержит непосредственный JSX с импортами и литеральными параметрами либо null`)
+      return [item.name.text, jsx]
+    }))
   })
 }
 
