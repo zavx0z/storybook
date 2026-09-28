@@ -34,6 +34,7 @@ export async function createScenarioGuide(report: ReadScenarioOutput): Promise<R
     ...report.source.groups.filter(group => group.depth > 0).map(group => ({title: "Категория", code: group.source})),
     ...[
       {title: "Пункт сценария", test: report.source.tests.find(test => !test.todo && !test.each && !test.skippable)},
+      {title: "Проверка callback", test: report.source.tests.find(test => test.source.includes(".mock.calls"))},
       {title: "Связанные утверждения", test: report.source.tests.find(test => test.assertions > 1)},
       {title: "Параметризация пунктов", test: report.source.tests.find(test => test.each)},
       {title: "Условный пропуск", test: report.source.tests.find(test => test.skippable)},

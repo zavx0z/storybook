@@ -50,7 +50,7 @@ export async function readScenario(input: ReadScenarioInput): Promise<ReadScenar
   const execution = await traceScenario({...input, path: source.path, onProgress})
   onProgress({phase: "reporting"})
   const validation = validateScenario(source, execution)
-  const preview = validation.checks.some(check => check.rule === "render-jsx" && check.status === "failed") ? undefined : await createScenarioPreview(source.path, execution, Object.keys(input.props ?? {}), input.variant ?? 0, input.variantPath ?? (input.variant === undefined ? undefined : [input.variant]))
+  const preview = validation.checks.some(check => ["render-jsx", "single-invocation"].includes(check.rule) && check.status === "failed") ? undefined : await createScenarioPreview(source.path, execution, Object.keys(input.props ?? {}), input.variant ?? 0, input.variantPath ?? (input.variant === undefined ? undefined : [input.variant]))
   return {
     ...execution,
     source,

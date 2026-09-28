@@ -1,4 +1,4 @@
-import {afterAll, describe, expect, test} from "bun:test"
+import {describe, expect, test} from "bun:test"
 import {evaluate as run, sampleValue} from "@fixture/function-preview"
 
 describe.each([
@@ -9,21 +9,19 @@ describe.each([
   {name: "Пустой объект", props: {value: {}}},
   {name: "Не задано", props: {}},
   {name: "Специальное число", props: {special: true}},
+  {name: "Null", props: {value: null}},
   {name: "Импортированная функция", props: {value: sampleValue}},
   {name: "Ошибка", props: {fail: true}},
 ])("$name", async ({props}) => {
   let first: unknown
   try {
-    first = (afterAll(() => run({value: "Очистка"})), await run(props))
+    first = await run(props)
   } catch (error) {
     first = error
   }
-  const second = await run({value: null})
 
   test("Первый вызов", () => {
     expect(first instanceof Error, "Отказ различается с возвращёнными данными").toBe("fail" in props)
   })
-  test("Второй вызов", () => {
-    expect(second, "Независимый результат второго обращения").toBeNull()
-  })
+
 })

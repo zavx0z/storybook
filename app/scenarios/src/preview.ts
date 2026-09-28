@@ -4,7 +4,7 @@
 @packageDocumentation
 */
 import {dirname, resolve} from "node:path"
-import {API} from "typescript/unstable/async"
+import {API, NodeBuilderFlags} from "typescript/unstable/async"
 import {SyntaxKind} from "typescript/unstable/ast"
 import type {Node} from "typescript/unstable/ast"
 import {
@@ -31,6 +31,9 @@ import type {ReadScenarioInput} from "../contract/input"
 import type {ScenarioExecution, ScenarioPreview, TraceValue} from "./types"
 import {createFunctionPreview, inspectFunctionScenario} from "./function-preview"
 import {readJsxProps, jsxPropImport, type JsxProp} from "./preview-jsx"
+import {validateScenario} from "@archetypes/specs/scenarios/validation"
+import {readScenarioSource} from "./read-source"
+import {readPreviewSetup} from "./preview-setup"
 import {isPortable, previewPoints} from "./preview-values"
 
 /** Runtime import компонента в исходнике сценария. */
@@ -43,7 +46,7 @@ interface ComponentBinding {
 interface Replacement {
   readonly start: number
   readonly end: number
-  readonly property: string
+  readonly property?: string
   readonly child?: boolean
 }
 
@@ -57,8 +60,7 @@ interface PreviewDescriptor {
   readonly moduleSource: string
   readonly presentation: {
     readonly componentImport: string
-    readonly jsx: string
-    readonly jsxStart: number
+    readonly source: string
     readonly replacements: readonly Replacement[]
   }
 }
@@ -101,6 +103,7 @@ function componentImport(statement: Node, localName: string): string | null {
 /** Находит JSX непосредственно в единственном аргументе render сценария. */
 async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | null> {
   const scenarioPath = resolve(pathInput)
+  if (!scenarioPath.endsWith(".tsx")) return null
   const text = await Bun.file(scenarioPath).text()
   if (!/\.render(?:Component)?\s*\(/u.test(text)) return null
   const api = new API({cwd: process.cwd()})
@@ -109,17 +112,8 @@ async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | n
     const project = await snapshot.getDefaultProjectForFile(scenarioPath)
     const file = await project?.program.getSourceFile(scenarioPath)
     if (!file) return null
-    const validateRender = (node: Node): void => {
-      if (isCallExpression(node) && isPropertyAccessExpression(node.expression) && ["render", "renderComponent"].includes(node.expression.name.text)) {
-        const argument = node.arguments[0] && unwrap(node.arguments[0])
-        if (node.expression.name.text !== "render" || node.arguments.length !== 1 || !argument || (!isJsxElement(argument) && !isJsxSelfClosingElement(argument) && !isJsxFragment(argument))) {
-          throw new Error(`${scenarioPath}:${lineAt(text, node.getStart(file))}: render принимает один аргумент — JSX компонента с props непосредственно в сценарии`)
-        }
-      }
-      node.forEachChild(validateRender)
-    }
-    validateRender(file)
     const imports = new Map<string, ComponentBinding>()
+    const importNodes: Node[] = []
     const describeBindings = new Set<string>()
     for (const statement of file.statements) {
       if (!isImportDeclaration(statement) || !statement.importClause) continue
@@ -133,17 +127,20 @@ async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | n
           }
         }
       }
-      const names = [statement.importClause.name?.text,
+      const names = [statement.importClause.name,
         ...(statement.importClause.namedBindings && isNamedImports(statement.importClause.namedBindings)
-          ? statement.importClause.namedBindings.elements.map(item => item.name.text) : [])]
+          ? statement.importClause.namedBindings.elements.map(item => item.name) : [])]
       for (const name of names) {
         if (!name) continue
-        const binding = importedBinding(statement, name)
-        if (binding) imports.set(name, binding)
+        const binding = importedBinding(statement, name.text)
+        if (binding) {
+          imports.set(name.text, binding)
+          importNodes.push(name)
+        }
       }
     }
-    const renders: {binding: ComponentBinding, line: number, jsx: Node, propsName: string}[] = []
-    const visit = (node: Node, propsName: string): void => {
+    const renders: {binding: ComponentBinding, line: number, jsx: Node, propsName: string, propsNode: Node, scope: readonly Node[]}[] = []
+    const visit = (node: Node, propsName: string, propsNode: Node, scope: readonly Node[]): void => {
       if (isArrowFunction(node) || isFunctionExpression(node) || isFunctionDeclaration(node)) return
       if (isCallExpression(node) && isPropertyAccessExpression(node.expression)
         && node.expression.name.text === "render" && node.arguments.length === 1) {
@@ -151,10 +148,10 @@ async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | n
         if (isJsxElement(jsx) || isJsxSelfClosingElement(jsx)) {
           const opening = isJsxElement(jsx) ? jsx.openingElement : jsx
           const binding = isIdentifier(opening.tagName) ? imports.get(opening.tagName.text) : undefined
-          if (binding) renders.push({binding, line: lineAt(text, node.getStart(file)), jsx, propsName})
+          if (binding) renders.push({binding, line: lineAt(text, node.getStart(file)), jsx, propsName, propsNode, scope})
         }
       }
-      node.forEachChild(child => visit(child, propsName))
+      node.forEachChild(child => visit(child, propsName, propsNode, scope))
     }
     const tables: PreviewDescriptor["tables"][number][] = []
     const scan = (statements: readonly Node[]): void => {
@@ -181,8 +178,9 @@ async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | n
               return isIdentifier(name) && name.text === "props"
             })
             if (props && isBindingElement(props) && props.name && isIdentifier(props.name)) {
-              const propsName = props.name.text
-              callback.body.forEachChild(child => visit(child, propsName))
+              const propsNode = props.name
+              const scope = [...callback.body.statements]
+              callback.body.forEachChild(child => visit(child, propsNode.text, propsNode, scope))
             }
           }
         }
@@ -198,23 +196,54 @@ async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | n
       if (renders.some(item => item.binding.export !== render.binding.export || Bun.resolveSync(item.binding.module, dirname(scenarioPath)) !== componentPath)) return null
     } catch { return null }
     const jsx = render.jsx
+    const setup = await readPreviewSetup(file, jsx, render.scope, project!.checker)
+    const propsType = await project!.checker.getTypeAtLocation(render.propsNode)
+    if (!propsType || propsType.isErrorType()) throw new Error(`${scenarioPath}: TypeScript не определил тип props сценария`)
+    const propsTypeSource = await project!.checker.typeToString(propsType, undefined, NodeBuilderFlags.NoTruncation | NodeBuilderFlags.UseFullyQualifiedType)
     const used = new Set<string>()
+    const importReferences: Node[] = []
     const replacements: Replacement[] = []
+    const replacementNodes: Node[] = []
+    let offset = 0
     const visitProps = (node: Node, parent?: Node): void => {
-      if (isIdentifier(node) && imports.has(node.text)) used.add(node.text)
+      if (isIdentifier(node) && imports.has(node.text)) importReferences.push(node)
       if (parent && isJsxElement(parent) && isJsxExpression(node) && node.expression
         && isPropertyAccessExpression(node.expression) && isIdentifier(node.expression.expression)
         && node.expression.expression.text === render.propsName) {
-        replacements.push({start: node.getStart(file), end: node.end, property: node.expression.name.text, child: true})
+        replacementNodes.push(node.expression.expression)
+        replacements.push({start: node.getStart(file) + offset, end: node.end + offset, property: node.expression.name.text, child: true})
         return
       }
       if (isPropertyAccessExpression(node) && isIdentifier(node.expression) && node.expression.text === render.propsName) {
-        replacements.push({start: node.getStart(file), end: node.end, property: node.name.text})
+        replacementNodes.push(node.expression)
+        replacements.push({start: node.getStart(file) + offset, end: node.end + offset, property: node.name.text})
+        return
+      }
+      if (isIdentifier(node) && node.text === render.propsName) {
+        replacementNodes.push(node)
+        replacements.push({start: node.getStart(file) + offset, end: node.end + offset})
         return
       }
       node.forEachChild(child => visitProps(child, node))
     }
-    visitProps(jsx)
+    let source = ""
+    for (const fragment of [...setup, jsx]) {
+      if (source) source += fragment === jsx ? "\n\n;" : "\n"
+      offset = source.length - fragment.getStart(file)
+      visitProps(fragment)
+      source += text.slice(fragment.getStart(file), fragment.end)
+    }
+    const propsSymbols = await project!.checker.getSymbolAtLocation([render.propsNode, ...replacementNodes])
+    const boundReplacements = replacements.filter((_, index) => propsSymbols[index + 1]?.id === propsSymbols[0]?.id)
+    const importSymbols = await project!.checker.getSymbolAtLocation([...importNodes, ...importReferences])
+    const importNames = new Map(importSymbols.slice(0, importNodes.length).flatMap((symbol, index) => {
+      const node = importNodes[index]!
+      return symbol && isIdentifier(node) ? [[symbol.id, node.text] as const] : []
+    }))
+    for (const symbol of importSymbols.slice(importNodes.length)) {
+      const name = symbol && importNames.get(symbol.id)
+      if (name) used.add(name)
+    }
     if (!isJsxElement(jsx) && !isJsxSelfClosingElement(jsx)) return null
     const name = isJsxElement(jsx) ? jsx.openingElement.tagName : jsx.tagName
     if (!isIdentifier(name)) return null
@@ -222,14 +251,38 @@ async function inspectScenario(pathInput: string): Promise<PreviewDescriptor | n
     const importSource = importLines.join("\n")
     const absoluteImports = [...used].flatMap(local => {
       const binding = imports.get(local)!
+      if (binding.module === "bun:test" && binding.export === "mock") return []
       const line = file.statements.map(statement => componentImport(statement, local)).find(Boolean)
       return line ? [line.replace(JSON.stringify(binding.module), JSON.stringify(Bun.resolveSync(binding.module, dirname(scenarioPath))))] : []
     }).join("\n")
+    const browserSetup: string[] = []
+    for (const statement of setup) {
+      const mocks: Node[] = []
+      const visitMock = (node: Node): void => {
+        if (isCallExpression(node) && isIdentifier(node.expression)) {
+          const binding = imports.get(node.expression.text)
+          if (binding?.module === "bun:test" && binding.export === "mock") mocks.push(node)
+        }
+        node.forEachChild(visitMock)
+      }
+      visitMock(statement)
+      let body = text.slice(statement.getStart(file), statement.end)
+      for (const node of mocks.sort((a, b) => b.pos - a.pos)) {
+        if (!isCallExpression(node) || !isIdentifier(node.expression)) continue
+        const symbol = await project!.checker.getSymbolAtLocation(node.expression)
+        if (!symbol || importNames.get(symbol.id) !== node.expression.text) continue
+        // Журнал native mock принадлежит Bun. В браузер переносится только поведение callback.
+        const implementation = node.arguments[0]
+        const value = implementation ? text.slice(implementation.getStart(file), implementation.end) : "() => undefined"
+        body = body.slice(0, node.getStart(file) - statement.getStart(file)) + value + body.slice(node.end - statement.getStart(file))
+      }
+      browserSetup.push(body)
+    }
     return {
       componentPath: scenarioPath, componentExport: "ScenarioComponent",
-      moduleSource: `${absoluteImports}\n\nexport function ScenarioComponent(${render.propsName}: Parameters<typeof ${name.text}>[0]) {\n  return ${text.slice(jsx.getStart(file), jsx.end)}\n}\n`,
+      moduleSource: `${absoluteImports}\n\nexport function ScenarioComponent(${render.propsName}: ${propsTypeSource}) {\n${browserSetup.join("\n")}\n  return ${text.slice(jsx.getStart(file), jsx.end)}\n}\n`,
       scenarioPath, renderLines: renders.map(item => item.line), tables,
-      presentation: {componentImport: importSource, jsx: text.slice(jsx.getStart(file), jsx.end), jsxStart: jsx.getStart(file), replacements},
+      presentation: {componentImport: importSource, source, replacements: boundReplacements},
     }
   } finally {
     await api.close()
@@ -248,18 +301,23 @@ function formatJsxChild(source: string): string {
 function renderSource(descriptor: PreviewDescriptor, props: Readonly<Record<string, TraceValue>>, jsxProps: Readonly<Record<string, JsxProp>>): string | null {
   const presentation = descriptor.presentation
   const imports = new Set([presentation.componentImport])
-  let jsx = presentation.jsx
+  let jsx = presentation.source
   for (const replacement of [...presentation.replacements].sort((left, right) => right.start - left.start)) {
-    const authored = jsxProps[replacement.property]
-    const present = Object.hasOwn(props, replacement.property)
-    const value = props[replacement.property]!
+    const authored = replacement.property === undefined ? undefined : jsxProps[replacement.property]
+    const present = replacement.property === undefined || Object.hasOwn(props, replacement.property)
+    const value = replacement.property === undefined ? props : props[replacement.property]!
     if (!authored && present && !isPortable(value)) return null
     for (const binding of authored?.imports ?? []) imports.add(jsxPropImport(binding))
-    const start = replacement.start - presentation.jsxStart
-    const end = replacement.end - presentation.jsxStart
+    const start = replacement.start
+    const end = replacement.end
     const lineStart = jsx.lastIndexOf("\n", start - 1) + 1
     const indent = /^\s*/u.exec(jsx.slice(lineStart, start))?.[0] ?? ""
-    const literal = authored ? formatJsxChild(authored.source) : present ? JSON.stringify(value, null, 2) : "undefined"
+    let literal = authored ? formatJsxChild(authored.source) : present ? JSON.stringify(value, null, 2) : "undefined"
+    if (replacement.property === undefined && Object.keys(jsxProps).length) {
+      for (const item of Object.values(jsxProps)) for (const binding of item.imports) imports.add(jsxPropImport(binding))
+      literal = `{${[...Object.entries(props).map(([key, value]) => `${JSON.stringify(key)}: ${JSON.stringify(value)}`),
+        ...Object.entries(jsxProps).map(([key, value]) => `${JSON.stringify(key)}: ${formatJsxChild(value.source)}`)].join(", ")}}`
+    }
     const expression = replacement.child && !authored ? `{${literal}}` : literal
     const source = expression.replaceAll("\n", `\n${indent}`)
     jsx = jsx.slice(0, start) + source + jsx.slice(end)
@@ -274,6 +332,9 @@ function renderSource(descriptor: PreviewDescriptor, props: Readonly<Record<stri
 @returns `true` для JSX компонента внутри render или прямого вызова функции.
 */
 export async function supportsScenarioPreview(input: Pick<ReadScenarioInput, "path">): Promise<boolean> {
+  const source = await readScenarioSource(input.path)
+  const check = validateScenario(source).checks.find(check => ["render-jsx", "single-invocation"].includes(check.rule) && check.status === "failed")
+  if (check) throw new Error(check.issues.map(issue => `${issue.location?.path ?? source.path}:${issue.location?.line ?? 1}: ${issue.message}`).join("\n"))
   return await inspectScenario(input.path) !== null || await inspectFunctionScenario(input.path) !== null
 }
 

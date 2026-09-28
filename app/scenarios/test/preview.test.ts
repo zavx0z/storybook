@@ -37,6 +37,7 @@ test("preview сохраняет модуль и фактические вари
           {title: "Использование / Подпись", content: "Название действия, переданное в компонент"},
           {title: "Использование / Доступность", content: "Доступность действия в выбранном варианте"},
           {title: "Использование / Тип действия", content: "Команда без неявной отправки формы"},
+          {title: "Использование / Обратный вызов", content: "Доступная команда один раз передаёт подпись в callback; недоступная не вызывает его"},
         ],
       },
       {
@@ -55,11 +56,18 @@ describe.each([
   test("содержит import компонента и конкретные props", () => {
     if (result.preview?.kind !== "component") throw new Error("Нет представления компонента")
     const source = result.preview?.variants.find(variant => variant.props.disabled === disabled)?.source
-    expect(source).toBe(`import {Command} from "@fixture/scenario-component"
+    expect(source).toBe(`import {mock} from "bun:test"
+import {Command} from "@fixture/scenario-component"
 
-<Command
-      label={"Продолжить"}
-      disabled={${disabled}}
+const props = {...{
+  "label": "Продолжить",
+  "disabled": ${disabled}
+}, onActivate: mock<(label: string) => void>()}
+
+;<Command
+      label={props.label}
+      disabled={props.disabled}
+      onActivate={props.onActivate}
     />`)
   })
 })
@@ -78,6 +86,16 @@ test("сценарий функции получает снимки вызово
   expect((await readScenario({path: functionPath})).preview).toMatchObject({kind: "function"})
 })
 
+test("производный модуль сохраняет тип данных сценария, отличающийся от props компонента", async () => {
+  const result = await readScenario({path: resolve(import.meta.dir, "../spec/fixture/component/spec/derived-input.test.tsx")})
+  expect(result.exitCode).toBe(0)
+  if (result.preview?.kind !== "component") throw new Error("Нет представления компонента")
+  expect(result.preview.module.source).toContain("labels:")
+  expect(result.preview.module.source).not.toContain("Parameters<typeof Command>")
+  expect(result.preview.variants[0]!.props).toEqual({labels: ["Первый", "Второй"]})
+  expect(result.preview.variants[0]!.source).toContain('.join(", ")')
+}, 30_000)
+
 test("непереносимые props оставляют поддержанный сценарий без preview", async () => {
   expect({
     supported: await supportsScenarioPreview({path: nonportable.path}),
@@ -95,7 +113,7 @@ test("отсутствующее необязательное поле не ск
 
 test("render с компонентом и отдельными props отклоняется до сборки", async () => {
   const path = resolve(import.meta.dir, "../spec/fixture/component/spec/separate-props.test.tsx")
-  await expect(supportsScenarioPreview({path})).rejects.toThrow("render принимает один аргумент")
+  await expect(supportsScenarioPreview({path})).rejects.toThrow("render принимает ровно один аргумент")
   const validation = validateScenario(await readScenarioSource(path), result)
   expect(validation.checks.find(check => check.rule === "render-jsx")).toMatchObject({status: "failed", issues: [expect.any(Object), expect.any(Object)]})
 }, 30_000)

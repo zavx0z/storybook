@@ -53,5 +53,5 @@ test("не исполняет неподдержанный scenario во вре�
 test("сборка отклоняет раздельные Component и props вместо незаметного пропуска сценария", async () => {
   const path = resolve(import.meta.dir, "../app/scenarios/spec/fixture/component/spec/separate-props.test.tsx")
   const descriptor = {scenarioSpecs: [{nodeId: "invalid", sourcePaths: [path]}]} as unknown as StorybookPackageBuildDescriptor
-  await expect(prepareStorybookScenarios(descriptor, new AbortController().signal)).rejects.toThrow("render принимает один аргумент")
+  await expect(prepareStorybookScenarios(descriptor, new AbortController().signal)).rejects.toThrow("render принимает ровно один аргумент")
 }, 30_000)

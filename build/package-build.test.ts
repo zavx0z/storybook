@@ -91,8 +91,8 @@ describe("structural package revision build", () => {
     mkdirSync(join(fixture.packageRoot, "module/spec"), {recursive: true})
     writeFileSync(componentPath, [
       "/** @jsxImportSource @zavx0z/template */",
-      "export function Command(props: Readonly<{label: string}>) {",
-      "  return <button>{props.label}</button>",
+      "export function Command(props: Readonly<{label: string; onActivate?: (label: string) => void}>) {",
+      "  return <button onClick={() => props.onActivate?.(props.label)}>{props.label}</button>",
       "}", "",
     ].join("\n"))
     writeFileSync(join(fixture.packageRoot, "module/spec/host.ts"), [
@@ -116,12 +116,13 @@ describe("structural package revision build", () => {
       name: "@fixture/package", type: "module", scripts: {test: "bun test --preload ./preload.ts --preload @immersive/headless"},
     }))
     writeFileSync(scenarioPath, [
-      'import {describe, expect, test} from "bun:test"',
+      'import {describe, expect, mock, test} from "bun:test"',
       'import {Command} from "../index"',
       'import {createHost} from "./host"',
       "const host = createHost()",
-      'describe.each([{name: "Команда", props: {label: "Продолжить"}}])("$name", async ({props}) => {',
-      "  const result = host.render(<Command label={props.label} />)",
+      'describe.each([{name: "Команда", props: {label: "Продолжить"}}])("$name", async ({props: input}) => {',
+      "  const props = {...input, onActivate: mock()}",
+      "  const result = host.render(<Command label={props.label} onActivate={props.onActivate} />)",
       '  test("Представление", () => { expect(result).toBeDefined() })',
       "})", "",
     ].join("\n"))
@@ -133,6 +134,9 @@ describe("structural package revision build", () => {
     expect(prepared.preview.variants.map((variant: {title: string}) => variant.title)).toEqual(["Команда"])
     expect(result.dependencyRealpaths).toContain(realpathSync(scenarioPath))
     expect(result.dependencyRealpaths).toContain(realpathSync(componentPath))
+    expect(prepared.preview.variants[0].source).toContain("onActivate: mock()")
+    expect(prepared.preview.module.source).toContain("onActivate: () => undefined")
+    expect(prepared.preview.module.source).not.toContain("bun:test")
   })
 
   test("rejects changed or symlinked Workbench stylesheet resources", async () => {

@@ -48,11 +48,11 @@ describe("Точность снимков функции", async () => {
       {type: "resolve", value: {$type: "undefined"}}, {type: "resolve", value: {$type: "number", value: "NaN"}},
     ])
   })
-  test("Несколько вызовов и hooks на одной строке", () => {
-    expect(preview.variants.map(variant => variant.calls.length), "Прямые обращения не смешиваются с вызовом очистки на той же строке").toEqual(Array(9).fill(2))
-    expect(preview.variants.map(variant => variant.calls[1]?.outcome)).toEqual(Array(9).fill({type: "resolve", value: null}))
-    expect(result.calls.filter(call => call.name === "evaluate")).toHaveLength(27)
-    expect(preview.variants.every(variant => variant.source.includes("evaluate as run") && !variant.source.includes("Очистка"))).toBeTrue()
+  test("Один вызов на вариант", () => {
+    expect(preview.variants.map(variant => variant.calls.length)).toEqual(Array(10).fill(1))
+    expect(preview.variants.find(variant => variant.title === "Null")?.calls[0]?.outcome).toEqual({type: "resolve", value: null})
+    expect(result.calls.filter(call => call.name === "evaluate")).toHaveLength(10)
+    expect(result.validation.checks.find(check => check.rule === "single-invocation")?.status).toBe("passed")
   })
   test("Импортированное значение", () => {
     const source = preview.variants.find(variant => variant.title === "Импортированная функция")?.source

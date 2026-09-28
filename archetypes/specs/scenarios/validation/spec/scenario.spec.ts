@@ -17,14 +17,15 @@ describe.each([
   const location = {path, line: 1, column: 1}
   const result = validateScenario({
     path,
+    subject: null,
     renders: [],
     native: ["describe", "test", "expect"],
     registrations: [{kind: "describe", depth: 0, modifiers: ["each"], scope: "module", label: "Пример", location, remarks: null}],
     assertions: [{inline, message: "Смысл проверяемого значения", location}],
     tests: [{todo: false, assertions: 1, label: "Значение", location}],
   }, {
-    groups: [{parentId: null, label: "Пример"}],
-    calls: [{test: null, describe: ["Пример"]}],
+    groups: [{id: 0, parentId: null, parameters: {}, location, label: "Пример"}],
+    calls: [{module: "example", name: "example", groupId: 0, location, test: null, describe: ["Пример"]}],
     tests: [{status: "passed", label: "Значение", message: null, location}],
     exitCode: 0,
   })

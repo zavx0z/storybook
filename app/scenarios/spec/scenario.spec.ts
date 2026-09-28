@@ -14,6 +14,7 @@ describe.each([
   {name: "Компонент с children", props: {path: resolve(import.meta.dir, "fixture/component/spec/children.test.tsx")}},
   {name: "Отчёт компонента", props: {path: resolve(import.meta.dir, "fixture/component/spec/scenario.spec.tsx")}},
   {name: "Компонент со своим состоянием", props: {path: resolve(import.meta.dir, "fixture/component/spec/stateful.test.tsx")}},
+  {name: "Компонент с преобразованием входных данных", props: {path: resolve(import.meta.dir, "fixture/component/spec/derived-input.test.tsx")}},
 ])("$name", async ({props}) => {
   const report = await readScenario(props)
 

@@ -3,12 +3,14 @@ import {useState} from "@zavx0z/component"
 export interface CommandProps {
   readonly label: string
   readonly disabled: boolean
+  readonly onActivate?: (label: string) => void
 }
 
 export function Command(props: CommandProps) {
   return <button
     type="button"
     disabled={props.disabled}
+    onClick={() => props.onActivate?.(props.label)}
   >{props.label}</button>
 }
 

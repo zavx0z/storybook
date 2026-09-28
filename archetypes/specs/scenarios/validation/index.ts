@@ -5,19 +5,20 @@
 @packageDocumentation
 */
 import {basename, dirname} from "node:path"
+import {singleInvocation} from "./src/single-invocation"
 import type {ValidateScenarioInput} from "./contract/input"
 import type {ValidateScenarioOutput} from "./contract/output"
 
 export type {ValidateScenarioInput, ValidateScenarioOutput}
 
 /**
-Применяет реализованные правила авторства к структуре и одному завершённому запуску.
+Применяет правила авторства к структуре и, при наличии, одному завершённому запуску.
 
 @param source - Разобранные объявления сценария без исполнения пользовательского кода.
-@param execution - Наблюдения одного запуска, необходимые для правил подготовки и ошибок.
+@param execution - Наблюдения запуска; без них динамические проверки остаются непроверенными.
 @returns Каждый реализованный и ещё непроверенный пункт с честным состоянием.
 */
-export function validateScenario(source: ValidateScenarioInput["source"], execution: ValidateScenarioInput["execution"]): ValidateScenarioOutput {
+export function validateScenario(source: ValidateScenarioInput["source"], execution?: ValidateScenarioInput["execution"]): ValidateScenarioOutput {
   const checks: ValidateScenarioOutput["checks"][number][] = []
   const location = {path: source.path, line: 1, column: 1}
   const add = (rule: string, issues: ValidateScenarioOutput["checks"][number]["issues"]) => {
@@ -39,12 +40,12 @@ export function validateScenario(source: ValidateScenarioInput["source"], execut
   add("inline-description", source.assertions.filter(item => !item.inline).map(item => ({
     message: item.message === null ? "У expect отсутствует описание данных" : "Описание данных вынесено из второго аргумента expect", location: item.location,
   })))
-  add("render-jsx", source.renders.filter(render => render.method !== "render" || render.arguments !== 1 || !render.jsx).map(render => ({
+  add("render-jsx", (source.subject?.kind === "function" ? [] : source.renders).filter(render => render.method !== "render" || render.arguments !== 1 || !render.jsx).map(render => ({
     message: "В сценарии render принимает ровно один аргумент: JSX компонента с props непосредственно в месте вызова.",
     location: render.location,
   })))
-  add("direct-execution", source.native.filter(name => name === "mock" || name === "spyOn").map(name => ({
-    message: `Сценарий использует импорт ${name}`, location,
+  add("direct-execution", source.native.filter(name => name === "mock.module" || name === "spyOn").map(name => ({
+    message: `Сценарий выполняет публичную сущность напрямую; ${name} подменяет существующую реализацию. mock() применяется к передаваемому callback`, location,
   })))
   add("skip-description", source.registrations.filter(item => item.modifiers.some(name => ["skip", "skipIf", "if"].includes(name)) && !item.remarks).map(item => ({
     message: `У пропуска ${item.label} отсутствует пояснение @remarks`, location: item.location,
@@ -52,12 +53,17 @@ export function validateScenario(source: ValidateScenarioInput["source"], execut
   add("assertions", source.tests.filter(item => !item.todo && item.assertions === 0).map(item => ({
     message: `Обычный тест ${item.label} не содержит expect`, location: item.location,
   })))
-  const variants = execution.groups.filter(group => group.parentId === null)
-  const setupObserved = variants.length > 0 && variants.every(group => execution.calls.some(call => call.test === null && call.describe[0] === group.label))
-  checks.push({rule: "variant-setup", status: setupObserved ? "passed" : "not-checked", issues: []})
-  add("execution", execution.tests.filter(test => test.status === "failed" || test.status === "error").map(test => ({
-    message: test.message ?? `Проверка ${test.label} завершилась ошибкой`, location: test.location,
-  })).concat(execution.exitCode === 0 ? [] : [{message: `Bun завершился с кодом ${execution.exitCode}`, location}]))
+  checks.push(singleInvocation(source, execution))
+  if (execution) {
+    const variants = execution.groups.filter(group => group.parentId === null)
+    const setupObserved = variants.length > 0 && variants.every(group => execution.calls.some(call => call.test === null && call.describe[0] === group.label))
+    checks.push({rule: "variant-setup", status: setupObserved ? "passed" : "not-checked", issues: []})
+    add("execution", execution.tests.filter(test => test.status === "failed" || test.status === "error").map(test => ({
+      message: test.message ?? `Проверка ${test.label} завершилась ошибкой`, location: test.location,
+    })).concat(execution.exitCode === 0 ? [] : [{message: `Bun завершился с кодом ${execution.exitCode}`, location}]))
+  } else {
+    checks.push({rule: "variant-setup", status: "not-checked", issues: []}, {rule: "execution", status: "not-checked", issues: []})
+  }
   for (const rule of ["public-entry", "fixture-ownership", "result-dataflow", "resource-cleanup", "meaning"]) {
     checks.push({rule, status: "not-checked", issues: []})
   }

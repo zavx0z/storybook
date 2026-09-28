@@ -37,6 +37,7 @@ describe.each([
   const category = guide.examples.find(example => example.title === "Категория")?.code
   const point = guide.examples.find(example => example.title === "Пункт сценария")?.code
   const setup = guide.examples.find(example => example.title === "Подготовка варианта")?.code
+  const callback = guide.examples.find(example => example.title === "Проверка callback")?.code
   const multiple = guide.examples.find(example => example.title === "Связанные утверждения")?.code
   const repeated = guide.examples.find(example => example.title === "Параметризация пунктов")?.code
   const objectExample = guide.examples.find(example => example.title === "Состав объекта")?.code
@@ -206,8 +207,20 @@ describe.each([
     test("Прямое выполнение", () => {
       expect(
         setup,
-        "Вызывайте функцию или компонент напрямую через публичный API. Для наблюдения за выполнением не требуются ручные mock и spyOn.",
+        "Проверяемая функция или компонент выполняется через свой публичный API. Штатный mock() из bun:test наблюдает callback, переданный этой сущности.",
       ).toSatisfy(source => typeof source === "string" && /\S/u.test(source) && guide.checks.find(check => check.rule === "direct-execution")?.status === "passed")
+    })
+    /** @remarks Пример функции не содержит callback; проверка показана в варианте компонента. */
+    test.skipIf(!callback)("Проверка callback", () => {
+      expect(callback,
+        "Вариант each создаёт свежий mock в props перед единственным render. test выполняет действие над уже созданным компонентом и сравнивает mock.calls с ожидаемыми вызовами. Каждая строка — аргументы одного вызова; порядок и число строк выражают порядок и число вызовов. Пустой массив означает отсутствие вызовов. Журнал принадлежит одному запуску варианта.",
+      ).toSatisfy(code => typeof code === "string" && /\S/u.test(code)
+        && guide.checks.find(check => check.rule === "direct-execution")?.status === "passed")
+    })
+    test("Один вызов описываемой сущности", () => {
+      expect(guide.checks.find(check => check.rule === "single-invocation")?.status,
+        "Каждый вариант each подготавливает вход и ровно один раз вызывает описываемую функцию либо передаёт описываемый компонент в render. Все test исследуют этот результат и реакции на действия. Другие входы задаются другим вариантом. Показанный код и проверки относятся к одному вызову.",
+      ).toBe("passed")
     })
     test("JSX непосредственно в render", () => {
       expect(

@@ -275,6 +275,7 @@ export function createFunctionPreview(
       && call.module === descriptor.module && call.name === descriptor.export
       && call.location?.path === descriptor.path
       && descriptor.locations.some(location => location.line === call.location!.line && location.column === call.location!.column))
+    if (observed.length !== 1) return undefined
     const usedImports = new Set<string>()
     const calls: Extract<ScenarioPreview, {kind: "function"}>["variants"][number]["calls"][number][] = []
     for (const call of observed) {

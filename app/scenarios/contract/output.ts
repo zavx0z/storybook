@@ -103,12 +103,16 @@ interface TraceCall {
 @property module - Исходный сценарий и извлечённая из его render декларация JSX.
 `path` указывает на сценарий, `source` содержит производный модуль для штатной
 компиляции, `export` — его вход. Автор не создаёт отдельную компонентную фикстуру.
+Тип props этого модуля выводится TypeScript из параметризации сценария.
 
 @property variants - Параметризованные примеры непосредственного render JSX.
 `path` сохраняет вложенность названий describe, `selection` — индексы строк.
 Каждый вариант содержит `id`, `title`, входные `props`, исходник использования
 `source` и проверяемые пункты `points`. JSX берётся из единственного аргумента
 render; значения выбранного варианта подставляются в его выражения.
+Подготовка используемых props сохраняется рядом с JSX. Native mock и его журнал
+исполняются в Bun; браузер получает поведение callback без тестового наблюдателя.
+Результаты проверок и данные вызовов берутся из серверного прогона.
 `jsxProps` сохраняет авторские JSX-поля отдельно от JSON-props: исходное выражение
 и его импорты с публичным specifier, локальным именем, export и разрешённым путём.
 Сборщик компилирует их штатным Template; снимки функций mount/render не исполняются.
@@ -317,12 +321,15 @@ interface ScenarioTest {
 
 @property hooks - Имена и исходники обработчиков жизненного цикла тестов.
 
+@property subject - Описываемая функция или компонент из публичного входа непосредственного владельца.
+
 @property renders - Вызовы отображения: имя метода, число аргументов и наличие JSX в аргументе.
 
 @property registrations - Места регистрации `describe` и `test`: названия, модификаторы,
 вложенность, область объявления, замечания и положение в файле.
 */
 interface ScenarioSource {
+  readonly subject: {readonly kind: "function" | "component"; readonly module: string; readonly name: string; readonly calls: readonly {readonly location: TraceLocation; readonly variant: TraceLocation | null; readonly test: boolean}[]} | null
   readonly path: string
   readonly text: string
   readonly native: readonly string[]
