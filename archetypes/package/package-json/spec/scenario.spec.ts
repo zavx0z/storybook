@@ -1,10 +1,6 @@
-import {describe, expect, test, mock} from "bun:test"
+import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-
-const readPackageJsonMock = mock(async (input: {path: string}) => {
-  const {readPackageJson} = await import("@archetypes/package/package-json")
-  return readPackageJson(input)
-})
+import {readPackageJson} from "@archetypes/package/package-json"
 
 describe.each([
   {
@@ -15,7 +11,7 @@ describe.each([
     },
   },
 ])("$name", async ({props}) => {
-  const result = await readPackageJsonMock(props)
+  const result = await readPackageJson(props)
 
   const fields = [
     {field: "name"},
