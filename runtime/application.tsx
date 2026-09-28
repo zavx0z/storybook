@@ -13,6 +13,7 @@ import {McpWindow} from "../workbench/mcp-window"
 import type {McpRequestRecord} from "@mcp/rest/requests"
 import type {McpAddressSource} from "../workbench/mcp-window/src/address-request"
 import type {McpWindowState} from "../workbench/mcp-window/src/state"
+import type {MinimapState} from "../workbench/minimap/src/state"
 import type {NavigationExpansion} from "../workbench/navigation/persistence.ts"
 
 export type StorybookAppProps = Readonly<{
@@ -21,6 +22,8 @@ export type StorybookAppProps = Readonly<{
   mcpWindowState?: McpWindowState | undefined
   saveMcpWindowState?: ((state: McpWindowState) => void) | undefined
   navigationExpansion?: NavigationExpansion | undefined
+  minimapState?: MinimapState | undefined
+  saveMinimapState?: ((state: MinimapState) => void) | undefined
   viewPointControls: ViewPointTabProps["controls"]
   title: string
   statusOwner: string
@@ -69,7 +72,11 @@ export function StorybookApp(props: StorybookAppProps) {
     </StorybookDisplay>
     <hud id={props.hudId}>
       <ViewPointTab controls={props.viewPointControls} />
-      <WorkbenchMinimap model={model} />
+      <WorkbenchMinimap
+        model={model}
+        initialState={props.minimapState}
+        onStateChange={props.saveMinimapState}
+      />
     </hud>
   </space>
 }

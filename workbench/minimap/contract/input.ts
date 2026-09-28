@@ -1,3 +1,4 @@
+import type {MinimapState} from "../src/state.ts"
 import type {CatalogPanelProps} from "../../catalog-panel/contract/input.ts"
 
 /**
@@ -6,10 +7,14 @@ import type {CatalogPanelProps} from "../../catalog-panel/contract/input.ts"
 @property catalog - Те же данные и действия каталога, что использует Display.
 Поиск и выбор принадлежат Workbench; скрытие сохраняет экземпляр дерева.
 
-@property [initialCollapsed=false] - Начальная видимость: true показывает Tab,
-false раскрывает панель. Последующее переключение принадлежит Minimap.
+@property [initialState] - Восстановленные видимость, геометрия окна и положение Tab.
+Без значения окно открыто в начальной раскладке. Применяется при создании компонента.
+
+@property [onStateChange] - Сохраняет новый снимок при переключении видимости и завершении
+перемещения окна, resize или перетаскивания Tab. Промежуточные и отменённые жесты не публикуются.
 */
 export interface MinimapProps {
   readonly catalog: CatalogPanelProps
-  readonly initialCollapsed?: boolean | undefined
+  readonly initialState?: MinimapState | undefined
+  readonly onStateChange?: ((state: MinimapState) => void) | undefined
 }

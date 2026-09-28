@@ -5,8 +5,8 @@ import {flushDocumentLayoutObservers} from "@zavx0z/dom/geometry"
 import {Minimap} from "../index.tsx"
 
 describe.each([
-  {name: "Раскрытая карта", props: {initialCollapsed: false}},
-  {name: "Свёрнутая карта", props: {initialCollapsed: true}},
+  {name: "Раскрытая карта", props: {initialState: {collapsed: false, geometry: {x: 8, y: 8, width: 300, height: 480}, tab: {edge: "left" as const, offset: .5}}}},
+  {name: "Восстановленная свёрнутая карта", props: {initialState: {collapsed: true, geometry: {x: 64, y: 32, width: 340, height: 420}, tab: {edge: "right" as const, offset: .75}}}},
 ])("$name", async ({props: input}) => {
   const headless = createHeadless({width: 640, height: 560})
   afterAll(() => headless.dispose())
@@ -30,15 +30,19 @@ describe.each([
   const element = await headless.render(
     <Minimap
       catalog={props.catalog}
-      initialCollapsed={props.initialCollapsed}
+      initialState={props.initialState}
     />,
   )
   const panel = element.querySelector("[data-window]")!
   const tab = element.querySelector("[data-minimap-tab]")!
 
   test("Начальная видимость", () => {
-    expect(panel.hasAttribute("hidden"), "Раскрытое состояние показывает панель каталога").toBe(input.initialCollapsed)
-    expect(tab.hasAttribute("hidden"), "Свёрнутое состояние показывает Tab").toBe(!input.initialCollapsed)
+    expect(panel.hasAttribute("hidden"), "Раскрытое состояние показывает панель каталога").toBe(input.initialState.collapsed)
+    expect(tab.hasAttribute("hidden"), "Свёрнутое состояние показывает Tab").toBe(!input.initialState.collapsed)
+  })
+
+  test("Восстановление Tab", () => {
+    expect(tab.querySelector("[data-tab]")!.getAttribute("data-edge"), "Tab получает сохранённую сторону при создании Minimap").toBe(input.initialState.tab.edge)
   })
 
   test("Скрытие и восстановление дерева", async () => {

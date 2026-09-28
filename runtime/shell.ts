@@ -2,6 +2,7 @@ import {createViewPointPersistence} from "../workbench/viewpoint-tab/src/persist
 import {createViewPointControls} from "../workbench/viewpoint-tab/src/controller"
 import {DisplayElement} from "@zavx0z/dom/display"
 import {createMcpAddressSource} from "./mcp-address"
+import {createMinimapPersistence} from "../workbench/minimap/src/state"
 import {createMcpWindowPersistence} from "../workbench/mcp-window/src/state"
 import {createNavigationExpansion} from "../workbench/navigation/persistence.ts"
 /**
@@ -166,6 +167,7 @@ export async function createExternalStorybookShell(
     },
   })
   const viewPointControls = createViewPointControls(createViewPointPersistence(() => browserDocument.defaultView!.localStorage))
+  const minimap = createMinimapPersistence(() => browserDocument.defaultView!.localStorage)
   const mcpWindow = createMcpWindowPersistence(() => browserDocument.defaultView!.localStorage)
   const navigationExpansion = createNavigationExpansion(() => browserDocument.defaultView!.localStorage)
   application.render(component(StorybookApp as unknown as CompiledTemplate<StorybookAppProps>, {
@@ -175,6 +177,8 @@ export async function createExternalStorybookShell(
     displayId: EXTERNAL_STORYBOOK_DISPLAY_ID,
     hudId: EXTERNAL_STORYBOOK_WORKBENCH_ID,
     mcpAddressSource: createMcpAddressSource(() => `${browserDocument.location.pathname}${browserDocument.location.search}`),
+    minimapState: minimap.initialState,
+    saveMinimapState: minimap.save,
     mcpWindowState: mcpWindow.initialState,
     saveMcpWindowState: mcpWindow.save,
     navigationExpansion,

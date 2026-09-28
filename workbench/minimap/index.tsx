@@ -3,21 +3,32 @@ Minimap показывает каталог в HUD того же Experience. П�
 и команды дерева используют общую панель с Display. «Скрыть» сворачивает
 панель в перетаскиваемый Tab; кнопка «Minimap» возвращает то же дерево
 с сохранением раскрытых ветвей и позиции прокрутки.
+Host Storybook сохраняет видимость, размер и положение окна и Tab в localStorage.
+Перемещение и resize записываются после завершения, отмена не меняет сохранённую раскладку.
 
 @packageDocumentation
 */
-import {useId, useState} from "@zavx0z/component"
+import {useId, useRef, useState} from "@zavx0z/component"
 import {Window} from "@zavx0z/ui/surfaces/window"
 import {WindowControl} from "@zavx0z/ui/surfaces/window/control"
 import {Tab} from "@zavx0z/ui/surfaces/tab"
 import {CatalogPanel} from "../catalog-panel"
+import {defaultMinimapState, type MinimapState} from "./src/state.ts"
 import type {MinimapProps} from "./contract/input.ts"
 export type {MinimapProps} from "./contract/input.ts"
 
 /** Компонует общую оболочку Window и WindowControl в Tab того же Document. */
 export function Minimap(props: MinimapProps) {
   const id = useId()
-  const [collapsed, setCollapsed] = useState(props.initialCollapsed ?? false)
+  const [state, setState] = useState(() => props.initialState ?? defaultMinimapState())
+  const current = useRef(state)
+  /** Публикует один завершённый снимок, общий для оболочки и её управляющего Tab. */
+  const update = (patch: Partial<MinimapState>) => {
+    const next = {...current.current, ...patch}
+    current.current = next
+    setState(next)
+    props.onStateChange?.(next)
+  }
   return <div
     data-storybook-minimap=""
     style={css`
@@ -32,9 +43,12 @@ export function Minimap(props: MinimapProps) {
     <Window
       id={id}
       title="Minimap"
-      open={!collapsed}
-      onOpenChange={open => setCollapsed(!open)}
-      geometry={{x: 8, y: 8, width: 300, height: 480}}
+      open={!state.collapsed}
+      onOpenChange={open => update({collapsed: !open})}
+      geometry={state.geometry}
+      onGeometryChange={(geometry, phase) => {
+        if (phase === "end") update({geometry})
+      }}
       movable={true}
       resizable={true}
     >
@@ -52,7 +66,7 @@ export function Minimap(props: MinimapProps) {
       />
     </Window>
     <div
-      hidden={!collapsed}
+      hidden={!state.collapsed}
       data-minimap-tab=""
       style={css`
         position: absolute;
@@ -69,13 +83,16 @@ export function Minimap(props: MinimapProps) {
     >
       <Tab
         label="Minimap"
-        position={{edge: "left", offset: .5}}
+        position={state.tab}
+        onPositionChange={(tab, phase) => {
+          if (phase === "end") update({tab})
+        }}
       >
         <WindowControl
           windowId={id}
           label="Minimap"
-          open={!collapsed}
-          onOpenChange={open => setCollapsed(!open)}
+          open={!state.collapsed}
+          onOpenChange={open => update({collapsed: !open})}
         />
       </Tab>
     </div>
