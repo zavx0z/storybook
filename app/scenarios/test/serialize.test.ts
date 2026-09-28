@@ -8,6 +8,40 @@ import {serialize} from "../src/serialize"
 import {restoreSnapshot} from "./fixture/restore-snapshot"
 
 test.each([
+  {name: "Buffer", value: Buffer.from([0, 255, 42])},
+  {name: "Uint8Array", value: new Uint8Array([0, 255, 42])},
+  {name: "DataView", value: new DataView(new Uint8Array([9, 0, 255, 42, 8]).buffer, 1, 3)},
+  {name: "ArrayBuffer", value: new Uint8Array([0, 255, 42]).buffer},
+])("сохраняет все байты $name после JSON-передачи", async ({name, value}) => {
+  const snapshot = JSON.parse(JSON.stringify(await serialize([value, value])))
+  expect(snapshot[0]).toEqual({$type: "binary", name, data: "AP8q"})
+  expect([...Buffer.from(snapshot[0].data, "base64")]).toEqual([0, 255, 42])
+  expect(snapshot[1]).toEqual({$type: "reference", path: [0]})
+})
+
+test("двоичный снимок фиксирует срез и собственные поля без вызова getters", async () => {
+  const value = Object.assign(new Uint8Array([8, 1, 2, 9]).subarray(1, 3), {label: "кадр", self: null as unknown})
+  value.self = value
+  Object.defineProperty(value, "buffer", {get() { throw new Error("Пользовательский getter") }})
+  const pending = serialize(value)
+  value.fill(0)
+  expect(await pending).toEqual({
+    $type: "binary", name: "Uint8Array", data: "AQI=",
+    properties: {label: "кадр", self: {$type: "reference", path: []}},
+  })
+})
+
+test("кадр RGBA переносится одним двоичным значением", async () => {
+  const bytes = new Uint8Array(1000 * 800 * 4)
+  bytes[bytes.length - 1] = 255
+  const snapshot = JSON.parse(JSON.stringify(await serialize(bytes)))
+  const restored = Buffer.from(snapshot.data, "base64")
+  expect(Object.keys(snapshot)).toEqual(["$type", "name", "data"])
+  expect(restored.byteLength).toBe(bytes.byteLength)
+  expect(restored[restored.length - 1]).toBe(255)
+})
+
+test.each([
   {value: NaN, encoded: "NaN"},
   {value: Infinity, encoded: "Infinity"},
   {value: -Infinity, encoded: "-Infinity"},

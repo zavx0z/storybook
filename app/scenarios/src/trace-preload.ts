@@ -43,7 +43,7 @@ for (const selection of configuration.observe) {
   const module = selection.module.startsWith(".") ? resolve(selection.module) : selection.module
   const imported = await import(module) as Record<string, unknown>
   const replacement: Record<string, unknown> = {...imported}
-  for (const name of Object.keys(imported)) {
+  for (const name of selection.names ?? Object.keys(imported)) {
     const original = imported[name]
     if (typeof original !== "function") continue
     replacement[name] = observe(selection.module, name, original as Registrar)

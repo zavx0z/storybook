@@ -45,6 +45,29 @@ async function capture(
   if (knownPath !== undefined) return {$type: "reference", path: [...knownPath]}
   seen.set(value, path)
   const nextAncestors = new Map(ancestors).set(value, path)
+  // Двоичные кадры и PNG сохраняются целиком, без Promise и поля JSON на каждый байт.
+  if (ArrayBuffer.isView(value)) {
+    const prototype = value instanceof DataView ? DataView.prototype : Object.getPrototypeOf(Uint8Array.prototype)
+    const buffer = Object.getOwnPropertyDescriptor(prototype, "buffer")!.get!.call(value) as ArrayBuffer
+    const offset = Object.getOwnPropertyDescriptor(prototype, "byteOffset")!.get!.call(value) as number
+    const length = Object.getOwnPropertyDescriptor(prototype, "byteLength")!.get!.call(value) as number
+    const name = value instanceof DataView ? "DataView" : Buffer.isBuffer(value) ? "Buffer"
+      : Object.getOwnPropertyDescriptor(prototype, Symbol.toStringTag)!.get!.call(value) as string
+    const data = Buffer.from(buffer, offset, length).toString("base64")
+    const keys = Object.keys(value).filter(key => value instanceof DataView || !/^(0|[1-9]\d*)$/u.test(key))
+    return {
+      $type: "binary", name, data,
+      ...(keys.length ? {properties: await captureProperties(value, seen, [...path, "properties"], nextAncestors, keys)} : {}),
+    }
+  }
+  if (value instanceof ArrayBuffer || value instanceof SharedArrayBuffer) {
+    const data = Buffer.from(value).toString("base64")
+    const keys = Object.keys(value)
+    return {
+      $type: "binary", name: value instanceof ArrayBuffer ? "ArrayBuffer" : "SharedArrayBuffer", data,
+      ...(keys.length ? {properties: await captureProperties(value, seen, [...path, "properties"], nextAncestors, keys)} : {}),
+    }
+  }
   if (value instanceof RegExp) {
     // Native getters читают внутреннее состояние, не вызывая переопределённые свойства объекта.
     const source = Object.getOwnPropertyDescriptor(RegExp.prototype, "source")!.get!.call(value) as string
@@ -111,8 +134,8 @@ async function captureProperties(
   seen: Map<object, ValuePath>,
   path: ValuePath,
   ancestors: ReadonlyMap<object, ValuePath>,
+  keys = Object.keys(value),
 ): Promise<TraceValue> {
-  const keys = Object.keys(value)
   const escaped = keys.includes("$type")
   const propertiesPath = escaped ? [...path, "value"] : path
   const entries = await Promise.all(keys.map(async key => {

@@ -11,6 +11,9 @@ import type {ValidateScenarioOutput} from "@archetypes/specs/scenarios/validatio
 `NaN`, бесконечности и `-0` представлены меткой `number` со строковым `value`.
 Для `RegExp` сохраняются `source`, `flags`, `lastIndex` и дополнительные свойства
 в `properties` при их наличии.
+Buffer, TypedArray, DataView и буферы представлены меткой `binary`:
+`name` задаёт вид значения, `data` содержит все байты видимого среза в base64.
+Дополнительные собственные поля сохраняются в `properties`.
 
 Полный набор меток описан в [формате снимков значений](../notes/value-format.md).
 */
