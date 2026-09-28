@@ -1,7 +1,7 @@
-import type {JsxSourceElement} from "@zavx0z/template/jsx-runtime"
+import type {JSX} from "@jsx/types"
 
 /** Поверхность всего Workbench; shell синхронизирует её метрики с viewport общего Root. */
-export function StorybookDisplay(props: Readonly<{id: string; children?: JsxSourceElement | readonly JsxSourceElement[]}>) {
+export function StorybookDisplay(props: Readonly<{id: string; children?: JSX.Element | readonly JSX.Element[]}>) {
   return (
     <display
       id={props.id}

@@ -15,7 +15,7 @@ export function Command(props: CommandProps) {
 }
 
 /** Контейнер использует обычный children transport Template. */
-export function Container(props: Readonly<{label: string | null; children?: import("@zavx0z/template/jsx-runtime").JsxSourceElement | null | undefined}>) {
+export function Container(props: Readonly<{label: string | null; children?: import("@jsx/types").JSX.Element | null | undefined}>) {
   return <section data-container="">
     <span>{props.label}</span>
     {props.children}

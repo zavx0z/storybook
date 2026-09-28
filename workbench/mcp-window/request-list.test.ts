@@ -3,14 +3,14 @@ import {resolve} from "node:path"
 import {createRoot} from "@zavx0z/component"
 import {createDocument, MouseEvent} from "@zavx0z/dom"
 import {createDocumentRenderer} from "@renderer/html"
-import {createTemplateJsxBunPlugin} from "@zavx0z/template/bun"
+import {createJsxBunPlugin} from "@jsx/bun"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
 import type {McpRequestRecord} from "@mcp/rest/requests"
 import {readScenarios} from "@mcp/rest/scenarios"
 import {traceMcpRequest} from "../../mcp/server/src/request-log"
 
 const root = resolve(import.meta.dir, "../..")
-Bun.plugin(createTemplateJsxBunPlugin({cwd: root, persistent: true, sourceRoots: [resolve(root, "workbench")]}))
+Bun.plugin(createJsxBunPlugin({cwd: root, persistent: true, sourceRoots: [resolve(root, "workbench")]}))
 const {RequestList} = await import("./src/request-list.tsx")
 
 test("журнал монтирует одну команду и сохраняет весь длинный ответ при переключении", async () => {

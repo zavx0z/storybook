@@ -1,9 +1,9 @@
 import {Pane} from "@zavx0z/ui/surfaces/pane"
-import type {JsxSourceElement} from "@zavx0z/template/jsx-runtime"
+import type {JSX} from "@jsx/types"
 
 export type WorkbenchRegionPanelProps = Readonly<{
   transparent?: boolean
-  children: JsxSourceElement
+  children: JSX.Element
 }>
 
 /** Shared visual frame for fixed Workbench regions. */

@@ -1,6 +1,6 @@
 import {Panel} from "@zavx0z/ui/surfaces/panel"
 import {useRef} from "@zavx0z/component"
-import type {JsxSourceElement} from "@zavx0z/template/jsx-runtime"
+import type {JSX} from "@jsx/types"
 import type {WorkbenchInspectorWidgetRegistration} from "../contract.ts"
 import {SourceWidget} from "./source-widget.tsx"
 import {ValueFields} from "./value-fields.tsx"
@@ -55,7 +55,7 @@ export function StandardWidgetPanel(props: WidgetPanelProps) {
 
 /** Содержимое widget со своей шапкой, без дополнительной сворачиваемой панели. */
 export function CustomWidgetContent(props: WidgetPanelProps & Readonly<{
-  children: JsxSourceElement
+  children: JSX.Element
 }>) {
   return <div
     hidden={props.hidden}
@@ -76,7 +76,7 @@ export function CustomWidgetContent(props: WidgetPanelProps & Readonly<{
 }
 
 export function CustomWidgetPanel(props: WidgetPanelProps & Readonly<{
-  children: JsxSourceElement
+  children: JSX.Element
 }>) {
   const onToggle = (expanded: boolean, _event: Event) => props.onToggle(props.widget.id, expanded)
   return <Panel

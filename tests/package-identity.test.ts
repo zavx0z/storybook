@@ -33,6 +33,18 @@ const newFamily = Object.freeze({
   "@renderer/html": "renderer/html",
   "@zavx0z/space": "space",
   "@zavx0z/template": "template",
+  "@zavx0z/jsx": "jsx",
+  "@jsx/types": "jsx/types",
+  "@jsx/runtime": "jsx/runtime",
+  "@jsx/development": "jsx/development",
+  "@jsx/events": "jsx/events",
+  "@jsx/slot": "jsx/slot",
+  "@jsx/slot-child": "jsx/slot-child",
+  "@jsx/compiler": "jsx/compiler",
+  "@jsx/bun": "jsx/bun",
+  "@jsx/authoring": "jsx/authoring",
+  "@jsx/error": "jsx/error",
+  "@jsx/slot-contract": "jsx/compiler/slot-contract",
   "@zavx0z/ui": "ui",
   "@zavx0z/webgpu": "webgpu",
 } as const)
@@ -107,6 +119,9 @@ describe("Storybook package identity", () => {
     assertOnePhysicalOwner(roots, "@webxr/markdown", "markdown", "markdown/index.tsx")
     assertOnePhysicalOwner(roots, "@webxr/typedoc", "typedoc", "typedoc/index.tsx")
     assertOnePhysicalOwner(roots, "@zavx0z/template", "template", "compiled.ts")
+    assertOnePhysicalOwner(roots, "@zavx0z/jsx", "jsx", "package.json")
+    assertOnePhysicalOwner(roots, "@jsx/runtime", "jsx/runtime", "index.ts")
+    assertOnePhysicalOwner(roots, "@jsx/compiler", "jsx/compiler", "index.ts")
     assertOnePhysicalOwner(roots, "@zavx0z/ui", "ui", "buttons/button.tsx")
     assertOnePhysicalOwner(roots, "@zavx0z/browser", "browser", "src/index.ts")
     assertOnePhysicalOwner(roots, "@zavx0z/engine", "engine", "src/index.ts")
@@ -139,6 +154,10 @@ describe("Storybook package identity", () => {
       ["@webxr/typedoc", "typedoc/typedoc/index.tsx"],
       ["@webxr/typedoc/parser", "typedoc/parser/index.ts"],
       ["@zavx0z/template/compiled", "template/compiled.ts"],
+      ["@zavx0z/jsx/jsx-runtime", "jsx/runtime/index.ts"],
+      ["@zavx0z/jsx/jsx-dev-runtime", "jsx/development/index.ts"],
+      ["@jsx/runtime", "jsx/runtime/index.ts"],
+      ["@jsx/bun", "jsx/bun/index.ts"],
       ["@zavx0z/ui/buttons/button", "ui/buttons/button.tsx"],
     ] as const) {
       const installedPath = Bun.resolveSync(specifier, root)

@@ -1,7 +1,7 @@
 import {plugin} from "bun"
 import {readFileSync} from "node:fs"
 import {join, resolve} from "node:path"
-import {createTemplateJsxBunPlugin} from "@zavx0z/template/bun"
+import {createJsxBunPlugin} from "@jsx/bun"
 import {
   createStorybookOwnerResolver,
   createStorybookOwnerSourcePath,
@@ -29,7 +29,7 @@ const ownerSourcePath = createStorybookOwnerSourcePath({
   projectRoot: storybookRoot,
   packageRoot: storybookRoot,
 })
-const templateCompiler = createTemplateJsxBunPlugin({
+const templateCompiler = createJsxBunPlugin({
   persistent: true,
   sourceRoots,
   styleSourceRootIds,

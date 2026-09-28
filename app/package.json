@@ -21,7 +21,8 @@
   "peerDependencies": {
     "@zavx0z/component": "*",
     "@zavx0z/template": "*",
-    "@zavx0z/ui": "*"
+    "@zavx0z/ui": "*",
+    "@zavx0z/jsx": "workspace:*"
   },
   "dependencies": {
     "@archetypes/specs": "workspace:*",

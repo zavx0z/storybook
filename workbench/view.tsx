@@ -1,5 +1,5 @@
 import type {Document as SemanticDocument} from "@zavx0z/dom"
-import type {JsxSourceElement} from "@zavx0z/template/jsx-runtime"
+import type {JSX} from "@jsx/types"
 import type {
   WorkbenchNavigationGroup,
   WorkbenchCatalogAction,
@@ -32,7 +32,7 @@ export type WorkbenchViewProps = Readonly<{
   onInspectorCategoryChange(id: string): void
   onInspectorQueryChange(query: string): void
   onStatusNavigate(item: WorkbenchBreadcrumb, source: HTMLElement): void
-  children: readonly JsxSourceElement[]
+  children: readonly JSX.Element[]
 }>
 
 /** Композиция пяти областей Workbench с одним левым деревом. */

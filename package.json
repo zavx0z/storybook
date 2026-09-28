@@ -67,6 +67,18 @@
     "typescript": "^7.0.2",
     "@webxr/typedoc": "workspace:../webxr-space/typedoc",
     "@webxr/markdown": "workspace:../webxr-space/markdown",
-    "@nodes/node": "workspace:../webxr-space/nodes/node"
+    "@nodes/node": "workspace:../webxr-space/nodes/node",
+    "@zavx0z/jsx": "workspace:../webxr-space/jsx",
+    "@jsx/types": "workspace:../webxr-space/jsx/types",
+    "@jsx/compiler": "workspace:../webxr-space/jsx/compiler",
+    "@jsx/bun": "workspace:../webxr-space/jsx/bun",
+    "@jsx/runtime": "workspace:../webxr-space/jsx/runtime",
+    "@jsx/development": "workspace:../webxr-space/jsx/development",
+    "@jsx/slot": "workspace:../webxr-space/jsx/slot",
+    "@jsx/authoring": "workspace:../webxr-space/jsx/authoring",
+    "@jsx/error": "workspace:../webxr-space/jsx/error",
+    "@jsx/events": "workspace:../webxr-space/jsx/events",
+    "@jsx/slot-contract": "workspace:../webxr-space/jsx/compiler/slot-contract",
+    "@jsx/slot-child": "workspace:../webxr-space/jsx/slot-child"
   }
 }

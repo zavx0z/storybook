@@ -25,6 +25,7 @@ import {
   type StorybookGeneratedScenario,
 } from "./generated-loader.ts"
 import {createStorybookPackageCompilerPlugins} from "./compiler.ts"
+import {ensureGeneratedJsxProtocol} from "./src/generated-jsx-protocol.ts"
 import {
   beginStorybookBuildInputAttestation,
   createStorybookBuildInputFingerprintComputer,
@@ -280,9 +281,10 @@ export async function buildStorybookPackageRevisionInProcess(
       ? [{path: `./scenario-jsx/component-${index}.tsx`, source: scenario.module.source}] : [])
     if (jsxModules.length || componentModules.length) {
       mkdirSync(generatedSourceRoot, {recursive: true})
+      ensureGeneratedJsxProtocol(generatedSourceRoot, resolve(import.meta.dir, ".."))
       await Bun.write(join(generatedSourceRoot, "tsconfig.json"), JSON.stringify({
         compilerOptions: {target: "ESNext", module: "ESNext", moduleResolution: "Bundler",
-          jsx: "react-jsx", jsxImportSource: dirname(Bun.resolveSync("@zavx0z/template/jsx-runtime", import.meta.dir)), noEmit: true, allowImportingTsExtensions: true, strict: true, skipLibCheck: true},
+          jsx: "react-jsx", jsxImportSource: "@zavx0z/jsx", noEmit: true, allowImportingTsExtensions: true, strict: true, skipLibCheck: true},
         include: ["*.tsx"],
       }))
       for (const module of [...jsxModules, ...componentModules]) await Bun.write(join(stagingDirectory, module.path), module.source)

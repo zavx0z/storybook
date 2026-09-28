@@ -1,4 +1,4 @@
-import type {JsxSourceElement} from "@zavx0z/template/jsx-runtime"
+import type {JSX} from "@jsx/types"
 import type {
   WorkbenchInspectorSubject,
   WorkbenchInspectorWidgetRegistration,
@@ -12,7 +12,7 @@ export type InspectorRegionProps = Readonly<{
   query: string
   onCategoryChange(id: string): void
   onQueryChange(query: string): void
-  children: readonly JsxSourceElement[]
+  children: readonly JSX.Element[]
 }>
 
 /** Fixed Inspector region containing exactly one production Inspector. */

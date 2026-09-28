@@ -7,6 +7,8 @@ import type {
   StorybookSharedBrowserSourceFile,
 } from "./types/shared-module-identity.ts"
 import {readStorybookPackageOwner} from "../src/shared/owner-identity.ts"
+import {isOwnedJsxProtocol} from "./src/jsx-protocol-owner.ts"
+import {sharedSourceFiles} from "./src/shared-source-files.ts"
 
 /** Владельцы платформы, чьи browser-значения сохраняют одну identity в realm страницы. */
 export const STORYBOOK_SHARED_BROWSER_OWNER_PACKAGES = Object.freeze([
@@ -16,6 +18,12 @@ export const STORYBOOK_SHARED_BROWSER_OWNER_PACKAGES = Object.freeze([
   "@zavx0z/devtools",
   "@zavx0z/dom",
   "@zavx0z/engine",
+  "@zavx0z/jsx",
+  "@jsx/types",
+  "@jsx/runtime",
+  "@jsx/development",
+  "@jsx/slot",
+  "@jsx/slot-child",
   "@zavx0z/space",
   "@zavx0z/template",
   "@zavx0z/webgpu",
@@ -50,7 +58,6 @@ export function createStorybookSharedBrowserModuleEntries(
       const sourcePath = canonicalOwnerTarget(packageRoot, target, `${packageName}${subpath === "." ? "" : subpath.slice(1)}`)
       if (!/\.[cm]?[jt]sx?$/u.test(extname(sourcePath))) continue
       const specifier = `${packageName}${subpath === "." ? "" : subpath.slice(1)}`
-      if (specifier === "@zavx0z/template/bun" || specifier.startsWith("@zavx0z/template/compiler")) continue
       const entryPath = join(directory, `${createHash("sha256").update(specifier).digest("hex")}.ts`)
       const hasDefault = new Bun.Transpiler({loader: transpilerLoader(sourcePath)})
         .scan(readFileSync(sourcePath, "utf8")).exports.includes("default")
@@ -145,7 +152,7 @@ export function createStorybookSharedBrowserExternalPlugin(
   return {
     name: "external-storybook-shared-browser-identity",
     setup(builder) {
-      builder.onResolve({filter: /^(?:@nodes|@renderer|@webxr|@zavx0z)\//u}, ({path}) => {
+      builder.onResolve({filter: /^(?:@jsx|@nodes|@renderer|@webxr|@zavx0z)\//u}, ({path}) => {
         if (!isGovernedSpecifier(path)) return undefined
         const url = urls.get(path)
         if (url === undefined) throw new Error(`Shared Storybook browser identity has no module ${path}`)
@@ -160,10 +167,7 @@ export function storybookSharedBrowserIdentity(
   packageEntryUrl: string,
   modules: readonly StorybookSharedBrowserModule[],
   hostModuleEpoch: string,
-  sourceFiles: readonly StorybookSharedBrowserSourceFile[] = modules.map(({sourcePath}) => ({
-    path: sourcePath,
-    contentDigest: createHash("sha256").update(readFileSync(sourcePath)).digest("hex"),
-  })),
+  sourceFiles: readonly StorybookSharedBrowserSourceFile[] = sharedSourceFiles(modules),
   packageHostUrl?: string,
 ): StorybookSharedBrowserIdentity {
   const epoch = createHash("sha256").update(JSON.stringify({
@@ -206,7 +210,7 @@ function canonicalOwnerTarget(packageRoot: string, target: string, specifier: st
   const packageName = specifier.startsWith("@")
     ? specifier.split("/").slice(0, 2).join("/")
     : specifier.split("/")[0]!
-  if (owner?.name !== packageName) {
+  if (owner?.name !== packageName && !isOwnedJsxProtocol(packageRoot, specifier, owner)) {
     throw new Error(`Shared Storybook owner export changed identity: ${specifier}`)
   }
   return path

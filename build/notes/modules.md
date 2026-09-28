@@ -6,7 +6,7 @@
 и сгенерированный JSX используют одну идентичность каждого общего модуля:
 `@zavx0z/browser`, `@zavx0z/component`, `@zavx0z/devtools`, `@zavx0z/dom`,
 `@zavx0z/engine`, `@nodes/layout`, `@webxr/nodes`, `@nodes/tree`,
-`@renderer/html`, `@zavx0z/space`, `@zavx0z/template`, `@zavx0z/ui`
+`@renderer/html`, `@zavx0z/space`, `@zavx0z/template`, `@zavx0z/jsx`, `@zavx0z/ui`
 и `@zavx0z/webgpu`.
 
 Повторное включение runtime создаёт отдельные внутренние метки и объекты,
@@ -16,3 +16,9 @@
 Две идентичности одного владельца, неоднозначное разрешение зависимости,
 узел с чужой внутренней меткой и несовместимый протокол отклоняются.
 Псевдонимы совместимости не добавляются.
+
+Обязательные `@zavx0z/jsx/jsx-runtime` и `jsx-dev-runtime` относятся к точным
+workspace-владельцам `@jsx/runtime` и `@jsx/development`. Их source identity
+подтверждается декларацией composition и совпадением физического owner root.
+Произвольные exports во вложенные чужие пакеты этого разрешения не получают.
+Compiler и Bun adapter остаются серверными владельцами и в browser kernel не входят.

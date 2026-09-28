@@ -24,7 +24,7 @@ async function findOwner(path: string): Promise<string> {
 export async function discover(path: string) {
   const cwd = await findOwner(path)
   const preload = await readPreloads(cwd, path)
-  const jsxImportSource = await findJsxRuntime(preload)
+  const jsxImportSource = await findJsxRuntime(preload, path)
   const observe = await readImports(path)
   return {path, cwd, preload, jsxImportSource, observe}
 }

@@ -23,6 +23,7 @@ import {
   isPropertyAssignment,
   isSatisfiesExpression,
   isShorthandPropertyAssignment,
+  isSpreadElement,
   isStringLiteral,
 } from "typescript/unstable/ast/is"
 import type {ScenarioExecution, ScenarioPreview, TraceValue} from "./types"
@@ -38,6 +39,8 @@ interface CallSite {
   readonly line: number
   readonly column: number
   readonly propsArgumentIndexes: readonly number[]
+  readonly propsSpreadArgumentIndex?: number
+  readonly source?: string
 }
 
 interface FunctionDescriptor {
@@ -48,6 +51,8 @@ interface FunctionDescriptor {
   readonly importSource: string
   readonly locations: readonly CallSite[]
   readonly referencesByVariant: readonly (readonly SourceReference[])[]
+  /** При native подготовке заменяется только literal table выбранного each. */
+  readonly authored?: Readonly<{text: string; tableStart: number; tableEnd: number}>
 }
 
 /** Убирает синтаксические обёртки, не вычисляя выражение. */
@@ -112,6 +117,7 @@ function renderValue(
   if (value === null || typeof value === "boolean" || typeof value === "number" || typeof value === "string") {
     return JSON.stringify(value)
   }
+  if (typeof value !== "object") return null
   const indentation = "  ".repeat(depth)
   const childIndentation = "  ".repeat(depth + 1)
   if (Array.isArray(value)) {
@@ -194,17 +200,23 @@ export async function inspectFunctionScenario(pathInput: string): Promise<Functi
     }
     const calls: ({local: string} & CallSite)[] = []
     const referencesByVariant: SourceReference[][] = []
+    let authored: FunctionDescriptor["authored"]
     let groups = 0
     const visit = (node: Node, propsName: string): void => {
       if (isArrowFunction(node) || isFunctionExpression(node) || isFunctionDeclaration(node)) return
       if (isCallExpression(node) && isIdentifier(node.expression) && bindings.has(node.expression.text)) {
         const before = text.slice(0, node.getStart(file))
+        const spreads = node.arguments.flatMap((argument, index) => isSpreadElement(argument) ? [{argument, index}] : [])
+        const spread = spreads.length === 1 && isIdentifier(spreads[0]!.argument.expression)
+          && spreads[0]!.argument.expression.text === propsName ? spreads[0] : undefined
         calls.push({
           local: node.expression.text,
           line: before.split("\n").length,
           column: before.length - before.lastIndexOf("\n"),
           propsArgumentIndexes: node.arguments.flatMap((argument, index) =>
             isIdentifier(argument) && argument.text === propsName ? [index] : []),
+          ...(spread === undefined ? {} : {propsSpreadArgumentIndex: spread.index}),
+          source: node.getText(file),
         })
       }
       node.forEachChild(child => visit(child, propsName))
@@ -229,6 +241,7 @@ export async function inspectFunctionScenario(pathInput: string): Promise<Functi
       const propsName = props.name.text
       const table = unwrapExpression(each.arguments[0]!)
       if (isArrayLiteralExpression(table)) {
+        authored = {text, tableStart: table.getStart(file), tableEnd: table.getEnd()}
         for (const row of table.elements) {
           const literal = unwrapExpression(row)
           if (!isObjectLiteralExpression(literal)) {
@@ -253,8 +266,9 @@ export async function inspectFunctionScenario(pathInput: string): Promise<Functi
       module,
       ...binding,
       local,
-      locations: calls.map(({line, column, propsArgumentIndexes}) => ({line, column, propsArgumentIndexes})),
+      locations: calls.map(({local: _local, ...location}) => location),
       referencesByVariant,
+      ...(authored === undefined ? {} : {authored}),
     }
   } finally {
     await api.close()
@@ -277,6 +291,7 @@ export function createFunctionPreview(
       && descriptor.locations.some(location => location.line === call.location!.line && location.column === call.location!.column))
     if (observed.length !== 1) return undefined
     const usedImports = new Set<string>()
+    let authoredSource: string | undefined
     const calls: Extract<ScenarioPreview, {kind: "function"}>["variants"][number]["calls"][number][] = []
     for (const call of observed) {
       const location = descriptor.locations.find(item => item.line === call.location?.line
@@ -289,11 +304,30 @@ export function createFunctionPreview(
           references.set(JSON.stringify(located.path), located)
         }
       }
+      if (location?.propsSpreadArgumentIndex !== undefined) {
+        for (const reference of descriptor.referencesByVariant[variantIndex + variantOffset] ?? []) {
+          const tupleIndex = reference.path[0]
+          if (typeof tupleIndex !== "number" || overriddenProps.includes(String(tupleIndex))) continue
+          const located = {...reference, path: [location.propsSpreadArgumentIndex + tupleIndex, ...reference.path.slice(1)]}
+          references.set(JSON.stringify(located.path), located)
+        }
+      }
       const args = call.args.map((value, index) => renderValue(value, [index], references, usedImports))
-      if (args.some(value => value === null)) return undefined
+      const asynchronous = call.outcome.type === "resolve" || call.outcome.type === "reject"
+      let source: string
+      if (args.some(value => value === null)) {
+        if (descriptor.authored === undefined || location?.source === undefined) return undefined
+        const row = renderValue(group.parameters, [], new Map(), new Set())
+        if (row === null) return undefined
+        const {text, tableStart, tableEnd} = descriptor.authored
+        authoredSource = text.slice(0, tableStart) + "[" + row + "]" + text.slice(tableEnd)
+        source = (asynchronous ? "await " : "") + location.source
+      } else {
+        source = (asynchronous ? "await " : "") + descriptor.local + "(" + args.join(", ") + ")"
+      }
       calls.push({
         id: call.id,
-        source: `${call.outcome.type === "resolve" || call.outcome.type === "reject" ? "await " : ""}${descriptor.local}(${args.join(", ")})`,
+        source,
         outcome: structuredClone(call.outcome),
       })
     }
@@ -307,7 +341,7 @@ export function createFunctionPreview(
       id: String(group.id),
       title: group.label,
       props,
-      source: `${imports.join("\n")}\n\n${calls.map(call => call.source).join("\n\n")}`,
+      source: authoredSource ?? `${imports.join("\n")}\n\n${calls.map(call => call.source).join("\n\n")}`,
       points: previewPoints(execution, group.id),
       calls,
     })

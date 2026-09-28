@@ -113,7 +113,7 @@ describe("structural package revision build", () => {
     unlinkSync(join(fixture.packageRoot, "module/index.ts"))
     mkdirSync(join(fixture.packageRoot, "module/spec"), {recursive: true})
     writeFileSync(componentPath, [
-      "/** @jsxImportSource @zavx0z/template */",
+      "/** @jsxImportSource @zavx0z/jsx */",
       "export function Command(props: Readonly<{label: string; onActivate?: (label: string) => void}>) {",
       "  return <button onClick={() => props.onActivate?.(props.label)}>{props.label}</button>",
       "}", "",
@@ -124,7 +124,7 @@ describe("structural package revision build", () => {
       "}", "",
     ].join("\n"))
     writeFileSync(join(fixture.packageRoot, "tsconfig.json"), JSON.stringify({
-      compilerOptions: {jsx: "preserve", jsxImportSource: "@zavx0z/template", module: "ESNext", moduleResolution: "Bundler", target: "ESNext"},
+      compilerOptions: {jsx: "preserve", jsxImportSource: "@zavx0z/jsx", module: "ESNext", moduleResolution: "Bundler", target: "ESNext"},
       include: ["**/*.ts", "**/*.tsx"],
     }))
     mkdirSync(join(fixture.root, "node_modules", "@immersive"), {recursive: true})
@@ -225,11 +225,11 @@ function createFixture(): Readonly<{root: string; packageRoot: string; browserEn
   mkdirSync(join(packageRoot, "module"), {recursive: true})
   const sourcePath = join(packageRoot, "package.json")
   const browserEntry = join(root, "browser-entry.ts")
-  const templateRoot = realpathSync(join(import.meta.dir, "../node_modules/@zavx0z/template"))
+  const jsxRoot = realpathSync(join(import.meta.dir, "../node_modules/@zavx0z/jsx"))
   writeFileSync(join(root, "package.json"), JSON.stringify({name: "@fixture/project", type: "module",
-    devDependencies: {"@zavx0z/template": "link:@zavx0z/template"}}))
+    devDependencies: {"@zavx0z/jsx": "link:@zavx0z/jsx"}}))
   mkdirSync(join(root, "node_modules", "@zavx0z"), {recursive: true})
-  symlinkSync(templateRoot, join(root, "node_modules", "@zavx0z", "template"))
+  symlinkSync(jsxRoot, join(root, "node_modules", "@zavx0z", "jsx"))
   writeFileSync(sourcePath, JSON.stringify({name: "@fixture/package", type: "module"}))
   writeFileSync(join(packageRoot, "module/index.ts"), "export const module = true\n")
   writeFileSync(browserEntry, ["export async function startExternalStorybookPackage(input: unknown) {",

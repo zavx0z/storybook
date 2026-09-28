@@ -6,7 +6,7 @@ import {
   realpathSync,
   statSync,
 } from "node:fs"
-import {basename, dirname, isAbsolute, join, relative, resolve, sep} from "node:path"
+import {basename, dirname, isAbsolute, join, parse, relative, resolve, sep} from "node:path"
 import {fileURLToPath, pathToFileURL} from "node:url"
 import {
   canonicalizeStorybookPackageFile,
@@ -15,8 +15,8 @@ import {
   sameStorybookPackageOwner,
 } from "../src/shared/owner-identity.ts"
 
-const TEMPLATE_JSX_IMPORT_SOURCE = "@zavx0z/template"
-const TEMPLATE_BUN_EXPORT = "@zavx0z/template/bun"
+const JSX_IMPORT_SOURCE = "@zavx0z/jsx"
+const JSX_BUN_PACKAGE = "@jsx/bun"
 const LOCAL_DEPENDENCY_PREFIXES = ["link:", "workspace:", "file:", "portal:"] as const
 const STORYBOOK_TOOL_ROOT = fileURLToPath(new URL("..", import.meta.url))
 const PHYSICAL_PROBE_EXTENSIONS = /(?:\.[cm]?[jt]sx?|\.d\.ts)$/u
@@ -33,11 +33,11 @@ export type StorybookPackageCompilerInput = Readonly<{
 /**
 @property sourceRoots - Канонические корни владельцев, из которых resolver и compiler могут читать код.
 
-@property adapterPath - Точный публичный адаптер Template, создающий compiler plugin.
+@property adapterPath - Точный публичный адаптер JSX в Bun, создающий compiler plugin.
 
 @property configPaths - Полная effective цепочка `tsconfig extends`, включая package configs.
 
-@property semanticSourceRoots - Корни, которые Template compiler добавляет в TypeScript program.
+@property semanticSourceRoots - Корни, которые JSX compiler добавляет в TypeScript program.
 */
 export type StorybookPackageCompilerInputs = Readonly<{
   sourceRoots: readonly string[]
@@ -77,10 +77,10 @@ export function resolveStorybookCompilerSourceRoots(input: Readonly<{
 Возвращает файловые границы реального compiler setup без создания plugin.
 
 Fingerprint сборки использует тот же consumer/tool owner graph и тот же выбор
-Template adapter, поэтому изменение resolver, exports, tsconfig или compiler owner
+JSX adapter, поэтому изменение resolver, exports, tsconfig или compiler owner
 не может остаться только скрытым побочным чтением `createStorybookPackageCompilerPlugins`.
 
-@throws Если source, owner graph, tsconfig или Template export не проходят те же
+@throws Если source, owner graph, tsconfig или JSX adapter export не проходят те же
 проверки, что и при создании compiler plugin.
 */
 export function resolveStorybookPackageCompilerInputs(
@@ -130,7 +130,7 @@ export function createStorybookOwnerSourcePath(input: Readonly<{
   }
 }
 
-type TemplatePluginFactory = (
+type JsxPluginFactory = (
   options: Readonly<{
     cwd: string
     persistent: false
@@ -143,7 +143,7 @@ type TemplatePluginFactory = (
 Создаёт свежие compiler plugins для одного candidate `PackageSession`.
 
 Compiler выбирается только по owner source paths и effective `tsconfig`.
-Template JSX получает adapter через owner dependency graph; declaration не может
+JSX получает adapter через owner dependency graph; declaration не может
 внедрить plugin factory или executable callback.
 */
 export async function createStorybookPackageCompilerPlugins(
@@ -154,7 +154,7 @@ export async function createStorybookPackageCompilerPlugins(
     packageRootsByName: context.packageRootsByName,
   })
   const namespace = await import(pathToFileURL(context.adapterPath).href) as unknown
-  const factory = validateTemplatePluginFactory(namespace, context.adapterPath)
+  const factory = validateJsxPluginFactory(namespace, context.adapterPath)
   let candidate: unknown
   try {
     candidate = factory({
@@ -164,7 +164,7 @@ export async function createStorybookPackageCompilerPlugins(
       styleSourceRootIds: [...context.compilerRoots.styleSourceRootIds, ...(input.generatedSourceRoot ? ["storybook-scenario-jsx"] : [])],
     })
   } catch (error) {
-    throw new Error(`Template JSX compiler factory failed: ${context.adapterPath}`, {cause: error})
+    throw new Error(`JSX compiler factory failed: ${context.adapterPath}`, {cause: error})
   }
   const plugin = validateBunPlugin(candidate, context.adapterPath)
   return Object.freeze([resolver, plugin])
@@ -203,24 +203,29 @@ function resolveCompilerContext(
     ? effectiveJsxCompilerConfig(projectRoot, packageRoot, sourcePaths)
     : Object.freeze({jsxImportSource: undefined, configPaths: Object.freeze([])})
   const jsxImportSource = effectiveConfig.jsxImportSource
-  const compileOwnerTemplate = hasConsumerModules && jsxImportSource === TEMPLATE_JSX_IMPORT_SOURCE
-  const templateRoot = compileOwnerTemplate
-    ? dependencyGraph.packageRootsByName.get(TEMPLATE_JSX_IMPORT_SOURCE) ?? (
-      dependencyGraph.declaredDependencies.has(TEMPLATE_JSX_IMPORT_SOURCE)
-        ? toolGraph.packageRootsByName.get(TEMPLATE_JSX_IMPORT_SOURCE)
+  const compileOwnerJsx = hasConsumerModules && jsxImportSource === JSX_IMPORT_SOURCE
+  const jsxRoot = compileOwnerJsx
+    ? dependencyGraph.packageRootsByName.get(JSX_IMPORT_SOURCE) ?? (
+      dependencyGraph.declaredDependencies.has(JSX_IMPORT_SOURCE)
+        ? toolGraph.packageRootsByName.get(JSX_IMPORT_SOURCE)
         : undefined
     )
-    : toolGraph.packageRootsByName.get(TEMPLATE_JSX_IMPORT_SOURCE)
-  if (templateRoot === undefined) {
-    throw new Error(compileOwnerTemplate
-      ? `${TEMPLATE_JSX_IMPORT_SOURCE} is required by tsconfig but is not a linked owner dependency`
-      : `${TEMPLATE_JSX_IMPORT_SOURCE} is required by the shared Storybook Workbench compiler`)
+    : toolGraph.packageRootsByName.get(JSX_IMPORT_SOURCE)
+  if (jsxRoot === undefined) {
+    throw new Error(compileOwnerJsx
+      ? `${JSX_IMPORT_SOURCE} is required by tsconfig but is not a linked owner dependency`
+      : `${JSX_IMPORT_SOURCE} is required by the shared Storybook Workbench compiler`)
+  }
+  const adapterRoot = (compileOwnerJsx ? dependencyGraph.packageRootsByName.get(JSX_BUN_PACKAGE) : undefined)
+    ?? toolGraph.packageRootsByName.get(JSX_BUN_PACKAGE)
+  if (adapterRoot === undefined) {
+    throw new Error(`${JSX_BUN_PACKAGE} is required by the Storybook JSX compiler`)
   }
   const compilerRoots = mergeCompilerSourceRoots(
-    ...(compileOwnerTemplate ? [dependencyGraph] : []),
+    ...(compileOwnerJsx ? [dependencyGraph] : []),
     toolGraph,
   )
-  const adapterPath = resolveTemplateAdapter(packageRoot, projectRoot, templateRoot)
+  const adapterPath = resolveJsxAdapter(packageRoot, projectRoot, adapterRoot)
   return Object.freeze({
     projectRoot,
     packageRootsByName,
@@ -392,6 +397,15 @@ function explicitJsxImportSource(path: string): string | undefined {
   const match = source.match(/@jsxImportSource\s+([^\s*]+)/u)
   const value = match?.[1]
   return value === undefined || value.trim().length === 0 ? undefined : value.trim()
+}
+
+/** Читает native JSX protocol одного source по его pragma и effective tsconfig extends. */
+export function resolveStorybookJsxImportSource(sourcePath: string): string | undefined {
+  const path = canonicalFile(sourcePath, "Storybook JSX source")
+  const explicit = explicitJsxImportSource(path)
+  if (explicit !== undefined) return explicit
+  const config = findNearestTsconfig(dirname(path), parse(path).root)
+  return config === null ? undefined : readTsconfigJsxImportSource(config, new Map(), new Set(), new Set())
 }
 
 function findNearestTsconfig(start: string, projectRoot: string): string | null {
@@ -715,28 +729,28 @@ function findResolvedPackageRoot(entry: string, expectedName: string): string | 
   }
 }
 
-function resolveTemplateAdapter(
+function resolveJsxAdapter(
   packageRoot: string,
   projectRoot: string,
-  templateRoot: string,
+  adapterRoot: string,
 ): string {
   const manifest = parseJsonObject(
-    join(templateRoot, "package.json"),
-    "Template owner package manifest",
+    join(adapterRoot, "package.json"),
+    "JSX Bun owner package manifest",
   )
   const declared = conditionalExportTarget(
-    isObject(manifest.exports) ? manifest.exports["./bun"] : undefined,
+    isObject(manifest.exports) ? manifest.exports["."] : manifest.exports,
   )
   if (declared !== null) {
     if (!declared.startsWith("./")) {
-      throw new Error(`Template JSX compiler export must be package-relative: ${declared}`)
+      throw new Error(`JSX compiler export must be package-relative: ${declared}`)
     }
     const adapterPath = canonicalLexicalFile(
-      resolve(templateRoot, declared),
-      "Template JSX compiler adapter",
+      resolve(adapterRoot, declared),
+      "JSX compiler adapter",
     )
-    if (!inside(templateRoot, adapterPath)) {
-      throw new Error(`Template JSX compiler adapter escaped its owner package: ${adapterPath}`)
+    if (!inside(adapterRoot, adapterPath)) {
+      throw new Error(`JSX compiler adapter escaped its owner package: ${adapterPath}`)
     }
     return adapterPath
   }
@@ -748,15 +762,15 @@ function resolveTemplateAdapter(
   for (const fromRoot of attempts) {
     let resolved: string
     try {
-      resolved = Bun.resolveSync(TEMPLATE_BUN_EXPORT, fromRoot)
+      resolved = Bun.resolveSync(JSX_BUN_PACKAGE, fromRoot)
     } catch {
       continue
     }
-    const adapterPath = canonicalLexicalFile(resolved, "Template JSX compiler adapter")
-    if (!inside(templateRoot, adapterPath)) continue
+    const adapterPath = canonicalLexicalFile(resolved, "JSX compiler adapter")
+    if (!inside(adapterRoot, adapterPath)) continue
     return adapterPath
   }
-  throw new Error(`Cannot resolve ${TEMPLATE_BUN_EXPORT} from owner dependency graph`)
+  throw new Error(`Cannot resolve ${JSX_BUN_PACKAGE} from owner dependency graph`)
 }
 
 function conditionalExportTarget(value: unknown): string | null {
@@ -776,22 +790,22 @@ function conditionalExportTarget(value: unknown): string | null {
   return null
 }
 
-function validateTemplatePluginFactory(
+function validateJsxPluginFactory(
   namespace: unknown,
   adapterPath: string,
-): TemplatePluginFactory {
-  if (!isObject(namespace) || typeof namespace.createTemplateJsxBunPlugin !== "function") {
+): JsxPluginFactory {
+  if (!isObject(namespace) || typeof namespace.createJsxBunPlugin !== "function") {
     throw new TypeError(
-      `Template JSX adapter must export createTemplateJsxBunPlugin(): ${adapterPath}`,
+      `JSX adapter must export createJsxBunPlugin(): ${adapterPath}`,
     )
   }
-  return namespace.createTemplateJsxBunPlugin as TemplatePluginFactory
+  return namespace.createJsxBunPlugin as JsxPluginFactory
 }
 
 function validateBunPlugin(value: unknown, adapterPath: string): Bun.BunPlugin {
   if (!isObject(value) || typeof value.name !== "string" || value.name.trim().length === 0 ||
     typeof value.setup !== "function") {
-    throw new TypeError(`Template JSX adapter returned an invalid Bun plugin: ${adapterPath}`)
+    throw new TypeError(`JSX adapter returned an invalid Bun plugin: ${adapterPath}`)
   }
   return value as unknown as Bun.BunPlugin
 }

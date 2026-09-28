@@ -1,10 +1,10 @@
 import type {ComponentValue} from "@zavx0z/component"
-import type {JsxSourceElement} from "@zavx0z/template/jsx-runtime"
+import type {JSX} from "@jsx/types"
 import type {IntegrationOptions, IntegrationRoot, Presentation} from "@zavx0z/browser/integration"
 
 export type PresentationFixtureOptions = IntegrationOptions & {
   canvas: HTMLCanvasElement
-  app: ComponentValue | JsxSourceElement
+  app: ComponentValue | JSX.Element
 }
 
 /** Supplies a deterministic presentation behind the synchronous Browser root contract. */

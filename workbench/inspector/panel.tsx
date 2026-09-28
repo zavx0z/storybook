@@ -2,7 +2,7 @@ import {
   Inspector,
   type InspectorCategory,
 } from "@zavx0z/ui/widgets/inspector"
-import type {JsxSourceElement} from "@zavx0z/template/jsx-runtime"
+import type {JSX} from "@jsx/types"
 import type {
   WorkbenchInspectorSubject,
   WorkbenchInspectorWidgetRegistration,
@@ -15,7 +15,7 @@ export type WorkbenchInspectorProps = Readonly<{
   query: string
   onCategoryChange(id: string): void
   onQueryChange(query: string): void
-  children: readonly JsxSourceElement[]
+  children: readonly JSX.Element[]
 }>
 
 /** The one production Inspector owned by the fixed Workbench layout. */

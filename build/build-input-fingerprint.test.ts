@@ -205,7 +205,7 @@ function createFixture(): Readonly<{
   const module = join(root, "module/spec/scenario.spec.ts")
   const moduleSource = "export const scenario = true\n"
   const tsconfigBase = join(root, "tsconfig.base.json")
-  const tsconfigSource = JSON.stringify({compilerOptions: {jsxImportSource: "@zavx0z/template"}})
+  const tsconfigSource = JSON.stringify({compilerOptions: {jsxImportSource: "@zavx0z/jsx"}})
   const browserEntry = join(import.meta.dir, "../runtime/package-entry.ts")
   const externalDependency = join(externalRoot, "dependency.ts")
   const globalTypes = join(root, "global.d.ts")
@@ -215,7 +215,7 @@ function createFixture(): Readonly<{
   mkdirSync(join(root, "module/spec"), {recursive: true})
   writeFileSync(join(root, "package.json"), JSON.stringify({
     name: "@fixture/fingerprint",
-    devDependencies: {"@zavx0z/template": "0.0.0"},
+    devDependencies: {"@zavx0z/jsx": "0.0.0"},
   }))
   writeFileSync(module, moduleSource)
   writeFileSync(tsconfigBase, tsconfigSource)
@@ -268,18 +268,18 @@ function createSharedFixture(): Readonly<{
 }> {
   const root = mkdtempSync(join(tmpdir(), "storybook-shared-fingerprint-"))
   roots.push(root)
-  const templateRoot = realpathSync(join(import.meta.dir, "../../webxr-space/template"))
+  const jsxRoot = realpathSync(join(import.meta.dir, "../../webxr-space/jsx"))
   const landing = join(root, "landing.ts")
   const fallback = join(root, "fallback.ts")
   const landingSource = "export const landing = true\n"
   const fallbackSource = "export const fallback = true\n"
   const tsconfigBase = join(root, "tsconfig.base.json")
-  const tsconfigSource = JSON.stringify({compilerOptions: {jsxImportSource: "@zavx0z/template"}})
+  const tsconfigSource = JSON.stringify({compilerOptions: {jsxImportSource: "@zavx0z/jsx"}})
   const globalTypes = join(root, "global.d.ts")
   const globalTypesSource = "declare global { const sharedAmbient: true }\nexport {}\n"
   writeFileSync(join(root, "package.json"), JSON.stringify({
     name: "@fixture/shared-fingerprint",
-    devDependencies: {"@zavx0z/template": `file:${templateRoot}`},
+    devDependencies: {"@zavx0z/jsx": `file:${jsxRoot}`},
   }))
   writeFileSync(landing, landingSource)
   writeFileSync(fallback, fallbackSource)
@@ -329,10 +329,10 @@ function createHoistedDependencyFixture(): Readonly<{
   const browserEntry = join(import.meta.dir, "../runtime/package-entry.ts")
   writeFileSync(join(packageRoot, "package.json"), JSON.stringify({
     name: "@fixture/nested-owner",
-    devDependencies: {"@zavx0z/template": "0.0.0"},
+    devDependencies: {"@zavx0z/jsx": "0.0.0"},
   }))
   writeFileSync(join(packageRoot, "tsconfig.json"), JSON.stringify({
-    compilerOptions: {jsxImportSource: "@zavx0z/template"},
+    compilerOptions: {jsxImportSource: "@zavx0z/jsx"},
   }))
   writeFileSync(join(dependencyPackage, "package.json"), JSON.stringify({
     name: "@fixture/hoisted",
