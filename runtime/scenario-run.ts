@@ -1,13 +1,13 @@
 import type {ScenarioAppInput} from "@storybook/app/contract/input"
 
-/** Создаёт запрос нового запуска в пределах подключённого пакета и его ревизии. */
+/** Получает проверенный результат своей ревизии; rerun требует нового выполнения теста. */
 export function createScenarioRun(
   fetcher: typeof fetch,
   packageId: string,
   nodeId: string,
   revision: string,
 ): NonNullable<ScenarioAppInput["run"]> {
-  return async (variant, signal, onProgress) => {
+  return async (variant, signal, onProgress, rerun) => {
     const session = await fetcher("/api/browser/session", {
       method: "POST",
       headers: {"content-type": "application/json"},
@@ -19,7 +19,7 @@ export function createScenarioRun(
     const response = await fetcher("/api/browser/scenarios/run", {
       method: "POST",
       headers: {"content-type": "application/json", "x-storybook-session": token, accept: "application/x-ndjson"},
-      body: JSON.stringify({nodeId, revision, variantId: variant.id, props: variant.props ?? {}}),
+      body: JSON.stringify({nodeId, revision, variantId: variant.id, props: variant.props ?? {}, ...(rerun ? {rerun: true} : {})}),
       signal,
     })
     if (!response.ok || !response.headers.get("content-type")?.includes("application/x-ndjson")) {

@@ -106,11 +106,12 @@ describe.each([
   const restored = app.getSnapshot()
 
   test("Состав App", () => {
-    expect(app, "Представление предоставляет вид сценария, варианты, снимок, выбор и подписку").toEqual({
+    expect(app, "Представление предоставляет вид сценария, варианты, снимок, выбор, повторный запуск и подписку").toEqual({
       kind: props.kind,
       variants: originalVariants,
       getSnapshot: expect.any(Function),
       select: expect.any(Function),
+      run: expect.any(Function),
       subscribe: expect.any(Function),
       dispose: expect.any(Function),
     })

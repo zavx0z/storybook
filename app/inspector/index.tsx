@@ -1,6 +1,7 @@
 import {ScenarioTree} from "./src/tree"
 import {useSyncExternalStore} from "@zavx0z/component"
 import {CodeEditor} from "@zavx0z/ui/views/code-editor"
+import {Button} from "@zavx0z/ui/buttons/button"
 import type {ScenarioApp} from "../contract/output"
 
 /** Один Editor с декларацией и дерево describe с пунктами выбранного варианта. */
@@ -31,6 +32,11 @@ export function ScenarioInspector(props: Readonly<{value: unknown}>) {
         flex-shrink: 0;
       `}
     />
+    {selected.execution !== undefined ? <Button
+      label="Запустить заново"
+      disabled={selected.execution.status === "running"}
+      onClick={() => app.run()}
+    /> : null}
     <div
       data-scenario-variants=""
       style={css`

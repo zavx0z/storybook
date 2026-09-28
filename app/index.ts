@@ -12,8 +12,9 @@ import type {ScenarioApp} from "./contract/output"
 /**
 Связывает общий Editor и единственный preview выбором варианта сценария.
 
-Первый вариант выбран сразу. При наличии host.run выбор запускает его тест.
-Предыдущий запрос отменяется; поздний ответ не меняет выбранный вариант.
+Первый вариант выбран сразу. Host возвращает актуальный результат проверки.
+Завершённый результат сохраняется при переключении; run запрашивает новый тест.
+Предыдущий запрос отсоединяется; поздний ответ не меняет выбранный вариант.
 Монтированием компонента владеет host.
 */
 export function createScenarioApp(input: ScenarioAppInput): ScenarioApp {
@@ -21,14 +22,14 @@ export function createScenarioApp(input: ScenarioAppInput): ScenarioApp {
   if (input.kind !== "component" && input.kind !== "function") throw new TypeError("Неизвестное представление сценария")
   const first = input.variants[0]
   if (first === undefined) throw new Error("Для просмотра сценария нужен хотя бы один вариант")
-  const byId = new Map(input.variants.map(variant => [variant.id, variant]))
+  const byId = new Map<string, ReturnType<ScenarioApp["getSnapshot"]>>(input.variants.map(variant => [variant.id, variant]))
   if (byId.size !== input.variants.length) throw new Error("Идентификаторы вариантов сценария должны быть уникальны")
   let selected: ReturnType<ScenarioApp["getSnapshot"]> = first
   const listeners = new Set<() => void>()
   let controller: AbortController | undefined
   let disposed = false
   const notify = () => { for (const listener of listeners) listener() }
-  const start = () => {
+  const start = (rerun = false) => {
     if (input.run === undefined) return
     controller?.abort()
     const current = new AbortController()
@@ -43,10 +44,13 @@ export function createScenarioApp(input: ScenarioAppInput): ScenarioApp {
         const output = (selected.execution?.progress?.output ?? "") + (progress.text ?? "")
         selected = {...selected, execution: {status: "running", progress: {phase: progress.phase, output}}}
         notify()
-      })
+      }, rerun)
     }).then(result => {
       if (disposed || current.signal.aborted) return
       selected = {...variant, ...result}
+      if (result.execution.tests.length > 0 && !result.execution.tests.some(test => test.status === "not-executed")) {
+        byId.set(variant.id, selected)
+      }
       notify()
     }).catch(error => {
       if (disposed || current.signal.aborted) return
@@ -68,9 +72,15 @@ export function createScenarioApp(input: ScenarioAppInput): ScenarioApp {
       const variant = byId.get(id)
       if (variant === undefined) throw new Error(`Неизвестный вариант сценария: ${id}`)
       if (variant.id === selected.id) return
+      controller?.abort()
       selected = variant
-      if (input.run !== undefined) start()
+      if (input.run !== undefined && variant.execution === undefined) start()
       else notify()
+    },
+    run() {
+      if (disposed || selected.execution?.status === "running") return
+      byId.set(selected.id, input.variants.find(variant => variant.id === selected.id)!)
+      start(true)
     },
     dispose() {
       disposed = true

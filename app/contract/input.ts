@@ -13,10 +13,11 @@ import type {CompiledTemplate} from "@zavx0z/template/compiled"
 @property variants - Варианты из {@link ScenarioPreview} в порядке показа.
 Список непустой, идентификаторы вариантов уникальны; первым выбирается первый элемент.
 
-@property [run] - Выполнение теста выбранного варианта принимающей стороной.
+@property [run] - Получение результата проверки выбранного варианта принимающей стороной.
 Получает исходный вариант, сигнал отмены и обработчик хода выполнения.
 Возвращает исходник, проверенные свойства компонента при наличии, вызовы,
-пункты и итог тестов. При смене выбора предыдущий запрос отменяется.
+пункты и итог тестов. Последний аргумент rerun требует нового выполнения.
+При смене выбора предыдущий читатель отсоединяется от запроса.
 Без обработчика приложение использует подготовленные данные без нового запуска.
 */
 export type ScenarioAppInput = (
@@ -36,6 +37,7 @@ export type ScenarioAppInput = (
       variant: ScenarioPreview["variants"][number],
       signal: AbortSignal,
       onProgress: NonNullable<ReadScenarioInput["onProgress"]>,
+      rerun?: boolean,
     ) => Promise<{
       source: string
       props?: Readonly<Record<string, unknown>>

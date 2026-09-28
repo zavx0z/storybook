@@ -4,7 +4,7 @@ import type {ScenarioAppInput} from "@storybook/app/contract/input"
 
 type Result = Awaited<ReturnType<NonNullable<Extract<ScenarioAppInput, {kind: "function"}>["run"]>>>
 
-test("Переключение запускает тест заново и отклоняет поздний ответ", async () => {
+test("Переключение отсоединяет предыдущий запрос и отклоняет поздний ответ", async () => {
   const pending: {id: string, props: unknown, signal: AbortSignal, resolve: (result: Result) => void,
     progress: Parameters<NonNullable<Extract<ScenarioAppInput, {kind: "function"}>["run"]>>[2]}[] = []
   const app = createScenarioApp({
@@ -51,4 +51,28 @@ test("Ошибка запуска заменяет сохранённый рез
   } finally {
     app.dispose()
   }
+})
+
+test.each(["passed", "failed"] as const)("Выбор сохраняет итог %s, явный запуск обновляет его", async status => {
+  const requests: {id: string, rerun: boolean}[] = []
+  const app = createScenarioApp({kind: "function",
+    variants: ["a", "b"].map(id => ({id, title: id, source: id, points: [], calls: []})),
+    run: async (variant, _signal, _progress, rerun) => {
+      requests.push({id: variant.id, rerun: rerun === true})
+      return {source: variant.source, points: [], calls: [], execution: {status, tests: [{label: "Результат", status, message: null}]}}
+    },
+  })
+  try {
+    await Bun.sleep(0)
+    app.select("b")
+    await Bun.sleep(0)
+    app.select("a")
+    expect(app.getSnapshot().execution?.status, "Итог показан сразу при возвращении к проверенному варианту").toBe(status)
+    expect(requests).toHaveLength(2)
+    app.run()
+    await Bun.sleep(0)
+    expect(requests, "Новый прогон запрашивается явно").toEqual([
+      {id: "a", rerun: false}, {id: "b", rerun: false}, {id: "a", rerun: true},
+    ])
+  } finally { app.dispose() }
 })

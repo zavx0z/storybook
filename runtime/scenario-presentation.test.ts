@@ -34,7 +34,7 @@ test("руководство Archetypes показывает файлы и ко�
     expect(presentation.element.querySelector("[data-scenario-guide]")).not.toBeNull()
     expect(presentation.element.textContent).toContain("Структура файлов")
     expect(presentation.element.textContent).toContain("spec/scenario.spec.ts — сценарий")
-    expect(presentation.element.querySelector('[data-language-id="typescript"]')?.textContent).toContain("describe.each")
+    expect(presentation.element.querySelector('[data-language-id="tsx"]')?.textContent).toContain("describe.each")
     expect(presentation.element.querySelector('[data-language-id="json"]')).toBeNull()
     presentation.app.select("data")
     await Promise.resolve()
@@ -199,7 +199,7 @@ test("Editor остаётся сверху, пока прокручиваетс�
     viewport: {width: 400, height: 600},
   })
   try {
-    const editor = inspectorHost.querySelector('[data-language-id="typescript"]')!
+    const editor = inspectorHost.querySelector('[data-language-id="tsx"]')!
     const variants = inspectorHost.querySelector("[data-scenario-variants]") as HTMLElement
     const initial = renderer.flush()
     const editorBox = initial.boxByNode.get(editor)
@@ -254,7 +254,7 @@ test("снимки функции переключаются в редактор
         expect(editor.textContent).not.toContain('"root"')
       }
       expect(presentation.element.querySelector('[data-language-id="json"]')).toBe(editor)
-      expect(inspectorHost.querySelector('[data-language-id="typescript"]')?.textContent).toContain("readPackage")
+      expect(inspectorHost.querySelector('[data-language-id="tsx"]')?.textContent).toContain("readPackage")
       expect(inspectorHost.querySelectorAll('[aria-expanded="true"]')).toHaveLength(1)
     }
     expect(presentation.element.textContent).toContain("Ошибка выполнения")

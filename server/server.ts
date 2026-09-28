@@ -886,7 +886,8 @@ export async function startExternalStorybookServer(
           const token = request.headers.get("x-storybook-session") ?? ""
           const grant = browserSessions.authorize(token)
           const body = await requestObject(request, STORYBOOK_MCP_JOURNAL_BODY_MAX_BYTES)
-          assertExactRequestKeys(body, ["nodeId", "revision", "variantId", "props"])
+          assertExactRequestKeys(body, ["nodeId", "revision", "variantId", "props", "rerun"])
+          if (body.rerun !== undefined && typeof body.rerun !== "boolean") throw new TypeError("rerun должен быть логическим значением")
           const revision = requiredText("scenario revision", body.revision)
           if (grant.kind !== "package" || grant.packageId === null || grant.revision !== revision) {
             throw new ExternalStorybookSecurityError("invalid-browser-session", 403, "Запуск не принадлежит сессии пакета")
@@ -899,6 +900,7 @@ export async function startExternalStorybookServer(
             revision,
             variantId: requiredText("scenario variantId", body.variantId),
             props: body.props as Record<string, unknown>,
+            ...(body.rerun === true ? {rerun: true} : {}),
           }
           const execute = async (signal: AbortSignal, onProgress?: ReadScenarioInput["onProgress"]) => {
             try {
@@ -1396,6 +1398,7 @@ export async function startExternalStorybookServer(
     if (closePromise !== null) return closePromise
     closing = true
     closePromise = (async () => {
+      await runScenario.dispose()
       await automaticActivation?.dispose()
       await sharedAssets.dispose()
       for (const client of clients) client.close(1001, "Storybook server stopped")

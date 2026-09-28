@@ -631,6 +631,12 @@ export class StorybookPackageSession {
     return this.#revisions.get(revision)?.graphSnapshot ?? null
   }
 
+  /** Подтверждает входы конкретной ревизии перед новым прогоном, включая ещё не замеченные watcher изменения. */
+  revisionInputsMatch(revision: string): boolean {
+    const record = this.#revisions.get(revision)
+    return record !== undefined && this.#verifyPersistedInputFingerprint(record.inputFingerprint) !== null
+  }
+
   revisionDirectory(revision = this.#activeRevision ?? this.#lastWorkingRevision ?? this.#builtRevision): string | null {
     if (revision === null || !this.#revisions.has(revision)) return null
     const directory = this.#revisionDirectory(revision)
