@@ -10,7 +10,6 @@
     "repo",
     "domain",
     "component",
-    "assessment",
     "specs"
   ],
   "exports": {
@@ -20,7 +19,6 @@
     "./repo": "./repo/index.ts",
     "./domain": "./domain/index.ts",
     "./component": "./component/index.ts",
-    "./assessment": "./assessment/index.ts",
     "./specs": "./specs/index.ts",
     "./package/package-json": "./package/package-json/index.ts",
     "./package/index": "./package/index/index.ts",

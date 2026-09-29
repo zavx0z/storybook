@@ -6,7 +6,6 @@ Component владеет конкретным поведением, публич
 
 @packageDocumentation
 */
-import {lstat, readFile} from "node:fs/promises"
 import {resolve} from "node:path"
 import {readPackage} from "@archetypes/package"
 import type {ReadComponentInput} from "./contract/input"
@@ -20,21 +19,11 @@ export async function readComponent({path}: ReadComponentInput): Promise<ReadCom
   const entries: ReadComponentOutput["entries"][number][] = []
   for (const entry of description.index.entries) {
     if (entry.path !== "." || entry.status !== "owned" || !entry.code || !entry.target) continue
-    const source = resolve(path, entry.target)
+    const source = resolve(description.root, entry.target)
     const jsx = /\.[jt]sx$/u.test(source)
-    const scanner = new Bun.Transpiler({loader: jsx ? "tsx" : "ts"})
-    entries.push({path: source, exports: scanner.scan(await readFile(source, "utf8")).exports,
+    entries.push({path: source, exports: description.code.find(item => item.path === source)?.exports ?? [],
       input: entry.input, output: entry.output, jsx})
   }
-  const scenarios: string[] = []
-  for (const file of ["spec/scenario.spec.ts", "spec/scenario.spec.tsx"]) {
-    const source = resolve(path, file)
-    const info = await lstat(source).catch(error => {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error
-      return null
-    })
-    if (info?.isFile() && !info.isSymbolicLink()) scenarios.push(source)
-  }
-  return {package: description, entries, scenarios,
+  return {package: description, entries, scenarios: description.scenarios,
     additionalCode: description.index.entries.filter(entry => entry.code && entry.status !== "blocked" && (entry.path !== "." || entry.status !== "owned")).map(entry => entry.path)}
 }

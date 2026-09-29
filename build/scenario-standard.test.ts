@@ -78,3 +78,32 @@ test("структурный сценарий Domain без исполняемо
   expect(completed).toBeTrue()
   expect(warnings).toEqual([])
 }, 60000)
+
+test("собственный сценарий выполняется один раз, а TODO остаётся предупреждением", async () => {
+  const descriptor = fixture()
+  const path = descriptor.scenarioSpecs![0]!.sourcePaths[0]!
+  const root = join(path, "../..")
+  const log = join(root, "calls.log")
+  writeFileSync(join(root, "index.ts"), [
+    'import {appendFileSync} from "node:fs"',
+    "export function evaluate(props: {value: number}) {",
+    `  appendFileSync(${JSON.stringify(log)}, "x")`,
+    "  return props.value",
+    "}",
+  ].join("\n"))
+  writeFileSync(path, [
+    'import {describe, expect, test} from "bun:test"',
+    'import {evaluate} from "@fixture/standard"',
+    'describe.each([{name: "Пример", props: {value: 1}}])("$name", ({props}) => {',
+    '  const result = evaluate(props)',
+    '  test("Значение", () => { expect(result, "Один результат публичного вызова").toBe(1) })',
+    '  test.todo("Обязательное незавершённое требование", () => { expect(undefined, "Не завершено").toBeDefined() })',
+    '})',
+  ].join("\n"))
+  const warnings: StorybookPackageDiagnostic[] = []
+  const preview = await prepareStorybookScenarios(descriptor, new AbortController().signal,
+    undefined, {standard: "transition", warnings})
+  expect(preview).toHaveLength(1)
+  expect(readFileSync(log, "utf8")).toBe("x")
+  expect(warnings.some(warning => warning.message.includes("todo"))).toBeTrue()
+}, 60000)

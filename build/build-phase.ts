@@ -5,7 +5,7 @@ export const STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL = "storybook-build-worker-eve
 export type StorybookBuildPhase =
   | "cache"
   | "fingerprint"
-  | "assessment"
+  | "verification"
   | "resources"
   | "exports"
   | "bundle"
@@ -121,7 +121,7 @@ function isStorybookBuildPhase(value: unknown): value is StorybookBuildPhase {
   return [
     "cache",
     "fingerprint",
-    "assessment",
+    "verification",
     "resources",
     "exports",
     "bundle",

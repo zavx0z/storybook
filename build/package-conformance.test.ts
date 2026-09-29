@@ -1,50 +1,51 @@
 import {expect, test} from "bun:test"
-import type {ReadAssessmentOutput} from "@archetypes/assessment"
 import type {ReadScenarioOutput} from "@storybook/app/scenarios"
-import {assertPackageConformance} from "./package-conformance"
-import {appliedPackageStandard, readPackageAssessment} from "../sessions/package-standard"
+import {scenarioVerification} from "./package-conformance"
+import {appliedPackageStandard, readPackageVerification} from "../sessions/package-standard"
 
-const passed: ReadAssessmentOutput = {status: "passed", classification: "domain", reports: [], diagnostics: []}
+/** Минимальные native outcomes для проверки политики, независимые от названий архетипов. */
+function report(statuses: ReadScenarioOutput["tests"][number]["status"][]): ReadScenarioOutput {
+  return {
+    path: "/standard/spec/scenario.spec.ts", exitCode: statuses.includes("failed") ? 1 : 0, stderr: "",
+    tests: statuses.map((status, id) => ({id, label: id === 0 ? "Класс Domain" : "Публичный контракт", status,
+      location: {path: "/standard/spec/scenario.spec.ts", line: id + 1, column: 1}, message: null, skipReason: null})),
+    assertions: statuses.flatMap((status, testId) => status === "failed" ? [{testId, status: "failed"}] : []),
+    validation: {checks: []},
+  } as unknown as ReadScenarioOutput
+}
 
-test.each(["failed", "incomplete"] as const)("%s предупреждает переходный пакет и блокирует строгий", status => {
-  const report: ReadAssessmentOutput = {...passed, status, classification: null,
-    diagnostics: [{rule: "package/contract", status: "not-checked", path: "/package", message: "Проверка не завершена"}]}
-  expect(() => assertPackageConformance(report, "transition", "/package")).not.toThrow()
-  expect(() => assertPackageConformance(report, "strict", "/package")).toThrow("Проверка не завершена")
-  expect(appliedPackageStandard("transition", report, [])).toBe("transition")
-  expect(appliedPackageStandard("strict", report, [])).toBe("strict")
+test("один успешный именованный пункт не заменяет полное прохождение сценария", () => {
+  const verification = scenarioVerification(report(["passed", "failed"]))
+  expect(verification.status).toBe("failed")
+  expect(appliedPackageStandard("transition", verification, [])).toBe("transition")
+  expect(appliedPackageStandard("strict", verification, [])).toBe("strict")
 })
 
-test("ошибка исполнения блокирует оба режима независимо от нормативных предупреждений", () => {
-  const report: ReadAssessmentOutput = {...passed, status: "failed", classification: null, reports: [{
-    archetype: "behavior", applicable: true, status: "failed",
-    report: {path: "/package/spec/scenario.spec.ts", exitCode: 1, stderr: "runtime error", tests: []} as unknown as ReadScenarioOutput,
-  }]}
-  for (const standard of ["transition", "strict"] as const) {
-    expect(() => assertPackageConformance(report, standard, "/package")).toThrow("runtime error")
-  }
+test.each(["todo", "not-executed", "skipped"] as const)("обязательный %s удерживает незавершённость", status => {
+  const verification = scenarioVerification(report(["passed", status]))
+  expect(verification.status).toBe("incomplete")
+  expect(verification.diagnostics).toHaveLength(1)
+  expect(appliedPackageStandard("transition", verification, [])).toBe("transition")
 })
 
-test("отрицательная проба другого класса не блокирует подтверждённый пакет", () => {
-  const report: ReadAssessmentOutput = {...passed, reports: [{archetype: "repo", applicable: false, status: "failed"}]}
-  expect(() => assertPackageConformance(report, "strict", "/package")).not.toThrow()
-  expect(appliedPackageStandard("transition", report, [])).toBe("strict")
+test("документированная неприменимость не отменяет выполненные общие требования", () => {
+  const source = report(["passed", "skipped"])
+  const value = {...source, tests: source.tests.map(test => test.status === "skipped"
+    ? {...test, skipReason: "Выходной контракт данных не применим к визуальному компоненту"} : test)}
+  expect(scenarioVerification(value).status).toBe("passed")
+  expect(appliedPackageStandard("transition", scenarioVerification(value), [])).toBe("strict")
 })
 
-test("исключение внутри нормативного теста не маскируется предупреждением", () => {
-  const report: ReadAssessmentOutput = {...passed, status: "failed", classification: null, reports: [{
-    archetype: "package", applicable: true, status: "failed",
-    report: {path: "/standard/spec/scenario.spec.ts", exitCode: 1, stderr: "TypeError: broken checker",
-      tests: [{id: 1, status: "failed"}], assertions: []} as unknown as ReadScenarioOutput,
-  }]}
-  expect(() => assertPackageConformance(report, "transition", "/package")).toThrow("broken checker")
+test("отсутствие выполненных проверок не подтверждает стандарт", () => {
+  expect(scenarioVerification(report([])).status).toBe("incomplete")
 })
 
-test("предупреждение preview не допускает автоматического перехода", () => {
+test("исключение без failed assertion остаётся технической ошибкой", () => {
+  expect(() => scenarioVerification({...report(["failed"]), assertions: [], stderr: "TypeError: checker"})).toThrow("checker")
+})
+
+test("нормативные предупреждения и неполный receipt не допускают повышения", () => {
+  const passed = scenarioVerification(report(["passed"]))
   expect(appliedPackageStandard("transition", passed, [{phase: "validate", path: "/package", message: "Нет preview"}])).toBe("transition")
-})
-
-test("сохранённое passed без класса или с незавершённым требованием не является свидетельством", () => {
-  expect(() => readPackageAssessment({...passed, classification: null})).toThrow()
-  expect(() => readPackageAssessment({...passed, diagnostics: [{rule: "todo", path: "/package", message: "TODO", status: "not-checked"}]})).toThrow()
+  expect(() => readPackageVerification({...passed, diagnostics: [{phase: "validate", path: "/package", message: "TODO"}]})).toThrow()
 })

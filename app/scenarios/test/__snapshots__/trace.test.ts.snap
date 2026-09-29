@@ -282,7 +282,7 @@ exports[`полная история имеет читаемый snapshot 1`] = 
       "groupId": 0,
       "location": {
         "column": 24,
-        "line": 15,
+        "line": 17,
         "path": "<storybook>/archetypes/package/spec/scenario.spec.ts",
       },
       "module": "<storybook>/archetypes/package/index.ts",
@@ -290,12 +290,24 @@ exports[`полная история имеет читаемый snapshot 1`] = 
       "outcome": {
         "type": "resolve",
         "value": {
+          "code": [
+            {
+              "exports": [
+                "readPackage",
+              ],
+              "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/index.ts",
+            },
+          ],
           "documentation": {
             "markdown": [
-              "Собирает описание выбранного пакета из его манифеста, корневого TSDoc и публичных входов.",
+              "Собирает описание выбранного пакета из манифеста, корневого TSDoc, публичных входов",
+              "и состава вложенных пакетов. Читает Git-границу и runtime exports исходников;",
+              "эти факты раскрываются и проверяются в едином сценарии Package.",
+              "Package является общей структурной формой Repo,",
+              "Domain и Component; наличие вложенных пакетов не создаёт дополнительного класса.",
               "Чтение не исполняет код пакета и не запускает его компоненты или подписки.",
             ],
-            "sourceDigest": "9e50b2014e996a567a97f62095ae39ca5297772c2c9d975702fa2a9e4bddaa41",
+            "sourceDigest": "e8241f6f212dddd1eaa5317da748b5ee9ec37050ff8cc2fabee61497e648144d",
             "sourcePath": "/Users/zavx0z/repozitarium/storybook/archetypes/package/index.ts",
           },
           "index": {
@@ -310,36 +322,6 @@ exports[`полная история имеет читаемый snapshot 1`] = 
                 "status": "owned",
                 "target": "./index.ts",
               },
-              {
-                "code": true,
-                "conditions": [],
-                "entrypoint": true,
-                "input": "./documentation/contract/input.ts",
-                "output": "./documentation/contract/output.ts",
-                "path": "./documentation",
-                "status": "owned",
-                "target": "./documentation/index.ts",
-              },
-              {
-                "code": true,
-                "conditions": [],
-                "entrypoint": true,
-                "input": "./package-json/contract/input.ts",
-                "output": "./package-json/contract/output.ts",
-                "path": "./package-json",
-                "status": "owned",
-                "target": "./package-json/index.ts",
-              },
-              {
-                "code": true,
-                "conditions": [],
-                "entrypoint": true,
-                "input": "./index/contract/input.ts",
-                "output": "./index/contract/output.ts",
-                "path": "./index",
-                "status": "owned",
-                "target": "./index/index.ts",
-              },
             ],
             "unchecked": [],
           },
@@ -347,13 +329,40 @@ exports[`полная история имеет читаемый snapshot 1`] = 
             "description": "Объясняет и проверяет назначение пакета, принадлежность публичных входов и наличие их контрактов",
             "exports": {
               ".": "./index.ts",
-              "./documentation": "./documentation/index.ts",
-              "./index": "./index/index.ts",
-              "./package-json": "./package-json/index.ts",
             },
             "label": "Пакет",
             "name": "@archetypes/package",
+            "workspaces": [
+              "package-json",
+              "index",
+              "documentation",
+            ],
           },
+          "packages": [
+            {
+              "name": "@archetypes/package-json",
+              "parent": "/Users/zavx0z/repozitarium/storybook/archetypes/package",
+              "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/package-json",
+            },
+            {
+              "name": "@archetypes/package-index",
+              "parent": "/Users/zavx0z/repozitarium/storybook/archetypes/package",
+              "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/index",
+            },
+            {
+              "name": "@archetypes/package-documentation",
+              "parent": "/Users/zavx0z/repozitarium/storybook/archetypes/package",
+              "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/documentation",
+            },
+          ],
+          "repository": {
+            "gitRoot": "/Users/zavx0z/repozitarium/storybook",
+            "nestedRepositories": [],
+          },
+          "root": "/Users/zavx0z/repozitarium/storybook/archetypes/package",
+          "scenarios": [
+            "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
+          ],
         },
       },
       "test": null,

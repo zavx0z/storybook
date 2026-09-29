@@ -42,8 +42,7 @@
     "@mcp/children": "workspace:*",
     "@mcp/root": "workspace:*",
     "@archetypes/package": "workspace:archetypes/package",
-    "@archetypes/package-documentation": "workspace:archetypes/package/documentation",
-    "@archetypes/assessment": "workspace:archetypes/assessment"
+    "@archetypes/package-documentation": "workspace:archetypes/package/documentation"
   },
   "devDependencies": {
     "@archetypes/specs": "workspace:archetypes/specs",

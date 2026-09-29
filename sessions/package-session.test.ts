@@ -35,9 +35,8 @@ describe("working Storybook PackageSession lifecycle", () => {
     let passed = true
     const builder: StorybookPackageRevisionBuilder = async input => {
       modes.push(input.standard)
-      return {...successfulBuild(input.stagingDirectory), assessment: {
+      return {...successfulBuild(input.stagingDirectory), verification: {
         status: passed ? "passed" : "incomplete",
-        classification: passed ? "domain" : null,
         diagnostics: [],
       }}
     }
@@ -56,6 +55,12 @@ describe("working Storybook PackageSession lifecycle", () => {
     const applied = session.snapshot().activeRevision
     await session.dispose()
 
+    const oldOwner = readdirSync(join(root, ".artifacts"))[0]!
+    const oldPath = join(root, ".artifacts", oldOwner, "applied.json")
+    const oldReceipt = JSON.parse(readFileSync(oldPath, "utf8"))
+    oldReceipt.assessment = {...oldReceipt.verification, classification: "domain"}
+    delete oldReceipt.verification
+    writeFileSync(oldPath, JSON.stringify(oldReceipt))
     passed = false
     const restored = createSession(value, builder, [])
     expect(restored.snapshot().standard).toBe("strict")
@@ -83,7 +88,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     const warning = storybookDiagnostic("validate", "Обязательное требование ещё TODO")
     const value = descriptor(root, "@fixture/warning")
     const builder: StorybookPackageRevisionBuilder = async input => ({...successfulBuild(input.stagingDirectory),
-      assessment: {status: "incomplete", classification: null, diagnostics: []}, warnings: [warning]})
+      verification: {status: "incomplete", diagnostics: []}, warnings: [warning]})
     const session = createSession(value, builder, [])
     const built = await session.ensureBuilt()
     expect(built).toMatchObject({standard: "transition", warnings: [warning], diagnostics: []})

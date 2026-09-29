@@ -16,7 +16,7 @@ test("этапы очереди, компиляции и результата р
   expect(buildProgressStatus(readBuildProgress({...common, state: "completed", outcome: "timed-out"})!)).toContain("Превышен срок")
   expect(buildProgressStatus(readBuildProgress({...common, state: "completed", outcome: "canceled"})!)).toContain("отменена")
   expect(buildProgressStatus(readBuildProgress({...common, state: "completed", outcome: "failed"})!)).toContain("Ошибка обработки")
-  expect(buildProgressStatus(readBuildProgress({...common, state: "running", phase: "assessment"})!)).toContain("Проверка стандарта пакета")
+  expect(buildProgressStatus(readBuildProgress({...common, state: "running", phase: "verification"})!)).toContain("Проверка стандарта пакета")
   expect(readBuildProgress({...common, state: "running", phase: "invented"})).toBeNull()
   expect(readBuildProgress({...common, state: "completed", outcome: "invented"})).toBeNull()
 })

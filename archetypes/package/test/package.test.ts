@@ -1,5 +1,5 @@
 import {afterAll, describe, expect, test} from "bun:test"
-import {mkdtemp, mkdir, rm, symlink, writeFile} from "node:fs/promises"
+import {mkdtemp, mkdir, realpath, rm, symlink, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {resolve} from "node:path"
 import {readPackage} from "@archetypes/package"
@@ -8,7 +8,7 @@ import {readPackageIndex} from "@archetypes/package-index"
 import {readPackageJson} from "@archetypes/package-json"
 import {readScenario} from "@storybook/app/scenarios"
 
-const root = await mkdtemp(resolve(tmpdir(), "archetype-package-"))
+const root = await realpath(await mkdtemp(resolve(tmpdir(), "archetype-package-")))
 afterAll(() => rm(root, {recursive: true, force: true}))
 
 /** Создаёт локальный файловый пример; исходники намеренно не пригодны для исполнения. */
@@ -87,6 +87,9 @@ describe("Чтение состава пакета", () => {
     await writeFile(manifestPath, JSON.stringify(manifest))
     expect(await readPackageJson({path: manifestPath})).toEqual(manifest)
     expect((await readPackage({path})).packageJson).toEqual(manifest)
+    await writeFile(resolve(path, "index.ts"), '/**\nОписание модуля.\n@packageDocumentation\n*/\nexport function increment() { return 1 }')
+    await mkdir(resolve(path, "spec"))
+    await writeFile(resolve(path, "spec/scenario.spec.ts"), 'import {test, expect} from "bun:test"\ntest("Пример", () => expect(1).toBe(1))')
     const scenario = await readScenario({path: resolve(import.meta.dir, "../spec/scenario.spec.ts"), props: {path}})
     expect(scenario.exitCode).toBe(0)
     await writeFile(manifestPath, JSON.stringify({...manifest, label: 42}))

@@ -1,5 +1,6 @@
 /**
-Repo — корневой пакет самостоятельного монорепозитория.
+Читает Git-границу пакета на примере репозитория Storybook.
+Правила соответствия Package и Repo находятся в сценарии Package.
 Project объединяет Repo ссылками, а не вложенными Git-деревьями.
 
 @packageDocumentation
@@ -10,10 +11,10 @@ import {readRepo} from "@archetypes/repo"
 
 describe.each([{name: "Архетип Repo", props: {path: resolve(import.meta.dir, "../../..")}}])("$name", async ({props}) => {
   const result = await readRepo(props)
-  test("Класс Repo", () => {
+  test("Граница истории", () => {
     expect(result.gitRoot, "Пакет находится в точном корне собственной Git-истории").toBe(result.root)
   })
   test("Независимые репозитории", () => {
-    expect(result.nestedRepositories, "Другие самостоятельные Repo подключаются к Project, а не вкладываются в этот Repo").toEqual([])
+    expect(result.nestedRepositories, "В репозитории этого примера нет вложенных самостоятельных Git-репозиториев").toEqual([])
   })
 })

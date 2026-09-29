@@ -1,5 +1,7 @@
 /**
-Показывает и проверяет публичный состав пакета на собственном примере Archetypes.
+Показывает и проверяет общие требования Package и применимые правила Repo,
+Domain или Component. Один запуск служит проверкой, документацией и примером;
+классификация выражена разделами и утверждениями этого же сценария.
 props.path позволяет применить те же проверки к другому пакету.
 Файловая полнота не доказывает смысловую правильность компонента и его состояния.
 
@@ -13,6 +15,12 @@ describe.each([
   {name: "Архетип пакета", props: {path: resolve(import.meta.dir, "..")}},
 ])("$name", async ({props}) => {
   const result = await readPackage(props)
+  const entries = result.index.entries.filter(entry => entry.path === "." && entry.code && entry.status === "owned")
+  const localCode = result.code.filter(source => source.exports.length > 0)
+  const repo = result.repository.gitRoot === result.root
+  const domain = !repo && result.packages.length > 0 && localCode.length === 0
+  const component = !repo && entries.some(entry => result.code.some(source =>
+    source.path === resolve(result.root, entry.target!) && source.exports.length > 0))
 
   describe("Назначение", () => {
     test("Идентичность", () => {
@@ -56,6 +64,15 @@ describe.each([
     })
   })
 
+  /** @remarks Структурная роль проверяется после полного раскрытия exports; иначе сохраняется TODO полноты ниже. */
+  describe.skipIf(result.index.unchecked.length > 0)("Классификация", () => {
+    test("Структурная роль", () => {
+      expect({root: result.root, repository: result.repository, packages: result.packages, code: result.code},
+        "Repo находится в корне своей Git-истории. Внутри Repo Domain организует пакеты без собственной runtime реализации, Component предоставляет собственную реализацию. Подтверждение требует всех проверок применимого раздела, а не одного этого пункта.")
+        .toSatisfy(() => Number(repo) + Number(domain) + Number(component) === 1)
+    })
+  })
+
   /** @remarks Полнота файловой проверки применима, когда все объявления exports раскрыты. */
   describe.skipIf(result.index.unchecked.length > 0)("Раскрытые exports", () => {
     test("Полнота файловой проверки", () => {
@@ -67,6 +84,48 @@ describe.each([
   describe.skipIf(result.index.unchecked.length === 0)("Нераскрытые exports", () => {
     test.todo("Полнота раскрытия exports", () => {
       expect(result.index.unchecked, "Все объявления этого примера входят в область файловой проверки").toEqual([])
+    })
+  })
+
+  /** @remarks Repo проверяется только для пакета в точном корне собственной Git-истории. */
+  describe.skipIf(!repo)("Repo", () => {
+    test("Независимые репозитории", () => {
+      expect(result.repository.nestedRepositories,
+        "Другие самостоятельные Repo подключаются к Project, а не вкладываются в этот Repo").toEqual([])
+    })
+  })
+
+  /** @remarks Domain применим к вложенному пакету, объединяющему части без собственной runtime реализации. */
+  describe.skipIf(!domain)("Domain", () => {
+    test("Принадлежность публичных входов", () => {
+      expect(result.index.entries,
+        "Кодовые подпути Domain прямо открывают публичные входы вложенных пакетов; корневой index может содержать обзор и типы")
+        .toSatisfy(entries => entries.every(entry => !entry.code || entry.status === "forwarded" || entry.status === "blocked"
+          || entry.status === "owned" && entry.path === "."))
+    })
+  })
+
+  /** @remarks Component применим к вложенному пакету с собственной runtime реализацией в основном публичном входе. */
+  describe.skipIf(!component)("Component", () => {
+    test("Основная реализация", () => {
+      expect(entries.map(entry => result.code.find(source => source.path === resolve(result.root, entry.target!))),
+        "Каждая условная ветвь предоставляет одну основную runtime реализацию; type-only экспорты не считаются реализациями")
+        .toSatisfy(sources => sources.every(source => source?.exports.length === 1))
+    })
+    test("Публичная граница", () => {
+      expect(result.index.entries,
+        "Дополнительные самостоятельные реализации получают собственные пакеты; Component публикует собственный основной кодовый вход")
+        .toSatisfy(entries => entries.every(entry => !entry.code || entry.status === "blocked" || entry.path === "." && entry.status === "owned"))
+    })
+    test("Исполняемое использование", () => {
+      expect(result.scenarios,
+        "Компонент имеет один непосредственный сценарий использования публичного API; он исполняется обычным механизмом сценариев владельца")
+        .toHaveLength(1)
+    })
+    test("Результат", () => {
+      expect(entries,
+        "Невизуальный результат описан выходным контрактом владельца; визуальный компонент возвращает JSX")
+        .toSatisfy(entries => entries.every(entry => /\.[jt]sx$/u.test(entry.target!) || entry.output !== null))
     })
   })
 })

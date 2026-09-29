@@ -1019,8 +1019,8 @@ function publicPackageSnapshot(value: unknown) {
     diagnostics: sanitizeDiagnostics(record.diagnostics),
     warnings: sanitizeDiagnostics(record.warnings),
     standard: record.standard,
-    assessment: record.assessment && typeof record.assessment === "object"
-      ? {status: Reflect.get(record.assessment, "status"), classification: Reflect.get(record.assessment, "classification")} : null,
+    verification: record.verification && typeof record.verification === "object"
+      ? {status: Reflect.get(record.verification, "status")} : null,
     builds: record.builds,
     generation: record.generation,
     requestedGeneration: record.requestedGeneration,

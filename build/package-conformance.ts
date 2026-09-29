@@ -1,44 +1,39 @@
-import {readAssessment} from "@archetypes/assessment"
-import type {ReadAssessmentOutput} from "@archetypes/assessment"
-import {assessmentMessages, type StorybookPackageStandard} from "../sessions/package-standard"
+import {fileURLToPath} from "node:url"
+import {readScenario, type ReadScenarioOutput} from "@storybook/app/scenarios"
+import type {StorybookPackageVerification} from "../sessions/package-standard"
 import {storybookBuildError, storybookDiagnostic} from "../sessions/package-session"
 
 /**
-Выполняет нормативную оценку внутри явной сборки и её общего scheduler slot.
-Состав нормативных suites и классификация принадлежат Archetypes.
-Технические исключения и отмена сохраняют исходный отказ.
+Исполняет единый нормативный сценарий Package тем же App, что документация и MCP.
+Применимость и однозначность классов выражены внутри сценария.
+Возвращает исходный отчёт одного запуска; технический отказ и отмена пробрасываются.
 */
 export async function checkStorybookPackageConformance(
   path: string,
   signal: AbortSignal,
-  standard: StorybookPackageStandard,
-): Promise<ReadAssessmentOutput> {
-  const report = await readAssessment({path, signal})
-  signal.throwIfAborted()
-  assertPackageConformance(report, standard, path)
-  return report
+): Promise<ReadScenarioOutput> {
+  return readScenario({
+    path: fileURLToPath(new URL("../archetypes/package/spec/scenario.spec.ts", import.meta.url)),
+    props: {path}, signal,
+  })
 }
 
-/** Строгий пакет требует полного подтверждения; технический отказ блокирует оба режима. */
-export function assertPackageConformance(
-  report: ReadAssessmentOutput,
-  standard: StorybookPackageStandard,
-  path: string,
-): void {
-  for (const suite of report.reports) {
-    const execution = suite.report
-    if (execution && (execution.tests.some(test => test.status === "error" || test.status === "failed" &&
-      !execution.assertions.some(assertion => assertion.testId === test.id && assertion.status === "failed")) ||
-      execution.exitCode !== 0 && !execution.tests.some(test => test.status === "failed"))) {
-      throw storybookBuildError(storybookDiagnostic("validate", execution.stderr || "Технический отказ нормативной проверки", execution.path))
-    }
-    if (suite.applicable && suite.archetype === "behavior" && execution &&
-      (execution.exitCode !== 0 || execution.tests.some(test => test.status === "failed" || test.status === "error"))) {
-      throw storybookBuildError(storybookDiagnostic("validate", `Исполняемый сценарий не прошёл проверку: ${execution.stderr}`, execution.path))
-    }
+/** Native исходы задают полноту; исключение без проваленного assertion остаётся технической ошибкой. */
+export function scenarioVerification(report: ReadScenarioOutput): StorybookPackageVerification {
+  const failed = report.tests.filter(test => test.status === "failed" || test.status === "error")
+  if (failed.some(test => test.status === "error" || !report.assertions.some(assertion =>
+    assertion.testId === test.id && assertion.status === "failed")) || report.exitCode !== 0 && failed.length === 0) {
+    throw storybookBuildError(storybookDiagnostic("validate", report.stderr || "Технический отказ нормативной проверки", report.path))
   }
-  if (standard === "strict" && report.status !== "passed") {
-    const messages = assessmentMessages(report)
-    throw storybookBuildError(messages.length ? messages : storybookDiagnostic("validate", "Стандарт пакета не подтверждён полностью", path))
-  }
+  const pending = report.tests.filter(test => test.status !== "passed" && test.status !== "failed" &&
+    !(test.status === "skipped" && test.skipReason))
+  const authoring = report.validation.checks.filter(check => check.status === "failed" && check.rule !== "execution")
+  const diagnostics = [
+    ...[...failed, ...pending].map(test => storybookDiagnostic("validate",
+      test.message ?? `Проверка «${test.label}»: ${test.status}`, test.location.path)),
+    ...authoring.flatMap(check => check.issues.map(issue => storybookDiagnostic("validate", `[${check.rule}] ${issue.message}`, issue.location?.path ?? report.path))),
+  ]
+  const executed = report.tests.some(test => test.status === "passed" || test.status === "failed")
+  if (!executed) diagnostics.push(storybookDiagnostic("validate", "Сценарий не выполнил ни одной проверки", report.path))
+  return {status: failed.length || authoring.length ? "failed" : pending.length || !executed ? "incomplete" : "passed", diagnostics}
 }

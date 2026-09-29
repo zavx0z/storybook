@@ -1,4 +1,4 @@
-import {appliedPackageStandard, readPackageAssessment, type StorybookPackageAssessment, type StorybookPackageStandard} from "./package-standard"
+import {appliedPackageStandard, readPackageVerification, type StorybookPackageVerification, type StorybookPackageStandard} from "./package-standard"
 import {createHash, randomUUID} from "node:crypto"
 import {existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync} from "node:fs"
 import {isAbsolute, join, relative, resolve} from "node:path"
@@ -94,7 +94,7 @@ export type StorybookPackageSessionSnapshot = Readonly<{
   diagnostics: readonly StorybookPackageDiagnostic[]
   warnings?: readonly StorybookPackageDiagnostic[]
   standard?: StorybookPackageStandard
-  assessment?: StorybookPackageAssessment | null
+  verification?: StorybookPackageVerification | null
   dependencyRealpaths: readonly string[]
   revisions?: readonly StorybookPackageRevisionSnapshot[]
   subscribers: number
@@ -149,7 +149,7 @@ export type StorybookPackageRevisionBuild = Readonly<{
   dependencyRealpaths: readonly string[]
   entryRelativePath: string
   inputFingerprint?: StorybookBuildInputFingerprint
-  assessment?: StorybookPackageAssessment
+  verification?: StorybookPackageVerification
   warnings?: readonly StorybookPackageDiagnostic[]
 }>
 
@@ -212,7 +212,7 @@ type RevisionRecord = {
   entryRelativePath: string
   dependencyRealpaths: readonly string[]
   inputFingerprint: StorybookBuildInputFingerprint | null
-  assessment: StorybookPackageAssessment | null
+  verification: StorybookPackageVerification | null
   warnings: readonly StorybookPackageDiagnostic[]
   diagnostics: readonly StorybookPackageDiagnostic[]
   createdAt: string
@@ -360,7 +360,7 @@ export class StorybookPackageSession {
       entryRelativePath: selected?.entryRelativePath ?? null,
       diagnostics: this.#resolutionError === null ? this.#diagnostics : Object.freeze([storybookDiagnostic("resolve", this.#resolutionError.replaceAll(`${this.descriptor.packageRoot}/`, ""), this.descriptor.sourcePath)]),
       standard: this.#standard,
-      assessment: (this.#record(this.#builtRevision) ?? selected)?.assessment ?? null,
+      verification: (this.#record(this.#builtRevision) ?? selected)?.verification ?? null,
       warnings: (this.#record(this.#builtRevision) ?? selected)?.warnings ?? [],
       dependencyRealpaths: Object.freeze([...new Set([
         ...(selected?.dependencyRealpaths ?? []),
@@ -529,7 +529,7 @@ export class StorybookPackageSession {
     if (record.generation !== this.#generation || record.declarationDigest !== this.descriptor.declarationDigest) {
       throw new Error(`Storybook activation acknowledgement is stale: ${this.packageId}:${record.revision}`)
     }
-    if (this.#standard === "strict" && (record.assessment?.status !== "passed" || record.warnings.length > 0)) {
+    if (this.#standard === "strict" && (record.verification?.status !== "passed" || record.warnings.length > 0)) {
       throw diagnosticError("activation", "Строгий пакет не может применить неподтверждённую ревизию")
     }
     this.#saveApplied(record)
@@ -740,8 +740,8 @@ export class StorybookPackageSession {
         }
         context.setPhase("publish")
         validateBuildResult(built, stagingDirectory)
-        const assessment = readPackageAssessment(built.assessment)
-        if (this.#standard === "strict" && (assessment?.status !== "passed" || (built.warnings?.length ?? 0) > 0)) {
+        const verification = readPackageVerification(built.verification)
+        if (this.#standard === "strict" && (verification?.status !== "passed" || (built.warnings?.length ?? 0) > 0)) {
           throw diagnosticError("validate", "Строгий пакет требует полного подтверждения стандарта без предупреждений")
         }
         if (built.inputFingerprint !== undefined) requiredInputFingerprint(built.inputFingerprint)
@@ -763,7 +763,7 @@ export class StorybookPackageSession {
         inputFingerprint: result.inputFingerprint === undefined
           ? null
           : requiredInputFingerprint(result.inputFingerprint),
-        assessment: readPackageAssessment(result.assessment),
+        verification: readPackageVerification(result.verification),
         warnings: Object.freeze([...(result.warnings ?? [])]),
         entryRelativePath: result.entryRelativePath,
         diagnostics: Object.freeze([]),
@@ -922,7 +922,7 @@ export class StorybookPackageSession {
   #saveApplied(record: RevisionRecord): void {
     const path = this.#appliedPath()
     const temporary = `${path}.${randomUUID()}.tmp`
-    const standard = appliedPackageStandard(this.#standard, record.assessment, record.warnings)
+    const standard = appliedPackageStandard(this.#standard, record.verification, record.warnings)
     try {
       writeFileSync(temporary, JSON.stringify({
         version: record.inputFingerprint === null ? 1 : 2,
@@ -931,7 +931,7 @@ export class StorybookPackageSession {
         graphSnapshot: record.graphSnapshot, moduleGraphRevision: record.moduleGraphRevision,
         entryRelativePath: record.entryRelativePath, dependencyRealpaths: record.dependencyRealpaths,
         ...(record.inputFingerprint === null ? {} : {inputFingerprint: record.inputFingerprint}),
-        standard, assessment: record.assessment, warnings: record.warnings,
+        standard, verification: record.verification, warnings: record.warnings,
         createdAt: record.createdAt,
       }), {mode: 0o600, flag: "wx"})
       renameSync(temporary, path)
@@ -976,7 +976,7 @@ export class StorybookPackageSession {
           return checked
         })),
         inputFingerprint: verifiedFingerprint ?? persistedFingerprint,
-        assessment: readPackageAssessment(value.assessment),
+        verification: readPackageVerification(value.verification),
         warnings: Object.freeze((value.warnings ?? []).map((warning: unknown) => {
           if (!isDiagnostic(warning)) throw new Error("Некорректное предупреждение сохранённой ревизии")
           return warning
