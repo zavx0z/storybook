@@ -3,7 +3,7 @@
 Исследование 24 сентября 2026 года относится к каноническим checkout Storybook,
 WebXR, Renderer и MetaFor. Это запись основания и этапов работы. Нормы остаются
 у [Package](../archetypes/package/index.ts),
-[размещения сущностей](../archetypes/entity/notes/draft-placement.md) и
+[размещения сущностей](../archetypes/component/notes/draft-placement.md) и
 [документации](../archetypes/notes/draft-documentation.md).
 
 ## Наблюдаемая структура

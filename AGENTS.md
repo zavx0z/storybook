@@ -54,7 +54,7 @@
   правила директорий, компонентов и общей документации раскрываются через указатель Archetypes
   на код и ещё не перенесённые заметки. Не поддерживать здесь или в
   корневых README/ARCHITECTURE отдельные копии этих норм; менять их у владельца.
-  Связанные правила: [размещение компонентов](archetypes/entity/notes/draft-placement.md),
+  Связанные правила: [размещение компонентов](archetypes/component/notes/draft-placement.md),
   [Dependencies spec](archetypes/specs/deps/notes/draft-dependencies.md) и [URL вкладок](workbench/notes/workspace.md#tabs-routes).
 - Перед изменением README, модульных обзоров и TSDoc прочитать
   [единый стандарт документации](archetypes/notes/draft-documentation.md).
