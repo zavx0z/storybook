@@ -1,43 +1,49 @@
-# Пример размещения пакетов и сущностей Nodes
+# Пример пакетной структуры UI и Nodes
 
-Пример помогает проследить, где заканчивается пакет и начинается сущность.
-Это иллюстрация прежней структуры Nodes, а не актуальная опись соседнего репозитория.
-
-Это пример размещения с именами пакетов Nodes, а не полный снимок репозитория.
-Частный вычислительный helper показан как необязательный файл.
+Ниже показана согласованная целевая модель, а не утверждение о завершённой
+миграции исходников UI и Nodes. Имена директорий приведены для примера;
+точную npm identity каждого пакета задаёт его собственный `package.json`.
 
 ```text
-webxr-space/
-├─ package.json                  @zavx0z/webxr
-└─ nodes/
-   ├─ package.json               @webxr/nodes
-   ├─ node/
-   │  ├─ package.json            @nodes/node
-   │  ├─ README.md               указатель на заметки
-   │  ├─ shared/                 код нескольких компонентов пакета
-   │  └─ diagram/index.tsx       компонент/композиция и TSDoc
-   ├─ tree/package.json          @nodes/tree
-   ├─ layout/package.json        @nodes/layout
-   ├─ sockets/package.json       @nodes/sockets
-   └─ parameters/
-      ├─ package.json            @nodes/parameters
-      ├─ README.md               указатель на заметки
-      ├─ index.ts                модульный TSDoc
-      ├─ shared/                 общие помощники пакета
-      └─ numeric/
-         ├─ index.ts             TSDoc категории
-         └─ number/
-            ├─ index.tsx         компонент и TSDoc
-            ├─ src/compute.ts    частные вычисления компонента
-            ├─ types/            вспомогательные типы
-            ├─ contract/input.ts входной контракт и его TSDoc
-            └─ tests/            проверки компонента
+Project
+└─ webxr-space/                  Package — Repo
+   ├─ package.json
+   ├─ ui/                       Package — Domain
+   │  ├─ package.json
+   │  ├─ button/                Package — Component
+   │  │  ├─ package.json
+   │  │  ├─ index.tsx
+   │  │  ├─ contract/input.ts
+   │  │  └─ spec/scenario.spec.tsx
+   │  └─ field/                 Package — Domain
+   │     ├─ package.json
+   │     ├─ index.ts            обзор области
+   │     ├─ spec/scenario.spec.ts
+   │     └─ number/             Package — Component
+   │        ├─ package.json
+   │        └─ index.tsx
+   └─ nodes/                    Package — Domain
+      ├─ package.json
+      ├─ parameter/             Package — Domain
+      │  ├─ package.json
+      │  └─ number/             Package — Component
+      │     ├─ package.json
+      │     └─ index.tsx
+      └─ editor/                Package — Component
+         ├─ package.json
+         └─ index.tsx
 ```
 
-В примере главная панель показывает `WebXR → Нодовая система → Параметры`,
-а предметная панель `@nodes/parameters` — `numeric → number`. Публичный
-pathname обзора number следует физическому пути корня пакета и его видимым
-директориям `numeric/number`. Если у модуля обнаружен dependency spec,
-встроенное представление выбирается `?view=dependencies`. Точную адресацию
-определяют [Route](../../../route/README.md) и
+NumberParameter использует NumberField через публичный API; поле сохраняет
+владельца UI. GraphEditor соединяет другие компоненты, оставаясь Component.
+Частные помощники находятся в `src` своего компонента и не создают новый пакет
+только из-за отдельного файла.
+
+Читаемый импорт вроде `@webxr/ui/button` выражает публичный путь области к
+компоненту. Прямое направление exports на вложенный вход описано
+[у владельца экспортов](draft-exports.md). Это пример целевого API, а не обещание,
+что все такие пути уже опубликованы текущими пакетами UI и Nodes.
+
+Публичный импорт, идентичность вложенного пакета и маршрут страницы выполняют
+разные задачи. Маршруты определяет [Route](../../../route/README.md) и
 [контракт вкладок](../../../workbench/notes/workspace.md#tabs-routes).

@@ -1,8 +1,5 @@
 # Repo
 
-Публичное описание и контракт находятся в [коде владельца](index.ts).
-Общее устройство определено [стандартом структуры](../notes/draft-structure.md).
+[Публичное описание](index.ts).
 
-Переходные материалы:
-
-- [legacy-repository](notes/legacy-repository.md)
+- [Пакет-монорепозиторий](notes/structure.md)

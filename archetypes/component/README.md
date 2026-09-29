@@ -1,11 +1,8 @@
 # Component
 
-Публичное описание и контракт находятся в [коде владельца](index.ts).
-Общее устройство определено [стандартом структуры](../notes/draft-structure.md).
+[Публичное описание](index.ts).
 
-Переходные материалы:
-
-- [draft-placement](notes/draft-placement.md)
-- [imports](notes/imports.md)
-- [presentation-ownership](notes/presentation-ownership.md)
-- [legacy-entity](notes/legacy-entity.md)
+- [Размещение компонента](notes/draft-placement.md)
+- [Импорты](notes/imports.md)
+- [Представления](notes/presentation-ownership.md)
+- [Незавершённые проверки](notes/verification.md)

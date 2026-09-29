@@ -12,11 +12,11 @@ flowchart LR
 
 ### Почему Storybook остаётся внешним инструментом
 
-Consumer project/package не содержит dependency, devDependency,
+Пакет-потребитель не содержит dependency, devDependency,
 peerDependency, type import или runtime import `@zavx0z/storybook`, private
 package `@scope/storybook`, package-local server/build/launcher либо собственный
-Storybook port/process. Shared repository может иметь implementation
-dependencies.
+Storybook port/process. Собственные implementation dependencies Storybook
+остаются внутри репозитория инструмента.
 
 ### Какие данные и ресурсы принадлежат пакету
 
@@ -26,8 +26,13 @@ spec и их результатами, fixtures, tests и ресурсами. С
 на временные заметки. Проектный JSON manifest/catalog, перечни вкладок,
 widget contributions и overrides автор не создаёт.
 
-### Отдельный пакет и несколько подключённых проектов
+### Project и подключённые Repo
 
-Standalone package, one-package project, multi-package project, workspace и
-несколько independently attached roots поддерживаются одинаково. Workspace не
-является обязательным global registry и не создаётся искусственно.
+Project объединяет ссылки на независимые пакеты Repo. Один Repo может входить
+в несколько проектов без копии кода и identity. Общий инструмент не становится
+владельцем исходников подключённых пакетов.
+
+Действующий механизм подключения также умеет принимать отдельный пакет или
+несколько физических корней. Эта возможность не заменяет целевой контракт
+Project и не доказывает, что произвольный корень является Repo. Состав пакетов
+внутри Repo раскрывается из штатного `package.json#workspaces`.

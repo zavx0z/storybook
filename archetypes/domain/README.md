@@ -1,8 +1,5 @@
 # Domain
 
-Публичное описание и контракт находятся в [коде владельца](index.ts).
-Общее устройство определено [стандартом структуры](../notes/draft-structure.md).
+[Публичное описание](index.ts).
 
-Переходные материалы:
-
-- [legacy-category](notes/legacy-category.md)
+- [Предметная область](notes/structure.md)

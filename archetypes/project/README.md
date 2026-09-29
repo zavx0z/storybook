@@ -1,8 +1,5 @@
 # Project
 
-Публичное описание и контракт находятся в [коде владельца](index.ts).
-Общее устройство определено [стандартом структуры](../notes/draft-structure.md).
+[Публичное описание](index.ts).
 
-Переходные материалы:
-
-- [draft-composition](notes/draft-composition.md)
+- [Подключение Repo](notes/draft-composition.md)

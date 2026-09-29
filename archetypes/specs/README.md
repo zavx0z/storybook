@@ -1,12 +1,8 @@
-# Структура спецификации
+# Specs
 
-## Заметки
+[Публичный читатель](index.ts) и [правила спецификации](notes/structure.md).
 
-- [Что можно получить из спецификации](./notes/structure.md)
-
-## Состав
-
-- [Зависимости](./deps/README.md)
-- [Контракты](./contracts/README.md)
-- [Сценарии](./scenarios/README.md)
-- [Фикстуры](./fixtures/README.md)
+- [Зависимости](deps/notes/draft-dependencies.md)
+- [Контракты](contracts/notes/draft-contracts.md)
+- [Сценарии](scenarios/README.md)
+- [Общий документ сценария](guide/index.ts)
