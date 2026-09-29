@@ -150,6 +150,8 @@ export function createStorybookAgentBridge(
       packageId,
       revision,
       graphDigest,
+      sharedModuleEpoch: options.shell.browserDocument.documentElement.dataset.externalStorybookSharedModuleEpoch ?? null,
+      hostModuleEpoch: options.shell.browserDocument.documentElement.dataset.externalStorybookHostModuleEpoch ?? null,
       route: options.getRoute(),
       pathname: options.shell.browserDocument.location?.pathname ?? null,
       preview: new URL(options.shell.browserDocument.location?.href ?? "http://storybook.invalid/").searchParams.has("preview"),
@@ -163,6 +165,7 @@ export function createStorybookAgentBridge(
       ready: options.shell.browserDocument.documentElement.dataset.externalStorybookPackage === "ready",
       presented: options.shell.presentedFrameSequence > 0,
       error: options.shell.browserDocument.documentElement.dataset.externalStorybookNavigationError ??
+        options.shell.browserDocument.documentElement.dataset.externalStorybookUpdateError ??
         options.shell.browserDocument.documentElement.dataset.externalStorybookError ?? null,
       timeOrigin: performance.timeOrigin,
       frameSequence: options.shell.presentedFrameSequence,

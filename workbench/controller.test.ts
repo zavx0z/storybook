@@ -386,6 +386,16 @@ describe("compiled Storybook Workbench", () => {
     const restoredSourcePanel = inspectorPanel(workbench, "Исходники")
     expect(restoredSourcePanel.querySelector("header button")?.getAttribute("aria-expanded"))
       .toBe("false")
+    const userState = workbench.controller.captureUserState()
+    const nextDocument = createDocument()
+    const next = api.createWorkbench({document: nextDocument, parent: nextDocument, userState})
+    try {
+      next.present({label: "Button after host HMR", presentation: {node: nextDocument.createElement("button"), projection: "display"},
+        inspectorSubject: subject, inspectorValues: values})
+      expect(categoryButton(next, "Исходники").getAttribute("aria-pressed")).toBe("true")
+      expect(inspectorPanel(next, "Исходники").querySelector("header button")?.getAttribute("aria-expanded")).toBe("false")
+      expect(next.controller.captureUserState()).toEqual(userState)
+    } finally { next.dispose() }
   })
 
   test("mounts a governed custom widget with only its value", async () => {

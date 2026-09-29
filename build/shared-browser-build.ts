@@ -1,5 +1,6 @@
+import {readSharedBrowserEpoch} from "./shared-browser-receipt"
 import {mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync} from "node:fs"
-import {basename, dirname, extname, join, relative, sep} from "node:path"
+import {basename, dirname, extname, join, relative, resolve, sep} from "node:path"
 import {fileURLToPath} from "node:url"
 import {canonicalBuildInputs, canonicalizeStorybookPackageIdentities} from "./package-build.ts"
 import {createStorybookPackageCompilerPlugins} from "./compiler.ts"
@@ -13,6 +14,7 @@ import {
   createStorybookSharedBrowserExternalPlugin,
   createStorybookSharedBrowserModuleEntries,
   storybookSharedBrowserIdentity,
+  validateStorybookSharedBrowserIdentity,
 } from "./shared-module-identity.ts"
 
 /**
@@ -27,6 +29,12 @@ import {
 @throws Ошибка компиляции, отсутствующего metafile или записи ресурсов.
 */
 export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, onPhase?: StorybookBuildPhaseListener): Promise<SharedBrowserAssets> {
+  if (input.sharedKernel !== undefined) {
+    const retained = readSharedBrowserEpoch(input.root, input.sharedKernel.epoch)
+    if (!retained?.browserIdentity || JSON.stringify(retained.browserIdentity.modules) !== JSON.stringify(input.sharedKernel.modules)) {
+      throw new Error("Retained kernel does not match its saved artifact receipt")
+    }
+  }
   const packageEntryPath = realpathSync(input.packageEntryPath ?? fileURLToPath(
     new URL("../runtime/page-entry.ts", import.meta.url),
   ))
@@ -36,7 +44,7 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
     packageEntryPath,
     outputDirectory: input.root,
   })
-  const moduleEntryDirectory = join(dirname(input.root), ".shared-owner-module-entries")
+  const moduleEntryDirectory = join(realpathSync(dirname(input.root)), ".shared-owner-module-entries")
   try {
   onPhase?.({phase: "resources", state: "started", at: new Date().toISOString()})
   const styles = await readWorkbenchStyleSheets(input.toolRoot)
@@ -44,60 +52,66 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
   rmSync(staging, {recursive: true, force: true})
   mkdirSync(staging, {recursive: true})
   rmSync(moduleEntryDirectory, {recursive: true, force: true})
-  const moduleEntries = createStorybookSharedBrowserModuleEntries(
-    input.toolRoot,
-    moduleEntryDirectory,
-  )
-  const kernelPlugins = await createStorybookPackageCompilerPlugins({
-    packageRoot: input.toolRoot,
-    projectRoot: input.toolRoot,
-    moduleSourcePaths: [],
-  })
-  onPhase?.({phase: "kernel", state: "started", at: new Date().toISOString()})
-  const kernel = await Bun.build({
-    entrypoints: moduleEntries.map(({entryPath}) => entryPath),
-    outdir: staging,
-    naming: {entry: "kernel/[name]-[hash].[ext]", chunk: "kernel/chunks/[name]-[hash].[ext]"},
-    publicPath: "/__storybook/shared/",
-    target: "browser",
-    format: "esm",
-    splitting: true,
-    sourcemap: "external",
-    loader: {".wgsl": "text"},
-    plugins: [...kernelPlugins],
-    metafile: true,
-    throw: false,
-  })
-  assertSharedBuild(kernel, "kernel")
-  onPhase?.({phase: "kernel", state: "completed", at: new Date().toISOString()})
-  const kernelEntryFor = (source: string): string => emittedEntry(kernel, staging, source)
   const stagingPrefix = `${realpathSync(staging)}${sep}`
-  const moduleEntryPrefix = `${realpathSync(moduleEntryDirectory)}${sep}`
-  const kernelSourceFiles = [...new Set([
-    ...canonicalBuildInputs(kernel.metafile!.inputs, input.toolRoot)
-      .filter(path => !path.startsWith(stagingPrefix) && !path.startsWith(moduleEntryPrefix)),
-    ...moduleEntries.map(({sourcePath}) => sourcePath),
-  ])].sort()
-    .map(path => ({
-      path,
-      contentDigest: createHash("sha256").update(readFileSync(path)).digest("hex"),
-    }))
-  const provisionalIdentity = storybookSharedBrowserIdentity(
-    "/__storybook/shared/pending-package-entry.js",
-    moduleEntries.map(({specifier, sourcePath, entryPath}) => ({
-      specifier,
-      sourcePath,
-      url: `/__storybook/shared/${kernelEntryFor(entryPath)}`,
-    })),
-    "0".repeat(64),
-    kernelSourceFiles,
-  )
+  const moduleEntryPrefix = `${resolve(moduleEntryDirectory)}${sep}`
+  let kernelOutputs: Awaited<ReturnType<typeof Bun.build>>["outputs"] = []
+  let kernelInputs: Readonly<Record<string, unknown>> = {}
+  let provisionalIdentity = input.sharedKernel === undefined ? undefined
+    : validateStorybookSharedBrowserIdentity(input.sharedKernel, false)
+  if (provisionalIdentity === undefined) {
+    const moduleEntries = createStorybookSharedBrowserModuleEntries(
+      input.toolRoot,
+      moduleEntryDirectory,
+    )
+    const kernelPlugins = await createStorybookPackageCompilerPlugins({
+      packageRoot: input.toolRoot,
+      projectRoot: input.toolRoot,
+      moduleSourcePaths: [],
+    })
+    onPhase?.({phase: "kernel", state: "started", at: new Date().toISOString()})
+    const kernel = await Bun.build({
+      entrypoints: moduleEntries.map(({entryPath}) => entryPath),
+      outdir: staging,
+      naming: {entry: "kernel/[name]-[hash].[ext]", chunk: "kernel/chunks/[name]-[hash].[ext]"},
+      publicPath: "/__storybook/shared/",
+      target: "browser",
+      format: "esm",
+      splitting: true,
+      sourcemap: "external",
+      loader: {".wgsl": "text"},
+      plugins: [...kernelPlugins],
+      metafile: true,
+      throw: false,
+    })
+    assertSharedBuild(kernel, "kernel")
+    onPhase?.({phase: "kernel", state: "completed", at: new Date().toISOString()})
+    const kernelEntryFor = (source: string): string => emittedEntry(kernel, staging, source)
+    const sourceFiles = [...new Set([
+      ...canonicalBuildInputs(kernel.metafile!.inputs, input.toolRoot)
+        .filter(path => !path.startsWith(stagingPrefix) && !path.startsWith(moduleEntryPrefix)),
+      ...moduleEntries.map(({sourcePath}) => sourcePath),
+    ])].sort()
+      .map(path => ({
+        path,
+        contentDigest: createHash("sha256").update(readFileSync(path)).digest("hex"),
+      }))
+    kernelOutputs = kernel.outputs
+    kernelInputs = kernel.metafile!.inputs
+    provisionalIdentity = storybookSharedBrowserIdentity(
+      "/__storybook/shared/pending-package-entry.js",
+      moduleEntries.map(({specifier, sourcePath, entryPath}) => ({specifier, sourcePath,
+        url: `/__storybook/shared/${kernelEntryFor(entryPath)}`})),
+      "0".repeat(64), sourceFiles,
+    )
+  }
+  const bootstrapPath = realpathSync(fileURLToPath(new URL("../runtime/shared-bootstrap.ts", import.meta.url)))
   const packageHostPath = realpathSync(fileURLToPath(new URL("../runtime/package-entry.ts", import.meta.url)))
   const hostEntryPoints = [...new Set([
     realpathSync(input.landingEntryPath),
     realpathSync(input.fallbackEntryPath),
     packageEntryPath,
     packageHostPath,
+    bootstrapPath,
   ])]
   const hostPlugins = await createStorybookPackageCompilerPlugins({
     packageRoot: input.toolRoot,
@@ -115,7 +129,7 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
     splitting: true,
     sourcemap: "external",
     loader: {".wgsl": "text"},
-    plugins: [createStorybookSharedBrowserExternalPlugin(provisionalIdentity), ...hostPlugins],
+    plugins: [createStorybookSharedBrowserExternalPlugin(provisionalIdentity, input.sharedKernel === undefined), ...hostPlugins],
     metafile: true,
     throw: false,
   })
@@ -126,23 +140,20 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
   assertSharedBuild(host, "host")
   onPhase?.({phase: "host", state: "completed", at: new Date().toISOString()})
   const dependencyRealpaths = [...new Set([...canonicalizeStorybookPackageIdentities(
-    canonicalBuildInputs({...kernel.metafile!.inputs, ...host.metafile!.inputs}, input.toolRoot)
+    canonicalBuildInputs({...kernelInputs, ...host.metafile!.inputs}, input.toolRoot)
       .filter(path => !path.startsWith(stagingPrefix) && !path.startsWith(moduleEntryPrefix)),
   ), ...styles.flatMap(style => [style.path, style.ownerPackageJsonPath])])].sort()
   const landingEntry = emittedEntry(host, staging, input.landingEntryPath)
   const fallbackEntry = emittedEntry(host, staging, input.fallbackEntryPath)
   const packageEntry = emittedEntry(host, staging, packageEntryPath)
-  const hostModuleEpoch = buildHostModuleEpoch(host.metafile!.inputs, input.toolRoot, stagingPrefix)
+  const hostModuleEpoch = buildHostModuleEpoch(host.metafile!.inputs, input.toolRoot, stagingPrefix, attestation.before.toolchainDigest, styles.map(style => style.path))
   const browserIdentity = storybookSharedBrowserIdentity(
     `/__storybook/shared/${packageEntry}`,
-    moduleEntries.map(({specifier, sourcePath, entryPath}) => ({
-      specifier,
-      sourcePath,
-      url: `/__storybook/shared/${kernelEntryFor(entryPath)}`,
-    })),
+    provisionalIdentity.modules,
     hostModuleEpoch,
-    kernelSourceFiles,
+    provisionalIdentity.sourceFiles,
     `/__storybook/shared/${emittedEntry(host, staging, packageHostPath)}`,
+    input.sharedKernel === undefined,
   )
   onPhase?.({phase: "resources", state: "started", at: new Date().toISOString()})
   const authorStyleSheets = styles.map((style, index) => {
@@ -158,7 +169,7 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
   const inputFingerprint = await attestation.complete(dependencyRealpaths)
   onPhase?.({phase: "fingerprint", state: "completed", at: new Date().toISOString()})
   onPhase?.({phase: "publish", state: "started", at: new Date().toISOString()})
-  const outputs = [...kernel.outputs, ...host.outputs]
+  const outputs = [...kernelOutputs, ...host.outputs]
   const artifactDigests = await Promise.all(outputs.map(async artifact => ({
     path: relative(staging, artifact.path),
     digest: createHash("sha256").update(new Uint8Array(await artifact.arrayBuffer())).digest("hex"),
@@ -170,11 +181,17 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
     mkdirSync(dirname(destination), {recursive: true})
     renameSync(join(staging, artifact.path), destination)
   }
+  if (input.sharedKernel !== undefined) {
+    const retained = readSharedBrowserEpoch(input.root, input.sharedKernel.epoch)
+    if (!retained) throw new Error("Retained kernel artifacts are unavailable")
+    artifactDigests.push(...retained.artifactDigests!.filter(artifact => artifact.path.startsWith("kernel/")))
+  }
   rmSync(staging, {recursive: true, force: true})
   return Object.freeze({
     root: input.root,
     landingEntry,
     fallbackEntry,
+    bootstrapEntry: emittedEntry(host, staging, bootstrapPath),
     browserIdentity,
     dependencyRealpaths,
     inputFingerprint,
@@ -201,19 +218,18 @@ function emittedEntry(result: Bun.BuildOutput, staging: string, source: string):
   return relative(staging, byName.path)
 }
 
-/** Хеширует только реально использованные исходники host, принадлежащие Storybook checkout. */
+/** Хеширует реальные исходники host, включая UI, и компилятор; версия кода одинакова для сохранённых kernel. */
 function buildHostModuleEpoch(
   inputs: Readonly<Record<string, unknown>>,
   toolRoot: string,
   stagingPrefix: string,
+  toolchainDigest: string,
+  styles: readonly string[],
 ): string {
   const root = realpathSync(toolRoot)
-  const rootPrefix = `${root}${sep}`
-  const dependencyPrefix = `${join(root, "node_modules")}${sep}`
-  const paths = canonicalBuildInputs(inputs, root).filter(path =>
-    path.startsWith(rootPrefix) && !path.startsWith(dependencyPrefix) && !path.startsWith(stagingPrefix))
+  const paths = [...new Set([...canonicalBuildInputs(inputs, root), ...styles])].filter(path => !path.startsWith(stagingPrefix)).sort()
   if (paths.length === 0) throw new Error("Shared Storybook host build has no owned source inputs")
-  const hash = createHash("sha256")
+  const hash = createHash("sha256").update(toolchainDigest)
   for (const path of paths) {
     hash.update(`${relative(root, path)}\0`)
     hash.update(readFileSync(path))

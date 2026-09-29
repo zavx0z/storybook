@@ -29,6 +29,22 @@ afterEach(() => {
 })
 
 describe("working Storybook PackageSession lifecycle", () => {
+  test("платформа потребителя сохраняется вместе с применённой ревизией", async () => {
+    const root = fixtureRoot("kernel-receipt")
+    const value = descriptor(root, "@fixture/kernel")
+    const epoch = "a".repeat(64)
+    const builder: StorybookPackageRevisionBuilder = async input => ({...successfulBuild(input.stagingDirectory), sharedModuleEpoch: epoch})
+    const session = createSession(value, builder, [])
+    const built = await session.ensureBuilt()
+    const lease = session.beginActivation({revision: built.builtRevision!, viewId: "view", route: ""})
+    session.acknowledgeActivation({...lease, frameSequence: 1})
+    await session.dispose()
+    const restored = createSession(value, builder, [])
+    expect(restored.snapshot().revisions?.find(record => record.revision === built.builtRevision)?.sharedModuleEpoch).toBe(epoch)
+    expect(restored.snapshot().builds).toBe(0)
+    await restored.dispose()
+  })
+
   test("строгость закрепляется только применением и переживает регрессию и перезапуск", async () => {
     const root = fixtureRoot("standard")
     const modes: (string | undefined)[] = []

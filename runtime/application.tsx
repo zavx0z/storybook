@@ -3,7 +3,7 @@ import {WorkbenchMinimap} from "../workbench/minimap/src/workbench-minimap.tsx"
 import {ViewPointTab} from "../workbench/viewpoint-tab"
 import type {ViewPointTabProps} from "../workbench/viewpoint-tab/contract/input"
 import {Workbench} from "../workbench/workbench.tsx"
-import type {Workbench as WorkbenchHandle} from "../workbench/contract.ts"
+import type {Workbench as WorkbenchHandle, WorkbenchUserState} from "../workbench/contract.ts"
 import {StorybookDisplay} from "./display-view.tsx"
 import {getDocumentClipboardController} from "@zavx0z/browser/clipboard"
 import type {Document as SemanticDocument} from "@zavx0z/dom"
@@ -17,6 +17,7 @@ import type {MinimapState} from "../workbench/minimap/src/state"
 import type {NavigationExpansion} from "../workbench/navigation/persistence.ts"
 
 export type StorybookAppProps = Readonly<{
+  userState?: WorkbenchUserState | undefined
   loadMcpRequests?: (() => Promise<readonly McpRequestRecord[]>) | undefined
   mcpAddressSource?: McpAddressSource | undefined
   mcpWindowState?: McpWindowState | undefined
@@ -37,6 +38,7 @@ export function StorybookApp(props: StorybookAppProps) {
   const model = useMemo(() => createWorkbenchModel({
     document,
     navigationExpansion: props.navigationExpansion,
+    userState: props.userState,
     initial: {
       title: props.title,
       "catalog.label": "Каталог",

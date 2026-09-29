@@ -363,7 +363,20 @@ export type WorkbenchAddress = keyof WorkbenchAddressMap
 Адрес определяет тип значения через {@link WorkbenchAddressMap}; согласованное
 обновление просмотра и инспектора передаётся как {@link WorkbenchPresentationUpdate}.
 */
+/** Пользовательские настройки Inspector без DOM, обработчиков и данных исполняемого сценария. */
+export type WorkbenchUserState = Readonly<{
+  inspector: readonly Readonly<{
+    subject: string
+    selectedId: string
+    query: string
+    expanded: readonly (readonly [string, boolean])[]
+    treeExpanded: readonly (readonly [string, readonly string[]])[]
+  }>[]
+}>
+
 export type WorkbenchController = Readonly<{
+  /** Снимает пользовательские настройки перед заменой общей оболочки. */
+  captureUserState(): WorkbenchUserState
   /**
   Читает текущее значение по типизированному адресу.
 
@@ -463,6 +476,7 @@ export type WorkbenchElements = Readonly<{
 @property [navigationExpansion] - Восстановление и сохранение раскрытия дерева.
 */
 export type CreateWorkbenchOptions = Readonly<{
+  userState?: WorkbenchUserState | undefined
   document: Document
   parent?: Node
   projectionHosts?: WorkbenchProjectionHosts

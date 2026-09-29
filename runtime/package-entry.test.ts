@@ -1,3 +1,6 @@
+import type {StorybookSharedHost} from "./shared-host"
+import type {ComponentValue} from "@zavx0z/component"
+import type {JSX} from "@jsx/types"
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
 import {DisplayElement} from "@zavx0z/dom/display"
@@ -183,12 +186,14 @@ describe("structural package frontend", () => {
     } finally { await fixture.page.dispose() }
   })
 
-  test("HMR контроллера страницы сохраняет Root и semantic Document той же платформы", async () => {
+  test("HMR заменяет App оболочки, сохраняя Browser root и semantic Document той же платформы", async () => {
     const fixture = await pageFixture(false, false)
     const shell = fixture.page.shell
     try {
       await currentBridge().call("applyRevision", {expectedPackageId: packageId, revision: "revision-b"})
-      expect(fixture.page.shell).toBe(shell)
+      expect(fixture.page.shell).not.toBe(shell)
+      expect(fixture.page.shell.document).toBe(shell.document)
+      expect(fixture.page.shell.canvas).toBe(shell.canvas)
       expect(fixture.state.lifecycle).toEqual(["root-create"])
       expect(await currentBridge().call("identity")).toMatchObject({revision: "revision-b"})
     } finally { await fixture.page.dispose() }
@@ -232,10 +237,50 @@ function currentBridge(): StorybookAgentBridge {
   return (globalThis as typeof globalThis & Record<string, unknown>)[STORYBOOK_AGENT_BRIDGE_GLOBAL] as StorybookAgentBridge
 }
 
+test("общая оболочка обновляет две страницы без изменения ревизий пакетов и browser realm", async () => {
+  const first = await pageFixture(false, false)
+  const second = await pageFixture(false, false, undefined, "@fixture/standalone")
+  const before = [first, second].map(fixture => ({shell: fixture.page.shell, address: fixture.location.href,
+    document: fixture.page.shell.document, canvas: fixture.page.shell.canvas, packageId: fixture.page.packageId,
+    settings: fixture.page.shell.captureUserState()}))
+  try {
+    first.page.shell.workbench.controller.update("catalog.search", "первое окно")
+    second.page.shell.workbench.controller.update("catalog.search", "второе окно")
+    first.page.shell.workbench.elements.catalogItems.scrollTop = 31
+    second.page.shell.workbench.elements.catalogItems.scrollTop = 67
+    first.updateHost()
+    second.updateHost()
+    const deadline = Date.now() + 5000
+    while ((first.page.shell === before[0]!.shell || second.page.shell === before[1]!.shell) && Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 10))
+    }
+    for (const [index, fixture] of [first, second].entries()) {
+      expect(fixture.page.shell).not.toBe(before[index]!.shell)
+      expect(fixture.page.shell.document).toBe(before[index]!.document)
+      expect(fixture.page.shell.canvas).toBe(before[index]!.canvas)
+      expect(fixture.page.packageId).toBe(before[index]!.packageId)
+      expect(fixture.location.href).toBe(before[index]!.address)
+      expect(fixture.location.reloads).toBe(0)
+      expect(fixture.state.creations).toBe(1)
+      expect(fixture.page.shell.captureUserState()).toEqual(before[index]!.settings)
+      expect(fixture.page.shell.browserDocument.documentElement.dataset.externalStorybookRevision).toBe("revision-a")
+    }
+    expect(first.page.shell.workbench.controller.read("catalog.search")).toBe("первое окно")
+    expect(second.page.shell.workbench.controller.read("catalog.search")).toBe("второе окно")
+    expect(first.page.shell.workbench.elements.catalogItems.scrollTop).toBe(31)
+    expect(second.page.shell.workbench.elements.catalogItems.scrollTop).toBe(67)
+  } finally {
+    await first.page.dispose()
+    await second.page.dispose()
+  }
+})
+
 /** Реальный page controller с управляемыми immutable payloads и наблюдаемым Root lifecycle. */
-async function pageFixture(failPlatformMount = false, changePlatform = true, beforePrepare?: () => Promise<void>) {
+async function pageFixture(failPlatformMount = false, changePlatform = true, beforePrepare?: () => Promise<void>, selectedPackageId = "@fixture/components") {
+  const packageId = selectedPackageId
   const graph = await fixtureGraph()
   const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-a"))
+  const packagePath = deriveExternalStorybookPackageTab(snapshot, packageId, "").urlPath
   const environment = environmentFixture(snapshot, packagePath)
   const location = environment.location as LocationFixture
   const history = environment.history as ReturnType<typeof historyFixture>
@@ -245,14 +290,12 @@ async function pageFixture(failPlatformMount = false, changePlatform = true, bef
     protocol: STORYBOOK_PAGE_REALM_PROTOCOL,
     packageId,
     candidateRevision: revision,
-    revisionUrl: `/__storybook/revisions/%40fixture%2Fcomponents/${revision}/`,
+    revisionUrl: `/__storybook/revisions/${encodeURIComponent(packageId)}/${revision}/`,
     sharedModuleEpoch: (revision === "revision-a" || !changePlatform ? "a" : "b").repeat(64),
     hostModuleEpoch: (revision === "revision-a" ? "a" : "b").repeat(64),
     graphSnapshot: createStorybookPackageRevisionGraphSnapshot(graph, packageId, revision),
-    startPage: startExternalStorybookPage,
-    startPackage: failPlatformMount && revision === "revision-b"
-      ? async () => { throw new Error("new platform mount failed") }
-      : startExternalStorybookPackage,
+    startPage: async () => { throw new Error("Ревизия пакета не выбирает page host") },
+    startPackage: async () => { throw new Error("Ревизия пакета не выбирает package host") },
   })
   const target = (revision: string, route = ""): ExternalStorybookPreparedPackageTarget => ({
     kind: "revision", packageId, revision,
@@ -261,22 +304,45 @@ async function pageFixture(failPlatformMount = false, changePlatform = true, bef
     intent: "reader", preview: false, initialAppliedRevision: "revision-a", fallbackRevision: null,
     readerToken: "fixture-reader",
   })
+  let hostRevision = "a"
+  const sockets: FakeSocket[] = []
+  const sharedHost = (epoch = "a".repeat(64)): StorybookSharedHost => ({
+    protocol: "storybook-shared-host/1", sharedModuleEpoch: epoch, hostModuleEpoch: hostRevision.repeat(64),
+    pageEntryUrl: `/__storybook/shared/page-${hostRevision}.js`, packageHostUrl: `/__storybook/shared/package-${hostRevision}.js`,
+    authorStyleSheets: [],
+  })
   const page = await startExternalStorybookPage({
     browserDocument: environment.browserDocument!, location, history: environment.history!,
     sharedModuleEpoch: "a".repeat(64),
     hostModuleEpoch: "a".repeat(64),
     initialTarget: target("revision-a"), initialPayload: payload("revision-a"),
+    sharedHost: sharedHost(),
+    readSharedHost: async epoch => sharedHost(epoch),
+    importSharedHost: async () => async options => startExternalStorybookPage({...options,
+      ...(failPlatformMount && options.hostModuleEpoch === "b".repeat(64)
+        ? {startPackage: async () => { throw new Error("new platform mount failed") }} : {}),
+    }),
     shell: {...environment.shell!, createRoot: fakeRootFactory(state)},
     fetcher: (async input => String(input).includes("/api/browser/session")
       ? Response.json({token: "fixture-reader"}) : Response.json(snapshot)) as typeof fetch,
-    createSocket: () => new FakeSocket(),
+    createSocket: () => {
+      const socket = new FakeSocket()
+      sockets.push(socket)
+      return socket
+    },
     prepareTarget: async input => {
+      hostRevision = "b"
       await beforePrepare?.()
       return target(input.requestedRevision ?? "revision-c", input.route)
     },
     loadAppliedRevision: async (_packageId, revision) => payload(revision),
   })
-  return {page, state, location, history}
+  return {page, state, location, history, sockets,
+    updateHost() {
+      hostRevision = "b"
+      for (const socket of [...sockets]) if (!socket.closed) socket.emit("message", {data: JSON.stringify({type: "shared.updated", host: sharedHost()})})
+    },
+  }
 }
 
 async function fixtureGraphWithScenarios(): Promise<ExternalStorybookGraph> {
@@ -452,8 +518,8 @@ function fakeRootFactory(
     const appRoot = createRoot(body)
     appRoot.render(options.app)
     appRoot.flush()
-    const space = body.querySelector("space") as SpaceElement
-    const viewPoint = space.querySelector("viewpoint") as ViewPointElement
+    let space = body.querySelector("space") as SpaceElement
+    let viewPoint = space.querySelector("viewpoint") as ViewPointElement
     state.document = document
     state.space = space
 
@@ -465,7 +531,7 @@ function fakeRootFactory(
     }>>()
     const spaceProjection: RootSpaceProjection = Object.freeze({
       kind: "space",
-      owner: space,
+      get owner() { return space },
       orbit() {},
       pan() {},
       zoom() {},
@@ -515,7 +581,7 @@ function fakeRootFactory(
       return documentProjection(owner as DisplayElement | HUDElement)
     }
 
-    const root: Root = Object.freeze({
+    const root: Root & {renderApplication(app: ComponentValue | JSX.Element): void} = Object.freeze({
       clipboard,
       input: {
         pointerDown() {},
@@ -526,8 +592,16 @@ function fakeRootFactory(
       },
       canvas: options.canvas,
       document,
-      space,
-      viewPoint,
+      get space() { return space },
+      get viewPoint() { return viewPoint },
+      renderApplication(app: ComponentValue | JSX.Element) {
+        appRoot.render(app)
+        appRoot.flush()
+        space = body.querySelector("space") as SpaceElement
+        viewPoint = space.querySelector("viewpoint") as ViewPointElement
+        state.space = space
+        documentProjections.clear()
+      },
       get presentedFrame() {
         return state.frames
       },

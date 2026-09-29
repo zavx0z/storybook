@@ -68,10 +68,15 @@ describe("shared browser assets", () => {
     expect(first).toBe(concurrent)
     expect(await f.cache.ensure()).toBe(first)
     expect(f.builds()).toBe(1)
+    expect(() => f.cache.current()).toThrow()
+    expect(f.updates).toEqual([])
+    f.cache.publish()
     writeFileSync(f.path, "second")
     expect((await f.cache.ensure()).landingEntry).toBe("second.js")
     expect(f.builds()).toBe(2)
-    expect(f.updates).toEqual(["second.js"])
+    expect(f.cache.current().landingEntry).toBe("first.js")
+    f.cache.publish()
+    expect(f.updates).toEqual(["first.js", "second.js"])
     expect(f.cacheProgress).toEqual([
       {state: "started"},
       {state: "completed", hit: true},
@@ -82,15 +87,18 @@ describe("shared browser assets", () => {
 
   test("keeps the previous build on failure and retries after repair", async () => {
     const f = fixture()
-    const first = await f.cache.ensure()
+    await f.cache.ensure()
+    const first = f.cache.publish()
     writeFileSync(f.path, "invalid")
     await expect(f.cache.ensure()).rejects.toThrow("compile failed")
     expect(f.cache.current()).toBe(first)
     expect(f.errors).toHaveLength(1)
-    expect(f.updates).toEqual([])
+    expect(f.updates).toEqual(["first.js"])
     writeFileSync(f.path, "repaired")
     expect((await f.cache.ensure()).landingEntry).toBe("repaired.js")
-    expect(f.updates).toEqual(["repaired.js"])
+    expect(f.cache.current()).toBe(first)
+    f.cache.publish()
+    expect(f.updates).toEqual(["first.js", "repaired.js"])
   })
 
   test("does not permanently cache an initial rejected build", async () => {
@@ -104,7 +112,8 @@ describe("shared browser assets", () => {
 
   test("изменения исходника и пустой директории сохраняют готовую оболочку до check", async () => {
     const f = fixture()
-    const first = await f.cache.ensure()
+    await f.cache.ensure()
+    const first = f.cache.publish()
     writeFileSync(f.path, "second")
     await Bun.sleep(1100)
     expect(f.cache.current()).toBe(first)
@@ -112,4 +121,35 @@ describe("shared browser assets", () => {
     expect((await f.cache.ensure()).landingEntry).toBe("second.js")
   })
 
+})
+
+
+test("ошибка публикации сохраняет применённую оболочку и не отправляет событие", async () => {
+  const initial = {root: "/fixture", landingEntry: "first.js", fallbackEntry: "first.js", dependencyRealpaths: []}
+  const updated: SharedBrowserAssets[] = []
+  const cache = new StorybookSharedBrowserAssets({
+    initial,
+    build: async () => ({...initial, landingEntry: "second.js"}),
+    commit() { throw new Error("receipt write failed") },
+    updated: assets => { updated.push(assets) },
+    failed() {},
+  })
+  try {
+    await cache.ensure()
+    expect(() => cache.publish()).toThrow("receipt write failed")
+    expect(cache.current()).toBe(initial)
+    expect(updated).toEqual([])
+  } finally { await cache.dispose() }
+})
+
+
+test("конкурентная подготовка не подменяет кандидата после проверки", async () => {
+  const f = fixture()
+  const checked = await f.cache.ensure()
+  f.cache.publish([], checked)
+  writeFileSync(f.path, "second")
+  await f.cache.ensure()
+  expect(() => f.cache.publish([], checked)).toThrow("candidate changed")
+  expect(f.cache.current().landingEntry).toBe("first.js")
+  expect(f.updates).toEqual(["first.js"])
 })

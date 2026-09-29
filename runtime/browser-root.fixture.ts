@@ -11,10 +11,17 @@ export type PresentationFixtureOptions = IntegrationOptions & {
 export function presentationRootFixture(factory: (options: PresentationFixtureOptions) => Promise<Presentation>) {
   return (canvas: HTMLCanvasElement, options: IntegrationOptions = {}): IntegrationRoot => {
     let pending: Promise<Presentation> | null = null
+    let current: (Presentation & {renderApplication?(app: ComponentValue | JSX.Element): void}) | null = null
     return {
       render(app) {
         if (app === null) throw new Error("This shell fixture expects an application")
-        pending = factory({...options, canvas, app})
+        if (current?.renderApplication) {
+          current.renderApplication(app)
+          pending = Promise.resolve(current)
+        } else pending = factory({...options, canvas, app}).then(root => {
+          current = root
+          return root
+        })
       },
       whenReady() {
         if (!pending) throw new Error("render must precede shell readiness")

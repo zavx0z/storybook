@@ -39,15 +39,16 @@ describe("external Storybook shared Browser Root", () => {
       shell.display.height = 123
       const before = viewPointValues(shell.viewPoint)
       const display = shell.display
-      const button = shell.document.querySelector('[aria-label="Открыть журнал MCP"]')!
+      const button = shell.document.querySelector('[aria-label="MCP"][aria-controls="storybook-mcp-window"]')!
       button.dispatchEvent(new MouseEvent("click", {bubbles: true}))
       await Promise.resolve()
-      const dialog = shell.document.querySelector('[data-mcp-window]')!
+      const dialog = shell.document.querySelector('[data-mcp-window] [data-window]')!
       expect(dialog.hasAttribute("hidden")).toBe(false)
       expect(viewPointValues(shell.viewPoint)).toEqual(before)
       expect([display.width, display.height]).toEqual([321, 123])
-      dialog.querySelector('button[title="Закрыть"]')?.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+      button.dispatchEvent(new MouseEvent("click", {bubbles: true}))
       await Promise.resolve()
+      expect(dialog.hasAttribute("hidden")).toBe(true)
       expect(viewPointValues(shell.viewPoint)).toEqual(before)
     } finally {
       shell.dispose()

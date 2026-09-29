@@ -31,9 +31,6 @@ export type StorybookGeneratedRevisionPayloadInput = Readonly<{
   packageId: string
   candidateRevision: string
   sharedModuleEpoch: string
-  hostModuleEpoch?: string
-  packageHostUrl?: string
-  packageEntryUrl?: string
   graphSnapshot: unknown
 }>
 
@@ -138,21 +135,7 @@ export function generateStorybookRevisionPayloadSource(
   if (input.graphSnapshot === null || typeof input.graphSnapshot !== "object" || Array.isArray(input.graphSnapshot)) {
     throw new TypeError("Storybook revision payload graph snapshot must be an object")
   }
-  if (input.packageHostUrl !== undefined && (!input.packageHostUrl.startsWith("/__storybook/shared/") ||
-    !input.packageHostUrl.endsWith(".js") || input.packageHostUrl.includes("..") || hasControlCharacter(input.packageHostUrl))) {
-    throw new Error("Invalid Storybook package host URL")
-  }
-  if (input.packageEntryUrl !== undefined && (!input.packageEntryUrl.startsWith("/__storybook/shared/") ||
-    !input.packageEntryUrl.endsWith(".js") || input.packageEntryUrl.includes("..") || hasControlCharacter(input.packageEntryUrl))) {
-    throw new Error("Invalid Storybook page entry URL")
-  }
   return [
-    ...(input.packageEntryUrl === undefined ? [] : [
-      `import {startExternalStorybookPage} from ${jsString(input.packageEntryUrl)}`,
-    ]),
-    ...(input.packageHostUrl === undefined ? [] : [
-      `import {startExternalStorybookPackage} from ${jsString(input.packageHostUrl)}`,
-    ]),
     "import {",
     "  STORYBOOK_PACKAGE_SCENARIO_LOADERS,",
     "  storybookRevisionUrl,",
@@ -163,25 +146,15 @@ export function generateStorybookRevisionPayloadSource(
     `  packageId: ${jsString(packageId)},`,
     `  candidateRevision: ${jsString(input.candidateRevision)},`,
     `  sharedModuleEpoch: ${jsString(input.sharedModuleEpoch)},`,
-    ...(input.hostModuleEpoch === undefined
-      ? []
-      : [`  hostModuleEpoch: ${jsString(validateModuleEpoch(input.hostModuleEpoch, "host"))},`]),
     "  revisionUrl: storybookRevisionUrl,",
     `  graphSnapshot: ${JSON.stringify(input.graphSnapshot)},`,
-    ...(input.packageHostUrl === undefined ? [] : ["  startPackage: startExternalStorybookPackage,"]),
-    ...(input.packageEntryUrl === undefined ? [] : ["  startPage: startExternalStorybookPage,"]),
     "  scenarioLoaders: STORYBOOK_PACKAGE_SCENARIO_LOADERS,",
     "})",
     "",
   ].join("\n")
 }
 
-function validateModuleEpoch(value: string, label: string): string {
-  if (typeof value !== "string" || value.length === 0 || value.length > 256 || hasControlCharacter(value)) {
-    throw new Error(`Invalid Storybook ${label} module epoch: ${String(value)}`)
-  }
-  return value
-}
+
 
 /** Генерирует один bounded browser importer immutable payload ревизии пакета. */
 export function generateStorybookAppliedRevisionLoaderSource(packageIdValue: string): string {

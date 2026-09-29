@@ -75,6 +75,7 @@ export function createStorybookSharedBrowserModuleEntries(
 /** Проверяет сериализованную shared identity до её участия в Bun resolution. */
 export function validateStorybookSharedBrowserIdentity(
   value: StorybookSharedBrowserIdentity,
+  verifySources = true,
 ): StorybookSharedBrowserIdentity {
   if (value === null || typeof value !== "object" || Array.isArray(value) ||
     value.protocol !== "storybook-shared-browser-identity/1") {
@@ -104,12 +105,12 @@ export function validateStorybookSharedBrowserIdentity(
     if (specifiers.has(module.specifier)) throw new Error(`Duplicate shared Storybook module: ${module.specifier}`)
     const url = validateSharedUrl(module.url, `module ${module.specifier}`)
     if (urls.has(url)) throw new Error(`Duplicate shared Storybook module URL: ${url}`)
-    if (typeof module.sourcePath !== "string" || !module.sourcePath.startsWith("/") || !existsSync(module.sourcePath)) {
+    if (typeof module.sourcePath !== "string" || !module.sourcePath.startsWith("/") || verifySources && !existsSync(module.sourcePath)) {
       throw new Error(`Invalid shared Storybook module source: ${String(module.sourcePath)}`)
     }
     specifiers.add(module.specifier)
     urls.add(url)
-    return Object.freeze({specifier: module.specifier, sourcePath: realpathSync(module.sourcePath), url})
+    return Object.freeze({specifier: module.specifier, sourcePath: verifySources ? realpathSync(module.sourcePath) : resolve(module.sourcePath), url})
   })
   const sourcePaths = new Set<string>()
   const sourceFiles = value.sourceFiles.map((file, index): StorybookSharedBrowserSourceFile => {
@@ -118,9 +119,9 @@ export function validateStorybookSharedBrowserIdentity(
       typeof file.contentDigest !== "string" || !/^[a-f0-9]{64}$/u.test(file.contentDigest)) {
       throw new TypeError(`Invalid shared Storybook browser source file ${index}`)
     }
-    const path = realpathSync(file.path)
+    const path = verifySources ? realpathSync(file.path) : resolve(file.path)
     if (sourcePaths.has(path)) throw new Error(`Duplicate shared Storybook browser source file: ${path}`)
-    const contentDigest = createHash("sha256").update(readFileSync(path)).digest("hex")
+    const contentDigest = verifySources ? createHash("sha256").update(readFileSync(path)).digest("hex") : file.contentDigest
     if (contentDigest !== file.contentDigest) {
       throw new Error(`Shared Storybook browser source changed after kernel build: ${path}`)
     }
@@ -146,8 +147,9 @@ export function validateStorybookSharedBrowserIdentity(
 /** Сохраняет governed imports как browser imports общих immutable entrypoints. */
 export function createStorybookSharedBrowserExternalPlugin(
   identity: StorybookSharedBrowserIdentity,
+  verifySources = true,
 ): Bun.BunPlugin {
-  const validated = validateStorybookSharedBrowserIdentity(identity)
+  const validated = validateStorybookSharedBrowserIdentity(identity, verifySources)
   const urls = new Map(validated.modules.map(({specifier, url}) => [specifier, url]))
   return {
     name: "external-storybook-shared-browser-identity",
@@ -169,6 +171,7 @@ export function storybookSharedBrowserIdentity(
   hostModuleEpoch: string,
   sourceFiles: readonly StorybookSharedBrowserSourceFile[] = sharedSourceFiles(modules),
   packageHostUrl?: string,
+  verifySources = true,
 ): StorybookSharedBrowserIdentity {
   const epoch = createHash("sha256").update(JSON.stringify({
     modules: modules.map(({specifier, url}) => ({specifier, url})),
@@ -181,7 +184,7 @@ export function storybookSharedBrowserIdentity(
     ...(packageHostUrl === undefined ? {} : {packageHostUrl}),
     modules,
     sourceFiles,
-  })
+  }, verifySources)
 }
 
 function publicModuleExports(value: unknown, packageName: string): readonly [string, string][] {

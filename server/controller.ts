@@ -445,6 +445,7 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
       status: result.ok === true ? "success" : "failed",
       ok: result.ok === true,
       graphDigest: result.graphDigest,
+      ...(result.shared === undefined ? {} : {shared: result.shared, hosts: result.hosts, published: result.published}),
       packages,
       ...(input.live === true ? {applied: result.applied === true, views: result.views ?? []} : {}),
     })

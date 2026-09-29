@@ -69,6 +69,7 @@ export type StorybookPackageRevisionSnapshot = Readonly<{
   declarationDigest: string
   packageGraphDigest: string
   moduleGraphRevision: string
+  sharedModuleEpoch?: string
   entryRelativePath: string
   dependencyRealpaths: readonly string[]
   diagnostics: readonly StorybookPackageDiagnostic[]
@@ -146,6 +147,7 @@ export type StorybookPackageEvent =
 
 export type StorybookPackageRevisionBuild = Readonly<{
   moduleGraphRevision: string
+  sharedModuleEpoch?: string
   dependencyRealpaths: readonly string[]
   entryRelativePath: string
   inputFingerprint?: StorybookBuildInputFingerprint
@@ -209,6 +211,7 @@ type RevisionRecord = {
   declarationDigest: string
   graphSnapshot: StorybookPackageRevisionGraphSnapshot
   moduleGraphRevision: string
+  sharedModuleEpoch?: string
   entryRelativePath: string
   dependencyRealpaths: readonly string[]
   inputFingerprint: StorybookBuildInputFingerprint | null
@@ -759,6 +762,7 @@ export class StorybookPackageSession {
         declarationDigest: descriptor.declarationDigest,
         graphSnapshot: descriptor.graphSnapshot,
         moduleGraphRevision: result.moduleGraphRevision,
+        ...(result.sharedModuleEpoch === undefined ? {} : {sharedModuleEpoch: result.sharedModuleEpoch}),
         dependencyRealpaths: Object.freeze(result.dependencyRealpaths.map(safeRealpath)),
         inputFingerprint: result.inputFingerprint === undefined
           ? null
@@ -929,6 +933,7 @@ export class StorybookPackageSession {
         packageId: this.packageId, packageRoot: this.descriptor.packageRoot,
         revision: record.revision, declarationDigest: record.declarationDigest,
         graphSnapshot: record.graphSnapshot, moduleGraphRevision: record.moduleGraphRevision,
+        ...(record.sharedModuleEpoch === undefined ? {} : {sharedModuleEpoch: record.sharedModuleEpoch}),
         entryRelativePath: record.entryRelativePath, dependencyRealpaths: record.dependencyRealpaths,
         ...(record.inputFingerprint === null ? {} : {inputFingerprint: record.inputFingerprint}),
         standard, verification: record.verification, warnings: record.warnings,
@@ -969,6 +974,7 @@ export class StorybookPackageSession {
       const record: RevisionRecord = {
         revision: value.revision, generation: restoredGeneration, status: "working",
         declarationDigest: graphSnapshot.declarationDigest, graphSnapshot,
+        ...(value.sharedModuleEpoch === undefined ? {} : {sharedModuleEpoch: requiredKernelEpoch(value.sharedModuleEpoch)}),
         moduleGraphRevision: value.moduleGraphRevision, entryRelativePath: value.entryRelativePath,
         dependencyRealpaths: Object.freeze(value.dependencyRealpaths.map((path: unknown) => {
           const checked = requiredText("applied dependency path", path)
@@ -1155,6 +1161,7 @@ function sameDescriptor(left: StorybookPackageBuildDescriptor, right: StorybookP
 
 function validateBuildResult(result: StorybookPackageRevisionBuild, stagingDirectory: string): void {
   if (result === null || typeof result !== "object") throw diagnosticError("compile", "Package build returned no result")
+  if (result.sharedModuleEpoch !== undefined) requiredKernelEpoch(result.sharedModuleEpoch)
   requiredText("moduleGraphRevision", result.moduleGraphRevision)
   if (!Array.isArray(result.dependencyRealpaths)) {
     throw diagnosticError("compile", "Package build returned no dependency graph")
@@ -1239,6 +1246,7 @@ function revisionSnapshot(record: RevisionRecord): StorybookPackageRevisionSnaps
     declarationDigest: record.declarationDigest,
     packageGraphDigest: record.graphSnapshot.packageGraphDigest,
     moduleGraphRevision: record.moduleGraphRevision,
+    ...(record.sharedModuleEpoch === undefined ? {} : {sharedModuleEpoch: record.sharedModuleEpoch}),
     entryRelativePath: record.entryRelativePath,
     dependencyRealpaths: record.dependencyRealpaths,
     diagnostics: record.diagnostics,
@@ -1280,5 +1288,11 @@ function boundedDuration(value: number, minimum: number, maximum: number, label:
   if (!Number.isSafeInteger(value) || value < minimum || value > maximum) {
     throw new Error(`Invalid Storybook package ${label}: ${String(value)}`)
   }
+  return value
+}
+
+/** Epoch связывает immutable consumer с единственным сохранённым kernel. */
+function requiredKernelEpoch(value: unknown): string {
+  if (typeof value !== "string" || !/^[a-f0-9]{64}$/u.test(value)) throw new Error("Invalid package kernel epoch")
   return value
 }

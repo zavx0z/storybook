@@ -222,6 +222,7 @@ export type StorybookSharedBuildInputFingerprintRequest = Readonly<{
   outputDirectory?: string
   additionalFilePaths?: readonly string[]
   resolutionDirectories?: readonly string[]
+  sharedKernel?: StorybookSharedBrowserIdentity
 }>
 
 /**
@@ -390,6 +391,7 @@ export function resolveStorybookSharedBuildInputFingerprintPlan(
   return createStorybookBuildInputFingerprintPlan({
     identity: {
       owner: "shared-browser",
+      ...(input.sharedKernel === undefined ? {} : {sharedKernel: input.sharedKernel.epoch}),
       toolRoot,
       landingEntryPath: entrypoints[0],
       fallbackEntryPath: entrypoints[1],

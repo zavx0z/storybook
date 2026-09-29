@@ -340,26 +340,11 @@ export async function buildStorybookPackageRevisionInProcess(
       "  environment: {loadAppliedRevision},",
       "})",
       "",
-    ].join("\n") : [
-      `import {startExternalStorybookPage} from ${JSON.stringify(sharedBrowserIdentity.packageEntryUrl)}`,
-      `import {STORYBOOK_APPLIED_REVISION} from "./revision-payload.ts"`,
-      "",
-      "await startExternalStorybookPage({",
-      "  initialPayload: STORYBOOK_APPLIED_REVISION,",
-      `  sharedModuleEpoch: ${JSON.stringify(sharedModuleEpoch)},`,
-      `  hostModuleEpoch: ${JSON.stringify(sharedBrowserIdentity.hostModuleEpoch)},`,
-      "})",
-      "",
-    ].join("\n"))
+    ].join("\n") : 'export {STORYBOOK_APPLIED_REVISION} from "./revision-payload.ts"\n')
     await Bun.write(payloadPath, generateStorybookRevisionPayloadSource({
       packageId: descriptor.packageId,
       candidateRevision,
       sharedModuleEpoch,
-      ...(sharedBrowserIdentity === undefined
-        ? {}
-        : {hostModuleEpoch: sharedBrowserIdentity.hostModuleEpoch,
-          packageEntryUrl: sharedBrowserIdentity.packageEntryUrl,
-          ...(sharedBrowserIdentity.packageHostUrl === undefined ? {} : {packageHostUrl: sharedBrowserIdentity.packageHostUrl})}),
       graphSnapshot: descriptor.graphSnapshot,
     }))
 
@@ -429,6 +414,7 @@ export async function buildStorybookPackageRevisionInProcess(
     emitPhase(onPhase, "fingerprint", "completed")
     return Object.freeze({
       moduleGraphRevision,
+      ...(sharedBrowserIdentity === undefined ? {} : {sharedModuleEpoch}),
       dependencyRealpaths,
       entryRelativePath,
       inputFingerprint,

@@ -58,14 +58,12 @@ describe("generated structural scenario loader", () => {
     expect(source).toContain("signal.throwIfAborted()")
   })
 
-  test("связывает HMR платформы с exact page entry той же shared сборки", () => {
-    const input = {packageId: "@fixture/components", candidateRevision: "revision-a",
-      sharedModuleEpoch: "epoch", graphSnapshot: {protocol: "fixture"},
-      packageEntryUrl: "/__storybook/shared/entries/page-entry-hash.js"}
-    const source = generateStorybookRevisionPayloadSource(input)
-    expect(source).toContain('import {startExternalStorybookPage} from "/__storybook/shared/entries/page-entry-hash.js"')
-    expect(source).toContain("startPage: startExternalStorybookPage")
-    expect(() => generateStorybookRevisionPayloadSource({...input, packageEntryUrl: "/elsewhere/page.js"}))
-      .toThrow("Invalid Storybook page entry URL")
+  test("payload сохраняет платформу потребителя без закрепления общей оболочки", () => {
+    const source = generateStorybookRevisionPayloadSource({packageId: "@fixture/components", candidateRevision: "revision-a",
+      sharedModuleEpoch: "epoch", graphSnapshot: {protocol: "fixture"}})
+    expect(source).toContain('sharedModuleEpoch: "epoch"')
+    expect(source).not.toContain("startExternalStorybookPage")
+    expect(source).not.toContain("startExternalStorybookPackage")
+    expect(source).not.toContain("hostModuleEpoch")
   })
 })

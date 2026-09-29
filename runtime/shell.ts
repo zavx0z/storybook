@@ -2,6 +2,8 @@ import {createViewPointPersistence} from "../workbench/viewpoint-tab/src/persist
 import {createViewPointControls} from "../workbench/viewpoint-tab/src/controller"
 import {DisplayElement} from "@zavx0z/dom/display"
 import {createMcpAddressSource} from "./mcp-address"
+import type {MinimapState} from "../workbench/minimap/src/state"
+import type {McpWindowState} from "../workbench/mcp-window/src/state"
 import {createMinimapPersistence} from "../workbench/minimap/src/state"
 import {createMcpWindowPersistence} from "../workbench/mcp-window/src/state"
 import {createNavigationExpansion} from "../workbench/navigation/persistence.ts"
@@ -18,6 +20,7 @@ Workbench и наблюдает его готовую раскладку; упр
 import {
   createRoot as createBrowserRoot,
   type Presentation as Root,
+  type IntegrationRoot,
   type RootLinkedAuthorStyleSheet,
   type RootProjection,
 } from "@zavx0z/browser/integration"
@@ -37,6 +40,7 @@ import {SpaceElement} from "@zavx0z/dom/space"
 import {type ViewPointElement} from "@zavx0z/dom/viewpoint"
 import type {
   Workbench,
+  WorkbenchUserState,
   WorkbenchPresentationUpdate,
 } from "../workbench/contract.ts"
 import {
@@ -74,7 +78,24 @@ export type ExternalStorybookNativeKey = Readonly<{
   shiftKey: boolean
 }>
 
+/** Снимок настроек именно этой вкладки; другой localStorage writer не меняет её HMR-состояние. */
+export type StorybookShellUserState = Readonly<{
+  workbench: WorkbenchUserState
+  minimap: MinimapState
+  mcpWindow: McpWindowState
+  viewPoint: ReturnType<typeof createViewPointPersistence>["state"]
+  collapsedNavigation: readonly string[]
+}>
+
+/** Передача существующего Browser root новой реализации App в той же платформе. */
+export type StorybookRetainedRoot = Readonly<{
+  application: IntegrationRoot
+  diagnostics: {publish(value: unknown): void}
+}>
+
 export type CreateExternalStorybookShellOptions = Readonly<{
+  retainedRoot?: StorybookRetainedRoot
+  userState?: StorybookShellUserState
   title: string
   browserDocument?: globalThis.Document
   canvas?: HTMLCanvasElement
@@ -113,6 +134,8 @@ export type ExternalStorybookShell = Readonly<{
   mountSpacePreview(label: string, registration: StorybookSpacePreviewRegistration): StorybookSpacePreview
   dispatchNativeKey(target: SemanticHTMLElement, input: ExternalStorybookNativeKey): void
   dispatchNativeText(target: SemanticHTMLElement, text: string): void
+  captureUserState(): StorybookShellUserState
+  releaseRoot(): StorybookRetainedRoot
   dispose(): void
 }>
 
@@ -154,33 +177,59 @@ export async function createExternalStorybookShell(
   }
   let workbench!: Workbench
   const start = options.createRoot ?? createBrowserRoot
-  const application = start(canvas, {
+  const diagnostics = options.retainedRoot?.diagnostics ?? {publish: publishAuthorDiagnostic}
+  diagnostics.publish = value => publishAuthorDiagnostic(value)
+  const application = options.retainedRoot?.application ?? start(canvas, {
     font,
     ...(options.loadFont === undefined ? {fontSources: STORYBOOK_FONT_FACES} : {}),
     stylesheets: authorStyleSheetSources,
     onUncaughtError(error) {
-      publishAuthorDiagnostic(Object.freeze({
+      diagnostics.publish(Object.freeze({
         phase: "author-styles",
         message: error.message,
         source: null,
       }))
     },
   })
-  const viewPointControls = createViewPointControls(createViewPointPersistence(() => browserDocument.defaultView!.localStorage))
+  const viewPointPersistence = createViewPointPersistence(() => browserDocument.defaultView!.localStorage)
+  if (options.userState !== undefined) {
+    delete viewPointPersistence.state.camera
+    delete viewPointPersistence.state.frozen
+    Object.assign(viewPointPersistence.state, structuredClone(options.userState.viewPoint))
+  }
+  const viewPointControls = createViewPointControls(viewPointPersistence)
   const minimap = createMinimapPersistence(() => browserDocument.defaultView!.localStorage)
   const mcpWindow = createMcpWindowPersistence(() => browserDocument.defaultView!.localStorage)
-  const navigationExpansion = createNavigationExpansion(() => browserDocument.defaultView!.localStorage)
+  const navigationPersistence = createNavigationExpansion(() => browserDocument.defaultView!.localStorage)
+  let minimapState = options.userState?.minimap ?? minimap.initialState
+  let mcpWindowState = options.userState?.mcpWindow ?? mcpWindow.initialState
+  let collapsedNavigation = options.userState?.collapsedNavigation ?? navigationPersistence.initialCollapsedIds
+  const navigationExpansion = {
+    initialCollapsedIds: collapsedNavigation,
+    save(ids: readonly string[]) {
+      collapsedNavigation = [...ids]
+      navigationPersistence.save(ids)
+    },
+  }
+  // Новый ключ монтирует актуальную App даже при неизменившемся compiler chunk её шаблона.
   application.render(component(StorybookApp as unknown as CompiledTemplate<StorybookAppProps>, {
     title: options.title,
+    userState: options.userState?.workbench,
     viewPointControls,
     statusOwner: options.statusOwner ?? options.title,
     displayId: EXTERNAL_STORYBOOK_DISPLAY_ID,
     hudId: EXTERNAL_STORYBOOK_WORKBENCH_ID,
     mcpAddressSource: createMcpAddressSource(() => `${browserDocument.location.pathname}${browserDocument.location.search}`),
-    minimapState: minimap.initialState,
-    saveMinimapState: minimap.save,
-    mcpWindowState: mcpWindow.initialState,
-    saveMcpWindowState: mcpWindow.save,
+    minimapState,
+    saveMinimapState(value) {
+      minimapState = value
+      minimap.save(value)
+    },
+    mcpWindowState,
+    saveMcpWindowState(value) {
+      mcpWindowState = value
+      mcpWindow.save(value)
+    },
     navigationExpansion,
     async loadMcpRequests() {
       const session = await fetch("/api/browser/registry-session", {
@@ -196,11 +245,11 @@ export async function createExternalStorybookShell(
       return (await response.json()).entries
     },
     onReady(value) { workbench = value },
-  }))
+  }, globalThis.crypto.randomUUID()))
   let root: Root
   try { root = await application.whenReady() } catch (error) {
     viewPointControls.dispose()
-    application.unmount()
+    if (options.retainedRoot === undefined) application.unmount()
     throw error
   }
   const document = root.document
@@ -210,7 +259,7 @@ export async function createExternalStorybookShell(
   const hud = document.getElementById(EXTERNAL_STORYBOOK_WORKBENCH_ID)
   if (!(display instanceof DisplayElement) || !(hud instanceof HUDElement) || workbench === undefined) {
     viewPointControls.dispose()
-    root.unmount()
+    if (options.retainedRoot === undefined) root.unmount()
     throw new Error("Storybook App did not mount its Display, HUD and Workbench")
   }
   const displayProjection = root.getProjection(display)
@@ -314,7 +363,7 @@ export async function createExternalStorybookShell(
     unsubscribePresented()
     viewPointControls.dispose()
     workbench.dispose()
-    root.unmount()
+    if (options.retainedRoot === undefined) root.unmount()
     throw error
   }
   markShellPhase(browserDocument, "ready")
@@ -644,23 +693,35 @@ export async function createExternalStorybookShell(
     },
     dispatchNativeKey,
     dispatchNativeText,
-    dispose() {
-      if (disposed) return
-      disposed = true
-      viewPointControls.dispose()
-      activeSpacePreview?.dispose()
-      activeShellPresentation?.dispose()
-      activeShellPresentation = null
-      unsubscribeFrame()
-      unsubscribeViewport()
-      unsubscribePresented()
-      boundsListeners.clear()
-      for (const waiter of frameWaiters) waiter.resolve(root.presentedFrame)
-      frameWaiters.clear()
-      root.unmount()
-      workbench.dispose()
-      },
+    captureUserState() {
+      assertActive(disposed)
+      return structuredClone({workbench: workbench.controller.captureUserState(), minimap: minimapState,
+        mcpWindow: mcpWindowState, viewPoint: viewPointPersistence.state, collapsedNavigation})
+    },
+    releaseRoot() {
+      if (disposed) throw new Error("Storybook shell is already disposed")
+      release(false)
+      return {application, diagnostics}
+    },
+    dispose() { release(true) },
   })
+  /** Освобождает host listeners и представления, сохраняя Browser root только при явной передаче. */
+  function release(unmount: boolean): void {
+    if (disposed) return
+    disposed = true
+    viewPointControls.dispose()
+    activeSpacePreview?.dispose()
+    activeShellPresentation?.dispose()
+    activeShellPresentation = null
+    unsubscribeFrame()
+    unsubscribeViewport()
+    unsubscribePresented()
+    boundsListeners.clear()
+    for (const waiter of frameWaiters) waiter.resolve(root.presentedFrame)
+    frameWaiters.clear()
+    workbench.dispose()
+    if (unmount) application.unmount()
+  }
   return shell
 }
 

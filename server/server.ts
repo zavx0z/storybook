@@ -1,3 +1,4 @@
+import type {StorybookSharedHost} from "../runtime/shared-host"
 import {resolveStorybookRoute} from "./route"
 import {createStorybookScenarioRunner} from "./scenario-run"
 import {streamScenarioRun} from "./scenario-stream"
@@ -53,7 +54,7 @@ import type {StorybookCatalogResolver} from "../catalog/catalog.t.ts"
 import {createStorybookPackageRevisionBuilder, createStorybookBuildInputFingerprintVerifier} from "../build/package-build.ts"
 import {StorybookSharedBrowserAssets, type SharedBrowserAssets} from "../build/shared-browser-assets.ts"
 import {runSharedBrowserBuild} from "../build/shared-browser-builder.ts"
-import {readSharedBrowserReceipt} from "../build/shared-browser-receipt.ts"
+import {readPublishedSharedBrowserReceipt, readSharedBrowserEpoch, saveSharedBrowserReceipt} from "../build/shared-browser-receipt.ts"
 import type {StorybookSharedBrowserIdentity} from "../build/types/shared-module-identity.ts"
 import type {StorybookBuildTransition} from "../build/build-scheduler.ts"
 import type {StorybookPackageRevisionAuthorStyleSheet} from "../sessions/package-revision.ts"
@@ -180,13 +181,13 @@ export async function startExternalStorybookServer(
   let closePromise: Promise<void> | null = null
   const sharedAssetRoot = join(artifactRoot, "shared")
   const usesSharedKernel = options.packageBrowserEntryPath === undefined
-  const restoredSharedAssets = readSharedBrowserReceipt({
+  const restoredSharedAssets = readPublishedSharedBrowserReceipt({
     root: sharedAssetRoot,
     toolRoot,
     landingEntryPath: options.landingEntryPath ?? fileURLToPath(new URL("../runtime/browser-entry.ts", import.meta.url)),
     fallbackEntryPath: options.fallbackEntryPath ?? fileURLToPath(new URL("../runtime/browser-entry.ts", import.meta.url)),
     stagingDirectory: join(sharedAssetRoot, ".receipt-check"),
-  }, false)
+  })
   let preparedSharedIdentity: StorybookSharedBrowserIdentity | undefined = usesSharedKernel ? restoredSharedAssets?.browserIdentity : undefined
   let verifyPackageInputs = createStorybookBuildInputFingerprintVerifier({
     ...(options.packageBrowserEntryPath === undefined ? {} : {browserEntryPath: options.packageBrowserEntryPath}),
@@ -476,13 +477,56 @@ export async function startExternalStorybookServer(
       return result
     }, signal),
     cacheProgress: event => publish(Object.freeze({type: "shared.cache-progress", ...event})),
-    updated: assets => publish(Object.freeze({type: "shared.updated", entry: assets.landingEntry})),
+    commit: assets => saveSharedBrowserReceipt(assets),
+    updated: assets => publish(Object.freeze({type: "shared.updated", host: sharedHostDescriptor(assets)})),
     failed: error => {
       sharedBuildError = Object.freeze({message: errorText(error).slice(0, 4_096), at: new Date().toISOString()})
       publish(Object.freeze({type: "shared.failed", message: sharedBuildError.message}))
     },
   })
-  const readSharedAssets = (): SharedBrowserAssets => sharedAssets.current()
+  const readSharedAssets = (preview = false): SharedBrowserAssets => preview ? sharedAssets.prepared() ?? sharedAssets.current() : sharedAssets.current()
+  const requestedKernels = new Set<string>()
+  const preparedHosts = new Map<string, SharedBrowserAssets>()
+  const readSharedHost = (epoch?: string, preview = false): StorybookSharedHost => {
+    const current = readSharedAssets(preview)
+    if (epoch === undefined || epoch === current.browserIdentity?.epoch) return sharedHostDescriptor(current)
+    const publishedHost = current.compatibleHosts?.find(host => host.sharedModuleEpoch === epoch)
+    const compatible = preview ? preparedHosts.get(epoch) : publishedHost
+      ? readSharedBrowserEpoch(sharedAssetRoot, epoch, publishedHost.hostModuleEpoch) : null
+    const retained = compatible ?? readSharedBrowserEpoch(sharedAssetRoot, epoch)
+    if (!retained) throw new Error(`Нет сохранённой identity платформы ${epoch}; автоматическая замена зависимостей недопустима`)
+    requestedKernels.add(epoch)
+    if (!compatible || compatible.browserIdentity?.hostModuleEpoch !== current.browserIdentity?.hostModuleEpoch) {
+      throw new Error(`Текущая оболочка для платформы ${epoch} ещё не подготовлена; выполните storybook_check со scope storybook:shared`)
+    }
+    return sharedHostDescriptor(compatible)
+  }
+  const checkSharedHosts = async (signal: AbortSignal): Promise<readonly SharedBrowserAssets[]> => {
+    await prepareSharedIdentity(signal)
+    const current = readSharedAssets(true)
+    const hosts = [current]
+    const epochs = new Set([...requestedKernels, ...sessions.snapshots().flatMap(snapshot =>
+      snapshot.revisions?.flatMap(revision => revision.sharedModuleEpoch ? [revision.sharedModuleEpoch] : []) ?? [])])
+    for (const epoch of epochs) {
+      if (epoch === current.browserIdentity?.epoch) continue
+      const retained = readSharedBrowserEpoch(sharedAssetRoot, epoch)
+      if (!retained?.browserIdentity) throw new Error(`Нет сохранённой identity платформы ${epoch}`)
+      const compatible = await sessions.buildScheduler.run({packageId: null, owner: "shared", reason: "input-changed", generation: null},
+        context => runSharedBrowserBuild({root: sharedAssetRoot, toolRoot,
+          landingEntryPath: options.landingEntryPath ?? fileURLToPath(new URL("../runtime/browser-entry.ts", import.meta.url)),
+          fallbackEntryPath: options.fallbackEntryPath ?? fileURLToPath(new URL("../runtime/browser-entry.ts", import.meta.url)),
+          sharedKernel: retained.browserIdentity!,
+        }, context, STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS), signal)
+      if (compatible.browserIdentity?.hostModuleEpoch !== current.browserIdentity?.hostModuleEpoch) {
+        throw new Error("Исходники оболочки изменились между сборками платформенных вариантов")
+      }
+      hosts.push(compatible)
+    }
+    preparedHosts.clear()
+    for (const assets of hosts) if (assets.browserIdentity) preparedHosts.set(assets.browserIdentity.epoch, assets)
+    return hosts
+  }
+
 
 
   const mcpRequests = createMcpRequestJournal()
@@ -564,6 +608,16 @@ export async function startExternalStorybookServer(
           const captureId = decodeURIComponent(url.pathname.slice("/api/browser/mcp-captures/".length))
           const capture = browserLifecycle.readCapture(captureId)
           return new Response(new Uint8Array(capture.png), {headers: {"content-type": "image/png", "cache-control": "private, no-store"}})
+        }
+        if (url.pathname === "/api/browser/shared" && request.method === "GET") {
+          assertExternalStorybookRequestOrigin(request, server.url.origin, {required: false})
+          const grant = browserSessions.authorize(request.headers.get("x-storybook-session") ?? "")
+          if ([...url.searchParams.keys()].some(key => key !== "sharedModuleEpoch" && key !== "preview")) throw new Error("Unknown shared host query")
+          const preview = url.searchParams.has("preview")
+          if (preview && url.searchParams.get("preview") !== "1") throw new Error("Invalid shared host preview query")
+          if (preview && !grant.preview && grant.intent !== "navigation-candidate") return responseJson({error: "Shared host preview is not authorized"}, 403)
+          const epoch = url.searchParams.get("sharedModuleEpoch") ?? undefined
+          return responseJson(readSharedHost(epoch, preview))
         }
         if (url.pathname === "/api/browser/mcp-requests" && request.method === "GET") {
           assertExternalStorybookRequestOrigin(request, server.url.origin, {required: false})
@@ -932,9 +986,16 @@ export async function startExternalStorybookServer(
           const scope = body.scope === undefined || body.scope === null
             ? null
             : requiredText("check scope", body.scope)
+          if (scope === "storybook:shared") {
+            const assets = await checkSharedHosts(request.signal)
+            if (body.live === true) sharedAssets.publish(assets.slice(1), assets[0])
+            const hosts = assets.map(sharedHostDescriptor)
+            return responseJson({ok: true, shared: hosts[0], hosts, packages: [], published: body.live === true, applied: false})
+          }
           const refreshed = await refreshCatalog(true)
           const packageIds = resolveCheckPackages(refreshed, scope)
           if (packageIds.length > 0 || scope === null) await prepareSharedIdentity(request.signal)
+          const sharedCandidates = body.live === true ? await checkSharedHosts(request.signal) : []
           for (const packageId of packageIds) {
             sessions.revalidateInputs(packageId)
             sessions.retryFailed(packageId)
@@ -989,6 +1050,7 @@ export async function startExternalStorybookServer(
               }
             }
           }
+          if (ok && body.live === true) sharedAssets.publish(sharedCandidates.slice(1), sharedCandidates[0])
           return responseJson({ok, applied: body.live === true && ok, graphDigest: registry.snapshot().graph.digest,
             packages: packageIds.map(packageId => sessions.session(packageId).snapshot()), views})
         }
@@ -1065,7 +1127,9 @@ export async function startExternalStorybookServer(
         }
         if (url.pathname.startsWith("/__storybook/shared/") && request.method === "GET") {
           if (!existsSync(sharedAssetRoot)) return responseJson({error: "Unknown shared browser asset"}, 404)
-          return fileInsideResponse(sharedAssetRoot, url.pathname.slice("/__storybook/shared/".length))
+          const asset = url.pathname.slice("/__storybook/shared/".length)
+          if (asset === "receipt.json" || asset === "candidate.json" || asset.startsWith("hosts/")) return responseJson({error: "Unknown shared browser asset"}, 404)
+          return fileInsideResponse(sharedAssetRoot, asset)
         }
         if (url.pathname.startsWith("/assets/workbench-style/") && request.method === "GET") {
           const index = Number(url.pathname.slice("/assets/workbench-style/".length).replace(/\.css$/u, ""))
@@ -1154,6 +1218,10 @@ export async function startExternalStorybookServer(
           }
           websocket.data.subscriptions.add(topic)
           websocket.send(JSON.stringify({type: "subscribed", topic}))
+          if (topic === "registry" || topic === "catalog" || topic.startsWith("package:")) {
+            try { websocket.send(JSON.stringify({type: "shared.updated", host: readSharedHost()})) }
+            catch { /* Первый явный shared check опубликует готовую оболочку. */ }
+          }
           if (topic.startsWith("package:")) {
             const packageId = topic.slice("package:".length)
             const snapshot = sessions.session(packageId).snapshot()
@@ -1278,7 +1346,7 @@ type RegistryEvent = Readonly<{
   message: string
 }> | Readonly<{
   type: "shared.updated"
-  entry: string
+  host: StorybookSharedHost
 }> | Readonly<{
   type: "shared.failed"
   message: string
@@ -1289,7 +1357,7 @@ async function packagePageResponse(
   url: URL,
   registry: ExternalStorybookRegistry,
   sessions: ExternalStorybookSessionManager,
-  readSharedAssets: () => SharedBrowserAssets,
+  readSharedAssets: (preview?: boolean) => SharedBrowserAssets,
   browserSessions: StorybookBrowserSessionRegistry,
   origin: string,
   signal: AbortSignal,
@@ -1379,7 +1447,9 @@ async function packagePageResponse(
   }
   const viewId = `browser:${randomUUID()}`
   const lease = session.acquireRevisionLease(target.revision, viewId)
-  const script = `${target.revisionUrl}${target.entryRelativePath}`
+  const kernel = snapshot.revisions?.find(record => record.revision === target.revision)?.sharedModuleEpoch
+  const shared = kernel === undefined ? null : readSharedAssets(target.preview || target.intent === "navigation-candidate")
+  const script = shared?.bootstrapEntry ? `/__storybook/shared/${shared.bootstrapEntry}` : `${target.revisionUrl}${target.entryRelativePath}`
   const browserSession = browserSessions.issue({
     kind: "package",
     packageId: route.packageId,
@@ -1397,13 +1467,13 @@ async function packagePageResponse(
       null,
       browserSession.token,
       target.fallbackRevision === target.revision ? null : target.fallbackRevision,
-      target.graphSnapshot.workbenchAuthorStyleSheets.map((styleSheet) => Object.freeze({
+      (kernel === undefined ? target.graphSnapshot.workbenchAuthorStyleSheets : []).map((styleSheet) => Object.freeze({
         ...styleSheet,
         href: `${target.revisionUrl}${styleSheet.url}`,
       })),
       target.initialAppliedRevision,
       route.packageId,
-      null,
+      kernel ?? null,
       null,
       target.intent,
       {
@@ -1567,6 +1637,7 @@ function resolveCheckPackages(
   scope: string | null,
 ): readonly string[] {
   const all = snapshot.graph.nodes.filter(({kind}) => kind === "package").map(({packageId}) => packageId!)
+  if (scope === "storybook:shared") return Object.freeze([])
   if (scope === null) return Object.freeze(all)
   if (all.includes(scope)) return Object.freeze([scope])
   const entry = snapshot.entries.find(({canonicalId}) =>
@@ -1642,7 +1713,8 @@ function matchesSubscription(
   event: StorybookPackageEvent | RegistryEvent,
 ): boolean {
   if (!("packageId" in event) || event.type === "build.progress" && event.packageId === null) {
-    return subscriptions.has("registry") || subscriptions.has("catalog")
+    return subscriptions.has("registry") || subscriptions.has("catalog") ||
+      event.type === "shared.updated" && [...subscriptions].some(topic => topic.startsWith("package:"))
   }
   return subscriptions.has("registry") || subscriptions.has(`package:${event.packageId}`)
 }
@@ -2046,4 +2118,14 @@ async function waitForStartupPublication(
     await Bun.sleep(25)
   }
   throw new DOMException("Storybook controller did not publish daemon state", "TimeoutError")
+}
+
+/** Browser получает только проверенные immutable URL и две независимые identity. */
+function sharedHostDescriptor(assets: SharedBrowserAssets): StorybookSharedHost {
+  const identity = assets.browserIdentity
+  if (!identity?.packageHostUrl) throw new Error("Shared host has no package controller")
+  return Object.freeze({protocol: "storybook-shared-host/1", sharedModuleEpoch: identity.epoch,
+    hostModuleEpoch: identity.hostModuleEpoch, pageEntryUrl: identity.packageEntryUrl, packageHostUrl: identity.packageHostUrl,
+    authorStyleSheets: Object.freeze((assets.authorStyleSheets ?? []).map(style => ({...style, url: `/__storybook/shared/${style.url}`}))),
+  })
 }

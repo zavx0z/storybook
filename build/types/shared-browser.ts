@@ -1,3 +1,5 @@
+import type {StorybookSharedBrowserIdentity} from "./shared-module-identity"
+
 /**
 Файловый вход одной сборки общей оболочки.
 
@@ -17,5 +19,6 @@ export interface SharedBrowserBuildInput {
   readonly landingEntryPath: string
   readonly fallbackEntryPath: string
   readonly packageEntryPath?: string
+  readonly sharedKernel?: StorybookSharedBrowserIdentity
   readonly stagingDirectory: string
 }

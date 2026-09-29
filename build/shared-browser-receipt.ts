@@ -1,5 +1,5 @@
 import {createHash, randomUUID} from "node:crypto"
-import {constants, closeSync, fstatSync, lstatSync, openSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync} from "node:fs"
+import {constants, closeSync, fstatSync, lstatSync, mkdirSync, existsSync, openSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync} from "node:fs"
 import {isAbsolute, join, relative} from "node:path"
 import {fileURLToPath} from "node:url"
 import {computeStorybookSharedBuildInputFingerprint, parseStorybookBuildInputFingerprint, sameStorybookBuildInputFingerprint} from "./build-input-fingerprint.ts"
@@ -19,9 +19,36 @@ import {validateStorybookSharedBrowserIdentity} from "./shared-module-identity.t
 Проверка не запускает компилятор и не исполняет исходники.
 */
 export function readSharedBrowserReceipt(input: SharedBrowserBuildInput, verifyInputs = true): SharedBrowserAssets | null {
+  if (input.sharedKernel !== undefined && !/^[a-f0-9]{64}$/u.test(input.sharedKernel.epoch)) return null
+  const path = join(input.root, input.sharedKernel ? `hosts/${input.sharedKernel.epoch}.json` : "candidate.json")
+  return readReceipt(input, path, verifyInputs) ?? (input.sharedKernel ? null : readReceipt(input, join(input.root, "receipt.json"), verifyInputs))
+}
+
+/** Читает только опубликованную оболочку без выбора более нового кандидата. */
+export function readPublishedSharedBrowserReceipt(input: SharedBrowserBuildInput): SharedBrowserAssets | null {
+  return readReceipt(input, join(input.root, "receipt.json"), false)
+}
+
+/** Сохраняет кандидата, не меняя опубликованный набор и не отправляя browser events. */
+export function saveSharedBrowserCandidate(assets: SharedBrowserAssets, latest: boolean): void {
+  saveSharedBrowserReceipt(assets, false)
+  if (latest) writeReceipt(join(assets.root, "candidate.json"), assets)
+}
+
+/** Читает сохранённый kernel по проверенным immutable артефактам, независимо от нынешних исходников. */
+export function readSharedBrowserEpoch(root: string, epoch: string, hostEpoch?: string): SharedBrowserAssets | null {
+  if (!/^[a-f0-9]{64}$/u.test(epoch)) throw new Error("Invalid shared kernel epoch")
+  if (hostEpoch !== undefined && !/^[a-f0-9]{64}$/u.test(hostEpoch)) throw new Error("Invalid shared host epoch")
+  const input = {root, toolRoot: root, landingEntryPath: "", fallbackEntryPath: "", stagingDirectory: root}
+  const saved = readReceipt(input, join(root, "hosts", hostEpoch === undefined ? `${epoch}.json` : `${epoch}/${hostEpoch}.json`), false)
+  const latest = saved ?? (hostEpoch === undefined ? readReceipt(input, join(root, "receipt.json"), false) : null)
+  return latest?.browserIdentity?.epoch === epoch ? latest : null
+}
+
+function readReceipt(input: SharedBrowserBuildInput, path: string, verifyInputs: boolean): SharedBrowserAssets | null {
   let fd: number | undefined
   try {
-    fd = openSync(join(input.root, "receipt.json"), constants.O_RDONLY | constants.O_NOFOLLOW)
+    fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW)
     const info = fstatSync(fd)
     if (!info.isFile() || info.size > 8 * 1024 * 1024) return null
     const receipt = JSON.parse(readFileSync(fd, "utf8"))
@@ -42,9 +69,11 @@ export function readSharedBrowserReceipt(input: SharedBrowserBuildInput, verifyI
     }
     if (!paths.has(assets.landingEntry) || !paths.has(assets.fallbackEntry)) return null
     if (assets.browserIdentity === undefined) return null
-    const browserIdentity = validateStorybookSharedBrowserIdentity(assets.browserIdentity)
+    const browserIdentity = validateStorybookSharedBrowserIdentity(assets.browserIdentity, verifyInputs && input.sharedKernel === undefined)
     if (!paths.has(browserIdentity.packageEntryUrl.slice("/__storybook/shared/".length)) ||
-      browserIdentity.modules.some(({url}) => !paths.has(url.slice("/__storybook/shared/".length)))) return null
+      browserIdentity.modules.some(({url}) => !paths.has(url.slice("/__storybook/shared/".length))) ||
+      browserIdentity.packageHostUrl !== undefined && !paths.has(browserIdentity.packageHostUrl.slice("/__storybook/shared/".length)) ||
+      assets.bootstrapEntry !== undefined && !paths.has(assets.bootstrapEntry)) return null
     if (!Array.isArray(assets.authorStyleSheets) || assets.authorStyleSheets.some(style =>
       typeof style.specifier !== "string" || !paths.has(style.url) ||
       !assets.artifactDigests?.some(artifact => artifact.path === style.url && artifact.digest === style.contentDigest))) return null
@@ -76,8 +105,31 @@ export function readSharedBrowserReceipt(input: SharedBrowserBuildInput, verifyI
 
 @throws Ошибка записи или atomic rename; прежний receipt сохраняется до успешной замены.
 */
-export function saveSharedBrowserReceipt(assets: SharedBrowserAssets): void {
-  const path = join(assets.root, "receipt.json")
+export function saveSharedBrowserReceipt(assets: SharedBrowserAssets, current = true): void {
+  const epoch = assets.browserIdentity?.epoch
+  if (!epoch || !/^[a-f0-9]{64}$/u.test(epoch)) throw new Error("Shared receipt requires a kernel identity")
+  const directory = join(assets.root, "hosts")
+  mkdirSync(directory, {recursive: true})
+  if (current && existsSync(join(assets.root, "receipt.json"))) {
+    const previous = readReceipt({root: assets.root, toolRoot: assets.root, landingEntryPath: "", fallbackEntryPath: "", stagingDirectory: assets.root},
+      join(assets.root, "receipt.json"), false)
+    if (previous?.browserIdentity) {
+      const previousEpoch = previous.browserIdentity.epoch
+      mkdirSync(join(directory, previousEpoch), {recursive: true})
+      writeReceipt(join(directory, previousEpoch, `${previous.browserIdentity.hostModuleEpoch}.json`), previous)
+      const latestPath = join(directory, `${previousEpoch}.json`)
+      if (!existsSync(latestPath)) writeReceipt(latestPath, previous)
+    }
+
+  }
+  mkdirSync(join(directory, epoch), {recursive: true})
+  writeReceipt(join(directory, epoch, `${assets.browserIdentity!.hostModuleEpoch}.json`), assets)
+  writeReceipt(join(directory, `${epoch}.json`), assets)
+  if (current) writeReceipt(join(assets.root, "receipt.json"), assets)
+}
+
+/** Atomic запись отдельно текущего указателя и сохраняемых платформенных вариантов. */
+function writeReceipt(path: string, assets: SharedBrowserAssets): void {
   const temporary = `${path}.${randomUUID()}.tmp`
   try {
     writeFileSync(temporary, JSON.stringify({version: 1, assets}), {mode: 0o600, flag: "wx"})

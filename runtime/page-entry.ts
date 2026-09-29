@@ -1,3 +1,5 @@
+import {readStorybookSharedHost, importStorybookSharedHost, synchronizeStorybookHostStyles, type StorybookSharedHost} from "./shared-host"
+import {readInitialPageTarget} from "./page-target"
 import {createStorybookAgentBridge, STORYBOOK_AGENT_BRIDGE_GLOBAL, type StorybookAgentBridge} from "./agent-bridge.ts"
 import {indexedWorkbenchAuthorStyleSheetSources} from "./author-style-sheets.ts"
 import type {ExternalStorybookClientSnapshot} from "./client-protocol.ts"
@@ -25,6 +27,7 @@ import {
   fetchExternalStorybookClientSnapshot,
   type CreateExternalStorybookShellOptions,
   type ExternalStorybookShell,
+  type StorybookRetainedRoot,
 } from "./shell.ts"
 
 /**
@@ -124,7 +127,7 @@ export type ExternalStorybookPagePrepareInput = Readonly<{
 
 @property sharedModuleEpoch - Identity платформенных ESM owners текущей среды; определяет сохранение Root при HMR.
 
-@property [hostModuleEpoch] - Identity контроллеров Storybook; её изменение передаёт живую оболочку новой реализации.
+@property [hostModuleEpoch] - Версия текущей общей оболочки; пакет не выбирает эту версию.
 
 @property [browserDocument] - Native Document страницы; semantic Document принадлежит {@link ExternalStorybookShell}.
 
@@ -138,7 +141,15 @@ export type ExternalStorybookPagePrepareInput = Readonly<{
 
 @property [shell] - Seams создания одного {@link ExternalStorybookShell}; package scopes не получают право его dispose.
 
-@property [retainedShell] - Живая оболочка той же платформы для HMR контроллера страницы. Владение передаётся после успешного монтирования.
+@property [retainedRoot] - Browser root той же платформы; новая App заменяет прежний интерфейс в его Document.
+
+@property [sharedHost] - Подтверждённая оболочка из server bootstrap или предыдущего HMR.
+
+@property [readSharedHost] - Transport получения текущей оболочки для точного kernel страницы.
+
+@property [importSharedHost] - Загрузка проверенного host module; seam для тестов.
+
+@property [startPackage] - Seam тестового package controller; production использует контроллер текущего host.
 
 @property [prepareTarget] - Server resolver target. Default вызывает {@link prepareExternalStorybookPageTarget}.
 
@@ -156,7 +167,11 @@ export type StartExternalStorybookPageOptions = Readonly<{
   fetcher?: typeof fetch
   createSocket?(url: string): ExternalStorybookSocket
   shell?: Omit<CreateExternalStorybookShellOptions, "title" | "browserDocument" | "authorStyleSheetSources">
-  retainedShell?: ExternalStorybookShell
+  retainedRoot?: StorybookRetainedRoot
+  sharedHost?: StorybookSharedHost
+  readSharedHost?(epoch: string | undefined, token: string, signal: AbortSignal, preview?: boolean): Promise<StorybookSharedHost>
+  importSharedHost?: typeof importStorybookSharedHost
+  startPackage?: typeof startExternalStorybookPackage
   prepareTarget?(
     input: ExternalStorybookPagePrepareInput,
     signal: AbortSignal,
@@ -171,7 +186,7 @@ export type StartExternalStorybookPageOptions = Readonly<{
 /**
 Page-level lifecycle одного Root, Canvas и Workbench.
 
-@property shell - Текущая {@link ExternalStorybookShell}; сохраняется между scopes и host-обновлениями, заменяется вместе с платформой.
+@property shell - Текущая {@link ExternalStorybookShell}; сохраняется между package scopes; host-обновление заменяет её App в том же Browser root.
 
 @property packageId - Текущий committed package либо `null` на landing.
 
@@ -255,11 +270,21 @@ export async function startExternalStorybookPage(
     prepareExternalStorybookPageTarget(fetcher, input, signal))
   const pageLifetime = new AbortController()
   let navigationSnapshot = await fetchExternalStorybookClientSnapshot(fetcher)
-  const shell = options.retainedShell ?? await createExternalStorybookShell({
+  const readHost = (epoch: string | undefined, token: string, signal: AbortSignal, preview = false) => options.readSharedHost?.(epoch, token, signal, preview)
+    ?? readStorybookSharedHost(fetcher, token, signal, epoch, preview)
+  const host = options.sharedHost ?? await readHost(options.sharedModuleEpoch, initialTarget.readerToken, pageLifetime.signal,
+    initialTarget.kind !== "landing" && (initialTarget.preview || initialTarget.intent === "navigation-candidate"))
+  if (host.sharedModuleEpoch !== options.sharedModuleEpoch || host.hostModuleEpoch !== options.hostModuleEpoch) {
+    const start = await (options.importSharedHost ?? importStorybookSharedHost)(host)
+    return start({...options, sharedHost: host, sharedModuleEpoch: host.sharedModuleEpoch, hostModuleEpoch: host.hostModuleEpoch})
+  }
+  await synchronizeStorybookHostStyles(browserDocument, host)
+  const shell = await createExternalStorybookShell({
     title: "Storybook",
     browserDocument,
     ...(options.shell ?? {}),
     authorStyleSheetSources: indexedWorkbenchAuthorStyleSheetSources(browserDocument),
+    ...(options.retainedRoot === undefined ? {} : {retainedRoot: options.retainedRoot}),
   })
   let active: ActivePageScope | null = null
   let bridge: StorybookAgentBridge | null = null
@@ -278,15 +303,6 @@ export async function startExternalStorybookPage(
       target.revision,
       signal,
     )
-    if (payload.sharedModuleEpoch !== options.sharedModuleEpoch && typeof payload.startPage !== "function") {
-      throw new Error(`Storybook revision has no dynamic platform entry: ${target.packageId}:${target.revision}`)
-    }
-    if (payload.startPackage !== undefined && typeof payload.startPackage !== "function") {
-      throw new Error(`Storybook package host is invalid: ${target.packageId}:${target.revision}`)
-    }
-    if ((payload.hostModuleEpoch ?? null) !== (options.hostModuleEpoch ?? null) && payload.startPackage === undefined) {
-      throw new Error(`Storybook page host changed without a compatible package controller; page restart is required: ${target.packageId}:${target.revision}`)
-    }
     return payload
   }
 
@@ -294,7 +310,19 @@ export async function startExternalStorybookPage(
     const url = new URL("/api/events", location.href)
     url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
     url.searchParams.set("session", target.readerToken)
-    return options.createSocket?.(url.href) ?? new WebSocket(url.href)
+    const socket = options.createSocket?.(url.href) ?? new WebSocket(url.href)
+    socket.addEventListener("message", event => {
+      let value: unknown
+      try { value = JSON.parse(String(event.data)) } catch { return }
+      if (value !== null && typeof value === "object" && Reflect.get(value, "type") === "shared.updated") {
+        void refreshSharedHost().catch(error => {
+          if (pageLifetime.signal.aborted) return
+          shell.reportDiagnostic(error)
+          shell.updateStatus("Обновление общей оболочки отклонено; сохранена рабочая версия")
+        })
+      }
+    })
+    return socket
   }
 
   const pendingTargetStatus = async (
@@ -390,13 +418,13 @@ export async function startExternalStorybookPage(
     address = createStorybookScopeAddress(target, location, history, value => { activeAddress = value }),
   ): Promise<ActivePackagePageScope> => {
     const deferredSocket = createDeferredStorybookSocket(() => eventSocket(target))
-    const startPackage = payload?.startPackage ?? startExternalStorybookPackage
+    const startPackage = options.startPackage ?? startExternalStorybookPackage
     const controller = await startPackage({
       packageId: target.packageId,
       candidateRevision: target.revision,
       revisionUrl: target.revisionUrl,
       sharedModuleEpoch: options.sharedModuleEpoch,
-      ...((payload?.hostModuleEpoch ?? options.hostModuleEpoch) === undefined ? {} : {hostModuleEpoch: payload?.hostModuleEpoch ?? options.hostModuleEpoch}),
+      ...((options.hostModuleEpoch) === undefined ? {} : {hostModuleEpoch: options.hostModuleEpoch}),
       ...(payload === null ? {} : {graphSnapshot: payload.graphSnapshot}),
       scenarioLoaders: payload?.scenarioLoaders ?? new Map(),
       environment: {
@@ -438,6 +466,8 @@ export async function startExternalStorybookPage(
   }
 
   const syncBridge = (): void => {
+    browserDocument.documentElement.dataset.externalStorybookSharedModuleEpoch = host.sharedModuleEpoch
+    browserDocument.documentElement.dataset.externalStorybookHostModuleEpoch = host.hostModuleEpoch
     const current = active?.kind === "package" ? active.controller : null
     if (current === null) {
       bridge?.dispose()
@@ -552,31 +582,36 @@ export async function startExternalStorybookPage(
   /**
   Передаёт владение Canvas новой модульной среде в том же browser realm.
   Предыдущие scope и listeners освобождаются перед созданием следующего контроллера.
-  При совпадении платформы передаётся живая оболочка; при смене — освобождается Root.
+  При совпадении платформы передаётся Browser root и заново монтируется App;
+  прежние компоненты оболочки не передаются новой реализации. При смене платформы освобождается Root.
   При ошибке новая среда освобождает свои ресурсы, а прежняя монтируется из своего payload.
   */
   const replacePage = async (
-    target: ExternalStorybookPreparedPackageTarget,
-    payload: ExternalStorybookAppliedRevision,
+    target: ExternalStorybookPreparedPageTarget,
+    payload: ExternalStorybookAppliedRevision | null,
     replaceAddress: boolean | null,
+    nextHost: StorybookSharedHost,
   ): Promise<void> => {
-    const startPage = payload.startPage
-    if (typeof startPage !== "function") throw new Error("Storybook dynamic platform entry is unavailable")
+    const startPage = await (options.importSharedHost ?? importStorybookSharedHost)(nextHost)
     const previous = active
     if (previous === null) throw new Error("Storybook platform replacement requires an active scope")
     const scroll = readPageScroll(shell)
     const previousAddress = activeAddress
-    const shellOptions = {...options.shell, canvas: shell.canvas}
+    const shellOptions = {...options.shell, canvas: shell.canvas, userState: shell.captureUserState()}
     const catalogSearch = shell.workbench.controller.read("catalog.search")
-    let retainedShell = payload.sharedModuleEpoch === options.sharedModuleEpoch ? shell : undefined
-    const {retainedShell: _previousShell, ...pageOptions} = options
+    let retainedRoot: StorybookRetainedRoot | undefined
+    const {retainedRoot: _previousRoot, ...pageOptions} = options
     globalThis.removeEventListener?.("popstate", onPopState)
     globalThis.removeEventListener?.("pagehide", onPageHide)
     await disposeScope(previous)
     active = null
     bridge?.dispose()
     bridge = null
-    if (retainedShell === undefined) shell.dispose()
+    if (nextHost.sharedModuleEpoch === options.sharedModuleEpoch &&
+      JSON.stringify(nextHost.authorStyleSheets.map(style => style.specifier)) === JSON.stringify(host.authorStyleSheets.map(style => style.specifier))) {
+      retainedRoot = shell.releaseRoot()
+    }
+    else shell.dispose()
     try {
       replacement = await startPage({
         ...pageOptions,
@@ -584,23 +619,26 @@ export async function startExternalStorybookPage(
         location,
         history,
         shell: shellOptions,
-        ...(retainedShell === undefined ? {} : {retainedShell}),
-        sharedModuleEpoch: payload.sharedModuleEpoch,
-        ...(payload.hostModuleEpoch === undefined ? {} : {hostModuleEpoch: payload.hostModuleEpoch}),
+        ...(retainedRoot === undefined ? {} : {retainedRoot}),
+        sharedModuleEpoch: nextHost.sharedModuleEpoch,
+        hostModuleEpoch: nextHost.hostModuleEpoch,
+        sharedHost: nextHost,
         initialTarget: target,
         initialPayload: payload,
         initialHistory: replaceAddress === false ? "push" : "replace",
       })
       replacement.shell.workbench.controller.update("catalog.search", catalogSearch)
       restorePageScroll(replacement.shell, scroll)
+      delete browserDocument.documentElement.dataset.externalStorybookUpdateError
     } catch (error) {
       if (replacement !== null) {
         await replacement.dispose()
         replacement = null
-        retainedShell = undefined
+        retainedRoot = undefined
       }
       history.replaceState(null, "", previousAddress)
       try {
+        await synchronizeStorybookHostStyles(browserDocument, host)
         const restoredTarget = previous.kind === "package"
           ? await renewPackageTarget(previous.target)
           : await prepareTarget({packageId: null, route: previous.target.pathname, intent: "navigation"}, pageLifetime.signal)
@@ -610,14 +648,18 @@ export async function startExternalStorybookPage(
           location,
           history,
           shell: shellOptions,
-          ...(retainedShell === undefined ? {} : {retainedShell}),
+          ...(retainedRoot === undefined ? {} : {retainedRoot}),
           initialTarget: restoredTarget,
           initialPayload: previous.kind === "package" ? previous.payload : null,
           initialHistory: "replace",
         })
         replacement.shell.workbench.controller.update("catalog.search", catalogSearch)
         restorePageScroll(replacement.shell, scroll)
+        browserDocument.documentElement.dataset.externalStorybookUpdateError = error instanceof Error ? error.message : String(error)
+        replacement.shell.reportDiagnostic(error)
+        replacement.shell.updateStatus("Обновление страницы отклонено; восстановлена рабочая версия")
       } catch (rollbackError) {
+        retainedRoot?.application.unmount()
         throw new AggregateError([error, rollbackError], "Storybook failed to restore its platform")
       }
       throw error
@@ -632,12 +674,31 @@ export async function startExternalStorybookPage(
     payload: ExternalStorybookAppliedRevision | null,
     replaceAddress: boolean | null,
   ): Promise<void> => {
-    if (target.kind !== "landing" && payload !== null && (
-      payload.sharedModuleEpoch !== options.sharedModuleEpoch ||
-      typeof payload.startPage === "function" && (payload.hostModuleEpoch ?? null) !== (options.hostModuleEpoch ?? null)
-    )) {
-      await replacePage(target, payload, replaceAddress)
+    const nextHost = await readHost(payload?.sharedModuleEpoch, target.readerToken, pageLifetime.signal,
+      target.kind !== "landing" && (target.preview || target.intent === "navigation-candidate"))
+    if (nextHost.sharedModuleEpoch !== host.sharedModuleEpoch || nextHost.hostModuleEpoch !== host.hostModuleEpoch) {
+      await replacePage(target, payload, replaceAddress, nextHost)
     } else await install(target, payload, replaceAddress)
+  }
+
+  /** Применяет текущую общую оболочку без изменения package revision или адреса вкладки. */
+  function refreshSharedHost(): Promise<void> {
+    const operation = transitionTail.catch(() => {}).then(async () => {
+      if (disposed || pageLifetime.signal.aborted || replacement !== null || active === null) return
+      const current = active
+      const payload = current.kind === "package" ? current.payload : null
+      const nextHost = await readHost(payload?.sharedModuleEpoch, current.target.readerToken, pageLifetime.signal,
+        current.kind === "package" && (current.target.preview || current.target.intent === "navigation-candidate"))
+      if (nextHost.hostModuleEpoch === host.hostModuleEpoch && nextHost.sharedModuleEpoch === host.sharedModuleEpoch) return
+      const target = current.kind === "package" ? {
+        ...current.target,
+        route: current.controller.currentRoute,
+        urlPath: current.controller.currentModel.urlPath,
+      } : current.target
+      await replacePage(target, payload, null, nextHost)
+    })
+    transitionTail = operation.catch(() => {})
+    return operation
   }
 
   const transition = (
@@ -776,7 +837,8 @@ export async function startExternalStorybookPage(
     await install(initialTarget, initialPayload, options.initialHistory === "push" ? false : null)
   } catch (error) {
     ;(bridge as StorybookAgentBridge | null)?.dispose()
-    if (options.retainedShell === undefined) shell.dispose()
+    if (options.retainedRoot === undefined) shell.dispose()
+    else shell.releaseRoot()
     pageLifetime.abort(error)
     throw error
   }
@@ -840,6 +902,7 @@ function readPageScroll(shell: ExternalStorybookShell): ExternalStorybookPageScr
     shell.workbench.elements.tabItems,
     shell.workbench.elements.inspectorHost,
     shell.workbench.elements.previewHost,
+    shell.hud.querySelector('[data-storybook-part="catalog-items"] [role="tree"]'),
   ]
   const stable = Object.freeze(values.filter(isScrollablePageElement)
     .map(element => Object.freeze({top: element.scrollTop, left: element.scrollLeft})))
@@ -854,8 +917,10 @@ function readPageScroll(shell: ExternalStorybookShell): ExternalStorybookPageScr
 
 /** Возвращает stable host scroll и переносит presentation position на новый root. */
 function restorePageScroll(shell: ExternalStorybookShell, scroll: ExternalStorybookPageScroll): void {
-  const elements = [shell.workbench.elements.catalogItems, shell.workbench.elements.tabItems,
-    shell.workbench.elements.inspectorHost, shell.workbench.elements.previewHost].filter(isScrollablePageElement)
+  const candidates: unknown[] = [shell.workbench.elements.catalogItems, shell.workbench.elements.tabItems,
+    shell.workbench.elements.inspectorHost, shell.workbench.elements.previewHost,
+    shell.hud.querySelector('[data-storybook-part="catalog-items"] [role="tree"]')]
+  const elements = candidates.filter(isScrollablePageElement)
   scroll.stable.forEach((value, index) => {
     const element = elements[index]
     if (element === undefined) return
@@ -983,55 +1048,6 @@ function createStorybookScopeAddress(
 function currentPageAddress(location: Pick<Location, "href" | "pathname">): string {
   const url = new URL(location.href)
   return `${url.pathname}${url.search}${url.hash}`
-}
-
-/**
-Читает server-generated JSON target без исполнения HTML и выбора revision.
-
-@throws При отсутствии exact script, неверном JSON или несовместимом target shape.
-*/
-function readInitialPageTarget(
-  document: globalThis.Document,
-): ExternalStorybookPreparedPageTarget {
-  const script = document.getElementById("external-storybook-page-target")
-  if (script === null || script.localName.toLowerCase() !== "script" || !script.textContent) {
-    throw new Error("Storybook page has no initial target")
-  }
-  let value: unknown
-  try { value = JSON.parse(script.textContent) } catch {
-    throw new Error("Storybook initial page target is invalid JSON")
-  }
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    throw new Error("Storybook initial page target must be an object")
-  }
-  const record = value as Record<string, unknown>
-  if (record.kind === "landing" && typeof record.pathname === "string" &&
-    typeof record.readerToken === "string") {
-    return Object.freeze({kind: "landing", pathname: record.pathname, readerToken: record.readerToken})
-  }
-  if ((record.kind === "revision" || record.kind === "fallback") &&
-    typeof record.packageId === "string" &&
-    (typeof record.revision === "string" || record.revision === null) &&
-    (typeof record.revisionUrl === "string" || record.revisionUrl === null) &&
-    typeof record.route === "string" && typeof record.urlPath === "string" &&
-    ["reader", "navigation-candidate", "preview"].includes(String(record.intent)) &&
-    typeof record.preview === "boolean" && typeof record.readerToken === "string") {
-    return Object.freeze({
-      kind: record.kind,
-      packageId: record.packageId,
-      revision: record.revision,
-      revisionUrl: record.revisionUrl,
-      payloadUrl: typeof record.payloadUrl === "string" ? record.payloadUrl : null,
-      route: record.route,
-      urlPath: record.urlPath,
-      intent: record.intent as ExternalStorybookPageIntent,
-      preview: record.preview,
-      initialAppliedRevision: typeof record.initialAppliedRevision === "string" ? record.initialAppliedRevision : null,
-      fallbackRevision: typeof record.fallbackRevision === "string" ? record.fallbackRevision : null,
-      readerToken: record.readerToken,
-    })
-  }
-  throw new Error("Storybook initial page target has an invalid shape")
 }
 
 /**

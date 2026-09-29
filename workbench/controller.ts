@@ -68,7 +68,10 @@ export function createWorkbenchModel(options: Omit<CreateWorkbenchOptions, "docu
   let projectionHosts = validateWorkbenchProjectionHosts(options.projectionHosts, document)
   let disposed = false
   let state = createInitialWorkbenchState(options.initial, document)
-  const inspectorStateBySubject = new Map<string, WorkbenchInspectorRetainedState>()
+  const inspectorStateBySubject = new Map<string, WorkbenchInspectorRetainedState>((options.userState?.inspector ?? []).map(item => [item.subject, {
+    selectedId: item.selectedId, query: item.query,
+    expanded: new Map(item.expanded), treeExpanded: new Map(item.treeExpanded),
+  }]))
   const listeners = new Set<() => void>()
   let snapshot!: WorkbenchViewProps
   let element!: HTMLDivElement
@@ -258,7 +261,14 @@ export function createWorkbenchModel(options: Omit<CreateWorkbenchOptions, "docu
     listeners.clear()
   }
 
-  const controller: WorkbenchController = Object.freeze({read, update, present, selectedInspector, selectInspector, dispose})
+  const controller: WorkbenchController = Object.freeze({read, update, present, selectedInspector, selectInspector, dispose,
+    captureUserState() {
+      return {inspector: [...inspectorStateBySubject].map(([subject, value]) => ({subject,
+        selectedId: value.selectedId, query: value.query, expanded: [...value.expanded],
+        treeExpanded: [...value.treeExpanded].map(([key, values]) => [key, [...values]] as const),
+      }))}
+    },
+  })
   return Object.freeze({
     getSnapshot: () => snapshot,
     subscribe(listener: () => void) {

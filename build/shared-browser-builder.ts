@@ -101,7 +101,7 @@ export async function runSharedBrowserBuild(
       if (!local || local.startsWith("..") || isAbsolute(local)) throw new Error("Shared browser entry escaped its owner")
     }
     if (value.browserIdentity === undefined) throw new Error("Shared browser result has no module identity")
-    const browserIdentity = validateStorybookSharedBrowserIdentity(value.browserIdentity)
+    const browserIdentity = validateStorybookSharedBrowserIdentity(value.browserIdentity, input.sharedKernel === undefined)
     context.setCacheOutcome?.({status: value.cacheHit === true ? "hit" : "miss", layer: "shared"})
     if (value.cacheHit !== true) context.setPhase("publish")
     return Object.freeze({...value, browserIdentity})

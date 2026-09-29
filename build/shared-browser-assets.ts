@@ -25,6 +25,8 @@ export type SharedBrowserAssets = Readonly<{
   root: string
   landingEntry: string
   fallbackEntry: string
+  bootstrapEntry?: string
+  compatibleHosts?: readonly Readonly<{sharedModuleEpoch: string, hostModuleEpoch: string}>[]
   browserIdentity?: StorybookSharedBrowserIdentity
   dependencyRealpaths: readonly string[]
   inputFingerprint?: StorybookBuildInputFingerprint
@@ -41,6 +43,8 @@ export class StorybookSharedBrowserAssets {
   readonly #failed: (error: unknown) => void
   readonly #cacheProgress: (event: Readonly<{state: "started" | "completed", hit?: boolean}>) => void
   #current: SharedBrowserAssets | null = null
+  #prepared: SharedBrowserAssets | null = null
+  readonly #commit: (assets: SharedBrowserAssets) => void
   #fingerprint = ""
   #pending: Promise<SharedBrowserAssets> | null = null
   #disposed = false
@@ -48,11 +52,13 @@ export class StorybookSharedBrowserAssets {
   constructor(options: Readonly<{
     /** Уже проверенные владельцем receipt assets; не доверенный произвольный кэш. */
     initial?: SharedBrowserAssets
+    commit?(assets: SharedBrowserAssets): void
     build: (signal: AbortSignal) => Promise<SharedBrowserAssets>
     updated: (assets: SharedBrowserAssets) => void
     failed: (error: unknown) => void
     cacheProgress?: (event: Readonly<{state: "started" | "completed", hit?: boolean}>) => void
   }>) {
+    this.#commit = options.commit ?? (() => {})
     this.#build = options.build
     this.#updated = options.updated
     this.#failed = options.failed
@@ -72,11 +78,12 @@ export class StorybookSharedBrowserAssets {
   ensure(): Promise<SharedBrowserAssets> {
     if (this.#disposed) return Promise.reject(new Error("Shared browser assets are disposed"))
     if (this.#pending !== null) return this.#pending
-    if (this.#current !== null && this.#fingerprint !== "") {
+    const cached = this.#prepared ?? this.#current
+    if (cached !== null && this.#fingerprint !== "") {
       this.#reportCacheProgress({state: "started"})
-      const hit = fingerprint(buildInputs(this.#current)) === this.#fingerprint
+      const hit = fingerprint(buildInputs(cached)) === this.#fingerprint
       this.#reportCacheProgress({state: "completed", hit})
-      if (hit) return Promise.resolve(this.#current)
+      if (hit) return Promise.resolve(cached)
     }
     const pending = this.#refresh().catch(error => {
       if (!this.#disposed) this.#failed(error)
@@ -86,6 +93,21 @@ export class StorybookSharedBrowserAssets {
     })
     this.#pending = pending
     return pending
+  }
+
+  /** Возвращает подготовленную версию только для явного просмотра кандидата. */
+  prepared(): SharedBrowserAssets | null { return this.#prepared }
+
+  /** Единым commit публикует подготовленную оболочку и её варианты для сохранённых платформ. */
+  publish(variants: readonly SharedBrowserAssets[] = [], expected = this.#prepared): SharedBrowserAssets {
+    if (this.#prepared === null) throw new Error("Shared host has no prepared candidate")
+    if (this.#prepared !== expected) throw new Error("Shared host candidate changed during verification")
+    const candidate = Object.freeze({...this.#prepared, compatibleHosts: Object.freeze(variants.flatMap(assets =>
+      assets.browserIdentity ? [{sharedModuleEpoch: assets.browserIdentity.epoch, hostModuleEpoch: assets.browserIdentity.hostModuleEpoch}] : []))})
+    this.#commit(candidate)
+    this.#current = candidate
+    this.#updated(candidate)
+    return candidate
   }
 
   /** Отменяет собственную операцию и завершается после подтверждённого cleanup worker. */
@@ -98,11 +120,8 @@ export class StorybookSharedBrowserAssets {
   async #refresh(): Promise<SharedBrowserAssets> {
     const candidate = await this.#build(this.#lifetime.signal)
     if (this.#disposed) throw new Error("Shared browser assets disposed")
-    const previous = this.#current
-    this.#current = candidate
+    this.#prepared = candidate
     this.#fingerprint = fingerprint(buildInputs(candidate))
-    if (previous !== null && (previous.landingEntry !== candidate.landingEntry ||
-      previous.fallbackEntry !== candidate.fallbackEntry)) this.#updated(candidate)
     return candidate
   }
 

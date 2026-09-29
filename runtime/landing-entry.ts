@@ -278,7 +278,7 @@ export async function startExternalStorybookLanding(
     if (update.type === "registry.updated") {
       void refreshRegistry().catch(error => updateManagement({error: errorText(error)}))
     } else if (update.type === "shared.updated") {
-      shell.updateStatus("Storybook · Обновление оболочки готово; требуется перезапуск страницы")
+      if (embeddedPageScope === undefined) shell.updateStatus("Storybook · Обновление общей оболочки ожидает подключения контроллера страницы")
     } else if (update.type === "shared.failed") {
       shell.reportDiagnostic(update.message)
     } else if (update.type === "package.failed") {

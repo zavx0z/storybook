@@ -2,6 +2,7 @@ import {afterEach, expect, setDefaultTimeout, test} from "bun:test"
 import {mkdtempSync, rmSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
+import {saveSharedBrowserCandidate} from "./shared-browser-receipt.ts"
 import {buildSharedBrowserAssets} from "./shared-browser-build.ts"
 
 setDefaultTimeout(180_000)
@@ -11,7 +12,7 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, {recursive: true, force: true})
 })
 
-test("две реальные shared-сборки сохраняют kernel и host epochs при разных staging", async () => {
+test("сборка host для сохранённой платформы сохраняет epochs без повторной компиляции kernel", async () => {
   const toolRoot = join(import.meta.dir, "..")
   const root = mkdtempSync(join(tmpdir(), "storybook-shared-determinism-"))
   roots.push(root)
@@ -26,11 +27,16 @@ test("две реальные shared-сборки сохраняют kernel и h
     root: join(root, "assets"),
     stagingDirectory: join(root, "candidate-one"),
   })
+  saveSharedBrowserCandidate(first, true)
+  const phases: string[] = []
   const second = await buildSharedBrowserAssets({
     ...common,
     root: join(root, "assets"),
     stagingDirectory: join(root, "unrelated-candidate-two"),
-  })
+    sharedKernel: first.browserIdentity!,
+  }, event => { phases.push(event.phase) })
+
+  expect(phases).not.toContain("kernel")
 
   expect(first.browserIdentity?.epoch).toBe(second.browserIdentity?.epoch)
   expect(first.browserIdentity?.hostModuleEpoch).toBe(second.browserIdentity?.hostModuleEpoch)
