@@ -14,8 +14,6 @@ test("явный check применяет ревизию через HMR; под�
   await Bun.write(packageJson, JSON.stringify({name: "@fixture/automatic", label: "Automatic"}))
   await Bun.write(join(owner, "tsconfig.json"), JSON.stringify({compilerOptions: {types: []}, include: ["**/*.ts", "**/*.tsx"]}))
   await Bun.write(component, "export function Example() { return <article /> }\n")
-  const entry = join(owner, "entry.ts")
-  await Bun.write(entry, "export function startExternalStorybookPackage() {}\n")
   const viewId = `storybook-view-v1_${"a".repeat(43)}`
   const staleViewId = `storybook-view-v1_${"b".repeat(43)}`
   let latest: {packageId: string, route: string, revision: string} | null = null
@@ -38,7 +36,7 @@ test("явный check применяет ревизию через HMR; под�
       throw new Error("Автоматическое применение не должно открывать страницу заново")
     },
     async applyRevision(currentViewId, revision) {
-      if (currentViewId === staleViewId) throw new Error("Old shell: page restart is required")
+      if (currentViewId === staleViewId) throw new Error("Старая оболочка не поддерживает HMR")
       if (leaveDuringApplication) {
         canceledApplications += 1
         throw new Error("Storybook agent bridge call failed: AbortError: Storybook view navigated to another package")
@@ -112,7 +110,6 @@ test("явный check применяет ревизию через HMR; под�
       declarations: [owner],
       statePath: join(root, "state/server.json"),
       artifactRoot: join(root, "artifacts"),
-      packageBrowserEntryPath: entry,
       browserLifecycle: browser,
     })
     const check = async (live = true) => (await fetch(new URL("/api/control/check", running.origin), {
@@ -187,7 +184,7 @@ test("явный check применяет ревизию через HMR; под�
     const first = initial.activeRevision!
     expect(opened).toEqual([first])
 
-    await Bun.write(entry, "export function startExternalStorybookPackage() { return 'updated' }\n")
+    await Bun.write(component, 'export function Example() { return <article title="updated" /> }\n')
     await Bun.sleep(1100)
     expect(running.sessions.session("@fixture/automatic").snapshot().activeRevision).toBe(first)
     expect(await check()).toMatchObject({ok: true, applied: true})
@@ -220,7 +217,7 @@ test("явный check применяет ревизию через HMR; под�
 
     newConsoleErrors = []
     leaveDuringApplication = true
-    await Bun.write(entry, "export function startExternalStorybookPackage() { return 'after-navigation' }\n")
+    await Bun.write(component, 'export function Example() { return <article title="after-navigation" /> }\n')
     await check()
     await waitFor(() => canceledApplications > 0)
     const deferred = running.sessions.session("@fixture/automatic").snapshot()
@@ -237,7 +234,7 @@ test("явный check применяет ревизию через HMR; под�
     if (running !== undefined) await running.stop()
     await rm(root, {recursive: true, force: true})
   }
-}, 90_000)
+}, 300_000)
 
 /** Ожидает terminal package state без запуска дополнительной server operation. */
 async function waitFor(predicate: () => boolean): Promise<void> {

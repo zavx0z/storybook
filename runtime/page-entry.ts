@@ -1,3 +1,5 @@
+import type {HmrSocket as ExternalStorybookSocket} from "@hmr/connection"
+import createHmrPage from "@hmr/page"
 import {readStorybookSharedHost, importStorybookSharedHost, synchronizeStorybookHostStyles, type StorybookSharedHost} from "./shared-host"
 import {readInitialPageTarget, prepareExternalStorybookPageTarget} from "./page-target"
 import {createStorybookAgentBridge, STORYBOOK_AGENT_BRIDGE_GLOBAL, type StorybookAgentBridge} from "./agent-bridge.ts"
@@ -11,7 +13,6 @@ import {
   startExternalStorybookPackage,
   type ExternalStorybookAppliedRevision,
   type ExternalStorybookPackageController,
-  type ExternalStorybookSocket,
 } from "./package-entry.ts"
 import {loadStorybookAppliedRevision} from "./revision-loader.ts"
 import {
@@ -286,7 +287,10 @@ export async function startExternalStorybookPage(
     authorStyleSheetSources: indexedWorkbenchAuthorStyleSheetSources(browserDocument),
     ...(options.retainedRoot === undefined ? {} : {retainedRoot: options.retainedRoot}),
   })
-  let active: ActivePageScope | null = null
+  const execution = createHmrPage<ActivePageScope>({
+    release: scope => disposeScope(scope),
+    restore: scope => restoreScope(scope),
+  })
   let bridge: StorybookAgentBridge | null = null
   let disposed = false
   let replacement: ExternalStorybookPageController | null = null
@@ -376,18 +380,18 @@ export async function startExternalStorybookPage(
     applyRevision: (revision: string) => applyPageRevision(target.packageId, revision),
     refreshSharedHost,
     readerRenewed(readerToken: string) {
-      if (active?.kind === "package" && active.target.packageId === target.packageId) {
-        active.target = {...active.target, readerToken}
+      if (execution.current?.kind === "package" && execution.current.target.packageId === target.packageId) {
+        execution.current.target = {...execution.current.target, readerToken}
       }
     },
     /** После серверного acknowledgement последующее переподключение возвращает ordinary reader. */
     revisionConfirmed(revision: string) {
-      if (active?.kind !== "package" || active.target.packageId !== target.packageId || active.controller.revision !== revision) return
-      active.target = {...active.target, intent: "reader", preview: false, initialAppliedRevision: revision}
+      if (execution.current?.kind !== "package" || execution.current.target.packageId !== target.packageId || execution.current.controller.revision !== revision) return
+      execution.current.target = {...execution.current.target, intent: "reader", preview: false, initialAppliedRevision: revision}
     },
     revisionApplied(payload: ExternalStorybookAppliedRevision) {
-      const current = active?.kind === "package" && active.target.packageId === payload.packageId
-        ? active
+      const current = execution.current?.kind === "package" && execution.current.target.packageId === payload.packageId
+        ? execution.current
         : null
       if (current === null) return
       const route = payload.graphSnapshot.routes.find(({path}) => path === current.controller.currentRoute) ??
@@ -457,8 +461,8 @@ export async function startExternalStorybookPage(
       pageScope: {shell, initialPathname: target.pathname, navigatePackage, refreshSharedHost,
         async reconnectSocket() {
           const next = await prepareTarget({packageId: null, route: target.pathname, intent: "navigation"}, pageLifetime.signal)
-          if (next.kind !== "landing" || active?.kind !== "landing") throw new DOMException("Landing scope changed", "AbortError")
-          active.target = next
+          if (next.kind !== "landing" || execution.current?.kind !== "landing") throw new DOMException("Landing scope changed", "AbortError")
+          execution.current.target = next
           return eventSocket(next)
         },
       },
@@ -469,7 +473,7 @@ export async function startExternalStorybookPage(
   const syncBridge = (): void => {
     browserDocument.documentElement.dataset.externalStorybookSharedModuleEpoch = host.sharedModuleEpoch
     browserDocument.documentElement.dataset.externalStorybookHostModuleEpoch = host.hostModuleEpoch
-    const current = active?.kind === "package" ? active.controller : null
+    const current = execution.current?.kind === "package" ? execution.current.controller : null
     if (current === null) {
       bridge?.dispose()
       bridge = null
@@ -484,12 +488,12 @@ export async function startExternalStorybookPage(
       revision: current.revision ?? "unavailable",
       graphDigest: current.graphDigest,
       shell,
-      getRoute: () => requirePackageScope(active).controller.currentRoute,
-      getModel: () => requirePackageScope(active).controller.currentModel,
-      navigate: route => requirePackageScope(active).controller.navigate(route),
-      selectScenario: value => requirePackageScope(active).controller.selectScenario(value),
-      applyRevision: revision => applyPageRevision(requirePackageScope(active).target.packageId, revision),
-      canApplyRevision: () => requirePackageScope(active).controller.canApplyRevision(),
+      getRoute: () => requirePackageScope(execution.current).controller.currentRoute,
+      getModel: () => requirePackageScope(execution.current).controller.currentModel,
+      navigate: route => requirePackageScope(execution.current).controller.navigate(route),
+      selectScenario: value => requirePackageScope(execution.current).controller.selectScenario(value),
+      applyRevision: revision => applyPageRevision(requirePackageScope(execution.current).target.packageId, revision),
+      canApplyRevision: () => requirePackageScope(execution.current).controller.canApplyRevision(),
       async waitForStableScope() {
         let pending: Promise<void>
         do {
@@ -501,7 +505,7 @@ export async function startExternalStorybookPage(
           if (next === undefined || next === bridge) throw new Error("Storybook platform did not install its agent bridge")
           return next
         }
-        if (disposed || active?.kind !== "package") {
+        if (disposed || execution.current?.kind !== "package") {
           throw new DOMException("Storybook view navigated away from the requested package", "AbortError")
         }
       },
@@ -544,37 +548,58 @@ export async function startExternalStorybookPage(
     return startPackageScope(await renewPackageTarget(scope.target), scope.payload)
   }
 
+  /** Запрашивает независимое подтверждение первого кандидата после завершения перехода. */
+  const confirmNavigation = (): void => {
+    const scope = execution.current
+    if (scope?.kind !== "package" || scope.target.intent !== "navigation-candidate" ||
+      scope.target.fallbackRevision !== null) return
+    // Инспекция сервера ждёт устойчивого scope через bridge; запрос не входит в очередь перехода.
+    void Promise.resolve().then(() => transitionTail).then(async () => {
+      if (disposed || execution.current !== scope) return
+      const response = await fetcher("/api/browser/confirm-navigation", {
+        method: "POST",
+        headers: {"content-type": "application/json", "x-storybook-session": scope.target.readerToken},
+        body: JSON.stringify({route: scope.controller.currentRoute}),
+        signal: pageLifetime.signal,
+      })
+      if (!response.ok) {
+        const result = await response.json() as {error?: string}
+        throw new Error(result.error ?? "Не удалось подтвердить отображение пакета")
+      }
+    }).catch(error => {
+      if (disposed || execution.current !== scope) return
+      shell.reportDiagnostic(error)
+      shell.updateStatus("Пакет открыт; подтверждение рабочей версии не завершено")
+    })
+  }
+
   const install = async (
     target: ExternalStorybookPreparedPageTarget,
     payload: ExternalStorybookAppliedRevision | null,
     replaceAddress: boolean | null,
   ): Promise<void> => {
-    const previous = active
     const scroll = readPageScroll(shell)
     const previousAddress = activeAddress
     try {
-      await disposeScope(previous)
-      active = null
-      active = target.kind === "landing"
-        ? await startLandingScope(target)
-        : await startPackageScope(target, payload)
-      syncBridge()
-      active.address.commit(replaceAddress === false ? "push" : "replace")
-      activeAddress = active.address.address
-      if (active.kind === "package") active.connect()
-      restorePageScroll(shell, scroll)
+      await execution.replace(
+        () => target.kind === "landing" ? startLandingScope(target) : startPackageScope(target, payload),
+        (scope, restored) => {
+          if (restored) {
+            history.replaceState(null, "", previousAddress)
+            activeAddress = previousAddress
+          }
+          syncBridge()
+          scope.address.commit(!restored && replaceAddress === false ? "push" : "replace")
+          activeAddress = scope.address.address
+          if (scope.kind === "package") scope.connect()
+          restorePageScroll(shell, scroll)
+        },
+      )
+      confirmNavigation()
     } catch (error) {
-      if (active !== null) await disposeScope(active)
-      active = null
-      history.replaceState(null, "", previousAddress)
-      activeAddress = previousAddress
-      if (previous !== null) {
-        active = await restoreScope(previous)
-        syncBridge()
-        active.address.commit("replace")
-        activeAddress = active.address.address
-        if (active.kind === "package") active.connect()
-        restorePageScroll(shell, scroll)
+      if (execution.current === null) {
+        history.replaceState(null, "", previousAddress)
+        activeAddress = previousAddress
       }
       throw error
     }
@@ -594,7 +619,7 @@ export async function startExternalStorybookPage(
     nextHost: StorybookSharedHost,
   ): Promise<void> => {
     const startPage = await (options.importSharedHost ?? importStorybookSharedHost)(nextHost)
-    const previous = active
+    const previous = execution.current
     if (previous === null) throw new Error("Storybook platform replacement requires an active scope")
     const scroll = readPageScroll(shell)
     const previousAddress = activeAddress
@@ -604,8 +629,7 @@ export async function startExternalStorybookPage(
     const {retainedRoot: _previousRoot, ...pageOptions} = options
     globalThis.removeEventListener?.("popstate", onPopState)
     globalThis.removeEventListener?.("pagehide", onPageHide)
-    await disposeScope(previous)
-    active = null
+    await execution.detach()
     bridge?.dispose()
     bridge = null
     if (nextHost.sharedModuleEpoch === options.sharedModuleEpoch &&
@@ -689,8 +713,8 @@ export async function startExternalStorybookPage(
   */
   function refreshSharedHost(): Promise<void> {
     const operation = transitionTail.catch(() => {}).then(async () => {
-      if (disposed || pageLifetime.signal.aborted || replacement !== null || active === null) return
-      const current = active
+      if (disposed || pageLifetime.signal.aborted || replacement !== null || execution.current === null) return
+      const current = execution.current
       const payload = current.kind === "package" ? current.payload : null
       const nextHost = await readHost(payload?.sharedModuleEpoch, current.target.readerToken, pageLifetime.signal,
         current.kind === "package" && (current.target.preview || current.target.intent === "navigation-candidate"))
@@ -746,7 +770,7 @@ export async function startExternalStorybookPage(
   */
   function applyPageRevision(packageId: string, revision: string): Promise<void> {
     const operation = transitionTail.catch(() => {}).then(async () => {
-      const current = active
+      const current = execution.current
       if (current?.kind !== "package" || current.target.packageId !== packageId) {
         throw new DOMException("Storybook view navigated to another package", "AbortError")
       }
@@ -810,10 +834,10 @@ export async function startExternalStorybookPage(
   const onPopState = (): void => {
     const pathname = location.pathname
     const current = new URL(location.href)
-    const workspace = active?.kind === "package" ? new URL(active.controller.currentModel.urlPath, current) : null
-    if (active?.kind === "package" && workspace?.pathname === pathname &&
+    const workspace = execution.current?.kind === "package" ? new URL(execution.current.controller.currentModel.urlPath, current) : null
+    if (execution.current?.kind === "package" && workspace?.pathname === pathname &&
       (workspace.searchParams.get("view") ?? "overview") === (current.searchParams.get("view") ?? "overview")) {
-      if (typeof active.controller.restoreAddress === "function") active.controller.restoreAddress()
+      if (typeof execution.current.controller.restoreAddress === "function") execution.current.controller.restoreAddress()
       activeAddress = currentPageAddress(location)
       return
     }
@@ -860,8 +884,7 @@ export async function startExternalStorybookPage(
       await replacement.dispose()
       return
     }
-    await disposeScope(active)
-    active = null
+    await execution.dispose()
     bridge?.dispose()
     bridge = null
     shell.dispose()
@@ -873,11 +896,11 @@ export async function startExternalStorybookPage(
     get shell() { return replacement?.shell ?? shell },
     get packageId() {
       if (replacement !== null) return replacement.packageId
-      return active?.kind === "package" ? active.target.packageId : null
+      return execution.current?.kind === "package" ? execution.current.target.packageId : null
     },
     get route() {
       if (replacement !== null) return replacement.route
-      return active?.kind === "package" ? active.controller.currentRoute : active?.target.pathname ?? "/"
+      return execution.current?.kind === "package" ? execution.current.controller.currentRoute : execution.current?.target.pathname ?? "/"
     },
     navigatePackage,
     navigateLanding,

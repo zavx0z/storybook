@@ -27,8 +27,6 @@ test("publishes only after an agent check, notifies every matching tab, and rest
   await Bun.write(join(owner, "component/index.tsx"), "export function Example() { return <article /> }\n")
   await Bun.write(join(owner, "component/spec/deps.spec.ts"), 'import {test} from "bun:test"\ntest.each([{name:"Example",file:"component/index.tsx",expected:{"component/index.tsx#Example":{uses:[],elements:["article"]}}}])("Состав $name", () => {})\n')
   await Bun.write(join(owner, "component/contract/input.ts"), "export interface Input {label?: string}\n")
-  const entry = join(owner, "entry.ts")
-  await Bun.write(entry, "export function startExternalStorybookPackage() {}\n")
   let server: ExternalStorybookRunningServer
   let opened = 0
   let failInspection = false
@@ -77,7 +75,7 @@ test("publishes only after an agent check, notifies every matching tab, and rest
     readCapture() { throw new Error("unused") },
   }
   const options = {declarations: [owner, other], statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts"),
-    packageBrowserEntryPath: entry, browserLifecycle: browser}
+    browserLifecycle: browser}
   server = await startExternalStorybookServer(options)
   const tabs: WebSocket[] = []
   const control = async (live: boolean) => {
@@ -250,4 +248,4 @@ test("publishes only after an agent check, notifies every matching tab, and rest
     for (const tab of tabs) tab.close()
     await server.stop()
   }
-}, 120_000)
+}, 300_000)

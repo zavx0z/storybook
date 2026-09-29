@@ -1,0 +1,9 @@
+{
+  "name": "@hmr/page",
+  "label": "Обновление страницы",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Владеет заменой и восстановлением единственного исполняемого scope страницы",
+  "exports": {".": "./index.ts"}
+}

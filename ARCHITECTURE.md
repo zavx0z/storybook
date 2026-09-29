@@ -82,6 +82,7 @@ resolver при создании; граф использует нормализ
 | `catalog/` | Нормализованные типы, граф, реестр, маршруты, поиск и ресурсы документации |
 | `build/` | Входы сборки, общая тема и браузерные ресурсы |
 | `sessions/` | Ревизии пакетов, активация и доставка событий подписчикам |
+| `hmr/` | Замена scope, подтверждение ревизии и восстановление подписки |
 | `runtime/` | Browser Root, структурные представления и агентский bridge |
 | `workbench/` | Навигация, области интерфейса и встроенный Inspector |
 | `server/` | HTTP/WebSocket, daemon и общий controller для CLI/MCP |
@@ -275,10 +276,11 @@ buildState
 ```
 
 Candidate проходит структурное обнаружение, проверку путей, compile и link и атомарно публикуется как `built` immutable revision.
-Обычная страница использует только применённую revision; агент видит кандидат
-через `?preview=<revision>`. Только `check(live:true)` проверяет ready/presented,
-exact revision/graph digest и console в рабочей вкладке, затем применяет её.
-Browser не получает права activation. Failed build/inspection сохраняет
+Обычная страница использует доступную revision. Если её нет, навигация
+запрашивает подготовку и независимую проверку первого кандидата сервером.
+Обновление рабочей версии выполняется через `check(live:true)`; явный preview
+остаётся изолированным. [HMR](hmr/notes/updates.md) сохраняет browser realm и
+проверяет exact revision/graph, ready/presented, кадр и ошибки console до commit. Failed build/inspection сохраняет
 предыдущий working artifact и не меняет другие sessions. Перед publication
 атомарно записывается private applied receipt; он удерживает immutable артефакт
 и восстанавливает lastWorking после restart без чтения нового source bundle.
@@ -288,9 +290,9 @@ Browser не получает права activation. Failed build/inspection с�
 внутри одной PackageSession; общий semaphore лишь ограничивает число compiler
 children. Compile/protocol/activation имеют timeout и exact cancellation.
 
-Metafile-derived dependency index инвалидирует только sessions, реально
-содержащие изменённый canonical realpath. Shared dependency может независимо
-пересобрать A и B; C остаётся clean. Build публикует `package.built`; вкладки
+Проверка входов при явной подготовке учитывает фактические зависимости пакета.
+Изменение общей зависимости обнаруживается в затронутых пакетах при их проверке;
+остальные сохраняют готовые ревизии. Файловые изменения не запускают работу. Build публикует `package.built`; вкладки
 остаются на working revision. Применение публикует `package.updated` всем
 читателям этого пакета. Read-only renewal endpoint восстанавливает WebSocket
 subscription; `package.applied-state` передаёт текущую applied revision, чтобы
@@ -299,7 +301,8 @@ revision и не откатывается из-за первого subscription 
 registry и summary statuses.
 
 Сборка начинается по явному check после проверок. Изменения файлов,
-открытие страницы и подписки сохраняют готовую ревизию без compiler demand.
+открытие доступной ревизии и подписки сохраняют её без compiler demand.
+При отсутствии доступной сборки подготовку запрашивает навигация.
 Порядок подготовки и применения определён у [владельца сборки](build/notes/compilation.md).
 
 Операции сценария сериализованы внутри его структурного владельца. Abort при

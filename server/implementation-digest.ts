@@ -35,6 +35,7 @@ const IMPLEMENTATION_TREES = Object.freeze([
   "route",
   "build",
   "sessions",
+  "hmr/activation",
   "server",
   "src/shared",
   "browser-lifecycle/src",
@@ -42,7 +43,7 @@ const IMPLEMENTATION_TREES = Object.freeze([
 
 /**
 Хеширует исходники, влияющие на резидентный код daemon.
-Браузерные runtime и Workbench принадлежат входам сборки и её watcher, поэтому
+Браузерные runtime, HMR page/connection и Workbench принадлежат входам сборки, поэтому
 их изменение не требует замены серверного процесса. Общие runtime-модули,
 которые сервер действительно импортирует, перечислены отдельно.
 

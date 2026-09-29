@@ -22,6 +22,79 @@ afterEach(async () => {
 })
 
 describe("one external Storybook server", () => {
+  test("навигация готовит отсутствующую сборку один раз и сохраняет рабочую при редактировании", async () => {
+    const fixture = serverFixture()
+    const packageId = "@fixture/standalone"
+    const view = {viewId: `storybook-view-v1_${"n".repeat(43)}`, packageId, route: "", title: "Navigation"}
+    let displayedRevision: string | null = null
+    let presented = false
+    let running: ExternalStorybookRunningServer
+    const browserLifecycle: StorybookBrowserLifecycle = {
+      ...fakeBrowserLifecycle().service,
+      async listViews() { return [view] },
+      async inspect() {
+        return {packageId, route: "", revision: displayedRevision, ready: true, presented,
+          frameSequence: presented ? 1 : 0, consoleErrors: [],
+          graphDigest: displayedRevision === null ? null : running.sessions.session(packageId).revisionGraphSnapshot(displayedRevision)?.packageGraphDigest}
+      },
+    }
+    const options = {declarations: [fixture.standalone], statePath: fixture.statePath, artifactRoot: fixture.artifactRoot, browserLifecycle}
+    running = await startTestServer(options)
+    servers.push(running)
+    const prepare = (previewRevision?: string) => fetch(new URL("/api/browser/prepare", running.origin), {
+      method: "POST", headers: {origin: running.origin, "content-type": "application/json"},
+      body: JSON.stringify({packageId, route: "", ...(previewRevision === undefined ? {} : {previewRevision})}),
+    })
+    expect((await prepare("absent-preview")).ok).toBeFalse()
+    expect(running.sessions.session(packageId).snapshot().builds).toBe(0)
+    const replies = await Promise.all([prepare(), prepare()])
+    const targets = await Promise.all(replies.map(response => response.json()))
+    expect(replies.map(reply => reply.status), JSON.stringify(targets)).toEqual([200, 200])
+    expect(targets[0]).toMatchObject({kind: "revision", intent: "navigation-candidate", preview: false})
+    expect(targets[1].revision).toBe(targets[0].revision)
+    const session = running.sessions.session(packageId)
+    expect(session.snapshot().builds).toBe(1)
+    expect(session.snapshot().activeRevision).toBeNull()
+    const html = await (await fetch(new URL("/standalone", running.origin))).text()
+    expect(html).toContain(targets[0].revision)
+    expect(session.snapshot().builds).toBe(1)
+    const confirm = (token: string, body: unknown = {route: ""}) => fetch(new URL("/api/browser/confirm-navigation", running.origin), {
+      method: "POST", headers: {origin: running.origin, "content-type": "application/json", "x-storybook-session": token},
+      body: JSON.stringify(body),
+    })
+    const preview = await (await prepare(targets[0].revision)).json()
+    expect((await confirm(preview.readerToken)).status).toBe(403)
+    expect((await confirm(targets[0].readerToken, {route: "", revision: "arbitrary"})).ok).toBeFalse()
+    displayedRevision = targets[0].revision
+    expect((await confirm(targets[0].readerToken)).ok).toBeFalse()
+    expect(session.snapshot().activeRevision).toBeNull()
+    presented = true
+    const confirmation = await confirm(targets[0].readerToken)
+    expect(await confirmation.json()).toEqual({applied: true})
+    expect(session.snapshot().activeRevision).toBe(targets[0].revision)
+    const source = join(fixture.standalone, "index.ts")
+    const original = readFileSync(source, "utf8")
+    writeFileSync(source, `${original}\n/** Незавершённое редактирование. */\n`)
+    const retained = await (await prepare()).json()
+    expect(retained.revision).toBe(targets[0].revision)
+    expect(session.snapshot().builds).toBe(1)
+    writeFileSync(source, original)
+    const receiptPath = join(session.revisionDirectory(targets[0].revision)!, "..", "applied.json")
+    await running.stop()
+    servers.splice(servers.indexOf(running), 1)
+    const receipt = JSON.parse(readFileSync(receiptPath, "utf8"))
+    delete receipt.sharedModuleEpoch
+    delete receipt.inputFingerprint
+    receipt.version = 1
+    writeFileSync(receiptPath, JSON.stringify(receipt))
+    running = await startTestServer(options)
+    servers.push(running)
+    const migrated = await (await prepare()).json()
+    expect(migrated, JSON.stringify(migrated)).toMatchObject({kind: "revision", intent: "navigation-candidate"})
+    expect(migrated.revision).not.toBe(targets[0].revision)
+    expect(running.sessions.session(packageId).snapshot()).toMatchObject({builds: 1, activeRevision: targets[0].revision})
+  }, 300_000)
+
   test("MCP Root работает без подключённых проектов", async () => {
     const fixture = serverFixture()
     const running = await startTestServer({declarations: [], statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})

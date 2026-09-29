@@ -1,4 +1,4 @@
-import type {ExternalStorybookSocket} from "./package-entry"
+import createHmrConnection, {type HmrSocket as ExternalStorybookSocket} from "@hmr/connection"
 import {WORKBENCH_STANDARD_WIDGET_REGISTRY} from "../workbench/inspector/registry.ts"
 import {navigatePackage} from "./package-navigation.ts"
 import {externalStorybookBrowsePath} from "../catalog/graph.ts"
@@ -249,37 +249,8 @@ export async function startExternalStorybookLanding(
   shell.workbench.element.addEventListener(WORKBENCH_EVENTS.catalogAction, onCatalogAction)
   shell.workbench.element.addEventListener(WORKBENCH_EVENTS.navigate, onNavigate)
 
-  let socket = createLandingSocket(options, location?.href)
-  let reconnectTimer: ReturnType<typeof setTimeout> | null = null
-  let socketOpened = false
+  const socket = createLandingSocket(options, location?.href)
   if (socket !== null) shell.updateStatus(storybookConnectionStatus("connecting"))
-  const onSocketOpen = (): void => {
-    shell.updateStatus(storybookConnectionStatus(socketOpened ? "reconnected" : "connected"))
-    socketOpened = true
-    socket?.send(JSON.stringify({type: "subscribe", topic: "registry"}))
-  }
-  const onSocketClose = (): void => {
-    if (disposed || reconnectTimer !== null) return
-    shell.updateStatus(storybookConnectionStatus("disconnected"))
-    if (!embeddedPageScope?.reconnectSocket) return
-    reconnectTimer = setTimeout(() => {
-      reconnectTimer = null
-      void embeddedPageScope.reconnectSocket!().then(next => {
-        if (disposed) {
-          next.close()
-          return
-        }
-        socket?.removeEventListener("open", onSocketOpen)
-        socket?.removeEventListener("close", onSocketClose)
-        socket?.removeEventListener("message", onSocketMessage)
-        socket?.close()
-        socket = next
-        socket.addEventListener("open", onSocketOpen)
-        socket.addEventListener("close", onSocketClose)
-        socket.addEventListener("message", onSocketMessage)
-      }).catch(() => { if (!disposed) onSocketClose() })
-    }, 500)
-  }
   const onSocketMessage = (event: MessageEvent): void => {
     let decoded: unknown
     try { decoded = JSON.parse(String(event.data)) } catch {}
@@ -319,9 +290,16 @@ export async function startExternalStorybookLanding(
       shell.updateStatus(packageEventStatus(update.packageId, update.type))
     }
   }
-  socket?.addEventListener("open", onSocketOpen)
-  socket?.addEventListener("close", onSocketClose)
-  socket?.addEventListener("message", onSocketMessage)
+  const connection = socket === null ? null : createHmrConnection({
+    socket,
+    ...(embeddedPageScope?.reconnectSocket ? {reconnect: () => embeddedPageScope.reconnectSocket!()} : {}),
+    onOpen(socket, reconnected) {
+      shell.updateStatus(storybookConnectionStatus(reconnected ? "reconnected" : "connected"))
+      socket.send(JSON.stringify({type: "subscribe", topic: "registry"}))
+    },
+    onMessage: onSocketMessage,
+    onClose() { shell.updateStatus(storybookConnectionStatus("disconnected")) },
+  })
 
   const applyLandingPath = async (): Promise<void> => {
     const pathname = embeddedPageScope?.initialPathname ?? location?.pathname ?? "/"
@@ -342,14 +320,10 @@ export async function startExternalStorybookLanding(
   const dispose = (): void => {
     if (disposed) return
     disposed = true
-    if (reconnectTimer !== null) clearTimeout(reconnectTimer)
     selectionRevision += 1
     shell.workbench.element.removeEventListener(WORKBENCH_EVENTS.catalogAction, onCatalogAction)
     shell.workbench.element.removeEventListener(WORKBENCH_EVENTS.navigate, onNavigate)
-    socket?.removeEventListener("open", onSocketOpen)
-    socket?.removeEventListener("close", onSocketClose)
-    socket?.removeEventListener("message", onSocketMessage)
-    socket?.close()
+    connection?.dispose()
     if (embeddedPageScope === undefined) globalThis.removeEventListener?.("popstate", onPopState)
     if (embeddedPageScope === undefined) shell.dispose()
   }

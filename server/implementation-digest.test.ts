@@ -53,6 +53,12 @@ describe("external Storybook implementation digest", () => {
     const beforeScenario = externalStorybookImplementationDigest(root)
     writeFileSync(join(root, "app/scenarios/index.ts"), "export const readScenario = () => null\n")
     expect(externalStorybookImplementationDigest(root)).not.toBe(beforeScenario)
+    const beforeActivation = externalStorybookImplementationDigest(root)
+    writeFileSync(join(root, "hmr/activation/index.ts"), "export default function activate() {}\n")
+    expect(externalStorybookImplementationDigest(root)).not.toBe(beforeActivation)
+    const afterActivation = externalStorybookImplementationDigest(root)
+    writeFileSync(join(root, "hmr/page/index.ts"), "export default function page() {}\n")
+    expect(externalStorybookImplementationDigest(root)).toBe(afterActivation)
     const beforeRules = externalStorybookImplementationDigest(root)
     writeFileSync(join(root, "archetypes/specs/scenarios/validation/index.ts"), "export const validateScenario = () => null\n")
     expect(externalStorybookImplementationDigest(root)).not.toBe(beforeRules)
@@ -103,6 +109,8 @@ function implementationFixture(): string {
     "route",
     "build",
     "sessions",
+    "hmr/activation",
+    "hmr/page",
     "src/shared",
     "runtime",
     "server/fixtures",

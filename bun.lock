@@ -7,6 +7,9 @@
       "dependencies": {
         "@archetypes/package": "workspace:archetypes/package",
         "@archetypes/package-documentation": "workspace:archetypes/package/documentation",
+        "@hmr/activation": "workspace:*",
+        "@hmr/connection": "workspace:*",
+        "@hmr/page": "workspace:*",
         "@mcp/address": "workspace:*",
         "@mcp/children": "workspace:*",
         "@mcp/rest": "workspace:*",
@@ -644,6 +647,27 @@
         "typescript": "^7.0.2",
       },
     },
+    "hmr": {
+      "name": "@storybook/hmr",
+      "version": "0.0.0",
+      "dependencies": {
+        "@hmr/activation": "workspace:*",
+        "@hmr/connection": "workspace:*",
+        "@hmr/page": "workspace:*",
+      },
+    },
+    "hmr/activation": {
+      "name": "@hmr/activation",
+      "version": "0.0.0",
+    },
+    "hmr/connection": {
+      "name": "@hmr/connection",
+      "version": "0.0.0",
+    },
+    "hmr/page": {
+      "name": "@hmr/page",
+      "version": "0.0.0",
+    },
     "mcp": {
       "name": "@zavx0z/storybook-mcp",
       "version": "0.0.0",
@@ -731,6 +755,12 @@
 
     "@dagrejs/graphlib": ["@dagrejs/graphlib@4.0.5", "", {}, "sha512-7xrBTqIts3o+PMUZX97wSc+7TUbW+/rULzGNCTP6yooNVDXbzw4Wutg/H/xOutTB/c/k0YqOAavgPh4/Zk9PFA=="],
 
+    "@hmr/activation": ["@hmr/activation@workspace:hmr/activation"],
+
+    "@hmr/connection": ["@hmr/connection@workspace:hmr/connection"],
+
+    "@hmr/page": ["@hmr/page@workspace:hmr/page"],
+
     "@iconify/types": ["@iconify/types@2.0.0", "", {}, "sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg=="],
 
     "@iconify/utils": ["@iconify/utils@3.1.7", "", { "dependencies": { "@antfu/install-pkg": "^2.0.1", "@iconify/types": "^2.0.0", "import-meta-resolve": "^4.2.0" } }, "sha512-JZHlwdID+dy+lTgbYC8NEC4zeugqeYsc6jewvzb4c58kHauJn+X7rNwQjxz5p2qSjqaEeQoLkCIQ9v/H4PK0/w=="],
@@ -800,6 +830,8 @@
     "@storybook/app": ["@storybook/app@workspace:app"],
 
     "@storybook/archetypes": ["@storybook/archetypes@workspace:archetypes"],
+
+    "@storybook/hmr": ["@storybook/hmr@workspace:hmr"],
 
     "@storybook/route": ["@storybook/route@workspace:route"],
 

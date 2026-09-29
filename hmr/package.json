@@ -1,0 +1,19 @@
+{
+  "name": "@storybook/hmr",
+  "label": "Динамическое обновление",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Замена исполнения в существующей странице и подтверждение применённой ревизии",
+  "exports": {
+    ".": {
+      "browser": "./browser.ts",
+      "node": "./index.ts"
+    }
+  },
+  "dependencies": {
+    "@hmr/page": "workspace:*",
+    "@hmr/activation": "workspace:*",
+    "@hmr/connection": "workspace:*"
+  }
+}

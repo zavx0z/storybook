@@ -20,6 +20,7 @@
     "exactOptionalPropertyTypes": true
   },
   "include": [
+    "hmr/**/*.ts",
     "route/**/*.ts",
     "app/**/*.ts",
     "app/**/*.tsx",

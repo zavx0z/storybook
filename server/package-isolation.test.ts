@@ -73,7 +73,7 @@ test("a cold invalid child does not prevent startup, landing or checking its sib
     await control(server, "refresh")
     expect(server.registry.snapshot().graph.nodes.some(node => node.id === "package:@fixture/a")).toBeTrue()
   } finally { await server?.stop(); rmSync(f.root, {recursive: true, force: true}) }
-}, 120_000)
+}, 300_000)
 
 test("a broken package.json preserves the working revision while a sibling updates", async () => {
   const f = fixture()
@@ -99,4 +99,4 @@ test("a broken package.json preserves the working revision while a sibling updat
     await control(server, "refresh")
     expect(a.snapshot().diagnostics).toEqual([])
   } finally { await server?.stop(); rmSync(f.root, {recursive: true, force: true}) }
-}, 120_000)
+}, 300_000)

@@ -33,7 +33,7 @@
 - [Рабочая область и адреса вкладок](workbench/notes/workspace.md).
 - [Каталог и физическая структура](catalog/notes/structure.md).
 - [Ревизии пакетов](sessions/notes/revisions.md) и
-  [динамическое обновление страницы](runtime/notes/updates.md).
+  [динамическое обновление страницы](hmr/notes/updates.md).
 - [Единая среда страницы](runtime/notes/experience.md) и
   [инспекция и действия](runtime/notes/agent-bridge.md).
 - [Жизненный цикл сервера](server/notes/lifecycle.md),

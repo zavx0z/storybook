@@ -1,3 +1,5 @@
+import createHmrPage from "@hmr/page"
+import createHmrConnection, {type HmrSocket as ExternalStorybookSocket} from "@hmr/connection"
 import {ScenarioInspector} from "@storybook/app/inspector"
 import type {startExternalStorybookPage} from "./page-entry.ts"
 import type {ScenarioAppInput} from "@storybook/app/contract/input"
@@ -83,12 +85,6 @@ export type ExternalStorybookAppliedRevision = Readonly<{
   scenarioLoaders?: ReadonlyMap<string, ExternalStorybookScenarioLoader>
 }>
 
-export type ExternalStorybookSocket = Readonly<{
-  addEventListener(type: string, listener: (event: any) => void): void
-  removeEventListener(type: string, listener: (event: any) => void): void
-  send(data: string): void
-  close(): void
-}>
 
 type ScrollableStorybookElement = {
   scrollTop: number
@@ -742,13 +738,13 @@ export async function startExternalStorybookPackage(
     )
     signal.throwIfAborted()
     if (sharedModuleEpoch === null || payload.sharedModuleEpoch !== sharedModuleEpoch) {
-      throw new Error(`Storybook shared module epoch changed; page restart is required: ${packageId}:${revision}`)
+      throw new Error(`Storybook platform update requires the page owner: ${packageId}:${revision}`)
     }
     const nextHostModuleEpoch = payload.hostModuleEpoch === undefined
       ? null
       : payload.hostModuleEpoch
     if (nextHostModuleEpoch !== hostModuleEpoch) {
-      throw new Error(`Storybook host module epoch changed; page restart is required: ${packageId}:${revision}`)
+      throw new Error(`Storybook host update requires the page owner: ${packageId}:${revision}`)
     }
     assertCompatibleAuthorStyleSheets(revisionGraph, payload.graphSnapshot)
     const nextSnapshot = revisionClientSnapshot(
@@ -772,46 +768,32 @@ export async function startExternalStorybookPackage(
     })
   }
 
+  const localExecution = embeddedPageScope === undefined ? createHmrPage<RevisionBinding>({
+    initial: readRevisionBinding(),
+    release: () => disposeMountedExecution(),
+    async restore(previous) { return previous },
+  }) : null
   let appliedRevisionTail: Promise<void> = Promise.resolve()
   const applyPreparedRevision = async (next: RevisionBinding): Promise<void> => {
-    const previous = readRevisionBinding()
+    if (localExecution === null) throw new Error("Package update belongs to the page owner")
     const previousRoute = currentRoute
     const scroll = readScrollState()
     const presentationScroll = activePresentationView?.presentation.node === scroll.at(-1)?.element
       ? Object.freeze({top: scroll.at(-1)!.top, left: scroll.at(-1)!.left})
       : null
     const stableScroll = presentationScroll === null ? scroll : scroll.slice(0, -1)
-    const nextRoute = routeAvailable(next.graph, packageId, previousRoute) ? previousRoute : ""
-    const reason = new DOMException("Storybook revision superseded", "AbortError")
-    routeAbort.abort(reason)
-    const revision = ++navigationRevision
-    routeAbort = new AbortController()
-    await disposeMountedExecution(reason)
-    writeRevisionBinding(next)
-    try {
-      await applyRoute(nextRoute, revision, routeAbort.signal, true)
-      restoreScrollState(stableScroll, presentationScroll)
-      candidateRevision = next.candidateRevision
-      browserDocument.documentElement.dataset.externalStorybookRevision = next.candidateRevision ?? "unavailable"
-      delete browserDocument.documentElement.dataset.externalStorybookUpdateError
-      agentBridge?.updateIdentity(packageId, next.candidateRevision ?? "unavailable", next.snapshot.graphDigest)
-      if (next.payload !== null) embeddedPageScope?.revisionApplied(next.payload)
-    } catch (error) {
-      await disposeMountedExecution(error)
-      writeRevisionBinding(previous)
-      const rollbackRevision = ++navigationRevision
-      routeAbort.abort(error)
+    await localExecution.replace(async () => next, async (binding, restored) => {
+      routeAbort.abort(new DOMException("Storybook revision superseded", "AbortError"))
+      const revision = ++navigationRevision
       routeAbort = new AbortController()
-      try {
-        await applyRoute(previousRoute, rollbackRevision, routeAbort.signal, true)
-        restoreScrollState(stableScroll, presentationScroll)
-        browserDocument.documentElement.dataset.externalStorybookRevision = previous.candidateRevision ?? "unavailable"
-        agentBridge?.updateIdentity(packageId, previous.candidateRevision ?? "unavailable", previous.snapshot.graphDigest)
-      } catch (rollbackError) {
-        throw new AggregateError([error, rollbackError], `Storybook failed to restore revision ${previous.candidateRevision}`)
-      }
-      throw error
-    }
+      writeRevisionBinding(binding)
+      const route = restored || routeAvailable(binding.graph, packageId, previousRoute) ? previousRoute : ""
+      await applyRoute(route, revision, routeAbort.signal, true)
+      restoreScrollState(stableScroll, presentationScroll)
+      browserDocument.documentElement.dataset.externalStorybookRevision = binding.candidateRevision ?? "unavailable"
+      agentBridge?.updateIdentity(packageId, binding.candidateRevision ?? "unavailable", binding.snapshot.graphDigest)
+      if (!restored) delete browserDocument.documentElement.dataset.externalStorybookUpdateError
+    })
   }
 
   const applyRevision = (revision: string): Promise<void> => {
@@ -934,17 +916,14 @@ export async function startExternalStorybookPackage(
   const browserWindow = browserDocument.defaultView ?? globalThis
   if (embeddedPageScope === undefined) browserWindow.addEventListener?.("popstate", onPopState)
 
-  let socket = environment.socket ?? createPackageSocket(
+  const socket = environment.socket ?? createPackageSocket(
     environment,
     location.href,
     readBrowserSessionToken(browserDocument),
   )
-  let reconnectTimer: ReturnType<typeof setTimeout> | null = null
-  let reconnectDelay = 250
   let latestBuildGeneration = 0
   let packageBuildActive = false
   let packageBuildStatusText = "Пакет · Ожидание очереди сборки"
-  let reconnecting = false
   let readerIntent = environment.bootstrapIntent ??
     (new URL(location.href).searchParams.has("preview") ? "preview" : "reader")
   let observedApplied = environment.initialAppliedRevision ??
@@ -958,7 +937,9 @@ export async function startExternalStorybookPackage(
   const followApplied = (revision: string | null, initial: boolean): void => {
     if (disposed) return
     if (revision === null) {
-      shell.updateStatus("Пакет · Нет подготовленной ревизии для текущей оболочки; требуется проверка и применение")
+      shell.updateStatus(candidateRevision === null
+        ? "Пакет · Сборка недоступна"
+        : "Пакет · Кандидат готов; проверка отображения")
       return
     }
     const url = new URL(location.href)
@@ -986,9 +967,8 @@ export async function startExternalStorybookPackage(
       shell.updateStatus("Пакет · Обновление отклонено")
     })
   }
-  const onSocketOpen = (): void => {
+  const onSocketOpen = (socket: ExternalStorybookSocket, reconnecting: boolean): void => {
     latestBuildGeneration = 0
-    reconnectDelay = 250
     socket.send(JSON.stringify({type: "subscribe", topic: `package:${packageId}`}))
     socket.send(JSON.stringify({type: "subscribe", topic: "catalog"}))
     if (!reconnecting) {
@@ -1001,7 +981,6 @@ export async function startExternalStorybookPackage(
       navigationSnapshot = value
       applyModel(shell, currentModel, navigationSnapshot, snapshot)
       shell.updateStatus(packageBuildStatus(packageId, exactPackageSummary(value, packageId).buildState))
-      reconnecting = false
     }).catch(error => shell.reportDiagnostic(errorText(error)))
   }
   const onSocketMessage = (event: MessageEvent): void => {
@@ -1014,10 +993,6 @@ export async function startExternalStorybookPackage(
         reportDiagnostic(error)
         shell.updateStatus("Обновление общей оболочки отклонено; сохранена рабочая версия")
       })
-      return
-    }
-    if (raw?.type === "package.restart-required" && raw.packageId === packageId) {
-      shell.updateStatus("Оболочка изменилась; требуется явное обновление страницы")
       return
     }
     const progress = readBuildProgress(raw)
@@ -1110,48 +1085,28 @@ export async function startExternalStorybookPackage(
     reportDiagnostic(`Package detached: ${packageId}`)
     shell.updateStatus(packageEventStatus(packageId, update.type))
   }
-  const detachSocket = (): void => {
-    socket.removeEventListener("open", onSocketOpen)
-    socket.removeEventListener("message", onSocketMessage)
-    socket.removeEventListener("close", onSocketClose)
-  }
-  const onSocketClose = (): void => {
-    if (disposed || reconnectTimer !== null) return
-    reconnecting = true
-    shell.updateStatus(storybookConnectionStatus("disconnected"))
-    reconnectTimer = setTimeout(() => {
-      reconnectTimer = null
-      void (async () => {
-        try {
-          const response = await fetcher("/api/browser/session", {
-            method: "POST", headers: {"content-type": "application/json"},
-            body: JSON.stringify({
-              packageId,
-              revision: candidateRevision,
-              preview: readerIntent === "preview" || readerIntent === "navigation-candidate",
-            }), signal: lifetime.signal,
-          })
-          if (!response.ok) throw new Error("Package event session is unavailable")
-          const result = await response.json() as {token?: string}
-          if (disposed) return
-          if (typeof result.token !== "string") throw new Error("Invalid package event session")
-          embeddedPageScope?.readerRenewed?.(result.token)
-          detachSocket()
-          socket = createPackageSocket(environment, location.href, result.token)
-          attachSocket()
-        } catch {
-          reconnectDelay = Math.min(2_000, reconnectDelay * 2)
-          onSocketClose()
-        }
-      })()
-    }, reconnectDelay)
-  }
-  const attachSocket = (): void => {
-    socket.addEventListener("open", onSocketOpen)
-    socket.addEventListener("message", onSocketMessage)
-    socket.addEventListener("close", onSocketClose)
-  }
-  attachSocket()
+  const connection = createHmrConnection({
+    socket,
+    onOpen: onSocketOpen,
+    onMessage: onSocketMessage,
+    onClose() { shell.updateStatus(storybookConnectionStatus("disconnected")) },
+    async reconnect(signal) {
+      const response = await fetcher("/api/browser/session", {
+        method: "POST", headers: {"content-type": "application/json"},
+        body: JSON.stringify({
+          packageId,
+          revision: candidateRevision,
+          preview: readerIntent === "preview" || readerIntent === "navigation-candidate",
+        }), signal,
+      })
+      if (!response.ok) throw new Error("Package event session is unavailable")
+      const result = await response.json() as {token?: string}
+      signal.throwIfAborted()
+      if (typeof result.token !== "string") throw new Error("Invalid package event session")
+      embeddedPageScope?.readerRenewed?.(result.token)
+      return createPackageSocket(environment, location.href, result.token)
+    },
+  })
 
   const dispose = async (reason?: unknown): Promise<void> => {
     if (disposePromise !== null) return disposePromise
@@ -1159,9 +1114,7 @@ export async function startExternalStorybookPackage(
     navigationRevision += 1
     lifetime.abort(reason)
     routeAbort.abort()
-    if (reconnectTimer !== null) clearTimeout(reconnectTimer)
-    detachSocket()
-    socket.close()
+    connection.dispose()
     if (embeddedPageScope === undefined) browserWindow.removeEventListener?.("popstate", onPopState)
     if (embeddedPageScope === undefined) globalThis.removeEventListener?.("pagehide", onPageHide)
     environment.lifecycleSignal?.removeEventListener("abort", onPageHide)
@@ -1175,6 +1128,7 @@ export async function startExternalStorybookPackage(
         await settleBefore(appliedRevisionTail, deadline)
         await settleBefore(operationTail, deadline)
       } finally {
+        await localExecution?.dispose()
         disposeScenario()
         agentBridge?.dispose()
         if (embeddedPageScope === undefined) shell.dispose()

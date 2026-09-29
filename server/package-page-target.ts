@@ -1,4 +1,4 @@
-import type {StorybookPackageSessionSnapshot} from "../sessions/package-session.ts"
+import type {StorybookPackageSession, StorybookPackageSessionSnapshot} from "../sessions/package-session.ts"
 import type {
   StorybookPackageRevisionGraphSnapshot,
   StorybookPackageRevisionRoute,
@@ -169,6 +169,47 @@ export function resolveStorybookPackagePageTarget(input: Readonly<{
     fallbackRevision,
     graphSnapshot: selected.graphSnapshot,
   })
+}
+
+/**
+Подготавливает обычный переход только при отсутствии доступной ревизии.
+Существующий payload используется без проверки редактируемых исходников.
+Preview читает точную запрошенную ревизию и никогда не создаёт новую сборку.
+Общая session объединяет одновременные запросы; отмена одного ожидания не
+отменяет её полезную работу. Ошибка подготовки сохраняет прежние artifacts.
+*/
+export async function prepareStorybookPackagePageTarget(input: Readonly<{
+  session: StorybookPackageSession
+  routePath: string
+  previewRevision: string | null
+  currentRoute: Pick<StorybookPackageRevisionRoute, "nodeId" | "kind"> | null
+  signal: AbortSignal
+}>): Promise<StorybookPackagePageTarget> {
+  const read = (): StorybookPackagePageTarget => {
+    const snapshot = input.session.snapshot()
+    return resolveStorybookPackagePageTarget({
+      packageId: input.session.packageId,
+      routePath: input.routePath,
+      previewRevision: input.previewRevision,
+      currentRoute: input.currentRoute,
+      snapshot,
+      readRevision(revision) {
+        const record = snapshot.revisions?.find(candidate => candidate.revision === revision)
+        const graphSnapshot = input.session.revisionGraphSnapshot(revision)
+        if (record === undefined || graphSnapshot === null || input.session.revisionDirectory(revision) === null) return null
+        return {graphSnapshot, entryRelativePath: record.entryRelativePath, status: record.status, sharedModuleEpoch: record.sharedModuleEpoch}
+      },
+    })
+  }
+  input.signal.throwIfAborted()
+  const available = read()
+  if (input.previewRevision !== null || available.kind !== "fallback") return available
+  const built = await input.session.ensureBuilt({owner: "open"})
+  input.signal.throwIfAborted()
+  if (built.diagnostics.length > 0) {
+    throw new Error(built.diagnostics.map(diagnostic => diagnostic.message).join("\n"))
+  }
+  return read()
 }
 
 function currentBuiltRevision(
