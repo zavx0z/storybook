@@ -1,6 +1,6 @@
 import {Panel} from "@zavx0z/ui/surfaces/panel"
 import {useRef} from "@zavx0z/component"
-import type {JSX} from "@jsx/types"
+import type {JSX} from "@jsx-compiler/session"
 import type {WorkbenchInspectorWidgetRegistration} from "../contract.ts"
 import {SourceWidget} from "./source-widget.tsx"
 import {ValueFields} from "./value-fields.tsx"

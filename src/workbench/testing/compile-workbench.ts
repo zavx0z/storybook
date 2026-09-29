@@ -1,7 +1,7 @@
 import {plugin} from "bun"
 import {readFileSync} from "node:fs"
 import {join, resolve} from "node:path"
-import {createJsxBunPlugin} from "@jsx/bun"
+import createJsxBunPlugin from "@jsx-compiler/bun"
 import {
   createStorybookOwnerResolver,
   createStorybookOwnerSourcePath,

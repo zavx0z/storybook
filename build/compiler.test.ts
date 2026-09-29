@@ -274,12 +274,12 @@ describe("external Storybook package compiler", () => {
 
   test("fails closed when consumer and tool graphs name different JSX Bun roots", async () => {
     const fixture = await jsxProjectFixture(String.raw`
-export function createJsxBunPlugin() {
+export default function createJsxBunPlugin() {
   return {name: "alternate-template", setup() {}}
 }
 `)
     await expect(createStorybookPackageCompilerPlugins(fixture.input)).rejects.toThrow(
-      "Ambiguous owner dependency identity @jsx/bun",
+      "Ambiguous owner dependency identity @jsx-compiler/bun",
     )
   })
 
@@ -333,7 +333,7 @@ async function jsxProjectFixture(adapterSource?: string): Promise<Readonly<{
   const packageRoot = join(projectRoot, "packages", "owner")
   const jsxRoot = await realpath(resolve(import.meta.dir, "../../webxr-space/jsx"))
   const adapterRoot = adapterSource === undefined
-    ? join(jsxRoot, "bun")
+    ? join(jsxRoot, "compiler/bun")
     : join(root, "owners", "jsx-bun")
   const linkedRoot = join(root, "owners", "linked")
   const transitiveRoot = join(root, "owners", "transitive")
@@ -353,12 +353,12 @@ async function jsxProjectFixture(adapterSource?: string): Promise<Readonly<{
       "@fixture/owner": "workspace:*",
       "@fixture/linked": "link:@fixture/linked",
     },
-    devDependencies: {"@zavx0z/jsx": `file:${jsxRoot}`, "@jsx/bun": `file:${adapterRoot}`},
+    devDependencies: {"@zavx0z/jsx": `file:${jsxRoot}`, "@jsx-compiler/bun": `file:${adapterRoot}`},
   })
   await writeJson(join(packageRoot, "package.json"), {name: "@fixture/owner"})
   if (adapterSource !== undefined) {
     await writeJson(join(adapterRoot, "package.json"), {
-      name: "@jsx/bun",
+      name: "@jsx-compiler/bun",
       type: "module",
       exports: {".": "./index.js"},
     })
@@ -373,7 +373,7 @@ async function jsxProjectFixture(adapterSource?: string): Promise<Readonly<{
   await linkPackage(projectRoot, "@fixture/owner", packageRoot)
   await linkPackage(projectRoot, "@fixture/linked", linkedRoot)
   await linkPackage(projectRoot, "@zavx0z/jsx", jsxRoot)
-  await linkPackage(projectRoot, "@jsx/bun", adapterRoot)
+  await linkPackage(projectRoot, "@jsx-compiler/bun", adapterRoot)
   await linkPackage(linkedRoot, "@fixture/transitive", transitiveRoot)
 
   await Bun.write(join(projectRoot, "tsconfig.base.json"), String.raw`{
@@ -613,3 +613,26 @@ export async function verify() {
     {sameParent: true, header: "Заголовок", body: "", slots: 0},
   ])
 }, 60000)
+
+test("conditional API домена выбирается по среде фактической сборки", async () => {
+  const fixture = await jsxProjectFixture()
+  await writeJson(join(fixture.linkedRoot, "package.json"), {
+    name: "@fixture/linked",
+    type: "module",
+    exports: {".": {bun: "./bun.ts", browser: "./browser.ts", default: "./fallback.ts"}},
+  })
+  await Bun.write(join(fixture.linkedRoot, "bun.ts"), 'export const environment = "server-marker"')
+  await Bun.write(join(fixture.linkedRoot, "browser.ts"), 'export const environment = "browser-marker"')
+  await Bun.write(join(fixture.linkedRoot, "fallback.ts"), 'export const environment = "fallback-marker"')
+  const entry = join(fixture.packageRoot, "environment.ts")
+  await Bun.write(entry, 'export {environment} from "@fixture/linked"')
+  for (const target of ["browser", "bun"] as const) {
+    const plugins = await createStorybookPackageCompilerPlugins({...fixture.input, moduleSourcePaths: []})
+    const result = await Bun.build({entrypoints: [entry], target, plugins: [...plugins]})
+    expect(result.success).toBeTrue()
+    const code = await result.outputs[0]!.text()
+    expect(code).toContain(target === "browser" ? "browser-marker" : "server-marker")
+    expect(code).not.toContain(target === "browser" ? "server-marker" : "browser-marker")
+    expect(code).not.toContain("fallback-marker")
+  }
+})

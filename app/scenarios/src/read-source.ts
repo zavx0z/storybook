@@ -10,7 +10,10 @@ import {realpath} from "node:fs/promises"
 import {SyntaxKind} from "typescript/unstable/ast"
 import type {ScenarioSource} from "./types"
 
-/** Читает объявления как данные; не регистрирует и не исполняет тесты проверяемого исходника. */
+/**
+Читает объявления как данные; не регистрирует и не исполняет тесты исходника.
+Связывает локальное имя вызова с публичным именем экспорта, включая default.
+*/
 export async function readScenarioSource(input: string): Promise<ScenarioSource> {
   const path = await realpath(resolve(input))
   const text = await Bun.file(path).text()
@@ -34,7 +37,7 @@ export async function readScenarioSource(input: string): Promise<ScenarioSource>
     const ownerBindings: {name: Node; exported: string}[] = []
     const invocationCandidates: {callee: Node; value: typeof invocations[number]}[] = []
     let subject: ScenarioSource["subject"] = entry && declaration && isFunctionDeclaration(declaration) && declaration.name
-      ? {kind: entry.endsWith(".tsx") ? "component" : "function", module: entry, name: declaration.name.text, calls: invocations} : null
+      ? {kind: entry.endsWith(".tsx") ? "component" : "function", module: entry, name: declaration.modifiers?.some(modifier => modifier.kind === SyntaxKind.DefaultKeyword) ? "default" : declaration.name.text, calls: invocations} : null
     const native = new Map<string, string>()
     const imports: string[] = []
     const nativeMembers = new Set<string>()
@@ -42,10 +45,13 @@ export async function readScenarioSource(input: string): Promise<ScenarioSource>
       if (!isImportDeclaration(statement) || !isStringLiteral(statement.moduleSpecifier)) continue
       imports.push(statement.moduleSpecifier.text)
       const bindings = statement.importClause?.namedBindings
-      if (subject && bindings && isNamedImports(bindings) && statement.moduleSpecifier.text !== "bun:test") {
+      if (subject && statement.importClause?.phaseModifier !== SyntaxKind.TypeKeyword && statement.moduleSpecifier.text !== "bun:test") {
         try {
           if (Bun.resolveSync(statement.moduleSpecifier.text, dirname(path)) === subject.module) {
-            for (const binding of bindings.elements) if (!binding.isTypeOnly) ownerBindings.push({name: binding.name, exported: binding.propertyName?.text ?? binding.name.text})
+            if (statement.importClause?.name) ownerBindings.push({name: statement.importClause.name, exported: "default"})
+            if (bindings && isNamedImports(bindings)) {
+              for (const binding of bindings.elements) if (!binding.isTypeOnly) ownerBindings.push({name: binding.name, exported: binding.propertyName?.text ?? binding.name.text})
+            }
           }
         } catch { /* Неразрешённый импорт остаётся диагностикой запуска. */ }
       }

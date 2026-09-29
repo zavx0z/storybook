@@ -139,6 +139,7 @@ function renderValue(
 
 /**
 Находит прямые вызовы публичной функции описываемой сущности внутри внешнего each.
+Именованный и default импорт сохраняют публичное имя экспорта и локальное имя вызова.
 Подготовка, hooks и тела test не выбираются вместо неё. AST только читается.
 */
 export async function inspectFunctionScenario(pathInput: string): Promise<FunctionDescriptor | null> {
@@ -174,8 +175,7 @@ export async function inspectFunctionScenario(pathInput: string): Promise<Functi
             `import {${exported}${exported === binding.name.text ? "" : ` as ${binding.name.text}`}} from ${JSON.stringify(specifier)}`)
         }
       }
-      if (!named || !isNamedImports(named)) continue
-      if (specifier === "bun:test") {
+      if (specifier === "bun:test" && named && isNamedImports(named)) {
         for (const binding of named.elements) {
           if (!binding.isTypeOnly && (binding.propertyName?.text ?? binding.name.text) === "describe") {
             describes.add(binding.name.text)
@@ -187,6 +187,14 @@ export async function inspectFunctionScenario(pathInput: string): Promise<Functi
       let imported: string
       try { imported = realpathSync(Bun.resolveSync(specifier, dirname(path))) } catch { continue }
       if (imported !== module) continue
+      if (clause.name && owner.statements.some(node => isFunctionDeclaration(node)
+        && node.modifiers?.some(modifier => modifier.kind === SyntaxKind.DefaultKeyword))) {
+        bindings.set(clause.name.text, {
+          export: "default",
+          importSource: `import ${clause.name.text} from ${JSON.stringify(specifier)}`,
+        })
+      }
+      if (!named || !isNamedImports(named)) continue
       for (const binding of named.elements) {
         if (binding.isTypeOnly) continue
         const exported = binding.propertyName?.text ?? binding.name.text

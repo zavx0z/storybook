@@ -1,5 +1,5 @@
 import type {ComponentValue} from "@zavx0z/component"
-import type {JSX} from "@jsx/types"
+import type {JSX} from "@jsx-compiler/session"
 import type {IntegrationOptions, IntegrationRoot, Presentation} from "@zavx0z/browser/integration"
 
 export type PresentationFixtureOptions = IntegrationOptions & {

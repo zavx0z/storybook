@@ -31,19 +31,19 @@ describe("Текущая публичная структура", () => {
     })
   })
 
-  test("Сохраняет самостоятельную сущность scenarios", async () => {
+  test("Сохраняет самостоятельный пакет scenarios", async () => {
     expect(await resolveRoute({route: "storybook/archetypes/specs/scenarios", roots})).toMatchObject({
-      package: {id: "@archetypes/specs"},
+      package: {id: "@archetypes/scenario-guide"},
       directory: resolve(storybookPath, "archetypes/specs/scenarios"),
-      relativePath: "scenarios",
+      relativePath: "",
       view: "overview",
     })
   })
 
-  test("Открывает сценарии самостоятельной сущности через query", async () => {
+  test("Открывает сценарии самостоятельного пакета через query", async () => {
     expect(await resolveRoute({route: "storybook/archetypes/specs/scenarios?view=scenarios", roots})).toMatchObject({
       node: "storybook/archetypes/specs/scenarios",
-      relativePath: "scenarios",
+      relativePath: "",
       view: "scenarios",
     })
   })

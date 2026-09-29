@@ -1,3 +1,4 @@
+import {conditionalExportTarget} from "./src/export-target.ts"
 import {
   existsSync,
   lstatSync,
@@ -16,7 +17,7 @@ import {
 } from "../src/shared/owner-identity.ts"
 
 const JSX_IMPORT_SOURCE = "@zavx0z/jsx"
-const JSX_BUN_PACKAGE = "@jsx/bun"
+const JSX_BUN_PACKAGE = "@jsx-compiler/bun"
 const LOCAL_DEPENDENCY_PREFIXES = ["link:", "workspace:", "file:", "portal:"] as const
 const STORYBOOK_TOOL_ROOT = fileURLToPath(new URL("..", import.meta.url))
 const PHYSICAL_PROBE_EXTENSIONS = /(?:\.[cm]?[jt]sx?|\.d\.ts)$/u
@@ -269,11 +270,15 @@ function exactOwnerResolver(input: Readonly<{
   return {
     name: "external-storybook-exact-owner-resolution",
     setup(builder) {
+      const target = builder.config?.target ?? (builder.config ? "browser" : "bun")
+      const configured = builder.config?.conditions ?? []
+      const conditions = ["import", target, ...(target === "bun" ? ["node"] : []),
+        ...(typeof configured === "string" ? [configured] : configured)]
       builder.onResolve({filter: governedPackageFilter}, ({path}) => {
         const packageName = barePackageName(path)
         const ownerRoot = input.packageRootsByName.get(packageName)
         if (ownerRoot === undefined) return undefined
-        return {path: resolveExactOwnerExport(ownerRoot, packageName, path)}
+        return {path: resolveExactOwnerExport(ownerRoot, packageName, path, conditions)}
       })
     },
   }
@@ -317,6 +322,7 @@ function resolveExactOwnerExport(
   ownerRoot: string,
   packageName: string,
   specifier: string,
+  conditions: readonly string[],
 ): string {
   const manifest = parseJsonObject(join(ownerRoot, "package.json"), "exact owner package manifest")
   if (manifest.name !== packageName) {
@@ -328,12 +334,12 @@ function resolveExactOwnerExport(
   let target: string | null = null
   if (subpath === "." && packageExports !== undefined &&
     (!isObject(packageExports) || !Object.keys(packageExports).some(key => key.startsWith(".")))) {
-    target = conditionalExportTarget(packageExports)
+    target = conditionalExportTarget(packageExports, conditions)
   } else if (isObject(packageExports)) {
-    target = conditionalExportTarget(packageExports[subpath])
+    target = conditionalExportTarget(packageExports[subpath], conditions)
   }
   if (target === null && subpath === "." && packageExports === undefined) {
-    target = conditionalExportTarget(manifest.module) ?? conditionalExportTarget(manifest.main)
+    target = conditionalExportTarget(manifest.module, conditions) ?? conditionalExportTarget(manifest.main, conditions)
     if (target === null && existsSync(join(ownerRoot, "index.ts"))) target = "./index.ts"
     if (target === null && existsSync(join(ownerRoot, "index.js"))) target = "./index.js"
   }
@@ -773,33 +779,17 @@ function resolveJsxAdapter(
   throw new Error(`Cannot resolve ${JSX_BUN_PACKAGE} from owner dependency graph`)
 }
 
-function conditionalExportTarget(value: unknown): string | null {
-  if (typeof value === "string") return value
-  if (Array.isArray(value)) {
-    for (const entry of value) {
-      const target = conditionalExportTarget(entry)
-      if (target !== null) return target
-    }
-    return null
-  }
-  if (!isObject(value)) return null
-  for (const condition of ["bun", "import", "default"] as const) {
-    const target = conditionalExportTarget(value[condition])
-    if (target !== null) return target
-  }
-  return null
-}
 
 function validateJsxPluginFactory(
   namespace: unknown,
   adapterPath: string,
 ): JsxPluginFactory {
-  if (!isObject(namespace) || typeof namespace.createJsxBunPlugin !== "function") {
+  if (!isObject(namespace) || typeof namespace.default !== "function") {
     throw new TypeError(
-      `JSX adapter must export createJsxBunPlugin(): ${adapterPath}`,
+      `JSX adapter must export default createJsxBunPlugin(): ${adapterPath}`,
     )
   }
-  return namespace.createJsxBunPlugin as JsxPluginFactory
+  return namespace.default as JsxPluginFactory
 }
 
 function validateBunPlugin(value: unknown, adapterPath: string): Bun.BunPlugin {

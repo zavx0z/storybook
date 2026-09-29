@@ -1,3 +1,4 @@
+import {conditionalExportTarget} from "./src/export-target.ts"
 import {createHash} from "node:crypto"
 import {existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync} from "node:fs"
 import {extname, join, resolve, sep} from "node:path"
@@ -19,11 +20,12 @@ export const STORYBOOK_SHARED_BROWSER_OWNER_PACKAGES = Object.freeze([
   "@zavx0z/dom",
   "@zavx0z/engine",
   "@zavx0z/jsx",
-  "@jsx/types",
-  "@jsx/runtime",
-  "@jsx/development",
-  "@jsx/slot",
-  "@jsx/slot-child",
+  "@jsx-runtime/fragment",
+  "@jsx/events",
+  "@jsx-runtime/create",
+  "@jsx-development/create",
+  "@jsx-slot/plan",
+  "@jsx-slot/child",
   "@zavx0z/space",
   "@zavx0z/template",
   "@zavx0z/webgpu",
@@ -193,8 +195,9 @@ function publicModuleExports(value: unknown, packageName: string): readonly [str
     throw new Error(`Shared Storybook owner ${packageName} has no explicit exports`)
   }
   const entries: [string, string][] = []
-  for (const [subpath, target] of Object.entries(value)) {
-    if (!subpath.startsWith(".") || typeof target !== "string" || target.includes("*")) continue
+  for (const [subpath, declaration] of Object.entries(value)) {
+    const target = conditionalExportTarget(declaration, ["browser", "import"])
+    if (!subpath.startsWith(".") || target === null || target.includes("*")) continue
     entries.push([subpath, target])
   }
   return entries

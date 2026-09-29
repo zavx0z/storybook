@@ -1,5 +1,5 @@
 /**
-Раскрывает состав вложенных пакетов одного физического владельца.
+Раскрывает состав пакетов Repo либо принадлежащую выбранному пакету часть состава.
 
 Чтение не исполняет код пакета и не создаёт общее дерево маршрутов.
 Результат одинаково используют структурное обнаружение и Route.
@@ -7,7 +7,7 @@
 @packageDocumentation
 */
 import {Glob} from "bun"
-import {lstat, realpath} from "node:fs/promises"
+import {lstat, readFile, realpath} from "node:fs/promises"
 import {dirname, isAbsolute, join, relative, resolve, sep} from "node:path"
 import type {ReadWorkspacePackagesInput} from "./contract/input.ts"
 import type {ReadWorkspacePackagesOutput} from "./contract/output.ts"
@@ -16,7 +16,8 @@ import {validateWorkspacePatterns} from "./src/validate-patterns.ts"
 export type {ReadWorkspacePackagesInput, ReadWorkspacePackagesOutput}
 
 /**
-Раскрывает workspaces одного указанного владельца без чтения кода пакетов.
+Раскрывает корневые workspaces без чтения кода пакетов.
+Если value не передан, находит декларацию Repo и выбирает вложенные пакеты root.
 
 Порядок шаблонов и лексикографический порядок совпадений сохраняются;
 исключения, symlink и выход за корень проверяются при каждом чтении.
@@ -27,6 +28,33 @@ export type {ReadWorkspacePackagesInput, ReadWorkspacePackagesOutput}
 */
 export async function readWorkspacePackages({root, value}: ReadWorkspacePackagesInput): Promise<ReadWorkspacePackagesOutput> {
   root = await realpath(root)
+  if (value === undefined) {
+    const selected = root
+    for (let owner = selected; ; owner = dirname(owner)) {
+      const path = join(owner, "package.json")
+      const info = await lstat(path).catch(error => {
+        if (error.code !== "ENOENT") throw error
+        return null
+      })
+      if (info?.isFile() && !info.isSymbolicLink()) {
+        const metadata = JSON.parse(await readFile(path, "utf8"))
+        if (metadata.workspaces !== undefined) {
+          const workspace = await readWorkspacePackages({root: owner, value: metadata.workspaces})
+          const registered = owner === selected || workspace.roots.includes(selected)
+          return Object.freeze({
+            roots: Object.freeze(registered ? workspace.roots.filter(path => path.startsWith(`${selected}${sep}`)) : []),
+            inputs: Object.freeze([...new Set([path, ...workspace.inputs])]),
+          })
+        }
+      }
+      const boundary = await lstat(join(owner, ".git")).catch(error => {
+        if (error.code !== "ENOENT") throw error
+        return null
+      })
+      if (boundary || dirname(owner) === owner) break
+    }
+    return Object.freeze({roots: Object.freeze([]), inputs: Object.freeze([selected])})
+  }
   const patterns = validateWorkspacePatterns(value)
   const exclusions = patterns.filter(pattern => pattern.startsWith("!"))
     .map(pattern => new Glob(pattern.slice(1)))
@@ -43,12 +71,16 @@ export async function readWorkspacePackages({root, value}: ReadWorkspacePackages
         const absolute = resolve(root, path)
         const info = await lstat(absolute)
         if (info.isSymbolicLink()) throw new Error(`Workspace directory must not be a symlink: ${absolute}`)
-        if (info.isDirectory()) inputs.add(absolute)
+        if (info.isDirectory()) {
+          inputs.add(absolute)
+          inputs.add(join(absolute, "package.json"))
+        }
       }
     }
     const matches: string[] = []
-    for await (const path of new Glob(pattern).scan({cwd: root, onlyFiles: false, followSymlinks: false})) {
-      if (!admitted(path)) continue
+    for await (const metadataPath of new Glob(`${pattern}/package.json`).scan({cwd: root, onlyFiles: false, followSymlinks: false})) {
+      const path = dirname(metadataPath)
+      if (path === "." || !admitted(path)) continue
       const absolute = resolve(root, path)
       const info = await lstat(absolute)
       if (info.isSymbolicLink()) throw new Error(`Workspace directory must not be a symlink: ${absolute}`)

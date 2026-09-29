@@ -2,7 +2,7 @@ import {
   Inspector,
   type InspectorCategory,
 } from "@zavx0z/ui/widgets/inspector"
-import type {JSX} from "@jsx/types"
+import type {JSX} from "@jsx-compiler/session"
 import type {
   WorkbenchInspectorSubject,
   WorkbenchInspectorWidgetRegistration,

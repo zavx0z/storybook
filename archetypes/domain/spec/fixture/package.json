@@ -1,0 +1,7 @@
+{
+  "name": "@fixture/domain-repo",
+  "private": true,
+  "workspaces": [
+    "domain/**"
+  ]
+}

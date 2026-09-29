@@ -16,10 +16,5 @@
     "@archetypes/package-json": "workspace:*",
     "@archetypes/package-index": "workspace:*",
     "@archetypes/package-documentation": "workspace:*"
-  },
-  "workspaces": [
-    "package-json",
-    "index",
-    "documentation"
-  ]
+  }
 }

@@ -15,8 +15,8 @@ export function isOwnedJsxProtocol(
   const expected = protocols[specifier]
   if (expected === undefined || owner?.name !== expected.name) return false
   const manifest = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8")) as Record<string, unknown>
-  if (manifest.name !== "@zavx0z/jsx" || !Array.isArray(manifest.workspaces) ||
-    !manifest.workspaces.includes(expected.directory)) return false
+  if (manifest.name !== "@zavx0z/jsx" ||
+    (manifest.exports as Record<string, unknown> | undefined)?.[specifier.slice("@zavx0z/jsx".length).replace(/^\//u, "./")] !== `./${expected.directory}/index.ts`) return false
   const dependencies = manifest.dependencies
   if (dependencies === null || typeof dependencies !== "object" || Array.isArray(dependencies)) return false
   const dependency = (dependencies as Record<string, unknown>)[expected.name]

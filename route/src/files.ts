@@ -13,10 +13,8 @@ export async function readPackageManifest(packagePath: string): Promise<PackageM
     if (!info.isFile() || info.isSymbolicLink()) return null
     const value: unknown = JSON.parse(await readFile(manifestPath, "utf8"))
     if (!isRecord(value) || typeof value.name !== "string") return null
-    const workspaces = value.workspaces === undefined
-      ? []
-      : (await readWorkspacePackages({root: packagePath, value: value.workspaces})).roots
-        .map(path => relative(packagePath, path).split(sep).join("/"))
+    const workspaces = (await readWorkspacePackages({root: packagePath, value: value.workspaces})).roots
+      .map(path => relative(packagePath, path).split(sep).join("/"))
     return {name: value.name, workspaces}
   } catch {
     return null

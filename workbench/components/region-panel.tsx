@@ -1,5 +1,5 @@
 import {Pane} from "@zavx0z/ui/surfaces/pane"
-import type {JSX} from "@jsx/types"
+import type {JSX} from "@jsx-compiler/session"
 
 export type WorkbenchRegionPanelProps = Readonly<{
   transparent?: boolean

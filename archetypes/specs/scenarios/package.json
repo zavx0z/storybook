@@ -10,8 +10,5 @@
   "dependencies": {
     "@storybook/app": "workspace:*",
     "@archetypes/scenario-document": "workspace:*"
-  },
-  "workspaces": [
-    "validation"
-  ]
+  }
 }

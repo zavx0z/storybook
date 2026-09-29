@@ -73,3 +73,14 @@ test("повторное имя разных вложенных владельц
   await writeFile(join(root, "package.json"), JSON.stringify({name: "@fixture/ui", workspaces: ["button", "other"]}))
   await expect(readPackage({path: root})).rejects.toThrow("Повторная идентичность")
 })
+
+test("Domain выводит вложенный состав из корневого glob Repo", async () => {
+  const root = await fixture()
+  await mkdir(join(root, "button/icon"))
+  await writeFile(join(root, "button/icon/package.json"), JSON.stringify({name: "@fixture/icon", exports: "./index.ts"}))
+  await writeFile(join(root, "button/icon/index.ts"), "export default function Icon() {}")
+  await writeFile(join(root, "package.json"), JSON.stringify({name: "@fixture/repo", workspaces: ["**"]}))
+  const domain = await readPackage({path: join(root, "button")})
+  expect(domain.packageJson.workspaces).toBeUndefined()
+  expect(domain.packages).toEqual([{path: join(root, "button/icon"), name: "@fixture/icon", parent: join(root, "button")}])
+})

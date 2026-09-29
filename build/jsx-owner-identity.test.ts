@@ -47,8 +47,8 @@ test("mandatory JSX protocol exports сохраняют identity собстве�
       "a".repeat(64),
     )
     expect({
-      runtime: paths.get("@zavx0z/jsx/jsx-runtime") === paths.get("@jsx/runtime"),
-      development: paths.get("@zavx0z/jsx/jsx-dev-runtime") === paths.get("@jsx/development"),
+      runtime: paths.get("@zavx0z/jsx/jsx-runtime") === join(f.jsx, "runtime/index.ts"),
+      development: paths.get("@zavx0z/jsx/jsx-dev-runtime") === join(f.jsx, "development/index.ts"),
       uniqueSources: new Set(identity.sourceFiles.map(file => file.path)).size === identity.sourceFiles.length,
     }).toEqual({runtime: true, development: true, uniqueSources: true})
   } finally {
@@ -73,12 +73,25 @@ test("произвольный export JSX composition отклоняет чуж�
   }
 })
 
-test("mandatory JSX protocol отклоняет owner вне объявленного workspace", () => {
+test("mandatory JSX protocol отклоняет owner без объявленной зависимости", () => {
   const f = fixture()
   try {
-    writeFileSync(join(f.jsx, "package.json"), JSON.stringify({...f.manifest, workspaces: []}))
+    writeFileSync(join(f.jsx, "package.json"), JSON.stringify({...f.manifest, dependencies: {}}))
     expect(() => createStorybookSharedBrowserModuleEntries(f.tool, f.entries)).toThrow("changed identity")
   } finally {
     f.dispose()
+  }
+})
+
+test("серверный корень JSX исключён из browser identity; Fragment имеет одного владельца", () => {
+  const directory = mkdtempSync(join(import.meta.dir, ".jsx-owner-"))
+  try {
+    const entries = createStorybookSharedBrowserModuleEntries(realpathSync(join(import.meta.dir, "..")), directory)
+    const paths = new Map(entries.map(entry => [entry.specifier, entry.sourcePath]))
+    expect(paths.has("@zavx0z/jsx")).toBeFalse()
+    expect(paths.get("@jsx-runtime/fragment")).toBe(realpathSync(join(import.meta.dir, "../node_modules/@jsx-runtime/fragment/index.ts")))
+    expect(paths.get("@zavx0z/jsx/jsx-runtime")).toBe(realpathSync(join(import.meta.dir, "../node_modules/@zavx0z/jsx/runtime/index.ts")))
+  } finally {
+    rmSync(directory, {recursive: true, force: true})
   }
 })

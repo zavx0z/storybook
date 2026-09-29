@@ -10,12 +10,6 @@
     "./server": "./server/index.ts"
   },
   "packageManager": "bun@1.4.0",
-  "workspaces": [
-    "rest",
-    "address",
-    "children",
-    "root"
-  ],
   "scripts": {
     "start": "bun run stdio.ts",
     "test": "bun test",

@@ -60,12 +60,12 @@ test("encoded undefined остаётся исходным TypeScript значе�
 })
 
 test("native подготовка сохраняется целиком с одной переносимой строкой each", async () => {
-  const path = resolve(import.meta.dir, "../../../../webxr-space/jsx/compiler/slot-contract/spec/scenario.spec.ts")
+  const path = resolve(import.meta.dir, "../../../../webxr-space/jsx/slot/contract/spec/scenario.spec.ts")
   const report = await readScenario({
     path,
     variant: 0,
   })
-  const call = report.calls.find(call => call.name === "validateSlotContracts")
+  const call = report.calls.find(call => call.name === "default")
   const descriptor = await inspectFunctionScenario(path)
   if (report.preview?.kind !== "function" || descriptor?.authored === undefined) throw new Error("Нет авторского function preview")
   const variant = report.preview.variants[0]!
@@ -99,7 +99,7 @@ test.each([
   {owner: "development", name: "jsxDEV", template: "textTemplate", text: "Текст"},
 ])("native positional protocol $owner сохраняет импорт template", async ({owner, name, template, text}) => {
   const report = await readScenario({
-    path: resolve(import.meta.dir, "../../../../webxr-space/jsx", owner, "spec/scenario.spec.ts"),
+    path: resolve(import.meta.dir, "../../../../webxr-space/jsx", owner, "create/spec/scenario.spec.ts"),
   })
   if (report.preview?.kind !== "function") throw new Error("Нет native protocol preview")
   const variant = report.preview.variants[0]!
@@ -108,7 +108,7 @@ test.each([
     imported: variant.source.includes('import {' + template + '} from "./fixture/index.ts"'),
     positional: variant.calls[0]?.source.startsWith(name + "(" + template + ", "),
     props: variant.calls[0]?.source.includes('"text": "' + text + '"'),
-    sameOutcome: JSON.stringify(variant.calls[0]?.outcome) === JSON.stringify(report.calls.find(call => call.name === name)?.outcome),
+    sameOutcome: JSON.stringify(variant.calls[0]?.outcome) === JSON.stringify(report.calls.find(call => call.name === "default")?.outcome),
     receiver: owner !== "runtime" || report.preview.variants[2]?.source.includes('import {receiverTemplate} from "./fixture/index.ts"'),
   }).toEqual({exitCode: 0, imported: true, positional: true, props: true, sameOutcome: true, receiver: true})
 }, 30_000)

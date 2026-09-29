@@ -18,9 +18,5 @@
     "@storybook/app": "workspace:../../app",
     "@archetypes/scenario-guide": "workspace:*",
     "@archetypes/scenario-document": "workspace:*"
-  },
-  "workspaces": [
-    "scenarios",
-    "guide"
-  ]
+  }
 }

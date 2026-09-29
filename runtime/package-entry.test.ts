@@ -1,6 +1,6 @@
 import type {StorybookSharedHost} from "./shared-host"
 import type {ComponentValue} from "@zavx0z/component"
-import type {JSX} from "@jsx/types"
+import type {JSX} from "@jsx-compiler/session"
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
 import {DisplayElement} from "@zavx0z/dom/display"

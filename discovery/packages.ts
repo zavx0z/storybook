@@ -15,7 +15,8 @@ export interface DiscoverStorybookPackagesOptions {
 }
 
 /**
-Читает непосредственный package.json и workspaces каждого подключённого корня.
+Читает package.json подключённого корня и состав из workspaces его Repo.
+Вложенность пакетов выводится из физического расположения без повторных деклараций.
 Не загружает исполняемый код и не читает проектные файлы конфигурации Storybook.
 При обновлении изолирует ошибку владельца, сохраняя его предыдущий рабочий состав.
 */
@@ -28,7 +29,7 @@ export async function discoverStorybookPackages(
   const scopes = new Map<string, StorybookCatalogScope>()
   const names = new Map<string, string>()
   const dirty = options.dirtyScopeRoots === undefined ? null : new Set(options.dirtyScopeRoots.map(path => resolve(path)))
-  const visit = async (input: string): Promise<StorybookCatalogScope> => {
+  const visit = async (input: string, selected = false): Promise<StorybookCatalogScope> => {
     const requested = resolve(input)
     const selectedRoot = basename(requested) === "package.json" ? dirname(requested) : requested
     const root = await realpath(selectedRoot).catch(async () => join(await realpath(dirname(selectedRoot)).catch(() => dirname(selectedRoot)), basename(selectedRoot)))
@@ -54,7 +55,9 @@ export async function discoverStorybookPackages(
       names.set(name, root)
       const label = data.label === undefined ? name : data.label
       if (typeof label !== "string" || label.trim().length === 0) throw new Error(`Invalid package label: ${path}`)
-      const workspace = data.workspaces === undefined ? {roots: [], inputs: [root]} : await readWorkspacePackages({root, value: data.workspaces})
+      const workspace = data.workspaces === undefined && !selected
+        ? {roots: [], inputs: [root]}
+        : await readWorkspacePackages({root, value: data.workspaces})
       let entry: StorybookPackage = Object.freeze({
         schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
         kind: "package", id: name, canonicalId: `package:${name}`, label,
@@ -107,7 +110,7 @@ export async function discoverStorybookPackages(
   }
   const rootIds: string[] = []
   for (const input of inputs) {
-    const entry = await visit(input)
+    const entry = await visit(input, true)
     if (!rootIds.includes(entry.canonicalId)) rootIds.push(entry.canonicalId)
   }
   const rootSet = new Set(rootIds)

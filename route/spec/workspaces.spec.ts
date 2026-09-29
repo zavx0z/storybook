@@ -51,12 +51,11 @@ test("glob workspaces resolve canonical nested routes and immediate children", a
   const root = await fixture()
   await Bun.write(join(root, "package.json"), JSON.stringify({
     name: "@fixture/root",
-    workspaces: ["packages/*", "packages/**", "!packages/excluded/**"],
+    workspaces: ["packages/**", "!packages/excluded/**"],
   }))
   await mkdir(join(root, "packages/group/nested/features/tool"), {recursive: true})
   await Bun.write(join(root, "packages/group/nested/package.json"), JSON.stringify({
     name: "@fixture/nested",
-    workspaces: ["features/*"],
   }))
   await Bun.write(join(root, "packages/group/nested/features/tool/package.json"), JSON.stringify({name: "@fixture/tool"}))
   const registered = [{name: "root", path: root}]
@@ -74,8 +73,8 @@ test("glob workspaces resolve canonical nested routes and immediate children", a
   })
   expect((await readRouteChildren({route: "root/packages", roots: registered})).map(({node}) => node)).toEqual([
     "root/packages/a",
-    "root/packages/z",
     "root/packages/group",
+    "root/packages/z",
   ])
   expect((await readRouteChildren({route: "root/packages/group/nested/features", roots: registered})).map(({node}) => node)).toEqual([
     "root/packages/group/nested/features/tool",
@@ -105,4 +104,14 @@ test("публичный workspaces module открывает собственн
     view: "contract",
     views: ["contract"],
   })
+})
+
+test("вложенный пакет получает состав из glob Repo без собственных workspaces", async () => {
+  const root = await fixture()
+  await Bun.write(join(root, "package.json"), JSON.stringify({name: "@fixture/repo", workspaces: ["packages/**", "!packages/excluded/**"]}))
+  await Bun.write(join(root, "packages/group/package.json"), JSON.stringify({name: "@fixture/domain"}))
+  const domain = await readWorkspacePackages({root: join(root, "packages/group")})
+  expect(domain.roots).toEqual([join(root, "packages/group/nested")])
+  expect(domain.inputs).toContain(join(root, "package.json"))
+  expect((await readWorkspacePackages({root: join(root, "packages/excluded")})).roots).toEqual([])
 })

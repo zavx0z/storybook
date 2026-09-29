@@ -27,17 +27,21 @@
         "@archetypes/scenario-validation": "workspace:archetypes/specs/scenarios/validation",
         "@archetypes/specs": "workspace:archetypes/specs",
         "@immersive/headless": "workspace:../webxr-space/headless",
-        "@jsx/authoring": "workspace:../webxr-space/jsx/authoring",
-        "@jsx/bun": "workspace:../webxr-space/jsx/bun",
+        "@jsx-compiler/bun": "workspace:../webxr-space/jsx/compiler/bun",
+        "@jsx-compiler/error": "workspace:../webxr-space/jsx/compiler/error",
+        "@jsx-compiler/session": "workspace:../webxr-space/jsx/compiler/session",
+        "@jsx-development/create": "workspace:../webxr-space/jsx/development/create",
+        "@jsx-runtime/create": "workspace:../webxr-space/jsx/runtime/create",
+        "@jsx-runtime/fragment": "workspace:../webxr-space/jsx/runtime/fragment",
+        "@jsx-slot/authoring": "workspace:../webxr-space/jsx/slot/authoring",
+        "@jsx-slot/child": "workspace:../webxr-space/jsx/slot/child",
+        "@jsx-slot/contract": "workspace:../webxr-space/jsx/slot/contract",
+        "@jsx-slot/plan": "workspace:../webxr-space/jsx/slot/plan",
         "@jsx/compiler": "workspace:../webxr-space/jsx/compiler",
         "@jsx/development": "workspace:../webxr-space/jsx/development",
-        "@jsx/error": "workspace:../webxr-space/jsx/error",
         "@jsx/events": "workspace:../webxr-space/jsx/events",
         "@jsx/runtime": "workspace:../webxr-space/jsx/runtime",
         "@jsx/slot": "workspace:../webxr-space/jsx/slot",
-        "@jsx/slot-child": "workspace:../webxr-space/jsx/slot-child",
-        "@jsx/slot-contract": "workspace:../webxr-space/jsx/compiler/slot-contract",
-        "@jsx/types": "workspace:../webxr-space/jsx/types",
         "@nodes/layout": "workspace:../webxr-space/nodes/layout",
         "@nodes/node": "workspace:../webxr-space/nodes/node",
         "@nodes/parameters": "workspace:../webxr-space/nodes/parameters",
@@ -66,12 +70,11 @@
     "../webxr-space/browser": {
       "name": "@zavx0z/browser",
       "devDependencies": {
-        "@jsx/bun": "workspace:*",
-        "@jsx/compiler": "workspace:*",
-        "@zavx0z/jsx": "workspace:*",
+        "@jsx-compiler/bun": "*",
+        "@jsx-compiler/session": "*",
+        "@zavx0z/jsx": "*",
       },
       "peerDependencies": {
-        "@jsx/types": "workspace:*",
         "@renderer/html": "*",
         "@zavx0z/component": "*",
         "@zavx0z/dom": "*",
@@ -93,7 +96,7 @@
     "../webxr-space/component": {
       "name": "@zavx0z/component",
       "peerDependencies": {
-        "@jsx/types": "workspace:*",
+        "@jsx-compiler/session": "*",
         "@zavx0z/dom": "*",
         "@zavx0z/template": "*",
       },
@@ -116,8 +119,8 @@
     "../webxr-space/dom": {
       "name": "@zavx0z/dom",
       "devDependencies": {
-        "@jsx/bun": "workspace:*",
-        "@zavx0z/jsx": "workspace:*",
+        "@jsx-compiler/bun": "*",
+        "@zavx0z/jsx": "*",
       },
       "peerDependencies": {
         "typescript": "7.0.2",
@@ -132,15 +135,14 @@
         "bun-webgpu": "0.1.7",
       },
       "peerDependencies": {
-        "@jsx/bun": "workspace:*",
-        "@jsx/compiler": "workspace:*",
-        "@jsx/runtime": "workspace:*",
-        "@jsx/types": "workspace:*",
+        "@jsx-compiler/bun": "*",
+        "@jsx-compiler/session": "*",
+        "@jsx-slot/child": "*",
         "@renderer/html": "*",
         "@zavx0z/component": "*",
         "@zavx0z/dom": "*",
         "@zavx0z/engine": "*",
-        "@zavx0z/jsx": "workspace:*",
+        "@zavx0z/jsx": "*",
         "@zavx0z/template": "*",
         "@zavx0z/ui": "*",
         "@zavx0z/webgpu": "*",
@@ -158,90 +160,148 @@
     "../webxr-space/jsx": {
       "name": "@zavx0z/jsx",
       "dependencies": {
-        "@jsx/development": "workspace:*",
-        "@jsx/runtime": "workspace:*",
+        "@jsx/compiler": "*",
+        "@jsx/development": "*",
+        "@jsx/events": "*",
+        "@jsx/runtime": "*",
+        "@jsx/slot": "*",
       },
-    },
-    "../webxr-space/jsx/authoring": {
-      "name": "@jsx/authoring",
-      "dependencies": {
-        "@jsx/error": "workspace:*",
-        "@jsx/slot": "workspace:*",
-        "typescript": "7.0.2",
-      },
-    },
-    "../webxr-space/jsx/bun": {
-      "name": "@jsx/bun",
-      "dependencies": {
-        "@jsx/compiler": "workspace:*",
+      "devDependencies": {
+        "@jsx-compiler/bun": "*",
+        "@jsx-compiler/session": "*",
+        "@jsx-runtime/create": "*",
+        "@jsx-runtime/fragment": "*",
+        "@jsx-slot/plan": "*",
       },
     },
     "../webxr-space/jsx/compiler": {
       "name": "@jsx/compiler",
       "dependencies": {
-        "@jsx/authoring": "workspace:*",
-        "@jsx/error": "workspace:*",
-        "@jsx/events": "workspace:*",
-        "@jsx/slot": "workspace:*",
-        "@jsx/slot-contract": "workspace:*",
-        "@zavx0z/template": "workspace:*",
+        "@jsx-compiler/bun": "*",
+        "@jsx-compiler/error": "*",
+        "@jsx-compiler/session": "*",
+      },
+    },
+    "../webxr-space/jsx/compiler/bun": {
+      "name": "@jsx-compiler/bun",
+      "dependencies": {
+        "@jsx-compiler/session": "*",
+      },
+      "devDependencies": {
+        "@zavx0z/jsx": "*",
+      },
+    },
+    "../webxr-space/jsx/compiler/error": {
+      "name": "@jsx-compiler/error",
+    },
+    "../webxr-space/jsx/compiler/session": {
+      "name": "@jsx-compiler/session",
+      "dependencies": {
+        "@jsx-compiler/error": "*",
+        "@jsx-slot/authoring": "*",
+        "@jsx-slot/contract": "*",
+        "@jsx-slot/plan": "*",
+        "@jsx/events": "*",
+        "@zavx0z/dom": "*",
+        "@zavx0z/template": "*",
         "typescript": "7.0.2",
       },
       "devDependencies": {
-        "@jsx/types": "workspace:*",
-        "@zavx0z/browser": "workspace:*",
-        "@zavx0z/component": "workspace:*",
-        "@zavx0z/dom": "workspace:*",
-        "@zavx0z/jsx": "workspace:*",
-        "@zavx0z/space": "workspace:*",
-      },
-    },
-    "../webxr-space/jsx/compiler/slot-contract": {
-      "name": "@jsx/slot-contract",
-      "dependencies": {
-        "@jsx/authoring": "workspace:*",
-        "@jsx/error": "workspace:*",
-      },
-      "peerDependencies": {
-        "typescript": "7.0.2",
+        "@jsx-compiler/bun": "*",
+        "@zavx0z/browser": "*",
+        "@zavx0z/component": "*",
+        "@zavx0z/jsx": "*",
+        "@zavx0z/space": "*",
       },
     },
     "../webxr-space/jsx/development": {
       "name": "@jsx/development",
       "dependencies": {
-        "@jsx/runtime": "workspace:*",
-        "@jsx/types": "workspace:*",
-        "@zavx0z/component": "workspace:*",
+        "@jsx-development/create": "*",
+        "@jsx-runtime/fragment": "*",
       },
     },
-    "../webxr-space/jsx/error": {
-      "name": "@jsx/error",
+    "../webxr-space/jsx/development/create": {
+      "name": "@jsx-development/create",
+      "dependencies": {
+        "@jsx-compiler/session": "*",
+        "@jsx-runtime/create": "*",
+        "@zavx0z/component": "*",
+      },
+      "devDependencies": {
+        "@zavx0z/template": "*",
+      },
     },
     "../webxr-space/jsx/events": {
       "name": "@jsx/events",
+      "dependencies": {
+        "@zavx0z/dom": "*",
+      },
     },
     "../webxr-space/jsx/runtime": {
       "name": "@jsx/runtime",
       "dependencies": {
-        "@jsx/slot": "workspace:*",
-        "@jsx/types": "workspace:*",
-        "@zavx0z/component": "workspace:*",
-        "@zavx0z/template": "workspace:*",
+        "@jsx-runtime/create": "*",
+        "@jsx-runtime/fragment": "*",
       },
+    },
+    "../webxr-space/jsx/runtime/create": {
+      "name": "@jsx-runtime/create",
+      "dependencies": {
+        "@jsx-compiler/session": "*",
+        "@jsx-runtime/fragment": "*",
+        "@jsx-slot/child": "*",
+        "@jsx-slot/plan": "*",
+        "@zavx0z/component": "*",
+        "@zavx0z/template": "*",
+      },
+      "devDependencies": {
+        "@zavx0z/dom": "*",
+      },
+    },
+    "../webxr-space/jsx/runtime/fragment": {
+      "name": "@jsx-runtime/fragment",
     },
     "../webxr-space/jsx/slot": {
       "name": "@jsx/slot",
-    },
-    "../webxr-space/jsx/slot-child": {
-      "name": "@jsx/slot-child",
-    },
-    "../webxr-space/jsx/types": {
-      "name": "@jsx/types",
       "dependencies": {
-        "@jsx/events": "workspace:*",
-        "@zavx0z/dom": "workspace:*",
-        "@zavx0z/template": "workspace:*",
+        "@jsx-slot/authoring": "*",
+        "@jsx-slot/child": "*",
+        "@jsx-slot/contract": "*",
+        "@jsx-slot/plan": "*",
       },
+    },
+    "../webxr-space/jsx/slot/authoring": {
+      "name": "@jsx-slot/authoring",
+      "dependencies": {
+        "@jsx-compiler/error": "*",
+        "@jsx-slot/plan": "*",
+        "typescript": "7.0.2",
+      },
+      "devDependencies": {
+        "@zavx0z/jsx": "*",
+      },
+    },
+    "../webxr-space/jsx/slot/child": {
+      "name": "@jsx-slot/child",
+    },
+    "../webxr-space/jsx/slot/contract": {
+      "name": "@jsx-slot/contract",
+      "dependencies": {
+        "@jsx-compiler/error": "*",
+        "@jsx-slot/authoring": "*",
+      },
+      "devDependencies": {
+        "@jsx-compiler/session": "*",
+        "@zavx0z/component": "*",
+        "@zavx0z/jsx": "*",
+      },
+      "peerDependencies": {
+        "typescript": "7.0.2",
+      },
+    },
+    "../webxr-space/jsx/slot/plan": {
+      "name": "@jsx-slot/plan",
     },
     "../webxr-space/markdown": {
       "name": "@webxr/markdown",
@@ -372,15 +432,14 @@
     "../webxr-space/space": {
       "name": "@zavx0z/space",
       "devDependencies": {
-        "@jsx/bun": "workspace:*",
-        "@jsx/compiler": "workspace:*",
+        "@jsx-compiler/bun": "*",
+        "@jsx-compiler/session": "*",
       },
       "peerDependencies": {
-        "@jsx/types": "workspace:*",
         "@zavx0z/component": "*",
         "@zavx0z/dom": "*",
         "@zavx0z/engine": "*",
-        "@zavx0z/jsx": "workspace:*",
+        "@zavx0z/jsx": "*",
         "@zavx0z/template": "*",
       },
       "optionalPeers": [
@@ -393,8 +452,8 @@
     "../webxr-space/template": {
       "name": "@zavx0z/template",
       "devDependencies": {
-        "@jsx/compiler": "workspace:*",
-        "@zavx0z/jsx": "workspace:*",
+        "@jsx-compiler/session": "*",
+        "@zavx0z/jsx": "*",
       },
       "peerDependencies": {
         "@zavx0z/dom": "*",
@@ -430,13 +489,13 @@
       },
       "devDependencies": {
         "@immersive/headless": "*",
-        "@jsx/bun": "workspace:*",
-        "@jsx/compiler": "workspace:*",
+        "@jsx-compiler/bun": "*",
+        "@jsx-compiler/session": "*",
       },
       "peerDependencies": {
         "@zavx0z/component": "*",
         "@zavx0z/dom": "*",
-        "@zavx0z/jsx": "workspace:*",
+        "@zavx0z/jsx": "*",
         "@zavx0z/template": "*",
       },
       "optionalPeers": [
@@ -482,18 +541,21 @@
     },
     "archetypes/component": {
       "name": "@archetypes/component",
+      "version": "0.0.0",
       "dependencies": {
         "@archetypes/package": "workspace:*",
       },
     },
     "archetypes/domain": {
       "name": "@archetypes/domain",
+      "version": "0.0.0",
       "dependencies": {
         "@archetypes/package": "workspace:*",
       },
     },
     "archetypes/package": {
       "name": "@archetypes/package",
+      "version": "0.0.0",
       "dependencies": {
         "@archetypes/package-documentation": "workspace:*",
         "@archetypes/package-index": "workspace:*",
@@ -503,27 +565,33 @@
     },
     "archetypes/package/documentation": {
       "name": "@archetypes/package-documentation",
+      "version": "0.0.0",
     },
     "archetypes/package/index": {
       "name": "@archetypes/package-index",
+      "version": "0.0.0",
     },
     "archetypes/package/package-json": {
       "name": "@archetypes/package-json",
+      "version": "0.0.0",
     },
     "archetypes/project": {
       "name": "@archetypes/project",
+      "version": "0.0.0",
       "dependencies": {
         "@archetypes/repo": "workspace:*",
       },
     },
     "archetypes/repo": {
       "name": "@archetypes/repo",
+      "version": "0.0.0",
       "dependencies": {
         "@archetypes/package": "workspace:*",
       },
     },
     "archetypes/specs": {
       "name": "@archetypes/specs",
+      "version": "0.0.0",
       "dependencies": {
         "@archetypes/scenario-document": "workspace:*",
         "@archetypes/scenario-guide": "workspace:*",
@@ -532,12 +600,14 @@
     },
     "archetypes/specs/guide": {
       "name": "@archetypes/scenario-document",
+      "version": "0.0.0",
       "dependencies": {
         "@storybook/app": "workspace:*",
       },
     },
     "archetypes/specs/scenarios": {
       "name": "@archetypes/scenario-guide",
+      "version": "0.0.0",
       "dependencies": {
         "@archetypes/scenario-document": "workspace:*",
         "@storybook/app": "workspace:*",
@@ -545,6 +615,7 @@
     },
     "archetypes/specs/scenarios/validation": {
       "name": "@archetypes/scenario-validation",
+      "version": "0.0.0",
     },
     "browser-lifecycle": {
       "name": "@zavx0z/storybook-browser-lifecycle",
@@ -651,27 +722,35 @@
 
     "@immersive/headless": ["@immersive/headless@workspace:../webxr-space/headless"],
 
-    "@jsx/authoring": ["@jsx/authoring@workspace:../webxr-space/jsx/authoring"],
+    "@jsx-compiler/bun": ["@jsx-compiler/bun@workspace:../webxr-space/jsx/compiler/bun"],
 
-    "@jsx/bun": ["@jsx/bun@workspace:../webxr-space/jsx/bun"],
+    "@jsx-compiler/error": ["@jsx-compiler/error@workspace:../webxr-space/jsx/compiler/error"],
+
+    "@jsx-compiler/session": ["@jsx-compiler/session@workspace:../webxr-space/jsx/compiler/session"],
+
+    "@jsx-development/create": ["@jsx-development/create@workspace:../webxr-space/jsx/development/create"],
+
+    "@jsx-runtime/create": ["@jsx-runtime/create@workspace:../webxr-space/jsx/runtime/create"],
+
+    "@jsx-runtime/fragment": ["@jsx-runtime/fragment@workspace:../webxr-space/jsx/runtime/fragment"],
+
+    "@jsx-slot/authoring": ["@jsx-slot/authoring@workspace:../webxr-space/jsx/slot/authoring"],
+
+    "@jsx-slot/child": ["@jsx-slot/child@workspace:../webxr-space/jsx/slot/child"],
+
+    "@jsx-slot/contract": ["@jsx-slot/contract@workspace:../webxr-space/jsx/slot/contract"],
+
+    "@jsx-slot/plan": ["@jsx-slot/plan@workspace:../webxr-space/jsx/slot/plan"],
 
     "@jsx/compiler": ["@jsx/compiler@workspace:../webxr-space/jsx/compiler"],
 
     "@jsx/development": ["@jsx/development@workspace:../webxr-space/jsx/development"],
-
-    "@jsx/error": ["@jsx/error@workspace:../webxr-space/jsx/error"],
 
     "@jsx/events": ["@jsx/events@workspace:../webxr-space/jsx/events"],
 
     "@jsx/runtime": ["@jsx/runtime@workspace:../webxr-space/jsx/runtime"],
 
     "@jsx/slot": ["@jsx/slot@workspace:../webxr-space/jsx/slot"],
-
-    "@jsx/slot-child": ["@jsx/slot-child@workspace:../webxr-space/jsx/slot-child"],
-
-    "@jsx/slot-contract": ["@jsx/slot-contract@workspace:../webxr-space/jsx/compiler/slot-contract"],
-
-    "@jsx/types": ["@jsx/types@workspace:../webxr-space/jsx/types"],
 
     "@mcp/address": ["@mcp/address@workspace:mcp/address"],
 

@@ -22,7 +22,7 @@ import type {ReadPackageIndexOutput} from "@archetypes/package-index"
 
 @property scenarios - Непосредственные файлы сценария использования, без их выполнения.
 
-@property packages - Самостоятельные вложенные пакеты из workspaces, без повторных identity.
+@property packages - Самостоятельные вложенные пакеты из корневого workspace Repo, без повторных identity.
 parent указывает физический пакет, непосредственно содержащий участника.
 */
 export interface ReadPackageOutput {

@@ -4,14 +4,6 @@
   "version": "0.0.0",
   "private": true,
   "description": "Исполняемый стандарт Project, Repo, Domain и Component на единой структуре Package",
-  "workspaces": [
-    "project",
-    "package",
-    "repo",
-    "domain",
-    "component",
-    "specs"
-  ],
   "exports": {
     ".": "./index.ts",
     "./project": "./project/index.ts",

@@ -7,15 +7,9 @@
   "type": "module",
   "packageManager": "bun@1.4.0",
   "workspaces": [
-    "app",
-    "route",
-    "browser-lifecycle",
-    "archetypes",
-    "mcp",
-    "mcp/rest",
-    "mcp/address",
-    "mcp/children",
-    "mcp/root"
+    "**",
+    "!**/{node_modules,spec,test,tests,fixture,fixtures,dist,projects}/**",
+    "!**/.*/**"
   ],
   "bin": {
     "storybook": "./scripts/storybook.ts"
@@ -70,17 +64,16 @@
     "@webxr/markdown": "workspace:../webxr-space/markdown",
     "@nodes/node": "workspace:../webxr-space/nodes/node",
     "@zavx0z/jsx": "workspace:../webxr-space/jsx",
-    "@jsx/types": "workspace:../webxr-space/jsx/types",
-    "@jsx/compiler": "workspace:../webxr-space/jsx/compiler",
-    "@jsx/bun": "workspace:../webxr-space/jsx/bun",
-    "@jsx/runtime": "workspace:../webxr-space/jsx/runtime",
-    "@jsx/development": "workspace:../webxr-space/jsx/development",
-    "@jsx/slot": "workspace:../webxr-space/jsx/slot",
-    "@jsx/authoring": "workspace:../webxr-space/jsx/authoring",
-    "@jsx/error": "workspace:../webxr-space/jsx/error",
+    "@jsx-compiler/session": "workspace:../webxr-space/jsx/compiler/session",
+    "@jsx-compiler/bun": "workspace:../webxr-space/jsx/compiler/bun",
+    "@jsx-runtime/create": "workspace:../webxr-space/jsx/runtime/create",
+    "@jsx-development/create": "workspace:../webxr-space/jsx/development/create",
+    "@jsx-slot/plan": "workspace:../webxr-space/jsx/slot/plan",
+    "@jsx-slot/authoring": "workspace:../webxr-space/jsx/slot/authoring",
+    "@jsx-compiler/error": "workspace:../webxr-space/jsx/compiler/error",
     "@jsx/events": "workspace:../webxr-space/jsx/events",
-    "@jsx/slot-contract": "workspace:../webxr-space/jsx/compiler/slot-contract",
-    "@jsx/slot-child": "workspace:../webxr-space/jsx/slot-child",
+    "@jsx-slot/contract": "workspace:../webxr-space/jsx/slot/contract",
+    "@jsx-slot/child": "workspace:../webxr-space/jsx/slot/child",
     "@archetypes/repo": "workspace:archetypes/repo",
     "@archetypes/domain": "workspace:archetypes/domain",
     "@archetypes/component": "workspace:archetypes/component",
@@ -89,6 +82,11 @@
     "@archetypes/package-index": "workspace:archetypes/package/index",
     "@archetypes/scenario-guide": "workspace:archetypes/specs/scenarios",
     "@archetypes/scenario-validation": "workspace:archetypes/specs/scenarios/validation",
-    "@archetypes/scenario-document": "workspace:archetypes/specs/guide"
+    "@archetypes/scenario-document": "workspace:archetypes/specs/guide",
+    "@jsx-runtime/fragment": "workspace:../webxr-space/jsx/runtime/fragment",
+    "@jsx/runtime": "workspace:../webxr-space/jsx/runtime",
+    "@jsx/development": "workspace:../webxr-space/jsx/development",
+    "@jsx/slot": "workspace:../webxr-space/jsx/slot",
+    "@jsx/compiler": "workspace:../webxr-space/jsx/compiler"
   }
 }

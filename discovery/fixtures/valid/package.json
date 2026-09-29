@@ -2,5 +2,7 @@
   "name": "fixture-workspace",
   "label": "Fixture Workspace",
   "private": true,
-  "workspaces": ["projects/*"]
+  "workspaces": [
+    "projects/**"
+  ]
 }

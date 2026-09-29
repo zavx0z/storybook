@@ -107,3 +107,15 @@ describe("structural package discovery", () => {
     expect(retained.scopes[0]?.resolutionError).toContain("exceeds limit")
   })
 })
+
+test("подключённый Domain раскрывает детей из workspace Repo без своего workspaces", async () => {
+  const {root, child} = await fixture()
+  const nested = join(child, "feature")
+  await mkdir(nested)
+  await writeFile(join(nested, "package.json"), JSON.stringify({name: "@fixture/feature"}))
+  await writeFile(join(root, "package.json"), JSON.stringify({name: "@fixture/root", workspaces: ["packages/**"]}))
+  const catalog = await discoverStorybookPackages([child])
+  expect(catalog.rootIds).toEqual(["package:@fixture/child"])
+  expect(catalog.scopes.map(scope => scope.id).sort()).toEqual(["@fixture/child", "@fixture/feature"])
+  expect(catalog.scopes.find(scope => scope.id === "@fixture/child")).toMatchObject({kind: "package", packageIds: ["package:@fixture/feature"]})
+})

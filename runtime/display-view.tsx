@@ -1,4 +1,4 @@
-import type {JSX} from "@jsx/types"
+import type {JSX} from "@jsx-compiler/session"
 
 /** Поверхность всего Workbench; shell синхронизирует её метрики с viewport общего Root. */
 export function StorybookDisplay(props: Readonly<{id: string; children?: JSX.Element | readonly JSX.Element[]}>) {

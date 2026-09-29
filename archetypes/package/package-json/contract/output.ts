@@ -10,7 +10,7 @@
 @property exports - Карта публичных экспортов; короткая строковая форма нормализована в `.`.
 Отсутствующий exports даёт пустую карту: Repo и Domain не обязаны иметь исполняемый вход.
 
-@property [workspaces] - Авторский состав вложенных пакетов для штатного читателя workspaces.
+@property [workspaces] - Корневое объявление состава Repo для штатного читателя workspaces.
 */
 export interface ReadPackageJsonOutput {
   readonly name: string
