@@ -43,16 +43,16 @@ export async function readRouteIgnored({
     }
   }
 
-  const watchPaths: string[] = []
+  const inputs: string[] = []
   if (repositoryPath !== null) {
     for (let path = rootPath;; path = dirname(path)) {
-      watchPaths.push(resolve(path, ".gitignore"))
+      inputs.push(resolve(path, ".gitignore"))
       if (path === repositoryPath) break
       if (dirname(path) === path) throw new TypeError("Git root не является предком package root")
     }
   }
   if (repositoryPath === null || absolutePaths.length === 0) {
-    return {ignored: [], repository: repositoryPath, watchPaths}
+    return {ignored: [], repository: repositoryPath, inputs}
   }
 
   const result = await runGit(
@@ -64,6 +64,6 @@ export async function readRouteIgnored({
   return {
     ignored: result.output.split("\0").filter(Boolean),
     repository: repositoryPath,
-    watchPaths,
+    inputs,
   }
 }

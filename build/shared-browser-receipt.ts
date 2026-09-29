@@ -8,14 +8,17 @@ import type {SharedBrowserBuildInput} from "./types/shared-browser.ts"
 import {validateStorybookSharedBrowserIdentity} from "./shared-module-identity.ts"
 
 /**
-Восстанавливает общую оболочку только при совпадении исходников и файлов результата.
+Восстанавливает общую оболочку с проверкой файлов результата.
+Явный check также сверяет исходники; запуск сервера читает последнюю готовую версию.
 
 @param input - Текущие entrypoints и каталоги сборки; данные receipt не выбирают владельца.
+
+@param verifyInputs - Сверять текущие исходники для compiler cache; false читает готовую оболочку для страницы.
 
 @returns Подтверждённые assets либо null для старого, отсутствующего или повреждённого кэша.
 Проверка не запускает компилятор и не исполняет исходники.
 */
-export function readSharedBrowserReceipt(input: SharedBrowserBuildInput): SharedBrowserAssets | null {
+export function readSharedBrowserReceipt(input: SharedBrowserBuildInput, verifyInputs = true): SharedBrowserAssets | null {
   let fd: number | undefined
   try {
     fd = openSync(join(input.root, "receipt.json"), constants.O_RDONLY | constants.O_NOFOLLOW)
@@ -24,7 +27,7 @@ export function readSharedBrowserReceipt(input: SharedBrowserBuildInput): Shared
     const receipt = JSON.parse(readFileSync(fd, "utf8"))
     const assets = receipt.assets as SharedBrowserAssets
     const saved = parseStorybookBuildInputFingerprint(assets?.inputFingerprint)
-    if (receipt.version !== 1 || assets.root !== input.root || saved === null ||
+    if (receipt.version !== 1 || assets.root !== input.root || (verifyInputs && saved === null) ||
       !Array.isArray(assets.artifactDigests) || assets.artifactDigests.length === 0 ||
       !Array.isArray(assets.dependencyRealpaths) || assets.dependencyRealpaths.some(path => typeof path !== "string" || !isAbsolute(path))) return null
     const paths = new Set<string>()
@@ -45,6 +48,11 @@ export function readSharedBrowserReceipt(input: SharedBrowserBuildInput): Shared
     if (!Array.isArray(assets.authorStyleSheets) || assets.authorStyleSheets.some(style =>
       typeof style.specifier !== "string" || !paths.has(style.url) ||
       !assets.artifactDigests?.some(artifact => artifact.path === style.url && artifact.digest === style.contentDigest))) return null
+    if (!verifyInputs) {
+      const {inputFingerprint: _saved, ...prepared} = assets
+      return Object.freeze({...prepared, browserIdentity, ...(saved === null ? {} : {inputFingerprint: saved})})
+    }
+    if (saved === null) return null
     const current = computeStorybookSharedBuildInputFingerprint({
       ...input,
       packageEntryPath: input.packageEntryPath ?? fileURLToPath(

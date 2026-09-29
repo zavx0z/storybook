@@ -16,10 +16,10 @@ export async function discoverStorybookDirectories(
   root: string,
   packageRoots: ReadonlySet<string>,
   onAnalysisSession: (kind: "contract" | "dependency") => void = () => {},
-): Promise<Readonly<{directories: readonly StorybookDirectory[]; rootMetadata: ViewMetadata; watchPaths: readonly string[]}>> {
+): Promise<Readonly<{directories: readonly StorybookDirectory[]; rootMetadata: ViewMetadata; inputs: readonly string[]}>> {
   root = await realpath(root)
   const visibility = await readRouteIgnored({root, paths: []})
-  const watchPaths = new Set<string>(visibility.watchPaths)
+  const inputs = new Set<string>(visibility.inputs)
   const contractPathsByDirectory = new Map<string, readonly string[]>()
   const scenarioPathsByDirectory = new Map<string, readonly string[]>()
   const dependencyPathByDirectory = new Map<string, string>()
@@ -42,7 +42,7 @@ export async function discoverStorybookDirectories(
     } finally { await file.close() }
   }
   const rootEntries = [join(root, "index.tsx"), join(root, "index.ts")]
-  for (const path of rootEntries) watchPaths.add(path)
+  for (const path of rootEntries) inputs.add(path)
   const excludedRootEntries = await ignored(rootEntries)
   let rootDocumentation: StorybookDirectory["moduleDocumentation"]
   for (const path of rootEntries) {
@@ -63,7 +63,7 @@ export async function discoverStorybookDirectories(
     ] as const) {
       const directory = join(path, name)
       const paths = files.map(file => join(directory, file))
-      for (const watched of [directory, ...paths]) watchPaths.add(watched)
+      for (const watched of [directory, ...paths]) inputs.add(watched)
       const excluded = await ignored([directory, ...paths])
       const info = await lstat(directory).catch(error => {
         if (error.code !== "ENOENT") throw error
@@ -89,21 +89,21 @@ export async function discoverStorybookDirectories(
     }
   }
   const visit = async (parent: string): Promise<readonly StorybookDirectory[]> => {
-    watchPaths.add(parent)
-    watchPaths.add(join(parent, ".gitignore"))
+    inputs.add(parent)
+    inputs.add(join(parent, ".gitignore"))
     const result: StorybookDirectory[] = []
     const listing = await readRouteDirectories({root, parent, packagePaths: [...packageRoots], repository: visibility.repository})
-    for (const path of listing.watchPaths) watchPaths.add(path)
+    for (const path of listing.inputs) inputs.add(path)
     const entries = listing.directories
     for (const entry of entries) {
       const path = entry.path
-      watchPaths.add(path)
-      watchPaths.add(join(path, ".gitignore"))
+      inputs.add(path)
+      inputs.add(join(path, ".gitignore"))
       const entryPaths = [join(path, "index.tsx"), join(path, "index.ts")]
-      for (const entryPath of entryPaths) watchPaths.add(entryPath)
+      for (const entryPath of entryPaths) inputs.add(entryPath)
       const publicEntry = entry.entry === null ? undefined : join(path, entry.entry === "tsx" ? "index.tsx" : "index.ts")
       const moduleDocumentation = publicEntry === undefined ? undefined : await readDocumentation(publicEntry)
-      watchPaths.add(join(path, "src"))
+      inputs.add(join(path, "src"))
       const isModule = entry.module
       await collectViews(path, isModule || publicEntry !== undefined)
       const children = isModule ? [] : await visit(path)
@@ -129,7 +129,7 @@ export async function discoverStorybookDirectories(
   const viewMetadata = (path: string): ViewMetadata => {
     const ownedContracts = contractPathsByDirectory.get(path) ?? []
     const sources = ownedContracts.flatMap(path => contracts.get(path)?.sources ?? [])
-    for (const source of sources) watchPaths.add(source.sourcePath)
+    for (const source of sources) inputs.add(source.sourcePath)
     const documents = ownedContracts.flatMap((path): import("../catalog/catalog.t.ts").StorybookContractDocument[] => {
       const contract = contracts.get(path)
       return contract === undefined ? [] : [{
@@ -151,5 +151,5 @@ export async function discoverStorybookDirectories(
     ...(rootDocumentation ? {moduleDocumentation: rootDocumentation} : {}),
   })
   const directories = discovered.map(directory => Object.freeze({...directory, ...viewMetadata(directory.path)}))
-  return Object.freeze({directories: Object.freeze(directories), rootMetadata, watchPaths: Object.freeze([...watchPaths])})
+  return Object.freeze({directories: Object.freeze(directories), rootMetadata, inputs: Object.freeze([...inputs])})
 }

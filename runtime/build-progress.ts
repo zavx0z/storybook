@@ -58,7 +58,7 @@ export function readBuildProgress(value: unknown): PublishedBuildProgress | null
   if (event.type !== "build.progress" || typeof event.operationId !== "string" ||
     !/^[A-Za-z0-9_-]{1,256}$/u.test(event.operationId) ||
     typeof event.at !== "string" || !Number.isFinite(Date.parse(event.at)) ||
-    !["open", "check", "watch", "subscribe", "startup-validation", "shared"].includes(String(event.owner)) ||
+    !["open", "check", "subscribe", "startup-validation", "shared"].includes(String(event.owner)) ||
     event.packageId !== null && typeof event.packageId !== "string" ||
     event.generation !== null && (!Number.isSafeInteger(event.generation) || Number(event.generation) < 0) ||
     typeof event.phase !== "string" || !Object.hasOwn(phaseLabels, event.phase) ||

@@ -25,8 +25,8 @@ test("expands exact paths, stars and recursive globs in stable order with exclus
   const root = await fixture()
   const result = await readWorkspacePackages({root, value: ["plain", "packages/*", "packages/**", "!packages/excluded/**"]})
   expect(result.roots).toEqual(["plain", "packages/a", "packages/z", "packages/group/nested"].map(path => join(root, path)))
-  expect(result.watchPaths).toContain(join(root, "packages/group"))
-  expect(result.watchPaths).toContain(join(root, "packages/group/package.json"))
+  expect(result.inputs).toContain(join(root, "packages/group"))
+  expect(result.inputs).toContain(join(root, "packages/group/package.json"))
   expect((await readWorkspacePackages({root, value: []})).roots).toEqual([])
   expect((await readWorkspacePackages({root, value: ["packages/{a,z}"]})).roots).toEqual(["packages/a", "packages/z"].map(path => join(root, path)))
 })
@@ -35,7 +35,7 @@ test("watches partial nested matches before the final directory exists", async (
   const root = await fixture()
   const result = await readWorkspacePackages({root, value: ["packages/*/modules/*"]})
   expect(result.roots).toEqual([])
-  expect(result.watchPaths).toContain(join(root, "packages/a"))
+  expect(result.inputs).toContain(join(root, "packages/a"))
 })
 
 test("rejects escaping patterns and symlink packages", async () => {

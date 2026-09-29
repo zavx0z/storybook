@@ -23,7 +23,7 @@ test("[STORYBOOK-DEPS-DISCOVERY] spec даёт модулю граф и набл
     const path = join(root, "component/spec/deps.spec.ts")
     const before = await discoverStorybookDirectories(root, new Set())
     expect(before.directories[0]!.dependencySpec).toBeUndefined()
-    expect(before.watchPaths).toContain(path)
+    expect(before.inputs).toContain(path)
     await Bun.write(path, source())
     const found = await discoverStorybookDirectories(root, new Set())
     expect(found.directories.map(value => value.relativePath)).toEqual(["component"])

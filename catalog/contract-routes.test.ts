@@ -40,6 +40,6 @@ test("[CONTRACT-ROUTE] structural contract is one view of its directory", async 
   expect(revision.routes.find(item => item.path === route.path)).toMatchObject({nodeId: route.nodeId, kind: "contract"})
   expect(revision.nodes.find(item => item.id === route.nodeId)?.contractDocuments?.[0]?.direction).toBe("input")
   const descriptor = externalStorybookPackageDescriptors(catalog, graph)[0]!
-  expect(descriptor.watchPaths).toContainEqual({path: inputPath, category: "declaration"})
+  expect(descriptor.resourceFiles?.map(file => file.sourcePath)).toContain(inputPath)
   expect(descriptor.resourceFiles?.some(file => file.sourcePath === inputPath && file.derivedContent?.includes('"direction":"input"'))).toBeTrue()
 })

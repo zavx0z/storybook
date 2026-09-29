@@ -322,7 +322,6 @@ function projectDiagnostic(
     "link",
     "protocol",
     "publish",
-    "watch",
     "activation",
     "timeout",
   ])

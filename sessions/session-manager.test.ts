@@ -5,9 +5,7 @@ import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {
   ExternalStorybookSessionManager,
-  storybookSessionAdditionalInputWatchPaths,
 } from "./session-manager.ts"
-import {StorybookDependencyWatchCoordinator} from "./dependency-watch.ts"
 import {STORYBOOK_PACKAGE_GRAPH_PROTOCOL, type StorybookPackageRevisionGraphSnapshot} from "./package-revision.ts"
 import type {
   StorybookPackageBuildDescriptor,
@@ -22,22 +20,6 @@ afterEach(() => {
 })
 
 describe("external Storybook PackageSession manager", () => {
-  test("registry-owned declaration не возвращается как code input watcher", () => {
-    const root = fixtureRoot()
-    const contract = join(root, "contract", "input.ts")
-    const code = join(root, "runtime.ts")
-    const resource = join(root, "asset.svg")
-    mkdirSync(join(root, "contract"), {recursive: true})
-    writeFileSync(contract, "/** Contract */\nexport interface Input {}\n")
-    writeFileSync(code, "export const runtime = true\n")
-    writeFileSync(resource, "<svg/>\n")
-
-    expect(storybookSessionAdditionalInputWatchPaths([
-      {path: contract, category: "declaration"},
-      {path: code, category: "code"},
-      {path: resource, category: "resource"},
-    ], [contract, code, resource])).toEqual([code, resource])
-  })
 
   test("sync adds, preserves, reconfigures and detaches exact sessions", async () => {
     const root = fixtureRoot()
@@ -46,7 +28,6 @@ describe("external Storybook PackageSession manager", () => {
       artifactRoot: join(root, ".artifacts"),
       buildRevision: successfulBuilder(),
       publish: (event) => events.push(event),
-      rebuildDelayMs: 0,
     })
     const a = descriptor(root, "a")
     const b = descriptor(root, "b")
@@ -62,44 +43,13 @@ describe("external Storybook PackageSession manager", () => {
     expect(events.some(({type, packageId}) =>
       type === "package.detached" && packageId === "@fixture/b")).toBeTrue()
     const unsubscribe = aSession.subscribe()
+    expect(aSession.snapshot().builds).toBe(1)
+    await manager.ensure("@fixture/a", {owner: "check"})
     await waitFor(() => aSession.snapshot().builds === 2 && aSession.snapshot().buildState === "built")
     unsubscribe()
     await manager.dispose()
   })
 
-  test("shared dependency rebuilds only subscribed packages and inactive package catches up on subscribe", async () => {
-    const root = fixtureRoot()
-    const shared = join(root, "shared.ts")
-    writeFileSync(shared, "export const shared = true\n")
-    const builder: StorybookPackageRevisionBuilder = async ({stagingDirectory}) => {
-      mkdirSync(stagingDirectory, {recursive: true})
-      writeFileSync(join(stagingDirectory, "entry.js"), "export {}\n")
-      return {moduleGraphRevision: "graph", dependencyRealpaths: [shared], entryRelativePath: "entry.js"}
-    }
-    const manager = new ExternalStorybookSessionManager({
-      artifactRoot: join(root, ".artifacts"),
-      buildRevision: builder,
-      rebuildDelayMs: 0,
-    })
-    manager.sync([descriptor(root, "a"), descriptor(root, "b"), descriptor(root, "c")])
-    await Promise.all([manager.ensure("@fixture/a"), manager.ensure("@fixture/b")])
-    const a = manager.session("@fixture/a")
-    const b = manager.session("@fixture/b")
-    const unsubscribeA = a.subscribe()
-    expect(manager.notifyDependency(shared)).toBe(2)
-    await waitFor(() => a.snapshot().builds === 2 && a.snapshot().buildState === "built")
-    await Bun.sleep(15)
-    expect(a.snapshot().builds).toBe(2)
-    expect(b.snapshot()).toMatchObject({subscribers: 0, generation: 2, builds: 1})
-    expect(manager.session("@fixture/c").snapshot().builds).toBe(0)
-
-    const unsubscribeB = b.subscribe()
-    await waitFor(() => b.snapshot().builds === 2 && b.snapshot().buildState === "built")
-    expect(b.snapshot().revisions?.at(-1)?.generation).toBe(2)
-    unsubscribeA()
-    unsubscribeB()
-    await manager.dispose()
-  })
 
   test("hung A does not block B through the shared bounded semaphore", async () => {
     const root = fixtureRoot()
@@ -173,104 +123,38 @@ describe("external Storybook PackageSession manager", () => {
     await manager.dispose()
   })
 
-  test("publishes a committed revision even when watcher projection fails", async () => {
+
+
+  test("подписка и изменения файлов не собирают пакет до явной проверки", async () => {
     const root = fixtureRoot()
-    let failWatch = false
-    const watch = {
-      replace() {
-        if (failWatch) throw new Error("watch failed")
-        return Object.freeze([])
-      },
-      remove() { return true },
-      notify() { return 0 },
-      dispose() {},
-    } as unknown as StorybookDependencyWatchCoordinator
-    const events: StorybookPackageEvent[] = []
-    const errors = spyOn(console, "error").mockImplementation(() => {})
-    const manager = new ExternalStorybookSessionManager({
-      artifactRoot: join(root, ".artifacts"),
-      buildRevision: successfulBuilder(),
-      publish: (event) => events.push(event),
-      watch,
-    })
-    manager.sync([descriptor(root, "watch")])
-    await manager.ensure("@fixture/watch")
-    failWatch = true
-    const session = manager.session("@fixture/watch")
-    expect(session.invalidate(session.descriptor.watchedPaths![0]!)).toBeTrue()
-    const result = await session.ensureBuilt()
-    expect(result.buildState).toBe("built")
-    expect(result.activeRevision).toBeNull()
-    expect(result.lastWorkingRevision).toBeNull()
-    expect(events.at(-1)?.type).toBe("package.built")
-    expect(errors).toHaveBeenCalled()
+    const manager = new ExternalStorybookSessionManager({artifactRoot: join(root, ".artifacts"), buildRevision: successfulBuilder()})
+    const value = descriptor(root, "explicit")
+    manager.sync([value])
+    const session = manager.session("@fixture/explicit")
+    const unsubscribe = session.subscribe()
+    expect(session.snapshot().builds).toBe(0)
+    await manager.ensure(session.packageId, {owner: "check"})
+    const revision = session.snapshot().builtRevision
+    const empty = join(value.packageRoot, "empty")
+    mkdirSync(empty)
+    rmSync(empty, {recursive: true})
+    writeFileSync(value.sourcePath, JSON.stringify({name: session.packageId, description: "изменено"}))
+    await Bun.sleep(1100)
+    expect(session.snapshot()).toMatchObject({builds: 1, builtRevision: revision})
+    manager.sync([descriptor(root, "explicit", "changed")])
+    expect(session.snapshot().builds).toBe(1)
+    await manager.ensure(session.packageId, {owner: "check"})
+    expect(session.snapshot().builds).toBe(2)
+    unsubscribe()
     await manager.dispose()
-    errors.mockRestore()
   })
 
-  test("routes the full categorized package watcher matrix and ignores unrelated files", async () => {
-    const root = fixtureRoot()
-    const files = Object.fromEntries([
-      "catalog.json",
-      "package.json",
-      "README.md",
-      "module-doc.ts",
-      "fixture.json",
-      "reference.json",
-      "media.png",
-      "evidence.json",
-      "asset.svg",
-      "shared.ts",
-      "unrelated.txt",
-    ].map((name) => {
-      const path = join(root, name)
-      writeFileSync(path, `${name}\n`)
-      return [name, path]
-    }))
-    const events: StorybookPackageEvent[] = []
-    const value = descriptor(root, "matrix", "matrix", [
-      {path: files["catalog.json"]!, category: "declaration"},
-      {path: files["package.json"]!, category: "metadata"},
-      {path: files["package.json"]!, category: "code"},
-      {path: files["module-doc.ts"]!, category: "metadata"},
-      ...["fixture.json", "reference.json", "media.png", "evidence.json", "asset.svg"]
-        .map((name) => ({path: files[name]!, category: "resource" as const})),
-      {path: files["shared.ts"]!, category: "code"},
-    ])
-    const manager = new ExternalStorybookSessionManager({
-      artifactRoot: join(root, ".artifacts"),
-      buildRevision: successfulBuilder(),
-      publish: (event) => events.push(event),
-      rebuildDelayMs: 0,
-    })
-    manager.sync([value])
-    await manager.ensure("@fixture/matrix")
-    const emitted = (path: string): string[] => {
-      events.length = 0
-      expect(manager.notifyDependency(path)).toBe(1)
-      return events.map(({type}) => type)
-    }
-    expect(emitted(files["catalog.json"]!)).toEqual([])
-    expect(emitted(files["package.json"]!)).toEqual([
-      "package.metadata-updated",
-      "package.code-updated",
-    ])
-    expect(emitted(files["module-doc.ts"]!)).toEqual(["package.metadata-updated"])
-    for (const name of ["fixture.json", "reference.json", "media.png", "evidence.json", "asset.svg"]) {
-      expect(emitted(files[name]!)).toEqual(["package.resources-updated"])
-    }
-    expect(emitted(files["shared.ts"]!)).toEqual(["package.code-updated"])
-    expect(manager.notifyDependency(files["unrelated.txt"]!)).toBe(0)
-    expect(manager.notifyDependency(files["README.md"]!)).toBe(0)
-    await manager.dispose()
-  })
 })
 
 function descriptor(
   root: string,
   id: string,
   declarationDigest = id,
-  watchPaths: StorybookPackageBuildDescriptor["watchPaths"] = Object.freeze([]),
 ): StorybookPackageBuildDescriptor {
   const packageRoot = join(root, id)
   mkdirSync(packageRoot, {recursive: true})
@@ -284,8 +168,6 @@ function descriptor(
     projectRoot: root,
     sourcePath,
     declarationDigest,
-    watchPaths,
-    watchedPaths: [modulePath],
     graphSnapshot: graphSnapshot(`@fixture/${id}`, declarationDigest),
   }
 }

@@ -28,8 +28,8 @@ test("обновляет ресурсы исходного обзора посл
     const descriptor = updated.descriptors[0]!
     expect(descriptor.resourceFiles?.some(file => file.sourcePath === oldDocument)).toBe(false)
     expect(descriptor.resourceFiles?.some(file => file.sourcePath === newDocument)).toBe(true)
-    expect(descriptor.watchedPaths).not.toContain(oldDocument)
-    expect(descriptor.watchedPaths).toContain(newDocument)
+    expect(descriptor.resourceFiles?.map(file => file.sourcePath)).not.toContain(oldDocument)
+    expect(descriptor.resourceFiles?.map(file => file.sourcePath)).toContain(newDocument)
     for (const file of descriptor.resourceFiles ?? []) expect(() => readFileSync(file.sourcePath)).not.toThrow()
 
     const unchanged = await registry.refresh()

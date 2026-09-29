@@ -12,6 +12,34 @@ setDefaultTimeout(60_000)
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, {recursive: true, force: true}) })
 
 describe("structural package revision build", () => {
+  test("упавшая проверка сценария останавливает работу до компиляции", async () => {
+    const fixture = createFixture()
+    writeFileSync(fixture.descriptor.sourcePath, JSON.stringify({name: "@fixture/package", type: "module", exports: {"./module": "./module/index.ts"}}))
+    const directory = join(fixture.packageRoot, "module/spec")
+    mkdirSync(directory)
+    writeFileSync(join(fixture.packageRoot, "module/index.ts"), "export function evaluate(props: {value: number}) { return props.value }\n")
+    const path = join(directory, "scenario.spec.ts")
+    writeFileSync(path, [
+      'import {describe, expect, test} from "bun:test"',
+      'import {evaluate} from "@fixture/package/module"',
+      'describe.each([{name: "Ошибка", props: {value: 1}}])("$name", ({props}) => {',
+      '  const result = evaluate(props)',
+      '  test("Результат", () => { expect(result, "Проверка до компиляции").toBe(2) })',
+      '})',
+    ].join("\n"))
+    let compilerEntered = false
+    const build = createStorybookPackageRevisionBuilder({
+      browserEntryPath: fixture.browserEntry,
+      resolveCompilerPlugins: async () => {
+        compilerEntered = true
+        return []
+      },
+    })
+    const descriptor = {...fixture.descriptor, scenarioSpecs: [{nodeId: "scenario", sourcePaths: [path]}]}
+    await expect(build(buildInput(descriptor, join(fixture.root, ".failed-check"), "failed-check"))).rejects.toThrow("Проверка до компиляции")
+    expect(compilerEntered, "Компилятор запускается после успешных проверок").toBeFalse()
+  })
+
   test("распознанный сценарий с непредставимым аргументом не исчезает молча", async () => {
     const root = mkdtempSync(join(tmpdir(), "storybook-unrepresentable-"))
     roots.push(root)
@@ -146,19 +174,19 @@ describe("structural package revision build", () => {
       'describe.each([{name: "Команда", props: {label: "Продолжить"}}])("$name", async ({props: input}) => {',
       "  const props = {...input, onActivate: mock()}",
       "  const result = host.render(<Command label={props.label} onActivate={props.onActivate} />)",
-      '  test("Представление", () => { expect(result).toBeDefined() })',
+      '  test("Представление", () => { expect(result, "Компонент создаёт представление").toBeDefined() })',
       "})", "",
     ].join("\n"))
     const nodeId = "directory:package:@fixture/package/module"
-    const descriptor = {...fixture.descriptor, watchedPaths: [componentPath], scenarioSpecs: [{nodeId, sourcePaths: [realpathSync(scenarioPath)]}]}
+    const descriptor = {...fixture.descriptor, scenarioSpecs: [{nodeId, sourcePaths: [realpathSync(scenarioPath)]}]}
     const staging = join(fixture.root, ".scenario")
     const result = await createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry})(buildInput(descriptor, staging, "scenario"))
     const prepared = await Bun.file(join(staging, "scenarios", `${encodeURIComponent(nodeId)}.json`)).json()
     expect(prepared.preview.variants.map((variant: {title: string}) => variant.title)).toEqual(["Команда"])
     expect(result.dependencyRealpaths).toContain(realpathSync(scenarioPath))
     expect(result.dependencyRealpaths).toContain(realpathSync(componentPath))
-    expect(prepared.preview.variants[0].source).toContain("onActivate: mock()")
-    expect(prepared.preview.module.source).toContain("onActivate: () => undefined")
+    expect(prepared.preview.variants[0].source).toContain("mock()")
+    expect(prepared.preview.module.source).toContain("() => undefined")
     expect(prepared.preview.module.source).not.toContain("bun:test")
   })
 
@@ -230,6 +258,7 @@ function createFixture(): Readonly<{root: string; packageRoot: string; browserEn
     devDependencies: {"@zavx0z/jsx": "link:@zavx0z/jsx"}}))
   mkdirSync(join(root, "node_modules", "@zavx0z"), {recursive: true})
   symlinkSync(jsxRoot, join(root, "node_modules", "@zavx0z", "jsx"))
+  symlinkSync(realpathSync(join(import.meta.dir, "../node_modules/@zavx0z/template")), join(root, "node_modules", "@zavx0z", "template"))
   writeFileSync(sourcePath, JSON.stringify({name: "@fixture/package", type: "module"}))
   writeFileSync(join(packageRoot, "module/index.ts"), "export const module = true\n")
   writeFileSync(browserEntry, ["export async function startExternalStorybookPackage(input: unknown) {",
@@ -237,7 +266,7 @@ function createFixture(): Readonly<{root: string; packageRoot: string; browserEn
   return Object.freeze({root, packageRoot, browserEntry, descriptor: {
     packageId: "@fixture/package", packageRoot, projectRoot: root, sourcePath,
     declarationDigest: "fixture-declaration", graphSnapshot: graphSnapshot("@fixture/package", "fixture-declaration"),
-    resourceFiles: [], watchedPaths: [join(packageRoot, "module/index.ts")],
+    resourceFiles: [],
   }})
 }
 

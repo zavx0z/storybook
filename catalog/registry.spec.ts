@@ -30,7 +30,7 @@ describe("Источник нормализованного каталога", (
       .toEqual({path: join(root, "identity"), pointer: ""})
     const descriptor = registry.packageDescriptors()[0]!
     expect(descriptor.sourcePath).toBe(join(root, "package.json"))
-    expect(descriptor.watchPaths).toContainEqual({path: join(root, "identity/index.ts"), category: "declaration"})
+    expect(descriptor.resourceFiles?.map(file => file.sourcePath)).toContain(join(root, "identity/index.ts"))
     expect(descriptor.graphSnapshot.nodes.map(node => node.kind)).toEqual(["package", "directory"])
   })
 

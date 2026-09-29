@@ -29,7 +29,7 @@ test.each(["index.ts", "index.tsx"])("категории и привязка п�
     "numeric", "numeric/number", "numeric/slider",
   ])
   expect(found.directories[0]?.moduleDocumentation?.markdown, "Реэкспорты не меняют роль категории").toBe("Числовые параметры.")
-  expect(found.watchPaths.some(file => file.includes("/shared/hidden")), "Служебный shared не обходится").toBeFalse()
+  expect(found.inputs.some(file => file.includes("/shared/hidden")), "Служебный shared не обходится").toBeFalse()
   const graph = createExternalStorybookGraph(await discoverStorybookPackages([root]))
   const rows = deriveExternalStorybookNavigationTree(graph).filter(row =>
     row.id !== "package:@fixture/parameters" &&

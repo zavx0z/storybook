@@ -29,7 +29,7 @@ export async function readRouteDirectories({
   const rootPath = await readExactDirectory(root)
   const parentPath = await readExactDirectory(parent)
   if (rootPath === null || parentPath === null || !isContained(rootPath, parentPath)) {
-    return {directories: [], watchPaths: []}
+    return {directories: [], inputs: []}
   }
 
   const candidates = await readDirectoryCandidates(parentPath, name, packagePaths)
@@ -43,8 +43,8 @@ export async function readRouteDirectories({
     ...(repository === undefined ? {} : {repository}),
   })
   const ignored = new Set(ignoredResult.ignored)
-  const watchPaths = new Set([
-    ...ignoredResult.watchPaths,
+  const inputs = new Set([
+    ...ignoredResult.inputs,
     parentPath,
     resolve(parentPath, ".gitignore"),
   ])
@@ -61,7 +61,7 @@ export async function readRouteDirectories({
     const canonical = await realpath(path).catch(() => null)
     if (canonical !== path || !isContained(rootPath, canonical)) continue
     const packageJson = resolve(path, "package.json")
-    watchPaths.add(packageJson)
+    inputs.add(packageJson)
     if (await pathExists(packageJson)) continue
 
     for (const watched of [
@@ -70,7 +70,7 @@ export async function readRouteDirectories({
       resolve(path, "index.tsx"),
       resolve(path, "index.ts"),
       resolve(path, "src"),
-    ]) watchPaths.add(watched)
+    ]) inputs.add(watched)
     const shape = await readDirectoryShape(path, ignored)
     result.push({
       name: candidate.name,
@@ -78,5 +78,5 @@ export async function readRouteDirectories({
       ...shape,
     })
   }
-  return {directories: result, watchPaths: [...watchPaths]}
+  return {directories: result, inputs: [...inputs]}
 }

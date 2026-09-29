@@ -54,7 +54,7 @@ export async function discoverStorybookPackages(
       names.set(name, root)
       const label = data.label === undefined ? name : data.label
       if (typeof label !== "string" || label.trim().length === 0) throw new Error(`Invalid package label: ${path}`)
-      const workspace = data.workspaces === undefined ? {roots: [], watchPaths: [root]} : await readWorkspacePackages({root, value: data.workspaces})
+      const workspace = data.workspaces === undefined ? {roots: [], inputs: [root]} : await readWorkspacePackages({root, value: data.workspaces})
       let entry: StorybookPackage = Object.freeze({
         schemaVersion: EXTERNAL_STORYBOOK_SCHEMA_VERSION,
         kind: "package", id: name, canonicalId: `package:${name}`, label,
@@ -62,7 +62,7 @@ export async function discoverStorybookPackages(
         source: Object.freeze({path, pointer: ""}), scopeRoot: root,
         digest: createHash("sha256").update(source).digest("hex"),
         packageJsonPath: path, packageName: name,
-        structurePaths: Object.freeze([path, ...workspace.watchPaths]),
+        structurePaths: Object.freeze([path, ...workspace.inputs]),
       })
       scopes.set(root, entry)
       const children: string[] = []
@@ -141,7 +141,7 @@ export async function discoverStorybookPackages(
     try {
       const found = await discoverStorybookDirectories(root, packageRoots, options.onAnalysisSession)
       scopes.set(root, Object.freeze({...scope, ...found.rootMetadata, directories: found.directories,
-        structurePaths: Object.freeze([...new Set([...(scope.structurePaths ?? []), ...found.watchPaths])]),
+        structurePaths: Object.freeze([...new Set([...(scope.structurePaths ?? []), ...found.inputs])]),
       }))
     } catch (error) {
       if (previous === undefined) throw error

@@ -17,7 +17,7 @@ export const STORYBOOK_BUILD_RECENT_LIMIT = 32
 /** Минимальный интервал между системными process snapshots в миллисекундах. */
 export const STORYBOOK_RESOURCE_SAMPLE_THROTTLE_MS = 1_000
 
-export type StorybookBuildOwner = "open" | "check" | "watch" | "subscribe" | "startup-validation" | "shared"
+export type StorybookBuildOwner = "open" | "check" | "subscribe" | "startup-validation" | "shared"
 export type StorybookBuildReason =
   | "missing" | "input-changed" | "receipt-unverified" | "explicit-retry" | "toolchain-changed"
 export type StorybookBuildPhase = StorybookCompilerBuildPhase | "discovery" | "admission" | "publish"
@@ -532,7 +532,7 @@ function normalizeRequest(request: StorybookBuildRequest) {
   if (request.packageId !== null && (typeof request.packageId !== "string" || request.packageId.trim().length === 0)) {
     throw new Error(`Invalid Storybook build package id: ${String(request.packageId)}`)
   }
-  if (!["open", "check", "watch", "subscribe", "startup-validation", "shared"].includes(request.owner)) {
+  if (!["open", "check", "subscribe", "startup-validation", "shared"].includes(request.owner)) {
     throw new Error(`Invalid Storybook build owner: ${String(request.owner)}`)
   }
   if (!["missing", "input-changed", "receipt-unverified", "explicit-retry", "toolchain-changed"].includes(request.reason)) {

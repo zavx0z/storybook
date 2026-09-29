@@ -39,7 +39,7 @@ test("[SCENARIOS-ROUTE] structural spec creates one view in graph, client model 
   expect(revision.routes.find(item => item.path === route.path)).toMatchObject({nodeId: route.nodeId, kind: "scenarios"})
   const descriptor = externalStorybookPackageDescriptors(catalog, graph)[0]!
   expect(descriptor.scenarioSpecs).toContainEqual({nodeId: route.nodeId, sourcePaths: [scenarioPath]})
-  expect(descriptor.watchPaths).toContainEqual({path: scenarioPath, category: "declaration"})
+  expect(descriptor.scenarioSpecs?.flatMap(spec => spec.sourcePaths)).toContain(scenarioPath)
 })
 
 test("[SCENARIOS-ABSENT] removing the spec removes only the scenarios view", async () => {

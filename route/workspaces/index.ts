@@ -31,7 +31,7 @@ export async function readWorkspacePackages({root, value}: ReadWorkspacePackages
   const exclusions = patterns.filter(pattern => pattern.startsWith("!"))
     .map(pattern => new Glob(pattern.slice(1)))
   const roots = new Set<string>()
-  const watchPaths = new Set([root])
+  const inputs = new Set([root])
   const admitted = (path: string) => !path.split("/").some(part => part === "node_modules" || part === ".git") &&
     !exclusions.some(pattern => pattern.match(path) || pattern.match(`${path}/`))
   for (const pattern of patterns.filter(pattern => !pattern.startsWith("!"))) {
@@ -43,7 +43,7 @@ export async function readWorkspacePackages({root, value}: ReadWorkspacePackages
         const absolute = resolve(root, path)
         const info = await lstat(absolute)
         if (info.isSymbolicLink()) throw new Error(`Workspace directory must not be a symlink: ${absolute}`)
-        if (info.isDirectory()) watchPaths.add(absolute)
+        if (info.isDirectory()) inputs.add(absolute)
       }
     }
     const matches: string[] = []
@@ -59,7 +59,7 @@ export async function readWorkspacePackages({root, value}: ReadWorkspacePackages
         throw new Error(`Workspace package must be strictly inside the project: ${absolute}`)
       }
       const metadata = join(canonical, "package.json")
-      watchPaths.add(metadata)
+      inputs.add(metadata)
       const file = await lstat(metadata).catch(error => {
         if (error.code !== "ENOENT") throw error
         return null
@@ -71,8 +71,8 @@ export async function readWorkspacePackages({root, value}: ReadWorkspacePackages
     // Pattern order is authored; matches within one pattern have stable path order.
     for (const path of matches.sort()) {
       roots.add(path)
-      watchPaths.add(dirname(path))
+      inputs.add(dirname(path))
     }
   }
-  return Object.freeze({roots: Object.freeze([...roots]), watchPaths: Object.freeze([...watchPaths].sort())})
+  return Object.freeze({roots: Object.freeze([...roots]), inputs: Object.freeze([...inputs].sort())})
 }

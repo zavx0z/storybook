@@ -12,7 +12,7 @@ import {
   resolveStorybookPackageBuildInputFingerprintPlan,
   resolveStorybookSharedBuildInputFingerprintPlan,
   sameStorybookBuildInputFingerprint,
-  storybookBuildInputFingerprintWatchPaths,
+  storybookBuildInputPaths,
 } from "./build-input-fingerprint.ts"
 import {createStorybookBuildInputFingerprintVerifier} from "./package-build.ts"
 import type {StorybookPackageBuildDescriptor} from "../sessions/package-session.ts"
@@ -37,13 +37,19 @@ describe("Storybook build input fingerprint", () => {
     const baseline = compute(request)
     const unchanged = compute(request)
     const packagePlan = resolveStorybookPackageBuildInputFingerprintPlan(request)
-    const watchPaths = storybookBuildInputFingerprintWatchPaths(baseline)
+    const inputs = storybookBuildInputPaths(baseline)
 
     expect(sameStorybookBuildInputFingerprint(baseline, unchanged)).toBeTrue()
     expect(computeStorybookBuildInputFingerprintPlan(packagePlan).digest).toBe(baseline.digest)
     expect(baseline.protocol).toBe(STORYBOOK_BUILD_INPUT_FINGERPRINT_PROTOCOL)
     expect(baseline.files.map(({path}) => path)).toContain(realpathSync(fixture.externalDependency))
-    expect(watchPaths).toContain(realpathSync(fixture.nestedDirectory))
+    expect(inputs).toContain(realpathSync(fixture.nestedDirectory))
+    const empty = join(fixture.nestedDirectory, "empty")
+    mkdirSync(empty)
+    expect(compute(request).digest, "Пустая директория не меняет входы компиляции").toBe(baseline.digest)
+    rmSync(empty, {recursive: true})
+    expect(compute(request).digest).toBe(baseline.digest)
+
 
     writeFileSync(fixture.module, "export const module = {changed: true}\n")
     expect(compute(request).digest).not.toBe(baseline.digest)
@@ -91,7 +97,7 @@ describe("Storybook build input fingerprint", () => {
     expect(verify(evidence, fixture.descriptor)?.digest).toBe(evidence.digest)
     expect(verify({...evidence, protocol: "storybook-build-input/0"}, fixture.descriptor)).toBeNull()
     expect(parseStorybookBuildInputFingerprint({...evidence, digest: "0".repeat(64)})).toBeNull()
-    expect(storybookBuildInputFingerprintWatchPaths({...evidence, watchDirectories: undefined})).toBeNull()
+    expect(storybookBuildInputPaths({...evidence, directories: undefined})).toBeNull()
 
     writeFileSync(fixture.module, "export const module = {mismatch: true}\n")
     expect(verify(evidence, fixture.descriptor)).toBeNull()
@@ -236,7 +242,6 @@ function createFixture(): Readonly<{
     },
     resourceFiles: [],
     scenarioSpecs: [{nodeId: "directory:package:@fixture/fingerprint/module", sourcePaths: [module]}],
-    watchedPaths: [module],
   } as unknown as StorybookPackageBuildDescriptor
   return Object.freeze({
     root,
@@ -353,7 +358,6 @@ function createHoistedDependencyFixture(): Readonly<{
       packageGraphDigest: "nested-graph",
     },
     resourceFiles: [],
-    watchedPaths: [module],
   } as unknown as StorybookPackageBuildDescriptor
   return Object.freeze({
     dependencyRoot,

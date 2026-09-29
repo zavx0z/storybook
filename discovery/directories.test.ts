@@ -24,13 +24,13 @@ test("finds ordinary and empty directories, skips src and keeps packages as sepa
   expect(result.directories.map(directory => directory.name)).toEqual(["build", "docs", "empty", "packages"])
   const docs = result.directories.find(directory => directory.name === "docs")!
   expect(docs.moduleDocumentation?.markdown).toBe("# Module documentation")
-  expect(result.watchPaths).toContain(join(root, "docs/index.ts"))
-  expect(result.watchPaths).not.toContain(join(root, "docs/README.md"))
+  expect(result.inputs).toContain(join(root, "docs/index.ts"))
+  expect(result.inputs).not.toContain(join(root, "docs/README.md"))
   expect(result.directories.some(directory => directory.relativePath.includes("/"))).toBeFalse()
-  expect(result.watchPaths).not.toContain(join(root, "docs/guide"))
+  expect(result.inputs).not.toContain(join(root, "docs/guide"))
   expect((await discoverStorybookDirectories(join(root, "docs"), new Set())).directories.map(directory => directory.name)).toEqual(["guide"])
-  expect(result.watchPaths).toContain(join(root, "empty"))
-  expect(result.watchPaths).not.toContain(join(root, "packages/tool"))
+  expect(result.inputs).toContain(join(root, "empty"))
+  expect(result.inputs).not.toContain(join(root, "packages/tool"))
 })
 
 test("types следует обычным границам каталогов, модулей и shared", async () => {
@@ -47,7 +47,7 @@ test("types следует обычным границам каталогов, �
     ["protocol", "protocol"], ["protocol/types", "protocol/types"],
     ["types", "types"], ["types/private", "types/private"],
   ])
-  expect(found.watchPaths).toContain(join(root, "types/src"))
+  expect(found.inputs).toContain(join(root, "types/src"))
   await rm(join(root, "protocol/types/src"), {recursive: true})
   expect((await read()).directories.map(dir => dir.relativePath)).toEqual([
     "protocol", "protocol/types", "types", "types/private",
@@ -87,9 +87,9 @@ test("корень читает приоритетный index.tsx и наблю
   const preferred = await read()
   expect(preferred.rootMetadata.moduleDocumentation?.markdown).toBe("Описание TSX")
   expect(preferred.rootMetadata.moduleDocumentation?.sourcePath).toBe(tsx)
-  expect(preferred.watchPaths).toContain(ts)
-  expect(preferred.watchPaths).toContain(tsx)
-  expect(preferred.watchPaths).not.toContain(join(root, "README.md"))
+  expect(preferred.inputs).toContain(ts)
+  expect(preferred.inputs).toContain(tsx)
+  expect(preferred.inputs).not.toContain(join(root, "README.md"))
   await Bun.write(join(root, ".gitignore"), "index.tsx\n")
   expect((await read()).rootMetadata.moduleDocumentation?.markdown).toBe("Описание TS")
   await rm(ts)
@@ -111,9 +111,9 @@ test("index.tsx завершает обход без src и владеет об�
   ])
   expect(found.directories[1]?.moduleDocumentation?.markdown).toBe("Компонент")
   expect(found.directories[1]?.moduleDocumentation?.sourcePath).toBe(entry)
-  expect(found.watchPaths).toContain(entry)
-  expect(found.watchPaths).toContain(join(root, "group/index.tsx"))
-  expect(found.watchPaths).not.toContain(join(root, "group/component/internal"))
+  expect(found.inputs).toContain(entry)
+  expect(found.inputs).toContain(join(root, "group/index.tsx"))
+  expect(found.inputs).not.toContain(join(root, "group/component/internal"))
   await Bun.write(entry, 'export function Component() { return <div /> }')
   const undocumented = (await discoverStorybookDirectories(root, new Set())).directories[1]!
   expect(undocumented.relativePath).toBe("group/component")
@@ -138,7 +138,7 @@ test("uses Git ignore precedence, negation, nested files and ignored tracked dir
   const result = await discoverStorybookDirectories(root, new Set())
   expect(result.directories.map(directory => directory.relativePath)).toEqual(["build", "docs", "docs/guide", "docs/guide/public", "visible space"])
   expect((await discoverStorybookDirectories(join(root, "docs"), new Set())).directories.map(directory => directory.name)).toEqual(["guide", "public"])
-  expect(result.watchPaths).toContain(join(root, "docs/guide/.gitignore"))
+  expect(result.inputs).toContain(join(root, "docs/guide/.gitignore"))
   expect((await discoverStorybookDirectories(join(root, "docs/guide"), new Set())).directories.map(directory => directory.name)).toEqual(["public"])
   await Bun.write(join(root, "docs/guide/.gitignore"), "public/\n")
   expect((await discoverStorybookDirectories(join(root, "docs/guide"), new Set())).directories.map(directory => directory.name)).toEqual(["private"])

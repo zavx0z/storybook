@@ -11,11 +11,10 @@ import {proxyContent, errorContent} from "../mcp/server/src/response"
 import {StorybookDirectorySelection} from "./directory-selection.ts"
 import {createCatalogRefresh} from "./catalog-refresh.ts"
 import {
-  StorybookAutomaticActivationCoordinator,
   assertStorybookActivationEvidence,
   isStorybookNavigationSupersededError,
-  type StorybookAutomaticActivationCandidate,
-} from "./automatic-activation.ts"
+  type StorybookActivationCandidate,
+} from "./activation.ts"
 import {preparingHtmlResponse} from "./preparing-html.ts"
 import {
   resolveStorybookPackagePageTarget,
@@ -46,7 +45,6 @@ import {basename, dirname, extname, isAbsolute, join, relative, resolve, sep} fr
 import {fileURLToPath} from "node:url"
 import {createExternalStorybookClientSnapshot} from "../runtime/client-protocol.ts"
 import {STORYBOOK_FONT_FACES} from "../runtime/font-faces.ts"
-import {StorybookDependencyWatchCoordinator, StorybookDirtyRefreshCoordinator} from "../sessions/dependency-watch.ts"
 import {assertExternalStorybookStartLease, externalStorybookArtifactRoot, createExternalStorybookServerRecord, externalStorybookServerStatePath, readExternalStorybookServerRecord, writeExternalStorybookServerRecord, writeExternalStorybookStartCandidate, type ExternalStorybookServerRecord} from "./server-state.ts"
 import {ExternalStorybookRegistry, type ExternalStorybookRegistrySnapshot} from "../catalog/registry.ts"
 import {discoverStorybookPackages} from "../discovery/packages.ts"
@@ -138,7 +136,6 @@ export type ExternalStorybookRunningServer = Readonly<{
   record: ExternalStorybookServerRecord
   registry: ExternalStorybookRegistry
   sessions: ExternalStorybookSessionManager
-  watch: StorybookDependencyWatchCoordinator
   browserLifecycle: StorybookBrowserLifecycle
   server: Bun.Server<StorybookWebSocketData>
   stopped: Promise<void>
@@ -172,7 +169,6 @@ export async function startExternalStorybookServer(
       snapshot.catalog.scopes.find(scope => scope.canonicalId === entry.canonicalId)!.scopeRoot))
   }
   const clients = new Set<Bun.ServerWebSocket<StorybookWebSocketData>>()
-  const watch = new StorybookDependencyWatchCoordinator()
   let serverRecord!: ExternalStorybookServerRecord
   let serverRecordCreated = false
   let stoppedResolve: () => void
@@ -184,14 +180,14 @@ export async function startExternalStorybookServer(
   let closePromise: Promise<void> | null = null
   const sharedAssetRoot = join(artifactRoot, "shared")
   const usesSharedKernel = options.packageBrowserEntryPath === undefined
-  const restoredSharedAssets = usesSharedKernel ? readSharedBrowserReceipt({
+  const restoredSharedAssets = readSharedBrowserReceipt({
     root: sharedAssetRoot,
     toolRoot,
     landingEntryPath: options.landingEntryPath ?? fileURLToPath(new URL("../runtime/browser-entry.ts", import.meta.url)),
     fallbackEntryPath: options.fallbackEntryPath ?? fileURLToPath(new URL("../runtime/browser-entry.ts", import.meta.url)),
     stagingDirectory: join(sharedAssetRoot, ".receipt-check"),
-  }) : null
-  let preparedSharedIdentity: StorybookSharedBrowserIdentity | undefined = restoredSharedAssets?.browserIdentity
+  }, false)
+  let preparedSharedIdentity: StorybookSharedBrowserIdentity | undefined = usesSharedKernel ? restoredSharedAssets?.browserIdentity : undefined
   let verifyPackageInputs = createStorybookBuildInputFingerprintVerifier({
     ...(options.packageBrowserEntryPath === undefined ? {} : {browserEntryPath: options.packageBrowserEntryPath}),
     ...(preparedSharedIdentity === undefined ? {} : {sharedBrowserIdentity: preparedSharedIdentity}),
@@ -199,28 +195,8 @@ export async function startExternalStorybookServer(
   const browserSessions = new StorybookBrowserSessionRegistry()
   const directorySelections = new StorybookDirectorySelection()
   const eventHub = new StorybookEventHub<StorybookPackageEvent | RegistryEvent>()
-  const automaticCandidates = new Map<string, string>()
-  const buildIntents = new Map<string, Readonly<{
-    operationId: string
-    generation: number | null
-    owner: StorybookBuildTransition["owner"]
-  }>>()
-  let automaticActivation: StorybookAutomaticActivationCoordinator | null = null
-
   const publish = (event: StorybookPackageEvent | RegistryEvent): number => {
     eventHub.publish(event)
-    if (event.type === "package.built") {
-      const snapshot = sessions.session(event.packageId).snapshot()
-      const intent = buildIntents.get(event.packageId)
-      if (intent !== undefined && intent.generation !== null && intent.generation === snapshot.generation &&
-        (intent.owner === "watch" || intent.owner === "subscribe")) {
-        automaticCandidates.set(event.packageId, event.revision)
-        if (snapshot.subscribers > 0) {
-          automaticActivation?.request({packageId: event.packageId, revision: event.revision})
-        }
-      }
-      buildIntents.delete(event.packageId)
-    }
     const browserEvent = event.type === "package.failed"
       ? sanitizePackageFailure(event, registry, () => sessions.snapshots())
       : event
@@ -249,11 +225,12 @@ export async function startExternalStorybookServer(
   @throws Если общая сборка не предоставила проверенную module identity или ожидание отменено.
   */
   const prepareSharedIdentity = async (signal: AbortSignal): Promise<void> => {
+    signal.throwIfAborted()
+    const assets = await sharedAssets.ensure()
+    sharedBuildError = null
     if (!usesSharedKernel) return
     signal.throwIfAborted()
-    const assets = await ensureSharedAssets()
-    signal.throwIfAborted()
-    if (assets.browserIdentity === undefined || sharedBuildError !== null) {
+    if (assets.browserIdentity === undefined) {
       throw new Error("Shared browser dependencies are not ready for a new package build")
     }
     if (preparedSharedIdentity !== assets.browserIdentity) {
@@ -276,34 +253,12 @@ export async function startExternalStorybookServer(
         ? {}
         : {browserEntryPath: options.packageBrowserEntryPath}),
     }),
-    watch,
     publish,
   })
   sessions.sync(registry.packageDescriptors(), declarationFailures(registry.snapshot()))
   const unsubscribeBuildProgress = sessions.buildScheduler.subscribe(event => {
-    if (event.packageId !== null && (event.state !== "completed" || event.outcome === "completed")) {
-      buildIntents.set(event.packageId, {
-        operationId: event.operationId,
-        generation: event.generation,
-        owner: event.owner,
-      })
-    }
     publish(Object.freeze({type: "build.progress", ...event}))
-    if (event.state === "completed" && event.outcome !== "completed" && event.packageId !== null &&
-      buildIntents.get(event.packageId)?.operationId === event.operationId) {
-      buildIntents.delete(event.packageId)
-    }
   })
-
-  const refreshStructuralWatch = (): void => {
-    const snapshot = registry.snapshot()
-    directorySelections.remember(snapshot.catalog.scopes.map(scope => scope.scopeRoot))
-    watch.replace("__registry__", externalStorybookStructuralWatchPaths(snapshot), path => {
-      registry.markDirty(path)
-      void structuralRefresh.request()
-    })
-
-  }
 
   const commitRegistry = (snapshot: ExternalStorybookRegistrySnapshot): void => {
     const nextRecord = Object.freeze({
@@ -311,7 +266,7 @@ export async function startExternalStorybookServer(
       attachedDeclarations: Object.freeze(snapshot.entries.map(({declarationPath}) => declarationPath)),
     })
     writeServerRecord(statePath, nextRecord)
-    refreshStructuralWatch()
+    directorySelections.remember(snapshot.catalog.scopes.map(scope => scope.scopeRoot))
     sessions.sync(registry.packageDescriptors(), declarationFailures(registry.snapshot()))
     saveSelection(snapshot)
     serverRecord = nextRecord
@@ -336,7 +291,6 @@ export async function startExternalStorybookServer(
         registry.restore(before)
         try {
           writeServerRecord(statePath, beforeRecord)
-          refreshStructuralWatch()
           sessions.sync(registry.packageDescriptors(), declarationFailures(registry.snapshot()))
           saveSelection(before)
           serverRecord = beforeRecord
@@ -394,9 +348,8 @@ export async function startExternalStorybookServer(
     const packageNode = graph.nodes.find((node) =>
       node.kind === "package" && node.packageId === input.packageId)
     if (packageNode === undefined) throw new Error(`Unknown Storybook package: ${input.packageId}`)
-    await prepareSharedIdentity(signal)
-    sessions.revalidateInputs(input.packageId)
-    const packageState = await sessions.ensure(input.packageId, {owner: "open"})
+    const packageState = sessions.session(input.packageId).snapshot()
+    if (!packageState.builtRevision && !packageState.activeRevision) throw new Error("Пакет ещё не собран. Выполните storybook_check для этого пакета.")
     const expectedRevision = packageState.builtRevision ?? packageState.activeRevision ?? undefined
     const selectedRoute = expectedRevision === undefined ? resolvedRoute :
       sessions.session(input.packageId).revisionGraphSnapshot(expectedRevision)?.routes.find(route => route.nodeId === resolvedRoute.nodeId && route.kind === resolvedRoute.kind) ?? resolvedRoute
@@ -450,28 +403,9 @@ export async function startExternalStorybookServer(
     })
   }
 
-  const refreshRegistry = async (): Promise<void> => {
-    try {
-      await refreshCatalog()
-    } catch (error) {
-      publish(Object.freeze({
-        type: "registry.failed",
-        message: errorText(error),
-      }))
-    }
-  }
-  const structuralRefresh = new StorybookDirtyRefreshCoordinator(refreshRegistry)
-
-  /** Удаляет eligibility только если она всё ещё относится к exact обработанной revision. */
-  const forgetAutomaticCandidate = (candidate: StorybookAutomaticActivationCandidate): void => {
-    if (automaticCandidates.get(candidate.packageId) === candidate.revision) {
-      automaticCandidates.delete(candidate.packageId)
-    }
-  }
-
   /** Проверяет exact opened candidate через agent bridge и только затем подтверждает activation lease. */
   const verifyAndMaybeApplyOpenedCandidate = async (
-    candidate: StorybookAutomaticActivationCandidate,
+    candidate: StorybookActivationCandidate,
     route: string,
     opened: Readonly<Record<string, unknown>>,
     signal: AbortSignal,
@@ -483,7 +417,7 @@ export async function startExternalStorybookServer(
     if (opened.ok !== true || opened.packageId !== candidate.packageId || opened.route !== route ||
       opened.revision !== candidate.revision || opened.graphDigest !== revisionGraph.packageGraphDigest ||
       opened.ready !== true || opened.presented !== true || Number(opened.frameSequence) < 1) {
-      throw new Error(`Package candidate did not open with exact automatic identity: ${candidate.packageId}`)
+      throw new Error(`Package candidate did not open with exact identity: ${candidate.packageId}`)
     }
     const viewId = String(opened.viewId)
     const inspected = await browserLifecycle.inspect(
@@ -501,7 +435,7 @@ export async function startExternalStorybookServer(
     signal.throwIfAborted()
     if (!apply) return
     if (session.snapshot().builtRevision !== candidate.revision) {
-      throw new Error(`Storybook automatic activation candidate became stale: ${candidate.packageId}`)
+      throw new Error(`Storybook activation candidate became stale: ${candidate.packageId}`)
     }
     const activation = session.beginActivation({revision: candidate.revision, viewId, route})
     try {
@@ -517,112 +451,9 @@ export async function startExternalStorybookServer(
     }
   }
 
-  /** Проверяет candidate в уже открытой exact package page и применяет её атомарно. */
-  const applyAutomaticCandidate = async (
-    candidate: StorybookAutomaticActivationCandidate,
-    signal: AbortSignal,
-  ): Promise<"applied" | "deferred" | "stale"> => {
-    const session = sessions.session(candidate.packageId)
-    if (session.snapshot().builtRevision !== candidate.revision) {
-      forgetAutomaticCandidate(candidate)
-      return "stale"
-    }
-    const revisionGraph = session.revisionGraphSnapshot(candidate.revision)
-    if (revisionGraph === null) {
-      forgetAutomaticCandidate(candidate)
-      return "stale"
-    }
-    const packages = registry.snapshot().graph.nodes.flatMap(node =>
-      node.kind === "package" && node.packageId !== null
-        ? [{packageId: node.packageId, label: externalStorybookPageTitle(node.packageId, node.label)}]
-        : [])
-    const candidates = await browserLifecycle.listViews(
-      server.url.origin,
-      signal,
-      packages,
-      candidate.packageId,
-    )
-    const eligible: Array<{view: typeof candidates[number], loaded: boolean}> = []
-    for (const view of candidates) {
-      if (view.packageId !== candidate.packageId) continue
-      try {
-        const state = await browserLifecycle.inspect(view.viewId, {include: ["state"]}, signal)
-        if (state.preview === true || state.packageId !== candidate.packageId) continue
-        eligible.push({view, loaded: state.revision === candidate.revision && state.ready === true && state.presented === true})
-      } catch (error) {
-        if (!isStorybookNavigationSupersededError(error)) throw error
-      }
-    }
-    if (eligible.length === 0) return "deferred"
-    eligible.sort((left, right) => Number(right.loaded) - Number(left.loaded))
-    if (browserLifecycle.applyRevision === undefined) {
-      throw new Error("Storybook page does not support in-page revision application")
-    }
-    let incompatible: unknown
-    for (const {view: existing} of eligible) {
-      const currentRoute = storybookCurrentRouteKey(existing.route)
-      const selectedRoute = revisionGraph.routes.find(route => route.path === currentRoute) ??
-        revisionGraph.routes.find(route => route.path === "")
-      if (selectedRoute === undefined) {
-        throw new Error(`Storybook revision has no package root route: ${candidate.packageId}:${candidate.revision}`)
-      }
-      let updated: Readonly<Record<string, unknown>>
-      try {
-        updated = await browserLifecycle.applyRevision(existing.viewId, candidate.revision, signal)
-      } catch (error) {
-        if (isStorybookNavigationSupersededError(error)) continue
-        if (!errorText(error).includes("page restart is required") && !errorText(error).includes("does not support in-page")) throw error
-        incompatible = error
-        continue
-      }
-      const opened = Object.freeze({...updated, ok: true, viewId: existing.viewId})
-      try {
-        await verifyAndMaybeApplyOpenedCandidate(candidate, selectedRoute.path, opened, signal, true)
-      } catch (error) {
-        if (isStorybookNavigationSupersededError(error)) continue
-        throw error
-      }
-      forgetAutomaticCandidate(candidate)
-      return "applied"
-    }
-    if (incompatible !== undefined) throw incompatible
-    return "deferred"
-  }
-
-  /** Сохраняет lastWorking и фиксирует scoped activation diagnostic только для всё ещё current candidate. */
-  const failAutomaticCandidate = (
-    candidate: StorybookAutomaticActivationCandidate,
-    error: unknown,
-  ): void => {
-    const session = sessions.session(candidate.packageId)
-    const snapshot = session.snapshot()
-    forgetAutomaticCandidate(candidate)
-    if (snapshot.builtRevision !== candidate.revision) return
-    if (isStorybookNavigationSupersededError(error)) return
-    if (errorText(error).includes("page restart is required") || errorText(error).includes("does not support in-page")) {
-      publish({type: "package.restart-required", packageId: candidate.packageId, revision: candidate.revision})
-      return
-    }
-    try {
-      const current = session.beginActivation({revision: candidate.revision, viewId: "automatic-apply", route: ""})
-      session.failActivation({
-        ...current,
-        diagnostic: storybookDiagnostic("activation", errorText(error)),
-      })
-    } catch (failure) {
-      console.error(`Storybook automatic activation failure could not be recorded for ${candidate.packageId}`, failure)
-    }
-  }
-
-  automaticActivation = new StorybookAutomaticActivationCoordinator({
-    apply: applyAutomaticCandidate,
-    failed: failAutomaticCandidate,
-  })
-
   let hasSharedBuild = false
   const sharedAssets = new StorybookSharedBrowserAssets({
     ...(restoredSharedAssets === null ? {} : {initial: restoredSharedAssets}),
-    watch,
     build: signal => sessions.buildScheduler.run({
       packageId: null,
       owner: "shared",
@@ -644,7 +475,6 @@ export async function startExternalStorybookServer(
       sharedBuildError = null
       return result
     }, signal),
-    subscribed: () => [...clients].some(client => client.data.subscriptions.has("registry")),
     cacheProgress: event => publish(Object.freeze({type: "shared.cache-progress", ...event})),
     updated: assets => publish(Object.freeze({type: "shared.updated", entry: assets.landingEntry})),
     failed: error => {
@@ -652,7 +482,7 @@ export async function startExternalStorybookServer(
       publish(Object.freeze({type: "shared.failed", message: sharedBuildError.message}))
     },
   })
-  const ensureSharedAssets = (): Promise<SharedBrowserAssets> => sharedAssets.ensure()
+  const readSharedAssets = (): SharedBrowserAssets => sharedAssets.current()
 
 
   const mcpRequests = createMcpRequestJournal()
@@ -785,7 +615,6 @@ export async function startExternalStorybookServer(
             declarationErrors: snapshot.catalog.scopes.filter(scope => scope.resolutionError !== undefined).map(scope => ({scopeId: scope.canonicalId, message: scope.resolutionError})),
             graphDigest: snapshot.graph.digest,
             packages: packageStates,
-            dependencyWatch: watch.snapshot(),
             sharedBuildError,
             requestJournal: {entries: mcpRequests.summary(), lastWriteError: journalWriteError},
             buildScheduler: sessions.buildSchedulerSnapshot({sampleResources: true}),
@@ -945,9 +774,7 @@ export async function startExternalStorybookServer(
           request.signal.throwIfAborted()
           const session = sessions.session(packageId)
           if (preview === null) {
-            await prepareSharedIdentity(request.signal)
-            sessions.revalidateInputs(packageId)
-            await sessions.ensure(packageId, {owner: "subscribe"})
+
           }
           request.signal.throwIfAborted()
           const snapshot = session.snapshot()
@@ -1107,10 +934,8 @@ export async function startExternalStorybookServer(
             : requiredText("check scope", body.scope)
           const refreshed = await refreshCatalog(true)
           const packageIds = resolveCheckPackages(refreshed, scope)
-          if (packageIds.length > 0) await prepareSharedIdentity(request.signal)
+          if (packageIds.length > 0 || scope === null) await prepareSharedIdentity(request.signal)
           for (const packageId of packageIds) {
-            automaticCandidates.delete(packageId)
-            automaticActivation?.cancel(packageId)
             sessions.revalidateInputs(packageId)
             sessions.retryFailed(packageId)
           }
@@ -1218,8 +1043,6 @@ export async function startExternalStorybookServer(
           const route = body.route === undefined || body.route === ""
             ? ""
             : requiredText("open route", body.route)
-          automaticCandidates.delete(packageId)
-          automaticActivation?.cancel(packageId)
           return responseJson(await openPackageView({
             packageId,
             route,
@@ -1259,7 +1082,7 @@ export async function startExternalStorybookServer(
         if (request.method === "GET" && !url.pathname.startsWith("/api/") && url.pathname !== "/") {
           const publicRoute = await resolveStorybookRoute(url.pathname + url.search, registry.snapshot())
           if (publicRoute !== null) {
-            return await packagePageResponse(url, registry, sessions, ensureSharedAssets, browserSessions, server.url.origin, request.signal, prepareSharedIdentity, {
+            return await packagePageResponse(url, registry, sessions, readSharedAssets, browserSessions, server.url.origin, request.signal, {
               packageId: publicRoute.packageId,
               routePath: publicRoute.route,
             })
@@ -1267,7 +1090,7 @@ export async function startExternalStorybookServer(
         }
         if (request.method === "GET" && (url.pathname.startsWith("/packages/") || registry.snapshot().graph.nodes.some(node =>
           node.kind === "package" && storybookPackageRouteFromPathname(url.pathname, node.packageId!) !== null))) {
-          return await packagePageResponse(url, registry, sessions, ensureSharedAssets, browserSessions, server.url.origin, request.signal, prepareSharedIdentity)
+          return await packagePageResponse(url, registry, sessions, readSharedAssets, browserSessions, server.url.origin, request.signal)
         }
         if (request.method === "GET" && url.pathname.startsWith("/browse/")) {
           const segment = url.pathname.slice("/browse/".length).replace(/\/$/u, "")
@@ -1278,7 +1101,7 @@ export async function startExternalStorybookServer(
         if (request.method === "GET" && isLandingPath(registry.snapshot(), url.pathname)) {
           return preparingHtmlResponse(async () => {
           await refreshCatalog()
-          const assets = await ensureSharedAssets()
+          const assets = readSharedAssets()
           const session = browserSessions.issue({kind: "registry", packageId: null, revision: null})
           const authorStyleSheets = landingWorkbenchAuthorStyleSheets(assets)
           return storybookHtml(
@@ -1335,10 +1158,7 @@ export async function startExternalStorybookServer(
             const packageId = topic.slice("package:".length)
             const snapshot = sessions.session(packageId).snapshot()
             websocket.send(JSON.stringify({type: "package.applied-state", packageId, revision: snapshot.activeRevision ?? null}))
-            if (snapshot.builtRevision != null && !websocket.data.grant.preview) {
-              automaticCandidates.set(packageId, snapshot.builtRevision)
-              automaticActivation?.request({packageId, revision: snapshot.builtRevision})
-            }
+
           }
         } catch (error) {
           websocket.send(JSON.stringify({type: "subscription.failed", message: errorText(error)}))
@@ -1356,7 +1176,6 @@ export async function startExternalStorybookServer(
     })
   } catch (error) {
     await sessions.dispose()
-    watch.dispose()
     browserSessions.dispose()
     eventHub.close()
     stoppedResolve!()
@@ -1378,13 +1197,11 @@ export async function startExternalStorybookServer(
       await waitForStartupPublication(options.startLease, serverRecord, statePath)
     }
     serverRecordCreated = true
-    refreshStructuralWatch()
+    directorySelections.remember(registry.snapshot().catalog.scopes.map(scope => scope.scopeRoot))
     saveSelection(registry.snapshot())
     options.onStartupPhase?.("ready")
   } catch (error) {
     await sessions.dispose()
-    watch.remove("__registry__")
-    watch.dispose()
     browserSessions.dispose()
     eventHub.close()
     server.stop(true)
@@ -1399,13 +1216,10 @@ export async function startExternalStorybookServer(
     closing = true
     closePromise = (async () => {
       await runScenario.dispose()
-      await automaticActivation?.dispose()
       await sharedAssets.dispose()
       for (const client of clients) client.close(1001, "Storybook server stopped")
       clients.clear()
-      watch.remove("__registry__")
-      watch.dispose()
-      browserSessions.dispose()
+          browserSessions.dispose()
       eventHub.close()
       await sessions.dispose()
       unsubscribeBuildProgress()
@@ -1423,7 +1237,6 @@ export async function startExternalStorybookServer(
     },
     registry,
     sessions,
-    watch,
     browserLifecycle,
     server,
     stopped,
@@ -1476,11 +1289,10 @@ async function packagePageResponse(
   url: URL,
   registry: ExternalStorybookRegistry,
   sessions: ExternalStorybookSessionManager,
-  ensureSharedAssets: () => Promise<SharedBrowserAssets>,
+  readSharedAssets: () => SharedBrowserAssets,
   browserSessions: StorybookBrowserSessionRegistry,
   origin: string,
   signal: AbortSignal,
-  prepareSharedIdentity: (signal: AbortSignal) => Promise<void>,
   resolvedRoute?: Readonly<{packageId: string; routePath: string}>,
 ): Promise<Response> {
   const route = resolvedRoute ?? parsePackageRequest(url.pathname, registry.snapshot().graph.nodes.filter(node => node.kind === "package").map(node => node.packageId!))
@@ -1497,9 +1309,7 @@ async function packagePageResponse(
     candidate.packageId === route.packageId && candidate.path === storybookCurrentRouteKey(route.routePath))
   if (preview === null) {
     if (currentRoute === undefined) throw new Error(`Unknown Storybook route: ${route.packageId}:${route.routePath}`)
-    await prepareSharedIdentity(signal)
-    sessions.revalidateInputs(route.packageId)
-    await sessions.ensure(route.packageId, {owner: "subscribe"})
+
     signal.throwIfAborted()
   }
   const snapshot = session.snapshot()
@@ -1526,7 +1336,7 @@ async function packagePageResponse(
     const canonical = canonicalPackageAddress(currentRoute.urlPath, url)
     if (canonical !== `${url.pathname}${url.search}`) return new Response(null, {status: 308, headers: {location: canonical}})
     return preparingHtmlResponse(async () => {
-    const assets = await ensureSharedAssets()
+    const assets = readSharedAssets()
     const browserSession = browserSessions.issue({
       kind: "package",
       packageId: route.packageId,
@@ -1637,15 +1447,6 @@ function declarationFailures(snapshot: ExternalStorybookRegistrySnapshot): Reado
     if (scope.resolutionError !== undefined) mark(scope.canonicalId, scope.resolutionError, scope.kind !== "package")
   }
   return result
-}
-
-export function externalStorybookStructuralWatchPaths(
-  snapshot: ExternalStorybookRegistrySnapshot,
-): readonly string[] {
-  return Object.freeze([...new Set([...snapshot.catalog.scopes.flatMap(scope => [join(scope.scopeRoot, "package.json"), ...(scope.recoveryPaths ?? []), ...(scope.structurePaths ?? [])]).filter(path => existsSync(dirname(path))), ...snapshot.graph.nodes.flatMap((node) => [
-    node.source.path,
-    ...(node.kind === "package" && node.packageJsonPath !== null ? [node.packageJsonPath] : []),
-  ])])].filter(path => existsSync(dirname(path))).sort())
 }
 
 function parsePackageRequest(pathname: string, packageIds: readonly string[]): Readonly<{packageId: string, routePath: string}> {

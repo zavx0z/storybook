@@ -1,21 +1,17 @@
 import {afterEach, describe, expect, test} from "bun:test"
 import {mkdtempSync, rmSync, writeFileSync, readFileSync} from "node:fs"
 import {join} from "node:path"
-import {StorybookDependencyWatchCoordinator} from "../sessions/dependency-watch.ts"
 import {StorybookSharedBrowserAssets, type SharedBrowserAssets} from "./shared-browser-assets.ts"
 
 const cleanups: Array<() => void> = []
 afterEach(() => { for (const cleanup of cleanups.splice(0).reverse()) cleanup() })
 
 test("dispose отменяет shared build и ждёт завершения его собственного lifecycle", async () => {
-  const watch = new StorybookDependencyWatchCoordinator({watchFile() {}, unwatchFile() {}})
   let release!: () => void
   let signal: AbortSignal | undefined
   const gate = new Promise<void>(resolve => { release = resolve })
   const errors: unknown[] = []
   const cache = new StorybookSharedBrowserAssets({
-    watch,
-    subscribed: () => false,
     updated() {},
     failed: error => errors.push(error),
     async build(currentSignal) {
@@ -37,7 +33,6 @@ test("dispose отменяет shared build и ждёт завершения е�
   expect((await outcome)?.message).toContain("disposed")
   expect(disposed).toBe(true)
   expect(errors).toEqual([])
-  watch.dispose()
 })
 
 function fixture() {
@@ -45,16 +40,12 @@ function fixture() {
   cleanups.push(() => rmSync(root, {recursive: true, force: true}))
   const path = join(root, "view.txt")
   writeFileSync(path, "first")
-  const watch = new StorybookDependencyWatchCoordinator({watchFile() {}, unwatchFile() {}})
-  cleanups.push(() => watch.dispose())
   const updates: string[] = []
   const errors: unknown[] = []
   const cacheProgress: Array<Readonly<{state: "started" | "completed", hit?: boolean}>> = []
   let builds = 0
   let pause: (() => Promise<void>) | null = null
   const cache = new StorybookSharedBrowserAssets({
-    watch,
-    subscribed: () => true,
     updated: assets => { updates.push(assets.landingEntry) },
     failed: error => { errors.push(error) },
     cacheProgress: event => cacheProgress.push(event),
@@ -67,11 +58,11 @@ function fixture() {
     },
   })
   cleanups.push(() => cache.dispose())
-  return {cache, watch, path, updates, errors, cacheProgress, builds: () => builds, pause: (value: typeof pause) => { pause = value }}
+  return {cache, path, updates, errors, cacheProgress, builds: () => builds, pause: (value: typeof pause) => { pause = value }}
 }
 
 describe("shared browser assets", () => {
-  test("reuses a build and detects a changed dependency even before its watcher fires", async () => {
+  test("проверяет изменения только по явному запросу и повторно использует готовую сборку", async () => {
     const f = fixture()
     const [first, concurrent] = await Promise.all([f.cache.ensure(), f.cache.ensure()])
     expect(first).toBe(concurrent)
@@ -93,7 +84,8 @@ describe("shared browser assets", () => {
     const f = fixture()
     const first = await f.cache.ensure()
     writeFileSync(f.path, "invalid")
-    expect(await f.cache.ensure()).toBe(first)
+    await expect(f.cache.ensure()).rejects.toThrow("compile failed")
+    expect(f.cache.current()).toBe(first)
     expect(f.errors).toHaveLength(1)
     expect(f.updates).toEqual([])
     writeFileSync(f.path, "repaired")
@@ -109,22 +101,15 @@ describe("shared browser assets", () => {
     expect((await f.cache.ensure()).landingEntry).toBe("repaired.js")
   })
 
-  test("coalesces subscriptions and retries a change that arrives during compilation", async () => {
+
+  test("изменения исходника и пустой директории сохраняют готовую оболочку до check", async () => {
     const f = fixture()
-    await f.cache.ensure()
-    let release!: () => void
-    let entered!: () => void
-    const waiting = new Promise<void>(resolve => { entered = resolve })
-    f.pause(() => new Promise<void>(resolve => { release = resolve; entered() }))
+    const first = await f.cache.ensure()
     writeFileSync(f.path, "second")
-    f.watch.notify(f.path)
-    await waiting
-    writeFileSync(f.path, "third")
-    f.watch.notify(f.path)
-    f.pause(null)
-    release()
-    expect((await f.cache.ensure()).landingEntry).toBe("third.js")
-    expect(f.updates).toEqual(["third.js"])
-    expect(f.builds()).toBe(3)
+    await Bun.sleep(1100)
+    expect(f.cache.current()).toBe(first)
+    expect(f.builds()).toBe(1)
+    expect((await f.cache.ensure()).landingEntry).toBe("second.js")
   })
+
 })

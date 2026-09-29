@@ -5,7 +5,7 @@
 и физический путь; `entry` — видимый вход `index.tsx`, `index.ts` либо его отсутствие;
 `module` обозначает модуль, на котором дальнейший структурный обход завершается.
 
-@property watchPaths - Директории, файлы `.gitignore`, манифесты пакетов,
+@property inputs - Директории, файлы `.gitignore`, манифесты пакетов,
 входные файлы и признаки исходников, изменение которых требует повторного чтения.
 */
 export type ReadRouteDirectoriesOutput = {
@@ -15,5 +15,5 @@ export type ReadRouteDirectoriesOutput = {
     readonly entry: "tsx" | "ts" | null
     readonly module: boolean
   }[]
-  readonly watchPaths: readonly string[]
+  readonly inputs: readonly string[]
 }

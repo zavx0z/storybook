@@ -29,6 +29,12 @@ describe("one-server structural package isolation", () => {
       },
     })
     servers.push(running)
+    const checkA = async () => (await fetch(new URL("/api/control/check", running.origin), {
+      method: "POST",
+      headers: {authorization: `Bearer ${running.record.controlToken}`, "content-type": "application/json"},
+      body: JSON.stringify({scope: "@fixture/a", live: false}),
+    })).json()
+
     await Promise.all([running.sessions.ensure("@fixture/a"), running.sessions.ensure("@fixture/b")])
     activate(running, "@fixture/a")
     activate(running, "@fixture/b")
@@ -44,6 +50,9 @@ describe("one-server structural package isolation", () => {
       bSocket.clear()
 
       writeFileSync(fixture.aMetadata, JSON.stringify({name: "@fixture/a", label: "A2"}))
+      await Bun.sleep(1100)
+      expect(running.sessions.session("@fixture/a").snapshot().builds).toBe(firstA.builds)
+      expect(await checkA()).toMatchObject({ok: true})
       await waitFor(() => running.sessions.session("@fixture/a").snapshot().builtRevision !== firstA.activeRevision &&
         running.sessions.session("@fixture/a").snapshot().buildState === "built")
       expect(await aSocket.waitFor("package.built")).toMatchObject({packageId: "@fixture/a"})
@@ -55,6 +64,7 @@ describe("one-server structural package isolation", () => {
       expect(bSocket.messages.some(event => event.type === "package.updated")).toBeFalse()
 
       writeFileSync(fixture.aMetadata, "{")
+      expect(await checkA()).toMatchObject({ok: false})
       await waitFor(() => running.sessions.session("@fixture/a").snapshot().buildState === "failed")
       const failedA = running.sessions.session("@fixture/a").snapshot()
       expect(failedA.activeRevision).toBe(updatedA.activeRevision)
@@ -63,6 +73,7 @@ describe("one-server structural package isolation", () => {
       expect(running.sessions.session("@fixture/b").snapshot().activeRevision).toBe(firstB.activeRevision)
 
       writeFileSync(fixture.aMetadata, JSON.stringify({name: "@fixture/a", label: "A3"}))
+      expect(await checkA()).toMatchObject({ok: true})
       await waitFor(() => running.sessions.session("@fixture/a").snapshot().buildState === "built")
       activate(running, "@fixture/a")
       expect(running.sessions.session("@fixture/a").snapshot().diagnostics).toEqual([])

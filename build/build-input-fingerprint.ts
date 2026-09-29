@@ -9,8 +9,6 @@ import {
   readdirSync,
   realpathSync,
   statSync,
-  watch,
-  type FSWatcher,
 } from "node:fs"
 import {basename, dirname, isAbsolute, join, relative, resolve, sep} from "node:path"
 import {fileURLToPath} from "node:url"
@@ -22,7 +20,7 @@ import type {StorybookPackageBuildDescriptor} from "../sessions/package-session.
 import type {StorybookSharedBrowserIdentity} from "./types/shared-module-identity.ts"
 
 /** Версия persisted evidence, несовместимая с прежним списком browser metafile inputs. */
-export const STORYBOOK_BUILD_INPUT_FINGERPRINT_PROTOCOL = "storybook-build-input/1" as const
+export const STORYBOOK_BUILD_INPUT_FINGERPRINT_PROTOCOL = "storybook-build-input/2" as const
 
 const STORYBOOK_TOOL_ROOT = realpathSync(fileURLToPath(new URL("..", import.meta.url)))
 const IGNORED_DIRECTORY_NAMES = new Set([
@@ -93,7 +91,7 @@ export type StorybookBuildInputFile = Readonly<{
 
 @property resolutionDirectories - Каталоги external closure, где новый соседний файл меняет resolution.
 
-@property watchDirectories - Уже посещённые каталоги source inventory и resolution closure.
+@property directories - Уже посещённые каталоги source inventory и resolution closure.
 
 @property files - Exact closure и control files с полным byte evidence.
 */
@@ -106,7 +104,7 @@ export type StorybookBuildInputFingerprint = Readonly<{
   validationDigest: string
   roots: readonly string[]
   resolutionDirectories: readonly string[]
-  watchDirectories: readonly string[]
+  directories: readonly string[]
   files: readonly StorybookBuildInputFile[]
 }>
 
@@ -162,7 +160,7 @@ Raw plan input позволяет package и shared adapters использов�
 
 @property identity - Декларативные входы владельца без output state.
 
-@property roots - Owner roots полного path inventory и event guard.
+@property roots - Owner roots полного снимка путей.
 
 @property compilerRoots - TypeScript semantic roots, чьи source bytes влияют на compiler.
 
@@ -227,9 +225,9 @@ export type StorybookSharedBuildInputFingerprintRequest = Readonly<{
 }>
 
 /**
-@property roots - Минимизированные canonical owner roots для inventory и event guard.
+@property roots - Минимизированные canonical owner roots для снимка исходников.
 
-@property guardRoots - Inventory roots плюс известные npm resolution roots только для watcher/assertion.
+@property guardRoots - Inventory roots плюс известные npm resolution roots для проверки допустимых зависимостей.
 
 @property files - Exact inputs вне либо внутри roots, которые нельзя потерять из fingerprint.
 
@@ -249,10 +247,10 @@ export type StorybookBuildInputScope = Readonly<{
 }>
 
 /**
-Сессия attestation окружает все compiler/protocol phases одним event-driven guard.
+Сессия attestation сверяет входы на границах проверки и сборки.
 
-`complete` возвращает evidence только если pre/post bytes и inventory совпали и
-watcher не наблюдал transient изменения между чтениями. Любая неопределённость
+`complete` возвращает evidence при совпадении байтов, состава и stat identity
+входных файлов до и после операции. Любая неопределённость
 завершает cold build ошибкой вместо публикации ложного cache key.
 */
 export type StorybookBuildInputAttestation = Readonly<{
@@ -275,7 +273,7 @@ export function resolveStorybookBuildInputScope(
   return resolveStorybookPackageBuildInputFingerprintPlan(input).scope
 }
 
-/** Канонизирует generic plan до вычисления digest или установки watcher. */
+/** Канонизирует generic plan до вычисления digest. */
 export function createStorybookBuildInputFingerprintPlan(
   input: StorybookBuildInputFingerprintPlanInput,
 ): StorybookBuildInputFingerprintPlan {
@@ -466,13 +464,7 @@ export function computeStorybookSharedBuildInputFingerprint(
   return computeStorybookBuildInputFingerprintPlan(resolveStorybookSharedBuildInputFingerprintPlan(input))
 }
 
-/**
-Начинает event-driven защиту source roots до первого чтения fingerprint.
-
-На macOS и Windows используется один recursive watcher на корень; в остальных
-средах watchers создаются для уже аттестованных каталогов. Невозможность
-установить guard — fail closed, потому что concurrent-change evidence неизвестно.
-*/
+/** Фиксирует входы перед проверкой и сверяет их после сборки без наблюдателей файловой системы. */
 export async function beginStorybookBuildInputAttestation(
   input: StorybookBuildInputFingerprintRequest,
 ): Promise<StorybookBuildInputAttestation> {
@@ -486,56 +478,48 @@ export async function beginStorybookSharedBuildInputAttestation(
   return beginStorybookBuildInputPlanAttestation(resolveStorybookSharedBuildInputFingerprintPlan(input))
 }
 
-/** Начинает generic event-driven attestation для уже выбранного owner plan. */
+/** Фиксирует содержимое и stat identity входов на границах одной явной проверки. */
 export async function beginStorybookBuildInputPlanAttestation(
   plan: StorybookBuildInputFingerprintPlan,
 ): Promise<StorybookBuildInputAttestation> {
-  const scope = plan.scope
-  const guard = createChangeGuard(scope)
-  const cache: FingerprintComputationCache = {
-    files: new Map(),
-    inventories: new Map(),
-  }
+  const started = BigInt(Date.now()) * 1_000_000n
+  const before = computeFingerprint(plan)
+  const paths = new Set([...scopeInventory(plan.scope).paths, ...before.files.map(file => file.path)])
+  const markers = new Map([...paths].map(path => [path, inputMarker(path)]))
+  let finished = false
+  return Object.freeze({
+    before,
+    async complete(additionalFilePaths: readonly string[] = []): Promise<StorybookBuildInputFingerprint> {
+      if (finished) throw new Error("Storybook build input attestation is already complete")
+      finished = true
+      const additional = additionalFilePaths.map(canonicalExactFile)
+      const outside = additional.find(path => !plan.scope.guardRoots.some(root => inside(root, path)))
+      if (outside) throw new Error(`Storybook compiled input escaped attested owner roots: ${outside}`)
+      const after = computeFingerprint(plan)
+      if (!sameStorybookBuildInputFingerprint(before, after)) throw concurrentChangeError()
+      for (const [path, marker] of markers) {
+        if (inputMarker(path) !== marker) throw concurrentChangeError(path)
+      }
+      for (const path of additional) {
+        if (!markers.has(path) && statSync(path, {bigint: true}).ctimeNs >= started) throw concurrentChangeError(path)
+      }
+      const final = additional.length === 0 ? after
+        : computeFingerprint(extendStorybookBuildInputFingerprintPlan(plan, additional))
+      for (const [path, marker] of markers) {
+        if (inputMarker(path) !== marker) throw concurrentChangeError(path)
+      }
+      return final
+    },
+    dispose(): void { finished = true },
+  })
+}
+
+/** Замена файла и возврат прежних байтов остаются изменением проверяемого состояния. */
+function inputMarker(path: string): string {
   try {
-    const before = computeFingerprint(plan, cache)
-    await yieldToWatchers()
-    if (guard.changed() !== null) throw concurrentChangeError(guard.changed() ?? undefined)
-    let finished = false
-    return Object.freeze({
-      before,
-      async complete(additionalFilePaths: readonly string[] = []): Promise<StorybookBuildInputFingerprint> {
-        if (finished) throw new Error("Storybook build input attestation is already complete")
-        finished = true
-        const unwatched = additionalFilePaths.map(canonicalExactFile)
-          .filter((path) => !scope.guardRoots.some((root) => inside(root, path)))
-        if (unwatched.length > 0) {
-          throw new Error(`Storybook compiled input escaped attested owner roots: ${unwatched[0]}`)
-        }
-        await yieldToWatchers()
-        const changedAfterBuild = guard.changed()
-        if (changedAfterBuild !== null) {
-          throw concurrentChangeError(changedAfterBuild ?? undefined)
-        }
-        const final = additionalFilePaths.length === 0
-          ? before
-          : computeFingerprint(
-            extendStorybookBuildInputFingerprintPlan(plan, additionalFilePaths),
-            cache,
-            true,
-          )
-        await yieldToWatchers()
-        const changedAfterClosure = guard.changed()
-        if (changedAfterClosure !== null) throw concurrentChangeError(changedAfterClosure)
-        return final
-      },
-      dispose(): void {
-        guard.close()
-      },
-    })
-  } catch (error) {
-    guard.close()
-    throw error
-  }
+    const value = lstatSync(path, {bigint: true})
+    return [value.dev, value.ino, value.size, value.mtimeNs, value.ctimeNs].join(":")
+  } catch { return "missing" }
 }
 
 /** Добавляет attested metafile closure, не меняя identity/toolchain/ABI владельца. */
@@ -557,10 +541,7 @@ function extendStorybookBuildInputFingerprintPlan(
   })
 }
 
-/** Даёт event loop доставить уже поставленные fs.watch callbacks перед решением. */
-async function yieldToWatchers(): Promise<void> {
-  await new Promise<void>((resolve) => setTimeout(resolve, 0))
-}
+
 
 /** Unknown, missing или old evidence никогда не считается cache hit. */
 export function parseStorybookBuildInputFingerprint(
@@ -571,7 +552,7 @@ export function parseStorybookBuildInputFingerprint(
     !digest(value.toolchainDigest) || !digest(value.validationDigest) ||
     !canonicalPathList(value.roots) ||
     !canonicalPathList(value.resolutionDirectories) ||
-    !canonicalPathList(value.watchDirectories) ||
+    !canonicalPathList(value.directories) ||
     !Array.isArray(value.files)) return null
   const files = value.files.flatMap((candidate) => {
     if (!isObject(candidate) || !isAbsoluteString(candidate.path) || !digest(candidate.contentDigest) ||
@@ -604,26 +585,26 @@ export function parseStorybookBuildInputFingerprint(
     validationDigest: value.validationDigest,
     roots: Object.freeze([...value.roots]),
     resolutionDirectories: Object.freeze([...value.resolutionDirectories]),
-    watchDirectories: Object.freeze([...value.watchDirectories]),
+    directories: Object.freeze([...value.directories]),
     files: Object.freeze(files),
   })
 }
 
 /**
-Проецирует verified evidence в единый bounded набор existing watch targets.
+Возвращает пути проверенных входов для явной сверки общей оболочки.
 
-Exact files ловят изменение bytes, а directories — создание, удаление и смену
+Файлы определяют содержимое, а директории — создание, удаление и смену
 resolution candidates. Helper не открывает compiler context и не повторяет
 inventory policy; invalid/old evidence возвращает `null`.
 */
-export function storybookBuildInputFingerprintWatchPaths(
+export function storybookBuildInputPaths(
   value: unknown,
 ): readonly string[] | null {
   const fingerprint = parseStorybookBuildInputFingerprint(value)
   if (fingerprint === null) return null
   return Object.freeze([...new Set([
     ...fingerprint.files.map(({path}) => path),
-    ...fingerprint.watchDirectories,
+    ...fingerprint.directories,
   ])].sort(comparePaths))
 }
 
@@ -655,7 +636,7 @@ function computeFingerprint(
     .map((path) => cache === undefined ? readExactFile(path) : readCachedFile(path, cache.files, trustCache)))
   const descriptorDigest = hash(stableStringify(plan.identity))
   const resolutionInventory = scope.resolutionDirectories.map(readDirectoryInventory)
-  const watchDirectories = Object.freeze([...new Set([
+  const directories = Object.freeze([...new Set([
     ...inventory.directories.map(({path}) => path),
     ...scope.resolutionDirectories,
   ])].sort(comparePaths))
@@ -663,7 +644,6 @@ function computeFingerprint(
     roots: scope.roots,
     inventory: inventory.paths,
     resolutionDirectories: resolutionInventory,
-    watchDirectories,
     files: files.map(({path, contentDigest, size}) => ({path, contentDigest, size})),
   }))
   const toolchainDigest = hash(stableStringify({
@@ -684,7 +664,7 @@ function computeFingerprint(
     validationDigest,
     roots: scope.roots,
     resolutionDirectories: scope.resolutionDirectories,
-    watchDirectories,
+    directories,
     files,
   } as const
   const digestValue = hash(stableStringify({
@@ -913,7 +893,7 @@ function compilerOwnerRoot(adapterPath: string): string {
 /**
 Находит существующие `node_modules` между owner roots и ближайшими Git roots.
 
-Каталоги добавляются только в event guard: их полный inventory не читается и не
+Каталоги ограничивают допустимые зависимости: их полный inventory не читается и не
 хешируется. Это покрывает обычный поиск Bun из вложенного workspace package к
 hoisted dependency root до того, как metafile назовёт exact resolved file.
 */
@@ -1032,62 +1012,7 @@ function toolchainFiles(): readonly string[] {
   throw new Error(`Cannot find TypeScript toolchain owner for ${entry}`)
 }
 
-/** Устанавливает event-driven watchers и сохраняет любое релевантное изменение. */
-function createChangeGuard(scope: StorybookBuildInputScope): Readonly<{
-  changed(): string | null
-  close(): void
-}> {
-  let changedPath: string | null = null
-  const watchers: FSWatcher[] = []
-  const mark = (root: string, filename: string | Buffer | null): void => {
-    if (filename === null) {
-      changedPath ??= `${root}:<unknown>`
-      return
-    }
-    const path = resolve(root, String(filename))
-    if (excluded(path, scope.excludedRoots) || ignoredWatcherPath(root, path)) return
-    changedPath ??= path
-  }
-  try {
-    for (const root of scope.guardRoots) {
-      try {
-        watchers.push(watch(root, {recursive: true}, (_event, filename) => mark(root, filename)))
-      } catch {
-        for (const directory of collectDirectories(root, scope.excludedRoots)) {
-          watchers.push(watch(directory, (_event, filename) => mark(directory, filename)))
-        }
-      }
-    }
-  } catch (error) {
-    for (const watcher of watchers) watcher.close()
-    throw new Error("Cannot establish Storybook build input change guard", {cause: error})
-  }
-  return Object.freeze({
-    changed(): string | null {
-      return changedPath
-    },
-    close(): void {
-      for (const watcher of watchers) watcher.close()
-    },
-  })
-}
 
-/** Перечисляет каталоги fallback guard без polling. */
-function collectDirectories(root: string, excludedRoots: readonly string[]): readonly string[] {
-  const output: string[] = []
-  const ambientRoot = basename(root) === "node_modules"
-  const visit = (directory: string): void => {
-    if (excluded(directory, excludedRoots)) return
-    output.push(directory)
-    for (const entry of readdirSync(directory, {withFileTypes: true})) {
-      if (!entry.isDirectory() || entry.isSymbolicLink() ||
-        (ignoredDirectoryName(entry.name) && !(ambientRoot && entry.name === "node_modules"))) continue
-      visit(join(directory, entry.name))
-    }
-  }
-  visit(root)
-  return Object.freeze(output)
-}
 
 /** Удаляет вложенные roots, уже полностью покрытые родительским inventory. */
 function minimalRoots(values: readonly string[]): readonly string[] {
@@ -1097,7 +1022,7 @@ function minimalRoots(values: readonly string[]): readonly string[] {
     .sort(comparePaths))
 }
 
-/** Удаляет вложенные watcher roots, поскольку recursive guard не применяет inventory exclusions. */
+/** Удаляет вложенные корни допустимых зависимостей. */
 function minimalGuardRoots(values: readonly string[]): readonly string[] {
   const roots = [...new Set(values)].sort((left, right) => left.length - right.length || comparePaths(left, right))
   return Object.freeze(roots.filter((candidate, index) =>
@@ -1144,7 +1069,7 @@ function excluded(path: string, roots: readonly string[]): boolean {
   return roots.some((root) => inside(root, path))
 }
 
-/** Применяет одинаковые ambient directory exclusions к inventory и watcher events. */
+/** Исключает служебные директории из снимка исходников. */
 function ignoredRelativePath(root: string, path: string): boolean {
   const local = relative(root, path)
   return local.split(sep).some(ignoredDirectoryName)
@@ -1153,13 +1078,6 @@ function ignoredRelativePath(root: string, path: string): boolean {
 /** Исключает установленные зависимости, кэши и артефакты сборки из исходников пакета. */
 function ignoredDirectoryName(value: string): boolean {
   return IGNORED_DIRECTORY_NAMES.has(value) || value.startsWith(".candidate-")
-}
-
-/** Watcher оставляет node_modules включённым для transient изменений resolved closure. */
-function ignoredWatcherPath(root: string, path: string): boolean {
-  const local = relative(root, path)
-  return local.split(sep).some((segment) =>
-    segment === ".git" || segment === ".cache" || segment === ".turbo" || segment === "coverage")
 }
 
 /** Стабильно сериализует JSON-like descriptor независимо от insertion order. */

@@ -7,7 +7,7 @@ import {discoverStorybookPackages} from "../discovery/packages.ts"
 import {deriveExternalStorybookLanding, deriveExternalStorybookLandingSelection, deriveExternalStorybookPackageTab, deriveExternalStorybookNavigationTree} from "../runtime/model.ts"
 import {createExternalStorybookClientSnapshot} from "../runtime/client-protocol.ts"
 import {deriveStorybookBreadcrumbs} from "../runtime/breadcrumbs.ts"
-import {startExternalStorybookServer, externalStorybookStructuralWatchPaths} from "./server.ts"
+import {startExternalStorybookServer} from "./server.ts"
 
 const roots: string[] = []
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, {recursive: true, force: true}))) })
@@ -68,26 +68,23 @@ test("keeps packages and physical directories in the same navigation tree", asyn
   await Bun.write(join(project, "unit/.gitignore"), "docs/\n")
   const changed = await registry.refresh()
   expect(deriveExternalStorybookNavigationTree(changed.graph).some(item => item.id.includes("@fixture/unit") && item.label === "docs")).toBeFalse()
-  expect(externalStorybookStructuralWatchPaths(changed)).toContain(join(project, "unit/.gitignore"))
 })
 
-test("serves a directory overview and follows gitignore changes through the existing watcher", async () => {
+test("явный refresh обновляет обзор директории и правила gitignore", async () => {
   const {root, project} = await fixture()
   const server = await startExternalStorybookServer({declarations: [project], statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts")})
   try {
+    const refresh = async () => fetch(new URL("/api/control/refresh", server.origin), {
+      method: "POST", headers: {authorization: `Bearer ${server.record.controlToken}`, "content-type": "application/json"}, body: JSON.stringify({force: true}),
+    })
     const docs = server.registry.snapshot().graph.nodes.find(node => node.kind === "directory" && node.packageId === "fixture" && node.label === "docs")!
-    const page = await fetch(new URL(docs.urlPath, server.origin))
-    expect(page.status).toBe(200)
-    expect((await fetch(new URL("/pkg-fixture-unit/dir-docs/dir-guide", server.origin))).status).toBe(200)
     const resource = `/__storybook/resources/nodes/${encodeURIComponent(docs.id)}/`
     expect(await (await fetch(new URL(resource, server.origin))).text()).toBe("# Repository module")
     await Bun.write(join(project, "docs/index.ts"), "/**\n# Updated module\n@packageDocumentation\n*/")
-    const refreshed = Date.now() + 10_000
-    while (server.registry.snapshot().graph.nodes.find(node => node.id === docs.id)?.moduleDocumentation?.markdown !== "# Updated module" && Date.now() < refreshed) await Bun.sleep(50)
+    await refresh()
     expect(await (await fetch(new URL(resource, server.origin))).text()).toBe("# Updated module")
     await Bun.write(join(project, ".gitignore"), "dist/\ndocs/\n")
-    const until = Date.now() + 10_000
-    while (server.registry.snapshot().graph.nodes.some(node => node.id === docs.id) && Date.now() < until) await Bun.sleep(50)
+    await refresh()
     expect(server.registry.snapshot().graph.nodes.some(node => node.id === docs.id)).toBeFalse()
     expect((await fetch(new URL(docs.urlPath, server.origin))).status).toBe(404)
   } finally { await server.stop() }

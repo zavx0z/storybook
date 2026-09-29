@@ -46,41 +46,6 @@ export function externalStorybookPackageDescriptors(
       }).entries.filter(({kind}) => kind === "documentation-asset").map(({path}) => path)
       return [[candidate.id, Object.freeze(assets)] as const]
     }))
-    const watchedPaths = [
-      declaration.source.path,
-      ...workbenchAuthorStyleSheets.map(({path}) => path),
-      ...workbenchAuthorStyleSheets.map(({ownerPackageJsonPath}) => ownerPackageJsonPath),
-      ...graph.nodes.flatMap((candidate) =>
-        candidate.packageId === declaration.id
-          ? [
-            ...(candidate.moduleDocumentation ? [candidate.moduleDocumentation.sourcePath] : []),
-            ...(candidate.dependencySpec ? [candidate.dependencySpec.sourcePath] : []),
-            ...(candidate.scenarioSpec?.sourcePaths ?? []),
-            ...(candidate.contractDocumentation?.sources.map(source => source.sourcePath) ?? []),
-            ...(documentationAssetsByNode.get(candidate.id) ?? []),
-          ]
-          : []),
-    ]
-    const watchPaths = [
-      {path: declaration.source.path, category: "declaration" as const},
-      {path: declaration.packageJsonPath, category: "metadata" as const},
-      {path: declaration.packageJsonPath, category: "code" as const},
-      ...workbenchAuthorStyleSheets.map(({ownerPackageJsonPath}) => ({
-        path: ownerPackageJsonPath,
-        category: "declaration" as const,
-      })),
-      ...workbenchAuthorStyleSheets.map(({path}) => ({path, category: "resource" as const})),
-      ...graph.nodes.flatMap((candidate) => candidate.packageId === declaration.id
-        ? [
-          ...(candidate.moduleDocumentation ? [{path: candidate.moduleDocumentation.sourcePath, category: "declaration" as const}] : []),
-          ...(candidate.dependencySpec ? [{path: candidate.dependencySpec.sourcePath, category: "declaration" as const}] : []),
-          ...(candidate.scenarioSpec?.sourcePaths.map(path => ({path, category: "declaration" as const})) ?? []),
-          ...(candidate.contractDocumentation?.sources.map(source => ({path: source.sourcePath, category: "declaration" as const})) ?? []),
-          ...(documentationAssetsByNode.get(candidate.id) ?? [])
-            .map((path) => ({path, category: "resource" as const})),
-        ]
-        : []),
-    ]
     const declarationDigest = packageDeclarationDigest(declaration, graph)
     const resourceFiles = [
       ...workbenchAuthorStyleSheets.map((styleSheet, index) => ({
@@ -124,7 +89,6 @@ export function externalStorybookPackageDescriptors(
       sourcePath: declaration.source.path,
       declarationDigest,
       resourceFiles: Object.freeze(resourceFiles),
-      watchPaths: Object.freeze(watchPaths),
       graphSnapshot: createStorybookPackageRevisionGraphSnapshot(
         graph,
         declaration.id,
@@ -132,7 +96,6 @@ export function externalStorybookPackageDescriptors(
         workbenchAuthorStyleSheets,
       ),
       scenarioSpecs: Object.freeze(scenarioSpecs),
-      watchedPaths: Object.freeze([...new Set(watchedPaths)]),
     })
   }))
 }

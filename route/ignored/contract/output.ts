@@ -5,11 +5,11 @@
 
 @property repository - Фактический корень Git-репозитория либо `null` вне репозитория.
 
-@property watchPaths - Файлы `.gitignore` от корня пакета до корня Git-репозитория
+@property inputs - Файлы `.gitignore` от корня пакета до корня Git-репозитория
 включительно.
 */
 export type ReadRouteIgnoredOutput = {
   readonly ignored: readonly string[]
   readonly repository: string | null
-  readonly watchPaths: readonly string[]
+  readonly inputs: readonly string[]
 }

@@ -2,7 +2,6 @@ import {discoverStorybookPackages} from "../discovery/packages.ts"
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
 import {ExternalStorybookRegistry} from "./registry.ts"
-import {externalStorybookStructuralWatchPaths} from "../server/server.ts"
 
 const fixtureRoot = join(import.meta.dir, "../discovery/fixtures/valid")
 const storybookRoot = join(import.meta.dir, "..")
@@ -53,17 +52,11 @@ describe("external Storybook attached-root registry", () => {
       "directory:package:@fixture/components/docs",
     ])
     expect(descriptor.graphSnapshot.routes.map(route => route.path)).toEqual(["", "dir-docs"])
-    expect(descriptor.watchPaths).toContainEqual({path: descriptor.sourcePath, category: "metadata"})
-    expect(descriptor.watchPaths).not.toContainEqual({path: join(descriptor.packageRoot, "README.md"), category: "metadata"})
-    const structural = externalStorybookStructuralWatchPaths(registry.snapshot())
-    expect(structural).toContain(join(fixtureRoot, "package.json"))
-    expect(structural).toContain(join(fixtureRoot, "projects/alpha/package.json"))
-    expect(structural).toContain(descriptor.sourcePath)
-    expect(structural).toContain(join(descriptor.packageRoot, "index.tsx"))
-    expect(structural).toContain(join(descriptor.packageRoot, "index.ts"))
+    expect(descriptor.sourcePath).toBe(join(descriptor.packageRoot, "package.json"))
+    expect(descriptor.resourceFiles?.map(file => file.sourcePath)).not.toContain(join(descriptor.packageRoot, "README.md"))
   })
 
-  test("copies and watches one Workbench theme for each package revision", async () => {
+  test("copies one Workbench theme for each package revision", async () => {
     const registry = new ExternalStorybookRegistry(discoverStorybookPackages)
     await registry.attachMany([storybookRoot, fixtureRoot])
     const descriptor = registry.packageDescriptors().find(({packageId}) => packageId === "@fixture/components")!
@@ -74,6 +67,6 @@ describe("external Storybook attached-root registry", () => {
     const resource = descriptor.resourceFiles?.find(({targetPath}) => targetPath === "workbench-author-style-sheets/0.css")
     expect(resource?.contentDigest).toBe(descriptor.graphSnapshot.workbenchAuthorStyleSheets[0]!.contentDigest)
     expect(resource?.sourcePath).toEndWith("/ui/themes/theme.css")
-    expect(descriptor.watchPaths).toContainEqual({path: resource!.sourcePath, category: "resource"})
+    expect(descriptor.resourceFiles).toContain(resource!)
   }, 20_000)
 })

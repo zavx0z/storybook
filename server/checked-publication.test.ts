@@ -5,7 +5,7 @@ import {tmpdir} from "node:os"
 import type {StorybookBrowserLifecycle} from "../browser-lifecycle/src/service.ts"
 import {startExternalStorybookServer} from "./server.ts"
 
-test("subscribe and watch builds apply through exact existing-page evidence", async () => {
+test("явный check применяет ревизию через HMR; подписки и изменения файлов сохраняют рабочую страницу", async () => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "storybook-automatic-publication-")))
   const owner = join(root, "owner")
   await mkdir(owner)
@@ -20,7 +20,7 @@ test("subscribe and watch builds apply through exact existing-page evidence", as
   const staleViewId = `storybook-view-v1_${"b".repeat(43)}`
   let latest: {packageId: string, route: string, revision: string} | null = null
   const opened: string[] = []
-  let checkCurrentRevision = false
+  let checkCurrentRevision = true
   let newConsoleErrors: readonly unknown[] = []
   let leaveDuringApplication = false
   let canceledApplications = 0
@@ -115,6 +115,12 @@ test("subscribe and watch builds apply through exact existing-page evidence", as
       packageBrowserEntryPath: entry,
       browserLifecycle: browser,
     })
+    const check = async (live = true) => (await fetch(new URL("/api/control/check", running.origin), {
+      method: "POST",
+      headers: {authorization: `Bearer ${running.record.controlToken}`, "content-type": "application/json"},
+      body: JSON.stringify({scope: "@fixture/automatic", live}),
+    })).json()
+    expect(await check(false)).toMatchObject({ok: true})
     const preparedResponse = await fetch(new URL("/api/browser/prepare", running.origin), {
       method: "POST",
       headers: {origin: running.origin, "content-type": "application/json"},
@@ -172,6 +178,7 @@ test("subscribe and watch builds apply through exact existing-page evidence", as
     await new Promise<void>(resolve => socket!.addEventListener("open", () => resolve(), {once: true}))
     socket.send(JSON.stringify({type: "subscribe", topic: "package:@fixture/automatic"}))
 
+    expect(await check()).toMatchObject({ok: true, applied: true})
     await waitFor(() => ["active", "failed"].includes(
       running.sessions.session("@fixture/automatic").snapshot().buildState,
     ))
@@ -181,7 +188,9 @@ test("subscribe and watch builds apply through exact existing-page evidence", as
     expect(opened).toEqual([first])
 
     await Bun.write(entry, "export function startExternalStorybookPackage() { return 'updated' }\n")
-    expect(running.watch.notify(entry)).toBeGreaterThan(0)
+    await Bun.sleep(1100)
+    expect(running.sessions.session("@fixture/automatic").snapshot().activeRevision).toBe(first)
+    expect(await check()).toMatchObject({ok: true, applied: true})
     await waitFor(() => {
       const snapshot = running.sessions.session("@fixture/automatic").snapshot()
       return snapshot.activeRevision !== first || snapshot.buildState === "failed"
@@ -202,11 +211,7 @@ test("subscribe and watch builds apply through exact existing-page evidence", as
 
     checkCurrentRevision = true
     const buildsBeforeCheck = running.sessions.session("@fixture/automatic").snapshot().builds
-    const check = async () => (await fetch(new URL("/api/control/check", running.origin), {
-      method: "POST",
-      headers: {authorization: `Bearer ${running.record.controlToken}`, "content-type": "application/json"},
-      body: JSON.stringify({scope: "@fixture/automatic", live: true}),
-    })).json()
+
     expect(await check()).toMatchObject({ok: true, applied: true})
     expect(running.sessions.session("@fixture/automatic").snapshot().builds).toBe(buildsBeforeCheck)
     newConsoleErrors = [{level: "error", text: "Новая ошибка при проверке"}]
@@ -216,7 +221,7 @@ test("subscribe and watch builds apply through exact existing-page evidence", as
     newConsoleErrors = []
     leaveDuringApplication = true
     await Bun.write(entry, "export function startExternalStorybookPackage() { return 'after-navigation' }\n")
-    running.watch.notify(entry)
+    await check()
     await waitFor(() => canceledApplications > 0)
     const deferred = running.sessions.session("@fixture/automatic").snapshot()
     expect(deferred.buildState).toBe("built")
@@ -232,7 +237,7 @@ test("subscribe and watch builds apply through exact existing-page evidence", as
     if (running !== undefined) await running.stop()
     await rm(root, {recursive: true, force: true})
   }
-}, 60_000)
+}, 90_000)
 
 /** Ожидает terminal package state без запуска дополнительной server operation. */
 async function waitFor(predicate: () => boolean): Promise<void> {

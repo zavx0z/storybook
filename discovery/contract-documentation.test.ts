@@ -15,7 +15,7 @@ test("[CONTRACT-DISCOVERY] вход/выход, обновление, удале
     const output = join(root, "component/contract/output.ts")
     const read = () => discoverStorybookDirectories(root, new Set())
     expect((await read()).directories.map(entry => entry.relativePath)).toEqual(["component"])
-    expect((await read()).watchPaths).toContain(input)
+    expect((await read()).inputs).toContain(input)
     expect((await read()).directories[0]!.contractDocumentation).toBeUndefined()
     await Bun.write(input, '/** Вход.\n@property [value=hello] - Текст поля.\n*/\nexport interface Input {value?: string}\nthrow new Error("Нельзя исполнять")')
     const first = (await read()).directories[0]!.contractDocumentation!
