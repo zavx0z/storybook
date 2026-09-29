@@ -11,18 +11,13 @@ type Report = ReadAssessmentOutput["reports"][number]
 export async function executeStandard(archetype: string, file: string, input: ReadAssessmentInput): Promise<Report> {
   input.signal?.throwIfAborted()
   const path = fileURLToPath(new URL(`../../${file}`, import.meta.url))
-  try {
-    const report = await readScenario({path, props: {path: input.path}, ...(input.signal ? {signal: input.signal} : {})})
-    input.signal?.throwIfAborted()
-    const failed = report.exitCode !== 0 || report.tests.some(test => test.status === "failed" || test.status === "error")
-    const incomplete = !report.tests.length || report.tests.some(test =>
-      test.status !== "passed" && !(test.status === "skipped" && test.skipReason),
-    )
-    return {archetype, applicable: false, status: failed ? "failed" : incomplete ? "incomplete" : "passed", report}
-  } catch (error) {
-    input.signal?.throwIfAborted()
-    return {archetype, applicable: false, status: "incomplete", error: error instanceof Error ? error.message : String(error)}
-  }
+  const report = await readScenario({path, props: {path: input.path}, ...(input.signal ? {signal: input.signal} : {})})
+  input.signal?.throwIfAborted()
+  const failed = report.exitCode !== 0 || report.tests.some(test => test.status === "failed" || test.status === "error")
+  const incomplete = !report.tests.length || report.tests.some(test =>
+    test.status !== "passed" && !(test.status === "skipped" && test.skipReason),
+  )
+  return {archetype, applicable: false, status: failed ? "failed" : incomplete ? "incomplete" : "passed", report}
 }
 
 /** Применимость следует из отдельного успешного утверждения нормативного сценария. */
@@ -42,24 +37,19 @@ export async function executeOwnedScenario(input: ReadAssessmentInput): Promise<
     if (info?.isFile() && !info.isSymbolicLink()) sources.push(path)
   }
   if (sources.length !== 1) return {archetype: "behavior", applicable: true, status: "incomplete",
-    error: "Для проверки поведения нужен один непосредственный сценарий владельца"}
-  try {
-    const report = await readScenario({path: sources[0]!, ...(input.signal ? {signal: input.signal} : {})})
-    input.signal?.throwIfAborted()
-    const failed = report.exitCode !== 0 || report.validation.checks.some(check => check.status === "failed")
-    const incomplete = !report.tests.length || report.tests.some(test => test.status !== "passed" && !(test.status === "skipped" && test.skipReason))
-    return {archetype: "behavior", applicable: true, status: failed ? "failed" : incomplete ? "incomplete" : "passed", report}
-  } catch (error) {
-    input.signal?.throwIfAborted()
-    return {archetype: "behavior", applicable: true, status: "incomplete", error: error instanceof Error ? error.message : String(error)}
-  }
+    message: "Для проверки поведения нужен один непосредственный сценарий владельца"}
+  const report = await readScenario({path: sources[0]!, ...(input.signal ? {signal: input.signal} : {})})
+  input.signal?.throwIfAborted()
+  const failed = report.exitCode !== 0 || report.validation.checks.some(check => check.status === "failed")
+  const incomplete = !report.tests.length || report.tests.some(test => test.status !== "passed" && !(test.status === "skipped" && test.skipReason))
+  return {archetype: "behavior", applicable: true, status: failed ? "failed" : incomplete ? "incomplete" : "passed", report}
 }
 
 /** Полные отчёты остаются у оценки, наружу для диагностики выводятся только применимые нарушения. */
 export function assessmentDiagnostics(reports: readonly Report[], packagePath: string): ReadAssessmentOutput["diagnostics"] {
   return reports.filter(item => item.applicable).flatMap(item => {
     if (!item.report) return [{rule: item.archetype, status: "not-checked" as const, path: packagePath,
-      message: item.error ?? "Нормативная проверка не выполнена"}]
+      message: item.message ?? "Нормативная проверка не выполнена"}]
     const diagnostics: ReadAssessmentOutput["diagnostics"][number][] = item.report.tests
       .filter(test => test.status !== "passed" && !(test.status === "skipped" && test.skipReason))
       .map(test => ({rule: `${item.archetype}/${test.label}`, path: test.location.path,

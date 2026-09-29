@@ -14,7 +14,12 @@ import type {ReadAssessmentOutput} from "./contract/output"
 
 export type {ReadAssessmentInput, ReadAssessmentOutput}
 
-/** Выполняет стандарт последовательно; сборка использует status, не угадывая класс по файлам или имени. */
+/**
+Выполняет стандарт последовательно; сборка использует status, не угадывая класс по файлам или имени.
+
+@throws Отмена, техническая ошибка запуска или чтения, таймаут без завершённого отчёта.
+Такие ошибки не заменяются предупреждением о структуре пакета.
+*/
 export async function readAssessment(input: ReadAssessmentInput): Promise<ReadAssessmentOutput> {
   const target = {...input, path: resolve(input.path)}
   const base = {...await executeStandard("package", "package/spec/scenario.spec.ts", target), applicable: true}

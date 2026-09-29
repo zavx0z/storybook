@@ -9,6 +9,8 @@ TODO, непроверенные пункты и недокументирова�
 применимых проверок. При failed/incomplete равен null; кандидат виден в reports.
 Domain и Component взаимоисключающи.
 @property reports - Полные результаты; отрицательная проба неприменимого класса не является нарушением пакета.
+message объясняет отсутствие применимого сценария. Технический сбой чтения, запуска
+или таймаут выбрасывается и не подменяется отчётом о соответствии.
 @property diagnostics - Нарушения и незавершённые пункты применимых проверок. Решение о блокировке принадлежит сборке.
 */
 export interface ReadAssessmentOutput {
@@ -19,7 +21,7 @@ export interface ReadAssessmentOutput {
     readonly applicable: boolean
     readonly status: "passed" | "failed" | "incomplete"
     readonly report?: ReadScenarioOutput
-    readonly error?: string
+    readonly message?: string
   }[]
   readonly diagnostics: readonly {
     readonly rule: string
