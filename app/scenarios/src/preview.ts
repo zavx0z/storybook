@@ -32,6 +32,7 @@ import type {ScenarioExecution, ScenarioPreview, TraceValue} from "./types"
 import {createFunctionPreview, inspectFunctionScenario} from "./function-preview"
 import {readJsxProps, readJsxSlots, jsxPropImport, type JsxProp} from "./preview-jsx"
 import {validateScenario} from "@archetypes/scenario-validation"
+import {ScenarioAuthoringError} from "./authoring-error"
 import {readScenarioSource} from "./read-source"
 import {readPreviewSetup} from "./preview-setup"
 import {readPreviewSource, type PreviewReplacement} from "./preview-source"
@@ -344,8 +345,10 @@ function renderSource(descriptor: PreviewDescriptor, props: Readonly<Record<stri
 */
 export async function supportsScenarioPreview(input: Pick<ReadScenarioInput, "path">): Promise<boolean> {
   const source = await readScenarioSource(input.path)
-  const check = validateScenario(source).checks.find(check => ["render-jsx", "single-invocation", "general-particular"].includes(check.rule) && check.status === "failed")
-  if (check) throw new Error(check.issues.map(issue => `${issue.location?.path ?? source.path}:${issue.location?.line ?? 1}: ${issue.message}`).join("\n"))
+  const checks = validateScenario(source).checks.filter(check => check.status === "failed")
+  if (checks.some(check => ["render-jsx", "single-invocation", "general-particular"].includes(check.rule))) {
+    throw new ScenarioAuthoringError(checks)
+  }
   return await inspectScenario(input.path) !== null || await inspectFunctionScenario(input.path) !== null
 }
 

@@ -338,6 +338,9 @@ export function resolveStorybookPackageBuildInputFingerprintPlan(
     guardRoots: workspaceResolutionGuardRoots(ownerRoots),
     compilerRoots: [
       join(STORYBOOK_TOOL_ROOT, "build"),
+      join(STORYBOOK_TOOL_ROOT, "archetypes"),
+      join(STORYBOOK_TOOL_ROOT, "app"),
+      descriptor.packageRoot,
       compilerOwnerRoot(compiler.adapterPath),
       ...compiler.semanticSourceRoots,
     ],

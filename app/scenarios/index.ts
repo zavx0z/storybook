@@ -16,6 +16,7 @@ import type {ScenarioPreview} from "./src/types"
 
 export type {ReadScenarioInput, ReadScenarioOutput, ScenarioPreview}
 export {supportsScenarioPreview}
+export {ScenarioAuthoringError} from "./src/authoring-error"
 
 /**
 Получает структуру исходника, выполняет его настоящим Bun Test и применяет правила архетипа.

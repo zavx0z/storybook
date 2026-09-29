@@ -29,6 +29,73 @@ afterEach(() => {
 })
 
 describe("working Storybook PackageSession lifecycle", () => {
+  test("строгость закрепляется только применением и переживает регрессию и перезапуск", async () => {
+    const root = fixtureRoot("standard")
+    const modes: (string | undefined)[] = []
+    let passed = true
+    const builder: StorybookPackageRevisionBuilder = async input => {
+      modes.push(input.standard)
+      return {...successfulBuild(input.stagingDirectory), assessment: {
+        status: passed ? "passed" : "incomplete",
+        classification: passed ? "domain" : null,
+        diagnostics: [],
+      }}
+    }
+    const value = descriptor(root, "@fixture/standard")
+    const session = createSession(value, builder, [])
+    const built = await session.ensureBuilt()
+    expect(built.standard).toBe("transition")
+    const rejected = session.beginActivation({revision: built.builtRevision!, viewId: "view", route: ""})
+    session.failActivation({...rejected, diagnostic: storybookDiagnostic("activation", "кадр не готов")})
+    expect(session.snapshot().standard).toBe("transition")
+    session.retryFailed()
+    const next = await session.ensureBuilt()
+    const lease = session.beginActivation({revision: next.builtRevision!, viewId: "view", route: ""})
+    session.acknowledgeActivation({...lease, frameSequence: 1})
+    expect(session.snapshot().standard).toBe("strict")
+    const applied = session.snapshot().activeRevision
+    await session.dispose()
+
+    passed = false
+    const restored = createSession(value, builder, [])
+    expect(restored.snapshot().standard).toBe("strict")
+    const failed = await restored.ensureBuilt()
+    expect(failed).toMatchObject({standard: "strict", buildState: "failed", activeRevision: applied})
+    expect(failed.diagnostics[0]?.message).toContain("полного подтверждения")
+    expect(modes).toEqual(["transition", "transition", "strict"])
+    await restored.dispose()
+    const restarted = createSession(value, builder, [])
+    expect(restarted.snapshot().standard).toBe("strict")
+    await restarted.dispose()
+    const owner = readdirSync(join(root, ".artifacts"))[0]!
+    const receiptPath = join(root, ".artifacts", owner, "applied.json")
+    const receipt = JSON.parse(readFileSync(receiptPath, "utf8"))
+    receipt.graphSnapshot.protocol = "retired-graph"
+    writeFileSync(receiptPath, JSON.stringify(receipt))
+    const retired = createSession(value, builder, [])
+    expect(retired.snapshot().standard).toBe("strict")
+    expect((await retired.ensureBuilt()).buildState).toBe("failed")
+    await retired.dispose()
+  })
+
+  test("переходный пакет применяет предупреждения без подтверждения миграции", async () => {
+    const root = fixtureRoot("standard-warning")
+    const warning = storybookDiagnostic("validate", "Обязательное требование ещё TODO")
+    const value = descriptor(root, "@fixture/warning")
+    const builder: StorybookPackageRevisionBuilder = async input => ({...successfulBuild(input.stagingDirectory),
+      assessment: {status: "incomplete", classification: null, diagnostics: []}, warnings: [warning]})
+    const session = createSession(value, builder, [])
+    const built = await session.ensureBuilt()
+    expect(built).toMatchObject({standard: "transition", warnings: [warning], diagnostics: []})
+    const lease = session.beginActivation({revision: built.builtRevision!, viewId: "view", route: ""})
+    session.acknowledgeActivation({...lease, frameSequence: 1})
+    expect(session.snapshot().standard).toBe("transition")
+    await session.dispose()
+    const restored = createSession(value, builder, [])
+    expect(restored.snapshot()).toMatchObject({standard: "transition", warnings: [warning]})
+    await restored.dispose()
+  })
+
   test("общая зависимость готовится до занятия единственного slot пакетом", async () => {
     const root = fixtureRoot("shared-before-admission")
     const scheduler = new StorybookBuildScheduler(1)

@@ -134,6 +134,8 @@ export type ExternalStorybookClientPackageSummary = Readonly<{
   lastGoodRevision: string | null
   buildState: StorybookPackageBuildState
   diagnostics: readonly ExternalStorybookClientDiagnostic[]
+  warnings?: readonly ExternalStorybookClientDiagnostic[]
+  standard?: "transition" | "strict"
 }>
 
 /**
@@ -300,6 +302,8 @@ function projectPackageSummary(
     lastWorkingRevision: optionalRevision(snapshot.lastWorkingRevision ?? snapshot.lastGoodRevision, "last-working revision"),
     lastGoodRevision: optionalRevision(snapshot.lastGoodRevision, "last-good revision"),
     buildState,
+    standard: snapshot.standard ?? "transition",
+    warnings: Object.freeze((snapshot.warnings ?? []).map(warning => projectDiagnostic(warning, hiddenPaths))),
     diagnostics: Object.freeze(snapshot.diagnostics.map((diagnostic) =>
       projectDiagnostic(diagnostic, hiddenPaths))),
   })
@@ -358,7 +362,7 @@ function collectHiddenPaths(
       for (const path of snapshot.dependencyRealpaths) paths.add(path)
     }
     if (Array.isArray(snapshot.diagnostics)) {
-      for (const diagnostic of snapshot.diagnostics) {
+      for (const diagnostic of [...snapshot.diagnostics, ...(snapshot.warnings ?? [])]) {
         if (diagnostic !== null && typeof diagnostic === "object" &&
           typeof diagnostic.path === "string") paths.add(diagnostic.path)
       }

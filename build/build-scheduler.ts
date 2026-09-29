@@ -571,6 +571,7 @@ function normalizePhase(phase: StorybookBuildPhase): StorybookBuildPhase {
     "admission",
     "cache",
     "fingerprint",
+    "assessment",
     "resources",
     "exports",
     "bundle",

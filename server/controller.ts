@@ -1017,6 +1017,10 @@ function publicPackageSnapshot(value: unknown) {
     failedRevision: record.failedRevision,
     buildState: record.buildState,
     diagnostics: sanitizeDiagnostics(record.diagnostics),
+    warnings: sanitizeDiagnostics(record.warnings),
+    standard: record.standard,
+    assessment: record.assessment && typeof record.assessment === "object"
+      ? {status: Reflect.get(record.assessment, "status"), classification: Reflect.get(record.assessment, "classification")} : null,
     builds: record.builds,
     generation: record.generation,
     requestedGeneration: record.requestedGeneration,

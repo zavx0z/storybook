@@ -16,6 +16,17 @@ const fixtureGraph = async () => createExternalStorybookGraph(await discoverStor
 ]))
 
 describe("structural browser client protocol", () => {
+  test("предупреждения стандарта видны отдельно от блокирующих ошибок", async () => {
+    const graph = await fixtureGraph()
+    const path = join(fixtureRoot, "projects", "alpha", "index.ts")
+    const snapshots = packageSnapshots(graph).map(snapshot => ({...snapshot, standard: "transition" as const,
+      warnings: [{phase: "validate" as const, path, message: `Незавершённый стандарт ${path}`}]}))
+    const result = createExternalStorybookClientSnapshot(graph, snapshots)
+    expect(result.packages[0]).toMatchObject({standard: "transition", diagnostics: [],
+      warnings: [{phase: "validate", message: "Незавершённый стандарт [owner-path]"}]})
+    expect(JSON.stringify(result)).not.toContain(path)
+  })
+
   test("projects physical graph and session status without owner paths", async () => {
     const graph = await fixtureGraph()
     const hiddenDiagnostic = join(fixtureRoot, "projects", "alpha", "broken.ts")

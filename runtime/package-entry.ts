@@ -517,6 +517,7 @@ export async function startExternalStorybookPackage(
       inspectorValues: Object.freeze({}),
     }), true)
     for (const diagnostic of summary.diagnostics) reportDiagnostic(diagnostic)
+    for (const warning of summary.warnings ?? []) reportDiagnostic({...warning, severity: "warning"})
     try {
       if (candidateRevision === null && summary.buildState === "failed") {
         throw new Error(summary.diagnostics.map(({message}) => message).join("\n") ||

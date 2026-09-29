@@ -1,3 +1,5 @@
+import {checkStorybookPackageConformance} from "./package-conformance"
+import {assessmentMessages, type StorybookPackageStandard} from "../sessions/package-standard"
 import {createHash, randomUUID} from "node:crypto"
 import {
   closeSync,
@@ -14,8 +16,7 @@ import {
 } from "node:fs"
 import {dirname, extname, isAbsolute, join, relative, resolve, sep} from "node:path"
 import {fileURLToPath} from "node:url"
-import {readSpec} from "@storybook/app/spec-reader"
-import {supportsScenarioPreview, type ReadScenarioOutput} from "@storybook/app/scenarios"
+import {readScenario, ScenarioAuthoringError, supportsScenarioPreview, type ReadScenarioOutput} from "@storybook/app/scenarios"
 import {
   generateStorybookLoaderSource,
   generateStorybookJsxModules,
@@ -51,6 +52,7 @@ import {
   storybookBuildError,
   storybookDiagnostic,
   type StorybookPackageBuildDescriptor,
+  type StorybookPackageDiagnostic,
   type StorybookPackageRevisionResourceFile,
   type StorybookPackageRevisionBuilder,
 } from "../sessions/package-session.ts"
@@ -237,6 +239,11 @@ export async function buildStorybookPackageRevisionInProcess(
       ...(sharedBrowserIdentity === undefined ? {} : {sharedBrowserIdentity}),
     })
     try {
+    emitPhase(onPhase, "assessment", "started")
+    const assessment = await checkStorybookPackageConformance(descriptor.packageRoot, input.signal, input.standard ?? "transition")
+    writeFileSync(join(stagingDirectory, "assessment.json"), JSON.stringify(assessment))
+    emitPhase(onPhase, "assessment", "completed")
+    const warnings: StorybookPackageDiagnostic[] = [...assessmentMessages(assessment)]
     emitPhase(onPhase, "resources", "started")
     for (const resource of descriptor.resourceFiles ?? []) {
       let attestedBytes: Buffer | null = null
@@ -273,7 +280,7 @@ export async function buildStorybookPackageRevisionInProcess(
       const directory = join(stagingDirectory, "scenarios")
       mkdirSync(directory, {recursive: true})
       writeFileSync(join(directory, `${encodeURIComponent(nodeId)}.json`), JSON.stringify(result))
-    })
+    }, {standard: input.standard ?? "transition", warnings, reports: assessment.reports.flatMap(suite => suite.archetype === "behavior" && suite.report ? [suite.report] : [])})
     const sourcePaths = Object.freeze(scenarios.flatMap(scenario => scenario.kind === "component" ? [scenario.module.path] : []))
     const generatedSourceRoot = join(stagingDirectory, "scenario-jsx")
     const jsxModules = generateStorybookJsxModules(scenarios)
@@ -423,6 +430,8 @@ export async function buildStorybookPackageRevisionInProcess(
       dependencyRealpaths,
       entryRelativePath,
       inputFingerprint,
+      assessment: {status: assessment.status, classification: assessment.classification, diagnostics: assessment.diagnostics},
+      warnings,
     })
     } finally {
       attestation.dispose()
@@ -714,35 +723,69 @@ function isWorkerDiagnosticPhase(
 }
 
 /**
-Подготавливает только однозначные preview-сценарии текущей package revision.
+Подготавливает однозначные preview-сценарии текущей package revision.
 
-Статический probe не исполняет Bun Test. `readScenario` запускается ровно один
-раз для node, у которого найден один поддержанный source. Компонент получает
-fixture loader, функция — только данные. Неподдержанные и неоднозначные формы
-не исполняются при подготовке.
+Статический probe не исполняет Bun Test. Готовый отчёт поведения из Assessment
+используется повторно; остальные сценарии выполняются здесь. Технический отказ
+блокирует оба режима. Нарушение авторства переходного пакета даёт предупреждение
+и отсутствие preview; строгий пакет требует поддержанного представления.
+Полный отчёт сохраняется отдельно от браузерного модуля.
 */
 export async function prepareStorybookScenarios(
   descriptor: StorybookPackageBuildDescriptor,
   signal: AbortSignal,
   onPrepared?: (nodeId: string, result: ReadScenarioOutput) => void,
+  policy: Readonly<{standard: StorybookPackageStandard, warnings: StorybookPackageDiagnostic[], reports?: readonly ReadScenarioOutput[]}> = {standard: "strict", warnings: []},
 ): Promise<readonly StorybookGeneratedScenario[]> {
   const prepared: StorybookGeneratedScenario[] = []
+  const read = async (path: string) => policy.reports?.find(report => report.path === realpathSync(path))
+    ?? await readScenario({path, signal})
+  const authoring = (message: string, path: string): void => {
+    if (policy.standard === "strict") throw storybookBuildError(storybookDiagnostic("validate", message, path))
+    policy.warnings.push(storybookDiagnostic("validate", message, path))
+  }
   for (const spec of descriptor.scenarioSpecs ?? []) {
     const supported: string[] = []
+    let structuralReport = false
     for (const path of spec.sourcePaths) {
       signal.throwIfAborted()
-      if (await supportsScenarioPreview({path})) supported.push(path)
+      try {
+        if (await supportsScenarioPreview({path})) supported.push(path)
+        else {
+          const report = await read(path)
+          assertScenarioExecution(report)
+          onPrepared?.(spec.nodeId, report)
+          structuralReport = report.source.subject === null
+        }
+      } catch (error) {
+        if (!(error instanceof ScenarioAuthoringError)) throw error
+        if (policy.standard === "strict") throw error
+        // Нарушение оформления не скрывает ошибку исполнения того же сценария.
+        const report = await read(path)
+        assertScenarioExecution(report)
+        onPrepared?.(spec.nodeId, report)
+        authoring(error.message, path)
+      }
     }
-    if (supported.length !== 1) continue
-    signal.throwIfAborted()
-    const result = (await readSpec({path: dirname(dirname(supported[0]!))}))?.scenario
-    signal.throwIfAborted()
-    const invocation = result?.validation.checks.find(check => check.status === "failed")
-    if (invocation) throw new Error(invocation.issues.map(issue => `${issue.location?.path ?? supported[0]}:${issue.location?.line ?? 1}: ${issue.message}`).join("\n"))
-    if (result?.preview === undefined) {
-      throw new Error(`Не удалось подготовить представление распознанного сценария ${supported[0]}: проверьте наблюдённый вызов и представимость его аргументов`)
+    if (supported.length !== 1) {
+      if (spec.sourcePaths.length && !(structuralReport && spec.sourcePaths.length === 1)) {
+        authoring("Нет однозначного исполняемого preview: исправьте оформление сценария", spec.sourcePaths[0]!)
+      }
+      continue
     }
+    signal.throwIfAborted()
+    const result = await read(supported[0]!)
+    assertScenarioExecution(result)
     onPrepared?.(spec.nodeId, result)
+    const violations = result.validation.checks.filter(check => check.status === "failed" && check.rule !== "execution")
+    if (violations.length) {
+      authoring(new ScenarioAuthoringError(violations).message, result.path)
+      continue
+    }
+    if (result.preview === undefined) {
+      authoring(`Не удалось подготовить представление распознанного сценария ${supported[0]}: проверьте наблюдённый вызов и представимость его аргументов`, supported[0]!)
+      continue
+    }
     const preview = result.preview
     prepared.push(Object.freeze(preview.kind === "function" ? {
       nodeId: spec.nodeId, ...preview,
@@ -757,6 +800,13 @@ export async function prepareStorybookScenarios(
     }))
   }
   return Object.freeze(prepared)
+}
+
+/** Исполнение остаётся обязательным в обоих режимах стандарта. */
+function assertScenarioExecution(report: ReadScenarioOutput): void {
+  if (report.exitCode !== 0 || report.tests.some(test => test.status === "failed" || test.status === "error")) {
+    throw storybookBuildError(storybookDiagnostic("validate", report.stderr || "Сценарий завершился с ошибкой", report.path))
+  }
 }
 
 function validateModuleExports(
