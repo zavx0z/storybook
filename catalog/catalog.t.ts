@@ -40,7 +40,7 @@ export type StorybookAuthorStyleSheet = Readonly<{
 }>
 
 /** Документация входного модуля из контракта владельца пакета. */
-export type StorybookModuleDocumentation = NonNullable<ReturnType<typeof import("@archetypes/package-documentation").readModuleDocumentation>>
+export type StorybookModuleDocumentation = NonNullable<ReturnType<typeof import("@archetypes/package-documentation").default>>
 
 /**
 Разобранное описание одного направления контракта.

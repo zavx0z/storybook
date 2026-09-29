@@ -7,7 +7,7 @@
 */
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import {readPackage} from "@archetypes/package"
+import readPackage from "@archetypes/package"
 
 describe.each([{name: "Состав Archetypes", props: {path: resolve(import.meta.dir, "..")}}])("$name", async ({props}) => {
   const result = await readPackage(props)

@@ -15,6 +15,7 @@
     "@storybook/route": "workspace:*",
     "@archetypes/package-json": "workspace:*",
     "@archetypes/package-index": "workspace:*",
-    "@archetypes/package-documentation": "workspace:*"
+    "@archetypes/package-documentation": "workspace:*",
+    "typescript": "7.0.2"
   }
 }

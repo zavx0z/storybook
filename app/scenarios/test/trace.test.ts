@@ -73,7 +73,7 @@ test("ошибки содержат завершённые значения", ()
 test("package scenario сохраняет вызов и данные выбранного пакета", () => {
   expect(packageScenario.calls).toMatchObject([
     {
-      name: "readPackage",
+      name: "default",
       describe: ["Архетип пакета"],
       test: null,
       args: [{path: resolve(import.meta.dir, "../../../archetypes/package")}],
@@ -119,7 +119,8 @@ test("полная история имеет читаемый snapshot", () => {
     packageScenario: packageScenario.calls.map(({id, location, ...call}) => ({...call, module: localPath(call.module),
       // Строки TSDoc сохраняются целиком; массив избегает хвостовых пробелов сериализатора Bun.
       outcome: JSON.parse(JSON.stringify(call.outcome, (key, value: unknown) =>
-        key === "markdown" && typeof value === "string" ? value.split("\n") : value)),
+        key === "markdown" && typeof value === "string" ? value.split("\n")
+          : typeof value === "string" ? localPath(value) : value)),
       location: location && {
       path: localPath(location.path),
       line: location.line,

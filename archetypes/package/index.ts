@@ -11,8 +11,8 @@ Domain и Component; наличие вложенных пакетов не со�
 */
 import {realpath} from "node:fs/promises"
 import {resolve} from "node:path"
-import {readPackageJson} from "@archetypes/package-json"
-import {readPackageIndex} from "@archetypes/package-index"
+import readPackageJson from "@archetypes/package-json"
+import readPackageIndex from "@archetypes/package-index"
 import {readRootDocumentation} from "./src/root-documentation"
 import {readPackageSources} from "./src/sources"
 import {readRepositoryBoundary} from "./src/repository"
@@ -31,7 +31,7 @@ export type {ReadPackageInput, ReadPackageOutput}
 @returns Структурные факты без поля классификации и без результата проверки стандарта.
 @throws Ошибки чтения и разбора файлов, сканирования исходников и чтения состава Git.
 */
-export async function readPackage({path}: ReadPackageInput): Promise<ReadPackageOutput> {
+export default async function readPackage({path}: ReadPackageInput): Promise<ReadPackageOutput> {
   const directory = await realpath(resolve(path))
   const packageJson = await readPackageJson({path: resolve(directory, "package.json")})
   const [documentation, index, packages] = await Promise.all([

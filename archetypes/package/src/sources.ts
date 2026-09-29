@@ -1,4 +1,5 @@
-import {lstat, readFile} from "node:fs/promises"
+import {readSourceExports} from "./exports.ts"
+import {lstat} from "node:fs/promises"
 import {resolve} from "node:path"
 import type {ReadPackageOutput} from "../contract/output"
 
@@ -17,11 +18,7 @@ export async function readPackageSources(
     })
     if (info?.isFile() && !info.isSymbolicLink()) paths.add(path)
   }
-  const code: ReadPackageOutput["code"][number][] = []
-  for (const path of paths) {
-    const scanner = new Bun.Transpiler({loader: /\.[jt]sx$/u.test(path) ? "tsx" : "ts"})
-    code.push({path, exports: scanner.scan(await readFile(path, "utf8")).exports})
-  }
+  const code = await readSourceExports(root, [...paths])
   const scenarios: string[] = []
   for (const name of ["scenario.spec.ts", "scenario.spec.tsx"]) {
     const path = resolve(root, "spec", name)

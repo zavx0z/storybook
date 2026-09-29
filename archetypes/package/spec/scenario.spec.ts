@@ -8,19 +8,20 @@ props.path позволяет применить те же проверки к �
 @packageDocumentation
 */
 import {describe, expect, test} from "bun:test"
-import {resolve} from "node:path"
-import {readPackage} from "@archetypes/package"
+import {dirname, resolve} from "node:path"
+import readPackage from "@archetypes/package"
 
 describe.each([
   {name: "Архетип пакета", props: {path: resolve(import.meta.dir, "..")}},
 ])("$name", async ({props}) => {
   const result = await readPackage(props)
   const entries = result.index.entries.filter(entry => entry.path === "." && entry.code && entry.status === "owned")
-  const localCode = result.code.filter(source => source.exports.length > 0)
+  const localCode = result.code.filter(source => source.statements.length > 0
+    || source.exports.some(item => item.runtime && item.declarations.some(declaration => declaration.owner?.path === result.root)))
   const repo = result.repository.gitRoot === result.root
   const domain = !repo && result.packages.length > 0 && localCode.length === 0
   const component = !repo && entries.some(entry => result.code.some(source =>
-    source.path === resolve(result.root, entry.target!) && source.exports.length > 0))
+    source.path === resolve(result.root, entry.target!) && source.exports.some(item => item.runtime && item.declarations.some(declaration => declaration.owner?.path === result.root))))
 
   describe("Назначение", () => {
     test("Идентичность", () => {
@@ -45,8 +46,10 @@ describe.each([
       expect(unavailable, "Публичный путь ведёт к своему файлу либо точному публичному входу вложенного владельца").toEqual([])
     })
     test("Вход самостоятельного компонента", () => {
-      const internal = result.index.entries.filter(entry => entry.code && !entry.entrypoint)
-      expect(internal, "Кодовый экспорт ведёт к index.ts или index.tsx владельца; служебные файлы не публикуются напрямую").toEqual([])
+      const internal = result.index.entries.filter(entry => entry.code && !entry.entrypoint
+        && !(domain && entry.path === "." && entry.target && dirname(resolve(result.root, entry.target)) === result.root
+          && entry.conditions.some(condition => !["default", "import", "require", "types", "module", "module-sync", "development", "production"].includes(condition))))
+      expect(internal, "Компонент имеет основной index; входы сред домена объявлены условиями exports и находятся в его корне. Частные файлы не становятся публичными обходным путём").toEqual([])
     })
     test("Отсутствие псевдонимов", () => {
       const aliases = result.index.entries.filter(entry => entry.code && entry.target !== null && result.index.entries.some(other =>
@@ -64,11 +67,41 @@ describe.each([
     })
   })
 
+  describe("Границы зависимостей", () => {
+    test("Публичные владельцы", () => {
+      expect(result.code.flatMap(source => source.references).filter(reference => reference.public === false || reference.public === null && reference.path === null),
+        "Импорты контрактов и реализации используют публичные входы владельцев; собственные private helpers остаются внутри пакета").toEqual([])
+    })
+    test("Объявленные зависимости", () => {
+      const production = Object.keys({...result.packageJson.dependencies, ...result.packageJson.peerDependencies, ...result.packageJson.optionalDependencies})
+      const development = Object.keys({...result.packageJson.devDependencies})
+      expect(result.code.flatMap(source => source.references),
+        "Публичные реэкспорты доступны потребителю через dependencies/peerDependencies; внутренние типовые импорты не требуют обратной зависимости на домен")
+        .toSatisfy(references => references.every(reference => {
+          if (!reference.owner || reference.owner.path === result.root || reference.module.startsWith(".") || reference.module.startsWith("/")) return true
+          const name = reference.module.startsWith("@") ? reference.module.split("/").slice(0, 2).join("/") : reference.module.split("/")[0]!
+          return production.includes(name) || reference.typeOnly && !reference.exported && development.includes(name)
+        }))
+    })
+    test("Состав только у Repo", () => {
+      expect(repo || result.packageJson.workspaces === undefined,
+        "Workspaces объявляет только Repo; Domain и Component получают состав из корневого glob").toBeTrue()
+    })
+  })
+
+  /** @remarks Нераскрытая карта зависимого владельца не доказывает ни публичность, ни нарушение границы. */
+  describe.skipIf(!result.code.some(source => source.references.some(reference => reference.public === null && reference.path !== null)))("Нераскрытые границы", () => {
+    test.todo("Полнота публичных границ", () => {
+      expect(result.code.flatMap(source => source.references).filter(reference => reference.public === null && reference.path !== null),
+        "Публичность каждого разрешённого импорта подтверждена картой владельца").toEqual([])
+    })
+  })
+
   /** @remarks Структурная роль проверяется после полного раскрытия exports; иначе сохраняется TODO полноты ниже. */
   describe.skipIf(result.index.unchecked.length > 0)("Классификация", () => {
     test("Структурная роль", () => {
       expect({root: result.root, repository: result.repository, packages: result.packages, code: result.code},
-        "Repo находится в корне своей Git-истории. Внутри Repo Domain организует пакеты без собственной runtime реализации, Component предоставляет собственную реализацию. Подтверждение требует всех проверок применимого раздела, а не одного этого пункта.")
+        "Repo находится в корне своей Git-истории. Domain собирает API владельцев, не реализуя их поведение; Component владеет реализацией. Реэкспорты домена не считаются его реализациями. Подтверждение требует всех проверок применимого раздела, а не одного этого пункта.")
         .toSatisfy(() => Number(repo) + Number(domain) + Number(component) === 1)
     })
   })
@@ -89,19 +122,35 @@ describe.each([
 
   /** @remarks Repo проверяется только для пакета в точном корне собственной Git-истории. */
   describe.skipIf(!repo)("Repo", () => {
+    test("Корневые glob", () => {
+      const declaration = result.packageJson.workspaces
+      const patterns = declaration === undefined ? [] : "packages" in declaration ? declaration.packages : declaration
+      const include = patterns.filter(pattern => !pattern.startsWith("!"))
+      expect(include, "Repo использует glob без ручного перечисления пакетов; пустому составу workspaces не обязательны")
+        .toSatisfy(patterns => patterns.every(pattern => pattern.includes("*")))
+      expect(result.packages, "Каждый рабочий пакет входит ровно в один положительный glob Repo")
+        .toSatisfy(packages => packages.every(item => include.filter(pattern => new Bun.Glob(`${pattern}/package.json`)
+          .match(`${item.path.slice(result.root.length + 1)}/package.json`)).length === 1))
+    })
     test("Независимые репозитории", () => {
       expect(result.repository.nestedRepositories,
         "Другие самостоятельные Repo подключаются к Project, а не вкладываются в этот Repo").toEqual([])
     })
   })
 
-  /** @remarks Domain применим к вложенному пакету, объединяющему части без собственной runtime реализации. */
+  /** @remarks Domain применим к области с вложенными пакетами и API, собранным без локальной реализации поведения. */
   describe.skipIf(!domain)("Domain", () => {
+    test("Происхождение API", () => {
+      expect(result.code.flatMap(source => source.exports),
+        "Домен назначает именованные экспорты, разрешённые до владельца; type-only и реэкспорт сохраняют своё назначение")
+        .toSatisfy(exports => exports.every(item => item.name !== "default" && !item.unresolved && item.declarations.length > 0))
+      expect(localCode, "Домен не добавляет локальное поведение или побочные эффекты вместо компонентов").toEqual([])
+    })
     test("Принадлежность публичных входов", () => {
       expect(result.index.entries,
-        "Кодовые подпути Domain прямо открывают публичные входы вложенных пакетов; корневой index может содержать обзор и типы")
-        .toSatisfy(entries => entries.every(entry => !entry.code || entry.status === "forwarded" || entry.status === "blocked"
-          || entry.status === "owned" && entry.path === "."))
+        "Домен собирает именованный API и типы владельцев; прямые подпути ведут к их публичным входам")
+        .toSatisfy(entries => entries.every(entry => !entry.code || entry.status === "blocked"
+          || (entry.path === "." ? entry.status === "owned" : entry.status === "forwarded")))
     })
   })
 
@@ -109,8 +158,11 @@ describe.each([
   describe.skipIf(!component)("Component", () => {
     test("Основная реализация", () => {
       expect(entries.map(entry => result.code.find(source => source.path === resolve(result.root, entry.target!))),
-        "Каждая условная ветвь предоставляет одну основную runtime реализацию; type-only экспорты не считаются реализациями")
-        .toSatisfy(sources => sources.every(source => source?.exports.length === 1))
+        "Компонент предоставляет одну основную реализацию через default; именованные типы контрактов не увеличивают число реализаций")
+        .toSatisfy(sources => sources.every(source => {
+          const values = source?.exports.filter(item => item.runtime) ?? []
+          return values.length === 1 && values[0]?.name === "default" && !values[0].unresolved
+        }))
     })
     test("Публичная граница", () => {
       expect(result.index.entries,
@@ -123,9 +175,10 @@ describe.each([
         .toHaveLength(1)
     })
     test("Результат", () => {
-      expect(entries,
-        "Невизуальный результат описан выходным контрактом владельца; визуальный компонент возвращает JSX")
-        .toSatisfy(entries => entries.every(entry => /\.[jt]sx$/u.test(entry.target!) || entry.output !== null))
+      expect(result.code.filter(source => entries.some(entry => resolve(result.root, entry.target!) === source.path)),
+        "Публичный результат имеет выводимый TypeScript тип; используемые типовые контракты разрешаются, пустой output.ts не требуется")
+        .toSatisfy(sources => sources.every(source => source.exports.filter(item => item.runtime).every(item => item.type !== null && !item.unresolved)
+          && source.references.filter(item => item.typeOnly).every(item => item.path !== null || item.public === true)))
     })
   })
 })

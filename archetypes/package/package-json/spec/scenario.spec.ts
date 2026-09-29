@@ -1,6 +1,6 @@
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import {readPackageJson} from "@archetypes/package-json"
+import readPackageJson from "@archetypes/package-json"
 
 describe.each([
   {
@@ -24,7 +24,7 @@ describe.each([
   })
 
   test("Не содержит других полей", () => {
-    const extraFields = Object.keys(result ?? {}).filter(key => key !== "label" && key !== "workspaces" && !fields.some(({field}) => field === key))
+    const extraFields = Object.keys(result ?? {}).filter(key => key !== "label" && key !== "workspaces" && !["dependencies", "peerDependencies", "optionalDependencies", "devDependencies"].includes(key) && !fields.some(({field}) => field === key))
     expect(extraFields, "В package.json не должно быть полей вне проверяемого состава").toEqual([])
   })
 

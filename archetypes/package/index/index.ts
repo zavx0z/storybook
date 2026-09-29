@@ -21,7 +21,7 @@ export type {ReadPackageIndexInput, ReadPackageIndexOutput}
 Шаблоны и fallback-массивы сохраняются как непроверенные, не как отсутствующие файлы.
 @throws Ошибки доступа к файлам, кроме отсутствия пути.
 */
-export async function readPackageIndex({path, exports}: ReadPackageIndexInput): Promise<ReadPackageIndexOutput> {
+export default async function readPackageIndex({path, exports}: ReadPackageIndexInput): Promise<ReadPackageIndexOutput> {
   const declared = collectTargets(exports)
   const entries = await Promise.all(declared.targets.map(target => readTarget(resolve(path), target)))
   return {entries, unchecked: declared.unchecked}

@@ -6,7 +6,7 @@ Project объединяет независимые пакеты-репозит�
 */
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import {readProject} from "@archetypes/project"
+import readProject from "@archetypes/project"
 
 const root = resolve(import.meta.dir, "../../..")
 describe.each([

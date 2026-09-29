@@ -1,7 +1,7 @@
 import {dirname, resolve} from "node:path"
 import {realpath} from "node:fs/promises"
 import {readWorkspacePackages} from "@storybook/route/workspaces"
-import {readPackageJson} from "@archetypes/package-json"
+import readPackageJson from "@archetypes/package-json"
 import type {ReadPackageOutput} from "../contract/output"
 
 /** Выбирает вложенные пакеты из корневого workspace Repo; ближайший пакет определяет принадлежность. */

@@ -6,13 +6,13 @@
 */
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import {readComponent} from "@archetypes/component"
+import readComponent from "@archetypes/component"
 
 describe.each([{name: "Функция увеличения числа", props: {path: resolve(import.meta.dir, "fixture/component")}}])("$name", async ({props}) => {
   const result = await readComponent(props)
   test("Публичная функция", () => {
     expect(result.entries.map(entry => entry.exports), "Публичный вход предоставляет increment; типы Input и Output не становятся runtime функциями")
-      .toEqual([["increment"]])
+      .toEqual([["default"]])
     expect(result.additionalCode, "Пример не публикует дополнительных реализаций").toEqual([])
   })
   test("Контракты", () => {

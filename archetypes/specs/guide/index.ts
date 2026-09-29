@@ -12,7 +12,7 @@ import type {CreateScenarioGuideOutput} from "./contract/output"
 export type {CreateScenarioGuideInput, CreateScenarioGuideOutput}
 
 /** Собирает руководство из прочитанного App сценария и реально существующих файлов его владельца. */
-export async function createScenarioGuide({report}: CreateScenarioGuideInput): Promise<CreateScenarioGuideOutput> {
+export default async function createScenarioGuide({report}: CreateScenarioGuideInput): Promise<CreateScenarioGuideOutput> {
   const owner = dirname(dirname(report.path))
   const files: CreateScenarioGuideOutput["files"][number][] = [
     {path: relative(owner, report.path), role: "scenario"},

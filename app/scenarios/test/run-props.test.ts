@@ -50,7 +50,7 @@ test("Путь передаётся непосредственно сценар�
     path: resolve(import.meta.dir, "../../../archetypes/package/spec/scenario.spec.ts"),
     props: {path: resolve(import.meta.dir, "../..")},
   })
-  expect(result.calls.filter(call => call.name === "readPackage").map(call => call.args)).toEqual([
+  expect(result.calls.filter(call => call.name === "default").map(call => call.args)).toEqual([
     [{path: resolve(import.meta.dir, "../..")}],
   ])
 })
@@ -65,7 +65,7 @@ test("Исходник вызова показывает подставленн�
     props: {value: "Внешнее значение"},
   })
   const variant = result.preview?.variants.find(item => item.title === "Импортированная функция")
-  expect(variant?.source).toBe('import {evaluate as run} from "@fixture/function-preview"\n\nawait run({\n  "value": "Внешнее значение"\n})\n\nawait run({\n  "value": null\n})')
+  expect(variant?.source).toBe('import {evaluate as run} from "@fixture/function-preview"\n\nawait run({\n  "value": "Внешнее значение"\n})')
 })
 
 test("Выбранный вариант выполняется без подготовки соседних вариантов", async () => {
@@ -83,7 +83,7 @@ test("Выбранный вариант выполняется без подго
 test("Выбранный импортированный аргумент сохраняет исходный импорт", async () => {
   const result = await readScenario({
     path: resolve(import.meta.dir, "fixture/function-preview/spec/scenario.spec.ts"),
-    variant: 7,
+    variant: 9,
     props: {},
   })
   expect(result.preview?.variants.map(item => item.title)).toEqual(["Импортированная функция"])

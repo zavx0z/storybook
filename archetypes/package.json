@@ -21,5 +21,19 @@
   },
   "scripts": {
     "test": "bun test --path-ignore-patterns **/fixture/** --max-concurrency=1"
+  },
+  "dependencies": {
+    "@archetypes/specs": "workspace:*",
+    "@archetypes/component": "workspace:*",
+    "@archetypes/project": "workspace:*",
+    "@archetypes/domain": "workspace:*",
+    "@archetypes/repo": "workspace:*",
+    "@archetypes/package": "workspace:*",
+    "@archetypes/package-documentation": "workspace:*",
+    "@archetypes/package-json": "workspace:*",
+    "@archetypes/package-index": "workspace:*",
+    "@archetypes/scenario-document": "workspace:*",
+    "@archetypes/scenario-guide": "workspace:*",
+    "@archetypes/scenario-validation": "workspace:*"
   }
 }

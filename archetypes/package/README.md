@@ -10,3 +10,5 @@
 - [Публичные пути](notes/draft-exports.md)
 - [Обнаружение](notes/draft-discovery.md)
 - [Владение ресурсами](notes/draft-ownership.md)
+
+- [Доступность зависимостей](notes/dependencies.md)

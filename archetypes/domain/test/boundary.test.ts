@@ -2,8 +2,8 @@ import {afterEach, expect, test} from "bun:test"
 import {cp, mkdtemp, readFile, rm, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {resolve} from "node:path"
-import {readDomain} from "@archetypes/domain"
-import {readComponent} from "@archetypes/component"
+import readDomain from "@archetypes/domain"
+import readComponent from "@archetypes/component"
 
 const roots: string[] = []
 afterEach(async () => {

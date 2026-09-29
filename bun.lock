@@ -538,6 +538,20 @@
     "archetypes": {
       "name": "@storybook/archetypes",
       "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/component": "workspace:*",
+        "@archetypes/domain": "workspace:*",
+        "@archetypes/package": "workspace:*",
+        "@archetypes/package-documentation": "workspace:*",
+        "@archetypes/package-index": "workspace:*",
+        "@archetypes/package-json": "workspace:*",
+        "@archetypes/project": "workspace:*",
+        "@archetypes/repo": "workspace:*",
+        "@archetypes/scenario-document": "workspace:*",
+        "@archetypes/scenario-guide": "workspace:*",
+        "@archetypes/scenario-validation": "workspace:*",
+        "@archetypes/specs": "workspace:*",
+      },
     },
     "archetypes/component": {
       "name": "@archetypes/component",
@@ -561,6 +575,7 @@
         "@archetypes/package-index": "workspace:*",
         "@archetypes/package-json": "workspace:*",
         "@storybook/route": "workspace:*",
+        "typescript": "7.0.2",
       },
     },
     "archetypes/package/documentation": {

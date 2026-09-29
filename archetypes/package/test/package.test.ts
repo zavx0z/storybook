@@ -2,10 +2,10 @@ import {afterAll, describe, expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm, symlink, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {resolve} from "node:path"
-import {readPackage} from "@archetypes/package"
-import {readModuleDocumentation} from "@archetypes/package-documentation"
-import {readPackageIndex} from "@archetypes/package-index"
-import {readPackageJson} from "@archetypes/package-json"
+import readPackage from "@archetypes/package"
+import readModuleDocumentation from "@archetypes/package-documentation"
+import readPackageIndex from "@archetypes/package-index"
+import readPackageJson from "@archetypes/package-json"
 import {readScenario} from "@storybook/app/scenarios"
 
 const root = await realpath(await mkdtemp(resolve(tmpdir(), "archetype-package-")))
@@ -87,7 +87,7 @@ describe("Чтение состава пакета", () => {
     await writeFile(manifestPath, JSON.stringify(manifest))
     expect(await readPackageJson({path: manifestPath})).toEqual(manifest)
     expect((await readPackage({path})).packageJson).toEqual(manifest)
-    await writeFile(resolve(path, "index.ts"), '/**\nОписание модуля.\n@packageDocumentation\n*/\nexport function increment() { return 1 }')
+    await writeFile(resolve(path, "index.ts"), '/**\nОписание модуля.\n@packageDocumentation\n*/\nexport default function increment() { return 1 }')
     await mkdir(resolve(path, "spec"))
     await writeFile(resolve(path, "spec/scenario.spec.ts"), 'import {test, expect} from "bun:test"\ntest("Пример", () => expect(1).toBe(1))')
     const scenario = await readScenario({path: resolve(import.meta.dir, "../spec/scenario.spec.ts"), props: {path}})
@@ -141,7 +141,7 @@ describe("Чтение состава пакета", () => {
     await rm(resolve(path, "index.ts"))
     const result = await readScenario({path: resolve(import.meta.dir, "../spec/scenario.spec.ts"), props: {path}})
     expect(result.exitCode).not.toBe(0)
-    expect(result.calls.find(call => call.name === "readPackage")?.args).toEqual([{path}])
+    expect(result.calls.find(call => call.name === "default")?.args).toEqual([{path}])
     expect(result.stdout + result.stderr).toContain("Принадлежность файлов")
     expect(result.stdout + result.stderr).toContain("missing")
     expect(result.preview?.kind).toBe("function")

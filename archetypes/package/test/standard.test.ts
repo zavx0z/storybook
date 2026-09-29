@@ -19,7 +19,7 @@ test.each([
   expect(report.exitCode, report.stderr).toBe(0)
   expect(report.validation.checks.filter(check => check.status === "failed")).toEqual([])
   expect(report.tests.filter(point => point.status !== "passed" && !(point.status === "skipped" && point.skipReason))).toEqual([])
-  expect(report.calls.filter(call => call.name === "readPackage")).toHaveLength(1)
+  expect(report.calls.filter(call => call.name === "default")).toHaveLength(1)
   expect(report.preview?.kind).toBe("function")
   expect(report.groups.some(group => group.label === role)).toBeTrue()
   const document = await readScenarios({

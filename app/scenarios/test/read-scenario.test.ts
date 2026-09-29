@@ -24,7 +24,7 @@ describe.each([
       path: resolve(import.meta.dir, "../../../archetypes/package/spec/scenario.spec.ts"),
     },
     expected: ["Архетип пакета"].map(name => ({
-      name: "readPackage", describe: [name], test: null, outcome: {type: "resolve"},
+      name: "default", describe: [name], test: null, outcome: {type: "resolve"},
     })),
   },
   {
@@ -39,7 +39,7 @@ describe.each([
       ]),
       ...["Прямоугольник", "Овал", "Круг"].map(name => ({
         name: "createHeadless.screenshot", describe: [name],
-        test: "снимок соответствует собственным границам", outcome: {type: "resolve"},
+        test: "Снимок", outcome: {type: "resolve"},
       })),
     ],
   },

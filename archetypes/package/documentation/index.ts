@@ -22,7 +22,7 @@ const MAX_MODULE_SOURCE_BYTES = 1024 * 1024
 @throws RangeError, если исходник превышает допустимый размер.
 @throws Error, если до первого выражения расположено несколько модульных блоков.
 */
-export function readModuleDocumentation({source, path}: ReadModuleDocumentationInput): ReadModuleDocumentationOutput | null {
+export default function readModuleDocumentation({source, path}: ReadModuleDocumentationInput): ReadModuleDocumentationOutput | null {
   if (Buffer.byteLength(source, "utf8") > MAX_MODULE_SOURCE_BYTES) {
     throw new RangeError(`Module source exceeds ${MAX_MODULE_SOURCE_BYTES} bytes: ${path}`)
   }

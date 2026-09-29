@@ -8,3 +8,5 @@
 - [Жизненный цикл заметок](notes/note-lifecycle.md)
 - [Обнаружение и каталог](notes/draft-catalog.md)
 - [Представления](notes/draft-projections.md)
+
+- [Размещение согласованных требований](notes/requirements-map.md)

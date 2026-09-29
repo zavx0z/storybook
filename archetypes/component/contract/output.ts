@@ -5,7 +5,7 @@ import type {ReadPackageOutput} from "@archetypes/package"
 
 @property package - Общий состав пакета.
 @property entries - Собственные кодовые ветви основного экспорта с именами runtime exports.
-Имена определяются штатным синтаксическим сканером Bun, не по расширению директории.
+Runtime-имена выбираются из native символов TypeScript; type-only контракты не считаются реализациями.
 @property additionalCode - Дополнительные самостоятельные кодовые подпути или чужие реализации.
 @property scenarios - Непосредственные сценарии использования компонента.
 */

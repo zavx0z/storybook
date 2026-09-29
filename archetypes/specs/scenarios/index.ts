@@ -48,7 +48,7 @@
 */
 import {basename, dirname, resolve} from "node:path"
 import {readScenario} from "@storybook/app/scenarios"
-import {createScenarioGuide} from "@archetypes/scenario-document"
+import createScenarioGuide from "@archetypes/scenario-document"
 import type {ReadScenarioGuideInput} from "./contract/input"
 import type {ReadScenarioGuideOutput} from "./contract/output"
 
@@ -63,7 +63,7 @@ export type {ReadScenarioGuideInput, ReadScenarioGuideOutput}
 @throws TypeError, если путь не указывает на spec/scenario.spec.ts либо spec/scenario.spec.tsx.
 @throws Ошибки чтения и запуска сценария из App.
 */
-export async function readScenarioGuide({path}: ReadScenarioGuideInput): Promise<ReadScenarioGuideOutput> {
+export default async function readScenarioGuide({path}: ReadScenarioGuideInput): Promise<ReadScenarioGuideOutput> {
   const source = resolve(path)
   if (basename(dirname(source)) !== "spec" || !/^scenario\.spec\.tsx?$/u.test(basename(source))) {
     throw new TypeError("Укажите файл spec/scenario.spec.ts либо spec/scenario.spec.tsx владельца")

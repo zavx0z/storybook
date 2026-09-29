@@ -7,14 +7,14 @@ Project объединяет выбранные независимые паке�
 */
 import {realpath} from "node:fs/promises"
 import {relative, resolve, sep} from "node:path"
-import {readRepo} from "@archetypes/repo"
+import readRepo from "@archetypes/repo"
 import type {ReadProjectInput} from "./contract/input"
 import type {ReadProjectOutput} from "./contract/output"
 
 export type {ReadProjectInput, ReadProjectOutput}
 
 /** Читает ссылки проекта; не создаёт репозитории, копии или ветки Git. */
-export async function readProject({paths}: ReadProjectInput): Promise<ReadProjectOutput> {
+export default async function readProject({paths}: ReadProjectInput): Promise<ReadProjectOutput> {
   const roots = [...new Set(await Promise.all(paths.map(path => realpath(resolve(path)))))]
   const repositories = await Promise.all(roots.map(path => readRepo({path})))
   const names = repositories.map(repo => repo.package.packageJson.name)

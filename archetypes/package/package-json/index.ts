@@ -1,5 +1,6 @@
 /**
-Извлекает из package.json имя, необязательное название, описание и публичные экспорты.
+Извлекает из package.json идентичность, описание, публичные экспорты,
+состав workspaces и стандартные карты зависимостей.
 
 @packageDocumentation
 */
@@ -20,9 +21,9 @@ export type {ReadPackageJsonInput, ReadPackageJsonOutput}
 
 @throws Ошибка чтения файла или разбора JSON.
 @throws TypeError, если манифест не является объектом, имя отсутствует,
-description/label имеют неверный тип либо exports/workspaces имеют недопустимую форму.
+description/label имеют неверный тип либо exports/workspaces и карты зависимостей имеют недопустимую форму.
 */
-export async function readPackageJson({path}: ReadPackageJsonInput): Promise<ReadPackageJsonOutput> {
+export default async function readPackageJson({path}: ReadPackageJsonInput): Promise<ReadPackageJsonOutput> {
   const manifest: unknown = await Bun.file(path).json()
   if (manifest === null || typeof manifest !== "object" || Array.isArray(manifest)) {
     throw new TypeError("package.json должен содержать объект")
@@ -39,12 +40,22 @@ export async function readPackageJson({path}: ReadPackageJsonInput): Promise<Rea
   if (workspaces !== undefined && (!Array.isArray(patterns) || !patterns.every(value => typeof value === "string"))) {
     throw new TypeError("workspaces задаёт массив путей либо объект с массивом packages")
   }
+  const dependencies: Partial<Pick<ReadPackageJsonOutput, "dependencies" | "peerDependencies" | "optionalDependencies" | "devDependencies">> = {}
+  for (const key of ["dependencies", "peerDependencies", "optionalDependencies", "devDependencies"] as const) {
+    if (!(key in manifest)) continue
+    const value = Reflect.get(manifest, key)
+    if (!value || typeof value !== "object" || Array.isArray(value) || Object.values(value).some(item => typeof item !== "string")) {
+      throw new TypeError(`${key} задаёт имена пакетов и строковые версии`)
+    }
+    Object.assign(dependencies, {[key]: value})
+  }
   const declared = "exports" in manifest ? manifest.exports : undefined
   const exports = declared === undefined ? {}
     : typeof declared === "string" || declared === null || Array.isArray(declared) ? {".": declared}
     : declared as Readonly<Record<string, unknown>>
   return {
     name: manifest.name,
+    ...dependencies,
     ...("label" in manifest ? {label: manifest.label as string} : {}),
     description: "description" in manifest ? manifest.description as string : "",
     exports,

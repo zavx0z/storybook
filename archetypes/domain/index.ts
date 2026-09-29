@@ -2,24 +2,25 @@
 Domain организует предметную область, её правила и принадлежащие ей пакеты.
 Поддомен остаётся Domain. Домен не является одновременно Component:
 исполняемая композиция получает собственный пакет компонента.
-Публичный подпуть домена может прямо открывать публичный вход вложенного владельца.
+Домен собирает именованный API и типы через реэкспорты публичных входов владельцев.
+Условия exports выбирают вход среды; реэкспорт не передаёт владение реализацией.
 
 @packageDocumentation
 */
 import {basename, resolve} from "node:path"
-import {readPackage} from "@archetypes/package"
+import readPackage from "@archetypes/package"
 import type {ReadDomainInput} from "./contract/input"
 import type {ReadDomainOutput} from "./contract/output"
 
 export type {ReadDomainInput, ReadDomainOutput}
 
 /** Читает принадлежность кода и необязательные сценарии, не исполняя код проверяемого домена. */
-export async function readDomain({path}: ReadDomainInput): Promise<ReadDomainOutput> {
+export default async function readDomain({path}: ReadDomainInput): Promise<ReadDomainOutput> {
   const description = await readPackage({path})
   const owners = new Set(description.packages.map(item => item.path))
   const localCode: string[] = []
   for (const source of description.code) {
-    if (source.exports.length === 0) continue
+    if (source.statements.length === 0 && !source.exports.some(item => item.runtime && item.declarations.some(declaration => declaration.owner?.path === description.root))) continue
     const entry = description.index.entries.find(entry => entry.status === "owned" && entry.target
       && resolve(description.root, entry.target) === source.path)
     localCode.push(entry?.path ?? basename(source.path))

@@ -13,7 +13,7 @@ const webxr = resolve(archetypes, "../../webxr-space")
 test("находит импорт серверной функции", async () => {
   const result = await discover(resolve(archetypes, "package/spec/scenario.spec.ts"))
   expect(result.observe, "Импорты должны определяться из файла сценария").toEqual([
-    {module: resolve(archetypes, "package/index.ts"), names: ["readPackage"]},
+    {module: resolve(archetypes, "package/index.ts"), names: ["default"]},
   ])
 })
 

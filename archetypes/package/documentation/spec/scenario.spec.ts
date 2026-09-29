@@ -4,7 +4,7 @@
 @packageDocumentation
 */
 import {describe, expect, test} from "bun:test"
-import {readModuleDocumentation} from "@archetypes/package-documentation"
+import readModuleDocumentation from "@archetypes/package-documentation"
 
 describe.each([
   {name: "Модульный обзор", props: {source: "/** Описание пакета.\n@packageDocumentation\n*/\nexport {}", path: "index.ts"}, markdown: "Описание пакета."},

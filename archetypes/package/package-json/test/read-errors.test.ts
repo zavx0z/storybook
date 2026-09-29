@@ -5,13 +5,33 @@
 
 @packageDocumentation
 */
-import {describe, expect, mock, test} from "bun:test"
+import {afterAll, describe, expect, mock, test} from "bun:test"
 import {resolve} from "node:path"
+import {mkdtemp, rm} from "node:fs/promises"
+import {tmpdir} from "node:os"
 import type {ReadPackageJsonInput} from "@archetypes/package-json"
 
 const readPackageJsonMock = mock(async (props: ReadPackageJsonInput) => {
-  const {readPackageJson} = await import("@archetypes/package-json")
+  const {default: readPackageJson} = await import("@archetypes/package-json")
   return readPackageJson(props)
+})
+
+const temporary: string[] = []
+afterAll(async () => {
+  for (const path of temporary) await rm(path, {recursive: true, force: true})
+})
+
+test("роли зависимостей сохраняются раздельно и требуют строковых версий", async () => {
+  const root = await mkdtemp(resolve(tmpdir(), "package-json-dependencies-"))
+  temporary.push(root)
+  const path = resolve(root, "package.json")
+  const roles = {dependencies: {runtime: "1"}, peerDependencies: {host: "*"}, optionalDependencies: {optional: "2"}, devDependencies: {compiler: "3"}}
+  await Bun.write(path, JSON.stringify({name: "fixture", ...roles}))
+  expect(await readPackageJsonMock({path})).toMatchObject(roles)
+  for (const role of Object.keys(roles)) {
+    await Bun.write(path, JSON.stringify({name: "fixture", [role]: {dependency: false}}))
+    await expect(readPackageJsonMock({path})).rejects.toThrow(TypeError)
+  }
 })
 
 describe.each([

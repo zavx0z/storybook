@@ -19,7 +19,7 @@ export type {ValidateScenarioInput, ValidateScenarioOutput}
 @param execution - Наблюдения запуска; без них динамические проверки остаются непроверенными.
 @returns Каждый реализованный и ещё непроверенный пункт с честным состоянием.
 */
-export function validateScenario(source: ValidateScenarioInput["source"], execution?: ValidateScenarioInput["execution"]): ValidateScenarioOutput {
+export default function validateScenario(source: ValidateScenarioInput["source"], execution?: ValidateScenarioInput["execution"]): ValidateScenarioOutput {
   const checks: ValidateScenarioOutput["checks"][number][] = []
   const location = {path: source.path, line: 1, column: 1}
   const add = (rule: string, issues: ValidateScenarioOutput["checks"][number]["issues"]) => {

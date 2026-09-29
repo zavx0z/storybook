@@ -19,7 +19,7 @@ describe.each([
           path: fileURLToPath(new URL("../../../../archetypes/package/spec/scenario.spec.ts", import.meta.url)),
           exitCode: 0,
           calls: expect.arrayContaining([
-            expect.objectContaining({name: "readPackage", describe: ["Архетип пакета"]}),
+            expect.objectContaining({name: "default", describe: ["Архетип пакета"]}),
           ]),
         }),
       },

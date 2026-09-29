@@ -1,7 +1,7 @@
 import {expect, test} from "bun:test"
 import {resolve} from "node:path"
-import {readScenarioGuide} from ".."
-import {readSpecGuide} from "../.."
+import readScenarioGuide from "@archetypes/scenario-guide"
+import readSpecGuide from "@archetypes/specs"
 
 const owner = resolve(import.meta.dir, "../../../../app/scenarios/spec/fixture/function")
 

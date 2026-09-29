@@ -1,7 +1,7 @@
 import {beforeAll, expect, test} from "bun:test"
 import {resolve} from "node:path"
 import {readScenario, type ReadScenarioOutput} from "@storybook/app/scenarios"
-import {validateScenario} from "@archetypes/scenario-validation"
+import validateScenario from "@archetypes/scenario-validation"
 import {readScenarioSource} from "../src/read-source"
 
 const path = resolve(import.meta.dir, "../spec/fixture/component/spec/scenario.spec.tsx")

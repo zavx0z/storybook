@@ -17,8 +17,11 @@ import type {ReadPackageIndexOutput} from "@archetypes/package-index"
 @property repository - Наблюдаемая Git-граница и вложенные самостоятельные репозитории.
 Не задаёт класс пакета и не изменяет Git.
 
-@property code - Runtime exports собственных публичных исходников и корневых index.
-Пустые и type-only входы сохраняются; чужие реализации не исполняются и не сканируются.
+@property code - Native символы публичных входов и достижимых runtime-модулей своего пакета: имя, runtime/type-only, тип и владельцы объявлений.
+statements сохраняет собственные исполняемые объявления и эффекты входа.
+references раскрывает зависимости входа и его контрактов; public проверяет доступность
+модуля у владельца. unresolved и null сохраняют отсутствие доказательства.
+TypeScript читает объявления без исполнения; классы пакетов здесь не назначаются.
 
 @property scenarios - Непосредственные файлы сценария использования, без их выполнения.
 
@@ -28,7 +31,27 @@ parent указывает физический пакет, непосредст�
 export interface ReadPackageOutput {
   readonly root: string
   readonly repository: {readonly gitRoot: string | null, readonly nestedRepositories: readonly string[]}
-  readonly code: readonly {readonly path: string, readonly exports: readonly string[]}[]
+  readonly code: readonly {
+    readonly path: string
+    readonly exports: readonly {
+      readonly name: string
+      readonly runtime: boolean
+      readonly type: string | null
+      readonly unresolved: boolean
+      readonly declarations: readonly {readonly path: string, readonly owner: {readonly path: string, readonly name: string} | null}[]
+    }[]
+    readonly statements: readonly string[]
+    readonly references: readonly {
+      readonly from: string
+      readonly module: string
+      readonly names: readonly string[]
+      readonly typeOnly: boolean
+      readonly exported: boolean
+      readonly path: string | null
+      readonly owner: {readonly path: string, readonly name: string} | null
+      readonly public: boolean | null
+    }[]
+  }[]
   readonly scenarios: readonly string[]
   readonly packageJson: ReadPackageJsonOutput
   readonly documentation: ReadModuleDocumentationOutput | null

@@ -2,7 +2,7 @@
 import {createHash} from "node:crypto"
 import {constants} from "node:fs"
 import {open, readFile} from "node:fs/promises"
-import {readModuleDocumentation} from "@archetypes/package-documentation"
+import readModuleDocumentation from "@archetypes/package-documentation"
 import {analyzeTypeDoc} from "@webxr/typedoc/parser"
 import {analyzeTypeDocs} from "@webxr/typedoc/batch"
 import type {AnalyzeTypeDocOutput} from "@webxr/typedoc/parser/contract/output"

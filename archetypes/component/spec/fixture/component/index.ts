@@ -8,6 +8,6 @@ import type {Output} from "./contract/output"
 export type {Input, Output}
 
 /** Возвращает новое значение без изменения аргумента. */
-export function increment({value}: Input): Output {
+export default function increment({value}: Input): Output {
   return value + 1
 }

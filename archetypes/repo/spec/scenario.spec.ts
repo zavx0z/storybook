@@ -7,7 +7,7 @@ Project объединяет Repo ссылками, а не вложенными
 */
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import {readRepo} from "@archetypes/repo"
+import readRepo from "@archetypes/repo"
 
 describe.each([{name: "Архетип Repo", props: {path: resolve(import.meta.dir, "../../..")}}])("$name", async ({props}) => {
   const result = await readRepo(props)
