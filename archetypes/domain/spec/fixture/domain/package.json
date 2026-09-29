@@ -1,0 +1,11 @@
+{
+  "name": "@fixture/archetype-domain",
+  "description": "Область числовых операций",
+  "type": "module",
+  "workspaces": [
+    "counter"
+  ],
+  "exports": {
+    "./counter": "./counter/index.ts"
+  }
+}

@@ -5,13 +5,17 @@
 
 @property [label] - Необязательное отображаемое название пакета.
 
-@property description - Краткое описание назначения пакета.
+@property description - Краткое описание назначения; пустая строка при отсутствии.
 
-@property exports - Карта публичных экспортов без преобразования её значений.
+@property exports - Карта публичных экспортов; короткая строковая форма нормализована в `.`.
+Отсутствующий exports даёт пустую карту: Repo и Domain не обязаны иметь исполняемый вход.
+
+@property [workspaces] - Авторский состав вложенных пакетов для штатного читателя workspaces.
 */
 export interface ReadPackageJsonOutput {
   readonly name: string
   readonly label?: string
   readonly description: string
   readonly exports: Readonly<Record<string, unknown>>
+  readonly workspaces?: readonly string[] | {readonly packages: readonly string[]}
 }

@@ -11,9 +11,13 @@ import type {ReadPackageIndexOutput} from "@archetypes/package/index"
 
 @property index - Публичные входы, их принадлежность и доступные файлы контрактов.
 Наличие файлов не подтверждает смысловую полноту API или правильность управления состоянием.
+
+@property packages - Самостоятельные вложенные пакеты из workspaces, без повторных identity.
+parent указывает физический пакет, непосредственно содержащий участника.
 */
 export interface ReadPackageOutput {
   readonly packageJson: ReadPackageJsonOutput
   readonly documentation: ReadModuleDocumentationOutput | null
   readonly index: ReadPackageIndexOutput
+  readonly packages: readonly {readonly path: string, readonly name: string, readonly parent: string}[]
 }

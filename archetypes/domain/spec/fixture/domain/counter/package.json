@@ -1,0 +1,8 @@
+{
+  "name": "@fixture/domain-counter",
+  "description": "Увеличение числа в области операций",
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

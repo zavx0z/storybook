@@ -1,0 +1,14 @@
+{
+  "name": "@archetypes/project",
+  "label": "Проект",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Проверяет композицию независимых пакетов-репозиториев",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@archetypes/repo": "workspace:*"
+  }
+}

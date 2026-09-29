@@ -1,0 +1,8 @@
+{
+  "name": "@fixture/archetype-component",
+  "description": "Самостоятельное увеличение значения",
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

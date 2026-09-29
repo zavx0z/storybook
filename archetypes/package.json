@@ -3,25 +3,27 @@
   "label": "Правила структуры проектов",
   "version": "0.0.0",
   "private": true,
-  "description": "Помогает решить, где разместить сущность, когда выделить пакет или категорию и как оформить ответственность, зависимости, контракты и проверки",
+  "description": "Исполняемый стандарт Project, Repo, Domain и Component на единой структуре Package",
   "workspaces": [
+    "project",
     "package",
+    "repo",
+    "domain",
+    "component",
+    "assessment",
     "specs"
   ],
   "exports": {
     ".": "./index.ts",
-    "./repository": "./repository/index.ts",
+    "./project": "./project/index.ts",
     "./package": "./package/index.ts",
-    "./category": "./category/index.ts",
-    "./entity": "./entity/index.ts",
+    "./repo": "./repo/index.ts",
+    "./domain": "./domain/index.ts",
+    "./component": "./component/index.ts",
+    "./assessment": "./assessment/index.ts",
     "./specs": "./specs/index.ts"
   },
   "scripts": {
-    "test:spec:repository": "bun run --cwd ./specs test:spec:repository",
-    "test:spec:package": "bun run --cwd ./specs test:spec:package",
-    "test:spec:category": "bun run --cwd ./specs test:spec:category",
-    "test:spec:entity": "bun run --cwd ./specs test:spec:entity",
-    "test:package:minimal": "bun test ./package/spec --test-name-pattern '^(?!.*(Пакет с вложенным пакетом))'",
-    "test:package:package": "bun test ./package/spec --test-name-pattern '^(?!.*(Минимальный пакет))'"
+    "test": "bun test --path-ignore-patterns **/fixture/** --max-concurrency=1"
   }
 }

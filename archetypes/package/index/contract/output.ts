@@ -3,7 +3,8 @@
 
 @property entries - Точные строковые цели exports и их условия. path — публичный
 подпуть, target — исходная цель, conditions — путь условий без выбора среды.
-status различает принадлежащий пакету файл, отсутствие, чужой вложенный пакет,
+status различает принадлежащий пакету файл, публичный вход вложенного пакета,
+отсутствие, закрытый исходник вложенного пакета,
 выход за пакет, символическую ссылку и закрытый через null экспорт.
 code обозначает JS/TS-исходник, entrypoint — index.ts или index.tsx.
 input и output содержат относительные пути обычных файлов контрактов входа
@@ -17,11 +18,13 @@ export interface ReadPackageIndexOutput {
     readonly path: string
     readonly target: string | null
     readonly conditions: readonly string[]
-    readonly status: "owned" | "missing" | "nested-package" | "outside-package" | "symlink" | "blocked"
+    readonly status: "owned" | "forwarded" | "missing" | "nested-package" | "outside-package" | "symlink" | "blocked"
     readonly code: boolean
     readonly entrypoint: boolean
     readonly input: string | null
     readonly output: string | null
+    /** Точный владелец реализации при прямом публичном экспорте вложенного пакета. */
+    readonly owner?: {readonly path: string, readonly name: string, readonly export: string}
   }[]
   readonly unchecked: readonly {readonly path: string, readonly conditions: readonly string[], readonly reason: string}[]
 }

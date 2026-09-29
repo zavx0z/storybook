@@ -1,19 +1,10 @@
-# Структура репозитория
+# Archetypes
 
-## Заметки
+Точка входа — [единый стандарт структуры](notes/draft-structure.md).
+Исполняемое описание раскрывается из [кода Archetypes](index.ts).
 
-- [Как переносить смысл заметок в код](./notes/note-lifecycle.md)
-- [Что может находиться в репозитории](./notes/structure.md)
-- [Когда выделять категорию или пакет](./notes/development.md)
-- [Где искать описание нужной части системы](./notes/draft-structure.md)
-- [Как описывать поведение и ответственность в коде](./notes/draft-documentation.md)
-- [Как сведения из файлов попадают в общий каталог](./notes/draft-catalog.md)
-- [Как файлы становятся панелями Storybook](./notes/draft-projections.md)
-
-## Состав
-
-- [Репозиторий](./repository/README.md)
-- [Пакет](./package/README.md)
-- [Категория](./category/README.md)
-- [Сущность](./entity/README.md)
-- [Спецификации](./specs/README.md)
+- [Развитие структуры](notes/development.md)
+- [Документация](notes/draft-documentation.md)
+- [Жизненный цикл заметок](notes/note-lifecycle.md)
+- [Обнаружение и каталог](notes/draft-catalog.md)
+- [Представления](notes/draft-projections.md)

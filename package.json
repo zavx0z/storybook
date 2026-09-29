@@ -79,6 +79,11 @@
     "@jsx/error": "workspace:../webxr-space/jsx/error",
     "@jsx/events": "workspace:../webxr-space/jsx/events",
     "@jsx/slot-contract": "workspace:../webxr-space/jsx/compiler/slot-contract",
-    "@jsx/slot-child": "workspace:../webxr-space/jsx/slot-child"
+    "@jsx/slot-child": "workspace:../webxr-space/jsx/slot-child",
+    "@archetypes/assessment": "workspace:archetypes/assessment",
+    "@archetypes/repo": "workspace:archetypes/repo",
+    "@archetypes/domain": "workspace:archetypes/domain",
+    "@archetypes/component": "workspace:archetypes/component",
+    "@archetypes/project": "workspace:archetypes/project"
   }
 }

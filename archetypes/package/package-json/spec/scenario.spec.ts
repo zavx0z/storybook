@@ -24,7 +24,7 @@ describe.each([
   })
 
   test("Не содержит других полей", () => {
-    const extraFields = Object.keys(result ?? {}).filter(key => key !== "label" && !fields.some(({field}) => field === key))
+    const extraFields = Object.keys(result ?? {}).filter(key => key !== "label" && key !== "workspaces" && !fields.some(({field}) => field === key))
     expect(extraFields, "В package.json не должно быть полей вне проверяемого состава").toEqual([])
   })
 

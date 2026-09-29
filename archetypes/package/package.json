@@ -13,5 +13,8 @@
   },
   "scripts": {
     "test:package": "bun test ./spec --test-name-pattern '^Архетип пакета(?: |$)'"
+  },
+  "dependencies": {
+    "@storybook/route": "workspace:*"
   }
 }
