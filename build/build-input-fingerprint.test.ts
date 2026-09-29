@@ -124,8 +124,14 @@ describe("Storybook build input fingerprint", () => {
     writeFileSync(fixture.module, "export const transient = true\n")
     writeFileSync(fixture.module, fixture.moduleSource)
     await Bun.sleep(10)
-    await expect(changed.complete()).rejects.toThrow("changed during compilation")
+    await expect(changed.complete()).rejects.toThrow(`changed during compilation: ${realpathSync(fixture.module)}`)
     changed.dispose()
+
+    const added = await beginStorybookBuildInputAttestation(input)
+    const source = join(fixture.nestedDirectory, "added.ts")
+    writeFileSync(source, "export const added = true\n")
+    await expect(added.complete()).rejects.toThrow(`changed during compilation: ${realpathSync(source)}`)
+    added.dispose()
   })
 
   test("shared plan учитывает два entrypoints, config, ambient source и same-byte restore", () => {

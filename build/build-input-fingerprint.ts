@@ -496,9 +496,12 @@ export async function beginStorybookBuildInputPlanAttestation(
       const outside = additional.find(path => !plan.scope.guardRoots.some(root => inside(root, path)))
       if (outside) throw new Error(`Storybook compiled input escaped attested owner roots: ${outside}`)
       const after = computeFingerprint(plan)
-      if (!sameStorybookBuildInputFingerprint(before, after)) throw concurrentChangeError()
       for (const [path, marker] of markers) {
         if (inputMarker(path) !== marker) throw concurrentChangeError(path)
+      }
+      if (!sameStorybookBuildInputFingerprint(before, after)) {
+        const added = scopeInventory(plan.scope).paths.find(path => !paths.has(path))
+        throw concurrentChangeError(added)
       }
       for (const path of additional) {
         if (!markers.has(path) && statSync(path, {bigint: true}).ctimeNs >= started) throw concurrentChangeError(path)
