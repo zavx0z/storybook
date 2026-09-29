@@ -12,7 +12,7 @@ expect связывает данные с объяснением и провер
 */
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import {readScenarioGuide} from "@archetypes/specs/scenarios"
+import {readScenarioGuide} from "@archetypes/scenario-guide"
 
 describe.each([
   {

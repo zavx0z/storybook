@@ -21,7 +21,13 @@
     "./domain": "./domain/index.ts",
     "./component": "./component/index.ts",
     "./assessment": "./assessment/index.ts",
-    "./specs": "./specs/index.ts"
+    "./specs": "./specs/index.ts",
+    "./package/package-json": "./package/package-json/index.ts",
+    "./package/index": "./package/index/index.ts",
+    "./package/documentation": "./package/documentation/index.ts",
+    "./specs/scenarios": "./specs/scenarios/index.ts",
+    "./specs/scenarios/validation": "./specs/scenarios/validation/index.ts",
+    "./specs/guide": "./specs/guide/index.ts"
   },
   "scripts": {
     "test": "bun test --path-ignore-patterns **/fixture/** --max-concurrency=1"

@@ -3,9 +3,9 @@ import {mkdtemp, mkdir, rm, symlink, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {resolve} from "node:path"
 import {readPackage} from "@archetypes/package"
-import {readModuleDocumentation} from "@archetypes/package/documentation"
-import {readPackageIndex} from "@archetypes/package/index"
-import {readPackageJson} from "@archetypes/package/package-json"
+import {readModuleDocumentation} from "@archetypes/package-documentation"
+import {readPackageIndex} from "@archetypes/package-index"
+import {readPackageJson} from "@archetypes/package-json"
 import {readScenario} from "@storybook/app/scenarios"
 
 const root = await mkdtemp(resolve(tmpdir(), "archetype-package-"))

@@ -1,6 +1,6 @@
-import type {ReadPackageJsonOutput} from "@archetypes/package/package-json"
-import type {ReadModuleDocumentationOutput} from "@archetypes/package/documentation"
-import type {ReadPackageIndexOutput} from "@archetypes/package/index"
+import type {ReadPackageJsonOutput} from "@archetypes/package-json"
+import type {ReadModuleDocumentationOutput} from "@archetypes/package-documentation"
+import type {ReadPackageIndexOutput} from "@archetypes/package-index"
 
 /**
 Прочитанный состав пакета.

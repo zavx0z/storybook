@@ -1,7 +1,7 @@
 import {dirname, resolve} from "node:path"
 import {realpath} from "node:fs/promises"
 import {readWorkspacePackages} from "@storybook/route/workspaces"
-import {readPackageJson} from "@archetypes/package/package-json"
+import {readPackageJson} from "@archetypes/package-json"
 import type {ReadPackageOutput} from "../contract/output"
 
 /** Раскрывает штатный состав workspaces; принадлежность определяется ближайшим обнаруженным владельцем. */

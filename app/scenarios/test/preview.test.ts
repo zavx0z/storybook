@@ -4,7 +4,7 @@ import {resolve} from "node:path"
 import {readScenario, supportsScenarioPreview, type ReadScenarioOutput} from "@storybook/app/scenarios"
 
 import {readScenarioSource} from "../src/read-source"
-import {validateScenario} from "@archetypes/specs/scenarios/validation"
+import {validateScenario} from "@archetypes/scenario-validation"
 
 const path = resolve(import.meta.dir, "../spec/fixture/component/spec/scenario.spec.tsx")
 let result: ReadScenarioOutput

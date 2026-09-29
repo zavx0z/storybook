@@ -2,7 +2,7 @@ import {afterAll, expect, test} from "bun:test"
 import {mkdtempSync, writeFileSync, rmSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {resolve} from "node:path"
-import {validateScenario} from "@archetypes/specs/scenarios/validation"
+import {validateScenario} from "@archetypes/scenario-validation"
 import {readScenario, supportsScenarioPreview} from "@storybook/app/scenarios"
 import {readScenarioSource} from "../src/read-source"
 

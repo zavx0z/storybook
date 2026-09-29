@@ -5,7 +5,9 @@
     "": {
       "name": "@zavx0z/storybook",
       "dependencies": {
+        "@archetypes/assessment": "workspace:archetypes/assessment",
         "@archetypes/package": "workspace:archetypes/package",
+        "@archetypes/package-documentation": "workspace:archetypes/package/documentation",
         "@mcp/address": "workspace:*",
         "@mcp/children": "workspace:*",
         "@mcp/rest": "workspace:*",
@@ -15,11 +17,15 @@
         "@zavx0z/storybook-browser-lifecycle": "workspace:*",
       },
       "devDependencies": {
-        "@archetypes/assessment": "workspace:archetypes/assessment",
         "@archetypes/component": "workspace:archetypes/component",
         "@archetypes/domain": "workspace:archetypes/domain",
+        "@archetypes/package-index": "workspace:archetypes/package/index",
+        "@archetypes/package-json": "workspace:archetypes/package/package-json",
         "@archetypes/project": "workspace:archetypes/project",
         "@archetypes/repo": "workspace:archetypes/repo",
+        "@archetypes/scenario-document": "workspace:archetypes/specs/guide",
+        "@archetypes/scenario-guide": "workspace:archetypes/specs/scenarios",
+        "@archetypes/scenario-validation": "workspace:archetypes/specs/scenarios/validation",
         "@archetypes/specs": "workspace:archetypes/specs",
         "@immersive/headless": "workspace:../webxr-space/headless",
         "@jsx/authoring": "workspace:../webxr-space/jsx/authoring",
@@ -458,6 +464,8 @@
       "name": "@storybook/app",
       "version": "0.0.0",
       "dependencies": {
+        "@archetypes/scenario-guide": "workspace:*",
+        "@archetypes/scenario-validation": "workspace:*",
         "@archetypes/specs": "workspace:*",
         "fast-xml-parser": "^5.11.1",
         "typescript": "^7.0.2",
@@ -498,8 +506,20 @@
     "archetypes/package": {
       "name": "@archetypes/package",
       "dependencies": {
+        "@archetypes/package-documentation": "workspace:*",
+        "@archetypes/package-index": "workspace:*",
+        "@archetypes/package-json": "workspace:*",
         "@storybook/route": "workspace:*",
       },
+    },
+    "archetypes/package/documentation": {
+      "name": "@archetypes/package-documentation",
+    },
+    "archetypes/package/index": {
+      "name": "@archetypes/package-index",
+    },
+    "archetypes/package/package-json": {
+      "name": "@archetypes/package-json",
     },
     "archetypes/project": {
       "name": "@archetypes/project",
@@ -516,8 +536,26 @@
     "archetypes/specs": {
       "name": "@archetypes/specs",
       "dependencies": {
+        "@archetypes/scenario-document": "workspace:*",
+        "@archetypes/scenario-guide": "workspace:*",
         "@storybook/app": "workspace:../../app",
       },
+    },
+    "archetypes/specs/guide": {
+      "name": "@archetypes/scenario-document",
+      "dependencies": {
+        "@storybook/app": "workspace:*",
+      },
+    },
+    "archetypes/specs/scenarios": {
+      "name": "@archetypes/scenario-guide",
+      "dependencies": {
+        "@archetypes/scenario-document": "workspace:*",
+        "@storybook/app": "workspace:*",
+      },
+    },
+    "archetypes/specs/scenarios/validation": {
+      "name": "@archetypes/scenario-validation",
     },
     "browser-lifecycle": {
       "name": "@zavx0z/storybook-browser-lifecycle",
@@ -594,9 +632,21 @@
 
     "@archetypes/package": ["@archetypes/package@workspace:archetypes/package"],
 
+    "@archetypes/package-documentation": ["@archetypes/package-documentation@workspace:archetypes/package/documentation"],
+
+    "@archetypes/package-index": ["@archetypes/package-index@workspace:archetypes/package/index"],
+
+    "@archetypes/package-json": ["@archetypes/package-json@workspace:archetypes/package/package-json"],
+
     "@archetypes/project": ["@archetypes/project@workspace:archetypes/project"],
 
     "@archetypes/repo": ["@archetypes/repo@workspace:archetypes/repo"],
+
+    "@archetypes/scenario-document": ["@archetypes/scenario-document@workspace:archetypes/specs/guide"],
+
+    "@archetypes/scenario-guide": ["@archetypes/scenario-guide@workspace:archetypes/specs/scenarios"],
+
+    "@archetypes/scenario-validation": ["@archetypes/scenario-validation@workspace:archetypes/specs/scenarios/validation"],
 
     "@archetypes/specs": ["@archetypes/specs@workspace:archetypes/specs"],
 

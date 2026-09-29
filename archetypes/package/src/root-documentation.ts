@@ -1,8 +1,8 @@
 import {constants} from "node:fs"
 import {lstat, open} from "node:fs/promises"
 import {resolve} from "node:path"
-import {readModuleDocumentation} from "@archetypes/package/documentation"
-import type {ReadModuleDocumentationOutput} from "@archetypes/package/documentation"
+import {readModuleDocumentation} from "@archetypes/package-documentation"
+import type {ReadModuleDocumentationOutput} from "@archetypes/package-documentation"
 
 const MAX_MODULE_SOURCE_BYTES = 1024 * 1024
 

@@ -3,7 +3,7 @@ import {mkdtemp, mkdir, writeFile, rm, symlink, realpath} from "node:fs/promises
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {readPackage} from "@archetypes/package"
-import {readPackageJson} from "@archetypes/package/package-json"
+import {readPackageJson} from "@archetypes/package-json"
 
 const roots: string[] = []
 afterEach(async () => {

@@ -12,14 +12,15 @@
     "test:spec:entity": "bun test ./spec --test-name-pattern '^Сущность(?: |$)'"
   },
   "exports": {
-    ".": "./index.ts",
-    "./deps": "./deps/index.ts",
-    "./contracts": "./contracts/index.ts",
-    "./scenarios": "./scenarios/index.ts",
-    "./scenarios/validation": "./scenarios/validation/index.ts",
-    "./fixtures": "./fixtures/index.ts"
+    ".": "./index.ts"
   },
   "dependencies": {
-    "@storybook/app": "workspace:../../app"
-  }
+    "@storybook/app": "workspace:../../app",
+    "@archetypes/scenario-guide": "workspace:*",
+    "@archetypes/scenario-document": "workspace:*"
+  },
+  "workspaces": [
+    "scenarios",
+    "guide"
+  ]
 }

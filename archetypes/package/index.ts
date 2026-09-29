@@ -7,8 +7,8 @@ Domain и Component; наличие вложенных пакетов не со�
 @packageDocumentation
 */
 import {resolve} from "node:path"
-import {readPackageJson} from "@archetypes/package/package-json"
-import {readPackageIndex} from "@archetypes/package/index"
+import {readPackageJson} from "@archetypes/package-json"
+import {readPackageIndex} from "@archetypes/package-index"
 import {readRootDocumentation} from "./src/root-documentation"
 import {readPackageComposition} from "./src/composition"
 import type {ReadPackageInput} from "./contract/input"

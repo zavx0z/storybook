@@ -1,6 +1,6 @@
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import {readPackageJson} from "@archetypes/package/package-json"
+import {readPackageJson} from "@archetypes/package-json"
 
 describe.each([
   {

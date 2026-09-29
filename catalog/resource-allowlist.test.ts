@@ -1,6 +1,6 @@
 import {afterEach, describe, expect, test} from "bun:test"
 import {mkdtempSync, readFileSync, mkdirSync, realpathSync, rmSync, symlinkSync, unlinkSync, writeFileSync} from "node:fs"
-import {readModuleDocumentation} from "@archetypes/package/documentation"
+import {readModuleDocumentation} from "@archetypes/package-documentation"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {

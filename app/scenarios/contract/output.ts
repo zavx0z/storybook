@@ -1,4 +1,4 @@
-import type {ValidateScenarioOutput} from "@archetypes/specs/scenarios/validation"
+import type {ValidateScenarioOutput} from "@archetypes/scenario-validation"
 
 /**
 Значение в переносимом снимке данных.

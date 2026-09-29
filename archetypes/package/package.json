@@ -6,15 +6,20 @@
   "type": "module",
   "description": "Объясняет и проверяет назначение пакета, принадлежность публичных входов и наличие их контрактов",
   "exports": {
-    ".": "./index.ts",
-    "./documentation": "./documentation/index.ts",
-    "./package-json": "./package-json/index.ts",
-    "./index": "./index/index.ts"
+    ".": "./index.ts"
   },
   "scripts": {
     "test:package": "bun test ./spec --test-name-pattern '^Архетип пакета(?: |$)'"
   },
   "dependencies": {
-    "@storybook/route": "workspace:*"
-  }
+    "@storybook/route": "workspace:*",
+    "@archetypes/package-json": "workspace:*",
+    "@archetypes/package-index": "workspace:*",
+    "@archetypes/package-documentation": "workspace:*"
+  },
+  "workspaces": [
+    "package-json",
+    "index",
+    "documentation"
+  ]
 }

@@ -1,6 +1,6 @@
 import {CodeEditor} from "@zavx0z/ui/views/code-editor"
 import {Typography} from "@zavx0z/ui/typography"
-import type {ReadScenarioGuideOutput} from "@archetypes/specs/scenarios"
+import type {ReadScenarioGuideOutput} from "@archetypes/scenario-guide"
 import {ScenarioGuideExample} from "./guide-example"
 
 /** Принимает только явно помеченное руководство с переносимыми кодовыми примерами. */

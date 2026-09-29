@@ -1,12 +1,20 @@
+/**
+Собирает документ сценария из готового отчёта App, не выполняя сценарий повторно.
+Этот компонент владеет общей формой документа для читателей сценария и спецификации.
+
+@packageDocumentation
+*/
 import {dirname, join, relative} from "node:path"
 import {lstat} from "node:fs/promises"
-import type {ReadScenarioOutput} from "@storybook/app/scenarios"
-import type {ReadScenarioGuideOutput} from "../scenarios/contract/output"
+import type {CreateScenarioGuideInput} from "./contract/input"
+import type {CreateScenarioGuideOutput} from "./contract/output"
+
+export type {CreateScenarioGuideInput, CreateScenarioGuideOutput}
 
 /** Собирает руководство из прочитанного App сценария и реально существующих файлов его владельца. */
-export async function createScenarioGuide(report: ReadScenarioOutput): Promise<ReadScenarioGuideOutput> {
+export async function createScenarioGuide({report}: CreateScenarioGuideInput): Promise<CreateScenarioGuideOutput> {
   const owner = dirname(dirname(report.path))
-  const files: ReadScenarioGuideOutput["files"][number][] = [
+  const files: CreateScenarioGuideOutput["files"][number][] = [
     {path: relative(owner, report.path), role: "scenario"},
   ]
   for (const [candidates, role] of [

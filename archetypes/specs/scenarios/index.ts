@@ -48,7 +48,7 @@
 */
 import {basename, dirname, resolve} from "node:path"
 import {readScenario} from "@storybook/app/scenarios"
-import {createScenarioGuide} from "../shared/scenario-guide"
+import {createScenarioGuide} from "@archetypes/scenario-document"
 import type {ReadScenarioGuideInput} from "./contract/input"
 import type {ReadScenarioGuideOutput} from "./contract/output"
 
@@ -68,5 +68,5 @@ export async function readScenarioGuide({path}: ReadScenarioGuideInput): Promise
   if (basename(dirname(source)) !== "spec" || !/^scenario\.spec\.tsx?$/u.test(basename(source))) {
     throw new TypeError("Укажите файл spec/scenario.spec.ts либо spec/scenario.spec.tsx владельца")
   }
-  return createScenarioGuide(await readScenario({path: source}))
+  return createScenarioGuide({report: await readScenario({path: source})})
 }

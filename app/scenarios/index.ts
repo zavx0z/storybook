@@ -8,7 +8,7 @@
 import {traceScenario} from "./src/trace"
 import {validateRunProps} from "./src/run-props"
 import {readScenarioSource} from "./src/read-source"
-import {validateScenario} from "@archetypes/specs/scenarios/validation"
+import {validateScenario} from "@archetypes/scenario-validation"
 import {createScenarioPreview, supportsScenarioPreview} from "./src/preview"
 import type {ReadScenarioInput} from "./contract/input"
 import type {ReadScenarioOutput} from "./contract/output"

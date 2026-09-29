@@ -41,7 +41,9 @@
     "@zavx0z/storybook-browser-lifecycle": "workspace:*",
     "@mcp/children": "workspace:*",
     "@mcp/root": "workspace:*",
-    "@archetypes/package": "workspace:archetypes/package"
+    "@archetypes/package": "workspace:archetypes/package",
+    "@archetypes/package-documentation": "workspace:archetypes/package/documentation",
+    "@archetypes/assessment": "workspace:archetypes/assessment"
   },
   "devDependencies": {
     "@archetypes/specs": "workspace:archetypes/specs",
@@ -80,10 +82,14 @@
     "@jsx/events": "workspace:../webxr-space/jsx/events",
     "@jsx/slot-contract": "workspace:../webxr-space/jsx/compiler/slot-contract",
     "@jsx/slot-child": "workspace:../webxr-space/jsx/slot-child",
-    "@archetypes/assessment": "workspace:archetypes/assessment",
     "@archetypes/repo": "workspace:archetypes/repo",
     "@archetypes/domain": "workspace:archetypes/domain",
     "@archetypes/component": "workspace:archetypes/component",
-    "@archetypes/project": "workspace:archetypes/project"
+    "@archetypes/project": "workspace:archetypes/project",
+    "@archetypes/package-json": "workspace:archetypes/package/package-json",
+    "@archetypes/package-index": "workspace:archetypes/package/index",
+    "@archetypes/scenario-guide": "workspace:archetypes/specs/scenarios",
+    "@archetypes/scenario-validation": "workspace:archetypes/specs/scenarios/validation",
+    "@archetypes/scenario-document": "workspace:archetypes/specs/guide"
   }
 }

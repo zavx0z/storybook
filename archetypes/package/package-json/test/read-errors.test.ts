@@ -7,10 +7,10 @@
 */
 import {describe, expect, mock, test} from "bun:test"
 import {resolve} from "node:path"
-import type {ReadPackageJsonInput} from "@archetypes/package/package-json"
+import type {ReadPackageJsonInput} from "@archetypes/package-json"
 
 const readPackageJsonMock = mock(async (props: ReadPackageJsonInput) => {
-  const {readPackageJson} = await import("@archetypes/package/package-json")
+  const {readPackageJson} = await import("@archetypes/package-json")
   return readPackageJson(props)
 })
 

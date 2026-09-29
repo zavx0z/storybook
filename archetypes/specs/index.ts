@@ -5,7 +5,7 @@
 @packageDocumentation
 */
 import {readSpec} from "@storybook/app/spec-reader"
-import {createScenarioGuide} from "./shared/scenario-guide"
+import {createScenarioGuide} from "@archetypes/scenario-document"
 import type {ReadSpecGuideInput} from "./contract/input"
 import type {ReadSpecGuideOutput} from "./contract/output"
 
@@ -20,5 +20,5 @@ export type {ReadSpecGuideInput, ReadSpecGuideOutput}
 */
 export async function readSpecGuide({path}: ReadSpecGuideInput): Promise<ReadSpecGuideOutput> {
   const result = await readSpec({path})
-  return result?.scenario ? createScenarioGuide(result.scenario) : null
+  return result?.scenario ? createScenarioGuide({report: result.scenario}) : null
 }

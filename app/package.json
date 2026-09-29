@@ -27,6 +27,8 @@
   "dependencies": {
     "@archetypes/specs": "workspace:*",
     "fast-xml-parser": "^5.11.1",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "@archetypes/scenario-validation": "workspace:*",
+    "@archetypes/scenario-guide": "workspace:*"
   }
 }
