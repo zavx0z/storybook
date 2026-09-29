@@ -923,6 +923,32 @@ describe("one external Storybook server", () => {
     expect((await fetch(new URL("/api/health", running.origin))).status).toBe(200)
   })
 
+  test("открытие старой ревизии требует check до обращения к браузеру", async () => {
+    const fixture = serverFixture()
+    const lifecycle = fakeBrowserLifecycle()
+    const running = await startTestServer({
+      declarations: [fixture.standalone],
+      statePath: fixture.statePath,
+      artifactRoot: fixture.artifactRoot,
+      browserLifecycle: lifecycle.service,
+    })
+    servers.push(running)
+    const session = running.sessions.session("@fixture/standalone")
+    const initial = session.snapshot()
+    const legacy = {...initial, activeRevision: "legacy-working", lastWorkingRevision: "legacy-working"}
+    const snapshot = spyOn(session, "snapshot").mockReturnValue(legacy)
+    try {
+      const result = await controlPost(running, "/api/control/open", {packageId: initial.packageId, route: ""})
+      expect(result.response.ok).toBeFalse()
+      expect(JSON.stringify(result.body)).toContain("старый формат")
+      expect(JSON.stringify(result.body)).toContain("storybook_check")
+      expect(lifecycle.opened).toEqual([])
+      expect(session.snapshot().activeRevision).toBe("legacy-working")
+      expect(session.snapshot().lastWorkingRevision).toBe("legacy-working")
+      expect(session.snapshot().builds).toBe(0)
+    } finally { snapshot.mockRestore() }
+  })
+
   test("reserves browser tab creation for the agent control surface", async () => {
     const fixture = serverFixture()
     const lifecycle = fakeBrowserLifecycle()

@@ -352,6 +352,9 @@ export async function startExternalStorybookServer(
     const packageState = sessions.session(input.packageId).snapshot()
     if (!packageState.builtRevision && !packageState.activeRevision) throw new Error("Пакет ещё не собран. Выполните storybook_check для этого пакета.")
     const expectedRevision = packageState.builtRevision ?? packageState.activeRevision ?? undefined
+    if (packageState.revisions?.find(record => record.revision === expectedRevision)?.sharedModuleEpoch === undefined) {
+      throw new Error("Сохранённая ревизия пакета имеет старый формат. Выполните storybook_check для этого пакета перед открытием.")
+    }
     const selectedRoute = expectedRevision === undefined ? resolvedRoute :
       sessions.session(input.packageId).revisionGraphSnapshot(expectedRevision)?.routes.find(route => route.nodeId === resolvedRoute.nodeId && route.kind === resolvedRoute.kind) ?? resolvedRoute
     const previewUrl = new URL(selectedRoute.urlPath, server.url)
@@ -845,9 +848,27 @@ export async function startExternalStorybookServer(
               const record = snapshot.revisions?.find(candidate => candidate.revision === revision)
               const graphSnapshot = session.revisionGraphSnapshot(revision)
               if (record === undefined || graphSnapshot === null || session.revisionDirectory(revision) === null) return null
-              return Object.freeze({graphSnapshot, entryRelativePath: record.entryRelativePath, status: record.status})
+              return Object.freeze({graphSnapshot, entryRelativePath: record.entryRelativePath, status: record.status, sharedModuleEpoch: record.sharedModuleEpoch})
             },
           })
+          if (target.kind === "fallback") {
+            if (currentRoute === undefined) throw new Error(`Unknown Storybook route: ${packageId}:${routePath}`)
+            const reader = browserSessions.issue({kind: "package", packageId, revision: null, intent: "reader", preview: false})
+            return responseJson({
+              protocol: "storybook-package-prepare/1",
+              kind: "fallback",
+              packageId,
+              revision: null,
+              revisionUrl: null,
+              route: currentRoute.path,
+              urlPath: currentRoute.urlPath,
+              intent: "reader",
+              preview: false,
+              initialAppliedRevision: null,
+              fallbackRevision: null,
+              readerToken: reader.token,
+            })
+          }
           if (target.kind !== "revision") throw new Error(`Package has no prepared revision: ${packageId}`)
           const viewId = `browser:${randomUUID()}`
           const lease = session.acquireRevisionLease(target.revision, viewId)
@@ -1225,7 +1246,9 @@ export async function startExternalStorybookServer(
           if (topic.startsWith("package:")) {
             const packageId = topic.slice("package:".length)
             const snapshot = sessions.session(packageId).snapshot()
-            websocket.send(JSON.stringify({type: "package.applied-state", packageId, revision: snapshot.activeRevision ?? null}))
+            const active = snapshot.revisions?.find(record => record.revision === snapshot.activeRevision)
+            websocket.send(JSON.stringify({type: "package.applied-state", packageId,
+              revision: active?.sharedModuleEpoch === undefined ? null : snapshot.activeRevision}))
 
           }
         } catch (error) {
@@ -1391,7 +1414,7 @@ async function packagePageResponse(
       const record = snapshot.revisions?.find(candidate => candidate.revision === revision)
       const graphSnapshot = session.revisionGraphSnapshot(revision)
       if (record === undefined || graphSnapshot === null || session.revisionDirectory(revision) === null) return null
-      return Object.freeze({graphSnapshot, entryRelativePath: record.entryRelativePath, status: record.status})
+      return Object.freeze({graphSnapshot, entryRelativePath: record.entryRelativePath, status: record.status, sharedModuleEpoch: record.sharedModuleEpoch})
     },
   })
   if (target.kind === "redirect-preview") {
@@ -1415,7 +1438,7 @@ async function packagePageResponse(
     const authorStyleSheets = landingWorkbenchAuthorStyleSheets(assets)
     return storybookHtml(
         pageTitle,
-        `/__storybook/shared/${assets.fallbackEntry}`,
+        `/__storybook/shared/${assets.bootstrapEntry ?? assets.fallbackEntry}`,
         null,
         browserSession.token,
         null,
@@ -1448,8 +1471,9 @@ async function packagePageResponse(
   const viewId = `browser:${randomUUID()}`
   const lease = session.acquireRevisionLease(target.revision, viewId)
   const kernel = snapshot.revisions?.find(record => record.revision === target.revision)?.sharedModuleEpoch
-  const shared = kernel === undefined ? null : readSharedAssets(target.preview || target.intent === "navigation-candidate")
-  const script = shared?.bootstrapEntry ? `/__storybook/shared/${shared.bootstrapEntry}` : `${target.revisionUrl}${target.entryRelativePath}`
+  const shared = readSharedAssets(target.preview || target.intent === "navigation-candidate")
+  if (kernel === undefined || shared.bootstrapEntry === undefined) throw new Error("Пакету требуется проверка для текущей оболочки Storybook")
+  const script = `/__storybook/shared/${shared.bootstrapEntry}`
   const browserSession = browserSessions.issue({
     kind: "package",
     packageId: route.packageId,

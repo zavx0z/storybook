@@ -157,6 +157,8 @@ export type ExternalStorybookPackageEnvironment = Readonly<{
     navigatePackage(input: Readonly<{packageId: string; route: string}>): Promise<void>
     navigateLanding(pathname: string): Promise<void>
     applyRevision?(revision: string): Promise<void>
+    refreshSharedHost?(): Promise<void>
+    readerRenewed?(readerToken: string): void
     revisionApplied(payload: ExternalStorybookAppliedRevision): void
     revisionConfirmed(revision: string): void
   }>
@@ -956,7 +958,7 @@ export async function startExternalStorybookPackage(
   const followApplied = (revision: string | null, initial: boolean): void => {
     if (disposed) return
     if (revision === null) {
-      shell.updateStatus("Пакет · Нет применённой сборки; ожидание проверки и применения")
+      shell.updateStatus("Пакет · Нет подготовленной ревизии для текущей оболочки; требуется проверка и применение")
       return
     }
     const url = new URL(location.href)
@@ -1006,6 +1008,14 @@ export async function startExternalStorybookPackage(
     if (disposed) return
     let raw: {type?: string; packageId?: string; revision?: string | null} | null = null
     try { raw = JSON.parse(String(event.data)) } catch {}
+    if (raw?.type === "shared.updated") {
+      void embeddedPageScope?.refreshSharedHost?.().catch(error => {
+        if (disposed) return
+        reportDiagnostic(error)
+        shell.updateStatus("Обновление общей оболочки отклонено; сохранена рабочая версия")
+      })
+      return
+    }
     if (raw?.type === "package.restart-required" && raw.packageId === packageId) {
       shell.updateStatus("Оболочка изменилась; требуется явное обновление страницы")
       return
@@ -1118,13 +1128,14 @@ export async function startExternalStorybookPackage(
             body: JSON.stringify({
               packageId,
               revision: candidateRevision,
-              preview: readerIntent === "preview",
+              preview: readerIntent === "preview" || readerIntent === "navigation-candidate",
             }), signal: lifetime.signal,
           })
           if (!response.ok) throw new Error("Package event session is unavailable")
           const result = await response.json() as {token?: string}
           if (disposed) return
           if (typeof result.token !== "string") throw new Error("Invalid package event session")
+          embeddedPageScope?.readerRenewed?.(result.token)
           detachSocket()
           socket = createPackageSocket(environment, location.href, result.token)
           attachSocket()

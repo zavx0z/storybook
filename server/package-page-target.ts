@@ -27,6 +27,8 @@ export type StorybookPackageBootstrapIntent = "reader" | "navigation-candidate" 
 export type StorybookPackagePageRevision = Readonly<{
   graphSnapshot: StorybookPackageRevisionGraphSnapshot
   entryRelativePath: string
+  /** Точная платформа payload; отсутствие означает сборку прежнего формата. */
+  sharedModuleEpoch?: string | undefined
   status: "built" | "activating" | "working" | "failed"
 }>
 
@@ -73,6 +75,8 @@ export type StorybookPackagePageTarget = Readonly<{
 
 Обычный переход предпочитает только current-generation built candidate. Явный
 preview сохраняет requested revision и никогда не получает право autoapply.
+Ревизия прежнего формата без точной платформы открывает текущую оболочку
+без executable payload; сохранённые active и lastWorking остаются у сессии.
 
 @param input - Согласованный session snapshot, маршрут текущей страницы и resolver
 immutable revision records. `currentRoute` передаёт node identity, поэтому тот же
@@ -121,6 +125,16 @@ export function resolveStorybookPackagePageTarget(input: Readonly<{
   if (input.previewRevision !== null && selected.status === "failed") {
     return Object.freeze({kind: "redirect-preview", packageId: input.packageId})
   }
+  if (selected.sharedModuleEpoch === undefined) {
+    return Object.freeze({
+      kind: "fallback",
+      packageId: input.packageId,
+      revision: null,
+      intent: "reader",
+      preview: false,
+      initialAppliedRevision: null,
+    })
+  }
   let route = selected.graphSnapshot.routes.find(candidate =>
     candidate.nodeId === input.currentRoute?.nodeId && candidate.kind === input.currentRoute?.kind) ??
     selected.graphSnapshot.routes.find(candidate => candidate.path === input.routePath)
@@ -136,6 +150,10 @@ export function resolveStorybookPackagePageTarget(input: Readonly<{
     : revision === builtRevision && revision !== input.snapshot.activeRevision
       ? "navigation-candidate"
       : "reader"
+  const fallback = revision === builtRevision
+    ? input.snapshot.activeRevision ?? input.snapshot.lastWorkingRevision ?? input.snapshot.lastGoodRevision
+    : null
+  const fallbackRevision = fallback != null && input.readRevision(fallback)?.sharedModuleEpoch !== undefined ? fallback : null
   const revisionUrl = `/__storybook/revisions/${encodeURIComponent(input.packageId)}/${revision}/`
   return Object.freeze({
     kind: "revision",
@@ -148,9 +166,7 @@ export function resolveStorybookPackagePageTarget(input: Readonly<{
     intent,
     preview,
     initialAppliedRevision: input.snapshot.activeRevision,
-    fallbackRevision: revision === builtRevision
-      ? input.snapshot.activeRevision ?? input.snapshot.lastWorkingRevision ?? input.snapshot.lastGoodRevision
-      : null,
+    fallbackRevision,
     graphSnapshot: selected.graphSnapshot,
   })
 }

@@ -58,6 +58,26 @@ describe("server package page target", () => {
     if (target.kind !== "revision") throw new Error("Revision target expected")
     expect(target.route.path).toBe("")
   })
+
+  test("старая рабочая ревизия открывает текущую оболочку без загрузки legacy payload", () => {
+    const fixture = targetFixture()
+    fixture.input.snapshot = {...fixture.input.snapshot, builtRevision: null}
+    const previous = fixture.revisions.get("revision-a")!
+    fixture.revisions.set("revision-a", {...previous, sharedModuleEpoch: undefined})
+    const target = resolveStorybookPackagePageTarget({...fixture.input, previewRevision: null})
+    expect(target).toEqual({kind: "fallback", packageId: "@fixture/package", revision: null,
+      intent: "reader", preview: false, initialAppliedRevision: null})
+    expect(fixture.input.snapshot.activeRevision).toBe("revision-a")
+    expect(fixture.input.snapshot.lastWorkingRevision).toBe("revision-a")
+  })
+
+  test("явный preview старого формата также не загружает закреплённую оболочку", () => {
+    const fixture = targetFixture()
+    fixture.revisions.set("revision-a", {...fixture.revisions.get("revision-a")!, sharedModuleEpoch: undefined})
+    expect(resolveStorybookPackagePageTarget({...fixture.input, previewRevision: "revision-a"}).kind).toBe("fallback")
+    expect(resolveStorybookPackagePageTarget({...fixture.input, previewRevision: null})).toMatchObject({kind: "revision", revision: "revision-b", fallbackRevision: null, initialAppliedRevision: "revision-a"})
+  })
+
 })
 
 function targetFixture(options: Readonly<{
@@ -70,10 +90,11 @@ function targetFixture(options: Readonly<{
   const activeRoutes = [route("", "package-a", "overview"), route("dir-example", "example", "overview")]
   const builtRoutes = options.builtRoutes ?? [route("", "package-b", "overview"), route("dir-example", "example", "overview")]
   const revisions = new Map<string, StorybookPackagePageRevision>([
-    ["revision-a", {graphSnapshot: graph(packageId, activeRoutes), entryRelativePath: "entry.js", status: "working"}],
+    ["revision-a", {graphSnapshot: graph(packageId, activeRoutes), entryRelativePath: "entry.js", sharedModuleEpoch: "a".repeat(64), status: "working"}],
     ["revision-b", {
       graphSnapshot: graph(packageId, builtRoutes),
       entryRelativePath: "entry.js",
+      sharedModuleEpoch: "a".repeat(64),
       status: options.builtStatus ?? "built",
     }],
   ])
@@ -102,6 +123,7 @@ function targetFixture(options: Readonly<{
     builds: 2,
   }
   return {
+    revisions,
     input: {
       packageId,
       routePath: "dir-example",

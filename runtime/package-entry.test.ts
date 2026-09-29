@@ -275,6 +275,28 @@ test("общая оболочка обновляет две страницы б�
   }
 })
 
+test("после reconnect обновление оболочки использует новый socket и новый reader token", async () => {
+  const fixture = await pageFixture(false, false)
+  const shell = fixture.page.shell
+  try {
+    const socket = fixture.sockets.at(-1)!
+    socket.close()
+    socket.emit("close", {})
+    const deadline = Date.now() + 5000
+    while (fixture.sockets.at(-1) === socket && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 10))
+    expect(fixture.sockets.at(-1)).not.toBe(socket)
+    fixture.sockets.at(-1)!.emit("open", {})
+    fixture.updateHost()
+    while (fixture.page.shell === shell && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 10))
+    expect(fixture.page.shell).not.toBe(shell)
+    expect(fixture.hostReaders.at(-1)).toBe("reader-1")
+    expect(new Set(fixture.sockets.map(socket => socket.url)).size).toBe(fixture.sockets.length)
+    expect(fixture.page.shell.document).toBe(shell.document)
+    expect(fixture.location.reloads).toBe(0)
+    expect(fixture.page.shell.browserDocument.documentElement.dataset.externalStorybookRevision).toBe("revision-a")
+  } finally { await fixture.page.dispose() }
+})
+
 /** Реальный page controller с управляемыми immutable payloads и наблюдаемым Root lifecycle. */
 async function pageFixture(failPlatformMount = false, changePlatform = true, beforePrepare?: () => Promise<void>, selectedPackageId = "@fixture/components") {
   const packageId = selectedPackageId
@@ -306,6 +328,8 @@ async function pageFixture(failPlatformMount = false, changePlatform = true, bef
   })
   let hostRevision = "a"
   const sockets: FakeSocket[] = []
+  const hostReaders: string[] = []
+  let readerGeneration = 0
   const sharedHost = (epoch = "a".repeat(64)): StorybookSharedHost => ({
     protocol: "storybook-shared-host/1", sharedModuleEpoch: epoch, hostModuleEpoch: hostRevision.repeat(64),
     pageEntryUrl: `/__storybook/shared/page-${hostRevision}.js`, packageHostUrl: `/__storybook/shared/package-${hostRevision}.js`,
@@ -317,16 +341,20 @@ async function pageFixture(failPlatformMount = false, changePlatform = true, bef
     hostModuleEpoch: "a".repeat(64),
     initialTarget: target("revision-a"), initialPayload: payload("revision-a"),
     sharedHost: sharedHost(),
-    readSharedHost: async epoch => sharedHost(epoch),
+    readSharedHost: async (epoch, token) => {
+      hostReaders.push(token)
+      return sharedHost(epoch)
+    },
     importSharedHost: async () => async options => startExternalStorybookPage({...options,
       ...(failPlatformMount && options.hostModuleEpoch === "b".repeat(64)
         ? {startPackage: async () => { throw new Error("new platform mount failed") }} : {}),
     }),
     shell: {...environment.shell!, createRoot: fakeRootFactory(state)},
     fetcher: (async input => String(input).includes("/api/browser/session")
-      ? Response.json({token: "fixture-reader"}) : Response.json(snapshot)) as typeof fetch,
-    createSocket: () => {
+      ? Response.json({token: `reader-${++readerGeneration}`}) : Response.json(snapshot)) as typeof fetch,
+    createSocket: url => {
       const socket = new FakeSocket()
+      socket.url = url
       sockets.push(socket)
       return socket
     },
@@ -337,7 +365,7 @@ async function pageFixture(failPlatformMount = false, changePlatform = true, bef
     },
     loadAppliedRevision: async (_packageId, revision) => payload(revision),
   })
-  return {page, state, location, history, sockets,
+  return {page, state, location, history, sockets, hostReaders,
     updateHost() {
       hostRevision = "b"
       for (const socket of [...sockets]) if (!socket.closed) socket.emit("message", {data: JSON.stringify({type: "shared.updated", host: sharedHost()})})
