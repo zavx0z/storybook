@@ -1,3 +1,4 @@
+import {sharedHostEpochs} from "./shared-host-epochs.ts"
 import type {StorybookSharedHost} from "../runtime/shared-host"
 import {resolveStorybookRoute} from "./route"
 import {createStorybookScenarioRunner} from "./scenario-run"
@@ -195,6 +196,7 @@ export async function startExternalStorybookServer(
   })
   const browserSessions = new StorybookBrowserSessionRegistry()
   const directorySelections = new StorybookDirectorySelection()
+  const unavailableSharedKernels = new Map<string, string>()
   const eventHub = new StorybookEventHub<StorybookPackageEvent | RegistryEvent>()
   const publish = (event: StorybookPackageEvent | RegistryEvent): number => {
     eventHub.publish(event)
@@ -205,6 +207,7 @@ export async function startExternalStorybookServer(
     let delivered = 0
     for (const client of clients) {
       if (!matchesSubscription(client.data.subscriptions, event)) continue
+      if (event.type === "shared.updated" && !canRefreshSharedHost(client.data.grant)) continue
       try {
         client.send(payload)
         delivered += 1
@@ -228,7 +231,7 @@ export async function startExternalStorybookServer(
   const prepareSharedIdentity = async (signal: AbortSignal): Promise<void> => {
     signal.throwIfAborted()
     const assets = await sharedAssets.ensure()
-    sharedBuildError = null
+    if (unavailableSharedKernels.size === 0) sharedBuildError = null
     if (!usesSharedKernel) return
     signal.throwIfAborted()
     if (assets.browserIdentity === undefined) {
@@ -508,12 +511,16 @@ export async function startExternalStorybookServer(
     await prepareSharedIdentity(signal)
     const current = readSharedAssets(true)
     const hosts = [current]
-    const epochs = new Set([...requestedKernels, ...sessions.snapshots().flatMap(snapshot =>
-      snapshot.revisions?.flatMap(revision => revision.sharedModuleEpoch ? [revision.sharedModuleEpoch] : []) ?? [])])
+    const epochs = sharedHostEpochs(sessions.snapshots(), requestedKernels)
+    unavailableSharedKernels.clear()
     for (const epoch of epochs) {
       if (epoch === current.browserIdentity?.epoch) continue
-      const retained = readSharedBrowserEpoch(sharedAssetRoot, epoch)
-      if (!retained?.browserIdentity) throw new Error(`Нет сохранённой identity платформы ${epoch}`)
+      const rejected: string[] = []
+      const retained = readSharedBrowserEpoch(sharedAssetRoot, epoch, undefined, reason => { rejected.push(reason) })
+      if (!retained?.browserIdentity) {
+        unavailableSharedKernels.set(epoch, `Сохранённая платформа ${epoch} не подтверждена: ${rejected.join("; ")}`)
+        continue
+      }
       const compatible = await sessions.buildScheduler.run({packageId: null, owner: "shared", reason: "input-changed", generation: null},
         context => runSharedBrowserBuild({root: sharedAssetRoot, toolRoot,
           landingEntryPath: options.landingEntryPath ?? fileURLToPath(new URL("../runtime/browser-entry.ts", import.meta.url)),
@@ -525,9 +532,28 @@ export async function startExternalStorybookServer(
       }
       hosts.push(compatible)
     }
+    requestedKernels.clear()
+    sharedBuildError = unavailableSharedKernels.size === 0 ? null : Object.freeze({
+      message: [...unavailableSharedKernels.values()].join("\n").slice(0, 4_096), at: new Date().toISOString(),
+    })
     preparedHosts.clear()
     for (const assets of hosts) if (assets.browserIdentity) preparedHosts.set(assets.browserIdentity.epoch, assets)
     return hosts
+  }
+
+
+  /** Повреждённая платформа сохраняет открытую страницу до явного применения новой ревизии пакета. */
+  function canRefreshSharedHost(grant: StorybookBrowserSessionGrant): boolean {
+    if (grant.packageId === null || grant.revision === null) return true
+    const snapshot = sessions.snapshots().find(item => item.packageId === grant.packageId)
+    const epoch = snapshot?.revisions?.find(item => item.revision === grant.revision)?.sharedModuleEpoch
+    if (epoch === undefined) return false
+    if (unavailableSharedKernels.has(epoch)) return false
+    if (preparedHosts.has(epoch)) return true
+    try {
+      const current = sharedAssets.current()
+      return current.browserIdentity?.epoch === epoch || current.compatibleHosts?.some(host => host.sharedModuleEpoch === epoch) === true
+    } catch { return false }
   }
 
 
@@ -1009,9 +1035,10 @@ export async function startExternalStorybookServer(
             : requiredText("check scope", body.scope)
           if (scope === "storybook:shared") {
             const assets = await checkSharedHosts(request.signal)
-            if (body.live === true) sharedAssets.publish(assets.slice(1), assets[0])
+            const ok = unavailableSharedKernels.size === 0
+            if (body.live === true && ok) sharedAssets.publish(assets.slice(1), assets[0])
             const hosts = assets.map(sharedHostDescriptor)
-            return responseJson({ok: true, shared: hosts[0], hosts, packages: [], published: body.live === true, applied: false})
+            return responseJson({ok, shared: hosts[0], hosts, packages: [], published: body.live === true && ok, applied: false})
           }
           const refreshed = await refreshCatalog(true)
           const packageIds = resolveCheckPackages(refreshed, scope)
@@ -1239,7 +1266,7 @@ export async function startExternalStorybookServer(
           }
           websocket.data.subscriptions.add(topic)
           websocket.send(JSON.stringify({type: "subscribed", topic}))
-          if (topic === "registry" || topic === "catalog" || topic.startsWith("package:")) {
+          if ((topic === "registry" || topic === "catalog" || topic.startsWith("package:")) && canRefreshSharedHost(websocket.data.grant)) {
             try { websocket.send(JSON.stringify({type: "shared.updated", host: readSharedHost()})) }
             catch { /* Первый явный shared check опубликует готовую оболочку. */ }
           }

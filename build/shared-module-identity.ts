@@ -74,7 +74,12 @@ export function createStorybookSharedBrowserModuleEntries(
   return Object.freeze(entries.sort((left, right) => left.specifier.localeCompare(right.specifier)))
 }
 
-/** Проверяет сериализованную shared identity до её участия в Bun resolution. */
+/**
+Проверяет сериализованную shared identity до её участия в Bun resolution.
+Текущая сборка подтверждает владельцев и исходники. Сохранённая платформа
+сохраняет собственный состав и epoch после переименования или удаления исходников;
+целостность immutable файлов дополнительно проверяет читатель receipt.
+*/
 export function validateStorybookSharedBrowserIdentity(
   value: StorybookSharedBrowserIdentity,
   verifySources = true,
@@ -101,7 +106,7 @@ export function validateStorybookSharedBrowserIdentity(
     if (module === null || typeof module !== "object" || Array.isArray(module)) {
       throw new TypeError(`Shared Storybook browser module ${index} must be an object`)
     }
-    if (!isGovernedSpecifier(module.specifier)) {
+    if (!isBareModuleSpecifier(module.specifier) || verifySources && !isGovernedSpecifier(module.specifier)) {
       throw new Error(`Unknown shared Storybook browser module: ${String(module.specifier)}`)
     }
     if (specifiers.has(module.specifier)) throw new Error(`Duplicate shared Storybook module: ${module.specifier}`)
@@ -114,6 +119,10 @@ export function validateStorybookSharedBrowserIdentity(
     urls.add(url)
     return Object.freeze({specifier: module.specifier, sourcePath: verifySources ? realpathSync(module.sourcePath) : resolve(module.sourcePath), url})
   })
+  const expectedEpoch = createHash("sha256").update(JSON.stringify({
+    modules: modules.map(({specifier, url}) => ({specifier, url})),
+  })).digest("hex")
+  if (value.epoch !== expectedEpoch) throw new Error("Shared Storybook module map does not match its epoch")
   const sourcePaths = new Set<string>()
   const sourceFiles = value.sourceFiles.map((file, index): StorybookSharedBrowserSourceFile => {
     if (file === null || typeof file !== "object" || Array.isArray(file) ||
@@ -156,11 +165,11 @@ export function createStorybookSharedBrowserExternalPlugin(
   return {
     name: "external-storybook-shared-browser-identity",
     setup(builder) {
-      builder.onResolve({filter: /^(?:@jsx|@nodes|@renderer|@webxr|@zavx0z)\//u}, ({path}) => {
-        if (!isGovernedSpecifier(path)) return undefined
+      builder.onResolve({filter: /^[^./]/u}, ({path}) => {
         const url = urls.get(path)
-        if (url === undefined) throw new Error(`Shared Storybook browser identity has no module ${path}`)
-        return {path: url, external: true}
+        if (url !== undefined) return {path: url, external: true}
+        if (isGovernedSpecifier(path)) throw new Error(`Shared Storybook browser identity has no module ${path}`)
+        return undefined
       })
       builder.onResolve({filter: /^\/__storybook\/shared\//u}, ({path}) => ({path, external: true}))
     },
@@ -228,6 +237,12 @@ function parseObject(source: string, path: string): Record<string, unknown> {
     throw new Error(`Shared Storybook owner manifest must be an object: ${path}`)
   }
   return value as Record<string, unknown>
+}
+
+/** Допускает только bare package imports, без URL, обхода директорий и private import maps. */
+function isBareModuleSpecifier(value: unknown): value is string {
+  return typeof value === "string" && /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*(?:\/[a-zA-Z0-9._-]+)*$/u.test(value)
+    && !value.split("/").some(part => part === "." || part === "..")
 }
 
 function isGovernedSpecifier(value: string): boolean {

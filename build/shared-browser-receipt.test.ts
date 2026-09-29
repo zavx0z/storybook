@@ -63,7 +63,9 @@ test("изменённые immutable байты не принимаются ка
   const first = f.assets("first")
   saveSharedBrowserReceipt(first)
   writeFileSync(join(f.root, "kernel/first.js"), "changed")
-  expect(readSharedBrowserEpoch(f.root, first.browserIdentity!.epoch)).toBeNull()
+  const rejected: string[] = []
+  expect(readSharedBrowserEpoch(f.root, first.browserIdentity!.epoch, undefined, reason => { rejected.push(reason) })).toBeNull()
+  expect(rejected.some(reason => reason.includes("Хеш артефакта не совпадает"))).toBeTrue()
 })
 
 
@@ -81,4 +83,21 @@ test("подготовленный набор не меняет опублико
   expect(readPublishedSharedBrowserReceipt(input)?.browserIdentity).toEqual(second.browserIdentity)
   expect(readSharedBrowserEpoch(f.root, first.browserIdentity!.epoch)?.browserIdentity).toEqual(variant.browserIdentity)
   expect(readSharedBrowserEpoch(f.root, first.browserIdentity!.epoch, first.browserIdentity!.hostModuleEpoch)?.browserIdentity).toEqual(first.browserIdentity)
+})
+
+test("архивная платформа сохраняет владельцев после переименования пакетов", () => {
+  const f = fixture()
+  const first = f.assets("first")
+  const modules = first.browserIdentity!.modules.map(module => ({...module, specifier: "@retired-platform/component"}))
+  const historical = {...first, browserIdentity: {...first.browserIdentity!, modules,
+    epoch: digest(JSON.stringify({modules: modules.map(({specifier, url}) => ({specifier, url}))}))}}
+  saveSharedBrowserReceipt(historical)
+  const second = f.assets("second")
+  saveSharedBrowserReceipt(second)
+  rmSync(f.source)
+
+  expect(() => validateStorybookSharedBrowserIdentity(historical.browserIdentity)).toThrow("Unknown shared")
+  expect(readSharedBrowserEpoch(f.root, historical.browserIdentity.epoch)?.browserIdentity).toEqual(historical.browserIdentity)
+  writeFileSync(join(f.root, "kernel/first.js"), "corrupt")
+  expect(readSharedBrowserEpoch(f.root, historical.browserIdentity.epoch)).toBeNull()
 })

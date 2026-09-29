@@ -1,5 +1,6 @@
+import {buildSharedArtifactGraph, publishSharedArtifacts} from "./shared-artifacts.ts"
 import {readSharedBrowserEpoch} from "./shared-browser-receipt"
-import {mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync} from "node:fs"
+import {mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {basename, dirname, extname, join, relative, resolve, sep} from "node:path"
 import {fileURLToPath} from "node:url"
 import {canonicalBuildInputs, canonicalizeStorybookPackageIdentities} from "./package-build.ts"
@@ -63,13 +64,13 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
       input.toolRoot,
       moduleEntryDirectory,
     )
-    const kernelPlugins = await createStorybookPackageCompilerPlugins({
+    const kernelPlugins = () => createStorybookPackageCompilerPlugins({
       packageRoot: input.toolRoot,
       projectRoot: input.toolRoot,
       moduleSourcePaths: [],
     })
     onPhase?.({phase: "kernel", state: "started", at: new Date().toISOString()})
-    const kernel = await Bun.build({
+    const kernel = await buildSharedArtifactGraph(async () => ({
       entrypoints: moduleEntries.map(({entryPath}) => entryPath),
       outdir: staging,
       naming: {entry: "kernel/[name]-[hash].[ext]", chunk: "kernel/chunks/[name]-[hash].[ext]"},
@@ -79,10 +80,10 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
       splitting: true,
       sourcemap: "external",
       loader: {".wgsl": "text"},
-      plugins: [...kernelPlugins],
+      plugins: [...await kernelPlugins()],
       metafile: true,
       throw: false,
-    })
+    }), staging)
     assertSharedBuild(kernel, "kernel")
     onPhase?.({phase: "kernel", state: "completed", at: new Date().toISOString()})
     const kernelEntryFor = (source: string): string => emittedEntry(kernel, staging, source)
@@ -113,13 +114,13 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
     packageHostPath,
     bootstrapPath,
   ])]
-  const hostPlugins = await createStorybookPackageCompilerPlugins({
+  const hostPlugins = () => createStorybookPackageCompilerPlugins({
     packageRoot: input.toolRoot,
     projectRoot: input.toolRoot,
     moduleSourcePaths: hostEntryPoints,
   })
   onPhase?.({phase: "host", state: "started", at: new Date().toISOString()})
-  const host = await Bun.build({
+  const host = await buildSharedArtifactGraph(async () => ({
     entrypoints: hostEntryPoints,
     outdir: staging,
     naming: {entry: "entries/[name]-[hash].[ext]", chunk: "chunks/[name]-[hash].[ext]"},
@@ -129,10 +130,10 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
     splitting: true,
     sourcemap: "external",
     loader: {".wgsl": "text"},
-    plugins: [createStorybookSharedBrowserExternalPlugin(provisionalIdentity, input.sharedKernel === undefined), ...hostPlugins],
+    plugins: [createStorybookSharedBrowserExternalPlugin(provisionalIdentity, input.sharedKernel === undefined), ...await hostPlugins()],
     metafile: true,
     throw: false,
-  })
+  }), staging)
   if (!host.success) {
     rmSync(staging, {recursive: true, force: true})
     throw new Error(host.logs.map(({message}) => message).join("\n"))
@@ -175,12 +176,7 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
     digest: createHash("sha256").update(new Uint8Array(await artifact.arrayBuffer())).digest("hex"),
   })))
   artifactDigests.push(...authorStyleSheets.map(style => ({path: style.url, digest: style.contentDigest})))
-  // Hashed assets stay available to documents that still reference older entries.
-  for (const artifact of artifactDigests) {
-    const destination = join(input.root, artifact.path)
-    mkdirSync(dirname(destination), {recursive: true})
-    renameSync(join(staging, artifact.path), destination)
-  }
+  publishSharedArtifacts(input.root, staging, artifactDigests)
   if (input.sharedKernel !== undefined) {
     const retained = readSharedBrowserEpoch(input.root, input.sharedKernel.epoch)
     if (!retained) throw new Error("Retained kernel artifacts are unavailable")

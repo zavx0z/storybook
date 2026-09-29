@@ -5,6 +5,7 @@ import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {
   storybookSharedBrowserIdentity,
+  createStorybookSharedBrowserExternalPlugin,
   validateStorybookSharedBrowserIdentity,
 } from "./shared-module-identity.ts"
 
@@ -63,6 +64,36 @@ test("устаревшее evidence исходников kernel отклоняе
     expect(() => validateStorybookSharedBrowserIdentity(identity)).toThrow(
       "source changed after kernel build",
     )
+  } finally {
+    rmSync(root, {recursive: true, force: true})
+  }
+})
+
+test.each(["@retired-platform/component", "@jsx-runtime/create"])("Снимок направляет %s в сохранённый модуль без текущей реализации", async specifier => {
+  const root = mkdtempSync(join(tmpdir(), "storybook-archived-import-"))
+  try {
+    const sourcePath = join(root, "removed-source.ts")
+    const identity = storybookSharedBrowserIdentity(
+      "/__storybook/shared/entries/package.js",
+      [{specifier, sourcePath, url: "/__storybook/shared/kernel/retained.js"}],
+      HOST_MODULE_EPOCH,
+      [{path: sourcePath, contentDigest: "0".repeat(64)}],
+      undefined,
+      false,
+    )
+    const entry = join(root, "entry.ts")
+    writeFileSync(entry, `export {default} from ${JSON.stringify(specifier)}\n`)
+    const result = await Bun.build({entrypoints: [entry], target: "browser", metafile: true,
+      plugins: [createStorybookSharedBrowserExternalPlugin(identity, false)]})
+    expect(result.success).toBeTrue()
+    expect(await result.outputs[0]!.text()).toContain("/__storybook/shared/kernel/retained.js")
+    expect(Object.keys(result.metafile!.inputs)).toHaveLength(1)
+    expect(() => validateStorybookSharedBrowserIdentity({...identity,
+      modules: [{...identity.modules[0]!, url: "/__storybook/shared/kernel/replaced.js"}],
+    }, false)).toThrow("does not match its epoch")
+    expect(() => validateStorybookSharedBrowserIdentity({...identity,
+      modules: [{...identity.modules[0]!, specifier: "../outside"}],
+    }, false)).toThrow("Unknown shared")
   } finally {
     rmSync(root, {recursive: true, force: true})
   }

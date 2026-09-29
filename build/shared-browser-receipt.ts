@@ -35,48 +35,68 @@ export function saveSharedBrowserCandidate(assets: SharedBrowserAssets, latest: 
   if (latest) writeReceipt(join(assets.root, "candidate.json"), assets)
 }
 
-/** Читает сохранённый kernel по проверенным immutable артефактам, независимо от нынешних исходников. */
-export function readSharedBrowserEpoch(root: string, epoch: string, hostEpoch?: string): SharedBrowserAssets | null {
+/**
+Читает сохранённый kernel по проверенным immutable артефактам, независимо от нынешних исходников.
+При отказе onRejected сохраняет причину: отсутствие файла, нарушение хеша или metadata.
+Отказ не заменяет повреждённую платформу текущими зависимостями.
+*/
+export function readSharedBrowserEpoch(
+  root: string,
+  epoch: string,
+  hostEpoch?: string,
+  onRejected?: (reason: string) => void,
+): SharedBrowserAssets | null {
   if (!/^[a-f0-9]{64}$/u.test(epoch)) throw new Error("Invalid shared kernel epoch")
   if (hostEpoch !== undefined && !/^[a-f0-9]{64}$/u.test(hostEpoch)) throw new Error("Invalid shared host epoch")
   const input = {root, toolRoot: root, landingEntryPath: "", fallbackEntryPath: "", stagingDirectory: root}
-  const saved = readReceipt(input, join(root, "hosts", hostEpoch === undefined ? `${epoch}.json` : `${epoch}/${hostEpoch}.json`), false)
-  const latest = saved ?? (hostEpoch === undefined ? readReceipt(input, join(root, "receipt.json"), false) : null)
-  return latest?.browserIdentity?.epoch === epoch ? latest : null
+  const saved = readReceipt(input, join(root, "hosts", hostEpoch === undefined ? `${epoch}.json` : `${epoch}/${hostEpoch}.json`), false, onRejected)
+  const latest = saved ?? (hostEpoch === undefined ? readReceipt(input, join(root, "receipt.json"), false, onRejected) : null)
+  if (latest?.browserIdentity?.epoch === epoch) return latest
+  if (latest) onRejected?.("Опубликованный receipt относится к другой платформе")
+  return null
 }
 
-function readReceipt(input: SharedBrowserBuildInput, path: string, verifyInputs: boolean): SharedBrowserAssets | null {
+function readReceipt(
+  input: SharedBrowserBuildInput,
+  path: string,
+  verifyInputs: boolean,
+  onRejected?: (reason: string) => void,
+): SharedBrowserAssets | null {
+  const reject = (reason: string): null => {
+    onRejected?.(`${relative(input.root, path)}: ${reason}`)
+    return null
+  }
   let fd: number | undefined
   try {
     fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW)
     const info = fstatSync(fd)
-    if (!info.isFile() || info.size > 8 * 1024 * 1024) return null
+    if (!info.isFile() || info.size > 8 * 1024 * 1024) return reject("Недопустимый файл receipt")
     const receipt = JSON.parse(readFileSync(fd, "utf8"))
     const assets = receipt.assets as SharedBrowserAssets
     const saved = parseStorybookBuildInputFingerprint(assets?.inputFingerprint)
     if (receipt.version !== 1 || assets.root !== input.root || (verifyInputs && saved === null) ||
       !Array.isArray(assets.artifactDigests) || assets.artifactDigests.length === 0 ||
-      !Array.isArray(assets.dependencyRealpaths) || assets.dependencyRealpaths.some(path => typeof path !== "string" || !isAbsolute(path))) return null
+      !Array.isArray(assets.dependencyRealpaths) || assets.dependencyRealpaths.some(path => typeof path !== "string" || !isAbsolute(path))) return reject("Некорректные metadata receipt или другой root")
     const paths = new Set<string>()
     for (const artifact of assets.artifactDigests) {
-      if (typeof artifact.path !== "string" || isAbsolute(artifact.path) || !/^[a-f0-9]{64}$/u.test(artifact.digest)) return null
+      if (typeof artifact.path !== "string" || isAbsolute(artifact.path) || !/^[a-f0-9]{64}$/u.test(artifact.digest)) return reject("Некорректное объявление артефакта")
       const path = join(input.root, artifact.path)
       const local = relative(realpathSync(input.root), realpathSync(path))
       const info = lstatSync(path)
-      if (!local || local.startsWith("..") || isAbsolute(local) || !info.isFile() || info.isSymbolicLink()) return null
-      if (createHash("sha256").update(readFileSync(path)).digest("hex") !== artifact.digest) return null
+      if (!local || local.startsWith("..") || isAbsolute(local) || !info.isFile() || info.isSymbolicLink()) return reject(`Артефакт не принадлежит архиву: ${artifact.path}`)
+      if (createHash("sha256").update(readFileSync(path)).digest("hex") !== artifact.digest) return reject(`Хеш артефакта не совпадает: ${artifact.path}`)
       paths.add(artifact.path)
     }
-    if (!paths.has(assets.landingEntry) || !paths.has(assets.fallbackEntry)) return null
-    if (assets.browserIdentity === undefined) return null
+    if (!paths.has(assets.landingEntry) || !paths.has(assets.fallbackEntry)) return reject("Нет артефактов входа страницы")
+    if (assets.browserIdentity === undefined) return reject("Нет browser identity")
     const browserIdentity = validateStorybookSharedBrowserIdentity(assets.browserIdentity, verifyInputs && input.sharedKernel === undefined)
     if (!paths.has(browserIdentity.packageEntryUrl.slice("/__storybook/shared/".length)) ||
       browserIdentity.modules.some(({url}) => !paths.has(url.slice("/__storybook/shared/".length))) ||
       browserIdentity.packageHostUrl !== undefined && !paths.has(browserIdentity.packageHostUrl.slice("/__storybook/shared/".length)) ||
-      assets.bootstrapEntry !== undefined && !paths.has(assets.bootstrapEntry)) return null
+      assets.bootstrapEntry !== undefined && !paths.has(assets.bootstrapEntry)) return reject("Identity ссылается на отсутствующий артефакт")
     if (!Array.isArray(assets.authorStyleSheets) || assets.authorStyleSheets.some(style =>
       typeof style.specifier !== "string" || !paths.has(style.url) ||
-      !assets.artifactDigests?.some(artifact => artifact.path === style.url && artifact.digest === style.contentDigest))) return null
+      !assets.artifactDigests?.some(artifact => artifact.path === style.url && artifact.digest === style.contentDigest))) return reject("Нет подтверждённых артефактов авторских стилей")
     if (!verifyInputs) {
       const {inputFingerprint: _saved, ...prepared} = assets
       return Object.freeze({...prepared, browserIdentity, ...(saved === null ? {} : {inputFingerprint: saved})})
@@ -94,7 +114,7 @@ function readReceipt(input: SharedBrowserBuildInput, path: string, verifyInputs:
     return sameStorybookBuildInputFingerprint(saved, current)
       ? Object.freeze({...assets, browserIdentity, cacheHit: true})
       : null
-  } catch { return null }
+  } catch (error) { return reject(error instanceof Error ? error.message : String(error)) }
   finally { if (fd !== undefined) closeSync(fd) }
 }
 
