@@ -14,7 +14,7 @@ import type {ReadDomainOutput} from "./contract/output"
 
 export type {ReadDomainInput, ReadDomainOutput}
 
-/** Читает принадлежность кода и сценариев, не исполняя код проверяемого домена. */
+/** Читает принадлежность кода и необязательные сценарии, не исполняя код проверяемого домена. */
 export async function readDomain({path}: ReadDomainInput): Promise<ReadDomainOutput> {
   const description = await readPackage({path})
   const owners = new Set(description.packages.map(item => item.path))

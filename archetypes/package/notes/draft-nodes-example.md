@@ -18,7 +18,6 @@ Project
    │  └─ field/                 Package — Domain
    │     ├─ package.json
    │     ├─ index.ts            обзор области
-   │     ├─ spec/scenario.spec.ts
    │     └─ number/             Package — Component
    │        ├─ package.json
    │        └─ index.tsx

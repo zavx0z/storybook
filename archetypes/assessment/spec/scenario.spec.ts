@@ -9,7 +9,7 @@ import {resolve} from "node:path"
 import {readAssessment} from "@archetypes/assessment"
 
 describe.each([
-  {name: "Предметная область", props: {path: resolve(import.meta.dir, "../../domain/spec/fixture/domain")}, status: "passed", classification: "domain"},
+  {name: "Предметная область без собственного spec", props: {path: resolve(import.meta.dir, "../../domain/spec/fixture/domain")}, status: "passed", classification: "domain"},
 ])("$name", async ({props, status, classification}) => {
   const result = await readAssessment(props)
   test("Подтверждение", () => {
@@ -20,6 +20,6 @@ describe.each([
     expect(result.reports.some(report => report.archetype === "package" && report.applicable),
       "Общие правила Package применяются независимо от предметного класса").toBeTrue()
     expect(result.reports.some(report => report.archetype === "behavior" && report.applicable),
-      "Собственное поведение проверяется действительным сценарием владельца").toBeTrue()
+      "Domain не требует отдельного сценария, повторяющего общие проверки структуры").toBeFalse()
   })
 })

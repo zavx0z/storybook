@@ -25,8 +25,13 @@ export function matchesClass(result: Report, name: string): boolean {
   return result.report?.tests.some(test => test.label === `Класс ${name}` && test.status === "passed") ?? false
 }
 
-/** Проверяет собственный сценарий владельца с его авторскими входами, не подставляя props нормативного читателя. */
-export async function executeOwnedScenario(input: ReadAssessmentInput): Promise<Report> {
+/** Проверяет обязательный сценарий Component с его авторскими входами. */
+export function executeOwnedScenario(input: ReadAssessmentInput): Promise<Report>
+/** Domain может не объявлять собственный сценарий; имеющиеся проверки исполняются без ослабления. */
+export function executeOwnedScenario(input: ReadAssessmentInput, optional: true): Promise<Report | undefined>
+/** Не подставляет props нормативного читателя в собственный сценарий владельца. */
+export async function executeOwnedScenario(input: ReadAssessmentInput, optional = false): Promise<Report | undefined> {
+  input.signal?.throwIfAborted()
   const sources: string[] = []
   for (const name of ["scenario.spec.ts", "scenario.spec.tsx"]) {
     const path = resolve(input.path, "spec", name)
@@ -36,6 +41,7 @@ export async function executeOwnedScenario(input: ReadAssessmentInput): Promise<
     })
     if (info?.isFile() && !info.isSymbolicLink()) sources.push(path)
   }
+  if (optional && sources.length === 0) return undefined
   if (sources.length !== 1) return {archetype: "behavior", applicable: true, status: "incomplete",
     message: "Для проверки поведения нужен один непосредственный сценарий владельца"}
   const report = await readScenario({path: sources[0]!, ...(input.signal ? {signal: input.signal} : {})})

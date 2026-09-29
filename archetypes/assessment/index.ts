@@ -2,6 +2,7 @@
 Классификация и соответствие пакета получаются из нормативных сценариев.
 Package задаёт общие требования, Repo проверяет корень монорепозитория,
 Domain и Component проверяют взаимоисключающие предметные границы.
+Общие проверки Domain используют структуру и exports; собственный spec необязателен.
 Project проверяется отдельно как композиция ссылок на независимые Repo.
 Чтение не меняет исходники, режим сборки или сохранённую ревизию.
 
@@ -40,7 +41,9 @@ export async function readAssessment(input: ReadAssessmentInput): Promise<ReadAs
       reports.push({...await executeStandard("component-lifecycle", "component/spec/lifecycle.spec.ts", target), applicable: true})
     }
   }
-  if (classification === "domain" || classification === "component") reports.push(await executeOwnedScenario(target))
+  const behavior = classification === "component" ? await executeOwnedScenario(target)
+    : classification === "domain" ? await executeOwnedScenario(target, true) : undefined
+  if (behavior) reports.push(behavior)
   const diagnostics = [...assessmentDiagnostics(reports, target.path)]
   if (classification === null) diagnostics.push({rule: "classification", status: "failed", path: target.path,
     message: "Класс Repo, Domain или Component не подтверждён однозначно; результаты проб сохранены в reports"})

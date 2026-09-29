@@ -1,6 +1,6 @@
 /**
 Проверяет границу Domain и принадлежность его публичных входов.
-Предметные правила области остаются в её собственном сценарии.
+Сведения берутся из пакетов и публичных входов; собственный сценарий Domain не обязателен.
 
 @packageDocumentation
 */
@@ -20,8 +20,5 @@ describe.each([{name: "Архетип Domain", props: {path: resolve(import.meta
     expect(result.package.index.entries.filter(entry => entry.code && entry.status !== "forwarded" && entry.status !== "blocked"
       && !(entry.status === "owned" && entry.path === "." && !result.localCode.includes(entry.path))),
       "Кодовые подпути прямо открывают публичные входы вложенных пакетов").toEqual([])
-  })
-  test("Правила области", () => {
-    expect(result.scenarios.length, "Непосредственный сценарий раскрывает и проверяет предметные правила области").toBe(1)
   })
 })
