@@ -1,5 +1,5 @@
 import {describe, expect, spyOn, test} from "bun:test"
-import {StorybookBuildScheduler, type StorybookBuildRequest} from "./build-scheduler.ts"
+import {StorybookBuildScheduler, type StorybookBuildRequest, type StorybookBuildOperationContext} from "./build-scheduler.ts"
 import type {ProcessResourceRow} from "@process/sample"
 
 const request = (operationId: string, packageId = `@fixture/${operationId}`): StorybookBuildRequest => ({
@@ -12,6 +12,34 @@ const request = (operationId: string, packageId = `@fixture/${operationId}`): St
 })
 
 describe("Storybook build scheduler observability", () => {
+  test("публичная проекция не переносит посторонние поля запроса в события и снимки", async () => {
+    const scheduler = new StorybookBuildScheduler()
+    const transitions: unknown[] = []
+    scheduler.subscribe(event => transitions.push(event))
+    const input = {...request("private-fields"), pid: 123, privatePath: "/private/worker"}
+    await scheduler.run(input, async () => {}, new AbortController().signal)
+    const published = JSON.stringify({transitions, snapshot: scheduler.snapshot()})
+    expect(published).not.toContain('"pid"')
+    expect(published).not.toContain("privatePath")
+    expect(scheduler.snapshot().recent[0]?.packageId).toBe("@fixture/private-fields")
+    scheduler.dispose()
+  })
+
+  test("поздние callbacks завершённой работы не меняют её исход и не публикуют прогресс", async () => {
+    const scheduler = new StorybookBuildScheduler()
+    let context!: StorybookBuildOperationContext
+    const events: unknown[] = []
+    scheduler.subscribe(event => events.push(event))
+    await scheduler.run(request("late"), async value => { context = value }, new AbortController().signal)
+    const before = scheduler.snapshot().recent
+    const eventCount = events.length
+    expect(() => context.setPhase("retired-phase" as never)).not.toThrow()
+    expect(() => context.setCacheOutcome?.({status: "retired", layer: "retired"} as never)).not.toThrow()
+    expect(events.length).toBe(eventCount)
+    expect(scheduler.snapshot().recent).toEqual(before)
+    scheduler.dispose()
+  })
+
   test("pushes immutable queue, admission, phase and completion transitions", async () => {
     const scheduler = new StorybookBuildScheduler({limit: 1})
     const transitions: Readonly<Record<string, unknown>>[] = []
