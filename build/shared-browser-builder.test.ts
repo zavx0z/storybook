@@ -29,6 +29,25 @@ test("причина отказа shared worker сохраняется посл�
       runSharedBrowserBuild({root: join(root, "assets"), toolRoot: root, landingEntryPath: "", fallbackEntryPath: ""}, context, 2_000),
     new AbortController().signal)).rejects.toThrow("exact input attestation failure")
     expect(scheduler.snapshot().recent[0]?.outcome).toBe("failed")
-    expect(readdirSync(root).some(name => name.startsWith(".shared-job-"))).toBeFalse()
+    expect(readdirSync(root)).toEqual(["build"])
+  } finally { scheduler.dispose() }
+})
+
+
+test("shared adapter отклоняет посторонний stdout и очищает workspace", async () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "storybook-shared-worker-stream-")))
+  roots.push(root)
+  mkdirSync(join(root, "build"))
+  writeFileSync(join(root, "build/shared-browser-worker.ts"), [
+    'console.log("unrelated stdout")',
+    'setInterval(() => {}, 1000)',
+  ].join("\n"))
+  const scheduler = new StorybookBuildScheduler()
+  try {
+    await expect(scheduler.run({packageId: null, owner: "shared", reason: "missing", generation: null}, context =>
+      runSharedBrowserBuild({root: join(root, "assets"), toolRoot: root, landingEntryPath: "", fallbackEntryPath: ""}, context, 2_000),
+    new AbortController().signal)).rejects.toThrow("output reader failed")
+    expect(scheduler.snapshot().recent[0]?.outcome).toBe("failed")
+    expect(readdirSync(root)).toEqual(["build"])
   } finally { scheduler.dispose() }
 })

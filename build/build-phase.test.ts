@@ -26,6 +26,11 @@ describe("Storybook build worker event protocol", () => {
 
   test("отклоняет old protocol, unknown phase и невалидный PID", () => {
     expect(parseStorybookBuildWorkerTransportEvent({
+      protocol: STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL,
+      kind: "phase",
+      event: {phase: ["bundle"], state: "started", at: "2026-09-11T00:00:00.000Z"},
+    })).toBeNull()
+    expect(parseStorybookBuildWorkerTransportEvent({
       protocol: "storybook-build-worker-event/0",
       kind: "ready",
       workerId: "0123456789abcdef",

@@ -1,3 +1,5 @@
+import type {BuildWorkerLifecycleEvent} from "@build/worker"
+
 /** Версия ограниченного однонаправленного потока событий package build worker. */
 export const STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL = "storybook-build-worker-event/1" as const
 
@@ -43,19 +45,7 @@ export type StorybookBuildPhaseListener = (event: StorybookBuildPhaseEvent) => v
 
 @property [exitCode] - Код завершившегося worker.
 */
-export type StorybookBuildWorkerLifecycleEvent = Readonly<{
-  state: "started"
-  workerId: string
-  pid: number
-  startedAt: string
-}> | Readonly<{
-  state: "exited"
-  workerId: string
-  pid: number
-  startedAt: string
-  finishedAt: string
-  exitCode: number
-}>
+export type StorybookBuildWorkerLifecycleEvent = BuildWorkerLifecycleEvent
 
 /** Получает private lifecycle exact worker и не публикует PID в Storybook status. */
 export type StorybookBuildWorkerLifecycleListener = (
@@ -118,7 +108,7 @@ export function parseStorybookBuildWorkerTransportEvent(
 
 /** Ограничивает phase vocabulary согласованным scheduler contract. */
 function isStorybookBuildPhase(value: unknown): value is StorybookBuildPhase {
-  return [
+  return typeof value === "string" && [
     "cache",
     "fingerprint",
     "verification",
@@ -128,7 +118,7 @@ function isStorybookBuildPhase(value: unknown): value is StorybookBuildPhase {
     "kernel",
     "host",
     "publish",
-  ].includes(String(value))
+  ].includes(value)
 }
 
 function parseSharedCacheOutcome(value: unknown): Readonly<{status: "hit" | "miss", layer: "shared"}> | null {

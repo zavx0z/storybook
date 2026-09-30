@@ -43,10 +43,10 @@
     "@hmr/activation": "workspace:*",
     "@hmr/connection": "workspace:*",
     "@build/queue": "workspace:*",
-    "@process/wait": "workspace:*",
     "@process/sample": "workspace:*",
     "@process/measure": "workspace:*",
-    "@build/inputs": "workspace:*"
+    "@build/inputs": "workspace:*",
+    "@build/worker": "workspace:*"
   },
   "devDependencies": {
     "@archetypes/specs": "workspace:*",

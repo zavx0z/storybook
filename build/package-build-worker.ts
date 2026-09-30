@@ -15,7 +15,7 @@ const abort = (): void => controller.abort(new DOMException("Storybook package b
 process.once("SIGTERM", abort)
 process.once("SIGINT", abort)
 
-const workerId = process.env.STORYBOOK_PACKAGE_BUILD_WORKER_ID
+const workerId = process.argv[4]
 if (workerId !== undefined) {
   writeWorkerEvent({
     protocol: STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL,

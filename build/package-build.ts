@@ -1,7 +1,7 @@
 import BuildInputs, {type BuildInputFingerprint as StorybookBuildInputFingerprint} from "@build/inputs"
 import {checkStorybookPackageConformance, scenarioVerification} from "./package-conformance"
 import {type StorybookPackageStandard} from "../sessions/package-standard"
-import {createHash, randomUUID} from "node:crypto"
+import {createHash} from "node:crypto"
 import {
   closeSync,
   constants,
@@ -38,7 +38,7 @@ import {
   type StorybookBuildPhaseListener,
   type StorybookBuildWorkerLifecycleListener,
 } from "./build-phase.ts"
-import waitForStorybookOwnedChild from "@process/wait"
+import runBuildWorker from "@build/worker"
 import {
   canonicalizeStorybookPackageFile,
   preferredStorybookPackageRoot,
@@ -492,6 +492,7 @@ function readAttestedRevisionResource(
   }
 }
 
+/** Передаёт пакетное задание исполнителю и проверяет предметный результат после очистки worker. */
 async function runPackageBuildWorker(
   input: StorybookFingerprintingPackageRevisionBuilderInput,
   options: Readonly<{
@@ -503,94 +504,43 @@ async function runPackageBuildWorker(
   onPhase?: StorybookBuildPhaseListener,
   onWorkerLifecycle?: StorybookBuildWorkerLifecycleListener,
 ): Promise<StorybookFingerprintingPackageRevisionBuild> {
-  input.signal.throwIfAborted()
-  mkdirSync(input.stagingDirectory, {recursive: true})
-  const nonce = randomUUID()
-  const startedAt = new Date().toISOString()
-  const jobPath = join(input.stagingDirectory, `.build-job-${nonce}.json`)
-  const resultPath = join(input.stagingDirectory, `.build-result-${nonce}.json`)
   const {
-    signal: _signal,
+    signal,
     onPhase: inputOnPhase,
     onWorkerLifecycle: inputOnWorkerLifecycle,
     ...serializableInput
   } = input
   const phaseListener = inputOnPhase ?? onPhase
   const lifecycleListener = inputOnWorkerLifecycle ?? onWorkerLifecycle
-  const job: StorybookPackageBuildWorkerJob = Object.freeze({
-    input: serializableInput,
-    options,
-  })
-  await Bun.write(jobPath, `${JSON.stringify(job)}\n`)
-  const child = Bun.spawn([process.execPath, workerPath, jobPath, resultPath], {
+  const job: StorybookPackageBuildWorkerJob = Object.freeze({input: serializableInput, options})
+  const execution = await runBuildWorker({
+    entryPath: workerPath,
     cwd: input.descriptor.projectRoot,
-    env: {
-      ...Bun.env,
-      STORYBOOK_PACKAGE_BUILD_WORKER: "1",
-      STORYBOOK_PACKAGE_BUILD_WORKER_ID: nonce,
-    },
-    stdin: "ignore",
-    stdout: "pipe",
-    stderr: "pipe",
-    detached: true,
+    temporaryRoot: input.stagingDirectory,
+    createJob: () => job,
+    signal,
+    timeoutMs: input.compileTimeoutMs,
+    label: "Storybook package compile",
+    parseEvent: parseStorybookBuildWorkerTransportEvent,
+    streamMode: "tolerant",
+    ...(phaseListener === undefined ? {} : {onProgress: phaseListener}),
+    ...(lifecycleListener === undefined ? {} : {onLifecycle: lifecycleListener}),
   })
-  let workerStarted = false
-  const workerPid = child.pid
-  try {
-    const {exitCode, stderr} = await waitForStorybookOwnedChild({
-      child,
-      signal: input.signal,
-      timeoutMs: input.compileTimeoutMs,
-      label: "Storybook package compile",
-      processGroup: {leaderPid: workerPid},
-      hardKillDelayMs: 1_000,
-      readStdout: async (stream) => readWorkerEventStream(stream, {
-        workerId: nonce,
-        pid: workerPid,
-        onReady: () => {
-          if (workerStarted) return
-          workerStarted = true
-          notifyWorkerLifecycle(lifecycleListener, {
-            state: "started",
-            workerId: nonce,
-            pid: workerPid,
-            startedAt,
-          })
-        },
-        ...(phaseListener === undefined ? {} : {onPhase: phaseListener}),
-      }),
-    })
-    input.signal.throwIfAborted()
-    if (!existsSync(resultPath)) {
-      throw storybookBuildError(storybookDiagnostic(
-        exitCode === 0 ? "compile" : "compile",
-        stderr.trim() || `Storybook package build worker exited ${exitCode} without a result`,
-      ))
-    }
-    const result = JSON.parse(readFileSync(resultPath, "utf8")) as StorybookPackageBuildWorkerResult
-    if (result.ok) return result.build
-    const diagnostics = result.diagnostics.flatMap((diagnostic) =>
-      isWorkerDiagnosticPhase(diagnostic.phase)
-        ? [storybookDiagnostic(diagnostic.phase, diagnostic.message, diagnostic.path)]
-        : [])
-    throw storybookBuildError(diagnostics.length > 0
-      ? diagnostics
-      : storybookDiagnostic("compile", result.message))
-  } finally {
-    const exitCode = await child.exited.catch(() => -1)
-    if (workerStarted) {
-      notifyWorkerLifecycle(lifecycleListener, {
-        state: "exited",
-        workerId: nonce,
-        pid: workerPid,
-        startedAt,
-        finishedAt: new Date().toISOString(),
-        exitCode,
-      })
-    }
-    rmSync(jobPath, {force: true})
-    rmSync(resultPath, {force: true})
+  if (execution.result === undefined) {
+    throw storybookBuildError(storybookDiagnostic(
+      "compile",
+      execution.stderr.trim() || `Storybook package build worker exited ${execution.exitCode} without a result`,
+    ))
   }
+  const result = execution.result as StorybookPackageBuildWorkerResult
+  if (result.ok) return result.build
+  const diagnostics = result.diagnostics.flatMap((diagnostic) =>
+    isWorkerDiagnosticPhase(diagnostic.phase)
+      ? [storybookDiagnostic(diagnostic.phase, diagnostic.message, diagnostic.path)]
+      : [])
+  throw storybookBuildError(diagnostics.length > 0
+    ? diagnostics
+    : storybookDiagnostic("compile", result.message))
 }
 
 async function resolveSharedBrowserIdentity(
@@ -608,86 +558,6 @@ export function isolatedStorybookSharedModuleEpoch(packageId: string, candidateR
   return createHash("sha256")
     .update(`isolated\0${packageId}\0${candidateRevision}`)
     .digest("hex")
-}
-
-/**
-Дренирует bounded worker stdout и передаёт phase events сразу при получении строки.
-
-Первый принятый lifecycle event обязан подтвердить exact launch nonce и PID.
-Malformed/лишние строки игнорируются и не получают права привязать scheduler к PID.
-*/
-async function readWorkerEventStream(
-  stream: unknown,
-  input: Readonly<{
-    workerId: string
-    pid: number
-    onReady(): void
-    onPhase?: StorybookBuildPhaseListener
-  }>,
-): Promise<string> {
-  if (stream === null || stream === undefined || typeof stream === "number") return ""
-  const reader = (stream as ReadableStream<Uint8Array>).getReader()
-  const decoder = new TextDecoder()
-  let buffered = ""
-  let consumed = 0
-  let ready = false
-  const limit = 64 * 1024
-  try {
-    while (true) {
-      const next = await reader.read()
-      if (next.done) break
-      if (consumed >= limit) continue
-      consumed += next.value.byteLength
-      if (consumed > limit) {
-        buffered = ""
-        continue
-      }
-      buffered += decoder.decode(next.value, {stream: true})
-      let newline = buffered.indexOf("\n")
-      while (newline >= 0) {
-        ready = consumeWorkerEventLine(buffered.slice(0, newline), input, ready)
-        buffered = buffered.slice(newline + 1)
-        newline = buffered.indexOf("\n")
-      }
-    }
-    buffered += decoder.decode()
-    if (buffered.length > 0) consumeWorkerEventLine(buffered, input, ready)
-  } catch (error) {
-    await reader.cancel(error).catch(() => {})
-    throw error
-  }
-  return ""
-}
-
-/** Проверяет одну JSONL запись и не допускает подмену exact worker handshake. */
-function consumeWorkerEventLine(
-  line: string,
-  input: Readonly<{
-    workerId: string
-    pid: number
-    onReady(): void
-    onPhase?: StorybookBuildPhaseListener
-  }>,
-  ready: boolean,
-): boolean {
-  if (line.length === 0 || line.length > 8 * 1024) return ready
-  let decoded: unknown
-  try {
-    decoded = JSON.parse(line)
-  } catch {
-    return ready
-  }
-  const event = parseStorybookBuildWorkerTransportEvent(decoded)
-  if (event === null) return ready
-  if (event.kind === "ready") {
-    if (!ready && event.workerId === input.workerId && event.pid === input.pid) {
-      input.onReady()
-      return true
-    }
-    return ready
-  }
-  if (ready) notifyPhase(input.onPhase, event.event)
-  return ready
 }
 
 /** Создаёт timestamped phase boundary и изолирует build от observer exception. */
@@ -708,18 +578,6 @@ function notifyPhase(
     listener?.(event)
   } catch {
     // Scheduler observability не влияет на корректность compiler.
-  }
-}
-
-/** Lifecycle observer изолирован от exact worker ownership и cancellation. */
-function notifyWorkerLifecycle(
-  listener: StorybookBuildWorkerLifecycleListener | undefined,
-  event: Parameters<StorybookBuildWorkerLifecycleListener>[0],
-): void {
-  try {
-    listener?.(event)
-  } catch {
-    // Resource sampling не может менять worker lifecycle.
   }
 }
 

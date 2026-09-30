@@ -9,6 +9,7 @@
         "@archetypes/package-documentation": "workspace:*",
         "@build/inputs": "workspace:*",
         "@build/queue": "workspace:*",
+        "@build/worker": "workspace:*",
         "@hmr/activation": "workspace:*",
         "@hmr/connection": "workspace:*",
         "@hmr/page": "workspace:*",
@@ -18,7 +19,6 @@
         "@mcp/root": "workspace:*",
         "@process/measure": "workspace:*",
         "@process/sample": "workspace:*",
-        "@process/wait": "workspace:*",
         "@storybook/app": "workspace:*",
         "@storybook/route": "workspace:*",
         "@zavx0z/storybook-browser-lifecycle": "workspace:*",
@@ -277,6 +277,7 @@
       "dependencies": {
         "@build/inputs": "workspace:*",
         "@build/queue": "workspace:*",
+        "@build/worker": "workspace:*",
         "@process/measure": "workspace:*",
         "@process/sample": "workspace:*",
         "@process/wait": "workspace:*",
@@ -288,6 +289,7 @@
       "dependencies": {
         "@build/inputs": "workspace:*",
         "@build/queue": "workspace:*",
+        "@build/worker": "workspace:*",
       },
     },
     "tech/build/inputs": {
@@ -300,6 +302,13 @@
       "dependencies": {
         "@process/measure": "workspace:*",
         "@process/sample": "workspace:*",
+      },
+    },
+    "tech/build/worker": {
+      "name": "@build/worker",
+      "version": "0.0.0",
+      "dependencies": {
+        "@process/wait": "workspace:*",
       },
     },
     "tech/process": {
@@ -393,6 +402,8 @@
     "@build/inputs": ["@build/inputs@workspace:tech/build/inputs"],
 
     "@build/queue": ["@build/queue@workspace:tech/build/queue"],
+
+    "@build/worker": ["@build/worker@workspace:tech/build/worker"],
 
     "@hmr/activation": ["@hmr/activation@workspace:hmr/activation"],
 

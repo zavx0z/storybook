@@ -1,7 +1,6 @@
-import {randomUUID} from "node:crypto"
-import {existsSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync} from "node:fs"
+import {realpathSync} from "node:fs"
 import {dirname, isAbsolute, join, relative} from "node:path"
-import waitForStorybookOwnedChild from "@process/wait"
+import runBuildWorker from "@build/worker"
 import {parseStorybookBuildWorkerTransportEvent} from "./build-phase.ts"
 import type {StorybookBuildOperationContext} from "./build-scheduler.ts"
 import type {SharedBrowserAssets} from "./shared-browser-assets.ts"
@@ -27,72 +26,39 @@ export async function runSharedBrowserBuild(
   context: StorybookBuildOperationContext,
   timeoutMs: number,
 ): Promise<SharedBrowserAssets> {
-  context.signal.throwIfAborted()
-  const workerId = randomUUID()
-  const jobRoot = join(dirname(input.root), `.shared-job-${workerId}`)
-  const stagingDirectory = join(jobRoot, "staging")
-  const jobPath = join(jobRoot, "input.json")
-  const resultPath = join(jobRoot, "result.json")
-  mkdirSync(jobRoot, {recursive: true, mode: 0o700})
   let release: (() => void) | undefined
   try {
-    writeFileSync(jobPath, JSON.stringify({...input, stagingDirectory}), {mode: 0o600})
-    const workerStartedAt = new Date().toISOString()
-    const child = Bun.spawn([process.execPath, join(input.toolRoot, "build/shared-browser-worker.ts"), jobPath, resultPath, workerId], {
+    const execution = await runBuildWorker({
+      entryPath: join(input.toolRoot, "build/shared-browser-worker.ts"),
       cwd: input.toolRoot,
-      stdin: "ignore",
-      stdout: "pipe",
-      stderr: "pipe",
-      detached: true,
-    })
-    let ready = false
-    const result = await waitForStorybookOwnedChild({
-      child,
+      temporaryRoot: dirname(input.root),
+      createJob: ({directory}) => ({...input, stagingDirectory: join(directory, "staging")}),
       signal: context.signal,
       timeoutMs,
       label: "Shared browser build",
-      hardKillDelayMs: 1_000,
-      processGroup: {leaderPid: child.pid},
-      async readStdout(stream) {
-        if (!(stream instanceof ReadableStream)) throw new Error("Shared worker stdout is unavailable")
-        const reader = stream.getReader()
-        const decoder = new TextDecoder()
-        let pending = ""
-        try {
-          for (;;) {
-            const part = await reader.read()
-            if (part.done) break
-            pending += decoder.decode(part.value, {stream: true})
-            if (pending.length > 65_536) throw new Error("Shared worker handshake exceeds limit")
-            let end: number
-            while ((end = pending.indexOf("\n")) !== -1) {
-              const line = pending.slice(0, end)
-              pending = pending.slice(end + 1)
-              if (line.trim() === "") continue
-              const event = parseStorybookBuildWorkerTransportEvent(JSON.parse(line))
-              if (event?.kind === "phase" && ready) {
-                if (event.event.state === "started") context.setPhase(event.event.phase)
-                if (event.event.cache !== undefined) context.setCacheOutcome?.(event.event.cache)
-                continue
-              }
-              if (event?.kind !== "ready" || ready || event.workerId !== workerId || event.pid !== child.pid) {
-                throw new Error("Shared worker handshake does not match its owned process")
-              }
-              ready = true
-              release = context.bindWorker({pid: child.pid, startedAt: workerStartedAt})
-              context.setPhase("fingerprint")
-            }
-          }
-          if (pending.trim() !== "") throw new Error("Shared worker emitted an incomplete handshake")
-          return ""
-        } finally { reader.releaseLock() }
+      parseEvent: parseStorybookBuildWorkerTransportEvent,
+      streamMode: "strict",
+      maxResultBytes: 1_048_576,
+      onProgress(event) {
+        if (event.state === "started") context.setPhase(event.phase)
+        if (event.cache !== undefined) context.setCacheOutcome?.(event.cache)
+      },
+      onLifecycle(event) {
+        if (event.state === "started") {
+          release = context.bindWorker({pid: event.pid, startedAt: event.startedAt})
+          context.setPhase("fingerprint")
+        } else {
+          release?.()
+          release = undefined
+        }
       },
     })
-    if (!ready || !existsSync(resultPath)) throw new Error(result.stderr.trim() || "Shared browser worker failed")
-    if (statSync(resultPath).size > 1_048_576) throw new Error("Shared browser result exceeds limit")
-    const value = JSON.parse(readFileSync(resultPath, "utf8")) as SharedBrowserAssets & {error?: unknown}
-    if (result.exitCode !== 0) {
-      throw new Error(typeof value.error === "string" ? value.error : result.stderr.trim() || "Shared browser worker failed")
+    if (!execution.ready || execution.result === undefined) {
+      throw new Error(execution.stderr.trim() || "Shared browser worker failed")
+    }
+    const value = execution.result as SharedBrowserAssets & {error?: unknown}
+    if (execution.exitCode !== 0) {
+      throw new Error(typeof value.error === "string" ? value.error : execution.stderr.trim() || "Shared browser worker failed")
     }
     if (value.root !== input.root || !Array.isArray(value.dependencyRealpaths) ||
       value.dependencyRealpaths.some(path => typeof path !== "string" || !isAbsolute(path))) {
@@ -110,6 +76,5 @@ export async function runSharedBrowserBuild(
     return Object.freeze({...value, browserIdentity})
   } finally {
     release?.()
-    rmSync(jobRoot, {recursive: true, force: true})
   }
 }

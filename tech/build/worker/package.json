@@ -1,0 +1,17 @@
+{
+  "name": "@build/worker",
+  "label": "Исполнитель сборки",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Запускает изолированную задачу в дочернем процессе и подтверждает завершение её группы",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@process/wait": "workspace:*"
+  },
+  "scripts": {
+    "test": "bun test ./spec ./test"
+  }
+}

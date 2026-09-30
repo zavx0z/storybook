@@ -1,9 +1,10 @@
 import {afterEach, describe, expect, setDefaultTimeout, test} from "bun:test"
 import {createHash} from "node:crypto"
-import {linkSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, unlinkSync, watch, writeFileSync} from "node:fs"
+import {linkSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, readdirSync, rmSync, symlinkSync, unlinkSync, watch, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {canonicalizeStorybookPackageIdentities, createStorybookPackageRevisionBuilder, isolatedStorybookSharedModuleEpoch, prepareStorybookScenarios} from "./package-build.ts"
+import {STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL} from "./build-phase"
 import {STORYBOOK_PACKAGE_GRAPH_PROTOCOL, type StorybookPackageRevisionGraphSnapshot} from "../sessions/package-revision.ts"
 import type {StorybookPackageBuildDescriptor} from "../sessions/package-session.ts"
 
@@ -13,6 +14,34 @@ setDefaultTimeout(60_000)
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, {recursive: true, force: true}) })
 
 describe("structural package revision build", () => {
+  test("пакетный adapter сохраняет диагностику и терпимый stdout после завершения worker", async () => {
+    const fixture = createFixture()
+    const workerPath = join(fixture.root, "diagnostic-worker.ts")
+    const staging = join(fixture.root, ".diagnostic")
+    writeFileSync(workerPath, [
+      'import {writeFileSync} from "node:fs"',
+      'const [, resultPath, workerId] = process.argv.slice(2)',
+      'console.log("unrelated stdout")',
+      `console.log(JSON.stringify({protocol: ${JSON.stringify(STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL)}, kind: "ready", workerId, pid: process.pid}))`,
+      `console.log(JSON.stringify({protocol: ${JSON.stringify(STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL)}, kind: "phase", event: {phase: "bundle", state: "started", at: new Date().toISOString()}}))`,
+      'writeFileSync(resultPath, JSON.stringify({ok: false, message: "fallback", diagnostics: [{phase: "validate", message: "owned package diagnostic", path: null}]}))',
+      'process.exitCode = 1',
+    ].join("\n"))
+    const lifecycle: string[] = []
+    const phases: string[] = []
+    const build = createStorybookPackageRevisionBuilder({
+      toolRoot,
+      browserEntryPath: fixture.browserEntry,
+      workerPath,
+      onPhase: event => phases.push(event.phase),
+      onWorkerLifecycle: event => lifecycle.push(event.state),
+    })
+    await expect(build(buildInput(fixture.descriptor, staging, "diagnostic"))).rejects.toThrow("owned package diagnostic")
+    expect(lifecycle).toEqual(["started", "exited"])
+    expect(phases).toEqual(["bundle"])
+    expect(readdirSync(staging)).toEqual([])
+  })
+
   test("запускает worker выбранного toolRoot без подмены текущим модулем сборщика", async () => {
     const fixture = createFixture()
     const selectedTool = join(fixture.root, "selected-tool")
