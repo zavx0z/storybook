@@ -34,6 +34,8 @@ const IMPLEMENTATION_TREES = Object.freeze([
   "app/spec-reader",
   "route",
   "build",
+  "tech/build",
+  "tech/process",
   "sessions",
   "hmr/activation",
   "server",

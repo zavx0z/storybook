@@ -1,0 +1,14 @@
+{
+  "name": "@process/wait",
+  "label": "Ожидание процесса",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Ожидает точный дочерний процесс с отменой, таймаутом и ограниченным выводом",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "test": "bun test ./spec ./test"
+  }
+}

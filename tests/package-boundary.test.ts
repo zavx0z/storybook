@@ -19,7 +19,7 @@ describe("external @zavx0z/storybook tool boundary", () => {
   test("runs multi-package isolation in its own explicit process", async () => {
     const manifest = await Bun.file(join(root, "package.json")).json() as Record<string, any>
     const script = manifest.scripts.test as string
-    expect(script).toContain("bun test --preload @immersive/headless/preload hmr catalog discovery build sessions runtime workbench server tests src --max-concurrency=1")
+    expect(script).toContain("bun test --preload @immersive/headless/preload tech hmr catalog discovery build sessions runtime workbench server tests src --max-concurrency=1")
     expect(script).toContain("--path-ignore-patterns '**/isolation.integration.test.ts'")
     expect(script).toContain("&& bun test tests/isolation.integration.test.ts --max-concurrency=1")
     expect(script).not.toContain("server.test.ts")

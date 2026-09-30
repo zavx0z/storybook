@@ -25,7 +25,7 @@
     "route:check": "bun run --cwd route check",
     "archetypes:check": "bun test archetypes domain component --path-ignore-patterns '**/fixture/**' --max-concurrency=1",
     "app:check": "bun run --cwd app check",
-    "test": "bun test --preload @immersive/headless/preload hmr catalog discovery build sessions runtime workbench server tests src --max-concurrency=1 --path-ignore-patterns '**/isolation.integration.test.ts' && bun test tests/isolation.integration.test.ts --max-concurrency=1",
+    "test": "bun test --preload @immersive/headless/preload tech hmr catalog discovery build sessions runtime workbench server tests src --max-concurrency=1 --path-ignore-patterns '**/isolation.integration.test.ts' && bun test tests/isolation.integration.test.ts --max-concurrency=1",
     "mcp:check": "bun run --cwd mcp check",
     "check": "bun run browser-lifecycle:check && bun run typecheck && bun run route:check && bun run app:check && bun run archetypes:check && bun run test && bun run mcp:check && bun run build"
   },
@@ -41,7 +41,11 @@
     "@archetypes/package-documentation": "workspace:*",
     "@hmr/page": "workspace:*",
     "@hmr/activation": "workspace:*",
-    "@hmr/connection": "workspace:*"
+    "@hmr/connection": "workspace:*",
+    "@build/queue": "workspace:*",
+    "@process/wait": "workspace:*",
+    "@process/sample": "workspace:*",
+    "@process/measure": "workspace:*"
   },
   "devDependencies": {
     "@archetypes/specs": "workspace:*",

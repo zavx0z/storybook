@@ -1,0 +1,15 @@
+{
+  "name": "@build/queue",
+  "label": "Очередь сборочных работ",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Очередь сборочных работ",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@process/sample": "workspace:*",
+    "@process/measure": "workspace:*"
+  }
+}

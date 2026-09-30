@@ -1,10 +1,10 @@
 import {describe, expect, spyOn, test} from "bun:test"
-import {waitForStorybookOwnedChild} from "./child-process.ts"
+import waitForOwnedChild from "@process/wait"
 
-describe("Storybook owned child lifecycle", () => {
+describe("Owned child lifecycle", () => {
   test("дренирует stdout сверх capture limit без EPIPE у успешного child", async () => {
     const child = spawnScript("process.stdout.write('x'.repeat(131072))")
-    const result = await waitForStorybookOwnedChild({
+    const result = await waitForOwnedChild({
       child,
       signal: new AbortController().signal,
       timeoutMs: 2_000,
@@ -18,7 +18,7 @@ describe("Storybook owned child lifecycle", () => {
 
   test("reader failure завершает exact long-running child до возврата ошибки", async () => {
     const child = spawnScript("setInterval(() => process.stdout.write('tick\\n'), 10)")
-    await expect(waitForStorybookOwnedChild({
+    await expect(waitForOwnedChild({
       child,
       signal: new AbortController().signal,
       timeoutMs: 2_000,
@@ -31,10 +31,26 @@ describe("Storybook owned child lifecycle", () => {
     expect(await child.exited).not.toBe(0)
   })
 
+  test("таймаут подтверждает завершение exact child до возврата TimeoutError", async () => {
+    const child = spawnScript("setInterval(() => {}, 1000)")
+    const failure = await waitForOwnedChild({
+      child,
+      signal: new AbortController().signal,
+      timeoutMs: 30,
+      hardKillDelayMs: 20,
+      label: "timeout fixture",
+    }).catch(error => error)
+
+    expect(failure.name, "Исчерпание бюджета отличается от пользовательской отмены").toBe("TimeoutError")
+    expect(failure.message, "Ошибка сохраняет диагностическое имя и бюджет операции").toBe("timeout fixture timed out after 30ms")
+    expect(processExists(child.pid), "Ошибка возвращается после исчезновения точного PID дочернего процесса").toBeFalse()
+    expect(await child.exited, "Ожидание не оставляет исполняющийся процесс после таймаута").not.toBe(0)
+  })
+
   test("abort во время чтения подтверждает exit exact child", async () => {
     const child = spawnScript("setInterval(() => process.stderr.write('waiting\\n'), 10)")
     const controller = new AbortController()
-    const pending = waitForStorybookOwnedChild({
+    const pending = waitForOwnedChild({
       child,
       signal: controller.signal,
       timeoutMs: 2_000,
@@ -66,7 +82,7 @@ describe("Storybook owned child lifecycle", () => {
     const controller = new AbortController()
     const ready = Promise.withResolvers<void>()
     let grandchildPid: number | null = null
-    const pending = waitForStorybookOwnedChild({
+    const pending = waitForOwnedChild({
       child,
       processGroup: {leaderPid: child.pid},
       signal: controller.signal,
@@ -117,7 +133,7 @@ describe("Storybook owned child lifecycle", () => {
     const reason = new DOMException("owned group aborted", "AbortError")
     if (abort) controller.abort(reason)
     try {
-      const result = waitForStorybookOwnedChild({
+      const result = waitForOwnedChild({
         child: {pid: leaderPid, exited: Promise.resolve(0), stdout: null, stderr: null, kill() { throw new Error("Group handle expected") }},
         processGroup: {leaderPid},
         signal: controller.signal,

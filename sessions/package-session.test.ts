@@ -11,7 +11,7 @@ import {
   type StorybookBuildInputFingerprint,
 } from "../build/build-input-fingerprint.ts"
 import {StorybookBuildScheduler} from "../build/build-scheduler.ts"
-import {parseStorybookProcessResourceRows} from "../build/resource-usage.ts"
+import type {ProcessResourceRow} from "@process/sample"
 import {
   StorybookPackageSession,
   storybookBuildError,
@@ -718,10 +718,7 @@ describe("working Storybook PackageSession lifecycle", () => {
 
   test("binds exact per-operation phase and worker lifecycle to scheduler resources", async () => {
     const root = fixtureRoot("scheduler-hooks")
-    const rows = parseStorybookProcessResourceRows([
-      " 100 1 9.5 1024 Thu Sep 11 08:00:00 2026",
-      " 101 100 2.5 256 Thu Sep 11 08:00:01 2026",
-    ].join("\n"))
+    const rows = [{pid: 100, parentPid: 1, cpuPercent: 9.5, rssBytes: 1048576, startedAt: "2026-09-11T08:00:00.000Z"}, {pid: 101, parentPid: 100, cpuPercent: 2.5, rssBytes: 262144, startedAt: "2026-09-11T08:00:01.000Z"}] satisfies readonly ProcessResourceRow[]
     const scheduler = new StorybookBuildScheduler({
       limit: 1,
       resourceSampler: {sample: () => rows},

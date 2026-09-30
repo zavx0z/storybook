@@ -1,0 +1,16 @@
+{
+  "name": "@tech/process",
+  "label": "Процессы",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Ожидание дочерних процессов и наблюдение ресурсов их деревьев",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@process/wait": "workspace:*",
+    "@process/sample": "workspace:*",
+    "@process/measure": "workspace:*"
+  }
+}

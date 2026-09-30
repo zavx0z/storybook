@@ -41,7 +41,7 @@ import {
   type StorybookBuildPhaseListener,
   type StorybookBuildWorkerLifecycleListener,
 } from "./build-phase.ts"
-import {waitForStorybookOwnedChild} from "./child-process.ts"
+import waitForStorybookOwnedChild from "@process/wait"
 import {
   canonicalizeStorybookPackageFile,
   preferredStorybookPackageRoot,

@@ -1,0 +1,14 @@
+{
+  "name": "@tech/build",
+  "label": "Технологии сборки",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Технологии сборки",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@build/queue": "workspace:*"
+  }
+}

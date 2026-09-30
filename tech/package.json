@@ -1,0 +1,17 @@
+{
+  "name": "@storybook/tech",
+  "label": "Технологии",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Технические возможности исполнения и наблюдения",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@build/queue": "workspace:*",
+    "@process/wait": "workspace:*",
+    "@process/sample": "workspace:*",
+    "@process/measure": "workspace:*"
+  }
+}

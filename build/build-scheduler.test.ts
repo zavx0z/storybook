@@ -1,6 +1,6 @@
 import {describe, expect, spyOn, test} from "bun:test"
 import {StorybookBuildScheduler, type StorybookBuildRequest} from "./build-scheduler.ts"
-import {parseStorybookProcessResourceRows} from "./resource-usage.ts"
+import type {ProcessResourceRow} from "@process/sample"
 
 const request = (operationId: string, packageId = `@fixture/${operationId}`): StorybookBuildRequest => ({
   operationId,
@@ -153,10 +153,7 @@ describe("Storybook build scheduler observability", () => {
   test("samples bound worker trees only on throttled status reads without exposing PID", async () => {
     let samples = 0
     let now = Date.parse("2026-09-11T08:00:00.000Z")
-    const rows = parseStorybookProcessResourceRows([
-      " 100 1 12.5 2048 Thu Sep 11 08:00:00 2026",
-      " 101 100 3.25 512 Thu Sep 11 08:00:01 2026",
-    ].join("\n"))
+    const rows = [{pid: 100, parentPid: 1, cpuPercent: 12.5, rssBytes: 2097152, startedAt: "2026-09-11T08:00:00.000Z"}, {pid: 101, parentPid: 100, cpuPercent: 3.25, rssBytes: 524288, startedAt: "2026-09-11T08:00:01.000Z"}] satisfies readonly ProcessResourceRow[]
     const scheduler = new StorybookBuildScheduler({
       limit: 1,
       now: () => now,

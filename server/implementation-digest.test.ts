@@ -108,6 +108,8 @@ function implementationFixture(): string {
     "app/spec-reader",
     "route",
     "build",
+    "tech/build",
+    "tech/process",
     "sessions",
     "hmr/activation",
     "hmr/page",

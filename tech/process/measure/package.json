@@ -1,0 +1,17 @@
+{
+  "name": "@process/measure",
+  "label": "Ресурсы дерева процессов",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Суммирует ресурсы точного дерева процессов из системного снимка",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "test": "bun test ./spec ./test"
+  },
+  "dependencies": {
+    "@process/sample": "workspace:*"
+  }
+}
