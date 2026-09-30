@@ -13,7 +13,7 @@ import {
 } from "../build/compiler.ts"
 
 const root = realpathSync.native(resolve(import.meta.dir, ".."))
-const monorepoRoot = realpathSync.native(resolve(root, "../webxr-space"))
+const monorepoRoot = realpathSync.native(resolve(root, "../immersive"))
 
 const newFamily = Object.freeze({
   "@immersive/headless": "headless",
@@ -23,10 +23,10 @@ const newFamily = Object.freeze({
   "@zavx0z/dom": "dom",
   "@zavx0z/engine": "engine",
   "@nodes/layout": "nodes/layout",
-  "@webxr/nodes": "nodes",
+  "@immersive/nodes": "nodes",
   "@nodes/node": "nodes/node",
-  "@webxr/markdown": "markdown",
-  "@webxr/typedoc": "typedoc",
+  "@immersive/markdown": "markdown",
+  "@immersive/typedoc": "typedoc",
   "@nodes/parameters": "nodes/parameters",
   "@nodes/sockets": "nodes/sockets",
   "@nodes/tree": "nodes/tree",
@@ -81,13 +81,15 @@ describe("Storybook package identity", () => {
     ).toBe(realpathSync.native(resolve(root, entry)))
   })
 
-  test("declares only the new WebXR package family", () => {
+  test("declares only the new Immersive package family", () => {
     const manifest = readJson(join(root, "package.json")) as {
       devDependencies: Record<string, string>
     }
 
     for (const [name, directory] of Object.entries(newFamily)) {
-      expect(manifest.devDependencies[name], name).toBe(`workspace:../webxr-space/${directory}`)
+      const owner = readJson(join(monorepoRoot, directory, "package.json")) as {version: string}
+      expect(manifest.devDependencies[name], "Внешняя зависимость объявляет совместимую версию своего владельца")
+        .toBe(`^${owner.version}`)
     }
     expect(manifest.devDependencies["@zavx0z/react"]).toBeUndefined()
     expect(manifest.devDependencies["@zavx0z/dom-devtools"]).toBeUndefined()
@@ -120,8 +122,8 @@ describe("Storybook package identity", () => {
     assertOnePhysicalOwner(roots, "@zavx0z/devtools", "devtools", "inspector.ts")
     assertOnePhysicalOwner(roots, "@zavx0z/dom", "dom", "src/index.ts")
     assertOnePhysicalOwner(roots, "@renderer/html", "renderer/html", "src/index.ts")
-    assertOnePhysicalOwner(roots, "@webxr/markdown", "markdown", "markdown/index.tsx")
-    assertOnePhysicalOwner(roots, "@webxr/typedoc", "typedoc", "typedoc/index.tsx")
+    assertOnePhysicalOwner(roots, "@immersive/markdown", "markdown", "markdown/index.tsx")
+    assertOnePhysicalOwner(roots, "@immersive/typedoc", "typedoc", "typedoc/index.tsx")
     assertOnePhysicalOwner(roots, "@zavx0z/template", "template", "compiled.ts")
     assertOnePhysicalOwner(roots, "@zavx0z/jsx", "jsx", "package.json")
     assertOnePhysicalOwner(roots, "@jsx-runtime/create", "jsx/runtime/create", "index.ts")
@@ -130,7 +132,7 @@ describe("Storybook package identity", () => {
     assertOnePhysicalOwner(roots, "@zavx0z/browser", "browser", "src/index.ts")
     assertOnePhysicalOwner(roots, "@zavx0z/engine", "engine", "src/index.ts")
     assertOnePhysicalOwner(roots, "@nodes/layout", "nodes/layout", "index.ts")
-    assertOnePhysicalOwner(roots, "@webxr/nodes", "nodes", "index.ts")
+    assertOnePhysicalOwner(roots, "@immersive/nodes", "nodes", "index.ts")
     assertOnePhysicalOwner(roots, "@nodes/tree", "nodes/tree", "index.ts")
     assertOnePhysicalOwner(roots, "@zavx0z/space", "space", "src/index.ts")
     assertOnePhysicalOwner(roots, "@zavx0z/webgpu", "webgpu", "src/index.ts")
@@ -152,11 +154,11 @@ describe("Storybook package identity", () => {
       ["@zavx0z/devtools", "devtools/inspector.ts"],
       ["@zavx0z/dom", "dom/src/index.ts"],
       ["@renderer/html", "renderer/html/src/index.ts"],
-      ["@webxr/markdown", "markdown/markdown/index.tsx"],
-      ["@webxr/markdown/parser", "markdown/parser/index.ts"],
-      ["@webxr/markdown/destinations", "markdown/destinations/index.ts"],
-      ["@webxr/typedoc", "typedoc/typedoc/index.tsx"],
-      ["@webxr/typedoc/parser", "typedoc/parser/index.ts"],
+      ["@immersive/markdown", "markdown/markdown/index.tsx"],
+      ["@immersive/markdown/parser", "markdown/parser/index.ts"],
+      ["@immersive/markdown/destinations", "markdown/destinations/index.ts"],
+      ["@immersive/typedoc", "typedoc/typedoc/index.tsx"],
+      ["@immersive/typedoc/parser", "typedoc/parser/index.ts"],
       ["@zavx0z/template/compiled", "template/compiled.ts"],
       ["@zavx0z/jsx/jsx-runtime", "jsx/runtime/index.ts"],
       ["@zavx0z/jsx/jsx-dev-runtime", "jsx/development/index.ts"],

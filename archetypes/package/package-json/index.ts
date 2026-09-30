@@ -1,6 +1,6 @@
 /**
 Извлекает из package.json идентичность, описание, публичные экспорты,
-состав workspaces и стандартные карты зависимостей.
+состав workspaces, карты зависимостей и объявленные диапазоны engines.
 
 @packageDocumentation
 */
@@ -17,11 +17,12 @@ export type {ReadPackageJsonInput, ReadPackageJsonOutput}
 
 @param path - Путь к файлу; относительный путь разрешается от текущей рабочей директории.
 
-@returns Имя, возможное отображаемое название, описание и карта публичных экспортов пакета.
+@returns Метаданные пакета, его зависимости, состав и собственное объявление engines.
+Настройки родительского Repo не подставляются; размещение среды проверяет сценарий Package.
 
 @throws Ошибка чтения файла или разбора JSON.
 @throws TypeError, если манифест не является объектом, имя отсутствует,
-description/label имеют неверный тип либо exports/workspaces и карты зависимостей имеют недопустимую форму.
+description/label имеют неверный тип либо exports/workspaces, engines и карты зависимостей имеют недопустимую форму.
 */
 export default async function readPackageJson({path}: ReadPackageJsonInput): Promise<ReadPackageJsonOutput> {
   const manifest: unknown = await Bun.file(path).json()
@@ -41,6 +42,11 @@ export default async function readPackageJson({path}: ReadPackageJsonInput): Pro
     throw new TypeError("workspaces задаёт массив путей либо объект с массивом packages")
   }
   const dependencies: Partial<Pick<ReadPackageJsonOutput, "dependencies" | "peerDependencies" | "optionalDependencies" | "devDependencies">> = {}
+  const engines = "engines" in manifest ? manifest.engines : undefined
+  if (engines !== undefined && (!engines || typeof engines !== "object" || Array.isArray(engines)
+    || Object.values(engines).some(value => typeof value !== "string"))) {
+    throw new TypeError("engines задаёт имена сред и строковые диапазоны версий")
+  }
   for (const key of ["dependencies", "peerDependencies", "optionalDependencies", "devDependencies"] as const) {
     if (!(key in manifest)) continue
     const value = Reflect.get(manifest, key)
@@ -60,5 +66,6 @@ export default async function readPackageJson({path}: ReadPackageJsonInput): Pro
     description: "description" in manifest ? manifest.description as string : "",
     exports,
     ...(workspaces === undefined ? {} : {workspaces: workspaces as NonNullable<ReadPackageJsonOutput["workspaces"]>}),
+    ...(engines === undefined ? {} : {engines: engines as NonNullable<ReadPackageJsonOutput["engines"]>}),
   }
 }

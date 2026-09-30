@@ -34,7 +34,7 @@ describe("Storybook view registry", () => {
     const origin = "http://127.0.0.1:43123"
     const views = registry.synchronize([{
       targetId: "STRUCTURAL", packageId: "@nodes/node", route: "diagram/scenarios",
-      type: "page", title: "Diagram", url: `${origin}/webxr/nodes/node/diagram?view=scenarios&variant=Круг`,
+      type: "page", title: "Diagram", url: `${origin}/immersive/nodes/node/diagram?view=scenarios&variant=Круг`,
     }], origin)
     expect(views.map(({packageId, route}) => ({packageId, route}))).toEqual([
       {packageId: "@nodes/node", route: "diagram/scenarios"},

@@ -8,7 +8,7 @@ import {resolve} from "node:path"
 import {discover} from "../src/discover"
 
 const archetypes = resolve(import.meta.dir, "../../../archetypes")
-const webxr = resolve(archetypes, "../../webxr-space")
+const immersive = resolve(archetypes, "../../immersive")
 
 test("находит импорт серверной функции", async () => {
   const result = await discover(resolve(archetypes, "package/spec/scenario.spec.ts"))
@@ -18,10 +18,10 @@ test("находит импорт серверной функции", async () =
 })
 
 test("находит preload и JSX runtime компонента", async () => {
-  const result = await discover(resolve(webxr, "nodes/node/diagram/spec/scenario.spec.tsx"))
+  const result = await discover(resolve(immersive, "nodes/node/diagram/spec/scenario.spec.tsx"))
   expect(result, "Среда должна соответствовать test script владельца компонента").toMatchObject({
-    cwd: resolve(webxr, "nodes/node"),
-    preload: [resolve(webxr, "headless/preload.ts")],
+    cwd: resolve(immersive, "nodes/node"),
+    preload: [resolve(immersive, "headless/preload.ts")],
     jsxImportSource: "@zavx0z/jsx",
   })
 })

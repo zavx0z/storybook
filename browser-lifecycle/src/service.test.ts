@@ -28,7 +28,7 @@ describe("Storybook browser lifecycle service", () => {
     }
     const controller = createController(chrome)
     const input = {...openInput(chrome), route: "diagram/scenarios",
-      url: `${chrome.origin}/webxr/nodes/node/diagram?view=scenarios&variant=Круг`}
+      url: `${chrome.origin}/immersive/nodes/node/diagram?view=scenarios&variant=Круг`}
     if (mismatch) await expect(controller.openPackage(input)).rejects.toThrow("bridge identity mismatch")
     else {
       const opened = await controller.openPackage(input)

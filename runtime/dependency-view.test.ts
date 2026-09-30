@@ -3,7 +3,7 @@ import {createDocument, acquireDocumentAuthorStyleSheetOwner, Event, WheelEvent,
 import {flushDocumentLayoutObservers} from "@zavx0z/dom/geometry"
 import {createDocumentRenderer} from "@renderer/html"
 import {layoutTopDown} from "@nodes/layout/top-down"
-import {createCubicLinkRoute, projectLinkArrowheads, projectLinkEndpoints, projectLinkRoute} from "@webxr/nodes/routing/link-path"
+import {createCubicLinkRoute, projectLinkArrowheads, projectLinkEndpoints, projectLinkRoute} from "@immersive/nodes/routing/link-path"
 import {createDependencyPresentation, dependencyGraphInput} from "./dependency-view.tsx"
 
 const ownerId = "owner.tsx#Owner"

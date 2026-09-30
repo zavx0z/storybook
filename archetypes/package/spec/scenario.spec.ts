@@ -87,6 +87,11 @@ describe.each([
       expect(repo || result.packageJson.workspaces === undefined,
         "Workspaces объявляет только Repo; Domain и Component получают состав из корневого glob").toBeTrue()
     })
+    test("Общая среда Bun только у Repo", () => {
+      expect(repo || result.packageJson.engines?.bun === undefined,
+        "Общую среду разработки Bun объявляет Repo в engines.bun; вложенные Domain и Component не повторяют настройку окружения")
+        .toBeTrue()
+    })
   })
 
   /** @remarks Нераскрытая карта зависимого владельца не доказывает ни публичность, ни нарушение границы. */

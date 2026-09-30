@@ -54,11 +54,11 @@ const groupedItems = Object.freeze([
 describe("compiled Storybook catalog navigation tree", () => {
   test("показывает имя папки пакета и оставляет его label подсказкой", () => {
     const workbench = createWorkbench([
-      {id: "webxr", label: "webxr-space", title: "WebXR", route: "/webxr"},
-      {id: "engine", label: "engine", title: "Движок", route: "/webxr/engine", parentId: "webxr"},
+      {id: "immersive", label: "immersive", title: "Immersive", route: "/immersive"},
+      {id: "engine", label: "engine", title: "Движок", route: "/immersive/engine", parentId: "immersive"},
     ], "engine")
-    expect(findGroup(workbench, "webxr")?.querySelector('[data-tree-label]')?.textContent).toBe("webxr-space")
-    expect(findGroup(workbench, "webxr")?.querySelector('[data-tree-label]')?.getAttribute("title")).toBe("WebXR")
+    expect(findGroup(workbench, "immersive")?.querySelector('[data-tree-label]')?.textContent).toBe("immersive")
+    expect(findGroup(workbench, "immersive")?.querySelector('[data-tree-label]')?.getAttribute("title")).toBe("Immersive")
     expect(findLeaf(workbench, "engine")?.querySelector('[data-tree-label]')?.textContent).toBe("engine")
     expect(findLeaf(workbench, "engine")?.querySelector('[data-tree-label]')?.getAttribute("title")).toBe("Движок")
   })

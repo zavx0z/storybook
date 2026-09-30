@@ -27,7 +27,7 @@ Map, Set и Bun.Image пока не раскрываются. Buffer, TypedArray
 ## Что обнаружено в действующих примерах
 
 Проверены «Прямоугольник», «Овал» и «Круг» из
-[сценария DiagramNode](../../../../webxr-space/nodes/node/diagram/spec/scenario.spec.tsx).
+[сценария DiagramNode](../../../../immersive/nodes/node/diagram/spec/scenario.spec.tsx).
 В отдельном диагностическом запуске воспроизведены те же параметры и публичные
 вызовы render и screenshot. Код компонентов и платформы не изменялся.
 
@@ -94,7 +94,7 @@ Bun.Image является цепочкой обработки изображе�
 Проверка личности обработчика также требует различать разные функции с одинаковыми именами.
 
 Не вся скрытая информация является native-данными. Например,
-[координаты DOMRect](../../../../webxr-space/dom/geometry.ts) хранятся
+[координаты DOMRect](../../../../immersive/dom/geometry.ts) хранятся
 в отдельном WeakMap. Произвольное чтение getters не подходит для универсального
 снимка: оно может выполнять код. Для такого состояния нужен определённый
 публичный способ получения данных у владельца или наблюдение результата API.
@@ -103,8 +103,8 @@ Bun.Image является цепочкой обработки изображе�
 
 В проверенном дереве результата render и в screenshot непосредственно обнаружены
 Map, Set и Bun.Image. Uint8Array и Buffer предусмотрены соседним методом capture
-в [Headless](../../../../webxr-space/headless/index.ts) и
-[формате CapturedFrame](../../../../webxr-space/headless/native-canvas.ts);
+в [Headless](../../../../immersive/headless/index.ts) и
+[формате CapturedFrame](../../../../immersive/headless/native-canvas.ts);
 сам capture выбранные сценарии напрямую не вызывают. ArrayBuffer указан как
 связанный бинарный тип, а не как обнаруженный результат этих трёх вариантов.
 

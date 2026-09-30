@@ -16,6 +16,6 @@
     "@archetypes/package-json": "workspace:*",
     "@archetypes/package-index": "workspace:*",
     "@archetypes/package-documentation": "workspace:*",
-    "typescript": "7.0.2"
+    "typescript": "^7.0.2"
   }
 }

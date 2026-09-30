@@ -7,10 +7,10 @@ import {readRouteChildren} from "@storybook/route/children"
 import {resolveRoute} from "@storybook/route"
 
 const storybookPath = resolve(import.meta.dir, "../..")
-const webxrPath = resolve(storybookPath, "../webxr-space")
+const immersivePath = resolve(storybookPath, "../immersive")
 const roots = [
   {name: "storybook", path: storybookPath},
-  {name: "webxr", path: webxrPath},
+  {name: "immersive", path: immersivePath},
 ] as const
 const temporaryPaths: string[] = []
 
@@ -20,11 +20,11 @@ afterAll(async () => {
 
 describe("Текущая публичная структура", () => {
   test("Открывает сценарии Diagram", async () => {
-    expect(await resolveRoute({route: "/webxr/nodes/node/diagram?view=scenarios", roots})).toMatchObject({
-      node: "webxr/nodes/node/diagram",
-      pathname: "/webxr/nodes/node/diagram",
-      package: {id: "@nodes/node", path: resolve(webxrPath, "nodes/node")},
-      directory: resolve(webxrPath, "nodes/node/diagram"),
+    expect(await resolveRoute({route: "/immersive/nodes/node/diagram?view=scenarios", roots})).toMatchObject({
+      node: "immersive/nodes/node/diagram",
+      pathname: "/immersive/nodes/node/diagram",
+      package: {id: "@nodes/node", path: resolve(immersivePath, "nodes/node")},
+      directory: resolve(immersivePath, "nodes/node/diagram"),
       relativePath: "diagram",
       view: "scenarios",
       views: ["scenarios", "contract", "dependencies"],
@@ -49,14 +49,14 @@ describe("Текущая публичная структура", () => {
   })
 
   test("Декодирует выбранный вариант", async () => {
-    expect(await resolveRoute({route: "webxr/nodes/node/diagram?view=scenarios&variant=%D0%9A%D1%80%D1%83%D0%B3", roots})).toMatchObject({
+    expect(await resolveRoute({route: "immersive/nodes/node/diagram?view=scenarios&variant=%D0%9A%D1%80%D1%83%D0%B3", roots})).toMatchObject({
       variant: "Круг",
-      pathname: "/webxr/nodes/node/diagram",
+      pathname: "/immersive/nodes/node/diagram",
     })
   })
 
   test("Возвращает только structural children Diagram", async () => {
-    expect(await readRouteChildren({route: "webxr/nodes/node/diagram", roots})).toEqual([])
+    expect(await readRouteChildren({route: "immersive/nodes/node/diagram", roots})).toEqual([])
   })
 
   test("Проходит через workspace prefix к ближайшему пакету", async () => {
@@ -163,13 +163,13 @@ describe("Изменяемая структура без предварител�
 })
 
 describe.each([
-  {name: "несуществующий узел", route: "webxr/nodes/node/unknown"},
-  {name: "переход наверх", route: "webxr/nodes/node/../diagram"},
-  {name: "кодированный slash", route: "webxr/nodes/node/diagram%2Fcontract"},
-  {name: "дважды кодированный slash", route: "webxr/nodes/node/diagram%252Fcontract"},
-  {name: "приватная spec", route: "webxr/nodes/node/diagram/spec"},
+  {name: "несуществующий узел", route: "immersive/nodes/node/unknown"},
+  {name: "переход наверх", route: "immersive/nodes/node/../diagram"},
+  {name: "кодированный slash", route: "immersive/nodes/node/diagram%2Fcontract"},
+  {name: "дважды кодированный slash", route: "immersive/nodes/node/diagram%252Fcontract"},
+  {name: "приватная spec", route: "immersive/nodes/node/diagram/spec"},
   {name: "незарегистрированный корень", route: "unknown/nodes"},
-  {name: "прежний suffix сценариев", route: "webxr/nodes/node/diagram/scenarios"},
+  {name: "прежний suffix сценариев", route: "immersive/nodes/node/diagram/scenarios"},
   {name: "недоступный view", route: "storybook/archetypes/specs?view=dependencies"},
 ])("Недоступен $name", ({route}) => {
   test("Возвращает null", async () => {

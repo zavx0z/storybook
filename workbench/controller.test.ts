@@ -38,7 +38,7 @@ describe("compiled Storybook Workbench", () => {
         title: "UI Storybook",
         "catalog.items": [{id: "button", label: "Button", route: "components/button"}],
         "preview.label": "Кнопка Output",
-        status: {lead: "Создано для ", owner: "MetaFor", detail: " · WebXR UI"},
+        status: {lead: "Создано для ", owner: "MetaFor", detail: " · Immersive UI"},
       },
     })
 
@@ -64,9 +64,9 @@ describe("compiled Storybook Workbench", () => {
     const status = workbench.elements.status.querySelector("footer") as HTMLElement | null
     expect(status?.getAttribute("role")).toBe("status")
     expect(status?.getAttribute("aria-label")).toBe(
-      "Создано для MetaFor · WebXR UI",
+      "Создано для MetaFor · Immersive UI",
     )
-    expect(status?.textContent).toBe("MetaFor · WebXR UI")
+    expect(status?.textContent).toBe("MetaFor · Immersive UI")
     expect(workbench.elements.status.querySelectorAll('[role="status"]')).toHaveLength(1)
     expect(workbench.elements.status.querySelector('nav[aria-label="Текущий путь"]')).not.toBeNull()
     expect(workbench.elements.status.querySelector('[aria-current="page"]')?.textContent).toBe("MetaFor")

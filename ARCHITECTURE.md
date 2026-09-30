@@ -201,7 +201,7 @@ Shared shell source один для landing и package entries. Package build в
 только выбранный package graph, поэтому другая package production code в tab не
 попадает. Bun metafile фиксирует canonical dependency realpaths. Identities
 `@zavx0z/browser`, `@zavx0z/component`, `@zavx0z/devtools`, `@zavx0z/dom`, `@zavx0z/engine`,
-`@nodes/layout`, `@webxr/nodes`, `@nodes/tree`, `@renderer/html`,
+`@nodes/layout`, `@immersive/nodes`, `@nodes/tree`, `@renderer/html`,
 `@zavx0z/space`, `@zavx0z/template`, `@zavx0z/ui` и `@zavx0z/webgpu`
 проверяются до publish; разные realpath одного обязательного
 runtime и compatibility aliases fail closed.
@@ -344,7 +344,7 @@ Private browser lifecycle owner говорит с Chrome по direct CDP; MCP л
 `bringToFront`, focus emulation и OS focus не используются. Небраузерные
 lifecycle/query operations не требуют CDP.
 
-`@zavx0z/devtools` из WebXR владеет идентификаторами элементов, снимками дерева,
+`@zavx0z/devtools` из Immersive владеет идентификаторами элементов, снимками дерева,
 состояния и результатов Renderer. Storybook подключает `createDomInspector`
 для диагностических панелей и команд агента, передавая существующий Document
 и `readFrame(node)` соответствующей Display/HUD projection. Он не импортирует

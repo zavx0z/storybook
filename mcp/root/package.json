@@ -7,5 +7,7 @@
   "description": "Независимая от подключённых проектов начальная точка входа Storybook MCP",
   "exports": {".": "./index.ts"},
   "scripts": {"test": "bun test ./spec ./test"},
-  "dependencies": {"@mcp/children": "workspace:*"}
+  "dependencies": {
+    "@mcp/children": "workspace:*"
+  }
 }

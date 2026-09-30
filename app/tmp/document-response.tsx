@@ -1,7 +1,7 @@
 import {memo, useMemo, useState} from "@zavx0z/component"
 import {CodeEditor} from "@zavx0z/ui/views/code-editor"
 import {Button} from "@zavx0z/ui/buttons/button"
-import {Markdown} from "@webxr/markdown"
+import {Markdown} from "@immersive/markdown"
 
 /** Форматирует также старые компактные записи; высота зависит от числа строк. */
 function JsonFieldView(props: Readonly<{title: string, value: string}>) {

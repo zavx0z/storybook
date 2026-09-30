@@ -12,7 +12,7 @@ import type {
 } from "@zavx0z/browser/integration"
 import {createDocumentInteractionController, createDocumentRenderer, hitTestProjection} from "@renderer/html"
 import {createSpaceElementFactories} from "@zavx0z/space"
-import {HUDElement} from "../../webxr-space/dom/hud/index.ts"
+import {HUDElement} from "../../immersive/dom/hud/index.ts"
 import {SpaceElement} from "@zavx0z/dom/space"
 import type {ExternalStorybookPackageTabModel} from "./model.ts"
 import {

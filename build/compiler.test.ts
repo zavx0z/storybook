@@ -31,7 +31,7 @@ describe("external Storybook package compiler", () => {
       "zavx0z-jsx",
     ])
     expect(resolveWithPlugin(plugins[0]!, "@zavx0z/template/compiled").path)
-      .toBe(join(await realpath(resolve(import.meta.dir, "../../webxr-space/template")), "compiled.ts"))
+      .toBe(join(await realpath(resolve(import.meta.dir, "../../immersive/template")), "compiled.ts"))
   })
 
   test("keeps exact owner resolution when effective tsconfig does not require JSX", async () => {
@@ -80,7 +80,7 @@ describe("external Storybook package compiler", () => {
     const resolved = resolveWithPlugin(plugins[0]!, "@zavx0z/template/compiled")
     expect(resolved.path).toBe(join(await realpath(resolve(
       import.meta.dir,
-      "../../webxr-space/template",
+      "../../immersive/template",
     )), "compiled.ts"))
   })
 
@@ -170,6 +170,50 @@ describe("external Storybook package compiler", () => {
     })).rejects.toThrow("not a linked owner dependency")
   })
 
+  test("обычные версии сохраняют установленные ссылки на JSX и транзитивных владельцев", async () => {
+    const fixture = await jsxProjectFixture()
+    const manifestPath = join(fixture.projectRoot, "package.json")
+    const manifest = await Bun.file(manifestPath).json()
+    manifest.dependencies["@fixture/linked"] = "^1.0.0"
+    manifest.devDependencies["@zavx0z/jsx"] = "^0.0.0"
+    manifest.devDependencies["@jsx-compiler/bun"] = "^0.0.0"
+    await writeJson(manifestPath, manifest)
+    await writeJson(join(fixture.linkedRoot, "package.json"), {
+      name: "@fixture/linked", version: "1.2.0", dependencies: {"@fixture/transitive": "^2.0.0"},
+    })
+    await writeJson(join(fixture.transitiveRoot, "package.json"), {name: "@fixture/transitive", version: "2.1.0"})
+
+    const inputs = resolveStorybookPackageCompilerInputs(fixture.input)
+    expect(inputs.adapterPath, "Диапазон версии сохраняет публичный адаптер установленного JSX владельца")
+      .toBe(join(fixture.adapterRoot, "index.ts"))
+    expect(inputs.sourceRoots, "Транзитивная зависимость раскрывает тот же физический каталог исходников")
+      .toContain(await realpath(fixture.transitiveRoot))
+  })
+
+  test("ссылка на npm store не расширяет граф локальных исходников", async () => {
+    const root = await temporaryRoot()
+    const cached = join(root, "node_modules/.bun/cached/node_modules/@fixture/cached")
+    await mkdir(cached, {recursive: true})
+    await writeJson(join(root, "package.json"), {name: "@fixture/cache-consumer", dependencies: {"@fixture/cached": "^1.0.0"}})
+    await writeJson(join(cached, "package.json"), {name: "@fixture/cached", version: "1.0.0"})
+    await linkPackage(root, "@fixture/cached", cached)
+    expect(resolveStorybookCompilerSourceRoots({projectRoot: root, packageRoot: root}),
+      "Установка из npm store остаётся обычной зависимостью и не становится исходным владельцем")
+      .toEqual([await realpath(root)])
+  })
+
+  test("несовместимая версия установленного исходного владельца отклоняется", async () => {
+    const root = await temporaryRoot()
+    const owner = join(root, "source-owner")
+    await mkdir(owner)
+    await writeJson(join(root, "package.json"), {name: "@fixture/version-consumer", dependencies: {"@fixture/owner": "^1.0.0"}})
+    await writeJson(join(owner, "package.json"), {name: "@fixture/owner", version: "2.0.0"})
+    await linkPackage(root, "@fixture/owner", owner)
+    expect(() => resolveStorybookCompilerSourceRoots({projectRoot: root, packageRoot: root}),
+      "Наличие ссылки не подменяет требование совместимости объявленной версии")
+      .toThrow("does not satisfy ^1.0.0")
+  })
+
   test("uses the shared Storybook compiler owner for a declaration-only package like Engine", async () => {
     const root = await temporaryRoot()
     const packageRoot = join(root, "engine")
@@ -192,8 +236,8 @@ describe("external Storybook package compiler", () => {
     ])
   })
 
-  test("builds the real webxr UI with exact tool owners satisfying declared peers", async () => {
-    const projectRoot = await realpath(resolve(import.meta.dir, "../../webxr-space"))
+  test("builds the real immersive UI with exact tool owners satisfying declared peers", async () => {
+    const projectRoot = await realpath(resolve(import.meta.dir, "../../immersive"))
     const packageRoot = join(projectRoot, "ui")
     const source = join(packageRoot, "buttons/button.tsx")
     const plugins = await createStorybookPackageCompilerPlugins({
@@ -210,9 +254,9 @@ describe("external Storybook package compiler", () => {
     })
     expect(result.success, result.logs.map(({message}) => message).join("\n")).toBeTrue()
     const inputs = JSON.stringify(result.metafile?.inputs ?? {})
-    expect(inputs).toContain("webxr-space/ui/buttons/button.tsx")
-    expect(inputs).toContain("webxr-space/component/src/index.ts")
-    expect(inputs).toContain("webxr-space/template/compiled.ts")
+    expect(inputs).toContain("immersive/ui/buttons/button.tsx")
+    expect(inputs).toContain("immersive/component/src/index.ts")
+    expect(inputs).toContain("immersive/template/compiled.ts")
     expect(inputs).not.toContain("node_modules/.bun/@zavx0z+")
   })
 
@@ -331,7 +375,7 @@ async function jsxProjectFixture(adapterSource?: string): Promise<Readonly<{
   const root = await temporaryRoot()
   const projectRoot = join(root, "project")
   const packageRoot = join(projectRoot, "packages", "owner")
-  const jsxRoot = await realpath(resolve(import.meta.dir, "../../webxr-space/jsx"))
+  const jsxRoot = await realpath(resolve(import.meta.dir, "../../immersive/jsx"))
   const adapterRoot = adapterSource === undefined
     ? join(jsxRoot, "compiler/bun")
     : join(root, "owners", "jsx-bun")
@@ -521,13 +565,13 @@ function resolveWithPlugin(plugin: Bun.BunPlugin, path: string): Readonly<{path?
 
 test("generated JSX outside the owner becomes an executable compiled child", async () => {
   const {generateStorybookJsxModules} = await import("./generated-loader.ts")
-  const projectRoot = await realpath(resolve(import.meta.dir, "../../webxr-space"))
+  const projectRoot = await realpath(resolve(import.meta.dir, "../../immersive"))
   const packageRoot = join(projectRoot, "ui")
   const source = join(packageRoot, "buttons/button.tsx")
   const root = await temporaryRoot()
   const generatedSourceRoot = join(root, "scenario-jsx")
   await mkdir(generatedSourceRoot)
-  await linkPackage(generatedSourceRoot, "@zavx0z/jsx", await realpath(resolve(import.meta.dir, "../../webxr-space/jsx")))
+  await linkPackage(generatedSourceRoot, "@zavx0z/jsx", await realpath(resolve(import.meta.dir, "../../immersive/jsx")))
   await writeJson(join(generatedSourceRoot, "tsconfig.json"), {compilerOptions: {
     target: "ESNext", module: "ESNext", moduleResolution: "Bundler", jsx: "react-jsx",
     jsxImportSource: "@zavx0z/jsx", noEmit: true, allowImportingTsExtensions: true, skipLibCheck: true,
@@ -563,7 +607,7 @@ test("слоты each проходят генерацию, штатную ком
   const root = await temporaryRoot()
   const generatedSourceRoot = join(root, "scenario-jsx")
   await mkdir(generatedSourceRoot)
-  await linkPackage(generatedSourceRoot, "@zavx0z/jsx", await realpath(resolve(import.meta.dir, "../../webxr-space/jsx")))
+  await linkPackage(generatedSourceRoot, "@zavx0z/jsx", await realpath(resolve(import.meta.dir, "../../immersive/jsx")))
   await writeJson(join(generatedSourceRoot, "tsconfig.json"), {compilerOptions: {
     target: "ESNext", module: "ESNext", moduleResolution: "Bundler", jsx: "react-jsx",
     jsxImportSource: "@zavx0z/jsx",

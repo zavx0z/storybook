@@ -8,7 +8,7 @@ import {fileURLToPath} from "node:url"
 const stdio = fileURLToPath(new URL("./stdio.ts", import.meta.url))
 const roots = [
   "/Users/zavx0z/repozitarium/storybook",
-  "/Users/zavx0z/repozitarium/webxr-space",
+  "/Users/zavx0z/repozitarium/immersive",
 ]
 const packages = ["@zavx0z/storybook", "@zavx0z/ui", "@nodes/node"] as const
 const transport = new StdioClientTransport({

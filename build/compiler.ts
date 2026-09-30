@@ -1,3 +1,12 @@
+/**
+Собирает граф физических владельцев для компиляции пакета и общей оболочки.
+Объявление зависимости задаёт имя и совместимость; установленная ссылка на
+исходники сохраняет локального владельца и при обычном диапазоне версий.
+Ссылки внутри node_modules остаются установками менеджера пакетов и не
+расширяют граф исходников. Resolver и JSX compiler используют одни границы.
+
+@packageDocumentation
+*/
 import {conditionalExportTarget} from "./src/export-target.ts"
 import {
   existsSync,
@@ -61,7 +70,11 @@ type OwnerDependencyGraph = Readonly<{
   styleSourceRootIds: readonly string[]
 }>
 
-/** Возвращает exact manifest-reached owner roots одной compiler session. */
+/**
+Возвращает канонические корни объявленных владельцев одной compiler session.
+Локальный протокол либо установленная ссылка из node_modules на исходники
+подключают владельца; обычный диапазон проверяется по версии его манифеста.
+*/
 export function resolveStorybookCompilerSourceRoots(input: Readonly<{
   projectRoot: string
   packageRoot: string
@@ -668,7 +681,7 @@ function readPackageManifest(
       if (typeof value !== "string") {
         throw new TypeError(`Owner dependency ${name} must have a string specifier: ${manifestPath}`)
       }
-      if (!isLocalDependency(value)) continue
+      if (!isLocalDependency(value) && !isInstalledSourceDependency(name, value, root)) continue
       const previous = dependencies.get(name)
       if (previous !== undefined && previous !== value) {
         throw new Error(`Conflicting local owner dependency ${name}: ${manifestPath}`)
@@ -682,6 +695,36 @@ function readPackageManifest(
     name: manifest.name,
     localDependencies: dependencies,
   })
+}
+
+/**
+Распознаёт объявленную версионную зависимость, установленную ссылкой на исходники.
+Ближайшая установка определяет разрешение; ссылки в node_modules менеджера
+пакетов не становятся локальными владельцами. Имя и версия подтверждаются
+манифестом фактической цели без загрузки кода или обращения к registry.
+*/
+function isInstalledSourceDependency(name: string, specifier: string, ownerRoot: string): boolean {
+  let directory = ownerRoot
+  while (true) {
+    const candidate = join(directory, "node_modules", ...name.split("/"))
+    const installed = lstatSync(candidate, {throwIfNoEntry: false})
+    if (installed !== undefined) {
+      if (!installed.isSymbolicLink()) return false
+      const sourceRoot = canonicalDirectory(candidate, `owner dependency ${name}`)
+      if (sourceRoot.split(sep).includes("node_modules")) return false
+      const manifest = parseJsonObject(join(sourceRoot, "package.json"), "installed source owner manifest")
+      if (manifest.name !== name) {
+        throw new Error(`Resolved owner dependency identity mismatch: expected ${name}, found ${manifest.name}`)
+      }
+      if (typeof manifest.version !== "string" || !Bun.semver.satisfies(manifest.version, specifier)) {
+        throw new Error(`Installed source owner ${name} version ${manifest.version} does not satisfy ${specifier}`)
+      }
+      return true
+    }
+    const parent = dirname(directory)
+    if (parent === directory) return false
+    directory = parent
+  }
 }
 
 function resolveLocalDependencyRoot(

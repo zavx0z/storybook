@@ -15,7 +15,7 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@storybook/app": "workspace:../../app",
+    "@storybook/app": "workspace:*",
     "@archetypes/scenario-guide": "workspace:*",
     "@archetypes/scenario-document": "workspace:*"
   }

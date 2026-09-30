@@ -45,7 +45,7 @@
 ## Проверки readScenario
 
 [Тест функции readScenario](../test/read-scenario.test.ts) рассматривает серверную функцию
-readPackage, компонент DiagramNode из соседнего WebXR и
+readPackage, компонент DiagramNode из соседнего Immersive и
 [пример связанных данных](../test/fixture/value-scenario.test.ts).
 Компонентный случай использует настоящий рендер. Связанные данные покрывают
 общие ссылки, цикл, пользовательский $type и специальные значения.

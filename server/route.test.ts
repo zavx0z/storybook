@@ -5,7 +5,7 @@ import {ExternalStorybookRegistry} from "../catalog/registry"
 import {resolveStorybookRoute, storybookRouteRoots} from "./route"
 
 test("общий маршрут находит физическую директорию Diagram и сохраняет выбранный вариант сценария", async () => {
-  const root = resolve(import.meta.dir, "../../webxr-space/nodes/node")
+  const root = resolve(import.meta.dir, "../../immersive/nodes/node")
   const registry = new ExternalStorybookRegistry(discoverStorybookPackages)
   await registry.attach(root)
   const snapshot = registry.snapshot()

@@ -1,6 +1,6 @@
 /** Вкладка контракта использует публичный TypeDoc в существующем Display. */
 import {useLayoutEffect, useState} from "@zavx0z/component"
-import {TypeDoc, type TypeDocProps} from "@webxr/typedoc"
+import {TypeDoc, type TypeDocProps} from "@immersive/typedoc"
 import type {Document} from "@zavx0z/dom"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
 import type {StorybookContractDocument} from "../catalog/catalog.t.ts"

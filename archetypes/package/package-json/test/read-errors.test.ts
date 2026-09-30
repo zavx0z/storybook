@@ -56,3 +56,17 @@ describe.each([
       .rejects.toMatchObject({name: "SyntaxError"})
   })
 })
+
+test("диапазоны engines сохраняются без подстановки настроек родительского Repo", async () => {
+  const root = await mkdtemp(resolve(tmpdir(), "package-json-engines-"))
+  temporary.push(root)
+  const path = resolve(root, "package.json")
+  await Bun.write(path, JSON.stringify({name: "fixture", engines: {bun: "1.4.x", node: ">=22"}}))
+  expect(await readPackageJsonMock({path})).toMatchObject({engines: {bun: "1.4.x", node: ">=22"}})
+  await Bun.write(path, JSON.stringify({name: "fixture"}))
+  expect(await readPackageJsonMock({path})).not.toHaveProperty("engines")
+  for (const engines of [null, [], {bun: 14}]) {
+    await Bun.write(path, JSON.stringify({name: "fixture", engines}))
+    await expect(readPackageJsonMock({path})).rejects.toThrow(TypeError)
+  }
+})

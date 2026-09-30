@@ -300,7 +300,7 @@ function createSharedFixture(): Readonly<{
 }> {
   const root = mkdtempSync(join(tmpdir(), "storybook-shared-fingerprint-"))
   roots.push(root)
-  const jsxRoot = realpathSync(join(import.meta.dir, "../../webxr-space/jsx"))
+  const jsxRoot = realpathSync(join(import.meta.dir, "../../immersive/jsx"))
   const landing = join(root, "landing.ts")
   const fallback = join(root, "fallback.ts")
   const landingSource = "export const landing = true\n"

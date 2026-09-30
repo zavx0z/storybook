@@ -71,7 +71,7 @@ packageId, route и optional preview revision; built/active/last-working policy
 ```ts
 const target = await prepareExternalStorybookPageTarget(
   fetch,
-  {packageId: "@webxr/markdown", route: "", intent: "navigation"},
+  {packageId: "@immersive/markdown", route: "", intent: "navigation"},
   signal,
 )
 ```

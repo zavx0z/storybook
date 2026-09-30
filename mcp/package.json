@@ -9,7 +9,6 @@
     "./proxy": "./proxy/index.ts",
     "./server": "./server/index.ts"
   },
-  "packageManager": "bun@1.4.0",
   "scripts": {
     "start": "bun run stdio.ts",
     "test": "bun test",

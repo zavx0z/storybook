@@ -3,9 +3,9 @@ import {createHash} from "node:crypto"
 import {constants} from "node:fs"
 import {open, readFile} from "node:fs/promises"
 import readModuleDocumentation from "@archetypes/package-documentation"
-import {analyzeTypeDoc} from "@webxr/typedoc/parser"
-import {analyzeTypeDocs} from "@webxr/typedoc/batch"
-import type {AnalyzeTypeDocOutput} from "@webxr/typedoc/parser/contract/output"
+import {analyzeTypeDoc} from "@immersive/typedoc/parser"
+import {analyzeTypeDocs} from "@immersive/typedoc/batch"
+import type {AnalyzeTypeDocOutput} from "@immersive/typedoc/parser/contract/output"
 
 export async function readContractDocumentation(root: string, path: string) {
   const source = await readContractSource(path)

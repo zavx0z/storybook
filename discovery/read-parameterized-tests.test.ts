@@ -4,7 +4,7 @@ import {mkdtemp, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {readParameterizedTests} from "./read-parameterized-tests.ts"
 
-const root = resolve(import.meta.dir, "../../webxr-space")
+const root = resolve(import.meta.dir, "../../immersive")
 
 test("[DIAGRAM-TEST-PARAMETERS] чтение spec возвращает название теста и полную параметризацию", async () => {
   const declarations = await readParameterizedTests(root, resolve(root, "nodes/node/diagram/spec/deps.spec.ts"))

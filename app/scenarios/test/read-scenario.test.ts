@@ -30,7 +30,7 @@ describe.each([
   {
     name: "Трассировка компонента",
     props: {
-      path: resolve(import.meta.dir, "../../../../webxr-space/nodes/node/diagram/spec/scenario.spec.tsx"),
+      path: resolve(import.meta.dir, "../../../../immersive/nodes/node/diagram/spec/scenario.spec.tsx"),
     },
     expected: [
       ...["Прямоугольник", "Овал", "Круг"].flatMap(name => [
@@ -193,7 +193,7 @@ describe.each([
     */
     test.skipIf(![
       resolve(import.meta.dir, "../../../archetypes/package/spec/scenario.spec.ts"),
-      resolve(import.meta.dir, "../../../../webxr-space/nodes/node/diagram/spec/scenario.spec.tsx"),
+      resolve(import.meta.dir, "../../../../immersive/nodes/node/diagram/spec/scenario.spec.tsx"),
       resolve(import.meta.dir, "fixture/value-scenario.test.ts"),
     ].includes(props.path))("Группы и результаты", () => {
       const calls = result.calls.filter(call => expected.some(item => item.name === call.name))

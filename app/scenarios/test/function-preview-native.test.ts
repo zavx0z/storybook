@@ -60,7 +60,7 @@ test("encoded undefined остаётся исходным TypeScript значе�
 })
 
 test("native подготовка сохраняется целиком с одной переносимой строкой each", async () => {
-  const path = resolve(import.meta.dir, "../../../../webxr-space/jsx/slot/contract/spec/scenario.spec.ts")
+  const path = resolve(import.meta.dir, "../../../../immersive/jsx/slot/contract/spec/scenario.spec.ts")
   const report = await readScenario({
     path,
     variant: 0,
@@ -99,7 +99,7 @@ test.each([
   {owner: "development", name: "jsxDEV", template: "textTemplate", text: "Текст"},
 ])("native positional protocol $owner сохраняет импорт template", async ({owner, name, template, text}) => {
   const report = await readScenario({
-    path: resolve(import.meta.dir, "../../../../webxr-space/jsx", owner, "create/spec/scenario.spec.ts"),
+    path: resolve(import.meta.dir, "../../../../immersive/jsx", owner, "create/spec/scenario.spec.ts"),
   })
   if (report.preview?.kind !== "function") throw new Error("Нет native protocol preview")
   const variant = report.preview.variants[0]!

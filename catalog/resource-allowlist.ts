@@ -1,6 +1,6 @@
 import {realpathSync, statSync} from "node:fs"
 import {dirname, isAbsolute, relative, resolve} from "node:path"
-import {markdownDestinations} from "@webxr/markdown/destinations"
+import {markdownDestinations} from "@immersive/markdown/destinations"
 
 export const EXTERNAL_STORYBOOK_DOCUMENTATION_MAX_BYTES = 1_048_576
 

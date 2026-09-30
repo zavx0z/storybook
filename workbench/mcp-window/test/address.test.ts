@@ -16,7 +16,7 @@ const result = () => host.container.querySelector('[data-mcp-address]')?.querySe
 
 describe("MCP по адресной строке", () => {
   test("показывается точный владелец страницы; неизменный URL не перечитывается", async () => {
-    let address = "/webxr/nodes/node/diagram?view=scenarios&variant=%D0%9A%D1%80%D1%83%D0%B3"
+    let address = "/immersive/nodes/node/diagram?view=scenarios&variant=%D0%9A%D1%80%D1%83%D0%B3"
     const requests: string[] = []
     const props: McpWindowProps = {open: true, onClose() {}, load: async () => [command("agent")], addressSource: {
       readAddress: () => address,
@@ -31,7 +31,7 @@ describe("MCP по адресной строке", () => {
     expect(requests).toHaveLength(0)
     await host.click("Текущий адрес → MCP")
     expect(requests).toEqual([address])
-    expect(JSON.parse(result())).toEqual({path: "webxr/nodes/node/diagram", tail: "Полный ответ"})
+    expect(JSON.parse(result())).toEqual({path: "immersive/nodes/node/diagram", tail: "Полный ответ"})
     expect(host.container.querySelector('[data-mcp-address]')?.textContent).not.toContain("?view=")
     expect(host.container.querySelector('[data-mcp-address]')?.textContent).toContain("/diagram")
     await Bun.sleep(550)

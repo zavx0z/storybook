@@ -22,7 +22,7 @@
     "@zavx0z/component": "*",
     "@zavx0z/template": "*",
     "@zavx0z/ui": "*",
-    "@zavx0z/jsx": "workspace:*"
+    "@zavx0z/jsx": "*"
   },
   "dependencies": {
     "@archetypes/specs": "workspace:*",

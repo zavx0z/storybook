@@ -18,7 +18,7 @@ import {
 } from "@zavx0z/dom"
 import {readDisplayStyle, createDocumentRenderer, type RenderBox, type RenderFrame} from "@renderer/html"
 import {createSpaceElementFactories} from "@zavx0z/space"
-import {HUDElement} from "../../webxr-space/dom/hud/index.ts"
+import {HUDElement} from "../../immersive/dom/hud/index.ts"
 import {SpaceElement} from "@zavx0z/dom/space"
 import {ViewPointElement} from "@zavx0z/dom/viewpoint"
 import {

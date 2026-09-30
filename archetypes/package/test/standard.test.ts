@@ -53,3 +53,17 @@ test("отсутствие роли остаётся нарушением с н�
   expect(report.tests.find(point => point.label === "Структурная роль")?.status).toBe("failed")
   expect(report.exitCode).not.toBe(0)
 }, 30_000)
+
+test("вложенный Component не повторяет общую среду разработки Repo", async () => {
+  const path = await realpath(await mkdtemp(resolve(tmpdir(), "package-repeated-env-")))
+  roots.push(path)
+  await cp(resolve(import.meta.dir, "../../../component/spec/fixture/component"), path, {recursive: true})
+  const manifestPath = resolve(path, "package.json")
+  const manifest = await Bun.file(manifestPath).json()
+  await writeFile(manifestPath, JSON.stringify({...manifest, engines: {bun: "1.4.x"}}))
+  const report = await readScenario({path: scenario, props: {path}})
+  expect(report.tests.find(point => point.label === "Общая среда Bun только у Repo")?.status,
+    "Повторное engines.bun у Component нарушает единое владение средой Repo")
+    .toBe("failed")
+  expect(report.exitCode).not.toBe(0)
+}, 30_000)

@@ -51,7 +51,7 @@ export type StorybookModuleDocumentation = NonNullable<ReturnType<typeof import(
 */
 export type StorybookContractDocument = Readonly<{
   direction: "input" | "output"
-  document: import("@webxr/typedoc/parser/contract/output").AnalyzeTypeDocOutput["document"]
+  document: import("@immersive/typedoc/parser/contract/output").AnalyzeTypeDocOutput["document"]
 }>
 
 /**

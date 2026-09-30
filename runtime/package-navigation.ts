@@ -12,7 +12,7 @@
 @example
 ```ts
 await navigatePackage(
-  {packageId: "@webxr/markdown", route: ""},
+  {packageId: "@immersive/markdown", route: ""},
   page.navigatePackage,
 )
 ```
