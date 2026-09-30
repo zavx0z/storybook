@@ -100,6 +100,8 @@ exports[`Пакет Сохраняет результат чтения спец�
             "эти факты раскрываются и проверяются в едином сценарии Package.",
             "Package является общей структурной формой Repo,",
             "Domain и Component; наличие вложенных пакетов не создаёт дополнительного класса.",
+            "Настройки engines читаются только из собственного манифеста; принадлежность",
+            "общей среды разработки Repo раскрывается нормативным сценарием.",
             "Чтение не исполняет код пакета и не запускает его компоненты или подписки.",
           ],
           "customFailMessage": "Корневой TSDoc раскрывает назначение и границы ответственности пакета",
@@ -926,6 +928,28 @@ exports[`Пакет Сохраняет результат чтения спец�
           "testId": 9,
         },
         {
+          "actual": true,
+          "customFailMessage": "Общую среду разработки Bun объявляет Repo в engines.bun; вложенные Domain и Component не повторяют настройку окружения",
+          "describe": [
+            "Архетип пакета",
+            "Границы зависимостей",
+          ],
+          "error": null,
+          "expected": [],
+          "id": 13,
+          "location": {
+            "column": 7,
+            "line": 91,
+            "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
+          },
+          "matcher": "toBeTrue",
+          "modifiers": [],
+          "site": "expect:5825",
+          "status": "passed",
+          "test": "Общая среда Bun только у Repo",
+          "testId": 10,
+        },
+        {
           "actual": {
             "code": [
               {
@@ -1718,18 +1742,18 @@ exports[`Пакет Сохраняет результат чтения спец�
               "name": "",
             },
           ],
-          "id": 13,
+          "id": 14,
           "location": {
             "column": 7,
-            "line": 103,
+            "line": 108,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "matcher": "toSatisfy",
           "modifiers": [],
-          "site": "expect:6585",
+          "site": "expect:6860",
           "status": "passed",
           "test": "Структурная роль",
-          "testId": 11,
+          "testId": 12,
         },
         {
           "actual": [],
@@ -1742,18 +1766,18 @@ exports[`Пакет Сохраняет результат чтения спец�
           "expected": [
             [],
           ],
-          "id": 14,
+          "id": 15,
           "location": {
             "column": 7,
-            "line": 112,
+            "line": 117,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "matcher": "toEqual",
           "modifiers": [],
-          "site": "expect:7287",
+          "site": "expect:7562",
           "status": "passed",
           "test": "Полнота файловой проверки",
-          "testId": 12,
+          "testId": 13,
         },
         {
           "actual": [
@@ -2014,18 +2038,18 @@ exports[`Пакет Сохраняет результат чтения спец�
               "name": "",
             },
           ],
-          "id": 15,
+          "id": 16,
           "location": {
             "column": 7,
-            "line": 160,
+            "line": 165,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "matcher": "toSatisfy",
           "modifiers": [],
-          "site": "expect:10192",
+          "site": "expect:10467",
           "status": "passed",
           "test": "Основная реализация",
-          "testId": 18,
+          "testId": 19,
         },
         {
           "actual": [
@@ -2052,18 +2076,18 @@ exports[`Пакет Сохраняет результат чтения спец�
               "name": "",
             },
           ],
-          "id": 16,
+          "id": 17,
           "location": {
             "column": 7,
-            "line": 168,
+            "line": 173,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "matcher": "toSatisfy",
           "modifiers": [],
-          "site": "expect:10727",
+          "site": "expect:11002",
           "status": "passed",
           "test": "Публичная граница",
-          "testId": 19,
+          "testId": 20,
         },
         {
           "actual": [
@@ -2078,18 +2102,18 @@ exports[`Пакет Сохраняет результат чтения спец�
           "expected": [
             1,
           ],
-          "id": 17,
+          "id": 18,
           "location": {
             "column": 7,
-            "line": 173,
+            "line": 178,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "matcher": "toHaveLength",
           "modifiers": [],
-          "site": "expect:11098",
+          "site": "expect:11373",
           "status": "passed",
           "test": "Исполняемое использование",
-          "testId": 20,
+          "testId": 21,
         },
         {
           "actual": [
@@ -2350,18 +2374,18 @@ exports[`Пакет Сохраняет результат чтения спец�
               "name": "",
             },
           ],
-          "id": 18,
+          "id": 19,
           "location": {
             "column": 7,
-            "line": 178,
+            "line": 183,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "matcher": "toSatisfy",
           "modifiers": [],
-          "site": "expect:11333",
+          "site": "expect:11608",
           "status": "passed",
           "test": "Результат",
-          "testId": 21,
+          "testId": 22,
         },
       ],
       "calls": [
@@ -3151,9 +3175,11 @@ exports[`Пакет Сохраняет результат чтения спец�
                   "эти факты раскрываются и проверяются в едином сценарии Package.",
                   "Package является общей структурной формой Repo,",
                   "Domain и Component; наличие вложенных пакетов не создаёт дополнительного класса.",
+                  "Настройки engines читаются только из собственного манифеста; принадлежность",
+                  "общей среды разработки Repo раскрывается нормативным сценарием.",
                   "Чтение не исполняет код пакета и не запускает его компоненты или подписки.",
                 ],
-                "sourceDigest": "48ec15a7fda71e7d993960fbfaf1c42570c5cf118916d38908dc354ccfeb7e39",
+                "sourceDigest": "b9ec1372366f71ae0ac7e20fbcf8a59d63d03c4dca3fcca7667313edafee6528",
                 "sourcePath": "/Users/zavx0z/repozitarium/storybook/archetypes/package/index.ts",
               },
               "index": {
@@ -3177,7 +3203,7 @@ exports[`Пакет Сохраняет результат чтения спец�
                   "@archetypes/package-index": "workspace:*",
                   "@archetypes/package-json": "workspace:*",
                   "@storybook/route": "workspace:*",
-                  "typescript": "7.0.2",
+                  "typescript": "^7.0.2",
                 },
                 "description": "Объясняет и проверяет назначение пакета, принадлежность публичных входов и наличие их контрактов",
                 "exports": {
@@ -3293,7 +3319,7 @@ exports[`Пакет Сохраняет результат чтения спец�
           "label": "Нераскрытые границы",
           "location": {
             "column": 3,
-            "line": 93,
+            "line": 98,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "mode": "skip",
@@ -3306,7 +3332,7 @@ exports[`Пакет Сохраняет результат чтения спец�
           "label": "Классификация",
           "location": {
             "column": 3,
-            "line": 101,
+            "line": 106,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "mode": "run",
@@ -3319,7 +3345,7 @@ exports[`Пакет Сохраняет результат чтения спец�
           "label": "Раскрытые exports",
           "location": {
             "column": 3,
-            "line": 110,
+            "line": 115,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "mode": "run",
@@ -3332,7 +3358,7 @@ exports[`Пакет Сохраняет результат чтения спец�
           "label": "Нераскрытые exports",
           "location": {
             "column": 3,
-            "line": 117,
+            "line": 122,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "mode": "skip",
@@ -3345,7 +3371,7 @@ exports[`Пакет Сохраняет результат чтения спец�
           "label": "Repo",
           "location": {
             "column": 3,
-            "line": 124,
+            "line": 129,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "mode": "skip",
@@ -3358,7 +3384,7 @@ exports[`Пакет Сохраняет результат чтения спец�
           "label": "Domain",
           "location": {
             "column": 3,
-            "line": 142,
+            "line": 147,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "mode": "skip",
@@ -3371,7 +3397,7 @@ exports[`Пакет Сохраняет результат чтения спец�
           "label": "Component",
           "location": {
             "column": 3,
-            "line": 158,
+            "line": 163,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "mode": "run",
@@ -3382,9 +3408,9 @@ exports[`Пакет Сохраняет результат чтения спец�
       ],
       "junit": [
         "<?xml version="1.0" encoding="UTF-8"?>",
-        "<testsuites name="bun test" tests="22" assertions="19" failures="0" skipped="6" time="<duration>">",
-        "  <testsuite name="spec/scenario.spec.ts" file="spec/scenario.spec.ts" tests="22" assertions="19" failures="0" skipped="6" time="<duration>" hostname="repositarium">",
-        "    <testsuite name="Архетип пакета" file="spec/scenario.spec.ts" line="96" tests="22" assertions="19" failures="0" skipped="6" time="<duration>" hostname="repositarium">",
+        "<testsuites name="bun test" tests="23" assertions="20" failures="0" skipped="6" time="<duration>">",
+        "  <testsuite name="spec/scenario.spec.ts" file="spec/scenario.spec.ts" tests="23" assertions="20" failures="0" skipped="6" time="<duration>" hostname="repositarium">",
+        "    <testsuite name="Архетип пакета" file="spec/scenario.spec.ts" line="96" tests="23" assertions="20" failures="0" skipped="6" time="<duration>" hostname="repositarium">",
         "      <testsuite name="Назначение" file="spec/scenario.spec.ts" line="96" tests="2" assertions="4" failures="0" skipped="0" time="<duration>" hostname="repositarium">",
         "        <testcase name="Идентичность" classname="Назначение &gt; Архетип пакета" time="<duration>" file="spec/scenario.spec.ts" line="96" assertions="2" />",
         "        <testcase name="Ответственность" classname="Назначение &gt; Архетип пакета" time="<duration>" file="spec/scenario.spec.ts" line="96" assertions="2" />",
@@ -3398,10 +3424,11 @@ exports[`Пакет Сохраняет результат чтения спец�
         "      <testsuite name="Состав" file="spec/scenario.spec.ts" line="96" tests="1" assertions="1" failures="0" skipped="0" time="<duration>" hostname="repositarium">",
         "        <testcase name="Владелец публичной реализации" classname="Состав &gt; Архетип пакета" time="<duration>" file="spec/scenario.spec.ts" line="96" assertions="1" />",
         "      </testsuite>",
-        "      <testsuite name="Границы зависимостей" file="spec/scenario.spec.ts" line="96" tests="3" assertions="3" failures="0" skipped="0" time="<duration>" hostname="repositarium">",
+        "      <testsuite name="Границы зависимостей" file="spec/scenario.spec.ts" line="96" tests="4" assertions="4" failures="0" skipped="0" time="<duration>" hostname="repositarium">",
         "        <testcase name="Публичные владельцы" classname="Границы зависимостей &gt; Архетип пакета" time="<duration>" file="spec/scenario.spec.ts" line="96" assertions="1" />",
         "        <testcase name="Объявленные зависимости" classname="Границы зависимостей &gt; Архетип пакета" time="<duration>" file="spec/scenario.spec.ts" line="96" assertions="1" />",
         "        <testcase name="Состав только у Repo" classname="Границы зависимостей &gt; Архетип пакета" time="<duration>" file="spec/scenario.spec.ts" line="96" assertions="1" />",
+        "        <testcase name="Общая среда Bun только у Repo" classname="Границы зависимостей &gt; Архетип пакета" time="<duration>" file="spec/scenario.spec.ts" line="96" assertions="1" />",
         "      </testsuite>",
         "      <testsuite name="Нераскрытые границы" file="spec/scenario.spec.ts" line="96" tests="1" assertions="0" failures="0" skipped="1" time="<duration>" hostname="repositarium">",
         "        <testcase name="Полнота публичных границ" classname="Нераскрытые границы &gt; Архетип пакета" time="<duration>" file="spec/scenario.spec.ts" line="96" assertions="0">",
@@ -4221,9 +4248,11 @@ exports[`Пакет Сохраняет результат чтения спец�
                         "эти факты раскрываются и проверяются в едином сценарии Package.",
                         "Package является общей структурной формой Repo,",
                         "Domain и Component; наличие вложенных пакетов не создаёт дополнительного класса.",
+                        "Настройки engines читаются только из собственного манифеста; принадлежность",
+                        "общей среды разработки Repo раскрывается нормативным сценарием.",
                         "Чтение не исполняет код пакета и не запускает его компоненты или подписки.",
                       ],
-                      "sourceDigest": "48ec15a7fda71e7d993960fbfaf1c42570c5cf118916d38908dc354ccfeb7e39",
+                      "sourceDigest": "b9ec1372366f71ae0ac7e20fbcf8a59d63d03c4dca3fcca7667313edafee6528",
                       "sourcePath": "/Users/zavx0z/repozitarium/storybook/archetypes/package/index.ts",
                     },
                     "index": {
@@ -4247,7 +4276,7 @@ exports[`Пакет Сохраняет результат чтения спец�
                         "@archetypes/package-index": "workspace:*",
                         "@archetypes/package-json": "workspace:*",
                         "@storybook/route": "workspace:*",
-                        "typescript": "7.0.2",
+                        "typescript": "^7.0.2",
                       },
                       "description": "Объясняет и проверяет назначение пакета, принадлежность публичных входов и наличие их контрактов",
                       "exports": {
@@ -4340,6 +4369,10 @@ exports[`Пакет Сохраняет результат чтения спец�
               {
                 "content": "Workspaces объявляет только Repo; Domain и Component получают состав из корневого glob",
                 "title": "Границы зависимостей / Состав только у Repo",
+              },
+              {
+                "content": "Общую среду разработки Bun объявляет Repo в engines.bun; вложенные Domain и Component не повторяют настройку окружения",
+                "title": "Границы зависимостей / Общая среда Bun только у Repo",
               },
               {
                 "content": "Публичность каждого разрешённого импорта подтверждена картой владельца",
@@ -4543,11 +4576,21 @@ exports[`Пакет Сохраняет результат чтения спец�
             "message": ""Workspaces объявляет только Repo; Domain и Component получают состав из корневого glob"",
           },
           {
+            "actual": "repo || result.packageJson.engines?.bun === undefined",
+            "inline": true,
+            "location": {
+              "column": 7,
+              "line": 91,
+              "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
+            },
+            "message": ""Общую среду разработки Bun объявляет Repo в engines.bun; вложенные Domain и Component не повторяют настройку окружения"",
+          },
+          {
             "actual": "result.code.flatMap(source => source.references).filter(reference => reference.public === null && reference.path !== null)",
             "inline": true,
             "location": {
               "column": 7,
-              "line": 95,
+              "line": 100,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "message": ""Публичность каждого разрешённого импорта подтверждена картой владельца"",
@@ -4557,7 +4600,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "inline": true,
             "location": {
               "column": 7,
-              "line": 103,
+              "line": 108,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "message": ""Repo находится в корне своей Git-истории. Domain собирает API владельцев, не реализуя их поведение; Component владеет реализацией. Реэкспорты домена не считаются его реализациями. Подтверждение требует всех проверок применимого раздела, а не одного этого пункта."",
@@ -4567,7 +4610,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "inline": true,
             "location": {
               "column": 7,
-              "line": 112,
+              "line": 117,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "message": ""Все объявления этого примера входят в область файловой проверки"",
@@ -4577,7 +4620,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "inline": true,
             "location": {
               "column": 7,
-              "line": 119,
+              "line": 124,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "message": ""Все объявления этого примера входят в область файловой проверки"",
@@ -4587,7 +4630,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "inline": true,
             "location": {
               "column": 7,
-              "line": 129,
+              "line": 134,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "message": ""Repo использует glob без ручного перечисления пакетов; пустому составу workspaces не обязательны"",
@@ -4597,7 +4640,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "inline": true,
             "location": {
               "column": 7,
-              "line": 131,
+              "line": 136,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "message": ""Каждый рабочий пакет входит ровно в один положительный glob Repo"",
@@ -4607,7 +4650,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "inline": true,
             "location": {
               "column": 7,
-              "line": 136,
+              "line": 141,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "message": ""Другие самостоятельные Repo подключаются к Project, а не вкладываются в этот Repo"",
@@ -4617,7 +4660,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "inline": true,
             "location": {
               "column": 7,
-              "line": 144,
+              "line": 149,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "message": ""Домен назначает именованные экспорты, разрешённые до владельца; type-only и реэкспорт сохраняют своё назначение"",
@@ -4627,7 +4670,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "inline": true,
             "location": {
               "column": 7,
-              "line": 147,
+              "line": 152,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "message": ""Домен не добавляет локальное поведение или побочные эффекты вместо компонентов"",
@@ -4637,7 +4680,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "inline": true,
             "location": {
               "column": 7,
-              "line": 150,
+              "line": 155,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "message": ""Домен собирает именованный API и типы владельцев; прямые подпути ведут к их публичным входам"",
@@ -4647,7 +4690,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "inline": true,
             "location": {
               "column": 7,
-              "line": 160,
+              "line": 165,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "message": ""Компонент предоставляет одну основную реализацию через default; именованные типы контрактов не увеличивают число реализаций"",
@@ -4657,7 +4700,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "inline": true,
             "location": {
               "column": 7,
-              "line": 168,
+              "line": 173,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "message": ""Дополнительные самостоятельные реализации получают собственные пакеты; Component публикует собственный основной кодовый вход"",
@@ -4667,7 +4710,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "inline": true,
             "location": {
               "column": 7,
-              "line": 173,
+              "line": 178,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "message": ""Компонент имеет один непосредственный сценарий использования публичного API; он исполняется обычным механизмом сценариев владельца"",
@@ -4677,7 +4720,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "inline": true,
             "location": {
               "column": 7,
-              "line": 178,
+              "line": 183,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "message": ""Публичный результат имеет выводимый TypeScript тип; используемые типовые контракты разрешаются, пустой output.ts не требуется"",
@@ -4764,6 +4807,15 @@ exports[`Пакет Сохраняет результат чтения спец�
             "source": [
               "expect(repo || result.packageJson.workspaces === undefined,",
               "  "Workspaces объявляет только Repo; Domain и Component получают состав из корневого glob").toBeTrue()",
+            ],
+          },
+          {
+            "explicitObject": false,
+            "matcher": "toBeTrue",
+            "source": [
+              "expect(repo || result.packageJson.engines?.bun === undefined,",
+              "  "Общую среду разработки Bun объявляет Repo в engines.bun; вложенные Domain и Component не повторяют настройку окружения")",
+              "  .toBeTrue()",
             ],
           },
           {
@@ -4984,6 +5036,11 @@ exports[`Пакет Сохраняет результат чтения спец�
               "      expect(repo || result.packageJson.workspaces === undefined,",
               "        "Workspaces объявляет только Repo; Domain и Component получают состав из корневого glob").toBeTrue()",
               "    })",
+              "    test("Общая среда Bun только у Repo", () => {",
+              "      expect(repo || result.packageJson.engines?.bun === undefined,",
+              "        "Общую среду разработки Bun объявляет Repo в engines.bun; вложенные Domain и Component не повторяют настройку окружения")",
+              "        .toBeTrue()",
+              "    })",
               "  })",
               "",
               "  /** @remarks Нераскрытая карта зависимого владельца не доказывает ни публичность, ни нарушение границы. */",
@@ -5192,6 +5249,11 @@ exports[`Пакет Сохраняет результат чтения спец�
               "    expect(repo || result.packageJson.workspaces === undefined,",
               "      "Workspaces объявляет только Repo; Domain и Component получают состав из корневого glob").toBeTrue()",
               "  })",
+              "  test("Общая среда Bun только у Repo", () => {",
+              "    expect(repo || result.packageJson.engines?.bun === undefined,",
+              "      "Общую среду разработки Bun объявляет Repo в engines.bun; вложенные Domain и Component не повторяют настройку окружения")",
+              "      .toBeTrue()",
+              "  })",
               "})",
             ],
           },
@@ -5201,7 +5263,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "header": "describe.skipIf(!result.code.some(source => source.references.some(reference => reference.public === null && reference.path !== null)))("Нераскрытые границы", () => ",
             "location": {
               "column": 3,
-              "line": 93,
+              "line": 98,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "setup": "",
@@ -5220,7 +5282,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "header": "describe.skipIf(result.index.unchecked.length > 0)("Классификация", () => ",
             "location": {
               "column": 3,
-              "line": 101,
+              "line": 106,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "setup": "",
@@ -5240,7 +5302,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "header": "describe.skipIf(result.index.unchecked.length > 0)("Раскрытые exports", () => ",
             "location": {
               "column": 3,
-              "line": 110,
+              "line": 115,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "setup": "",
@@ -5258,7 +5320,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "header": "describe.skipIf(result.index.unchecked.length === 0)("Нераскрытые exports", () => ",
             "location": {
               "column": 3,
-              "line": 117,
+              "line": 122,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "setup": "",
@@ -5276,7 +5338,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "header": "describe.skipIf(!repo)("Repo", () => ",
             "location": {
               "column": 3,
-              "line": 124,
+              "line": 129,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "setup": "",
@@ -5305,7 +5367,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "header": "describe.skipIf(!domain)("Domain", () => ",
             "location": {
               "column": 3,
-              "line": 142,
+              "line": 147,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "setup": "",
@@ -5332,7 +5394,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "header": "describe.skipIf(!component)("Component", () => ",
             "location": {
               "column": 3,
-              "line": 158,
+              "line": 163,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "setup": "",
@@ -5577,12 +5639,25 @@ exports[`Пакет Сохраняет результат чтения спец�
             "scope": "native",
           },
           {
+            "depth": 2,
+            "kind": "test",
+            "label": ""Общая среда Bun только у Repo"",
+            "location": {
+              "column": 5,
+              "line": 90,
+              "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
+            },
+            "modifiers": [],
+            "remarks": null,
+            "scope": "native",
+          },
+          {
             "depth": 1,
             "kind": "describe",
             "label": ""Нераскрытые границы"",
             "location": {
               "column": 3,
-              "line": 93,
+              "line": 98,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "modifiers": [
@@ -5597,7 +5672,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Полнота публичных границ"",
             "location": {
               "column": 5,
-              "line": 94,
+              "line": 99,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "modifiers": [
@@ -5612,7 +5687,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Классификация"",
             "location": {
               "column": 3,
-              "line": 101,
+              "line": 106,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "modifiers": [
@@ -5627,7 +5702,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Структурная роль"",
             "location": {
               "column": 5,
-              "line": 102,
+              "line": 107,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "modifiers": [],
@@ -5640,7 +5715,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Раскрытые exports"",
             "location": {
               "column": 3,
-              "line": 110,
+              "line": 115,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "modifiers": [
@@ -5655,7 +5730,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Полнота файловой проверки"",
             "location": {
               "column": 5,
-              "line": 111,
+              "line": 116,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "modifiers": [],
@@ -5668,7 +5743,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Нераскрытые exports"",
             "location": {
               "column": 3,
-              "line": 117,
+              "line": 122,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "modifiers": [
@@ -5683,7 +5758,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Полнота раскрытия exports"",
             "location": {
               "column": 5,
-              "line": 118,
+              "line": 123,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "modifiers": [
@@ -5698,7 +5773,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Repo"",
             "location": {
               "column": 3,
-              "line": 124,
+              "line": 129,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "modifiers": [
@@ -5713,7 +5788,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Корневые glob"",
             "location": {
               "column": 5,
-              "line": 125,
+              "line": 130,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "modifiers": [],
@@ -5726,7 +5801,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Независимые репозитории"",
             "location": {
               "column": 5,
-              "line": 135,
+              "line": 140,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "modifiers": [],
@@ -5739,7 +5814,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Domain"",
             "location": {
               "column": 3,
-              "line": 142,
+              "line": 147,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "modifiers": [
@@ -5754,7 +5829,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Происхождение API"",
             "location": {
               "column": 5,
-              "line": 143,
+              "line": 148,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "modifiers": [],
@@ -5767,7 +5842,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Принадлежность публичных входов"",
             "location": {
               "column": 5,
-              "line": 149,
+              "line": 154,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "modifiers": [],
@@ -5780,7 +5855,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Component"",
             "location": {
               "column": 3,
-              "line": 158,
+              "line": 163,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "modifiers": [
@@ -5795,7 +5870,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Основная реализация"",
             "location": {
               "column": 5,
-              "line": 159,
+              "line": 164,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "modifiers": [],
@@ -5808,7 +5883,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Публичная граница"",
             "location": {
               "column": 5,
-              "line": 167,
+              "line": 172,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "modifiers": [],
@@ -5821,7 +5896,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Исполняемое использование"",
             "location": {
               "column": 5,
-              "line": 172,
+              "line": 177,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "modifiers": [],
@@ -5834,7 +5909,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Результат"",
             "location": {
               "column": 5,
-              "line": 177,
+              "line": 182,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "modifiers": [],
@@ -6061,10 +6136,29 @@ exports[`Пакет Сохраняет результат чтения спец�
           {
             "assertions": 1,
             "each": false,
+            "label": ""Общая среда Bun только у Repo"",
+            "location": {
+              "column": 5,
+              "line": 90,
+              "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
+            },
+            "skippable": false,
+            "source": [
+              "test("Общая среда Bun только у Repo", () => {",
+              "  expect(repo || result.packageJson.engines?.bun === undefined,",
+              "    "Общую среду разработки Bun объявляет Repo в engines.bun; вложенные Domain и Component не повторяют настройку окружения")",
+              "    .toBeTrue()",
+              "})",
+            ],
+            "todo": false,
+          },
+          {
+            "assertions": 1,
+            "each": false,
             "label": ""Полнота публичных границ"",
             "location": {
               "column": 5,
-              "line": 94,
+              "line": 99,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "skippable": false,
@@ -6082,7 +6176,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Структурная роль"",
             "location": {
               "column": 5,
-              "line": 102,
+              "line": 107,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "skippable": false,
@@ -6101,7 +6195,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Полнота файловой проверки"",
             "location": {
               "column": 5,
-              "line": 111,
+              "line": 116,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "skippable": false,
@@ -6118,7 +6212,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Полнота раскрытия exports"",
             "location": {
               "column": 5,
-              "line": 118,
+              "line": 123,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "skippable": false,
@@ -6135,7 +6229,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Корневые glob"",
             "location": {
               "column": 5,
-              "line": 125,
+              "line": 130,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "skippable": false,
@@ -6159,7 +6253,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Независимые репозитории"",
             "location": {
               "column": 5,
-              "line": 135,
+              "line": 140,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "skippable": false,
@@ -6177,7 +6271,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Происхождение API"",
             "location": {
               "column": 5,
-              "line": 143,
+              "line": 148,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "skippable": false,
@@ -6197,7 +6291,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Принадлежность публичных входов"",
             "location": {
               "column": 5,
-              "line": 149,
+              "line": 154,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "skippable": false,
@@ -6217,7 +6311,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Основная реализация"",
             "location": {
               "column": 5,
-              "line": 159,
+              "line": 164,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "skippable": false,
@@ -6239,7 +6333,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Публичная граница"",
             "location": {
               "column": 5,
-              "line": 167,
+              "line": 172,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "skippable": false,
@@ -6258,7 +6352,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Исполняемое использование"",
             "location": {
               "column": 5,
-              "line": 172,
+              "line": 177,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "skippable": false,
@@ -6277,7 +6371,7 @@ exports[`Пакет Сохраняет результат чтения спец�
             "label": ""Результат"",
             "location": {
               "column": 5,
-              "line": 177,
+              "line": 182,
               "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
             },
             "skippable": false,
@@ -6381,6 +6475,11 @@ exports[`Пакет Сохраняет результат чтения спец�
           "    test("Состав только у Repo", () => {",
           "      expect(repo || result.packageJson.workspaces === undefined,",
           "        "Workspaces объявляет только Repo; Domain и Component получают состав из корневого glob").toBeTrue()",
+          "    })",
+          "    test("Общая среда Bun только у Repo", () => {",
+          "      expect(repo || result.packageJson.engines?.bun === undefined,",
+          "        "Общую среду разработки Bun объявляет Repo в engines.bun; вложенные Domain и Component не повторяют настройку окружения")",
+          "        .toBeTrue()",
           "    })",
           "  })",
           "",
@@ -6493,6 +6592,7 @@ exports[`Пакет Сохраняет результат чтения спец�
         "(pass) Архетип пакета > Границы зависимостей > Публичные владельцы",
         "(pass) Архетип пакета > Границы зависимостей > Объявленные зависимости",
         "(pass) Архетип пакета > Границы зависимостей > Состав только у Repo",
+        "(pass) Архетип пакета > Границы зависимостей > Общая среда Bun только у Repo",
         "(skip) Архетип пакета > Нераскрытые границы > Полнота публичных границ",
         "(pass) Архетип пакета > Классификация > Структурная роль",
         "(pass) Архетип пакета > Раскрытые exports > Полнота файловой проверки",
@@ -6506,11 +6606,11 @@ exports[`Пакет Сохраняет результат чтения спец�
         "(pass) Архетип пакета > Component > Исполняемое использование",
         "(pass) Архетип пакета > Component > Результат",
         "",
-        " 16 pass",
+        " 17 pass",
         " 6 skip",
         " 0 fail",
-        " 19 expect() calls",
-        "Ran 22 tests across 1 file.",
+        " 20 expect() calls",
+        "Ran 23 tests across 1 file.",
         "",
       ],
       "stdout": [
@@ -6823,13 +6923,42 @@ exports[`Пакет Сохраняет результат чтения спец�
         {
           "assertions": [
             {
+              "customFailMessage": "Общую среду разработки Bun объявляет Repo в engines.bun; вложенные Domain и Component не повторяют настройку окружения",
+              "location": {
+                "column": 7,
+                "line": 91,
+                "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
+              },
+              "site": "expect:5825",
+              "source": [
+                "expect(repo || result.packageJson.engines?.bun === undefined,",
+                "        "Общую среду разработки Bun объявляет Repo в engines.bun; вложенные Domain и Component не повторяют настройку окружения")",
+              ],
+            },
+          ],
+          "groupId": 4,
+          "id": 10,
+          "label": "Общая среда Bun только у Repo",
+          "location": {
+            "column": 5,
+            "line": 90,
+            "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
+          },
+          "message": null,
+          "mode": "run",
+          "skipReason": null,
+          "status": "passed",
+        },
+        {
+          "assertions": [
+            {
               "customFailMessage": "Публичность каждого разрешённого импорта подтверждена картой владельца",
               "location": {
                 "column": 7,
-                "line": 95,
+                "line": 100,
                 "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
               },
-              "site": "expect:6109",
+              "site": "expect:6384",
               "source": [
                 "expect(result.code.flatMap(source => source.references).filter(reference => reference.public === null && reference.path !== null),",
                 "        "Публичность каждого разрешённого импорта подтверждена картой владельца")",
@@ -6837,11 +6966,11 @@ exports[`Пакет Сохраняет результат чтения спец�
             },
           ],
           "groupId": 5,
-          "id": 10,
+          "id": 11,
           "label": "Полнота публичных границ",
           "location": {
             "column": 5,
-            "line": 94,
+            "line": 99,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "message": null,
@@ -6855,10 +6984,10 @@ exports[`Пакет Сохраняет результат чтения спец�
               "customFailMessage": "Repo находится в корне своей Git-истории. Domain собирает API владельцев, не реализуя их поведение; Component владеет реализацией. Реэкспорты домена не считаются его реализациями. Подтверждение требует всех проверок применимого раздела, а не одного этого пункта.",
               "location": {
                 "column": 7,
-                "line": 103,
+                "line": 108,
                 "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
               },
-              "site": "expect:6585",
+              "site": "expect:6860",
               "source": [
                 "expect({root: result.root, repository: result.repository, packages: result.packages, code: result.code},",
                 "        "Repo находится в корне своей Git-истории. Domain собирает API владельцев, не реализуя их поведение; Component владеет реализацией. Реэкспорты домена не считаются его реализациями. Подтверждение требует всех проверок применимого раздела, а не одного этого пункта.")",
@@ -6866,11 +6995,11 @@ exports[`Пакет Сохраняет результат чтения спец�
             },
           ],
           "groupId": 6,
-          "id": 11,
+          "id": 12,
           "label": "Структурная роль",
           "location": {
             "column": 5,
-            "line": 102,
+            "line": 107,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "message": null,
@@ -6884,19 +7013,19 @@ exports[`Пакет Сохраняет результат чтения спец�
               "customFailMessage": "Все объявления этого примера входят в область файловой проверки",
               "location": {
                 "column": 7,
-                "line": 112,
+                "line": 117,
                 "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
               },
-              "site": "expect:7287",
+              "site": "expect:7562",
               "source": "expect(result.index.unchecked, "Все объявления этого примера входят в область файловой проверки")",
             },
           ],
           "groupId": 7,
-          "id": 12,
+          "id": 13,
           "label": "Полнота файловой проверки",
           "location": {
             "column": 5,
-            "line": 111,
+            "line": 116,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "message": null,
@@ -6910,19 +7039,19 @@ exports[`Пакет Сохраняет результат чтения спец�
               "customFailMessage": "Все объявления этого примера входят в область файловой проверки",
               "location": {
                 "column": 7,
-                "line": 119,
+                "line": 124,
                 "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
               },
-              "site": "expect:7669",
+              "site": "expect:7944",
               "source": "expect(result.index.unchecked, "Все объявления этого примера входят в область файловой проверки")",
             },
           ],
           "groupId": 8,
-          "id": 13,
+          "id": 14,
           "label": "Полнота раскрытия exports",
           "location": {
             "column": 5,
-            "line": 118,
+            "line": 123,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "message": null,
@@ -6936,29 +7065,29 @@ exports[`Пакет Сохраняет результат чтения спец�
               "customFailMessage": "Repo использует glob без ручного перечисления пакетов; пустому составу workspaces не обязательны",
               "location": {
                 "column": 7,
-                "line": 129,
+                "line": 134,
                 "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
               },
-              "site": "expect:8216",
+              "site": "expect:8491",
               "source": "expect(include, "Repo использует glob без ручного перечисления пакетов; пустому составу workspaces не обязательны")",
             },
             {
               "customFailMessage": "Каждый рабочий пакет входит ровно в один положительный glob Repo",
               "location": {
                 "column": 7,
-                "line": 131,
+                "line": 136,
                 "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
               },
-              "site": "expect:8419",
+              "site": "expect:8694",
               "source": "expect(result.packages, "Каждый рабочий пакет входит ровно в один положительный glob Repo")",
             },
           ],
           "groupId": 9,
-          "id": 14,
+          "id": 15,
           "label": "Корневые glob",
           "location": {
             "column": 5,
-            "line": 125,
+            "line": 130,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "message": null,
@@ -6972,10 +7101,10 @@ exports[`Пакет Сохраняет результат чтения спец�
               "customFailMessage": "Другие самостоятельные Repo подключаются к Project, а не вкладываются в этот Repo",
               "location": {
                 "column": 7,
-                "line": 136,
+                "line": 141,
                 "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
               },
-              "site": "expect:8780",
+              "site": "expect:9055",
               "source": [
                 "expect(result.repository.nestedRepositories,",
                 "        "Другие самостоятельные Repo подключаются к Project, а не вкладываются в этот Repo")",
@@ -6983,11 +7112,11 @@ exports[`Пакет Сохраняет результат чтения спец�
             },
           ],
           "groupId": 9,
-          "id": 15,
+          "id": 16,
           "label": "Независимые репозитории",
           "location": {
             "column": 5,
-            "line": 135,
+            "line": 140,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "message": null,
@@ -7001,10 +7130,10 @@ exports[`Пакет Сохраняет результат чтения спец�
               "customFailMessage": "Домен назначает именованные экспорты, разрешённые до владельца; type-only и реэкспорт сохраняют своё назначение",
               "location": {
                 "column": 7,
-                "line": 144,
+                "line": 149,
                 "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
               },
-              "site": "expect:9151",
+              "site": "expect:9426",
               "source": [
                 "expect(result.code.flatMap(source => source.exports),",
                 "        "Домен назначает именованные экспорты, разрешённые до владельца; type-only и реэкспорт сохраняют своё назначение")",
@@ -7014,19 +7143,19 @@ exports[`Пакет Сохраняет результат чтения спец�
               "customFailMessage": "Домен не добавляет локальное поведение или побочные эффекты вместо компонентов",
               "location": {
                 "column": 7,
-                "line": 147,
+                "line": 152,
                 "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
               },
-              "site": "expect:9464",
+              "site": "expect:9739",
               "source": "expect(localCode, "Домен не добавляет локальное поведение или побочные эффекты вместо компонентов")",
             },
           ],
           "groupId": 10,
-          "id": 16,
+          "id": 17,
           "label": "Происхождение API",
           "location": {
             "column": 5,
-            "line": 143,
+            "line": 148,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "message": null,
@@ -7040,10 +7169,10 @@ exports[`Пакет Сохраняет результат чтения спец�
               "customFailMessage": "Домен собирает именованный API и типы владельцев; прямые подпути ведут к их публичным входам",
               "location": {
                 "column": 7,
-                "line": 150,
+                "line": 155,
                 "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
               },
-              "site": "expect:9641",
+              "site": "expect:9916",
               "source": [
                 "expect(result.index.entries,",
                 "        "Домен собирает именованный API и типы владельцев; прямые подпути ведут к их публичным входам")",
@@ -7051,11 +7180,11 @@ exports[`Пакет Сохраняет результат чтения спец�
             },
           ],
           "groupId": 10,
-          "id": 17,
+          "id": 18,
           "label": "Принадлежность публичных входов",
           "location": {
             "column": 5,
-            "line": 149,
+            "line": 154,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "message": null,
@@ -7069,10 +7198,10 @@ exports[`Пакет Сохраняет результат чтения спец�
               "customFailMessage": "Компонент предоставляет одну основную реализацию через default; именованные типы контрактов не увеличивают число реализаций",
               "location": {
                 "column": 7,
-                "line": 160,
+                "line": 165,
                 "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
               },
-              "site": "expect:10192",
+              "site": "expect:10467",
               "source": [
                 "expect(entries.map(entry => result.code.find(source => source.path === resolve(result.root, entry.target!))),",
                 "        "Компонент предоставляет одну основную реализацию через default; именованные типы контрактов не увеличивают число реализаций")",
@@ -7080,11 +7209,11 @@ exports[`Пакет Сохраняет результат чтения спец�
             },
           ],
           "groupId": 11,
-          "id": 18,
+          "id": 19,
           "label": "Основная реализация",
           "location": {
             "column": 5,
-            "line": 159,
+            "line": 164,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "message": null,
@@ -7098,10 +7227,10 @@ exports[`Пакет Сохраняет результат чтения спец�
               "customFailMessage": "Дополнительные самостоятельные реализации получают собственные пакеты; Component публикует собственный основной кодовый вход",
               "location": {
                 "column": 7,
-                "line": 168,
+                "line": 173,
                 "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
               },
-              "site": "expect:10727",
+              "site": "expect:11002",
               "source": [
                 "expect(result.index.entries,",
                 "        "Дополнительные самостоятельные реализации получают собственные пакеты; Component публикует собственный основной кодовый вход")",
@@ -7109,37 +7238,8 @@ exports[`Пакет Сохраняет результат чтения спец�
             },
           ],
           "groupId": 11,
-          "id": 19,
-          "label": "Публичная граница",
-          "location": {
-            "column": 5,
-            "line": 167,
-            "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
-          },
-          "message": null,
-          "mode": "run",
-          "skipReason": null,
-          "status": "passed",
-        },
-        {
-          "assertions": [
-            {
-              "customFailMessage": "Компонент имеет один непосредственный сценарий использования публичного API; он исполняется обычным механизмом сценариев владельца",
-              "location": {
-                "column": 7,
-                "line": 173,
-                "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
-              },
-              "site": "expect:11098",
-              "source": [
-                "expect(result.scenarios,",
-                "        "Компонент имеет один непосредственный сценарий использования публичного API; он исполняется обычным механизмом сценариев владельца")",
-              ],
-            },
-          ],
-          "groupId": 11,
           "id": 20,
-          "label": "Исполняемое использование",
+          "label": "Публичная граница",
           "location": {
             "column": 5,
             "line": 172,
@@ -7153,13 +7253,42 @@ exports[`Пакет Сохраняет результат чтения спец�
         {
           "assertions": [
             {
-              "customFailMessage": "Публичный результат имеет выводимый TypeScript тип; используемые типовые контракты разрешаются, пустой output.ts не требуется",
+              "customFailMessage": "Компонент имеет один непосредственный сценарий использования публичного API; он исполняется обычным механизмом сценариев владельца",
               "location": {
                 "column": 7,
                 "line": 178,
                 "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
               },
-              "site": "expect:11333",
+              "site": "expect:11373",
+              "source": [
+                "expect(result.scenarios,",
+                "        "Компонент имеет один непосредственный сценарий использования публичного API; он исполняется обычным механизмом сценариев владельца")",
+              ],
+            },
+          ],
+          "groupId": 11,
+          "id": 21,
+          "label": "Исполняемое использование",
+          "location": {
+            "column": 5,
+            "line": 177,
+            "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
+          },
+          "message": null,
+          "mode": "run",
+          "skipReason": null,
+          "status": "passed",
+        },
+        {
+          "assertions": [
+            {
+              "customFailMessage": "Публичный результат имеет выводимый TypeScript тип; используемые типовые контракты разрешаются, пустой output.ts не требуется",
+              "location": {
+                "column": 7,
+                "line": 183,
+                "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
+              },
+              "site": "expect:11608",
               "source": [
                 "expect(result.code.filter(source => entries.some(entry => resolve(result.root, entry.target!) === source.path)),",
                 "        "Публичный результат имеет выводимый TypeScript тип; используемые типовые контракты разрешаются, пустой output.ts не требуется")",
@@ -7167,11 +7296,11 @@ exports[`Пакет Сохраняет результат чтения спец�
             },
           ],
           "groupId": 11,
-          "id": 21,
+          "id": 22,
           "label": "Результат",
           "location": {
             "column": 5,
-            "line": 177,
+            "line": 182,
             "path": "/Users/zavx0z/repozitarium/storybook/archetypes/package/spec/scenario.spec.ts",
           },
           "message": null,
