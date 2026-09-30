@@ -7,6 +7,7 @@
       "dependencies": {
         "@archetypes/package": "workspace:*",
         "@archetypes/package-documentation": "workspace:*",
+        "@build/inputs": "workspace:*",
         "@build/queue": "workspace:*",
         "@hmr/activation": "workspace:*",
         "@hmr/connection": "workspace:*",
@@ -274,6 +275,7 @@
       "name": "@storybook/tech",
       "version": "0.0.0",
       "dependencies": {
+        "@build/inputs": "workspace:*",
         "@build/queue": "workspace:*",
         "@process/measure": "workspace:*",
         "@process/sample": "workspace:*",
@@ -284,8 +286,13 @@
       "name": "@tech/build",
       "version": "0.0.0",
       "dependencies": {
+        "@build/inputs": "workspace:*",
         "@build/queue": "workspace:*",
       },
+    },
+    "tech/build/inputs": {
+      "name": "@build/inputs",
+      "version": "0.0.0",
     },
     "tech/build/queue": {
       "name": "@build/queue",
@@ -382,6 +389,8 @@
     "@archetypes/scenario-validation": ["@archetypes/scenario-validation@workspace:archetypes/specs/scenarios/validation"],
 
     "@archetypes/specs": ["@archetypes/specs@workspace:archetypes/specs"],
+
+    "@build/inputs": ["@build/inputs@workspace:tech/build/inputs"],
 
     "@build/queue": ["@build/queue@workspace:tech/build/queue"],
 

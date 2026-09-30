@@ -1,8 +1,11 @@
+import BuildInputs from "@build/inputs"
 import {createHash, randomUUID} from "node:crypto"
 import {constants, closeSync, fstatSync, lstatSync, mkdirSync, existsSync, openSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync} from "node:fs"
 import {isAbsolute, join, relative} from "node:path"
 import {fileURLToPath} from "node:url"
-import {computeStorybookSharedBuildInputFingerprint, parseStorybookBuildInputFingerprint, sameStorybookBuildInputFingerprint} from "./build-input-fingerprint.ts"
+import {
+  computeStorybookSharedBuildInputFingerprint,
+} from "./build-input-fingerprint.ts"
 import type {SharedBrowserAssets} from "./shared-browser-assets.ts"
 import type {SharedBrowserBuildInput} from "./types/shared-browser.ts"
 import {validateStorybookSharedBrowserIdentity} from "./shared-module-identity.ts"
@@ -73,7 +76,7 @@ function readReceipt(
     if (!info.isFile() || info.size > 8 * 1024 * 1024) return reject("Недопустимый файл receipt")
     const receipt = JSON.parse(readFileSync(fd, "utf8"))
     const assets = receipt.assets as SharedBrowserAssets
-    const saved = parseStorybookBuildInputFingerprint(assets?.inputFingerprint)
+    const saved = BuildInputs.parse(assets?.inputFingerprint)
     if (receipt.version !== 1 || assets.root !== input.root || (verifyInputs && saved === null) ||
       !Array.isArray(assets.artifactDigests) || assets.artifactDigests.length === 0 ||
       !Array.isArray(assets.dependencyRealpaths) || assets.dependencyRealpaths.some(path => typeof path !== "string" || !isAbsolute(path))) return reject("Некорректные metadata receipt или другой root")
@@ -111,7 +114,7 @@ function readReceipt(
       additionalFilePaths: saved.files.map(file => file.path),
       resolutionDirectories: saved.resolutionDirectories,
     })
-    return sameStorybookBuildInputFingerprint(saved, current)
+    return BuildInputs.same(saved, current)
       ? Object.freeze({...assets, browserIdentity, cacheHit: true})
       : null
   } catch (error) { return reject(error instanceof Error ? error.message : String(error)) }

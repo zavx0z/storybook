@@ -1,0 +1,11 @@
+{
+  "name": "@build/inputs",
+  "label": "Входы сборки",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Снимки и подтверждение неизменности входов сборки",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

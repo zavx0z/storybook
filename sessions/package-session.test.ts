@@ -1,15 +1,10 @@
+import BuildInputs, {type BuildInputFingerprint as StorybookBuildInputFingerprint} from "@build/inputs"
 import {afterEach, describe, expect, test} from "bun:test"
 import {createHash} from "node:crypto"
 import {existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {STORYBOOK_PACKAGE_GRAPH_PROTOCOL, type StorybookPackageRevisionGraphSnapshot} from "./package-revision.ts"
-import {
-  parseStorybookBuildInputFingerprint,
-  sameStorybookBuildInputFingerprint,
-  STORYBOOK_BUILD_INPUT_FINGERPRINT_PROTOCOL,
-  type StorybookBuildInputFingerprint,
-} from "../build/build-input-fingerprint.ts"
 import {StorybookBuildScheduler} from "../build/build-scheduler.ts"
 import type {ProcessResourceRow} from "@process/sample"
 import {
@@ -550,7 +545,7 @@ describe("working Storybook PackageSession lifecycle", () => {
 
     const verifier: StorybookPackageInputFingerprintVerifier = (persisted, descriptor) =>
       descriptor.declarationDigest === value.declarationDigest
-        ? parseStorybookBuildInputFingerprint(persisted)
+        ? BuildInputs.parse(persisted)
         : null
     const restored = createSession(value, builder, [], {verifyInputFingerprint: verifier})
     expect(restored.snapshot()).toMatchObject({
@@ -647,7 +642,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     const restored = createSession(value, builder, [], {
       verifyInputFingerprint: (persisted) => {
         const current = currentFingerprint()
-        return sameStorybookBuildInputFingerprint(persisted, current) ? current : null
+        return BuildInputs.same(persisted, current) ? current : null
       },
     })
     expect(restored.revalidateInputs()).toBeFalse()
@@ -892,7 +887,7 @@ function fakeInputFingerprint(
   const digest = (label: string): string => createHash("sha256").update(label).digest("hex")
   const categories = {
     descriptorDigest: digest(`descriptor:${descriptorDigest}`),
-    protocol: STORYBOOK_BUILD_INPUT_FINGERPRINT_PROTOCOL,
+    protocol: BuildInputs.protocol,
     sourceDigest: digest(`source:${descriptorDigest}:${inputToken}`),
     toolchainDigest: digest("toolchain"),
     validationDigest: digest("validation"),

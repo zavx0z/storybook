@@ -1,5 +1,6 @@
 /**
-Предоставляет технические возможности исполнения работ и наблюдения процессов.
+Предоставляет технические возможности проверки входов, исполнения работ
+и наблюдения процессов.
 Предметные решения о проверке пакетов, выборе исходников и применении результата
 остаются у владельцев, использующих эти возможности.
 
@@ -13,3 +14,5 @@ export {default as ProcessResourceSampler} from "@process/sample"
 export type {ProcessSnapshot} from "@process/sample"
 export {default as measureProcessResources} from "@process/measure"
 export type {ProcessMeasureInput, MeasuredResources} from "@process/measure"
+export {default as BuildInputs} from "@build/inputs"
+export type {BuildInputFingerprint, BuildInputPlan, BuildInputPlanInput, BuildInputAttestation} from "@build/inputs"

@@ -1,3 +1,4 @@
+import BuildInputs, {type BuildInputFingerprint as StorybookBuildInputFingerprint} from "@build/inputs"
 import {checkStorybookPackageConformance, scenarioVerification} from "./package-conformance"
 import {type StorybookPackageStandard} from "../sessions/package-standard"
 import {createHash, randomUUID} from "node:crypto"
@@ -30,9 +31,6 @@ import {ensureGeneratedJsxProtocol} from "./src/generated-jsx-protocol.ts"
 import {
   beginStorybookBuildInputAttestation,
   createStorybookBuildInputFingerprintComputer,
-  parseStorybookBuildInputFingerprint,
-  sameStorybookBuildInputFingerprint,
-  type StorybookBuildInputFingerprint,
 } from "./build-input-fingerprint.ts"
 import {
   parseStorybookBuildWorkerTransportEvent,
@@ -179,7 +177,7 @@ export function createStorybookBuildInputFingerprintVerifier(
   ))
   const compute = createStorybookBuildInputFingerprintComputer()
   return (value, descriptor): StorybookBuildInputFingerprint | null => {
-    const persisted = parseStorybookBuildInputFingerprint(value)
+    const persisted = BuildInputs.parse(value)
     if (persisted === null) return null
     try {
       const current = compute({
@@ -191,7 +189,7 @@ export function createStorybookBuildInputFingerprintVerifier(
         additionalFilePaths: persisted.files.map(({path}) => path),
         resolutionDirectories: persisted.resolutionDirectories,
       })
-      return sameStorybookBuildInputFingerprint(persisted, current) ? current : null
+      return BuildInputs.same(persisted, current) ? current : null
     } catch {
       return null
     }

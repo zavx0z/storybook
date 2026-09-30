@@ -1,38 +1,21 @@
-import {createHash} from "node:crypto"
-import {
-  closeSync,
-  constants,
-  fstatSync,
-  lstatSync,
-  openSync,
-  readFileSync,
-  readdirSync,
-  realpathSync,
-  statSync,
-} from "node:fs"
-import {basename, dirname, isAbsolute, join, relative, resolve, sep} from "node:path"
+/**
+Выбирает входы пакетной сборки и общей оболочки по их фактическому compiler context.
+Проверяемое содержимое, кэш чтения и сверка изменений принадлежат BuildInputs;
+этот адаптер задаёт identity, исходники, конфигурацию, toolchain и ABI владельца.
+Состав входов и формат сохранённых свидетельств при переносе сохранены.
+
+@packageDocumentation
+*/
+import {lstatSync, readFileSync, realpathSync, statSync} from "node:fs"
+import {basename, dirname, join, relative, resolve, sep} from "node:path"
 import {fileURLToPath} from "node:url"
-import {
-  resolveStorybookPackageCompilerInputs,
-  type StorybookPackageCompilerInput,
-} from "./compiler.ts"
+import BuildInputs, {type BuildInputFingerprint, type BuildInputPlan, type BuildInputAttestation, type BuildInputScope} from "@build/inputs"
+import {resolveStorybookPackageCompilerInputs, type StorybookPackageCompilerInput} from "./compiler.ts"
 import type {StorybookPackageBuildDescriptor} from "../sessions/package-session.ts"
 import type {StorybookSharedBrowserIdentity} from "./types/shared-module-identity.ts"
 
-/** Версия persisted evidence, несовместимая с прежним списком browser metafile inputs. */
-export const STORYBOOK_BUILD_INPUT_FINGERPRINT_PROTOCOL = "storybook-build-input/2" as const
-
 const STORYBOOK_TOOL_ROOT = realpathSync(fileURLToPath(new URL("..", import.meta.url)))
-const IGNORED_DIRECTORY_NAMES = new Set([
-  ".git",
-  ".idea",
-  "node_modules",
-  ".cache",
-  ".turbo",
-  "coverage",
-  "artifacts",
-  ".artifacts",
-])
+
 const BUILD_ABI = Object.freeze({
   browserTarget: "browser",
   browserFormat: "esm",
@@ -54,74 +37,17 @@ const SHARED_BUILD_ABI = Object.freeze({
 })
 
 /**
-@property path - Канонический lexical path, входящий в owner/resolver boundary.
+Вход пакетного адаптера связывает дескриптор с фактическими путями исполнения и компиляции.
 
-@property contentDigest - SHA-256 байтов, используемый для restart comparison.
+@property descriptor - Граф, ресурсы, пути модулей и публичные имена конкретной ревизии пакета.
 
-@property size - Число прочитанных байтов.
+@property browserEntryPath - Входной модуль основного браузерного результата.
 
-@property device - Устройство открытого exact non-symlink файла во время attestation.
+@property [stagingDirectory] - Каталог результата кандидата, исключённый из входов.
 
-@property inode - Inode открытого файла во время attestation.
+@property [additionalFilePaths] - Фактические зависимости, обнаруженные компилятором.
 
-@property modifiedNs - Время изменения из того же `fstat`, что и прочитанные байты.
-*/
-export type StorybookBuildInputFile = Readonly<{
-  path: string
-  contentDigest: string
-  size: number
-  device: string
-  inode: string
-  modifiedNs: string
-}>
-
-/**
-@property protocol - Версия состава и canonical serialization fingerprint.
-
-@property digest - Итоговый cache key всех категорий; неизвестная версия всегда miss.
-
-@property descriptorDigest - Exact descriptor, graph, resources, routes и export names.
-
-@property sourceDigest - Canonical owner roots, inventory и байты source/config/resource files.
-
-@property toolchainDigest - Bun executable/version и точные TypeScript/compiler owner inputs.
-
-@property validationDigest - Build options и ABI validation/runtime protocol.
-
-@property roots - Корни owner graph; служат доказательством консервативного inventory scope.
-
-@property resolutionDirectories - Каталоги external closure, где новый соседний файл меняет resolution.
-
-@property directories - Уже посещённые каталоги source inventory и resolution closure.
-
-@property files - Exact closure и control files с полным byte evidence.
-*/
-export type StorybookBuildInputFingerprint = Readonly<{
-  protocol: typeof STORYBOOK_BUILD_INPUT_FINGERPRINT_PROTOCOL
-  digest: string
-  descriptorDigest: string
-  sourceDigest: string
-  toolchainDigest: string
-  validationDigest: string
-  roots: readonly string[]
-  resolutionDirectories: readonly string[]
-  directories: readonly string[]
-  files: readonly StorybookBuildInputFile[]
-}>
-
-/**
-Package adapter input совпадает с фактическими entry/protocol/compiler путями.
-
-@property descriptor - Exact graph, resources, module paths и export names package revision.
-
-@property browserEntryPath - Host entry основного browser bundle.
-
-
-@property [stagingDirectory] - Candidate output, исключённый из source inventory.
-
-@property [additionalFilePaths] - Фактическая main/protocol metafile closure.
-
-@property [resolutionDirectories] - Persisted external directories при повторной проверке receipt.
+@property [resolutionDirectories] - Сохранённые внешние каталоги разрешения модулей для повторной проверки.
 */
 export type StorybookBuildInputFingerprintRequest = Readonly<{
   descriptor: StorybookPackageBuildDescriptor
@@ -132,87 +58,27 @@ export type StorybookBuildInputFingerprintRequest = Readonly<{
   resolutionDirectories?: readonly string[]
 }>
 
-/** Reusable resident computer дедуплицирует чтение общих owner/toolchain bytes при restore. */
+/** Проверка нескольких пакетов переиспользует байты общих исходников и инструментов. */
 export type StorybookBuildInputFingerprintComputer = (
   input: StorybookBuildInputFingerprintRequest,
-) => StorybookBuildInputFingerprint
+) => BuildInputFingerprint
 
 /**
-@property identity - JSON-like owner contract, хешируемый как прежний `descriptorDigest`.
+Адаптер общей оболочки задаёт её собственные входы без фиктивного дескриптора пакета.
 
-@property scope - Канонические owner roots, exact files и output exclusions.
+@property toolRoot - Корень владельца компилятора и входных модулей общей оболочки.
 
-@property compilerAdapterPath - Exact compiler plugin entry, входящий в toolchain digest.
+@property landingEntryPath - Вход главной страницы.
 
-@property toolchainFiles - Exact runtime/compiler files установленного toolchain.
+@property fallbackEntryPath - Вход страницы до применения пакетной ревизии.
 
-@property validationAbi - Build options и protocol constants конкретного владельца.
-*/
-export type StorybookBuildInputFingerprintPlan = Readonly<{
-  identity: unknown
-  scope: StorybookBuildInputScope
-  compilerAdapterPath: string
-  toolchainFiles: readonly string[]
-  validationAbi: Readonly<Record<string, unknown>>
-}>
+@property [stagingDirectory] - Каталог кандидата текущей общей сборки.
 
-/**
-Raw plan input позволяет package и shared adapters использовать один fingerprint core.
+@property [outputDirectory] - Каталог сохранённых ресурсов оболочки, исключённый из входов.
 
-@property identity - Декларативные входы владельца без output state.
+@property [additionalFilePaths] - Фактические зависимости общей оболочки из metafile.
 
-@property roots - Owner roots полного снимка путей.
-
-@property compilerRoots - TypeScript semantic roots, чьи source bytes влияют на compiler.
-
-@property [guardRoots] - Предварительные roots legitimate resolver output без inventory crawl.
-
-@property files - Exact entry/config/resource/closure files.
-
-@property compilerAdapterPath - Публичный adapter фактически выбранного compiler plugin.
-
-@property toolchainFiles - Exact installed toolchain entries вне owner inventory.
-
-@property validationAbi - Build/protocol options, которые меняют смысл успешной проверки.
-
-@property [excludedRoots] - Output/candidate roots текущей операции.
-
-@property [resolutionDirectories] - Persisted external resolution directories.
-*/
-export type StorybookBuildInputFingerprintPlanInput = Readonly<{
-  identity: unknown
-  roots: readonly string[]
-  guardRoots?: readonly string[]
-  compilerRoots: readonly string[]
-  files: readonly string[]
-  compilerAdapterPath: string
-  toolchainFiles: readonly string[]
-  validationAbi: Readonly<Record<string, unknown>>
-  excludedRoots?: readonly string[]
-  resolutionDirectories?: readonly string[]
-}>
-
-/** Reusable computer одного bounded pass принимает уже owner-specific plan. */
-export type StorybookBuildInputFingerprintPlanComputer = (
-  plan: StorybookBuildInputFingerprintPlan,
-) => StorybookBuildInputFingerprint
-
-/**
-Shared adapter не подменяет package descriptor или runtime protocol.
-
-@property toolRoot - Exact owner compiler и обоих browser entrypoints.
-
-@property landingEntryPath - Entry общей landing page.
-
-@property fallbackEntryPath - Entry fallback page до package activation.
-
-@property [stagingDirectory] - Candidate output текущей shared operation.
-
-@property [outputDirectory] - Persisted shared assets/receipt root, исключённый из inputs.
-
-@property [additionalFilePaths] - Фактическая shared metafile closure.
-
-@property [resolutionDirectories] - Persisted external resolution directories.
+@property [resolutionDirectories] - Сохранённые внешние каталоги разрешения модулей.
 */
 export type StorybookSharedBuildInputFingerprintRequest = Readonly<{
   toolRoot: string
@@ -227,99 +93,22 @@ export type StorybookSharedBuildInputFingerprintRequest = Readonly<{
 }>
 
 /**
-@property roots - Минимизированные canonical owner roots для снимка исходников.
+Определяет консервативную область исходников без запуска дочернего компилятора.
 
-@property guardRoots - Inventory roots плюс известные npm resolution roots для проверки допустимых зависимостей.
-
-@property files - Exact inputs вне либо внутри roots, которые нельзя потерять из fingerprint.
-
-@property compilerRoots - Узкие implementation roots compiler plugins, хешируемые целиком.
-
-@property resolutionDirectories - External каталоги, исключённые из полного owner inventory.
-
-@property excludedRoots - Candidate artifacts текущей операции, создаваемые самой сборкой.
-*/
-export type StorybookBuildInputScope = Readonly<{
-  roots: readonly string[]
-  guardRoots: readonly string[]
-  files: readonly string[]
-  compilerRoots: readonly string[]
-  resolutionDirectories: readonly string[]
-  excludedRoots: readonly string[]
-}>
-
-/**
-Сессия attestation сверяет входы на границах проверки и сборки.
-
-`complete` возвращает evidence при совпадении байтов, состава и stat identity
-входных файлов до и после операции. Любая неопределённость
-завершает cold build ошибкой вместо публикации ложного cache key.
-*/
-export type StorybookBuildInputAttestation = Readonly<{
-  before: StorybookBuildInputFingerprint
-  complete(additionalFilePaths?: readonly string[]): Promise<StorybookBuildInputFingerprint>
-  dispose(): void
-}>
-
-/**
-Определяет консервативный owner/source scope без запуска compiler child.
-
-Корни берутся из того же resolver/compiler context, что plugin setup. Отдельно
-добавляются browser host, runtime protocol, Bun executable и TypeScript entry.
-`node_modules` внутри owner roots не обходится; exact toolchain files добавляются
-явно. Текущий staging всегда исключён как output, а не build input.
+Корни берутся из того же контекста разрешения модулей, что и плагины компилятора.
+Входной модуль браузера и файлы инструментов добавляются явно. Вложенный
+`node_modules` не обходится целиком. Каталог кандидата исключается как результат.
 */
 export function resolveStorybookBuildInputScope(
   input: StorybookBuildInputFingerprintRequest,
-): StorybookBuildInputScope {
+): BuildInputScope {
   return resolveStorybookPackageBuildInputFingerprintPlan(input).scope
 }
 
-/** Канонизирует generic plan до вычисления digest. */
-export function createStorybookBuildInputFingerprintPlan(
-  input: StorybookBuildInputFingerprintPlanInput,
-): StorybookBuildInputFingerprintPlan {
-  if (!isObject(input.validationAbi)) {
-    throw new TypeError("Storybook build input validationAbi must be an object")
-  }
-  const roots = minimalRoots(input.roots.map(canonicalDirectory))
-  const guardRoots = minimalGuardRoots([
-    ...roots,
-    ...(input.guardRoots ?? []).map(canonicalDirectory),
-  ])
-  const compilerAdapterPath = canonicalExactFile(input.compilerAdapterPath)
-  const toolchain = input.toolchainFiles.map(canonicalExactFile)
-  const files = [
-    ...input.files,
-    compilerAdapterPath,
-    ...toolchain,
-  ].map(canonicalExactFile)
-  const compilerRoots = minimalRoots(input.compilerRoots.map(canonicalDirectory))
-  const excludedRoots = Object.freeze((input.excludedRoots ?? []).map(canonicalFuturePath).sort(comparePaths))
-  const resolutionDirectories = Object.freeze([...new Set([
-    ...(input.resolutionDirectories ?? []).map(canonicalDirectory),
-    ...files.flatMap((path) => coveredByInventory(roots, path) ? [] : resolutionAncestors(path)),
-  ])].sort(comparePaths))
-  return Object.freeze({
-    identity: input.identity,
-    scope: Object.freeze({
-      roots,
-      guardRoots,
-      files: Object.freeze([...new Set(files)].sort(comparePaths)),
-      compilerRoots,
-      resolutionDirectories,
-      excludedRoots,
-    }),
-    compilerAdapterPath,
-    toolchainFiles: Object.freeze([...new Set(toolchain)].sort(comparePaths)),
-    validationAbi: Object.freeze({...input.validationAbi}),
-  })
-}
-
-/** Создаёт package-specific plan, сохраняя существующую fingerprint semantics. */
+/** Задаёт план проверки пакета из дескриптора и выбранного контекста компилятора. */
 export function resolveStorybookPackageBuildInputFingerprintPlan(
   input: StorybookBuildInputFingerprintRequest,
-): StorybookBuildInputFingerprintPlan {
+): BuildInputPlan {
   const descriptor = input.descriptor
   const moduleSourcePaths = (descriptor.scenarioSpecs ?? []).flatMap(({sourcePaths}) => sourcePaths)
   const compilerInput: StorybookPackageCompilerInput = {
@@ -334,7 +123,7 @@ export function resolveStorybookPackageBuildInputFingerprintPlan(
     descriptor.packageRoot,
     STORYBOOK_TOOL_ROOT,
   ]
-  return createStorybookBuildInputFingerprintPlan({
+  return BuildInputs.plan({
     identity: descriptor,
     roots: ownerRoots,
     guardRoots: workspaceResolutionGuardRoots(ownerRoots),
@@ -369,14 +158,14 @@ export function resolveStorybookPackageBuildInputFingerprintPlan(
 }
 
 /**
-Создаёт shared plan по двум реальным entrypoints и тому же compiler context.
+Задаёт план общей оболочки по её входным модулям и контексту компилятора.
 
-Identity не содержит output root и package runtime fields: shared wrapper может
-сохранить fingerprint рядом со своими assets без фиктивного package descriptor.
+Идентичность не содержит каталога результата и пакетных полей исполнения.
+Оболочка сохраняет собственное свидетельство без фиктивного дескриптора пакета.
 */
 export function resolveStorybookSharedBuildInputFingerprintPlan(
   input: StorybookSharedBuildInputFingerprintRequest,
-): StorybookBuildInputFingerprintPlan {
+): BuildInputPlan {
   const toolRoot = canonicalDirectory(input.toolRoot)
   const entrypoints = [
     input.landingEntryPath,
@@ -389,7 +178,7 @@ export function resolveStorybookSharedBuildInputFingerprintPlan(
     moduleSourcePaths: entrypoints,
   })
   const ownerRoots = [...compiler.sourceRoots, toolRoot]
-  return createStorybookBuildInputFingerprintPlan({
+  return BuildInputs.plan({
     identity: {
       owner: "shared-browser",
       ...(input.sharedKernel === undefined ? {} : {sharedKernel: input.sharedKernel.epoch}),
@@ -421,473 +210,56 @@ export function resolveStorybookSharedBuildInputFingerprintPlan(
 }
 
 /**
-Вычисляет restart-comparable fingerprint в resident процессе без compiler worker.
+Вычисляет сравнимое после перезапуска свидетельство без процесса компилятора.
 
 Идентичность inode/mtime сохраняется как build-time evidence, но итоговый digest
-основан на canonical path и байтах: безопасная замена exact файла теми же байтами
-не создаёт ложный miss после restart.
+основан на канонических путях и байтах: безопасная замена файла теми же байтами
+сохраняет возможность повторного использования результата после перезапуска.
 */
 export function computeStorybookBuildInputFingerprint(
   input: StorybookBuildInputFingerprintRequest,
-): StorybookBuildInputFingerprint {
-  return computeStorybookBuildInputFingerprintPlan(resolveStorybookPackageBuildInputFingerprintPlan(input))
-}
-
-/** Вычисляет fingerprint уже канонизированного owner-specific plan. */
-export function computeStorybookBuildInputFingerprintPlan(
-  plan: StorybookBuildInputFingerprintPlan,
-): StorybookBuildInputFingerprint {
-  return computeFingerprint(plan)
+): BuildInputFingerprint {
+  return BuildInputs.read(resolveStorybookPackageBuildInputFingerprintPlan(input))
 }
 
 /**
-Создаёт computer для одного bounded receipt-verification pass.
+Создаёт читатель для одного ограниченного прохода проверки сохранённых свидетельств.
 
-Общие файлы десятков package descriptors повторно проверяются через stat identity,
-но их байты хешируются один раз. Кэш не используется build attestation и повторно
+Общие файлы разных пакетов повторно проверяются через файловые метки,
+но их байты хешируются один раз. Сверка входов до и после сборки этот кэш не использует. Читатель повторно
 читает файл при изменении dev/inode/size/mtime/ctime.
 */
 export function createStorybookBuildInputFingerprintComputer(): StorybookBuildInputFingerprintComputer {
-  const compute = createStorybookBuildInputFingerprintPlanComputer()
-  return (input): StorybookBuildInputFingerprint => compute(
+  const reader = new BuildInputs()
+  return (input): BuildInputFingerprint => reader.read(
     resolveStorybookPackageBuildInputFingerprintPlan(input),
   )
 }
 
-/** Создаёт reusable computer для package или shared plans одного verification pass. */
-export function createStorybookBuildInputFingerprintPlanComputer(): StorybookBuildInputFingerprintPlanComputer {
-  const cache: FingerprintComputationCache = {
-    files: new Map(),
-    inventories: new Map(),
-  }
-  return (plan): StorybookBuildInputFingerprint => computeFingerprint(plan, cache)
-}
-
-/** Вычисляет shared fingerprint без package descriptor. */
+/** Вычисляет свидетельство общей оболочки по её собственному плану. */
 export function computeStorybookSharedBuildInputFingerprint(
   input: StorybookSharedBuildInputFingerprintRequest,
-): StorybookBuildInputFingerprint {
-  return computeStorybookBuildInputFingerprintPlan(resolveStorybookSharedBuildInputFingerprintPlan(input))
+): BuildInputFingerprint {
+  return BuildInputs.read(resolveStorybookSharedBuildInputFingerprintPlan(input))
 }
 
 /** Фиксирует входы перед проверкой и сверяет их после сборки без наблюдателей файловой системы. */
 export async function beginStorybookBuildInputAttestation(
   input: StorybookBuildInputFingerprintRequest,
-): Promise<StorybookBuildInputAttestation> {
-  return beginStorybookBuildInputPlanAttestation(resolveStorybookPackageBuildInputFingerprintPlan(input))
+): Promise<BuildInputAttestation> {
+  return BuildInputs.attest(resolveStorybookPackageBuildInputFingerprintPlan(input))
 }
 
-/** Shared wrapper использует ту же concurrent-change attestation по своему plan. */
+/** Сверяет входы общей оболочки тем же механизмом до и после её подготовки. */
 export async function beginStorybookSharedBuildInputAttestation(
   input: StorybookSharedBuildInputFingerprintRequest,
-): Promise<StorybookBuildInputAttestation> {
-  return beginStorybookBuildInputPlanAttestation(resolveStorybookSharedBuildInputFingerprintPlan(input))
+): Promise<BuildInputAttestation> {
+  return BuildInputs.attest(resolveStorybookSharedBuildInputFingerprintPlan(input))
 }
 
-/** Фиксирует содержимое и stat identity входов на границах одной явной проверки. */
-export async function beginStorybookBuildInputPlanAttestation(
-  plan: StorybookBuildInputFingerprintPlan,
-): Promise<StorybookBuildInputAttestation> {
-  const started = BigInt(Date.now()) * 1_000_000n
-  const before = computeFingerprint(plan)
-  const paths = new Set([...scopeInventory(plan.scope).paths, ...before.files.map(file => file.path)])
-  const markers = new Map([...paths].map(path => [path, inputMarker(path)]))
-  let finished = false
-  return Object.freeze({
-    before,
-    async complete(additionalFilePaths: readonly string[] = []): Promise<StorybookBuildInputFingerprint> {
-      if (finished) throw new Error("Storybook build input attestation is already complete")
-      finished = true
-      const additional = additionalFilePaths.map(canonicalExactFile)
-      const outside = additional.find(path => !plan.scope.guardRoots.some(root => inside(root, path)))
-      if (outside) throw new Error(`Storybook compiled input escaped attested owner roots: ${outside}`)
-      const after = computeFingerprint(plan)
-      for (const [path, marker] of markers) {
-        if (inputMarker(path) !== marker) throw concurrentChangeError(path)
-      }
-      if (!sameStorybookBuildInputFingerprint(before, after)) {
-        const added = scopeInventory(plan.scope).paths.find(path => !paths.has(path))
-        throw concurrentChangeError(added)
-      }
-      for (const path of additional) {
-        if (!markers.has(path) && statSync(path, {bigint: true}).ctimeNs >= started) throw concurrentChangeError(path)
-      }
-      const final = additional.length === 0 ? after
-        : computeFingerprint(extendStorybookBuildInputFingerprintPlan(plan, additional))
-      for (const [path, marker] of markers) {
-        if (inputMarker(path) !== marker) throw concurrentChangeError(path)
-      }
-      return final
-    },
-    dispose(): void { finished = true },
-  })
-}
+let resolvedToolchainFiles: readonly string[] | null = null
 
-/** Замена файла и возврат прежних байтов остаются изменением проверяемого состояния. */
-function inputMarker(path: string): string {
-  try {
-    const value = lstatSync(path, {bigint: true})
-    return [value.dev, value.ino, value.size, value.mtimeNs, value.ctimeNs].join(":")
-  } catch { return "missing" }
-}
-
-/** Добавляет attested metafile closure, не меняя identity/toolchain/ABI владельца. */
-function extendStorybookBuildInputFingerprintPlan(
-  plan: StorybookBuildInputFingerprintPlan,
-  additionalFilePaths: readonly string[],
-): StorybookBuildInputFingerprintPlan {
-  return createStorybookBuildInputFingerprintPlan({
-    identity: plan.identity,
-    roots: plan.scope.roots,
-    guardRoots: plan.scope.guardRoots,
-    compilerRoots: plan.scope.compilerRoots,
-    files: [...plan.scope.files, ...additionalFilePaths],
-    compilerAdapterPath: plan.compilerAdapterPath,
-    toolchainFiles: plan.toolchainFiles,
-    validationAbi: plan.validationAbi,
-    excludedRoots: plan.scope.excludedRoots,
-    resolutionDirectories: plan.scope.resolutionDirectories,
-  })
-}
-
-
-
-/** Unknown, missing или old evidence никогда не считается cache hit. */
-export function parseStorybookBuildInputFingerprint(
-  value: unknown,
-): StorybookBuildInputFingerprint | null {
-  if (!isObject(value) || value.protocol !== STORYBOOK_BUILD_INPUT_FINGERPRINT_PROTOCOL ||
-    !digest(value.digest) || !digest(value.descriptorDigest) || !digest(value.sourceDigest) ||
-    !digest(value.toolchainDigest) || !digest(value.validationDigest) ||
-    !canonicalPathList(value.roots) ||
-    !canonicalPathList(value.resolutionDirectories) ||
-    !canonicalPathList(value.directories) ||
-    !Array.isArray(value.files)) return null
-  const files = value.files.flatMap((candidate) => {
-    if (!isObject(candidate) || !isAbsoluteString(candidate.path) || !digest(candidate.contentDigest) ||
-      !Number.isSafeInteger(candidate.size) || Number(candidate.size) < 0 ||
-      !decimal(candidate.device) || !decimal(candidate.inode) || !decimal(candidate.modifiedNs)) return []
-    return [Object.freeze({
-      path: candidate.path,
-      contentDigest: candidate.contentDigest,
-      size: Number(candidate.size),
-      device: candidate.device,
-      inode: candidate.inode,
-      modifiedNs: candidate.modifiedNs,
-    })]
-  })
-  if (files.length !== value.files.length) return null
-  const expectedDigest = hash(stableStringify({
-    protocol: STORYBOOK_BUILD_INPUT_FINGERPRINT_PROTOCOL,
-    descriptorDigest: value.descriptorDigest,
-    sourceDigest: value.sourceDigest,
-    toolchainDigest: value.toolchainDigest,
-    validationDigest: value.validationDigest,
-  }))
-  if (value.digest !== expectedDigest) return null
-  return Object.freeze({
-    protocol: STORYBOOK_BUILD_INPUT_FINGERPRINT_PROTOCOL,
-    digest: value.digest,
-    descriptorDigest: value.descriptorDigest,
-    sourceDigest: value.sourceDigest,
-    toolchainDigest: value.toolchainDigest,
-    validationDigest: value.validationDigest,
-    roots: Object.freeze([...value.roots]),
-    resolutionDirectories: Object.freeze([...value.resolutionDirectories]),
-    directories: Object.freeze([...value.directories]),
-    files: Object.freeze(files),
-  })
-}
-
-/**
-Возвращает пути проверенных входов для явной сверки общей оболочки.
-
-Файлы определяют содержимое, а директории — создание, удаление и смену
-resolution candidates. Helper не открывает compiler context и не повторяет
-inventory policy; invalid/old evidence возвращает `null`.
-*/
-export function storybookBuildInputPaths(
-  value: unknown,
-): readonly string[] | null {
-  const fingerprint = parseStorybookBuildInputFingerprint(value)
-  if (fingerprint === null) return null
-  return Object.freeze([...new Set([
-    ...fingerprint.files.map(({path}) => path),
-    ...fingerprint.directories,
-  ])].sort(comparePaths))
-}
-
-/** Сравнивает только валидное versioned evidence; inode/mtime не являются restart key. */
-export function sameStorybookBuildInputFingerprint(left: unknown, right: unknown): boolean {
-  const first = parseStorybookBuildInputFingerprint(left)
-  const second = parseStorybookBuildInputFingerprint(right)
-  return first !== null && second !== null &&
-    first.digest === second.digest &&
-    first.descriptorDigest === second.descriptorDigest &&
-    first.sourceDigest === second.sourceDigest &&
-    first.toolchainDigest === second.toolchainDigest &&
-    first.validationDigest === second.validationDigest
-}
-
-/** Строит category digests из одного отсортированного snapshot файлов. */
-function computeFingerprint(
-  plan: StorybookBuildInputFingerprintPlan,
-  cache?: FingerprintComputationCache,
-  trustCache = false,
-): StorybookBuildInputFingerprint {
-  const scope = plan.scope
-  const filePaths = new Set(scope.files)
-  const inventory = scopeInventory(scope, cache, trustCache)
-  for (const path of inventory.evidencePaths) filePaths.add(path)
-  const files = Object.freeze([...filePaths]
-    .filter((path) => !excluded(path, scope.excludedRoots))
-    .sort(comparePaths)
-    .map((path) => cache === undefined ? readExactFile(path) : readCachedFile(path, cache.files, trustCache)))
-  const descriptorDigest = hash(stableStringify(plan.identity))
-  const resolutionInventory = scope.resolutionDirectories.map(readDirectoryInventory)
-  const directories = Object.freeze([...new Set([
-    ...inventory.directories.map(({path}) => path),
-    ...scope.resolutionDirectories,
-  ])].sort(comparePaths))
-  const sourceDigest = hash(stableStringify({
-    roots: scope.roots,
-    inventory: inventory.paths,
-    resolutionDirectories: resolutionInventory,
-    files: files.map(({path, contentDigest, size}) => ({path, contentDigest, size})),
-  }))
-  const toolchainDigest = hash(stableStringify({
-    bun: Bun.version,
-    executable: readCachedToolchainFile(process.execPath),
-    typescript: plan.toolchainFiles.map(readCachedToolchainFile),
-    adapter: files.find(({path}) => path === plan.compilerAdapterPath)?.contentDigest ?? null,
-  }))
-  const validationDigest = hash(stableStringify({
-    fingerprint: STORYBOOK_BUILD_INPUT_FINGERPRINT_PROTOCOL,
-    ...plan.validationAbi,
-  }))
-  const result = {
-    protocol: STORYBOOK_BUILD_INPUT_FINGERPRINT_PROTOCOL,
-    descriptorDigest,
-    sourceDigest,
-    toolchainDigest,
-    validationDigest,
-    roots: scope.roots,
-    resolutionDirectories: scope.resolutionDirectories,
-    directories,
-    files,
-  } as const
-  const digestValue = hash(stableStringify({
-    protocol: STORYBOOK_BUILD_INPUT_FINGERPRINT_PROTOCOL,
-    descriptorDigest,
-    sourceDigest,
-    toolchainDigest,
-    validationDigest,
-  }))
-  return Object.freeze({
-    ...result,
-    digest: digestValue,
-  })
-}
-
-/** Kernel identity cache дополнительно хранит ctime, не входящий в restart digest. */
-type CachedFileEvidence = Readonly<{
-  evidence: StorybookBuildInputFile
-  changedNs: string
-}>
-
-/** Directory marker доказывает, что cached path inventory не изменился. */
-type CachedDirectoryEvidence = Readonly<{
-  path: string
-  device: string
-  inode: string
-  modifiedNs: string
-  changedNs: string
-}>
-
-/** Один cached inventory остаётся валиден только при совпадении всех directory markers. */
-type CachedInventory = Readonly<{
-  paths: readonly string[]
-  evidencePaths: readonly string[]
-  directories: readonly CachedDirectoryEvidence[]
-}>
-
-/** Reusable verifier cache отделяет file bytes от directory inventory. */
-type FingerprintComputationCache = {
-  files: Map<string, CachedFileEvidence>
-  inventories: Map<string, CachedInventory>
-}
-
-/** Повторно использует inventory одинакового owner scope после дешёвой проверки каталогов. */
-function scopeInventory(
-  scope: StorybookBuildInputScope,
-  cache?: FingerprintComputationCache,
-  trustCache = false,
-): CachedInventory {
-  const key = stableStringify({
-    roots: scope.roots,
-    compilerRoots: scope.compilerRoots,
-    excludedRoots: scope.excludedRoots,
-  })
-  const cached = cache?.inventories.get(key)
-  if (cached !== undefined && (trustCache || cached.directories.every(sameDirectoryEvidence))) return cached
-  const paths = new Set<string>()
-  const evidencePaths = new Set<string>()
-  const directories: CachedDirectoryEvidence[] = []
-  for (const root of scope.roots) {
-    collectInventory(root, scope.compilerRoots, scope.excludedRoots, paths, evidencePaths, directories)
-  }
-  const inventory = Object.freeze({
-    paths: Object.freeze([...paths].sort(comparePaths)),
-    evidencePaths: Object.freeze([...evidencePaths].sort(comparePaths)),
-    directories: Object.freeze(directories.sort((left, right) => comparePaths(left.path, right.path))),
-  })
-  cache?.inventories.set(key, inventory)
-  return inventory
-}
-
-/** Сверяет cached directory без чтения всех дочерних entries. */
-function sameDirectoryEvidence(evidence: CachedDirectoryEvidence): boolean {
-  try {
-    const current = statSync(evidence.path, {bigint: true})
-    return current.isDirectory() && evidence.device === current.dev.toString() &&
-      evidence.inode === current.ino.toString() && evidence.modifiedNs === current.mtimeNs.toString() &&
-      evidence.changedNs === current.ctimeNs.toString()
-  } catch {
-    return false
-  }
-}
-
-/** Сравнивает два kernel snapshot одного каталога внутри одного inventory pass. */
-function sameDirectoryMarkers(
-  left: CachedDirectoryEvidence,
-  right: CachedDirectoryEvidence,
-): boolean {
-  return left.path === right.path && left.device === right.device && left.inode === right.inode &&
-    left.modifiedNs === right.modifiedNs && left.changedNs === right.changedNs
-}
-
-/** Снимает kernel markers каталога после чтения его entries. */
-function directoryEvidence(path: string): CachedDirectoryEvidence {
-  const value = statSync(path, {bigint: true})
-  if (!value.isDirectory()) throw new Error(`Storybook fingerprint inventory root is not a directory: ${path}`)
-  return Object.freeze({
-    path,
-    device: value.dev.toString(),
-    inode: value.ino.toString(),
-    modifiedNs: value.mtimeNs.toString(),
-    changedNs: value.ctimeNs.toString(),
-  })
-}
-
-/** Повторно использует bytes только пока все kernel change markers совпадают. */
-function readCachedFile(
-  path: string,
-  cache: Map<string, CachedFileEvidence>,
-  trustCache = false,
-): StorybookBuildInputFile {
-  const canonical = canonicalExactFile(path)
-  const cached = cache.get(canonical)
-  if (trustCache && cached !== undefined) return cached.evidence
-  const current = statSync(canonical, {bigint: true})
-  if (cached !== undefined && cached.evidence.device === current.dev.toString() &&
-    cached.evidence.inode === current.ino.toString() && cached.evidence.size === Number(current.size) &&
-    cached.evidence.modifiedNs === current.mtimeNs.toString() && cached.changedNs === current.ctimeNs.toString()) {
-    return cached.evidence
-  }
-  const evidence = readExactFile(canonical)
-  const verified = statSync(canonical, {bigint: true})
-  cache.set(canonical, Object.freeze({evidence, changedNs: verified.ctimeNs.toString()}))
-  return evidence
-}
-
-/** Рекурсивно собирает bounded owner inventory, не заходя в ambient install/cache roots. */
-function collectInventory(
-  root: string,
-  compilerRoots: readonly string[],
-  excludedRoots: readonly string[],
-  inventory: Set<string>,
-  evidence: Set<string>,
-  directories: CachedDirectoryEvidence[],
-): void {
-  const visit = (directory: string): void => {
-    if (excluded(directory, excludedRoots)) return
-    const before = directoryEvidence(directory)
-    for (const entry of readdirSync(directory, {withFileTypes: true}).sort((left, right) =>
-      comparePaths(left.name, right.name))) {
-      if (entry.isSymbolicLink()) {
-        inventory.add(join(directory, entry.name))
-        continue
-      }
-      if (entry.isDirectory() && ignoredDirectoryName(entry.name)) continue
-      const path = join(directory, entry.name)
-      if (excluded(path, excludedRoots)) continue
-      if (entry.isDirectory()) visit(path)
-      else if (entry.isFile()) {
-        inventory.add(path)
-        if ((compilerRoots.some((compilerRoot) => inside(compilerRoot, path)) && compilerSemanticFile(entry.name)) ||
-          controlFile(entry.name)) {
-          evidence.add(path)
-        }
-      }
-    }
-    const after = directoryEvidence(directory)
-    if (!sameDirectoryMarkers(before, after)) throw concurrentChangeError(directory)
-    directories.push(after)
-  }
-  visit(root)
-}
-
-/** Хеширует содержимое resolver/config/lock inputs независимо от main metafile. */
-function controlFile(name: string): boolean {
-  return name === "package.json" || name === "bun.lock" || name === "bun.lockb" ||
-    name === "bunfig.toml" || name === "package-lock.json" || name === "pnpm-lock.yaml" ||
-    name === "yarn.lock" || name === ".npmrc" || /^(?:ts|js)config(?:\.[^.]+)?\.json$/u.test(name)
-}
-
-/** Совпадает с source inventory, который Template plugin передаёт TypeScript session. */
-function compilerSemanticFile(name: string): boolean {
-  return /\.(?:[cm]?[jt]sx?|[cm][jt]sx?)$/u.test(name)
-}
-
-/** Проверяет, входит ли exact file в полный inventory без ambient exclusions. */
-function coveredByInventory(roots: readonly string[], path: string): boolean {
-  return roots.some((root) => inside(root, path) && !ignoredRelativePath(root, path))
-}
-
-/**
-Возвращает resolution directories external файла до ближайшего package owner.
-
-Для файла вне package достаточно его непосредственного каталога. Для ambient
-`node_modules` добавляется цепочка до каталога с `package.json`, чтобы появление
-соседнего extension/index/export candidate инвалидировало persisted evidence.
-*/
-function resolutionAncestors(path: string): readonly string[] {
-  const first = canonicalDirectory(dirname(path))
-  const output = [first]
-  if (!first.split(sep).includes("node_modules")) return Object.freeze(output)
-  let directory = first
-  for (let depth = 0; depth < 16; depth += 1) {
-    if (lstatFile(join(directory, "package.json"))) break
-    const parent = dirname(directory)
-    if (parent === directory) break
-    directory = canonicalDirectory(parent)
-    output.push(directory)
-  }
-  return Object.freeze(output)
-}
-
-/** Читает имена и виды direct entries между двумя одинаковыми directory snapshots. */
-function readDirectoryInventory(path: string): Readonly<{path: string; entries: readonly string[]}> {
-  const before = directoryEvidence(path)
-  const entries = readdirSync(path, {withFileTypes: true})
-    .map((entry) => `${entry.isDirectory() ? "d" : entry.isFile() ? "f" : entry.isSymbolicLink() ? "l" : "o"}:${entry.name}`)
-    .sort(comparePaths)
-  const after = directoryEvidence(path)
-  if (!sameDirectoryMarkers(before, after)) throw concurrentChangeError(path)
-  return Object.freeze({path, entries: Object.freeze(entries)})
-}
-
-/** Находит package owner compiler adapter, не включая весь соседний monorepo. */
+/** Находит владельца адаптера компилятора, не включая соседний монорепозиторий целиком. */
 function compilerOwnerRoot(adapterPath: string): string {
   let directory = dirname(adapterPath)
   while (true) {
@@ -921,7 +293,7 @@ function workspaceResolutionGuardRoots(ownerRoots: readonly string[]): readonly 
       directory = parent
     }
   }
-  return minimalGuardRoots([...guards])
+  return Object.freeze([...guards])
 }
 
 /** Возвращает ближайший checkout root, не переходя к соседним repositories. */
@@ -954,53 +326,7 @@ function pathExists(path: string): boolean {
   }
 }
 
-/** Читает bytes через O_NOFOLLOW и сверяет identity до/после чтения. */
-function readExactFile(path: string): StorybookBuildInputFile {
-  const canonical = canonicalExactFile(path)
-  const descriptor = openSync(canonical, constants.O_RDONLY | constants.O_NOFOLLOW)
-  try {
-    const before = fstatSync(descriptor, {bigint: true})
-    const bytes = readFileSync(descriptor)
-    const after = fstatSync(descriptor, {bigint: true})
-    const current = statSync(canonical, {bigint: true})
-    if (!before.isFile() || before.dev !== after.dev || before.ino !== after.ino ||
-      before.size !== after.size || before.mtimeNs !== after.mtimeNs ||
-      after.dev !== current.dev || after.ino !== current.ino) {
-      throw concurrentChangeError(canonical)
-    }
-    return Object.freeze({
-      path: canonical,
-      contentDigest: createHash("sha256").update(bytes).digest("hex"),
-      size: Number(after.size),
-      device: after.dev.toString(),
-      inode: after.ino.toString(),
-      modifiedNs: after.mtimeNs.toString(),
-    })
-  } finally {
-    closeSync(descriptor)
-  }
-}
-
-
-const toolchainEvidence = new Map<string, StorybookBuildInputFile>()
-
-/** Кэширует immutable toolchain bytes по kernel identity, не consumer sources. */
-function readCachedToolchainFile(path: string): Pick<StorybookBuildInputFile, "path" | "contentDigest" | "size"> {
-  const canonical = canonicalExactFile(path)
-  const current = statSync(canonical, {bigint: true})
-  const cached = toolchainEvidence.get(canonical)
-  const evidence = cached !== undefined && cached.device === current.dev.toString() &&
-    cached.inode === current.ino.toString() && cached.modifiedNs === current.mtimeNs.toString() &&
-    cached.size === Number(current.size)
-    ? cached
-    : readExactFile(canonical)
-  toolchainEvidence.set(canonical, evidence)
-  return Object.freeze({path: evidence.path, contentDigest: evidence.contentDigest, size: evidence.size})
-}
-
-let resolvedToolchainFiles: readonly string[] | null = null
-
-/** Находит package manifest и runtime entry фактически установленного TypeScript. */
+/** Находит манифест и вход фактически установленного TypeScript. */
 function toolchainFiles(): readonly string[] {
   if (resolvedToolchainFiles !== null) return resolvedToolchainFiles
   const entry = canonicalExactFile(Bun.resolveSync("typescript", STORYBOOK_TOOL_ROOT))
@@ -1021,26 +347,7 @@ function toolchainFiles(): readonly string[] {
   throw new Error(`Cannot find TypeScript toolchain owner for ${entry}`)
 }
 
-
-
-/** Удаляет вложенные roots, уже полностью покрытые родительским inventory. */
-function minimalRoots(values: readonly string[]): readonly string[] {
-  const roots = [...new Set(values)].sort((left, right) => left.length - right.length || comparePaths(left, right))
-  return Object.freeze(roots.filter((candidate, index) =>
-    !roots.slice(0, index).some((root) => inside(root, candidate) && !ignoredRelativePath(root, candidate)))
-    .sort(comparePaths))
-}
-
-/** Удаляет вложенные корни допустимых зависимостей. */
-function minimalGuardRoots(values: readonly string[]): readonly string[] {
-  const roots = [...new Set(values)].sort((left, right) => left.length - right.length || comparePaths(left, right))
-  return Object.freeze(roots.filter((candidate, index) =>
-    !roots.slice(0, index).some((root) => inside(root, candidate) &&
-      (!ignoredRelativePath(root, candidate) || basename(root) === "node_modules")))
-    .sort(comparePaths))
-}
-
-/** Проверяет exact regular file без следования последнему symlink segment. */
+/** Проверяет обычный файл без следования символьной ссылке в последнем сегменте. */
 function canonicalExactFile(value: string): string {
   const parent = realpathSync.native(dirname(resolve(value)))
   const path = join(parent, basename(value))
@@ -1051,20 +358,14 @@ function canonicalExactFile(value: string): string {
   return path
 }
 
-/** Проверяет существующий canonical directory root. */
+/** Разрешает существующий каталог в его канонический физический путь. */
 function canonicalDirectory(value: string): string {
   const path = realpathSync.native(resolve(value))
   if (!statSync(path).isDirectory()) throw new Error(`Storybook fingerprint root must be a directory: ${path}`)
   return path
 }
 
-/** Канонизирует ещё не созданный output path через существующего parent. */
-function canonicalFuturePath(value: string): string {
-  const absolute = resolve(value)
-  return join(realpathSync.native(dirname(absolute)), basename(absolute))
-}
-
-/** Проверяет file existence без исключения из-за отсутствующего optional manifest candidate. */
+/** Проверяет возможный манифест без исключения при его отсутствии. */
 function lstatFile(path: string): boolean {
   try {
     return lstatSync(path).isFile()
@@ -1073,91 +374,19 @@ function lstatFile(path: string): boolean {
   }
 }
 
-/** Исключает только exact output subtree текущей операции. */
-function excluded(path: string, roots: readonly string[]): boolean {
-  return roots.some((root) => inside(root, path))
-}
-
-/** Исключает служебные директории из снимка исходников. */
-function ignoredRelativePath(root: string, path: string): boolean {
-  const local = relative(root, path)
-  return local.split(sep).some(ignoredDirectoryName)
-}
-
-/** Исключает состояние IDE, установленные зависимости, кэши и артефакты из исходников пакета. */
-function ignoredDirectoryName(value: string): boolean {
-  return IGNORED_DIRECTORY_NAMES.has(value) || value.startsWith(".candidate-")
-}
-
-/** Стабильно сериализует JSON-like descriptor независимо от insertion order. */
-function stableStringify(value: unknown): string {
-  return JSON.stringify(normalizeJson(value))
-}
-
-/** Рекурсивно сортирует object keys и отклоняет non-JSON values. */
-function normalizeJson(value: unknown): unknown {
-  if (value === null || typeof value === "string" || typeof value === "boolean") return value
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) throw new TypeError("Storybook fingerprint cannot serialize a non-finite number")
-    return value
-  }
-  if (Array.isArray(value)) return value.map(normalizeJson)
-  if (!isObject(value)) {
-    if (value === undefined) return null
-    throw new TypeError(`Storybook fingerprint cannot serialize ${typeof value}`)
-  }
-  return Object.fromEntries(Object.keys(value).sort(comparePaths).map((key) => [key, normalizeJson(value[key])]))
-}
-
-/** Вычисляет SHA-256 UTF-8 canonical payload. */
-function hash(value: string): string {
-  return createHash("sha256").update(value).digest("hex")
-}
-
-/** Создаёт детерминированную ошибку race attestation. */
-function concurrentChangeError(path?: string): Error {
-  return new Error(`Storybook build inputs changed during compilation${path === undefined ? "" : `: ${path}`}`)
-}
-
-/** Проверяет SHA-256 text. */
-function digest(value: unknown): value is string {
-  return typeof value === "string" && /^[a-f0-9]{64}$/u.test(value)
-}
-
-/** Проверяет абсолютный canonical-looking path transport value. */
-function isAbsoluteString(value: unknown): value is string {
-  return typeof value === "string" && isAbsolute(value)
-}
-
-/** Проверяет transport list на absolute, deterministic и unique порядок. */
-function canonicalPathList(value: unknown): value is readonly string[] {
-  if (!Array.isArray(value) || !value.every(isAbsoluteString)) return false
-  return value.every((path, index) => index === 0 || comparePaths(value[index - 1]!, path) < 0)
-}
-
-/** Проверяет bigint transport as decimal string. */
-function decimal(value: unknown): value is string {
-  return typeof value === "string" && /^\d+$/u.test(value)
-}
-
-/** Отличает JSON object от массива и примитива. */
+/** Отличает JSON-объект от массива и примитива. */
 function isObject(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value)
 }
 
-/** Проверяет lexical containment с учётом case-insensitive host paths. */
+/** Проверяет вложенность пути с учётом регистра файловой системы хоста. */
 function inside(root: string, path: string): boolean {
   const local = relative(comparablePath(root), comparablePath(path))
   return local === "" || (!local.startsWith(`..${sep}`) && local !== ".." && !local.startsWith(sep))
 }
 
-/** Нормализует сравнение host paths без изменения возвращаемой identity. */
+/** Нормализует сравнение путей, сохраняя фактическую идентичность возвращаемых данных. */
 function comparablePath(value: string): string {
   const path = resolve(value)
   return process.platform === "darwin" || process.platform === "win32" ? path.toLowerCase() : path
-}
-
-/** Детерминирует path order. */
-function comparePaths(left: string, right: string): number {
-  return left < right ? -1 : left > right ? 1 : 0
 }

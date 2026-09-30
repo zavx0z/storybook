@@ -12,6 +12,7 @@
     "@build/queue": "workspace:*",
     "@process/wait": "workspace:*",
     "@process/sample": "workspace:*",
-    "@process/measure": "workspace:*"
+    "@process/measure": "workspace:*",
+    "@build/inputs": "workspace:*"
   }
 }

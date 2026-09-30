@@ -1,3 +1,4 @@
+import BuildInputs, {type BuildInputFingerprint as StorybookBuildInputFingerprint} from "@build/inputs"
 import {appliedPackageStandard, readPackageVerification, type StorybookPackageVerification, type StorybookPackageStandard} from "./package-standard"
 import {createHash, randomUUID} from "node:crypto"
 import {existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync} from "node:fs"
@@ -15,11 +16,6 @@ import type {
   StorybookBuildPhaseListener,
   StorybookBuildWorkerLifecycleListener,
 } from "../build/build-phase.ts"
-import {
-  parseStorybookBuildInputFingerprint,
-  sameStorybookBuildInputFingerprint,
-  type StorybookBuildInputFingerprint,
-} from "../build/build-input-fingerprint.ts"
 import {
   STORYBOOK_PACKAGE_GRAPH_PROTOCOL,
   validateStorybookPackageRevisionGraphSnapshot,
@@ -965,7 +961,7 @@ export class StorybookPackageSession {
       const graphSnapshot = validateStorybookPackageRevisionGraphSnapshot(value.graphSnapshot, this.packageId)
       validateBuildResult(value, this.#revisionDirectory(value.revision))
       const persistedFingerprint = value.version === 2
-        ? parseStorybookBuildInputFingerprint(value.inputFingerprint)
+        ? BuildInputs.parse(value.inputFingerprint)
         : null
       const verifiedFingerprint = persistedFingerprint === null
         ? null
@@ -1007,12 +1003,12 @@ export class StorybookPackageSession {
   }
 
   #verifyPersistedInputFingerprint(value: unknown): StorybookBuildInputFingerprint | null {
-    const persisted = parseStorybookBuildInputFingerprint(value)
+    const persisted = BuildInputs.parse(value)
     if (this.#verifyInputFingerprint === null || persisted === null) return null
     try {
       const verified = this.#verifyInputFingerprint(persisted, this.#descriptor)
-      return sameStorybookBuildInputFingerprint(persisted, verified)
-        ? parseStorybookBuildInputFingerprint(verified)
+      return BuildInputs.same(persisted, verified)
+        ? BuildInputs.parse(verified)
         : null
     } catch {
       return null
@@ -1174,7 +1170,7 @@ function validateBuildResult(result: StorybookPackageRevisionBuild, stagingDirec
 
 /** Отклоняет malformed evidence до атомарной публикации candidate directory. */
 function requiredInputFingerprint(value: unknown): StorybookBuildInputFingerprint {
-  const fingerprint = parseStorybookBuildInputFingerprint(value)
+  const fingerprint = BuildInputs.parse(value)
   if (fingerprint === null) throw diagnosticError("compile", "Package build returned an invalid input fingerprint")
   return fingerprint
 }

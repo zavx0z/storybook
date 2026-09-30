@@ -9,6 +9,7 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@build/queue": "workspace:*"
+    "@build/queue": "workspace:*",
+    "@build/inputs": "workspace:*"
   }
 }

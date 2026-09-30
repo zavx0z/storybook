@@ -1,6 +1,6 @@
+import BuildInputs, {type BuildInputFingerprint as StorybookBuildInputFingerprint} from "@build/inputs"
 import {createHash} from "node:crypto"
 import {readFileSync, readdirSync, statSync} from "node:fs"
-import {storybookBuildInputPaths, type StorybookBuildInputFingerprint} from "./build-input-fingerprint.ts"
 import type {StorybookPackageRevisionAuthorStyleSheet} from "../sessions/package-revision.ts"
 import type {StorybookSharedBrowserIdentity} from "./types/shared-module-identity.ts"
 
@@ -134,7 +134,7 @@ export class StorybookSharedBrowserAssets {
 /** Включает config и ambient inputs, отсутствующие в runtime metafile. */
 function buildInputs(assets: SharedBrowserAssets): readonly string[] {
   return [...new Set([...assets.dependencyRealpaths,
-    ...(storybookBuildInputPaths(assets.inputFingerprint) ?? []),
+    ...(BuildInputs.paths(assets.inputFingerprint) ?? []),
   ])]
 }
 

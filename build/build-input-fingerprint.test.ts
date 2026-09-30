@@ -1,18 +1,13 @@
+import BuildInputs from "@build/inputs"
 import {afterAll, describe, expect, setDefaultTimeout, test} from "bun:test"
 import {mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {
-  STORYBOOK_BUILD_INPUT_FINGERPRINT_PROTOCOL,
   beginStorybookBuildInputAttestation,
   createStorybookBuildInputFingerprintComputer,
-  createStorybookBuildInputFingerprintPlanComputer,
-  computeStorybookBuildInputFingerprintPlan,
-  parseStorybookBuildInputFingerprint,
   resolveStorybookPackageBuildInputFingerprintPlan,
   resolveStorybookSharedBuildInputFingerprintPlan,
-  sameStorybookBuildInputFingerprint,
-  storybookBuildInputPaths,
 } from "./build-input-fingerprint.ts"
 import {createStorybookBuildInputFingerprintVerifier} from "./package-build.ts"
 import type {StorybookPackageBuildDescriptor} from "../sessions/package-session.ts"
@@ -37,11 +32,11 @@ describe("Storybook build input fingerprint", () => {
     const baseline = compute(request)
     const unchanged = compute(request)
     const packagePlan = resolveStorybookPackageBuildInputFingerprintPlan(request)
-    const inputs = storybookBuildInputPaths(baseline)
+    const inputs = BuildInputs.paths(baseline)
 
-    expect(sameStorybookBuildInputFingerprint(baseline, unchanged)).toBeTrue()
-    expect(computeStorybookBuildInputFingerprintPlan(packagePlan).digest).toBe(baseline.digest)
-    expect(baseline.protocol).toBe(STORYBOOK_BUILD_INPUT_FINGERPRINT_PROTOCOL)
+    expect(BuildInputs.same(baseline, unchanged)).toBeTrue()
+    expect(BuildInputs.read(packagePlan).digest).toBe(baseline.digest)
+    expect(baseline.protocol).toBe(BuildInputs.protocol)
     expect(baseline.files.map(({path}) => path)).toContain(realpathSync(fixture.externalDependency))
     expect(inputs).toContain(realpathSync(fixture.nestedDirectory))
     const empty = join(fixture.nestedDirectory, "empty")
@@ -96,8 +91,8 @@ describe("Storybook build input fingerprint", () => {
 
     expect(verify(evidence, fixture.descriptor)?.digest).toBe(evidence.digest)
     expect(verify({...evidence, protocol: "storybook-build-input/0"}, fixture.descriptor)).toBeNull()
-    expect(parseStorybookBuildInputFingerprint({...evidence, digest: "0".repeat(64)})).toBeNull()
-    expect(storybookBuildInputPaths({...evidence, directories: undefined})).toBeNull()
+    expect(BuildInputs.parse({...evidence, digest: "0".repeat(64)})).toBeNull()
+    expect(BuildInputs.paths({...evidence, directories: undefined})).toBeNull()
 
     writeFileSync(fixture.module, "export const module = {mismatch: true}\n")
     expect(verify(evidence, fixture.descriptor)).toBeNull()
@@ -116,7 +111,7 @@ describe("Storybook build input fingerprint", () => {
     writeFileSync(join(stagingDirectory, "entry.js"), "export {}\n")
     const stableFingerprint = await stable.complete()
     expect(stableFingerprint).toMatchObject({
-      protocol: STORYBOOK_BUILD_INPUT_FINGERPRINT_PROTOCOL,
+      protocol: BuildInputs.protocol,
     })
     stable.dispose()
 
@@ -157,7 +152,7 @@ describe("Storybook build input fingerprint", () => {
 
   test("shared plan учитывает два entrypoints, config, ambient source и same-byte restore", () => {
     const fixture = createSharedFixture()
-    const compute = createStorybookBuildInputFingerprintPlanComputer()
+    const compute = createPlanComputer()
     const request = {
       toolRoot: fixture.root,
       landingEntryPath: fixture.landing,
@@ -393,4 +388,10 @@ function createHoistedDependencyFixture(): Readonly<{
     browserEntry,
     descriptor,
   })
+}
+
+/** Создаёт отдельный кэш чтения для группы сравнений планов. */
+function createPlanComputer() {
+  const reader = new BuildInputs()
+  return (plan: Parameters<typeof BuildInputs.read>[0]) => reader.read(plan)
 }
