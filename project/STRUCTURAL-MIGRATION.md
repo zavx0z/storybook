@@ -77,7 +77,7 @@ Discovery и Route раскрывают workspaces через общий `@story
 
 В документах оставались инструкции снятого контракта и противоречивое правило
 о README как источнике смысла. Они удалены; опорные решения —
-[Основания](../.agents/rules/foundations.md), их [применение к Storybook](../ARCHITECTURE.md)
+[Основания](../archetypes/project/notes/foundations/index.md), их [применение к Storybook](../ARCHITECTURE.md)
 и [жизненный цикл заметок](../archetypes/notes/note-lifecycle.md).
 Markdown и TSDoc исправлены без изменения исполняемого поведения.
 

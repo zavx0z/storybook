@@ -4,12 +4,14 @@
 
 ## Интерфейс агента
 
-Stdio MCP регистрирует exact tools `storybook_ensure`, `storybook_status`,
-`storybook_attach`, `storybook_detach`, `storybook_search`, `storybook_open`,
-`storybook_wait`, `storybook_inspect`, `storybook_interact`,
-`storybook_capture`, `storybook_check`, `storybook_close`, `storybook_stop`.
-Prompts отсутствуют. Tools имеют strict versioned bounded schemas и не принимают
-raw JavaScript, CDP identity, coordinates или screenshot path.
+Инструмент `storybook` читает корневой вход или выбранного владельца
+по необязательному `path`; его ответ определяет [HTTP-вход MCP](../rest/README.md).
+Управляющие инструменты подключены в [адаптере MCP](../server/index.ts),
+а точные параметры заданы его [схемами](../server/src/schemas.ts).
+Управляющие запросы содержат `schemaVersion`; навигационный вызов `storybook`
+его не принимает. Схемы строгие и ограничивают объём входных данных.
+Prompts отсутствуют. Инструменты не принимают произвольный JavaScript,
+идентификаторы CDP, абсолютные координаты или путь для записи снимка.
 
 ## Общий контроллер
 

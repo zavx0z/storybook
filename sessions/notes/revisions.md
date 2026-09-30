@@ -27,8 +27,11 @@ package.applied-state о прежней рабочей ревизии не за�
 package.updated по-прежнему подтверждает применение или передаёт новое обновление.
 Регрессия проверяется в runtime/package-entry.test.ts.
 
-Failed build/activation не меняет active/lastWorking artifact, server, graph или другие
-sessions. Без lastWorking только affected preview показывает isolated error.
+Failed build/activation сохраняет active/lastWorking artifact и immutable graph
+snapshot применённой ревизии; server продолжает работу. Текущий canonical catalog
+актуализируется перед сборкой и сохраняет результат обнаружения независимо от
+исхода кандидата. Ошибка кандидата не заменяет рабочие артефакты других пакетов.
+Без lastWorking только affected preview показывает isolated error.
 После исправления явный live-check применяет
 новую revision. Применение атомарно сохраняет private receipt и артефакт; после
 перезапуска восстанавливается та же версия. Неприменённый кандидат не становится
