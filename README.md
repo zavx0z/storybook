@@ -109,4 +109,3 @@ Storybook играет переходную роль: он работает с �
   [управление через MCP](mcp/notes/control.md).
 - [Границы инструмента и незавершённые направления](project/notes/scope.md).
 - [Команды проверок](package.json) и [правила для агентов](AGENTS.md).
-- [Отчёт о переходе на структуру](project/STRUCTURAL-MIGRATION.md).
