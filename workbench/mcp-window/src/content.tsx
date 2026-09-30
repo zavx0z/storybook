@@ -1,4 +1,4 @@
-import {Button} from "@zavx0z/ui/buttons/button"
+import Button from "@zavx0z/ui/buttons/button"
 import type {McpRequestRecord} from "@mcp/rest/requests"
 import {RequestList} from "./request-list"
 import {AddressRequest, type McpAddressSource} from "./address-request"

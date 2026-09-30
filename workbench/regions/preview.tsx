@@ -1,5 +1,5 @@
 import type {WorkbenchPresentationProjection} from "../contract.ts"
-import {Pane} from "@zavx0z/ui/surfaces/pane"
+import Pane from "@zavx0z/ui/surfaces/pane"
 
 export type PreviewRegionProps = Readonly<{
   label: string

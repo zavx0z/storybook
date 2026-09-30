@@ -1,5 +1,5 @@
 import type {ViewPointElement} from "@zavx0z/dom/viewpoint"
-import type {TabProps} from "@zavx0z/ui/surfaces/tab/contract/input"
+import type {TabProps} from "@zavx0z/ui/surfaces/tab"
 
 const cameraFields = ["x", "y", "z", "targetX", "targetY", "targetZ", "fov", "near", "far"] as const
 type CameraState = Pick<ViewPointElement, typeof cameraFields[number]>

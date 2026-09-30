@@ -1,6 +1,6 @@
 import {useSyncExternalStore} from "@zavx0z/component"
-import {Typography} from "@zavx0z/ui/typography"
-import {CodeEditor} from "@zavx0z/ui/views/code-editor"
+import Typography from "@zavx0z/ui/typography"
+import CodeEditor from "@zavx0z/ui/views/code-editor"
 import type {ScenarioApp} from "../contract/output"
 import {ScenarioCallResult} from "./src/call"
 

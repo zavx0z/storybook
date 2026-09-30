@@ -1,4 +1,4 @@
-import {Button, type ButtonProps} from "@zavx0z/ui/buttons/button"
+import Button, {type ButtonProps} from "@zavx0z/ui/buttons/button"
 import type {WorkbenchTabItem} from "../contract.ts"
 
 type TabProps = Readonly<{

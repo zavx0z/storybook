@@ -1,6 +1,6 @@
 import {memo, useEffect, useLayoutEffect, useRef, useState} from "@zavx0z/component"
-import {CodeEditor} from "@zavx0z/ui/views/code-editor"
-import {Button} from "@zavx0z/ui/buttons/button"
+import CodeEditor from "@zavx0z/ui/views/code-editor"
+import Button from "@zavx0z/ui/buttons/button"
 import type {McpRequestRecord} from "@mcp/rest/requests"
 import {selectRequest} from "./selected-request"
 import {formatJson} from "./format-json"

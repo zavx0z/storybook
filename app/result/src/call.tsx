@@ -1,5 +1,5 @@
-import {CodeEditor} from "@zavx0z/ui/views/code-editor"
-import {Typography} from "@zavx0z/ui/typography"
+import CodeEditor from "@zavx0z/ui/views/code-editor"
+import Typography from "@zavx0z/ui/typography"
 import type {ScenarioAppInput} from "../../contract/input"
 import {isScenarioGuide, ScenarioGuideResult} from "./guide"
 

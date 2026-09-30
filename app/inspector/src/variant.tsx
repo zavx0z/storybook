@@ -1,5 +1,5 @@
-import {Panel} from "@zavx0z/ui/surfaces/panel"
-import {Typography} from "@zavx0z/ui/typography"
+import Panel from "@zavx0z/ui/surfaces/panel"
+import Typography from "@zavx0z/ui/typography"
 import type {ScenarioApp} from "../../contract/output"
 
 /** Вариант и его пункты из подготовленного снимка сценария. */

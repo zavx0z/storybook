@@ -1,4 +1,4 @@
-import {Tree, type TreeItem, type TreeHandle} from "@zavx0z/ui/widgets/tree"
+import Tree, {type TreeItem, type TreeHandle} from "@zavx0z/ui/widgets/tree"
 import {useLayoutEffect, useRef, useState} from "@zavx0z/component"
 import type {StorybookContractDocument} from "../catalog/catalog.t.ts"
 import type {WorkbenchInspectorCustomWidgetProps} from "../workbench/contract.ts"

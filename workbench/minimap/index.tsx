@@ -9,9 +9,9 @@ Host Storybook сохраняет видимость, размер и полож
 @packageDocumentation
 */
 import {useId, useRef, useState} from "@zavx0z/component"
-import {Window} from "@zavx0z/ui/surfaces/window"
-import {WindowControl} from "@zavx0z/ui/surfaces/window/control"
-import {Tab} from "@zavx0z/ui/surfaces/tab"
+import Window from "@zavx0z/ui/surfaces/window"
+import WindowControl from "@zavx0z/ui/surfaces/window/control"
+import Tab from "@zavx0z/ui/surfaces/tab"
 import {CatalogPanel} from "../catalog-panel"
 import {defaultMinimapState, type MinimapState} from "./src/state.ts"
 import type {MinimapProps} from "./contract/input.ts"

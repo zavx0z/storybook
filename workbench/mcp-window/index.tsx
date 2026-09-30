@@ -13,7 +13,7 @@
 @packageDocumentation
 */
 import {useEffect, useState} from "@zavx0z/component"
-import {Window} from "@zavx0z/ui/surfaces/window"
+import Window from "@zavx0z/ui/surfaces/window"
 import {McpContent} from "./src/content"
 import type {McpAddressSource} from "./src/address-request"
 import type {McpRequestRecord} from "@mcp/rest/requests"

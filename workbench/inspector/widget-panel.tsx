@@ -1,4 +1,4 @@
-import {Panel} from "@zavx0z/ui/surfaces/panel"
+import Panel from "@zavx0z/ui/surfaces/panel"
 import {useRef} from "@zavx0z/component"
 import type {JSX} from "@jsx-compiler/session"
 import type {WorkbenchInspectorWidgetRegistration} from "../contract.ts"

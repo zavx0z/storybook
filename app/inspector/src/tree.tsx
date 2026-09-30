@@ -1,5 +1,5 @@
 import {useState} from "@zavx0z/component"
-import {Panel} from "@zavx0z/ui/surfaces/panel"
+import Panel from "@zavx0z/ui/surfaces/panel"
 import type {ScenarioApp} from "../../contract/output"
 import {ScenarioVariant} from "./variant"
 

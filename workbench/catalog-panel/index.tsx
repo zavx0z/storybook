@@ -5,8 +5,8 @@
 
 @packageDocumentation
 */
-import {TextField, type TextFieldProps} from "@zavx0z/ui/fields/text-field"
-import {Button} from "@zavx0z/ui/buttons/button"
+import TextField, {type TextFieldProps} from "@zavx0z/ui/fields/text-field"
+import Button from "@zavx0z/ui/buttons/button"
 import {collapseAllIcon, expandAllIcon, plusIcon, selectOpenedItemIcon} from "@zavx0z/ui/themes/icons"
 import {useRef} from "@zavx0z/component"
 import {WorkbenchNavigationTree, type WorkbenchNavigationTreeHandle} from "../navigation/ui-tree.tsx"

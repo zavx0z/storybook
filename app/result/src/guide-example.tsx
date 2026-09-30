@@ -1,5 +1,5 @@
-import {CodeEditor} from "@zavx0z/ui/views/code-editor"
-import {Typography} from "@zavx0z/ui/typography"
+import CodeEditor from "@zavx0z/ui/views/code-editor"
+import Typography from "@zavx0z/ui/typography"
 
 /** Один исходный пример руководства с собственным заголовком и редактором. */
 export function ScenarioGuideExample(props: Readonly<{key?: string, title: string, code: string}>) {
