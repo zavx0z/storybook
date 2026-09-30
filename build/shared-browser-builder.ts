@@ -1,5 +1,5 @@
 import {randomUUID} from "node:crypto"
-import {mkdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync} from "node:fs"
+import {existsSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync} from "node:fs"
 import {dirname, isAbsolute, join, relative} from "node:path"
 import waitForStorybookOwnedChild from "@process/wait"
 import {parseStorybookBuildWorkerTransportEvent} from "./build-phase.ts"
@@ -20,6 +20,7 @@ import {validateStorybookSharedBrowserIdentity} from "./shared-module-identity.t
 @returns Проверенный результат exact worker; временные файлы удаляются после exit.
 
 @throws Ошибка handshake, сборки, отмены, таймаута или выход результата за каталог.
+Сообщение штатного отказа читается из файла результата; предупреждения stderr его не вытесняют.
 */
 export async function runSharedBrowserBuild(
   input: Omit<SharedBrowserBuildInput, "stagingDirectory">,
@@ -87,9 +88,12 @@ export async function runSharedBrowserBuild(
         } finally { reader.releaseLock() }
       },
     })
-    if (!ready || result.exitCode !== 0) throw new Error(result.stderr.trim() || "Shared browser worker failed")
+    if (!ready || !existsSync(resultPath)) throw new Error(result.stderr.trim() || "Shared browser worker failed")
     if (statSync(resultPath).size > 1_048_576) throw new Error("Shared browser result exceeds limit")
-    const value = JSON.parse(readFileSync(resultPath, "utf8")) as SharedBrowserAssets
+    const value = JSON.parse(readFileSync(resultPath, "utf8")) as SharedBrowserAssets & {error?: unknown}
+    if (result.exitCode !== 0) {
+      throw new Error(typeof value.error === "string" ? value.error : result.stderr.trim() || "Shared browser worker failed")
+    }
     if (value.root !== input.root || !Array.isArray(value.dependencyRealpaths) ||
       value.dependencyRealpaths.some(path => typeof path !== "string" || !isAbsolute(path))) {
       throw new Error("Shared browser result has an invalid owner or dependency list")

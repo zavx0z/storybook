@@ -29,6 +29,8 @@ try {
   if (restored === null) saveSharedBrowserCandidate(result, input.sharedKernel === undefined)
   writeFileSync(resultPath, JSON.stringify(result), {mode: 0o600})
 } catch (error) {
-  console.error(error instanceof Error ? error.message : String(error))
+  const message = error instanceof Error ? error.message : String(error)
+  writeFileSync(resultPath, JSON.stringify({error: message}), {mode: 0o600})
+  console.error(message)
   process.exitCode = 1
 }
