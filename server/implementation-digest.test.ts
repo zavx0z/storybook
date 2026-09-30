@@ -74,6 +74,33 @@ describe("external Storybook implementation digest", () => {
     expect(externalStorybookImplementationDigest(root)).toBe(first)
   })
 
+  test("fixture helpers в tech сохраняют identity daemon, production bytes меняют её", () => {
+    const root = implementationFixture()
+    const helpers = [
+      "tech/build/inputs/test/fixture/index.ts",
+      "tech/build/inputs/spec/scenario.spec.ts",
+      "tech/build/inputs/spec/fixture/index.ts",
+      "tech/build/inputs/fixtures/owner.ts",
+      "tech/process/measure/test/fixture/helper.ts",
+    ]
+    const first = externalStorybookImplementationDigest(root)
+    for (const path of helpers) {
+      mkdirSync(dirname(join(root, path)), {recursive: true})
+      writeFileSync(join(root, path), "export const fixture = 1\n")
+    }
+    expect(externalStorybookImplementationDigest(root)).toBe(first)
+    for (const path of helpers) writeFileSync(join(root, path), "export const fixture = 2\n")
+    expect(externalStorybookImplementationDigest(root)).toBe(first)
+
+    for (const path of ["tech/build/inputs/src/core.ts", "tech/process/measure/src/core.ts"]) {
+      mkdirSync(dirname(join(root, path)), {recursive: true})
+      writeFileSync(join(root, path), "export const implementation = 1\n")
+      const before = externalStorybookImplementationDigest(root)
+      writeFileSync(join(root, path), "export const implementation = 2\n")
+      expect(externalStorybookImplementationDigest(root)).not.toBe(before)
+    }
+  })
+
   test("includes resident browser lifecycle but excludes browser bundles and transport adapters", () => {
     const root = implementationFixture()
     const first = externalStorybookImplementationDigest(root)

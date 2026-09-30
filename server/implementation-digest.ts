@@ -52,7 +52,8 @@ const IMPLEMENTATION_TREES = Object.freeze([
 @param toolRoot - Канонический корень Storybook с исходниками серверных владельцев.
 
 @returns Детерминированный SHA-256 резидентной реализации.
-Тесты, артефакты сборки и MCP transport имеют собственный жизненный цикл.
+Тестовые `.test`/`.spec` файлы, каталоги `fixture`/`fixtures`, артефакты сборки
+и MCP transport имеют собственный жизненный цикл.
  */
 export function externalStorybookImplementationDigest(toolRoot: string): string {
   const root = realpathSync(toolRoot)

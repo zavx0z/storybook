@@ -1,5 +1,5 @@
 import {describe, expect, spyOn, test} from "bun:test"
-import {StorybookBuildScheduler, type StorybookBuildRequest, type StorybookBuildOperationContext} from "./build-scheduler.ts"
+import {StorybookBuildScheduler, type StorybookBuildRequest, type StorybookBuildOperationContext, type StorybookBuildTransition} from "./build-scheduler.ts"
 import type {ProcessResourceRow} from "@process/sample"
 
 const request = (operationId: string, packageId = `@fixture/${operationId}`): StorybookBuildRequest => ({
@@ -12,6 +12,60 @@ const request = (operationId: string, packageId = `@fixture/${operationId}`): St
 })
 
 describe("Storybook build scheduler observability", () => {
+  test.each(["request", "outcome"] as const)("cache из %s сохраняется независимо от изменений caller", async source => {
+    const scheduler = new StorybookBuildScheduler()
+    const transitions: StorybookBuildTransition[] = []
+    scheduler.subscribe(event => transitions.push(event))
+    const cache: {status: "miss" | "hit", layer: "package" | "shared", privatePath: string} = {
+      status: "miss",
+      layer: "package",
+      privatePath: "/private/cache",
+    }
+    try {
+      await scheduler.run({...request(`cache-${source}`), ...(source === "request" ? {cache} : {})}, async context => {
+        if (source === "outcome") context.setCacheOutcome?.(cache)
+        cache.status = "hit"
+        expect(scheduler.snapshot().active[0]?.cache).toEqual({status: "miss", layer: "package"})
+      }, new AbortController().signal)
+      const completion = transitions.findLast(event => event.state === "completed")!
+      const snapshot = scheduler.snapshot()
+      cache.layer = "shared"
+      expect(completion.cache).toEqual({status: "miss", layer: "package"})
+      expect(snapshot.recent[0]?.cache).toEqual({status: "miss", layer: "package"})
+      expect(scheduler.snapshot().recent[0]?.cache).toEqual({status: "miss", layer: "package"})
+      expect(JSON.stringify({transitions, snapshot})).not.toContain("privatePath")
+      expect(Object.isFrozen(cache)).toBeFalse()
+    } finally { scheduler.dispose() }
+  })
+
+  test.each(["request", "outcome"] as const)("listener не меняет cache из %s для следующих listeners и history", async source => {
+    const scheduler = new StorybookBuildScheduler()
+    const mutations: boolean[] = []
+    const transitions: StorybookBuildTransition[] = []
+    scheduler.subscribe(event => {
+      if (event.cache === undefined) return
+      mutations.push(Reflect.set(event.cache, "status", "bypass"))
+      mutations.push(Reflect.set(event.cache, "layer", "receipt"))
+    })
+    scheduler.subscribe(event => transitions.push(event))
+    try {
+      await scheduler.run(request(`listener-${source}`), async context => {
+        if (source === "outcome") context.setCacheOutcome?.({status: "hit", layer: "shared"})
+      }, new AbortController().signal)
+      expect(mutations.length).toBeGreaterThan(0)
+      expect(mutations.every(result => result === false)).toBeTrue()
+      expect(transitions.slice(0, 2).map(event => event.cache)).toEqual([
+        {status: "miss", layer: "package"},
+        {status: "miss", layer: "package"},
+      ])
+      const expected = source === "outcome"
+        ? {status: "hit", layer: "shared"} as const
+        : {status: "miss", layer: "package"} as const
+      expect(transitions.at(-1)?.cache).toEqual(expected)
+      expect(scheduler.snapshot().recent[0]?.cache).toEqual(expected)
+    } finally { scheduler.dispose() }
+  })
+
   test("публичная проекция не переносит посторонние поля запроса в события и снимки", async () => {
     const scheduler = new StorybookBuildScheduler()
     const transitions: unknown[] = []

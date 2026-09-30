@@ -271,7 +271,7 @@ function buildTransition(event: BuildTransition<BuildDetails>): StorybookBuildTr
   return Object.freeze({...transition, ...details, phase: phase as StorybookBuildPhase})
 }
 
-/** Проверяет runtime request до помещения в очередь. */
+/** Проверяет runtime request и сохраняет собственный immutable снимок допустимых полей кэша. */
 function normalizeRequest(request: StorybookBuildRequest) {
   if (request === null || typeof request !== "object") throw new TypeError("Storybook build request must be an object")
   const operationId = request.operationId ?? randomUUID()
@@ -292,9 +292,9 @@ function normalizeRequest(request: StorybookBuildRequest) {
   if (request.generation !== null && (!Number.isSafeInteger(request.generation) || request.generation < 0)) {
     throw new Error(`Invalid Storybook build generation: ${String(request.generation)}`)
   }
-  const cache = request.cache ?? Object.freeze({status: "unknown" as const, layer: request.owner === "shared" ? "shared" as const : "package" as const})
-  if (!["hit", "miss", "bypass", "unknown"].includes(cache.status) ||
-    !["receipt", "protocol", "package", "shared"].includes(cache.layer)) {
+  const {status, layer} = request.cache ?? {status: "unknown" as const, layer: request.owner === "shared" ? "shared" as const : "package" as const}
+  if (!["hit", "miss", "bypass", "unknown"].includes(status) ||
+    !["receipt", "protocol", "package", "shared"].includes(layer)) {
     throw new Error("Invalid Storybook build cache outcome")
   }
   return Object.freeze({
@@ -303,7 +303,7 @@ function normalizeRequest(request: StorybookBuildRequest) {
     owner: request.owner,
     reason: request.reason,
     generation: request.generation,
-    cache,
+    cache: Object.freeze({status, layer}),
   })
 }
 
