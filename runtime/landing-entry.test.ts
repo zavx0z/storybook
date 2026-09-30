@@ -195,22 +195,22 @@ describe("external Storybook landing frontend", () => {
 
   test("reads only bounded contiguous indexed Workbench author links", () => {
     const document = indexedLinkDocument([
-      {specifier: "@zavx0z/ui/themes/theme.css", digest: "a".repeat(64), href: "/revision/theme.css"},
+      {specifier: "@zavx0z/ui/theme/theme.css", digest: "a".repeat(64), href: "/revision/theme.css"},
       {specifier: "@fixture/tokens.css", digest: "b".repeat(64), href: "/revision/tokens.css"},
     ])
     expect(indexedWorkbenchAuthorStyleSheetSources(document).map(({id}) => id)).toEqual([
-      "@zavx0z/ui/themes/theme.css",
+      "@zavx0z/ui/theme/theme.css",
       "@fixture/tokens.css",
     ])
 
     const duplicate = indexedLinkDocument([
-      {specifier: "@zavx0z/ui/themes/theme.css", digest: "a".repeat(64), href: "/revision/a.css"},
-      {specifier: "@zavx0z/ui/themes/theme.css", digest: "a".repeat(64), href: "/revision/b.css"},
+      {specifier: "@zavx0z/ui/theme/theme.css", digest: "a".repeat(64), href: "/revision/a.css"},
+      {specifier: "@zavx0z/ui/theme/theme.css", digest: "a".repeat(64), href: "/revision/b.css"},
     ])
     expect(() => indexedWorkbenchAuthorStyleSheetSources(duplicate)).toThrow("invalid or duplicate")
 
     const invalidDigest = indexedLinkDocument([
-      {specifier: "@zavx0z/ui/themes/theme.css", digest: "invalid", href: "/revision/theme.css"},
+      {specifier: "@zavx0z/ui/theme/theme.css", digest: "invalid", href: "/revision/theme.css"},
     ])
     expect(() => indexedWorkbenchAuthorStyleSheetSources(invalidDigest)).toThrow("digest is invalid")
   })

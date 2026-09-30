@@ -1,5 +1,5 @@
 import {useEffect, useState} from "@zavx0z/component"
-import Button from "@zavx0z/ui/buttons/button"
+import Button from "@zavx0z/ui/button/button"
 import type {McpRequestRecord} from "@mcp/rest/requests"
 import {RequestList} from "./request-list"
 

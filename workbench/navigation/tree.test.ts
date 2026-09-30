@@ -15,7 +15,7 @@ import type {
   Workbench,
   WorkbenchNavigationItem,
 } from "../contract.ts"
-import {chevronDownIcon, chevronRightIcon} from "@zavx0z/ui/themes/icons"
+import {chevronDownIcon, chevronRightIcon} from "@zavx0z/ui/theme/icon"
 import {WORKBENCH_EVENTS} from "../contract.ts"
 import type {NavigationExpansion} from "./persistence.ts"
 import type * as ControllerModule from "../controller.ts"

@@ -1,6 +1,6 @@
 import {externalStorybookBrowsePath} from "../catalog/graph.ts"
 import type {WorkbenchBreadcrumb} from "../workbench/contract.ts"
-import {homeIcon} from "@zavx0z/ui/themes/icons"
+import {homeIcon} from "@zavx0z/ui/theme/icon"
 import type {StorybookPackageRevisionAncestor} from "../sessions/package-revision.ts"
 import type {
   ExternalStorybookClientNode,

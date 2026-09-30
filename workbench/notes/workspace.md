@@ -22,7 +22,7 @@ Fixed `workbench-layout/3` владеет `catalog`, `tabs`, `preview`, `inspect
 `status`. `tabs` — визуально неподписанная полоса непосредственно над preview;
 её label служит доступным именем toolbar. `catalog` и `preview` также не
 рендерят видимые headings. Оболочка содержит один production
-`@zavx0z/ui/widgets/inspector#Inspector`; его секции встроены в Storybook и
+`@zavx0z/ui/widget/inspector#Inspector`; его секции встроены в Storybook и
 не объявляются пакетом. Workbench не заменяет navigation или production UI
 владельцев локальной разметкой.
 
@@ -44,7 +44,7 @@ Workbench использует production компоненты UI для нав�
 каталог `/`; далее путь состоит из физических пакетов и директорий. Общая тема
 принадлежит Storybook и подключается через публичный `.css` export UI.
 Видимый shell остаётся одним compiled TSX ComponentRoot. Inspector получает
-direct keyed `@zavx0z/ui/surfaces/panel#Panel` children; rail/content остаются
+direct keyed `@zavx0z/ui/surface/panel#Panel` children; rail/content остаются
 его внутренними частями. Компоненты Workbench пишут CSS в собственном
 `style={css\`\`}`. Общие production owners сохраняют свои padding, focus,
 selected, disabled и shadow, а Storybook задаёт только контекстное размещение.
@@ -68,7 +68,7 @@ Back/Forward меняют ветку без отдельного состоян�
 целое окно, а его шапка сворачивает оболочку обратно в этот control.
 
 Canonical graph проецируется адаптером `WorkbenchNavigationTree` в общий
-`@zavx0z/ui/widgets/tree`. UI владеет строками, disclosure, клавиатурой,
+`@zavx0z/ui/widget/tree`. UI владеет строками, disclosure, клавиатурой,
 фокусом и ограниченной отрисовкой большого дерева; Storybook владеет поиском
 по графу, адресами переходов, действием удаления и состоянием раскрытия.
 Физические пакеты и директории показывают имена своих каталогов. У пакета его
@@ -131,7 +131,7 @@ lastWorking. Общая тема Workbench остаётся у оболочки.
 ## Общая тема
 
 Storybook получает тему из exact public CSS export
-`@zavx0z/ui/themes/theme.css`, фиксирует bytes и digest в immutable revision
+`@zavx0z/ui/theme/theme.css`, фиксирует bytes и digest в immutable revision
 и подключает один native `<link>` к той же странице. Каталог пакета не задаёт
 `authorStyleSheets`; стили компонента остаются у его production владельца.
 

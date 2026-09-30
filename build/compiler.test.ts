@@ -254,7 +254,7 @@ describe("external Storybook package compiler", () => {
   test("builds the real immersive UI with exact tool owners satisfying declared peers", async () => {
     const projectRoot = await realpath(resolve(import.meta.dir, "../../immersive"))
     const packageRoot = join(projectRoot, "ui")
-    const source = join(packageRoot, "buttons/button.tsx")
+    const source = join(packageRoot, "button/button/index.tsx")
     const plugins = await createStorybookPackageCompilerPlugins({
       toolRoot,
       packageRoot,
@@ -270,7 +270,7 @@ describe("external Storybook package compiler", () => {
     })
     expect(result.success, result.logs.map(({message}) => message).join("\n")).toBeTrue()
     const inputs = JSON.stringify(result.metafile?.inputs ?? {})
-    expect(inputs).toContain("immersive/ui/buttons/button.tsx")
+    expect(inputs).toContain("immersive/ui/button/button/index.tsx")
     expect(inputs).toContain("immersive/component/src/index.ts")
     expect(inputs).toContain("immersive/template/compiled.ts")
     expect(inputs).not.toContain("node_modules/.bun/@zavx0z+")
@@ -589,7 +589,7 @@ test("generated JSX outside the owner becomes an executable compiled child", asy
   const {generateStorybookJsxModules} = await import("./generated-loader.ts")
   const projectRoot = await realpath(resolve(import.meta.dir, "../../immersive"))
   const packageRoot = join(projectRoot, "ui")
-  const source = join(packageRoot, "buttons/button.tsx")
+  const source = join(packageRoot, "button/button/index.tsx")
   const root = await temporaryRoot()
   const generatedSourceRoot = join(root, "scenario-jsx")
   await mkdir(generatedSourceRoot)
@@ -602,7 +602,7 @@ test("generated JSX outside the owner becomes an executable compiled child", asy
     kind: "component", nodeId: "fixture", module: {path: source, export: "Button"},
     variants: [{id: "child", title: "child", props: {}, source: "", points: [], jsxProps: {
       children: {source: '<Button label="Дочерний" />', imports: [
-        {local: "Button", imported: "Button", specifier: "@zavx0z/ui/buttons/button", path: source},
+        {local: "Button", imported: "Button", specifier: "@zavx0z/ui/button/button", path: source},
       ]},
     }}],
   }])

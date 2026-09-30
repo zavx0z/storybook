@@ -5,7 +5,7 @@ import {WORKBENCH_EVENTS, type WorkbenchTabItem} from "../contract.ts"
 import {loadCompiledWorkbench} from "../../src/workbench/testing/compile-workbench.ts"
 
 let api: Awaited<ReturnType<typeof loadCompiledWorkbench>>
-const theme = await Bun.file(new URL(import.meta.resolve("@zavx0z/ui/themes/theme.css"))).text()
+const theme = await Bun.file(new URL(import.meta.resolve("@zavx0z/ui/theme/theme.css"))).text()
 
 beforeAll(async () => { api = await loadCompiledWorkbench() }, 30_000)
 

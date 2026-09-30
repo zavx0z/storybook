@@ -6,7 +6,7 @@ import type {Element} from "@zavx0z/dom"
 import {createDocumentInteractionController, createDocumentRenderer} from "@renderer/html"
 
 const repository = resolve(import.meta.dir, "../../../..")
-const theme = await Bun.file(Bun.resolveSync("@zavx0z/ui/themes/theme.css", repository)).text()
+const theme = await Bun.file(Bun.resolveSync("@zavx0z/ui/theme/theme.css", repository)).text()
 
 /** Изолированное окно использует настоящий компонент, Document, layout и ввод; GPU-кадр здесь не проверяется. */
 export function createWindowHost() {

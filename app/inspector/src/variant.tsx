@@ -1,4 +1,4 @@
-import Panel from "@zavx0z/ui/surfaces/panel"
+import Panel from "@zavx0z/ui/surface/panel"
 import Typography from "@zavx0z/ui/typography"
 import type {ScenarioApp} from "../../contract/output"
 

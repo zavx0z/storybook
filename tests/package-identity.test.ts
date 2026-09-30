@@ -19,7 +19,7 @@ const newFamily = Object.freeze({
   "@immersive/headless": "headless",
   "@zavx0z/browser": "browser",
   "@zavx0z/component": "component",
-  "@zavx0z/devtools": "devtools",
+  "@zavx0z/devtools": "devtool",
   "@zavx0z/dom": "dom",
   "@zavx0z/engine": "engine",
   "@nodes/layout": "nodes/layout",
@@ -27,8 +27,8 @@ const newFamily = Object.freeze({
   "@nodes/node": "nodes/node",
   "@immersive/markdown": "markdown",
   "@immersive/typedoc": "typedoc",
-  "@nodes/parameters": "nodes/parameters",
-  "@nodes/sockets": "nodes/sockets",
+  "@nodes/parameters": "nodes/parameter",
+  "@nodes/sockets": "nodes/socket",
   "@nodes/tree": "nodes/tree",
   "@renderer/html": "renderer/html",
   "@zavx0z/space": "space",
@@ -41,7 +41,7 @@ const newFamily = Object.freeze({
   "@jsx-runtime/fragment": "jsx/runtime/fragment",
   "@jsx-runtime/create": "jsx/runtime/create",
   "@jsx-development/create": "jsx/development/create",
-  "@jsx/events": "jsx/events",
+  "@jsx/events": "jsx/event",
   "@jsx-slot/plan": "jsx/slot/plan",
   "@jsx-slot/child": "jsx/slot/child",
   "@jsx-compiler/session": "jsx/compiler/session",
@@ -119,7 +119,7 @@ describe("Storybook package identity", () => {
     })
 
     assertOnePhysicalOwner(roots, "@zavx0z/component", "component", "src/index.ts")
-    assertOnePhysicalOwner(roots, "@zavx0z/devtools", "devtools", "inspector.ts")
+    assertOnePhysicalOwner(roots, "@zavx0z/devtools", "devtool", "inspector.ts")
     assertOnePhysicalOwner(roots, "@zavx0z/dom", "dom", "src/index.ts")
     assertOnePhysicalOwner(roots, "@renderer/html", "renderer/html", "src/index.ts")
     assertOnePhysicalOwner(roots, "@immersive/markdown", "markdown", "markdown/index.tsx")
@@ -128,7 +128,7 @@ describe("Storybook package identity", () => {
     assertOnePhysicalOwner(roots, "@zavx0z/jsx", "jsx", "package.json")
     assertOnePhysicalOwner(roots, "@jsx-runtime/create", "jsx/runtime/create", "index.ts")
     assertOnePhysicalOwner(roots, "@jsx-compiler/session", "jsx/compiler/session", "index.ts")
-    assertOnePhysicalOwner(roots, "@zavx0z/ui", "ui", "buttons/button.tsx")
+    assertOnePhysicalOwner(roots, "@zavx0z/ui", "ui", "button/button/index.tsx")
     assertOnePhysicalOwner(roots, "@zavx0z/browser", "browser", "src/index.ts")
     assertOnePhysicalOwner(roots, "@zavx0z/engine", "engine", "src/index.ts")
     assertOnePhysicalOwner(roots, "@nodes/layout", "nodes/layout", "index.ts")
@@ -151,12 +151,12 @@ describe("Storybook package identity", () => {
     })
     for (const [specifier, ownerPath] of [
       ["@zavx0z/component", "component/src/index.ts"],
-      ["@zavx0z/devtools", "devtools/inspector.ts"],
+      ["@zavx0z/devtools", "devtool/inspector.ts"],
       ["@zavx0z/dom", "dom/src/index.ts"],
       ["@renderer/html", "renderer/html/src/index.ts"],
       ["@immersive/markdown", "markdown/markdown/index.tsx"],
       ["@immersive/markdown/parser", "markdown/parser/index.ts"],
-      ["@immersive/markdown/destinations", "markdown/destinations/index.ts"],
+      ["@immersive/markdown/destination", "markdown/destination/index.ts"],
       ["@immersive/typedoc", "typedoc/typedoc/index.tsx"],
       ["@immersive/typedoc/parser", "typedoc/parser/index.ts"],
       ["@zavx0z/template/compiled", "template/compiled.ts"],
@@ -164,7 +164,7 @@ describe("Storybook package identity", () => {
       ["@zavx0z/jsx/jsx-dev-runtime", "jsx/development/index.ts"],
       ["@jsx-runtime/create", "jsx/runtime/create/index.ts"],
       ["@jsx-compiler/bun", "jsx/compiler/bun/index.ts"],
-      ["@zavx0z/ui/buttons/button", "ui/buttons/button.tsx"],
+      ["@zavx0z/ui/button/button", "ui/button/button/index.tsx"],
     ] as const) {
       const installedPath = Bun.resolveSync(specifier, root)
       expect(ownerSourcePath(installedPath), specifier).toBe(join(monorepoRoot, ownerPath))

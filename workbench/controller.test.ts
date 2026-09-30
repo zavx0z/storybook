@@ -11,7 +11,7 @@ import {
 } from "@zavx0z/dom"
 import {createDocumentRenderer} from "@renderer/html"
 import {isCompiledTemplate} from "@zavx0z/template/compiled"
-import {uiIcons} from "@zavx0z/ui/themes/icons"
+import {uiIcons} from "@zavx0z/ui/theme/icon"
 import {
   WORKBENCH_EVENTS,
   WORKBENCH_LAYOUT_PROTOCOL,
@@ -435,13 +435,13 @@ describe("compiled Storybook Workbench", () => {
     const navigation = await Bun.file(new URL("./navigation/ui-tree.tsx", import.meta.url)).text()
     expect(controller).not.toContain("createElement(")
     expect(controller).not.toContain("StorybookDom")
-    expect(inspector).toContain('from "@zavx0z/ui/widgets/inspector"')
+    expect(inspector).toContain('from "@zavx0z/ui/widget/inspector"')
     expect(inspector).not.toContain("InspectorSections")
-    expect(widgetPanel).toContain('from "@zavx0z/ui/surfaces/panel"')
+    expect(widgetPanel).toContain('from "@zavx0z/ui/surface/panel"')
     expect(widgetPanel).not.toContain("InspectorSection")
     expect(inspector).not.toContain("uiIcons")
     expect(inspectorRegistry).not.toContain("uiIcons")
-    expect(sourceWidget).toContain('from "@zavx0z/ui/views/code-editor"')
+    expect(sourceWidget).toContain('from "@zavx0z/ui/view/code-editor"')
     expect(view).not.toContain("createElement(")
     expect(navigation).not.toContain("createElement(")
   })

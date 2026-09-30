@@ -948,7 +948,7 @@ describe("one external Storybook server", () => {
     const built = await running.sessions.ensure("@fixture/components")
     const revision = built.builtRevision!
     const graph = running.sessions.session("@fixture/components").revisionGraphSnapshot(revision)!
-    expect(graph.workbenchAuthorStyleSheets.map(({specifier}) => specifier)).toEqual(["@zavx0z/ui/themes/theme.css"])
+    expect(graph.workbenchAuthorStyleSheets.map(({specifier}) => specifier)).toEqual(["@zavx0z/ui/theme/theme.css"])
     const resource = graph.workbenchAuthorStyleSheets[0]!
     const response = await fetch(new URL(`/__storybook/revisions/%40fixture%2Fcomponents/${revision}/${resource.url}`, running.origin))
     expect(response.status).toBe(200)

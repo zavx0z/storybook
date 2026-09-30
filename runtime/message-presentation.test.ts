@@ -39,13 +39,13 @@ describe("Storybook message presentation ownership", () => {
       new URL("./components/overview-action-button.tsx", import.meta.url),
     ).text()
 
-    expect(view).toContain('from "@zavx0z/ui/surfaces/pane"')
+    expect(view).toContain('from "@zavx0z/ui/surface/pane"')
     expect(view).toContain("<Pane")
     expect(view).not.toContain("--widget-box-outline")
     expect(view).not.toContain("--widget-box-background")
     expect(view).not.toContain("border-radius:")
     expect(view).not.toContain("padding:")
-    expect(action).toContain('from "@zavx0z/ui/buttons/button"')
+    expect(action).toContain('from "@zavx0z/ui/button/button"')
     expect(action).toContain('size="large"')
     expect(action).toContain('data-storybook-overview-action=""')
     expect(action).toContain("display: flex;")

@@ -6,7 +6,7 @@ import type {StorybookAuthorStyleSheet} from "../catalog/catalog.t"
 
 /** Читает единственный публичный CSS export темы UI без проектных деклараций. */
 export function readWorkbenchStyleSheets(toolRoot = resolve(import.meta.dir, "..")): readonly StorybookAuthorStyleSheet[] {
-  const specifier = "@zavx0z/ui/themes/theme.css"
+  const specifier = "@zavx0z/ui/theme/theme.css"
   const path = realpathSync(Bun.resolveSync(specifier, toolRoot))
   let ownerRoot = dirname(path)
   while (true) {

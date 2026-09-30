@@ -1,4 +1,4 @@
-import Inspector, {type InspectorCategory} from "@zavx0z/ui/widgets/inspector"
+import Inspector, {type InspectorCategory} from "@zavx0z/ui/widget/inspector"
 import type {JSX} from "@jsx-compiler/session"
 import type {
   WorkbenchInspectorSubject,

@@ -173,7 +173,7 @@ describe("safe compiled Storybook Markdown", () => {
     expect(view).not.toContain("actionStyle")
     expect(view).not.toContain("<section data-markdown-block")
     expect(view).not.toContain("<section data-markdown-list")
-    expect(action).toContain('from "@zavx0z/ui/buttons/button"')
+    expect(action).toContain('from "@zavx0z/ui/button/button"')
     expect(action).toContain('size="large"')
     expect(action).toContain('data-storybook-overview-action=""')
     expect(action).toContain("display: flex;")

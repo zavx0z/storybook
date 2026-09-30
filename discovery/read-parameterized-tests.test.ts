@@ -19,10 +19,10 @@ test("[DIAGRAM-TEST-PARAMETERS] чтение spec возвращает назв�
           file: "nodes/node/diagram/index.tsx",
           expected: {
             "nodes/node/diagram/index.tsx#DiagramNode": {
-              uses: ["ui/surfaces/pane.tsx#Pane", "ui/typography.tsx#Typography"],
+              uses: ["ui/surface/pane.tsx#Pane", "ui/typography.tsx#Typography"],
               elements: ["article"],
             },
-            "ui/surfaces/pane.tsx#Pane": {uses: [], elements: ["section"]},
+            "ui/surface/pane.tsx#Pane": {uses: [], elements: ["section"]},
             "ui/typography.tsx#Typography": {uses: [], elements: ["span"]},
           },
         },

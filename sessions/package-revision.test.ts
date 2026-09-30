@@ -36,11 +36,11 @@ describe("structural package revision graph", () => {
 
   test("retains Workbench theme as its own revision collection", async () => {
     const snapshot = createStorybookPackageRevisionGraphSnapshot(await graph(), "@fixture/components", "components", [{
-      specifier: "@zavx0z/ui/themes/theme.css", path: "/owner/theme.css", ownerRoot: "/owner",
+      specifier: "@zavx0z/ui/theme/theme.css", path: "/owner/theme.css", ownerRoot: "/owner",
       ownerPackageJsonPath: "/owner/package.json", contentDigest: "a".repeat(64),
     }])
     expect(snapshot.workbenchAuthorStyleSheets).toEqual([{
-      specifier: "@zavx0z/ui/themes/theme.css", url: "workbench-author-style-sheets/0.css", contentDigest: "a".repeat(64),
+      specifier: "@zavx0z/ui/theme/theme.css", url: "workbench-author-style-sheets/0.css", contentDigest: "a".repeat(64),
     }])
     expect(validateStorybookPackageRevisionGraphSnapshot(snapshot)).toBe(snapshot)
   })
@@ -65,7 +65,7 @@ describe("structural package revision graph", () => {
       routes: [...snapshot.routes, snapshot.routes[0]!],
     }))).toThrow("route is invalid")
     expect(() => validateStorybookPackageRevisionGraphSnapshot(redigest({...snapshot,
-      workbenchAuthorStyleSheets: [{specifier: "@zavx0z/ui/themes/theme.css", url: "theme.css", contentDigest: "a".repeat(64)}],
+      workbenchAuthorStyleSheets: [{specifier: "@zavx0z/ui/theme/theme.css", url: "theme.css", contentDigest: "a".repeat(64)}],
     }))).toThrow("Workbench stylesheet is invalid")
     expect(() => validateStorybookPackageRevisionGraphSnapshot(redigest({...snapshot,
       resources: [{nodeId: snapshot.rootId, kind: "readme", index: 0, url: `resources/nodes/${encodeURIComponent(snapshot.rootId)}/readme.md`} as never],

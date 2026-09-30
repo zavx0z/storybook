@@ -54,7 +54,7 @@ test("[DEPENDENCIES-FIT] большой граф вписывается в Displ
   const renderer = createDocumentRenderer({document, root: owner, viewport: {width: 900, height: 650},
     textMeasurer: {measureTextAdvance: (text, size) => text.length * size * .5}})
   const styles = acquireDocumentAuthorStyleSheetOwner(document)
-  styles.replace([{id: "theme", cssText: await Bun.file(Bun.resolveSync("@zavx0z/ui/themes/theme.css", import.meta.dir)).text()}])
+  styles.replace([{id: "theme", cssText: await Bun.file(Bun.resolveSync("@zavx0z/ui/theme/theme.css", import.meta.dir)).text()}])
   const leaves = Array.from({length: 48}, (_, index) => `leaf-${index}.tsx#Leaf${index}`)
   const large = {...value, name: "Большой граф", graph: {
     [ownerId]: {uses: leaves, elements: ["article"]},

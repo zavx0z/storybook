@@ -13,7 +13,7 @@ import {externalStorybookBrowsePath} from "../catalog/graph.ts"
 import type {CustomEvent} from "@zavx0z/dom"
 import type {RootLinkedAuthorStyleSheet} from "@zavx0z/browser/integration"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
-import {arrowDownIcon, arrowUpIcon} from "@zavx0z/ui/themes/icons"
+import {arrowDownIcon, arrowUpIcon} from "@zavx0z/ui/theme/icon"
 import {
   WORKBENCH_EVENTS,
   type WorkbenchInspectorCustomWidgetProps,

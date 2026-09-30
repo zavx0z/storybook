@@ -4,7 +4,7 @@ import {StorybookCdpConnection, type StorybookCdpWebSocket} from "./cdp-connecti
 describe("Storybook CDP connection", () => {
   test("вызывает durable callback только у границы отправки, после abort и сериализации", async () => {
     const socket = new ControlledSocket()
-    const connecting = StorybookCdpConnection.connect("ws://127.0.0.1:9222/devtools/browser/A", {factory: () => socket})
+    const connecting = StorybookCdpConnection.connect("ws://127.0.0.1:9222/devtool/browser/A", {factory: () => socket})
     socket.open()
     const connection = await connecting
     socket.respond = true
@@ -32,7 +32,7 @@ describe("Storybook CDP connection", () => {
 
   test("fails immediately when the socket closes before opening", async () => {
     const socket = new ControlledSocket()
-    const connecting = StorybookCdpConnection.connect("ws://127.0.0.1:9222/devtools/browser/A", {
+    const connecting = StorybookCdpConnection.connect("ws://127.0.0.1:9222/devtool/browser/A", {
       factory: () => socket,
       timeoutMs: 5_000,
     })
@@ -43,7 +43,7 @@ describe("Storybook CDP connection", () => {
 
   test("closes the logical connection on socket error", async () => {
     const socket = new ControlledSocket()
-    const connecting = StorybookCdpConnection.connect("ws://127.0.0.1:9222/devtools/browser/A", {
+    const connecting = StorybookCdpConnection.connect("ws://127.0.0.1:9222/devtool/browser/A", {
       factory: () => socket,
     })
     socket.open()
@@ -58,7 +58,7 @@ describe("Storybook CDP connection", () => {
 
   test("removes a timed-out command without poisoning the next request", async () => {
     const socket = new ControlledSocket()
-    const connecting = StorybookCdpConnection.connect("ws://127.0.0.1:9222/devtools/browser/A", {
+    const connecting = StorybookCdpConnection.connect("ws://127.0.0.1:9222/devtool/browser/A", {
       factory: () => socket,
     })
     socket.open()

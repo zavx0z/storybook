@@ -1,4 +1,4 @@
-import CodeEditor from "@zavx0z/ui/views/code-editor"
+import CodeEditor from "@zavx0z/ui/view/code-editor"
 import Typography from "@zavx0z/ui/typography"
 import type {ScenarioAppInput} from "../../contract/input"
 import {isScenarioGuide, ScenarioGuideResult} from "./guide"

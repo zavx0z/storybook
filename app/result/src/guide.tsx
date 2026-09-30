@@ -1,4 +1,4 @@
-import CodeEditor from "@zavx0z/ui/views/code-editor"
+import CodeEditor from "@zavx0z/ui/view/code-editor"
 import Typography from "@zavx0z/ui/typography"
 import type {ReadScenarioGuideOutput} from "@archetypes/scenario-guide"
 import {ScenarioGuideExample} from "./guide-example"

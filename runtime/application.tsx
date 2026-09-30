@@ -7,7 +7,7 @@ import type {Workbench as WorkbenchHandle, WorkbenchUserState} from "../workbenc
 import {StorybookDisplay} from "./display-view.tsx"
 import {getDocumentClipboardController} from "@zavx0z/browser/clipboard"
 import type {Document as SemanticDocument} from "@zavx0z/dom"
-import ClipboardMenu from "@zavx0z/ui/menus/clipboard-menu"
+import ClipboardMenu from "@zavx0z/ui/menu/clipboard-menu"
 import {useLayoutEffect, useMemo, useState} from "@zavx0z/component"
 import {McpWindow} from "../workbench/mcp-window"
 import type {McpRequestRecord} from "@mcp/rest/requests"

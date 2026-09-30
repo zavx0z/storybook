@@ -1,4 +1,4 @@
-import Pane from "@zavx0z/ui/surfaces/pane"
+import Pane from "@zavx0z/ui/surface/pane"
 import Typography from "@zavx0z/ui/typography"
 import {StorybookOverviewActionButton} from "./components/overview-action-button.tsx"
 import type {StorybookOverviewAction} from "./components/overview-action.ts"

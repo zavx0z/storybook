@@ -1,5 +1,5 @@
-import type {WindowGeometry} from "@zavx0z/ui/surfaces/window"
-import type {TabProps} from "@zavx0z/ui/surfaces/tab"
+import type {WindowGeometry} from "@zavx0z/ui/surface/window"
+import type {TabProps} from "@zavx0z/ui/surface/tab"
 
 /** Настройки Minimap между сессиями; данные каталога и временный pointer-жест сюда не входят. */
 export interface MinimapState {

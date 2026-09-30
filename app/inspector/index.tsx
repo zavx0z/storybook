@@ -1,7 +1,7 @@
 import {ScenarioTree} from "./src/tree"
 import {useSyncExternalStore} from "@zavx0z/component"
-import CodeEditor from "@zavx0z/ui/views/code-editor"
-import Button from "@zavx0z/ui/buttons/button"
+import CodeEditor from "@zavx0z/ui/view/code-editor"
+import Button from "@zavx0z/ui/button/button"
 import type {ScenarioApp} from "../contract/output"
 
 /** Один Editor с декларацией и дерево describe с пунктами выбранного варианта. */

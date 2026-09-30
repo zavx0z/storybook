@@ -7,7 +7,7 @@
 @packageDocumentation
 */
 import {useMemo, useState} from "@zavx0z/component"
-import SelectField from "@zavx0z/ui/fields/select-field"
+import SelectField from "@zavx0z/ui/field/select-field"
 import {DiagramNode} from "@nodes/node/diagram"
 import {GraphView, type GraphInput, type GraphLayoutComputer, type GraphNodeProps} from "@immersive/nodes/view"
 import {layoutTopDown} from "@nodes/layout/top-down"

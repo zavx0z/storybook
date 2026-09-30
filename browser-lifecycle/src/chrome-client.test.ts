@@ -169,7 +169,7 @@ describe("Storybook direct CDP client", () => {
         if (url.port !== "9333") return new Response("unavailable", {status: 503})
         return Response.json({
           Browser: "Chrome/151",
-          webSocketDebuggerUrl: "ws://127.0.0.1:9333/devtools/browser/OWNED",
+          webSocketDebuggerUrl: "ws://127.0.0.1:9333/devtool/browser/OWNED",
         })
       }) as typeof fetch,
       spawnChrome: (value: readonly string[]) => {
@@ -177,7 +177,7 @@ describe("Storybook direct CDP client", () => {
         command = value
         const profile = join(root, "chrome-profile")
         mkdirSync(profile, {recursive: true})
-        writeFileSync(join(profile, "DevToolsActivePort"), "9333\n/devtools/browser/OWNED\n")
+        writeFileSync(join(profile, "DevToolsActivePort"), "9333\n/devtool/browser/OWNED\n")
       },
     }
     const client = new StorybookCdpClient(options)
@@ -224,7 +224,7 @@ describe("Storybook direct CDP client", () => {
         redirect = init?.redirect
         return Response.json({
           Browser: "Chrome/151",
-          webSocketDebuggerUrl: "ws://example.com/devtools/browser/FOREIGN",
+          webSocketDebuggerUrl: "ws://example.com/devtool/browser/FOREIGN",
         })
       }) as typeof fetch,
     })
@@ -262,7 +262,7 @@ class FakeCdp {
       type: "page",
       title: "Fixture",
       url,
-      webSocketDebuggerUrl: `ws://127.0.0.1:9222/devtools/page/${id}`,
+      webSocketDebuggerUrl: `ws://127.0.0.1:9222/devtool/page/${id}`,
     }
   }
 
@@ -271,7 +271,7 @@ class FakeCdp {
     if (url.pathname === "/json/version") {
       return Response.json({
         Browser: "Chrome/151",
-        webSocketDebuggerUrl: "ws://127.0.0.1:9222/devtools/browser/BROWSER",
+        webSocketDebuggerUrl: "ws://127.0.0.1:9222/devtool/browser/BROWSER",
       })
     }
     if (url.pathname === "/json/list") {

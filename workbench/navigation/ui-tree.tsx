@@ -1,6 +1,6 @@
 import {useLayoutEffect, useRef, useState} from "@zavx0z/component"
-import Tree, {type TreeHandle, type TreeItem} from "@zavx0z/ui/widgets/tree"
-import {closeIcon} from "@zavx0z/ui/themes/icons"
+import Tree, {type TreeHandle, type TreeItem} from "@zavx0z/ui/widget/tree"
+import {closeIcon} from "@zavx0z/ui/theme/icon"
 import {
   projectWorkbenchNavigation,
   type WorkbenchNavigationGroup,

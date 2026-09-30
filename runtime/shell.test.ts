@@ -184,11 +184,11 @@ describe("external Storybook shared Browser Root", () => {
     const state = createFakeRootState()
     const link = {} as HTMLLinkElement
     const shell = await createShell(state, {
-      authorStyleSheetSources: [{id: "@zavx0z/ui/themes/theme.css", link}],
+      authorStyleSheetSources: [{id: "@zavx0z/ui/theme/theme.css", link}],
     })
 
     expect(state.options?.stylesheets).toEqual([{
-      id: "@zavx0z/ui/themes/theme.css",
+      id: "@zavx0z/ui/theme/theme.css",
       link,
     }])
     expect(state.options?.stylesheets).toHaveLength(1)

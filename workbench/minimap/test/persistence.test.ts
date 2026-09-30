@@ -8,7 +8,7 @@ import type {MinimapProps} from "../contract/input.ts"
 import {createMinimapPersistence, defaultMinimapState, type MinimapState} from "../src/state.ts"
 
 const {Minimap} = await import("../index.tsx")
-const theme = await Bun.file(Bun.resolveSync("@zavx0z/ui/themes/theme.css", import.meta.dir)).text()
+const theme = await Bun.file(Bun.resolveSync("@zavx0z/ui/theme/theme.css", import.meta.dir)).text()
 
 /** Новая сессия компонента использует настоящее дерево, layout, ввод и переданное хранилище. */
 function mount(storage: () => Pick<Storage, "getItem" | "setItem">, width = 800, height = 600) {

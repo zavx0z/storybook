@@ -4,7 +4,7 @@ import {createDocumentRenderer} from "@renderer/html"
 import {loadCompiledWorkbench} from "../../src/workbench/testing/compile-workbench.ts"
 
 const {createWorkbench} = await loadCompiledWorkbench()
-const theme = await Bun.file(new URL(import.meta.resolve("@zavx0z/ui/themes/theme.css"))).text()
+const theme = await Bun.file(new URL(import.meta.resolve("@zavx0z/ui/theme/theme.css"))).text()
 
 test("реальная прокрутка обновляет окно строк каталога без ручного dispatchEvent", async () => {
   const document = createDocument()

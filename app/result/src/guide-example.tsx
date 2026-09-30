@@ -1,4 +1,4 @@
-import CodeEditor from "@zavx0z/ui/views/code-editor"
+import CodeEditor from "@zavx0z/ui/view/code-editor"
 import Typography from "@zavx0z/ui/typography"
 
 /** Один исходный пример руководства с собственным заголовком и редактором. */
