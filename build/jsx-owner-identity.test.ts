@@ -1,6 +1,7 @@
 import {expect, test} from "bun:test"
 import {mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync} from "node:fs"
 import {dirname, join} from "node:path"
+import {tmpdir} from "node:os"
 import {
   createStorybookSharedBrowserModuleEntries,
   STORYBOOK_SHARED_BROWSER_OWNER_PACKAGES,
@@ -9,7 +10,7 @@ import {
 
 /** Exact fixture меняет JSX composition; остальные owners связаны с каноническими исходниками. */
 function fixture() {
-  const tool = mkdtempSync(join(import.meta.dir, ".jsx-owner-"))
+  const tool = realpathSync(mkdtempSync(join(tmpdir(), "storybook-jsx-owner-")))
   const jsx = join(tool, "owners", "jsx")
   const roots = new Map<string, string>()
   mkdirSync(jsx, {recursive: true})
@@ -84,7 +85,7 @@ test("mandatory JSX protocol отклоняет owner без объявленн�
 })
 
 test("серверный корень JSX исключён из browser identity; Fragment имеет одного владельца", () => {
-  const directory = mkdtempSync(join(import.meta.dir, ".jsx-owner-"))
+  const directory = realpathSync(mkdtempSync(join(tmpdir(), "storybook-jsx-owner-")))
   try {
     const entries = createStorybookSharedBrowserModuleEntries(realpathSync(join(import.meta.dir, "..")), directory)
     const paths = new Map(entries.map(entry => [entry.specifier, entry.sourcePath]))

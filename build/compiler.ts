@@ -17,7 +17,7 @@ import {
   statSync,
 } from "node:fs"
 import {basename, dirname, isAbsolute, join, parse, relative, resolve, sep} from "node:path"
-import {fileURLToPath, pathToFileURL} from "node:url"
+import {pathToFileURL} from "node:url"
 import {
   canonicalizeStorybookPackageFile,
   preferredStorybookPackageRoot,
@@ -28,15 +28,28 @@ import {
 const JSX_IMPORT_SOURCE = "@zavx0z/jsx"
 const JSX_BUN_PACKAGE = "@jsx-compiler/bun"
 const LOCAL_DEPENDENCY_PREFIXES = ["link:", "workspace:", "file:", "portal:"] as const
-const STORYBOOK_TOOL_ROOT = fileURLToPath(new URL("..", import.meta.url))
 const PHYSICAL_PROBE_EXTENSIONS = /(?:\.[cm]?[jt]sx?|\.d\.ts)$/u
 const physicalOwnerRootsCache = new Map<string, readonly string[]>()
 
+/**
+Задаёт владельцев и исходники одной compiler session.
+Расположение compiler-модуля не определяет используемый toolchain.
+
+@property toolRoot - Корень инструментов, явно выбранный композицией сервера.
+
+@property packageRoot - Корень пакета, чьи модули проверяются.
+
+@property projectRoot - Граница проекта, внутри которой разрешены исходники пакета.
+
+@property moduleSourcePaths - Точные авторские модули для выбора effective JSX config.
+
+@property [generatedSourceRoot] - Только подготовленные JSX-модули этой сборки вне авторских исходников.
+*/
 export type StorybookPackageCompilerInput = Readonly<{
+  toolRoot: string
   packageRoot: string
   projectRoot: string
   moduleSourcePaths: readonly string[]
-  /** Только подготовленные JSX-модули текущей сборки, без изменения исходников владельца. */
   generatedSourceRoot?: string
 }>
 
@@ -205,7 +218,7 @@ function resolveCompilerContext(
   }
   const sourcePaths = Object.freeze([...new Set(input.moduleSourcePaths.map((path, index) =>
     canonicalSourcePath(path, index, packageRoot, projectRoot)))].sort(comparePaths))
-  const toolRoot = canonicalDirectory(STORYBOOK_TOOL_ROOT, "Storybook tool root")
+  const toolRoot = canonicalDirectory(input.toolRoot, "Storybook tool root")
   const toolGraph = discoverOwnerDependencyGraph(toolRoot, toolRoot)
   const hasConsumerModules = sourcePaths.length > 0
   const dependencyGraph = hasConsumerModules ? discoverOwnerDependencyGraph(projectRoot, packageRoot) : toolGraph
@@ -239,7 +252,7 @@ function resolveCompilerContext(
     ...(compileOwnerJsx ? [dependencyGraph] : []),
     toolGraph,
   )
-  const adapterPath = resolveJsxAdapter(packageRoot, projectRoot, adapterRoot)
+  const adapterPath = resolveJsxAdapter(packageRoot, projectRoot, adapterRoot, toolRoot)
   return Object.freeze({
     projectRoot,
     packageRootsByName,
@@ -782,6 +795,7 @@ function resolveJsxAdapter(
   packageRoot: string,
   projectRoot: string,
   adapterRoot: string,
+  toolRoot: string,
 ): string {
   const manifest = parseJsonObject(
     join(adapterRoot, "package.json"),
@@ -806,7 +820,7 @@ function resolveJsxAdapter(
   const attempts = [...new Set([
     packageRoot,
     projectRoot,
-    canonicalDirectory(STORYBOOK_TOOL_ROOT, "Storybook tool root"),
+    toolRoot,
   ])]
   for (const fromRoot of attempts) {
     let resolved: string

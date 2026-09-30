@@ -2,7 +2,6 @@ import {buildSharedArtifactGraph, publishSharedArtifacts} from "./shared-artifac
 import {readSharedBrowserEpoch} from "./shared-browser-receipt"
 import {mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {basename, dirname, extname, join, relative, resolve, sep} from "node:path"
-import {fileURLToPath} from "node:url"
 import {canonicalBuildInputs, canonicalizeStorybookPackageIdentities} from "./package-build.ts"
 import {createStorybookPackageCompilerPlugins} from "./compiler.ts"
 import type {SharedBrowserAssets} from "./shared-browser-assets.ts"
@@ -36,9 +35,7 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
       throw new Error("Retained kernel does not match its saved artifact receipt")
     }
   }
-  const packageEntryPath = realpathSync(input.packageEntryPath ?? fileURLToPath(
-    new URL("../runtime/page-entry.ts", import.meta.url),
-  ))
+  const packageEntryPath = realpathSync(input.packageEntryPath ?? join(input.toolRoot, "runtime/page-entry.ts"))
   onPhase?.({phase: "fingerprint", state: "started", at: new Date().toISOString()})
   const attestation = await beginStorybookSharedBuildInputAttestation({
     ...input,
@@ -65,6 +62,7 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
       moduleEntryDirectory,
     )
     const kernelPlugins = () => createStorybookPackageCompilerPlugins({
+      toolRoot: input.toolRoot,
       packageRoot: input.toolRoot,
       projectRoot: input.toolRoot,
       moduleSourcePaths: [],
@@ -105,8 +103,8 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
       "0".repeat(64), sourceFiles,
     )
   }
-  const bootstrapPath = realpathSync(fileURLToPath(new URL("../runtime/shared-bootstrap.ts", import.meta.url)))
-  const packageHostPath = realpathSync(fileURLToPath(new URL("../runtime/package-entry.ts", import.meta.url)))
+  const bootstrapPath = realpathSync(join(input.toolRoot, "runtime/shared-bootstrap.ts"))
+  const packageHostPath = realpathSync(join(input.toolRoot, "runtime/package-entry.ts"))
   const hostEntryPoints = [...new Set([
     realpathSync(input.landingEntryPath),
     realpathSync(input.fallbackEntryPath),
@@ -115,6 +113,7 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
     bootstrapPath,
   ])]
   const hostPlugins = () => createStorybookPackageCompilerPlugins({
+    toolRoot: input.toolRoot,
     packageRoot: input.toolRoot,
     projectRoot: input.toolRoot,
     moduleSourcePaths: hostEntryPoints,

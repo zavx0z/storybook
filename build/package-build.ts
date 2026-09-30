@@ -16,7 +16,6 @@ import {
   writeFileSync,
 } from "node:fs"
 import {dirname, extname, isAbsolute, join, relative, resolve, sep} from "node:path"
-import {fileURLToPath} from "node:url"
 import {readScenario, ScenarioAuthoringError, supportsScenarioPreview, type ReadScenarioOutput} from "@storybook/app/scenarios"
 import {
   generateStorybookLoaderSource,
@@ -69,7 +68,27 @@ export type StorybookCompilerPluginResolver = (
   }>,
 ) => Promise<readonly Bun.BunPlugin[]>
 
+/**
+Композиция передаёт один tool owner для компилятора, fingerprint и worker.
+
+@property toolRoot - Корень исполняемой сборочной системы; передаётся в worker каноническим путём.
+
+@property [browserEntryPath] - Явный entrypoint; по умолчанию `runtime/package-entry.ts` выбранного tool owner.
+
+@property [workerPath] - Явный worker; по умолчанию `build/package-build-worker.ts` того же владельца.
+
+@property [resolveCompilerPlugins] - Внедрённый compiler resolver для исполнения в текущем процессе.
+
+@property [onPhase] - Получатель этапов этой сборки.
+
+@property [onWorkerLifecycle] - Получатель начала и завершения точного дочернего процесса.
+
+@property [sharedBrowserIdentity] - Проверенная идентичность общей платформы.
+
+@property [resolveSharedBrowserIdentity] - Получает актуальную общую платформу перед запуском работы.
+*/
 export type CreateStorybookPackageRevisionBuilderOptions = Readonly<{
+  toolRoot: string
   browserEntryPath?: string
   workerPath?: string
   resolveCompilerPlugins?: StorybookCompilerPluginResolver
@@ -111,6 +130,7 @@ export type StorybookPackageBuildWorkerJob = Readonly<{
     "signal" | "onPhase" | "onWorkerLifecycle"
   >
   options: Readonly<{
+    toolRoot: string
     browserEntryPath: string
     sharedBrowserIdentity?: StorybookSharedBrowserIdentity
   }>
@@ -127,19 +147,18 @@ export type StorybookPackageBuildWorkerResult = Readonly<{
 
 /** Создаёт реальный Bun browser builder для независимых `PackageSession`. */
 export function createStorybookPackageRevisionBuilder(
-  options: CreateStorybookPackageRevisionBuilderOptions = {},
+  options: CreateStorybookPackageRevisionBuilderOptions,
 ): StorybookFingerprintingPackageRevisionBuilder {
-  const browserEntryPath = realpathSync(options.browserEntryPath ?? fileURLToPath(
-    new URL("../runtime/package-entry.ts", import.meta.url),
-  ))
-  const workerPath = realpathSync(options.workerPath ?? fileURLToPath(
-    new URL("./package-build-worker.ts", import.meta.url),
-  ))
+  const toolRoot = realpathSync(options.toolRoot)
+  const browserEntryPath = realpathSync(options.browserEntryPath ?? join(toolRoot, "runtime/package-entry.ts"))
+  const workerPath = realpathSync(options.workerPath ?? join(toolRoot, "build/package-build-worker.ts"))
   if (options.resolveCompilerPlugins !== undefined) {
     return async (input) => {
       const sharedBrowserIdentity = await resolveSharedBrowserIdentity(options)
       return buildStorybookPackageRevisionInProcess(input, {
         ...options,
+        toolRoot,
+        browserEntryPath,
         ...(sharedBrowserIdentity === undefined ? {} : {sharedBrowserIdentity}),
       })
     }
@@ -149,6 +168,7 @@ export function createStorybookPackageRevisionBuilder(
     return runPackageBuildWorker(
       input,
       {
+        toolRoot,
         browserEntryPath,
         ...(sharedBrowserIdentity === undefined ? {} : {sharedBrowserIdentity}),
       },
@@ -169,18 +189,18 @@ toolchain либо ABI возвращают `null`: session сохраняет l
 export function createStorybookBuildInputFingerprintVerifier(
   options: Pick<
     CreateStorybookPackageRevisionBuilderOptions,
-    "browserEntryPath" | "sharedBrowserIdentity"
-  > = {},
+    "toolRoot" | "browserEntryPath" | "sharedBrowserIdentity"
+  >,
 ): StorybookBuildInputFingerprintVerifier {
-  const browserEntryPath = realpathSync(options.browserEntryPath ?? fileURLToPath(
-    new URL("../runtime/package-entry.ts", import.meta.url),
-  ))
+  const toolRoot = realpathSync(options.toolRoot)
+  const browserEntryPath = realpathSync(options.browserEntryPath ?? join(toolRoot, "runtime/package-entry.ts"))
   const compute = createStorybookBuildInputFingerprintComputer()
   return (value, descriptor): StorybookBuildInputFingerprint | null => {
     const persisted = BuildInputs.parse(value)
     if (persisted === null) return null
     try {
       const current = compute({
+        toolRoot,
         descriptor,
         browserEntryPath,
         ...(options.sharedBrowserIdentity === undefined
@@ -199,18 +219,18 @@ export function createStorybookBuildInputFingerprintVerifier(
 /** Выполняет сборку внутри isolated package worker либо focused test seam. */
 export async function buildStorybookPackageRevisionInProcess(
   input: StorybookFingerprintingPackageRevisionBuilderInput,
-  options: CreateStorybookPackageRevisionBuilderOptions = {},
+  options: CreateStorybookPackageRevisionBuilderOptions,
 ): Promise<StorybookFingerprintingPackageRevisionBuild> {
   input.signal.throwIfAborted()
-  const browserEntryPath = realpathSync(options.browserEntryPath ?? fileURLToPath(
-    new URL("../runtime/package-entry.ts", import.meta.url),
-  ))
+  const toolRoot = realpathSync(options.toolRoot)
+  const browserEntryPath = realpathSync(options.browserEntryPath ?? join(toolRoot, "runtime/package-entry.ts"))
   const resolvePlugins = options.resolveCompilerPlugins ?? (async ({
     packageRoot,
     projectRoot,
     sourcePaths,
     generatedSourceRoot,
   }) => createStorybookPackageCompilerPlugins({
+    toolRoot,
     packageRoot,
     projectRoot,
     moduleSourcePaths: sourcePaths,
@@ -231,6 +251,7 @@ export async function buildStorybookPackageRevisionInProcess(
     const onPhase = input.onPhase ?? options.onPhase
     emitPhase(onPhase, "fingerprint", "started")
     const attestation = await beginStorybookBuildInputAttestation({
+      toolRoot,
       descriptor,
       browserEntryPath,
       stagingDirectory,
@@ -288,7 +309,7 @@ export async function buildStorybookPackageRevisionInProcess(
       ? [{path: `./scenario-jsx/component-${index}.tsx`, source: scenario.module.source}] : [])
     if (jsxModules.length || componentModules.length) {
       mkdirSync(generatedSourceRoot, {recursive: true})
-      ensureGeneratedJsxProtocol(generatedSourceRoot, resolve(import.meta.dir, ".."))
+      ensureGeneratedJsxProtocol(generatedSourceRoot, toolRoot)
       await Bun.write(join(generatedSourceRoot, "tsconfig.json"), JSON.stringify({
         compilerOptions: {target: "ESNext", module: "ESNext", moduleResolution: "Bundler",
           jsx: "react-jsx", jsxImportSource: "@zavx0z/jsx", noEmit: true, allowImportingTsExtensions: true, strict: true, skipLibCheck: true},
@@ -474,6 +495,7 @@ function readAttestedRevisionResource(
 async function runPackageBuildWorker(
   input: StorybookFingerprintingPackageRevisionBuilderInput,
   options: Readonly<{
+    toolRoot: string
     browserEntryPath: string
     sharedBrowserIdentity?: StorybookSharedBrowserIdentity
   }>,

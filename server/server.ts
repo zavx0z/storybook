@@ -184,12 +184,13 @@ export async function startExternalStorybookServer(
   const restoredSharedAssets = readPublishedSharedBrowserReceipt({
     root: sharedAssetRoot,
     toolRoot,
-    landingEntryPath: options.landingEntryPath ?? fileURLToPath(new URL("../runtime/browser-entry.ts", import.meta.url)),
-    fallbackEntryPath: options.fallbackEntryPath ?? fileURLToPath(new URL("../runtime/browser-entry.ts", import.meta.url)),
+    landingEntryPath: options.landingEntryPath ?? join(toolRoot, "runtime/browser-entry.ts"),
+    fallbackEntryPath: options.fallbackEntryPath ?? join(toolRoot, "runtime/browser-entry.ts"),
     stagingDirectory: join(sharedAssetRoot, ".receipt-check"),
   })
   let preparedSharedIdentity: StorybookSharedBrowserIdentity | undefined = usesSharedKernel ? restoredSharedAssets?.browserIdentity : undefined
   let verifyPackageInputs = createStorybookBuildInputFingerprintVerifier({
+    toolRoot,
     ...(options.packageBrowserEntryPath === undefined ? {} : {browserEntryPath: options.packageBrowserEntryPath}),
     ...(preparedSharedIdentity === undefined ? {} : {sharedBrowserIdentity: preparedSharedIdentity}),
   })
@@ -238,7 +239,7 @@ export async function startExternalStorybookServer(
     }
     if (preparedSharedIdentity !== assets.browserIdentity) {
       preparedSharedIdentity = assets.browserIdentity
-      verifyPackageInputs = createStorybookBuildInputFingerprintVerifier({sharedBrowserIdentity: preparedSharedIdentity})
+      verifyPackageInputs = createStorybookBuildInputFingerprintVerifier({toolRoot, sharedBrowserIdentity: preparedSharedIdentity})
     }
   }
   const sessions = new ExternalStorybookSessionManager({
@@ -248,6 +249,7 @@ export async function startExternalStorybookServer(
       : verifyPackageInputs(value, descriptor),
     ...(usesSharedKernel ? {prepareBuild: prepareSharedIdentity} : {}),
     buildRevision: createStorybookPackageRevisionBuilder({
+      toolRoot,
       ...(usesSharedKernel ? {resolveSharedBrowserIdentity: async () => {
         if (preparedSharedIdentity === undefined) throw new Error("Shared browser dependencies must be prepared before compiler admission")
         return preparedSharedIdentity
@@ -470,12 +472,8 @@ export async function startExternalStorybookServer(
       const result = await runSharedBrowserBuild({
         root: sharedAssetRoot,
         toolRoot,
-        landingEntryPath: options.landingEntryPath ?? fileURLToPath(
-          new URL("../runtime/browser-entry.ts", import.meta.url),
-        ),
-        fallbackEntryPath: options.fallbackEntryPath ?? fileURLToPath(
-          new URL("../runtime/browser-entry.ts", import.meta.url),
-        ),
+        landingEntryPath: options.landingEntryPath ?? join(toolRoot, "runtime/browser-entry.ts"),
+        fallbackEntryPath: options.fallbackEntryPath ?? join(toolRoot, "runtime/browser-entry.ts"),
       }, context, STORYBOOK_SHARED_COMPILE_TIMEOUT_MS)
       hasSharedBuild = true
       sharedBuildError = null
@@ -522,8 +520,8 @@ export async function startExternalStorybookServer(
       }
       const compatible = await sessions.buildScheduler.run({packageId: null, owner: "shared", reason: "input-changed", generation: null},
         context => runSharedBrowserBuild({root: sharedAssetRoot, toolRoot,
-          landingEntryPath: options.landingEntryPath ?? fileURLToPath(new URL("../runtime/browser-entry.ts", import.meta.url)),
-          fallbackEntryPath: options.fallbackEntryPath ?? fileURLToPath(new URL("../runtime/browser-entry.ts", import.meta.url)),
+          landingEntryPath: options.landingEntryPath ?? join(toolRoot, "runtime/browser-entry.ts"),
+          fallbackEntryPath: options.fallbackEntryPath ?? join(toolRoot, "runtime/browser-entry.ts"),
           sharedKernel: retained.browserIdentity!,
         }, context, STORYBOOK_SHARED_COMPILE_TIMEOUT_MS), signal)
       if (compatible.browserIdentity?.hostModuleEpoch !== current.browserIdentity?.hostModuleEpoch) {
@@ -1209,7 +1207,7 @@ export async function startExternalStorybookServer(
         }
         if (url.pathname.startsWith("/assets/workbench-style/") && request.method === "GET") {
           const index = Number(url.pathname.slice("/assets/workbench-style/".length).replace(/\.css$/u, ""))
-          const styles = await defaultWorkbenchStyles()
+          const styles = await defaultWorkbenchStyles(toolRoot)
           const style = Number.isInteger(index) && index >= 0 ? styles[index] : undefined
           if (style === undefined) return responseJson({error: "Unknown Workbench stylesheet"}, 404)
           return new Response(Bun.file(style.path), {headers: {"content-type": "text/css", "cache-control": "no-store"}})
@@ -1392,8 +1390,9 @@ export async function startExternalStorybookServer(
   })
 }
 
-async function defaultWorkbenchStyles() {
-  return readWorkbenchStyleSheets(fileURLToPath(new URL("../", import.meta.url)))
+/** Читает тему из того же tool owner, который выбрала композиция сервера. */
+async function defaultWorkbenchStyles(toolRoot: string) {
+  return readWorkbenchStyleSheets(toolRoot)
 }
 
 /** Проецирует immutable CSS той же shared-сборки без запуска self-documentation package. */

@@ -7,11 +7,25 @@ import {canonicalizeStorybookPackageIdentities, createStorybookPackageRevisionBu
 import {STORYBOOK_PACKAGE_GRAPH_PROTOCOL, type StorybookPackageRevisionGraphSnapshot} from "../sessions/package-revision.ts"
 import type {StorybookPackageBuildDescriptor} from "../sessions/package-session.ts"
 
+const toolRoot = realpathSync(join(import.meta.dir, ".."))
 const roots: string[] = []
 setDefaultTimeout(60_000)
 afterEach(() => { for (const root of roots.splice(0)) rmSync(root, {recursive: true, force: true}) })
 
 describe("structural package revision build", () => {
+  test("запускает worker выбранного toolRoot без подмены текущим модулем сборщика", async () => {
+    const fixture = createFixture()
+    const selectedTool = join(fixture.root, "selected-tool")
+    mkdirSync(join(selectedTool, "build"), {recursive: true})
+    mkdirSync(join(selectedTool, "runtime"))
+    writeFileSync(join(selectedTool, "runtime/package-entry.ts"), "export {}\n")
+    writeFileSync(join(selectedTool, "build/package-build-worker.ts"),
+      'process.stderr.write("selected tool owner worker")\nprocess.exit(1)\n')
+    const build = createStorybookPackageRevisionBuilder({toolRoot: selectedTool})
+    await expect(build(buildInput(fixture.descriptor, join(fixture.root, ".selected-worker"), "selected-worker")))
+      .rejects.toThrow("selected tool owner worker")
+  })
+
   test("упавшая проверка сценария останавливает работу до компиляции", async () => {
     const fixture = createFixture()
     writeFileSync(fixture.descriptor.sourcePath, JSON.stringify({name: "@fixture/package", type: "module", exports: {"./module": "./module/index.ts"}}))
@@ -29,6 +43,7 @@ describe("structural package revision build", () => {
     ].join("\n"))
     let compilerEntered = false
     const build = createStorybookPackageRevisionBuilder({
+      toolRoot,
       browserEntryPath: fixture.browserEntry,
       resolveCompilerPlugins: async () => {
         compilerEntered = true
@@ -74,7 +89,7 @@ describe("structural package revision build", () => {
     try {
       const staging = join(fixture.root, ".binary-resource")
       const descriptor = {...fixture.descriptor, resourceFiles: [{sourcePath, targetPath: "resources/image.gif"}]}
-      await createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry})(buildInput(descriptor, staging, "binary-resource"))
+      await createStorybookPackageRevisionBuilder({toolRoot, browserEntryPath: fixture.browserEntry})(buildInput(descriptor, staging, "binary-resource"))
       await Bun.sleep(100)
       expect(readFileSync(join(staging, "resources/image.gif")).equals(bytes)).toBeTrue()
       expect(readFileSync(sourcePath).equals(bytes)).toBeTrue()
@@ -89,7 +104,7 @@ describe("structural package revision build", () => {
     const descriptor = {...fixture.descriptor, resourceFiles: [{sourcePath, sourceRoot: fixture.packageRoot,
       targetPath: "resources/module.md", contentDigest: createHash("sha256").update(readFileSync(sourcePath)).digest("hex"),
       derivedContent: "# Module documentation"}]}
-    const build = createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry})
+    const build = createStorybookPackageRevisionBuilder({toolRoot, browserEntryPath: fixture.browserEntry})
     const staging = join(fixture.root, ".module-doc")
     await build(buildInput(descriptor, staging, "module-doc"))
     expect(readFileSync(join(staging, "resources/module.md"), "utf8")).toBe("# Module documentation")
@@ -123,7 +138,7 @@ describe("structural package revision build", () => {
   test("emits a split revision payload without runtime or widget imports", async () => {
     const fixture = createFixture()
     const staging = join(fixture.root, ".candidate")
-    const result = await createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry})(buildInput(fixture.descriptor, staging, "revision-a"))
+    const result = await createStorybookPackageRevisionBuilder({toolRoot, browserEntryPath: fixture.browserEntry})(buildInput(fixture.descriptor, staging, "revision-a"))
     expect(result.entryRelativePath).toMatch(/\.js$/u)
     expect(result.moduleGraphRevision).toMatch(/^[a-f0-9]{64}$/u)
     expect(result.inputFingerprint.digest).toMatch(/^[a-f0-9]{64}$/u)
@@ -180,7 +195,7 @@ describe("structural package revision build", () => {
     const nodeId = "directory:package:@fixture/package/module"
     const descriptor = {...fixture.descriptor, scenarioSpecs: [{nodeId, sourcePaths: [realpathSync(scenarioPath)]}]}
     const staging = join(fixture.root, ".scenario")
-    const result = await createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry})(buildInput(descriptor, staging, "scenario"))
+    const result = await createStorybookPackageRevisionBuilder({toolRoot, browserEntryPath: fixture.browserEntry})(buildInput(descriptor, staging, "scenario"))
     const prepared = await Bun.file(join(staging, "scenarios", `${encodeURIComponent(nodeId)}.json`)).json()
     expect(prepared.preview.variants.map((variant: {title: string}) => variant.title)).toEqual(["Команда"])
     expect(result.dependencyRealpaths).toContain(realpathSync(scenarioPath))
@@ -200,7 +215,7 @@ describe("structural package revision build", () => {
       graphSnapshot: redigest({...fixture.descriptor.graphSnapshot, workbenchAuthorStyleSheets: [{
         specifier: "@fixture/package/theme.css", url: "workbench-author-style-sheets/0.css", contentDigest,
       }]})}
-    const build = createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry})
+    const build = createStorybookPackageRevisionBuilder({toolRoot, browserEntryPath: fixture.browserEntry})
     writeFileSync(theme, ".theme { color: changed; }\n")
     await expect(build(buildInput(descriptor, join(fixture.root, ".changed-css"), "changed-css"))).rejects.toThrow("content changed after resolution")
     const outside = join(fixture.root, "outside-theme.css")
@@ -214,7 +229,7 @@ describe("structural package revision build", () => {
     const fixture = createFixture()
     const phases: string[] = []
     const workers: string[] = []
-    const build = createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry})
+    const build = createStorybookPackageRevisionBuilder({toolRoot, browserEntryPath: fixture.browserEntry})
     await build({...buildInput(fixture.descriptor, join(fixture.root, ".events"), "events"),
       onPhase: ({phase, state}) => phases.push(`${phase}:${state}`),
       onWorkerLifecycle: ({state, workerId, pid}) => workers.push(`${state}:${workerId}:${pid}`)})
@@ -228,7 +243,7 @@ describe("structural package revision build", () => {
     const fixture = createFixture()
     const worker = join(fixture.root, "hung-worker.ts")
     writeFileSync(worker, "await new Promise(() => {})\n")
-    const build = createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry, workerPath: worker})
+    const build = createStorybookPackageRevisionBuilder({toolRoot, browserEntryPath: fixture.browserEntry, workerPath: worker})
     await expect(build({...buildInput(fixture.descriptor, join(fixture.root, ".timeout"), "timeout"), compileTimeoutMs: 100})).rejects.toThrow("compile timed out")
   }, 3_000)
 
@@ -236,7 +251,7 @@ describe("structural package revision build", () => {
     const fixture = createFixture()
     const worker = join(fixture.root, "aborted-worker.ts")
     writeFileSync(worker, "await new Promise(() => {})\n")
-    const build = createStorybookPackageRevisionBuilder({browserEntryPath: fixture.browserEntry, workerPath: worker})
+    const build = createStorybookPackageRevisionBuilder({toolRoot, browserEntryPath: fixture.browserEntry, workerPath: worker})
     const controller = new AbortController()
     const pending = build({...buildInput(fixture.descriptor, join(fixture.root, ".aborted"), "aborted"),
       signal: controller.signal, compileTimeoutMs: 2_000})

@@ -2,7 +2,6 @@ import BuildInputs from "@build/inputs"
 import {createHash, randomUUID} from "node:crypto"
 import {constants, closeSync, fstatSync, lstatSync, mkdirSync, existsSync, openSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync} from "node:fs"
 import {isAbsolute, join, relative} from "node:path"
-import {fileURLToPath} from "node:url"
 import {
   computeStorybookSharedBuildInputFingerprint,
 } from "./build-input-fingerprint.ts"
@@ -107,9 +106,7 @@ function readReceipt(
     if (saved === null) return null
     const current = computeStorybookSharedBuildInputFingerprint({
       ...input,
-      packageEntryPath: input.packageEntryPath ?? fileURLToPath(
-        new URL("../runtime/page-entry.ts", import.meta.url),
-      ),
+      packageEntryPath: input.packageEntryPath ?? join(input.toolRoot, "runtime/page-entry.ts"),
       outputDirectory: input.root,
       additionalFilePaths: saved.files.map(file => file.path),
       resolutionDirectories: saved.resolutionDirectories,

@@ -1,6 +1,7 @@
 import {afterEach, describe, expect, test} from "bun:test"
 import {mkdtempSync, rmSync, writeFileSync, readFileSync} from "node:fs"
 import {join} from "node:path"
+import {tmpdir} from "node:os"
 import {StorybookSharedBrowserAssets, type SharedBrowserAssets} from "./shared-browser-assets.ts"
 
 const cleanups: Array<() => void> = []
@@ -36,7 +37,7 @@ test("dispose отменяет shared build и ждёт завершения е�
 })
 
 function fixture() {
-  const root = mkdtempSync(join(import.meta.dir, ".shared-test-"))
+  const root = mkdtempSync(join(tmpdir(), "storybook-shared-test-"))
   cleanups.push(() => rmSync(root, {recursive: true, force: true}))
   const path = join(root, "view.txt")
   writeFileSync(path, "first")

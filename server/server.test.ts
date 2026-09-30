@@ -4,6 +4,7 @@ import {existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, u
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {fileURLToPath} from "node:url"
+import {beginStorybookSharedBuildInputAttestation} from "../build/build-input-fingerprint.ts"
 import type {StorybookBrowserLifecycle} from "@zavx0z/storybook-browser-lifecycle/service"
 import {
   startExternalStorybookServer,
@@ -23,6 +24,28 @@ afterEach(async () => {
 })
 
 describe("one external Storybook server", () => {
+  test("временные entrypoints соседней проверки не отменяют attestation своей сборки", async () => {
+    const own = sharedEntriesFixture()
+    const input = {
+      toolRoot: join(import.meta.dir, ".."),
+      landingEntryPath: own.landing,
+      fallbackEntryPath: own.fallback,
+    }
+    const stable = await beginStorybookSharedBuildInputAttestation(input)
+    try {
+      const neighbor = sharedEntriesFixture()
+      writeFileSync(neighbor.landing, "export const changed = true\n")
+      rmSync(neighbor.root, {recursive: true, force: true})
+      expect((await stable.complete()).digest).toBe(stable.before.digest)
+    } finally { stable.dispose() }
+
+    const changed = await beginStorybookSharedBuildInputAttestation(input)
+    try {
+      writeFileSync(own.landing, "export const changed = true\n")
+      await expect(changed.complete()).rejects.toThrow("changed during compilation")
+    } finally { changed.dispose() }
+  })
+
   test("навигация готовит отсутствующую сборку один раз и сохраняет рабочую при редактировании", async () => {
     const fixture = serverFixture()
     const packageId = "@fixture/standalone"
@@ -1255,9 +1278,17 @@ function fakeBrowserLifecycle(): Readonly<{
   return Object.freeze({service, viewId, opened})
 }
 
-function sharedEntriesFixture() {
-  const root = mkdtempSync(join(import.meta.dir, "fixtures/.shared-browser-"))
+/** Временные entrypoints входят в root compiler, но не в неявный inventory чужих сборок. */
+function sharedEntriesDirectory(): string {
+  const cache = join(import.meta.dir, "../.cache")
+  mkdirSync(cache, {recursive: true})
+  const root = mkdtempSync(join(cache, "storybook-server-test-"))
   roots.push(root)
+  return root
+}
+
+function sharedEntriesFixture() {
+  const root = sharedEntriesDirectory()
   const landing = join(root, "landing-entry.ts")
   const fallback = join(root, "fallback-entry.ts")
   writeFileSync(landing, 'document.title = "landing"\n')
@@ -1287,8 +1318,7 @@ function serverFixture(): Readonly<{
     ["projects/alpha/packages/components/index.ts", "Fixture Components"],
     ["standalone/index.ts", "Standalone"],
   ] as const) writeFileSync(join(workspace, path), `/**\n# ${title}\n@packageDocumentation\n*/\n`)
-  const entries = mkdtempSync(join(import.meta.dir, "fixtures/.shared-browser-"))
-  roots.push(entries)
+  const entries = sharedEntriesDirectory()
   const landingEntry = join(entries, "landing-entry.ts")
   const fallbackEntry = join(entries, "fallback-entry.ts")
   const packageEntry = join(entries, "package-entry.ts")

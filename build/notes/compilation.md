@@ -30,7 +30,8 @@ candidate. Worker создаётся в собственной process group: з
 Package compile получает отдельный bounded budget 120 секунд: это покрывает
 fresh Template/TypeScript initialization на поддерживаемом Intel host, но не
 ослабляет per-candidate cancellation или exact child termination. Общая сборка
-платформы и host выполняет два native прохода для immutable namespace и имеет
+платформы и host выполняет по два native прохода для immutable namespace
+каждого графа — четыре прохода при холодной сборке — и имеет
 отдельный бюджет 240 секунд. Обычный HTTP idle timeout равен 125 секундам;
 запросы подготовки отключают его штатным Bun Server.timeout(request, 0), поскольку
 ожидание общей очереди не является зависшим worker. Компиляция по-прежнему

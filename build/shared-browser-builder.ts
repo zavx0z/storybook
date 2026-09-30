@@ -1,7 +1,6 @@
 import {randomUUID} from "node:crypto"
 import {mkdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync} from "node:fs"
 import {dirname, isAbsolute, join, relative} from "node:path"
-import {fileURLToPath} from "node:url"
 import waitForStorybookOwnedChild from "@process/wait"
 import {parseStorybookBuildWorkerTransportEvent} from "./build-phase.ts"
 import type {StorybookBuildOperationContext} from "./build-scheduler.ts"
@@ -38,7 +37,7 @@ export async function runSharedBrowserBuild(
   try {
     writeFileSync(jobPath, JSON.stringify({...input, stagingDirectory}), {mode: 0o600})
     const workerStartedAt = new Date().toISOString()
-    const child = Bun.spawn([process.execPath, fileURLToPath(new URL("./shared-browser-worker.ts", import.meta.url)), jobPath, resultPath, workerId], {
+    const child = Bun.spawn([process.execPath, join(input.toolRoot, "build/shared-browser-worker.ts"), jobPath, resultPath, workerId], {
       cwd: input.toolRoot,
       stdin: "ignore",
       stdout: "pipe",

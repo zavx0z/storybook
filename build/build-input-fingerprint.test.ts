@@ -1,6 +1,6 @@
 import BuildInputs from "@build/inputs"
 import {afterAll, describe, expect, setDefaultTimeout, test} from "bun:test"
-import {mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
+import {mkdtempSync, mkdirSync, realpathSync, rmSync, symlinkSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {
@@ -13,6 +13,7 @@ import {createStorybookBuildInputFingerprintVerifier} from "./package-build.ts"
 import type {StorybookPackageBuildDescriptor} from "../sessions/package-session.ts"
 import {STORYBOOK_PACKAGE_GRAPH_PROTOCOL} from "../sessions/package-revision.ts"
 
+const toolRoot = realpathSync(join(import.meta.dir, ".."))
 const roots: string[] = []
 setDefaultTimeout(60_000)
 
@@ -25,6 +26,7 @@ describe("Storybook build input fingerprint", () => {
     const fixture = createFixture()
     const compute = createStorybookBuildInputFingerprintComputer()
     const request = {
+      toolRoot,
       descriptor: fixture.descriptor,
       browserEntryPath: fixture.browserEntry,
       additionalFilePaths: [fixture.externalDependency],
@@ -81,11 +83,13 @@ describe("Storybook build input fingerprint", () => {
     const fixture = createFixture()
     const compute = createStorybookBuildInputFingerprintComputer()
     const request = {
+      toolRoot,
       descriptor: fixture.descriptor,
       browserEntryPath: fixture.browserEntry,
     }
     const evidence = compute(request)
     const verify = createStorybookBuildInputFingerprintVerifier({
+      toolRoot,
       browserEntryPath: fixture.browserEntry,
     })
 
@@ -102,6 +106,7 @@ describe("Storybook build input fingerprint", () => {
     const fixture = createFixture()
     const stagingDirectory = join(fixture.root, ".candidate")
     const input = {
+      toolRoot,
       descriptor: fixture.descriptor,
       browserEntryPath: fixture.browserEntry,
       stagingDirectory,
@@ -135,7 +140,7 @@ describe("Storybook build input fingerprint", () => {
     const workspace = join(directory, "workspace.xml")
     mkdirSync(directory)
     writeFileSync(workspace, "<project />\n")
-    const input = {descriptor: fixture.descriptor, browserEntryPath: fixture.browserEntry}
+    const input = {toolRoot, descriptor: fixture.descriptor, browserEntryPath: fixture.browserEntry}
     const compute = createStorybookBuildInputFingerprintComputer()
     const baseline = compute(input)
     const stable = await beginStorybookBuildInputAttestation(input)
@@ -193,6 +198,7 @@ describe("Storybook build input fingerprint", () => {
   test("guard заранее охватывает hoisted workspace dependency и отклоняет transient change", async () => {
     const fixture = createHoistedDependencyFixture()
     const input = {
+      toolRoot,
       descriptor: fixture.descriptor,
       browserEntryPath: fixture.browserEntry,
     }
@@ -295,6 +301,7 @@ function createSharedFixture(): Readonly<{
 }> {
   const root = mkdtempSync(join(tmpdir(), "storybook-shared-fingerprint-"))
   roots.push(root)
+  symlinkSync(join(toolRoot, "node_modules"), join(root, "node_modules"))
   const jsxRoot = realpathSync(join(import.meta.dir, "../../immersive/jsx"))
   const landing = join(root, "landing.ts")
   const fallback = join(root, "fallback.ts")

@@ -15,6 +15,7 @@ import {
   resolveStorybookPackageCompilerInputs,
 } from "./compiler.ts"
 
+const toolRoot = resolve(import.meta.dir, "..")
 const temporaryRoots: string[] = []
 setDefaultTimeout(20_000)
 
@@ -23,6 +24,16 @@ afterEach(async () => {
 })
 
 describe("external Storybook package compiler", () => {
+  test("compiler использует явно выбранного tool owner при отсутствии consumer modules", async () => {
+    const fixture = await jsxProjectFixture()
+    const selectedToolRoot = fixture.projectRoot
+    const input = {...fixture.input, toolRoot: selectedToolRoot, moduleSourcePaths: []}
+    const selected = resolveStorybookPackageCompilerInputs(input)
+    expect(selected.sourceRoots).toContain(await realpath(selectedToolRoot))
+    expect(selected.sourceRoots).not.toContain(await realpath(toolRoot))
+    expect(selected.adapterPath).toBe(join(await realpath(fixture.adapterRoot), "index.ts"))
+  })
+
   test("uses only tool compiler owners when a package has no executable modules", async () => {
     const fixture = await jsxProjectFixture("throw new Error('consumer compiler must not execute')")
     const plugins = await createStorybookPackageCompilerPlugins({...fixture.input, moduleSourcePaths: []})
@@ -44,6 +55,7 @@ describe("external Storybook package compiler", () => {
     await Bun.write(source, "export const story = <div />")
 
     const plugins = await createStorybookPackageCompilerPlugins({
+      toolRoot,
       packageRoot: root,
       projectRoot: root,
       moduleSourcePaths: [source],
@@ -73,6 +85,7 @@ describe("external Storybook package compiler", () => {
     await Bun.write(source, "export const story = true\n")
 
     const plugins = await createStorybookPackageCompilerPlugins({
+      toolRoot,
       packageRoot: root,
       projectRoot: root,
       moduleSourcePaths: [source],
@@ -164,6 +177,7 @@ describe("external Storybook package compiler", () => {
     await Bun.write(source, "export const story = <Component />")
 
     await expect(createStorybookPackageCompilerPlugins({
+      toolRoot,
       packageRoot: root,
       projectRoot: root,
       moduleSourcePaths: [source],
@@ -225,6 +239,7 @@ describe("external Storybook package compiler", () => {
     await writeJson(join(packageRoot, "package.json"), {name: "@fixture/declaration-only-engine"})
 
     const plugins = await createStorybookPackageCompilerPlugins({
+      toolRoot,
       packageRoot,
       projectRoot: root,
       moduleSourcePaths: [],
@@ -241,6 +256,7 @@ describe("external Storybook package compiler", () => {
     const packageRoot = join(projectRoot, "ui")
     const source = join(packageRoot, "buttons/button.tsx")
     const plugins = await createStorybookPackageCompilerPlugins({
+      toolRoot,
       packageRoot,
       projectRoot,
       moduleSourcePaths: [source],
@@ -265,6 +281,7 @@ describe("external Storybook package compiler", () => {
     await link(source, mirrorSource)
 
     const plugins = await createStorybookPackageCompilerPlugins({
+      toolRoot,
       packageRoot,
       projectRoot: packageRoot,
       moduleSourcePaths: [mirrorSource],
@@ -281,6 +298,7 @@ describe("external Storybook package compiler", () => {
     await symlink(source, mirrorSource, "file")
 
     await expect(createStorybookPackageCompilerPlugins({
+      toolRoot,
       packageRoot,
       projectRoot: packageRoot,
       moduleSourcePaths: [mirrorSource],
@@ -336,11 +354,13 @@ export default function createJsxBunPlugin() {
     await Bun.write(foreignSource, "export const story = true")
 
     await expect(createStorybookPackageCompilerPlugins({
+      toolRoot,
       packageRoot: foreignRoot,
       projectRoot,
       moduleSourcePaths: [foreignSource],
     })).rejects.toThrow("package root must be inside project root")
     await expect(createStorybookPackageCompilerPlugins({
+      toolRoot,
       packageRoot: projectRoot,
       projectRoot,
       moduleSourcePaths: [foreignSource],
@@ -435,6 +455,7 @@ async function jsxProjectFixture(adapterSource?: string): Promise<Readonly<{
     linkedRoot,
     transitiveRoot,
     input: Object.freeze({
+      toolRoot,
       packageRoot,
       projectRoot,
       moduleSourcePaths: Object.freeze([source]),
@@ -503,6 +524,7 @@ async function d3ReExportFixture(): Promise<Readonly<{
   return Object.freeze({
     source,
     input: Object.freeze({
+      toolRoot,
       packageRoot,
       projectRoot,
       moduleSourcePaths: Object.freeze([source]),
@@ -585,7 +607,7 @@ test("generated JSX outside the owner becomes an executable compiled child", asy
     }}],
   }])
   for (const module of modules) await Bun.write(join(root, module.path), module.source)
-  const plugins = await createStorybookPackageCompilerPlugins({packageRoot, projectRoot,
+  const plugins = await createStorybookPackageCompilerPlugins({toolRoot, packageRoot, projectRoot,
     moduleSourcePaths: [source], generatedSourceRoot})
   const result = await Bun.build({entrypoints: [join(root, modules[0]!.path)],
     outdir: join(root, "out"), format: "esm", target: "bun", plugins: [...plugins]})
@@ -645,7 +667,7 @@ export async function verify() {
   }
 }
 `)
-  const plugins = await createStorybookPackageCompilerPlugins({packageRoot, projectRoot,
+  const plugins = await createStorybookPackageCompilerPlugins({toolRoot, packageRoot, projectRoot,
     moduleSourcePaths: [preview.module.path], generatedSourceRoot})
   const result = await Bun.build({entrypoints: [join(root, "entry.ts")], outdir: join(root, "out"),
     format: "esm", target: "bun", plugins: [...plugins]})

@@ -8,13 +8,10 @@
 */
 import {lstatSync, readFileSync, realpathSync, statSync} from "node:fs"
 import {basename, dirname, join, relative, resolve, sep} from "node:path"
-import {fileURLToPath} from "node:url"
 import BuildInputs, {type BuildInputFingerprint, type BuildInputPlan, type BuildInputAttestation, type BuildInputScope} from "@build/inputs"
 import {resolveStorybookPackageCompilerInputs, type StorybookPackageCompilerInput} from "./compiler.ts"
 import type {StorybookPackageBuildDescriptor} from "../sessions/package-session.ts"
 import type {StorybookSharedBrowserIdentity} from "./types/shared-module-identity.ts"
-
-const STORYBOOK_TOOL_ROOT = realpathSync(fileURLToPath(new URL("..", import.meta.url)))
 
 const BUILD_ABI = Object.freeze({
   browserTarget: "browser",
@@ -39,6 +36,8 @@ const SHARED_BUILD_ABI = Object.freeze({
 /**
 Вход пакетного адаптера связывает дескриптор с фактическими путями исполнения и компиляции.
 
+@property toolRoot - Корень исполняемой сборочной системы, выбранный композицией сервера.
+
 @property descriptor - Граф, ресурсы, пути модулей и публичные имена конкретной ревизии пакета.
 
 @property browserEntryPath - Входной модуль основного браузерного результата.
@@ -50,6 +49,7 @@ const SHARED_BUILD_ABI = Object.freeze({
 @property [resolutionDirectories] - Сохранённые внешние каталоги разрешения модулей для повторной проверки.
 */
 export type StorybookBuildInputFingerprintRequest = Readonly<{
+  toolRoot: string
   descriptor: StorybookPackageBuildDescriptor
   browserEntryPath: string
   sharedBrowserIdentity?: StorybookSharedBrowserIdentity
@@ -109,9 +109,11 @@ export function resolveStorybookBuildInputScope(
 export function resolveStorybookPackageBuildInputFingerprintPlan(
   input: StorybookBuildInputFingerprintRequest,
 ): BuildInputPlan {
+  const toolRoot = canonicalDirectory(input.toolRoot)
   const descriptor = input.descriptor
   const moduleSourcePaths = (descriptor.scenarioSpecs ?? []).flatMap(({sourcePaths}) => sourcePaths)
   const compilerInput: StorybookPackageCompilerInput = {
+    toolRoot,
     packageRoot: descriptor.packageRoot,
     projectRoot: descriptor.projectRoot,
     moduleSourcePaths,
@@ -121,16 +123,14 @@ export function resolveStorybookPackageBuildInputFingerprintPlan(
     ...compiler.sourceRoots,
     descriptor.projectRoot,
     descriptor.packageRoot,
-    STORYBOOK_TOOL_ROOT,
+    toolRoot,
   ]
   return BuildInputs.plan({
     identity: descriptor,
     roots: ownerRoots,
     guardRoots: workspaceResolutionGuardRoots(ownerRoots),
     compilerRoots: [
-      join(STORYBOOK_TOOL_ROOT, "build"),
-      join(STORYBOOK_TOOL_ROOT, "archetypes"),
-      join(STORYBOOK_TOOL_ROOT, "app"),
+      toolRoot,
       descriptor.packageRoot,
       compilerOwnerRoot(compiler.adapterPath),
       ...compiler.semanticSourceRoots,
@@ -144,7 +144,7 @@ export function resolveStorybookPackageBuildInputFingerprintPlan(
       ...(input.additionalFilePaths ?? []),
     ],
     compilerAdapterPath: compiler.adapterPath,
-    toolchainFiles: toolchainFiles(),
+    toolchainFiles: toolchainFiles(toolRoot),
     validationAbi: {
       graphProtocol: descriptor.graphSnapshot.protocol,
       build: BUILD_ABI,
@@ -173,6 +173,7 @@ export function resolveStorybookSharedBuildInputFingerprintPlan(
     ...(input.packageEntryPath === undefined ? [] : [input.packageEntryPath]),
   ].map(canonicalExactFile)
   const compiler = resolveStorybookPackageCompilerInputs({
+    toolRoot,
     packageRoot: toolRoot,
     projectRoot: toolRoot,
     moduleSourcePaths: entrypoints,
@@ -190,7 +191,7 @@ export function resolveStorybookSharedBuildInputFingerprintPlan(
     roots: ownerRoots,
     guardRoots: workspaceResolutionGuardRoots(ownerRoots),
     compilerRoots: [
-      join(STORYBOOK_TOOL_ROOT, "build"),
+      toolRoot,
       compilerOwnerRoot(compiler.adapterPath),
       ...compiler.semanticSourceRoots,
     ],
@@ -200,7 +201,7 @@ export function resolveStorybookSharedBuildInputFingerprintPlan(
       ...(input.additionalFilePaths ?? []),
     ],
     compilerAdapterPath: compiler.adapterPath,
-    toolchainFiles: toolchainFiles(),
+    toolchainFiles: toolchainFiles(toolRoot),
     validationAbi: SHARED_BUILD_ABI,
     excludedRoots: [input.stagingDirectory, input.outputDirectory].filter((path): path is string => path !== undefined),
     ...(input.resolutionDirectories === undefined
@@ -257,7 +258,7 @@ export async function beginStorybookSharedBuildInputAttestation(
   return BuildInputs.attest(resolveStorybookSharedBuildInputFingerprintPlan(input))
 }
 
-let resolvedToolchainFiles: readonly string[] | null = null
+const resolvedToolchainFiles = new Map<string, readonly string[]>()
 
 /** Находит владельца адаптера компилятора, не включая соседний монорепозиторий целиком. */
 function compilerOwnerRoot(adapterPath: string): string {
@@ -327,17 +328,19 @@ function pathExists(path: string): boolean {
 }
 
 /** Находит манифест и вход фактически установленного TypeScript. */
-function toolchainFiles(): readonly string[] {
-  if (resolvedToolchainFiles !== null) return resolvedToolchainFiles
-  const entry = canonicalExactFile(Bun.resolveSync("typescript", STORYBOOK_TOOL_ROOT))
+function toolchainFiles(toolRoot: string): readonly string[] {
+  const cached = resolvedToolchainFiles.get(toolRoot)
+  if (cached !== undefined) return cached
+  const entry = canonicalExactFile(Bun.resolveSync("typescript", toolRoot))
   let directory = dirname(entry)
   while (true) {
     const manifest = join(directory, "package.json")
     if (lstatFile(manifest)) {
       const value = JSON.parse(readFileSync(manifest, "utf8")) as unknown
       if (isObject(value) && value.name === "typescript") {
-        resolvedToolchainFiles = Object.freeze([canonicalExactFile(manifest), entry])
-        return resolvedToolchainFiles
+        const files = Object.freeze([canonicalExactFile(manifest), entry])
+        resolvedToolchainFiles.set(toolRoot, files)
+        return files
       }
     }
     const parent = dirname(directory)
