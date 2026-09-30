@@ -4,8 +4,9 @@ import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {saveSharedBrowserCandidate} from "./shared-browser-receipt.ts"
 import {buildSharedBrowserAssets} from "./shared-browser-build.ts"
+import {STORYBOOK_SHARED_COMPILE_TIMEOUT_MS} from "../server/timing.ts"
 
-setDefaultTimeout(180_000)
+setDefaultTimeout(2 * STORYBOOK_SHARED_COMPILE_TIMEOUT_MS)
 
 const roots: string[] = []
 afterEach(() => {

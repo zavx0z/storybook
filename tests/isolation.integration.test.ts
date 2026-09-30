@@ -4,6 +4,7 @@ import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {storybookPackageUrlPath} from "@zavx0z/storybook-browser-lifecycle/contract"
 import {startExternalStorybookServer, type ExternalStorybookRunningServer} from "../server/server.ts"
+import {STORYBOOK_SHARED_COMPILE_TIMEOUT_MS, STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS} from "../server/timing.ts"
 
 const roots: string[] = []
 const servers: ExternalStorybookRunningServer[] = []
@@ -36,6 +37,12 @@ describe("one-server structural package isolation", () => {
     })).json()
 
     await Promise.all([running.sessions.ensure("@fixture/a"), running.sessions.ensure("@fixture/b")])
+    const shared = await fetch(new URL("/api/control/check", running.origin), {
+      method: "POST",
+      headers: {authorization: `Bearer ${running.record.controlToken}`, "content-type": "application/json"},
+      body: JSON.stringify({scope: "storybook:shared", live: true}),
+    })
+    expect(await shared.json()).toMatchObject({ok: true, published: true})
     activate(running, "@fixture/a")
     activate(running, "@fixture/b")
     const aSocket = await packageSocket(running.origin, "@fixture/a")
@@ -82,7 +89,7 @@ describe("one-server structural package isolation", () => {
       aSocket.close()
       bSocket.close()
     }
-  }, 180_000)
+  }, STORYBOOK_SHARED_COMPILE_TIMEOUT_MS + 4 * STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS)
 })
 
 function createFixture() {

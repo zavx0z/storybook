@@ -218,7 +218,7 @@ describe("structural package revision build", () => {
     await build({...buildInput(fixture.descriptor, join(fixture.root, ".events"), "events"),
       onPhase: ({phase, state}) => phases.push(`${phase}:${state}`),
       onWorkerLifecycle: ({state, workerId, pid}) => workers.push(`${state}:${workerId}:${pid}`)})
-    expect(phases).toEqual(["fingerprint:started", "resources:started", "resources:completed",
+    expect(phases).toEqual(["fingerprint:started", "verification:started", "verification:completed", "resources:started", "resources:completed",
       "exports:started", "exports:completed", "bundle:started", "bundle:completed", "fingerprint:completed"])
     expect(workers).toHaveLength(2)
     expect(workers[0]?.replace(/^started:/u, "")).toBe(workers[1]?.replace(/^exited:/u, ""))

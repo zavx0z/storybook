@@ -68,13 +68,26 @@ test("duplicate package names fail closed", async () => {
   await expect(discoverStorybookPackages([project])).rejects.toThrow("Duplicate package identity")
 })
 
-test("watcher discovers a new workspace package and serves its structural page", async () => {
+test("explicit refresh discovers a new workspace package and serves its structural page", async () => {
   const {root, project} = await fixture()
   await Bun.write(join(project, "packages/a/index.ts"), "/**\n# Structural A\n@packageDocumentation\n*/\n")
   const server = await startExternalStorybookServer({declarations: [project], statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts")})
   try {
     await write(join(project, "packages/c/package.json"), {name: "@fixture/c", label: "C"})
-    await waitFor(() => server.registry.snapshot().graph.nodes.some(node => node.id === "package:@fixture/c"))
+    expect(server.registry.snapshot().graph.nodes.some(node => node.id === "package:@fixture/c")).toBeFalse()
+    const refresh = await fetch(new URL("/api/control/refresh", server.origin), {
+      method: "POST",
+      headers: {authorization: `Bearer ${server.record.controlToken}`, "content-type": "application/json"},
+      body: JSON.stringify({force: true}),
+    })
+    expect(refresh.status).toBe(200)
+    expect(server.registry.snapshot().graph.nodes.some(node => node.id === "package:@fixture/c")).toBeTrue()
+    const check = await fetch(new URL("/api/control/check", server.origin), {
+      method: "POST",
+      headers: {authorization: `Bearer ${server.record.controlToken}`, "content-type": "application/json"},
+      body: JSON.stringify({scope: "@fixture/a", live: false}),
+    })
+    expect(check.status).toBe(200)
     const page = await fetch(new URL("/pkg-fixture-a/", server.origin))
     expect(page.status).toBe(200)
     expect(await page.text()).toContain("external-storybook-canvas")
@@ -96,9 +109,3 @@ test("nested package failure retains its previous subtree and leaves sibling hea
   expect(failed.catalog.scopes.find(scope => scope.id === "@fixture/b")?.resolutionError).toBeUndefined()
   expect(failed.graph.nodes.find(node => node.id === original.id)?.parentId).toBe(original.parentId)
 })
-
-async function waitFor(predicate: () => boolean, timeoutMs = 10_000) {
-  const deadline = Date.now() + timeoutMs
-  while (!predicate() && Date.now() < deadline) await Bun.sleep(50)
-  expect(predicate()).toBeTrue()
-}

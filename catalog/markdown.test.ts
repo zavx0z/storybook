@@ -30,7 +30,7 @@ describe("safe compiled Storybook Markdown", () => {
       document,
       root: display.element,
       viewport: surface.viewport,
-      styleSheets: ["display { --widget-box-outline: #333; --font-size-sm: 12px; }"],
+      styleSheets: ["display { border: 1px solid #333; --font-size-sm: 12px; }"],
     })
     const interaction = createDocumentInteractionController({document})
     try {

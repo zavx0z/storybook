@@ -134,6 +134,27 @@ describe("Storybook build input fingerprint", () => {
     added.dispose()
   })
 
+  test("запись состояния IDE не отменяет сборку, явный вход из .idea остаётся проверяемым", async () => {
+    const fixture = createFixture()
+    const directory = join(fixture.descriptor.packageRoot, ".idea")
+    const workspace = join(directory, "workspace.xml")
+    mkdirSync(directory)
+    writeFileSync(workspace, "<project />\n")
+    const input = {descriptor: fixture.descriptor, browserEntryPath: fixture.browserEntry}
+    const compute = createStorybookBuildInputFingerprintComputer()
+    const baseline = compute(input)
+    const stable = await beginStorybookBuildInputAttestation(input)
+    writeFileSync(workspace, "<project opened='true' />\n")
+    writeFileSync(join(directory, "session.xml"), "<session />\n")
+    expect((await stable.complete()).digest).toBe(baseline.digest)
+    stable.dispose()
+
+    const explicit = await beginStorybookBuildInputAttestation({...input, additionalFilePaths: [workspace]})
+    writeFileSync(workspace, "<project opened='false' />\n")
+    await expect(explicit.complete()).rejects.toThrow(`changed during compilation: ${realpathSync(workspace)}`)
+    explicit.dispose()
+  })
+
   test("shared plan учитывает два entrypoints, config, ambient source и same-byte restore", () => {
     const fixture = createSharedFixture()
     const compute = createStorybookBuildInputFingerprintPlanComputer()

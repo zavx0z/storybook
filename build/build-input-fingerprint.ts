@@ -25,6 +25,7 @@ export const STORYBOOK_BUILD_INPUT_FINGERPRINT_PROTOCOL = "storybook-build-input
 const STORYBOOK_TOOL_ROOT = realpathSync(fileURLToPath(new URL("..", import.meta.url)))
 const IGNORED_DIRECTORY_NAMES = new Set([
   ".git",
+  ".idea",
   "node_modules",
   ".cache",
   ".turbo",
@@ -1083,7 +1084,7 @@ function ignoredRelativePath(root: string, path: string): boolean {
   return local.split(sep).some(ignoredDirectoryName)
 }
 
-/** Исключает установленные зависимости, кэши и артефакты сборки из исходников пакета. */
+/** Исключает состояние IDE, установленные зависимости, кэши и артефакты из исходников пакета. */
 function ignoredDirectoryName(value: string): boolean {
   return IGNORED_DIRECTORY_NAMES.has(value) || value.startsWith(".candidate-")
 }

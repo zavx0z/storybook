@@ -3,11 +3,15 @@
 Владелец transport получает новый grant при каждом reconnect. Компонент владеет
 listeners, отменой и задержкой повторной попытки, а смысл сообщений остаётся
 у получателя. Подписка не запрашивает компиляцию.
+Входной контракт описывает callbacks, а вспомогательный {@link HmrSocket}
+сохраняет самостоятельное объявление и прежний публичный экспорт.
 @packageDocumentation
 */
-import type {HmrConnectionInput, HmrSocket} from "./contract/input"
+import type {HmrConnectionInput} from "./contract/input"
+import type {HmrSocket} from "./contract/socket"
 import type {HmrConnectionOutput} from "./contract/output"
-export type {HmrConnectionInput, HmrSocket} from "./contract/input"
+export type {HmrConnectionInput} from "./contract/input"
+export type {HmrSocket} from "./contract/socket"
 export type {HmrConnectionOutput} from "./contract/output"
 
 /** Подключает обработчики к первому socket и восстанавливает их до dispose. */

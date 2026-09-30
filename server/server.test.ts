@@ -11,10 +11,11 @@ import {
   type ExternalStorybookRunningServer,
 } from "./server.ts"
 import {writeExternalStorybookServerRecord} from "./server-state.ts"
+import {STORYBOOK_SHARED_COMPILE_TIMEOUT_MS, STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS} from "./timing.ts"
 
 const roots: string[] = []
 const servers: ExternalStorybookRunningServer[] = []
-setDefaultTimeout(120_000)
+setDefaultTimeout(STORYBOOK_SHARED_COMPILE_TIMEOUT_MS + STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS)
 
 afterEach(async () => {
   await Promise.all(servers.splice(0).map((server) => server.stop()))
@@ -296,16 +297,19 @@ describe("one external Storybook server", () => {
 
   test("shared worker восстанавливает проверенные ресурсы после перезапуска без компиляции", async () => {
     const fixture = serverFixture()
+    const entries = sharedEntriesFixture()
     const options = {
       declarations: [fixture.standalone],
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
-      landingEntryPath: join(import.meta.dir, "fixtures/shared-landing.ts"),
-      fallbackEntryPath: join(import.meta.dir, "fixtures/shared-fallback.ts"),
+      landingEntryPath: entries.landing,
+      fallbackEntryPath: entries.fallback,
     }
     let running = await startTestServer(options)
     servers.push(running)
-    await controlPost(running, "/api/control/check", {scope: null})
+    const preparation = await controlPost(running, "/api/control/check", {scope: null})
+    expect(preparation.body, JSON.stringify(preparation.body)).toMatchObject({ok: true})
+    await publishTestShared(running)
     const first = await fetch(new URL("/", running.origin))
     const firstHtml = await first.text()
     expect(first.status).toBe(200)
@@ -333,13 +337,20 @@ describe("one external Storybook server", () => {
     await running.stop()
     servers.splice(servers.indexOf(running), 1)
     const receipt = JSON.parse(readFileSync(join(fixture.artifactRoot, "shared/receipt.json"), "utf8"))
-    writeFileSync(join(fixture.artifactRoot, "shared", receipt.assets.landingEntry), "damaged output")
+    const damaged = join(fixture.artifactRoot, "shared", receipt.assets.landingEntry)
+    writeFileSync(damaged, "damaged output")
     running = await startTestServer(options)
     servers.push(running)
-    await controlPost(running, "/api/control/check", {scope: "@fixture/standalone"})
+    const collision = await controlPost(running, "/api/control/check", {scope: "@fixture/standalone"})
+    expect(collision.body.error).toContain("Immutable shared artifact collision")
+    expect(readFileSync(damaged, "utf8")).toBe("damaged output")
+    writeFileSync(entries.landing, "document.documentElement.dataset.fixtureLanding = 'recovered'\n")
+    const recovery = await controlPost(running, "/api/control/check", {scope: "@fixture/standalone"})
+    expect(recovery.body, JSON.stringify(recovery.body)).toMatchObject({ok: true})
+    await publishTestShared(running)
     expect(await (await fetch(new URL("/", running.origin))).text()).toContain('<script type="module"')
     expect(running.sessions.buildSchedulerSnapshot().recent.find(item => item.owner === "shared")?.cache.status).toBe("miss")
-  }, 120_000)
+  }, 3 * STORYBOOK_SHARED_COMPILE_TIMEOUT_MS + 2 * STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS)
 
   test("status показывает preflight и нагрузку, не запрашивая сборку", async () => {
     const fixture = serverFixture()
@@ -392,6 +403,7 @@ describe("one external Storybook server", () => {
     let running = await startTestServer(options)
     servers.push(running)
     await controlPost(running, "/api/control/check", {scope: "fixture-workspace"})
+    await publishTestShared(running)
     const workspaceFile = join(fixture.workspace, "package.json")
     const workspaceBytes = readFileSync(workspaceFile, "utf8")
     const html = await (await fetch(new URL("/", running.origin))).text()
@@ -492,6 +504,7 @@ describe("one external Storybook server", () => {
     })
     servers.push(running)
     await controlPost(running, "/api/control/check", {scope: null})
+    await publishTestShared(running)
     const landing = await fetch(new URL("/", running.origin))
     expect(landing.status).toBe(200)
     const html = await landing.text()
@@ -531,7 +544,7 @@ describe("one external Storybook server", () => {
     const checked = await controlPost(running, "/api/control/check", {scope: "@fixture/standalone"})
     expect(checked.response.status).toBe(200)
     expect(running.sessions.session("@fixture/standalone").snapshot().builds).toBe(1)
-  }, 120_000)
+  }, STORYBOOK_SHARED_COMPILE_TIMEOUT_MS + STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS)
 
   test("refreshes shared dependencies on the same server and keeps old hashed assets available", async () => {
     const fixture = serverFixture()
@@ -547,6 +560,7 @@ describe("one external Storybook server", () => {
     })
     servers.push(running)
     await controlPost(running, "/api/control/check", {scope: null})
+    await publishTestShared(running)
     const instance = running.record.instanceId
     const entry = async () => {
       const response = await fetch(new URL("/", running.origin))
@@ -562,13 +576,14 @@ describe("one external Storybook server", () => {
     writeFileSync(dependency, 'export const height = "auto"\n')
     expect(await entry()).toBe(first)
     await controlPost(running, "/api/control/check", {scope: null})
+    await publishTestShared(running)
     const second = await entry()
     expect(second).not.toBe(first)
     expect(await (await fetch(new URL(second, running.origin))).text()).toContain("auto")
     expect(await (await fetch(new URL(first, running.origin))).text()).toBe(original)
     expect(running.record.instanceId).toBe(instance)
     expect((await fetch(new URL("/api/health", running.origin))).status).toBe(200)
-  })
+  }, 2 * (STORYBOOK_SHARED_COMPILE_TIMEOUT_MS + STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS))
 
   test("явный refresh сообщает изменение TSDoc, сохраняя сборки и сервер", async () => {
     const fixture = serverFixture()
@@ -584,6 +599,7 @@ describe("one external Storybook server", () => {
     })
     servers.push(running)
     await controlPost(running, "/api/control/check", {scope: null})
+    await publishTestShared(running)
     const page = await fetch(new URL("/api/browser/prepare", running.origin), {
       method: "POST",
       headers: {origin: running.origin, "content-type": "application/json"},
@@ -619,11 +635,12 @@ describe("one external Storybook server", () => {
       const instance = running.record.instanceId
       const revision = running.registry.snapshot().revision
       const documentation = join(fixture.workspace, "projects/alpha/index.ts")
+      const refreshEventStart = messages.length
       writeFileSync(documentation, "/**\n# Updated project documentation\n@packageDocumentation\n*/\n")
       await fetch(new URL("/api/control/refresh", running.origin), {method: "POST", headers: {authorization: `Bearer ${running.record.controlToken}`, "content-type": "application/json"}, body: JSON.stringify({force: true})})
-      await waitFor(() => messages.some(message => message.type === "registry.updated"))
+      await waitFor(() => messages.slice(refreshEventStart).some(message => message.type === "registry.updated"))
       expect(running.registry.snapshot().revision).not.toBe(revision)
-      expect(messages.some(message => message.type === "shared.updated")).toBe(false)
+      expect(messages.slice(refreshEventStart).some(message => message.type === "shared.updated")).toBe(false)
       expect(running.sessions.snapshots().filter(snapshot => snapshot.packageId !== "fixture-alpha").map(snapshot => snapshot.builds)).toEqual(builds)
       expect(running.record.instanceId).toBe(instance)
     } finally {
@@ -713,6 +730,7 @@ describe("one external Storybook server", () => {
     const running = await startTestServer({declarations: [fixture.standalone], statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
     servers.push(running)
     await controlPost(running, "/api/control/check", {scope: null})
+    await publishTestShared(running)
     const page = await fetch(new URL("/pkg-fixture-standalone/", running.origin))
     const html = await page.text()
     expect(page.status).toBe(200)
@@ -728,7 +746,7 @@ describe("one external Storybook server", () => {
     })
     expect(rejected.ok).toBeFalse()
     expect(running.sessions.session("@fixture/standalone").snapshot().activeRevision).toBeNull()
-  }, 120_000)
+  }, STORYBOOK_SHARED_COMPILE_TIMEOUT_MS + STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS)
 
   test("protects control routes and never exposes the master capability to browser responses", async () => {
     const fixture = serverFixture()
@@ -739,6 +757,7 @@ describe("one external Storybook server", () => {
     })
     servers.push(running)
     await controlPost(running, "/api/control/check", {scope: null})
+    await publishTestShared(running)
 
     const unauthorized = await fetch(new URL("/api/control/status", running.origin))
     expect(unauthorized.status).toBe(401)
@@ -833,6 +852,7 @@ describe("one external Storybook server", () => {
     })
     servers.push(running)
     await controlPost(running, "/api/control/check", {scope: null})
+    await publishTestShared(running)
     const page = await fetch(new URL("/pkg-fixture-standalone/", running.origin))
     const token = browserSessionToken(await page.text())
     const url = new URL(`/api/events?session=${encodeURIComponent(token)}`, running.origin)
@@ -852,7 +872,7 @@ describe("one external Storybook server", () => {
     socket.send(JSON.stringify({type: "subscribe", topic: "package:@fixture/standalone"}))
     await waitFor(() => messages.some(({type}) => type === "subscribed"))
     socket.close()
-  }, 120_000)
+  }, STORYBOOK_SHARED_COMPILE_TIMEOUT_MS + STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS)
 
   test("serves only TSDoc source and literal local documentation assets", async () => {
     const fixture = serverFixture()
@@ -895,7 +915,7 @@ describe("one external Storybook server", () => {
     const componentState = running.sessions.session("@fixture/components").snapshot()
     expect(componentState.buildState, JSON.stringify(componentState.diagnostics)).toBe("built")
     expect(running.sessions.session("@fixture/docs").snapshot().builds).toBe(0)
-  }, 120_000)
+  }, STORYBOOK_SHARED_COMPILE_TIMEOUT_MS + STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS)
 
   test("serves the revision-scoped Workbench theme", async () => {
     const fixture = serverFixture()
@@ -910,7 +930,7 @@ describe("one external Storybook server", () => {
     const response = await fetch(new URL(`/__storybook/revisions/%40fixture%2Fcomponents/${revision}/${resource.url}`, running.origin))
     expect(response.status).toBe(200)
     expect(response.headers.get("content-type")).toBe("text/css; charset=utf-8")
-  }, 120_000)
+  }, STORYBOOK_SHARED_COMPILE_TIMEOUT_MS + STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS)
 
   test("failed attach leaves registry and sessions unchanged", async () => {
     const fixture = serverFixture()
@@ -1039,6 +1059,7 @@ describe("one external Storybook server", () => {
     })
     servers.push(running)
     await controlPost(running, "/api/control/check", {scope: null})
+    await publishTestShared(running)
     const landing = await fetch(new URL("/", running.origin))
     const session = browserSessionToken(await landing.text())
     const eventsUrl = new URL(`/api/events?session=${encodeURIComponent(session)}`, running.origin)
@@ -1302,6 +1323,12 @@ async function controlPost(server: ExternalStorybookRunningServer, path: string,
     body: JSON.stringify(body),
   })
   return {response, body: await response.json()}
+}
+
+/** Публикует подготовленную оболочку перед проверкой публичной страницы, сохраняя ревизии пакетов. */
+async function publishTestShared(server: ExternalStorybookRunningServer): Promise<void> {
+  const published = await controlPost(server, "/api/control/check", {scope: "storybook:shared", live: true})
+  expect(published.body, JSON.stringify(published.body)).toMatchObject({ok: true, published: true})
 }
 
 async function controlGet(server: ExternalStorybookRunningServer, path: string): Promise<any> {
