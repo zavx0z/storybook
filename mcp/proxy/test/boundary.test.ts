@@ -72,7 +72,7 @@ describe("Границы транспортных сущностей", async () 
     for (const path of files) {
       for (const specifier of imports(await readSource(path))) {
         const resolved = specifier.startsWith(".") ? relative(root, resolve(dirname(path), specifier)) : specifier
-        if (/^(?:mcp\/rest|archetypes|app|@mcp\/rest|@archetypes|@storybook\/app)(?:\/|$)/u.test(resolved)) violations.push(resolved)
+        if (/^(?:mcp\/rest|archetypes|domain|component|app|@mcp\/rest|@archetypes|@storybook\/app)(?:\/|$)/u.test(resolved)) violations.push(resolved)
       }
     }
     expect(violations, "Регистрация MCP не переносит предметную логику в транспортный процесс").toEqual([])

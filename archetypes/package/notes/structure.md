@@ -30,5 +30,5 @@ Package — единая структурная форма Repo, Domain и Compo
 
 Применимые требования к контрактам и исполнению принадлежат специализации.
 Незавершённые проверки API, состояния и обогащения данных описаны
-[у Component](../../component/notes/verification.md). Файловая полнота Package
+[у Component](../../../component/notes/verification.md). Файловая полнота Package
 не подтверждает эти свойства.

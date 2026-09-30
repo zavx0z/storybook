@@ -9,8 +9,6 @@
     "./project": "./project/index.ts",
     "./package": "./package/index.ts",
     "./repo": "./repo/index.ts",
-    "./domain": "./domain/index.ts",
-    "./component": "./component/index.ts",
     "./specs": "./specs/index.ts",
     "./package/package-json": "./package/package-json/index.ts",
     "./package/index": "./package/index/index.ts",
@@ -24,9 +22,7 @@
   },
   "dependencies": {
     "@archetypes/specs": "workspace:*",
-    "@archetypes/component": "workspace:*",
     "@archetypes/project": "workspace:*",
-    "@archetypes/domain": "workspace:*",
     "@archetypes/repo": "workspace:*",
     "@archetypes/package": "workspace:*",
     "@archetypes/package-documentation": "workspace:*",

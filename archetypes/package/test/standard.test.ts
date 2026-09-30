@@ -13,7 +13,7 @@ afterAll(async () => {
 
 test.each([
   ["Domain", resolve(import.meta.dir, "../..")],
-  ["Component", resolve(import.meta.dir, "../../component/spec/fixture/component")],
+  ["Component", resolve(import.meta.dir, "../../../component/spec/fixture/component")],
 ] as const)("один сценарий проверяет %s и предоставляет те же данные представлениям", async (role, path) => {
   const report = await readScenario({path: scenario, props: {path}})
   expect(report.exitCode, report.stderr).toBe(0)
@@ -35,7 +35,7 @@ test.each([
 test("подтверждение роли не скрывает провал последующего требования Component", async () => {
   const path = await realpath(await mkdtemp(resolve(tmpdir(), "package-standard-")))
   roots.push(path)
-  await cp(resolve(import.meta.dir, "../../component/spec/fixture/component"), path, {recursive: true})
+  await cp(resolve(import.meta.dir, "../../../component/spec/fixture/component"), path, {recursive: true})
   await rm(resolve(path, "contract/output.ts"))
   // Файловая проверка не исполняет component: импорт отсутствующего типа не маскирует нарушение.
   const report = await readScenario({path: scenario, props: {path}})

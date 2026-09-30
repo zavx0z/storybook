@@ -35,13 +35,13 @@ export type {ButtonProps} from "@ui/button"
 ## Проверка области
 
 [Читатель](../index.ts) показывает локальное поведение и происхождение API.
-[Сценарий Package](../../package/spec/scenario.spec.ts) проверяет общие сведения,
+[Сценарий Package](../../archetypes/package/spec/scenario.spec.ts) проверяет общие сведения,
 разрешение символов и публичные границы. Класс не записывается в манифесте.
 Собственный spec Domain не обязателен: общие структурные проверки не копируются
 в каждую область. Существующие предметные сценарии выполняются обычным исполнителем;
 их ошибки не скрываются и наличие не подменяется успехом.
 
-Состав выводится из [workspace Repo](../../repo/notes/structure.md), а не из
+Состав выводится из [workspace Repo](../../archetypes/repo/notes/structure.md), а не из
 workspaces домена. Различия сред описаны [отдельно](environments.md), механика
-публичных входов — [у Package](../../package/notes/draft-exports.md).
+публичных входов — [у Package](../../archetypes/package/notes/draft-exports.md).
 Файловая проверка не доказывает полноту смысла всех предметных правил.

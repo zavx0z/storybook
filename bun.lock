@@ -19,8 +19,8 @@
         "@zavx0z/storybook-browser-lifecycle": "workspace:*",
       },
       "devDependencies": {
-        "@archetypes/component": "workspace:archetypes/component",
-        "@archetypes/domain": "workspace:archetypes/domain",
+        "@archetypes/component": "workspace:component",
+        "@archetypes/domain": "workspace:domain",
         "@archetypes/package-index": "workspace:archetypes/package/index",
         "@archetypes/package-json": "workspace:archetypes/package/package-json",
         "@archetypes/project": "workspace:archetypes/project",
@@ -542,8 +542,6 @@
       "name": "@storybook/archetypes",
       "version": "0.0.0",
       "dependencies": {
-        "@archetypes/component": "workspace:*",
-        "@archetypes/domain": "workspace:*",
         "@archetypes/package": "workspace:*",
         "@archetypes/package-documentation": "workspace:*",
         "@archetypes/package-index": "workspace:*",
@@ -554,20 +552,6 @@
         "@archetypes/scenario-guide": "workspace:*",
         "@archetypes/scenario-validation": "workspace:*",
         "@archetypes/specs": "workspace:*",
-      },
-    },
-    "archetypes/component": {
-      "name": "@archetypes/component",
-      "version": "0.0.0",
-      "dependencies": {
-        "@archetypes/package": "workspace:*",
-      },
-    },
-    "archetypes/domain": {
-      "name": "@archetypes/domain",
-      "version": "0.0.0",
-      "dependencies": {
-        "@archetypes/package": "workspace:*",
       },
     },
     "archetypes/package": {
@@ -647,6 +631,20 @@
         "typescript": "^7.0.2",
       },
     },
+    "component": {
+      "name": "@archetypes/component",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/package": "workspace:*",
+      },
+    },
+    "domain": {
+      "name": "@archetypes/domain",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/package": "workspace:*",
+      },
+    },
     "hmr": {
       "name": "@storybook/hmr",
       "version": "0.0.0",
@@ -723,9 +721,9 @@
   "packages": {
     "@antfu/install-pkg": ["@antfu/install-pkg@2.0.1", "", { "dependencies": { "package-manager-detector": "^1.7.0", "tinyexec": "^1.2.4" } }, "sha512-iCKVQcIC0e3oDxEfs3SHQGW+ovhBMZmS1TE+bTk50rVyMCBmCfClv7Qi3HQKlumYwvjb/iIMeWCW2i67q6kFfQ=="],
 
-    "@archetypes/component": ["@archetypes/component@workspace:archetypes/component"],
+    "@archetypes/component": ["@archetypes/component@workspace:component"],
 
-    "@archetypes/domain": ["@archetypes/domain@workspace:archetypes/domain"],
+    "@archetypes/domain": ["@archetypes/domain@workspace:domain"],
 
     "@archetypes/package": ["@archetypes/package@workspace:archetypes/package"],
 
