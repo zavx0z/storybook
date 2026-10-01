@@ -86,19 +86,22 @@ describe.each([
     if (panel.hasAttribute("hidden")) element.querySelector('button[aria-label="Minimap"]')!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
     await headless.screenshot(element)
     const button = panel.querySelector('button[aria-label="Пересобрать интерфейс"]')!
+    expect(panel.querySelector('[data-storybook-part="catalog-search"]')!.contains(button), "Пересборка расположена в одной строке с поиском и действиями дерева").toBeTrue()
+    expect(button.querySelector("img"), "Действие представлено значком").not.toBeNull()
+    expect(button.textContent, "Значок не занимает место текстовой подписью").toBe("")
     try {
       button.dispatchEvent(new MouseEvent("click", {bubbles: true}))
       button.dispatchEvent(new MouseEvent("click", {bubbles: true}))
       await headless.screenshot(element)
       expect(props.onRebuildWeb.mock.calls, "Два нажатия до завершения создают одну попытку пересборки Web").toEqual([[]])
       expect(button.hasAttribute("disabled"), "Кнопка блокируется во время подготовки").toBeTrue()
-      expect(button.textContent, "Текст кнопки раскрывает ожидание").toBe("Пересборка интерфейса…")
+      expect(button.getAttribute("title"), "Подсказка кнопки раскрывает ожидание").toBe("Пересборка интерфейса…")
     } finally {
       rebuild.resolve()
       await rebuild.promise
       await headless.screenshot(element)
     }
     expect(button.hasAttribute("disabled"), "После завершения доступна следующая явная пересборка").toBeFalse()
-    expect(button.textContent, "После подготовки возвращается название действия").toBe("Пересобрать интерфейс")
+    expect(button.getAttribute("title"), "После подготовки подсказка возвращает название действия").toBe("Пересобрать интерфейс")
   })
 })

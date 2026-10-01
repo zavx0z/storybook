@@ -38,7 +38,7 @@ describe.each([
     const button = element.querySelector('button[aria-label="Пересобрать интерфейс"]')!
     button.dispatchEvent(new MouseEvent("click", {bubbles: true}))
     await headless.screenshot(element)
-    const alert = element.querySelector('[data-storybook-web-rebuild] [role="alert"]')!
+    const alert = element.querySelector('[role="alert"]')!
     expect(alert.hasAttribute("hidden"), "Отказ приложения показывается в Minimap").toBeFalse()
     expect(alert.textContent, "Пользователь получает причину отказа").toBe(message)
     expect(button.hasAttribute("disabled"), "Отказ не оставляет кнопку заблокированной").toBeFalse()

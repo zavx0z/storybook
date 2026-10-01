@@ -1,17 +1,21 @@
 /**
 Общая панель каталога Display и Minimap: поиск, текущее место, раскрытие дерева
 и управление подключёнными проектами. Навигация использует один каталог Workbench;
-управление видимостью принадлежит принимающему Window.
+управление видимостью принадлежит принимающему Window. Minimap добавляет в строку
+поиска кнопку пересборки Web со значком; ошибка действия показывается под строкой.
 
 @packageDocumentation
 */
 import TextField, {type TextFieldProps} from "@zavx0z/ui/field/text-field"
 import Button from "@zavx0z/ui/button/button"
-import {collapseAllIcon, expandAllIcon, plusIcon, selectOpenedItemIcon} from "@zavx0z/ui/theme/icon"
+import {collapseAllIcon, expandAllIcon, iconSvg, plusIcon, selectOpenedItemIcon} from "@zavx0z/ui/theme/icon"
 import {useRef} from "@zavx0z/component"
 import {WorkbenchNavigationTree, type WorkbenchNavigationTreeHandle} from "../navigation/ui-tree.tsx"
 import type {CatalogPanelProps} from "./contract/input.ts"
 export type {CatalogPanelProps} from "./contract/input.ts"
+
+/** Круговая стрелка обозначает явную пересборку интерфейса. */
+const rebuildIcon = iconSvg('<path d="M20 7v5h-5M20 12a8 8 0 1 0-2.34 5.66"/>')
 
 /** Показывает готовый каталог через общий Tree и передаёт действия его владельцу. */
 export function CatalogPanel(value: CatalogPanelProps) {
@@ -81,6 +85,17 @@ export function CatalogPanel(value: CatalogPanelProps) {
           flex-shrink: 0;
         `}
       />
+      {value.webRebuild !== undefined ? <Button
+        label=""
+        startIcon={rebuildIcon}
+        title={value.webRebuild.busy ? "Пересборка интерфейса…" : "Пересобрать интерфейс"}
+        aria-label="Пересобрать интерфейс"
+        disabled={value.webRebuild.busy}
+        onClick={() => value.webRebuild?.onClick()}
+        style={css`
+          flex-shrink: 0;
+        `}
+      /> : null}
       {value.management !== null ? <Button
         label=""
         startIcon={plusIcon}
@@ -93,6 +108,19 @@ export function CatalogPanel(value: CatalogPanelProps) {
         `}
       /> : null}
     </div>
+    <p
+      hidden={!value.webRebuild?.error}
+      role="alert"
+      style={css`
+        margin: 0;
+        white-space: normal;
+        color: var(--state-error);
+
+        &[hidden] {
+          display: none;
+        }
+      `}
+    >{value.webRebuild?.error ?? ""}</p>
     <p
       hidden={value.management === null || value.management.error === ""}
       role="status"

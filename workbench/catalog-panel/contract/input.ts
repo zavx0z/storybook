@@ -14,6 +14,8 @@ import type {NavigationExpansion} from "../../navigation/persistence.ts"
 @property onSearch - Публикует новый запрос, включая очистку при поиске текущего места.
 @property onGroupToggle - Сообщает об изменении раскрытия отдельной ветви.
 @property [navigationExpansion] - Восстанавливает и сохраняет раскрытие дерева.
+@property [webRebuild] - Действие пересборки Web в строке поиска Minimap.
+При отсутствии кнопка не показывается; ожидание и ошибка принадлежат вызывающей поверхности.
 */
 export interface CatalogPanelProps {
   label: string
@@ -26,4 +28,9 @@ export interface CatalogPanelProps {
   onSearch(value: string, source: HTMLElement): void
   onGroupToggle(group: WorkbenchNavigationGroup, collapsed: boolean, source: HTMLElement): void
   navigationExpansion?: NavigationExpansion | undefined
+  webRebuild?: Readonly<{
+    busy: boolean
+    error: string
+    onClick(): void
+  }> | undefined
 }
