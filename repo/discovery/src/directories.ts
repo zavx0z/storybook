@@ -69,6 +69,7 @@ export async function prepareStorybookDirectories(
     rootDocumentation = await readDocumentation(path)
     break
   }
+  /** Читает только собственные views; package.json резервирует вложенного владельца и наблюдается даже до его появления. */
   const collectViews = async (path: string, hasEntry: boolean): Promise<void> => {
     if (!hasEntry) return
     for (const [name, files] of [
@@ -77,13 +78,20 @@ export async function prepareStorybookDirectories(
     ] as const) {
       const directory = join(path, name)
       const paths = files.map(file => join(directory, file))
-      for (const watched of [directory, ...paths]) inputs.add(watched)
+      const packageJson = join(directory, "package.json")
+      for (const watched of [directory, packageJson, ...paths]) inputs.add(watched)
       const excluded = await ignored([directory, ...paths])
       const info = await lstat(directory).catch(error => {
         if (error.code !== "ENOENT") throw error
         return null
       })
       if (!info?.isDirectory() || info.isSymbolicLink() || excluded.has(directory)) continue
+      if (packageRoots.has(directory)) continue
+      const boundary = await lstat(packageJson).catch(error => {
+        if (error.code !== "ENOENT") throw error
+        return null
+      })
+      if (boundary !== null) continue
       const found: string[] = []
       for (const source of paths) {
         if (excluded.has(source)) continue
