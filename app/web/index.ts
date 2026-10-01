@@ -12,6 +12,24 @@ export type {AppWeb} from "./contract"
 Управляет явным выпуском Web через предоставленные возможности сборщика.
 Повторные вызовы во время работы разделяют один результат. Отключение наблюдателя
 не отменяет сборку; прежняя опубликованная версия сохраняется при ошибке подготовки.
+
+@typeParam Prepared - Результат переданной функции `prepare` после `await`.
+Выводится из функций {@link AppWeb.Input} и связывает подготовку, извлечение версий и публикацию.
+
+@param input - Реализации трёх операций от владельца артефактов.
+
+@returns Управление общим выпуском Web; `dispose` отменяет подготовку и ожидает её завершения.
+
+@example
+Переданные функции описаны в {@link AppWeb.Input}:
+```ts
+const web = createWeb({prepare, versions, publish})
+try {
+  await web.rebuild({apply: true})
+} finally {
+  await web.dispose()
+}
+```
 */
 export default function createWeb<Prepared>(input: AppWeb.Input<Prepared>): AppWeb.Output {
   type State = ReturnType<AppWeb.Output["read"]>
