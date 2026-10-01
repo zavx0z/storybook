@@ -1,0 +1,37 @@
+{
+  "lockfileVersion": 2,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "@fixture/container-repo",
+    },
+    "compose": {
+      "name": "@fixture/compose",
+      "dependencies": {
+        "@fixture/compose-adjust": "workspace:*",
+        "@fixture/compose-double": "workspace:*",
+      },
+    },
+    "compose/adjust": {
+      "name": "@fixture/compose-adjust",
+      "dependencies": {
+        "@fixture/compose-increment": "workspace:*",
+      },
+    },
+    "compose/adjust/increment": {
+      "name": "@fixture/compose-increment",
+    },
+    "compose/double": {
+      "name": "@fixture/compose-double",
+    },
+  },
+  "packages": {
+    "@fixture/compose": ["@fixture/compose@workspace:compose"],
+
+    "@fixture/compose-adjust": ["@fixture/compose-adjust@workspace:compose/adjust"],
+
+    "@fixture/compose-double": ["@fixture/compose-double@workspace:compose/double"],
+
+    "@fixture/compose-increment": ["@fixture/compose-increment@workspace:compose/adjust/increment"],
+  }
+}

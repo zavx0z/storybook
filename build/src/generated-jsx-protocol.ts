@@ -1,6 +1,6 @@
 import {existsSync, mkdirSync, realpathSync, symlinkSync} from "node:fs"
 import {dirname, join} from "node:path"
-import {readStorybookPackageRoot} from "../../src/shared/owner-identity.ts"
+import {readStorybookPackageRoot} from "./owner-identity.ts"
 
 /** Связывает generated TSX root с exact native JSX package без tsconfig paths или копий runtime. */
 export function ensureGeneratedJsxProtocol(sourceRoot: string, toolRoot: string): void {

@@ -1,6 +1,6 @@
 import {readFileSync, realpathSync} from "node:fs"
 import {join} from "node:path"
-import type {StorybookPackageOwner} from "../../src/shared/owner-identity.ts"
+import type {StorybookPackageOwner} from "./owner-identity.ts"
 
 /** Подтверждает exact workspace-владельца двух обязательных native automatic JSX exports. */
 export function isOwnedJsxProtocol(

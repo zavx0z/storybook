@@ -7,7 +7,7 @@ import type {
   StorybookSharedBrowserModule,
   StorybookSharedBrowserSourceFile,
 } from "./types/shared-module-identity.ts"
-import {readStorybookPackageOwner} from "../src/shared/owner-identity.ts"
+import {readStorybookPackageOwner} from "./src/owner-identity.ts"
 import {isOwnedJsxProtocol} from "./src/jsx-protocol-owner.ts"
 import {sharedSourceFiles} from "./src/shared-source-files.ts"
 

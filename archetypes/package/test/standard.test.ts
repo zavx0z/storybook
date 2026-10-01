@@ -1,7 +1,7 @@
 import {afterAll, expect, test} from "bun:test"
-import {cp, mkdtemp, realpath, rm, writeFile} from "node:fs/promises"
+import {cp, mkdir, mkdtemp, realpath, rm, symlink, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
-import {resolve} from "node:path"
+import {resolve, sep} from "node:path"
 import {readScenario} from "@storybook/app-old/scenarios"
 import {readScenarios} from "../../../mcp/rest/scenarios"
 
@@ -16,6 +16,21 @@ test.each([
   ["Component", resolve(import.meta.dir, "../../../component/spec/fixture/component")],
   ["Container", resolve(import.meta.dir, "../../../container/spec/fixture/compose")],
 ] as const)("один сценарий проверяет %s и предоставляет те же данные представлениям", async (role, path) => {
+  if (role === "Container") {
+    const root = await realpath(await mkdtemp(resolve(tmpdir(), "package-container-")))
+    roots.push(root)
+    await cp(resolve(path, ".."), root, {
+      recursive: true,
+      filter: source => !source.split(sep).includes("node_modules"),
+    })
+    const manifests = [...new Bun.Glob("compose/**/package.json").scanSync({cwd: root, absolute: true})]
+    await mkdir(resolve(root, "node_modules/@fixture"), {recursive: true})
+    for (const file of manifests) {
+      const manifest = await Bun.file(file).json()
+      await symlink(resolve(file, ".."), resolve(root, "node_modules", manifest.name))
+    }
+    path = resolve(root, "compose")
+  }
   const report = await readScenario({path: scenario, props: {path}})
   expect(report.exitCode, report.stderr).toBe(0)
   expect(report.validation.checks.filter(check => check.status === "failed")).toEqual([])

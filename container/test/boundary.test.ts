@@ -1,9 +1,9 @@
 import {afterEach, expect, test} from "bun:test"
-import {cp, mkdtemp, realpath, rm} from "node:fs/promises"
-import {tmpdir} from "node:os"
+import {rm} from "node:fs/promises"
 import {join, resolve} from "node:path"
 import readContainer from "@archetypes/container"
 import {readScenario} from "@storybook/app-old/scenarios"
+import {prepareContainerExample} from "../spec/prepare"
 
 const roots: string[] = []
 const scenario = resolve(import.meta.dir, "../../archetypes/package/spec/scenario.spec.ts")
@@ -13,9 +13,8 @@ afterEach(async () => {
 
 /** Копирует собственный workspace примера, сохраняя вложенность и независимость изменяемых случаев. */
 async function fixture() {
-  const root = await realpath(await mkdtemp(join(tmpdir(), "container-boundary-")))
+  const root = await prepareContainerExample()
   roots.push(root)
-  await cp(resolve(import.meta.dir, "../spec/fixture"), root, {recursive: true})
   return {root, path: join(root, "compose")}
 }
 
@@ -55,7 +54,9 @@ test("вложенный Container и его компонент проходят
 test("внешняя зависимость не превращает самостоятельный Component в Container", async () => {
   const f = await fixture()
   const path = join(f.path, "adjust/increment")
-  await Bun.write(join(path, "index.ts"), '/**\nСамостоятельная реализация.\n@packageDocumentation\n*/\nimport double from "../../double/index.ts"\nexport default function increment(value: number) { return double(value) + 1 }\n')
+  await Bun.write(join(path, "index.ts"), '/**\nСамостоятельная реализация.\n@packageDocumentation\n*/\nimport double from "@fixture/compose-double"\nexport default function increment(value: number) { return double(value) + 1 }\n')
+  const metadata = await Bun.file(join(path, "package.json")).json()
+  await Bun.write(join(path, "package.json"), JSON.stringify({...metadata, dependencies: {"@fixture/compose-double": "workspace:*"}}))
   const data = await readContainer({path})
   expect(data.parts).toEqual([])
   const report = await readScenario({path: scenario, props: {path}})
@@ -67,7 +68,7 @@ test("внешняя зависимость не превращает самос
 test("контейнер не раскрывает именованный runtime API внутренней части", async () => {
   const f = await fixture()
   const entry = join(f.path, "index.ts")
-  await Bun.write(entry, await Bun.file(entry).text() + '\nexport {default as Double} from "./double/index.ts"\n')
+  await Bun.write(entry, await Bun.file(entry).text() + '\nexport {default as Double} from "@fixture/compose-double"\n')
   const report = await readScenario({path: scenario, props: {path: f.path}})
   expect(report.tests.find(point => point.label === "Основная реализация")?.status).toBe("failed")
   expect(report.exitCode).not.toBe(0)
@@ -104,10 +105,10 @@ test("читатель не исполняет исследуемый конте
 test("буквальный dynamic import сохраняет часть композиции и её публичного владельца", async () => {
   const f = await fixture()
   const path = join(f.path, "adjust")
-  await Bun.write(join(path, "index.ts"), '/**\nДинамическая композиция.\n@packageDocumentation\n*/\nexport default async function adjust(value: number) {\n  const {default: increment} = await import("./increment/index.ts")\n  return increment(value)\n}\n')
+  await Bun.write(join(path, "index.ts"), '/**\nДинамическая композиция.\n@packageDocumentation\n*/\nexport default async function adjust(value: number) {\n  const {default: increment} = await import("@fixture/compose-increment")\n  return increment(value)\n}\n')
   const data = await readContainer({path})
   expect(data.parts[0]?.references).toMatchObject([{
-    module: "./increment/index.ts", names: ["*"], public: true, typeOnly: false,
+    module: "@fixture/compose-increment", names: ["*"], public: true, typeOnly: false,
     owner: {name: "@fixture/compose-increment"},
   }])
   const report = await readScenario({path: scenario, props: {path}})

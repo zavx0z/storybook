@@ -3,7 +3,7 @@
 
 @packageDocumentation
 */
-import increment from "./increment/index.ts"
+import increment from "@fixture/compose-increment"
 import type {Input} from "./contract/input"
 import type {Output} from "./contract/output"
 

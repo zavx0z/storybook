@@ -33,12 +33,12 @@ test("finds ordinary and empty directories, skips src and keeps packages as sepa
   expect(result.inputs).not.toContain(join(root, "packages/tool"))
 })
 
-test("types следует обычным границам каталогов, модулей и shared", async () => {
+test("types следует обычным границам каталогов, модулей и частных исходников", async () => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "storybook-types-directory-")))
   roots.push(root)
   await mkdir(join(root, "types/private"), {recursive: true})
   await mkdir(join(root, "protocol/types/src"), {recursive: true})
-  await mkdir(join(root, "shared/types/internal"), {recursive: true})
+  await mkdir(join(root, "src/types/internal"), {recursive: true})
   await Bun.write(join(root, "types/index.ts"), "export interface Helper {}")
   await Bun.write(join(root, "protocol/types/index.ts"), "/** Протокол раскладки.\n@packageDocumentation\n*/")
   const read = () => discoverStorybookDirectories(root, new Set())

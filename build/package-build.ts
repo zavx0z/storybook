@@ -44,7 +44,7 @@ import {
   preferredStorybookPackageRoot,
   readStorybookPackageOwner,
   sameStorybookPackageOwner,
-} from "../src/shared/owner-identity.ts"
+} from "./src/owner-identity.ts"
 import {
   storybookBuildError,
   storybookDiagnostic,

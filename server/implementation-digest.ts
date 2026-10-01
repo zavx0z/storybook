@@ -41,7 +41,6 @@ const IMPLEMENTATION_TREES = Object.freeze([
   "sessions",
   "hmr/activation",
   "server",
-  "src/shared",
   "browser-lifecycle/src",
 ])
 

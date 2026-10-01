@@ -4,8 +4,8 @@
 
 @packageDocumentation
 */
-import adjust from "./adjust/index.ts"
-import double from "./double/index.ts"
+import adjust from "@fixture/compose-adjust"
+import double from "@fixture/compose-double"
 import type {Input} from "./contract/input"
 import type {Output} from "./contract/output"
 

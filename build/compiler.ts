@@ -23,7 +23,7 @@ import {
   preferredStorybookPackageRoot,
   readStorybookPackageOwner,
   sameStorybookPackageOwner,
-} from "../src/shared/owner-identity.ts"
+} from "./src/owner-identity.ts"
 
 const JSX_IMPORT_SOURCE = "@zavx0z/jsx"
 const JSX_BUN_PACKAGE = "@jsx-compiler/bun"

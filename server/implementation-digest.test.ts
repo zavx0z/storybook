@@ -141,7 +141,6 @@ function implementationFixture(): string {
     "sessions",
     "hmr/activation",
     "hmr/page",
-    "src/shared",
     "runtime",
     "server/fixtures",
     "browser-lifecycle/src",

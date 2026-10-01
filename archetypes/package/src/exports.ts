@@ -159,7 +159,7 @@ export async function readSourceExports(root: string, paths: readonly string[]):
       }
       const references = [...await moduleReferences(file, project, root)]
       for (const reference of references) {
-        if (!reference.typeOnly && reference.owner?.path === root && reference.path) pending.add(reference.path)
+        if (reference.owner?.path === root && reference.path) pending.add(reference.path)
       }
       for (const contract of contracts) {
         const source = await project.program.getSourceFile(contract)

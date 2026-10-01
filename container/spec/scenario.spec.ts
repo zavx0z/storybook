@@ -4,19 +4,24 @@
 
 @packageDocumentation
 */
-import {describe, expect, test} from "bun:test"
+import {afterAll, describe, expect, test} from "bun:test"
+import {rm} from "node:fs/promises"
 import {resolve} from "node:path"
 import readContainer from "@archetypes/container"
+import {prepareContainerExample} from "./prepare"
+
+const root = await prepareContainerExample()
+afterAll(() => rm(root, {recursive: true, force: true}))
 
 describe.each([
   {
     name: "Композиция с одной частью",
-    props: {path: resolve(import.meta.dir, "fixture/compose/adjust")},
+    props: {path: resolve(root, "compose/adjust")},
     parts: ["@fixture/compose-increment"],
   },
   {
     name: "Композиция с вложенным контейнером",
-    props: {path: resolve(import.meta.dir, "fixture/compose")},
+    props: {path: resolve(root, "compose")},
     parts: ["@fixture/compose-adjust", "@fixture/compose-double"],
   },
 ])("$name", async ({props, parts}) => {

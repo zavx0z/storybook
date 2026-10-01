@@ -1,7 +1,7 @@
 /** Browser-safe structural graph carried by one immutable package revision. */
 import {externalStorybookRoutes, type ExternalStorybookGraph} from "../catalog/graph.ts"
 import type {StorybookAuthorStyleSheet} from "../catalog/catalog.t.ts"
-import {sha256Hex} from "../src/shared/sha256.ts"
+import {sha256Hex} from "./src/sha256.ts"
 
 export const STORYBOOK_PACKAGE_GRAPH_PROTOCOL = "storybook-package-graph/6" as const
 

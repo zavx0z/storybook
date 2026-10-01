@@ -18,7 +18,7 @@ test.each(["index.ts", "index.tsx"])("категории и привязка п�
   roots.push(root)
   await Bun.spawn(["git", "init", "--quiet", root]).exited
   await Bun.write(join(root, "package.json"), JSON.stringify({name: "@fixture/parameters", label: "Параметры", exports: {".": "./numeric/index.ts"}}))
-  for (const dir of ["numeric/number/tests", "numeric/shared/hidden/src", "shared/base/src", "numeric/slider/src", "nested/child/src"]) await mkdir(join(root, dir), {recursive: true})
+  for (const dir of ["numeric/number/tests", "numeric/test/hidden/src", "src/base/src", "numeric/slider/src", "nested/child/src"]) await mkdir(join(root, dir), {recursive: true})
   if (entry === "index.ts") await mkdir(join(root, "numeric/number/src/private"), {recursive: true})
   await Bun.write(join(root, "numeric/index.ts"), '/**\nЧисловые параметры.\n@packageDocumentation\n*/\nexport * from "./number/index.ts"\nthrow new Error("Не исполнять")')
   await Bun.write(join(root, `numeric/number/${entry}`), '/**\nРедактирование числа.\n@packageDocumentation\n*/\nthrow new Error("Не исполнять")')
@@ -29,7 +29,7 @@ test.each(["index.ts", "index.tsx"])("категории и привязка п�
     "numeric", "numeric/number", "numeric/slider",
   ])
   expect(found.directories[0]?.moduleDocumentation?.markdown, "Реэкспорты не меняют роль категории").toBe("Числовые параметры.")
-  expect(found.inputs.some(file => file.includes("/shared/hidden")), "Служебный shared не обходится").toBeFalse()
+  expect(found.inputs.some(file => file.includes("/test/hidden")), "Служебные test-директории не обходятся").toBeFalse()
   const graph = createExternalStorybookGraph(await discoverStorybookPackages([root]))
   const rows = deriveExternalStorybookNavigationTree(graph).filter(row =>
     row.id !== "package:@fixture/parameters" &&

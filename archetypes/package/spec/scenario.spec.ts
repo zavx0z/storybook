@@ -72,6 +72,13 @@ describe.each([
   })
 
   describe("Границы зависимостей", () => {
+    test("Адреса зависимостей", () => {
+      expect(result.code.flatMap(source => source.references).filter(reference =>
+        reference.module.startsWith("file:") || reference.module.startsWith("/")
+        || reference.module.startsWith(".") && reference.owner?.path !== result.root),
+        "Относительные импорты и реэкспорты связывают только внутренние модули своего пакета. Другой пакет, включая вложенный, используется по имени и публичному адресу из exports; абсолютные и file: пути не заменяют эту границу")
+        .toEqual([])
+    })
     test("Публичные владельцы", () => {
       expect(result.code.flatMap(source => source.references).filter(reference => reference.public === false || reference.public === null && reference.path === null),
         "Импорты контрактов и реализации используют публичные входы владельцев; собственные private helpers остаются внутри пакета").toEqual([])
@@ -82,8 +89,10 @@ describe.each([
       expect(result.code.flatMap(source => source.references),
         "Публичные реэкспорты доступны потребителю через dependencies/peerDependencies; внутренние типовые импорты не требуют обратной зависимости на домен")
         .toSatisfy(references => references.every(reference => {
-          if (!reference.owner || reference.owner.path === result.root || reference.module.startsWith(".") || reference.module.startsWith("/")) return true
-          const name = reference.module.startsWith("@") ? reference.module.split("/").slice(0, 2).join("/") : reference.module.split("/")[0]!
+          if (!reference.owner || reference.owner.path === result.root) return true
+          const name = reference.module.startsWith(".") || reference.module.startsWith("/") || reference.module.startsWith("file:")
+            ? reference.owner.name
+            : reference.module.startsWith("@") ? reference.module.split("/").slice(0, 2).join("/") : reference.module.split("/")[0]!
           return production.includes(name) || reference.typeOnly && !reference.exported && development.includes(name)
         }))
     })

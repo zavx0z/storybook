@@ -4,5 +4,9 @@
   "type": "module",
   "exports": {
     ".": "./index.ts"
+  },
+  "dependencies": {
+    "@fixture/compose-adjust": "workspace:*",
+    "@fixture/compose-double": "workspace:*"
   }
 }

@@ -90,7 +90,7 @@ resolver при создании; граф использует нормализ
 | `server/` | HTTP/WebSocket, daemon и общий controller для CLI/MCP |
 
 `mcp/` сохраняет транспортный адаптер. `browser-lifecycle` единолично владеет
-вкладками. `src/shared` содержит общие внутренние механизмы.
+вкладками.
 
 `@storybook/app-old/scenarios` читает и выполняет сценарий, сохраняя полный отчёт
 для сборки, серверной диагностики и просмотра. `@storybook/app-old/spec-reader` находит

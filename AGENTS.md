@@ -38,7 +38,7 @@
   [адаптера MCP](mcp/server/spec/scenario.spec.ts);
   границы зависимостей проверяются в [boundary.test.ts](mcp/proxy/test/boundary.test.ts).
 - Владельцы рабочего кода сгруппированы в `discovery`, `catalog`, `build`, `sessions`,
-  `hmr`, `runtime`, `workbench` и `server`. `src/shared` содержит частные общие механизмы.
+  `hmr`, `runtime`, `workbench` и `server`.
   Импортировать напрямую из действующего владельца; не восстанавливать псевдонимы
   или перенаправляющие файлы в выведенном из использования дереве `src/external`.
 - `catalog/catalog.t.ts` владеет нормализованным результатом обнаружения.
