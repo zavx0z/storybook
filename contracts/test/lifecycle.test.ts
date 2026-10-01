@@ -7,9 +7,9 @@ import {createFixture} from "./fixture"
 test("Следующее чтение отражает изменение и удаление определения", async () => {
   const fixture = await createFixture()
   try {
-    const source = resolve(fixture.root, "contract/value.ts")
+    const source = resolve(fixture.root, "contract/index.ts")
     const first = await readContract({path: fixture.root})
-    await fixture.write("contract/value.ts", 'export interface Request {readonly value: number\nreadonly step?: number\nreadonly unit: "px"}\n')
+    await fixture.write("contract/index.ts", 'export declare namespace Counter {type Input = {readonly value: number\nreadonly step?: number\nreadonly unit: "px"}\ntype Output = number}\n')
     const updated = await readContract({path: fixture.root})
     expect(updated.diagnostics, "Новое определение читается согласованно после изменения").toEqual([])
     expect(updated.sources.find(value => value.path === source)?.digest,
@@ -22,7 +22,7 @@ test("Следующее чтение отражает изменение и у�
       "Удалённый источник остаётся неразрешённой зависимостью вместо старой формы").toBeTrue()
     expect(removed.sources.map(value => value.path), "Удалённый файл не публикуется как успешно прочитанный источник").not.toContain(source)
     expect(removed.entries[0]?.namespaces[0]?.roles.find(role => role.name === "Input")?.fields.map(value => value.name),
-      "Результат удаления не возвращает устаревшие поля Request").toEqual([])
+      "Удаление namespace исключает его прежнюю форму Input").toBeUndefined()
   } finally {
     await fixture.close()
   }
@@ -43,8 +43,8 @@ test("Игнорируемый источник не выдаётся за до�
 test("Символическая ссылка не заменяет собственный исходник", async () => {
   const fixture = await createFixture()
   try {
-    const source = resolve(fixture.root, "contract/value.ts")
-    const target = await fixture.write("contract/linked-value.ts", 'export interface Request {value: number\nstep?: number}\n')
+    const source = resolve(fixture.root, "contract/index.ts")
+    const target = await fixture.write("contract/linked-index.ts", 'export declare namespace Counter {type Input = {value: number\nstep?: number}\ntype Output = number}\n')
     await rm(source)
     await symlink(target, source)
     await expect(readContract({path: fixture.root}), "Читатель отклоняет подмену физического файла; ссылка целиком находится в принадлежащей тесту директории")

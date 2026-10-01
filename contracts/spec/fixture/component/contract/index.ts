@@ -1,6 +1,7 @@
-import type {Request} from "./value"
-
 export declare namespace Counter {
-  type Input = Request
+  type Input = {
+    readonly value: number
+    readonly step?: number
+  }
   type Output = number
 }

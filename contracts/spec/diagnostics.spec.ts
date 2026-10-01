@@ -75,8 +75,8 @@ describe.each([
   {
     name: "Вложенный callback использует частный собственный тип",
     files: {
-      "contract/index.ts": 'import type {Request} from "./callbacks"\nexport declare namespace Counter {type Input = Request\ntype Output = number}\n',
-      "contract/callbacks.ts": 'import type {Details} from "../src/details"\nexport interface Request {value: number\nonValue: (value: Details) => void}\n',
+      "contract/index.ts": 'import type {Listener} from "./callbacks"\nexport declare namespace Counter {type Input = {value: number, onValue: Listener}\ntype Output = number}\n',
+      "contract/callbacks.ts": 'import type {Details} from "../src/details"\nexport type Listener = (value: Details) => void\n',
       "src/details.ts": 'export interface Details {description: string}\n',
     },
     code: "type-outside-contract",
@@ -112,7 +112,7 @@ describe.each([
 test("Результат JSX не подменяет заявленные точки вставки", async () => {
   const fixture = await createFixture("jsx-component")
   try {
-    await fixture.write("contract/index.ts", 'import type {JSX} from "@zavx0z/jsx"\nimport type {Regions} from "./regions"\nexport declare namespace Panel {type Input = {readonly title: string}\ntype Slots = Regions\ntype Output = JSX.Element<{readonly wrong: JSX.Element}>}\n')
+    await fixture.write("contract/index.ts", 'import type {JSX} from "@zavx0z/jsx"\nexport declare namespace Panel {type Input = {readonly title: string}\ntype Slots = {readonly default: JSX.Element, readonly header?: JSX.Element}\ntype Output = JSX.Element<{readonly wrong: JSX.Element}>}\n')
     const result = await readContract({path: fixture.root})
     expect(result.entries[0]?.namespaces[0]?.slotsLinked,
       "Наличие JSX.Element само по себе не связывает его чужую форму wrong с объявленными Slots").toBeFalse()

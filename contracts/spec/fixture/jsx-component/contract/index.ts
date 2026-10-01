@@ -1,8 +1,10 @@
 import type {JSX} from "@zavx0z/jsx"
-import type {Regions} from "./regions"
 
 export declare namespace Panel {
   type Input = {readonly title: string}
-  type Slots = Regions
+  type Slots = {
+    readonly default: JSX.Element
+    readonly header?: JSX.Element
+  }
   type Output = JSX.Element<Slots>
 }

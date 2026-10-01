@@ -16,8 +16,7 @@ import {realpath} from "node:fs/promises"
 import {resolve} from "node:path"
 import {readNamespaces} from "./src/read"
 import {contractFiles} from "./src/placement"
-import type {Input} from "./contract/request"
-import type {Output} from "./contract/description"
+import type {Contract} from "./contract"
 
 export type {Contract} from "./contract"
 
@@ -28,7 +27,7 @@ export type {Contract} from "./contract"
 @returns Один согласованный снимок объявлений, типовых ролей и структурных нарушений.
 @throws Ошибки файловой системы, разрешения TypeScript или изменения исходников во время чтения.
 */
-export default async function readContract(input: Input): Promise<Output> {
+export default async function readContract(input: Contract.Input): Promise<Contract.Output> {
   const path = await realpath(resolve(input.path))
   const definitions = await contractFiles(path)
   const description = await readPackage({path})

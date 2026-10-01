@@ -4,7 +4,7 @@ import {resolve} from "node:path"
 import {API} from "typescript/unstable/async"
 import type {ReadPackageOutput} from "@archetypes/package"
 import {readRouteIgnored} from "@storybook/route/ignored"
-import type {Output} from "../contract/description"
+import type {Contract} from "../contract"
 import {diagnose, inside, rememberSource, type Context} from "./context"
 import {readNamespace} from "./namespaces"
 import {checkPlacement} from "./placement"
@@ -13,13 +13,13 @@ import {checkPlacement} from "./placement"
 Раскрывает только публичные входы из фактов Package. Snapshot и checker
 освобождаются после чтения; изменение источника отклоняет весь результат.
 */
-export async function readNamespaces(description: ReadPackageOutput, definitions: readonly string[]): Promise<Output> {
+export async function readNamespaces(description: ReadPackageOutput, definitions: readonly string[]): Promise<Contract.Output> {
   const paths = [...new Set(description.index.entries.filter(entry => entry.code && entry.target
     && (entry.status === "owned" || entry.status === "forwarded"))
     .map(entry => resolve(description.root, entry.target!)))]
   const api = new API({cwd: description.root})
-  const entries: Output["entries"][number][] = []
-  const diagnostics: Output["diagnostics"][number][] = []
+  const entries: Contract.Output["entries"][number][] = []
+  const diagnostics: Contract.Output["diagnostics"][number][] = []
   const sources = new Map<string, {path: string, digest: string}>()
   try {
     const snapshot = await api.updateSnapshot({openFiles: [...paths, ...definitions]})

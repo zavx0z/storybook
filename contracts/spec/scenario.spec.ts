@@ -123,14 +123,14 @@ describe.each([
   })
 
   /** @remarks Числовой Component раскрывает primitive Output; формы объектов ему не навязываются. */
-  describe.skipIf(namespaceName !== "Counter")("Примитив и свободное размещение форм", () => {
+  describe.skipIf(namespaceName !== "Counter")("Примитив и форма входа", () => {
     test("Примитивный выход", () => {
       expect(namespace.roles.find(role => role.name === "Output"), "Число сохраняется как тип без выдуманных полей объекта")
         .toMatchObject({name: "Output", type: "number", fields: []})
     })
     test("Поля входа", () => {
       expect(namespace.roles.find(role => role.name === "Input")?.fields.map(field => ({name: field.name, type: field.type, optional: field.optional})),
-        "Обязательное значение и необязательный шаг получены из произвольно названного файла value.ts")
+        "Обязательное значение и необязательный шаг определены непосредственно в Input пространства Counter")
         .toEqual([{name: "value", type: "number", optional: false}, {name: "step", type: "number | undefined", optional: true}])
     })
     test("Частный тип реализации", () => {
