@@ -12,10 +12,10 @@
 | R07: предметные поддомены | [Domain](../../domain/notes/structure.md) |
 | R08: дублирование и идентичность | [Публичные экспорты](../package/notes/draft-exports.md) |
 | R09–R11: default, именованные типы и имя реализации | [Component](../../component/notes/draft-placement.md) |
-| R12–R13: тип у владельца, без универсального types-пакета | [Контракты](../specs/contracts/notes/draft-contracts.md) |
+| R12–R13: тип у владельца, без универсального types-пакета | [Контракты](../../contracts/notes/draft-contracts.md) |
 | R14: внутренние импорты владельцев | [Импорты Component](../../component/notes/imports.md) |
-| R15–R16: Input из Output и доказательство pipeline | [Контракты](../specs/contracts/notes/draft-contracts.md), [зависимости](../specs/deps/notes/draft-dependencies.md) |
-| R17–R19: declare module, применимость и граница runtime | [Контракты](../specs/contracts/notes/draft-contracts.md) |
+| R15–R16: Input из Output и доказательство pipeline | [Контракты](../../contracts/notes/draft-contracts.md), [зависимости](../specs/deps/notes/draft-dependencies.md) |
+| R17–R19: declare module, применимость и граница runtime | [Контракты](../../contracts/notes/draft-contracts.md) |
 | R20: dependency/dev/peer | [Зависимости Package](../package/notes/dependencies.md) |
 | R21: сначала штатные возможности | [Развитие](development.md) |
 | R22–R25: фиксированные протоколы, физические цели, без обязательного ручного Runtime | [Среды Domain](../../domain/notes/environments.md) |

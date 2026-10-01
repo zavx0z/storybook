@@ -31,7 +31,7 @@ Fixed `workbench-layout/3` владеет `catalog`, `tabs`, `preview`, `inspect
 `inspector` в URL отражает доступную секцию; неизвестное значение нормализуется
 через replaceState. Вкладка «Зависимости» не объявляет секций Inspector,
 «Контракт» показывает только вход и выход по
-[контракту](../../archetypes/specs/contracts/notes/draft-contracts.md). Синхронизация
+[контракту](../../contracts/notes/presentation.md). Синхронизация
 адреса принадлежит runtime, Inspector не управляет browser history.
 Выбор секции не перемонтирует представление; back/forward восстанавливает
 секцию и сохраняет остальные параметры адреса. Содержимое тяжёлой встроенной

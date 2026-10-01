@@ -15,11 +15,6 @@ describe.each([{name: "Функция увеличения числа", props: {
       .toEqual([["default"]])
     expect(result.additionalCode, "Пример не публикует дополнительных реализаций").toEqual([])
   })
-  test("Контракты", () => {
-    expect(result.entries.map(entry => ({input: entry.input, output: entry.output, jsx: entry.jsx})),
-      "increment принимает числовые данные и возвращает число; файлы контрактов доступны рядом с основным входом")
-      .toEqual([{input: "./contract/input.ts", output: "./contract/output.ts", jsx: false}])
-  })
   test("Исполняемый пример", () => {
     expect(result.scenarios, "Сценарий increment находится у компонента и может быть запущен через тот же исполнитель")
       .toEqual([resolve(props.path, "spec/scenario.spec.ts")])

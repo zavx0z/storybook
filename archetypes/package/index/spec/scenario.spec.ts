@@ -7,10 +7,10 @@ describe.each([
 ])("$name", async ({props}) => {
   const result = await readPackageIndex(props)
 
-  test("Файл и контракты", () => {
-    expect(result.entries, "Точный вход связывает публичный путь с принадлежащим пакету кодом и контрактами").toEqual([{
+  test("Файл входа", () => {
+    expect(result.entries.map(({input: _input, output: _output, ...entry}) => entry),
+      "Точный вход связывает публичный путь с принадлежащим пакету кодом; типовые роли проверяет Contracts").toEqual([{
       path: ".", target: "./index.ts", conditions: [], status: "owned", code: true, entrypoint: true,
-      input: "./contract/input.ts", output: "./contract/output.ts",
     }])
     expect(result.unchecked, "Простая строковая цель проверяется полностью на уровне файлов").toEqual([])
   })

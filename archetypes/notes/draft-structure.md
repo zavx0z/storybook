@@ -41,6 +41,7 @@ runtime-реализация вместе с принадлежащими вло
 - [Domain](../../domain/index.ts) — предметная область и именованный API её владельцев.
 - [Component](../../component/index.ts) — собственная основная реализация через default и именованные типы.
 - [Container](../../container/notes/structure.md) — композиция принадлежащих частей в одно целое с собственным API реализации.
+- [Contracts](../../contracts/index.ts) — типовая граница Component и Container, роли и принадлежность определений.
 - [Specs](../specs/index.ts) — правила исполняемой документации.
 - [Развитие структуры](development.md) — принадлежность и размещение частей.
 - [Экспорты](../package/notes/draft-exports.md) — API области и фактический владелец кода.

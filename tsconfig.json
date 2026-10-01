@@ -33,6 +33,8 @@
     "component/**/*.tsx",
     "container/**/*.ts",
     "container/**/*.tsx",
+    "contracts/**/*.ts",
+    "contracts/**/*.tsx",
     "catalog/**/*.ts",
     "discovery/**/*.ts",
     "build/**/*.ts",

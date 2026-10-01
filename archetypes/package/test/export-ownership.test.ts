@@ -88,19 +88,6 @@ test("типовой re-export класса не создаёт runtime, а ча
   expect(report.tests.find(point => point.label === "Публичные владельцы")?.status).toBe("failed")
 }, 30_000)
 
-test("вход использует выход владельца как типовую зависимость, не копируя форму", async () => {
-  const f = await fixture()
-  await mkdir(join(f.component, "contract"))
-  await Bun.write(join(f.component, "contract/input.ts"), 'import type {Output} from "../../upstream/index.ts"\nexport type Input = Output\n')
-  await mkdir(join(f.domain, "upstream"))
-  await Bun.write(join(f.domain, "upstream/package.json"), JSON.stringify({name: "@fixture/upstream", exports: {".": "./index.ts"}}))
-  await Bun.write(join(f.domain, "upstream/index.ts"), 'export interface Output {value: number}\nexport default function upstream(): Output {return {value: 1}}')
-  await Bun.write(join(f.component, "index.ts"), 'import type {Input} from "./contract/input.ts"\nexport type {Input} from "./contract/input.ts"\nexport default function consume(input: Input) {return input.value}')
-  const data = await readPackage({path: f.component})
-  expect(data.code[0]!.references.find(reference => reference.module === "../../upstream/index.ts"))
-    .toMatchObject({typeOnly: true, names: ["Output"], owner: {name: "@fixture/upstream"}, public: true})
-})
-
 test("фасад не скрывает собственный runtime в частном импортированном модуле", async () => {
   const f = await fixture()
   await Bun.write(join(f.domain, "helper.ts"), 'console.log("effect")\nexport const token = 1')

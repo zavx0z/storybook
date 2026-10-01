@@ -1,0 +1,20 @@
+import type {Diagnostic, Namespace} from "./declaration"
+
+/**
+Сведения о типовой границе пакета, полученные без выполнения исследуемых модулей.
+
+@property entries - Публичные кодовые входы и namespace с исходными владельцами.
+@property diagnostics - Нарушения структуры контракта; пустой массив не доказывает корректность runtime.
+@property sources - Прочитанные исходники и их SHA-256 для проверки одного согласованного чтения.
+*/
+export interface Output {
+  readonly root: string
+  readonly name: string
+  readonly entries: readonly {
+    readonly path: string
+    readonly exports: readonly {readonly name: string, readonly runtime: boolean}[]
+    readonly namespaces: readonly Namespace[]
+  }[]
+  readonly diagnostics: readonly Diagnostic[]
+  readonly sources: readonly {readonly path: string, readonly digest: string}[]
+}

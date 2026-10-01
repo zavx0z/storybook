@@ -1,0 +1,20 @@
+{
+  "name": "@archetypes/contracts",
+  "label": "Контракты",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Раскрывает типовые контракты компонентов и контейнеров, сохраняя владельцев при реэкспорте",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@archetypes/package": "workspace:*",
+    "@storybook/route": "workspace:*",
+    "typescript": "^7.0.2"
+  },
+  "scripts": {
+    "test": "bun test ./spec ./test --max-concurrency=1",
+    "typecheck": "tsc --project tsconfig.json --pretty false"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "@contract-fixture/repository",
+  "private": true,
+  "workspaces": [
+    "*",
+    "*/part"
+  ]
+}
