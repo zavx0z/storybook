@@ -1,0 +1,116 @@
+%% Предлагаемые самостоятельные обязанности серверного исполнения.
+%% Каждая рамка — область чтения графа, не один пакет, процесс или bundle.
+%% Серверный Component может исполняться Bun из TS без browser compilation.
+%% Источники: discovery/packages.ts, catalog/registry.ts, mcp/rest/index.ts,
+%% mcp/server/index.ts, server/controller.ts, server/scenario-run.ts.
+flowchart TB
+  subgraph transport["Транспорт и доступ"]
+    HttpLifecycle["Жизненный цикл HTTP listener"]
+    RequestAccess["Проверка доступа запроса"]
+    HttpDispatch["Маршрутизация HTTP запросов"]
+    McpRegistration["Регистрация MCP контракта"]
+    McpProxy["Передача непрозрачного запроса"]
+    OperationDispatch["Вызов выбранной операции"]
+    RequestJournal["Журнал вызовов"]
+    EventDelivery["Доставка событий"]
+    McpRegistration --> McpProxy
+    McpRegistration --> OperationDispatch
+    McpRegistration --> RequestJournal
+    McpProxy --> HttpDispatch
+    OperationDispatch --> HttpDispatch
+    HttpLifecycle --> RequestAccess
+    HttpLifecycle --> HttpDispatch
+  end
+
+  subgraph knowledge["Чтение структуры и знаний"]
+    Discover["Обнаружение физических пакетов"]
+    CatalogRegistry["Состояние подключённого каталога"]
+    StructureGraph["Проекция структуры"]
+    ResolveAddress["Разрешение адреса владельца"]
+    ReadRoot["Чтение корневых направлений"]
+    ReadChildren["Чтение непосредственных детей"]
+    ReadDocs["Чтение TSDoc"]
+    ReadContract["Чтение схемы контракта"]
+    ReadScenario["Чтение исходника сценария"]
+    ReadExpectedDeps["Чтение ожидаемого графа spec/deps"]
+    LazyRead["Раскрытие выбранного владельца"]
+    CatalogRegistry --> Discover
+    CatalogRegistry --> StructureGraph
+    Discover --> ReadDocs
+    Discover --> ReadContract
+    Discover --> ReadExpectedDeps
+    LazyRead --> ResolveAddress
+    LazyRead --> ReadRoot
+    LazyRead --> ReadChildren
+    LazyRead --> ReadDocs
+    LazyRead --> ReadContract
+    LazyRead --> ReadScenario
+    LazyRead --> CatalogRegistry
+    HttpDispatch --> LazyRead
+  end
+
+  subgraph operations["Операции с самостоятельными предметами"]
+    Attach["Подключение или отключение владельца"]
+    StateRead["Чтение текущего состояния"]
+    Search["Поиск по структуре"]
+    Prepare["Подготовка выбранного компонента"]
+    Inspect["Инспекция исполнения"]
+    Interact["Действие над исполнением"]
+    Capture["Снимок представления"]
+    Activate["Применение проверенного результата"]
+    Wait["Ожидание выбранного состояния"]
+    BrowserLifecycle["Владение браузерным соединением и представлениями"]
+    HttpDispatch --> Attach
+    HttpDispatch --> StateRead
+    HttpDispatch --> Search
+    HttpDispatch -.-> Prepare
+    HttpDispatch --> Inspect
+    HttpDispatch --> Interact
+    HttpDispatch --> Capture
+    HttpDispatch --> Activate
+    HttpDispatch --> Wait
+    Attach --> CatalogRegistry
+    Search --> StructureGraph
+    Inspect --> BrowserLifecycle
+    Interact --> BrowserLifecycle
+    Capture --> BrowserLifecycle
+  end
+
+  subgraph scenario["Исполнение одного сценария"]
+    SelectVariant["Выбор варианта и параметров"]
+    ScenarioRun["Исполнение выбранного сценария"]
+    ScenarioTrace["Наблюдение Bun Test"]
+    ScenarioValidation["Проверка правил сценария"]
+    PreviewDescription["Извлечение исполняемого примера"]
+    ScenarioReport[("Отчёт той же версии исходников")]
+    ScenarioRun --> SelectVariant
+    ScenarioRun --> ScenarioTrace
+    ScenarioRun --> ScenarioValidation
+    ScenarioRun --> PreviewDescription
+    ScenarioTrace --> ReadScenario
+    ScenarioRun --> ScenarioReport
+    HttpDispatch --> ScenarioRun
+  end
+
+  subgraph lifecycle["Владение состоянием"]
+    RevisionState["Состояние подготовленных и применённых версий"]
+    ArtifactRetention["Хранение используемых артефактов"]
+    EventHub["Распространение событий владельцев"]
+    RevisionState --> ArtifactRetention
+    StateRead --> RevisionState
+    StateRead --> CatalogRegistry
+    Activate --> RevisionState
+    Wait --> EventHub
+    EventDelivery --> EventHub
+    CatalogRegistry --> EventHub
+    RevisionState --> EventHub
+    ScenarioRun -.-> EventHub
+  end
+  classDef existing fill:#e8f1ff,stroke:#3266a8,color:#162e4b
+  classDef public fill:#e5f6eb,stroke:#39835a,color:#183d29
+  classDef planned fill:#fff3df,stroke:#b57720,stroke-dasharray:5 3,color:#513600
+  classDef data fill:#f0f0f0,stroke:#777,color:#292929
+  class HttpLifecycle,RequestAccess,HttpDispatch,McpRegistration,McpProxy,OperationDispatch,RequestJournal,EventDelivery,Discover,CatalogRegistry,StructureGraph,ReadDocs,ReadContract,ReadScenario,ReadExpectedDeps,LazyRead,Attach,StateRead,Search,Inspect,Interact,Capture,Activate,Wait,SelectVariant,ScenarioRun,ScenarioTrace,ScenarioValidation,PreviewDescription,RevisionState,ArtifactRetention,EventHub existing
+  class ResolveAddress,ReadRoot,ReadChildren,BrowserLifecycle public
+  class Prepare planned
+  class ScenarioReport data

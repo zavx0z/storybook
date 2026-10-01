@@ -1,0 +1,113 @@
+%% Предлагаемая композиция механизмов подготовки одного Component.
+%% Стрелка: компонент использует возможность или данные.
+%% Orange означает новый контракт/новую гранулярность, а не отсутствующий вообще код.
+%% Источники: build/compiler.ts, build/build-input-fingerprint.ts,
+%% build/package-build.ts, build/shared-artifacts.ts, tech/build, tech/process.
+flowchart TB
+  Change["Завершённая операция редактирования"]
+  Request["Запрос результата конкретного Component"]
+  Affected["Определение затронутых результатов"]
+  Plan["План подготовки конкретного Component"]
+  Source[("Реализация и собственные ресурсы")]
+  Metadata[("Публичные входы и настройки владельца")]
+  CompilerAbi[("Версия и настройки компилятора")]
+  Change -.-> Affected
+  Request -.-> Plan
+  Plan -.-> Affected
+
+  subgraph dependencies["Установление реальных зависимостей"]
+    ResolveOwner["Разрешитель единственного владельца импорта"]
+    RuntimeDependencies["Зависимости исполнения"]
+    SemanticDependencies["Зависимости типов и JSX-преобразования"]
+    ReverseDependencies["Зависимые результаты"]
+    Plan --> ResolveOwner
+    ResolveOwner --> Metadata
+    RuntimeDependencies --> ResolveOwner
+    SemanticDependencies --> ResolveOwner
+    Affected -.-> ReverseDependencies
+    ReverseDependencies -.-> RuntimeDependencies
+    ReverseDependencies -.-> SemanticDependencies
+  end
+
+  subgraph preparation["Раздельные результаты подготовки"]
+    Inputs["BuildInputs: подтверждение входов"]
+    Cache["Кэш результата Component"]
+    Compile["Компиляция реализации Component"]
+    JsxSession["JsxCompilerSession"]
+    BunEmit["Bun: выпуск ESM"]
+    Resources["Подготовка CSS и бинарных ресурсов"]
+    Docs["Подготовка документационных данных"]
+    ScenarioCheck["Проверка сценария"]
+    ScenarioEntry["Подготовка модуля примера"]
+    Link["Связывание готовых модулей"]
+    PreparedDependencies[("Проверенные модули зависимостей")]
+    Plan --> Inputs
+    Inputs --> Source
+    Inputs --> Metadata
+    Inputs --> CompilerAbi
+    Inputs --> SemanticDependencies
+    Plan -.-> Cache
+    Plan -.-> Compile
+    Plan --> Resources
+    Plan --> Docs
+    Plan --> ScenarioCheck
+    ScenarioEntry --> ScenarioCheck
+    ScenarioEntry -.-> Compile
+    Compile --> JsxSession
+    Compile --> BunEmit
+    Compile --> Source
+    Compile --> Inputs
+    Link -.-> Compile
+    Link -.-> PreparedDependencies
+    Link --> RuntimeDependencies
+  end
+
+  subgraph publication["Артефакты и версии"]
+    ArtifactAddress["Определение неизменяемого адреса"]
+    Publish["Публикация без перезаписи старых байтов"]
+    Receipt["Свидетельство входов и результата"]
+    Candidate["Подготовленная версия Component"]
+    Retain["Удержание используемых версий"]
+    ArtifactAddress -.-> Inputs
+    ArtifactAddress -.-> PreparedDependencies
+    Link -.-> ArtifactAddress
+    Publish --> ArtifactAddress
+    Publish -.-> Link
+    Publish --> Inputs
+    Receipt --> Inputs
+    Receipt --> Publish
+    Cache -.-> Receipt
+    Candidate -.-> Publish
+    Candidate -.-> Receipt
+    Candidate -.-> Resources
+    Candidate -.-> Docs
+    Candidate -.->|если нужен браузерный пример| ScenarioEntry
+    Retain --> Candidate
+  end
+
+  subgraph execution["Исполнение работы"]
+    Deduplicate["Объединение одинаковых запросов результата"]
+    Queue["BuildQueue"]
+    Worker["BuildWorker"]
+    WaitProcess["Ожидание завершения собственного процесса"]
+    Sample["Снимок процессов"]
+    Measure["Измерение ресурсов работы"]
+    OperationEvents["События конкретной операции"]
+    Plan -.-> Deduplicate
+    Deduplicate -.-> Queue
+    Compile --> Worker
+    ScenarioCheck -.-> Worker
+    Worker --> WaitProcess
+    Queue --> Measure
+    Measure --> Sample
+    Queue --> OperationEvents
+    Worker --> OperationEvents
+  end
+  classDef existing fill:#e8f1ff,stroke:#3266a8,color:#162e4b
+  classDef public fill:#e5f6eb,stroke:#39835a,color:#183d29
+  classDef planned fill:#fff3df,stroke:#b57720,stroke-dasharray:5 3,color:#513600
+  classDef data fill:#f0f0f0,stroke:#777,color:#292929
+  class ResolveOwner,RuntimeDependencies,SemanticDependencies,Resources,Docs,ScenarioCheck,ScenarioEntry,Publish,Receipt,Retain,OperationEvents existing
+  class Inputs,JsxSession,BunEmit,Queue,Worker,WaitProcess,Sample,Measure public
+  class Change,Request,Affected,Plan,ReverseDependencies,Cache,Compile,Link,ArtifactAddress,Candidate,Deduplicate planned
+  class Source,Metadata,CompilerAbi,PreparedDependencies data

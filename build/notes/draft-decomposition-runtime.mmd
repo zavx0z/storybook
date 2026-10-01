@@ -1,0 +1,76 @@
+%% Целевая компонентная загрузка и доставка обратной связи.
+%% Пунктир — предлагаемые связи. Существующий HMR действует на package/page scope;
+%% использование его для отдельного Component ещё требует проверки контракта.
+%% Источники: runtime/revision-loader.ts, runtime/component-presentation.ts,
+%% runtime/page-entry.ts, hmr/page, hmr/activation, hmr/connection,
+%% server/events.ts, mcp/server/index.ts, mcp/server/src/resources.ts.
+flowchart TB
+  subgraph runtime["Загрузка и применение"]
+    Candidate["Подготовленная версия Component"]
+    ModuleMap["Согласованные ссылки на версии модулей"]
+    ModuleLoader["Загрузка конкретного модуля через import"]
+    Instances["Смонтированные экземпляры Component"]
+    Replace["HmrPage: замена исполнения и rollback"]
+    StateTransfer["Сохранение состояния по контракту Component"]
+    Activation["Activation: проверка фактического результата"]
+    ActiveVersion["Подтверждённая рабочая версия"]
+    ModuleMap -.-> Candidate
+    ModuleLoader -.-> ModuleMap
+    Instances -.-> ModuleLoader
+    Replace -.-> Instances
+    Replace -.-> StateTransfer
+    Activation -.-> Replace
+    ActiveVersion -.-> Activation
+  end
+
+  subgraph common["Общие публичные владельцы исполнения"]
+    Browser["Browser Root"]
+    ComponentRuntime["Component runtime"]
+    TemplateRuntime["Compiled Template ABI"]
+    Dom["Semantic DOM"]
+    Renderer["Renderer"]
+    Engine["Engine"]
+    Experience[("Один Document, Canvas, Space и ViewPoint")]
+    Browser --> Experience
+    Browser --> Dom
+    Browser --> Renderer
+    Renderer --> Engine
+    ComponentRuntime --> TemplateRuntime
+    ComponentRuntime --> Dom
+    Instances --> ComponentRuntime
+    Instances --> Experience
+  end
+
+  subgraph observation["Наблюдение за предметной работой"]
+    OperationEvents["События компиляции, проверок и применения"]
+    OperationState["Актуальное состояние операции"]
+    Interested["Зависимости выбранной сущности"]
+    ReadState["Ленивое чтение состояния владельца"]
+    RequestProgress["Прогресс текущего MCP запроса"]
+    DependencySubscription["Подписка на изменения зависимостей"]
+    Reconnect["Connection: восстановление связи"]
+    McpDelivery["Доставка штатных MCP уведомлений"]
+    Client["Клиент агента"]
+    ProgressView["Представление прогресса человеку"]
+    OperationState --> OperationEvents
+    ReadState --> OperationState
+    RequestProgress -.-> OperationEvents
+    DependencySubscription -.-> OperationEvents
+    DependencySubscription -.-> Interested
+    DependencySubscription -.-> ReadState
+    Reconnect -.-> ReadState
+    McpDelivery -.-> RequestProgress
+    McpDelivery -.-> DependencySubscription
+    Client -.-> McpDelivery
+    Client -.-> ReadState
+    ProgressView --> OperationEvents
+    Activation -.-> OperationEvents
+  end
+  classDef existing fill:#e8f1ff,stroke:#3266a8,color:#162e4b
+  classDef public fill:#e5f6eb,stroke:#39835a,color:#183d29
+  classDef planned fill:#fff3df,stroke:#b57720,stroke-dasharray:5 3,color:#513600
+  classDef data fill:#f0f0f0,stroke:#777,color:#292929
+  class StateTransfer,ActiveVersion,OperationEvents,OperationState,ReadState,ProgressView existing
+  class Browser,ComponentRuntime,TemplateRuntime,Dom,Renderer,Engine,Replace,Activation,Reconnect public
+  class Candidate,ModuleMap,ModuleLoader,Instances,Interested,RequestProgress,DependencySubscription,McpDelivery planned
+  class Experience,Client data

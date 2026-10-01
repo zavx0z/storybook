@@ -1,0 +1,159 @@
+%% Предложение границ независимой подготовки, не описание завершённой миграции.
+%% Стрелка: потребитель использует возможность. Пунктир: целевое подключение.
+%% Синие узлы: существующий код, ещё не независимая единица сборки.
+%% Зелёные узлы: существующие публичные возможности других владельцев.
+%% Оранжевая рамка: предлагаемая возможность. Серые узлы: данные и ресурсы.
+%% Источники: runtime/application.tsx, runtime/shell.ts, workbench/view.tsx,
+%% workbench/controller.ts, workbench/inspector, runtime/scenario-presentation.ts.
+flowchart TB
+  subgraph navigation["Навигация и управление обзором"]
+    Minimap["Minimap"]
+    Catalog["CatalogPanel"]
+    Navigation["Навигационное дерево"]
+    ViewPointControl["Управление ViewPoint"]
+    NavigationState["Выбор и раскрытие узлов"]
+    Minimap --> Catalog
+    Catalog --> Navigation
+    Navigation --> NavigationState
+  end
+
+  subgraph surfaces["Размещение представлений"]
+    WorkbenchView["Раскладка Workbench"]
+    WorkbenchState["Состояние Workbench"]
+    DisplaySurface["Поверхность Display"]
+    PreviewHost["Размещение содержимого"]
+    Tabs["Текущий переключатель представлений"]
+    Status["Строка состояния и breadcrumbs"]
+    EntityDisplays["Размещение Display сущностей"]
+    WorkbenchView --> Catalog
+    WorkbenchView --> PreviewHost
+    WorkbenchView --> Tabs
+    WorkbenchView --> Status
+    WorkbenchView --> WorkbenchState
+    EntityDisplays -.-> DisplaySurface
+    EntityDisplays -.-> PreviewHost
+  end
+
+  subgraph inspection["Инспекция конкретного предмета"]
+    Inspector["Панель Inspector"]
+    InspectorProjection["Выбор виджетов предмета"]
+    SourceWidget["Виджет исходного кода"]
+    ValueWidget["Виджет значений"]
+    CustomWidget["Подключение авторского виджета"]
+    ContractOutline["Оглавление контракта"]
+    Inspector --> InspectorProjection
+    InspectorProjection --> SourceWidget
+    InspectorProjection --> ValueWidget
+    InspectorProjection --> CustomWidget
+    InspectorProjection --> ContractOutline
+    WorkbenchView --> Inspector
+  end
+
+  subgraph content["Содержимое выбранной сущности"]
+    MarkdownView["Представление Markdown"]
+    ContractView["Представление контракта"]
+    DependencyView["Представление ожидаемых зависимостей"]
+    MessageView["Представление сообщения"]
+    ScenarioState["Выбор и состояние сценария"]
+    ScenarioPreview["Представление примера компонента"]
+    ScenarioResult["Представление результата функции"]
+    ScenarioInspector["Инспектор сценария"]
+    AuthoredComponent["Выбранный Component проекта"]
+    ComponentDependency["Каждая его самостоятельная зависимость"]
+    PreviewHost -.-> MarkdownView
+    PreviewHost -.-> ContractView
+    PreviewHost -.-> DependencyView
+    PreviewHost -.-> MessageView
+    PreviewHost -.-> ScenarioPreview
+    PreviewHost -.-> ScenarioResult
+    ScenarioPreview --> ScenarioState
+    ScenarioResult --> ScenarioState
+    ScenarioInspector --> ScenarioState
+    ScenarioPreview -.-> AuthoredComponent
+    AuthoredComponent -.-> ComponentDependency
+  end
+
+  subgraph communication["Исследование MCP и будущие чаты"]
+    McpWindow["Окно MCP"]
+    RequestView["Представление журнала запросов"]
+    AddressView["Представление MCP текущего адреса"]
+    AgentChat["Представление чата сущности"]
+    McpWindow --> RequestView
+    McpWindow --> AddressView
+    EntityDisplays -.-> AgentChat
+  end
+
+  subgraph reusable["Публичные зависимости с собственной идентичностью"]
+    Tree["Tree"]
+    CodeEditor["CodeEditor"]
+    Button["Button"]
+    Tab["Tab"]
+    TextField["TextField"]
+    NumberField["NumberField"]
+    CheckboxField["CheckboxField"]
+    SelectField["SelectField"]
+    Markdown["Markdown"]
+    TypeDoc["TypeDoc"]
+    GraphView["GraphView"]
+    DiagramNode["DiagramNode"]
+    GraphLayout["Раскладка графа"]
+    GraphRoute["Маршрут связи графа"]
+    ClipboardMenu["ClipboardMenu"]
+    Breadcrumbs["Breadcrumbs"]
+    StatusBar["StatusBar"]
+    WindowControl["WindowControl"]
+    Window["Window"]
+  end
+  Navigation --> Tree
+  Catalog --> TextField
+  Catalog --> Button
+  Minimap --> Window
+  Minimap --> WindowControl
+  Minimap --> Tab
+  McpWindow --> Window
+  ContractOutline --> Tree
+  SourceWidget --> CodeEditor
+  RequestView --> CodeEditor
+  AddressView --> CodeEditor
+  ScenarioInspector --> CodeEditor
+  ScenarioInspector --> Button
+  ViewPointControl --> Tab
+  ViewPointControl --> Button
+  ValueWidget --> TextField
+  ValueWidget --> NumberField
+  ValueWidget --> CheckboxField
+  MarkdownView --> Markdown
+  ContractView --> TypeDoc
+  DependencyView --> SelectField
+  DependencyView --> GraphView
+  DependencyView --> DiagramNode
+  DependencyView --> GraphLayout
+  DependencyView --> GraphRoute
+  Status --> Breadcrumbs
+  Status --> StatusBar
+  Status --> WindowControl
+
+  subgraph data["Данные и ресурсы — отдельные результаты подготовки"]
+    CatalogData[("Снимок каталога")]
+    DocumentData[("Документы и схемы контрактов")]
+    ScenarioData[("Параметры и отчёт сценария")]
+    JournalData[("Журнал MCP")]
+    Theme[("Публичная тема CSS")]
+    Assets[("Изображения и шрифты")]
+  end
+  NavigationState --> CatalogData
+  MarkdownView --> DocumentData
+  ContractView --> DocumentData
+  ScenarioState --> ScenarioData
+  RequestView --> JournalData
+  DisplaySurface --> Theme
+  Markdown --> Assets
+
+  classDef existing fill:#e8f1ff,stroke:#3266a8,color:#162e4b
+  classDef public fill:#e5f6eb,stroke:#39835a,color:#183d29
+  classDef planned fill:#fff3df,stroke:#b57720,stroke-dasharray:5 3,color:#513600
+  classDef data fill:#f0f0f0,stroke:#777,color:#292929
+  class Minimap,Catalog,Navigation,ViewPointControl,NavigationState,WorkbenchView,WorkbenchState,DisplaySurface,PreviewHost,Tabs,Status,Inspector,InspectorProjection,SourceWidget,ValueWidget,CustomWidget,ContractOutline,MarkdownView,ContractView,DependencyView,MessageView,ScenarioState,ScenarioPreview,ScenarioResult,ScenarioInspector,McpWindow,RequestView,AddressView existing
+  class Tree,CodeEditor,Button,Tab,TextField,NumberField,CheckboxField,SelectField,Markdown,TypeDoc,GraphView,DiagramNode,GraphLayout,GraphRoute,ClipboardMenu,Breadcrumbs,StatusBar,WindowControl,Window,AuthoredComponent,ComponentDependency public
+  class EntityDisplays,AgentChat planned
+  class CatalogData,DocumentData,ScenarioData,JournalData,Theme,Assets data
