@@ -38,6 +38,7 @@
     "@zavx0z/storybook-browser-lifecycle": "workspace:*"
   },
   "devDependencies": {
+    "@build/artifacts": "workspace:*",
     "@modelcontextprotocol/client": "^2.0.0",
     "@zavx0z/engine": "^0.0.0",
     "@zavx0z/ui": "^0.0.0",

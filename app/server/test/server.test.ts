@@ -363,13 +363,20 @@ describe("one external Storybook server", () => {
     await running.stop()
     servers.splice(servers.indexOf(running), 1)
     const receipt = JSON.parse(readFileSync(join(fixture.artifactRoot, "shared/receipt.json"), "utf8"))
-    const damaged = join(fixture.artifactRoot, "shared", receipt.assets.landingEntry)
+    // CSS-адрес содержит digest его байтов и повторяется при неизменной теме.
+    const style = receipt.assets.authorStyleSheets?.[0] as {url: string} | undefined
+    expect(style?.url).toBeString()
+    const damaged = join(fixture.artifactRoot, "shared", style!.url)
+    const originalArtifact = readFileSync(damaged)
     writeFileSync(damaged, "damaged output")
     running = await startTestServer(options)
     servers.push(running)
     const collision = await controlPost(running, "/api/control/check", {scope: "storybook:shared"})
-    expect(collision.body.error).toContain("Immutable shared artifact collision")
+    expect(collision.response.status, JSON.stringify(collision.body)).toBe(400)
+    expect(collision.body.error, JSON.stringify(collision.body)).toContain("Immutable shared artifact collision")
     expect(readFileSync(damaged, "utf8")).toBe("damaged output")
+    // Восстанавливаем повреждённую тестом копию перед новой явной подготовкой.
+    writeFileSync(damaged, originalArtifact)
     writeFileSync(entries.landing, "document.documentElement.dataset.fixtureLanding = 'recovered'\n")
     await publishTestShared(running)
     const recovery = await controlPost(running, "/api/control/check", {scope: "@fixture/standalone"})

@@ -1,16 +1,52 @@
 import createWeb from "@app/web"
 import AppWebBuildOwner, {type AppWebBuild} from "@app-web/build"
 import BuildEnvironmentOwner from "@build/environment"
+import BuildArtifactsOwner from "@build/artifacts"
 const readPublishedSharedBrowserReceipt = AppWebBuildOwner.readPublishedReceipt
 const saveSharedBrowserReceipt = AppWebBuildOwner.saveReceipt
 const storybookSharedBrowserIdentity = BuildEnvironmentOwner.identity
 type SharedBrowserAssets = Awaited<ReturnType<AppWebBuild.Output["buildAssets"]>>
 import {expect, mock, test} from "bun:test"
 import {createHash} from "node:crypto"
-import {mkdtempSync, mkdirSync, rmSync, writeFileSync} from "node:fs"
+import {mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {dirname, join} from "node:path"
 import startExternalStorybookServer from "../index"
+
+test("shared check передаёт точный immutable collision от publisher как HTTP error", async () => {
+  const fixture = retainedHostFixture()
+  const path = fixture.current.landingEntry
+  const target = join(fixture.current.root, path)
+  const originalBytes = readFileSync(target)
+  writeFileSync(target, "damaged output")
+  const build = mock<AppWebBuild.Output["runWorker"]>(async input => {
+    const staging = join(fixture.root, "collision-candidate")
+    mkdirSync(dirname(join(staging, path)), {recursive: true})
+    writeFileSync(join(staging, path), originalBytes)
+    BuildArtifactsOwner.publish(input.root, staging, [{
+      path,
+      digest: createHash("sha256").update(originalBytes).digest("hex"),
+    }])
+    return fixture.current
+  })
+  let server: Awaited<ReturnType<typeof startExternalStorybookServer>> | undefined
+  try {
+    server = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64),
+      ...fixture.options, buildWeb: build})
+    const response = await fetch(new URL("/api/control/check", server.origin), {
+      method: "POST",
+      headers: {authorization: `Bearer ${server.record.controlToken}`, "content-type": "application/json"},
+      body: JSON.stringify({scope: "storybook:shared"}),
+    })
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({error: `Immutable shared artifact collision: ${path}`})
+    expect(readFileSync(target)).toEqual(Buffer.from("damaged output"))
+  } finally {
+    await server?.stop()
+    build.mockRestore()
+    rmSync(fixture.root, {recursive: true, force: true})
+  }
+}, 10000)
 
 /** Server read/event contract проверяется готовыми артефактами без запуска compiler и browser. */
 test("общая оболочка читается и доставляется подписчику без сборки пакетов", async () => {
