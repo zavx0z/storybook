@@ -37,6 +37,7 @@
         "@archetypes/scenario-guide": "workspace:*",
         "@archetypes/scenario-validation": "workspace:*",
         "@archetypes/specs": "workspace:*",
+        "@archetypes/typedoc": "workspace:*",
         "@immersive/headless": "^0.0.0",
         "@immersive/markdown": "^0.0.0",
         "@immersive/nodes": "^0.0.0",
@@ -246,6 +247,10 @@
         "@storybook/route": "workspace:*",
         "typescript": "^7.0.2",
       },
+      "devDependencies": {
+        "@archetypes/typedoc": "workspace:*",
+        "@storybook/app-old": "workspace:*",
+      },
     },
     "domain": {
       "name": "@archetypes/domain",
@@ -390,6 +395,17 @@
       "name": "@process/wait",
       "version": "0.0.0",
     },
+    "typedoc": {
+      "name": "@archetypes/typedoc",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/package-documentation": "workspace:*",
+        "typescript": "^7.0.2",
+      },
+      "devDependencies": {
+        "@storybook/app-old": "workspace:*",
+      },
+    },
   },
   "overrides": {
     "@immersive/headless": "link:@immersive/headless",
@@ -469,6 +485,8 @@
     "@archetypes/scenario-validation": ["@archetypes/scenario-validation@workspace:archetypes/specs/scenarios/validation"],
 
     "@archetypes/specs": ["@archetypes/specs@workspace:archetypes/specs"],
+
+    "@archetypes/typedoc": ["@archetypes/typedoc@workspace:typedoc"],
 
     "@build/inputs": ["@build/inputs@workspace:tech/build/inputs"],
 

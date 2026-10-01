@@ -16,5 +16,9 @@
   "scripts": {
     "test": "bun test ./spec ./test --max-concurrency=1",
     "typecheck": "tsc --project tsconfig.json --pretty false"
+  },
+  "devDependencies": {
+    "@archetypes/typedoc": "workspace:*",
+    "@storybook/app-old": "workspace:*"
   }
 }

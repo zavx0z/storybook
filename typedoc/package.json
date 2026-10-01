@@ -1,0 +1,22 @@
+{
+  "name": "@archetypes/typedoc",
+  "label": "TypeDoc",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Читает TSDoc объявлений и раскрывает правила документации в исполняемом сценарии",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@archetypes/package-documentation": "workspace:*",
+    "typescript": "^7.0.2"
+  },
+  "scripts": {
+    "test": "bun test ./spec ./test --max-concurrency=1",
+    "typecheck": "tsc --project tsconfig.json --pretty false"
+  },
+  "devDependencies": {
+    "@storybook/app-old": "workspace:*"
+  }
+}

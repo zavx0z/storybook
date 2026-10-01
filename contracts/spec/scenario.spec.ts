@@ -9,6 +9,7 @@ import {createHash} from "node:crypto"
 import {readFile} from "node:fs/promises"
 import {resolve} from "node:path"
 import readContract from "@archetypes/contracts"
+import {readScenario} from "@storybook/app-old/scenarios"
 
 describe.each([
   {
@@ -96,6 +97,22 @@ describe.each([
     expect(result.sources.some(source => source.path.startsWith(resolve(props.path, "contract"))),
       "Читатель получает типы из исходников; throw в runtime не мешает результату").toBeTrue()
   })
+
+  test("Документация контракта", async () => {
+    const paths = [...new Set([namespace.declaration.path, ...namespace.roles.flatMap(role => role.dependencies)
+      .filter(declaration => declaration.owner?.path === props.path && declaration.contract)
+      .map(declaration => declaration.path)])]
+    const report = await readScenario({
+      path: resolve(import.meta.dir, "../../typedoc/spec/scenario.spec.ts"),
+      props: {paths},
+    })
+    expect(report.exitCode, `Сценарий TypeDoc проверяет исходники контракта по правилам своего владельца: ${report.stderr}`).toBe(0)
+    expect(report.tests.filter(point => ["failed", "error", "not-executed"].includes(point.status)),
+      "Ошибки дочернего сценария не скрываются сводным результатом Contracts").toEqual([])
+    expect(report.tests.filter(point => point.status === "todo").map(point => point.label),
+      "Смысловая оценка TypeDoc остаётся явно незавершённой и не подменяется проверкой наличия тегов")
+      .toContain("Смысловая достаточность")
+  }, 30_000)
 
   test("Согласованные источники", async () => {
     for (const source of result.sources) {

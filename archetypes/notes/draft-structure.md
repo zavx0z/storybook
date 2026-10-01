@@ -42,6 +42,7 @@ runtime-реализация вместе с принадлежащими вло
 - [Component](../../component/index.ts) — собственная основная реализация через default и именованные типы.
 - [Container](../../container/notes/structure.md) — композиция принадлежащих частей в одно целое с собственным API реализации.
 - [Contracts](../../contracts/index.ts) — типовая граница Component и Container, роли и принадлежность определений.
+- [TypeDoc](../../typedoc/index.ts) — документация объявлений и сценарии её проверки.
 - [Specs](../specs/index.ts) — правила исполняемой документации.
 - [Развитие структуры](development.md) — принадлежность и размещение частей.
 - [Экспорты](../package/notes/draft-exports.md) — API области и фактический владелец кода.

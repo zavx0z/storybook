@@ -23,7 +23,7 @@
     "typecheck": "bun install --cwd container/spec/fixture --frozen-lockfile --ignore-scripts && tsc --noEmit --pretty false",
     "browser-lifecycle:check": "bun run --cwd browser-lifecycle check",
     "route:check": "bun run --cwd route check",
-    "archetypes:check": "bun test archetypes domain component container contracts --path-ignore-patterns '**/fixture/**' --max-concurrency=1",
+    "archetypes:check": "bun test archetypes domain component container contracts typedoc --path-ignore-patterns '**/fixture/**' --max-concurrency=1",
     "app:check": "bun run --cwd app-old check",
     "test": "bun test --preload @immersive/headless/preload tech hmr catalog discovery build sessions runtime workbench server tests --max-concurrency=1 --path-ignore-patterns '**/isolation.integration.test.ts' && bun test tests/isolation.integration.test.ts --max-concurrency=1",
     "mcp:check": "bun run --cwd mcp check",
@@ -100,7 +100,8 @@
     "@jsx/runtime": "^0.0.0",
     "@jsx/development": "^0.0.0",
     "@jsx/slot": "^0.0.0",
-    "@jsx/compiler": "^0.0.0"
+    "@jsx/compiler": "^0.0.0",
+    "@archetypes/typedoc": "workspace:*"
   },
   "overrides": {
     "@immersive/headless": "link:@immersive/headless",
