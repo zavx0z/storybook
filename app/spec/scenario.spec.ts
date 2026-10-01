@@ -1,60 +1,39 @@
 /**
-Явная подготовка и применение Web через контейнер приложения.
-Порты примера наблюдают публикацию, не запускают сервер или компилятор.
+Лаунчер соединяет управляющий API с готовым сервером без запуска при создании.
+Реальный daemon и применение ревизии проверяются отдельными интеграционными тестами.
 
 @packageDocumentation
 */
-import {afterAll, describe, expect, mock, test} from "bun:test"
-import createApp from "@storybook/app"
-import type {StorybookApp} from "@storybook/app"
+import {describe, expect, test} from "bun:test"
+import {resolve} from "node:path"
+import createApp, {type StorybookApp} from "@storybook/app"
 
-const version = {platform: "platform-a", web: "web-b"} as const
+describe.each([{
+  name: "Готовый лаунчер",
+  props: {toolRoot: resolve(import.meta.dir, "../..")},
+}])("$name", ({props}) => {
+  let launches = 0
+  const input: StorybookApp.Input = {
+    ...props,
+    daemonEntryPath: resolve(props.toolRoot, "app/src/daemon-entry.ts"),
+    spawnDaemon() {
+      launches += 1
+      throw new Error("Сценарий не запускает daemon")
+    },
+  }
+  const app = createApp(input)
 
-describe.each([
-  {
-    name: "Подготовка кандидата",
-    apply: false,
-    props: {
-      web: {
-        prepare: mock(async (_signal: AbortSignal) => version),
-        versions: (candidate: typeof version) => [candidate],
-        publish: mock((_candidate: typeof version) => {}),
-      },
-    } satisfies StorybookApp.Input<typeof version>,
-  },
-  {
-    name: "Применение интерфейса",
-    apply: true,
-    props: {
-      web: {
-        prepare: mock(async (_signal: AbortSignal) => version),
-        versions: (candidate: typeof version) => [candidate],
-        publish: mock((_candidate: typeof version) => {}),
-      },
-    } satisfies StorybookApp.Input<typeof version>,
-  },
-])("$name", async ({props, apply}) => {
-  const app = createApp(props)
-  afterAll(() => app.dispose())
-  const initial = app.status()
-  const initialPreparations = props.web.prepare.mock.calls.length
-  const result = await app.rebuildWeb({apply})
-
-  test("Создание приложения", () => {
-    expect(initial.web.phase, "Создание подключает готовые порты без запуска подготовки").toBe("idle")
-    expect(initialPreparations, "Создание приложения не обращается к сборщику").toBe(0)
-    expect(props.web.prepare.mock.calls, "Подготовка выполняется только после явного rebuildWeb").toHaveLength(1)
+  test("Управляющий интерфейс", () => {
+    const operations = ["ensure", "status", "attach", "detach", "search", "open", "wait", "inspect", "interact", "capture", "check", "close", "stop", "readResource"] as const
+    expect(operations.map(name => typeof app[name]), "Один API соединяет запуск, пакетные операции, browser views и ресурсы")
+      .toEqual(operations.map(() => "function"))
   })
 
-  test("Версия интерфейса", () => {
-    expect(result.versions, "Кандидат Web подготовлен для сохранённой платформы").toEqual([version])
-    expect(app.status().web, "Контейнер раскрывает состояние принадлежащей ему операции Web").toBe(result)
+  test("Создание не запускает сервер", () => {
+    expect(launches, "Построение лаунчера сохраняет готовую среду до явной операции").toBe(0)
   })
 
-  test("Завершение операции", () => {
-    expect(result.phase, "Явное применение публикует подготовленный кандидат, подготовка оставляет его доступным для проверки")
-      .toBe(apply ? "published" : "prepared")
-    expect(props.web.publish.mock.calls, "Порт публикации получает кандидат только при явном применении")
-      .toEqual(apply ? [[version]] : [])
+  test.todo("Применение готовой ревизии", () => {
+    expect(undefined, "Явная операция проверяет кандидата и отдельно подтверждает применение в открытых вкладках").toBeDefined()
   })
 })

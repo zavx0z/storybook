@@ -1,0 +1,80 @@
+/**
+Хранит идентичность единственного процесса Storybook, атомарный startup lease
+и полномочия его управляющего HTTP-канала.
+
+@packageDocumentation
+*/
+import {
+  EXTERNAL_STORYBOOK_SERVER_PROTOCOL,
+  acquireExternalStorybookStartLease,
+  assertExternalStorybookStartLease,
+  clearExternalStorybookMigrationRecord,
+  createExternalStorybookServerRecord,
+  externalStorybookArtifactRoot,
+  externalStorybookLegacyStatePaths,
+  externalStorybookMigrationStatePath,
+  externalStorybookServerStatePath,
+  externalStorybookStateRoot,
+  inspectExternalStorybookServer,
+  processExists,
+  projectExternalStorybookServerRecord,
+  publishExternalStorybookStartCandidate,
+  readExternalStorybookMigrationRecord,
+  readExternalStorybookServerRecord,
+  readProcessDirectory,
+  readProcessStart,
+  removeReplaceableExternalStorybookState,
+  writeExternalStorybookMigrationRecord,
+  writeExternalStorybookServerRecord,
+  writeExternalStorybookStartCandidate,
+} from "./src/server-state"
+import {
+  ExternalStorybookSecurityError,
+  assertExternalStorybookControlRequest,
+  assertExternalStorybookRequestHost,
+  assertExternalStorybookRequestOrigin,
+  externalStorybookControlAuthorization,
+  externalStorybookControlTokenMatches,
+} from "./src/security"
+import HttpClient from "@http/client"
+import type {AppServerState} from "./contract"
+
+export type {AppServerState} from "./contract"
+
+/** Единая публичная возможность для записи, проверки и авторизации процесса. */
+const state: AppServerState.Output = Object.freeze({
+  client(record) {
+    return new HttpClient({origin: record.origin, instanceId: record.instanceId,
+      authorization: () => externalStorybookControlAuthorization(record.controlToken)})
+  },
+  EXTERNAL_STORYBOOK_SERVER_PROTOCOL,
+  ExternalStorybookSecurityError,
+  acquireExternalStorybookStartLease,
+  assertExternalStorybookControlRequest,
+  assertExternalStorybookRequestHost,
+  assertExternalStorybookRequestOrigin,
+  assertExternalStorybookStartLease,
+  clearExternalStorybookMigrationRecord,
+  createExternalStorybookServerRecord,
+  externalStorybookArtifactRoot,
+  externalStorybookControlAuthorization,
+  externalStorybookControlTokenMatches,
+  externalStorybookLegacyStatePaths,
+  externalStorybookMigrationStatePath,
+  externalStorybookServerStatePath,
+  externalStorybookStateRoot,
+  inspectExternalStorybookServer,
+  processExists,
+  projectExternalStorybookServerRecord,
+  publishExternalStorybookStartCandidate,
+  readExternalStorybookMigrationRecord,
+  readExternalStorybookServerRecord,
+  readProcessDirectory,
+  readProcessStart,
+  removeReplaceableExternalStorybookState,
+  writeExternalStorybookMigrationRecord,
+  writeExternalStorybookServerRecord,
+  writeExternalStorybookStartCandidate,
+})
+
+export default state

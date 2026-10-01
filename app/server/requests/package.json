@@ -1,0 +1,11 @@
+{
+  "name": "@mcp-rest/requests",
+  "label": "Журнал MCP-запросов",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Хранит последние запросы MCP и компактную диагностику их доставки",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

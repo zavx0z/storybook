@@ -1,7 +1,7 @@
 # Domain
 
-[Публичное описание](index.ts).
+[Публичное описание](./index.ts).
 
-- [Предметная область](notes/structure.md)
+- [Предметная область](./notes/structure.md)
 
-- [Среды и внешние протоколы](notes/environments.md)
+- [Среды и внешние протоколы](./notes/environments.md)

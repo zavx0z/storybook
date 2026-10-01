@@ -1,0 +1,12 @@
+{
+  "name": "@package-build/consumer-boundary",
+  "label": "Граница потребителя",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Сканирует точные подключённые корни на запрещённую зависимость от Storybook",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {}
+}

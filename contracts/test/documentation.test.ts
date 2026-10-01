@@ -1,6 +1,6 @@
 import {expect, test} from "bun:test"
 import {resolve} from "node:path"
-import {readScenario} from "@storybook/app-old/scenarios"
+import readScenario from "@archetypes/scenario-reader"
 import {createFixture} from "./fixture"
 
 test("Contracts передаёт нарушение документации из сценария TypeDoc", async () => {

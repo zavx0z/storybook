@@ -1,0 +1,17 @@
+{
+  "name": "@package-build/loader",
+  "label": "Загрузчик ревизии",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Генерирует browser loader, payload и JSX-модули сценариев пакетной ревизии",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@zavx0z/component": "^0.0.0",
+    "@zavx0z/template": "^0.0.0",
+    "@archetypes/scenario-reader": "workspace:*",
+    "@package/identity": "workspace:*"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@route/url",
+  "label": "URL пакета",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser-safe пути пакетов и проверка публичных параметров страницы",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "devDependencies": {
+    "@zavx0z/dom": "^0.0.0"
+  }
+}

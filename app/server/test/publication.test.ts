@@ -1,0 +1,257 @@
+import createWeb from "@app/web"
+import {type Zavx0zStorybookBrowserLifecycle as Zavx0zStorybookBrowserLifecycleContract} from "@zavx0z/storybook-browser-lifecycle"
+import RouteUrlOwner from "@route/url"
+const storybookCurrentRouteKey = RouteUrlOwner.storybookCurrentRouteKey
+type StorybookBrowserLifecycle = Zavx0zStorybookBrowserLifecycleContract.Output
+import PackageArtifactsOwner from "@package/artifacts"
+const collectUnpublishedStorybookArtifacts = PackageArtifactsOwner
+import {afterEach, expect, test} from "bun:test"
+import {mkdtemp, mkdir, realpath, rm} from "node:fs/promises"
+import {join} from "node:path"
+import {tmpdir} from "node:os"
+import startExternalStorybookServer, {type AppServer} from "../index.ts"
+import {seedPublishedSharedAssets} from "./shared-assets.fixture.ts"
+
+const roots: string[] = []
+afterEach(async () => {
+  await Promise.all(roots.splice(0).map(root => rm(root, {recursive: true, force: true})))
+})
+
+test("publishes only after an agent check, notifies every matching tab, and restores the applied revision", async () => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "storybook-publication-")))
+  roots.push(root)
+  const owner = join(root, "owner")
+  await mkdir(owner)
+  const other = join(root, "other")
+  await mkdir(other)
+  await Bun.write(join(other, "package.json"), JSON.stringify({name: "@fixture/other", label: "Other"}))
+  const packageJson = join(owner, "package.json")
+  await Bun.write(packageJson, JSON.stringify({name: "@fixture/applied", label: "Applied"}))
+  await Bun.write(join(owner, "docs/index.ts"), "/**\n# Package docs\n@packageDocumentation\n*/\n")
+  await Bun.write(join(owner, "tsconfig.json"), JSON.stringify({compilerOptions: {types: []}, include: ["**/*.ts", "**/*.tsx"]}))
+  await Bun.write(join(owner, "component/index.tsx"), "export function Example() { return <article /> }\n")
+  await Bun.write(join(owner, "component/spec/deps.spec.ts"), 'import {test} from "bun:test"\ntest.each([{name:"Example",file:"component/index.tsx",expected:{"component/index.tsx#Example":{uses:[],elements:["article"]}}}])("Состав $name", () => {})\n')
+  await Bun.write(join(owner, "component/contract/input.ts"), "export interface Input {label?: string}\n")
+  seedPublishedSharedAssets(join(root, "artifacts"))
+  let server: AppServer.Output
+  let opened = 0
+  let failInspection = false
+  const inventoryScopes: Array<string | undefined> = []
+  let last: {packageId: string; route: string; revision: string} | null = null
+  const viewId = `storybook-view-v1_${"a".repeat(43)}`
+  const browser: StorybookBrowserLifecycle = {
+    async openPackage(input) {
+      opened += 1
+      const revision = input.expectedRevision!
+      last = {packageId: input.packageId, route: input.route, revision}
+      return {
+        view: {viewId, packageId: input.packageId, route: input.route, title: "Applied"},
+        identity: {protocol: "external-storybook-agent-bridge/1", packageId: input.packageId, route: input.route,
+          revision, graphDigest: server.sessions.session(input.packageId).revisionGraphSnapshot(revision)!.packageGraphDigest,
+          ready: true, presented: true, timeOrigin: 1, frameSequence: 2},
+        reused: opened > 1,
+      }
+    },
+    async listViews(_origin, _signal, _packages, packageId) {
+      inventoryScopes.push(packageId)
+      if (packageId !== "@fixture/applied") throw new Error("Проверка чужого scope заблокирована fixture")
+      return last ? [{viewId, packageId: last.packageId, route: last.route, title: "Applied"}] : []
+    },
+    getView() { return {viewId, packageId: "@fixture/applied", route: "", title: "Applied"} },
+    async applyRevision(requestedViewId, revision) {
+      expect(requestedViewId).toBe(viewId)
+      if (last === null) throw new Error("Candidate view is missing")
+      last = {...last, revision, route: storybookCurrentRouteKey(last.route)}
+      return {
+        protocol: "external-storybook-agent-bridge/1",
+        packageId: last.packageId, route: last.route, revision,
+        graphDigest: server.sessions.session(last.packageId).revisionGraphSnapshot(revision)!.packageGraphDigest,
+        ready: true, presented: true, frameSequence: 2, timeOrigin: 1, inPageApplied: true,
+        consoleErrors: failInspection ? ["render failed"] : [],
+      }
+    },
+    async inspect() {
+      return {packageId: last!.packageId, route: last!.route, revision: last!.revision,
+        graphDigest: server.sessions.session(last!.packageId).revisionGraphSnapshot(last!.revision)!.packageGraphDigest,
+        ready: true, presented: true, preview: true, frameSequence: 2, consoleErrors: failInspection ? ["render failed"] : []}
+    },
+    async interact() { throw new Error("unused") },
+    async capture() { throw new Error("unused") },
+    async close() { return {closed: false, viewId} },
+    readCapture() { throw new Error("unused") },
+  }
+  const options = {declarations: [owner, other], statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts"),
+    browserLifecycle: browser}
+  server = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64), ...options})
+  const tabs: WebSocket[] = []
+  const control = async (live: boolean) => {
+    const response = await fetch(new URL("/api/control/check", server.origin), {
+      method: "POST", headers: {authorization: `Bearer ${server.record.controlToken}`, "content-type": "application/json"},
+      body: JSON.stringify({scope: "@fixture/applied", live}),
+    })
+    expect(response.status).toBe(200)
+    const result = await response.json() as {ok: boolean}
+    if (!result.ok && !failInspection) throw new Error(JSON.stringify(result))
+    return result
+  }
+  const readPage = async (preview?: string) => {
+    const url = new URL("/pkg-fixture-applied/", server.origin)
+    if (preview) url.searchParams.set("preview", preview)
+    const response = await fetch(url)
+    expect(response.status).toBe(200)
+    return await response.text()
+  }
+  const connect = async (html: string, packageId = "@fixture/applied") => {
+    const token = html.match(/name="external-storybook-browser-session" content="([^"]+)"/)![1]!
+    const events: {type: string; revision?: string | null}[] = []
+    const url = new URL(`/api/events?session=${token}`, server.origin)
+    url.protocol = "ws:"
+    const socket = new WebSocket(url, {headers: {Origin: server.origin}} as never)
+    tabs.push(socket)
+    socket.addEventListener("message", event => events.push(JSON.parse(String(event.data))))
+    await new Promise<void>(resolve => socket.addEventListener("open", () => {
+      socket.send(JSON.stringify({type: "subscribe", topic: `package:${packageId}`}))
+      resolve()
+    }))
+    return events
+  }
+  const waitFor = async (predicate: () => boolean) => {
+    const until = Date.now() + 5_000
+    while (!predicate() && Date.now() < until) await Bun.sleep(20)
+    expect(predicate()).toBeTrue()
+  }
+  try {
+    expect((await control(false)).ok).toBeTrue()
+    const first = server.sessions.session("@fixture/applied").snapshot().builtRevision!
+    expect(server.sessions.session("@fixture/applied").snapshot().activeRevision).toBeNull()
+    expect(opened).toBe(0)
+    const unpublished = await readPage()
+    expect(unpublished).toContain(`/__storybook/revisions/%40fixture%2Fapplied/${first}/`)
+    expect(await readPage(first)).toContain(`/__storybook/revisions/%40fixture%2Fapplied/${first}/`)
+    expect(server.sessions.session("@fixture/applied").snapshot().activeRevision).toBeNull()
+    const dependenciesPath = "/applied/component?view=dependencies"
+    const dependenciesPage = await fetch(new URL(`${dependenciesPath}&preview=${first}`, server.origin), {redirect: "manual"})
+    expect(dependenciesPage.status).toBe(200)
+    expect(await dependenciesPage.text()).toContain(`/__storybook/revisions/%40fixture%2Fapplied/${first}/`)
+    const openedDependencies = await fetch(new URL("/api/control/open", server.origin), {
+      method: "POST", headers: {authorization: `Bearer ${server.record.controlToken}`, "content-type": "application/json"},
+      body: JSON.stringify({packageId: "@fixture/applied", route: "dir-component/dependencies"}),
+    })
+    expect(await openedDependencies.json()).toMatchObject({ok: true, route: "dir-component/dependencies", revision: first})
+    const unknownTab = await fetch(new URL(`/pkg-fixture-applied/dir-absent/dependencies?preview=${first}`, server.origin), {redirect: "manual"})
+    // Синтаксис URL допустим, но ресурса в revision нет: 404 без подмены обзором.
+    expect(unknownTab.status).toBe(404)
+    expect(unknownTab.headers.get("location")).toBeNull()
+    expect((await unknownTab.json()).error).toContain("Unknown Storybook revision route")
+    const contractPage = await fetch(new URL(`/applied/component?view=contract&preview=${first}`, server.origin), {redirect: "manual"})
+    expect(contractPage.status).toBe(200)
+    expect(await contractPage.text()).toContain(`/__storybook/revisions/%40fixture%2Fapplied/${first}/`)
+    const contractRoute = server.sessions.session("@fixture/applied").revisionGraphSnapshot(first)!.routes.find(route => route.path === "dir-component/contract")
+    expect(contractRoute?.kind).toBe("contract")
+    const unknownContract = await fetch(new URL(`/pkg-fixture-applied/dir-absent/contract?preview=${first}`, server.origin), {redirect: "manual"})
+    expect(unknownContract.status).toBe(404)
+    expect(unknownContract.headers.get("location")).toBeNull()
+    const a = await connect(await readPage(first))
+    const b = await connect(await readPage(first))
+    const otherSession = await fetch(new URL("/api/browser/session", server.origin), {
+      method: "POST", headers: {origin: server.origin, "content-type": "application/json"},
+      body: JSON.stringify({packageId: "@fixture/other", revision: null}),
+    })
+    expect(otherSession.status).toBe(200)
+    const {token: otherToken} = await otherSession.json() as {token: string}
+    const otherEvents = await connect(`<meta name="external-storybook-browser-session" content="${otherToken}">`, "@fixture/other")
+    expect((await control(true)).ok).toBeTrue()
+    const scopedViews = await fetch(new URL("/api/control/views?packageId=%40fixture%2Fapplied", server.origin), {
+      headers: {authorization: `Bearer ${server.record.controlToken}`},
+    })
+    expect(scopedViews.status).toBe(200)
+    expect(new Set(inventoryScopes)).toEqual(new Set(["@fixture/applied"]))
+    await waitFor(() => [a, b].every(events => events.some(event => event.type === "package.updated" && event.revision === first)))
+    expect(await readPage()).toContain(`/__storybook/revisions/%40fixture%2Fapplied/${first}/`)
+    await Bun.write(packageJson, JSON.stringify({name: "@fixture/applied", label: "Changed"}))
+    expect((await control(false)).ok).toBeTrue()
+    const second = server.sessions.session("@fixture/applied").snapshot().builtRevision!
+    expect(second).not.toBe(first)
+    expect(await readPage()).toContain(`/__storybook/revisions/%40fixture%2Fapplied/${second}/`)
+    expect([a, b].every(events => !events.some(event => event.type === "package.updated" && event.revision === second))).toBeTrue()
+    failInspection = true
+    expect((await control(true)).ok).toBeFalse()
+    expect(server.sessions.session("@fixture/applied").snapshot().activeRevision).toBe(first)
+    failInspection = false
+    expect((await control(true)).ok).toBeTrue()
+    const applied = server.sessions.session("@fixture/applied").snapshot().activeRevision!
+    await waitFor(() => [a, b].every(events => events.some(event => event.type === "package.updated" && event.revision === applied)))
+    expect(otherEvents.some(event => event.type === "package.updated")).toBeFalse()
+    for (const tab of tabs.splice(0)) tab.close()
+    await server.stop()
+    const orphan = join(root, "artifacts/orphan/old/entry.js")
+    await Bun.write(orphan, "orphan")
+    collectUnpublishedStorybookArtifacts(options.artifactRoot)
+    expect(await Bun.file(orphan).exists()).toBeFalse()
+    server = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64), ...options})
+    expect(server.sessions.session("@fixture/applied").snapshot().activeRevision).toBe(applied)
+    expect(await readPage()).toContain(`/__storybook/revisions/%40fixture%2Fapplied/${applied}/`)
+    expect(server.sessions.session("@fixture/applied").snapshot().builds).toBe(0)
+    const synced = await connect(await readPage())
+    await waitFor(() => synced.some(event => event.type === "package.applied-state" && event.revision === applied))
+    // Seed an older applied snapshot to exercise URL migration without replacing its working artifact.
+    for (const tab of tabs.splice(0)) tab.close()
+    await server.stop()
+    const receipts = await Array.fromAsync(new Bun.Glob("*/applied.json").scan({cwd: options.artifactRoot, absolute: true}))
+    const receiptPath = receipts[0]!
+    const receipt = await Bun.file(receiptPath).json()
+    const canonicalPath = "/applied"
+    const legacyPath = "/packages/%40fixture%2Fapplied/"
+    const legacyUrl = (path: string): string => path === canonicalPath ? legacyPath
+      : path.startsWith(`${canonicalPath}/`) ? legacyPath + path.slice(canonicalPath.length + 1) : path
+    const graph = receipt.graphSnapshot
+    const legacyDirectoryId = graph.nodes.find((node: {kind: string; routePath: string}) =>
+      node.kind === "directory" && node.routePath === "dir-docs")?.id
+    expect(legacyDirectoryId).toBeDefined()
+    graph.metadata.urlPath = legacyUrl(graph.metadata.urlPath)
+    for (const node of graph.nodes) {
+      node.urlPath = legacyUrl(node.urlPath)
+      if (node.id === legacyDirectoryId) {
+        node.routePath = "~directories/docs"
+        node.urlPath = `${legacyPath}~directories/docs/`
+      }
+    }
+    for (const route of graph.routes) {
+      route.urlPath = legacyUrl(route.urlPath)
+      if (route.nodeId === legacyDirectoryId && route.kind === "overview") {
+        route.path = "~directories/docs"
+        route.urlPath = `${legacyPath}~directories/docs/`
+      }
+    }
+    // Исторический snapshot сохраняет разные директории и вкладки разными маршрутами.
+    expect(new Set(graph.routes.map((route: {path: string}) => route.path)).size).toBe(graph.routes.length)
+    const {packageGraphDigest: _previousDigest, ...unsigned} = graph
+    graph.packageGraphDigest = new Bun.CryptoHasher("sha256").update(JSON.stringify(unsigned)).digest("hex")
+    await Bun.write(receiptPath, JSON.stringify(receipt))
+    server = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64), ...options})
+    const requestPath = (path: string) => fetch(new URL(path, server.origin), {redirect: "manual"})
+    expect((await requestPath(legacyPath)).status).toBe(200)
+    expect((await requestPath(canonicalPath)).headers.get("location")).toBe(legacyPath)
+    const legacyDirectory = `${legacyPath}~directories/docs/`
+    const directoryPath = `${canonicalPath}/docs`
+    expect((await requestPath(legacyDirectory)).status).toBe(200)
+    expect((await requestPath(directoryPath)).headers.get("location")).toBe(legacyDirectory)
+    await Bun.write(packageJson, JSON.stringify({name: "@fixture/applied", label: "Migrated"}))
+    expect((await control(false)).ok).toBeTrue()
+    const candidate = server.sessions.session("@fixture/applied").snapshot().builtRevision!
+    expect((await requestPath(`${legacyPath}?preview=${candidate}`)).headers.get("location"))
+      .toBe(`${canonicalPath}?preview=${candidate}`)
+    expect((await requestPath(`${legacyDirectory}?preview=${candidate}`)).headers.get("location"))
+      .toBe(`${directoryPath}?preview=${candidate}`)
+    last = {packageId: "@fixture/applied", route: "~directories/docs", revision: applied}
+    expect((await control(true)).ok).toBeTrue()
+    expect(last!.route).toBe("dir-docs")
+    expect((await requestPath(legacyDirectory)).headers.get("location")).toBe(directoryPath)
+    expect((await requestPath(legacyPath)).headers.get("location")).toBe(canonicalPath)
+    expect((await requestPath(canonicalPath)).status).toBe(200)
+
+  } finally {
+    for (const tab of tabs) tab.close()
+    await server.stop()
+  }
+}, 300_000)

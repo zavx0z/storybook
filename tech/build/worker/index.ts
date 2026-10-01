@@ -12,13 +12,9 @@ import waitForOwnedChild from "@process/wait"
 import readWorkerEvents from "./src/read-events"
 import readWorkerResult from "./src/read-result"
 import notifyObserver from "./src/notify"
-import type {BuildWorkerInput} from "./contract/input"
-import type {BuildWorkerOutput} from "./contract/output"
+import type {BuildWorker} from "./contract"
 
-export type {BuildWorkerInput} from "./contract/input"
-export type {BuildWorkerWorkspace} from "./contract/workspace"
-export type {BuildWorkerOutput} from "./contract/output"
-export type {BuildWorkerEvent, BuildWorkerLifecycleEvent} from "./contract/event"
+export type {BuildWorker} from "./contract"
 
 /**
 Запускает worker через текущий Bun с argv: entryPath, input.json, result.json, workerId.
@@ -36,8 +32,8 @@ started публикуется после exact nonce/PID handshake. exited сл
 @throws RangeError при неверном timeoutMs или maxResultBytes до создания процесса.
 */
 export default async function runBuildWorker<Job, Progress>(
-  input: BuildWorkerInput<Job, Progress>,
-): Promise<BuildWorkerOutput> {
+  input: BuildWorker.Input<Job, Progress>,
+): Promise<BuildWorker.Output> {
   if (!Number.isFinite(input.timeoutMs) || input.timeoutMs <= 0) {
     throw new RangeError(`Build worker timeout must be positive: ${input.timeoutMs}`)
   }

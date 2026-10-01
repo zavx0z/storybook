@@ -1,0 +1,20 @@
+{
+  "name": "@scenario/result",
+  "label": "Результат сценария",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Показывает ход проверки и исходы выполненных вызовов",
+  "exports": {
+    ".": "./index.tsx"
+  },
+  "dependencies": {
+    "@zavx0z/component": "^0.0.0",
+    "@zavx0z/ui": "^0.0.0",
+    "@scenario/model": "workspace:*",
+    "@archetypes/scenario-guide": "workspace:*"
+  },
+  "devDependencies": {
+    "@immersive/headless": "^0.0.0"
+  }
+}

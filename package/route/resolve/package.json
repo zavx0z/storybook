@@ -1,0 +1,21 @@
+{
+  "name": "@route/resolve",
+  "label": "Разрешение маршрута",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Разрешает одну зарегистрированную структурную ветку пакета",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@route/address": "workspace:*",
+    "@route/directories": "workspace:*",
+    "@route/ignored": "workspace:*",
+    "@route/structure": "workspace:*"
+  },
+  "devDependencies": {
+    "@nodes/node": "^0.0.0",
+    "@route/children": "workspace:*"
+  }
+}

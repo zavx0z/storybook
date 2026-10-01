@@ -1,0 +1,34 @@
+{
+  "name": "@package-build/prepare",
+  "label": "Подготовка ревизии пакета",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Подготавливает независимую ревизию пакета в готовой общей среде Storybook",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@zavx0z/jsx": "^0.0.0",
+    "@package-build/scheduler": "workspace:*",
+    "@package-build/plan": "workspace:*",
+    "@build/environment": "workspace:*",
+    "@package/session": "workspace:*",
+    "@build/compiler": "workspace:*",
+    "@package-build/loader": "workspace:*",
+    "@package-build/conformance": "workspace:*",
+    "@package-build/scenarios": "workspace:*",
+    "@package-build/inputs": "workspace:*",
+    "@build/worker": "workspace:*",
+    "@build/inputs": "workspace:*"
+  },
+  "devDependencies": {
+    "@immersive/headless": "^0.0.0",
+    "@repo/discovery": "workspace:*",
+    "@package-graph/create": "workspace:*",
+    "@package/revision": "workspace:*",
+    "@archetypes/scenario-reader": "workspace:*",
+    "@archetypes/spec-reader": "workspace:*",
+    "@package-build/fingerprint": "workspace:*"
+  }
+}

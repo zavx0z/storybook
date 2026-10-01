@@ -7,5 +7,46 @@
   "description": "Серверное исполнение приложения Storybook и подключение его предметных операций",
   "exports": {
     ".": "./index.ts"
+  },
+  "dependencies": {
+    "@app-server/state": "workspace:*",
+    "@app-web/protocol": "workspace:*",
+    "@archetypes/scenario-reader": "workspace:*",
+    "@route/address": "workspace:*",
+    "@archetypes/spec-reader": "workspace:*",
+    "@app-server/catalog": "workspace:*",
+    "@app-server/sessions": "workspace:*",
+    "@route/resolve": "workspace:*",
+    "@scenario/model": "workspace:*",
+    "@mcp/rest": "workspace:*",
+    "@package/session": "workspace:*",
+    "@package/revision": "workspace:*",
+    "@route/url": "workspace:*",
+    "@hmr/activation": "workspace:*",
+    "@package-graph/read": "workspace:*",
+    "@app/mcp": "workspace:*",
+    "@mcp-rest/requests": "workspace:*",
+    "@repo/discovery": "workspace:*",
+    "@app-web/build": "workspace:*",
+    "@package-build/prepare": "workspace:*",
+    "@package-build/fingerprint": "workspace:*",
+    "@build/environment": "workspace:*",
+    "@package-build/scheduler": "workspace:*",
+    "@package/resources": "workspace:*",
+    "@tech/limits": "workspace:*",
+    "@app-mcp/response": "workspace:*",
+    "@zavx0z/storybook-browser-lifecycle": "workspace:*"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@zavx0z/engine": "^0.0.0",
+    "@zavx0z/ui": "^0.0.0",
+    "@nodes/node": "^0.0.0",
+    "@zavx0z/component": "^0.0.0",
+    "@modelcontextprotocol/server": "^2.0.0",
+    "@app/web": "workspace:*",
+    "@package/artifacts": "workspace:*",
+    "@package-graph/create": "workspace:*",
+    "@storybook/route": "workspace:*"
   }
 }

@@ -2,8 +2,10 @@ import {describe, expect, test} from "bun:test"
 import {readFileSync, readdirSync} from "node:fs"
 import {join} from "node:path"
 import runBuildWorker from "@build/worker"
-import type {BuildWorkerLifecycleEvent} from "@build/worker"
+import type {BuildWorker} from "@build/worker"
 import {fixtureProcessExists, prepareWorkerFixture} from "../fixtures/prepare"
+
+type LifecycleEvent = Parameters<NonNullable<BuildWorker.Input<unknown, unknown>["onLifecycle"]>>[0]
 
 describe("Отмена точной группы", () => {
   test.each(["abort", "timeout"] as const)("%s завершается после cleanup exact child и descendant; neighbor жив", async kind => {
@@ -15,7 +17,7 @@ describe("Отмена точной группы", () => {
       stderr: "ignore",
       detached: true,
     })
-    const lifecycle: BuildWorkerLifecycleEvent[] = []
+    const lifecycle: LifecycleEvent[] = []
     const cause = new Error("cancel exact worker")
     let ownedPid = 0
     let childExistsAtExit = true

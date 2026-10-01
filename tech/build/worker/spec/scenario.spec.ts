@@ -2,7 +2,9 @@ import {afterAll, describe, expect, mock, test} from "bun:test"
 import {readdirSync} from "node:fs"
 import runBuildWorker from "@build/worker"
 import {prepareWorkerFixture} from "../fixtures/prepare"
-import type {BuildWorkerLifecycleEvent} from "@build/worker"
+import type {BuildWorker} from "@build/worker"
+
+type LifecycleEvent = Parameters<NonNullable<BuildWorker.Input<unknown, unknown>["onLifecycle"]>>[0]
 
 describe.each([
   {
@@ -27,7 +29,7 @@ describe.each([
   const fixture = prepareWorkerFixture(job)
   afterAll(fixture.cleanup)
   const onProgress = mock((_event: string) => {})
-  const onLifecycle = mock((_event: BuildWorkerLifecycleEvent) => {})
+  const onLifecycle = mock((_event: LifecycleEvent) => {})
   const result = await runBuildWorker({
     ...fixture.input,
     streamMode: props.streamMode,

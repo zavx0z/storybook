@@ -1,9 +1,11 @@
 import {describe, expect, mock, test} from "bun:test"
 import {readdirSync} from "node:fs"
 import runBuildWorker from "@build/worker"
-import type {BuildWorkerLifecycleEvent} from "@build/worker"
+import type {BuildWorker} from "@build/worker"
 import readWorkerEvents from "../src/read-events"
 import {parseFixtureEvent, prepareWorkerFixture} from "../fixtures/prepare"
+
+type LifecycleEvent = Parameters<NonNullable<BuildWorker.Input<unknown, unknown>["onLifecycle"]>>[0]
 
 describe("Подтверждение потока worker", () => {
   test("Точный nonce и PID; лишние записи tolerant не создают lifecycle", async () => {
@@ -11,7 +13,7 @@ describe("Подтверждение потока worker", () => {
       records: ["phase", "wrong-nonce", "wrong-pid", "malformed", "unknown", "ready", "ready", "phase"],
       resultMode: "metadata",
     })
-    const onLifecycle = mock((_event: BuildWorkerLifecycleEvent) => {})
+    const onLifecycle = mock((_event: LifecycleEvent) => {})
     const onProgress = mock((_event: string) => {})
     try {
       const result = await runBuildWorker({...fixture.input, streamMode: "tolerant", onLifecycle, onProgress})
@@ -56,7 +58,7 @@ describe("Подтверждение потока worker", () => {
 
   test.each(["strict", "tolerant"] as const)("Пустой поток %s сохраняет failure result без ready", async streamMode => {
     const fixture = prepareWorkerFixture({records: [], result: {error: "compiler failure"}, stderr: "warning", exitCode: 8})
-    const onLifecycle = mock((_event: BuildWorkerLifecycleEvent) => {})
+    const onLifecycle = mock((_event: LifecycleEvent) => {})
     try {
       const result = await runBuildWorker({...fixture.input, streamMode, onLifecycle})
       expect(result.ready, "EOF без handshake возвращает ready=false для решения владельца").toBeFalse()

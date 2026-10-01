@@ -5,39 +5,13 @@
     "": {
       "name": "@zavx0z/storybook",
       "dependencies": {
-        "@archetypes/package": "workspace:*",
-        "@archetypes/package-documentation": "workspace:*",
-        "@build/inputs": "workspace:*",
-        "@build/queue": "workspace:*",
-        "@build/worker": "workspace:*",
-        "@hmr/activation": "workspace:*",
-        "@hmr/connection": "workspace:*",
-        "@hmr/page": "workspace:*",
-        "@mcp/address": "workspace:*",
-        "@mcp/children": "workspace:*",
-        "@mcp/rest": "workspace:*",
-        "@mcp/root": "workspace:*",
-        "@process/measure": "workspace:*",
-        "@process/sample": "workspace:*",
+        "@modelcontextprotocol/client": "^2.0.0",
         "@storybook/app": "workspace:*",
-        "@storybook/app-old": "workspace:*",
-        "@storybook/route": "workspace:*",
-        "@zavx0z/storybook-browser-lifecycle": "workspace:*",
       },
       "devDependencies": {
-        "@archetypes/component": "workspace:*",
-        "@archetypes/container": "workspace:*",
-        "@archetypes/contracts": "workspace:*",
-        "@archetypes/domain": "workspace:*",
-        "@archetypes/package-index": "workspace:*",
-        "@archetypes/package-json": "workspace:*",
-        "@archetypes/project": "workspace:*",
-        "@archetypes/repo": "workspace:*",
-        "@archetypes/scenario-document": "workspace:*",
-        "@archetypes/scenario-guide": "workspace:*",
-        "@archetypes/scenario-validation": "workspace:*",
-        "@archetypes/specs": "workspace:*",
-        "@archetypes/typedoc": "workspace:*",
+        "@app/server": "workspace:*",
+        "@app/web": "workspace:*",
+        "@build/compiler": "workspace:*",
         "@immersive/headless": "^0.0.0",
         "@immersive/markdown": "^0.0.0",
         "@immersive/nodes": "^0.0.0",
@@ -63,6 +37,8 @@
         "@nodes/sockets": "^0.0.0",
         "@nodes/tree": "^0.0.0",
         "@renderer/html": "^0.0.0",
+        "@route/url": "workspace:*",
+        "@tech/limits": "workspace:*",
         "@types/bun": "^1.4.2",
         "@webgpu/types": "^0.1.74",
         "@zavx0z/browser": "^0.0.0",
@@ -83,146 +59,321 @@
       "name": "@storybook/app",
       "version": "0.0.0",
       "dependencies": {
+        "@app-mcp/response": "workspace:*",
+        "@app-server/state": "workspace:*",
+        "@app/mcp": "workspace:*",
+        "@app/server": "workspace:*",
         "@app/web": "workspace:*",
-        "@zavx0z/storybook-mcp": "workspace:*",
+        "@mcp/progress": "workspace:*",
+        "@mcp/stdio": "workspace:*",
+        "@modelcontextprotocol/server": "^2.0.0",
+        "@package/artifacts": "workspace:*",
+        "@tech/limits": "workspace:*",
+        "zod": "^4.4.3",
+      },
+      "devDependencies": {
+        "@mcp-rest/requests": "workspace:*",
+        "@mcp/rest": "workspace:*",
+        "@modelcontextprotocol/client": "^2.0.0",
+      },
+    },
+    "app/mcp": {
+      "name": "@app/mcp",
+      "version": "0.0.0",
+      "dependencies": {
+        "@app-mcp/proxy": "workspace:*",
+        "@app-mcp/response": "workspace:*",
+        "@mcp/rest": "workspace:*",
+        "@modelcontextprotocol/server": "^2.0.0",
         "zod": "^4.4.3",
       },
       "devDependencies": {
         "@modelcontextprotocol/client": "^2.0.0",
       },
     },
-    "app-old": {
-      "name": "@storybook/app-old",
+    "app/mcp/proxy": {
+      "name": "@app-mcp/proxy",
       "version": "0.0.0",
       "dependencies": {
-        "@archetypes/scenario-guide": "workspace:*",
-        "@archetypes/scenario-validation": "workspace:*",
-        "@archetypes/specs": "workspace:*",
-        "fast-xml-parser": "^5.11.1",
+        "@app-server/state": "workspace:*",
+      },
+      "devDependencies": {
+        "@modelcontextprotocol/server": "^2.0.0",
         "typescript": "^7.0.2",
       },
-      "peerDependencies": {
-        "@zavx0z/component": "*",
-        "@zavx0z/jsx": "*",
-        "@zavx0z/template": "*",
-        "@zavx0z/ui": "*",
+    },
+    "app/mcp/response": {
+      "name": "@app-mcp/response",
+      "version": "0.0.0",
+      "dependencies": {
+        "@modelcontextprotocol/server": "^2.0.0",
       },
     },
-    "app/mcp": {
-      "name": "@app/mcp",
+    "app/mcp/rest": {
+      "name": "@mcp/rest",
+      "version": "0.0.0",
+      "dependencies": {
+        "@mcp/address": "workspace:*",
+        "@mcp/children": "workspace:*",
+        "@mcp/root": "workspace:*",
+      },
+      "devDependencies": {
+        "@modelcontextprotocol/server": "^2.0.0",
+        "@repo/discovery": "workspace:*",
+      },
+    },
+    "app/mcp/rest/address": {
+      "name": "@mcp/address",
       "version": "0.0.0",
     },
-    "app/mcp/build": {
-      "name": "@app-mcp/build",
+    "app/mcp/rest/children": {
+      "name": "@mcp/children",
       "version": "0.0.0",
+    },
+    "app/mcp/rest/root": {
+      "name": "@mcp/root",
+      "version": "0.0.0",
+      "dependencies": {
+        "@mcp/children": "workspace:*",
+      },
     },
     "app/server": {
       "name": "@app/server",
       "version": "0.0.0",
+      "dependencies": {
+        "@app-mcp/response": "workspace:*",
+        "@app-server/catalog": "workspace:*",
+        "@app-server/sessions": "workspace:*",
+        "@app-server/state": "workspace:*",
+        "@app-web/build": "workspace:*",
+        "@app-web/protocol": "workspace:*",
+        "@app/mcp": "workspace:*",
+        "@archetypes/scenario-reader": "workspace:*",
+        "@archetypes/spec-reader": "workspace:*",
+        "@build/environment": "workspace:*",
+        "@hmr/activation": "workspace:*",
+        "@mcp-rest/requests": "workspace:*",
+        "@mcp/rest": "workspace:*",
+        "@package-build/fingerprint": "workspace:*",
+        "@package-build/prepare": "workspace:*",
+        "@package-build/scheduler": "workspace:*",
+        "@package-graph/read": "workspace:*",
+        "@package/resources": "workspace:*",
+        "@package/revision": "workspace:*",
+        "@package/session": "workspace:*",
+        "@repo/discovery": "workspace:*",
+        "@route/address": "workspace:*",
+        "@route/resolve": "workspace:*",
+        "@route/url": "workspace:*",
+        "@scenario/model": "workspace:*",
+        "@tech/limits": "workspace:*",
+        "@zavx0z/storybook-browser-lifecycle": "workspace:*",
+      },
+      "devDependencies": {
+        "@app/web": "workspace:*",
+        "@modelcontextprotocol/client": "^2.0.0",
+        "@modelcontextprotocol/server": "^2.0.0",
+        "@nodes/node": "^0.0.0",
+        "@package-graph/create": "workspace:*",
+        "@package/artifacts": "workspace:*",
+        "@storybook/route": "workspace:*",
+        "@zavx0z/component": "^0.0.0",
+        "@zavx0z/engine": "^0.0.0",
+        "@zavx0z/ui": "^0.0.0",
+      },
     },
-    "app/server/build": {
-      "name": "@app-server/build",
+    "app/server/browser": {
+      "name": "@zavx0z/storybook-browser-lifecycle",
       "version": "0.0.0",
+      "dependencies": {
+        "@route/url": "workspace:*",
+        "pngjs": "^7.0.0",
+      },
+      "devDependencies": {
+        "@nodes/node": "^0.0.0",
+        "@types/bun": "^1.4.0",
+        "@types/pngjs": "^6.0.5",
+        "typescript": "^7.0.2",
+      },
+    },
+    "app/server/catalog": {
+      "name": "@app-server/catalog",
+      "version": "0.0.0",
+      "dependencies": {
+        "@package-build/descriptor": "workspace:*",
+        "@package-graph/create": "workspace:*",
+        "@package-graph/read": "workspace:*",
+        "@package/revision": "workspace:*",
+        "@package/session": "workspace:*",
+        "@repo/discovery": "workspace:*",
+      },
+      "devDependencies": {
+        "@zavx0z/ui": "^0.0.0",
+      },
+    },
+    "app/server/requests": {
+      "name": "@mcp-rest/requests",
+      "version": "0.0.0",
+    },
+    "app/server/sessions": {
+      "name": "@app-server/sessions",
+      "version": "0.0.0",
+      "dependencies": {
+        "@package-build/scheduler": "workspace:*",
+        "@package/session": "workspace:*",
+      },
+      "devDependencies": {
+        "@app-server/catalog": "workspace:*",
+        "@package/revision": "workspace:*",
+        "@repo/discovery": "workspace:*",
+      },
+    },
+    "app/server/state": {
+      "name": "@app-server/state",
+      "version": "0.0.0",
+      "dependencies": {
+        "@http/client": "workspace:*",
+      },
     },
     "app/web": {
       "name": "@app/web",
       "version": "0.0.0",
+      "dependencies": {
+        "@app-server/catalog": "workspace:*",
+        "@app-web/build": "workspace:*",
+        "@app-web/protocol": "workspace:*",
+        "@hmr/connection": "workspace:*",
+        "@hmr/page": "workspace:*",
+        "@immersive/markdown": "^0.0.0",
+        "@immersive/nodes": "^0.0.0",
+        "@immersive/typedoc": "^0.0.0",
+        "@jsx-compiler/session": "^0.0.0",
+        "@mcp-rest/requests": "workspace:*",
+        "@mcp-rest/scenarios": "workspace:*",
+        "@nodes/layout": "^0.0.0",
+        "@nodes/node": "^0.0.0",
+        "@package-build/scheduler": "workspace:*",
+        "@package-graph/create": "workspace:*",
+        "@package-graph/read": "workspace:*",
+        "@package/revision": "workspace:*",
+        "@package/session": "workspace:*",
+        "@repo/discovery": "workspace:*",
+        "@route/address": "workspace:*",
+        "@route/url": "workspace:*",
+        "@scenario/inspector": "workspace:*",
+        "@scenario/model": "workspace:*",
+        "@scenario/result": "workspace:*",
+        "@web/scenario": "workspace:*",
+        "@zavx0z/browser": "^0.0.0",
+        "@zavx0z/component": "^0.0.0",
+        "@zavx0z/devtools": "^0.0.0",
+        "@zavx0z/dom": "^0.0.0",
+        "@zavx0z/engine": "^0.0.0",
+        "@zavx0z/template": "^0.0.0",
+        "@zavx0z/ui": "^0.0.0",
+        "@zavx0z/webgpu": "^0.0.0",
+      },
+      "devDependencies": {
+        "@app/server": "workspace:*",
+        "@build/compiler": "workspace:*",
+        "@build/environment": "workspace:*",
+        "@immersive/headless": "^0.0.0",
+        "@jsx-compiler/bun": "^0.0.0",
+        "@package-build/descriptor": "workspace:*",
+        "@renderer/html": "^0.0.0",
+        "@zavx0z/highlighter": "^0.1.0",
+        "@zavx0z/space": "^0.0.0",
+      },
     },
     "app/web/build": {
       "name": "@app-web/build",
       "version": "0.0.0",
-    },
-    "archetypes": {
-      "name": "@storybook/archetypes",
-      "version": "0.0.0",
       "dependencies": {
-        "@archetypes/package": "workspace:*",
-        "@archetypes/package-documentation": "workspace:*",
-        "@archetypes/package-index": "workspace:*",
-        "@archetypes/package-json": "workspace:*",
-        "@archetypes/project": "workspace:*",
-        "@archetypes/repo": "workspace:*",
-        "@archetypes/scenario-document": "workspace:*",
-        "@archetypes/scenario-guide": "workspace:*",
-        "@archetypes/scenario-validation": "workspace:*",
-        "@archetypes/specs": "workspace:*",
-      },
-    },
-    "archetypes/package": {
-      "name": "@archetypes/package",
-      "version": "0.0.0",
-      "dependencies": {
-        "@archetypes/package-documentation": "workspace:*",
-        "@archetypes/package-index": "workspace:*",
-        "@archetypes/package-json": "workspace:*",
-        "@storybook/route": "workspace:*",
-        "typescript": "^7.0.2",
-      },
-    },
-    "archetypes/package/documentation": {
-      "name": "@archetypes/package-documentation",
-      "version": "0.0.0",
-    },
-    "archetypes/package/index": {
-      "name": "@archetypes/package-index",
-      "version": "0.0.0",
-    },
-    "archetypes/package/package-json": {
-      "name": "@archetypes/package-json",
-      "version": "0.0.0",
-    },
-    "archetypes/project": {
-      "name": "@archetypes/project",
-      "version": "0.0.0",
-      "dependencies": {
-        "@archetypes/repo": "workspace:*",
-      },
-    },
-    "archetypes/repo": {
-      "name": "@archetypes/repo",
-      "version": "0.0.0",
-      "dependencies": {
-        "@archetypes/package": "workspace:*",
-      },
-    },
-    "archetypes/specs": {
-      "name": "@archetypes/specs",
-      "version": "0.0.0",
-      "dependencies": {
-        "@archetypes/scenario-document": "workspace:*",
-        "@archetypes/scenario-guide": "workspace:*",
-        "@storybook/app-old": "workspace:*",
-      },
-    },
-    "archetypes/specs/guide": {
-      "name": "@archetypes/scenario-document",
-      "version": "0.0.0",
-      "dependencies": {
-        "@storybook/app-old": "workspace:*",
-      },
-    },
-    "archetypes/specs/scenarios": {
-      "name": "@archetypes/scenario-guide",
-      "version": "0.0.0",
-      "dependencies": {
-        "@archetypes/scenario-document": "workspace:*",
-        "@storybook/app-old": "workspace:*",
-      },
-    },
-    "archetypes/specs/scenarios/validation": {
-      "name": "@archetypes/scenario-validation",
-      "version": "0.0.0",
-    },
-    "browser-lifecycle": {
-      "name": "@zavx0z/storybook-browser-lifecycle",
-      "version": "0.0.0",
-      "dependencies": {
-        "pngjs": "^7.0.0",
+        "@build/artifacts": "workspace:*",
+        "@build/compiler": "workspace:*",
+        "@build/environment": "workspace:*",
+        "@build/inputs": "workspace:*",
+        "@build/worker": "workspace:*",
+        "@package-build/inputs": "workspace:*",
+        "@package-build/scheduler": "workspace:*",
+        "@package/revision": "workspace:*",
+        "@zavx0z/ui": "^0.0.0",
       },
       "devDependencies": {
-        "@types/bun": "^1.4.0",
-        "@types/pngjs": "^6.0.5",
-        "typescript": "^7.0.2",
+        "@tech/limits": "workspace:*",
+        "@zavx0z/component": "^0.0.0",
+      },
+    },
+    "app/web/protocol": {
+      "name": "@app-web/protocol",
+      "version": "0.0.0",
+      "dependencies": {
+        "@package-graph/create": "workspace:*",
+        "@package-graph/read": "workspace:*",
+        "@route/url": "workspace:*",
+        "@zavx0z/browser": "^0.0.0",
+      },
+      "devDependencies": {
+        "@package/session": "workspace:*",
+        "@repo/discovery": "workspace:*",
+      },
+    },
+    "app/web/scenario": {
+      "name": "@web/scenario",
+      "version": "0.0.0",
+      "dependencies": {
+        "@scenario/inspector": "workspace:*",
+        "@scenario/model": "workspace:*",
+        "@scenario/preview": "workspace:*",
+        "@scenario/result": "workspace:*",
+      },
+    },
+    "app/web/scenario/inspector": {
+      "name": "@scenario/inspector",
+      "version": "0.0.0",
+      "dependencies": {
+        "@scenario/model": "workspace:*",
+        "@zavx0z/component": "^0.0.0",
+        "@zavx0z/ui": "^0.0.0",
+      },
+      "devDependencies": {
+        "@immersive/headless": "^0.0.0",
+      },
+    },
+    "app/web/scenario/model": {
+      "name": "@scenario/model",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/scenario-reader": "workspace:*",
+        "@zavx0z/template": "^0.0.0",
+      },
+      "devDependencies": {
+        "@zavx0z/component": "^0.0.0",
+      },
+    },
+    "app/web/scenario/preview": {
+      "name": "@scenario/preview",
+      "version": "0.0.0",
+      "dependencies": {
+        "@scenario/result": "workspace:*",
+        "@zavx0z/component": "^0.0.0",
+      },
+      "devDependencies": {
+        "@immersive/headless": "^0.0.0",
+        "@scenario/model": "workspace:*",
+      },
+    },
+    "app/web/scenario/result": {
+      "name": "@scenario/result",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/scenario-guide": "workspace:*",
+        "@scenario/model": "workspace:*",
+        "@zavx0z/component": "^0.0.0",
+        "@zavx0z/ui": "^0.0.0",
+      },
+      "devDependencies": {
+        "@immersive/headless": "^0.0.0",
       },
     },
     "component": {
@@ -238,18 +389,21 @@
       "dependencies": {
         "@archetypes/component": "workspace:*",
       },
+      "devDependencies": {
+        "@archetypes/scenario-reader": "workspace:*",
+      },
     },
     "contracts": {
       "name": "@archetypes/contracts",
       "version": "0.0.0",
       "dependencies": {
         "@archetypes/package": "workspace:*",
-        "@storybook/route": "workspace:*",
+        "@route/ignored": "workspace:*",
+        "@zavx0z/jsx": "^0.0.0",
         "typescript": "^7.0.2",
       },
       "devDependencies": {
-        "@archetypes/typedoc": "workspace:*",
-        "@storybook/app-old": "workspace:*",
+        "@archetypes/scenario-reader": "workspace:*",
       },
     },
     "domain": {
@@ -258,68 +412,490 @@
       "dependencies": {
         "@archetypes/package": "workspace:*",
       },
-    },
-    "hmr": {
-      "name": "@storybook/hmr",
-      "version": "0.0.0",
-      "dependencies": {
-        "@hmr/activation": "workspace:*",
+      "devDependencies": {
+        "@archetypes/component": "workspace:*",
       },
     },
-    "hmr/activation": {
+    "package": {
+      "name": "@storybook/package",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/package": "workspace:*",
+        "@archetypes/package-documentation": "workspace:*",
+        "@archetypes/package-index": "workspace:*",
+        "@archetypes/package-json": "workspace:*",
+        "@hmr/activation": "workspace:*",
+        "@package-build/prepare": "workspace:*",
+        "@package/artifacts": "workspace:*",
+        "@package/graph": "workspace:*",
+        "@package/identity": "workspace:*",
+        "@package/resources": "workspace:*",
+        "@package/revision": "workspace:*",
+        "@package/session": "workspace:*",
+        "@package/standard": "workspace:*",
+        "@storybook/route": "workspace:*",
+      },
+      "devDependencies": {
+        "@archetypes/scenario-reader": "workspace:*",
+      },
+    },
+    "package/activation": {
       "name": "@hmr/activation",
       "version": "0.0.0",
     },
-    "mcp": {
-      "name": "@zavx0z/storybook-mcp",
+    "package/artifacts": {
+      "name": "@package/artifacts",
+      "version": "0.0.0",
+    },
+    "package/build": {
+      "name": "@package/build",
       "version": "0.0.0",
       "dependencies": {
-        "@modelcontextprotocol/server": "^2.0.0",
-        "zod": "^4.4.3",
+        "@package-build/conformance": "workspace:*",
+        "@package-build/consumer-boundary": "workspace:*",
+        "@package-build/descriptor": "workspace:*",
+        "@package-build/fingerprint": "workspace:*",
+        "@package-build/inputs": "workspace:*",
+        "@package-build/loader": "workspace:*",
+        "@package-build/plan": "workspace:*",
+        "@package-build/prepare": "workspace:*",
+        "@package-build/scenarios": "workspace:*",
+        "@package-build/scheduler": "workspace:*",
+      },
+    },
+    "package/build/conformance": {
+      "name": "@package-build/conformance",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/scenario-reader": "workspace:*",
+        "@package/session": "workspace:*",
+        "@package/standard": "workspace:*",
+      },
+    },
+    "package/build/consumer-boundary": {
+      "name": "@package-build/consumer-boundary",
+      "version": "0.0.0",
+    },
+    "package/build/descriptor": {
+      "name": "@package-build/descriptor",
+      "version": "0.0.0",
+      "dependencies": {
+        "@package-graph/create": "workspace:*",
+        "@package-graph/read": "workspace:*",
+        "@package/resources": "workspace:*",
+        "@package/revision": "workspace:*",
+        "@package/session": "workspace:*",
+        "@repo/discovery": "workspace:*",
+      },
+    },
+    "package/build/fingerprint": {
+      "name": "@package-build/fingerprint",
+      "version": "0.0.0",
+      "dependencies": {
+        "@build/environment": "workspace:*",
+        "@build/inputs": "workspace:*",
+        "@package-build/plan": "workspace:*",
+        "@package/session": "workspace:*",
       },
       "devDependencies": {
-        "@mcp/address": "workspace:*",
-        "@mcp/children": "workspace:*",
-        "@mcp/rest": "workspace:*",
-        "@mcp/root": "workspace:*",
-        "@modelcontextprotocol/client": "^2.0.0",
-        "@storybook/route": "workspace:*",
-        "@types/bun": "^1.4.0",
+        "@package/revision": "workspace:*",
+      },
+    },
+    "package/build/inputs": {
+      "name": "@package-build/inputs",
+      "version": "0.0.0",
+      "dependencies": {
+        "@build/compiler": "workspace:*",
+        "@package/session": "workspace:*",
+      },
+    },
+    "package/build/loader": {
+      "name": "@package-build/loader",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/scenario-reader": "workspace:*",
+        "@package/identity": "workspace:*",
+        "@zavx0z/component": "^0.0.0",
+        "@zavx0z/template": "^0.0.0",
+      },
+    },
+    "package/build/plan": {
+      "name": "@package-build/plan",
+      "version": "0.0.0",
+      "dependencies": {
+        "@build/compiler": "workspace:*",
+        "@build/environment": "workspace:*",
+        "@build/inputs": "workspace:*",
+      },
+      "devDependencies": {
+        "@package/revision": "workspace:*",
+        "@package/session": "workspace:*",
+      },
+    },
+    "package/build/prepare": {
+      "name": "@package-build/prepare",
+      "version": "0.0.0",
+      "dependencies": {
+        "@build/compiler": "workspace:*",
+        "@build/environment": "workspace:*",
+        "@build/inputs": "workspace:*",
+        "@build/worker": "workspace:*",
+        "@package-build/conformance": "workspace:*",
+        "@package-build/inputs": "workspace:*",
+        "@package-build/loader": "workspace:*",
+        "@package-build/plan": "workspace:*",
+        "@package-build/scenarios": "workspace:*",
+        "@package-build/scheduler": "workspace:*",
+        "@package/session": "workspace:*",
+        "@zavx0z/jsx": "^0.0.0",
+      },
+      "devDependencies": {
+        "@archetypes/scenario-reader": "workspace:*",
+        "@archetypes/spec-reader": "workspace:*",
+        "@immersive/headless": "^0.0.0",
+        "@package-build/fingerprint": "workspace:*",
+        "@package-graph/create": "workspace:*",
+        "@package/revision": "workspace:*",
+        "@repo/discovery": "workspace:*",
+      },
+    },
+    "package/build/scenarios": {
+      "name": "@package-build/scenarios",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/scenario-reader": "workspace:*",
+        "@package-build/conformance": "workspace:*",
+        "@package-build/inputs": "workspace:*",
+        "@package-build/loader": "workspace:*",
+        "@package/session": "workspace:*",
+        "@package/standard": "workspace:*",
+      },
+    },
+    "package/build/scheduler": {
+      "name": "@package-build/scheduler",
+      "version": "0.0.0",
+      "dependencies": {
+        "@build/queue": "workspace:*",
+        "@build/worker": "workspace:*",
+        "@process/measure": "workspace:*",
+        "@process/sample": "workspace:*",
+      },
+    },
+    "package/documentation": {
+      "name": "@archetypes/package-documentation",
+      "version": "0.0.0",
+    },
+    "package/graph": {
+      "name": "@package/graph",
+      "version": "0.0.0",
+      "dependencies": {
+        "@package-graph/create": "workspace:*",
+        "@package-graph/read": "workspace:*",
+      },
+    },
+    "package/graph/create": {
+      "name": "@package-graph/create",
+      "version": "0.0.0",
+      "dependencies": {
+        "@repo/discovery": "workspace:*",
+        "@route/address": "workspace:*",
+      },
+      "devDependencies": {
+        "@package-graph/read": "workspace:*",
+      },
+    },
+    "package/graph/read": {
+      "name": "@package-graph/read",
+      "version": "0.0.0",
+      "dependencies": {
+        "@route/address": "workspace:*",
+      },
+      "devDependencies": {
+        "@package-graph/create": "workspace:*",
+        "@repo/discovery": "workspace:*",
+      },
+    },
+    "package/identity": {
+      "name": "@package/identity",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@zavx0z/dom": "^0.0.0",
+      },
+    },
+    "package/index": {
+      "name": "@archetypes/package-index",
+      "version": "0.0.0",
+    },
+    "package/package-json": {
+      "name": "@archetypes/package-json",
+      "version": "0.0.0",
+    },
+    "package/reader": {
+      "name": "@archetypes/package",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/package-documentation": "workspace:*",
+        "@archetypes/package-index": "workspace:*",
+        "@archetypes/package-json": "workspace:*",
+        "@build/compiler": "workspace:*",
+        "@route/workspaces": "workspace:*",
         "typescript": "^7.0.2",
       },
-    },
-    "mcp/address": {
-      "name": "@mcp/address",
-      "version": "0.0.0",
-    },
-    "mcp/children": {
-      "name": "@mcp/children",
-      "version": "0.0.0",
-    },
-    "mcp/rest": {
-      "name": "@mcp/rest",
-      "version": "0.0.0",
-      "dependencies": {
-        "@mcp/address": "workspace:*",
-        "@mcp/children": "workspace:*",
-        "@mcp/root": "workspace:*",
-        "@storybook/app-old": "workspace:*",
+      "devDependencies": {
+        "@archetypes/domain": "workspace:*",
+        "@archetypes/scenario-reader": "workspace:*",
       },
     },
-    "mcp/root": {
-      "name": "@mcp/root",
+    "package/resources": {
+      "name": "@package/resources",
       "version": "0.0.0",
       "dependencies": {
-        "@mcp/children": "workspace:*",
+        "@immersive/markdown": "^0.0.0",
+      },
+      "devDependencies": {
+        "@archetypes/package-documentation": "workspace:*",
       },
     },
-    "route": {
+    "package/revision": {
+      "name": "@package/revision",
+      "version": "0.0.0",
+      "dependencies": {
+        "@package-graph/create": "workspace:*",
+        "@package-graph/read": "workspace:*",
+        "@zavx0z/ui": "^0.0.0",
+      },
+      "devDependencies": {
+        "@repo/discovery": "workspace:*",
+      },
+    },
+    "package/route": {
       "name": "@storybook/route",
       "version": "0.0.0",
+      "dependencies": {
+        "@route/address": "workspace:*",
+        "@route/children": "workspace:*",
+        "@route/directories": "workspace:*",
+        "@route/ignored": "workspace:*",
+        "@route/resolve": "workspace:*",
+        "@route/structure": "workspace:*",
+        "@route/url": "workspace:*",
+        "@route/workspaces": "workspace:*",
+      },
       "devDependencies": {
         "@types/bun": "^1.4.0",
         "typescript": "^7.0.2",
       },
+    },
+    "package/route/address": {
+      "name": "@route/address",
+      "version": "0.0.0",
+    },
+    "package/route/children": {
+      "name": "@route/children",
+      "version": "0.0.0",
+      "dependencies": {
+        "@route/address": "workspace:*",
+        "@route/directories": "workspace:*",
+        "@route/ignored": "workspace:*",
+        "@route/resolve": "workspace:*",
+        "@route/structure": "workspace:*",
+      },
+    },
+    "package/route/directories": {
+      "name": "@route/directories",
+      "version": "0.0.0",
+      "dependencies": {
+        "@route/ignored": "workspace:*",
+      },
+    },
+    "package/route/ignored": {
+      "name": "@route/ignored",
+      "version": "0.0.0",
+    },
+    "package/route/resolve": {
+      "name": "@route/resolve",
+      "version": "0.0.0",
+      "dependencies": {
+        "@route/address": "workspace:*",
+        "@route/directories": "workspace:*",
+        "@route/ignored": "workspace:*",
+        "@route/structure": "workspace:*",
+      },
+      "devDependencies": {
+        "@nodes/node": "^0.0.0",
+        "@route/children": "workspace:*",
+      },
+    },
+    "package/route/structure": {
+      "name": "@route/structure",
+      "version": "0.0.0",
+      "dependencies": {
+        "@route/ignored": "workspace:*",
+        "@route/workspaces": "workspace:*",
+      },
+    },
+    "package/route/url": {
+      "name": "@route/url",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@zavx0z/dom": "^0.0.0",
+      },
+    },
+    "package/route/workspaces": {
+      "name": "@route/workspaces",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@route/children": "workspace:*",
+        "@route/resolve": "workspace:*",
+      },
+    },
+    "package/session": {
+      "name": "@package/session",
+      "version": "0.0.0",
+      "dependencies": {
+        "@build/inputs": "workspace:*",
+        "@build/worker": "workspace:*",
+        "@package-build/scheduler": "workspace:*",
+        "@package/revision": "workspace:*",
+        "@package/standard": "workspace:*",
+        "@process/sample": "workspace:*",
+        "@tech/limits": "workspace:*",
+        "@zavx0z/ui": "^0.0.0",
+      },
+    },
+    "package/standard": {
+      "name": "@package/standard",
+      "version": "0.0.0",
+      "dependencies": {
+        "@package/session": "workspace:*",
+      },
+    },
+    "project": {
+      "name": "@archetypes/project",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/repo": "workspace:*",
+      },
+    },
+    "repo": {
+      "name": "@storybook/repo",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/repo": "workspace:*",
+        "@repo/discovery": "workspace:*",
+      },
+    },
+    "repo/discovery": {
+      "name": "@repo/discovery",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/package-documentation": "workspace:*",
+        "@immersive/typedoc": "^0.0.0",
+        "@package/identity": "workspace:*",
+        "@route/directories": "workspace:*",
+        "@route/ignored": "workspace:*",
+        "@route/workspaces": "workspace:*",
+        "typescript": "^7.0.2",
+      },
+      "devDependencies": {
+        "@package-graph/create": "workspace:*",
+      },
+    },
+    "repo/reader": {
+      "name": "@archetypes/repo",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/package": "workspace:*",
+      },
+    },
+    "specs": {
+      "name": "@archetypes/specs",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/scenario-document": "workspace:*",
+        "@archetypes/scenario-guide": "workspace:*",
+        "@archetypes/scenario-reader": "workspace:*",
+        "@archetypes/scenario-validation": "workspace:*",
+        "@archetypes/spec-reader": "workspace:*",
+        "@mcp-rest/package": "workspace:*",
+        "@mcp-rest/scenarios": "workspace:*",
+        "@specs/guide": "workspace:*",
+      },
+    },
+    "specs/document": {
+      "name": "@archetypes/scenario-document",
+      "version": "0.0.0",
+      "devDependencies": {
+        "@archetypes/scenario-reader": "workspace:*",
+      },
+    },
+    "specs/guide": {
+      "name": "@specs/guide",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/scenario-document": "workspace:*",
+        "@archetypes/scenario-guide": "workspace:*",
+        "@archetypes/spec-reader": "workspace:*",
+      },
+    },
+    "specs/presentation": {
+      "name": "@mcp-rest/scenarios",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/spec-reader": "workspace:*",
+      },
+      "devDependencies": {
+        "@archetypes/scenario-reader": "workspace:*",
+        "@repo/discovery": "workspace:*",
+      },
+    },
+    "specs/reader": {
+      "name": "@archetypes/spec-reader",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/scenario-reader": "workspace:*",
+      },
+      "devDependencies": {
+        "typescript": "^7.0.2",
+      },
+    },
+    "specs/result": {
+      "name": "@mcp-rest/package",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/spec-reader": "workspace:*",
+      },
+    },
+    "specs/scenarios": {
+      "name": "@archetypes/scenario-guide",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/scenario-document": "workspace:*",
+        "@archetypes/scenario-reader": "workspace:*",
+      },
+      "devDependencies": {
+        "@specs/guide": "workspace:*",
+      },
+    },
+    "specs/scenarios/reader": {
+      "name": "@archetypes/scenario-reader",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/scenario-validation": "workspace:*",
+        "@build/compiler": "workspace:*",
+        "fast-xml-parser": "^5.11.1",
+        "typescript": "^7.0.2",
+      },
+      "devDependencies": {
+        "@archetypes/package": "workspace:*",
+        "@immersive/headless": "^0.0.0",
+        "@package-build/loader": "workspace:*",
+        "@zavx0z/jsx": "^0.0.0",
+      },
+    },
+    "specs/scenarios/reader/validation": {
+      "name": "@archetypes/scenario-validation",
+      "version": "0.0.0",
     },
     "tech": {
       "name": "@storybook/tech",
@@ -331,17 +907,78 @@
         "@process/measure": "workspace:*",
         "@process/sample": "workspace:*",
         "@process/wait": "workspace:*",
+        "@tech/build": "workspace:*",
         "@tech/hmr": "workspace:*",
+        "@tech/http": "workspace:*",
+        "@tech/limits": "workspace:*",
+        "@tech/mcp": "workspace:*",
       },
     },
     "tech/build": {
       "name": "@tech/build",
       "version": "0.0.0",
       "dependencies": {
+        "@build/artifacts": "workspace:*",
+        "@build/compiler": "workspace:*",
+        "@build/environment": "workspace:*",
         "@build/inputs": "workspace:*",
         "@build/queue": "workspace:*",
         "@build/worker": "workspace:*",
       },
+    },
+    "tech/build/artifacts": {
+      "name": "@build/artifacts",
+      "version": "0.0.0",
+    },
+    "tech/build/compiler": {
+      "name": "@build/compiler",
+      "version": "0.0.0",
+      "dependencies": {
+        "@jsx-compiler/bun": "^0.0.0",
+        "@jsx/development": "^0.0.0",
+        "@jsx/runtime": "^0.0.0",
+        "@zavx0z/jsx": "^0.0.0",
+      },
+      "devDependencies": {
+        "@archetypes/scenario-reader": "workspace:*",
+        "@package-build/loader": "workspace:*",
+        "@zavx0z/component": "^0.0.0",
+        "@zavx0z/dom": "^0.0.0",
+        "@zavx0z/template": "^0.0.0",
+        "@zavx0z/ui": "^0.0.0",
+      },
+    },
+    "tech/build/environment": {
+      "name": "@build/environment",
+      "version": "0.0.0",
+      "dependencies": {
+        "@build-environment/protocol": "workspace:*",
+        "@build/compiler": "workspace:*",
+        "@jsx-development/create": "^0.0.0",
+        "@jsx-runtime/create": "^0.0.0",
+        "@jsx-runtime/fragment": "^0.0.0",
+        "@jsx-slot/child": "^0.0.0",
+        "@jsx-slot/plan": "^0.0.0",
+        "@jsx/events": "^0.0.0",
+        "@renderer/html": "^0.0.0",
+        "@zavx0z/browser": "^0.0.0",
+        "@zavx0z/component": "^0.0.0",
+        "@zavx0z/devtools": "^0.0.0",
+        "@zavx0z/dom": "^0.0.0",
+        "@zavx0z/engine": "^0.0.0",
+        "@zavx0z/jsx": "^0.0.0",
+        "@zavx0z/space": "^0.0.0",
+        "@zavx0z/template": "^0.0.0",
+        "@zavx0z/webgpu": "^0.0.0",
+      },
+      "devDependencies": {
+        "@jsx/development": "^0.0.0",
+        "@jsx/runtime": "^0.0.0",
+      },
+    },
+    "tech/build/environment/protocol": {
+      "name": "@build-environment/protocol",
+      "version": "0.0.0",
     },
     "tech/build/inputs": {
       "name": "@build/inputs",
@@ -378,6 +1015,43 @@
       "name": "@hmr/page",
       "version": "0.0.0",
     },
+    "tech/http": {
+      "name": "@tech/http",
+      "version": "0.0.0",
+      "dependencies": {
+        "@http/client": "workspace:*",
+      },
+    },
+    "tech/http/client": {
+      "name": "@http/client",
+      "version": "0.0.0",
+    },
+    "tech/limits": {
+      "name": "@tech/limits",
+      "version": "0.0.0",
+    },
+    "tech/mcp": {
+      "name": "@tech/mcp",
+      "version": "0.0.0",
+      "dependencies": {
+        "@mcp/progress": "workspace:*",
+        "@mcp/stdio": "workspace:*",
+      },
+    },
+    "tech/mcp/progress": {
+      "name": "@mcp/progress",
+      "version": "0.0.0",
+      "dependencies": {
+        "@modelcontextprotocol/server": "^2.0.0",
+      },
+    },
+    "tech/mcp/stdio": {
+      "name": "@mcp/stdio",
+      "version": "0.0.0",
+      "dependencies": {
+        "@modelcontextprotocol/server": "^2.0.0",
+      },
+    },
     "tech/process": {
       "name": "@tech/process",
       "version": "0.0.0",
@@ -410,7 +1084,7 @@
         "typescript": "^7.0.2",
       },
       "devDependencies": {
-        "@storybook/app-old": "workspace:*",
+        "@archetypes/scenario-reader": "workspace:*",
       },
     },
   },
@@ -453,11 +1127,19 @@
     "@zavx0z/webgpu": "link:@zavx0z/webgpu",
   },
   "packages": {
-    "@app-mcp/build": ["@app-mcp/build@workspace:app/mcp/build"],
+    "@app-mcp/proxy": ["@app-mcp/proxy@workspace:app/mcp/proxy"],
 
-    "@app-server/build": ["@app-server/build@workspace:app/server/build"],
+    "@app-mcp/response": ["@app-mcp/response@workspace:app/mcp/response"],
+
+    "@app-server/catalog": ["@app-server/catalog@workspace:app/server/catalog"],
+
+    "@app-server/sessions": ["@app-server/sessions@workspace:app/server/sessions"],
+
+    "@app-server/state": ["@app-server/state@workspace:app/server/state"],
 
     "@app-web/build": ["@app-web/build@workspace:app/web/build"],
+
+    "@app-web/protocol": ["@app-web/protocol@workspace:app/web/protocol"],
 
     "@app/mcp": ["@app/mcp@workspace:app/mcp"],
 
@@ -473,27 +1155,39 @@
 
     "@archetypes/domain": ["@archetypes/domain@workspace:domain"],
 
-    "@archetypes/package": ["@archetypes/package@workspace:archetypes/package"],
+    "@archetypes/package": ["@archetypes/package@workspace:package/reader"],
 
-    "@archetypes/package-documentation": ["@archetypes/package-documentation@workspace:archetypes/package/documentation"],
+    "@archetypes/package-documentation": ["@archetypes/package-documentation@workspace:package/documentation"],
 
-    "@archetypes/package-index": ["@archetypes/package-index@workspace:archetypes/package/index"],
+    "@archetypes/package-index": ["@archetypes/package-index@workspace:package/index"],
 
-    "@archetypes/package-json": ["@archetypes/package-json@workspace:archetypes/package/package-json"],
+    "@archetypes/package-json": ["@archetypes/package-json@workspace:package/package-json"],
 
-    "@archetypes/project": ["@archetypes/project@workspace:archetypes/project"],
+    "@archetypes/project": ["@archetypes/project@workspace:project"],
 
-    "@archetypes/repo": ["@archetypes/repo@workspace:archetypes/repo"],
+    "@archetypes/repo": ["@archetypes/repo@workspace:repo/reader"],
 
-    "@archetypes/scenario-document": ["@archetypes/scenario-document@workspace:archetypes/specs/guide"],
+    "@archetypes/scenario-document": ["@archetypes/scenario-document@workspace:specs/document"],
 
-    "@archetypes/scenario-guide": ["@archetypes/scenario-guide@workspace:archetypes/specs/scenarios"],
+    "@archetypes/scenario-guide": ["@archetypes/scenario-guide@workspace:specs/scenarios"],
 
-    "@archetypes/scenario-validation": ["@archetypes/scenario-validation@workspace:archetypes/specs/scenarios/validation"],
+    "@archetypes/scenario-reader": ["@archetypes/scenario-reader@workspace:specs/scenarios/reader"],
 
-    "@archetypes/specs": ["@archetypes/specs@workspace:archetypes/specs"],
+    "@archetypes/scenario-validation": ["@archetypes/scenario-validation@workspace:specs/scenarios/reader/validation"],
+
+    "@archetypes/spec-reader": ["@archetypes/spec-reader@workspace:specs/reader"],
+
+    "@archetypes/specs": ["@archetypes/specs@workspace:specs"],
 
     "@archetypes/typedoc": ["@archetypes/typedoc@workspace:typedoc"],
+
+    "@build-environment/protocol": ["@build-environment/protocol@workspace:tech/build/environment/protocol"],
+
+    "@build/artifacts": ["@build/artifacts@workspace:tech/build/artifacts"],
+
+    "@build/compiler": ["@build/compiler@workspace:tech/build/compiler"],
+
+    "@build/environment": ["@build/environment@workspace:tech/build/environment"],
 
     "@build/inputs": ["@build/inputs@workspace:tech/build/inputs"],
 
@@ -501,11 +1195,13 @@
 
     "@build/worker": ["@build/worker@workspace:tech/build/worker"],
 
-    "@hmr/activation": ["@hmr/activation@workspace:hmr/activation"],
+    "@hmr/activation": ["@hmr/activation@workspace:package/activation"],
 
     "@hmr/connection": ["@hmr/connection@workspace:tech/hmr/connection"],
 
     "@hmr/page": ["@hmr/page@workspace:tech/hmr/page"],
+
+    "@http/client": ["@http/client@workspace:tech/http/client"],
 
     "@immersive/headless": ["@immersive/headless@link:@immersive/headless", {}],
 
@@ -545,13 +1241,23 @@
 
     "@jsx/slot": ["@jsx/slot@link:@jsx/slot", {}],
 
-    "@mcp/address": ["@mcp/address@workspace:mcp/address"],
+    "@mcp-rest/package": ["@mcp-rest/package@workspace:specs/result"],
 
-    "@mcp/children": ["@mcp/children@workspace:mcp/children"],
+    "@mcp-rest/requests": ["@mcp-rest/requests@workspace:app/server/requests"],
 
-    "@mcp/rest": ["@mcp/rest@workspace:mcp/rest"],
+    "@mcp-rest/scenarios": ["@mcp-rest/scenarios@workspace:specs/presentation"],
 
-    "@mcp/root": ["@mcp/root@workspace:mcp/root"],
+    "@mcp/address": ["@mcp/address@workspace:app/mcp/rest/address"],
+
+    "@mcp/children": ["@mcp/children@workspace:app/mcp/rest/children"],
+
+    "@mcp/progress": ["@mcp/progress@workspace:tech/mcp/progress"],
+
+    "@mcp/rest": ["@mcp/rest@workspace:app/mcp/rest"],
+
+    "@mcp/root": ["@mcp/root@workspace:app/mcp/rest/root"],
+
+    "@mcp/stdio": ["@mcp/stdio@workspace:tech/mcp/stdio"],
 
     "@modelcontextprotocol/client": ["@modelcontextprotocol/client@2.0.0", "", { "dependencies": { "@modelcontextprotocol/core": "2.0.0", "cross-spawn": "^7.0.5", "eventsource": "^3.0.2", "eventsource-parser": "^3.0.0", "jose": "^6.1.3", "pkce-challenge": "^5.0.0", "zod": "^4.2.0" } }, "sha512-8f1OghQ2rjzIOfqgUCP+8GiUWqRs89njoWLNqAe8kWmDePv3s1fZXseej+QXemssEuuOvLLmLO/kqM3IQHtISw=="],
 
@@ -571,6 +1277,46 @@
 
     "@nodes/tree": ["@nodes/tree@link:@nodes/tree", {}],
 
+    "@package-build/conformance": ["@package-build/conformance@workspace:package/build/conformance"],
+
+    "@package-build/consumer-boundary": ["@package-build/consumer-boundary@workspace:package/build/consumer-boundary"],
+
+    "@package-build/descriptor": ["@package-build/descriptor@workspace:package/build/descriptor"],
+
+    "@package-build/fingerprint": ["@package-build/fingerprint@workspace:package/build/fingerprint"],
+
+    "@package-build/inputs": ["@package-build/inputs@workspace:package/build/inputs"],
+
+    "@package-build/loader": ["@package-build/loader@workspace:package/build/loader"],
+
+    "@package-build/plan": ["@package-build/plan@workspace:package/build/plan"],
+
+    "@package-build/prepare": ["@package-build/prepare@workspace:package/build/prepare"],
+
+    "@package-build/scenarios": ["@package-build/scenarios@workspace:package/build/scenarios"],
+
+    "@package-build/scheduler": ["@package-build/scheduler@workspace:package/build/scheduler"],
+
+    "@package-graph/create": ["@package-graph/create@workspace:package/graph/create"],
+
+    "@package-graph/read": ["@package-graph/read@workspace:package/graph/read"],
+
+    "@package/artifacts": ["@package/artifacts@workspace:package/artifacts"],
+
+    "@package/build": ["@package/build@workspace:package/build"],
+
+    "@package/graph": ["@package/graph@workspace:package/graph"],
+
+    "@package/identity": ["@package/identity@workspace:package/identity"],
+
+    "@package/resources": ["@package/resources@workspace:package/resources"],
+
+    "@package/revision": ["@package/revision@workspace:package/revision"],
+
+    "@package/session": ["@package/session@workspace:package/session"],
+
+    "@package/standard": ["@package/standard@workspace:package/standard"],
+
     "@process/measure": ["@process/measure@workspace:tech/process/measure"],
 
     "@process/sample": ["@process/sample@workspace:tech/process/sample"],
@@ -579,21 +1325,53 @@
 
     "@renderer/html": ["@renderer/html@link:@renderer/html", {}],
 
+    "@repo/discovery": ["@repo/discovery@workspace:repo/discovery"],
+
+    "@route/address": ["@route/address@workspace:package/route/address"],
+
+    "@route/children": ["@route/children@workspace:package/route/children"],
+
+    "@route/directories": ["@route/directories@workspace:package/route/directories"],
+
+    "@route/ignored": ["@route/ignored@workspace:package/route/ignored"],
+
+    "@route/resolve": ["@route/resolve@workspace:package/route/resolve"],
+
+    "@route/structure": ["@route/structure@workspace:package/route/structure"],
+
+    "@route/url": ["@route/url@workspace:package/route/url"],
+
+    "@route/workspaces": ["@route/workspaces@workspace:package/route/workspaces"],
+
+    "@scenario/inspector": ["@scenario/inspector@workspace:app/web/scenario/inspector"],
+
+    "@scenario/model": ["@scenario/model@workspace:app/web/scenario/model"],
+
+    "@scenario/preview": ["@scenario/preview@workspace:app/web/scenario/preview"],
+
+    "@scenario/result": ["@scenario/result@workspace:app/web/scenario/result"],
+
+    "@specs/guide": ["@specs/guide@workspace:specs/guide"],
+
     "@storybook/app": ["@storybook/app@workspace:app"],
 
-    "@storybook/app-old": ["@storybook/app-old@workspace:app-old"],
+    "@storybook/package": ["@storybook/package@workspace:package"],
 
-    "@storybook/archetypes": ["@storybook/archetypes@workspace:archetypes"],
+    "@storybook/repo": ["@storybook/repo@workspace:repo"],
 
-    "@storybook/hmr": ["@storybook/hmr@workspace:hmr"],
-
-    "@storybook/route": ["@storybook/route@workspace:route"],
+    "@storybook/route": ["@storybook/route@workspace:package/route"],
 
     "@storybook/tech": ["@storybook/tech@workspace:tech"],
 
     "@tech/build": ["@tech/build@workspace:tech/build"],
 
     "@tech/hmr": ["@tech/hmr@workspace:tech/hmr"],
+
+    "@tech/http": ["@tech/http@workspace:tech/http"],
+
+    "@tech/limits": ["@tech/limits@workspace:tech/limits"],
+
+    "@tech/mcp": ["@tech/mcp@workspace:tech/mcp"],
 
     "@tech/process": ["@tech/process@workspace:tech/process"],
 
@@ -643,6 +1421,8 @@
 
     "@typescript/typescript-win32-x64": ["@typescript/typescript-win32-x64@7.0.2", "", { "os": "win32", "cpu": "x64" }, "sha512-0BQ3HkAHHlKLSp1qRvf3SUhGpGsDuhB/jgFw75guyqbxJqEaS0Cw/VFO8i2nHglJUzQCRtMMR/IBAKE3ETMC4g=="],
 
+    "@web/scenario": ["@web/scenario@workspace:app/web/scenario"],
+
     "@webgpu/types": ["@webgpu/types@0.1.74", "", {}, "sha512-lgiI4hbuLcI9unnm2cL/tvCaQU45dp0xcLWJh5uB/9MBGvIA4F8XIk7nSiBeg+K4xWGYwgZKn80LmERI5CxoTA=="],
 
     "@zavx0z/browser": ["@zavx0z/browser@link:@zavx0z/browser", {}],
@@ -661,9 +1441,7 @@
 
     "@zavx0z/space": ["@zavx0z/space@link:@zavx0z/space", {}],
 
-    "@zavx0z/storybook-browser-lifecycle": ["@zavx0z/storybook-browser-lifecycle@workspace:browser-lifecycle"],
-
-    "@zavx0z/storybook-mcp": ["@zavx0z/storybook-mcp@workspace:mcp"],
+    "@zavx0z/storybook-browser-lifecycle": ["@zavx0z/storybook-browser-lifecycle@workspace:app/server/browser"],
 
     "@zavx0z/template": ["@zavx0z/template@link:@zavx0z/template", {}],
 

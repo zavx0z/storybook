@@ -1,0 +1,48 @@
+import type {PackageRevision} from "@package/revision"
+import type {
+  StorybookPackageActivation,
+  StorybookPackageBuildDemand,
+  StorybookPackageBuildDescriptor,
+  StorybookPackageDiagnostic,
+  StorybookPackageSessionOptions,
+  StorybookPackageSessionSnapshot,
+} from "./types"
+
+/** Публичный контракт одного независимо обновляемого пакета. */
+export declare namespace PackageSession {
+  /** Дескриптор пакета и предоставленные возможности подготовки ревизии. */
+  export type Input = [descriptor: StorybookPackageBuildDescriptor, options: StorybookPackageSessionOptions]
+
+  /** Управление одним пакетом, его ревизиями, проверками и lease. */
+  export interface Output {
+    readonly packageId: string
+    readonly descriptor: StorybookPackageBuildDescriptor
+    setResolutionError(message: string | null): void
+    reconfigure(descriptor: StorybookPackageBuildDescriptor): boolean
+    snapshot(): StorybookPackageSessionSnapshot
+    revalidateInputs(): boolean
+    subscribe(): () => void
+    build(demand?: StorybookPackageBuildDemand): Promise<StorybookPackageSessionSnapshot>
+    retryFailed(): boolean
+    ensureBuilt(demand?: StorybookPackageBuildDemand): Promise<StorybookPackageSessionSnapshot>
+    beginActivation(input: Readonly<{revision: string, viewId: string, route: string, timeoutMs?: number}>): StorybookPackageActivation
+    acknowledgeActivation(input: Readonly<{
+      revision: string
+      activationId: string
+      viewId: string
+      route: string
+      packageGraphDigest: string
+      frameSequence: number
+    }>): StorybookPackageSessionSnapshot
+    failActivation(input: Readonly<{
+      revision: string
+      activationId: string
+      diagnostic: StorybookPackageDiagnostic | readonly StorybookPackageDiagnostic[]
+    }>): StorybookPackageSessionSnapshot
+    acquireRevisionLease(revision: string, leaseId?: string): Readonly<{leaseId: string, revision: string, release(): void}>
+    revisionGraphSnapshot(revision: string): ReturnType<PackageRevision.Output["create"]> | null
+    revisionInputsMatch(revision: string): boolean
+    revisionDirectory(revision?: string | null): string | null
+    dispose(): Promise<void>
+  }
+}

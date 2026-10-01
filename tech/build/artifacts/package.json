@@ -1,0 +1,11 @@
+{
+  "name": "@build/artifacts",
+  "label": "Неизменяемые артефакты",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Компилирует связанный граф и публикует файлы с проверкой SHA-256",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

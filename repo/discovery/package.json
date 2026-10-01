@@ -1,0 +1,23 @@
+{
+  "name": "@repo/discovery",
+  "label": "Обнаружение репозитория",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Читает физические пакеты, workspaces и публичные директории без деклараций Storybook",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@immersive/typedoc": "^0.0.0",
+    "typescript": "^7.0.2",
+    "@route/directories": "workspace:*",
+    "@route/ignored": "workspace:*",
+    "@archetypes/package-documentation": "workspace:*",
+    "@route/workspaces": "workspace:*",
+    "@package/identity": "workspace:*"
+  },
+  "devDependencies": {
+    "@package-graph/create": "workspace:*"
+  }
+}

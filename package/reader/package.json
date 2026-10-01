@@ -1,0 +1,26 @@
+{
+  "name": "@archetypes/package",
+  "label": "Пакет",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Объясняет и проверяет назначение пакета, принадлежность публичных входов и наличие их контрактов",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "test:package": "bun test ./spec --test-name-pattern '^Архетип пакета(?: |$)'"
+  },
+  "dependencies": {
+    "typescript": "^7.0.2",
+    "@build/compiler": "workspace:*",
+    "@archetypes/package-index": "workspace:*",
+    "@archetypes/package-documentation": "workspace:*",
+    "@route/workspaces": "workspace:*",
+    "@archetypes/package-json": "workspace:*"
+  },
+  "devDependencies": {
+    "@archetypes/domain": "workspace:*",
+    "@archetypes/scenario-reader": "workspace:*"
+  }
+}

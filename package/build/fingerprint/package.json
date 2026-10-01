@@ -1,0 +1,20 @@
+{
+  "name": "@package-build/fingerprint",
+  "label": "Проверка отпечатка",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Сравнивает сохранённые входы ревизии с текущими без запуска compiler worker",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@package-build/plan": "workspace:*",
+    "@build/environment": "workspace:*",
+    "@build/inputs": "workspace:*",
+    "@package/session": "workspace:*"
+  },
+  "devDependencies": {
+    "@package/revision": "workspace:*"
+  }
+}

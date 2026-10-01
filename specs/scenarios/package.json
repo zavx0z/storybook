@@ -1,0 +1,17 @@
+{
+  "name": "@archetypes/scenario-guide",
+  "description": "Раскрывает руководство по исполняемому сценарию",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@archetypes/scenario-reader": "workspace:*",
+    "@archetypes/scenario-document": "workspace:*"
+  },
+  "devDependencies": {
+    "@specs/guide": "workspace:*"
+  }
+}

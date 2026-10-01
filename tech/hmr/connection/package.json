@@ -5,5 +5,7 @@
   "private": true,
   "type": "module",
   "description": "Восстанавливает подписку страницы с новым соединением и освобождает обработчики",
-  "exports": {".": "./index.ts"}
+  "exports": {
+    ".": "./index.ts"
+  }
 }

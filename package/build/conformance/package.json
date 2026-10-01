@@ -1,0 +1,16 @@
+{
+  "name": "@package-build/conformance",
+  "label": "Проверка пакета",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Нормативный сценарий Package и интерпретация его отчёта",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@package/standard": "workspace:*",
+    "@package/session": "workspace:*",
+    "@archetypes/scenario-reader": "workspace:*"
+  }
+}

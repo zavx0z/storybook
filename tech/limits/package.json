@@ -1,0 +1,11 @@
+{
+  "name": "@tech/limits",
+  "label": "Лимиты исполнения",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Конечные бюджеты процессов компиляции и запуска",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

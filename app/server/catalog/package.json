@@ -1,0 +1,22 @@
+{
+  "name": "@app-server/catalog",
+  "label": "Каталог приложения",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@repo/discovery": "workspace:*",
+    "@package-graph/create": "workspace:*",
+    "@package-graph/read": "workspace:*",
+    "@package/session": "workspace:*",
+    "@package-build/descriptor": "workspace:*",
+    "@package/revision": "workspace:*"
+  },
+  "devDependencies": {
+    "@zavx0z/ui": "^0.0.0"
+  },
+  "description": "Атомарно обновляет каталог подключённых владельцев и производный граф приложения"
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@scenario/inspector",
+  "label": "Инспектор сценария",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Показывает исходник и выбор варианта",
+  "exports": {
+    ".": "./index.tsx"
+  },
+  "dependencies": {
+    "@zavx0z/component": "^0.0.0",
+    "@zavx0z/ui": "^0.0.0",
+    "@scenario/model": "workspace:*"
+  },
+  "devDependencies": {
+    "@immersive/headless": "^0.0.0"
+  }
+}

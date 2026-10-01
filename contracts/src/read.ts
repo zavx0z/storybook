@@ -1,9 +1,12 @@
+import RouteIgnoredOwner from "@route/ignored"
+const readRouteIgnored = RouteIgnoredOwner
 import {createHash} from "node:crypto"
 import {lstat, readFile} from "node:fs/promises"
 import {resolve} from "node:path"
 import {API} from "typescript/unstable/async"
-import type {ReadPackageOutput} from "@archetypes/package"
-import {readRouteIgnored} from "@storybook/route/ignored"
+import {type ArchetypesPackage} from "@archetypes/package"
+/** Форма из публичного пространства исходного владельца. */
+type ReadPackageOutput = ArchetypesPackage.Output
 import type {ArchetypesContracts} from "../contract"
 import {diagnose, inside, rememberSource, type Context} from "./context"
 import {readNamespace} from "./namespaces"

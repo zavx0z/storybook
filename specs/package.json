@@ -1,0 +1,21 @@
+{
+  "name": "@archetypes/specs",
+  "label": "Спецификации",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Зависимости, контракты, сценарии и фикстуры спецификаций",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@archetypes/spec-reader": "workspace:*",
+    "@archetypes/scenario-reader": "workspace:*",
+    "@archetypes/scenario-validation": "workspace:*",
+    "@specs/guide": "workspace:*",
+    "@archetypes/scenario-guide": "workspace:*",
+    "@archetypes/scenario-document": "workspace:*",
+    "@mcp-rest/scenarios": "workspace:*",
+    "@mcp-rest/package": "workspace:*"
+  }
+}

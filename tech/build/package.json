@@ -11,6 +11,9 @@
   "dependencies": {
     "@build/queue": "workspace:*",
     "@build/inputs": "workspace:*",
-    "@build/worker": "workspace:*"
+    "@build/worker": "workspace:*",
+    "@build/compiler": "workspace:*",
+    "@build/artifacts": "workspace:*",
+    "@build/environment": "workspace:*"
   }
 }

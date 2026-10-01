@@ -1,0 +1,15 @@
+{
+  "name": "@route/structure",
+  "label": "Структура маршрута",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Читает package.json и workspace branches для физического структурного маршрута",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@route/workspaces": "workspace:*",
+    "@route/ignored": "workspace:*"
+  }
+}

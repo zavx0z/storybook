@@ -8,12 +8,9 @@
 */
 import readBoundedChildStream from "./src/read-bounded"
 import {signalOwnedProcess, confirmOwnedProcessGroupExit, ownedProcessGroupExists, isMissingProcessError, isProcessPermissionError} from "./src/lifecycle"
-import type {OwnedChildWaitInput} from "./contract/input"
-import type {OwnedChildResult} from "./contract/output"
+import type {ProcessWait} from "./contract"
 
-export type {OwnedChildWaitInput} from "./contract/input"
-export type {OwnedChildResult} from "./contract/output"
-export type {OwnedChildHandle, OwnedChildStdoutReader} from "./contract/child"
+export type {ProcessWait} from "./contract"
 
 /**
 Ожидает переданный дочерний процесс и подтверждает его завершение при успехе, отмене и таймауте.
@@ -30,8 +27,8 @@ export type {OwnedChildHandle, OwnedChildStdoutReader} from "./contract/child"
 @throws Ошибка неверной привязки detached группы, чтения вывода или подтверждения завершения.
 */
 export default async function waitForOwnedChild(
-  input: OwnedChildWaitInput,
-): Promise<OwnedChildResult> {
+  input: ProcessWait.Input,
+): Promise<ProcessWait.Output> {
   const hardKillDelayMs = input.hardKillDelayMs ?? 250
   const outputLimit = input.outputLimit ?? 64 * 1024
   if (!Number.isFinite(input.timeoutMs) || input.timeoutMs <= 0) {

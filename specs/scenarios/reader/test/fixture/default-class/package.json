@@ -1,0 +1,8 @@
+{
+  "name": "@fixture/default-class",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

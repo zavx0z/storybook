@@ -1,0 +1,19 @@
+{
+  "name": "@package-build/scenarios",
+  "label": "Подготовка сценариев",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Один запуск сценариев пакета с однозначным структурным preview",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@package/session": "workspace:*",
+    "@package/standard": "workspace:*",
+    "@archetypes/scenario-reader": "workspace:*",
+    "@package-build/conformance": "workspace:*",
+    "@package-build/inputs": "workspace:*",
+    "@package-build/loader": "workspace:*"
+  }
+}

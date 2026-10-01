@@ -2,11 +2,11 @@ import {afterEach, expect, test} from "bun:test"
 import {rm} from "node:fs/promises"
 import {join, resolve} from "node:path"
 import readContainer from "@archetypes/container"
-import {readScenario} from "@storybook/app-old/scenarios"
+import readScenario from "@archetypes/scenario-reader"
 import {prepareContainerExample} from "../spec/prepare"
 
 const roots: string[] = []
-const scenario = resolve(import.meta.dir, "../../archetypes/package/spec/scenario.spec.ts")
+const scenario = resolve(import.meta.dir, "../../package/reader/spec/scenario.spec.ts")
 afterEach(async () => {
   for (const root of roots.splice(0)) await rm(root, {recursive: true, force: true})
 })

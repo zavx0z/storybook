@@ -1,12 +1,21 @@
 {
   "compilerOptions": {
-    "lib": ["ESNext", "DOM", "dom.iterable"],
-    "types": ["@webgpu/types", "bun"],
+    "lib": [
+      "ESNext",
+      "DOM",
+      "dom.iterable"
+    ],
+    "types": [
+      "@webgpu/types",
+      "bun"
+    ],
     "target": "ESNext",
     "module": "Preserve",
     "moduleDetection": "force",
     "moduleResolution": "bundler",
-    "customConditions": ["bun"],
+    "customConditions": [
+      "bun"
+    ],
     "jsx": "react-jsx",
     "jsxImportSource": "@zavx0z/jsx",
     "resolveJsonModule": true,
@@ -21,14 +30,19 @@
     "exactOptionalPropertyTypes": true
   },
   "include": [
-    "tech/**/*.ts",
-    "hmr/**/*.ts",
-    "route/**/*.ts",
+    "index.ts",
     "app/**/*.ts",
-    "app-old/**/*.ts",
-    "app-old/**/*.tsx",
-    "archetypes/**/*.ts",
-    "archetypes/**/*.tsx",
+    "app/**/*.tsx",
+    "tech/**/*.ts",
+    "tech/**/*.tsx",
+    "project/**/*.ts",
+    "project/**/*.tsx",
+    "repo/**/*.ts",
+    "repo/**/*.tsx",
+    "package/**/*.ts",
+    "package/**/*.tsx",
+    "specs/**/*.ts",
+    "specs/**/*.tsx",
     "domain/**/*.ts",
     "domain/**/*.tsx",
     "component/**/*.ts",
@@ -37,23 +51,19 @@
     "container/**/*.tsx",
     "contracts/**/*.ts",
     "contracts/**/*.tsx",
-    "catalog/**/*.ts",
-    "discovery/**/*.ts",
-    "build/**/*.ts",
-    "sessions/**/*.ts",
-    "runtime/**/*.ts",
-    "runtime/**/*.tsx",
-    "workbench/**/*.ts",
-    "workbench/**/*.tsx",
-    "server/**/*.ts",
+    "typedoc/**/*.ts",
+    "typedoc/**/*.tsx",
     "tests/**/*.ts",
-    "src/**/*.ts",
-    "src/**/*.tsx",
+    "tests/**/*.tsx",
     "scripts/**/*.ts",
+    "scripts/**/*.tsx",
     ".agents/hooks/**/*.ts",
-    "typedoc/**/*.ts"
+    ".agents/hooks/**/*.tsx"
   ],
-  "exclude": ["dist", "node_modules", ".refactor-audit",
-    "app-old/tmp"
+  "exclude": [
+    "dist",
+    "node_modules",
+    ".refactor-audit",
+    "app/web/notes/drafts"
   ]
 }

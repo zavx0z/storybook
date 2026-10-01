@@ -1,0 +1,19 @@
+{
+  "name": "@package/revision",
+  "label": "Ревизия пакета",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Строит и проверяет неизменяемую проекцию графа и ресурсов одной ревизии пакета",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@zavx0z/ui": "^0.0.0",
+    "@package-graph/read": "workspace:*",
+    "@package-graph/create": "workspace:*"
+  },
+  "devDependencies": {
+    "@repo/discovery": "workspace:*"
+  }
+}

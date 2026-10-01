@@ -9,13 +9,12 @@ Domain организует предметную область, её прави
 */
 import {basename, resolve} from "node:path"
 import readPackage from "@archetypes/package"
-import type {ReadDomainInput} from "./contract/input"
-import type {ReadDomainOutput} from "./contract/output"
+import type {ArchetypesDomain} from "./contract"
 
-export type {ReadDomainInput, ReadDomainOutput}
+export type {ArchetypesDomain} from "./contract"
 
 /** Читает принадлежность кода и необязательные сценарии, не исполняя код проверяемого домена. */
-export default async function readDomain({path}: ReadDomainInput): Promise<ReadDomainOutput> {
+export default async function readDomain({path}: ArchetypesDomain.Input): Promise<ArchetypesDomain.Output> {
   const description = await readPackage({path})
   const owners = new Set(description.packages.map(item => item.path))
   const localCode: string[] = []

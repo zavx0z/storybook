@@ -2,8 +2,10 @@ import {describe, expect, test} from "bun:test"
 import {existsSync, mkdirSync, readdirSync, writeFileSync} from "node:fs"
 import {join, relative} from "node:path"
 import runBuildWorker from "@build/worker"
-import type {BuildWorkerLifecycleEvent} from "@build/worker"
+import type {BuildWorker} from "@build/worker"
 import {prepareWorkerFixture} from "../fixtures/prepare"
+
+type LifecycleEvent = Parameters<NonNullable<BuildWorker.Input<unknown, unknown>["onLifecycle"]>>[0]
 
 describe("Временная область и результат", () => {
   test("относительный temporaryRoot не зависит от cwd дочернего процесса", async () => {
@@ -48,7 +50,7 @@ describe("Временная область и результат", () => {
 
   test("Observer exceptions не меняют lifecycle и outcome", async () => {
     const fixture = prepareWorkerFixture({result: {ok: true}})
-    const lifecycle: BuildWorkerLifecycleEvent[] = []
+    const lifecycle: LifecycleEvent[] = []
     const progress: string[] = []
     try {
       const result = await runBuildWorker({...fixture.input,
@@ -79,7 +81,7 @@ describe("Временная область и результат", () => {
     {name: "oversized JSON", mode: "large" as const, limit: 128, expected: "result exceeds limit"},
   ])("Ошибка $name сохраняется после child exit и cleanup", async ({mode, limit, expected}) => {
     const fixture = prepareWorkerFixture({resultMode: mode})
-    const lifecycle: BuildWorkerLifecycleEvent[] = []
+    const lifecycle: LifecycleEvent[] = []
     try {
       const failure = await runBuildWorker({
         ...fixture.input,

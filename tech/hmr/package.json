@@ -5,7 +5,9 @@
   "private": true,
   "type": "module",
   "description": "Замена исполнения с откатом и восстановление соединения обновлений",
-  "exports": {".": "./index.ts"},
+  "exports": {
+    ".": "./index.ts"
+  },
   "dependencies": {
     "@hmr/page": "workspace:*",
     "@hmr/connection": "workspace:*"

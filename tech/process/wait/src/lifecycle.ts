@@ -1,4 +1,6 @@
-import type {OwnedChildWaitInput} from "../contract/input"
+import type {ProcessWait} from "../contract"
+
+type OwnedChildWaitInput = ProcessWait.Input
 
 /** Отправляет сигнал переданному handle либо detached группе с тем же корневым PID. */
 export function signalOwnedProcess(

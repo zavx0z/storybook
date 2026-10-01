@@ -1,0 +1,14 @@
+{
+  "name": "@package/identity",
+  "label": "Идентичность пакета",
+  "description": "Проверяет имена пакетов и публичных экспортов",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "devDependencies": {
+    "@zavx0z/dom": "^0.0.0"
+  }
+}

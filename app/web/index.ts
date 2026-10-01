@@ -1,12 +1,14 @@
 /**
 Управляет подготовкой и публикацией Web-интерфейса в готовой среде.
 Все инициаторы наблюдают одну операцию; публикация передаёт результат HMR
-открытых страниц. Перенос самих браузерных представлений ещё не завершён.
+открытых страниц. Исходные браузерные входы публикуются самим Web-владельцем.
 
 @packageDocumentation
 */
+import WebBuild from "@app-web/build"
 import type {AppWeb} from "./contract"
 export type {AppWeb} from "./contract"
+
 
 /**
 Управляет явным выпуском Web через предоставленные возможности сборщика.
@@ -31,7 +33,7 @@ try {
 }
 ```
 */
-export default function createWeb<Prepared>(input: AppWeb.Input<Prepared>): AppWeb.Output {
+function createWeb<Prepared>(input: AppWeb.Input<Prepared>): AppWeb.Output {
   type State = ReturnType<AppWeb.Output["read"]>
   const lifetime = new AbortController()
   const listeners = new Set<(state: State) => void>()
@@ -53,10 +55,7 @@ export default function createWeb<Prepared>(input: AppWeb.Input<Prepared>): AppW
       apply ||= options.apply === true
       if (pending !== null) return pending
       pending = Promise.resolve().then(async () => {
-        lifetime.signal.throwIfAborted()
-        const candidate = await input.prepare(lifetime.signal)
-        lifetime.signal.throwIfAborted()
-        const versions = Object.freeze(input.versions(candidate).map(version => Object.freeze({...version})))
+        const {candidate, versions} = await WebBuild.prepare(input, lifetime.signal)
         update({phase: "prepared", versions})
         if (apply) {
           update({phase: "publishing"})
@@ -89,3 +88,6 @@ export default function createWeb<Prepared>(input: AppWeb.Input<Prepared>): AppW
     },
   })
 }
+
+/** Физические входы Web для выпуска статичной оболочки и пакетных страниц. */
+export default Object.assign(createWeb, {sources: WebBuild.sources})

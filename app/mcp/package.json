@@ -4,8 +4,18 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Взаимодействие агента с предметными возможностями Storybook через MCP",
+  "description": "Lazy-инструмент Storybook и предметное REST-чтение одного каталога",
   "exports": {
     ".": "./index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.0.0",
+    "zod": "^4.4.3",
+    "@app-mcp/proxy": "workspace:*",
+    "@app-mcp/response": "workspace:*",
+    "@mcp/rest": "workspace:*"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.0.0"
   }
 }

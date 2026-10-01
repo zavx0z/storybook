@@ -1,0 +1,17 @@
+{
+  "name": "@package/resources",
+  "label": "Ресурсы пакета",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@immersive/markdown": "^0.0.0"
+  },
+  "devDependencies": {
+    "@archetypes/package-documentation": "workspace:*"
+  },
+  "description": "Разрешает исходник документации и явно связанные локальные ресурсы в границах владельца"
+}

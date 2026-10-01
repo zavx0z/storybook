@@ -5,22 +5,30 @@ import {join, resolve} from "node:path"
 const root = resolve(import.meta.dir, "..")
 
 describe("external @zavx0z/storybook tool boundary", () => {
-  test("publishes one CLI and no consumer code API", async () => {
+  test("publishes one application script and no consumer code API", async () => {
     const manifest = await Bun.file(join(root, "package.json")).json() as Record<string, any>
     expect(manifest.private).toBeTrue()
     expect(manifest.exports).toBeUndefined()
-    expect(manifest.bin).toEqual({storybook: "./scripts/storybook.ts"})
+    expect(manifest.bin).toBeUndefined()
     expect(manifest.peerDependencies).toBeUndefined()
     expect(manifest.peerDependenciesMeta).toBeUndefined()
-    expect(manifest.scripts.storybook).toBe("bun scripts/storybook.ts")
-    expect(manifest.scripts.serve).toBe("bun scripts/storybook.ts serve .")
+    expect(manifest.dependencies["@storybook/app"]).toBe("workspace:*")
+    expect(manifest.scripts.storybook).toContain('import createApp from "@storybook/app"')
+    expect(manifest.scripts.storybook).toContain("createApp().ensure(")
+    expect(manifest.scripts.serve).toBe("bun run storybook")
   })
 
   test("runs multi-package isolation in its own explicit process", async () => {
     const manifest = await Bun.file(join(root, "package.json")).json() as Record<string, any>
     const script = manifest.scripts.test as string
-    expect(script).toContain("bun test --preload @immersive/headless/preload tech hmr catalog discovery build sessions runtime workbench server tests src --max-concurrency=1")
-    expect(script).toContain("--path-ignore-patterns '**/isolation.integration.test.ts'")
+    expect(script).toContain("bun test --preload @immersive/headless/preload app tech project repo package specs domain component container contracts typedoc tests --max-concurrency=1")
+    const ignored = script.match(/--path-ignore-patterns '([^']+)'/u)?.[1]
+    expect(ignored, "Основной процесс явно исключает изолированную проверку и фикстуры").toBeDefined()
+    const paths = new Bun.Glob(ignored!)
+    expect(paths.match("tests/isolation.integration.test.ts")).toBeTrue()
+    expect(paths.match("owner/spec/fixture/scenario.spec.ts")).toBeTrue()
+    expect(paths.match("repo/discovery/fixtures/sample.test.ts")).toBeTrue()
+    expect(paths.match("tests/package-boundary.test.ts")).toBeFalse()
     expect(script).toContain("&& bun test tests/isolation.integration.test.ts --max-concurrency=1")
     expect(script).not.toContain("server.test.ts")
   })
@@ -50,11 +58,11 @@ describe("external @zavx0z/storybook tool boundary", () => {
 
   test("shared browser shell uses one public Browser Root without low-level owners", async () => {
     const sources = await Promise.all([
-      "runtime/shell.ts",
-      "runtime/landing-entry.ts",
-      "runtime/package-entry.ts",
-      "runtime/page-entry.ts",
-      "runtime/browser-entry.ts",
+      "app/web/src/runtime/shell.ts",
+      "app/web/src/runtime/home-entry.ts",
+      "app/web/src/runtime/package-entry.ts",
+      "app/web/src/runtime/page-entry.ts",
+      "app/web/src/runtime/browser-entry.ts",
     ].map((path) => Bun.file(join(root, path)).text()))
     const combined = sources.join("\n")
     expect(combined).toContain('from "@zavx0z/browser/integration"')
@@ -63,7 +71,7 @@ describe("external @zavx0z/storybook tool boundary", () => {
     expect(combined).toContain("root.document")
     expect(combined).toContain("root.space")
     expect(combined).toContain("root.viewPoint")
-    const app = await Bun.file(join(root, "runtime/application.tsx")).text()
+    const app = await Bun.file(join(root, "app/web/src/runtime/application.tsx")).text()
     expect(app).toContain("<Workbench")
     expect(combined).toContain("mountSpacePreview")
     expect(combined).not.toContain("createDocumentSpaceRuntime")

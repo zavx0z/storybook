@@ -8,14 +8,18 @@
 @packageDocumentation
 */
 import {randomUUID} from "node:crypto"
-import ProcessResourceSampler, {type ResourceSampler} from "@process/sample"
-import measureProcessResources, {type ProcessBinding, type MeasuredResources} from "@process/measure"
-import type {BuildQueueInput} from "./contract/input"
-import type {BuildQueueSnapshot} from "./contract/snapshot"
-import type {BuildAdmission, BuildCompletion, BuildContext, BuildOperation, BuildOutcome, BuildRequest, BuildResources, BuildState, BuildTransition} from "./contract/operation"
-export type {BuildQueueInput} from "./contract/input"
-export type {BuildQueueSnapshot} from "./contract/snapshot"
-export type {BuildAdmission, BuildCompletion, BuildContext, BuildOperation, BuildOutcome, BuildRequest, BuildResources, BuildState, BuildTransition} from "./contract/operation"
+import ProcessResourceSampler from "@process/sample"
+import measureProcessResources, {type ProcessMeasure} from "@process/measure"
+import type {BuildQueue as BuildQueueContract} from "./contract"
+import type {BuildCompletion, BuildOperation, BuildOutcome, BuildResources, BuildState} from "./contract/operation"
+import type {BuildAdmission, BuildContext, BuildRequest, BuildTransition} from "./src/operation"
+export type {BuildQueue} from "./contract"
+
+type BuildQueueInput = BuildQueueContract.Input
+type BuildQueueSnapshot<Details extends object> = BuildQueueContract.Output<Details>
+type ResourceSampler = Pick<InstanceType<typeof ProcessResourceSampler>, "sample">
+type ProcessBinding = ProcessMeasure.Input["binding"]
+type MeasuredResources = ProcessMeasure.Output
 
 /** Изменяемое исполнение; private process binding никогда не проецируется в snapshot. */
 type OperationRecord<Details extends object> = {

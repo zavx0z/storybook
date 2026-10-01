@@ -1,10 +1,15 @@
+import createWeb from "@app/web"
+import RouteUrlOwner from "@route/url"
+const storybookPackageUrlPath = RouteUrlOwner.storybookPackageUrlPath
+import TechLimitsOwner from "@tech/limits"
+const STORYBOOK_SHARED_COMPILE_TIMEOUT_MS = TechLimitsOwner.STORYBOOK_SHARED_COMPILE_TIMEOUT_MS
+const STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS = TechLimitsOwner.STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS
 import {afterEach, describe, expect, test} from "bun:test"
 import {mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import {storybookPackageUrlPath} from "@zavx0z/storybook-browser-lifecycle/contract"
-import {startExternalStorybookServer, type ExternalStorybookRunningServer} from "../server/server.ts"
-import {STORYBOOK_SHARED_COMPILE_TIMEOUT_MS, STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS} from "../server/timing.ts"
+import startExternalStorybookServer, {type AppServer} from "@app/server"
+type ExternalStorybookRunningServer = AppServer.Output
 
 const roots: string[] = []
 const servers: ExternalStorybookRunningServer[] = []
@@ -18,7 +23,7 @@ afterEach(async () => {
 describe("one-server structural package isolation", () => {
   isolationTest("A metadata update and failure preserve B/C revisions and A last working revision", async () => {
     const fixture = createFixture()
-    const running = await startExternalStorybookServer({
+    const running = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64),
       declarations: [fixture.projectRoot], statePath: join(fixture.root, "state/server.json"),
       artifactRoot: join(fixture.root, "artifacts"),
       browserLifecycle: {
@@ -36,13 +41,13 @@ describe("one-server structural package isolation", () => {
       body: JSON.stringify({scope: "@fixture/a", live: false}),
     })).json()
 
-    await Promise.all([running.sessions.ensure("@fixture/a"), running.sessions.ensure("@fixture/b")])
     const shared = await fetch(new URL("/api/control/check", running.origin), {
       method: "POST",
       headers: {authorization: `Bearer ${running.record.controlToken}`, "content-type": "application/json"},
       body: JSON.stringify({scope: "storybook:shared", live: true}),
     })
     expect(await shared.json()).toMatchObject({ok: true, published: true})
+    await Promise.all([running.sessions.ensure("@fixture/a"), running.sessions.ensure("@fixture/b")])
     activate(running, "@fixture/a")
     activate(running, "@fixture/b")
     const aSocket = await packageSocket(running.origin, "@fixture/a")

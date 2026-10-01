@@ -1,0 +1,566 @@
+import {beforeAll, describe, expect, test} from "bun:test"
+import {
+  createDocument,
+  CustomEvent,
+  Element,
+  Event,
+  type HTMLButtonElement,
+  type HTMLDivElement,
+  type HTMLElement,
+  KeyboardEvent,
+  MouseEvent,
+  Node,
+} from "@zavx0z/dom"
+import type {
+  Workbench,
+  WorkbenchNavigationItem,
+} from "../contract.ts"
+import {chevronDownIcon, chevronRightIcon} from "@zavx0z/ui/theme/icon"
+import {WORKBENCH_EVENTS} from "../contract.ts"
+import type {NavigationExpansion} from "./persistence.ts"
+import type * as ControllerModule from "../controller.ts"
+import {loadCompiledWorkbench} from "../../../test/fixture/compile-workbench.ts"
+
+let api: typeof ControllerModule
+
+beforeAll(async () => {
+  api = await loadCompiledWorkbench()
+}, 30_000)
+
+const groupedItems = Object.freeze([
+  {
+    id: "interfaces",
+    label: "Интерфейсы",
+    route: "dom/interfaces",
+    title: "DOM API",
+    searchText: "EventTarget Node Element",
+    group: {id: "dom", label: "DOM"},
+  },
+  {
+    id: "primitives",
+    label: "Примитивы",
+    route: "elements/primitives",
+    searchText: "HTMLDivElement HTMLButtonElement",
+    group: {id: "elements", label: "Элементы"},
+  },
+  {
+    id: "styles",
+    label: "Стили",
+    route: "elements/style",
+    group: {id: "elements", label: "Элементы"},
+  },
+] satisfies readonly WorkbenchNavigationItem[])
+
+describe("compiled Storybook catalog navigation tree", () => {
+  test("показывает имя папки пакета и оставляет его label подсказкой", () => {
+    const workbench = createWorkbench([
+      {id: "immersive", label: "immersive", title: "Immersive", route: "/immersive"},
+      {id: "engine", label: "engine", title: "Движок", route: "/immersive/engine", parentId: "immersive"},
+    ], "engine")
+    expect(findGroup(workbench, "immersive")?.querySelector('[data-tree-label]')?.textContent).toBe("immersive")
+    expect(findGroup(workbench, "immersive")?.querySelector('[data-tree-label]')?.getAttribute("title")).toBe("Immersive")
+    expect(findLeaf(workbench, "engine")?.querySelector('[data-tree-label]')?.textContent).toBe("engine")
+    expect(findLeaf(workbench, "engine")?.querySelector('[data-tree-label]')?.getAttribute("title")).toBe("Движок")
+  })
+
+  test("renders selectable repository and nested package branches with independent disclosure", () => {
+    const workbench = createWorkbench([
+      {id: "repo", label: "Repository", route: "/projects/repo/"},
+      {id: "parent", label: "Parent", route: "/browse/parent/", parentId: "repo"},
+      {id: "child", label: "Child", route: "/browse/child/", parentId: "parent"},
+    ], "child")
+    const repo = findGroup(workbench, "repo")!
+    const parent = findGroup(workbench, "parent")!
+    const child = findLeaf(workbench, "child")!
+    expect(parent.getAttribute("aria-level")).toBe("2")
+    expect(child.getAttribute("aria-level")).toBe("3")
+    const navigated: string[] = []
+    workbench.element.addEventListener(WORKBENCH_EVENTS.navigate, event => navigated.push((event as CustomEvent<{id: string}>).detail.id))
+    const label = repo.querySelector('[data-tree-row]')!
+    label.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    expect(navigated).toEqual(["repo"])
+    focusControl(child).focus()
+    repo.querySelector("button")!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    expect(repo.getAttribute("aria-expanded")).toBe("false")
+    expect(findLeaf(workbench, "child")).toBeUndefined()
+    expect(workbench.document.activeElement === repo).toBeTrue()
+    repo.querySelector("button")!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    expect(findLeaf(workbench, "child")).toBeUndefined()
+    expect(findGroup(workbench, "parent")?.getAttribute("aria-expanded")).toBe("false")
+    clickGroup(findGroup(workbench, "parent")!)
+    expect(findLeaf(workbench, "child") === child).toBeTrue()
+    expect(navigated).toEqual(["repo"])
+  })
+
+  test("creates explicit group rows, child groups and active leaves", () => {
+    const workbench = createWorkbench(groupedItems, "primitives")
+    expect(workbench.elements.catalogItems.getAttribute("role")).toBe("tree")
+    expect(groupRows(workbench).map((row) => row.getAttribute("aria-label"))).toEqual([
+      "DOM",
+      "Элементы",
+    ])
+    expect(groupRows(workbench).map((row) => row.getAttribute("aria-expanded"))).toEqual([
+      "true",
+      "true",
+    ])
+    expect(groupRows(workbench).map((row) => row.querySelector('[data-tree-label]')?.textContent)).toEqual([
+      "DOM",
+      "Элементы",
+    ])
+    expect(groupRows(workbench).map((row) =>
+      focusControl(row).querySelector("img")?.getAttribute("src"))).toEqual([
+      chevronDownIcon,
+      chevronDownIcon,
+    ])
+    expect(groupContainers(workbench).every((group) => group.getAttribute("role") === "group"))
+      .toBeTrue()
+    expect(groupContainers(workbench).every((group) =>
+      (group.parentNode as Element | null)?.getAttribute("role") === "treeitem")).toBeTrue()
+    expect(leafRows(workbench).map((row) => row.textContent)).toEqual([
+      "Интерфейсы",
+      "Примитивы",
+      "Стили",
+    ])
+    expect(findLeaf(workbench, "interfaces")?.getAttribute("aria-level")).toBe("2")
+    expect(findLeaf(workbench, "primitives")?.getAttribute("aria-current")).toBe("page")
+    expect(findLeaf(workbench, "styles")?.getAttribute("aria-current")).toBeNull()
+  })
+
+  test("preserves keyed group and leaf identity across reorder and metadata updates", () => {
+    const workbench = createWorkbench(groupedItems)
+    const domGroup = findGroup(workbench, "dom")!
+    const elementsGroup = findGroup(workbench, "elements")!
+    const interfaces = findLeaf(workbench, "interfaces")!
+    const styles = findLeaf(workbench, "styles")!
+
+    workbench.update("catalog.items", [
+      {...groupedItems[2]!, label: "CSS"},
+      {...groupedItems[1]!, label: "HTML элементы"},
+      {...groupedItems[0]!, label: "DOM интерфейсы"},
+    ])
+
+    expect(groupRows(workbench).map(row => row.getAttribute("data-tree-id"))).toEqual(["group:elements", "group:dom"])
+    expect(findLeaf(workbench, "interfaces") === interfaces).toBeTrue()
+    expect(findLeaf(workbench, "styles") === styles).toBeTrue()
+    expect(interfaces.textContent).toBe("DOM интерфейсы")
+    expect(styles.textContent).toBe("CSS")
+
+    clickGroup(elementsGroup)
+    workbench.update("catalog.items", [groupedItems[0]!, groupedItems[2]!, groupedItems[1]!])
+    expect(findGroup(workbench, "elements") === elementsGroup).toBeTrue()
+    expect(elementsGroup.getAttribute("aria-expanded")).toBe("false")
+
+    workbench.update("catalog.items", [groupedItems[0]!])
+    workbench.update("catalog.items", groupedItems)
+    expect(findGroup(workbench, "elements")?.getAttribute("aria-expanded")).toBe("false")
+  })
+
+  test("toggles only the selected group by pointer and never navigates from its row", () => {
+    const workbench = createWorkbench(groupedItems)
+    const events: Array<Readonly<{type: string; detail: unknown}>> = []
+    for (const type of [
+      WORKBENCH_EVENTS.navigate,
+      WORKBENCH_EVENTS.groupToggle,
+    ]) {
+      workbench.element.addEventListener(type, (event) => {
+        events.push({type, detail: (event as CustomEvent).detail})
+      })
+    }
+    const dom = findGroup(workbench, "dom")!
+    const elements = findGroup(workbench, "elements")!
+    const domDisclosure = focusControl(dom).querySelector("img")!
+    expect(domDisclosure.getAttribute("src")).toBe(chevronDownIcon)
+
+    clickGroup(dom)
+    expect(dom.getAttribute("aria-expanded")).toBe("false")
+    expect(focusControl(dom).querySelector("img") === domDisclosure).toBeTrue()
+    expect(domDisclosure.getAttribute("src")).toBe(chevronRightIcon)
+    expect(elements.getAttribute("aria-expanded")).toBe("true")
+    expect(events).toEqual([{
+      type: "storybookgrouptoggle",
+      detail: {kind: "catalog", id: "dom", collapsed: true},
+    }])
+    expect(workbench.controller.read("catalog.active")).toBeNull()
+
+    clickGroup(dom)
+    expect(dom.getAttribute("aria-expanded")).toBe("true")
+    expect(focusControl(dom).querySelector("img") === domDisclosure).toBeTrue()
+    expect(domDisclosure.getAttribute("src")).toBe(chevronDownIcon)
+    expect(events.at(-1)).toEqual({
+      type: "storybookgrouptoggle",
+      detail: {kind: "catalog", id: "dom", collapsed: false},
+    })
+  })
+
+  test("восстанавливает свёрнутые ветви в новом Workbench", () => {
+    let collapsedIds: readonly string[] = []
+    const expansion = (): NavigationExpansion => ({
+      initialCollapsedIds: collapsedIds,
+      save(ids) { collapsedIds = [...ids] },
+    })
+    const first = createWorkbench(groupedItems, null, expansion())
+    clickGroup(findGroup(first, "elements")!)
+    expect(collapsedIds).toEqual(["elements"])
+    first.dispose()
+
+    const restored = createWorkbench(groupedItems, null, expansion())
+    try {
+      expect(findGroup(restored, "elements")?.getAttribute("aria-expanded")).toBe("false")
+      expect(findGroup(restored, "dom")?.getAttribute("aria-expanded")).toBe("true")
+    } finally { restored.dispose() }
+  })
+
+  test("сворачивание родителя рекурсивно сворачивает потомков и сохраняет их состояние", () => {
+    let collapsedIds: readonly string[] = []
+    const expansion = (): NavigationExpansion => ({
+      initialCollapsedIds: collapsedIds,
+      save(ids) { collapsedIds = [...ids] },
+    })
+    const items = [
+      {id: "repo", label: "Repository", route: "/projects/repo/"},
+      {id: "package", label: "Package", route: "/browse/package/", parentId: "repo"},
+      {id: "directory", label: "Directory", route: "/browse/directory/", parentId: "package"},
+      {id: "subject", label: "Subject", route: "/browse/subject/", parentId: "directory"},
+    ] as const
+    const first = createWorkbench(items, "subject", expansion())
+    clickGroup(findGroup(first, "repo")!)
+    expect(collapsedIds).toEqual(["repo", "package", "directory"])
+    clickGroup(findGroup(first, "repo")!)
+    expect(findGroup(first, "package")?.getAttribute("aria-expanded")).toBe("false")
+    expect(collapsedIds).toEqual(["package", "directory"])
+    first.dispose()
+
+    const restored = createWorkbench(items, "subject", expansion())
+    try {
+      expect(findGroup(restored, "repo")?.getAttribute("aria-expanded")).toBe("true")
+      expect(findGroup(restored, "package")?.getAttribute("aria-expanded")).toBe("false")
+    } finally { restored.dispose() }
+  })
+
+  test("кнопки рядом с поиском управляют полным деревом и находят текущую страницу", () => {
+    let collapsedIds: readonly string[] = []
+    const workbench = createWorkbench([
+      {id: "repo", label: "Repository", route: "/projects/repo/"},
+      {id: "package", label: "Package", route: "/browse/package/", parentId: "repo"},
+      {id: "subject", label: "Subject", route: "/browse/subject/", parentId: "package"},
+      {id: "other", label: "Other", route: "/browse/other/"},
+    ], "subject", {initialCollapsedIds: [], save(ids) { collapsedIds = [...ids] }})
+    const toolbar = workbench.element.querySelector('[data-storybook-part="catalog-search"]') as Element
+    const button = (label: string): HTMLButtonElement => {
+      const result = toolbar.querySelector(`button[aria-label="${label}"]`) as HTMLButtonElement | null
+      if (result === null) throw new Error(`Missing toolbar button: ${label}`)
+      return result
+    }
+    expect(button("Найти текущую страницу в дереве")).toBeDefined()
+    workbench.update("catalog.search", "Other")
+    button("Свернуть всё дерево").dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    expect(collapsedIds).toEqual(["repo", "package"])
+    expect(findLeaf(workbench, "subject")).toBeUndefined()
+    workbench.update("catalog.search", "")
+    button("Развернуть всё дерево").dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    expect(collapsedIds).toEqual([])
+    expect(findLeaf(workbench, "subject")).toBeDefined()
+
+    button("Свернуть всё дерево").dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    workbench.update("catalog.search", "Other")
+    button("Найти текущую страницу в дереве").dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    expect(workbench.controller.read("catalog.search")).toBe("")
+    expect(findGroup(workbench, "repo")?.getAttribute("aria-expanded")).toBe("true")
+    expect(findGroup(workbench, "package")?.getAttribute("aria-expanded")).toBe("true")
+    expect(findLeaf(workbench, "subject")?.getAttribute("aria-current")).toBe("page")
+    expect(collapsedIds).toEqual([])
+  })
+
+  test("implements visible-row keyboard navigation and tree disclosure rules", () => {
+    const items = [
+      groupedItems[0]!,
+      {...groupedItems[1]!, disabled: true},
+      groupedItems[2]!,
+    ] as const
+    const workbench = createWorkbench(items, "interfaces")
+    const dom = findGroup(workbench, "dom")!
+    const interfaces = findLeaf(workbench, "interfaces")!
+    const elements = findGroup(workbench, "elements")!
+    const styles = findLeaf(workbench, "styles")!
+    focusControl(interfaces).focus()
+
+    press(interfaces, "ArrowDown")
+    expect((workbench.document.activeElement as HTMLElement).getAttribute("data-tree-id")).toBe("group:elements")
+    press(elements, "ArrowRight")
+    expect((workbench.document.activeElement as HTMLElement).getAttribute("data-tree-id")).toBe("styles")
+    press(styles, "ArrowLeft")
+    expect((workbench.document.activeElement as HTMLElement).getAttribute("data-tree-id")).toBe("group:elements")
+    press(elements, "ArrowLeft")
+    expect(elements.getAttribute("aria-expanded")).toBe("false")
+    press(elements, "ArrowRight")
+    expect(elements.getAttribute("aria-expanded")).toBe("true")
+    press(elements, "End")
+    expect((workbench.document.activeElement as HTMLElement).getAttribute("data-tree-id")).toBe("styles")
+    press(styles, "Home")
+    expect((workbench.document.activeElement as HTMLElement).getAttribute("data-tree-id")).toBe("group:dom")
+    press(dom, "Enter")
+    expect(dom.getAttribute("aria-expanded")).toBe("false")
+    press(dom, " ")
+    expect(dom.getAttribute("aria-expanded")).toBe("true")
+  })
+
+  test("repairs focus to the parent group when a focused child is collapsed", () => {
+    const workbench = createWorkbench(groupedItems)
+    const group = findGroup(workbench, "elements")!
+    const child = findLeaf(workbench, "styles")!
+    focusControl(child).focus()
+    expect((workbench.document.activeElement as HTMLElement).getAttribute("data-tree-id")).toBe("styles")
+
+    clickGroup(group)
+    expect(group.getAttribute("aria-expanded")).toBe("false")
+    expect((workbench.document.activeElement as HTMLElement | null)?.getAttribute("data-tree-id")).toBe("group:elements")
+    expect([...groupContainers(workbench)[1]!.querySelectorAll('[role="treeitem"]')]
+      .filter(row => !row.hasAttribute("hidden"))).toHaveLength(0)
+  })
+
+  test("exposes disabled leaves while skipping and never activating them", () => {
+    const workbench = createWorkbench([
+      groupedItems[0]!,
+      {...groupedItems[1]!, disabled: true},
+      groupedItems[2]!,
+    ], "interfaces")
+    const disabled = findLeaf(workbench, "primitives")!
+    const interfaces = findLeaf(workbench, "interfaces")!
+    const elements = findGroup(workbench, "elements")!
+    const styles = findLeaf(workbench, "styles")!
+    const navigations: unknown[] = []
+    workbench.element.addEventListener(WORKBENCH_EVENTS.navigate, (event) => {
+      navigations.push((event as CustomEvent).detail)
+    })
+
+    const disabledRow = disabled.querySelector('[data-tree-row]') as HTMLElement
+    expect(disabled.getAttribute("aria-disabled")).toBe("true")
+    disabledRow.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    expect(navigations).toEqual([])
+    focusControl(interfaces).focus()
+    press(interfaces, "ArrowDown")
+    expect((workbench.document.activeElement as HTMLElement).getAttribute("data-tree-id")).toBe("group:elements")
+    press(elements, "ArrowRight")
+    expect((workbench.document.activeElement as HTMLElement).getAttribute("data-tree-id")).toBe("styles")
+  })
+
+  test("searches group, label, title, route and domain aliases without changing collapse state", () => {
+    const workbench = createWorkbench(groupedItems)
+    const elements = findGroup(workbench, "elements")!
+    clickGroup(elements)
+    expect(elements.getAttribute("aria-expanded")).toBe("false")
+
+    const cases = [
+      ["DOM", ["interfaces"]],
+      ["Интерфейсы", ["interfaces"]],
+      ["DOM API", ["interfaces"]],
+      ["dom/interfaces", ["interfaces"]],
+      ["EventTarget", ["interfaces"]],
+      ["Элементы", []],
+    ] as const
+    for (const [query, ids] of cases) {
+      workbench.update("catalog.search", query)
+      expect(leafRows(workbench).map((row) => row.getAttribute("data-tree-id")), query).toEqual([...ids])
+    }
+
+    workbench.update("catalog.search", "")
+    expect(findGroup(workbench, "elements") === elements).toBeTrue()
+    expect(elements.getAttribute("aria-expanded")).toBe("false")
+    clickGroup(elements)
+    workbench.update("catalog.search", "Элементы")
+    expect(groupRows(workbench).map((row) => row.getAttribute("data-tree-id"))).toEqual(["group:elements"])
+    expect(leafRows(workbench)).toEqual([])
+    workbench.update("catalog.search", "")
+    expect(leafRows(workbench).map((row) => row.getAttribute("data-tree-id"))).toEqual([
+      "interfaces",
+      "primitives",
+      "styles",
+    ])
+  })
+
+  test("fails closed for duplicate leaves and conflicting group descriptors", () => {
+    const workbench = createWorkbench(groupedItems)
+    const before = [...workbench.elements.catalogItems.childNodes]
+    expect(() => workbench.update("catalog.items", [groupedItems[0]!, groupedItems[0]!]))
+      .toThrow("Duplicate catalog item id: interfaces")
+    expect(() => workbench.update("catalog.items", [
+      groupedItems[1]!,
+      {...groupedItems[2]!, group: {id: "elements", label: "Другие элементы"}},
+    ])).toThrow("Conflicting catalog group label for id: elements")
+    expect([...workbench.elements.catalogItems.childNodes].every((node, index) => node === before[index]) &&
+      workbench.elements.catalogItems.childNodes.length === before.length).toBeTrue()
+
+    expect(() => workbench.update("catalog.items", [{
+      id: "text",
+      label: "Text",
+      route: "text",
+      group: {id: "text", label: "Text group"},
+    }])).not.toThrow()
+    expect(findGroup(workbench, "text")).toBeDefined()
+    expect(findLeaf(workbench, "text")).toBeDefined()
+  })
+
+  test("publishes one atomic mutation batch for an interactive collapse", () => {
+    const workbench = createWorkbench(groupedItems)
+    const batches: unknown[] = []
+    workbench.document.subscribeMutations((batch) => batches.push(batch))
+
+    clickGroup(findGroup(workbench, "elements")!)
+    expect(batches).toHaveLength(1)
+    expect(findGroup(workbench, "elements")?.getAttribute("aria-expanded")).toBe("false")
+  })
+
+  test("scrolls the bounded window before sequential keyboard focus leaves its visible band", () => {
+    const workbench = createWorkbench(Array.from({length: 100}, (_, index) => ({
+      id: `row-${index}`,
+      label: `Row ${index}`,
+      route: `rows/${index}`,
+    })))
+    const first = findLeaf(workbench, "row-0")!
+    focusControl(first).focus()
+    for (let index = 0; index < 25; index++) {
+      press(workbench.document.activeElement as HTMLElement, "ArrowDown")
+    }
+
+    expect((workbench.document.activeElement as HTMLElement).closest("[data-tree-id]")?.getAttribute("data-tree-id"))
+      .toBe("row-25")
+    expect(workbench.elements.catalogItems.scrollTop).toBeGreaterThan(0)
+    expect(25 - workbench.elements.catalogItems.scrollTop / 24).toBeLessThan(20)
+  })
+
+  test("keeps a 1000-item catalog in a bounded keyed DOM projection", () => {
+    const items: readonly WorkbenchNavigationItem[] = Array.from({length: 1000}, (_, index) => ({
+      id: `item-${index}`,
+      label: `Item ${index}`,
+      route: `items/${index}`,
+      searchText: index === 777 ? "needle alias" : "common",
+      group: {id: "values", label: "Значения"},
+    }))
+    const workbench = createWorkbench(items)
+    const tree = workbench.elements.catalogItems
+    const first = findLeaf(workbench, "item-0")
+    expect(tree.getAttribute("data-tree-total")).toBe("1001")
+    expect(Number(tree.getAttribute("data-tree-materialized"))).toBeLessThan(1000)
+    expect(leafRows(workbench)).toHaveLength(79)
+
+    workbench.update("catalog.items", items.map((item, index) =>
+      index === 0 ? {...item, label: "First item"} : item))
+    expect(findLeaf(workbench, "item-0") === first).toBeTrue()
+    expect(first?.textContent).toBe("First item")
+
+    workbench.update("catalog.search", "needle")
+    expect(tree.scrollTop).toBe(0)
+    expect(tree.getAttribute("data-tree-total")).toBe("2")
+    expect(leafRows(workbench).map((row) => row.getAttribute("data-tree-id"))).toEqual(["item-777"])
+    workbench.update("catalog.search", "")
+    expect(tree.scrollTop).toBe(0)
+    const retainedFirst = findLeaf(workbench, "item-0")!
+    focusControl(retainedFirst).focus()
+    tree.scrollTop = 2400
+    tree.dispatchEvent(new Event("scroll"))
+    expect(Number(tree.getAttribute("data-tree-window-start"))).toBeGreaterThan(0)
+    expect((workbench.document.activeElement as HTMLElement).getAttribute("data-tree-id")).toBe("item-0")
+    expect(retainedFirst.isConnected).toBeTrue()
+    expect(leafRows(workbench).length).toBeLessThanOrEqual(81)
+    expect(leafRows(workbench).filter((row) => focusControl(row).tabIndex === 0).map(row => row.getAttribute("data-tree-id"))).toEqual(["item-0"])
+
+    press(retainedFirst, "End")
+    const last = findLeaf(workbench, "item-999")!
+    expect((workbench.document.activeElement as HTMLElement).getAttribute("data-tree-id")).toBe("item-999")
+    const window = Number(tree.getAttribute("data-tree-window-start"))
+    const scrollRow = tree.scrollTop / 24
+    expect(1000 - scrollRow).toBeLessThan(20)
+    expect(scrollRow).toBeGreaterThanOrEqual(window)
+    expect(scrollRow).toBeLessThan(window + 80)
+    workbench.update("catalog.active", "item-999")
+    expect(last.getAttribute("aria-current")).toBe("page")
+    expect(Number(tree.getAttribute("data-tree-materialized"))).toBeLessThanOrEqual(81)
+
+    const ungrouped = createWorkbench(items.map(({id, label, route, searchText}) => ({
+      id,
+      label,
+      route,
+      ...(searchText === undefined ? {} : {searchText}),
+    })))
+    expect(leafRows(ungrouped)).toHaveLength(80)
+
+    const manyGroups = createWorkbench(items.map((item, index) => ({
+      ...item,
+      group: {id: `group-${index}`, label: `Group ${index}`},
+    })))
+    expect(groupRows(manyGroups).length).toBeLessThan(1000)
+    expect(groupRows(manyGroups).length + leafRows(manyGroups).length).toBeLessThanOrEqual(80)
+  })
+})
+
+function createWorkbench(
+  items: readonly WorkbenchNavigationItem[],
+  active: string | null = null,
+  navigationExpansion?: NavigationExpansion,
+): Workbench {
+  const document = createDocument()
+  return api.createWorkbench({
+    document,
+    parent: document,
+    ...(navigationExpansion === undefined ? {} : {navigationExpansion}),
+    initial: {
+      "catalog.items": items,
+      "catalog.active": active,
+    },
+  })
+}
+
+function descendants(root: Node): Element[] {
+  const result: Element[] = []
+  for (const child of root.childNodes) {
+    if (!(child instanceof Element)) continue
+    result.push(child, ...descendants(child))
+  }
+  return result
+}
+
+function groupRows(workbench: Workbench): HTMLElement[] {
+  return descendants(workbench.elements.catalogItems)
+    .filter((element): element is HTMLElement => !element.hasAttribute("hidden") && element.hasAttribute("aria-expanded") &&
+      element.getAttribute("role") === "treeitem")
+}
+
+function groupContainers(workbench: Workbench): HTMLElement[] {
+  return descendants(workbench.elements.catalogItems)
+    .filter((element): element is HTMLElement => element.getAttribute("role") === "group")
+}
+
+function leafRows(workbench: Workbench): HTMLElement[] {
+  return descendants(workbench.elements.catalogItems)
+    .filter((element): element is HTMLElement => !element.hasAttribute("hidden") && element.hasAttribute("aria-selected") &&
+      element.getAttribute("role") === "treeitem")
+}
+
+function findGroup(workbench: Workbench, id: string): HTMLElement | undefined {
+  return groupRows(workbench).find((element) => element.getAttribute("data-tree-id") === `group:${id}` ||
+    element.getAttribute("data-tree-id") === id)
+}
+
+function findLeaf(workbench: Workbench, id: string): HTMLElement | undefined {
+  return leafRows(workbench).find((element) => element.getAttribute("data-tree-id") === id)
+}
+
+function clickGroup(group: HTMLElement): void {
+  const header = group.querySelector("button") as HTMLButtonElement | null
+  if (header === null) {
+    throw new Error("Catalog group toggle is missing")
+  }
+  header.dispatchEvent(new MouseEvent("click", {bubbles: true, cancelable: true}))
+}
+
+function focusControl(row: HTMLElement): HTMLElement {
+  return row
+}
+
+function press(target: HTMLElement, key: string): void {
+  target.dispatchEvent(new KeyboardEvent("keydown", {
+    bubbles: true,
+    cancelable: true,
+    key,
+  }))
+}

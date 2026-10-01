@@ -1,0 +1,14 @@
+{
+  "name": "@route/directories",
+  "label": "Директории маршрута",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Проверяет видимые физические директории ближайшего пакета",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@route/ignored": "workspace:*"
+  }
+}

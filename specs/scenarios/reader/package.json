@@ -1,0 +1,23 @@
+{
+  "name": "@archetypes/scenario-reader",
+  "label": "Читатель сценария",
+  "description": "Читает исходник, выполняет Bun Test и сохраняет полный отчёт и preview сценария",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.11.1",
+    "typescript": "^7.0.2",
+    "@archetypes/scenario-validation": "workspace:*",
+    "@build/compiler": "workspace:*"
+  },
+  "devDependencies": {
+    "@zavx0z/jsx": "^0.0.0",
+    "@immersive/headless": "^0.0.0",
+    "@archetypes/package": "workspace:*",
+    "@package-build/loader": "workspace:*"
+  }
+}

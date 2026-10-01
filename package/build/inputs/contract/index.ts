@@ -1,0 +1,26 @@
+
+/** Контракт физических входов и идентичности пакетной сборки. */
+import {type PackageSession as PackageSessionContract} from "@package/session"
+type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
+export declare namespace PackageBuildInputs {
+  /**
+  Канонизация списка source paths и проверка принадлежности пакета.
+
+  @property canonicalBuildInputs - Разрешает существующие файлы metafile
+  относительно project root и cwd, возвращая отсортированные реальные пути.
+
+  @property stablePath - Сохраняет реальную директорию файла и его исходное имя.
+
+  @property validateConsumerBoundary - Проверяет, что код подключённого пакета
+  не импортирует внешний Storybook; нарушение вызывает ошибку сборки.
+
+  @property canonicalizeIdentities - Сводит package identity к одному
+  реальному владельцу или отклоняет несовместимые пути.
+  */
+  type Output = Readonly<{
+    canonicalBuildInputs(inputs: Readonly<Record<string, unknown>>, projectRoot: string): readonly string[]
+    stablePath(path: string): string
+    validateConsumerBoundary(paths: readonly string[], descriptor: StorybookPackageBuildDescriptor, stagingDirectory: string): void
+    canonicalizeIdentities(paths: readonly string[]): readonly string[]
+  }>
+}

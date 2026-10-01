@@ -1,0 +1,14 @@
+{
+  "name": "@app-server/state",
+  "label": "Состояние сервера",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Единая запись процесса, startup lease и авторизация управляющего канала Storybook",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@http/client": "workspace:*"
+  }
+}

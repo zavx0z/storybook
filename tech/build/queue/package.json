@@ -9,7 +9,7 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@process/sample": "workspace:*",
-    "@process/measure": "workspace:*"
+    "@process/measure": "workspace:*",
+    "@process/sample": "workspace:*"
   }
 }

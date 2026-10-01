@@ -1,0 +1,20 @@
+{
+  "name": "@app-server/sessions",
+  "label": "Сессии приложения",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@package-build/scheduler": "workspace:*",
+    "@package/session": "workspace:*"
+  },
+  "devDependencies": {
+    "@app-server/catalog": "workspace:*",
+    "@repo/discovery": "workspace:*",
+    "@package/revision": "workspace:*"
+  },
+  "description": "Соединяет состав каталога с независимыми сессиями пакетов и общей очередью сборки"
+}

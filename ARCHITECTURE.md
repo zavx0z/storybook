@@ -1,8 +1,8 @@
 # Внешняя архитектура Storybook
 
-Общие принципы замысла заданы в [Основаниях](archetypes/project/notes/foundations/index.md),
-размещение ответственности — в [правилах структуры](archetypes/notes/draft-structure.md).
-Формирование целевой [предметной архитектуры](archetypes/repo/notes/architecture.md)
+Общие принципы замысла заданы в [Основаниях](./project/notes/foundations/index.md),
+размещение ответственности — в [правилах структуры](./package/notes/draft-structure.md).
+Формирование целевой [предметной архитектуры](./repo/notes/architecture.md)
 ведётся в заметке Repo.
 
 Для Storybook из этих принципов следует направление «код — знание».
@@ -48,7 +48,7 @@ one external Storybook serve process
 
 ## Owner law
 
-Границы пакетов и их авторских данных заданы в [нормативном контракте](archetypes/notes/draft-structure.md).
+Границы пакетов и их авторских данных заданы в [нормативном контракте](./package/notes/draft-structure.md).
 
 Корневой `@zavx0z/storybook` владеет discovery, validation, canonical
 graph, search/routing derived views, областями Workbench, package
@@ -72,33 +72,28 @@ reconciliation не меняет записи других пакетов и н�
 
 ## Модули и граница обнаружения
 
-Подключённые корни обрабатывает `discovery/packages.ts`. Он читает
-`package.json`, workspaces и реальные публичные директории, проверяет владение
-и возвращает `StorybookCatalog` из `catalog/catalog.t.ts`. Реестр получает
-resolver при создании; граф использует нормализованный контракт, без
-проектных `.storybook` или второго каталога.
+Подключённые корни обрабатывает [Repo Discovery](repo/discovery/index.ts).
+Он читает `package.json`, workspaces и реальные публичные директории, проверяет
+владение и возвращает `RepoDiscovery.Output`. Каталог сервера получает источник
+при создании; граф использует тот же нормализованный контракт.
 
 | Владелец | Ответственность |
 | --- | --- |
-| `discovery/` | Пакеты, workspaces, директории, TSDoc и структурные spec |
-| `catalog/` | Нормализованные типы, граф, реестр, маршруты, поиск и ресурсы документации |
-| `build/` | Входы сборки, общая тема и браузерные ресурсы |
-| `sessions/` | Ревизии пакетов, активация и доставка событий подписчикам |
-| `tech/hmr/` | Замена scope с откатом и восстановление соединения обновлений |
-| `hmr/` | Подтверждение пакетной ревизии по свидетельству страницы |
-| `runtime/` | Browser Root, структурные представления и агентский bridge |
-| `workbench/` | Навигация, области интерфейса и встроенный Inspector |
-| `server/` | HTTP/WebSocket, daemon и общий controller для CLI/MCP |
+| `repo/discovery` | Пакеты, workspaces, директории и структурные сведения |
+| `package/graph`, `package/route`, `package/resources` | Граф, адреса и ресурсы документации |
+| `package/build`, `package/revision`, `package/session`, `package/activation` | Подготовка и проверенное применение ревизий пакета |
+| `tech/build`, `tech/process`, `tech/hmr` | Компиляция, очередь, процессы, замена с откатом и восстановление связи |
+| `app/web` | Web-выпуск, Workbench и браузерный протокол |
+| `app/server` | HTTP/WebSocket, browser lifecycle, каталог и композиция независимых сессий |
+| `app/mcp`, `tech/mcp` | Предметный вход и технический MCP-транспорт |
+| `app` | Лаунчер, управление процессом и управляющие MCP-вызовы |
+| `specs` | Чтение и исполнение сценариев, полные отчёты и правила авторства |
 
-`mcp/` сохраняет транспортный адаптер. `browser-lifecycle` единолично владеет
-вкладками.
-
-`@storybook/app-old/scenarios` читает и выполняет сценарий, сохраняя полный отчёт
-для сборки, серверной диагностики и просмотра. `@storybook/app-old/spec-reader` находит
-спецификацию непосредственного владельца. `readScenarioGuide` в Archetypes принимает
-путь к сценарию, а `readSpecGuide` — путь к владельцу. Оба поручают чтение App
-и показывают файлы, исходные примеры и состояние правил из одного запуска.
-Приложение владеет выбором варианта, подробным выводом и preview.
+`@archetypes/scenario-reader` исполняет сценарий один раз и сохраняет отчёт для
+сборки, серверной диагностики и просмотра. `@archetypes/spec-reader` находит
+спецификации непосредственного владельца. Читатели руководств Specs поручают
+им чтение и показывают исходные примеры и результаты правил. Web владеет
+выбором варианта, подробным выводом и preview того же отчёта.
 
 Каждый узел графа имеет точную ссылку на физический источник. Пакеты получают
 идентичность из `package.json`; workspaces раскрывают вложенные пакеты, а
@@ -137,7 +132,7 @@ migration journal; journal переживает abort/crash и удаляетс�
 
 Корневой экран и страницы пакетов обслуживаются одним origin. Пользователь
 выбирает пакет или директорию по физическому адресу, который разрешает
-[Route](route/index.ts). Переход внутри страницы сохраняет Root и меняет
+[Route](package/route/resolve/index.ts). Переход внутри страницы сохраняет Root и меняет
 содержимое через общий контроллер; корневой экран не исполняет код потребителя.
 
 `@zavx0z/storybook-browser-lifecycle` владеет агентским `openPackage`. Package lock
@@ -155,15 +150,15 @@ migration journal; journal переживает abort/crash и удаляетс�
 Публичная адресация UI следует зарегистрированному корню и физической структуре;
 конкретный пакет подтверждается metadata и bridge. Npm identity, адрес навигации
 и приватный адрес артефакта выполняют разные задачи и не подменяют друг друга.
-Пакеты определяются общим [читателем workspaces](route/workspaces/index.ts),
+Пакеты определяются общим [читателем workspaces](package/route/workspaces/index.ts),
 который используют discovery и Route. Детали URL и встроенных представлений
-принадлежат [контракту вкладок](workbench/notes/workspace.md#tabs-routes).
+принадлежат [контракту вкладок](app/web/src/workbench/notes/workspace.md#tabs-routes).
 
 Одна package tab имеет один browser realm и одну активную ревизию
 PackageSession. Обзор и встроенные представления читают структурный snapshot
 пакета; проектный runtime-адаптер и загрузчики вариантов не создаются.
 
-Landing и каждая package page владеют отдельным
+Корневая страница и каждая package page владеют отдельным
 `@zavx0z/browser` Experience. Browser создаёт и освобождает единственные для
 страницы semantic Document, native Canvas, цикл кадров и owner ввода.
 Experience содержит `SpaceElement` из `@zavx0z/dom/space` и
@@ -174,7 +169,7 @@ Experience содержит `SpaceElement` из `@zavx0z/dom/space` и
 HUD содержит Tab управления ViewPoint и отдельное окно Minimap. Встроенные
 представления используют тот же Document и Space; отдельный Experience, Canvas,
 цикл кадров или owner ввода не создаётся. Состав выражен в
-[композиции приложения](runtime/application.tsx).
+[композиции приложения](app/web/src/runtime/application.tsx).
 
 Для двумерной рабочей среды host направляет исходный ViewPoint перпендикулярно
 плоскости служебного Display. Источником его размеров являются фактические
@@ -210,7 +205,7 @@ runtime и compatibility aliases fail closed.
 ## Workbench projection
 
 Панель вкладок связывает выбранное представление с URL по
-[контракту Панели вкладок](workbench/notes/workspace.md#tabs-routes). Обзор принадлежит
+[контракту Панели вкладок](app/web/src/workbench/notes/workspace.md#tabs-routes). Обзор принадлежит
 самому пакету или физической директории; «Контракт», «Зависимости» и «Сценарии»
 доступны только при наличии соответствующих структурных источников.
 
@@ -225,7 +220,7 @@ Workbench поступает из exact `.css` export UI, без каталог�
 Форматированный текст TSDoc не исполняет встроенный HTML/JavaScript.
 
 `readPackage` и discovery используют единый
-[читатель модульного TSDoc](archetypes/package/documentation/index.ts).
+[читатель модульного TSDoc](./package/documentation/index.ts).
 Для корня и директории выбирается обычный `index.tsx`, затем `index.ts`;
 у выбранного исходника без `@packageDocumentation` описание отсутствует.
 README не подставляется. Текст публикуется только вместе с проверенным digest
@@ -283,7 +278,7 @@ Candidate проходит структурное обнаружение, про
 Обычная страница использует доступную revision. Если её нет, навигация
 запрашивает подготовку и независимую проверку первого кандидата сервером.
 Обновление рабочей версии выполняется через `check(live:true)`; явный preview
-остаётся изолированным. [HMR](hmr/notes/updates.md) сохраняет browser realm и
+остаётся изолированным. [HMR](./tech/hmr/notes/updates.md) сохраняет browser realm и
 проверяет exact revision/graph, ready/presented, кадр и ошибки console до commit. Failed build/inspection сохраняет
 предыдущий working artifact и не меняет другие sessions. Перед publication
 атомарно записывается private applied receipt; он удерживает immutable артефакт
@@ -307,7 +302,7 @@ registry и summary statuses.
 Сборка начинается по явному check после проверок. Изменения файлов,
 открытие доступной ревизии и подписки сохраняют её без compiler demand.
 При отсутствии доступной сборки подготовку запрашивает навигация.
-Порядок подготовки и применения определён у [владельца сборки](build/notes/compilation.md).
+Порядок подготовки и применения определён у [владельца сборки](app/web/build/notes/compilation.md).
 
 Операции сценария сериализованы внутри его структурного владельца. Abort при
 навигации не позволяет позднему исполнению заменить текущий обзор.
@@ -315,16 +310,16 @@ registry и summary statuses.
 ## MCP semantic viewport
 
 Публичный вход `storybook` принимает только необязательный `path` из доступных
-переходов. [Address](mcp/address/index.ts) проверяет точное присутствие адреса
-в публичной структуре и отклоняет query и fragment. [Root](mcp/root/index.ts)
-и [Children](mcp/children/index.ts) возвращают назначение и непосредственные
-переходы. У выбранного владельца [REST](mcp/rest/index.ts) дополнительно раскрывает
+переходов. [Address](app/mcp/rest/address/index.ts) проверяет точное присутствие адреса
+в публичной структуре и отклоняет query и fragment. [Root](app/mcp/rest/root/index.ts)
+и [Children](app/mcp/rest/children/index.ts) возвращают назначение и непосредственные
+переходы. У выбранного владельца [REST](app/mcp/rest/index.ts) дополнительно раскрывает
 JSON Schema доступных входного и выходного контрактов и авторские исходники
 сценариев. Схемы берутся из разбора TypeDoc в каталоге, код сценариев читается
 из их файлов; чтение не выполняет сценарий и не запускает сборку.
 
 Полный отчёт выполненного сценария используется интерфейсом. Внутреннее
-[представление сценариев для MCP](mcp/rest/scenarios/notes/presentation.md)
+[представление сценариев для потребителя](specs/presentation/notes/presentation.md)
 пока не подключено к публичному `storybook`. Поэтому его ответ не следует
 описывать как отчёт применённой ревизии или как результаты последних проверок.
 Точные данные и правила раскрытия принадлежат коду соответствующих владельцев.
@@ -398,27 +393,27 @@ accepted baseline, visual diff или owner acceptance state.
 
 ## Repository navigation and isolated package content
 
-Глобальный граф несёт иерархию из [контракта структуры](archetypes/notes/draft-structure.md).
+Глобальный граф несёт иерархию из [контракта структуры](./package/notes/draft-structure.md).
 Immutable `storybook-package-graph/6` содержит структурные узлы и документацию своего пакета;
 данные предков передаются как metadata, а не как исполняемые зависимости.
 
 
 Состав пакетов, физические директории и размещение компонентов
-определены у [владельцев структурных правил](archetypes/notes/draft-structure.md).
+определены у [владельцев структурных правил](./package/notes/draft-structure.md).
 Эта страница описывает применение и устройство инструмента, не отдельные правила структуры.
 
 Обе страницы Workbench используют общий граф навигации. Private browser lifecycle
 выполняет операции вкладок; изменения registry сохраняют отдельную authority.
 Read-only topic `catalog` обновляет дерево без передачи событий исполнения чужих пакетов.
-Адреса представлений заданы [контрактом Панели вкладок](workbench/notes/workspace.md#tabs-routes).
+Адреса представлений заданы [контрактом Панели вкладок](app/web/src/workbench/notes/workspace.md#tabs-routes).
 
 
 ### Структурные зависимости компонента
 
-Путь данных: `discovery/read-parameterized-tests.ts` читает AST → каталог сохраняет
+Путь данных: `repo/discovery/src/read-parameterized-tests.ts` читает AST → каталог сохраняет
 ожидаемый граф и digest → immutable revision передаёт данные браузеру → общий
 GraphView отображает их в существующем Display. Это отдельный потребитель
 нормализованного каталога, без второго дерева владельцев или графического runtime.
 
-Формат spec описан в [нормативном контракте зависимостей](archetypes/specs/deps/notes/draft-dependencies.md),
-а переключение представления — в [контракте URL вкладок](workbench/notes/workspace.md#tabs-routes).
+Формат spec описан в [нормативном контракте зависимостей](./specs/deps/notes/draft-dependencies.md),
+а переключение представления — в [контракте URL вкладок](app/web/src/workbench/notes/workspace.md#tabs-routes).

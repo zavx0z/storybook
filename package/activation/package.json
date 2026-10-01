@@ -1,0 +1,11 @@
+{
+  "name": "@hmr/activation",
+  "label": "Подтверждение обновления",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Подтверждает точную ревизию после проверки кадра, маршрута и ошибок страницы",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

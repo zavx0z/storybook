@@ -1,0 +1,14 @@
+{
+  "name": "@tech/http",
+  "label": "HTTP",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@http/client": "workspace:*"
+  },
+  "description": "Объединяет технические возможности авторизованных HTTP-запросов и чтения потоковых ответов"
+}

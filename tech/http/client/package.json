@@ -1,0 +1,11 @@
+{
+  "name": "@http/client",
+  "label": "Авторизованный HTTP-клиент",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Читает JSON и NDJSON с авторизацией и отменой ожидания",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

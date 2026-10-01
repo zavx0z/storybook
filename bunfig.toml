@@ -6,4 +6,4 @@ linker = "hoisted"
 ".wgsl" = "text"
 
 [test]
-preload = ["./src/workbench/testing/compile-workbench.ts"]
+preload = ["./app/web/test/fixture/compile-workbench.ts"]

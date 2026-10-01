@@ -7,5 +7,20 @@
   "description": "Подготовка исполняемого результата Web-компонента приложения",
   "exports": {
     ".": "./index.ts"
+  },
+  "dependencies": {
+    "@zavx0z/ui": "^0.0.0",
+    "@package-build/scheduler": "workspace:*",
+    "@build/compiler": "workspace:*",
+    "@build/environment": "workspace:*",
+    "@build/inputs": "workspace:*",
+    "@build/artifacts": "workspace:*",
+    "@package-build/inputs": "workspace:*",
+    "@build/worker": "workspace:*",
+    "@package/revision": "workspace:*"
+  },
+  "devDependencies": {
+    "@zavx0z/component": "^0.0.0",
+    "@tech/limits": "workspace:*"
   }
 }

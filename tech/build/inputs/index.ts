@@ -10,9 +10,12 @@ Attestation отдельно подтверждает входы до и пос�
 
 @packageDocumentation
 */
-import type {BuildInputFingerprint} from "./contract/fingerprint"
-import type {BuildInputPlan, BuildInputPlanInput} from "./contract/plan"
-import type {BuildInputAttestation} from "./contract/attestation"
+import type {BuildInputs as BuildInputsContract} from "./contract"
+import type {BuildInputPlan} from "./src/plan"
+import type {BuildInputAttestation} from "./src/attestation"
+
+type BuildInputFingerprint = BuildInputsContract.Output
+type BuildInputPlanInput = BuildInputsContract.Input
 import {
   createPlan,
   computeFingerprint,
@@ -24,10 +27,7 @@ import {
 } from "./src/core"
 import {PROTOCOL} from "./src/protocol"
 
-export type {BuildInputFingerprint, BuildInputFile} from "./contract/fingerprint"
-export type {BuildInputPlan, BuildInputPlanInput, BuildInputScope} from "./contract/plan"
-export type {BuildInputAttestation} from "./contract/attestation"
-export type {BuildInputComputer} from "./contract/computer"
+export type {BuildInputs} from "./contract"
 
 /**
 Читает входы нескольких plans одного прохода проверки с общим verification cache.

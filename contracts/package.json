@@ -9,16 +9,16 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@archetypes/package": "workspace:*",
-    "@storybook/route": "workspace:*",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "@zavx0z/jsx": "^0.0.0",
+    "@route/ignored": "workspace:*",
+    "@archetypes/package": "workspace:*"
   },
   "scripts": {
     "test": "bun test ./spec ./test --max-concurrency=1",
     "typecheck": "tsc --project tsconfig.json --pretty false"
   },
   "devDependencies": {
-    "@archetypes/typedoc": "workspace:*",
-    "@storybook/app-old": "workspace:*"
+    "@archetypes/scenario-reader": "workspace:*"
   }
 }

@@ -1,0 +1,14 @@
+{
+  "name": "@package/standard",
+  "label": "Стандарт пакета",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Закрепляет строгий режим по фактическому результату проверки пакета",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@package/session": "workspace:*"
+  }
+}

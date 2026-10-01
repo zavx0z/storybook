@@ -1,0 +1,14 @@
+{
+  "name": "@mcp-rest/package",
+  "label": "Результат спецификации",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Возвращает результат чтения публичной спецификации владельца",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@archetypes/spec-reader": "workspace:*"
+  }
+}

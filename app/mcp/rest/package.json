@@ -1,0 +1,23 @@
+{
+  "name": "@mcp/rest",
+  "label": "HTTP-интерфейс Storybook",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "HTTP-интерфейс постепенного раскрытия Storybook",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "test": "bun test ./spec"
+  },
+  "dependencies": {
+    "@mcp/address": "workspace:*",
+    "@mcp/root": "workspace:*",
+    "@mcp/children": "workspace:*"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/server": "^2.0.0",
+    "@repo/discovery": "workspace:*"
+  }
+}

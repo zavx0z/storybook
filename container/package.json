@@ -10,5 +10,8 @@
   },
   "dependencies": {
     "@archetypes/component": "workspace:*"
+  },
+  "devDependencies": {
+    "@archetypes/scenario-reader": "workspace:*"
   }
 }

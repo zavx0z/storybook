@@ -9,8 +9,7 @@ import {createHash} from "node:crypto"
 import {readFile} from "node:fs/promises"
 import {resolve} from "node:path"
 import readContract from "@archetypes/contracts"
-import {readScenario} from "@storybook/app-old/scenarios"
-
+import readScenario from "@archetypes/scenario-reader"
 describe.each([
   {
     name: "Component",

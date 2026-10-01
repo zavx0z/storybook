@@ -10,10 +10,9 @@ Container реализует целое через композицию прин
 @packageDocumentation
 */
 import readComponent from "@archetypes/component"
-import type {ReadContainerInput} from "./contract/input"
-import type {ReadContainerOutput} from "./contract/output"
+import type {ArchetypesContainer} from "./contract"
 
-export type {ReadContainerInput, ReadContainerOutput}
+export type {ArchetypesContainer} from "./contract"
 
 /**
 Читает композицию через публичный читатель Component без запуска её реализации.
@@ -22,7 +21,7 @@ export type {ReadContainerInput, ReadContainerOutput}
 @returns Публичная граница целого и принадлежащие ему непосредственные части.
 @throws Ошибки чтения пакета, разрешения экспортов и анализа TypeScript.
 */
-export default async function readContainer(input: ReadContainerInput): Promise<ReadContainerOutput> {
+export default async function readContainer(input: ArchetypesContainer.Input): Promise<ArchetypesContainer.Output> {
   const component = await readComponent(input)
   const references = component.package.code.flatMap(source => source.references)
   return {

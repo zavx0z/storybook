@@ -1,0 +1,26 @@
+{
+  "name": "@zavx0z/storybook-browser-lifecycle",
+  "label": "Вкладки Storybook",
+  "description": "Управляет единым браузером Chrome и вкладками Storybook: открытием, проверкой готовности и закрытием.",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit --pretty false",
+    "test": "bun test test --max-concurrency=1",
+    "check": "bun run typecheck && bun run test"
+  },
+  "dependencies": {
+    "pngjs": "^7.0.0",
+    "@route/url": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.0",
+    "@types/pngjs": "^6.0.5",
+    "typescript": "^7.0.2",
+    "@nodes/node": "^0.0.0"
+  }
+}

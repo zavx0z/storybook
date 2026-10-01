@@ -1,0 +1,15 @@
+{
+  "name": "@storybook/repo",
+  "label": "Репозиторий",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Собирает чтение Repo и обнаружение физических пакетов проекта",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@archetypes/repo": "workspace:*",
+    "@repo/discovery": "workspace:*"
+  }
+}

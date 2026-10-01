@@ -5,7 +5,8 @@
 Предметный lazy-вызов сохраняет свой HTTP-прокси и не загружает контроллер.
 */
 import {z} from "zod"
-import {createStorybookMcpServer, type CreateStorybookMcpServerInput} from "@zavx0z/storybook-mcp/server"
+import {createStorybookMcpServer} from "./mcp/index"
+import type {CreateStorybookMcpServerInput} from "./mcp/contract/input"
 
 /** Добавляет явное управление Web к существующему серверу с отложенным контроллером. */
 export function createAppMcpServer(options: CreateStorybookMcpServerInput = {}) {

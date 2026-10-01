@@ -1,0 +1,19 @@
+{
+  "name": "@package-build/descriptor",
+  "label": "План сборки пакета",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Выводит пакетные build descriptors из единого каталога и графа",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@repo/discovery": "workspace:*",
+    "@package-graph/read": "workspace:*",
+    "@package-graph/create": "workspace:*",
+    "@package/resources": "workspace:*",
+    "@package/session": "workspace:*",
+    "@package/revision": "workspace:*"
+  }
+}

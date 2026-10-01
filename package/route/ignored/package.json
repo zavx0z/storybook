@@ -1,0 +1,11 @@
+{
+  "name": "@route/ignored",
+  "label": "Исключения маршрута",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Проверяет Git exclusions в точной границе пакета",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

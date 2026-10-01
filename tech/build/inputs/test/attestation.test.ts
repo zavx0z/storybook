@@ -1,11 +1,11 @@
 import {afterEach, describe, expect, test} from "bun:test"
 import {mkdirSync, renameSync, writeFileSync} from "node:fs"
 import {join} from "node:path"
-import BuildInputs, {type BuildInputAttestation} from "@build/inputs"
+import BuildInputs from "@build/inputs"
 import {createFixture} from "./fixture"
 
 const fixtures: ReturnType<typeof createFixture>[] = []
-const attestations: BuildInputAttestation[] = []
+const attestations: Awaited<ReturnType<typeof BuildInputs.attest>>[] = []
 afterEach(() => {
   for (const attestation of attestations.splice(0)) attestation.dispose()
   for (const fixture of fixtures.splice(0)) fixture.dispose()

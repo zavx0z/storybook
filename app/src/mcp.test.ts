@@ -1,6 +1,6 @@
 import {expect, test} from "bun:test"
 import {Client, InMemoryTransport} from "@modelcontextprotocol/client"
-import type {CreateStorybookMcpServerInput} from "@zavx0z/storybook-mcp/server"
+import type {CreateStorybookMcpServerInput} from "./mcp/contract/input"
 import {createAppMcpServer} from "./mcp.ts"
 
 test("app добавляет явное управление Web, сохраняет lazy proxy и передаёт request progress", async () => {

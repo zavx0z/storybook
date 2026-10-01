@@ -1,0 +1,16 @@
+{
+  "name": "@specs/guide",
+  "label": "Руководство спецификации",
+  "description": "Собирает руководство по непосредственной спецификации владельца",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@archetypes/spec-reader": "workspace:*",
+    "@archetypes/scenario-document": "workspace:*",
+    "@archetypes/scenario-guide": "workspace:*"
+  }
+}

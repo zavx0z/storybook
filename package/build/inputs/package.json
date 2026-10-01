@@ -1,0 +1,15 @@
+{
+  "name": "@package-build/inputs",
+  "label": "Входы пакетной сборки",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Канонизирует физические файлы и package identities сборки",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@package/session": "workspace:*",
+    "@build/compiler": "workspace:*"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "@archetypes/repo",
+  "label": "Репозиторий",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Проверяет пакет-монорепозиторий и независимую границу Git",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@archetypes/package": "workspace:*"
+  },
+  "devDependencies": {}
+}

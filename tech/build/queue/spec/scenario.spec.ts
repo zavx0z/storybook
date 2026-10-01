@@ -1,6 +1,6 @@
 /** Очередь ограничивает исполнение и сохраняет результаты каждой завершённой работы. */
 import {afterAll, describe, expect, test} from "bun:test"
-import BuildQueue, {type BuildTransition} from "@build/queue"
+import BuildQueue from "@build/queue"
 
 describe.each([
   {name: "Последовательное исполнение", props: {limit: 1}},
@@ -8,7 +8,8 @@ describe.each([
 ])("$name", async ({props}) => {
   const queue = new BuildQueue<{label: string}>(props)
   afterAll(() => queue.dispose())
-  const transitions: BuildTransition<{label: string}>[] = []
+  type Transition = Parameters<Parameters<typeof queue.subscribe>[0]>[0]
+  const transitions: Transition[] = []
   const unsubscribe = queue.subscribe(event => transitions.push(event))
   afterAll(unsubscribe)
   let release!: () => void

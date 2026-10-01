@@ -1,0 +1,11 @@
+{
+  "name": "@build-environment/protocol",
+  "label": "Протокол браузерной среды",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser-safe identity protocol для общей среды модулей",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

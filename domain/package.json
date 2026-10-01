@@ -10,5 +10,8 @@
   },
   "dependencies": {
     "@archetypes/package": "workspace:*"
+  },
+  "devDependencies": {
+    "@archetypes/component": "workspace:*"
   }
 }

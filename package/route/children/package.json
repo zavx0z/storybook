@@ -1,0 +1,18 @@
+{
+  "name": "@route/children",
+  "label": "Дети маршрута",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Читает один уровень публичных структурных переходов",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@route/resolve": "workspace:*",
+    "@route/directories": "workspace:*",
+    "@route/ignored": "workspace:*",
+    "@route/address": "workspace:*",
+    "@route/structure": "workspace:*"
+  }
+}

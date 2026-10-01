@@ -6,8 +6,8 @@
 @packageDocumentation
 */
 export {default as waitForOwnedChild} from "@process/wait"
-export type {OwnedChildWaitInput, OwnedChildHandle, OwnedChildStdoutReader, OwnedChildResult} from "@process/wait"
+export type {ProcessWait} from "@process/wait"
 export {default as ProcessResourceSampler} from "@process/sample"
-export type {ResourceSampler, ProcessResourceRow, ProcessSnapshot} from "@process/sample"
+export type {ProcessSample} from "@process/sample"
 export {default as measureProcessResources} from "@process/measure"
-export type {ProcessMeasureInput, ProcessBinding, MeasuredResources} from "@process/measure"
+export type {ProcessMeasure} from "@process/measure"

@@ -15,6 +15,10 @@
     "@process/measure": "workspace:*",
     "@build/inputs": "workspace:*",
     "@build/worker": "workspace:*",
-    "@tech/hmr": "workspace:*"
+    "@tech/hmr": "workspace:*",
+    "@tech/build": "workspace:*",
+    "@tech/http": "workspace:*",
+    "@tech/mcp": "workspace:*",
+    "@tech/limits": "workspace:*"
   }
 }

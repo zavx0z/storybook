@@ -1,0 +1,21 @@
+{
+  "name": "@app-web/protocol",
+  "label": "Протокол Web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser-safe данные графа, сессий и общей оболочки Storybook",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@zavx0z/browser": "^0.0.0",
+    "@route/url": "workspace:*",
+    "@package-graph/read": "workspace:*",
+    "@package-graph/create": "workspace:*"
+  },
+  "devDependencies": {
+    "@repo/discovery": "workspace:*",
+    "@package/session": "workspace:*"
+  }
+}

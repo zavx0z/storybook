@@ -1,0 +1,11 @@
+{
+  "name": "@route/address",
+  "label": "Адрес маршрута",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Кодирует и разбирает структурные адреса без файловой системы",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

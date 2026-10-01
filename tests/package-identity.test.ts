@@ -1,3 +1,5 @@
+import Compiler from "@build/compiler"
+const {createStorybookOwnerSourcePath, resolveStorybookCompilerSourceRoots} = Compiler
 import {describe, expect, test} from "bun:test"
 import {
   lstatSync,
@@ -7,11 +9,6 @@ import {
   statSync,
 } from "node:fs"
 import {join, resolve} from "node:path"
-import {
-  createStorybookOwnerSourcePath,
-  resolveStorybookCompilerSourceRoots,
-} from "../build/compiler.ts"
-
 const root = realpathSync.native(resolve(import.meta.dir, ".."))
 const monorepoRoot = realpathSync.native(resolve(root, "../immersive"))
 
@@ -71,9 +68,9 @@ describe("Storybook package identity", () => {
   })
 
   test.each([
-    {name: "REST для сервера", from: ".", specifier: "@mcp/rest", entry: "mcp/rest/index.ts"},
-    {name: "REST для проверок MCP", from: "mcp", specifier: "@mcp/rest", entry: "mcp/rest/index.ts"},
-    {name: "Читатель спецификации для REST", from: "mcp/rest", specifier: "@storybook/app-old/spec-reader", entry: "app-old/spec-reader/index.ts"},
+    {name: "REST для сервера", from: ".", specifier: "@mcp/rest", entry: "app/mcp/rest/index.ts"},
+    {name: "REST для проверок MCP", from: "app/mcp", specifier: "@mcp/rest", entry: "app/mcp/rest/index.ts"},
+    {name: "Читатель спецификации для REST", from: "app/mcp/rest", specifier: "@archetypes/spec-reader", entry: "specs/reader/index.ts"},
   ])("$name", ({from, specifier, entry}) => {
     expect(
       realpathSync.native(Bun.resolveSync(specifier, resolve(root, from))),
@@ -99,14 +96,17 @@ describe("Storybook package identity", () => {
     expect(manifest.devDependencies["@zavx0z/renderer-webgpu"]).toBeUndefined()
 
     const legacyImports = sourceFiles([
-      join(root, "catalog"),
-      join(root, "discovery"),
-      join(root, "build"),
-      join(root, "sessions"),
-      join(root, "runtime"),
-      join(root, "workbench"),
-      join(root, "server"),
-      join(root, "src"),
+      join(root, "app"),
+      join(root, "tech"),
+      join(root, "project"),
+      join(root, "repo"),
+      join(root, "package"),
+      join(root, "specs"),
+      join(root, "domain"),
+      join(root, "component"),
+      join(root, "container"),
+      join(root, "contracts"),
+      join(root, "typedoc"),
     ]).filter((path) => hasLegacyOwnerImport(readFileSync(path, "utf8")))
     expect(legacyImports).toEqual([])
 

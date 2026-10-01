@@ -1,7 +1,7 @@
 import {mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import type {BuildInputPlanInput} from "@build/inputs"
+import type {BuildInputs} from "@build/inputs"
 
 /** Создаёт независимые exact inputs вне checkout; dispose удаляет только этот временный root. */
 export function createFixture(identity: unknown = {owner: "isolated-build"}) {
@@ -28,7 +28,7 @@ export function createFixture(identity: unknown = {owner: "isolated-build"}) {
   writeFileSync(join(root, "tsconfig.json"), '{"compilerOptions":{}}\n')
   writeFileSync(outside, "export const escaped = true\n")
   writeFileSync(workspace, "<project />\n")
-  const input: BuildInputPlanInput = {
+  const input: BuildInputs.Input = {
     identity,
     roots: [root],
     guardRoots: [join(directory, "node_modules")],

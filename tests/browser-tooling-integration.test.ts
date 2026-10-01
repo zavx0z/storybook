@@ -7,10 +7,10 @@ const root = join(import.meta.dir, "..")
 describe("external Storybook agent tooling", () => {
   test("keeps Chrome mechanics in the private browser lifecycle package", async () => {
     expect(existsSync(join(root, "scripts/storybook-browser.ts"))).toBeFalse()
-    const chrome = await Bun.file(join(root, "browser-lifecycle/src/chrome-client.ts")).text()
-    const lifecycle = await Bun.file(join(root, "browser-lifecycle/src/service.ts")).text()
-    const landing = await Bun.file(join(root, "runtime/landing-entry.ts")).text()
-    const manifest = await Bun.file(join(root, "browser-lifecycle/package.json")).json()
+    const chrome = await Bun.file(join(root, "app/server/browser/src/chrome-client.ts")).text()
+    const lifecycle = await Bun.file(join(root, "app/server/browser/index.ts")).text()
+    const landing = await Bun.file(join(root, "app/web/src/runtime/home-entry.ts")).text()
+    const manifest = await Bun.file(join(root, "app/server/browser/package.json")).json()
     expect(chrome).toContain('connection.command("Target.createTarget"')
     expect(chrome).toContain("background: true")
     expect(chrome).toContain("StorybookCdpConnection")
@@ -33,14 +33,13 @@ describe("external Storybook agent tooling", () => {
     expect(manifest.private).toBeTrue()
   })
 
-  test("keeps CLI as a thin adapter to the same controller", async () => {
-    const source = await Bun.file(join(root, "server/cli.ts")).text()
-    expect(source).toContain('from "./controller.ts"')
-    expect(source).toContain("createExternalStorybookController")
-    expect(source).not.toContain("startExternalStorybookServer")
-    expect(source).not.toContain("inspectExternalStorybookServer")
-    expect(source).not.toContain("Bun.spawn")
-    expect(source).not.toContain("storybook-browser.ts")
+  test("запуск из scripts использует публичный API App", async () => {
+    const manifest = await Bun.file(join(root, "package.json")).json()
+    expect(manifest.scripts.storybook).toContain('from "@storybook/app"')
+    expect(manifest.scripts.storybook).toContain("createApp().ensure")
+    expect(manifest.scripts.build).toContain("createApp().check")
+    expect(manifest.scripts.storybook).not.toContain("Bun.spawn")
+    expect(manifest.bin).toBeUndefined()
   })
 
   test("keeps the one Storybook skill MCP-only and non-executable", async () => {
@@ -55,10 +54,8 @@ describe("external Storybook agent tooling", () => {
     expect(existsSync(join(root, ".agents/skills/storybook/scripts/storybook.sh"))).toBeFalse()
   })
 
-  test("launcher exposes only the one human CLI entry", async () => {
-    const source = await Bun.file(join(root, "scripts/storybook.ts")).text()
-    expect(source).toContain("runExternalStorybookCli")
-    expect(source).not.toContain("launchStorybookPackage")
-    expect(source).not.toContain("openStartedBrowserTarget")
+  test("отдельный CLI не дублирует launcher", () => {
+    expect(existsSync(join(root, "scripts/storybook.ts"))).toBeFalse()
+    expect(existsSync(join(root, "server/cli.ts"))).toBeFalse()
   })
 })

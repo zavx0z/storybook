@@ -9,11 +9,21 @@
     ".": "./index.ts"
   },
   "dependencies": {
+    "zod": "^4.4.3",
+    "@modelcontextprotocol/server": "^2.0.0",
+    "@app-server/state": "workspace:*",
+    "@app-mcp/response": "workspace:*",
+    "@app/mcp": "workspace:*",
+    "@mcp/progress": "workspace:*",
+    "@mcp/stdio": "workspace:*",
     "@app/web": "workspace:*",
-    "@zavx0z/storybook-mcp": "workspace:*",
-    "zod": "^4.4.3"
+    "@package/artifacts": "workspace:*",
+    "@app/server": "workspace:*",
+    "@tech/limits": "workspace:*"
   },
   "devDependencies": {
-    "@modelcontextprotocol/client": "^2.0.0"
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@mcp/rest": "workspace:*",
+    "@mcp-rest/requests": "workspace:*"
   }
 }

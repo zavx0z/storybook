@@ -1,8 +1,8 @@
 # Границы инструмента и незавершённые направления
 
-Общие принципы задают [Основания](../../archetypes/project/notes/foundations/index.md),
+Общие принципы задают [Основания](./foundations/index.md),
 их применение к Storybook — [архитектура](../../ARCHITECTURE.md),
-размещение ответственности — [Archetypes](../../archetypes/notes/draft-structure.md).
+размещение ответственности — [Archetypes](../../package/notes/draft-structure.md).
 
 ## Структурная модель
 

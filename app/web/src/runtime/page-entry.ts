@@ -1,0 +1,1128 @@
+import WebProtocol, {type AppWebProtocol} from "@app-web/protocol"
+type StorybookSharedHost = ReturnType<typeof WebProtocol.validateSharedHost>
+type ExternalStorybookClientSnapshot = ReturnType<AppWebProtocol.Output["clientSnapshot"]>
+import type {HmrConnection} from "@hmr/connection"
+import createHmrPage from "@hmr/page"
+import {readInitialPageTarget, prepareExternalStorybookPageTarget} from "./page-target"
+import {createStorybookAgentBridge, STORYBOOK_AGENT_BRIDGE_GLOBAL, type StorybookAgentBridge} from "./agent-bridge.ts"
+import {indexedWorkbenchAuthorStyleSheetSources} from "./author-style-sheets.ts"
+import {
+  startExternalStorybookLanding,
+  type ExternalStorybookLandingController,
+} from "./home-entry.ts"
+import {
+  startExternalStorybookPackage,
+  type ExternalStorybookAppliedRevision,
+  type ExternalStorybookPackageController,
+} from "./package-entry.ts"
+import {loadStorybookAppliedRevision} from "./revision-loader.ts"
+import {
+  buildProgressStatus,
+  catalogProgressStatus,
+  readBuildProgress,
+  readCatalogProgress,
+  readSharedCacheProgress,
+  sharedCacheProgressStatus,
+} from "./build-progress.ts"
+import {
+  createExternalStorybookShell,
+  fetchExternalStorybookClientSnapshot,
+  type CreateExternalStorybookShellOptions,
+  type ExternalStorybookShell,
+  type StorybookRetainedRoot,
+} from "./shell.ts"
+
+/**
+Режим, связывающий загруженную ревизию с правом её автоматического применения.
+
+`navigation-candidate` удерживает built candidate до browser evidence,
+`preview` остаётся изолированным, а `reader` следует фактически применённой ревизии.
+*/
+export type ExternalStorybookPageIntent = "reader" | "navigation-candidate" | "preview"
+
+/**
+Подготовленная server-owned цель одного package scope.
+
+@property kind - `revision` несёт immutable payload; `fallback` показывает пакет без доступной ревизии.
+
+@property packageId - Exact владелец graph, runtime, socket subscription и diagnostics.
+
+@property revision - Загружаемая ревизия; `null` допустим только для fallback.
+
+@property revisionUrl - Immutable base URL ресурсов той же ревизии.
+
+@property [payloadUrl] - Диагностический exact URL side-effect-free payload; импорт выполняет {@link loadStorybookAppliedRevision}.
+
+@property route - Нормализованный route внутри revision graph.
+
+@property urlPath - Server-resolved публичный адрес route; runtime не восстанавливает его из packageId.
+
+@property intent - Отделяет обычного reader от candidate и explicit preview.
+
+@property preview - Запрещает autoapply для reader grant независимо от query после commit.
+
+@property initialAppliedRevision - Фактически применённая ревизия до проверки candidate; не подменяется loaded revision.
+
+@property fallbackRevision - Last-working revision для восстановления failed candidate.
+
+@property readerToken - Одноразовый token exact package subscription и revision lease.
+*/
+export type ExternalStorybookPreparedPackageTarget = Readonly<{
+  kind: "revision" | "fallback"
+  packageId: string
+  revision: string | null
+  revisionUrl: string | null
+  payloadUrl?: string | null
+  route: string
+  urlPath: string
+  intent: ExternalStorybookPageIntent
+  preview: boolean
+  initialAppliedRevision: string | null
+  fallbackRevision: string | null
+  readerToken: string
+}>
+
+/**
+Подготовленная цель landing scope в том же {@link ExternalStorybookShell}.
+
+@property pathname - Server-recognized landing address для staged history.
+
+@property readerToken - Token registry subscription; package topics им не разрешены.
+*/
+export type ExternalStorybookPreparedLandingTarget = Readonly<{
+  kind: "landing"
+  pathname: string
+  readerToken: string
+}>
+
+/** Server-owned package либо landing target для одной атомарной page transition. */
+export type ExternalStorybookPreparedPageTarget =
+  | ExternalStorybookPreparedPackageTarget
+  | ExternalStorybookPreparedLandingTarget
+
+/**
+Запрос цели без локального выбора built, active или last-working revision.
+
+@property packageId - Exact package либо `null` для landing.
+
+@property route - Package route или landing pathname, которые разрешает server owner.
+
+@property intent - `preview` требует exact requestedRevision; `navigation` оставляет revision policy серверу.
+
+@property [requestedRevision] - Opaque bounded revision только explicit preview.
+*/
+export type ExternalStorybookPagePrepareInput = Readonly<{
+  packageId: string | null
+  route: string
+  intent: "navigation" | "preview"
+  requestedRevision?: string
+}>
+
+/**
+Зависимости единственного page owner.
+
+@property [initialTarget] - Cold target; при отсутствии читается из `external-storybook-page-target` текущего HTML.
+
+@property [initialPayload] - Уже импортированный payload generated package entry; исключает повторный import.
+
+@property [initialHistory] - При передаче управления новой платформе сохраняет семантику перехода: push для выбора пакета, replace для обновления.
+
+@property sharedModuleEpoch - Identity платформенных ESM owners текущей среды; определяет сохранение Root при HMR.
+
+@property [hostModuleEpoch] - Версия текущей общей оболочки; пакет не выбирает эту версию.
+
+@property [browserDocument] - Native Document страницы; semantic Document принадлежит {@link ExternalStorybookShell}.
+
+@property [location] - Фактический URL страницы. Новый scope получает staged adapter до успешного commit.
+
+@property [history] - Единственный владелец browser entries; scope не пишет сюда до commit.
+
+@property [fetcher] - Same-origin transport `/api/client`, prepare и reader sessions.
+
+@property [createSocket] - Browser socket factory для exact reader token.
+
+@property [shell] - Seams создания одного {@link ExternalStorybookShell}; package scopes не получают право его dispose.
+
+@property [retainedRoot] - Browser root той же платформы; новая App заменяет прежний интерфейс в его Document.
+
+@property [sharedHost] - Подтверждённая оболочка из server bootstrap или предыдущего HMR.
+
+@property [readSharedHost] - Transport получения текущей оболочки для точного kernel страницы.
+
+@property [importSharedHost] - Загрузка проверенного host module; seam для тестов.
+
+@property [startPackage] - Seam тестового package controller; production использует контроллер текущего host.
+
+@property [prepareTarget] - Server resolver target. Default вызывает {@link prepareExternalStorybookPageTarget}.
+
+@property [loadAppliedRevision] - Generic exact package/revision payload loader. Default использует {@link loadStorybookAppliedRevision}.
+*/
+export type StartExternalStorybookPageOptions = Readonly<{
+  initialTarget?: ExternalStorybookPreparedPageTarget
+  initialPayload?: ExternalStorybookAppliedRevision | null
+  initialHistory?: "push" | "replace"
+  sharedModuleEpoch: string
+  hostModuleEpoch?: string
+  browserDocument?: globalThis.Document
+  location?: Pick<Location, "href" | "pathname">
+  history?: Pick<History, "pushState" | "replaceState">
+  fetcher?: typeof fetch
+  createSocket?(url: string): HmrConnection.Input["socket"]
+  shell?: Omit<CreateExternalStorybookShellOptions, "title" | "browserDocument" | "authorStyleSheetSources">
+  retainedRoot?: StorybookRetainedRoot
+  sharedHost?: StorybookSharedHost
+  readSharedHost?(epoch: string | undefined, token: string, signal: AbortSignal, preview?: boolean): Promise<StorybookSharedHost>
+  importSharedHost?(host: StorybookSharedHost): Promise<typeof startExternalStorybookPage>
+  startPackage?: typeof startExternalStorybookPackage
+  prepareTarget?(
+    input: ExternalStorybookPagePrepareInput,
+    signal: AbortSignal,
+  ): Promise<ExternalStorybookPreparedPageTarget>
+  loadAppliedRevision?(
+    packageId: string,
+    revision: string,
+    signal: AbortSignal,
+  ): Promise<ExternalStorybookAppliedRevision>
+}>
+
+/**
+Page-level lifecycle одного Root, Canvas и Workbench.
+
+@property shell - Текущая {@link ExternalStorybookShell}; сохраняется между package scopes; host-обновление заменяет её App в том же Browser root.
+
+@property packageId - Текущий committed package либо `null` на landing.
+
+@property route - Committed package route или landing pathname.
+
+@property navigatePackage - Сериализует prepare, scoped teardown, mount и history commit.
+
+@property navigateLanding - Заменяет package scope landing scope без замены shell.
+
+@property dispose - Abort-ит transition, освобождает текущий scope, styles, bridge и затем shell.
+*/
+export type ExternalStorybookPageController = Readonly<{
+  shell: ExternalStorybookShell
+  get packageId(): string | null
+  get route(): string
+  navigatePackage(input: Readonly<{packageId: string; route: string}>): Promise<void>
+  navigateLanding(pathname?: string): Promise<void>
+  dispose(): Promise<void>
+}>
+
+/** Package-owned runtime, subscription и staged address без владения page shell. */
+type ActivePackagePageScope = {
+  kind: "package"
+  target: ExternalStorybookPreparedPackageTarget
+  payload: ExternalStorybookAppliedRevision | null
+  controller: ExternalStorybookPackageController
+  connect(): void
+  address: StorybookScopeAddress
+}
+
+/** Landing-owned registry subscription и staged address без владения page shell. */
+type ActiveLandingPageScope = {
+  kind: "landing"
+  target: ExternalStorybookPreparedLandingTarget
+  controller: ExternalStorybookLandingController
+  address: StorybookScopeAddress
+}
+
+/** Ровно один committed child scope page controller. */
+type ActivePageScope = ActivePackagePageScope | ActiveLandingPageScope
+
+/**
+Создаёт один page owner с динамическим обновлением пакетов и платформы.
+
+Каждый переход сначала получает server target, payload, pending status и semantic
+styles. Старый scope освобождается только перед mount; ошибка восстанавливает его
+payload, styles, socket, Inspector, scroll и последний committed URL. `popstate`
+использует тот же pipeline, поэтому незавершённый history target не становится
+адресом рабочей страницы.
+Смена платформы передаёт тот же native Canvas контроллеру из нового payload:
+он создаёт согласованные Root и semantic Document после освобождения прежних.
+
+@param options - Epochs page realm, cold target и узкие transport seams.
+
+@returns Контроллер, который должен быть освобождён через {@link ExternalStorybookPageController.dispose}.
+
+@throws При отсутствии browser environment или dynamic entry, ошибке prepare/mount или невозможности rollback.
+
+@example
+```ts
+const page = await startExternalStorybookPage({sharedModuleEpoch})
+try {
+  await page.navigatePackage({packageId: "@immersive/markdown", route: ""})
+} finally {
+  await page.dispose()
+}
+```
+*/
+export async function startExternalStorybookPage(
+  options: StartExternalStorybookPageOptions,
+): Promise<ExternalStorybookPageController> {
+  const browserDocument = options.browserDocument ?? globalThis.document
+  const location = options.location ?? globalThis.location
+  const history = options.history ?? globalThis.history
+  if (browserDocument === undefined || location === undefined || history === undefined) {
+    throw new Error("External Storybook page browser environment is unavailable")
+  }
+  const fetcher = options.fetcher ?? globalThis.fetch
+  const initialTarget = options.initialTarget ?? readInitialPageTarget(browserDocument)
+  const prepareTarget = options.prepareTarget ?? ((input, signal) =>
+    prepareExternalStorybookPageTarget(fetcher, input, signal))
+  const pageLifetime = new AbortController()
+  let navigationSnapshot = await fetchExternalStorybookClientSnapshot(fetcher)
+  const readHost = (epoch: string | undefined, token: string, signal: AbortSignal, preview = false) => options.readSharedHost?.(epoch, token, signal, preview)
+    ?? WebProtocol.readSharedHost(fetcher, token, signal, epoch, preview)
+  const host = options.sharedHost ?? await readHost(options.sharedModuleEpoch, initialTarget.readerToken, pageLifetime.signal,
+    initialTarget.kind !== "landing" && (initialTarget.preview || initialTarget.intent === "navigation-candidate"))
+  if (host.sharedModuleEpoch !== options.sharedModuleEpoch || host.hostModuleEpoch !== options.hostModuleEpoch) {
+    const start = await (options.importSharedHost ?? WebProtocol.importSharedHost<typeof startExternalStorybookPage>)(host)
+    return start({...options, sharedHost: host, sharedModuleEpoch: host.sharedModuleEpoch, hostModuleEpoch: host.hostModuleEpoch})
+  }
+  await WebProtocol.synchronizeStyles(browserDocument, host)
+  const shell = await createExternalStorybookShell({
+    title: "Storybook",
+    browserDocument,
+    ...(options.shell ?? {}),
+    authorStyleSheetSources: indexedWorkbenchAuthorStyleSheetSources(browserDocument),
+    ...(options.retainedRoot === undefined ? {} : {retainedRoot: options.retainedRoot}),
+  })
+  const execution = createHmrPage<ActivePageScope>({
+    release: scope => disposeScope(scope),
+    restore: scope => restoreScope(scope),
+  })
+  let bridge: StorybookAgentBridge | null = null
+  let disposed = false
+  let replacement: ExternalStorybookPageController | null = null
+  let transitionTail: Promise<void> = Promise.resolve()
+  let activeAddress = `${location.pathname}${new URL(location.href).search}${new URL(location.href).hash}`
+
+  const loadPayload = async (
+    target: ExternalStorybookPreparedPackageTarget,
+    signal: AbortSignal,
+  ): Promise<ExternalStorybookAppliedRevision | null> => {
+    if (target.revision === null) return null
+    const payload = await (options.loadAppliedRevision ?? loadStorybookAppliedRevision)(
+      target.packageId,
+      target.revision,
+      signal,
+    )
+    return payload
+  }
+
+  const eventSocket = (target: ExternalStorybookPreparedPageTarget): HmrConnection.Input["socket"] => {
+    const url = new URL("/api/events", location.href)
+    url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
+    url.searchParams.set("session", target.readerToken)
+    return options.createSocket?.(url.href) ?? new WebSocket(url.href)
+  }
+
+  const pendingTargetStatus = async (
+    packageId: string,
+    signal: AbortSignal,
+  ): Promise<Readonly<{dispose(): void}>> => {
+    const response = await fetcher("/api/browser/session", {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({packageId, revision: null, preview: false}),
+      signal,
+    })
+    if (!response.ok) throw new Error(`Storybook pending package reader failed: ${packageId}`)
+    const result = await response.json() as {token?: unknown}
+    if (typeof result.token !== "string") throw new Error("Storybook pending package reader returned no token")
+    const socket = eventSocket({kind: "landing", pathname: "/", readerToken: result.token})
+    let disposed = false
+    const onOpen = (): void => {
+      socket.send(JSON.stringify({type: "subscribe", topic: `package:${packageId}`}))
+      socket.send(JSON.stringify({type: "subscribe", topic: "catalog"}))
+    }
+    const onMessage = (event: MessageEvent): void => {
+      let value: unknown
+      try { value = JSON.parse(String(event.data)) } catch { return }
+      const build = readBuildProgress(value)
+      if (build !== null && (build.packageId === packageId || build.packageId === null)) {
+        shell.updateStatus(buildProgressStatus(build))
+        return
+      }
+      const catalog = readCatalogProgress(value)
+      if (catalog !== null) {
+        shell.updateStatus(catalogProgressStatus(catalog))
+        return
+      }
+      const shared = readSharedCacheProgress(value)
+      if (shared !== null) shell.updateStatus(sharedCacheProgressStatus(shared))
+    }
+    socket.addEventListener("open", onOpen)
+    socket.addEventListener("message", onMessage)
+    const disposePending = (): void => {
+      if (disposed) return
+      disposed = true
+      socket.removeEventListener("open", onOpen)
+      socket.removeEventListener("message", onMessage)
+      socket.close()
+    }
+    signal.addEventListener("abort", disposePending, {once: true})
+    return Object.freeze({
+      dispose() {
+        signal.removeEventListener("abort", disposePending)
+        disposePending()
+      },
+    })
+  }
+
+  const pageScope = (
+    target: ExternalStorybookPreparedPackageTarget,
+  ) => Object.freeze({
+    shell,
+    initialRoute: target.route,
+    navigatePackage,
+    navigateLanding,
+    applyRevision: (revision: string) => applyPageRevision(target.packageId, revision),
+    refreshSharedHost,
+    readerRenewed(readerToken: string) {
+      if (execution.current?.kind === "package" && execution.current.target.packageId === target.packageId) {
+        execution.current.target = {...execution.current.target, readerToken}
+      }
+    },
+    /** После серверного acknowledgement последующее переподключение возвращает ordinary reader. */
+    revisionConfirmed(revision: string) {
+      if (execution.current?.kind !== "package" || execution.current.target.packageId !== target.packageId || execution.current.controller.revision !== revision) return
+      execution.current.target = {...execution.current.target, intent: "reader", preview: false, initialAppliedRevision: revision}
+    },
+    revisionApplied(payload: ExternalStorybookAppliedRevision) {
+      const current = execution.current?.kind === "package" && execution.current.target.packageId === payload.packageId
+        ? execution.current
+        : null
+      if (current === null) return
+      const route = payload.graphSnapshot.routes.find(({path}) => path === current.controller.currentRoute) ??
+        payload.graphSnapshot.routes.find(({path}) => path === "")
+      if (route === undefined) throw new Error(`Storybook applied revision has no current route: ${payload.packageId}`)
+      current.payload = payload
+      current.target = {
+        ...current.target,
+        revision: payload.candidateRevision,
+        revisionUrl: payload.revisionUrl,
+        route: route.path,
+        urlPath: route.urlPath,
+      }
+      syncBridge()
+    },
+
+  })
+
+  const startPackageScope = async (
+    target: ExternalStorybookPreparedPackageTarget,
+    payload: ExternalStorybookAppliedRevision | null,
+    address = createStorybookScopeAddress(target, location, history, value => { activeAddress = value }),
+  ): Promise<ActivePackagePageScope> => {
+    const deferredSocket = createDeferredStorybookSocket(() => eventSocket(target))
+    const startPackage = options.startPackage ?? startExternalStorybookPackage
+    const controller = await startPackage({
+      packageId: target.packageId,
+      candidateRevision: target.revision,
+      revisionUrl: target.revisionUrl,
+      sharedModuleEpoch: options.sharedModuleEpoch,
+      ...((options.hostModuleEpoch) === undefined ? {} : {hostModuleEpoch: options.hostModuleEpoch}),
+      ...(payload === null ? {} : {graphSnapshot: payload.graphSnapshot}),
+      scenarioLoaders: payload?.scenarioLoaders ?? new Map(),
+      environment: {
+        browserDocument,
+        location: address.location,
+        history: address.history,
+        fetcher,
+        socket: deferredSocket,
+        ...(options.createSocket === undefined ? {} : {createSocket: options.createSocket}),
+        bootstrapIntent: target.intent,
+        initialAppliedRevision: target.initialAppliedRevision,
+        fallbackRevision: target.fallbackRevision,
+        lifecycleSignal: pageLifetime.signal,
+        pageScope: pageScope(target),
+        loadAppliedRevision: (revision, signal) => (options.loadAppliedRevision ?? loadStorybookAppliedRevision)(
+          target.packageId,
+          revision,
+          signal,
+        ),
+      },
+    })
+    return {kind: "package", target, payload, controller, connect: deferredSocket.connect, address}
+  }
+
+  const startLandingScope = async (
+    target: ExternalStorybookPreparedLandingTarget,
+    address = createStorybookScopeAddress(target, location, history, value => { activeAddress = value }),
+  ): Promise<ActiveLandingPageScope> => {
+    const controller = await startExternalStorybookLanding({
+      browserDocument,
+      location: address.location,
+      history: address.history,
+      fetcher,
+      createSocket: () => eventSocket(target),
+      readerToken: target.readerToken,
+      pageScope: {shell, initialPathname: target.pathname, navigatePackage, refreshSharedHost,
+        async reconnectSocket() {
+          const next = await prepareTarget({packageId: null, route: target.pathname, intent: "navigation"}, pageLifetime.signal)
+          if (next.kind !== "landing" || execution.current?.kind !== "landing") throw new DOMException("Landing scope changed", "AbortError")
+          execution.current.target = next
+          return eventSocket(next)
+        },
+      },
+    })
+    return {kind: "landing", target, controller, address}
+  }
+
+  const syncBridge = (): void => {
+    browserDocument.documentElement.dataset.externalStorybookSharedModuleEpoch = host.sharedModuleEpoch
+    browserDocument.documentElement.dataset.externalStorybookHostModuleEpoch = host.hostModuleEpoch
+    const current = execution.current?.kind === "package" ? execution.current.controller : null
+    if (current === null) {
+      bridge?.dispose()
+      bridge = null
+      return
+    }
+    if (bridge !== null) {
+      bridge.updateIdentity(current.packageId, current.revision ?? "unavailable", current.graphDigest)
+      return
+    }
+    bridge = createStorybookAgentBridge({
+      packageId: current.packageId,
+      revision: current.revision ?? "unavailable",
+      graphDigest: current.graphDigest,
+      shell,
+      getRoute: () => requirePackageScope(execution.current).controller.currentRoute,
+      getModel: () => requirePackageScope(execution.current).controller.currentModel,
+      navigate: route => requirePackageScope(execution.current).controller.navigate(route),
+      selectScenario: value => requirePackageScope(execution.current).controller.selectScenario(value),
+      applyRevision: revision => applyPageRevision(requirePackageScope(execution.current).target.packageId, revision),
+      canApplyRevision: () => requirePackageScope(execution.current).controller.canApplyRevision(),
+      async waitForStableScope() {
+        let pending: Promise<void>
+        do {
+          pending = transitionTail
+          await pending
+        } while (pending !== transitionTail)
+        if (!disposed && replacement !== null) {
+          const next = (globalThis as typeof globalThis & Record<string, unknown>)[STORYBOOK_AGENT_BRIDGE_GLOBAL] as StorybookAgentBridge | undefined
+          if (next === undefined || next === bridge) throw new Error("Storybook platform did not install its agent bridge")
+          return next
+        }
+        if (disposed || execution.current?.kind !== "package") {
+          throw new DOMException("Storybook view navigated away from the requested package", "AbortError")
+        }
+      },
+    })
+  }
+
+  const disposeScope = async (scope: ActivePageScope | null): Promise<void> => {
+    if (scope?.kind === "package") await scope.controller.dispose()
+    else scope?.controller.dispose()
+  }
+
+  const renewPackageTarget = async (
+    target: ExternalStorybookPreparedPackageTarget,
+  ): Promise<ExternalStorybookPreparedPackageTarget> => {
+    const response = await fetcher("/api/browser/session", {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({
+        packageId: target.packageId,
+        revision: target.revision,
+        preview: target.preview || target.intent === "navigation-candidate",
+      }),
+      signal: pageLifetime.signal,
+    })
+    if (!response.ok) throw new Error(`Storybook package reader renewal failed: ${target.packageId}`)
+    const result = await response.json() as {token?: unknown}
+    if (typeof result.token !== "string") throw new Error("Storybook package reader renewal returned no token")
+    return {...target, readerToken: result.token}
+  }
+
+  const restoreScope = async (scope: ActivePageScope): Promise<ActivePageScope> => {
+    if (scope.kind === "landing") {
+      const prepared = await prepareTarget(
+        {packageId: null, route: scope.target.pathname, intent: "navigation"},
+        pageLifetime.signal,
+      )
+      if (prepared.kind !== "landing") throw new Error("Storybook landing rollback returned a package")
+      return startLandingScope(prepared)
+    }
+    return startPackageScope(await renewPackageTarget(scope.target), scope.payload)
+  }
+
+  /** Запрашивает независимое подтверждение первого кандидата после завершения перехода. */
+  const confirmNavigation = (): void => {
+    const scope = execution.current
+    if (scope?.kind !== "package" || scope.target.intent !== "navigation-candidate" ||
+      scope.target.fallbackRevision !== null) return
+    // Инспекция сервера ждёт устойчивого scope через bridge; запрос не входит в очередь перехода.
+    void Promise.resolve().then(() => transitionTail).then(async () => {
+      if (disposed || execution.current !== scope) return
+      const response = await fetcher("/api/browser/confirm-navigation", {
+        method: "POST",
+        headers: {"content-type": "application/json", "x-storybook-session": scope.target.readerToken},
+        body: JSON.stringify({route: scope.controller.currentRoute}),
+        signal: pageLifetime.signal,
+      })
+      if (!response.ok) {
+        const result = await response.json() as {error?: string}
+        throw new Error(result.error ?? "Не удалось подтвердить отображение пакета")
+      }
+    }).catch(error => {
+      if (disposed || execution.current !== scope) return
+      shell.reportDiagnostic(error)
+      shell.updateStatus("Пакет открыт; подтверждение рабочей версии не завершено")
+    })
+  }
+
+  const install = async (
+    target: ExternalStorybookPreparedPageTarget,
+    payload: ExternalStorybookAppliedRevision | null,
+    replaceAddress: boolean | null,
+  ): Promise<void> => {
+    const scroll = readPageScroll(shell)
+    const previousAddress = activeAddress
+    try {
+      await execution.replace(
+        () => target.kind === "landing" ? startLandingScope(target) : startPackageScope(target, payload),
+        (scope, restored) => {
+          if (restored) {
+            history.replaceState(null, "", previousAddress)
+            activeAddress = previousAddress
+          }
+          syncBridge()
+          scope.address.commit(!restored && replaceAddress === false ? "push" : "replace")
+          activeAddress = scope.address.address
+          if (scope.kind === "package") scope.connect()
+          restorePageScroll(shell, scroll)
+        },
+      )
+      confirmNavigation()
+    } catch (error) {
+      if (execution.current === null) {
+        history.replaceState(null, "", previousAddress)
+        activeAddress = previousAddress
+      }
+      throw error
+    }
+  }
+
+  /**
+  Передаёт владение Canvas новой модульной среде в том же browser realm.
+  Предыдущие scope и listeners освобождаются перед созданием следующего контроллера.
+  При совпадении платформы передаётся Browser root и заново монтируется App;
+  прежние компоненты оболочки не передаются новой реализации. При смене платформы освобождается Root.
+  При ошибке новая среда освобождает свои ресурсы, а прежняя монтируется из своего payload.
+  */
+  const replacePage = async (
+    target: ExternalStorybookPreparedPageTarget,
+    payload: ExternalStorybookAppliedRevision | null,
+    replaceAddress: boolean | null,
+    nextHost: StorybookSharedHost,
+  ): Promise<void> => {
+    const startPage = await (options.importSharedHost ?? WebProtocol.importSharedHost<typeof startExternalStorybookPage>)(nextHost)
+    const previous = execution.current
+    if (previous === null) throw new Error("Storybook platform replacement requires an active scope")
+    const scroll = readPageScroll(shell)
+    const previousAddress = activeAddress
+    const shellOptions = {...options.shell, canvas: shell.canvas, userState: shell.captureUserState()}
+    const catalogSearch = shell.workbench.controller.read("catalog.search")
+    let retainedRoot: StorybookRetainedRoot | undefined
+    const {retainedRoot: _previousRoot, ...pageOptions} = options
+    globalThis.removeEventListener?.("popstate", onPopState)
+    globalThis.removeEventListener?.("pagehide", onPageHide)
+    await execution.detach()
+    bridge?.dispose()
+    bridge = null
+    if (nextHost.sharedModuleEpoch === options.sharedModuleEpoch &&
+      JSON.stringify(nextHost.authorStyleSheets.map(style => style.specifier)) === JSON.stringify(host.authorStyleSheets.map(style => style.specifier))) {
+      retainedRoot = shell.releaseRoot()
+    }
+    else shell.dispose()
+    try {
+      replacement = await startPage({
+        ...pageOptions,
+        browserDocument,
+        location,
+        history,
+        shell: shellOptions,
+        ...(retainedRoot === undefined ? {} : {retainedRoot}),
+        sharedModuleEpoch: nextHost.sharedModuleEpoch,
+        hostModuleEpoch: nextHost.hostModuleEpoch,
+        sharedHost: nextHost,
+        initialTarget: target,
+        initialPayload: payload,
+        initialHistory: replaceAddress === false ? "push" : "replace",
+      })
+      replacement.shell.workbench.controller.update("catalog.search", catalogSearch)
+      restorePageScroll(replacement.shell, scroll)
+      delete browserDocument.documentElement.dataset.externalStorybookUpdateError
+    } catch (error) {
+      if (replacement !== null) {
+        await replacement.dispose()
+        replacement = null
+        retainedRoot = undefined
+      }
+      history.replaceState(null, "", previousAddress)
+      try {
+        await WebProtocol.synchronizeStyles(browserDocument, host)
+        const restoredTarget = previous.kind === "package"
+          ? await renewPackageTarget(previous.target)
+          : await prepareTarget({packageId: null, route: previous.target.pathname, intent: "navigation"}, pageLifetime.signal)
+        replacement = await startExternalStorybookPage({
+          ...pageOptions,
+          browserDocument,
+          location,
+          history,
+          shell: shellOptions,
+          ...(retainedRoot === undefined ? {} : {retainedRoot}),
+          initialTarget: restoredTarget,
+          initialPayload: previous.kind === "package" ? previous.payload : null,
+          initialHistory: "replace",
+        })
+        replacement.shell.workbench.controller.update("catalog.search", catalogSearch)
+        restorePageScroll(replacement.shell, scroll)
+        browserDocument.documentElement.dataset.externalStorybookUpdateError = error instanceof Error ? error.message : String(error)
+        replacement.shell.reportDiagnostic(error)
+        replacement.shell.updateStatus("Обновление страницы отклонено; восстановлена рабочая версия")
+      } catch (rollbackError) {
+        retainedRoot?.application.unmount()
+        throw new AggregateError([error, rollbackError], "Storybook failed to restore its platform")
+      }
+      throw error
+    } finally {
+      pageLifetime.abort(new DOMException("Storybook platform ownership transferred", "AbortError"))
+    }
+  }
+
+  /** Выбирает границу HMR по identity платформы до монтирования объектов нового пакета. */
+  const installPrepared = async (
+    target: ExternalStorybookPreparedPageTarget,
+    payload: ExternalStorybookAppliedRevision | null,
+    replaceAddress: boolean | null,
+  ): Promise<void> => {
+    const nextHost = await readHost(payload?.sharedModuleEpoch, target.readerToken, pageLifetime.signal,
+      target.kind !== "landing" && (target.preview || target.intent === "navigation-candidate"))
+    if (nextHost.sharedModuleEpoch !== host.sharedModuleEpoch || nextHost.hostModuleEpoch !== host.hostModuleEpoch) {
+      await replacePage(target, payload, replaceAddress, nextHost)
+    } else await install(target, payload, replaceAddress)
+  }
+
+  /**
+  Применяет текущую общую оболочку без изменения package revision или адреса вкладки.
+  Передача управления выдаёт новый reader grant: одноразовый токен прежнего
+  WebSocket не переносится в соединение нового scope. Неудача сохраняет рабочую страницу.
+  */
+  function refreshSharedHost(): Promise<void> {
+    const operation = transitionTail.catch(() => {}).then(async () => {
+      if (disposed || pageLifetime.signal.aborted || replacement !== null || execution.current === null) return
+      const current = execution.current
+      const payload = current.kind === "package" ? current.payload : null
+      const nextHost = await readHost(payload?.sharedModuleEpoch, current.target.readerToken, pageLifetime.signal,
+        current.kind === "package" && (current.target.preview || current.target.intent === "navigation-candidate"))
+      if (nextHost.hostModuleEpoch === host.hostModuleEpoch && nextHost.sharedModuleEpoch === host.sharedModuleEpoch) return
+      const target = current.kind === "package" ? await renewPackageTarget({
+        ...current.target,
+        route: current.controller.currentRoute,
+        urlPath: current.controller.currentModel.urlPath,
+      }) : await prepareTarget({packageId: null, route: current.target.pathname, intent: "navigation"}, pageLifetime.signal)
+      await replacePage(target, payload, null, nextHost)
+    })
+    transitionTail = operation.catch(() => {})
+    return operation
+  }
+
+  const transition = (
+    request: ExternalStorybookPagePrepareInput,
+    replaceAddress: boolean | null,
+  ): Promise<void> => {
+    const operation = transitionTail
+      .catch(() => {})
+      .then(async () => {
+        if (disposed) throw new Error("External Storybook page is disposed")
+        if (replacement !== null) {
+          if (request.packageId === null) await replacement.navigateLanding(request.route)
+          else await replacement.navigatePackage({packageId: request.packageId, route: request.route})
+          return
+        }
+        delete browserDocument.documentElement.dataset.externalStorybookNavigationError
+        shell.updateStatus("Storybook · Подготовка выбранного пакета")
+        const pending = request.packageId === null
+          ? null
+          : await pendingTargetStatus(request.packageId, pageLifetime.signal)
+        try {
+          const target = await prepareTarget(request, pageLifetime.signal)
+          const payload = target.kind === "landing" ? null : await loadPayload(target, pageLifetime.signal)
+          const preparedNavigation = await fetchExternalStorybookClientSnapshot(fetcher)
+          pending?.dispose()
+          await installPrepared(target, payload, replaceAddress)
+          navigationSnapshot = preparedNavigation
+        } finally {
+          pending?.dispose()
+        }
+      })
+    transitionTail = operation.catch(() => {})
+    return operation
+  }
+
+  /**
+  Заменяет контроллер пакета вместе с его payload, сохраняя общий Root и оболочку.
+  Новая host-реализация приходит из того же immutable payload. Смена платформы
+  передаёт Canvas новой среде; ошибка mount восстанавливает предыдущую среду.
+  */
+  function applyPageRevision(packageId: string, revision: string): Promise<void> {
+    const operation = transitionTail.catch(() => {}).then(async () => {
+      const current = execution.current
+      if (current?.kind !== "package" || current.target.packageId !== packageId) {
+        throw new DOMException("Storybook view navigated to another package", "AbortError")
+      }
+      if (current.controller.revision === revision) return
+      const prepared = await prepareTarget({
+        packageId,
+        route: current.controller.currentRoute,
+        intent: "preview",
+        requestedRevision: revision,
+      }, pageLifetime.signal)
+      if (prepared.kind !== "revision" || prepared.packageId !== packageId || prepared.revision !== revision) {
+        throw new Error("Storybook revision preparation returned a different target")
+      }
+      const payload = await loadPayload(prepared, pageLifetime.signal)
+      const target = await renewPackageTarget({
+        ...prepared,
+        intent: current.target.intent,
+        preview: current.target.preview,
+      })
+      const snapshot = await fetchExternalStorybookClientSnapshot(fetcher)
+      await installPrepared(target, payload, null)
+      navigationSnapshot = snapshot
+    })
+    transitionTail = operation.catch(() => {})
+    return operation
+  }
+
+  async function navigatePackage(input: Readonly<{packageId: string; route: string}>): Promise<void> {
+    if (replacement !== null) return replacement.navigatePackage(input)
+    await transition({packageId: input.packageId, route: input.route, intent: "navigation"}, false)
+  }
+
+  async function navigateLanding(pathname = "/"): Promise<void> {
+    if (replacement !== null) return replacement.navigateLanding(pathname)
+    if (pathname === "/") await transition({packageId: null, route: pathname, intent: "navigation"}, false)
+    else {
+      const target = await resolveAddress(pathname)
+      await transition({packageId: target.packageId, route: target.route, intent: "navigation"}, false)
+    }
+  }
+
+  const resolveAddress = async (address: string): Promise<Readonly<{packageId: string; route: string; urlPath: string}>> => {
+    const requested = new URL(address, location.href)
+    for (const key of [...requested.searchParams.keys()]) {
+      if (key !== "view" && key !== "variant") requested.searchParams.delete(key)
+    }
+    const response = await fetcher("/api/browser/route", {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: JSON.stringify({route: `${requested.pathname}${requested.search}`}),
+      signal: pageLifetime.signal,
+    })
+    if (!response.ok) throw new Error(`Unknown Storybook address: ${address}`)
+    const value = await response.json() as Record<string, unknown>
+    if (typeof value.packageId !== "string" || typeof value.route !== "string" || typeof value.urlPath !== "string") {
+      throw new Error("Storybook route resolver response is invalid")
+    }
+    return {packageId: value.packageId, route: value.route, urlPath: value.urlPath}
+  }
+
+  const onPopState = (): void => {
+    const pathname = location.pathname
+    const current = new URL(location.href)
+    const workspace = execution.current?.kind === "package" ? new URL(execution.current.controller.currentModel.urlPath, current) : null
+    if (execution.current?.kind === "package" && workspace?.pathname === pathname &&
+      (workspace.searchParams.get("view") ?? "overview") === (current.searchParams.get("view") ?? "overview")) {
+      if (typeof execution.current.controller.restoreAddress === "function") execution.current.controller.restoreAddress()
+      activeAddress = currentPageAddress(location)
+      return
+    }
+    if (pathname === "/") {
+      followHistoryTransition(transition({packageId: null, route: pathname, intent: "navigation"}, null))
+      return
+    }
+    followHistoryTransition((async () => {
+      const target = await resolveAddress(currentPageAddress(location))
+      await transition({packageId: target.packageId, route: target.route, intent: "navigation"}, null)
+    })())
+  }
+
+  const followHistoryTransition = (operation: Promise<void>): void => {
+    void operation.catch(error => {
+      history.replaceState(null, "", activeAddress)
+      shell.reportDiagnostic(error)
+      shell.updateStatus("Storybook · History-переход отклонён; восстановлена текущая страница")
+    })
+  }
+
+  try {
+    const initialPayload = options.initialPayload ?? (
+      initialTarget.kind === "landing" ? null : await loadPayload(initialTarget, pageLifetime.signal)
+    )
+    await install(initialTarget, initialPayload, options.initialHistory === "push" ? false : null)
+  } catch (error) {
+    ;(bridge as StorybookAgentBridge | null)?.dispose()
+    if (options.retainedRoot === undefined) shell.dispose()
+    else shell.releaseRoot()
+    pageLifetime.abort(error)
+    throw error
+  }
+  globalThis.addEventListener?.("popstate", onPopState)
+
+  const dispose = async (): Promise<void> => {
+    if (disposed) return
+    disposed = true
+    pageLifetime.abort(new DOMException("External Storybook page disposed", "AbortError"))
+    globalThis.removeEventListener?.("popstate", onPopState)
+    await transitionTail.catch(() => {})
+    globalThis.removeEventListener?.("pagehide", onPageHide)
+    if (replacement !== null) {
+      await replacement.dispose()
+      return
+    }
+    await execution.dispose()
+    bridge?.dispose()
+    bridge = null
+    shell.dispose()
+  }
+  const onPageHide = (): void => { void dispose() }
+  globalThis.addEventListener?.("pagehide", onPageHide, {once: true})
+
+  return Object.freeze({
+    get shell() { return replacement?.shell ?? shell },
+    get packageId() {
+      if (replacement !== null) return replacement.packageId
+      return execution.current?.kind === "package" ? execution.current.target.packageId : null
+    },
+    get route() {
+      if (replacement !== null) return replacement.route
+      return execution.current?.kind === "package" ? execution.current.controller.currentRoute : execution.current?.target.pathname ?? "/"
+    },
+    navigatePackage,
+    navigateLanding,
+    dispose,
+  })
+}
+
+/** Возвращает текущий package scope для bridge callback после live owner check. */
+function requirePackageScope(scope: ActivePageScope | null): ActivePackagePageScope {
+  if (scope?.kind !== "package") throw new Error("External Storybook page has no active package scope")
+  return scope
+}
+
+/** Минимальный public scroll transport semantic Workbench host. */
+type ScrollablePageElement = {scrollTop: number; scrollLeft: number}
+
+/** Stable host positions и позиция заменяемого presentation root. */
+type ExternalStorybookPageScroll = Readonly<{
+  stable: readonly Readonly<{top: number; left: number}>[]
+  presentation: Readonly<{top: number; left: number}> | null
+}>
+
+/** Снимает scroll до scoped teardown без клонирования semantic nodes. */
+function readPageScroll(shell: ExternalStorybookShell): ExternalStorybookPageScroll {
+  const values: unknown[] = [
+    shell.workbench.elements.catalogItems,
+    shell.workbench.elements.tabItems,
+    shell.workbench.elements.inspectorHost,
+    shell.workbench.elements.previewHost,
+    shell.hud.querySelector('[data-storybook-part="catalog-items"] [role="tree"]'),
+  ]
+  const stable = Object.freeze(values.filter(isScrollablePageElement)
+    .map(element => Object.freeze({top: element.scrollTop, left: element.scrollLeft})))
+  const presentation = shell.workbench.controller.read("presentation").node
+  return Object.freeze({
+    stable,
+    presentation: isScrollablePageElement(presentation)
+      ? Object.freeze({top: presentation.scrollTop, left: presentation.scrollLeft})
+      : null,
+  })
+}
+
+/** Возвращает stable host scroll и переносит presentation position на новый root. */
+function restorePageScroll(shell: ExternalStorybookShell, scroll: ExternalStorybookPageScroll): void {
+  const candidates: unknown[] = [shell.workbench.elements.catalogItems, shell.workbench.elements.tabItems,
+    shell.workbench.elements.inspectorHost, shell.workbench.elements.previewHost,
+    shell.hud.querySelector('[data-storybook-part="catalog-items"] [role="tree"]')]
+  const elements = candidates.filter(isScrollablePageElement)
+  scroll.stable.forEach((value, index) => {
+    const element = elements[index]
+    if (element === undefined) return
+    element.scrollTop = value.top
+    element.scrollLeft = value.left
+  })
+  const presentation = shell.workbench.controller.read("presentation").node
+  if (scroll.presentation !== null && isScrollablePageElement(presentation)) {
+    presentation.scrollTop = scroll.presentation.top
+    presentation.scrollLeft = scroll.presentation.left
+  }
+}
+
+/** Проверяет только нужную page controller часть scroll contract. */
+function isScrollablePageElement(value: unknown): value is ScrollablePageElement {
+  return value !== null && typeof value === "object" &&
+    typeof (value as {scrollTop?: unknown}).scrollTop === "number" &&
+    typeof (value as {scrollLeft?: unknown}).scrollLeft === "number"
+}
+
+/**
+Staged URL одного ещё не committed scope.
+
+@property location - Читает draft до commit и реальный page URL после него; reload всегда запрещён.
+
+@property history - До commit нормализует только draft, затем передаёт операции единственному browser History.
+
+@property address - Последний нормализованный адрес этого scope.
+
+@property commit - Создаёт либо заменяет browser entry ровно один раз и начинает отслеживать дальнейшие route/Inspector изменения.
+*/
+type StorybookScopeAddress = Readonly<{
+  location: Pick<Location, "href" | "pathname" | "reload">
+  history: Pick<History, "pushState" | "replaceState">
+  readonly address: string
+  commit(mode: "push" | "replace"): void
+}>
+
+/**
+Создаёт staged URL, чтобы initial `replaceState` нового scope не изменил history прежнего.
+
+@param target - Server-resolved package URL либо landing pathname.
+
+@param pageLocation - Реальный URL, который до commit остаётся нетронутым.
+
+@param pageHistory - Единственный browser History owner.
+
+@param onCommittedAddress - Обновляет rollback address после route и Inspector операций active scope.
+
+@returns Draft adapter, передаваемый только создаваемому package или landing scope.
+*/
+function createStorybookScopeAddress(
+  target: ExternalStorybookPreparedPageTarget,
+  pageLocation: Pick<Location, "href" | "pathname">,
+  pageHistory: Pick<History, "pushState" | "replaceState">,
+  onCommittedAddress: (address: string) => void,
+): StorybookScopeAddress {
+  let committed = false
+  let draft = new URL(pageLocation.href)
+  const destination = new URL(target.kind === "landing" ? target.pathname : target.urlPath, draft)
+  draft.pathname = destination.pathname
+  draft.searchParams.delete("view")
+  const view = destination.searchParams.get("view")
+  if (view !== null) draft.searchParams.set("view", view)
+  draft.searchParams.delete("preview")
+  if (target.kind !== "landing" && target.intent === "preview" && target.revision !== null) {
+    draft.searchParams.set("preview", target.revision)
+  }
+  const updateDraft = (value: string | URL | null): void => {
+    if (value !== null) draft = new URL(String(value), draft.href)
+  }
+  const location = {
+    get href() {
+      return committed ? pageLocation.href : draft.href
+    },
+    set href(value: string) {
+      if (committed) throw new Error("Storybook scope cannot assign browser location")
+      draft = new URL(value, draft.href)
+    },
+    get pathname() {
+      return committed ? pageLocation.pathname : draft.pathname
+    },
+    reload() {
+      throw new Error("Storybook scope cannot reload its page")
+    },
+  }
+  const history = {
+    pushState(data: unknown, unused: string, url?: string | URL | null) {
+      if (!committed) {
+        updateDraft(url ?? null)
+        return
+      }
+      pageHistory.pushState(data, unused, url)
+      onCommittedAddress(currentPageAddress(pageLocation))
+    },
+    replaceState(data: unknown, unused: string, url?: string | URL | null) {
+      if (!committed) {
+        updateDraft(url ?? null)
+        return
+      }
+      pageHistory.replaceState(data, unused, url)
+      onCommittedAddress(currentPageAddress(pageLocation))
+    },
+  }
+  const value: StorybookScopeAddress = Object.freeze({
+    location,
+    history,
+    get address() {
+      const current = committed ? new URL(pageLocation.href) : draft
+      return `${current.pathname}${current.search}${current.hash}`
+    },
+    commit(mode) {
+      if (committed) return
+      const address = `${draft.pathname}${draft.search}${draft.hash}`
+      if (mode === "push") pageHistory.pushState(null, "", address)
+      else pageHistory.replaceState(null, "", address)
+      committed = true
+      onCommittedAddress(address)
+    },
+  })
+  return value
+}
+
+/** Возвращает pathname, query и hash без origin для bounded rollback history. */
+function currentPageAddress(location: Pick<Location, "href" | "pathname">): string {
+  const url = new URL(location.href)
+  return `${url.pathname}${url.search}${url.hash}`
+}
+
+/**
+Откладывает создание final package socket до committed markers, bridge и кадра.
+
+Listeners регистрируются сразу, поэтому scope не знает о задержке. `close()` до
+`connect()` отменяет владение без открытия transport; после `connect()` adapter
+прозрачно передаёт события exact socket.
+
+@param create - Factory с уже выданным exact reader token.
+
+@returns Socket-compatible adapter с однократным `connect()`.
+*/
+function createDeferredStorybookSocket(
+  create: () => HmrConnection.Input["socket"],
+): HmrConnection.Input["socket"] & Readonly<{connect(): void}> {
+  const listeners = new Map<string, Set<(event: any) => void>>()
+  let socket: HmrConnection.Input["socket"] | null = null
+  let closed = false
+  const deferred = {
+    addEventListener(type: string, listener: (event: any) => void) {
+      const values = listeners.get(type) ?? new Set()
+      values.add(listener)
+      listeners.set(type, values)
+      socket?.addEventListener(type, listener)
+    },
+    removeEventListener(type: string, listener: (event: any) => void) {
+      listeners.get(type)?.delete(listener)
+      socket?.removeEventListener(type, listener)
+    },
+    send(data: string) {
+      if (socket === null) throw new Error("Storybook package socket is not connected")
+      socket.send(data)
+    },
+    close() {
+      closed = true
+      socket?.close()
+      socket = null
+    },
+    connect() {
+      if (closed || socket !== null) return
+      socket = create()
+      for (const [type, values] of listeners) {
+        for (const listener of values) socket.addEventListener(type, listener)
+      }
+    },
+  }
+  return Object.freeze(deferred)
+}

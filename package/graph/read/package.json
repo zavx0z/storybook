@@ -1,0 +1,18 @@
+{
+  "name": "@package-graph/read",
+  "label": "Чтение графа",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Браузерно безопасные маршруты, поиск и узлы готового графа",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@route/address": "workspace:*"
+  },
+  "devDependencies": {
+    "@repo/discovery": "workspace:*",
+    "@package-graph/create": "workspace:*"
+  }
+}

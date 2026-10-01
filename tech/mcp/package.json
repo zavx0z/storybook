@@ -1,0 +1,15 @@
+{
+  "name": "@tech/mcp",
+  "label": "MCP-транспорт",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Технический домен транспорта и уведомлений стандартного MCP без предметных инструментов",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@mcp/stdio": "workspace:*",
+    "@mcp/progress": "workspace:*"
+  }
+}

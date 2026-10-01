@@ -1,0 +1,25 @@
+{
+  "name": "@build/compiler",
+  "label": "Компилятор",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Разрешает физических владельцев и создаёт согласованный JSX compiler setup",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@zavx0z/jsx": "^0.0.0",
+    "@jsx-compiler/bun": "^0.0.0",
+    "@jsx/runtime": "^0.0.0",
+    "@jsx/development": "^0.0.0"
+  },
+  "devDependencies": {
+    "@zavx0z/template": "^0.0.0",
+    "@zavx0z/ui": "^0.0.0",
+    "@zavx0z/component": "^0.0.0",
+    "@zavx0z/dom": "^0.0.0",
+    "@package-build/loader": "workspace:*",
+    "@archetypes/scenario-reader": "workspace:*"
+  }
+}

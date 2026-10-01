@@ -1,0 +1,19 @@
+{
+  "name": "@scenario/preview",
+  "label": "Просмотр сценария",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Сохраняет место примера в действующем Display",
+  "exports": {
+    ".": "./index.tsx"
+  },
+  "dependencies": {
+    "@zavx0z/component": "^0.0.0",
+    "@scenario/result": "workspace:*"
+  },
+  "devDependencies": {
+    "@immersive/headless": "^0.0.0",
+    "@scenario/model": "workspace:*"
+  }
+}

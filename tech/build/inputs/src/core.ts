@@ -11,10 +11,14 @@ import {
   statSync,
 } from "node:fs"
 import {basename, dirname, isAbsolute, join, relative, resolve, sep} from "node:path"
-import type {BuildInputFile, BuildInputFingerprint} from "../contract/fingerprint"
-import type {BuildInputPlan, BuildInputPlanInput, BuildInputScope} from "../contract/plan"
-import type {BuildInputAttestation} from "../contract/attestation"
+import type {BuildInputFile} from "../contract/fingerprint"
+import type {BuildInputs} from "../contract"
+import type {BuildInputPlan, BuildInputScope} from "./plan"
+import type {BuildInputAttestation} from "./attestation"
 import {PROTOCOL} from "./protocol"
+
+type BuildInputFingerprint = BuildInputs.Output
+type BuildInputPlanInput = BuildInputs.Input
 
 const IGNORED_DIRECTORY_NAMES = new Set([
   ".git",
