@@ -949,8 +949,10 @@ export class StorybookPackageSession {
     try {
       if (!lstatSync(path).isFile() || lstatSync(path).isSymbolicLink()) throw new Error("Applied revision receipt must be an exact file")
       const value = JSON.parse(readFileSync(path, "utf8"))
-      if ((value.version !== 1 && value.version !== 2) || value.packageId !== this.packageId || value.packageRoot !== this.descriptor.packageRoot ||
+      if ((value.version !== 1 && value.version !== 2) || value.packageId !== this.packageId ||
+        typeof value.packageRoot !== "string" || !isAbsolute(value.packageRoot) || resolve(value.packageRoot) !== value.packageRoot ||
         typeof value.revision !== "string" || !/^[A-Za-z0-9_-]{1,256}$/u.test(value.revision)) throw new Error("Applied revision receipt has a different owner")
+      const relocated = value.packageRoot !== this.descriptor.packageRoot
       if (value.standard !== undefined && value.standard !== "transition" && value.standard !== "strict") throw new Error("Неизвестный режим стандарта пакета")
       this.#standard = value.standard ?? "transition"
       // Ревизия другого формата не является ошибкой исходников пакета и не загружается.
@@ -963,7 +965,10 @@ export class StorybookPackageSession {
       const persistedFingerprint = value.version === 2
         ? BuildInputs.parse(value.inputFingerprint)
         : null
-      const verifiedFingerprint = persistedFingerprint === null
+      if (relocated && value.version === 2 && persistedFingerprint === null) {
+        throw new Error("Relocated revision receipt has invalid input evidence")
+      }
+      const verifiedFingerprint = relocated || persistedFingerprint === null
         ? null
         : this.#verifyPersistedInputFingerprint(persistedFingerprint)
       const restoredGeneration = verifiedFingerprint === null ? 0 : this.#generation
@@ -984,6 +989,12 @@ export class StorybookPackageSession {
           return warning
         })),
         diagnostics: Object.freeze([]), createdAt: value.createdAt, activation: null, leases: new Set(),
+      }
+      // Перенос того же пакета сохраняет строгость, но требует нового свидетельства
+      // для текущего корня. Старые исходники не читаются, прежняя ревизия не применяется.
+      if (relocated) {
+        this.#cacheOutcome = Object.freeze({status: "miss", layer: "receipt"})
+        return
       }
       this.#revisions.set(record.revision, record)
       this.#persistedAppliedRevision = record.revision

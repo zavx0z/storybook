@@ -526,6 +526,95 @@ describe("working Storybook PackageSession lifecycle", () => {
     await restored.dispose()
   })
 
+  test("перенос identity требует новой ревизии и сохраняет строгий режим", async () => {
+    const root = fixtureRoot("relocated-owner")
+    const oldRoot = join(root, "old")
+    const nextRoot = join(root, "next")
+    mkdirSync(oldRoot)
+    mkdirSync(nextRoot)
+    const oldDescriptor = {...descriptor(oldRoot, "@fixture/moved"), projectRoot: root}
+    const nextDescriptor = {...descriptor(nextRoot, "@fixture/moved", "two"), projectRoot: root}
+    const fingerprint = fakeInputFingerprint(oldRoot, oldDescriptor.declarationDigest)
+    const first = createSession(oldDescriptor, async ({stagingDirectory}) => ({
+      ...successfulBuild(stagingDirectory), inputFingerprint: fingerprint,
+      verification: {status: "passed", diagnostics: []},
+    }), [])
+    const built = await first.ensureBuilt()
+    const lease = first.beginActivation({revision: built.builtRevision!, viewId: "view", route: ""})
+    first.acknowledgeActivation({...lease, frameSequence: 1})
+    await first.dispose()
+    const owner = readdirSync(join(root, ".artifacts"))[0]!
+    const receiptPath = join(root, ".artifacts", owner, "applied.json")
+    const originalReceipt = readFileSync(receiptPath, "utf8")
+    rmSync(oldRoot, {recursive: true})
+    let verified = 0
+    let passed = false
+    const modes: (string | undefined)[] = []
+    const moved = createSession(nextDescriptor, async ({stagingDirectory, standard}) => {
+      modes.push(standard)
+      return {...successfulBuild(stagingDirectory), verification: {
+        status: passed ? "passed" : "incomplete", diagnostics: [],
+      }}
+    }, [], {verifyInputFingerprint: () => { verified += 1; throw new Error("Прежние исходники недоступны") }})
+    try {
+      expect(moved.snapshot(), "Перенос сохраняет строгость без восстановления прежнего исполнения").toMatchObject({
+        standard: "strict", buildState: "idle", activeRevision: null, lastWorkingRevision: null,
+        completedGeneration: 0, builds: 0, cacheOutcome: {status: "miss", layer: "receipt"}, diagnostics: [],
+      })
+      expect(verified, "При переносе fingerprint прежнего корня не проверяется чтением исходников").toBe(0)
+      expect(await moved.ensureBuilt(), "Неполная новая проверка не понижает строгий режим")
+        .toMatchObject({standard: "strict", buildState: "failed", activeRevision: null})
+      expect(readFileSync(receiptPath, "utf8"), "Неудачная подготовка сохраняет прежнее свидетельство").toBe(originalReceipt)
+      passed = true
+      moved.retryFailed()
+      const fresh = await moved.ensureBuilt()
+      expect(fresh.buildState, "Исправленный пакет получает нового кандидата").toBe("built")
+      expect(fresh.builtRevision, "Прежняя ревизия не подставляется за новый результат").not.toBe(built.builtRevision)
+      const nextLease = moved.beginActivation({revision: fresh.builtRevision!, viewId: "new-view", route: ""})
+      moved.acknowledgeActivation({...nextLease, frameSequence: 2})
+      expect(JSON.parse(readFileSync(receiptPath, "utf8")).packageRoot, "Только применение закрепляет канонический путь нового физического владельца").toBe(realpathSync(nextRoot))
+      expect(modes, "Обе новые попытки проверяются в прежнем строгом режиме").toEqual(["strict", "strict"])
+    } finally {
+      await moved.dispose()
+    }
+  })
+
+  test.each([
+    {name: "чужая identity", patch: {packageId: "@fixture/foreign"}},
+    {name: "относительный корень", patch: {packageRoot: "old"}},
+    {name: "повреждённый граф", patch: {graphSnapshot: null}},
+    {name: "выход артефакта за границу", patch: {entryRelativePath: "../entry.js"}},
+    {name: "повреждённое evidence", patch: {inputFingerprint: {}}},
+    {name: "неизвестная строгость", patch: {standard: "unknown"}},
+    {name: "повреждённая диагностика", patch: {warnings: [null]}},
+  ])("перенос не скрывает нарушение receipt: $name", async ({patch}) => {
+    const root = fixtureRoot("relocated-invalid")
+    const oldRoot = join(root, "old")
+    const nextRoot = join(root, "next")
+    mkdirSync(oldRoot)
+    mkdirSync(nextRoot)
+    const value = {...descriptor(oldRoot, "@fixture/moved"), projectRoot: root}
+    const first = createSession(value, async ({stagingDirectory}) => ({
+      ...successfulBuild(stagingDirectory), inputFingerprint: fakeInputFingerprint(oldRoot, value.declarationDigest),
+    }), [])
+    const built = await first.ensureBuilt()
+    const lease = first.beginActivation({revision: built.builtRevision!, viewId: "view", route: ""})
+    first.acknowledgeActivation({...lease, frameSequence: 1})
+    await first.dispose()
+    const owner = readdirSync(join(root, ".artifacts"))[0]!
+    const receiptPath = join(root, ".artifacts", owner, "applied.json")
+    const receipt = JSON.parse(readFileSync(receiptPath, "utf8"))
+    writeFileSync(receiptPath, JSON.stringify({...receipt, ...patch}))
+    const moved = createSession({...descriptor(nextRoot, "@fixture/moved"), projectRoot: root}, successfulBuilder(), [])
+    try {
+      expect(await moved.ensureBuilt(), "Повреждённое свидетельство блокирует сборку и не восстанавливает ревизию")
+        .toMatchObject({buildState: "failed", builds: 0, activeRevision: null, lastWorkingRevision: null})
+      expect(moved.snapshot().diagnostics[0]?.phase, "Причина отказа относится к восстановлению опубликованного результата").toBe("publish")
+    } finally {
+      await moved.dispose()
+    }
+  })
+
   test("restores an exact v2 receipt at the current generation without a new build", async () => {
     const root = fixtureRoot("receipt-v2-hit")
     const value = descriptor(root, "@fixture/a")
