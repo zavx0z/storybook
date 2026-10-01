@@ -1,4 +1,4 @@
-import type {ReadScenarioInput} from "@storybook/app/scenarios"
+import type {ReadScenarioInput} from "@storybook/app-old/scenarios"
 
 /**
 Передаёт прогресс и единственный итог через NDJSON без накопления ответа до конца теста.

@@ -1,0 +1,11 @@
+{
+  "name": "@app/server",
+  "label": "Server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Серверное исполнение приложения Storybook и подключение его предметных операций",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

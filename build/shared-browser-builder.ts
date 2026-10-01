@@ -6,6 +6,7 @@ import type {StorybookBuildOperationContext} from "./build-scheduler.ts"
 import type {SharedBrowserAssets} from "./shared-browser-assets.ts"
 import type {SharedBrowserBuildInput} from "./types/shared-browser.ts"
 import {validateStorybookSharedBrowserIdentity} from "./shared-module-identity.ts"
+import {STORYBOOK_SHARED_ASSETS_MAX_BYTES} from "./shared-browser-receipt"
 
 /**
 Выполняет общую browser-сборку внутри уже выделенного scheduler slot.
@@ -38,7 +39,7 @@ export async function runSharedBrowserBuild(
       label: "Shared browser build",
       parseEvent: parseStorybookBuildWorkerTransportEvent,
       streamMode: "strict",
-      maxResultBytes: 1_048_576,
+      maxResultBytes: STORYBOOK_SHARED_ASSETS_MAX_BYTES,
       onProgress(event) {
         if (event.state === "started") context.setPhase(event.phase)
         if (event.cache !== undefined) context.setCacheOutcome?.(event.cache)

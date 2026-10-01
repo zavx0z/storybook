@@ -5,6 +5,8 @@ Minimap показывает каталог в HUD того же Experience. П�
 с сохранением раскрытых ветвей и позиции прокрутки.
 Host Storybook сохраняет видимость, размер и положение окна и Tab в localStorage.
 Перемещение и resize записываются после завершения, отмена не меняет сохранённую раскладку.
+Кнопка «Пересобрать интерфейс» вызывает предоставленную приложением операцию подготовки
+Web. Ожидание блокирует повторный запуск; ошибка видна рядом с кнопкой и допускает повтор.
 
 @packageDocumentation
 */
@@ -12,6 +14,7 @@ import {useId, useRef, useState} from "@zavx0z/component"
 import Window from "@zavx0z/ui/surface/window"
 import WindowControl from "@zavx0z/ui/surface/window/control"
 import Tab from "@zavx0z/ui/surface/tab"
+import WebRebuildControl from "./src/rebuild-control.tsx"
 import {CatalogPanel} from "../catalog-panel"
 import {defaultMinimapState, type MinimapState} from "./src/state.ts"
 import type {MinimapProps} from "./contract/input.ts"
@@ -22,6 +25,24 @@ export function Minimap(props: MinimapProps) {
   const id = useId()
   const [state, setState] = useState(() => props.initialState ?? defaultMinimapState())
   const current = useRef(state)
+  const [rebuilding, setRebuilding] = useState(false)
+  const [rebuildError, setRebuildError] = useState("")
+  const rebuildPending = useRef(false)
+  /** Передаёт явное действие приложению и удерживает одну попытку до завершения подготовки. */
+  const rebuildWeb = async (): Promise<void> => {
+    if (rebuildPending.current || props.onRebuildWeb === undefined) return
+    rebuildPending.current = true
+    setRebuilding(true)
+    setRebuildError("")
+    try {
+      await props.onRebuildWeb()
+    } catch (error) {
+      setRebuildError(error instanceof Error ? error.message : String(error))
+    } finally {
+      rebuildPending.current = false
+      setRebuilding(false)
+    }
+  }
   /** Публикует один завершённый снимок, общий для оболочки и её управляющего Tab. */
   const update = (patch: Partial<MinimapState>) => {
     const next = {...current.current, ...patch}
@@ -52,6 +73,12 @@ export function Minimap(props: MinimapProps) {
       movable={true}
       resizable={true}
     >
+      <WebRebuildControl
+        visible={props.onRebuildWeb !== undefined}
+        busy={rebuilding}
+        error={rebuildError}
+        onClick={() => { void rebuildWeb() }}
+      />
       <CatalogPanel
         label={props.catalog.label}
         search={props.catalog.search}

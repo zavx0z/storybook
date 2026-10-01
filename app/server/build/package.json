@@ -1,0 +1,11 @@
+{
+  "name": "@app-server/build",
+  "label": "Сборка Server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Подготовка исполняемого результата серверного компонента приложения",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

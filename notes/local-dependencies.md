@@ -15,7 +15,7 @@
 его дочерними пакетами в навигации.
 
 Корень Storybook подключает Archetypes Specs для проверки руководства.
-[App](../app/package.json) владеет полным чтением сценария и зависимостью
+[App](../app-old/package.json) владеет полным чтением сценария и зависимостью
 `fast-xml-parser`; [REST](../mcp/rest/package.json) обращается к его публичному
 входу через `workspace:*`. Оба потребителя используют один исходник App.
 Highlighter имеет один источник для Storybook и UI.

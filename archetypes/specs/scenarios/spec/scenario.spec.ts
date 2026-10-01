@@ -17,7 +17,7 @@ import readScenarioGuide from "@archetypes/scenario-guide"
 describe.each([
   {
     name: "Функция",
-    props: {path: resolve(import.meta.dir, "../../../../app/scenarios/spec/fixture/function/spec/scenario.spec.ts")},
+    props: {path: resolve(import.meta.dir, "../../../../app-old/scenarios/spec/fixture/function/spec/scenario.spec.ts")},
     files: [
       {path: "spec/scenario.spec.ts", role: "scenario"},
       {path: "index.ts", role: "public-entry"},
@@ -25,7 +25,7 @@ describe.each([
   },
   {
     name: "Компонент",
-    props: {path: resolve(import.meta.dir, "../../../../app/scenarios/spec/fixture/component/spec/scenario.spec.tsx")},
+    props: {path: resolve(import.meta.dir, "../../../../app-old/scenarios/spec/fixture/component/spec/scenario.spec.tsx")},
     files: [
       {path: "spec/scenario.spec.tsx", role: "scenario"},
       {path: "index.tsx", role: "public-entry"},
@@ -33,7 +33,7 @@ describe.each([
   },
   {
     name: "Компонент со слотами",
-    props: {path: resolve(import.meta.dir, "../../../../app/scenarios/spec/fixture/slots/spec/scenario.spec.tsx")},
+    props: {path: resolve(import.meta.dir, "../../../../app-old/scenarios/spec/fixture/slots/spec/scenario.spec.tsx")},
     files: [
       {path: "spec/scenario.spec.tsx", role: "scenario"},
       {path: "index.tsx", role: "public-entry"},

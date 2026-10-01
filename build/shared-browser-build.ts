@@ -20,6 +20,10 @@ import {
 /**
 Компилирует общую оболочку в принадлежащем её сборке процессе.
 
+Холодная сборка выполняет по одному native проходу kernel и host. При sharedKernel
+собирается только host по сохранённой module map; receipt и immutable файлы kernel
+должны находиться в root. Namespace каждого результата включает source maps.
+
 @param input - Канонические entrypoints и каталоги результата и staging текущей операции.
 
 @param onPhase - Получатель этапов только этой операции; не запускает отдельный мониторинг.
@@ -70,9 +74,8 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
     onPhase?.({phase: "kernel", state: "started", at: new Date().toISOString()})
     const kernel = await buildSharedArtifactGraph(async () => ({
       entrypoints: moduleEntries.map(({entryPath}) => entryPath),
-      outdir: staging,
-      naming: {entry: "kernel/[name]-[hash].[ext]", chunk: "kernel/chunks/[name]-[hash].[ext]"},
-      publicPath: "/__storybook/shared/",
+      outdir: join(staging, "kernel"),
+      naming: {entry: "[name]-[hash].[ext]", chunk: "[name]-[hash].[ext]"},
       target: "browser",
       format: "esm",
       splitting: true,
@@ -81,7 +84,7 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
       plugins: [...await kernelPlugins()],
       metafile: true,
       throw: false,
-    }), staging)
+    }))
     assertSharedBuild(kernel, "kernel")
     onPhase?.({phase: "kernel", state: "completed", at: new Date().toISOString()})
     const kernelEntryFor = (source: string): string => emittedEntry(kernel, staging, source)
@@ -121,9 +124,8 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
   onPhase?.({phase: "host", state: "started", at: new Date().toISOString()})
   const host = await buildSharedArtifactGraph(async () => ({
     entrypoints: hostEntryPoints,
-    outdir: staging,
-    naming: {entry: "entries/[name]-[hash].[ext]", chunk: "chunks/[name]-[hash].[ext]"},
-    publicPath: "/__storybook/shared/",
+    outdir: join(staging, "host"),
+    naming: {entry: "[name]-[hash].[ext]", chunk: "[name]-[hash].[ext]"},
     target: "browser",
     format: "esm",
     splitting: true,
@@ -132,7 +134,7 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
     plugins: [createStorybookSharedBrowserExternalPlugin(provisionalIdentity, input.sharedKernel === undefined), ...await hostPlugins()],
     metafile: true,
     throw: false,
-  }), staging)
+  }))
   if (!host.success) {
     rmSync(staging, {recursive: true, force: true})
     throw new Error(host.logs.map(({message}) => message).join("\n"))

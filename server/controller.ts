@@ -384,6 +384,18 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
   }
 
   async check(input: StorybookCheckInput, context: StorybookControllerContext): Promise<StorybookControllerResult> {
+    if (input.scope === "storybook:web") {
+      const signal = input.timeoutMs === undefined ? context.signal
+        : AbortSignal.any([context.signal, AbortSignal.timeout(input.timeoutMs)])
+      const record = await this.#requireRunning()
+      const result = await new ExternalStorybookControlClient(record).controlStream(
+        "/api/control/app/web/rebuild",
+        {live: input.live ?? false},
+        context.onProgress,
+        signal,
+      )
+      return Object.freeze({...result, status: result.ok === true ? "success" : "failed"})
+    }
     const timeoutSignal = AbortSignal.timeout(input.timeoutMs ?? 120_000)
     const operationContext = Object.freeze({signal: AbortSignal.any([context.signal, timeoutSignal])})
     const pathScope = existsSync(input.scope) ? realpathSync(input.scope) : null
@@ -567,6 +579,7 @@ export class ExternalStorybookController implements ExternalStorybookControllerC
       sharedBuildError: value.sharedBuildError ?? null,
       requestJournal: value.requestJournal ?? null,
       buildScheduler: value.buildScheduler ?? null,
+      app: value.app ?? null,
       discovery: value.discovery ?? null,
       preflight: value.preflight ?? {
         scopeResolved: scope === undefined || exactPackageScope,

@@ -10,8 +10,10 @@ describe.each([
 ])("$name", async ({props: input}) => {
   const headless = createHeadless({width: 640, height: 560})
   afterAll(() => headless.dispose())
+  const rebuild = Promise.withResolvers<void>()
   const props = {
     ...input,
+    onRebuildWeb: mock(() => rebuild.promise),
     catalog: {
       label: "Каталог",
       search: "",
@@ -31,6 +33,7 @@ describe.each([
     <Minimap
       catalog={props.catalog}
       initialState={props.initialState}
+      onRebuildWeb={props.onRebuildWeb}
     />,
   )
   const panel = element.querySelector("[data-window]")!
@@ -77,5 +80,25 @@ describe.each([
     expect(props.catalog.onNavigate.mock.calls, "Переход передаёт исходный элемент каталога и источник события владельцу навигации").toEqual([
       [props.catalog.items[1], row],
     ])
+  })
+
+  test("Явная пересборка интерфейса", async () => {
+    if (panel.hasAttribute("hidden")) element.querySelector('button[aria-label="Minimap"]')!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    await headless.screenshot(element)
+    const button = panel.querySelector('button[aria-label="Пересобрать интерфейс"]')!
+    try {
+      button.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+      button.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+      await headless.screenshot(element)
+      expect(props.onRebuildWeb.mock.calls, "Два нажатия до завершения создают одну попытку пересборки Web").toEqual([[]])
+      expect(button.hasAttribute("disabled"), "Кнопка блокируется во время подготовки").toBeTrue()
+      expect(button.textContent, "Текст кнопки раскрывает ожидание").toBe("Пересборка интерфейса…")
+    } finally {
+      rebuild.resolve()
+      await rebuild.promise
+      await headless.screenshot(element)
+    }
+    expect(button.hasAttribute("disabled"), "После завершения доступна следующая явная пересборка").toBeFalse()
+    expect(button.textContent, "После подготовки возвращается название действия").toBe("Пересобрать интерфейс")
   })
 })

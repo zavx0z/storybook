@@ -1,0 +1,11 @@
+{
+  "name": "@app-web/build",
+  "label": "Сборка Web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Подготовка исполняемого результата Web-компонента приложения",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

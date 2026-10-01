@@ -1,10 +1,13 @@
 import activateRevision, {type ActivationOutput} from "@hmr/activation"
+import createApp, {type Contract as App} from "@storybook/app"
+import {streamAppOperation} from "./app-stream.ts"
+import {sharedHostEvent} from "./shared-host-event.ts"
 import {sharedHostEpochs} from "./shared-host-epochs.ts"
 import type {StorybookSharedHost} from "../runtime/shared-host"
 import {resolveStorybookRoute} from "./route"
 import {createStorybookScenarioRunner} from "./scenario-run"
 import {streamScenarioRun} from "./scenario-stream"
-import type {ReadScenarioInput} from "@storybook/app/scenarios"
+import type {ReadScenarioInput} from "@storybook/app-old/scenarios"
 import {storybookPackagePathMatches, storybookPackageRouteFromPathname, storybookCurrentRouteKey, validStorybookViewQuery} from "@zavx0z/storybook-browser-lifecycle/contract"
 import {externalStorybookBrowsePath} from "../catalog/graph.ts"
 import {storybookRest} from "@mcp/rest"
@@ -218,11 +221,9 @@ export async function startExternalStorybookServer(
     return delivered
   }
   /**
-  Актуализирует общие модули до проверки сохранённой пакетной ревизии.
-
-  Без этого быстрый cache hit мог бы подтвердить пакет по прежней эпохе host,
-  даже когда общая оболочка уже изменена. Повторная проверка перед compiler
-  admission сохраняет эту границу и после ожидания в очереди.
+  Выбирает опубликованную среду для подготовки пакетной ревизии.
+  Изменения исходников самого Storybook применяются отдельной явной операцией.
+  Подготовка пакета не запускает компилятор среды или Web-интерфейса.
 
   @param signal - Отмена конкретного ожидания; общая работа сохраняет собственный lifecycle.
 
@@ -230,7 +231,7 @@ export async function startExternalStorybookServer(
   */
   const prepareSharedIdentity = async (signal: AbortSignal): Promise<void> => {
     signal.throwIfAborted()
-    const assets = await sharedAssets.ensure()
+    const assets = sharedAssets.current()
     if (unavailableSharedKernels.size === 0) sharedBuildError = null
     if (!usesSharedKernel) return
     signal.throwIfAborted()
@@ -481,7 +482,7 @@ export async function startExternalStorybookServer(
     }, signal),
     cacheProgress: event => publish(Object.freeze({type: "shared.cache-progress", ...event})),
     commit: assets => saveSharedBrowserReceipt(assets),
-    updated: assets => publish(Object.freeze({type: "shared.updated", host: sharedHostDescriptor(assets)})),
+    updated: assets => publish(sharedHostEvent(sharedHostDescriptor(assets))),
     failed: error => {
       sharedBuildError = Object.freeze({message: errorText(error).slice(0, 4_096), at: new Date().toISOString()})
       publish(Object.freeze({type: "shared.failed", message: sharedBuildError.message}))
@@ -490,6 +491,29 @@ export async function startExternalStorybookServer(
   const readSharedAssets = (preview = false): SharedBrowserAssets => preview ? sharedAssets.prepared() ?? sharedAssets.current() : sharedAssets.current()
   const requestedKernels = new Set<string>()
   const preparedHosts = new Map<string, SharedBrowserAssets>()
+  const retainedHostAssets = new Map<string, StorybookSharedBrowserAssets>()
+  /** Сборка совместимого host принадлежит серверу; запрос лишь ожидает её результат. */
+  const prepareRetainedHost = (identity: NonNullable<SharedBrowserAssets["browserIdentity"]>): Promise<SharedBrowserAssets> => {
+    if (closing) return Promise.reject(new Error("Storybook server is stopping"))
+    let assets = retainedHostAssets.get(identity.epoch)
+    if (assets === undefined) {
+      assets = new StorybookSharedBrowserAssets({
+        build: signal => sessions.buildScheduler.run({packageId: null, owner: "shared", reason: "input-changed", generation: null},
+          context => runSharedBrowserBuild({root: sharedAssetRoot, toolRoot,
+            landingEntryPath: options.landingEntryPath ?? join(toolRoot, "runtime/browser-entry.ts"),
+            fallbackEntryPath: options.fallbackEntryPath ?? join(toolRoot, "runtime/browser-entry.ts"),
+            sharedKernel: identity,
+          }, context, STORYBOOK_SHARED_COMPILE_TIMEOUT_MS), signal),
+        updated() {},
+        failed(error) {
+          sharedBuildError = Object.freeze({message: errorText(error).slice(0, 4_096), at: new Date().toISOString()})
+          publish(Object.freeze({type: "shared.failed", message: sharedBuildError.message}))
+        },
+      })
+      retainedHostAssets.set(identity.epoch, assets)
+    }
+    return assets.ensure()
+  }
   const readSharedHost = (epoch?: string, preview = false): StorybookSharedHost => {
     const current = readSharedAssets(preview)
     if (epoch === undefined || epoch === current.browserIdentity?.epoch) return sharedHostDescriptor(current)
@@ -504,13 +528,17 @@ export async function startExternalStorybookServer(
     }
     return sharedHostDescriptor(compatible)
   }
-  const checkSharedHosts = async (signal: AbortSignal): Promise<readonly SharedBrowserAssets[]> => {
-    await prepareSharedIdentity(signal)
-    const current = readSharedAssets(true)
+  const checkSharedHosts = async (signal: AbortSignal, webOnly = false): Promise<readonly SharedBrowserAssets[]> => {
+    const published = webOnly ? sharedAssets.current() : null
+    if (webOnly && published?.browserIdentity === undefined) throw new Error("Сначала явно подготовьте среду Storybook")
+    const current = webOnly
+      ? await prepareRetainedHost(published!.browserIdentity!)
+      : await sharedAssets.ensure()
     const hosts = [current]
     const epochs = sharedHostEpochs(sessions.snapshots(), requestedKernels)
     unavailableSharedKernels.clear()
     for (const epoch of epochs) {
+      signal.throwIfAborted()
       if (epoch === current.browserIdentity?.epoch) continue
       const rejected: string[] = []
       const retained = readSharedBrowserEpoch(sharedAssetRoot, epoch, undefined, reason => { rejected.push(reason) })
@@ -518,17 +546,15 @@ export async function startExternalStorybookServer(
         unavailableSharedKernels.set(epoch, `Сохранённая платформа ${epoch} не подтверждена: ${rejected.join("; ")}`)
         continue
       }
-      const compatible = await sessions.buildScheduler.run({packageId: null, owner: "shared", reason: "input-changed", generation: null},
-        context => runSharedBrowserBuild({root: sharedAssetRoot, toolRoot,
-          landingEntryPath: options.landingEntryPath ?? join(toolRoot, "runtime/browser-entry.ts"),
-          fallbackEntryPath: options.fallbackEntryPath ?? join(toolRoot, "runtime/browser-entry.ts"),
-          sharedKernel: retained.browserIdentity!,
-        }, context, STORYBOOK_SHARED_COMPILE_TIMEOUT_MS), signal)
+      const compatible = await prepareRetainedHost(retained.browserIdentity)
+      signal.throwIfAborted()
       if (compatible.browserIdentity?.hostModuleEpoch !== current.browserIdentity?.hostModuleEpoch) {
         throw new Error("Исходники оболочки изменились между сборками платформенных вариантов")
       }
       hosts.push(compatible)
     }
+    signal.throwIfAborted()
+    if (webOnly) sharedAssets.stageHost(current)
     requestedKernels.clear()
     sharedBuildError = unavailableSharedKernels.size === 0 ? null : Object.freeze({
       message: [...unavailableSharedKernels.values()].join("\n").slice(0, 4_096), at: new Date().toISOString(),
@@ -536,6 +562,37 @@ export async function startExternalStorybookServer(
     preparedHosts.clear()
     for (const assets of hosts) if (assets.browserIdentity) preparedHosts.set(assets.browserIdentity.epoch, assets)
     return hosts
+  }
+
+  const app = createApp({web: {
+    prepare: signal => checkSharedHosts(signal, true),
+    versions: candidates => candidates.map(candidate => ({
+      platform: candidate.browserIdentity!.epoch,
+      web: candidate.browserIdentity!.hostModuleEpoch,
+    })),
+    publish: candidates => {
+      if (unavailableSharedKernels.size > 0) throw new Error(sharedBuildError?.message ?? "Не все открытые платформы готовы")
+      sharedAssets.publish(candidates.slice(1), candidates[0])
+    },
+  }})
+  const unsubscribeApp = app.subscribe(state => publish({type: "app.web", state}))
+
+  /** Оба пользовательских входа используют одну операцию приложения и одинаковый результат. */
+  const rebuildWeb = async (live: boolean): Promise<Record<string, unknown>> => {
+    const state = await app.rebuildWeb({apply: live})
+    const candidate = sharedAssets.prepared() ?? sharedAssets.current()
+    const hosts = [sharedHostDescriptor(candidate), ...[...preparedHosts.values()]
+      .filter(value => value.browserIdentity?.epoch !== candidate.browserIdentity?.epoch).map(sharedHostDescriptor)]
+    return {ok: true, shared: hosts[0], hosts, packages: [], published: state.phase === "published", applied: false, web: state}
+  }
+
+  /** Подписка включает текущее состояние приложения и реальные переходы worker. */
+  const webProgress = (listener: (value: Readonly<Record<string, unknown>>) => void): (() => void) => {
+    const unsubscribe = app.subscribe(listener)
+    const events = eventHub.subscribe(event => {
+      if (event.type === "build.progress" && event.packageId === null) listener(event)
+    })
+    return () => { unsubscribe(); events.close() }
   }
 
 
@@ -696,6 +753,7 @@ export async function startExternalStorybookServer(
             graphDigest: snapshot.graph.digest,
             packages: packageStates,
             sharedBuildError,
+            app: app.status(),
             requestJournal: {entries: mcpRequests.summary(), lastWriteError: journalWriteError},
             buildScheduler: sessions.buildSchedulerSnapshot({sampleResources: true}),
             discovery: {...registry.metrics(), dirty: dirty.dirty, dirtyPaths: dirty.paths.length, dirtyOwners: dirty.scopeRoots.length},
@@ -935,7 +993,6 @@ export async function startExternalStorybookServer(
           if (active?.sharedModuleEpoch !== undefined) return responseJson({applied: false})
           if (snapshot.builtRevision !== grant.revision) throw new Error("Navigation candidate is no longer current")
           server.timeout(request, 0)
-          const sharedCandidates = await checkSharedHosts(request.signal)
           const packages = registry.snapshot().graph.nodes.filter(node => node.kind === "package")
             .map(node => ({packageId: node.packageId!, label: node.label}))
           const views = await browserLifecycle.listViews(server.url.origin, request.signal, packages, grant.packageId)
@@ -945,7 +1002,6 @@ export async function startExternalStorybookServer(
             if (evidence.revision !== grant.revision) continue
             await verifyAndMaybeApplyOpenedCandidate({packageId: grant.packageId, revision: grant.revision}, body.route,
               {...evidence, ok: true, viewId: view.viewId}, request.signal, true)
-            sharedAssets.publish(sharedCandidates.slice(1), sharedCandidates[0])
             return responseJson({applied: true})
           }
           return responseJson({error: "Navigation candidate is not shown in the requested view"}, 409)
@@ -1052,6 +1108,17 @@ export async function startExternalStorybookServer(
             graphDigest: snapshot.graph.digest,
           })
         }
+        if (["/api/control/app/web/rebuild", "/api/browser/app/web/rebuild"].includes(url.pathname) && request.method === "POST") {
+          server.timeout(request, 0)
+          if (url.pathname.startsWith("/api/browser/")) assertRegistryBrowserRequest(request)
+          const body = await requestObject(request)
+          assertExactRequestKeys(body, ["live"])
+          if (body.live !== undefined && typeof body.live !== "boolean") throw new TypeError("live must be boolean")
+          if (request.headers.get("accept")?.includes("application/x-ndjson")) {
+            return streamAppOperation(request.signal, webProgress, () => rebuildWeb(body.live !== false))
+          }
+          return responseJson(await rebuildWeb(body.live !== false))
+        }
         if (url.pathname === "/api/control/check" && request.method === "POST") {
           server.timeout(request, 0)
           const body = await requestObject(request)
@@ -1059,6 +1126,12 @@ export async function startExternalStorybookServer(
           const scope = body.scope === undefined || body.scope === null
             ? null
             : requiredText("check scope", body.scope)
+          if (scope === "storybook:web") {
+            if (request.headers.get("accept")?.includes("application/x-ndjson")) {
+              return streamAppOperation(request.signal, webProgress, () => rebuildWeb(body.live === true))
+            }
+            return responseJson(await rebuildWeb(body.live === true))
+          }
           if (scope === "storybook:shared") {
             const assets = await checkSharedHosts(request.signal)
             const ok = unavailableSharedKernels.size === 0
@@ -1069,7 +1142,6 @@ export async function startExternalStorybookServer(
           const refreshed = await refreshCatalog(true)
           const packageIds = resolveCheckPackages(refreshed, scope)
           if (packageIds.length > 0 || scope === null) await prepareSharedIdentity(request.signal)
-          const sharedCandidates = body.live === true ? await checkSharedHosts(request.signal) : []
           for (const packageId of packageIds) {
             sessions.revalidateInputs(packageId)
             sessions.retryFailed(packageId)
@@ -1124,7 +1196,6 @@ export async function startExternalStorybookServer(
               }
             }
           }
-          if (ok && body.live === true) sharedAssets.publish(sharedCandidates.slice(1), sharedCandidates[0])
           return responseJson({ok, applied: body.live === true && ok, graphDigest: registry.snapshot().graph.digest,
             packages: packageIds.map(packageId => sessions.session(packageId).snapshot()), views})
         }
@@ -1294,8 +1365,9 @@ export async function startExternalStorybookServer(
           }
           websocket.data.subscriptions.add(topic)
           websocket.send(JSON.stringify({type: "subscribed", topic}))
+          websocket.send(JSON.stringify({type: "app.web", state: app.status().web}))
           if ((topic === "registry" || topic === "catalog" || topic.startsWith("package:")) && canRefreshSharedHost(websocket.data.grant)) {
-            try { websocket.send(JSON.stringify({type: "shared.updated", host: readSharedHost()})) }
+            try { websocket.send(JSON.stringify(sharedHostEvent(readSharedHost()))) }
             catch { /* Первый явный shared check опубликует готовую оболочку. */ }
           }
           if (topic.startsWith("package:")) {
@@ -1362,7 +1434,9 @@ export async function startExternalStorybookServer(
     closing = true
     closePromise = (async () => {
       await runScenario.dispose()
-      await sharedAssets.dispose()
+      await Promise.all([app.dispose(), sharedAssets.dispose(), ...[...retainedHostAssets.values()].map(assets => assets.dispose())])
+      unsubscribeApp()
+      retainedHostAssets.clear()
       for (const client of clients) client.close(1001, "Storybook server stopped")
       clients.clear()
           browserSessions.dispose()
@@ -1429,6 +1503,7 @@ type RegistryEvent = Readonly<{
   type: "shared.failed"
   message: string
 }> | (Readonly<{type: "build.progress"}> & StorybookBuildTransition)
+  | Readonly<{type: "app.web", state: ReturnType<App.Output["status"]>["web"]}>
 
 
 async function packagePageResponse(
@@ -1786,7 +1861,8 @@ function matchesSubscription(
 ): boolean {
   if (!("packageId" in event) || event.type === "build.progress" && event.packageId === null) {
     return subscriptions.has("registry") || subscriptions.has("catalog") ||
-      event.type === "shared.updated" && [...subscriptions].some(topic => topic.startsWith("package:"))
+      ["shared.updated", "shared.failed", "app.web", "build.progress", "shared.cache-progress"].includes(event.type) &&
+        [...subscriptions].some(topic => topic.startsWith("package:"))
   }
   return subscriptions.has("registry") || subscriptions.has(`package:${event.packageId}`)
 }

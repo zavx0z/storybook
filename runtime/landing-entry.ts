@@ -7,6 +7,7 @@ import {attachPickedDirectory, pickStorybookDirectory} from "./directory-picker.
 
 import type {CustomEvent} from "@zavx0z/dom"
 import {indexedWorkbenchAuthorStyleSheetSources} from "./author-style-sheets.ts"
+import {validateStorybookSharedHost} from "./shared-host.ts"
 import {WORKBENCH_EVENTS, type WorkbenchCatalogAction, type WorkbenchCatalogManagement} from "../workbench/contract.ts"
 import {
   deriveExternalStorybookLanding,
@@ -377,7 +378,12 @@ function parseLandingEvent(value: unknown): any | null {
   }
   if (parsed === null || typeof parsed !== "object" || !("type" in parsed)) return null
   const record = parsed as Record<string, unknown>
-  if (record.type === "shared.updated" && typeof record.entry === "string") return record
+  if (record.type === "shared.updated") {
+    try {
+      validateStorybookSharedHost(record.host)
+      return record
+    } catch { return null }
+  }
   if (record.type === "shared.failed" && typeof record.message === "string") return record
   if (record.type === "registry.updated" && typeof record.graphDigest === "string") return record
   if (record.type === "package.updated" && typeof record.packageId === "string" && typeof record.revision === "string") return record

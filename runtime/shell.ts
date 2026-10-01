@@ -2,6 +2,7 @@ import {createViewPointPersistence} from "../workbench/viewpoint-tab/src/persist
 import {createViewPointControls} from "../workbench/viewpoint-tab/src/controller"
 import {DisplayElement} from "@zavx0z/dom/display"
 import {createMcpAddressSource} from "./mcp-address"
+import {createWebRebuildAction} from "./web-rebuild.ts"
 import type {MinimapState} from "../workbench/minimap/src/state"
 import type {McpWindowState} from "../workbench/mcp-window/src/state"
 import {createMinimapPersistence} from "../workbench/minimap/src/state"
@@ -220,6 +221,7 @@ export async function createExternalStorybookShell(
     displayId: EXTERNAL_STORYBOOK_DISPLAY_ID,
     hudId: EXTERNAL_STORYBOOK_WORKBENCH_ID,
     mcpAddressSource: createMcpAddressSource(() => `${browserDocument.location.pathname}${browserDocument.location.search}`),
+    onRebuildWeb: createWebRebuildAction(),
     minimapState,
     saveMinimapState(value) {
       minimapState = value

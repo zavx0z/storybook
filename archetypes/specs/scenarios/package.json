@@ -8,7 +8,7 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@storybook/app": "workspace:*",
+    "@storybook/app-old": "workspace:*",
     "@archetypes/scenario-document": "workspace:*"
   }
 }

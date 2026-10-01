@@ -11,8 +11,8 @@ describe("external Storybook timing boundaries", () => {
       .toBeGreaterThan(STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS)
     expect(STORYBOOK_SERVER_IDLE_TIMEOUT_SECONDS).toBeLessThanOrEqual(255)
   })
-  test("общая двухпроходная сборка имеет отдельный конечный бюджет", () => {
-    expect(STORYBOOK_SHARED_COMPILE_TIMEOUT_MS).toBe(240_000)
+  test("общая сборка kernel и host имеет отдельный конечный бюджет", () => {
+    expect(STORYBOOK_SHARED_COMPILE_TIMEOUT_MS).toBe(480_000)
     expect(STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS).toBe(120_000)
   })
 })

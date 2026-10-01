@@ -86,7 +86,7 @@ Storybook играет переходную роль: он работает с �
   и [граница адресации](mcp/address/index.ts).
 - [Контракты и сценарии Archetypes](archetypes/README.md).
 - [Читатель Domain](domain/index.ts) и [читатель Component](component/index.ts).
-- [Выполнение и представление сценариев](app/README.md).
+- [Выполнение и представление сценариев](app-old/README.md).
 - [Управление сервером и пакетами](server/controller.ts).
 - [Изоляция ревизий пакета](sessions/package-session.ts).
 - [Контроллер единой страницы](runtime/page-entry.ts).

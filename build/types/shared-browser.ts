@@ -11,6 +11,9 @@ import type {StorybookSharedBrowserIdentity} from "./shared-module-identity"
 
 @property fallbackEntryPath - Исходник страницы до применения пакетной ревизии.
 
+@property [sharedKernel] - Проверенная сохранённая платформа из receipt в root;
+её модули используются как external imports, повторная компиляция kernel не выполняется.
+
 @property stagingDirectory - Изолированный каталог только текущей операции.
 */
 export interface SharedBrowserBuildInput {

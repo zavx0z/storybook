@@ -1,0 +1,11 @@
+{
+  "name": "@app/web",
+  "label": "Web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Визуальное взаимодействие с предметными возможностями Storybook в браузере",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

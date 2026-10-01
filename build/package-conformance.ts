@@ -1,5 +1,5 @@
 import {fileURLToPath} from "node:url"
-import {readScenario, type ReadScenarioOutput} from "@storybook/app/scenarios"
+import {readScenario, type ReadScenarioOutput} from "@storybook/app-old/scenarios"
 import type {StorybookPackageVerification} from "../sessions/package-standard"
 import {storybookBuildError, storybookDiagnostic} from "../sessions/package-session"
 

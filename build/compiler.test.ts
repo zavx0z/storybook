@@ -251,10 +251,10 @@ describe("external Storybook package compiler", () => {
     ])
   })
 
-  test("builds the real immersive UI with exact tool owners satisfying declared peers", async () => {
+  test("собирает композицию IconButton и Button с единственными владельцами runtime", async () => {
     const projectRoot = await realpath(resolve(import.meta.dir, "../../immersive"))
     const packageRoot = join(projectRoot, "ui")
-    const source = join(packageRoot, "button/button/index.tsx")
+    const source = join(packageRoot, "button/icon-button/index.tsx")
     const plugins = await createStorybookPackageCompilerPlugins({
       toolRoot,
       packageRoot,
@@ -270,6 +270,7 @@ describe("external Storybook package compiler", () => {
     })
     expect(result.success, result.logs.map(({message}) => message).join("\n")).toBeTrue()
     const inputs = JSON.stringify(result.metafile?.inputs ?? {})
+    expect(inputs).toContain("immersive/ui/button/icon-button/index.tsx")
     expect(inputs).toContain("immersive/ui/button/button/index.tsx")
     expect(inputs).toContain("immersive/component/src/index.ts")
     expect(inputs).toContain("immersive/template/compiled.ts")
@@ -599,10 +600,10 @@ test("generated JSX outside the owner becomes an executable compiled child", asy
     jsxImportSource: "@zavx0z/jsx", noEmit: true, allowImportingTsExtensions: true, skipLibCheck: true,
   }, include: ["*.tsx"]})
   const modules = generateStorybookJsxModules([{
-    kind: "component", nodeId: "fixture", module: {path: source, export: "Button"},
+    kind: "component", nodeId: "fixture", module: {path: source, export: "default"},
     variants: [{id: "child", title: "child", props: {}, source: "", points: [], jsxProps: {
       children: {source: '<Button label="Дочерний" />', imports: [
-        {local: "Button", imported: "Button", specifier: "@zavx0z/ui/button/button", path: source},
+        {local: "Button", imported: "default", specifier: "@zavx0z/ui/button/button", path: source},
       ]},
     }}],
   }])
@@ -619,10 +620,10 @@ test("generated JSX outside the owner becomes an executable compiled child", asy
 }, 30_000)
 
 test("слоты each проходят генерацию, штатную компиляцию и переключение без замены родителя", async () => {
-  const {readScenario} = await import("@storybook/app/scenarios")
+  const {readScenario} = await import("@storybook/app-old/scenarios")
   const {generateStorybookJsxModules, generateStorybookLoaderSource} = await import("./generated-loader")
   const projectRoot = await realpath(resolve(import.meta.dir, ".."))
-  const packageRoot = join(projectRoot, "app/scenarios/spec/fixture/slots")
+  const packageRoot = join(projectRoot, "app-old/scenarios/spec/fixture/slots")
   const report = await readScenario({path: join(packageRoot, "spec/scenario.spec.tsx")})
   if (report.preview?.kind !== "component") throw new Error(report.stderr)
   const preview = report.preview

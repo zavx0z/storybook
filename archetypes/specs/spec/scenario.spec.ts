@@ -9,10 +9,10 @@ import {resolve} from "node:path"
 import readSpecGuide from "@archetypes/specs"
 
 describe.each([
-  {name: "Репозиторий", props: {path: resolve(import.meta.dir, "../../../app/spec-reader/spec/fixture/repository")}},
-  {name: "Пакет", props: {path: resolve(import.meta.dir, "../../../app/spec-reader/spec/fixture/repository/package")}},
-  {name: "Категория", props: {path: resolve(import.meta.dir, "../../../app/spec-reader/spec/fixture/repository/package/category")}},
-  {name: "Сущность", props: {path: resolve(import.meta.dir, "../../../app/spec-reader/spec/fixture/repository/package/category/entity")}},
+  {name: "Репозиторий", props: {path: resolve(import.meta.dir, "../../../app-old/spec-reader/spec/fixture/repository")}},
+  {name: "Пакет", props: {path: resolve(import.meta.dir, "../../../app-old/spec-reader/spec/fixture/repository/package")}},
+  {name: "Категория", props: {path: resolve(import.meta.dir, "../../../app-old/spec-reader/spec/fixture/repository/package/category")}},
+  {name: "Сущность", props: {path: resolve(import.meta.dir, "../../../app-old/spec-reader/spec/fixture/repository/package/category/entity")}},
 ])("$name", async ({props}) => {
   const guide = await readSpecGuide(props)
 

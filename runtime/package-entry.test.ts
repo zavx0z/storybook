@@ -237,10 +237,12 @@ function currentBridge(): StorybookAgentBridge {
   return (globalThis as typeof globalThis & Record<string, unknown>)[STORYBOOK_AGENT_BRIDGE_GLOBAL] as StorybookAgentBridge
 }
 
-test("общая оболочка обновляет две страницы без изменения ревизий пакетов и browser realm", async () => {
+test("общая оболочка обновляет landing и две package страницы без reload и смены Root", async () => {
   const first = await pageFixture(false, false)
   const second = await pageFixture(false, false, undefined, "@fixture/standalone")
-  const before = [first, second].map(fixture => ({shell: fixture.page.shell, address: fixture.location.href,
+  const landing = await pageFixture(false, false, undefined, null)
+  const fixtures = [first, second, landing]
+  const before = fixtures.map(fixture => ({shell: fixture.page.shell, address: fixture.location.href,
     document: fixture.page.shell.document, canvas: fixture.page.shell.canvas, packageId: fixture.page.packageId,
     settings: fixture.page.shell.captureUserState()}))
   try {
@@ -248,13 +250,12 @@ test("общая оболочка обновляет две страницы б�
     second.page.shell.workbench.controller.update("catalog.search", "второе окно")
     first.page.shell.workbench.elements.catalogItems.scrollTop = 31
     second.page.shell.workbench.elements.catalogItems.scrollTop = 67
-    first.updateHost()
-    second.updateHost()
+    for (const fixture of fixtures) fixture.updateHost()
     const deadline = Date.now() + 5000
-    while ((first.page.shell === before[0]!.shell || second.page.shell === before[1]!.shell) && Date.now() < deadline) {
+    while (fixtures.some((fixture, index) => fixture.page.shell === before[index]!.shell) && Date.now() < deadline) {
       await new Promise(resolve => setTimeout(resolve, 10))
     }
-    for (const [index, fixture] of [first, second].entries()) {
+    for (const [index, fixture] of fixtures.entries()) {
       expect(fixture.page.shell).not.toBe(before[index]!.shell)
       expect(fixture.page.shell.document).toBe(before[index]!.document)
       expect(fixture.page.shell.canvas).toBe(before[index]!.canvas)
@@ -263,7 +264,8 @@ test("общая оболочка обновляет две страницы б�
       expect(fixture.location.reloads).toBe(0)
       expect(fixture.state.creations).toBe(1)
       expect(fixture.page.shell.captureUserState()).toEqual(before[index]!.settings)
-      expect(fixture.page.shell.browserDocument.documentElement.dataset.externalStorybookRevision).toBe("revision-a")
+      expect(fixture.page.shell.browserDocument.documentElement.dataset.externalStorybookHostModuleEpoch).toBe("b".repeat(64))
+      if (fixture.page.packageId !== null) expect(fixture.page.shell.browserDocument.documentElement.dataset.externalStorybookRevision).toBe("revision-a")
     }
     expect(first.page.shell.workbench.controller.read("catalog.search")).toBe("первое окно")
     expect(second.page.shell.workbench.controller.read("catalog.search")).toBe("второе окно")
@@ -272,37 +274,40 @@ test("общая оболочка обновляет две страницы б�
   } finally {
     await first.page.dispose()
     await second.page.dispose()
+    await landing.page.dispose()
   }
 })
 
-test("после reconnect обновление оболочки использует новый socket и новый reader token", async () => {
-  const fixture = await pageFixture(false, false)
+test.each(["@fixture/components", null])("после reconnect %s читает последний host через новый socket и reader token", async selectedPackageId => {
+  const fixture = await pageFixture(false, false, undefined, selectedPackageId)
   const shell = fixture.page.shell
   try {
     const socket = fixture.sockets.at(-1)!
     socket.close()
+    fixture.updateHost(false)
     socket.emit("close", {})
     const deadline = Date.now() + 5000
     while (fixture.sockets.at(-1) === socket && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 10))
     expect(fixture.sockets.at(-1)).not.toBe(socket)
     fixture.sockets.at(-1)!.emit("open", {})
-    fixture.updateHost()
+    fixture.replayHost(fixture.sockets.at(-1)!)
     while (fixture.page.shell === shell && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 10))
     expect(fixture.page.shell).not.toBe(shell)
     expect(fixture.hostReaders.at(-1)).toBe("reader-1")
     expect(new Set(fixture.sockets.map(socket => socket.url)).size).toBe(fixture.sockets.length)
     expect(fixture.page.shell.document).toBe(shell.document)
     expect(fixture.location.reloads).toBe(0)
-    expect(fixture.page.shell.browserDocument.documentElement.dataset.externalStorybookRevision).toBe("revision-a")
+    expect(fixture.page.shell.browserDocument.documentElement.dataset.externalStorybookHostModuleEpoch).toBe("b".repeat(64))
+    if (selectedPackageId !== null) expect(fixture.page.shell.browserDocument.documentElement.dataset.externalStorybookRevision).toBe("revision-a")
   } finally { await fixture.page.dispose() }
 })
 
 /** Реальный page controller с управляемыми immutable payloads и наблюдаемым Root lifecycle. */
-async function pageFixture(failPlatformMount = false, changePlatform = true, beforePrepare?: () => Promise<void>, selectedPackageId = "@fixture/components") {
-  const packageId = selectedPackageId
+async function pageFixture(failPlatformMount = false, changePlatform = true, beforePrepare?: () => Promise<void>, selectedPackageId: string | null = "@fixture/components") {
+  const packageId = selectedPackageId ?? "@fixture/components"
   const graph = await fixtureGraph()
   const snapshot = createExternalStorybookClientSnapshot(graph, packageSnapshots(graph, "revision-a"))
-  const packagePath = deriveExternalStorybookPackageTab(snapshot, packageId, "").urlPath
+  const packagePath = selectedPackageId === null ? "/" : deriveExternalStorybookPackageTab(snapshot, packageId, "").urlPath
   const environment = environmentFixture(snapshot, packagePath)
   const location = environment.location as LocationFixture
   const history = environment.history as ReturnType<typeof historyFixture>
@@ -339,7 +344,8 @@ async function pageFixture(failPlatformMount = false, changePlatform = true, bef
     browserDocument: environment.browserDocument!, location, history: environment.history!,
     sharedModuleEpoch: "a".repeat(64),
     hostModuleEpoch: "a".repeat(64),
-    initialTarget: target("revision-a"), initialPayload: payload("revision-a"),
+    initialTarget: selectedPackageId === null ? {kind: "landing", pathname: "/", readerToken: "fixture-reader"} : target("revision-a"),
+    ...(selectedPackageId === null ? {} : {initialPayload: payload("revision-a")}),
     sharedHost: sharedHost(),
     readSharedHost: async (epoch, token) => {
       hostReaders.push(token)
@@ -361,14 +367,18 @@ async function pageFixture(failPlatformMount = false, changePlatform = true, bef
     prepareTarget: async input => {
       hostRevision = "b"
       await beforePrepare?.()
+      if (input.packageId === null) return {kind: "landing", pathname: input.route, readerToken: `reader-${++readerGeneration}`}
       return target(input.requestedRevision ?? "revision-c", input.route)
     },
     loadAppliedRevision: async (_packageId, revision) => payload(revision),
   })
   return {page, state, location, history, sockets, hostReaders,
-    updateHost() {
+    replayHost(socket: FakeSocket) {
+      socket.emit("message", {data: JSON.stringify({type: "shared.updated", host: sharedHost()})})
+    },
+    updateHost(broadcast = true) {
       hostRevision = "b"
-      for (const socket of [...sockets]) if (!socket.closed) socket.emit("message", {data: JSON.stringify({type: "shared.updated", host: sharedHost()})})
+      if (broadcast) for (const socket of [...sockets]) if (!socket.closed) socket.emit("message", {data: JSON.stringify({type: "shared.updated", host: sharedHost()})})
     },
   }
 }

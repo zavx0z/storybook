@@ -23,9 +23,10 @@ const BUILD_ABI = Object.freeze({
 })
 const SHARED_BUILD_ABI = Object.freeze({
   owner: "shared-browser",
+  artifactGraph: "relative-output-sha256/1",
   entryNaming: "[name]-[hash].[ext]",
-  chunkNaming: "chunks/[name]-[hash].[ext]",
-  publicPath: "/__storybook/shared/",
+  chunkNaming: "[name]-[hash].[ext]",
+  publicPath: "",
   target: "browser",
   format: "esm",
   splitting: true,

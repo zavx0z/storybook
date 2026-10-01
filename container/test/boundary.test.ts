@@ -3,7 +3,7 @@ import {cp, mkdtemp, realpath, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join, resolve} from "node:path"
 import readContainer from "@archetypes/container"
-import {readScenario} from "@storybook/app/scenarios"
+import {readScenario} from "@storybook/app-old/scenarios"
 
 const roots: string[] = []
 const scenario = resolve(import.meta.dir, "../../archetypes/package/spec/scenario.spec.ts")

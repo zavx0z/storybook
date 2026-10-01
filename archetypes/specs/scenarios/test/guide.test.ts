@@ -3,7 +3,7 @@ import {resolve} from "node:path"
 import readScenarioGuide from "@archetypes/scenario-guide"
 import readSpecGuide from "@archetypes/specs"
 
-const owner = resolve(import.meta.dir, "../../../../app/scenarios/spec/fixture/function")
+const owner = resolve(import.meta.dir, "../../../../app-old/scenarios/spec/fixture/function")
 
 test("путь к сценарию достаточен для чтения кода, проверок и реальной структуры", async () => {
   const path = resolve(owner, "spec/scenario.spec.ts")

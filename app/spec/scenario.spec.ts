@@ -1,146 +1,60 @@
-import {describe, expect, test} from "bun:test"
-import {createScenarioApp} from "@storybook/app"
-import type {ScenarioAppInput} from "@storybook/app/contract/input"
-import type {CompiledTemplate} from "@zavx0z/template/compiled"
-import {StatefulFixture} from "./fixture"
+/**
+Явная подготовка и применение Web через контейнер приложения.
+Порты примера наблюдают публикацию, не запускают сервер или компилятор.
+
+@packageDocumentation
+*/
+import {afterAll, describe, expect, mock, test} from "bun:test"
+import createApp from "@storybook/app"
+import type {Contract} from "@storybook/app"
+
+const version = {platform: "platform-a", web: "web-b"} as const
 
 describe.each([
   {
-    name: "Компонент",
+    name: "Подготовка кандидата",
+    apply: false,
     props: {
-      kind: "component",
-      template: StatefulFixture as unknown as CompiledTemplate<Record<string, unknown>>,
-      variants: [
-        {
-          id: "first",
-          title: "Первый",
-          props: {name: "Первый"},
-          source: '<StatefulFixture name="Первый" />',
-          points: [{title: "Имя компонента"}],
-        },
-        {
-          id: "second",
-          title: "Второй",
-          props: {name: "Второй"},
-          source: '<StatefulFixture name="Второй" />',
-          points: [{title: "Изменённое имя"}],
-        },
-      ],
-    },
+      web: {
+        prepare: mock(async (_signal: AbortSignal) => version),
+        versions: (candidate: typeof version) => [candidate],
+        publish: mock((_candidate: typeof version) => {}),
+      },
+    } satisfies Contract.Input<typeof version>,
   },
   {
-    name: "Результат функции",
+    name: "Применение интерфейса",
+    apply: true,
     props: {
-      kind: "function",
-      variants: [
-        {
-          id: "first",
-          title: "Корневой пакет",
-          source: 'await readPackage({path: "root"})',
-          points: [{title: "Данные пакета", content: "Содержимое package.json"}],
-          calls: [{
-            id: 1,
-            source: 'await readPackage({path: "root"})',
-            outcome: {type: "resolve", value: {name: "root", empty: []}},
-          }],
-        },
-        {
-          id: "second",
-          title: "Вложенный пакет",
-          source: 'await readPackage({path: "nested"})',
-          points: [{title: "Данные пакета"}],
-          calls: [{
-            id: 2,
-            source: 'await readPackage({path: "nested"})',
-            outcome: {type: "resolve", value: {name: "nested", enabled: false}},
-          }],
-        },
-      ],
-    },
+      web: {
+        prepare: mock(async (_signal: AbortSignal) => version),
+        versions: (candidate: typeof version) => [candidate],
+        publish: mock((_candidate: typeof version) => {}),
+      },
+    } satisfies Contract.Input<typeof version>,
   },
-  {
-    name: "Сохранённая ошибка функции",
-    props: {
-      kind: "function",
-      variants: [
-        {
-          id: "first",
-          title: "Пустой результат",
-          source: "await readItems()",
-          points: [],
-          calls: [{id: 1, source: "await readItems()", outcome: {type: "resolve", value: []}}],
-        },
-        {
-          id: "second",
-          title: "Ошибка чтения",
-          source: 'await readPackage({path: "missing"})',
-          points: [{title: "Причина ошибки"}],
-          calls: [{
-            id: 2,
-            source: 'await readPackage({path: "missing"})',
-            outcome: {type: "reject", error: {message: "Файл отсутствует"}},
-          }],
-        },
-      ],
-    },
-  },
-] satisfies {name: string, props: ScenarioAppInput}[])("$name", ({props}) => {
-  const originalVariants = structuredClone(props.variants)
-  const app = createScenarioApp(props)
-  const initial = app.getSnapshot()
-  const notifications: string[] = []
-  const unsubscribe = app.subscribe(() => notifications.push(app.getSnapshot().id))
-  let selected: ReturnType<typeof app.getSnapshot>
-  let repeated: ReturnType<typeof app.getSnapshot>
-  let changes: string[]
-  try {
-    app.select("second")
-    selected = app.getSnapshot()
-    app.select("second")
-    repeated = app.getSnapshot()
-    changes = [...notifications]
-  } finally {
-    unsubscribe()
-  }
-  app.select("first")
-  const restored = app.getSnapshot()
+])("$name", async ({props, apply}) => {
+  const app = createApp(props)
+  afterAll(() => app.dispose())
+  const initial = app.status()
+  const initialPreparations = props.web.prepare.mock.calls.length
+  const result = await app.rebuildWeb({apply})
 
-  test("Состав App", () => {
-    expect(app, "Представление предоставляет вид сценария, варианты, снимок, выбор, повторный запуск и подписку").toEqual({
-      kind: props.kind,
-      variants: originalVariants,
-      getSnapshot: expect.any(Function),
-      select: expect.any(Function),
-      run: expect.any(Function),
-      subscribe: expect.any(Function),
-      dispose: expect.any(Function),
-    })
+  test("Создание приложения", () => {
+    expect(initial.web.phase, "Создание подключает готовые порты без запуска подготовки").toBe("idle")
+    expect(initialPreparations, "Создание приложения не обращается к сборщику").toBe(0)
+    expect(props.web.prepare.mock.calls, "Подготовка выполняется только после явного rebuildWeb").toHaveLength(1)
   })
 
-  describe("Выбор варианта", () => {
-    test("Начальный снимок", () => {
-      expect(initial, "Первый вариант открыт сразу со всеми исходными данными").toEqual(originalVariants[0]!)
-    })
-    test("Другой вариант", () => {
-      expect(selected, "Выбор меняет весь снимок: декларацию, пункты и данные компонента или функции").toEqual(originalVariants[1]!)
-    })
-    test("Повторный выбор", () => {
-      expect(repeated, "Повторный выбор сохраняет объект текущего снимка").toBe(selected)
-    })
-    test("Возврат", () => {
-      expect(restored, "Возврат открывает тот же исходный снимок первого варианта").toBe(initial)
-    })
-    test("Исходные данные", () => {
-      expect(props.variants, "Переключение сохраняет полные данные всех подготовленных вариантов").toEqual(originalVariants)
-    })
+  test("Версия интерфейса", () => {
+    expect(result.versions, "Кандидат Web подготовлен для сохранённой платформы").toEqual([version])
+    expect(app.status().web, "Контейнер раскрывает состояние принадлежащей ему операции Web").toBe(result)
   })
 
-  describe("Подписка", () => {
-    test("Уведомление", () => {
-      expect(changes, "Подписчик видит новый снимок один раз; повторный выбор не уведомляет").toEqual(["second"])
-    })
-    test("Отписка", () => {
-      expect(notifications, "После отписки возврат к первому варианту не вызывает подписчика").toEqual(["second"])
-    })
+  test("Завершение операции", () => {
+    expect(result.phase, "Явное применение публикует подготовленный кандидат, подготовка оставляет его доступным для проверки")
+      .toBe(apply ? "published" : "prepared")
+    expect(props.web.publish.mock.calls, "Порт публикации получает кандидат только при явном применении")
+      .toEqual(apply ? [[version]] : [])
   })
 })

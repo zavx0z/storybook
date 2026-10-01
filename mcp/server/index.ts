@@ -28,6 +28,7 @@ import {recordMcpRequest, traceMcpRequest} from "./src/request-log"
 import {controllerAccessor} from "./src/controller"
 import {proxyContent, errorContent} from "./src/response"
 import {invoke, invokeCapture} from "./src/invoke"
+import {createRequestProgress} from "../../tech/mcp/progress.ts"
 import type {CreateStorybookMcpServerInput} from "./contract/input"
 import type {CreateStorybookMcpServerOutput} from "./contract/output"
 
@@ -124,7 +125,13 @@ export function createStorybookMcpServer(options: CreateStorybookMcpServerInput 
     description: "Собирает кандидата пакета. При live=true проверяет его и в случае успеха применяет ко всем вкладкам этого пакета. При ошибке сохраняет применённую ревизию.",
     inputSchema: storybookCheckSchema,
     annotations: {idempotentHint: true},
-  }, async (input, context) => invoke(controller, (value) => value.check(input, {signal: context.mcpReq.signal})))
+  }, async (input, context) => {
+    const notify = createRequestProgress(context)
+    return invoke(controller, value => value.check(input, {
+      signal: context.mcpReq.signal,
+      ...(notify === undefined ? {} : {onProgress: progress => notify(JSON.stringify(progress))}),
+    }))
+  })
 
   server.registerTool("storybook_close", {
     title: "Закрытие представления Storybook",

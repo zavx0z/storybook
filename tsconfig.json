@@ -6,6 +6,7 @@
     "module": "Preserve",
     "moduleDetection": "force",
     "moduleResolution": "bundler",
+    "customConditions": ["bun"],
     "jsx": "react-jsx",
     "jsxImportSource": "@zavx0z/jsx",
     "resolveJsonModule": true,
@@ -24,7 +25,8 @@
     "hmr/**/*.ts",
     "route/**/*.ts",
     "app/**/*.ts",
-    "app/**/*.tsx",
+    "app-old/**/*.ts",
+    "app-old/**/*.tsx",
     "archetypes/**/*.ts",
     "archetypes/**/*.tsx",
     "domain/**/*.ts",
@@ -50,5 +52,7 @@
     "scripts/**/*.ts",
     ".agents/hooks/**/*.ts"
   ],
-  "exclude": ["dist", "node_modules", ".refactor-audit", "app/tmp"]
+  "exclude": ["dist", "node_modules", ".refactor-audit",
+    "app-old/tmp"
+  ]
 }

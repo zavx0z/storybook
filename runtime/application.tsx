@@ -25,6 +25,7 @@ export type StorybookAppProps = Readonly<{
   navigationExpansion?: NavigationExpansion | undefined
   minimapState?: MinimapState | undefined
   saveMinimapState?: ((state: MinimapState) => void) | undefined
+  onRebuildWeb?: (() => Promise<void>) | undefined
   viewPointControls: ViewPointTabProps["controls"]
   title: string
   statusOwner: string
@@ -78,6 +79,7 @@ export function StorybookApp(props: StorybookAppProps) {
         model={model}
         initialState={props.minimapState}
         onStateChange={props.saveMinimapState}
+        onRebuildWeb={props.onRebuildWeb}
       />
     </hud>
   </space>

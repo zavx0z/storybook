@@ -281,17 +281,19 @@ export type StorybookCaptureInput = Readonly<{
 }>
 
 /**
-Подготовка кандидата пакета с необязательной проверкой и применением в браузере.
+Подготовка кандидата пакета или явная пересборка собственного Web-интерфейса.
 
 @property schemaVersion - Версия запроса, равная {@link STORYBOOK_MCP_SCHEMA_VERSION}.
 
-@property scope - Выбранная область проверки Storybook.
+@property scope - Выбранная область проверки Storybook. `storybook:web` использует
+готовую среду для отдельной пересборки интерфейса и передаёт стадии текущего запроса.
 
 @property [live] - При `true` кандидат проверяется в браузере и применяется ко всем
 вкладкам этого пакета после успеха. Ошибка сохраняет ранее применённую ревизию.
 
 @property [timeoutMs] - Лимит ожидания в миллисекундах. На границе MCP принимается
 целое число от 100 до 120000 включительно; остальные значения отклоняются.
+Для `storybook:web` без этого значения ожидание ограничивает только signal клиента.
 */
 export type StorybookCheckInput = Readonly<{
   schemaVersion: typeof STORYBOOK_MCP_SCHEMA_VERSION
@@ -375,9 +377,13 @@ export type StorybookResourceResult = Readonly<{
 Контекст отмены одной управляющей операции.
 
 @property signal - Сигнал отмены, передаваемый из вызывающего транспорта.
+
+@property [onProgress] - Получает фактические стадии текущего запроса по мере выполнения.
+Завершение ожидания клиента отсоединяет наблюдение, не отменяя принадлежащую серверу сборку.
 */
 export type StorybookControllerContext = Readonly<{
   signal: AbortSignal
+  onProgress?: ((progress: Readonly<Record<string, unknown>>) => void | Promise<void>) | undefined
 }>
 
 /**

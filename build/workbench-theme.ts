@@ -15,7 +15,7 @@ export function readWorkbenchStyleSheets(toolRoot = resolve(import.meta.dir, "..
     if (info?.isFile() && !info.isSymbolicLink()) {
       const metadata = JSON.parse(readFileSync(metadataPath, "utf8"))
       if (metadata.name === "@zavx0z/ui") {
-        const target = metadata.exports?.["./themes/theme.css"]
+        const target = metadata.exports?.["./theme/theme.css"]
         if (typeof target !== "string" || !target.startsWith("./") || realpathSync(resolve(ownerRoot, target)) !== path) {
           throw new Error(`Theme must be an exact public CSS export: ${specifier}`)
         }

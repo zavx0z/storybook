@@ -2,11 +2,11 @@ import {component, createRoot} from "@zavx0z/component"
 import {createDocument, Event, type HTMLElement} from "@zavx0z/dom"
 import {expect, test} from "bun:test"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
-import type {ScenarioAppInput} from "@storybook/app/contract/input"
+import type {ScenarioAppInput} from "@storybook/app-old/contract/input"
 import {createDocumentRenderer} from "@renderer/html"
 import {createScenarioPresentation} from "./scenario-presentation"
-import {ScenarioInspector} from "@storybook/app/inspector"
-import {StatefulFixture} from "../app/spec/fixture"
+import {ScenarioInspector} from "@storybook/app-old/inspector"
+import {StatefulFixture} from "../app-old/spec/fixture"
 
 test("руководство Archetypes показывает файлы и код без JSON-упаковки", async () => {
   const code = 'describe.each([{name: "Пример", props: {value: 1}}])("$name", ({props}) => {\n  test("Значение", () => expect(props.value).toBe(1))\n})'
@@ -268,7 +268,7 @@ test("снимки функции переключаются в редактор
 })
 
 test("JSX children добавляются после отчёта, выбор сохраняет родительский элемент", async () => {
-  const {ChildrenFixture, Content} = await import("../app/scenarios/spec/fixture/component/spec/fixture/children.tsx")
+  const {ChildrenFixture, Content} = await import("../app-old/scenarios/spec/fixture/component/spec/fixture/children.tsx")
   const presentation = createScenarioPresentation(createDocument(), {
     kind: "component",
     template: ChildrenFixture as unknown as CompiledTemplate<Record<string, unknown>>,

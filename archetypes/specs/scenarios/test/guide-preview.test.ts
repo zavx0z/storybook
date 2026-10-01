@@ -1,6 +1,6 @@
 import {expect, test} from "bun:test"
 import {resolve} from "node:path"
-import {readScenario, supportsScenarioPreview} from "@storybook/app/scenarios"
+import {readScenario, supportsScenarioPreview} from "@storybook/app-old/scenarios"
 
 test.each([
   {name: "Руководство сценариев", path: resolve(import.meta.dir, "../spec/scenario.spec.ts"), count: 3},

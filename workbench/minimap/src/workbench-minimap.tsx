@@ -8,11 +8,13 @@ export function WorkbenchMinimap(props: Readonly<{
   model: ReturnType<typeof createWorkbenchModel>
   initialState?: MinimapState | undefined
   onStateChange?: ((state: MinimapState) => void) | undefined
+  onRebuildWeb?: (() => Promise<void>) | undefined
 }>) {
   const view = useSyncExternalStore(props.model.subscribe, props.model.getSnapshot)
   return <Minimap
     initialState={props.initialState}
     onStateChange={props.onStateChange}
+    onRebuildWeb={props.onRebuildWeb}
     catalog={{
       label: view.state["catalog.label"],
       management: view.state["catalog.management"],

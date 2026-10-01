@@ -1,4 +1,4 @@
-import type {ScenarioAppInput} from "@storybook/app/contract/input"
+import type {ScenarioAppInput} from "@storybook/app-old/contract/input"
 
 /** Получает проверенный результат своей ревизии; rerun требует нового выполнения теста. */
 export function createScenarioRun(

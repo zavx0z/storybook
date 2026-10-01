@@ -4,7 +4,7 @@ import {tmpdir} from "node:os"
 import {join, resolve} from "node:path"
 import readPackage from "@archetypes/package"
 import readDomain from "@archetypes/domain"
-import {readScenario} from "@storybook/app/scenarios"
+import {readScenario} from "@storybook/app-old/scenarios"
 
 const roots: string[] = []
 const scenario = resolve(import.meta.dir, "../spec/scenario.spec.ts")

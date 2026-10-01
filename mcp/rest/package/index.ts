@@ -3,7 +3,7 @@
 
 @packageDocumentation
 */
-import {readSpec} from "@storybook/app/spec-reader"
+import {readSpec} from "@storybook/app-old/spec-reader"
 
 /**
 Передаёт чтение спецификации её владельцу Specs.

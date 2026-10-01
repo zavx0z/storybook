@@ -15,4 +15,4 @@
 
 Автоматическая проверка сокращения внутренних импортов ещё не реализована.
 Пример подготовки данных сценария находится
-[у читателя App](../../app/spec-reader/spec/parameterization.spec.ts).
+[у читателя App](../../app-old/spec-reader/spec/parameterization.spec.ts).

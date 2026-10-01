@@ -1,6 +1,6 @@
 import {resolve} from "node:path"
-import {readScenario, type ReadScenarioInput, type ReadScenarioOutput} from "@storybook/app/scenarios"
-import type {ScenarioAppInput} from "@storybook/app/contract/input"
+import {readScenario, type ReadScenarioInput, type ReadScenarioOutput} from "@storybook/app-old/scenarios"
+import type {ScenarioAppInput} from "@storybook/app-old/contract/input"
 import type {ExternalStorybookRegistrySnapshot} from "../catalog/registry"
 import type {ExternalStorybookSessionManager} from "../sessions/session-manager"
 

@@ -44,6 +44,7 @@ export class StorybookSharedBrowserAssets {
   readonly #cacheProgress: (event: Readonly<{state: "started" | "completed", hit?: boolean}>) => void
   #current: SharedBrowserAssets | null = null
   #prepared: SharedBrowserAssets | null = null
+  #preparedHostOnly = false
   readonly #commit: (assets: SharedBrowserAssets) => void
   #fingerprint = ""
   #pending: Promise<SharedBrowserAssets> | null = null
@@ -79,7 +80,7 @@ export class StorybookSharedBrowserAssets {
     if (this.#disposed) return Promise.reject(new Error("Shared browser assets are disposed"))
     if (this.#pending !== null) return this.#pending
     const cached = this.#prepared ?? this.#current
-    if (cached !== null && this.#fingerprint !== "") {
+    if (cached !== null && !this.#preparedHostOnly && this.#fingerprint !== "") {
       this.#reportCacheProgress({state: "started"})
       const hit = fingerprint(buildInputs(cached)) === this.#fingerprint
       this.#reportCacheProgress({state: "completed", hit})
@@ -97,6 +98,19 @@ export class StorybookSharedBrowserAssets {
 
   /** Возвращает подготовленную версию только для явного просмотра кандидата. */
   prepared(): SharedBrowserAssets | null { return this.#prepared }
+
+  /** Принимает отдельно подготовленный Web на той же опубликованной платформе. */
+  stageHost(candidate: SharedBrowserAssets): void {
+    if (this.#disposed) throw new Error("Shared browser assets are disposed")
+    if (this.#pending !== null) throw new Error("Подготовка среды ещё выполняется")
+    const current = this.current()
+    if (current.browserIdentity === undefined || candidate.browserIdentity?.epoch !== current.browserIdentity.epoch) {
+      throw new Error("Пересборка Web не может заменить опубликованную платформу")
+    }
+    this.#prepared = candidate
+    this.#preparedHostOnly = true
+    this.#fingerprint = fingerprint(buildInputs(candidate))
+  }
 
   /** Единым commit публикует подготовленную оболочку и её варианты для сохранённых платформ. */
   publish(variants: readonly SharedBrowserAssets[] = [], expected = this.#prepared): SharedBrowserAssets {
@@ -121,6 +135,7 @@ export class StorybookSharedBrowserAssets {
     const candidate = await this.#build(this.#lifetime.signal)
     if (this.#disposed) throw new Error("Shared browser assets disposed")
     this.#prepared = candidate
+    this.#preparedHostOnly = false
     this.#fingerprint = fingerprint(buildInputs(candidate))
     return candidate
   }

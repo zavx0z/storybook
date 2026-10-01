@@ -103,7 +103,7 @@ describe("Storybook MCP stdio", () => {
     await client.connect(transport)
 
     const tools = await client.listTools()
-    expect(tools.tools.map(({name}) => name)).toEqual([...STORYBOOK_TOOL_NAMES])
+    expect(tools.tools.map(({name}) => name)).toEqual([...STORYBOOK_TOOL_NAMES, "storybook_rebuild_web"])
     expect(Object.keys(tools.tools.find(tool => tool.name === "storybook")!.inputSchema.properties ?? {})).toEqual(["path"])
     for (const tool of tools.tools) {
       expect(tool.inputSchema).toMatchObject({type: "object", additionalProperties: false})

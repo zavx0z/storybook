@@ -1,0 +1,11 @@
+{
+  "name": "@app-mcp/build",
+  "label": "Сборка MCP",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Подготовка исполняемого результата MCP-компонента приложения",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

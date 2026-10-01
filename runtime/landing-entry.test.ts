@@ -1,5 +1,5 @@
 import {DisplayElement} from "@zavx0z/dom/display"
-import {ScenarioInspector} from "@storybook/app/inspector"
+import {ScenarioInspector} from "@storybook/app-old/inspector"
 import {indexedWorkbenchAuthorStyleSheetSources} from "./author-style-sheets.ts"
 import {presentationRootFixture, type PresentationFixtureOptions} from "./browser-root.fixture.ts"
 import {createRoot} from "@zavx0z/component"

@@ -16,7 +16,7 @@ import {
   writeFileSync,
 } from "node:fs"
 import {dirname, extname, isAbsolute, join, relative, resolve, sep} from "node:path"
-import {readScenario, ScenarioAuthoringError, supportsScenarioPreview, type ReadScenarioOutput} from "@storybook/app/scenarios"
+import {readScenario, ScenarioAuthoringError, supportsScenarioPreview, type ReadScenarioOutput} from "@storybook/app-old/scenarios"
 import {
   generateStorybookLoaderSource,
   generateStorybookJsxModules,

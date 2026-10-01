@@ -9,6 +9,9 @@ import type {SharedBrowserAssets} from "./shared-browser-assets.ts"
 import type {SharedBrowserBuildInput} from "./types/shared-browser.ts"
 import {validateStorybookSharedBrowserIdentity} from "./shared-module-identity.ts"
 
+/** Максимум сериализованных shared assets и их receipt; транспорт worker использует ту же границу. */
+export const STORYBOOK_SHARED_ASSETS_MAX_BYTES = 8 * 1024 * 1024
+
 /**
 Восстанавливает общую оболочку с проверкой файлов результата.
 Явный check также сверяет исходники; запуск сервера читает последнюю готовую версию.
@@ -72,7 +75,7 @@ function readReceipt(
   try {
     fd = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW)
     const info = fstatSync(fd)
-    if (!info.isFile() || info.size > 8 * 1024 * 1024) return reject("Недопустимый файл receipt")
+    if (!info.isFile() || info.size > STORYBOOK_SHARED_ASSETS_MAX_BYTES) return reject("Недопустимый файл receipt")
     const receipt = JSON.parse(readFileSync(fd, "utf8"))
     const assets = receipt.assets as SharedBrowserAssets
     const saved = BuildInputs.parse(assets?.inputFingerprint)

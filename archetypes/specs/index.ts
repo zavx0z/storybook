@@ -4,7 +4,7 @@
 
 @packageDocumentation
 */
-import {readSpec} from "@storybook/app/spec-reader"
+import {readSpec} from "@storybook/app-old/spec-reader"
 import createScenarioGuide from "@archetypes/scenario-document"
 import type {ReadSpecGuideInput} from "./contract/input"
 import type {ReadSpecGuideOutput} from "./contract/output"

@@ -51,7 +51,7 @@ describe("external Storybook implementation digest", () => {
     writeFileSync(join(root, "archetypes/package/documentation/index.ts"), "export const reader = () => null\n")
     expect(externalStorybookImplementationDigest(root)).not.toBe(beforeDocumentation)
     const beforeScenario = externalStorybookImplementationDigest(root)
-    writeFileSync(join(root, "app/scenarios/index.ts"), "export const readScenario = () => null\n")
+    writeFileSync(join(root, "app-old/scenarios/index.ts"), "export const readScenario = () => null\n")
     expect(externalStorybookImplementationDigest(root)).not.toBe(beforeScenario)
     const beforeActivation = externalStorybookImplementationDigest(root)
     writeFileSync(join(root, "hmr/activation/index.ts"), "export default function activate() {}\n")
@@ -114,7 +114,7 @@ describe("external Storybook implementation digest", () => {
 
     writeFileSync(join(root, "runtime/package-entry.ts"), "browser runtime revision 2\n")
     writeFileSync(join(root, "workbench/controller.ts"), "workbench revision 2\n")
-    writeFileSync(join(root, "app/index.ts"), "browser app revision 2\n")
+    writeFileSync(join(root, "app-old/index.ts"), "browser app revision 2\n")
     expect(externalStorybookImplementationDigest(root)).toBe(lifecycleRevision)
     writeFileSync(join(root, "runtime/client-protocol.ts"), "client protocol revision 2\n")
     expect(externalStorybookImplementationDigest(root)).not.toBe(lifecycleRevision)
@@ -131,8 +131,9 @@ function implementationFixture(): string {
     "discovery",
     "archetypes/package/documentation",
     "archetypes/specs/scenarios/validation",
-    "app/scenarios",
-    "app/spec-reader",
+    "app-old/scenarios",
+    "app-old/spec-reader",
+    "app/web",
     "route",
     "build",
     "tech/build",
@@ -152,7 +153,9 @@ function implementationFixture(): string {
   writeFileSync(join(root, "package.json"), "{}\n")
   writeFileSync(join(root, "archetypes/package/package.json"), "{}\n")
   writeFileSync(join(root, "archetypes/specs/package.json"), "{}\n")
-  writeFileSync(join(root, "app/package.json"), "{}\n")
+  writeFileSync(join(root, "app-old/package.json"), "{}\n")
+  writeFileSync(join(root, "app/index.ts"), "export default function app() {}\n")
+  writeFileSync(join(root, "app/web/index.ts"), "export default function web() {}\n")
   writeFileSync(join(root, "browser-lifecycle/package.json"), "{}\n")
   writeFileSync(join(root, "scripts/storybook-daemon.ts"), "daemon\n")
   writeFileSync(join(root, "workbench/controller.ts"), "export const workbench = true\n")

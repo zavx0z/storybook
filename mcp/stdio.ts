@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 
 import {serveStdio} from "@modelcontextprotocol/server/stdio"
-import {createStorybookMcpServer} from "./server"
+import {createAppMcpServer} from "../app/src/mcp.ts"
 
 const handle = serveStdio(
-  () => createStorybookMcpServer(),
+  () => createAppMcpServer(),
   {onerror: (error) => diagnostic(error.message)},
 )
 

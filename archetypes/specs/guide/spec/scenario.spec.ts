@@ -5,10 +5,10 @@
 */
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import {readScenario} from "@storybook/app/scenarios"
+import {readScenario} from "@storybook/app-old/scenarios"
 import createScenarioGuide from "@archetypes/scenario-document"
 
-const report = await readScenario({path: resolve(import.meta.dir, "../../../../app/scenarios/spec/fixture/function/spec/scenario.spec.ts")})
+const report = await readScenario({path: resolve(import.meta.dir, "../../../../app-old/scenarios/spec/fixture/function/spec/scenario.spec.ts")})
 describe.each([{name: "Документ сценария", props: {report}}])("$name", async ({props}) => {
   const result = await createScenarioGuide(props)
   test("Исходный пример", () => {

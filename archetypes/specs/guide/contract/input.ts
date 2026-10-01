@@ -1,4 +1,4 @@
-import type {ReadScenarioOutput} from "@storybook/app/scenarios"
+import type {ReadScenarioOutput} from "@storybook/app-old/scenarios"
 
 /**
 Наблюдения, из которых формируется руководство.

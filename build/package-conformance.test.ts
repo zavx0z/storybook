@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import type {ReadScenarioOutput} from "@storybook/app/scenarios"
+import type {ReadScenarioOutput} from "@storybook/app-old/scenarios"
 import {scenarioVerification} from "./package-conformance"
 import {appliedPackageStandard, readPackageVerification} from "../sessions/package-standard"
 

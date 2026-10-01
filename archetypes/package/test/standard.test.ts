@@ -2,7 +2,7 @@ import {afterAll, expect, test} from "bun:test"
 import {cp, mkdtemp, realpath, rm, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {resolve} from "node:path"
-import {readScenario} from "@storybook/app/scenarios"
+import {readScenario} from "@storybook/app-old/scenarios"
 import {readScenarios} from "../../../mcp/rest/scenarios"
 
 const scenario = resolve(import.meta.dir, "../spec/scenario.spec.ts")

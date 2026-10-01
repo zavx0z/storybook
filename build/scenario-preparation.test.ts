@@ -2,15 +2,15 @@ import {expect, test} from "bun:test"
 import {mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {resolve} from "node:path"
-import {supportsScenarioPreview} from "../app/scenarios"
-import {readSpec} from "../app/spec-reader"
+import {supportsScenarioPreview} from "@storybook/app-old/scenarios"
+import {readSpec} from "@storybook/app-old/spec-reader"
 import {prepareStorybookScenarios} from "./package-build.ts"
 import type {StorybookPackageBuildDescriptor, StorybookPackageDiagnostic} from "../sessions/package-session.ts"
 
 test("готовит один preview только для однозначного поддержанного scenario source", async () => {
   const supported = resolve(
     import.meta.dir,
-    "../app/scenarios/spec/fixture/component/spec/scenario.spec.tsx",
+    "../app-old/scenarios/spec/fixture/component/spec/scenario.spec.tsx",
   )
   const functionSource = resolve(import.meta.dir, "../archetypes/package/spec/scenario.spec.ts")
   const descriptor = {
@@ -86,7 +86,7 @@ test("неоднозначность предупреждает переходн
 
 
 test("сборка отклоняет раздельные Component и props вместо незаметного пропуска сценария", async () => {
-  const path = resolve(import.meta.dir, "../app/scenarios/spec/fixture/component/spec/separate-props.test.tsx")
+  const path = resolve(import.meta.dir, "../app-old/scenarios/spec/fixture/component/spec/separate-props.test.tsx")
   const descriptor = {scenarioSpecs: [{nodeId: "invalid", sourcePaths: [path]}]} as unknown as StorybookPackageBuildDescriptor
   await expect(prepareStorybookScenarios(descriptor, new AbortController().signal)).rejects.toThrow("render принимает ровно один аргумент")
 }, 30_000)

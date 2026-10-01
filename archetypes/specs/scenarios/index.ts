@@ -47,7 +47,7 @@
 @packageDocumentation
 */
 import {basename, dirname, resolve} from "node:path"
-import {readScenario} from "@storybook/app/scenarios"
+import {readScenario} from "@storybook/app-old/scenarios"
 import createScenarioGuide from "@archetypes/scenario-document"
 import type {ReadScenarioGuideInput} from "./contract/input"
 import type {ReadScenarioGuideOutput} from "./contract/output"

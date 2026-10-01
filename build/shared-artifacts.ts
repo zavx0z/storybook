@@ -1,6 +1,6 @@
 import {createHash} from "node:crypto"
-import {constants, copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, rmSync} from "node:fs"
-import {dirname, join, relative} from "node:path"
+import {constants, copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, renameSync} from "node:fs"
+import {dirname, join, relative, resolve} from "node:path"
 
 /** SHA-256 реальных байтов; существующий symlink не является immutable артефактом. */
 function digest(path: string): string {
@@ -9,25 +9,48 @@ function digest(path: string): string {
 }
 
 /**
-Использует штатные naming и splitting Bun. Каждый граф получает пространство
-имён, определённое полным первым результатом, независимо от прежних имён Bun.
-Так новый граф не переиспользует адреса, уже попавшие в кэш старых browser realms.
-Импорты и source maps второй сборки формирует сам Bun, без переписывания JavaScript.
-Каждый проход получает собственные plugins: предыдущий compiler session уже закрыт.
+Компилирует граф одним Bun.build с его штатными относительными ссылками.
+Готовый каталог переносится под SHA-256 всех outputs, включая source maps:
+обычный Bun hash не меняется при правке комментария, а source map меняется.
+Байты не переписываются; прежние browser URLs сохраняют свои файлы.
+
+Временный и окончательный каталог являются соседями, поэтому относительные
+импорты, source maps и пути их исходников сохраняют смысл после переноса.
+Одинаковый результат получает тот же namespace независимо от staging операции.
 */
-export async function buildSharedArtifactGraph(createConfig: () => Promise<Bun.BuildConfig>, staging: string): Promise<Bun.BuildOutput> {
+export async function buildSharedArtifactGraph(createConfig: () => Promise<Bun.BuildConfig>): Promise<Bun.BuildOutput> {
   const config = await createConfig()
-  const first = await Bun.build(config)
-  if (!first.success) return first
-  const artifacts = await Promise.all(first.outputs.map(async artifact => ({
-    path: relative(staging, artifact.path),
+  if (!config.outdir || config.publicPath) throw new Error("Shared graph requires an output directory and relative artifact links")
+  const directory = resolve(config.outdir)
+  const pending = join(directory, ".pending")
+  const result = await Bun.build({...config, outdir: pending})
+  if (!result.success) return result
+  const artifacts = await Promise.all(result.outputs.map(async artifact => ({
+    path: relative(pending, artifact.path),
     digest: createHash("sha256").update(new Uint8Array(await artifact.arrayBuffer())).digest("hex"),
   })))
   const namespace = createHash("sha256").update(JSON.stringify(artifacts.sort((a, b) => a.path.localeCompare(b.path)))).digest("hex")
-  if (!config.naming || typeof config.naming === "string") throw new Error("Shared graph requires explicit artifact naming")
-  const naming = Object.fromEntries(Object.entries(config.naming).map(([kind, pattern]) => [kind, pattern.replace("/", `/${namespace}/`)]))
-  for (const artifact of first.outputs) rmSync(artifact.path, {force: true})
-  return Bun.build({...await createConfig(), naming})
+  const destination = join(directory, namespace)
+  renameSync(pending, destination)
+  const relocated = new Map(result.outputs.map(artifact => [artifact, Object.assign(
+    Bun.file(join(destination, relative(pending, artifact.path)), {type: artifact.type}),
+    {
+      path: join(destination, relative(pending, artifact.path)),
+      loader: artifact.loader,
+      hash: artifact.hash,
+      kind: artifact.kind,
+      sourcemap: null as Bun.BuildArtifact | null,
+    },
+  )]))
+  const maps = new Map([...relocated.values()]
+    .filter(output => output.kind === "sourcemap")
+    .map(output => [output.path, output]))
+  // При splitting Bun может вернуть в sourcemap соседний JS; связь задаёт фактический map output.
+  for (const [artifact, output] of relocated) {
+    output.sourcemap = maps.get(`${output.path}.map`) ??
+      (artifact.sourcemap?.kind === "sourcemap" ? relocated.get(artifact.sourcemap) ?? null : null)
+  }
+  return {...result, outputs: [...relocated.values()]}
 }
 
 /** Публикует новые файлы исключительно через create-if-absent; чужие байты не заменяются. */

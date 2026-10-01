@@ -20,6 +20,7 @@
         "@process/measure": "workspace:*",
         "@process/sample": "workspace:*",
         "@storybook/app": "workspace:*",
+        "@storybook/app-old": "workspace:*",
         "@storybook/route": "workspace:*",
         "@zavx0z/storybook-browser-lifecycle": "workspace:*",
       },
@@ -81,6 +82,13 @@
       "name": "@storybook/app",
       "version": "0.0.0",
       "dependencies": {
+        "@app/web": "workspace:*",
+      },
+    },
+    "app-old": {
+      "name": "@storybook/app-old",
+      "version": "0.0.0",
+      "dependencies": {
         "@archetypes/scenario-guide": "workspace:*",
         "@archetypes/scenario-validation": "workspace:*",
         "@archetypes/specs": "workspace:*",
@@ -93,6 +101,30 @@
         "@zavx0z/template": "*",
         "@zavx0z/ui": "*",
       },
+    },
+    "app/mcp": {
+      "name": "@app/mcp",
+      "version": "0.0.0",
+    },
+    "app/mcp/build": {
+      "name": "@app-mcp/build",
+      "version": "0.0.0",
+    },
+    "app/server": {
+      "name": "@app/server",
+      "version": "0.0.0",
+    },
+    "app/server/build": {
+      "name": "@app-server/build",
+      "version": "0.0.0",
+    },
+    "app/web": {
+      "name": "@app/web",
+      "version": "0.0.0",
+    },
+    "app/web/build": {
+      "name": "@app-web/build",
+      "version": "0.0.0",
     },
     "archetypes": {
       "name": "@storybook/archetypes",
@@ -153,14 +185,14 @@
       "dependencies": {
         "@archetypes/scenario-document": "workspace:*",
         "@archetypes/scenario-guide": "workspace:*",
-        "@storybook/app": "workspace:*",
+        "@storybook/app-old": "workspace:*",
       },
     },
     "archetypes/specs/guide": {
       "name": "@archetypes/scenario-document",
       "version": "0.0.0",
       "dependencies": {
-        "@storybook/app": "workspace:*",
+        "@storybook/app-old": "workspace:*",
       },
     },
     "archetypes/specs/scenarios": {
@@ -168,7 +200,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@archetypes/scenario-document": "workspace:*",
-        "@storybook/app": "workspace:*",
+        "@storybook/app-old": "workspace:*",
       },
     },
     "archetypes/specs/scenarios/validation": {
@@ -271,7 +303,7 @@
         "@mcp/address": "workspace:*",
         "@mcp/children": "workspace:*",
         "@mcp/root": "workspace:*",
-        "@storybook/app": "workspace:*",
+        "@storybook/app-old": "workspace:*",
       },
     },
     "mcp/root": {
@@ -393,6 +425,18 @@
     "@zavx0z/webgpu": "link:@zavx0z/webgpu",
   },
   "packages": {
+    "@app-mcp/build": ["@app-mcp/build@workspace:app/mcp/build"],
+
+    "@app-server/build": ["@app-server/build@workspace:app/server/build"],
+
+    "@app-web/build": ["@app-web/build@workspace:app/web/build"],
+
+    "@app/mcp": ["@app/mcp@workspace:app/mcp"],
+
+    "@app/server": ["@app/server@workspace:app/server"],
+
+    "@app/web": ["@app/web@workspace:app/web"],
+
     "@archetypes/component": ["@archetypes/component@workspace:component"],
 
     "@archetypes/container": ["@archetypes/container@workspace:container"],
@@ -506,6 +550,8 @@
     "@renderer/html": ["@renderer/html@link:@renderer/html", {}],
 
     "@storybook/app": ["@storybook/app@workspace:app"],
+
+    "@storybook/app-old": ["@storybook/app-old@workspace:app-old"],
 
     "@storybook/archetypes": ["@storybook/archetypes@workspace:archetypes"],
 

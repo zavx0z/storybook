@@ -1,8 +1,10 @@
 import {afterEach, describe, expect, test} from "bun:test"
+import {createHash} from "node:crypto"
 import {mkdtempSync, rmSync, writeFileSync, readFileSync} from "node:fs"
 import {join} from "node:path"
 import {tmpdir} from "node:os"
 import {StorybookSharedBrowserAssets, type SharedBrowserAssets} from "./shared-browser-assets.ts"
+import {storybookSharedBrowserIdentity} from "./shared-module-identity.ts"
 
 const cleanups: Array<() => void> = []
 afterEach(() => { for (const cleanup of cleanups.splice(0).reverse()) cleanup() })
@@ -153,4 +155,64 @@ test("конкурентная подготовка не подменяет ка
   expect(() => f.cache.publish([], checked)).toThrow("candidate changed")
   expect(f.cache.current().landingEntry).toBe("first.js")
   expect(f.updates).toEqual(["first.js"])
+})
+
+test("Web с сохранённым kernel не подтверждает кэш полной среды после изменения платформы", async () => {
+  const root = mkdtempSync(join(tmpdir(), "storybook-host-only-cache-"))
+  cleanups.push(() => rmSync(root, {recursive: true, force: true}))
+  const platform = join(root, "platform.ts")
+  const web = join(root, "web.ts")
+  writeFileSync(platform, "before")
+  writeFileSync(web, "web-before")
+  const digest = (value: string) => createHash("sha256").update(value).digest("hex")
+  let builds = 0
+  const cache = new StorybookSharedBrowserAssets({
+    async build() {
+      builds += 1
+      const platformVersion = readFileSync(platform, "utf8")
+      return {
+        root,
+        landingEntry: "page.js",
+        fallbackEntry: "page.js",
+        dependencyRealpaths: [platform, web],
+        browserIdentity: storybookSharedBrowserIdentity(
+          "/__storybook/shared/page.js",
+          [{specifier: "@zavx0z/component", sourcePath: platform, url: `/__storybook/shared/kernel/${platformVersion}.js`}],
+          digest(readFileSync(web, "utf8")),
+        ),
+      }
+    },
+    updated() {},
+    failed() {},
+  })
+  try {
+    const original = await cache.ensure()
+    cache.publish()
+    expect(builds).toBe(1)
+    writeFileSync(platform, "after")
+    writeFileSync(web, "web-after")
+    const hostOnly = {
+      ...original,
+      browserIdentity: storybookSharedBrowserIdentity(
+        "/__storybook/shared/updated-page.js",
+        original.browserIdentity!.modules,
+        digest(readFileSync(web, "utf8")),
+        original.browserIdentity!.sourceFiles,
+        undefined,
+        false,
+      ),
+    }
+    cache.stageHost(hostOnly)
+    const publishedHost = cache.publish([], hostOnly)
+    expect(publishedHost.browserIdentity?.epoch).toBe(original.browserIdentity?.epoch)
+    const full = await cache.ensure()
+    expect(builds).toBe(2)
+    expect(full.browserIdentity?.epoch).not.toBe(original.browserIdentity?.epoch)
+    expect(full.browserIdentity?.modules[0]?.url).toBe("/__storybook/shared/kernel/after.js")
+    expect(cache.current()).toBe(publishedHost)
+    expect(await cache.ensure()).toBe(full)
+    expect(builds).toBe(2)
+  } finally {
+    await cache.dispose()
+  }
 })
