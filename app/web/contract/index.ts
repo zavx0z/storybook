@@ -1,7 +1,7 @@
 import type {State, Version} from "./release"
 
 /** Публичные формы управления выпуском Web; подготовленный объект остаётся у сборщика. */
-export declare namespace Contract {
+export declare namespace AppWeb {
   /**
   Сборщик предоставляет подготовку с готовой платформой, проверку результата и публикацию.
   Prepared сохраняет форму владельца артефактов и не передаётся в интерфейс или MCP.

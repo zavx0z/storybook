@@ -4,19 +4,19 @@ import readContract from "@archetypes/contracts"
 import {createFixture} from "./fixture"
 
 describe.each([
-  {name: "Прямая форма выхода", expression: "Upstream.Output", fields: ["value", "label"], type: null},
-  {name: "Выбор полей", expression: 'Pick<Upstream.Output, "value">', fields: ["value"], type: null},
-  {name: "Indexed access к примитиву", expression: 'Upstream.Output["value"]', fields: [], type: "number"},
+  {name: "Прямая форма выхода", expression: "ContractFixtureUpstream.Output", fields: ["value", "label"], type: null},
+  {name: "Выбор полей", expression: 'Pick<ContractFixtureUpstream.Output, "value">', fields: ["value"], type: null},
+  {name: "Indexed access к примитиву", expression: 'ContractFixtureUpstream.Output["value"]', fields: [], type: "number"},
 ])("$name", ({expression, fields, type}) => {
   test("Типовая связь сохраняет происхождение", async () => {
     const fixture = await createFixture()
     try {
-      await fixture.write("index.ts", 'export type {Counter} from "./contract"\nexport default function counter() {return 1}\n')
+      await fixture.write("index.ts", 'export type {ContractFixtureCounter} from "./contract"\nexport default function counter() {return 1}\n')
       const owner = resolve(fixture.root, "upstream")
       await fixture.write("upstream/package.json", '{"name":"@contract-fixture/upstream","exports":{".":"./index.ts"}}')
-      await fixture.write("upstream/index.ts", 'export type {Upstream} from "./contract"\nexport default 1\n')
-      await fixture.write("upstream/contract/index.ts", 'export declare namespace Upstream {type Output = {value: number, label?: string}}\n')
-      await fixture.write("contract/index.ts", `import type {Upstream} from "../upstream/index"\nexport declare namespace Counter {type Input = ${expression}\ntype Output = number}\n`)
+      await fixture.write("upstream/index.ts", 'export type {ContractFixtureUpstream} from "./contract"\nexport default 1\n')
+      await fixture.write("upstream/contract/index.ts", 'export declare namespace ContractFixtureUpstream {type Output = {value: number, label?: string}}\n')
+      await fixture.write("contract/index.ts", `import type {ContractFixtureUpstream} from "../upstream/index"\nexport declare namespace ContractFixtureCounter {type Input = ${expression}\ntype Output = number}\n`)
       const result = await readContract({path: fixture.root})
       const input = result.entries[0]?.namespaces[0]?.roles.find(role => role.name === "Input")
       expect(result.diagnostics, "Публичный вход владельца является допустимой типовой зависимостью").toEqual([])
@@ -36,8 +36,8 @@ describe.each([
 test("Рекурсивные типы и callbacks читаются без зацикливания", async () => {
   const fixture = await createFixture()
   try {
-    await fixture.write("index.ts", 'export type {Counter} from "./contract"\nexport default function counter() {return 1}\n')
-    await fixture.write("contract/index.ts", 'import type {Node, Result} from "./graph"\nexport declare namespace Counter {type Input = Node\ntype Output = Result}\n')
+    await fixture.write("index.ts", 'export type {ContractFixtureCounter} from "./contract"\nexport default function counter() {return 1}\n')
+    await fixture.write("contract/index.ts", 'import type {Node, Result} from "./graph"\nexport declare namespace ContractFixtureCounter {type Input = Node\ntype Output = Result}\n')
     await fixture.write("contract/graph.ts", 'export interface Node {value: number\nnext?: Node\nonVisit?: (value: Result) => void}\nexport type Result = {visited: readonly Node[]}\n')
     const result = await readContract({path: fixture.root})
     const input = result.entries[0]?.namespaces[0]?.roles.find(role => role.name === "Input")
@@ -53,8 +53,8 @@ test("Рекурсивные типы и callbacks читаются без за�
 test("Форма не требует входа или специальных имён файлов", async () => {
   const fixture = await createFixture()
   try {
-    await fixture.write("index.ts", 'export type {Counter} from "./contract"\nexport default function counter() {return 1}\n')
-    await fixture.write("contract/index.ts", 'import type {Detail} from "./result-model"\nexport declare namespace Counter {type Output = Detail | null}\n')
+    await fixture.write("index.ts", 'export type {ContractFixtureCounter} from "./contract"\nexport default function counter() {return 1}\n')
+    await fixture.write("contract/index.ts", 'import type {Detail} from "./result-model"\nexport declare namespace ContractFixtureCounter {type Output = Detail | null}\n')
     await fixture.write("contract/result-model.ts", 'export type Message = string\nexport interface Detail {message: Message}\n')
     const result = await readContract({path: fixture.root})
     expect(result.diagnostics, "Применимая роль Output может быть единственной, её определения группируются по смыслу").toEqual([])

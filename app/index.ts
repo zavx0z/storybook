@@ -7,11 +7,11 @@
 @packageDocumentation
 */
 import createWeb from "@app/web"
-import type {Contract} from "./contract"
-export type {Contract} from "./contract"
+import type {StorybookApp} from "./contract"
+export type {StorybookApp} from "./contract"
 
 /** Создаёт управление Web в составе приложения без запуска компиляции при создании. */
-export default function createApp<Prepared>(input: Contract.Input<Prepared>): Contract.Output {
+export default function createApp<Prepared>(input: StorybookApp.Input<Prepared>): StorybookApp.Output {
   const web = createWeb(input.web)
   return Object.freeze({
     rebuildWeb: options => web.rebuild(options),

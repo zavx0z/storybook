@@ -6,7 +6,7 @@
 */
 import {afterAll, describe, expect, mock, test} from "bun:test"
 import createApp from "@storybook/app"
-import type {Contract} from "@storybook/app"
+import type {StorybookApp} from "@storybook/app"
 
 const version = {platform: "platform-a", web: "web-b"} as const
 
@@ -20,7 +20,7 @@ describe.each([
         versions: (candidate: typeof version) => [candidate],
         publish: mock((_candidate: typeof version) => {}),
       },
-    } satisfies Contract.Input<typeof version>,
+    } satisfies StorybookApp.Input<typeof version>,
   },
   {
     name: "Применение интерфейса",
@@ -31,7 +31,7 @@ describe.each([
         versions: (candidate: typeof version) => [candidate],
         publish: mock((_candidate: typeof version) => {}),
       },
-    } satisfies Contract.Input<typeof version>,
+    } satisfies StorybookApp.Input<typeof version>,
   },
 ])("$name", async ({props, apply}) => {
   const app = createApp(props)

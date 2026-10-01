@@ -1,5 +1,5 @@
 import activateRevision, {type ActivationOutput} from "@hmr/activation"
-import createApp, {type Contract as App} from "@storybook/app"
+import createApp, {type StorybookApp} from "@storybook/app"
 import {streamAppOperation} from "./app-stream.ts"
 import {sharedHostEvent} from "./shared-host-event.ts"
 import {sharedHostEpochs} from "./shared-host-epochs.ts"
@@ -1503,7 +1503,7 @@ type RegistryEvent = Readonly<{
   type: "shared.failed"
   message: string
 }> | (Readonly<{type: "build.progress"}> & StorybookBuildTransition)
-  | Readonly<{type: "app.web", state: ReturnType<App.Output["status"]>["web"]}>
+  | Readonly<{type: "app.web", state: ReturnType<StorybookApp.Output["status"]>["web"]}>
 
 
 async function packagePageResponse(

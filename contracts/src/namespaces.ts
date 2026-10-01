@@ -4,13 +4,23 @@ import type {Namespace, Role} from "../contract/declaration"
 import {diagnose, type Context} from "./context"
 import {declarationOf, declarationsOf, namespaceDeclaration, originalSymbol, typeDependencies} from "./declarations"
 
-/** Читает роли namespace и исходные определения их полей штатным TypeScript checker. */
+/**
+Читает роли namespace и исходные определения их полей штатным TypeScript checker.
+Имя сверяется с полным именем исходного пакета; несовпадение сохраняется
+предупреждением, не прерывающим чтение и не меняющим владельца при реэкспорте.
+*/
 export async function readNamespace(symbol: NativeSymbol, context: Context): Promise<Namespace | null> {
   const node = await namespaceDeclaration(symbol, context)
   if (!node) return null
   const target = await originalSymbol(symbol, context)
   const declaration = await declarationOf(node, target.name, context)
   if (!declaration.owner) return null
+  const expectedName = declaration.owner.name.split(/[^a-zA-Z0-9]+/u).filter(Boolean)
+    .map(part => part[0]!.toUpperCase() + part.slice(1)).join("")
+  if (target.name !== expectedName) {
+    diagnose(context, "namespace-name", declaration.path,
+      `Namespace ${target.name} пакета ${declaration.owner.name} ожидается с именем ${expectedName}`, "warning")
+  }
   if (declaration.path !== resolve(declaration.owner.path, "contract/index.ts")) {
     diagnose(context, "namespace-entry", declaration.path,
       `Namespace ${target.name} публикуется из contract/index.ts своего владельца`)

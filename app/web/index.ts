@@ -5,16 +5,16 @@
 
 @packageDocumentation
 */
-import type {Contract} from "./contract"
-export type {Contract} from "./contract"
+import type {AppWeb} from "./contract"
+export type {AppWeb} from "./contract"
 
 /**
 Управляет явным выпуском Web через предоставленные возможности сборщика.
 Повторные вызовы во время работы разделяют один результат. Отключение наблюдателя
 не отменяет сборку; прежняя опубликованная версия сохраняется при ошибке подготовки.
 */
-export default function createWeb<Prepared>(input: Contract.Input<Prepared>): Contract.Output {
-  type State = ReturnType<Contract.Output["read"]>
+export default function createWeb<Prepared>(input: AppWeb.Input<Prepared>): AppWeb.Output {
+  type State = ReturnType<AppWeb.Output["read"]>
   const lifetime = new AbortController()
   const listeners = new Set<(state: State) => void>()
   let state: State = Object.freeze({operationId: null, phase: "idle", at: new Date().toISOString(), versions: [], error: null})

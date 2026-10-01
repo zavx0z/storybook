@@ -1,6 +1,6 @@
-import type {Part} from "../part/index"
+import type {ContractFixturePart} from "../part/index"
 
-export declare namespace Combined {
-  type Input = {readonly left: Part.Output, readonly right: Part.Output}
+export declare namespace ContractFixtureCombined {
+  type Input = {readonly left: ContractFixturePart.Output, readonly right: ContractFixturePart.Output}
   type Output = {readonly total: number}
 }

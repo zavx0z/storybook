@@ -1,1 +1,1 @@
-{"name":"@contract-fixture/jsx-component","type":"module","exports":{".":"./index.tsx"},"dependencies":{"@zavx0z/jsx":"workspace:*"}}
+{"name":"@contract-fixture/panel","type":"module","exports":{".":"./index.tsx"},"dependencies":{"@zavx0z/jsx":"workspace:*"}}

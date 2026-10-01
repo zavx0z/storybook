@@ -4,7 +4,7 @@ import {resolve} from "node:path"
 import {API} from "typescript/unstable/async"
 import type {ReadPackageOutput} from "@archetypes/package"
 import {readRouteIgnored} from "@storybook/route/ignored"
-import type {Contract} from "../contract"
+import type {ArchetypesContracts} from "../contract"
 import {diagnose, inside, rememberSource, type Context} from "./context"
 import {readNamespace} from "./namespaces"
 import {checkPlacement} from "./placement"
@@ -13,13 +13,13 @@ import {checkPlacement} from "./placement"
 Раскрывает только публичные входы из фактов Package. Snapshot и checker
 освобождаются после чтения; изменение источника отклоняет весь результат.
 */
-export async function readNamespaces(description: ReadPackageOutput, definitions: readonly string[]): Promise<Contract.Output> {
+export async function readNamespaces(description: ReadPackageOutput, definitions: readonly string[]): Promise<ArchetypesContracts.Output> {
   const paths = [...new Set(description.index.entries.filter(entry => entry.code && entry.target
     && (entry.status === "owned" || entry.status === "forwarded"))
     .map(entry => resolve(description.root, entry.target!)))]
   const api = new API({cwd: description.root})
-  const entries: Contract.Output["entries"][number][] = []
-  const diagnostics: Contract.Output["diagnostics"][number][] = []
+  const entries: ArchetypesContracts.Output["entries"][number][] = []
+  const diagnostics: ArchetypesContracts.Output["diagnostics"][number][] = []
   const sources = new Map<string, {path: string, digest: string}>()
   try {
     const snapshot = await api.updateSnapshot({openFiles: [...paths, ...definitions]})
@@ -72,11 +72,11 @@ export async function readNamespaces(description: ReadPackageOutput, definitions
       entries.push({path, exports, namespaces})
     }
     for (const reference of description.code.flatMap(source => source.references)) {
-      if (reference.public === false) diagnostics.push({code: "private-dependency", path: reference.from,
+      if (reference.public === false) diagnostics.push({severity: "error", code: "private-dependency", path: reference.from,
         message: `Типы и реализация используют публичный вход владельца: ${reference.module}`})
     }
     const ignored = await readRouteIgnored({root: description.root, paths: [...sources.keys()].filter(path => inside(description.root, path))})
-    for (const path of ignored.ignored) diagnostics.push({code: "ignored-source", path, message: "Контракт не раскрывает игнорируемый исходник"})
+    for (const path of ignored.ignored) diagnostics.push({severity: "error", code: "ignored-source", path, message: "Контракт не раскрывает игнорируемый исходник"})
     for (const source of sources.values()) {
       const info = await lstat(source.path)
       if (!info.isFile() || info.isSymbolicLink()) throw new Error(`Контракт требует обычный файл: ${source.path}`)

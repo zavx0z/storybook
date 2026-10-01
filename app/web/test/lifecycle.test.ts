@@ -1,6 +1,6 @@
 import {expect, mock, test} from "bun:test"
 import createWeb from "@app/web"
-import type {Contract} from "@app/web"
+import type {AppWeb} from "@app/web"
 
 const versions = [{platform: "platform-a", web: "web-b"}] as const
 
@@ -74,7 +74,7 @@ test("наблюдатель preparing присоединяется к опер�
   const prepare = mock(async (_signal: AbortSignal) => "web-b")
   const publish = mock((_candidate: string) => {})
   const web = createWeb({prepare, versions: () => versions, publish})
-  let reentrant: Promise<ReturnType<Contract.Output["read"]>> | undefined
+  let reentrant: Promise<ReturnType<AppWeb.Output["read"]>> | undefined
   const unsubscribe = web.subscribe(state => {
     if (state.phase === "preparing") reentrant = web.rebuild({apply: true})
   })
@@ -95,7 +95,7 @@ test("отключение наблюдателя сохраняет работ�
   const publish = mock((_candidate: string) => {})
   const web = createWeb({prepare: () => prepared.promise, versions: () => versions, publish})
   const failedListener = mock(() => { throw new Error("observer failed") })
-  const successfulListener = mock((_state: ReturnType<Contract.Output["read"]>) => {})
+  const successfulListener = mock((_state: ReturnType<AppWeb.Output["read"]>) => {})
   const unsubscribeFailed = web.subscribe(failedListener)
   const unsubscribe = web.subscribe(successfulListener)
   try {

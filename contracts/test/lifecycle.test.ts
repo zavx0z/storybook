@@ -9,7 +9,7 @@ test("Следующее чтение отражает изменение и у�
   try {
     const source = resolve(fixture.root, "contract/index.ts")
     const first = await readContract({path: fixture.root})
-    await fixture.write("contract/index.ts", 'export declare namespace Counter {type Input = {readonly value: number\nreadonly step?: number\nreadonly unit: "px"}\ntype Output = number}\n')
+    await fixture.write("contract/index.ts", 'export declare namespace ContractFixtureCounter {type Input = {readonly value: number\nreadonly step?: number\nreadonly unit: "px"}\ntype Output = number}\n')
     const updated = await readContract({path: fixture.root})
     expect(updated.diagnostics, "Новое определение читается согласованно после изменения").toEqual([])
     expect(updated.sources.find(value => value.path === source)?.digest,
@@ -44,7 +44,7 @@ test("Символическая ссылка не заменяет собств
   const fixture = await createFixture()
   try {
     const source = resolve(fixture.root, "contract/index.ts")
-    const target = await fixture.write("contract/linked-index.ts", 'export declare namespace Counter {type Input = {value: number\nstep?: number}\ntype Output = number}\n')
+    const target = await fixture.write("contract/linked-index.ts", 'export declare namespace ContractFixtureCounter {type Input = {value: number\nstep?: number}\ntype Output = number}\n')
     await rm(source)
     await symlink(target, source)
     await expect(readContract({path: fixture.root}), "Читатель отклоняет подмену физического файла; ссылка целиком находится в принадлежащей тесту директории")

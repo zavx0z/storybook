@@ -1,6 +1,6 @@
 import type {JSX} from "@zavx0z/jsx"
 
-export declare namespace Panel {
+export declare namespace ContractFixturePanel {
   type Input = {readonly title: string}
   type Slots = {
     readonly default: JSX.Element

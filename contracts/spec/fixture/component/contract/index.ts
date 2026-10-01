@@ -1,4 +1,4 @@
-export declare namespace Counter {
+export declare namespace ContractFixtureCounter {
   type Input = {
     readonly value: number
     readonly step?: number

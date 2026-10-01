@@ -52,8 +52,8 @@ export function rememberSource(source: SourceFile, context: Context): void {
 }
 
 /** Добавляет одну диагностику на точный код, путь и сообщение. */
-export function diagnose(context: Context, code: string, path: string, message: string): void {
-  if (!context.diagnostics.some(item => item.code === code && item.path === path && item.message === message)) {
-    context.diagnostics.push({code, path, message})
+export function diagnose(context: Context, code: string, path: string, message: string, severity: Diagnostic["severity"] = "error"): void {
+  if (!context.diagnostics.some(item => item.code === code && item.path === path && item.message === message && item.severity === severity)) {
+    context.diagnostics.push({severity, code, path, message})
   }
 }

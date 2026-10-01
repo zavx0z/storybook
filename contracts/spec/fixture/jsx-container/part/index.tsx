@@ -1,6 +1,6 @@
-import type {Part} from "./contract"
+import type {ContractFixturePart} from "./contract"
 
-export type {Part} from "./contract"
-export default function part(props: Part.Input): Part.Output {
+export type {ContractFixturePart} from "./contract"
+export default function part(props: ContractFixturePart.Input): ContractFixturePart.Output {
   return <span>{props.text}</span>
 }

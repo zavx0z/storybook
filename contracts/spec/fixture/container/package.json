@@ -1,1 +1,1 @@
-{"name":"@contract-fixture/container","type":"module","exports":{".":"./index.ts"},"dependencies":{"@contract-fixture/part":"workspace:*"}}
+{"name":"@contract-fixture/combined","type":"module","exports":{".":"./index.ts"},"dependencies":{"@contract-fixture/part":"workspace:*"}}

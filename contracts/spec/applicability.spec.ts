@@ -7,14 +7,14 @@ import {createFixture} from "../test/fixture"
 describe.each([
   {
     name: "Domain с runtime и типовым фасадом",
-    entry: 'export {default as counter} from "./counter/index"\nexport type {Counter} from "./counter/index"\n',
-    exports: [{name: "counter", runtime: true}, {name: "Counter", runtime: false}],
+    entry: 'export {default as counter} from "./counter/index"\nexport type {ContractFixtureCounter} from "./counter/index"\n',
+    exports: [{name: "counter", runtime: true}, {name: "ContractFixtureCounter", runtime: false}],
     namespace: true,
   },
   {
     name: "Domain только с типовым реэкспортом",
-    entry: 'export type {Counter} from "./counter/index"\n',
-    exports: [{name: "Counter", runtime: false}],
+    entry: 'export type {ContractFixtureCounter} from "./counter/index"\n',
+    exports: [{name: "ContractFixtureCounter", runtime: false}],
     namespace: true,
   },
   {
@@ -29,8 +29,8 @@ describe.each([
     try {
       const owner = resolve(fixture.root, "counter")
       await fixture.write("counter/package.json", '{"name":"@contract-fixture/counter","exports":{".":"./index.ts"}}')
-      await fixture.write("counter/index.ts", 'export type {Counter} from "./contract"\nthrow new Error("Не исполнять")\nexport default function counter(value: number) {return value + 1}\n')
-      await fixture.write("counter/contract/index.ts", 'export declare namespace Counter {type Input = number\ntype Output = number}\n')
+      await fixture.write("counter/index.ts", 'export type {ContractFixtureCounter} from "./contract"\nthrow new Error("Не исполнять")\nexport default function counter(value: number) {return value + 1}\n')
+      await fixture.write("counter/contract/index.ts", 'export declare namespace ContractFixtureCounter {type Input = number\ntype Output = number}\n')
       await fixture.write("index.ts", entry)
       const result = await readContract({path: fixture.root})
       expect(result.entries[0]?.exports, "Domain публикует выбранный API своего владельца").toEqual([...exports])
@@ -47,7 +47,7 @@ describe.each([
 test("Domain не присваивает контракт целого без собственной реализации", async () => {
   const fixture = await createFixture()
   try {
-    await fixture.write("index.ts", 'export type {Counter} from "./contract"\n')
+    await fixture.write("index.ts", 'export type {ContractFixtureCounter} from "./contract"\n')
     const result = await readContract({path: fixture.root})
     expect(result.diagnostics, "Собственный namespace требует собственной публичной runtime реализации")
       .toContainEqual(expect.objectContaining({code: "contract-without-implementation", path: resolve(fixture.root, "contract/index.ts")}))

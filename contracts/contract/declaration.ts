@@ -47,8 +47,14 @@ export interface Namespace {
   readonly slotsLinked: boolean | null
 }
 
-/** Проверяемое нарушение формы или принадлежности; смысловая полнота поведения отдельно не утверждается. */
+/**
+Диагностика формы или принадлежности; смысловая полнота поведения отдельно не утверждается.
+
+@property severity - Несовпадение имени namespace с именем пакета является предупреждением;
+нарушения формы и принадлежности являются ошибками.
+*/
 export interface Diagnostic {
+  readonly severity: "warning" | "error"
   readonly code: string
   readonly path: string
   readonly message: string
