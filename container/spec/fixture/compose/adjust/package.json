@@ -1,0 +1,8 @@
+{
+  "name": "@fixture/compose-adjust",
+  "description": "Получает новое значение через вложенный компонент",
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

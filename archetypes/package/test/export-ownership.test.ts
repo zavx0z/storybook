@@ -146,5 +146,48 @@ test("development является режимом и не открывает к�
   await Bun.write(join(f.domain, "package.json"), JSON.stringify({name: "@fixture/area", description: "Область", exports: {".": {development: "./development.ts", default: "./index.ts"}}}))
   await Bun.write(join(f.domain, "development.ts"), 'export {default as Value} from "./value/index.ts"')
   const report = await readScenario({path: scenario, props: {path: f.domain}})
-  expect(report.tests.find(point => point.label === "Вход самостоятельного компонента")?.status).toBe("failed")
+  expect(report.tests.find(point => point.label === "Входы сред домена")?.status).toBe("failed")
+}, 30_000)
+
+test.each(["./value", "./jsx-runtime"])("публичная цель %s не доказывает основание дополнительного входа Domain", async subpath => {
+  const f = await fixture()
+  await Bun.write(join(f.domain, "package.json"), JSON.stringify({
+    name: "@fixture/area", description: "Область значений",
+    exports: {".": "./index.ts", [subpath]: "./value/index.ts"},
+  }))
+  const report = await readScenario({path: scenario, props: {path: f.domain}})
+  expect(report.validation.checks.filter(check => check.status === "failed")).toEqual([])
+  expect(report.tests.find(point => point.label === "Цель протокольного входа")?.status).toBe("passed")
+  expect(report.tests.find(point => point.label === "Основание внешнего протокола")?.status).toBe("todo")
+  expect(report.tests.filter(point => point.status === "failed")).toEqual([])
+}, 30_000)
+
+test("входы Component не допускают вторую кодовую реализацию, но сохраняют ресурсный экспорт", async () => {
+  const f = await fixture()
+  await Bun.write(join(f.component, "theme.css"), ":root { --color: red }")
+  await Bun.write(join(f.component, "package.json"), JSON.stringify({
+    name: "@fixture/value", description: "Значение с ресурсом",
+    exports: {".": "./index.ts", "./theme.css": "./theme.css"},
+  }))
+  const valid = await readScenario({path: scenario, props: {path: f.component}})
+  expect(valid.exitCode, valid.stderr).toBe(0)
+  expect(valid.tests.find(point => point.label === "Кодовый вход компонента")?.status).toBe("passed")
+  expect(valid.tests.find(point => point.label === "Файлы ресурсов")?.status).toBe("passed")
+
+  await mkdir(join(f.component, "extra"))
+  await Bun.write(join(f.component, "extra/index.ts"), "export default 4")
+  await Bun.write(join(f.component, "package.json"), JSON.stringify({
+    name: "@fixture/value", description: "Вторая реализация",
+    exports: {".": "./index.ts", "./extra": "./extra/index.ts"},
+  }))
+  const invalid = await readScenario({path: scenario, props: {path: f.component}})
+  expect(invalid.tests.find(point => point.label === "Кодовый вход компонента")?.status).toBe("failed")
+  expect(invalid.exitCode).not.toBe(0)
+}, 30_000)
+
+test("Domain без дополнительного входа не получает проверку чужого протокола", async () => {
+  const f = await fixture()
+  const report = await readScenario({path: scenario, props: {path: f.domain}})
+  expect(report.tests.find(point => point.label === "Корневой API домена")?.status).toBe("passed")
+  expect(report.tests.filter(point => point.status !== "passed" && !(point.status === "skipped" && point.skipReason))).toEqual([])
 }, 30_000)

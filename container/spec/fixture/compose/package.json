@@ -1,0 +1,8 @@
+{
+  "name": "@fixture/compose",
+  "description": "Последовательно увеличивает число и удваивает результат",
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

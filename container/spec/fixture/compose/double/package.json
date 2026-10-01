@@ -1,0 +1,8 @@
+{
+  "name": "@fixture/compose-double",
+  "description": "Удваивает число",
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

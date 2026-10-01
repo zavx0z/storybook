@@ -2,7 +2,7 @@ import {isBuiltin} from "node:module"
 import {API, SymbolFlags, type Project, type Symbol as TypeScriptSymbol} from "typescript/unstable/async"
 import {SyntaxKind, type Node, type SourceFile} from "typescript/unstable/ast"
 import {
-  isClassDeclaration, isEmptyStatement, isExportAssignment, isExportDeclaration,
+  isCallExpression, isClassDeclaration, isEmptyStatement, isExportAssignment, isExportDeclaration,
   isFunctionDeclaration, isIdentifier, isImportDeclaration, isInterfaceDeclaration,
   isModuleBlock, isModuleDeclaration, isNamedExports, isNamedImports,
   isStringLiteral, isTypeAliasDeclaration, isVariableStatement, isImportTypeNode,
@@ -73,7 +73,7 @@ async function publicModule(path: string, owner: Owner | null, ownRoot: string):
   return published ? true : index.unchecked.length > 0 || metadata.exports === undefined ? null : false
 }
 
-/** Читает import/export и ссылки import type из контрактов, сохраняя их смысл и владельца. */
+/** Читает import/export, буквальный dynamic import и ссылки import type, сохраняя владельца без исполнения модулей. */
 async function moduleReferences(file: SourceFile, project: Project, root: string): Promise<Source["references"]> {
   const nodes: {node: Node, module: string, names: readonly string[], typeOnly: boolean, exported: boolean}[] = []
   const visit = (node: Node): void => {
@@ -89,6 +89,10 @@ async function moduleReferences(file: SourceFile, project: Project, root: string
         names: node.exportClause && isNamedExports(node.exportClause) ? node.exportClause.elements.map(item => item.propertyName?.text ?? item.name.text) : ["*"],
         typeOnly: node.isTypeOnly || !!node.exportClause && isNamedExports(node.exportClause) && node.exportClause.elements.every(item => item.isTypeOnly),
         exported: true})
+    } else if (isCallExpression(node) && node.expression.kind === SyntaxKind.ImportKeyword
+      && node.arguments[0] && isStringLiteral(node.arguments[0])) {
+      nodes.push({node: node.arguments[0], module: node.arguments[0].text,
+        names: ["*"], typeOnly: false, exported: false})
     } else if (isImportTypeNode(node) && "literal" in node.argument && isStringLiteral(node.argument.literal as Node)) {
       const literal = node.argument.literal as import("typescript/unstable/ast").StringLiteral
       nodes.push({node: literal, module: literal.text, names: [node.qualifier?.getText(file) ?? "*"], typeOnly: true, exported: false})

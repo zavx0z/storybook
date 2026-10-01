@@ -1,0 +1,8 @@
+{
+  "name": "@fixture/compose-increment",
+  "description": "Увеличивает число на единицу",
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

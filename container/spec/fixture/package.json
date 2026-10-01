@@ -1,0 +1,7 @@
+{
+  "name": "@fixture/container-repo",
+  "private": true,
+  "workspaces": [
+    "compose/**"
+  ]
+}

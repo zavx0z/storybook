@@ -25,6 +25,7 @@
       },
       "devDependencies": {
         "@archetypes/component": "workspace:*",
+        "@archetypes/container": "workspace:*",
         "@archetypes/domain": "workspace:*",
         "@archetypes/package-index": "workspace:*",
         "@archetypes/package-json": "workspace:*",
@@ -190,6 +191,13 @@
       "version": "0.0.0",
       "dependencies": {
         "@archetypes/package": "workspace:*",
+      },
+    },
+    "container": {
+      "name": "@archetypes/container",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/component": "workspace:*",
       },
     },
     "domain": {
@@ -376,6 +384,8 @@
   },
   "packages": {
     "@archetypes/component": ["@archetypes/component@workspace:component"],
+
+    "@archetypes/container": ["@archetypes/container@workspace:container"],
 
     "@archetypes/domain": ["@archetypes/domain@workspace:domain"],
 

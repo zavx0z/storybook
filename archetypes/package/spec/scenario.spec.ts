@@ -1,6 +1,6 @@
 /**
 Показывает и проверяет общие требования Package и применимые правила Repo,
-Domain или Component. Один запуск служит проверкой, документацией и примером;
+Domain, Component или Container. Один запуск служит проверкой, документацией и примером;
 классификация выражена разделами и утверждениями этого же сценария.
 props.path позволяет применить те же проверки к другому пакету.
 Файловая полнота не доказывает смысловую правильность компонента и его состояния.
@@ -20,8 +20,14 @@ describe.each([
     || source.exports.some(item => item.runtime && item.declarations.some(declaration => declaration.owner?.path === result.root)))
   const repo = result.repository.gitRoot === result.root
   const domain = !repo && result.packages.length > 0 && localCode.length === 0
-  const component = !repo && entries.some(entry => result.code.some(source =>
+  const implementation = !repo && entries.some(entry => result.code.some(source =>
     source.path === resolve(result.root, entry.target!) && source.exports.some(item => item.runtime && item.declarations.some(declaration => declaration.owner?.path === result.root))))
+  const component = implementation && result.packages.length === 0
+  const container = implementation && result.packages.length > 0
+  const parts = result.packages.filter(part => part.parent === result.root)
+  const codeEntries = result.index.entries.filter(entry => entry.code && entry.status !== "blocked")
+  const domainSubpaths = domain ? codeEntries.filter(entry => entry.path !== ".") : []
+  const resources = result.index.entries.filter(entry => !entry.code && entry.status !== "blocked")
 
   describe("Назначение", () => {
     test("Идентичность", () => {
@@ -37,19 +43,17 @@ describe.each([
   })
 
   describe("Публичные входы", () => {
-    test("Объявленный состав", () => {
-      expect(result.packageJson.exports, "Публичные пути объявлены самим пакетом").toBeObject()
+    test("Прочитанная карта", () => {
+      expect(result.packageJson.exports,
+        "Читатель сохраняет объявленную карту exports; отсутствие поля нормализовано в пустую карту. Допустимые входы определяет частный раздел Repo, Domain, Component или Container, а не наличие объекта")
+        .toBeObject()
       expect(result.index.entries, "Каждый раскрытый вход показывает файл, условия и доступные контракты").toBeArray()
     })
     test("Принадлежность файлов", () => {
       const unavailable = result.index.entries.filter(entry => !["owned", "forwarded", "blocked"].includes(entry.status))
-      expect(unavailable, "Публичный путь ведёт к своему файлу либо точному публичному входу вложенного владельца").toEqual([])
-    })
-    test("Вход самостоятельного компонента", () => {
-      const internal = result.index.entries.filter(entry => entry.code && !entry.entrypoint
-        && !(domain && entry.path === "." && entry.target && dirname(resolve(result.root, entry.target)) === result.root
-          && entry.conditions.some(condition => !["default", "import", "require", "types", "module", "module-sync", "development", "production"].includes(condition))))
-      expect(internal, "Компонент имеет основной index; входы сред домена объявлены условиями exports и находятся в его корне. Частные файлы не становятся публичными обходным путём").toEqual([])
+      expect(unavailable,
+        "Цель существует у своего владельца, не проходит через symlink или закрытые исходники. Найденный публичный файл подтверждает принадлежность, но не необходимость дополнительного экспортного адреса")
+        .toEqual([])
     })
     test("Отсутствие псевдонимов", () => {
       const aliases = result.index.entries.filter(entry => entry.code && entry.target !== null && result.index.entries.some(other =>
@@ -85,11 +89,11 @@ describe.each([
     })
     test("Состав только у Repo", () => {
       expect(repo || result.packageJson.workspaces === undefined,
-        "Workspaces объявляет только Repo; Domain и Component получают состав из корневого glob").toBeTrue()
+        "Workspaces объявляет только Repo; Domain, Component и Container получают состав из корневого glob").toBeTrue()
     })
     test("Общая среда Bun только у Repo", () => {
       expect(repo || result.packageJson.engines?.bun === undefined,
-        "Общую среду разработки Bun объявляет Repo в engines.bun; вложенные Domain и Component не повторяют настройку окружения")
+        "Общую среду разработки Bun объявляет Repo в engines.bun; вложенные Domain, Component и Container не повторяют настройку окружения")
         .toBeTrue()
     })
   })
@@ -106,8 +110,8 @@ describe.each([
   describe.skipIf(result.index.unchecked.length > 0)("Классификация", () => {
     test("Структурная роль", () => {
       expect({root: result.root, repository: result.repository, packages: result.packages, code: result.code},
-        "Repo находится в корне своей Git-истории. Domain собирает API владельцев, не реализуя их поведение; Component владеет реализацией. Реэкспорты домена не считаются его реализациями. Подтверждение требует всех проверок применимого раздела, а не одного этого пункта.")
-        .toSatisfy(() => Number(repo) + Number(domain) + Number(component) === 1)
+        "Repo находится в корне своей Git-истории. Domain собирает API владельцев без собственной реализации. Component имеет собственную реализацию без вложенных пакетов; Container — собственную реализацию и принадлежащие части композиции. Реэкспорт не становится реализацией. Подтверждение требует всех применимых проверок, а не только признаков роли.")
+        .toSatisfy(() => Number(repo) + Number(domain) + Number(component) + Number(container) === 1)
     })
   })
 
@@ -127,6 +131,14 @@ describe.each([
 
   /** @remarks Repo проверяется только для пакета в точном корне собственной Git-истории. */
   describe.skipIf(!repo)("Repo", () => {
+    test("Экспорты репозитория", () => {
+      expect(result.packageJson.exports,
+        "Repo без собственного публичного API может не объявлять exports: читатель возвращает {}. Состав вложенных пакетов задаётся workspaces и сам по себе не требует экспортировать их через Repo")
+        .toBeObject()
+      expect(codeEntries,
+        "Если Repo публикует код, каждый объявленный вход ведёт к index своего владельца; закрытые файлы вложенных пакетов не становятся API репозитория")
+        .toSatisfy(entries => entries.every(entry => entry.entrypoint))
+    })
     test("Корневые glob", () => {
       const declaration = result.packageJson.workspaces
       const patterns = declaration === undefined ? [] : "packages" in declaration ? declaration.packages : declaration
@@ -145,6 +157,18 @@ describe.each([
 
   /** @remarks Domain применим к области с вложенными пакетами и API, собранным без локальной реализации поведения. */
   describe.skipIf(!domain)("Domain", () => {
+    test("Корневой API домена", () => {
+      expect(codeEntries.filter(entry => entry.path === "."),
+        "Основной API Domain задаётся входом «.» и собирает именованные возможности владельцев. При единственном общем входе exports имеет вид {«.»: «./index.ts»}; поддомены не перечисляются в exports только из-за своей вложенности")
+        .toSatisfy(entries => entries.every(entry => entry.status === "owned" && entry.target !== null
+          && dirname(resolve(result.root, entry.target)) === result.root))
+    })
+    test("Входы сред домена", () => {
+      expect(codeEntries.filter(entry => entry.path === "."),
+        "Для разных сред условия одного входа «.» выбирают собственные файлы в корне Domain, например browser: ./browser.ts и node: ./server.ts. index.ts/index.tsx подходит общему входу; development/production не создают отдельную среду")
+        .toSatisfy(entries => entries.every(entry => entry.entrypoint || entry.conditions.some(condition =>
+          !["default", "import", "require", "types", "module", "module-sync", "development", "production"].includes(condition))))
+    })
     test("Происхождение API", () => {
       expect(result.code.flatMap(source => source.exports),
         "Домен назначает именованные экспорты, разрешённые до владельца; type-only и реэкспорт сохраняют своё назначение")
@@ -153,17 +177,22 @@ describe.each([
     })
     test("Принадлежность публичных входов", () => {
       expect(result.index.entries,
-        "Домен собирает именованный API и типы владельцев; прямые подпути ведут к их публичным входам")
+        "Основной кодовый вход принадлежит самому Domain. При наличии дополнительных кодовых подпутей их цели проверяются отдельно; допустимость таких адресов не выводится из публичности дочернего пакета")
         .toSatisfy(entries => entries.every(entry => !entry.code || entry.status === "blocked"
           || (entry.path === "." ? entry.status === "owned" : entry.status === "forwarded")))
     })
   })
 
-  /** @remarks Component применим к вложенному пакету с собственной runtime реализацией в основном публичном входе. */
-  describe.skipIf(!component)("Component", () => {
+  /** @remarks Собственная внешняя реализация и типы требуются Component и Container; у Domain публичный состав имеет другое назначение. */
+  describe.skipIf(!component && !container)("Публичная реализация", () => {
+    test("Кодовый вход компонента", () => {
+      expect(codeEntries,
+        "Component и Container публикуют собственный index.ts/index.tsx через «.»; условные ветви сохраняют владельца. Части композиции не раскрываются дополнительными кодовыми подпутями")
+        .toSatisfy(entries => entries.every(entry => entry.path === "." && entry.status === "owned" && entry.entrypoint))
+    })
     test("Основная реализация", () => {
       expect(entries.map(entry => result.code.find(source => source.path === resolve(result.root, entry.target!))),
-        "Компонент предоставляет одну основную реализацию через default; именованные типы контрактов не увеличивают число реализаций")
+        "Component и Container предоставляют одну собственную реализацию через default; именованные типы её контракта не увеличивают число реализаций")
         .toSatisfy(sources => sources.every(source => {
           const values = source?.exports.filter(item => item.runtime) ?? []
           return values.length === 1 && values[0]?.name === "default" && !values[0].unresolved
@@ -171,12 +200,12 @@ describe.each([
     })
     test("Публичная граница", () => {
       expect(result.index.entries,
-        "Дополнительные самостоятельные реализации получают собственные пакеты; Component публикует собственный основной кодовый вход")
+        "Дополнительные самостоятельные реализации получают собственные пакеты; Component и Container публикуют только основной кодовый вход целого")
         .toSatisfy(entries => entries.every(entry => !entry.code || entry.status === "blocked" || entry.path === "." && entry.status === "owned"))
     })
     test("Исполняемое использование", () => {
       expect(result.scenarios,
-        "Компонент имеет один непосредственный сценарий использования публичного API; он исполняется обычным механизмом сценариев владельца")
+        "Component и Container имеют один непосредственный сценарий использования публичного API; он исполняется обычным механизмом сценариев владельца")
         .toHaveLength(1)
     })
     test("Результат", () => {
@@ -184,6 +213,58 @@ describe.each([
         "Публичный результат имеет выводимый TypeScript тип; используемые типовые контракты разрешаются, пустой output.ts не требуется")
         .toSatisfy(sources => sources.every(source => source.exports.filter(item => item.runtime).every(item => item.type !== null && !item.unresolved)
           && source.references.filter(item => item.typeOnly).every(item => item.path !== null || item.public === true)))
+    })
+  })
+
+  /** @remarks Component реализует возможность без собственного состава самостоятельных вложенных пакетов. */
+  describe.skipIf(!component)("Component", () => {
+    test("Самостоятельная реализация", () => {
+      expect(result.packages,
+        "Component может использовать внешние зависимости и частные helpers; композиция принадлежащих вложенных пакетов оформляется как Container")
+        .toEqual([])
+    })
+  })
+
+  /** @remarks Container имеет собственную реализацию целого и непосредственные части, выбранные из корневого workspace Repo. */
+  describe.skipIf(!container)("Container", () => {
+    test("Принадлежащие части", () => {
+      expect(parts,
+        "У Container есть непосредственные принадлежащие части. Роль Component или Container подтверждается собственными проверками каждой части; непустой состав не заменяет проверку поддерева")
+        .not.toHaveLength(0)
+    })
+    test("Связи композиции", () => {
+      expect(parts.filter(part => !result.code.some(source => source.references.some(reference =>
+        reference.owner?.path === part.path && !reference.typeOnly && !reference.exported))),
+        "Собственный код целого использует публичные реализации принадлежащих частей. Реэкспорт доменного API или только типовая связь не заменяет композицию; порядок и результат исполнения подтверждает собственный сценарий")
+        .toEqual([])
+    })
+    test("Публичное целое", () => {
+      expect(result.index.entries.filter(entry => entry.code && entry.status !== "blocked"),
+        "Внешний код обращается к собственной реализации контейнера; внутренние компоненты и контейнеры сохраняют собственных владельцев и не получают публичные подпути через целое")
+        .toSatisfy(entries => entries.every(entry => entry.path === "." && entry.status === "owned"))
+    })
+  })
+
+  /** @remarks Дополнительный кодовый подпуть Domain требует основания во внешнем протоколе; публичность цели проверяется отдельно от этого основания. */
+  describe.skipIf(domainSubpaths.length === 0)("Подпути Domain", () => {
+    test("Цель протокольного входа", () => {
+      expect(domainSubpaths,
+        "Когда внешний протокол требует отдельный адрес, он ведёт непосредственно к публичному index вложенного владельца без файла-переадресации. Например, фиксированные JSX-входы выбирает транслятор; это частный случай, а не шаблон экспорта всех поддоменов")
+        .toSatisfy(entries => entries.every(entry => entry.status === "forwarded" && entry.entrypoint && entry.owner !== undefined))
+    })
+    test.todo("Основание внешнего протокола", () => {
+      expect(undefined,
+        "Для каждого дополнительного кодового подпути подтверждены внешний потребитель, требуемый им адрес и сценарий использования. Читатель Package пока не предоставляет этих свидетельств: status forwarded доказывает только публичность файла и не разрешает произвольный подпуть")
+        .toBeDefined()
+    })
+  })
+
+  /** @remarks Ресурсные exports применимы только при наличии отдельных публичных файлов без JS/TS-кода. */
+  describe.skipIf(resources.length === 0)("Ресурсные экспорты", () => {
+    test("Файлы ресурсов", () => {
+      expect(resources,
+        "CSS, изображения и другие ресурсы экспортируются отдельными существующими файлами своего владельца. Ресурсный путь не является второй реализацией Component и не даёт разрешения на дополнительные кодовые входы")
+        .toSatisfy(entries => entries.every(entry => entry.status === "owned" || entry.status === "forwarded"))
     })
   })
 })

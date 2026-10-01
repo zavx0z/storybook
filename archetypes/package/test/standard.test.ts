@@ -14,11 +14,15 @@ afterAll(async () => {
 test.each([
   ["Domain", resolve(import.meta.dir, "../..")],
   ["Component", resolve(import.meta.dir, "../../../component/spec/fixture/component")],
+  ["Container", resolve(import.meta.dir, "../../../container/spec/fixture/compose")],
 ] as const)("один сценарий проверяет %s и предоставляет те же данные представлениям", async (role, path) => {
   const report = await readScenario({path: scenario, props: {path}})
   expect(report.exitCode, report.stderr).toBe(0)
   expect(report.validation.checks.filter(check => check.status === "failed")).toEqual([])
-  expect(report.tests.filter(point => point.status !== "passed" && !(point.status === "skipped" && point.skipReason))).toEqual([])
+  expect(report.tests.filter(point => point.status !== "passed" && !(point.status === "skipped" && point.skipReason))
+    .map(point => ({label: point.label, status: point.status}))).toEqual(role === "Domain"
+      ? [{label: "Основание внешнего протокола", status: "todo"}]
+      : [])
   expect(report.calls.filter(call => call.name === "default")).toHaveLength(1)
   expect(report.preview?.kind).toBe("function")
   expect(report.groups.some(group => group.label === role)).toBeTrue()
@@ -30,6 +34,16 @@ test.each([
   expect(serialized).toContain(role)
   expect(serialized).toContain("Корневой TSDoc раскрывает назначение и границы ответственности пакета")
   expect(serialized).toContain(path)
+}, 30_000)
+
+test("Repo без собственного API сохраняет пустую карту экспортов без фиктивного входа", async () => {
+  const path = resolve(import.meta.dir, "../../..")
+  const manifest = await Bun.file(resolve(path, "package.json")).json()
+  expect(manifest.exports).toBeUndefined()
+  const report = await readScenario({path: scenario, props: {path}})
+  expect(report.groups.some(group => group.label === "Repo")).toBeTrue()
+  expect(report.tests.find(point => point.label === "Экспорты репозитория")?.status).toBe("passed")
+  expect(report.tests.find(point => point.label === "Прочитанная карта")?.status).toBe("passed")
 }, 30_000)
 
 test("подтверждение роли не скрывает провал последующего требования Component", async () => {

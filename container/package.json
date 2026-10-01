@@ -1,0 +1,14 @@
+{
+  "name": "@archetypes/container",
+  "label": "Контейнер",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Раскрывает собственный контракт контейнера и принадлежащие ему части композиции",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@archetypes/component": "workspace:*"
+  }
+}
