@@ -178,6 +178,9 @@ export function resolveStorybookPackagePageTarget(input: Readonly<{
 Preview читает точную запрошенную ревизию и никогда не создаёт новую сборку.
 Общая session объединяет одновременные запросы; отмена одного ожидания не
 отменяет её полезную работу. Ошибка подготовки сохраняет прежние artifacts.
+Если первая сборка не удалась и рабочей ревизии нет, страница получает fallback;
+состояние `failed` и diagnostics остаются у session. Отмена и неверный route
+не превращаются в fallback.
 */
 export async function prepareStorybookPackagePageTarget(input: Readonly<{
   session: StorybookPackageSession
@@ -205,11 +208,8 @@ export async function prepareStorybookPackagePageTarget(input: Readonly<{
   input.signal.throwIfAborted()
   const available = read()
   if (input.previewRevision !== null || available.kind !== "fallback") return available
-  const built = await input.session.ensureBuilt({owner: "open"})
+  await input.session.ensureBuilt({owner: "open"})
   input.signal.throwIfAborted()
-  if (built.diagnostics.length > 0) {
-    throw new Error(built.diagnostics.map(diagnostic => diagnostic.message).join("\n"))
-  }
   return read()
 }
 

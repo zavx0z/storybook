@@ -4,11 +4,53 @@ type StorybookPackageSessionSnapshot = ReturnType<PackageSessionContract.Output[
 type StorybookPackageRevisionGraphSnapshot = ReturnType<PackageRevisionContract.Output["create"]>
 import {describe, expect, test} from "bun:test"
 import {
+  prepareStorybookPackagePageTarget,
   resolveStorybookPackagePageTarget,
   type StorybookPackagePageRevision,
 } from "../src/package-page-target.ts"
 
 describe("server package page target", () => {
+  test("неудачная первая сборка оставляет diagnostics и открывает fallback без выдуманной ревизии", async () => {
+    const fixture = targetFixture()
+    let state: StorybookPackageSessionSnapshot = {
+      ...fixture.input.snapshot,
+      builtRevision: null,
+      activeRevision: null,
+      lastWorkingRevision: null,
+      lastGoodRevision: null,
+      revisions: [],
+      diagnostics: [],
+      buildState: "idle",
+      builds: 0,
+    }
+    let attempts = 0
+    const session = {
+      packageId: "@fixture/package",
+      snapshot: () => state,
+      revisionGraphSnapshot: () => null,
+      revisionDirectory: () => null,
+      async ensureBuilt() {
+        attempts += 1
+        state = {...state, buildState: "failed", builds: 1,
+          diagnostics: [{phase: "compile", message: "broken package entry", path: null}]}
+        return state
+      },
+    } as unknown as PackageSessionContract.Output
+    const target = await prepareStorybookPackagePageTarget({
+      session,
+      routePath: "",
+      previewRevision: null,
+      currentRoute: {nodeId: "package-a", kind: "overview"},
+      signal: new AbortController().signal,
+    })
+    expect(target).toEqual({kind: "fallback", packageId: "@fixture/package", revision: null,
+      intent: "reader", preview: false, initialAppliedRevision: null})
+    expect(attempts).toBe(1)
+    expect(state.buildState).toBe("failed")
+    expect(state.diagnostics).toEqual([{phase: "compile", message: "broken package entry", path: null}])
+    expect(state.activeRevision).toBeNull()
+  })
+
   test("обычный cold request выбирает built, сохраняя правдивый active до evidence", () => {
     const fixture = targetFixture()
     const target = resolveStorybookPackagePageTarget({
