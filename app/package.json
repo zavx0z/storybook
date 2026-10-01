@@ -9,6 +9,11 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@app/web": "workspace:*"
+    "@app/web": "workspace:*",
+    "@zavx0z/storybook-mcp": "workspace:*",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.0.0"
   }
 }

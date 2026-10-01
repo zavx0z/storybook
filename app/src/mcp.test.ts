@@ -1,6 +1,6 @@
 import {expect, test} from "bun:test"
 import {Client, InMemoryTransport} from "@modelcontextprotocol/client"
-import type {ExternalStorybookController, StorybookControllerContext} from "../../server/controller-contract.ts"
+import type {CreateStorybookMcpServerInput} from "@zavx0z/storybook-mcp/server"
 import {createAppMcpServer} from "./mcp.ts"
 
 test("app добавляет явное управление Web, сохраняет lazy proxy и передаёт request progress", async () => {
@@ -9,7 +9,7 @@ test("app добавляет явное управление Web, сохраня
   const progress: {progress: number, message?: string | undefined}[] = []
   /** Остальные управляющие входы присутствуют, но этот пример использует только check. */
   const unused = async () => ({status: "success" as const})
-  const controller: ExternalStorybookController = {
+  const controller: NonNullable<CreateStorybookMcpServerInput["controller"]> = {
     ensure: unused,
     status: unused,
     attach: unused,
@@ -23,7 +23,7 @@ test("app добавляет явное управление Web, сохраня
     close: unused,
     stop: unused,
     async readResource(uri) { return {status: "success", uri, mimeType: "application/json"} },
-    async check(input: unknown, context: StorybookControllerContext) {
+    async check(input, context) {
       calls.push(input)
       await context.onProgress?.({phase: "prepared", at: 12, operationId: "web-1"})
       await context.onProgress?.({phase: "published", at: 14, operationId: "web-1"})
@@ -64,6 +64,7 @@ test("app добавляет явное управление Web, сохраня
     const invalid = await client.callTool({name: "storybook_rebuild_web", arguments: {unexpected: true}})
     expect(invalid.isError).toBeTrue()
     expect(calls).toHaveLength(3)
+    expect(loads, "Встроенные и добавленные инструменты используют один отложенный контроллер").toBe(1)
   } finally {
     await client.close()
     await server.close()

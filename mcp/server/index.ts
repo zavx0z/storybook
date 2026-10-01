@@ -2,6 +2,8 @@
 Подключает HTTP-прокси и существующие управляющие инструменты к протоколу MCP.
 Предметные инструкции и структура ответа принадлежат HTTP-серверу.
 Общая очистка служебных данных сохраняется на публичной границе MCP.
+Приложение регистрирует дополнительные инструменты через registerTools,
+сохраняя один отложенный контроллер и обработку контекста каждого запроса.
 
 @packageDocumentation
 */
@@ -28,7 +30,7 @@ import {recordMcpRequest, traceMcpRequest} from "./src/request-log"
 import {controllerAccessor} from "./src/controller"
 import {proxyContent, errorContent} from "./src/response"
 import {invoke, invokeCapture} from "./src/invoke"
-import {createRequestProgress} from "../../tech/mcp/progress.ts"
+import {createRequestProgress} from "./src/progress.ts"
 import type {CreateStorybookMcpServerInput} from "./contract/input"
 import type {CreateStorybookMcpServerOutput} from "./contract/output"
 
@@ -37,6 +39,14 @@ export type {CreateStorybookMcpServerInput, CreateStorybookMcpServerOutput}
 export function createStorybookMcpServer(options: CreateStorybookMcpServerInput = {}): CreateStorybookMcpServerOutput {
   const controller = controllerAccessor(options)
   const server = new McpServer({name: "storybook", version: "1.0.0"})
+  /** Исполняет управляющую операцию с отменой и progress текущего MCP-запроса. */
+  const execute: Parameters<NonNullable<CreateStorybookMcpServerInput["registerTools"]>>[1] = (operation, context) => {
+    const notify = createRequestProgress(context)
+    return invoke(controller, value => operation(value, {
+      signal: context.mcpReq.signal,
+      ...(notify === undefined ? {} : {onProgress: progress => notify(JSON.stringify(progress))}),
+    }))
+  }
 
   server.registerTool("storybook", {
     title: "Storybook",
@@ -125,13 +135,7 @@ export function createStorybookMcpServer(options: CreateStorybookMcpServerInput 
     description: "Собирает кандидата пакета. При live=true проверяет его и в случае успеха применяет ко всем вкладкам этого пакета. При ошибке сохраняет применённую ревизию.",
     inputSchema: storybookCheckSchema,
     annotations: {idempotentHint: true},
-  }, async (input, context) => {
-    const notify = createRequestProgress(context)
-    return invoke(controller, value => value.check(input, {
-      signal: context.mcpReq.signal,
-      ...(notify === undefined ? {} : {onProgress: progress => notify(JSON.stringify(progress))}),
-    }))
-  })
+  }, (input, context) => execute((value, operationContext) => value.check(input, operationContext), context))
 
   server.registerTool("storybook_close", {
     title: "Закрытие представления Storybook",
@@ -148,5 +152,6 @@ export function createStorybookMcpServer(options: CreateStorybookMcpServerInput 
   }, async (input, context) => invoke(controller, (value) => value.stop(input, {signal: context.mcpReq.signal})))
 
   registerStorybookResources(server, controller)
+  options.registerTools?.(server, execute)
   return server
 }

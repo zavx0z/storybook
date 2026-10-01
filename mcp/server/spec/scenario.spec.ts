@@ -9,17 +9,26 @@ describe.each([{
   let current = 0
   let controllerLoads = 0
   const journal: Record<string, unknown>[] = []
+  let registrations = 0
   const server = createStorybookMcpServer({
     controllerFactory: () => { controllerLoads++; throw new Error("Контроллер не используется прокси") },
     request: async () => expected[current++]!,
     recordRequest: async entry => { journal.push(entry) },
+    registerTools(server) {
+      registrations += 1
+      server.registerTool("consumer_example", {description: "Возможность подключённого приложения"}, async () => ({
+        content: [{type: "text", text: "Ответ приложения"}],
+      }))
+    },
   })
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
   const client = new Client({name: "proxy-contract", version: "1"})
   const results: Awaited<ReturnType<Client["callTool"]>>[] = []
+  let extension: Awaited<ReturnType<Client["callTool"]>> | undefined
   await Promise.all([server.connect(serverTransport), client.connect(clientTransport)])
   try {
     for (let index = 0; index < expected.length; index++) results.push(await client.callTool({name: "storybook", arguments: {path: "example"}}))
+    extension = await client.callTool({name: "consumer_example", arguments: {}})
   } finally {
     await client.close()
     await server.close()
@@ -39,5 +48,11 @@ describe.each([{
   })
   test("Граница ответственности", () => {
     expect(controllerLoads, "Передача предметного запроса не загружает управляющий контроллер и HTTP-обработчики в MCP").toBe(0)
+  })
+  test("Регистрация приложения", () => {
+    expect(registrations, "Приложение один раз дополняет тот же MCP-сервер через публичный callback").toBe(1)
+    expect(extension?.content, "Инструмент приложения использует штатную регистрацию SDK и тот же транспорт").toEqual([
+      {type: "text", text: "Ответ приложения"},
+    ])
   })
 })

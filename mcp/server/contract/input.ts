@@ -1,4 +1,5 @@
-import type {ExternalStorybookController} from "../../../server/controller-contract.ts"
+import type {CallToolResult, McpServer, ServerContext} from "@modelcontextprotocol/server"
+import type {ExternalStorybookController, StorybookControllerContext, StorybookControllerResult} from "../../../server/controller-contract.ts"
 import type {requestStorybook} from "../../proxy"
 import type {recordMcpRequest} from "../src/request-log"
 
@@ -19,10 +20,22 @@ import type {recordMcpRequest} from "../src/request-log"
 
 @property [recordRequest] - Запись этапов и исходов запросов в журнал.
 Без замены используется {@link recordMcpRequest}.
+
+@property [registerTools] - Регистрирует инструменты приложения штатным API SDK.
+execute использует тот же отложенный контроллер, журнал и упаковку ответа,
+что встроенные инструменты. Сигнал и progress текущего MCP-запроса передаются
+операции через context. Регистрация сама по себе не загружает контроллер.
 */
 export interface CreateStorybookMcpServerInput {
   readonly controller?: ExternalStorybookController
   readonly controllerFactory?: () => ExternalStorybookController | Promise<ExternalStorybookController>
   readonly request?: typeof requestStorybook
   readonly recordRequest?: typeof recordMcpRequest
+  readonly registerTools?: (
+    server: McpServer,
+    execute: (
+      operation: (controller: ExternalStorybookController, context: StorybookControllerContext) => Promise<StorybookControllerResult>,
+      request: Pick<ServerContext, "mcpReq">,
+    ) => Promise<CallToolResult>,
+  ) => void
 }
