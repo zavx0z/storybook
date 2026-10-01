@@ -3,19 +3,31 @@
 Владелец transport получает новый grant при каждом reconnect. Компонент владеет
 listeners, отменой и задержкой повторной попытки, а смысл сообщений остаётся
 у получателя. Подписка не запрашивает компиляцию.
-Входной контракт описывает callbacks, а вспомогательный {@link HmrSocket}
-сохраняет самостоятельное объявление и прежний публичный экспорт.
+Входной контракт описывает callbacks; socket доступен через тип
+{@link HmrConnection.Input} без отдельного публичного экспорта.
 @packageDocumentation
 */
-import type {HmrConnectionInput} from "./contract/input"
-import type {HmrSocket} from "./contract/socket"
-import type {HmrConnectionOutput} from "./contract/output"
-export type {HmrConnectionInput} from "./contract/input"
-export type {HmrSocket} from "./contract/socket"
-export type {HmrConnectionOutput} from "./contract/output"
+import type {HmrConnection} from "./contract"
+export type {HmrConnection} from "./contract"
 
-/** Подключает обработчики к первому socket и восстанавливает их до dispose. */
-export default function createHmrConnection(input: HmrConnectionInput): HmrConnectionOutput {
+/**
+Подключает обработчики к socket и восстанавливает подписку после повторного соединения.
+
+@param input - Socket и callbacks владельца согласно {@link HmrConnection.Input}.
+
+@returns Lifecycle соединения, который завершается через {@link HmrConnection.Output.dispose}.
+
+@example
+```ts
+const connection = createHmrConnection({socket, reconnect, onOpen, onMessage, onClose})
+try {
+  await waitForPageUpdates()
+} finally {
+  connection.dispose()
+}
+```
+*/
+export default function createHmrConnection(input: HmrConnection.Input): HmrConnection.Output {
   const lifetime = new AbortController()
   let socket = input.socket
   let delay = 250
@@ -23,24 +35,29 @@ export default function createHmrConnection(input: HmrConnectionInput): HmrConne
   let pending = false
   let timer: ReturnType<typeof setTimeout> | null = null
 
+  /** При открытии сбрасывает задержку и передаёт соединение для повторной подписки. */
   const onOpen = (): void => {
     if (lifetime.signal.aborted) return
     delay = 250
     input.onOpen(socket, reconnecting)
   }
+  /** Передаёт события владельцу только до завершения lifecycle. */
   const onMessage = (event: MessageEvent): void => {
     if (!lifetime.signal.aborted) input.onMessage(event)
   }
-  const detach = (value: HmrSocket): void => {
+  /** Снимает принадлежащие lifecycle обработчики перед закрытием socket. */
+  const detach = (value: HmrConnection.Input["socket"]): void => {
     value.removeEventListener("open", onOpen)
     value.removeEventListener("message", onMessage)
     value.removeEventListener("close", onClose)
   }
+  /** Подключает те же обработчики к текущему socket. */
   const attach = (): void => {
     socket.addEventListener("open", onOpen)
     socket.addEventListener("message", onMessage)
     socket.addEventListener("close", onClose)
   }
+  /** Планирует единственную повторную попытку; отказ увеличивает задержку до двух секунд. */
   const onClose = (): void => {
     if (lifetime.signal.aborted || timer !== null || pending) return
     reconnecting = true

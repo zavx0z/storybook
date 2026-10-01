@@ -5,23 +5,41 @@
 явной. Компонент не выбирает маршрут, не собирает пакет и не создаёт Canvas.
 @packageDocumentation
 */
-import type {HmrPageInput} from "./contract/input"
-import type {HmrPageOutput} from "./contract/output"
-export type {HmrPageInput} from "./contract/input"
-export type {HmrPageOutput} from "./contract/output"
+import type {HmrPage} from "./contract"
+export type {HmrPage} from "./contract"
 
-/** Создаёт lifecycle, который владелец страницы завершает через dispose. */
-export default function createHmrPage<Scope>(input: HmrPageInput<Scope>): HmrPageOutput<Scope> {
+/**
+Создаёт сериализованный lifecycle одного исполняемого scope страницы.
+
+@typeParam Scope - Сохраняемые данные, нужные для освобождения и восстановления исполнения.
+
+@param input - Операции владельца исполнения согласно {@link HmrPage.Input}.
+
+@returns Управление текущим scope; владелец завершает lifecycle через {@link HmrPage.Output.dispose}.
+
+@example
+```ts
+const page = createHmrPage({release, restore})
+try {
+  await page.replace(createCandidate, acceptCandidate)
+} finally {
+  await page.dispose()
+}
+```
+*/
+export default function createHmrPage<Scope>(input: HmrPage.Input<Scope>): HmrPage.Output<Scope> {
   let current: Scope | null = input.initial ?? null
   let tail: Promise<void> = Promise.resolve()
   let closed = false
   let disposal: Promise<void> | null = null
 
+  /** Сериализует переходы; ошибка одного запроса не блокирует следующий. */
   const enqueue = (operation: () => Promise<void>): Promise<void> => {
     const pending = tail.then(operation)
     tail = pending.catch(() => {})
     return pending
   }
+  /** Снимает владение текущим scope до вызова его освобождения. */
   const release = async (): Promise<void> => {
     const previous = current
     current = null

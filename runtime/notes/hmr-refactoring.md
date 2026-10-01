@@ -9,20 +9,21 @@
 
 | Ответственность | Владелец |
 | --- | --- |
-| Замена scope, последовательное освобождение, rollback | [Page](../../hmr/page/index.ts) |
+| Замена scope, последовательное освобождение, rollback | [Page](../../tech/hmr/page/index.ts) |
 | Проверка кадра, identity и ошибок перед commit | [Activation](../../hmr/activation/index.ts) |
-| Reconnect, listeners и отмена соединения | [Connection](../../hmr/connection/index.ts) |
+| Reconnect, listeners и отмена соединения | [Connection](../../tech/hmr/connection/index.ts) |
 | Разрешение адреса, подготовка цели и композиция страницы | [page-entry](../page-entry.ts) и [package-page-target](../../server/package-page-target.ts) |
 | Отображение документации, Inspector и сценариев | [package-entry](../package-entry.ts) |
 | Выбор согласованной среды и передача Canvas при смене платформы | [shared-host](../shared-host.ts) и [page-entry](../page-entry.ts) |
 | Поколения, activation leases, active/lastWorking и receipt | [PackageSession](../../sessions/package-session.ts) |
 | Проверки исходников и компиляция | [Build](../../build/notes/compilation.md) |
 
-Domain HMR собирает именованные API сред из default-компонентов. Компоненты
-не импортируют фасад родителя и private runtime Storybook. Их публичные типы
-находятся у владельцев. Page получает release/restore от реального исполнителя;
-Activation получает inspect/commit от владельцев браузера и сессии. Это границы
-lifecycle, а не второй набор моделей Document, Canvas или package revision.
+Технический Domain `tech/hmr` собирает публичные API Page и Connection.
+Компоненты сохраняют identities `@hmr/page` и `@hmr/connection`, а собственные
+типы публикуют через пространства HmrPage и HmrConnection. Page получает
+release/restore от реального исполнителя. Activation остаётся в предметной области
+`hmr/activation` и получает inspect/commit от владельцев браузера и сессии.
+Компоненты не импортируют фасад родителя и private runtime Storybook.
 
 Контроллер страницы связывает навигацию и platform handoff с Page. Отдельный
 исторический package entry ещё используется вариантом builder без общей

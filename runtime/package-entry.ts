@@ -1,5 +1,5 @@
 import createHmrPage from "@hmr/page"
-import createHmrConnection, {type HmrSocket as ExternalStorybookSocket} from "@hmr/connection"
+import createHmrConnection, {type HmrConnection} from "@hmr/connection"
 import {ScenarioInspector} from "@storybook/app-old/inspector"
 import type {startExternalStorybookPage} from "./page-entry.ts"
 import type {ScenarioAppInput} from "@storybook/app-old/contract/input"
@@ -125,11 +125,11 @@ export type ExternalStorybookPackageEnvironment = Readonly<{
   browserDocument?: globalThis.Document
   location?: Pick<Location, "pathname" | "href" | "reload">
   history?: Pick<History, "pushState" | "replaceState">
-  createSocket?(url: string): ExternalStorybookSocket
+  createSocket?(url: string): HmrConnection.Input["socket"]
   navigatePackage?(input: Readonly<{packageId: string; route: string}>): Promise<void>
   navigateLanding?(pathname: string): Promise<void>
   /** Already authenticated pending socket transferred by the page controller at commit. */
-  socket?: ExternalStorybookSocket
+  socket?: HmrConnection.Input["socket"]
   bootstrapIntent?: "reader" | "navigation-candidate" | "preview"
   initialAppliedRevision?: string | null
   fallbackRevision?: string | null
@@ -967,7 +967,7 @@ export async function startExternalStorybookPackage(
       shell.updateStatus("Пакет · Обновление отклонено")
     })
   }
-  const onSocketOpen = (socket: ExternalStorybookSocket, reconnecting: boolean): void => {
+  const onSocketOpen = (socket: HmrConnection.Input["socket"], reconnecting: boolean): void => {
     latestBuildGeneration = 0
     socket.send(JSON.stringify({type: "subscribe", topic: `package:${packageId}`}))
     socket.send(JSON.stringify({type: "subscribe", topic: "catalog"}))
@@ -1439,7 +1439,7 @@ function createPackageSocket(
   environment: ExternalStorybookPackageEnvironment,
   href: string,
   sessionToken?: string,
-): ExternalStorybookSocket {
+): HmrConnection.Input["socket"] {
   const url = new URL("/api/events", href)
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
   if (sessionToken !== undefined) url.searchParams.set("session", sessionToken)

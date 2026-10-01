@@ -4,16 +4,11 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Замена исполнения в существующей странице и подтверждение применённой ревизии",
+  "description": "Подтверждение применённой пакетной ревизии по свидетельству страницы",
   "exports": {
-    ".": {
-      "browser": "./browser.ts",
-      "node": "./index.ts"
-    }
+    ".": "./index.ts"
   },
   "dependencies": {
-    "@hmr/page": "workspace:*",
-    "@hmr/activation": "workspace:*",
-    "@hmr/connection": "workspace:*"
+    "@hmr/activation": "workspace:*"
   }
 }

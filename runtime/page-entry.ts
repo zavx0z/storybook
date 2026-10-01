@@ -1,4 +1,4 @@
-import type {HmrSocket as ExternalStorybookSocket} from "@hmr/connection"
+import type {HmrConnection} from "@hmr/connection"
 import createHmrPage from "@hmr/page"
 import {readStorybookSharedHost, importStorybookSharedHost, synchronizeStorybookHostStyles, type StorybookSharedHost} from "./shared-host"
 import {readInitialPageTarget, prepareExternalStorybookPageTarget} from "./page-target"
@@ -166,7 +166,7 @@ export type StartExternalStorybookPageOptions = Readonly<{
   location?: Pick<Location, "href" | "pathname">
   history?: Pick<History, "pushState" | "replaceState">
   fetcher?: typeof fetch
-  createSocket?(url: string): ExternalStorybookSocket
+  createSocket?(url: string): HmrConnection.Input["socket"]
   shell?: Omit<CreateExternalStorybookShellOptions, "title" | "browserDocument" | "authorStyleSheetSources">
   retainedRoot?: StorybookRetainedRoot
   sharedHost?: StorybookSharedHost
@@ -310,7 +310,7 @@ export async function startExternalStorybookPage(
     return payload
   }
 
-  const eventSocket = (target: ExternalStorybookPreparedPageTarget): ExternalStorybookSocket => {
+  const eventSocket = (target: ExternalStorybookPreparedPageTarget): HmrConnection.Input["socket"] => {
     const url = new URL("/api/events", location.href)
     url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
     url.searchParams.set("session", target.readerToken)
@@ -1090,10 +1090,10 @@ Listeners регистрируются сразу, поэтому scope не з�
 @returns Socket-compatible adapter с однократным `connect()`.
 */
 function createDeferredStorybookSocket(
-  create: () => ExternalStorybookSocket,
-): ExternalStorybookSocket & Readonly<{connect(): void}> {
+  create: () => HmrConnection.Input["socket"],
+): HmrConnection.Input["socket"] & Readonly<{connect(): void}> {
   const listeners = new Map<string, Set<(event: any) => void>>()
-  let socket: ExternalStorybookSocket | null = null
+  let socket: HmrConnection.Input["socket"] | null = null
   let closed = false
   const deferred = {
     addEventListener(type: string, listener: (event: any) => void) {

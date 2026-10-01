@@ -1,6 +1,6 @@
 /**
 Предоставляет технические возможности проверки входов, исполнения работ
-и наблюдения процессов.
+и наблюдения процессов, замены исполнения и восстановления связи обновлений.
 Предметные решения о проверке пакетов, выборе исходников и применении результата
 остаются у владельцев, использующих эти возможности.
 
@@ -18,3 +18,5 @@ export {default as BuildInputs} from "@build/inputs"
 export type {BuildInputFingerprint, BuildInputPlan, BuildInputPlanInput, BuildInputAttestation} from "@build/inputs"
 export {default as runBuildWorker} from "@build/worker"
 export type {BuildWorkerInput, BuildWorkerOutput, BuildWorkerLifecycleEvent} from "@build/worker"
+export {createHmrPage, createHmrConnection} from "@tech/hmr"
+export type {HmrPage, HmrConnection} from "@tech/hmr"

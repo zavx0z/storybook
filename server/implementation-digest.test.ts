@@ -57,7 +57,9 @@ describe("external Storybook implementation digest", () => {
     writeFileSync(join(root, "hmr/activation/index.ts"), "export default function activate() {}\n")
     expect(externalStorybookImplementationDigest(root)).not.toBe(beforeActivation)
     const afterActivation = externalStorybookImplementationDigest(root)
-    writeFileSync(join(root, "hmr/page/index.ts"), "export default function page() {}\n")
+    writeFileSync(join(root, "tech/hmr/page/index.ts"), "export default function page() {}\n")
+    expect(externalStorybookImplementationDigest(root)).toBe(afterActivation)
+    writeFileSync(join(root, "tech/hmr/connection/index.ts"), "export default function connection() {}\n")
     expect(externalStorybookImplementationDigest(root)).toBe(afterActivation)
     const beforeRules = externalStorybookImplementationDigest(root)
     writeFileSync(join(root, "archetypes/specs/scenarios/validation/index.ts"), "export const validateScenario = () => null\n")
@@ -140,7 +142,8 @@ function implementationFixture(): string {
     "tech/process",
     "sessions",
     "hmr/activation",
-    "hmr/page",
+    "tech/hmr/page",
+    "tech/hmr/connection",
     "runtime",
     "server/fixtures",
     "browser-lifecycle/src",

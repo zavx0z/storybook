@@ -1,8 +1,8 @@
 # Динамическое обновление страницы
 
-Заменой scope и rollback владеет [Page](../page/index.ts), подтверждением результата —
+Заменой scope и rollback владеет [Page](../../tech/hmr/page/index.ts), подтверждением результата —
 [Activation](../activation/index.ts), восстановлением подписки —
-[Connection](../connection/index.ts). Их интегрирует [контроллер страницы](../../runtime/page-entry.ts). [Исполняемые проверки](../../runtime/package-entry.test.ts) покрывают замену среды, откат и запросы bridge во время HMR.
+[Connection](../../tech/hmr/connection/index.ts). Их интегрирует [контроллер страницы](../../runtime/page-entry.ts). [Исполняемые проверки](../../runtime/package-entry.test.ts) покрывают замену среды, откат и запросы bridge во время HMR.
 
 ## Подготовленная ревизия и HMR
 

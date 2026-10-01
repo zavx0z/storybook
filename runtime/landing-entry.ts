@@ -1,4 +1,4 @@
-import createHmrConnection, {type HmrSocket as ExternalStorybookSocket} from "@hmr/connection"
+import createHmrConnection, {type HmrConnection} from "@hmr/connection"
 import {WORKBENCH_STANDARD_WIDGET_REGISTRY} from "../workbench/inspector/registry.ts"
 import {navigatePackage} from "./package-navigation.ts"
 import {externalStorybookBrowsePath} from "../catalog/graph.ts"
@@ -50,7 +50,7 @@ export type StartExternalStorybookLandingOptions = Readonly<{
     shell: ExternalStorybookShell
     initialPathname: string
     refreshSharedHost?(): Promise<void>
-    reconnectSocket?(): Promise<ExternalStorybookSocket>
+    reconnectSocket?(): Promise<HmrConnection.Input["socket"]>
     navigatePackage(input: Readonly<{packageId: string; route: string}>): Promise<void>
   }>
 }>

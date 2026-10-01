@@ -1,7 +1,10 @@
-import type {HmrSocket} from "@hmr/connection"
+import type {HmrConnection} from "@hmr/connection"
+
+/** Соединение берётся из публичного входа HMR без копирования его полей. */
+type Socket = HmrConnection.Input["socket"]
 
 /** Наблюдаемое соединение без сети; события доставляются тем же listener API. */
-export class FixtureSocket implements HmrSocket {
+export class FixtureSocket implements Socket {
   readonly sent: string[] = []
   closed = 0
   readonly listeners = new Map<string, Set<(event: any) => void>>()

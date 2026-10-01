@@ -16,10 +16,10 @@ test("замены сериализуются и dispose освобождает 
   await entered.promise
   const disposal = page.dispose()
   finish.resolve()
-  expect(await outcomes).toMatchObject([{status: "rejected"}, {status: "rejected"}])
+  expect(await outcomes, "Текущая и ожидающая замены отклоняются после завершения").toMatchObject([{status: "rejected"}, {status: "rejected"}])
   await disposal
-  expect(mountedSecond).toBeFalse()
-  expect(released).toEqual(["first"])
-  expect(page.current).toBeNull()
-  expect(page.dispose()).toBe(disposal)
+  expect(mountedSecond, "Ожидающая замена не создаёт новое исполнение").toBeFalse()
+  expect(released, "Позднее исполнение текущей замены освобождается ровно один раз").toEqual(["first"])
+  expect(page.current, "После завершения нет действующего исполнения").toBeNull()
+  expect(page.dispose(), "Повторное завершение возвращает тот же Promise освобождения").toBe(disposal)
 })

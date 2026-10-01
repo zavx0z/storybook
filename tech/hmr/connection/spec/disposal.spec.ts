@@ -1,6 +1,6 @@
 import {expect, test} from "bun:test"
 import createHmrConnection from "@hmr/connection"
-import {FixtureSocket} from "../spec/fixture"
+import {FixtureSocket} from "./fixture"
 
 test("dispose отменяет ожидание и закрывает поздний результат reconnect", async () => {
   const first = new FixtureSocket()
@@ -18,10 +18,10 @@ test("dispose отменяет ожидание и закрывает поздн
   connection.dispose()
   finish.resolve(next)
   await Bun.sleep(0)
-  expect(signal.aborted).toBeTrue()
-  expect(first.closed).toBe(1)
-  expect(next.closed).toBe(1)
-  expect(next.listeners.size).toBe(0)
+  expect(signal.aborted, "Завершение отменяет сигнал восстановления связи").toBeTrue()
+  expect(first.closed, "Исходное соединение закрывается только один раз").toBe(1)
+  expect(next.closed, "Позднее соединение закрывается без подключения").toBe(1)
+  expect(next.listeners.size, "После завершения обработчики не подключаются к позднему соединению").toBe(0)
   connection.dispose()
-  expect(first.closed).toBe(1)
+  expect(first.closed, "Исходное соединение закрывается только один раз").toBe(1)
 })

@@ -264,20 +264,10 @@
       "version": "0.0.0",
       "dependencies": {
         "@hmr/activation": "workspace:*",
-        "@hmr/connection": "workspace:*",
-        "@hmr/page": "workspace:*",
       },
     },
     "hmr/activation": {
       "name": "@hmr/activation",
-      "version": "0.0.0",
-    },
-    "hmr/connection": {
-      "name": "@hmr/connection",
-      "version": "0.0.0",
-    },
-    "hmr/page": {
-      "name": "@hmr/page",
       "version": "0.0.0",
     },
     "mcp": {
@@ -341,6 +331,7 @@
         "@process/measure": "workspace:*",
         "@process/sample": "workspace:*",
         "@process/wait": "workspace:*",
+        "@tech/hmr": "workspace:*",
       },
     },
     "tech/build": {
@@ -370,6 +361,22 @@
       "dependencies": {
         "@process/wait": "workspace:*",
       },
+    },
+    "tech/hmr": {
+      "name": "@tech/hmr",
+      "version": "0.0.0",
+      "dependencies": {
+        "@hmr/connection": "workspace:*",
+        "@hmr/page": "workspace:*",
+      },
+    },
+    "tech/hmr/connection": {
+      "name": "@hmr/connection",
+      "version": "0.0.0",
+    },
+    "tech/hmr/page": {
+      "name": "@hmr/page",
+      "version": "0.0.0",
     },
     "tech/process": {
       "name": "@tech/process",
@@ -496,9 +503,9 @@
 
     "@hmr/activation": ["@hmr/activation@workspace:hmr/activation"],
 
-    "@hmr/connection": ["@hmr/connection@workspace:hmr/connection"],
+    "@hmr/connection": ["@hmr/connection@workspace:tech/hmr/connection"],
 
-    "@hmr/page": ["@hmr/page@workspace:hmr/page"],
+    "@hmr/page": ["@hmr/page@workspace:tech/hmr/page"],
 
     "@immersive/headless": ["@immersive/headless@link:@immersive/headless", {}],
 
@@ -585,6 +592,8 @@
     "@storybook/tech": ["@storybook/tech@workspace:tech"],
 
     "@tech/build": ["@tech/build@workspace:tech/build"],
+
+    "@tech/hmr": ["@tech/hmr@workspace:tech/hmr"],
 
     "@tech/process": ["@tech/process@workspace:tech/process"],
 
