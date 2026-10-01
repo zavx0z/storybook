@@ -8,24 +8,24 @@ import createWeb, {type AppWeb} from "@app/web"
 const versions = [{platform: "platform-a", web: "web-b"}] as const
 
 describe.each([
-  {name: "Подготовка без публикации", apply: false, join: "none", joinApply: false, disconnect: false, phase: "prepared"},
-  {name: "Явная публикация", apply: true, join: "none", joinApply: false, disconnect: false, phase: "published"},
-  {name: "Применение по конкурентному запросу", apply: false, join: "request", joinApply: true, disconnect: false, phase: "published"},
-  {name: "Подготовка не отменяет запрошенное применение", apply: true, join: "request", joinApply: false, disconnect: false, phase: "published"},
-  {name: "Применение из уведомления о подготовке", apply: false, join: "observer", joinApply: true, disconnect: false, phase: "published"},
-  {name: "Отключение наблюдателя", apply: true, join: "none", joinApply: false, disconnect: true, phase: "published"},
-])("$name", async ({apply, join, joinApply, disconnect, phase}) => {
+  {name: "Подготовка без публикации", props: {candidate: "web-b"}, apply: false, join: "none", joinApply: false, disconnect: false, phase: "prepared"},
+  {name: "Явная публикация", props: {candidate: "web-b"}, apply: true, join: "none", joinApply: false, disconnect: false, phase: "published"},
+  {name: "Применение по конкурентному запросу", props: {candidate: "web-b"}, apply: false, join: "request", joinApply: true, disconnect: false, phase: "published"},
+  {name: "Подготовка не отменяет запрошенное применение", props: {candidate: "web-b"}, apply: true, join: "request", joinApply: false, disconnect: false, phase: "published"},
+  {name: "Применение из уведомления о подготовке", props: {candidate: "web-b"}, apply: false, join: "observer", joinApply: true, disconnect: false, phase: "published"},
+  {name: "Отключение наблюдателя", props: {candidate: "web-b"}, apply: true, join: "none", joinApply: false, disconnect: true, phase: "published"},
+])("$name", async ({props, apply, join, joinApply, disconnect, phase}) => {
   const prepared = Promise.withResolvers<string>()
   let published = "web-a"
-  const props = {
+  const input = {
     prepare: mock((_signal: AbortSignal) => prepared.promise),
     versions: mock((_candidate: string) => versions),
     publish: mock((candidate: string) => { published = candidate }),
   } satisfies AppWeb.Input<string>
-  const web = createWeb(props)
+  const web = createWeb(input)
   afterAll(() => web.dispose())
   const initial = web.read()
-  const initialCalls = props.prepare.mock.calls.length
+  const initialCalls = input.prepare.mock.calls.length
   let joined: ReturnType<AppWeb.Output["rebuild"]> | undefined
   const listener = mock((state: ReturnType<AppWeb.Output["read"]>) => {
     if (join === "observer" && state.phase === "preparing") joined = web.rebuild({apply: joinApply})
@@ -35,7 +35,7 @@ describe.each([
   const operation = web.rebuild({apply})
   if (join === "request") joined = web.rebuild({apply: joinApply})
   if (disconnect) unsubscribe()
-  prepared.resolve("web-b")
+  prepared.resolve(props.candidate)
   const result = await operation
 
   test("Создание", () => {
@@ -45,15 +45,15 @@ describe.each([
   })
 
   test("Подготовленный результат", () => {
-    expect(props.prepare.mock.calls, "Одна операция вызывает подготовку ровно один раз").toHaveLength(1)
-    expect(props.versions.mock.calls, "Версии извлекаются из того же подготовленного значения").toEqual([["web-b"]])
+    expect(input.prepare.mock.calls, "Одна операция вызывает подготовку ровно один раз").toHaveLength(1)
+    expect(input.versions.mock.calls, "Версии извлекаются из того же подготовленного значения").toEqual([["web-b"]])
     expect(result.versions, "Выпуск сохраняет соответствие Web готовой платформе").toEqual(versions)
     expect(web.read(), "Чтение возвращает итоговый снимок без повторной подготовки").toBe(result)
   })
 
   test("Публикация", () => {
     expect(result.phase, "Применение запрашивается участником общей операции").toBe(phase)
-    expect(props.publish.mock.calls, "Только запрос применения передаёт артефакт в публикацию")
+    expect(input.publish.mock.calls, "Только запрос применения передаёт артефакт в публикацию")
       .toEqual(phase === "published" ? [["web-b"]] : [])
     expect(published, "Подготовка без применения сохраняет прежний опубликованный выпуск")
       .toBe(phase === "published" ? "web-b" : "web-a")
