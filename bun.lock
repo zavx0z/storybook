@@ -328,6 +328,7 @@
         "@package-build/inputs": "workspace:*",
         "@package-build/scheduler": "workspace:*",
         "@package/revision": "workspace:*",
+        "@web/page": "workspace:*",
         "@zavx0z/ui": "^0.0.0",
       },
       "devDependencies": {

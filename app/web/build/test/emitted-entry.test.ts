@@ -4,6 +4,7 @@ import {tmpdir} from "node:os"
 import {join, normalize, resolve, sep} from "node:path"
 import Artifacts from "@build/artifacts"
 import {emittedEntry} from "../src/emitted-entry"
+import {sources} from "../src/sources"
 
 const roots: string[] = []
 afterEach(() => {
@@ -57,4 +58,29 @@ test("точные entryPoint сохраняют два index.ts и общий c
 test("отсутствующий metafile не подменяется похожим именем artifact", () => {
   const result = {outputs: [{kind: "entry-point", path: "/output/index-hash.js"}]} as Bun.BuildOutput
   expect(() => emittedEntry(result, "/output", "/source/index.ts")).toThrow("no shared browser metafile")
+})
+
+test("browser page entry сохраняет named и default ABI в выпущенном модуле", async () => {
+  const result = await Bun.build({
+    entrypoints: [sources.pageEntry],
+    target: "browser",
+    format: "esm",
+    plugins: [{
+      name: "page-entry-test-double",
+      setup(build) {
+        build.onResolve({filter: /^@web\/page$/u}, () => ({path: "@web/page", namespace: "page-entry-test"}))
+        build.onLoad({filter: /.*/u, namespace: "page-entry-test"}, () => ({
+          contents: "const start = () => 'page-ready'\nexport default start",
+          loader: "js",
+        }))
+      },
+    }],
+  })
+  expect(result.success).toBeTrue()
+  expect(result.outputs).toHaveLength(1)
+  const emitted = await result.outputs[0]!.text()
+  const module = await import(`data:text/javascript;charset=utf-8,${encodeURIComponent(emitted)}`)
+  expect(typeof module.default).toBe("function")
+  expect(module.startExternalStorybookPage).toBe(module.default)
+  expect(module.startExternalStorybookPage()).toBe("page-ready")
 })
