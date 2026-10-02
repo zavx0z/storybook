@@ -1,0 +1,21 @@
+{
+  "name": "@web/minimap",
+  "label": "Minimap",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.tsx"
+  },
+  "description": "Каталог Project в сохраняемом окне и Tab того же Experience",
+  "dependencies": {
+    "@minimap/state": "workspace:*",
+    "@web/catalog": "workspace:*",
+    "@zavx0z/component": "^0.0.0",
+    "@zavx0z/ui": "^0.0.0"
+  },
+  "devDependencies": {
+    "@immersive/headless": "^0.0.0",
+    "@zavx0z/dom": "^0.0.0"
+  }
+}

@@ -5,7 +5,8 @@ import {tmpdir} from "node:os"
 import discoverStorybookPackages from "@repo/discovery"
 import createExternalStorybookGraph from "@package-graph/create"
 import graphRead from "@package-graph/read"
-import {deriveExternalStorybookPackageTab} from "../src/runtime/model.ts"
+import WebNavigationOwner from "@web/navigation"
+const deriveExternalStorybookPackageTab = WebNavigationOwner.deriveExternalStorybookPackageTab
 
 const externalStorybookRoutes = graphRead.routes
 

@@ -1,0 +1,16 @@
+{
+  "name": "@web/presentation",
+  "label": "Представление компонента",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Монтирование шаблона в существующий semantic Document с явным освобождением",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@zavx0z/component": "^0.0.0",
+    "@zavx0z/dom": "^0.0.0",
+    "@zavx0z/template": "^0.0.0"
+  }
+}

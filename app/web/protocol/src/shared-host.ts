@@ -42,8 +42,8 @@ export async function importStorybookSharedHost<Start extends (...args: never[])
   host: StorybookSharedHost,
 ): Promise<Start> {
   const module = await import(validateStorybookSharedHost(host).pageEntryUrl)
-  if (typeof module.startExternalStorybookPage !== "function") throw new Error("У оболочки Storybook отсутствует page controller")
-  return module.startExternalStorybookPage as Start
+  if (typeof module.default !== "function") throw new Error("У оболочки Storybook отсутствует page controller")
+  return module.default as Start
 }
 
 /** SHA-256 обозначает точную опубликованную модульную среду. */

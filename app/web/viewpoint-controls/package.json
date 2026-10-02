@@ -1,0 +1,18 @@
+{
+  "name": "@web/viewpoint-controls",
+  "label": "Управление ViewPoint",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "description": "Управление существующим ViewPoint страницы: движение, масштаб, заморозка и вписывание",
+  "dependencies": {
+    "@zavx0z/dom": "^0.0.0",
+    "@zavx0z/ui": "^0.0.0"
+  },
+  "devDependencies": {
+    "@zavx0z/space": "^0.0.0"
+  }
+}

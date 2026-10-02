@@ -1,0 +1,11 @@
+{
+  "name": "@web/page-target",
+  "label": "Цель страницы",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Чтение и подготовка серверной цели страницы без импорта runtime или локального выбора ревизии",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

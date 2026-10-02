@@ -1,4 +1,4 @@
-import createWeb from "@app/web"
+import createWeb from "@web/release"
 import AppWebBuildOwner from "@app-web/build"
 import BuildEnvironmentOwner from "@build/environment"
 import RepoDiscoveryOwner from "@repo/discovery"
@@ -12,7 +12,10 @@ import {mkdirSync, realpathSync, writeFileSync} from "node:fs"
 import {mkdtemp, mkdir, realpath, rm} from "node:fs/promises"
 import {dirname, join} from "node:path"
 import {tmpdir} from "node:os"
-import {deriveExternalStorybookLanding, deriveExternalStorybookLandingSelection, deriveExternalStorybookNavigationTree} from "../src/runtime/model.ts"
+import WebNavigationOwner from "@web/navigation"
+const deriveExternalStorybookLanding = WebNavigationOwner.deriveExternalStorybookLanding
+const deriveExternalStorybookLandingSelection = WebNavigationOwner.deriveExternalStorybookLandingSelection
+const deriveExternalStorybookNavigationTree = WebNavigationOwner.deriveExternalStorybookNavigationTree
 import startExternalStorybookServer from "@app/server"
 
 const roots: string[] = []

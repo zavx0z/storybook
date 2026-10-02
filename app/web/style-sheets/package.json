@@ -1,0 +1,14 @@
+{
+  "name": "@web/style-sheets",
+  "label": "Авторские таблицы стилей",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Чтение проиндексированных сервером ссылок авторских стилей без обхода CSSOM",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@zavx0z/browser": "^0.0.0"
+  }
+}

@@ -1,5 +1,5 @@
 import {createProjectFixture} from "./project.fixture.ts"
-import createWeb from "@app/web"
+import createWeb from "@web/release"
 import AppWebBuildOwner, {type AppWebBuild} from "@app-web/build"
 import BuildEnvironmentOwner from "@build/environment"
 import BuildArtifactsOwner from "@build/artifacts"

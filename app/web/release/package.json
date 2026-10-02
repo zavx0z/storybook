@@ -1,0 +1,14 @@
+{
+  "name": "@web/release",
+  "label": "Выпуск Web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Управление явной подготовкой и публикацией Web-интерфейса через предоставленного владельца артефактов",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@app-web/build": "workspace:*"
+  }
+}

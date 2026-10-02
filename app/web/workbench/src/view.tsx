@@ -1,0 +1,102 @@
+import type {WorkbenchViewProps} from "./types.ts"
+import {CatalogRegion} from "./regions/catalog.tsx"
+import {InspectorRegion} from "./regions/inspector.tsx"
+import {PreviewRegion} from "./regions/preview.tsx"
+import {TabsRegion} from "./regions/tabs.tsx"
+import {StatusRegion} from "./regions/status.tsx"
+
+/** Композиция пяти областей Workbench с одним левым деревом. */
+export function WorkbenchView(props: WorkbenchViewProps) {
+  const state = props.state
+  const content = state.presentation.projection !== "hud"
+  return <div
+    ref={props.onElement}
+    role="application"
+    aria-label={state.title}
+    data-storybook-workbench=""
+    data-storybook-content-preview={content ? "true" : undefined}
+    style={css`
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      overflow: clip;
+      background: rgb(var(--surface-925));
+      color: var(--widget-regular-content);
+      font-size: 11px;
+      line-height: 16px;
+
+      &[data-storybook-content-preview="true"] {
+        background: transparent;
+      }
+    `}
+  >
+    <div
+      data-storybook-workbench-part="body"
+      data-content={content ? "true" : undefined}
+      style={css`
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: row;
+        min-height: 0;
+        flex-grow: 1;
+        gap: 4px;
+        padding: 4px;
+        overflow: clip;
+        background: rgb(var(--surface-950));
+
+        &[data-content="true"] {
+          background: transparent;
+        }
+      `}
+    >
+      <CatalogRegion
+        label={state["catalog.label"]}
+        management={state["catalog.management"]}
+        onAction={props.onCatalogAction}
+        search={state["catalog.search"]}
+        items={state["catalog.items"]}
+        activeId={state["catalog.active"]}
+        onNavigate={props.onCatalogNavigate}
+        onSearch={props.onCatalogSearch}
+        onGroupToggle={props.onGroupToggle}
+        navigationExpansion={props.navigationExpansion}
+      />
+      <div style={css`
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+        flex-grow: 1;
+      `}>
+        <TabsRegion
+          label={state["tabs.label"]}
+          items={state["tabs.items"]}
+          activeId={state["tabs.active"]}
+          onTab={props.onTab}
+        />
+        <PreviewRegion
+          label={state["preview.label"]}
+          projection={state.presentation.projection}
+        />
+      </div>
+      <InspectorRegion
+        registry={state["inspector.registry"]}
+        subject={state["inspector.subject"]}
+        selectedId={props.inspectorSelectedId}
+        query={props.inspectorQuery}
+        onCategoryChange={props.onInspectorCategoryChange}
+        onQueryChange={props.onInspectorQueryChange}
+      >{props.children}</InspectorRegion>
+    </div>
+    <StatusRegion
+      mcpOpen={props.mcpOpen}
+      onMcpOpenChange={props.onMcpOpenChange}
+      status={state.status}
+      onNavigate={props.onStatusNavigate}
+    />
+  </div>
+}

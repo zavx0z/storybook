@@ -16,10 +16,10 @@
     "@app/mcp": "workspace:*",
     "@mcp/progress": "workspace:*",
     "@mcp/stdio": "workspace:*",
-    "@app/web": "workspace:*",
     "@package/artifacts": "workspace:*",
     "@app/server": "workspace:*",
-    "@tech/limits": "workspace:*"
+    "@tech/limits": "workspace:*",
+    "@web/release": "workspace:*"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "^2.0.0",

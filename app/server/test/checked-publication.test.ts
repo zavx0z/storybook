@@ -1,5 +1,5 @@
 import {createProjectFixture} from "./project.fixture.ts"
-import createWeb from "@app/web"
+import createWeb from "@web/release"
 import {type Zavx0zStorybookBrowserLifecycle as Zavx0zStorybookBrowserLifecycleContract} from "@zavx0z/storybook-browser-lifecycle"
 type StorybookBrowserLifecycle = Zavx0zStorybookBrowserLifecycleContract.Output
 import {expect, test} from "bun:test"

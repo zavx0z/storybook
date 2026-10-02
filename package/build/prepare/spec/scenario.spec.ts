@@ -27,7 +27,7 @@ describe.each([
   writeFileSync(join(root, "package.json"), JSON.stringify({name: "@fixture/repo", type: "module"}))
   writeFileSync(sourcePath, JSON.stringify({name: "@fixture/package", type: "module"}))
   writeFileSync(join(packageRoot, "module/index.ts"), "export const module = true\n")
-  writeFileSync(browserEntryPath, "export async function startExternalStorybookPackage(input: unknown) { return input }\n")
+  writeFileSync(browserEntryPath, "export default async function startExternalStorybookPackage(input: unknown) { return input }\n")
 
   const graph = createGraph(await discover([packageRoot]))
   const declarationDigest = "fixture-declaration"

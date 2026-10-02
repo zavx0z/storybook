@@ -43,9 +43,10 @@ test("отсутствующая историческая платформа о�
 test("bootstrap не загружает платформу до выбора совместимого host", async () => {
   const scanner = new Bun.Transpiler({loader: "ts"})
   for (const [source, expected] of [
-    ["../../src/runtime/shared-bootstrap.ts", ["@app-web/protocol", "./page-target"]],
+    ["../../bootstrap/index.ts", ["@app-web/protocol", "@web/page-target"]],
+    ["../../bootstrap/src/browser-entry.ts", ["@web/bootstrap"]],
     ["../src/shared-host.ts", []],
-    ["../../src/runtime/page-target.ts", []],
+    ["../../page-target/index.ts", []],
   ] as const) {
     const imports = scanner.scanImports(await Bun.file(new URL(source, import.meta.url)).text())
     expect(imports.filter(item => item.kind !== "dynamic-import").map(item => item.path))

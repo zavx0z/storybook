@@ -1,0 +1,45 @@
+{
+  "name": "@page/package",
+  "label": "Package",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Жизненный цикл и публичный контракт @page/package",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@app-web/protocol": "workspace:*",
+    "@hmr/connection": "workspace:*",
+    "@hmr/page": "workspace:*",
+    "@package-graph/read": "workspace:*",
+    "@package/revision": "workspace:*",
+    "@page/shell": "workspace:*",
+    "@scenario/inspector": "workspace:*",
+    "@scenario/model": "workspace:*",
+    "@scenario/result": "workspace:*",
+    "@web/agent-bridge": "workspace:*",
+    "@web/client": "workspace:*",
+    "@web/navigation": "workspace:*",
+    "@web/page": "workspace:*",
+    "@web/presentation": "workspace:*",
+    "@web/scenario": "workspace:*",
+    "@web/status": "workspace:*",
+    "@web/style-sheets": "workspace:*",
+    "@web/workbench-model": "workspace:*",
+    "@zavx0z/browser": "^0.0.0",
+    "@zavx0z/component": "^0.0.0",
+    "@zavx0z/dom": "^0.0.0",
+    "@zavx0z/template": "^0.0.0",
+    "@zavx0z/ui": "^0.0.0"
+  },
+  "devDependencies": {
+    "@jsx-compiler/session": "^0.0.0",
+    "@package-graph/create": "workspace:*",
+    "@package/session": "workspace:*",
+    "@renderer/html": "^0.0.0",
+    "@repo/discovery": "workspace:*",
+    "@web/browser-fixture": "workspace:*",
+    "@zavx0z/space": "^0.0.0"
+  }
+}

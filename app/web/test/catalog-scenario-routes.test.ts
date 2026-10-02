@@ -12,7 +12,8 @@ import {afterEach, expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import {deriveExternalStorybookPackageTab} from "../src/runtime/model.ts"
+import WebNavigationOwner from "@web/navigation"
+const deriveExternalStorybookPackageTab = WebNavigationOwner.deriveExternalStorybookPackageTab
 
 const roots: string[] = []
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, {recursive: true, force: true}))) })

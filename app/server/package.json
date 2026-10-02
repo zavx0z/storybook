@@ -48,9 +48,9 @@
     "@nodes/node": "^0.0.0",
     "@zavx0z/component": "^0.0.0",
     "@modelcontextprotocol/server": "^2.0.0",
-    "@app/web": "workspace:*",
     "@package/artifacts": "workspace:*",
     "@package-graph/create": "workspace:*",
-    "@storybook/route": "workspace:*"
+    "@storybook/route": "workspace:*",
+    "@web/release": "workspace:*"
   }
 }

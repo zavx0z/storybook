@@ -2,7 +2,7 @@ import Compiler from "@build/compiler"
 import Artifacts from "@build/artifacts"
 import {readSharedBrowserEpoch} from "./receipt"
 import {mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync} from "node:fs"
-import {basename, dirname, extname, join, relative, resolve, sep} from "node:path"
+import {dirname, join, relative, resolve, sep} from "node:path"
 import PackageInputs from "@package-build/inputs"
 import type {SharedBrowserAssets} from "../contract/assets"
 import type {SharedBrowserBuildInput, SharedBrowserBuildPhaseListener} from "../contract/build"
@@ -11,6 +11,7 @@ import {createHash} from "node:crypto"
 import {readWorkbenchStyleSheets} from "./theme"
 import Environment from "@build/environment"
 import {sources} from "./sources"
+import {emittedEntry} from "./emitted-entry"
 
 const {createStorybookPackageCompilerPlugins} = Compiler
 
@@ -72,7 +73,7 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
     const kernel = await Artifacts.build(async () => ({
       entrypoints: moduleEntries.map(({entryPath}) => entryPath),
       outdir: join(staging, "kernel"),
-      naming: {entry: "[name]-[hash].[ext]", chunk: "[name]-[hash].[ext]"},
+      naming: {entry: "[dir]/[name]-[hash].[ext]", chunk: "chunks/[name]-[hash].[ext]"},
       target: "browser",
       format: "esm",
       splitting: true,
@@ -122,7 +123,7 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
   const host = await Artifacts.build(async () => ({
     entrypoints: hostEntryPoints,
     outdir: join(staging, "host"),
-    naming: {entry: "[name]-[hash].[ext]", chunk: "[name]-[hash].[ext]"},
+    naming: {entry: "[dir]/[name]-[hash].[ext]", chunk: "chunks/[name]-[hash].[ext]"},
     target: "browser",
     format: "esm",
     splitting: true,
@@ -202,14 +203,6 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
 function assertSharedBuild(result: Bun.BuildOutput, owner: string): void {
   if (!result.success) throw new Error(result.logs.map(({message}) => message).join("\n"))
   if (result.metafile === undefined) throw new Error(`Bun emitted no shared browser ${owner} metafile`)
-}
-
-function emittedEntry(result: Bun.BuildOutput, staging: string, source: string): string {
-  const name = basename(source, extname(source))
-  const byName = result.outputs.find((artifact) =>
-    artifact.kind === "entry-point" && basename(artifact.path).startsWith(name))
-  if (byName === undefined) throw new Error(`Shared Storybook entry was not emitted: ${source}`)
-  return relative(staging, byName.path)
 }
 
 /** Хеширует реальные исходники host, включая UI, и компилятор; версия кода одинакова для сохранённых kernel. */

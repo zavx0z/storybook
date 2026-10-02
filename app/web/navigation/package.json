@@ -1,0 +1,22 @@
+{
+  "name": "@web/navigation",
+  "label": "Navigation",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Операции над данными страницы Storybook",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@app-web/protocol": "workspace:*",
+    "@package-graph/create": "workspace:*",
+    "@package-graph/read": "workspace:*",
+    "@package/revision": "workspace:*",
+    "@route/address": "workspace:*",
+    "@web/workbench-model": "workspace:*"
+  },
+  "devDependencies": {
+    "@repo/discovery": "workspace:*"
+  }
+}

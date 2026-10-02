@@ -72,10 +72,10 @@
     "@jsx/slot": "^0.0.0",
     "@jsx/compiler": "^0.0.0",
     "@build/compiler": "workspace:*",
-    "@app/web": "workspace:*",
     "@route/url": "workspace:*",
     "@tech/limits": "workspace:*",
-    "@app/server": "workspace:*"
+    "@app/server": "workspace:*",
+    "@web/release": "workspace:*"
   },
   "overrides": {
     "@immersive/headless": "link:@immersive/headless",

@@ -62,7 +62,7 @@ export declare namespace AppServer {
   */
   type Input = Readonly<{
     implementationDigest: string
-    createWeb: typeof import("@app/web").default
+    createWeb: typeof import("@web/release").default
     buildWeb?: AppWebBuild.Output["runWorker"]
     onStartupPhase?: (phase: "catalog" | "sessions" | "listen" | "publication" | "ready") => void
     project: string

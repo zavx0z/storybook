@@ -1,0 +1,11 @@
+{
+  "name": "@catalog/navigation",
+  "label": "Навигационные данные каталога",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Проверка и чистая проекция структурного каталога без создания DOM",
+  "exports": {
+    ".": "./index.ts"
+  }
+}

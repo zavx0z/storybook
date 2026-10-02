@@ -60,7 +60,7 @@ Inspector при этом прокручивает только собствен
 ## Адрес
 
 Вкладка сохраняет физический pathname владельца и выбирается через
-`?view=contract` по [контракту вкладок](../../app/web/src/workbench/notes/workspace.md#tabs-routes).
+`?view=contract` по [контракту вкладок](../../app/web/workbench/notes/workspace.md#tabs-routes).
 Прямое открытие, перезагрузка и history согласованы с этим UI-адресом. MCP
 выбирает публичного владельца из текущего каталога согласно
 [контракту адреса MCP](../../app/mcp/rest/address/README.md); query представления не

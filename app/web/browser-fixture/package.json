@@ -1,0 +1,16 @@
+{
+  "name": "@web/browser-fixture",
+  "label": "Browser Fixture",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Детерминированный Browser Root для тестов Web",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@jsx-compiler/session": "^0.0.0",
+    "@zavx0z/browser": "^0.0.0",
+    "@zavx0z/component": "^0.0.0"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "name": "@web/page",
+  "label": "Page",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Жизненный цикл и публичный контракт @web/page",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@app-web/protocol": "workspace:*",
+    "@hmr/connection": "workspace:*",
+    "@hmr/page": "workspace:*",
+    "@page/home": "workspace:*",
+    "@page/package": "workspace:*",
+    "@page/shell": "workspace:*",
+    "@web/agent-bridge": "workspace:*",
+    "@web/client": "workspace:*",
+    "@web/page-target": "workspace:*",
+    "@web/status": "workspace:*",
+    "@web/style-sheets": "workspace:*"
+  },
+  "devDependencies": {
+    "@jsx-compiler/session": "^0.0.0",
+    "@package-graph/create": "workspace:*",
+    "@package/revision": "workspace:*",
+    "@package/session": "workspace:*",
+    "@renderer/html": "^0.0.0",
+    "@repo/discovery": "workspace:*",
+    "@web/browser-fixture": "workspace:*",
+    "@web/navigation": "workspace:*",
+    "@zavx0z/browser": "^0.0.0",
+    "@zavx0z/component": "^0.0.0",
+    "@zavx0z/dom": "^0.0.0",
+    "@zavx0z/space": "^0.0.0"
+  }
+}

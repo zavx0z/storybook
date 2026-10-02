@@ -1,0 +1,43 @@
+{
+  "name": "@page/shell",
+  "label": "Shell",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Жизненный цикл и публичный контракт @page/shell",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@app-web/protocol": "workspace:*",
+    "@immersive/markdown": "^0.0.0",
+    "@immersive/nodes": "^0.0.0",
+    "@immersive/typedoc": "^0.0.0",
+    "@jsx-compiler/session": "^0.0.0",
+    "@mcp-rest/requests": "workspace:*",
+    "@mcp-window/state": "workspace:*",
+    "@minimap/state": "workspace:*",
+    "@nodes/layout": "^0.0.0",
+    "@nodes/node": "^0.0.0",
+    "@package-graph/create": "workspace:*",
+    "@web/catalog": "workspace:*",
+    "@web/mcp-window": "workspace:*",
+    "@web/minimap": "workspace:*",
+    "@web/presentation": "workspace:*",
+    "@web/viewpoint-controls": "workspace:*",
+    "@web/viewpoint-tab": "workspace:*",
+    "@web/workbench": "workspace:*",
+    "@web/workbench-model": "workspace:*",
+    "@zavx0z/browser": "^0.0.0",
+    "@zavx0z/component": "^0.0.0",
+    "@zavx0z/dom": "^0.0.0",
+    "@zavx0z/engine": "^0.0.0",
+    "@zavx0z/template": "^0.0.0",
+    "@zavx0z/ui": "^0.0.0"
+  },
+  "devDependencies": {
+    "@renderer/html": "^0.0.0",
+    "@web/browser-fixture": "workspace:*",
+    "@zavx0z/space": "^0.0.0"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "@web/agent-bridge",
+  "label": "Интерфейс агента страницы",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Инспекция и взаимодействие агента с существующим Experience страницы Storybook",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@app-web/protocol": "workspace:*",
+    "@zavx0z/browser": "^0.0.0",
+    "@zavx0z/devtools": "^0.0.0",
+    "@zavx0z/dom": "^0.0.0"
+  },
+  "devDependencies": {
+    "@renderer/html": "^0.0.0",
+    "@zavx0z/space": "^0.0.0"
+  }
+}

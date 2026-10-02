@@ -6,7 +6,7 @@ import {externalStorybookImplementationDigest} from "../src/implementation-diges
 
 const roots: string[] = []
 const residentTrees = [
-  "app/server", "app/mcp", "app/server/browser", "app/web/build", "app/web/protocol",
+  "app/server", "app/mcp", "app/server/browser", "app/web/build", "app/web/protocol", "app/web/release",
   "contracts", "package/activation", "package/artifacts", "package/build", "package/build/prepare",
   "package/documentation", "package/graph", "package/identity", "package/index",
   "package/package-json", "package/reader",
@@ -39,7 +39,7 @@ describe("external Storybook implementation digest", () => {
     }
     const paths = [...visited].map(path => relative(root, path))
     expect(paths, "Точка входа daemon использует собственную реализацию запуска").toContain("app/src/daemon.ts")
-    expect(paths.some(path => path.startsWith("app/web/src/runtime/") || path.startsWith("workbench/") ||
+    expect(paths.some(path => path.startsWith("app/web/page/") || path.startsWith("app/web/workbench/") || path.startsWith("app/web/workbench-model/") ||
       path.startsWith("app/src/mcp/"))).toBeFalse()
   })
 
@@ -63,8 +63,8 @@ describe("external Storybook implementation digest", () => {
     for (const path of [
       "app/server/test/server.test.ts", "app/server/fixtures/owner.ts",
       "package/build/prepare/test/build.test.ts", "tech/build/inputs/spec/scenario.spec.ts",
-      "app/web/src/runtime/package-entry.ts", "workbench/controller.ts",
-      "app/index.ts", "app/src/mcp.ts", "app/src/stdio.ts", "tech/mcp/stdio/index.ts",
+      "app/web/page/package/index.ts", "app/web/workbench-model/index.ts",
+      "app/index.ts", "app/web/index.ts", "app/src/mcp.ts", "app/src/stdio.ts", "tech/mcp/stdio/index.ts",
     ]) {
       mkdirSync(dirname(join(root, path)), {recursive: true})
       writeFileSync(join(root, path), "export const other = 1\n")
@@ -76,7 +76,7 @@ describe("external Storybook implementation digest", () => {
 
   test("includes actual browser lifecycle, HTTP subject reader and technical inputs", () => {
     const root = implementationFixture()
-    for (const path of ["app/server/browser/index.ts", "app/mcp/index.ts", "app/web/protocol/index.ts",
+    for (const path of ["app/server/browser/index.ts", "app/mcp/index.ts", "app/web/protocol/index.ts", "app/web/release/index.ts",
       "tech/build/index.ts", "tech/process/index.ts", "tech/http/index.ts"]) {
       const before = externalStorybookImplementationDigest(root)
       writeFileSync(join(root, path), `export const resident = ${JSON.stringify(path)}\n`)

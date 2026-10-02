@@ -1,4 +1,4 @@
-import createWeb from "@app/web"
+import createWeb from "@web/release"
 import AppServerCatalogOwner, {type AppServerCatalog as AppServerCatalogContract} from "@app-server/catalog"
 import RepoDiscoveryOwner from "@repo/discovery"
 const ExternalStorybookRegistry = AppServerCatalogOwner
@@ -8,10 +8,14 @@ import {afterEach, expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm} from "node:fs/promises"
 import {join} from "node:path"
 import {tmpdir} from "node:os"
-import {deriveExternalStorybookLanding, deriveExternalStorybookLandingSelection, deriveExternalStorybookPackageTab, deriveExternalStorybookNavigationTree} from "../src/runtime/model.ts"
+import WebNavigationOwner from "@web/navigation"
+const deriveExternalStorybookLanding = WebNavigationOwner.deriveExternalStorybookLanding
+const deriveExternalStorybookLandingSelection = WebNavigationOwner.deriveExternalStorybookLandingSelection
+const deriveExternalStorybookPackageTab = WebNavigationOwner.deriveExternalStorybookPackageTab
+const deriveExternalStorybookNavigationTree = WebNavigationOwner.deriveExternalStorybookNavigationTree
 import WebProtocol from "@app-web/protocol"
 const createExternalStorybookClientSnapshot = WebProtocol.clientSnapshot
-import {deriveStorybookBreadcrumbs} from "../src/runtime/breadcrumbs.ts"
+const deriveStorybookBreadcrumbs = WebNavigationOwner.deriveStorybookBreadcrumbs
 import startExternalStorybookServer from "@app/server"
 
 const roots: string[] = []

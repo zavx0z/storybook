@@ -6,7 +6,9 @@ import {tmpdir} from "node:os"
 import {join} from "node:path"
 import discoverStorybookPackages from "@repo/discovery"
 import createExternalStorybookGraph from "@package-graph/create"
-import {deriveExternalStorybookNavigationTree, deriveExternalStorybookPackageTab} from "../src/runtime/model.ts"
+import WebNavigationOwner from "@web/navigation"
+const deriveExternalStorybookNavigationTree = WebNavigationOwner.deriveExternalStorybookNavigationTree
+const deriveExternalStorybookPackageTab = WebNavigationOwner.deriveExternalStorybookPackageTab
 
 const roots: string[] = []
 afterEach(async () => {

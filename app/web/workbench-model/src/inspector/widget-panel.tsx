@@ -1,0 +1,93 @@
+import Panel from "@zavx0z/ui/surface/panel"
+import {useRef} from "@zavx0z/component"
+import type {JSX} from "@jsx-compiler/session"
+import type {WorkbenchInspectorWidgetRegistration} from "../../contract/workbench.ts"
+import {SourceWidget} from "./source-widget.tsx"
+import {ValueFields} from "./value-fields.tsx"
+
+export type WidgetPanelProps = Readonly<{
+  widget: WorkbenchInspectorWidgetRegistration
+  value: unknown
+  expanded: boolean
+  hidden: boolean
+  onToggle(id: string, expanded: boolean): void
+}>
+
+function StandardWidgetPanelContent(props: Readonly<{
+  widget: WorkbenchInspectorWidgetRegistration
+  value: unknown
+  active: boolean
+}>) {
+  const activated = useRef(false)
+  if (props.active) activated.current = true
+  const showContent = activated.current
+  const source = props.widget.kind === "source"
+  return <div
+    data-widget-kind={props.widget.kind}
+    style={css`
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      min-height: 0;
+    `}
+  >
+    {showContent && source ? <SourceWidget value={props.value} /> : null}
+    {showContent && !source ? <ValueFields value={props.value} /> : null}
+  </div>
+}
+
+export function StandardWidgetPanel(props: WidgetPanelProps) {
+  const onToggle = (expanded: boolean, _event: Event) => props.onToggle(props.widget.id, expanded)
+  return <Panel
+    label={props.widget.title}
+    title={props.widget.title}
+    expanded={props.expanded}
+    hidden={props.hidden}
+    onToggle={onToggle}
+  >
+    <StandardWidgetPanelContent
+      widget={props.widget}
+      value={props.value}
+      active={!props.hidden && props.expanded}
+    />
+  </Panel>
+}
+
+/** Содержимое widget со своей шапкой, без дополнительной сворачиваемой панели. */
+export function CustomWidgetContent(props: WidgetPanelProps & Readonly<{
+  children: JSX.Element
+}>) {
+  return <div
+    hidden={props.hidden}
+    style={css`
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+      width: 100%;
+      height: 100%;
+      flex-grow: 1;
+
+      &[hidden] {
+        display: none;
+      }
+    `}
+  >
+    {props.children}
+  </div>
+}
+
+export function CustomWidgetPanel(props: WidgetPanelProps & Readonly<{
+  children: JSX.Element
+}>) {
+  const onToggle = (expanded: boolean, _event: Event) => props.onToggle(props.widget.id, expanded)
+  return <Panel
+    label={props.widget.title}
+    title={props.widget.title}
+    expanded={props.expanded}
+    hidden={props.hidden}
+    onToggle={onToggle}
+  >
+    {props.children}
+  </Panel>
+}

@@ -63,7 +63,7 @@ type StorybookBuildTransition = Parameters<Parameters<PackageBuildSchedulerContr
 type StorybookPackageRevisionAuthorStyleSheet = ReturnType<PackageRevisionContract.Output["create"]>["workbenchAuthorStyleSheets"][number]
 type ExternalStorybookSessionManager = AppServerSessionsContract.Output
 type StorybookPackageEvent = Parameters<NonNullable<PackageSessionContract.Input[1]["publish"]>>[0]
-import type {AppWeb} from "@app/web"
+import type {WebRelease} from "@web/release"
 import state, {type AppServerState} from "@app-server/state"
 import {StorybookBrowserSessionRegistry} from "./src/browser-session-registry"
 import type {BrowserSessionGrant, WebSocketData} from "./contract/server"
@@ -179,14 +179,14 @@ export default async function startExternalStorybookServer(
   const restoredSharedAssets = readPublishedSharedBrowserReceipt({
     root: sharedAssetRoot,
     toolRoot,
-    landingEntryPath: options.landingEntryPath ?? createWeb.sources.browserEntry,
-    fallbackEntryPath: options.fallbackEntryPath ?? createWeb.sources.browserEntry,
+    landingEntryPath: options.landingEntryPath ?? AppWebBuildOwner.sources.browserEntry,
+    fallbackEntryPath: options.fallbackEntryPath ?? AppWebBuildOwner.sources.browserEntry,
     stagingDirectory: join(sharedAssetRoot, ".receipt-check"),
   })
   let preparedSharedIdentity: StorybookSharedBrowserIdentity | undefined = usesSharedKernel ? restoredSharedAssets?.browserIdentity : undefined
   let verifyPackageInputs = createStorybookBuildInputFingerprintVerifier({
     toolRoot,
-    browserEntryPath: options.packageBrowserEntryPath ?? createWeb.sources.packageEntry,
+    browserEntryPath: options.packageBrowserEntryPath ?? AppWebBuildOwner.sources.packageEntry,
     ...(preparedSharedIdentity === undefined ? {} : {sharedBrowserIdentity: preparedSharedIdentity}),
   })
   const browserSessions = new StorybookBrowserSessionRegistry()
@@ -231,7 +231,7 @@ export default async function startExternalStorybookServer(
     }
     if (preparedSharedIdentity !== assets.browserIdentity) {
       preparedSharedIdentity = assets.browserIdentity
-      verifyPackageInputs = createStorybookBuildInputFingerprintVerifier({toolRoot, browserEntryPath: options.packageBrowserEntryPath ?? createWeb.sources.packageEntry, sharedBrowserIdentity: preparedSharedIdentity})
+      verifyPackageInputs = createStorybookBuildInputFingerprintVerifier({toolRoot, browserEntryPath: options.packageBrowserEntryPath ?? AppWebBuildOwner.sources.packageEntry, sharedBrowserIdentity: preparedSharedIdentity})
     }
   }
   const sessions = new ExternalStorybookSessionManager({
@@ -246,7 +246,7 @@ export default async function startExternalStorybookServer(
         if (preparedSharedIdentity === undefined) throw new Error("Shared browser dependencies must be prepared before compiler admission")
         return preparedSharedIdentity
       }} : {}),
-      browserEntryPath: options.packageBrowserEntryPath ?? createWeb.sources.packageEntry,
+      browserEntryPath: options.packageBrowserEntryPath ?? AppWebBuildOwner.sources.packageEntry,
     }),
     publish,
   })
@@ -466,8 +466,8 @@ export default async function startExternalStorybookServer(
       const result = await runSharedBrowserBuild({
         root: sharedAssetRoot,
         toolRoot,
-        landingEntryPath: options.landingEntryPath ?? createWeb.sources.browserEntry,
-        fallbackEntryPath: options.fallbackEntryPath ?? createWeb.sources.browserEntry,
+        landingEntryPath: options.landingEntryPath ?? AppWebBuildOwner.sources.browserEntry,
+        fallbackEntryPath: options.fallbackEntryPath ?? AppWebBuildOwner.sources.browserEntry,
       }, context, STORYBOOK_SHARED_COMPILE_TIMEOUT_MS)
       hasSharedBuild = true
       sharedBuildError = null
@@ -493,8 +493,8 @@ export default async function startExternalStorybookServer(
       assets = new StorybookSharedBrowserAssets({
         build: signal => sessions.buildScheduler.run({packageId: null, owner: "shared", reason: "input-changed", generation: null},
           context => runSharedBrowserBuild({root: sharedAssetRoot, toolRoot,
-            landingEntryPath: options.landingEntryPath ?? createWeb.sources.browserEntry,
-            fallbackEntryPath: options.fallbackEntryPath ?? createWeb.sources.browserEntry,
+            landingEntryPath: options.landingEntryPath ?? AppWebBuildOwner.sources.browserEntry,
+            fallbackEntryPath: options.fallbackEntryPath ?? AppWebBuildOwner.sources.browserEntry,
             sharedKernel: identity,
           }, context, STORYBOOK_SHARED_COMPILE_TIMEOUT_MS), signal),
         updated() {},
@@ -1469,7 +1469,7 @@ type RegistryEvent = Readonly<{
   type: "shared.failed"
   message: string
 }> | (Readonly<{type: "build.progress"}> & StorybookBuildTransition)
-  | Readonly<{type: "app.web", state: ReturnType<AppWeb.Output["read"]>}>
+  | Readonly<{type: "app.web", state: ReturnType<WebRelease.Output["read"]>}>
 
 
 async function packagePageResponse(

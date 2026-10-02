@@ -1,5 +1,5 @@
 import {createProjectFixture} from "./project.fixture.ts"
-import createWeb from "@app/web"
+import createWeb from "@web/release"
 import AppServerCatalogOwner, {type AppServerCatalog as AppServerCatalogContract} from "@app-server/catalog"
 import RepoDiscoveryOwner from "@repo/discovery"
 const ExternalStorybookRegistry = AppServerCatalogOwner

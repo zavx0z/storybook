@@ -1,4 +1,4 @@
-import createWeb from "@app/web"
+import createWeb from "@web/release"
 import PackageArtifactsOwner from "@package/artifacts"
 const collectUnpublishedStorybookArtifacts = PackageArtifactsOwner
 import ServerState from "@app-server/state"

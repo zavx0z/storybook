@@ -61,7 +61,7 @@
   на код и ещё не перенесённые заметки. Не поддерживать здесь или в
   корневых README/ARCHITECTURE отдельные копии этих норм; менять их у владельца.
   Связанные правила: [размещение компонентов](./component/notes/draft-placement.md),
-  [Dependencies spec](./specs/deps/notes/draft-dependencies.md) и [URL вкладок](app/web/src/workbench/notes/workspace.md#tabs-routes).
+  [Dependencies spec](./specs/deps/notes/draft-dependencies.md) и [URL вкладок](app/web/workbench/notes/workspace.md#tabs-routes).
 - Перед изменением README, модульных обзоров и TSDoc прочитать
   [единый стандарт документации](./package/notes/draft-documentation.md).
   Неперенесённые правила и классификация проверок остаются в этой заметке;
@@ -140,7 +140,7 @@
   не обновляет пользовательские представления. Неуспешные проверки сохраняют
   применённую ревизию.
 - Публичные адреса, вкладки и структурные пути определяются
-  [контрактом URL](app/web/src/workbench/notes/workspace.md#tabs-routes) и [нормами структуры](./package/notes/draft-structure.md).
+  [контрактом URL](app/web/workbench/notes/workspace.md#tabs-routes) и [нормами структуры](./package/notes/draft-structure.md).
   Агент проверяет эти правила у владельца, а не поддерживает отдельную копию здесь.
 - Пользовательская навигация остаётся в текущей вкладке. Открытие агентом повторно
   использует представление, в котором сейчас показан нужный пакет, или создаёт

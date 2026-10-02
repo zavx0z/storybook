@@ -1,0 +1,292 @@
+import type {ChatView} from "@chat/view"
+import type {ChatSession} from "@chat/session"
+
+/** Браузерный транспорт передаёт снимки сервера; закрытие представления только отписывает поток. */
+export type ChatBrowserSnapshot = Awaited<ReturnType<ChatSession.Output["read"]>>
+
+export type ChatBrowserView = Readonly<{
+  address: string
+  label: string
+  messages: ChatView.Input["messages"]
+  draft: string
+  status: ChatView.Input["status"]
+  sending: boolean
+  error: string | undefined
+  permissions: NonNullable<ChatView.Input["permissions"]>
+}>
+
+type ChatClientOptions = Readonly<{
+  address: string
+  label: string
+  fetcher?: typeof fetch
+  storage?(): Pick<Storage, "getItem" | "setItem">
+  scheduleRetry?(callback: () => void, delayMs: number): () => void
+}>
+
+const drafts = new Map<string, string>()
+const pendingRequests = new Map<string, Readonly<{text: string; requestId: string}>>()
+const draftStorageKey = (id: string) => `storybook.chat.draft.v1:${id}`
+
+/** Общий canonical pathname исключает query выбора вида, варианта и секции. */
+export function canonicalChatAddress(address: string): string {
+  return new URL(address, "http://storybook.local").pathname
+}
+
+/**
+Подготавливает источник UI. Обрыв NDJSON восстанавливает grant, исходный снимок
+и подписку с ограниченным backoff; prompt при этом не повторяется.
+*/
+export function createChatBrowserClient(options: ChatClientOptions) {
+  const address = canonicalChatAddress(options.address)
+  const fetcher = options.fetcher ?? globalThis.fetch
+  const storage = options.storage ?? (() => globalThis.localStorage)
+  const lifetime = new AbortController()
+  const listeners = new Set<() => void>()
+  let disposed = false
+  let started = false
+  let session: ChatBrowserSnapshot | null = null
+  let connectionError: string | undefined
+  let actionError: string | undefined
+  let draft = ""
+  let draftChanged = false
+  let submitting = false
+  let activeReader: ReadableStreamDefaultReader<Uint8Array> | null = null
+  let finishRetry: (() => void) | null = null
+  let view: ChatBrowserView = deriveView()
+
+  function deriveView(): ChatBrowserView {
+    return Object.freeze({
+      address,
+      label: session?.label ?? options.label,
+      messages: session?.messages ?? [],
+      draft,
+      status: session?.status ?? (connectionError === undefined ? "connecting" : "failed"),
+      sending: submitting,
+      error: actionError ?? connectionError ?? session?.error ?? undefined,
+      permissions: session?.permissions ?? [],
+    })
+  }
+
+  const notify = (): void => {
+    if (disposed) return
+    view = deriveView()
+    for (const listener of listeners) listener()
+  }
+  const saveDraft = (): void => {
+    if (session === null) return
+    drafts.set(session.id, draft)
+    try { storage().setItem(draftStorageKey(session.id), draft) } catch {}
+  }
+  const accept = (value: unknown, initial = false): void => {
+    const next = readChatBrowserSnapshot(value, address)
+    if (disposed || !initial && session !== null && next.version < session.version) return
+    if (session === null || session.id !== next.id) {
+      if (!draftChanged) {
+        draft = drafts.get(next.id) ?? ""
+        if (!drafts.has(next.id)) {
+          try { draft = storage().getItem(draftStorageKey(next.id)) ?? "" } catch {}
+        }
+      }
+    }
+    session = next
+    saveDraft()
+    notify()
+  }
+  const grant = async (): Promise<string> => {
+    const response = await fetcher("/api/browser/registry-session", {
+      method: "POST",
+      headers: {"content-type": "application/json"},
+      body: "{}",
+      signal: lifetime.signal,
+    })
+    if (!response.ok) throw new Error(`Не удалось открыть browser-сессию: HTTP ${response.status}`)
+    const value = await response.json()
+    if (typeof value.readerToken !== "string" || value.readerToken.length === 0) {
+      throw new Error("Сервер не предоставил browser-сессию")
+    }
+    return value.readerToken
+  }
+  const post = async (operation: string, body: Record<string, unknown>, suppliedToken?: string): Promise<unknown> => {
+    const token = suppliedToken ?? await grant()
+    if (disposed) throw new Error("Представление чата закрыто")
+    const response = await fetcher(`/api/browser/chat/${operation}`, {
+      method: "POST",
+      headers: {"content-type": "application/json", "x-storybook-session": token},
+      body: JSON.stringify({address, ...body}),
+      signal: lifetime.signal,
+    })
+    if (!response.ok) {
+      let detail = ""
+      try {
+        const value = await response.json()
+        if (typeof value.error === "string") detail = `: ${value.error}`
+      } catch {}
+      throw new Error(`Чат: HTTP ${response.status}${detail}`)
+    }
+    return response.json()
+  }
+  const stream = async (token: string, onSnapshot: () => void): Promise<void> => {
+    const response = await fetcher(`/api/browser/chat/events?address=${encodeURIComponent(address)}`, {
+      headers: {"x-storybook-session": token},
+      signal: lifetime.signal,
+    })
+    if (!response.ok || response.body === null) throw new Error(`Поток чата недоступен: HTTP ${response.status}`)
+    if (disposed) {
+      await response.body.cancel().catch(() => {})
+      return
+    }
+    const reader = response.body.getReader()
+    activeReader = reader
+    connectionError = undefined
+    notify()
+    const decoder = new TextDecoder()
+    let buffer = ""
+    try {
+      while (!disposed) {
+        const chunk = await reader.read()
+        buffer += decoder.decode(chunk.value, {stream: !chunk.done})
+        let newline = buffer.indexOf("\n")
+        while (newline >= 0) {
+          const line = buffer.slice(0, newline).trim()
+          buffer = buffer.slice(newline + 1)
+          if (line.length > 0) {
+            accept(JSON.parse(line))
+            onSnapshot()
+          }
+          newline = buffer.indexOf("\n")
+        }
+        if (chunk.done) {
+          if (buffer.trim().length > 0) accept(JSON.parse(buffer))
+          if (!disposed) throw new Error("Поток обновлений чата закрыт")
+          return
+        }
+      }
+    } finally {
+      await reader.cancel().catch(() => {})
+      reader.releaseLock()
+      activeReader = null
+    }
+  }
+  const waitForRetry = (delayMs: number): Promise<void> => new Promise(resolve => {
+    const schedule = options.scheduleRetry ?? ((callback: () => void, delay: number) => {
+      const timer = setTimeout(callback, delay)
+      return () => clearTimeout(timer)
+    })
+    let settled = false
+    let cancelTimer = () => {}
+    const finish = () => {
+      if (settled) return
+      settled = true
+      cancelTimer()
+      finishRetry = null
+      resolve()
+    }
+    finishRetry = finish
+    cancelTimer = schedule(finish, delayMs)
+  })
+  const connect = async (): Promise<void> => {
+    let attempts = 0
+    while (!disposed) {
+      try {
+        const token = await grant()
+        if (disposed) return
+        accept(await post("session", {}, token), true)
+        if (disposed) return
+        await stream(token, () => { attempts = 0 })
+      } catch (error) {
+        if (disposed) return
+        connectionError = error instanceof Error ? error.message : String(error)
+        notify()
+        await waitForRetry(Math.min(250 * 2 ** Math.min(attempts++, 6), 10_000))
+      }
+    }
+  }
+  const perform = async (operation: string, body: Record<string, unknown>): Promise<boolean> => {
+    if (disposed) return false
+    try {
+      // Registry grants имеют ограниченный TTL; действие получает новый штатный grant.
+      accept(await post(operation, body))
+      actionError = undefined
+      notify()
+      return true
+    } catch (error) {
+      if (disposed) return false
+      actionError = error instanceof Error ? error.message : String(error)
+      notify()
+      return false
+    }
+  }
+
+  return {
+    getSnapshot: () => view,
+    subscribe(listener: () => void) {
+      listeners.add(listener)
+      return () => { listeners.delete(listener) }
+    },
+    start() {
+      if (started || disposed) return
+      started = true
+      void connect()
+    },
+    setDraft(value: string) {
+      if (disposed) return
+      draft = value
+      draftChanged = true
+      saveDraft()
+      notify()
+    },
+    async send() {
+      if (disposed || submitting || draft.trim().length === 0 || view.status === "connecting" || view.status === "running") return
+      const text = draft
+      const key = session?.id ?? address
+      const previous = pendingRequests.get(key)
+      const request = previous?.text === text ? previous : {text, requestId: crypto.randomUUID()}
+      pendingRequests.set(key, request)
+      submitting = true
+      notify()
+      try {
+        if (await perform("prompt", request)) {
+          if (pendingRequests.get(key) === request) pendingRequests.delete(key)
+          if (draft === text) {
+            draft = ""
+            saveDraft()
+            notify()
+          }
+        }
+      } finally {
+        submitting = false
+        notify()
+      }
+    },
+    cancel: () => perform("cancel", {}),
+    permission: (id: string, optionId: string) => perform("permission", {id, optionId}),
+    dispose() {
+      if (disposed) return
+      disposed = true
+      saveDraft()
+      lifetime.abort()
+      finishRetry?.()
+      void activeReader?.cancel().catch(() => {})
+      listeners.clear()
+    },
+  }
+}
+
+function readChatBrowserSnapshot(value: unknown, address: string): ChatBrowserSnapshot {
+  if (value === null || typeof value !== "object") throw new Error("Некорректный снимок чата")
+  const snapshot = value as ChatBrowserSnapshot
+  if (typeof snapshot.id !== "string" || snapshot.id.length === 0 || snapshot.address !== address ||
+    typeof snapshot.label !== "string" || !Array.isArray(snapshot.messages) ||
+    !["idle", "connecting", "running", "failed"].includes(snapshot.status) ||
+    !(snapshot.error === null || typeof snapshot.error === "string") ||
+    !Array.isArray(snapshot.permissions) || !Number.isSafeInteger(snapshot.version) || snapshot.version < 0 ||
+    snapshot.messages.some(message => message === null || typeof message !== "object" ||
+      typeof message.id !== "string" || !["user", "assistant", "system"].includes(message.role) || typeof message.text !== "string") ||
+    snapshot.permissions.some(permission => permission === null || typeof permission !== "object" ||
+      typeof permission.id !== "string" || typeof permission.title !== "string" || !Array.isArray(permission.options) ||
+      permission.options.some((option: ChatBrowserSnapshot["permissions"][number]["options"][number]) => option === null || typeof option !== "object" ||
+        typeof option.id !== "string" || typeof option.name !== "string"))) {
+    throw new Error("Некорректный снимок чата")
+  }
+  return snapshot
+}

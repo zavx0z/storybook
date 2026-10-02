@@ -65,11 +65,11 @@ describe("external @zavx0z/storybook tool boundary", () => {
 
   test("shared browser shell uses one public Browser Root without low-level owners", async () => {
     const sources = await Promise.all([
-      "app/web/src/runtime/shell.ts",
-      "app/web/src/runtime/home-entry.ts",
-      "app/web/src/runtime/package-entry.ts",
-      "app/web/src/runtime/page-entry.ts",
-      "app/web/src/runtime/browser-entry.ts",
+      "app/web/page/shell/index.ts",
+      "app/web/page/home/index.ts",
+      "app/web/page/package/index.ts",
+      "app/web/page/index.ts",
+      "app/web/page/src/browser-entry.ts",
     ].map((path) => Bun.file(join(root, path)).text()))
     const combined = sources.join("\n")
     expect(combined).toContain('from "@zavx0z/browser/integration"')
@@ -78,7 +78,7 @@ describe("external @zavx0z/storybook tool boundary", () => {
     expect(combined).toContain("root.document")
     expect(combined).toContain("root.space")
     expect(combined).toContain("root.viewPoint")
-    const app = await Bun.file(join(root, "app/web/src/runtime/application.tsx")).text()
+    const app = await Bun.file(join(root, "app/web/page/shell/src/application.tsx")).text()
     expect(app).toContain("<Workbench")
     expect(combined).toContain("mountSpacePreview")
     expect(combined).not.toContain("createDocumentSpaceRuntime")
@@ -95,8 +95,8 @@ describe("external @zavx0z/storybook tool boundary", () => {
     expect(combined).not.toContain("@ui/elements")
     expect(combined).not.toContain("StorybookDom")
     expect(combined).not.toContain("STORYBOOK_DOM")
-    expect(combined).toContain("workbench/contract.ts")
-    expect(app).toContain("workbench/workbench.tsx")
+    expect(combined).toContain('from "@web/workbench-model"')
+    expect(app).toContain('from "@web/workbench"')
     expect(combined).not.toContain("createDocumentSpaceRuntime")
   })
 })

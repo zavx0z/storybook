@@ -1,0 +1,14 @@
+{
+  "name": "@web/client",
+  "label": "Client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Операции над данными страницы Storybook",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@app-web/protocol": "workspace:*"
+  }
+}

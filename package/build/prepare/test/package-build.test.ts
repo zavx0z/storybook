@@ -317,7 +317,7 @@ function createFixture(): Readonly<{root: string; packageRoot: string; browserEn
   symlinkSync(realpathSync(join(import.meta.dir, "../../../../node_modules/@zavx0z/template")), join(root, "node_modules", "@zavx0z", "template"))
   writeFileSync(sourcePath, JSON.stringify({name: "@fixture/package", type: "module"}))
   writeFileSync(join(packageRoot, "module/index.ts"), "export const module = true\n")
-  writeFileSync(browserEntry, ["export async function startExternalStorybookPackage(input: unknown) {",
+  writeFileSync(browserEntry, ["export default async function startExternalStorybookPackage(input: unknown) {",
     "  globalThis.__fixture = input", "}", "declare global { var __fixture: unknown }", ""].join("\n"))
   return Object.freeze({root, packageRoot, browserEntry, descriptor: {
     packageId: "@fixture/package", packageRoot, repo: root, sourcePath,

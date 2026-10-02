@@ -9,7 +9,7 @@ describe("external Storybook agent tooling", () => {
     expect(existsSync(join(root, "scripts/storybook-browser.ts"))).toBeFalse()
     const chrome = await Bun.file(join(root, "app/server/browser/src/chrome-client.ts")).text()
     const lifecycle = await Bun.file(join(root, "app/server/browser/index.ts")).text()
-    const landing = await Bun.file(join(root, "app/web/src/runtime/home-entry.ts")).text()
+    const landing = await Bun.file(join(root, "app/web/page/home/index.ts")).text()
     const manifest = await Bun.file(join(root, "app/server/browser/package.json")).json()
     expect(chrome).toContain('connection.command("Target.createTarget"')
     expect(chrome).toContain("background: true")

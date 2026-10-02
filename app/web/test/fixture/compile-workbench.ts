@@ -47,10 +47,3 @@ plugin({
     })
   },
 })
-
-let loading: Promise<typeof import("../../src/workbench/controller.ts")> | null = null
-
-export function loadCompiledWorkbench(): Promise<typeof import("../../src/workbench/controller.ts")> {
-  loading ??= import("../../src/workbench/controller.ts")
-  return loading
-}

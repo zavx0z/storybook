@@ -1,93 +1,54 @@
 /**
-Управляет подготовкой и публикацией Web-интерфейса в готовой среде.
-Все инициаторы наблюдают одну операцию; публикация передаёт результат HMR
-открытых страниц. Исходные браузерные входы публикуются самим Web-владельцем.
+Собирает именованный API Web-области приложения из публичных входов её владельцев.
+Выпуск интерфейса принадлежит Release, подготовка артефактов и browser-входы — Build.
+Page связывает жизненные циклы Shell, Home и Package в одном Experience; Workbench
+и его модель удерживают согласованные области просмотра и Inspector.
+Компоненты каталога, окон, управления ViewPoint, транспорта и представлений
+сохраняют собственные реализации, контракты и время жизни.
 
 @packageDocumentation
 */
-import WebBuild from "@app-web/build"
-import type {AppWeb} from "./contract"
-export type {AppWeb} from "./contract"
-
-
-/**
-Управляет явным выпуском Web через предоставленные возможности сборщика.
-Повторные вызовы во время работы разделяют один результат. Отключение наблюдателя
-не отменяет сборку; прежняя опубликованная версия сохраняется при ошибке подготовки.
-
-@typeParam Prepared - Результат переданной функции `prepare` после `await`.
-Выводится из функций {@link AppWeb.Input} и связывает подготовку, извлечение версий и публикацию.
-
-@param input - Реализации трёх операций от владельца артефактов.
-
-@returns Управление общим выпуском Web; `dispose` отменяет подготовку и ожидает её завершения.
-
-@example
-Переданные функции описаны в {@link AppWeb.Input}:
-```ts
-const web = createWeb({prepare, versions, publish})
-try {
-  await web.rebuild({apply: true})
-} finally {
-  await web.dispose()
-}
-```
-*/
-function createWeb<Prepared>(input: AppWeb.Input<Prepared>): AppWeb.Output {
-  type State = ReturnType<AppWeb.Output["read"]>
-  const lifetime = new AbortController()
-  const listeners = new Set<(state: State) => void>()
-  let state: State = Object.freeze({operationId: null, phase: "idle", at: new Date().toISOString(), versions: [], error: null})
-  let pending: Promise<State> | null = null
-  let apply = false
-  let disposed = false
-  /** Публикует неизменный снимок; ошибка наблюдателя не меняет исход операции. */
-  const update = (patch: Partial<State>): State => {
-    state = Object.freeze({...state, ...patch, at: new Date().toISOString()})
-    for (const listener of listeners) {
-      try { listener(state) } catch { /* Наблюдатель не владеет выполнением. */ }
-    }
-    return state
-  }
-  return Object.freeze({
-    rebuild(options = {}) {
-      if (disposed) return Promise.reject(new Error("Приложение завершает работу"))
-      apply ||= options.apply === true
-      if (pending !== null) return pending
-      pending = Promise.resolve().then(async () => {
-        const {candidate, versions} = await WebBuild.prepare(input, lifetime.signal)
-        update({phase: "prepared", versions})
-        if (apply) {
-          update({phase: "publishing"})
-          lifetime.signal.throwIfAborted()
-          input.publish(candidate)
-          update({phase: "published"})
-        }
-        return state
-      }).catch(error => {
-        update({phase: "failed", error: error instanceof Error ? error.message : String(error)})
-        throw error
-      }).finally(() => {
-        pending = null
-        apply = false
-      })
-      update({operationId: crypto.randomUUID(), phase: "preparing", error: null})
-      return pending
-    },
-    read: () => state,
-    subscribe(listener) {
-      listeners.add(listener)
-      try { listener(state) } catch { listeners.delete(listener) }
-      return () => { listeners.delete(listener) }
-    },
-    async dispose() {
-      disposed = true
-      lifetime.abort(new DOMException("Приложение завершает работу", "AbortError"))
-      await pending?.catch(() => {})
-      listeners.clear()
-    },
-  })
-}
-
-/** Физические входы Web для выпуска статичной оболочки и пакетных страниц. */
-export default Object.assign(createWeb, {sources: WebBuild.sources})
+export {default as AgentBridge} from "@web/agent-bridge"
+export type {WebAgentBridge} from "@web/agent-bridge"
+export {default as Bootstrap} from "@web/bootstrap"
+export type {WebBootstrap} from "@web/bootstrap"
+export {default as BrowserFixture} from "@web/browser-fixture"
+export type {WebBrowserFixture} from "@web/browser-fixture"
+export {default as Build} from "@app-web/build"
+export type {AppWebBuild} from "@app-web/build"
+export {default as Catalog} from "@web/catalog"
+export type {WebCatalog} from "@web/catalog"
+export {default as Client} from "@web/client"
+export type {WebClient} from "@web/client"
+export {default as McpWindow} from "@web/mcp-window"
+export type {WebMcpWindow} from "@web/mcp-window"
+export {default as Minimap} from "@web/minimap"
+export type {WebMinimap} from "@web/minimap"
+export {default as Navigation} from "@web/navigation"
+export type {WebNavigation} from "@web/navigation"
+export {default as Page} from "@web/page"
+export type {WebPage} from "@web/page"
+export {default as PageTarget} from "@web/page-target"
+export type {WebPageTarget} from "@web/page-target"
+export {default as Presentation} from "@web/presentation"
+export type {WebPresentation} from "@web/presentation"
+export {default as Protocol} from "@app-web/protocol"
+export type {AppWebProtocol} from "@app-web/protocol"
+export {default as Reference} from "@web/reference"
+export type {WebReference} from "@web/reference"
+export {default as Release} from "@web/release"
+export type {WebRelease} from "@web/release"
+export {createScenarioApp, Inspector, Preview, Result} from "@web/scenario"
+export type {ScenarioModel, ScenarioInspector, ScenarioPreview, ScenarioResult} from "@web/scenario"
+export {default as Status} from "@web/status"
+export type {WebStatus} from "@web/status"
+export {default as StyleSheets} from "@web/style-sheets"
+export type {WebStyleSheets} from "@web/style-sheets"
+export {default as ViewPointControls} from "@web/viewpoint-controls"
+export type {WebViewpointControls} from "@web/viewpoint-controls"
+export {default as ViewPointTab} from "@web/viewpoint-tab"
+export type {WebViewpointTab} from "@web/viewpoint-tab"
+export {default as Workbench} from "@web/workbench"
+export type {WebWorkbench} from "@web/workbench"
+export {default as WorkbenchModel} from "@web/workbench-model"
+export type {WebWorkbenchModel} from "@web/workbench-model"

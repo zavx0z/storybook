@@ -1,4 +1,4 @@
-import createWeb from "@app/web"
+import createWeb from "@web/release"
 import {createProjectFixture} from "../app/server/test/project.fixture"
 import RouteUrlOwner from "@route/url"
 const storybookPackageUrlPath = RouteUrlOwner.storybookPackageUrlPath

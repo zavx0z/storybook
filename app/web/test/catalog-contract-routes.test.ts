@@ -12,7 +12,8 @@ import {expect, test} from "bun:test"
 import {join} from "node:path"
 import WebProtocol from "@app-web/protocol"
 const createExternalStorybookClientSnapshot = WebProtocol.clientSnapshot
-import {deriveExternalStorybookPackageTab} from "../src/runtime/model.ts"
+import WebNavigationOwner from "@web/navigation"
+const deriveExternalStorybookPackageTab = WebNavigationOwner.deriveExternalStorybookPackageTab
 
 const packageId = "@fixture/standalone"
 const source = join(import.meta.dir, "../../../repo/discovery/fixtures/valid/standalone")

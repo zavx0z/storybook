@@ -156,7 +156,7 @@ export async function buildStorybookPackageRevisionInProcess(
       scenarios,
     }))
     await Bun.write(entryPath, sharedBrowserIdentity === undefined ? [
-      `import {startExternalStorybookPackage} from ${JSON.stringify(browserEntryPath)}`,
+      `import startExternalStorybookPackage from ${JSON.stringify(browserEntryPath)}`,
       "import {",
       "  STORYBOOK_PACKAGE_SCENARIO_LOADERS,",
       "  storybookRevisionUrl,",

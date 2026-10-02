@@ -2,7 +2,7 @@
 
 Заменой scope и rollback владеет [Page](../page/index.ts), подтверждением результата —
 [Activation](../../../package/activation/index.ts), восстановлением подписки —
-[Connection](../connection/index.ts). Их интегрирует [контроллер страницы](../../../app/web/src/runtime/page-entry.ts). [Исполняемые проверки](../../../app/web/src/runtime/package-entry.test.ts) покрывают замену среды, откат и запросы bridge во время HMR.
+[Connection](../connection/index.ts). Их интегрирует [контроллер страницы](../../../app/web/page/index.ts). [Исполняемые проверки](../../../app/web/page/package/test/package-entry.test.ts) покрывают замену среды, откат и запросы bridge во время HMR.
 
 ## Подготовленная ревизия и HMR
 
@@ -20,9 +20,9 @@ agent preview не используется для автоматическог�
 Общая оболочка принадлежит Storybook и имеет одну опубликованную версию
 для всех вкладок. Ревизия потребительского пакета хранит graph, сценарии и
 identity платформы, но не выбирает `startPage`, `startPackage` или версию Minimap.
-[Bootstrap](../../../app/web/src/runtime/shared-bootstrap.ts) получает серверное описание совместимой
+[Bootstrap](../../../app/web/bootstrap/index.ts) получает серверное описание совместимой
 оболочки **до** первого импорта платформы. Переход к старому пакету не возвращает
-прежнюю оболочку: [page controller](../../../app/web/src/runtime/page-entry.ts) запрашивает текущую версию
+прежнюю оболочку: [page controller](../../../app/web/page/index.ts) запрашивает текущую версию
 для kernel этого пакета через [shared host](../../../app/web/protocol/src/shared-host.ts).
 
 `shared.updated` приходит всем package/catalog/registry подписчикам, в том числе

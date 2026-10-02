@@ -1,0 +1,19 @@
+{
+  "name": "@web/catalog",
+  "label": "Каталог",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Показывает структурный каталог и передаёт его действия принимающей поверхности",
+  "exports": {
+    ".": "./index.tsx"
+  },
+  "dependencies": {
+    "@catalog/navigation": "workspace:*",
+    "@zavx0z/component": "^0.0.0",
+    "@zavx0z/ui": "^0.0.0"
+  },
+  "devDependencies": {
+    "@immersive/headless": "^0.0.0"
+  }
+}

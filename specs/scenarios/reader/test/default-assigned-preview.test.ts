@@ -53,18 +53,18 @@ test("Повторный вызов callable не создаёт preview", async
   await expect(readScenario.supportsPreview({path}), "Статическое чтение также отклоняет повтор").rejects.toThrow("один вызов")
 }, 30_000)
 
-test("Реальный AppWeb получает default callable preview", async () => {
-  const path = resolve(import.meta.dir, "../../../../app/web/spec/scenario.spec.ts")
-  expect(await readScenario.supportsPreview({path}), "Публичный AppWeb default callable поддерживает native preview").toBeTrue()
+test("Реальный WebRelease получает default callable preview", async () => {
+  const path = resolve(import.meta.dir, "../../../../app/web/release/spec/scenario.spec.ts")
+  expect(await readScenario.supportsPreview({path}), "Публичный WebRelease default callable поддерживает native preview").toBeTrue()
   const report = await readScenario({path, variant: 0})
   expect(report.exitCode, report.stderr).toBe(0)
   expect(report.validation.checks.find(check => check.rule === "single-invocation")?.status,
-    "Сценарий AppWeb остаётся оформлен как один вызов createWeb"
+    "Сценарий WebRelease остаётся оформлен как один вызов createWeb"
   ).toBe("passed")
-  expect(report.preview?.kind, "AppWeb раскрывается как исполняемый function preview").toBe("function")
-  const observed = report.calls.filter(call => call.name === "default" && call.module.endsWith("/app/web/index.ts"))
-  expect(observed, "Reader сохранил один наблюдённый вызов AppWeb из варианта").toHaveLength(1)
-  if (report.preview?.kind !== "function") throw new Error("Нет function preview для AppWeb")
+  expect(report.preview?.kind, "WebRelease раскрывается как исполняемый function preview").toBe("function")
+  const observed = report.calls.filter(call => call.name === "default" && call.module.endsWith("/app/web/release/index.ts"))
+  expect(observed, "Reader сохранил один наблюдённый вызов WebRelease из варианта").toHaveLength(1)
+  if (report.preview?.kind !== "function") throw new Error("Нет function preview для WebRelease")
   expect(report.preview.variants[0]?.calls.map(call => call.id),
     "Preview ссылается на trace ID того же вызова, не исполняя Web повторно"
   ).toEqual([observed[0]!.id])

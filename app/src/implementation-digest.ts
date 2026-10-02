@@ -11,7 +11,6 @@ const IMPLEMENTATION_FILES = Object.freeze([
   "app/src/daemon-entry.ts",
   "app/src/daemon.ts",
   "app/src/implementation-digest.ts",
-  "app/web/index.ts",
 ])
 
 const IMPLEMENTATION_TREES = Object.freeze([
@@ -19,6 +18,7 @@ const IMPLEMENTATION_TREES = Object.freeze([
   "app/mcp",
   "app/web/build",
   "app/web/protocol",
+  "app/web/release",
   "contracts",
   "package/activation",
   "package/artifacts",

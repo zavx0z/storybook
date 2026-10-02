@@ -1,0 +1,15 @@
+{
+  "name": "@web/status",
+  "label": "Наблюдаемые состояния",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Проверка событий и отображение подтверждённых состояний сборки, каталога и соединения",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@package-build/scheduler": "workspace:*",
+    "@package/session": "workspace:*"
+  }
+}

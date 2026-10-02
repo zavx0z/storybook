@@ -31,7 +31,7 @@ export type {ArchetypesTypedoc} from "./contract"
 
 @example
 ```ts
-const result = await readTypeDoc({paths: ["app/web/contract/index.ts"]})
+const result = await readTypeDoc({paths: ["app/web/release/contract/index.ts"]})
 ```
 */
 export default async function readTypeDoc(input: ArchetypesTypedoc.Input): Promise<ArchetypesTypedoc.Output> {

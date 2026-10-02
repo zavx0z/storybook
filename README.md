@@ -33,19 +33,19 @@
 - [Выполнение и представление сценариев](app/web/scenario/README.md).
 - [Управление сервером и пакетами](app/index.ts).
 - [Изоляция ревизий пакета](package/session/index.ts).
-- [Контроллер единой страницы](app/web/src/runtime/page-entry.ts).
+- [Контроллер единой страницы](app/web/page/index.ts).
 
 ## Работа с инструментом
 
 - [Подключение локальных исходников](./notes/local-dependencies.md).
 - [Архитектура и оставшиеся разрывы реализации](./ARCHITECTURE.md).
 - [Оценка нагрузки перед сборкой](tech/build/environment/notes/preflight.md).
-- [Рабочая область и адреса вкладок](app/web/src/workbench/notes/workspace.md).
+- [Рабочая область и адреса вкладок](app/web/workbench/notes/workspace.md).
 - [Каталог и физическая структура](app/server/catalog/notes/structure.md).
 - [Ревизии пакетов](package/session/notes/revisions.md) и
   [динамическое обновление страницы](./tech/hmr/notes/updates.md).
-- [Единая среда страницы](app/web/src/runtime/notes/experience.md) и
-  [инспекция и действия](app/web/src/runtime/notes/agent-bridge.md).
+- [Единая среда страницы](app/web/page/notes/experience.md) и
+  [инспекция и действия](app/web/agent-bridge/notes/inspection.md).
 - [Жизненный цикл сервера](app/notes/lifecycle.md),
   [доступ к управлению и ресурсам](app/server/notes/security.md) и
   [запуск приложения](./app/notes/commands.md).

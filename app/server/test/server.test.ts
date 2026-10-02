@@ -1,4 +1,4 @@
-import createWeb from "@app/web"
+import createWeb from "@web/release"
 import {type Zavx0zStorybookBrowserLifecycle as Zavx0zStorybookBrowserLifecycleContract} from "@zavx0z/storybook-browser-lifecycle"
 type StorybookBrowserLifecycle = Zavx0zStorybookBrowserLifecycleContract.Output
 import TechLimitsOwner from "@tech/limits"
@@ -1382,7 +1382,7 @@ function serverFixture(): Readonly<{
   const packageEntry = join(entries, "package-entry.ts")
   writeFileSync(landingEntry, "document.documentElement.dataset.fixtureLanding = 'ready'\n")
   writeFileSync(fallbackEntry, "document.documentElement.dataset.fixtureFallback = 'ready'\n")
-  writeFileSync(packageEntry, "export async function startExternalStorybookPackage() {}\n")
+  writeFileSync(packageEntry, "export default async function startExternalStorybookPackage() {}\n")
   return Object.freeze({
     root,
     workspace,
