@@ -45,7 +45,7 @@ describe("external Storybook attached-root registry", () => {
     const registry = new ExternalStorybookRegistry(discoverStorybookPackages)
     await registry.attach(fixtureRoot)
     const descriptor = registry.packageDescriptors().find(({packageId}) => packageId === "@fixture/components")!
-    expect(descriptor.projectRoot).toBe(fixtureRoot)
+    expect(descriptor.repo).toBe(fixtureRoot)
     expect(descriptor.packageRoot).toEndWith("/projects/alpha/packages/components")
     expect(descriptor.sourcePath).toEndWith("/projects/alpha/packages/components/package.json")
     expect(descriptor.declarationDigest).toMatch(/^[a-f0-9]{64}$/u)

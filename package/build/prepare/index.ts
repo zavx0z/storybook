@@ -78,7 +78,7 @@ async function runPackageBuildWorker(
   const job: WorkerJob = Object.freeze({input: serializableInput, options})
   const execution = await runBuildWorker({
     entryPath: workerPath,
-    cwd: input.descriptor.projectRoot,
+    cwd: input.descriptor.repo,
     temporaryRoot: input.stagingDirectory,
     createJob: () => job,
     signal,

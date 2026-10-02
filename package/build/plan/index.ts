@@ -55,13 +55,13 @@ function resolveStorybookPackageBuildInputFingerprintPlan(
   const compilerInput: StorybookPackageCompilerInput = {
     toolRoot,
     packageRoot: descriptor.packageRoot,
-    projectRoot: descriptor.projectRoot,
+    repo: descriptor.repo,
     moduleSourcePaths,
   }
   const compiler = resolveStorybookPackageCompilerInputs(compilerInput)
   const ownerRoots = [
     ...compiler.sourceRoots,
-    descriptor.projectRoot,
+    descriptor.repo,
     descriptor.packageRoot,
     toolRoot,
   ]

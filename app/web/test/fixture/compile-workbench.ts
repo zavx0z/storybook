@@ -6,7 +6,7 @@ import createJsxBunPlugin from "@jsx-compiler/bun"
 const {createStorybookOwnerResolver, createStorybookOwnerSourcePath, resolveStorybookCompilerSourceRoots} = Compiler
 const storybookRoot = resolve(import.meta.dir, "../../../..")
 const sourceRoots = resolveStorybookCompilerSourceRoots({
-  projectRoot: storybookRoot,
+  repo: storybookRoot,
   packageRoot: storybookRoot,
 })
 const styleSourceRootIds = Object.freeze(sourceRoots.map((root) => {
@@ -18,11 +18,11 @@ const styleSourceRootIds = Object.freeze(sourceRoots.map((root) => {
 }))
 
 const ownerResolver = createStorybookOwnerResolver({
-  projectRoot: storybookRoot,
+  repo: storybookRoot,
   packageRoot: storybookRoot,
 })
 const ownerSourcePath = createStorybookOwnerSourcePath({
-  projectRoot: storybookRoot,
+  repo: storybookRoot,
   packageRoot: storybookRoot,
 })
 const templateCompiler = createJsxBunPlugin({

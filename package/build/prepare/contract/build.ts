@@ -13,7 +13,7 @@ export type PhaseListener = (event: PhaseEvent) => void
 export type WorkerLifecycleListener = (event: BuildWorkerLifecycleEvent) => void
 export type CompilerPluginResolver = (input: Readonly<{
   packageRoot: string
-  projectRoot: string
+  repo: string
   sourcePaths: readonly string[]
   generatedSourceRoot?: string
 }>) => Promise<readonly Bun.BunPlugin[]>

@@ -7,7 +7,7 @@ export declare namespace PackageBuildInputs {
   Канонизация списка source paths и проверка принадлежности пакета.
 
   @property canonicalBuildInputs - Разрешает существующие файлы metafile
-  относительно project root и cwd, возвращая отсортированные реальные пути.
+  относительно корня Repo и cwd, возвращая отсортированные реальные пути.
 
   @property stablePath - Сохраняет реальную директорию файла и его исходное имя.
 
@@ -18,7 +18,7 @@ export declare namespace PackageBuildInputs {
   реальному владельцу или отклоняет несовместимые пути.
   */
   type Output = Readonly<{
-    canonicalBuildInputs(inputs: Readonly<Record<string, unknown>>, projectRoot: string): readonly string[]
+    canonicalBuildInputs(inputs: Readonly<Record<string, unknown>>, repo: string): readonly string[]
     stablePath(path: string): string
     validateConsumerBoundary(paths: readonly string[], descriptor: StorybookPackageBuildDescriptor, stagingDirectory: string): void
     canonicalizeIdentities(paths: readonly string[]): readonly string[]

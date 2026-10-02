@@ -65,7 +65,7 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
     const kernelPlugins = () => createStorybookPackageCompilerPlugins({
       toolRoot: input.toolRoot,
       packageRoot: input.toolRoot,
-      projectRoot: input.toolRoot,
+      repo: input.toolRoot,
       moduleSourcePaths: [],
     })
     onPhase?.({phase: "kernel", state: "started", at: new Date().toISOString()})
@@ -115,7 +115,7 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
   const hostPlugins = () => createStorybookPackageCompilerPlugins({
     toolRoot: input.toolRoot,
     packageRoot: input.toolRoot,
-    projectRoot: input.toolRoot,
+    repo: input.toolRoot,
     moduleSourcePaths: hostEntryPoints,
   })
   onPhase?.({phase: "host", state: "started", at: new Date().toISOString()})

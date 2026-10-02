@@ -533,8 +533,8 @@ describe("working Storybook PackageSession lifecycle", () => {
     const nextRoot = join(root, "next")
     mkdirSync(oldRoot)
     mkdirSync(nextRoot)
-    const oldDescriptor = {...descriptor(oldRoot, "@fixture/moved"), projectRoot: root}
-    const nextDescriptor = {...descriptor(nextRoot, "@fixture/moved", "two"), projectRoot: root}
+    const oldDescriptor = {...descriptor(oldRoot, "@fixture/moved"), repo: root}
+    const nextDescriptor = {...descriptor(nextRoot, "@fixture/moved", "two"), repo: root}
     const fingerprint = fakeInputFingerprint(oldRoot, oldDescriptor.declarationDigest)
     const first = createSession(oldDescriptor, async ({stagingDirectory}) => ({
       ...successfulBuild(stagingDirectory), inputFingerprint: fingerprint,
@@ -594,7 +594,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     const nextRoot = join(root, "next")
     mkdirSync(oldRoot)
     mkdirSync(nextRoot)
-    const value = {...descriptor(oldRoot, "@fixture/moved"), projectRoot: root}
+    const value = {...descriptor(oldRoot, "@fixture/moved"), repo: root}
     const first = createSession(value, async ({stagingDirectory}) => ({
       ...successfulBuild(stagingDirectory), inputFingerprint: fakeInputFingerprint(oldRoot, value.declarationDigest),
     }), [])
@@ -606,7 +606,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     const receiptPath = join(root, ".artifacts", owner, "applied.json")
     const receipt = JSON.parse(readFileSync(receiptPath, "utf8"))
     writeFileSync(receiptPath, JSON.stringify({...receipt, ...patch}))
-    const moved = createSession({...descriptor(nextRoot, "@fixture/moved"), projectRoot: root}, successfulBuilder(), [])
+    const moved = createSession({...descriptor(nextRoot, "@fixture/moved"), repo: root}, successfulBuilder(), [])
     try {
       expect(await moved.ensureBuilt(), "Повреждённое свидетельство блокирует сборку и не восстанавливает ревизию")
         .toMatchObject({buildState: "failed", builds: 0, activeRevision: null, lastWorkingRevision: null})
@@ -769,6 +769,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     const first = createSession(value, async ({stagingDirectory}) => ({
       ...successfulBuild(stagingDirectory),
       inputFingerprint: fingerprint,
+      verification: {status: "passed", diagnostics: []},
     }), [])
     const built = await first.ensureBuilt()
     const activation = first.beginActivation({
@@ -780,10 +781,12 @@ describe("working Storybook PackageSession lifecycle", () => {
     let freshBuilds = 0
     const restored = createSession(value, async ({stagingDirectory}) => {
       freshBuilds += 1
-      return successfulBuild(stagingDirectory)
+      return {...successfulBuild(stagingDirectory), verification: {status: "passed", diagnostics: []}}
     }, [], {verifyInputFingerprint: () => null})
     expect(restored.snapshot()).toMatchObject({
       activeRevision: built.builtRevision,
+      lastWorkingRevision: built.builtRevision,
+      standard: "strict",
       generation: 1,
       completedGeneration: 0,
       builds: 0,
@@ -792,6 +795,8 @@ describe("working Storybook PackageSession lifecycle", () => {
     const fresh = await restored.ensureBuilt()
     expect(fresh).toMatchObject({
       activeRevision: built.builtRevision,
+      lastWorkingRevision: built.builtRevision,
+      standard: "strict",
       buildState: "built",
       builds: 1,
       inputFreshness: "unverified",
@@ -887,7 +892,7 @@ function createSession(
   }> = {},
 ): StorybookPackageSession {
   return new StorybookPackageSession(value, {
-    artifactRoot: join(value.projectRoot, ".artifacts"),
+    artifactRoot: join(value.repo, ".artifacts"),
     buildRevision,
     publish: (event) => events.push(event),
     ...overrides,
@@ -911,7 +916,7 @@ function descriptor(root: string, packageId: string, version = "one"): Storybook
   return {
     packageId,
     packageRoot: root,
-    projectRoot: root,
+    repo: root,
     sourcePath: packageJsonPath,
     declarationDigest,
     graphSnapshot: graphSnapshot(packageId, declarationDigest),

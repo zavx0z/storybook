@@ -32,7 +32,7 @@ test("root identity comes from package name and nested workspaces produce one ow
   expect(first.graph.nodes.find(node => node.packageId === "@fixture/child")?.parentId).toBe("package:@fixture/a")
   for (const descriptor of registry.packageDescriptors()) {
     expect(descriptor.graphSnapshot.nodes.every(node => node.packageId === descriptor.packageId)).toBeTrue()
-    expect(descriptor.projectRoot).toBe(owner)
+    expect(descriptor.repo).toBe(owner)
   }
   const renamed = join(root, "renamed-folder")
   await rename(owner, renamed)

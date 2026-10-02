@@ -114,7 +114,7 @@ describe("Storybook package identity", () => {
 
   test("[STORYBOOK-IDENTITY-001] keeps one physical root per same-name new owner", () => {
     const roots = resolveStorybookCompilerSourceRoots({
-      projectRoot: root,
+      repo: root,
       packageRoot: root,
     })
 
@@ -146,7 +146,7 @@ describe("Storybook package identity", () => {
     expect(rootsByName.get("@zavx0z/renderer-webgpu")).toBeUndefined()
 
     const ownerSourcePath = createStorybookOwnerSourcePath({
-      projectRoot: root,
+      repo: root,
       packageRoot: root,
     })
     for (const [specifier, ownerPath] of [

@@ -21,8 +21,8 @@ afterEach(async () => {
 
 describe("external Storybook package compiler", () => {
   test("compiler использует явно выбранного tool owner при отсутствии consumer modules", async () => {
-    const fixture = await jsxProjectFixture()
-    const selectedToolRoot = fixture.projectRoot
+    const fixture = await jsxRepoFixture()
+    const selectedToolRoot = fixture.repo
     const input = {...fixture.input, toolRoot: selectedToolRoot, moduleSourcePaths: []}
     const selected = resolveStorybookPackageCompilerInputs(input)
     expect(selected.sourceRoots).toContain(await realpath(selectedToolRoot))
@@ -31,7 +31,7 @@ describe("external Storybook package compiler", () => {
   })
 
   test("uses only tool compiler owners when a package has no executable modules", async () => {
-    const fixture = await jsxProjectFixture("throw new Error('consumer compiler must not execute')")
+    const fixture = await jsxRepoFixture("throw new Error('consumer compiler must not execute')")
     const plugins = await createStorybookPackageCompilerPlugins({...fixture.input, moduleSourcePaths: []})
     expect(plugins.map(plugin => plugin.name)).toEqual([
       "external-storybook-exact-owner-resolution",
@@ -53,7 +53,7 @@ describe("external Storybook package compiler", () => {
     const plugins = await createStorybookPackageCompilerPlugins({
       toolRoot,
       packageRoot: root,
-      projectRoot: root,
+      repo: root,
       moduleSourcePaths: [source],
     })
 
@@ -83,7 +83,7 @@ describe("external Storybook package compiler", () => {
     const plugins = await createStorybookPackageCompilerPlugins({
       toolRoot,
       packageRoot: root,
-      projectRoot: root,
+      repo: root,
       moduleSourcePaths: [source],
     })
     const resolved = resolveWithPlugin(plugins[0]!, "@zavx0z/template/compiled")
@@ -94,7 +94,7 @@ describe("external Storybook package compiler", () => {
   })
 
   test("resolves a fresh JSX plugin and exact manifest-reached source roots", async () => {
-    const fixture = await jsxProjectFixture()
+    const fixture = await jsxRepoFixture()
     const first = await createStorybookPackageCompilerPlugins(fixture.input)
     const second = await createStorybookPackageCompilerPlugins(fixture.input)
 
@@ -110,36 +110,36 @@ describe("external Storybook package compiler", () => {
       "external-storybook-exact-owner-resolution",
       "zavx0z-jsx",
     ])
-    const canonicalProjectRoot = await realpath(fixture.projectRoot)
+    const canonicalRepo = await realpath(fixture.repo)
     const canonicalDependencyRoots = await Promise.all([
       fixture.linkedRoot,
       fixture.adapterRoot,
       fixture.transitiveRoot,
     ].map(async (path) => await realpath(path)))
     const expectedOwnerSourceRoots = [
-      canonicalProjectRoot,
+      canonicalRepo,
       ...canonicalDependencyRoots.sort(),
       await realpath(fixture.packageRoot),
     ]
     const ownerSourceRoots = resolveStorybookCompilerSourceRoots({
-      projectRoot: fixture.projectRoot,
+      repo: fixture.repo,
       packageRoot: fixture.packageRoot,
     })
     for (const root of expectedOwnerSourceRoots) expect(ownerSourceRoots).toContain(root)
     const compilerInputs = resolveStorybookPackageCompilerInputs(fixture.input)
     expect(compilerInputs.configPaths).toEqual([
-      join(canonicalProjectRoot, "tsconfig.base.json"),
-      join(canonicalProjectRoot, "tsconfig.json"),
+      join(canonicalRepo, "tsconfig.base.json"),
+      join(canonicalRepo, "tsconfig.json"),
     ])
     expect(compilerInputs.adapterPath).toBe(join(
       await realpath(fixture.adapterRoot),
       "index.ts",
     ))
-    expect(compilerInputs.semanticSourceRoots).toContain(canonicalProjectRoot)
+    expect(compilerInputs.semanticSourceRoots).toContain(canonicalRepo)
   })
 
   test("reads JSONC extends and fails closed for conflicting module configs", async () => {
-    const fixture = await jsxProjectFixture()
+    const fixture = await jsxRepoFixture()
     const nestedRoot = join(fixture.packageRoot, "nested")
     await mkdir(nestedRoot, {recursive: true})
     await writeJson(join(nestedRoot, "tsconfig.json"), {
@@ -175,14 +175,14 @@ describe("external Storybook package compiler", () => {
     await expect(createStorybookPackageCompilerPlugins({
       toolRoot,
       packageRoot: root,
-      projectRoot: root,
+      repo: root,
       moduleSourcePaths: [source],
     })).rejects.toThrow("not a linked owner dependency")
   })
 
   test("обычные версии сохраняют установленные ссылки на JSX и транзитивных владельцев", async () => {
-    const fixture = await jsxProjectFixture()
-    const manifestPath = join(fixture.projectRoot, "package.json")
+    const fixture = await jsxRepoFixture()
+    const manifestPath = join(fixture.repo, "package.json")
     const manifest = await Bun.file(manifestPath).json()
     manifest.dependencies["@fixture/linked"] = "^1.0.0"
     manifest.devDependencies["@zavx0z/jsx"] = "^0.0.0"
@@ -207,7 +207,7 @@ describe("external Storybook package compiler", () => {
     await writeJson(join(root, "package.json"), {name: "@fixture/cache-consumer", dependencies: {"@fixture/cached": "^1.0.0"}})
     await writeJson(join(cached, "package.json"), {name: "@fixture/cached", version: "1.0.0"})
     await linkPackage(root, "@fixture/cached", cached)
-    expect(resolveStorybookCompilerSourceRoots({projectRoot: root, packageRoot: root}),
+    expect(resolveStorybookCompilerSourceRoots({repo: root, packageRoot: root}),
       "Установка из npm store остаётся обычной зависимостью и не становится исходным владельцем")
       .toEqual([await realpath(root)])
   })
@@ -219,7 +219,7 @@ describe("external Storybook package compiler", () => {
     await writeJson(join(root, "package.json"), {name: "@fixture/version-consumer", dependencies: {"@fixture/owner": "^1.0.0"}})
     await writeJson(join(owner, "package.json"), {name: "@fixture/owner", version: "2.0.0"})
     await linkPackage(root, "@fixture/owner", owner)
-    expect(() => resolveStorybookCompilerSourceRoots({projectRoot: root, packageRoot: root}),
+    expect(() => resolveStorybookCompilerSourceRoots({repo: root, packageRoot: root}),
       "Наличие ссылки не подменяет требование совместимости объявленной версии")
       .toThrow("does not satisfy ^1.0.0")
   })
@@ -228,7 +228,7 @@ describe("external Storybook package compiler", () => {
     const root = await temporaryRoot()
     const packageRoot = join(root, "engine")
     await mkdir(packageRoot, {recursive: true})
-    await writeJson(join(root, "package.json"), {name: "@fixture/project"})
+    await writeJson(join(root, "package.json"), {name: "@fixture/repo"})
     await writeJson(join(root, "tsconfig.json"), {
       compilerOptions: {jsxImportSource: "@zavx0z/jsx"},
     })
@@ -237,7 +237,7 @@ describe("external Storybook package compiler", () => {
     const plugins = await createStorybookPackageCompilerPlugins({
       toolRoot,
       packageRoot,
-      projectRoot: root,
+      repo: root,
       moduleSourcePaths: [],
     })
 
@@ -248,13 +248,13 @@ describe("external Storybook package compiler", () => {
   })
 
   test("собирает композицию IconButton и Button с единственными владельцами runtime", async () => {
-    const projectRoot = await realpath(resolve(import.meta.dir, "../../../../../immersive"))
-    const packageRoot = join(projectRoot, "ui")
+    const repo = await realpath(resolve(import.meta.dir, "../../../../../immersive"))
+    const packageRoot = join(repo, "ui")
     const source = join(packageRoot, "button/icon-button/index.tsx")
     const plugins = await createStorybookPackageCompilerPlugins({
       toolRoot,
       packageRoot,
-      projectRoot,
+      repo,
       moduleSourcePaths: [source],
     })
     const result = await Bun.build({
@@ -280,7 +280,7 @@ describe("external Storybook package compiler", () => {
     const plugins = await createStorybookPackageCompilerPlugins({
       toolRoot,
       packageRoot,
-      projectRoot: packageRoot,
+      repo: packageRoot,
       moduleSourcePaths: [mirrorSource],
     })
 
@@ -297,7 +297,7 @@ describe("external Storybook package compiler", () => {
     await expect(createStorybookPackageCompilerPlugins({
       toolRoot,
       packageRoot,
-      projectRoot: packageRoot,
+      repo: packageRoot,
       moduleSourcePaths: [mirrorSource],
     })).rejects.toThrow("must be an exact non-symlink file")
   })
@@ -332,7 +332,7 @@ describe("external Storybook package compiler", () => {
   })
 
   test("fails closed when consumer and tool graphs name different JSX Bun roots", async () => {
-    const fixture = await jsxProjectFixture(String.raw`
+    const fixture = await jsxRepoFixture(String.raw`
 export default function createJsxBunPlugin() {
   return {name: "alternate-template", setup() {}}
 }
@@ -342,10 +342,10 @@ export default function createJsxBunPlugin() {
     )
   })
 
-  test("rejects package and module paths outside their project boundary", async () => {
-    const projectRoot = await temporaryRoot()
+  test("rejects package and module paths outside their Repo boundary", async () => {
+    const repo = await temporaryRoot()
     const foreignRoot = await temporaryRoot()
-    await writeJson(join(projectRoot, "package.json"), {name: "@fixture/project"})
+    await writeJson(join(repo, "package.json"), {name: "@fixture/repo"})
     await writeJson(join(foreignRoot, "package.json"), {name: "@fixture/foreign"})
     const foreignSource = join(foreignRoot, "story.ts")
     await Bun.write(foreignSource, "export const story = true")
@@ -353,15 +353,15 @@ export default function createJsxBunPlugin() {
     await expect(createStorybookPackageCompilerPlugins({
       toolRoot,
       packageRoot: foreignRoot,
-      projectRoot,
+      repo,
       moduleSourcePaths: [foreignSource],
-    })).rejects.toThrow("package root must be inside project root")
+    })).rejects.toThrow("package root must be inside repo root")
     await expect(createStorybookPackageCompilerPlugins({
       toolRoot,
-      packageRoot: projectRoot,
-      projectRoot,
+      packageRoot: repo,
+      repo,
       moduleSourcePaths: [foreignSource],
-    })).rejects.toThrow("module source must be inside project root")
+    })).rejects.toThrow("module source must be inside repo root")
   })
 })
 
@@ -381,8 +381,8 @@ async function moduleMirrorFixture() {
   return {packageRoot, source, mirrorSource}
 }
 
-async function jsxProjectFixture(adapterSource?: string): Promise<Readonly<{
-  projectRoot: string
+async function jsxRepoFixture(adapterSource?: string): Promise<Readonly<{
+  repo: string
   packageRoot: string
   adapterRoot: string
   linkedRoot: string
@@ -390,8 +390,8 @@ async function jsxProjectFixture(adapterSource?: string): Promise<Readonly<{
   input: Parameters<typeof createStorybookPackageCompilerPlugins>[0]
 }>> {
   const root = await temporaryRoot()
-  const projectRoot = join(root, "project")
-  const packageRoot = join(projectRoot, "packages", "owner")
+  const repo = join(root, "repo")
+  const packageRoot = join(repo, "packages", "owner")
   const jsxRoot = await realpath(resolve(import.meta.dir, "../../../../../immersive/jsx"))
   const adapterRoot = adapterSource === undefined
     ? join(jsxRoot, "compiler/bun")
@@ -399,7 +399,7 @@ async function jsxProjectFixture(adapterSource?: string): Promise<Readonly<{
   const linkedRoot = join(root, "owners", "linked")
   const transitiveRoot = join(root, "owners", "transitive")
   await Promise.all([
-    projectRoot,
+    repo,
     packageRoot,
     ...(adapterSource === undefined ? [] : [adapterRoot]),
     linkedRoot,
@@ -407,8 +407,8 @@ async function jsxProjectFixture(adapterSource?: string): Promise<Readonly<{
   ]
     .map((path) => mkdir(path, {recursive: true})))
 
-  await writeJson(join(projectRoot, "package.json"), {
-    name: "@fixture/project",
+  await writeJson(join(repo, "package.json"), {
+    name: "@fixture/repo",
     workspaces: ["packages/*"],
     dependencies: {
       "@fixture/owner": "workspace:*",
@@ -431,22 +431,22 @@ async function jsxProjectFixture(adapterSource?: string): Promise<Readonly<{
   })
   await writeJson(join(transitiveRoot, "package.json"), {name: "@fixture/transitive"})
 
-  await linkPackage(projectRoot, "@fixture/owner", packageRoot)
-  await linkPackage(projectRoot, "@fixture/linked", linkedRoot)
-  await linkPackage(projectRoot, "@zavx0z/jsx", jsxRoot)
-  await linkPackage(projectRoot, "@jsx-compiler/bun", adapterRoot)
+  await linkPackage(repo, "@fixture/owner", packageRoot)
+  await linkPackage(repo, "@fixture/linked", linkedRoot)
+  await linkPackage(repo, "@zavx0z/jsx", jsxRoot)
+  await linkPackage(repo, "@jsx-compiler/bun", adapterRoot)
   await linkPackage(linkedRoot, "@fixture/transitive", transitiveRoot)
 
-  await Bun.write(join(projectRoot, "tsconfig.base.json"), String.raw`{
+  await Bun.write(join(repo, "tsconfig.base.json"), String.raw`{
     // The owner compiler setting may come from an existing JSONC base.
     "compilerOptions": {"jsxImportSource": "@zavx0z/jsx"}
   }`)
-  await writeJson(join(projectRoot, "tsconfig.json"), {extends: "./tsconfig.base.json"})
+  await writeJson(join(repo, "tsconfig.json"), {extends: "./tsconfig.base.json"})
   const source = join(packageRoot, "story.tsx")
   await Bun.write(source, "export const story = <Component />")
 
   return Object.freeze({
-    projectRoot,
+    repo,
     packageRoot,
     adapterRoot,
     linkedRoot,
@@ -454,7 +454,7 @@ async function jsxProjectFixture(adapterSource?: string): Promise<Readonly<{
     input: Object.freeze({
       toolRoot,
       packageRoot,
-      projectRoot,
+      repo,
       moduleSourcePaths: Object.freeze([source]),
     }),
   })
@@ -465,16 +465,16 @@ async function d3ReExportFixture(): Promise<Readonly<{
   input: Parameters<typeof createStorybookPackageCompilerPlugins>[0]
 }>> {
   const root = await temporaryRoot()
-  const projectRoot = join(root, "project")
-  const packageRoot = join(projectRoot, "packages", "owner")
+  const repo = join(root, "repo")
+  const packageRoot = join(repo, "packages", "owner")
   const governedRoot = join(root, "governed")
   const d3DagRoot = join(packageRoot, "node_modules", "d3-dag")
   const d3ArrayRoot = join(packageRoot, "node_modules", "d3-array")
-  await Promise.all([projectRoot, packageRoot, governedRoot, d3DagRoot, d3ArrayRoot]
+  await Promise.all([repo, packageRoot, governedRoot, d3DagRoot, d3ArrayRoot]
     .map((path) => mkdir(path, {recursive: true})))
 
-  await writeJson(join(projectRoot, "package.json"), {
-    name: "@fixture/d3-project",
+  await writeJson(join(repo, "package.json"), {
+    name: "@fixture/d3-repo",
     workspaces: ["packages/*"],
   })
   await writeJson(join(packageRoot, "package.json"), {
@@ -523,7 +523,7 @@ async function d3ReExportFixture(): Promise<Readonly<{
     input: Object.freeze({
       toolRoot,
       packageRoot,
-      projectRoot,
+      repo,
       moduleSourcePaths: Object.freeze([source]),
     }),
   })
@@ -584,8 +584,8 @@ function resolveWithPlugin(plugin: Bun.BunPlugin, path: string): Readonly<{path?
 
 test("generated JSX outside the owner becomes an executable compiled child", async () => {
   const Loader = (await import("@package-build/loader")).default
-  const projectRoot = await realpath(resolve(import.meta.dir, "../../../../../immersive"))
-  const packageRoot = join(projectRoot, "ui")
+  const repo = await realpath(resolve(import.meta.dir, "../../../../../immersive"))
+  const packageRoot = join(repo, "ui")
   const source = join(packageRoot, "button/button/index.tsx")
   const root = await temporaryRoot()
   const generatedSourceRoot = join(root, "scenario-jsx")
@@ -604,7 +604,7 @@ test("generated JSX outside the owner becomes an executable compiled child", asy
     }}],
   }])
   for (const module of modules) await Bun.write(join(root, module.path), module.source)
-  const plugins = await createStorybookPackageCompilerPlugins({toolRoot, packageRoot, projectRoot,
+  const plugins = await createStorybookPackageCompilerPlugins({toolRoot, packageRoot, repo,
     moduleSourcePaths: [source], generatedSourceRoot})
   const result = await Bun.build({entrypoints: [join(root, modules[0]!.path)],
     outdir: join(root, "out"), format: "esm", target: "bun", plugins: [...plugins]})
@@ -618,8 +618,8 @@ test("generated JSX outside the owner becomes an executable compiled child", asy
 test("слоты each проходят генерацию, штатную компиляцию и переключение без замены родителя", async () => {
   const readScenario = (await import("@archetypes/scenario-reader")).default
   const Loader = (await import("@package-build/loader")).default
-  const projectRoot = await realpath(resolve(import.meta.dir, "../../../.."))
-  const packageRoot = join(projectRoot, "specs/scenarios/reader/spec/fixture/slots")
+  const repo = await realpath(resolve(import.meta.dir, "../../../.."))
+  const packageRoot = join(repo, "specs/scenarios/reader/spec/fixture/slots")
   const report = await readScenario({path: join(packageRoot, "spec/scenario.spec.tsx")})
   if (report.preview?.kind !== "component") throw new Error(report.stderr)
   const preview = report.preview
@@ -664,7 +664,7 @@ export async function verify() {
   }
 }
 `)
-  const plugins = await createStorybookPackageCompilerPlugins({toolRoot, packageRoot, projectRoot,
+  const plugins = await createStorybookPackageCompilerPlugins({toolRoot, packageRoot, repo,
     moduleSourcePaths: [preview.module.path], generatedSourceRoot})
   const result = await Bun.build({entrypoints: [join(root, "entry.ts")], outdir: join(root, "out"),
     format: "esm", target: "bun", plugins: [...plugins]})
@@ -678,7 +678,7 @@ export async function verify() {
 }, 60000)
 
 test("conditional API домена выбирается по среде фактической сборки", async () => {
-  const fixture = await jsxProjectFixture()
+  const fixture = await jsxRepoFixture()
   await writeJson(join(fixture.linkedRoot, "package.json"), {
     name: "@fixture/linked",
     type: "module",

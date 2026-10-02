@@ -8,14 +8,15 @@ export declare namespace BuildCompiler {
 
   @property toolRoot - Корень установленного toolchain, выбранный вызывающим владельцем.
   @property packageRoot - Канонический корень компилируемого пакета.
-  @property projectRoot - Граница проекта для разрешения исходников и зависимостей.
+  @property repo - Канонический корень Repo для разрешения исходников и зависимостей.
+  Workspaces и общая цепочка tsconfig принадлежат этому Repo; адрес Project не подставляется.
   @property moduleSourcePaths - Авторские модули для определения effective JSX config.
   @property [generatedSourceRoot] - Корень подготовленных модулей текущей сборки.
   */
   type Input = Readonly<{
     toolRoot: string
     packageRoot: string
-    projectRoot: string
+    repo: string
     moduleSourcePaths: readonly string[]
     generatedSourceRoot?: string
   }>
@@ -40,10 +41,10 @@ export declare namespace BuildCompiler {
   @property isOwnedJsxProtocol - Проверяет физического владельца native JSX export.
   */
   type Output = Readonly<{
-    resolveStorybookCompilerSourceRoots(input: Readonly<{projectRoot: string; packageRoot: string}>): readonly string[]
+    resolveStorybookCompilerSourceRoots(input: Readonly<{repo: string, packageRoot: string}>): readonly string[]
     resolveStorybookPackageCompilerInputs(input: Input): StorybookPackageCompilerInputs
-    createStorybookOwnerResolver(input: Readonly<{projectRoot: string; packageRoot: string}>): Bun.BunPlugin
-    createStorybookOwnerSourcePath(input: Readonly<{projectRoot: string; packageRoot: string}>): (path: string) => string
+    createStorybookOwnerResolver(input: Readonly<{repo: string, packageRoot: string}>): Bun.BunPlugin
+    createStorybookOwnerSourcePath(input: Readonly<{repo: string, packageRoot: string}>): (path: string) => string
     createStorybookPackageCompilerPlugins(input: Input): Promise<readonly Bun.BunPlugin[]>
     resolveStorybookJsxImportSource(sourcePath: string): string | undefined
     conditionalExportTarget(value: unknown, conditions?: readonly string[]): string | null

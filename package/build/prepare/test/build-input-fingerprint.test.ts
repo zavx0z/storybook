@@ -22,6 +22,26 @@ afterAll(() => {
 })
 
 describe("Storybook build input fingerprint", () => {
+  test("переименование контекста Repo инвалидирует прежний descriptorDigest без изменения физических входов", () => {
+    const fixture = createFixture()
+    const request = {toolRoot, descriptor: fixture.descriptor, browserEntryPath: fixture.browserEntry}
+    const plan = resolveStorybookPackageBuildInputFingerprintPlan(request)
+    const {repo, ...fields} = fixture.descriptor
+    // Историческое имя существует только в реконструкции identity сохранённого evidence.
+    const previous = BuildInputs.read({...plan, identity: {...fields, projectRoot: repo}})
+    const current = BuildInputs.read(plan)
+    expect(BuildInputs.parse(previous), "Прежнее байтовое свидетельство остаётся структурно валидным")
+      .toEqual(previous)
+    expect(previous.descriptorDigest, "Собственный новый контракт Repo не наследует старую сериализованную identity")
+      .not.toBe(current.descriptorDigest)
+    expect({source: previous.sourceDigest, toolchain: previous.toolchainDigest, validation: previous.validationDigest},
+      "Переименование не меняет физическую область исходников, toolchain или ABI сборки")
+      .toEqual({source: current.sourceDigest, toolchain: current.toolchainDigest, validation: current.validationDigest})
+    const verify = createStorybookBuildInputFingerprintVerifier({toolRoot, browserEntryPath: fixture.browserEntry})
+    expect(verify(previous, fixture.descriptor), "Историческая identity даёт честный cache miss и требует нового подтверждения")
+      .toBeNull()
+  })
+
   test("инвалидирует source, config, inventory и external closure без compiler child", () => {
     const fixture = createFixture()
     const compute = createStorybookBuildInputFingerprintComputer()
@@ -220,7 +240,7 @@ function createFixture(): Readonly<{
   const descriptor = {
     packageId: "@fixture/fingerprint",
     packageRoot: root,
-    projectRoot: root,
+    repo: root,
     sourcePath,
     declarationDigest: "fixture-declaration",
     graphSnapshot: {
@@ -292,7 +312,7 @@ function createHoistedDependencyFixture(): Readonly<{
   const descriptor = {
     packageId: "@fixture/nested-owner",
     packageRoot,
-    projectRoot: packageRoot,
+    repo: packageRoot,
     sourcePath,
     declarationDigest: "nested-declaration",
     graphSnapshot: {

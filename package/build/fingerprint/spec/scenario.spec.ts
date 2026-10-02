@@ -26,7 +26,7 @@ describe.each([
   const descriptor = {
     packageId: "@fixture/fingerprint",
     packageRoot: root,
-    projectRoot: root,
+    repo: root,
     sourcePath,
     declarationDigest: "fixture-declaration",
     graphSnapshot: {protocol: revision.protocol, packageId: "@fixture/fingerprint", declarationDigest: "fixture-declaration", packageGraphDigest: "fixture-graph"},

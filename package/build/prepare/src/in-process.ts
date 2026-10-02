@@ -40,13 +40,13 @@ export async function buildStorybookPackageRevisionInProcess(
   const browserEntryPath = realpathSync(options.browserEntryPath)
   const resolvePlugins = options.resolveCompilerPlugins ?? (async ({
     packageRoot,
-    projectRoot,
+    repo,
     sourcePaths,
     generatedSourceRoot,
   }) => createStorybookPackageCompilerPlugins({
     toolRoot,
     packageRoot,
-    projectRoot,
+    repo,
     moduleSourcePaths: sourcePaths,
     ...(generatedSourceRoot === undefined ? {} : {generatedSourceRoot}),
   }))
@@ -136,7 +136,7 @@ export async function buildStorybookPackageRevisionInProcess(
     const compilerInput = Object.freeze({
       ...(jsxModules.length || componentModules.length ? {generatedSourceRoot} : {}),
       packageRoot: descriptor.packageRoot,
-      projectRoot: descriptor.projectRoot,
+      repo: descriptor.repo,
       sourcePaths,
     })
     input.signal.throwIfAborted()
@@ -211,11 +211,11 @@ export async function buildStorybookPackageRevisionInProcess(
     emitPhase(onPhase, "bundle", "completed")
     const metafile = result.metafile
     if (metafile === undefined) throw storybookBuildError(storybookDiagnostic("link", "Bun emitted no package metafile"))
-    validateBundledModuleExports(descriptor, scenarios, metafile.outputs, descriptor.projectRoot)
+    validateBundledModuleExports(descriptor, scenarios, metafile.outputs, descriptor.repo)
     const stagingPrefix = `${realpathSync(stagingDirectory)}${sep}`
     let dependencyRealpaths = canonicalizeStorybookPackageIdentities(canonicalBuildInputs(
       metafile.inputs,
-      descriptor.projectRoot,
+      descriptor.repo,
     ).filter((path) => !path.startsWith(stagingPrefix)).concat(
       (descriptor.scenarioSpecs ?? []).flatMap(({sourcePaths}) => sourcePaths.map(stableBuildInputPath)),
     ))
@@ -355,7 +355,7 @@ function validateBundledModuleExports(
   descriptor: StorybookPackageBuildDescriptor,
   scenarios: readonly StorybookGeneratedScenario[],
   outputs: Readonly<Record<string, unknown>>,
-  projectRoot: string,
+  repo: string,
 ): void {
   const modules = [
     ...scenarios.flatMap(scenario => scenario.kind === "component" ? [scenario.module] : []),
@@ -366,7 +366,7 @@ function validateBundledModuleExports(
     const record = output as Record<string, unknown>
     if (typeof record.entryPoint !== "string" || !Array.isArray(record.exports) ||
       !record.exports.every((value) => typeof value === "string")) continue
-    const entry = canonicalBuildInputs({[record.entryPoint]: {}}, projectRoot)[0]
+    const entry = canonicalBuildInputs({[record.entryPoint]: {}}, repo)[0]
     if (entry !== undefined) exportsByEntry.set(entry, Object.freeze([...record.exports] as string[]))
   }
   for (const module of modules) {

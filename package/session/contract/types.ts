@@ -30,10 +30,16 @@ export type StorybookPackageRevisionResourceFile = Readonly<{
   derivedContent?: string
 }>
 
+/**
+Входы одной сборки принадлежат компилируемому пакету и содержащему его Repo.
+
+@property repo - Канонический корень Repo, задающего workspaces и общую среду компиляции.
+Адрес Project не расширяет границу чтения пакета до других участвующих Repo.
+*/
 export type StorybookPackageBuildDescriptor = Readonly<{
   packageId: string
   packageRoot: string
-  projectRoot: string
+  repo: string
   sourcePath: string
   declarationDigest: string
   graphSnapshot: ReturnType<PackageRevision.Output["create"]>

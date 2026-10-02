@@ -24,7 +24,7 @@ describe.each([
   mkdirSync(join(root, "node_modules/@zavx0z"), {recursive: true})
   symlinkSync(realpathSync(join(toolRoot, "node_modules/@zavx0z/jsx")), join(root, "node_modules/@zavx0z/jsx"))
   symlinkSync(realpathSync(join(toolRoot, "node_modules/@zavx0z/template")), join(root, "node_modules/@zavx0z/template"))
-  writeFileSync(join(root, "package.json"), JSON.stringify({name: "@fixture/project", type: "module"}))
+  writeFileSync(join(root, "package.json"), JSON.stringify({name: "@fixture/repo", type: "module"}))
   writeFileSync(sourcePath, JSON.stringify({name: "@fixture/package", type: "module"}))
   writeFileSync(join(packageRoot, "module/index.ts"), "export const module = true\n")
   writeFileSync(browserEntryPath, "export async function startExternalStorybookPackage(input: unknown) { return input }\n")
@@ -34,7 +34,7 @@ describe.each([
   const descriptor = {
     packageId: "@fixture/package",
     packageRoot,
-    projectRoot: root,
+    repo: root,
     sourcePath,
     declarationDigest,
     graphSnapshot: revision.create(graph, "@fixture/package", declarationDigest),

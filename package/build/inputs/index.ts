@@ -17,13 +17,13 @@ const {canonicalizeStorybookPackageFile, preferredStorybookPackageRoot, readStor
 
 function canonicalBuildInputs(
   inputs: Readonly<Record<string, unknown>>,
-  projectRoot: string,
+  repo: string,
 ): readonly string[] {
   const paths = Object.keys(inputs).flatMap((path) => {
     if (path.startsWith("<") || path.startsWith("node:")) return []
     const candidates = isAbsolute(path)
       ? [path]
-      : [resolve(projectRoot, path), resolve(process.cwd(), path)]
+      : [resolve(repo, path), resolve(process.cwd(), path)]
     const candidate = candidates.find(existsSync)
     return candidate === undefined ? [] : [stableBuildInputPath(candidate)]
   })
@@ -40,7 +40,7 @@ function validateConsumerBoundary(
   descriptor: StorybookPackageBuildDescriptor,
   stagingDirectory: string,
 ): void {
-  const roots = [descriptor.packageRoot, descriptor.projectRoot].map((path) => `${realpathSync(path)}${sep}`)
+  const roots = [descriptor.packageRoot, descriptor.repo].map((path) => `${realpathSync(path)}${sep}`)
   const staging = `${resolve(stagingDirectory)}${sep}`
   for (const path of paths) {
     if (path.startsWith(staging) || !roots.some((root) => path.startsWith(root))) continue

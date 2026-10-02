@@ -25,7 +25,10 @@ import type {PackageBuildDescriptor} from "./contract"
 
 export type {PackageBuildDescriptor} from "./contract"
 
-/** Derives build inputs from the canonical graph instead of a second build registry. */
+/**
+Выводит входы сборки из canonical graph. Первый пакет структурного пути задаёт
+содержащий Repo; конкретный Project не входит в compiler context пакета.
+*/
 export default function externalStorybookPackageDescriptors(
   catalog: PackageBuildDescriptor.Input[0],
   graph: PackageBuildDescriptor.Input[1],
@@ -38,14 +41,14 @@ export default function externalStorybookPackageDescriptors(
   const workbenchAuthorStyleSheets = styles
   return Object.freeze(packages.filter(declaration => include === undefined || include.has(declaration.id)).map((declaration) => {
     const node = externalStorybookNode(graph, declaration.canonicalId)
-    const projectNode = [...node.structuralPath]
+    const repoNode = [...node.structuralPath]
       .map((id) => externalStorybookNode(graph, id))
       .find(({kind}) => kind === "package")
-    const projectDeclaration = projectNode === undefined
+    const repoDeclaration = repoNode === undefined
       ? null
-      : catalog.scopes.find(({canonicalId}) => canonicalId === projectNode.id)
-    const projectRoot = projectDeclaration !== undefined && projectDeclaration !== null
-      ? projectDeclaration.scopeRoot
+      : catalog.scopes.find(({canonicalId}) => canonicalId === repoNode.id)
+    const repo = repoDeclaration !== undefined && repoDeclaration !== null
+      ? repoDeclaration.scopeRoot
       : declaration.scopeRoot
     const scenarioSpecs = graph.nodes.flatMap((candidate) =>
       candidate.packageId === declaration.id && candidate.scenarioSpec !== undefined
@@ -100,7 +103,7 @@ export default function externalStorybookPackageDescriptors(
     return Object.freeze({
       packageId: declaration.id,
       packageRoot: declaration.scopeRoot,
-      projectRoot,
+      repo,
       sourcePath: declaration.source.path,
       declarationDigest,
       resourceFiles: Object.freeze(resourceFiles),

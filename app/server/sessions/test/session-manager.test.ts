@@ -166,7 +166,7 @@ function descriptor(
   return {
     packageId: `@fixture/${id}`,
     packageRoot,
-    projectRoot: root,
+    repo: root,
     sourcePath,
     declarationDigest,
     graphSnapshot: graphSnapshot(`@fixture/${id}`, declarationDigest),

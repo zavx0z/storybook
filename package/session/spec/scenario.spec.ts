@@ -24,7 +24,7 @@ describe.each([
   const session = new PackageSession({
     packageId,
     packageRoot: root,
-    projectRoot: root,
+    repo: root,
     sourcePath,
     declarationDigest,
     graphSnapshot,

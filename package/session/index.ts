@@ -917,7 +917,7 @@ function normalizeDescriptor(value: StorybookPackageBuildDescriptor): StorybookP
   if (value === null || typeof value !== "object") throw new Error("Storybook package descriptor must be an object")
   const packageId = requiredText("packageId", value.packageId)
   const packageRoot = realpathSync(value.packageRoot)
-  const projectRoot = realpathSync(value.projectRoot)
+  const repo = realpathSync(value.repo)
   const sourcePath = safeRealpath(value.sourcePath)
   const declarationDigest = requiredText("declarationDigest", value.declarationDigest)
   const graphSnapshot = Revision.validate(value.graphSnapshot, packageId)
@@ -998,7 +998,7 @@ function normalizeDescriptor(value: StorybookPackageBuildDescriptor): StorybookP
   return Object.freeze({
     packageId,
     packageRoot,
-    projectRoot,
+    repo,
     sourcePath,
     declarationDigest,
     resourceFiles,
@@ -1012,7 +1012,7 @@ function sameDescriptor(left: StorybookPackageBuildDescriptor, right: StorybookP
   return left.declarationDigest === right.declarationDigest &&
     left.graphSnapshot.packageGraphDigest === right.graphSnapshot.packageGraphDigest &&
     left.packageRoot === right.packageRoot &&
-    left.projectRoot === right.projectRoot &&
+    left.repo === right.repo &&
     left.sourcePath === right.sourcePath &&
     JSON.stringify(left.scenarioSpecs ?? []) === JSON.stringify(right.scenarioSpecs ?? []) &&
     JSON.stringify(left.resourceFiles ?? []) === JSON.stringify(right.resourceFiles ?? [])

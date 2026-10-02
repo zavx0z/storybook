@@ -310,7 +310,7 @@ function createFixture(): Readonly<{root: string; packageRoot: string; browserEn
   const sourcePath = join(packageRoot, "package.json")
   const browserEntry = join(root, "browser-entry.ts")
   const jsxRoot = realpathSync(join(import.meta.dir, "../../../../node_modules/@zavx0z/jsx"))
-  writeFileSync(join(root, "package.json"), JSON.stringify({name: "@fixture/project", type: "module",
+  writeFileSync(join(root, "package.json"), JSON.stringify({name: "@fixture/repo", type: "module",
     devDependencies: {"@zavx0z/jsx": "link:@zavx0z/jsx"}}))
   mkdirSync(join(root, "node_modules", "@zavx0z"), {recursive: true})
   symlinkSync(jsxRoot, join(root, "node_modules", "@zavx0z", "jsx"))
@@ -320,7 +320,7 @@ function createFixture(): Readonly<{root: string; packageRoot: string; browserEn
   writeFileSync(browserEntry, ["export async function startExternalStorybookPackage(input: unknown) {",
     "  globalThis.__fixture = input", "}", "declare global { var __fixture: unknown }", ""].join("\n"))
   return Object.freeze({root, packageRoot, browserEntry, descriptor: {
-    packageId: "@fixture/package", packageRoot, projectRoot: root, sourcePath,
+    packageId: "@fixture/package", packageRoot, repo: root, sourcePath,
     declarationDigest: "fixture-declaration", graphSnapshot: graphSnapshot("@fixture/package", "fixture-declaration"),
     resourceFiles: [],
   }})

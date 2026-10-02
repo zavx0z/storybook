@@ -19,6 +19,10 @@ export type {PackageBuildFingerprint} from "./contract"
 Unknown/old/missing evidence, изменённый descriptor, source inventory, config,
 toolchain либо ABI возвращают `null`: session сохраняет lastWorking artifact, но
 не объявляет его cache hit и заказывает cold build. Compiler child не запускается.
+
+Переименование поля контекста Repo в descriptor меняет descriptorDigest.
+Сохранённое свидетельство получает cache miss без подмены проверенных digests;
+строгость пакета и lastWorking artifact сохраняются восстановлением session.
 */
 export default function createStorybookBuildInputFingerprintVerifier(
   options: PackageBuildFingerprint.Input,

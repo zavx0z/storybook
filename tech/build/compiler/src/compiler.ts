@@ -56,15 +56,15 @@ type OwnerDependencyGraph = Readonly<{
 подключают владельца; обычный диапазон проверяется по версии его манифеста.
 */
 export function resolveStorybookCompilerSourceRoots(input: Readonly<{
-  projectRoot: string
+  repo: string
   packageRoot: string
 }>): readonly string[] {
-  const projectRoot = canonicalDirectory(input.projectRoot, "Storybook project root")
+  const repo = canonicalDirectory(input.repo, "Storybook Repo root")
   const packageRoot = canonicalDirectory(input.packageRoot, "Storybook package root")
-  if (!inside(projectRoot, packageRoot)) {
-    throw new Error(`Storybook package root must be inside project root: ${packageRoot}`)
+  if (!inside(repo, packageRoot)) {
+    throw new Error(`Storybook package root must be inside repo root: ${packageRoot}`)
   }
-  return discoverOwnerDependencyGraph(projectRoot, packageRoot).sourceRoots
+  return discoverOwnerDependencyGraph(repo, packageRoot).sourceRoots
 }
 
 /**
@@ -91,15 +91,15 @@ export function resolveStorybookPackageCompilerInputs(
 
 /** Resolves runtime imports to the same exact owner roots governed by compilation. */
 export function createStorybookOwnerResolver(input: Readonly<{
-  projectRoot: string
+  repo: string
   packageRoot: string
 }>): Bun.BunPlugin {
-  const projectRoot = canonicalDirectory(input.projectRoot, "Storybook project root")
+  const repo = canonicalDirectory(input.repo, "Storybook Repo root")
   const packageRoot = canonicalDirectory(input.packageRoot, "Storybook package root")
-  if (!inside(projectRoot, packageRoot)) {
-    throw new Error(`Storybook package root must be inside project root: ${packageRoot}`)
+  if (!inside(repo, packageRoot)) {
+    throw new Error(`Storybook package root must be inside repo root: ${packageRoot}`)
   }
-  const graph = discoverOwnerDependencyGraph(projectRoot, packageRoot)
+  const graph = discoverOwnerDependencyGraph(repo, packageRoot)
   return exactOwnerResolver({
     packageRootsByName: graph.packageRootsByName,
   })
@@ -107,15 +107,15 @@ export function createStorybookOwnerResolver(input: Readonly<{
 
 /** Maps an attested installed hardlink back to its one canonical owner source path. */
 export function createStorybookOwnerSourcePath(input: Readonly<{
-  projectRoot: string
+  repo: string
   packageRoot: string
 }>): (path: string) => string {
-  const projectRoot = canonicalDirectory(input.projectRoot, "Storybook project root")
+  const repo = canonicalDirectory(input.repo, "Storybook Repo root")
   const packageRoot = canonicalDirectory(input.packageRoot, "Storybook package root")
-  if (!inside(projectRoot, packageRoot)) {
-    throw new Error(`Storybook package root must be inside project root: ${packageRoot}`)
+  if (!inside(repo, packageRoot)) {
+    throw new Error(`Storybook package root must be inside repo root: ${packageRoot}`)
   }
-  const roots = discoverOwnerDependencyGraph(projectRoot, packageRoot).packageRootsByName
+  const roots = discoverOwnerDependencyGraph(repo, packageRoot).packageRootsByName
   return (path: string): string => {
     const installed = readStorybookPackageOwner(path)
     if (installed === null) return path
@@ -152,7 +152,7 @@ export async function createStorybookPackageCompilerPlugins(
   let candidate: unknown
   try {
     candidate = factory({
-      cwd: context.projectRoot,
+      cwd: context.repo,
       persistent: false,
       sourceRoots: [...context.compilerRoots.sourceRoots, ...(input.generatedSourceRoot ? [input.generatedSourceRoot] : [])],
       styleSourceRootIds: [...context.compilerRoots.styleSourceRootIds, ...(input.generatedSourceRoot ? ["storybook-scenario-jsx"] : [])],
@@ -168,33 +168,33 @@ export async function createStorybookPackageCompilerPlugins(
 function resolveCompilerContext(
   input: StorybookPackageCompilerInput,
 ): Readonly<{
-  projectRoot: string
+  repo: string
   packageRootsByName: ReadonlyMap<string, string>
   compilerRoots: Readonly<{sourceRoots: readonly string[]; styleSourceRootIds: readonly string[]}>
   sourceRoots: readonly string[]
   adapterPath: string
   configPaths: readonly string[]
 }> {
-  const projectRoot = canonicalDirectory(input.projectRoot, "Storybook project root")
+  const repo = canonicalDirectory(input.repo, "Storybook Repo root")
   const packageRoot = canonicalDirectory(input.packageRoot, "Storybook package root")
-  if (!inside(projectRoot, packageRoot)) {
-    throw new Error(`Storybook package root must be inside project root: ${packageRoot}`)
+  if (!inside(repo, packageRoot)) {
+    throw new Error(`Storybook package root must be inside repo root: ${packageRoot}`)
   }
   if (!Array.isArray(input.moduleSourcePaths)) {
     throw new TypeError("Storybook compiler moduleSourcePaths must be a list")
   }
   const sourcePaths = Object.freeze([...new Set(input.moduleSourcePaths.map((path, index) =>
-    canonicalSourcePath(path, index, packageRoot, projectRoot)))].sort(comparePaths))
+    canonicalSourcePath(path, index, packageRoot, repo)))].sort(comparePaths))
   const toolRoot = canonicalDirectory(input.toolRoot, "Storybook tool root")
   const toolGraph = discoverOwnerDependencyGraph(toolRoot, toolRoot)
   const hasConsumerModules = sourcePaths.length > 0
-  const dependencyGraph = hasConsumerModules ? discoverOwnerDependencyGraph(projectRoot, packageRoot) : toolGraph
+  const dependencyGraph = hasConsumerModules ? discoverOwnerDependencyGraph(repo, packageRoot) : toolGraph
   const packageRootsByName = mergeOwnerPackageRoots(
     dependencyGraph.packageRootsByName,
     toolGraph.packageRootsByName,
   )
   const effectiveConfig = hasConsumerModules
-    ? effectiveJsxCompilerConfig(projectRoot, packageRoot, sourcePaths)
+    ? effectiveJsxCompilerConfig(repo, packageRoot, sourcePaths)
     : Object.freeze({jsxImportSource: undefined, configPaths: Object.freeze([])})
   const jsxImportSource = effectiveConfig.jsxImportSource
   const compileOwnerJsx = hasConsumerModules && jsxImportSource === JSX_IMPORT_SOURCE
@@ -219,9 +219,9 @@ function resolveCompilerContext(
     ...(compileOwnerJsx ? [dependencyGraph] : []),
     toolGraph,
   )
-  const adapterPath = resolveJsxAdapter(packageRoot, projectRoot, adapterRoot, toolRoot)
+  const adapterPath = resolveJsxAdapter(packageRoot, repo, adapterRoot, toolRoot)
   return Object.freeze({
-    projectRoot,
+    repo,
     packageRootsByName,
     compilerRoots,
     sourceRoots: Object.freeze([...new Set([
@@ -349,17 +349,17 @@ function resolveExactOwnerExport(
 
 /** Читает effective JSX owner и сохраняет каждый реально посещённый config. */
 function effectiveJsxCompilerConfig(
-  projectRoot: string,
+  repo: string,
   packageRoot: string,
   sourcePaths: readonly string[],
 ): Readonly<{jsxImportSource: string | undefined; configPaths: readonly string[]}> {
   const configPaths = new Set<string>()
   for (const sourcePath of sourcePaths) {
-    const configPath = findNearestTsconfig(dirname(sourcePath), projectRoot)
+    const configPath = findNearestTsconfig(dirname(sourcePath), repo)
     if (configPath !== null) configPaths.add(configPath)
   }
   if (configPaths.size === 0) {
-    const packageConfig = findNearestTsconfig(packageRoot, projectRoot)
+    const packageConfig = findNearestTsconfig(packageRoot, repo)
     if (packageConfig !== null) configPaths.add(packageConfig)
   }
   if (configPaths.size === 0) {
@@ -407,12 +407,12 @@ export function resolveStorybookJsxImportSource(sourcePath: string): string | un
   return config === null ? undefined : readTsconfigJsxImportSource(config, new Map(), new Set(), new Set())
 }
 
-function findNearestTsconfig(start: string, projectRoot: string): string | null {
+function findNearestTsconfig(start: string, repo: string): string | null {
   let directory = canonicalDirectory(start, "Storybook compiler source directory")
-  while (inside(projectRoot, directory)) {
+  while (inside(repo, directory)) {
     const candidate = join(directory, "tsconfig.json")
     if (existsSync(candidate)) return canonicalFile(candidate, "Storybook tsconfig")
-    if (directory === projectRoot) break
+    if (directory === repo) break
     directory = dirname(directory)
   }
   return null
@@ -487,12 +487,12 @@ function resolveExtendedTsconfig(specifier: string, fromDirectory: string): stri
 }
 
 function discoverOwnerDependencyGraph(
-  projectRoot: string,
+  repo: string,
   packageRoot: string,
 ): OwnerDependencyGraph {
   const queue = [
-    ...(existsSync(join(projectRoot, "package.json")) ? [projectRoot] : []),
-    ...(packageRoot === projectRoot ? [] : [packageRoot]),
+    ...(existsSync(join(repo, "package.json")) ? [repo] : []),
+    ...(packageRoot === repo ? [] : [packageRoot]),
   ]
   if (queue.length === 0) {
     throw new Error(`Storybook owner package manifest is missing: ${packageRoot}`)
@@ -503,7 +503,7 @@ function discoverOwnerDependencyGraph(
   while (queue.length > 0) {
     const root = queue.shift()!
     if (manifestsByRoot.has(root)) continue
-    const manifest = readPackageManifest(root, root === projectRoot || root === packageRoot)
+    const manifest = readPackageManifest(root, root === repo || root === packageRoot)
     manifestsByRoot.set(root, manifest)
     for (const name of manifest.declaredDependencies) declaredDependencies.add(name)
     registerPackageRoot(packageRootsByName, manifest.name, root)
@@ -522,11 +522,11 @@ function discoverOwnerDependencyGraph(
   }
 
   const externalRoots = [...new Set(packageRootsByName.values())]
-    .filter((root) => !inside(projectRoot, root))
+    .filter((root) => !inside(repo, root))
     .sort(comparePaths)
   for (const root of externalRoots) {
-    if (inside(root, projectRoot)) {
-      throw new Error(`Owner dependency root cannot contain the Storybook project: ${root}`)
+    if (inside(root, repo)) {
+      throw new Error(`Owner dependency root cannot contain the Storybook Repo: ${root}`)
     }
   }
   const sourceOwners = new Map<string, string>()
@@ -539,11 +539,11 @@ function discoverOwnerDependencyGraph(
       sourceOwners.set(physicalRoot, name)
     }
   }
-  const projectSource = sourceOwners.get(projectRoot)
+  const repoSource = sourceOwners.get(repo)
   const orderedSources = [
-    ...(projectSource === undefined ? [] : [[projectRoot, projectSource] as const]),
+    ...(repoSource === undefined ? [] : [[repo, repoSource] as const]),
     ...[...sourceOwners]
-      .filter(([root]) => root !== projectRoot)
+      .filter(([root]) => root !== repo)
       .sort(([left], [right]) => comparePaths(left, right)),
   ]
   return Object.freeze({
@@ -760,7 +760,7 @@ function findResolvedPackageRoot(entry: string, expectedName: string): string | 
 
 function resolveJsxAdapter(
   packageRoot: string,
-  projectRoot: string,
+  repo: string,
   adapterRoot: string,
   toolRoot: string,
 ): string {
@@ -786,7 +786,7 @@ function resolveJsxAdapter(
   }
   const attempts = [...new Set([
     packageRoot,
-    projectRoot,
+    repo,
     toolRoot,
   ])]
   for (const fromRoot of attempts) {
@@ -844,25 +844,25 @@ function canonicalSourcePath(
   value: string,
   index: number,
   packageRoot: string,
-  projectRoot: string,
+  repo: string,
 ): string {
   if (typeof value !== "string" || value.length === 0) {
     throw new TypeError(`Storybook compiler module source ${index} must be a path`)
   }
   // Preserve the declared owner path: native realpath may select a Bun hardlink
-  // mirror in node_modules even though the exact lexical file is inside projectRoot.
+  // mirror in node_modules even though the exact lexical file is inside repo.
   const lexicalPath = canonicalLexicalFile(isAbsolute(value) ? value : resolve(packageRoot, value),
     `Storybook compiler module source ${index}`)
   let path = lexicalPath
-  if (!inside(projectRoot, path)) {
+  if (!inside(repo, path)) {
     try {
       path = canonicalizeStorybookPackageFile(packageRoot, path)
     } catch {
-      // A foreign source still fails the project boundary below.
+      // A foreign source still fails the Repo boundary below.
     }
   }
-  if (!inside(projectRoot, path)) {
-    throw new Error(`Storybook compiler module source must be inside project root: ${path}`)
+  if (!inside(repo, path)) {
+    throw new Error(`Storybook compiler module source must be inside repo root: ${path}`)
   }
   return path
 }

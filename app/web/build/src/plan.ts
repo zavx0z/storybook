@@ -70,7 +70,7 @@ export function resolveStorybookSharedBuildInputFingerprintPlan(
   const compiler = resolveStorybookPackageCompilerInputs({
     toolRoot,
     packageRoot: toolRoot,
-    projectRoot: toolRoot,
+    repo: toolRoot,
     moduleSourcePaths: entrypoints,
   })
   const ownerRoots = [...compiler.sourceRoots, toolRoot]
