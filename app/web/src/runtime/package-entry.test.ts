@@ -171,7 +171,7 @@ describe("structural package frontend", () => {
       expect(page.shell.document).not.toBe(document)
       expect(page.shell.workbench.elements.catalogItems.scrollTop).toBe(57)
       expect(page.shell.workbench.controller.read("catalog.search")).toBe("docs")
-      expect(fixture.location.href).toBe(`http://localhost${packagePath}`)
+      expect(fixture.location.href).toBe(`http://localhost${packagePath}?inspector=chat`)
       expect(fixture.location.reloads).toBe(0)
       expect(fixture.state.lifecycle).toEqual(["root-create", "root-dispose", "root-create"])
       const nextDocument = page.shell.document
@@ -197,7 +197,7 @@ describe("structural package frontend", () => {
         "root-create", "root-dispose", "root-create", "root-dispose", "root-create",
       ])
       expect(fixture.location.reloads).toBe(0)
-      expect(fixture.location.href).toBe(`http://localhost${packagePath}`)
+      expect(fixture.location.href).toBe(`http://localhost${packagePath}?inspector=chat`)
     } finally { await fixture.page.dispose() }
     expect(fixture.state.disposals).toBe(fixture.state.creations)
   })
@@ -207,7 +207,7 @@ describe("structural package frontend", () => {
     try {
       await fixture.page.navigatePackage({packageId, route: "dir-docs"})
       expect(fixture.page.route).toBe("dir-docs")
-      expect(fixture.history.pushed).toEqual([`${packagePath}/docs`])
+      expect(fixture.history.pushed).toEqual([`${packagePath}/docs?inspector=chat`])
       expect(fixture.location.reloads).toBe(0)
       expect(fixture.state.lifecycle).toEqual(["root-create", "root-dispose", "root-create"])
     } finally { await fixture.page.dispose() }

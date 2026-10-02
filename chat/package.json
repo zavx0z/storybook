@@ -1,0 +1,10 @@
+{
+  "name": "@archetypes/chat",
+  "label": "Чат",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Беседы с агентами, закреплённые за адресами предметов Project",
+  "exports": {".": "./index.ts"},
+  "dependencies": {"@chat/session": "workspace:*", "@chat/view": "workspace:*"}
+}

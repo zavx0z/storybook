@@ -5,6 +5,7 @@ import {
   executionPointIcon,
   expandIcon,
   imageIcon,
+  iconSvg,
   languageIcon,
   settingsIcon,
   visibilityOnIcon,
@@ -16,6 +17,39 @@ import type {
   WorkbenchViewState,
 } from "../contract.ts"
 import {requiredText} from "../validation.ts"
+import type {CompiledTemplate} from "@zavx0z/template/compiled"
+import {ChatWidget, type WorkbenchChatContext} from "./chat-widget.tsx"
+import {canonicalChatAddress} from "./chat-client.ts"
+import type {WorkbenchInspectorCustomWidgetProps} from "../contract.ts"
+
+const chatIcon = iconSvg('<path d="M4 4h16v12H9l-5 4V4Z"/><path d="M8 8h8M8 12h6"/>')
+
+/** Чат — адресная секция Storybook, доступная независимо от предметных секций представления. */
+export const WORKBENCH_CHAT_WIDGET = Object.freeze({
+  id: "chat",
+  kind: "custom" as const,
+  label: "Чат",
+  title: "Чат",
+  iconSrc: chatIcon,
+  wrapInPanel: false,
+  component: ChatWidget as unknown as CompiledTemplate<WorkbenchInspectorCustomWidgetProps>,
+})
+
+/** Сохраняет owner widgets и добавляет первым чат канонического предметного адреса. */
+export function withWorkbenchChat(
+  context: WorkbenchChatContext,
+  subject: WorkbenchInspectorSubject | null = null,
+  values: WorkbenchInspectorValues = {},
+): Readonly<{inspectorSubject: WorkbenchInspectorSubject; inspectorValues: WorkbenchInspectorValues}> {
+  const address = canonicalChatAddress(context.address)
+  return Object.freeze({
+    inspectorSubject: Object.freeze({
+      ...(subject ?? {subjectId: address, workspaceId: address}),
+      widgetIds: Object.freeze(["chat", ...(subject?.widgetIds ?? []).filter(id => id !== "chat")]),
+    }),
+    inspectorValues: Object.freeze({...values, chat: Object.freeze({...context, address})}),
+  })
+}
 
 export const WORKBENCH_STANDARD_WIDGET_REGISTRY = Object.freeze([
   Object.freeze({id: "props", kind: "props", label: "П", title: "Параметры", iconSrc: settingsIcon}),
@@ -93,7 +127,7 @@ export function validateWorkbenchInspectorSubject(
     return id
   })
   return Object.freeze({
-    packageId: requiredText("Inspector subject packageId", subject.packageId),
+    ...(subject.packageId === undefined ? {} : {packageId: requiredText("Inspector subject packageId", subject.packageId)}),
     subjectId: requiredText("Inspector subject subjectId", subject.subjectId),
     ...(subject.workspaceId === undefined
       ? {}

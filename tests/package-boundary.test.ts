@@ -21,7 +21,7 @@ describe("external @zavx0z/storybook tool boundary", () => {
   test("runs multi-package isolation in its own explicit process", async () => {
     const manifest = await Bun.file(join(root, "package.json")).json() as Record<string, any>
     const script = manifest.scripts.test as string
-    expect(script).toContain("bun test --preload @immersive/headless/preload app tech project repo package specs domain component container contracts typedoc tests --max-concurrency=1")
+    expect(script).toContain("bun test --preload @immersive/headless/preload app tech chat project repo package specs domain component container contracts typedoc tests --max-concurrency=1")
     const ignored = script.match(/--path-ignore-patterns '([^']+)'/u)?.[1]
     expect(ignored, "Основной процесс явно исключает изолированную проверку и фикстуры").toBeDefined()
     const paths = new Bun.Glob(ignored!)

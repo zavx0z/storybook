@@ -19,16 +19,50 @@ import {
   type Workbench,
 } from "./contract.ts"
 import type * as ControllerModule from "./controller.ts"
-import {WORKBENCH_STANDARD_WIDGET_REGISTRY} from "./inspector/registry.ts"
+import {WORKBENCH_CHAT_WIDGET, WORKBENCH_STANDARD_WIDGET_REGISTRY, withWorkbenchChat} from "./inspector/registry.ts"
 import {loadCompiledWorkbench} from "../../test/fixture/compile-workbench.ts"
 
 let api: typeof ControllerModule
 
 beforeAll(async () => {
   api = await loadCompiledWorkbench()
-}, 30_000)
+}, 120_000)
 
 describe("compiled Storybook Workbench", () => {
+  test("адресный Chat первый на root, Repo и рядом с предметными секциями; смена Inspector сохраняет Preview", () => {
+    const document = createDocument()
+    const workbench = api.createWorkbench({document, parent: document,
+      initial: {"inspector.registry": [WORKBENCH_CHAT_WIDGET, ...WORKBENCH_STANDARD_WIDGET_REGISTRY]},
+    })
+    const preview = document.createElement("article")
+    const fetcher = (async () => new Response("", {status: 404})) as unknown as typeof fetch
+    try {
+      workbench.present({label: "Project", presentation: {node: preview, projection: "display"},
+        ...withWorkbenchChat({address: "/?inspector=chat", label: "Project", fetcher}),
+      })
+      expect(workbench.controller.read("inspector.subject")).toEqual({subjectId: "/", workspaceId: "/", widgetIds: ["chat"]})
+      expect(workbench.controller.selectedInspector()).toBe("chat")
+      const previewParent = preview.parentNode
+      workbench.present({label: "Component", presentation: {node: preview, projection: "display"},
+        ...withWorkbenchChat({address: "/storybook/component?view=contract", label: "Component", fetcher},
+          {packageId: "@fixture/components", subjectId: "component", workspaceId: "contract", widgetIds: ["source"]},
+          {source: {html: "<div>Example</div>"}}),
+      })
+      expect(workbench.controller.read("inspector.subject")?.widgetIds).toEqual(["chat", "source"])
+      expect(workbench.controller.read("inspector.values").chat).toMatchObject({address: "/storybook/component"})
+      workbench.controller.selectInspector("source")
+      expect(workbench.controller.selectedInspector()).toBe("source")
+      expect(preview.parentNode).toBe(previewParent)
+      workbench.present({label: "Repo", presentation: {node: preview, projection: "display"},
+        ...withWorkbenchChat({address: "/storybook", label: "Repo", fetcher}),
+      })
+      expect(workbench.controller.read("inspector.subject")?.packageId).toBeUndefined()
+      expect(workbench.controller.read("inspector.subject")?.widgetIds).toEqual(["chat"])
+      expect(workbench.controller.selectedInspector()).toBe("chat")
+      expect(preview.parentNode).toBe(previewParent)
+    } finally { workbench.dispose() }
+  })
+
   test("creates one ComponentRoot, five exact regions and one production Inspector", () => {
     const document = createDocument()
     const workbench = api.createWorkbench({

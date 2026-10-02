@@ -9,6 +9,8 @@
     ".": "./index.ts"
   },
   "dependencies": {
+    "@chat/session": "workspace:*",
+    "@tech/acp": "workspace:*",
     "@app-server/state": "workspace:*",
     "@app-web/protocol": "workspace:*",
     "@archetypes/scenario-reader": "workspace:*",

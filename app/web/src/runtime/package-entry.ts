@@ -25,7 +25,7 @@ import {
   type WorkbenchInspectorCustomWidgetRegistration,
   type WorkbenchPresentationUpdate,
 } from "../workbench/contract.ts"
-import {WORKBENCH_STANDARD_WIDGET_REGISTRY} from "../workbench/inspector/registry.ts"
+import {WORKBENCH_CHAT_WIDGET, WORKBENCH_STANDARD_WIDGET_REGISTRY, withWorkbenchChat} from "../workbench/inspector/registry.ts"
 import {createStorybookAgentBridge, type StorybookAgentBridge} from "./agent-bridge.ts"
 import Revision, {type PackageRevision} from "@package/revision"
 type StorybookPackageRevisionGraphSnapshot = ReturnType<PackageRevision.Output["create"]>
@@ -325,7 +325,7 @@ export async function startExternalStorybookPackage(
   let reloadingFallback = false
   let disposed = false
   const publishInspectorRegistry = (): void => {
-    shell.workbench.update("inspector.registry", Object.freeze([...WORKBENCH_STANDARD_WIDGET_REGISTRY, ...BUILTIN_INSPECTOR_WIDGETS]))
+    shell.workbench.update("inspector.registry", Object.freeze([WORKBENCH_CHAT_WIDGET, ...WORKBENCH_STANDARD_WIDGET_REGISTRY, ...BUILTIN_INSPECTOR_WIDGETS]))
   }
 
   /**
@@ -340,9 +340,19 @@ export async function startExternalStorybookPackage(
     next: WorkbenchPresentationUpdate,
     ownerPresentation = false,
   ): void => {
-    activePresentationView = next
-    if (ownerPresentation) shell.present(next)
-    else shell.workbench.present(next)
+    const withChat = Object.freeze({...next, ...withWorkbenchChat({
+      address: currentModel.selectedNode.urlPath,
+      label: currentModel.selectedNode.label,
+      fetcher,
+    }, next.inspectorSubject ?? {
+      packageId,
+      subjectId: currentModel.selectedNode.id,
+      workspaceId: currentModel.urlPath,
+      widgetIds: [],
+    }, next.inspectorValues)})
+    activePresentationView = withChat
+    if (ownerPresentation) shell.present(withChat)
+    else shell.workbench.present(withChat)
   }
 
   const refreshDiagnostics = (): void => {

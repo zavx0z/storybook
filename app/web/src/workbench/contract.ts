@@ -136,7 +136,7 @@ export type WorkbenchInspectorWidgetRegistration =
 /**
 Контекст инспектора одного рабочего пространства представления.
 
-@property packageId - Точный идентификатор пакета, разделяющий состояния разных пакетов.
+@property [packageId] - Точный идентификатор пакета. Адресные root и Repo контексты не объявляют пакет.
 
 @property subjectId - Предметный идентификатор показываемой сущности.
 
@@ -145,7 +145,7 @@ export type WorkbenchInspectorWidgetRegistration =
 @property widgetIds - Идентификаторы доступных секций в порядке показа.
 */
 export type WorkbenchInspectorSubject = Readonly<{
-  packageId: string
+  packageId?: string
   subjectId: string
   workspaceId?: string
   widgetIds: readonly string[]

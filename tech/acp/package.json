@@ -1,0 +1,16 @@
+{
+  "name": "@tech/acp",
+  "label": "ACP",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Подключение к Codex через стандартный ACP SDK и готовый адаптер",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@process/wait": "workspace:*",
+    "@agentclientprotocol/sdk": "^1.6.0",
+    "@agentclientprotocol/codex-acp": "^2.1.1"
+  }
+}

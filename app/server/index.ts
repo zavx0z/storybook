@@ -79,6 +79,7 @@ import {resolveStorybookRoute} from "./src/route"
 import {createStorybookScenarioRunner} from "./src/scenario-run"
 import {streamScenarioRun} from "./src/scenario-stream"
 import {storybookMcpEntries} from "./src/mcp-entries"
+import {createChatServer} from "./src/chat"
 import proxyContent from "@app-mcp/response"
 const errorContent = proxyContent.error
 import {createCatalogRefresh} from "./src/catalog-refresh.ts"
@@ -612,6 +613,14 @@ export default async function startExternalStorybookServer(
   const readStorybook = (request: Request) => storybookRest(request, {projectName: project.name, entries: mcpEntries()})
 
   let server!: Bun.Server<WebSocketData>
+  const chat = createChatServer({
+    project: project.root,
+    projectName: () => project.name,
+    toolRoot,
+    origin: () => server.url.origin,
+    graph: () => registry.snapshot().graph,
+    entries: mcpEntries,
+  })
   try {
     options.onStartupPhase?.("listen")
     server = Bun.serve<WebSocketData>({
@@ -622,6 +631,16 @@ export default async function startExternalStorybookServer(
       const url = new URL(request.url)
       try {
         assertExternalStorybookRequestHost(request, server.url.origin)
+        if (url.pathname === "/api/chat/mcp") {
+          assertExternalStorybookRequestOrigin(request, server.url.origin)
+          return await chat.scopedMcp(request)
+        }
+        if (url.pathname.startsWith("/api/browser/chat/")) {
+          assertExternalStorybookRequestOrigin(request, server.url.origin, {required: request.method !== "GET"})
+          browserSessions.authorize(request.headers.get("x-storybook-session") ?? "")
+          if (url.pathname.endsWith("/events")) currentServer.timeout(request, 0)
+          return await chat.request(request)
+        }
         if (url.pathname === "/api/events") {
           assertExternalStorybookRequestOrigin(request, server.url.origin, {required: true})
           if (request.headers.get("upgrade")?.toLowerCase() !== "websocket") {
@@ -1377,6 +1396,8 @@ export default async function startExternalStorybookServer(
     if (closePromise !== null) return closePromise
     closing = true
     closePromise = (async () => {
+      let chatFailure: unknown
+      try { await chat.dispose() } catch (error) { chatFailure = error }
       await runScenario.dispose()
       await Promise.all([web.dispose(), sharedAssets.dispose(), ...[...retainedHostAssets.values()].map(assets => assets.dispose())])
       unsubscribeWeb()
@@ -1390,6 +1411,7 @@ export default async function startExternalStorybookServer(
       server.stop(true)
       removeOwnedState(statePath, serverRecord)
       stoppedResolve!()
+      if (chatFailure !== undefined) throw chatFailure
     })()
     return closePromise
   }

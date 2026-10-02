@@ -9,6 +9,8 @@
     ".": "./index.ts"
   },
   "dependencies": {
+    "@chat/view": "workspace:*",
+    "@chat/session": "workspace:*",
     "@immersive/markdown": "^0.0.0",
     "@immersive/nodes": "^0.0.0",
     "@immersive/typedoc": "^0.0.0",

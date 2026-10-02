@@ -2,7 +2,7 @@ import WebProtocol, {type AppWebProtocol} from "@app-web/protocol"
 type StorybookSharedHost = ReturnType<typeof WebProtocol.validateSharedHost>
 type ExternalStorybookClientSnapshot = ReturnType<AppWebProtocol.Output["clientSnapshot"]>
 import createHmrConnection, {type HmrConnection} from "@hmr/connection"
-import {WORKBENCH_STANDARD_WIDGET_REGISTRY} from "../workbench/inspector/registry.ts"
+import {WORKBENCH_CHAT_WIDGET, WORKBENCH_STANDARD_WIDGET_REGISTRY, withWorkbenchChat} from "../workbench/inspector/registry.ts"
 import {navigatePackage} from "./package-navigation.ts"
 import ReadGraph from "@package-graph/read"
 import {attachPickedDirectory, pickStorybookDirectory} from "./directory-picker.ts"
@@ -44,7 +44,7 @@ export type StartExternalStorybookLandingOptions = Readonly<{
   readerToken?: string
   navigatePackage?(input: Readonly<{packageId: string; route: string}>): Promise<void>
   location?: Pick<Location, "href" | "pathname" | "reload">
-  history?: Pick<History, "pushState">
+  history?: Pick<History, "pushState"> & Partial<Pick<History, "replaceState">>
   shell?: Omit<CreateExternalStorybookShellOptions, "title" | "browserDocument">
   pageScope?: Readonly<{
     shell: ExternalStorybookShell
@@ -98,9 +98,25 @@ export async function startExternalStorybookLanding(
   updateManagement()
   shell.document.transaction(() => {
     shell.workbench.update("inspector.subject", null)
-    shell.workbench.update("inspector.values", Object.freeze({}))
-    shell.workbench.update("inspector.registry", WORKBENCH_STANDARD_WIDGET_REGISTRY)
+    shell.workbench.update("inspector.registry", Object.freeze([WORKBENCH_CHAT_WIDGET, ...WORKBENCH_STANDARD_WIDGET_REGISTRY]))
+    const chat = withWorkbenchChat({address: "/", label: snapshot.projectName, fetcher})
+    shell.workbench.update("inspector.values", chat.inspectorValues)
+    shell.workbench.update("inspector.subject", chat.inspectorSubject)
   })
+
+  const restoreChatSelection = (): void => {
+    shell.workbench.controller.selectInspector("chat")
+    if (location === undefined || history?.replaceState === undefined) return
+    const url = new URL(location.href)
+    if (url.searchParams.get("inspector") === "chat") return
+    url.searchParams.set("inspector", "chat")
+    history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`)
+  }
+  const publishChat = (address: string, label: string): void => {
+    const chat = withWorkbenchChat({address, label, fetcher})
+    shell.workbench.update("inspector.values", chat.inspectorValues)
+    shell.workbench.update("inspector.subject", chat.inspectorSubject)
+  }
 
   shell.workbench.update("projectName", snapshot.projectName)
   shell.workbench.update("catalog.label", "Репозитории и пакеты")
@@ -110,6 +126,7 @@ export async function startExternalStorybookLanding(
     browserDocument.title = WebProtocol.pageTitle(null)
     selectionRevision += 1
     shell.document.transaction(() => {
+      publishChat("/", snapshot.projectName)
       shell.workbench.update("catalog.active", null)
       shell.workbench.update("tabs.items", [])
       shell.workbench.update("tabs.active", null)
@@ -125,6 +142,7 @@ export async function startExternalStorybookLanding(
         "Выберите Repo или пакет в дереве. Состав Project читается из .gitmodules.",
       )
     })
+    restoreChatSelection()
   }
 
   const breadcrumbsFor = (nodeId: string) => deriveStorybookBreadcrumbs(graph, nodeId, {kind: "landing"})
@@ -143,6 +161,7 @@ export async function startExternalStorybookLanding(
     }
     const selection = deriveExternalStorybookLandingSelection(graph, nodeId)
     shell.document.transaction(() => {
+      publishChat(ReadGraph.browsePath(selection.overviewNode), selection.overviewNode.label)
       shell.workbench.update("catalog.active", nodeId)
       shell.workbench.update("tabs.items", Object.freeze([]))
       shell.workbench.update("tabs.active", null)
@@ -159,6 +178,7 @@ export async function startExternalStorybookLanding(
       location.pathname !== ReadGraph.browsePath(clientNode)) {
       history.pushState(null, "", ReadGraph.browsePath(clientNode))
     }
+    restoreChatSelection()
     try {
       const documentation = await readExternalStorybookNodeDocumentation(clientNode, fetcher)
       if (disposed || revision !== selectionRevision) return
@@ -200,6 +220,7 @@ export async function startExternalStorybookLanding(
         if ("replaceState" in history && typeof history.replaceState === "function") history.replaceState(null, "", "/")
         else history.pushState(null, "", "/")
       }
+      restoreChatSelection()
     }
   }
   const changeRepository = async (action: WorkbenchCatalogAction): Promise<void> => {
@@ -224,11 +245,21 @@ export async function startExternalStorybookLanding(
     void changeRepository((event as CustomEvent<WorkbenchCatalogAction>).detail)
   }
 
+  const onInspector = (event: unknown): void => {
+    const id = (event as CustomEvent<{id?: unknown}>).detail?.id
+    if (id !== "chat" || location === undefined || history === undefined) return
+    const url = new URL(location.href)
+    if (url.searchParams.get("inspector") === "chat") return
+    url.searchParams.set("inspector", "chat")
+    history.pushState(null, "", `${url.pathname}${url.search}${url.hash}`)
+  }
+
   const onNavigate = (event: unknown): void => {
     const detail = (event as CustomEvent<{id: string; kind?: string; urlPath?: string}>).detail
     if (detail.kind === "breadcrumb" && detail.id === STORYBOOK_ROOT_BREADCRUMB.id) {
       showRootOverview()
       if (location !== undefined && history !== undefined && location.pathname !== "/") history.pushState(null, "", "/")
+      restoreChatSelection()
       return
     }
     const node = externalStorybookClientNode(snapshot, detail.id)
@@ -251,6 +282,7 @@ export async function startExternalStorybookLanding(
 
   shell.workbench.element.addEventListener(WORKBENCH_EVENTS.catalogAction, onCatalogAction)
   shell.workbench.element.addEventListener(WORKBENCH_EVENTS.navigate, onNavigate)
+  shell.workbench.element.addEventListener(WORKBENCH_EVENTS.inspector, onInspector)
 
   const socket = createLandingSocket(options, location?.href)
   if (socket !== null) shell.updateStatus(storybookConnectionStatus("connecting"))
@@ -326,6 +358,7 @@ export async function startExternalStorybookLanding(
     selectionRevision += 1
     shell.workbench.element.removeEventListener(WORKBENCH_EVENTS.catalogAction, onCatalogAction)
     shell.workbench.element.removeEventListener(WORKBENCH_EVENTS.navigate, onNavigate)
+    shell.workbench.element.removeEventListener(WORKBENCH_EVENTS.inspector, onInspector)
     connection?.dispose()
     if (embeddedPageScope === undefined) globalThis.removeEventListener?.("popstate", onPopState)
     if (embeddedPageScope === undefined) shell.dispose()

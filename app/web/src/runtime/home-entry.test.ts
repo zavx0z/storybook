@@ -57,6 +57,7 @@ describe("external Storybook landing frontend", () => {
       history,
       fetcher: (async input => {
         requests.push(String(input))
+        if (String(input) === "/api/browser/registry-session") return new Response("", {status: 404})
         return Response.json(snapshot)
       }) as typeof fetch,
       createSocket() { return {
@@ -103,7 +104,7 @@ describe("external Storybook landing frontend", () => {
       await waitUntil(() => location.pathname === "/")
       expect(location.pathname).toBe("/")
       expect(controller.shell.workbench.controller.read("catalog.active")).toBeNull()
-      expect(requests).toEqual(["/api/client"])
+      expect(requests).toEqual(["/api/client", "/api/browser/registry-session", "/api/browser/registry-session", "/api/browser/registry-session"])
       const minimap = controller.shell.document.querySelector("[data-storybook-minimap] [data-window]")!
       const tree = minimap.querySelector('[role="tree"]')!
       snapshot = {...snapshot, projectName: "Renamed Project"}
@@ -115,12 +116,13 @@ describe("external Storybook landing frontend", () => {
       expect(controller.shell.document.querySelector("[data-storybook-minimap] [data-window]") === minimap).toBeTrue()
       expect(minimap.querySelector('[role="tree"]') === tree).toBeTrue()
       expect(controller.snapshot.graphDigest).toBe(graph.digest)
-      expect(requests).toEqual(["/api/client", "/api/client"])
+      await waitUntil(() => requests.filter(request => request === "/api/browser/registry-session").length === 4)
+      expect(requests).toEqual(["/api/client", "/api/browser/registry-session", "/api/browser/registry-session", "/api/browser/registry-session", "/api/client", "/api/browser/registry-session"])
       expect(state.creations).toBe(1)
     } finally { controller.dispose() }
   })
 
-  test("отложенные действия с Repo видны disabled и не выполняют запросы", async () => {
+  test("отложенные действия с Repo видны disabled и не изменяют каталог", async () => {
     const graph = await fixtureGraph()
     const snapshot = WebProtocol.clientSnapshot(graph, packageSnapshots(graph), "Fixture Project")
     const requests: string[] = []
@@ -138,6 +140,7 @@ describe("external Storybook landing frontend", () => {
       fetcher: (async input => {
         requests.push(String(input))
         if (String(input) === "/api/client") return Response.json(snapshot)
+        if (String(input) === "/api/browser/registry-session") return new Response("", {status: 404})
         throw new Error("Недоступное действие не выполняет HTTP-запрос")
       }) as typeof fetch,
       location: {href: "http://localhost/", pathname: "/", reload() { reloads += 1 }},
@@ -155,7 +158,7 @@ describe("external Storybook landing frontend", () => {
       remove.click()
       await new Promise(resolve => setTimeout(resolve, 0))
       expect(picks).toBe(0)
-      expect(requests).toEqual(["/api/client"])
+      expect(requests).toEqual(["/api/client", "/api/browser/registry-session"])
       expect(controller.shell.workbench.controller.read("catalog.items")).toEqual(before)
       expect(element.querySelector('[aria-label="Развернуть всё дерево"]')!.hasAttribute("disabled")).toBeFalse()
       expect(element.querySelector('[aria-label="Свернуть всё дерево"]')!.hasAttribute("disabled")).toBeFalse()
@@ -205,8 +208,9 @@ describe("external Storybook landing frontend", () => {
       expect(document.querySelector("[data-storybook-minimap] [data-window]") === minimap).toBeTrue()
       expect(minimap.querySelector('[role="tree"]') === tree).toBeTrue()
       expect(first.shell.captureUserState().minimap).toEqual(beforeState.minimap)
-      expect(workbench.controller.read("inspector.subject")).toBeNull()
-      expect(workbench.controller.read("inspector.values")).toEqual({})
+      expect(workbench.controller.read("inspector.subject")).toEqual({subjectId: "/", workspaceId: "/", widgetIds: ["chat"]})
+      expect(workbench.controller.read("inspector.values").source).toBeUndefined()
+      expect(workbench.controller.read("inspector.values").chat).toMatchObject({address: "/", label: "Renamed Project"})
       expect(workbench.controller.read("inspector.registry")).toEqual(registry)
     } finally { second.dispose(); first.dispose() }
   })

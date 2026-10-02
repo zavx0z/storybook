@@ -76,7 +76,7 @@ export function retainedWorkbenchInspectorState(
   const subject = state["inspector.subject"]
   if (subject === null) return null
   const widgets = activeWorkbenchInspectorWidgets(state)
-  const key = `${subject.packageId}\0${subject.workspaceId ?? subject.subjectId}`
+  const key = `${subject.packageId ?? ""}\0${subject.workspaceId ?? subject.subjectId}`
   let retained = retainedBySubject.get(key)
   if (retained === undefined) {
     retained = {

@@ -31,6 +31,8 @@
   },
   "include": [
     "index.ts",
+    "chat/**/*.ts",
+    "chat/**/*.tsx",
     "app/**/*.ts",
     "app/**/*.tsx",
     "tech/**/*.ts",
