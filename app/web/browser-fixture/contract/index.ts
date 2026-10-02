@@ -2,11 +2,10 @@ import type {ComponentValue} from "@zavx0z/component"
 import type {JSX} from "@jsx-compiler/session"
 import type {IntegrationOptions, IntegrationRoot, Presentation} from "@zavx0z/browser/integration"
 
-export type PresentationFixtureOptions = IntegrationOptions & {
+type PresentationFixtureOptions = IntegrationOptions & {
   canvas: HTMLCanvasElement
   app: ComponentValue | JSX.Element
 }
-
 
 export declare namespace WebBrowserFixture {
   /** Тестовая реализация готового Browser presentation. */
