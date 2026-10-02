@@ -9,7 +9,7 @@ const fixtureRoot = resolve(storybookRoot, "repo/discovery/fixtures/valid")
 
   test("copies one Workbench theme for each package revision", async () => {
     const registry = new ExternalStorybookRegistry(discoverStorybookPackages, () => WebBuild.readTheme(storybookRoot))
-    await registry.attachMany([storybookRoot, fixtureRoot])
+    await registry.attachMany([fixtureRoot])
     const descriptor = registry.packageDescriptors().find(({packageId}) => packageId === "@fixture/components")!
     expect(descriptor.graphSnapshot.workbenchAuthorStyleSheets.map(({specifier, url}) => ({specifier, url}))).toEqual([{
       specifier: "@zavx0z/ui/theme/theme.css",

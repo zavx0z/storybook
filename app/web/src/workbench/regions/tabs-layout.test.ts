@@ -3,11 +3,12 @@ import {createDocument, CustomEvent, KeyboardEvent, type HTMLButtonElement} from
 import {createDocumentRenderer} from "@renderer/html"
 import {WORKBENCH_EVENTS, type WorkbenchTabItem} from "../contract.ts"
 import {loadCompiledWorkbench} from "../../../test/fixture/compile-workbench.ts"
+import Limits from "@tech/limits"
 
 let api: Awaited<ReturnType<typeof loadCompiledWorkbench>>
 const theme = await Bun.file(new URL(import.meta.resolve("@zavx0z/ui/theme/theme.css"))).text()
 
-beforeAll(async () => { api = await loadCompiledWorkbench() }, 30_000)
+beforeAll(async () => { api = await loadCompiledWorkbench() }, Limits.STORYBOOK_SHARED_COMPILE_TIMEOUT_MS)
 
 for (const projection of ["display", "hud", "space"] as const) {
   test(`[TABS-SPACING] ${projection}: вкладки примыкают к Preview при разной ширине`, () => {

@@ -21,12 +21,13 @@ import {
 import type * as ControllerModule from "./controller.ts"
 import {WORKBENCH_CHAT_WIDGET, WORKBENCH_STANDARD_WIDGET_REGISTRY, withWorkbenchChat} from "./inspector/registry.ts"
 import {loadCompiledWorkbench} from "../../test/fixture/compile-workbench.ts"
+import Limits from "@tech/limits"
 
 let api: typeof ControllerModule
 
 beforeAll(async () => {
   api = await loadCompiledWorkbench()
-}, 120_000)
+}, Limits.STORYBOOK_SHARED_COMPILE_TIMEOUT_MS)
 
 describe("compiled Storybook Workbench", () => {
   test("адресный Chat первый на root, Repo и рядом с предметными секциями; смена Inspector сохраняет Preview", () => {

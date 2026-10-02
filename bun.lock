@@ -287,6 +287,7 @@
         "@jsx-compiler/bun": "^0.0.0",
         "@package-build/descriptor": "workspace:*",
         "@renderer/html": "^0.0.0",
+        "@tech/limits": "workspace:*",
         "@zavx0z/highlighter": "^0.1.0",
         "@zavx0z/space": "^0.0.0",
       },

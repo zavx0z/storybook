@@ -46,6 +46,7 @@
     "@app-server/catalog": "workspace:*"
   },
   "devDependencies": {
+    "@tech/limits": "workspace:*",
     "@build/compiler": "workspace:*",
     "@build/environment": "workspace:*",
     "@immersive/headless": "^0.0.0",

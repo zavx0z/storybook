@@ -14,7 +14,6 @@ import {dirname, join} from "node:path"
 import {tmpdir} from "node:os"
 import {deriveExternalStorybookLanding, deriveExternalStorybookLandingSelection, deriveExternalStorybookNavigationTree} from "../src/runtime/model.ts"
 import startExternalStorybookServer from "@app/server"
-import {createProjectFixture} from "../../server/test/project.fixture.ts"
 
 const roots: string[] = []
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, {recursive: true, force: true}))) })
@@ -79,10 +78,16 @@ test("duplicate package names fail closed", async () => {
 
 test("explicit refresh discovers a new workspace package and serves its structural page", async () => {
   const {root, repo} = await fixture()
+  for (const directory of [root, repo]) {
+    const result = Bun.spawnSync(["git", "init", "--quiet", directory])
+    if (result.exitCode !== 0) throw new Error(result.stderr.toString())
+  }
+  await Bun.write(join(root, "package.json"), JSON.stringify({name: "Fixture Project", private: true}))
+  await Bun.write(join(root, ".gitmodules"), '[submodule "repo-0"]\n\tpath = repo\n\turl = https://example.invalid/repo-0.git\n')
   await Bun.write(join(repo, "packages/a/index.ts"), "/**\n# Structural A\n@packageDocumentation\n*/\n")
   const artifactRoot = join(root, "artifacts")
   seedSharedPage(artifactRoot)
-  const server = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64), project: createProjectFixture(root, [repo]),
+  const server = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64), project: root,
     statePath: join(root, "state/server.json"), artifactRoot})
   try {
     await write(join(repo, "packages/c/package.json"), {name: "@fixture/c", label: "C"})

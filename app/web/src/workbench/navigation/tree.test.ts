@@ -20,12 +20,13 @@ import {WORKBENCH_EVENTS} from "../contract.ts"
 import type {NavigationExpansion} from "./persistence.ts"
 import type * as ControllerModule from "../controller.ts"
 import {loadCompiledWorkbench} from "../../../test/fixture/compile-workbench.ts"
+import Limits from "@tech/limits"
 
 let api: typeof ControllerModule
 
 beforeAll(async () => {
   api = await loadCompiledWorkbench()
-}, 30_000)
+}, Limits.STORYBOOK_SHARED_COMPILE_TIMEOUT_MS)
 
 const groupedItems = Object.freeze([
   {

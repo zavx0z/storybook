@@ -1,14 +1,16 @@
-import {expect, test} from "bun:test"
+import {beforeAll, expect, test} from "bun:test"
 import {createDocument} from "@zavx0z/dom"
 import {createDocumentRenderer} from "@renderer/html"
 import {loadCompiledWorkbench} from "../../../test/fixture/compile-workbench.ts"
+import Limits from "@tech/limits"
 
-const {createWorkbench} = await loadCompiledWorkbench()
+let api: Awaited<ReturnType<typeof loadCompiledWorkbench>>
+beforeAll(async () => { api = await loadCompiledWorkbench() }, Limits.STORYBOOK_SHARED_COMPILE_TIMEOUT_MS)
 const theme = await Bun.file(new URL(import.meta.resolve("@zavx0z/ui/theme/theme.css"))).text()
 
 test("реальная прокрутка обновляет окно строк каталога без ручного dispatchEvent", async () => {
   const document = createDocument()
-  const workbench = createWorkbench({
+  const workbench = api.createWorkbench({
     document,
     parent: document,
     initial: {
