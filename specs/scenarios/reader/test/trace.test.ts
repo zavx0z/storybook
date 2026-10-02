@@ -108,9 +108,9 @@ test("быстрый concurrent test завершается раньше нач�
   expect((calls[0]?.id ?? 0) < (calls[1]?.id ?? 0) && (calls[0]?.completed ?? 0) > (calls[1]?.completed ?? 0)).toBeTrue()
 })
 
-test("полная история имеет читаемый snapshot", () => {
+test("полная история имеет читаемый snapshot", async () => {
   const localPath = snapshotPath
-  expect({
+  const snapshot = {
     fixture: fixture.calls.map(({id, location, ...call}) => ({...call, module: localPath(call.module), location: location && {
       path: localPath(location.path),
       line: location.line,
@@ -127,5 +127,6 @@ test("полная история имеет читаемый snapshot", () => {
       line: location.line,
       column: location.column,
     }})),
-  }).toMatchSnapshot()
+  }
+  expect(snapshot).toStrictEqual(await Bun.file(new URL("./__snapshots__/trace.test.json", import.meta.url)).json())
 })

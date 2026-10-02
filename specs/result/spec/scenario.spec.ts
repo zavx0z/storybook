@@ -30,10 +30,10 @@ describe.each([
   const result = await readPackageNode(props.path)
 
   test("Возвращает результат чтения спецификации пакета", () => {
-    expect(result).toEqual(expected)
+    expect(result, "Результат содержит успешный запуск сценария выбранного пакета и его фактический вызов").toEqual(expected)
   })
 
-  test("Сохраняет результат чтения спецификации", () => {
+  test("Сохраняет результат чтения спецификации", async () => {
     const snapshot = {
       ...result,
       result: result.result && {
@@ -46,9 +46,11 @@ describe.each([
       },
     }
     // Размещение Repo и зависимостей не входит в содержание; все остальные строки сохраняются.
-    expect(JSON.parse(JSON.stringify(snapshot, (_key, value: unknown) =>
+    const actual = JSON.parse(JSON.stringify(snapshot, (_key, value: unknown) =>
       typeof value === "string"
         ? value.includes("\n") ? snapshotPath(value).split("\n") : snapshotPath(value)
-        : value))).toMatchSnapshot()
+        : value))
+    expect(actual, "Полный отчёт совпадает с эталоном независимо от размещения Repo и зависимостей")
+      .toStrictEqual(await Bun.file(new URL("./__snapshots__/scenario.spec.json", import.meta.url)).json())
   })
 })

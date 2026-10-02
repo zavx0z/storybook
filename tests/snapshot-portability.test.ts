@@ -2,6 +2,7 @@ import {expect, test} from "bun:test"
 import {join, resolve} from "node:path"
 import {tmpdir} from "node:os"
 import {pathToFileURL} from "node:url"
+import {existsSync} from "node:fs"
 import {createSnapshotPaths, snapshotPath} from "./fixture/snapshot-paths"
 
 test("перенос Repo и зависимости между Project сохраняет содержание snapshot", () => {
@@ -48,9 +49,10 @@ test("похожие и неизвестные пути не скрываютс�
 
 test("сохранённые snapshots не содержат размещение на машине или в package store", async () => {
   const repo = resolve(import.meta.dir, "..")
-  const files = Bun.spawnSync(["git", "ls-files", "-z", "*.snap"], {cwd: repo})
+  const files = Bun.spawnSync(["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z", "*.snap", "*/__snapshots__/*.json"], {cwd: repo})
   expect(files.exitCode).toBe(0)
-  const snapshots = files.stdout.toString().split("\0").filter(Boolean)
+  const snapshots = [...new Set(files.stdout.toString().split("\0").filter(Boolean))]
+    .filter(path => existsSync(join(repo, path)))
   expect(snapshots.length).toBeGreaterThan(0)
   for (const path of snapshots) {
     const contents = await Bun.file(join(repo, path)).text()

@@ -1,0 +1,1183 @@
+{
+  "fixture": [
+    {
+      "module": "<repo>/specs/scenarios/reader/test/fixture/trace-functions.ts",
+      "name": "delayedValue",
+      "groupId": 0,
+      "describe": [
+        "Обычная группа"
+      ],
+      "test": null,
+      "completed": 0,
+      "args": [
+        "describe",
+        1
+      ],
+      "outcome": {
+        "type": "resolve",
+        "value": {
+          "value": "describe"
+        }
+      },
+      "location": {
+        "path": "<repo>/specs/scenarios/reader/test/fixture/trace-scenario.test.ts",
+        "line": 13,
+        "column": 24
+      }
+    },
+    {
+      "module": "<repo>/specs/scenarios/reader/test/fixture/trace-functions.ts",
+      "name": "delayedValue",
+      "groupId": 1,
+      "describe": [
+        "Первый вариант"
+      ],
+      "test": null,
+      "completed": 1,
+      "args": [
+        "each-one",
+        1
+      ],
+      "outcome": {
+        "type": "resolve",
+        "value": {
+          "value": "each-one"
+        }
+      },
+      "location": {
+        "path": "<repo>/specs/scenarios/reader/test/fixture/trace-scenario.test.ts",
+        "line": 24,
+        "column": 24
+      }
+    },
+    {
+      "module": "<repo>/specs/scenarios/reader/test/fixture/trace-functions.ts",
+      "name": "delayedValue",
+      "groupId": 2,
+      "describe": [
+        "Второй вариант"
+      ],
+      "test": null,
+      "completed": 2,
+      "args": [
+        "each-two",
+        1
+      ],
+      "outcome": {
+        "type": "resolve",
+        "value": {
+          "value": "each-two"
+        }
+      },
+      "location": {
+        "path": "<repo>/specs/scenarios/reader/test/fixture/trace-scenario.test.ts",
+        "line": 24,
+        "column": 24
+      }
+    },
+    {
+      "module": "<repo>/specs/scenarios/reader/test/fixture/trace-functions.ts",
+      "name": "delayedValue",
+      "groupId": null,
+      "describe": [],
+      "test": "test без describe",
+      "completed": 3,
+      "args": [
+        "root",
+        1
+      ],
+      "outcome": {
+        "type": "resolve",
+        "value": {
+          "value": "root"
+        }
+      },
+      "location": {
+        "path": "<repo>/specs/scenarios/reader/test/fixture/trace-scenario.test.ts",
+        "line": 32,
+        "column": 16
+      }
+    },
+    {
+      "module": "<repo>/specs/scenarios/reader/test/fixture/trace-functions.ts",
+      "name": "overlappingValue",
+      "groupId": 3,
+      "describe": [
+        "Параллельные тесты"
+      ],
+      "test": "медленный",
+      "completed": 5,
+      "args": [
+        "slow",
+        30
+      ],
+      "outcome": {
+        "type": "resolve",
+        "value": {
+          "value": "slow",
+          "activeAtStart": 1
+        }
+      },
+      "location": {
+        "path": "<repo>/specs/scenarios/reader/test/fixture/trace-scenario.test.ts",
+        "line": 37,
+        "column": 18
+      }
+    },
+    {
+      "module": "<repo>/specs/scenarios/reader/test/fixture/trace-functions.ts",
+      "name": "overlappingValue",
+      "groupId": 3,
+      "describe": [
+        "Параллельные тесты"
+      ],
+      "test": "быстрый",
+      "completed": 4,
+      "args": [
+        "fast",
+        1
+      ],
+      "outcome": {
+        "type": "resolve",
+        "value": {
+          "value": "fast",
+          "activeAtStart": 2
+        }
+      },
+      "location": {
+        "path": "<repo>/specs/scenarios/reader/test/fixture/trace-scenario.test.ts",
+        "line": 42,
+        "column": 18
+      }
+    },
+    {
+      "module": "<repo>/specs/scenarios/reader/test/fixture/trace-functions.ts",
+      "name": "identityPromise",
+      "groupId": null,
+      "describe": [],
+      "test": "Promise identity",
+      "completed": 6,
+      "args": [
+        {
+          "$type": "promise",
+          "status": "fulfilled",
+          "value": "identity"
+        }
+      ],
+      "outcome": {
+        "type": "resolve",
+        "value": "identity"
+      },
+      "location": {
+        "path": "<repo>/specs/scenarios/reader/test/fixture/trace-scenario.test.ts",
+        "line": 48,
+        "column": 10
+      }
+    },
+    {
+      "module": "<repo>/specs/scenarios/reader/test/fixture/trace-functions.ts",
+      "name": "receiverValue",
+      "groupId": null,
+      "describe": [],
+      "test": "this вызова",
+      "completed": 7,
+      "args": [
+        "value"
+      ],
+      "outcome": {
+        "type": "return",
+        "value": "receiver:value"
+      },
+      "location": {
+        "path": "<repo>/specs/scenarios/reader/test/fixture/trace-scenario.test.ts",
+        "line": 52,
+        "column": 24
+      }
+    },
+    {
+      "module": "<repo>/specs/scenarios/reader/test/fixture/trace-functions.ts",
+      "name": "mutateValue",
+      "groupId": null,
+      "describe": [],
+      "test": "аргумент может быть изменён функцией",
+      "completed": 8,
+      "args": [
+        {
+          "state": "before"
+        }
+      ],
+      "outcome": {
+        "type": "return",
+        "value": "after"
+      },
+      "location": {
+        "path": "<repo>/specs/scenarios/reader/test/fixture/trace-scenario.test.ts",
+        "line": 57,
+        "column": 10
+      }
+    },
+    {
+      "module": "<repo>/specs/scenarios/reader/test/fixture/trace-functions.ts",
+      "name": "throwValue",
+      "groupId": null,
+      "describe": [],
+      "test": "синхронная ошибка",
+      "completed": 9,
+      "args": [
+        "boom"
+      ],
+      "outcome": {
+        "type": "throw",
+        "error": {
+          "$type": "error",
+          "name": "Error",
+          "message": "sync:boom"
+        }
+      },
+      "location": {
+        "path": "<repo>/specs/scenarios/reader/test/fixture/trace-scenario.test.ts",
+        "line": 61,
+        "column": 36
+      }
+    },
+    {
+      "module": "<repo>/specs/scenarios/reader/test/fixture/trace-functions.ts",
+      "name": "rejectValue",
+      "groupId": null,
+      "describe": [],
+      "test": "отклонённый Promise",
+      "completed": 10,
+      "args": [
+        "boom"
+      ],
+      "outcome": {
+        "type": "reject",
+        "error": {
+          "$type": "error",
+          "name": "Error",
+          "message": "async:boom"
+        }
+      },
+      "location": {
+        "path": "<repo>/specs/scenarios/reader/test/fixture/trace-scenario.test.ts",
+        "line": 65,
+        "column": 10
+      }
+    }
+  ],
+  "packageScenario": [
+    {
+      "module": "<repo>/package/reader/index.ts",
+      "name": "default",
+      "groupId": 0,
+      "describe": [
+        "Архетип пакета"
+      ],
+      "test": null,
+      "completed": 0,
+      "args": [
+        {
+          "path": "<repo>/package/reader"
+        }
+      ],
+      "outcome": {
+        "type": "resolve",
+        "value": {
+          "root": "<repo>/package/reader",
+          "repository": {
+            "gitRoot": "<repo>",
+            "nestedRepositories": []
+          },
+          "code": [
+            {
+              "path": "<repo>/package/reader/index.ts",
+              "exports": [
+                {
+                  "name": "ArchetypesPackage",
+                  "runtime": false,
+                  "declarations": [
+                    {
+                      "path": "<repo>/package/reader/contract/index.ts",
+                      "owner": {
+                        "path": "<repo>/package/reader",
+                        "name": "@archetypes/package"
+                      }
+                    }
+                  ],
+                  "type": "any",
+                  "unresolved": false
+                },
+                {
+                  "name": "default",
+                  "runtime": true,
+                  "declarations": [
+                    {
+                      "path": "<repo>/package/reader/index.ts",
+                      "owner": {
+                        "path": "<repo>/package/reader",
+                        "name": "@archetypes/package"
+                      }
+                    }
+                  ],
+                  "type": "({ path }: Input) => Promise<Output>",
+                  "unresolved": false
+                }
+              ],
+              "statements": [
+                "readPackage"
+              ],
+              "references": [
+                {
+                  "from": "<repo>/package/reader/index.ts",
+                  "module": "node:fs/promises",
+                  "names": [
+                    "realpath"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<dependency:@types/node@26.6.3>/fs/promises.d.ts",
+                  "owner": null,
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/index.ts",
+                  "module": "node:path",
+                  "names": [
+                    "resolve"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<dependency:@types/node@26.6.3>/path.d.ts",
+                  "owner": null,
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/index.ts",
+                  "module": "@archetypes/package-json",
+                  "names": [
+                    "default"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<repo>/package/package-json/index.ts",
+                  "owner": {
+                    "path": "<repo>/package/package-json",
+                    "name": "@archetypes/package-json"
+                  },
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/index.ts",
+                  "module": "@archetypes/package-index",
+                  "names": [
+                    "default"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<repo>/package/index/index.ts",
+                  "owner": {
+                    "path": "<repo>/package/index",
+                    "name": "@archetypes/package-index"
+                  },
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/index.ts",
+                  "module": "./src/root-documentation",
+                  "names": [
+                    "readRootDocumentation"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<repo>/package/reader/src/root-documentation.ts",
+                  "owner": {
+                    "path": "<repo>/package/reader",
+                    "name": "@archetypes/package"
+                  },
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/index.ts",
+                  "module": "./src/sources",
+                  "names": [
+                    "readPackageSources"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<repo>/package/reader/src/sources.ts",
+                  "owner": {
+                    "path": "<repo>/package/reader",
+                    "name": "@archetypes/package"
+                  },
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/index.ts",
+                  "module": "./src/repository",
+                  "names": [
+                    "readRepositoryBoundary"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<repo>/package/reader/src/repository.ts",
+                  "owner": {
+                    "path": "<repo>/package/reader",
+                    "name": "@archetypes/package"
+                  },
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/index.ts",
+                  "module": "./src/composition",
+                  "names": [
+                    "readPackageComposition"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<repo>/package/reader/src/composition.ts",
+                  "owner": {
+                    "path": "<repo>/package/reader",
+                    "name": "@archetypes/package"
+                  },
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/index.ts",
+                  "module": "./contract",
+                  "names": [
+                    "ArchetypesPackage"
+                  ],
+                  "typeOnly": true,
+                  "exported": false,
+                  "path": "<repo>/package/reader/contract/index.ts",
+                  "owner": {
+                    "path": "<repo>/package/reader",
+                    "name": "@archetypes/package"
+                  },
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/index.ts",
+                  "module": "./contract",
+                  "names": [
+                    "ArchetypesPackage"
+                  ],
+                  "typeOnly": true,
+                  "exported": true,
+                  "path": "<repo>/package/reader/contract/index.ts",
+                  "owner": {
+                    "path": "<repo>/package/reader",
+                    "name": "@archetypes/package"
+                  },
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/contract/index.ts",
+                  "module": "@archetypes/package-json",
+                  "names": [
+                    "ArchetypesPackageJson"
+                  ],
+                  "typeOnly": true,
+                  "exported": false,
+                  "path": "<repo>/package/package-json/index.ts",
+                  "owner": {
+                    "path": "<repo>/package/package-json",
+                    "name": "@archetypes/package-json"
+                  },
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/contract/index.ts",
+                  "module": "@archetypes/package-documentation",
+                  "names": [
+                    "ArchetypesPackageDocumentation"
+                  ],
+                  "typeOnly": true,
+                  "exported": false,
+                  "path": "<repo>/package/documentation/index.ts",
+                  "owner": {
+                    "path": "<repo>/package/documentation",
+                    "name": "@archetypes/package-documentation"
+                  },
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/contract/index.ts",
+                  "module": "@archetypes/package-index",
+                  "names": [
+                    "ArchetypesPackageIndex"
+                  ],
+                  "typeOnly": true,
+                  "exported": false,
+                  "path": "<repo>/package/index/index.ts",
+                  "owner": {
+                    "path": "<repo>/package/index",
+                    "name": "@archetypes/package-index"
+                  },
+                  "public": true
+                }
+              ]
+            },
+            {
+              "path": "<repo>/package/reader/src/repository.ts",
+              "exports": [
+                {
+                  "name": "readRepositoryBoundary",
+                  "runtime": true,
+                  "declarations": [
+                    {
+                      "path": "<repo>/package/reader/src/repository.ts",
+                      "owner": {
+                        "path": "<repo>/package/reader",
+                        "name": "@archetypes/package"
+                      }
+                    }
+                  ],
+                  "type": "(root: string, packages: readonly { readonly path: string; readonly name: string; readonly parent: string; }[]) => Promise<{ readonly gitRoot: string | null; readonly nestedRepositories: readonly string[]; }>",
+                  "unresolved": false
+                }
+              ],
+              "statements": [
+                "readRepositoryBoundary"
+              ],
+              "references": [
+                {
+                  "from": "<repo>/package/reader/src/repository.ts",
+                  "module": "node:fs/promises",
+                  "names": [
+                    "realpath",
+                    "lstat"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<dependency:@types/node@26.6.3>/fs/promises.d.ts",
+                  "owner": null,
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/src/repository.ts",
+                  "module": "node:path",
+                  "names": [
+                    "resolve"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<dependency:@types/node@26.6.3>/path.d.ts",
+                  "owner": null,
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/src/repository.ts",
+                  "module": "../contract",
+                  "names": [
+                    "ArchetypesPackage"
+                  ],
+                  "typeOnly": true,
+                  "exported": false,
+                  "path": "<repo>/package/reader/contract/index.ts",
+                  "owner": {
+                    "path": "<repo>/package/reader",
+                    "name": "@archetypes/package"
+                  },
+                  "public": true
+                }
+              ]
+            },
+            {
+              "path": "<repo>/package/reader/src/composition.ts",
+              "exports": [
+                {
+                  "name": "readPackageComposition",
+                  "runtime": true,
+                  "declarations": [
+                    {
+                      "path": "<repo>/package/reader/src/composition.ts",
+                      "owner": {
+                        "path": "<repo>/package/reader",
+                        "name": "@archetypes/package"
+                      }
+                    }
+                  ],
+                  "type": "(path: string, metadata: Output) => Promise<readonly { readonly path: string; readonly name: string; readonly parent: string; }[]>",
+                  "unresolved": false
+                }
+              ],
+              "statements": [
+                "readWorkspacePackages",
+                "readPackageComposition"
+              ],
+              "references": [
+                {
+                  "from": "<repo>/package/reader/src/composition.ts",
+                  "module": "@route/workspaces",
+                  "names": [
+                    "default"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<repo>/package/route/workspaces/index.ts",
+                  "owner": {
+                    "path": "<repo>/package/route/workspaces",
+                    "name": "@route/workspaces"
+                  },
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/src/composition.ts",
+                  "module": "node:path",
+                  "names": [
+                    "dirname",
+                    "resolve"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<dependency:@types/node@26.6.3>/path.d.ts",
+                  "owner": null,
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/src/composition.ts",
+                  "module": "node:fs/promises",
+                  "names": [
+                    "realpath"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<dependency:@types/node@26.6.3>/fs/promises.d.ts",
+                  "owner": null,
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/src/composition.ts",
+                  "module": "@archetypes/package-json",
+                  "names": [
+                    "default"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<repo>/package/package-json/index.ts",
+                  "owner": {
+                    "path": "<repo>/package/package-json",
+                    "name": "@archetypes/package-json"
+                  },
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/src/composition.ts",
+                  "module": "../contract",
+                  "names": [
+                    "ArchetypesPackage"
+                  ],
+                  "typeOnly": true,
+                  "exported": false,
+                  "path": "<repo>/package/reader/contract/index.ts",
+                  "owner": {
+                    "path": "<repo>/package/reader",
+                    "name": "@archetypes/package"
+                  },
+                  "public": true
+                }
+              ]
+            },
+            {
+              "path": "<repo>/package/reader/src/sources.ts",
+              "exports": [
+                {
+                  "name": "readPackageSources",
+                  "runtime": true,
+                  "declarations": [
+                    {
+                      "path": "<repo>/package/reader/src/sources.ts",
+                      "owner": {
+                        "path": "<repo>/package/reader",
+                        "name": "@archetypes/package"
+                      }
+                    }
+                  ],
+                  "type": "(root: string, entries: readonly { readonly path: string; readonly target: string | null; readonly conditions: readonly string[]; readonly status: \"blocked\" | \"forwarded\" | \"missing\" | \"nested-package\" | \"outside-package\" | \"owned\" | \"symlink\"; ... 4 more ...; readonly owner?: { ...; }; }[]) => Promise<...>",
+                  "unresolved": false
+                }
+              ],
+              "statements": [
+                "readPackageSources"
+              ],
+              "references": [
+                {
+                  "from": "<repo>/package/reader/src/sources.ts",
+                  "module": "./exports.ts",
+                  "names": [
+                    "readSourceExports"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<repo>/package/reader/src/exports.ts",
+                  "owner": {
+                    "path": "<repo>/package/reader",
+                    "name": "@archetypes/package"
+                  },
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/src/sources.ts",
+                  "module": "node:fs/promises",
+                  "names": [
+                    "lstat",
+                    "readdir"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<dependency:@types/node@26.6.3>/fs/promises.d.ts",
+                  "owner": null,
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/src/sources.ts",
+                  "module": "node:path",
+                  "names": [
+                    "resolve"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<dependency:@types/node@26.6.3>/path.d.ts",
+                  "owner": null,
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/src/sources.ts",
+                  "module": "../contract",
+                  "names": [
+                    "ArchetypesPackage"
+                  ],
+                  "typeOnly": true,
+                  "exported": false,
+                  "path": "<repo>/package/reader/contract/index.ts",
+                  "owner": {
+                    "path": "<repo>/package/reader",
+                    "name": "@archetypes/package"
+                  },
+                  "public": true
+                }
+              ]
+            },
+            {
+              "path": "<repo>/package/reader/src/root-documentation.ts",
+              "exports": [
+                {
+                  "name": "readRootDocumentation",
+                  "runtime": true,
+                  "declarations": [
+                    {
+                      "path": "<repo>/package/reader/src/root-documentation.ts",
+                      "owner": {
+                        "path": "<repo>/package/reader",
+                        "name": "@archetypes/package"
+                      }
+                    }
+                  ],
+                  "type": "(directory: string) => Promise<Output>",
+                  "unresolved": false
+                }
+              ],
+              "statements": [
+                "MAX_MODULE_SOURCE_BYTES",
+                "readRootDocumentation"
+              ],
+              "references": [
+                {
+                  "from": "<repo>/package/reader/src/root-documentation.ts",
+                  "module": "node:fs",
+                  "names": [
+                    "constants"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<dependency:@types/node@26.6.3>/fs.d.ts",
+                  "owner": null,
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/src/root-documentation.ts",
+                  "module": "node:fs/promises",
+                  "names": [
+                    "lstat",
+                    "open"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<dependency:@types/node@26.6.3>/fs/promises.d.ts",
+                  "owner": null,
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/src/root-documentation.ts",
+                  "module": "node:path",
+                  "names": [
+                    "resolve"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<dependency:@types/node@26.6.3>/path.d.ts",
+                  "owner": null,
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/src/root-documentation.ts",
+                  "module": "@archetypes/package-documentation",
+                  "names": [
+                    "default"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<repo>/package/documentation/index.ts",
+                  "owner": {
+                    "path": "<repo>/package/documentation",
+                    "name": "@archetypes/package-documentation"
+                  },
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/src/root-documentation.ts",
+                  "module": "@archetypes/package-documentation",
+                  "names": [
+                    "ArchetypesPackageDocumentation"
+                  ],
+                  "typeOnly": true,
+                  "exported": false,
+                  "path": "<repo>/package/documentation/index.ts",
+                  "owner": {
+                    "path": "<repo>/package/documentation",
+                    "name": "@archetypes/package-documentation"
+                  },
+                  "public": true
+                }
+              ]
+            },
+            {
+              "path": "<repo>/package/reader/src/exports.ts",
+              "exports": [
+                {
+                  "name": "readSourceExports",
+                  "runtime": true,
+                  "declarations": [
+                    {
+                      "path": "<repo>/package/reader/src/exports.ts",
+                      "owner": {
+                        "path": "<repo>/package/reader",
+                        "name": "@archetypes/package"
+                      }
+                    }
+                  ],
+                  "type": "(root: string, paths: readonly string[]) => Promise<readonly { readonly path: string; readonly exports: readonly { readonly name: string; readonly runtime: boolean; readonly type: string | null; readonly unresolved: boolean; readonly declarations: readonly { ...; }[]; }[]; readonly statements: readonly string[]; rea...",
+                  "unresolved": false
+                }
+              ],
+              "statements": [
+                "sourceFilePath",
+                "sourceOwner",
+                "localStatements",
+                "publicModule",
+                "moduleReferences",
+                "readSourceExports"
+              ],
+              "references": [
+                {
+                  "from": "<repo>/package/reader/src/exports.ts",
+                  "module": "node:module",
+                  "names": [
+                    "isBuiltin"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<dependency:@types/node@26.6.3>/module.d.ts",
+                  "owner": null,
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/src/exports.ts",
+                  "module": "typescript/unstable/async",
+                  "names": [
+                    "API",
+                    "SymbolFlags",
+                    "Project",
+                    "Symbol"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<dependency:typescript@7.0.2>/dist/api/async/api.d.ts",
+                  "owner": {
+                    "path": "<dependency:typescript@7.0.2>",
+                    "name": "typescript"
+                  },
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/src/exports.ts",
+                  "module": "typescript/unstable/ast",
+                  "names": [
+                    "SyntaxKind",
+                    "Node",
+                    "SourceFile"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<dependency:typescript@7.0.2>/dist/ast/index.d.ts",
+                  "owner": {
+                    "path": "<dependency:typescript@7.0.2>",
+                    "name": "typescript"
+                  },
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/src/exports.ts",
+                  "module": "typescript/unstable/ast/is",
+                  "names": [
+                    "isCallExpression",
+                    "isClassDeclaration",
+                    "isEmptyStatement",
+                    "isExportAssignment",
+                    "isExportDeclaration",
+                    "isFunctionDeclaration",
+                    "isIdentifier",
+                    "isImportDeclaration",
+                    "isInterfaceDeclaration",
+                    "isModuleBlock",
+                    "isModuleDeclaration",
+                    "isNamedExports",
+                    "isNamedImports",
+                    "isStringLiteral",
+                    "isTypeAliasDeclaration",
+                    "isVariableStatement",
+                    "isImportTypeNode"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<dependency:typescript@7.0.2>/dist/ast/is.d.ts",
+                  "owner": {
+                    "path": "<dependency:typescript@7.0.2>",
+                    "name": "typescript"
+                  },
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/src/exports.ts",
+                  "module": "node:path",
+                  "names": [
+                    "dirname",
+                    "resolve"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<dependency:@types/node@26.6.3>/path.d.ts",
+                  "owner": null,
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/src/exports.ts",
+                  "module": "node:fs/promises",
+                  "names": [
+                    "lstat",
+                    "realpath",
+                    "readFile"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<dependency:@types/node@26.6.3>/fs/promises.d.ts",
+                  "owner": null,
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/src/exports.ts",
+                  "module": "@archetypes/package-index",
+                  "names": [
+                    "default"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<repo>/package/index/index.ts",
+                  "owner": {
+                    "path": "<repo>/package/index",
+                    "name": "@archetypes/package-index"
+                  },
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/src/exports.ts",
+                  "module": "@build/compiler",
+                  "names": [
+                    "default"
+                  ],
+                  "typeOnly": false,
+                  "exported": false,
+                  "path": "<repo>/tech/build/compiler/index.ts",
+                  "owner": {
+                    "path": "<repo>/tech/build/compiler",
+                    "name": "@build/compiler"
+                  },
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/src/exports.ts",
+                  "module": "../contract",
+                  "names": [
+                    "ArchetypesPackage"
+                  ],
+                  "typeOnly": true,
+                  "exported": false,
+                  "path": "<repo>/package/reader/contract/index.ts",
+                  "owner": {
+                    "path": "<repo>/package/reader",
+                    "name": "@archetypes/package"
+                  },
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/src/exports.ts",
+                  "module": "typescript/unstable/ast",
+                  "names": [
+                    "StringLiteral"
+                  ],
+                  "typeOnly": true,
+                  "exported": false,
+                  "path": "<dependency:typescript@7.0.2>/dist/ast/index.d.ts",
+                  "owner": {
+                    "path": "<dependency:typescript@7.0.2>",
+                    "name": "typescript"
+                  },
+                  "public": true
+                }
+              ]
+            },
+            {
+              "path": "<repo>/package/reader/contract/index.ts",
+              "exports": [
+                {
+                  "name": "ArchetypesPackage",
+                  "runtime": false,
+                  "declarations": [
+                    {
+                      "path": "<repo>/package/reader/contract/index.ts",
+                      "owner": {
+                        "path": "<repo>/package/reader",
+                        "name": "@archetypes/package"
+                      }
+                    }
+                  ],
+                  "type": "any",
+                  "unresolved": false
+                }
+              ],
+              "statements": [],
+              "references": [
+                {
+                  "from": "<repo>/package/reader/contract/index.ts",
+                  "module": "@archetypes/package-json",
+                  "names": [
+                    "ArchetypesPackageJson"
+                  ],
+                  "typeOnly": true,
+                  "exported": false,
+                  "path": "<repo>/package/package-json/index.ts",
+                  "owner": {
+                    "path": "<repo>/package/package-json",
+                    "name": "@archetypes/package-json"
+                  },
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/contract/index.ts",
+                  "module": "@archetypes/package-documentation",
+                  "names": [
+                    "ArchetypesPackageDocumentation"
+                  ],
+                  "typeOnly": true,
+                  "exported": false,
+                  "path": "<repo>/package/documentation/index.ts",
+                  "owner": {
+                    "path": "<repo>/package/documentation",
+                    "name": "@archetypes/package-documentation"
+                  },
+                  "public": true
+                },
+                {
+                  "from": "<repo>/package/reader/contract/index.ts",
+                  "module": "@archetypes/package-index",
+                  "names": [
+                    "ArchetypesPackageIndex"
+                  ],
+                  "typeOnly": true,
+                  "exported": false,
+                  "path": "<repo>/package/index/index.ts",
+                  "owner": {
+                    "path": "<repo>/package/index",
+                    "name": "@archetypes/package-index"
+                  },
+                  "public": true
+                }
+              ]
+            }
+          ],
+          "scenarios": [
+            "<repo>/package/reader/spec/scenario.spec.ts"
+          ],
+          "packageJson": {
+            "name": "@archetypes/package",
+            "dependencies": {
+              "typescript": "^7.0.2",
+              "@build/compiler": "workspace:*",
+              "@archetypes/package-index": "workspace:*",
+              "@archetypes/package-documentation": "workspace:*",
+              "@route/workspaces": "workspace:*",
+              "@archetypes/package-json": "workspace:*"
+            },
+            "devDependencies": {
+              "@archetypes/domain": "workspace:*",
+              "@archetypes/scenario-reader": "workspace:*"
+            },
+            "label": "Пакет",
+            "description": "Объясняет и проверяет назначение пакета, принадлежность публичных входов и наличие их контрактов",
+            "exports": {
+              ".": "./index.ts"
+            }
+          },
+          "documentation": {
+            "sourcePath": "<repo>/package/reader/index.ts",
+            "sourceDigest": "62c828d1c1ee79ee841d82ca973a63a65924f94c50fa027af71a9031026165a6",
+            "markdown": [
+              "Собирает описание выбранного пакета из манифеста, корневого TSDoc, публичных входов",
+              "и состава вложенных пакетов из корневых workspace glob Repo.",
+              "Domain, Component и Container не повторяют декларацию состава. Читает Git-границу и runtime exports публичных входов и собственных исходников src;",
+              "эти факты раскрываются и проверяются в едином сценарии Package.",
+              "Package является общей структурной формой Repo,",
+              "Domain, Component и Container. Состав и происхождение реализации позволяют",
+              "сценарию различить область и композицию целого.",
+              "Настройки engines читаются только из собственного манифеста; принадлежность",
+              "общей среды разработки Repo раскрывается нормативным сценарием.",
+              "Чтение не исполняет код пакета и не запускает его компоненты или подписки."
+            ]
+          },
+          "index": {
+            "entries": [
+              {
+                "path": ".",
+                "target": "./index.ts",
+                "conditions": [],
+                "status": "owned",
+                "code": true,
+                "entrypoint": true,
+                "input": "./contract/index.ts",
+                "output": "./contract/index.ts"
+              }
+            ],
+            "unchecked": []
+          },
+          "packages": []
+        }
+      },
+      "location": {
+        "path": "<repo>/package/reader/spec/scenario.spec.ts",
+        "line": 17,
+        "column": 24
+      }
+    }
+  ]
+}
