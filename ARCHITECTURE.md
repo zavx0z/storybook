@@ -23,7 +23,7 @@
 Ниже описаны владельцы и фактические потоки реализации. Обзоры извлекаются
 из исходников единым читателем TSDoc; README служит указателем для человека.
 
-`/Users/zavx0z/repozitarium/storybook` — самостоятельный development tool. Он
+`@zavx0z/storybook` — самостоятельный development tool. Он
 не является dependency consumer project или production package и не переносит
 к себе их stories, README, fixtures, tests, media или предметную семантику.
 

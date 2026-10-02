@@ -3,9 +3,10 @@
 ## Границы рабочего пространства
 
 - Основной канонический checkout —
-  `/Users/zavx0z/repozitarium/storybook`.
+  `/Users/zavx0z/repozitarium/zavx0z/storybook`.
 - Связанные канонические checkout'ы —
-  `/Users/zavx0z/repozitarium/immersive`,
+  `/Users/zavx0z/repozitarium/zavx0z/immersive`,
+  `/Users/zavx0z/repozitarium/zavx0z/highlighter`,
   `/Users/zavx0z/repozitarium/renderer` и
   `/Users/zavx0z/repozitarium/metafor`.
 - Не использовать `/Users/zavx0z/production` или другой архивный checkout.
