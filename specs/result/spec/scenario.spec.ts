@@ -6,6 +6,7 @@
 import {describe, expect, test} from "bun:test"
 import {fileURLToPath} from "node:url"
 import readPackageNode from "@mcp-rest/package"
+import {snapshotPath} from "../../../tests/fixture/snapshot-paths"
 
 describe.each([
   {
@@ -44,8 +45,10 @@ describe.each([
         },
       },
     }
-    // Сохраняет все строки документа без хвостовых пробелов форматтера snapshot.
+    // Размещение Repo и зависимостей не входит в содержание; все остальные строки сохраняются.
     expect(JSON.parse(JSON.stringify(snapshot, (_key, value: unknown) =>
-      typeof value === "string" && value.includes("\n") ? value.split("\n") : value))).toMatchSnapshot()
+      typeof value === "string"
+        ? value.includes("\n") ? snapshotPath(value).split("\n") : snapshotPath(value)
+        : value))).toMatchSnapshot()
   })
 })

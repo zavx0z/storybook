@@ -7,6 +7,7 @@ import {beforeAll, expect, test} from "bun:test"
 import {resolve} from "node:path"
 import readScenario from "../index"
 import type {ArchetypesScenarioReader} from "../index"
+import {snapshotPath} from "../../../../tests/fixture/snapshot-paths"
 
 const fixturePath = resolve(import.meta.dir, "fixture/trace-scenario.test.ts")
 const fixtureModule = resolve(import.meta.dir, "fixture/trace-functions.ts")
@@ -108,9 +109,7 @@ test("быстрый concurrent test завершается раньше нач�
 })
 
 test("полная история имеет читаемый snapshot", () => {
-  const sourceRoot = resolve(import.meta.dir, "../../../..")
-  const immersiveRoot = resolve(sourceRoot, "../immersive")
-  const localPath = (path: string) => path.replace(sourceRoot, "<storybook>").replace(immersiveRoot, "<immersive>")
+  const localPath = snapshotPath
   expect({
     fixture: fixture.calls.map(({id, location, ...call}) => ({...call, module: localPath(call.module), location: location && {
       path: localPath(location.path),
