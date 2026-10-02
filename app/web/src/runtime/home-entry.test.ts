@@ -2,9 +2,6 @@ import WebProtocol, {type AppWebProtocol} from "@app-web/protocol"
 type ExternalStorybookClientSnapshot = ReturnType<AppWebProtocol.Output["clientSnapshot"]>
 import RouteUrlOwner from "@route/url"
 const storybookPackageUrlPath = RouteUrlOwner.storybookPackageUrlPath
-import AppServerCatalogOwner, {type AppServerCatalog as AppServerCatalogContract} from "@app-server/catalog"
-const ExternalStorybookRegistry = AppServerCatalogOwner
-type ExternalStorybookRegistry = AppServerCatalogContract.Output
 import {DisplayElement} from "@zavx0z/dom/display"
 import ScenarioInspector from "@scenario/inspector"
 import {indexedWorkbenchAuthorStyleSheetSources} from "./author-style-sheets.ts"
@@ -43,20 +40,29 @@ import type {ExternalStorybookRootFactory} from "./shell.ts"
 const fixtureRoot = join(import.meta.dir, "../../../../repo/discovery/fixtures/valid")
 
 describe("external Storybook landing frontend", () => {
-  test("navigates root and nested packages through the same page contract", async () => {
+  test("updates Project name from an unchanged graph and keeps navigation in the same page", async () => {
     const graph = await fixtureGraph()
-    const snapshot = WebProtocol.clientSnapshot(graph, packageSnapshots(graph))
+    let snapshot = WebProtocol.clientSnapshot(graph, packageSnapshots(graph), "Fixture Project")
     const location = {href: "http://127.0.0.1:3000/", pathname: "/", reload() {}}
+    const history = {pushState(_data: unknown, _unused: string, path: string) {
+      location.href = new URL(path, location.href).href
+      location.pathname = new URL(location.href).pathname
+    }}
     const requests: string[] = []
     const state = createFakeRootState()
+    let onMessage: ((event: MessageEvent) => void) | undefined
     const controller = await startExternalStorybookLanding({
       browserDocument: {documentElement: {dataset: {}}, querySelector() { return null }} as unknown as Document,
       location,
+      history,
       fetcher: (async input => {
         requests.push(String(input))
         return Response.json(snapshot)
       }) as typeof fetch,
-      createSocket() { return {addEventListener() {}, removeEventListener() {}, send() {}, close() {}} },
+      createSocket() { return {
+        addEventListener(type, listener) { if (type === "message") onMessage = listener },
+        removeEventListener() {}, send() {}, close() {},
+      } },
       async navigatePackage({packageId, route}) {
         const next = new URL(storybookPackageUrlPath(packageId, route), location.href)
         location.href = next.href
@@ -65,6 +71,12 @@ describe("external Storybook landing frontend", () => {
       shell: {canvas: {} as HTMLCanvasElement, loadFont: async () => ({}) as never, createRoot: fakeRootFactory(state)},
     })
     try {
+      expect(controller.shell.workbench.controller.read("projectName")).toBe("Fixture Project")
+      expect(controller.shell.document.querySelector("[data-storybook-minimap] [data-window-title]")?.textContent).toBe("Fixture Project")
+      const home = controller.shell.workbench.elements.status.querySelector('[data-breadcrumb-id="storybook:root"] button')!
+      expect(home.textContent).toBe("Fixture Project")
+      expect(controller.shell.workbench.controller.read("status").breadcrumbs?.[0]?.label).toBe("Fixture Project")
+      expect([...home.querySelectorAll("img")].some(icon => !icon.hasAttribute("hidden"))).toBeFalse()
       const navigation = controller.shell.workbench.controller.read("catalog.items")
       expect(navigation.filter(item => item.id.startsWith("package:")).map(item => item.id)).toEqual([
         "package:fixture-workspace", "package:fixture-alpha", "package:@fixture/components",
@@ -81,33 +93,38 @@ describe("external Storybook landing frontend", () => {
         await controller.select(id)
         expect(new URL(location.href).pathname).toBe(path)
       }
+      // Callback выше проверяет package intent, но не монтирует новый page scope.
+      // Домашнюю ссылку landing проверяем из его собственного обзора директории.
+      await controller.select("directory:package:@fixture/components/docs")
+      expect(controller.shell.workbench.controller.read("catalog.active")).toBe("directory:package:@fixture/components/docs")
+      const homeButton = controller.shell.workbench.elements.status.querySelector('[data-breadcrumb-id="storybook:root"] button') as import("@zavx0z/dom").HTMLButtonElement
+      expect(homeButton.hasAttribute("disabled")).toBeFalse()
+      homeButton.click()
+      await waitUntil(() => location.pathname === "/")
+      expect(location.pathname).toBe("/")
+      expect(controller.shell.workbench.controller.read("catalog.active")).toBeNull()
       expect(requests).toEqual(["/api/client"])
+      const minimap = controller.shell.document.querySelector("[data-storybook-minimap] [data-window]")!
+      const tree = minimap.querySelector('[role="tree"]')!
+      snapshot = {...snapshot, projectName: "Renamed Project"}
+      onMessage!({data: JSON.stringify({type: "registry.updated", graphDigest: snapshot.graphDigest})} as MessageEvent)
+      await waitUntil(() => controller.shell.workbench.controller.read("projectName") === "Renamed Project")
+      expect(minimap.querySelector("[data-window-title]")?.textContent).toBe("Renamed Project")
+      expect(home.textContent).toBe("Renamed Project")
+      expect(controller.shell.workbench.controller.read("status").breadcrumbs?.[0]?.label).toBe("Renamed Project")
+      expect(controller.shell.document.querySelector("[data-storybook-minimap] [data-window]") === minimap).toBeTrue()
+      expect(minimap.querySelector('[role="tree"]') === tree).toBeTrue()
+      expect(controller.snapshot.graphDigest).toBe(graph.digest)
+      expect(requests).toEqual(["/api/client", "/api/client"])
       expect(state.creations).toBe(1)
     } finally { controller.dispose() }
   })
 
-  test("adds and removes projects through the catalog controls without reloading the Root", async () => {
-    const catalog = await discoverStorybookPackages([fixtureRoot, join(fixtureRoot, "standalone")])
-    const full = createExternalStorybookGraph(catalog)
-    const registry = new ExternalStorybookRegistry(discoverStorybookPackages)
-    await registry.configure([fixtureRoot, join(fixtureRoot, "standalone")])
-    const removed = (await registry.detach("package:fixture-workspace")).graph
-    const empty = createExternalStorybookGraph({schemaVersion: 1, rootIds: [], scopes: []})
-    let snapshot = WebProtocol.clientSnapshot(empty, [])
-    const changes: unknown[] = []
-    const token = "11111111-1111-4111-8111-111111111111"
-    const files = new Map<string, string>()
+  test("отложенные действия с Repo видны disabled и не выполняют запросы", async () => {
+    const graph = await fixtureGraph()
+    const snapshot = WebProtocol.clientSnapshot(graph, packageSnapshots(graph), "Fixture Project")
+    const requests: string[] = []
     let picks = 0
-    const selectedDirectory = {
-      async getFileHandle(name: string) {
-        return {async createWritable() { return {
-          async write(value: string) { files.set(name, value) },
-          async close() {},
-          async abort() {},
-        } }}
-      },
-      async removeEntry(name: string) { files.delete(name) },
-    } as unknown as FileSystemDirectoryHandle
     let reloads = 0
     const controller = await startExternalStorybookLanding({
       browserDocument: {
@@ -116,59 +133,39 @@ describe("external Storybook landing frontend", () => {
       } as unknown as globalThis.Document,
       pickDirectory: async () => {
         picks += 1
-        if (picks > 1) throw new DOMException("Cancelled", "AbortError")
-        return selectedDirectory
+        throw new Error("Недоступное действие не открывает picker")
       },
-      fetcher: (async (input, init) => {
+      fetcher: (async input => {
+        requests.push(String(input))
         if (String(input) === "/api/client") return Response.json(snapshot)
-        if (String(input) === "/api/browser/directory") {
-          expect(picks).toBe(1)
-          return Response.json({ok: true, token, filename: `.storybook-selection-${token}`, content: "proof"})
-        }
-        if (String(input).startsWith("/api/browser/")) {
-          const body = JSON.parse(String(init?.body))
-          changes.push(body)
-          expect((init?.headers as Record<string, string>)["x-storybook-session"]).toBe("registry-session")
-          const nextGraph = String(input).endsWith("attach") ? full : removed
-          snapshot = WebProtocol.clientSnapshot(nextGraph, packageSnapshots(nextGraph))
-          return Response.json({ok: true})
-        }
-        return new Response("# Project")
+        throw new Error("Недоступное действие не выполняет HTTP-запрос")
       }) as typeof fetch,
       location: {href: "http://localhost/", pathname: "/", reload() { reloads += 1 }},
       history: {pushState() {}},
       shell: {canvas: {} as HTMLCanvasElement, loadFont: async () => ({}) as never, createRoot: fakeRootFactory(createFakeRootState())},
     })
     try {
-      const root = controller.shell.workbench.element
-      const button = root.querySelector('[aria-label="Добавить проект"]') as import("@zavx0z/dom").HTMLButtonElement
-      button.click()
-      await waitUntil(() => controller.shell.workbench.controller.read("catalog.management")?.pending === false)
-      expect(controller.shell.workbench.controller.read("catalog.management")?.error).toBe("")
-      expect(changes).toEqual([{selectionToken: token}])
-      expect(files.size).toBe(0)
-      expect(controller.shell.workbench.controller.read("catalog.items").filter(item => item.id.startsWith("package:"))).toHaveLength(6)
-      const removeButton = (root.querySelector('[aria-label="Удалить Fixture Workspace из каталога"]') as import("@zavx0z/dom").HTMLButtonElement)
-      removeButton.click()
-      await waitUntil(() => controller.shell.workbench.controller.read("catalog.management")?.pending === false)
-      expect(changes[1]).toEqual({scopeId: "package:fixture-workspace"})
-      expect(controller.shell.workbench.controller.read("catalog.items").map(item => item.id))
-        .toContain("package:@fixture/standalone")
-      expect(controller.shell.workbench.controller.read("catalog.items").some(item => item.id === "package:fixture-workspace")).toBeFalse()
-      expect(controller.shell.workbench.element).toBe(root)
+      const element = controller.shell.workbench.element
+      const before = controller.shell.workbench.controller.read("catalog.items")
+      const add = element.querySelector('[aria-label="Добавить репозиторий"]') as import("@zavx0z/dom").HTMLButtonElement
+      const remove = element.querySelector('[aria-label="Удалить Fixture Workspace из каталога"]') as import("@zavx0z/dom").HTMLButtonElement
+      expect(add.hasAttribute("disabled")).toBeTrue()
+      expect(remove.hasAttribute("disabled")).toBeTrue()
+      add.click()
+      remove.click()
+      await new Promise(resolve => setTimeout(resolve, 0))
+      expect(picks).toBe(0)
+      expect(requests).toEqual(["/api/client"])
+      expect(controller.shell.workbench.controller.read("catalog.items")).toEqual(before)
+      expect(element.querySelector('[aria-label="Развернуть всё дерево"]')!.hasAttribute("disabled")).toBeFalse()
+      expect(element.querySelector('[aria-label="Свернуть всё дерево"]')!.hasAttribute("disabled")).toBeFalse()
       expect(reloads).toBe(0)
-      button.click()
-      await waitUntil(() => controller.shell.workbench.controller.read("catalog.management")?.pending === false)
-      expect(changes).toHaveLength(2)
-      expect(controller.shell.workbench.controller.read("catalog.management")?.error).toBe("")
-    } finally {
-      controller.dispose()
-    }
+    } finally { controller.dispose() }
   })
 
-  test("clears a previous package Inspector when landing reuses the page shell", async () => {
+  test("updates Project name and clears package Inspector while reusing the page shell", async () => {
     const graph = await fixtureGraph()
-    const snapshot = WebProtocol.clientSnapshot(graph, packageSnapshots(graph))
+    const snapshot = WebProtocol.clientSnapshot(graph, packageSnapshots(graph), "Fixture Project")
     const browserDocument = {documentElement: {dataset: {}}, querySelector() { return null }} as unknown as Document
     const options = {
       browserDocument,
@@ -185,10 +182,29 @@ describe("external Storybook landing frontend", () => {
     workbench.update("inspector.registry", [...registry, {
       id: "fixture-custom", kind: "custom", label: "X", title: "Fixture", component: ScenarioInspector,
     }] as never)
-    const second = await startExternalStorybookLanding({...options, pageScope: {
-      shell: first.shell, initialPathname: "/", async navigatePackage() {},
-    }})
+    const document = first.shell.document
+    const space = first.shell.space
+    const minimap = document.querySelector("[data-storybook-minimap] [data-window]")!
+    const tree = minimap.querySelector('[role="tree"]')!
+    const beforeState = first.shell.captureUserState()
+    const second = await startExternalStorybookLanding({...options,
+      fetcher: (async () => Response.json({...snapshot, projectName: "Renamed Project"})) as unknown as typeof fetch,
+      pageScope: {
+        shell: first.shell, initialPathname: "/", async navigatePackage() {},
+      },
+    })
     try {
+      expect(workbench.controller.read("projectName")).toBe("Renamed Project")
+      expect(document.querySelector("[data-storybook-minimap] [data-window-title]")?.textContent).toBe("Renamed Project")
+      const home = workbench.elements.status.querySelector('[data-breadcrumb-id="storybook:root"] button')!
+      expect(home.textContent).toBe("Renamed Project")
+      expect(workbench.controller.read("status").breadcrumbs?.[0]?.label).toBe("Renamed Project")
+      expect([...home.querySelectorAll("img")].some(icon => !icon.hasAttribute("hidden"))).toBeFalse()
+      expect(first.shell.document === document).toBeTrue()
+      expect(first.shell.space === space).toBeTrue()
+      expect(document.querySelector("[data-storybook-minimap] [data-window]") === minimap).toBeTrue()
+      expect(minimap.querySelector('[role="tree"]') === tree).toBeTrue()
+      expect(first.shell.captureUserState().minimap).toEqual(beforeState.minimap)
       expect(workbench.controller.read("inspector.subject")).toBeNull()
       expect(workbench.controller.read("inspector.values")).toEqual({})
       expect(workbench.controller.read("inspector.registry")).toEqual(registry)

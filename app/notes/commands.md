@@ -1,17 +1,36 @@
 # Команды инструмента
 
 Запуск описан в `scripts` корневого [package.json](../../package.json) и использует
-публичный [App](../index.ts). `bun run storybook` или `bun run serve` обеспечивает
-приложение и подключает текущий корень. `bun run build` явно готовит кандидата
-самого Storybook без применения. `bun run typecheck` проверяет типы, `bun run test`
-выполняет проверки владельцев, `bun run check` соединяет эти действия.
+публичный [App](../index.ts). Стандартные параметры App и MCP сохраняются.
+Daemon определяет Project по Git-контексту аргументов прежнего launcher:
+`package.json` заменяется его каталогом, затем Git читает
+`--show-superproject-working-tree` или, при пустом результате, `--show-toplevel`.
+При пустых аргументах та же проверка выполняется от `toolRoot` инструмента.
+Все аргументы выбирают один Project; неоднозначный контекст прерывает запуск.
+Сервер читает состав из `.gitmodules` этого Project и имя из его `package.json#name`.
 
-`bun run storybook:status` читает состояние, `storybook:attach <root>` подключает
-пакет, `storybook:detach <scope-id>` отключает его, `storybook:open <package-id> [route]`
+При разработке самого инструмента из корня Project запускают:
+
+```sh
+bun --cwd storybook run storybook
+```
+
+`bun run storybook` и `bun run serve` обеспечивают сервер выбранного Project.
+Прежние аргументы launcher служат контекстом запуска, а не отдельным составом Repo.
+`bun run build` явно готовит кандидата самого Storybook без применения.
+`bun run typecheck` проверяет типы, `bun run test` выполняет проверки владельцев,
+`bun run check` соединяет эти действия.
+
+`bun run storybook:status` читает состояние, `storybook:open <package-id> [route]`
 открывает представление, `storybook:stop` явно завершает приложение.
+Запросы `storybook:attach <root>` и `storybook:detach <scope-id>` пока возвращают
+HTTP 501 TODO без изменения `.gitmodules`, файлов Repo и состава сессии.
 
 Агент использует MCP по навыку Storybook. Другие действия App доступны через
 тот же публичный контракт; отдельного CLI-парсера нет.
+Новые сведения Project раскрываются через существующий HTTP-прокси `storybook({})`.
+Полный перенос управляющих инструментов на этот транспорт остаётся TODO;
+изменение Project и Web не меняет резидентный MCP-контракт или его cwd.
 
 ## Установка локальных зависимостей
 

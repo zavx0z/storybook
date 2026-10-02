@@ -35,7 +35,8 @@
     "@package/resources": "workspace:*",
     "@tech/limits": "workspace:*",
     "@app-mcp/response": "workspace:*",
-    "@zavx0z/storybook-browser-lifecycle": "workspace:*"
+    "@zavx0z/storybook-browser-lifecycle": "workspace:*",
+    "@archetypes/project": "workspace:*"
   },
   "devDependencies": {
     "@build/artifacts": "workspace:*",

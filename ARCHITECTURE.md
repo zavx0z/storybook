@@ -102,31 +102,37 @@ reconciliation не меняет записи других пакетов и н�
 содержит только `package`, `directory` и локально `unavailable` при ошибке
 обнаружения. Навигация, поиск, маршруты и представления выводятся из него.
 
-Сбой resolver или проверки кандидата сохраняет предыдущий проверенный снимок.
-Недоступная область не удаляет сессии соседних пакетов. Подключение нового
-корня остаётся атомарным.
+Состав корней поступает от [Project](project/index.ts). Сервер перечитывает его
+при явном обновлении и передаёт Repo каталогу; источник имени и состава описан
+в [контракте Project](project/contract/index.ts). Сбой чтения Project, resolver
+или проверки кандидата сохраняет предыдущий проверенный снимок. Недоступный
+вложенный пакет не удаляет сессии соседних пакетов.
 
 ## One server, one origin, separate realms
 
-`storybook serve [package-root...]` создаёт единственный Bun listener с
+Приложение определяет один Project по Git-контексту запуска и создаёт единственный Bun listener с
 automatic port; управляемая замена daemon повторно использует его предыдущий
 port. Canonical private state находится в одном user cache root и не зависит от
 cwd, `TMPDIR` или stdio transport environment. Runtime state хранит exact
-PID/start/cwd/origin; `attach`, `detach`,
-`open`, `status`, `check` и `stop` обращаются к этому process и никогда не
+PID/start/cwd/origin; `open`, `status`, `check` и `stop` обращаются к этому process и никогда не
 запускают package-owned listener.
+Отдельный список Repo между запусками не сохраняется. Кнопки добавления и удаления
+остаются в интерфейсе; операции изменения Project пока возвращают явный отказ.
+Их развитие записано в [TODO Project](project/notes/draft-composition.md).
 
 При первом запуске после migration controller проверяет прежние user TMPDIR
 roots, принимает только state с exact canonical `toolRoot`/PID/start/cwd,
-останавливает подтверждённые legacy daemons и переносит выбранные корни.
+останавливает подтверждённые legacy daemons и сохраняет параметры соединения.
+Состав Repo нового daemon каждый раз читается из текущего Project.
 Чужой checkout fail closed. Межпроцессный start lease забирается атомарно,
 удерживается controller до публикации, а его fencing token передаётся daemon
 child; abort не оставляет второй starting process. Предыдущий port
 переиспользуется best-effort, а `EADDRINUSE` безопасно
 возвращает automatic port.
-До остановки прежнего daemon выбранные корни/port атомарно записываются в private
-migration journal; journal переживает abort/crash и удаляется только после
-успешной публикации/attach. Child пишет token-scoped candidate внутрь lease, а
+До остановки прежнего daemon его runtime-сведения и port атомарно записываются в private
+migration journal; содержащиеся там прежние корни не подменяют состав Project.
+Journal переживает abort/crash и удаляется только после успешной публикации.
+Child пишет token-scoped candidate внутрь lease, а
 живой controller атомарно commit-ит его в `server.json`; superseded child не
 может публиковать canonical state.
 

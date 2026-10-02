@@ -7,6 +7,7 @@ export declare namespace McpRest {
   type Input = readonly [
     request: Request,
     options: Readonly<{
+      projectName: string
       entries: readonly (McpChildren.Input["entries"][number] & Readonly<{sources?: McpContentSources}>)[]
     }>,
   ]

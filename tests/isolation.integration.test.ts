@@ -1,4 +1,5 @@
 import createWeb from "@app/web"
+import {createProjectFixture} from "../app/server/test/project.fixture"
 import RouteUrlOwner from "@route/url"
 const storybookPackageUrlPath = RouteUrlOwner.storybookPackageUrlPath
 import TechLimitsOwner from "@tech/limits"
@@ -24,7 +25,7 @@ describe("one-server structural package isolation", () => {
   isolationTest("A metadata update and failure preserve B/C revisions and A last working revision", async () => {
     const fixture = createFixture()
     const running = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64),
-      declarations: [fixture.projectRoot], statePath: join(fixture.root, "state/server.json"),
+      project: createProjectFixture(fixture.root, [fixture.repo]), statePath: join(fixture.root, "state/server.json"),
       artifactRoot: join(fixture.root, "artifacts"),
       browserLifecycle: {
         async listViews() { return [] },
@@ -100,17 +101,17 @@ describe("one-server structural package isolation", () => {
 function createFixture() {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "storybook-isolation-")))
   roots.push(root)
-  const projectRoot = join(root, "project")
+  const repo = join(root, "project")
   const packages = ["a", "b", "c"] as const
-  mkdirSync(projectRoot, {recursive: true})
-  writeFileSync(join(projectRoot, "package.json"), JSON.stringify({name: "@fixture/project", workspaces: ["packages/*"]}))
+  mkdirSync(repo, {recursive: true})
+  writeFileSync(join(repo, "package.json"), JSON.stringify({name: "@fixture/project", workspaces: ["packages/*"]}))
   for (const id of packages) {
-    const packageRoot = join(projectRoot, "packages", id)
+    const packageRoot = join(repo, "packages", id)
     mkdirSync(packageRoot, {recursive: true})
     writeFileSync(join(packageRoot, "package.json"), JSON.stringify({name: `@fixture/${id}`, label: id.toUpperCase()}))
     writeFileSync(join(packageRoot, "index.ts"), `/**\n# ${id.toUpperCase()}\n@packageDocumentation\n*/\n`)
   }
-  return {root, projectRoot, aMetadata: join(projectRoot, "packages/a/package.json")}
+  return {root, repo, aMetadata: join(repo, "packages/a/package.json")}
 }
 
 function unexpectedBrowserAction(): never { throw new Error("Isolation test must not control a real browser") }

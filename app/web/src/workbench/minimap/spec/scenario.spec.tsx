@@ -14,6 +14,7 @@ describe.each([
   const props = {
     ...input,
     onRebuildWeb: mock(() => rebuild.promise),
+    projectName: "Fixture Project",
     catalog: {
       label: "Каталог",
       search: "",
@@ -31,6 +32,7 @@ describe.each([
   }
   const element = await headless.render(
     <Minimap
+      projectName={props.projectName}
       catalog={props.catalog}
       initialState={props.initialState}
       onRebuildWeb={props.onRebuildWeb}
@@ -38,6 +40,13 @@ describe.each([
   )
   const panel = element.querySelector("[data-window]")!
   const tab = element.querySelector("[data-minimap-tab]")!
+
+  test("Имя Project", () => {
+    expect(panel.querySelector("[data-window-title]")!.textContent,
+      "Заголовок окна использует переданное имя Project").toBe(props.projectName)
+    expect(tab.querySelector('button[aria-label="Fixture Project"]'),
+      "Свернутую карту открывает кнопка с тем же именем Project").not.toBeNull()
+  })
 
   test("Начальная видимость", () => {
     expect(panel.hasAttribute("hidden"), "Раскрытое состояние показывает панель каталога").toBe(input.initialState.collapsed)
@@ -49,20 +58,20 @@ describe.each([
   })
 
   test("Скрытие и восстановление дерева", async () => {
-    if (panel.hasAttribute("hidden")) element.querySelector('button[aria-label="Minimap"]')!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    if (panel.hasAttribute("hidden")) element.querySelector('button[aria-label="Fixture Project"]')!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
     await headless.screenshot(element)
     const tree = panel.querySelector('[role="tree"]')!
     element.querySelector('[aria-label="Свернуть всё дерево"]')!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
     await headless.screenshot(element)
     const group = tree.querySelector('[role="treeitem"]')!
-    element.querySelector('[aria-label="Скрыть Minimap"]')!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    element.querySelector('[aria-label="Скрыть Fixture Project"]')!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
     await headless.screenshot(element)
     flushDocumentLayoutObservers(element.ownerDocument!)
     await headless.screenshot(element)
     expect(panel.hasAttribute("hidden"), "Кнопка скрывает панель").toBeTrue()
     expect(tab.hasAttribute("hidden"), "Вместо панели доступен Tab").toBeFalse()
     expect(tab.querySelector('[data-tab]')!.getAttribute("data-ready"), "Tab получает размеры HUD после скрытия панели").toBe("true")
-    if (panel.hasAttribute("hidden")) element.querySelector('button[aria-label="Minimap"]')!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    if (panel.hasAttribute("hidden")) element.querySelector('button[aria-label="Fixture Project"]')!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
     await headless.screenshot(element)
     expect(panel.hasAttribute("hidden"), "Кнопка таба возвращает панель").toBeFalse()
     expect(panel.querySelector('[role="tree"]') === tree, "Скрытие сохраняет экземпляр дерева").toBeTrue()
@@ -72,7 +81,7 @@ describe.each([
   })
 
   test("Переход по каталогу", async () => {
-    if (panel.hasAttribute("hidden")) element.querySelector('button[aria-label="Minimap"]')!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    if (panel.hasAttribute("hidden")) element.querySelector('button[aria-label="Fixture Project"]')!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
     await headless.screenshot(element)
     const row = panel.querySelector('[data-tree-id="component"] [data-tree-row]')!
     row.dispatchEvent(new MouseEvent("click", {bubbles: true}))
@@ -83,7 +92,7 @@ describe.each([
   })
 
   test("Явная пересборка интерфейса", async () => {
-    if (panel.hasAttribute("hidden")) element.querySelector('button[aria-label="Minimap"]')!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    if (panel.hasAttribute("hidden")) element.querySelector('button[aria-label="Fixture Project"]')!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
     await headless.screenshot(element)
     const button = panel.querySelector('button[aria-label="Пересобрать интерфейс"]')!
     expect(panel.querySelector('[data-storybook-part="catalog-search"]')!.contains(button), "Пересборка расположена в одной строке с поиском и действиями дерева").toBeTrue()

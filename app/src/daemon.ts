@@ -7,13 +7,15 @@ import startExternalStorybookServer from "@app/server"
 import {realpathSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import {externalStorybookImplementationDigest} from "./implementation-digest.ts"
+import {realpath} from "node:fs/promises"
+import {basename, dirname, resolve} from "node:path"
 export type ExternalStorybookDaemonOptions = Readonly<{
   declarations?: readonly string[]
   port?: number
   startLease: Readonly<{path: string; token: string}>
 }>
 
-/** Runs the canonical server independently from CLI or MCP transport lifetime. */
+/** Запускает сервер одного Project независимо от жизненного цикла MCP transport. */
 export async function runExternalStorybookDaemon(
   options: ExternalStorybookDaemonOptions,
 ): Promise<void> {
@@ -26,6 +28,7 @@ export async function runExternalStorybookDaemon(
   if (inspection.state === "stale" && !inspection.replaceable) {
     throw new Error(`Refusing ambiguous Storybook daemon state: ${inspection.reason}`)
   }
+  const project = await resolveDaemonProject(toolRoot, options.declarations ?? [])
   console.error("Storybook startup: artifacts")
   collectUnpublishedStorybookArtifacts(externalStorybookArtifactRoot())
   /** Передаёт этап запуска в диагностический поток родительского controller. */
@@ -38,7 +41,7 @@ export async function runExternalStorybookDaemon(
       toolRoot,
       implementationDigest,
       onStartupPhase,
-      declarations: options.declarations ?? Object.freeze([]),
+      project,
       ...(options.port === undefined ? {} : {port: options.port}),
       startLease: options.startLease,
     })
@@ -48,7 +51,7 @@ export async function runExternalStorybookDaemon(
       toolRoot,
       implementationDigest,
       onStartupPhase,
-      declarations: options.declarations ?? Object.freeze([]),
+      project,
       port: 0,
       startLease: options.startLease,
     })
@@ -68,4 +71,47 @@ export async function runExternalStorybookDaemon(
 function addressInUse(error: unknown): boolean {
   return (error as NodeJS.ErrnoException | null)?.code === "EADDRINUSE" ||
     (error instanceof Error && error.message.includes("EADDRINUSE"))
+}
+
+/**
+Определяет один Project по Git-контексту прежнего launcher.
+Аргументы Repo выбирают только корень Project; его состав читает Server из .gitmodules.
+При пустом контексте используется Git-граница установленного инструмента.
+
+@internal
+*/
+export async function resolveDaemonProject(
+  toolRoot: string,
+  declarations: readonly string[],
+): Promise<string> {
+  const contexts = declarations.length === 0 ? [toolRoot] : declarations
+  const candidates = await Promise.all(contexts.map(async context => {
+    const path = resolve(context)
+    const directory = basename(path) === "package.json" ? dirname(path) : path
+    const root = await realpath(directory)
+    const superproject = await gitRoot(root, "--show-superproject-working-tree")
+    const project = superproject === "" ? await gitRoot(root, "--show-toplevel") : superproject
+    if (project === "") throw new Error(`Git не определил корень Project для ${root}`)
+    return realpath(project)
+  }))
+  const roots = [...new Set(candidates)]
+  if (roots.length !== 1) {
+    throw new Error(`Контекст запуска не определяет единственный Project: ${roots.join(", ")}`)
+  }
+  return roots[0]!
+}
+
+async function gitRoot(root: string, option: string): Promise<string> {
+  const child = Bun.spawn(["git", "-C", root, "rev-parse", option], {
+    stdin: "ignore",
+    stdout: "pipe",
+    stderr: "pipe",
+  })
+  const [output, error, status] = await Promise.all([
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
+    child.exited,
+  ])
+  if (status !== 0) throw new Error(`Не удалось определить Project для ${root}: ${error.trim()}`)
+  return output.replace(/\r?\n$/u, "")
 }

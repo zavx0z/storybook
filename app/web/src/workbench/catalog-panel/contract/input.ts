@@ -8,7 +8,7 @@ import type {NavigationExpansion} from "../../navigation/persistence.ts"
 @property search - Текущий поисковый запрос общей модели.
 @property items - Полная иерархия доступных элементов каталога.
 @property activeId - Текущая страница; null отключает поиск текущего места.
-@property management - Управление подключёнными проектами; null убирает его действия.
+@property management - Управление Repo проекта; null убирает его действия.
 @property onAction - Передаёт запрос подключения или удаления владельцу каталога.
 @property onNavigate - Передаёт выбранный элемент и источник события маршрутизации.
 @property onSearch - Публикует новый запрос, включая очистку при поиске текущего места.

@@ -21,6 +21,7 @@ import appMcp from "@app/mcp"
 import McpRestRequestsOwner from "@mcp-rest/requests"
 import AppServerCatalogOwner, {type AppServerCatalog as AppServerCatalogContract} from "@app-server/catalog"
 import RepoDiscoveryOwner from "@repo/discovery"
+import readProject from "@archetypes/project"
 import AppWebBuildOwner, {type AppWebBuild} from "@app-web/build"
 import PackageBuildPrepareOwner from "@package-build/prepare"
 import PackageBuildFingerprintOwner from "@package-build/fingerprint"
@@ -80,7 +81,6 @@ import {streamScenarioRun} from "./src/scenario-stream"
 import {storybookMcpEntries} from "./src/mcp-entries"
 import proxyContent from "@app-mcp/response"
 const errorContent = proxyContent.error
-import {StorybookDirectorySelection} from "./src/directory-selection.ts"
 import {createCatalogRefresh} from "./src/catalog-refresh.ts"
 import {
   isStorybookNavigationSupersededError,
@@ -90,7 +90,6 @@ import {
   prepareStorybookPackagePageTarget,
   type StorybookPackageBootstrapIntent,
 } from "./src/package-page-target.ts"
-import {readStorybookProjectSelection, storybookProjectSelectionPath, writeStorybookProjectSelection} from "./src/project-store.ts"
 import {randomUUID} from "node:crypto"
 import {
   chmodSync,
@@ -160,16 +159,10 @@ export default async function startExternalStorybookServer(
   mkdirSync(artifactRoot, {recursive: true, mode: 0o700})
   chmodSync(artifactRoot, 0o700)
   const registry = new ExternalStorybookRegistry(options.resolveCatalog ?? discoverStorybookPackages, () => readWorkbenchStyleSheets(toolRoot))
-  const selectionPath = options.projectSelectionPath ?? (options.statePath === undefined
-    ? storybookProjectSelectionPath() : join(dirname(statePath), "projects.json"))
-  const savedSelection = readStorybookProjectSelection(selectionPath)
   options.onStartupPhase?.("catalog")
-  await registry.configure(savedSelection ?? options.declarations ?? [])
+  let project = await readProject({path: options.project})
+  await registry.configure(project.repositories.map(repository => repository.root))
   options.onStartupPhase?.("sessions")
-  const saveSelection = (snapshot: ExternalStorybookRegistrySnapshot): void => {
-    writeStorybookProjectSelection(selectionPath, snapshot.entries.map(entry =>
-      snapshot.catalog.scopes.find(scope => scope.canonicalId === entry.canonicalId)!.scopeRoot))
-  }
   const clients = new Set<Bun.ServerWebSocket<WebSocketData>>()
   let serverRecord!: ExternalStorybookServerRecord
   let serverRecordCreated = false
@@ -196,13 +189,12 @@ export default async function startExternalStorybookServer(
     ...(preparedSharedIdentity === undefined ? {} : {sharedBrowserIdentity: preparedSharedIdentity}),
   })
   const browserSessions = new StorybookBrowserSessionRegistry()
-  const directorySelections = new StorybookDirectorySelection()
   const unavailableSharedKernels = new Map<string, string>()
   const eventHub = new StorybookEventHub<StorybookPackageEvent | RegistryEvent>()
   const publish = (event: StorybookPackageEvent | RegistryEvent): number => {
     eventHub.publish(event)
     const browserEvent = event.type === "package.failed"
-      ? sanitizePackageFailure(event, registry, () => sessions.snapshots())
+      ? sanitizePackageFailure(event, registry, () => sessions.snapshots(), project.name)
       : event
     const payload = JSON.stringify(browserEvent)
     let delivered = 0
@@ -268,9 +260,7 @@ export default async function startExternalStorybookServer(
       attachedDeclarations: Object.freeze(snapshot.entries.map(({declarationPath}) => declarationPath)),
     })
     writeServerRecord(statePath, nextRecord)
-    directorySelections.remember(snapshot.catalog.scopes.map(scope => scope.scopeRoot))
     sessions.sync(registry.packageDescriptors(), declarationFailures(registry.snapshot()))
-    saveSelection(snapshot)
     serverRecord = nextRecord
     publish(Object.freeze({
       type: "registry.updated",
@@ -284,17 +274,18 @@ export default async function startExternalStorybookServer(
   ): Promise<ExternalStorybookRegistrySnapshot> => {
     const before = registry.snapshot()
     const beforeRecord = serverRecord
+    const beforeProject = project
     try {
       const snapshot = await operation()
-      if (snapshot.revision !== before.revision) commitRegistry(snapshot)
+      if (snapshot.revision !== before.revision || project.name !== beforeProject.name) commitRegistry(snapshot)
       return snapshot
     } catch (error) {
+      project = beforeProject
       if (registry.snapshot().revision !== before.revision || registry.snapshot().graph !== before.graph) {
         registry.restore(before)
         try {
           writeServerRecord(statePath, beforeRecord)
           sessions.sync(registry.packageDescriptors(), declarationFailures(registry.snapshot()))
-          saveSelection(before)
           serverRecord = beforeRecord
         } catch (rollbackError) {
           throw new AggregateError([error, rollbackError], "External Storybook registry rollback failed")
@@ -321,7 +312,12 @@ export default async function startExternalStorybookServer(
     const resolving = force || registry.dirtySnapshot().dirty
     if (resolving) publish({type: "catalog.progress", state: "running"})
     try {
-      const result = await (force ? registry.refresh() : registry.refreshIfNeeded())
+      const nextProject = await readProject({path: project.root})
+      const roots = nextProject.repositories.map(repository => repository.root)
+      const previousRoots = project.repositories.map(repository => repository.root)
+      const changed = roots.length !== previousRoots.length || roots.some((root, index) => root !== previousRoots[index])
+      const result = await (changed ? registry.configure(roots) : force ? registry.refresh() : registry.refreshIfNeeded())
+      project = nextProject
       if (resolving) publish({type: "catalog.progress", state: "completed"})
       return result
     } catch (error) {
@@ -613,7 +609,7 @@ export default async function startExternalStorybookServer(
   let journalWriteError: {at: string, message: string} | null = null
   /** Один предметный обработчик для MCP-прокси и просмотра ответа по адресу UI. */
   const mcpEntries = () => storybookMcpEntries(registry.snapshot())
-  const readStorybook = (request: Request) => storybookRest(request, {entries: mcpEntries()})
+  const readStorybook = (request: Request) => storybookRest(request, {projectName: project.name, entries: mcpEntries()})
 
   let server!: Bun.Server<WebSocketData>
   try {
@@ -656,7 +652,7 @@ export default async function startExternalStorybookServer(
         }
         if (url.pathname === "/api/status" && request.method === "GET") {
           const snapshot = registry.snapshot()
-          const client = createExternalStorybookClientSnapshot(snapshot.graph, sessions.snapshots())
+          const client = createExternalStorybookClientSnapshot(snapshot.graph, sessions.snapshots(), project.name)
           return responseJson({
             ok: true,
             origin: server.url.origin,
@@ -669,6 +665,7 @@ export default async function startExternalStorybookServer(
               descendantCount: descendantIds.length,
             })),
             graphDigest: snapshot.graph.digest,
+            projectName: project.name,
             packages: client.packages,
           })
         }
@@ -1039,59 +1036,12 @@ export default async function startExternalStorybookServer(
         }
         if (url.pathname === "/api/client" && request.method === "GET") {
           const snapshot = registry.snapshot()
-          return responseJson(createExternalStorybookClientSnapshot(snapshot.graph, sessions.snapshots()))
+          return responseJson(createExternalStorybookClientSnapshot(snapshot.graph, sessions.snapshots(), project.name))
         }
-        if (url.pathname === "/api/browser/directory" && request.method === "POST") {
-          assertRegistryBrowserRequest(request)
-          assertExactRequestKeys(await requestObject(request), [])
-          return responseJson({ok: true, ...directorySelections.begin(request.headers.get("x-storybook-session")!)})
-        }
-        if (["/api/control/attach", "/api/browser/attach"].includes(url.pathname) && request.method === "POST") {
+        if (["/api/browser/directory", "/api/control/attach", "/api/browser/attach", "/api/control/detach", "/api/browser/detach"].includes(url.pathname) && request.method === "POST") {
           if (url.pathname.startsWith("/api/browser/")) assertRegistryBrowserRequest(request)
-          const body = await requestObject(request)
-          const browser = url.pathname.startsWith("/api/browser/")
-          assertExactRequestKeys(body, browser ? ["selectionToken"] : ["roots"])
-          const roots = browser ? [directorySelections.resolve(
-            requiredText("directory selection", body.selectionToken),
-            request.headers.get("x-storybook-session")!,
-            options.projectDirectory ?? dirname(toolRoot),
-            await registry.sourceRoots(),
-          )] : requiredTextList("attach roots", body.roots, 32)
-          const snapshot = await mutateRegistry(() => registry.attachMany(roots, "cli"))
-          return responseJson({
-            ok: true,
-            attached: snapshot.entries.slice(-roots.length).map(({rootKind, canonicalId, digest}) => ({
-              rootKind,
-              canonicalId,
-              digest,
-            })),
-            graphDigest: snapshot.graph.digest,
-          })
-        }
-        if (["/api/control/detach", "/api/browser/detach"].includes(url.pathname) && request.method === "POST") {
-          if (url.pathname.startsWith("/api/browser/")) assertRegistryBrowserRequest(request)
-          const body = await requestObject(request)
-          assertExactRequestKeys(body, ["scopeId"])
-          const scopeId = requiredText("detach scopeId", body.scopeId)
-          const currentPackages = registry.snapshot().graph.nodes.flatMap((node) =>
-            node.kind === "package" && node.packageId !== null
-              ? [{
-                packageId: node.packageId,
-                label: externalStorybookPageTitle(node.packageId, node.label),
-              }]
-              : [])
-          const openViews = await browserLifecycle.listViews(
-            server.url.origin,
-            request.signal,
-            currentPackages,
-          )
-          const snapshot = await mutateRegistry(() => registry.detach(scopeId))
-          const retainedPackageIds = new Set(snapshot.graph.nodes.flatMap((node) =>
-            node.kind === "package" && node.packageId !== null ? [node.packageId] : []))
-          for (const view of openViews) {
-            if (!retainedPackageIds.has(view.packageId)) await browserLifecycle.close(view.viewId, request.signal)
-          }
-          return responseJson({ok: true, graphDigest: snapshot.graph.digest})
+          // TODO: создание Repo, клонирование из GitHub и изменение .gitmodules принадлежат Project.
+          return responseJson({ok: false, error: "Состав проекта определяется .gitmodules. Добавление, создание и удаление репозиториев через GitHub ещё не реализованы."}, 501)
         }
         if (url.pathname === "/api/control/refresh" && request.method === "POST") {
           const body = await requestObject(request)
@@ -1411,8 +1361,6 @@ export default async function startExternalStorybookServer(
       await waitForStartupPublication(options.startLease, serverRecord, statePath)
     }
     serverRecordCreated = true
-    directorySelections.remember(registry.snapshot().catalog.scopes.map(scope => scope.scopeRoot))
-    saveSelection(registry.snapshot())
     options.onStartupPhase?.("ready")
   } catch (error) {
     await sessions.dispose()
@@ -1886,11 +1834,13 @@ function sanitizePackageFailure(
   event: Extract<StorybookPackageEvent, {type: "package.failed"}>,
   registry: ExternalStorybookRegistry,
   snapshots: () => ReturnType<ExternalStorybookSessionManager["snapshots"]>,
+  projectName: string,
 ): unknown {
   try {
     const summary = createExternalStorybookClientSnapshot(
       registry.snapshot().graph,
       snapshots(),
+      projectName,
     ).packages.find(({packageId}) => packageId === event.packageId)
     return summary === undefined
       ? {type: event.type, packageId: event.packageId, revision: event.revision, diagnostics: []}

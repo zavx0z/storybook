@@ -1,3 +1,4 @@
+import {createProjectFixture} from "./project.fixture.ts"
 import createWeb from "@app/web"
 import {type Zavx0zStorybookBrowserLifecycle as Zavx0zStorybookBrowserLifecycleContract} from "@zavx0z/storybook-browser-lifecycle"
 import RouteUrlOwner from "@route/url"
@@ -80,7 +81,7 @@ test("publishes only after an agent check, notifies every matching tab, and rest
     async close() { return {closed: false, viewId} },
     readCapture() { throw new Error("unused") },
   }
-  const options = {declarations: [owner, other], statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts"),
+  const options = {project: createProjectFixture(root, [owner, other]), statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts"),
     browserLifecycle: browser}
   server = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64), ...options})
   const tabs: WebSocket[] = []

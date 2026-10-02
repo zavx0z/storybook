@@ -7,7 +7,7 @@ import type {McpServer} from "@modelcontextprotocol/server"
 import {STORYBOOK_TOOL_NAMES} from "../src/mcp/src/schemas"
 import {createStorybookMcpServer} from "../src/mcp/index"
 import storybookRest from "@mcp/rest"
-const catalog = {entries: [
+const catalog = {projectName: "Fixture Project", entries: [
   {path: "example", label: "Пример", description: "Проект с примерами", parent: null},
   {path: "example/button", label: "Кнопка", description: "Действие пользователя", parent: "example"},
 ]}
@@ -55,11 +55,12 @@ describe("Storybook MCP stdio", () => {
   test("storybook возвращает REST-обзор без загрузки контроллера", async () => {
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
     let loads = 0
+    let projectName = catalog.projectName
     const server = createStorybookMcpServer({
       recordRequest: async () => {},
       controllerFactory: () => { loads += 1; throw new Error("Контроллер не должен загружаться") },
       request: async (input) => {
-        const response = await storybookRest(new Request("http://localhost/api/control/storybook", {method: "POST", body: JSON.stringify(input)}), catalog)
+        const response = await storybookRest(new Request("http://localhost/api/control/storybook", {method: "POST", body: JSON.stringify(input)}), {...catalog, projectName})
         const value = await response.json() as Record<string, unknown>
         if (!response.ok) throw new Error(String(value.error))
         return value
@@ -71,7 +72,7 @@ describe("Storybook MCP stdio", () => {
     try {
       const result = await client.callTool({name: "storybook", arguments: {}})
       expect(result.structuredContent).toEqual({
-        label: "Вход Storybook MCP",
+        label: "Fixture Project",
         description: expect.stringContaining("path"),
         children: [{path: "example", label: "Пример", description: "Проект с примерами"}],
       })
@@ -84,6 +85,11 @@ describe("Storybook MCP stdio", () => {
       const failed = await client.callTool({name: "storybook", arguments: {path: "missing"}})
       expect(failed.isError).toBeTrue()
       expect(failed.structuredContent).toMatchObject({status: "failed", error: {message: "Адрес отсутствует в публичной структуре: missing"}})
+      projectName = "Renamed Project"
+      const renamed = await client.callTool({name: "storybook", arguments: {}})
+      expect(renamed.structuredContent, "Тот же MCP client получает новое имя через proxy без загрузки контроллера").toMatchObject({label: "Renamed Project"})
+      expect((await client.listTools()).tools.find(tool => tool.name === "storybook")!.inputSchema.properties)
+        .toHaveProperty("path")
       expect(loads).toBe(0)
     } finally {
       await client.close()

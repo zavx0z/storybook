@@ -13,12 +13,20 @@ const fixtureGraph = async () => createExternalStorybookGraph(await discoverStor
 ]))
 
 describe("structural browser client protocol", () => {
+  test("требует имя Project независимо от состава пакетов", () => {
+    const graph = createExternalStorybookGraph({schemaVersion: 1, rootIds: [], scopes: []})
+    expect(WebProtocol.clientSnapshot(graph, [], "Другой Project").projectName).toBe("Другой Project")
+    for (const name of ["", " ", undefined, 42]) {
+      expect(() => WebProtocol.clientSnapshot(graph, [], name as string)).toThrow("project name must be non-empty text")
+    }
+  })
+
   test("предупреждения стандарта видны отдельно от блокирующих ошибок", async () => {
     const graph = await fixtureGraph()
     const path = join(fixtureRoot, "projects", "alpha", "index.ts")
     const snapshots = packageSnapshots(graph).map(snapshot => ({...snapshot, standard: "transition" as const,
       warnings: [{phase: "validate" as const, path, message: `Незавершённый стандарт ${path}`}]}))
-    const result = WebProtocol.clientSnapshot(graph, snapshots)
+    const result = WebProtocol.clientSnapshot(graph, snapshots, "Fixture Project")
     expect(result.packages[0]).toMatchObject({standard: "transition", diagnostics: [],
       warnings: [{phase: "validate", message: "Незавершённый стандарт [owner-path]"}]})
     expect(JSON.stringify(result)).not.toContain(path)
@@ -31,7 +39,8 @@ describe("structural browser client protocol", () => {
       ? {...session, buildState: "failed" as const, diagnostics: [{phase: "compile" as const,
         message: `Unexpected token in ${hiddenDiagnostic}`, path: hiddenDiagnostic}], dependencyRealpaths: [hiddenDiagnostic]}
       : session)
-    const client = WebProtocol.clientSnapshot(graph, sessions)
+    const client = WebProtocol.clientSnapshot(graph, sessions, "Fixture Project")
+    expect(client.projectName).toBe("Fixture Project")
     const owner = client.nodes.find(node => node.id === "package:@fixture/components")!
     const directory = client.nodes.find(node => node.id === "directory:package:@fixture/components/docs")!
     expect(owner).toMatchObject({kind: "package", ownerId: "@fixture/components", directoryName: "components"})
@@ -62,15 +71,15 @@ describe("structural browser client protocol", () => {
     const graph = await fixtureGraph()
     const snapshots = packageSnapshots(graph)
     expect(() => WebProtocol.nodeResourceUrl(graph, "directory:missing")).toThrow("Unknown external Storybook graph identity")
-    expect(() => WebProtocol.clientSnapshot(graph, snapshots.slice(1))).toThrow("Missing external Storybook client package session")
-    expect(() => WebProtocol.clientSnapshot(graph, [snapshots[0]!, snapshots[0]!, ...snapshots.slice(1)])).toThrow("Duplicate external Storybook client package session")
-    expect(() => WebProtocol.clientSnapshot(graph, [...snapshots, sessionSnapshot("@fixture/unknown")])).toThrow("Unknown external Storybook client package session")
+    expect(() => WebProtocol.clientSnapshot(graph, snapshots.slice(1), "Fixture Project")).toThrow("Missing external Storybook client package session")
+    expect(() => WebProtocol.clientSnapshot(graph, [snapshots[0]!, snapshots[0]!, ...snapshots.slice(1)], "Fixture Project")).toThrow("Duplicate external Storybook client package session")
+    expect(() => WebProtocol.clientSnapshot(graph, [...snapshots, sessionSnapshot("@fixture/unknown")], "Fixture Project")).toThrow("Unknown external Storybook client package session")
   })
 
   test("rejects broken graph references", async () => {
     const graph = await fixtureGraph()
     const broken = {...graph, rootIds: ["package:missing"]} as ExternalStorybookGraph
-    expect(() => WebProtocol.clientSnapshot(broken, packageSnapshots(graph))).toThrow("Unknown external Storybook client root")
+    expect(() => WebProtocol.clientSnapshot(broken, packageSnapshots(graph), "Fixture Project")).toThrow("Unknown external Storybook client root")
   })
 })
 

@@ -1,5 +1,5 @@
 /**
-Описывает начальную точку входа Storybook MCP независимо от подключённых проектов.
+Описывает текущий Project и направления его Repo через неизменный HTTP-прокси.
 Общая форма и раскрытие направлений принадлежат Children.
 
 @packageDocumentation
@@ -12,13 +12,14 @@ export type {McpRoot} from "./contract"
 /**
 Добавляет собственное назначение входа к актуальным направлениям каталога.
 
-@param input - Подключённые направления, в том числе пустой список.
-@returns Начальный ответ с label, description и children, без привязки к проекту.
+@param input - Имя из package.json текущего Project и направления из его состава Repo.
+@returns Имя Project и его направления без искусственного сегмента в адресах Repo.
 */
-export default function readMcpRoot({entries}: McpRoot.Input): McpRoot.Output {
+export default function readMcpRoot({projectName, entries}: McpRoot.Input): McpRoot.Output {
+  if (typeof projectName !== "string" || projectName.trim().length === 0) throw new TypeError("Project name must be non-empty text")
   return readMcpChildren({
-    label: "Вход Storybook MCP",
-    description: "Выберите подключённый проект, компонент или библиотеку по описанию. Для перехода передайте path выбранного элемента children в следующий вызов storybook. Выбранный владелец раскрывает input и output как JSON Schema с описаниями. Пустой вызов возвращает к этому входу.",
+    label: projectName,
+    description: "Выберите Repo текущего Project по описанию. Для перехода передайте path выбранного элемента children в следующий вызов storybook. Выбранный владелец раскрывает input и output как JSON Schema с описаниями. Пустой вызов возвращает к этому входу.",
     entries,
   })
 }

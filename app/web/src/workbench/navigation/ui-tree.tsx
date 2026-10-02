@@ -202,6 +202,7 @@ function removeActions(item: WorkbenchNavigationItem, props: WorkbenchNavigation
     id: "remove",
     label: `Удалить ${item.title ?? item.label} из каталога`,
     iconSrc: closeIcon,
+    disabled: true,
     onAction: (event: Event) => props.onRemove?.(item, event.currentTarget as HTMLElement),
   }] : []
 }

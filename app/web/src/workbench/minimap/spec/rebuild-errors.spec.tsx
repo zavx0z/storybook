@@ -15,6 +15,7 @@ describe.each([
       attempt += 1
       if (attempt === 1) throw error
     }),
+    projectName: "Fixture Project",
     catalog: {
       label: "Каталог",
       search: "",
@@ -29,6 +30,7 @@ describe.each([
   }
   const element = await headless.render(
     <Minimap
+      projectName={props.projectName}
       catalog={props.catalog}
       onRebuildWeb={props.onRebuildWeb}
     />,

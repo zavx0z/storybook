@@ -1,8 +1,9 @@
 /**
 Minimap показывает каталог в HUD того же Experience. Поиск, выбор страницы
 и команды дерева используют общую панель с Display. «Скрыть» сворачивает
-панель в перетаскиваемый Tab; кнопка «Minimap» возвращает то же дерево
+панель в перетаскиваемый Tab; кнопка с именем Project возвращает то же дерево
 с сохранением раскрытых ветвей и позиции прокрутки.
+Заголовок окна и управляющий Tab показывают переданное имя Project.
 Host Storybook сохраняет видимость, размер и положение окна и Tab в localStorage.
 Перемещение и resize записываются после завершения, отмена не меняет сохранённую раскладку.
 Кнопка со значком «Пересобрать интерфейс» расположена рядом с действиями дерева
@@ -63,7 +64,7 @@ export function Minimap(props: MinimapProps) {
   >
     <Window
       id={id}
-      title="Minimap"
+      title={props.projectName}
       open={!state.collapsed}
       onOpenChange={open => update({collapsed: !open})}
       geometry={state.geometry}
@@ -108,7 +109,7 @@ export function Minimap(props: MinimapProps) {
       `}
     >
       <Tab
-        label="Minimap"
+        label={props.projectName}
         position={state.tab}
         onPositionChange={(tab, phase) => {
           if (phase === "end") update({tab})
@@ -116,7 +117,7 @@ export function Minimap(props: MinimapProps) {
       >
         <WindowControl
           windowId={id}
-          label="Minimap"
+          label={props.projectName}
           open={!state.collapsed}
           onOpenChange={open => update({collapsed: !open})}
         />

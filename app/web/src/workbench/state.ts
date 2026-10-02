@@ -34,6 +34,7 @@ export function createInitialWorkbenchState(
   }), document)
   const state: WorkbenchViewState = {
     title: requiredText("Workbench title", initial?.title ?? "Storybook"),
+    projectName: stringValue("Project name", initial?.projectName ?? ""),
     "catalog.management": validateManagement(initial?.["catalog.management"] ?? null),
     "catalog.label": requiredText("Catalog label", initial?.["catalog.label"] ?? "Каталог"),
     "catalog.search": stringValue("Catalog search", initial?.["catalog.search"] ?? ""),
@@ -84,6 +85,9 @@ export function updateWorkbenchState<Address extends WorkbenchAddress>(
   switch (address) {
     case "title":
       next.title = requiredText("Workbench title", value)
+      break
+    case "projectName":
+      next.projectName = stringValue("Project name", value)
       break
     case "catalog.management":
       next["catalog.management"] = validateManagement(value)

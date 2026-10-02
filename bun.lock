@@ -148,6 +148,7 @@
         "@app-web/build": "workspace:*",
         "@app-web/protocol": "workspace:*",
         "@app/mcp": "workspace:*",
+        "@archetypes/project": "workspace:*",
         "@archetypes/scenario-reader": "workspace:*",
         "@archetypes/spec-reader": "workspace:*",
         "@build/environment": "workspace:*",
@@ -775,7 +776,7 @@
       "name": "@archetypes/project",
       "version": "0.0.0",
       "dependencies": {
-        "@archetypes/repo": "workspace:*",
+        "@archetypes/package-json": "workspace:*",
       },
     },
     "repo": {

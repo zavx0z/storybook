@@ -1,24 +1,41 @@
-import type {ArchetypesRepo} from "@archetypes/repo"
-
 export declare namespace ArchetypesProject {
   /**
-  Выбранные независимые Repo проекта. Project не обязан иметь собственный Git-корень.
+  Project читается из собственного Git superproject.
 
-  @property paths - Физические корни пакетов-репозиториев; повторная ссылка не создаёт копию Repo.
+  @property path - Точный Git-корень Project с собственным package.json.
+  Относительный путь разрешается от cwd; ссылки на директории канонизируются.
   */
   export interface Input {
-    readonly paths: readonly string[]
+    readonly path: string
   }
 
   /**
-  Композиция ссылок на независимые Repo.
+  Состав Project из .gitmodules без изменений исходников и Git-состояния.
 
-  @property repositories - Неповторяющиеся физические Repo со своими пакетными identity.
+  @property root - Канонический физический корень Git superproject.
+
+  @property name - Точное значение собственного package.json#name Project.
+  Имя директории, label и package identity участников его не заменяют.
+
+  @property repositories - Ссылки на объявленные Repo с их Git-корнями и пакетными identity.
+  Отсутствующий .gitmodules даёт пустой массив; недоступный участник или повторный
+  физический корень прерывает чтение, а не исчезает из состава.
+  Пакеты внутри Repo не читаются и не определяют участие Repo в Project.
+
   @property duplicateNames - Разные физические корни с одинаковой пакетной identity.
-  @property nestedRoots - Выбранные Repo, физически вложенные в другой выбранный Repo.
+
+  @property nestedRoots - Объявленные Repo, физически вложенные в другой участвующий Repo.
+  Вложенность участника в Git superproject сама по себе не попадает в диагностику.
   */
   export interface Output {
-    readonly repositories: readonly ArchetypesRepo.Output[]
+    readonly root: string
+    readonly name: string
+    readonly repositories: readonly {
+      /** Канонический каталог собственной Git-истории Repo. */
+      readonly root: string
+      /** Имя из package.json Repo; имя submodule section его не заменяет. */
+      readonly name: string
+    }[]
     readonly duplicateNames: readonly string[]
     readonly nestedRoots: readonly string[]
   }

@@ -13,6 +13,7 @@ import {fileURLToPath} from "node:url"
 import startExternalStorybookServer, {type AppServer} from "../index.ts"
 import {StorybookBrowserSessionRegistry} from "../src/browser-session-registry.ts"
 import {seedPublishedSharedAssets} from "./shared-assets.fixture.ts"
+import {createProjectFixture} from "./project.fixture.ts"
 import state from "@app-server/state"
 
 const roots: string[] = []
@@ -30,7 +31,7 @@ describe("one external Storybook server", () => {
   test("isolated package check собирает ревизию без shared jobs и артефактов", async () => {
     const fixture = serverFixture()
     const running = await startTestServer({
-      declarations: [fixture.standalone],
+      project: createProjectFixture(fixture.root, [fixture.standalone]),
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
       packageBrowserEntryPath: fixture.packageEntry,
@@ -60,7 +61,7 @@ describe("one external Storybook server", () => {
           graphDigest: displayedRevision === null ? null : running.sessions.session(packageId).revisionGraphSnapshot(displayedRevision)?.packageGraphDigest}
       },
     }
-    const options = {declarations: [fixture.standalone], statePath: fixture.statePath, artifactRoot: fixture.artifactRoot,
+    const options = {project: createProjectFixture(fixture.root, [fixture.standalone]), statePath: fixture.statePath, artifactRoot: fixture.artifactRoot,
       browserLifecycle}
     seedPublishedSharedAssets(fixture.artifactRoot)
     running = await startTestServer(options)
@@ -121,7 +122,7 @@ describe("one external Storybook server", () => {
 
   test("MCP Root работает без подключённых проектов", async () => {
     const fixture = serverFixture()
-    const running = await startTestServer({declarations: [], statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
+    const running = await startTestServer({project: createProjectFixture(fixture.root, []), statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
     servers.push(running)
     const response = await fetch(new URL("/api/control/storybook", running.origin), {
       method: "POST",
@@ -129,7 +130,7 @@ describe("one external Storybook server", () => {
       body: "{}",
     })
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({label: "Вход Storybook MCP", description: expect.stringContaining("path"), children: []})
+    expect(await response.json()).toEqual({label: "Fixture Project", description: expect.stringContaining("path"), children: []})
     expect(running.sessions.snapshots()).toEqual([])
   })
 
@@ -147,7 +148,7 @@ describe("one external Storybook server", () => {
     writeFileSync(join(fixture.standalone, "text/trim/contract/input.ts"), inputSource)
     writeFileSync(join(fixture.standalone, "text/trim/contract/output.ts"), outputSource)
     writeFileSync(join(fixture.standalone, "text/trim/spec/scenario.spec.ts"), scenarioSource)
-    const running = await startTestServer({declarations: [fixture.standalone], statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
+    const running = await startTestServer({project: createProjectFixture(fixture.root, [fixture.standalone]), statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
     servers.push(running)
     const control = state.client(running.record)
     const mcp = new McpServer({name: "address-parity", version: "1"})
@@ -223,7 +224,7 @@ describe("one external Storybook server", () => {
       '})',
     ].join("\n"))
     seedPublishedSharedAssets(fixture.artifactRoot)
-    const running = await startTestServer({declarations: [fixture.standalone],
+    const running = await startTestServer({project: createProjectFixture(fixture.root, [fixture.standalone]),
       statePath: fixture.statePath, artifactRoot: fixture.artifactRoot,
       packageBrowserEntryPath: fixture.packageEntry})
     servers.push(running)
@@ -270,7 +271,7 @@ describe("one external Storybook server", () => {
 
   test("журнал MCP принимает полный большой ответ через HTTP и завершает running", async () => {
     const fixture = serverFixture()
-    const running = await startTestServer({declarations: [fixture.standalone], statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
+    const running = await startTestServer({project: createProjectFixture(fixture.root, [fixture.standalone]), statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
     servers.push(running)
     const entry = {id: "large-result", tool: "storybook", startedAt: Date.now(), input: JSON.stringify({node: "specs/scenarios"})}
     const begin = await controlPost(running, "/api/control/mcp-requests", {...entry, status: "running", durationMs: null, result: ""})
@@ -298,7 +299,7 @@ describe("one external Storybook server", () => {
     const metadata = JSON.parse(readFileSync(join(fixture.standalone, "package.json"), "utf8"))
     writeFileSync(join(fixture.standalone, "package.json"), JSON.stringify({...metadata, description: "Назначение подключённого проекта"}))
     const running = await startTestServer({
-      declarations: [fixture.standalone],
+      project: createProjectFixture(fixture.root, [fixture.standalone]),
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
     })
@@ -314,7 +315,7 @@ describe("one external Storybook server", () => {
     const value = await response.json() as {label: string, description: string, children: {path: string, label: string, description: string}[]}
     expect(Object.keys(value).sort()).toEqual(["children", "description", "label"])
     expect(value.children.map(child => child.path)).toEqual(["standalone"])
-    expect(value.label).toBe("Вход Storybook MCP")
+    expect(value.label).toBe("Fixture Project")
     expect(value.description).toContain("path")
     expect(value.children[0]?.description).toBe("Назначение подключённого проекта")
     expect(value.children.every(node => typeof node.description === "string")).toBe(true)
@@ -325,7 +326,7 @@ describe("one external Storybook server", () => {
     const fixture = serverFixture()
     const entries = sharedEntriesFixture()
     const options = {
-      declarations: [fixture.standalone],
+      project: createProjectFixture(fixture.root, [fixture.standalone]),
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
       landingEntryPath: entries.landing,
@@ -388,7 +389,7 @@ describe("one external Storybook server", () => {
   test("status показывает preflight и нагрузку, не запрашивая сборку", async () => {
     const fixture = serverFixture()
     const running = await startTestServer({
-      declarations: [fixture.standalone],
+      project: createProjectFixture(fixture.root, [fixture.standalone]),
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
     })
@@ -411,7 +412,7 @@ describe("one external Storybook server", () => {
     const fixture = serverFixture()
     const phases: string[] = []
     const running = await startTestServer({
-      declarations: [fixture.standalone],
+      project: createProjectFixture(fixture.root, [fixture.standalone]),
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
       onStartupPhase: phase => phases.push(phase),
@@ -421,73 +422,40 @@ describe("one external Storybook server", () => {
     expect(existsSync(fixture.statePath)).toBe(true)
   })
 
-  test("shares saved project selection between browser and MCP including nested removal and an empty restart", async () => {
+  test("состав Project перечитывается из .gitmodules при refresh и restart, включая пустой состав", async () => {
     const fixture = serverFixture()
     const entries = sharedEntriesFixture()
     seedPublishedSharedAssets(fixture.artifactRoot)
     const options = {
-      declarations: [fixture.workspace],
-      projectDirectory: fixture.workspace,
+      project: createProjectFixture(fixture.root, [fixture.workspace]),
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
       landingEntryPath: entries.landing,
       fallbackEntryPath: entries.fallback,
       browserLifecycle: fakeBrowserLifecycle().service,
     }
-    let running = await startTestServer(options)
-    servers.push(running)
-    await controlPost(running, "/api/control/check", {scope: "fixture-workspace"})
     const workspaceFile = join(fixture.workspace, "package.json")
     const workspaceBytes = readFileSync(workspaceFile, "utf8")
-    const html = await (await fetch(new URL("/", running.origin))).text()
-    const session = html.match(/name="external-storybook-browser-session" content="([^"]+)"/u)?.[1]
-    expect(session).toBeDefined()
-    const browserChange = (action: string, body: unknown, origin = running.origin) => fetch(new URL(`/api/browser/${action}`, running.origin), {
-      method: "POST",
-      headers: {"content-type": "application/json", "origin": origin, "x-storybook-session": session!},
-      body: JSON.stringify(body),
-    })
-
-    const browserAttach = async (root: string) => {
-      const challenge = await (await browserChange("directory", {})).json() as {token: string; filename: string; content: string}
-      const marker = join(root, challenge.filename)
-      writeFileSync(marker, challenge.content)
-      try { return await browserChange("attach", {selectionToken: challenge.token}) }
-      finally { unlinkSync(marker) }
-    }
-    expect((await browserChange("attach", {selectionToken: "foreign"}, "https://foreign.invalid")).ok).toBeFalse()
+    let running = await startTestServer(options)
+    servers.push(running)
     expect(running.registry.snapshot().entries).toHaveLength(1)
-    expect((await browserAttach(fixture.standalone)).ok).toBeTrue()
-    expect((await browserAttach(fixture.standalone)).ok).toBeTrue()
+    createProjectFixture(fixture.root, [fixture.workspace, fixture.standalone])
+    expect((await controlPost(running, "/api/control/refresh", {})).response.status).toBe(200)
     expect(running.registry.snapshot().entries).toHaveLength(2)
-    const beforeFailure = running.registry.snapshot()
-    expect((await browserChange("attach", {selectionToken: "missing"})).ok).toBeFalse()
-    expect(running.registry.snapshot()).toEqual(beforeFailure)
-
-    const removed = await controlPost(running, "/api/control/detach", {scopeId: "package:fixture-alpha"})
-    expect(removed.response.ok).toBeTrue()
-    expect(running.registry.snapshot().graph.nodes.some(node => node.id === "package:fixture-alpha")).toBeFalse()
-    expect(running.registry.snapshot().graph.nodes.some(node => node.id === "package:fixture-beta")).toBeTrue()
     expect(readFileSync(workspaceFile, "utf8")).toBe(workspaceBytes)
-    expect((await browserAttach(join(fixture.workspace, "projects/alpha"))).ok).toBeTrue()
-    expect(running.registry.snapshot().entries).toHaveLength(3)
-    await controlPost(running, "/api/control/detach", {scopeId: "package:fixture-alpha"})
+    createProjectFixture(fixture.root, [fixture.standalone])
+    expect((await controlPost(running, "/api/control/refresh", {})).response.status).toBe(200)
+    expect(running.registry.snapshot().graph.nodes.some(node => node.id === "package:fixture-alpha")).toBeFalse()
+    expect(running.registry.snapshot().graph.nodes.some(node => node.id === "package:@fixture/standalone")).toBeTrue()
     await running.stop()
-
+    servers.splice(servers.indexOf(running), 1)
     running = await startTestServer(options)
     servers.push(running)
-    expect(running.registry.snapshot().entries).toHaveLength(2)
-    expect(running.registry.snapshot().graph.nodes.some(node => node.id === "package:fixture-alpha")).toBeFalse()
-    expect(running.registry.snapshot().graph.nodes.some(node => node.id === "package:fixture-beta")).toBeTrue()
-    const restored = await controlPost(running, "/api/control/attach", {roots: [join(fixture.workspace, "projects/alpha")]})
-    expect(restored.response.ok).toBeTrue()
-    expect(running.registry.snapshot().entries).toHaveLength(3)
-    expect(running.registry.snapshot().graph.nodes.some(node => node.id === "package:fixture-alpha")).toBeTrue()
-
-    await controlPost(running, "/api/control/detach", {scopeId: "package:fixture-alpha"})
-    await controlPost(running, "/api/control/detach", {scopeId: "package:fixture-beta"})
-    await controlPost(running, "/api/control/detach", {scopeId: "package:@fixture/standalone"})
+    expect(running.registry.snapshot().entries).toHaveLength(1)
+    expect(running.registry.snapshot().entries[0]?.canonicalId).toBe("package:@fixture/standalone")
+    createProjectFixture(fixture.root, [])
     await running.stop()
+    servers.splice(servers.indexOf(running), 1)
     running = await startTestServer(options)
     servers.push(running)
     expect(running.registry.snapshot().entries).toEqual([])
@@ -500,8 +468,84 @@ describe("one external Storybook server", () => {
     expect(stylesheet.status).toBe(200)
     expect(await stylesheet.text()).toContain("--surface-")
     expect(readFileSync(workspaceFile, "utf8")).toBe(workspaceBytes)
+    expect(existsSync(join(fixture.root, "state/projects.json"))).toBeFalse()
   })
 
+  test("старый список projects.json игнорируется, TODO endpoints не меняют состав", async () => {
+    const fixture = serverFixture()
+    const saved = join(fixture.root, "state/projects.json")
+    mkdirSync(join(fixture.root, "state"), {recursive: true})
+    const oldBytes = JSON.stringify([fixture.standalone])
+    writeFileSync(saved, oldBytes)
+    const running = await startTestServer({
+      project: createProjectFixture(fixture.root, [fixture.workspace]),
+      statePath: fixture.statePath,
+      artifactRoot: fixture.artifactRoot,
+    })
+    servers.push(running)
+    const before = running.registry.snapshot()
+    expect(before.entries.map(entry => entry.canonicalId)).toEqual(["package:fixture-workspace"])
+    const modulesBytes = readFileSync(join(fixture.root, ".gitmodules"), "utf8")
+    const sessionReply = await fetch(new URL("/api/browser/registry-session", running.origin), {
+      method: "POST", headers: {origin: running.origin, "content-type": "application/json"}, body: "{}",
+    })
+    expect(sessionReply.status).toBe(200)
+    const {readerToken} = await sessionReply.json()
+    const browserChange = (action: string, origin = running.origin) => fetch(new URL(`/api/browser/${action}`, running.origin), {
+      method: "POST",
+      headers: {origin, "content-type": "application/json", "x-storybook-session": readerToken},
+      body: JSON.stringify({selectionToken: "unimplemented", scopeId: "package:fixture-workspace"}),
+    })
+    expect((await browserChange("attach", "https://foreign.invalid")).status).toBe(403)
+    for (const action of ["directory", "attach", "detach"]) {
+      expect((await browserChange(action)).status).toBe(501)
+    }
+    for (const action of ["attach", "detach"]) {
+      expect((await controlPost(running, `/api/control/${action}`, {roots: [fixture.standalone], scopeId: "package:fixture-workspace"})).response.status)
+        .toBe(501)
+    }
+    expect(running.registry.snapshot()).toEqual(before)
+    expect(readFileSync(saved, "utf8")).toBe(oldBytes)
+    expect(readFileSync(join(fixture.root, ".gitmodules"), "utf8")).toBe(modulesBytes)
+    const client = await fetchJson(new URL("/api/client", running.origin))
+    expect(client.rootIds).toEqual(["package:fixture-workspace"])
+  })
+
+  test("собственное имя Project обновляется и публикуется при неизменном графе Repo", async () => {
+    const fixture = serverFixture()
+    const running = await startTestServer({
+      project: createProjectFixture(fixture.root, [fixture.standalone], "Initial Project"),
+      statePath: fixture.statePath,
+      artifactRoot: fixture.artifactRoot,
+    })
+    servers.push(running)
+    const before = await fetchJson(new URL("/api/client", running.origin))
+    expect(before.projectName).toBe("Initial Project")
+    const response = await fetch(new URL("/api/browser/registry-session", running.origin), {
+      method: "POST", headers: {origin: running.origin, "content-type": "application/json"}, body: "{}",
+    })
+    const {readerToken} = await response.json()
+    const events = new URL(`/api/events?session=${encodeURIComponent(readerToken)}`, running.origin)
+    events.protocol = "ws:"
+    const socket = storybookSocket(events.href, running.origin)
+    const messages: {type: string, snapshot?: {projectName?: string}}[] = []
+    socket.addEventListener("message", event => messages.push(JSON.parse(String(event.data))))
+    try {
+      await new Promise<void>(resolvePromise => socket.addEventListener("open", () => resolvePromise(), {once: true}))
+      socket.send(JSON.stringify({type: "subscribe", topic: "registry"}))
+      await waitFor(() => messages.some(message => message.type === "subscribed"))
+      const first = messages.length
+      writeFileSync(join(fixture.root, "package.json"), JSON.stringify({name: "Renamed Project", label: "Ignored label"}))
+      expect((await controlPost(running, "/api/control/refresh", {})).response.status).toBe(200)
+      await waitFor(() => messages.slice(first).some(message => message.type === "registry.updated"))
+      const after = await fetchJson(new URL("/api/client", running.origin))
+      expect(after.projectName).toBe("Renamed Project")
+      expect(after.graphDigest).toBe(before.graphDigest)
+      expect(running.sessions.snapshots().map(session => session.builds)).toEqual([0])
+    } finally {
+      socket.close()
+    }
+  })
 
   test("keeps active browser leases alive and releases pending eviction", () => {
     let now = 0
@@ -531,7 +575,7 @@ describe("one external Storybook server", () => {
   test("serves explicitly prepared shared and package revisions on one origin", async () => {
     const fixture = serverFixture()
     const running = await startTestServer({
-      declarations: [fixture.standalone],
+      project: createProjectFixture(fixture.root, [fixture.standalone]),
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
     })
@@ -586,6 +630,7 @@ describe("one external Storybook server", () => {
     writeFileSync(dependency, 'export const height = "160px"\n')
     writeFileSync(entries.landing, 'import {height} from "./code-view.ts"\ndocument.title = height\n')
     const running = await startTestServer({
+      project: createProjectFixture(fixture.root, []),
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
       landingEntryPath: entries.landing,
@@ -621,7 +666,7 @@ describe("one external Storybook server", () => {
     const entries = sharedEntriesFixture()
     seedPublishedSharedAssets(fixture.artifactRoot)
     const running = await startTestServer({
-      declarations: [fixture.workspace],
+      project: createProjectFixture(fixture.root, [fixture.workspace]),
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
       landingEntryPath: entries.landing,
@@ -679,9 +724,10 @@ describe("one external Storybook server", () => {
     }
   })
 
-  test("owns one automatic origin and atomically attaches independent roots", async () => {
+  test("один origin обслуживает Repo объявленные в .gitmodules", async () => {
     const fixture = serverFixture()
     const running = await startTestServer({
+      project: createProjectFixture(fixture.root, []),
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
       landingEntryPath: fixture.landingEntry,
@@ -693,21 +739,16 @@ describe("one external Storybook server", () => {
     const health = await fetchJson(new URL("/api/health", running.origin))
     expect(health.ok).toBeTrue()
     expect(health.origin).toBe(running.origin)
-
-    const first = await controlPost(running, "/api/control/attach", {roots: [fixture.workspace]})
-    expect(first.response.status).toBe(200)
-    const second = await controlPost(running, "/api/control/attach", {roots: [fixture.standalone]})
-    expect(second.response.status).toBe(200)
+    createProjectFixture(fixture.root, [fixture.workspace])
+    expect((await controlPost(running, "/api/control/refresh", {})).response.status).toBe(200)
+    createProjectFixture(fixture.root, [fixture.workspace, fixture.standalone])
+    expect((await controlPost(running, "/api/control/refresh", {})).response.status).toBe(200)
     const client = await fetchJson(new URL("/api/client", running.origin))
-    expect(client.rootIds).toEqual([
-      "package:fixture-workspace",
-      "package:@fixture/standalone",
-    ])
+    expect(client.rootIds).toEqual(["package:fixture-workspace", "package:@fixture/standalone"])
     expect(client.packages).toHaveLength(6)
     expect(new Set(client.nodes.map((node: {urlPath: string}) => new URL(node.urlPath, running.origin).origin)))
       .toEqual(new Set([running.origin]))
-    const directory = client.nodes.find((node: {id: string}) =>
-      node.id === "directory:package:@fixture/components/docs")
+    const directory = client.nodes.find((node: {id: string}) => node.id === "directory:package:@fixture/components/docs")
     expect(directory).toMatchObject({kind: "directory", routePath: "dir-docs"})
     expect(running.record.attachedDeclarations).toHaveLength(2)
     expect(running.record.controlToken).toMatch(/^[A-Za-z0-9_-]{43}$/u)
@@ -715,7 +756,7 @@ describe("one external Storybook server", () => {
 
   test("изменение структуры не запускает refresh или сборку", async () => {
     const fixture = serverFixture()
-    const running = await startTestServer({declarations: [fixture.workspace], statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
+    const running = await startTestServer({project: createProjectFixture(fixture.root, [fixture.workspace]), statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
     servers.push(running)
     const before = running.registry.snapshot().revision
     const empty = join(fixture.workspace, "empty")
@@ -730,7 +771,7 @@ describe("one external Storybook server", () => {
   test("explicit refresh reconciles an attached package structure after filesystem changes without subscriptions", async () => {
     const fixture = serverFixture()
     const running = await startTestServer({
-      declarations: [fixture.workspace],
+      project: createProjectFixture(fixture.root, [fixture.workspace]),
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
     })
@@ -759,7 +800,7 @@ describe("one external Storybook server", () => {
   test("user pages and browser requests cannot publish a built candidate", async () => {
     const fixture = serverFixture()
     seedPublishedSharedAssets(fixture.artifactRoot)
-    const running = await startTestServer({declarations: [fixture.standalone], statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
+    const running = await startTestServer({project: createProjectFixture(fixture.root, [fixture.standalone]), statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
     servers.push(running)
     await controlPost(running, "/api/control/check", {scope: null})
     const page = await fetch(new URL("/pkg-fixture-standalone/", running.origin))
@@ -783,7 +824,7 @@ describe("one external Storybook server", () => {
     const fixture = serverFixture()
     seedPublishedSharedAssets(fixture.artifactRoot)
     const running = await startTestServer({
-      declarations: [fixture.standalone],
+      project: createProjectFixture(fixture.root, [fixture.standalone]),
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
     })
@@ -825,7 +866,7 @@ describe("one external Storybook server", () => {
     const lifecycle = fakeBrowserLifecycle()
     const png = new Uint8Array([137, 80, 78, 71])
     const running = await startTestServer({
-      declarations: [fixture.standalone],
+      project: createProjectFixture(fixture.root, [fixture.standalone]),
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
       browserLifecycle: {
@@ -878,7 +919,7 @@ describe("one external Storybook server", () => {
     const fixture = serverFixture()
     seedPublishedSharedAssets(fixture.artifactRoot)
     const running = await startTestServer({
-      declarations: [fixture.standalone],
+      project: createProjectFixture(fixture.root, [fixture.standalone]),
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
     })
@@ -915,7 +956,7 @@ describe("one external Storybook server", () => {
     writeFileSync(hidden, "hidden owner file\n")
     writeFileSync(documentation, "/**\n# Fixture Alpha\n\n[linked](./linked.txt)\n@packageDocumentation\n*/\n")
     const running = await startTestServer({
-      declarations: [fixture.workspace],
+      project: createProjectFixture(fixture.root, [fixture.workspace]),
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
     })
@@ -933,7 +974,7 @@ describe("one external Storybook server", () => {
     const fixture = serverFixture()
     seedPublishedSharedAssets(fixture.artifactRoot)
     const running = await startTestServer({
-      declarations: [fixture.workspace],
+      project: createProjectFixture(fixture.root, [fixture.workspace]),
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
     })
@@ -951,7 +992,7 @@ describe("one external Storybook server", () => {
 
   test("serves the revision-scoped Workbench theme", async () => {
     const fixture = serverFixture()
-    const running = await startTestServer({declarations: [fixture.workspace], statePath: fixture.statePath,
+    const running = await startTestServer({project: createProjectFixture(fixture.root, [fixture.workspace]), statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot, packageBrowserEntryPath: fixture.packageEntry})
     servers.push(running)
     const built = await running.sessions.ensure("@fixture/components")
@@ -964,10 +1005,10 @@ describe("one external Storybook server", () => {
     expect(response.headers.get("content-type")).toBe("text/css; charset=utf-8")
   }, STORYBOOK_SHARED_COMPILE_TIMEOUT_MS + STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS)
 
-  test("failed attach leaves registry and sessions unchanged", async () => {
+  test("неверный состав при refresh сохраняет предыдущие registry и sessions", async () => {
     const fixture = serverFixture()
     const running = await startTestServer({
-      declarations: [fixture.workspace],
+      project: createProjectFixture(fixture.root, [fixture.workspace]),
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
       landingEntryPath: fixture.landingEntry,
@@ -976,22 +1017,22 @@ describe("one external Storybook server", () => {
     })
     servers.push(running)
     const before = await controlGet(running, "/api/control/status")
-    const failed = await controlPost(running, "/api/control/attach", {
-      roots: [fixture.standalone, join(fixture.root, "missing")],
-    })
+    createProjectFixture(fixture.root, [fixture.workspace, fixture.standalone])
+    writeFileSync(join(fixture.root, ".gitmodules"), `${readFileSync(join(fixture.root, ".gitmodules"), "utf8")}\n[submodule "missing"]\npath = missing\n`)
+    const failed = await controlPost(running, "/api/control/refresh", {})
     expect(failed.response.status).toBe(400)
     const after = await controlGet(running, "/api/control/status")
     expect(after.graphDigest).toBe(before.graphDigest)
     expect(after.entries).toEqual(before.entries)
     expect(after.packages).toEqual(before.packages)
-    expect(after.entries.some(({canonicalId}: {canonicalId: string}) =>
-      canonicalId === "package:@fixture/standalone")).toBeFalse()
+    expect(after.entries.some(({canonicalId}: {canonicalId: string}) => canonicalId === "package:@fixture/standalone")).toBeFalse()
   })
 
   test("rolls back graph, sessions and state when post-validation publication fails", async () => {
     const fixture = serverFixture()
     let writes = 0
     const running = await startTestServer({
+      project: createProjectFixture(fixture.root, []),
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
       writeServerRecord(path, record) {
@@ -1002,7 +1043,8 @@ describe("one external Storybook server", () => {
     })
     servers.push(running)
     const before = running.registry.snapshot()
-    const failed = await controlPost(running, "/api/control/attach", {roots: [fixture.workspace]})
+    createProjectFixture(fixture.root, [fixture.workspace])
+    const failed = await controlPost(running, "/api/control/refresh", {})
     expect(failed.response.status).toBe(400)
     expect(running.registry.snapshot().revision).toBe(before.revision)
     expect(running.registry.snapshot().graph).toBe(before.graph)
@@ -1013,7 +1055,7 @@ describe("one external Storybook server", () => {
   test("fails closed when an attached TSDoc source is replaced by an escaping symlink", async () => {
     const fixture = serverFixture()
     const running = await startTestServer({
-      declarations: [fixture.workspace],
+      project: createProjectFixture(fixture.root, [fixture.workspace]),
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
     })
@@ -1034,7 +1076,7 @@ describe("one external Storybook server", () => {
     const fixture = serverFixture()
     writeFileSync(fixture.packageEntry, "export const broken = {\n")
     seedPublishedSharedAssets(fixture.artifactRoot)
-    const running = await startTestServer({declarations: [fixture.workspace], statePath: fixture.statePath,
+    const running = await startTestServer({project: createProjectFixture(fixture.root, [fixture.workspace]), statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot, packageBrowserEntryPath: fixture.packageEntry})
     servers.push(running)
     await controlPost(running, "/api/control/check", {scope: "@fixture/components"})
@@ -1053,7 +1095,7 @@ describe("one external Storybook server", () => {
     const fixture = serverFixture()
     const lifecycle = fakeBrowserLifecycle()
     const running = await startTestServer({
-      declarations: [fixture.standalone],
+      project: createProjectFixture(fixture.root, [fixture.standalone]),
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
       browserLifecycle: lifecycle.service,
@@ -1080,7 +1122,7 @@ describe("one external Storybook server", () => {
     seedPublishedSharedAssets(fixture.artifactRoot)
     const lifecycle = fakeBrowserLifecycle()
     const running = await startTestServer({
-      declarations: [fixture.standalone],
+      project: createProjectFixture(fixture.root, [fixture.standalone]),
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
       browserLifecycle: {
@@ -1150,17 +1192,18 @@ describe("one external Storybook server", () => {
   test("bounds authenticated control bodies before parsing", async () => {
     const fixture = serverFixture()
     const running = await startTestServer({
+      project: createProjectFixture(fixture.root, []),
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
     })
     servers.push(running)
-    const response = await fetch(new URL("/api/control/attach", running.origin), {
+    const response = await fetch(new URL("/api/control/refresh", running.origin), {
       method: "POST",
       headers: {
         authorization: `Bearer ${running.record.controlToken}`,
         "content-type": "application/json",
       },
-      body: JSON.stringify({roots: ["x".repeat(70_000)]}),
+      body: JSON.stringify({force: "x".repeat(70_000)}),
     })
     expect(response.status).toBe(413)
     expect((await fetch(new URL("/api/health", running.origin))).status).toBe(200)
@@ -1173,6 +1216,7 @@ describe("one external Storybook server", () => {
     reservation.stop(true)
     if (port === undefined) throw new Error("Bun test server did not allocate a port")
     await expect(startTestServer({
+      project: createProjectFixture(fixture.root, []),
       port,
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
@@ -1185,10 +1229,10 @@ describe("one external Storybook server", () => {
     replacement.stop(true)
   })
 
-  test("detach keeps the shared server alive and stop removes only owned state", async () => {
+  test("удаление участия через .gitmodules сохраняет сервер, stop удаляет только своё состояние", async () => {
     const fixture = serverFixture()
     const running = await startTestServer({
-      declarations: [fixture.workspace, fixture.standalone],
+      project: createProjectFixture(fixture.root, [fixture.workspace, fixture.standalone]),
       statePath: fixture.statePath,
       artifactRoot: fixture.artifactRoot,
       landingEntryPath: fixture.landingEntry,
@@ -1197,8 +1241,9 @@ describe("one external Storybook server", () => {
       browserLifecycle: fakeBrowserLifecycle().service,
     })
     servers.push(running)
-    const detached = await controlPost(running, "/api/control/detach", {scopeId: "package:fixture-workspace"})
-    expect(detached.response.status).toBe(200)
+    createProjectFixture(fixture.root, [fixture.standalone])
+    const refreshed = await controlPost(running, "/api/control/refresh", {})
+    expect(refreshed.response.status).toBe(200)
     expect((await fetchJson(new URL("/api/health", running.origin))).ok).toBeTrue()
     expect(running.sessions.snapshots().map(({packageId}) => packageId)).toEqual([
       "@fixture/standalone",
@@ -1328,6 +1373,9 @@ function serverFixture(): Readonly<{
     ["projects/alpha/packages/components/index.ts", "Fixture Components"],
     ["standalone/index.ts", "Standalone"],
   ] as const) writeFileSync(join(workspace, path), `/**\n# ${title}\n@packageDocumentation\n*/\n`)
+  const standalone = join(root, "standalone")
+  Bun.spawnSync(["cp", "-R", join(workspace, "standalone"), standalone])
+  rmSync(join(workspace, "standalone"), {recursive: true})
   const entries = sharedEntriesDirectory()
   const landingEntry = join(entries, "landing-entry.ts")
   const fallbackEntry = join(entries, "fallback-entry.ts")
@@ -1338,7 +1386,7 @@ function serverFixture(): Readonly<{
   return Object.freeze({
     root,
     workspace,
-    standalone: join(workspace, "standalone"),
+    standalone,
     statePath: join(root, "state", "server.json"),
     artifactRoot: join(root, "artifacts"),
     landingEntry,

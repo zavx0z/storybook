@@ -306,6 +306,9 @@ export type WorkbenchCatalogAction = Readonly<{
 
 @property title - Общий заголовок рабочей области.
 
+@property projectName - Имя текущего Project для окна каталога и домашней ссылки.
+До загрузки каталога остаётся пустым.
+
 @property catalog.management - Состояние управления каталогом либо `null`.
 
 @property catalog.label - Название каталога.
@@ -336,6 +339,7 @@ export type WorkbenchCatalogAction = Readonly<{
 */
 export type WorkbenchAddressMap = Readonly<{
   title: string
+  projectName: string
   "catalog.management": WorkbenchCatalogManagement | null
   "catalog.label": string
   "catalog.search": string

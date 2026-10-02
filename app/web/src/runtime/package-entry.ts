@@ -29,7 +29,7 @@ import {WORKBENCH_STANDARD_WIDGET_REGISTRY} from "../workbench/inspector/registr
 import {createStorybookAgentBridge, type StorybookAgentBridge} from "./agent-bridge.ts"
 import Revision, {type PackageRevision} from "@package/revision"
 type StorybookPackageRevisionGraphSnapshot = ReturnType<PackageRevision.Output["create"]>
-import {deriveStorybookBreadcrumbs} from "./breadcrumbs.ts"
+import {deriveStorybookBreadcrumbs, storybookRootBreadcrumb, STORYBOOK_ROOT_BREADCRUMB} from "./breadcrumbs.ts"
 import {
   deriveExternalStorybookPackageTab,
   deriveExternalStorybookNavigationTree,
@@ -225,9 +225,10 @@ export async function startExternalStorybookPackage(
     : Revision.validate(input.graphSnapshot, packageId)
   const bootstrap = await (async () => {
     try {
+      const navigationSnapshot = await fetchExternalStorybookClientSnapshot(fetcher)
       const snapshot = initialRevisionGraph === null
-        ? await fetchExternalStorybookClientSnapshot(fetcher)
-        : revisionClientSnapshot(initialRevisionGraph, initialCandidateRevision, input.revisionUrl)
+        ? navigationSnapshot
+        : revisionClientSnapshot(initialRevisionGraph, initialCandidateRevision, input.revisionUrl, navigationSnapshot.projectName)
       const summary = exactPackageSummary(snapshot, packageId)
       if (initialCandidateRevision !== null &&
         summary.builtRevision !== initialCandidateRevision && summary.activatingRevision !== initialCandidateRevision &&
@@ -236,6 +237,7 @@ export async function startExternalStorybookPackage(
       }
       const initialRoute = environment.pageScope?.initialRoute ?? packageRouteFromAddress(location.href, packageId, snapshot)
       return Object.freeze({
+        navigationSnapshot,
         snapshot,
         summary,
         graph: snapshot,
@@ -250,7 +252,7 @@ export async function startExternalStorybookPackage(
       throw error
     }
   })()
-  let {snapshot, summary, graph} = bootstrap
+  let {snapshot, summary, graph, navigationSnapshot} = bootstrap
   const {initialRoute, initialModel} = bootstrap
   let candidateRevision = initialCandidateRevision
   let revisionUrl = input.revisionUrl
@@ -276,7 +278,6 @@ export async function startExternalStorybookPackage(
 
         scenarioLoaders,
       })
-  let navigationSnapshot = revisionGraph === null ? snapshot : await fetchExternalStorybookClientSnapshot(fetcher)
   browserDocument.documentElement.dataset.externalStorybookPhase = "shell"
   let shell: ExternalStorybookShell
   try {
@@ -722,9 +723,11 @@ export async function startExternalStorybookPackage(
 
     scenarioLoaders = binding.scenarioLoaders
     revisionGraph = binding.revisionGraph
-    snapshot = binding.snapshot
+    snapshot = binding.snapshot.projectName === navigationSnapshot.projectName
+      ? binding.snapshot
+      : Object.freeze({...binding.snapshot, projectName: navigationSnapshot.projectName})
     summary = binding.summary
-    graph = binding.graph
+    graph = snapshot
 
     currentPayload = binding.payload
     publishInspectorRegistry()
@@ -757,6 +760,7 @@ export async function startExternalStorybookPackage(
       payload.graphSnapshot,
       payload.candidateRevision,
       payload.revisionUrl,
+      navigationSnapshot.projectName,
     )
     const nextSummary = exactPackageSummary(nextSnapshot, packageId)
     signal.throwIfAborted()
@@ -869,6 +873,15 @@ export async function startExternalStorybookPackage(
       } else shell.reportDiagnostic("Storybook page controller is required for landing navigation")
       return
     }
+    // Домашняя ссылка принадлежит Project; её identity отсутствует в package graph.
+    if (detail.kind === "breadcrumb" && detail.id === STORYBOOK_ROOT_BREADCRUMB.id) {
+      if (embeddedPageScope !== undefined) {
+        followPageNavigation(embeddedPageScope.navigateLanding("/"))
+      } else if (environment.navigateLanding !== undefined) {
+        followPageNavigation(environment.navigateLanding("/"))
+      } else shell.reportDiagnostic("Storybook page controller is required for landing navigation")
+      return
+    }
     if (detail.kind === "breadcrumb" && detail.id?.startsWith("package:") && detail.id !== `package:${packageId}`) {
       const nextPackageId = detail.id.slice("package:".length)
       if (embeddedPageScope !== undefined) {
@@ -973,6 +986,15 @@ export async function startExternalStorybookPackage(
       shell.updateStatus("Пакет · Обновление отклонено")
     })
   }
+  /** Project меняет имя независимо от package revision; его metadata обновляется без замены содержимого. */
+  const applyNavigationSnapshot = (value: ExternalStorybookClientSnapshot): void => {
+    navigationSnapshot = value
+    if (snapshot.projectName !== value.projectName) {
+      snapshot = Object.freeze({...snapshot, projectName: value.projectName})
+      graph = snapshot
+    }
+    applyModel(shell, currentModel, navigationSnapshot, snapshot)
+  }
   const onSocketOpen = (socket: HmrConnection.Input["socket"], reconnecting: boolean): void => {
     latestBuildGeneration = 0
     socket.send(JSON.stringify({type: "subscribe", topic: `package:${packageId}`}))
@@ -984,8 +1006,7 @@ export async function startExternalStorybookPackage(
     shell.updateStatus(storybookConnectionStatus("reconnected"))
     void fetchExternalStorybookClientSnapshot(fetcher).then(value => {
       if (disposed) return
-      navigationSnapshot = value
-      applyModel(shell, currentModel, navigationSnapshot, snapshot)
+      applyNavigationSnapshot(value)
       shell.updateStatus(packageBuildStatus(packageId, exactPackageSummary(value, packageId).buildState))
     }).catch(error => shell.reportDiagnostic(errorText(error)))
   }
@@ -1039,8 +1060,7 @@ export async function startExternalStorybookPackage(
     if (raw?.type === "registry.updated") {
       void fetchExternalStorybookClientSnapshot(fetcher).then(value => {
         if (disposed) return
-        navigationSnapshot = value
-        applyModel(shell, currentModel, navigationSnapshot, snapshot)
+        applyNavigationSnapshot(value)
       }).catch(error => shell.reportDiagnostic(errorText(error)))
       return
     }
@@ -1233,6 +1253,16 @@ export async function startExternalStorybookPackage(
 
 function applyModel(shell: ExternalStorybookShell, model: ExternalStorybookPackageTabModel, navigation: ExternalStorybookClientSnapshot, content: ExternalStorybookClientSnapshot): void {
   shell.document.transaction(() => {
+    shell.workbench.update("projectName", navigation.projectName)
+    const status = shell.workbench.controller.read("status")
+    if (status.breadcrumbs?.some(item => item.id === STORYBOOK_ROOT_BREADCRUMB.id && item.label !== navigation.projectName)) {
+      shell.workbench.update("status", {
+        ...status,
+        breadcrumbs: status.breadcrumbs.map(item => item.id === STORYBOOK_ROOT_BREADCRUMB.id
+          ? storybookRootBreadcrumb(navigation.projectName)
+          : item),
+      })
+    }
     shell.workbench.update("catalog.label", "Репозитории и пакеты")
     shell.workbench.update("catalog.items", navigationItems(deriveExternalStorybookNavigationTree(navigation, {
       packageId: model.packageNode.packageId!, graph: content,
@@ -1288,10 +1318,12 @@ function revisionClientSnapshot(
   value: StorybookPackageRevisionGraphSnapshot,
   revision: string | null,
   revisionBase: string | null,
+  projectName: string,
 ): ExternalStorybookClientSnapshot {
   const graph = Revision.validate(value)
   return Object.freeze({
     protocol: WebProtocol.clientProtocol,
+    projectName,
     graphDigest: graph.packageGraphDigest,
     rootIds: Object.freeze([graph.rootId]),
     nodes: Object.freeze(graph.nodes.map((node) => Object.freeze({

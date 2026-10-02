@@ -3,7 +3,6 @@ type ExternalStorybookClientSnapshot = ReturnType<AppWebProtocol.Output["clientS
 type ExternalStorybookClientNode = ExternalStorybookClientSnapshot["nodes"][number]
 import ReadGraph from "@package-graph/read"
 import type {WorkbenchBreadcrumb} from "../workbench/contract.ts"
-import {homeIcon} from "@zavx0z/ui/theme/icon"
 import type {PackageRevision} from "@package/revision"
 type StorybookPackageRevisionAncestor = ReturnType<PackageRevision.Output["create"]>["ancestors"][number]
 
@@ -15,16 +14,19 @@ export type StorybookBreadcrumbScope =
   }>
 
 /** Общий каталог является корнем навигации, независимо от подключённых путей. */
-export const STORYBOOK_ROOT_BREADCRUMB: WorkbenchBreadcrumb = Object.freeze({
+export const STORYBOOK_ROOT_BREADCRUMB: Readonly<Omit<WorkbenchBreadcrumb, "label">> = Object.freeze({
   id: "storybook:root",
-  label: "Главная",
   title: "Общий каталог Storybook",
-  iconSrc: homeIcon,
   route: "",
   urlPath: "/",
 })
 
-/** Derives one ordered breadcrumb path from the exact browser graph projection. */
+/** Домашняя ссылка сохраняет общий адрес каталога и получает имя текущего Project. */
+export function storybookRootBreadcrumb(projectName: string): WorkbenchBreadcrumb {
+  return Object.freeze({...STORYBOOK_ROOT_BREADCRUMB, label: projectName})
+}
+
+/** Выводит путь из точного графа браузера; имя Project принадлежит его корневой ссылке. */
 export function deriveStorybookBreadcrumbs(
   graph: ExternalStorybookClientSnapshot,
   selectedId: string,
@@ -32,7 +34,7 @@ export function deriveStorybookBreadcrumbs(
 ): readonly WorkbenchBreadcrumb[] {
   const path = graphPath(graph, selectedId)
   const breadcrumbs = scope.kind === "landing" ? landingBreadcrumbs(path) : packageBreadcrumbs(path, scope.ancestors)
-  return Object.freeze([STORYBOOK_ROOT_BREADCRUMB, ...breadcrumbs])
+  return Object.freeze([storybookRootBreadcrumb(graph.projectName), ...breadcrumbs])
 }
 
 function landingBreadcrumbs(

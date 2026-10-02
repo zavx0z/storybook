@@ -12,6 +12,7 @@ export function WorkbenchMinimap(props: Readonly<{
 }>) {
   const view = useSyncExternalStore(props.model.subscribe, props.model.getSnapshot)
   return <Minimap
+    projectName={view.state.projectName}
     initialState={props.initialState}
     onStateChange={props.onStateChange}
     onRebuildWeb={props.onRebuildWeb}

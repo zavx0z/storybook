@@ -33,19 +33,43 @@ const packageId = "@fixture/components"
 const packagePath = "/fixture-workspace/projects/alpha/packages/components"
 
 describe("structural package frontend", () => {
-  test("navigates package and directory in one Browser Root", async () => {
+  test("Project rename preserves package navigation and the Browser Root", async () => {
     const graph = await fixtureGraph()
-    const snapshot = WebProtocol.clientSnapshot(graph, packageSnapshots(graph, "revision-a"))
+    let snapshot = WebProtocol.clientSnapshot(graph, packageSnapshots(graph, "revision-a"), "Fixture Project")
     const state = createFakeRootState()
+    const socket = new FakeSocket()
     const environment = environmentFixture(snapshot, packagePath)
     const controller = await startExternalStorybookPackage({packageId, candidateRevision: "revision-a",
       revisionUrl: "/__storybook/revisions/%40fixture%2Fcomponents/revision-a/",
       sharedModuleEpoch: "epoch", graphSnapshot: Revision.create(graph, packageId, "revision-a"),
-      environment: {...environment, shell: {...environment.shell!, createRoot: fakeRootFactory(state)}}})
+      environment: {...environment,
+        fetcher: Object.assign(async (_input: URL | RequestInfo) => Response.json(snapshot), {preconnect: fetch.preconnect}),
+        createSocket: () => socket,
+        shell: {...environment.shell!, createRoot: fakeRootFactory(state)},
+      },
+    })
     try {
       expect(controller.currentRoute).toBe("")
       expect(controller.currentModel.selectedNode.id).toBe("package:@fixture/components")
+      expect(controller.shell.workbench.controller.read("projectName")).toBe("Fixture Project")
+      expect(controller.shell.workbench.controller.read("status").breadcrumbs?.[0]?.label).toBe("Fixture Project")
+      const content = controller.snapshot
+      const minimap = controller.shell.document.querySelector("[data-storybook-minimap] [data-window]")!
+      snapshot = {...snapshot, projectName: "Renamed Project"}
+      socket.emit("message", {data: JSON.stringify({type: "registry.updated", graphDigest: snapshot.graphDigest})})
+      for (let attempt = 0; attempt < 50 && controller.shell.workbench.controller.read("projectName") !== "Renamed Project"; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 10))
+      }
+      expect(controller.shell.workbench.controller.read("projectName")).toBe("Renamed Project")
+      expect(controller.shell.workbench.controller.read("status").breadcrumbs?.[0]?.label).toBe("Renamed Project")
+      expect(minimap.querySelector("[data-window-title]")?.textContent).toBe("Renamed Project")
+      expect(controller.snapshot.projectName).toBe("Renamed Project")
+      expect(controller.snapshot.nodes === content.nodes).toBeTrue()
+      expect(controller.snapshot.packages === content.packages).toBeTrue()
+      expect(controller.snapshot.graphDigest).toBe(content.graphDigest)
+      expect(controller.revision).toBe("revision-a")
       await controller.navigate("dir-docs")
+      expect(controller.shell.workbench.controller.read("status").breadcrumbs?.[0]?.label).toBe("Renamed Project")
       expect(controller.currentRoute).toBe("dir-docs")
       expect(controller.currentModel.selectedNode.id).toBe("directory:package:@fixture/components/docs")
       expect(state.creations).toBe(1)
@@ -58,7 +82,7 @@ describe("structural package frontend", () => {
 
   test("rejects a foreign pathname before creating a shell", async () => {
     const graph = await fixtureGraph()
-    const snapshot = WebProtocol.clientSnapshot(graph, packageSnapshots(graph, "revision-a"))
+    const snapshot = WebProtocol.clientSnapshot(graph, packageSnapshots(graph, "revision-a"), "Fixture Project")
     const state = createFakeRootState()
     const environment = environmentFixture(snapshot, "/standalone")
     await expect(startExternalStorybookPackage({packageId, candidateRevision: null, revisionUrl: null,
@@ -69,7 +93,7 @@ describe("structural package frontend", () => {
 
   test("shows an empty package state and preserves route navigation without an applied revision", async () => {
     const graph = await fixtureGraph()
-    const snapshot = WebProtocol.clientSnapshot(graph, packageSnapshots(graph, "revision-a"))
+    const snapshot = WebProtocol.clientSnapshot(graph, packageSnapshots(graph, "revision-a"), "Fixture Project")
     const controller = await startExternalStorybookPackage({packageId, candidateRevision: null,
       revisionUrl: null, environment: environmentFixture(snapshot, packagePath)})
     try {
@@ -81,7 +105,7 @@ describe("structural package frontend", () => {
 
   test("rejects a scenario loader for a node without scenarios before shell creation", async () => {
     const graph = await fixtureGraph()
-    const snapshot = WebProtocol.clientSnapshot(graph, packageSnapshots(graph, "revision-a"))
+    const snapshot = WebProtocol.clientSnapshot(graph, packageSnapshots(graph, "revision-a"), "Fixture Project")
     const state = createFakeRootState()
     const environment = environmentFixture(snapshot, packagePath)
     await expect(startExternalStorybookPackage({packageId, candidateRevision: "revision-a",
@@ -97,7 +121,7 @@ describe("structural package frontend", () => {
     const graph = await fixtureGraphWithScenarios()
     const directoryId = "directory:package:@fixture/components/docs"
     const route = "dir-docs/scenarios"
-    const snapshot = WebProtocol.clientSnapshot(graph, packageSnapshots(graph, "revision-a"))
+    const snapshot = WebProtocol.clientSnapshot(graph, packageSnapshots(graph, "revision-a"), "Fixture Project")
     const state = createFakeRootState()
     const environment = environmentFixture(snapshot, `${packagePath}/docs?view=scenarios`)
     const scenario = async () => ({kind: "function" as const,
@@ -235,6 +259,34 @@ describe("structural package frontend", () => {
   })
 })
 
+test("Домашняя ссылка с именем Project передаёт переход page controller", async () => {
+  const fixture = await pageFixture(false, false)
+  const shell = fixture.page.shell
+  const minimap = shell.document.querySelector("[data-storybook-minimap] [data-window]")!
+  const settings = shell.captureUserState().minimap
+  try {
+    const home = shell.workbench.elements.status.querySelector('[data-breadcrumb-id="storybook:root"] button') as import("@zavx0z/dom").HTMLButtonElement
+    expect(home.textContent).toBe("Fixture Project")
+    expect(home.hasAttribute("disabled")).toBeFalse()
+    home.click()
+    const deadline = Date.now() + 5000
+    while ((fixture.page.packageId !== null || fixture.location.pathname !== "/") && Date.now() < deadline) {
+      await new Promise(resolve => setTimeout(resolve, 10))
+    }
+    expect(fixture.navigationTargets).toEqual([{packageId: null, route: "/"}])
+    expect(fixture.page.packageId).toBeNull()
+    expect(fixture.location.pathname).toBe("/")
+    expect(fixture.page.shell.workbench.controller.read("status").breadcrumbs?.[0]?.label).toBe("Fixture Project")
+    expect(fixture.page.shell === shell).toBeTrue()
+    expect(fixture.page.shell.document === shell.document).toBeTrue()
+    expect(fixture.page.shell.space === shell.space).toBeTrue()
+    expect(shell.document.querySelector("[data-storybook-minimap] [data-window]") === minimap).toBeTrue()
+    expect(shell.captureUserState().minimap).toEqual(settings)
+    expect(fixture.state.creations).toBe(1)
+    expect(fixture.location.reloads).toBe(0)
+  } finally { await fixture.page.dispose() }
+})
+
 /** Текущая точка входа переживает замену платформенного экземпляра bridge. */
 function currentBridge(): StorybookAgentBridge {
   return (globalThis as typeof globalThis & Record<string, unknown>)[STORYBOOK_AGENT_BRIDGE_GLOBAL] as StorybookAgentBridge
@@ -309,7 +361,7 @@ test.each(["@fixture/components", null])("после reconnect %s читает �
 async function pageFixture(failPlatformMount = false, changePlatform = true, beforePrepare?: () => Promise<void>, selectedPackageId: string | null = "@fixture/components") {
   const packageId = selectedPackageId ?? "@fixture/components"
   const graph = await fixtureGraph()
-  const snapshot = WebProtocol.clientSnapshot(graph, packageSnapshots(graph, "revision-a"))
+  const snapshot = WebProtocol.clientSnapshot(graph, packageSnapshots(graph, "revision-a"), "Fixture Project")
   const packagePath = selectedPackageId === null ? "/" : deriveExternalStorybookPackageTab(snapshot, packageId, "").urlPath
   const environment = environmentFixture(snapshot, packagePath)
   const location = environment.location as LocationFixture
@@ -337,6 +389,10 @@ async function pageFixture(failPlatformMount = false, changePlatform = true, bef
   let hostRevision = "a"
   const sockets: FakeSocket[] = []
   const hostReaders: string[] = []
+  const navigationTargets: Readonly<{
+    packageId: string | null
+    route: string
+  }>[] = []
   let readerGeneration = 0
   const sharedHost = (epoch = "a".repeat(64)): StorybookSharedHost => ({
     protocol: "storybook-shared-host/1", sharedModuleEpoch: epoch, hostModuleEpoch: hostRevision.repeat(64),
@@ -368,14 +424,16 @@ async function pageFixture(failPlatformMount = false, changePlatform = true, bef
       return socket
     },
     prepareTarget: async input => {
-      hostRevision = "b"
+      navigationTargets.push({packageId: input.packageId, route: input.route})
+      // Подготовка пакетов моделирует HMR; переход домой сохраняет текущий host.
+      if (input.packageId !== null) hostRevision = "b"
       await beforePrepare?.()
       if (input.packageId === null) return {kind: "landing", pathname: input.route, readerToken: `reader-${++readerGeneration}`}
       return target(input.requestedRevision ?? "revision-c", input.route)
     },
     loadAppliedRevision: async (_packageId, revision) => payload(revision),
   })
-  return {page, state, location, history, sockets, hostReaders,
+  return {page, state, location, history, sockets, hostReaders, navigationTargets,
     replayHost(socket: FakeSocket) {
       socket.emit("message", {data: JSON.stringify({type: "shared.updated", host: sharedHost()})})
     },

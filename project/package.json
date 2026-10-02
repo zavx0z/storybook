@@ -4,11 +4,11 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Проверяет композицию независимых пакетов-репозиториев",
+  "description": "Читает имя Git superproject и состав участвующих Repo из .gitmodules",
   "exports": {
     ".": "./index.ts"
   },
   "dependencies": {
-    "@archetypes/repo": "workspace:*"
+    "@archetypes/package-json": "workspace:*"
   }
 }

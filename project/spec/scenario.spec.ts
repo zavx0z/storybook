@@ -1,28 +1,81 @@
 /**
-Project объединяет независимые пакеты-репозитории без копирования их identity.
-Пустой проект допустим; повторная ссылка на Repo не создаёт второй экземпляр.
+Читает конкретный Project из Git superproject и сохраняет его собственную identity.
+Физические адреса участников задаются .gitmodules независимо от их имён пакетов.
 
 @packageDocumentation
 */
-import {describe, expect, test} from "bun:test"
+import {afterAll, describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
 import readProject from "@archetypes/project"
+import {createProjectFixture} from "./fixture"
 
-const root = resolve(import.meta.dir, "../..")
+const independent = [
+  {section: "first.logical.name", path: "sources/arbitrary first", name: "@fixture/first"},
+  {section: "second", path: "tools/another-location", name: "@fixture/second"},
+]
+const repeated = [
+  {section: "first", path: "one", name: "@fixture/repeated"},
+  {section: "second", path: "two", name: "@fixture/repeated"},
+]
+const nested = [
+  {section: "outer", path: "outer", name: "@fixture/outer"},
+  {section: "inner", path: "outer/inner", name: "@fixture/inner"},
+]
+
 describe.each([
-  {name: "Пустой проект", props: {paths: []}, count: 0},
-  {name: "Проект с Repo", props: {paths: [root, root]}, count: 1},
-])("$name", async ({props, count}) => {
+  {
+    name: "Пустой Project",
+    ...await createProjectFixture([]),
+    repositories: [],
+    duplicateNames: [],
+    nestedPaths: [],
+  },
+  {
+    name: "Project с независимыми Repo",
+    ...await createProjectFixture(independent),
+    repositories: independent,
+    duplicateNames: [],
+    nestedPaths: [],
+  },
+  {
+    name: "Повторные пакетные identity",
+    ...await createProjectFixture(repeated),
+    repositories: repeated,
+    duplicateNames: ["@fixture/repeated"],
+    nestedPaths: [],
+  },
+  {
+    name: "Вложенные участники",
+    ...await createProjectFixture(nested),
+    repositories: nested,
+    duplicateNames: [],
+    nestedPaths: ["outer/inner"],
+  },
+])("$name", async ({props, root, cleanup, repositories, duplicateNames, nestedPaths}) => {
+  afterAll(cleanup)
   const result = await readProject(props)
-  test("Состав", () => {
-    expect(result.repositories.length, "Проект хранит неповторяющиеся ссылки на выбранные Repo").toBe(count)
+
+  test("Идентичность Project", () => {
+    expect({root: result.root, name: result.name},
+      "Project сохраняет канонический Git-корень и точное имя собственного package.json; label и имя директории его не подменяют")
+      .toEqual({root, name: "@fixture/authored-project"})
   })
-  test("Границы", () => {
-    expect(result.repositories.filter(repo => repo.gitRoot !== repo.root), "Каждый участник имеет собственную границу Git").toEqual([])
-    expect(result.nestedRoots, "Участники не являются вложенными репозиториями друг друга").toEqual([])
-    expect(result.repositories.flatMap(repo => repo.nestedRepositories), "Каждый Repo соответствует запрету вложенных Repo").toEqual([])
+
+  test("Состав Repo", () => {
+    expect(result.repositories,
+      "Участники и их порядок следуют из .gitmodules; projects.json не читается и случайные каталоги не добавляются")
+      .toEqual(repositories.map(repo => ({root: resolve(root, repo.path), name: repo.name})))
   })
-  test("Идентичность", () => {
-    expect(result.duplicateNames, "Одна пакетная identity соответствует одному физическому владельцу").toEqual([])
+
+  test("Пакетные identity", () => {
+    expect(result.duplicateNames,
+      "Разные физические Repo с одной пакетной identity остаются в составе и явно раскрывают конфликт имени")
+      .toEqual(duplicateNames)
+  })
+
+  test("Вложенность участников", () => {
+    expect(result.nestedRoots,
+      "Диагностика показывает Repo внутри другого участвующего Repo; принадлежность самому superproject не считается конфликтом")
+      .toEqual(nestedPaths.map(path => resolve(root, path)))
   })
 })

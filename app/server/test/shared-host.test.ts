@@ -1,3 +1,4 @@
+import {createProjectFixture} from "./project.fixture.ts"
 import createWeb from "@app/web"
 import AppWebBuildOwner, {type AppWebBuild} from "@app-web/build"
 import BuildEnvironmentOwner from "@build/environment"
@@ -67,7 +68,7 @@ test("общая оболочка читается и доставляется �
   saveSharedBrowserReceipt({root: assetsRoot, landingEntry: paths[1]!, fallbackEntry: paths[1]!, bootstrapEntry: paths[3]!,
     browserIdentity: identity, dependencyRealpaths: [sourcePath], authorStyleSheets: [],
     artifactDigests: paths.map(path => ({path, digest: digest("export {}")}))})
-  const server = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64), statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts")})
+  const server = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64), project: createProjectFixture(root, []), statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts")})
   let socket: WebSocket | undefined
   try {
     const html = await (await fetch(server.origin)).text()
@@ -242,7 +243,7 @@ function retainedHostFixture() {
     archived,
     current,
     compatible,
-    options: {declarations: [], statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts")},
+    options: {project: createProjectFixture(root, []), statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts")},
     receiptInput: {root: assetsRoot, toolRoot: root, landingEntryPath: sourcePath, fallbackEntryPath: sourcePath, stagingDirectory: root},
   }
 }

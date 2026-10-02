@@ -35,15 +35,21 @@ export const EXTERNAL_STORYBOOK_RESOURCE_PREFIX = "/__storybook/resources/nodes/
 
 @param sessionSnapshots - Снимки сессий пакетов этого графа, без пропусков и повторений.
 
+@param projectName - Имя Project из его package.json; не выводится из пакетов графа.
+
 @returns Сериализуемый {@link ExternalStorybookClientSnapshot}.
 
 @throws Ошибка при несогласованных ссылках графа, повторной, неизвестной
-или отсутствующей сессии, недопустимой ревизии или диагностике.
+или отсутствующей сессии, пустом имени Project, недопустимой ревизии или диагностике.
 */
 export function createExternalStorybookClientSnapshot(
   graph: ExternalStorybookGraph,
   sessionSnapshots: readonly StorybookPackageSessionSnapshot[],
+  projectName: string,
 ): ExternalStorybookClientSnapshot {
+  if (typeof projectName !== "string" || projectName.trim().length === 0) {
+    throw new TypeError("External Storybook project name must be non-empty text")
+  }
   if (!Array.isArray(sessionSnapshots)) {
     throw new TypeError("External Storybook client session snapshots must be a list")
   }
@@ -99,6 +105,7 @@ export function createExternalStorybookClientSnapshot(
   }))
   return Object.freeze({
     protocol: EXTERNAL_STORYBOOK_CLIENT_PROTOCOL,
+    projectName,
     graphDigest: graph.digest,
     rootIds: Object.freeze([...graph.rootIds]),
     nodes: Object.freeze(nodes),

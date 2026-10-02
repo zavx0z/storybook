@@ -806,7 +806,8 @@ function validateClientSnapshot(value: unknown): ExternalStorybookClientSnapshot
   if (snapshot.protocol !== WebProtocol.clientProtocol) {
     throw new Error(`Unsupported external Storybook client protocol: ${String(snapshot.protocol)}`)
   }
-  if (typeof snapshot.graphDigest !== "string" || snapshot.graphDigest.length === 0 ||
+  if (typeof snapshot.projectName !== "string" || snapshot.projectName.trim().length === 0 ||
+    typeof snapshot.graphDigest !== "string" || snapshot.graphDigest.length === 0 ||
     !Array.isArray(snapshot.rootIds) || !Array.isArray(snapshot.nodes) || !Array.isArray(snapshot.packages)) {
     throw new Error("External Storybook client snapshot is incomplete")
   }

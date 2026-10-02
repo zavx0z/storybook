@@ -1,8 +1,9 @@
 /**
 Общая панель каталога Display и Minimap: поиск, текущее место, раскрытие дерева
-и управление подключёнными проектами. Навигация использует один каталог Workbench;
+и управление Repo проекта. Навигация использует один каталог Workbench;
 управление видимостью принадлежит принимающему Window. Minimap добавляет в строку
 поиска кнопку пересборки Web со значком; ошибка действия показывается под строкой.
+Добавление и удаление Repo показаны отключёнными до реализации операций Project.
 
 @packageDocumentation
 */
@@ -99,9 +100,9 @@ export function CatalogPanel(value: CatalogPanelProps) {
       {value.management !== null ? <Button
         label=""
         startIcon={plusIcon}
-        title="Добавить проект"
-        aria-label="Добавить проект"
-        disabled={value.management.pending}
+        title="Добавить репозиторий"
+        aria-label="Добавить репозиторий"
+        disabled
         onClick={event => value.onAction({action: "attach"}, event.currentTarget)}
         style={css`
           flex-shrink: 0;

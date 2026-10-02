@@ -35,6 +35,6 @@ test("HTTP-чтение и lazy-инструмент используют оди
   const response = await mcp.read(new Request("http://localhost/api/control/storybook", {
     method: "POST",
     body: JSON.stringify({path: "example"}),
-  }), {entries: [{path: "example", parent: null, description: "Пример"}]})
+  }), {projectName: "Fixture Project", entries: [{path: "example", parent: null, description: "Пример"}]})
   expect(await response.json()).toEqual({description: "Пример", path: "example", children: []})
 })

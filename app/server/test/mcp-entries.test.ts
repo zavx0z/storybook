@@ -19,7 +19,7 @@ describe("Код владельца через общий каталог", async
   const read = async (path?: string) => {
     const response = await storybookRest(new Request("http://localhost", {
       method: "POST", body: JSON.stringify(path === undefined ? {} : {path}),
-    }), {entries})
+    }), {projectName: "Fixture Project", entries})
     expect(response.status).toBe(200)
     return response.json()
   }
@@ -49,7 +49,7 @@ describe("Код владельца через общий каталог", async
   test("Родитель раскрывает только детей; контракт соседней ветви не читается", async () => {
     const poisoned = entries.map(entry => entry.path.endsWith("/text/trim")
       ? {...entry, sources: {input: {path: "/missing-contract", digest: "not-read"}}} : entry)
-    const response = await storybookRest(new Request("http://localhost"), {entries: poisoned})
+    const response = await storybookRest(new Request("http://localhost"), {projectName: "Fixture Project", entries: poisoned})
     expect(response.status).toBe(200)
     expect((await response.json()).children).toHaveLength(1)
   })
@@ -85,7 +85,7 @@ test("namespace Slots проходит через каталог в тот же 
     const response = await storybookRest(new Request("http://localhost", {
       method: "POST",
       body: JSON.stringify({path: selected!.path}),
-    }), {entries})
+    }), {projectName: "Fixture Project", entries})
     expect(response.status).toBe(200)
     const result = await response.json()
     expect(result.input).toMatchObject({type: "object", properties: {value: {type: "string"}}})

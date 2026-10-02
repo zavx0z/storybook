@@ -36,7 +36,7 @@ test("[CONTRACT-ROUTE] structural contract is one view of its directory", async 
   expect(route).toMatchObject({kind: "contract", nodeId: "directory:package:@fixture/standalone/module", urlPath: "/standalone/module?view=contract"})
   const client = createExternalStorybookClientSnapshot(graph, [{packageId, declarationDigest: "fixture", moduleGraphRevision: null,
     candidateRevision: null, activeRevision: "active", lastGoodRevision: "active", entryRelativePath: "entry.js",
-    diagnostics: [], dependencyRealpaths: [], subscribers: 0, buildState: "active", builds: 0}])
+    diagnostics: [], dependencyRealpaths: [], subscribers: 0, buildState: "active", builds: 0}], "Fixture Project")
   for (const data of [graph, client]) {
     const model = deriveExternalStorybookPackageTab(data, packageId, route.path)
     expect(model.viewKind).toBe("contract")

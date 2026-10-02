@@ -14,6 +14,7 @@ import {dirname, join} from "node:path"
 import {tmpdir} from "node:os"
 import {deriveExternalStorybookLanding, deriveExternalStorybookLandingSelection, deriveExternalStorybookNavigationTree} from "../src/runtime/model.ts"
 import startExternalStorybookServer from "@app/server"
+import {createProjectFixture} from "../../server/test/project.fixture.ts"
 
 const roots: string[] = []
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, {recursive: true, force: true}))) })
@@ -26,65 +27,65 @@ async function write(path: string, value: unknown) {
 async function fixture() {
   const root = await realpath(await mkdtemp(join(tmpdir(), "storybook-structure-")))
   roots.push(root)
-  const project = join(root, "project")
-  await write(join(project, "package.json"), {name: "project", label: "Project", workspaces: ["packages/*"]})
-  await write(join(project, "packages/a/package.json"), {name: "@fixture/a", label: "A"})
-  await write(join(project, "packages/b/package.json"), {name: "@fixture/b", label: "B"})
-  return {root, project}
+  const repo = join(root, "repo")
+  await write(join(repo, "package.json"), {name: "repo", label: "Repository", workspaces: ["packages/*"]})
+  await write(join(repo, "packages/a/package.json"), {name: "@fixture/a", label: "A"})
+  await write(join(repo, "packages/b/package.json"), {name: "@fixture/b", label: "B"})
+  return {root, repo}
 }
 
 test("lists packages and physical containers from package.json/workspaces", async () => {
-  const {project} = await fixture()
+  const {repo} = await fixture()
   const registry = new ExternalStorybookRegistry(discoverStorybookPackages)
-  const snapshot = await registry.attach(project)
-  expect(deriveExternalStorybookLandingSelection(snapshot.graph, "package:project").overviewNode.id).toBe("package:project")
-  expect(deriveExternalStorybookNavigationTree(snapshot.graph).filter(item => item.parentId === "package:project").map(item => item.label)).toContain("packages")
-  expect(deriveExternalStorybookLanding(snapshot.graph).catalogItems.map(item => item.title)).toEqual(["Project", "A", "B"])
+  const snapshot = await registry.attach(repo)
+  expect(deriveExternalStorybookLandingSelection(snapshot.graph, "package:repo").overviewNode.id).toBe("package:repo")
+  expect(deriveExternalStorybookNavigationTree(snapshot.graph).filter(item => item.parentId === "package:repo").map(item => item.label)).toContain("packages")
+  expect(deriveExternalStorybookLanding(snapshot.graph).catalogItems.map(item => item.title)).toEqual(["Repository", "A", "B"])
   const descriptor = registry.packageDescriptors().find(item => item.packageId === "@fixture/a")!
-  expect(descriptor.sourcePath).toBe(join(project, "packages/a/package.json"))
+  expect(descriptor.sourcePath).toBe(join(repo, "packages/a/package.json"))
   expect(descriptor.graphSnapshot.nodes.every(node => node.packageId === "@fixture/a")).toBeTrue()
 })
 
 test("README additions do not become package documentation", async () => {
-  const {project} = await fixture()
+  const {repo} = await fixture()
   const registry = new ExternalStorybookRegistry(discoverStorybookPackages)
-  const before = await registry.attach(project)
-  await Bun.write(join(project, "README.md"), "# Repository overview")
-  await Bun.write(join(project, "packages/a/README.md"), "# Package overview")
+  const before = await registry.attach(repo)
+  await Bun.write(join(repo, "README.md"), "# Repository overview")
+  await Bun.write(join(repo, "packages/a/README.md"), "# Package overview")
   const after = await registry.refresh()
-  expect(after.graph.nodes.find(node => node.id === "package:project")?.moduleDocumentation).toBeUndefined()
+  expect(after.graph.nodes.find(node => node.id === "package:repo")?.moduleDocumentation).toBeUndefined()
   expect(after.graph.nodes.find(node => node.id === "package:@fixture/a")?.moduleDocumentation).toBeUndefined()
   expect(after.graph).toEqual(before.graph)
 })
 
 test("workspace membership updates without changing retained package identity", async () => {
-  const {project} = await fixture()
+  const {repo} = await fixture()
   const registry = new ExternalStorybookRegistry(discoverStorybookPackages)
-  await registry.attach(project)
-  await write(join(project, "packages/c/package.json"), {name: "@fixture/c", label: "C"})
-  await rm(join(project, "packages/b"), {recursive: true})
+  await registry.attach(repo)
+  await write(join(repo, "packages/c/package.json"), {name: "@fixture/c", label: "C"})
+  await rm(join(repo, "packages/b"), {recursive: true})
   const changed = await registry.refresh()
   expect(changed.graph.nodes.filter(node => node.kind === "package").map(node => node.id)).toEqual([
-    "package:project", "package:@fixture/a", "package:@fixture/c",
+    "package:repo", "package:@fixture/a", "package:@fixture/c",
   ])
   expect(changed.catalog.scopes.some(scope => scope.resolutionError !== undefined)).toBeFalse()
 })
 
 test("duplicate package names fail closed", async () => {
-  const {project} = await fixture()
-  await write(join(project, "packages/b/package.json"), {name: "@fixture/a", label: "Other A"})
-  await expect(discoverStorybookPackages([project])).rejects.toThrow("Duplicate package identity")
+  const {repo} = await fixture()
+  await write(join(repo, "packages/b/package.json"), {name: "@fixture/a", label: "Other A"})
+  await expect(discoverStorybookPackages([repo])).rejects.toThrow("Duplicate package identity")
 })
 
 test("explicit refresh discovers a new workspace package and serves its structural page", async () => {
-  const {root, project} = await fixture()
-  await Bun.write(join(project, "packages/a/index.ts"), "/**\n# Structural A\n@packageDocumentation\n*/\n")
+  const {root, repo} = await fixture()
+  await Bun.write(join(repo, "packages/a/index.ts"), "/**\n# Structural A\n@packageDocumentation\n*/\n")
   const artifactRoot = join(root, "artifacts")
   seedSharedPage(artifactRoot)
-  const server = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64), declarations: [project],
+  const server = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64), project: createProjectFixture(root, [repo]),
     statePath: join(root, "state/server.json"), artifactRoot})
   try {
-    await write(join(project, "packages/c/package.json"), {name: "@fixture/c", label: "C"})
+    await write(join(repo, "packages/c/package.json"), {name: "@fixture/c", label: "C"})
     expect(server.registry.snapshot().graph.nodes.some(node => node.id === "package:@fixture/c")).toBeFalse()
     const refresh = await fetch(new URL("/api/control/refresh", server.origin), {
       method: "POST",
@@ -130,14 +131,14 @@ function seedSharedPage(artifactRoot: string): void {
 }
 
 test("nested package failure retains its previous subtree and leaves sibling healthy", async () => {
-  const {project} = await fixture()
-  await write(join(project, "package.json"), {name: "project", label: "Project", workspaces: ["packages/**"]})
-  await write(join(project, "packages/a/child/package.json"), {name: "@fixture/child", label: "Child"})
+  const {repo} = await fixture()
+  await write(join(repo, "package.json"), {name: "repo", label: "Repository", workspaces: ["packages/**"]})
+  await write(join(repo, "packages/a/child/package.json"), {name: "@fixture/child", label: "Child"})
   const registry = new ExternalStorybookRegistry(discoverStorybookPackages)
-  const first = await registry.attach(project)
+  const first = await registry.attach(repo)
   const original = first.graph.nodes.find(node => node.id === "package:@fixture/child")!
   expect(original.parentId).toBe("package:@fixture/a")
-  await Bun.write(join(project, "packages/a/package.json"), "{")
+  await Bun.write(join(repo, "packages/a/package.json"), "{")
   const failed = await registry.refresh()
   expect(failed.catalog.scopes.find(scope => scope.id === "@fixture/a")?.resolutionError).toBeDefined()
   expect(failed.catalog.scopes.find(scope => scope.id === "@fixture/b")?.resolutionError).toBeUndefined()

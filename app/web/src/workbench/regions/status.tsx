@@ -13,10 +13,10 @@ export type StatusRegionProps = Readonly<{
   onMcpOpenChange?: ((open: boolean) => void) | undefined
 }>
 
-/** Retained Workbench status region. */
+/** Строка состояния сохраняет путь; домашняя ссылка показывает имя текущего Project. */
 export function StatusRegion(props: StatusRegionProps) {
   const title = `${props.status.lead}${props.status.owner}${props.status.detail}`
-  const breadcrumbs = props.status.breadcrumbs ?? Object.freeze([{
+  const breadcrumbs: readonly WorkbenchBreadcrumb[] = props.status.breadcrumbs ?? Object.freeze([{
     id: "status-owner",
     label: props.status.owner,
     route: "",

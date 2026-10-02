@@ -1,4 +1,5 @@
 import createWeb from "@app/web"
+import {createProjectFixture} from "../test/project.fixture"
 /** Отдельный loopback instance публикует identity и состояние пустого каталога. */
 import {afterAll, describe, expect, test} from "bun:test"
 import {mkdtempSync, rmSync} from "node:fs"
@@ -20,7 +21,7 @@ describe.each([
   })
   const server = await startExternalStorybookServer({createWeb,
     implementationDigest: "a".repeat(64),
-    declarations: [],
+    project: createProjectFixture(root, []),
     port: 0,
     statePath: join(root, "state", "server.json"),
     artifactRoot: join(root, "artifacts"),

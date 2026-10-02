@@ -4,6 +4,7 @@ import {join} from "node:path"
 import discoverStorybookPackages from "@repo/discovery"
 import storybookRest from ".."
 
+const projectName = "Fixture Project"
 const entries = [
   {path: "shop", label: "Магазин", description: "Проект магазина", parent: null},
   {path: "shop/ui", label: "Интерфейс", description: "Компоненты интерфейса", parent: "shop"},
@@ -12,11 +13,11 @@ const entries = [
 ]
 const read = (input: unknown) => storybookRest(new Request("http://localhost", {
   method: "POST", body: JSON.stringify(input),
-}), {entries})
+}), {projectName, entries})
 
 describe.each([
   {name: "Root без проекта Storybook", input: {}, expected: {
-    label: "Вход Storybook MCP", description: expect.stringContaining("path"), children: [
+    label: projectName, description: expect.stringContaining("path"), children: [
       {path: "shop", label: "Магазин", description: "Проект магазина"},
       {path: "library.v2", label: "Библиотека", description: "Общие функции"},
     ],
@@ -61,12 +62,12 @@ test.each(["shop/src", "shop/ui/button/readme", "shop.ui.button", "missing"])("�
 })
 
 test("GET и пустой POST выбирают независимый Root; пустой каталог допустим", async () => {
-  expect(await (await storybookRest(new Request("http://localhost"), {entries})).json()).toEqual(await (await read({})).json())
-  expect(await (await storybookRest(new Request("http://localhost"), {entries: []})).json())
-    .toEqual({label: "Вход Storybook MCP", description: expect.any(String), children: []})
-  expect((await storybookRest(new Request("http://localhost?view=scenarios"), {entries})).status).toBe(400)
-  expect((await storybookRest(new Request("http://localhost", {method: "POST", body: "{"}), {entries})).status).toBe(400)
-  expect((await storybookRest(new Request("http://localhost", {method: "DELETE"}), {entries})).status).toBe(405)
+  expect(await (await storybookRest(new Request("http://localhost"), {projectName, entries})).json()).toEqual(await (await read({})).json())
+  expect(await (await storybookRest(new Request("http://localhost"), {projectName, entries: []})).json())
+    .toEqual({label: projectName, description: expect.any(String), children: []})
+  expect((await storybookRest(new Request("http://localhost?view=scenarios"), {projectName, entries})).status).toBe(400)
+  expect((await storybookRest(new Request("http://localhost", {method: "POST", body: "{"}), {projectName, entries})).status).toBe(400)
+  expect((await storybookRest(new Request("http://localhost", {method: "DELETE"}), {projectName, entries})).status).toBe(405)
 })
 
 describe.each([{name: "Функция с контрактом", props: {path: "text/trim"}}])("$name", async ({props}) => {
@@ -84,7 +85,7 @@ describe.each([{name: "Функция с контрактом", props: {path: "t
   if (inputSchema === undefined || outputSchema === undefined) throw new Error("Каталог не подготовил обе схемы контракта")
   const response = await storybookRest(new Request("http://localhost", {
     method: "POST", body: JSON.stringify(props),
-  }), {entries: [{
+  }), {projectName, entries: [{
     path: props.path,
     description: "Удаляет пробелы по краям текста.",
     parent: "text",

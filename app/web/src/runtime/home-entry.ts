@@ -25,7 +25,7 @@ import {
   type CreateExternalStorybookShellOptions,
   type ExternalStorybookShell,
 } from "./shell.ts"
-import {deriveStorybookBreadcrumbs, STORYBOOK_ROOT_BREADCRUMB} from "./breadcrumbs.ts"
+import {deriveStorybookBreadcrumbs, storybookRootBreadcrumb, STORYBOOK_ROOT_BREADCRUMB} from "./breadcrumbs.ts"
 import {packageEventStatus, storybookConnectionStatus} from "./package-status.ts"
 import {
   buildProgressStatus,
@@ -102,6 +102,7 @@ export async function startExternalStorybookLanding(
     shell.workbench.update("inspector.registry", WORKBENCH_STANDARD_WIDGET_REGISTRY)
   })
 
+  shell.workbench.update("projectName", snapshot.projectName)
   shell.workbench.update("catalog.label", "Репозитории и пакеты")
   shell.workbench.update("catalog.items", navigationItems(deriveExternalStorybookNavigationTree(graph)))
   const showRootOverview = (): void => {
@@ -116,12 +117,12 @@ export async function startExternalStorybookLanding(
         lead: "",
         owner: "External Storybook",
         detail: "",
-        breadcrumbs: [STORYBOOK_ROOT_BREADCRUMB],
+        breadcrumbs: [storybookRootBreadcrumb(shell.workbench.controller.read("projectName"))],
       })
       shell.showMessage(
         "External Storybook · Обзор",
         "External Storybook",
-        "Выберите пакет в дереве или добавьте директорию проекта.",
+        "Выберите Repo или пакет в дереве. Состав Project читается из .gitmodules.",
       )
     })
   }
@@ -187,6 +188,7 @@ export async function startExternalStorybookLanding(
     snapshot = updated
     graph = updated
     landing = deriveExternalStorybookLanding(graph)
+    shell.workbench.update("projectName", snapshot.projectName)
     shell.workbench.update("catalog.items", navigationItems(deriveExternalStorybookNavigationTree(graph)))
     updateManagement()
     if (selectedNodeId !== null && graph.nodes.some(node => node.id === selectedNodeId)) {
@@ -200,7 +202,7 @@ export async function startExternalStorybookLanding(
       }
     }
   }
-  const changeProject = async (action: WorkbenchCatalogAction): Promise<void> => {
+  const changeRepository = async (action: WorkbenchCatalogAction): Promise<void> => {
     if (management.pending) return
     if (action.action === "detach" && !management.removableIds.includes(action.value ?? "")) return
     updateManagement({pending: true, error: ""})
@@ -219,7 +221,7 @@ export async function startExternalStorybookLanding(
     }
   }
   const onCatalogAction = (event: unknown): void => {
-    void changeProject((event as CustomEvent<WorkbenchCatalogAction>).detail)
+    void changeRepository((event as CustomEvent<WorkbenchCatalogAction>).detail)
   }
 
   const onNavigate = (event: unknown): void => {
@@ -428,7 +430,7 @@ async function requestRegistryChange(
     body: JSON.stringify(input.body),
   })
   const result = await response.json() as {ok?: boolean; error?: string}
-  if (!response.ok || result.ok !== true) throw new Error(result.error ?? "Не удалось изменить список проектов")
+  if (!response.ok || result.ok !== true) throw new Error(result.error ?? "Не удалось изменить состав Repo")
   return result
 }
 

@@ -19,6 +19,7 @@ function mount(storage: () => Pick<Storage, "getItem" | "setItem">, width = 800,
   const component = createRoot(root)
   const persistence = createMinimapPersistence(storage)
   const props: MinimapProps = {
+    projectName: "Fixture Project",
     initialState: persistence.initialState,
     onStateChange: persistence.save,
     catalog: {label: "Каталог", search: "", items: [{id: "item", label: "Пример", route: "/example"}], activeId: "item", management: null,
@@ -86,7 +87,7 @@ test("Minimap восстанавливает окно и Tab после ново
     host.input.pointerUp(frame, {...resize, clientX: resize.clientX + 40, clientY: resize.clientY + 20})
     host.flush()
     expect(writes).toHaveLength(2)
-    host.click("Скрыть Minimap")
+    host.click("Скрыть Fixture Project")
     expect(writes).toHaveLength(3)
 
     const tab = host.root.querySelector("[data-tab]")!
@@ -113,7 +114,7 @@ test("Minimap восстанавливает окно и Tab после ново
     expect(host.root.querySelector("[data-tab]")!.getAttribute("data-edge")).toBe("right")
     expect(createMinimapPersistence(storage).initialState).toEqual(state)
     expect(writes).toHaveLength(4)
-    host.click("Minimap")
+    host.click("Fixture Project")
     const box = host.flush().boxByNode.get(shell)!
     expect({x: box.x, y: box.y, width: box.width, height: box.height}).toEqual(state.geometry)
     expect(createMinimapPersistence(storage).initialState.collapsed).toBeFalse()
@@ -139,7 +140,7 @@ test("отмена перемещения окна и Tab не перезапи�
     host.flush()
     expect(writes).toBe(0)
     expect(createMinimapPersistence(storage).initialState).toEqual(state)
-    host.click("Скрыть Minimap")
+    host.click("Скрыть Fixture Project")
     const before = saved
     const tabStart = host.point(host.root.querySelector("[data-tab]")!, 5)
     frame = host.flush()

@@ -35,7 +35,7 @@ test("Dependencies is one view of its structural directory", async () => {
   expect(route).toMatchObject({kind: "dependencies", nodeId: "directory:package:@fixture/standalone/module", urlPath: "/standalone/module?view=dependencies"})
   const client = createExternalStorybookClientSnapshot(graph, [{packageId, declarationDigest: "fixture", moduleGraphRevision: null,
     candidateRevision: null, activeRevision: "active", lastGoodRevision: "active", entryRelativePath: "entry.js",
-    diagnostics: [], dependencyRealpaths: [], subscribers: 0, buildState: "active", builds: 0}])
+    diagnostics: [], dependencyRealpaths: [], subscribers: 0, buildState: "active", builds: 0}], "Fixture Project")
   for (const data of [graph, client]) {
     const model = deriveExternalStorybookPackageTab(data, packageId, path)
     expect(model.viewKind).toBe("dependencies")

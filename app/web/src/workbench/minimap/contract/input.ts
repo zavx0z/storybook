@@ -4,6 +4,8 @@ import type {CatalogPanelProps} from "../../catalog-panel/contract/input.ts"
 /**
 Дерево навигации в HUD, которое пользователь сворачивает в Tab.
 
+@property projectName - Имя Project, общее для заголовка окна и управляющего Tab.
+
 @property catalog - Те же данные и действия каталога, что использует Display.
 Поиск и выбор принадлежат Workbench; скрытие сохраняет экземпляр дерева.
 
@@ -20,6 +22,7 @@ import type {CatalogPanelProps} from "../../catalog-panel/contract/input.ts"
 подтверждения применения новой версии во всех представлениях.
 */
 export interface MinimapProps {
+  readonly projectName: string
   readonly catalog: CatalogPanelProps
   readonly initialState?: MinimapState | undefined
   readonly onStateChange?: ((state: MinimapState) => void) | undefined

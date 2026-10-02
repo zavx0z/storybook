@@ -25,14 +25,11 @@ export declare namespace AppServer {
   @property [onStartupPhase] - Получает этапы catalog, sessions, listen,
   publication и ready до возврата сервера; исключение отменяет запуск.
 
-  @property [projectSelectionPath] - Файл сохранённых подключений для этого запуска.
-
-  @property [projectDirectory] - Базовая директория разрешения проекта.
+  @property project - Точный Git-корень Project с именем в package.json
+  и составом Repo в .gitmodules; отдельный список подключений не хранится.
 
   @property [resolveCatalog] - Источник нормализованного каталога;
   при отсутствии используется действующий discovery.
-
-  @property [declarations] - Корни, подключаемые при первом запуске.
 
   @property [hostname] - Адрес слушателя; по умолчанию loopback `127.0.0.1`.
 
@@ -68,10 +65,8 @@ export declare namespace AppServer {
     createWeb: typeof import("@app/web").default
     buildWeb?: AppWebBuild.Output["runWorker"]
     onStartupPhase?: (phase: "catalog" | "sessions" | "listen" | "publication" | "ready") => void
-    projectSelectionPath?: string
-    projectDirectory?: string
+    project: string
     resolveCatalog?: StorybookCatalogResolver
-    declarations?: readonly string[]
     hostname?: string
     port?: number
     toolRoot?: string

@@ -1,6 +1,7 @@
 # Состав проекта
 
-[Project](../index.ts) объединяет ссылки на независимые пакеты Repo.
+[Project](../index.ts) читает собственное имя Git superproject и объявленные
+в `.gitmodules` ссылки на независимые пакеты Repo.
 Repo владеет общей Git-историей и вложенными пакетами Domain, Component и
 [Container](../../container/notes/structure.md).
 Одинаковая пакетная форма сохраняется на всех уровнях внутри Repo.
