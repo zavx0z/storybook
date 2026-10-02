@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@mcp/stdio": "workspace:*",
-    "@mcp/progress": "workspace:*"
+    "@mcp/progress": "workspace:*",
+    "@mcp/lazy": "workspace:*"
   }
 }

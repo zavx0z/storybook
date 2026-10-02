@@ -3,7 +3,10 @@ import type {StorybookControllerAccessor} from "./resources"
 import type {CreateStorybookMcpServerInput} from "../contract/input"
 import {recordMcpRequest, traceMcpRequest} from "./request-log"
 
-export function controllerAccessor(options: CreateStorybookMcpServerInput): StorybookControllerAccessor {
+export function controllerAccessor(
+  options: CreateStorybookMcpServerInput,
+  run: <Result>(operation: () => Promise<Result>) => Promise<Result> = operation => operation(),
+): StorybookControllerAccessor {
   let pending: Promise<StorybookAppContract.Output> | null = null
   return () => {
     pending ??= Promise.resolve(options.controller ?? options.controllerFactory?.() ?? loadCanonicalController())
@@ -12,8 +15,8 @@ export function controllerAccessor(options: CreateStorybookMcpServerInput): Stor
         get(target, key, receiver) {
           const value = Reflect.get(target, key, receiver)
           if (typeof value !== "function" || typeof key !== "string") return value
-          return (...args: unknown[]) => traceMcpRequest(`storybook_${key}`, args[0],
-            () => value.apply(target, args), options.recordRequest ?? recordMcpRequest)
+          return (...args: unknown[]) => run(() => traceMcpRequest(`storybook_${key}`, args[0],
+            () => value.apply(target, args), options.recordRequest ?? recordMcpRequest))
         },
       }))
       .catch((error) => {

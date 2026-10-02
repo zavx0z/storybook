@@ -2,7 +2,8 @@
 Частный адаптер управляющих MCP-вызовов приложения Storybook.
 Соединяет существующий MCP-сервер с явной пересборкой собственного Web через
 ту же операцию контроллера, которую использует browser-вход приложения.
-Предметный lazy-вызов сохраняет свой HTTP-прокси и не загружает контроллер.
+Эта фабрика исполняется в свежем lazy-worker; постоянный stdio-транспорт
+не импортирует регистрации, схемы или контроллер приложения.
 */
 import {z} from "zod"
 import {createStorybookMcpServer} from "./mcp/index"
@@ -30,3 +31,6 @@ export function createAppMcpServer(options: CreateStorybookMcpServerInput = {}) 
     },
   })
 }
+
+/** Точка загрузки полного сервера в изолированном исполнителе одного запроса. */
+export default createAppMcpServer

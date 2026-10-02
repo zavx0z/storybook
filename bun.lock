@@ -63,6 +63,7 @@
         "@app-server/state": "workspace:*",
         "@app/mcp": "workspace:*",
         "@app/server": "workspace:*",
+        "@mcp/lazy": "workspace:*",
         "@mcp/progress": "workspace:*",
         "@mcp/stdio": "workspace:*",
         "@modelcontextprotocol/server": "^2.0.0",
@@ -1419,8 +1420,22 @@
       "name": "@tech/mcp",
       "version": "0.0.0",
       "dependencies": {
+        "@mcp/lazy": "workspace:*",
         "@mcp/progress": "workspace:*",
         "@mcp/stdio": "workspace:*",
+      },
+    },
+    "tech/mcp/lazy": {
+      "name": "@mcp/lazy",
+      "version": "0.0.0",
+      "dependencies": {
+        "@build/worker": "workspace:*",
+        "@modelcontextprotocol/client": "^2.0.0",
+        "@modelcontextprotocol/server": "^2.0.0",
+      },
+      "devDependencies": {
+        "@mcp/stdio": "workspace:*",
+        "zod": "^4.4.3",
       },
     },
     "tech/mcp/progress": {
@@ -1649,6 +1664,8 @@
     "@mcp/address": ["@mcp/address@workspace:app/mcp/rest/address"],
 
     "@mcp/children": ["@mcp/children@workspace:app/mcp/rest/children"],
+
+    "@mcp/lazy": ["@mcp/lazy@workspace:tech/mcp/lazy"],
 
     "@mcp/progress": ["@mcp/progress@workspace:tech/mcp/progress"],
 

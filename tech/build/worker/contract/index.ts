@@ -20,6 +20,8 @@ export declare namespace BuildWorker {
   @property [onProgress] - Получает phase после ready; ошибки callback изолируются.
   @property [onLifecycle] - Получает started и exited один раз; ошибки изолируются.
   @property [maxResultBytes] - Неотрицательный предел result.json в байтах.
+  @property [hardKillDelayMs] - Конечная неотрицательная задержка SIGKILL после SIGTERM, в миллисекундах.
+  Без значения сохраняется задержка 1000 мс; владелец может дать worker время на асинхронное освобождение.
   */
   type Input<Job, Progress> = Readonly<{
     entryPath: string
@@ -34,6 +36,7 @@ export declare namespace BuildWorker {
     onProgress?(event: Progress): void
     onLifecycle?(event: BuildWorkerLifecycleEvent): void
     maxResultBytes?: number
+    hardKillDelayMs?: number
   }>
 
   /**

@@ -29,13 +29,17 @@ started публикуется после exact nonce/PID handshake. exited сл
 
 @throws Причина отмены, TimeoutError, ошибка подготовки, чтения потока или JSON результата.
 
-@throws RangeError при неверном timeoutMs или maxResultBytes до создания процесса.
+@throws RangeError при неверном timeoutMs, maxResultBytes или hardKillDelayMs до создания процесса.
 */
 export default async function runBuildWorker<Job, Progress>(
   input: BuildWorker.Input<Job, Progress>,
 ): Promise<BuildWorker.Output> {
   if (!Number.isFinite(input.timeoutMs) || input.timeoutMs <= 0) {
     throw new RangeError(`Build worker timeout must be positive: ${input.timeoutMs}`)
+  }
+  if (input.hardKillDelayMs !== undefined &&
+    (!Number.isFinite(input.hardKillDelayMs) || input.hardKillDelayMs < 0)) {
+    throw new RangeError(`Build worker hard-kill delay cannot be negative: ${input.hardKillDelayMs}`)
   }
   if (input.maxResultBytes !== undefined &&
     (!Number.isSafeInteger(input.maxResultBytes) || input.maxResultBytes < 0)) {
@@ -76,7 +80,7 @@ export default async function runBuildWorker<Job, Progress>(
         signal: input.signal,
         timeoutMs: input.timeoutMs,
         label: input.label,
-        hardKillDelayMs: 1_000,
+        hardKillDelayMs: input.hardKillDelayMs ?? 1_000,
         processGroup: {leaderPid: child.pid},
         readStdout: stream => readWorkerEvents(stream, {
           workerId,

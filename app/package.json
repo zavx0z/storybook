@@ -19,7 +19,8 @@
     "@package/artifacts": "workspace:*",
     "@app/server": "workspace:*",
     "@tech/limits": "workspace:*",
-    "@web/release": "workspace:*"
+    "@web/release": "workspace:*",
+    "@mcp/lazy": "workspace:*"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "^2.0.0",

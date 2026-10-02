@@ -11,7 +11,8 @@
 - [Общая навигация](./rest/children/README.md)
 - [Адресация пакетов](./rest/address/README.md)
 - [HTTP-прокси](./proxy/README.md)
-- [Управляющий адаптер MCP](../src/mcp/README.md)
+- [Регистрации и обработчики MCP](../src/mcp/README.md)
+- [Общий lazy-транспорт](../../tech/mcp/lazy/index.ts)
 - [Предметные HTTP-обработчики](./rest/README.md)
 
 ## Заметки

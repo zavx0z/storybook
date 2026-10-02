@@ -1,0 +1,29 @@
+import type {McpServer} from "@modelcontextprotocol/server"
+
+/** Один MCP transport с актуальными схемами и handlers отдельного исполняемого модуля. */
+export declare namespace McpLazy {
+  /**
+  Доверенная конфигурация каждого изолированного выполнения.
+
+  @property serverModule - Абсолютный путь к factory-модулю MCP-сервера; не принимается из tool arguments.
+  @property cwd - Абсолютный рабочий каталог worker.
+  @property temporaryRoot - Абсолютный корень временных областей worker, исключённый из наблюдения.
+  @property [name] - Имя постоянного transport server; по умолчанию lazy-mcp.
+  @property [version] - Версия постоянного transport server; по умолчанию 1.0.0.
+  @property [timeoutMs] - Бюджет запроса; по умолчанию 15 минут. Положительное конечное число не больше 900000.
+  @property [watchRoot] - Абсолютный корень исходников для уведомлений об изменении списков.
+  При отсутствии клиент получает текущие списки при явном чтении. Ошибка наблюдения не прерывает запросы.
+  */
+  export type Input = Readonly<{
+    serverModule: string
+    cwd: string
+    temporaryRoot: string
+    name?: string
+    version?: string
+    timeoutMs?: number
+    watchRoot?: string
+  }>
+
+  /** Стандартный SDK server; close отменяет его запросы и освобождает watcher. */
+  export type Output = McpServer
+}

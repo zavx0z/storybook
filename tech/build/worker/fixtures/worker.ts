@@ -6,6 +6,17 @@ const [jobPath, resultPath, workerId] = process.argv.slice(2)
 if (!jobPath || !resultPath || !workerId) throw new Error("Fixture argv is incomplete")
 const job = JSON.parse(readFileSync(jobPath, "utf8")) as WorkerFixtureJob
 if (job.ignoreTerm) process.on("SIGTERM", () => {})
+if (job.termCleanupDelayMs !== undefined) {
+  let closing = false
+  process.on("SIGTERM", () => {
+    if (closing) return
+    closing = true
+    setTimeout(() => {
+      if (job.termCleanupPath !== undefined) writeFileSync(job.termCleanupPath, "completed")
+      process.exit(0)
+    }, job.termCleanupDelayMs)
+  })
+}
 if (job.descendantPath) {
   const descendant = Bun.spawn([
     process.execPath,

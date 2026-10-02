@@ -14,6 +14,8 @@ export type WorkerFixtureJob = Readonly<{
   ignoreTerm?: boolean
   descendantPath?: string
   floodBytes?: number
+  termCleanupDelayMs?: number
+  termCleanupPath?: string
 }>
 
 /** Подготавливает только изолированные данные и среду; проверки остаются у spec/test. */

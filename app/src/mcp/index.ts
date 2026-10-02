@@ -27,6 +27,7 @@ import {
 } from "./src/schemas"
 import {recordMcpRequest, traceMcpRequest} from "./src/request-log"
 import {controllerAccessor} from "./src/controller"
+import {retainRequestLifetime} from "./src/lifetime"
 import {invoke, invokeCapture} from "./src/invoke"
 import createRequestProgress from "@mcp/progress"
 import type {CreateStorybookMcpServerInput} from "./contract/input"
@@ -35,22 +36,23 @@ import type {CreateStorybookMcpServerOutput} from "./contract/output"
 export type {CreateStorybookMcpServerInput, CreateStorybookMcpServerOutput}
 
 export function createStorybookMcpServer(options: CreateStorybookMcpServerInput = {}): CreateStorybookMcpServerOutput {
-  const controller = controllerAccessor(options)
   const server = new McpServer({name: "storybook", version: "1.0.0"})
+  const run = retainRequestLifetime(server)
+  const controller = controllerAccessor(options, run)
   /** Исполняет управляющую операцию с отменой и progress текущего MCP-запроса. */
   const execute: Parameters<NonNullable<CreateStorybookMcpServerInput["registerTools"]>>[1] = (operation, context) => {
     const notify = createRequestProgress(context)
-    return invoke(controller, value => operation(value, {
+    return run(() => invoke(controller, value => operation(value, {
       signal: context.mcpReq.signal,
       ...(notify === undefined ? {} : {onProgress: progress => notify(JSON.stringify(progress))}),
-    }))
+    })))
   }
 
   appMcp.register(server, {
     ...(options.request === undefined ? {} : {request: options.request}),
-    traceRequest: (tool, input, run) => traceMcpRequest(
-      tool, input, run, options.recordRequest ?? recordMcpRequest, false,
-    ),
+    traceRequest: (tool, input, execute) => run(() => traceMcpRequest(
+      tool, input, execute, options.recordRequest ?? recordMcpRequest, false,
+    )),
   })
 
   server.registerTool("storybook_ensure", {

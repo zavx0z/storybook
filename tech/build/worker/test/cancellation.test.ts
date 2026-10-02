@@ -54,3 +54,26 @@ describe("Отмена точной группы", () => {
     }
   }, 10_000)
 })
+
+test("явный grace сохраняет асинхронный cleanup дольше стандартной секунды", async () => {
+  const fixture = prepareWorkerFixture()
+  const cleanupPath = join(fixture.root, "cleanup.txt")
+  const cause = new Error("cancel with cleanup grace")
+  const lifecycle: LifecycleEvent[] = []
+  try {
+    const failure = await runBuildWorker({...fixture.input,
+      hardKillDelayMs: 3_000,
+      createJob: () => ({hold: true, termCleanupDelayMs: 1_500, termCleanupPath: cleanupPath}),
+      onLifecycle(event) {
+        lifecycle.push(event)
+        if (event.state === "started") fixture.controller.abort(cause)
+      },
+    }).catch(error => error)
+    expect(failure, "Завершённый cleanup не меняет причину отмены запроса").toBe(cause)
+    expect(readFileSync(cleanupPath, "utf8"), "Переданный grace позволяет worker закончить cleanup после стандартной секунды").toBe("completed")
+    expect(lifecycle.map(event => event.state), "Отмена ждёт exact child и публикует один завершённый жизненный цикл").toEqual(["started", "exited"])
+    expect(lifecycle[1]?.state === "exited" ? lifecycle[1].exitCode : null, "SIGKILL не прерывает worker, завершившийся в пределах своего grace").toBe(0)
+  } finally {
+    fixture.cleanup()
+  }
+}, 10_000)
