@@ -1,5 +1,4 @@
 import type {
-  StorybookOperationStatus,
   StorybookControllerResult,
   StorybookEnsureInput,
   StorybookStatusInput,
@@ -9,14 +8,11 @@ import type {
   StorybookOpenInput,
   StorybookWaitInput,
   StorybookInspectInput,
-  StorybookInteractionTarget,
-  StorybookInteractionValue,
   StorybookInteractInput,
   StorybookCaptureInput,
   StorybookCheckInput,
   StorybookCloseInput,
   StorybookStopInput,
-  StorybookCaptureImage,
   StorybookCaptureResult,
   StorybookResourceResult,
   StorybookControllerContext

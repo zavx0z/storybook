@@ -59,23 +59,19 @@
       "name": "@storybook/app",
       "version": "0.0.0",
       "dependencies": {
-        "@app-mcp/response": "workspace:*",
         "@app-server/state": "workspace:*",
         "@app/mcp": "workspace:*",
         "@app/server": "workspace:*",
+        "@app/web": "workspace:*",
         "@mcp/lazy": "workspace:*",
-        "@mcp/progress": "workspace:*",
         "@mcp/stdio": "workspace:*",
-        "@modelcontextprotocol/server": "^2.0.0",
         "@package/artifacts": "workspace:*",
         "@tech/limits": "workspace:*",
-        "@web/release": "workspace:*",
-        "zod": "^4.4.3",
       },
       "devDependencies": {
-        "@mcp-rest/requests": "workspace:*",
-        "@mcp/rest": "workspace:*",
+        "@chat/session": "workspace:*",
         "@modelcontextprotocol/client": "^2.0.0",
+        "@package-graph/read": "workspace:*",
       },
     },
     "app/mcp": {
@@ -84,11 +80,15 @@
       "dependencies": {
         "@app-mcp/proxy": "workspace:*",
         "@app-mcp/response": "workspace:*",
+        "@app-server/state": "workspace:*",
+        "@mcp/progress": "workspace:*",
         "@mcp/rest": "workspace:*",
         "@modelcontextprotocol/server": "^2.0.0",
+        "@storybook/app": "workspace:*",
         "zod": "^4.4.3",
       },
       "devDependencies": {
+        "@mcp-rest/requests": "workspace:*",
         "@modelcontextprotocol/client": "^2.0.0",
       },
     },
@@ -146,13 +146,11 @@
         "@app-server/catalog": "workspace:*",
         "@app-server/sessions": "workspace:*",
         "@app-server/state": "workspace:*",
-        "@app-web/build": "workspace:*",
         "@app-web/protocol": "workspace:*",
-        "@app/mcp": "workspace:*",
+        "@app/web": "workspace:*",
         "@archetypes/project": "workspace:*",
         "@archetypes/scenario-reader": "workspace:*",
         "@archetypes/spec-reader": "workspace:*",
-        "@build/environment": "workspace:*",
         "@chat/session": "workspace:*",
         "@hmr/activation": "workspace:*",
         "@mcp-rest/requests": "workspace:*",
@@ -174,7 +172,10 @@
         "@zavx0z/storybook-browser-lifecycle": "workspace:*",
       },
       "devDependencies": {
+        "@app-web/build": "workspace:*",
+        "@app/mcp": "workspace:*",
         "@build/artifacts": "workspace:*",
+        "@build/environment": "workspace:*",
         "@modelcontextprotocol/client": "^2.0.0",
         "@modelcontextprotocol/server": "^2.0.0",
         "@nodes/node": "^0.0.0",
@@ -246,35 +247,19 @@
       "dependencies": {
         "@app-web/build": "workspace:*",
         "@app-web/protocol": "workspace:*",
-        "@immersive/markdown": "^0.0.0",
-        "@web/agent-bridge": "workspace:*",
-        "@web/bootstrap": "workspace:*",
-        "@web/browser-fixture": "workspace:*",
-        "@web/catalog": "workspace:*",
-        "@web/client": "workspace:*",
-        "@web/mcp-window": "workspace:*",
-        "@web/minimap": "workspace:*",
-        "@web/navigation": "workspace:*",
+        "@package-build/scheduler": "workspace:*",
+        "@package/session": "workspace:*",
+        "@tech/limits": "workspace:*",
         "@web/page": "workspace:*",
         "@web/page-target": "workspace:*",
-        "@web/presentation": "workspace:*",
-        "@web/reference": "workspace:*",
         "@web/release": "workspace:*",
-        "@web/scenario": "workspace:*",
-        "@web/status": "workspace:*",
-        "@web/style-sheets": "workspace:*",
-        "@web/viewpoint-controls": "workspace:*",
-        "@web/viewpoint-tab": "workspace:*",
-        "@web/workbench": "workspace:*",
-        "@web/workbench-model": "workspace:*",
-        "@zavx0z/component": "^0.0.0",
-        "@zavx0z/ui": "^0.0.0",
       },
       "devDependencies": {
         "@app-server/catalog": "workspace:*",
         "@app/server": "workspace:*",
         "@build/compiler": "workspace:*",
         "@build/environment": "workspace:*",
+        "@immersive/markdown": "^0.0.0",
         "@jsx-compiler/bun": "^0.0.0",
         "@package-build/descriptor": "workspace:*",
         "@package-graph/create": "workspace:*",
@@ -282,38 +267,10 @@
         "@package/revision": "workspace:*",
         "@repo/discovery": "workspace:*",
         "@route/url": "workspace:*",
-      },
-    },
-    "app/web/agent-bridge": {
-      "name": "@web/agent-bridge",
-      "version": "0.0.0",
-      "dependencies": {
-        "@app-web/protocol": "workspace:*",
-        "@zavx0z/browser": "^0.0.0",
-        "@zavx0z/devtools": "^0.0.0",
-        "@zavx0z/dom": "^0.0.0",
-      },
-      "devDependencies": {
-        "@renderer/html": "^0.0.0",
-        "@zavx0z/space": "^0.0.0",
-      },
-    },
-    "app/web/bootstrap": {
-      "name": "@web/bootstrap",
-      "version": "0.0.0",
-      "dependencies": {
-        "@app-web/protocol": "workspace:*",
-        "@web/page": "workspace:*",
-        "@web/page-target": "workspace:*",
-      },
-    },
-    "app/web/browser-fixture": {
-      "name": "@web/browser-fixture",
-      "version": "0.0.0",
-      "dependencies": {
-        "@jsx-compiler/session": "^0.0.0",
-        "@zavx0z/browser": "^0.0.0",
+        "@web/browser-fixture": "workspace:*",
+        "@web/navigation": "workspace:*",
         "@zavx0z/component": "^0.0.0",
+        "@zavx0z/ui": "^0.0.0",
       },
     },
     "app/web/build": {
@@ -328,93 +285,11 @@
         "@package-build/inputs": "workspace:*",
         "@package-build/scheduler": "workspace:*",
         "@package/revision": "workspace:*",
-        "@web/page": "workspace:*",
         "@zavx0z/ui": "^0.0.0",
       },
       "devDependencies": {
         "@tech/limits": "workspace:*",
         "@zavx0z/component": "^0.0.0",
-      },
-    },
-    "app/web/catalog": {
-      "name": "@web/catalog",
-      "version": "0.0.0",
-      "dependencies": {
-        "@catalog/navigation": "workspace:*",
-        "@zavx0z/component": "^0.0.0",
-        "@zavx0z/ui": "^0.0.0",
-      },
-      "devDependencies": {
-        "@immersive/headless": "^0.0.0",
-      },
-    },
-    "app/web/catalog/navigation": {
-      "name": "@catalog/navigation",
-      "version": "0.0.0",
-    },
-    "app/web/client": {
-      "name": "@web/client",
-      "version": "0.0.0",
-      "dependencies": {
-        "@app-web/protocol": "workspace:*",
-      },
-    },
-    "app/web/mcp-window": {
-      "name": "@web/mcp-window",
-      "version": "0.0.0",
-      "dependencies": {
-        "@mcp-rest/requests": "workspace:*",
-        "@mcp-window/state": "workspace:*",
-        "@zavx0z/component": "^0.0.0",
-        "@zavx0z/ui": "^0.0.0",
-      },
-      "devDependencies": {
-        "@immersive/headless": "^0.0.0",
-        "@jsx-compiler/bun": "^0.0.0",
-        "@mcp-rest/scenarios": "workspace:*",
-        "@renderer/html": "^0.0.0",
-        "@zavx0z/dom": "^0.0.0",
-        "@zavx0z/template": "^0.0.0",
-      },
-    },
-    "app/web/mcp-window/state": {
-      "name": "@mcp-window/state",
-      "version": "0.0.0",
-    },
-    "app/web/minimap": {
-      "name": "@web/minimap",
-      "version": "0.0.0",
-      "dependencies": {
-        "@minimap/state": "workspace:*",
-        "@web/catalog": "workspace:*",
-        "@zavx0z/component": "^0.0.0",
-        "@zavx0z/ui": "^0.0.0",
-      },
-      "devDependencies": {
-        "@immersive/headless": "^0.0.0",
-        "@zavx0z/dom": "^0.0.0",
-      },
-    },
-    "app/web/minimap/state": {
-      "name": "@minimap/state",
-      "version": "0.0.0",
-      "dependencies": {
-        "@zavx0z/ui": "^0.0.0",
-      },
-    },
-    "app/web/navigation": {
-      "name": "@web/navigation",
-      "version": "0.0.0",
-      "dependencies": {
-        "@app-web/protocol": "workspace:*",
-        "@package-graph/create": "workspace:*",
-        "@package-graph/read": "workspace:*",
-        "@package/revision": "workspace:*",
-        "@route/address": "workspace:*",
-        "@web/workbench-model": "workspace:*",
-      },
-      "devDependencies": {
-        "@repo/discovery": "workspace:*",
       },
     },
     "app/web/page": {
@@ -428,7 +303,6 @@
         "@page/package": "workspace:*",
         "@page/shell": "workspace:*",
         "@web/agent-bridge": "workspace:*",
-        "@web/client": "workspace:*",
         "@web/page-target": "workspace:*",
         "@web/status": "workspace:*",
         "@web/style-sheets": "workspace:*",
@@ -448,9 +322,26 @@
         "@zavx0z/space": "^0.0.0",
       },
     },
-    "app/web/page-target": {
-      "name": "@web/page-target",
+    "app/web/page/agent-bridge": {
+      "name": "@web/agent-bridge",
       "version": "0.0.0",
+      "dependencies": {
+        "@app-web/protocol": "workspace:*",
+        "@zavx0z/browser": "^0.0.0",
+        "@zavx0z/devtools": "^0.0.0",
+        "@zavx0z/dom": "^0.0.0",
+      },
+      "devDependencies": {
+        "@renderer/html": "^0.0.0",
+        "@zavx0z/space": "^0.0.0",
+      },
+    },
+    "app/web/page/client": {
+      "name": "@web/client",
+      "version": "0.0.0",
+      "dependencies": {
+        "@app-web/protocol": "workspace:*",
+      },
     },
     "app/web/page/home": {
       "name": "@page/home",
@@ -465,7 +356,6 @@
         "@web/navigation": "workspace:*",
         "@web/status": "workspace:*",
         "@web/style-sheets": "workspace:*",
-        "@web/workbench-model": "workspace:*",
         "@zavx0z/dom": "^0.0.0",
       },
       "devDependencies": {
@@ -479,6 +369,21 @@
         "@zavx0z/browser": "^0.0.0",
         "@zavx0z/component": "^0.0.0",
         "@zavx0z/space": "^0.0.0",
+      },
+    },
+    "app/web/page/navigation": {
+      "name": "@web/navigation",
+      "version": "0.0.0",
+      "dependencies": {
+        "@app-web/protocol": "workspace:*",
+        "@package-graph/create": "workspace:*",
+        "@package-graph/read": "workspace:*",
+        "@package/revision": "workspace:*",
+        "@route/address": "workspace:*",
+        "@web/workbench": "workspace:*",
+      },
+      "devDependencies": {
+        "@repo/discovery": "workspace:*",
       },
     },
     "app/web/page/package": {
@@ -497,12 +402,11 @@
         "@web/agent-bridge": "workspace:*",
         "@web/client": "workspace:*",
         "@web/navigation": "workspace:*",
-        "@web/page": "workspace:*",
         "@web/presentation": "workspace:*",
         "@web/scenario": "workspace:*",
         "@web/status": "workspace:*",
         "@web/style-sheets": "workspace:*",
-        "@web/workbench-model": "workspace:*",
+        "@web/workbench": "workspace:*",
         "@zavx0z/browser": "^0.0.0",
         "@zavx0z/component": "^0.0.0",
         "@zavx0z/dom": "^0.0.0",
@@ -519,6 +423,78 @@
         "@zavx0z/space": "^0.0.0",
       },
     },
+    "app/web/page/package/scenario": {
+      "name": "@web/scenario",
+      "version": "0.0.0",
+      "dependencies": {
+        "@scenario/inspector": "workspace:*",
+        "@scenario/model": "workspace:*",
+        "@scenario/preview": "workspace:*",
+        "@scenario/result": "workspace:*",
+        "@web/reference": "workspace:*",
+      },
+    },
+    "app/web/page/package/scenario/inspector": {
+      "name": "@scenario/inspector",
+      "version": "0.0.0",
+      "dependencies": {
+        "@scenario/model": "workspace:*",
+        "@zavx0z/component": "^0.0.0",
+        "@zavx0z/ui": "^0.0.0",
+      },
+      "devDependencies": {
+        "@immersive/headless": "^0.0.0",
+      },
+    },
+    "app/web/page/package/scenario/model": {
+      "name": "@scenario/model",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/scenario-reader": "workspace:*",
+        "@zavx0z/template": "^0.0.0",
+      },
+      "devDependencies": {
+        "@zavx0z/component": "^0.0.0",
+      },
+    },
+    "app/web/page/package/scenario/preview": {
+      "name": "@scenario/preview",
+      "version": "0.0.0",
+      "dependencies": {
+        "@scenario/result": "workspace:*",
+        "@zavx0z/component": "^0.0.0",
+      },
+      "devDependencies": {
+        "@immersive/headless": "^0.0.0",
+        "@scenario/model": "workspace:*",
+      },
+    },
+    "app/web/page/package/scenario/reference": {
+      "name": "@web/reference",
+      "version": "0.0.0",
+    },
+    "app/web/page/package/scenario/result": {
+      "name": "@scenario/result",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/scenario-guide": "workspace:*",
+        "@scenario/model": "workspace:*",
+        "@zavx0z/component": "^0.0.0",
+        "@zavx0z/ui": "^0.0.0",
+      },
+      "devDependencies": {
+        "@immersive/headless": "^0.0.0",
+      },
+    },
+    "app/web/page/presentation": {
+      "name": "@web/presentation",
+      "version": "0.0.0",
+      "dependencies": {
+        "@zavx0z/component": "^0.0.0",
+        "@zavx0z/dom": "^0.0.0",
+        "@zavx0z/template": "^0.0.0",
+      },
+    },
     "app/web/page/shell": {
       "name": "@page/shell",
       "version": "0.0.0",
@@ -529,8 +505,6 @@
         "@immersive/typedoc": "^0.0.0",
         "@jsx-compiler/session": "^0.0.0",
         "@mcp-rest/requests": "workspace:*",
-        "@mcp-window/state": "workspace:*",
-        "@minimap/state": "workspace:*",
         "@nodes/layout": "^0.0.0",
         "@nodes/node": "^0.0.0",
         "@package-graph/create": "workspace:*",
@@ -541,7 +515,6 @@
         "@web/viewpoint-controls": "workspace:*",
         "@web/viewpoint-tab": "workspace:*",
         "@web/workbench": "workspace:*",
-        "@web/workbench-model": "workspace:*",
         "@zavx0z/browser": "^0.0.0",
         "@zavx0z/component": "^0.0.0",
         "@zavx0z/dom": "^0.0.0",
@@ -555,14 +528,114 @@
         "@zavx0z/space": "^0.0.0",
       },
     },
-    "app/web/presentation": {
-      "name": "@web/presentation",
+    "app/web/page/shell/mcp-window": {
+      "name": "@web/mcp-window",
       "version": "0.0.0",
       "dependencies": {
+        "@mcp-rest/requests": "workspace:*",
         "@zavx0z/component": "^0.0.0",
+        "@zavx0z/ui": "^0.0.0",
+      },
+      "devDependencies": {
+        "@immersive/headless": "^0.0.0",
+        "@jsx-compiler/bun": "^0.0.0",
+        "@mcp-rest/scenarios": "workspace:*",
+        "@renderer/html": "^0.0.0",
         "@zavx0z/dom": "^0.0.0",
         "@zavx0z/template": "^0.0.0",
       },
+    },
+    "app/web/page/shell/minimap": {
+      "name": "@web/minimap",
+      "version": "0.0.0",
+      "dependencies": {
+        "@web/catalog": "workspace:*",
+        "@zavx0z/component": "^0.0.0",
+        "@zavx0z/ui": "^0.0.0",
+      },
+      "devDependencies": {
+        "@immersive/headless": "^0.0.0",
+        "@zavx0z/dom": "^0.0.0",
+      },
+    },
+    "app/web/page/shell/viewpoint-controls": {
+      "name": "@web/viewpoint-controls",
+      "version": "0.0.0",
+      "dependencies": {
+        "@zavx0z/dom": "^0.0.0",
+        "@zavx0z/ui": "^0.0.0",
+      },
+      "devDependencies": {
+        "@zavx0z/space": "^0.0.0",
+      },
+    },
+    "app/web/page/shell/viewpoint-tab": {
+      "name": "@web/viewpoint-tab",
+      "version": "0.0.0",
+      "dependencies": {
+        "@web/viewpoint-controls": "workspace:*",
+        "@zavx0z/component": "^0.0.0",
+        "@zavx0z/ui": "^0.0.0",
+      },
+      "devDependencies": {
+        "@immersive/headless": "^0.0.0",
+        "@zavx0z/dom": "^0.0.0",
+      },
+    },
+    "app/web/page/shell/workbench": {
+      "name": "@web/workbench",
+      "version": "0.0.0",
+      "dependencies": {
+        "@catalog/navigation": "workspace:*",
+        "@chat/session": "workspace:*",
+        "@chat/view": "workspace:*",
+        "@jsx-compiler/session": "^0.0.0",
+        "@web/catalog": "workspace:*",
+        "@zavx0z/component": "^0.0.0",
+        "@zavx0z/dom": "^0.0.0",
+        "@zavx0z/template": "^0.0.0",
+        "@zavx0z/ui": "^0.0.0",
+      },
+      "devDependencies": {
+        "@renderer/html": "^0.0.0",
+        "@tech/limits": "workspace:*",
+        "@zavx0z/space": "^0.0.0",
+      },
+    },
+    "app/web/page/shell/workbench/catalog": {
+      "name": "@web/catalog",
+      "version": "0.0.0",
+      "dependencies": {
+        "@catalog/navigation": "workspace:*",
+        "@zavx0z/component": "^0.0.0",
+        "@zavx0z/ui": "^0.0.0",
+      },
+      "devDependencies": {
+        "@immersive/headless": "^0.0.0",
+      },
+    },
+    "app/web/page/shell/workbench/catalog/navigation": {
+      "name": "@catalog/navigation",
+      "version": "0.0.0",
+    },
+    "app/web/page/status": {
+      "name": "@web/status",
+      "version": "0.0.0",
+      "dependencies": {
+        "@package-build/scheduler": "workspace:*",
+        "@package/session": "workspace:*",
+      },
+    },
+    "app/web/page/style-sheets": {
+      "name": "@web/style-sheets",
+      "version": "0.0.0",
+      "dependencies": {
+        "@zavx0z/browser": "^0.0.0",
+      },
+    },
+    "app/web/page/target": {
+      "name": "@web/page-target",
+      "version": "0.0.0",
     },
     "app/web/protocol": {
       "name": "@app-web/protocol",
@@ -578,149 +651,11 @@
         "@repo/discovery": "workspace:*",
       },
     },
-    "app/web/reference": {
-      "name": "@web/reference",
-      "version": "0.0.0",
-    },
     "app/web/release": {
       "name": "@web/release",
       "version": "0.0.0",
       "dependencies": {
         "@app-web/build": "workspace:*",
-      },
-    },
-    "app/web/scenario": {
-      "name": "@web/scenario",
-      "version": "0.0.0",
-      "dependencies": {
-        "@scenario/inspector": "workspace:*",
-        "@scenario/model": "workspace:*",
-        "@scenario/preview": "workspace:*",
-        "@scenario/result": "workspace:*",
-      },
-    },
-    "app/web/scenario/inspector": {
-      "name": "@scenario/inspector",
-      "version": "0.0.0",
-      "dependencies": {
-        "@scenario/model": "workspace:*",
-        "@zavx0z/component": "^0.0.0",
-        "@zavx0z/ui": "^0.0.0",
-      },
-      "devDependencies": {
-        "@immersive/headless": "^0.0.0",
-      },
-    },
-    "app/web/scenario/model": {
-      "name": "@scenario/model",
-      "version": "0.0.0",
-      "dependencies": {
-        "@archetypes/scenario-reader": "workspace:*",
-        "@zavx0z/template": "^0.0.0",
-      },
-      "devDependencies": {
-        "@zavx0z/component": "^0.0.0",
-      },
-    },
-    "app/web/scenario/preview": {
-      "name": "@scenario/preview",
-      "version": "0.0.0",
-      "dependencies": {
-        "@scenario/result": "workspace:*",
-        "@zavx0z/component": "^0.0.0",
-      },
-      "devDependencies": {
-        "@immersive/headless": "^0.0.0",
-        "@scenario/model": "workspace:*",
-      },
-    },
-    "app/web/scenario/result": {
-      "name": "@scenario/result",
-      "version": "0.0.0",
-      "dependencies": {
-        "@archetypes/scenario-guide": "workspace:*",
-        "@scenario/model": "workspace:*",
-        "@zavx0z/component": "^0.0.0",
-        "@zavx0z/ui": "^0.0.0",
-      },
-      "devDependencies": {
-        "@immersive/headless": "^0.0.0",
-      },
-    },
-    "app/web/status": {
-      "name": "@web/status",
-      "version": "0.0.0",
-      "dependencies": {
-        "@package-build/scheduler": "workspace:*",
-        "@package/session": "workspace:*",
-      },
-    },
-    "app/web/style-sheets": {
-      "name": "@web/style-sheets",
-      "version": "0.0.0",
-      "dependencies": {
-        "@zavx0z/browser": "^0.0.0",
-      },
-    },
-    "app/web/viewpoint-controls": {
-      "name": "@web/viewpoint-controls",
-      "version": "0.0.0",
-      "dependencies": {
-        "@zavx0z/dom": "^0.0.0",
-        "@zavx0z/ui": "^0.0.0",
-      },
-      "devDependencies": {
-        "@zavx0z/space": "^0.0.0",
-      },
-    },
-    "app/web/viewpoint-tab": {
-      "name": "@web/viewpoint-tab",
-      "version": "0.0.0",
-      "dependencies": {
-        "@web/viewpoint-controls": "workspace:*",
-        "@zavx0z/component": "^0.0.0",
-        "@zavx0z/ui": "^0.0.0",
-      },
-      "devDependencies": {
-        "@immersive/headless": "^0.0.0",
-        "@zavx0z/dom": "^0.0.0",
-      },
-    },
-    "app/web/workbench": {
-      "name": "@web/workbench",
-      "version": "0.0.0",
-      "dependencies": {
-        "@jsx-compiler/session": "^0.0.0",
-        "@web/catalog": "workspace:*",
-        "@web/workbench-model": "workspace:*",
-        "@zavx0z/component": "^0.0.0",
-        "@zavx0z/dom": "^0.0.0",
-        "@zavx0z/ui": "^0.0.0",
-      },
-      "devDependencies": {
-        "@renderer/html": "^0.0.0",
-        "@tech/limits": "workspace:*",
-        "@zavx0z/space": "^0.0.0",
-        "@zavx0z/template": "^0.0.0",
-      },
-    },
-    "app/web/workbench-model": {
-      "name": "@web/workbench-model",
-      "version": "0.0.0",
-      "dependencies": {
-        "@catalog/navigation": "workspace:*",
-        "@chat/session": "workspace:*",
-        "@chat/view": "workspace:*",
-        "@jsx-compiler/session": "^0.0.0",
-        "@web/catalog": "workspace:*",
-        "@zavx0z/component": "^0.0.0",
-        "@zavx0z/dom": "^0.0.0",
-        "@zavx0z/template": "^0.0.0",
-        "@zavx0z/ui": "^0.0.0",
-      },
-      "devDependencies": {
-        "@web/workbench": "workspace:*",
-        "@zavx0z/space": "^0.0.0",
       },
     },
     "chat": {
@@ -1290,6 +1225,7 @@
         "@tech/http": "workspace:*",
         "@tech/limits": "workspace:*",
         "@tech/mcp": "workspace:*",
+        "@tech/testing": "workspace:*",
       },
     },
     "tech/acp": {
@@ -1477,6 +1413,22 @@
       "name": "@process/wait",
       "version": "0.0.0",
     },
+    "tech/testing": {
+      "name": "@tech/testing",
+      "version": "0.0.0",
+      "dependencies": {
+        "@web/browser-fixture": "workspace:*",
+      },
+    },
+    "tech/testing/browser-root": {
+      "name": "@web/browser-fixture",
+      "version": "0.0.0",
+      "dependencies": {
+        "@jsx-compiler/session": "^0.0.0",
+        "@zavx0z/browser": "^0.0.0",
+        "@zavx0z/component": "^0.0.0",
+      },
+    },
     "typedoc": {
       "name": "@archetypes/typedoc",
       "version": "0.0.0",
@@ -1602,7 +1554,7 @@
 
     "@build/worker": ["@build/worker@workspace:tech/build/worker"],
 
-    "@catalog/navigation": ["@catalog/navigation@workspace:app/web/catalog/navigation"],
+    "@catalog/navigation": ["@catalog/navigation@workspace:app/web/page/shell/workbench/catalog/navigation"],
 
     "@chat/session": ["@chat/session@workspace:chat/session"],
 
@@ -1660,8 +1612,6 @@
 
     "@mcp-rest/scenarios": ["@mcp-rest/scenarios@workspace:specs/presentation"],
 
-    "@mcp-window/state": ["@mcp-window/state@workspace:app/web/mcp-window/state"],
-
     "@mcp/address": ["@mcp/address@workspace:app/mcp/rest/address"],
 
     "@mcp/children": ["@mcp/children@workspace:app/mcp/rest/children"],
@@ -1675,8 +1625,6 @@
     "@mcp/root": ["@mcp/root@workspace:app/mcp/rest/root"],
 
     "@mcp/stdio": ["@mcp/stdio@workspace:tech/mcp/stdio"],
-
-    "@minimap/state": ["@minimap/state@workspace:app/web/minimap/state"],
 
     "@modelcontextprotocol/client": ["@modelcontextprotocol/client@2.0.0", "", { "dependencies": { "@modelcontextprotocol/core": "2.0.0", "cross-spawn": "^7.0.5", "eventsource": "^3.0.2", "eventsource-parser": "^3.0.0", "jose": "^6.1.3", "pkce-challenge": "^5.0.0", "zod": "^4.2.0" } }, "sha512-8f1OghQ2rjzIOfqgUCP+8GiUWqRs89njoWLNqAe8kWmDePv3s1fZXseej+QXemssEuuOvLLmLO/kqM3IQHtISw=="],
 
@@ -1782,13 +1730,13 @@
 
     "@route/workspaces": ["@route/workspaces@workspace:package/route/workspaces"],
 
-    "@scenario/inspector": ["@scenario/inspector@workspace:app/web/scenario/inspector"],
+    "@scenario/inspector": ["@scenario/inspector@workspace:app/web/page/package/scenario/inspector"],
 
-    "@scenario/model": ["@scenario/model@workspace:app/web/scenario/model"],
+    "@scenario/model": ["@scenario/model@workspace:app/web/page/package/scenario/model"],
 
-    "@scenario/preview": ["@scenario/preview@workspace:app/web/scenario/preview"],
+    "@scenario/preview": ["@scenario/preview@workspace:app/web/page/package/scenario/preview"],
 
-    "@scenario/result": ["@scenario/result@workspace:app/web/scenario/result"],
+    "@scenario/result": ["@scenario/result@workspace:app/web/page/package/scenario/result"],
 
     "@specs/guide": ["@specs/guide@workspace:specs/guide"],
 
@@ -1815,6 +1763,8 @@
     "@tech/mcp": ["@tech/mcp@workspace:tech/mcp"],
 
     "@tech/process": ["@tech/process@workspace:tech/process"],
+
+    "@tech/testing": ["@tech/testing@workspace:tech/testing"],
 
     "@types/bun": ["@types/bun@1.4.2", "", { "dependencies": { "bun-types": "1.4.2" } }, "sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ=="],
 
@@ -1862,45 +1812,41 @@
 
     "@typescript/typescript-win32-x64": ["@typescript/typescript-win32-x64@7.0.2", "", { "os": "win32", "cpu": "x64" }, "sha512-0BQ3HkAHHlKLSp1qRvf3SUhGpGsDuhB/jgFw75guyqbxJqEaS0Cw/VFO8i2nHglJUzQCRtMMR/IBAKE3ETMC4g=="],
 
-    "@web/agent-bridge": ["@web/agent-bridge@workspace:app/web/agent-bridge"],
+    "@web/agent-bridge": ["@web/agent-bridge@workspace:app/web/page/agent-bridge"],
 
-    "@web/bootstrap": ["@web/bootstrap@workspace:app/web/bootstrap"],
+    "@web/browser-fixture": ["@web/browser-fixture@workspace:tech/testing/browser-root"],
 
-    "@web/browser-fixture": ["@web/browser-fixture@workspace:app/web/browser-fixture"],
+    "@web/catalog": ["@web/catalog@workspace:app/web/page/shell/workbench/catalog"],
 
-    "@web/catalog": ["@web/catalog@workspace:app/web/catalog"],
+    "@web/client": ["@web/client@workspace:app/web/page/client"],
 
-    "@web/client": ["@web/client@workspace:app/web/client"],
+    "@web/mcp-window": ["@web/mcp-window@workspace:app/web/page/shell/mcp-window"],
 
-    "@web/mcp-window": ["@web/mcp-window@workspace:app/web/mcp-window"],
+    "@web/minimap": ["@web/minimap@workspace:app/web/page/shell/minimap"],
 
-    "@web/minimap": ["@web/minimap@workspace:app/web/minimap"],
-
-    "@web/navigation": ["@web/navigation@workspace:app/web/navigation"],
+    "@web/navigation": ["@web/navigation@workspace:app/web/page/navigation"],
 
     "@web/page": ["@web/page@workspace:app/web/page"],
 
-    "@web/page-target": ["@web/page-target@workspace:app/web/page-target"],
+    "@web/page-target": ["@web/page-target@workspace:app/web/page/target"],
 
-    "@web/presentation": ["@web/presentation@workspace:app/web/presentation"],
+    "@web/presentation": ["@web/presentation@workspace:app/web/page/presentation"],
 
-    "@web/reference": ["@web/reference@workspace:app/web/reference"],
+    "@web/reference": ["@web/reference@workspace:app/web/page/package/scenario/reference"],
 
     "@web/release": ["@web/release@workspace:app/web/release"],
 
-    "@web/scenario": ["@web/scenario@workspace:app/web/scenario"],
+    "@web/scenario": ["@web/scenario@workspace:app/web/page/package/scenario"],
 
-    "@web/status": ["@web/status@workspace:app/web/status"],
+    "@web/status": ["@web/status@workspace:app/web/page/status"],
 
-    "@web/style-sheets": ["@web/style-sheets@workspace:app/web/style-sheets"],
+    "@web/style-sheets": ["@web/style-sheets@workspace:app/web/page/style-sheets"],
 
-    "@web/viewpoint-controls": ["@web/viewpoint-controls@workspace:app/web/viewpoint-controls"],
+    "@web/viewpoint-controls": ["@web/viewpoint-controls@workspace:app/web/page/shell/viewpoint-controls"],
 
-    "@web/viewpoint-tab": ["@web/viewpoint-tab@workspace:app/web/viewpoint-tab"],
+    "@web/viewpoint-tab": ["@web/viewpoint-tab@workspace:app/web/page/shell/viewpoint-tab"],
 
-    "@web/workbench": ["@web/workbench@workspace:app/web/workbench"],
-
-    "@web/workbench-model": ["@web/workbench-model@workspace:app/web/workbench-model"],
+    "@web/workbench": ["@web/workbench@workspace:app/web/page/shell/workbench"],
 
     "@webgpu/types": ["@webgpu/types@0.1.74", "", {}, "sha512-lgiI4hbuLcI9unnm2cL/tvCaQU45dp0xcLWJh5uB/9MBGvIA4F8XIk7nSiBeg+K4xWGYwgZKn80LmERI5CxoTA=="],
 

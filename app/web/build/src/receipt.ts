@@ -98,7 +98,6 @@ function readReceipt(
     const browserIdentity = Environment.validate(assets.browserIdentity, verifyInputs && input.sharedKernel === undefined)
     if (!paths.has(browserIdentity.packageEntryUrl.slice("/__storybook/shared/".length)) ||
       browserIdentity.modules.some(({url}) => !paths.has(url.slice("/__storybook/shared/".length))) ||
-      browserIdentity.packageHostUrl !== undefined && !paths.has(browserIdentity.packageHostUrl.slice("/__storybook/shared/".length)) ||
       assets.bootstrapEntry !== undefined && !paths.has(assets.bootstrapEntry)) return reject("Identity ссылается на отсутствующий артефакт")
     if (!Array.isArray(assets.authorStyleSheets) || assets.authorStyleSheets.some(style =>
       typeof style.specifier !== "string" || !paths.has(style.url) ||

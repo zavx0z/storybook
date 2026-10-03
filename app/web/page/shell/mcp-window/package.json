@@ -1,0 +1,24 @@
+{
+  "name": "@web/mcp-window",
+  "label": "Журнал MCP",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.tsx"
+  },
+  "description": "Просмотр вызовов MCP и полного ответа для текущего адреса страницы",
+  "dependencies": {
+    "@mcp-rest/requests": "workspace:*",
+    "@zavx0z/component": "^0.0.0",
+    "@zavx0z/ui": "^0.0.0"
+  },
+  "devDependencies": {
+    "@immersive/headless": "^0.0.0",
+    "@jsx-compiler/bun": "^0.0.0",
+    "@mcp-rest/scenarios": "workspace:*",
+    "@renderer/html": "^0.0.0",
+    "@zavx0z/dom": "^0.0.0",
+    "@zavx0z/template": "^0.0.0"
+  }
+}

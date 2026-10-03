@@ -1,4 +1,4 @@
-import createWeb from "@web/release"
+import createWeb from "@app/web"
 import {createProjectFixture} from "../app/server/test/project.fixture"
 import RouteUrlOwner from "@route/url"
 const storybookPackageUrlPath = RouteUrlOwner.storybookPackageUrlPath
@@ -24,7 +24,7 @@ afterEach(async () => {
 describe("one-server structural package isolation", () => {
   isolationTest("A metadata update and failure preserve B/C revisions and A last working revision", async () => {
     const fixture = createFixture()
-    const running = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64),
+    const running = await startExternalStorybookServer({createWeb,
       project: createProjectFixture(fixture.root, [fixture.repo]), statePath: join(fixture.root, "state/server.json"),
       artifactRoot: join(fixture.root, "artifacts"),
       browserLifecycle: {

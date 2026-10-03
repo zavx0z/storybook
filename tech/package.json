@@ -19,6 +19,7 @@
     "@tech/build": "workspace:*",
     "@tech/http": "workspace:*",
     "@tech/mcp": "workspace:*",
-    "@tech/limits": "workspace:*"
+    "@tech/limits": "workspace:*",
+    "@tech/testing": "workspace:*"
   }
 }

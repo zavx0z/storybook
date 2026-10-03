@@ -178,9 +178,6 @@ export function writeExternalStorybookStartCandidate(
 ): void {
   assertExternalStorybookStartLease(lease.path, lease.token)
   const validated = validateExternalStorybookServerRecord(record)
-  if (validated.implementationDigest === undefined) {
-    throw new Error("Storybook startup candidate requires an implementation digest")
-  }
   const path = startCandidatePath(lease.path, lease.token)
   const temporary = `${path}.${process.pid}.${randomUUID()}.tmp`
   try {
@@ -209,8 +206,7 @@ export function publishExternalStorybookStartCandidate(input: CandidateInput): E
   const candidatePath = startCandidatePath(input.lease.path, input.lease.token)
   if (!existsSync(candidatePath)) return null
   const candidate = readExternalStorybookServerRecord(candidatePath)
-  if (candidate.toolRoot !== input.toolRoot || candidate.pid !== input.childPid ||
-    candidate.implementationDigest === undefined) {
+  if (candidate.toolRoot !== input.toolRoot || candidate.pid !== input.childPid) {
     throw new Error("Storybook startup candidate identity mismatch")
   }
   // The live controller owns the lease throughout this synchronous atomic
@@ -224,14 +220,12 @@ export function publishExternalStorybookStartCandidate(input: CandidateInput): E
 export function createExternalStorybookServerRecord(input: ServerRecordInput): ExternalStorybookServerRecord {
   const toolRoot = realpathSync(input.toolRoot)
   const origin = loopbackOrigin(input.origin)
-  const implementationDigest = requiredImplementationDigest(input.implementationDigest)
   const processStart = readProcessStart(process.pid)
   if (processStart === null) throw new Error("Cannot determine external Storybook process start identity")
   return Object.freeze({
     protocol: EXTERNAL_STORYBOOK_SERVER_PROTOCOL,
     instanceId: randomUUID(),
     controlToken: randomBytes(32).toString("base64url"),
-    implementationDigest,
     toolRoot,
     pid: process.pid,
     processStart,
@@ -257,9 +251,6 @@ export function writeExternalStorybookServerRecord(
 ): void {
   if (!isAbsolute(path)) throw new Error(`External Storybook state path must be absolute: ${path}`)
   const validated = validateExternalStorybookServerRecord(record)
-  if (validated.implementationDigest === undefined) {
-    throw new Error("Refusing to publish a legacy external Storybook state without implementation digest")
-  }
   ensurePrivateStateDirectory(dirname(path))
   const temporary = `${path}.${process.pid}.${randomUUID()}.tmp`
   try {
@@ -283,9 +274,6 @@ export function projectExternalStorybookServerRecord(
   return Object.freeze({
     protocol: record.protocol,
     instanceId: record.instanceId,
-    ...(record.implementationDigest === undefined
-      ? {}
-      : {implementationDigest: record.implementationDigest}),
     toolRoot: record.toolRoot,
     pid: record.pid,
     processStart: record.processStart,
@@ -394,7 +382,6 @@ function validateExternalStorybookServerRecord(value: unknown): ExternalStoryboo
     "controlToken",
     "healthPath",
     "instanceId",
-    "implementationDigest",
     "origin",
     "pid",
     "processStart",
@@ -403,13 +390,11 @@ function validateExternalStorybookServerRecord(value: unknown): ExternalStoryboo
     "toolRoot",
     "websocketPath",
   ].sort()
-  const legacyExpected = expected.filter((key) => key !== "implementationDigest")
   const preCapabilityExpected = expected.filter((key) =>
-    !["controlToken", "implementationDigest", "instanceId"].includes(key))
+    !["controlToken", "instanceId"].includes(key))
   const currentShape = JSON.stringify(keys) === JSON.stringify(expected)
-  const legacyShape = JSON.stringify(keys) === JSON.stringify(legacyExpected)
   const preCapabilityShape = JSON.stringify(keys) === JSON.stringify(preCapabilityExpected)
-  if (!currentShape && !legacyShape && !preCapabilityShape) {
+  if (!currentShape && !preCapabilityShape) {
     throw new Error(`External Storybook state has unknown or missing fields: ${keys.join(", ")}`)
   }
   if (record.protocol !== EXTERNAL_STORYBOOK_SERVER_PROTOCOL) {
@@ -423,14 +408,11 @@ function validateExternalStorybookServerRecord(value: unknown): ExternalStoryboo
     throw new Error(`Invalid external Storybook instanceId: ${instanceId}`)
   }
   const controlToken = preCapabilityShape
-    ? createHash("sha256").update(`external-storybook-legacy-control\0${legacyIdentitySource}`).digest("base64url")
+    ? ""
     : requiredText("controlToken", record.controlToken)
-  if (!/^[A-Za-z0-9_-]{43}$/u.test(controlToken)) {
+  if (!preCapabilityShape && !/^[A-Za-z0-9_-]{43}$/u.test(controlToken)) {
     throw new Error("Invalid external Storybook control token")
   }
-  const implementationDigest = currentShape
-    ? requiredImplementationDigest(record.implementationDigest)
-    : undefined
   const toolRoot = requiredAbsolutePath("toolRoot", record.toolRoot)
   const pid = Number(record.pid)
   if (!Number.isSafeInteger(pid) || pid <= 0) throw new Error(`Invalid external Storybook PID: ${String(record.pid)}`)
@@ -452,7 +434,6 @@ function validateExternalStorybookServerRecord(value: unknown): ExternalStoryboo
     protocol: EXTERNAL_STORYBOOK_SERVER_PROTOCOL,
     instanceId,
     controlToken,
-    ...(implementationDigest === undefined ? {} : {implementationDigest}),
     toolRoot,
     pid,
     processStart,
@@ -503,14 +484,6 @@ function validateMigrationRecord(value: unknown): ExternalStorybookMigrationReco
     ...(preferredPort === undefined ? {} : {preferredPort}),
     recordedAt,
   })
-}
-
-function requiredImplementationDigest(value: unknown): string {
-  const digest = requiredText("implementationDigest", value)
-  if (!/^[a-f0-9]{64}$/u.test(digest)) {
-    throw new Error("Invalid external Storybook implementation digest")
-  }
-  return digest
 }
 
 function startCandidatePath(leasePath: string, token: string): string {

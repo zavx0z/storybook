@@ -3,7 +3,6 @@ const FORBIDDEN_KEYS = new Set([
   "controlToken",
   "dependencyRealpaths",
   "entryRelativePath",
-  "implementationDigest",
   "manifestPath",
   "outputPath",
   "packageJsonPath",

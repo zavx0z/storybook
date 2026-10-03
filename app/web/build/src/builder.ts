@@ -26,7 +26,7 @@ export async function runSharedBrowserBuild(
   input: Omit<SharedBrowserBuildInput, "stagingDirectory">,
   context: SharedBrowserBuildOperationContext,
   timeoutMs: number,
-  workerPath = realpathSync(join(import.meta.dir, "worker.ts")),
+  workerPath = Environment.exactFile(join(import.meta.dir, "worker.ts")),
 ): Promise<SharedBrowserAssets> {
   let release: (() => void) | undefined
   try {

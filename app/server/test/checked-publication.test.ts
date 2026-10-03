@@ -1,5 +1,5 @@
 import {createProjectFixture} from "./project.fixture.ts"
-import createWeb from "@web/release"
+import createWeb from "@app/web"
 import {type Zavx0zStorybookBrowserLifecycle as Zavx0zStorybookBrowserLifecycleContract} from "@zavx0z/storybook-browser-lifecycle"
 type StorybookBrowserLifecycle = Zavx0zStorybookBrowserLifecycleContract.Output
 import {expect, test} from "bun:test"
@@ -111,7 +111,7 @@ test("явный check применяет ревизию через HMR; под�
 
   let socket: WebSocket | null = null
   try {
-    running = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64),
+    running = await startExternalStorybookServer({createWeb,
       project: createProjectFixture(root, [owner]),
       statePath: join(root, "state/server.json"),
       artifactRoot: join(root, "artifacts"),

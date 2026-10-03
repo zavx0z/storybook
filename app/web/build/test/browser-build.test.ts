@@ -32,7 +32,17 @@ test("сборка host для сохранённой платформы сох�
       stagingDirectory: join(root, "candidate-one"),
     })
     saveSharedBrowserCandidate(first, true)
+    const hostFiles = first.artifactDigests!.filter(artifact => artifact.path.startsWith("host/"))
+    expect(hostFiles.filter(artifact => artifact.path.endsWith(".js")), "Web выпускает один загрузчик и один bundle интерфейса")
+      .toHaveLength(2)
+    expect(hostFiles.filter(artifact => artifact.path.endsWith(".map"))).toHaveLength(2)
+    expect(hostFiles.some(artifact => artifact.path.includes("/chunks/")), "Mermaid и редактор не выпускаются отдельными чанками Web")
+      .toBeFalse()
+    expect(first.landingEntry).toBe(first.bootstrapEntry!)
+    expect(first.fallbackEntry).toBe(first.bootstrapEntry!)
+    expect(first.browserIdentity!.packageEntryUrl).not.toBe(`/__storybook/shared/${first.bootstrapEntry}`)
     expect(nativeBuild).toHaveBeenCalledTimes(2)
+    expect(nativeBuild.mock.calls.filter(([config]) => config.outdir?.includes("kernel"))).toHaveLength(1)
     const phases: string[] = []
     const second = await buildSharedBrowserAssets({
       ...common,
@@ -43,6 +53,7 @@ test("сборка host для сохранённой платформы сох�
 
     expect(phases).not.toContain("kernel")
     expect(nativeBuild).toHaveBeenCalledTimes(3)
+    expect(nativeBuild.mock.calls.filter(([config]) => config.outdir?.includes("kernel"))).toHaveLength(1)
 
     expect(first.browserIdentity?.epoch).toBe(second.browserIdentity?.epoch)
     expect(first.browserIdentity?.hostModuleEpoch).toBe(second.browserIdentity?.hostModuleEpoch)

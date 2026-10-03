@@ -1,24 +1,16 @@
 import {type RepoDiscovery as RepoDiscoveryContract} from "@repo/discovery"
-import PackageGraphCreateOwner, {type PackageGraphCreate as PackageGraphCreateContract} from "@package-graph/create"
+import {type PackageGraphCreate as PackageGraphCreateContract} from "@package-graph/create"
 import PackageGraphReadOwner from "@package-graph/read"
-import {type PackageSession as PackageSessionContract} from "@package/session"
-import PackageBuildDescriptorOwner from "@package-build/descriptor"
 const EXTERNAL_STORYBOOK_SCHEMA_VERSION = 1
-const createExternalStorybookGraph = PackageGraphCreateOwner
 const externalStorybookNode = PackageGraphReadOwner.node
-const externalStorybookPackageDescriptors = PackageBuildDescriptorOwner
 type StorybookCatalog = RepoDiscoveryContract.Output
 type StorybookCatalogScope = RepoDiscoveryContract.Output["scopes"][number]
 type ExternalStorybookGraph = PackageGraphCreateContract.Output
-type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 import {resolve} from "node:path"
 
 import type {
   ExternalStorybookAttachSource,
   ExternalStorybookRegistryEntry,
-  ExternalStorybookRegistrySnapshot,
-  ExternalStorybookRegistryDirtySnapshot,
-  ExternalStorybookRegistryMetrics,
 } from "../contract/models"
 export function createEntries(
   catalog: StorybookCatalog,

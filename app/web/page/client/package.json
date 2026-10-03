@@ -1,0 +1,14 @@
+{
+  "name": "@web/client",
+  "label": "Client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Получение и проверка снимка каталога и пакетных состояний для страницы",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@app-web/protocol": "workspace:*"
+  }
+}

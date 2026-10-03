@@ -37,7 +37,7 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
       throw new Error("Retained kernel does not match its saved artifact receipt")
     }
   }
-  const packageEntryPath = realpathSync(input.packageEntryPath ?? sources.pageEntry)
+  const packageEntryPath = Environment.exactFile(input.packageEntryPath ?? sources.pageEntry)
   onPhase?.({phase: "fingerprint", state: "started", at: new Date().toISOString()})
   const attestation = await beginStorybookSharedBuildInputAttestation({
     ...input,
@@ -72,6 +72,7 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
     onPhase?.({phase: "kernel", state: "started", at: new Date().toISOString()})
     const kernel = await Artifacts.build(async () => ({
       entrypoints: moduleEntries.map(({entryPath}) => entryPath),
+      root: moduleEntryDirectory,
       outdir: join(staging, "kernel"),
       naming: {entry: "[dir]/[name]-[hash].[ext]", chunk: "chunks/[name]-[hash].[ext]"},
       target: "browser",
@@ -104,13 +105,11 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
       "0".repeat(64), sourceFiles,
     )
   }
-  const bootstrapPath = realpathSync(sources.sharedBootstrap)
-  const packageHostPath = realpathSync(sources.packageEntry)
+  const bootstrapPath = Environment.exactFile(sources.browserEntry)
   const hostEntryPoints = [...new Set([
-    realpathSync(input.landingEntryPath),
-    realpathSync(input.fallbackEntryPath),
+    Environment.exactFile(input.landingEntryPath),
+    Environment.exactFile(input.fallbackEntryPath),
     packageEntryPath,
-    packageHostPath,
     bootstrapPath,
   ])]
   const hostPlugins = () => createStorybookPackageCompilerPlugins({
@@ -123,10 +122,10 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
   const host = await Artifacts.build(async () => ({
     entrypoints: hostEntryPoints,
     outdir: join(staging, "host"),
-    naming: {entry: "[dir]/[name]-[hash].[ext]", chunk: "chunks/[name]-[hash].[ext]"},
+    naming: {entry: "[dir]/[name]-[hash].[ext]"},
     target: "browser",
     format: "esm",
-    splitting: true,
+    splitting: false,
     sourcemap: "external",
     loader: {".wgsl": "text"},
     plugins: [Environment.externalPlugin(provisionalIdentity, input.sharedKernel === undefined), ...await hostPlugins()],
@@ -152,7 +151,6 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
     provisionalIdentity.modules,
     hostModuleEpoch,
     provisionalIdentity.sourceFiles,
-    `/__storybook/shared/${emittedEntry(host, staging, packageHostPath)}`,
     input.sharedKernel === undefined,
   )
   onPhase?.({phase: "resources", state: "started", at: new Date().toISOString()})

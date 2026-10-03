@@ -18,17 +18,17 @@ function fixture() {
   const source = join(root, "source.ts")
   const assets = (version: string): SharedBrowserAssets => {
     writeFileSync(source, version)
-    const paths = [`kernel/${version}.js`, `entries/page-${version}.js`, `entries/package-${version}.js`, `entries/bootstrap-${version}.js`, `styles/${version}.css`]
+    const paths = [`kernel/${version}.js`, `entries/page-${version}.js`, `entries/bootstrap-${version}.js`, `styles/${version}.css`]
     for (const path of paths) {
       mkdirSync(dirname(join(root, path)), {recursive: true})
       writeFileSync(join(root, path), `${version}:${path}`)
     }
-    return {root, landingEntry: paths[1]!, fallbackEntry: paths[1]!, bootstrapEntry: paths[3]!, dependencyRealpaths: [source],
+    return {root, landingEntry: paths[1]!, fallbackEntry: paths[1]!, bootstrapEntry: paths[2]!, dependencyRealpaths: [source],
       artifactDigests: paths.map(path => ({path, digest: digest(`${version}:${path}`)})),
-      authorStyleSheets: [{specifier: "@zavx0z/ui/theme.css", url: paths[4]!, contentDigest: digest(`${version}:${paths[4]}`)}],
+      authorStyleSheets: [{specifier: "@zavx0z/ui/theme.css", url: paths[3]!, contentDigest: digest(`${version}:${paths[3]}`)}],
       browserIdentity: Environment.identity(`/__storybook/shared/${paths[1]}`,
         [{specifier: "@zavx0z/component", sourcePath: source, url: `/__storybook/shared/${paths[0]}`}],
-        digest(`host:${version}`), [{path: source, contentDigest: digest(version)}], `/__storybook/shared/${paths[2]}`),
+        digest(`host:${version}`), [{path: source, contentDigest: digest(version)}]),
     }
   }
   return {root, source, assets}

@@ -1,4 +1,4 @@
-import createWeb from "@web/release"
+import createWeb from "@app/web"
 import AppServerCatalogOwner, {type AppServerCatalog as AppServerCatalogContract} from "@app-server/catalog"
 import RepoDiscoveryOwner from "@repo/discovery"
 const ExternalStorybookRegistry = AppServerCatalogOwner
@@ -87,7 +87,7 @@ test("явный refresh обновляет обзор директории и �
   }
   await Bun.write(join(root, "package.json"), JSON.stringify({name: "Fixture Project", private: true}))
   await Bun.write(join(root, ".gitmodules"), '[submodule "repo-0"]\n\tpath = repo\n\turl = https://example.invalid/repo-0.git\n')
-  const server = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64), project: root, statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts")})
+  const server = await startExternalStorybookServer({createWeb, project: root, statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts")})
   try {
     const refresh = async () => fetch(new URL("/api/control/refresh", server.origin), {
       method: "POST", headers: {authorization: `Bearer ${server.record.controlToken}`, "content-type": "application/json"}, body: JSON.stringify({force: true}),

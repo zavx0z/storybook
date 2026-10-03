@@ -21,7 +21,6 @@ export declare namespace BuildEnvironment {
       modules: readonly StorybookSharedBrowserModule[],
       hostModuleEpoch: string,
       sourceFiles?: readonly StorybookSharedBrowserSourceFile[],
-      packageHostUrl?: string,
       verifySources?: boolean,
     ): StorybookSharedBrowserIdentity
     sourceFiles(modules: readonly StorybookSharedBrowserModule[]): readonly StorybookSharedBrowserSourceFile[]

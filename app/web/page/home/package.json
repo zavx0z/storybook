@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Жизненный цикл и публичный контракт @page/home",
+  "description": "Главная страница Project с выбором репозитория, пакета или директории",
   "exports": {
     ".": "./index.ts"
   },
@@ -18,7 +18,6 @@
     "@web/navigation": "workspace:*",
     "@web/status": "workspace:*",
     "@web/style-sheets": "workspace:*",
-    "@web/workbench-model": "workspace:*",
     "@zavx0z/dom": "^0.0.0"
   },
   "devDependencies": {

@@ -51,4 +51,4 @@ NumberParameter использует NumberField через публичный A
 
 Публичный импорт, идентичность вложенного пакета и маршрут страницы выполняют
 разные задачи. Маршруты определяет [Route](../route/README.md) и
-[контракт вкладок](../../app/web/workbench/notes/workspace.md#tabs-routes).
+[контракт вкладок](../../app/web/page/shell/workbench/notes/workspace.md#tabs-routes).

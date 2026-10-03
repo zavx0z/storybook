@@ -4,8 +4,9 @@ import type {CompiledTemplate} from "@zavx0z/template/compiled"
 import type {WebMcpWindow} from "@web/mcp-window"
 type McpWindowProps = WebMcpWindow.Input
 import {createMcpWindowPersistence} from "../src/mcp-window-persistence"
-import defaultMcpWindowState from "@mcp-window/state"
 import {createWindowHost} from "./fixture/mcp-window-host"
+
+const initialLayout: WebMcpWindow.Output = {open: false, mode: "agent", geometry: {x: 24, y: 24, width: 620, height: 400}}
 
 
 test("перемещение, размер, режим и закрытие переживают создание нового окна", async () => {
@@ -15,7 +16,7 @@ test("перемещение, размер, режим и закрытие пе�
   const mount = async () => {
     const persistence = createMcpWindowPersistence(storage)
     const props: McpWindowProps = {
-      open: persistence.initialState.open,
+      open: persistence.initialState?.minimized !== true && persistence.initialState?.open === true,
       initialState: persistence.initialState,
       onStateChange: persistence.save,
       onClose() {
@@ -25,7 +26,7 @@ test("перемещение, размер, режим и закрытие пе�
     host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, props)
     return host.settle()
   }
-  createMcpWindowPersistence(storage).save({...defaultMcpWindowState(), open: true})
+  createMcpWindowPersistence(storage).save({...initialLayout, open: true})
   try {
     let frame = await mount()
     const title = [...host.container.querySelectorAll("span")].find(node => node.textContent === "Журнал MCP")!
@@ -62,18 +63,38 @@ test("перемещение, размер, режим и закрытие пе�
   }
 })
 
-test("повреждённое или запрещённое хранилище не мешает открытию окна", () => {
+test("повреждённое или запрещённое хранилище не мешает открытию окна", async () => {
   const blocked = createMcpWindowPersistence(() => { throw new Error("Storage disabled") })
-  expect(blocked.initialState).toEqual(defaultMcpWindowState())
-  expect(() => blocked.save(defaultMcpWindowState())).not.toThrow()
+  expect(blocked.initialState).toBeUndefined()
+  expect(() => blocked.save(initialLayout)).not.toThrow()
   const broken = createMcpWindowPersistence(() => ({getItem: () => "{", setItem() {}}))
-  expect(broken.initialState).toEqual(defaultMcpWindowState())
+  expect(broken.initialState).toBeUndefined()
   const partial = createMcpWindowPersistence(() => ({getItem: () => JSON.stringify({open: true, mode: "invalid", geometry: {x: -10, y: "bad", width: 1, height: null}}), setItem() {}}))
-  expect(partial.initialState).toEqual({open: true, mode: "agent", geometry: {x: 0, y: 24, width: 320, height: 400}})
+  const host = createWindowHost()
+  let normalized: WebMcpWindow.Output | undefined
+  try {
+    host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, {
+      open: true,
+      onClose() {},
+      initialState: partial.initialState,
+      onStateChange(state) { normalized = state },
+    })
+    await host.settle()
+    expect(normalized, "Окно дополняет частично повреждённые сохранённые настройки").toEqual({open: true, mode: "agent", geometry: {x: 0, y: 24, width: 320, height: 400}})
+  } finally { host.dispose() }
 })
 
 
-test("старое сворачивание шапки восстанавливается как скрытое окно", () => {
+test("старое сворачивание шапки восстанавливается как скрытое окно", async () => {
   const state = createMcpWindowPersistence(() => ({getItem: () => JSON.stringify({open: true, minimized: true}), setItem() {}}))
-  expect(state.initialState.open).toBeFalse()
+  const host = createWindowHost()
+  try {
+    host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, {
+      open: state.initialState?.minimized !== true && state.initialState?.open === true,
+      onClose() {},
+      initialState: state.initialState,
+    })
+    await host.settle()
+    expect(host.container.querySelector("[data-window]")!.hasAttribute("hidden"), "Старое сворачивание оставляет окно закрытым").toBeTrue()
+  } finally { host.dispose() }
 })

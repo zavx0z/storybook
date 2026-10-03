@@ -17,8 +17,7 @@
     "@build/artifacts": "workspace:*",
     "@package-build/inputs": "workspace:*",
     "@build/worker": "workspace:*",
-    "@package/revision": "workspace:*",
-    "@web/page": "workspace:*"
+    "@package/revision": "workspace:*"
   },
   "devDependencies": {
     "@zavx0z/component": "^0.0.0",

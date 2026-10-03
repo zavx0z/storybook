@@ -158,7 +158,7 @@ Child пишет token-scoped candidate внутрь lease, а
 и приватный адрес артефакта выполняют разные задачи и не подменяют друг друга.
 Пакеты определяются общим [читателем workspaces](package/route/workspaces/index.ts),
 который используют discovery и Route. Детали URL и встроенных представлений
-принадлежат [контракту вкладок](app/web/workbench/notes/workspace.md#tabs-routes).
+принадлежат [контракту вкладок](app/web/page/shell/workbench/notes/workspace.md#tabs-routes).
 
 Одна package tab имеет один browser realm и одну активную ревизию
 PackageSession. Обзор и встроенные представления читают структурный snapshot
@@ -211,7 +211,7 @@ runtime и compatibility aliases fail closed.
 ## Workbench projection
 
 Панель вкладок связывает выбранное представление с URL по
-[контракту Панели вкладок](app/web/workbench/notes/workspace.md#tabs-routes). Обзор принадлежит
+[контракту Панели вкладок](app/web/page/shell/workbench/notes/workspace.md#tabs-routes). Обзор принадлежит
 самому пакету или физической директории; «Контракт», «Зависимости» и «Сценарии»
 доступны только при наличии соответствующих структурных источников.
 
@@ -411,7 +411,7 @@ Immutable `storybook-package-graph/6` содержит структурные у
 Обе страницы Workbench используют общий граф навигации. Private browser lifecycle
 выполняет операции вкладок; изменения registry сохраняют отдельную authority.
 Read-only topic `catalog` обновляет дерево без передачи событий исполнения чужих пакетов.
-Адреса представлений заданы [контрактом Панели вкладок](app/web/workbench/notes/workspace.md#tabs-routes).
+Адреса представлений заданы [контрактом Панели вкладок](app/web/page/shell/workbench/notes/workspace.md#tabs-routes).
 
 
 ### Структурные зависимости компонента
@@ -422,4 +422,4 @@ GraphView отображает их в существующем Display. Это 
 нормализованного каталога, без второго дерева владельцев или графического runtime.
 
 Формат spec описан в [нормативном контракте зависимостей](./specs/deps/notes/draft-dependencies.md),
-а переключение представления — в [контракте URL вкладок](app/web/workbench/notes/workspace.md#tabs-routes).
+а переключение представления — в [контракте URL вкладок](app/web/page/shell/workbench/notes/workspace.md#tabs-routes).

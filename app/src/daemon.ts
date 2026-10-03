@@ -1,4 +1,4 @@
-import createWeb from "@web/release"
+import createWeb from "@app/web"
 import PackageArtifactsOwner from "@package/artifacts"
 const collectUnpublishedStorybookArtifacts = PackageArtifactsOwner
 import ServerState from "@app-server/state"
@@ -6,9 +6,9 @@ const {externalStorybookArtifactRoot, inspectExternalStorybookServer} = ServerSt
 import startExternalStorybookServer from "@app/server"
 import {realpathSync} from "node:fs"
 import {fileURLToPath} from "node:url"
-import {externalStorybookImplementationDigest} from "./implementation-digest.ts"
 import {realpath} from "node:fs/promises"
 import {basename, dirname, resolve} from "node:path"
+import {relocateAppChats, relocatedAppAddress} from "./layout-relocations"
 export type ExternalStorybookDaemonOptions = Readonly<{
   declarations?: readonly string[]
   port?: number
@@ -20,7 +20,6 @@ export async function runExternalStorybookDaemon(
   options: ExternalStorybookDaemonOptions,
 ): Promise<void> {
   const toolRoot = realpathSync(fileURLToPath(new URL("../..", import.meta.url)))
-  const implementationDigest = externalStorybookImplementationDigest(toolRoot)
   const inspection = await inspectExternalStorybookServer()
   if (inspection.state === "running") {
     throw new Error("Refusing to start a second external Storybook daemon")
@@ -39,9 +38,10 @@ export async function runExternalStorybookDaemon(
   try {
     running = await startExternalStorybookServer({createWeb,
       toolRoot,
-      implementationDigest,
       onStartupPhase,
       project,
+      migrateChats: (chats, graph) => relocateAppChats(toolRoot, graph, chats),
+      previousAddress: (pathname, graph) => relocatedAppAddress(toolRoot, graph, pathname),
       ...(options.port === undefined ? {} : {port: options.port}),
       startLease: options.startLease,
     })
@@ -49,9 +49,10 @@ export async function runExternalStorybookDaemon(
     if ((options.port ?? 0) === 0 || !addressInUse(error)) throw error
     running = await startExternalStorybookServer({createWeb,
       toolRoot,
-      implementationDigest,
       onStartupPhase,
       project,
+      migrateChats: (chats, graph) => relocateAppChats(toolRoot, graph, chats),
+      previousAddress: (pathname, graph) => relocatedAppAddress(toolRoot, graph, pathname),
       port: 0,
       startLease: options.startLease,
     })

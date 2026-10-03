@@ -1,5 +1,5 @@
 import {createProjectFixture} from "./project.fixture.ts"
-import createWeb from "@web/release"
+import createWeb from "@app/web"
 import AppWebBuildOwner, {type AppWebBuild} from "@app-web/build"
 import BuildEnvironmentOwner from "@build/environment"
 import BuildArtifactsOwner from "@build/artifacts"
@@ -32,7 +32,7 @@ test("shared check передаёт точный immutable collision от publis
   })
   let server: Awaited<ReturnType<typeof startExternalStorybookServer>> | undefined
   try {
-    server = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64),
+    server = await startExternalStorybookServer({createWeb,
       ...fixture.options, buildWeb: build})
     const response = await fetch(new URL("/api/control/check", server.origin), {
       method: "POST",
@@ -57,18 +57,18 @@ test("общая оболочка читается и доставляется �
   const sourcePath = join(root, "source.ts")
   writeFileSync(sourcePath, "export {}")
   const digest = (value: string) => createHash("sha256").update(value).digest("hex")
-  const paths = ["kernel/fixture.js", "entries/page.js", "entries/package.js", "entries/bootstrap.js"]
+  const paths = ["kernel/fixture.js", "entries/page.js", "entries/bootstrap.js"]
   for (const path of paths) {
     mkdirSync(dirname(join(assetsRoot, path)), {recursive: true})
     writeFileSync(join(assetsRoot, path), "export {}")
   }
   const identity = storybookSharedBrowserIdentity("/__storybook/shared/entries/page.js", [{
     specifier: "@zavx0z/component", sourcePath, url: "/__storybook/shared/kernel/fixture.js",
-  }], digest("host"), [{path: sourcePath, contentDigest: digest("export {}")}], "/__storybook/shared/entries/package.js")
-  saveSharedBrowserReceipt({root: assetsRoot, landingEntry: paths[1]!, fallbackEntry: paths[1]!, bootstrapEntry: paths[3]!,
+  }], digest("host"), [{path: sourcePath, contentDigest: digest("export {}")}])
+  saveSharedBrowserReceipt({root: assetsRoot, landingEntry: paths[1]!, fallbackEntry: paths[1]!, bootstrapEntry: paths[2]!,
     browserIdentity: identity, dependencyRealpaths: [sourcePath], authorStyleSheets: [],
     artifactDigests: paths.map(path => ({path, digest: digest("export {}")}))})
-  const server = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64), project: createProjectFixture(root, []), statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts")})
+  const server = await startExternalStorybookServer({createWeb, project: createProjectFixture(root, []), statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts")})
   let socket: WebSocket | undefined
   try {
     const html = await (await fetch(server.origin)).text()
@@ -118,7 +118,7 @@ test("отмена shared check сохраняет подготовку retained
   })
   let server: Awaited<ReturnType<typeof startExternalStorybookServer>> | undefined
   try {
-    server = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64), ...fixture.options, buildWeb: build})
+    server = await startExternalStorybookServer({createWeb, ...fixture.options, buildWeb: build})
     const read = await requestRetainedHost(server, fixture.archived)
     const cancellation = new AbortController()
     const first = sharedCheck(server, true, cancellation.signal).then(
@@ -181,7 +181,7 @@ test("остановка сервера отменяет retained host и ждё
   let server: Awaited<ReturnType<typeof startExternalStorybookServer>> | undefined
   let check: Promise<Response | null> | undefined
   try {
-    server = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64), ...fixture.options, buildWeb: build})
+    server = await startExternalStorybookServer({createWeb, ...fixture.options, buildWeb: build})
     await requestRetainedHost(server, fixture.archived)
     check = sharedCheck(server, false).catch(() => null)
     const operationSignal = await started.promise
@@ -215,7 +215,7 @@ function retainedHostFixture() {
   writeFileSync(sourcePath, "export {}")
   const digest = (value: string) => createHash("sha256").update(value).digest("hex")
   const assets = (kernel: string, host: string): SharedBrowserAssets => {
-    const paths = [`kernel/${kernel}.js`, `entries/${kernel}-page.js`, `entries/${kernel}-package.js`, `entries/${kernel}-bootstrap.js`]
+    const paths = [`kernel/${kernel}.js`, `entries/${kernel}-page.js`, `entries/${kernel}-bootstrap.js`]
     for (const path of paths) {
       mkdirSync(dirname(join(assetsRoot, path)), {recursive: true})
       writeFileSync(join(assetsRoot, path), "export {}")
@@ -224,10 +224,10 @@ function retainedHostFixture() {
       root: assetsRoot,
       landingEntry: paths[1]!,
       fallbackEntry: paths[1]!,
-      bootstrapEntry: paths[3]!,
+      bootstrapEntry: paths[2]!,
       browserIdentity: storybookSharedBrowserIdentity(`/__storybook/shared/${paths[1]}`, [{
         specifier: "@zavx0z/component", sourcePath, url: `/__storybook/shared/${paths[0]}`,
-      }], digest(host), [{path: sourcePath, contentDigest: digest("export {}")}], `/__storybook/shared/${paths[2]}`),
+      }], digest(host), [{path: sourcePath, contentDigest: digest("export {}")}]),
       dependencyRealpaths: [sourcePath],
       authorStyleSheets: [],
       artifactDigests: paths.map(path => ({path, digest: digest("export {}")})),
@@ -261,7 +261,7 @@ test("Minimap и управляющий app разделяют одну пере
   })
   let server: Awaited<ReturnType<typeof startExternalStorybookServer>> | undefined
   try {
-    server = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64), ...fixture.options, buildWeb: build})
+    server = await startExternalStorybookServer({createWeb, ...fixture.options, buildWeb: build})
     const origin = server.origin
     const control = {authorization: `Bearer ${server.record.controlToken}`, "content-type": "application/json"}
     const before = await (await fetch(new URL("/api/control/status", origin), {headers: control})).json()
@@ -317,7 +317,7 @@ test("ошибка явного выпуска Web сохраняет опубл
   const build = mock<AppWebBuild.Output["runWorker"]>(async () => { throw new Error("Web compilation failed") })
   let server: Awaited<ReturnType<typeof startExternalStorybookServer>> | undefined
   try {
-    server = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64), ...fixture.options, buildWeb: build})
+    server = await startExternalStorybookServer({createWeb, ...fixture.options, buildWeb: build})
     const response = await fetch(new URL("/api/control/app/web/rebuild", server.origin), {
       method: "POST", headers: {authorization: `Bearer ${server.record.controlToken}`, "content-type": "application/json"}, body: "{}",
     })

@@ -69,6 +69,8 @@ export default class ExternalStorybookControlClient implements HttpClient.Output
   /**
   Читает стадии одной долгой операции и её итог из NDJSON без собственного срока ожидания.
   Отмена закрывает клиентский поток; принадлежащая серверу работа продолжается.
+  Native socket idle timer выключен: предел операции определяет переданный signal,
+  поэтому пауза компилятора между событиями не создаёт второй срок ожидания.
   JSON-ответ сохраняет совместимость с сервером без потоковой поддержки.
 
   @param path - Абсолютный маршрут внутри `/api/` без собственного origin.
@@ -88,6 +90,7 @@ export default class ExternalStorybookControlClient implements HttpClient.Output
     const response = await fetch(new URL(path, this.#record.origin), {
       method: "POST",
       redirect: "manual",
+      timeout: false,
       headers: {
         accept: "application/x-ndjson",
         authorization: this.#record.authorization(),

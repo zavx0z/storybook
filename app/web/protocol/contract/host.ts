@@ -4,6 +4,5 @@ export type StorybookSharedHost = Readonly<{
   sharedModuleEpoch: string
   hostModuleEpoch: string
   pageEntryUrl: string
-  packageHostUrl: string
   authorStyleSheets: readonly Readonly<{specifier: string, contentDigest: string, url: string}>[]
 }>

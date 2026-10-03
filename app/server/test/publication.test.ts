@@ -1,5 +1,5 @@
 import {createProjectFixture} from "./project.fixture.ts"
-import createWeb from "@web/release"
+import createWeb from "@app/web"
 import {type Zavx0zStorybookBrowserLifecycle as Zavx0zStorybookBrowserLifecycleContract} from "@zavx0z/storybook-browser-lifecycle"
 import RouteUrlOwner from "@route/url"
 const storybookCurrentRouteKey = RouteUrlOwner.storybookCurrentRouteKey
@@ -83,7 +83,7 @@ test("publishes only after an agent check, notifies every matching tab, and rest
   }
   const options = {project: createProjectFixture(root, [owner, other]), statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts"),
     browserLifecycle: browser}
-  server = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64), ...options})
+  server = await startExternalStorybookServer({createWeb, ...options})
   const tabs: WebSocket[] = []
   const control = async (live: boolean) => {
     const response = await fetch(new URL("/api/control/check", server.origin), {
@@ -189,7 +189,7 @@ test("publishes only after an agent check, notifies every matching tab, and rest
     await Bun.write(orphan, "orphan")
     collectUnpublishedStorybookArtifacts(options.artifactRoot)
     expect(await Bun.file(orphan).exists()).toBeFalse()
-    server = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64), ...options})
+    server = await startExternalStorybookServer({createWeb, ...options})
     expect(server.sessions.session("@fixture/applied").snapshot().activeRevision).toBe(applied)
     expect(await readPage()).toContain(`/__storybook/revisions/%40fixture%2Fapplied/${applied}/`)
     expect(server.sessions.session("@fixture/applied").snapshot().builds).toBe(0)
@@ -229,7 +229,7 @@ test("publishes only after an agent check, notifies every matching tab, and rest
     const {packageGraphDigest: _previousDigest, ...unsigned} = graph
     graph.packageGraphDigest = new Bun.CryptoHasher("sha256").update(JSON.stringify(unsigned)).digest("hex")
     await Bun.write(receiptPath, JSON.stringify(receipt))
-    server = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64), ...options})
+    server = await startExternalStorybookServer({createWeb, ...options})
     const requestPath = (path: string) => fetch(new URL(path, server.origin), {redirect: "manual"})
     expect((await requestPath(legacyPath)).status).toBe(200)
     expect((await requestPath(canonicalPath)).headers.get("location")).toBe(legacyPath)

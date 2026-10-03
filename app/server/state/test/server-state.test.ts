@@ -48,7 +48,7 @@ describe("external Storybook server state", () => {
     const record = createExternalStorybookServerRecord({
       toolRoot: import.meta.dir,
       origin: "http://127.0.0.1:43210",
-      implementationDigest: "a".repeat(64),
+
       attachedDeclarations: [import.meta.path],
     })
     writeExternalStorybookServerRecord(path, record)
@@ -57,7 +57,6 @@ describe("external Storybook server state", () => {
     expect(record.pid).toBe(process.pid)
     expect(record.instanceId).toMatch(/^[a-f0-9-]{36}$/u)
     expect(record.controlToken).toMatch(/^[A-Za-z0-9_-]{43}$/u)
-    expect(record.implementationDigest).toBe("a".repeat(64))
     expect(statSync(path).mode & 0o777).toBe(0o600)
     expect(statSync(join(root, "state")).mode & 0o777).toBe(0o700)
 
@@ -65,7 +64,6 @@ describe("external Storybook server state", () => {
     expect(Object.hasOwn(publicRecord, "controlToken")).toBeFalse()
     expect(JSON.stringify(publicRecord)).not.toContain(record.controlToken)
     expect(publicRecord.instanceId).toBe(record.instanceId)
-    expect(publicRecord.implementationDigest).toBe(record.implementationDigest)
   })
 
   test("persists a private replacement journal until the new daemon is published", () => {
@@ -86,7 +84,7 @@ describe("external Storybook server state", () => {
     expect(() => createExternalStorybookServerRecord({
       toolRoot: import.meta.dir,
       origin: "https://example.com",
-      implementationDigest: "a".repeat(64),
+
     })).toThrow("loopback HTTP origin")
 
     const root = temporaryRoot()
@@ -104,22 +102,20 @@ describe("external Storybook server state", () => {
     const current = createExternalStorybookServerRecord({
       toolRoot: import.meta.dir,
       origin: "http://127.0.0.1:43210",
-      implementationDigest: "b".repeat(64),
+
     })
     const {
-      implementationDigest: _implementationDigest,
       instanceId: _instanceId,
       controlToken: _controlToken,
       ...legacy
     } = current
     writeFileSync(path, `${JSON.stringify(legacy)}\n`)
     const adopted = readExternalStorybookServerRecord(path)
-    expect(adopted.implementationDigest).toBeUndefined()
     expect(adopted.instanceId).toMatch(/^[a-f0-9-]{36}$/u)
-    expect(adopted.controlToken).toMatch(/^[A-Za-z0-9_-]{43}$/u)
+    expect(adopted.controlToken).toBe("")
     expect(readExternalStorybookServerRecord(path)).toEqual(adopted)
     expect(() => writeExternalStorybookServerRecord(path, adopted)).toThrow(
-      "Refusing to publish a legacy external Storybook state",
+      "External Storybook controlToken must be non-empty text",
     )
   })
 
@@ -150,7 +146,7 @@ describe("external Storybook server state", () => {
     const record = createExternalStorybookServerRecord({
       toolRoot: import.meta.dir,
       origin: "http://127.0.0.1:43210",
-      implementationDigest: "c".repeat(64),
+
     })
     writeExternalStorybookStartCandidate(first, record)
     first.release()

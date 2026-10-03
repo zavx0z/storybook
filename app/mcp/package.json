@@ -4,18 +4,22 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Lazy-инструмент Storybook и предметное REST-чтение одного каталога",
+  "description": "Native MCP-сервер, управляющие инструменты, ресурсы и предметное REST-чтение Storybook",
   "exports": {
     ".": "./index.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.0.0",
+    "@app-server/state": "workspace:*",
+    "@mcp/progress": "workspace:*",
     "zod": "^4.4.3",
     "@app-mcp/proxy": "workspace:*",
     "@app-mcp/response": "workspace:*",
-    "@mcp/rest": "workspace:*"
+    "@mcp/rest": "workspace:*",
+    "@storybook/app": "workspace:*"
   },
   "devDependencies": {
-    "@modelcontextprotocol/client": "^2.0.0"
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@mcp-rest/requests": "workspace:*"
   }
 }

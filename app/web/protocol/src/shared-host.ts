@@ -28,7 +28,7 @@ export function validateStorybookSharedHost(value: unknown): StorybookSharedHost
   if (value === null || typeof value !== "object") throw new Error("Некорректное описание оболочки Storybook")
   const host = value as StorybookSharedHost
   if (host.protocol !== "storybook-shared-host/1" || !epoch(host.sharedModuleEpoch) || !epoch(host.hostModuleEpoch)
-    || !sharedUrl(host.pageEntryUrl) || !sharedUrl(host.packageHostUrl) || !Array.isArray(host.authorStyleSheets)
+    || !sharedUrl(host.pageEntryUrl) || !Array.isArray(host.authorStyleSheets)
     || host.authorStyleSheets.length > 32 || host.authorStyleSheets.some(style => !style ||
       typeof style.specifier !== "string" || !style.specifier || !epoch(style.contentDigest) || !sharedUrl(style.url))
     || new Set(host.authorStyleSheets.map(style => style.specifier)).size !== host.authorStyleSheets.length) {

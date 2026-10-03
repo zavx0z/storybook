@@ -13,10 +13,3 @@ export type StorybookPackageCompilerInputs = Readonly<{
   configPaths: readonly string[]
   semanticSourceRoots: readonly string[]
 }>
-
-/** Проекция выбранных metadata и отдельные поля, определяющие native module resolution. */
-export type StorybookResolutionEvidence = Readonly<{
-  declarations: readonly unknown[]
-  locks: readonly unknown[]
-  resolution: readonly Readonly<{root: string, fields: Readonly<Record<string, unknown>>}>[]
-}>

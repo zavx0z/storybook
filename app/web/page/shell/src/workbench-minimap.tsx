@@ -1,17 +1,18 @@
 import {useSyncExternalStore} from "@zavx0z/component"
-import type {WebWorkbenchModel} from "@web/workbench-model"
+import type {WebWorkbench} from "@web/workbench"
 import type {WebMinimap} from "@web/minimap"
-type MinimapState = NonNullable<WebMinimap.Input["initialState"]>
+type MinimapInitialState = NonNullable<WebMinimap.Input["initialState"]>
+type MinimapState = WebMinimap.Output
 import Minimap from "@web/minimap"
 
 /** Подписывает HUD на ту же модель каталога, что обслуживает Display. */
 export function WorkbenchMinimap(props: Readonly<{
-  model: WebWorkbenchModel.Output
-  initialState?: MinimapState | undefined
+  workbench: WebWorkbench.Output
+  initialState?: MinimapInitialState | undefined
   onStateChange?: ((state: MinimapState) => void) | undefined
   onRebuildWeb?: (() => Promise<void>) | undefined
 }>) {
-  const view = useSyncExternalStore(props.model.subscribe, props.model.getSnapshot)
+  const view = useSyncExternalStore(props.workbench.subscribe, props.workbench.getSnapshot)
   return <Minimap
     projectName={view.state.projectName}
     initialState={props.initialState}

@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Жизненный цикл и публичный контракт @page/shell",
+  "description": "Единственная среда интерфейса страницы: Browser Root, рабочая область, окна и проекции",
   "exports": {
     ".": "./index.ts"
   },
@@ -15,8 +15,6 @@
     "@immersive/typedoc": "^0.0.0",
     "@jsx-compiler/session": "^0.0.0",
     "@mcp-rest/requests": "workspace:*",
-    "@mcp-window/state": "workspace:*",
-    "@minimap/state": "workspace:*",
     "@nodes/layout": "^0.0.0",
     "@nodes/node": "^0.0.0",
     "@package-graph/create": "workspace:*",
@@ -27,7 +25,6 @@
     "@web/viewpoint-controls": "workspace:*",
     "@web/viewpoint-tab": "workspace:*",
     "@web/workbench": "workspace:*",
-    "@web/workbench-model": "workspace:*",
     "@zavx0z/browser": "^0.0.0",
     "@zavx0z/component": "^0.0.0",
     "@zavx0z/dom": "^0.0.0",

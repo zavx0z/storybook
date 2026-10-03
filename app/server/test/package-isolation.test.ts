@@ -1,5 +1,5 @@
 import {createProjectFixture} from "./project.fixture.ts"
-import createWeb from "@web/release"
+import createWeb from "@app/web"
 import AppServerCatalogOwner, {type AppServerCatalog as AppServerCatalogContract} from "@app-server/catalog"
 import RepoDiscoveryOwner from "@repo/discovery"
 const ExternalStorybookRegistry = AppServerCatalogOwner
@@ -56,7 +56,7 @@ test("объявленный недоступный Repo прерывает star
   try {
     createProjectFixture(f.root, [f.repo, missing])
     rmSync(missing, {recursive: true, force: true})
-    await expect(startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64), ...f.options}))
+    await expect(startExternalStorybookServer({createWeb, ...f.options}))
       .rejects.toThrow("недоступен")
     expect(await Bun.file(f.options.statePath).exists()).toBeFalse()
     expect(await Bun.file(join(f.root, "state/projects.json")).exists()).toBeFalse()
@@ -68,7 +68,7 @@ test("a cold invalid child does not prevent startup, landing or checking its sib
   let server: AppServer.Output | undefined
   try {
     seedPublishedSharedAssets(f.options.artifactRoot)
-    server = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64), ...f.options})
+    server = await startExternalStorybookServer({createWeb, ...f.options})
     expect((await fetch(new URL("/", server.origin))).status).toBe(200)
     expect(server.registry.snapshot().catalog.scopes.find(scope => scope.scopeRoot === join(f.repo, "a"))?.resolutionError).toBeDefined()
     const checked = await control(server, "check", {scope: "@fixture/b", live: false})
@@ -85,7 +85,7 @@ test("a broken package.json preserves the working revision while a sibling updat
   let server: AppServer.Output | undefined
   try {
     seedPublishedSharedAssets(f.options.artifactRoot)
-    server = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64), ...f.options})
+    server = await startExternalStorybookServer({createWeb, ...f.options})
     await server.sessions.ensure("@fixture/a")
     const a = server.sessions.session("@fixture/a")
     const revision = a.snapshot().builtRevision!

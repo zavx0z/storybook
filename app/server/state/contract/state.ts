@@ -5,14 +5,11 @@
 
 @property origin - Канонический loopback HTTP origin уже запущенного сервера.
 
-@property implementationDigest - SHA-256 исходников резидентной реализации.
-
 @property [attachedDeclarations] - Пути подключённых корней; отсутствующий список пуст.
 */
 export type ServerRecordInput = Readonly<{
   toolRoot: string
   origin: string
-  implementationDigest: string
   attachedDeclarations?: readonly string[]
 }>
 
@@ -24,8 +21,6 @@ export type ServerRecordInput = Readonly<{
 @property instanceId - Новая identity каждого запуска daemon.
 
 @property controlToken - Приватный bearer token управляющего канала; не публикуется клиентам браузера.
-
-@property [implementationDigest] - SHA-256 резидентного кода; отсутствует только при принятии старой записи для замены.
 
 @property toolRoot - Канонический checkout владельца процесса.
 
@@ -47,7 +42,6 @@ export type ServerRecord = Readonly<{
   protocol: "external-storybook-server/1"
   instanceId: string
   controlToken: string
-  implementationDigest?: string
   toolRoot: string
   pid: number
   processStart: string

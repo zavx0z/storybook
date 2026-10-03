@@ -74,7 +74,6 @@ test.each(["@retired-platform/component", "@jsx-runtime/create"])("Снимок 
       [{specifier, sourcePath, url: "/__storybook/shared/kernel/retained.js"}],
       HOST_MODULE_EPOCH,
       [{path: sourcePath, contentDigest: "0".repeat(64)}],
-      undefined,
       false,
     )
     const entry = join(root, "entry.ts")

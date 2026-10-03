@@ -12,9 +12,9 @@ import type {RootLinkedAuthorStyleSheet} from "@zavx0z/browser/integration"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
 import {arrowDownIcon, arrowUpIcon} from "@zavx0z/ui/theme/icon"
 
-import type {WebWorkbenchModel} from "@web/workbench-model"
-type WorkbenchInspectorCustomWidgetProps = Extract<ReturnType<WebWorkbenchModel.Output["getSnapshot"]>["state"]["inspector.registry"][number], {kind: "custom"}>["component"] extends CompiledTemplate<infer Props> ? Props : never
-type WorkbenchInspectorCustomWidgetRegistration = Extract<ReturnType<WebWorkbenchModel.Output["getSnapshot"]>["state"]["inspector.registry"][number], {kind: "custom"}>
+import type {WebWorkbench} from "@web/workbench"
+type WorkbenchInspectorCustomWidgetProps = Extract<ReturnType<WebWorkbench.Output["getSnapshot"]>["state"]["inspector.registry"][number], {kind: "custom"}>["component"] extends CompiledTemplate<infer Props> ? Props : never
+type WorkbenchInspectorCustomWidgetRegistration = Extract<ReturnType<WebWorkbench.Output["getSnapshot"]>["state"]["inspector.registry"][number], {kind: "custom"}>
 
 import Revision from "@package/revision"
 const storybookRootBreadcrumb = WebNavigationOwner.storybookRootBreadcrumb

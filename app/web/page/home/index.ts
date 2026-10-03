@@ -9,10 +9,6 @@
 */
 import WebProtocol from "@app-web/protocol"
 import createHmrConnection from "@hmr/connection"
-import WorkbenchOwner from "@web/workbench-model"
-const WORKBENCH_CHAT_WIDGET = WorkbenchOwner.chatWidget
-const WORKBENCH_STANDARD_WIDGET_REGISTRY = WorkbenchOwner.standardWidgets
-const withWorkbenchChat = WorkbenchOwner.withChat
 import WebNavigationOwner from "@web/navigation"
 const navigatePackage = WebNavigationOwner.navigatePackage
 import ReadGraph from "@package-graph/read"
@@ -20,7 +16,6 @@ import {attachPickedDirectory, pickStorybookDirectory} from "./src/directory-pic
 
 import type {CustomEvent} from "@zavx0z/dom"
 import indexedWorkbenchAuthorStyleSheetSources from "@web/style-sheets"
-const WORKBENCH_EVENTS = WorkbenchOwner.events
 import type {WebCatalog} from "@web/catalog"
 type WorkbenchCatalogAction = Parameters<WebCatalog.Input["onAction"]>[0]
 type WorkbenchCatalogManagement = NonNullable<WebCatalog.Input["management"]>
@@ -86,10 +81,8 @@ async function startExternalStorybookLanding(
   updateManagement()
   shell.document.transaction(() => {
     shell.workbench.update("inspector.subject", null)
-    shell.workbench.update("inspector.registry", Object.freeze([WORKBENCH_CHAT_WIDGET, ...WORKBENCH_STANDARD_WIDGET_REGISTRY]))
-    const chat = withWorkbenchChat({address: "/", label: snapshot.projectName, fetcher})
-    shell.workbench.update("inspector.values", chat.inspectorValues)
-    shell.workbench.update("inspector.subject", chat.inspectorSubject)
+    shell.workbench.configureInspector()
+    shell.workbench.setChatContext({address: "/", label: snapshot.projectName, fetcher})
   })
 
   const restoreChatSelection = (): void => {
@@ -101,9 +94,7 @@ async function startExternalStorybookLanding(
     history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`)
   }
   const publishChat = (address: string, label: string): void => {
-    const chat = withWorkbenchChat({address, label, fetcher})
-    shell.workbench.update("inspector.values", chat.inspectorValues)
-    shell.workbench.update("inspector.subject", chat.inspectorSubject)
+    shell.workbench.setChatContext({address, label, fetcher})
   }
 
   shell.workbench.update("projectName", snapshot.projectName)
@@ -268,9 +259,9 @@ async function startExternalStorybookLanding(
     })
   }
 
-  shell.workbench.element.addEventListener(WORKBENCH_EVENTS.catalogAction, onCatalogAction)
-  shell.workbench.element.addEventListener(WORKBENCH_EVENTS.navigate, onNavigate)
-  shell.workbench.element.addEventListener(WORKBENCH_EVENTS.inspector, onInspector)
+  shell.workbench.element.addEventListener(shell.workbench.events.catalogAction, onCatalogAction)
+  shell.workbench.element.addEventListener(shell.workbench.events.navigate, onNavigate)
+  shell.workbench.element.addEventListener(shell.workbench.events.inspector, onInspector)
 
   const socket = createLandingSocket(options, location?.href)
   if (socket !== null) shell.updateStatus(storybookConnectionStatus("connecting"))
@@ -344,9 +335,9 @@ async function startExternalStorybookLanding(
     if (disposed) return
     disposed = true
     selectionRevision += 1
-    shell.workbench.element.removeEventListener(WORKBENCH_EVENTS.catalogAction, onCatalogAction)
-    shell.workbench.element.removeEventListener(WORKBENCH_EVENTS.navigate, onNavigate)
-    shell.workbench.element.removeEventListener(WORKBENCH_EVENTS.inspector, onInspector)
+    shell.workbench.element.removeEventListener(shell.workbench.events.catalogAction, onCatalogAction)
+    shell.workbench.element.removeEventListener(shell.workbench.events.navigate, onNavigate)
+    shell.workbench.element.removeEventListener(shell.workbench.events.inspector, onInspector)
     connection?.dispose()
     if (embeddedPageScope === undefined) globalThis.removeEventListener?.("popstate", onPopState)
     if (embeddedPageScope === undefined) shell.dispose()

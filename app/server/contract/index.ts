@@ -1,4 +1,4 @@
-import type {AppWebBuild} from "@app-web/build"
+import type {AppWeb} from "@app/web"
 import {type Zavx0zStorybookBrowserLifecycle as Zavx0zStorybookBrowserLifecycleContract} from "@zavx0z/storybook-browser-lifecycle"
 type StorybookBrowserLifecycle = Zavx0zStorybookBrowserLifecycleContract.Output
 import {type RepoDiscovery as RepoDiscoveryContract} from "@repo/discovery"
@@ -9,6 +9,7 @@ type ExternalStorybookRegistry = AppServerCatalogContract.Output
 type ExternalStorybookSessionManager = AppServerSessionsContract.Output
 import type {AppServerState} from "@app-server/state"
 import type {WebSocketData} from "./server"
+import type {ChatSession} from "@chat/session"
 
 /** Контракт серверного исполнения приложения Storybook. */
 export declare namespace AppServer {
@@ -19,8 +20,6 @@ export declare namespace AppServer {
   @property [buildWeb] - Подготовка Web средствами выбранного исполнителя; по умолчанию worker владельца Web.
 
   @property createWeb - Создаёт жизненный цикл Web; приложение передаёт свою реализацию при композиции сервера.
-
-  @property implementationDigest - Отпечаток исполняемой среды, вычисленный лаунчером до запуска.
 
   @property [onStartupPhase] - Получает этапы catalog, sessions, listen,
   publication и ready до возврата сервера; исключение отменяет запуск.
@@ -59,11 +58,16 @@ export declare namespace AppServer {
 
   @property [startLease] - Поколение запуска; публикация кандидата ожидает
   подтверждения управляющего процесса перед состоянием ready.
+
+  @property [migrateChats] - Явный переход адресов бесед приложения до открытия listener.
+  Ошибка сохраняет истории и отменяет запуск; callback не отправляет сообщения агенту.
+
+  @property [previousAddress] - Разрешает прежний пользовательский адрес в существующий адрес текущего каталога.
+  Возвращаемый путь проверяется сервером; query сохраняется отдельно.
   */
   type Input = Readonly<{
-    implementationDigest: string
-    createWeb: typeof import("@web/release").default
-    buildWeb?: AppWebBuild.Output["runWorker"]
+    createWeb: typeof import("@app/web").default
+    buildWeb?: AppWeb.Input["build"]
     onStartupPhase?: (phase: "catalog" | "sessions" | "listen" | "publication" | "ready") => void
     project: string
     resolveCatalog?: StorybookCatalogResolver
@@ -80,6 +84,8 @@ export declare namespace AppServer {
     captureRoot?: string
     writeServerRecord?: AppServerState.Output["writeExternalStorybookServerRecord"]
     startLease?: Readonly<{path: string; token: string}>
+    migrateChats?(chats: ChatSession.Output, graph: ReturnType<AppServerCatalogContract.Output["snapshot"]>["graph"]): Promise<void>
+    previousAddress?(pathname: string, graph: ReturnType<AppServerCatalogContract.Output["snapshot"]>["graph"]): string | null
   }>
 
   /**

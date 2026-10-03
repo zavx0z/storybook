@@ -60,7 +60,7 @@ test("отсутствующий metafile не подменяется похож
   expect(() => emittedEntry(result, "/output", "/source/index.ts")).toThrow("no shared browser metafile")
 })
 
-test("browser page entry сохраняет named и default ABI в выпущенном модуле", async () => {
+test("browser page entry предоставляет единственный default вход", async () => {
   const result = await Bun.build({
     entrypoints: [sources.pageEntry],
     target: "browser",
@@ -81,6 +81,6 @@ test("browser page entry сохраняет named и default ABI в выпуще
   const emitted = await result.outputs[0]!.text()
   const module = await import(`data:text/javascript;charset=utf-8,${encodeURIComponent(emitted)}`)
   expect(typeof module.default).toBe("function")
-  expect(module.startExternalStorybookPage).toBe(module.default)
-  expect(module.startExternalStorybookPage()).toBe("page-ready")
+  expect(Object.keys(module)).toEqual(["default"])
+  expect(module.default()).toBe("page-ready")
 })

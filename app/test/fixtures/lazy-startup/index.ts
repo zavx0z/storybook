@@ -1,16 +1,6 @@
 import {mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
-import {dirname, join, resolve} from "node:path"
-
-/** Тот же минимальный resident layout, которым implementation-digest тестирует App identity. */
-const residentTrees = [
-  "app/server", "app/mcp", "app/web/build", "app/web/protocol", "app/web/release",
-  "contracts", "package/activation", "package/artifacts", "package/build",
-  "package/documentation", "package/graph", "package/identity", "package/index",
-  "package/package-json", "package/reader", "package/resources", "package/revision",
-  "package/route", "package/session", "package/standard", "repo/discovery",
-  "specs/scenarios/reader", "specs/reader", "tech/build", "tech/http", "tech/limits", "tech/process",
-]
+import {join, resolve} from "node:path"
 
 export type StartupTrace = {pid: number; tool: string; status: string}
 
@@ -22,17 +12,8 @@ export function createLazyStartupFixture() {
   const eventsRoot = join(root, "events")
   const repository = resolve(import.meta.dir, "../../../..")
   for (const directory of [toolRoot, stateRoot, eventsRoot]) mkdirSync(directory, {mode: 0o700})
-  for (const tree of residentTrees) {
-    mkdirSync(join(toolRoot, tree), {recursive: true})
-    writeFileSync(join(toolRoot, tree, "index.ts"), `export const owner = ${JSON.stringify(tree)}\n`)
-  }
-  for (const path of ["bun.lock", "bunfig.toml", "package.json", "app/src/daemon-entry.ts", "app/src/daemon.ts", "app/src/implementation-digest.ts"]) {
-    mkdirSync(dirname(join(toolRoot, path)), {recursive: true})
-    writeFileSync(join(toolRoot, path), `export const source = ${JSON.stringify(path)}\n`)
-  }
   writeFileSync(join(toolRoot, "package.json"), JSON.stringify({name: "@fixture/lazy-startup-tool", private: true, type: "module"}))
   writeFileSync(join(toolRoot, "bunfig.toml"), "[test]\npreload = []\n")
-  writeFileSync(join(toolRoot, "bun.lock"), JSON.stringify({lockfileVersion: 1, workspaces: {}}))
   symlinkSync(join(repository, "node_modules"), join(root, "node_modules"))
   const daemonEntryPath = join(import.meta.dir, "daemon.ts")
   const serverModule = join(root, "factory.ts")

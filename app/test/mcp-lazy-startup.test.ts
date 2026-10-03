@@ -3,7 +3,7 @@ import createApp from "@storybook/app"
 import ServerState from "@app-server/state"
 import {Client, InMemoryTransport} from "@modelcontextprotocol/client"
 import {expect, test} from "bun:test"
-import {existsSync, readFileSync} from "node:fs"
+import {existsSync, mkdirSync, readFileSync, writeFileSync} from "node:fs"
 import {join} from "node:path"
 import {createLazyStartupFixture} from "./fixtures/lazy-startup"
 
@@ -57,12 +57,45 @@ test("cold ensure запускает один detached daemon, который п
     expect(ensures).toHaveLength(2)
     expect(new Set(ensures.map(entry => entry.pid)).size, "Управляющие вызовы прошли через два свежих процесса")
       .toBe(2)
+
+    const uiPackage = join(fixture.toolRoot, "app/web/ui")
+    mkdirSync(uiPackage, {recursive: true})
+    writeFileSync(join(uiPackage, "package.json"), JSON.stringify({name: "@fixture/lazy-ui", exports: {".": "./index.ts"}}))
+    writeFileSync(join(uiPackage, "index.ts"), "export const view = 'browser only'\n")
+    const lockPath = join(fixture.toolRoot, "bun.lock")
+    const lock = {
+      workspaces: {"app/web/ui": {name: "@fixture/lazy-ui"}},
+      packages: {"@fixture/lazy-ui": ["@fixture/lazy-ui@workspace:app/web/ui"]},
+    }
+    writeFileSync(lockPath, JSON.stringify(lock))
+    const uiStatus = await client.callTool({name: "storybook_status", arguments: {schemaVersion: 1}})
+    expect(uiStatus.structuredContent).toMatchObject({status: "success", server: "running", instanceId: record.instanceId})
+    const uiEnsure = await client.callTool({name: "storybook_ensure", arguments: {schemaVersion: 1}})
+    expect(uiEnsure.structuredContent).toMatchObject({status: "success", server: "running", instanceId: record.instanceId})
+    expect(ServerState.readExternalStorybookServerRecord(statePath).pid).toBe(record.pid)
+
+    writeFileSync(join(fixture.toolRoot, "server.ts"), "export const resident = 'second'\n")
+    const changedStatus = await client.callTool({name: "storybook_status", arguments: {schemaVersion: 1}})
+    expect(changedStatus.structuredContent).toMatchObject({status: "success", server: "running", instanceId: record.instanceId})
+    const changedEnsure = await client.callTool({name: "storybook_ensure", arguments: {schemaVersion: 1}})
+    expect(changedEnsure.structuredContent).toMatchObject({status: "success", server: "running"})
+    const replacement = ServerState.readExternalStorybookServerRecord(statePath)
+    expect(replacement.instanceId).toBe(record.instanceId)
+    expect(replacement.pid).toBe(record.pid)
+    expect(readFileSync(join(fixture.stateRoot, "daemon-starts.jsonl"), "utf8").trim().split("\n")).toHaveLength(1)
     expect(server.isConnected()).toBeTrue()
   } finally {
     try {
       if (existsSync(statePath) && ServerState.readExternalStorybookServerRecord(statePath).toolRoot === fixture.toolRoot) {
         const cleanup = createApp({toolRoot: fixture.toolRoot, daemonEntryPath: fixture.daemonEntryPath, legacyStatePaths: []})
-        await cleanup.stop({schemaVersion: 1, confirm: true}, {signal: AbortSignal.timeout(5000)})
+        try {
+          await cleanup.stop({schemaVersion: 1, confirm: true}, {signal: AbortSignal.timeout(5000)})
+        } catch {
+          const owned = ServerState.readExternalStorybookServerRecord(statePath)
+          if (owned.toolRoot === fixture.toolRoot && ServerState.processExists(owned.pid)) {
+            process.kill(owned.pid, "SIGTERM")
+          }
+        }
       }
     } finally {
       try {

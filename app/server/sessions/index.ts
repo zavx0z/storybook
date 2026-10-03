@@ -7,7 +7,6 @@ import PackageBuildSchedulerOwner, {type PackageBuildScheduler as PackageBuildSc
 import PackageSessionOwner, {type PackageSession as PackageSessionContract} from "@package/session"
 const StorybookBuildScheduler = PackageBuildSchedulerOwner
 const StorybookPackageSession = PackageSessionOwner
-const storybookDiagnostic = PackageSessionOwner.diagnostic
 type StorybookBuildScheduler = PackageBuildSchedulerContract.Output
 type StorybookBuildSchedulerSnapshot = ReturnType<PackageBuildSchedulerContract.Output["snapshot"]>
 type StorybookPackageSession = PackageSessionContract.Output

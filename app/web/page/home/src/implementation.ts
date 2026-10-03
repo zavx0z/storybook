@@ -1,7 +1,4 @@
 import WebProtocol from "@app-web/protocol"
-import WebNavigationOwner from "@web/navigation"
-
-const deriveExternalStorybookNavigationTree = WebNavigationOwner.deriveExternalStorybookNavigationTree
 import type {WebNavigation} from "@web/navigation"
 type ExternalStorybookBrowserNavigationItem = ReturnType<WebNavigation.Output["deriveExternalStorybookNavigationTree"]>[number]
 import type {PageShell} from "@page/shell"

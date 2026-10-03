@@ -12,13 +12,13 @@ const {resolveStorybookPackageCompilerInputs} = Compiler
 
 const SHARED_BUILD_ABI = Object.freeze({
   owner: "shared-browser",
-  artifactGraph: "relative-output-sha256/1",
-  entryNaming: "[name]-[hash].[ext]",
+  artifactGraph: "native-web-output-sha256/3",
+  entryNaming: {kernel: "[name]-[hash].[ext]", host: "[dir]/[name]-[hash].[ext]"},
   chunkNaming: "[name]-[hash].[ext]",
   publicPath: "",
   target: "browser",
   format: "esm",
-  splitting: true,
+  splitting: {kernel: true, host: false},
   sourcemap: "external",
   loader: {".wgsl": "text"},
 })
@@ -93,6 +93,7 @@ export function resolveStorybookSharedBuildInputFingerprintPlan(
     files: [
       ...entrypoints,
       ...compiler.configPaths,
+      ...Compiler.resolveStorybookCompilerControlFiles(ownerRoots),
       ...(input.additionalFilePaths ?? []),
     ],
     compilerAdapterPath: compiler.adapterPath,
@@ -116,5 +117,15 @@ export function computeStorybookSharedBuildInputFingerprint(
 export async function beginStorybookSharedBuildInputAttestation(
   input: StorybookSharedBuildInputFingerprintRequest,
 ): Promise<BuildInputAttestation> {
-  return BuildInputs.attest(resolveStorybookSharedBuildInputFingerprintPlan(input))
+  const attestation = await BuildInputs.attest(resolveStorybookSharedBuildInputFingerprintPlan(input))
+  const planned = new Set(attestation.before.files.map(file => file.path))
+  return Object.freeze({
+    before: attestation.before,
+    // Exact inputs уже объявлены до compile, в том числе foreign configs.
+    // Guard проверяет только действительно новые paths из native closure.
+    complete: (additionalFilePaths: readonly string[] = []) => attestation.complete(
+      additionalFilePaths.map(Environment.exactFile).filter(path => !planned.has(path)),
+    ),
+    dispose: () => attestation.dispose(),
+  })
 }

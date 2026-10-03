@@ -8,7 +8,7 @@ import {createRoot} from "@zavx0z/component"
 import {createDocumentClipboardController} from "@zavx0z/browser/clipboard"
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
-import {createDocument, type Element, type Node} from "@zavx0z/dom"
+import {createDocument} from "@zavx0z/dom"
 import type {Presentation as Root, RootDocumentProjection, RootProjection, RootSpaceProjection} from "@zavx0z/browser/integration"
 import type {RenderFrame} from "@renderer/html"
 import {createSpaceElementFactories} from "@zavx0z/space"
@@ -383,38 +383,6 @@ function fakeRenderFrame(
     scrolls: new Map(),
   })
 }
-
-function descendants(root: Node): Element[] {
-  const output: Element[] = []
-  for (const child of root.childNodes) {
-    if (!("localName" in child)) continue
-    output.push(child as Element, ...descendants(child))
-  }
-  return output
-}
-
-function click(element: Element | undefined): void {
-  if (element === undefined || !("click" in element) || typeof element.click !== "function") {
-    throw new Error("Fixture action button is missing")
-  }
-  element.click()
-}
-
-function statusBreadcrumbLabels(
-  controller: Awaited<ReturnType<typeof startExternalStorybookLanding>>,
-): readonly string[] {
-  return controller.shell.workbench.controller.read("status").breadcrumbs?.map(({label}) => label) ?? []
-}
-
-async function waitFor(predicate: () => boolean, label: string): Promise<void> {
-  const deadline = Date.now() + 1_000
-  while (Date.now() < deadline) {
-    if (predicate()) return
-    await Bun.sleep(1)
-  }
-  throw new Error(`Timed out waiting for ${label}`)
-}
-
 
 async function waitUntil(predicate: () => boolean): Promise<void> {
   const deadline = Date.now() + 2_000

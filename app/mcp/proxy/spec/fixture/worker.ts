@@ -28,7 +28,7 @@ function startEndpoint() {
     },
   })
   servers.push(server)
-  const record = createExternalStorybookServerRecord({toolRoot: resolve(import.meta.dir, "../../../../.."), origin: server.url.origin, implementationDigest: "a".repeat(64)})
+  const record = createExternalStorybookServerRecord({toolRoot: resolve(import.meta.dir, "../../../../.."), origin: server.url.origin})
   authorization = externalStorybookControlAuthorization(record.controlToken)
   writeExternalStorybookServerRecord(join(stateRoot, "server.json"), record)
 }

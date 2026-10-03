@@ -4,7 +4,6 @@ startup candidate и authority; не копирует private server protocol и
 Сборка, discovery, Browser и canonical daemon в этом fixture не запускаются.
 */
 import ServerState from "@app-server/state"
-import {externalStorybookImplementationDigest} from "../../../src/implementation-digest.ts"
 import {appendFileSync, existsSync, rmSync, writeFileSync} from "node:fs"
 import {join} from "node:path"
 
@@ -32,10 +31,13 @@ const stop = () => {
 
 const server = Bun.serve({
   hostname: "127.0.0.1",
-  port: 0,
+  port: Number(Bun.env.STORYBOOK_SERVER_PORT ?? 0),
   async fetch(request) {
     const path = new URL(request.url).pathname
     if (path === "/api/health" && request.method === "GET") return Response.json({ok: true})
+    if (path === "/api/client" && request.method === "GET") return Response.json({
+      graphDigest: "fixture-graph", rootIds: [], nodes: [], packages: [],
+    })
     ServerState.assertExternalStorybookControlRequest(request, record)
     if (path === "/api/control/status" && request.method === "GET") return Response.json({
       ok: true, instanceId: record.instanceId, origin: record.origin,
@@ -54,7 +56,7 @@ const server = Bun.serve({
 record = ServerState.createExternalStorybookServerRecord({
   toolRoot,
   origin: server.url.origin,
-  implementationDigest: externalStorybookImplementationDigest(toolRoot),
+
   attachedDeclarations: [],
 })
 process.once("SIGTERM", stop)

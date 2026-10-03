@@ -44,7 +44,9 @@ export class StorybookSharedBrowserAssets implements SharedBrowserAssetsControll
       this.#reportCacheProgress({state: "started"})
       const hit = fingerprint(buildInputs(cached)) === this.#fingerprint
       this.#reportCacheProgress({state: "completed", hit})
-      if (hit) return Promise.resolve(cached)
+      if (hit) {
+        return Promise.resolve(cached)
+      }
     }
     const pending = this.#refresh().catch(error => {
       if (!this.#disposed) this.#failed(error)

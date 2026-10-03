@@ -8,7 +8,7 @@ type StorybookPackageRevisionGraphSnapshot = ReturnType<PackageRevisionContract.
 type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 type StorybookPackageEvent = Parameters<NonNullable<PackageSessionContract.Input[1]["publish"]>>[0]
 type StorybookPackageRevisionBuilder = PackageSessionContract.Input[1]["buildRevision"]
-import {afterEach, describe, expect, spyOn, test} from "bun:test"
+import {afterEach, describe, expect, test} from "bun:test"
 import {createHash} from "node:crypto"
 import {mkdtempSync, mkdirSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"

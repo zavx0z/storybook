@@ -4,36 +4,19 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Именованный API Web-области приложения с самостоятельными владельцами выпуска, страницы и представлений",
+  "description": "Композиция страницы, независимой подготовки и совместимого выпуска Web-интерфейса приложения",
   "exports": {
     ".": "./index.ts"
   },
   "dependencies": {
     "@app-web/build": "workspace:*",
     "@app-web/protocol": "workspace:*",
-    "@immersive/markdown": "^0.0.0",
-    "@web/agent-bridge": "workspace:*",
-    "@web/bootstrap": "workspace:*",
-    "@web/browser-fixture": "workspace:*",
-    "@web/catalog": "workspace:*",
-    "@web/client": "workspace:*",
-    "@web/mcp-window": "workspace:*",
-    "@web/minimap": "workspace:*",
-    "@web/navigation": "workspace:*",
     "@web/page": "workspace:*",
     "@web/page-target": "workspace:*",
-    "@web/presentation": "workspace:*",
-    "@web/reference": "workspace:*",
     "@web/release": "workspace:*",
-    "@web/scenario": "workspace:*",
-    "@web/status": "workspace:*",
-    "@web/style-sheets": "workspace:*",
-    "@web/viewpoint-controls": "workspace:*",
-    "@web/viewpoint-tab": "workspace:*",
-    "@web/workbench": "workspace:*",
-    "@web/workbench-model": "workspace:*",
-    "@zavx0z/component": "^0.0.0",
-    "@zavx0z/ui": "^0.0.0"
+    "@tech/limits": "workspace:*",
+    "@package-build/scheduler": "workspace:*",
+    "@package/session": "workspace:*"
   },
   "devDependencies": {
     "@app-server/catalog": "workspace:*",
@@ -46,6 +29,11 @@
     "@package-graph/read": "workspace:*",
     "@package/revision": "workspace:*",
     "@repo/discovery": "workspace:*",
-    "@route/url": "workspace:*"
+    "@route/url": "workspace:*",
+    "@web/browser-fixture": "workspace:*",
+    "@web/navigation": "workspace:*",
+    "@zavx0z/component": "^0.0.0",
+    "@zavx0z/ui": "^0.0.0",
+    "@immersive/markdown": "^0.0.0"
   }
 }

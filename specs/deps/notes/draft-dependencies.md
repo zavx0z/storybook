@@ -15,7 +15,7 @@ flowchart LR
 ## Откуда берутся данные
 
 У пакета, а в переходной структуре — у обнаруженной директории, файл `spec/deps.spec.ts` добавляет представление зависимостей.
-Его URL и возвращение к обзору определены в [контракте Панели вкладок](../../../app/web/workbench/notes/workspace.md#tabs-routes);
+Его URL и возвращение к обзору определены в [контракте Панели вкладок](../../../app/web/page/shell/workbench/notes/workspace.md#tabs-routes);
 JSON-декларация для обнаружения этого spec не нужна.
 
 Discovery читает `test.each` через TypeScript AST без импорта spec и выполнения

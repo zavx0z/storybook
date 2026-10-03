@@ -1,0 +1,14 @@
+{
+  "name": "@tech/testing",
+  "label": "Проверки",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Технические подмены для изолированной проверки жизненных циклов",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@web/browser-fixture": "workspace:*"
+  }
+}

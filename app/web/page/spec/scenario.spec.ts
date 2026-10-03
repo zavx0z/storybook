@@ -100,7 +100,7 @@ async function pageFixture(failPlatformMount = false, changePlatform = true, bef
   let readerGeneration = 0
   const sharedHost = (epoch = "a".repeat(64)): StorybookSharedHost => ({
     protocol: "storybook-shared-host/1", sharedModuleEpoch: epoch, hostModuleEpoch: hostRevision.repeat(64),
-    pageEntryUrl: `/__storybook/shared/page-${hostRevision}.js`, packageHostUrl: `/__storybook/shared/package-${hostRevision}.js`,
+    pageEntryUrl: `/__storybook/shared/page-${hostRevision}.js`,
     authorStyleSheets: [],
   })
   const page = await startExternalStorybookPage({

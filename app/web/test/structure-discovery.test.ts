@@ -1,4 +1,4 @@
-import createWeb from "@web/release"
+import createWeb from "@app/web"
 import AppWebBuildOwner from "@app-web/build"
 import BuildEnvironmentOwner from "@build/environment"
 import RepoDiscoveryOwner from "@repo/discovery"
@@ -90,7 +90,7 @@ test("explicit refresh discovers a new workspace package and serves its structur
   await Bun.write(join(repo, "packages/a/index.ts"), "/**\n# Structural A\n@packageDocumentation\n*/\n")
   const artifactRoot = join(root, "artifacts")
   seedSharedPage(artifactRoot)
-  const server = await startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64), project: root,
+  const server = await startExternalStorybookServer({createWeb, project: root,
     statePath: join(root, "state/server.json"), artifactRoot})
   try {
     await write(join(repo, "packages/c/package.json"), {name: "@fixture/c", label: "C"})
@@ -125,15 +125,15 @@ function seedSharedPage(artifactRoot: string): void {
     .map(({specifier, sourcePath}) => ({specifier, sourcePath,
       url: `/__storybook/shared/kernel/${digest(specifier)}.js`}))
   const sources = BuildEnvironmentOwner.sourceFiles(modules)
-  const paths = ["entries/page.js", "entries/package.js", "entries/bootstrap.js",
+  const paths = ["entries/page.js", "entries/bootstrap.js",
     ...modules.map(module => module.url.slice("/__storybook/shared/".length))]
   for (const path of paths) {
     mkdirSync(dirname(join(root, path)), {recursive: true})
     writeFileSync(join(root, path), bytes)
   }
   const identity = BuildEnvironmentOwner.identity("/__storybook/shared/entries/page.js", modules,
-    digest("fixture host"), sources, "/__storybook/shared/entries/package.js")
-  AppWebBuildOwner.saveReceipt({root, landingEntry: paths[0]!, fallbackEntry: paths[0]!, bootstrapEntry: paths[2]!,
+    digest("fixture host"), sources)
+  AppWebBuildOwner.saveReceipt({root, landingEntry: paths[0]!, fallbackEntry: paths[0]!, bootstrapEntry: paths[1]!,
     browserIdentity: identity, dependencyRealpaths: sources.map(source => source.path), authorStyleSheets: [],
     artifactDigests: paths.map(path => ({path, digest: digest(bytes)}))})
 }

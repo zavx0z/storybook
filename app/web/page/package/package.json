@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Жизненный цикл и публичный контракт @page/package",
+  "description": "Представление выбранного пакета: его обзор, документы, сценарии и применённая ревизия",
   "exports": {
     ".": "./index.ts"
   },
@@ -21,17 +21,16 @@
     "@web/agent-bridge": "workspace:*",
     "@web/client": "workspace:*",
     "@web/navigation": "workspace:*",
-    "@web/page": "workspace:*",
     "@web/presentation": "workspace:*",
     "@web/scenario": "workspace:*",
     "@web/status": "workspace:*",
     "@web/style-sheets": "workspace:*",
-    "@web/workbench-model": "workspace:*",
     "@zavx0z/browser": "^0.0.0",
     "@zavx0z/component": "^0.0.0",
     "@zavx0z/dom": "^0.0.0",
     "@zavx0z/template": "^0.0.0",
-    "@zavx0z/ui": "^0.0.0"
+    "@zavx0z/ui": "^0.0.0",
+    "@web/workbench": "workspace:*"
   },
   "devDependencies": {
     "@jsx-compiler/session": "^0.0.0",

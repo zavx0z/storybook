@@ -1,11 +1,10 @@
-import createWeb from "@web/release"
+import createWeb from "@app/web"
 import {type Zavx0zStorybookBrowserLifecycle as Zavx0zStorybookBrowserLifecycleContract} from "@zavx0z/storybook-browser-lifecycle"
 type StorybookBrowserLifecycle = Zavx0zStorybookBrowserLifecycleContract.Output
 import TechLimitsOwner from "@tech/limits"
 const STORYBOOK_SHARED_COMPILE_TIMEOUT_MS = TechLimitsOwner.STORYBOOK_SHARED_COMPILE_TIMEOUT_MS
 const STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS = TechLimitsOwner.STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS
 import {afterEach, describe, expect, setDefaultTimeout, spyOn, test} from "bun:test"
-import * as filesystem from "node:fs"
 import {existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
@@ -1211,11 +1210,21 @@ describe("one external Storybook server", () => {
 
   test("rolls back the listener and runtime when initial state publication fails", async () => {
     const fixture = serverFixture()
+    let webDisposals = 0
     const reservation = Bun.serve({port: 0, fetch: () => new Response("reserved")})
     const port = reservation.port
     reservation.stop(true)
     if (port === undefined) throw new Error("Bun test server did not allocate a port")
-    await expect(startTestServer({
+    await expect(startExternalStorybookServer({
+
+      browserLifecycle: fakeBrowserLifecycle().service,
+      createWeb(input) {
+        const web = createWeb(input)
+        return {...web, async dispose() {
+          webDisposals++
+          await web.dispose()
+        }}
+      },
       project: createProjectFixture(fixture.root, []),
       port,
       statePath: fixture.statePath,
@@ -1224,6 +1233,7 @@ describe("one external Storybook server", () => {
         throw new Error("initial state write failed")
       },
     })).rejects.toThrow("initial state write failed")
+    expect(webDisposals, "Ошибка публикации завершает созданного владельца Web до отказа запуска").toBe(1)
     const replacement = Bun.serve({port, fetch: () => new Response("replacement")})
     expect(replacement.port).toBe(port)
     replacement.stop(true)
@@ -1258,8 +1268,8 @@ describe("one external Storybook server", () => {
 })
 
 /** HTTP-проверки не запускают Chrome; browser-сценарии явно внедряют свой adapter. */
-function startTestServer(options: Omit<Parameters<typeof startExternalStorybookServer>[0], "implementationDigest" | "createWeb">) {
-  return startExternalStorybookServer({createWeb, implementationDigest: "a".repeat(64), browserLifecycle: fakeBrowserLifecycle().service, ...options})
+function startTestServer(options: Omit<Parameters<typeof startExternalStorybookServer>[0], "createWeb">) {
+  return startExternalStorybookServer({createWeb, browserLifecycle: fakeBrowserLifecycle().service, ...options})
 }
 
 function fakeBrowserLifecycle(): Readonly<{

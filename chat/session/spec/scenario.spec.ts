@@ -36,6 +36,11 @@ describe.each([
   await sessions.prompt(props.address, "Начать беседу", "example-message")
   const actual = await finished
   unsubscribe()
+  const movedAddress = props.address === "/" ? "/moved" : `${props.address}/moved`
+  const moved = await sessions.relocate({
+    from: {address: props.address, cwd: directory},
+    to: {address: movedAddress, cwd: directory},
+  })
 
   test("Адрес", () => {
     expect({address: actual.address, label: actual.label, id: actual.id},
@@ -51,5 +56,9 @@ describe.each([
   test("Завершение", () => {
     expect({status: actual.status, error: actual.error, permissions: actual.permissions},
       "Подтверждённое завершение исполнителя освобождает беседу для следующего сообщения").toEqual({status: "idle", error: null, permissions: []})
+  })
+  test("Явный перенос", () => {
+    expect(moved, "Новый адрес сохраняет identity, историю и завершённое состояние беседы")
+      .toMatchObject({id: actual.id, address: movedAddress, messages: actual.messages, status: "idle"})
   })
 })

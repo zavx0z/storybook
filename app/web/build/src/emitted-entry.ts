@@ -1,4 +1,4 @@
-import {realpathSync} from "node:fs"
+import Environment from "@build/environment"
 import {normalize, relative, resolve, sep} from "node:path"
 
 /**
@@ -11,9 +11,9 @@ Artifacts переносит outputs в hash namespace; относительны
 */
 export function emittedEntry(result: Bun.BuildOutput, staging: string, source: string): string {
   if (result.metafile === undefined) throw new Error("Bun emitted no shared browser metafile")
-  const sourcePath = realpathSync(source)
+  const sourcePath = Environment.exactFile(source)
   const entries = Object.entries(result.metafile.outputs).filter(([, output]) =>
-    output.entryPoint !== undefined && realpathSync(resolve(output.entryPoint)) === sourcePath)
+    output.entryPoint !== undefined && Environment.exactFile(resolve(output.entryPoint)) === sourcePath)
   if (entries.length !== 1) throw new Error(`Shared Storybook entry was not uniquely emitted: ${source}`)
   const outputPath = normalize(entries[0]![0])
   const artifacts = result.outputs.filter(artifact => artifact.kind === "entry-point" &&

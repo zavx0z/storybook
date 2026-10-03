@@ -62,7 +62,7 @@ TypeScript при чтении обзора не исполняется. Markdow
 Публичный pathname следует физическому корню и видимым директориям. Внутренние
 `dir-` идентификаторы не являются публичными URL. Встроенное представление
 выбирается UI-параметром `view`; правила принадлежат
-[Route](../route/README.md) и [контракту вкладок](../../app/web/workbench/notes/workspace.md#tabs-routes).
+[Route](../route/README.md) и [контракту вкладок](../../app/web/page/shell/workbench/notes/workspace.md#tabs-routes).
 MCP получает точный адрес из предыдущего children, без query и fragment.
 Публичный путь импорта из exports не заменяет URL страницы.
 

@@ -6,7 +6,6 @@ const host: StorybookSharedHost = {
   protocol: "storybook-shared-host/1",
   sharedModuleEpoch: "a".repeat(64), hostModuleEpoch: "b".repeat(64),
   pageEntryUrl: "/__storybook/shared/entries/page-a.js",
-  packageHostUrl: "/__storybook/shared/entries/package-a.js",
   authorStyleSheets: [{specifier: "@storybook/theme", contentDigest: "c".repeat(64), url: "/__storybook/shared/styles/theme-c.css"}],
 }
 
@@ -43,10 +42,10 @@ test("отсутствующая историческая платформа о�
 test("bootstrap не загружает платформу до выбора совместимого host", async () => {
   const scanner = new Bun.Transpiler({loader: "ts"})
   for (const [source, expected] of [
-    ["../../bootstrap/index.ts", ["@app-web/protocol", "@web/page-target"]],
-    ["../../bootstrap/src/browser-entry.ts", ["@web/bootstrap"]],
+    ["../../src/bootstrap.ts", ["@app-web/protocol", "@web/page-target"]],
+    ["../../src/browser-entry.ts", ["./bootstrap"]],
     ["../src/shared-host.ts", []],
-    ["../../page-target/index.ts", []],
+    ["../../page/target/index.ts", []],
   ] as const) {
     const imports = scanner.scanImports(await Bun.file(new URL(source, import.meta.url)).text())
     expect(imports.filter(item => item.kind !== "dynamic-import").map(item => item.path))

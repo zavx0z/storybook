@@ -1,0 +1,22 @@
+{
+  "name": "@web/navigation",
+  "label": "Navigation",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Проекция выбранного предмета и маршрута в модель навигации и областей просмотра",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@app-web/protocol": "workspace:*",
+    "@package-graph/create": "workspace:*",
+    "@package-graph/read": "workspace:*",
+    "@package/revision": "workspace:*",
+    "@route/address": "workspace:*",
+    "@web/workbench": "workspace:*"
+  },
+  "devDependencies": {
+    "@repo/discovery": "workspace:*"
+  }
+}

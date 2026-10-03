@@ -43,7 +43,7 @@ test("[STORYBOOK-EXPERIENCE-001] shell использует только нов�
 
 test("[STORYBOOK-EXPERIENCE-002] Workbench принадлежит Display, Minimap — HUD, контент — Display или Space", async () => {
   const shell = await Bun.file(resolve(sourceRoot, "page/shell/index.ts")).text()
-  const presentation = await Bun.file(resolve(sourceRoot, "workbench-model/src/presentation.ts")).text()
+  const presentation = await Bun.file(resolve(sourceRoot, "workbench/src/presentation.ts")).text()
   const spacePreview = await Bun.file(resolve(sourceRoot, "page/shell/contract/preview.ts")).text()
 
   expect(shell).toContain("root.space")

@@ -24,7 +24,7 @@ describe.each([
     const record = State.createExternalStorybookServerRecord({
       toolRoot: import.meta.dir,
       origin,
-      implementationDigest: "b".repeat(64),
+
     })
     expect(Object.hasOwn(State.projectExternalStorybookServerRecord(record), "controlToken"),
       "Публичная запись сервера не раскрывает секрет управляющего канала"

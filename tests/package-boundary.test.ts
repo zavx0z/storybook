@@ -69,7 +69,7 @@ describe("external @zavx0z/storybook tool boundary", () => {
       "app/web/page/home/index.ts",
       "app/web/page/package/index.ts",
       "app/web/page/index.ts",
-      "app/web/page/src/browser-entry.ts",
+      "app/web/src/browser-entry.ts",
     ].map((path) => Bun.file(join(root, path)).text()))
     const combined = sources.join("\n")
     expect(combined).toContain('from "@zavx0z/browser/integration"')
@@ -95,7 +95,8 @@ describe("external @zavx0z/storybook tool boundary", () => {
     expect(combined).not.toContain("@ui/elements")
     expect(combined).not.toContain("StorybookDom")
     expect(combined).not.toContain("STORYBOOK_DOM")
-    expect(combined).toContain('from "@web/workbench-model"')
+    expect(combined, "Внутреннее состояние рабочей области не является соседним публичным пакетом")
+      .not.toContain('from "@web/workbench-model"')
     expect(app).toContain('from "@web/workbench"')
     expect(combined).not.toContain("createDocumentSpaceRuntime")
   })

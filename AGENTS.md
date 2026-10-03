@@ -38,7 +38,7 @@
   [порядок уточнения сценариев в ходе разработки](./notes/scenario-development.md).
 - Перед изменением MCP читать исполняемые контракты
   [HTTP-прокси](app/mcp/proxy/spec/scenario.spec.ts) и
-  [адаптера MCP](app/src/mcp/spec/scenario.spec.ts);
+  [адаптера MCP](app/mcp/spec/server.spec.ts);
   границы зависимостей проверяются в [boundary.test.ts](app/mcp/proxy/test/boundary.test.ts).
 - Действующие предметные владельцы находятся в корневых `project`, `repo`,
   `package`, `domain`, `component`, `container`, `contracts`, `typedoc` и `specs`.
@@ -61,7 +61,7 @@
   на код и ещё не перенесённые заметки. Не поддерживать здесь или в
   корневых README/ARCHITECTURE отдельные копии этих норм; менять их у владельца.
   Связанные правила: [размещение компонентов](./component/notes/draft-placement.md),
-  [Dependencies spec](./specs/deps/notes/draft-dependencies.md) и [URL вкладок](app/web/workbench/notes/workspace.md#tabs-routes).
+  [Dependencies spec](./specs/deps/notes/draft-dependencies.md) и [URL вкладок](app/web/page/shell/workbench/notes/workspace.md#tabs-routes).
 - Перед изменением README, модульных обзоров и TSDoc прочитать
   [единый стандарт документации](./package/notes/draft-documentation.md).
   Неперенесённые правила и классификация проверок остаются в этой заметке;
@@ -142,7 +142,7 @@
   не обновляет пользовательские представления. Неуспешные проверки сохраняют
   применённую ревизию.
 - Публичные адреса, вкладки и структурные пути определяются
-  [контрактом URL](app/web/workbench/notes/workspace.md#tabs-routes) и [нормами структуры](./package/notes/draft-structure.md).
+  [контрактом URL](app/web/page/shell/workbench/notes/workspace.md#tabs-routes) и [нормами структуры](./package/notes/draft-structure.md).
   Агент проверяет эти правила у владельца, а не поддерживает отдельную копию здесь.
 - Пользовательская навигация остаётся в текущей вкладке. Открытие агентом повторно
   использует представление, в котором сейчас показан нужный пакет, или создаёт

@@ -1,6 +1,5 @@
 import type {AppWebProtocol} from "@app-web/protocol"
 import type {HmrConnection} from "@hmr/connection"
-import type startExternalStorybookPage from "@web/page"
 import type {ScenarioModel} from "@scenario/model"
 
 import type {PackageRevision} from "@package/revision"
@@ -9,7 +8,6 @@ type CreateExternalStorybookShellOptions = PageShell.Input
 type ExternalStorybookShell = PageShell.Output
 
 import type {STORYBOOK_PAGE_REALM_PROTOCOL} from "../src/implementation"
-import type {PagePackage} from "./index"
 
 export type ExternalStorybookClientSnapshot = ReturnType<AppWebProtocol.Output["clientSnapshot"]>
 
@@ -20,12 +18,7 @@ export type StorybookPackageRevisionGraphSnapshot = ReturnType<PackageRevision.O
 
 export type ExternalStorybookScenarioLoader = () => Promise<ScenarioAppInput>
 
-/**
-Immutable executable payload для динамической замены ревизии внутри страницы.
-
-@property [startPage] - При смене платформы принимает Canvas и монтирует согласованную среду.
-@property [startPackage] - Обновляет контекст пакета при сохранении текущей платформы.
-*/
+/** Данные и сценарии ревизии пакета; контроллерами страницы владеет текущая оболочка. */
 export interface ExternalStorybookAppliedRevision {
   readonly protocol: typeof STORYBOOK_PAGE_REALM_PROTOCOL
   readonly packageId: string
@@ -33,8 +26,6 @@ export interface ExternalStorybookAppliedRevision {
   readonly revisionUrl: string
   readonly sharedModuleEpoch: string
   readonly hostModuleEpoch?: string
-  readonly startPackage?: (input: PagePackage.Input) => Promise<PagePackage.Output>
-  readonly startPage?: typeof startExternalStorybookPage
   readonly graphSnapshot: StorybookPackageRevisionGraphSnapshot
 
   readonly scenarioLoaders?: ReadonlyMap<string, ExternalStorybookScenarioLoader>

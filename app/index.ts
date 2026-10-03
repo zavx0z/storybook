@@ -12,7 +12,7 @@ type ExternalStorybookServerRecord = ReturnType<AppServerState.Output["readExter
 import {createHmac} from "node:crypto"
 import {existsSync, realpathSync} from "node:fs"
 import {fileURLToPath} from "node:url"
-import {dirname, join, resolve} from "node:path"
+import {join, resolve} from "node:path"
 import {
   type StorybookAttachInput,
   type StorybookCaptureInput,
@@ -32,7 +32,6 @@ import {
   type StorybookStopInput,
   type StorybookWaitInput,
 } from "./contract/control"
-import {externalStorybookImplementationDigest} from "./src/implementation-digest.ts"
 import Limits from "@tech/limits"
 const {STORYBOOK_SERVER_START_TIMEOUT_MS} = Limits
 
@@ -104,15 +103,6 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
       assertOwnedStorybookState(inspection, this.#toolRoot)
       if (inspection.state !== "running" || inspection.record === null) {
         return Object.freeze({status: "success", server: inspection.state, reason: inspection.reason})
-      }
-      if (inspection.record.implementationDigest !== externalStorybookImplementationDigest(this.#toolRoot)) {
-        const current = await this.#statusResult(inspection.record, input.includeViews === true, context.signal, input.scope)
-        return Object.freeze({
-          ...current,
-          server: "stale",
-          running: true,
-          reason: "Storybook implementation changed; storybook_ensure is required",
-        })
       }
       return this.#statusResult(inspection.record, input.includeViews === true, context.signal, input.scope)
     }
@@ -382,9 +372,11 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
 
     async check(input: StorybookCheckInput, context: StorybookControllerContext): Promise<StorybookControllerResult> {
       if (input.scope === "storybook:web") {
+        context.signal.throwIfAborted()
+        const record = await this.#requireRunning()
+        context.signal.throwIfAborted()
         const signal = input.timeoutMs === undefined ? context.signal
           : AbortSignal.any([context.signal, AbortSignal.timeout(input.timeoutMs)])
-        const record = await this.#requireRunning()
         const result = await ServerState.client(record).controlStream(
           "/api/control/app/web/rebuild",
           {live: input.live ?? false},
@@ -393,29 +385,33 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
         )
         return Object.freeze({...result, status: result.ok === true ? "success" : "failed"})
       }
-      const timeoutSignal = AbortSignal.timeout(input.timeoutMs ?? 120_000)
-      const operationContext = Object.freeze({signal: AbortSignal.any([context.signal, timeoutSignal])})
+      context.signal.throwIfAborted()
       const pathScope = existsSync(input.scope) ? realpathSync(input.scope) : null
       if (pathScope !== null) {
-        await this.ensure({schemaVersion: 1, roots: [pathScope]}, operationContext)
+        await this.ensure({schemaVersion: 1, roots: [pathScope]}, {signal: context.signal})
       }
       const record = pathScope === null
-        ? await this.#ensureRunning(operationContext.signal)
+        ? await this.#ensureRunning(context.signal)
         : await this.#requireRunning()
+      context.signal.throwIfAborted()
       const client = ServerState.client(record)
       let result: Readonly<Record<string, unknown>>
       const before = new Map<string, Record<string, unknown>>()
-      try {
-        const baseline = await client.read("/api/control/status", operationContext.signal)
-        for (const item of Array.isArray(baseline.packages) ? baseline.packages : []) {
-          if (item !== null && typeof item === "object" && typeof (item as Record<string, unknown>).packageId === "string") {
-            before.set((item as Record<string, unknown>).packageId as string, item as Record<string, unknown>)
-          }
+      const baseline = await client.read("/api/control/status", context.signal)
+      for (const item of Array.isArray(baseline.packages) ? baseline.packages : []) {
+        if (item !== null && typeof item === "object" && typeof (item as Record<string, unknown>).packageId === "string") {
+          before.set((item as Record<string, unknown>).packageId as string, item as Record<string, unknown>)
         }
+      }
+      // timeoutMs ограничивает только ожидание уже отправленного check.
+      // Подготовка controller/daemon и чтение baseline сохраняют внешний signal.
+      const timeoutSignal = AbortSignal.timeout(input.timeoutMs ?? 120_000)
+      const checkSignal = AbortSignal.any([context.signal, timeoutSignal])
+      try {
         result = await client.controlStream("/api/control/check", {
           scope: pathScope ?? canonicalScope(input.scope),
           live: input.live ?? false,
-        }, context.onProgress, operationContext.signal)
+        }, context.onProgress, checkSignal)
       } catch (error) {
         if (context.signal.aborted || !(error instanceof Error) ||
           error.name !== "TimeoutError" && !timeoutSignal.aborted) throw error
@@ -431,19 +427,33 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
             (item.failedRevision !== previous.failedRevision || Number(item.generation) > Number(previous.generation))
         })
         const discovering = (observed.discovery as {refreshing?: unknown} | null)?.refreshing === true
+        const scheduler = observed.buildScheduler as {active?: unknown, queued?: unknown} | null
+        const sharedOperations = input.scope === "storybook:shared"
+          ? [
+            ...(Array.isArray(scheduler?.active) ? scheduler.active : []),
+            ...(Array.isArray(scheduler?.queued) ? scheduler.queued : []),
+          ].filter(item => item !== null && typeof item === "object" &&
+            (item as Record<string, unknown>).owner === "shared" &&
+            (item as Record<string, unknown>).packageId === null &&
+            typeof (item as Record<string, unknown>).operationId === "string") as Record<string, unknown>[]
+          : []
+        const inProgress = pending.length > 0 || discovering || sharedOperations.length > 0
         return Object.freeze({
           status: failed ? "failed" : "timeout",
           ok: false,
           waitingOnly: !failed,
           checkResultKnown: false,
-          inProgress: pending.length > 0 || discovering,
-          operationIds: pending.flatMap(item => typeof item.pendingOperationId === "string" ? [item.pendingOperationId] : []),
+          inProgress,
+          operationIds: [...new Set([
+            ...pending.flatMap(item => typeof item.pendingOperationId === "string" ? [item.pendingOperationId] : []),
+            ...sharedOperations.map(item => item.operationId as string),
+          ])],
           packages,
           buildScheduler: observed.buildScheduler ?? null,
           error: {
             code: failed ? "ObservedBuildFailure" : "CheckWaitTimeout",
             message: failed ? "После начала проверки обнаружена новая ошибка сборки; актуальная диагностика пакетов приложена."
-              : pending.length > 0 || discovering
+              : inProgress
               ? "Истёк срок ожидания ответа; работа продолжается. Проверьте её через status/wait, не запускайте повторную сборку."
               : "Истёк срок ожидания проверки; актуальные состояния пакетов приложены.",
           },
@@ -479,7 +489,8 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
       }
       assertOwnedStorybookState(inspection, this.#toolRoot)
       const record = inspection.record
-      await stopMismatchedDaemon(record, context.signal, externalStorybookServerStatePath())
+      persistMigrationRecord(this.#toolRoot, record.attachedDeclarations, Number(new URL(record.origin).port))
+      await stopOwnedDaemon(record, context.signal, externalStorybookServerStatePath())
       return Object.freeze({status: "success", stopped: true, instanceId: record.instanceId})
     }
 
@@ -597,13 +608,12 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
     }
 
     async #ensureRunning(signal: AbortSignal): Promise<ExternalStorybookServerRecord> {
-      let implementationDigest = externalStorybookImplementationDigest(this.#toolRoot)
       let inspection = await inspectExternalStorybookServer()
       assertOwnedStorybookState(inspection, this.#toolRoot)
       let migration = readExternalStorybookMigrationRecord()
       assertOwnedMigrationRecord(migration, this.#toolRoot)
       const legacyStatePaths = this.#legacyStatePaths
-      if (compatibleRunningRecord(inspection, implementationDigest, this.#toolRoot) &&
+      if (ownedRunningRecord(inspection, this.#toolRoot) &&
         !legacyStatePaths.some(existsSync) && migration === null) return inspection.record!
       let lease: ReturnType<typeof acquireExternalStorybookStartLease> | null = null
       try {
@@ -614,12 +624,11 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
             lease = acquireExternalStorybookStartLease()
           } catch (error) {
             if (!String(error).includes("start is already in progress")) throw error
-            implementationDigest = externalStorybookImplementationDigest(this.#toolRoot)
             inspection = await inspectExternalStorybookServer()
             assertOwnedStorybookState(inspection, this.#toolRoot)
             migration = readExternalStorybookMigrationRecord()
             assertOwnedMigrationRecord(migration, this.#toolRoot)
-            if (compatibleRunningRecord(inspection, implementationDigest, this.#toolRoot) &&
+            if (ownedRunningRecord(inspection, this.#toolRoot) &&
               !legacyStatePaths.some(existsSync) && migration === null) return inspection.record!
             if (Date.now() >= leaseDeadline) {
               throw new DOMException("Storybook server start coordination timed out", "TimeoutError")
@@ -627,11 +636,10 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
             await Bun.sleep(50)
           }
         }
-        implementationDigest = externalStorybookImplementationDigest(this.#toolRoot)
         migration = await migrateLegacyStorybookState(legacyStatePaths, this.#toolRoot, signal, migration)
         inspection = await inspectExternalStorybookServer()
         assertOwnedStorybookState(inspection, this.#toolRoot)
-        if (compatibleRunningRecord(inspection, implementationDigest, this.#toolRoot)) {
+        if (ownedRunningRecord(inspection, this.#toolRoot)) {
           const record = inspection.record!
           if (migration !== null) clearExternalStorybookMigrationRecord(this.#toolRoot)
           return record
@@ -645,10 +653,10 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
           migration = persistMigrationRecord(this.#toolRoot, declarations, preferredPort)
         }
         if (inspection.state === "running" && inspection.record !== null) {
-          await stopMismatchedDaemon(inspection.record, signal, externalStorybookServerStatePath())
+          await stopOwnedDaemon(inspection.record, signal, externalStorybookServerStatePath())
           inspection = await inspectExternalStorybookServer()
           assertOwnedStorybookState(inspection, this.#toolRoot)
-          if (compatibleRunningRecord(inspection, implementationDigest, this.#toolRoot)) {
+          if (ownedRunningRecord(inspection, this.#toolRoot)) {
             const record = inspection.record!
             if (migration !== null) clearExternalStorybookMigrationRecord(this.#toolRoot)
             return record
@@ -668,7 +676,6 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
         try {
           const record = await waitForRunning(
             signal,
-            implementationDigest,
             this.#toolRoot,
             child,
             Object.freeze({path: lease.path, token: lease.token}),
@@ -678,9 +685,8 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
           return record
         } catch (error) {
           const current = await inspectExternalStorybookServer()
-          const currentDigest = externalStorybookImplementationDigest(this.#toolRoot)
           if (current.state === "running" && current.record?.pid === child.pid &&
-            compatibleRunningRecord(current, currentDigest, this.#toolRoot)) {
+            ownedRunningRecord(current, this.#toolRoot)) {
             child.unref()
           } else {
             await terminateSpawnedDaemon(child)
@@ -697,9 +703,6 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
       assertOwnedStorybookState(inspection, this.#toolRoot)
       if (inspection.state !== "running" || inspection.record === null) {
         throw new Error("External Storybook server is not running")
-      }
-      if (inspection.record.implementationDigest !== externalStorybookImplementationDigest(this.#toolRoot)) {
-        throw new Error("External Storybook implementation changed; call storybook_ensure")
       }
       return inspection.record
     }
@@ -731,7 +734,6 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
 
   async function waitForRunning(
     signal: AbortSignal,
-    implementationDigest: string,
     toolRoot: string,
     child: SpawnedStorybookDaemon,
     startLease: Readonly<{path: string; token: string}>,
@@ -753,14 +755,7 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
         })
         const inspection = await inspectExternalStorybookServer()
         assertOwnedStorybookState(inspection, toolRoot)
-        if (compatibleRunningRecord(inspection, implementationDigest, toolRoot)) return inspection.record!
-        if (inspection.state === "running" && inspection.record !== null) {
-          const currentDigest = externalStorybookImplementationDigest(toolRoot)
-          if (compatibleRunningRecord(inspection, currentDigest, toolRoot)) return inspection.record
-          if (inspection.record.pid === child.pid) {
-            throw new Error("Storybook implementation changed while the daemon was starting")
-          }
-        }
+        if (ownedRunningRecord(inspection, toolRoot)) return inspection.record!
         if (inspection.state === "stale" && !inspection.replaceable) {
           throw new Error(`Storybook daemon published ambiguous state: ${inspection.reason}`)
         }
@@ -812,13 +807,13 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
     return error instanceof Error ? error.message : String(error)
   }
 
-  async function stopMismatchedDaemon(
+  async function stopOwnedDaemon(
     record: ExternalStorybookServerRecord,
     signal: AbortSignal,
     statePath: string,
   ): Promise<void> {
     try {
-      if (record.implementationDigest === undefined) {
+      if (record.controlToken === "") {
         const response = await fetch(new URL("/api/stop", record.origin), {
           method: "POST",
           redirect: "error",
@@ -834,9 +829,10 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
         )
       }
     } catch (error) {
+      signal.throwIfAborted()
       const current = await inspectExternalStorybookServer(statePath)
       if (current.state === "running" && current.record?.instanceId === record.instanceId) {
-        throw new Error("Storybook daemon implementation upgrade could not stop the previous instance", {
+        throw new Error("Storybook could not stop its daemon", {
           cause: error,
         })
       }
@@ -850,17 +846,16 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
         current.state === "running" && current.record?.instanceId !== record.instanceId) return
       await Bun.sleep(50)
     }
-    throw new DOMException("Storybook daemon implementation upgrade timed out", "TimeoutError")
+    throw new DOMException("Storybook daemon stop timed out", "TimeoutError")
   }
 
-  function compatibleRunningRecord(
+  function ownedRunningRecord(
     inspection: Awaited<ReturnType<typeof inspectExternalStorybookServer>>,
-    implementationDigest: string,
     toolRoot: string,
   ): boolean {
     return inspection.state === "running" && inspection.record !== null &&
       inspection.record.toolRoot === toolRoot &&
-      inspection.record.implementationDigest === implementationDigest
+      inspection.record.controlToken !== ""
   }
 
   async function migrateLegacyStorybookState(
@@ -901,7 +896,7 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
     )
     for (const {statePath, inspection, record} of candidates) {
       if (inspection.state === "running") {
-        await stopMismatchedDaemon(record, signal, statePath)
+        await stopOwnedDaemon(record, signal, statePath)
         continue
       }
       removeReplaceableExternalStorybookState(inspection, statePath)

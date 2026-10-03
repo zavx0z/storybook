@@ -1,15 +1,15 @@
 import {expect, test} from "bun:test"
 import {Client, InMemoryTransport} from "@modelcontextprotocol/client"
-import type {CreateStorybookMcpServerInput} from "./mcp/contract/input"
+import type {AppMcp} from "@app/mcp"
 import {createAppMcpServer} from "./mcp.ts"
 
-test("app добавляет явное управление Web, сохраняет lazy proxy и передаёт request progress", async () => {
+test("app передаёт контроллер MCP без загрузки при предметном чтении и сохраняет request progress", async () => {
   let loads = 0
   const calls: unknown[] = []
   const progress: {progress: number, message?: string | undefined}[] = []
   /** Остальные управляющие входы присутствуют, но этот пример использует только check. */
   const unused = async () => ({status: "success" as const})
-  const controller: NonNullable<CreateStorybookMcpServerInput["controller"]> = {
+  const controller: NonNullable<AppMcp.Input["controller"]> = {
     ensure: unused,
     status: unused,
     attach: unused,

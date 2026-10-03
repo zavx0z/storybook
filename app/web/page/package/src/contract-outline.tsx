@@ -3,8 +3,8 @@ import Tree, {type TreeItem, type TreeHandle} from "@zavx0z/ui/widget/tree"
 import {useLayoutEffect, useRef, useState} from "@zavx0z/component"
 import type {PageShell} from "@page/shell"
 type StorybookContractDocument = Parameters<PageShell.Output["showContract"]>[1][number]
-import type {WebWorkbenchModel} from "@web/workbench-model"
-type WorkbenchInspectorCustomWidgetProps = Extract<ReturnType<WebWorkbenchModel.Output["getSnapshot"]>["state"]["inspector.registry"][number], {kind: "custom"}>["component"] extends CompiledTemplate<infer Props> ? Props : never
+import type {WebWorkbench} from "@web/workbench"
+type WorkbenchInspectorCustomWidgetProps = Extract<ReturnType<WebWorkbench.Output["getSnapshot"]>["state"]["inspector.registry"][number], {kind: "custom"}>["component"] extends CompiledTemplate<infer Props> ? Props : never
 
 /** Точная декларация TypeDoc из transport контракта Storybook. */
 type ContractDeclaration = StorybookContractDocument["document"]["declarations"][number]

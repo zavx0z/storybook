@@ -20,7 +20,7 @@ export function seedPublishedSharedAssets(artifactRoot: string): void {
   const sources = BuildEnvironmentOwner.sourceFiles(modules)
   const theme = AppWebBuildOwner.readTheme(toolRoot)[0]!
   const stylePath = `styles/${theme.contentDigest}.css`
-  const paths = ["entries/page.js", "entries/package.js", "entries/bootstrap.js",
+  const paths = ["entries/page.js", "entries/bootstrap.js",
     ...modules.map(module => module.url.slice("/__storybook/shared/".length))]
   for (const path of paths) {
     mkdirSync(dirname(join(root, path)), {recursive: true})
@@ -29,13 +29,12 @@ export function seedPublishedSharedAssets(artifactRoot: string): void {
   mkdirSync(dirname(join(root, stylePath)), {recursive: true})
   writeFileSync(join(root, stylePath), readFileSync(theme.path))
   const identity = BuildEnvironmentOwner.identity("/__storybook/shared/entries/page.js", modules,
-    digest("fixture host"), sources,
-    "/__storybook/shared/entries/package.js")
+    digest("fixture host"), sources)
   AppWebBuildOwner.saveReceipt({
     root,
     landingEntry: paths[0]!,
     fallbackEntry: paths[0]!,
-    bootstrapEntry: paths[2]!,
+    bootstrapEntry: paths[1]!,
     browserIdentity: identity,
     dependencyRealpaths: [...sources.map(source => source.path), theme.path],
     authorStyleSheets: [{specifier: theme.specifier, url: stylePath, contentDigest: theme.contentDigest}],

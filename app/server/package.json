@@ -26,19 +26,17 @@
     "@route/url": "workspace:*",
     "@hmr/activation": "workspace:*",
     "@package-graph/read": "workspace:*",
-    "@app/mcp": "workspace:*",
     "@mcp-rest/requests": "workspace:*",
     "@repo/discovery": "workspace:*",
-    "@app-web/build": "workspace:*",
     "@package-build/prepare": "workspace:*",
     "@package-build/fingerprint": "workspace:*",
-    "@build/environment": "workspace:*",
     "@package-build/scheduler": "workspace:*",
     "@package/resources": "workspace:*",
     "@tech/limits": "workspace:*",
     "@app-mcp/response": "workspace:*",
     "@zavx0z/storybook-browser-lifecycle": "workspace:*",
-    "@archetypes/project": "workspace:*"
+    "@archetypes/project": "workspace:*",
+    "@app/web": "workspace:*"
   },
   "devDependencies": {
     "@build/artifacts": "workspace:*",
@@ -51,6 +49,9 @@
     "@package/artifacts": "workspace:*",
     "@package-graph/create": "workspace:*",
     "@storybook/route": "workspace:*",
-    "@web/release": "workspace:*"
+    "@web/release": "workspace:*",
+    "@app/mcp": "workspace:*",
+    "@app-web/build": "workspace:*",
+    "@build/environment": "workspace:*"
   }
 }

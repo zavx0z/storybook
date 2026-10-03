@@ -1,9 +1,9 @@
 import BuildInputs from "@build/inputs"
 import {afterAll, describe, expect, test} from "bun:test"
-import {mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync} from "node:fs"
+import {mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import {resolveStorybookSharedBuildInputFingerprintPlan} from "../src/plan"
+import {beginStorybookSharedBuildInputAttestation, resolveStorybookSharedBuildInputFingerprintPlan} from "../src/plan"
 
 const toolRoot = realpathSync(join(import.meta.dir, "../../../.."))
 const roots: string[] = []
@@ -48,6 +48,46 @@ describe("shared browser build input plan", () => {
     rmSync(fixture.fallback)
     writeFileSync(fixture.fallback, fixture.fallbackSource)
     expect(fingerprint().digest).toBe(baseline.digest)
+  })
+
+  test("foreign ancestor configs и extends attested заранее, соседний файл не получает разрешение", async () => {
+    const fixture = createSharedFixture()
+    const foreign = realpathSync(mkdtempSync(join(tmpdir(), "storybook-foreign-config-")))
+    roots.push(foreign)
+    const owner = join(foreign, "owner")
+    mkdirSync(owner)
+    mkdirSync(join(foreign, ".git"))
+    writeFileSync(join(owner, "package.json"), JSON.stringify({name: "@fixture/foreign-config", exports: "./index.ts"}))
+    writeFileSync(join(owner, "index.ts"), "export const value = 1\n")
+    const config = join(foreign, "tsconfig.json")
+    const base = join(foreign, "base.json")
+    writeFileSync(join(owner, "tsconfig.json"), JSON.stringify({extends: "../tsconfig.json"}))
+    writeFileSync(config, JSON.stringify({extends: "./base.json"}))
+    writeFileSync(base, JSON.stringify({compilerOptions: {strict: true}}))
+    const neighbor = join(foreign, "unselected.ts")
+    writeFileSync(neighbor, "export const unrelated = true\n")
+    const manifest = join(fixture.root, "package.json")
+    writeFileSync(manifest, JSON.stringify({...JSON.parse(readFileSync(manifest, "utf8")),
+      dependencies: {"@fixture/foreign-config": `file:${owner}`},
+    }))
+    const request = {toolRoot: fixture.root, landingEntryPath: fixture.landing, fallbackEntryPath: fixture.fallback}
+    const plan = resolveStorybookSharedBuildInputFingerprintPlan(request)
+    expect(plan.scope.files).toContain(config)
+    expect(plan.scope.files).toContain(base)
+    expect(plan.scope.guardRoots).not.toContain(foreign)
+    const stable = await beginStorybookSharedBuildInputAttestation(request)
+    try {
+      expect(stable.before.files.map(file => file.path)).toContain(base)
+      expect((await stable.complete([config, base])).digest).toBe(stable.before.digest)
+    } finally { stable.dispose() }
+    const escaped = await beginStorybookSharedBuildInputAttestation(request)
+    try { await expect(escaped.complete([neighbor])).rejects.toThrow("escaped attested owner roots") }
+    finally { escaped.dispose() }
+    const changed = await beginStorybookSharedBuildInputAttestation(request)
+    try {
+      writeFileSync(base, JSON.stringify({compilerOptions: {strict: false}}))
+      await expect(changed.complete([base])).rejects.toThrow("changed during compilation")
+    } finally { changed.dispose() }
   })
 
 })

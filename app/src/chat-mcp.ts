@@ -10,7 +10,7 @@ const root = fileURLToPath(new URL("../..", import.meta.url))
 serveMcpStdio({
   diagnosticLabel: "storybook-chat-mcp",
   createServer: () => createLazyMcpServer({
-    serverModule: fileURLToPath(new URL("./mcp/chat.ts", import.meta.url)),
+    serverModule: fileURLToPath(new URL("../mcp/src/chat.ts", import.meta.url)),
     cwd: root,
     temporaryRoot: join(tmpdir(), "storybook-chat-mcp"),
     watchRoot: root,

@@ -26,3 +26,6 @@ export {serveMcpStdio, createRequestProgress} from "@tech/mcp"
 export type {McpStdio, McpProgress} from "@tech/mcp"
 export {default as Limits} from "@tech/limits"
 export type {TechLimits} from "@tech/limits"
+
+export {browserRootFixture} from "@tech/testing"
+export type {WebBrowserFixture} from "@tech/testing"

@@ -199,7 +199,6 @@ test("Web с сохранённым kernel не подтверждает кэш 
         original.browserIdentity!.modules,
         digest(readFileSync(web, "utf8")),
         original.browserIdentity!.sourceFiles,
-        undefined,
         false,
       ),
     }

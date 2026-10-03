@@ -1,10 +1,10 @@
 import type {createRoot as createBrowserRoot, IntegrationRoot} from "@zavx0z/browser/integration"
-import type {WebWorkbenchModel} from "@web/workbench-model"
+import type {WebWorkbench} from "@web/workbench"
 import type {WebMinimap} from "@web/minimap"
 import type {WebMcpWindow} from "@web/mcp-window"
 import type {SavedState} from "./viewpoint-state"
 
-type WorkbenchUserState = ReturnType<ReturnType<WebWorkbenchModel.Output["bind"]>["controller"]["captureUserState"]>
+type WorkbenchUserState = NonNullable<WebWorkbench.Input["userState"]>
 type MinimapState = NonNullable<WebMinimap.Input["initialState"]>
 type McpWindowState = NonNullable<WebMcpWindow.Input["initialState"]>
 
@@ -21,8 +21,8 @@ export type ExternalStorybookNativeKey = Readonly<{
 /** Снимок настроек именно этой вкладки; другой localStorage writer не меняет её HMR-состояние. */
 export type StorybookShellUserState = Readonly<{
   workbench: WorkbenchUserState
-  minimap: MinimapState
-  mcpWindow: McpWindowState
+  minimap: MinimapState | undefined
+  mcpWindow: McpWindowState | undefined
   viewPoint: SavedState
   collapsedNavigation: readonly string[]
 }>

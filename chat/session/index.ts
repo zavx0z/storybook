@@ -6,8 +6,8 @@
 @packageDocumentation
 */
 import {createHash, randomUUID} from "node:crypto"
-import {mkdir, readFile, rename, writeFile} from "node:fs/promises"
-import {join} from "node:path"
+import {link, mkdir, readFile, rename, unlink, writeFile} from "node:fs/promises"
+import {isAbsolute, join} from "node:path"
 import type {TechAcp} from "@tech/acp"
 import type {ChatSession} from "./contract"
 import type {Message, Permission, Snapshot, Subject} from "./contract/state"
@@ -50,6 +50,7 @@ type State = {
 */
 export default function createChatSessions(input: ChatSession.Input): ChatSession.Output {
   const states = new Map<string, Promise<State>>()
+  const relocating = new Set<string>()
   let disposed = false
   const snapshot = (state: State): Snapshot => structuredClone({
     id: state.id, address: state.subject.address, label: state.subject.label,
@@ -76,12 +77,12 @@ export default function createChatSessions(input: ChatSession.Input): ChatSessio
   }
   const load = async (address: string): Promise<State> => {
     if (disposed) throw new Error("Чаты остановлены")
+    if (relocating.has(address)) throw new Error("Беседа переносится на новый адрес")
     const subject = input.resolve(address)
     let pending = states.get(subject.address)
     if (pending === undefined) {
       pending = (async () => {
-        const addressKey = createHash("sha256").update(subject.address).digest("hex")
-        const file = join(input.directory, `${addressKey}.json`)
+        const file = chatFile(input.directory, subject.address)
         const id = createHash("sha256").update(input.directory).update("\0").update(subject.address).digest("hex")
         let document: Document = {schemaVersion: 1, id, address: subject.address, messages: [], status: "idle", error: null}
         try {
@@ -190,6 +191,7 @@ export default function createChatSessions(input: ChatSession.Input): ChatSessio
       if (typeof text !== "string" || text.trim().length === 0 || text.length > 64_000) throw new TypeError("Сообщение должно содержать от 1 до 64000 символов")
       if (typeof requestId !== "string" || requestId.length === 0 || requestId.length > 128) throw new TypeError("Нужен идентификатор отправки")
       const state = await load(address)
+      if (relocating.has(address)) throw new Error("Беседа переносится на новый адрес")
       const id = `user:${requestId}`
       const previous = state.document.messages.find(message => message.id === id && message.role === "user")
       if (previous !== undefined) {
@@ -234,9 +236,107 @@ export default function createChatSessions(input: ChatSession.Input): ChatSessio
     },
     async subscribe(address, listener) {
       const state = await load(address)
+      if (relocating.has(address)) throw new Error("Беседа переносится на новый адрес")
       state.listeners.add(listener)
       listener(snapshot(state))
       return () => { state.listeners.delete(listener) }
+    },
+    async relocate({from, to}) {
+      if (disposed) throw new Error("Чаты остановлены")
+      if (typeof from?.address !== "string" || typeof to?.address !== "string" ||
+        !from.address.startsWith("/") || !to.address.startsWith("/") ||
+        /[?#]/u.test(from.address) || /[?#]/u.test(to.address) ||
+        from.address === to.address || typeof from.cwd !== "string" || typeof to.cwd !== "string" ||
+        !isAbsolute(from.cwd) || !isAbsolute(to.cwd)) {
+        throw new TypeError("Нужно точное соответствие прежнего и нового адреса и cwd")
+      }
+      if (relocating.has(from.address) || relocating.has(to.address)) {
+        throw new Error("Беседа уже переносится")
+      }
+      relocating.add(from.address)
+      relocating.add(to.address)
+      let moved = false
+      try {
+        const subject = input.resolve(to.address)
+        if (subject.address !== to.address || subject.cwd !== to.cwd) {
+          throw new Error("Новый адрес и cwd не совпадают с текущим каталогом")
+        }
+        const oldFile = chatFile(input.directory, from.address)
+        const newFile = chatFile(input.directory, to.address)
+        const current = await states.get(from.address)
+        const existing = await states.get(to.address)
+        if (current?.turn !== undefined || current?.permissions.size ||
+          current?.document.status === "connecting" || current?.document.status === "running" ||
+          existing?.turn !== undefined || existing?.document.status === "connecting" ||
+          existing?.document.status === "running") {
+          throw new Error("Активную беседу нельзя переносить до завершения turn")
+        }
+        await current?.write
+        const source = await readChatDocument(oldFile, from.address)
+        if (source === null) return null
+        if (current !== undefined && (current.id !== source.id || current.document.address !== from.address)) {
+          throw new Error("Загруженная беседа не совпадает с сохранённой историей")
+        }
+        if (source.cwd !== undefined && source.cwd !== from.cwd) {
+          throw new Error("Сохранённый cwd не совпадает с прежним владельцем беседы")
+        }
+        const target = await readChatDocument(newFile, to.address)
+        if (target !== null) {
+          if (target.id !== source.id || target.cwd !== undefined && target.cwd !== to.cwd ||
+            existing !== undefined && existing.id !== source.id) {
+            throw new Error("Новый адрес уже занят другой беседой")
+          }
+          if (current !== undefined && existing === undefined) {
+            await current.connection?.dispose()
+            delete current.connection
+            current.subject = subject
+            current.file = newFile
+            current.document = target
+            states.delete(from.address)
+            states.set(to.address, Promise.resolve(current))
+            publish(current)
+          }
+          moved = true
+        } else {
+          if (existing !== undefined) throw new Error("Новый адрес уже занят другой беседой")
+          await current?.connection?.dispose()
+          if (current !== undefined) delete current.connection
+          const document: Document = {
+            ...source,
+            address: to.address,
+            ...(source.cwd === undefined ? {} : {cwd: to.cwd}),
+          }
+          await mkdir(input.directory, {recursive: true})
+          const temporary = `${newFile}.${randomUUID()}.tmp`
+          try {
+            await writeFile(temporary, `${JSON.stringify(document, null, 2)}\n`, {mode: 0o600, flag: "wx"})
+            await link(temporary, newFile)
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error
+            const concurrent = await readChatDocument(newFile, to.address)
+            if (concurrent?.id !== source.id || concurrent.cwd !== document.cwd) {
+              throw new Error("Новый адрес уже занят другой беседой")
+            }
+          } finally {
+            await unlink(temporary).catch(error => {
+              if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error
+            })
+          }
+          if (current !== undefined) {
+            current.subject = subject
+            current.file = newFile
+            current.document = document
+            states.delete(from.address)
+            states.set(to.address, Promise.resolve(current))
+            publish(current)
+          }
+          moved = true
+        }
+      } finally {
+        relocating.delete(from.address)
+        relocating.delete(to.address)
+      }
+      return moved ? snapshot(await load(to.address)) : null
     },
     async dispose() {
       if (disposed) return
@@ -259,6 +359,23 @@ export default function createChatSessions(input: ChatSession.Input): ChatSessio
       if (failures.length) throw new AggregateError(failures.map(result => result.reason), "Не все чаты удалось освободить")
     },
   }
+}
+
+function chatFile(directory: string, address: string): string {
+  return join(directory, `${createHash("sha256").update(address).digest("hex")}.json`)
+}
+
+async function readChatDocument(file: string, address: string): Promise<Document | null> {
+  let text: string
+  try {
+    text = await readFile(file, "utf8")
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null
+    throw error
+  }
+  const value: unknown = JSON.parse(text)
+  if (!validDocument(value, address)) throw new Error(`Повреждена история чата ${address}`)
+  return value
 }
 
 function validDocument(value: unknown, address: string): value is Document {

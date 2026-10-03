@@ -25,8 +25,8 @@ import {component} from "@zavx0z/component"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
 import {HTMLElement as SemanticHTMLElement, type Node as SemanticNode} from "@zavx0z/dom"
 import {HUDElement} from "@zavx0z/dom/hud"
-import type {WebWorkbenchModel} from "@web/workbench-model"
-type Workbench = ReturnType<WebWorkbenchModel.Output["bind"]>
+import type {WebWorkbench} from "@web/workbench"
+type Workbench = WebWorkbench.Output
 
 import {renderStorybookMarkdown, type StorybookMarkdownPresentation} from "./src/markdown.ts"
 import {createStorybookMessagePresentation} from "./src/message-presentation.ts"

@@ -26,8 +26,6 @@ const readCatalogProgress = WebStatusOwner.readCatalog
 const readSharedCacheProgress = WebStatusOwner.readSharedCache
 const sharedCacheProgressStatus = WebStatusOwner.sharedCache
 import createExternalStorybookShell from "@page/shell"
-import WebClientOwner from "@web/client"
-const fetchExternalStorybookClientSnapshot = WebClientOwner.fetchExternalStorybookClientSnapshot
 import type {PageShell} from "@page/shell"
 type StorybookRetainedRoot = ReturnType<PageShell.Output["releaseRoot"]>
 import type {WebPage} from "./contract"
@@ -79,7 +77,6 @@ async function startExternalStorybookPage(
   const prepareTarget = options.prepareTarget ?? ((input, signal) =>
     PageTarget.prepare(fetcher, input, signal))
   const pageLifetime = new AbortController()
-  let navigationSnapshot = await fetchExternalStorybookClientSnapshot(fetcher)
   const readHost = (epoch: string | undefined, token: string, signal: AbortSignal, preview = false) => options.readSharedHost?.(epoch, token, signal, preview)
     ?? WebProtocol.readSharedHost(fetcher, token, signal, epoch, preview)
   const host = options.sharedHost ?? await readHost(options.sharedModuleEpoch, initialTarget.readerToken, pageLifetime.signal,
@@ -560,10 +557,8 @@ async function startExternalStorybookPage(
         try {
           const target = await prepareTarget(request, pageLifetime.signal)
           const payload = target.kind === "landing" ? null : await loadPayload(target, pageLifetime.signal)
-          const preparedNavigation = await fetchExternalStorybookClientSnapshot(fetcher)
           pending?.dispose()
           await installPrepared(target, payload, replaceAddress)
-          navigationSnapshot = preparedNavigation
         } finally {
           pending?.dispose()
         }
@@ -599,9 +594,7 @@ async function startExternalStorybookPage(
         intent: current.target.intent,
         preview: current.target.preview,
       })
-      const snapshot = await fetchExternalStorybookClientSnapshot(fetcher)
       await installPrepared(target, payload, null)
-      navigationSnapshot = snapshot
     })
     transitionTail = operation.catch(() => {})
     return operation

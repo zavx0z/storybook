@@ -7,9 +7,10 @@ import {createDocumentInteractionController, createDocumentRenderer, hitTestProj
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
 import type {WebMinimap} from "@web/minimap"
 type MinimapProps = WebMinimap.Input
-type MinimapState = NonNullable<WebMinimap.Input["initialState"]>
+type MinimapState = WebMinimap.Output
 import {createMinimapPersistence} from "../src/minimap-persistence"
-import defaultMinimapState from "@minimap/state"
+
+const initialLayout: MinimapState = {collapsed: false, geometry: {x: 8, y: 8, width: 300, height: 480}, tab: {edge: "left", offset: .5}}
 
 const theme = await Bun.file(Bun.resolveSync("@zavx0z/ui/theme/theme.css", import.meta.dir)).text()
 
@@ -104,7 +105,7 @@ test("Minimap восстанавливает окно и Tab после ново
     host.input.pointerUp(frame, tabEnd)
     host.flush()
     expect(writes).toEqual(Array(4).fill("storybook.minimap.v1"))
-    const state = createMinimapPersistence(storage).initialState
+    const state = JSON.parse(saved!) as MinimapState
     expect(state.collapsed).toBeTrue()
     expect(state.geometry).toEqual({x: 48, y: 38, width: 340, height: 500})
     expect(state.tab.edge).toBe("right")
@@ -120,12 +121,12 @@ test("Minimap восстанавливает окно и Tab после ново
     host.click("Fixture Project")
     const box = host.flush().boxByNode.get(shell)!
     expect({x: box.x, y: box.y, width: box.width, height: box.height}).toEqual(state.geometry)
-    expect(createMinimapPersistence(storage).initialState.collapsed).toBeFalse()
+    expect(createMinimapPersistence(storage).initialState?.collapsed).toBeFalse()
   } finally { host.dispose() }
 })
 
 test("отмена перемещения окна и Tab не перезаписывает завершённое состояние", () => {
-  const state = defaultMinimapState()
+  const state = structuredClone(initialLayout)
   let saved = JSON.stringify(state)
   let writes = 0
   const storage = () => ({getItem: () => saved, setItem: (_key: string, value: string) => {
@@ -168,10 +169,16 @@ test("восстановленное окно помещается в умень
 
 test("повреждённое или недоступное хранилище сохраняет работоспособность Minimap", () => {
   const blocked = createMinimapPersistence(() => { throw new Error("Storage disabled") })
-  expect(blocked.initialState).toEqual(defaultMinimapState())
-  expect(() => blocked.save(defaultMinimapState())).not.toThrow()
+  expect(blocked.initialState).toBeUndefined()
+  expect(() => blocked.save(initialLayout)).not.toThrow()
   const broken = createMinimapPersistence(() => ({getItem: () => "{", setItem() {}}))
-  expect(broken.initialState).toEqual(defaultMinimapState())
-  const partial = createMinimapPersistence(() => ({getItem: () => JSON.stringify({collapsed: true, geometry: {x: -10, y: "bad", width: 0, height: 200}, tab: {edge: "invalid", offset: 2}}), setItem() {}}))
-  expect(partial.initialState).toEqual({collapsed: true, geometry: {x: 0, y: 8, width: 300, height: 200}, tab: {edge: "left", offset: 1}})
+  expect(broken.initialState).toBeUndefined()
+  let saved: string | null = null
+  const storage = () => ({getItem: () => saved ?? JSON.stringify({collapsed: true, geometry: {x: -10, y: "bad", width: 0, height: 200}, tab: {edge: "invalid", offset: 2}}), setItem: (_key: string, value: string) => { saved = value }})
+  const host = mount(storage)
+  try {
+    expect(host.root.querySelector("[data-window]")!.hasAttribute("hidden")).toBeTrue()
+    host.click("Fixture Project")
+    expect(JSON.parse(saved!), "После действия Minimap сохраняет полный проверенный снимок").toEqual({collapsed: false, geometry: {x: 0, y: 8, width: 300, height: 200}, tab: {edge: "left", offset: 1}})
+  } finally { host.dispose() }
 })

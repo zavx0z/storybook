@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Жизненный цикл и публичный контракт @web/page",
+  "description": "Одна страница Storybook: общая среда, переходы между Home и Package и обновление с сохранением контекста",
   "exports": {
     ".": "./index.ts"
   },
@@ -16,7 +16,6 @@
     "@page/package": "workspace:*",
     "@page/shell": "workspace:*",
     "@web/agent-bridge": "workspace:*",
-    "@web/client": "workspace:*",
     "@web/page-target": "workspace:*",
     "@web/status": "workspace:*",
     "@web/style-sheets": "workspace:*"

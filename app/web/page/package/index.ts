@@ -20,14 +20,9 @@ import ReadGraph from "@package-graph/read"
 
 import type {CustomEvent} from "@zavx0z/dom"
 
-import WorkbenchOwner from "@web/workbench-model"
-const WORKBENCH_EVENTS = WorkbenchOwner.events
-import type {WebWorkbenchModel} from "@web/workbench-model"
-type WorkbenchPresentationUpdate = Parameters<ReturnType<WebWorkbenchModel.Output["bind"]>["present"]>[0]
+import type {WebWorkbench} from "@web/workbench"
+type WorkbenchPresentationUpdate = Parameters<WebWorkbench.Output["present"]>[0]
 
-const WORKBENCH_CHAT_WIDGET = WorkbenchOwner.chatWidget
-const WORKBENCH_STANDARD_WIDGET_REGISTRY = WorkbenchOwner.standardWidgets
-const withWorkbenchChat = WorkbenchOwner.withChat
 import createStorybookAgentBridge from "@web/agent-bridge"
 import Revision from "@package/revision"
 const deriveStorybookBreadcrumbs = WebNavigationOwner.deriveStorybookBreadcrumbs
@@ -193,7 +188,7 @@ async function startExternalStorybookPackage(
   let reloadingFallback = false
   let disposed = false
   const publishInspectorRegistry = (): void => {
-    shell.workbench.update("inspector.registry", Object.freeze([WORKBENCH_CHAT_WIDGET, ...WORKBENCH_STANDARD_WIDGET_REGISTRY, ...BUILTIN_INSPECTOR_WIDGETS]))
+    shell.workbench.configureInspector(BUILTIN_INSPECTOR_WIDGETS)
   }
 
   /**
@@ -208,16 +203,16 @@ async function startExternalStorybookPackage(
     next: WorkbenchPresentationUpdate,
     ownerPresentation = false,
   ): void => {
-    const withChat = Object.freeze({...next, ...withWorkbenchChat({
+    const withChat: WorkbenchPresentationUpdate = Object.freeze({...next, chat: {
       address: currentModel.selectedNode.urlPath,
       label: currentModel.selectedNode.label,
       fetcher,
-    }, next.inspectorSubject ?? {
+    }, inspectorSubject: next.inspectorSubject ?? {
       packageId,
       subjectId: currentModel.selectedNode.id,
       workspaceId: currentModel.urlPath,
       widgetIds: [],
-    }, next.inspectorValues)})
+    }})
     activePresentationView = withChat
     if (ownerPresentation) shell.present(withChat)
     else shell.workbench.present(withChat)
@@ -807,9 +802,9 @@ async function startExternalStorybookPackage(
       isolatePackageError(browserDocument, shell, currentModel, error)
     }
   }
-  shell.workbench.element.addEventListener(WORKBENCH_EVENTS.navigate, onNavigate)
-  shell.workbench.element.addEventListener(WORKBENCH_EVENTS.tab, onTab)
-  shell.workbench.element.addEventListener(WORKBENCH_EVENTS.inspector, onInspector)
+  shell.workbench.element.addEventListener(shell.workbench.events.navigate, onNavigate)
+  shell.workbench.element.addEventListener(shell.workbench.events.tab, onTab)
+  shell.workbench.element.addEventListener(shell.workbench.events.inspector, onInspector)
   const browserWindow = browserDocument.defaultView ?? globalThis
   if (embeddedPageScope === undefined) browserWindow.addEventListener?.("popstate", onPopState)
 
@@ -1022,9 +1017,9 @@ async function startExternalStorybookPackage(
     if (embeddedPageScope === undefined) browserWindow.removeEventListener?.("popstate", onPopState)
     if (embeddedPageScope === undefined) globalThis.removeEventListener?.("pagehide", onPageHide)
     environment.lifecycleSignal?.removeEventListener("abort", onPageHide)
-        shell.workbench.element.removeEventListener(WORKBENCH_EVENTS.navigate, onNavigate)
-        shell.workbench.element.removeEventListener(WORKBENCH_EVENTS.tab, onTab)
-        shell.workbench.element.removeEventListener(WORKBENCH_EVENTS.inspector, onInspector)
+        shell.workbench.element.removeEventListener(shell.workbench.events.navigate, onNavigate)
+        shell.workbench.element.removeEventListener(shell.workbench.events.tab, onTab)
+        shell.workbench.element.removeEventListener(shell.workbench.events.inspector, onInspector)
     const cleanupTimeoutMs = boundedCleanupTimeout(environment.cleanupTimeoutMs ?? 5_000)
     disposePromise = (async () => {
       try {

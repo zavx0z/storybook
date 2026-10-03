@@ -1,5 +1,6 @@
 import type {TechAcp} from "@tech/acp"
 import type {Snapshot, Subject} from "./state"
+import type {Relocation} from "./relocation"
 
 /** Контракт адресных бесед одного Project. */
 export declare namespace ChatSession {
@@ -30,6 +31,9 @@ export declare namespace ChatSession {
   @property cancel - Запрашивает отмену только текущего turn выбранной беседы.
   @property permission - Разрешает ожидающий запрос ровно одним из переданных исполнителем вариантов.
   @property subscribe - Передаёт текущий снимок и изменения; отписка не отменяет выполнение.
+  @property relocate - Переносит только явно названную историю на новый адрес,
+  сохраняя id, сообщения и ACP sessionId. При активном turn или занятой цели
+  отказывает без перезаписи. Старый файл остаётся для восстановления.
   @property dispose - Отменяет работу, закрывает подключения и дожидается записи историй.
   */
   type Output = Readonly<{
@@ -38,6 +42,7 @@ export declare namespace ChatSession {
     cancel(address: string): Promise<Snapshot>
     permission(address: string, id: string, optionId: string): Promise<Snapshot>
     subscribe(address: string, listener: (value: Snapshot) => void): Promise<() => void>
+    relocate(input: Relocation): Promise<Snapshot | null>
     dispose(): Promise<void>
   }>
 }

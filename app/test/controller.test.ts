@@ -7,7 +7,6 @@ import {afterAll, beforeAll, beforeEach, describe, expect, test} from "bun:test"
 import {cpSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import {externalStorybookImplementationDigest} from "../src/implementation-digest.ts"
 const stateRoot = mkdtempSync(join(tmpdir(), "storybook-controller-"))
 const previousConfigRoot = Bun.env.STORYBOOK_CONFIG_ROOT
 const previousStateRoot = Bun.env.STORYBOOK_STATE_ROOT
@@ -75,25 +74,11 @@ describe.serial("external Storybook shared controller", () => {
     const orphan = join(stateRoot, "artifacts", "orphan-package", "old-revision", "entry.js")
     mkdirSync(join(orphan, ".."), {recursive: true})
     writeFileSync(orphan, "stale")
-    writeExternalStorybookServerRecord(statePath, Object.freeze({
-      ...running,
-      implementationDigest: "0".repeat(64),
-    }))
-    const staleStatus = await second.status({schemaVersion: 1}, context())
-    expect(staleStatus).toMatchObject({
-      status: "success",
-      server: "stale",
-      running: true,
-    })
-    expect(Array.isArray(staleStatus.packages)).toBe(true)
-    expect(staleStatus.buildScheduler).toMatchObject({activeCount: 0, queuedCount: 0})
-    const upgraded = await second.ensure({schemaVersion: 1}, context())
-    expect(upgraded.instanceId).not.toBe(ensured.instanceId)
-    const upgradedRecord = readExternalStorybookServerRecord(statePath)
-    expect(new URL(upgradedRecord.origin).port).toBe(runningPort)
-    expect(upgradedRecord.implementationDigest).toBe(
-      externalStorybookImplementationDigest(toolRoot),
-    )
+    await second.stop({schemaVersion: 1, confirm: true}, context())
+    const restarted = await second.ensure({schemaVersion: 1}, context())
+    expect(restarted.instanceId).not.toBe(ensured.instanceId)
+    const restartedRecord = readExternalStorybookServerRecord(statePath)
+    expect(new URL(restartedRecord.origin).port).toBe(runningPort)
     expect(existsSync(orphan)).toBeFalse()
 
     const search = await second.search({
@@ -147,7 +132,7 @@ describe.serial("external Storybook shared controller", () => {
     ], {cwd: toolRoot, stdout: "pipe", stderr: "pipe"})
     await waitForPath(legacyStatePath)
     const legacyRecord = readExternalStorybookServerRecord(legacyStatePath)
-    expect(legacyRecord.implementationDigest).toBeUndefined()
+    expect(legacyRecord.controlToken).toBe("")
 
     const marker = join(stateRoot, "legacy-slow-daemon.pid")
     const previousMarker = Bun.env.STORYBOOK_SLOW_DAEMON_MARKER
@@ -157,9 +142,7 @@ describe.serial("external Storybook shared controller", () => {
         daemonEntryPath: join(import.meta.dir, "fixtures/slow-daemon.ts"),
         legacyStatePaths: [legacyStatePath],
       })
-      await expect(interrupted.ensure({schemaVersion: 1}, {
-        signal: AbortSignal.timeout(300),
-      })).rejects.toMatchObject({name: "TimeoutError"})
+      await interruptStartedDaemon(interrupted, marker)
     } finally {
       if (previousMarker === undefined) delete Bun.env.STORYBOOK_SLOW_DAEMON_MARKER
       else Bun.env.STORYBOOK_SLOW_DAEMON_MARKER = previousMarker
@@ -189,7 +172,7 @@ describe.serial("external Storybook shared controller", () => {
     const foreign = createExternalStorybookServerRecord({
       toolRoot: foreignRoot,
       origin: "http://127.0.0.1:65534",
-      implementationDigest: externalStorybookImplementationDigest(toolRoot),
+
     })
     writeExternalStorybookServerRecord(statePath, foreign)
 
@@ -207,7 +190,7 @@ describe.serial("external Storybook shared controller", () => {
       const current = createExternalStorybookServerRecord({
         toolRoot,
         origin: occupied.url.origin,
-        implementationDigest: "0".repeat(64),
+
         attachedDeclarations: [declarationPath],
       })
       writeExternalStorybookServerRecord(externalStorybookServerStatePath(), Object.freeze({
@@ -238,9 +221,7 @@ describe.serial("external Storybook shared controller", () => {
         daemonEntryPath: join(import.meta.dir, "fixtures/slow-daemon.ts"),
         legacyStatePaths: [],
       })
-      await expect(controller.ensure({schemaVersion: 1}, {
-        signal: AbortSignal.timeout(300),
-      })).rejects.toMatchObject({name: "TimeoutError"})
+      await interruptStartedDaemon(controller, marker)
       await waitForPath(marker)
       const pid = Number((await Bun.file(marker).text()).trim())
       expect(processExists(pid)).toBeFalse()
@@ -294,11 +275,7 @@ describe.serial("external Storybook shared controller", () => {
     const declarationPath = realpathSync(fixture)
     const controller = createExternalStorybookController({legacyStatePaths: []})
     await controller.ensure({schemaVersion: 1}, context())
-    const running = readExternalStorybookServerRecord(externalStorybookServerStatePath())
-    writeExternalStorybookServerRecord(externalStorybookServerStatePath(), Object.freeze({
-      ...running,
-      implementationDigest: "0".repeat(64),
-    }))
+    await controller.stop({schemaVersion: 1, confirm: true}, context())
 
     const marker = join(stateRoot, "upgrade-slow-daemon.pid")
     const previousMarker = Bun.env.STORYBOOK_SLOW_DAEMON_MARKER
@@ -308,9 +285,7 @@ describe.serial("external Storybook shared controller", () => {
         daemonEntryPath: join(import.meta.dir, "fixtures/slow-daemon.ts"),
         legacyStatePaths: [],
       })
-      await expect(interrupted.ensure({schemaVersion: 1}, {
-        signal: AbortSignal.timeout(300),
-      })).rejects.toMatchObject({name: "TimeoutError"})
+      await interruptStartedDaemon(interrupted, marker)
     } finally {
       if (previousMarker === undefined) delete Bun.env.STORYBOOK_SLOW_DAEMON_MARKER
       else Bun.env.STORYBOOK_SLOW_DAEMON_MARKER = previousMarker
@@ -349,10 +324,26 @@ function registerFixtureRepo(root: string, path: string): void {
   }
 }
 
-async function waitForPath(path: string): Promise<void> {
-  for (let attempt = 0; attempt < 200; attempt++) {
+async function waitForPath(path: string, timeoutMs = 2_000): Promise<void> {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
     if (existsSync(path)) return
     await Bun.sleep(10)
   }
   throw new Error(`fixture did not publish state: ${path}`)
+}
+
+/** Прерывает именно замену запущенного процесса, независимо от времени чтения его версии. */
+async function interruptStartedDaemon(
+  controller: ReturnType<typeof createExternalStorybookController>,
+  marker: string,
+): Promise<void> {
+  const lifetime = new AbortController()
+  const pending = controller.ensure({schemaVersion: 1}, {signal: lifetime.signal})
+  try {
+    await Promise.race([waitForPath(marker, 10_000), pending])
+  } finally {
+    lifetime.abort(new DOMException("Fixture startup interrupted", "TimeoutError"))
+  }
+  await expect(pending).rejects.toMatchObject({name: "TimeoutError"})
 }

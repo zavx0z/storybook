@@ -11,7 +11,7 @@ describe.each([
 ])("$name", ({props}) => {
   const modules = [{specifier: "@zavx0z/dom", sourcePath, url: props.moduleUrl}]
   const sourceFiles = [{path: sourcePath, contentDigest: "b".repeat(64)}]
-  const identity = Environment.identity(props.entry, modules, hostEpoch, sourceFiles, undefined, false)
+  const identity = Environment.identity(props.entry, modules, hostEpoch, sourceFiles, false)
 
   test("Эпоха платформы", () => {
     expect(identity.epoch, "Fingerprint задан набором specifier и URL модулей; разные байты модуля меняют browser epoch").toBe(props.epoch)

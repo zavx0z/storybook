@@ -5,14 +5,14 @@ import type {HUDElement} from "@zavx0z/dom/hud"
 import type {SpaceElement} from "@zavx0z/dom/space"
 import type {ViewPointElement} from "@zavx0z/dom/viewpoint"
 import type {HTMLElement as SemanticHTMLElement, Document as SemanticDocument, Node as SemanticNode} from "@zavx0z/dom"
-import type {WebWorkbenchModel} from "@web/workbench-model"
+import type {WebWorkbench} from "@web/workbench"
 import type {StorybookContractNavigationReady, StorybookContractSelection} from "./contract-view"
 import type {StorybookContractDocument, StorybookDependencyCase} from "./documents"
 import type {StorybookOverviewAction} from "./overview-action"
 import type {StorybookPreviewBounds, StorybookSpacePreviewRegistration, StorybookSpacePreview} from "./preview"
 import type {ExternalStorybookRootFactory, ExternalStorybookNativeKey, StorybookShellUserState, StorybookRetainedRoot} from "./types"
 
-type Workbench = ReturnType<WebWorkbenchModel.Output["bind"]>
+type Workbench = WebWorkbench.Output
 type WorkbenchPresentationUpdate = Parameters<Workbench["present"]>[0]
 
 /** Публичный контракт @page/shell. */
