@@ -9,6 +9,7 @@ import BuildQueue from "@build/queue"
 import {
   STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL,
   parseStorybookBuildWorkerTransportEvent,
+  isStorybookBuildPhase,
 } from "./src/phase"
 import type {
   StorybookBuildCacheLayer,
@@ -202,17 +203,7 @@ function legacyBuildRequest(): StorybookBuildRequest {
 
 /** Отклоняет phase за пределами общего compiler/scheduler vocabulary. */
 function normalizePhase(phase: StorybookBuildPhase): StorybookBuildPhase {
-  if (![
-    "discovery",
-    "admission",
-    "verification",
-    "resources",
-    "exports",
-    "bundle",
-    "kernel",
-    "host",
-    "publish",
-  ].includes(phase)) {
+  if (phase !== "discovery" && phase !== "admission" && !isStorybookBuildPhase(phase)) {
     throw new Error(`Invalid Storybook build phase: ${String(phase)}`)
   }
   return phase

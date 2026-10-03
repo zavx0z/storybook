@@ -91,6 +91,10 @@ export async function buildStorybookPackageRevisionInProcess(
     }
     emitPhase(onPhase, "resources", "completed")
     let scenarioPhase: PhaseEvent["phase"] | undefined
+    if (descriptor.scenarioSpecs?.length) {
+      scenarioPhase = "scenario-prepare"
+      emitPhase(onPhase, scenarioPhase, "started")
+    }
     let scenarios = await prepareStorybookScenarios(descriptor, input.signal, (nodeId, result) => {
       const directory = join(stagingDirectory, "scenarios")
       mkdirSync(directory, {recursive: true})

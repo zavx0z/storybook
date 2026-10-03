@@ -273,3 +273,25 @@ describe("Storybook build scheduler observability", () => {
     expect(samples).toBe(2)
   })
 })
+
+test("этапы сценария проходят worker transport, scheduler и наблюдение", async () => {
+  const scheduler = new StorybookBuildScheduler()
+  const phases = ["scenario-prepare", "scenario-run", "scenario-report"] as const
+  const observed: string[] = []
+  scheduler.subscribe(event => { if (event.state === "running") observed.push(event.phase) })
+  try {
+    await scheduler.run(request("scenario-progress"), async context => {
+      for (const phase of phases) {
+        const parsed = StorybookBuildScheduler.parseStorybookBuildWorkerTransportEvent({
+          protocol: StorybookBuildScheduler.STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL,
+          kind: "phase",
+          event: {phase, state: "started", at: new Date().toISOString()},
+        })
+        if (parsed?.kind !== "phase") throw new Error("Worker phase lost")
+        context.setPhase(parsed.event.phase)
+        expect(scheduler.snapshot().active[0]?.phase).toBe(phase)
+      }
+    }, new AbortController().signal)
+    expect(observed).toEqual(["admission", ...phases])
+  } finally { scheduler.dispose() }
+})
