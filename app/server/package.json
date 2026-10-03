@@ -52,6 +52,8 @@
     "@web/release": "workspace:*",
     "@app/mcp": "workspace:*",
     "@app-web/build": "workspace:*",
-    "@build/environment": "workspace:*"
+    "@build/environment": "workspace:*",
+    "@storybook/app": "workspace:*",
+    "@mcp/lazy": "workspace:*"
   }
 }

@@ -81,9 +81,13 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
       this.#legacyStatePaths = Object.freeze([...(options.legacyStatePaths ?? externalStorybookLegacyStatePaths())])
     }
 
+    /**
+    Использует работающий daemon; при новом запуске передаёт стадии из stderr
+    и подтверждённую готовность через onProgress. Ждёт отправки перед возвратом результата.
+    */
     async ensure(input: StorybookEnsureInput, context: StorybookControllerContext): Promise<StorybookControllerResult> {
       const roots = canonicalRoots(input.roots ?? Object.freeze([]))
-      const record = await this.#ensureRunning(context.signal)
+      const record = await this.#ensureRunning(context.signal, context.onProgress)
       const client = ServerState.client(record)
       if (roots.length > 0) {
         const status = await client.read("/api/control/status", context.signal)
@@ -607,7 +611,7 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
       return value as unknown as ClientSnapshot
     }
 
-    async #ensureRunning(signal: AbortSignal): Promise<ExternalStorybookServerRecord> {
+    async #ensureRunning(signal: AbortSignal, onProgress?: StorybookControllerContext["onProgress"]): Promise<ExternalStorybookServerRecord> {
       let inspection = await inspectExternalStorybookServer()
       assertOwnedStorybookState(inspection, this.#toolRoot)
       let migration = readExternalStorybookMigrationRecord()
@@ -679,6 +683,7 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
             this.#toolRoot,
             child,
             Object.freeze({path: lease.path, token: lease.token}),
+            onProgress,
           )
           child.unref()
           if (migration !== null) clearExternalStorybookMigrationRecord(this.#toolRoot)
@@ -737,8 +742,9 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
     toolRoot: string,
     child: SpawnedStorybookDaemon,
     startLease: Readonly<{path: string; token: string}>,
+    onProgress?: StorybookControllerContext["onProgress"],
   ): Promise<ExternalStorybookServerRecord> {
-    const stderr = captureDaemonStderr(child.stderr)
+    const stderr = captureDaemonStderr(child.stderr, onProgress)
     const deadline = Date.now() + STORYBOOK_SERVER_START_TIMEOUT_MS
     try {
       while (Date.now() < deadline) {
@@ -755,7 +761,10 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
         })
         const inspection = await inspectExternalStorybookServer()
         assertOwnedStorybookState(inspection, toolRoot)
-        if (ownedRunningRecord(inspection, toolRoot)) return inspection.record!
+        if (ownedRunningRecord(inspection, toolRoot)) {
+          await stderr.finishProgress(signal)
+          return inspection.record!
+        }
         if (inspection.state === "stale" && !inspection.replaceable) {
           throw new Error(`Storybook daemon published ambiguous state: ${inspection.reason}`)
         }
@@ -764,16 +773,58 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
       throw new DOMException("Storybook server start timed out", "TimeoutError")
     } catch (error) {
       throw withDaemonStderr(error, stderr.tail())
+    } finally {
+      stderr.detachProgress()
     }
   }
 
-  function captureDaemonStderr(stream: ReadableStream<Uint8Array>): Readonly<{
+  function captureDaemonStderr(
+    stream: ReadableStream<Uint8Array>,
+    onProgress?: StorybookControllerContext["onProgress"],
+  ): Readonly<{
     completed: Promise<void>
+    finishProgress(signal: AbortSignal): Promise<void>
+    detachProgress(): void
     tail(): string
   }> {
     let output = ""
+    let line = ""
+    let oversizedLine = false
+    let pending = Promise.resolve()
+    let progressError: unknown
+    let progressFailed = false
+    let readyObserved = false
+    const enqueue = (phase: string): void => {
+      if (onProgress === undefined || phase === "ready" && readyObserved) return
+      if (phase === "ready") readyObserved = true
+      const notify = onProgress
+      const progress = Object.freeze({phase, at: Date.now()})
+      pending = pending.then(() => notify(progress)).catch(error => {
+        progressFailed = true
+        progressError = error
+      })
+    }
+    const observe = (value: string): void => {
+      for (const [index, part] of value.split("\n").entries()) {
+        if (index > 0) {
+          const phase = !oversizedLine && line.startsWith("Storybook startup: ")
+            ? line.slice("Storybook startup: ".length).trim() : ""
+          if (phase) enqueue(phase)
+          line = ""
+          oversizedLine = false
+        }
+        if (!oversizedLine) {
+          line += part
+          if (line.length > DAEMON_STDERR_TAIL_LENGTH) {
+            line = ""
+            oversizedLine = true
+          }
+        }
+      }
+    }
     const append = (value: string): void => {
       output = `${output}${value}`.slice(-DAEMON_STDERR_TAIL_LENGTH)
+      if (onProgress !== undefined) observe(value)
     }
     const completed = (async (): Promise<void> => {
       const reader = stream.getReader()
@@ -793,6 +844,25 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
     })()
     return Object.freeze({
       completed,
+      detachProgress: () => { onProgress = undefined },
+      async finishProgress(signal: AbortSignal): Promise<void> {
+        signal.throwIfAborted()
+        // Parent уже подтвердил owned running record; child может ещё не вывести ready.
+        enqueue("ready")
+        onProgress = undefined
+        let abort: () => void = () => {}
+        const cancelled = new Promise<never>((_, reject) => {
+          abort = () => reject(signal.reason)
+          signal.addEventListener("abort", abort, {once: true})
+        })
+        try {
+          await Promise.race([pending, cancelled])
+          signal.throwIfAborted()
+          if (progressFailed) throw progressError
+        } finally {
+          signal.removeEventListener("abort", abort)
+        }
+      },
       tail: () => output.trim(),
     })
   }

@@ -961,67 +961,84 @@ export default async function startExternalStorybookServer(
             return responseJson(await rebuildWeb(body.live === true))
           }
           if (scope === "storybook:shared") {
-            return responseJson(await web.check({apply: body.live === true}, request.signal))
+            const execute = () => web.check({apply: body.live === true}, request.signal)
+            return request.headers.get("accept")?.includes("application/x-ndjson")
+              ? streamAppOperation(request.signal, webProgress, execute)
+              : responseJson(await execute())
           }
-          const refreshed = await refreshCatalog(true)
-          const packageIds = resolveCheckPackages(refreshed, scope)
-          if (packageIds.length > 0 || scope === null) await prepareSharedIdentity(request.signal)
-          for (const packageId of packageIds) {
-            sessions.revalidateInputs(packageId)
-            sessions.retryFailed(packageId)
-          }
-          const results = await Promise.all(packageIds.map((packageId) => sessions.ensure(packageId, {owner: "check"})))
-          let ok = results.every((snapshot) => packageBuildSucceeded(snapshot))
-          const views: Readonly<Record<string, unknown>>[] = []
-          if (ok && body.live === true) {
-            for (const result of results) {
-              const packageId = result.packageId
-              const session = sessions.session(packageId)
-              const revision = result.builtRevision ?? result.activeRevision ?? null
-              try {
-                const packages = registry.snapshot().graph.nodes
-                  .filter(node => node.kind === "package")
-                  .map(node => ({packageId: node.packageId!, label: node.label}))
-                const existing = (await browserLifecycle.listViews(server.url.origin, request.signal, packages, packageId))
-                  .find(view => view.packageId === packageId)
-                const routes = session.revisionGraphSnapshot(revision!)?.routes ?? []
-                const currentRoute = storybookCurrentRouteKey(existing?.route ?? "")
-                const route = routes.some(route => route.path === currentRoute) ? currentRoute : ""
-                let opened: Readonly<Record<string, unknown>>
-                if (existing === undefined) {
-                  opened = await openPackageView({packageId, route}, request.signal)
-                } else if (result.builtRevision != null || browserLifecycle.applyRevision !== undefined) {
-                  if (browserLifecycle.applyRevision === undefined) throw new Error("Текущий браузерный адаптер не поддерживает HMR")
-                  const updated = await browserLifecycle.applyRevision(existing.viewId, revision!, request.signal)
-                  opened = Object.freeze({...updated, viewId: existing.viewId, ok: true})
-                } else {
-                  const current = await browserLifecycle.inspect(existing.viewId, {include: ["state", "diagnostics", "console"]}, request.signal)
-                  opened = Object.freeze({...current, viewId: existing.viewId, ok: true})
+          const selectedPackages = new Set<string>()
+          const execute = async () => {
+            const refreshed = await refreshCatalog(true)
+            const packageIds = resolveCheckPackages(refreshed, scope)
+            for (const packageId of packageIds) selectedPackages.add(packageId)
+            if (packageIds.length > 0 || scope === null) await prepareSharedIdentity(request.signal)
+            for (const packageId of packageIds) {
+              sessions.revalidateInputs(packageId)
+              sessions.retryFailed(packageId)
+            }
+            const results = await Promise.all(packageIds.map((packageId) => sessions.ensure(packageId, {owner: "check"})))
+            let ok = results.every((snapshot) => packageBuildSucceeded(snapshot))
+            const views: Readonly<Record<string, unknown>>[] = []
+            if (ok && body.live === true) {
+              for (const result of results) {
+                const packageId = result.packageId
+                const session = sessions.session(packageId)
+                const revision = result.builtRevision ?? result.activeRevision ?? null
+                try {
+                  const packages = registry.snapshot().graph.nodes
+                    .filter(node => node.kind === "package")
+                    .map(node => ({packageId: node.packageId!, label: node.label}))
+                  const existing = (await browserLifecycle.listViews(server.url.origin, request.signal, packages, packageId))
+                    .find(view => view.packageId === packageId)
+                  const routes = session.revisionGraphSnapshot(revision!)?.routes ?? []
+                  const currentRoute = storybookCurrentRouteKey(existing?.route ?? "")
+                  const route = routes.some(route => route.path === currentRoute) ? currentRoute : ""
+                  let opened: Readonly<Record<string, unknown>>
+                  if (existing === undefined) {
+                    opened = await openPackageView({packageId, route}, request.signal)
+                  } else if (result.builtRevision != null || browserLifecycle.applyRevision !== undefined) {
+                    if (browserLifecycle.applyRevision === undefined) throw new Error("Текущий браузерный адаптер не поддерживает HMR")
+                    const updated = await browserLifecycle.applyRevision(existing.viewId, revision!, request.signal)
+                    opened = Object.freeze({...updated, viewId: existing.viewId, ok: true})
+                  } else {
+                    const current = await browserLifecycle.inspect(existing.viewId, {include: ["state", "diagnostics", "console"]}, request.signal)
+                    opened = Object.freeze({...current, viewId: existing.viewId, ok: true})
+                  }
+                  await verifyAndMaybeApplyOpenedCandidate(
+                    {packageId, revision: revision!},
+                    route,
+                    opened,
+                    request.signal,
+                    result.builtRevision != null,
+                  )
+                  views.push({...opened, package: session.snapshot(), status: "success", applied: true})
+                } catch (error) {
+                  ok = false
+                  const message = error instanceof Error ? error.message : String(error)
+                  if (result.builtRevision != null && session.snapshot().builtRevision === result.builtRevision &&
+                    !isStorybookNavigationSupersededError(error) &&
+                    !message.includes("не поддерживает HMR")) {
+                    const activation = session.beginActivation({revision: result.builtRevision, viewId: "agent-check", route: ""})
+                    session.failActivation({...activation, diagnostic: storybookDiagnostic("activation", message)})
+                  }
+                  views.push({packageId, status: "failed", error: {message}})
+                  if (request.signal.aborted) break
                 }
-                await verifyAndMaybeApplyOpenedCandidate(
-                  {packageId, revision: revision!},
-                  route,
-                  opened,
-                  request.signal,
-                  result.builtRevision != null,
-                )
-                views.push({...opened, package: session.snapshot(), status: "success", applied: true})
-              } catch (error) {
-                ok = false
-                const message = error instanceof Error ? error.message : String(error)
-                if (result.builtRevision != null && session.snapshot().builtRevision === result.builtRevision &&
-                  !isStorybookNavigationSupersededError(error) &&
-                  !message.includes("не поддерживает HMR")) {
-                  const activation = session.beginActivation({revision: result.builtRevision, viewId: "agent-check", route: ""})
-                  session.failActivation({...activation, diagnostic: storybookDiagnostic("activation", message)})
-                }
-                views.push({packageId, status: "failed", error: {message}})
-                if (request.signal.aborted) break
               }
             }
+            return {ok, applied: body.live === true && ok, graphDigest: registry.snapshot().graph.digest,
+              packages: packageIds.map(packageId => sessions.session(packageId).snapshot()), views}
           }
-          return responseJson({ok, applied: body.live === true && ok, graphDigest: registry.snapshot().graph.digest,
-            packages: packageIds.map(packageId => sessions.session(packageId).snapshot()), views})
+          if (request.headers.get("accept")?.includes("application/x-ndjson")) {
+            return streamAppOperation(request.signal, listener => {
+              const subscription = eventHub.subscribe(event => {
+                if (event.type === "catalog.progress" || event.type === "build.progress" &&
+                  event.packageId !== null && selectedPackages.has(event.packageId)) listener(event)
+              })
+              return () => subscription.close()
+            }, execute)
+          }
+          return responseJson(await execute())
         }
         if (url.pathname === "/api/control/wait" && request.method === "POST") {
           const body = await requestObject(request)

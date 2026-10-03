@@ -55,7 +55,7 @@ export function createServer(options: AppMcp.Input = {}): ReturnType<AppMcp.Outp
     description: "Запускает или использует действующий единый сервер Storybook и при необходимости атомарно подключает указанные корни.",
     inputSchema: storybookEnsureSchema,
     annotations: {idempotentHint: true},
-  }, async (input, context) => invoke(controller, (value) => value.ensure(input, {signal: context.mcpReq.signal})))
+  }, (input, context) => execute((value, operationContext) => value.ensure(input, operationContext), context))
 
   server.registerTool("storybook_status", {
     title: "Состояние Storybook",
