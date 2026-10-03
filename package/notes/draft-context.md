@@ -1,7 +1,7 @@
 # Что описывает Package
 
 [Package](../index.ts) владеет общей identity, составом, публичными входами и
-ресурсами. Конкретные обязанности Domain, Component и Repo раскрываются у
+ресурсами. Конкретные обязанности Domain, Cluster, Container, Component и Repo раскрываются у
 [своих архетипов](./draft-structure.md).
 
 - [Имя и состав](../package-json/notes/draft-identity.md)

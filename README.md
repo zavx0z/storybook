@@ -21,6 +21,9 @@
 - [Как уточнять сценарии и ответы MCP](./notes/scenario-development.md).
 - [Какие вопросы раскрытия ещё не решены](./project/STORYBOOK-DOCUMENTATION.md).
 
+[Структурный стандарт](./package/notes/draft-structure.md) определяет архетипы;
+[план перехода](./package/notes/archetype-transition.md) указывает границы их текущей проверки.
+
 ## Владельцы реализации
 
 - [Пакеты и физическая структура](repo/discovery/index.ts).
