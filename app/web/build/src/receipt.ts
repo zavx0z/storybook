@@ -9,7 +9,7 @@ import Environment from "@build/environment"
 export const STORYBOOK_SHARED_ASSETS_MAX_BYTES = 8 * 1024 * 1024
 
 /** Читает только опубликованную оболочку без выбора более нового кандидата. */
-export function readPublishedSharedBrowserReceipt(input: SharedBrowserBuildInput): SharedBrowserAssets | null {
+export function readPublishedSharedBrowserReceipt(input: Omit<SharedBrowserBuildInput, "sharedKernel" | "kernelArtifacts">): SharedBrowserAssets | null {
   return readReceipt(input, join(input.root, "receipt.json"))
 }
 
@@ -44,7 +44,7 @@ export function readSharedBrowserEpoch(
 }
 
 function readReceipt(
-  input: SharedBrowserBuildInput,
+  input: Omit<SharedBrowserBuildInput, "sharedKernel" | "kernelArtifacts">,
   path: string,
   onRejected?: (reason: string) => void,
 ): SharedBrowserAssets | null {

@@ -1,3 +1,4 @@
+import type {BuildEnvironment} from "@build/environment"
 import type {AppWebBuild} from "@app-web/build"
 import type {PackageBuildScheduler} from "@package-build/scheduler"
 import type {PackageSession} from "@package/session"
@@ -33,6 +34,8 @@ export declare namespace AppWeb {
     revisions(): readonly ReturnType<PackageSession.Output["snapshot"]>[]
     publish?(event: WebEvent): void
     build?: AppWebBuild.Output["runWorker"]
+    /** Явная подготовка платформы предоставляется композицией App; rebuild её не вызывает. */
+    preparePlatform?: BuildEnvironment.Output["runWorker"]
     landingEntryPath?: string
     fallbackEntryPath?: string
   }>

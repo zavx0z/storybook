@@ -4,6 +4,7 @@
 
 @packageDocumentation
 */
+import {emittedEntry} from "./src/emitted-entry"
 import {createHash} from "node:crypto"
 import {constants, copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, renameSync} from "node:fs"
 import {dirname, join, relative, resolve} from "node:path"
@@ -86,6 +87,7 @@ function publishSharedArtifacts(
 
 /** Сборка и публикация используют одну проверку целостности результатов. */
 const artifacts: BuildArtifacts.Output = Object.freeze({
+  emittedEntry,
   build: buildSharedArtifactGraph,
   publish: publishSharedArtifacts,
 })

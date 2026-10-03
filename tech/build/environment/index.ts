@@ -4,6 +4,8 @@
 
 @packageDocumentation
 */
+import {buildPlatform, validatePlatformArtifacts} from "./src/build"
+import {runPlatformBuild} from "./src/builder"
 import Compiler from "@build/compiler"
 import Protocol from "@build-environment/protocol"
 import {createHash} from "node:crypto"
@@ -244,6 +246,9 @@ function transpilerLoader(path: string): Bun.JavaScriptLoader {
 
 /** Сборка и проверка одной exact module identity из авторских файлов. */
 export default Object.freeze({
+  build: buildPlatform,
+  runWorker: runPlatformBuild,
+  validateArtifacts: validatePlatformArtifacts,
   owners: STORYBOOK_SHARED_BROWSER_OWNER_PACKAGES,
   createModuleEntries: createStorybookSharedBrowserModuleEntries,
   validate: validateStorybookSharedBrowserIdentity,

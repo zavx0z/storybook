@@ -157,7 +157,7 @@ test("новая среда публикуется одним build, стара�
   fixture.save(old)
   const next = fixture.assets("platform-b", "web-b")
   const build = mock<AppWebBuild.Output["runWorker"]>(async input => {
-    expect(input.sharedKernel).toBeUndefined()
+    expect(input.sharedKernel).toBeDefined()
     return next
   })
   let revisionReads = 0
@@ -278,6 +278,8 @@ test.each(["shared-first", "web-first"] as const)("shared и WebOnly сохра�
   const webForB = fixture.assets("platform-b", "web-c-b")
   const gate = Promise.withResolvers<Assets>()
   const started = Promise.withResolvers<void>()
+  const preparedAssets = fixture.assets("prepared-platform", "prepared-host")
+  const prepared = {identity: preparedAssets.browserIdentity!}
   const seen: (string | undefined)[] = []
   const build = mock<AppWebBuild.Output["runWorker"]>(async input => {
     seen.push(input.sharedKernel?.epoch)
@@ -285,7 +287,7 @@ test.each(["shared-first", "web-first"] as const)("shared и WebOnly сохра�
       started.resolve()
       return gate.promise
     }
-    return input.sharedKernel === undefined ? shared
+    return input.sharedKernel.epoch === prepared.identity.epoch ? shared
       : input.sharedKernel.epoch === current.browserIdentity!.epoch ? webForA : webForB
   })
   const events: string[] = []
@@ -301,11 +303,32 @@ test.each(["shared-first", "web-first"] as const)("shared и WebOnly сохра�
     expect(results.every(result => result.ok && result.published)).toBeTrue()
     expect(build.mock.calls).toHaveLength(2)
     expect(events.filter(type => type === "shared.updated")).toHaveLength(2)
-    expect(seen).toEqual(order === "shared-first" ? [undefined, shared.browserIdentity!.epoch]
-      : [current.browserIdentity!.epoch, undefined])
+    expect(seen).toEqual(order === "shared-first" ? [prepared.identity.epoch, shared.browserIdentity!.epoch]
+      : [current.browserIdentity!.epoch, prepared.identity.epoch])
     expect(web.host().hostModuleEpoch).toBe(order === "shared-first" ? webForB.browserIdentity!.hostModuleEpoch : shared.browserIdentity!.hostModuleEpoch)
   } finally {
     gate.resolve(order === "shared-first" ? shared : webForA)
+    await web.dispose()
+    fixture.dispose()
+  }
+})
+
+test("Web rebuild никогда не вызывает подготовку платформы, в том числе без готовой среды", async () => {
+  const fixture = createWebArtifacts()
+  const prepared = mock<NonNullable<AppWeb.Input["preparePlatform"]>>(async () => { throw new Error("Платформа не должна собираться") })
+  const build = mock<AppWebBuild.Output["runWorker"]>(async () => fixture.assets("platform-a", "web-next"))
+  let web = createWeb({...fixture.input(build), preparePlatform: prepared})
+  try {
+    await expect(web.rebuild({apply: true})).rejects.toThrow()
+    expect(prepared).not.toHaveBeenCalled()
+    expect(build).not.toHaveBeenCalled()
+    await web.dispose()
+    fixture.save(fixture.assets("platform-a", "web-current"))
+    web = createWeb({...fixture.input(build), preparePlatform: prepared})
+    expect((await web.rebuild({apply: true})).published).toBeTrue()
+    expect(prepared).not.toHaveBeenCalled()
+    expect(build).toHaveBeenCalledTimes(1)
+  } finally {
     await web.dispose()
     fixture.dispose()
   }

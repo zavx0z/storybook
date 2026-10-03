@@ -16,7 +16,8 @@
     "@web/release": "workspace:*",
     "@tech/limits": "workspace:*",
     "@package-build/scheduler": "workspace:*",
-    "@package/session": "workspace:*"
+    "@package/session": "workspace:*",
+    "@build/environment": "workspace:*"
   },
   "devDependencies": {
     "@app-server/catalog": "workspace:*",

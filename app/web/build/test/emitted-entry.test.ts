@@ -3,7 +3,7 @@ import {mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync} from "node:
 import {tmpdir} from "node:os"
 import {join, normalize, resolve, sep} from "node:path"
 import Artifacts from "@build/artifacts"
-import {emittedEntry} from "../src/emitted-entry"
+const {emittedEntry} = Artifacts
 import {sources} from "../src/sources"
 
 const roots: string[] = []

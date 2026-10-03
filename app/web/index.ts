@@ -59,7 +59,11 @@ export default function createWeb(input: AppWeb.Input): AppWeb.Output {
     build: signal => input.scheduler().run({packageId: null, owner: "shared",
       reason: "explicit-build",
       generation: null}, async context => {
-      const result = await build({root: artifactRoot, toolRoot: input.toolRoot, ...entries}, context)
+      if (input.preparePlatform === undefined) throw new Error("Явная подготовка платформы не подключена приложением")
+      const platform = await input.preparePlatform({root: artifactRoot, toolRoot: input.toolRoot}, context)
+      context.signal.throwIfAborted()
+      const result = await build({root: artifactRoot, toolRoot: input.toolRoot, ...entries,
+        sharedKernel: platform.identity, kernelArtifacts: platform.artifacts}, context)
       failure = null
       return result
     }, signal),
@@ -80,7 +84,8 @@ export default function createWeb(input: AppWeb.Input): AppWeb.Output {
       if (identity === undefined) throw new Error("Сначала явно подготовьте среду Storybook")
       try {
         next = await input.scheduler().run({packageId: null, owner: "shared", reason: "explicit-build", generation: null},
-          context => build({root: artifactRoot, toolRoot: input.toolRoot, ...entries, sharedKernel: identity}, context), signal)
+          context => build({root: artifactRoot, toolRoot: input.toolRoot, ...entries, sharedKernel: identity,
+            kernelArtifacts: assets.current().artifactDigests!.filter(artifact => artifact.path.startsWith("kernel/"))}, context), signal)
       } catch (error) {
         failed(error)
         throw error

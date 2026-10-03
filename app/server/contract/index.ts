@@ -68,6 +68,8 @@ export declare namespace AppServer {
   type Input = Readonly<{
     createWeb: typeof import("@app/web").default
     buildWeb?: AppWeb.Input["build"]
+    /** Исполнитель явной подготовки платформы, отдельно от Web Build. */
+    preparePlatform?: AppWeb.Input["preparePlatform"]
     onStartupPhase?: (phase: "catalog" | "sessions" | "listen" | "publication" | "ready") => void
     project: string
     resolveCatalog?: StorybookCatalogResolver

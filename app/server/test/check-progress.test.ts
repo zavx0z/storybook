@@ -83,6 +83,10 @@ test("lazy worker доставляет package/shared MCP progress до резу
     const noBrowser = async () => { throw new Error("live=false не обращается к браузеру") }
     running = await startServer({
       createWeb,
+      preparePlatform: async input => {
+        const assets = WebBuild.readPublishedReceipt({...input, landingEntryPath: "", fallbackEntryPath: "", stagingDirectory: input.root})!
+        return {identity: assets.browserIdentity!, artifacts: assets.artifactDigests!.filter(artifact => artifact.path.startsWith("kernel/"))}
+      },
       buildWeb: async (input, context) => {
         context.setPhase("kernel")
         sharedStarted.resolve()

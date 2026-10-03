@@ -1,3 +1,4 @@
+import Environment from "@build/environment"
 import {afterEach, expect, setDefaultTimeout, spyOn, test} from "bun:test"
 import {mkdtempSync, rmSync, writeFileSync} from "node:fs"
 import {randomUUID} from "node:crypto"
@@ -28,7 +29,10 @@ test("сборка host сохраняет платформу и адресуе�
       fallbackEntryPath: sources.browserEntry,
     }
 
+    const platform = await Environment.build({root: join(root, "assets"), toolRoot, stagingDirectory: join(root, "platform")})
+    expect(nativeBuild).toHaveBeenCalledTimes(1)
     const first = await buildSharedBrowserAssets({
+      sharedKernel: platform.identity, kernelArtifacts: platform.artifacts,
       ...common,
       root: join(root, "assets"),
       stagingDirectory: join(root, "candidate-one"),
@@ -53,6 +57,7 @@ test("сборка host сохраняет платформу и адресуе�
       root: join(root, "assets"),
       stagingDirectory: join(root, "unrelated-candidate-two"),
       sharedKernel: first.browserIdentity!,
+      kernelArtifacts: platform.artifacts,
     }, event => { phases.push(event.phase) })
 
     expect(phases).not.toContain("kernel")

@@ -22,7 +22,7 @@ export type SharedBrowserBuildOperationContext = Parameters<Parameters<PackageBu
 
 @property fallbackEntryPath - Исходник страницы до применения пакетной ревизии.
 
-@property [sharedKernel] - Проверенная сохранённая платформа из receipt в root;
+@property sharedKernel - Готовая платформа;
 её модули используются как external imports, повторная компиляция kernel не выполняется.
 
 @property stagingDirectory - Изолированный каталог только текущей операции.
@@ -33,6 +33,8 @@ export interface SharedBrowserBuildInput {
   readonly landingEntryPath: string
   readonly fallbackEntryPath: string
   readonly packageEntryPath?: string
-  readonly sharedKernel?: ReturnType<BuildEnvironment.Output["identity"]>
+  readonly sharedKernel: ReturnType<BuildEnvironment.Output["identity"]>
+  /** Полный набор готовых файлов платформы в root; Web не создаёт их заново. */
+  readonly kernelArtifacts: Awaited<ReturnType<BuildEnvironment.Output["build"]>>["artifacts"]
   readonly stagingDirectory: string
 }

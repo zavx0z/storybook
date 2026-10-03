@@ -111,7 +111,7 @@ test("отмена shared check не публикует результат, сл
   const started = Promise.withResolvers<AbortSignal>()
   let builds = 0
   const build = mock<AppWebBuild.Output["runWorker"]>(async (input, context) => {
-    expect(input.sharedKernel).toBeUndefined()
+    expect(input.sharedKernel).toBeDefined()
     builds += 1
     started.resolve(context.signal)
     return retained.promise
@@ -166,7 +166,7 @@ test("остановка сервера отменяет текущую сбор
   const cleanup = Promise.withResolvers<void>()
   let cleaned = false
   const build = mock<AppWebBuild.Output["runWorker"]>(async (input, context) => {
-    expect(input.sharedKernel).toBeUndefined()
+    expect(input.sharedKernel).toBeDefined()
     started.resolve(context.signal)
     await new Promise<void>(resolve => context.signal.addEventListener("abort", () => {
       aborted.resolve()
@@ -239,7 +239,7 @@ function retainedHostFixture() {
     root,
     archived,
     current,
-    options: {project: createProjectFixture(root, []), statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts")},
+    options: {preparePlatform: async () => ({identity: current.browserIdentity!, artifacts: current.artifactDigests!.filter(artifact => artifact.path.startsWith("kernel/"))}), project: createProjectFixture(root, []), statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts")},
     receiptInput: {root: assetsRoot, toolRoot: root, landingEntryPath: sourcePath, fallbackEntryPath: sourcePath, stagingDirectory: root},
   }
 }

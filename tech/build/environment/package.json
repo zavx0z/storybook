@@ -26,7 +26,10 @@
     "@zavx0z/template": "^0.0.0",
     "@zavx0z/webgpu": "^0.0.0",
     "@build/compiler": "workspace:*",
-    "@build-environment/protocol": "workspace:*"
+    "@build-environment/protocol": "workspace:*",
+    "@build/artifacts": "workspace:*",
+    "@build/worker": "workspace:*",
+    "@package-build/scheduler": "workspace:*"
   },
   "devDependencies": {
     "@jsx/runtime": "^0.0.0",

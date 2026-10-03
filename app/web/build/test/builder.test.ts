@@ -1,3 +1,4 @@
+import Environment from "@build/environment"
 import {afterEach, expect, test} from "bun:test"
 import {mkdtempSync, mkdirSync, realpathSync, readdirSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
@@ -25,7 +26,7 @@ test("причина отказа shared worker сохраняется посл�
   const scheduler = new Scheduler()
   try {
     await expect(scheduler.run({packageId: null, owner: "shared", reason: "missing", generation: null}, context =>
-      runSharedBrowserBuild({root: join(root, "assets"), toolRoot: root, landingEntryPath: "", fallbackEntryPath: ""}, context, join(root, "build/shared-browser-worker.ts")),
+      runSharedBrowserBuild({root: join(root, "assets"), toolRoot: root, landingEntryPath: "", fallbackEntryPath: "", sharedKernel: Environment.identity("/__storybook/shared/fixture.js", [], "0".repeat(64)), kernelArtifacts: []}, context, join(root, "build/shared-browser-worker.ts")),
     new AbortController().signal)).rejects.toThrow("exact compilation failure")
     expect(scheduler.snapshot().recent[0]?.outcome).toBe("failed")
     expect(readdirSync(root)).toEqual(["build"])
@@ -44,7 +45,7 @@ test("shared adapter отклоняет посторонний stdout и очи�
   const scheduler = new Scheduler()
   try {
     await expect(scheduler.run({packageId: null, owner: "shared", reason: "missing", generation: null}, context =>
-      runSharedBrowserBuild({root: join(root, "assets"), toolRoot: root, landingEntryPath: "", fallbackEntryPath: ""}, context, join(root, "build/shared-browser-worker.ts")),
+      runSharedBrowserBuild({root: join(root, "assets"), toolRoot: root, landingEntryPath: "", fallbackEntryPath: "", sharedKernel: Environment.identity("/__storybook/shared/fixture.js", [], "0".repeat(64)), kernelArtifacts: []}, context, join(root, "build/shared-browser-worker.ts")),
     new AbortController().signal)).rejects.toThrow("output reader failed")
     expect(scheduler.snapshot().recent[0]?.outcome).toBe("failed")
     expect(readdirSync(root)).toEqual(["build"])
@@ -69,7 +70,7 @@ test.each([
   const scheduler = new Scheduler()
   try {
     await expect(scheduler.run({packageId: null, owner: "shared", reason: "missing", generation: null}, context =>
-      runSharedBrowserBuild({root: join(root, "assets"), toolRoot: root, landingEntryPath: "", fallbackEntryPath: ""}, context, join(root, "build/shared-browser-worker.ts")),
+      runSharedBrowserBuild({root: join(root, "assets"), toolRoot: root, landingEntryPath: "", fallbackEntryPath: "", sharedKernel: Environment.identity("/__storybook/shared/fixture.js", [], "0".repeat(64)), kernelArtifacts: []}, context, join(root, "build/shared-browser-worker.ts")),
     new AbortController().signal)).rejects.toThrow(message)
     expect(scheduler.snapshot().recent[0]?.outcome).toBe("failed")
     expect(readdirSync(root)).toEqual(["build"])
@@ -89,7 +90,7 @@ test("неожиданный выход worker сохраняет код зав�
   const scheduler = new Scheduler()
   try {
     await expect(scheduler.run({packageId: null, owner: "shared", reason: "explicit-build", generation: null}, context =>
-      runSharedBrowserBuild({root: join(root, "assets"), toolRoot: root, landingEntryPath: "", fallbackEntryPath: ""}, context, worker),
+      runSharedBrowserBuild({root: join(root, "assets"), toolRoot: root, landingEntryPath: "", fallbackEntryPath: "", sharedKernel: Environment.identity("/__storybook/shared/fixture.js", [], "0".repeat(64)), kernelArtifacts: []}, context, worker),
     new AbortController().signal)).rejects.toThrow("exit 37, ready true, result missing")
   } finally { scheduler.dispose() }
 })

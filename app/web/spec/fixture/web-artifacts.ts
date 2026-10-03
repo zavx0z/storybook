@@ -51,6 +51,10 @@ export function createWebArtifacts() {
     scheduler: () => scheduler,
     revisions: () => [],
     build,
+    preparePlatform: async () => {
+      const platform = assets("prepared-platform", "prepared-host")
+      return {identity: platform.browserIdentity!, artifacts: platform.artifactDigests!.filter(artifact => artifact.path.startsWith("kernel/"))}
+    },
     ...(publish === undefined ? {} : {publish}),
   })
   return {

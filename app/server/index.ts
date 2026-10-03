@@ -4,6 +4,7 @@ Web-выпуск, browser lifecycle и авторизованный HTTP/WebSock
 
 @packageDocumentation
 */
+import BuildEnvironmentOwner from "@build/environment"
 import RouteUrlOwner from "@route/url"
 import Zavx0zStorybookBrowserLifecycleOwner, {type Zavx0zStorybookBrowserLifecycle as Zavx0zStorybookBrowserLifecycleContract} from "@zavx0z/storybook-browser-lifecycle"
 const storybookPackagePathMatches = RouteUrlOwner.storybookPackagePathMatches
@@ -179,6 +180,7 @@ export default async function startExternalStorybookServer(
   const web = createWeb({
     toolRoot,
     artifactRoot,
+    preparePlatform: options.preparePlatform ?? BuildEnvironmentOwner.runWorker,
     scheduler: () => sessions.buildScheduler,
     revisions: () => sessions.snapshots(),
     publish,
