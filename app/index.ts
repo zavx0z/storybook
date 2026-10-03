@@ -6,7 +6,7 @@ MCP и package.json scripts вызывают эти же операции; со�
 @packageDocumentation
 */
 import ServerState, {type AppServerState} from "@app-server/state"
-const {acquireExternalStorybookStartLease, clearExternalStorybookMigrationRecord, externalStorybookLegacyStatePaths, externalStorybookServerStatePath, inspectExternalStorybookServer, publishExternalStorybookStartCandidate, readExternalStorybookMigrationRecord, removeReplaceableExternalStorybookState, writeExternalStorybookMigrationRecord} = ServerState
+const {readExternalStorybookStartupProgress, writeExternalStorybookStartupProgress, acquireExternalStorybookStartLease, clearExternalStorybookMigrationRecord, externalStorybookLegacyStatePaths, externalStorybookServerStatePath, inspectExternalStorybookServer, publishExternalStorybookStartCandidate, readExternalStorybookMigrationRecord, removeReplaceableExternalStorybookState, writeExternalStorybookMigrationRecord} = ServerState
 type ExternalStorybookMigrationRecord = NonNullable<ReturnType<AppServerState.Output["readExternalStorybookMigrationRecord"]>>
 type ExternalStorybookServerRecord = ReturnType<AppServerState.Output["readExternalStorybookServerRecord"]>
 import {createHmac} from "node:crypto"
@@ -104,6 +104,8 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
       const inspection = await inspectExternalStorybookServer()
       assertOwnedStorybookState(inspection, this.#toolRoot)
       if (inspection.state !== "running" || inspection.record === null) {
+        const startup = readExternalStorybookStartupProgress(this.#toolRoot)
+        if (startup !== null) return Object.freeze({status: "success", server: "starting", startup})
         return Object.freeze({status: "success", server: inspection.state, reason: inspection.reason})
       }
       return this.#statusResult(inspection.record, input.includeViews === true, context.signal, input.scope)
@@ -666,6 +668,7 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
           if (!inspection.replaceable) throw new Error(`Refusing ambiguous Storybook stale state: ${inspection.reason}`)
           removeReplaceableExternalStorybookState(inspection)
         }
+        writeExternalStorybookStartupProgress(lease, this.#toolRoot, {phase: "starting", at: Date.now()})
         const child = this.#spawnDaemon({
           entryPath: this.#daemonEntryPath,
           toolRoot: this.#toolRoot,
@@ -740,7 +743,10 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
     startLease: Readonly<{path: string; token: string}>,
     onProgress?: StorybookControllerContext["onProgress"],
   ): Promise<ExternalStorybookServerRecord> {
-    const stderr = captureDaemonStderr(child.stderr, onProgress)
+    const stderr = captureDaemonStderr(child.stderr, progress => {
+      writeExternalStorybookStartupProgress(startLease, toolRoot, {phase: String(progress.phase), at: Number(progress.at)})
+      return onProgress?.(progress)
+    })
     try {
       while (true) {
         signal.throwIfAborted()

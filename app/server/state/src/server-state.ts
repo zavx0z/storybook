@@ -15,6 +15,8 @@ import {dirname, isAbsolute, join, resolve} from "node:path"
 import {homedir, tmpdir} from "node:os"
 import type {
   CandidateInput,
+  StartupProgress,
+  LeaseIdentity,
   Inspection as ExternalStorybookServerInspection,
   Lease as ExternalStorybookStartLease,
   MigrationInput,
@@ -170,6 +172,33 @@ export function acquireExternalStorybookStartLease(
 export function assertExternalStorybookStartLease(path: string, token: string): void {
   const owner = readStartLeaseOwner(join(resolve(path), "owner.json"))
   if (owner?.token !== token) throw new Error("External Storybook startup lease was superseded")
+}
+
+/** Стадия не продлевает жизнь запуска и удаляется существующим release lease. */
+export function writeExternalStorybookStartupProgress(lease: LeaseIdentity, toolRoot: string, progress: StartupProgress): void {
+  assertExternalStorybookStartLease(lease.path, lease.token)
+  const path = join(lease.path, "progress.json")
+  const temporary = `${path}.${randomUUID()}`
+  try {
+    writePrivateFile(temporary, JSON.stringify({token: lease.token, toolRoot: realpathSync(toolRoot), ...progress}))
+    assertExternalStorybookStartLease(lease.path, lease.token)
+    renameSync(temporary, path)
+  } finally { rmSync(temporary, {force: true}) }
+}
+
+export function readExternalStorybookStartupProgress(toolRoot: string, statePath = externalStorybookServerStatePath()): StartupProgress | null {
+  const path = `${resolve(statePath)}.start.lock`
+  const owner = readStartLeaseOwner(join(path, "owner.json"))
+  if (owner === null || !processExists(owner.pid) || readProcessStart(owner.pid) !== owner.processStart) return null
+  try {
+    const value = JSON.parse(readFileSync(join(path, "progress.json"), "utf8"))
+    if (value.token !== owner.token || value.toolRoot !== realpathSync(toolRoot) ||
+      typeof value.phase !== "string" || !Number.isFinite(value.at)) return null
+    return Object.freeze({phase: value.phase, at: value.at})
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null
+    throw error
+  }
 }
 
 export function writeExternalStorybookStartCandidate(

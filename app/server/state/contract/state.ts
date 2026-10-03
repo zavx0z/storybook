@@ -174,3 +174,9 @@ export interface SecurityError extends Error {
   readonly code: SecurityErrorCode
   readonly status: 401 | 403 | 421
 }
+
+/** Наблюдаемая стадия текущего запуска; исчезает вместе с startup lease. */
+export type StartupProgress = Readonly<{
+  phase: string
+  at: number
+}>

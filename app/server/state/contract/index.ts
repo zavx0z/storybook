@@ -1,6 +1,7 @@
 import type {HttpClient} from "@http/client"
 import type {
   CandidateInput,
+  StartupProgress,
   Inspection,
   Lease,
   LeaseIdentity,
@@ -137,6 +138,10 @@ export declare namespace AppServerState {
     externalStorybookLegacyStatePaths(): readonly string[]
     acquireExternalStorybookStartLease(statePath?: string): Lease
     assertExternalStorybookStartLease(path: string, token: string): void
+    /** Публикует фактическую стадию внутри принадлежащего запуску lease. */
+    writeExternalStorybookStartupProgress(lease: LeaseIdentity, toolRoot: string, progress: StartupProgress): void
+    /** Читает стадию только живого запуска этого checkout; не запускает daemon. */
+    readExternalStorybookStartupProgress(toolRoot: string, statePath?: string): StartupProgress | null
     writeExternalStorybookStartCandidate(lease: LeaseIdentity, record: ServerRecord): void
     publishExternalStorybookStartCandidate(input: CandidateInput): ServerRecord | null
     createExternalStorybookServerRecord(input: ServerRecordInput): ServerRecord

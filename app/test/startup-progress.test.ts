@@ -151,3 +151,42 @@ test.each(["finish", "abort", "abort-ready"] as const)("ensure %s: отправ�
     }
   }
 }, 10_000)
+
+test("отдельный status получает стадию запуска без MCP progress callback", async () => {
+  const fixture = createLazyStartupFixture()
+  const previousRoot = Bun.env.STORYBOOK_STATE_ROOT
+  const previousFixture = Bun.env.STORYBOOK_LAZY_STARTUP_FIXTURE
+  Bun.env.STORYBOOK_STATE_ROOT = fixture.stateRoot
+  Bun.env.STORYBOOK_LAZY_STARTUP_FIXTURE = "isolated"
+  const options = {toolRoot: fixture.toolRoot, daemonEntryPath: join(import.meta.dir, "fixtures/progress-daemon.ts"), legacyStatePaths: []}
+  const app = createApp(options)
+  const observer = createApp(options)
+  const cancellation = new AbortController()
+  const pending = app.ensure({schemaVersion: 1}, {signal: cancellation.signal}).then(value => ({value}), error => ({error}))
+  try {
+    let state: any
+    const deadline = Date.now() + 5000
+    do {
+      state = await observer.status({schemaVersion: 1}, {signal: new AbortController().signal})
+      if (state.startup?.phase === "catalog") break
+      if (Date.now() > deadline) throw new Error("Startup stage missing from status")
+      await Bun.sleep(10)
+    } while (true)
+    expect(state).toMatchObject({status: "success", server: "starting", startup: {phase: "catalog", at: expect.any(Number)}})
+    expect(State.readExternalStorybookStartupProgress(import.meta.dir)).toBeNull()
+    writeFileSync(join(fixture.stateRoot, "continue-startup"), "early")
+    expect(await pending).toHaveProperty("value")
+    expect((await observer.status({schemaVersion: 1}, {signal: new AbortController().signal})).server).toBe("running")
+    expect(State.readExternalStorybookStartupProgress(fixture.toolRoot)).toBeNull()
+  } finally {
+    cancellation.abort()
+    await pending
+    try { await app.stop({schemaVersion: 1, confirm: true}, {signal: new AbortController().signal}) } finally {
+      if (previousRoot === undefined) delete Bun.env.STORYBOOK_STATE_ROOT
+      else Bun.env.STORYBOOK_STATE_ROOT = previousRoot
+      if (previousFixture === undefined) delete Bun.env.STORYBOOK_LAZY_STARTUP_FIXTURE
+      else Bun.env.STORYBOOK_LAZY_STARTUP_FIXTURE = previousFixture
+      fixture.dispose()
+    }
+  }
+}, 15000)
