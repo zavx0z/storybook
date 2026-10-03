@@ -68,6 +68,7 @@ import {createChatServer} from "./src/chat"
 import proxyContent from "@app-mcp/response"
 const errorContent = proxyContent.error
 import {createCatalogRefresh} from "./src/catalog-refresh.ts"
+import {refreshCheckCatalog} from "./src/check-catalog"
 import {
   isStorybookNavigationSupersededError,
 } from "./src/activation.ts"
@@ -956,14 +957,14 @@ export default async function startExternalStorybookServer(
           }
           const selectedPackages = new Set<string>()
           const execute = async () => {
-            const refreshed = await refreshCatalog(true)
+            const refreshed = await refreshCheckCatalog(scope, registry, refreshCatalog, resolveCheckPackages)
             const packageIds = resolveCheckPackages(refreshed, scope)
             for (const packageId of packageIds) selectedPackages.add(packageId)
-            if (packageIds.length > 0 || scope === null) await prepareSharedIdentity(request.signal)
+            // Подготовкой среды и сборкой владеют package sessions, а не HTTP-наблюдатель.
             const results = await Promise.all(packageIds.map((packageId) => sessions.build(packageId, {owner: "check"})))
             let ok = results.every((snapshot) => packageBuildSucceeded(snapshot))
             const views: Readonly<Record<string, unknown>>[] = []
-            if (ok && body.live === true) {
+            if (ok && body.live === true && !request.signal.aborted) {
               for (const result of results) {
                 const packageId = result.packageId
                 const session = sessions.session(packageId)
@@ -1010,7 +1011,7 @@ export default async function startExternalStorybookServer(
                 }
               }
             }
-            return {ok, applied: body.live === true && ok, graphDigest: registry.snapshot().graph.digest,
+            return {ok, applied: body.live === true && ok && !request.signal.aborted, graphDigest: registry.snapshot().graph.digest,
               packages: packageIds.map(packageId => sessions.session(packageId).snapshot()), views}
           }
           if (request.headers.get("accept")?.includes("application/x-ndjson")) {

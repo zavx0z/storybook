@@ -2,10 +2,10 @@ import StorybookAppOwner from "@storybook/app"
 const createExternalStorybookController = StorybookAppOwner
 import ServerState from "@app-server/state"
 const {createExternalStorybookServerRecord, externalStorybookServerStatePath, writeExternalStorybookServerRecord} = ServerState
-import {expect, test} from "bun:test"
+import {expect, spyOn, test} from "bun:test"
 import {createLazyStartupFixture} from "./fixtures/lazy-startup"
 
-test.each(["compiling", "failed", "old-failed"])("таймаут ожидания сохраняет актуальное состояние %s без повторного check", async buildState => {
+test.each(["compiling", "failed", "old-failed", "live"])("таймаут ожидания сохраняет актуальное состояние %s без повторного check", async buildState => {
   const fixture = createLazyStartupFixture()
   const stateRoot = fixture.stateRoot
   const previous = Bun.env.STORYBOOK_STATE_ROOT
@@ -31,7 +31,7 @@ test.each(["compiling", "failed", "old-failed"])("таймаут ожидани�
       if (path === "/api/control/status") return Response.json({
         packages: [{
           packageId: "@fixture/pending",
-          buildState: checks === 0 ? buildState === "old-failed" ? "failed" : "idle" : buildState === "old-failed" ? "failed" : buildState,
+          buildState: checks === 0 ? buildState === "old-failed" ? "failed" : "idle" : buildState === "old-failed" ? "failed" : buildState === "live" ? "compiling" : buildState,
           generation: buildState === "old-failed" || checks === 0 ? 1 : 2,
           failedRevision: buildState === "old-failed" ? "previous-failure" : checks > 0 && buildState === "failed" ? "new-failure" : null,
           pendingOperationId: "owned-operation", builds: 1,
@@ -56,16 +56,22 @@ test.each(["compiling", "failed", "old-failed"])("таймаут ожидани�
     })
     writeExternalStorybookServerRecord(externalStorybookServerStatePath(), record)
     const controller = createExternalStorybookController({toolRoot: fixture.toolRoot, legacyStatePaths: []})
-    const result = await controller.check({schemaVersion: 1, scope: "@fixture/pending", timeoutMs: 300}, {
+    const result = await controller.check({schemaVersion: 1, scope: "@fixture/pending", timeoutMs: 300, live: buildState === "live"}, {
       signal: new AbortController().signal,
     })
-    expect(result).toMatchObject(buildState === "old-failed"
+    expect(result).toMatchObject(buildState === "live"
+      ? {status: "timeout", waitingOnly: false, inProgress: true, checkResultKnown: false}
+      : buildState === "old-failed"
       ? {status: "timeout", waitingOnly: true, inProgress: true, checkResultKnown: false}
       : buildState === "compiling"
       ? {status: "timeout", waitingOnly: true, inProgress: true, operationIds: ["owned-operation"]}
       : {status: "failed", waitingOnly: false, inProgress: false, operationIds: []})
     expect(result.buildScheduler).toMatchObject({activeCount: 1, queuedCount: 0})
     expect(checks).toBe(1)
+    if (buildState === "live") {
+      expect(result).not.toHaveProperty("applied", true)
+      expect(JSON.stringify(result.error)).toContain("применение не подтверждено")
+    }
     if (buildState === "compiling") {
       writeExternalStorybookServerRecord(externalStorybookServerStatePath(), {...record})
       legacyStatus = true
@@ -126,10 +132,23 @@ test.each([
     })
     writeExternalStorybookServerRecord(externalStorybookServerStatePath(), record)
     const controller = createExternalStorybookController({toolRoot: fixture.toolRoot, legacyStatePaths: []})
-    const result = await controller.check({schemaVersion: 1, scope: "storybook:shared", timeoutMs: 3_000}, {
-      signal: new AbortController().signal,
-      onProgress: stage => { progress.push(stage) },
-    })
+    const signal = new AbortController().signal
+    let observedSignal: AbortSignal | null | undefined
+    const nativeFetch = globalThis.fetch
+    const observedFetch = Object.assign((...args: Parameters<typeof fetch>) => {
+      const [input, init] = args
+      if (input instanceof URL && input.pathname === "/api/control/check") observedSignal = init?.signal
+      return nativeFetch(...args)
+    }, {preconnect: nativeFetch.preconnect})
+    const fetchSpy = spyOn(globalThis, "fetch").mockImplementation(observedFetch)
+    let result: Awaited<ReturnType<typeof controller.check>>
+    try {
+      result = await controller.check({schemaVersion: 1, scope: "storybook:shared"}, {
+        signal,
+        onProgress: stage => { progress.push(stage) },
+      })
+      expect(observedSignal, "Без timeoutMs HTTP получает исходный signal, без скрытого таймера").toBe(signal)
+    } finally { fetchSpy.mockRestore() }
     expect(result, "JSON и NDJSON возвращают одинаковый успешный предметный результат").toMatchObject({status: "success", ok: true})
     expect(accepts, "Долгая проверка выбирает transport с поддержкой progress и JSON fallback").toEqual(["application/x-ndjson"])
     expect(progress, "Фактические стадии доставляются только из NDJSON ответа").toEqual(streamed ? [{phase: "compile"}] : [])
