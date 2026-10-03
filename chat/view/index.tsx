@@ -5,8 +5,7 @@
 
 @packageDocumentation
 */
-import Button from "@zavx0z/ui/button/button"
-import CodeEditor from "@zavx0z/ui/view/code-editor"
+import {Button, CodeEditor} from "@zavx0z/ui"
 import type {ChatView as Contract} from "./contract"
 
 export type {ChatView} from "./contract"

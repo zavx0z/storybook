@@ -1,4 +1,4 @@
-import type {CodeEditorProps} from "@zavx0z/ui/view/code-editor"
+import type {UiViewsCodeEditor} from "@zavx0z/ui"
 import type {ChatSession} from "@chat/session"
 
 type Snapshot = Awaited<ReturnType<ChatSession.Output["read"]>>
@@ -35,7 +35,7 @@ export declare namespace ChatView {
     draft: string
     sending?: boolean
     error?: string
-    onDraftChange: NonNullable<CodeEditorProps["onChange"]>
+    onDraftChange: NonNullable<UiViewsCodeEditor.Input["onChange"]>
     onSend(): void
     onCancel(): void
     permissions?: Snapshot["permissions"]
