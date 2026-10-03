@@ -1,5 +1,8 @@
 import {expect, test} from "bun:test"
-import {resolve} from "node:path"
+import {join, resolve} from "node:path"
+import {mkdtemp, rm} from "node:fs/promises"
+import {tmpdir} from "node:os"
+import {createChatServer} from "../src/chat"
 import discover from "@repo/discovery"
 import createGraph from "@package-graph/create"
 import revision from "@package/revision"
@@ -37,4 +40,31 @@ test("MCP и сериализованная ревизия сохраняют о
   expect(await resolveRoute({route: "/archetype-domain/contract/web.ts", roots: [{name: "archetype-domain", path: root}]})).toBeNull()
   expect(await resolveStorybookRoute(`${web.path}?view=contract`, {catalog, graph}))
     .toMatchObject({packageId: "@fixture/archetype-domain", route: "entry-web.ts/contract"})
+})
+
+
+test("чат средового входа сохраняет адрес файла и рабочий каталог владельца", async () => {
+  const root = resolve(import.meta.dir, "../../../domain/spec/fixture/domain")
+  const project = await mkdtemp(join(tmpdir(), "environment-entry-chat-"))
+  const catalog = await discover([root])
+  const graph = createGraph(catalog)
+  const entry = graph.nodes.find(node => node.kind === "entry" && node.source.path.endsWith("/web.ts"))!
+  const cwd: string[] = []
+  const server = createChatServer({
+    project, projectName: () => "Fixture", toolRoot: project, origin: () => "http://127.0.0.1:12345",
+    graph: () => graph, entries: () => storybookMcpEntries({catalog, graph}),
+    async connect(input) {
+      cwd.push(input.cwd)
+      return {sessionId: "entry-session", configOptions: [], async setConfigOption() {return []},
+        async prompt() {return {stopReason: "end_turn"}}, async cancel() {}, async dispose() {}}
+    },
+  })
+  try {
+    const state = await server.chats.prepare(entry.urlPath)
+    expect(state.address).toBe(entry.urlPath)
+    expect(cwd, "ACP получает директорию Domain, а не путь web.ts вместо cwd").toEqual([root])
+  } finally {
+    await server.dispose()
+    await rm(project, {recursive: true, force: true})
+  }
 })

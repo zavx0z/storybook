@@ -112,7 +112,7 @@ export async function relocateAppChats(toolRoot: string, graph: Graph, chats: Ch
     for (const node of graph.nodes) {
       if (node.packageId !== move.packageId || node.kind === "unavailable") continue
       if (node.urlPath !== move.owner.urlPath && !node.urlPath.startsWith(`${move.owner.urlPath}/`)) continue
-      const cwd = node.kind === "package" ? dirname(node.source.path) : node.source.path
+      const cwd = node.kind === "package" || node.kind === "entry" ? dirname(node.source.path) : node.source.path
       const withinOwner = relative(move.cwd, cwd)
       if (withinOwner === ".." || withinOwner.startsWith("../")) throw new Error("Контекст беседы выходит за перенесённого владельца")
       await chats.relocate({

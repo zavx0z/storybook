@@ -25,7 +25,7 @@ export function createChatServer(options: Readonly<{
     if (typeof address !== "string" || !address.startsWith("/") || /[?#]/u.test(address)) throw new TypeError("Нужен канонический адрес предмета")
     const node = options.graph().nodes.find(node => node.urlPath === address)
     if (node === undefined || node.kind === "unavailable") throw new Error("Предмет чата отсутствует в текущем Project")
-    return {address: node.urlPath, label: node.label, cwd: node.kind === "package" ? dirname(node.source.path) : node.source.path}
+    return {address: node.urlPath, label: node.label, cwd: node.kind === "package" || node.kind === "entry" ? dirname(node.source.path) : node.source.path}
   }
   const chats = createChatSessions({
     directory: join(options.project, "chats"),
