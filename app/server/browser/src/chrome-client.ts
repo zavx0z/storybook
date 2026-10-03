@@ -249,6 +249,52 @@ export class StorybookCdpClient implements StorybookChromeClient {
     return Object.freeze(objectValue(value, "Storybook bridge diagnostics"))
   }
 
+  async sampleExecution(targetId: string, signal?: AbortSignal): Promise<Readonly<Record<string, unknown>>> {
+    return this.#withTarget(targetId, async connection => {
+      let started = false
+      try {
+        await connection.command("Profiler.enable", {}, {signal})
+        started = true
+        await connection.command("Profiler.start", {}, {signal})
+        await abortableDelay(250, signal)
+        const response = await connection.command("Profiler.stop", {}, {signal})
+        started = false
+        const profile = objectValue(response.profile, "CPU profile")
+        const nodes = Array.isArray(profile.nodes) ? profile.nodes as Record<string, unknown>[] : []
+        const byId = new Map(nodes.map(node => [Number(node.id), node]))
+        const parents = new Map<number, number>()
+        for (const node of nodes) for (const child of Array.isArray(node.children) ? node.children : []) {
+          parents.set(Number(child), Number(node.id))
+        }
+        const counts = new Map<number, number>()
+        for (const sample of Array.isArray(profile.samples) ? profile.samples : []) {
+          counts.set(Number(sample), (counts.get(Number(sample)) ?? 0) + 1)
+        }
+        const frame = (id: number) => {
+          const call = byId.get(id)?.callFrame as Record<string, unknown> | undefined
+          return {function: call?.functionName ?? "", url: call?.url ?? "",
+            line: Number(call?.lineNumber ?? -1) + 1, column: Number(call?.columnNumber ?? -1) + 1}
+        }
+        return Object.freeze({
+          durationMs: (Number(profile.endTime) - Number(profile.startTime)) / 1000,
+          samples: Array.isArray(profile.samples) ? profile.samples.length : 0,
+          hot: [...counts].sort((a, b) => b[1] - a[1]).slice(0, 12).map(([id, samples]) => {
+            const stack = []
+            let parent = parents.get(id)
+            while (parent !== undefined && stack.length < 12) {
+              stack.push(frame(parent))
+              parent = parents.get(parent)
+            }
+            return {...frame(id), samples, stack}
+          }),
+        })
+      } finally {
+        if (started) await connection.command("Profiler.stop", {}, {timeoutMs: 5_000}).catch(() => {})
+        await connection.command("Profiler.disable", {}, {timeoutMs: 5_000}).catch(() => {})
+      }
+    }, signal)
+  }
+
   async screenshot(
     targetId: string,
     options: Readonly<{caption: string; clip?: StorybookBridgeClip; timeoutMs?: number}>,
@@ -467,7 +513,7 @@ function sharedStorybookBrowserRoot(): string {
 
 class StorybookCdpTargetTransition extends Error {
   constructor() {
-    super("Storybook CDP target is transitioning")
+    super("Storybook page is transitioning")
     this.name = "StorybookCdpTargetTransition"
   }
 }

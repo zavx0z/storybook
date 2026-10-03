@@ -397,6 +397,18 @@ class DefaultStorybookBrowserLifecycle implements Zavx0zStorybookBrowserLifecycl
     try {
       await this.#assertCurrentPackage(viewId, signal)
     } catch (error) {
+      if (!signal?.aborted && input.include?.includes("diagnostics") && this.#chrome.sampleExecution !== undefined) {
+        const target = (await this.#chrome.targets(signal)).find(target => target.targetId === view.targetId)
+        if (target && new URL(target.url).origin === view.origin && sameStorybookViewUrl(target.url, view.url)) {
+          return Object.freeze({
+            ready: false,
+            bridgeAvailable: false,
+            view: this.#views.public(viewId),
+            diagnostics: [{phase: "bridge", message: error instanceof Error ? error.message : String(error)}],
+            execution: await this.#chrome.sampleExecution(view.targetId, signal),
+          })
+        }
+      }
       if (!(error instanceof Error) || error.message !== "Storybook agent bridge is unavailable in the exact target") throw error
       const target = (await this.#chrome.targets(signal)).find(target => target.targetId === view.targetId)
       if (!target || new URL(target.url).origin !== view.origin ||

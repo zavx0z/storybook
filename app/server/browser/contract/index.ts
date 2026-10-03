@@ -63,6 +63,7 @@ export declare namespace Zavx0zStorybookBrowserLifecycle {
     listViews(origin: string, signal?: AbortSignal, packages?: readonly Readonly<{packageId: string; label: string}>[], packageId?: string): Promise<readonly StorybookPublicView[]>
     getView(viewId: string): StorybookPublicView
     applyRevision?(viewId: string, revision: string, signal?: AbortSignal): Promise<Readonly<Record<string, unknown>>>
+    /** При запросе diagnostics и недоступном JS-мосте возвращает короткий native CPU-профиль той же вкладки. */
     inspect(viewId: string, input: Readonly<{include?: readonly string[]; maxDepth?: number; limit?: number; cursor?: string}>, signal?: AbortSignal): Promise<Readonly<Record<string, unknown>>>
     interact(input: StorybookBrowserInteractInput, signal?: AbortSignal): Promise<Readonly<Record<string, unknown>>>
     capture(input: StorybookBrowserCaptureInput, signal?: AbortSignal): Promise<StorybookBrowserCaptureResult>

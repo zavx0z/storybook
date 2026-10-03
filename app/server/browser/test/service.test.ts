@@ -1206,3 +1206,24 @@ async function hangUntilAbort(signal?: AbortSignal): Promise<never> {
     signal?.addEventListener("abort", () => reject(signal.reason), {once: true})
   })
 }
+
+test("диагностика занятой страницы возвращает native профиль только для своей вкладки", async () => {
+  const chrome = new FakeChrome()
+  let samples = 0
+  const diagnosticChrome = Object.assign(chrome, {async sampleExecution() {
+    samples += 1
+    return {samples: 3, hot: [{function: "layout"}]}
+  }})
+  const controller = createController(diagnosticChrome)
+  const opened = await controller.openPackage(openInput(chrome))
+  chrome.callBridge = async () => { throw new DOMException("bridge unresponsive", "TimeoutError") }
+  expect(await controller.inspect(opened.view.viewId, {include: ["diagnostics"]})).toMatchObject({
+    ready: false,
+    bridgeAvailable: false,
+    diagnostics: [{phase: "bridge", message: "bridge unresponsive"}],
+    execution: {samples: 3, hot: [{function: "layout"}]},
+  })
+  chrome.targetsValue[0] = {...chrome.targetsValue[0]!, url: `${chrome.origin}/pkg-fixture-b/`}
+  await expect(controller.inspect(opened.view.viewId, {include: ["diagnostics"]})).rejects.toThrow()
+  expect(samples).toBe(1)
+})

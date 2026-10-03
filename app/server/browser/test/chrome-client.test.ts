@@ -245,6 +245,7 @@ class FakeCdp {
   runtimeEnableDelayMs = 0
   requestTimeoutMs = 30_000
   dropCreateResponse = false
+  onProfilerStart?: () => void
 
   client(): StorybookCdpClient {
     return new StorybookCdpClient({
@@ -305,6 +306,14 @@ class FakeCdp {
       if (target !== undefined) target.url = params.url
       return {frameId: "FRAME"}
     }
+    if (method === "Profiler.start") this.onProfilerStart?.()
+    if (method === "Profiler.stop") return {profile: {
+      startTime: 1000, endTime: 251000, samples: [2, 2, 2],
+      nodes: [
+        {id: 1, callFrame: {functionName: "(root)", url: "", lineNumber: -1, columnNumber: -1}, children: [2]},
+        {id: 2, callFrame: {functionName: "layout", url: "http://127.0.0.1:43123/host.js", lineNumber: 9, columnNumber: 4}},
+      ],
+    }}
     if (method === "Runtime.evaluate") {
       const expression = String(params.expression)
       if (expression.includes("readyState: document.readyState")) {
@@ -358,3 +367,19 @@ class FakeSocket extends EventTarget implements StorybookCdpWebSocket {
     this.dispatchEvent(new Event("close"))
   }
 }
+
+
+test("диагностика исполнения не ждёт JS-мост и освобождает Profiler при успехе и отмене", async () => {
+  for (const cancel of [false, true]) {
+    const cdp = new FakeCdp()
+    cdp.targets.push(cdp.target("PROFILE", "http://127.0.0.1:43123/packages/a/"))
+    const controller = new AbortController()
+    if (cancel) cdp.onProfilerStart = () => controller.abort(new Error("stop profiling"))
+    const result = await cdp.client().sampleExecution("PROFILE", controller.signal).catch(error => error)
+    if (cancel) expect(result.message).toBe("stop profiling")
+    else expect(result).toMatchObject({durationMs: 250, samples: 3, hot: [{function: "layout", line: 10, samples: 3}]})
+    expect(cdp.commands.map(command => command.method)).toEqual([
+      "Profiler.enable", "Profiler.start", "Profiler.stop", "Profiler.disable",
+    ])
+  }
+})

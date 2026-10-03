@@ -277,6 +277,8 @@ export interface StorybookChromeClient {
   Читает диагностические сведения о загрузке и наличии моста страницы.
   */
   bridgeDiagnostics(targetId: string, signal?: AbortSignal): Promise<Readonly<Record<string, unknown>>>
+  /** Короткая выборка исполнения через native Profiler, даже когда JS-мост не отвечает. */
+  sampleExecution?(targetId: string, signal?: AbortSignal): Promise<Readonly<Record<string, unknown>>>
   /**
   Вызывает один из разрешённых методов моста страницы.
 
