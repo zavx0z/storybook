@@ -440,6 +440,7 @@ type AgentNode = Readonly<{
   bounds?: Readonly<{x: number; y: number; width: number; height: number}> | null
   display?: readonly unknown[]
   hit?: unknown
+  subtreeCursor?: string
 }>
 
 type AgentInspection = Readonly<{
@@ -749,3 +750,59 @@ function canvas(
     }),
   } as unknown as HTMLCanvasElement
 }
+
+
+test("курсор поддерева раскрывает глубокое поле и сохраняет точный nodeId при пагинации", async () => {
+  const fixture = createFixture()
+  const container = fixture.document.createElement("section")
+  container.setAttribute("aria-label", "Глубокая форма")
+  let parent = container
+  for (let index = 0; index < 15; index += 1) {
+    const child = fixture.document.createElement("div")
+    parent.append(child)
+    parent = child
+  }
+  const input = fixture.document.createElement("input")
+  input.setAttribute("aria-label", "Сообщение")
+  parent.append(input)
+  fixture.preview.append(container)
+  try {
+    let page = await fixture.bridge.call("inspect", {include: ["semantic"], maxDepth: 12, limit: 200}) as AgentInspection
+    let current = page.semantic!.nodes.find(node => node.name === "Глубокая форма")!
+    expect(current.subtreeCursor).toBeDefined()
+    while (current.tag !== "input") {
+      page = await fixture.bridge.call("inspect", {include: ["semantic"], maxDepth: 1, limit: 2,
+        cursor: current.subtreeCursor}) as AgentInspection
+      expect(page.semantic!.root).toBe(current.nodeId)
+      expect(page.semantic!.nodes).toHaveLength(2)
+      current = page.semantic!.nodes[1]!
+    }
+    expect(current.name).toBe("Сообщение")
+    await fixture.bridge.call("interact", {action: "focus", target: {nodeId: current.nodeId}})
+    expect(fixture.document.activeElement).toBe(input)
+    const cursor = (await fixture.bridge.call("inspect", {include: ["semantic"], maxDepth: 1, limit: 1,
+      cursor: page.semantic!.nodes[0]!.subtreeCursor}) as AgentInspection).semantic!.nextCursor
+    const next = await fixture.bridge.call("inspect", {include: ["semantic"], maxDepth: 1, limit: 1, cursor}) as AgentInspection
+    expect(next.semantic!.nodes[0]!.nodeId).toBe(current.nodeId)
+  } finally { fixture.dispose() }
+})
+
+test("поля получают имена из настоящих label и роли select", async () => {
+  const fixture = createFixture()
+  const label = fixture.document.createElement("label")
+  label.setAttribute("for", "named-checkbox")
+  label.textContent = "Значение"
+  const input = fixture.document.createElement("input")
+  input.id = "named-checkbox"
+  input.setAttribute("type", "checkbox")
+  const selectLabel = fixture.document.createElement("label")
+  selectLabel.textContent = "Модель"
+  const select = fixture.document.createElement("select")
+  selectLabel.append(select)
+  fixture.preview.append(label, input, selectLabel)
+  try {
+    const page = await fixture.bridge.call("inspect", {include: ["semantic"], maxDepth: 12, limit: 200}) as AgentInspection
+    expect(page.semantic!.nodes.find(node => node.role === "checkbox")?.name).toBe("Значение")
+    expect(page.semantic!.nodes.find(node => node.role === "combobox")?.name).toBe("Модель")
+  } finally { fixture.dispose() }
+})

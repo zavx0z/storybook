@@ -8,7 +8,7 @@ type ScenarioAppInput = ScenarioModel.Input
 import {createDocumentRenderer} from "@renderer/html"
 import {createScenarioPresentation} from "../src/scenario-presentation.ts"
 import ScenarioInspector from "@scenario/inspector"
-import {ChildrenFixture, Content, StatefulFixture} from "./fixture/scenario-presentation.tsx"
+import {ChildrenFixture, Content, FixedSizeFixture, StatefulFixture} from "./fixture/scenario-presentation.tsx"
 
 test("руководство Archetypes показывает файлы и код без JSON-упаковки", async () => {
   const code = 'describe.each([{name: "Пример", props: {value: 1}}])("$name", ({props}) => {\n  test("Значение", () => expect(props.value).toBe(1))\n})'
@@ -262,7 +262,6 @@ test("снимки функции переключаются в редактор
     expect(presentation.element.textContent).toContain("Ошибка выполнения")
     expect(presentation.element.textContent).toContain("Файл отсутствует")
     expect(JSON.stringify(input), "Просмотр не изменяет подготовленные снимки").toBe(original)
-    expect(presentation.center()).toBeFalse()
   } finally {
     inspector?.unmount()
     presentation.dispose()
@@ -323,5 +322,43 @@ test("Inspector сохраняет два уровня describe.each и выби
   } finally {
     inspector.unmount()
     presentation.dispose()
+  }
+})
+
+
+test("центрирование сохраняется при масштабе Display и после следующих кадров", () => {
+  const document = createDocument()
+  const host = document.createElement("section")
+  host.setAttribute("style", "width:720px;height:600px")
+  document.append(host)
+  const presentation = createScenarioPresentation(document, {
+    kind: "component",
+    template: FixedSizeFixture as unknown as CompiledTemplate<Record<string, unknown>>,
+    variants: [{id: "fixed", title: "Фикстура", props: {}, source: "<FixedSizeFixture />", points: []}],
+  })
+  host.append(presentation.element)
+  const renderer = createDocumentRenderer({
+    document,
+    root: host,
+    viewport: {width: 720, height: 600},
+    projectClientPoint: point => ({x: 120 + point.x * 2, y: 80 + point.y * 2}),
+    textMeasurer: {measureTextAdvance: (text, size) => text.length * size / 2},
+  })
+  try {
+    for (let frame = 0; frame < 4; frame += 1) {
+      renderer.render()
+      presentation.componentRoot.flush()
+    }
+    const viewport = presentation.element.getBoundingClientRect()
+    const content = presentation.element.querySelector("[data-fixed-fixture]")!.getBoundingClientRect()
+    expect(content.width, "Масштаб проекции сохраняет авторскую ширину").toBe(360)
+    expect(content.height, "Масштаб проекции сохраняет авторскую высоту").toBe(76)
+    expect(Math.abs(content.x + content.width / 2 - viewport.x - viewport.width / 2),
+      "Горизонтальное центрирование не зависит от масштаба Display").toBeLessThan(0.01)
+    expect(Math.abs(content.y + content.height / 2 - viewport.y - viewport.height / 2),
+      "Последующие кадры не возвращают компонент в прежнее положение").toBeLessThan(0.01)
+  } finally {
+    presentation.dispose()
+    renderer.dispose()
   }
 })

@@ -5,6 +5,13 @@
 Inspection и interaction используют existing semantic Document, Workbench IDs
 и renderer frame. Target resolution exact nodeId либо exact role+name;
 ambiguity fail closed. Raw eval/coordinates не являются agent API.
+Узел с потомками возвращает `subtreeCursor`. Повторная инспекция с этим cursor
+начинает обход от выбранного узла: глубина считается заново, размер страницы
+остаётся ограниченным, а `nodeId` сохраняется. Так агент доходит до поля
+внутри вложенного Workbench и обращается к нему по точному ID даже при
+совпадающих названиях в сценарии и Inspector. Имена полей читаются из
+`aria-label`, `aria-labelledby` и связанных native `label`; у select есть
+семантическая роль `combobox` либо `listbox`.
 State и inspect возвращают nativePage.visibilityState и nativePage.hasFocus
 из native shell.browserDocument рядом с неизменными revision и frameSequence.
 Это чтение текущей видимости и фокуса страницы без нового кадра, RAF, таймера

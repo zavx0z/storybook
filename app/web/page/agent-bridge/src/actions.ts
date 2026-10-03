@@ -1,4 +1,4 @@
-import {HTMLElement, type Node} from "@zavx0z/dom"
+import {HTMLElement, HTMLLabelElement, type Node} from "@zavx0z/dom"
 import type {DomInspector, DomInspectorNode} from "@zavx0z/devtools"
 import type {Request, Target} from "../contract/request"
 import type {Shell} from "../contract/shell"
@@ -33,6 +33,7 @@ export function projectNode(
       hit: node.hit ?? null,
     } : {}),
     childCount: node.children.length,
+    ...(node.children.length === 0 ? {} : {subtreeCursor: encodeCursor(0, node.id)}),
     parentId: node.parent === null ? null : agentNodeId(node.parent),
   })
 }
@@ -184,8 +185,19 @@ function accessibleName(
   _byId: ReadonlyMap<number, DomInspectorNode>,
   _inspector: DomInspector,
 ): string {
-  const explicit = attributes.get("aria-label") ?? attributes.get("title")
+  const explicit = attributes.get("aria-label")
   if (explicit !== undefined && explicit.trim().length > 0) return compactText(explicit)
+  const labelledBy = attributes.get("aria-labelledby")?.trim().split(/\s+/u)
+    .map(id => node?.ownerDocument?.getElementById(id)?.textContent ?? "").join(" ").trim()
+  if (labelledBy) return compactText(labelledBy)
+  if (node instanceof HTMLElement && ["input", "textarea", "select", "meter", "progress"].includes(node.localName)) {
+    const labels = [...node.ownerDocument?.querySelectorAll("label") ?? []]
+      .filter(label => label instanceof HTMLLabelElement && label.control === node)
+      .map(label => label.textContent ?? "").join(" ").trim()
+    if (labels) return compactText(labels)
+  }
+  const title = attributes.get("title")
+  if (title?.trim()) return compactText(title)
   return compactText(node?.textContent ?? "")
 }
 
@@ -207,6 +219,8 @@ function implicitRole(
     return "textbox"
   }
   if (localName === "textarea") return "textbox"
+  if (localName === "select") return attributes.has("multiple") ? "listbox" : "combobox"
+  if (localName === "option") return "option"
   if (localName === "a") return "link"
   return null
 }
@@ -264,15 +278,18 @@ export function boundedText(value: unknown, maximum: number, label: string): str
   return value
 }
 
-export function decodeCursor(value: string | undefined): number {
-  if (value === undefined) return 0
-  const match = /^offset:([0-9]+)$/u.exec(value)
+export function decodeCursor(value: string | undefined): Readonly<{offset: number; rootId?: number}> {
+  if (value === undefined) return {offset: 0}
+  const match = /^(?:node:([1-9][0-9]*):)?offset:([0-9]+)$/u.exec(value)
   if (match === null) throw new Error("Invalid Storybook semantic cursor")
-  return boundedInteger(Number(match[1]), 0, 1_000_000, "cursor")
+  return {
+    offset: boundedInteger(Number(match[2]), 0, 1_000_000, "cursor"),
+    ...(match[1] === undefined ? {} : {rootId: parseAgentNodeId(`node:${match[1]}`)}),
+  }
 }
 
-export function encodeCursor(value: number): string {
-  return `offset:${value}`
+export function encodeCursor(value: number, rootId?: number): string {
+  return `${rootId === undefined ? "" : `node:${rootId}:`}offset:${value}`
 }
 
 export function exactClip(x: number, y: number, width: number, height: number) {

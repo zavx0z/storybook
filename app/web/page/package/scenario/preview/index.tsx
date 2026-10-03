@@ -9,6 +9,7 @@ import ScenarioResult from "@scenario/result"
 /**
 Предоставляет место общей фикстуре в существующем Display.
 Host подключает компонент к stage один раз и обновляет его props отдельно.
+CSS центрирует авторский размер в координатах Display независимо от масштаба обзора.
 Во время проверки stage скрыт, вместо него показывается ход выполнения или ошибка.
 */
 export default function ScenarioPreview(props: Contract.Input) {
@@ -27,14 +28,11 @@ export default function ScenarioPreview(props: Contract.Input) {
       data-scenario-stage=""
       data-hidden={visible ? "false" : "true"}
       style={css`
-        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         width: 100%;
         height: 100%;
-
-        --scenario-x: ${props.placement.x}px;
-        --scenario-y: ${props.placement.y}px;
-
-        transform: translate(var(--scenario-x), var(--scenario-y));
 
         &[data-hidden="true"] {
           display: none;

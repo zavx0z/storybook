@@ -26,3 +26,15 @@ export function ChildrenFixture(props: Readonly<{
 export function Content() {
   return <span data-badge="">Дочерний компонент</span>
 }
+
+/** Авторский размер фикстуры сохраняется при любом масштабе проекции. */
+export function FixedSizeFixture() {
+  return <div
+    data-fixed-fixture=""
+    style={css`
+      width: 180px;
+      height: 38px;
+      flex-shrink: 0;
+    `}
+  />
+}

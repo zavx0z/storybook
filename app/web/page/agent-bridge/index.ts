@@ -187,8 +187,12 @@ function createStorybookAgentBridge(
     }
     const maximumDepth = boundedInteger(request.maxDepth ?? (defaultInspection ? 4 : 6), 0, 12, "maxDepth")
     const limit = boundedInteger(request.limit ?? (defaultInspection ? 40 : 80), 1, 200, "limit")
-    const offset = decodeCursor(request.cursor)
-    const snapshot = inspector.snapshot(options.shell.space)
+    const {offset, rootId} = decodeCursor(request.cursor)
+    const root = rootId === undefined ? options.shell.space : inspector.nodeForId(rootId)
+    if (root === null || root !== options.shell.space && !options.shell.space.contains(root)) {
+      throw new Error("Storybook inspection subtree no longer belongs to this view")
+    }
+    const snapshot = inspector.snapshot(root)
     const byId = new Map(snapshot.nodes.map((node) => [node.id, node] as const))
     const depths = new Map<number, number>([[snapshot.root, 0]])
     const ordered = snapshot.nodes.filter((node) => {
@@ -212,7 +216,7 @@ function createStorybookAgentBridge(
           layout: include.has("layout"),
           display: include.has("display"),
         }))),
-        nextCursor: offset + page.length < ordered.length ? encodeCursor(offset + page.length) : null,
+        nextCursor: offset + page.length < ordered.length ? encodeCursor(offset + page.length, rootId) : null,
         total: ordered.length,
       }),
     })

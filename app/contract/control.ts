@@ -161,7 +161,9 @@ export type StorybookWaitInput = Readonly<{
 @property [limit] - Максимальное число элементов на странице. На границе MCP —
 целое число от 1 до 200 включительно; остальные значения отклоняются.
 
-@property [cursor] - Указатель продолжения ранее полученной страницы.
+@property [cursor] - Указатель продолжения ранее полученной страницы либо `subtreeCursor`
+узла из предыдущей инспекции. Для поддерева maxDepth отсчитывается от выбранного
+узла; nodeId сохраняется и используется в interact/capture.
 */
 export type StorybookInspectInput = Readonly<{
   schemaVersion: 1
