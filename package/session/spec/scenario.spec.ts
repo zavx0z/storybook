@@ -55,6 +55,7 @@ describe.each([
       .toBe(props.subscriber ? 1 : 0)
   })
 
+  /** @remarks Наблюдение проверяется у варианта с подключённым подписчиком. */
   describe.skipIf(!props.subscriber)("Подписка", () => {
     test("Наблюдение без сборки", () => {
       expect(result.buildState, "Подписчик может наблюдать пакет до первой компиляции").toBe("idle")
@@ -62,6 +63,7 @@ describe.each([
     })
   })
 
+  /** @remarks Диагностика отказа применима к варианту неразрешённой декларации. */
   describe.skipIf(props.resolutionError === null)("Ошибка декларации", () => {
     test("Отказ до компиляции", () => {
       expect(result.buildState, "Ошибка разрешения видна без запуска компилятора").toBe("failed")

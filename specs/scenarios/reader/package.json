@@ -12,7 +12,8 @@
     "fast-xml-parser": "^5.11.1",
     "typescript": "^7.0.2",
     "@archetypes/scenario-validation": "workspace:*",
-    "@build/compiler": "workspace:*"
+    "@build/compiler": "workspace:*",
+    "@tech/limits": "workspace:*"
   },
   "devDependencies": {
     "@zavx0z/jsx": "^0.0.0",

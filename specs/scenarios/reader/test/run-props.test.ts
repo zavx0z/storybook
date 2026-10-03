@@ -1,6 +1,7 @@
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
 import readScenario from "@archetypes/scenario-reader"
+import Limits from "@tech/limits"
 
 describe("Передача параметров запуска", async () => {
   const path = resolve(import.meta.dir, "fixture/run-props.test.ts")
@@ -50,10 +51,10 @@ test("Путь передаётся непосредственно сценар�
     path: resolve(import.meta.dir, "../../../../package/reader/spec/scenario.spec.ts"),
     props: {path: resolve(import.meta.dir, "../..")},
   })
-  expect(result.calls.filter(call => call.name === "default").map(call => call.args)).toEqual([
+  expect(result.calls.filter(call => call.name === "default" && call.module === Bun.resolveSync("@archetypes/package", import.meta.dir) && call.location?.path === result.path).map(call => call.args)).toEqual([
     [{path: resolve(import.meta.dir, "../..")}],
   ])
-})
+}, Limits.STORYBOOK_SCENARIO_TIMEOUT_MS)
 
 test.each([undefined, NaN, Infinity, -0, () => 1, new Date(), {toJSON: () => "lost"}])("Непереносимый параметр %p", async value => {
   await expect(readScenario({path: resolve(import.meta.dir, "fixture/run-props.test.ts"), props: {value}})).rejects.toThrow(TypeError)

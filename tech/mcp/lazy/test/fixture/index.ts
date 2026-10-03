@@ -120,8 +120,10 @@ export default function factory() {
 }
 
 /** Один настоящий SDK Client и transport; журнал наблюдает только публичный JSON-RPC wire. */
-export async function connectLazyFixture(fixture: ReturnType<typeof createLazyFixture>) {
-  const server = await createLazyMcpServer(fixture.options)
+export async function connectLazyFixture(
+  fixture: ReturnType<typeof createLazyFixture>,
+  server = createLazyMcpServer(fixture.options),
+) {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
   const requests: Parameters<typeof clientTransport.send>[0][] = []
   const notifications: Parameters<typeof serverTransport.send>[0][] = []

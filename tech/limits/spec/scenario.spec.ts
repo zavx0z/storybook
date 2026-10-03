@@ -4,6 +4,7 @@ import Limits from "@tech/limits"
 
 describe.each([
   {name: "Компиляция пакета", props: {budget: Limits.STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS, expected: 120_000}},
+  {name: "Подготовка и выполнение сценария", props: {budget: Limits.STORYBOOK_SCENARIO_TIMEOUT_MS, expected: 150_000}},
   {name: "Компиляция общей среды", props: {budget: Limits.STORYBOOK_SHARED_COMPILE_TIMEOUT_MS, expected: 480_000}},
 ])("$name", ({props}) => {
   const actual = props.budget

@@ -26,6 +26,6 @@ describe.each([{name: "Один граф в двух средах", props: {name
   })
   test("Неизменяемый снимок", () => {
     expect(Object.isFrozen(graph), "Чтение не создаёт вторую изменяемую модель").toBeTrue()
-    expect(graph.nodes).toHaveLength(1)
+    expect(graph.nodes, "Один обнаруженный пакет образует один узел графа").toHaveLength(1)
   })
 })

@@ -6,11 +6,13 @@ Trusted default factory и его зависимости находятся в �
 @packageDocumentation
 */
 import {describe, expect, test} from "bun:test"
+import createLazyMcpServer from "@mcp/lazy"
 import {connectLazyFixture, createLazyFixture} from "../test/fixture"
 
 describe.each([{name: "Свежая реализация в том же MCP", props: {text: "hello"}}])("$name", async ({props}) => {
   const fixture = createLazyFixture()
-  const connection = await connectLazyFixture(fixture)
+  const server = createLazyMcpServer(fixture.options)
+  const connection = await connectLazyFixture(fixture, server)
   let before: Awaited<ReturnType<typeof connection.client.callTool>>
   let after: Awaited<ReturnType<typeof connection.client.callTool>>
   let connected: boolean[]

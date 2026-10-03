@@ -7,7 +7,7 @@ describe.each([
     name: "package.json",
     fail: "Содержимое package.json должно соответствовать контракту пакета",
     props: {
-      path: resolve(import.meta.dir, "../../package.json"),
+      path: resolve(import.meta.dir, "../package.json"),
     },
   },
   {

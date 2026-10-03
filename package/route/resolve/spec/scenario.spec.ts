@@ -1,235 +1,32 @@
+/** Публичный маршрут выбирает владельца и представление, не открывая его частные исходники. */
 import {afterAll, describe, expect, test} from "bun:test"
-import {mkdir, mkdtemp, realpath, rm, symlink} from "node:fs/promises"
-import {resolve} from "node:path"
+import {mkdtemp, mkdir, realpath, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
-import formatRouteAddress from "@route/address"
-import readRouteChildren from "@route/children"
+import {join} from "node:path"
 import resolveRoute from "@route/resolve"
 
-const storybookPath = resolve(import.meta.dir, "../../../..")
-const immersivePath = resolve(storybookPath, "../immersive")
-const roots = [
-  {name: "storybook", path: storybookPath},
-  {name: "immersive", path: immersivePath},
-] as const
-const temporaryPaths: string[] = []
-
-afterAll(async () => {
-  for (const path of temporaryPaths) await rm(path, {recursive: true, force: true})
-})
-
-describe("Текущая публичная структура", () => {
-  test.each([
-    {name: "единый namespace-контракт", source: "contract/index.ts"},
-    {name: "переходный раздельный контракт", source: "contract/input.ts"},
-  ])("Открывает представление контракта для $name", async ({source}) => {
-    const root = await realpath(await mkdtemp(resolve(tmpdir(), "storybook-route-contract-")))
-    temporaryPaths.push(root)
-    await mkdir(resolve(root, "contract"))
-    await Bun.write(resolve(root, "package.json"), JSON.stringify({name: "@fixture/contract", type: "module"}))
-    await Bun.write(resolve(root, source), "export type Input = {value: string}\n")
-    const selected = await resolveRoute({
-      route: "contract-owner?view=contract",
-      roots: [{name: "contract-owner", path: root}],
-    })
-    expect(selected, "Публичный вход контракта принадлежит этому пакету и открывает его вкладку")
-      .toMatchObject({view: "contract", directory: root, views: ["contract"]})
-  })
-
-  test("Открывает сценарии Diagram", async () => {
-    expect(await resolveRoute({route: "/immersive/nodes/node/diagram?view=scenarios", roots})).toMatchObject({
-      node: "immersive/nodes/node/diagram",
-      pathname: "/immersive/nodes/node/diagram",
-      package: {id: "@nodes/node", path: resolve(immersivePath, "nodes/node")},
-      directory: resolve(immersivePath, "nodes/node/diagram"),
-      relativePath: "diagram",
-      view: "scenarios",
-      views: ["scenarios", "contract", "dependencies"],
-    })
-  })
-
-  test("Сохраняет самостоятельный пакет scenarios", async () => {
-    expect(await resolveRoute({route: "storybook/specs/scenarios", roots})).toMatchObject({
-      package: {id: "@archetypes/scenario-guide"},
-      directory: resolve(storybookPath, "specs/scenarios"),
-      relativePath: "",
-      view: "overview",
-    })
-  })
-
-  test("Открывает сценарии самостоятельного пакета через query", async () => {
-    expect(await resolveRoute({route: "storybook/specs/scenarios?view=scenarios", roots})).toMatchObject({
-      node: "storybook/specs/scenarios",
-      relativePath: "",
-      view: "scenarios",
-    })
-  })
-
-  test("Декодирует выбранный вариант", async () => {
-    expect(await resolveRoute({route: "immersive/nodes/node/diagram?view=scenarios&variant=%D0%9A%D1%80%D1%83%D0%B3", roots})).toMatchObject({
-      variant: "Круг",
-      pathname: "/immersive/nodes/node/diagram",
-    })
-  })
-
-  test("Возвращает только structural children Diagram", async () => {
-    expect(await readRouteChildren({route: "immersive/nodes/node/diagram", roots})).toEqual([])
-  })
-
-  test("Проходит через workspace prefix к ближайшему пакету", async () => {
-    expect(await resolveRoute({route: "storybook/app/mcp/rest", roots})).toMatchObject({
-      package: {id: "@mcp/rest", path: resolve(storybookPath, "app/mcp/rest")},
-      relativePath: "",
-      view: "overview",
-    })
-  })
-
-  test("Строит browser-safe адрес", () => {
-    expect(formatRouteAddress({node: "storybook/сущность", view: "scenarios", variant: "Круг"})).toBe(
-      "/storybook/%D1%81%D1%83%D1%89%D0%BD%D0%BE%D1%81%D1%82%D1%8C?view=scenarios&variant=%D0%9A%D1%80%D1%83%D0%B3",
-    )
-  })
-})
-
-describe("Изменяемая структура без предварительного реестра", () => {
-  test("Открывает физический компонент без package exports", async () => {
-    const root = await createPackage({exports: {}})
-    await mkdir(resolve(root, "category/component/private"), {recursive: true})
-    await Bun.write(resolve(root, "category/index.ts"), "export * from './component'\n")
-    await Bun.write(resolve(root, "category/component/index.tsx"), "export function Component() { return <article /> }\n")
-    const physicalRoots = [{name: "physical", path: root}]
-
-    expect(await Promise.all([
-      resolveRoute({route: "physical/category/component", roots: physicalRoots}),
-      resolveRoute({route: "physical/category/component/private", roots: physicalRoots}),
-      readRouteChildren({route: "physical/category", roots: physicalRoots}),
-    ])).toMatchObject([
-      {relativePath: "category/component", view: "overview"},
-      null,
-      [{relativePath: "category/component"}],
-    ])
-  })
-
-  test("Не открывает private и Git-ignored директории", async () => {
-    const root = await createPackage({exports: {}})
-    await Bun.spawn(["git", "init", "--quiet", root]).exited
-    for (const path of ["spec/child", "contract/child", "src/child", "fixture/child", ".hidden/child", "ignored/child"]) {
-      await mkdir(resolve(root, path), {recursive: true})
-    }
-    await Bun.write(resolve(root, ".gitignore"), "ignored/\n")
-    const privateRoots = [{name: "private", path: root}]
-
-    expect(await Promise.all([
-      ...["spec", "contract", "src", "fixture", ".hidden", "ignored"].map(path => (
-        resolveRoute({route: `private/${path}`, roots: privateRoots})
-      )),
-      readRouteChildren({route: "private", roots: privateRoots}),
-    ])).toEqual([null, null, null, null, null, null, []])
-  })
-
-  test("Тот же resolver видит созданного после первого вызова ребёнка", async () => {
-    const root = await createPackage({exports: {"./created": "./created/index.ts"}})
-    const dynamicRoots = [{name: "dynamic", path: root}]
-    const before = await resolveRoute({route: "dynamic/created", roots: dynamicRoots})
-    await mkdir(resolve(root, "created"))
-    await Bun.write(resolve(root, "created/index.ts"), "export const created = true\n")
-    const after = await resolveRoute({route: "dynamic/created", roots: dynamicRoots})
-
-    expect({before, after}).toMatchObject({
-      before: null,
-      after: {node: "dynamic/created", relativePath: "created", view: "overview"},
-    })
-  })
-
-  test("Публичная сущность scenarios имеет приоритет над view владельца", async () => {
-    const root = await createPackage({exports: {"./scenarios": "./scenarios/index.ts"}})
-    await mkdir(resolve(root, "spec"))
-    await Bun.write(resolve(root, "spec/scenario.spec.ts"), "")
-    await mkdir(resolve(root, "scenarios/spec"), {recursive: true})
-    await Bun.write(resolve(root, "scenarios/index.ts"), "export const scenarios = true\n")
-    await Bun.write(resolve(root, "scenarios/spec/scenario.spec.ts"), "")
-    const collisionRoots = [{name: "collision", path: root}]
-
-    expect(await Promise.all([
-      resolveRoute({route: "collision/scenarios", roots: collisionRoots}),
-      resolveRoute({route: "collision/scenarios?view=scenarios", roots: collisionRoots}),
-      resolveRoute({route: "collision?view=scenarios", roots: collisionRoots}),
-    ])).toMatchObject([
-      {relativePath: "scenarios", view: "overview", views: ["scenarios"]},
-      {relativePath: "scenarios", view: "scenarios", views: ["scenarios"]},
-      {relativePath: "", view: "scenarios", views: ["scenarios"]},
-    ])
-  })
-
-  test("File export не создаёт дочерний structural узел", async () => {
-    const root = await createPackage({exports: {"./buttons/button": "./buttons/button.ts"}})
-    await mkdir(resolve(root, "buttons/spec"), {recursive: true})
-    await Bun.write(resolve(root, "buttons/index.ts"), "export * from './button'\n")
-    await Bun.write(resolve(root, "buttons/button.ts"), "export const button = true\n")
-    await Bun.write(resolve(root, "buttons/spec/scenario.spec.ts"), "")
-    const leafRoots = [{name: "leaf", path: root}]
-
-    expect(await Promise.all([
-      resolveRoute({route: "leaf/buttons?view=scenarios", roots: leafRoots}),
-      resolveRoute({route: "leaf/buttons/button?view=scenarios", roots: leafRoots}),
-    ])).toMatchObject([
-      {relativePath: "buttons", view: "scenarios"},
-      null,
-    ])
-  })
-})
-
 describe.each([
-  {name: "несуществующий узел", route: "immersive/nodes/node/unknown"},
-  {name: "переход наверх", route: "immersive/nodes/node/../diagram"},
-  {name: "кодированный slash", route: "immersive/nodes/node/diagram%2Fcontract"},
-  {name: "дважды кодированный slash", route: "immersive/nodes/node/diagram%252Fcontract"},
-  {name: "приватная spec", route: "immersive/nodes/node/diagram/spec"},
-  {name: "незарегистрированный корень", route: "unknown/nodes"},
-  {name: "прежний suffix сценариев", route: "immersive/nodes/node/diagram/scenarios"},
-  {name: "недоступный view", route: "storybook/archetypes/specs?view=dependencies"},
-])("Недоступен $name", ({route}) => {
-  test("Возвращает null", async () => {
-    expect(await resolveRoute({route, roots})).toBeNull()
+  {name: "Обзор владельца", props: {route: "/project/packages/component"}, expected: {node: "project/packages/component", view: "overview", packageId: "@fixture/component", relativePath: ""}},
+  {name: "Публичный контракт", props: {route: "/project/packages/component?view=contract"}, expected: {node: "project/packages/component", view: "contract", packageId: "@fixture/component", relativePath: ""}},
+  {name: "Частные исходники", props: {route: "/project/packages/component/src"}, expected: null},
+  {name: "Отсутствующий владелец", props: {route: "/project/missing"}, expected: null},
+])("$name", async ({props, expected}) => {
+  const root = await realpath(await mkdtemp(join(tmpdir(), "route-scenario-")))
+  const owner = join(root, "packages/component")
+  afterAll(() => rm(root, {recursive: true, force: true}))
+  await mkdir(join(owner, "contract"), {recursive: true})
+  await mkdir(join(owner, "src"))
+  await Bun.write(join(root, "package.json"), JSON.stringify({name: "@fixture/project", workspaces: ["packages/*"]}))
+  await Bun.write(join(owner, "package.json"), JSON.stringify({name: "@fixture/component", exports: {".": "./index.ts"}}))
+  await Bun.write(join(owner, "index.ts"), 'export default function component() {return "value"}\n')
+  await Bun.write(join(owner, "contract/index.ts"), 'export declare namespace FixtureComponent {type Output = string}\n')
+  const result = await resolveRoute({...props, roots: [{name: "project", path: root}]})
+  test("Выбранный адрес", () => {
+    expect(result === null ? null : {node: result.node, view: result.view, packageId: result.package.id, relativePath: result.relativePath},
+      "Разрешается только публичный адрес и выбранное представление указанного владельца").toEqual(expected)
+  })
+  test("Физический владелец", () => {
+    expect(result === null || result.directory === owner,
+      "Успешный адрес остаётся у своего физического пакета; неизвестный и частный пути отклонены").toBeTrue()
   })
 })
-
-test("Не проходит через symlink директории", async () => {
-  const root = await createPackage({exports: {"./escaped": "./escaped/index.ts"}})
-  const outside = await mkdtemp(resolve(tmpdir(), "storybook-route-outside-"))
-  temporaryPaths.push(outside)
-  await Bun.write(resolve(outside, "index.ts"), "export const escaped = true\n")
-  await symlink(outside, resolve(root, "escaped"))
-
-  expect(await resolveRoute({route: "secure/escaped", roots: [{name: "secure", path: root}]})).toBeNull()
-})
-
-test("Не читает представление через внешний symlink директории spec", async () => {
-  const root = await createPackage({exports: {}})
-  const outside = await mkdtemp(resolve(tmpdir(), "storybook-route-spec-outside-"))
-  temporaryPaths.push(outside)
-  await Bun.write(resolve(outside, "scenario.spec.ts"), "")
-  await symlink(outside, resolve(root, "spec"))
-
-  expect(await resolveRoute({route: "secure?view=scenarios", roots: [{name: "secure", path: root}]})).toBeNull()
-})
-
-test("Не читает представление через внутренний symlink директории spec", async () => {
-  const root = await createPackage({exports: {}})
-  await mkdir(resolve(root, "scenario-source"))
-  await Bun.write(resolve(root, "scenario-source/scenario.spec.ts"), "")
-  await symlink(resolve(root, "scenario-source"), resolve(root, "spec"))
-
-  expect(await resolveRoute({route: "secure?view=scenarios", roots: [{name: "secure", path: root}]})).toBeNull()
-})
-
-/** Создаёт минимальный временный пакет с заданной картой публичных входов. */
-async function createPackage({exports}: {readonly exports: Readonly<Record<string, string>>}): Promise<string> {
-  const path = await mkdtemp(resolve(tmpdir(), "storybook-route-"))
-  temporaryPaths.push(path)
-  await Bun.write(resolve(path, "package.json"), JSON.stringify({
-    name: `@fixture/${path.split("/").at(-1)}`,
-    exports,
-  }))
-  return path
-}

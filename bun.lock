@@ -1135,6 +1135,7 @@
       "dependencies": {
         "@archetypes/scenario-validation": "workspace:*",
         "@build/compiler": "workspace:*",
+        "@tech/limits": "workspace:*",
         "fast-xml-parser": "^5.11.1",
         "typescript": "^7.0.2",
       },
