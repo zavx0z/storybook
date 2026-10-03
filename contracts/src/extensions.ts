@@ -1,7 +1,7 @@
 import {TypeFlags, type Symbol as NativeSymbol} from "typescript/unstable/async"
 import type {Extension, Namespace} from "../contract/declaration"
 import {diagnose, type Context} from "./context"
-import {originalSymbol} from "./declarations"
+import {originalSymbol, typeDependencies} from "./declarations"
 
 /**
 Сопоставляет опубликованные пространства с общим протоколом своего владельца.
@@ -22,13 +22,14 @@ export async function readExtensions(
       const roles: Extension["roles"][number][] = []
       for (const role of base.namespace.roles) {
         const child = member.namespace.roles.find(value => value.name === role.name)
-        const linked = child?.dependencies.some(value => role.declarations.some(source =>
+        const baseRole = baseRoles.find(value => value.name === role.name)
+        const memberRole = memberRoles.find(value => value.name === role.name)
+        const dependencies = memberRole ? await typeDependencies(memberRole, member.namespace.declaration.owner!.path, context, true) : []
+        const linked = dependencies.some(value => role.declarations.some(source =>
           source.path === value.path && source.line === value.line && source.name === value.name)) === true
           || role.fields.some(field => field.declarations.some(source => source.owner?.path === context.root
             && child?.fields.some(value => value.declarations.some(declaration =>
               declaration.path === source.path && declaration.line === source.line && declaration.name === source.name))))
-        const baseRole = baseRoles.find(value => value.name === role.name)
-        const memberRole = memberRoles.find(value => value.name === role.name)
         let compatible = false
         if (baseRole && memberRole) {
           const expected = await context.project.checker.getDeclaredTypeOfSymbol(await originalSymbol(baseRole, context))

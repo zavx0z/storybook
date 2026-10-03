@@ -235,6 +235,17 @@ describe.each([
       "Каждый участник сохраняет исходные общие определения и совместимо расширяет все роли; копия полей не заменяет эту связь")
         .toEqual([])
     })
+    test("Все принадлежащие участники", () => {
+      expect(parts.filter(part => !rootProtocols.some(entry => entry.namespaces.some(namespace =>
+        namespace.declaration.owner?.path === part.path)) || !contract!.extensions.some(extension =>
+        extension.base.owner?.path === result.root && extension.member.owner?.path === part.path
+          && extension.roles.length > 0 && extension.roles.every(role => role.linked && role.compatible))),
+      "Каждый непосредственный участник, включая вложенную группу, раскрывает свой протокол и сохраняет общий; отсутствие реэкспорта не скрывает чужеродного ребёнка")
+        .toEqual([])
+    })
+    test("Совместное использование", () => {
+      expect(result.scenarios, "Cluster имеет собственный сценарий общих гарантий на реальных участниках").toHaveLength(1)
+    })
     test("Публичный доступ к протоколу", () => {
       expect(codeEntries.filter(entry => entry.path === "./contract"),
         "Дети используют один публичный type-only вход общего протокола без обратного runtime-импорта каталога").toHaveLength(1)

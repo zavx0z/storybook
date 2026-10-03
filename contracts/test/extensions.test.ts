@@ -51,3 +51,26 @@ test.each([
     await fixture.close()
   }
 }, 30_000)
+
+
+test("транзитивный alias сохраняет общее основание, совпадение конечного типа его не заменяет", async () => {
+  const fixture = await extensionFixture("interface Input extends ContractFixtureGroup.Input {readonly disabled?: boolean}")
+  try {
+    await fixture.write("contract/index.ts", 'export declare namespace ContractFixtureGroup {interface Input {readonly label: string}\ntype Output = string}\n')
+    await fixture.write("middle/package.json", JSON.stringify({name: "@contract-fixture/middle", type: "module", exports: {"./contract": "./contract/index.ts"}}))
+    await fixture.write("middle/contract/index.ts", 'import type {ContractFixtureGroup} from "@contract-fixture/group/contract"\nexport declare namespace ContractFixtureMiddle {type Output = ContractFixtureGroup.Output}\n')
+    await symlink(resolve(fixture.root, "middle"), resolve(fixture.root, "node_modules/@contract-fixture/middle"))
+    const common = 'import type {ContractFixtureGroup} from "@contract-fixture/group/contract"\nimport type {ContractFixtureMiddle} from "@contract-fixture/middle/contract"\n'
+    await fixture.write("child/contract/index.ts", common + 'export declare namespace ContractFixtureChild {interface Input extends ContractFixtureGroup.Input {}\ntype Output = ContractFixtureMiddle.Output}\n')
+    const linked = await readContract({path: fixture.root})
+    expect(linked.diagnostics).toEqual([])
+    expect(linked.extensions[0]?.roles.find(role => role.name === "Output")).toEqual({name: "Output", linked: true, compatible: true})
+    expect(linked.sources.some(source => source.path.endsWith("/middle/contract/index.ts"))).toBeTrue()
+    await fixture.write("child/contract/index.ts", common + 'export declare namespace ContractFixtureChild {interface Input extends ContractFixtureGroup.Input {}\ntype Output = string}\n')
+    const copied = await readContract({path: fixture.root})
+    expect(copied.extensions[0]?.roles.find(role => role.name === "Output")).toEqual({name: "Output", linked: false, compatible: true})
+    expect(copied.diagnostics.some(diagnostic => diagnostic.code === "protocol-extension")).toBeTrue()
+  } finally {
+    await fixture.close()
+  }
+}, 30_000)

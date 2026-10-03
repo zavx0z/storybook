@@ -39,8 +39,10 @@ export async function declarationsOf(symbol: NativeSymbol, context: Context): Pr
 Проходит по разрешённым символам всех типовых ссылок, включая callbacks, Pick,
 indexed access, typeof и рекурсию. Чужой контракт остаётся у своего владельца;
 его внутренние определения не становятся собственными типами потребителя.
+Для проверки расширения протокола можно пройти транзитивную цепочку контрактов,
+сохраняя исходного владельца каждого определения.
 */
-export async function typeDependencies(symbol: NativeSymbol, owner: string, context: Context): Promise<Declaration[]> {
+export async function typeDependencies(symbol: NativeSymbol, owner: string, context: Context, followForeignContracts = false): Promise<Declaration[]> {
   const found = new Map<string, Declaration>()
   const visited = new Set<number>()
   const visitedTypes = new Set<number>()
@@ -94,7 +96,7 @@ export async function typeDependencies(symbol: NativeSymbol, owner: string, cont
       const declaration = await declarationOf(node, target.name, context)
       if (!declaration.owner || declaration.path.includes("/node_modules/")) continue
       found.set(`${declaration.path}:${node.pos}`, declaration)
-      if (declaration.owner.path !== owner) continue
+      if (declaration.owner.path !== owner && (!followForeignContracts || !declaration.contract)) continue
       if (!declaration.contract) {
         diagnose(context, "type-outside-contract", declaration.path,
           `Тип ${declaration.name} входит в публичный контракт и расположен вне contract своего владельца`)
