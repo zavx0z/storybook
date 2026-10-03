@@ -19,7 +19,10 @@ export type ChatBrowserView = Readonly<{
   permissions: NonNullable<ChatView.Input["permissions"]>
 }>
 
+type ChatSocket = Pick<WebSocket, "addEventListener" | "removeEventListener" | "send" | "close">
+
 type ChatClientOptions = Readonly<{
+  createSocket?(path: string): ChatSocket
   address: string
   label: string
   fetcher?: typeof fetch
@@ -37,7 +40,8 @@ export function canonicalChatAddress(address: string): string {
 }
 
 /**
-Подготавливает источник UI. Обрыв NDJSON восстанавливает grant, исходный снимок
+Подготавливает источник UI. WebSocket не удерживает HTTP-поток вкладки.
+Обрыв соединения восстанавливает grant, исходный снимок
 и подписку с ограниченным backoff; prompt при этом не повторяется.
 */
 export function createChatBrowserClient(options: ChatClientOptions) {
@@ -55,7 +59,7 @@ export function createChatBrowserClient(options: ChatClientOptions) {
   let draftChanged = false
   let configuring = false
   let submitting = false
-  let activeReader: ReadableStreamDefaultReader<Uint8Array> | null = null
+  let activeSocket: ChatSocket | null = null
   let finishRetry: (() => void) | null = null
   let view: ChatBrowserView = deriveView()
 
@@ -134,47 +138,54 @@ export function createChatBrowserClient(options: ChatClientOptions) {
     }
     return response.json()
   }
-  const stream = async (token: string, onSnapshot: () => void): Promise<void> => {
-    const response = await fetcher(`/api/browser/chat/events?address=${encodeURIComponent(address)}`, {
-      headers: {"x-storybook-session": token},
-      signal: lifetime.signal,
-    })
-    if (!response.ok || response.body === null) throw new Error(`Поток чата недоступен: HTTP ${response.status}`)
-    if (disposed) {
-      await response.body.cancel().catch(() => {})
-      return
-    }
-    const reader = response.body.getReader()
-    activeReader = reader
-    connectionError = undefined
-    notify()
-    const decoder = new TextDecoder()
-    let buffer = ""
-    try {
-      while (!disposed) {
-        const chunk = await reader.read()
-        buffer += decoder.decode(chunk.value, {stream: !chunk.done})
-        let newline = buffer.indexOf("\n")
-        while (newline >= 0) {
-          const line = buffer.slice(0, newline).trim()
-          buffer = buffer.slice(newline + 1)
-          if (line.length > 0) {
-            accept(JSON.parse(line))
-            onSnapshot()
-          }
-          newline = buffer.indexOf("\n")
-        }
-        if (chunk.done) {
-          if (buffer.trim().length > 0) accept(JSON.parse(buffer))
-          if (!disposed) throw new Error("Поток обновлений чата закрыт")
-          return
-        }
+  const stream = (token: string, onSnapshot: () => void): Promise<void> => {
+    const path = `/api/events?session=${encodeURIComponent(token)}`
+    const socket = options.createSocket?.(path) ?? (() => {
+      const url = new URL(path, globalThis.location.href)
+      url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
+      return new WebSocket(url)
+    })()
+    activeSocket = socket
+    return new Promise<void>((resolve, reject) => {
+      let settled = false
+      const finish = (error?: Error): void => {
+        if (settled) return
+        settled = true
+        socket.removeEventListener("open", opened)
+        socket.removeEventListener("message", message)
+        socket.removeEventListener("close", closed)
+        socket.removeEventListener("error", failed)
+        lifetime.signal.removeEventListener("abort", aborted)
+        if (activeSocket === socket) activeSocket = null
+        socket.close()
+        if (disposed || lifetime.signal.aborted) resolve()
+        else reject(error ?? new Error("Соединение потеряно"))
       }
-    } finally {
-      await reader.cancel().catch(() => {})
-      reader.releaseLock()
-      activeReader = null
-    }
+      const opened = (): void => {
+        connectionError = undefined
+        notify()
+        socket.send(JSON.stringify({type: "subscribe", topic: `chat:${address}`}))
+      }
+      const message = (event: Event): void => {
+        try {
+          const value = JSON.parse(String((event as MessageEvent).data))
+          if (value.type === "subscription.failed") throw new Error(value.message ?? "Подписка чата отклонена")
+          if (value.type !== "chat.snapshot") return
+          if (value.address !== address) throw new Error("Получен снимок другой беседы")
+          accept(value.snapshot)
+          onSnapshot()
+        } catch (error) { finish(error instanceof Error ? error : new Error(String(error))) }
+      }
+      const closed = (): void => finish()
+      const failed = (): void => finish(new Error("Соединение потеряно"))
+      const aborted = (): void => finish()
+      socket.addEventListener("open", opened)
+      socket.addEventListener("message", message)
+      socket.addEventListener("close", closed)
+      socket.addEventListener("error", failed)
+      lifetime.signal.addEventListener("abort", aborted, {once: true})
+      if (disposed || lifetime.signal.aborted) finish()
+    })
   }
   const waitForRetry = (delayMs: number): Promise<void> => new Promise(resolve => {
     const schedule = options.scheduleRetry ?? ((callback: () => void, delay: number) => {
@@ -287,7 +298,7 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       saveDraft()
       lifetime.abort()
       finishRetry?.()
-      void activeReader?.cancel().catch(() => {})
+      activeSocket?.close()
       listeners.clear()
     },
   }

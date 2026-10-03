@@ -19,7 +19,7 @@ export function createChatServer(options: Readonly<{
   connect?: typeof createAcp
 }>) {
   const grants = new Map<string, string>()
-  const streams = new Set<() => void>()
+  const subscriptions = new Set<() => void>()
   const resolve = (address: string) => {
     if (address === "/") return {address, label: options.projectName(), cwd: options.project}
     if (typeof address !== "string" || !address.startsWith("/") || /[?#]/u.test(address)) throw new TypeError("Нужен канонический адрес предмета")
@@ -112,61 +112,48 @@ export function createChatServer(options: Readonly<{
       rules: rules.map(node => ({path: node.urlPath.slice(1), label: node.label})),
     })
   }
-  const events = async (request: Request): Promise<Response> => {
-    const address = new URL(request.url).searchParams.get("address") ?? "/"
-    await chats.read(address)
+  /** Один подписчик получает свежий снимок, последующие изменения объединяются за 50 мс. */
+  const subscribe = async (address: string, listener: (snapshot: Snapshot) => void): Promise<() => void> => {
     let release = () => {}
     let closed = false
-    const encoder = new TextEncoder()
-    let closeStream = () => {}
     let latest: Snapshot | null = null
     let timer: ReturnType<typeof setTimeout> | undefined
-    let emit = () => {}
-    const body = new ReadableStream<Uint8Array>({
-      async start(controller) {
-        emit = () => {
-          if (closed || latest === null || (controller.desiredSize ?? 0) <= 0) return
-          controller.enqueue(encoder.encode(`${JSON.stringify(latest)}\n`))
-          latest = null
+    const emit = () => {
+      if (closed || latest === null) return
+      const value = latest
+      latest = null
+      listener(value)
+    }
+    const close = () => {
+      if (closed) return
+      closed = true
+      clearTimeout(timer)
+      release()
+      subscriptions.delete(close)
+    }
+    subscriptions.add(close)
+    try {
+      release = await chats.subscribe(address, value => {
+        if (closed) return
+        latest = value
+        if (timer === undefined) {
+          emit()
+          timer = setTimeout(() => { timer = undefined; emit() }, 50)
         }
-        const close = () => {
-          if (closed) return
-          closed = true
-          clearTimeout(timer)
-          release()
-          streams.delete(close)
-          request.signal.removeEventListener("abort", close)
-          try { controller.close() } catch { /* Поток уже закрыт потребителем. */ }
-        }
-        closeStream = close
-        streams.add(close)
-        request.signal.addEventListener("abort", close, {once: true})
-        if (request.signal.aborted) { close(); return }
-        try {
-          release = await chats.subscribe(address, value => {
-            if (closed) return
-            latest = value
-            if (timer === undefined) {
-              emit()
-              timer = setTimeout(() => { timer = undefined; emit() }, 50)
-            }
-          })
-          if (closed) release()
-        } catch (error) {
-          close()
-        }
-      },
-      pull() { emit() },
-      cancel() { closeStream() },
-    })
-    return new Response(body, {headers: {"content-type": "application/x-ndjson", "cache-control": "no-store"}})
+      })
+      if (closed) release()
+      return close
+    } catch (error) { close(); throw error }
   }
   return {
     chats,
     scopedMcp,
+    subscribe,
     async request(request: Request): Promise<Response> {
       const path = new URL(request.url).pathname
-      if (path.endsWith("/events") && request.method === "GET") return events(request)
+      if (path.endsWith("/events") && request.method === "GET") {
+        return Response.json({error: "События чата доступны через WebSocket /api/events"}, {status: 410})
+      }
       if (request.method !== "POST") return Response.json({error: "Ожидается POST"}, {status: 405})
       const text = await request.text()
       if (text.length > 96_000) return Response.json({error: "Слишком большой запрос чата"}, {status: 413})
@@ -184,7 +171,7 @@ export function createChatServer(options: Readonly<{
       return Response.json(value, {headers: {"cache-control": "no-store"}})
     },
     async dispose() {
-      for (const close of streams) close()
+      for (const close of subscriptions) close()
       grants.clear()
       await chats.dispose()
     },

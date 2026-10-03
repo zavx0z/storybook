@@ -70,14 +70,17 @@ test("пустой MCP-вызов открывает назначенный пр
 
 test("подписка передаёт историю и её закрытие не отменяет чат", async () => {
   const {server} = await fixture()
-  const response = await server.request(new Request("http://127.0.0.1:12345/api/browser/chat/events?address=/repo/button"))
-  expect(response.headers.get("content-type")).toBe("application/x-ndjson")
-  const reader = response.body!.getReader()
-  const first = await reader.read()
-  const state = JSON.parse(new TextDecoder().decode(first.value))
-  expect(state).toMatchObject({address: "/repo/button", status: "idle", messages: []})
-  await reader.cancel()
-  expect((await server.chats.read("/repo/button")).id).toBe(state.id)
+  const snapshots: unknown[] = []
+  const release = await server.subscribe("/repo/button", snapshot => snapshots.push(snapshot))
+  expect(snapshots).toHaveLength(1)
+  expect(snapshots[0]).toMatchObject({address: "/repo/button", status: "idle", messages: []})
+  const before = await server.chats.read("/repo/button")
+  release()
+  release()
+  expect((await server.chats.read("/repo/button")).id).toBe(before.id)
+  const retired = await server.request(new Request("http://127.0.0.1:12345/api/browser/chat/events?address=/repo/button"))
+  expect(retired.status).toBe(410)
+  expect(await retired.json()).toEqual({error: "События чата доступны через WebSocket /api/events"})
 })
 
 

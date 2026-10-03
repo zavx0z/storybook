@@ -495,7 +495,6 @@ export default async function startExternalStorybookServer(
         if (url.pathname.startsWith("/api/browser/chat/")) {
           assertExternalStorybookRequestOrigin(request, server.url.origin, {required: request.method !== "GET"})
           browserSessions.authorize(request.headers.get("x-storybook-session") ?? "")
-          if (url.pathname.endsWith("/events")) currentServer.timeout(request, 0)
           return await chat.request(request)
         }
         if (url.pathname === "/api/events") {
@@ -1172,7 +1171,7 @@ export default async function startExternalStorybookServer(
       open(websocket) {
         clients.add(websocket)
       },
-      message(websocket, message) {
+      async message(websocket, message) {
         try {
           const source = typeof message === "string" ? message : new TextDecoder().decode(message)
           if (new TextEncoder().encode(source).byteLength > STORYBOOK_WEBSOCKET_MESSAGE_MAX_BYTES) {
@@ -1184,6 +1183,23 @@ export default async function startExternalStorybookServer(
           assertExactRequestKeys(record, ["type", "topic"])
           if (record.type !== "subscribe") throw new Error("Unknown Storybook WebSocket message")
           const topic = requiredText("subscription topic", record.topic)
+          if (topic.startsWith("chat:")) {
+            if (websocket.data.grant.kind !== "registry") throw new Error("Chat subscription requires a registry reader")
+            if (websocket.data.subscriptions.has(topic)) return
+            const address = topic.slice("chat:".length)
+            websocket.data.subscriptions.add(topic)
+            try {
+              const release = await chat.subscribe(address, snapshot => {
+                if (clients.has(websocket)) websocket.send(JSON.stringify({type: "chat.snapshot", address, snapshot}))
+              })
+              if (clients.has(websocket)) websocket.data.unsubscribers.set(topic, release)
+              else release()
+            } catch (error) {
+              websocket.data.subscriptions.delete(topic)
+              throw error
+            }
+            return
+          }
           if (topic !== "registry" && topic !== "catalog" && !topic.startsWith("package:")) {
             throw new Error(`Invalid Storybook subscription topic: ${topic}`)
           }
@@ -1210,7 +1226,7 @@ export default async function startExternalStorybookServer(
 
           }
         } catch (error) {
-          websocket.send(JSON.stringify({type: "subscription.failed", message: errorText(error)}))
+          if (clients.has(websocket)) websocket.send(JSON.stringify({type: "subscription.failed", message: errorText(error)}))
         }
       },
       close(websocket) {

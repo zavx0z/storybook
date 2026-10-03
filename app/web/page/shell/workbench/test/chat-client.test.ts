@@ -8,19 +8,19 @@ test("адрес беседы сохраняет предмет и исключ�
   expect(canonicalChatAddress("/?inspector=chat")).toBe("/")
 })
 
-test("один browser grant, NDJSON fragments и версия сохраняют живую историю без polling", async () => {
+test("один browser grant, WebSocket snapshots и версия сохраняют живую историю без polling", async () => {
   const fixture = browserChatFixture("/storybook/component")
-  const client = createChatBrowserClient({address: "/storybook/component?view=contract", label: "Component", fetcher: fixture.fetcher})
+  const client = createChatBrowserClient({address: "/storybook/component?view=contract", label: "Component", createSocket: fixture.createSocket, fetcher: fixture.fetcher})
   client.start()
   try {
     await until(() => fixture.calls.length === 3)
     expect(fixture.calls.map(call => call.url)).toEqual([
-      "/api/browser/registry-session", "/api/browser/chat/session", "/api/browser/chat/events?address=%2Fstorybook%2Fcomponent",
+      "/api/browser/registry-session", "/api/browser/chat/session", "/api/events?session=browser-grant",
     ])
     expect(new Headers(fixture.calls[1]!.init?.headers).get("x-storybook-session")).toBe("browser-grant")
-    expect(new Headers(fixture.calls[2]!.init?.headers).get("x-storybook-session")).toBe("browser-grant")
+    expect(fixture.sockets[0]!.sent).toEqual([{type: "subscribe", topic: "chat:/storybook/component"}])
     expect(JSON.parse(String(fixture.calls[1]!.init?.body))).toEqual({address: "/storybook/component"})
-    fixture.emit({...fixture.snapshot, version: 2, status: "running", messages: [{id: "assistant", role: "assistant", text: "Первая строка\nПродолжение"}]}, true)
+    fixture.emit({...fixture.snapshot, version: 2, status: "running", messages: [{id: "assistant", role: "assistant", text: "Первая строка\nПродолжение"}]})
     await until(() => client.getSnapshot().messages.length === 1)
     fixture.emit({...fixture.snapshot, version: 1, messages: []})
     await tick()
@@ -35,7 +35,7 @@ test("один browser grant, NDJSON fragments и версия сохраняю�
 
 test("отправка, отмена и разрешение используют только browser API; disconnect не отменяет turn", async () => {
   const fixture = browserChatFixture("/")
-  const client = createChatBrowserClient({address: "/", label: "Project", fetcher: fixture.fetcher})
+  const client = createChatBrowserClient({address: "/", label: "Project", createSocket: fixture.createSocket, fetcher: fixture.fetcher})
   client.start()
   try {
     await until(() => fixture.calls.length === 3)
@@ -67,7 +67,7 @@ test("ошибка отправки сохраняет черновик и не 
     }
     return fixture.fetcher(url, init)
   }) as typeof fetch
-  const client = createChatBrowserClient({address: "/storybook/repo", label: "Repo", fetcher})
+  const client = createChatBrowserClient({address: "/storybook/repo", label: "Repo", createSocket: fixture.createSocket, fetcher})
   client.start()
   try {
     await until(() => fixture.calls.length === 3)
@@ -88,19 +88,19 @@ test("сохранённый черновик восстанавливается
   const values = new Map<string, string>()
   const storage = () => ({getItem: (key: string) => values.get(key) ?? null, setItem: (key: string, value: string) => { values.set(key, value) }})
   const first = browserChatFixture("/storybook/a")
-  const client = createChatBrowserClient({address: "/storybook/a", label: "A", fetcher: first.fetcher, storage})
+  const client = createChatBrowserClient({address: "/storybook/a", label: "A", createSocket: first.createSocket, fetcher: first.fetcher, storage})
   client.start()
   await until(() => first.calls.length === 3)
   client.setDraft("Вернусь к этому вопросу")
   client.dispose()
   const second = browserChatFixture("/storybook/a")
-  const restored = createChatBrowserClient({address: "/storybook/a?inspector=chat&view=dependencies", label: "A", fetcher: second.fetcher, storage})
+  const restored = createChatBrowserClient({address: "/storybook/a?inspector=chat&view=dependencies", label: "A", createSocket: second.createSocket, fetcher: second.fetcher, storage})
   restored.start()
   try {
     await until(() => second.calls.length === 3)
     expect(restored.getSnapshot().draft).toBe("Вернусь к этому вопросу")
     const other = browserChatFixture("/storybook/b")
-    const independent = createChatBrowserClient({address: "/storybook/b", label: "B", fetcher: other.fetcher, storage})
+    const independent = createChatBrowserClient({address: "/storybook/b", label: "B", createSocket: other.createSocket, fetcher: other.fetcher, storage})
     independent.start()
     try {
       await until(() => other.calls.length === 3)
@@ -122,10 +122,10 @@ test("неработающий сервер даёт ошибку и пусту�
 test("разрыв потока восстанавливает grant и снимок новой версии без повторного prompt; dispose останавливает retry", async () => {
   const timers = retryTimers()
   const fixture = reconnectFixture("/storybook/reconnect")
-  const client = createChatBrowserClient({address: "/storybook/reconnect", label: "Component", fetcher: fixture.fetcher, scheduleRetry: timers.schedule})
+  const client = createChatBrowserClient({address: "/storybook/reconnect", label: "Component", createSocket: fixture.createSocket, fetcher: fixture.fetcher, scheduleRetry: timers.schedule})
   client.start()
   try {
-    await until(() => fixture.controllers.length === 1)
+    await until(() => fixture.sockets.length === 1)
     client.setDraft("Первый вопрос")
     await client.send()
     client.setDraft("Следующий вопрос\nЕго уточнение")
@@ -139,13 +139,12 @@ test("разрыв потока восстанавливает grant и сним
     expect(client.getSnapshot().error).toContain("Соединение потеряно")
     fixture.restart({...fixture.snapshot, version: 0})
     timers.run()
-    await until(() => fixture.controllers.length === 2)
+    await until(() => fixture.sockets.length === 2)
     expect(client.getSnapshot().messages).toEqual(history)
     expect(client.getSnapshot().draft).toBe("Следующий вопрос\nЕго уточнение")
     expect(client.getSnapshot().error).toBeUndefined()
     const streams = fixture.calls.filter(call => call.url.includes("/events?"))
-    expect(new Headers(streams[0]!.init?.headers).get("x-storybook-session"))
-      .not.toBe(new Headers(streams[1]!.init?.headers).get("x-storybook-session"))
+    expect(streams.map(call => call.url)).toEqual(["/api/events?session=grant-1", "/api/events?session=grant-3"])
     fixture.emit({...fixture.snapshot, version: 1, messages: [{id: "restored", role: "assistant", text: "Изменение после рестарта"}]})
     await until(() => client.getSnapshot().messages[0]?.id === "restored")
     fixture.emit({...fixture.snapshot, version: 0, messages: []})
@@ -170,17 +169,17 @@ test("reconnect очищает ошибку соединения, сохраня
   const fetcher = (async (url, init) => String(url).endsWith("/prompt")
     ? Response.json({error: "Отправка не принята"}, {status: 503})
     : fixture.fetcher(url, init)) as typeof fetch
-  const client = createChatBrowserClient({address: "/storybook/submit-error", label: "Component", fetcher, scheduleRetry: timers.schedule})
+  const client = createChatBrowserClient({address: "/storybook/submit-error", label: "Component", createSocket: fixture.createSocket, fetcher, scheduleRetry: timers.schedule})
   client.start()
   try {
-    await until(() => fixture.controllers.length === 1)
+    await until(() => fixture.sockets.length === 1)
     client.setDraft("Повтори позже")
     await client.send()
     fixture.disconnect()
     await until(() => timers.pending() === 1)
     fixture.restart({...fixture.snapshot, version: 0})
     timers.run()
-    await until(() => fixture.controllers.length === 2)
+    await until(() => fixture.sockets.length === 2)
     expect(client.getSnapshot().error).toContain("Отправка не принята")
     expect(client.getSnapshot().draft).toBe("Повтори позже")
   } finally { client.dispose() }
@@ -218,10 +217,10 @@ test("локальная отправка публикует sending, сохра
     }
     return fixture.fetcher(url, init)
   }) as typeof fetch
-  const client = createChatBrowserClient({address: "/storybook/sending", label: "Component", fetcher})
+  const client = createChatBrowserClient({address: "/storybook/sending", label: "Component", createSocket: fixture.createSocket, fetcher})
   client.start()
   try {
-    await until(() => fixture.controllers.length === 1)
+    await until(() => fixture.sockets.length === 1)
     client.setDraft("Вопрос")
     const sending = client.send()
     expect(client.getSnapshot().sending).toBeTrue()
@@ -239,15 +238,12 @@ test("локальная отправка публикует sending, сохра
 function reconnectFixture(address: string) {
   let snapshot: ChatBrowserSnapshot = {id: `session:${address}`, address, label: "Component", messages: [], status: "idle", error: null, permissions: [], version: 0}
   const calls: {url: string, init?: RequestInit}[] = []
-  const controllers: ReadableStreamDefaultController<Uint8Array>[] = []
+  const sockets: FakeSocket[] = []
   let grants = 0
   const fetcher = (async (url, init) => {
     const path = String(url)
     calls.push({url: path, ...(init === undefined ? {} : {init})})
     if (path.endsWith("/registry-session")) return Response.json({readerToken: `grant-${++grants}`})
-    if (path.includes("/events?")) {
-      return new Response(new ReadableStream<Uint8Array>({start(controller) { controllers.push(controller) }}))
-    }
     if (path.endsWith("/prompt")) {
       const {text} = JSON.parse(String(init?.body))
       snapshot = {...snapshot, version: snapshot.version + 1, messages: [...snapshot.messages, {id: "user", role: "user", text}]}
@@ -255,13 +251,19 @@ function reconnectFixture(address: string) {
     return Response.json(snapshot)
   }) as typeof fetch
   return {
-    fetcher, calls, controllers,
+    fetcher, calls, sockets,
+    createSocket(path: string) {
+      calls.push({url: path})
+      const socket = new FakeSocket()
+      sockets.push(socket)
+      return socket
+    },
     get snapshot() { return snapshot },
     restart(value: ChatBrowserSnapshot) { snapshot = value },
-    disconnect() { controllers.at(-1)!.error(new Error("Соединение потеряно")) },
+    disconnect() { sockets.at(-1)!.close() },
     emit(value: ChatBrowserSnapshot) {
       snapshot = value
-      controllers.at(-1)!.enqueue(new TextEncoder().encode(`${JSON.stringify(value)}\n`))
+      sockets.at(-1)!.snapshot(value)
     },
   }
 }
@@ -284,27 +286,21 @@ function retryTimers() {
 function browserChatFixture(address: string) {
   const calls: {url: string, init?: RequestInit}[] = []
   const snapshot: ChatBrowserSnapshot = {id: `session:${address}`, address, label: address, messages: [], status: "idle", error: null, permissions: [], version: 0}
-  let controller: ReadableStreamDefaultController<Uint8Array>
-  let cancelled = false
-  const body = new ReadableStream<Uint8Array>({
-    start(value) { controller = value },
-    cancel() { cancelled = true },
-  })
+  const sockets: FakeSocket[] = []
   const fetcher = (async (url, init) => {
     calls.push({url: String(url), ...(init === undefined ? {} : {init})})
     if (String(url) === "/api/browser/registry-session") return Response.json({readerToken: "browser-grant"})
-    if (String(url).startsWith("/api/browser/chat/events?")) return new Response(body)
     return Response.json(snapshot)
   }) as typeof fetch
   return {
-    fetcher, calls, snapshot, cancelled: () => cancelled,
-    emit(value: ChatBrowserSnapshot, fragmented = false) {
-      const bytes = new TextEncoder().encode(`${JSON.stringify(value)}\n`)
-      if (fragmented) {
-        controller!.enqueue(bytes.slice(0, bytes.length - 9))
-        controller!.enqueue(bytes.slice(bytes.length - 9))
-      } else controller!.enqueue(bytes)
+    fetcher, calls, snapshot, sockets, cancelled: () => sockets.every(socket => socket.closed),
+    createSocket(path: string) {
+      calls.push({url: path})
+      const socket = new FakeSocket()
+      sockets.push(socket)
+      return socket
     },
+    emit(value: ChatBrowserSnapshot) { sockets.at(-1)!.snapshot(value) },
   }
 }
 
@@ -330,7 +326,7 @@ test("выбор модели ждёт подтверждения HTTP, сохр
     }
     return fixture.fetcher(url, init)
   }) as typeof fetch
-  const client = createChatBrowserClient({address: "/settings", label: "Settings", fetcher})
+  const client = createChatBrowserClient({address: "/settings", label: "Settings", createSocket: fixture.createSocket, fetcher})
   client.start()
   try {
     await until(() => fixture.calls.length === 3)
@@ -351,4 +347,41 @@ test("выбор модели ждёт подтверждения HTTP, сохр
     expect(client.getSnapshot().usage).toEqual({used: 42, size: 100})
     expect(client.getSnapshot().draft).toBe("Черновик сохраняется")
   } finally { client.dispose() }
+})
+
+class FakeSocket extends EventTarget {
+  readonly sent: unknown[] = []
+  closed = false
+  constructor() {
+    super()
+    queueMicrotask(() => { if (!this.closed) this.dispatchEvent(new Event("open")) })
+  }
+  send(data: string | ArrayBufferLike | Blob | ArrayBufferView) { this.sent.push(JSON.parse(String(data))) }
+  close() {
+    if (this.closed) return
+    this.closed = true
+    this.dispatchEvent(new Event("close"))
+  }
+  snapshot(snapshot: ChatBrowserSnapshot) {
+    this.dispatchEvent(new MessageEvent("message", {data: JSON.stringify({type: "chat.snapshot", address: snapshot.address, snapshot})}))
+  }
+}
+
+test("восемь чатов используют конечные HTTP-запросы и независимые WebSocket-подписки", async () => {
+  const fixtures = Array.from({length: 8}, (_, i) => browserChatFixture(`/tab-${i}`))
+  const clients = fixtures.map(fixture => createChatBrowserClient({
+    address: fixture.snapshot.address, label: "Tab", fetcher: fixture.fetcher, createSocket: fixture.createSocket,
+  }))
+  try {
+    for (const client of clients) client.start()
+    await until(() => fixtures.every(fixture => fixture.sockets[0]?.sent.length === 1))
+    for (const fixture of fixtures) {
+      expect(fixture.calls.slice(0, 2).map(call => call.url)).toEqual(["/api/browser/registry-session", "/api/browser/chat/session"])
+      expect(fixture.calls.some(call => call.url.startsWith("/api/browser/chat/events"))).toBeFalse()
+      fixture.emit({...fixture.snapshot, version: 1, messages: [{id: "reply", role: "assistant", text: fixture.snapshot.address}]})
+    }
+    await until(() => clients.every(client => client.getSnapshot().messages.length === 1))
+    expect(clients.map(client => client.getSnapshot().messages[0]!.text)).toEqual(fixtures.map(fixture => fixture.snapshot.address))
+  } finally { for (const client of clients) client.dispose() }
+  expect(fixtures.every(fixture => fixture.cancelled())).toBeTrue()
 })
