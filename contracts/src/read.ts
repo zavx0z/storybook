@@ -81,19 +81,23 @@ export async function readNamespaces(description: ReadPackageOutput, definitions
         }
       }
       extensions.push(...await readExtensions(namespaceSymbols, context))
-      for (const source of sources.values()) {
-        if (!inside(description.root, source.path)) continue
-        const syntax = await project.program.getSyntacticDiagnostics(source.path)
-        const semantic = await project.program.getSemanticDiagnostics(source.path)
-        for (const diagnostic of [...syntax, ...semantic]) {
-          diagnose(context, `typescript-${diagnostic.code}`, source.path, diagnostic.text)
-        }
-      }
       for (const entry of description.index.entries.filter(entry => entry.target && resolve(description.root, entry.target) === path)) {
         entries.push({path, exportPath: entry.path, conditions: entry.conditions, implementation: implementationDeclaration, exports, namespaces})
       }
     }
     if (placementContext) await checkPlacement(definitions, ownedNamespaces, placementContext)
+    for (const source of sources.values()) {
+      if (!inside(description.root, source.path)) continue
+      const project = await snapshot.getDefaultProjectForFile(source.path)
+      if (!project || !await project.program.getSourceFile(source.path)) {
+        throw new Error(`TypeScript не прочитал источник протокола: ${source.path}`)
+      }
+      const syntax = await project.program.getSyntacticDiagnostics(source.path)
+      const semantic = await project.program.getSemanticDiagnostics(source.path)
+      for (const diagnostic of [...syntax, ...semantic]) {
+        diagnose(placementContext!, `typescript-${diagnostic.code}`, source.path, diagnostic.text)
+      }
+    }
     for (const reference of description.code.flatMap(source => source.references)) {
       if (reference.public === false) diagnostics.push({severity: "error", code: "private-dependency", path: reference.from,
         message: `Типы и реализация используют публичный вход владельца: ${reference.module}`})
