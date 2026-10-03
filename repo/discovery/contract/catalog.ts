@@ -40,6 +40,8 @@ export type StorybookModuleDocumentation = NonNullable<ReturnType<typeof import(
 */
 export type StorybookContractDocument = Readonly<{
   direction: "input" | "output" | "slots"
+  /** Точный источник выбранного протокола; прежние сохранённые документы этого поля не имели. */
+  sourcePath?: string
   document: import("@immersive/typedoc/parser").AnalyzeTypeDocOutput["document"]
 }>
 
@@ -129,6 +131,15 @@ export type StorybookDirectory = Readonly<{
   scenarioSpec?: StorybookScenarioSpec
 }>
 
+/** Публичный файл входа пакета; условия и протокол относятся к одному исходнику. */
+export type StorybookEntry = Readonly<{
+  path: string
+  relativePath: string
+  conditions: readonly (readonly string[])[]
+  moduleDocumentation?: StorybookModuleDocumentation
+  contractDocumentation?: StorybookContractDocumentation
+}>
+
 /**
 Общие сведения о подключённом владельце каталога.
 
@@ -196,6 +207,7 @@ type StorybookCatalogScopeBase = Readonly<{
 */
 export type StorybookPackage = StorybookCatalogScopeBase & Readonly<{
   kind: "package"
+  entries?: readonly StorybookEntry[]
   scenarioSpec?: StorybookScenarioSpec
   contractDocumentation?: StorybookContractDocumentation
   dependencySpec?: StorybookDependencySpec

@@ -38,9 +38,9 @@ test("разделы технологий не создают фасадных �
     ["tech/mcp/stdio", "@mcp/stdio"],
     ["tech/process/wait", "@process/wait"],
     ["tech/testing/browser-root", "@web/browser-fixture"],
-  ]) {
+  ] as const) {
     expect(result.packages.find(item => item.name === name),
       "Реальная возможность сохраняет identity, исходники и прямого предметного владельца")
-      .toEqual({name, path: resolve(root, directory!), parent: root})
+      .toEqual({name, path: resolve(root, directory), parent: root})
   }
 })

@@ -91,7 +91,7 @@ export type StorybookSearchInput = Readonly<{
   schemaVersion: 1
   query: string
   packageId?: string | undefined
-  kinds?: readonly ("package" | "directory" | "unavailable")[] | undefined
+  kinds?: readonly ("package" | "directory" | "entry" | "unavailable")[] | undefined
   limit?: number | undefined
   cursor?: string | undefined
 }>

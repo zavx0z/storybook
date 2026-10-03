@@ -91,7 +91,7 @@ async function validateContractDocumentation(
 ) {
   if (readModuleDocumentation({source, path})) throw new Error(`Контракт не должен содержать документацию пакета: ${path}`)
   const declarations = result.document.declarations
-  const namespace = basename(path) === "index.ts"
+  const namespace = basename(path) === "index.ts" || declarations.some(declaration => declaration.name.includes("."))
   if (namespace) {
     const names = declarations.map(declaration => declaration.name.split("."))
     const owner = names[0]?.[0]

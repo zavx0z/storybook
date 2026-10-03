@@ -16,7 +16,7 @@ type StorybookCatalogScope = RepoDiscovery.Output["scopes"][number]
 type NodeInput = Omit<GraphNode, "digest">
 const EXTERNAL_STORYBOOK_SCHEMA_VERSION = 1 as const
 
-/** Строит навигацию только из package.json/workspaces и обнаруженных директорий. */
+/** Строит навигацию из package.json/workspaces, публичных входов и обнаруженных директорий. */
 export default function createExternalStorybookGraph(catalog: PackageGraphCreate.Input): PackageGraphCreate.Output {
   if (catalog.schemaVersion !== EXTERNAL_STORYBOOK_SCHEMA_VERSION) throw new Error("Unsupported Storybook catalog version")
   const owners = new Map(catalog.scopes.map(scope => [scope.canonicalId, scope]))
@@ -86,6 +86,24 @@ export default function createExternalStorybookGraph(catalog: PackageGraphCreate
         ...(directory.contractDocumentation ? {contractDocumentation: directory.contractDocumentation} : {}),
         ...(directory.scenarioSpec ? {scenarioSpec: directory.scenarioSpec} : {}),
         source: {path: directory.path, pointer: ""}, searchTerms: searchTerms(directory.name, directory.relativePath),
+        packageJsonPath: null,
+      })
+    }
+    for (const entry of scope.kind === "package" ? scope.entries ?? [] : []) {
+      if (!entry.relativePath || entry.relativePath.includes("/") || [".", ".."].includes(entry.relativePath)
+        || relative(scope.scopeRoot, entry.path) !== entry.relativePath) throw new Error("Invalid public entry path")
+      const entryId = `entry:${id}/${entry.relativePath}`
+      const conditions = [...new Set(entry.conditions.flat())]
+      append({
+        id: entryId, kind: "entry", ownerId: scope.id, packageId: scope.id,
+        label: `${entry.relativePath}${conditions.length ? ` (${conditions.join(", ")})` : ""}`,
+        parentId: id, structuralPath: [...structuralPath, entryId], childIds: [],
+        routePath: `entry-${encodeURIComponent(entry.relativePath)}`,
+        urlPath: formatRouteAddress({node: [...segments, entry.relativePath].join("/")}),
+        entryConditions: entry.conditions,
+        ...(entry.moduleDocumentation ? {moduleDocumentation: entry.moduleDocumentation} : {}),
+        ...(entry.contractDocumentation ? {contractDocumentation: entry.contractDocumentation} : {}),
+        source: {path: entry.path, pointer: ""}, searchTerms: searchTerms(entry.relativePath, ...conditions),
         packageJsonPath: null,
       })
     }

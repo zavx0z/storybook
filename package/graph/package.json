@@ -6,10 +6,17 @@
   "type": "module",
   "description": "Создание и чтение проверенного структурного графа пакетов",
   "exports": {
-    ".": "./index.ts"
+    ".": {
+      "browser": "./web.ts",
+      "node": "./server.ts"
+    }
   },
   "dependencies": {
     "@package-graph/create": "workspace:*",
     "@package-graph/read": "workspace:*"
+  },
+  "devDependencies": {
+    "@repo/discovery": "workspace:*",
+    "@archetypes/scenario-reader": "workspace:*"
   }
 }

@@ -753,8 +753,9 @@
         "@archetypes/package-json": "workspace:*",
         "@hmr/activation": "workspace:*",
         "@package-build/prepare": "workspace:*",
+        "@package-graph/create": "workspace:*",
+        "@package-graph/read": "workspace:*",
         "@package/artifacts": "workspace:*",
-        "@package/graph": "workspace:*",
         "@package/identity": "workspace:*",
         "@package/resources": "workspace:*",
         "@package/revision": "workspace:*",
@@ -919,6 +920,10 @@
         "@package-graph/create": "workspace:*",
         "@package-graph/read": "workspace:*",
       },
+      "devDependencies": {
+        "@archetypes/scenario-reader": "workspace:*",
+        "@repo/discovery": "workspace:*",
+      },
     },
     "package/graph/create": {
       "name": "@package-graph/create",
@@ -1044,6 +1049,9 @@
       "name": "@route/resolve",
       "version": "0.0.0",
       "dependencies": {
+        "@archetypes/contracts": "workspace:*",
+        "@archetypes/package-index": "workspace:*",
+        "@archetypes/package-json": "workspace:*",
         "@route/address": "workspace:*",
         "@route/directories": "workspace:*",
         "@route/ignored": "workspace:*",
@@ -1117,7 +1125,10 @@
       "name": "@repo/discovery",
       "version": "0.0.0",
       "dependencies": {
+        "@archetypes/contracts": "workspace:*",
         "@archetypes/package-documentation": "workspace:*",
+        "@archetypes/package-index": "workspace:*",
+        "@archetypes/package-json": "workspace:*",
         "@immersive/typedoc": "^0.0.0",
         "@package/identity": "workspace:*",
         "@route/directories": "workspace:*",

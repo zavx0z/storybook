@@ -9,7 +9,7 @@ import {join, resolve} from "node:path"
 import {mkdtemp, mkdir, realpath, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {storybookMcpEntries} from "../src/mcp-entries"
-import {resolveRoute} from "@storybook/route"
+import resolveRoute from "@route/resolve"
 
 describe("Код владельца через общий каталог", async () => {
   const root = join(import.meta.dir, "../../mcp/rest/spec/fixture/library")

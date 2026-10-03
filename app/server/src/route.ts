@@ -14,7 +14,7 @@ type ResolveRouteOutput = RouteResolve.Output
 import {dirname, resolve} from "node:path"
 
 /** Подключённые корни дают только первый шаг адреса, без таблицы дочерних маршрутов. */
-export function storybookRouteRoots(snapshot: ExternalStorybookRegistrySnapshot): ResolveRouteInput["roots"] {
+export function storybookRouteRoots(snapshot: Pick<ExternalStorybookRegistrySnapshot, "catalog">): ResolveRouteInput["roots"] {
   return snapshot.catalog.rootIds.flatMap(id => {
     const scope = snapshot.catalog.scopes.find(scope => scope.canonicalId === id)
     if (scope === undefined || scope.kind !== "package") return []
@@ -26,7 +26,7 @@ export function storybookRouteRoots(snapshot: ExternalStorybookRegistrySnapshot)
 Разрешает публичный адрес через Route, затем находит identity его представления
 для существующей package session. Граф не определяет допустимость пути на диске.
 */
-export async function resolveStorybookRoute(route: string, snapshot: ExternalStorybookRegistrySnapshot) {
+export async function resolveStorybookRoute(route: string, snapshot: Pick<ExternalStorybookRegistrySnapshot, "catalog" | "graph">) {
   const queryIndex = route.indexOf("?")
   const pathname = queryIndex < 0 ? route : route.slice(0, queryIndex)
   const query = new URLSearchParams(queryIndex < 0 ? "" : route.slice(queryIndex + 1))
@@ -56,8 +56,9 @@ export async function resolveStorybookRoute(route: string, snapshot: ExternalSto
 }
 
 /** Сопоставляет физического владельца с его уже существующим узлом навигации. */
-function routeOwnerNode(route: NonNullable<ResolveRouteOutput>, snapshot: ExternalStorybookRegistrySnapshot) {
+function routeOwnerNode(route: NonNullable<ResolveRouteOutput>, snapshot: Pick<ExternalStorybookRegistrySnapshot, "graph">) {
   const candidates = snapshot.graph.nodes.filter(node => node.packageId === route.package.id)
+  if (route.entry !== undefined) return candidates.find(node => node.kind === "entry" && node.source.path === route.entry)
   if (route.directory === route.package.path) return candidates.find(node => node.kind === "package")
   return candidates.find(node => node.kind === "directory" && node.source.path === route.directory)
 }

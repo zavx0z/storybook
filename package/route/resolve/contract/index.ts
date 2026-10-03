@@ -11,6 +11,8 @@ export declare namespace RouteResolve {
     node: string
     pathname: string
     directory: string
+    /** Точный публичный файл входа, когда адрес выбирает средовую реализацию. */
+    entry?: string
     package: Readonly<{id: string; path: string}>
     relativePath: string
     view: "overview" | "scenarios" | "contract" | "dependencies"

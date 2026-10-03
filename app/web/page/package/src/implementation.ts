@@ -362,9 +362,10 @@ export function safeRevision(value: string): string {
 }
 
 export function overviewDescription(kind: string, children: number): string {
+  if (kind === "entry") return "У этого публичного входа нет описания с @packageDocumentation."
   if (kind === "directory") return "В index.ts этой директории нет описания модуля с @packageDocumentation."
-  if (kind === "package") return `${children} вложенных пакетов и директорий. Выберите элемент в дереве.`
-  return "Documentation-only variant."
+  if (kind === "package") return `${children} вложенных пакетов, входов и директорий. Выберите элемент в дереве.`
+  return "Представление документации."
 }
 
 export function isolatePackageError(

@@ -7,6 +7,10 @@ import address from "@route/address"
 import readRouteDirectories from "@route/directories"
 import readRouteIgnored from "@route/ignored"
 import structure, {type RouteStructure} from "@route/structure"
+import readPackageJson from "@archetypes/package-json"
+import readPackageIndex from "@archetypes/package-index"
+import readContract from "@archetypes/contracts"
+import {join, resolve} from "node:path"
 import type {RouteResolve} from "./contract"
 
 export type {RouteResolve} from "./contract"
@@ -50,6 +54,7 @@ export default async function resolveRoute({route, roots}: RouteResolve.Input): 
     stopsTraversal: false,
   }
   let view: NonNullable<RouteResolve.Output>["view"] = "overview"
+  let entryPath: string | undefined
 
   for (let index = 0; index < segments.length; index += 1) {
     const segment = segments[index]
@@ -62,6 +67,21 @@ export default async function resolveRoute({route, roots}: RouteResolve.Input): 
     if (workspace !== null) {
       position = workspace
       continue
+    }
+
+    if (index === segments.length - 1 && position.directory === position.packagePath && /\.[cm]?[jt]sx?$/u.test(segment)) {
+      const metadata = await readPackageJson({path: join(position.packagePath, "package.json")}).catch(() => null)
+      if (metadata === null) return null
+      const entries = await readPackageIndex({path: position.packagePath, exports: metadata.exports}).catch(() => null)
+      const target = entries?.entries.find(entry => entry.path === "." && entry.status === "owned" && entry.code
+        && entry.target !== null && resolve(position.packagePath, entry.target) === join(position.directory, segment))
+      if (target) {
+        const path = resolve(position.packagePath, target.target!)
+        if ((await readRouteIgnored({root: position.packagePath, paths: [path], repository})).ignored.length) return null
+        entryPath = path
+        position = {...position, relativeSegments: [...position.relativeSegments, segment]}
+        continue
+      }
     }
 
     const directories = await readRouteDirectories({
@@ -87,13 +107,14 @@ export default async function resolveRoute({route, roots}: RouteResolve.Input): 
     return null
   }
 
-  const availableViews = await readAvailableViews(
+  const availableViews = entryPath === undefined ? await readAvailableViews(
     rootPath,
     position.directory,
     position.scenarioOwner,
     position.moduleOwner,
     repository,
-  ).catch(() => null)
+  ).catch(() => null) : await readContract({path: position.packagePath}).then(contract =>
+    contract.entries.some(entry => entry.path === entryPath && entry.namespaces.length > 0) ? ["contract" as const] : []).catch(() => null)
   if (availableViews === null) return null
   const views: NonNullable<RouteResolve.Output>["views"] = availableViews
   if (parsed.view !== undefined) {
@@ -107,6 +128,7 @@ export default async function resolveRoute({route, roots}: RouteResolve.Input): 
     node,
     pathname,
     directory: position.directory,
+    ...(entryPath === undefined ? {} : {entry: entryPath}),
     package: {id: position.packageId, path: position.packagePath},
     relativePath: position.relativeSegments.join("/"),
     view,

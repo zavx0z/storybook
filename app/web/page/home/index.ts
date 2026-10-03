@@ -242,7 +242,7 @@ async function startExternalStorybookLanding(
       return
     }
     const node = externalStorybookClientNode(snapshot, detail.id)
-    if (node.kind === "directory" && node.packageId !== null) {
+    if ((node.kind === "directory" || node.kind === "entry") && node.packageId !== null) {
       if (embeddedPageScope !== undefined) {
         followPageNavigation(embeddedPageScope.navigatePackage({packageId: node.packageId!, route: node.routePath!}))
       } else followPageNavigation(navigatePackage({packageId: node.packageId!, route: node.routePath!}, options.navigatePackage))
@@ -322,7 +322,7 @@ async function startExternalStorybookLanding(
       return
     }
     const node = snapshot.nodes.find((candidate) => ReadGraph.browsePath(candidate) === pathname)
-    if (node?.kind === "package" || node?.kind === "directory" || node?.kind === "unavailable") await select(node.id, false)
+    if (node?.kind === "package" || node?.kind === "directory" || node?.kind === "entry" || node?.kind === "unavailable") await select(node.id, false)
     else throw new Error(`Unknown external Storybook landing pathname: ${pathname}`)
   }
   const onPopState = (): void => {

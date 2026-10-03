@@ -14,11 +14,14 @@ export function storybookMcpEntries(snapshot: Pick<ExternalStorybookRegistrySnap
   const paths = new Map(nodes.map(node => [node.id, node.urlPath.slice(1)]))
   const descriptions = new Map(snapshot.catalog.scopes.map(scope => [scope.canonicalId, scope.description ?? ""]))
   return nodes.map(node => {
-    const directory = node.kind === "package" ? dirname(node.source.path) : node.source.path
+    const directory = node.kind === "package" || node.kind === "entry" ? dirname(node.source.path) : node.source.path
     const contract = (direction: "input" | "output" | "slots") => {
-      const source = node.contractDocumentation?.sources.find(source => source.sourcePath === join(directory, "contract", `${direction}.ts`))
-        ?? node.contractDocumentation?.sources.find(source => source.sourcePath === join(directory, "contract", "index.ts"))
-      const schema = node.contractDocumentation?.documents.find(document => document.direction === direction)?.document.declarations[0]?.schema
+      const document = node.contractDocumentation?.documents.find(document => document.direction === direction)
+      const source = document?.sourcePath === undefined
+        ? node.contractDocumentation?.sources.find(source => source.sourcePath === join(directory, "contract", `${direction}.ts`))
+          ?? node.contractDocumentation?.sources.find(source => source.sourcePath === join(directory, "contract", "index.ts"))
+        : node.contractDocumentation?.sources.find(source => source.sourcePath === document.sourcePath)
+      const schema = document?.document.declarations[0]?.schema
       return source === undefined ? undefined : {path: source.sourcePath, digest: source.sourceDigest, ...(schema === undefined ? {} : {schema})}
     }
     const input = contract("input")

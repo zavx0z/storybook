@@ -18,7 +18,7 @@ export function validateClientSnapshot(value: unknown): ExternalStorybookClientS
   for (const node of snapshot.nodes) {
     if (node === null || typeof node !== "object" || typeof node.id !== "string" || ids.has(node.id) ||
       !Array.isArray(node.childIds) || !Array.isArray(node.searchTerms) ||
-      typeof node.resourceUrl !== "string" || !["package", "directory", "unavailable"].includes(node.kind)) {
+      typeof node.resourceUrl !== "string" || !["package", "directory", "entry", "unavailable"].includes(node.kind)) {
       throw new Error(`Invalid external Storybook client node: ${String(node?.id)}`)
     }
     ids.add(node.id)

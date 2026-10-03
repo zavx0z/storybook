@@ -51,7 +51,7 @@ const Owner: WebNavigation.Output = Object.freeze({
   ): readonly ExternalStorybookBrowserNavigationItem[] {
     const graphIds = new Set(graph.nodes.map(node => node.id))
     const packageIds = exactPackage === undefined ? null : new Set(exactPackage.graph.nodes.map(node => node.id))
-    const route = (node: BrowserNode): string => node.kind === "directory" ? node.routePath ?? node.urlPath : ReadGraph.browsePath(node)
+    const route = (node: BrowserNode): string => (node.kind === "directory" || node.kind === "entry") ? node.routePath ?? node.urlPath : ReadGraph.browsePath(node)
     const item = (source: BrowserGraph, node: BrowserNode, ids: ReadonlySet<string>): ExternalStorybookBrowserNavigationItem => Object.freeze({
       ...navigationItem(source, node, route(node)),
       expandable: node.childIds.some(id => ids.has(id)),
@@ -86,7 +86,7 @@ const Owner: WebNavigation.Output = Object.freeze({
 
   deriveExternalStorybookLandingSelection(graph: BrowserGraph, nodeId: string): ExternalStorybookLandingSelection {
     const selected = browserNode(graph, nodeId)
-    if (selected.kind !== "package" && selected.kind !== "directory" && selected.kind !== "unavailable") {
+    if (selected.kind !== "package" && selected.kind !== "directory" && selected.kind !== "entry" && selected.kind !== "unavailable") {
       throw new Error(`External Storybook landing selection must be a physical node: ${nodeId}`)
     }
     return Object.freeze({overviewNode: selected})
@@ -103,7 +103,7 @@ const Owner: WebNavigation.Output = Object.freeze({
       throw new Error(`External Storybook package tab identity is invalid: ${packageId}`)
     }
     const selectedNode = resolveBrowserRoute(graph, packageId, routePath)
-    if (selectedNode.kind !== "package" && selectedNode.kind !== "directory") {
+    if (selectedNode.kind !== "package" && selectedNode.kind !== "directory" && selectedNode.kind !== "entry") {
       throw new Error(`External Storybook package route selected an invalid node: ${selectedNode.id}`)
     }
     const viewKind = selectedNode.scenariosRoutePath === routePath ? "scenarios"

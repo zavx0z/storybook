@@ -72,6 +72,7 @@ export function navigationItems(items: readonly ExternalStorybookBrowserNavigati
 }
 
 export function overviewDescription(kind: string): string {
+  if (kind === "entry") return "У этого публичного входа нет описания с @packageDocumentation."
   if (kind === "directory") return "В index.ts этой директории нет описания модуля с @packageDocumentation."
   return "В исходнике этого пакета нет TSDoc с @packageDocumentation."
 }

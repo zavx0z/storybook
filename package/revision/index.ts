@@ -37,7 +37,7 @@ function createStorybookPackageRevisionGraphSnapshot(
   const packageNode = packageNodes[0]!
   const ancestors = Object.freeze(packageNode.structuralPath.slice(0, -1).map(id => {
     const ancestor = graph.nodes.find(node => node.id === id)
-    if (ancestor === undefined || ancestor.kind !== "package" && ancestor.kind !== "directory" && ancestor.kind !== "unavailable") {
+    if (ancestor === undefined || ancestor.kind !== "package" && ancestor.kind !== "directory" && ancestor.kind !== "entry" && ancestor.kind !== "unavailable") {
       throw new Error(`Storybook package ancestor is invalid: ${packageId}:${id}`)
     }
     return Object.freeze({
@@ -50,7 +50,7 @@ function createStorybookPackageRevisionGraphSnapshot(
   }))
   const nodeIds = new Set(sourceNodes.map(({id}) => id))
   const nodes = Object.freeze(sourceNodes.map((node): StorybookPackageRevisionGraphNode => {
-    if (node.kind !== "package" && node.kind !== "directory") {
+    if (node.kind !== "package" && node.kind !== "directory" && node.kind !== "entry") {
       throw new Error(`Non-package node entered package graph projection: ${node.kind}`)
     }
     return Object.freeze({
@@ -64,10 +64,11 @@ function createStorybookPackageRevisionGraphSnapshot(
       urlPath: node.urlPath,
       routePath: requiredRoute(node.routePath, node.id),
       searchTerms: Object.freeze([...node.searchTerms]),
+      ...(node.entryConditions ? {entryConditions: node.entryConditions} : {}),
       ...(node.moduleDocumentation ? {hasModuleDocumentation: true} : {}),
       ...(node.dependencySpec ? {dependencyCases: node.dependencySpec.cases} : {}),
       ...(node.dependencyRoutePath === undefined ? {} : {dependencyRoutePath: node.dependencyRoutePath}),
-      ...(node.contractDocumentation ? {contractDocuments: node.contractDocumentation.documents} : {}),
+      ...(node.contractDocumentation ? {contractDocuments: node.contractDocumentation.documents.map(({sourcePath: _source, ...document}) => document)} : {}),
       ...(node.contractRoutePath === undefined ? {} : {contractRoutePath: node.contractRoutePath}),
       ...(node.scenariosRoutePath === undefined ? {} : {scenariosRoutePath: node.scenariosRoutePath}),
       resourceUrl: node.moduleDocumentation ? revisionModuleDocumentationPath(node.id) : revisionNodeResourcePrefix(node.id),
@@ -136,7 +137,7 @@ function validateStorybookPackageRevisionGraphSnapshot(
   const ancestorIds = new Set<string>()
   for (const [index, ancestor] of value.ancestors.entries()) {
     if (ancestor === null || typeof ancestor !== "object" ||
-      ancestor.kind !== "package" && ancestor.kind !== "directory" && ancestor.kind !== "unavailable") {
+      ancestor.kind !== "package" && ancestor.kind !== "directory" && ancestor.kind !== "entry" && ancestor.kind !== "unavailable") {
       throw new TypeError(`Storybook package ancestor ${index} is invalid: ${packageId}`)
     }
     const id = requiredText("package ancestor id", ancestor.id)
@@ -155,8 +156,8 @@ function validateStorybookPackageRevisionGraphSnapshot(
     throw new Error(`Storybook package root is invalid: ${packageId}`)
   }
   for (const node of value.nodes) {
-    assertKeys(node, ["id", "kind", "ownerId", "packageId", "label", "parentId", "childIds", "urlPath", "routePath", "searchTerms", "hasModuleDocumentation", "dependencyCases", "dependencyRoutePath", "contractRoutePath", "scenariosRoutePath", "contractDocuments", "resourceUrl"], `package node ${node.id}`)
-    if (node.kind !== "package" && node.kind !== "directory" || node.packageId !== packageId) {
+    assertKeys(node, ["id", "kind", "ownerId", "packageId", "label", "parentId", "childIds", "urlPath", "routePath", "searchTerms", "entryConditions", "hasModuleDocumentation", "dependencyCases", "dependencyRoutePath", "contractRoutePath", "scenariosRoutePath", "contractDocuments", "resourceUrl"], `package node ${node.id}`)
+    if (node.kind !== "package" && node.kind !== "directory" && node.kind !== "entry" || node.packageId !== packageId) {
       throw new Error(`Storybook package node is invalid: ${packageId}:${node.id}`)
     }
     if (node.id === value.rootId ? node.parentId !== null : node.parentId === null || !nodes.get(node.parentId)?.childIds.includes(node.id)) {
@@ -166,6 +167,10 @@ function validateStorybookPackageRevisionGraphSnapshot(
       if (nodes.get(childId)?.parentId !== node.id) throw new Error(`Storybook package child is invalid: ${packageId}:${childId}`)
     }
     requiredRoute(node.routePath, node.id)
+    if (node.entryConditions !== undefined && (!Array.isArray(node.entryConditions)
+      || node.entryConditions.some((conditions: unknown) => !Array.isArray(conditions) || conditions.some((condition: unknown) => typeof condition !== "string")))) {
+      throw new Error(`Storybook entry conditions are invalid: ${packageId}:${node.id}`)
+    }
     validateUrl(node.urlPath, `Storybook package URL is invalid: ${packageId}:${node.id}`)
   }
   const routePaths = new Set<string>()

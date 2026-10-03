@@ -3,14 +3,18 @@ import RouteIgnoredOwner from "@route/ignored"
 const readRouteDirectories = RouteDirectoriesOwner
 const readRouteIgnored = RouteIgnoredOwner
 import {constants} from "node:fs"
-import {lstat, open, realpath} from "node:fs/promises"
+import {lstat, open, readFile, realpath} from "node:fs/promises"
+import {createHash} from "node:crypto"
 import readModuleDocumentation from "@archetypes/package-documentation"
+import readPackageJson from "@archetypes/package-json"
+import readPackageIndex from "@archetypes/package-index"
+import readContract from "@archetypes/contracts"
 import {readDependencySpecs} from "./dependency-spec.ts"
 import {readContractDocumentationResults, type ContractDocumentationResult} from "./contract-documentation.ts"
-import {basename, join, relative} from "node:path"
-import type {StorybookDirectory} from "../contract/catalog"
+import {basename, dirname, join, relative, resolve} from "node:path"
+import type {StorybookDirectory, StorybookEntry} from "../contract/catalog"
 
-type ViewMetadata = Pick<StorybookDirectory, "moduleDocumentation" | "scenarioSpec" | "contractDocumentation" | "dependencySpec">
+type ViewMetadata = Pick<StorybookDirectory, "moduleDocumentation" | "scenarioSpec" | "contractDocumentation" | "dependencySpec"> & {entries?: readonly StorybookEntry[]}
 const MAX_MODULE_SOURCE_BYTES = 1_048_576
 
 /** Физические входы одного владельца до общего анализа контрактов. */
@@ -24,6 +28,8 @@ export interface PreparedStorybookDirectories {
   readonly dependencyPathByDirectory: ReadonlyMap<string, string>
   readonly contractPaths: readonly string[]
   readonly dependencyPaths: readonly string[]
+  readonly entries: readonly (Omit<StorybookEntry, "contractDocumentation"> & {contractPaths: readonly string[]})[]
+  readonly protocolSources: readonly {path: string, digest: string}[]
 }
 
 /** Обходит категории до публичного index.tsx, собственного src или отдельного пакета. */
@@ -37,6 +43,8 @@ export async function prepareStorybookDirectories(
   const contractPathsByDirectory = new Map<string, readonly string[]>()
   const scenarioPathsByDirectory = new Map<string, readonly string[]>()
   const dependencyPathByDirectory = new Map<string, string>()
+  const publicEntries: (Omit<StorybookEntry, "contractDocumentation"> & {contractPaths: readonly string[]})[] = []
+  const protocolSources: {path: string, digest: string}[] = []
   const ignored = async (paths: readonly string[]): Promise<ReadonlySet<string>> =>
     new Set((await readRouteIgnored({root, paths, repository: visibility.repository})).ignored)
   const readDocumentation = async (path: string): Promise<StorybookDirectory["moduleDocumentation"]> => {
@@ -147,8 +155,39 @@ export async function prepareStorybookDirectories(
     return Object.freeze(result)
   }
   await collectViews(root, true)
+  const manifestPath = join(root, "package.json")
+  inputs.add(manifestPath)
+  const manifestFile = await lstat(manifestPath).catch(error => {
+    if (error.code !== "ENOENT") throw error
+    return null
+  })
+  const metadata = manifestFile?.isFile() && !manifestFile.isSymbolicLink()
+    ? await readPackageJson({path: manifestPath}) : null
+  const index = metadata ? await readPackageIndex({path: root, exports: metadata.exports}) : {entries: []}
+  const entryTargets = index.entries.filter(entry => entry.path === "." && entry.code && entry.status === "owned"
+    && entry.target && dirname(resolve(root, entry.target)) === root)
+  if (entryTargets.some(entry => !/^index\.tsx?$/u.test(basename(entry.target!)))) {
+    const protocols = await readContract({path: root})
+    const errors = protocols.diagnostics.filter(diagnostic => diagnostic.severity === "error")
+    if (errors.length) throw new Error(errors.map(diagnostic => diagnostic.message).join("\n"))
+    protocolSources.push(...protocols.sources)
+    for (const source of protocols.sources) inputs.add(source.path)
+    for (const target of [...new Set(entryTargets.map(entry => entry.target!))]) {
+      const path = resolve(root, target)
+      if ((await ignored([path])).has(path)) throw new Error(`Публичный вход игнорируется: ${path}`)
+      const namespaces = protocols.entries.filter(entry => entry.path === path && entry.exportPath === ".")
+        .flatMap(entry => entry.namespaces)
+      const contractPaths = [...new Set(namespaces.map(namespace => namespace.declaration.path))]
+      if (!contractPaths.length) throw new Error(`Средовой вход не раскрывает протокол: ${path}`)
+      const moduleDocumentation = await readDocumentation(path)
+      inputs.add(path)
+      publicEntries.push({path, relativePath: relative(root, path),
+        conditions: entryTargets.filter(entry => entry.target === target).map(entry => entry.conditions),
+        contractPaths, ...(moduleDocumentation ? {moduleDocumentation} : {})})
+    }
+  }
   const discovered = await visit(root)
-  const contractPaths = [...contractPathsByDirectory.values()].flat()
+  const contractPaths = [...new Set([...contractPathsByDirectory.values()].flat().concat(publicEntries.flatMap(entry => entry.contractPaths)))]
   const dependencyPaths = [...dependencyPathByDirectory.values()]
   return {
     root,
@@ -160,6 +199,8 @@ export async function prepareStorybookDirectories(
     dependencyPathByDirectory,
     contractPaths,
     dependencyPaths,
+    entries: publicEntries,
+    protocolSources,
   }
 }
 
@@ -170,6 +211,10 @@ export async function completeStorybookDirectories(
   onAnalysisSession: (kind: "contract" | "dependency") => void = () => {},
 ): Promise<Readonly<{directories: readonly StorybookDirectory[]; rootMetadata: ViewMetadata; inputs: readonly string[]}>> {
   const {root, discovered, rootDocumentation, inputs, contractPathsByDirectory, scenarioPathsByDirectory, dependencyPathByDirectory, contractPaths, dependencyPaths} = prepared
+  for (const source of prepared.protocolSources) {
+    const bytes = await readFile(source.path)
+    if (createHash("sha256").update(bytes).digest("hex") !== source.digest) throw new Error(`Протокол изменился во время обнаружения: ${source.path}`)
+  }
   const contracts = new Map<string, Extract<ContractDocumentationResult, {ok: true}>["value"]>()
   for (const path of contractPaths) {
     const result = contractResults.get(path)
@@ -179,35 +224,42 @@ export async function completeStorybookDirectories(
   }
   if (dependencyPaths.length > 0) onAnalysisSession("dependency")
   const dependencies: Awaited<ReturnType<typeof readDependencySpecs>> = dependencyPaths.length === 0 ? new Map() : await readDependencySpecs(root, dependencyPaths)
-  const viewMetadata = (path: string): ViewMetadata => {
-    const ownedContracts = contractPathsByDirectory.get(path) ?? []
+  const contractMetadata = (ownedContracts: readonly string[]) => {
     const sources = ownedContracts.flatMap(path => contracts.get(path)?.sources ?? [])
     for (const source of sources) inputs.add(source.sourcePath)
     const documents = ownedContracts.flatMap((path): import("../contract/catalog").StorybookContractDocument[] => {
       const contract = contracts.get(path)
       if (contract === undefined) return []
-      if (basename(path) !== "index.ts") return [{
+      if (!contract.document.declarations.some(declaration => declaration.name.includes("."))) return [{
         direction: basename(path) === "input.ts" ? "input" : "output",
+        sourcePath: path,
         document: contract.document,
       }]
       return contract.document.declarations.map(declaration => {
         const role = declaration.name.split(".").at(-1)!
         const direction = role === "Input" ? "input" : role === "Output" ? "output" : "slots"
-        return {direction, document: {...contract.document, declarations: [declaration]}}
+        return {direction, sourcePath: path, document: {...contract.document, declarations: [declaration]}}
       })
     })
+    return documents.length === 0 ? undefined : {sources, documents}
+  }
+  const viewMetadata = (path: string): ViewMetadata => {
+    const contractDocumentation = contractMetadata(contractPathsByDirectory.get(path) ?? [])
     const scenarioPaths = scenarioPathsByDirectory.get(path)
     const dependencyPath = dependencyPathByDirectory.get(path)
     const dependencySpec = dependencyPath === undefined ? undefined : dependencies.get(dependencyPath)
     return Object.freeze({
       ...(dependencySpec === undefined ? {} : {dependencySpec}),
       ...(scenarioPaths === undefined ? {} : {scenarioSpec: {sourcePaths: scenarioPaths}}),
-      ...(documents.length === 0 ? {} : {contractDocumentation: {sources, documents}}),
+      ...(contractDocumentation === undefined ? {} : {contractDocumentation}),
     })
   }
   const rootMetadata = Object.freeze({
     ...viewMetadata(root),
     ...(rootDocumentation ? {moduleDocumentation: rootDocumentation} : {}),
+    ...(prepared.entries.length ? {entries: prepared.entries.map(({contractPaths, ...entry}) => ({
+      ...entry, contractDocumentation: contractMetadata(contractPaths)!,
+    }))} : {}),
   })
   const directories = discovered.map(directory => Object.freeze({...directory, ...viewMetadata(directory.path)}))
   return Object.freeze({directories: Object.freeze(directories), rootMetadata, inputs: Object.freeze([...inputs])})

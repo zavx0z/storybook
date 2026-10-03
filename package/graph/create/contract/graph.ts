@@ -3,8 +3,8 @@ import type {RepoDiscovery} from "@repo/discovery"
 type Scope = RepoDiscovery.Output["scopes"][number]
 type PackageScope = Extract<Scope, {kind: "package"}>
 
-/** Вид пакета, недоступного владельца либо публичной директории. */
-export type GraphNodeKind = "unavailable" | "package" | "directory"
+/** Вид физического источника навигации; не назначает архетип пакета. */
+export type GraphNodeKind = "unavailable" | "package" | "directory" | "entry"
 
 /** Проверенный узел графа с route identity и сведениями исходного владельца. */
 export type GraphNode = Readonly<{
@@ -18,6 +18,7 @@ export type GraphNode = Readonly<{
   routePath: string | null
   parentId: string | null
   childIds: readonly string[]
+  entryConditions?: readonly (readonly string[])[]
   moduleDocumentation?: Scope["moduleDocumentation"]
   dependencySpec?: PackageScope["dependencySpec"]
   dependencyRoutePath?: string

@@ -87,7 +87,7 @@ export function landingBreadcrumbs(
   path: readonly ExternalStorybookClientNode[],
 ): readonly WorkbenchBreadcrumb[] {
   if (path.length === 0 || path.some(node =>
-    node.kind !== "package" && node.kind !== "directory" && node.kind !== "unavailable")) {
+    node.kind !== "package" && node.kind !== "directory" && node.kind !== "entry" && node.kind !== "unavailable")) {
     throw new Error("Storybook landing breadcrumb path must contain only physical nodes")
   }
   return Object.freeze(path.map(node => Object.freeze({
@@ -108,7 +108,7 @@ export function packageBreadcrumbs(
     throw new Error(`Storybook breadcrumb path has no package root: ${path.at(-1)?.id ?? "unknown"}`)
   }
   const graphAncestors = path.slice(0, packageIndex)
-  if (graphAncestors.some(node => node.kind !== "package" && node.kind !== "directory" && node.kind !== "unavailable")) {
+  if (graphAncestors.some(node => node.kind !== "package" && node.kind !== "directory" && node.kind !== "entry" && node.kind !== "unavailable")) {
     throw new Error("Storybook package breadcrumb ancestors must be physical nodes")
   }
   if (revisionAncestors.length > 0 && graphAncestors.length > 0 &&
@@ -119,13 +119,13 @@ export function packageBreadcrumbs(
     ? revisionAncestors
     : graphAncestors.map(node => Object.freeze({
       id: node.id,
-      kind: node.kind as "package" | "directory" | "unavailable",
+      kind: node.kind as "package" | "directory" | "entry" | "unavailable",
       label: node.label,
       urlPath: node.urlPath,
     }))
   const packagePath = path.slice(packageIndex)
   if (packagePath[0]?.kind !== "package" || packagePath.some(node =>
-    node.kind !== "package" && node.kind !== "directory")) {
+    node.kind !== "package" && node.kind !== "directory" && node.kind !== "entry")) {
     throw new Error(`Storybook package breadcrumb path is invalid: ${path.at(-1)?.id ?? "unknown"}`)
   }
   return Object.freeze([

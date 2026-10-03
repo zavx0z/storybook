@@ -14,7 +14,8 @@
     "moduleDetection": "force",
     "moduleResolution": "bundler",
     "customConditions": [
-      "bun"
+      "bun",
+      "node"
     ],
     "jsx": "react-jsx",
     "jsxImportSource": "@zavx0z/jsx",

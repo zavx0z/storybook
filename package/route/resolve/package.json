@@ -12,7 +12,10 @@
     "@route/address": "workspace:*",
     "@route/directories": "workspace:*",
     "@route/ignored": "workspace:*",
-    "@route/structure": "workspace:*"
+    "@route/structure": "workspace:*",
+    "@archetypes/package-json": "workspace:*",
+    "@archetypes/package-index": "workspace:*",
+    "@archetypes/contracts": "workspace:*"
   },
   "devDependencies": {
     "@nodes/node": "^0.0.0",

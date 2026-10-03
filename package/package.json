@@ -19,7 +19,8 @@
     "@package/artifacts": "workspace:*",
     "@hmr/activation": "workspace:*",
     "@package-build/prepare": "workspace:*",
-    "@package/graph": "workspace:*",
+    "@package-graph/create": "workspace:*",
+    "@package-graph/read": "workspace:*",
     "@storybook/route": "workspace:*",
     "@package/identity": "workspace:*",
     "@package/resources": "workspace:*"

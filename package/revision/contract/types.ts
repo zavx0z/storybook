@@ -3,14 +3,14 @@ type Package = Extract<RepoDiscovery.Output["scopes"][number], {kind: "package"}
 export type StorybookPackageRevisionAncestor = Readonly<{
   id: string
   parentId: string | null
-  kind: "package" | "directory" | "unavailable"
+  kind: "package" | "directory" | "entry" | "unavailable"
   label: string
   urlPath: string
 }>
 
 export type StorybookPackageRevisionGraphNode = Readonly<{
   id: string
-  kind: "package" | "directory"
+  kind: "package" | "directory" | "entry"
   ownerId: string
   packageId: string
   label: string
@@ -19,12 +19,13 @@ export type StorybookPackageRevisionGraphNode = Readonly<{
   urlPath: string
   routePath: string
   searchTerms: readonly string[]
+  entryConditions?: readonly (readonly string[])[]
   hasModuleDocumentation?: boolean
   dependencyCases?: readonly NonNullable<Package["dependencySpec"]>["cases"][number][]
   dependencyRoutePath?: string
   contractRoutePath?: string
   scenariosRoutePath?: string
-  contractDocuments?: readonly NonNullable<Package["contractDocumentation"]>["documents"][number][]
+  contractDocuments?: readonly Omit<NonNullable<Package["contractDocumentation"]>["documents"][number], "sourcePath">[]
   resourceUrl: string
 }>
 
