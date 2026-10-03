@@ -7,6 +7,7 @@ test("предметные области принадлежат Repo без п�
   const root = resolve(import.meta.dir, "../../..")
   const result = await readPackage({path: root})
   const expected = [
+    ["cluster", "@archetypes/cluster"],
     ["component", "@archetypes/component"],
     ["container", "@archetypes/container"],
     ["contracts", "@archetypes/contracts"],
@@ -22,4 +23,24 @@ test("предметные области принадлежат Repo без п�
       .toEqual([{name, path: resolve(root, directory), parent: root}])
   }
   expect(result.packages.some(item => item.name === "@storybook/archetypes"), "Выведенный из использования контейнер не сохраняет публичного двойника").toBeFalse()
+})
+
+test("разделы технологий не создают фасадных владельцев самостоятельных возможностей", async () => {
+  const root = resolve(import.meta.dir, "../../..")
+  const result = await readPackage({path: root})
+  const facades = ["@storybook/tech", "@tech/build", "@tech/process", "@tech/hmr", "@tech/mcp", "@tech/http", "@tech/testing"]
+  expect(result.packages.filter(item => facades.includes(item.name)),
+    "Каталог без собственной реализации или общего протокола не получает отдельную package identity").toEqual([])
+  for (const [directory, name] of [
+    ["tech/build/compiler", "@build/compiler"],
+    ["tech/hmr/page", "@hmr/page"],
+    ["tech/http/client", "@http/client"],
+    ["tech/mcp/stdio", "@mcp/stdio"],
+    ["tech/process/wait", "@process/wait"],
+    ["tech/testing/browser-root", "@web/browser-fixture"],
+  ]) {
+    expect(result.packages.find(item => item.name === name),
+      "Реальная возможность сохраняет identity, исходники и прямого предметного владельца")
+      .toEqual({name, path: resolve(root, directory!), parent: root})
+  }
 })

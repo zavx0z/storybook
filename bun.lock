@@ -1225,24 +1225,6 @@
       "name": "@archetypes/scenario-validation",
       "version": "0.0.0",
     },
-    "tech": {
-      "name": "@storybook/tech",
-      "version": "0.0.0",
-      "dependencies": {
-        "@build/inputs": "workspace:*",
-        "@build/queue": "workspace:*",
-        "@build/worker": "workspace:*",
-        "@process/measure": "workspace:*",
-        "@process/sample": "workspace:*",
-        "@process/wait": "workspace:*",
-        "@tech/build": "workspace:*",
-        "@tech/hmr": "workspace:*",
-        "@tech/http": "workspace:*",
-        "@tech/limits": "workspace:*",
-        "@tech/mcp": "workspace:*",
-        "@tech/testing": "workspace:*",
-      },
-    },
     "tech/acp": {
       "name": "@tech/acp",
       "version": "0.0.0",
@@ -1250,18 +1232,6 @@
         "@agentclientprotocol/codex-acp": "^2.1.1",
         "@agentclientprotocol/sdk": "^1.6.0",
         "@process/wait": "workspace:*",
-      },
-    },
-    "tech/build": {
-      "name": "@tech/build",
-      "version": "0.0.0",
-      "dependencies": {
-        "@build/artifacts": "workspace:*",
-        "@build/compiler": "workspace:*",
-        "@build/environment": "workspace:*",
-        "@build/inputs": "workspace:*",
-        "@build/queue": "workspace:*",
-        "@build/worker": "workspace:*",
       },
     },
     "tech/build/artifacts": {
@@ -1337,14 +1307,6 @@
         "@process/wait": "workspace:*",
       },
     },
-    "tech/hmr": {
-      "name": "@tech/hmr",
-      "version": "0.0.0",
-      "dependencies": {
-        "@hmr/connection": "workspace:*",
-        "@hmr/page": "workspace:*",
-      },
-    },
     "tech/hmr/connection": {
       "name": "@hmr/connection",
       "version": "0.0.0",
@@ -1353,13 +1315,6 @@
       "name": "@hmr/page",
       "version": "0.0.0",
     },
-    "tech/http": {
-      "name": "@tech/http",
-      "version": "0.0.0",
-      "dependencies": {
-        "@http/client": "workspace:*",
-      },
-    },
     "tech/http/client": {
       "name": "@http/client",
       "version": "0.0.0",
@@ -1367,15 +1322,6 @@
     "tech/limits": {
       "name": "@tech/limits",
       "version": "0.0.0",
-    },
-    "tech/mcp": {
-      "name": "@tech/mcp",
-      "version": "0.0.0",
-      "dependencies": {
-        "@mcp/lazy": "workspace:*",
-        "@mcp/progress": "workspace:*",
-        "@mcp/stdio": "workspace:*",
-      },
     },
     "tech/mcp/lazy": {
       "name": "@mcp/lazy",
@@ -1404,15 +1350,6 @@
         "@modelcontextprotocol/server": "^2.0.0",
       },
     },
-    "tech/process": {
-      "name": "@tech/process",
-      "version": "0.0.0",
-      "dependencies": {
-        "@process/measure": "workspace:*",
-        "@process/sample": "workspace:*",
-        "@process/wait": "workspace:*",
-      },
-    },
     "tech/process/measure": {
       "name": "@process/measure",
       "version": "0.0.0",
@@ -1427,13 +1364,6 @@
     "tech/process/wait": {
       "name": "@process/wait",
       "version": "0.0.0",
-    },
-    "tech/testing": {
-      "name": "@tech/testing",
-      "version": "0.0.0",
-      "dependencies": {
-        "@web/browser-fixture": "workspace:*",
-      },
     },
     "tech/testing/browser-root": {
       "name": "@web/browser-fixture",
@@ -1765,23 +1695,9 @@
 
     "@storybook/route": ["@storybook/route@workspace:package/route"],
 
-    "@storybook/tech": ["@storybook/tech@workspace:tech"],
-
     "@tech/acp": ["@tech/acp@workspace:tech/acp"],
 
-    "@tech/build": ["@tech/build@workspace:tech/build"],
-
-    "@tech/hmr": ["@tech/hmr@workspace:tech/hmr"],
-
-    "@tech/http": ["@tech/http@workspace:tech/http"],
-
     "@tech/limits": ["@tech/limits@workspace:tech/limits"],
-
-    "@tech/mcp": ["@tech/mcp@workspace:tech/mcp"],
-
-    "@tech/process": ["@tech/process@workspace:tech/process"],
-
-    "@tech/testing": ["@tech/testing@workspace:tech/testing"],
 
     "@types/bun": ["@types/bun@1.4.2", "", { "dependencies": { "bun-types": "1.4.2" } }, "sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ=="],
 

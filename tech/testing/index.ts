@@ -2,7 +2,8 @@
 Предоставляет технические подмены протоколов для изолированных проверок.
 Подмена не создаёт реальный renderer или отдельную среду приложения.
 
+Это раздел навигации; публичный API принадлежит самостоятельным пакетам ниже.
+
 @packageDocumentation
 */
-export {default as browserRootFixture} from "@web/browser-fixture"
-export type {WebBrowserFixture} from "@web/browser-fixture"
+export {}

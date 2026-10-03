@@ -1,7 +1,8 @@
 /**
 Публичные возможности авторизованного JSON и потокового HTTP.
 
+Это раздел навигации; публичный API принадлежит самостоятельным пакетам ниже.
+
 @packageDocumentation
 */
-export {default as Client} from "@http/client"
-export type {HttpClient} from "@http/client"
+export {}
