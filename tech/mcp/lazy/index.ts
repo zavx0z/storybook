@@ -11,7 +11,6 @@ import {McpServer, type CallToolResult, type ListToolsResult, type ListResources
 import {isAbsolute} from "node:path"
 import {executeLazyRequest} from "./src/execute"
 import {watchSourceChanges} from "./src/notifications"
-import {MCP_REQUEST_TIMEOUT_MS} from "./src/protocol"
 import type {McpLazy} from "./contract"
 export type {McpLazy} from "./contract"
 
@@ -21,14 +20,14 @@ export type {McpLazy} from "./contract"
 @param input - Доверенные пути и срок выполнения из {@link McpLazy.Input}.
 @returns SDK server, который подключается штатным connect или serveStdio.
 @throws TypeError При относительных или пустых обязательных путях.
-@throws RangeError При неположительном бюджете или превышении 15 минут.
+@throws RangeError При неположительном явно заданном бюджете.
 */
 export default function createLazyMcpServer(input: McpLazy.Input): McpLazy.Output {
   for (const [name, path] of Object.entries({serverModule: input.serverModule, cwd: input.cwd, temporaryRoot: input.temporaryRoot})) {
     if (typeof path !== "string" || !isAbsolute(path)) throw new TypeError(`MCP lazy ${name} must be an absolute trusted path`)
   }
-  const timeoutMs = input.timeoutMs ?? MCP_REQUEST_TIMEOUT_MS
-  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0 || timeoutMs > MCP_REQUEST_TIMEOUT_MS) throw new RangeError("MCP lazy timeoutMs must be positive and at most 900000 ms")
+  const timeoutMs = input.timeoutMs
+  if (timeoutMs !== undefined && (!Number.isFinite(timeoutMs) || timeoutMs <= 0)) throw new RangeError("MCP lazy timeoutMs must be positive")
   const server = new McpServer({name: input.name ?? "lazy-mcp", version: input.version ?? "1.0.0"}, {
     capabilities: {tools: {listChanged: true}, resources: {listChanged: true}},
   })
@@ -78,7 +77,7 @@ export default function createLazyMcpServer(input: McpLazy.Input): McpLazy.Outpu
     if (context.mcpReq.signal.aborted) cancel()
     else context.mcpReq.signal.addEventListener("abort", cancel, {once: true})
     active.add(controller)
-    const timer = setTimeout(() => controller.abort(new DOMException("MCP lazy request timed out", "TimeoutError")), timeoutMs)
+    const timer = timeoutMs === undefined ? undefined : setTimeout(() => controller.abort(new DOMException("MCP lazy request timed out", "TimeoutError")), timeoutMs)
     let progress = Promise.resolve()
     const progressToken = context.mcpReq._meta?.progressToken
     try {

@@ -6,9 +6,8 @@ import {join} from "node:path"
 import {saveSharedBrowserCandidate} from "../src/receipt"
 import {buildSharedBrowserAssets} from "../src/browser-build"
 import {sources} from "../src/sources"
-import Limits from "@tech/limits"
 
-setDefaultTimeout(2 * Limits.STORYBOOK_SHARED_COMPILE_TIMEOUT_MS)
+setDefaultTimeout(2 * 480_000)
 
 const roots: string[] = []
 afterEach(() => {

@@ -22,7 +22,10 @@ test("готовит один preview только для однозначног
     ],
   } as unknown as StorybookPackageBuildDescriptor
 
-  const result = await prepareStorybookScenarios(descriptor, new AbortController().signal)
+  const phases: string[] = []
+  const result = await prepareStorybookScenarios(descriptor, new AbortController().signal, undefined, undefined,
+    progress => { if (phases.at(-1) !== progress.phase) phases.push(progress.phase) })
+  expect(phases).toEqual(["preparing", "running", "reporting", "preparing", "running", "reporting"])
 
   expect(result.map(item => [item.kind, item.nodeId])).toEqual([
     ["component", "directory:package:@fixture/scenarios/component"],

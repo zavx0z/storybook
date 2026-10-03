@@ -65,6 +65,8 @@ export declare namespace TechAcp {
     cwd: string
     mcpServers: NewSessionRequest["mcpServers"]
     previousSessionId?: string
+    /** Фактический этап подключения; callback не ограничивает длительность работы. */
+    onProgress?(phase: "registry" | "spawn" | "initialize" | "session" | "ready"): void
     onUpdate(update: SessionUpdate): void | Promise<void>
     onPermission(request: RequestPermissionRequest): Promise<RequestPermissionResponse>
     command?: string

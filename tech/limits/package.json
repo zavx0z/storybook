@@ -1,10 +1,10 @@
 {
   "name": "@tech/limits",
-  "label": "Лимиты исполнения",
+  "label": "Настройки транспорта",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Конечные бюджеты процессов компиляции и запуска",
+  "description": "Время удержания незанятого HTTP-соединения",
   "exports": {
     ".": "./index.ts"
   }

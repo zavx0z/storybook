@@ -1,9 +1,8 @@
 import createWeb from "@app/web"
 import {type Zavx0zStorybookBrowserLifecycle as Zavx0zStorybookBrowserLifecycleContract} from "@zavx0z/storybook-browser-lifecycle"
 type StorybookBrowserLifecycle = Zavx0zStorybookBrowserLifecycleContract.Output
-import TechLimitsOwner from "@tech/limits"
-const STORYBOOK_SHARED_COMPILE_TIMEOUT_MS = TechLimitsOwner.STORYBOOK_SHARED_COMPILE_TIMEOUT_MS
-const STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS = TechLimitsOwner.STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS
+const STORYBOOK_SHARED_COMPILE_TIMEOUT_MS = 480_000
+const STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS = 120_000
 import {afterEach, describe, expect, setDefaultTimeout, spyOn, test} from "bun:test"
 import {existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"

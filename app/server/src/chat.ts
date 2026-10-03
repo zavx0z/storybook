@@ -41,6 +41,7 @@ export function createChatServer(options: Readonly<{
           exclusiveMcp: true,
           signal: input.signal,
           ...(input.previousSessionId === undefined ? {} : {previousSessionId: input.previousSessionId}),
+          ...(input.onProgress === undefined ? {} : {onProgress: input.onProgress}),
           onUpdate: input.onUpdate,
           onPermission: input.onPermission,
           mcpServers: [{

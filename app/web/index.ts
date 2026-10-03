@@ -9,7 +9,6 @@ HTTP-соединения, каталог и пакетные сессии. По
 */
 import Build from "@app-web/build"
 import createRelease from "@web/release"
-import Limits from "@tech/limits"
 import {join} from "node:path"
 import {describeHost, message} from "./src/host"
 import type {AppWeb} from "./contract"
@@ -60,7 +59,7 @@ export default function createWeb(input: AppWeb.Input): AppWeb.Output {
     build: signal => input.scheduler().run({packageId: null, owner: "shared",
       reason: "explicit-build",
       generation: null}, async context => {
-      const result = await build({root: artifactRoot, toolRoot: input.toolRoot, ...entries}, context, Limits.STORYBOOK_SHARED_COMPILE_TIMEOUT_MS)
+      const result = await build({root: artifactRoot, toolRoot: input.toolRoot, ...entries}, context)
       failure = null
       return result
     }, signal),
@@ -81,8 +80,7 @@ export default function createWeb(input: AppWeb.Input): AppWeb.Output {
       if (identity === undefined) throw new Error("Сначала явно подготовьте среду Storybook")
       try {
         next = await input.scheduler().run({packageId: null, owner: "shared", reason: "explicit-build", generation: null},
-          context => build({root: artifactRoot, toolRoot: input.toolRoot, ...entries, sharedKernel: identity}, context,
-            Limits.STORYBOOK_SHARED_COMPILE_TIMEOUT_MS), signal)
+          context => build({root: artifactRoot, toolRoot: input.toolRoot, ...entries, sharedKernel: identity}, context), signal)
       } catch (error) {
         failed(error)
         throw error

@@ -13,7 +13,7 @@ export declare namespace AppWebBuild {
     Assets: new(options: SharedBrowserAssetsInput) => SharedBrowserAssetsController
     buildAssets(input: SharedBrowserBuildInput, onPhase?: SharedBrowserBuildPhaseListener): Promise<SharedBrowserAssets>
     runWorker(input: Omit<SharedBrowserBuildInput, "stagingDirectory">,
-      context: SharedBrowserBuildOperationContext, timeoutMs: number, workerPath?: string): Promise<SharedBrowserAssets>
+      context: SharedBrowserBuildOperationContext, workerPath?: string): Promise<SharedBrowserAssets>
     readPublishedReceipt(input: SharedBrowserBuildInput): SharedBrowserAssets | null
     saveCandidate(assets: SharedBrowserAssets): void
     readEpoch(root: string, epoch: string, hostEpoch?: string,

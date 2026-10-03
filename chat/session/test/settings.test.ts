@@ -21,6 +21,7 @@ test("настройки не запускают prompt; модель обнов
     async connect(value) {
       input = value
       connections += 1
+      value.onProgress?.("session")
       return {
         sessionId: "persistent-session",
         get configOptions() { return options },
@@ -48,7 +49,12 @@ test("настройки не запускают prompt; модель обнов
   try {
     expect((await chats.read("/")).settings).toEqual([])
     expect(connections).toBe(0)
+    const phases: string[] = []
+    const stopProgress = await chats.subscribe("/", state => { if (state.progress) phases.push(state.progress) })
     await Promise.all([chats.prepare("/"), chats.prepare("/")])
+    stopProgress()
+    expect(phases).toContain("Загрузка сессии и доступных моделей…")
+    expect((await chats.read("/")).progress).toBeUndefined()
     expect(connections).toBe(1)
     expect(prompts).toBe(0)
     expect((await chats.read("/")).settings).toMatchObject([{id: "provider-model", value: "a"}, {value: "high"}])
@@ -75,3 +81,31 @@ test("настройки не запускают prompt; модель обнов
     await rm(directory, {recursive: true, force: true})
   }
 }, 5000)
+
+test("подготовка настроек публикует этапы и отменяется до первого prompt", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "chat-prepare-cancel-"))
+  const started = Promise.withResolvers<void>()
+  const chats = createSessions({
+    directory,
+    resolve: address => ({address, label: "Chat", cwd: directory}),
+    async connect(input) {
+      input.onProgress?.("initialize")
+      started.resolve()
+      return await new Promise<never>((_, reject) => {
+        input.signal.addEventListener("abort", () => reject(input.signal.reason), {once: true})
+      })
+    },
+  })
+  try {
+    const pending = chats.prepare("/").then(() => null, error => error)
+    await started.promise
+    expect(await chats.read("/")).toMatchObject({configuring: true, progress: "Подключение к агенту…", messages: []})
+    await chats.cancel("/")
+    expect((await pending).message).toBe("Подключение отменено")
+    expect(await chats.read("/")).toMatchObject({configuring: false, messages: []})
+    expect((await chats.read("/")).progress).toBeUndefined()
+  } finally {
+    await chats.dispose()
+    await rm(directory, {recursive: true, force: true})
+  }
+})

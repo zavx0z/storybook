@@ -15,7 +15,7 @@ import {STORYBOOK_SHARED_ASSETS_MAX_BYTES} from "./receipt"
 
 @param context - Владение операцией, отмена и привязка измерений процесса.
 
-@param timeoutMs - Бюджет исполнения после admission, без времени ожидания очереди.
+Ожидание завершается результатом, ошибкой процесса или отменой владельца; общего таймера сборки нет.
 
 @returns Проверенный результат exact worker; временные файлы удаляются после exit.
 
@@ -25,7 +25,6 @@ import {STORYBOOK_SHARED_ASSETS_MAX_BYTES} from "./receipt"
 export async function runSharedBrowserBuild(
   input: Omit<SharedBrowserBuildInput, "stagingDirectory">,
   context: SharedBrowserBuildOperationContext,
-  timeoutMs: number,
   workerPath = Environment.exactFile(join(import.meta.dir, "worker.ts")),
 ): Promise<SharedBrowserAssets> {
   let release: (() => void) | undefined
@@ -36,7 +35,6 @@ export async function runSharedBrowserBuild(
       temporaryRoot: dirname(input.root),
       createJob: ({directory}) => ({...input, stagingDirectory: join(directory, "staging")}),
       signal: context.signal,
-      timeoutMs,
       label: "Shared browser build",
       parseEvent: Scheduler.parseStorybookBuildWorkerTransportEvent,
       streamMode: "strict",

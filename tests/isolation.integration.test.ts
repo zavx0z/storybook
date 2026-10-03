@@ -2,9 +2,8 @@ import createWeb from "@app/web"
 import {createProjectFixture} from "../app/server/test/project.fixture"
 import RouteUrlOwner from "@route/url"
 const storybookPackageUrlPath = RouteUrlOwner.storybookPackageUrlPath
-import TechLimitsOwner from "@tech/limits"
-const STORYBOOK_SHARED_COMPILE_TIMEOUT_MS = TechLimitsOwner.STORYBOOK_SHARED_COMPILE_TIMEOUT_MS
-const STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS = TechLimitsOwner.STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS
+const STORYBOOK_SHARED_COMPILE_TIMEOUT_MS = 480_000
+const STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS = 120_000
 import {afterEach, describe, expect, test} from "bun:test"
 import {mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"

@@ -36,9 +36,10 @@ export default async function prepareStorybookScenarios(
   signal: AbortSignal,
   onPrepared?: (nodeId: string, result: ReadScenarioOutput) => void,
   policy: Readonly<{standard: StorybookPackageStandard, warnings: StorybookPackageDiagnostic[]}> = {standard: "strict", warnings: []},
+  onProgress?: ArchetypesScenarioReader.Input["onProgress"],
 ): Promise<readonly StorybookGeneratedScenario[]> {
   const prepared: StorybookGeneratedScenario[] = []
-  const read = (path: string) => readScenario({path, signal})
+  const read = (path: string) => readScenario({path, signal, ...(onProgress === undefined ? {} : {onProgress})})
   const authoring = (message: string, path: string): void => {
     if (policy.standard === "strict") throw storybookBuildError(storybookDiagnostic("validate", message, path))
     policy.warnings.push(storybookDiagnostic("validate", message, path))

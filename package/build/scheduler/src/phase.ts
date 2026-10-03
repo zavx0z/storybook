@@ -65,6 +65,9 @@ export function parseStorybookBuildWorkerTransportEvent(
 /** Ограничивает phase vocabulary согласованным scheduler contract. */
 function isStorybookBuildPhase(value: unknown): value is StorybookBuildWorkerPhase {
   return typeof value === "string" && [
+    "scenario-prepare",
+    "scenario-run",
+    "scenario-report",
     "verification",
     "resources",
     "exports",

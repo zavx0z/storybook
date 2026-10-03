@@ -1,8 +1,8 @@
 import type {Progress} from "@modelcontextprotocol/client"
 import type {BuildWorker} from "@build/worker"
 
-export const MCP_REQUEST_TIMEOUT_MS = 900_000
-export const MCP_WORKER_TIMEOUT_MS = 930_000
+// Предел тишины native SDK сбрасывается progress; общего срока операции нет.
+export const MCP_IDLE_TIMEOUT_MS = 900_000
 export const MCP_HARD_KILL_DELAY_MS = 10_000
 export const MCP_CANCELLATION_DRAIN_MS = 8_000
 export const MCP_RESULT_MAX_BYTES = 192 * 1024 * 1024

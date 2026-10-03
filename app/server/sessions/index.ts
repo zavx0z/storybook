@@ -27,7 +27,6 @@ export default class ExternalStorybookSessionManager {
   readonly #publish: (event: StorybookPackageEvent) => void
   readonly #buildScheduler: StorybookBuildScheduler
   readonly #ownsBuildScheduler: boolean
-  readonly #compileTimeoutMs: number | undefined
   readonly #activationTimeoutMs: number | undefined
   readonly #retainedRevisionLimit: number | undefined
   readonly #sessions = new Map<string, StorybookPackageSession>()
@@ -39,7 +38,6 @@ export default class ExternalStorybookSessionManager {
     this.#buildRevision = options.buildRevision
     this.#prepareBuild = options.prepareBuild
     this.#publish = options.publish ?? (() => {})
-    this.#compileTimeoutMs = options.compileTimeoutMs
     this.#activationTimeoutMs = options.activationTimeoutMs
     this.#retainedRevisionLimit = options.retainedRevisionLimit
     this.#ownsBuildScheduler = options.buildScheduler === undefined
@@ -71,7 +69,6 @@ export default class ExternalStorybookSessionManager {
           buildRevision: this.#buildRevision,
           ...(this.#prepareBuild === undefined ? {} : {prepareBuild: this.#prepareBuild}),
           buildScheduler: this.#buildScheduler,
-          ...(this.#compileTimeoutMs === undefined ? {} : {compileTimeoutMs: this.#compileTimeoutMs}),
           ...(this.#activationTimeoutMs === undefined ? {} : {activationTimeoutMs: this.#activationTimeoutMs}),
           ...(this.#retainedRevisionLimit === undefined ? {} : {retainedRevisionLimit: this.#retainedRevisionLimit}),
           publish: (event) => this.#onSessionEvent(event),

@@ -34,7 +34,7 @@ started публикуется после exact nonce/PID handshake. exited сл
 export default async function runBuildWorker<Job, Progress>(
   input: BuildWorker.Input<Job, Progress>,
 ): Promise<BuildWorker.Output> {
-  if (!Number.isFinite(input.timeoutMs) || input.timeoutMs <= 0) {
+  if (input.timeoutMs !== undefined && (!Number.isFinite(input.timeoutMs) || input.timeoutMs <= 0)) {
     throw new RangeError(`Build worker timeout must be positive: ${input.timeoutMs}`)
   }
   if (input.hardKillDelayMs !== undefined &&

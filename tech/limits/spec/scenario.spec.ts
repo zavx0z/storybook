@@ -1,21 +1,12 @@
-/** Конечные бюджеты обычной компиляции, общей среды и удержания сервера. */
+/** Бюджеты транспорта не ограничивают длительность сборки или сценария. */
 import {describe, expect, test} from "bun:test"
 import Limits from "@tech/limits"
 
 describe.each([
-  {name: "Компиляция пакета", props: {budget: Limits.STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS, expected: 120_000}},
-  {name: "Подготовка и выполнение сценария", props: {budget: Limits.STORYBOOK_SCENARIO_TIMEOUT_MS, expected: 150_000}},
-  {name: "Компиляция общей среды", props: {budget: Limits.STORYBOOK_SHARED_COMPILE_TIMEOUT_MS, expected: 480_000}},
+  {name: "HTTP без данных", props: {budget: Limits.STORYBOOK_SERVER_IDLE_TIMEOUT_SECONDS, expected: 125}},
 ])("$name", ({props}) => {
   const actual = props.budget
-
-  test("Бюджет в миллисекундах", () => {
-    expect(actual, "Предел ожидания компиляции задан в миллисекундах и зависит от объёма работы").toBe(props.expected)
-  })
-
-  test("Время удержания управляющего соединения", () => {
-    expect(Limits.STORYBOOK_SERVER_IDLE_TIMEOUT_SECONDS * 1_000,
-      "Сервер удерживает управляющее соединение дольше обычной компиляции пакета"
-    ).toBeGreaterThan(Limits.STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS)
+  test("Единицы транспорта", () => {
+    expect(actual, "HTTP idle timeout задан в секундах и не является сроком сборки").toBe(props.expected)
   })
 })

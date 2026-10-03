@@ -10,6 +10,9 @@ export type StorybookBuildReason =
 
 /** Фазы compiler/build, передаваемые package/shared worker. */
 export type StorybookBuildWorkerPhase =
+  | "scenario-prepare"
+  | "scenario-run"
+  | "scenario-report"
   | "verification"
   | "resources"
   | "exports"

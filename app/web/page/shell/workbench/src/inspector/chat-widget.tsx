@@ -25,6 +25,7 @@ export function ChatWidget(props: WorkbenchInspectorCustomWidgetProps) {
     permissions={view.permissions}
     settings={view.settings}
     configuring={view.configuring}
+    progress={view.progress}
     usage={view.usage}
     onPrepareSettings={() => { void client.prepare() }}
     onConfigure={(id, value) => { void client.configure(id, value) }}

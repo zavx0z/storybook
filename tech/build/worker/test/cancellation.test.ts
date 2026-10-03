@@ -23,7 +23,7 @@ describe("Отмена точной группы", () => {
     let childExistsAtExit = true
     try {
       const failure = await runBuildWorker({...fixture.input,
-        timeoutMs: kind === "timeout" ? 500 : 5_000,
+        timeoutMs: kind === "timeout" ? 500 : undefined,
         createJob: () => ({hold: true, ignoreTerm: true, descendantPath}),
         onLifecycle(event) {
           lifecycle.push(event)

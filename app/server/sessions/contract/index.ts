@@ -11,7 +11,6 @@ export declare namespace AppServerSessions {
   @property [publish] - Наблюдает события владельцев сессий.
   @property [buildScheduler] - Общая очередь с внешним временем жизни.
   @property [buildConcurrency] - Лимит собственной очереди, если она не передана.
-  @property [compileTimeoutMs] - Бюджет пакетного worker в миллисекундах.
   @property [activationTimeoutMs] - Бюджет подтверждения применения в миллисекундах.
   @property [retainedRevisionLimit] - Число удерживаемых прежних ревизий.
   */
@@ -22,7 +21,6 @@ export declare namespace AppServerSessions {
     publish?: PackageSession.Input[1]["publish"]
     buildScheduler?: PackageBuildScheduler.Output
     buildConcurrency?: number
-    compileTimeoutMs?: number
     activationTimeoutMs?: number
     retainedRevisionLimit?: number
   }>

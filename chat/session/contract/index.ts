@@ -18,6 +18,7 @@ export declare namespace ChatSession {
       subject: Subject
       previousSessionId?: string
       signal: AbortSignal
+      onProgress?: TechAcp.Input["onProgress"]
       onUpdate: TechAcp.Input["onUpdate"]
       onPermission: TechAcp.Input["onPermission"]
     }>): Promise<TechAcp.Output>

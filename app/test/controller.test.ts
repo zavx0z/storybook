@@ -1,7 +1,6 @@
 import StorybookAppOwner from "@storybook/app"
 const createExternalStorybookController = StorybookAppOwner
 import ServerState from "@app-server/state"
-import Limits from "@tech/limits"
 const {createExternalStorybookServerRecord, externalStorybookServerStatePath, externalStorybookMigrationStatePath, readExternalStorybookMigrationRecord, readExternalStorybookServerRecord, processExists, writeExternalStorybookMigrationRecord, writeExternalStorybookServerRecord} = ServerState
 import {afterAll, beforeAll, beforeEach, describe, expect, test} from "bun:test"
 import {cpSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync} from "node:fs"
@@ -93,8 +92,8 @@ describe.serial("external Storybook shared controller", () => {
       schemaVersion: 1,
       scope: "storybook:shared",
       live: true,
-      timeoutMs: Limits.STORYBOOK_SHARED_COMPILE_TIMEOUT_MS,
-    }, {signal: AbortSignal.timeout(Limits.STORYBOOK_SHARED_COMPILE_TIMEOUT_MS)})
+      timeoutMs: 480_000,
+    }, {signal: AbortSignal.timeout(480_000)})
     expect(shared, "Общая оболочка готовится отдельной явной операцией перед проверкой пакета")
       .toMatchObject({status: "success", ok: true, published: true})
 
@@ -117,7 +116,7 @@ describe.serial("external Storybook shared controller", () => {
 
     const stopped = await second.stop({schemaVersion: 1, confirm: true}, context())
     expect(stopped).toMatchObject({status: "success", stopped: true})
-  }, Limits.STORYBOOK_SHARED_COMPILE_TIMEOUT_MS + Limits.STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS + 60_000)
+  }, 480_000 + 120_000 + 60_000)
 
   test("durably adopts the pre-capability TMPDIR daemon after an interrupted replacement", async () => {
     const declarationPath = realpathSync(join(fixture, "package.json"))

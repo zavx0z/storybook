@@ -3,7 +3,6 @@
 
 @packageDocumentation
 */
-import Limits from "@tech/limits"
 import {resolve} from "node:path"
 import {mkdtemp, readFile, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
@@ -92,7 +91,6 @@ export async function traceScenario(input: ArchetypesScenarioReader.Input): Prom
       stdin: new Blob([JSON.stringify({configuration, props: input.props, variant: input.variant, variantPath: input.variantPath})]),
       stdout: "pipe",
       stderr: "pipe",
-      timeout: Limits.STORYBOOK_SCENARIO_TIMEOUT_MS,
       ipc(message, subprocess) {
         if (isTraceCallMessage(message)) calls.push(message.call)
         if (typeof message === "object" && message !== null

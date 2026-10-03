@@ -174,6 +174,7 @@ describe("working Storybook PackageSession lifecycle", () => {
       viewId: "view-a",
       route: "dir-module",
     })
+    expect(activation.deadline, "Применение ждёт подтверждение страницы без общего таймера").toBeNull()
     expect(() => session.acknowledgeActivation({
       ...activation,
       packageGraphDigest: "foreign-graph",

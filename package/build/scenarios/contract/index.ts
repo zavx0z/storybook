@@ -14,6 +14,7 @@ export declare namespace PackageBuildScenarios {
     signal: AbortSignal,
     onPrepared?: (nodeId: string, report: ArchetypesScenarioReader.Output) => void,
     policy?: Readonly<{standard: StorybookPackageStandard; warnings: StorybookPackageDiagnostic[]}>,
+    onProgress?: ArchetypesScenarioReader.Input["onProgress"],
   ]
 
   /** Проверенные preview с адресами и данными, пригодные для loader ревизии. */

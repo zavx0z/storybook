@@ -82,7 +82,6 @@ async function runPackageBuildWorker(
     temporaryRoot: input.stagingDirectory,
     createJob: () => job,
     signal,
-    timeoutMs: input.compileTimeoutMs,
     label: "Storybook package compile",
     parseEvent: parseStorybookBuildWorkerTransportEvent,
     streamMode: "tolerant",

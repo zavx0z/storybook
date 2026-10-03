@@ -61,6 +61,8 @@ export type Snapshot = Readonly<{
   /** Варианты появляются после подключения; пустой список не подменяется встроенным каталогом. */
   settings?: readonly Setting[]
   configuring?: boolean
+  /** Текущий этап загрузки настроек или подключения агента. */
+  progress?: string
   usage?: ContextUsage | null
 }>
 

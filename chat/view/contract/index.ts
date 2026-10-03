@@ -49,6 +49,8 @@ export declare namespace ChatView {
     onCancel(): void
     settings?: Snapshot["settings"]
     configuring?: boolean
+    /** Наблюдаемый этап подключения, предоставленный сессией. */
+    progress?: string | undefined
     usage?: Snapshot["usage"]
     onPrepareSettings?(): void
     onConfigure?(id: string, value: string): void

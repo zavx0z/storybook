@@ -82,10 +82,12 @@ export default async function createAcp(input: TechAcp.Input): Promise<TechAcp.O
   ]) delete env[name]
   if (input.mode !== undefined) env.INITIAL_AGENT_MODE = input.mode
   if (input.config !== undefined) env.CODEX_CONFIG = JSON.stringify(input.config)
-  const startupSignal = input.signal === undefined
-    ? AbortSignal.timeout(60_000)
-    : AbortSignal.any([AbortSignal.timeout(60_000), input.signal])
+  const startupSignal = input.signal ?? new AbortController().signal
+  const progress = (phase: Parameters<NonNullable<TechAcp.Input["onProgress"]>>[0]): void => {
+    try { input.onProgress?.(phase) } catch { /* Наблюдатель не меняет выполнение. */ }
+  }
   if (input.exclusiveMcp === true) {
+    progress("registry")
     let config = input.config
     if (config === undefined && env.CODEX_CONFIG !== undefined) {
       const inherited: unknown = JSON.parse(env.CODEX_CONFIG)
@@ -120,6 +122,7 @@ export default async function createAcp(input: TechAcp.Input): Promise<TechAcp.O
   }
   startupSignal.throwIfAborted()
   input.signal?.throwIfAborted()
+  progress("spawn")
   const child = spawn(command, args, {
     cwd,
     env,
@@ -235,6 +238,7 @@ export default async function createAcp(input: TechAcp.Input): Promise<TechAcp.O
   const abortStartup = () => fail(startupSignal.reason)
   startupSignal.addEventListener("abort", abortStartup, {once: true})
   try {
+    progress("initialize")
     const initialized = await connection.agent.request(methods.agent.initialize, {
       protocolVersion: PROTOCOL_VERSION,
       clientCapabilities: {},
@@ -243,6 +247,7 @@ export default async function createAcp(input: TechAcp.Input): Promise<TechAcp.O
     if (initialized.protocolVersion !== PROTOCOL_VERSION) {
       throw new Error(`ACP protocol ${initialized.protocolVersion} не поддерживается`)
     }
+    progress("session")
     if (input.previousSessionId !== undefined) {
       if (initialized.agentCapabilities?.loadSession !== true) {
         throw new Error("ACP agent не поддерживает восстановление session/load")
@@ -265,6 +270,7 @@ export default async function createAcp(input: TechAcp.Input): Promise<TechAcp.O
     }
     await notifications
     assertOpen()
+    progress("ready")
     const activeSessionId = sessionId!
     return Object.freeze({
       sessionId: activeSessionId,

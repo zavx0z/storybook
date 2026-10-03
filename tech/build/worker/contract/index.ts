@@ -12,7 +12,7 @@ export declare namespace BuildWorker {
   @property cwd - Рабочая директория дочернего процесса.
   @property temporaryRoot - Родитель временной области, выделяемой одним запуском.
   @property signal - Отмена до и после spawn точного процесса.
-  @property timeoutMs - Положительный конечный бюджет в миллисекундах.
+  @property [timeoutMs] - Явный бюджет вызывающего кода; без него ожидание результата или отмены.
   @property label - Имя операции в транспортных ошибках.
   @property createJob - Создаёт задание после выделения временной области.
   @property parseEvent - Проверяет формат события владельца или возвращает null.
@@ -28,7 +28,7 @@ export declare namespace BuildWorker {
     cwd: string
     temporaryRoot: string
     signal: AbortSignal
-    timeoutMs: number
+    timeoutMs?: number | undefined
     label: string
     createJob(workspace: BuildWorkerWorkspace): Job
     parseEvent(value: unknown): BuildWorkerEvent<Progress> | null

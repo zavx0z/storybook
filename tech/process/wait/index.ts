@@ -31,7 +31,7 @@ export default async function waitForOwnedChild(
 ): Promise<ProcessWait.Output> {
   const hardKillDelayMs = input.hardKillDelayMs ?? 250
   const outputLimit = input.outputLimit ?? 64 * 1024
-  if (!Number.isFinite(input.timeoutMs) || input.timeoutMs <= 0) {
+  if (input.timeoutMs !== undefined && (!Number.isFinite(input.timeoutMs) || input.timeoutMs <= 0)) {
     throw new RangeError(`Owned child timeout must be positive: ${input.timeoutMs}`)
   }
   if (!Number.isFinite(hardKillDelayMs) || hardKillDelayMs < 0) {
@@ -70,7 +70,7 @@ export default async function waitForOwnedChild(
   const onAbort = (): void => terminate(input.signal.reason, false)
   input.signal.addEventListener("abort", onAbort, {once: true})
   if (input.signal.aborted) onAbort()
-  const timer = setTimeout(() => terminate(
+  const timer = input.timeoutMs === undefined ? undefined : setTimeout(() => terminate(
     new Error(`${input.label} timed out after ${input.timeoutMs}ms`),
     true,
   ), input.timeoutMs)

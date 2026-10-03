@@ -5,9 +5,7 @@
 @packageDocumentation
 */
 import PackageBuildSchedulerOwner, {type PackageBuildScheduler as PackageBuildSchedulerContract} from "@package-build/scheduler"
-import TechLimitsOwner from "@tech/limits"
 const StorybookBuildScheduler = PackageBuildSchedulerOwner
-const STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS = TechLimitsOwner.STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS
 type StorybookBuildScheduler = PackageBuildSchedulerContract.Output
 type StorybookBuildCacheLayer = NonNullable<Parameters<PackageBuildSchedulerContract.Output["run"]>[0]["cache"]>["layer"]
 type StorybookBuildCacheStatus = NonNullable<Parameters<PackageBuildSchedulerContract.Output["run"]>[0]["cache"]>["status"]
@@ -73,13 +71,12 @@ type ActivationRecord = {
   activationId: string
   viewId: string
   route: string
-  deadline: string
-  timer: ReturnType<typeof setTimeout>
+  deadline: string | null
+  timer: ReturnType<typeof setTimeout> | undefined
 }
 
 type RunningBuild = Readonly<{generation: number, operationId: string, controller: AbortController}>
 
-const DEFAULT_ACTIVATION_TIMEOUT_MS = 15_000
 const DEFAULT_RETAINED_REVISION_LIMIT = 3
 
 /** One independently queued, activated and diagnosable package boundary. */
@@ -94,8 +91,7 @@ export default class StorybookPackageSession implements PackageSession.Output {
   readonly #publish: (event: StorybookPackageEvent) => void
   readonly #buildScheduler: StorybookBuildScheduler
   readonly #ownsBuildScheduler: boolean
-  readonly #compileTimeoutMs: number
-  readonly #activationTimeoutMs: number
+  readonly #activationTimeoutMs: number | undefined
   readonly #retainedRevisionLimit: number
   readonly #revisions = new Map<string, RevisionRecord>()
   #generation = 1
@@ -135,12 +131,8 @@ export default class StorybookPackageSession implements PackageSession.Output {
     this.#publish = options.publish ?? (() => {})
     this.#ownsBuildScheduler = options.buildScheduler === undefined
     this.#buildScheduler = options.buildScheduler ?? new StorybookBuildScheduler(1)
-    this.#compileTimeoutMs = boundedDuration(
-      options.compileTimeoutMs ?? STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS, 100, 10 * 60_000, "compile timeout",
-    )
-    this.#activationTimeoutMs = boundedDuration(
-      options.activationTimeoutMs ?? DEFAULT_ACTIVATION_TIMEOUT_MS, 100, 60_000, "activation timeout",
-    )
+    this.#activationTimeoutMs = options.activationTimeoutMs === undefined ? undefined
+      : boundedDuration(options.activationTimeoutMs, 100, 60_000, "activation timeout")
     this.#retainedRevisionLimit = boundedDuration(
       options.retainedRevisionLimit ?? DEFAULT_RETAINED_REVISION_LIMIT, 0, 20, "retained revision limit",
     )
@@ -301,11 +293,11 @@ export default class StorybookPackageSession implements PackageSession.Output {
     }
     this.#cancelActivation()
     const activationId = randomUUID()
-    const timeoutMs = boundedDuration(
-      input.timeoutMs ?? this.#activationTimeoutMs, 100, 60_000, "activation timeout",
-    )
-    const deadline = new Date(Date.now() + timeoutMs).toISOString()
-    const timer = setTimeout(() => {
+    const requestedTimeout = input.timeoutMs ?? this.#activationTimeoutMs
+    const timeoutMs = requestedTimeout === undefined ? undefined
+      : boundedDuration(requestedTimeout, 100, 60_000, "activation timeout")
+    const deadline = timeoutMs === undefined ? null : new Date(Date.now() + timeoutMs).toISOString()
+    const timer = timeoutMs === undefined ? undefined : setTimeout(() => {
       if (this.#disposed) return
       this.failActivation({
         revision,
@@ -530,7 +522,6 @@ export default class StorybookPackageSession implements PackageSession.Output {
             revisionUrl: revisionUrl(this.packageId, candidate),
             stagingDirectory,
             signal: controller.signal,
-            compileTimeoutMs: this.#compileTimeoutMs,
             standard: this.#standard,
             onPhase: ({phase, state}) => {
               if (state === "started") context.setPhase(phase)

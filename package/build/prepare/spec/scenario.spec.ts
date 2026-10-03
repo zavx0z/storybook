@@ -49,7 +49,6 @@ describe.each([
     revisionUrl: `/__storybook/revisions/%40fixture%2Fpackage/${props.revision}/`,
     stagingDirectory,
     signal: new AbortController().signal,
-    compileTimeoutMs: 30_000,
   })
 
   test("Browser entry", () => {

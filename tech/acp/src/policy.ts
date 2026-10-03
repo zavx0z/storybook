@@ -43,7 +43,6 @@ export async function prepareExclusiveMcp(input: Probe): Promise<Readonly<{
       kill: signal => child.kill(signal as NodeJS.Signals | number | undefined),
     },
     signal: input.signal,
-    timeoutMs: 60_000,
     outputLimit: 8 * 1024 * 1024,
     label: "ACP MCP registry probe",
     ...(detached ? {processGroup: {leaderPid: child.pid}} : {}),

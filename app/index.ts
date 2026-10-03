@@ -32,8 +32,6 @@ import {
   type StorybookStopInput,
   type StorybookWaitInput,
 } from "./contract/control"
-import Limits from "@tech/limits"
-const {STORYBOOK_SERVER_START_TIMEOUT_MS} = Limits
 
 
 import type {StorybookApp} from "./contract"
@@ -623,7 +621,6 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
         !legacyStatePaths.some(existsSync) && migration === null) return inspection.record!
       let lease: ReturnType<typeof acquireExternalStorybookStartLease> | null = null
       try {
-        const leaseDeadline = Date.now() + STORYBOOK_SERVER_START_TIMEOUT_MS
         while (lease === null) {
           signal.throwIfAborted()
           try {
@@ -636,9 +633,6 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
             assertOwnedMigrationRecord(migration, this.#toolRoot)
             if (ownedRunningRecord(inspection, this.#toolRoot) &&
               !legacyStatePaths.some(existsSync) && migration === null) return inspection.record!
-            if (Date.now() >= leaseDeadline) {
-              throw new DOMException("Storybook server start coordination timed out", "TimeoutError")
-            }
             await Bun.sleep(50)
           }
         }
@@ -747,9 +741,8 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
     onProgress?: StorybookControllerContext["onProgress"],
   ): Promise<ExternalStorybookServerRecord> {
     const stderr = captureDaemonStderr(child.stderr, onProgress)
-    const deadline = Date.now() + STORYBOOK_SERVER_START_TIMEOUT_MS
     try {
-      while (Date.now() < deadline) {
+      while (true) {
         signal.throwIfAborted()
         if (child.exitCode !== null) {
           await stderr.completed
@@ -772,7 +765,6 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
         }
         await Bun.sleep(50)
       }
-      throw new DOMException("Storybook server start timed out", "TimeoutError")
     } catch (error) {
       throw withDaemonStderr(error, stderr.tail())
     } finally {

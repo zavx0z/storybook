@@ -36,6 +36,7 @@ type State = {
   connecting?: Promise<TechAcp.Output>
   settings?: readonly Setting[]
   configuring?: boolean
+  progress?: string
   turn?: Promise<void>
   cancelled: boolean
   assistantId?: string
@@ -61,6 +62,7 @@ export default function createChatSessions(input: ChatSession.Input): ChatSessio
     messages: state.document.messages, status: state.document.status,
     error: state.document.error, permissions: [...state.permissions.values()].map(item => item.value),
     version: state.version,
+    ...(state.progress === undefined ? {} : {progress: state.progress}),
     settings: state.settings ?? [], configuring: state.configuring === true, usage: state.document.usage ?? null,
   })
   const publish = (state: State): void => {
@@ -126,6 +128,16 @@ export default function createChatSessions(input: ChatSession.Input): ChatSessio
         subject: state.subject,
         signal: state.lifetime.signal,
         ...(state.document.sessionId === undefined ? {} : {previousSessionId: state.document.sessionId}),
+        onProgress(phase) {
+          state.progress = {
+            registry: "Подготовка инструментов агента…",
+            spawn: "Запуск агента…",
+            initialize: "Подключение к агенту…",
+            session: "Загрузка сессии и доступных моделей…",
+            ready: "Настройки получены",
+          }[phase]
+          publish(state)
+        },
         onUpdate(update) {
           if (update.sessionUpdate === "config_option_update") {
             const previousModel = state.settings?.find(option => option.category === "model")?.value
@@ -177,7 +189,11 @@ export default function createChatSessions(input: ChatSession.Input): ChatSessio
     })()
     state.connecting = pending
     try { return await pending } finally {
-      if (state.connecting === pending) delete state.connecting
+      if (state.connecting === pending) {
+        delete state.connecting
+        delete state.progress
+        publish(state)
+      }
     }
   }
   const run = async (state: State, text: string): Promise<void> => {
@@ -284,7 +300,7 @@ export default function createChatSessions(input: ChatSession.Input): ChatSessio
     },
     async cancel(address) {
       const state = await load(address)
-      if (state.turn === undefined && state.document.status !== "connecting" && state.document.status !== "running") return snapshot(state)
+      if (state.turn === undefined && !state.connecting && state.document.status !== "connecting" && state.document.status !== "running") return snapshot(state)
       state.cancelled = true
       clearPermissions(state)
       if (state.connection === undefined) state.lifetime.abort(new Error("Подключение отменено"))

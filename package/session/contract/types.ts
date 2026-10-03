@@ -147,7 +147,6 @@ export type StorybookPackageRevisionBuilder = (input: Readonly<{
   revisionUrl: string
   stagingDirectory: string
   signal: AbortSignal
-  compileTimeoutMs: number
   standard?: StorybookPackageStandard
   onPhase?: StorybookBuildPhaseListener
   onWorkerLifecycle?: StorybookBuildWorkerLifecycleListener
@@ -160,7 +159,8 @@ export type StorybookPackageActivation = Readonly<{
   viewId: string
   route: string
   packageGraphDigest: string
-  deadline: string
+  /** Общего срока нет, если вызывающий код не задал его явно. */
+  deadline: string | null
 }>
 
 export type StorybookPackageSessionOptions = Readonly<{
@@ -170,7 +170,6 @@ export type StorybookPackageSessionOptions = Readonly<{
   prepareBuild?(signal: AbortSignal): Promise<void>
   publish?(event: StorybookPackageEvent): void
   buildScheduler?: StorybookBuildScheduler
-  compileTimeoutMs?: number
   activationTimeoutMs?: number
   retainedRevisionLimit?: number
 }>

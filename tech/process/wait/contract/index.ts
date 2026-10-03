@@ -1,12 +1,13 @@
 import type {OwnedChildHandle, OwnedChildStdoutReader} from "./child"
 
-/** Ограниченное ожидание переданного дочернего процесса. */
+/** Ожидание результата или отмены переданного дочернего процесса. */
 export declare namespace ProcessWait {
   /** Exact handle процесса и политика ожидания владельца. */
   type Input = Readonly<{
     child: OwnedChildHandle
     signal: AbortSignal
-    timeoutMs: number
+    /** Только явный срок вызывающего кода; без значения общего таймера нет. */
+    timeoutMs?: number | undefined
     label: string
     processGroup?: Readonly<{leaderPid: number}>
     hardKillDelayMs?: number

@@ -180,6 +180,7 @@ function ChatSettings(props: Readonly<{
   settings: NonNullable<Contract.Input["settings"]>
   busy: boolean
   configuring: boolean
+  progress?: string | undefined
   onConfigure: Contract.Input["onConfigure"]
 }>) {
   return <section
@@ -204,7 +205,7 @@ function ChatSettings(props: Readonly<{
       background: rgb(var(--surface-750));
     `}
   >
-    {props.configuring ? <SettingsNotice text="Загрузка настроек…" /> : null}
+    {props.configuring ? <SettingsNotice text={props.progress ?? "Загрузка настроек…"} /> : null}
     {!props.configuring && props.settings.length === 0 ? <SettingsNotice text="Настройки пока недоступны" /> : null}
     {props.settings.map(option => <SelectField
       key={option.id}
@@ -275,7 +276,7 @@ export default function ChatView(props: Contract.Input) {
     return () => { active = false }
   }, [props.messages, props.address])
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const pending = props.status === "connecting" || props.status === "running"
+  const pending = props.status === "connecting" || props.status === "running" || props.configuring === true && (props.settings?.length ?? 0) === 0
   const busy = pending || props.sending === true || props.configuring === true
   const canSend = !busy && props.draft.trim().length > 0
   const settings = props.settings ?? []
@@ -373,6 +374,7 @@ export default function ChatView(props: Contract.Input) {
         settings={settings}
         busy={busy}
         configuring={props.configuring === true}
+        progress={props.progress}
         onConfigure={props.onConfigure}
       /> : null}
       <textarea

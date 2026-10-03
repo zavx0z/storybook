@@ -90,11 +90,20 @@ export async function buildStorybookPackageRevisionInProcess(
       }
     }
     emitPhase(onPhase, "resources", "completed")
+    let scenarioPhase: PhaseEvent["phase"] | undefined
     let scenarios = await prepareStorybookScenarios(descriptor, input.signal, (nodeId, result) => {
       const directory = join(stagingDirectory, "scenarios")
       mkdirSync(directory, {recursive: true})
       writeFileSync(join(directory, `${encodeURIComponent(nodeId)}.json`), JSON.stringify(result))
-    }, {standard: input.standard ?? "transition", warnings})
+    }, {standard: input.standard ?? "transition", warnings}, progress => {
+      const phase = progress.phase === "preparing" ? "scenario-prepare"
+        : progress.phase === "running" ? "scenario-run" : "scenario-report"
+      if (phase === scenarioPhase) return
+      if (scenarioPhase !== undefined) emitPhase(onPhase, scenarioPhase, "completed")
+      scenarioPhase = phase
+      emitPhase(onPhase, phase, "started")
+    })
+    if (scenarioPhase !== undefined) emitPhase(onPhase, scenarioPhase, "completed")
     const sourcePaths = Object.freeze(scenarios.flatMap(scenario => scenario.kind === "component" ? [scenario.module.path] : []))
     const generatedSourceRoot = join(stagingDirectory, "scenario-jsx")
     const jsxModules = generateStorybookJsxModules(scenarios)

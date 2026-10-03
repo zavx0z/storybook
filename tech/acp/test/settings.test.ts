@@ -5,6 +5,7 @@ import connect from "../index"
 
 test("настройки берутся из ACP, модель обновляет допустимое мышление, resume передаёт usage без старых сообщений", async () => {
   const updates: SessionUpdate[] = []
+  const progress: string[] = []
   const connection = await connect({
     cwd: resolve(import.meta.dir, "../../.."),
     command: process.execPath,
@@ -12,10 +13,12 @@ test("настройки берутся из ACP, модель обновляе�
     env: {ACP_FIXTURE_BEHAVIOR: "settings"},
     previousSessionId: "saved-session",
     mcpServers: [],
+    onProgress: phase => { progress.push(phase) },
     onUpdate: update => { updates.push(update) },
     onPermission: async () => ({outcome: {outcome: "cancelled"}}),
   })
   try {
+    expect(progress).toEqual(["spawn", "initialize", "session", "ready"])
     expect(connection.sessionId).toBe("saved-session")
     expect(connection.configOptions.map(option => option.id)).toEqual(["model", "effort"])
     expect(updates).toEqual([{sessionUpdate: "usage_update", used: 427000, size: 828000}])

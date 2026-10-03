@@ -283,14 +283,6 @@ describe("structural package revision build", () => {
     expect(workers[0]?.replace(/^started:/u, "")).toBe(workers[1]?.replace(/^exited:/u, ""))
   })
 
-  test("times out and terminates a hung compile worker", async () => {
-    const fixture = createFixture()
-    const worker = join(fixture.root, "hung-worker.ts")
-    writeFileSync(worker, "await new Promise(() => {})\n")
-    const build = createStorybookPackageRevisionBuilder({toolRoot, browserEntryPath: fixture.browserEntry, workerPath: worker})
-    await expect(build({...buildInput(fixture.descriptor, join(fixture.root, ".timeout"), "timeout"), compileTimeoutMs: 100})).rejects.toThrow("compile timed out")
-  }, 3_000)
-
   test("abort terminates only the exact compile worker", async () => {
     const fixture = createFixture()
     const worker = join(fixture.root, "aborted-worker.ts")
@@ -298,7 +290,7 @@ describe("structural package revision build", () => {
     const build = createStorybookPackageRevisionBuilder({toolRoot, browserEntryPath: fixture.browserEntry, workerPath: worker})
     const controller = new AbortController()
     const pending = build({...buildInput(fixture.descriptor, join(fixture.root, ".aborted"), "aborted"),
-      signal: controller.signal, compileTimeoutMs: 2_000})
+      signal: controller.signal})
     await Bun.sleep(40)
     controller.abort(new DOMException("package detached", "AbortError"))
     await expect(pending).rejects.toThrow("package detached")
@@ -357,7 +349,7 @@ function createFixture(): Readonly<{root: string; packageRoot: string; browserEn
 function buildInput(descriptor: StorybookPackageBuildDescriptor, stagingDirectory: string, revision: string) {
   return {descriptor, generation: 1, candidateRevision: revision,
     revisionUrl: `/__storybook/revisions/${encodeURIComponent(descriptor.packageId)}/${revision}/`,
-    stagingDirectory, signal: new AbortController().signal, compileTimeoutMs: 30_000}
+    stagingDirectory, signal: new AbortController().signal}
 }
 
 function graphSnapshot(packageId: string, declarationDigest: string): StorybookPackageRevisionGraphSnapshot {

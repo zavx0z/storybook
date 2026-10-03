@@ -8,11 +8,12 @@ import {prepareWorkerFixture} from "../fixtures/prepare"
 type LifecycleEvent = Parameters<NonNullable<BuildWorker.Input<unknown, unknown>["onLifecycle"]>>[0]
 
 describe("Временная область и результат", () => {
-  test("относительный temporaryRoot не зависит от cwd дочернего процесса", async () => {
+  test("worker без общего срока публикует результат и сохраняет относительный temporaryRoot", async () => {
     const fixture = prepareWorkerFixture({result: {done: true}})
     try {
       const result = await runBuildWorker({
         ...fixture.input,
+        timeoutMs: undefined,
         temporaryRoot: relative(process.cwd(), fixture.root),
       })
       expect(result.ready, "Child находит input.json при рабочем каталоге, отличном от каталога вызывающего процесса").toBeTrue()

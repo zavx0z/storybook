@@ -4,7 +4,7 @@ import {pathToFileURL} from "node:url"
 import type {McpServer} from "@modelcontextprotocol/server"
 import type {Client, ClientRequest, Progress} from "@modelcontextprotocol/client"
 import {
-  MCP_REQUEST_TIMEOUT_MS,
+  MCP_IDLE_TIMEOUT_MS,
   MCP_CANCELLATION_DRAIN_MS,
   MCP_RESULT_MAX_BYTES,
   isLazyMethod,
@@ -57,7 +57,7 @@ try {
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
   await Promise.all([
     server.connect(serverTransport),
-    client.connect(clientTransport, {signal: lifetime.signal, timeout: MCP_REQUEST_TIMEOUT_MS, maxTotalTimeout: MCP_REQUEST_TIMEOUT_MS}),
+    client.connect(clientTransport, {signal: lifetime.signal, timeout: MCP_IDLE_TIMEOUT_MS}),
   ])
   const schemas = {
     "tools/list": specTypeSchemas.ListToolsResult,
@@ -69,8 +69,7 @@ try {
   try {
     const result = await client.request({method: job.method, params: requestParams(job.params)} as ClientRequest, schemas[job.method], {
       signal: lifetime.signal,
-      timeout: MCP_REQUEST_TIMEOUT_MS,
-      maxTotalTimeout: MCP_REQUEST_TIMEOUT_MS,
+      timeout: MCP_IDLE_TIMEOUT_MS,
       resetTimeoutOnProgress: true,
       ...(job.progress ? {onprogress(value: Progress) {
         const {progressToken: _token, ...progress} = value as unknown as Record<string, unknown>

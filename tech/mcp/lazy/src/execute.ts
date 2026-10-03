@@ -6,7 +6,6 @@ import {fileURLToPath} from "node:url"
 import {
   MCP_HARD_KILL_DELAY_MS,
   MCP_RESULT_MAX_BYTES,
-  MCP_WORKER_TIMEOUT_MS,
   isLazyMethod,
   isLazyOutcome,
   isRecord,
@@ -57,7 +56,6 @@ export async function executeLazyRequest(input: ExecuteLazyRequestInput): Promis
       cwd,
       temporaryRoot: input.temporaryRoot,
       signal,
-      timeoutMs: MCP_WORKER_TIMEOUT_MS,
       hardKillDelayMs: MCP_HARD_KILL_DELAY_MS,
       maxResultBytes: MCP_RESULT_MAX_BYTES,
       label: "MCP lazy request",

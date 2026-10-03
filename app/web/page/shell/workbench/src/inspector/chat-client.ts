@@ -13,6 +13,7 @@ export type ChatBrowserView = Readonly<{
   sending: boolean
   settings: NonNullable<ChatBrowserSnapshot["settings"]>
   configuring: boolean
+  progress: string | undefined
   usage: ChatBrowserSnapshot["usage"]
   error: string | undefined
   permissions: NonNullable<ChatView.Input["permissions"]>
@@ -67,6 +68,7 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       status: session?.status ?? (connectionError === undefined ? "connecting" : "failed"),
       sending: submitting,
       settings: session?.settings ?? [],
+      progress: session?.progress,
       configuring: configuring || session?.configuring === true,
       usage: session?.usage ?? null,
       error: actionError ?? connectionError ?? session?.error ?? undefined,
@@ -300,6 +302,7 @@ function readChatBrowserSnapshot(value: unknown, address: string): ChatBrowserSn
     !(snapshot.error === null || typeof snapshot.error === "string") ||
     !Array.isArray(snapshot.permissions) || !Number.isSafeInteger(snapshot.version) || snapshot.version < 0 ||
     snapshot.configuring !== undefined && typeof snapshot.configuring !== "boolean" ||
+    snapshot.progress !== undefined && typeof snapshot.progress !== "string" ||
     snapshot.usage != null && (!Number.isFinite(snapshot.usage.used) || snapshot.usage.used < 0 ||
       !Number.isFinite(snapshot.usage.size) || snapshot.usage.size <= 0) ||
     snapshot.settings !== undefined && (!Array.isArray(snapshot.settings) || snapshot.settings.some(setting =>
