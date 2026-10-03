@@ -5,8 +5,25 @@
   "private": true,
   "type": "module",
   "description": "История беседы, редактор сообщения и управление ответом агента в Inspector",
-  "exports": {".": "./index.tsx"},
-  "scripts": {"test": "bun test --preload ./spec/fixture/preload.ts --preload @immersive/headless/preload ./spec"},
-  "dependencies": {"@zavx0z/ui": "^0.0.0", "@zavx0z/jsx": "^0.0.0", "@jsx-compiler/session": "^0.0.0", "@chat/session": "workspace:*"},
-  "devDependencies": {"@immersive/headless": "^0.0.0", "@zavx0z/dom": "^0.0.0", "@jsx-compiler/bun": "^0.0.0", "@build/compiler": "workspace:*"}
+  "exports": {
+    ".": "./index.tsx"
+  },
+  "scripts": {
+    "test": "bun test --preload ./spec/fixture/preload.ts --preload @immersive/headless/preload ./spec"
+  },
+  "dependencies": {
+    "@ui-themes-icons/encode": "^0.0.0",
+    "@zavx0z/ui": "^0.0.0",
+    "@zavx0z/jsx": "^0.0.0",
+    "@jsx-compiler/session": "^0.0.0",
+    "@chat/session": "workspace:*",
+    "@immersive/markdown": "^0.0.0",
+    "@zavx0z/component": "^0.0.0"
+  },
+  "devDependencies": {
+    "@immersive/headless": "^0.0.0",
+    "@zavx0z/dom": "^0.0.0",
+    "@jsx-compiler/bun": "^0.0.0",
+    "@build/compiler": "workspace:*"
+  }
 }

@@ -115,6 +115,7 @@
     "@zavx0z/ui": "link:@zavx0z/ui",
     "@zavx0z/webgpu": "link:@zavx0z/webgpu",
     "@ui-themes/icons": "link:@ui-themes/icons",
-    "@ui-themes-icons/collection": "link:@ui-themes-icons/collection"
+    "@ui-themes-icons/collection": "link:@ui-themes-icons/collection",
+    "@ui-themes-icons/encode": "link:@ui-themes-icons/encode"
   }
 }

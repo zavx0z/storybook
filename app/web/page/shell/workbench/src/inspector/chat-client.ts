@@ -11,6 +11,9 @@ export type ChatBrowserView = Readonly<{
   draft: string
   status: ChatView.Input["status"]
   sending: boolean
+  settings: NonNullable<ChatBrowserSnapshot["settings"]>
+  configuring: boolean
+  usage: ChatBrowserSnapshot["usage"]
   error: string | undefined
   permissions: NonNullable<ChatView.Input["permissions"]>
 }>
@@ -49,6 +52,7 @@ export function createChatBrowserClient(options: ChatClientOptions) {
   let actionError: string | undefined
   let draft = ""
   let draftChanged = false
+  let configuring = false
   let submitting = false
   let activeReader: ReadableStreamDefaultReader<Uint8Array> | null = null
   let finishRetry: (() => void) | null = null
@@ -62,6 +66,9 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       draft,
       status: session?.status ?? (connectionError === undefined ? "connecting" : "failed"),
       sending: submitting,
+      settings: session?.settings ?? [],
+      configuring: configuring || session?.configuring === true,
+      usage: session?.usage ?? null,
       error: actionError ?? connectionError ?? session?.error ?? undefined,
       permissions: session?.permissions ?? [],
     })
@@ -236,7 +243,7 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       notify()
     },
     async send() {
-      if (disposed || submitting || draft.trim().length === 0 || view.status === "connecting" || view.status === "running") return
+      if (disposed || submitting || configuring || session?.configuring || draft.trim().length === 0 || view.status === "connecting" || view.status === "running") return
       const text = draft
       const key = session?.id ?? address
       const previous = pendingRequests.get(key)
@@ -257,6 +264,18 @@ export function createChatBrowserClient(options: ChatClientOptions) {
         submitting = false
         notify()
       }
+    },
+    async prepare() {
+      if (disposed || configuring) return
+      configuring = true
+      notify()
+      try { await perform("prepare", {}) } finally { configuring = false; notify() }
+    },
+    async configure(id: string, value: string) {
+      if (disposed || configuring || view.status === "running" || view.status === "connecting") return
+      configuring = true
+      notify()
+      try { await perform("configure", {id, value}) } finally { configuring = false; notify() }
     },
     cancel: () => perform("cancel", {}),
     permission: (id: string, optionId: string) => perform("permission", {id, optionId}),
@@ -280,6 +299,14 @@ function readChatBrowserSnapshot(value: unknown, address: string): ChatBrowserSn
     !["idle", "connecting", "running", "failed"].includes(snapshot.status) ||
     !(snapshot.error === null || typeof snapshot.error === "string") ||
     !Array.isArray(snapshot.permissions) || !Number.isSafeInteger(snapshot.version) || snapshot.version < 0 ||
+    snapshot.configuring !== undefined && typeof snapshot.configuring !== "boolean" ||
+    snapshot.usage != null && (!Number.isFinite(snapshot.usage.used) || snapshot.usage.used < 0 ||
+      !Number.isFinite(snapshot.usage.size) || snapshot.usage.size <= 0) ||
+    snapshot.settings !== undefined && (!Array.isArray(snapshot.settings) || snapshot.settings.some(setting =>
+      !setting || typeof setting.id !== "string" || typeof setting.name !== "string" || typeof setting.value !== "string" ||
+      !["model", "thought_level"].includes(setting.category) || !Array.isArray(setting.options) || setting.options.some((option: NonNullable<ChatBrowserSnapshot["settings"]>[number]["options"][number]) =>
+        !option || typeof option.value !== "string" || typeof option.name !== "string" ||
+        option.description !== undefined && typeof option.description !== "string"))) ||
     snapshot.messages.some(message => message === null || typeof message !== "object" ||
       typeof message.id !== "string" || !["user", "assistant", "system"].includes(message.role) || typeof message.text !== "string") ||
     snapshot.permissions.some(permission => permission === null || typeof permission !== "object" ||

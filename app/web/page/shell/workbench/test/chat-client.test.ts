@@ -315,3 +315,40 @@ async function until(condition: () => boolean) {
   while (!condition() && Date.now() < deadline) await tick()
   if (!condition()) throw new Error("Ожидаемое обновление чата не получено")
 }
+
+
+test("выбор модели ждёт подтверждения HTTP, сохраняет черновик и обновляет context из снимка", async () => {
+  const fixture = browserChatFixture("/settings")
+  const gate = Promise.withResolvers<Response>()
+  const changes: unknown[] = []
+  const settings: NonNullable<ChatBrowserSnapshot["settings"]> = [{id: "model", category: "model", name: "Model", value: "a", options: [{value: "a", name: "A"}, {value: "b", name: "B"}]}]
+  const fetcher = (async (url, init) => {
+    if (String(url).endsWith("/prepare")) return Response.json({...fixture.snapshot, settings, version: 1})
+    if (String(url).endsWith("/configure")) {
+      changes.push(JSON.parse(String(init?.body)))
+      return gate.promise
+    }
+    return fixture.fetcher(url, init)
+  }) as typeof fetch
+  const client = createChatBrowserClient({address: "/settings", label: "Settings", fetcher})
+  client.start()
+  try {
+    await until(() => fixture.calls.length === 3)
+    client.setDraft("Черновик сохраняется")
+    await client.prepare()
+    expect(client.getSnapshot().settings).toEqual(settings)
+    const change = client.configure("model", "b")
+    await until(() => changes.length === 1)
+    expect(client.getSnapshot().configuring).toBeTrue()
+    expect(client.getSnapshot().settings[0]!.value).toBe("a")
+    await client.send()
+    expect(fixture.calls.some(call => call.url.endsWith("/prompt"))).toBeFalse()
+    gate.resolve(Response.json({...fixture.snapshot, settings: [{...settings[0]!, value: "b"}], usage: {used: 42, size: 100}, version: 2}))
+    await change
+    expect(changes).toEqual([{address: "/settings", id: "model", value: "b"}])
+    expect(client.getSnapshot().configuring).toBeFalse()
+    expect(client.getSnapshot().settings[0]!.value).toBe("b")
+    expect(client.getSnapshot().usage).toEqual({used: 42, size: 100})
+    expect(client.getSnapshot().draft).toBe("Черновик сохраняется")
+  } finally { client.dispose() }
+})

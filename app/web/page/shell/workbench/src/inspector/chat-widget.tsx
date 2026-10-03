@@ -23,6 +23,11 @@ export function ChatWidget(props: WorkbenchInspectorCustomWidgetProps) {
     sending={view.sending}
     error={view.error ?? ""}
     permissions={view.permissions}
+    settings={view.settings}
+    configuring={view.configuring}
+    usage={view.usage}
+    onPrepareSettings={() => { void client.prepare() }}
+    onConfigure={(id, value) => { void client.configure(id, value) }}
     onDraftChange={client.setDraft}
     onSend={() => { void client.send() }}
     onCancel={() => { void client.cancel() }}

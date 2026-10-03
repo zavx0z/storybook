@@ -1,4 +1,3 @@
-import type {UiViewsCodeEditor} from "@zavx0z/ui"
 import type {ChatSession} from "@chat/session"
 
 type Snapshot = Awaited<ReturnType<ChatSession.Output["read"]>>
@@ -10,9 +9,9 @@ export declare namespace ChatView {
 
   @property address - Канонический адрес предмета беседы; не содержит выбора представления или секции.
 
-  @property label - Название предмета для шапки и доступного имени беседы.
+  @property label - Название предмета для доступного имени беседы.
 
-  @property messages - Порядок сообщений задаёт владелец сессии; текст показывается без исполнения разметки.
+  @property messages - Порядок сообщений задаёт владелец сессии. Ответы и fenced-код показываются через Markdown с подсветкой; код не исполняется.
 
   @property draft - Управляемый текст редактора. Владелец сохраняет его отдельно для каждого адреса.
 
@@ -27,6 +26,16 @@ export declare namespace ChatView {
 
   @property onCancel - Запрашивает отмену подтверждённого сервером подключения или выполнения. Закрытие представления не вызывает этот callback.
 
+  @property [settings] - Полученные от агента модели и уровни мышления; клиент не добавляет собственные варианты.
+
+  @property [configuring=false] - Настройки загружаются или применяются; отправка и изменение выбора временно недоступны.
+
+  @property [usage] - Последние фактические used/size контекстного окна. Отсутствие данных не означает нулевое заполнение.
+
+  @property [onPrepareSettings] - Запрашивает варианты при первом открытии выбора; не отправляет сообщение агенту.
+
+  @property [onConfigure] - Передаёт точные id и value выбранного варианта. Новые значения возвращаются в settings после подтверждения агентом.
+
   @property [permissions] - Ожидающие решения пользователя запросы; варианты предоставляет исполнитель.
 
   @property [onPermission] - Передаёт выбранный вариант владельцу запроса. Без callback варианты недоступны.
@@ -35,9 +44,14 @@ export declare namespace ChatView {
     draft: string
     sending?: boolean
     error?: string
-    onDraftChange: NonNullable<UiViewsCodeEditor.Input["onChange"]>
+    onDraftChange(value: string): void
     onSend(): void
     onCancel(): void
+    settings?: Snapshot["settings"]
+    configuring?: boolean
+    usage?: Snapshot["usage"]
+    onPrepareSettings?(): void
+    onConfigure?(id: string, value: string): void
     permissions?: Snapshot["permissions"]
     onPermission?(id: string, optionId: string): void
   }>
