@@ -1,4 +1,5 @@
-import type {WindowGeometry} from "@zavx0z/ui/surface/window"
+import type {UiSurfacesWindow} from "@zavx0z/ui/surface/window"
+type WindowGeometry = NonNullable<UiSurfacesWindow.Input["geometry"]>
 import type {UiSurfacesTab} from "@zavx0z/ui/surface/tab"
 type TabProps = UiSurfacesTab.Input
 import type {WebCatalog} from "@web/catalog"

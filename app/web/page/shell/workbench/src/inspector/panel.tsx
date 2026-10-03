@@ -1,4 +1,6 @@
-import Inspector, {type InspectorCategory} from "@zavx0z/ui/widget/inspector"
+import Inspector from "@zavx0z/ui/widget/inspector"
+import type {UiWidgetsInspector} from "@zavx0z/ui/widget/inspector"
+type InspectorCategory = UiWidgetsInspector.Input["categories"][number]
 import type {JSX} from "@jsx-compiler/session"
 import type {
   WorkbenchInspectorSubject,
