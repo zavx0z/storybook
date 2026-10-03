@@ -1,4 +1,4 @@
-import Button, {type ButtonProps} from "@zavx0z/ui/button/button"
+import Button, {type UiButtonsButton} from "@zavx0z/ui/button/button"
 import type {WorkbenchNavigationItem} from "../types.ts"
 
 type WorkbenchNavigationListItemProps = Readonly<{
@@ -14,7 +14,7 @@ export type WorkbenchNavigationListProps = Readonly<{
 }>
 
 function WorkbenchNavigationListItem(props: WorkbenchNavigationListItemProps) {
-  const onClick: NonNullable<ButtonProps["onClick"]> = event => {
+  const onClick: NonNullable<UiButtonsButton.Input["onClick"]> = event => {
     if (!props.item.disabled) props.onNavigate(props.item, event.currentTarget)
   }
   return <div

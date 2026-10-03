@@ -1,4 +1,4 @@
-import Button, {type ButtonProps} from "@zavx0z/ui/button/button"
+import Button, {type UiButtonsButton} from "@zavx0z/ui/button/button"
 import type {WorkbenchTabItem} from "../types.ts"
 
 type TabProps = Readonly<{
@@ -15,7 +15,7 @@ export type TabsRegionProps = Readonly<{
 }>
 
 function Tab(props: TabProps) {
-  const onClick: NonNullable<ButtonProps["onClick"]> = event => {
+  const onClick: NonNullable<UiButtonsButton.Input["onClick"]> = event => {
     if (!props.item.disabled) props.onTab(props.item, event.currentTarget)
   }
   return <Button
