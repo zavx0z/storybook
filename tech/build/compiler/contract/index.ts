@@ -1,4 +1,4 @@
-import type {StorybookPackageCompilerInputs} from "./models"
+import type {StorybookPackageCompilerInputs, StorybookResolutionEvidence} from "./models"
 import type {StorybookPackageOwner} from "./owner"
 
 /** Публичные возможности физического разрешения и компиляции одного графа исходников. */
@@ -26,6 +26,7 @@ export declare namespace BuildCompiler {
 
   @property resolveStorybookCompilerSourceRoots - Читает корни объявленного графа без компиляции.
   @property resolveStorybookPackageCompilerInputs - Читает точные входы compiler setup без создания plugins.
+  @property resolveStorybookCompilerControlFiles - Читает ancestor tsconfig/bunfig и extends для готовых source roots.
   @property createStorybookOwnerResolver - Создаёт resolver для того же графа владельцев.
   @property createStorybookOwnerSourcePath - Возвращает перевод подтверждённого installed mirror к каноническому исходнику.
   @property createStorybookPackageCompilerPlugins - Создаёт resolver и свежий JSX compiler plugin для входов Input.
@@ -41,8 +42,20 @@ export declare namespace BuildCompiler {
   @property isOwnedJsxProtocol - Проверяет физического владельца native JSX export.
   */
   type Output = Readonly<{
+    /** Канонизирует parent directory и сохраняет spelling exact non-symlink file, включая hardlinks. */
+    exactFile(path: string): string
     resolveStorybookCompilerSourceRoots(input: Readonly<{repo: string, packageRoot: string}>): readonly string[]
+    /**
+    Существенные manifests, selected Bun lock records и overrides фактических inputs.
+    ownerRoots — необязательные доверенные canonical named owners уже выполненного resolver.
+    Проверяются принадлежность каждого exact file и отсутствие пропущенного named owner;
+    nameless npm scope manifests сохраняются в evidence, а не молча игнорируются.
+    Без ownerRoots действует прежнее строгое обнаружение ближайшего владельца.
+    Resolver fields сохраняются независимо от кешированной native import target.
+    */
+    readStorybookResolutionEvidence(input: Readonly<{files: readonly string[], ownerRoots?: readonly string[]}>): StorybookResolutionEvidence
     resolveStorybookPackageCompilerInputs(input: Input): StorybookPackageCompilerInputs
+    resolveStorybookCompilerControlFiles(sourceRoots: readonly string[]): readonly string[]
     createStorybookOwnerResolver(input: Readonly<{repo: string, packageRoot: string}>): Bun.BunPlugin
     createStorybookOwnerSourcePath(input: Readonly<{repo: string, packageRoot: string}>): (path: string) => string
     createStorybookPackageCompilerPlugins(input: Input): Promise<readonly Bun.BunPlugin[]>

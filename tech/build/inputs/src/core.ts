@@ -377,16 +377,16 @@ function readCachedFile(
   const canonical = canonicalExactFile(path)
   const cached = cache.get(canonical)
   if (trustCache && cached !== undefined) return cached.evidence
-  const current = statSync(canonical, {bigint: true})
-  if (cached !== undefined && cached.evidence.device === current.dev.toString() &&
+  const current = lstatSync(canonical, {bigint: true})
+  if (cached !== undefined && current.isFile() && !current.isSymbolicLink() &&
+    cached.evidence.device === current.dev.toString() &&
     cached.evidence.inode === current.ino.toString() && cached.evidence.size === Number(current.size) &&
     cached.evidence.modifiedNs === current.mtimeNs.toString() && cached.changedNs === current.ctimeNs.toString()) {
     return cached.evidence
   }
-  const evidence = readExactFile(canonical)
-  const verified = statSync(canonical, {bigint: true})
-  cache.set(canonical, Object.freeze({evidence, changedNs: verified.ctimeNs.toString()}))
-  return evidence
+  const exact = readExactFileWithMarker(canonical)
+  cache.set(canonical, exact)
+  return exact.evidence
 }
 
 /** Рекурсивно собирает bounded owner inventory, не заходя в ambient install/cache roots. */
@@ -481,25 +481,35 @@ function readDirectoryInventory(path: string): Readonly<{
 
 /** Читает bytes через O_NOFOLLOW и сверяет identity до/после чтения. */
 function readExactFile(path: string): BuildInputFile {
+  return readExactFileWithMarker(path).evidence
+}
+
+/** Bytes и ctime кеша происходят из одного подтверждённого fstat window. */
+function readExactFileWithMarker(path: string): CachedFileEvidence {
   const canonical = canonicalExactFile(path)
   const descriptor = openSync(canonical, constants.O_RDONLY | constants.O_NOFOLLOW)
   try {
     const before = fstatSync(descriptor, {bigint: true})
     const bytes = readFileSync(descriptor)
     const after = fstatSync(descriptor, {bigint: true})
-    const current = statSync(canonical, {bigint: true})
+    const current = lstatSync(canonical, {bigint: true})
     if (!before.isFile() || before.dev !== after.dev || before.ino !== after.ino ||
-      before.size !== after.size || before.mtimeNs !== after.mtimeNs ||
-      after.dev !== current.dev || after.ino !== current.ino) {
+      before.size !== after.size || before.mtimeNs !== after.mtimeNs || before.ctimeNs !== after.ctimeNs ||
+      !current.isFile() || current.isSymbolicLink() ||
+      after.dev !== current.dev || after.ino !== current.ino ||
+      after.size !== current.size || after.mtimeNs !== current.mtimeNs || after.ctimeNs !== current.ctimeNs) {
       throw concurrentChangeError(canonical)
     }
     return Object.freeze({
-      path: canonical,
-      contentDigest: createHash("sha256").update(bytes).digest("hex"),
-      size: Number(after.size),
-      device: after.dev.toString(),
-      inode: after.ino.toString(),
-      modifiedNs: after.mtimeNs.toString(),
+      evidence: Object.freeze({
+        path: canonical,
+        contentDigest: createHash("sha256").update(bytes).digest("hex"),
+        size: Number(after.size),
+        device: after.dev.toString(),
+        inode: after.ino.toString(),
+        modifiedNs: after.mtimeNs.toString(),
+      }),
+      changedNs: after.ctimeNs.toString(),
     })
   } finally {
     closeSync(descriptor)

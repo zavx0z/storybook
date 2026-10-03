@@ -8,10 +8,12 @@
 import {
   resolveStorybookCompilerSourceRoots,
   resolveStorybookPackageCompilerInputs,
+  resolveStorybookCompilerControlFiles,
   createStorybookOwnerResolver,
   createStorybookOwnerSourcePath,
   createStorybookPackageCompilerPlugins,
   resolveStorybookJsxImportSource,
+  canonicalLexicalFile,
 } from "./src/compiler"
 import {
   readStorybookPackageOwner,
@@ -25,12 +27,16 @@ import {conditionalExportTarget} from "./src/export-target"
 import {ensureGeneratedJsxProtocol} from "./src/generated-jsx-protocol"
 import {isOwnedJsxProtocol} from "./src/jsx-protocol-owner"
 import type {BuildCompiler} from "./contract"
+import {readStorybookResolutionEvidence} from "./src/resolution-evidence"
 export type {BuildCompiler} from "./contract"
 
 /** Один API compiler setup и его физических границ; вызовы сами владеют необходимым чтением. */
 const Compiler: BuildCompiler.Output = Object.freeze({
+  exactFile: canonicalLexicalFile,
   resolveStorybookCompilerSourceRoots,
+  readStorybookResolutionEvidence,
   resolveStorybookPackageCompilerInputs,
+  resolveStorybookCompilerControlFiles,
   createStorybookOwnerResolver,
   createStorybookOwnerSourcePath,
   createStorybookPackageCompilerPlugins,

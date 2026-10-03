@@ -89,6 +89,41 @@ export function resolveStorybookPackageCompilerInputs(
   })
 }
 
+/**
+Читает существующие ancestor controls разрешённых compiler roots до границы Repo.
+Каждый tsconfig раскрывает свою действительную extends-chain тем же reader, что
+и JSX compiler. Путь зависимости может лежать за source root; вызывающий build
+включает возвращённые exact файлы в исходную attestation до компиляции.
+*/
+export function resolveStorybookCompilerControlFiles(sourceRoots: readonly string[]): readonly string[] {
+  const configs = new Set<string>()
+  const controls = new Set<string>()
+  const directories = new Set<string>()
+  for (const sourceRoot of sourceRoots) {
+    const absolute = resolve(sourceRoot)
+    const source = statSync(absolute).isDirectory()
+      ? canonicalDirectory(absolute, "Storybook compiler source root")
+      : dirname(canonicalFile(absolute, "Storybook compiler source root"))
+    let directory = source
+    while (!directories.has(directory)) {
+      directories.add(directory)
+      const config = join(directory, "tsconfig.json")
+      if (existsSync(config)) configs.add(canonicalFile(config, "Storybook tsconfig"))
+      const bunfig = join(directory, "bunfig.toml")
+      if (existsSync(bunfig)) controls.add(canonicalFile(bunfig, "Storybook Bun config"))
+      const parent = dirname(directory)
+      if (existsSync(join(directory, ".git")) || parent === directory) break
+      directory = parent
+    }
+  }
+  const visited = new Set<string>()
+  const cache = new Map<string, string | undefined>()
+  for (const config of [...configs].sort(comparePaths)) {
+    readTsconfigJsxImportSource(config, cache, new Set(), visited)
+  }
+  return Object.freeze([...new Set([...controls, ...visited])].sort(comparePaths))
+}
+
 /** Resolves runtime imports to the same exact owner roots governed by compilation. */
 export function createStorybookOwnerResolver(input: Readonly<{
   repo: string
@@ -889,7 +924,7 @@ function canonicalFile(value: string, label: string): string {
   return path
 }
 
-function canonicalLexicalFile(value: string, label: string): string {
+export function canonicalLexicalFile(value: string, label = "Compiler source"): string {
   let parent: string
   try {
     parent = realpathSync.native(dirname(resolve(value)))
