@@ -180,3 +180,9 @@ export type StartupProgress = Readonly<{
   phase: string
   at: number
 }>
+
+/** Последнее реально опубликованное событие исполнения; не предсказывает готовность. */
+export type OperationProgress = Readonly<{
+  observedAt: number
+  event: Readonly<Record<string, unknown>>
+}>

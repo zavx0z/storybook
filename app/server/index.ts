@@ -154,6 +154,10 @@ export default async function startExternalStorybookServer(
   const browserSessions = new StorybookBrowserSessionRegistry()
   const eventHub = new StorybookEventHub<StorybookPackageEvent | RegistryEvent>()
   const publish = (event: StorybookPackageEvent | RegistryEvent): number => {
+    if (serverRecordCreated && (event.type === "catalog.progress" || event.type === "build.progress")) {
+      try { state.writeExternalStorybookOperationProgress(serverRecord, event, statePath) }
+      catch (error) { console.error("Storybook progress publication failed", error) }
+    }
     eventHub.publish(event)
     const browserEvent = event.type === "package.failed"
       ? sanitizePackageFailure(event, registry, () => sessions.snapshots(), project.name)

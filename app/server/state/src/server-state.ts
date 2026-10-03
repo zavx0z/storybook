@@ -16,6 +16,7 @@ import {homedir, tmpdir} from "node:os"
 import type {
   CandidateInput,
   StartupProgress,
+  OperationProgress,
   LeaseIdentity,
   Inspection as ExternalStorybookServerInspection,
   Lease as ExternalStorybookStartLease,
@@ -195,6 +196,29 @@ export function readExternalStorybookStartupProgress(toolRoot: string, statePath
     if (value.token !== owner.token || value.toolRoot !== realpathSync(toolRoot) ||
       typeof value.phase !== "string" || !Number.isFinite(value.at)) return null
     return Object.freeze({phase: value.phase, at: value.at})
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return null
+    throw error
+  }
+}
+
+/** Один снимок обратной связи перезаписывается событием; сборка его не читает. */
+export function writeExternalStorybookOperationProgress(record: ExternalStorybookServerRecord, event: Readonly<Record<string, unknown>>, statePath = externalStorybookServerStatePath()): void {
+  const path = `${resolve(statePath)}.progress.json`
+  const temporary = `${path}.${randomUUID()}`
+  try {
+    writePrivateFile(temporary, JSON.stringify({instanceId: record.instanceId, observedAt: Date.now(), event}))
+    renameSync(temporary, path)
+  } finally { rmSync(temporary, {force: true}) }
+}
+
+export function readExternalStorybookOperationProgress(record: ExternalStorybookServerRecord, statePath = externalStorybookServerStatePath()): OperationProgress | null {
+  if (!processExists(record.pid) || readProcessStart(record.pid) !== record.processStart) return null
+  try {
+    const value = JSON.parse(readFileSync(`${resolve(statePath)}.progress.json`, "utf8"))
+    if (value.instanceId !== record.instanceId || !Number.isFinite(value.observedAt) ||
+      value.event === null || typeof value.event !== "object" || typeof value.event.type !== "string") return null
+    return Object.freeze({observedAt: value.observedAt, event: Object.freeze(value.event)})
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return null
     throw error

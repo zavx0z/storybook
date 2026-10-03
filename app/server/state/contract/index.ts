@@ -2,6 +2,7 @@ import type {HttpClient} from "@http/client"
 import type {
   CandidateInput,
   StartupProgress,
+  OperationProgress,
   Inspection,
   Lease,
   LeaseIdentity,
@@ -144,6 +145,10 @@ export declare namespace AppServerState {
     readExternalStorybookStartupProgress(toolRoot: string, statePath?: string): StartupProgress | null
     writeExternalStorybookStartCandidate(lease: LeaseIdentity, record: ServerRecord): void
     publishExternalStorybookStartCandidate(input: CandidateInput): ServerRecord | null
+    /** Делает фактический progress доступным независимо от HTTP event loop daemon. */
+    writeExternalStorybookOperationProgress(record: ServerRecord, event: Readonly<Record<string, unknown>>, statePath?: string): void
+    /** Возвращает последний progress только этого живого процесса, с временем наблюдения. */
+    readExternalStorybookOperationProgress(record: ServerRecord, statePath?: string): OperationProgress | null
     createExternalStorybookServerRecord(input: ServerRecordInput): ServerRecord
     writeExternalStorybookServerRecord(path: string, record: ServerRecord): void
     projectExternalStorybookServerRecord(value: ServerRecord): PublicServerRecord

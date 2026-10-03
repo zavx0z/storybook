@@ -6,7 +6,7 @@ MCP и package.json scripts вызывают эти же операции; со�
 @packageDocumentation
 */
 import ServerState, {type AppServerState} from "@app-server/state"
-const {readExternalStorybookStartupProgress, writeExternalStorybookStartupProgress, acquireExternalStorybookStartLease, clearExternalStorybookMigrationRecord, externalStorybookLegacyStatePaths, externalStorybookServerStatePath, inspectExternalStorybookServer, publishExternalStorybookStartCandidate, readExternalStorybookMigrationRecord, removeReplaceableExternalStorybookState, writeExternalStorybookMigrationRecord} = ServerState
+const {readExternalStorybookOperationProgress, readExternalStorybookStartupProgress, writeExternalStorybookStartupProgress, acquireExternalStorybookStartLease, clearExternalStorybookMigrationRecord, externalStorybookLegacyStatePaths, externalStorybookServerStatePath, inspectExternalStorybookServer, publishExternalStorybookStartCandidate, readExternalStorybookMigrationRecord, removeReplaceableExternalStorybookState, writeExternalStorybookMigrationRecord} = ServerState
 type ExternalStorybookMigrationRecord = NonNullable<ReturnType<AppServerState.Output["readExternalStorybookMigrationRecord"]>>
 type ExternalStorybookServerRecord = ReturnType<AppServerState.Output["readExternalStorybookServerRecord"]>
 import {createHmac} from "node:crypto"
@@ -106,7 +106,9 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
       if (inspection.state !== "running" || inspection.record === null) {
         const startup = readExternalStorybookStartupProgress(this.#toolRoot)
         if (startup !== null) return Object.freeze({status: "success", server: "starting", startup})
-        return Object.freeze({status: "success", server: inspection.state, reason: inspection.reason})
+        const lastObservedProgress = inspection.record === null ? null : readExternalStorybookOperationProgress(inspection.record)
+        return Object.freeze({status: "success", server: inspection.state, reason: inspection.reason,
+          ...(lastObservedProgress === null ? {} : {lastObservedProgress})})
       }
       return this.#statusResult(inspection.record, input.includeViews === true, context.signal, input.scope)
     }

@@ -2,6 +2,7 @@ import {expect, spyOn, test} from "bun:test"
 import {Client, InMemoryTransport} from "@modelcontextprotocol/client"
 import createLazyMcpServer from "@mcp/lazy"
 import createWeb from "@app/web"
+import State from "@app-server/state"
 import WebBuild from "@app-web/build"
 import type {PackageBuildPrepare} from "@package-build/prepare"
 import type {AppServer} from "../contract"
@@ -139,6 +140,8 @@ export default async function factory() {
     })
     void request.then(() => { finished = true }, () => { finished = true })
     await beforeResult(started.promise, request, "Контролируемая сборка не началась")
+    expect(State.readExternalStorybookOperationProgress(running.record)?.event)
+      .toMatchObject({type: "build.progress", packageId: selected, phase: "exports"})
     const neighborQueued = Promise.withResolvers<void>()
     closeQueueObservation = running.sessions.buildScheduler.subscribe(event => {
       if (event.packageId === neighbor && event.state === "queued") neighborQueued.resolve()
