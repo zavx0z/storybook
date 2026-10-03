@@ -22,7 +22,6 @@
     "@web/client": "workspace:*",
     "@web/navigation": "workspace:*",
     "@web/presentation": "workspace:*",
-    "@web/scenario": "workspace:*",
     "@web/status": "workspace:*",
     "@web/style-sheets": "workspace:*",
     "@zavx0z/browser": "^0.0.0",
@@ -30,7 +29,8 @@
     "@zavx0z/dom": "^0.0.0",
     "@zavx0z/template": "^0.0.0",
     "@zavx0z/ui": "^0.0.0",
-    "@web/workbench": "workspace:*"
+    "@web/workbench": "workspace:*",
+    "@scenario/preview": "workspace:*"
   },
   "devDependencies": {
     "@jsx-compiler/session": "^0.0.0",

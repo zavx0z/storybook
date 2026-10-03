@@ -400,12 +400,12 @@
         "@page/shell": "workspace:*",
         "@scenario/inspector": "workspace:*",
         "@scenario/model": "workspace:*",
+        "@scenario/preview": "workspace:*",
         "@scenario/result": "workspace:*",
         "@web/agent-bridge": "workspace:*",
         "@web/client": "workspace:*",
         "@web/navigation": "workspace:*",
         "@web/presentation": "workspace:*",
-        "@web/scenario": "workspace:*",
         "@web/status": "workspace:*",
         "@web/style-sheets": "workspace:*",
         "@web/workbench": "workspace:*",
@@ -423,17 +423,6 @@
         "@repo/discovery": "workspace:*",
         "@web/browser-fixture": "workspace:*",
         "@zavx0z/space": "^0.0.0",
-      },
-    },
-    "app/web/page/package/scenario": {
-      "name": "@web/scenario",
-      "version": "0.0.0",
-      "dependencies": {
-        "@scenario/inspector": "workspace:*",
-        "@scenario/model": "workspace:*",
-        "@scenario/preview": "workspace:*",
-        "@scenario/result": "workspace:*",
-        "@web/reference": "workspace:*",
       },
     },
     "app/web/page/package/scenario/inspector": {
@@ -1689,8 +1678,6 @@
     "@web/reference": ["@web/reference@workspace:app/web/page/package/scenario/reference"],
 
     "@web/release": ["@web/release@workspace:app/web/release"],
-
-    "@web/scenario": ["@web/scenario@workspace:app/web/page/package/scenario"],
 
     "@web/status": ["@web/status@workspace:app/web/page/status"],
 

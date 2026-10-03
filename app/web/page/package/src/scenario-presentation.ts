@@ -3,7 +3,7 @@ import createScenarioApp from "@scenario/model"
 import type {ScenarioModel} from "@scenario/model"
 /** Форма исходного публичного владельца. */
 type ScenarioAppInput = ScenarioModel.Input
-import {Preview as ScenarioPreview, type ScenarioPreview as ScenarioPreviewContract} from "@web/scenario"
+import ScenarioPreview, {type ScenarioPreview as ScenarioPreviewContract} from "@scenario/preview"
 /** Форма исходного публичного владельца. */
 type ScenarioPreviewPlacement = ScenarioPreviewContract.Input["placement"]
 import ScenarioResult from "@scenario/result"
