@@ -12,10 +12,7 @@ test("предметные области принадлежат Repo без п�
     ["container", "@archetypes/container"],
     ["contracts", "@archetypes/contracts"],
     ["domain", "@archetypes/domain"],
-    ["package", "@storybook/package"],
     ["project", "@archetypes/project"],
-    ["repo", "@storybook/repo"],
-    ["specs", "@archetypes/specs"],
     ["typedoc", "@archetypes/typedoc"],
   ] as const
   for (const [directory, name] of expected) {
@@ -41,6 +38,27 @@ test("разделы технологий не создают фасадных �
   ] as const) {
     expect(result.packages.find(item => item.name === name),
       "Реальная возможность сохраняет identity, исходники и прямого предметного владельца")
+      .toEqual({name, path: resolve(root, directory), parent: root})
+  }
+})
+
+
+test("предметный раздел не подменяет протокол самостоятельных операций", async () => {
+  const root = resolve(import.meta.dir, "../../..")
+  const result = await readPackage({path: root})
+  const facades = ["@storybook/repo", "@archetypes/specs", "@storybook/package", "@package/build", "@storybook/route"]
+  expect(result.packages.filter(item => facades.includes(item.name)),
+    "Общее название раздела не создаёт одну сущность Domain или общий протокол Cluster").toEqual([])
+  for (const [directory, name] of [
+    ["repo/reader", "@archetypes/repo"],
+    ["repo/discovery", "@repo/discovery"],
+    ["specs/reader", "@archetypes/spec-reader"],
+    ["package/graph", "@package/graph"],
+    ["package/build/prepare", "@package-build/prepare"],
+    ["package/route/resolve", "@route/resolve"],
+  ] as const) {
+    expect(result.packages.find(item => item.name === name),
+      "Самостоятельная возможность остаётся доступной по своему имени и принадлежит Repo")
       .toEqual({name, path: resolve(root, directory), parent: root})
   }
 })

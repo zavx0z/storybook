@@ -48,7 +48,6 @@
     "@modelcontextprotocol/server": "^2.0.0",
     "@package/artifacts": "workspace:*",
     "@package-graph/create": "workspace:*",
-    "@storybook/route": "workspace:*",
     "@web/release": "workspace:*",
     "@app/mcp": "workspace:*",
     "@app-web/build": "workspace:*",

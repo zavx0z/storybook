@@ -743,30 +743,6 @@
         "@archetypes/component": "workspace:*",
       },
     },
-    "package": {
-      "name": "@storybook/package",
-      "version": "0.0.0",
-      "dependencies": {
-        "@archetypes/package": "workspace:*",
-        "@archetypes/package-documentation": "workspace:*",
-        "@archetypes/package-index": "workspace:*",
-        "@archetypes/package-json": "workspace:*",
-        "@hmr/activation": "workspace:*",
-        "@package-build/prepare": "workspace:*",
-        "@package-graph/create": "workspace:*",
-        "@package-graph/read": "workspace:*",
-        "@package/artifacts": "workspace:*",
-        "@package/identity": "workspace:*",
-        "@package/resources": "workspace:*",
-        "@package/revision": "workspace:*",
-        "@package/session": "workspace:*",
-        "@package/standard": "workspace:*",
-        "@storybook/route": "workspace:*",
-      },
-      "devDependencies": {
-        "@archetypes/scenario-reader": "workspace:*",
-      },
-    },
     "package/activation": {
       "name": "@hmr/activation",
       "version": "0.0.0",
@@ -774,22 +750,6 @@
     "package/artifacts": {
       "name": "@package/artifacts",
       "version": "0.0.0",
-    },
-    "package/build": {
-      "name": "@package/build",
-      "version": "0.0.0",
-      "dependencies": {
-        "@package-build/conformance": "workspace:*",
-        "@package-build/consumer-boundary": "workspace:*",
-        "@package-build/descriptor": "workspace:*",
-        "@package-build/fingerprint": "workspace:*",
-        "@package-build/inputs": "workspace:*",
-        "@package-build/loader": "workspace:*",
-        "@package-build/plan": "workspace:*",
-        "@package-build/prepare": "workspace:*",
-        "@package-build/scenarios": "workspace:*",
-        "@package-build/scheduler": "workspace:*",
-      },
     },
     "package/build/conformance": {
       "name": "@package-build/conformance",
@@ -1001,24 +961,6 @@
         "@repo/discovery": "workspace:*",
       },
     },
-    "package/route": {
-      "name": "@storybook/route",
-      "version": "0.0.0",
-      "dependencies": {
-        "@route/address": "workspace:*",
-        "@route/children": "workspace:*",
-        "@route/directories": "workspace:*",
-        "@route/ignored": "workspace:*",
-        "@route/resolve": "workspace:*",
-        "@route/structure": "workspace:*",
-        "@route/url": "workspace:*",
-        "@route/workspaces": "workspace:*",
-      },
-      "devDependencies": {
-        "@types/bun": "^1.4.0",
-        "typescript": "^7.0.2",
-      },
-    },
     "package/route/address": {
       "name": "@route/address",
       "version": "0.0.0",
@@ -1113,14 +1055,6 @@
         "@archetypes/package-json": "workspace:*",
       },
     },
-    "repo": {
-      "name": "@storybook/repo",
-      "version": "0.0.0",
-      "dependencies": {
-        "@archetypes/repo": "workspace:*",
-        "@repo/discovery": "workspace:*",
-      },
-    },
     "repo/discovery": {
       "name": "@repo/discovery",
       "version": "0.0.0",
@@ -1145,20 +1079,6 @@
       "version": "0.0.0",
       "dependencies": {
         "@archetypes/package": "workspace:*",
-      },
-    },
-    "specs": {
-      "name": "@archetypes/specs",
-      "version": "0.0.0",
-      "dependencies": {
-        "@archetypes/scenario-document": "workspace:*",
-        "@archetypes/scenario-guide": "workspace:*",
-        "@archetypes/scenario-reader": "workspace:*",
-        "@archetypes/scenario-validation": "workspace:*",
-        "@archetypes/spec-reader": "workspace:*",
-        "@mcp-rest/package": "workspace:*",
-        "@mcp-rest/scenarios": "workspace:*",
-        "@specs/guide": "workspace:*",
       },
     },
     "specs/document": {
@@ -1494,8 +1414,6 @@
 
     "@archetypes/spec-reader": ["@archetypes/spec-reader@workspace:specs/reader"],
 
-    "@archetypes/specs": ["@archetypes/specs@workspace:specs"],
-
     "@archetypes/typedoc": ["@archetypes/typedoc@workspace:typedoc"],
 
     "@build-environment/protocol": ["@build-environment/protocol@workspace:tech/build/environment/protocol"],
@@ -1642,8 +1560,6 @@
 
     "@package/artifacts": ["@package/artifacts@workspace:package/artifacts"],
 
-    "@package/build": ["@package/build@workspace:package/build"],
-
     "@package/graph": ["@package/graph@workspace:package/graph"],
 
     "@package/identity": ["@package/identity@workspace:package/identity"],
@@ -1699,12 +1615,6 @@
     "@specs/guide": ["@specs/guide@workspace:specs/guide"],
 
     "@storybook/app": ["@storybook/app@workspace:app"],
-
-    "@storybook/package": ["@storybook/package@workspace:package"],
-
-    "@storybook/repo": ["@storybook/repo@workspace:repo"],
-
-    "@storybook/route": ["@storybook/route@workspace:package/route"],
 
     "@tech/acp": ["@tech/acp@workspace:tech/acp"],
 
