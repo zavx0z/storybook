@@ -13,9 +13,7 @@
     "@package-build/scheduler": "workspace:*",
     "@build/compiler": "workspace:*",
     "@build/environment": "workspace:*",
-    "@build/inputs": "workspace:*",
     "@build/artifacts": "workspace:*",
-    "@package-build/inputs": "workspace:*",
     "@build/worker": "workspace:*",
     "@package/revision": "workspace:*"
   },

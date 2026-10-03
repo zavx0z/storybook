@@ -7,11 +7,6 @@ export type StorybookSharedBrowserModule = Readonly<{
   url: string
 }>
 
-export type StorybookSharedBrowserSourceFile = Readonly<{
-  path: string
-  contentDigest: string
-}>
-
 /** Точный публичный модуль владельца и его временный корень компиляции. */
 export type StorybookSharedBrowserModuleEntry = Readonly<{
   specifier: string
@@ -21,7 +16,7 @@ export type StorybookSharedBrowserModuleEntry = Readonly<{
 
 /**
 Общая browser-эпоха, которую используют сборки пакетов.
-URL модулей и их исходники принадлежат одной проверенной среде.
+Таблица опубликованных URL задаёт одну подготовленную среду.
 */
 export type StorybookSharedBrowserIdentity = Readonly<{
   protocol: BuildEnvironmentProtocol.Output
@@ -29,5 +24,4 @@ export type StorybookSharedBrowserIdentity = Readonly<{
   hostModuleEpoch: string
   packageEntryUrl: string
   modules: readonly StorybookSharedBrowserModule[]
-  sourceFiles: readonly StorybookSharedBrowserSourceFile[]
 }>

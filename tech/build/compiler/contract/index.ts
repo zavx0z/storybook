@@ -26,7 +26,6 @@ export declare namespace BuildCompiler {
 
   @property resolveStorybookCompilerSourceRoots - Читает корни объявленного графа без компиляции.
   @property resolveStorybookPackageCompilerInputs - Читает точные входы compiler setup без создания plugins.
-  @property resolveStorybookCompilerControlFiles - Читает ancestor tsconfig/bunfig и extends для готовых source roots.
   @property createStorybookOwnerResolver - Создаёт resolver для того же графа владельцев.
   @property createStorybookOwnerSourcePath - Возвращает перевод подтверждённого installed mirror к каноническому исходнику.
   @property createStorybookPackageCompilerPlugins - Создаёт resolver и свежий JSX compiler plugin для входов Input.
@@ -46,7 +45,6 @@ export declare namespace BuildCompiler {
     exactFile(path: string): string
     resolveStorybookCompilerSourceRoots(input: Readonly<{repo: string, packageRoot: string}>): readonly string[]
     resolveStorybookPackageCompilerInputs(input: Input): StorybookPackageCompilerInputs
-    resolveStorybookCompilerControlFiles(sourceRoots: readonly string[]): readonly string[]
     createStorybookOwnerResolver(input: Readonly<{repo: string, packageRoot: string}>): Bun.BunPlugin
     createStorybookOwnerSourcePath(input: Readonly<{repo: string, packageRoot: string}>): (path: string) => string
     createStorybookPackageCompilerPlugins(input: Input): Promise<readonly Bun.BunPlugin[]>

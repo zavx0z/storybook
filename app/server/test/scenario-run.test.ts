@@ -21,7 +21,7 @@ test("Сервер выполняет настоящий компонентны�
     await mkdir(resolve(root, "scenarios"))
     await Bun.write(resolve(root, "scenarios", `${encodeURIComponent(nodeId)}.json`), JSON.stringify(prepared))
     const snapshot = {graph: {nodes: [{id: nodeId, packageId, scenarioSpec: {sourcePaths: [prepared.path]}}]}} as unknown as ExternalStorybookRegistrySnapshot
-    const sessions = {session: () => ({revisionDirectory: () => root, revisionInputsMatch: () => true})} as unknown as ExternalStorybookSessionManager
+    const sessions = {session: () => ({revisionDirectory: () => root})} as unknown as ExternalStorybookSessionManager
     const run = createStorybookScenarioRunner()
     const input = {nodeId, revision: "revision", variantId: prepared.preview.variants[1]!.id,
       props: {label: "Проверено", disabled: true}}
@@ -57,15 +57,14 @@ async function cachedFixture() {
   } as unknown as Awaited<ReturnType<typeof readScenario>>
   await mkdir(resolve(root, "scenarios"))
   await Bun.write(resolve(root, "scenarios", `${encodeURIComponent(nodeId)}.json`), JSON.stringify(prepared))
-  let current = true
   const snapshot = {graph: {nodes: [{id: nodeId, packageId, scenarioSpec: {sourcePaths: [source]}}]}} as unknown as ExternalStorybookRegistrySnapshot
-  const sessions = {session: () => ({revisionDirectory: () => root, revisionInputsMatch: () => current,
+  const sessions = {session: () => ({revisionDirectory: () => root,
     snapshot: () => ({diagnostics: [{message: "Ошибка компиляции нового сценария"}]})})} as unknown as ExternalStorybookSessionManager
   const report = (): typeof prepared => ({...prepared, tests: [prepared.tests[0]!],
     preview: {...prepared.preview!, variants: [prepared.preview!.variants[0]!]} as NonNullable<typeof prepared.preview>})
   return {packageId, snapshot, sessions, report,
     input: {nodeId, revision: "revision", variantId: "0", props: {value: 1}},
-    changeInputs() { current = false },
+    async changeSource() { await Bun.write(source, "export const updated = true") },
     dispose: () => rm(root, {recursive: true, force: true}),
   }
 }
@@ -78,12 +77,13 @@ test("Отчёт сборки возвращает выбранную тему �
     const result = await run(fixture.input, fixture.packageId, fixture.snapshot, fixture.sessions, new AbortController().signal)
     expect(result.execution.tests.map(test => test.label)).toEqual(["Вложенная проверка"])
     expect(result.execution.status).toBe("passed")
-    fixture.changeInputs()
+    await fixture.changeSource()
     expect(await run(fixture.input, fixture.packageId, fixture.snapshot, fixture.sessions, new AbortController().signal)).toEqual(result)
     expect(executions, "Сохранённый результат относится к отображаемой ревизии даже при ошибке нового HMR").toBe(0)
-    await expect(run({...fixture.input, rerun: true}, fixture.packageId, fixture.snapshot, fixture.sessions,
-      new AbortController().signal)).rejects.toThrow("Ошибка компиляции нового сценария")
-    expect(executions).toBe(0)
+    const repeated = await run({...fixture.input, rerun: true}, fixture.packageId, fixture.snapshot, fixture.sessions,
+      new AbortController().signal)
+    expect(repeated.execution.status).toBe("passed")
+    expect(executions, "Явный прогон не блокируется изменением исходника").toBe(1)
   } finally { await run.dispose(); await fixture.dispose() }
 })
 
@@ -138,13 +138,13 @@ test("Неудачный тест сохраняется; явный повто�
   } finally { await run.dispose(); await fixture.dispose() }
 })
 
-test("Изменение входов во время прогона и незавершённые проверки не сохраняют результат", async () => {
+test("Неполный отчёт повторяется, изменение исходника не отменяет успешный прогон", async () => {
   const fixture = await cachedFixture()
   let executions = 0
   const run = createStorybookScenarioRunner(async () => {
     executions++
     const report = fixture.report()
-    if (executions === 3) fixture.changeInputs()
+    if (executions === 3) await fixture.changeSource()
     return {...report, tests: [{...report.tests[0]!, status: executions < 3 ? "not-executed" : "passed"}]}
   })
   const input = {...fixture.input, props: {value: 3}}
@@ -153,8 +153,8 @@ test("Изменение входов во время прогона и неза
     await invoke()
     await invoke()
     expect(executions, "Неполный отчёт требует нового выполнения").toBe(2)
-    await expect(invoke()).rejects.toThrow("Ошибка компиляции нового сценария")
-    await expect(invoke()).rejects.toThrow("Ошибка компиляции нового сценария")
-    expect(executions, "После изменения входов старое исполнение не повторяется").toBe(3)
+    expect((await invoke()).execution.status).toBe("passed")
+    expect((await invoke()).execution.status).toBe("passed")
+    expect(executions, "Успешный отчёт сохраняется независимо от изменения источника").toBe(3)
   } finally { await run.dispose(); await fixture.dispose() }
 })

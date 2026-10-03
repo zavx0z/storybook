@@ -9,7 +9,6 @@ import {StorybookEventHub} from "../src/events"
 import {streamAppOperation} from "../src/app-stream"
 import {mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
-import {createHash} from "node:crypto"
 import {join, resolve} from "node:path"
 import {createProjectFixture} from "./project.fixture"
 import {seedPublishedSharedAssets} from "./shared-assets.fixture"
@@ -46,25 +45,10 @@ test("lazy worker доставляет package/shared MCP progress до резу
     }
     input.signal.throwIfAborted()
     writeFileSync(join(input.stagingDirectory, "entry.js"), "export {}\n")
-    const categories = {
-      descriptorDigest: input.descriptor.declarationDigest,
-      protocol: "storybook-build-input/2" as const,
-      sourceDigest: "b".repeat(64),
-      toolchainDigest: "c".repeat(64),
-      validationDigest: "d".repeat(64),
-    }
     return {
       moduleGraphRevision: "controlled-package-build",
       dependencyRealpaths: [],
       entryRelativePath: "entry.js",
-      inputFingerprint: {
-        ...categories,
-        digest: createHash("sha256").update(JSON.stringify(categories)).digest("hex"),
-        roots: [input.descriptor.repo],
-        resolutionDirectories: [],
-        directories: [],
-        files: [],
-      },
     }
   }
   // Публичная factory подставляет только compiler; HTTP, sessions, scheduler и MCP остаются настоящими.

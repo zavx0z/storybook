@@ -9,7 +9,7 @@
 
 - [Как собираются пакет и общая оболочка](./notes/compilation.md).
 - [Единая идентичность модулей](../../../tech/build/environment/notes/modules.md).
-- [Когда можно использовать сохранённую сборку](./notes/cache.md).
+- [Готовая сборка Web](./notes/cache.md).
 - [Как оценить нагрузку перед сборкой](../../../tech/build/environment/notes/preflight.md).
 
 Заметки сохраняют ещё не перенесённый смысл по

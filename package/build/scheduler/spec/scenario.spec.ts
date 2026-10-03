@@ -19,7 +19,7 @@ describe.each([
       generation: 1,
       cache: {status: "miss", layer: "package"},
     }, async context => {
-      context.setPhase("fingerprint")
+      context.setPhase("verification")
       return "built"
     }, new AbortController().signal)
     recentOperationId = scheduler.snapshot().recent[0]?.operationId

@@ -1100,7 +1100,6 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
       lastBuildReason: record.lastBuildReason,
       lastQueueDurationMs: record.lastQueueDurationMs,
       lastExecutionDurationMs: record.lastExecutionDurationMs,
-      inputFreshness: record.inputFreshness,
       cacheOutcome: record.cacheOutcome,
     })
   }

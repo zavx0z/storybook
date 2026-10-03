@@ -41,7 +41,7 @@ export declare namespace PackageBuildPrepare {
   /**
   Builder одной независимой package revision с повторным использованием
   готовой shared identity. Сигнал отмены и timeout принадлежат каждому вызову;
-  ошибка подготовки отклоняет Promise, успешный результат содержит fingerprint.
+  ошибка подготовки отклоняет Promise; успешный результат описывает готовые модули.
   */
   type Output = (input: BuilderInput) => Promise<BuildResult>
 }

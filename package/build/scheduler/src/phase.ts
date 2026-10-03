@@ -5,7 +5,6 @@ type StorybookBuildPhaseEvent = Readonly<{
   phase: StorybookBuildWorkerPhase
   state: "started" | "completed"
   at: string
-  cache?: Readonly<{status: "hit" | "miss", layer: "shared"}>
 }>
 
 
@@ -52,8 +51,6 @@ export function parseStorybookBuildWorkerTransportEvent(
   if (!isObject(value.event) || !isStorybookBuildPhase(value.event.phase) ||
     (value.event.state !== "started" && value.event.state !== "completed") ||
     typeof value.event.at !== "string" || !validTimestamp(value.event.at)) return null
-  const cache = value.event.cache === undefined ? undefined : parseSharedCacheOutcome(value.event.cache)
-  if (cache === null) return null
   return Object.freeze({
     protocol: STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL,
     kind: "phase",
@@ -61,7 +58,6 @@ export function parseStorybookBuildWorkerTransportEvent(
       phase: value.event.phase,
       state: value.event.state,
       at: value.event.at,
-      ...(cache === undefined ? {} : {cache}),
     }),
   })
 }
@@ -69,8 +65,6 @@ export function parseStorybookBuildWorkerTransportEvent(
 /** Ограничивает phase vocabulary согласованным scheduler contract. */
 function isStorybookBuildPhase(value: unknown): value is StorybookBuildWorkerPhase {
   return typeof value === "string" && [
-    "cache",
-    "fingerprint",
     "verification",
     "resources",
     "exports",
@@ -79,15 +73,6 @@ function isStorybookBuildPhase(value: unknown): value is StorybookBuildWorkerPha
     "host",
     "publish",
   ].includes(value)
-}
-
-function parseSharedCacheOutcome(value: unknown): Readonly<{status: "hit" | "miss", layer: "shared"}> | null {
-  if (value === null || typeof value !== "object") return null
-  const cache = value as Record<string, unknown>
-  if ((cache.status !== "hit" && cache.status !== "miss") || cache.layer !== "shared") {
-    return null
-  }
-  return Object.freeze({status: cache.status, layer: "shared"})
 }
 
 /** Отклоняет произвольные строки вместо transport timestamp. */

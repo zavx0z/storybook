@@ -15,10 +15,3 @@ export type CatalogProgress = Readonly<{
   type: "catalog.progress"
   state: "running" | "completed" | "failed"
 }>
-
-/** Проверка уже загруженной shared оболочки вне scheduler не создаёт фиктивную job. */
-export type SharedCacheProgress = Readonly<{
-  type: "shared.cache-progress"
-  state: "started" | "completed"
-  hit?: boolean
-}>

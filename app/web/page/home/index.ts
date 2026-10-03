@@ -37,8 +37,6 @@ const buildProgressStatus = WebStatusOwner.build
 const catalogProgressStatus = WebStatusOwner.catalog
 const readBuildProgress = WebStatusOwner.readBuild
 const readCatalogProgress = WebStatusOwner.readCatalog
-const readSharedCacheProgress = WebStatusOwner.readSharedCache
-const sharedCacheProgressStatus = WebStatusOwner.sharedCache
 import type {PageHome} from "./contract"
 type StartExternalStorybookLandingOptions = PageHome.Input
 type ExternalStorybookLandingController = PageHome.Output
@@ -276,11 +274,6 @@ async function startExternalStorybookLanding(
     const catalogProgress = readCatalogProgress(decoded)
     if (catalogProgress !== null) {
       shell.updateStatus(catalogProgressStatus(catalogProgress))
-      return
-    }
-    const sharedCacheProgress = readSharedCacheProgress(decoded)
-    if (sharedCacheProgress !== null) {
-      shell.updateStatus(sharedCacheProgressStatus(sharedCacheProgress))
       return
     }
     const update = parseLandingEvent(event.data)

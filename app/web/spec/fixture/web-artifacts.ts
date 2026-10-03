@@ -37,8 +37,7 @@ export function createWebArtifacts() {
         specifier: "@zavx0z/component",
         sourcePath,
         url: `/__storybook/shared/${paths[0]}`,
-      }], digest(host), [{path: sourcePath, contentDigest: digest(source)}]),
-      dependencyRealpaths: [sourcePath],
+      }], digest(host)),
       authorStyleSheets: [],
       artifactDigests: paths.map(path => ({path, digest: digest("export {}\n")})),
     }

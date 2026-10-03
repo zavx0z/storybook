@@ -2,11 +2,9 @@ import Compiler from "@build/compiler"
 import Artifacts from "@build/artifacts"
 import {readSharedBrowserEpoch} from "./receipt"
 import {mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync} from "node:fs"
-import {dirname, join, relative, resolve, sep} from "node:path"
-import PackageInputs from "@package-build/inputs"
+import {dirname, join, relative} from "node:path"
 import type {SharedBrowserAssets} from "../contract/assets"
 import type {SharedBrowserBuildInput, SharedBrowserBuildPhaseListener} from "../contract/build"
-import {beginStorybookSharedBuildInputAttestation} from "./plan"
 import {createHash} from "node:crypto"
 import {readWorkbenchStyleSheets} from "./theme"
 import Environment from "@build/environment"
@@ -26,7 +24,7 @@ const {createStorybookPackageCompilerPlugins} = Compiler
 
 @param onPhase - Получатель этапов только этой операции; не запускает отдельный мониторинг.
 
-@returns Опубликованные hashed assets и точные зависимости для следующей явной проверки.
+@returns Готовые артефакты, их адреса и контрольные суммы для атомарной публикации.
 
 @throws Ошибка компиляции, отсутствующего metafile или записи ресурсов.
 */
@@ -38,26 +36,17 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
     }
   }
   const packageEntryPath = Environment.exactFile(input.packageEntryPath ?? sources.pageEntry)
-  onPhase?.({phase: "fingerprint", state: "started", at: new Date().toISOString()})
-  const attestation = await beginStorybookSharedBuildInputAttestation({
-    ...input,
-    packageEntryPath,
-    outputDirectory: input.root,
-  })
   const moduleEntryDirectory = join(realpathSync(dirname(input.root)), ".shared-owner-module-entries")
   try {
   onPhase?.({phase: "resources", state: "started", at: new Date().toISOString()})
-  const styles = await readWorkbenchStyleSheets(input.toolRoot)
+  const styles = readWorkbenchStyleSheets(input.toolRoot).map(style => ({...style, bytes: readFileSync(style.path)}))
   const staging = input.stagingDirectory
   rmSync(staging, {recursive: true, force: true})
   mkdirSync(staging, {recursive: true})
   rmSync(moduleEntryDirectory, {recursive: true, force: true})
-  const stagingPrefix = `${realpathSync(staging)}${sep}`
-  const moduleEntryPrefix = `${resolve(moduleEntryDirectory)}${sep}`
   let kernelOutputs: Awaited<ReturnType<typeof Bun.build>>["outputs"] = []
-  let kernelInputs: Readonly<Record<string, unknown>> = {}
   let provisionalIdentity = input.sharedKernel === undefined ? undefined
-    : Environment.validate(input.sharedKernel, false)
+    : Environment.validate(input.sharedKernel)
   if (provisionalIdentity === undefined) {
     const moduleEntries = Environment.createModuleEntries(
       input.toolRoot,
@@ -87,22 +76,12 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
     assertSharedBuild(kernel, "kernel")
     onPhase?.({phase: "kernel", state: "completed", at: new Date().toISOString()})
     const kernelEntryFor = (source: string): string => emittedEntry(kernel, staging, source)
-    const sourceFiles = [...new Set([
-      ...PackageInputs.canonicalBuildInputs(kernel.metafile!.inputs, input.toolRoot)
-        .filter(path => !path.startsWith(stagingPrefix) && !path.startsWith(moduleEntryPrefix)),
-      ...moduleEntries.map(({sourcePath}) => sourcePath),
-    ])].sort()
-      .map(path => ({
-        path,
-        contentDigest: createHash("sha256").update(readFileSync(path)).digest("hex"),
-      }))
     kernelOutputs = kernel.outputs
-    kernelInputs = kernel.metafile!.inputs
     provisionalIdentity = Environment.identity(
       "/__storybook/shared/pending-package-entry.js",
       moduleEntries.map(({specifier, sourcePath, entryPath}) => ({specifier, sourcePath,
         url: `/__storybook/shared/${kernelEntryFor(entryPath)}`})),
-      "0".repeat(64), sourceFiles,
+      "0".repeat(64),
     )
   }
   const bootstrapPath = Environment.exactFile(sources.browserEntry)
@@ -128,7 +107,7 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
     splitting: false,
     sourcemap: "external",
     loader: {".wgsl": "text"},
-    plugins: [Environment.externalPlugin(provisionalIdentity, input.sharedKernel === undefined), ...await hostPlugins()],
+    plugins: [Environment.externalPlugin(provisionalIdentity), ...await hostPlugins()],
     metafile: true,
     throw: false,
   }))
@@ -138,34 +117,25 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
   }
   assertSharedBuild(host, "host")
   onPhase?.({phase: "host", state: "completed", at: new Date().toISOString()})
-  const dependencyRealpaths = [...new Set([...PackageInputs.canonicalizeIdentities(
-    PackageInputs.canonicalBuildInputs({...kernelInputs, ...host.metafile!.inputs}, input.toolRoot)
-      .filter(path => !path.startsWith(stagingPrefix) && !path.startsWith(moduleEntryPrefix)),
-  ), ...styles.flatMap(style => [style.path, style.ownerPackageJsonPath])])].sort()
   const landingEntry = emittedEntry(host, staging, input.landingEntryPath)
   const fallbackEntry = emittedEntry(host, staging, input.fallbackEntryPath)
   const packageEntry = emittedEntry(host, staging, packageEntryPath)
-  const hostModuleEpoch = buildHostModuleEpoch(host.metafile!.inputs, input.toolRoot, stagingPrefix, attestation.before.toolchainDigest, styles.map(style => style.path))
+  const hostModuleEpoch = await buildHostModuleEpoch(host.outputs, staging, styles.map(style => style.bytes))
   const browserIdentity = Environment.identity(
     `/__storybook/shared/${packageEntry}`,
     provisionalIdentity.modules,
     hostModuleEpoch,
-    provisionalIdentity.sourceFiles,
-    input.sharedKernel === undefined,
   )
   onPhase?.({phase: "resources", state: "started", at: new Date().toISOString()})
   const authorStyleSheets = styles.map((style, index) => {
-    const bytes = readFileSync(style.path)
-    if (createHash("sha256").update(bytes).digest("hex") !== style.contentDigest) throw new Error("Shared author stylesheet changed during build")
-    const url = `styles/${index}-${style.contentDigest}.css`
+    const bytes = style.bytes
+    const contentDigest = createHash("sha256").update(bytes).digest("hex")
+    const url = `styles/${index}-${contentDigest}.css`
     mkdirSync(dirname(join(staging, url)), {recursive: true})
     writeFileSync(join(staging, url), bytes)
-    return {specifier: style.specifier, contentDigest: style.contentDigest, url}
+    return {specifier: style.specifier, contentDigest, url}
   })
   onPhase?.({phase: "resources", state: "completed", at: new Date().toISOString()})
-  onPhase?.({phase: "fingerprint", state: "started", at: new Date().toISOString()})
-  const inputFingerprint = await attestation.complete(dependencyRealpaths)
-  onPhase?.({phase: "fingerprint", state: "completed", at: new Date().toISOString()})
   onPhase?.({phase: "publish", state: "started", at: new Date().toISOString()})
   const outputs = [...kernelOutputs, ...host.outputs]
   const artifactDigests = await Promise.all(outputs.map(async artifact => ({
@@ -186,13 +156,10 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
     fallbackEntry,
     bootstrapEntry: emittedEntry(host, staging, bootstrapPath),
     browserIdentity,
-    dependencyRealpaths,
-    inputFingerprint,
     artifactDigests,
     authorStyleSheets,
   })
   } finally {
-    attestation.dispose()
     rmSync(input.stagingDirectory, {recursive: true, force: true})
     rmSync(moduleEntryDirectory, {recursive: true, force: true})
   }
@@ -203,22 +170,17 @@ function assertSharedBuild(result: Bun.BuildOutput, owner: string): void {
   if (result.metafile === undefined) throw new Error(`Bun emitted no shared browser ${owner} metafile`)
 }
 
-/** Хеширует реальные исходники host, включая UI, и компилятор; версия кода одинакова для сохранённых kernel. */
-function buildHostModuleEpoch(
-  inputs: Readonly<Record<string, unknown>>,
-  toolRoot: string,
-  stagingPrefix: string,
-  toolchainDigest: string,
-  styles: readonly string[],
-): string {
-  const root = realpathSync(toolRoot)
-  const paths = [...new Set([...PackageInputs.canonicalBuildInputs(inputs, root), ...styles])].filter(path => !path.startsWith(stagingPrefix)).sort()
-  if (paths.length === 0) throw new Error("Shared Storybook host build has no owned source inputs")
-  const hash = createHash("sha256").update(toolchainDigest)
-  for (const path of paths) {
-    hash.update(`${relative(root, path)}\0`)
-    hash.update(readFileSync(path))
-    hash.update("\0")
+/** Адресует готовый Web по выпущенным файлам, не перечитывая исходники после компиляции. */
+async function buildHostModuleEpoch(
+  outputs: readonly Bun.BuildArtifact[],
+  staging: string,
+  styles: readonly Uint8Array[],
+): Promise<string> {
+  const hash = createHash("sha256")
+  for (const output of [...outputs].sort((a, b) => a.path.localeCompare(b.path))) {
+    hash.update(`${relative(staging, output.path)}\0`)
+    hash.update(new Uint8Array(await output.arrayBuffer()))
   }
+  for (const bytes of styles) hash.update(bytes)
   return hash.digest("hex")
 }

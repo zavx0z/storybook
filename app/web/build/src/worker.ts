@@ -2,7 +2,7 @@ import {readFileSync, writeFileSync} from "node:fs"
 import {buildSharedBrowserAssets} from "./browser-build"
 import Scheduler from "@package-build/scheduler"
 import type {SharedBrowserBuildInput} from "../contract/build"
-import {readSharedBrowserReceipt, readSharedBrowserEpoch, saveSharedBrowserCandidate} from "./receipt"
+import {readSharedBrowserEpoch, saveSharedBrowserCandidate} from "./receipt"
 
 const STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL = Scheduler.STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL
 type StorybookBuildPhaseEvent = Extract<NonNullable<ReturnType<typeof Scheduler.parseStorybookBuildWorkerTransportEvent>>, {kind: "phase"}>["event"]
@@ -19,16 +19,8 @@ try {
   const phase = (event: StorybookBuildPhaseEvent): void => {
     console.log(JSON.stringify({protocol: STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL, kind: "phase", event}))
   }
-  phase({phase: "cache", state: "started", at: new Date().toISOString()})
-  const restored = readSharedBrowserReceipt(input)
-  phase({
-    phase: "cache",
-    state: "completed",
-    at: new Date().toISOString(),
-    cache: {status: restored === null ? "miss" : "hit", layer: "shared"},
-  })
-  const result = restored ?? {...await buildSharedBrowserAssets(input, phase), cacheHit: false}
-  if (restored === null) saveSharedBrowserCandidate(result, input.sharedKernel === undefined)
+  const result = await buildSharedBrowserAssets(input, phase)
+  saveSharedBrowserCandidate(result)
   writeFileSync(resultPath, JSON.stringify(result), {mode: 0o600})
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error)

@@ -15,7 +15,6 @@ type StorybookPackageEvent = Parameters<NonNullable<PackageSessionContract.Input
 type StorybookPackageBuildDemand = NonNullable<Parameters<PackageSessionContract.Output["ensureBuilt"]>[0]>
 type StorybookPackageRevisionBuilder = PackageSessionContract.Input[1]["buildRevision"]
 type StorybookPackageSessionSnapshot = ReturnType<PackageSessionContract.Output["snapshot"]>
-type StorybookPackageInputFingerprintVerifier = NonNullable<PackageSessionContract.Input[1]["verifyInputFingerprint"]>
 import {resolve} from "node:path"
 
 import type {AppServerSessions} from "./contract"
@@ -25,7 +24,6 @@ export default class ExternalStorybookSessionManager {
   readonly #artifactRoot: string
   readonly #buildRevision: StorybookPackageRevisionBuilder
   readonly #prepareBuild: ((signal: AbortSignal) => Promise<void>) | undefined
-  readonly #verifyInputFingerprint: StorybookPackageInputFingerprintVerifier | undefined
   readonly #publish: (event: StorybookPackageEvent) => void
   readonly #buildScheduler: StorybookBuildScheduler
   readonly #ownsBuildScheduler: boolean
@@ -40,7 +38,6 @@ export default class ExternalStorybookSessionManager {
     this.#artifactRoot = resolve(options.artifactRoot)
     this.#buildRevision = options.buildRevision
     this.#prepareBuild = options.prepareBuild
-    this.#verifyInputFingerprint = options.verifyInputFingerprint
     this.#publish = options.publish ?? (() => {})
     this.#compileTimeoutMs = options.compileTimeoutMs
     this.#activationTimeoutMs = options.activationTimeoutMs
@@ -72,7 +69,6 @@ export default class ExternalStorybookSessionManager {
         const session = new StorybookPackageSession(descriptor, {
           artifactRoot: this.#artifactRoot,
           buildRevision: this.#buildRevision,
-          ...(this.#verifyInputFingerprint === undefined ? {} : {verifyInputFingerprint: this.#verifyInputFingerprint}),
           ...(this.#prepareBuild === undefined ? {} : {prepareBuild: this.#prepareBuild}),
           buildScheduler: this.#buildScheduler,
           ...(this.#compileTimeoutMs === undefined ? {} : {compileTimeoutMs: this.#compileTimeoutMs}),
@@ -119,12 +115,13 @@ export default class ExternalStorybookSessionManager {
   }
 
   /**
-  Перепроверяет current fingerprint одной session перед explicit check.
+  Явно подготавливает новый результат выбранного пакета.
+  Одновременные запросы ожидают одну работу, ошибка сохраняет прежнюю рабочую ревизию.
 
-  @returns `true`, если session обнаружила mismatch и продвинула generation.
+  @returns Состояние сессии после завершения запрошенной сборки.
   */
-  revalidateInputs(packageId: string): boolean {
-    return this.session(packageId).revalidateInputs()
+  build(packageId: string, demand?: StorybookPackageBuildDemand): Promise<StorybookPackageSessionSnapshot> {
+    return this.session(packageId).build(demand)
   }
 
   /** Общий scheduler package и будущих shared jobs этого server lifecycle. */

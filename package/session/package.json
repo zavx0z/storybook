@@ -12,7 +12,6 @@
     "@zavx0z/ui": "^0.0.0",
     "@package-build/scheduler": "workspace:*",
     "@tech/limits": "workspace:*",
-    "@build/inputs": "workspace:*",
     "@package/standard": "workspace:*",
     "@package/revision": "workspace:*",
     "@process/sample": "workspace:*",

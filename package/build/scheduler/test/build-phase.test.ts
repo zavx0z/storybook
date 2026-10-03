@@ -16,12 +16,11 @@ describe("Storybook build worker event protocol", () => {
       protocol: STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL,
       kind: "phase",
       event: {
-        phase: "cache",
+        phase: "bundle",
         state: "completed",
         at: "2026-09-11T00:00:00.000Z",
-        cache: {status: "hit", layer: "shared"},
       },
-    })).toMatchObject({kind: "phase", event: {phase: "cache", cache: {status: "hit"}}})
+    })).toMatchObject({kind: "phase", event: {phase: "bundle"}})
   })
 
   test("отклоняет old protocol, unknown phase и невалидный PID", () => {

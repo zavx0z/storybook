@@ -100,15 +100,15 @@ describe("Storybook build scheduler observability", () => {
     const transitions: Readonly<Record<string, unknown>>[] = []
     const unsubscribe = scheduler.subscribe((transition) => transitions.push(transition))
     await scheduler.run(request("transition"), async ({setPhase}) => {
-      setPhase("fingerprint")
-      setPhase("fingerprint")
+      setPhase("verification")
+      setPhase("verification")
     }, new AbortController().signal)
     unsubscribe()
     expect(transitions.map(({state, phase, outcome}) => [state, phase, outcome])).toEqual([
       ["queued", "admission", undefined],
       ["running", "admission", undefined],
-      ["running", "fingerprint", undefined],
-      ["completed", "fingerprint", "completed"],
+      ["running", "verification", undefined],
+      ["completed", "verification", "completed"],
     ])
     expect(transitions.every(Object.isFrozen)).toBeTrue()
     expect(JSON.stringify(transitions)).not.toContain('"pid"')

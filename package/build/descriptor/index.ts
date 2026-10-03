@@ -20,6 +20,7 @@ type StorybookPackage = Extract<RepoDiscoveryContract.Output["scopes"][number], 
 type ExternalStorybookGraph = PackageGraphCreateContract.Output
 type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 import {createHash} from "node:crypto"
+import {readFileSync} from "node:fs"
 import {dirname, join, relative} from "node:path"
 import type {PackageBuildDescriptor} from "./contract"
 
@@ -38,7 +39,10 @@ export default function externalStorybookPackageDescriptors(
   const packages = catalog.scopes.filter(
     (declaration): declaration is StorybookPackage => declaration.kind === "package",
   )
-  const workbenchAuthorStyleSheets = styles
+  const workbenchAuthorStyleSheets = styles.map(styleSheet => {
+    const content = readFileSync(styleSheet.path, "utf8")
+    return {...styleSheet, content, contentDigest: createHash("sha256").update(content).digest("hex")}
+  })
   return Object.freeze(packages.filter(declaration => include === undefined || include.has(declaration.id)).map((declaration) => {
     const node = externalStorybookNode(graph, declaration.canonicalId)
     const repoNode = [...node.structuralPath]
@@ -71,6 +75,7 @@ export default function externalStorybookPackageDescriptors(
         sourceRoot: styleSheet.ownerRoot,
         targetPath: revisionWorkbenchAuthorStyleSheetPath(index),
         contentDigest: styleSheet.contentDigest,
+        derivedContent: styleSheet.content,
       })),
       ...graph.nodes.flatMap((candidate) => {
         if (candidate.packageId !== declaration.id) return []

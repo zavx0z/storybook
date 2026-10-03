@@ -118,3 +118,36 @@ test("dispose ждёт cleanup Web worker и сохраняет общую оч�
     fixture.dispose()
   }
 })
+
+
+test("готовые варианты Web могут иметь разные адреса файлов для разных платформ", async () => {
+  const fixture = createWebArtifacts()
+  const previous = fixture.assets("platform-a", "web-a")
+  fixture.save(previous)
+  const current = fixture.assets("platform-b", "web-b")
+  fixture.save(current)
+  const next = fixture.assets("platform-b", "web-c-platform-b")
+  const compatible = fixture.assets("platform-a", "web-c-platform-a")
+  const build = mock<AppWebBuild.Output["runWorker"]>(async input => {
+    const result = input.sharedKernel?.epoch === previous.browserIdentity!.epoch ? compatible : next
+    fixture.save(result, false)
+    return result
+  })
+  const web = createWeb(fixture.input(build))
+  try {
+    expect(() => web.host(previous.browserIdentity!.epoch)).toThrow("ещё не подготовлена")
+    const result = await web.rebuild({apply: true})
+    expect(result.published).toBeTrue()
+    expect(build.mock.calls).toHaveLength(2)
+    expect(web.host().hostModuleEpoch).toBe(next.browserIdentity!.hostModuleEpoch)
+    expect(web.host(previous.browserIdentity!.epoch).hostModuleEpoch)
+      .toBe(compatible.browserIdentity!.hostModuleEpoch)
+    expect(fixture.readPublished()?.compatibleHosts).toEqual([{
+      sharedModuleEpoch: previous.browserIdentity!.epoch,
+      hostModuleEpoch: compatible.browserIdentity!.hostModuleEpoch,
+    }])
+  } finally {
+    await web.dispose()
+    fixture.dispose()
+  }
+})

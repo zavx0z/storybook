@@ -23,8 +23,6 @@ const buildProgressStatus = WebStatusOwner.build
 const catalogProgressStatus = WebStatusOwner.catalog
 const readBuildProgress = WebStatusOwner.readBuild
 const readCatalogProgress = WebStatusOwner.readCatalog
-const readSharedCacheProgress = WebStatusOwner.readSharedCache
-const sharedCacheProgressStatus = WebStatusOwner.sharedCache
 import createExternalStorybookShell from "@page/shell"
 import type {PageShell} from "@page/shell"
 type StorybookRetainedRoot = ReturnType<PageShell.Output["releaseRoot"]>
@@ -155,8 +153,6 @@ async function startExternalStorybookPage(
         shell.updateStatus(catalogProgressStatus(catalog))
         return
       }
-      const shared = readSharedCacheProgress(value)
-      if (shared !== null) shell.updateStatus(sharedCacheProgressStatus(shared))
     }
     socket.addEventListener("open", onOpen)
     socket.addEventListener("message", onMessage)

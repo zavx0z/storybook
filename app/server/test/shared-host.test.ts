@@ -64,9 +64,9 @@ test("общая оболочка читается и доставляется �
   }
   const identity = storybookSharedBrowserIdentity("/__storybook/shared/entries/page.js", [{
     specifier: "@zavx0z/component", sourcePath, url: "/__storybook/shared/kernel/fixture.js",
-  }], digest("host"), [{path: sourcePath, contentDigest: digest("export {}")}])
+  }], digest("host"))
   saveSharedBrowserReceipt({root: assetsRoot, landingEntry: paths[1]!, fallbackEntry: paths[1]!, bootstrapEntry: paths[2]!,
-    browserIdentity: identity, dependencyRealpaths: [sourcePath], authorStyleSheets: [],
+    browserIdentity: identity, authorStyleSheets: [],
     artifactDigests: paths.map(path => ({path, digest: digest("export {}")}))})
   const server = await startExternalStorybookServer({createWeb, project: createProjectFixture(root, []), statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts")})
   let socket: WebSocket | undefined
@@ -105,7 +105,7 @@ test("общая оболочка читается и доставляется �
   }
 }, 10000)
 
-test("отмена shared check сохраняет подготовку retained host для следующего запроса без поздней публикации", async () => {
+test("отмена shared check не публикует результат, следующий явный запрос готовит свой набор", async () => {
   const fixture = retainedHostFixture()
   const retained = Promise.withResolvers<SharedBrowserAssets>()
   const started = Promise.withResolvers<AbortSignal>()
@@ -148,7 +148,7 @@ test("отмена shared check сохраняет подготовку retained
         {sharedModuleEpoch: fixture.archived.browserIdentity!.epoch},
       ],
     })
-    expect(retainedBuilds).toBe(1)
+    expect(retainedBuilds).toBe(2)
     expect(readPublishedSharedBrowserReceipt(fixture.receiptInput)).toEqual(fixture.current)
     expect((await read()).status).toBe(400)
     expect(server.sessions.snapshots()).toEqual([])
@@ -227,8 +227,7 @@ function retainedHostFixture() {
       bootstrapEntry: paths[2]!,
       browserIdentity: storybookSharedBrowserIdentity(`/__storybook/shared/${paths[1]}`, [{
         specifier: "@zavx0z/component", sourcePath, url: `/__storybook/shared/${paths[0]}`,
-      }], digest(host), [{path: sourcePath, contentDigest: digest("export {}")}]),
-      dependencyRealpaths: [sourcePath],
+      }], digest(host)),
       authorStyleSheets: [],
       artifactDigests: paths.map(path => ({path, digest: digest("export {}")})),
     }
@@ -299,11 +298,11 @@ test("Minimap и управляющий app разделяют одну пере
     expect(after.discovery).toEqual(before.discovery)
     expect(server.sessions.snapshots()).toEqual([])
     expect(calls).toBe(1)
-    const warm = await fetch(new URL("/api/control/check", origin), {
+    const repeated = await fetch(new URL("/api/control/check", origin), {
       method: "POST", headers: control, body: JSON.stringify({scope: "storybook:web", live: true}),
     })
-    expect(warm.ok).toBeTrue()
-    expect(calls).toBe(1)
+    expect(repeated.ok).toBeTrue()
+    expect(calls, "Следующий явный запрос не пропускает сборку по cache hit").toBe(2)
   } finally {
     gate.resolve(fixture.current)
     await server?.stop()

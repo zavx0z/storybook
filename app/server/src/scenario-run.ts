@@ -71,15 +71,6 @@ export function createStorybookScenarioRunner(read: (input: ReadScenarioInput) =
       if (result.execution.tests.length > 0 && !result.execution.tests.some(test => test.status === "not-executed")) return result
     }
 
-    /** Новые тесты исполняются только против тех входов, из которых собрана отображаемая ревизия. */
-    const assertInputs = () => {
-      if (session.revisionInputsMatch(input.revision)) return
-      const state = session.snapshot()
-      const diagnostics = state.diagnostics.map(item => item.message).join("\n")
-      throw new Error(diagnostics
-        ? `Не удалось подготовить новую ревизию через HMR:\n${diagnostics}`
-        : "Входы сценария изменились. HMR готовит новую ревизию; сохранённый результат относится к показанной версии.")
-    }
     const entry: Run = {controller: new AbortController(), result: undefined!, settled: false,
       listeners: new Set(), progress: {phase: "queued"}}
     const notify: Progress = progress => {
@@ -90,13 +81,11 @@ export function createStorybookScenarioRunner(read: (input: ReadScenarioInput) =
     }
     const execute = async () => {
       entry.controller.signal.throwIfAborted()
-      assertInputs()
       const selection = "selection" in variant ? variant.selection : undefined
       const report = await read({path: prepared.path, props: input.props,
         ...(selection === undefined ? {variant: variantIndex} : {variantPath: selection}),
         signal: entry.controller.signal, onProgress: notify})
       entry.controller.signal.throwIfAborted()
-      assertInputs()
       if (report.preview?.kind !== prepared.preview!.kind || report.preview.variants.length !== 1) {
         throw new Error("Запуск не вернул результат выбранного варианта")
       }

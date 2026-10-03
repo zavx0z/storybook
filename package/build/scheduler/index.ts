@@ -164,7 +164,7 @@ function normalizeRequest(request: StorybookBuildRequest) {
   if (!["open", "check", "subscribe", "startup-validation", "shared"].includes(request.owner)) {
     throw new Error(`Invalid Storybook build owner: ${String(request.owner)}`)
   }
-  if (!["missing", "input-changed", "receipt-unverified", "explicit-retry", "toolchain-changed"].includes(request.reason)) {
+  if (!["missing", "explicit-build", "input-changed", "receipt-unverified", "explicit-retry", "toolchain-changed"].includes(request.reason)) {
     throw new Error(`Invalid Storybook build reason: ${String(request.reason)}`)
   }
   if (request.owner === "shared" && request.packageId !== null) throw new Error("Shared build cannot own a package id")
@@ -205,8 +205,6 @@ function normalizePhase(phase: StorybookBuildPhase): StorybookBuildPhase {
   if (![
     "discovery",
     "admission",
-    "cache",
-    "fingerprint",
     "verification",
     "resources",
     "exports",

@@ -113,6 +113,15 @@ describe("one external Storybook server", () => {
     writeFileSync(receiptPath, JSON.stringify(receipt))
     running = await startTestServer(options)
     servers.push(running)
+    const legacy = await (await prepare()).json()
+    expect(legacy, "Запись без platform identity не получает выдуманную среду").toMatchObject({kind: "fallback"})
+    expect(running.sessions.session(packageId).snapshot().builds, "Навигация не запускает скрытую пересборку готового legacy результата").toBe(0)
+    const rebuilt = await fetch(new URL("/api/control/check", running.origin), {
+      method: "POST",
+      headers: {authorization: `Bearer ${running.record.controlToken}`, "content-type": "application/json"},
+      body: JSON.stringify({scope: packageId, live: false}),
+    })
+    expect((await rebuilt.json()).ok, "Явная сборка готовит новую ревизию с известной platform identity").toBeTrue()
     const migrated = await (await prepare()).json()
     expect(migrated, JSON.stringify(migrated)).toMatchObject({kind: "revision", intent: "navigation-candidate"})
     expect(migrated.revision).not.toBe(targets[0].revision)

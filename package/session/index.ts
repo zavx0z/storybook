@@ -16,8 +16,6 @@ type StorybookBuildOwner = Parameters<PackageBuildSchedulerContract.Output["run"
 type StorybookBuildReason = Parameters<PackageBuildSchedulerContract.Output["run"]>[0]["reason"]
 type StorybookBuildPhaseListener = NonNullable<Parameters<StorybookPackageRevisionBuilder>[0]["onPhase"]>
 type StorybookBuildWorkerLifecycleListener = NonNullable<Parameters<StorybookPackageRevisionBuilder>[0]["onWorkerLifecycle"]>
-import BuildInputs, {type BuildInputs as BuildInputsContract} from "@build/inputs"
-type StorybookBuildInputFingerprint = BuildInputsContract.Output
 import Standard from "@package/standard"
 import {createHash, randomUUID} from "node:crypto"
 import {existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync} from "node:fs"
@@ -30,13 +28,11 @@ import type {
   StorybookPackageDiagnostic,
   StorybookPackageBuildState,
   StorybookPackageRevisionStatus,
-  StorybookPackageInputFreshness,
   StorybookPackageRevisionSnapshot,
   StorybookPackageSessionSnapshot,
   StorybookPackageBuildDemand,
   StorybookPackageEvent,
   StorybookPackageRevisionBuild,
-  StorybookPackageInputFingerprintVerifier,
   StorybookPackageRevisionBuilder,
   StorybookPackageActivation,
   StorybookPackageSessionOptions,
@@ -59,12 +55,12 @@ type RevisionRecord = {
   generation: number
   status: StorybookPackageRevisionStatus
   declarationDigest: string
+  packageRoot: string
   graphSnapshot: ReturnType<PackageRevision.Output["create"]>
   moduleGraphRevision: string
   sharedModuleEpoch?: string
   entryRelativePath: string
   dependencyRealpaths: readonly string[]
-  inputFingerprint: StorybookBuildInputFingerprint | null
   verification: StorybookPackageVerification | null
   warnings: readonly StorybookPackageDiagnostic[]
   diagnostics: readonly StorybookPackageDiagnostic[]
@@ -95,7 +91,6 @@ export default class StorybookPackageSession implements PackageSession.Output {
   readonly #artifactRoot: string
   readonly #buildRevision: StorybookPackageRevisionBuilder
   readonly #prepareBuild: ((signal: AbortSignal) => Promise<void>) | undefined
-  readonly #verifyInputFingerprint: StorybookPackageInputFingerprintVerifier | null
   readonly #publish: (event: StorybookPackageEvent) => void
   readonly #buildScheduler: StorybookBuildScheduler
   readonly #ownsBuildScheduler: boolean
@@ -126,7 +121,6 @@ export default class StorybookPackageSession implements PackageSession.Output {
   #lastExecutionDurationMs: number | null = null
   #lastBuildOutcome: StorybookBuildOutcome | null = null
   #cacheOutcome: Readonly<{status: StorybookBuildCacheStatus, layer: StorybookBuildCacheLayer}> | null = null
-  #inputFreshness: StorybookPackageInputFreshness = "unknown"
   readonly #generationDemands = new Map<number, NormalizedStorybookPackageBuildDemand>()
   #runner: Promise<void> | null = null
   #runningBuild: RunningBuild | null = null
@@ -138,7 +132,6 @@ export default class StorybookPackageSession implements PackageSession.Output {
     this.#artifactRoot = resolve(options.artifactRoot)
     this.#buildRevision = options.buildRevision
     this.#prepareBuild = options.prepareBuild
-    this.#verifyInputFingerprint = options.verifyInputFingerprint ?? null
     this.#publish = options.publish ?? (() => {})
     this.#ownsBuildScheduler = options.buildScheduler === undefined
     this.#buildScheduler = options.buildScheduler ?? new StorybookBuildScheduler(1)
@@ -179,27 +172,22 @@ export default class StorybookPackageSession implements PackageSession.Output {
 
   reconfigure(descriptor: StorybookPackageBuildDescriptor): boolean {
     this.#assertActive()
-    if (this.#standardRestoreError !== null) return false
     const next = normalizeDescriptor(descriptor)
     if (next.packageId !== this.packageId) {
       throw new Error(`Cannot reconfigure Storybook package identity ${this.packageId} as ${next.packageId}`)
     }
     if (sameDescriptor(this.#descriptor, next)) return false
     this.#descriptor = next
-    this.#advanceGeneration(
-      "Storybook package reconfigured",
-      Object.freeze({owner: "check", reason: "input-changed"}),
-      this.#subscribers > 0,
-    )
     return true
   }
 
   snapshot(): StorybookPackageSessionSnapshot {
     const selected = this.#record(this.#activeRevision) ??
       this.#record(this.#lastWorkingRevision) ?? this.#record(this.#builtRevision)
+    const prepared = this.#record(this.#builtRevision) ?? selected
     return Object.freeze({
       packageId: this.descriptor.packageId,
-      declarationDigest: this.descriptor.declarationDigest,
+      declarationDigest: prepared?.declarationDigest ?? this.descriptor.declarationDigest,
       moduleGraphRevision: selected?.moduleGraphRevision ?? null,
       candidateRevision: this.#candidateRevision,
       builtRevision: this.#builtRevision,
@@ -208,7 +196,7 @@ export default class StorybookPackageSession implements PackageSession.Output {
       lastWorkingRevision: this.#lastWorkingRevision,
       lastGoodRevision: this.#lastWorkingRevision,
       failedRevision: this.#failedRevision,
-      packageGraphDigest: this.descriptor.graphSnapshot.packageGraphDigest,
+      packageGraphDigest: prepared?.graphSnapshot.packageGraphDigest ?? this.descriptor.graphSnapshot.packageGraphDigest,
       generation: this.#generation,
       entryRelativePath: selected?.entryRelativePath ?? null,
       diagnostics: this.#resolutionError === null ? this.#diagnostics : Object.freeze([storybookDiagnostic("resolve", this.#resolutionError.replaceAll(`${this.descriptor.packageRoot}/`, ""), this.descriptor.sourcePath)]),
@@ -232,37 +220,7 @@ export default class StorybookPackageSession implements PackageSession.Output {
       lastExecutionDurationMs: this.#lastExecutionDurationMs,
       lastBuildOutcome: this.#lastBuildOutcome,
       cacheOutcome: this.#cacheOutcome,
-      inputFreshness: this.#inputFreshness,
     })
-  }
-
-  /**
-  Синхронно перепроверяет current-generation evidence перед explicit check.
-
-  Обычный open читает готовую ревизию без проверки исходников. При mismatch метод продвигает только
-  generation этой session; `ensureBuilt()` затем ставит fresh candidate в общий
-  scheduler. Отсутствие current revision не создаёт отдельную работу.
-
-  @returns `true`, если mismatch продвинул generation и требуется fresh build.
-  */
-  revalidateInputs(): boolean {
-    this.#assertActive()
-    if (this.#resolutionError !== null || this.#runner !== null) return false
-    const current = [this.#builtRevision, this.#activatingRevision, this.#activeRevision, this.#lastWorkingRevision]
-      .map((revision) => this.#record(revision))
-      .find((record) => record !== null && record.generation === this.#generation) ?? null
-    if (current === null) return false
-    const verified = this.#verifyPersistedInputFingerprint(current.inputFingerprint)
-    if (verified !== null) {
-      current.inputFingerprint = verified
-      this.#inputFreshness = "verified"
-      return false
-    }
-    this.#advanceGeneration(
-      "Storybook build inputs no longer match verified evidence",
-      Object.freeze({owner: "check", reason: "input-changed"}),
-    )
-    return true
   }
 
   subscribe(): () => void {
@@ -277,8 +235,19 @@ export default class StorybookPackageSession implements PackageSession.Output {
     }
   }
 
-  build(demand?: StorybookPackageBuildDemand): Promise<StorybookPackageSessionSnapshot> {
-    return this.ensureBuilt(demand)
+  /** Явная сборка создаёт нового кандидата; одновременные запросы разделяют текущую работу. */
+  build(demand: StorybookPackageBuildDemand = Object.freeze({owner: "check"})): Promise<StorybookPackageSessionSnapshot> {
+    this.#assertActive()
+    const reason = demand.reason ?? (this.#failedRevision !== null || this.#standardRestoreError !== null
+      ? "explicit-retry" : "explicit-build")
+    if (this.#standardRestoreError !== null) {
+      this.#standardRestoreError = null
+      this.#diagnostics = Object.freeze([])
+    }
+    if (this.#runner === null && this.#completedGeneration >= this.#generation && this.#resolutionError === null) {
+      this.#advanceGeneration("Storybook explicit rebuild", {...demand, reason})
+    }
+    return this.ensureBuilt({...demand, reason})
   }
 
   retryFailed(): boolean {
@@ -379,7 +348,7 @@ export default class StorybookPackageSession implements PackageSession.Output {
     if (!Number.isSafeInteger(input.frameSequence) || input.frameSequence < 1) {
       throw new Error(`Storybook activation frame sequence is invalid: ${String(input.frameSequence)}`)
     }
-    if (record.generation !== this.#generation || record.declarationDigest !== this.descriptor.declarationDigest) {
+    if (record.generation !== this.#generation) {
       throw new Error(`Storybook activation acknowledgement is stale: ${this.packageId}:${record.revision}`)
     }
     if (this.#standard === "strict" && (record.verification?.status !== "passed" || record.warnings.length > 0)) {
@@ -451,12 +420,6 @@ export default class StorybookPackageSession implements PackageSession.Output {
 
   revisionGraphSnapshot(revision: string): ReturnType<PackageRevision.Output["create"]> | null {
     return this.#revisions.get(revision)?.graphSnapshot ?? null
-  }
-
-  /** Подтверждает входы конкретной ревизии перед новым прогоном, по текущим файлам. */
-  revisionInputsMatch(revision: string): boolean {
-    const record = this.#revisions.get(revision)
-    return record !== undefined && this.#verifyPersistedInputFingerprint(record.inputFingerprint) !== null
   }
 
   revisionDirectory(revision = this.#activeRevision ?? this.#lastWorkingRevision ?? this.#builtRevision): string | null {
@@ -540,7 +503,7 @@ export default class StorybookPackageSession implements PackageSession.Output {
     try {
       await this.#prepareBuild?.(controller.signal)
       controller.signal.throwIfAborted()
-      if (this.#disposed || generation !== this.#generation || descriptor !== this.#descriptor) return
+      if (this.#disposed || generation !== this.#generation) return
       const result = await this.#buildScheduler.run({
         operationId,
         packageId: this.packageId,
@@ -588,7 +551,7 @@ export default class StorybookPackageSession implements PackageSession.Output {
         } finally {
           releaseWorker()
         }
-        if (this.#disposed || controller.signal.aborted || generation !== this.#generation || descriptor !== this.#descriptor) {
+        if (this.#disposed || controller.signal.aborted || generation !== this.#generation) {
           return built
         }
         context.setPhase("publish")
@@ -597,26 +560,23 @@ export default class StorybookPackageSession implements PackageSession.Output {
         if (this.#standard === "strict" && (verification?.status !== "passed" || (built.warnings?.length ?? 0) > 0)) {
           throw diagnosticError("validate", "Строгий пакет требует полного подтверждения стандарта без предупреждений")
         }
-        if (built.inputFingerprint !== undefined) requiredInputFingerprint(built.inputFingerprint)
         if (existsSync(finalDirectory)) throw diagnosticError("publish", "Revision directory already exists", finalDirectory)
         mkdirSync(resolve(finalDirectory, ".."), {recursive: true})
         renameSync(stagingDirectory, finalDirectory)
         return built
       }, controller.signal)
       outcome = "completed"
-      if (this.#disposed || controller.signal.aborted || generation !== this.#generation || descriptor !== this.#descriptor) return
+      if (this.#disposed || controller.signal.aborted || generation !== this.#generation) return
       const record: RevisionRecord = {
         revision: candidate,
         generation,
         status: "built",
         declarationDigest: descriptor.declarationDigest,
+        packageRoot: descriptor.packageRoot,
         graphSnapshot: descriptor.graphSnapshot,
         moduleGraphRevision: result.moduleGraphRevision,
         ...(result.sharedModuleEpoch === undefined ? {} : {sharedModuleEpoch: result.sharedModuleEpoch}),
         dependencyRealpaths: Object.freeze(result.dependencyRealpaths.map(safeRealpath)),
-        inputFingerprint: result.inputFingerprint === undefined
-          ? null
-          : requiredInputFingerprint(result.inputFingerprint),
         verification: Standard.readVerification(result.verification),
         warnings: Object.freeze([...(result.warnings ?? [])]),
         entryRelativePath: result.entryRelativePath,
@@ -631,7 +591,6 @@ export default class StorybookPackageSession implements PackageSession.Output {
       this.#candidateRevision = null
       this.#diagnostics = Object.freeze([])
       this.#buildState = "built"
-      this.#inputFreshness = record.inputFingerprint === null ? "unverified" : "verified"
       this.#publish(Object.freeze({
         type: "package.built",
         packageId: this.packageId,
@@ -642,7 +601,7 @@ export default class StorybookPackageSession implements PackageSession.Output {
     } catch (error) {
       rmSync(stagingDirectory, {recursive: true, force: true})
       outcome = controller.signal.aborted ? "canceled" : isTimeoutBuildError(error) ? "timed-out" : "failed"
-      if (this.#disposed || controller.signal.aborted || generation !== this.#generation || descriptor !== this.#descriptor) return
+      if (this.#disposed || controller.signal.aborted || generation !== this.#generation) return
       const diagnostics = diagnosticsFromError(error)
       this.#candidateRevision = null
       this.#failedRevision = candidate
@@ -675,7 +634,6 @@ export default class StorybookPackageSession implements PackageSession.Output {
   ): void {
     this.#generation += 1
     this.#generationDemands.set(this.#generation, normalizeDemand(demand, "input-changed"))
-    this.#inputFreshness = "changed"
     this.#cacheOutcome = null
     if (cancelRunningBuild) this.#runningBuild?.controller.abort(new DOMException(reason, "AbortError"))
     this.#cancelActivation()
@@ -686,9 +644,7 @@ export default class StorybookPackageSession implements PackageSession.Output {
 
   #defaultDemand(owner: Exclude<StorybookBuildOwner, "shared">): NormalizedStorybookPackageBuildDemand {
     const pending = this.#generationDemands.get(this.#generation)
-    const reason: StorybookBuildReason = this.#activeRevision !== null && this.#builds === 0
-      ? "receipt-unverified"
-      : pending?.reason ?? (this.#revisions.size === 0 ? "missing" : "input-changed")
+    const reason: StorybookBuildReason = pending?.reason ?? (this.#revisions.size === 0 ? "missing" : "explicit-retry")
     return Object.freeze({
       owner,
       reason,
@@ -779,13 +735,12 @@ export default class StorybookPackageSession implements PackageSession.Output {
     const standard = Standard.applied(this.#standard, record.verification, record.warnings)
     try {
       writeFileSync(temporary, JSON.stringify({
-        version: record.inputFingerprint === null ? 1 : 2,
-        packageId: this.packageId, packageRoot: this.descriptor.packageRoot,
+        version: 1,
+        packageId: this.packageId, packageRoot: record.packageRoot,
         revision: record.revision, declarationDigest: record.declarationDigest,
         graphSnapshot: record.graphSnapshot, moduleGraphRevision: record.moduleGraphRevision,
         ...(record.sharedModuleEpoch === undefined ? {} : {sharedModuleEpoch: record.sharedModuleEpoch}),
         entryRelativePath: record.entryRelativePath, dependencyRealpaths: record.dependencyRealpaths,
-        ...(record.inputFingerprint === null ? {} : {inputFingerprint: record.inputFingerprint}),
         standard, verification: record.verification, warnings: record.warnings,
         createdAt: record.createdAt,
       }), {mode: 0o600, flag: "wx"})
@@ -815,20 +770,11 @@ export default class StorybookPackageSession implements PackageSession.Output {
         return
       }
       const graphSnapshot = Revision.validate(value.graphSnapshot, this.packageId)
-      validateBuildResult(value, this.#revisionDirectory(value.revision))
-      const persistedFingerprint = value.version === 2
-        ? BuildInputs.parse(value.inputFingerprint)
-        : null
-      if (relocated && value.version === 2 && persistedFingerprint === null) {
-        throw new Error("Relocated revision receipt has invalid input evidence")
-      }
-      const verifiedFingerprint = relocated || persistedFingerprint === null
-        ? null
-        : this.#verifyPersistedInputFingerprint(persistedFingerprint)
-      const restoredGeneration = verifiedFingerprint === null ? 0 : this.#generation
+      const directory = this.#revisionDirectory(value.revision)
+      validateBuildResult(value, directory)
       const record: RevisionRecord = {
-        revision: value.revision, generation: restoredGeneration, status: "working",
-        declarationDigest: graphSnapshot.declarationDigest, graphSnapshot,
+        revision: value.revision, generation: this.#generation, status: "working",
+        declarationDigest: graphSnapshot.declarationDigest, packageRoot: value.packageRoot, graphSnapshot,
         ...(value.sharedModuleEpoch === undefined ? {} : {sharedModuleEpoch: requiredKernelEpoch(value.sharedModuleEpoch)}),
         moduleGraphRevision: value.moduleGraphRevision, entryRelativePath: value.entryRelativePath,
         dependencyRealpaths: Object.freeze(value.dependencyRealpaths.map((path: unknown) => {
@@ -836,7 +782,6 @@ export default class StorybookPackageSession implements PackageSession.Output {
           if (!isAbsolute(checked)) throw new Error("Applied dependency path must be absolute")
           return checked
         })),
-        inputFingerprint: verifiedFingerprint ?? persistedFingerprint,
         verification: Standard.readVerification(value.verification),
         warnings: Object.freeze((value.warnings ?? []).map((warning: unknown) => {
           if (!isDiagnostic(warning)) throw new Error("Некорректное предупреждение сохранённой ревизии")
@@ -855,28 +800,12 @@ export default class StorybookPackageSession implements PackageSession.Output {
       this.#activeRevision = record.revision
       this.#lastWorkingRevision = record.revision
       this.#buildState = "active"
-      this.#inputFreshness = verifiedFingerprint === null ? "unverified" : "verified"
-      if (verifiedFingerprint !== null) {
-        this.#completedGeneration = this.#generation
-        this.#cacheOutcome = Object.freeze({status: "hit", layer: "receipt"})
-      }
+      this.#completedGeneration = this.#generation
+      this.#cacheOutcome = Object.freeze({status: "hit", layer: "receipt"})
     } catch (error) {
       this.#standardRestoreError = error instanceof Error ? error.message : String(error)
       this.#diagnostics = Object.freeze([storybookDiagnostic("publish", this.#standardRestoreError, path)])
       this.#buildState = "failed"
-    }
-  }
-
-  #verifyPersistedInputFingerprint(value: unknown): StorybookBuildInputFingerprint | null {
-    const persisted = BuildInputs.parse(value)
-    if (this.#verifyInputFingerprint === null || persisted === null) return null
-    try {
-      const verified = this.#verifyInputFingerprint(persisted, this.#descriptor)
-      return BuildInputs.same(persisted, verified)
-        ? BuildInputs.parse(verified)
-        : null
-    } catch {
-      return null
     }
   }
 
@@ -961,7 +890,7 @@ function normalizeDescriptor(value: StorybookPackageBuildDescriptor): StorybookP
     }
     const contentDigest = file.contentDigest
     if (file.derivedContent !== undefined && (typeof file.derivedContent !== "string" || contentDigest === undefined || sourceRoot === undefined)) {
-      throw new Error(`Derived revision resource requires attested source: ${targetPath}`)
+      throw new Error(`Derived revision resource requires exact source attribution: ${targetPath}`)
     }
     if (contentDigest !== undefined && !/^[a-f0-9]{64}$/u.test(contentDigest)) {
       throw new Error(`Invalid Storybook revision resource content digest: ${targetPath}`)
@@ -1020,7 +949,10 @@ function sameDescriptor(left: StorybookPackageBuildDescriptor, right: StorybookP
 
 
 
-function validateBuildResult(result: StorybookPackageRevisionBuild, stagingDirectory: string): void {
+function validateBuildResult(
+  result: Pick<StorybookPackageRevisionBuild, "moduleGraphRevision" | "sharedModuleEpoch" | "dependencyRealpaths" | "entryRelativePath">,
+  stagingDirectory: string,
+): void {
   if (result === null || typeof result !== "object") throw diagnosticError("compile", "Package build returned no result")
   if (result.sharedModuleEpoch !== undefined) requiredKernelEpoch(result.sharedModuleEpoch)
   requiredText("moduleGraphRevision", result.moduleGraphRevision)
@@ -1028,16 +960,10 @@ function validateBuildResult(result: StorybookPackageRevisionBuild, stagingDirec
     throw diagnosticError("compile", "Package build returned no dependency graph")
   }
   const entry = resolve(stagingDirectory, result.entryRelativePath)
-  if (!entry.startsWith(`${resolve(stagingDirectory)}/`) || !existsSync(entry)) {
+  if (!entry.startsWith(`${resolve(stagingDirectory)}/`) || !existsSync(entry) ||
+    !lstatSync(entry).isFile() || lstatSync(entry).isSymbolicLink()) {
     throw diagnosticError("publish", "Package build entry is missing or escaped staging", entry)
   }
-}
-
-/** Отклоняет malformed evidence до атомарной публикации candidate directory. */
-function requiredInputFingerprint(value: unknown): StorybookBuildInputFingerprint {
-  const fingerprint = BuildInputs.parse(value)
-  if (fingerprint === null) throw diagnosticError("compile", "Package build returned an invalid input fingerprint")
-  return fingerprint
 }
 
 function candidateRevision(descriptor: StorybookPackageBuildDescriptor, build: number): string {
@@ -1078,7 +1004,7 @@ function normalizeDemand(
     throw new Error(`Unknown Storybook package build owner: ${String(demand.owner)}`)
   }
   const reason = demand.reason ?? fallbackReason
-  if (!["missing", "input-changed", "receipt-unverified", "explicit-retry", "toolchain-changed"].includes(reason)) {
+  if (!["missing", "input-changed", "receipt-unverified", "explicit-build", "explicit-retry", "toolchain-changed"].includes(reason)) {
     throw new Error(`Unknown Storybook package build reason: ${String(demand.reason)}`)
   }
   return Object.freeze({...demand, reason})

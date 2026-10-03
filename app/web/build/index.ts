@@ -1,6 +1,6 @@
 /**
-Готовит статичную Web-оболочку на проверенной общей среде и сохраняет её ревизии.
-Сборка, worker, кэш и receipt используют один Web-владелец и точные исходные входы.
+Собирает Web-оболочку и атомарно публикует готовый результат.
+Ошибка подготовки сохраняет ранее опубликованные ресурсы.
 
 @packageDocumentation
 */
@@ -8,7 +8,6 @@ import {StorybookSharedBrowserAssets} from "./src/assets"
 import {buildSharedBrowserAssets} from "./src/browser-build"
 import {runSharedBrowserBuild} from "./src/builder"
 import {
-  readSharedBrowserReceipt,
   readPublishedSharedBrowserReceipt,
   saveSharedBrowserCandidate,
   readSharedBrowserEpoch,
@@ -40,7 +39,6 @@ const build: AppWebBuild.Output = Object.freeze({
   Assets: StorybookSharedBrowserAssets,
   buildAssets: buildSharedBrowserAssets,
   runWorker: runSharedBrowserBuild,
-  readReceipt: readSharedBrowserReceipt,
   readPublishedReceipt: readPublishedSharedBrowserReceipt,
   saveCandidate: saveSharedBrowserCandidate,
   readEpoch: readSharedBrowserEpoch,

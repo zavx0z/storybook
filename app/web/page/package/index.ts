@@ -47,8 +47,6 @@ const buildProgressStatus = WebStatusOwner.build
 const catalogProgressStatus = WebStatusOwner.catalog
 const readBuildProgress = WebStatusOwner.readBuild
 const readCatalogProgress = WebStatusOwner.readCatalog
-const readSharedCacheProgress = WebStatusOwner.readSharedCache
-const sharedCacheProgressStatus = WebStatusOwner.sharedCache
 import type {PagePackage} from "./contract"
 type StartExternalStorybookPackageInput = PagePackage.Input
 type ExternalStorybookPackageController = PagePackage.Output
@@ -917,13 +915,6 @@ async function startExternalStorybookPackage(
       shell.updateStatus(packageBuildActive && catalogProgress.state === "completed"
         ? packageBuildStatusText
         : catalogProgressStatus(catalogProgress))
-      return
-    }
-    const sharedCacheProgress = readSharedCacheProgress(raw)
-    if (sharedCacheProgress !== null) {
-      shell.updateStatus(packageBuildActive && sharedCacheProgress.state === "completed"
-        ? packageBuildStatusText
-        : sharedCacheProgressStatus(sharedCacheProgress))
       return
     }
     if (raw?.type === "package.applied-state" && raw.packageId === packageId) {

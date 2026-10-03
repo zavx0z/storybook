@@ -17,7 +17,6 @@ export function seedPublishedSharedAssets(artifactRoot: string): void {
   const modules = BuildEnvironmentOwner.createModuleEntries(toolRoot, join(artifactRoot, "identity-entries"))
     .map(({specifier, sourcePath}) => ({specifier, sourcePath,
       url: `/__storybook/shared/kernel/${digest(specifier)}.js`}))
-  const sources = BuildEnvironmentOwner.sourceFiles(modules)
   const theme = AppWebBuildOwner.readTheme(toolRoot)[0]!
   const stylePath = `styles/${theme.contentDigest}.css`
   const paths = ["entries/page.js", "entries/bootstrap.js",
@@ -29,14 +28,13 @@ export function seedPublishedSharedAssets(artifactRoot: string): void {
   mkdirSync(dirname(join(root, stylePath)), {recursive: true})
   writeFileSync(join(root, stylePath), readFileSync(theme.path))
   const identity = BuildEnvironmentOwner.identity("/__storybook/shared/entries/page.js", modules,
-    digest("fixture host"), sources)
+    digest("fixture host"))
   AppWebBuildOwner.saveReceipt({
     root,
     landingEntry: paths[0]!,
     fallbackEntry: paths[0]!,
     bootstrapEntry: paths[1]!,
     browserIdentity: identity,
-    dependencyRealpaths: [...sources.map(source => source.path), theme.path],
     authorStyleSheets: [{specifier: theme.specifier, url: stylePath, contentDigest: theme.contentDigest}],
     artifactDigests: [...paths.map(path => ({path, digest: digest(bytes)})),
       {path: stylePath, digest: theme.contentDigest}],

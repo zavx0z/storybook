@@ -14,9 +14,8 @@ export declare namespace AppWebBuild {
     buildAssets(input: SharedBrowserBuildInput, onPhase?: SharedBrowserBuildPhaseListener): Promise<SharedBrowserAssets>
     runWorker(input: Omit<SharedBrowserBuildInput, "stagingDirectory">,
       context: SharedBrowserBuildOperationContext, timeoutMs: number, workerPath?: string): Promise<SharedBrowserAssets>
-    readReceipt(input: SharedBrowserBuildInput, verifyInputs?: boolean): SharedBrowserAssets | null
     readPublishedReceipt(input: SharedBrowserBuildInput): SharedBrowserAssets | null
-    saveCandidate(assets: SharedBrowserAssets, latest: boolean): void
+    saveCandidate(assets: SharedBrowserAssets): void
     readEpoch(root: string, epoch: string, hostEpoch?: string,
       onRejected?: (reason: string) => void): SharedBrowserAssets | null
     saveReceipt(assets: SharedBrowserAssets, current?: boolean): void

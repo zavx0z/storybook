@@ -8,7 +8,6 @@
 import {
   resolveStorybookCompilerSourceRoots,
   resolveStorybookPackageCompilerInputs,
-  resolveStorybookCompilerControlFiles,
   createStorybookOwnerResolver,
   createStorybookOwnerSourcePath,
   createStorybookPackageCompilerPlugins,
@@ -34,7 +33,6 @@ const Compiler: BuildCompiler.Output = Object.freeze({
   exactFile: canonicalLexicalFile,
   resolveStorybookCompilerSourceRoots,
   resolveStorybookPackageCompilerInputs,
-  resolveStorybookCompilerControlFiles,
   createStorybookOwnerResolver,
   createStorybookOwnerSourcePath,
   createStorybookPackageCompilerPlugins,

@@ -20,10 +20,11 @@ export declare namespace PackageSession {
     setResolutionError(message: string | null): void
     reconfigure(descriptor: StorybookPackageBuildDescriptor): boolean
     snapshot(): StorybookPackageSessionSnapshot
-    revalidateInputs(): boolean
     subscribe(): () => void
+    /** Явная пересборка. Одновременные запросы разделяют уже исполняемый заказ. */
     build(demand?: StorybookPackageBuildDemand): Promise<StorybookPackageSessionSnapshot>
     retryFailed(): boolean
+    /** Открытие использует готовую ревизию; при её отсутствии заказывает подготовку. */
     ensureBuilt(demand?: StorybookPackageBuildDemand): Promise<StorybookPackageSessionSnapshot>
     beginActivation(input: Readonly<{revision: string, viewId: string, route: string, timeoutMs?: number}>): StorybookPackageActivation
     acknowledgeActivation(input: Readonly<{
@@ -41,7 +42,6 @@ export declare namespace PackageSession {
     }>): StorybookPackageSessionSnapshot
     acquireRevisionLease(revision: string, leaseId?: string): Readonly<{leaseId: string, revision: string, release(): void}>
     revisionGraphSnapshot(revision: string): ReturnType<PackageRevision.Output["create"]> | null
-    revisionInputsMatch(revision: string): boolean
     revisionDirectory(revision?: string | null): string | null
     dispose(): Promise<void>
   }

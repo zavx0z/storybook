@@ -6,7 +6,7 @@
 @packageDocumentation
 */
 import type {WebStatus} from "./contract"
-import type {BuildProgress, CatalogProgress, SharedCacheProgress} from "./contract/progress"
+import type {BuildProgress, CatalogProgress} from "./contract/progress"
 import type {PackageBuildState} from "./contract/package"
 import {phaseLabels, reasonLabels} from "./src/labels"
 import {validCache} from "./src/cache"
@@ -46,18 +46,6 @@ const status: WebStatus.Output = Object.freeze<WebStatus.Output>({
       : null
   },
 
-  /** Принимает bounded факт проверки горячего shared cache. */
-  readSharedCache(value: unknown): SharedCacheProgress | null {
-    if (value === null || typeof value !== "object") return null
-    const event = value as Record<string, unknown>
-    if (event.type !== "shared.cache-progress" ||
-      (event.state !== "started" && event.state !== "completed") ||
-      event.hit !== undefined && typeof event.hit !== "boolean") return null
-    if (event.state === "started" && event.hit !== undefined) return null
-    if (event.state === "completed" && typeof event.hit !== "boolean") return null
-    return event as SharedCacheProgress
-  },
-
   /**
 Описывает реально наблюдаемый этап; успешная компиляция не означает применение.
 
@@ -79,14 +67,6 @@ const status: WebStatus.Output = Object.freeze<WebStatus.Output>({
       if (event.packageId === null) return `${owner} · Локальные ресурсы готовы`
       return `${owner} · Кандидат собран; ожидание проверки и применения`
     }
-    if (event.phase === "cache") {
-      if (event.cache?.status === "hit") return `${owner} · Сохранённая сборка подтверждена`
-      if (event.cache?.status === "miss") return `${owner} · Сохранённая сборка не подходит; полная сборка`
-      return `${owner} · Проверка сохранённой сборки`
-    }
-    if (event.phase === "fingerprint" && event.reason === "receipt-unverified") {
-      return `${owner} · Проверка входов и сохранённого результата`
-    }
     return `${owner} · ${phaseLabels[event.phase]}`
   },
 
@@ -95,14 +75,6 @@ const status: WebStatus.Output = Object.freeze<WebStatus.Output>({
     if (event.state === "running") return "Каталог · Поиск пакетов и чтение деклараций"
     if (event.state === "completed") return "Каталог · Структура обновлена"
     return "Каталог · Ошибка обновления структуры"
-  },
-
-  /** Описывает только действительную проверку in-memory shared cache. */
-  sharedCache(event: SharedCacheProgress): string {
-    if (event.state === "started") return "Оболочка Storybook · Проверка текущей сборки"
-    return event.hit === true
-      ? "Оболочка Storybook · Текущая сборка подтверждена"
-      : "Оболочка Storybook · Текущая сборка устарела; подготовка новой"
   },
 
   /**

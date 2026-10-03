@@ -155,7 +155,6 @@
         "@hmr/activation": "workspace:*",
         "@mcp-rest/requests": "workspace:*",
         "@mcp/rest": "workspace:*",
-        "@package-build/fingerprint": "workspace:*",
         "@package-build/prepare": "workspace:*",
         "@package-build/scheduler": "workspace:*",
         "@package-graph/read": "workspace:*",
@@ -281,9 +280,7 @@
         "@build/artifacts": "workspace:*",
         "@build/compiler": "workspace:*",
         "@build/environment": "workspace:*",
-        "@build/inputs": "workspace:*",
         "@build/worker": "workspace:*",
-        "@package-build/inputs": "workspace:*",
         "@package-build/scheduler": "workspace:*",
         "@package/revision": "workspace:*",
         "@zavx0z/ui": "^0.0.0",
@@ -768,19 +765,6 @@
         "@repo/discovery": "workspace:*",
       },
     },
-    "package/build/fingerprint": {
-      "name": "@package-build/fingerprint",
-      "version": "0.0.0",
-      "dependencies": {
-        "@build/environment": "workspace:*",
-        "@build/inputs": "workspace:*",
-        "@package-build/plan": "workspace:*",
-        "@package/session": "workspace:*",
-      },
-      "devDependencies": {
-        "@package/revision": "workspace:*",
-      },
-    },
     "package/build/inputs": {
       "name": "@package-build/inputs",
       "version": "0.0.0",
@@ -799,31 +783,16 @@
         "@zavx0z/template": "^0.0.0",
       },
     },
-    "package/build/plan": {
-      "name": "@package-build/plan",
-      "version": "0.0.0",
-      "dependencies": {
-        "@build/compiler": "workspace:*",
-        "@build/environment": "workspace:*",
-        "@build/inputs": "workspace:*",
-      },
-      "devDependencies": {
-        "@package/revision": "workspace:*",
-        "@package/session": "workspace:*",
-      },
-    },
     "package/build/prepare": {
       "name": "@package-build/prepare",
       "version": "0.0.0",
       "dependencies": {
         "@build/compiler": "workspace:*",
         "@build/environment": "workspace:*",
-        "@build/inputs": "workspace:*",
         "@build/worker": "workspace:*",
         "@package-build/conformance": "workspace:*",
         "@package-build/inputs": "workspace:*",
         "@package-build/loader": "workspace:*",
-        "@package-build/plan": "workspace:*",
         "@package-build/scenarios": "workspace:*",
         "@package-build/scheduler": "workspace:*",
         "@package/session": "workspace:*",
@@ -833,7 +802,6 @@
         "@archetypes/scenario-reader": "workspace:*",
         "@archetypes/spec-reader": "workspace:*",
         "@immersive/headless": "^0.0.0",
-        "@package-build/fingerprint": "workspace:*",
         "@package-graph/create": "workspace:*",
         "@package/revision": "workspace:*",
         "@repo/discovery": "workspace:*",
@@ -1023,7 +991,6 @@
       "name": "@package/session",
       "version": "0.0.0",
       "dependencies": {
-        "@build/inputs": "workspace:*",
         "@build/worker": "workspace:*",
         "@package-build/scheduler": "workspace:*",
         "@package/revision": "workspace:*",
@@ -1214,10 +1181,6 @@
     },
     "tech/build/environment/protocol": {
       "name": "@build-environment/protocol",
-      "version": "0.0.0",
-    },
-    "tech/build/inputs": {
-      "name": "@build/inputs",
       "version": "0.0.0",
     },
     "tech/build/queue": {
@@ -1423,8 +1386,6 @@
 
     "@build/environment": ["@build/environment@workspace:tech/build/environment"],
 
-    "@build/inputs": ["@build/inputs@workspace:tech/build/inputs"],
-
     "@build/queue": ["@build/queue@workspace:tech/build/queue"],
 
     "@build/worker": ["@build/worker@workspace:tech/build/worker"],
@@ -1539,13 +1500,9 @@
 
     "@package-build/descriptor": ["@package-build/descriptor@workspace:package/build/descriptor"],
 
-    "@package-build/fingerprint": ["@package-build/fingerprint@workspace:package/build/fingerprint"],
-
     "@package-build/inputs": ["@package-build/inputs@workspace:package/build/inputs"],
 
     "@package-build/loader": ["@package-build/loader@workspace:package/build/loader"],
-
-    "@package-build/plan": ["@package-build/plan@workspace:package/build/plan"],
 
     "@package-build/prepare": ["@package-build/prepare@workspace:package/build/prepare"],
 

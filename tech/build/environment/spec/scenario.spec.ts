@@ -10,11 +10,10 @@ describe.each([
   {name: "Новый модуль платформы", props: {entry: "/__storybook/shared/entries/package-b.js", moduleUrl: "/__storybook/shared/kernel/dom-b.js", epoch: "c61301e15669e35e2fe9c22979a0096a5fc7646bebdfc48be01e91313f2c295a"}},
 ])("$name", ({props}) => {
   const modules = [{specifier: "@zavx0z/dom", sourcePath, url: props.moduleUrl}]
-  const sourceFiles = [{path: sourcePath, contentDigest: "b".repeat(64)}]
-  const identity = Environment.identity(props.entry, modules, hostEpoch, sourceFiles, false)
+  const identity = Environment.identity(props.entry, modules, hostEpoch)
 
   test("Эпоха платформы", () => {
-    expect(identity.epoch, "Fingerprint задан набором specifier и URL модулей; разные байты модуля меняют browser epoch").toBe(props.epoch)
+    expect(identity.epoch, "Эпоха задана набором specifier и URL модулей; разные байты модуля меняют browser epoch").toBe(props.epoch)
   })
   test("Вход пакета", () => {
     expect(identity.packageEntryUrl, "Конкретный host entry сохраняется отдельно от эпохи общей платформы").toBe(props.entry)

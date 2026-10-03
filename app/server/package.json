@@ -29,7 +29,6 @@
     "@mcp-rest/requests": "workspace:*",
     "@repo/discovery": "workspace:*",
     "@package-build/prepare": "workspace:*",
-    "@package-build/fingerprint": "workspace:*",
     "@package-build/scheduler": "workspace:*",
     "@package/resources": "workspace:*",
     "@tech/limits": "workspace:*",

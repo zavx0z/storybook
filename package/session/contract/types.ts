@@ -9,8 +9,6 @@ type StorybookBuildReason = Parameters<PackageBuildSchedulerContract.Output["run
 type TransportEvent = NonNullable<ReturnType<typeof import("@package-build/scheduler").default.parseStorybookBuildWorkerTransportEvent>>
 type StorybookBuildPhaseListener = (event: Extract<TransportEvent, {kind: "phase"}>["event"]) => void
 type StorybookBuildWorkerLifecycleListener = NonNullable<BuildWorker.Input<unknown, unknown>["onLifecycle"]>
-import type {BuildInputs} from "@build/inputs"
-type StorybookBuildInputFingerprint = BuildInputs.Output
 import type {PackageRevision} from "@package/revision"
 import type {PackageStandard} from "@package/standard"
 
@@ -26,7 +24,7 @@ export type StorybookPackageRevisionResourceFile = Readonly<{
   sourceRoot?: string
   targetPath: string
   contentDigest?: string
-  /** Derived text, published only after attesting its exact source bytes. */
+  /** Готовый снимок производного текста с разрешённой принадлежностью sourceRoot/sourcePath. */
   derivedContent?: string
 }>
 
@@ -56,7 +54,6 @@ export type StorybookPackageDiagnostic = Readonly<{
 export type StorybookPackageBuildState =
   | "idle" | "queued" | "compiling" | "building" | "built" | "activating" | "active" | "failed" | "disposed" | "ready"
 export type StorybookPackageRevisionStatus = "built" | "activating" | "working" | "failed"
-export type StorybookPackageInputFreshness = "unknown" | "verified" | "unverified" | "changed"
 
 export type StorybookPackageRevisionSnapshot = Readonly<{
   revision: string
@@ -105,13 +102,12 @@ export type StorybookPackageSessionSnapshot = Readonly<{
   lastExecutionDurationMs?: number | null
   lastBuildOutcome?: StorybookBuildOutcome | null
   cacheOutcome?: Readonly<{status: StorybookBuildCacheStatus, layer: StorybookBuildCacheLayer}> | null
-  inputFreshness?: StorybookPackageInputFreshness
 }>
 
 /**
 Причина demand, передаваемая package queue в общий scheduler.
 
-Owner обозначает источник решения строить, а reason — проверяемую причину miss;
+Owner обозначает источник решения строить, а reason — причину заказа работы;
 это не разрешение автоматически применять построенный candidate.
 */
 export type StorybookPackageBuildDemand = Readonly<{
@@ -140,21 +136,9 @@ export type StorybookPackageRevisionBuild = Readonly<{
   sharedModuleEpoch?: string
   dependencyRealpaths: readonly string[]
   entryRelativePath: string
-  inputFingerprint?: StorybookBuildInputFingerprint
   verification?: StorybookPackageVerification
   warnings?: readonly StorybookPackageDiagnostic[]
 }>
-
-/**
-Owner-provided проверка persisted fingerprint против текущего descriptor и bytes.
-
-`null` означает любой unverifiable/mismatched случай и никогда не разрешает
-выравнивать restored generation с текущей.
-*/
-export type StorybookPackageInputFingerprintVerifier = (
-  value: unknown,
-  descriptor: StorybookPackageBuildDescriptor,
-) => StorybookBuildInputFingerprint | null
 
 export type StorybookPackageRevisionBuilder = (input: Readonly<{
   descriptor: StorybookPackageBuildDescriptor
@@ -184,7 +168,6 @@ export type StorybookPackageSessionOptions = Readonly<{
   buildRevision: StorybookPackageRevisionBuilder
   /** Подготавливает общие зависимости до занятия единственного compiler slot. */
   prepareBuild?(signal: AbortSignal): Promise<void>
-  verifyInputFingerprint?: StorybookPackageInputFingerprintVerifier
   publish?(event: StorybookPackageEvent): void
   buildScheduler?: StorybookBuildScheduler
   compileTimeoutMs?: number

@@ -9,7 +9,6 @@ export type WebFailure = Readonly<{message: string, at: string}>
 
 export type WebEvent = Readonly<{type: "shared.updated", host: WebHost, entry: string}>
   | Readonly<{type: "shared.failed", message: string}>
-  | Readonly<{type: "shared.cache-progress", state: "started" | "completed", hit?: boolean}>
   | Readonly<{type: "app.web", state: WebState}>
 
 export type WebPreparation = Readonly<{

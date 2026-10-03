@@ -24,18 +24,6 @@ test("catalog progress выводит только фактические гра
   expect(Status.readCatalog({type: "catalog.progress", state: "invented"})).toBeNull()
 })
 
-test("shared cache progress не создаёт фиктивную scheduler job", () => {
-  expect(Status.sharedCache(Status.readSharedCache({
-    type: "shared.cache-progress",
-    state: "started",
-  })!)).toContain("Проверка текущей сборки")
-  expect(Status.sharedCache(Status.readSharedCache({
-    type: "shared.cache-progress",
-    state: "completed",
-    hit: true,
-  })!)).toContain("подтверждена")
-  expect(Status.readSharedCache({type: "shared.cache-progress", state: "completed"})).toBeNull()
-})
 
 test("каждая реальная фаза сборки получает отдельную короткую строку", () => {
   const common = {
@@ -50,8 +38,6 @@ test("каждая реальная фаза сборки получает от�
   const expected = {
     admission: "Подготовка компилятора",
     discovery: "Поиск и разбор каталога",
-    cache: "Проверка сохранённой сборки",
-    fingerprint: "Проверка входов и ресурсов",
     resources: "Проверка и публикация ресурсов",
     exports: "Проверка экспортов",
     bundle: "Компиляция интерфейса",

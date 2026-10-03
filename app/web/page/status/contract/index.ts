@@ -1,4 +1,4 @@
-import type {BuildProgress, CatalogProgress, SharedCacheProgress} from "./progress"
+import type {BuildProgress, CatalogProgress} from "./progress"
 import type {PackageBuildState} from "./package"
 
 export declare namespace WebStatus {
@@ -8,11 +8,8 @@ export declare namespace WebStatus {
     readBuild(value: unknown): BuildProgress | null
     /** Различает реальные границы catalog refresh. */
     readCatalog(value: unknown): CatalogProgress | null
-    /** Принимает факт проверки shared cache без фиктивной scheduler job. */
-    readSharedCache(value: unknown): SharedCacheProgress | null
     build(event: BuildProgress): string
     catalog(event: CatalogProgress): string
-    sharedCache(event: SharedCacheProgress): string
     packageEvent(packageId: string, type: string): string
     packageBuild(packageId: string, state: PackageBuildState): string
     connection(state: "connecting" | "connected" | "reconnected" | "disconnected"): string

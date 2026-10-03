@@ -19,14 +19,14 @@ test("причина отказа shared worker сохраняется посл�
     'const [, resultPath, workerId] = process.argv.slice(2)',
     `console.log(JSON.stringify({protocol: ${JSON.stringify(Scheduler.STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL)}, kind: "ready", workerId, pid: process.pid}))`,
     'process.stderr.write("compiler warning\\n".repeat(10_000))',
-    'writeFileSync(resultPath, JSON.stringify({error: "exact input attestation failure"}))',
+    'writeFileSync(resultPath, JSON.stringify({error: "exact compilation failure"}))',
     'process.exitCode = 1',
   ].join("\n"))
   const scheduler = new Scheduler()
   try {
     await expect(scheduler.run({packageId: null, owner: "shared", reason: "missing", generation: null}, context =>
       runSharedBrowserBuild({root: join(root, "assets"), toolRoot: root, landingEntryPath: "", fallbackEntryPath: ""}, context, 2_000, join(root, "build/shared-browser-worker.ts")),
-    new AbortController().signal)).rejects.toThrow("exact input attestation failure")
+    new AbortController().signal)).rejects.toThrow("exact compilation failure")
     expect(scheduler.snapshot().recent[0]?.outcome).toBe("failed")
     expect(readdirSync(root)).toEqual(["build"])
   } finally { scheduler.dispose() }

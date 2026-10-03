@@ -23,12 +23,12 @@ function fixture() {
       mkdirSync(dirname(join(root, path)), {recursive: true})
       writeFileSync(join(root, path), `${version}:${path}`)
     }
-    return {root, landingEntry: paths[1]!, fallbackEntry: paths[1]!, bootstrapEntry: paths[2]!, dependencyRealpaths: [source],
+    return {root, landingEntry: paths[1]!, fallbackEntry: paths[1]!, bootstrapEntry: paths[2]!,
       artifactDigests: paths.map(path => ({path, digest: digest(`${version}:${path}`)})),
       authorStyleSheets: [{specifier: "@zavx0z/ui/theme.css", url: paths[3]!, contentDigest: digest(`${version}:${paths[3]}`)}],
       browserIdentity: Environment.identity(`/__storybook/shared/${paths[1]}`,
         [{specifier: "@zavx0z/component", sourcePath: source, url: `/__storybook/shared/${paths[0]}`}],
-        digest(`host:${version}`), [{path: source, contentDigest: digest(version)}]),
+        digest(`host:${version}`)),
     }
   }
   return {root, source, assets}
@@ -40,7 +40,7 @@ test("предыдущая kernel identity сохраняется после з�
   saveSharedBrowserReceipt(first)
   const second = f.assets("second")
   saveSharedBrowserReceipt(second)
-  expect(() => Environment.validate(first.browserIdentity!)).toThrow("source changed")
+  expect(Environment.validate(first.browserIdentity!)).toEqual(first.browserIdentity!)
   expect(readSharedBrowserEpoch(f.root, first.browserIdentity!.epoch)?.browserIdentity).toEqual(first.browserIdentity)
   expect(readSharedBrowserEpoch(f.root, second.browserIdentity!.epoch)?.bootstrapEntry).toBe(second.bootstrapEntry)
   expect(readSharedBrowserEpoch(f.root, "a".repeat(64))).toBeNull()
@@ -74,9 +74,9 @@ test("подготовленный набор не меняет опублико
   const first = f.assets("first")
   saveSharedBrowserReceipt(first)
   const second = f.assets("second")
-  saveSharedBrowserCandidate(second, true)
+  saveSharedBrowserCandidate(second)
   const variant = {...first, browserIdentity: {...first.browserIdentity!, hostModuleEpoch: second.browserIdentity!.hostModuleEpoch}}
-  saveSharedBrowserCandidate(variant, false)
+  saveSharedBrowserCandidate(variant)
   const input = {root: f.root, toolRoot: f.root, stagingDirectory: f.root, landingEntryPath: "", fallbackEntryPath: ""}
   expect(readPublishedSharedBrowserReceipt(input)?.browserIdentity).toEqual(first.browserIdentity)
   saveSharedBrowserReceipt({...second, compatibleHosts: [{sharedModuleEpoch: first.browserIdentity!.epoch, hostModuleEpoch: second.browserIdentity!.hostModuleEpoch}]})
@@ -96,7 +96,7 @@ test("архивная платформа сохраняет владельце�
   saveSharedBrowserReceipt(second)
   rmSync(f.source)
 
-  expect(() => Environment.validate(historical.browserIdentity)).toThrow("Unknown shared")
+  expect(Environment.validate(historical.browserIdentity)).toEqual(historical.browserIdentity)
   expect(readSharedBrowserEpoch(f.root, historical.browserIdentity.epoch)?.browserIdentity).toEqual(historical.browserIdentity)
   writeFileSync(join(f.root, "kernel/first.js"), "corrupt")
   expect(readSharedBrowserEpoch(f.root, historical.browserIdentity.epoch)).toBeNull()

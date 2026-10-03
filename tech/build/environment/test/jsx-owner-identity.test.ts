@@ -46,8 +46,8 @@ test("mandatory JSX protocol exports сохраняют identity собстве�
     expect({
       runtime: paths.get("@zavx0z/jsx/jsx-runtime") === join(f.jsx, "runtime/index.ts"),
       development: paths.get("@zavx0z/jsx/jsx-dev-runtime") === join(f.jsx, "development/index.ts"),
-      uniqueSources: new Set(identity.sourceFiles.map(file => file.path)).size === identity.sourceFiles.length,
-    }).toEqual({runtime: true, development: true, uniqueSources: true})
+    }).toEqual({runtime: true, development: true})
+    expect(identity.modules).toHaveLength(entries.length)
   } finally {
     f.dispose()
   }

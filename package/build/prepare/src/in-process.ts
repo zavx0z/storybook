@@ -2,10 +2,8 @@
 
 @packageDocumentation
 */
-import PackageBuildPlanOwner from "@package-build/plan"
 import BuildEnvironmentOwner from "@build/environment"
 import PackageSessionOwner, {type PackageSession as PackageSessionContract} from "@package/session"
-const beginStorybookBuildInputAttestation = PackageBuildPlanOwner.attest
 const createStorybookSharedBrowserExternalPlugin = BuildEnvironmentOwner.externalPlugin
 const validateStorybookSharedBrowserIdentity = BuildEnvironmentOwner.validate
 const storybookBuildError = PackageSessionOwner.buildError
@@ -63,15 +61,6 @@ export async function buildStorybookPackageRevisionInProcess(
     input.signal.throwIfAborted()
     mkdirSync(stagingDirectory, {recursive: true})
     const onPhase = input.onPhase ?? options.onPhase
-    emitPhase(onPhase, "fingerprint", "started")
-    const attestation = await beginStorybookBuildInputAttestation({
-      toolRoot,
-      descriptor,
-      browserEntryPath,
-      stagingDirectory,
-      ...(sharedBrowserIdentity === undefined ? {} : {sharedBrowserIdentity}),
-    })
-    try {
     emitPhase(onPhase, "verification", "started")
     const report = await checkStorybookPackageConformance(descriptor.packageRoot, input.signal)
     const verification = scenarioVerification(report)
@@ -81,34 +70,24 @@ export async function buildStorybookPackageRevisionInProcess(
     const warnings: StorybookPackageDiagnostic[] = [...verification.diagnostics]
     emitPhase(onPhase, "resources", "started")
     for (const resource of descriptor.resourceFiles ?? []) {
-      let attestedBytes: Buffer | null = null
-      if (resource.contentDigest !== undefined) {
-        attestedBytes = readAttestedRevisionResource(resource)
-        const actualDigest = createHash("sha256").update(attestedBytes).digest("hex")
-        if (actualDigest !== resource.contentDigest) {
-          throw storybookBuildError(storybookDiagnostic(
-            "publish",
-            `Revision resource content changed after resolution: ${resource.targetPath}`,
-            resource.sourcePath,
-          ))
-        }
-      }
       const target = resolve(stagingDirectory, resource.targetPath)
       if (!target.startsWith(`${resolve(stagingDirectory)}${sep}`)) {
         throw storybookBuildError(storybookDiagnostic("publish", "Revision resource escaped staging", target))
       }
       mkdirSync(dirname(target), {recursive: true})
       if (resource.derivedContent !== undefined) {
-        if (attestedBytes === null) throw new Error(`Derived resource has no attested source: ${resource.targetPath}`)
+        if (resource.sourceRoot === undefined) throw new Error(`Derived resource has no source root: ${resource.targetPath}`)
+        const local = relative(resolve(resource.sourceRoot), resolve(resource.sourcePath))
+        if (local === "" || local.startsWith("..") || isAbsolute(local)) {
+          throw new Error(`Derived resource escaped its source root: ${resource.targetPath}`)
+        }
         writeFileSync(target, resource.derivedContent)
+      } else {
+        writeFileSync(target, readRevisionResource({
+          ...resource,
+          sourceRoot: resource.sourceRoot ?? dirname(resource.sourcePath),
+        }))
       }
-      // macOS copyFileSync может сообщать change исходника без изменения его байтов.
-      // Записываем проверенный снимок, сохраняя строгий guard реальных изменений.
-      else if (attestedBytes === null) writeFileSync(target, readAttestedRevisionResource({
-        ...resource,
-        sourceRoot: resource.sourceRoot ?? dirname(resource.sourcePath),
-      }))
-      else writeFileSync(target, attestedBytes)
     }
     emitPhase(onPhase, "resources", "completed")
     let scenarios = await prepareStorybookScenarios(descriptor, input.signal, (nodeId, result) => {
@@ -243,30 +222,24 @@ export async function buildStorybookPackageRevisionInProcess(
     for (const path of [loaderPath, entryPath, payloadPath]) {
       rmSync(path, {force: true})
     }
-    const inputFingerprint = await attestation.complete(dependencyRealpaths)
-    emitPhase(onPhase, "fingerprint", "completed")
     return Object.freeze({
       moduleGraphRevision,
       ...(sharedBrowserIdentity === undefined ? {} : {sharedModuleEpoch}),
       dependencyRealpaths,
       entryRelativePath,
-      inputFingerprint,
       verification,
       warnings,
     })
-    } finally {
-      attestation.dispose()
-    }
   })()
 }
 
-function readAttestedRevisionResource(
+function readRevisionResource(
   resource: StorybookPackageRevisionResourceFile,
 ): Buffer {
   if (resource.sourceRoot === undefined) {
     throw storybookBuildError(storybookDiagnostic(
       "publish",
-      `Attested revision resource has no exact source root: ${resource.targetPath}`,
+      `Revision resource has no exact source root: ${resource.targetPath}`,
       resource.sourcePath,
     ))
   }
@@ -276,7 +249,7 @@ function readAttestedRevisionResource(
   } catch {
     throw storybookBuildError(storybookDiagnostic(
       "publish",
-      `Attested revision resource must remain an exact non-symlink file: ${resource.targetPath}`,
+      `Revision resource must remain an exact non-symlink file: ${resource.targetPath}`,
       resource.sourcePath,
     ))
   }
@@ -287,7 +260,7 @@ function readAttestedRevisionResource(
     if (local === "" || local.startsWith("..") || isAbsolute(local)) {
       throw storybookBuildError(storybookDiagnostic(
         "publish",
-        `Attested revision resource escaped its exact source root: ${resource.targetPath}`,
+        `Revision resource escaped its exact source root: ${resource.targetPath}`,
         resource.sourcePath,
       ))
     }
@@ -296,7 +269,7 @@ function readAttestedRevisionResource(
     if (!opened.isFile() || opened.dev !== current.dev || opened.ino !== current.ino) {
       throw storybookBuildError(storybookDiagnostic(
         "publish",
-        `Attested revision resource changed during publication: ${resource.targetPath}`,
+        `Revision resource changed during publication: ${resource.targetPath}`,
         resource.sourcePath,
       ))
     }

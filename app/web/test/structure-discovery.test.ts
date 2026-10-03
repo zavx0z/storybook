@@ -124,7 +124,6 @@ function seedSharedPage(artifactRoot: string): void {
   const modules = BuildEnvironmentOwner.createModuleEntries(toolRoot, join(artifactRoot, "identity-entries"))
     .map(({specifier, sourcePath}) => ({specifier, sourcePath,
       url: `/__storybook/shared/kernel/${digest(specifier)}.js`}))
-  const sources = BuildEnvironmentOwner.sourceFiles(modules)
   const paths = ["entries/page.js", "entries/bootstrap.js",
     ...modules.map(module => module.url.slice("/__storybook/shared/".length))]
   for (const path of paths) {
@@ -132,9 +131,9 @@ function seedSharedPage(artifactRoot: string): void {
     writeFileSync(join(root, path), bytes)
   }
   const identity = BuildEnvironmentOwner.identity("/__storybook/shared/entries/page.js", modules,
-    digest("fixture host"), sources)
+    digest("fixture host"))
   AppWebBuildOwner.saveReceipt({root, landingEntry: paths[0]!, fallbackEntry: paths[0]!, bootstrapEntry: paths[1]!,
-    browserIdentity: identity, dependencyRealpaths: sources.map(source => source.path), authorStyleSheets: [],
+    browserIdentity: identity, authorStyleSheets: [],
     artifactDigests: paths.map(path => ({path, digest: digest(bytes)}))})
 }
 

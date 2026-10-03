@@ -138,7 +138,7 @@ describe("structural package revision build", () => {
     } finally { watcher.close() }
   })
 
-  test.each(["index.ts", "index.tsx"])("publishes TSDoc from %s without running it and rejects changed bytes", async entry => {
+  test.each(["index.ts", "index.tsx"])("publishes TSDoc from %s without running it or revalidating current source bytes", async entry => {
     const fixture = createFixture()
     const sourcePath = join(fixture.packageRoot, "module", entry)
     writeFileSync(sourcePath, '/** Module documentation */\nthrow new Error("Never execute")')
@@ -150,7 +150,9 @@ describe("structural package revision build", () => {
     await build(buildInput(descriptor, staging, "module-doc"))
     expect(readFileSync(join(staging, "resources/module.md"), "utf8")).toBe("# Module documentation")
     writeFileSync(sourcePath, "Changed source")
-    await expect(build(buildInput(descriptor, join(fixture.root, ".changed-doc"), "changed-doc"))).rejects.toThrow("content changed after resolution")
+    const changedStaging = join(fixture.root, ".changed-doc")
+    await build(buildInput(descriptor, changedStaging, "changed-doc"))
+    expect(readFileSync(join(changedStaging, "resources/module.md"), "utf8")).toBe("# Module documentation")
   })
 
   test("canonicalizes an attested Bun hardlink mirror and rejects false same-name roots", () => {
@@ -182,7 +184,6 @@ describe("structural package revision build", () => {
     const result = await createStorybookPackageRevisionBuilder({toolRoot, browserEntryPath: fixture.browserEntry})(buildInput(fixture.descriptor, staging, "revision-a"))
     expect(result.entryRelativePath).toMatch(/\.js$/u)
     expect(result.moduleGraphRevision).toMatch(/^[a-f0-9]{64}$/u)
-    expect(result.inputFingerprint.digest).toMatch(/^[a-f0-9]{64}$/u)
     const payload = readFileSync(join(staging, "revision-payload.js"), "utf8")
     expect(payload).toContain(`sharedModuleEpoch: "${isolatedStorybookSharedModuleEpoch(fixture.descriptor.packageId, "revision-a")}"`)
     expect(payload).toContain("STORYBOOK_PACKAGE_SCENARIO_LOADERS")
@@ -246,24 +247,26 @@ describe("structural package revision build", () => {
     expect(prepared.preview.module.source).not.toContain("bun:test")
   })
 
-  test("rejects changed or symlinked Workbench stylesheet resources", async () => {
+  test("publishes captured stylesheet bytes and rejects symlinked raw resources", async () => {
     const fixture = createFixture()
     const theme = join(fixture.packageRoot, "theme.css")
     writeFileSync(theme, ".theme { color: cyan; }\n")
     const contentDigest = createHash("sha256").update(readFileSync(theme)).digest("hex")
     const descriptor = {...fixture.descriptor, resourceFiles: [{sourcePath: theme, sourceRoot: fixture.packageRoot,
-      targetPath: "workbench-author-style-sheets/0.css", contentDigest}],
+      targetPath: "workbench-author-style-sheets/0.css", contentDigest, derivedContent: ".theme { color: cyan; }\n"}],
       graphSnapshot: redigest({...fixture.descriptor.graphSnapshot, workbenchAuthorStyleSheets: [{
         specifier: "@fixture/package/theme.css", url: "workbench-author-style-sheets/0.css", contentDigest,
       }]})}
     const build = createStorybookPackageRevisionBuilder({toolRoot, browserEntryPath: fixture.browserEntry})
     writeFileSync(theme, ".theme { color: changed; }\n")
-    await expect(build(buildInput(descriptor, join(fixture.root, ".changed-css"), "changed-css"))).rejects.toThrow("content changed after resolution")
+    const changed = join(fixture.root, ".changed-css")
+    await build(buildInput(descriptor, changed, "changed-css"))
+    expect(readFileSync(join(changed, "workbench-author-style-sheets/0.css"), "utf8")).toBe(".theme { color: cyan; }\n")
     const outside = join(fixture.root, "outside-theme.css")
     writeFileSync(outside, ".theme { color: cyan; }\n")
     unlinkSync(theme)
     symlinkSync(outside, theme)
-    await expect(build(buildInput(descriptor, join(fixture.root, ".symlink-css"), "symlink-css"))).rejects.toThrow("exact non-symlink file")
+    await expect(build(buildInput({...fixture.descriptor, resourceFiles: [{sourcePath: theme, sourceRoot: fixture.packageRoot, targetPath: "resources/theme.css"}]}, join(fixture.root, ".symlink-css"), "symlink-css"))).rejects.toThrow("exact non-symlink file")
   })
 
   test("reports build phases and exact worker lifecycle", async () => {
@@ -274,8 +277,8 @@ describe("structural package revision build", () => {
     await build({...buildInput(fixture.descriptor, join(fixture.root, ".events"), "events"),
       onPhase: ({phase, state}) => phases.push(`${phase}:${state}`),
       onWorkerLifecycle: ({state, workerId, pid}) => workers.push(`${state}:${workerId}:${pid}`)})
-    expect(phases).toEqual(["fingerprint:started", "verification:started", "verification:completed", "resources:started", "resources:completed",
-      "exports:started", "exports:completed", "bundle:started", "bundle:completed", "fingerprint:completed"])
+    expect(phases).toEqual(["verification:started", "verification:completed", "resources:started", "resources:completed",
+      "exports:started", "exports:completed", "bundle:started", "bundle:completed"])
     expect(workers).toHaveLength(2)
     expect(workers[0]?.replace(/^started:/u, "")).toBe(workers[1]?.replace(/^exited:/u, ""))
   })
@@ -300,6 +303,31 @@ describe("structural package revision build", () => {
     controller.abort(new DOMException("package detached", "AbortError"))
     await expect(pending).rejects.toThrow("package detached")
   }, 3_000)
+})
+
+test("успешная компиляция сохраняет результат при изменении документа внутри owner", async () => {
+  const fixture = createFixture()
+  const note = join(fixture.packageRoot, "README.md")
+  writeFileSync(note, "До компиляции")
+  let changed = false
+  const build = createStorybookPackageRevisionBuilder({
+    toolRoot,
+    browserEntryPath: fixture.browserEntry,
+    resolveCompilerPlugins: async () => [{
+      name: "edit-owner-document",
+      setup(builder) {
+        builder.onStart(() => {
+          writeFileSync(note, "Правка во время успешной компиляции")
+          changed = true
+        })
+      },
+    }],
+  })
+  const staging = join(fixture.root, ".changed-during-build")
+  const result = await build(buildInput(fixture.descriptor, staging, "changed-during-build"))
+  expect(changed, "Документ изменён настоящим compiler hook").toBeTrue()
+  expect(readFileSync(join(staging, result.entryRelativePath), "utf8"), "Успешный Bun output сохраняется").toContain("startExternalStorybookPackage")
+  expect(readFileSync(note, "utf8")).toBe("Правка во время успешной компиляции")
 })
 
 function createFixture(): Readonly<{root: string; packageRoot: string; browserEntry: string; descriptor: StorybookPackageBuildDescriptor}> {

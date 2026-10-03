@@ -2,7 +2,7 @@
 
 Реализация: [сборка пакета](../../../../package/build/prepare/src/in-process.ts), [общая оболочка](../src/browser-build.ts) и [планировщик](../../../../package/build/scheduler/index.ts).
 
-Связанные условия: [идентичность модулей](../../../../tech/build/environment/notes/modules.md), [кэш](./cache.md), [оценка нагрузки](../../../../tech/build/environment/notes/preflight.md), [ревизии пакета](../../../../package/session/notes/revisions.md).
+Связанные условия: [идентичность модулей](../../../../tech/build/environment/notes/modules.md), [готовая сборка](./cache.md), [оценка нагрузки](../../../../tech/build/environment/notes/preflight.md), [ревизии пакета](../../../../package/session/notes/revisions.md).
 
 ## Очередь, компиляция и отмена
 
@@ -68,9 +68,8 @@ generation/failedRevision, а неизвестный результат всей
 Cold package build выполняет один browser Bun.build. Прямые exports и фактические
 зависимости проверяются до публикации; повторный отдельный exports bundle не
 создаётся.
-Общая оболочка хранит собственный receipt по тому же fingerprint plan; cache hit
-проверяет входы и digest выходных файлов и не вызывает Bun.build. Явный выпуск
-Web выполняет одну обычную сборку браузерных входов с JSX-плагином и готовой
+Общая оболочка сохраняет указатель на готовые файлы для запуска сервера.
+Каждый явный выпуск Web выполняет одну обычную сборку браузерных входов с JSX-плагином и готовой
 платформой в external dependencies. Первичная подготовка среды дополнительно
 собирает платформу одним отдельным вызовом Bun.build.
 

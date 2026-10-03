@@ -1,8 +1,6 @@
 import PackageBuildSchedulerOwner, {type PackageBuildScheduler as PackageBuildSchedulerContract} from "@package-build/scheduler"
 const StorybookBuildScheduler = PackageBuildSchedulerOwner
 type StorybookBuildScheduler = PackageBuildSchedulerContract.Output
-import BuildInputs, {type BuildInputs as BuildInputsContract} from "@build/inputs"
-type StorybookBuildInputFingerprint = BuildInputsContract.Output
 import {afterEach, describe, expect, test} from "bun:test"
 import {createHash} from "node:crypto"
 import {existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
@@ -15,7 +13,6 @@ import StorybookPackageSession, {type PackageSession} from "@package/session"
 type StorybookPackageBuildDescriptor = PackageSession.Input[0]
 type StorybookPackageRevisionBuilder = PackageSession.Input[1]["buildRevision"]
 type StorybookPackageEvent = Parameters<NonNullable<PackageSession.Input[1]["publish"]>>[0]
-type StorybookPackageInputFingerprintVerifier = NonNullable<PackageSession.Input[1]["verifyInputFingerprint"]>
 type StorybookPackageRevisionGraphSnapshot = ReturnType<PackageRevision.Output["create"]>
 
 const roots: string[] = []
@@ -60,7 +57,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     session.failActivation({...rejected, diagnostic: StorybookPackageSession.diagnostic("activation", "кадр не готов")})
     expect(session.snapshot().standard).toBe("transition")
     session.retryFailed()
-    const next = await session.ensureBuilt()
+    const next = await session.build()
     const lease = session.beginActivation({revision: next.builtRevision!, viewId: "view", route: ""})
     session.acknowledgeActivation({...lease, frameSequence: 1})
     expect(session.snapshot().standard).toBe("strict")
@@ -76,7 +73,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     passed = false
     const restored = createSession(value, builder, [])
     expect(restored.snapshot().standard).toBe("strict")
-    const failed = await restored.ensureBuilt()
+    const failed = await restored.build()
     expect(failed).toMatchObject({standard: "strict", buildState: "failed", activeRevision: applied})
     expect(failed.diagnostics[0]?.message).toContain("полного подтверждения")
     expect(modes).toEqual(["transition", "transition", "strict"])
@@ -155,7 +152,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     session.acknowledgeActivation({...activation, frameSequence: 1})
     dependency = nextPath
     session.reconfigure(descriptor(root, "@fixture/a", "two"))
-    const next = await session.ensureBuilt()
+    const next = await session.build()
     expect(next.activeRevision).toBe(first.builtRevision!)
     expect(next.dependencyRealpaths).toEqual(expect.arrayContaining([realpathSync(firstPath), realpathSync(nextPath)]))
     expect(session.reconfigure(descriptor(root, session.packageId, `next-${session.snapshot().generation}`))).toBeTrue()
@@ -209,7 +206,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     const working = session.acknowledgeActivation({...firstActivation, frameSequence: 1})
 
     session.reconfigure(descriptor(root, "@fixture/a", "two"))
-    const second = await session.ensureBuilt()
+    const second = await session.build()
     const secondActivation = session.beginActivation({
       revision: second.builtRevision!, viewId: "view-a", route: "dir-module",
     })
@@ -256,7 +253,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     const working = session.acknowledgeActivation({...activation, frameSequence: 1})
     fail = true
     session.reconfigure(descriptor(root, "@fixture/a", "broken"))
-    const failed = await session.ensureBuilt()
+    const failed = await session.build()
     expect(failed.buildState).toBe("failed")
     expect(failed.activeRevision).toBe(working.activeRevision)
     expect(failed.lastWorkingRevision).toBe(working.lastWorkingRevision)
@@ -270,33 +267,51 @@ describe("working Storybook PackageSession lifecycle", () => {
     expect(session.retryFailed()).toBeFalse()
   })
 
-  test("coalesces one active generation and cancels its superseded build before building latest", async () => {
-    const root = fixtureRoot("queue")
+  test("обновление дескриптора не отменяет выполняемую сборку; следующий явный запрос использует новый снимок", async () => {
+    const root = fixtureRoot("captured-descriptor")
     let calls = 0
-    let firstStarted!: () => void
-    const started = new Promise<void>((resolvePromise) => { firstStarted = resolvePromise })
-    const session = createSession(descriptor(root, "@fixture/a", "one"), async (input) => {
-      calls += 1
+    let release!: () => void
+    let started!: () => void
+    const gate = new Promise<void>(resolve => { release = resolve })
+    const entered = new Promise<void>(resolve => { started = resolve })
+    const events: StorybookPackageEvent[] = []
+    const builtDigests: string[] = []
+    let aborted = false
+    const session = createSession(descriptor(root, "@fixture/a", "one"), async input => {
+      calls++
+      builtDigests.push(input.descriptor.declarationDigest)
+      input.signal.addEventListener("abort", () => { aborted = true })
       if (calls === 1) {
-        firstStarted()
-        await new Promise<void>((_resolve, reject) => {
-          input.signal.addEventListener("abort", () => reject(input.signal.reason), {once: true})
-        })
+        started()
+        await gate
       }
       return successfulBuild(input.stagingDirectory)
-    }, [])
+    }, events)
     const unsubscribe = session.subscribe()
-    const first = session.ensureBuilt()
-    const duplicate = session.ensureBuilt()
-    await started
+    const first = session.build()
+    const duplicate = session.build()
+    await entered
     session.reconfigure(descriptor(root, "@fixture/a", "two"))
-    const latest = session.ensureBuilt()
-    await Promise.all([first, duplicate, latest])
-    expect(calls).toBe(2)
-    expect(session.snapshot().generation).toBe(2)
-    expect(session.snapshot().buildState).toBe("built")
-    expect(session.snapshot().revisions?.at(-1)?.declarationDigest).toBe("digest-two")
+    const joined = session.build()
+    release()
+    const [built, same, again] = await Promise.all([first, duplicate, joined])
+    expect(calls).toBe(1)
+    expect(aborted).toBeFalse()
+    expect(same.builtRevision).toBe(built.builtRevision)
+    expect(again.builtRevision).toBe(built.builtRevision)
+    expect(built).toMatchObject({generation: 1, buildState: "built", declarationDigest: "digest-one", lastBuildReason: "explicit-build"})
+    expect(events.filter(event => event.type === "package.built")).toHaveLength(1)
+    expect(session.revisionGraphSnapshot(built.builtRevision!)?.declarationDigest).toBe("digest-one")
+    expect((await session.ensureBuilt({owner: "open"})).builtRevision).toBe(built.builtRevision)
+    const lease = session.beginActivation({revision: built.builtRevision!, viewId: "view", route: ""})
+    session.acknowledgeActivation({...lease, frameSequence: 1})
+    const next = await session.build()
+    expect(next.builtRevision).not.toBe(built.builtRevision)
+    expect(next).toMatchObject({generation: 2, buildState: "built", declarationDigest: "digest-two", lastBuildReason: "explicit-build"})
+    expect(builtDigests).toEqual(["digest-one", "digest-two"])
+    expect(events.filter(event => event.type === "package.built")).toHaveLength(2)
     unsubscribe()
+    await session.dispose()
   })
 
   test("keeps inactive reconfigure stale until an explicit check requests its latest generation", async () => {
@@ -312,13 +327,14 @@ describe("working Storybook PackageSession lifecycle", () => {
     await Bun.sleep(20)
     expect(session.snapshot()).toMatchObject({
       subscribers: 0,
-      generation: 2,
+      generation: 1,
       builds: 1,
     })
     expect(builtDigests).toEqual(["digest-one"])
 
     const unsubscribe = session.subscribe()
-    await session.ensureBuilt({owner: "check"})
+    expect((await session.ensureBuilt({owner: "open"})).builds).toBe(1)
+    await session.build({owner: "check"})
     await waitFor(() => session.snapshot().builds === 2 && session.snapshot().buildState === "built")
     expect(builtDigests).toEqual(["digest-one", "digest-two"])
     expect(session.snapshot().revisions?.at(-1)?.generation).toBe(2)
@@ -335,11 +351,11 @@ describe("working Storybook PackageSession lifecycle", () => {
 
     session.reconfigure(descriptor(root, "@fixture/a", "two"))
     await Bun.sleep(20)
-    expect(session.snapshot()).toMatchObject({subscribers: 0, generation: 2, builds: 1})
+    expect(session.snapshot()).toMatchObject({subscribers: 0, generation: 1, builds: 1})
 
     expect(session.reconfigure(descriptor(root, session.packageId, `next-${session.snapshot().generation}`))).toBeTrue()
     await Bun.sleep(20)
-    expect(session.snapshot()).toMatchObject({subscribers: 0, generation: 3, builds: 1})
+    expect(session.snapshot()).toMatchObject({subscribers: 0, generation: 1, builds: 1})
   })
 
   test("recovers a subscribed package after the next explicit check fixes its failed generation", async () => {
@@ -352,22 +368,22 @@ describe("working Storybook PackageSession lifecycle", () => {
       return successfulBuild(input.stagingDirectory)
     }, [])
     const unsubscribe = session.subscribe()
-    await session.ensureBuilt({owner: "check"})
+    await session.build({owner: "check"})
     await waitFor(() => session.snapshot().buildState === "built")
 
     fail = true
     expect(session.reconfigure(descriptor(root, session.packageId, `next-${session.snapshot().generation}`))).toBeTrue()
-    await session.ensureBuilt({owner: "check"})
+    await session.build({owner: "check"})
     await waitFor(() => session.snapshot().buildState === "failed")
     fail = false
     expect(session.reconfigure(descriptor(root, session.packageId, `next-${session.snapshot().generation}`))).toBeTrue()
-    await session.ensureBuilt({owner: "check"})
+    await session.build({owner: "check"})
     await waitFor(() => session.snapshot().buildState === "built" && session.snapshot().builds === 3)
     expect(session.snapshot().diagnostics).toEqual([])
     unsubscribe()
   })
 
-  test("keeps changed inputs pending regardless of browser subscriptions", async () => {
+  test("обновляет каталог без пересборки независимо от подписчиков", async () => {
     const root = fixtureRoot("inactive-invalidation")
     const session = createSession(
       descriptor(root, "@fixture/a"),
@@ -378,19 +394,20 @@ describe("working Storybook PackageSession lifecycle", () => {
     await session.ensureBuilt({owner: "check"})
     await waitFor(() => session.snapshot().builds === 1 && session.snapshot().buildState === "built")
 
-    expect(session.reconfigure(descriptor(root, session.packageId, `next-${session.snapshot().generation}`))).toBeTrue()
+    expect(session.reconfigure(descriptor(root, session.packageId, "two"))).toBeTrue()
     unsubscribeFirst()
     await Bun.sleep(80)
-    expect(session.snapshot()).toMatchObject({subscribers: 0, generation: 2, builds: 1})
+    expect(session.snapshot()).toMatchObject({subscribers: 0, generation: 1, builds: 1})
 
-    expect(session.reconfigure(descriptor(root, session.packageId, `next-${session.snapshot().generation}`))).toBeTrue()
+    expect(session.reconfigure(descriptor(root, session.packageId, "three"))).toBeTrue()
     await Bun.sleep(80)
-    expect(session.snapshot()).toMatchObject({subscribers: 0, generation: 3, builds: 1})
+    expect(session.snapshot()).toMatchObject({subscribers: 0, generation: 1, builds: 1})
 
     const unsubscribeLatest = session.subscribe()
-    await session.ensureBuilt({owner: "check"})
+    expect((await session.ensureBuilt({owner: "open"})).builds).toBe(1)
+    await session.build({owner: "check"})
     await waitFor(() => session.snapshot().builds === 2 && session.snapshot().buildState === "built")
-    expect(session.snapshot().revisions?.at(-1)?.generation).toBe(3)
+    expect(session.snapshot().revisions?.at(-1)?.generation).toBe(2)
     unsubscribeLatest()
   })
 
@@ -421,7 +438,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     expect(session.snapshot().builds).toBe(1)
   })
 
-  test("does not cancel an inactive running build and lets explicit ensure reach the latest generation", async () => {
+  test("сохраняет результат неактивной сборки до следующего явного заказа", async () => {
     const root = fixtureRoot("inactive-running")
     let releaseBuild!: () => void
     let markStarted!: () => void
@@ -444,14 +461,18 @@ describe("working Storybook PackageSession lifecycle", () => {
     releaseBuild()
     await initial
     expect(aborted).toBeFalse()
-    expect(builtDigests).toEqual(["digest-one", "digest-two"])
+    expect(builtDigests).toEqual(["digest-one"])
     expect(session.snapshot()).toMatchObject({
       subscribers: 0,
-      generation: 2,
-      builds: 2,
+      generation: 1,
+      builds: 1,
       buildState: "built",
     })
-    expect(session.snapshot().revisions?.at(-1)?.generation).toBe(2)
+    expect(session.snapshot().revisions?.at(-1)?.generation).toBe(1)
+    await session.build()
+    expect(builtDigests).toEqual(["digest-one", "digest-two"])
+    expect(session.snapshot()).toMatchObject({generation: 2, builds: 2, buildState: "built"})
+    await session.dispose()
   })
 
   test("detach aborts exact build and dispose is idempotent", async () => {
@@ -494,7 +515,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     const lease = session.acquireRevisionLease(oldRevision, "view-lease")
 
     session.reconfigure(descriptor(root, "@fixture/a", "two"))
-    const second = await session.ensureBuilt()
+    const second = await session.build()
     const secondActivation = session.beginActivation({
       revision: second.builtRevision!, viewId: "view-a", route: "dir-module",
     })
@@ -513,15 +534,13 @@ describe("working Storybook PackageSession lifecycle", () => {
     expect(restored.snapshot().builds).toBe(0)
     expect(restored.snapshot()).toMatchObject({
       generation: 1,
-      completedGeneration: 0,
-      inputFreshness: "unverified",
+      completedGeneration: 1,
     })
-    const refreshed = await restored.ensureBuilt()
+    const refreshed = await restored.build()
     expect(refreshed).toMatchObject({
       activeRevision,
       builds: 1,
       buildState: "built",
-      inputFreshness: "unverified",
     })
     expect(refreshed.builtRevision).not.toBe(activeRevision)
     await restored.dispose()
@@ -535,9 +554,8 @@ describe("working Storybook PackageSession lifecycle", () => {
     mkdirSync(nextRoot)
     const oldDescriptor = {...descriptor(oldRoot, "@fixture/moved"), repo: root}
     const nextDescriptor = {...descriptor(nextRoot, "@fixture/moved", "two"), repo: root}
-    const fingerprint = fakeInputFingerprint(oldRoot, oldDescriptor.declarationDigest)
     const first = createSession(oldDescriptor, async ({stagingDirectory}) => ({
-      ...successfulBuild(stagingDirectory), inputFingerprint: fingerprint,
+      ...successfulBuild(stagingDirectory),
       verification: {status: "passed", diagnostics: []},
     }), [])
     const built = await first.ensureBuilt()
@@ -548,7 +566,6 @@ describe("working Storybook PackageSession lifecycle", () => {
     const receiptPath = join(root, ".artifacts", owner, "applied.json")
     const originalReceipt = readFileSync(receiptPath, "utf8")
     rmSync(oldRoot, {recursive: true})
-    let verified = 0
     let passed = false
     const modes: (string | undefined)[] = []
     const moved = createSession(nextDescriptor, async ({stagingDirectory, standard}) => {
@@ -556,13 +573,12 @@ describe("working Storybook PackageSession lifecycle", () => {
       return {...successfulBuild(stagingDirectory), verification: {
         status: passed ? "passed" : "incomplete", diagnostics: [],
       }}
-    }, [], {verifyInputFingerprint: () => { verified += 1; throw new Error("Прежние исходники недоступны") }})
+    }, [])
     try {
       expect(moved.snapshot(), "Перенос сохраняет строгость без восстановления прежнего исполнения").toMatchObject({
         standard: "strict", buildState: "idle", activeRevision: null, lastWorkingRevision: null,
         completedGeneration: 0, builds: 0, cacheOutcome: {status: "miss", layer: "receipt"}, diagnostics: [],
       })
-      expect(verified, "При переносе fingerprint прежнего корня не проверяется чтением исходников").toBe(0)
       expect(await moved.ensureBuilt(), "Неполная новая проверка не понижает строгий режим")
         .toMatchObject({standard: "strict", buildState: "failed", activeRevision: null})
       expect(readFileSync(receiptPath, "utf8"), "Неудачная подготовка сохраняет прежнее свидетельство").toBe(originalReceipt)
@@ -585,7 +601,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     {name: "относительный корень", patch: {packageRoot: "old"}},
     {name: "повреждённый граф", patch: {graphSnapshot: null}},
     {name: "выход артефакта за границу", patch: {entryRelativePath: "../entry.js"}},
-    {name: "повреждённое evidence", patch: {inputFingerprint: {}}},
+    {name: "отсутствующий вход артефакта", patch: {entryRelativePath: "missing.js"}},
     {name: "неизвестная строгость", patch: {standard: "unknown"}},
     {name: "повреждённая диагностика", patch: {warnings: [null]}},
   ])("перенос не скрывает нарушение receipt: $name", async ({patch}) => {
@@ -596,7 +612,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     mkdirSync(nextRoot)
     const value = {...descriptor(oldRoot, "@fixture/moved"), repo: root}
     const first = createSession(value, async ({stagingDirectory}) => ({
-      ...successfulBuild(stagingDirectory), inputFingerprint: fakeInputFingerprint(oldRoot, value.declarationDigest),
+      ...successfulBuild(stagingDirectory),
     }), [])
     const built = await first.ensureBuilt()
     const lease = first.beginActivation({revision: built.builtRevision!, viewId: "view", route: ""})
@@ -616,51 +632,35 @@ describe("working Storybook PackageSession lifecycle", () => {
     }
   })
 
-  test("restores an exact v2 receipt at the current generation without a new build", async () => {
-    const root = fixtureRoot("receipt-v2-hit")
+  test.each([1, 2])("legacy receipt v%s восстанавливает артефакт без чтения удалённых исходников", async version => {
+    const root = fixtureRoot("receipt-legacy")
     const value = descriptor(root, "@fixture/a")
-    const fingerprint = fakeInputFingerprint(root, value.declarationDigest)
     let builds = 0
     const builder: StorybookPackageRevisionBuilder = async ({stagingDirectory}) => {
-      builds += 1
-      return {...successfulBuild(stagingDirectory), inputFingerprint: fingerprint}
+      builds++
+      return successfulBuild(stagingDirectory)
     }
     const first = createSession(value, builder, [])
     const built = await first.ensureBuilt()
-    const activation = first.beginActivation({
-      revision: built.builtRevision!, viewId: "view-a", route: "dir-module",
-    })
+    const activation = first.beginActivation({revision: built.builtRevision!, viewId: "view-a", route: "dir-module"})
     first.acknowledgeActivation({...activation, frameSequence: 1})
     await first.dispose()
-
-    const verifier: StorybookPackageInputFingerprintVerifier = (persisted, descriptor) =>
-      descriptor.declarationDigest === value.declarationDigest
-        ? BuildInputs.parse(persisted)
-        : null
-    const restored = createSession(value, builder, [], {verifyInputFingerprint: verifier})
+    const owner = readdirSync(join(root, ".artifacts"))[0]!
+    const receiptPath = join(root, ".artifacts", owner, "applied.json")
+    const receipt = JSON.parse(readFileSync(receiptPath, "utf8"))
+    writeFileSync(receiptPath, JSON.stringify({...receipt, version, inputFingerprint: {obsolete: true}}))
+    rmSync(join(root, "module.ts"))
+    rmSync(join(root, "package.json"))
+    const restored = createSession(value, builder, [])
     expect(restored.snapshot()).toMatchObject({
-      activeRevision: built.builtRevision,
-      generation: 1,
-      requestedGeneration: 0,
-      completedGeneration: 1,
-      builds: 0,
-      inputFreshness: "verified",
-      cacheOutcome: {status: "hit", layer: "receipt"},
+      activeRevision: built.builtRevision, generation: 1, requestedGeneration: 0,
+      completedGeneration: 1, builds: 0, cacheOutcome: {status: "hit", layer: "receipt"},
     })
-    expect(restored.revalidateInputs()).toBeFalse()
+    expect(restored.revisionDirectory(built.builtRevision!)).not.toBeNull()
     const unsubscribe = restored.subscribe()
-    await restored.ensureBuilt()
-    expect(restored.snapshot().builds).toBe(0)
+    expect((await restored.ensureBuilt({owner: "open"})).activeRevision).toBe(built.builtRevision!)
     expect(builds).toBe(1)
     unsubscribe()
-    expect(restored.reconfigure(descriptor(root, restored.packageId, `next-${restored.snapshot().generation}`))).toBeTrue()
-    expect(restored.snapshot()).toMatchObject({
-      inputFreshness: "changed",
-      cacheOutcome: null,
-      generation: 2,
-      completedGeneration: 1,
-      builds: 0,
-    })
     await restored.dispose()
   })
 
@@ -704,105 +704,133 @@ describe("working Storybook PackageSession lifecycle", () => {
     await malformed.dispose()
   })
 
-  test("explicit revalidation detects a fingerprint change before the watcher tick", async () => {
-    const root = fixtureRoot("receipt-v2-explicit-revalidation")
+  test("изменение исходников во время успешной сборки не отменяет готового кандидата", async () => {
+    const root = fixtureRoot("source-edit-during-build")
     const value = descriptor(root, "@fixture/a")
-    const config = join(root, "tsconfig.json")
-    const ambient = join(root, "global.d.ts")
-    writeFileSync(config, "{\"compilerOptions\":{}}\n")
-    writeFileSync(ambient, "declare const fixture: true\n")
-    const currentFingerprint = (): StorybookBuildInputFingerprint => fakeInputFingerprint(
-      root,
-      value.declarationDigest,
-      `${readFileSync(config, "utf8")}\0${readFileSync(ambient, "utf8")}`,
-    )
-    let builds = 0
-    const builder: StorybookPackageRevisionBuilder = async ({stagingDirectory}) => {
-      builds += 1
-      return {...successfulBuild(stagingDirectory), inputFingerprint: currentFingerprint()}
-    }
-    const first = createSession(value, builder, [])
-    const built = await first.ensureBuilt()
-    const activation = first.beginActivation({
-      revision: built.builtRevision!, viewId: "view-a", route: "dir-module",
+    let release!: () => void
+    let started!: () => void
+    const gate = new Promise<void>(resolve => { release = resolve })
+    const entered = new Promise<void>(resolve => { started = resolve })
+    let aborted = false
+    const session = createSession(value, async input => {
+      input.signal.addEventListener("abort", () => { aborted = true })
+      started()
+      await gate
+      return successfulBuild(input.stagingDirectory)
+    }, [])
+    const pending = session.build()
+    await entered
+    writeFileSync(join(root, "module.ts"), "export const changed = true\n")
+    release()
+    const built = await pending
+    expect(built).toMatchObject({buildState: "built", builds: 1, diagnostics: []})
+    expect(aborted).toBeFalse()
+    expect(session.revisionDirectory(built.builtRevision!)).not.toBeNull()
+    const lease = session.beginActivation({revision: built.builtRevision!, viewId: "view", route: ""})
+    session.acknowledgeActivation({...lease, frameSequence: 1})
+    await session.dispose()
+    rmSync(join(root, "module.ts"))
+    rmSync(join(root, "package.json"))
+    const restored = createSession(value, successfulBuilder(), [])
+    expect((await restored.ensureBuilt({owner: "open"}))).toMatchObject({
+      activeRevision: built.builtRevision, lastWorkingRevision: built.builtRevision, builds: 0,
     })
-    first.acknowledgeActivation({...activation, frameSequence: 1})
-    await first.dispose()
-
-    const restored = createSession(value, builder, [], {
-      verifyInputFingerprint: (persisted) => {
-        const current = currentFingerprint()
-        return BuildInputs.same(persisted, current) ? current : null
-      },
-    })
-    expect(restored.revalidateInputs()).toBeFalse()
-    await restored.ensureBuilt({owner: "check"})
-    expect(restored.snapshot().builds).toBe(0)
-    expect(builds).toBe(1)
-
-    writeFileSync(config, "{\"compilerOptions\":{\"strict\":true}}\n")
-    writeFileSync(ambient, "declare const fixture: false\n")
-    expect(restored.revalidateInputs()).toBeTrue()
-    expect(restored.snapshot()).toMatchObject({
-      generation: 2,
-      completedGeneration: 1,
-      inputFreshness: "changed",
-      cacheOutcome: null,
-      builds: 0,
-    })
-    const refreshed = await restored.ensureBuilt({owner: "check"})
-    expect(refreshed).toMatchObject({
-      activeRevision: built.builtRevision,
-      generation: 2,
-      builds: 1,
-      buildState: "built",
-      inputFreshness: "verified",
-    })
-    expect(builds).toBe(2)
+    const owner = readdirSync(join(root, ".artifacts"))[0]!
+    const receipt = JSON.parse(readFileSync(join(root, ".artifacts", owner, "applied.json"), "utf8"))
+    expect(receipt.inputFingerprint).toBeUndefined()
     await restored.dispose()
   })
 
-  test("keeps a mismatched v2 receipt as fallback and builds the current generation", async () => {
-    const root = fixtureRoot("receipt-v2-miss")
-    const value = descriptor(root, "@fixture/a")
-    const fingerprint = fakeInputFingerprint(root, value.declarationDigest)
-    const first = createSession(value, async ({stagingDirectory}) => ({
-      ...successfulBuild(stagingDirectory),
-      inputFingerprint: fingerprint,
-      verification: {status: "passed", diagnostics: []},
-    }), [])
-    const built = await first.ensureBuilt()
-    const activation = first.beginActivation({
-      revision: built.builtRevision!, viewId: "view-a", route: "dir-module",
-    })
-    first.acknowledgeActivation({...activation, frameSequence: 1})
-    await first.dispose()
+  test("явная повторная сборка компилирует неизменный пакет, одновременные запросы разделяют работу", async () => {
+    const root = fixtureRoot("explicit-rebuild")
+    let calls = 0
+    let release!: () => void
+    let started!: () => void
+    const gate = new Promise<void>(resolve => { release = resolve })
+    const entered = new Promise<void>(resolve => { started = resolve })
+    const session = createSession(descriptor(root, "@fixture/a"), async input => {
+      calls++
+      if (calls === 2) {
+        started()
+        await gate
+      }
+      return successfulBuild(input.stagingDirectory)
+    }, [])
+    const first = await session.build()
+    const open = await session.ensureBuilt({owner: "open"})
+    expect(open.builtRevision).toBe(first.builtRevision)
+    expect(calls).toBe(1)
+    const next = session.build()
+    const duplicate = session.build()
+    await entered
+    release()
+    const [second, same] = await Promise.all([next, duplicate])
+    expect(second.builtRevision).toBe(same.builtRevision)
+    expect(second.builtRevision).not.toBe(first.builtRevision)
+    expect(calls).toBe(2)
+    const third = await session.build()
+    expect(third.builtRevision).not.toBe(second.builtRevision)
+    expect(calls).toBe(3)
+    await session.dispose()
+  })
 
-    let freshBuilds = 0
-    const restored = createSession(value, async ({stagingDirectory}) => {
-      freshBuilds += 1
-      return {...successfulBuild(stagingDirectory), verification: {status: "passed", diagnostics: []}}
-    }, [], {verifyInputFingerprint: () => null})
-    expect(restored.snapshot()).toMatchObject({
-      activeRevision: built.builtRevision,
-      lastWorkingRevision: built.builtRevision,
-      standard: "strict",
-      generation: 1,
-      completedGeneration: 0,
-      builds: 0,
-      inputFreshness: "unverified",
+  test.each(["compile", "publish"] as const)("неудачная явная %s сохраняет рабочий артефакт после изменения исходников", async phase => {
+    const root = fixtureRoot("explicit-failure")
+    const value = descriptor(root, "@fixture/a")
+    let failed = false
+    const session = createSession(value, async input => {
+      if (failed && phase === "compile") throw StorybookPackageSession.buildError(StorybookPackageSession.diagnostic("compile", "Compiler failed"))
+      const result = successfulBuild(input.stagingDirectory)
+      return failed ? {...result, entryRelativePath: "missing.js"} : result
+    }, [])
+    const built = await session.build()
+    const lease = session.beginActivation({revision: built.builtRevision!, viewId: "view", route: ""})
+    session.acknowledgeActivation({...lease, frameSequence: 1})
+    const directory = session.revisionDirectory(built.builtRevision!)!
+    const original = readFileSync(join(directory, "entry.js"), "utf8")
+    writeFileSync(join(root, "module.ts"), "new source\n")
+    failed = true
+    const result = await session.build()
+    expect(result).toMatchObject({buildState: "failed", activeRevision: built.builtRevision, lastWorkingRevision: built.builtRevision, builds: 2})
+    expect(result.diagnostics[0]?.phase).toBe(phase)
+    expect(readFileSync(join(directory, "entry.js"), "utf8")).toBe(original)
+    expect(session.revisionDirectory(built.builtRevision!)).not.toBeNull()
+    await session.dispose()
+    const restored = createSession(value, successfulBuilder(), [])
+    expect((await restored.ensureBuilt({owner: "open"}))).toMatchObject({activeRevision: built.builtRevision, builds: 0})
+    await restored.dispose()
+  })
+
+  test("явная сборка восстанавливает работу после повреждённого receipt, сохраняя строгий стандарт", async () => {
+    const root = fixtureRoot("corrupt-receipt-recovery")
+    const value = descriptor(root, "@fixture/a")
+    const first = createSession(value, async input => ({...successfulBuild(input.stagingDirectory),
+      verification: {status: "passed", diagnostics: []}}), [])
+    const built = await first.build()
+    const lease = first.beginActivation({revision: built.builtRevision!, viewId: "view", route: ""})
+    first.acknowledgeActivation({...lease, frameSequence: 1})
+    await first.dispose()
+    const owner = readdirSync(join(root, ".artifacts"))[0]!
+    const receiptPath = join(root, ".artifacts", owner, "applied.json")
+    const receipt = JSON.parse(readFileSync(receiptPath, "utf8"))
+    writeFileSync(receiptPath, JSON.stringify({...receipt, graphSnapshot: null}))
+    const corruptedReceipt = readFileSync(receiptPath, "utf8")
+    const modes: (string | undefined)[] = []
+    const restored = createSession(value, async input => {
+      modes.push(input.standard)
+      return {...successfulBuild(input.stagingDirectory), verification: {status: "passed", diagnostics: []}}
+    }, [])
+    expect((await restored.ensureBuilt({owner: "open"}))).toMatchObject({
+      buildState: "failed", activeRevision: null, lastWorkingRevision: null, builds: 0, standard: "strict",
     })
-    const fresh = await restored.ensureBuilt()
-    expect(fresh).toMatchObject({
-      activeRevision: built.builtRevision,
-      lastWorkingRevision: built.builtRevision,
-      standard: "strict",
-      buildState: "built",
-      builds: 1,
-      inputFreshness: "unverified",
-    })
-    expect(fresh.builtRevision).not.toBe(built.builtRevision)
-    expect(freshBuilds).toBe(1)
+    const next = await restored.build()
+    expect(next).toMatchObject({buildState: "built", activeRevision: null, builds: 1, standard: "strict", diagnostics: [], lastBuildReason: "explicit-retry"})
+    expect(modes).toEqual(["strict"])
+    expect(next.builtRevision).not.toBe(built.builtRevision)
+    expect(readFileSync(receiptPath, "utf8")).toBe(corruptedReceipt)
+    const activation = restored.beginActivation({revision: next.builtRevision!, viewId: "view", route: ""})
+    restored.acknowledgeActivation({...activation, frameSequence: 2})
+    expect(JSON.parse(readFileSync(receiptPath, "utf8"))).toMatchObject({revision: next.builtRevision, standard: "strict"})
     await restored.dispose()
   })
 
@@ -887,7 +915,6 @@ function createSession(
   events: StorybookPackageEvent[],
   overrides: Readonly<{
     retainedRevisionLimit?: number
-    verifyInputFingerprint?: StorybookPackageInputFingerprintVerifier
     buildScheduler?: StorybookBuildScheduler
   }> = {},
 ): StorybookPackageSession {
@@ -972,29 +999,6 @@ function successfulBuild(stagingDirectory: string) {
   mkdirSync(stagingDirectory, {recursive: true})
   writeFileSync(join(stagingDirectory, "entry.js"), "export {}\n")
   return {moduleGraphRevision: "module-graph-revision", dependencyRealpaths: [], entryRelativePath: "entry.js"}
-}
-
-function fakeInputFingerprint(
-  root: string,
-  descriptorDigest: string,
-  inputToken = "stable",
-): StorybookBuildInputFingerprint {
-  const digest = (label: string): string => createHash("sha256").update(label).digest("hex")
-  const categories = {
-    descriptorDigest: digest(`descriptor:${descriptorDigest}`),
-    protocol: BuildInputs.protocol,
-    sourceDigest: digest(`source:${descriptorDigest}:${inputToken}`),
-    toolchainDigest: digest("toolchain"),
-    validationDigest: digest("validation"),
-  } as const
-  return Object.freeze({
-    ...categories,
-    digest: createHash("sha256").update(JSON.stringify(categories)).digest("hex"),
-    roots: Object.freeze([realpathSync(root)]),
-    resolutionDirectories: Object.freeze([]),
-    directories: Object.freeze([realpathSync(root)]),
-    files: Object.freeze([]),
-  })
 }
 
 function fixtureRoot(name: string): string {

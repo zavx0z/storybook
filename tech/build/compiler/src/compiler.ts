@@ -70,9 +70,8 @@ export function resolveStorybookCompilerSourceRoots(input: Readonly<{
 /**
 Возвращает файловые границы реального compiler setup без создания plugin.
 
-Fingerprint сборки использует тот же consumer/tool owner graph и тот же выбор
-JSX adapter, поэтому изменение resolver, exports, tsconfig или compiler owner
-не может остаться только скрытым побочным чтением `createStorybookPackageCompilerPlugins`.
+Чтение использует тот же consumer/tool owner graph и выбор JSX adapter,
+что и `createStorybookPackageCompilerPlugins`.
 
 @throws Если source, owner graph, tsconfig или JSX adapter export не проходят те же
 проверки, что и при создании compiler plugin.
@@ -87,41 +86,6 @@ export function resolveStorybookPackageCompilerInputs(
     configPaths: context.configPaths,
     semanticSourceRoots: context.compilerRoots.sourceRoots,
   })
-}
-
-/**
-Читает существующие ancestor controls разрешённых compiler roots до границы Repo.
-Каждый tsconfig раскрывает свою действительную extends-chain тем же reader, что
-и JSX compiler. Путь зависимости может лежать за source root; вызывающий build
-включает возвращённые exact файлы в исходную attestation до компиляции.
-*/
-export function resolveStorybookCompilerControlFiles(sourceRoots: readonly string[]): readonly string[] {
-  const configs = new Set<string>()
-  const controls = new Set<string>()
-  const directories = new Set<string>()
-  for (const sourceRoot of sourceRoots) {
-    const absolute = resolve(sourceRoot)
-    const source = statSync(absolute).isDirectory()
-      ? canonicalDirectory(absolute, "Storybook compiler source root")
-      : dirname(canonicalFile(absolute, "Storybook compiler source root"))
-    let directory = source
-    while (!directories.has(directory)) {
-      directories.add(directory)
-      const config = join(directory, "tsconfig.json")
-      if (existsSync(config)) configs.add(canonicalFile(config, "Storybook tsconfig"))
-      const bunfig = join(directory, "bunfig.toml")
-      if (existsSync(bunfig)) controls.add(canonicalFile(bunfig, "Storybook Bun config"))
-      const parent = dirname(directory)
-      if (existsSync(join(directory, ".git")) || parent === directory) break
-      directory = parent
-    }
-  }
-  const visited = new Set<string>()
-  const cache = new Map<string, string | undefined>()
-  for (const config of [...configs].sort(comparePaths)) {
-    readTsconfigJsxImportSource(config, cache, new Set(), visited)
-  }
-  return Object.freeze([...new Set([...controls, ...visited])].sort(comparePaths))
 }
 
 /** Resolves runtime imports to the same exact owner roots governed by compilation. */
@@ -199,7 +163,7 @@ export async function createStorybookPackageCompilerPlugins(
   return Object.freeze([resolver, plugin])
 }
 
-/** Собирает единый compiler context для plugin setup и build-input fingerprint. */
+/** Собирает единый compiler context для plugin setup и чтения его входов. */
 function resolveCompilerContext(
   input: StorybookPackageCompilerInput,
 ): Readonly<{

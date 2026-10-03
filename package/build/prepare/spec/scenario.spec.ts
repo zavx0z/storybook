@@ -57,8 +57,8 @@ describe.each([
       .toBeTrue()
   })
 
-  test("Проверяемые входы", () => {
-    expect(result.inputFingerprint.digest, "Сборка возвращает SHA-256 свидетельство использованных исходников")
+  test("Готовый модульный граф", () => {
+    expect(result.moduleGraphRevision, "Готовые модули имеют идентификатор своего содержимого")
       .toMatch(/^[a-f0-9]{64}$/u)
   })
 

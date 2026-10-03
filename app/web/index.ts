@@ -10,7 +10,6 @@ HTTP-соединения, каталог и пакетные сессии. По
 import Build from "@app-web/build"
 import createRelease from "@web/release"
 import Limits from "@tech/limits"
-import {existsSync} from "node:fs"
 import {join} from "node:path"
 import {describeHost, message} from "./src/host"
 import {sharedHostEpochs} from "./src/host-epochs"
@@ -38,7 +37,6 @@ export default function createWeb(input: AppWeb.Input): AppWeb.Output {
   let closing: Promise<void> | null = null
   let rebuilding: Promise<WebPreparation> | null = null
   let failure: WebFailure | null = null
-  let built = false
   const unavailable = new Map<string, string>()
   const requested = new Set<string>()
   const prepared = new Map<string, WebAssets>()
@@ -50,14 +48,12 @@ export default function createWeb(input: AppWeb.Input): AppWeb.Output {
   const assets = new Build.Assets({
     ...(restored === null ? {} : {initial: restored}),
     build: signal => input.scheduler().run({packageId: null, owner: "shared",
-      reason: built ? "input-changed" : existsSync(join(artifactRoot, "receipt.json")) ? "receipt-unverified" : "missing",
-      generation: null, cache: {status: "unknown", layer: "shared"}}, async context => {
+      reason: "explicit-build",
+      generation: null}, async context => {
       const result = await build({root: artifactRoot, toolRoot: input.toolRoot, ...entries}, context, Limits.STORYBOOK_SHARED_COMPILE_TIMEOUT_MS)
-      built = true
       failure = null
       return result
     }, signal),
-    cacheProgress: event => input.publish?.({type: "shared.cache-progress", ...event}),
     commit: value => Build.saveReceipt(value),
     updated: value => {
       const host = describeHost(value)
@@ -71,7 +67,7 @@ export default function createWeb(input: AppWeb.Input): AppWeb.Output {
     let owner = retained.get(identity.epoch)
     if (owner === undefined) {
       owner = new Build.Assets({
-        build: signal => input.scheduler().run({packageId: null, owner: "shared", reason: "input-changed", generation: null},
+        build: signal => input.scheduler().run({packageId: null, owner: "shared", reason: "explicit-build", generation: null},
           context => build({root: artifactRoot, toolRoot: input.toolRoot, ...entries, sharedKernel: identity}, context,
             Limits.STORYBOOK_SHARED_COMPILE_TIMEOUT_MS), signal),
         updated() {},
@@ -99,9 +95,6 @@ export default function createWeb(input: AppWeb.Input): AppWeb.Output {
       }
       const compatible = await prepareRetained(previous.browserIdentity)
       signal.throwIfAborted()
-      if (compatible.browserIdentity?.hostModuleEpoch !== next.browserIdentity?.hostModuleEpoch) {
-        throw new Error("Исходники оболочки изменились между сборками платформенных вариантов")
-      }
       hosts.push(compatible)
     }
     signal.throwIfAborted()
@@ -141,7 +134,7 @@ export default function createWeb(input: AppWeb.Input): AppWeb.Output {
       const previous = compatible ?? Build.readEpoch(artifactRoot, epoch)
       if (!previous) throw new Error(`Нет сохранённой identity платформы ${epoch}; автоматическая замена зависимостей недопустима`)
       requested.add(epoch)
-      if (!compatible || compatible.browserIdentity?.hostModuleEpoch !== selected.browserIdentity?.hostModuleEpoch) {
+      if (!compatible) {
         throw new Error(`Текущая оболочка для платформы ${epoch} ещё не подготовлена; выполните storybook_check со scope storybook:shared`)
       }
       return describeHost(compatible)

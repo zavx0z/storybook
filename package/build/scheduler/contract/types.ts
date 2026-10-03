@@ -6,12 +6,10 @@ type StorybookResourceSampler = Pick<InstanceType<typeof ProcessResourceSampler>
 
 export type StorybookBuildOwner = "open" | "check" | "subscribe" | "startup-validation" | "shared"
 export type StorybookBuildReason =
-  | "missing" | "input-changed" | "receipt-unverified" | "explicit-retry" | "toolchain-changed"
+  | "missing" | "explicit-build" | "input-changed" | "receipt-unverified" | "explicit-retry" | "toolchain-changed"
 
 /** Фазы compiler/build, передаваемые package/shared worker. */
 export type StorybookBuildWorkerPhase =
-  | "cache"
-  | "fingerprint"
   | "verification"
   | "resources"
   | "exports"

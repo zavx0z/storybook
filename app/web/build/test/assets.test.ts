@@ -46,31 +46,28 @@ function fixture() {
   writeFileSync(path, "first")
   const updates: string[] = []
   const errors: unknown[] = []
-  const cacheProgress: Array<Readonly<{state: "started" | "completed", hit?: boolean}>> = []
   let builds = 0
   let pause: (() => Promise<void>) | null = null
   const cache = new StorybookSharedBrowserAssets({
     updated: assets => { updates.push(assets.landingEntry) },
     failed: error => { errors.push(error) },
-    cacheProgress: event => cacheProgress.push(event),
     async build(): Promise<SharedBrowserAssets> {
       builds += 1
       const content = readFileSync(path, "utf8")
       if (content === "invalid") throw new Error("compile failed")
       await pause?.()
-      return {root, landingEntry: `${content}.js`, fallbackEntry: "fallback.js", dependencyRealpaths: [path]}
+      return {root, landingEntry: `${content}.js`, fallbackEntry: "fallback.js"}
     },
   })
   cleanups.push(() => cache.dispose())
-  return {cache, path, updates, errors, cacheProgress, builds: () => builds, pause: (value: typeof pause) => { pause = value }}
+  return {cache, path, updates, errors, builds: () => builds, pause: (value: typeof pause) => { pause = value }}
 }
 
 describe("shared browser assets", () => {
-  test("проверяет изменения только по явному запросу и повторно использует готовую сборку", async () => {
+  test("каждый явный запрос собирает заново, одновременные запросы разделяют одну сборку", async () => {
     const f = fixture()
     const [first, concurrent] = await Promise.all([f.cache.ensure(), f.cache.ensure()])
     expect(first).toBe(concurrent)
-    expect(await f.cache.ensure()).toBe(first)
     expect(f.builds()).toBe(1)
     expect(() => f.cache.current()).toThrow()
     expect(f.updates).toEqual([])
@@ -81,12 +78,6 @@ describe("shared browser assets", () => {
     expect(f.cache.current().landingEntry).toBe("first.js")
     f.cache.publish()
     expect(f.updates).toEqual(["first.js", "second.js"])
-    expect(f.cacheProgress).toEqual([
-      {state: "started"},
-      {state: "completed", hit: true},
-      {state: "started"},
-      {state: "completed", hit: false},
-    ])
   })
 
   test("keeps the previous build on failure and retries after repair", async () => {
@@ -96,6 +87,8 @@ describe("shared browser assets", () => {
     writeFileSync(f.path, "invalid")
     await expect(f.cache.ensure()).rejects.toThrow("compile failed")
     expect(f.cache.current()).toBe(first)
+    expect(f.cache.prepared()).toBeNull()
+    expect(() => f.cache.publish()).toThrow("no prepared candidate")
     expect(f.errors).toHaveLength(1)
     expect(f.updates).toEqual(["first.js"])
     writeFileSync(f.path, "repaired")
@@ -129,7 +122,7 @@ describe("shared browser assets", () => {
 
 
 test("ошибка публикации сохраняет применённую оболочку и не отправляет событие", async () => {
-  const initial = {root: "/fixture", landingEntry: "first.js", fallbackEntry: "first.js", dependencyRealpaths: []}
+  const initial = {root: "/fixture", landingEntry: "first.js", fallbackEntry: "first.js"}
   const updated: SharedBrowserAssets[] = []
   const cache = new StorybookSharedBrowserAssets({
     initial,
@@ -158,7 +151,7 @@ test("конкурентная подготовка не подменяет ка
   expect(f.updates).toEqual(["first.js"])
 })
 
-test("Web с сохранённым kernel не подтверждает кэш полной среды после изменения платформы", async () => {
+test("явный запрос полной среды собирает kernel после отдельного обновления Web", async () => {
   const root = mkdtempSync(join(tmpdir(), "storybook-host-only-cache-"))
   cleanups.push(() => rmSync(root, {recursive: true, force: true}))
   const platform = join(root, "platform.ts")
@@ -175,7 +168,6 @@ test("Web с сохранённым kernel не подтверждает кэш 
         root,
         landingEntry: "page.js",
         fallbackEntry: "page.js",
-        dependencyRealpaths: [platform, web],
         browserIdentity: Environment.identity(
           "/__storybook/shared/page.js",
           [{specifier: "@zavx0z/component", sourcePath: platform, url: `/__storybook/shared/kernel/${platformVersion}.js`}],
@@ -198,8 +190,6 @@ test("Web с сохранённым kernel не подтверждает кэш 
         "/__storybook/shared/updated-page.js",
         original.browserIdentity!.modules,
         digest(readFileSync(web, "utf8")),
-        original.browserIdentity!.sourceFiles,
-        false,
       ),
     }
     cache.stageHost(hostOnly)
@@ -210,9 +200,21 @@ test("Web с сохранённым kernel не подтверждает кэш 
     expect(full.browserIdentity?.epoch).not.toBe(original.browserIdentity?.epoch)
     expect(full.browserIdentity?.modules[0]?.url).toBe("/__storybook/shared/kernel/after.js")
     expect(cache.current()).toBe(publishedHost)
-    expect(await cache.ensure()).toBe(full)
-    expect(builds).toBe(2)
+    expect(await cache.ensure()).not.toBe(full)
+    expect(builds).toBe(3)
   } finally {
     await cache.dispose()
   }
+})
+
+
+test("изменение исходника во время успешной сборки не отменяет публикацию", async () => {
+  const f = fixture()
+  f.pause(async () => { writeFileSync(f.path, "next-edit") })
+  const built = await f.cache.ensure()
+  expect(built.landingEntry).toBe("first.js")
+  expect(f.cache.publish().landingEntry).toBe("first.js")
+  expect(f.errors).toEqual([])
+  expect((await f.cache.ensure()).landingEntry).toBe("next-edit.js")
+  expect(f.cache.publish().landingEntry).toBe("next-edit.js")
 })

@@ -22,7 +22,6 @@ import AppServerCatalogOwner, {type AppServerCatalog as AppServerCatalogContract
 import RepoDiscoveryOwner from "@repo/discovery"
 import readProject from "@archetypes/project"
 import PackageBuildPrepareOwner from "@package-build/prepare"
-import PackageBuildFingerprintOwner from "@package-build/fingerprint"
 import {type PackageBuildScheduler as PackageBuildSchedulerContract} from "@package-build/scheduler"
 import {type PackageRevision as PackageRevisionContract} from "@package/revision"
 import AppServerSessionsOwner, {type AppServerSessions as AppServerSessionsContract} from "@app-server/sessions"
@@ -34,7 +33,6 @@ const createMcpRequestJournal = McpRestRequestsOwner
 const ExternalStorybookRegistry = AppServerCatalogOwner
 const discoverStorybookPackages = RepoDiscoveryOwner
 const createStorybookPackageRevisionBuilder = PackageBuildPrepareOwner
-const createStorybookBuildInputFingerprintVerifier = PackageBuildFingerprintOwner
 const ExternalStorybookSessionManager = AppServerSessionsOwner
 const externalStorybookNode = PackageGraphReadOwner.node
 const externalStorybookRoutes = PackageGraphReadOwner.routes
@@ -196,11 +194,6 @@ export default async function startExternalStorybookServer(
   }
   const usesSharedKernel = options.packageBrowserEntryPath === undefined
   let preparedSharedIdentity = usesSharedKernel ? web.platform : undefined
-  let verifyPackageInputs = createStorybookBuildInputFingerprintVerifier({
-    toolRoot,
-    browserEntryPath: options.packageBrowserEntryPath ?? web.packageEntryPath,
-    ...(preparedSharedIdentity === undefined ? {} : {sharedBrowserIdentity: preparedSharedIdentity}),
-  })
   /**
   Выбирает опубликованную среду для подготовки пакетной ревизии.
   Изменения исходников самого Storybook применяются отдельной явной операцией.
@@ -220,14 +213,10 @@ export default async function startExternalStorybookServer(
     }
     if (preparedSharedIdentity !== assets.browserIdentity) {
       preparedSharedIdentity = assets.browserIdentity
-      verifyPackageInputs = createStorybookBuildInputFingerprintVerifier({toolRoot, browserEntryPath: options.packageBrowserEntryPath ?? web.packageEntryPath, sharedBrowserIdentity: preparedSharedIdentity})
     }
   }
   const sessions = new ExternalStorybookSessionManager({
     artifactRoot,
-    verifyInputFingerprint: (value, descriptor) => usesSharedKernel && preparedSharedIdentity === undefined
-      ? null
-      : verifyPackageInputs(value, descriptor),
     ...(usesSharedKernel ? {prepareBuild: prepareSharedIdentity} : {}),
     buildRevision: createStorybookPackageRevisionBuilder({
       toolRoot,
@@ -638,7 +627,6 @@ export default async function startExternalStorybookServer(
               packages: selectedStates.map(item => ({
                 packageId: item.packageId,
                 buildState: item.buildState,
-                inputFreshness: item.inputFreshness ?? "unknown",
                 cacheOutcome: item.cacheOutcome ?? null,
               })),
             },
@@ -972,11 +960,7 @@ export default async function startExternalStorybookServer(
             const packageIds = resolveCheckPackages(refreshed, scope)
             for (const packageId of packageIds) selectedPackages.add(packageId)
             if (packageIds.length > 0 || scope === null) await prepareSharedIdentity(request.signal)
-            for (const packageId of packageIds) {
-              sessions.revalidateInputs(packageId)
-              sessions.retryFailed(packageId)
-            }
-            const results = await Promise.all(packageIds.map((packageId) => sessions.ensure(packageId, {owner: "check"})))
+            const results = await Promise.all(packageIds.map((packageId) => sessions.build(packageId, {owner: "check"})))
             let ok = results.every((snapshot) => packageBuildSucceeded(snapshot))
             const views: Readonly<Record<string, unknown>>[] = []
             if (ok && body.live === true) {
@@ -1322,10 +1306,6 @@ type StorybookActivationCandidate = Pick<ActivationOutput, "packageId" | "revisi
 type RegistryEvent = Readonly<{
   type: "catalog.progress"
   state: "running" | "completed" | "failed"
-}> | Readonly<{
-  type: "shared.cache-progress"
-  state: "started" | "completed"
-  hit?: boolean
 }> | Readonly<{
   type: "registry.updated"
   revision: number
@@ -1698,7 +1678,7 @@ function matchesSubscription(
 ): boolean {
   if (!("packageId" in event) || event.type === "build.progress" && event.packageId === null) {
     return subscriptions.has("registry") || subscriptions.has("catalog") ||
-      ["shared.updated", "shared.failed", "app.web", "build.progress", "shared.cache-progress"].includes(event.type) &&
+      ["shared.updated", "shared.failed", "app.web", "build.progress"].includes(event.type) &&
         [...subscriptions].some(topic => topic.startsWith("package:"))
   }
   return subscriptions.has("registry") || subscriptions.has(`package:${event.packageId}`)

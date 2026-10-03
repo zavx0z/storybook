@@ -11,7 +11,6 @@
   "dependencies": {
     "@zavx0z/jsx": "^0.0.0",
     "@package-build/scheduler": "workspace:*",
-    "@package-build/plan": "workspace:*",
     "@build/environment": "workspace:*",
     "@package/session": "workspace:*",
     "@build/compiler": "workspace:*",
@@ -19,8 +18,7 @@
     "@package-build/conformance": "workspace:*",
     "@package-build/scenarios": "workspace:*",
     "@package-build/inputs": "workspace:*",
-    "@build/worker": "workspace:*",
-    "@build/inputs": "workspace:*"
+    "@build/worker": "workspace:*"
   },
   "devDependencies": {
     "@immersive/headless": "^0.0.0",
@@ -28,7 +26,6 @@
     "@package-graph/create": "workspace:*",
     "@package/revision": "workspace:*",
     "@archetypes/scenario-reader": "workspace:*",
-    "@archetypes/spec-reader": "workspace:*",
-    "@package-build/fingerprint": "workspace:*"
+    "@archetypes/spec-reader": "workspace:*"
   }
 }

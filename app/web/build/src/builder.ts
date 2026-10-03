@@ -43,12 +43,11 @@ export async function runSharedBrowserBuild(
       maxResultBytes: STORYBOOK_SHARED_ASSETS_MAX_BYTES,
       onProgress(event) {
         if (event.state === "started") context.setPhase(event.phase)
-        if (event.cache !== undefined) context.setCacheOutcome?.(event.cache)
       },
       onLifecycle(event) {
         if (event.state === "started") {
           release = context.bindWorker({pid: event.pid, startedAt: event.startedAt})
-          context.setPhase("fingerprint")
+          context.setPhase("resources")
         } else {
           release?.()
           release = undefined
@@ -62,19 +61,15 @@ export async function runSharedBrowserBuild(
     if (execution.exitCode !== 0) {
       throw new Error(typeof value.error === "string" ? value.error : execution.stderr.trim() || "Shared browser worker failed")
     }
-    if (value.root !== input.root || !Array.isArray(value.dependencyRealpaths) ||
-      value.dependencyRealpaths.some(path => typeof path !== "string" || !isAbsolute(path))) {
-      throw new Error("Shared browser result has an invalid owner or dependency list")
-    }
+    if (value.root !== input.root) throw new Error("Shared browser result has an invalid owner")
     for (const entry of [value.landingEntry, value.fallbackEntry]) {
       if (typeof entry !== "string" || isAbsolute(entry)) throw new Error("Shared browser entry must be relative")
       const local = relative(realpathSync(input.root), realpathSync(join(input.root, entry)))
       if (!local || local.startsWith("..") || isAbsolute(local)) throw new Error("Shared browser entry escaped its owner")
     }
     if (value.browserIdentity === undefined) throw new Error("Shared browser result has no module identity")
-    const browserIdentity = Environment.validate(value.browserIdentity, input.sharedKernel === undefined)
-    context.setCacheOutcome?.({status: value.cacheHit === true ? "hit" : "miss", layer: "shared"})
-    if (value.cacheHit !== true) context.setPhase("publish")
+    const browserIdentity = Environment.validate(value.browserIdentity)
+    context.setPhase("publish")
     return Object.freeze({...value, browserIdentity})
   } finally {
     release?.()
