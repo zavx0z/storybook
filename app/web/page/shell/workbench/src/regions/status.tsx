@@ -1,4 +1,4 @@
-import Breadcrumbs, {type BreadcrumbsItem} from "@zavx0z/ui/navigation/breadcrumb"
+import Breadcrumbs, {type UiNavigationBreadcrumbs} from "@zavx0z/ui/navigation/breadcrumb"
 import StatusBar from "@zavx0z/ui/feedback/status-bar"
 import WindowControl from "@zavx0z/ui/surface/window/control"
 import type {
@@ -21,7 +21,7 @@ export function StatusRegion(props: StatusRegionProps) {
     label: props.status.owner,
     route: "",
   }])
-  const items: readonly BreadcrumbsItem[] = breadcrumbs
+  const items: readonly UiNavigationBreadcrumbs.Input["items"][number][] = breadcrumbs
   return <div data-storybook-region="status" style={css`
     display: flex;
     flex-direction: row;
