@@ -1244,3 +1244,30 @@ test("временное отсутствие CDP-контекста при от
   expect(chrome.created).toBe(1)
   expect(chrome.navigations).toBe(0)
 })
+
+test("scoped inventory структурных адресов не ждёт чужой JS-мост", async () => {
+  const chrome = new FakeChrome()
+  chrome.targetsValue = [
+    {targetId: "A", type: "page", title: "A", url: `${chrome.origin}/project/ui/a?view=scenarios`},
+    {targetId: "B", type: "page", title: "B", url: `${chrome.origin}/project/ui/b?view=scenarios`},
+    {targetId: "CHILD", type: "page", title: "Child", url: `${chrome.origin}/project/ui/a/child`},
+  ]
+  chrome.identityPackageOverrides.set("A", "@fixture/a")
+  chrome.hangingTargetIds.add("B")
+  chrome.hangingTargetIds.add("CHILD")
+  const packages = [
+    {packageId: "@fixture/a", label: "A", urlPath: "/project/ui/a"},
+    {packageId: "@fixture/b", label: "B", urlPath: "/project/ui/b"},
+    {packageId: "@fixture/other", label: "Child", urlPath: "/project/ui/a/child"},
+  ]
+  const controller = createController(chrome)
+  const views = await controller.listViews(chrome.origin, AbortSignal.timeout(200), packages, "@fixture/a")
+  expect(views.map(view => view.packageId)).toEqual(["@fixture/a"])
+  const opened = await controller.openPackage({
+    ...openInput(chrome), route: "", url: chrome.targetsValue[0]!.url, knownPackages: packages,
+  }, AbortSignal.timeout(200))
+  expect(opened.reused).toBeTrue()
+  expect(opened.view.viewId).toBe(views[0]!.viewId)
+  expect(chrome.created).toBe(0)
+  expect(chrome.targetOperations.every(value => !value.includes(":B") && !value.includes(":CHILD"))).toBeTrue()
+})

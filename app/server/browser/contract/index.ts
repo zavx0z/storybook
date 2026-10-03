@@ -4,6 +4,7 @@ import type {
   StorybookBrowserCaptureInput,
   StorybookBrowserInteractInput,
   StorybookChromeClient,
+  StorybookBrowserPackage,
   StorybookProcessStart,
   StorybookPublicView,
   StorybookBridgeIdentity,
@@ -60,7 +61,8 @@ export declare namespace Zavx0zStorybookBrowserLifecycle {
       identity: StorybookBridgeIdentity
       reused: boolean
     }>>
-    listViews(origin: string, signal?: AbortSignal, packages?: readonly Readonly<{packageId: string; label: string}>[], packageId?: string): Promise<readonly StorybookPublicView[]>
+    /** При заданном пакете его канонический urlPath отсекает чужие и вложенные пакеты до чтения JS-мостов. */
+    listViews(origin: string, signal?: AbortSignal, packages?: readonly StorybookBrowserPackage[], packageId?: string): Promise<readonly StorybookPublicView[]>
     getView(viewId: string): StorybookPublicView
     applyRevision?(viewId: string, revision: string, signal?: AbortSignal): Promise<Readonly<Record<string, unknown>>>
     /** При запросе diagnostics и недоступном JS-мосте возвращает короткий native CPU-профиль той же вкладки. */

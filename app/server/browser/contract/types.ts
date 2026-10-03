@@ -385,7 +385,12 @@ export type StoredStorybookCapture = StorybookCaptureMetadata & Readonly<{
 }>
 
 
+/** Идентичность пакета и его канонический адрес из действующего графа. */
+export type StorybookBrowserPackage = Readonly<{packageId: string; label: string; urlPath?: string}>
+
 export type StorybookBrowserOpenInput = Readonly<{
+  /** Граф адресов ограничивает проверку контекстов вкладками выбранного пакета. */
+  knownPackages?: readonly StorybookBrowserPackage[]
   origin: string
   packageId: string
   route: string

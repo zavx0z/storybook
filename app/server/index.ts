@@ -345,6 +345,9 @@ export default async function startExternalStorybookServer(
       route: selectedRoute.path,
       url: previewUrl.href,
       packageLabel: externalStorybookPageTitle(packageNode.packageId, packageNode.label),
+      knownPackages: graph.nodes.filter(node => node.kind === "package").map(node => ({
+        packageId: node.packageId!, label: node.label, urlPath: node.urlPath,
+      })),
       ...(input.timeoutMs === undefined ? {} : {timeoutMs: input.timeoutMs}),
       ...(input.existingViewId === undefined ? {} : {existingViewId: input.existingViewId}),
       ...(expectedRevision === undefined ? {} : {expectedRevision}),
@@ -361,6 +364,7 @@ export default async function startExternalStorybookServer(
         route: selectedRoute.path,
         url: previewUrl.href,
         packageLabel: externalStorybookPageTitle(packageNode.packageId, packageNode.label),
+        knownPackages: openInput.knownPackages,
         ...(input.timeoutMs === undefined ? {} : {timeoutMs: input.timeoutMs}),
         ...(input.existingViewId === undefined ? {} : {existingViewId: input.existingViewId}),
       }, signal)
@@ -646,6 +650,7 @@ export default async function startExternalStorybookServer(
               ? [{
                 packageId: node.packageId,
                 label: externalStorybookPageTitle(node.packageId, node.label),
+                urlPath: node.urlPath,
               }]
               : [])
           return responseJson({
@@ -858,7 +863,7 @@ export default async function startExternalStorybookServer(
           if (snapshot.builtRevision !== grant.revision) throw new Error("Navigation candidate is no longer current")
           server.timeout(request, 0)
           const packages = registry.snapshot().graph.nodes.filter(node => node.kind === "package")
-            .map(node => ({packageId: node.packageId!, label: node.label}))
+            .map(node => ({packageId: node.packageId!, label: node.label, urlPath: node.urlPath}))
           const views = await browserLifecycle.listViews(server.url.origin, request.signal, packages, grant.packageId)
           for (const view of views) {
             if (view.packageId !== grant.packageId || storybookCurrentRouteKey(view.route) !== body.route) continue
@@ -972,7 +977,7 @@ export default async function startExternalStorybookServer(
                 try {
                   const packages = registry.snapshot().graph.nodes
                     .filter(node => node.kind === "package")
-                    .map(node => ({packageId: node.packageId!, label: node.label}))
+                    .map(node => ({packageId: node.packageId!, label: node.label, urlPath: node.urlPath}))
                   const existing = (await browserLifecycle.listViews(server.url.origin, request.signal, packages, packageId))
                     .find(view => view.packageId === packageId)
                   const routes = session.revisionGraphSnapshot(revision!)?.routes ?? []

@@ -9,6 +9,7 @@ import routeUrl from "@route/url"
 import {resolve} from "node:path"
 import type {
   ChromeTargetSummary,
+  StorybookBrowserPackage,
   StoredStorybookCapture,
   StorybookBridgeClip,
   StorybookBridgeIdentity,
@@ -155,7 +156,7 @@ class DefaultStorybookBrowserLifecycle implements Zavx0zStorybookBrowserLifecycl
     reportPhase("target attestation")
     const owned: ChromeTargetSummary[] = []
     for (const target of targets) {
-      if (target.type !== "page") continue
+      if (target.type !== "page" || !targetInPackageScope(target.url, packageId, input.knownPackages)) continue
       // Baseline peer после navigation не может ошибочно стать новым receipt исходной create-команды.
       if (unresolved !== null && !unresolved.baselineTargetIds.includes(target.targetId)) continue
       if (recorded?.phase === "owned" && recorded.cdpOrigin === cdpOrigin &&
@@ -178,7 +179,7 @@ class DefaultStorybookBrowserLifecycle implements Zavx0zStorybookBrowserLifecycl
       ? null
       : targets.find(target => target.targetId === requiredView.targetId) ?? null
     if (requiredView !== null && (requiredTarget === null || requiredTarget.type !== "page" ||
-      !mayAttestPackageTarget(requiredTarget.url, packageId) ||
+      !targetInPackageScope(requiredTarget.url, packageId, input.knownPackages) ||
       !await this.#attestsPackage(requiredTarget, packageId, operationSignal, input.packageLabel))) {
       this.#state.clearTarget(packageId, requiredView.targetId)
       this.#views.forgetTarget(requiredView.targetId)
@@ -286,7 +287,7 @@ class DefaultStorybookBrowserLifecycle implements Zavx0zStorybookBrowserLifecycl
   async listViews(
     origin: string,
     signal?: AbortSignal,
-    packages?: readonly Readonly<{packageId: string; label: string}>[],
+    packages?: readonly StorybookBrowserPackage[],
     packageId?: string,
   ): Promise<readonly StorybookPublicView[]> {
     const canonicalOrigin = loopbackOrigin(origin)
@@ -297,7 +298,7 @@ class DefaultStorybookBrowserLifecycle implements Zavx0zStorybookBrowserLifecycl
     ] as const))
     const candidates = (await this.#chrome.targets(signal)).filter(target =>
       target.type === "page" && packageTargetPath(target.url) !== null && new URL(target.url).origin === canonicalOrigin &&
-      (scope === undefined || mayAttestPackageTarget(target.url, scope)))
+      (scope === undefined || targetInPackageScope(target.url, scope, packages)))
     const retained: StorybookIdentifiedTarget[] = []
     for (const target of candidates) {
       signal?.throwIfAborted()
@@ -844,6 +845,25 @@ function mayAttestPackageTarget(value: string, packageId: string): boolean {
     return storybookPackageRouteFromPathname(parsed.pathname, packageId) !== null
   }
   return true
+}
+
+/** Выбирает ближайшего владельца адреса до обращения к JS вкладки. */
+function targetInPackageScope(value: string, packageId: string, packages?: readonly StorybookBrowserPackage[]): boolean {
+  if (!mayAttestPackageTarget(value, packageId)) return false
+  if (!packages?.some(item => item.packageId === packageId && item.urlPath !== undefined)) return true
+  const target = new URL(value)
+  if (target.pathname.startsWith("/pkg-") || target.pathname.startsWith("/packages/")) return true
+  let owner: string | null = null
+  let length = -1
+  for (const item of packages) {
+    if (item.urlPath === undefined) continue
+    const path = new URL(item.urlPath, target.origin).pathname.replace(/\/$/u, "")
+    if (path.length > length && (target.pathname === path || target.pathname.startsWith(`${path}/`))) {
+      owner = item.packageId
+      length = path.length
+    }
+  }
+  return owner === packageId
 }
 
 function legacyEncodedPackageTarget(value: string, packageId: string): boolean {
