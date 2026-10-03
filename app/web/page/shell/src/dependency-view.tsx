@@ -8,7 +8,7 @@
 */
 import {useMemo, useState} from "@zavx0z/component"
 import {SelectField} from "@zavx0z/ui"
-import {DiagramNode} from "@nodes/node/diagram"
+import {DiagramNode} from "@nodes/node"
 import {GraphView, type GraphInput, type GraphLayoutComputer, type GraphNodeProps} from "@immersive/nodes/view"
 import {layoutTopDown} from "@nodes/layout/top-down"
 import {createCubicLinkRoute} from "@immersive/nodes/routing/link-path"
