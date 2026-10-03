@@ -1,0 +1,15 @@
+{
+  "name": "@package/name",
+  "label": "Имя",
+  "description": "Каркас компонента именования: собственное имя и контекст вложенности до уровня Repo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "test": "bun test ./spec",
+    "typecheck": "tsc --project tsconfig.json --pretty false"
+  }
+}

@@ -881,6 +881,10 @@
       "name": "@archetypes/package-index",
       "version": "0.0.0",
     },
+    "package/name": {
+      "name": "@package/name",
+      "version": "0.0.0",
+    },
     "package/package-json": {
       "name": "@archetypes/package-json",
       "version": "0.0.0",
@@ -1523,6 +1527,8 @@
     "@package/graph": ["@package/graph@workspace:package/graph"],
 
     "@package/identity": ["@package/identity@workspace:package/identity"],
+
+    "@package/name": ["@package/name@workspace:package/name"],
 
     "@package/resources": ["@package/resources@workspace:package/resources"],
 
