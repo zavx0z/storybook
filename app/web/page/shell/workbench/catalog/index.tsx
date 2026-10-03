@@ -7,7 +7,7 @@
 
 @packageDocumentation
 */
-import TextField, {type TextFieldProps} from "@zavx0z/ui/field/text-field"
+import TextField, {type UiFieldsTextField} from "@zavx0z/ui/field/text-field"
 import Button from "@zavx0z/ui/button/button"
 import {collapseAllIcon, expandAllIcon, plusIcon, selectOpenedItemIcon} from "@zavx0z/ui/theme/icon"
 import {useRef} from "@zavx0z/component"
@@ -19,7 +19,7 @@ export type {WebCatalog} from "./contract"
 /** Показывает готовый каталог через общий Tree и передаёт действия его владельцу. */
 export default function CatalogPanel(value: WebCatalog.Input) {
   const tree = useRef<CatalogNavigationTreeHandle | null>(null)
-  const onSearch: NonNullable<TextFieldProps["onInput"]> = (search, event) => {
+  const onSearch: NonNullable<UiFieldsTextField.Input["onInput"]> = (search, event) => {
     value.onSearch(search, event.currentTarget)
   }
   return <div
