@@ -75,3 +75,21 @@ test.each([
     expect(readdirSync(root)).toEqual(["build"])
   } finally { scheduler.dispose() }
 })
+
+
+test("неожиданный выход worker сохраняет код завершения без файла результата", async () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "storybook-worker-exit-")))
+  roots.push(root)
+  const worker = join(root, "worker.ts")
+  writeFileSync(worker, [
+    'const [, , workerId] = process.argv.slice(2)',
+    `console.log(JSON.stringify({protocol: ${JSON.stringify(Scheduler.STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL)}, kind: "ready", workerId, pid: process.pid}))`,
+    'process.exitCode = 37',
+  ].join("\n"))
+  const scheduler = new Scheduler()
+  try {
+    await expect(scheduler.run({packageId: null, owner: "shared", reason: "explicit-build", generation: null}, context =>
+      runSharedBrowserBuild({root: join(root, "assets"), toolRoot: root, landingEntryPath: "", fallbackEntryPath: ""}, context, 2_000, worker),
+    new AbortController().signal)).rejects.toThrow("exit 37, ready true, result missing")
+  } finally { scheduler.dispose() }
+})

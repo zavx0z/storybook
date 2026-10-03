@@ -55,7 +55,7 @@ test("host для сохранённого kernel не заменяет теку
   const variant = {...first, browserIdentity: {...first.browserIdentity!, hostModuleEpoch: second.browserIdentity!.hostModuleEpoch}}
   saveSharedBrowserReceipt(variant, false)
   expect(JSON.parse(readFileSync(join(f.root, "receipt.json"), "utf8")).assets.browserIdentity.epoch).toBe(second.browserIdentity!.epoch)
-  expect(readSharedBrowserEpoch(f.root, first.browserIdentity!.epoch)?.browserIdentity?.hostModuleEpoch).toBe(second.browserIdentity!.hostModuleEpoch)
+  expect(readSharedBrowserEpoch(f.root, first.browserIdentity!.epoch)?.browserIdentity?.hostModuleEpoch).toBe(first.browserIdentity!.hostModuleEpoch)
 })
 
 test("изменённые immutable байты не принимаются как сохранённая платформа", () => {
@@ -69,7 +69,7 @@ test("изменённые immutable байты не принимаются ка
 })
 
 
-test("подготовленный набор не меняет опубликованный, публикация сохраняет совместимый host", () => {
+test("кандидат не подменяет опубликованный host даже после смены текущей платформы", () => {
   const f = fixture()
   const first = f.assets("first")
   saveSharedBrowserReceipt(first)
@@ -77,11 +77,14 @@ test("подготовленный набор не меняет опублико
   saveSharedBrowserCandidate(second)
   const variant = {...first, browserIdentity: {...first.browserIdentity!, hostModuleEpoch: second.browserIdentity!.hostModuleEpoch}}
   saveSharedBrowserCandidate(variant)
+  expect(readSharedBrowserEpoch(f.root, first.browserIdentity!.epoch)?.browserIdentity).toEqual(first.browserIdentity)
+  expect(readSharedBrowserEpoch(f.root, second.browserIdentity!.epoch)).toBeNull()
   const input = {root: f.root, toolRoot: f.root, stagingDirectory: f.root, landingEntryPath: "", fallbackEntryPath: ""}
   expect(readPublishedSharedBrowserReceipt(input)?.browserIdentity).toEqual(first.browserIdentity)
-  saveSharedBrowserReceipt({...second, compatibleHosts: [{sharedModuleEpoch: first.browserIdentity!.epoch, hostModuleEpoch: second.browserIdentity!.hostModuleEpoch}]})
+  saveSharedBrowserReceipt(second)
   expect(readPublishedSharedBrowserReceipt(input)?.browserIdentity).toEqual(second.browserIdentity)
-  expect(readSharedBrowserEpoch(f.root, first.browserIdentity!.epoch)?.browserIdentity).toEqual(variant.browserIdentity)
+  expect(readSharedBrowserEpoch(f.root, first.browserIdentity!.epoch)?.browserIdentity).toEqual(first.browserIdentity)
+  expect(readSharedBrowserEpoch(f.root, first.browserIdentity!.epoch, variant.browserIdentity.hostModuleEpoch)?.browserIdentity).toEqual(variant.browserIdentity)
   expect(readSharedBrowserEpoch(f.root, first.browserIdentity!.epoch, first.browserIdentity!.hostModuleEpoch)?.browserIdentity).toEqual(first.browserIdentity)
 })
 

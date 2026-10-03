@@ -1,9 +1,40 @@
 import {expect, mock, test} from "bun:test"
-import createWeb from "@app/web"
+import createWeb, {type AppWeb} from "@app/web"
 import type {AppWebBuild} from "@app-web/build"
 import {createWebArtifacts} from "../spec/fixture/web-artifacts"
 
 type Assets = Awaited<ReturnType<AppWebBuild.Output["buildAssets"]>>
+
+test("обновление Web адресуется только страницам текущей платформы", async () => {
+  const fixture = createWebArtifacts()
+  const old = fixture.assets("platform-a", "web-a")
+  fixture.save(old)
+  const current = fixture.assets("platform-b", "web-b")
+  fixture.save(current)
+  const build = mock<AppWebBuild.Output["runWorker"]>(async () => { throw new Error("Чтение не компилирует") })
+  const snapshot = {
+    packageId: "@fixture/page", declarationDigest: "fixture", moduleGraphRevision: "fixture",
+    candidateRevision: null, activeRevision: "old", lastGoodRevision: "old", entryRelativePath: "entry.js",
+    diagnostics: [], dependencyRealpaths: [], subscribers: 1, buildState: "active", builds: 2,
+    revisions: [
+      {revision: "old", sharedModuleEpoch: old.browserIdentity!.epoch},
+      {revision: "current", sharedModuleEpoch: current.browserIdentity!.epoch},
+    ].map(value => ({...value, generation: 1, status: "working" as const, declarationDigest: "fixture",
+      packageGraphDigest: "fixture", moduleGraphRevision: "fixture", entryRelativePath: "entry.js",
+      dependencyRealpaths: [], diagnostics: [], createdAt: "2026-10-03T00:00:00Z", leases: 1})),
+  } satisfies ReturnType<AppWeb.Input["revisions"]>[number]
+  const web = createWeb({...fixture.input(build), revisions: () => [snapshot]})
+  try {
+    expect(web.canRefresh("@fixture/page", "old")).toBeFalse()
+    expect(web.canRefresh("@fixture/page", "current")).toBeTrue()
+    expect(web.canRefresh(null, null)).toBeTrue()
+    expect(web.host(old.browserIdentity!.epoch).pageEntryUrl).toBe(old.browserIdentity!.packageEntryUrl)
+    expect(build.mock.calls).toEqual([])
+  } finally {
+    await web.dispose()
+    fixture.dispose()
+  }
+})
 
 test("конкурентные запросы делят кандидат, а поздний apply публикует его", async () => {
   const fixture = createWebArtifacts()
@@ -120,78 +151,53 @@ test("dispose ждёт cleanup Web worker и сохраняет общую оч�
 })
 
 
-test("готовые варианты Web могут иметь разные адреса файлов для разных платформ", async () => {
+test("новая среда публикуется одним build, старая страница читает прежний готовый host", async () => {
   const fixture = createWebArtifacts()
-  const previous = fixture.assets("platform-a", "web-a")
-  fixture.save(previous)
-  const current = fixture.assets("platform-b", "web-b")
-  fixture.save(current)
-  const next = fixture.assets("platform-b", "web-c-platform-b")
-  const compatible = fixture.assets("platform-a", "web-c-platform-a")
+  const old = fixture.assets("platform-a", "web-a")
+  fixture.save(old)
+  const next = fixture.assets("platform-b", "web-b")
   const build = mock<AppWebBuild.Output["runWorker"]>(async input => {
-    const result = input.sharedKernel?.epoch === previous.browserIdentity!.epoch ? compatible : next
-    fixture.save(result, false)
-    return result
+    expect(input.sharedKernel).toBeUndefined()
+    return next
   })
-  const web = createWeb(fixture.input(build))
+  let revisionReads = 0
+  const web = createWeb({...fixture.input(build), revisions: () => { revisionReads++; return [] }})
   try {
-    expect(() => web.host(previous.browserIdentity!.epoch)).toThrow("ещё не подготовлена")
-    const result = await web.rebuild({apply: true})
-    expect(result.published).toBeTrue()
+    expect(web.host(old.browserIdentity!.epoch).hostModuleEpoch).toBe(old.browserIdentity!.hostModuleEpoch)
+    const result = await web.check({apply: true}, new AbortController().signal)
+    expect(result).toMatchObject({ok: true, published: true})
+    expect(result.hosts).toHaveLength(1)
+    expect(build.mock.calls).toHaveLength(1)
+    expect(revisionReads, "История пакетов не создаёт дополнительные сборки Web").toBe(0)
+    expect(web.host().sharedModuleEpoch).toBe(next.browserIdentity!.epoch)
+    expect(web.host(old.browserIdentity!.epoch).hostModuleEpoch).toBe(old.browserIdentity!.hostModuleEpoch)
+    await web.check({}, new AbortController().signal)
     expect(build.mock.calls).toHaveLength(2)
-    expect(web.host().hostModuleEpoch).toBe(next.browserIdentity!.hostModuleEpoch)
-    expect(web.host(previous.browserIdentity!.epoch).hostModuleEpoch)
-      .toBe(compatible.browserIdentity!.hostModuleEpoch)
-    expect(fixture.readPublished()?.compatibleHosts).toEqual([{
-      sharedModuleEpoch: previous.browserIdentity!.epoch,
-      hostModuleEpoch: compatible.browserIdentity!.hostModuleEpoch,
-    }])
   } finally {
     await web.dispose()
     fixture.dispose()
   }
 })
 
-test("shared check объединяет всю подготовку retained host и публикует один стабильный кандидат", async () => {
+test("отдельный выпуск Web обновляет текущую платформу без пересборки старой", async () => {
   const fixture = createWebArtifacts()
-  const archived = fixture.assets("platform-a", "web-a")
-  fixture.save(archived)
+  const old = fixture.assets("platform-a", "web-a")
+  fixture.save(old)
   const current = fixture.assets("platform-b", "web-b")
   fixture.save(current)
-  const candidate = fixture.assets("platform-c", "web-c")
-  const compatible = fixture.assets("platform-a", "web-c-a")
-  const gate = Promise.withResolvers<Assets>()
-  const started = Promise.withResolvers<void>()
+  const next = fixture.assets("platform-b", "web-c")
   const build = mock<AppWebBuild.Output["runWorker"]>(async input => {
-    if (input.sharedKernel === undefined) return candidate
-    expect(input.sharedKernel.epoch).toBe(archived.browserIdentity!.epoch)
-    started.resolve()
-    return gate.promise.then(value => {
-      fixture.save(value, false)
-      return value
-    })
+    expect(input.sharedKernel?.epoch).toBe(current.browserIdentity!.epoch)
+    return next
   })
-  const events: string[] = []
-  const web = createWeb(fixture.input(build, event => events.push(event.type)))
+  const web = createWeb(fixture.input(build))
   try {
-    expect(() => web.host(archived.browserIdentity!.epoch)).toThrow("ещё не подготовлена")
-    const first = web.check({}, new AbortController().signal)
-    await started.promise
-    const second = web.check({apply: true}, new AbortController().signal)
-    await Promise.resolve()
-    expect(build.mock.calls).toHaveLength(2)
-    gate.resolve(compatible)
-    const [result, joined] = await Promise.all([first, second])
-    expect(result).toBe(joined)
-    expect(result).toMatchObject({ok: true, published: true})
-    expect(build.mock.calls).toHaveLength(2)
-    expect(events.filter(type => type === "shared.updated")).toHaveLength(1)
-    expect(web.host().sharedModuleEpoch).toBe(candidate.browserIdentity!.epoch)
-    expect(web.host(archived.browserIdentity!.epoch).hostModuleEpoch).toBe(compatible.browserIdentity!.hostModuleEpoch)
-    await web.check({}, new AbortController().signal)
-    expect(build.mock.calls, "Следующий явный check заново готовит kernel и запрошенный retained host").toHaveLength(4)
+    expect(web.host(old.browserIdentity!.epoch).hostModuleEpoch).toBe(old.browserIdentity!.hostModuleEpoch)
+    expect((await web.rebuild({apply: true})).published).toBeTrue()
+    expect(build.mock.calls).toHaveLength(1)
+    expect(web.host().hostModuleEpoch).toBe(next.browserIdentity!.hostModuleEpoch)
+    expect(web.host(old.browserIdentity!.epoch).hostModuleEpoch).toBe(old.browserIdentity!.hostModuleEpoch)
   } finally {
-    gate.resolve(compatible)
     await web.dispose()
     fixture.dispose()
   }
@@ -232,42 +238,32 @@ test.each([false, true])("отменённый apply не публикует, he
   }
 })
 
-test("последний отменённый check оставляет worker, следующий запрос строит свежий набор после cleanup", async () => {
+test("после отмены ожидания следующий check получает свежую сборку без поздней публикации", async () => {
   const fixture = createWebArtifacts()
-  const archived = fixture.assets("platform-a", "web-a")
-  fixture.save(archived)
-  const current = fixture.assets("platform-b", "web-b")
+  const current = fixture.assets("platform-a", "web-a")
   fixture.save(current)
-  const compatible = fixture.assets("platform-a", "web-b-a")
+  const candidate = fixture.assets("platform-b", "web-b")
   const gate = Promise.withResolvers<Assets>()
   const started = Promise.withResolvers<AbortSignal>()
-  let retainedBuilds = 0
-  const build = mock<AppWebBuild.Output["runWorker"]>(async (input, context) => {
-    if (input.sharedKernel === undefined) return current
-    retainedBuilds++
+  const build = mock<AppWebBuild.Output["runWorker"]>(async (_input, context) => {
     started.resolve(context.signal)
     return gate.promise
   })
-  const events: string[] = []
-  const web = createWeb(fixture.input(build, event => events.push(event.type)))
+  const web = createWeb(fixture.input(build))
   const cancellation = new AbortController()
   try {
-    expect(() => web.host(archived.browserIdentity!.epoch)).toThrow("ещё не подготовлена")
     const first = web.check({apply: true}, cancellation.signal).catch(error => error)
-    const operationSignal = await started.promise
+    const signal = await started.promise
     cancellation.abort()
     expect(await first).toMatchObject({name: "AbortError"})
     const next = web.check({}, new AbortController().signal)
-    await Promise.resolve()
-    expect(operationSignal.aborted).toBeFalse()
-    expect(retainedBuilds).toBe(1)
-    gate.resolve(compatible)
+    expect(signal.aborted).toBeFalse()
+    gate.resolve(candidate)
     expect(await next).toMatchObject({ok: true, published: false})
-    expect(retainedBuilds).toBe(2)
-    expect(events).not.toContain("shared.updated")
+    expect(build.mock.calls).toHaveLength(2)
     expect(fixture.readPublished()?.browserIdentity?.hostModuleEpoch).toBe(current.browserIdentity!.hostModuleEpoch)
   } finally {
-    gate.resolve(compatible)
+    gate.resolve(candidate)
     await web.dispose()
     fixture.dispose()
   }

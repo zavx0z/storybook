@@ -19,7 +19,6 @@ export type SharedBrowserAssets = Readonly<{
   landingEntry: string
   fallbackEntry: string
   bootstrapEntry?: string
-  compatibleHosts?: readonly Readonly<{sharedModuleEpoch: string, hostModuleEpoch: string}>[]
   browserIdentity?: ReturnType<BuildEnvironment.Output["identity"]>
   artifactDigests?: readonly Readonly<{path: string, digest: string}>[]
   authorStyleSheets?: ReturnType<PackageRevision.Output["create"]>["workbenchAuthorStyleSheets"]
@@ -40,6 +39,6 @@ export interface SharedBrowserAssetsController {
   ensure(): Promise<SharedBrowserAssets>
   prepared(): SharedBrowserAssets | null
   stageHost(candidate: SharedBrowserAssets): void
-  publish(variants?: readonly SharedBrowserAssets[], expected?: SharedBrowserAssets | null): SharedBrowserAssets
+  publish(expected?: SharedBrowserAssets | null): SharedBrowserAssets
   dispose(): Promise<void>
 }

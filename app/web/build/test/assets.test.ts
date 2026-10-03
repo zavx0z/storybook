@@ -143,10 +143,10 @@ test("ошибка публикации сохраняет применённу�
 test("конкурентная подготовка не подменяет кандидата после проверки", async () => {
   const f = fixture()
   const checked = await f.cache.ensure()
-  f.cache.publish([], checked)
+  f.cache.publish(checked)
   writeFileSync(f.path, "second")
   await f.cache.ensure()
-  expect(() => f.cache.publish([], checked)).toThrow("candidate changed")
+  expect(() => f.cache.publish(checked)).toThrow("candidate changed")
   expect(f.cache.current().landingEntry).toBe("first.js")
   expect(f.updates).toEqual(["first.js"])
 })
@@ -193,7 +193,7 @@ test("явный запрос полной среды собирает kernel п
       ),
     }
     cache.stageHost(hostOnly)
-    const publishedHost = cache.publish([], hostOnly)
+    const publishedHost = cache.publish(hostOnly)
     expect(publishedHost.browserIdentity?.epoch).toBe(original.browserIdentity?.epoch)
     const full = await cache.ensure()
     expect(builds).toBe(2)

@@ -56,12 +56,11 @@ export class StorybookSharedBrowserAssets implements SharedBrowserAssetsControll
     this.#prepared = candidate
   }
 
-  /** Единым commit публикует подготовленную оболочку и её варианты для сохранённых платформ. */
-  publish(variants: readonly SharedBrowserAssets[] = [], expected = this.#prepared): SharedBrowserAssets {
+  /** Атомарно заменяет текущую оболочку подготовленным результатом. */
+  publish(expected = this.#prepared): SharedBrowserAssets {
     if (this.#prepared === null) throw new Error("Shared host has no prepared candidate")
     if (this.#prepared !== expected) throw new Error("Shared host candidate changed during verification")
-    const candidate = Object.freeze({...this.#prepared, compatibleHosts: Object.freeze(variants.flatMap(assets =>
-      assets.browserIdentity ? [{sharedModuleEpoch: assets.browserIdentity.epoch, hostModuleEpoch: assets.browserIdentity.hostModuleEpoch}] : []))})
+    const candidate = Object.freeze({...this.#prepared})
     this.#commit(candidate)
     this.#current = candidate
     this.#updated(candidate)

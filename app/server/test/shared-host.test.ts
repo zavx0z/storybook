@@ -109,10 +109,10 @@ test("отмена shared check не публикует результат, сл
   const fixture = retainedHostFixture()
   const retained = Promise.withResolvers<SharedBrowserAssets>()
   const started = Promise.withResolvers<AbortSignal>()
-  let retainedBuilds = 0
+  let builds = 0
   const build = mock<AppWebBuild.Output["runWorker"]>(async (input, context) => {
-    if (input.sharedKernel === undefined) return fixture.current
-    retainedBuilds += 1
+    expect(input.sharedKernel).toBeUndefined()
+    builds += 1
     started.resolve(context.signal)
     return retained.promise
   })
@@ -136,8 +136,8 @@ test("отмена shared check не публикует результат, сл
     await Bun.sleep(25)
     expect(secondSettled).toBeFalse()
     expect(operationSignal.aborted).toBeFalse()
-    expect(retainedBuilds).toBe(1)
-    retained.resolve(fixture.compatible)
+    expect(builds).toBe(1)
+    retained.resolve(fixture.current)
     const response = await second
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({
@@ -145,29 +145,28 @@ test("отмена shared check не публикует результат, сл
       published: false,
       hosts: [
         {sharedModuleEpoch: fixture.current.browserIdentity!.epoch},
-        {sharedModuleEpoch: fixture.archived.browserIdentity!.epoch},
       ],
     })
-    expect(retainedBuilds).toBe(2)
+    expect(builds).toBe(2)
     expect(readPublishedSharedBrowserReceipt(fixture.receiptInput)).toEqual(fixture.current)
-    expect((await read()).status).toBe(400)
+    expect((await read()).status).toBe(200)
     expect(server.sessions.snapshots()).toEqual([])
   } finally {
-    retained.resolve(fixture.compatible)
+    retained.resolve(fixture.current)
     await server?.stop()
     build.mockRestore()
     rmSync(fixture.root, {recursive: true, force: true})
   }
 }, 10000)
 
-test("остановка сервера отменяет retained host и ждёт завершения его cleanup", async () => {
+test("остановка сервера отменяет текущую сборку и ждёт завершения его cleanup", async () => {
   const fixture = retainedHostFixture()
   const started = Promise.withResolvers<AbortSignal>()
   const aborted = Promise.withResolvers<void>()
   const cleanup = Promise.withResolvers<void>()
   let cleaned = false
   const build = mock<AppWebBuild.Output["runWorker"]>(async (input, context) => {
-    if (input.sharedKernel === undefined) return fixture.current
+    expect(input.sharedKernel).toBeUndefined()
     started.resolve(context.signal)
     await new Promise<void>(resolve => context.signal.addEventListener("abort", () => {
       aborted.resolve()
@@ -176,7 +175,7 @@ test("остановка сервера отменяет retained host и ждё
     await cleanup.promise
     cleaned = true
     context.signal.throwIfAborted()
-    return fixture.compatible
+    return fixture.current
   })
   let server: Awaited<ReturnType<typeof startExternalStorybookServer>> | undefined
   let check: Promise<Response | null> | undefined
@@ -206,7 +205,7 @@ test("остановка сервера отменяет retained host и ждё
   }
 }, 10000)
 
-/** Создаёт две сохранённые платформы и результат host для прежнего kernel без компилятора. */
+/** Создаёт две готовые платформы без компилятора. */
 function retainedHostFixture() {
   const root = mkdtempSync(join(tmpdir(), "shared-host-lifetime-"))
   const assetsRoot = join(root, "artifacts/shared")
@@ -234,14 +233,12 @@ function retainedHostFixture() {
   }
   const archived = assets("a", "old-host")
   const current = assets("b", "current-host")
-  const compatible = assets("a", "current-host")
   saveSharedBrowserReceipt(archived)
   saveSharedBrowserReceipt(current)
   return {
     root,
     archived,
     current,
-    compatible,
     options: {project: createProjectFixture(root, []), statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts")},
     receiptInput: {root: assetsRoot, toolRoot: root, landingEntryPath: sourcePath, fallbackEntryPath: sourcePath, stagingDirectory: root},
   }
@@ -331,7 +328,7 @@ test("ошибка явного выпуска Web сохраняет опубл
   }
 }, 10000)
 
-/** Запрашивает прежнюю платформу через настоящий browser grant и регистрирует потребность в её host. */
+/** Читает готовый host прежней платформы через настоящий browser grant, без запуска сборки. */
 async function requestRetainedHost(
   server: Awaited<ReturnType<typeof startExternalStorybookServer>>,
   archived: SharedBrowserAssets,
@@ -342,7 +339,7 @@ async function requestRetainedHost(
   const read = () => fetch(new URL(`/api/browser/shared?sharedModuleEpoch=${archived.browserIdentity!.epoch}`, server.origin), {
     headers: {"x-storybook-session": token!},
   })
-  expect((await read()).status).toBe(400)
+  expect((await read()).status).toBe(200)
   return read
 }
 

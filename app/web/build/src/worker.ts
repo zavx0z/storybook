@@ -13,7 +13,7 @@ console.log(JSON.stringify({protocol: STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL, kin
 try {
   const input = JSON.parse(readFileSync(jobPath, "utf8")) as SharedBrowserBuildInput
   if (input.sharedKernel !== undefined) {
-    const retained = readSharedBrowserEpoch(input.root, input.sharedKernel.epoch)
+    const retained = readSharedBrowserEpoch(input.root, input.sharedKernel.epoch, input.sharedKernel.hostModuleEpoch)
     if (!retained?.browserIdentity || JSON.stringify(retained.browserIdentity.modules) !== JSON.stringify(input.sharedKernel.modules)) throw new Error("Retained kernel does not match its saved artifact receipt")
   }
   const phase = (event: StorybookBuildPhaseEvent): void => {

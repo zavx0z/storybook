@@ -32,10 +32,14 @@ export function readSharedBrowserEpoch(
   if (!/^[a-f0-9]{64}$/u.test(epoch)) throw new Error("Invalid shared kernel epoch")
   if (hostEpoch !== undefined && !/^[a-f0-9]{64}$/u.test(hostEpoch)) throw new Error("Invalid shared host epoch")
   const input = {root, toolRoot: root, landingEntryPath: "", fallbackEntryPath: "", stagingDirectory: root}
-  const saved = readReceipt(input, join(root, "hosts", hostEpoch === undefined ? `${epoch}.json` : `${epoch}/${hostEpoch}.json`), onRejected)
-  const latest = saved ?? (hostEpoch === undefined ? readReceipt(input, join(root, "receipt.json"), onRejected) : null)
-  if (latest?.browserIdentity?.epoch === epoch) return latest
-  if (latest) onRejected?.("Опубликованный receipt относится к другой платформе")
+  if (hostEpoch !== undefined) {
+    const exact = readReceipt(input, join(root, "hosts", epoch, `${hostEpoch}.json`), onRejected)
+    return exact?.browserIdentity?.epoch === epoch && exact.browserIdentity.hostModuleEpoch === hostEpoch ? exact : null
+  }
+  const current = readReceipt(input, join(root, "receipt.json"), onRejected)
+  if (current?.browserIdentity?.epoch === epoch) return current
+  const previous = readReceipt(input, join(root, "hosts", `${epoch}.json`), onRejected)
+  if (previous?.browserIdentity?.epoch === epoch) return previous
   return null
 }
 
@@ -101,13 +105,12 @@ export function saveSharedBrowserReceipt(assets: SharedBrowserAssets, current = 
       mkdirSync(join(directory, previousEpoch), {recursive: true})
       writeReceipt(join(directory, previousEpoch, `${previous.browserIdentity.hostModuleEpoch}.json`), previous)
       const latestPath = join(directory, `${previousEpoch}.json`)
-      if (!existsSync(latestPath)) writeReceipt(latestPath, previous)
+      writeReceipt(latestPath, previous)
     }
 
   }
   mkdirSync(join(directory, epoch), {recursive: true})
   writeReceipt(join(directory, epoch, `${assets.browserIdentity!.hostModuleEpoch}.json`), assets)
-  writeReceipt(join(directory, `${epoch}.json`), assets)
   if (current) writeReceipt(join(assets.root, "receipt.json"), assets)
 }
 

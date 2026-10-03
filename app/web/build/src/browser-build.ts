@@ -30,7 +30,7 @@ const {createStorybookPackageCompilerPlugins} = Compiler
 */
 export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, onPhase?: SharedBrowserBuildPhaseListener): Promise<SharedBrowserAssets> {
   if (input.sharedKernel !== undefined) {
-    const retained = readSharedBrowserEpoch(input.root, input.sharedKernel.epoch)
+    const retained = readSharedBrowserEpoch(input.root, input.sharedKernel.epoch, input.sharedKernel.hostModuleEpoch)
     if (!retained?.browserIdentity || JSON.stringify(retained.browserIdentity.modules) !== JSON.stringify(input.sharedKernel.modules)) {
       throw new Error("Retained kernel does not match its saved artifact receipt")
     }
@@ -145,7 +145,7 @@ export async function buildSharedBrowserAssets(input: SharedBrowserBuildInput, o
   artifactDigests.push(...authorStyleSheets.map(style => ({path: style.url, digest: style.contentDigest})))
   Artifacts.publish(input.root, staging, artifactDigests)
   if (input.sharedKernel !== undefined) {
-    const retained = readSharedBrowserEpoch(input.root, input.sharedKernel.epoch)
+    const retained = readSharedBrowserEpoch(input.root, input.sharedKernel.epoch, input.sharedKernel.hostModuleEpoch)
     if (!retained) throw new Error("Retained kernel artifacts are unavailable")
     artifactDigests.push(...retained.artifactDigests!.filter(artifact => artifact.path.startsWith("kernel/")))
   }

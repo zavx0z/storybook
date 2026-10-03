@@ -55,7 +55,8 @@ export async function runSharedBrowserBuild(
       },
     })
     if (!execution.ready || execution.result === undefined) {
-      throw new Error(execution.stderr.trim() || "Shared browser worker failed")
+      const detail = execution.stderr.trim()
+      throw new Error(`Shared browser worker failed (exit ${execution.exitCode}, ready ${execution.ready}, result missing)${detail ? `: ${detail}` : ""}`)
     }
     const value = execution.result as SharedBrowserAssets & {error?: unknown}
     if (execution.exitCode !== 0) {
