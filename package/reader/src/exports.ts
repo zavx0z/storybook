@@ -75,10 +75,19 @@ function localStatements(file: SourceFile): Source["statements"] {
 }
 
 /** Проверяет публичность разрешённого модуля у его собственного владельца, включая ветви сред. */
-async function publicModule(path: string, owner: Owner | null, ownRoot: string): Promise<boolean | null> {
+async function publicModule(path: string, owner: Owner | null, ownRoot: string, specifier: string): Promise<boolean | null> {
   if (!owner) return null
   if (owner.path === ownRoot) return true
   const metadata = JSON.parse(await readFile(resolve(owner.path, "package.json"), "utf8"))
+  if (metadata.exports === undefined && !specifier.startsWith(".") && /^(?:@[^/]+\/)?[^/]+$/u.test(specifier)) {
+    for (const field of ["types", "typings", "main"] as const) {
+      const target = metadata[field]
+      if (typeof target !== "string") continue
+      const entry = await readPackageIndex({path: owner.path, exports: {".": target.startsWith("./") ? target : `./${target}`}})
+      if (entry.entries.some(value => value.status === "owned" && value.target !== null
+        && resolve(owner.path, value.target) === path)) return true
+    }
+  }
   const declared = typeof metadata.exports === "string" ? {".": metadata.exports} : metadata.exports ?? {}
   const index = await readPackageIndex({path: owner.path, exports: declared})
   const published = index.entries.some(entry => entry.target && ["owned", "forwarded"].includes(entry.status)
@@ -121,7 +130,7 @@ async function moduleReferences(file: SourceFile, project: Project, root: string
     const path = declaration ? await sourceFilePath(root, declaration.path) : null
     const owner = path && !isBuiltin(reference.module) ? await sourceOwner(path) : null
     result.push({from: file.fileName, module: reference.module, names: reference.names, typeOnly: reference.typeOnly,
-      exported: reference.exported, path, owner, public: isBuiltin(reference.module) ? true : path ? await publicModule(path, owner, root) : null})
+      exported: reference.exported, path, owner, public: isBuiltin(reference.module) ? true : path ? await publicModule(path, owner, root, reference.module) : null})
   }
   return result
 }

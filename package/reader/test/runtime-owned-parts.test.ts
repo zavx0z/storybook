@@ -2,6 +2,7 @@ import {afterEach, expect, test} from "bun:test"
 import {mkdir, mkdtemp, realpath, rm, symlink, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {dirname, join} from "node:path"
+import {pathToFileURL} from "node:url"
 import type {ArchetypesPackage} from "@archetypes/package"
 import {runtimeOwnedParts} from "../spec/runtime-owned-parts"
 
@@ -63,6 +64,21 @@ import {value as fromB} from "@fixture/b"
 export const value = fromB
 `)
   expect(await runtimeOwnedParts(f.result([f.fromA]))).toEqual(new Set([f.a, f.b]))
+})
+
+test("private исполняемый default-вход сохраняет часть, публичный и named фасады её не заменяют", async () => {
+  const f = await fixture()
+  await writeFile(join(f.b, "index.ts"), "export default function double(value: number) {return value * 2}\n")
+  await mkdir(join(f.a, "src"))
+  const entry = join(f.a, "src/browser-entry.ts")
+  await writeFile(entry, 'export {default} from "@fixture/b"\n')
+  expect(await runtimeOwnedParts(f.result([f.fromA]))).toEqual(new Set([f.a, f.b]))
+  const loaded = await import(pathToFileURL(entry).href)
+  expect(loaded.default(3), "Отдельно загруженный вход действительно предоставляет реализацию части").toBe(6)
+  await writeFile(entry, 'export {default as catalogItem} from "@fixture/b"\n')
+  await writeFile(join(f.a, "index.ts"), 'export {default} from "@fixture/b"\n')
+  expect(await runtimeOwnedParts(f.result([f.fromA])), "Один публичный реэкспорт и private named-каталог не являются исполняемой композицией")
+    .toEqual(new Set([f.a]))
 })
 
 test("worker source participates; nested owner source cannot masquerade as parent code", async () => {

@@ -2,7 +2,7 @@ import {existsSync, lstatSync, readFileSync, readdirSync, realpathSync} from "no
 import {dirname, isAbsolute, join, relative, resolve, sep} from "node:path"
 import {API} from "typescript/unstable/async"
 import {SyntaxKind, type Node, type SourceFile} from "typescript/unstable/ast"
-import {isCallExpression, isImportDeclaration, isNamedImports, isStringLiteral} from "typescript/unstable/ast/is"
+import {isCallExpression, isExportDeclaration, isImportDeclaration, isNamedExports, isNamedImports, isStringLiteral} from "typescript/unstable/ast/is"
 import type {ArchetypesPackage} from "@archetypes/package"
 
 const OMIT_DIRECTORIES = new Set(["node_modules", "spec", "test", "tests", "fixture", "fixtures", "dist"])
@@ -13,16 +13,23 @@ type Snapshot = Awaited<ReturnType<API["updateSnapshot"]>>
 /**
 Проверяет структурное участие от всех собственных исходников целого.
 Корневые ссылки уже раскрыты Package Reader; исходники достигнутых частей
-читаются одним TypeScript AST snapshot без повторного typecheck. Реэкспорт и type-only ссылка
-не создают ребро композиции. Выполнение подтверждает сценарий владельца.
+читаются одним TypeScript AST snapshot без повторного typecheck.
+Публичный фасад и type-only ссылка не создают ребро композиции.
+Отдельный private src-вход с единственным runtime default может передавать
+реализацию в другой realm; фактическую загрузку и вызов подтверждает сценарий.
 */
 export async function runtimeOwnedParts(root: ArchetypesPackage.Output): Promise<ReadonlySet<string>> {
   const owned = new Map(root.packages.map(part => [part.path, part]))
   const named = new Map(root.packages.map(part => [part.name, part]))
   const reached = new Set<string>()
-  const pending = root.code.flatMap(source => source.references.flatMap(reference =>
-    !reference.typeOnly && !reference.exported && reference.owner !== null && owned.has(reference.owner.path)
-      ? [reference.owner.path] : []))
+  const pending = root.code.flatMap(source => {
+    const entry = relative(root.root, source.path).split(sep)[0] === "src"
+      && source.exports.filter(value => value.runtime).length === 1
+      && source.exports.some(value => value.runtime && value.name === "default" && !value.unresolved)
+    return source.references.flatMap(reference =>
+      !reference.typeOnly && (!reference.exported || entry) && reference.owner !== null && owned.has(reference.owner.path)
+        ? [reference.owner.path] : [])
+  })
   if (pending.length === 0) return reached
   const files = new Map(root.packages.map(part => [part.path, ownRuntimeSources(part.path)]))
   const api = new API({cwd: root.root})
@@ -33,7 +40,7 @@ export async function runtimeOwnedParts(root: ArchetypesPackage.Output): Promise
       if (reached.has(path)) continue
       reached.add(path)
       for (const source of files.get(path) ?? []) {
-        for (const specifier of await runtimeImports(source, snapshot)) {
+        for (const specifier of await runtimeImports(source, snapshot, path)) {
           const part = named.get(barePackageName(specifier))
           if (part === undefined || part.path === path || reached.has(part.path)) continue
           let target: string
@@ -91,11 +98,13 @@ function ownRuntimeSources(root: string): readonly string[] {
 }
 
 /** Один native AST snapshot различает import, type-only и re-export без checker. */
-async function runtimeImports(path: string, snapshot: Snapshot): Promise<ReadonlySet<string>> {
+async function runtimeImports(path: string, snapshot: Snapshot, owner: string): Promise<ReadonlySet<string>> {
   const project = await snapshot.getDefaultProjectForFile(path)
   const file = await project?.program.getSourceFile(path)
   if (file === undefined) throw new Error(`TypeScript не прочитал исходник части: ${path}`)
   const result = new Set<string>()
+  const exports = new Bun.Transpiler({loader: /\.[jt]sx$/u.test(path) ? "tsx" : "ts"}).scan(file.text).exports
+  const entry = relative(owner, path).split(sep)[0] === "src" && exports.length === 1 && exports[0] === "default"
   const visit = (node: Node): void => {
     if (isImportDeclaration(node) && isStringLiteral(node.moduleSpecifier)) {
       const clause = node.importClause
@@ -103,6 +112,10 @@ async function runtimeImports(path: string, snapshot: Snapshot): Promise<Readonl
       const onlyTypes = clause?.phaseModifier === SyntaxKind.TypeKeyword ||
         !!named && isNamedImports(named) && !clause?.name && named.elements.length > 0 && named.elements.every(item => item.isTypeOnly)
       if (!onlyTypes) result.add(node.moduleSpecifier.text)
+    } else if (entry && isExportDeclaration(node) && !node.isTypeOnly && node.moduleSpecifier
+      && isStringLiteral(node.moduleSpecifier) && node.exportClause && isNamedExports(node.exportClause)
+      && node.exportClause.elements.some(value => value.name.text === "default" && !value.isTypeOnly)) {
+      result.add(node.moduleSpecifier.text)
     } else if (isCallExpression(node) && node.expression.kind === SyntaxKind.ImportKeyword &&
       node.arguments[0] && isStringLiteral(node.arguments[0])) {
       result.add(node.arguments[0].text)
