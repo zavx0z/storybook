@@ -188,6 +188,9 @@ describe("Storybook MCP stdio", () => {
       arguments: {schemaVersion: 1, viewId: viewId(), include: ["canvas"], cursor: "offset:80", maxDepth: 12},
     })
     expect(validCursor.isError).not.toBeTrue()
+    expect((await client.callTool({name: "storybook_inspect", arguments: {
+      schemaVersion: 1, viewId: viewId(), include: ["semantic"], cursor: "subtree.23.offset.0",
+    }})).isError).not.toBeTrue()
     for (const request of [
       {name: "storybook_interact", arguments: {
         schemaVersion: 1, viewId: viewId(), target: {nodeId: "node:1"}, action: "drag", value: {dx: 1, dy: 1},
@@ -217,7 +220,7 @@ describe("Storybook MCP stdio", () => {
     ]) {
       expect((await client.callTool(request)).isError).toBeTrue()
     }
-    expect(controller.calls).toEqual(["inspect", "interact", "interact"])
+    expect(controller.calls).toEqual(["inspect", "inspect", "interact", "interact"])
   })
 
   test("serves canonical resources through the same injected controller", async () => {

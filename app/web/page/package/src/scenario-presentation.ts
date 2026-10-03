@@ -3,14 +3,16 @@ import createScenarioApp from "@scenario/model"
 import type {ScenarioModel} from "@scenario/model"
 /** Форма исходного публичного владельца. */
 type ScenarioAppInput = ScenarioModel.Input
-import ScenarioPreview from "@scenario/preview"
+import ScenarioPreview, {type ScenarioPreview as ScenarioPreviewContract} from "@scenario/preview"
+/** Форма исходного публичного владельца. */
+type ScenarioPreviewPlacement = ScenarioPreviewContract.Input["placement"]
 import ScenarioResult from "@scenario/result"
 import type {Document} from "@zavx0z/dom"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
 import createStorybookComponentPresentation from "@web/presentation"
 
 /**
-Монтирует общую фикстуру после успешного теста; CSS Preview владеет её расположением.
+Монтирует общую фикстуру после успешного теста и центрирует её по локальной раскладке Display.
 Переход между вариантами сохраняет ComponentRoot и semantic Element компонента.
 Для функции монтируется только редактор сохранённого результата в том же Document.
 */
@@ -19,7 +21,7 @@ export function createScenarioPresentation(document: Document, input: ScenarioAp
   if (input.kind === "function") {
     const template = ScenarioResult as unknown as CompiledTemplate<{app: typeof app}>
     const view = createStorybookComponentPresentation(document, template, {app}, "[data-scenario-result]")
-    return Object.freeze({...view, app, dispose() {
+    return Object.freeze({...view, app, center: () => false, dispose() {
       app.dispose()
       view.dispose()
     }})
@@ -29,8 +31,9 @@ export function createScenarioPresentation(document: Document, input: ScenarioAp
     if (!("props" in selected) || selected.props === undefined) throw new TypeError("Нет props компонента")
     return input.resolveProps?.(selected.id, selected.props) ?? selected.props
   }
+  let placement: ScenarioPreviewPlacement = {x: 0, y: 0}
   const template = ScenarioPreview as unknown as CompiledTemplate<Parameters<typeof ScenarioPreview>[0]>
-  const view = createStorybookComponentPresentation(document, template, {app}, "[data-scenario-preview]")
+  const view = createStorybookComponentPresentation(document, template, {placement, app}, "[data-scenario-preview]")
   const stage = view.element.querySelector("[data-scenario-stage]")!
   const fixtureRoot = createRoot(stage)
   const updateFixture = () => {
@@ -58,5 +61,20 @@ export function createScenarioPresentation(document: Document, input: ScenarioAp
       view.dispose()
     },
     app,
+    center() {
+      if (input.run !== undefined && app.getSnapshot().execution?.status !== "passed") return false
+      const element = stage.firstElementChild
+      if (element === null || !view.element.isConnected) return false
+      const viewport = view.element.getLayoutRect()
+      const bounds = element.getLayoutRect()
+      if (viewport === null || bounds === null) return false
+      if (viewport.width <= 0 || viewport.height <= 0 || bounds.width <= 0 || bounds.height <= 0) return false
+      const dx = viewport.x + viewport.width / 2 - bounds.x - bounds.width / 2
+      const dy = viewport.y + viewport.height / 2 - bounds.y - bounds.height / 2
+      if (!Number.isFinite(dx) || !Number.isFinite(dy) || Math.abs(dx - placement.x) < 0.01 && Math.abs(dy - placement.y) < 0.01) return false
+      placement = {x: dx, y: dy}
+      view.componentRoot.render(template, {placement, app})
+      return true
+    },
   })
 }

@@ -174,7 +174,10 @@ async function startExternalStorybookPackage(
   let scenarioPresentation: ReturnType<typeof createScenarioPresentation> | null = null
   let stopScenarioSelection: (() => void) | null = null
   let restoringScenarioSelection = false
+  let stopScenarioCentering = () => {}
   const disposeScenario = (): void => {
+    stopScenarioCentering()
+    stopScenarioCentering = () => {}
     stopScenarioSelection?.()
     stopScenarioSelection = null
     scenarioPresentation?.dispose()
@@ -345,6 +348,12 @@ async function startExternalStorybookPackage(
       inspectorValues: scenarios ? Object.freeze(scenarioPresentation === null ? {} : {"storybook-scenarios": scenarioPresentation.app}) : contractValues ?? Object.freeze({diagnostics: Object.freeze([...routeDiagnostics])}),
     })
     publishPresentation(next, scenarioPresentation !== null)
+    if (scenarioPresentation !== null) {
+      const mounted = scenarioPresentation
+      stopScenarioCentering = shell.root.getProjection(shell.display).subscribeFrames(() => {
+        if (mounted.center()) shell.requestRender()
+      })
+    }
     shell.requestRender()
   }
 

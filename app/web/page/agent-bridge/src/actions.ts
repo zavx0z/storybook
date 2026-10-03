@@ -280,7 +280,7 @@ export function boundedText(value: unknown, maximum: number, label: string): str
 
 export function decodeCursor(value: string | undefined): Readonly<{offset: number; rootId?: number}> {
   if (value === undefined) return {offset: 0}
-  const match = /^(?:node:([1-9][0-9]*):)?offset:([0-9]+)$/u.exec(value)
+  const match = /^(?:subtree\.([1-9][0-9]*)\.offset\.|offset:)([0-9]+)$/u.exec(value)
   if (match === null) throw new Error("Invalid Storybook semantic cursor")
   return {
     offset: boundedInteger(Number(match[2]), 0, 1_000_000, "cursor"),
@@ -289,7 +289,7 @@ export function decodeCursor(value: string | undefined): Readonly<{offset: numbe
 }
 
 export function encodeCursor(value: number, rootId?: number): string {
-  return `${rootId === undefined ? "" : `node:${rootId}:`}offset:${value}`
+  return rootId === undefined ? `offset:${value}` : `subtree.${rootId}.offset.${value}`
 }
 
 export function exactClip(x: number, y: number, width: number, height: number) {

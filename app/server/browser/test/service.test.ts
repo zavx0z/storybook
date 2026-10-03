@@ -985,6 +985,7 @@ class FakeChrome implements StorybookChromeClient {
   lastClip: unknown
   invalidIdentity = false
   unavailableBridgeCalls = 0
+  transitioningBridgeCalls = 0
   identityCalls = 0
   identityRevision = "revision-a"
   identityReady = true
@@ -1118,6 +1119,11 @@ class FakeChrome implements StorybookChromeClient {
     if (method === "identity") {
       this.identityCalls += 1
       this.targetOperations.push(`identity:${targetId}`)
+      if (this.identityCalls <= this.transitioningBridgeCalls) {
+        const error = new Error("Storybook page is transitioning")
+        error.name = "StorybookCdpTargetTransition"
+        throw error
+      }
       if (this.identityCalls <= this.unavailableBridgeCalls) {
         throw new Error("Storybook agent bridge is unavailable in the exact target")
       }
@@ -1226,4 +1232,15 @@ test("диагностика занятой страницы возвращае�
   chrome.targetsValue[0] = {...chrome.targetsValue[0]!, url: `${chrome.origin}/pkg-fixture-b/`}
   await expect(controller.inspect(opened.view.viewId, {include: ["diagnostics"]})).rejects.toThrow()
   expect(samples).toBe(1)
+})
+
+
+test("временное отсутствие CDP-контекста при открытии ждёт ту же вкладку", async () => {
+  const chrome = new FakeChrome()
+  chrome.transitioningBridgeCalls = 2
+  const opened = await createController(chrome).openPackage(openInput(chrome))
+  expect(opened.identity.ready).toBeTrue()
+  expect(chrome.identityCalls).toBeGreaterThanOrEqual(3)
+  expect(chrome.created).toBe(1)
+  expect(chrome.navigations).toBe(0)
 })

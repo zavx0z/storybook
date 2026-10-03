@@ -727,7 +727,8 @@ class DefaultStorybookBrowserLifecycle implements Zavx0zStorybookBrowserLifecycl
             signal,
           ))
         } catch (error) {
-          if (!(error instanceof Error) || error.message !== "Storybook agent bridge is unavailable in the exact target") {
+          if (!(error instanceof Error) || error.message !== "Storybook agent bridge is unavailable in the exact target" &&
+            error.name !== "StorybookCdpTargetTransition") {
             throw error
           }
           unavailable = error

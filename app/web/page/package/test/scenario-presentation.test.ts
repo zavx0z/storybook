@@ -262,6 +262,7 @@ test("снимки функции переключаются в редактор
     expect(presentation.element.textContent).toContain("Ошибка выполнения")
     expect(presentation.element.textContent).toContain("Файл отсутствует")
     expect(JSON.stringify(input), "Просмотр не изменяет подготовленные снимки").toBe(original)
+    expect(presentation.center()).toBeFalse()
   } finally {
     inspector?.unmount()
     presentation.dispose()
@@ -326,7 +327,7 @@ test("Inspector сохраняет два уровня describe.each и выби
 })
 
 
-test("центрирование сохраняется при масштабе Display и после следующих кадров", () => {
+test.each([false, true])("центрирование сохраняется при масштабе Display и absolute=%s", absolute => {
   const document = createDocument()
   const host = document.createElement("section")
   host.setAttribute("style", "width:720px;height:600px")
@@ -334,7 +335,7 @@ test("центрирование сохраняется при масштабе 
   const presentation = createScenarioPresentation(document, {
     kind: "component",
     template: FixedSizeFixture as unknown as CompiledTemplate<Record<string, unknown>>,
-    variants: [{id: "fixed", title: "Фикстура", props: {}, source: "<FixedSizeFixture />", points: []}],
+    variants: [{id: "fixed", title: "Фикстура", props: {absolute}, source: "<FixedSizeFixture />", points: []}],
   })
   host.append(presentation.element)
   const renderer = createDocumentRenderer({
@@ -347,8 +348,10 @@ test("центрирование сохраняется при масштабе 
   try {
     for (let frame = 0; frame < 4; frame += 1) {
       renderer.render()
+      presentation.center()
       presentation.componentRoot.flush()
     }
+    expect(presentation.center(), "Установленное положение больше не вызывает render").toBeFalse()
     const viewport = presentation.element.getBoundingClientRect()
     const content = presentation.element.querySelector("[data-fixed-fixture]")!.getBoundingClientRect()
     expect(content.width, "Масштаб проекции сохраняет авторскую ширину").toBe(360)

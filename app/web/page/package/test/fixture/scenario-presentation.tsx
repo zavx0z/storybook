@@ -28,10 +28,11 @@ export function Content() {
 }
 
 /** Авторский размер фикстуры сохраняется при любом масштабе проекции. */
-export function FixedSizeFixture() {
+export function FixedSizeFixture(props: Readonly<{absolute: boolean}>) {
   return <div
     data-fixed-fixture=""
     style={css`
+      position: ${props.absolute ? "absolute" : "relative"};
       width: 180px;
       height: 38px;
       flex-shrink: 0;
