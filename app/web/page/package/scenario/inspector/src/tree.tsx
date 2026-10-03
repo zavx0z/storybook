@@ -1,5 +1,5 @@
 import {useState} from "@zavx0z/component"
-import Panel from "@zavx0z/ui/surface/panel"
+import {Panel} from "@zavx0z/ui"
 import type {ScenarioModel} from "@scenario/model"
 /** Форма исходного публичного владельца. */
 type ScenarioApp = ScenarioModel.Output

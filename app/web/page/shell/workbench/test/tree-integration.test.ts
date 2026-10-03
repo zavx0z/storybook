@@ -14,7 +14,7 @@ import type {
   Workbench,
   WorkbenchNavigationItem,
 } from "../src/types.ts"
-import {chevronDownIcon, chevronRightIcon} from "@zavx0z/ui/theme/icon"
+import {chevronDownIcon, chevronRightIcon} from "@ui-themes/icons"
 import {WORKBENCH_EVENTS} from "../src/events"
 import type {NavigationExpansion} from "../src/types.ts"
 import type * as ControllerModule from "./fixture/create-workbench"

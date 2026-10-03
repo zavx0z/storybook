@@ -1,5 +1,5 @@
-import CodeEditor from "@zavx0z/ui/view/code-editor"
-import Typography from "@zavx0z/ui/typography"
+import {CodeEditor} from "@zavx0z/ui"
+import {Typography} from "@zavx0z/ui"
 import type {ScenarioModel} from "@scenario/model"
 /** Форма исходного публичного владельца. */
 type ScenarioAppInput = ScenarioModel.Input

@@ -5,8 +5,8 @@
 import type {ScenarioResult as Contract} from "./contract"
 export type {ScenarioResult} from "./contract"
 import {useSyncExternalStore} from "@zavx0z/component"
-import Typography from "@zavx0z/ui/typography"
-import CodeEditor from "@zavx0z/ui/view/code-editor"
+import {Typography} from "@zavx0z/ui"
+import {CodeEditor} from "@zavx0z/ui"
 import {ScenarioCallResult} from "./src/call"
 
 /**

@@ -1,8 +1,8 @@
 import {type McpRestRequests as McpRestRequestsContract} from "@mcp-rest/requests"
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
 import {memo, useEffect, useLayoutEffect, useRef, useState} from "@zavx0z/component"
-import CodeEditor from "@zavx0z/ui/view/code-editor"
-import Button from "@zavx0z/ui/button/button"
+import {CodeEditor} from "@zavx0z/ui"
+import {Button} from "@zavx0z/ui"
 import {selectRequest} from "./selected-request"
 import {formatJson} from "./format-json"
 

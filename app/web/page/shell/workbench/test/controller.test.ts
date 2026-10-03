@@ -11,7 +11,7 @@ import {
 } from "@zavx0z/dom"
 import {createDocumentRenderer} from "@renderer/html"
 import {isCompiledTemplate} from "@zavx0z/template/compiled"
-import {uiIcons} from "@zavx0z/ui/theme/icon"
+import uiIcons from "@ui-themes-icons/collection"
 import {WORKBENCH_EVENTS, WORKBENCH_LAYOUT_PROTOCOL, WORKBENCH_REGIONS} from "../src/events"
 import type {Workbench} from "../src/types.ts"
 import type * as ControllerModule from "./fixture/create-workbench"

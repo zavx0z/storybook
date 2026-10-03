@@ -1,6 +1,6 @@
-import Breadcrumbs, {type UiNavigationBreadcrumbs} from "@zavx0z/ui/navigation/breadcrumb"
-import StatusBar from "@zavx0z/ui/feedback/status-bar"
-import WindowControl from "@zavx0z/ui/surface/window/control"
+import {Breadcrumbs, type UiNavigationBreadcrumbs} from "@zavx0z/ui"
+import {StatusBar} from "@zavx0z/ui"
+import {WindowControl} from "@zavx0z/ui"
 import type {
   WorkbenchBreadcrumb,
   WorkbenchStatus,

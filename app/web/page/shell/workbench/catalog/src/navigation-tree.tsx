@@ -1,9 +1,9 @@
 import {useLayoutEffect, useRef, useState} from "@zavx0z/component"
-import Tree from "@zavx0z/ui/widget/tree"
-import type {UiWidgetsTree} from "@zavx0z/ui/widget/tree"
+import {Tree} from "@zavx0z/ui"
+import type {UiWidgetsTree} from "@zavx0z/ui"
 type TreeHandle = NonNullable<Parameters<NonNullable<UiWidgetsTree.Input["onReady"]>>[0]>
 type TreeItem = UiWidgetsTree.Input["items"][number]
-import {closeIcon} from "@zavx0z/ui/theme/icon"
+import {closeIcon} from "@ui-themes/icons"
 import Navigation, {type CatalogNavigation} from "@catalog/navigation"
 type NavigationTopLevelProjection = ReturnType<CatalogNavigation.Output["projectNavigation"]>["topLevel"][number]
 import type {Item, Group, Expansion} from "../contract/navigation"

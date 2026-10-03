@@ -10,7 +10,7 @@ import WebNavigationOwner from "@web/navigation"
 
 import type {RootLinkedAuthorStyleSheet} from "@zavx0z/browser/integration"
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
-import {arrowDownIcon, arrowUpIcon} from "@zavx0z/ui/theme/icon"
+import {arrowDownIcon, arrowUpIcon} from "@ui-themes/icons"
 
 import type {WebWorkbench} from "@web/workbench"
 type WorkbenchInspectorCustomWidgetProps = Extract<ReturnType<WebWorkbench.Output["getSnapshot"]>["state"]["inspector.registry"][number], {kind: "custom"}>["component"] extends CompiledTemplate<infer Props> ? Props : never

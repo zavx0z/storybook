@@ -4,7 +4,7 @@ import Workbench, {type WebWorkbench} from "@web/workbench"
 import {StorybookDisplay} from "./display-view.tsx"
 import {getDocumentClipboardController} from "@zavx0z/browser/clipboard"
 import type {Document as SemanticDocument} from "@zavx0z/dom"
-import ClipboardMenu from "@zavx0z/ui/menu/clipboard-menu"
+import {ClipboardMenu} from "@zavx0z/ui"
 import {useState} from "@zavx0z/component"
 import McpWindow from "@web/mcp-window"
 

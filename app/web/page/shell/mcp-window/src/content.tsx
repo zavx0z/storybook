@@ -1,6 +1,6 @@
 import {type McpRestRequests as McpRestRequestsContract} from "@mcp-rest/requests"
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
-import Button from "@zavx0z/ui/button/button"
+import {Button} from "@zavx0z/ui"
 import {RequestList} from "./request-list"
 import {AddressRequest} from "./address-request"
 import type {McpAddressSource} from "../contract/address"

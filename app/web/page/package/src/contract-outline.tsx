@@ -1,6 +1,6 @@
 import type {CompiledTemplate} from "@zavx0z/template/compiled"
-import Tree from "@zavx0z/ui/widget/tree"
-import type {UiWidgetsTree} from "@zavx0z/ui/widget/tree"
+import {Tree} from "@zavx0z/ui"
+import type {UiWidgetsTree} from "@zavx0z/ui"
 type TreeItem = UiWidgetsTree.Input["items"][number]
 type TreeHandle = NonNullable<Parameters<NonNullable<UiWidgetsTree.Input["onReady"]>>[0]>
 import {useLayoutEffect, useRef, useState} from "@zavx0z/component"

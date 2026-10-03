@@ -1,4 +1,4 @@
-import Button, {type UiButtonsButton} from "@zavx0z/ui/button/button"
+import {Button, type UiButtonsButton} from "@zavx0z/ui"
 import type {WorkbenchNavigationItem} from "../types.ts"
 
 type WorkbenchNavigationListItemProps = Readonly<{

@@ -7,9 +7,9 @@
 
 @packageDocumentation
 */
-import TextField, {type UiFieldsTextField} from "@zavx0z/ui/field/text-field"
-import Button from "@zavx0z/ui/button/button"
-import {collapseAllIcon, expandAllIcon, plusIcon, selectOpenedItemIcon} from "@zavx0z/ui/theme/icon"
+import {TextField, type UiFieldsTextField} from "@zavx0z/ui"
+import {Button} from "@zavx0z/ui"
+import {collapseAllIcon, expandAllIcon, plusIcon, selectOpenedItemIcon} from "@ui-themes/icons"
 import {useRef} from "@zavx0z/component"
 import {CatalogNavigationTree, type CatalogNavigationTreeHandle} from "./src/navigation-tree"
 import {rebuildIcon} from "./src/icons"

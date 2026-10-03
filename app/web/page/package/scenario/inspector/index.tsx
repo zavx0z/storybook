@@ -6,8 +6,8 @@ import type {ScenarioInspector as Contract} from "./contract"
 export type {ScenarioInspector} from "./contract"
 import {ScenarioTree} from "./src/tree"
 import {useSyncExternalStore} from "@zavx0z/component"
-import CodeEditor from "@zavx0z/ui/view/code-editor"
-import Button from "@zavx0z/ui/button/button"
+import {CodeEditor} from "@zavx0z/ui"
+import {Button} from "@zavx0z/ui"
 import type {ScenarioModel} from "@scenario/model"
 /** Форма исходного публичного владельца. */
 type ScenarioApp = ScenarioModel.Output

@@ -7,7 +7,7 @@ Workbench остаётся в Display; Tab не создаёт Window, каме�
 @packageDocumentation
 */
 import {useState} from "@zavx0z/component"
-import Tab from "@zavx0z/ui/surface/tab"
+import {Tab} from "@zavx0z/ui"
 import {ViewPointActions} from "./src/actions"
 import type {WebViewpointTab} from "./contract"
 export type {WebViewpointTab} from "./contract"

@@ -1,5 +1,5 @@
-import Panel from "@zavx0z/ui/surface/panel"
-import Typography from "@zavx0z/ui/typography"
+import {Panel} from "@zavx0z/ui"
+import {Typography} from "@zavx0z/ui"
 import type {ScenarioModel} from "@scenario/model"
 /** Форма исходного публичного владельца. */
 type ScenarioApp = ScenarioModel.Output

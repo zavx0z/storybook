@@ -183,7 +183,6 @@
         "@package-graph/create": "workspace:*",
         "@package/artifacts": "workspace:*",
         "@storybook/app": "workspace:*",
-        "@storybook/route": "workspace:*",
         "@web/release": "workspace:*",
         "@zavx0z/component": "^0.0.0",
         "@zavx0z/engine": "^0.0.0",
@@ -402,6 +401,7 @@
         "@scenario/model": "workspace:*",
         "@scenario/preview": "workspace:*",
         "@scenario/result": "workspace:*",
+        "@ui-themes/icons": "^0.0.0",
         "@web/agent-bridge": "workspace:*",
         "@web/client": "workspace:*",
         "@web/navigation": "workspace:*",
@@ -577,6 +577,7 @@
         "@chat/session": "workspace:*",
         "@chat/view": "workspace:*",
         "@jsx-compiler/session": "^0.0.0",
+        "@ui-themes/icons": "^0.0.0",
         "@web/catalog": "workspace:*",
         "@zavx0z/component": "^0.0.0",
         "@zavx0z/dom": "^0.0.0",
@@ -586,6 +587,7 @@
       "devDependencies": {
         "@renderer/html": "^0.0.0",
         "@tech/limits": "workspace:*",
+        "@ui-themes-icons/collection": "^0.0.0",
         "@zavx0z/space": "^0.0.0",
       },
     },
@@ -594,6 +596,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@catalog/navigation": "workspace:*",
+        "@ui-themes/icons": "^0.0.0",
         "@zavx0z/component": "^0.0.0",
         "@zavx0z/ui": "^0.0.0",
       },
@@ -1337,6 +1340,8 @@
     "@nodes/sockets": "link:@nodes/sockets",
     "@nodes/tree": "link:@nodes/tree",
     "@renderer/html": "link:@renderer/html",
+    "@ui-themes-icons/collection": "link:@ui-themes-icons/collection",
+    "@ui-themes/icons": "link:@ui-themes/icons",
     "@zavx0z/browser": "link:@zavx0z/browser",
     "@zavx0z/component": "link:@zavx0z/component",
     "@zavx0z/devtools": "link:@zavx0z/devtools",
@@ -1659,6 +1664,10 @@
     "@typescript/typescript-win32-arm64": ["@typescript/typescript-win32-arm64@7.0.2", "", { "os": "win32", "cpu": "arm64" }, "sha512-Gyl1Vy6OsWesLzmq+EP0Fb7b4Nid5232AvcA2SFcdYreldpNtYFFofPjnt62y9hQy7VTaZp65ICJjuAQRaVcIQ=="],
 
     "@typescript/typescript-win32-x64": ["@typescript/typescript-win32-x64@7.0.2", "", { "os": "win32", "cpu": "x64" }, "sha512-0BQ3HkAHHlKLSp1qRvf3SUhGpGsDuhB/jgFw75guyqbxJqEaS0Cw/VFO8i2nHglJUzQCRtMMR/IBAKE3ETMC4g=="],
+
+    "@ui-themes-icons/collection": ["@ui-themes-icons/collection@link:@ui-themes-icons/collection", {}],
+
+    "@ui-themes/icons": ["@ui-themes/icons@link:@ui-themes/icons", {}],
 
     "@web/agent-bridge": ["@web/agent-bridge@workspace:app/web/page/agent-bridge"],
 

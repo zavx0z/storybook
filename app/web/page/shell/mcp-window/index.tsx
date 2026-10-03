@@ -15,7 +15,7 @@
 import {type McpRestRequests as McpRestRequestsContract} from "@mcp-rest/requests"
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
 import {useEffect, useState} from "@zavx0z/component"
-import Window from "@zavx0z/ui/surface/window"
+import {Window} from "@zavx0z/ui"
 import {McpContent} from "./src/content"
 import {normalizeMcpWindowState} from "./src/state"
 import type {WebMcpWindow} from "./contract"

@@ -1,5 +1,5 @@
 import type {WorkbenchPresentationProjection} from "../types.ts"
-import Pane from "@zavx0z/ui/surface/pane"
+import {Pane} from "@zavx0z/ui"
 
 export type PreviewRegionProps = Readonly<{
   label: string

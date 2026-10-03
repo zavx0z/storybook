@@ -1,4 +1,4 @@
-import Button from "@zavx0z/ui/button/button"
+import {Button} from "@zavx0z/ui"
 import type {StorybookOverviewAction} from "../../contract/overview-action.ts"
 
 export type StorybookOverviewActionButtonProps = Readonly<{

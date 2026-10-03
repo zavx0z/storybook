@@ -30,7 +30,8 @@
     "@zavx0z/template": "^0.0.0",
     "@zavx0z/ui": "^0.0.0",
     "@web/workbench": "workspace:*",
-    "@scenario/preview": "workspace:*"
+    "@scenario/preview": "workspace:*",
+    "@ui-themes/icons": "^0.0.0"
   },
   "devDependencies": {
     "@jsx-compiler/session": "^0.0.0",

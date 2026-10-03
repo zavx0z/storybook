@@ -1,6 +1,6 @@
-import CheckboxField from "@zavx0z/ui/field/checkbox-field"
-import NumberField from "@zavx0z/ui/field/number-field"
-import TextField from "@zavx0z/ui/field/text-field"
+import {CheckboxField} from "@zavx0z/ui"
+import {NumberField} from "@zavx0z/ui"
+import {TextField} from "@zavx0z/ui"
 
 type ValueFieldDefinition = Readonly<{
   id: string

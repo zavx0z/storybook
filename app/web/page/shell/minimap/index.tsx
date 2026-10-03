@@ -13,9 +13,9 @@ Host Storybook сохраняет видимость, размер и полож
 @packageDocumentation
 */
 import {useId, useRef, useState} from "@zavx0z/component"
-import Window from "@zavx0z/ui/surface/window"
-import WindowControl from "@zavx0z/ui/surface/window/control"
-import Tab from "@zavx0z/ui/surface/tab"
+import {Window} from "@zavx0z/ui"
+import {WindowControl} from "@zavx0z/ui"
+import {Tab} from "@zavx0z/ui"
 import CatalogPanel from "@web/catalog"
 import {normalizeMinimapState} from "./src/state"
 import type {WebMinimap} from "./contract"

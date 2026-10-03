@@ -1,6 +1,6 @@
-import type {UiSurfacesWindow} from "@zavx0z/ui/surface/window"
+import type {UiSurfacesWindow} from "@zavx0z/ui"
 type WindowGeometry = NonNullable<UiSurfacesWindow.Input["geometry"]>
-import type {UiSurfacesTab} from "@zavx0z/ui/surface/tab"
+import type {UiSurfacesTab} from "@zavx0z/ui"
 type TabProps = UiSurfacesTab.Input
 
 /** Частичные поля сохранённой раскладки; проверка значений принадлежит Minimap. */

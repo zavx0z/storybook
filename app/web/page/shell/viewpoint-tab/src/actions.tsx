@@ -1,5 +1,5 @@
 import {useSyncExternalStore} from "@zavx0z/component"
-import Button from "@zavx0z/ui/button/button"
+import {Button} from "@zavx0z/ui"
 import type {WebViewpointTab} from "../contract"
 
 /** Обычные компоненты управления сохраняют клик и перетаскивание родительского Tab. */
