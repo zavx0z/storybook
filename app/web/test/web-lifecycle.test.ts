@@ -151,3 +151,166 @@ test("готовые варианты Web могут иметь разные а�
     fixture.dispose()
   }
 })
+
+test("shared check объединяет всю подготовку retained host и публикует один стабильный кандидат", async () => {
+  const fixture = createWebArtifacts()
+  const archived = fixture.assets("platform-a", "web-a")
+  fixture.save(archived)
+  const current = fixture.assets("platform-b", "web-b")
+  fixture.save(current)
+  const candidate = fixture.assets("platform-c", "web-c")
+  const compatible = fixture.assets("platform-a", "web-c-a")
+  const gate = Promise.withResolvers<Assets>()
+  const started = Promise.withResolvers<void>()
+  const build = mock<AppWebBuild.Output["runWorker"]>(async input => {
+    if (input.sharedKernel === undefined) return candidate
+    expect(input.sharedKernel.epoch).toBe(archived.browserIdentity!.epoch)
+    started.resolve()
+    return gate.promise.then(value => {
+      fixture.save(value, false)
+      return value
+    })
+  })
+  const events: string[] = []
+  const web = createWeb(fixture.input(build, event => events.push(event.type)))
+  try {
+    expect(() => web.host(archived.browserIdentity!.epoch)).toThrow("ещё не подготовлена")
+    const first = web.check({}, new AbortController().signal)
+    await started.promise
+    const second = web.check({apply: true}, new AbortController().signal)
+    await Promise.resolve()
+    expect(build.mock.calls).toHaveLength(2)
+    gate.resolve(compatible)
+    const [result, joined] = await Promise.all([first, second])
+    expect(result).toBe(joined)
+    expect(result).toMatchObject({ok: true, published: true})
+    expect(build.mock.calls).toHaveLength(2)
+    expect(events.filter(type => type === "shared.updated")).toHaveLength(1)
+    expect(web.host().sharedModuleEpoch).toBe(candidate.browserIdentity!.epoch)
+    expect(web.host(archived.browserIdentity!.epoch).hostModuleEpoch).toBe(compatible.browserIdentity!.hostModuleEpoch)
+    await web.check({}, new AbortController().signal)
+    expect(build.mock.calls, "Следующий явный check заново готовит kernel и запрошенный retained host").toHaveLength(4)
+  } finally {
+    gate.resolve(compatible)
+    await web.dispose()
+    fixture.dispose()
+  }
+})
+
+test.each([false, true])("отменённый apply не публикует, healthy concurrent apply=%s задаёт публикацию", async healthyApply => {
+  const fixture = createWebArtifacts()
+  const current = fixture.assets("platform-a", "web-a")
+  fixture.save(current)
+  const candidate = fixture.assets("platform-b", "web-b")
+  const gate = Promise.withResolvers<Assets>()
+  const started = Promise.withResolvers<void>()
+  let signal: AbortSignal | undefined
+  const build = mock<AppWebBuild.Output["runWorker"]>(async (_input, context) => {
+    signal = context.signal
+    started.resolve()
+    return gate.promise
+  })
+  const events: string[] = []
+  const web = createWeb(fixture.input(build, event => events.push(event.type)))
+  const cancellation = new AbortController()
+  try {
+    const canceled = web.check({apply: true}, cancellation.signal).catch(error => error)
+    await started.promise
+    const healthy = web.check({apply: healthyApply}, new AbortController().signal)
+    cancellation.abort()
+    expect(await canceled).toMatchObject({name: "AbortError"})
+    expect(signal!.aborted).toBeFalse()
+    expect(events).not.toContain("shared.updated")
+    gate.resolve(candidate)
+    expect(await healthy).toMatchObject({ok: true, published: healthyApply})
+    expect(events.filter(type => type === "shared.updated")).toHaveLength(healthyApply ? 1 : 0)
+    expect(build.mock.calls).toHaveLength(1)
+  } finally {
+    gate.resolve(candidate)
+    await web.dispose()
+    fixture.dispose()
+  }
+})
+
+test("последний отменённый check оставляет worker, следующий запрос строит свежий набор после cleanup", async () => {
+  const fixture = createWebArtifacts()
+  const archived = fixture.assets("platform-a", "web-a")
+  fixture.save(archived)
+  const current = fixture.assets("platform-b", "web-b")
+  fixture.save(current)
+  const compatible = fixture.assets("platform-a", "web-b-a")
+  const gate = Promise.withResolvers<Assets>()
+  const started = Promise.withResolvers<AbortSignal>()
+  let retainedBuilds = 0
+  const build = mock<AppWebBuild.Output["runWorker"]>(async (input, context) => {
+    if (input.sharedKernel === undefined) return current
+    retainedBuilds++
+    started.resolve(context.signal)
+    return gate.promise
+  })
+  const events: string[] = []
+  const web = createWeb(fixture.input(build, event => events.push(event.type)))
+  const cancellation = new AbortController()
+  try {
+    expect(() => web.host(archived.browserIdentity!.epoch)).toThrow("ещё не подготовлена")
+    const first = web.check({apply: true}, cancellation.signal).catch(error => error)
+    const operationSignal = await started.promise
+    cancellation.abort()
+    expect(await first).toMatchObject({name: "AbortError"})
+    const next = web.check({}, new AbortController().signal)
+    await Promise.resolve()
+    expect(operationSignal.aborted).toBeFalse()
+    expect(retainedBuilds).toBe(1)
+    gate.resolve(compatible)
+    expect(await next).toMatchObject({ok: true, published: false})
+    expect(retainedBuilds).toBe(2)
+    expect(events).not.toContain("shared.updated")
+    expect(fixture.readPublished()?.browserIdentity?.hostModuleEpoch).toBe(current.browserIdentity!.hostModuleEpoch)
+  } finally {
+    gate.resolve(compatible)
+    await web.dispose()
+    fixture.dispose()
+  }
+})
+
+test.each(["shared-first", "web-first"] as const)("shared и WebOnly сохраняют кандидатов при пересечении: %s", async order => {
+  const fixture = createWebArtifacts()
+  const current = fixture.assets("platform-a", "web-a")
+  fixture.save(current)
+  const shared = fixture.assets("platform-b", "web-b")
+  const webForA = fixture.assets("platform-a", "web-c-a")
+  const webForB = fixture.assets("platform-b", "web-c-b")
+  const gate = Promise.withResolvers<Assets>()
+  const started = Promise.withResolvers<void>()
+  const seen: (string | undefined)[] = []
+  const build = mock<AppWebBuild.Output["runWorker"]>(async input => {
+    seen.push(input.sharedKernel?.epoch)
+    if (seen.length === 1) {
+      started.resolve()
+      return gate.promise
+    }
+    return input.sharedKernel === undefined ? shared
+      : input.sharedKernel.epoch === current.browserIdentity!.epoch ? webForA : webForB
+  })
+  const events: string[] = []
+  const web = createWeb(fixture.input(build, event => events.push(event.type)))
+  try {
+    const first = order === "shared-first" ? web.check({apply: true}, new AbortController().signal) : web.rebuild({apply: true})
+    await started.promise
+    const next = order === "shared-first" ? web.rebuild({apply: true}) : web.check({apply: true}, new AbortController().signal)
+    await Promise.resolve()
+    expect(build.mock.calls).toHaveLength(1)
+    gate.resolve(order === "shared-first" ? shared : webForA)
+    const results = await Promise.all([first, next])
+    expect(results.every(result => result.ok && result.published)).toBeTrue()
+    expect(build.mock.calls).toHaveLength(2)
+    expect(events.filter(type => type === "shared.updated")).toHaveLength(2)
+    expect(seen).toEqual(order === "shared-first" ? [undefined, shared.browserIdentity!.epoch]
+      : [current.browserIdentity!.epoch, undefined])
+    expect(web.host().hostModuleEpoch).toBe(order === "shared-first" ? webForB.browserIdentity!.hostModuleEpoch : shared.browserIdentity!.hostModuleEpoch)
+  } finally {
+    gate.resolve(order === "shared-first" ? shared : webForA)
+    await web.dispose()
+    fixture.dispose()
+  }
+})

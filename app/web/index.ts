@@ -36,6 +36,21 @@ export default function createWeb(input: AppWeb.Input): AppWeb.Output {
   let disposed = false
   let closing: Promise<void> | null = null
   let rebuilding: Promise<WebPreparation> | null = null
+  let rebuildApply = false
+  let rebuildStarted = false
+  const lifetime = new AbortController()
+  let preparationTail: Promise<void> = Promise.resolve()
+  let checking: Readonly<{
+    controller: AbortController
+    callers: Set<Readonly<{apply: boolean}>>
+    promise: Promise<WebPreparation>
+  }> | null = null
+  // Кандидат не меняется между подготовкой всех host и их атомарной публикацией.
+  const serial = <Result>(operation: () => Promise<Result>): Promise<Result> => {
+    const pending = preparationTail.then(operation)
+    preparationTail = pending.then(() => {}, () => {})
+    return pending
+  }
   let failure: WebFailure | null = null
   const unavailable = new Map<string, string>()
   const requested = new Set<string>()
@@ -79,6 +94,7 @@ export default function createWeb(input: AppWeb.Input): AppWeb.Output {
   }
   const prepare = async (signal: AbortSignal, webOnly: boolean): Promise<readonly WebAssets[]> => {
     if (disposed) throw new Error("Web is stopping")
+    signal.throwIfAborted()
     const published = webOnly ? assets.current() : null
     if (webOnly && published?.browserIdentity === undefined) throw new Error("Сначала явно подготовьте среду Storybook")
     const next = webOnly ? await prepareRetained(published!.browserIdentity!) : await assets.ensure()
@@ -140,19 +156,69 @@ export default function createWeb(input: AppWeb.Input): AppWeb.Output {
       return describeHost(compatible)
     },
     rebuild(options = {}) {
-      const operation = release.rebuild(options)
-      rebuilding ??= operation.then(state => {
+      if (disposed) return Promise.reject(new Error("Web is stopping"))
+      rebuildApply ||= options.apply === true
+      if (rebuildStarted) {
+        // Присоединяем intent к исполняемому release, не создавая новую подготовку.
+        void release.rebuild(options).catch(() => {})
+      }
+      rebuilding ??= serial(async () => {
+        lifetime.signal.throwIfAborted()
+        rebuildStarted = true
+        const state = await release.rebuild({apply: rebuildApply}).finally(() => { rebuildStarted = false })
         const next = assets.prepared() ?? assets.current()
         const hosts = [next, ...[...prepared.values()].filter(value => value.browserIdentity?.epoch !== next.browserIdentity?.epoch)]
         return {...result(hosts, state.phase === "published"), web: state}
-      }).finally(() => { rebuilding = null })
+      }).finally(() => {
+        rebuilding = null
+        rebuildApply = false
+        rebuildStarted = false
+      })
       return rebuilding
     },
     async check(options, signal) {
-      const hosts = await prepare(signal, false)
-      const publish = options.apply === true && unavailable.size === 0
-      if (publish) assets.publish(hosts.slice(1), hosts[0])
-      return result(hosts, publish)
+      if (disposed) return Promise.reject(new Error("Web is stopping"))
+      signal.throwIfAborted()
+      if (checking === null || checking.controller.signal.aborted) {
+        const controller = new AbortController()
+        const callers = new Set<Readonly<{apply: boolean}>>()
+        const promise = serial(async () => {
+          const preparationSignal = AbortSignal.any([lifetime.signal, controller.signal])
+          const hosts = await prepare(preparationSignal, false)
+          preparationSignal.throwIfAborted()
+          const publish = [...callers].some(caller => caller.apply) && unavailable.size === 0
+          if (publish) assets.publish(hosts.slice(1), hosts[0])
+          return result(hosts, publish)
+        }).finally(() => {
+          if (checking?.promise === promise) checking = null
+        })
+        checking = {controller, callers, promise}
+      }
+      const operation = checking
+      const caller = Object.freeze({apply: options.apply === true})
+      operation.callers.add(caller)
+      return new Promise<WebPreparation>((resolve, reject) => {
+        const cleanup = () => {
+          signal.removeEventListener("abort", cancel)
+          operation.callers.delete(caller)
+        }
+        const cancel = () => {
+          cleanup()
+          // Уход последнего клиента отменяет набор подготовки, но не общий worker.
+          if (operation.callers.size === 0) operation.controller.abort(signal.reason)
+          reject(signal.reason)
+        }
+        signal.addEventListener("abort", cancel, {once: true})
+        if (signal.aborted) cancel()
+        operation.promise.then(value => {
+          cleanup()
+          if (signal.aborted) reject(signal.reason)
+          else resolve(value)
+        }, error => {
+          cleanup()
+          reject(error)
+        })
+      })
     },
     read: release.read,
     subscribe: release.subscribe,
@@ -169,7 +235,8 @@ export default function createWeb(input: AppWeb.Input): AppWeb.Output {
     dispose() {
       closing ??= (async () => {
         disposed = true
-        await Promise.all([release.dispose(), assets.dispose(), ...[...retained.values()].map(owner => owner.dispose())])
+        lifetime.abort(new DOMException("Web is stopping", "AbortError"))
+        await Promise.all([release.dispose(), assets.dispose(), ...[...retained.values()].map(owner => owner.dispose()), preparationTail])
         unsubscribe()
         retained.clear()
       })()
