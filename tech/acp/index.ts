@@ -11,6 +11,7 @@ import {
   ndJsonStream,
   PROTOCOL_VERSION,
   type SessionNotification,
+  type SessionConfigOption,
 } from "@agentclientprotocol/sdk"
 import waitForOwnedChild from "@process/wait"
 import {spawn} from "node:child_process"
@@ -131,6 +132,7 @@ export default async function createAcp(input: TechAcp.Input): Promise<TechAcp.O
   let disposal: Promise<void> | null = null
   let sessionId: string | null = input.previousSessionId ?? null
   let replay = input.previousSessionId !== undefined
+  let configOptions: readonly SessionConfigOption[] = []
   let prompting = false
   let notifications = Promise.resolve()
   const early: SessionNotification[] = []
@@ -147,7 +149,7 @@ export default async function createAcp(input: TechAcp.Input): Promise<TechAcp.O
       return response
     })
     .onNotification(methods.client.session.update, ({params}) => {
-      if (replay || disposed) return
+      if (disposed || replay && !["config_option_update", "usage_update"].includes(params.update.sessionUpdate)) return
       if (sessionId === null) {
         early.push(params)
         return
@@ -185,6 +187,7 @@ export default async function createAcp(input: TechAcp.Input): Promise<TechAcp.O
   function enqueue(notification: SessionNotification): void {
     notifications = notifications.then(async () => {
       if (notification.sessionId !== sessionId) throw new Error("ACP update принадлежит другой сессии")
+      if (notification.update.sessionUpdate === "config_option_update") configOptions = notification.update.configOptions
       await input.onUpdate(notification.update)
     }).catch(error => {
       fail(error)
@@ -244,11 +247,12 @@ export default async function createAcp(input: TechAcp.Input): Promise<TechAcp.O
       if (initialized.agentCapabilities?.loadSession !== true) {
         throw new Error("ACP agent не поддерживает восстановление session/load")
       }
-      await connection.agent.request(methods.agent.session.load, {
+      const session = await connection.agent.request(methods.agent.session.load, {
         sessionId: input.previousSessionId,
         cwd,
         mcpServers: input.mcpServers,
       }, {cancellationSignal: startupSignal})
+      configOptions = session.configOptions ?? []
       replay = false
     } else {
       const session = await connection.agent.request(methods.agent.session.new, {
@@ -256,6 +260,7 @@ export default async function createAcp(input: TechAcp.Input): Promise<TechAcp.O
         mcpServers: input.mcpServers,
       }, {cancellationSignal: startupSignal})
       sessionId = session.sessionId
+      configOptions = session.configOptions ?? []
       for (const notification of early.splice(0)) enqueue(notification)
     }
     await notifications
@@ -263,6 +268,18 @@ export default async function createAcp(input: TechAcp.Input): Promise<TechAcp.O
     const activeSessionId = sessionId!
     return Object.freeze({
       sessionId: activeSessionId,
+      get configOptions() { return structuredClone(configOptions) },
+      async setConfigOption(configId: string, value: string) {
+        assertOpen()
+        if (prompting) throw new Error("Настройки нельзя менять во время ответа")
+        const response = await connection.agent.request(methods.agent.session.setConfigOption, {
+          sessionId: activeSessionId, configId, value,
+        })
+        await notifications
+        assertOpen()
+        configOptions = response.configOptions
+        return structuredClone(configOptions)
+      },
       async prompt(text: string) {
         assertOpen()
         if (!text.trim()) throw new TypeError("ACP prompt не может быть пустым")

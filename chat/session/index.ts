@@ -1,7 +1,7 @@
 /**
 Ведёт независимые беседы адресов одного Project и сохраняет их вне исполняемой среды.
 Переход страницы и отписка наблюдателя сохраняют беседу и текущую работу.
-Подключение ACP принадлежит беседе и создаётся по первому сообщению пользователя.
+Подключение ACP принадлежит беседе и создаётся по первому сообщению или открытию настроек.
 
 @packageDocumentation
 */
@@ -10,7 +10,7 @@ import {link, mkdir, readFile, rename, unlink, writeFile} from "node:fs/promises
 import {isAbsolute, join} from "node:path"
 import type {TechAcp} from "@tech/acp"
 import type {ChatSession} from "./contract"
-import type {Message, Permission, Snapshot, Subject} from "./contract/state"
+import type {Message, Permission, Snapshot, Subject, Setting, ContextUsage} from "./contract/state"
 
 export type {ChatSession} from "./contract"
 
@@ -21,6 +21,7 @@ type Document = {
   sessionId?: string
   cwd?: string
   messages: Message[]
+  usage?: ContextUsage
   status: Snapshot["status"]
   error: string | null
 }
@@ -32,6 +33,9 @@ type State = {
   document: Document
   version: number
   connection?: TechAcp.Output
+  connecting?: Promise<TechAcp.Output>
+  settings?: readonly Setting[]
+  configuring?: boolean
   turn?: Promise<void>
   cancelled: boolean
   assistantId?: string
@@ -57,6 +61,7 @@ export default function createChatSessions(input: ChatSession.Input): ChatSessio
     messages: state.document.messages, status: state.document.status,
     error: state.document.error, permissions: [...state.permissions.values()].map(item => item.value),
     version: state.version,
+    settings: state.settings ?? [], configuring: state.configuring === true, usage: state.document.usage ?? null,
   })
   const publish = (state: State): void => {
     state.version += 1
@@ -109,57 +114,84 @@ export default function createChatSessions(input: ChatSession.Input): ChatSessio
     for (const permission of state.permissions.values()) permission.resolve({outcome: {outcome: "cancelled"}})
     state.permissions.clear()
   }
+  /** Одна ACP-сессия для настроек и сообщений; подготовка не запускает prompt. */
+  const connect = async (state: State): Promise<TechAcp.Output> => {
+    if (state.connection !== undefined) return state.connection
+    if (state.connecting !== undefined) return state.connecting
+    const pending = (async () => {
+      if (state.document.cwd !== undefined && state.document.cwd !== state.subject.cwd) {
+        throw new Error("Физический контекст сохранённой ACP-сессии изменился")
+      }
+      const connection = await input.connect({
+        subject: state.subject,
+        signal: state.lifetime.signal,
+        ...(state.document.sessionId === undefined ? {} : {previousSessionId: state.document.sessionId}),
+        onUpdate(update) {
+          if (update.sessionUpdate === "config_option_update") {
+            const previousModel = state.settings?.find(option => option.category === "model")?.value
+            state.settings = readSettings(update.configOptions)
+            if (previousModel !== undefined && previousModel !== state.settings.find(option => option.category === "model")?.value) delete state.document.usage
+            publish(state)
+            return
+          }
+          if (update.sessionUpdate === "usage_update") {
+            if (Number.isFinite(update.used) && update.used >= 0 && Number.isFinite(update.size) && update.size > 0) {
+              state.document.usage = {used: update.used, size: update.size}
+              publish(state)
+            }
+            return
+          }
+          if (update.sessionUpdate !== "agent_message_chunk" || update.content.type !== "text") return
+          const currentId = state.assistantId
+          if (currentId === undefined) return
+          const index = state.document.messages.findIndex(message => message.id === currentId)
+          if (index === -1) state.document.messages.push({id: currentId, role: "assistant", text: update.content.text})
+          else state.document.messages[index] = {...state.document.messages[index]!, text: state.document.messages[index]!.text + update.content.text}
+          if (state.flushTimer === undefined) state.flushTimer = setTimeout(() => {
+            delete state.flushTimer
+            void save(state).catch(error => {
+              state.document.error = `Не удалось сохранить ответ: ${error instanceof Error ? error.message : String(error)}`
+              publish(state)
+            })
+          }, 250)
+          publish(state)
+        },
+        onPermission(request) {
+          if (state.cancelled || disposed) return Promise.resolve({outcome: {outcome: "cancelled"}})
+          const id = randomUUID()
+          return new Promise(resolve => {
+            state.permissions.set(id, {value: {
+              id, title: request.toolCall.title ?? "Разрешение действия",
+              options: request.options.map(option => ({id: option.optionId, name: option.name})),
+            }, resolve})
+            publish(state)
+          })
+        },
+      })
+      state.connection = connection
+      state.settings = readSettings(connection.configOptions ?? [])
+      state.document.sessionId = connection.sessionId
+      state.document.cwd = state.subject.cwd
+      await save(state)
+      return connection
+    })()
+    state.connecting = pending
+    try { return await pending } finally {
+      if (state.connecting === pending) delete state.connecting
+    }
+  }
   const run = async (state: State, text: string): Promise<void> => {
     const assistantId = randomUUID()
     state.assistantId = assistantId
     let interrupted = false
     try {
-      if (state.connection === undefined) {
-        if (state.document.cwd !== undefined && state.document.cwd !== state.subject.cwd) {
-          throw new Error("Физический контекст сохранённой ACP-сессии изменился")
-        }
-        const connection = await input.connect({
-          subject: state.subject,
-          signal: state.lifetime.signal,
-          ...(state.document.sessionId === undefined ? {} : {previousSessionId: state.document.sessionId}),
-          onUpdate(update) {
-            if (update.sessionUpdate !== "agent_message_chunk" || update.content.type !== "text") return
-            const currentId = state.assistantId
-            if (currentId === undefined) return
-            const index = state.document.messages.findIndex(message => message.id === currentId)
-            if (index === -1) state.document.messages.push({id: currentId, role: "assistant", text: update.content.text})
-            else state.document.messages[index] = {...state.document.messages[index]!, text: state.document.messages[index]!.text + update.content.text}
-            if (state.flushTimer === undefined) state.flushTimer = setTimeout(() => {
-              delete state.flushTimer
-              void save(state).catch(error => {
-                state.document.error = `Не удалось сохранить ответ: ${error instanceof Error ? error.message : String(error)}`
-                publish(state)
-              })
-            }, 250)
-            publish(state)
-          },
-          onPermission(request) {
-            if (state.cancelled || disposed) return Promise.resolve({outcome: {outcome: "cancelled"}})
-            const id = randomUUID()
-            return new Promise(resolve => {
-              state.permissions.set(id, {value: {
-                id, title: request.toolCall.title ?? "Разрешение действия",
-                options: request.options.map(option => ({id: option.optionId, name: option.name})),
-              }, resolve})
-              publish(state)
-            })
-          },
-        })
-        state.connection = connection
-        state.document.sessionId = connection.sessionId
-        state.document.cwd = state.subject.cwd
-        await save(state)
-      }
+      if (state.cancelled || disposed) { interrupted = true; return }
+      const connection = await connect(state)
       if (state.cancelled || disposed) { interrupted = true; return }
       state.document.status = "running"
       publish(state)
       await save(state)
-      const result = await state.connection.prompt(text)
+      const result = await connection.prompt(text)
       interrupted = result.stopReason === "cancelled"
     } catch (error) {
       interrupted = state.cancelled && state.lifetime.signal.aborted
@@ -187,6 +219,41 @@ export default function createChatSessions(input: ChatSession.Input): ChatSessio
   }
   return {
     async read(address) { return snapshot(await load(address)) },
+    async prepare(address) {
+      const state = await load(address)
+      if (state.connection !== undefined) return snapshot(state)
+      if (state.turn !== undefined) throw new Error("Дождитесь завершения текущего ответа")
+      if (state.lifetime.signal.aborted) state.lifetime = new AbortController()
+      state.cancelled = false
+      state.configuring = true
+      publish(state)
+      try { await connect(state) } finally {
+        state.configuring = false
+        publish(state)
+      }
+      return snapshot(state)
+    },
+    async configure(address, id, value) {
+      const state = await load(address)
+      if (state.turn !== undefined || state.configuring) throw new Error("Дождитесь завершения текущей операции чата")
+      const option = state.settings?.find(item => item.id === id)
+      if (!option || !option.options.some(item => item.value === value)) throw new Error("Выберите доступный вариант настройки")
+      if (state.lifetime.signal.aborted) state.lifetime = new AbortController()
+      state.cancelled = false
+      state.configuring = true
+      publish(state)
+      try {
+        const connection = await connect(state)
+        const previousUsage = state.document.usage
+        state.settings = readSettings(await connection.setConfigOption(id, value))
+        if (option.category === "model" && value !== option.value && state.document.usage === previousUsage) delete state.document.usage
+        await save(state)
+      } finally {
+        state.configuring = false
+        publish(state)
+      }
+      return snapshot(state)
+    },
     async prompt(address, text, requestId) {
       if (typeof text !== "string" || text.trim().length === 0 || text.length > 64_000) throw new TypeError("Сообщение должно содержать от 1 до 64000 символов")
       if (typeof requestId !== "string" || requestId.length === 0 || requestId.length > 128) throw new TypeError("Нужен идентификатор отправки")
@@ -198,7 +265,7 @@ export default function createChatSessions(input: ChatSession.Input): ChatSessio
         if (previous.text !== text) throw new Error("Идентификатор отправки уже использован для другого сообщения")
         return snapshot(state)
       }
-      if (state.turn !== undefined || state.document.status === "connecting" || state.document.status === "running") throw new Error("Дождитесь завершения текущего ответа")
+      if (state.configuring || state.turn !== undefined || state.document.status === "connecting" || state.document.status === "running") throw new Error("Дождитесь завершения текущего ответа")
       state.document.messages.push({id, role: "user", text})
       state.document.status = state.connection === undefined ? "connecting" : "running"
       state.document.error = null
@@ -348,6 +415,7 @@ export default function createChatSessions(input: ChatSession.Input): ChatSessio
         state.lifetime.abort(new Error("Сервер чатов останавливается"))
         clearPermissions(state)
         try {
+          await state.connecting?.catch(() => {})
           await state.connection?.dispose()
         } finally {
           await state.turn
@@ -387,5 +455,20 @@ function validDocument(value: unknown, address: string): value is Document {
     ["idle", "connecting", "running", "failed"].includes(document.status) &&
     (document.error === null || typeof document.error === "string") &&
     (document.sessionId === undefined || typeof document.sessionId === "string") &&
-    (document.cwd === undefined || typeof document.cwd === "string")
+    (document.cwd === undefined || typeof document.cwd === "string") &&
+    (document.usage === undefined || document.usage !== null && Number.isFinite(document.usage.used) &&
+      document.usage.used >= 0 && Number.isFinite(document.usage.size) && document.usage.size > 0)
+}
+
+/** Проецирует только предоставленные агентом настройки модели и мышления. */
+function readSettings(options: TechAcp.Output["configOptions"]): readonly Setting[] {
+  return options.flatMap(option => {
+    if (option.type !== "select" || option.category !== "model" && option.category !== "thought_level") return []
+    return [{id: option.id, category: option.category, name: option.name, value: option.currentValue,
+      options: option.options.flatMap(item => "options" in item ? item.options : [item]).map(item => ({
+        value: item.value, name: item.name,
+        ...(typeof item.description === "string" ? {description: item.description} : {}),
+      })),
+    }]
+  })
 }

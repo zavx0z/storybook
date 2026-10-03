@@ -39,7 +39,6 @@ export function createChatServer(options: Readonly<{
           installation: options.toolRoot,
           mode: "workspace-write",
           exclusiveMcp: true,
-          config: {model: "gpt-6.1-sol", model_reasoning_effort: "medium"},
           signal: input.signal,
           ...(input.previousSessionId === undefined ? {} : {previousSessionId: input.previousSessionId}),
           onUpdate: input.onUpdate,
@@ -85,7 +84,7 @@ export function createChatServer(options: Readonly<{
     }
     visit(root.id)
     const rules = graph.nodes.filter(node => node.kind === "package" && [
-      "@archetypes/package", "@archetypes/domain", "@archetypes/component",
+      "@archetypes/package", "@archetypes/domain", "@archetypes/cluster", "@archetypes/component",
       "@archetypes/container", "@archetypes/contracts", "@archetypes/typedoc",
     ].includes(node.packageId ?? ""))
     for (const rule of rules) visit(rule.id)
@@ -174,6 +173,8 @@ export function createChatServer(options: Readonly<{
       if (typeof body?.address !== "string") throw new TypeError("Нужен адрес чата")
       let value: Snapshot
       if (path.endsWith("/session")) value = await chats.read(body.address)
+      else if (path.endsWith("/prepare")) value = await chats.prepare(body.address)
+      else if (path.endsWith("/configure")) value = await chats.configure(body.address, body.id as string, body.value as string)
       else if (path.endsWith("/prompt")) {
         value = await chats.prompt(body.address, body.text as string, body.requestId as string)
       } else if (path.endsWith("/cancel")) value = await chats.cancel(body.address)

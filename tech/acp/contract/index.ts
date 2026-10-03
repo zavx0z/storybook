@@ -4,6 +4,7 @@ import type {
   RequestPermissionRequest,
   RequestPermissionResponse,
   SessionUpdate,
+  SessionConfigOption,
 } from "@agentclientprotocol/sdk"
 
 /** Контракт долгоживущего ACP-подключения одного владельца сессии. */
@@ -19,7 +20,7 @@ export declare namespace TechAcp {
 
   @property [previousSessionId] - Восстанавливаемая ACP-сессия.
   Отсутствие поддержки восстановления вызывает ошибку; новый контекст вместо
-  указанного старого не создаётся. Обновления replay не передаются в onUpdate.
+  указанного старого не создаётся. Replay сообщений не передаётся в onUpdate; настройки и usage восстановления сохраняются.
 
   @property onUpdate - Принимает исходный SessionUpdate текущей сессии.
   История, адресная принадлежность и представление остаются у вызывающего кода.
@@ -93,6 +94,10 @@ export declare namespace TechAcp {
   */
   type Output = Readonly<{
     sessionId: string
+    /** Актуальные варианты и выбранные значения, предоставленные агентом. */
+    readonly configOptions: readonly SessionConfigOption[]
+    /** Применяет штатный session/set_config_option; возвращает обновлённый список агента. */
+    setConfigOption(configId: string, value: string): Promise<readonly SessionConfigOption[]>
     prompt(text: string): Promise<PromptResponse>
     cancel(): Promise<void>
     dispose(): Promise<void>

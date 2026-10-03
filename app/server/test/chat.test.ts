@@ -9,7 +9,8 @@ import type {PackageGraphRead} from "@package-graph/read"
 const releases: (() => Promise<void>)[] = []
 afterEach(async () => { for (const release of releases.splice(0).reverse()) await release() })
 
-async function fixture() {
+async function fixture(configOptions: TechAcp.Output["configOptions"] = []) {
+  let prompts = 0
   const project = await mkdtemp(join(tmpdir(), "storybook-chat-server-"))
   releases.push(() => rm(project, {recursive: true, force: true}))
   const nodes = [
@@ -25,11 +26,24 @@ async function fixture() {
     graph: () => ({nodes} as unknown as PackageGraphRead.Input), entries: () => entries,
     async connect(input) {
       connections.push(input)
-      return {sessionId: "acp-session", async prompt() { return {stopReason: "end_turn"} }, async cancel() {}, async dispose() {}}
+      return {
+        sessionId: "acp-session",
+        get configOptions() { return configOptions },
+        async setConfigOption(id, value) {
+          configOptions = configOptions.map(option => option.type === "select" && option.id === id ? {...option, currentValue: value} : option)
+          return configOptions
+        },
+        async prompt() {
+          prompts += 1
+          return {stopReason: "end_turn"}
+        },
+        async cancel() {},
+        async dispose() {},
+      }
     },
   })
   releases.push(() => server.dispose())
-  return {server, connections}
+  return {server, connections, prompts: () => prompts}
 }
 
 const scopedRequest = (key: string, input: object) => new Request("http://127.0.0.1:12345/api/chat/mcp", {
@@ -64,4 +78,18 @@ test("подписка передаёт историю и её закрытие 
   expect(state).toMatchObject({address: "/repo/button", status: "idle", messages: []})
   await reader.cancel()
   expect((await server.chats.read("/repo/button")).id).toBe(state.id)
+})
+
+
+test("HTTP настройки используют ту же ACP-сессию без отправки сообщения", async () => {
+  const f = await fixture([{id: "selected-model", category: "model", type: "select", name: "Model", currentValue: "a",
+    options: [{value: "a", name: "A"}, {value: "b", name: "B"}]}])
+  const request = (operation: string, values = {}) => f.server.request(new Request(`http://127.0.0.1:12345/api/browser/chat/${operation}`, {
+    method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify({address: "/repo/button", ...values}),
+  }))
+  expect(await (await request("prepare")).json()).toMatchObject({settings: [{id: "selected-model", value: "a"}], messages: [], configuring: false})
+  expect(await (await request("configure", {id: "selected-model", value: "b"})).json()).toMatchObject({settings: [{value: "b"}], messages: []})
+  expect(f.connections).toHaveLength(1)
+  expect(f.connections[0]!.config, "Начальные модели и мышление определяет адаптер, не жёстко заданный config приложения").toBeUndefined()
+  expect(f.prompts()).toBe(0)
 })

@@ -9,7 +9,7 @@ export declare namespace ChatSession {
 
   @property directory - Каталог историй внутри Project, независимый от cache и сборочных ревизий.
   @property resolve - Разрешает точный адрес по действующему каталогу и возвращает его владельца.
-  @property connect - Создаёт ACP-подключение с контекстом указанного предмета при первом сообщении.
+  @property connect - Создаёт ACP-подключение с контекстом указанного предмета при первом сообщении или явной подготовке настроек.
   */
   type Input = Readonly<{
     directory: string
@@ -38,6 +38,10 @@ export declare namespace ChatSession {
   */
   type Output = Readonly<{
     read(address: string): Promise<Snapshot>
+    /** Подключает агента для получения настроек без prompt и генерации ответа. */
+    prepare(address: string): Promise<Snapshot>
+    /** Меняет выбранную настройку вне turn; применённые значения подтверждает агент. */
+    configure(address: string, id: string, value: string): Promise<Snapshot>
     prompt(address: string, text: string, requestId: string): Promise<Snapshot>
     cancel(address: string): Promise<Snapshot>
     permission(address: string, id: string, optionId: string): Promise<Snapshot>

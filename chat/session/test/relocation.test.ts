@@ -51,6 +51,8 @@ async function settled(chats: ChatSession.Output, address: string) {
 
 const successfulConnect: ChatSession.Input["connect"] = async input => ({
   sessionId: input.previousSessionId ?? "retained-acp-session",
+  configOptions: [],
+  async setConfigOption() { throw new Error("Настройки не предоставлены этим исполнителем") },
   async prompt(text) {
     input.onUpdate({sessionUpdate: "agent_message_chunk", content: {type: "text", text: `Ответ: ${text}`}})
     return {stopReason: "end_turn"}
@@ -169,6 +171,8 @@ test("активный turn запрещает перенос и сохраня�
   const finish = Promise.withResolvers<{stopReason: "end_turn"}>()
   const f = await fixture(async () => ({
     sessionId: "active-session",
+    configOptions: [],
+    async setConfigOption() { throw new Error("Настройки не предоставлены этим исполнителем") },
     prompt: () => finish.promise,
     async cancel() { finish.resolve({stopReason: "end_turn"}) },
     async dispose() { finish.resolve({stopReason: "end_turn"}) },

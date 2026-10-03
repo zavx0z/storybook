@@ -16,6 +16,8 @@ describe.each([
     async connect(input) {
       return {
         sessionId: "controlled-executor-session",
+        configOptions: [],
+        async setConfigOption() { throw new Error("Настройки не предоставлены этим исполнителем") },
         async prompt() {
           input.onUpdate({sessionUpdate: "agent_message_chunk", content: {type: "text", text: "Первая часть. "}})
           input.onUpdate({sessionUpdate: "agent_message_chunk", content: {type: "text", text: "Продолжение."}})

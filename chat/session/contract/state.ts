@@ -24,6 +24,18 @@ export type Permission = Readonly<{
   options: readonly Readonly<{id: string, name: string}>[]
 }>
 
+/** Выбор модели или мышления из предоставленных агентом вариантов. */
+export type Setting = Readonly<{
+  id: string
+  category: "model" | "thought_level"
+  name: string
+  value: string
+  options: readonly Readonly<{value: string; name: string; description?: string}>[]
+}>
+
+/** Последнее подтверждённое агентом заполнение контекстного окна. */
+export type ContextUsage = Readonly<{used: number; size: number}>
+
 /**
 Публичное состояние беседы без секретов подключения и внутренних идентификаторов ACP.
 
@@ -46,6 +58,10 @@ export type Snapshot = Readonly<{
   error: string | null
   permissions: readonly Permission[]
   version: number
+  /** Варианты появляются после подключения; пустой список не подменяется встроенным каталогом. */
+  settings?: readonly Setting[]
+  configuring?: boolean
+  usage?: ContextUsage | null
 }>
 
 /**

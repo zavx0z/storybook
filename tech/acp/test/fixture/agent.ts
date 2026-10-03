@@ -1,9 +1,13 @@
-import {agent, methods, ndJsonStream, PROTOCOL_VERSION, RequestError, type NewSessionRequest, type PromptResponse} from "@agentclientprotocol/sdk"
+import {agent, methods, ndJsonStream, PROTOCOL_VERSION, RequestError, type NewSessionRequest, type PromptResponse, type SessionConfigOption} from "@agentclientprotocol/sdk"
 import {Readable, Writable} from "node:stream"
 
 let input: NewSessionRequest | null = null
 let cancel: ((response: PromptResponse) => void) | null = null
 const behavior = process.env.ACP_FIXTURE_BEHAVIOR
+let configOptions: SessionConfigOption[] = [
+  {id: "model", type: "select", category: "model", name: "Model", currentValue: "model-a", options: [{value: "model-a", name: "Model A"}, {value: "model-b", name: "Model B"}]},
+  {id: "effort", type: "select", category: "thought_level", name: "Thinking", currentValue: "high", options: [{value: "low", name: "Low"}, {value: "high", name: "High"}]},
+]
 
 if (process.argv.includes("cli")) {
   if (behavior === "probe-stall") await new Promise(() => {})
@@ -22,7 +26,7 @@ const connection = agent({name: "ACP process fixture"})
   .onRequest(methods.agent.session.new, ({params}) => {
     if (behavior === "no-new") throw new Error("Новый контекст создавать запрещено")
     input = params
-    return {sessionId: "fixture-session"}
+    return {sessionId: "fixture-session", ...(behavior === "settings" ? {configOptions} : {})}
   })
   .onRequest(methods.agent.session.load, async ({params, client}) => {
     input = params
@@ -31,7 +35,19 @@ const connection = agent({name: "ACP process fixture"})
       sessionId: params.sessionId,
       update: {sessionUpdate: "agent_message_chunk", content: {type: "text", text: "replayed"}},
     })
-    return {}
+    if (behavior === "settings") await client.notify(methods.client.session.update, {
+      sessionId: params.sessionId, update: {sessionUpdate: "usage_update", used: 427000, size: 828000},
+    })
+    return behavior === "settings" ? {configOptions} : {}
+  })
+  .onRequest(methods.agent.session.setConfigOption, ({params}) => {
+    const selected = configOptions.find(option => option.id === params.configId)
+    if (!selected || selected.type !== "select" || !selected.options.some(option => "value" in option && option.value === params.value)) throw RequestError.invalidParams()
+    configOptions = configOptions.map(option => option.id === params.configId && option.type === "select" ? {...option, currentValue: params.value as string} : option)
+    if (params.configId === "model" && params.value === "model-b") {
+      configOptions = [configOptions[0]!, {id: "effort", type: "select", category: "thought_level", name: "Thinking", currentValue: "low", options: [{value: "low", name: "Low"}]}]
+    }
+    return {configOptions}
   })
   .onRequest(methods.agent.session.prompt, async ({params, client}) => {
     const text = params.prompt.find(block => block.type === "text")

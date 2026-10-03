@@ -57,6 +57,8 @@ test("два turn сохраняют разные ответы, повтор з�
     previous.push(options.previousSessionId)
     return {
       sessionId: "native-session",
+      configOptions: [],
+      async setConfigOption() { throw new Error("Настройки не предоставлены этим исполнителем") },
       async prompt(text) {
         prompts++
         options.onUpdate({sessionUpdate: "agent_message_chunk", content: {type: "text", text: `Ответ: ${text}`}})
@@ -91,6 +93,8 @@ test("отписка не отменяет работу, отмена касае
   const cancelled: string[] = []
   const {chats} = await fixture(async options => ({
     sessionId: options.subject.address,
+    configOptions: [],
+    async setConfigOption() { throw new Error("Настройки не предоставлены этим исполнителем") },
     prompt: () => new Promise(resolve => { finish.set(options.subject.address, () => resolve({stopReason: "cancelled"})) }),
     async cancel() { cancelled.push(options.subject.address); finish.get(options.subject.address)?.() },
     async dispose() { finish.get(options.subject.address)?.() },
@@ -113,6 +117,8 @@ test("разрешение связано с беседой и принимае�
   let permission: unknown
   const {chats} = await fixture(async options => ({
     sessionId: "permission-session",
+    configOptions: [],
+    async setConfigOption() { throw new Error("Настройки не предоставлены этим исполнителем") },
     async prompt() {
       permission = await options.onPermission({sessionId: "permission-session", toolCall: {
         toolCallId: "tool-1", title: "Проверить Button", status: "pending",
