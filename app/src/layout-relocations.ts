@@ -79,7 +79,7 @@ const relocations = [
   {
     "packageId": "@web/reference",
     "previous": "app/web/reference",
-    "current": "app/web/page/package/scenario/reference"
+    "current": "specs/reference"
   },
   {
     "packageId": "@web/browser-fixture",

@@ -5,6 +5,21 @@
   "private": true,
   "type": "module",
   "description": "Беседы с агентами, закреплённые за адресами предметов Project",
-  "exports": {".": "./index.ts"},
-  "dependencies": {"@chat/session": "workspace:*", "@chat/view": "workspace:*"}
+  "exports": {
+    ".": {
+      "browser": "./web.ts",
+      "node": "./server.ts"
+    }
+  },
+  "dependencies": {
+    "@chat/session": "workspace:*",
+    "@chat/view": "workspace:*"
+  },
+  "devDependencies": {
+    "@archetypes/scenario-reader": "workspace:*",
+    "@immersive/headless": "^0.0.0"
+  },
+  "scripts": {
+    "test": "bun test --config ../contracts/bunfig.toml ./test && bun test --config ../contracts/bunfig.toml --preload ./view/spec/fixture/preload.ts --preload @immersive/headless/preload ./spec"
+  }
 }
