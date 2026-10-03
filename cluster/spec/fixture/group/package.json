@@ -1,0 +1,7 @@
+{
+  "name": "@fixture/group",
+  "description": "Числовые операции с общим протоколом",
+  "type": "module",
+  "exports": {".": "./index.ts", "./contract": "./contract/index.ts"},
+  "dependencies": {"@fixture/increment": "workspace:*"}
+}

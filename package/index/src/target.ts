@@ -74,12 +74,13 @@ export async function readTarget(root: string, declared: ExportTarget): Promise<
   const owner = status === "nested-package" && target !== null ? await forwardedOwner(root, target) : undefined
   if (owner) status = "forwarded"
   const code = target !== null && /\.[cm]?[jt]sx?$/u.test(target)
-  const entrypoint = target !== null && /^(index\.ts|index\.tsx)$/u.test(basename(target))
+  const entrypoint = code && (status === "owned" || status === "forwarded")
   let input: string | null = null
   let output: string | null = null
   if (target !== null && (status === "owned" || status === "forwarded") && entrypoint) {
     const directory = dirname(target)
-    const contractPath = `./${relative(root, resolve(root, directory, "contract/index.ts")).split(sep).join("/")}`
+    const name = basename(target).replace(/\.[cm]?[jt]sx?$/u, "")
+    const contractPath = `./${relative(root, resolve(root, directory, `contract/${name}.ts`)).split(sep).join("/")}`
     const inputPath = `./${relative(root, resolve(root, directory, "contract/input.ts")).split(sep).join("/")}`
     const outputPath = `./${relative(root, resolve(root, directory, "contract/output.ts")).split(sep).join("/")}`
     const base = owner?.path ?? root

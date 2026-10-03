@@ -3,12 +3,11 @@
 
 @packageDocumentation
 */
-import type {Input} from "./contract/input"
-import type {Output} from "./contract/output"
+import type {FixtureComposeDouble} from "./contract"
 
-export type {Input, Output}
+export type {FixtureComposeDouble} from "./contract"
 
 /** Удваивает переданное число. */
-export default function double(value: Input): Output {
+export default function double(value: FixtureComposeDouble.Input): FixtureComposeDouble.Output {
   return value * 2
 }

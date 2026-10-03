@@ -1,10 +1,10 @@
 /**
-Собирает описание выбранного пакета из манифеста, корневого TSDoc, публичных входов
+Собирает описание выбранного пакета из манифеста, TSDoc каждого публичного входа
 и состава вложенных пакетов из корневых workspace glob Repo.
-Domain, Component и Container не повторяют декларацию состава. Читает Git-границу и runtime exports публичных входов и собственных исходников src;
+Domain, Cluster, Component и Container не повторяют декларацию состава. Читает Git-границу и runtime exports публичных входов и собственных исходников src;
 эти факты раскрываются и проверяются в едином сценарии Package.
 Package является общей структурной формой Repo,
-Domain, Component и Container. Состав и происхождение реализации позволяют
+Domain, Cluster, Component и Container. Состав и происхождение реализации позволяют
 сценарию различить область и композицию целого.
 Настройки engines читаются только из собственного манифеста; принадлежность
 общей среды разработки Repo раскрывается нормативным сценарием.
@@ -27,6 +27,7 @@ export type {ArchetypesPackage} from "./contract"
 /**
 Читает непосредственный package.json и передаёт состав exports читателю входов.
 Отсутствующее описание модуля обозначается null; README не читается.
+Средовые документы сохраняются отдельно вместе с целями и условиями exports.
 
 @param path - Директория пакета; относительный путь разрешается от cwd.
 
@@ -45,12 +46,21 @@ export default async function readPackage({path}: ArchetypesPackage.Input): Prom
     readPackageSources(directory, index.entries),
     readRepositoryBoundary(directory, packages),
   ])
+  const entryDocumentation = await Promise.all(index.entries
+    .filter(entry => entry.code && entry.status === "owned" && entry.target !== null)
+    .map(async entry => ({
+      path: entry.path,
+      target: entry.target!,
+      conditions: entry.conditions,
+      documentation: await readRootDocumentation(directory, [entry.target!]),
+    })))
   return {
     root: directory,
     repository,
     ...sources,
     packageJson,
     documentation,
+    entryDocumentation,
     index,
     packages,
   }

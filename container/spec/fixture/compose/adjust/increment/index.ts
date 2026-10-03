@@ -3,12 +3,11 @@
 
 @packageDocumentation
 */
-import type {Input} from "./contract/input"
-import type {Output} from "./contract/output"
+import type {FixtureComposeIncrement} from "./contract"
 
-export type {Input, Output}
+export type {FixtureComposeIncrement} from "./contract"
 
 /** Увеличивает переданное число на единицу. */
-export default function increment(value: Input): Output {
+export default function increment(value: FixtureComposeIncrement.Input): FixtureComposeIncrement.Output {
   return value + 1
 }

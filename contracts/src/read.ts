@@ -11,6 +11,8 @@ import type {ArchetypesContracts} from "../contract"
 import {diagnose, inside, rememberSource, type Context} from "./context"
 import {readNamespace} from "./namespaces"
 import {checkPlacement} from "./placement"
+import {readExtensions} from "./extensions"
+import {declarationOf, originalSymbol} from "./declarations"
 
 /**
 Раскрывает только публичные входы из фактов Package. Snapshot и checker
@@ -24,13 +26,17 @@ export async function readNamespaces(description: ReadPackageOutput, definitions
   const entries: ArchetypesContracts.Output["entries"][number][] = []
   const diagnostics: ArchetypesContracts.Output["diagnostics"][number][] = []
   const sources = new Map<string, {path: string, digest: string}>()
+  const extensions: ArchetypesContracts.Output["extensions"][number][] = []
+  const ownedNamespaces: ArchetypesContracts.Output["entries"][number]["namespaces"][number][] = []
+  let placementContext: Context | undefined
   try {
     const snapshot = await api.updateSnapshot({openFiles: [...paths, ...definitions]})
     for (const path of paths) {
       const project = await snapshot.getDefaultProjectForFile(path)
       const file = await project?.program.getSourceFile(path)
       if (!project || !file) throw new Error(`TypeScript не прочитал публичный вход: ${path}`)
-      const context: Context = {project, root: description.root, owners: new Map(), sources, diagnostics}
+      const context: Context = {project, root: description.root, entryPath: path, owners: new Map(), sources, diagnostics}
+      placementContext ??= context
       rememberSource(file, context)
       const module = await project.checker.getSymbolAtLocation(file)
       const symbols = module ? await project.checker.getExportsOfModule(module) : []
@@ -38,32 +44,43 @@ export async function readNamespaces(description: ReadPackageOutput, definitions
       const exported = description.code.find(source => source.path === path)?.exports
       const exports = symbols.map(symbol => ({name: symbol.name,
         runtime: exported?.find(item => item.name === symbol.name)?.runtime ?? runtime.has(symbol.name)}))
+      const defaultSymbol = exports.some(value => value.name === "default" && value.runtime)
+        ? symbols.find(symbol => symbol.name === "default") : undefined
+      const original = defaultSymbol ? await originalSymbol(defaultSymbol, context) : undefined
+      const node = await (original?.valueDeclaration ?? original?.declarations[0])?.resolve(project)
+      const implementationDeclaration = original && node ? await declarationOf(node, original.name, context) : null
       const namespaces = []
+      const namespaceSymbols = []
       for (const symbol of symbols) {
         if (exports.find(item => item.name === symbol.name)?.runtime) continue
         const namespace = await readNamespace(symbol, context)
-        if (namespace) namespaces.push(namespace)
+        if (namespace) {
+          namespaces.push(namespace)
+          namespaceSymbols.push({symbol, namespace})
+          if (namespace.declaration.owner?.path === description.root) ownedNamespaces.push(namespace)
+        }
       }
       for (const symbol of exported ?? []) {
         if (symbol.unresolved) diagnose(context, "unresolved-export", path, `Не разрешён публичный экспорт ${symbol.name}`)
       }
       const ownImplementation = exported?.some(item => item.runtime && item.declarations.some(value => value.owner?.path === description.root)) ?? false
-      if (ownImplementation && (exports.length !== 2 || exports.filter(item => item.runtime).length !== 1
+      const implementation = ownImplementation || exports.some(item => item.name === "default" && item.runtime)
+      if (implementation && (exports.length !== 2 || exports.filter(item => item.runtime).length !== 1
         || !exports.some(item => item.name === "default" && item.runtime)
-        || namespaces.length !== 1 || namespaces[0]?.declaration.owner?.path !== description.root)) {
+        || namespaces.length !== 1)) {
         diagnose(context, "component-exports", path,
-          "Реализация публикуется через default, её единственный именованный типовой экспорт — собственный namespace контракта")
+          "Вход публикует одну реализацию через default и один соответствующий namespace протокола с сохранением владельца")
       }
-      if (ownImplementation && !namespaces.length) {
+      if (implementation && !namespaces.length) {
         diagnose(context, "namespace-missing", path, "Собственная реализация не раскрывает namespace контракта")
       }
       for (const namespace of namespaces) {
-        if (!ownImplementation && namespace.declaration.owner?.path === description.root) {
+        if (!implementation && description.packages.length === 0 && namespace.declaration.owner?.path === description.root) {
           diagnose(context, "contract-without-implementation", namespace.declaration.path,
-            "Собственный контракт принадлежит реализации Component или Container; реэкспорт Domain не создаёт нового владельца")
+            "Собственный протокол относится к публичной реализации либо общей границе группы самостоятельных участников")
         }
       }
-      await checkPlacement(definitions, namespaces.filter(namespace => namespace.declaration.owner?.path === description.root), context)
+      extensions.push(...await readExtensions(namespaceSymbols, context))
       for (const source of sources.values()) {
         if (!inside(description.root, source.path)) continue
         const syntax = await project.program.getSyntacticDiagnostics(source.path)
@@ -72,8 +89,11 @@ export async function readNamespaces(description: ReadPackageOutput, definitions
           diagnose(context, `typescript-${diagnostic.code}`, source.path, diagnostic.text)
         }
       }
-      entries.push({path, exports, namespaces})
+      for (const entry of description.index.entries.filter(entry => entry.target && resolve(description.root, entry.target) === path)) {
+        entries.push({path, exportPath: entry.path, conditions: entry.conditions, implementation: implementationDeclaration, exports, namespaces})
+      }
     }
+    if (placementContext) await checkPlacement(definitions, ownedNamespaces, placementContext)
     for (const reference of description.code.flatMap(source => source.references)) {
       if (reference.public === false) diagnostics.push({severity: "error", code: "private-dependency", path: reference.from,
         message: `Типы и реализация используют публичный вход владельца: ${reference.module}`})
@@ -88,7 +108,7 @@ export async function readNamespaces(description: ReadPackageOutput, definitions
         throw new Error(`Источник контракта изменился во время чтения: ${source.path}`)
       }
     }
-    return {root: description.root, name: description.packageJson.name, entries, diagnostics,
+    return {root: description.root, name: description.packageJson.name, entries, diagnostics, extensions,
       sources: [...sources.values()].sort((left, right) => left.path.localeCompare(right.path))}
   } finally {
     await api.close()

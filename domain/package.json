@@ -9,7 +9,8 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@archetypes/package": "workspace:*"
+    "@archetypes/package": "workspace:*",
+    "@archetypes/contracts": "workspace:*"
   },
   "devDependencies": {
     "@archetypes/component": "workspace:*"

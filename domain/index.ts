@@ -1,33 +1,32 @@
 /**
-Domain организует предметную область, её правила и принадлежащие ей пакеты.
-Поддомен остаётся Domain. Собственная исполняемая композиция принадлежащих
-частей оформляется как Container с собственным default и типами контракта.
-Домен собирает именованный API и типы через реэкспорты публичных входов владельцев.
-Условия exports выбирают вход среды; реэкспорт не передаёт владение реализацией.
+Domain связывает общие правила одной сущности с её средовыми реализациями.
+Каждый основной вход предоставляет одну реализацию и её протокол.
+Читатель сохраняет условия входов и общие исходные определения протоколов,
+включая делегирование принадлежащему Component или Container.
+Общий index не обязателен; код исследуемых реализаций не исполняется.
 
 @packageDocumentation
 */
-import {basename, resolve} from "node:path"
 import readPackage from "@archetypes/package"
+import readContract from "@archetypes/contracts"
 import type {ArchetypesDomain} from "./contract"
 
 export type {ArchetypesDomain} from "./contract"
 
-/** Читает принадлежность кода и необязательные сценарии, не исполняя код проверяемого домена. */
+/** Читает средовые протоколы и их общие определения без запуска реализаций. */
 export default async function readDomain({path}: ArchetypesDomain.Input): Promise<ArchetypesDomain.Output> {
   const description = await readPackage({path})
-  const owners = new Set(description.packages.map(item => item.path))
-  const localCode: string[] = []
-  for (const source of description.code) {
-    if (source.statements.length === 0 && !source.exports.some(item => item.runtime && item.declarations.some(declaration => declaration.owner?.path === description.root))) continue
-    const entry = description.index.entries.find(entry => entry.status === "owned" && entry.target
-      && resolve(description.root, entry.target) === source.path)
-    localCode.push(entry?.path ?? basename(source.path))
-  }
+  const protocols = await readContract({path: description.root})
+  const entries = protocols.entries.filter(entry => entry.exportPath === ".")
+  const definitions = entries.map(entry => entry.namespaces.flatMap(namespace =>
+    namespace.roles.flatMap(role => role.dependencies)))
+  const sharedDefinitions = [...new Map((definitions[0] ?? []).filter(source => definitions.every(values =>
+    values.some(value => value.path === source.path && value.line === source.line && value.name === source.name)))
+    .map(source => [`${source.path}:${source.line}:${source.name}`, source])).values()]
   return {
     package: description,
-    localCode,
-    undeclaredOwners: [...new Set(description.index.entries.flatMap(entry => entry.owner && !owners.has(entry.owner.path) ? [entry.owner.path] : []))],
+    protocols,
+    sharedDefinitions,
     scenarios: description.scenarios,
   }
 }

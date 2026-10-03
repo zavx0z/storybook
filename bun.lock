@@ -691,6 +691,17 @@
         "@zavx0z/dom": "^0.0.0",
       },
     },
+    "cluster": {
+      "name": "@archetypes/cluster",
+      "version": "0.0.0",
+      "dependencies": {
+        "@archetypes/contracts": "workspace:*",
+        "@archetypes/package": "workspace:*",
+      },
+      "devDependencies": {
+        "@archetypes/scenario-reader": "workspace:*",
+      },
+    },
     "component": {
       "name": "@archetypes/component",
       "version": "0.0.0",
@@ -725,6 +736,7 @@
       "name": "@archetypes/domain",
       "version": "0.0.0",
       "dependencies": {
+        "@archetypes/contracts": "workspace:*",
         "@archetypes/package": "workspace:*",
       },
       "devDependencies": {
@@ -957,6 +969,7 @@
         "typescript": "^7.0.2",
       },
       "devDependencies": {
+        "@archetypes/contracts": "workspace:*",
         "@archetypes/domain": "workspace:*",
         "@archetypes/scenario-reader": "workspace:*",
       },
@@ -1507,6 +1520,8 @@
     "@app/web": ["@app/web@workspace:app/web"],
 
     "@archetypes/chat": ["@archetypes/chat@workspace:chat"],
+
+    "@archetypes/cluster": ["@archetypes/cluster@workspace:cluster"],
 
     "@archetypes/component": ["@archetypes/component@workspace:component"],
 

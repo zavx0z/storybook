@@ -47,6 +47,8 @@
     "specs/**/*.tsx",
     "domain/**/*.ts",
     "domain/**/*.tsx",
+    "cluster/**/*.ts",
+    "cluster/**/*.tsx",
     "component/**/*.ts",
     "component/**/*.tsx",
     "container/**/*.ts",

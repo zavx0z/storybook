@@ -19,6 +19,8 @@ export declare namespace ArchetypesPackage {
 
   @property documentation - Модульный TSDoc корневого index или null, если его нет.
 
+  @property entryDocumentation - Документация каждого принадлежащего пакету публичного входа с его адресом, целью и условиями. Разные среды не объединяются в один текст.
+
   @property index - Публичные входы, их принадлежность и доступные файлы контрактов.
   Наличие файлов не подтверждает смысловую полноту API или правильность управления состоянием.
 
@@ -66,6 +68,12 @@ export declare namespace ArchetypesPackage {
     readonly scenarios: readonly string[]
     readonly packageJson: ArchetypesPackageJson.Output
     readonly documentation: ArchetypesPackageDocumentation.Output
+    readonly entryDocumentation: readonly {
+      readonly path: string
+      readonly target: string
+      readonly conditions: readonly string[]
+      readonly documentation: ArchetypesPackageDocumentation.Output
+    }[]
     readonly index: ArchetypesPackageIndex.Output
     readonly packages: readonly {readonly path: string, readonly name: string, readonly parent: string}[]
   }

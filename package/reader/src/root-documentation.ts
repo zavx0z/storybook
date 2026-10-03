@@ -7,11 +7,11 @@ import type {ArchetypesPackageDocumentation} from "@archetypes/package-documenta
 const MAX_MODULE_SOURCE_BYTES = 1024 * 1024
 
 /**
-Читает описание непосредственного входа пакета. `index.tsx` имеет приоритет;
+Читает описание заданного входа; без списка `index.tsx` имеет приоритет.
 ссылка и специальный файл не раскрываются, превышение лимита прерывает чтение.
 */
-export async function readRootDocumentation(directory: string): Promise<ArchetypesPackageDocumentation.Output> {
-  for (const name of ["index.tsx", "index.ts"]) {
+export async function readRootDocumentation(directory: string, targets: readonly string[] = ["index.tsx", "index.ts"]): Promise<ArchetypesPackageDocumentation.Output> {
+  for (const name of targets) {
     const path = resolve(directory, name)
     let metadata
     try {

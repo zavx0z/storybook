@@ -87,6 +87,7 @@ describe("Чтение состава пакета", () => {
     await writeFile(manifestPath, JSON.stringify(manifest))
     expect(await readPackageJson({path: manifestPath})).toEqual(manifest)
     expect((await readPackage({path})).packageJson).toEqual(manifest)
+    await rm(resolve(path, "contract"), {recursive: true})
     await writeFile(resolve(path, "index.ts"), '/**\nОписание модуля.\n@packageDocumentation\n*/\nexport default function increment() { return 1 }')
     await mkdir(resolve(path, "spec"))
     await writeFile(resolve(path, "spec/scenario.spec.ts"), 'import {test, expect} from "bun:test"\ntest("Пример", () => expect(1).toBe(1))')

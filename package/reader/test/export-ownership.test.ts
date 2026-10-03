@@ -1,10 +1,9 @@
 import {afterEach, expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm, symlink} from "node:fs/promises"
 import {tmpdir} from "node:os"
-import {join, resolve} from "node:path"
+import {basename, join, resolve} from "node:path"
 import {pathToFileURL} from "node:url"
 import readPackage from "@archetypes/package"
-import readDomain from "@archetypes/domain"
 import readScenario from "@archetypes/scenario-reader"
 
 const roots: string[] = []
@@ -23,9 +22,11 @@ async function fixture() {
   await Bun.write(join(root, "package.json"), JSON.stringify({name: "@fixture/repo", workspaces: ["area/**"]}))
   await Bun.write(join(domain, "package.json"), JSON.stringify({name: "@fixture/area", description: "Область значений", exports: {".": "./index.ts"}, dependencies: {"@fixture/value": "workspace:*"}}))
   await Bun.write(join(component, "package.json"), JSON.stringify({name: "@fixture/value", description: "Числовое значение", exports: {".": "./index.ts"}}))
-  await Bun.write(join(component, "index.ts"), '/** Числовое значение.\n@packageDocumentation\n*/\nexport interface Output {value: number}\nconst value: Output = {value: 3}\nexport default value\n')
+  await mkdir(join(component, "contract"))
+  await Bun.write(join(component, "contract/index.ts"), 'export declare namespace FixtureValue {interface Output {value: number}}\n')
+  await Bun.write(join(component, "index.ts"), '/** Числовое значение.\n@packageDocumentation\n*/\nimport type {FixtureValue} from "./contract"\nexport type {FixtureValue} from "./contract"\nconst value: FixtureValue.Output = {value: 3}\nexport default value\n')
   await Bun.write(join(component, "spec/scenario.spec.ts"), 'import {test, expect} from "bun:test"\nimport value from "../index.ts"\ntest("значение", () => expect(value.value).toBe(3))\n')
-  await Bun.write(join(domain, "index.ts"), '/** Область значений.\n@packageDocumentation\n*/\nexport {default as Value} from "@fixture/value"\nexport type {Output} from "@fixture/value"\n')
+  await Bun.write(join(domain, "index.ts"), '/** Область значений.\n@packageDocumentation\n*/\nexport {default as Value} from "@fixture/value"\nexport type {FixtureValue} from "@fixture/value"\n')
   await mkdir(join(domain, "node_modules/@fixture"), {recursive: true})
   await symlink(component, join(domain, "node_modules/@fixture/value"))
   return {root, domain, component}
@@ -34,24 +35,25 @@ async function fixture() {
 test("реэкспорт сохраняет владельца реализации и именованный тип без исполнения", async () => {
   const f = await fixture()
   await Bun.write(join(f.component, "index.ts"), '/** Вход не исполняется.\n@packageDocumentation\n*/\nthrow new Error("Не исполнять")\nexport interface Output {value: number}\nexport default function value(): Output {return {value: 3}}\n')
-  const result = await readDomain({path: f.domain})
-  expect(result.localCode).toEqual([])
-  const exports = result.package.code[0]!.exports
+  await Bun.write(join(f.domain, "index.ts"), 'export {default as Value} from "@fixture/value"\nexport type {Output} from "@fixture/value"')
+  const result = await readPackage({path: f.domain})
+  expect(result.code[0]!.statements).toEqual([])
+  const exports = result.code[0]!.exports
   expect(exports.find(item => item.name === "Value")).toMatchObject({runtime: true, unresolved: false,
     declarations: [{path: join(f.component, "index.ts"), owner: {path: f.component, name: "@fixture/value"}}]})
   expect(exports.find(item => item.name === "Output")?.runtime).toBeFalse()
 })
 
-test("один нормативный сценарий принимает доменный фасад и default-значение без фиктивного output.ts", async () => {
+test("нормативный сценарий принимает самостоятельное default-значение с собственным протоколом", async () => {
   const f = await fixture()
-  for (const path of [f.domain, f.component]) {
+  for (const path of [f.component]) {
     const report = await readScenario({path: scenario, props: {path}})
     expect(report.exitCode, report.stderr).toBe(0)
     expect(report.tests.filter(point => point.status === "failed")).toEqual([])
   }
 }, 30_000)
 
-test("условные входы среды принадлежат Domain и раскрывают разные API", async () => {
+test("условные фасады без единственной реализации и протокола не подтверждают Domain", async () => {
   const f = await fixture()
   await Bun.write(join(f.domain, "package.json"), JSON.stringify({name: "@fixture/area", description: "Разные среды", exports: {".": {browser: "./browser.ts", node: "./server.ts"}}, dependencies: {"@fixture/value": "workspace:*"}}))
   await Bun.write(join(f.domain, "browser.ts"), 'export {default as BrowserValue} from "@fixture/value"')
@@ -61,7 +63,8 @@ test("условные входы среды принадлежат Domain и р
   expect(result.code.flatMap(source => source.exports.filter(item => item.runtime).map(item => item.name)).sort())
     .toEqual(["BrowserValue", "ServerValue", "Value"])
   const report = await readScenario({path: scenario, props: {path: f.domain}})
-  expect(report.exitCode, report.stderr).toBe(0)
+  expect(report.tests.find(point => point.label === "Основная реализация")?.status).toBe("failed")
+  expect(report.exitCode).not.toBe(0)
 }, 30_000)
 
 test("именованный runtime экспорт не подменяет default компонента", async () => {
@@ -75,7 +78,7 @@ test("именованный runtime экспорт не подменяет defa
 test("эффект в фасаде не становится разрешённым поведением домена", async () => {
   const f = await fixture()
   await Bun.write(join(f.domain, "index.ts"), '/** Область.\n@packageDocumentation\n*/\nexport {default as Value} from "@fixture/value"\nconsole.log("effect")')
-  expect((await readDomain({path: f.domain})).localCode).toEqual(["."])
+  expect((await readPackage({path: f.domain})).code.find(source => source.path === join(f.domain, "index.ts"))?.statements).toContain("ExpressionStatement")
   const report = await readScenario({path: scenario, props: {path: f.domain}})
   expect(report.tests.find(point => point.label === "Структурная роль")?.status).toBe("failed")
 }, 30_000)
@@ -95,14 +98,14 @@ test("фасад не скрывает собственный runtime в час�
   const f = await fixture()
   await Bun.write(join(f.domain, "helper.ts"), 'console.log("effect")\nexport const token = 1')
   await Bun.write(join(f.domain, "index.ts"), 'import {token} from "./helper.ts"\nexport {default as Value} from "@fixture/value"')
-  expect((await readDomain({path: f.domain})).localCode).toContain("helper.ts")
+  expect((await readPackage({path: f.domain})).code.filter(source => source.statements.length > 0).map(source => basename(source.path))).toContain("helper.ts")
 })
 
-test("default не заменяет именованный API домена", async () => {
+test("default-делегирование без среды и общего протокола не получает архетип", async () => {
   const f = await fixture()
   await Bun.write(join(f.domain, "index.ts"), '/** Область.\n@packageDocumentation\n*/\nexport {default} from "@fixture/value"')
   const report = await readScenario({path: scenario, props: {path: f.domain}})
-  expect(report.tests.find(point => point.label === "Происхождение API")?.status).toBe("failed")
+  expect(report.tests.find(point => point.label === "Структурная роль")?.status).toBe("failed")
 }, 30_000)
 
 test("нераскрытый wildcard владельца сохраняет неполноту проверки вместо ложного нарушения", async () => {
@@ -137,7 +140,7 @@ test("development является режимом и не открывает к�
   await Bun.write(join(f.domain, "package.json"), JSON.stringify({name: "@fixture/area", description: "Область", exports: {".": {development: "./development.ts", default: "./index.ts"}}, dependencies: {"@fixture/value": "workspace:*"}}))
   await Bun.write(join(f.domain, "development.ts"), 'export {default as Value} from "@fixture/value"')
   const report = await readScenario({path: scenario, props: {path: f.domain}})
-  expect(report.tests.find(point => point.label === "Входы сред домена")?.status).toBe("failed")
+  expect(report.tests.find(point => point.label === "Структурная роль")?.status).toBe("failed")
 }, 30_000)
 
 test.each(["./value", "./jsx-runtime"])("публичная цель %s не доказывает основание дополнительного входа Domain", async subpath => {
@@ -147,10 +150,10 @@ test.each(["./value", "./jsx-runtime"])("публичная цель %s не д�
     exports: {".": "./index.ts", [subpath]: "./value/index.ts"}, dependencies: {"@fixture/value": "workspace:*"},
   }))
   const report = await readScenario({path: scenario, props: {path: f.domain}})
-  expect(report.validation.checks.filter(check => check.status === "failed")).toEqual([])
+  expect(report.validation.checks.filter(check => check.status === "failed" && check.rule !== "execution")).toEqual([])
   expect(report.tests.find(point => point.label === "Цель протокольного входа")?.status).toBe("passed")
   expect(report.tests.find(point => point.label === "Основание внешнего протокола")?.status).toBe("todo")
-  expect(report.tests.filter(point => point.status === "failed")).toEqual([])
+  expect(report.tests.filter(point => point.status === "failed").map(point => point.label)).toEqual(["Структурная роль"])
 }, 30_000)
 
 test("входы Component не допускают вторую кодовую реализацию, но сохраняют ресурсный экспорт", async () => {
@@ -176,11 +179,11 @@ test("входы Component не допускают вторую кодовую �
   expect(invalid.exitCode).not.toBe(0)
 }, 30_000)
 
-test("Domain без дополнительного входа не получает проверку чужого протокола", async () => {
+test("каталог реэкспортов не получает Domain без протокола и средовых реализаций", async () => {
   const f = await fixture()
   const report = await readScenario({path: scenario, props: {path: f.domain}})
-  expect(report.tests.find(point => point.label === "Корневой API домена")?.status).toBe("passed")
-  expect(report.tests.filter(point => point.status !== "passed" && !(point.status === "skipped" && point.skipReason))).toEqual([])
+  expect(report.tests.find(point => point.label === "Структурная роль")?.status).toBe("failed")
+  expect(report.tests.find(point => point.label === "Корневой API домена")?.status).toBe("skipped")
 }, 30_000)
 
 test.each(["relative", "absolute", "file"])("публичный вход другого пакета не разрешает файловый адрес %s", async kind => {

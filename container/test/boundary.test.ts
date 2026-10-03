@@ -1,5 +1,5 @@
 import {afterEach, expect, test} from "bun:test"
-import {rm} from "node:fs/promises"
+import {mkdir, rm, symlink} from "node:fs/promises"
 import {join, resolve} from "node:path"
 import readContainer from "@archetypes/container"
 import readScenario from "@archetypes/scenario-reader"
@@ -51,10 +51,130 @@ test("вложенный Container и его компонент проходят
   }
 }, 30_000)
 
+test("прямая композиция подтверждает обе непосредственные части", async () => {
+  const f = await fixture()
+  const report = await readScenario({path: scenario, props: {path: f.path}})
+  expect(report.tests.find(point => point.label === "Связи композиции")?.status).toBe("passed")
+  expect(report.exitCode, report.stderr).toBe(0)
+}, 30_000)
+
+test("общая часть участвует через другой принадлежащий Container без прямого импорта родителя", async () => {
+  const f = await fixture()
+  await Bun.write(join(f.path, "index.ts"), `
+/**
+Составляет части через вложенный Container.
+@packageDocumentation
+*/
+import adjust from "@fixture/compose-adjust"
+export type {FixtureCompose} from "./contract"
+export default function compose(value: number) { return adjust(value) }
+`)
+  await Bun.write(join(f.path, "adjust/index.ts"), `
+/**
+Использует собственную часть и общую часть родителя.
+@packageDocumentation
+*/
+import increment from "@fixture/compose-increment"
+import double from "@fixture/compose-double"
+export type {FixtureComposeAdjust} from "./contract"
+export default function adjust(value: number) { return double(increment(value)) }
+`)
+  const path = join(f.path, "adjust/package.json")
+  const manifest = await Bun.file(path).json()
+  await Bun.write(path, JSON.stringify({...manifest, dependencies: {
+    ...manifest.dependencies,
+    "@fixture/compose-double": "workspace:*",
+  }}))
+  const direct = await readContainer({path: f.path})
+  expect(direct.parts.find(part => part.name === "@fixture/compose-double")?.references).toEqual([])
+  const report = await readScenario({path: scenario, props: {path: f.path}})
+  expect(report.tests.find(point => point.label === "Связи композиции")?.status).toBe("passed")
+  expect(report.exitCode, report.stderr).toBe(0)
+}, 30_000)
+
+test("одна используемая часть не подтверждает вторую, связанную только типом", async () => {
+  const f = await fixture()
+  await Bun.write(join(f.path, "index.ts"), `
+/** Реализация с неполным составом. @packageDocumentation */
+import adjust from "@fixture/compose-adjust"
+import type double from "@fixture/compose-double"
+export type {FixtureCompose} from "./contract"
+export default function compose(value: number) { return adjust(value) }
+`)
+  const report = await readScenario({path: scenario, props: {path: f.path}})
+  expect(report.tests.find(point => point.label === "Связи композиции")?.status).toBe("failed")
+  expect(report.exitCode).not.toBe(0)
+}, 30_000)
+
+test("внешняя runtime-зависимость не заменяет неиспользуемую принадлежащую часть", async () => {
+  const f = await fixture()
+  const external = join(f.root, "external")
+  await mkdir(external)
+  await Bun.write(join(external, "package.json"), JSON.stringify({
+    name: "@fixture/external", type: "module", exports: {".": "./index.ts"},
+  }))
+  await Bun.write(join(external, "index.ts"), "export default function external(value: number) { return value }\n")
+  await symlink(external, join(f.root, "node_modules/@fixture/external"))
+  const path = join(f.path, "package.json")
+  const manifest = await Bun.file(path).json()
+  await Bun.write(path, JSON.stringify({...manifest, dependencies: {
+    ...manifest.dependencies,
+    "@fixture/external": "workspace:*",
+  }}))
+  await Bun.write(join(f.path, "index.ts"), `
+/** Внешняя зависимость не является частью целого. @packageDocumentation */
+import adjust from "@fixture/compose-adjust"
+import external from "@fixture/external"
+export type {FixtureCompose} from "./contract"
+export default function compose(value: number) { return external(adjust(value)) }
+`)
+  const report = await readScenario({path: scenario, props: {path: f.path}})
+  expect(report.tests.find(point => point.label === "Связи композиции")?.status).toBe("failed")
+  expect(report.exitCode).not.toBe(0)
+}, 30_000)
+
+test("цикл частей обрывается и не оживляет отсоединённую группу", async () => {
+  const f = await fixture()
+  await Bun.write(join(f.path, "adjust/index.ts"), `
+/** Цикл связей частей. @packageDocumentation */
+import increment from "@fixture/compose-increment"
+import "@fixture/compose-double"
+export type {FixtureComposeAdjust} from "./contract"
+export default function adjust(value: number) { return increment(value) }
+`)
+  await Bun.write(join(f.path, "double/index.ts"), `
+/** Обратная ссылка цикла. @packageDocumentation */
+import "@fixture/compose-adjust"
+export type {FixtureComposeDouble} from "./contract"
+export default function double(value: number) { return value * 2 }
+`)
+  const path = join(f.path, "adjust/package.json")
+  const manifest = await Bun.file(path).json()
+  await Bun.write(path, JSON.stringify({...manifest, dependencies: {
+    ...manifest.dependencies,
+    "@fixture/compose-double": "workspace:*",
+  }}))
+  await Bun.write(join(f.path, "index.ts"), `
+/** Связанный цикл частей. @packageDocumentation */
+import adjust from "@fixture/compose-adjust"
+export type {FixtureCompose} from "./contract"
+export default function compose(value: number) { return adjust(value) }
+`)
+  const connected = await readScenario({path: scenario, props: {path: f.path}})
+  expect(connected.tests.find(point => point.label === "Связи композиции")?.status).toBe("passed")
+  await Bun.write(join(f.path, "index.ts"), `
+/** Отсоединённый цикл частей. @packageDocumentation */
+export type {FixtureCompose} from "./contract"
+export default function compose(value: number) { return value }
+`)
+  const disconnected = await readScenario({path: scenario, props: {path: f.path}})
+  expect(disconnected.tests.find(point => point.label === "Связи композиции")?.status).toBe("failed")
+}, 40_000)
+
 test("внешняя зависимость не превращает самостоятельный Component в Container", async () => {
   const f = await fixture()
   const path = join(f.path, "adjust/increment")
-  await Bun.write(join(path, "index.ts"), '/**\nСамостоятельная реализация.\n@packageDocumentation\n*/\nimport double from "@fixture/compose-double"\nexport default function increment(value: number) { return double(value) + 1 }\n')
+  await Bun.write(join(path, "index.ts"), '/**\nСамостоятельная реализация.\n@packageDocumentation\n*/\nimport double from "@fixture/compose-double"\nexport type {FixtureComposeIncrement} from "./contract"\nexport default function increment(value: number) { return double(value) + 1 }\n')
   const metadata = await Bun.file(join(path, "package.json")).json()
   await Bun.write(join(path, "package.json"), JSON.stringify({...metadata, dependencies: {"@fixture/compose-double": "workspace:*"}}))
   const data = await readContainer({path})
@@ -86,7 +206,7 @@ test("контейнер не открывает часть отдельным �
 
 test("вложенные пакеты без участия в реализации не подтверждают композицию", async () => {
   const f = await fixture()
-  await Bun.write(join(f.path, "index.ts"), '/**\nИзолированная реализация.\n@packageDocumentation\n*/\nexport default function compose(value: number) { return value }\n')
+  await Bun.write(join(f.path, "index.ts"), '/**\nИзолированная реализация.\n@packageDocumentation\n*/\nexport type {FixtureCompose} from "./contract"\nexport default function compose(value: number) { return value }\n')
   const report = await readScenario({path: scenario, props: {path: f.path}})
   expect(report.tests.find(point => point.label === "Структурная роль")?.status).toBe("passed")
   expect(report.tests.find(point => point.label === "Связи композиции")?.status).toBe("failed")
@@ -105,7 +225,8 @@ test("читатель не исполняет исследуемый конте
 test("буквальный dynamic import сохраняет часть композиции и её публичного владельца", async () => {
   const f = await fixture()
   const path = join(f.path, "adjust")
-  await Bun.write(join(path, "index.ts"), '/**\nДинамическая композиция.\n@packageDocumentation\n*/\nexport default async function adjust(value: number) {\n  const {default: increment} = await import("@fixture/compose-increment")\n  return increment(value)\n}\n')
+  await Bun.write(join(path, "contract/index.ts"), '/** Числовой вход и асинхронный результат композиции. */\nexport declare namespace FixtureComposeAdjust {\n  type Input = number\n  type Output = Promise<number>\n}\n')
+  await Bun.write(join(path, "index.ts"), '/**\nДинамическая композиция.\n@packageDocumentation\n*/\nimport type {FixtureComposeAdjust} from "./contract"\nexport type {FixtureComposeAdjust} from "./contract"\nexport default async function adjust(value: FixtureComposeAdjust.Input): FixtureComposeAdjust.Output {\n  const {default: increment} = await import("@fixture/compose-increment")\n  return increment(value)\n}\n')
   const data = await readContainer({path})
   expect(data.parts[0]?.references).toMatchObject([{
     module: "@fixture/compose-increment", names: ["*"], public: true, typeOnly: false,

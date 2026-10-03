@@ -1,5 +1,5 @@
 import {SymbolFlags, TypeFlags, type Symbol as NativeSymbol} from "typescript/unstable/async"
-import {resolve} from "node:path"
+import {basename, dirname, resolve} from "node:path"
 import type {Namespace, Role} from "../contract/declaration"
 import {diagnose, type Context} from "./context"
 import {declarationOf, declarationsOf, namespaceDeclaration, originalSymbol, typeDependencies} from "./declarations"
@@ -21,9 +21,13 @@ export async function readNamespace(symbol: NativeSymbol, context: Context): Pro
     diagnose(context, "namespace-name", declaration.path,
       `Namespace ${target.name} пакета ${declaration.owner.name} ожидается с именем ${expectedName}`, "warning")
   }
-  if (declaration.path !== resolve(declaration.owner.path, "contract/index.ts")) {
+  const environmentContract = context.entryPath && declaration.owner.path === context.root
+    && dirname(context.entryPath) === context.root
+    ? resolve(context.root, "contract", basename(context.entryPath).replace(/\.[cm]?[jt]sx?$/u, ".ts"))
+    : null
+  if (declaration.path !== resolve(declaration.owner.path, "contract/index.ts") && declaration.path !== environmentContract) {
     diagnose(context, "namespace-entry", declaration.path,
-      `Namespace ${target.name} публикуется из contract/index.ts своего владельца`)
+      `Namespace ${target.name} публикуется из contract/index.ts либо контракта своего средового входа`)
   }
   const members = await context.project.checker.getExportsOfModule(target)
   const roles: Role[] = []

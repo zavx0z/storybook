@@ -8,20 +8,20 @@ import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
 import readDomain from "@archetypes/domain"
 
-describe.each([{name: "Область числовых операций", props: {path: resolve(import.meta.dir, "fixture/domain")}}])("$name", async ({props}) => {
+describe.each([{name: "Средовые входы счётчика", props: {path: resolve(import.meta.dir, "fixture/domain")}}])("$name", async ({props}) => {
   const result = await readDomain(props)
   test("Состав области", () => {
-    expect(result.package.packages.map(item => item.name), "Области принадлежит пакет счётчика")
-      .toEqual(["@fixture/domain-counter"])
+    expect(result.package.packages, "Малым реализациям не нужны фиктивные вложенные пакеты").toEqual([])
   })
   test("Публичные входы", () => {
-    expect(result.package.index.entries.map(entry => entry.path), "Пользователь обращается к счётчику через публичный путь области")
-      .toEqual(["./counter"])
-    expect(result.undeclaredOwners, "Счётчик входит в объявленный состав области").toEqual([])
-    expect(result.localCode, "Область не содержит собственной исполняемой реализации").toEqual([])
+    expect(result.protocols.entries.map(entry => entry.conditions), "Каждая среда сохраняет свой публичный вход и протокол")
+      .toEqual([["browser"], ["node"]])
+    expect(result.protocols.diagnostics, "Оба протокола прочитаны без смешения типов сред").toEqual([])
+    expect(result.sharedDefinitions.map(value => value.name), "Протоколы используют одну исходную форму счётчика").toEqual(["Counter"])
+    expect(result.package.documentation, "Общий index не требуется для чтения средовых документов").toBeNull()
   })
   test("Собственные сценарии", () => {
-    expect(result.scenarios, "Общие правила структуры проверяются сценарием Package; область этого примера не дублирует их")
-      .toEqual([])
+    expect(result.scenarios, "Сценарий связывает изменение и представление общей сущности")
+      .toEqual([resolve(props.path, "spec/scenario.spec.ts")])
   })
 })

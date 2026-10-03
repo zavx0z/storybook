@@ -59,3 +59,16 @@ export interface Diagnostic {
   readonly path: string
   readonly message: string
 }
+
+/** Связь собственного протокола участника с общим протоколом его группы. */
+export interface Extension {
+  readonly base: Declaration
+  readonly member: Declaration
+  readonly roles: readonly {
+    readonly name: Role["name"]
+    /** Участник ссылается на исходную роль общего протокола, а не копирует её поля. */
+    readonly linked: boolean
+    /** Native TypeScript подтверждает расширение содержательной типовой формы. */
+    readonly compatible: boolean
+  }[]
+}

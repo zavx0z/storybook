@@ -1,0 +1,26 @@
+{
+  "lockfileVersion": 2,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "@fixture/cluster-repo",
+    },
+    "group": {
+      "name": "@fixture/group",
+      "dependencies": {
+        "@fixture/increment": "workspace:*",
+      },
+    },
+    "group/increment": {
+      "name": "@fixture/increment",
+      "dependencies": {
+        "@fixture/group": "workspace:*",
+      },
+    },
+  },
+  "packages": {
+    "@fixture/group": ["@fixture/group@workspace:group"],
+
+    "@fixture/increment": ["@fixture/increment@workspace:group/increment"],
+  }
+}

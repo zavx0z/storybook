@@ -1,0 +1,7 @@
+{
+  "name": "@fixture/increment",
+  "description": "Увеличивает число на выбранный шаг",
+  "type": "module",
+  "exports": {".": "./index.ts"},
+  "dependencies": {"@fixture/group": "workspace:*"}
+}

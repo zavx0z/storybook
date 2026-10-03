@@ -6,12 +6,11 @@
 */
 import adjust from "@fixture/compose-adjust"
 import double from "@fixture/compose-double"
-import type {Input} from "./contract/input"
-import type {Output} from "./contract/output"
+import type {FixtureCompose} from "./contract"
 
-export type {Input, Output}
+export type {FixtureCompose} from "./contract"
 
 /** Передаёт выход вложенного контейнера следующему компоненту. */
-export default function compose(value: Input): Output {
+export default function compose(value: FixtureCompose.Input): FixtureCompose.Output {
   return double(adjust(value))
 }

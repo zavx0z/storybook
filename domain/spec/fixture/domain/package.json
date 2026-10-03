@@ -1,8 +1,8 @@
 {
   "name": "@fixture/archetype-domain",
-  "description": "Область числовых операций",
+  "description": "Счётчик с представлением значения и серверным изменением",
   "type": "module",
   "exports": {
-    "./counter": "./counter/index.ts"
+    ".": {"browser": "./web.ts", "node": "./server.ts"}
   }
 }

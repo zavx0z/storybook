@@ -9,6 +9,7 @@ import type {Declaration, Diagnostic} from "../contract/declaration"
 export interface Context {
   readonly project: Project
   readonly root: string
+  readonly entryPath?: string
   readonly owners: Map<string, Promise<Declaration["owner"]>>
   readonly sources: Map<string, {path: string, digest: string}>
   readonly diagnostics: Diagnostic[]

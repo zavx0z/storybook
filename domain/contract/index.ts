@@ -1,4 +1,5 @@
 import type {ArchetypesPackage} from "@archetypes/package"
+import type {ArchetypesContracts} from "@archetypes/contracts"
 
 export declare namespace ArchetypesDomain {
   /**
@@ -11,18 +12,17 @@ export declare namespace ArchetypesDomain {
   }
 
   /**
-  Структурные свидетельства предметной области из её состава и публичного кода.
+  Средовые входы одной сущности и происхождение связывающих их определений.
 
   @property package - Общий состав пакета и источники его документации.
-  @property localCode - Исполняемые публичные входы, реализация которых принадлежит самому домену.
-  @property undeclaredOwners - Вложенные владельцы публичных входов, отсутствующие в составе workspaces.
-  @property scenarios - Необязательные непосредственные сценарии правил области.
-  Пустой список не является нарушением и не препятствует классификации Domain.
+  @property protocols - Протоколы публичных входов, условия выбора и диагностика их чтения.
+  @property sharedDefinitions - Исходные определения, использованные протоколами всех основных входов. Их наличие не заменяет проверку общих правил поведением.
+  @property scenarios - Непосредственные сценарии предметных правил и средовых реализаций.
   */
   export interface Output {
     readonly package: ArchetypesPackage.Output
-    readonly localCode: readonly string[]
-    readonly undeclaredOwners: readonly string[]
+    readonly protocols: ArchetypesContracts.Output
+    readonly sharedDefinitions: readonly ArchetypesContracts.Output["entries"][number]["namespaces"][number]["roles"][number]["dependencies"][number][]
     readonly scenarios: readonly string[]
   }
 }

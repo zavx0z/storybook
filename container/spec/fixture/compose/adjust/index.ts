@@ -4,12 +4,11 @@
 @packageDocumentation
 */
 import increment from "@fixture/compose-increment"
-import type {Input} from "./contract/input"
-import type {Output} from "./contract/output"
+import type {FixtureComposeAdjust} from "./contract"
 
-export type {Input, Output}
+export type {FixtureComposeAdjust} from "./contract"
 
 /** Возвращает результат единственной части композиции. */
-export default function adjust(value: Input): Output {
+export default function adjust(value: FixtureComposeAdjust.Input): FixtureComposeAdjust.Output {
   return increment(value)
 }

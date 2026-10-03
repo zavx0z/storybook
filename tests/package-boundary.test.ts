@@ -21,7 +21,7 @@ describe("external @zavx0z/storybook tool boundary", () => {
   test("runs multi-package isolation in its own explicit process", async () => {
     const manifest = await Bun.file(join(root, "package.json")).json() as Record<string, any>
     const script = manifest.scripts.test as string
-    expect(script).toContain("bun test --no-orphans --isolate --preload @immersive/headless/preload ./app ./tech ./chat ./project ./repo ./package ./specs ./domain ./component ./container ./contracts ./typedoc ./tests --max-concurrency=1")
+    expect(script).toContain("bun test --no-orphans --isolate --preload @immersive/headless/preload ./app ./tech ./chat ./project ./repo ./package ./specs ./domain ./cluster ./component ./container ./contracts ./typedoc ./tests --max-concurrency=1")
     const ignored = script.match(/--path-ignore-patterns '([^']+)'/u)?.[1]
     expect(ignored, "Основной процесс явно исключает изолированную проверку и фикстуры").toBeDefined()
     const paths = new Bun.Glob(ignored!)
@@ -36,7 +36,7 @@ describe("external @zavx0z/storybook tool boundary", () => {
   test("предметный прогон выбирает точные каталоги и изолирует состояние файлов", async () => {
     const manifest = await Bun.file(join(root, "package.json")).json() as Record<string, any>
     expect(manifest.scripts["subjects:check"]).toBe(
-      "bun test --no-orphans --isolate --preload @immersive/headless/preload ./chat ./project ./repo ./package ./specs ./domain ./component ./container ./contracts ./typedoc --path-ignore-patterns '**/{fixture,fixtures}/**' --max-concurrency=1",
+      "bun test --no-orphans --isolate --preload @immersive/headless/preload ./chat ./project ./repo ./package ./specs ./domain ./cluster ./component ./container ./contracts ./typedoc --path-ignore-patterns '**/{fixture,fixtures}/**' --max-concurrency=1",
     )
   })
 
