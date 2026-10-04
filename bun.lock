@@ -886,6 +886,9 @@
     "package/name": {
       "name": "@package/name",
       "version": "0.0.0",
+      "devDependencies": {
+        "@archetypes/scenario-reader": "workspace:*",
+      },
     },
     "package/package-json": {
       "name": "@archetypes/package-json",
@@ -906,6 +909,7 @@
         "@archetypes/contracts": "workspace:*",
         "@archetypes/domain": "workspace:*",
         "@archetypes/scenario-reader": "workspace:*",
+        "@package/name": "workspace:*",
       },
     },
     "package/resources": {

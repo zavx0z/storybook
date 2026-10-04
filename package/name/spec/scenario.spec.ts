@@ -1,7 +1,8 @@
 /**
-Общие правила имени применяются непосредственно к props.name и props.names.
-Сценарий вызывающей сущности передаёт имя родителя и имена вложенных частей.
-Источник этих данных не меняет правил именования.
+Проверяет собственное имя относительно имён предков до уровня Repo.
+Слова выделяются по разделителям и границам регистра; имя предка сравнивается
+как целая последовательность слов. Формы единственного и множественного числа
+не приравниваются. Смысловая оправданность имени остаётся отдельной проверкой.
 
 @packageDocumentation
 */
@@ -9,26 +10,37 @@ import {describe, expect, test} from "bun:test"
 import type {PackageName} from "@package/name"
 
 describe.each([
-  {
-    name: "Имя и вложенные имена",
-    props: {name: "catalog", names: ["reader", "search"]},
-  },
+  {name: "Имя внутри репозитория", props: {name: "normalize-items", ancestors: ["immersive", "collection", "model"]}},
+  {name: "Имя репозитория", props: {name: "immersive", ancestors: []}},
+  {name: "Совпадение части слова", props: {name: "transport", ancestors: ["repo", "port"]}},
 ])("$name", ({props}: {props: PackageName.Input}) => {
-  test("Непустое имя", () => {
-    expect(props.name, "Имя содержит хотя бы один непробельный символ")
-      .toMatch(/\S/u)
+  const [words = [], ...ancestors] = [props.name, ...props.ancestors].map(name => name
+    .replace(/(\p{Lu})(\p{Lu}\p{Ll})/gu, "$1 $2")
+    .replace(/([\p{Ll}\p{N}])(\p{Lu})/gu, "$1 $2")
+    .toLowerCase()
+    .match(/[\p{L}\p{N}]+/gu) ?? [])
+  const repeated = props.ancestors.filter((_, index) => {
+    const ancestor = ancestors[index]!
+    return ancestor.length > 0 && words.some((_, start) =>
+      ancestor.every((word, offset) => words[start + offset] === word))
   })
 
-  test("Непустые вложенные имена", () => {
-    expect(props.names, "Каждое переданное вложенное имя содержит хотя бы один непробельный символ")
-      .toSatisfy(names => names.every(name => /\S/u.test(name)))
+  test("Непустое имя", () => {
+    expect(props.name, "Имя содержит хотя бы один непробельный символ").toMatch(/\S/u)
+  })
+
+  test("Имена предков", () => {
+    expect(props.ancestors, "Каждое имя предка непусто; у самого Repo список предков пуст")
+      .toSatisfy(values => values.every(name => /\S/u.test(name)))
+  })
+
+  test("Повторение контекста вложенности", () => {
+    expect(repeated,
+      `Имя «${props.name}» не повторяет целые имена предков из ${JSON.stringify(props.ancestors)}; совпадение части слова повторением не считается`)
+      .toEqual([])
   })
 
   test.todo("Смысл имени", () => {
     throw new Error("Проверка того, что имя выражает собственный смысл сущности, ещё не реализована")
-  })
-
-  test.todo("Контекст вложенности", () => {
-    throw new Error("Имя уточняет вложенную сущность, не повторяя контекст, уже выраженный вложенностью; проверка props.names относительно props.name ещё не реализована")
   })
 })

@@ -1,12 +1,15 @@
 {
   "name": "@package/name",
   "label": "Имя",
-  "description": "Каркас компонента именования: собственное имя и контекст вложенности до уровня Repo",
+  "description": "Протокол и сценарий проверки собственного имени относительно предков до уровня Repo",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "exports": {
     ".": "./index.ts"
+  },
+  "devDependencies": {
+    "@archetypes/scenario-reader": "workspace:*"
   },
   "scripts": {
     "test": "bun test ./spec",

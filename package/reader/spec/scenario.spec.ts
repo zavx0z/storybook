@@ -8,10 +8,11 @@ props.path позволяет применить те же проверки к �
 @packageDocumentation
 */
 import {describe, expect, test} from "bun:test"
-import {basename, dirname, resolve, sep} from "node:path"
+import {basename, dirname, relative, resolve, sep} from "node:path"
 import readPackage from "@archetypes/package"
 import readContract from "@archetypes/contracts"
 import readDomain from "@archetypes/domain"
+import readScenario from "@archetypes/scenario-reader"
 import {runtimeOwnedParts} from "./runtime-owned-parts"
 
 describe.each([
@@ -46,6 +47,11 @@ describe.each([
   const rootSources = result.code.filter(source => entries.some(entry => entry.target && resolve(result.root, entry.target) === source.path))
   const clusterMembers = [...new Map(rootSources.flatMap(source => source.exports.filter(value => value.runtime)
     .flatMap(value => value.declarations).flatMap(value => value.owner ? [[value.owner.path, value.owner] as const] : []))).values()]
+  const repositoryRoot = result.repository.gitRoot
+  const directoryAncestors = repositoryRoot === null || repo ? []
+    : [basename(repositoryRoot), ...relative(repositoryRoot, result.root).split(sep).slice(0, -1)]
+  const packageSegments = result.packageJson.name.split("/")
+  const packageScope = result.packageJson.name.startsWith("@") ? packageSegments[0] : undefined
 
   describe("Назначение", () => {
     test("Идентичность", () => {
@@ -124,6 +130,35 @@ describe.each([
       expect(repo || result.packageJson.engines?.bun === undefined,
         "Общую среду разработки Bun объявляет Repo в engines.bun; вложенные Domain, Component и Container не повторяют настройку окружения")
         .toBeTrue()
+    })
+  })
+
+  /** @remarks Полную цепочку предков можно проверить только при известной границе Repo. */
+  describe.skipIf(repositoryRoot === null)("Именование", () => {
+    test.each([
+      {label: "Имя директории", name: basename(result.root), ancestors: directoryAncestors},
+      {label: "Имя пакета", name: packageSegments.at(-1)!, ancestors: [...directoryAncestors, ...(packageScope ? [packageScope] : [])]},
+    ])("$label", async ({name, ancestors}) => {
+      const report = await readScenario({
+        path: resolve(import.meta.dir, "../../name/spec/scenario.spec.ts"),
+        variant: 0,
+        props: {name, ancestors},
+      })
+      expect(report.exitCode, `Сценарий Name проверяет фактическое имя и предков до Repo: ${report.stderr}`).toBe(0)
+      expect(report.tests.filter(point => ["failed", "error", "not-executed"].includes(point.status)),
+        "Ошибки вложенного сценария именования сохраняются в проверке Package").toEqual([])
+      expect(report.tests.filter(point => point.status === "todo").map(point => point.label),
+        "Лексическая проверка не заменяет незавершённую проверку смысла").toContain("Смысл имени")
+    }, 30_000)
+    test.todo("Смысл именования", () => {
+      expect(undefined, "Смысл имени ещё не проверен сценарием Name; отсутствие повторения не доказывает его правильность").toBeDefined()
+    })
+  })
+
+  /** @remarks Без Git-границы невозможно установить весь контекст до Repo. */
+  describe.skipIf(repositoryRoot !== null)("Неустановленная граница именования", () => {
+    test.todo("Контекст до Repo", () => {
+      expect(repositoryRoot, "Граница Repo установлена до проверки имён; пустая цепочка не подменяет неизвестный контекст").not.toBeNull()
     })
   })
 

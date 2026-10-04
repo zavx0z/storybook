@@ -20,6 +20,7 @@
     "@archetypes/package-json": "workspace:*"
   },
   "devDependencies": {
+    "@package/name": "workspace:*",
     "@archetypes/contracts": "workspace:*",
     "@archetypes/domain": "workspace:*",
     "@archetypes/scenario-reader": "workspace:*"
