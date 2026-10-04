@@ -91,8 +91,6 @@ describe.serial("external Storybook shared controller", () => {
     const shared = await second.check({
       schemaVersion: 1,
       scope: "storybook:shared",
-      live: true,
-      timeoutMs: 480_000,
     }, {signal: AbortSignal.timeout(480_000)})
     expect(shared, "Общая оболочка готовится отдельной явной операцией перед проверкой пакета")
       .toMatchObject({status: "success", ok: true, published: true})
@@ -100,7 +98,6 @@ describe.serial("external Storybook shared controller", () => {
     const checked = await second.check({
       schemaVersion: 1,
       scope: "@fixture/standalone",
-      live: false,
     }, context())
     expect(checked).toMatchObject({status: "success", ok: true})
     const waited = await second.wait({

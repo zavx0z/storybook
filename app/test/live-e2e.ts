@@ -36,7 +36,7 @@ try {
   for (const packageId of packages) {
     const search = await call("storybook_search", {schemaVersion: 1, query: packageId, packageId, limit: 10})
     assert(array(search.results).length > 0, `Поиск не нашёл ${packageId}`)
-    const candidate = await call("storybook_check", {schemaVersion: 1, scope: packageId, live: false, timeoutMs: 30_000})
+    const candidate = await call("storybook_check", {schemaVersion: 1, scope: packageId})
     assert(candidate.ok === true, `Сборка ${packageId} не прошла`)
     const opened = await call("storybook_open", {schemaVersion: 1, packageId, route: ""})
     assert(opened.ready === true && opened.presented === true, `Обзор ${packageId} не показан`)

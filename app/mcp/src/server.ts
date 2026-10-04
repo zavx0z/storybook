@@ -120,7 +120,7 @@ export function createServer(options: AppMcp.Input = {}): ReturnType<AppMcp.Outp
 
   server.registerTool("storybook_check", {
     title: "Проверка пакета Storybook",
-    description: "Собирает кандидата пакета. При live=true проверяет его и в случае успеха применяет ко всем вкладкам этого пакета. При ошибке сохраняет применённую ревизию.",
+    description: "Проверяет и собирает выбранный пакет, затем автоматически применяет успешный результат. Ошибка сохраняет рабочую версию. Ожидайте итог и наблюдайте прогресс через status; срока ожидания сборки нет.",
     inputSchema: storybookCheckSchema,
     annotations: {idempotentHint: true},
   }, (input, context) => execute((value, operationContext) => value.check(input, operationContext), context))
@@ -141,13 +141,11 @@ export function createServer(options: AppMcp.Input = {}): ReturnType<AppMcp.Outp
 
   server.registerTool("storybook_rebuild_web", {
     title: "Пересборка интерфейса Storybook",
-    description: "Явно пересобирает собственный Web-интерфейс в готовой среде. При live=true публикует результат для HMR всех вкладок. Передаёт реальные стадии текущего запроса; завершение подготовки не подтверждает применение во всех представлениях.",
+    description: "Пересобирает только Web в готовой среде и автоматически публикует успешный результат для HMR. Ошибка сохраняет рабочую оболочку. Передаёт стадии до итогового ответа; срока ожидания сборки нет.",
     inputSchema: storybookRebuildWebSchema,
   }, (input, context) => execute((value, operationContext) => value.check({
     schemaVersion: 1,
     scope: "storybook:web",
-    live: input.live ?? true,
-    ...(input.timeoutMs === undefined ? {} : {timeoutMs: input.timeoutMs}),
   }, operationContext), context))
 
   registerStorybookResources(server, controller)

@@ -155,7 +155,7 @@ test("закрытие ожидания во время refresh не отмен�
     const response = await fetch(new URL("/api/control/check", running.origin), {
       method: "POST", signal: abort.signal,
       headers: {authorization: `Bearer ${running.record.controlToken}`, "content-type": "application/json", accept: "application/x-ndjson"},
-      body: JSON.stringify({scope: "@fixture/selected", live: true}),
+      body: JSON.stringify({scope: "@fixture/selected"}),
     })
     await refreshEntered.promise
     abort.abort()

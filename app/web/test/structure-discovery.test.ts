@@ -102,12 +102,7 @@ test("explicit refresh discovers a new workspace package and serves its structur
     })
     expect(refresh.status).toBe(200)
     expect(server.registry.snapshot().graph.nodes.some(node => node.id === "package:@fixture/c")).toBeTrue()
-    const check = await fetch(new URL("/api/control/check", server.origin), {
-      method: "POST",
-      headers: {authorization: `Bearer ${server.record.controlToken}`, "content-type": "application/json"},
-      body: JSON.stringify({scope: "@fixture/a", live: false}),
-    })
-    expect(check.status).toBe(200)
+    expect((await server.sessions.build("@fixture/a")).buildState).toBe("built")
     const page = await fetch(new URL("/pkg-fixture-a/", server.origin))
     expect(page.status).toBe(200)
     expect(await page.text()).toContain("external-storybook-canvas")

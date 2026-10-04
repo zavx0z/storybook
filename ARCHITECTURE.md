@@ -283,7 +283,7 @@ buildState
 Candidate проходит структурное обнаружение, проверку путей, compile и link и атомарно публикуется как `built` immutable revision.
 Обычная страница использует доступную revision. Если её нет, навигация
 запрашивает подготовку и независимую проверку первого кандидата сервером.
-Обновление рабочей версии выполняется через `check(live:true)`; явный preview
+Успешный `check` автоматически обновляет рабочую версию; явный preview
 остаётся изолированным. [HMR](./tech/hmr/notes/updates.md) сохраняет browser realm и
 проверяет exact revision/graph, ready/presented, кадр и ошибки console до commit. Failed build/inspection сохраняет
 предыдущий working artifact и не меняет другие sessions. Перед publication

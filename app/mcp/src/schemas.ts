@@ -171,8 +171,6 @@ export const storybookCaptureSchema = z.strictObject({
 export const storybookCheckSchema = z.strictObject({
   schemaVersion,
   scope: boundedPath,
-  live: z.boolean().optional(),
-  timeoutMs: timeoutMs.optional(),
 })
 
 export const storybookCloseSchema = z.strictObject({
@@ -185,10 +183,7 @@ export const storybookStopSchema = z.strictObject({
   confirm: z.literal(true),
 })
 
-export const storybookRebuildWebSchema = z.strictObject({
-  live: z.boolean().optional(),
-  timeoutMs: z.number().int().min(100).max(120_000).optional(),
-})
+export const storybookRebuildWebSchema = z.strictObject({})
 
 export const STORYBOOK_TOOL_SCHEMAS = Object.freeze({
   storybook_ensure: storybookEnsureSchema,

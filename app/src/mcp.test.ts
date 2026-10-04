@@ -47,22 +47,26 @@ test("app передаёт контроллер MCP без загрузки пр
       onprogress: value => { progress.push(value) },
     })
     expect(rebuilt.structuredContent).toEqual({status: "success", ok: true, published: true, applied: false})
-    expect(calls).toEqual([{schemaVersion: 1, scope: "storybook:web", live: true}])
+    expect(calls).toEqual([{schemaVersion: 1, scope: "storybook:web"}])
     expect(progress.map(value => value.progress)).toEqual([1, 2])
     expect(progress.map(value => JSON.parse(value.message!))).toEqual([
       {phase: "prepared", at: 12, operationId: "web-1"},
       {phase: "published", at: 14, operationId: "web-1"},
     ])
     expect(loads).toBe(1)
-    await client.callTool({name: "storybook_check", arguments: {schemaVersion: 1, scope: "storybook:web", live: false, timeoutMs: 1000}}, {
+    await client.callTool({name: "storybook_check", arguments: {schemaVersion: 1, scope: "storybook:web"}}, {
       onprogress: value => { progress.push(value) },
     })
-    expect(calls[1]).toEqual({schemaVersion: 1, scope: "storybook:web", live: false, timeoutMs: 1000})
+    expect(calls[1]).toEqual({schemaVersion: 1, scope: "storybook:web"})
     expect(progress.slice(2).map(value => value.progress)).toEqual([1, 2])
-    await client.callTool({name: "storybook_rebuild_web", arguments: {live: false, timeoutMs: 1000}})
-    expect(calls[2]).toEqual({schemaVersion: 1, scope: "storybook:web", live: false, timeoutMs: 1000})
+    await client.callTool({name: "storybook_rebuild_web", arguments: {}})
+    expect(calls[2]).toEqual({schemaVersion: 1, scope: "storybook:web"})
     const invalid = await client.callTool({name: "storybook_rebuild_web", arguments: {unexpected: true}})
     expect(invalid.isError).toBeTrue()
+    for (const arguments_ of [{live: false}, {live: true}, {timeoutMs: 1000}]) {
+      expect((await client.callTool({name: "storybook_rebuild_web", arguments: arguments_})).isError).toBeTrue()
+      expect((await client.callTool({name: "storybook_check", arguments: {schemaVersion: 1, scope: "storybook:web", ...arguments_}})).isError).toBeTrue()
+    }
     expect(calls).toHaveLength(3)
     expect(loads, "Встроенные и добавленные инструменты используют один отложенный контроллер").toBe(1)
   } finally {

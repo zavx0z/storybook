@@ -117,12 +117,12 @@ test("явный check применяет ревизию через HMR; под�
       artifactRoot: join(root, "artifacts"),
       browserLifecycle: browser,
     })
-    const check = async (live = true) => (await fetch(new URL("/api/control/check", running.origin), {
+    const check = async () => (await fetch(new URL("/api/control/check", running.origin), {
       method: "POST",
       headers: {authorization: `Bearer ${running.record.controlToken}`, "content-type": "application/json"},
-      body: JSON.stringify({scope: "@fixture/automatic", live}),
+      body: JSON.stringify({scope: "@fixture/automatic"}),
     })).json()
-    expect(await check(false)).toMatchObject({ok: true})
+    expect((await running.sessions.build("@fixture/automatic")).buildState).toBe("built")
     const preparedResponse = await fetch(new URL("/api/browser/prepare", running.origin), {
       method: "POST",
       headers: {origin: running.origin, "content-type": "application/json"},
@@ -215,10 +215,11 @@ test("явный check применяет ревизию через HMR; под�
     const buildsBeforeCheck = running.sessions.session("@fixture/automatic").snapshot().builds
 
     expect(await check()).toMatchObject({ok: true, applied: true})
-    expect(running.sessions.session("@fixture/automatic").snapshot().builds).toBe(buildsBeforeCheck)
+    expect(running.sessions.session("@fixture/automatic").snapshot().builds).toBe(buildsBeforeCheck + 1)
+    const stable = running.sessions.session("@fixture/automatic").snapshot().activeRevision!
     newConsoleErrors = [{level: "error", text: "Новая ошибка при проверке"}]
     expect(await check()).toMatchObject({ok: false, applied: false})
-    expect(running.sessions.session("@fixture/automatic").snapshot().activeRevision).toBe(second)
+    expect(running.sessions.session("@fixture/automatic").snapshot().activeRevision).toBe(stable)
 
     newConsoleErrors = []
     leaveDuringApplication = true
@@ -229,11 +230,14 @@ test("явный check применяет ревизию через HMR; под�
     expect(deferred.buildState).toBe("built")
     expect(deferred.builtRevision).toBeString()
     expect(deferred.failedRevision).toBeNull()
-    expect(deferred.activeRevision).toBe(second)
+    expect(deferred.activeRevision).toBe(stable)
     expect(deferred.diagnostics).toEqual([])
     leaveDuringApplication = false
     expect(await check()).toMatchObject({ok: true, applied: true})
-    expect(running.sessions.session("@fixture/automatic").snapshot().activeRevision).toBe(deferred.builtRevision!)
+    const applied = running.sessions.session("@fixture/automatic").snapshot()
+    expect(applied.builds).toBe(deferred.builds + 1)
+    expect(applied.activeRevision).not.toBe(stable)
+    expect(applied.activeRevision).not.toBe(deferred.builtRevision!)
   } finally {
     socket?.close()
     if (running !== undefined) await running.stop()

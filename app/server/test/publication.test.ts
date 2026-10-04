@@ -85,10 +85,10 @@ test("publishes only after an agent check, notifies every matching tab, and rest
     browserLifecycle: browser}
   server = await startExternalStorybookServer({createWeb, ...options})
   const tabs: WebSocket[] = []
-  const control = async (live: boolean) => {
+  const control = async () => {
     const response = await fetch(new URL("/api/control/check", server.origin), {
       method: "POST", headers: {authorization: `Bearer ${server.record.controlToken}`, "content-type": "application/json"},
-      body: JSON.stringify({scope: "@fixture/applied", live}),
+      body: JSON.stringify({scope: "@fixture/applied"}),
     })
     expect(response.status).toBe(200)
     const result = await response.json() as {ok: boolean}
@@ -122,8 +122,8 @@ test("publishes only after an agent check, notifies every matching tab, and rest
     expect(predicate()).toBeTrue()
   }
   try {
-    expect((await control(false)).ok).toBeTrue()
-    const first = server.sessions.session("@fixture/applied").snapshot().builtRevision!
+    expect((await server.sessions.build("@fixture/applied")).buildState).toBe("built")
+    let first = server.sessions.session("@fixture/applied").snapshot().builtRevision!
     expect(server.sessions.session("@fixture/applied").snapshot().activeRevision).toBeNull()
     expect(opened).toBe(0)
     const unpublished = await readPage()
@@ -161,7 +161,8 @@ test("publishes only after an agent check, notifies every matching tab, and rest
     expect(otherSession.status).toBe(200)
     const {token: otherToken} = await otherSession.json() as {token: string}
     const otherEvents = await connect(`<meta name="external-storybook-browser-session" content="${otherToken}">`, "@fixture/other")
-    expect((await control(true)).ok).toBeTrue()
+    expect((await control()).ok).toBeTrue()
+    first = server.sessions.session("@fixture/applied").snapshot().activeRevision!
     const scopedViews = await fetch(new URL("/api/control/views?packageId=%40fixture%2Fapplied", server.origin), {
       headers: {authorization: `Bearer ${server.record.controlToken}`},
     })
@@ -170,16 +171,16 @@ test("publishes only after an agent check, notifies every matching tab, and rest
     await waitFor(() => [a, b].every(events => events.some(event => event.type === "package.updated" && event.revision === first)))
     expect(await readPage()).toContain(`/__storybook/revisions/%40fixture%2Fapplied/${first}/`)
     await Bun.write(packageJson, JSON.stringify({name: "@fixture/applied", label: "Changed"}))
-    expect((await control(false)).ok).toBeTrue()
+    expect((await server.sessions.build("@fixture/applied")).buildState).toBe("built")
     const second = server.sessions.session("@fixture/applied").snapshot().builtRevision!
     expect(second).not.toBe(first)
     expect(await readPage()).toContain(`/__storybook/revisions/%40fixture%2Fapplied/${second}/`)
     expect([a, b].every(events => !events.some(event => event.type === "package.updated" && event.revision === second))).toBeTrue()
     failInspection = true
-    expect((await control(true)).ok).toBeFalse()
+    expect((await control()).ok).toBeFalse()
     expect(server.sessions.session("@fixture/applied").snapshot().activeRevision).toBe(first)
     failInspection = false
-    expect((await control(true)).ok).toBeTrue()
+    expect((await control()).ok).toBeTrue()
     const applied = server.sessions.session("@fixture/applied").snapshot().activeRevision!
     await waitFor(() => [a, b].every(events => events.some(event => event.type === "package.updated" && event.revision === applied)))
     expect(otherEvents.some(event => event.type === "package.updated")).toBeFalse()
@@ -238,14 +239,14 @@ test("publishes only after an agent check, notifies every matching tab, and rest
     expect((await requestPath(legacyDirectory)).status).toBe(200)
     expect((await requestPath(directoryPath)).headers.get("location")).toBe(legacyDirectory)
     await Bun.write(packageJson, JSON.stringify({name: "@fixture/applied", label: "Migrated"}))
-    expect((await control(false)).ok).toBeTrue()
+    expect((await server.sessions.build("@fixture/applied")).buildState).toBe("built")
     const candidate = server.sessions.session("@fixture/applied").snapshot().builtRevision!
     expect((await requestPath(`${legacyPath}?preview=${candidate}`)).headers.get("location"))
       .toBe(`${canonicalPath}?preview=${candidate}`)
     expect((await requestPath(`${legacyDirectory}?preview=${candidate}`)).headers.get("location"))
       .toBe(`${directoryPath}?preview=${candidate}`)
     last = {packageId: "@fixture/applied", route: "~directories/docs", revision: applied}
-    expect((await control(true)).ok).toBeTrue()
+    expect((await control()).ok).toBeTrue()
     expect(last!.route).toBe("dir-docs")
     expect((await requestPath(legacyDirectory)).headers.get("location")).toBe(directoryPath)
     expect((await requestPath(legacyPath)).headers.get("location")).toBe(canonicalPath)

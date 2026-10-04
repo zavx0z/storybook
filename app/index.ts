@@ -381,13 +381,11 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
         context.signal.throwIfAborted()
         const record = await this.#requireRunning()
         context.signal.throwIfAborted()
-        const signal = input.timeoutMs === undefined ? context.signal
-          : AbortSignal.any([context.signal, AbortSignal.timeout(input.timeoutMs)])
         const result = await ServerState.client(record).controlStream(
           "/api/control/app/web/rebuild",
-          {live: input.live ?? false},
+          {},
           context.onProgress,
-          signal,
+          context.signal,
         )
         return Object.freeze({...result, status: result.ok === true ? "success" : "failed"})
       }
@@ -401,72 +399,9 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
         : await this.#requireRunning()
       context.signal.throwIfAborted()
       const client = ServerState.client(record)
-      let result: Readonly<Record<string, unknown>>
-      const before = new Map<string, Record<string, unknown>>()
-      const baseline = await client.read("/api/control/status", context.signal)
-      for (const item of Array.isArray(baseline.packages) ? baseline.packages : []) {
-        if (item !== null && typeof item === "object" && typeof (item as Record<string, unknown>).packageId === "string") {
-          before.set((item as Record<string, unknown>).packageId as string, item as Record<string, unknown>)
-        }
-      }
-      // Только явно заданный timeoutMs закрывает ожидание уже отправленного check.
-      // Подготовка controller/daemon и чтение baseline сохраняют внешний signal.
-      const timeoutSignal = input.timeoutMs === undefined ? undefined : AbortSignal.timeout(input.timeoutMs)
-      const checkSignal = timeoutSignal === undefined ? context.signal : AbortSignal.any([context.signal, timeoutSignal])
-      try {
-        result = await client.controlStream("/api/control/check", {
-          scope: pathScope ?? canonicalScope(input.scope),
-          live: input.live ?? false,
-        }, context.onProgress, checkSignal)
-      } catch (error) {
-        if (context.signal.aborted || !(error instanceof Error) ||
-          error.name !== "TimeoutError" && !timeoutSignal?.aborted) throw error
-        let observed: StorybookControllerResult
-        try {
-          observed = await this.#statusResult(record, false, AbortSignal.timeout(3_000), pathScope ?? canonicalScope(input.scope))
-        } catch { throw error }
-        const packages = Array.isArray(observed.packages) ? observed.packages as Record<string, unknown>[] : []
-        const pending = packages.filter(item => ["queued", "compiling", "building", "activating"].includes(String(item.buildState)))
-        const failed = packages.some(item => {
-          const previous = before.get(item.packageId as string)
-          return previous !== undefined && item.buildState === "failed" &&
-            (item.failedRevision !== previous.failedRevision || Number(item.generation) > Number(previous.generation))
-        })
-        const discovering = (observed.discovery as {refreshing?: unknown} | null)?.refreshing === true
-        const scheduler = observed.buildScheduler as {active?: unknown, queued?: unknown} | null
-        const sharedOperations = input.scope === "storybook:shared"
-          ? [
-            ...(Array.isArray(scheduler?.active) ? scheduler.active : []),
-            ...(Array.isArray(scheduler?.queued) ? scheduler.queued : []),
-          ].filter(item => item !== null && typeof item === "object" &&
-            (item as Record<string, unknown>).owner === "shared" &&
-            (item as Record<string, unknown>).packageId === null &&
-            typeof (item as Record<string, unknown>).operationId === "string") as Record<string, unknown>[]
-          : []
-        const inProgress = pending.length > 0 || discovering || sharedOperations.length > 0
-        return Object.freeze({
-          status: failed ? "failed" : "timeout",
-          ok: false,
-          waitingOnly: !failed && input.live !== true,
-          checkResultKnown: false,
-          inProgress,
-          operationIds: [...new Set([
-            ...pending.flatMap(item => typeof item.pendingOperationId === "string" ? [item.pendingOperationId] : []),
-            ...sharedOperations.map(item => item.operationId as string),
-          ])],
-          packages,
-          buildScheduler: observed.buildScheduler ?? null,
-          error: {
-            code: failed ? "ObservedBuildFailure" : "CheckWaitTimeout",
-            message: failed ? "После начала проверки обнаружена новая ошибка сборки; актуальная диагностика пакетов приложена."
-              : input.live === true
-              ? "Истёк заданный срок ожидания live-проверки; применение не подтверждено. Подготовка может продолжаться; проверьте состояние через status/wait."
-              : inProgress
-              ? "Истёк срок ожидания ответа; работа продолжается. Проверьте её через status/wait, не запускайте повторную сборку."
-              : "Истёк срок ожидания проверки; актуальные состояния пакетов приложены.",
-          },
-        })
-      }
+      const result = await client.controlStream("/api/control/check", {
+        scope: pathScope ?? canonicalScope(input.scope),
+      }, context.onProgress, context.signal)
       const packages = Array.isArray(result.packages) ? result.packages.map(publicPackageSnapshot).filter(Boolean) : []
       return Object.freeze({
         status: result.ok === true ? "success" : "failed",
@@ -474,7 +409,8 @@ export default function createApp(options: StorybookApp.Input = {}): StorybookAp
         graphDigest: result.graphDigest,
         ...(result.shared === undefined ? {} : {shared: result.shared, hosts: result.hosts, published: result.published}),
         packages,
-        ...(input.live === true ? {applied: result.applied === true, views: result.views ?? []} : {}),
+        applied: result.applied === true,
+        views: result.views ?? [],
       })
     }
 

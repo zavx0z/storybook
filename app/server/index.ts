@@ -443,7 +443,7 @@ export default async function startExternalStorybookServer(
 
   const readSharedAssets = web.assets
   const readSharedHost = web.host
-  const rebuildWeb = (live: boolean) => web.rebuild({apply: live})
+  const rebuildWeb = () => web.rebuild({apply: true})
   const canRefreshSharedHost = (grant: BrowserSessionGrant): boolean => web.canRefresh(grant.packageId, grant.revision)
   /** HTTP-ожидание объединяет состояние Web и события общей очереди приложения. */
   const webProgress = (listener: (value: Readonly<Record<string, unknown>>) => void): (() => void) => {
@@ -938,28 +938,27 @@ export default async function startExternalStorybookServer(
           server.timeout(request, 0)
           if (url.pathname.startsWith("/api/browser/")) assertRegistryBrowserRequest(request)
           const body = await requestObject(request)
-          assertExactRequestKeys(body, ["live"])
-          if (body.live !== undefined && typeof body.live !== "boolean") throw new TypeError("live must be boolean")
+          assertExactRequestKeys(body, [])
           if (request.headers.get("accept")?.includes("application/x-ndjson")) {
-            return streamAppOperation(request.signal, webProgress, () => rebuildWeb(body.live !== false))
+            return streamAppOperation(request.signal, webProgress, () => rebuildWeb())
           }
-          return responseJson(await rebuildWeb(body.live !== false))
+          return responseJson(await rebuildWeb())
         }
         if (url.pathname === "/api/control/check" && request.method === "POST") {
           server.timeout(request, 0)
           const body = await requestObject(request)
-          assertExactRequestKeys(body, ["live", "scope"])
+          assertExactRequestKeys(body, ["scope"])
           const scope = body.scope === undefined || body.scope === null
             ? null
             : requiredText("check scope", body.scope)
           if (scope === "storybook:web") {
             if (request.headers.get("accept")?.includes("application/x-ndjson")) {
-              return streamAppOperation(request.signal, webProgress, () => rebuildWeb(body.live === true))
+              return streamAppOperation(request.signal, webProgress, () => rebuildWeb())
             }
-            return responseJson(await rebuildWeb(body.live === true))
+            return responseJson(await rebuildWeb())
           }
           if (scope === "storybook:shared") {
-            const execute = () => web.check({apply: body.live === true}, request.signal)
+            const execute = () => web.check({apply: true}, request.signal)
             return request.headers.get("accept")?.includes("application/x-ndjson")
               ? streamAppOperation(request.signal, webProgress, execute)
               : responseJson(await execute())
@@ -973,7 +972,7 @@ export default async function startExternalStorybookServer(
             const results = await Promise.all(packageIds.map((packageId) => sessions.build(packageId, {owner: "check"})))
             let ok = results.every((snapshot) => packageBuildSucceeded(snapshot))
             const views: Readonly<Record<string, unknown>>[] = []
-            if (ok && body.live === true && !request.signal.aborted) {
+            if (ok && !request.signal.aborted) {
               for (const result of results) {
                 const packageId = result.packageId
                 const session = sessions.session(packageId)
@@ -1020,7 +1019,7 @@ export default async function startExternalStorybookServer(
                 }
               }
             }
-            return {ok, applied: body.live === true && ok && !request.signal.aborted, graphDigest: registry.snapshot().graph.digest,
+            return {ok, applied: ok && !request.signal.aborted, graphDigest: registry.snapshot().graph.digest,
               packages: packageIds.map(packageId => sessions.session(packageId).snapshot()), views}
           }
           if (request.headers.get("accept")?.includes("application/x-ndjson")) {

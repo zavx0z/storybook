@@ -1,3 +1,4 @@
+import {readyBrowser} from "./browser.fixture"
 import {expect, spyOn, test} from "bun:test"
 import {Client, InMemoryTransport} from "@modelcontextprotocol/client"
 import createLazyMcpServer from "@mcp/lazy"
@@ -30,6 +31,7 @@ test("lazy worker доставляет package/shared MCP progress до резу
   })
   const artifactRoot = join(root, "artifacts")
   seedPublishedSharedAssets(artifactRoot)
+  const platform = WebBuild.readPublishedReceipt({root: join(artifactRoot, "shared"), toolRoot: root, landingEntryPath: "", fallbackEntryPath: "", stagingDirectory: root})!.browserIdentity!
   const gate = Promise.withResolvers<void>()
   const started = Promise.withResolvers<void>()
   const firstProgress = Promise.withResolvers<void>()
@@ -48,6 +50,7 @@ test("lazy worker доставляет package/shared MCP progress до резу
     writeFileSync(join(input.stagingDirectory, "entry.js"), "export {}\n")
     return {
       moduleGraphRevision: "controlled-package-build",
+      sharedModuleEpoch: platform.epoch,
       dependencyRealpaths: [],
       entryRelativePath: "entry.js",
     }
@@ -80,7 +83,6 @@ test("lazy worker доставляет package/shared MCP progress до резу
   let finished = false
   try {
     const {default: startServer} = await import("../index")
-    const noBrowser = async () => { throw new Error("live=false не обращается к браузеру") }
     running = await startServer({
       createWeb,
       preparePlatform: async input => {
@@ -99,16 +101,7 @@ test("lazy worker доставляет package/shared MCP progress до резу
       project: createProjectFixture(root, repositories),
       statePath: join(stateRoot, "server.json"),
       artifactRoot,
-      browserLifecycle: {
-        openPackage: noBrowser,
-        listViews: noBrowser,
-        inspect: noBrowser,
-        interact: noBrowser,
-        capture: noBrowser,
-        close: noBrowser,
-        readCapture() { throw new Error("Нет снимков") },
-        getView() { throw new Error("live=false не обращается к браузеру") },
-      },
+      browserLifecycle: readyBrowser(() => running!),
     })
     const toolRoot = resolve(import.meta.dir, "../../..")
     symlinkSync(join(toolRoot, "node_modules"), join(root, "node_modules"))
@@ -135,7 +128,7 @@ export default async function factory() {
     const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
     await Promise.all([mcp.connect(serverTransport), client.connect(clientTransport)])
     const baselineSubscriptions = subscriptions
-    request = client.callTool({name: "storybook_check", arguments: {schemaVersion: 1, scope: selected, live: false}}, {
+    request = client.callTool({name: "storybook_check", arguments: {schemaVersion: 1, scope: selected}}, {
       onprogress(event) {
         const value = JSON.parse(event.message!) as Record<string, unknown>
         progress.push(value)
@@ -160,9 +153,9 @@ export default async function factory() {
     gate.resolve()
     const result = await request
     await neighborBuild
-    expect(result.isError).not.toBeTrue()
-    expect(result.structuredContent).toMatchObject({status: "success", ok: true, packages: [{packageId: selected, buildState: "built"}]})
-    expect(running.sessions.session(selected).snapshot().builtRevision).toBeString()
+    expect(result.isError, JSON.stringify(result)).not.toBeTrue()
+    expect(result.structuredContent).toMatchObject({status: "success", ok: true, packages: [{packageId: selected, buildState: "active"}]})
+    expect(running.sessions.session(selected).snapshot().activeRevision).toBeString()
     expect(buildOwners).toEqual([selected, neighbor])
     expect(subscriptions, "Завершение stream освобождает все временные подписки").toBe(baselineSubscriptions)
     const count = progress.length
@@ -171,16 +164,16 @@ export default async function factory() {
     const response = await fetch(new URL("/api/control/check", running.origin), {
       method: "POST",
       headers: {authorization: `Bearer ${running.record.controlToken}`, "content-type": "application/json", accept: "application/json"},
-      body: JSON.stringify({scope: neighbor, live: false}),
+      body: JSON.stringify({scope: neighbor}),
     })
     expect(response.headers.get("content-type")).toContain("application/json")
-    expect(await response.json()).toMatchObject({ok: true, applied: false, packages: [{packageId: neighbor}], views: []})
+    expect(await response.json()).toMatchObject({ok: true, applied: true, packages: [{packageId: neighbor}]})
     expect(progress.length, "После финала последующие проверки не продолжают закрытый MCP progress").toBe(count)
     expect(subscriptions).toBe(baselineSubscriptions)
 
     const sharedEvents: Record<string, unknown>[] = []
     const buildsBeforeShared = [...buildOwners]
-    request = client.callTool({name: "storybook_check", arguments: {schemaVersion: 1, scope: "storybook:shared", live: false}}, {
+    request = client.callTool({name: "storybook_check", arguments: {schemaVersion: 1, scope: "storybook:shared"}}, {
       onprogress(event) {
         const value = JSON.parse(event.message!) as Record<string, unknown>
         sharedEvents.push(value)

@@ -121,7 +121,7 @@ test("отмена shared check не публикует результат, сл
     server = await startExternalStorybookServer({createWeb, ...fixture.options, buildWeb: build})
     const read = await requestRetainedHost(server, fixture.archived)
     const cancellation = new AbortController()
-    const first = sharedCheck(server, true, cancellation.signal).then(
+    const first = sharedCheck(server, cancellation.signal).then(
       response => ({response, error: null}),
       error => ({response: null, error}),
     )
@@ -132,7 +132,7 @@ test("отмена shared check не публикует результат, сл
     expect(canceled.error).toMatchObject({name: "AbortError"})
 
     let secondSettled = false
-    const second = sharedCheck(server, false).finally(() => { secondSettled = true })
+    const second = sharedCheck(server).finally(() => { secondSettled = true })
     await Bun.sleep(25)
     expect(secondSettled).toBeFalse()
     expect(operationSignal.aborted).toBeFalse()
@@ -142,7 +142,7 @@ test("отмена shared check не публикует результат, сл
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({
       ok: true,
-      published: false,
+      published: true,
       hosts: [
         {sharedModuleEpoch: fixture.current.browserIdentity!.epoch},
       ],
@@ -182,7 +182,7 @@ test("остановка сервера отменяет текущую сбор
   try {
     server = await startExternalStorybookServer({createWeb, ...fixture.options, buildWeb: build})
     await requestRetainedHost(server, fixture.archived)
-    check = sharedCheck(server, false).catch(() => null)
+    check = sharedCheck(server).catch(() => null)
     const operationSignal = await started.promise
     let stopped = false
     const stopping = server.stop().then(() => { stopped = true })
@@ -274,7 +274,7 @@ test("Minimap и управляющий app разделяют одну пере
     })
     await started.promise
     const agent = await fetch(new URL("/api/control/app/web/rebuild", origin), {
-      method: "POST", headers: {...control, accept: "application/x-ndjson"}, body: JSON.stringify({live: true}),
+      method: "POST", headers: {...control, accept: "application/x-ndjson"}, body: JSON.stringify({}),
     })
     const reader = agent.body!.getReader()
     const first = await reader.read()
@@ -296,7 +296,7 @@ test("Minimap и управляющий app разделяют одну пере
     expect(server.sessions.snapshots()).toEqual([])
     expect(calls).toBe(1)
     const repeated = await fetch(new URL("/api/control/check", origin), {
-      method: "POST", headers: control, body: JSON.stringify({scope: "storybook:web", live: true}),
+      method: "POST", headers: control, body: JSON.stringify({scope: "storybook:web"}),
     })
     expect(repeated.ok).toBeTrue()
     expect(calls, "Следующий явный запрос не пропускает сборку по cache hit").toBe(2)
@@ -346,13 +346,12 @@ async function requestRetainedHost(
 /** Выполняет авторизованный HTTP check с независимой отменой ожидания. */
 function sharedCheck(
   server: Awaited<ReturnType<typeof startExternalStorybookServer>>,
-  live: boolean,
   signal?: AbortSignal,
 ): Promise<Response> {
   return fetch(new URL("/api/control/check", server.origin), {
     method: "POST",
     headers: {authorization: `Bearer ${server.record.controlToken}`, "content-type": "application/json"},
-    body: JSON.stringify({scope: "storybook:shared", live}),
+    body: JSON.stringify({scope: "storybook:shared"}),
     ...(signal === undefined ? {} : {signal}),
   })
 }
