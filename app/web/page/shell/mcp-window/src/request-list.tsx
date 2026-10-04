@@ -1,14 +1,15 @@
 import {type StorybookAppServerRequests as McpRestRequestsContract} from "@zavx0z/storybook-app-server-requests"
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
-import {memo, useEffect, useLayoutEffect, useRef, useState} from "@zavx0z/immersive-component"
+import {memo, useEffect, useLayoutEffect, useMemo, useRef, useState} from "@zavx0z/immersive-component"
 import CodeEditor from "@zavx0z/immersive-ui-component-view-code-editor"
 import Button from "@zavx0z/immersive-ui-component-button-basic"
 import {selectRequest} from "./selected-request"
 import {formatJson} from "./format-json"
 
 /** Форматирует полный JSON; выделение, начатое в поле, ограничено его текстом. */
-function JsonFieldView(props: Readonly<{title: string, value: string}>) {
-  const {text: value, softBreaks} = formatJson(props.value)
+function JsonFieldView(props: Readonly<{title: string, value: string, active?: boolean}>) {
+  const formatted = useMemo(() => formatJson(props.value), [props.value])
+  const {text: value, softBreaks} = props.active === false ? {text: "", softBreaks: []} : formatted
   const height = Math.max(1, value.split("\n").length + softBreaks.length) * 16 + 30
   return <section style={css`
     display: flex;
@@ -96,7 +97,7 @@ function CaptureMessage(props: Readonly<{text: string}>) {
 }
 
 /** Одна запись журнала; запрос и результат выводятся текстом без интерпретации разметки. */
-function RequestRow(props: Readonly<{entry: McpRequestRecord}>) {
+function RequestRow(props: Readonly<{entry: McpRequestRecord, active?: boolean}>) {
   const time = new Date(props.entry.startedAt).toLocaleTimeString()
   const duration = props.entry.durationMs === null ? "" : `${props.entry.durationMs} мс`
   return <article style={css`
@@ -121,14 +122,22 @@ function RequestRow(props: Readonly<{entry: McpRequestRecord}>) {
     >
       {props.entry.address ?? "Общий агент"} · {props.entry.agentId?.slice(0, 8)}
     </div>
-    <JsonField title="Параметры запроса" value={props.entry.input} />
+    <JsonField
+      title="Параметры запроса"
+      value={props.entry.input}
+      active={props.active !== false}
+    />
     {props.entry.captureId ? <CapturePreview captureId={props.entry.captureId} /> : null}
-    <JsonField title="Ответ" value={props.entry.result} />
+    <JsonField
+      title="Ответ"
+      value={props.entry.result}
+      active={props.active !== false}
+    />
   </article>
 }
 
 /** Отрисовывает полный ответ только выбранной команды, сохраняя доступ к истории. */
-function RequestListView(props: Readonly<{entries: readonly McpRequestRecord[], error: string, history?: boolean}>) {
+function RequestListView(props: Readonly<{entries: readonly McpRequestRecord[], error: string, history?: boolean, active?: boolean}>) {
   const list = useRef<HTMLDivElement | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const {entry, index, olderId, newerId} = selectRequest(props.entries, selectedId)
@@ -202,6 +211,7 @@ function RequestListView(props: Readonly<{entries: readonly McpRequestRecord[], 
       {selectedEntries.map(entry => <RequestRow
         key={entry.id}
         entry={entry}
+        active={props.active !== false}
       />)}
     </div>
   </div>

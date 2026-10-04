@@ -68,6 +68,7 @@ export function McpContent(props: Readonly<{
       <RequestList
         entries={props.entries}
         error={props.error}
+        active={props.open && props.mode === "agent"}
       />
     </div>
     {props.journalOnly ? null : <AddressRequest

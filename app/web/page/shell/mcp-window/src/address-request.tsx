@@ -89,6 +89,7 @@ export function AddressRequest(props: Readonly<{active: boolean, source?: McpAdd
       entries={entry === null ? [] : [entry]}
       error=""
       history={false}
+      active={props.active}
     />
   </div>
 }
