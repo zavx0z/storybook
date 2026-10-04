@@ -44,6 +44,12 @@ export default function validateScenario(source: ArchetypesScenarioValidation.In
     message: "В сценарии render принимает ровно один аргумент: JSX компонента с props непосредственно в месте вызова.",
     location: render.location,
   })))
+  const componentIssues = source.components.filter(component => component.public === false).map(component => ({
+    message: `JSX-компонент ${component.name} должен импортироваться из публичного входа. Локальная обёртка или частная фикстура скрывает композицию сценария; разместите JSX непосредственно в render или slots варианта.`,
+    location: component.location,
+  }))
+  checks.push({rule: "component-origin", status: componentIssues.length ? "failed"
+    : source.components.some(component => component.public === null) ? "not-checked" : "passed", issues: componentIssues})
   add("direct-execution", source.native.filter(name => name === "mock.module" || name === "spyOn").map(name => ({
     message: `Сценарий выполняет публичную сущность напрямую; ${name} подменяет существующую реализацию. mock() применяется к передаваемому callback`, location,
   })))

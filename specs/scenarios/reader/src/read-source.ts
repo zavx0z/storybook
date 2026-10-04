@@ -9,6 +9,7 @@ import {dirname, resolve} from "node:path"
 import {realpath} from "node:fs/promises"
 import {SyntaxKind} from "typescript/unstable/ast"
 import type {ScenarioSource} from "./types"
+import {readComponentOrigins} from "./component-origins"
 import {defaultExportInvocation} from "./public-callable"
 
 /**
@@ -197,7 +198,7 @@ export async function readScenarioSource(input: string): Promise<ScenarioSource>
       })
     }
     return {
-      path, text, subject, native: [...new Set([...native.values(), ...nativeMembers])], imports, assertions, tests, groups, checks, hooks, registrations, renders,
+      path, text, subject, components: renders.length ? await readComponentOrigins(file, project!) : [], native: [...new Set([...native.values(), ...nativeMembers])], imports, assertions, tests, groups, checks, hooks, registrations, renders,
     }
   } finally {
     await api.close()

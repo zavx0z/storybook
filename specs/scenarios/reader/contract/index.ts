@@ -340,6 +340,8 @@ interface ScenarioTest {
 
 @property subject - Описываемая функция или компонент из публичного входа непосредственного владельца.
 
+@property components - JSX-компоненты и происхождение их импортов. public=null означает, что публичность не установлена; локальное объявление имеет module=null и public=false.
+
 @property renders - Вызовы отображения: имя метода, число аргументов и наличие JSX в аргументе.
 
 @property registrations - Места регистрации `describe` и `test`: названия, модификаторы,
@@ -376,6 +378,7 @@ interface ScenarioSource {
   }[]
   readonly checks: readonly {readonly source: string, readonly matcher: string, readonly explicitObject: boolean}[]
   readonly hooks: readonly {readonly name: string, readonly source: string}[]
+  readonly components: readonly {readonly name: string; readonly module: string | null; readonly public: boolean | null; readonly location: TraceLocation}[]
   readonly renders: readonly {readonly method: string; readonly arguments: number; readonly jsx: boolean; readonly location: TraceLocation}[]
   readonly registrations: readonly {
     readonly kind: "describe" | "test"

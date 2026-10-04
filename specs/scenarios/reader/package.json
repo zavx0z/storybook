@@ -12,6 +12,7 @@
     "fast-xml-parser": "^5.11.1",
     "typescript": "^7.0.2",
     "@archetypes/scenario-validation": "workspace:*",
+    "@archetypes/package-index": "workspace:*",
     "@build/compiler": "workspace:*",
     "@tech/limits": "workspace:*"
   },

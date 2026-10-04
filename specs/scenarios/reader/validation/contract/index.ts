@@ -19,6 +19,7 @@ export declare namespace ArchetypesScenarioValidation {
       readonly subject: {readonly kind: "function" | "component"; readonly module: string; readonly name: string; readonly calls: readonly {readonly location: ScenarioValidationLocation; readonly variant: ScenarioValidationLocation | null; readonly test: boolean}[]} | null
       readonly path: string
       readonly native: readonly string[]
+      readonly components: readonly {readonly name: string; readonly module: string | null; readonly public: boolean | null; readonly location: ScenarioValidationLocation}[]
       readonly renders: readonly {readonly method: string; readonly arguments: number; readonly jsx: boolean; readonly location: ScenarioValidationLocation}[]
       readonly registrations: readonly {
         readonly kind: "describe" | "test"

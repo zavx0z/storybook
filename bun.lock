@@ -1116,6 +1116,7 @@
       "name": "@archetypes/scenario-reader",
       "version": "0.0.0",
       "dependencies": {
+        "@archetypes/package-index": "workspace:*",
         "@archetypes/scenario-validation": "workspace:*",
         "@build/compiler": "workspace:*",
         "@tech/limits": "workspace:*",

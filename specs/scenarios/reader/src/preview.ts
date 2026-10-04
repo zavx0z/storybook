@@ -346,7 +346,7 @@ function renderSource(descriptor: PreviewDescriptor, props: Readonly<Record<stri
 export async function supportsScenarioPreview(input: Pick<ArchetypesScenarioReader.Input, "path">): Promise<boolean> {
   const source = await readScenarioSource(input.path)
   const checks = validateScenario(source).checks.filter(check => check.status === "failed")
-  if (checks.some(check => ["render-jsx", "single-invocation", "general-particular"].includes(check.rule))) {
+  if (checks.some(check => ["render-jsx", "component-origin", "single-invocation", "general-particular"].includes(check.rule))) {
     throw new ScenarioAuthoringError(checks)
   }
   return await inspectScenario(input.path) !== null || await inspectFunctionScenario(input.path) !== null
