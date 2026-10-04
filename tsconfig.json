@@ -69,6 +69,6 @@
     "dist",
     "node_modules",
     ".refactor-audit",
-    "app/web/notes/drafts"
+    "app/web/meta/notes/drafts"
   ]
 }

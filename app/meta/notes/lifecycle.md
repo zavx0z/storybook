@@ -1,0 +1,61 @@
+# Жизненный цикл единого сервера
+
+[Приложение](../../index.ts) управляет запуском [сервера](../../server/index.ts). [Условия доступа](../../server/meta/notes/security.md) и [оценка нагрузки](../../../tech/build/environment/meta/notes/preflight.md) принадлежат своим темам.
+
+`bun run serve` создаёт один Bun process/origin и владеет HTTP, WebSocket,
+registry, graph, sessions, revisions и diagnostics. В этот же process
+композируется ровно один logical owner
+`@zavx0z/storybook-app-server-browser`, управляющий всеми Storybook tabs; port
+выбирает OS и не становится user-facing identity.
+Ensure/open существующего server не создают второй process или browser
+lifecycle owner. Прежний launcher передаёт daemon тот же argv. На стороне daemon
+Git определяет общий superproject аргументов; при отсутствии superproject
+используется верхний Git-корень. При пустом argv lookup выполняется от `toolRoot`.
+Разные Project в одном контексте прерывают запуск. `toolRoot` сохраняется как cwd
+daemon для проверки владения процессом, а найденный Project передаётся Server.
+Сервер читает состав у [Project](../../../project/index.ts), а не из аргументов
+launcher или сохранённого списка Storybook. Смена cwd MCP для этого не требуется.
+Attach/detach пока возвращают HTTP 501 TODO, сохраняя состав Project и файлы Repo.
+Запущенный daemon продолжает обслуживать запросы при изменении исходников.
+App не вычисляет отпечаток реализации и не сравнивает рабочий процесс с файлами
+на диске. `ensure` повторно использует живой сервер своего checkout. Обновление
+серверного кода выполняется явными остановкой и запуском; сборка Web имеет свой
+отдельный явный выпуск. При остановке сохраняются адрес и состав подключений
+для следующего запуска.
+Private state root един для package scripts и MCP независимо от cwd, `TMPDIR` и transport
+environment; управляемая замена daemon сохраняет предыдущий listener port.
+Подтверждённый legacy TMPDIR state мигрируется без второго daemon; state чужого
+checkout не принимается и не останавливается. Startup сериализован atomic
+cross-process lease, который controller держит до публикации state и чей
+fencing token обязан предъявить daemon child. Abort до
+публикации завершает exact child; занятый preserved port откатывается на
+automatic port.
+Холодный запуск, включая чтение состава Project и TypeScript-контрактов,
+имеет ограниченный бюджет 120 секунд; ожидание занятого startup lease использует
+тот же бюджет. Внешняя отмена запроса продолжает завершать только порождённый
+процесс. Controller непрерывно читает stderr daemon, сохраняя ограниченный хвост
+для ошибки запуска: заполнение pipe не блокирует подготовку. Диагностика
+показывает последний достигнутый этап: подготовка артефактов, каталог, сессии,
+listener, публикация или готовность, без содержимого пользовательских проектов.
+При запрошенном MCP progress эти реальные стадии передаются во время запуска.
+Подтверждённая готовность отправляется до завершения `ensure`, даже если последняя
+строка stderr поступает позже публикации state. Повторный `ensure` живого сервера
+не изображает новый запуск.
+
+Preferred port и прежние runtime-сведения о подключённых Repo до destructive
+replacement сохраняются в private migration journal до успешной публикации.
+`attachedDeclarations` прежней записи daemon и `declarations` журнала не задают
+состав новой сессии: при перезапуске он снова читается из `.gitmodules`
+выбранного Project. Явный stop удаляет запись daemon и сохраняет порт для
+следующего запуска. Если порт занят, сервер получает свободный порт от ОС.
+Daemon publication требует актуальный fencing token startup lease.
+Daemon пишет token-scoped candidate,
+canonical `server.json` атомарно commit-ит только live lease owner.
+
+## Граница обновления MCP
+
+Все инструменты и ресурсы исполняются через [Lazy MCP](../../mcp/meta/notes/control.md#lazy-исполнение-всех-запросов).
+Постоянный транспорт не загружает App: отдельный worker каждого запроса получает
+актуальные схемы, обработчики и контроллер. Предметное чтение `storybook`
+обращается к HTTP-серверу, управляющие операции используют тот же жизненный
+цикл запроса. Правки этой реализации не требуют переподключать MCP.

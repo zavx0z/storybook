@@ -17,11 +17,11 @@
 ## Порядок работы с архитектурой
 
 - Перед архитектурными и реализационными решениями прочитать
-  [Основания](./project/notes/foundations/index.md) и связанные главы по затронутым
+  [Основания](./project/meta/notes/foundations/index.md) и связанные главы по затронутым
   принципам. Это общее основание замысла; решения должны следовать из него.
 - При формировании архитектуры читать
-  [Проектирование](./project/notes/design.md) и
-  [Предметную архитектуру проекта](./repo/notes/architecture.md).
+  [Проектирование](./project/meta/notes/design.md) и
+  [Предметную архитектуру проекта](./repo/meta/notes/architecture.md).
   Методика временно собрана у Project, архитектурный стиль — у Repo.
   Каждое положение уточняется в своём источнике до переноса к владельцам
   и раскрытия агентам по частям через MCP.
@@ -29,13 +29,13 @@
   TSDoc и исполняемые спецификации. Применение Оснований к Storybook раскрыто
   в [архитектуре](./ARCHITECTURE.md).
   README служит указателем; заметки сохраняют ещё не перенесённый в код смысл
-  по [правилу их жизненного цикла](./package/notes/note-lifecycle.md).
+  по [правилу их жизненного цикла](./package/meta/notes/note-lifecycle.md).
   Обзоры пакетов и директорий извлекаются из начального TSDoc исходника;
   README не подставляется при отсутствии описания.
 - Перед написанием или изменением сценариев читать
   [полное руководство авторства](./specs/scenarios/spec/scenario.spec.ts).
   При работе над сценариями Archetypes и их ответами MCP соблюдать
-  [порядок уточнения сценариев в ходе разработки](./notes/scenario-development.md).
+  [порядок уточнения сценариев в ходе разработки](./meta/notes/scenario-development.md).
 - Перед изменением MCP читать исполняемые контракты
   [HTTP-прокси](app/mcp/proxy/spec/scenario.spec.ts) и
   [адаптера MCP](app/mcp/spec/server.spec.ts);
@@ -49,21 +49,21 @@
   и [граф пакетов](package/graph/README.md) используют тот же контракт.
 
 - Начинать с изучения без правок и соблюдать границы владельцев, подтверждённые
-  [структурным контрактом](./package/notes/draft-structure.md).
+  [структурным контрактом](./package/meta/notes/draft-structure.md).
 - Node — кандидат для сравнения, а не заранее выбранная эталонная реализация.
 - `@zavx0z/storybook` — внешний инструмент разработки. Он не становится центральным
   владельцем историй других репозиториев.
 - Перед созданием, миграцией или изменением структуры проекта агент обязан
-  прочитать [единые правила структуры проектов, пакетов и компонентов](./package/notes/draft-structure.md).
+  прочитать [единые правила структуры проектов, пакетов и компонентов](./package/meta/notes/draft-structure.md).
   Это нормативная точка входа. Правила создания пакетов, package identity,
   composition и exports принадлежат [TSDoc Package](./package/index.ts);
   правила директорий, компонентов и общей документации раскрываются через указатель Archetypes
   на код и ещё не перенесённые заметки. Не поддерживать здесь или в
   корневых README/ARCHITECTURE отдельные копии этих норм; менять их у владельца.
-  Связанные правила: [размещение компонентов](./component/notes/draft-placement.md),
-  [Dependencies spec](./specs/deps/notes/draft-dependencies.md) и [URL вкладок](app/web/page/shell/workbench/notes/workspace.md#tabs-routes).
+  Связанные правила: [размещение компонентов](./component/meta/notes/draft-placement.md),
+  [Dependencies spec](./specs/deps/meta/notes/draft-dependencies.md) и [URL вкладок](app/web/page/shell/workbench/meta/notes/workspace.md#tabs-routes).
 - Перед изменением README, модульных обзоров и TSDoc прочитать
-  [единый стандарт документации](./package/notes/draft-documentation.md).
+  [единый стандарт документации](./package/meta/notes/draft-documentation.md).
   Неперенесённые правила и классификация проверок остаются в этой заметке;
   README и навыки ссылаются на неё, а не создают копии.
 - Один внешний Storybook процесс владеет registry, canonical graph, Workbench,
@@ -72,9 +72,9 @@
   включая импорты только типов. Они не владеют процессом, портом, сервером Storybook,
   обёрткой сборки, средством запуска или частным пакетом `@scope/storybook`.
 - Внутренние импорты направлять к точным владельцам. Публичные входы следуют
-  [правилу экспортов](./package/notes/draft-exports.md); новые границы Domain и
-  [Cluster](./cluster/notes/structure.md) закреплены в структурном стандарте,
-  а [переход](./package/notes/archetype-transition.md) отделён от текущих проверок. Не добавлять
+  [правилу экспортов](./package/meta/notes/draft-exports.md); новые границы Domain и
+  [Cluster](./cluster/meta/notes/structure.md) закреплены в структурном стандарте,
+  а [переход](./package/meta/notes/archetype-transition.md) отделён от текущих проверок. Не добавлять
   псевдонимы совместимости, `paths`, сгенерированные копии или обёртки ради старых импортов.
 - В сборке каждой страницы сохраняется по одной resolved identity для
   `@zavx0z/immersive-browser`, `@zavx0z/immersive-component`, `@zavx0z/immersive-devtool`, `@zavx0z/immersive-dom`, `@zavx0z/immersive-engine`,
@@ -142,7 +142,7 @@
   не обновляет пользовательские представления. Неуспешные проверки сохраняют
   применённую ревизию.
 - Публичные адреса, вкладки и структурные пути определяются
-  [контрактом URL](app/web/page/shell/workbench/notes/workspace.md#tabs-routes) и [нормами структуры](./package/notes/draft-structure.md).
+  [контрактом URL](app/web/page/shell/workbench/meta/notes/workspace.md#tabs-routes) и [нормами структуры](./package/meta/notes/draft-structure.md).
   Агент проверяет эти правила у владельца, а не поддерживает отдельную копию здесь.
 - Пользовательская навигация остаётся в текущей вкладке. Открытие агентом повторно
   использует представление, в котором сейчас показан нужный пакет, или создаёт
@@ -154,7 +154,7 @@
 ## Безопасность внесения и применения изменений
 
 - Перед open/check и тяжёлыми проверками применять
-  [правило предварительной оценки нагрузки](tech/build/environment/notes/preflight.md).
+  [правило предварительной оценки нагрузки](tech/build/environment/meta/notes/preflight.md).
   Не повторять запросы сборки без проверки уже выполняемой работы.
 - Жизненный цикл браузера Storybook реализован внутри Storybook MCP через его
   частный контроллер прямого доступа к CDP. Не использовать `ai-macos`, `@meta/chrome`,

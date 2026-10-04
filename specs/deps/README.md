@@ -1,3 +1,3 @@
 # Зависимости
 
-- [Правила и представление](./notes/draft-dependencies.md)
+- [Правила и представление](./meta/notes/draft-dependencies.md)

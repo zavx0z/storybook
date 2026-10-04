@@ -2,6 +2,6 @@
 
 [Публичное описание](./index.ts).
 
-* [Основания](./notes/foundations/index.md)
-* [Проектирование](./notes/design.md)
-* [Подключение Repo](./notes/draft-composition.md)
+* [Основания](./meta/notes/foundations/index.md)
+* [Проектирование](./meta/notes/design.md)
+* [Подключение Repo](./meta/notes/draft-composition.md)

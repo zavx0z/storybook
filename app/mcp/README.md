@@ -17,4 +17,4 @@
 
 ## Заметки
 
-- [Управление Storybook через MCP](./notes/control.md).
+- [Управление Storybook через MCP](./meta/notes/control.md).

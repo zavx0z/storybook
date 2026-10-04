@@ -5,9 +5,9 @@
 
 ## Основания и архитектура
 
-[Основания](./project/notes/foundations/index.md) задают общие принципы замысла.
+[Основания](./project/meta/notes/foundations/index.md) задают общие принципы замысла.
 Их применение к Storybook раскрыто в [архитектуре](./ARCHITECTURE.md).
-Формируемая [предметная архитектура проекта](./repo/notes/architecture.md)
+Формируемая [предметная архитектура проекта](./repo/meta/notes/architecture.md)
 сохраняется в заметке Repo до раскрытия правил через MCP.
 Пока архитектура формируется, заметки сохраняют единое место уточнения правил.
 Далее их смысл переносится к владельцам в код и раскрывается через MCP.
@@ -15,14 +15,14 @@
 
 ## Правила и неперенесённый смысл
 
-- [Как переносить смысл заметок в код](./package/notes/note-lifecycle.md).
-- [Где искать правила структуры](./package/notes/draft-structure.md).
-- [Как описывать код и его контракты](./package/notes/draft-documentation.md).
-- [Как уточнять сценарии и ответы MCP](./notes/scenario-development.md).
+- [Как переносить смысл заметок в код](./package/meta/notes/note-lifecycle.md).
+- [Где искать правила структуры](./package/meta/notes/draft-structure.md).
+- [Как описывать код и его контракты](./package/meta/notes/draft-documentation.md).
+- [Как уточнять сценарии и ответы MCP](./meta/notes/scenario-development.md).
 - [Какие вопросы раскрытия ещё не решены](./project/STORYBOOK-DOCUMENTATION.md).
 
-[Структурный стандарт](./package/notes/draft-structure.md) определяет архетипы;
-[план перехода](./package/notes/archetype-transition.md) указывает границы их текущей проверки.
+[Структурный стандарт](./package/meta/notes/draft-structure.md) определяет архетипы;
+[план перехода](./package/meta/notes/archetype-transition.md) указывает границы их текущей проверки.
 
 ## Владельцы реализации
 
@@ -40,19 +40,19 @@
 
 ## Работа с инструментом
 
-- [Подключение локальных исходников](./notes/local-dependencies.md).
+- [Подключение локальных исходников](./meta/notes/local-dependencies.md).
 - [Архитектура и оставшиеся разрывы реализации](./ARCHITECTURE.md).
-- [Оценка нагрузки перед сборкой](tech/build/environment/notes/preflight.md).
-- [Рабочая область и адреса вкладок](app/web/page/shell/workbench/notes/workspace.md).
-- [Каталог и физическая структура](app/server/catalog/notes/structure.md).
-- [Ревизии пакетов](package/session/notes/revisions.md) и
-  [динамическое обновление страницы](./tech/hmr/notes/updates.md).
-- [Единая среда страницы](app/web/page/notes/experience.md) и
-  [инспекция и действия](app/web/page/agent-bridge/notes/inspection.md).
-- [Жизненный цикл сервера](app/notes/lifecycle.md),
-  [доступ к управлению и ресурсам](app/server/notes/security.md) и
-  [запуск приложения](./app/notes/commands.md).
-- [Владение браузерными вкладками](app/server/browser/notes/views.md) и
-  [управление через MCP](app/mcp/notes/control.md).
-- [Границы инструмента и незавершённые направления](./project/notes/scope.md).
+- [Оценка нагрузки перед сборкой](tech/build/environment/meta/notes/preflight.md).
+- [Рабочая область и адреса вкладок](app/web/page/shell/workbench/meta/notes/workspace.md).
+- [Каталог и физическая структура](app/server/catalog/meta/notes/structure.md).
+- [Ревизии пакетов](package/session/meta/notes/revisions.md) и
+  [динамическое обновление страницы](./tech/hmr/meta/notes/updates.md).
+- [Единая среда страницы](app/web/page/meta/notes/experience.md) и
+  [инспекция и действия](app/web/page/agent-bridge/meta/notes/inspection.md).
+- [Жизненный цикл сервера](app/meta/notes/lifecycle.md),
+  [доступ к управлению и ресурсам](app/server/meta/notes/security.md) и
+  [запуск приложения](./app/meta/notes/commands.md).
+- [Владение браузерными вкладками](app/server/browser/meta/notes/views.md) и
+  [управление через MCP](app/mcp/meta/notes/control.md).
+- [Границы инструмента и незавершённые направления](./project/meta/notes/scope.md).
 - [Команды проверок](./package.json) и [правила для агентов](./AGENTS.md).

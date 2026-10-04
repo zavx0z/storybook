@@ -63,4 +63,4 @@ MCP-прокси передаёт предметный JSON без преобр�
 [Полные отчёты запусков](../../../specs/presentation/README.md) имеют отдельного владельца;
 они не подменяют исходники в этом входе.
 
-[Журнал MCP-запросов](../../server/requests/notes/journal.md) принадлежит Server.
+[Журнал MCP-запросов](../../server/requests/meta/notes/journal.md) принадлежит Server.

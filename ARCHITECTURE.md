@@ -1,8 +1,8 @@
 # Внешняя архитектура Storybook
 
-Общие принципы замысла заданы в [Основаниях](./project/notes/foundations/index.md),
-размещение ответственности — в [правилах структуры](./package/notes/draft-structure.md).
-Формирование целевой [предметной архитектуры](./repo/notes/architecture.md)
+Общие принципы замысла заданы в [Основаниях](./project/meta/notes/foundations/index.md),
+размещение ответственности — в [правилах структуры](./package/meta/notes/draft-structure.md).
+Формирование целевой [предметной архитектуры](./repo/meta/notes/architecture.md)
 ведётся в заметке Repo.
 
 Для Storybook из этих принципов следует направление «код — знание».
@@ -48,7 +48,7 @@ one external Storybook serve process
 
 ## Owner law
 
-Границы пакетов и их авторских данных заданы в [нормативном контракте](./package/notes/draft-structure.md).
+Границы пакетов и их авторских данных заданы в [нормативном контракте](./package/meta/notes/draft-structure.md).
 
 Корневой `@zavx0z/storybook` владеет discovery, validation, canonical
 graph, search/routing derived views, областями Workbench, package
@@ -119,7 +119,7 @@ PID/start/cwd/origin; `open`, `status`, `check` и `stop` обращаются �
 запускают package-owned listener.
 Отдельный список Repo между запусками не сохраняется. Кнопки добавления и удаления
 остаются в интерфейсе; операции изменения Project пока возвращают явный отказ.
-Их развитие записано в [TODO Project](project/notes/draft-composition.md).
+Их развитие записано в [TODO Project](project/meta/notes/draft-composition.md).
 
 При первом запуске после migration controller проверяет прежние user TMPDIR
 roots, принимает только state с exact canonical `toolRoot`/PID/start/cwd,
@@ -159,7 +159,7 @@ Child пишет token-scoped candidate внутрь lease, а
 и приватный адрес артефакта выполняют разные задачи и не подменяют друг друга.
 Пакеты определяются общим [читателем workspaces](package/route/workspaces/index.ts),
 который используют discovery и Route. Детали URL и встроенных представлений
-принадлежат [контракту вкладок](app/web/page/shell/workbench/notes/workspace.md#tabs-routes).
+принадлежат [контракту вкладок](app/web/page/shell/workbench/meta/notes/workspace.md#tabs-routes).
 
 Одна package tab имеет один browser realm и одну активную ревизию
 StorybookPackageSession. Обзор и встроенные представления читают структурный snapshot
@@ -212,7 +212,7 @@ runtime и compatibility aliases fail closed.
 ## Workbench projection
 
 Панель вкладок связывает выбранное представление с URL по
-[контракту Панели вкладок](app/web/page/shell/workbench/notes/workspace.md#tabs-routes). Обзор принадлежит
+[контракту Панели вкладок](app/web/page/shell/workbench/meta/notes/workspace.md#tabs-routes). Обзор принадлежит
 самому пакету или физической директории; «Контракт», «Зависимости» и «Сценарии»
 доступны только при наличии соответствующих структурных источников.
 
@@ -285,7 +285,7 @@ Candidate проходит структурное обнаружение, про
 Обычная страница использует доступную revision. Если её нет, навигация
 запрашивает подготовку и независимую проверку первого кандидата сервером.
 Успешный `check` автоматически обновляет рабочую версию; явный preview
-остаётся изолированным. [HMR](./tech/hmr/notes/updates.md) сохраняет browser realm и
+остаётся изолированным. [HMR](./tech/hmr/meta/notes/updates.md) сохраняет browser realm и
 проверяет exact revision/graph, ready/presented, кадр и ошибки console до commit. Failed build/inspection сохраняет
 предыдущий working artifact и не меняет другие sessions. Перед publication
 атомарно записывается private applied receipt; он удерживает immutable артефакт
@@ -309,7 +309,7 @@ registry и summary statuses.
 Сборка начинается по явному check после проверок. Изменения файлов,
 открытие доступной ревизии и подписки сохраняют её без compiler demand.
 При отсутствии доступной сборки подготовку запрашивает навигация.
-Порядок подготовки и применения определён у [владельца сборки](app/web/build/notes/compilation.md).
+Порядок подготовки и применения определён у [владельца сборки](app/web/build/meta/notes/compilation.md).
 
 Операции сценария сериализованы внутри его структурного владельца. Abort при
 навигации не позволяет позднему исполнению заменить текущий обзор.
@@ -339,7 +339,7 @@ REST выбирает предметный MCP по этому выводу. Н�
 явно; отдельный классификатор по именам или структуре в MCP не создаётся.
 
 Полный отчёт выполненного сценария используется интерфейсом. Внутреннее
-[представление сценариев для потребителя](specs/presentation/notes/presentation.md)
+[представление сценариев для потребителя](specs/presentation/meta/notes/presentation.md)
 пока не подключено к публичному `storybook`. Поэтому его ответ не следует
 описывать как отчёт применённой ревизии или как результаты последних проверок.
 Точные данные и правила раскрытия принадлежат коду соответствующих владельцев.
@@ -413,19 +413,19 @@ accepted baseline, visual diff или owner acceptance state.
 
 ## Repository navigation and isolated package content
 
-Глобальный граф несёт иерархию из [контракта структуры](./package/notes/draft-structure.md).
+Глобальный граф несёт иерархию из [контракта структуры](./package/meta/notes/draft-structure.md).
 Immutable `storybook-package-graph/6` содержит структурные узлы и документацию своего пакета;
 данные предков передаются как metadata, а не как исполняемые зависимости.
 
 
 Состав пакетов, физические директории и размещение компонентов
-определены у [владельцев структурных правил](./package/notes/draft-structure.md).
+определены у [владельцев структурных правил](./package/meta/notes/draft-structure.md).
 Эта страница описывает применение и устройство инструмента, не отдельные правила структуры.
 
 Обе страницы Workbench используют общий граф навигации. Private browser lifecycle
 выполняет операции вкладок; изменения registry сохраняют отдельную authority.
 Read-only topic `catalog` обновляет дерево без передачи событий исполнения чужих пакетов.
-Адреса представлений заданы [контрактом Панели вкладок](app/web/page/shell/workbench/notes/workspace.md#tabs-routes).
+Адреса представлений заданы [контрактом Панели вкладок](app/web/page/shell/workbench/meta/notes/workspace.md#tabs-routes).
 
 
 ### Структурные зависимости компонента
@@ -435,5 +435,5 @@ Read-only topic `catalog` обновляет дерево без передач�
 GraphView отображает их в существующем Display. Это отдельный потребитель
 нормализованного каталога, без второго дерева владельцев или графического runtime.
 
-Формат spec описан в [нормативном контракте зависимостей](./specs/deps/notes/draft-dependencies.md),
-а переключение представления — в [контракте URL вкладок](app/web/page/shell/workbench/notes/workspace.md#tabs-routes).
+Формат spec описан в [нормативном контракте зависимостей](./specs/deps/meta/notes/draft-dependencies.md),
+а переключение представления — в [контракте URL вкладок](app/web/page/shell/workbench/meta/notes/workspace.md#tabs-routes).

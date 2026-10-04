@@ -7,10 +7,10 @@
 
 ## Заметки
 
-- [Как собираются пакет и общая оболочка](./notes/compilation.md).
-- [Единая идентичность модулей](../../../tech/build/environment/notes/modules.md).
-- [Готовая сборка Web](./notes/cache.md).
-- [Как оценить нагрузку перед сборкой](../../../tech/build/environment/notes/preflight.md).
+- [Как собираются пакет и общая оболочка](./meta/notes/compilation.md).
+- [Единая идентичность модулей](../../../tech/build/environment/meta/notes/modules.md).
+- [Готовая сборка Web](./meta/notes/cache.md).
+- [Как оценить нагрузку перед сборкой](../../../tech/build/environment/meta/notes/preflight.md).
 
 Заметки сохраняют ещё не перенесённый смысл по
-[общему правилу их жизненного цикла](../../../package/notes/note-lifecycle.md).
+[общему правилу их жизненного цикла](../../../package/meta/notes/note-lifecycle.md).

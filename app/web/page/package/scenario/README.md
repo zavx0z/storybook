@@ -35,5 +35,5 @@ Host монтирует preview в свой semantic Document и освобож�
 
 ## Заметки
 
-- [Когда использовать всплывающие подсказки](./notes/tooltips.md)
-- [Как показываются результаты серверной функции](./notes/function-results.md)
+- [Когда использовать всплывающие подсказки](./meta/notes/tooltips.md)
+- [Как показываются результаты серверной функции](./meta/notes/function-results.md)

@@ -1,3 +1,3 @@
 # Metadata пакета
 
-- [Идентичность и состав пакетов](./notes/draft-identity.md)
+- [Идентичность и состав пакетов](./meta/notes/draft-identity.md)
