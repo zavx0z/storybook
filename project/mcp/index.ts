@@ -35,6 +35,7 @@ export default function readProjectMcp(input: Zavx0zStorybookProjectMcp.Input): 
   }
   return {
     description: "Выберите Repo текущего Project по описанию. Для перехода передайте path выбранного элемента children в следующий вызов storybook. Выбранный владелец раскрывает input и output как JSON Schema с описаниями. Пустой вызов возвращает к этому входу.",
+    path: ".",
     label: projectName,
     children: entries.filter(entry => entry.parent === null).map(entry => {
       const authored = entry.summary ?? entry.description
@@ -50,7 +51,7 @@ export default function readProjectMcp(input: Zavx0zStorybookProjectMcp.Input): 
       )
       return {
         description,
-        path: entry.path,
+        path: `./${entry.path}`,
         ...(label && !repeated ? {label: entry.label!} : {}),
       }
     }),

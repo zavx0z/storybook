@@ -70,7 +70,7 @@ export function createChatServer(options: Readonly<{
     const key = request.headers.get("authorization")?.replace(/^Bearer /u, "")
     const address = key === undefined ? undefined : grants.get(key)
     if (address === undefined) return Response.json({error: "Подключение агента недоступно"}, {status: 401})
-    const subject = resolve(address)
+    resolve(address)
     const entries = options.entries()
     if (address === "/") return storybookRest(request, {projectName: options.projectName(), entries})
     const rootPath = address.slice(1)
@@ -91,26 +91,10 @@ export function createChatServer(options: Readonly<{
     ].includes(node.packageId ?? ""))
     for (const rule of rules) visit(rule.id)
     const allowed = entries.filter(entry => permitted.has(entry.path))
-    let input: unknown = {}
-    if (request.method === "POST") {
-      const body = await request.clone().text()
-      if (body.length > 16_384) return Response.json({error: "Слишком большой запрос"}, {status: 413})
-      try { input = body.length === 0 ? {} : JSON.parse(body) } catch { return Response.json({error: "Ожидается JSON"}, {status: 400}) }
-    }
-    if (input === null || typeof input !== "object" || Array.isArray(input) || Object.keys(input).some(key => key !== "path")) {
-      return Response.json({error: "Ожидается только необязательный path"}, {status: 400})
-    }
-    const selectedPath = "path" in input ? input.path : rootPath
-    if (typeof selectedPath !== "string" || !permitted.has(selectedPath)) return Response.json({error: "Адрес вне области этого агента"}, {status: 403})
-    const response = await storybookRest(new Request(request.url, {
-      method: "POST", headers: {"content-type": "application/json"},
-      body: JSON.stringify({path: selectedPath}), signal: request.signal,
-    }), {projectName: options.projectName(), entries: allowed})
-    if (!response.ok || "path" in input) return response
-    const content = await response.json() as Record<string, unknown>
-    return Response.json({...content,
-      scope: {path: rootPath, label: subject.label},
-      rules: rules.map(node => ({path: node.urlPath.slice(1), label: node.label})),
+    return storybookRest(request, {
+      projectName: options.projectName(),
+      entries: allowed,
+      root: {path: rootPath, references: rules.map(node => node.urlPath.slice(1))},
     })
   }
   /** Один подписчик получает свежий снимок, последующие изменения объединяются за 50 мс. */

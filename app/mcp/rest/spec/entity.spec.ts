@@ -20,7 +20,7 @@ describe.each([
 
   test("Выбранный предметный MCP", () => {
     expect(result, "Один и тот же адрес обслуживается владельцем подтверждённого типа; имя пути не участвует в выборе")
-      .toEqual({path: "same/address", description: "Сущность", children: [],
+      .toEqual({path: "./same/address", description: "Сущность", children: [],
         verification: {status: "confirmed", type, revision: "verified"}})
   })
 })
@@ -36,8 +36,8 @@ test.each(["missing-report", "stale-report", "invalid-report", "incomplete", "fa
     ],
   })
   expect(await response.json(), "Имя Component не заменяет подтверждение; доступные переходы сохраняются")
-    .toMatchObject({path: "repo/component", status: "type-unconfirmed", verification: {status: "unknown", reason},
-      children: [{path: "repo/component/child", description: "Дочернее направление"}]})
+    .toMatchObject({path: "./repo/component", status: "type-unconfirmed", verification: {status: "unknown", reason},
+      children: [{path: "./repo/component/child", description: "Дочернее направление"}]})
 })
 
 test("неподтверждённый тип не требует подготовленной схемы контракта", async () => {
@@ -49,7 +49,7 @@ test("неподтверждённый тип не требует подгото
     }],
   })
   expect(response.status).toBe(200)
-  expect(await response.json()).toEqual({description: "Назначение", path: "owner", children: [], status: "type-unconfirmed",
+  expect(await response.json()).toEqual({description: "Назначение", path: "./owner", children: [], status: "type-unconfirmed",
     message: "Тип сущности ещё не подтверждён нормативным сценарием Package.", verification: {status: "unknown", reason: "incomplete"}})
 })
 

@@ -54,7 +54,7 @@ test.each([...types])("сохранённый отчёт → %s → собств
   const response = await storybookRest(new Request("http://localhost", {method: "POST", body: JSON.stringify({path: "example/owner"})}), {
     projectName: "Project", entries,
   })
-  expect(await response.json()).toEqual({path: "example/owner", label: "Владелец", children: [],
+  expect(await response.json()).toEqual({path: "./example/owner", label: "Владелец", children: [],
     description: "Описание не задано владельцем.", verification: {status: "confirmed", type, revision: "verified"}})
   expect(f.released()).toBe(1)
 })

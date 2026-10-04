@@ -8,6 +8,7 @@ describe.each([
   "storybook/archetypes/package#contract", "storybook/package/src",
   "storybook/package/readme", "storybook.archetypes.package",
   "/storybook", "storybook/", "storybook//package", "storybook/../package", "",
+  "./", "./../storybook", "./storybook/./package", "./storybook//package",
 ])("Недопустимый адрес %s", address => {
   test("Не подменяется адресом родителя", () => {
     expect(() => resolveMcpAddress({address, paths}), "Параметры, внутренние пути и альтернативная адресация не принимаются").toThrow()

@@ -11,10 +11,10 @@ test("Название необязательно и не повторяет о�
   const result = readMcpChildren({label: "Вход", description: "Навигация", entries})
   expect(result.label).toBe("Вход")
   expect(result.children).toEqual([
-    {path: "docs", description: "Документация проекта"},
-    {path: "widget", description: "Кнопка: запускает действие"},
-    {path: "api", description: "Программный интерфейс"},
-    {path: "input", label: "Ввод", description: "Вводный пример работы с полями"},
+    {path: "./docs", description: "Документация проекта"},
+    {path: "./widget", description: "Кнопка: запускает действие"},
+    {path: "./api", description: "Программный интерфейс"},
+    {path: "./input", label: "Ввод", description: "Вводный пример работы с полями"},
   ])
   expect(readMcpChildren({path: "docs", label: "DOCS", description: "Документация", entries})).not.toHaveProperty("label")
   expect(readMcpChildren({path: "api", description: "Интерфейс", entries})).not.toHaveProperty("label")
@@ -29,8 +29,8 @@ test("Сохраняет авторский порядок и описания, 
   ])
   const result = readMcpChildren({path: "a", label: "А", description: "Проект А", entries})
   expect(result.children).toEqual([
-    {path: "a/second", label: "Одно название", description: "Второе назначение"},
-    {path: "a/first", label: "Одно название", description: "Первое назначение"},
+    {path: "./a/second", label: "Одно название", description: "Второе назначение"},
+    {path: "./a/first", label: "Одно название", description: "Первое назначение"},
   ])
   expect(result.children[0]).not.toHaveProperty("parent")
   expect(result.children[0]).not.toBe(entries[0])
@@ -38,7 +38,7 @@ test("Сохраняет авторский порядок и описания, 
 
 test("Лист и отсутствующее авторское описание остаются понятными", () => {
   const leaf = readMcpChildren({path: "leaf", label: "Компонент", description: "Назначение компонента", entries: []})
-  expect(leaf).toEqual({path: "leaf", label: "Компонент", description: "Назначение компонента", children: []})
+  expect(leaf).toEqual({path: "./leaf", label: "Компонент", description: "Назначение компонента", children: []})
   const root = readMcpChildren({label: "Вход", description: " ", entries: [
     {path: "missing", label: "Без описания", description: "", parent: null},
   ]})
@@ -49,6 +49,6 @@ test("Лист и отсутствующее авторское описание
 test("Краткое назначение помогает выбрать владельца, полный обзор раскрывается после выбора", () => {
   const entry = {path: "library", description: "# Library\n\nПодробный обзор и условия использования.", summary: "Обработка текста", parent: null}
   const root = readMcpChildren({description: "Вход", entries: [entry]})
-  expect(root.children).toEqual([{path: "library", description: "Обработка текста"}])
+  expect(root.children).toEqual([{path: "./library", description: "Обработка текста"}])
   expect(readMcpChildren({...entry, entries: []}).description).toBe(entry.description)
 })

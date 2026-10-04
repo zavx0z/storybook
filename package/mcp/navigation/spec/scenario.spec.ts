@@ -13,8 +13,8 @@ describe.each([
   const result = readMcpChildren(props)
   test("Контекст и выбор следующего шага", () => {
     expect(result, "Назначение и путь сохраняются на каждом уровне; дополнительная подпись не повторяет описание").toEqual({
-      path: props.path, label: props.label, description: props.description,
-      children: [expected],
+      path: `./${props.path}`, label: props.label, description: props.description,
+      children: [{...expected, path: `./${expected.path}`}],
     })
     expect(result.children, "Раскрывается один непосредственный уровень, без содержимого соседних ветвей").toHaveLength(1)
   })

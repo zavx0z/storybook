@@ -27,7 +27,7 @@ export declare namespace Zavx0zStorybookPackageMcpNavigation {
   /**
   Текущий контекст и только его непосредственные переходы.
 
-  @property [path] - Адрес текущего направления; у корня отсутствует.
+  @property path - Точка для root либо ./путь выбранного узла от неизменной точки входа MCP.
 
   @property [label] - Авторское название при наличии.
 
@@ -36,7 +36,7 @@ export declare namespace Zavx0zStorybookPackageMcpNavigation {
   @property children - Выбираемые адреса следующего уровня с первым абзацем описания.
   */
   type Output = Readonly<{
-    path?: string
+    path: string
     label?: string
     description: string
     children: readonly Readonly<{path: string; label?: string; description: string}>[]

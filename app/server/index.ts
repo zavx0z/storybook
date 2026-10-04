@@ -471,7 +471,9 @@ export default async function startExternalStorybookServer(
   let journalWriteError: {at: string, message: string} | null = null
   /** Один предметный обработчик для MCP-прокси и просмотра ответа по адресу UI. */
   const mcpEntries = () => storybookMcpEntries(registry.snapshot(), packageId => readMcpEntityType(packageId, sessions))
-  const readStorybook = (request: Request) => storybookRest(request, {projectName: project.name, entries: mcpEntries()})
+  const readStorybook = (request: Request, root?: string) => storybookRest(request, {
+    projectName: project.name, entries: mcpEntries(), ...(root === undefined ? {} : {root: {path: root}}),
+  })
 
   let server!: Bun.Server<WebSocketData>
   const chat = createChatServer({
@@ -603,12 +605,12 @@ export default async function startExternalStorybookServer(
             const pathname = source.address.split(/[?#]/u)[0]!.slice(1)
             const owner = mcpEntries().find(item => pathname === item.path)
             if (pathname !== "" && owner === undefined) throw new Error("Страница отсутствует в публичной структуре")
-            input = owner === undefined ? {} : {path: owner.path}
+            input = {}
             const reply = await readStorybook(new Request(new URL("/api/control/storybook", server.url.origin), {
               method: "POST",
               body: JSON.stringify(input),
               signal: request.signal,
-            }))
+            }), owner?.path)
             const result = await reply.json()
             if (!reply.ok) throw new Error(typeof result.error === "string" ? result.error : `Storybook control API failed with ${reply.status}`)
             return responseJson({input, ...proxyContent(result)})

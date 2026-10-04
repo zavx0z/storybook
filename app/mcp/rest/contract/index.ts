@@ -13,6 +13,12 @@ export declare namespace Zavx0zStorybookAppMcpRest {
     options: Readonly<{
       projectName: Zavx0zStorybookProjectMcp.Input["projectName"]
       entries: Zavx0zStorybookPackageMcpSource.Output
+      /** Неизменная точка входа, заданная хостом; без неё root соответствует Project. */
+      root?: Readonly<{
+        path: string
+        /** Дополнительные разрешённые владельцы норм, доступные через children с префиксом ./rules/. */
+        references?: readonly string[]
+      }>
     }>,
   ]
 

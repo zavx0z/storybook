@@ -80,7 +80,7 @@ describe.each([
 
   test("Переходы к Repo", () => {
     expect(result.children, "Первый уровень сохраняет адреса, порядок и краткие описания Repo; вложенные направления раскрываются следующим переходом")
-      .toEqual(children)
+      .toEqual(children.map(child => ({...child, path: `./${child.path}`})))
   })
 
   test("Продолжение чтения", () => {
@@ -89,8 +89,9 @@ describe.each([
   })
 
   test("Корень проекта", () => {
-    expect(Object.keys(result).sort(), "Ответ состоит из назначения, имени и переходов; Project не получает искусственный path")
-      .toEqual(["children", "description", "label"])
+    expect(result.path, "Точка обозначает неизменный root").toBe(".")
+    expect(Object.keys(result).sort(), "Ответ сохраняет назначение, имя, переходы и явный адрес root")
+      .toEqual(["children", "description", "label", "path"])
   })
 
   test("Исходный каталог", () => {

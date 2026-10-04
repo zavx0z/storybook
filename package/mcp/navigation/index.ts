@@ -12,6 +12,8 @@ export type {Zavx0zStorybookPackageMcpNavigation} from "./contract"
 /**
 Возвращает текущий контекст и только его непосредственных детей в порядке каталога.
 Назначение description стоит первым и у текущего контекста, и у каждого ребёнка.
+Ответ содержит собственный адрес: точку для root либо ./путь от root.
+Адреса children используют ту же точку отсчёта на любой глубине.
 
 @param input - Авторское название, назначение и доступные адреса.
 @returns Новый ответ без изменения входных данных и без раскрытия соседних ветвей.
@@ -21,13 +23,13 @@ export default function readMcpChildren({path, label, description, entries}: Zav
   const currentLabel = navigationLabel(path, label, description)
   return {
     description: describe(description),
-    ...(path === undefined ? {} : {path}),
+    path: path ? `./${path}` : ".",
     ...(currentLabel === undefined ? {} : {label: currentLabel}),
     children: entries.filter(entry => entry.parent === (path ?? null))
       .map(entry => {
         const description = describe(entry.summary ?? entry.description).split(/\n\s*\n/u)[0]!
         const childLabel = navigationLabel(entry.path, entry.label, description)
-        return {description, path: entry.path, ...(childLabel === undefined ? {} : {label: childLabel})}
+        return {description, path: `./${entry.path}`, ...(childLabel === undefined ? {} : {label: childLabel})}
       }),
   }
 }

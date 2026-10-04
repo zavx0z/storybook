@@ -17,17 +17,17 @@ const read = (input: unknown) => storybookRest(new Request("http://localhost", {
 
 describe.each([
   {name: "Root без проекта Storybook", input: {}, expected: {
-    label: projectName, description: expect.stringContaining("path"), children: [
-      {path: "shop", label: "Магазин", description: "Проект магазина"},
-      {path: "library.v2", label: "Библиотека", description: "Общие функции"},
+    path: ".", label: projectName, description: expect.stringContaining("path"), children: [
+      {path: "./shop", label: "Магазин", description: "Проект магазина"},
+      {path: "./library.v2", label: "Библиотека", description: "Общие функции"},
     ],
   }},
   {name: "Проект", input: {path: "shop/ui"}, expected: {
-    path: "shop/ui", label: "Интерфейс", description: "Компоненты интерфейса",
-    children: [{path: "shop/ui/button", label: "Кнопка", description: "Действия пользователя"}],
+    path: "./shop/ui", label: "Интерфейс", description: "Компоненты интерфейса",
+    children: [{path: "./shop/ui/button", label: "Кнопка", description: "Действия пользователя"}],
   }},
   {name: "Компонент", input: {path: "shop/ui/button"}, expected: {
-    path: "shop/ui/button", label: "Кнопка", description: "Действия пользователя", children: [],
+    path: "./shop/ui/button", label: "Кнопка", description: "Действия пользователя", children: [],
   }},
 ])("$name", ({input, expected}) => {
   test("Единая форма и авторское назначение", async () => {
@@ -42,7 +42,9 @@ test("Переходы копируют path из ответа без друго
   for (const expected of ["shop", "shop/ui", "shop/ui/button"]) {
     const selected = document.children[0]
     document = await (await read({path: selected.path})).json()
-    expect(document).toMatchObject({path: expected, label: selected.label, description: selected.description})
+    expect(selected.path).toBe(`./${expected}`)
+    expect(document.path).toBe(`./${expected}`)
+    expect(document).toMatchObject({label: selected.label, description: selected.description})
   }
   expect(document.children).toEqual([])
 })
@@ -64,7 +66,7 @@ test.each(["shop/src", "shop/ui/button/readme", "shop.ui.button", "missing"])("�
 test("GET и пустой POST выбирают независимый Root; пустой каталог допустим", async () => {
   expect(await (await storybookRest(new Request("http://localhost"), {projectName, entries})).json()).toEqual(await (await read({})).json())
   expect(await (await storybookRest(new Request("http://localhost"), {projectName, entries: []})).json())
-    .toEqual({label: projectName, description: expect.any(String), children: []})
+    .toEqual({path: ".", label: projectName, description: expect.any(String), children: []})
   expect((await storybookRest(new Request("http://localhost?view=scenarios"), {projectName, entries})).status).toBe(400)
   expect((await storybookRest(new Request("http://localhost", {method: "POST", body: "{"}), {projectName, entries})).status).toBe(400)
   expect((await storybookRest(new Request("http://localhost", {method: "DELETE"}), {projectName, entries})).status).toBe(405)
@@ -99,7 +101,7 @@ describe.each([{name: "Функция с контрактом", props: {path: "t
 
   test("Условия использования", () => {
     expect(result, "Адрес раскрывает назначение, JSON Schema контрактов и исполняемый пример владельца").toEqual({
-      path: props.path, description: "Удаляет пробелы по краям текста.", children: [], input: inputSchema, output: outputSchema, scenarios: [scenario],
+      path: `./${props.path}`, description: "Удаляет пробелы по краям текста.", children: [], input: inputSchema, output: outputSchema, scenarios: [scenario],
     })
   })
   test("Единое описание условия", () => {

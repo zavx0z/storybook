@@ -9,15 +9,15 @@ import storybookRest from "@zavx0z/storybook-app-mcp-rest"
 import type {Zavx0zStorybookAppMcp} from "../contract"
 
 const storybookSchema = z.strictObject({
-  path: z.string().min(1).max(512).regex(/^[^\u0000-\u001f\u007f]+$/u)
-    .optional().describe("Адрес из path выбранного элемента children. Без параметров URL и fragment."),
+  path: z.string().min(1).max(514).regex(/^[^\u0000-\u001f\u007f]+$/u)
+    .optional().describe("Адрес из children относительно неизменной точки входа root. Без параметров URL и fragment."),
 })
 
 /** Подключает только предметное чтение к предоставленному SDK server. */
 export function register(server: Parameters<Zavx0zStorybookAppMcp.Output["register"]>[0], options: Zavx0zStorybookAppMcp.Input = {}): void {
   server.registerTool("storybook", {
     title: "Storybook",
-    description: "Открывает корневой вход Storybook MCP или направление по path. Ответ содержит назначение и children; у выбранного владельца input и output содержат JSON Schema с описаниями, а scenarios — примеры использования. Выберите направление по описанию и передайте его path следующему вызову. Пустой вызов возвращает к корню. Чтение не выполняет код. Используйте адреса из children, без параметров URL и фрагмента адреса.",
+    description: "Открывает корневой вход Storybook MCP или направление по path. Ответ содержит назначение и children; у выбранного владельца input и output содержат JSON Schema с описаниями, а scenarios — примеры использования. Выберите направление по описанию и передайте его path следующему вызову. Пустой вызов или path: \".\" возвращает к неизменному root этого MCP-подключения. Адрес root — точка, адреса выбранного узла и children имеют вид ./путь и всегда отсчитываются от root, а не от последнего выбранного узла. Чтение не выполняет код. Используйте адреса из children, без параметров URL и фрагмента адреса.",
     inputSchema: storybookSchema,
     annotations: {readOnlyHint: true, idempotentHint: true},
   }, async (input, context) => {

@@ -7,11 +7,11 @@ const child = {path: "example/owner/part", label: "Участник", descriptio
 describe.each([
   {name: "Container без вложенных направлений", props: {selected, entries: [{...selected}]}, children: []},
   {name: "Container с вложенным направлением", props: {selected, entries: [{...selected}, {...child}]},
-    children: [{path: child.path, label: child.label, description: child.description}]},
+    children: [{path: `./${child.path}`, label: child.label, description: child.description}]},
 ])("$name", async ({props, children}) => {
   const result = await readMcp(props)
   test("Содержание владельца", () => {
     expect(result, "Предметный MCP возвращает авторское назначение и только непосредственные переходы")
-      .toEqual({description: selected.description, path: selected.path, label: selected.label, children})
+      .toEqual({description: selected.description, path: `./${selected.path}`, label: selected.label, children})
   })
 })

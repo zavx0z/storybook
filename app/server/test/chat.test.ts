@@ -13,6 +13,7 @@ afterEach(async () => { for (const release of releases.splice(0).reverse()) awai
 async function fixture(
   configOptions: Zavx0zStorybookTechAcp.Output["configOptions"] = [],
   readType?: Zavx0zStorybookAppMcpRest.Input[1]["entries"][number]["readType"],
+  withRules = false,
 ) {
   let prompts = 0
   const project = await mkdtemp(join(tmpdir(), "storybook-chat-server-"))
@@ -20,10 +21,15 @@ async function fixture(
   const nodes = [
     {id: "repo", urlPath: "/repo", label: "Repo", packageId: "@scope/repo", kind: "directory", source: {path: project}, childIds: ["button", "button-other"]},
     {id: "button", urlPath: "/repo/button", label: "Button", packageId: "@scope/button", kind: "package", source: {path: join(project, "package.json")}, childIds: ["child"]},
-    {id: "child", urlPath: "/repo/button/part", label: "Part", packageId: "@scope/button", kind: "directory", source: {path: project}, childIds: []},
+    {id: "child", urlPath: "/repo/button/part", label: "Part", packageId: "@scope/button", kind: "directory", source: {path: project}, childIds: ["deep"]},
     {id: "button-other", urlPath: "/repo/button-other", label: "Other", packageId: "@scope/other", kind: "package", source: {path: join(project, "package.json")}, childIds: []},
   ]
-  const entries = nodes.map(node => ({path: node.urlPath.slice(1), label: node.label, description: node.label, parent: null,
+  nodes.push({id: "deep", urlPath: "/repo/button/part/deep", label: "Deep", packageId: "@scope/button", kind: "directory", source: {path: project}, childIds: []})
+  if (withRules) nodes.push(
+    {id: "rules", urlPath: "/storybook/package/reader", label: "Package", packageId: "@zavx0z/storybook-package-reader", kind: "package", source: {path: join(project, "package.json")}, childIds: ["rule-part"]},
+    {id: "rule-part", urlPath: "/storybook/package/reader/contract", label: "Contract", packageId: "@zavx0z/storybook-package-reader", kind: "directory", source: {path: project}, childIds: []},
+  )
+  const entries = nodes.map(node => ({path: node.urlPath.slice(1), label: node.label, description: node.label, parent: nodes.find(parent => parent.childIds.includes(node.id))?.urlPath.slice(1) ?? null,
     ...(node.kind === "package" && readType !== undefined ? {readType} : {}),
   }))
   const connections: Zavx0zStorybookTechAcp.Input[] = []
@@ -56,6 +62,23 @@ const scopedRequest = (key: string, input: object) => new Request("http://127.0.
   method: "POST", headers: {authorization: `Bearer ${key}`, "content-type": "application/json"}, body: JSON.stringify(input),
 })
 
+test("общие правила остаются доступными переходами от root адресного чата", async () => {
+  const {server, connections} = await fixture([], undefined, true)
+  await server.chats.prepare("/repo/button")
+  const mcp = connections[0]!.mcpServers[0]!
+  if (!("env" in mcp)) throw new Error("Ожидается stdio MCP")
+  const key = mcp.env.find(entry => entry.name === "STORYBOOK_CHAT_KEY")!.value
+  const root = await (await server.scopedMcp(scopedRequest(key, {}))).json()
+  const rules = root.children.find((child: {path: string}) => child.path === "./rules/storybook/package/reader")
+  expect(rules).toBeDefined()
+  expect(root.path).toBe(".")
+  expect(root).not.toHaveProperty("rules")
+  const rule = await (await server.scopedMcp(scopedRequest(key, {path: rules.path}))).json()
+  expect(rule.children).toEqual([{description: "Contract", path: "./rules/storybook/package/reader/contract"}])
+  expect((await server.scopedMcp(scopedRequest(key, {path: rule.children[0].path}))).status).toBe(200)
+  expect((await server.scopedMcp(scopedRequest(key, {path: "storybook/package/reader"}))).status).toBe(403)
+})
+
 test("пустой MCP-вызов открывает назначенный предмет, прямой чужой адрес запрещён", async () => {
   const {server, connections} = await fixture()
   await server.chats.prompt("/repo/button", "Привет", "1")
@@ -65,8 +88,13 @@ test("пустой MCP-вызов открывает назначенный пр
   const key = mcp.env.find(entry => entry.name === "STORYBOOK_CHAT_KEY")!.value
   const root = await server.scopedMcp(scopedRequest(key, {}))
   expect(root.status).toBe(200)
-  expect(await root.json()).toMatchObject({path: "repo/button", scope: {path: "repo/button", label: "Button"}})
-  expect((await server.scopedMcp(scopedRequest(key, {path: "repo/button/part"}))).status).toBe(200)
+  expect(await root.json()).toEqual({description: "Button", path: ".", children: [{description: "Part", path: "./part"}]})
+  const part = await (await server.scopedMcp(scopedRequest(key, {path: "part"}))).json()
+  expect(part).toEqual({description: "Part", path: "./part", children: [{description: "Deep", path: "./part/deep"}]})
+  expect((await server.scopedMcp(scopedRequest(key, {path: part.children[0].path}))).status).toBe(200)
+  expect((await server.scopedMcp(scopedRequest(key, {path: "deep"}))).status).toBe(403)
+  expect(await (await server.scopedMcp(scopedRequest(key, {}))).json()).toEqual({description: "Button", path: ".", children: [{description: "Part", path: "./part"}]})
+  expect((await server.scopedMcp(scopedRequest(key, {path: "repo/button/part"}))).status).toBe(403)
   expect((await server.scopedMcp(scopedRequest(key, {path: "repo/button-other"}))).status).toBe(403)
   expect((await server.scopedMcp(scopedRequest(key, {path: "repo"}))).status).toBe(403)
   expect((await server.scopedMcp(scopedRequest("invalid", {}))).status).toBe(401)
@@ -100,8 +128,8 @@ test("адресный чат выбирает предметный MCP посл
   if (!("env" in mcp)) throw new Error("Ожидается stdio MCP")
   const key = mcp.env.find(entry => entry.name === "STORYBOOK_CHAT_KEY")!.value
   expect(await (await server.scopedMcp(scopedRequest(key, {}))).json())
-    .toMatchObject({path: "repo/button", description: "Button",
-      verification: {status: "confirmed", type: "Component", revision: "verified"}, scope: {path: "repo/button", label: "Button"}})
+    .toMatchObject({path: ".", description: "Button",
+      verification: {status: "confirmed", type: "Component", revision: "verified"}})
   expect(reads).toBe(1)
   expect((await server.scopedMcp(scopedRequest(key, {path: "repo/button-other"}))).status).toBe(403)
   expect(reads, "Чужой адрес не читает отчёт до проверки полномочий").toBe(1)

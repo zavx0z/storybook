@@ -4,6 +4,8 @@
 Корневой ответ формирует предметный владелец Project через собственный MCP-вход.
 Пакет с подтверждённым типом обслуживает MCP соответствующего предметного владельца.
 Без подтверждения сохраняются общие сведения и явное состояние type-unconfirmed.
+Хост закрепляет root подключения. Пустой вызов возвращает к нему, а адреса
+children на любой глубине отсчитываются от той же точки входа.
 
 @packageDocumentation
 */
@@ -11,6 +13,7 @@ import resolveMcpAddress from "@zavx0z/storybook-app-mcp-rest-address"
 import readProjectMcp from "@zavx0z/storybook-project-mcp"
 import readPackageMcp from "@zavx0z/storybook-package-mcp"
 import type {Zavx0zStorybookAppMcpRest} from "./contract"
+import {rootEntries} from "./src/root"
 import readRepoMcp from "@zavx0z/storybook-repo-mcp"
 import readComponentMcp from "@zavx0z/storybook-component-mcp"
 import readContainerMcp from "@zavx0z/storybook-container-mcp"
@@ -37,7 +40,7 @@ export type {Zavx0zStorybookAppMcpRest} from "./contract"
 Отдаёт корневые направления либо содержание выбранного владельца и его детей.
 
 @param request - GET без query либо POST с единственным необязательным path.
-@param options - Публичная структура действующего каталога с источниками контрактов и сценариев.
+@param options - Публичная структура, источники и необязательный фиксированный root подключения.
 @returns Назначение, схемы контрактов, сценарии и непосредственные переходы. Чтение не выполняет код и не запускает сборку.
 */
 export default async function storybookRest(request: Zavx0zStorybookAppMcpRest.Input[0], options: Zavx0zStorybookAppMcpRest.Input[1]): Promise<Zavx0zStorybookAppMcpRest.Output> {
@@ -62,24 +65,32 @@ export default async function storybookRest(request: Zavx0zStorybookAppMcpRest.I
     || ("path" in input && typeof input.path !== "string")) {
     return Response.json({status: "failed", error: "Ожидается только необязательный path — адрес из children"}, {status: 400})
   }
-  const path = "path" in input ? input.path as string : undefined
+  const path = "path" in input && input.path !== "." ? input.path as string : undefined
   try {
-    if (path === undefined) return Response.json(readProjectMcp(options))
-    const address = resolveMcpAddress({address: path, paths: options.entries.map(item => item.path)})
-    const selected = options.entries.find(item => item.path === address)!
+    const entries = rootEntries(options)
+    if (path === undefined && options.root === undefined) return Response.json(readProjectMcp({...options, entries}))
+    let address = ""
+    if (path !== undefined) {
+      try { address = resolveMcpAddress({address: path, paths: entries.map(item => item.path)}) }
+      catch (error) {
+        if (options.root !== undefined && !(error instanceof TypeError)) return Response.json({status: "failed", error: "Адрес вне области этого MCP"}, {status: 403})
+        throw error
+      }
+    }
+    const selected = entries.find(item => item.path === address)!
     if (selected.readType !== undefined) {
       const verification = await selected.readType()
       if (verification.status === "confirmed") {
-        return Response.json({...await entityMcp[verification.type]({selected, entries: options.entries}), verification})
+        return Response.json({...await entityMcp[verification.type]({selected, entries}), verification})
       }
       return Response.json({
-        ...await readPackageMcp({selected, entries: options.entries, includeContent: false}),
+        ...await readPackageMcp({selected, entries, includeContent: false}),
         status: "type-unconfirmed",
         message: "Тип сущности ещё не подтверждён нормативным сценарием Package.",
         verification,
       })
     }
-    return Response.json(await readPackageMcp({selected, entries: options.entries}))
+    return Response.json(await readPackageMcp({selected, entries}))
   } catch (error) {
     return Response.json({status: "failed", error: error instanceof Error ? error.message : String(error)},
       {status: error instanceof TypeError ? 400 : 404})

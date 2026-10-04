@@ -13,6 +13,7 @@ import {StorybookBrowserSessionRegistry} from "../src/browser-session-registry.t
 import {seedPublishedSharedAssets} from "./shared-assets.fixture.ts"
 import {createProjectFixture} from "./project.fixture.ts"
 import state from "@zavx0z/storybook-app-server-state"
+import mcpSources from "@zavx0z/storybook-package-mcp-source"
 
 const roots: string[] = []
 const servers: Zavx0zStorybookAppServer.Output[] = []
@@ -133,7 +134,7 @@ describe("one external Storybook server", () => {
       body: "{}",
     })
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({label: "Fixture Project", description: expect.stringContaining("path"), children: []})
+    expect(await response.json()).toEqual({path: ".", label: "Fixture Project", description: expect.stringContaining("path"), children: []})
     expect(running.sessions.snapshots()).toEqual([])
   })
 
@@ -171,9 +172,18 @@ describe("one external Storybook server", () => {
       for (const address of ["/", "/standalone", "/standalone?view=overview", "/standalone/text", "/standalone/text/trim?view=scenarios&inspector=x", "/standalone?preview=candidate"]) {
         const browser = await read({address})
         expect(browser.status).toBe(200)
-        const input = address === "/" ? {} : {path: address.split("?")[0]!.slice(1)}
-        const expected = await client.callTool({name: "storybook", arguments: input})
-        expect(await browser.json()).toEqual({input, ...expected})
+        const root = address.split("?")[0]!.slice(1)
+        const expected = root === ""
+          ? (await client.callTool({name: "storybook", arguments: {}})).structuredContent
+          : await (await appMcp.read(new Request("http://localhost", {method: "POST", body: "{}"}), {
+            projectName: "Project", entries: mcpSources(running.registry.snapshot()), root: {path: root},
+          })).json()
+        const actual = await browser.json()
+        expect(actual.input).toEqual({})
+        expect(actual.structuredContent).toEqual(expected)
+        expect(JSON.parse(actual.content[0].text)).toEqual(expected)
+        expect(actual.structuredContent.path).toBe(".")
+        if (root === "standalone/text") expect(actual.structuredContent.children[0].path).toBe("./trim")
       }
       const content = await client.callTool({name: "storybook", arguments: {path: "standalone/text/trim"}})
       expect(content.structuredContent).toMatchObject({
@@ -315,9 +325,10 @@ describe("one external Storybook server", () => {
       headers: {authorization: `Bearer ${running.record.controlToken}`, "content-type": "application/json"},
       body: "{}",
     })
-    const value = await response.json() as {label: string, description: string, children: {path: string, label: string, description: string}[]}
-    expect(Object.keys(value).sort()).toEqual(["children", "description", "label"])
-    expect(value.children.map(child => child.path)).toEqual(["standalone"])
+    const value = await response.json() as {path: string, label: string, description: string, children: {path: string, label: string, description: string}[]}
+    expect(Object.keys(value).sort()).toEqual(["children", "description", "label", "path"])
+    expect(value.path).toBe(".")
+    expect(value.children.map(child => child.path)).toEqual(["./standalone"])
     expect(value.label).toBe("Fixture Project")
     expect(value.description).toContain("path")
     expect(value.children[0]?.description).toBe("Назначение подключённого проекта")

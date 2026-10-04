@@ -9,11 +9,11 @@ test("Изменение состава Repo не меняет имя Project", 
   expect(attached.label, "Добавление Repo сохраняет идентичность Project").toBe(before.label)
   expect(attached.description, "Назначение входа Project сохраняется при изменении состава").toBe(before.description)
   expect(attached.children, "Новый Repo раскрывается со своими адресом и назначением")
-    .toEqual([{path: "other", label: "Другой Repo", description: "Авторское назначение"}])
+    .toEqual([{path: "./other", label: "Другой Repo", description: "Авторское назначение"}])
   expect(removed, "Исключённый Repo не сохраняется в скрытом состоянии").toEqual(before)
   expect(Object.keys(before), "Порядок полей корня сохраняется при смене владельца")
-    .toEqual(["description", "label", "children"])
-  expect(removed, "Project не получает искусственный адрес при опустошении состава").not.toHaveProperty("path")
+    .toEqual(["description", "path", "label", "children"])
+  expect(removed.path, "Адрес root остаётся точкой при опустошении состава").toBe(".")
 })
 
 test("Имя Project меняется независимо от адресов его Repo", () => {

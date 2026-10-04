@@ -42,8 +42,8 @@ test.each([
   const selected = entries.find(entry => entry.path === "owner")!
   const direct = await read({selected, entries})
   expect(direct).toEqual({
-    description: "Сохранённое назначение.", path: "owner", label: "Владелец",
-    children: [{path: "owner/child", label: "Участник", description: "Назначение ребёнка."}],
+    description: "Сохранённое назначение.", path: "./owner", label: "Владелец",
+    children: [{path: "./owner/child", label: "Участник", description: "Назначение ребёнка."}],
     input: {type: "string"}, output: {type: "number"},
     slots: {type: "object", properties: {header: {type: "string"}}, required: ["header"]},
     scenarios: [scenario],
