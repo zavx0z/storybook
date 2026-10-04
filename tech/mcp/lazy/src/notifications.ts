@@ -1,7 +1,7 @@
 import {watch, type FSWatcher} from "node:fs"
 import {isAbsolute, relative, resolve, sep} from "node:path"
 
-/** Изменение исходников только инвалидирует списки; handlers и schemas здесь не читаются. */
+/** Изменение исходников инвалидирует списки. Переписки, meta и локальные артефакты не являются изменением MCP-возможностей. */
 export function watchSourceChanges(input: Readonly<{
   root: string
   temporaryRoot: string
@@ -12,7 +12,7 @@ export function watchSourceChanges(input: Readonly<{
   let timer: ReturnType<typeof setTimeout> | undefined
   let closed = false
   let notifications = Promise.resolve()
-  const ignored = new Set(["node_modules", ".git", "tmp", "dist"])
+  const ignored = new Set(["node_modules", ".git", "tmp", "dist", "meta", ".local", ".cache", "coverage"])
   try {
     watcher = watch(input.root, {recursive: true}, (_event, filename) => {
       if (closed || filename === null) return
