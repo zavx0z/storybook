@@ -27,7 +27,7 @@ test("один успешный именованный пункт не заме�
   expect(appliedPackageStandard("strict", verification, [])).toBe("strict")
 })
 
-test.each(["todo", "not-executed", "skipped"] as const)("обязательный %s удерживает незавершённость", status => {
+test.each(["not-executed", "skipped"] as const)("обязательный %s удерживает незавершённость", status => {
   const verification = scenarioVerification(report(["passed", status]))
   expect(verification.status).toBe("incomplete")
   expect(verification.diagnostics).toHaveLength(1)
@@ -54,4 +54,18 @@ test("нормативные предупреждения и неполный re
   const passed = scenarioVerification(report(["passed"]))
   expect(appliedPackageStandard("transition", passed, [{phase: "validate", path: "/package", message: "Нет preview"}])).toBe("transition")
   expect(() => readPackageVerification({...passed, diagnostics: [{phase: "validate", path: "/package", message: "TODO"}]})).toThrow()
+})
+
+
+test("TODO не изменяет успех выполненных проверок и остаётся виден в отчёте", () => {
+  const source = report(["passed", "todo"])
+  expect(scenarioVerification(source)).toEqual(scenarioVerification(report(["passed"])))
+  expect(source.tests[1]!.status).toBe("todo")
+  expect(appliedPackageStandard("strict", scenarioVerification(source), [])).toBe("strict")
+})
+
+test("TODO не скрывает провал, исключение или отсутствие выполненных проверок", () => {
+  expect(scenarioVerification(report(["passed", "failed", "todo"])).status).toBe("failed")
+  expect(() => scenarioVerification({...report(["passed", "todo"]), exitCode: 1, stderr: "runtime failure"})).toThrow("runtime failure")
+  expect(scenarioVerification(report(["todo"])).status).toBe(scenarioVerification(report([])).status)
 })

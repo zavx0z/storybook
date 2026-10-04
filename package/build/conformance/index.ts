@@ -32,14 +32,14 @@ async function checkStorybookPackageConformance(
   })
 }
 
-/** Native исходы задают полноту; исключение без проваленного assertion остаётся технической ошибкой. */
+/** TODO остаётся в исходном отчёте, но не влияет на успех. Ошибки и невыполненные проверки сохраняют свой исход. */
 function scenarioVerification(report: ReadScenarioOutput): StorybookPackageVerification {
   const failed = report.tests.filter(test => test.status === "failed" || test.status === "error")
   if (failed.some(test => test.status === "error" || !report.assertions.some(assertion =>
     assertion.testId === test.id && assertion.status === "failed")) || report.exitCode !== 0 && failed.length === 0) {
     throw storybookBuildError(storybookDiagnostic("validate", report.stderr || "Технический отказ нормативной проверки", report.path))
   }
-  const pending = report.tests.filter(test => test.status !== "passed" && test.status !== "failed" &&
+  const pending = report.tests.filter(test => test.status !== "passed" && test.status !== "failed" && test.status !== "todo" &&
     !(test.status === "skipped" && test.skipReason))
   const authoring = report.validation.checks.filter(check => check.status === "failed" && check.rule !== "execution")
   const diagnostics = [
