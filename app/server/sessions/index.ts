@@ -29,6 +29,7 @@ export default class ExternalStorybookSessionManager {
   readonly #ownsBuildScheduler: boolean
   readonly #activationTimeoutMs: number | undefined
   readonly #retainedRevisionLimit: number | undefined
+  readonly #descriptorInputs = new Map<string, StorybookPackageBuildDescriptor>()
   readonly #sessions = new Map<string, StorybookPackageSession>()
   #disposed = false
   #disposePromise: Promise<void> | null = null
@@ -60,6 +61,7 @@ export default class ExternalStorybookSessionManager {
       if (nextIds.has(packageId)) continue
       void session.dispose()
       this.#sessions.delete(packageId)
+      this.#descriptorInputs.delete(packageId)
     }
     for (const descriptor of descriptors) {
       const current = this.#sessions.get(descriptor.packageId)
@@ -74,8 +76,10 @@ export default class ExternalStorybookSessionManager {
           publish: (event) => this.#onSessionEvent(event),
         })
         this.#sessions.set(descriptor.packageId, session)
-      } else if (!failures.has(descriptor.packageId)) {
+        this.#descriptorInputs.set(descriptor.packageId, descriptor)
+      } else if (!failures.has(descriptor.packageId) && this.#descriptorInputs.get(descriptor.packageId) !== descriptor) {
         current.reconfigure(descriptor)
+        this.#descriptorInputs.set(descriptor.packageId, descriptor)
       }
       this.#sessions.get(descriptor.packageId)!.setResolutionError(failures.get(descriptor.packageId) ?? null)
     }
@@ -145,6 +149,7 @@ export default class ExternalStorybookSessionManager {
     const sessions = [...this.#sessions.values()]
     const pending = sessions.map((session) => session.dispose())
     this.#sessions.clear()
+    this.#descriptorInputs.clear()
     this.#disposePromise = Promise.all(pending).then(() => {
       if (this.#ownsBuildScheduler) this.#buildScheduler.dispose()
     })

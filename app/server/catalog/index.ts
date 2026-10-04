@@ -6,14 +6,15 @@
 import {type RepoDiscovery as RepoDiscoveryContract} from "@repo/discovery"
 import PackageGraphCreateOwner, {type PackageGraphCreate as PackageGraphCreateContract} from "@package-graph/create"
 import {type PackageSession as PackageSessionContract} from "@package/session"
-import PackageBuildDescriptorOwner from "@package-build/descriptor"
 const createExternalStorybookGraph = PackageGraphCreateOwner
-const externalStorybookPackageDescriptors = PackageBuildDescriptorOwner
 type StorybookCatalog = RepoDiscoveryContract.Output
 type StorybookCatalogScope = RepoDiscoveryContract.Output["scopes"][number]
 type ExternalStorybookGraph = PackageGraphCreateContract.Output
 type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 import {resolve} from "node:path"
+import {prepareCatalogSnapshot} from "./src/prepare"
+import {runCatalogWorker} from "./src/worker-client"
+import type {CatalogPreparation} from "./src/worker-protocol"
 
 import type {
   ExternalStorybookAttachSource,
@@ -24,7 +25,7 @@ import type {
 } from "./contract/models"
 import type {AppServerCatalog} from "./contract"
 export type {AppServerCatalog} from "./contract"
-import {createEntries, scopePaths, emptyCatalog} from "./src/helpers"
+import {scopePaths, emptyCatalog} from "./src/helpers"
 /**
 Атомарно принимает нормализованный каталог от выбранного источника.
 
@@ -32,6 +33,8 @@ import {createEntries, scopePaths, emptyCatalog} from "./src/helpers"
 построение производных данных не изменяет текущие корни и граф.
 */
 export default class ExternalStorybookRegistry {
+  readonly #lifetime = new AbortController()
+  readonly #workers = new Set<Promise<unknown>>()
   #revision = 0
   #descriptors: readonly StorybookPackageBuildDescriptor[] = Object.freeze([])
   #entries: readonly ExternalStorybookRegistryEntry[] = Object.freeze([])
@@ -47,7 +50,7 @@ export default class ExternalStorybookRegistry {
   #dependencyAnalysisSessions = 0
 
   constructor(
-    private readonly resolveCatalog: AppServerCatalog.Input[0],
+    private readonly resolveCatalog: AppServerCatalog.Input[0] = undefined,
     private readonly readAuthorStyleSheets: NonNullable<AppServerCatalog.Input[1]> = () => [],
   ) {}
 
@@ -204,8 +207,16 @@ export default class ExternalStorybookRegistry {
     sources: readonly ExternalStorybookAttachSource[],
     options?: Readonly<{dirtyScopeRoots?: readonly string[]}>,
   ): Promise<ExternalStorybookRegistrySnapshot> {
-    const raw = roots.length === 0 ? emptyCatalog() : await this.#callResolver(roots, this.#catalog, options)
-    return this.#accept(raw, sources)
+    this.#lifetime.signal.throwIfAborted()
+    if (this.resolveCatalog !== undefined) {
+      const raw = roots.length === 0 ? emptyCatalog() : await this.#callResolver(roots, this.#catalog, options)
+      return this.#accept(raw, sources)
+    }
+    this.#resolverCalls += 1
+    const prepared = await this.#runWorker({kind: "prepare", roots, sources, previous: this.snapshot(),
+      styles: this.readAuthorStyleSheets(), ...(options ?? {})})
+    if (prepared.kind !== "prepared") throw new Error("Catalog worker returned a different operation")
+    return this.#acceptPrepared(prepared.result)
   }
 
   async #callResolver(
@@ -214,33 +225,55 @@ export default class ExternalStorybookRegistry {
     options?: Readonly<{dirtyScopeRoots?: readonly string[]}>,
   ): Promise<StorybookCatalog> {
     this.#resolverCalls += 1
-    return this.resolveCatalog(roots, previous, {
-      ...options,
-      onAnalysisSession: kind => {
-        if (kind === "contract") this.#contractAnalysisSessions += 1
-        else this.#dependencyAnalysisSessions += 1
-      },
+    if (this.resolveCatalog !== undefined) return this.resolveCatalog(roots, previous, {
+      ...options, onAnalysisSession: kind => this.#analysisSession(kind),
     })
+    const result = await this.#runWorker({kind: "discover", roots, ...(previous === undefined ? {} : {previous}), ...(options ?? {})})
+    if (result.kind !== "discovered") throw new Error("Catalog worker returned a different operation")
+    return result.catalog
   }
 
-  #accept(raw: StorybookCatalog, sources: readonly ExternalStorybookAttachSource[]): ExternalStorybookRegistrySnapshot {
-    const catalog = raw
-    const graph = createExternalStorybookGraph(catalog)
-    const failed = new Set(catalog.scopes.filter(scope => scope.resolutionError !== undefined).map(scope => scope.id))
-    const retained = this.#descriptors.filter(descriptor => failed.has(descriptor.packageId))
-    const retainedIds = new Set(retained.map(descriptor => descriptor.packageId))
-    const include = new Set(catalog.scopes.filter(scope => scope.kind === "package" && !retainedIds.has(scope.id)).map(scope => scope.id))
-    const descriptors = Object.freeze([...externalStorybookPackageDescriptors(catalog, graph, include, this.readAuthorStyleSheets()), ...retained])
-    const entries = createEntries(catalog, graph, sources)
-    const graphUnchanged = graph.digest === this.#graph.digest
-    if (graphUnchanged &&
-      JSON.stringify(catalog.scopes.map(scope => [scope.resolutionError, scope.structurePaths])) ===
-      JSON.stringify(this.#catalog.scopes.map(scope => [scope.resolutionError, scope.structurePaths])) &&
-      JSON.stringify(descriptors) === JSON.stringify(this.#descriptors)) return this.snapshot()
-    this.#descriptors = descriptors
-    this.#commit(entries, catalog, graphUnchanged ? this.#graph : graph)
+  #analysisSession(kind: "contract" | "dependency"): void {
+    if (kind === "contract") this.#contractAnalysisSessions += 1
+    else this.#dependencyAnalysisSessions += 1
+  }
+
+  #runWorker(input: Parameters<typeof runCatalogWorker>[0]) {
+    const pending = runCatalogWorker(input, this.#lifetime.signal, kind => this.#analysisSession(kind))
+    this.#workers.add(pending)
+    void pending.finally(() => this.#workers.delete(pending)).catch(() => {})
+    return pending
+  }
+
+  async #accept(raw: StorybookCatalog, sources: readonly ExternalStorybookAttachSource[]): Promise<ExternalStorybookRegistrySnapshot> {
+    if (this.resolveCatalog === undefined) {
+      const result = await this.#runWorker({kind: "prepare", roots: [], catalog: raw, sources,
+        previous: this.snapshot(), styles: this.readAuthorStyleSheets()})
+      if (result.kind !== "prepared") throw new Error("Catalog worker returned a different operation")
+      return this.#acceptPrepared(result.result)
+    }
+    return this.#acceptPrepared(prepareCatalogSnapshot(raw, sources, this.snapshot(), this.readAuthorStyleSheets()))
+  }
+
+  #acceptPrepared(prepared: CatalogPreparation): ExternalStorybookRegistrySnapshot {
+    this.#lifetime.signal.throwIfAborted()
+    if (prepared.snapshot === null) return this.snapshot()
+    const next = prepared.snapshot
+    if (next.revision !== this.#revision + 1) throw new Error("Catalog changed during preparation")
+    const previous = new Map(this.#descriptors.map(descriptor => [descriptor.packageId, descriptor]))
+    const unchanged = new Set(prepared.unchangedPackageIds)
+    this.#descriptors = Object.freeze(next.descriptors.map(descriptor =>
+      unchanged.has(descriptor.packageId) ? previous.get(descriptor.packageId)! : Object.freeze(descriptor)))
+    const graphUnchanged = next.graph.digest === this.#graph.digest
+    this.#commit(next.entries, next.catalog, graphUnchanged ? this.#graph : next.graph)
     if (!graphUnchanged) this.#graphRebuilds += 1
     return this.snapshot()
+  }
+
+  /** Остановка владельца отменяет только его незавершённые worker. */
+  async dispose(): Promise<void> {
+    this.#lifetime.abort(new DOMException("Catalog stopped", "AbortError"))
+    await Promise.allSettled([...this.#workers])
   }
 
   #dirtyScopeRoots(paths: readonly string[]): string[] {

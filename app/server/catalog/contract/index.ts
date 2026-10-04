@@ -5,9 +5,13 @@ import type {ExternalStorybookAttachSource, ExternalStorybookRegistrySnapshot, E
 
 /** Контракт атомарного каталога подключённых владельцев приложения. */
 export declare namespace AppServerCatalog {
-  /** Источник каталога и читаемые при каждом обновлении стили приложения. Ошибка не заменяет действующий снимок. */
+  /**
+  По умолчанию обнаружение, TypeScript-анализ, граф и описания выполняются в native worker.
+  Явный resolver подставляет локальное исполнение для специализированного источника или проверки.
+  Стили читаются при обновлении; ошибка сохраняет действующий снимок.
+  */
   type Input = readonly [
-    resolveCatalog: (...input: RepoDiscovery.Input) => Promise<RepoDiscovery.Output>,
+    resolveCatalog?: (...input: RepoDiscovery.Input) => Promise<RepoDiscovery.Output>,
     readAuthorStyleSheets?: () => NonNullable<Parameters<PackageRevision.Output["create"]>[3]>,
   ]
 
@@ -28,6 +32,8 @@ export declare namespace AppServerCatalog {
   @property restore - Восстанавливает проверенный снимок и производные данные.
   */
   interface Output {
+    /** Отменяет незавершённую подготовку и освобождает worker. */
+    dispose(): Promise<void>
     snapshot(): ExternalStorybookRegistrySnapshot
     configure(roots: readonly string[]): Promise<ExternalStorybookRegistrySnapshot>
     attach(input: string, attachSource?: ExternalStorybookAttachSource): Promise<ExternalStorybookRegistrySnapshot>

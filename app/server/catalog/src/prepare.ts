@@ -1,0 +1,37 @@
+import createGraph from "@package-graph/create"
+import createDescriptors from "@package-build/descriptor"
+import {createEntries} from "./helpers"
+import type {AppServerCatalog} from "../contract"
+import type {ExternalStorybookAttachSource, ExternalStorybookRegistrySnapshot} from "../contract/models"
+import type {RepoDiscovery} from "@repo/discovery"
+import type {CatalogPreparation} from "./worker-protocol"
+
+/** Граф, ресурсы, сравнения и описания целиком готовятся до атомарного принятия сервером. */
+export function prepareCatalogSnapshot(
+  catalog: RepoDiscovery.Output,
+  sources: readonly ExternalStorybookAttachSource[],
+  previous: ExternalStorybookRegistrySnapshot,
+  styles: ReturnType<NonNullable<AppServerCatalog.Input[1]>>,
+): CatalogPreparation {
+  const graph = createGraph(catalog)
+  const failed = new Set(catalog.scopes.filter(scope => scope.resolutionError !== undefined).map(scope => scope.id))
+  const retained = previous.descriptors.filter(descriptor => failed.has(descriptor.packageId))
+  const retainedIds = new Set(retained.map(descriptor => descriptor.packageId))
+  const include = new Set(catalog.scopes.filter(scope => scope.kind === "package" && !retainedIds.has(scope.id)).map(scope => scope.id))
+  const descriptors = Object.freeze([...createDescriptors(catalog, graph, include, styles), ...retained])
+  const entries = createEntries(catalog, graph, sources)
+  const before = new Map(previous.descriptors.map(descriptor => [descriptor.packageId, descriptor]))
+  const unchangedPackageIds = descriptors.filter(descriptor => {
+    const current = before.get(descriptor.packageId)
+    return current !== undefined && JSON.stringify(current) === JSON.stringify(descriptor)
+  }).map(descriptor => descriptor.packageId)
+  const graphUnchanged = graph.digest === previous.graph.digest
+  const descriptorsUnchanged = descriptors.length === previous.descriptors.length && unchangedPackageIds.length === descriptors.length &&
+    descriptors.every((descriptor, index) => descriptor.packageId === previous.descriptors[index]!.packageId)
+  if (graphUnchanged && descriptorsUnchanged &&
+    JSON.stringify(catalog.scopes.map(scope => [scope.resolutionError, scope.structurePaths])) ===
+    JSON.stringify(previous.catalog.scopes.map(scope => [scope.resolutionError, scope.structurePaths]))) {
+    return {snapshot: null, unchangedPackageIds}
+  }
+  return {snapshot: {revision: previous.revision + 1, entries, catalog, graph, descriptors}, unchangedPackageIds}
+}

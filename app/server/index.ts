@@ -20,7 +20,6 @@ import PackageGraphReadOwner from "@package-graph/read"
 import storybookRest from "@mcp/rest"
 import McpRestRequestsOwner from "@mcp-rest/requests"
 import AppServerCatalogOwner, {type AppServerCatalog as AppServerCatalogContract} from "@app-server/catalog"
-import RepoDiscoveryOwner from "@repo/discovery"
 import readProject from "@archetypes/project"
 import PackageBuildPrepareOwner from "@package-build/prepare"
 import {type PackageBuildScheduler as PackageBuildSchedulerContract} from "@package-build/scheduler"
@@ -32,7 +31,6 @@ import TechLimitsOwner from "@tech/limits"
 const externalStorybookBrowsePath = PackageGraphReadOwner.browsePath
 const createMcpRequestJournal = McpRestRequestsOwner
 const ExternalStorybookRegistry = AppServerCatalogOwner
-const discoverStorybookPackages = RepoDiscoveryOwner
 const createStorybookPackageRevisionBuilder = PackageBuildPrepareOwner
 const ExternalStorybookSessionManager = AppServerSessionsOwner
 const externalStorybookNode = PackageGraphReadOwner.node
@@ -141,7 +139,7 @@ export default async function startExternalStorybookServer(
   })
   mkdirSync(artifactRoot, {recursive: true, mode: 0o700})
   chmodSync(artifactRoot, 0o700)
-  const registry = new ExternalStorybookRegistry(options.resolveCatalog ?? discoverStorybookPackages, () => web.readStyleSheets())
+  const registry = new ExternalStorybookRegistry(options.resolveCatalog, () => web.readStyleSheets())
   options.onStartupPhase?.("catalog")
   let project = await readProject({path: options.project})
   const clients = new Set<Bun.ServerWebSocket<WebSocketData>>()
@@ -193,6 +191,7 @@ export default async function startExternalStorybookServer(
     await registry.configure(project.repositories.map(repository => repository.root))
     options.onStartupPhase?.("sessions")
   } catch (error) {
+    await registry.dispose()
     await web.dispose()
     browserSessions.dispose()
     eventHub.close()
@@ -1246,7 +1245,7 @@ export default async function startExternalStorybookServer(
     },
     })
   } catch (error) {
-    await Promise.allSettled([chat.dispose(), runScenario.dispose(), web.dispose()])
+    await Promise.allSettled([registry.dispose(), chat.dispose(), runScenario.dispose(), web.dispose()])
     await sessions.dispose().catch(() => {})
     unsubscribeBuildProgress()
     browserSessions.dispose()
@@ -1271,7 +1270,7 @@ export default async function startExternalStorybookServer(
     serverRecordCreated = true
     options.onStartupPhase?.("ready")
   } catch (error) {
-    await Promise.allSettled([chat.dispose(), runScenario.dispose(), web.dispose()])
+    await Promise.allSettled([registry.dispose(), chat.dispose(), runScenario.dispose(), web.dispose()])
     await sessions.dispose().catch(() => {})
     unsubscribeBuildProgress()
     browserSessions.dispose()
@@ -1286,6 +1285,7 @@ export default async function startExternalStorybookServer(
   const close = (): Promise<void> => {
     if (closePromise !== null) return closePromise
     closePromise = (async () => {
+      await registry.dispose()
       let chatFailure: unknown
       try { await chat.dispose() } catch (error) { chatFailure = error }
       await runScenario.dispose()
