@@ -4,17 +4,17 @@ import {resolve} from "node:path"
 import readScenario from "@zavx0z/storybook-specs-scenarios-reader"
 
 describe.each([
-  {name: "Суффикс родителя", props: {name: "number-field", ancestors: ["repo", "field"]}, repeated: ["field"]},
-  {name: "Префикс родителя", props: {name: "field-group", ancestors: ["repo", "field"]}, repeated: ["field"]},
-  {name: "Дальний предок", props: {name: "normalize-collection-items", ancestors: ["repo", "collection", "model"]}, repeated: ["collection"]},
-  {name: "Корень Repo", props: {name: "repo-reader", ancestors: ["repo", "package"]}, repeated: ["repo"]},
-  {name: "Несколько предков", props: {name: "normalize-number-value", ancestors: ["repo", "number", "value"]}, repeated: ["number", "value"]},
-  {name: "PascalCase", props: {name: "NumberField", ancestors: ["repo", "field"]}, repeated: ["field"]},
-  {name: "Составное имя", props: {name: "parse-json-patch", ancestors: ["repo", "json-patch"]}, repeated: ["json-patch"]},
-  {name: "Часть слова", props: {name: "transport", ancestors: ["repo", "port"]}, repeated: []},
-  {name: "Часть составного предка", props: {name: "patch", ancestors: ["repo", "json-patch"]}, repeated: []},
-  {name: "Без повтора", props: {name: "normalize-items", ancestors: ["repo", "collection", "model"]}, repeated: []},
-  {name: "Сам Repo", props: {name: "repo", ancestors: []}, repeated: []},
+  {name: "Суффикс родителя", props: {name: "number-field", ancestors: ["repo", "field"], siblings: []}, repeated: ["field"]},
+  {name: "Префикс родителя", props: {name: "field-group", ancestors: ["repo", "field"], siblings: []}, repeated: ["field"]},
+  {name: "Дальний предок", props: {name: "normalize-collection-items", ancestors: ["repo", "collection", "model"], siblings: []}, repeated: ["collection"]},
+  {name: "Корень Repo", props: {name: "repo-reader", ancestors: ["repo", "package"], siblings: []}, repeated: ["repo"]},
+  {name: "Несколько предков", props: {name: "normalize-number-value", ancestors: ["repo", "number", "value"], siblings: []}, repeated: ["number", "value"]},
+  {name: "PascalCase", props: {name: "NumberField", ancestors: ["repo", "field"], siblings: []}, repeated: ["field"]},
+  {name: "Составное имя", props: {name: "parse-json-patch", ancestors: ["repo", "json-patch"], siblings: []}, repeated: ["json-patch"]},
+  {name: "Часть слова", props: {name: "transport", ancestors: ["repo", "port"], siblings: []}, repeated: []},
+  {name: "Часть составного предка", props: {name: "patch", ancestors: ["repo", "json-patch"], siblings: []}, repeated: []},
+  {name: "Без повтора", props: {name: "normalize-items", ancestors: ["repo", "collection", "model"], siblings: []}, repeated: []},
+  {name: "Сам Repo", props: {name: "repo", ancestors: [], siblings: []}, repeated: []},
 ])("$name", ({props, repeated}) => {
   test("Результат вложенного запуска", async () => {
     const report = await readScenario({

@@ -8,9 +8,11 @@ props.path позволяет применить те же проверки к �
 @packageDocumentation
 */
 import {describe, expect, test} from "bun:test"
+import {lstat, readdir} from "node:fs/promises"
 import {basename, dirname, relative, resolve, sep} from "node:path"
 import readPackage from "@zavx0z/storybook-package-reader"
 import readPackageJson from "@zavx0z/storybook-package-package-json"
+import readIgnored from "@zavx0z/storybook-package-route-ignored"
 import readContract from "@zavx0z/storybook-contracts"
 import readDomain from "@zavx0z/storybook-domain"
 import readScenario from "@zavx0z/storybook-specs-scenarios-reader"
@@ -62,6 +64,28 @@ describe.each([
   const packageLocalName = packageSegments.at(-1)!
   const ownPackageName = packageLocalName.startsWith(inheritedPrefix)
     ? packageLocalName.slice(inheritedPrefix.length) : packageLocalName
+  const siblingPaths = repositoryRoot === null || repo ? []
+    : (await readdir(dirname(result.root), {withFileTypes: true}))
+      .filter(entry => entry.isDirectory() && !entry.name.startsWith(".")
+        && entry.name !== "node_modules" && entry.name !== basename(result.root))
+      .map(entry => resolve(dirname(result.root), entry.name)).sort()
+  const ignoredSiblings = repositoryRoot === null ? [] : (await readIgnored({
+    root: repositoryRoot, repository: repositoryRoot, paths: siblingPaths,
+  })).ignored
+  const visibleSiblings = siblingPaths.filter(path => !ignoredSiblings.includes(path))
+  const directorySiblings = visibleSiblings.map(path => basename(path))
+  const packageSiblings: string[] = []
+  for (const path of visibleSiblings) {
+    const manifest = resolve(path, "package.json")
+    const file = await lstat(manifest).catch(error => {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null
+      throw error
+    })
+    if (!file?.isFile() || file.isSymbolicLink()) continue
+    const sibling = await readPackageJson({path: manifest})
+    const local = sibling.name.split("/").at(-1)!
+    packageSiblings.push(local.startsWith(inheritedPrefix) ? local.slice(inheritedPrefix.length) : local)
+  }
 
   describe("Назначение", () => {
     test("Идентичность", () => {
@@ -146,13 +170,13 @@ describe.each([
   /** @remarks Полную цепочку предков можно проверить только при известной границе Repo. */
   describe.skipIf(repositoryRoot === null)("Именование", () => {
     test.each([
-      {label: "Имя директории", name: basename(result.root), ancestors: directoryAncestors},
-      {label: "Имя пакета", name: ownPackageName, ancestors: packageParents},
-    ])("$label", async ({name, ancestors}) => {
+      {label: "Имя директории", name: basename(result.root), ancestors: directoryAncestors, siblings: directorySiblings},
+      {label: "Имя пакета", name: ownPackageName, ancestors: packageParents, siblings: packageSiblings},
+    ])("$label", async ({name, ancestors, siblings}) => {
       const report = await readScenario({
         path: resolve(import.meta.dir, "../../name/spec/scenario.spec.ts"),
         variant: 0,
-        props: {name, ancestors},
+        props: {name, ancestors, siblings},
       })
       expect(report.exitCode, `Сценарий Name проверяет фактическое имя и предков до Repo: ${report.stderr}`).toBe(0)
       expect(report.tests.filter(point => ["failed", "error", "not-executed"].includes(point.status)),

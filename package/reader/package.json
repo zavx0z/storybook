@@ -20,6 +20,7 @@
     "@zavx0z/storybook-package-package-json": "workspace:*"
   },
   "devDependencies": {
+    "@zavx0z/storybook-package-route-ignored": "workspace:*",
     "@zavx0z/storybook-package-name": "workspace:*",
     "@zavx0z/storybook-contracts": "workspace:*",
     "@zavx0z/storybook-domain": "workspace:*",

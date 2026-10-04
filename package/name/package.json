@@ -1,7 +1,7 @@
 {
   "name": "@zavx0z/storybook-package-name",
   "label": "Имя",
-  "description": "Протокол и сценарий проверки собственного имени относительно предков до уровня Repo",
+  "description": "Протокол и сценарий проверки собственного имени относительно предков до Repo и соседей",
   "version": "0.0.0",
   "private": true,
   "type": "module",
