@@ -1,4 +1,4 @@
-import type {ScenarioExecution, ScenarioPreview, TraceValue} from "./types"
+import type {ScenarioExecution, StorybookAppWebPagePackageScenarioPreview, TraceValue} from "./types"
 
 /** Значение можно напечатать как literal без подмены специальных меток объектами. */
 export function isPortable(value: TraceValue): boolean {
@@ -10,7 +10,7 @@ export function isPortable(value: TraceValue): boolean {
 }
 
 /** Собирает пункты выбранного варианта с путём вложенных групп и исходными описаниями. */
-export function previewPoints(execution: ScenarioExecution, variantId: number): ScenarioPreview["variants"][number]["points"] {
+export function previewPoints(execution: ScenarioExecution, variantId: number): StorybookAppWebPagePackageScenarioPreview["variants"][number]["points"] {
   return execution.tests.flatMap(test => {
     const labels = [test.label]
     let current = test.groupId

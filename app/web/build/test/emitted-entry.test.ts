@@ -2,7 +2,7 @@ import {afterEach, expect, test} from "bun:test"
 import {mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join, normalize, resolve, sep} from "node:path"
-import Artifacts from "@build/artifacts"
+import Artifacts from "@storybook-tech-build/artifacts"
 const {emittedEntry} = Artifacts
 import {sources} from "../src/sources"
 
@@ -68,7 +68,7 @@ test("browser page entry предоставляет единственный def
     plugins: [{
       name: "page-entry-test-double",
       setup(build) {
-        build.onResolve({filter: /^@web\/page$/u}, () => ({path: "@web/page", namespace: "page-entry-test"}))
+        build.onResolve({filter: /^@web\/page$/u}, () => ({path: "@storybook-app-web/page", namespace: "page-entry-test"}))
         build.onLoad({filter: /.*/u, namespace: "page-entry-test"}, () => ({
           contents: "const start = () => 'page-ready'\nexport default start",
           loader: "js",

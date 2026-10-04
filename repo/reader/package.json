@@ -1,5 +1,5 @@
 {
-  "name": "@archetypes/repo",
+  "name": "@storybook-repo/reader",
   "label": "Репозиторий",
   "version": "0.0.0",
   "private": true,
@@ -9,7 +9,7 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@archetypes/package": "workspace:*"
+    "@storybook-package/reader": "workspace:*"
   },
   "devDependencies": {}
 }

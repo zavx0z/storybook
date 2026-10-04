@@ -2,7 +2,7 @@ import {afterEach, describe, expect, test} from "bun:test"
 import {mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import discoverStorybookPackages from "@repo/discovery"
+import discoverStorybookPackages from "@storybook-repo/discovery"
 
 const roots: string[] = []
 const fixtureRoot = join(import.meta.dir, "../fixtures/valid")

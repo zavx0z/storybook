@@ -1,19 +1,19 @@
-import createWeb from "@app/web"
+import createWeb from "@storybook-app/web"
 import {createProjectFixture} from "../test/project.fixture"
 /** Отдельный loopback instance публикует identity и состояние пустого каталога. */
 import {afterAll, describe, expect, test} from "bun:test"
 import {mkdtempSync, rmSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import startExternalStorybookServer from "@app/server"
-import createStorybookBrowserLifecycle, {type Zavx0zStorybookBrowserLifecycle} from "@zavx0z/storybook-browser-lifecycle"
+import startExternalStorybookServer from "@storybook-app/server"
+import createStorybookBrowserLifecycle, {type StorybookAppServerBrowser} from "@storybook-app-server/browser"
 
 describe.each([
   {name: "Проверка доступности", props: {path: "/api/health"}},
   {name: "Состояние каталога", props: {path: "/api/status"}},
 ])("$name", async ({props}) => {
   const root = mkdtempSync(join(tmpdir(), "storybook-server-scenario-"))
-  const chrome = {targets: async () => []} as unknown as NonNullable<Zavx0zStorybookBrowserLifecycle.Input["chrome"]>
+  const chrome = {targets: async () => []} as unknown as NonNullable<StorybookAppServerBrowser.Input["chrome"]>
   const browserLifecycle = createStorybookBrowserLifecycle({
     chrome,
     stateRoot: join(root, "browser"),

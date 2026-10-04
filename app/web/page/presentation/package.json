@@ -1,5 +1,5 @@
 {
-  "name": "@web/presentation",
+  "name": "@storybook-app-web-page/presentation",
   "label": "Представление компонента",
   "version": "0.0.0",
   "private": true,
@@ -9,8 +9,8 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@zavx0z/component": "^0.0.0",
-    "@zavx0z/dom": "^0.0.0",
-    "@zavx0z/template": "^0.0.0"
+    "@immersive/component": "^0.0.0",
+    "@immersive/dom": "^0.0.0",
+    "@immersive/template": "^0.0.0"
   }
 }

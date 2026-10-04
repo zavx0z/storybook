@@ -1,5 +1,5 @@
 {
-  "name": "@package/resources",
+  "name": "@storybook-package/resources",
   "label": "Ресурсы пакета",
   "version": "0.0.0",
   "private": true,
@@ -11,7 +11,7 @@
     "@immersive/markdown": "^0.0.0"
   },
   "devDependencies": {
-    "@archetypes/package-documentation": "workspace:*"
+    "@storybook-package/documentation": "workspace:*"
   },
   "description": "Разрешает исходник документации и явно связанные локальные ресурсы в границах владельца"
 }

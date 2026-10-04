@@ -3,21 +3,21 @@
 
 @packageDocumentation
 */
-import address from "@route/address"
-import readRouteDirectories from "@route/directories"
-import readRouteIgnored from "@route/ignored"
-import structure, {type RouteStructure} from "@route/structure"
-import readPackageJson from "@archetypes/package-json"
-import readPackageIndex from "@archetypes/package-index"
-import readContract from "@archetypes/contracts"
+import address from "@storybook-package-route/address"
+import readRouteDirectories from "@storybook-package-route/directories"
+import readRouteIgnored from "@storybook-package-route/ignored"
+import structure, {type StorybookPackageRouteStructure} from "@storybook-package-route/structure"
+import readPackageJson from "@storybook-package/package-json"
+import readPackageIndex from "@storybook-package/index"
+import readContract from "@storybook/contracts"
 import {join, resolve} from "node:path"
-import type {RouteResolve} from "./contract"
+import type {StorybookPackageRouteResolve} from "./contract"
 
-export type {RouteResolve} from "./contract"
+export type {StorybookPackageRouteResolve} from "./contract"
 
 const {parseRoute, isRouteRootName} = address
 const {readPackageManifest, readRootPath, enterWorkspace, readAvailableViews} = structure
-type RoutePosition = NonNullable<Awaited<ReturnType<RouteStructure.Output["enterWorkspace"]>>>
+type RoutePosition = NonNullable<Awaited<ReturnType<StorybookPackageRouteStructure.Output["enterWorkspace"]>>>
 
 /**
 Разрешает только одну указанную ветку через `workspaces` и видимые директории.
@@ -26,7 +26,7 @@ type RoutePosition = NonNullable<Awaited<ReturnType<RouteStructure.Output["enter
 @param input - Пользовательский адрес и зарегистрированные корни.
 @returns Канонический узел с физическим владельцем либо `null`.
 */
-export default async function resolveRoute({route, roots}: RouteResolve.Input): Promise<RouteResolve.Output> {
+export default async function resolveRoute({route, roots}: StorybookPackageRouteResolve.Input): Promise<StorybookPackageRouteResolve.Output> {
   const parsed = parseRoute(route)
   if (parsed === null || parsed.segments.length === 0) return null
 
@@ -53,7 +53,7 @@ export default async function resolveRoute({route, roots}: RouteResolve.Input): 
     moduleOwner: true,
     stopsTraversal: false,
   }
-  let view: NonNullable<RouteResolve.Output>["view"] = "overview"
+  let view: NonNullable<StorybookPackageRouteResolve.Output>["view"] = "overview"
   let entryPath: string | undefined
 
   for (let index = 0; index < segments.length; index += 1) {
@@ -116,7 +116,7 @@ export default async function resolveRoute({route, roots}: RouteResolve.Input): 
   ).catch(() => null) : await readContract({path: position.packagePath}).then(contract =>
     contract.entries.some(entry => entry.path === entryPath && entry.namespaces.length > 0) ? ["contract" as const] : []).catch(() => null)
   if (availableViews === null) return null
-  const views: NonNullable<RouteResolve.Output>["views"] = availableViews
+  const views: NonNullable<StorybookPackageRouteResolve.Output>["views"] = availableViews
   if (parsed.view !== undefined) {
     if (!views.includes(parsed.view)) return null
     view = parsed.view

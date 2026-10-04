@@ -1,6 +1,6 @@
 import StorybookAppOwner from "@storybook/app"
 const createExternalStorybookController = StorybookAppOwner
-import ServerState from "@app-server/state"
+import ServerState from "@storybook-app-server/state"
 const {createExternalStorybookServerRecord, externalStorybookServerStatePath, writeExternalStorybookServerRecord} = ServerState
 import {expect, spyOn, test} from "bun:test"
 import {createLazyStartupFixture} from "./fixtures/lazy-startup"

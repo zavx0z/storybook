@@ -1,7 +1,7 @@
 /** Публичный владелец stdio создаёт и закрывает ровно одно соединение, освобождая свои обработчики. */
 import {describe, expect, test} from "bun:test"
 import {McpServer} from "@modelcontextprotocol/server"
-import serve from "@mcp/stdio"
+import serve from "@storybook-tech-mcp/stdio"
 
 describe.each([
   {name: "Первое соединение", props: {diagnosticLabel: "stdio-one"}},

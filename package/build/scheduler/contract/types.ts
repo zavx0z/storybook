@@ -1,7 +1,7 @@
-import type {ProcessMeasure} from "@process/measure"
-import type ProcessResourceSampler from "@process/sample"
+import type {StorybookTechProcessMeasure} from "@storybook-tech-process/measure"
+import type ProcessResourceSampler from "@storybook-tech-process/sample"
 
-type StorybookBuildWorkerBinding = ProcessMeasure.Input["binding"]
+type StorybookBuildWorkerBinding = StorybookTechProcessMeasure.Input["binding"]
 type StorybookResourceSampler = Pick<InstanceType<typeof ProcessResourceSampler>, "sample">
 
 export type StorybookBuildOwner = "open" | "check" | "subscribe" | "startup-validation" | "shared"

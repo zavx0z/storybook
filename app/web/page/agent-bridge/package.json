@@ -1,5 +1,5 @@
 {
-  "name": "@web/agent-bridge",
+  "name": "@storybook-app-web-page/agent-bridge",
   "label": "Интерфейс агента страницы",
   "version": "0.0.0",
   "private": true,
@@ -9,13 +9,13 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@app-web/protocol": "workspace:*",
-    "@zavx0z/browser": "^0.0.0",
-    "@zavx0z/devtools": "^0.0.0",
-    "@zavx0z/dom": "^0.0.0"
+    "@storybook-app-web/protocol": "workspace:*",
+    "@immersive/browser": "^0.0.0",
+    "@immersive/devtool": "^0.0.0",
+    "@immersive/dom": "^0.0.0"
   },
   "devDependencies": {
-    "@renderer/html": "^0.0.0",
-    "@zavx0z/space": "^0.0.0"
+    "@immersive-renderer/html": "^0.0.0",
+    "@immersive/space": "^0.0.0"
   }
 }

@@ -2,7 +2,7 @@ import type {StorybookPackageCompilerInputs} from "./models"
 import type {StorybookPackageOwner} from "./owner"
 
 /** Публичные возможности физического разрешения и компиляции одного графа исходников. */
-export declare namespace BuildCompiler {
+export declare namespace StorybookTechBuildCompiler {
   /**
   Точные границы подготовки compiler plugins.
 

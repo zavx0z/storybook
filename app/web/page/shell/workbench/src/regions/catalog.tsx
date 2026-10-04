@@ -1,8 +1,8 @@
-import CatalogPanel, {type WebCatalog} from "@web/catalog"
-type CatalogPanelProps = WebCatalog.Input & Readonly<{hidden?: boolean}>
+import CatalogPanel, {type StorybookAppWebPageShellWorkbenchCatalog} from "@storybook-app-web-page-shell-workbench/catalog"
+type CatalogPanelProps = StorybookAppWebPageShellWorkbenchCatalog.Input & Readonly<{hidden?: boolean}>
 import {WorkbenchRegionPanel} from "../components/region-panel.tsx"
 
-/** Вкладка дерева Inspector сохраняет навигацию при переключении секций. */
+/** Ветка текущего адреса в Inspector: раскрытие без навигации и фильтра Minimap. */
 export function CatalogRegion(props: CatalogPanelProps) {
   return <nav
     data-storybook-region="catalog"
@@ -24,12 +24,11 @@ export function CatalogRegion(props: CatalogPanelProps) {
       <CatalogPanel
         label={props.label}
         showSearch={false}
-        search={props.search}
+        search=""
         items={props.items}
         activeId={props.activeId}
-        management={props.management}
+        management={null}
         onAction={props.onAction}
-        onNavigate={props.onNavigate}
         onSearch={props.onSearch}
         onGroupToggle={props.onGroupToggle}
         navigationExpansion={props.navigationExpansion}

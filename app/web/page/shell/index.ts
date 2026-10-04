@@ -8,37 +8,37 @@
 
 @packageDocumentation
 */
-import WebProtocol from "@app-web/protocol"
+import WebProtocol from "@storybook-app-web/protocol"
 import {createViewPointPersistence} from "./src/viewpoint-persistence.ts"
-import createViewPointControls from "@web/viewpoint-controls"
-import {DisplayElement} from "@zavx0z/dom/display"
+import createViewPointControls from "@storybook-app-web-page-shell/viewpoint-controls"
+import {DisplayElement} from "@immersive/dom/display"
 import {createMcpAddressSource} from "./src/mcp-address.ts"
 import {createWebRebuildAction} from "./src/web-rebuild.ts"
 import {createMinimapPersistence} from "./src/minimap-persistence.ts"
 import {createMcpWindowPersistence} from "./src/mcp-window-persistence.ts"
 import {createNavigationExpansion} from "./src/navigation-persistence.ts"
-import {createRoot as createBrowserRoot, type Presentation as Root, type RootProjection} from "@zavx0z/browser/integration"
-import {loadDocumentDefaultFont} from "@zavx0z/engine/default-font"
+import {createRoot as createBrowserRoot, type Presentation as Root, type RootProjection} from "@immersive/browser/integration"
+import {loadDocumentDefaultFont} from "@immersive/engine/default-font"
 import {StorybookApp} from "./src/application.tsx"
 import type {StorybookAppProps} from "./src/application-props"
-import {component} from "@zavx0z/component"
-import type {CompiledTemplate} from "@zavx0z/template/compiled"
-import {HTMLElement as SemanticHTMLElement, type Node as SemanticNode} from "@zavx0z/dom"
-import {HUDElement} from "@zavx0z/dom/hud"
-import type {WebWorkbench} from "@web/workbench"
-type Workbench = WebWorkbench.Output
+import {component} from "@immersive/component"
+import type {CompiledTemplate} from "@immersive/template/compiled"
+import {HTMLElement as SemanticHTMLElement, type Node as SemanticNode} from "@immersive/dom"
+import {HUDElement} from "@immersive/dom/hud"
+import type {StorybookAppWebPageShellWorkbench} from "@storybook-app-web-page-shell/workbench"
+type Workbench = StorybookAppWebPageShellWorkbench.Output
 
 import {renderStorybookMarkdown, type StorybookMarkdownPresentation} from "./src/markdown.ts"
 import {createStorybookMessagePresentation} from "./src/message-presentation.ts"
 import type {StorybookOverviewAction} from "./contract/overview-action.ts"
 import type {StorybookPreviewBounds, StorybookSpacePreview, StorybookSpacePreviewRegistration} from "./contract/preview.ts"
-import type {PageShell} from "./contract"
-type CreateExternalStorybookShellOptions = PageShell.Input
-type ExternalStorybookShell = PageShell.Output
+import type {StorybookAppWebPageShell} from "./contract"
+type CreateExternalStorybookShellOptions = StorybookAppWebPageShell.Input
+type ExternalStorybookShell = StorybookAppWebPageShell.Output
 import type {ExternalStorybookNativeKey} from "./contract/types"
 import type {StorybookComponentPresentation, BoundStorybookSpacePreview} from "./src/types"
 import {EXTERNAL_STORYBOOK_CANVAS_ID, EXTERNAL_STORYBOOK_DISPLAY_ID, EXTERNAL_STORYBOOK_WORKBENCH_ID, spaceViewPointSnapshot, canvasPixelRatio, readViewPointSnapshot, writeViewPointSnapshot, ensureCanvas, sameBounds, assertActive, markShellPhase} from './src/implementation'
-export type {PageShell} from './contract'
+export type {StorybookAppWebPageShell} from './contract'
 
 /** Подключает авторский Workbench App и связывает его проекции с навигацией Storybook. */
 async function createExternalStorybookShell(
@@ -409,7 +409,7 @@ async function createExternalStorybookShell(
   ): void => {
     assertActive(disposed)
     if (!(target instanceof SemanticHTMLElement)) {
-      throw new TypeError("Storybook native key target must be an @zavx0z/dom HTMLElement")
+      throw new TypeError("Storybook native key target must be an @immersive/dom HTMLElement")
     }
     const projection = projectionFor(target)
     if (projection.kind === "space") {
@@ -428,7 +428,7 @@ async function createExternalStorybookShell(
   const dispatchNativeText = (target: SemanticHTMLElement, text: string): void => {
     assertActive(disposed)
     if (!(target instanceof SemanticHTMLElement)) {
-      throw new TypeError("Storybook native text target must be an @zavx0z/dom HTMLElement")
+      throw new TypeError("Storybook native text target must be an @immersive/dom HTMLElement")
     }
     const projection = projectionFor(target)
     if (projection.kind === "space") throw new Error("Storybook native text target has no Display or HUD projection")

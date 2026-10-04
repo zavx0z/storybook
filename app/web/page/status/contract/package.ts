@@ -1,4 +1,4 @@
-import type {PackageSession} from "@package/session"
+import type {StorybookPackageSession} from "@storybook-package/session"
 
-/** Состояние исполнения, опубликованное владельцем PackageSession. */
-export type PackageBuildState = ReturnType<PackageSession.Output["snapshot"]>["buildState"]
+/** Состояние исполнения, опубликованное владельцем StorybookPackageSession. */
+export type PackageBuildState = ReturnType<StorybookPackageSession.Output["snapshot"]>["buildState"]

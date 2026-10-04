@@ -1,5 +1,5 @@
 {
-  "name": "@web/page-target",
+  "name": "@storybook-app-web-page/target",
   "label": "Цель страницы",
   "version": "0.0.0",
   "private": true,

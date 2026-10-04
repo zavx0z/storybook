@@ -1,4 +1,4 @@
-import type {ArchetypesScenarioValidation} from "@archetypes/scenario-validation"
+import type {StorybookSpecsScenariosReaderValidation} from "@storybook-specs-scenarios-reader/validation"
 
 /**
 Значение в переносимом снимке данных.
@@ -198,7 +198,7 @@ interface FunctionScenarioPreview {
 функция или конструктор показываются по сохранённым исходам вызовов.
 Поле `kind` различает {@link ComponentScenarioPreview} и {@link FunctionScenarioPreview}.
 */
-type ScenarioPreview = ComponentScenarioPreview | FunctionScenarioPreview
+type StorybookAppWebPagePackageScenarioPreview = ComponentScenarioPreview | FunctionScenarioPreview
 
 /**
 Фактически достигнутая проверка `expect`, её данные и исход.
@@ -391,7 +391,7 @@ interface ScenarioSource {
   }[]
 }
 
-export declare namespace ArchetypesScenarioReader {
+export declare namespace StorybookSpecsScenariosReader {
   /**
   Условия чтения и выполнения сценария средствами Bun Test.
 
@@ -467,10 +467,10 @@ export declare namespace ArchetypesScenarioReader {
 
   @property source - Структура и фрагменты выполненного исходника {@link ScenarioSource}.
 
-  @property validation - Результат проверки правил {@link ArchetypesScenarioValidation.Output};
+  @property validation - Результат проверки правил {@link StorybookSpecsScenariosReaderValidation.Output};
   нереализованные проверки обозначены явно.
 
-  @property [preview] - Представление {@link ScenarioPreview}: компонент с общей тестовой
+  @property [preview] - Представление {@link StorybookAppWebPagePackageScenarioPreview}: компонент с общей тестовой
   заготовкой либо снимки прямых вызовов функции или конструктора default-класса.
   Серверный код не передаётся в браузер для повторного выполнения.
   */
@@ -485,7 +485,7 @@ export declare namespace ArchetypesScenarioReader {
     readonly tests: readonly ScenarioTest[]
     readonly junit: string
     readonly source: ScenarioSource
-    readonly validation: ArchetypesScenarioValidation.Output
-    readonly preview?: ScenarioPreview
+    readonly validation: StorybookSpecsScenariosReaderValidation.Output
+    readonly preview?: StorybookAppWebPagePackageScenarioPreview
   }
 }

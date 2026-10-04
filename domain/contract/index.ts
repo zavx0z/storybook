@@ -1,7 +1,7 @@
-import type {ArchetypesPackage} from "@archetypes/package"
-import type {ArchetypesContracts} from "@archetypes/contracts"
+import type {StorybookPackageReader} from "@storybook-package/reader"
+import type {StorybookContracts} from "@storybook/contracts"
 
-export declare namespace ArchetypesDomain {
+export declare namespace StorybookDomain {
   /**
   Директория проверяемого пакета; класс не передаётся вызывающим кодом.
 
@@ -20,9 +20,9 @@ export declare namespace ArchetypesDomain {
   @property scenarios - Непосредственные сценарии предметных правил и средовых реализаций.
   */
   export interface Output {
-    readonly package: ArchetypesPackage.Output
-    readonly protocols: ArchetypesContracts.Output
-    readonly sharedDefinitions: readonly ArchetypesContracts.Output["entries"][number]["namespaces"][number]["roles"][number]["dependencies"][number][]
+    readonly package: StorybookPackageReader.Output
+    readonly protocols: StorybookContracts.Output
+    readonly sharedDefinitions: readonly StorybookContracts.Output["entries"][number]["namespaces"][number]["roles"][number]["dependencies"][number][]
     readonly scenarios: readonly string[]
   }
 }

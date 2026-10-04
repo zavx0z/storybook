@@ -1,5 +1,5 @@
 {
-  "name": "@package-build/loader",
+  "name": "@storybook-package-build/loader",
   "label": "Загрузчик ревизии",
   "version": "0.0.0",
   "private": true,
@@ -9,9 +9,9 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@zavx0z/component": "^0.0.0",
-    "@zavx0z/template": "^0.0.0",
-    "@archetypes/scenario-reader": "workspace:*",
-    "@package/identity": "workspace:*"
+    "@immersive/component": "^0.0.0",
+    "@immersive/template": "^0.0.0",
+    "@storybook-specs-scenarios/reader": "workspace:*",
+    "@storybook-package/identity": "workspace:*"
   }
 }

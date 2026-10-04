@@ -1,13 +1,13 @@
-import type {WebNavigation} from "@web/navigation"
-type ExternalStorybookPackageTabModel = ReturnType<WebNavigation.Output["deriveExternalStorybookPackageTab"]>
+import type {StorybookAppWebPageNavigation} from "@storybook-app-web-page/navigation"
+type ExternalStorybookPackageTabModel = ReturnType<StorybookAppWebPageNavigation.Output["deriveExternalStorybookPackageTab"]>
 
-import type {PageShell} from "@page/shell"
-type ExternalStorybookShell = PageShell.Output
+import type {StorybookAppWebPageShell} from "@storybook-app-web-page/shell"
+type ExternalStorybookShell = StorybookAppWebPageShell.Output
 
 import type {ExternalStorybookClientSnapshot, StorybookPackageRevisionGraphSnapshot, ExternalStorybookScenarioLoader, ExternalStorybookPackageEnvironment} from "./types"
 
 /** Публичный контракт @page/package. */
-export declare namespace PagePackage {
+export declare namespace StorybookAppWebPagePackage {
   type Input = Readonly<{
     packageId: string
     candidateRevision: string | null

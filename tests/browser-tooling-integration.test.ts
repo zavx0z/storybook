@@ -29,7 +29,7 @@ describe("external Storybook agent tooling", () => {
     expect(lifecycle).not.toContain("activateTarget")
     expect(landing).not.toContain("globalThis.open")
     expect(landing).not.toContain("window.open")
-    expect(manifest.name).toBe("@zavx0z/storybook-browser-lifecycle")
+    expect(manifest.name).toBe("@storybook-app-server/browser")
     expect(manifest.private).toBeTrue()
   })
 

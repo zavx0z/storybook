@@ -1,5 +1,5 @@
 import type {Progress} from "@modelcontextprotocol/client"
-import type {BuildWorker} from "@build/worker"
+import type {StorybookTechBuildWorker} from "@storybook-tech-build/worker"
 
 // Предел тишины native SDK сбрасывается progress; общего срока операции нет.
 export const MCP_IDLE_TIMEOUT_MS = 900_000
@@ -49,7 +49,7 @@ export function requestParams(value: Readonly<Record<string, unknown>>): Record<
 }
 
 /** Ready подтверждает runner; phase переносит только проверенный native progress. */
-export function parseLazyEvent(value: unknown): ReturnType<BuildWorker.Input<LazyJob, LazyProgress>["parseEvent"]> {
+export function parseLazyEvent(value: unknown): ReturnType<StorybookTechBuildWorker.Input<LazyJob, LazyProgress>["parseEvent"]> {
   if (!isRecord(value)) return null
   if (value.kind === "ready" && typeof value.workerId === "string" && Number.isSafeInteger(value.pid)) {
     return {kind: "ready", workerId: value.workerId, pid: Number(value.pid)}

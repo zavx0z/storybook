@@ -5,9 +5,9 @@
 
 @packageDocumentation
 */
-import {isCompiledTemplate} from "@zavx0z/template/compiled"
-import type {ScenarioModel} from "./contract"
-export type {ScenarioModel} from "./contract"
+import {isCompiledTemplate} from "@immersive/template/compiled"
+import type {StorybookAppWebPagePackageScenarioModel} from "./contract"
+export type {StorybookAppWebPagePackageScenarioModel} from "./contract"
 
 /**
 Связывает общий Editor и единственный preview выбором варианта сценария.
@@ -17,14 +17,14 @@ export type {ScenarioModel} from "./contract"
 Предыдущий запрос отсоединяется; поздний ответ не меняет выбранный вариант.
 Монтированием компонента владеет host.
 */
-export default function createScenarioApp(input: ScenarioModel.Input): ScenarioModel.Output {
+export default function createScenarioApp(input: StorybookAppWebPagePackageScenarioModel.Input): StorybookAppWebPagePackageScenarioModel.Output {
   if (input.kind === "component" && !isCompiledTemplate(input.template)) throw new TypeError("Фикстура сценария должна быть compiled template")
   if (input.kind !== "component" && input.kind !== "function") throw new TypeError("Неизвестное представление сценария")
   const first = input.variants[0]
   if (first === undefined) throw new Error("Для просмотра сценария нужен хотя бы один вариант")
-  const byId = new Map<string, ReturnType<ScenarioModel.Output["getSnapshot"]>>(input.variants.map(variant => [variant.id, variant]))
+  const byId = new Map<string, ReturnType<StorybookAppWebPagePackageScenarioModel.Output["getSnapshot"]>>(input.variants.map(variant => [variant.id, variant]))
   if (byId.size !== input.variants.length) throw new Error("Идентификаторы вариантов сценария должны быть уникальны")
-  let selected: ReturnType<ScenarioModel.Output["getSnapshot"]> = first
+  let selected: ReturnType<StorybookAppWebPagePackageScenarioModel.Output["getSnapshot"]> = first
   const listeners = new Set<() => void>()
   let controller: AbortController | undefined
   let disposed = false

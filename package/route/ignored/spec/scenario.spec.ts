@@ -2,7 +2,7 @@ import {afterAll, describe, expect, test} from "bun:test"
 import {mkdtemp, realpath, rm, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import readIgnored from "@route/ignored"
+import readIgnored from "@storybook-package-route/ignored"
 
 describe.each([
   {name: "Без Git-репозитория", props: {git: false}},

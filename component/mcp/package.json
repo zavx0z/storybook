@@ -1,0 +1,14 @@
+{
+  "name": "@storybook-component/mcp",
+  "label": "MCP: Компонент",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Заглушка предметного MCP для Component",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "test": "bun test ./spec"
+  }
+}

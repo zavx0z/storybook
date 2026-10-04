@@ -5,14 +5,14 @@
 
 @packageDocumentation
 */
-import type {WebStatus} from "./contract"
+import type {StorybookAppWebPageStatus} from "./contract"
 import type {BuildProgress, CatalogProgress} from "./contract/progress"
 import type {PackageBuildState} from "./contract/package"
 import {phaseLabels, reasonLabels} from "./src/labels"
 import {validCache} from "./src/cache"
-export type {WebStatus} from "./contract"
+export type {StorybookAppWebPageStatus} from "./contract"
 
-const status: WebStatus.Output = Object.freeze<WebStatus.Output>({
+const status: StorybookAppWebPageStatus.Output = Object.freeze<StorybookAppWebPageStatus.Output>({
   /**
 Проверяет полученный переход очереди перед обновлением информационной панели.
 
@@ -80,13 +80,13 @@ const status: WebStatus.Output = Object.freeze<WebStatus.Output>({
   /**
 Переводит подтверждённые package events в текст существующей StatusBar.
 
-Текст описывает только факт, уже опубликованный PackageSession. Он не выводит
+Текст описывает только факт, уже опубликованный StorybookPackageSession. Он не выводит
 проценты, не называет built revision применённой и не заменяет server startup
 phases, которые browser до подключения не получает.
 
 @param packageId - Exact identity пакета, к которому относится состояние.
 
-@param type - Тип опубликованного события PackageSession.
+@param type - Тип опубликованного события StorybookPackageSession.
 
 @returns Короткое русское описание наблюдаемого этапа.
 */
@@ -103,7 +103,7 @@ phases, которые browser до подключения не получает
   },
 
   /**
-Переводит восстановленный снимок PackageSession в StatusBar text.
+Переводит восстановленный снимок StorybookPackageSession в StatusBar text.
 
 @param packageId - Exact identity пакета из snapshot.
 

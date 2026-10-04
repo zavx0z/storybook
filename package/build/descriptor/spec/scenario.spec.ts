@@ -2,9 +2,9 @@ import {afterAll, describe, expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import discover from "@repo/discovery"
-import createGraph from "@package-graph/create"
-import descriptors from "@package-build/descriptor"
+import discover from "@storybook-repo/discovery"
+import createGraph from "@storybook-package-graph/create"
+import descriptors from "@storybook-package-build/descriptor"
 
 describe.each([
   {name: "Все пакеты каталога", props: {include: true}, count: 1},

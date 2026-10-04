@@ -1,7 +1,7 @@
 import {expect, test} from "bun:test"
 import {Client, InMemoryTransport} from "@modelcontextprotocol/client"
 import createApp from "@storybook/app"
-import State from "@app-server/state"
+import State from "@storybook-app-server/state"
 import {existsSync, writeFileSync} from "node:fs"
 import {join} from "node:path"
 import {createAppMcpServer} from "../src/mcp"

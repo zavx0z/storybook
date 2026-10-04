@@ -1,5 +1,5 @@
 {
-  "name": "@archetypes/container",
+  "name": "@storybook/container",
   "label": "Контейнер",
   "version": "0.0.0",
   "private": true,
@@ -9,9 +9,9 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@archetypes/component": "workspace:*"
+    "@storybook/component": "workspace:*"
   },
   "devDependencies": {
-    "@archetypes/scenario-reader": "workspace:*"
+    "@storybook-specs-scenarios/reader": "workspace:*"
   }
 }

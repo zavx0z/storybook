@@ -6,16 +6,16 @@
 
 @packageDocumentation
 */
-import {useMemo, useState} from "@zavx0z/component"
-import {SelectField} from "@zavx0z/ui"
-import {DiagramNode} from "@nodes/node"
+import {useMemo, useState} from "@immersive/component"
+import {SelectField} from "@immersive-ui/component"
+import {DiagramNode} from "@immersive-nodes/node"
 import {GraphView, type GraphInput, type GraphLayoutComputer, type GraphNodeProps} from "@immersive/nodes/view"
-import {layoutTopDown} from "@nodes/layout/top-down"
+import {layoutTopDown} from "@immersive-nodes/layout/top-down"
 import {createCubicLinkRoute} from "@immersive/nodes/routing/link-path"
 import type {StorybookDependencyCase} from "../contract/documents.ts"
-import type {Document} from "@zavx0z/dom"
-import type {CompiledTemplate} from "@zavx0z/template/compiled"
-import createStorybookComponentPresentation from "@web/presentation"
+import type {Document} from "@immersive/dom"
+import type {CompiledTemplate} from "@immersive/template/compiled"
+import createStorybookComponentPresentation from "@storybook-app-web-page/presentation"
 
 type DependencyLabel = Readonly<{label: string, title: string}>
 

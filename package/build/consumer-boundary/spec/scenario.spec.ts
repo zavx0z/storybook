@@ -2,7 +2,7 @@ import {afterAll, describe, expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import scanConsumerBoundary from "@package-build/consumer-boundary"
+import scanConsumerBoundary from "@storybook-package-build/consumer-boundary"
 
 describe.each([
   {name: "Независимый потребитель", props: {storybookDependency: false}, expected: []},

@@ -1,5 +1,5 @@
-import {CodeEditor} from "@zavx0z/ui"
-import {Typography} from "@zavx0z/ui"
+import {CodeEditor} from "@immersive-ui/component"
+import {Typography} from "@immersive-ui/component"
 
 type SourceDocument = Readonly<{
   key: string

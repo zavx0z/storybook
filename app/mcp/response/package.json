@@ -1,5 +1,5 @@
 {
-  "name": "@app-mcp/response",
+  "name": "@storybook-app-mcp/response",
   "label": "Ответ MCP",
   "version": "0.0.0",
   "private": true,

@@ -1,7 +1,7 @@
 import type {McpServer} from "@modelcontextprotocol/server"
 
 /** Контракт stdio-времени жизни одного MCP-сервера. */
-export declare namespace McpStdio {
+export declare namespace StorybookTechMcpStdio {
   /**
   Подключение подготовленного сервера к stdin/stdout текущего процесса.
 

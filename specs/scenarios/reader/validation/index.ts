@@ -7,9 +7,9 @@
 import {basename, dirname} from "node:path"
 import {generalParticular} from "./src/general-particular"
 import {singleInvocation} from "./src/single-invocation"
-import type {ArchetypesScenarioValidation} from "./contract"
+import type {StorybookSpecsScenariosReaderValidation} from "./contract"
 
-export type {ArchetypesScenarioValidation} from "./contract"
+export type {StorybookSpecsScenariosReaderValidation} from "./contract"
 
 /**
 Применяет правила авторства к структуре и, при наличии, одному завершённому запуску.
@@ -18,10 +18,10 @@ export type {ArchetypesScenarioValidation} from "./contract"
 @param execution - Наблюдения запуска; без них динамические проверки остаются непроверенными.
 @returns Каждый реализованный и ещё непроверенный пункт с честным состоянием.
 */
-export default function validateScenario(source: ArchetypesScenarioValidation.Input["source"], execution?: ArchetypesScenarioValidation.Input["execution"]): ArchetypesScenarioValidation.Output {
-  const checks: ArchetypesScenarioValidation.Output["checks"][number][] = []
+export default function validateScenario(source: StorybookSpecsScenariosReaderValidation.Input["source"], execution?: StorybookSpecsScenariosReaderValidation.Input["execution"]): StorybookSpecsScenariosReaderValidation.Output {
+  const checks: StorybookSpecsScenariosReaderValidation.Output["checks"][number][] = []
   const location = {path: source.path, line: 1, column: 1}
-  const add = (rule: string, issues: ArchetypesScenarioValidation.Output["checks"][number]["issues"]) => {
+  const add = (rule: string, issues: StorybookSpecsScenariosReaderValidation.Output["checks"][number]["issues"]) => {
     checks.push({rule, status: issues.length ? "failed" : "passed", issues})
   }
   const native = source.native.map(name => name === "it" ? "test" : name)

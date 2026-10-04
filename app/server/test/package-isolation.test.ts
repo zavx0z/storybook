@@ -1,8 +1,8 @@
 import {readyBrowser} from "./browser.fixture"
 import {createProjectFixture} from "./project.fixture.ts"
-import createWeb from "@app/web"
-import AppServerCatalogOwner, {type AppServerCatalog as AppServerCatalogContract} from "@app-server/catalog"
-import RepoDiscoveryOwner from "@repo/discovery"
+import createWeb from "@storybook-app/web"
+import AppServerCatalogOwner, {type StorybookAppServerCatalog as AppServerCatalogContract} from "@storybook-app-server/catalog"
+import RepoDiscoveryOwner from "@storybook-repo/discovery"
 const ExternalStorybookRegistry = AppServerCatalogOwner
 const discoverStorybookPackages = RepoDiscoveryOwner
 type ExternalStorybookRegistry = AppServerCatalogContract.Output
@@ -10,7 +10,7 @@ import {expect, test} from "bun:test"
 import {mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {join} from "node:path"
 import {tmpdir} from "node:os"
-import startExternalStorybookServer, {type AppServer} from "../index.ts"
+import startExternalStorybookServer, {type StorybookAppServer} from "../index.ts"
 import {seedPublishedSharedAssets} from "./shared-assets.fixture.ts"
 
 function fixture(broken = false) {
@@ -28,7 +28,7 @@ function fixture(broken = false) {
     options: {project: createProjectFixture(root, [repo]), statePath: join(root, "state/server.json"), artifactRoot: join(root, "artifacts")}}
 }
 
-async function control(server: AppServer.Output, action: string, body: unknown = {}) {
+async function control(server: StorybookAppServer.Output, action: string, body: unknown = {}) {
   const response = await fetch(new URL(`/api/control/${action}`, server.origin), {
     method: "POST", headers: {authorization: `Bearer ${server.record.controlToken}`, "content-type": "application/json"},
     body: JSON.stringify(body),
@@ -66,7 +66,7 @@ test("объявленный недоступный Repo прерывает star
 
 test("a cold invalid child does not prevent startup, landing or checking its sibling", async () => {
   const f = fixture(true)
-  let server: AppServer.Output | undefined
+  let server: StorybookAppServer.Output | undefined
   try {
     seedPublishedSharedAssets(f.options.artifactRoot)
     server = await startExternalStorybookServer({createWeb, ...f.options, browserLifecycle: readyBrowser(() => server!)})
@@ -83,7 +83,7 @@ test("a cold invalid child does not prevent startup, landing or checking its sib
 
 test("a broken package.json preserves the working revision while a sibling updates", async () => {
   const f = fixture()
-  let server: AppServer.Output | undefined
+  let server: StorybookAppServer.Output | undefined
   try {
     seedPublishedSharedAssets(f.options.artifactRoot)
     server = await startExternalStorybookServer({createWeb, ...f.options, browserLifecycle: readyBrowser(() => server!)})

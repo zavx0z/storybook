@@ -1,9 +1,9 @@
-import type {RepoDiscovery} from "@repo/discovery"
-import type {PackageGraphCreate} from "@package-graph/create"
-import type {PackageSession} from "@package/session"
-type StorybookCatalog = RepoDiscovery.Output
-type ExternalStorybookGraph = PackageGraphCreate.Output
-type StorybookPackageBuildDescriptor = PackageSession.Input[0]
+import type {StorybookRepoDiscovery} from "@storybook-repo/discovery"
+import type {StorybookPackageGraphCreate} from "@storybook-package-graph/create"
+import type {StorybookPackageSession} from "@storybook-package/session"
+type StorybookCatalog = StorybookRepoDiscovery.Output
+type ExternalStorybookGraph = StorybookPackageGraphCreate.Output
+type StorybookPackageBuildDescriptor = StorybookPackageSession.Input[0]
 
 export type ExternalStorybookAttachSource = "cli" | "direct-package"
 

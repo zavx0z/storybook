@@ -1,4 +1,4 @@
-import type {ProcessMeasure} from "@process/measure"
+import type {StorybookTechProcessMeasure} from "@storybook-tech-process/measure"
 import type {BuildOutcome, BuildState} from "../contract/operation"
 
 /** Данные принадлежат вызывающему владельцу; очередь не интерпретирует их содержимое. */
@@ -15,7 +15,7 @@ export type BuildContext<Details extends object> = Readonly<{
   startedAt: string
   setPhase(phase: string): void
   setDetails(details: Details): void
-  bindWorker(binding: ProcessMeasure.Input["binding"]): () => void
+  bindWorker(binding: StorybookTechProcessMeasure.Input["binding"]): () => void
   clearWorker(): void
 }>
 

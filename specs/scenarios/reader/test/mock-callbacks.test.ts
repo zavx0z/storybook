@@ -1,11 +1,11 @@
 import {beforeAll, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readScenario, {type ArchetypesScenarioReader} from "@archetypes/scenario-reader"
-import validateScenario from "@archetypes/scenario-validation"
+import readScenario, {type StorybookSpecsScenariosReader} from "@storybook-specs-scenarios/reader"
+import validateScenario from "@storybook-specs-scenarios-reader/validation"
 import {readScenarioSource} from "../src/read-source"
 
 const path = resolve(import.meta.dir, "../spec/fixture/component/spec/scenario.spec.tsx")
-let report: ArchetypesScenarioReader.Output
+let report: StorybookSpecsScenariosReader.Output
 
 beforeAll(async () => {
   report = await readScenario({path})

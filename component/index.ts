@@ -10,15 +10,15 @@ Component владеет конкретной возможностью, публ
 @packageDocumentation
 */
 import {resolve} from "node:path"
-import readPackage from "@archetypes/package"
-import type {ArchetypesComponent} from "./contract"
+import readPackage from "@storybook-package/reader"
+import type {StorybookComponent} from "./contract"
 
-export type {ArchetypesComponent} from "./contract"
+export type {StorybookComponent} from "./contract"
 
 /** Сканирует публичные входы без исполнения и без генерации bundle. */
-export default async function readComponent({path}: ArchetypesComponent.Input): Promise<ArchetypesComponent.Output> {
+export default async function readComponent({path}: StorybookComponent.Input): Promise<StorybookComponent.Output> {
   const description = await readPackage({path})
-  const entries: ArchetypesComponent.Output["entries"][number][] = []
+  const entries: StorybookComponent.Output["entries"][number][] = []
   for (const entry of description.index.entries) {
     if (entry.path !== "." || entry.status !== "owned" || !entry.code || !entry.target) continue
     const source = resolve(description.root, entry.target)

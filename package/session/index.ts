@@ -4,7 +4,7 @@
 
 @packageDocumentation
 */
-import PackageBuildSchedulerOwner, {type PackageBuildScheduler as PackageBuildSchedulerContract} from "@package-build/scheduler"
+import PackageBuildSchedulerOwner, {type StorybookPackageBuildScheduler as PackageBuildSchedulerContract} from "@storybook-package-build/scheduler"
 const StorybookBuildScheduler = PackageBuildSchedulerOwner
 type StorybookBuildScheduler = PackageBuildSchedulerContract.Output
 type StorybookBuildCacheLayer = NonNullable<Parameters<PackageBuildSchedulerContract.Output["run"]>[0]["cache"]>["layer"]
@@ -14,11 +14,11 @@ type StorybookBuildOwner = Parameters<PackageBuildSchedulerContract.Output["run"
 type StorybookBuildReason = Parameters<PackageBuildSchedulerContract.Output["run"]>[0]["reason"]
 type StorybookBuildPhaseListener = NonNullable<Parameters<StorybookPackageRevisionBuilder>[0]["onPhase"]>
 type StorybookBuildWorkerLifecycleListener = NonNullable<Parameters<StorybookPackageRevisionBuilder>[0]["onWorkerLifecycle"]>
-import Standard from "@package/standard"
+import Standard from "@storybook-package/standard"
 import {createHash, randomUUID} from "node:crypto"
 import {existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync} from "node:fs"
 import {isAbsolute, join, relative, resolve} from "node:path"
-import Revision, {type PackageRevision} from "@package/revision"
+import Revision, {type StorybookPackageRevision} from "@storybook-package/revision"
 import type {
   StorybookPackageScenarioSpec,
   StorybookPackageRevisionResourceFile,
@@ -37,9 +37,9 @@ import type {
   StorybookPackageStandard,
   StorybookPackageVerification,
 } from "./contract/types"
-import type {PackageSession} from "./contract"
+import type {StorybookPackageSession as Contract} from "./contract"
 
-export type {PackageSession} from "./contract"
+export type {StorybookPackageSession} from "./contract"
 
 /** Нормализованная причина только текущей очереди с обязательным reason. */
 type NormalizedStorybookPackageBuildDemand = Readonly<{
@@ -54,7 +54,7 @@ type RevisionRecord = {
   status: StorybookPackageRevisionStatus
   declarationDigest: string
   packageRoot: string
-  graphSnapshot: ReturnType<PackageRevision.Output["create"]>
+  graphSnapshot: ReturnType<StorybookPackageRevision.Output["create"]>
   moduleGraphRevision: string
   sharedModuleEpoch?: string
   entryRelativePath: string
@@ -80,7 +80,7 @@ type RunningBuild = Readonly<{generation: number, operationId: string, controlle
 const DEFAULT_RETAINED_REVISION_LIMIT = 3
 
 /** One independently queued, activated and diagnosable package boundary. */
-export default class StorybookPackageSession implements PackageSession.Output {
+export default class StorybookPackageSession implements Contract.Output {
   static readonly revisionUrl = revisionUrl
   static readonly diagnostic = storybookDiagnostic
   static readonly buildError = storybookBuildError
@@ -123,7 +123,7 @@ export default class StorybookPackageSession implements PackageSession.Output {
   #disposed = false
   #disposePromise: Promise<void> | null = null
 
-  constructor(descriptor: PackageSession.Input[0], options: PackageSession.Input[1]) {
+  constructor(descriptor: Contract.Input[0], options: Contract.Input[1]) {
     this.#descriptor = normalizeDescriptor(descriptor)
     this.#artifactRoot = resolve(options.artifactRoot)
     this.#buildRevision = options.buildRevision
@@ -410,7 +410,7 @@ export default class StorybookPackageSession implements PackageSession.Output {
     })
   }
 
-  revisionGraphSnapshot(revision: string): ReturnType<PackageRevision.Output["create"]> | null {
+  revisionGraphSnapshot(revision: string): ReturnType<StorybookPackageRevision.Output["create"]> | null {
     return this.#revisions.get(revision)?.graphSnapshot ?? null
   }
 

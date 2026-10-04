@@ -6,13 +6,13 @@ Workbench остаётся в Display; Tab не создаёт Window, каме�
 
 @packageDocumentation
 */
-import {useState} from "@zavx0z/component"
-import {Tab} from "@zavx0z/ui"
+import {useState} from "@immersive/component"
+import {Tab} from "@immersive-ui/component"
 import {ViewPointActions} from "./src/actions"
-import type {WebViewpointTab} from "./contract"
-export type {WebViewpointTab} from "./contract"
+import type {StorybookAppWebPageShellViewpointTab} from "./contract"
+export type {StorybookAppWebPageShellViewpointTab} from "./contract"
 
-export default function ViewPointTab(props: WebViewpointTab.Input) {
+export default function ViewPointTab(props: StorybookAppWebPageShellViewpointTab.Input) {
   const initialPosition = props.controls.initialPosition
   const [vertical, setVertical] = useState(initialPosition.edge === "left" || initialPosition.edge === "right")
   return <Tab

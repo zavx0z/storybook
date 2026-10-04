@@ -8,13 +8,13 @@
 import {randomUUID} from "node:crypto"
 import {chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {join} from "node:path"
-import waitForOwnedChild from "@process/wait"
+import waitForOwnedChild from "@storybook-tech-process/wait"
 import readWorkerEvents from "./src/read-events"
 import readWorkerResult from "./src/read-result"
 import notifyObserver from "./src/notify"
-import type {BuildWorker} from "./contract"
+import type {StorybookTechBuildWorker} from "./contract"
 
-export type {BuildWorker} from "./contract"
+export type {StorybookTechBuildWorker} from "./contract"
 
 /**
 Запускает worker через текущий Bun с argv: entryPath, input.json, result.json, workerId.
@@ -32,8 +32,8 @@ started публикуется после exact nonce/PID handshake. exited сл
 @throws RangeError при неверном timeoutMs, maxResultBytes или hardKillDelayMs до создания процесса.
 */
 export default async function runBuildWorker<Job, Progress>(
-  input: BuildWorker.Input<Job, Progress>,
-): Promise<BuildWorker.Output> {
+  input: StorybookTechBuildWorker.Input<Job, Progress>,
+): Promise<StorybookTechBuildWorker.Output> {
   if (input.timeoutMs !== undefined && (!Number.isFinite(input.timeoutMs) || input.timeoutMs <= 0)) {
     throw new RangeError(`Build worker timeout must be positive: ${input.timeoutMs}`)
   }

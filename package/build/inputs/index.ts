@@ -2,16 +2,16 @@
 
 @packageDocumentation
 */
-import PackageSessionOwner, {type PackageSession as PackageSessionContract} from "@package/session"
+import PackageSessionOwner, {type StorybookPackageSession as PackageSessionContract} from "@storybook-package/session"
 const storybookBuildError = PackageSessionOwner.buildError
 const storybookDiagnostic = PackageSessionOwner.diagnostic
 type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 import {existsSync, readFileSync, realpathSync} from "node:fs"
 import {dirname, isAbsolute, join, resolve, sep} from "node:path"
-import Compiler from "@build/compiler"
-import type {PackageBuildInputs} from "./contract"
+import Compiler from "@storybook-tech-build/compiler"
+import type {StorybookPackageBuildInputs} from "./contract"
 
-export type {PackageBuildInputs} from "./contract"
+export type {StorybookPackageBuildInputs} from "./contract"
 
 const {canonicalizeStorybookPackageFile, preferredStorybookPackageRoot, readStorybookPackageOwner, sameStorybookPackageOwner} = Compiler
 
@@ -99,7 +99,7 @@ function basename(path: string): string {
 
 
 /** Один набор проверки физических входов пакетной сборки. */
-const inputs: PackageBuildInputs.Output = Object.freeze({
+const inputs: StorybookPackageBuildInputs.Output = Object.freeze({
   canonicalBuildInputs,
   stablePath: stableBuildInputPath,
   validateConsumerBoundary,

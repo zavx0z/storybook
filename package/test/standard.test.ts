@@ -2,7 +2,7 @@ import {afterAll, expect, test} from "bun:test"
 import {cp, mkdir, mkdtemp, realpath, rm, symlink, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {resolve, sep} from "node:path"
-import readScenario from "@archetypes/scenario-reader"
+import readScenario from "@storybook-specs-scenarios/reader"
 
 const scenario = resolve(import.meta.dir, "../reader/spec/scenario.spec.ts")
 const roots: string[] = []

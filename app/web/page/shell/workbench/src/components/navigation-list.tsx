@@ -1,4 +1,4 @@
-import {Button, type UiButtonsButton} from "@zavx0z/ui"
+import {Button, type ImmersiveUiComponentButtonBasic} from "@immersive-ui/component"
 import type {WorkbenchNavigationItem} from "../types.ts"
 
 type WorkbenchNavigationListItemProps = Readonly<{
@@ -14,7 +14,7 @@ export type WorkbenchNavigationListProps = Readonly<{
 }>
 
 function WorkbenchNavigationListItem(props: WorkbenchNavigationListItemProps) {
-  const onClick: NonNullable<UiButtonsButton.Input["onClick"]> = event => {
+  const onClick: NonNullable<ImmersiveUiComponentButtonBasic.Input["onClick"]> = event => {
     if (!props.item.disabled) props.onNavigate(props.item, event.currentTarget)
   }
   return <div

@@ -29,7 +29,7 @@
 - [Пакеты и физическая структура](repo/discovery/index.ts).
 - [Общий граф](package/graph/create/index.ts) и [разрешение структурных адресов](package/route/resolve/index.ts).
 - [Сборка пакета](package/build/prepare/index.ts) и [общей Web-оболочки](app/web/build/README.md).
-- [Вход MCP](app/mcp/rest/root/index.ts), [пакетные переходы](app/mcp/rest/children/index.ts)
+- [MCP проекта](project/mcp/index.ts), [пакетные переходы](app/mcp/rest/children/index.ts)
   и [граница адресации](app/mcp/rest/address/index.ts).
 - [Исполняемые спецификации](specs/README.md).
 - [Читатель Domain](./domain/index.ts) и [читатель Component](./component/index.ts).

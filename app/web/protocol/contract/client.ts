@@ -1,9 +1,9 @@
-import type {PackageGraphCreate} from "@package-graph/create"
-import type {PackageSession} from "@package/session"
+import type {StorybookPackageGraphCreate} from "@storybook-package-graph/create"
+import type {StorybookPackageSession} from "@storybook-package/session"
 
-type GraphNode = PackageGraphCreate.Output["nodes"][number]
+type GraphNode = StorybookPackageGraphCreate.Output["nodes"][number]
 type ExternalStorybookGraphNodeKind = GraphNode["kind"]
-type StorybookPackageSessionSnapshot = ReturnType<PackageSession.Output["snapshot"]>
+type StorybookPackageSessionSnapshot = ReturnType<StorybookPackageSession.Output["snapshot"]>
 type StorybookPackageBuildState = StorybookPackageSessionSnapshot["buildState"]
 type StorybookPackageDiagnostic = StorybookPackageSessionSnapshot["diagnostics"][number]
 type StorybookDependencyCase = NonNullable<GraphNode["dependencySpec"]>["cases"][number]

@@ -1,5 +1,5 @@
 {
-  "name": "@archetypes/scenario-document",
+  "name": "@storybook-specs/document",
   "description": "Собирает документ из отчёта сценария без повторного исполнения",
   "version": "0.0.0",
   "private": true,
@@ -9,6 +9,6 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@archetypes/scenario-reader": "workspace:*"
+    "@storybook-specs-scenarios/reader": "workspace:*"
   }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "@hmr/activation",
+  "name": "@storybook-package/activation",
   "label": "Подтверждение обновления",
   "version": "0.0.0",
   "private": true,

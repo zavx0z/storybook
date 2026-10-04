@@ -1,6 +1,6 @@
-import RepoDiscoveryOwner from "@repo/discovery"
-import PackageGraphCreateOwner from "@package-graph/create"
-import McpRestOwner from "@mcp/rest"
+import RepoDiscoveryOwner from "@storybook-repo/discovery"
+import PackageGraphCreateOwner from "@storybook-package-graph/create"
+import McpRestOwner from "@storybook-app-mcp/rest"
 const discoverStorybookPackages = RepoDiscoveryOwner
 const createExternalStorybookGraph = PackageGraphCreateOwner
 const storybookRest = McpRestOwner
@@ -9,7 +9,7 @@ import {join, resolve} from "node:path"
 import {mkdtemp, mkdir, realpath, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {storybookMcpEntries} from "../src/mcp-entries"
-import resolveRoute from "@route/resolve"
+import resolveRoute from "@storybook-package-route/resolve"
 
 describe("Код владельца через общий каталог", async () => {
   const root = join(import.meta.dir, "../../mcp/rest/spec/fixture/library")
@@ -60,7 +60,7 @@ describe("Код владельца через общий каталог", async
   })
 })
 
-test("namespace Slots проходит через каталог в тот же предметный MCP-ответ", async () => {
+test("namespace Slots сохраняется в каталоге; неподтверждённый пакет ещё не раскрывает предметный контракт", async () => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "storybook-mcp-slots-")))
   try {
     await mkdir(join(root, "contract"))
@@ -88,10 +88,14 @@ test("namespace Slots проходит через каталог в тот же 
     }), {projectName: "Fixture Project", entries})
     expect(response.status).toBe(200)
     const result = await response.json()
-    expect(result.input).toMatchObject({type: "object", properties: {value: {type: "string"}}})
-    expect(result.output).toMatchObject({type: "object", properties: {accepted: {type: "boolean"}}})
-    expect(result.slots, "Слоты принадлежат тому же выбранному владельцу, что Input и Output")
+    expect(selected!.sources?.input?.schema).toMatchObject({type: "object", properties: {value: {type: "string"}}})
+    expect(selected!.sources?.output?.schema).toMatchObject({type: "object", properties: {accepted: {type: "boolean"}}})
+    expect(selected!.sources?.slots?.schema, "Слоты принадлежат тому же выбранному владельцу, что Input и Output")
       .toMatchObject({type: "object", properties: {header: {type: "string"}}})
+    expect(result).toMatchObject({status: "type-unconfirmed", verification: {status: "unknown", reason: "missing-report"}})
+    expect(result).not.toHaveProperty("input")
+    expect(result).not.toHaveProperty("output")
+    expect(result).not.toHaveProperty("slots")
     expect(JSON.stringify(result)).not.toContain(resolve(root))
   } finally {
     await rm(root, {recursive: true, force: true})

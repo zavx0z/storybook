@@ -1,11 +1,11 @@
-import type {BuildEnvironment} from "@build/environment"
-import type {AppWebBuild} from "@app-web/build"
-import type {PackageBuildScheduler} from "@package-build/scheduler"
-import type {PackageSession} from "@package/session"
+import type {StorybookTechBuildEnvironment} from "@storybook-tech-build/environment"
+import type {StorybookAppWebBuild} from "@storybook-app-web/build"
+import type {StorybookPackageBuildScheduler} from "@storybook-package-build/scheduler"
+import type {StorybookPackageSession} from "@storybook-package/session"
 import type {WebAssets, WebEvent, WebFailure, WebHost, WebPreparation, WebState} from "./types"
 
 /** Web соединяет подготовку и выпуск текущего интерфейса приложения. */
-export declare namespace AppWeb {
+export declare namespace StorybookAppWeb {
   /**
   Ресурсы, предоставленные приложением; создание не запускает компиляцию.
 
@@ -30,12 +30,12 @@ export declare namespace AppWeb {
   export type Input = Readonly<{
     toolRoot: string
     artifactRoot: string
-    scheduler(): PackageBuildScheduler.Output
-    revisions(): readonly ReturnType<PackageSession.Output["snapshot"]>[]
+    scheduler(): StorybookPackageBuildScheduler.Output
+    revisions(): readonly ReturnType<StorybookPackageSession.Output["snapshot"]>[]
     publish?(event: WebEvent): void
-    build?: AppWebBuild.Output["runWorker"]
+    build?: StorybookAppWebBuild.Output["runWorker"]
     /** Явная подготовка платформы предоставляется композицией App; rebuild её не вызывает. */
-    preparePlatform?: BuildEnvironment.Output["runWorker"]
+    preparePlatform?: StorybookTechBuildEnvironment.Output["runWorker"]
     landingEntryPath?: string
     fallbackEntryPath?: string
   }>
@@ -76,7 +76,7 @@ export declare namespace AppWeb {
   export type Output = Readonly<{
     artifactRoot: string
     packageEntryPath: string
-    readStyleSheets(): ReturnType<AppWebBuild.Output["readTheme"]>
+    readStyleSheets(): ReturnType<StorybookAppWebBuild.Output["readTheme"]>
     readonly platform: WebAssets["browserIdentity"]
     readonly error: WebFailure | null
     assets(preview?: boolean): WebAssets

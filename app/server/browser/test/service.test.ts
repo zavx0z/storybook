@@ -1,4 +1,4 @@
-import routeUrl from "@route/url"
+import routeUrl from "@storybook-package-route/url"
 import {afterEach, describe, expect, test} from "bun:test"
 import {mkdtempSync, readFileSync, readdirSync, rmSync} from "node:fs"
 import {tmpdir} from "node:os"
@@ -6,10 +6,10 @@ import {join} from "node:path"
 import {PNG} from "pngjs"
 import {StorybookBrowserState} from "../src/browser-state.ts"
 import type {ChromeTargetSummary, StorybookBridgeMethod, StorybookChromeClient, StorybookChromeConsoleEntry} from "../contract/types"
-import createStorybookBrowserLifecycle, {type Zavx0zStorybookBrowserLifecycle} from "../index.ts"
+import createStorybookBrowserLifecycle, {type StorybookAppServerBrowser} from "../index.ts"
 
 const {storybookPackageRouteFromPathname} = routeUrl
-type StorybookBrowserLifecycle = Zavx0zStorybookBrowserLifecycle.Output
+type StorybookBrowserLifecycle = StorybookAppServerBrowser.Output
 
 const roots: string[] = []
 

@@ -24,7 +24,7 @@ Web остаётся общей точкой замены. Неудача Web с
 
 ## Очередь, компиляция и отмена
 
-Техническое исполнение принадлежит [BuildQueue](../../../../tech/build/queue/index.ts):
+Техническое исполнение принадлежит [StorybookTechBuildQueue](../../../../tech/build/queue/index.ts):
 FIFO, slots, отмена ожидания, terminal transitions и наблюдение worker.
 [Сборочный координатор](../../../../package/build/scheduler/index.ts) проверяет предметные package/shared
 данные и проецирует прежний контракт status и событий. Очередь не выбирает пакет,

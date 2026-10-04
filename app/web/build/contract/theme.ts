@@ -1,4 +1,4 @@
-import type {PackageRevision} from "@package/revision"
+import type {StorybookPackageRevision} from "@storybook-package/revision"
 
-/** Источник темы Web имеет форму источника CSS, принадлежащую PackageRevision. */
-export type WebAuthorStyleSheet = NonNullable<Parameters<PackageRevision.Output["create"]>[3]>[number]
+/** Источник темы Web имеет форму источника CSS, принадлежащую StorybookPackageRevision. */
+export type WebAuthorStyleSheet = NonNullable<Parameters<StorybookPackageRevision.Output["create"]>[3]>[number]

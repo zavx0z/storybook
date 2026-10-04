@@ -1,6 +1,6 @@
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readScenario from "@archetypes/scenario-reader"
+import readScenario from "@storybook-specs-scenarios/reader"
 
 describe("Передача параметров запуска", async () => {
   const path = resolve(import.meta.dir, "fixture/run-props.test.ts")
@@ -50,7 +50,7 @@ test("Путь передаётся непосредственно сценар�
     path: resolve(import.meta.dir, "../../../../package/reader/spec/scenario.spec.ts"),
     props: {path: resolve(import.meta.dir, "../..")},
   })
-  expect(result.calls.filter(call => call.name === "default" && call.module === Bun.resolveSync("@archetypes/package", import.meta.dir) && call.location?.path === result.path).map(call => call.args)).toEqual([
+  expect(result.calls.filter(call => call.name === "default" && call.module === Bun.resolveSync("@storybook-package/reader", import.meta.dir) && call.location?.path === result.path).map(call => call.args)).toEqual([
     [{path: resolve(import.meta.dir, "../..")}],
   ])
 }, 180_000)

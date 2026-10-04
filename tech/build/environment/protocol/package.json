@@ -1,5 +1,5 @@
 {
-  "name": "@build-environment/protocol",
+  "name": "@storybook-tech-build-environment/protocol",
   "label": "Протокол браузерной среды",
   "version": "0.0.0",
   "private": true,

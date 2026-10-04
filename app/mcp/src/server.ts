@@ -27,15 +27,15 @@ import {recordMcpRequest, traceMcpRequest} from "./request-log"
 import {controllerAccessor} from "./controller"
 import {retainRequestLifetime} from "./lifetime"
 import {invoke, invokeCapture} from "./invoke"
-import createRequestProgress from "@mcp/progress"
-import type {AppMcp} from "../contract"
+import createRequestProgress from "@storybook-tech-mcp/progress"
+import type {StorybookAppMcp} from "../contract"
 
-export function createServer(options: AppMcp.Input = {}): ReturnType<AppMcp.Output["createServer"]> {
+export function createServer(options: StorybookAppMcp.Input = {}): ReturnType<StorybookAppMcp.Output["createServer"]> {
   const server = new McpServer({name: "storybook", version: "1.0.0"})
   const run = retainRequestLifetime(server)
   const controller = controllerAccessor(options, run)
   /** Исполняет управляющую операцию с отменой и progress текущего MCP-запроса. */
-  const execute: Parameters<NonNullable<AppMcp.Input["registerTools"]>>[1] = (operation, context) => {
+  const execute: Parameters<NonNullable<StorybookAppMcp.Input["registerTools"]>>[1] = (operation, context) => {
     const notify = createRequestProgress(context)
     return run(() => invoke(controller, value => operation(value, {
       signal: context.mcpReq.signal,

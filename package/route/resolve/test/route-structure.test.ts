@@ -2,9 +2,9 @@ import {afterAll, describe, expect, test} from "bun:test"
 import {mkdir, mkdtemp, realpath, rm, symlink} from "node:fs/promises"
 import {resolve} from "node:path"
 import {tmpdir} from "node:os"
-import formatRouteAddress from "@route/address"
-import readRouteChildren from "@route/children"
-import resolveRoute from "@route/resolve"
+import formatRouteAddress from "@storybook-package-route/address"
+import readRouteChildren from "@storybook-package-route/children"
+import resolveRoute from "@storybook-package-route/resolve"
 
 const storybookPath = resolve(import.meta.dir, "../../../..")
 const immersivePath = resolve(storybookPath, "../immersive")
@@ -40,7 +40,7 @@ describe("Текущая публичная структура", () => {
     expect(await resolveRoute({route: "/immersive/nodes/node/diagram?view=scenarios", roots})).toMatchObject({
       node: "immersive/nodes/node/diagram",
       pathname: "/immersive/nodes/node/diagram",
-      package: {id: "@nodes/node", path: resolve(immersivePath, "nodes/node")},
+      package: {id: "@immersive-nodes/node", path: resolve(immersivePath, "nodes/node")},
       directory: resolve(immersivePath, "nodes/node/diagram"),
       relativePath: "diagram",
       view: "scenarios",
@@ -50,7 +50,7 @@ describe("Текущая публичная структура", () => {
 
   test("Сохраняет самостоятельный пакет scenarios", async () => {
     expect(await resolveRoute({route: "storybook/specs/scenarios", roots})).toMatchObject({
-      package: {id: "@archetypes/scenario-guide"},
+      package: {id: "@storybook-specs/scenarios"},
       directory: resolve(storybookPath, "specs/scenarios"),
       relativePath: "",
       view: "overview",
@@ -78,7 +78,7 @@ describe("Текущая публичная структура", () => {
 
   test("Проходит через workspace prefix к ближайшему пакету", async () => {
     expect(await resolveRoute({route: "storybook/app/mcp/rest", roots})).toMatchObject({
-      package: {id: "@mcp/rest", path: resolve(storybookPath, "app/mcp/rest")},
+      package: {id: "@storybook-app-mcp/rest", path: resolve(storybookPath, "app/mcp/rest")},
       relativePath: "",
       view: "overview",
     })

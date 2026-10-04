@@ -1,6 +1,6 @@
-import {createRoot} from "@zavx0z/component"
-import {createDocument} from "@zavx0z/dom"
-import {createSpaceElementFactories} from "@zavx0z/space"
+import {createRoot} from "@immersive/component"
+import {createDocument} from "@immersive/dom"
+import {createSpaceElementFactories} from "@immersive/space"
 
 /** Среда одного ComponentRoot без native Canvas, GPU или дополнительного semantic Document. */
 export function createFrameEnvironment() {

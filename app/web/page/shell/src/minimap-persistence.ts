@@ -1,4 +1,4 @@
-import type {WebMinimap} from "@web/minimap"
+import type {StorybookAppWebPageShellMinimap} from "@storybook-app-web-page-shell/minimap"
 
 /**
 Читает сохранённые настройки Minimap текущего origin без выбора раскладки.
@@ -7,16 +7,16 @@ localStorage не мешает открывать окно или менять �
 */
 export function createMinimapPersistence(storage: () => Pick<Storage, "getItem" | "setItem">) {
   const key = "storybook.minimap.v1"
-  let initialState: NonNullable<WebMinimap.Input["initialState"]> | undefined
+  let initialState: NonNullable<StorybookAppWebPageShellMinimap.Input["initialState"]> | undefined
   try {
     const value = JSON.parse(storage().getItem(key) ?? "null")
     if (value && typeof value === "object" && !Array.isArray(value)) {
-      initialState = value as NonNullable<WebMinimap.Input["initialState"]>
+      initialState = value as NonNullable<StorybookAppWebPageShellMinimap.Input["initialState"]>
     }
   } catch {}
   return {
     initialState,
-    save(state: WebMinimap.Output): void {
+    save(state: StorybookAppWebPageShellMinimap.Output): void {
       try { storage().setItem(key, JSON.stringify(state)) } catch {}
     },
   }

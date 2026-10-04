@@ -1,11 +1,11 @@
-import RepoDiscoveryOwner from "@repo/discovery"
-import PackageGraphCreateOwner from "@package-graph/create"
+import RepoDiscoveryOwner from "@storybook-repo/discovery"
+import PackageGraphCreateOwner from "@storybook-package-graph/create"
 const discoverStorybookPackages = RepoDiscoveryOwner
 const createExternalStorybookGraph = PackageGraphCreateOwner
 import {describe, expect, test} from "bun:test"
 import {createHash} from "node:crypto"
 import {join} from "node:path"
-import Revision from "@package/revision"
+import Revision from "@storybook-package/revision"
 
 const fixtureRoot = join(import.meta.dir, "../../repo/discovery/fixtures/valid")
 const graph = async () => createExternalStorybookGraph(await discoverStorybookPackages([fixtureRoot]))
@@ -34,11 +34,11 @@ describe("structural package revision graph", () => {
 
   test("retains Workbench theme as its own revision collection", async () => {
     const snapshot = Revision.create(await graph(), "@fixture/components", "components", [{
-      specifier: "@zavx0z/ui/theme/theme.css", path: "/owner/theme.css", ownerRoot: "/owner",
+      specifier: "@immersive-ui/component/theme/theme.css", path: "/owner/theme.css", ownerRoot: "/owner",
       ownerPackageJsonPath: "/owner/package.json", contentDigest: "a".repeat(64),
     }])
     expect(snapshot.workbenchAuthorStyleSheets).toEqual([{
-      specifier: "@zavx0z/ui/theme/theme.css", url: "workbench-author-style-sheets/0.css", contentDigest: "a".repeat(64),
+      specifier: "@immersive-ui/component/theme/theme.css", url: "workbench-author-style-sheets/0.css", contentDigest: "a".repeat(64),
     }])
     expect(Revision.validate(snapshot)).toBe(snapshot)
   })
@@ -63,7 +63,7 @@ describe("structural package revision graph", () => {
       routes: [...snapshot.routes, snapshot.routes[0]!],
     }))).toThrow("route is invalid")
     expect(() => Revision.validate(redigest({...snapshot,
-      workbenchAuthorStyleSheets: [{specifier: "@zavx0z/ui/theme/theme.css", url: "theme.css", contentDigest: "a".repeat(64)}],
+      workbenchAuthorStyleSheets: [{specifier: "@immersive-ui/component/theme/theme.css", url: "theme.css", contentDigest: "a".repeat(64)}],
     }))).toThrow("Workbench stylesheet is invalid")
     expect(() => Revision.validate(redigest({...snapshot,
       resources: [{nodeId: snapshot.rootId, kind: "readme", index: 0, url: `resources/nodes/${encodeURIComponent(snapshot.rootId)}/readme.md`} as never],

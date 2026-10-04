@@ -2,23 +2,23 @@
 
 @packageDocumentation
 */
-import PackageSessionOwner, {type PackageSession as PackageSessionContract} from "@package/session"
-import {type PackageStandard as PackageStandardContract} from "@package/standard"
+import PackageSessionOwner, {type StorybookPackageSession as PackageSessionContract} from "@storybook-package/session"
+import {type StorybookPackageStandard as PackageStandardContract} from "@storybook-package/standard"
 const storybookBuildError = PackageSessionOwner.buildError
 const storybookDiagnostic = PackageSessionOwner.diagnostic
 type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 type StorybookPackageDiagnostic = ReturnType<PackageSessionContract.Output["snapshot"]>["diagnostics"][number]
 type StorybookPackageStandard = ReturnType<PackageStandardContract.Output["applied"]>
-import readScenario, {type ArchetypesScenarioReader} from "@archetypes/scenario-reader"
-import conformance from "@package-build/conformance"
-import inputs from "@package-build/inputs"
-import type {PackageBuildLoader} from "@package-build/loader"
-import type {PackageBuildScenarios} from "./contract"
+import readScenario, {type StorybookSpecsScenariosReader} from "@storybook-specs-scenarios/reader"
+import conformance from "@storybook-package-build/conformance"
+import inputs from "@storybook-package-build/inputs"
+import type {StorybookPackageBuildLoader} from "@storybook-package-build/loader"
+import type {StorybookPackageBuildScenarios} from "./contract"
 
-export type {PackageBuildScenarios} from "./contract"
+export type {StorybookPackageBuildScenarios} from "./contract"
 
-type ReadScenarioOutput = ArchetypesScenarioReader.Output
-type StorybookGeneratedScenario = Parameters<PackageBuildLoader.Output["generateJsxModules"]>[0][number]
+type ReadScenarioOutput = StorybookSpecsScenariosReader.Output
+type StorybookGeneratedScenario = Parameters<StorybookPackageBuildLoader.Output["generateJsxModules"]>[0][number]
 const {stablePath: stableBuildInputPath} = inputs
 const {verify: scenarioVerification} = conformance
 
@@ -36,7 +36,7 @@ export default async function prepareStorybookScenarios(
   signal: AbortSignal,
   onPrepared?: (nodeId: string, result: ReadScenarioOutput) => void,
   policy: Readonly<{standard: StorybookPackageStandard, warnings: StorybookPackageDiagnostic[]}> = {standard: "strict", warnings: []},
-  onProgress?: ArchetypesScenarioReader.Input["onProgress"],
+  onProgress?: StorybookSpecsScenariosReader.Input["onProgress"],
 ): Promise<readonly StorybookGeneratedScenario[]> {
   const prepared: StorybookGeneratedScenario[] = []
   const read = (path: string) => readScenario({path, signal, ...(onProgress === undefined ? {} : {onProgress})})

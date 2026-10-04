@@ -14,15 +14,15 @@ Domain, Cluster, Component и Container. Состав и происхожден�
 */
 import {realpath} from "node:fs/promises"
 import {resolve} from "node:path"
-import readPackageJson from "@archetypes/package-json"
-import readPackageIndex from "@archetypes/package-index"
+import readPackageJson from "@storybook-package/package-json"
+import readPackageIndex from "@storybook-package/index"
 import {readRootDocumentation} from "./src/root-documentation"
 import {readPackageSources} from "./src/sources"
 import {readRepositoryBoundary} from "./src/repository"
 import {readPackageComposition} from "./src/composition"
-import type {ArchetypesPackage} from "./contract"
+import type {StorybookPackageReader} from "./contract"
 
-export type {ArchetypesPackage} from "./contract"
+export type {StorybookPackageReader} from "./contract"
 
 /**
 Читает непосредственный package.json и передаёт состав exports читателю входов.
@@ -34,7 +34,7 @@ export type {ArchetypesPackage} from "./contract"
 @returns Структурные факты без поля классификации и без результата проверки стандарта.
 @throws Ошибки чтения и разбора файлов, сканирования исходников и чтения состава Git.
 */
-export default async function readPackage({path}: ArchetypesPackage.Input): Promise<ArchetypesPackage.Output> {
+export default async function readPackage({path}: StorybookPackageReader.Input): Promise<StorybookPackageReader.Output> {
   const directory = await realpath(resolve(path))
   const packageJson = await readPackageJson({path: resolve(directory, "package.json")})
   const [documentation, index, packages] = await Promise.all([

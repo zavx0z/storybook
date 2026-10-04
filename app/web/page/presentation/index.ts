@@ -5,10 +5,10 @@
 
 @packageDocumentation
 */
-import type {Element, HTMLElement} from "@zavx0z/dom"
-import {createRoot} from "@zavx0z/component"
-import type {WebPresentation} from "./contract"
-export type {WebPresentation} from "./contract"
+import type {Element, HTMLElement} from "@immersive/dom"
+import {createRoot} from "@immersive/component"
+import type {StorybookAppWebPagePresentation} from "./contract"
+export type {StorybookAppWebPagePresentation} from "./contract"
 
 /**
 Создаёт представление в staging и отделяет единственный найденный корень.
@@ -37,11 +37,11 @@ try {
 ```
 */
 export default function createStorybookComponentPresentation<Props, Root extends Element = HTMLElement>(
-  document: WebPresentation.Input<Props>[0],
-  template: WebPresentation.Input<Props>[1],
-  props: WebPresentation.Input<Props>[2],
-  selector: WebPresentation.Input<Props>[3],
-): WebPresentation.Output<Root> {
+  document: StorybookAppWebPagePresentation.Input<Props>[0],
+  template: StorybookAppWebPagePresentation.Input<Props>[1],
+  props: StorybookAppWebPagePresentation.Input<Props>[2],
+  selector: StorybookAppWebPagePresentation.Input<Props>[3],
+): StorybookAppWebPagePresentation.Output<Root> {
   const staging = document.createDocumentFragment()
   const componentRoot = createRoot(staging)
   componentRoot.render(template, props)

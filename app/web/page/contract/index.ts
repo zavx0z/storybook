@@ -1,16 +1,16 @@
-import type {HmrConnection} from "@hmr/connection"
-import type {PagePackage} from "@page/package"
-type ExternalStorybookAppliedRevision = Awaited<ReturnType<NonNullable<NonNullable<PagePackage.Input["environment"]>["loadAppliedRevision"]>>>
+import type {StorybookTechHmrConnection} from "@storybook-tech-hmr/connection"
+import type {StorybookAppWebPagePackage} from "@storybook-app-web-page/package"
+type ExternalStorybookAppliedRevision = Awaited<ReturnType<NonNullable<NonNullable<StorybookAppWebPagePackage.Input["environment"]>["loadAppliedRevision"]>>>
 
-import type {PageShell} from "@page/shell"
-type CreateExternalStorybookShellOptions = PageShell.Input
-type ExternalStorybookShell = PageShell.Output
-type StorybookRetainedRoot = ReturnType<PageShell.Output["releaseRoot"]>
+import type {StorybookAppWebPageShell} from "@storybook-app-web-page/shell"
+type CreateExternalStorybookShellOptions = StorybookAppWebPageShell.Input
+type ExternalStorybookShell = StorybookAppWebPageShell.Output
+type StorybookRetainedRoot = ReturnType<StorybookAppWebPageShell.Output["releaseRoot"]>
 import type startExternalStorybookPage from "../index"
 import type {StorybookSharedHost, ExternalStorybookPreparedPageTarget, ExternalStorybookPagePrepareInput} from "./types"
 
 /** Публичный контракт @web/page. */
-export declare namespace WebPage {
+export declare namespace StorybookAppWebPage {
   /**
   Зависимости единственного page owner.
 
@@ -60,13 +60,13 @@ export declare namespace WebPage {
     location?: Pick<Location, "href" | "pathname">
     history?: Pick<History, "pushState" | "replaceState">
     fetcher?: typeof fetch
-    createSocket?(url: string): HmrConnection.Input["socket"]
+    createSocket?(url: string): StorybookTechHmrConnection.Input["socket"]
     shell?: Omit<CreateExternalStorybookShellOptions, "title" | "browserDocument" | "authorStyleSheetSources">
     retainedRoot?: StorybookRetainedRoot
     sharedHost?: StorybookSharedHost
     readSharedHost?(epoch: string | undefined, token: string, signal: AbortSignal, preview?: boolean): Promise<StorybookSharedHost>
     importSharedHost?(host: StorybookSharedHost): Promise<typeof startExternalStorybookPage>
-    startPackage?: (input: PagePackage.Input) => Promise<PagePackage.Output>
+    startPackage?: (input: StorybookAppWebPagePackage.Input) => Promise<StorybookAppWebPagePackage.Output>
     prepareTarget?(
       input: ExternalStorybookPagePrepareInput,
       signal: AbortSignal,

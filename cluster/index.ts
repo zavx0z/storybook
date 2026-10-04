@@ -7,14 +7,14 @@ Cluster группирует самостоятельных участников
 @packageDocumentation
 */
 import {resolve} from "node:path"
-import readPackage from "@archetypes/package"
-import readContract from "@archetypes/contracts"
-import type {ArchetypesCluster} from "./contract"
+import readPackage from "@storybook-package/reader"
+import readContract from "@storybook/contracts"
+import type {StorybookCluster} from "./contract"
 
-export type {ArchetypesCluster} from "./contract"
+export type {StorybookCluster} from "./contract"
 
 /** Возвращает владельцев реализаций и отношения протоколов из публичного входа группы. */
-export default async function readCluster({path}: ArchetypesCluster.Input): Promise<ArchetypesCluster.Output> {
+export default async function readCluster({path}: StorybookCluster.Input): Promise<StorybookCluster.Output> {
   const description = await readPackage({path})
   const entries = new Set(description.index.entries.filter(entry => entry.path === "." && entry.target)
     .map(entry => resolve(description.root, entry.target!)))

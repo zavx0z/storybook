@@ -1,13 +1,13 @@
-import type {ArchetypesScenarioReader} from "@archetypes/scenario-reader"
+import type {StorybookSpecsScenariosReader} from "@storybook-specs-scenarios/reader"
 
-export declare namespace ArchetypesScenarioDocument {
+export declare namespace StorybookSpecsDocument {
   /**
   Наблюдения, из которых формируется руководство.
 
   @property report - Полный завершённый отчёт одного запуска сценария.
   */
   export interface Input {
-    readonly report: ArchetypesScenarioReader.Output
+    readonly report: StorybookSpecsScenariosReader.Output
   }
 
   /**

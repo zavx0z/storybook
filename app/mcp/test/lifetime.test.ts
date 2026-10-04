@@ -1,6 +1,6 @@
 import {expect, test} from "bun:test"
 import {Client, InMemoryTransport} from "@modelcontextprotocol/client"
-import mcp from "@app/mcp"
+import mcp from "@storybook-app/mcp"
 
 /** Закрытие transport не обрывает finally принадлежащего ему запроса. */
 test("MCP server.close ждёт cleanup отменённого чтения", async () => {

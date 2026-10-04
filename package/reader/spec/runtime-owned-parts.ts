@@ -3,7 +3,7 @@ import {dirname, isAbsolute, join, relative, resolve, sep} from "node:path"
 import {API} from "typescript/unstable/async"
 import {SyntaxKind, type Node, type SourceFile} from "typescript/unstable/ast"
 import {isCallExpression, isExportDeclaration, isImportDeclaration, isNamedExports, isNamedImports, isStringLiteral} from "typescript/unstable/ast/is"
-import type {ArchetypesPackage} from "@archetypes/package"
+import type {StorybookPackageReader} from "@storybook-package/reader"
 
 const OMIT_DIRECTORIES = new Set(["node_modules", "spec", "test", "tests", "fixture", "fixtures", "dist"])
 const SOURCE_EXTENSION = /\.[cm]?[jt]sx?$/u
@@ -18,7 +18,7 @@ type Snapshot = Awaited<ReturnType<API["updateSnapshot"]>>
 Отдельный private src-вход с единственным runtime default может передавать
 реализацию в другой realm; фактическую загрузку и вызов подтверждает сценарий.
 */
-export async function runtimeOwnedParts(root: ArchetypesPackage.Output): Promise<ReadonlySet<string>> {
+export async function runtimeOwnedParts(root: StorybookPackageReader.Output): Promise<ReadonlySet<string>> {
   const owned = new Map(root.packages.map(part => [part.path, part]))
   const named = new Map(root.packages.map(part => [part.name, part]))
   const reached = new Set<string>()

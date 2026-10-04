@@ -1,5 +1,5 @@
-import RepoDiscoveryOwner from "@repo/discovery"
-import AppServerCatalogOwner, {type AppServerCatalog as AppServerCatalogContract} from "@app-server/catalog"
+import RepoDiscoveryOwner from "@storybook-repo/discovery"
+import AppServerCatalogOwner, {type StorybookAppServerCatalog as AppServerCatalogContract} from "@storybook-app-server/catalog"
 const discoverStorybookPackages = RepoDiscoveryOwner
 const ExternalStorybookRegistry = AppServerCatalogOwner
 type ExternalStorybookRegistry = AppServerCatalogContract.Output
@@ -14,7 +14,7 @@ test("общий маршрут находит физическую директ
   const snapshot = registry.snapshot()
   expect(storybookRouteRoots(snapshot)).toEqual([{name: "node", path: root}])
   expect(await resolveStorybookRoute("/node/diagram?view=scenarios&variant=Круг&inspector=storybook-scenarios", snapshot)).toEqual({
-    packageId: "@nodes/node",
+    packageId: "@immersive-nodes/node",
     route: "dir-diagram/scenarios",
     urlPath: "/node/diagram?view=scenarios",
     variant: "Круг",

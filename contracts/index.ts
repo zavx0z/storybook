@@ -16,14 +16,14 @@ Runtime Storybook и MCP сохраняют отдельный жизненны�
 
 @packageDocumentation
 */
-import readPackage from "@archetypes/package"
+import readPackage from "@storybook-package/reader"
 import {realpath} from "node:fs/promises"
 import {resolve} from "node:path"
 import {readNamespaces} from "./src/read"
 import {contractFiles} from "./src/placement"
-import type {ArchetypesContracts} from "./contract"
+import type {StorybookContracts} from "./contract"
 
-export type {ArchetypesContracts} from "./contract"
+export type {StorybookContracts} from "./contract"
 
 /**
 Читает публичные namespace пакета и происхождение входящих в них типов.
@@ -32,7 +32,7 @@ export type {ArchetypesContracts} from "./contract"
 @returns Один согласованный снимок объявлений, типовых ролей и структурных нарушений.
 @throws Ошибки файловой системы, разрешения TypeScript или изменения исходников во время чтения.
 */
-export default async function readContract(input: ArchetypesContracts.Input): Promise<ArchetypesContracts.Output> {
+export default async function readContract(input: StorybookContracts.Input): Promise<StorybookContracts.Output> {
   const path = await realpath(resolve(input.path))
   const definitions = await contractFiles(path)
   const description = await readPackage({path})

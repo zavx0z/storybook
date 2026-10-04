@@ -1,13 +1,13 @@
-import {useSyncExternalStore} from "@zavx0z/component"
-import type {WebWorkbench} from "@web/workbench"
-import type {WebMinimap} from "@web/minimap"
-type MinimapInitialState = NonNullable<WebMinimap.Input["initialState"]>
-type MinimapState = WebMinimap.Output
-import Minimap from "@web/minimap"
+import {useSyncExternalStore} from "@immersive/component"
+import type {StorybookAppWebPageShellWorkbench} from "@storybook-app-web-page-shell/workbench"
+import type {StorybookAppWebPageShellMinimap} from "@storybook-app-web-page-shell/minimap"
+type MinimapInitialState = NonNullable<StorybookAppWebPageShellMinimap.Input["initialState"]>
+type MinimapState = StorybookAppWebPageShellMinimap.Output
+import Minimap from "@storybook-app-web-page-shell/minimap"
 
 /** Подписывает HUD на ту же модель каталога, что обслуживает Display. */
 export function WorkbenchMinimap(props: Readonly<{
-  workbench: WebWorkbench.Output
+  workbench: StorybookAppWebPageShellWorkbench.Output
   initialState?: MinimapInitialState | undefined
   onStateChange?: ((state: MinimapState) => void) | undefined
   onRebuildWeb?: (() => Promise<void>) | undefined

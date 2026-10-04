@@ -3,8 +3,8 @@
 
 @packageDocumentation
 */
-import PackageBuildSchedulerOwner, {type PackageBuildScheduler as PackageBuildSchedulerContract} from "@package-build/scheduler"
-import PackageSessionOwner, {type PackageSession as PackageSessionContract} from "@package/session"
+import PackageBuildSchedulerOwner, {type StorybookPackageBuildScheduler as PackageBuildSchedulerContract} from "@storybook-package-build/scheduler"
+import PackageSessionOwner, {type StorybookPackageSession as PackageSessionContract} from "@storybook-package/session"
 const StorybookBuildScheduler = PackageBuildSchedulerOwner
 const StorybookPackageSession = PackageSessionOwner
 type StorybookBuildScheduler = PackageBuildSchedulerContract.Output
@@ -17,8 +17,8 @@ type StorybookPackageRevisionBuilder = PackageSessionContract.Input[1]["buildRev
 type StorybookPackageSessionSnapshot = ReturnType<PackageSessionContract.Output["snapshot"]>
 import {resolve} from "node:path"
 
-import type {AppServerSessions} from "./contract"
-export type {AppServerSessions} from "./contract"
+import type {StorybookAppServerSessions} from "./contract"
+export type {StorybookAppServerSessions} from "./contract"
 /** Owns PackageSessions as a derived runtime view of the canonical graph. */
 export default class ExternalStorybookSessionManager {
   readonly #artifactRoot: string
@@ -34,7 +34,7 @@ export default class ExternalStorybookSessionManager {
   #disposed = false
   #disposePromise: Promise<void> | null = null
 
-  constructor(options: AppServerSessions.Input) {
+  constructor(options: StorybookAppServerSessions.Input) {
     this.#artifactRoot = resolve(options.artifactRoot)
     this.#buildRevision = options.buildRevision
     this.#prepareBuild = options.prepareBuild
@@ -53,7 +53,7 @@ export default class ExternalStorybookSessionManager {
     const nextIds = new Set<string>()
     for (const descriptor of descriptors) {
       if (nextIds.has(descriptor.packageId)) {
-        throw new Error(`Duplicate Storybook PackageSession descriptor: ${descriptor.packageId}`)
+        throw new Error(`Duplicate Storybook StorybookPackageSession descriptor: ${descriptor.packageId}`)
       }
       nextIds.add(descriptor.packageId)
     }
@@ -88,7 +88,7 @@ export default class ExternalStorybookSessionManager {
   session(packageId: string): StorybookPackageSession {
     this.#assertActive()
     const session = this.#sessions.get(packageId)
-    if (session === undefined) throw new Error(`Unknown Storybook PackageSession: ${packageId}`)
+    if (session === undefined) throw new Error(`Unknown Storybook StorybookPackageSession: ${packageId}`)
     return session
   }
 

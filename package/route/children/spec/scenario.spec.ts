@@ -2,7 +2,7 @@ import {afterAll, describe, expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import readChildren from "@route/children"
+import readChildren from "@storybook-package-route/children"
 
 describe.each([
   {name: "Начало пакета", props: {child: "controls"}, expected: "demo/controls"},

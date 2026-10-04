@@ -1,5 +1,5 @@
 {
-  "name": "@package/session",
+  "name": "@storybook-package/session",
   "label": "Сессия пакета",
   "version": "0.0.0",
   "private": true,
@@ -9,12 +9,12 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@zavx0z/ui": "^0.0.0",
-    "@package-build/scheduler": "workspace:*",
-    "@tech/limits": "workspace:*",
-    "@package/standard": "workspace:*",
-    "@package/revision": "workspace:*",
-    "@process/sample": "workspace:*",
-    "@build/worker": "workspace:*"
+    "@immersive-ui/component": "^0.0.0",
+    "@storybook-package-build/scheduler": "workspace:*",
+    "@storybook-tech/limits": "workspace:*",
+    "@storybook-package/standard": "workspace:*",
+    "@storybook-package/revision": "workspace:*",
+    "@storybook-tech-process/sample": "workspace:*",
+    "@storybook-tech-build/worker": "workspace:*"
   }
 }

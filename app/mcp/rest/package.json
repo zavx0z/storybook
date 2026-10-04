@@ -1,5 +1,5 @@
 {
-  "name": "@mcp/rest",
+  "name": "@storybook-app-mcp/rest",
   "label": "HTTP-интерфейс Storybook",
   "version": "0.0.0",
   "private": true,
@@ -12,12 +12,18 @@
     "test": "bun test ./spec"
   },
   "dependencies": {
-    "@mcp/address": "workspace:*",
-    "@mcp/root": "workspace:*",
-    "@mcp/children": "workspace:*"
+    "@storybook-repo/mcp": "workspace:*",
+    "@storybook-component/mcp": "workspace:*",
+    "@storybook-container/mcp": "workspace:*",
+    "@storybook-cluster/mcp": "workspace:*",
+    "@storybook-domain/mcp": "workspace:*",
+    "@storybook-package-build/conformance": "workspace:*",
+    "@storybook-app-mcp-rest/address": "workspace:*",
+    "@storybook-project/mcp": "workspace:*",
+    "@storybook-app-mcp-rest/children": "workspace:*"
   },
   "devDependencies": {
     "@modelcontextprotocol/server": "^2.0.0",
-    "@repo/discovery": "workspace:*"
+    "@storybook-repo/discovery": "workspace:*"
   }
 }

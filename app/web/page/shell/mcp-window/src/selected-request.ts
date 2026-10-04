@@ -1,6 +1,6 @@
 
 /** Выбирает одну целую команду; отсутствие выбора означает слежение за последней. */
-import {type McpRestRequests as McpRestRequestsContract} from "@mcp-rest/requests"
+import {type StorybookAppServerRequests as McpRestRequestsContract} from "@storybook-app-server/requests"
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
 export function selectRequest(entries: readonly McpRequestRecord[], selectedId: string | null) {
   const index = Math.max(0, selectedId === null ? 0 : entries.findIndex(entry => entry.id === selectedId))

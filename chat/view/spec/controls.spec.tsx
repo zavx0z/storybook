@@ -1,8 +1,8 @@
 /** Управление отправкой и параметры агента используют реальные события общего Document. */
 import {afterAll, expect, mock, test} from "bun:test"
 import {createHeadless} from "@immersive/headless"
-import {Event, KeyboardEvent, type HTMLButtonElement, type HTMLSelectElement, type HTMLTextAreaElement} from "@zavx0z/dom"
-import ChatView from "../index"
+import {Event, KeyboardEvent, type HTMLButtonElement, type HTMLSelectElement, type HTMLTextAreaElement} from "@immersive/dom"
+import StorybookChatView from "../index"
 
 const headless = createHeadless({width: 360, height: 680})
 afterAll(() => headless.dispose())
@@ -10,7 +10,7 @@ afterAll(() => headless.dispose())
 test("Enter отправляет, Shift+Enter и IME сохраняют ввод; круглая кнопка имеет доступное имя", async () => {
   const send = mock(() => {})
   const element = await headless.render(
-    <ChatView
+    <StorybookChatView
       address="/"
       label="Project"
       messages={[]}
@@ -41,7 +41,7 @@ test("настройки показывают только варианты аг
   const change = mock((id: string, value: string) => {})
   const prepare = mock(() => {})
   const element = await headless.render(
-    <ChatView
+    <StorybookChatView
       address="/"
       label="Project"
       messages={[
@@ -88,7 +88,7 @@ test("настройки показывают только варианты аг
 test("длинное сообщение переносится, textarea растёт до лимита и не теряет исходный текст", async () => {
   const draft = Array.from({length: 20}, (_, i) => `Строка ${i}`).join("\n")
   const element = await headless.render(
-    <ChatView
+    <StorybookChatView
       address="/long"
       label="Long chat"
       messages={[{id: "long", role: "user", text: "Длинное сообщение с переносом слов. ".repeat(20)}]}

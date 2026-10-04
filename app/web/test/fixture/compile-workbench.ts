@@ -1,8 +1,8 @@
-import Compiler from "@build/compiler"
+import Compiler from "@storybook-tech-build/compiler"
 import {plugin} from "bun"
 import {readFileSync} from "node:fs"
 import {join, resolve} from "node:path"
-import createJsxBunPlugin from "@jsx-compiler/bun"
+import createJsxBunPlugin from "@immersive-jsx-compiler/bun"
 const {createStorybookOwnerResolver, createStorybookOwnerSourcePath, resolveStorybookCompilerSourceRoots} = Compiler
 const storybookRoot = resolve(import.meta.dir, "../../../..")
 const sourceRoots = resolveStorybookCompilerSourceRoots({

@@ -1,6 +1,6 @@
-import type {ScenarioModel} from "@scenario/model"
+import type {StorybookAppWebPagePackageScenarioModel} from "@storybook-app-web-page-package-scenario/model"
 /** Форма исходного публичного владельца. */
-type ScenarioAppInput = ScenarioModel.Input
+type ScenarioAppInput = StorybookAppWebPagePackageScenarioModel.Input
 /** Получает проверенный результат своей ревизии; rerun требует нового выполнения теста. */
 export function createScenarioRun(
   fetcher: typeof fetch,

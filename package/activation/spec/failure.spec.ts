@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import activateRevision from "@hmr/activation"
+import activateRevision from "@storybook-package/activation"
 
 test.each([
   {packageId: "@fixture/b"}, {revision: "other"}, {route: "other"}, {graphDigest: "other"},

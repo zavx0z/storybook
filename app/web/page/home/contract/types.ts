@@ -1,6 +1,6 @@
-import type {AppWebProtocol} from "@app-web/protocol"
+import type {StorybookAppWebProtocol} from "@storybook-app-web/protocol"
 
-export type ExternalStorybookClientSnapshot = ReturnType<AppWebProtocol.Output["clientSnapshot"]>
+export type ExternalStorybookClientSnapshot = ReturnType<StorybookAppWebProtocol.Output["clientSnapshot"]>
 
 export type LandingSocket = Readonly<{
   addEventListener(type: string, listener: (event: any) => void): void

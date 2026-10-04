@@ -1,6 +1,6 @@
-import type {BuildEnvironment} from "@build/environment"
-import type Scheduler from "@package-build/scheduler"
-import type {PackageBuildScheduler} from "@package-build/scheduler"
+import type {StorybookTechBuildEnvironment} from "@storybook-tech-build/environment"
+import type Scheduler from "@storybook-package-build/scheduler"
+import type {StorybookPackageBuildScheduler} from "@storybook-package-build/scheduler"
 
 /** Фазы одной общей сборки из публичного worker-протокола планировщика. */
 export type SharedBrowserBuildPhaseListener = (event: Extract<
@@ -9,7 +9,7 @@ export type SharedBrowserBuildPhaseListener = (event: Extract<
 >["event"]) => void
 
 /** Контекст уже допущенной scheduler операции. */
-export type SharedBrowserBuildOperationContext = Parameters<Parameters<PackageBuildScheduler.Output["run"]>[1]>[0]
+export type SharedBrowserBuildOperationContext = Parameters<Parameters<StorybookPackageBuildScheduler.Output["run"]>[1]>[0]
 
 /**
 Файловый вход одной сборки общей оболочки.
@@ -33,8 +33,8 @@ export interface SharedBrowserBuildInput {
   readonly landingEntryPath: string
   readonly fallbackEntryPath: string
   readonly packageEntryPath?: string
-  readonly sharedKernel: ReturnType<BuildEnvironment.Output["identity"]>
+  readonly sharedKernel: ReturnType<StorybookTechBuildEnvironment.Output["identity"]>
   /** Полный набор готовых файлов платформы в root; Web не создаёт их заново. */
-  readonly kernelArtifacts: Awaited<ReturnType<BuildEnvironment.Output["build"]>>["artifacts"]
+  readonly kernelArtifacts: Awaited<ReturnType<StorybookTechBuildEnvironment.Output["build"]>>["artifacts"]
   readonly stagingDirectory: string
 }

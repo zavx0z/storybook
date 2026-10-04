@@ -1,5 +1,5 @@
 {
-  "name": "@process/wait",
+  "name": "@storybook-tech-process/wait",
   "label": "Ожидание процесса",
   "version": "0.0.0",
   "private": true,

@@ -1,6 +1,6 @@
-import type {ArchetypesPackage} from "@archetypes/package"
+import type {StorybookPackageReader} from "@storybook-package/reader"
 
-export declare namespace ArchetypesComponent {
+export declare namespace StorybookComponent {
   /**
   Директория проверяемого пакета; класс не передаётся вызывающим кодом.
 
@@ -20,7 +20,7 @@ export declare namespace ArchetypesComponent {
   @property scenarios - Непосредственные сценарии использования компонента.
   */
   export interface Output {
-    readonly package: ArchetypesPackage.Output
+    readonly package: StorybookPackageReader.Output
     readonly entries: readonly {readonly path: string, readonly exports: readonly string[], readonly input: string | null, readonly output: string | null, readonly jsx: boolean}[]
     readonly additionalCode: readonly string[]
     readonly scenarios: readonly string[]

@@ -1,5 +1,5 @@
 {
-  "name": "@specs/guide",
+  "name": "@storybook-specs/guide",
   "label": "Руководство спецификации",
   "description": "Собирает руководство по непосредственной спецификации владельца",
   "version": "0.0.0",
@@ -9,8 +9,8 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@archetypes/spec-reader": "workspace:*",
-    "@archetypes/scenario-document": "workspace:*",
-    "@archetypes/scenario-guide": "workspace:*"
+    "@storybook-specs/reader": "workspace:*",
+    "@storybook-specs/document": "workspace:*",
+    "@storybook-specs/scenarios": "workspace:*"
   }
 }

@@ -1,10 +1,10 @@
-import {type PackageSession as PackageSessionContract} from "@package/session"
+import {type StorybookPackageSession as PackageSessionContract} from "@storybook-package/session"
 type StorybookPackageRevisionBuilder = PackageSessionContract.Input[1]["buildRevision"]
-import type {BuildWorker} from "@build/worker"
+import type {StorybookTechBuildWorker} from "@storybook-tech-build/worker"
 
-type BuildWorkerLifecycleEvent = Parameters<NonNullable<BuildWorker.Input<unknown, unknown>["onLifecycle"]>>[0]
+type BuildWorkerLifecycleEvent = Parameters<NonNullable<StorybookTechBuildWorker.Input<unknown, unknown>["onLifecycle"]>>[0]
 
-type TransportEvent = NonNullable<ReturnType<typeof import("@package-build/scheduler").default.parseStorybookBuildWorkerTransportEvent>>
+type TransportEvent = NonNullable<ReturnType<typeof import("@storybook-package-build/scheduler").default.parseStorybookBuildWorkerTransportEvent>>
 
 export type PhaseEvent = Extract<TransportEvent, {kind: "phase"}>["event"]
 export type PhaseListener = (event: PhaseEvent) => void

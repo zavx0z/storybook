@@ -1,5 +1,5 @@
 {
-  "name": "@mcp/lazy",
+  "name": "@storybook-tech-mcp/lazy",
   "label": "Lazy MCP transport",
   "version": "0.0.0",
   "private": true,
@@ -11,10 +11,10 @@
   "dependencies": {
     "@modelcontextprotocol/server": "^2.0.0",
     "@modelcontextprotocol/client": "^2.0.0",
-    "@build/worker": "workspace:*"
+    "@storybook-tech-build/worker": "workspace:*"
   },
   "devDependencies": {
-    "@mcp/stdio": "workspace:*",
+    "@storybook-tech-mcp/stdio": "workspace:*",
     "zod": "^4.4.3"
   }
 }

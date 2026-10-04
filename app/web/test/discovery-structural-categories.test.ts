@@ -1,12 +1,12 @@
-import PackageRevisionOwner from "@package/revision"
+import PackageRevisionOwner from "@storybook-package/revision"
 const createStorybookPackageRevisionGraphSnapshot = PackageRevisionOwner.create
 import {afterEach, expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import discoverStorybookPackages from "@repo/discovery"
-import createExternalStorybookGraph from "@package-graph/create"
-import WebNavigationOwner from "@web/navigation"
+import discoverStorybookPackages from "@storybook-repo/discovery"
+import createExternalStorybookGraph from "@storybook-package-graph/create"
+import WebNavigationOwner from "@storybook-app-web-page/navigation"
 const deriveExternalStorybookNavigationTree = WebNavigationOwner.deriveExternalStorybookNavigationTree
 const deriveExternalStorybookPackageTab = WebNavigationOwner.deriveExternalStorybookPackageTab
 

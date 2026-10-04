@@ -1,5 +1,5 @@
 {
-  "name": "@archetypes/cluster",
+  "name": "@storybook/cluster",
   "label": "Кластер",
   "version": "0.0.0",
   "private": true,
@@ -9,10 +9,10 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@archetypes/package": "workspace:*",
-    "@archetypes/contracts": "workspace:*"
+    "@storybook-package/reader": "workspace:*",
+    "@storybook/contracts": "workspace:*"
   },
   "devDependencies": {
-    "@archetypes/scenario-reader": "workspace:*"
+    "@storybook-specs-scenarios/reader": "workspace:*"
   }
 }

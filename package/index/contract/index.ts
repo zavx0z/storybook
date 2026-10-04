@@ -1,4 +1,4 @@
-export declare namespace ArchetypesPackageIndex {
+export declare namespace StorybookPackageIndex {
   /**
   Выбор пакета и его объявленных публичных входов.
 

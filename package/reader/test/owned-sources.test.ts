@@ -2,7 +2,7 @@ import {expect, test} from "bun:test"
 import {link, mkdtemp, mkdir, realpath, rm, symlink} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import readPackage from "@archetypes/package"
+import readPackage from "@storybook-package/reader"
 
 test("учитывает самостоятельные src-входы своего пакета без исполнения и чужих исходников", async () => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "storybook-owned-sources-")))

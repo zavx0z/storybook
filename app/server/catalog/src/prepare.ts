@@ -1,17 +1,17 @@
-import createGraph from "@package-graph/create"
-import createDescriptors from "@package-build/descriptor"
+import createGraph from "@storybook-package-graph/create"
+import createDescriptors from "@storybook-package-build/descriptor"
 import {createEntries} from "./helpers"
-import type {AppServerCatalog} from "../contract"
+import type {StorybookAppServerCatalog} from "../contract"
 import type {ExternalStorybookAttachSource, ExternalStorybookRegistrySnapshot} from "../contract/models"
-import type {RepoDiscovery} from "@repo/discovery"
+import type {StorybookRepoDiscovery} from "@storybook-repo/discovery"
 import type {CatalogPreparation} from "./worker-protocol"
 
 /** Граф, ресурсы, сравнения и описания целиком готовятся до атомарного принятия сервером. */
 export function prepareCatalogSnapshot(
-  catalog: RepoDiscovery.Output,
+  catalog: StorybookRepoDiscovery.Output,
   sources: readonly ExternalStorybookAttachSource[],
   previous: ExternalStorybookRegistrySnapshot,
-  styles: ReturnType<NonNullable<AppServerCatalog.Input[1]>>,
+  styles: ReturnType<NonNullable<StorybookAppServerCatalog.Input[1]>>,
 ): CatalogPreparation {
   const graph = createGraph(catalog)
   const failed = new Set(catalog.scopes.filter(scope => scope.resolutionError !== undefined).map(scope => scope.id))

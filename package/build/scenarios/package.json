@@ -1,5 +1,5 @@
 {
-  "name": "@package-build/scenarios",
+  "name": "@storybook-package-build/scenarios",
   "label": "Подготовка сценариев",
   "version": "0.0.0",
   "private": true,
@@ -9,11 +9,11 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@package/session": "workspace:*",
-    "@package/standard": "workspace:*",
-    "@archetypes/scenario-reader": "workspace:*",
-    "@package-build/conformance": "workspace:*",
-    "@package-build/inputs": "workspace:*",
-    "@package-build/loader": "workspace:*"
+    "@storybook-package/session": "workspace:*",
+    "@storybook-package/standard": "workspace:*",
+    "@storybook-specs-scenarios/reader": "workspace:*",
+    "@storybook-package-build/conformance": "workspace:*",
+    "@storybook-package-build/inputs": "workspace:*",
+    "@storybook-package-build/loader": "workspace:*"
   }
 }

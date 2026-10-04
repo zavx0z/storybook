@@ -1,6 +1,6 @@
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import conformance from "@package-build/conformance"
+import conformance from "@storybook-package-build/conformance"
 
 describe.each([
   {name: "Компонент с непосредственным сценарием", props: {path: resolve(import.meta.dir, "fixture/component")}},

@@ -1,4 +1,4 @@
-import {type RepoDiscovery as RepoDiscoveryContract} from "@repo/discovery"
+import {type StorybookRepoDiscovery as RepoDiscoveryContract} from "@storybook-repo/discovery"
 type StorybookCatalog = RepoDiscoveryContract.Output
 type StorybookPackage = Extract<RepoDiscoveryContract.Output["scopes"][number], {kind: "package"}>
 import {join} from "node:path"

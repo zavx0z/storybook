@@ -1,5 +1,5 @@
-import type {BuildEnvironment} from "@build/environment"
-import type {PackageRevision} from "@package/revision"
+import type {StorybookTechBuildEnvironment} from "@storybook-tech-build/environment"
+import type {StorybookPackageRevision} from "@storybook-package/revision"
 
 /**
 Готовые ресурсы общей оболочки.
@@ -19,9 +19,9 @@ export type SharedBrowserAssets = Readonly<{
   landingEntry: string
   fallbackEntry: string
   bootstrapEntry?: string
-  browserIdentity?: ReturnType<BuildEnvironment.Output["identity"]>
+  browserIdentity?: ReturnType<StorybookTechBuildEnvironment.Output["identity"]>
   artifactDigests?: readonly Readonly<{path: string, digest: string}>[]
-  authorStyleSheets?: ReturnType<PackageRevision.Output["create"]>["workbenchAuthorStyleSheets"]
+  authorStyleSheets?: ReturnType<StorybookPackageRevision.Output["create"]>["workbenchAuthorStyleSheets"]
 }>
 
 /** Предоставленные сборка, сохранение и уведомления одного shared-ресурса. */

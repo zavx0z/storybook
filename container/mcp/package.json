@@ -1,0 +1,14 @@
+{
+  "name": "@storybook-container/mcp",
+  "label": "MCP: Контейнер",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Заглушка предметного MCP для Container",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "test": "bun test ./spec"
+  }
+}

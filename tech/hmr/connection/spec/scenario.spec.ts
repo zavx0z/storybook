@@ -1,6 +1,6 @@
 /** Подписка страницы сохраняет смысл сообщений после восстановления связи. */
 import {afterAll, describe, expect, test} from "bun:test"
-import createHmrConnection from "@hmr/connection"
+import createHmrConnection from "@storybook-tech-hmr/connection"
 import {FixtureSocket} from "./fixture"
 
 describe.each([

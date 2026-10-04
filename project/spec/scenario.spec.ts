@@ -6,7 +6,7 @@
 */
 import {afterAll, describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readProject from "@archetypes/project"
+import readProject from "@storybook/project"
 import {createProjectFixture} from "./fixture"
 
 const independent = [

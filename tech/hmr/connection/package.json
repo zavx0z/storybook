@@ -1,5 +1,5 @@
 {
-  "name": "@hmr/connection",
+  "name": "@storybook-tech-hmr/connection",
   "label": "Связь обновлений",
   "version": "0.0.0",
   "private": true,

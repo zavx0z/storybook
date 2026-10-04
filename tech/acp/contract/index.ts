@@ -8,7 +8,7 @@ import type {
 } from "@agentclientprotocol/sdk"
 
 /** Контракт долгоживущего ACP-подключения одного владельца сессии. */
-export declare namespace TechAcp {
+export declare namespace StorybookTechAcp {
   /**
   Подключение к агенту со штатными типами ACP SDK.
 

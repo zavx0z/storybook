@@ -1,5 +1,5 @@
 {
-  "name": "@package/standard",
+  "name": "@storybook-package/standard",
   "label": "Стандарт пакета",
   "version": "0.0.0",
   "private": true,
@@ -9,6 +9,6 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@package/session": "workspace:*"
+    "@storybook-package/session": "workspace:*"
   }
 }

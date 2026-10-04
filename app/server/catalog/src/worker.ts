@@ -1,5 +1,5 @@
 import {parentPort, workerData} from "node:worker_threads"
-import discover from "@repo/discovery"
+import discover from "@storybook-repo/discovery"
 import {prepareCatalogSnapshot} from "./prepare"
 import {emptyCatalog} from "./helpers"
 import type {CatalogWorkerInput, CatalogWorkerMessage} from "./worker-protocol"

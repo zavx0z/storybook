@@ -1,7 +1,7 @@
 import {afterAll, describe, expect, mock, test} from "bun:test"
 import {createHeadless} from "@immersive/headless"
-import {MouseEvent} from "@zavx0z/dom"
-import {flushDocumentLayoutObservers} from "@zavx0z/dom/geometry"
+import {MouseEvent} from "@immersive/dom"
+import {flushDocumentLayoutObservers} from "@immersive/dom/geometry"
 import Minimap from "../index.tsx"
 
 describe.each([
@@ -46,6 +46,13 @@ describe.each([
       "Заголовок окна использует переданное имя Project").toBe(props.projectName)
     expect(tab.querySelector('button[aria-label="Fixture Project"]'),
       "Свернутую карту открывает кнопка с тем же именем Project").not.toBeNull()
+  })
+
+  test("Начальное раскрытие дерева", () => {
+    expect(panel.querySelector('[data-tree-id="project"]')!.getAttribute("aria-expanded"),
+      "При отсутствии сохранённого состояния Minimap начинает со свёрнутого дерева").toBe("false")
+    expect(panel.querySelector('[data-tree-id="component"]'),
+      "Дочерняя строка появляется после раскрытия ветви").toBeNull()
   })
 
   test("Начальная видимость", () => {

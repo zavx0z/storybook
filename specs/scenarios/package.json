@@ -1,5 +1,5 @@
 {
-  "name": "@archetypes/scenario-guide",
+  "name": "@storybook-specs/scenarios",
   "description": "Раскрывает руководство по исполняемому сценарию",
   "version": "0.0.0",
   "private": true,
@@ -8,10 +8,10 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@archetypes/scenario-reader": "workspace:*",
-    "@archetypes/scenario-document": "workspace:*"
+    "@storybook-specs-scenarios/reader": "workspace:*",
+    "@storybook-specs/document": "workspace:*"
   },
   "devDependencies": {
-    "@specs/guide": "workspace:*"
+    "@storybook-specs/guide": "workspace:*"
   }
 }

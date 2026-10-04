@@ -1,4 +1,4 @@
-import type {ViewPointElement} from "@zavx0z/dom/viewpoint"
+import type {ViewPointElement} from "@immersive/dom/viewpoint"
 import type {CameraState, SavedState} from "../contract/viewpoint-state"
 
 const cameraFields = ["x", "y", "z", "targetX", "targetY", "targetZ", "fov", "near", "far"] as const

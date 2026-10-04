@@ -1,7 +1,7 @@
-import type {UiSurfacesWindow} from "@zavx0z/ui"
-type WindowGeometry = NonNullable<UiSurfacesWindow.Input["geometry"]>
-import type {UiSurfacesTab} from "@zavx0z/ui"
-type TabProps = UiSurfacesTab.Input
+import type {ImmersiveUiComponentSurfaceWindow} from "@immersive-ui/component"
+type WindowGeometry = NonNullable<ImmersiveUiComponentSurfaceWindow.Input["geometry"]>
+import type {ImmersiveUiComponentSurfaceTab} from "@immersive-ui/component"
+type TabProps = ImmersiveUiComponentSurfaceTab.Input
 
 /** Частичные поля сохранённой раскладки; проверка значений принадлежит Minimap. */
 export type MinimapInitialState = Readonly<{

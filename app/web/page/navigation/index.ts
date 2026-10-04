@@ -5,8 +5,8 @@
 
 @packageDocumentation
 */
-import ReadGraph from "@package-graph/read"
-import type {WebNavigation} from "./contract"
+import ReadGraph from "@storybook-package-graph/read"
+import type {StorybookAppWebPageNavigation} from "./contract"
 import type {
   WorkbenchBreadcrumb,
   ExternalStorybookClientSnapshot,
@@ -30,9 +30,9 @@ import {
   packageBreadcrumbs,
   graphPath,
 } from "./src/implementation"
-export type {WebNavigation} from "./contract"
+export type {StorybookAppWebPageNavigation} from "./contract"
 
-const Owner: WebNavigation.Output = Object.freeze({
+const Owner: StorybookAppWebPageNavigation.Output = Object.freeze({
   /** Проецирует физических владельцев пакетов в дерево общего каталога. */
   deriveExternalStorybookLanding(graph: BrowserGraph): ExternalStorybookLandingModel {
     const items = graph.nodes

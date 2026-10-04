@@ -2,8 +2,8 @@ import {afterAll, expect, test} from "bun:test"
 import {mkdtempSync, writeFileSync, rmSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {resolve} from "node:path"
-import validateScenario from "@archetypes/scenario-validation"
-import readScenario from "@archetypes/scenario-reader"
+import validateScenario from "@storybook-specs-scenarios-reader/validation"
+import readScenario from "@storybook-specs-scenarios/reader"
 import {readScenarioSource} from "../src/read-source"
 
 const root = mkdtempSync(resolve(tmpdir(), "storybook-particular-"))

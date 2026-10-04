@@ -1,6 +1,6 @@
 /** Бюджеты транспорта не ограничивают длительность сборки или сценария. */
 import {describe, expect, test} from "bun:test"
-import Limits from "@tech/limits"
+import Limits from "@storybook-tech/limits"
 
 describe.each([
   {name: "HTTP без данных", props: {budget: Limits.STORYBOOK_SERVER_IDLE_TIMEOUT_SECONDS, expected: 125}},

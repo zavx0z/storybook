@@ -3,10 +3,10 @@ import type {Source} from "./source"
 /**
 Типовая граница чтения документации исходников без исполнения их кода.
 
-{@link ArchetypesTypedoc.Input} выбирает исходники; {@link ArchetypesTypedoc.Output}
+{@link StorybookTypedoc.Input} выбирает исходники; {@link StorybookTypedoc.Output}
 сохраняет документацию вместе с независимыми фактами сигнатур для сценария проверки.
 */
-export declare namespace ArchetypesTypedoc {
+export declare namespace StorybookTypedoc {
   /**
   Исходники, чьи собственные объявления требуется описать.
 

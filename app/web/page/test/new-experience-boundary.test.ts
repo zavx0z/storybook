@@ -10,7 +10,7 @@ test("[STORYBOOK-EXPERIENCE-001] shell использует только нов�
     devDependencies: Readonly<Record<string, string>>
   }
 
-  expect(shell).toContain('from "@zavx0z/browser/integration"')
+  expect(shell).toContain('from "@immersive/browser/integration"')
   expect(shell).toContain("createBrowserRoot")
   expect(shell).toContain("application.render(")
   expect(shell).toContain("root.document")
@@ -21,15 +21,15 @@ test("[STORYBOOK-EXPERIENCE-001] shell использует только нов�
   expect(shell).not.toContain("workbenchOverlay")
 
   for (const required of [
-    "@zavx0z/browser",
-    "@zavx0z/component",
-    "@zavx0z/dom",
-    "@zavx0z/engine",
-    "@renderer/html",
-    "@zavx0z/space",
-    "@zavx0z/template",
-    "@zavx0z/ui",
-    "@zavx0z/webgpu",
+    "@immersive/browser",
+    "@immersive/component",
+    "@immersive/dom",
+    "@immersive/engine",
+    "@immersive-renderer/html",
+    "@immersive/space",
+    "@immersive/template",
+    "@immersive-ui/component",
+    "@immersive/webgpu",
   ]) expect(manifest.devDependencies[required], required).toBeDefined()
 
   for (const forbidden of [

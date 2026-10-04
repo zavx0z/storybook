@@ -1,5 +1,5 @@
 {
-  "name": "@app-web/build",
+  "name": "@storybook-app-web/build",
   "label": "Сборка Web",
   "version": "0.0.0",
   "private": true,
@@ -9,16 +9,16 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@zavx0z/ui": "^0.0.0",
-    "@package-build/scheduler": "workspace:*",
-    "@build/compiler": "workspace:*",
-    "@build/environment": "workspace:*",
-    "@build/artifacts": "workspace:*",
-    "@build/worker": "workspace:*",
-    "@package/revision": "workspace:*"
+    "@immersive-ui/component": "^0.0.0",
+    "@storybook-package-build/scheduler": "workspace:*",
+    "@storybook-tech-build/compiler": "workspace:*",
+    "@storybook-tech-build/environment": "workspace:*",
+    "@storybook-tech-build/artifacts": "workspace:*",
+    "@storybook-tech-build/worker": "workspace:*",
+    "@storybook-package/revision": "workspace:*"
   },
   "devDependencies": {
-    "@zavx0z/component": "^0.0.0",
-    "@tech/limits": "workspace:*"
+    "@immersive/component": "^0.0.0",
+    "@storybook-tech/limits": "workspace:*"
   }
 }

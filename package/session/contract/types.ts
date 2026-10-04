@@ -1,19 +1,19 @@
-import {type PackageBuildScheduler as PackageBuildSchedulerContract} from "@package-build/scheduler"
-import type {BuildWorker} from "@build/worker"
+import {type StorybookPackageBuildScheduler as PackageBuildSchedulerContract} from "@storybook-package-build/scheduler"
+import type {StorybookTechBuildWorker} from "@storybook-tech-build/worker"
 type StorybookBuildScheduler = PackageBuildSchedulerContract.Output
 type StorybookBuildCacheLayer = NonNullable<Parameters<PackageBuildSchedulerContract.Output["run"]>[0]["cache"]>["layer"]
 type StorybookBuildCacheStatus = NonNullable<Parameters<PackageBuildSchedulerContract.Output["run"]>[0]["cache"]>["status"]
 type StorybookBuildOutcome = ReturnType<PackageBuildSchedulerContract.Output["snapshot"]>["recent"][number]["outcome"]
 type StorybookBuildOwner = Parameters<PackageBuildSchedulerContract.Output["run"]>[0]["owner"]
 type StorybookBuildReason = Parameters<PackageBuildSchedulerContract.Output["run"]>[0]["reason"]
-type TransportEvent = NonNullable<ReturnType<typeof import("@package-build/scheduler").default.parseStorybookBuildWorkerTransportEvent>>
+type TransportEvent = NonNullable<ReturnType<typeof import("@storybook-package-build/scheduler").default.parseStorybookBuildWorkerTransportEvent>>
 type StorybookBuildPhaseListener = (event: Extract<TransportEvent, {kind: "phase"}>["event"]) => void
-type StorybookBuildWorkerLifecycleListener = NonNullable<BuildWorker.Input<unknown, unknown>["onLifecycle"]>
-import type {PackageRevision} from "@package/revision"
-import type {PackageStandard} from "@package/standard"
+type StorybookBuildWorkerLifecycleListener = NonNullable<StorybookTechBuildWorker.Input<unknown, unknown>["onLifecycle"]>
+import type {StorybookPackageRevision} from "@storybook-package/revision"
+import type {StorybookPackageStandard} from "@storybook-package/standard"
 
-export type StorybookPackageStandard = ReturnType<PackageStandard.Output["applied"]>
-export type StorybookPackageVerification = NonNullable<Parameters<PackageStandard.Output["applied"]>[1]>
+export type StorybookPackageStandard = ReturnType<StorybookPackageStandard.Output["applied"]>
+export type StorybookPackageVerification = NonNullable<Parameters<StorybookPackageStandard.Output["applied"]>[1]>
 
 export type StorybookPackageScenarioSpec = Readonly<{
   nodeId: string
@@ -40,7 +40,7 @@ export type StorybookPackageBuildDescriptor = Readonly<{
   repo: string
   sourcePath: string
   declarationDigest: string
-  graphSnapshot: ReturnType<PackageRevision.Output["create"]>
+  graphSnapshot: ReturnType<StorybookPackageRevision.Output["create"]>
   resourceFiles?: readonly StorybookPackageRevisionResourceFile[]
   scenarioSpecs?: readonly StorybookPackageScenarioSpec[]
 }>

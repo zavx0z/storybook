@@ -1,5 +1,5 @@
 {
-  "name": "@mcp/children",
+  "name": "@storybook-app-mcp-rest/children",
   "label": "Навигация MCP",
   "version": "0.0.0",
   "private": true,

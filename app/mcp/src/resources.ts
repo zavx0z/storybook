@@ -1,7 +1,7 @@
 import type {Controller} from "../contract/types"
 type StorybookResourceResult = Awaited<ReturnType<Controller["readResource"]>>
 import {ResourceTemplate, type McpServer} from "@modelcontextprotocol/server"
-import response from "@app-mcp/response"
+import response from "@storybook-app-mcp/response"
 
 const {sanitizeString: sanitizeMcpString, sanitizeText: sanitizeMcpText, sanitizeValue: sanitizeMcpValue} = response
 

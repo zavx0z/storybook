@@ -5,7 +5,7 @@
 @packageDocumentation
 */
 import {preserveStorybookInspector, sameStorybookViewUrl} from "./src/view-query.ts"
-import routeUrl from "@route/url"
+import routeUrl from "@storybook-package-route/url"
 import {resolve} from "node:path"
 import type {
   ChromeTargetSummary,
@@ -22,14 +22,14 @@ import type {
   StorybookBrowserOpenInput,
   StorybookBrowserCaptureResult,
 } from "./contract/types"
-import type {Zavx0zStorybookBrowserLifecycle} from "./contract"
+import type {StorybookAppServerBrowser} from "./contract"
 import {StorybookCaptureStore} from "./src/capture-store.ts"
 import {StorybookCdpClient} from "./src/chrome-client.ts"
 import {StorybookBrowserState, type StorybookBrowserTargetRecord} from "./src/browser-state.ts"
 import {withStorybookBrowserLock} from "./src/target-operation-lock.ts"
 import {StorybookViewRegistry, type StorybookIdentifiedTarget} from "./src/view-registry.ts"
 
-export type {Zavx0zStorybookBrowserLifecycle} from "./contract"
+export type {StorybookAppServerBrowser} from "./contract"
 
 const {validViewQuery: validStorybookViewQuery, storybookPackageRouteFromPathname} = routeUrl
 
@@ -37,13 +37,13 @@ const {validViewQuery: validStorybookViewQuery, storybookPackageRouteFromPathnam
 Создаёт изолированный lifecycle вкладок и хранилище снимков.
 
 @param options - Корни приватного состояния и необязательный Chrome client
-согласно {@link Zavx0zStorybookBrowserLifecycle.Input}.
+согласно {@link StorybookAppServerBrowser.Input}.
 @returns Операции одного browser owner согласно
-{@link Zavx0zStorybookBrowserLifecycle.Output}.
+{@link StorybookAppServerBrowser.Output}.
 */
 export default function createStorybookBrowserLifecycle(
-  options: Zavx0zStorybookBrowserLifecycle.Input,
-): Zavx0zStorybookBrowserLifecycle.Output {
+  options: StorybookAppServerBrowser.Input,
+): StorybookAppServerBrowser.Output {
   const stateRoot = resolve(options.stateRoot)
   return new DefaultStorybookBrowserLifecycle({
     state: new StorybookBrowserState(stateRoot),
@@ -63,7 +63,7 @@ type DefaultStorybookBrowserLifecycleOptions = Readonly<{
 }>
 
 /** Sole package-target lifecycle owner composed by the canonical Storybook server. */
-class DefaultStorybookBrowserLifecycle implements Zavx0zStorybookBrowserLifecycle.Output {
+class DefaultStorybookBrowserLifecycle implements StorybookAppServerBrowser.Output {
   readonly #chrome: StorybookChromeClient
   readonly #views: StorybookViewRegistry
   readonly #captures: StorybookCaptureStore

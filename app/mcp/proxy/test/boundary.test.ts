@@ -15,13 +15,13 @@ test("lazy proxy зависит от публичного server transport и н
   if (!source) throw new Error("Не найден публичный вход MCP proxy")
   const imports = source.statements.filter(isImportDeclaration).map(node =>
     isStringLiteral(node.moduleSpecifier) ? node.moduleSpecifier.text : "<dynamic>")
-  expect(imports.filter(value => value.startsWith("@") && value !== "@app-server/state"),
+  expect(imports.filter(value => value.startsWith("@") && value !== "@storybook-app-server/state"),
   "Прокси не загружает HTTP-представление, контроллер или сценарии").toEqual([])
   expect(imports.some(value => value.includes("app/src/mcp") || value.includes("server/controller"))).toBeFalse()
 })
 
 test("предметный REST не зависит от управляющего MCP transport", async () => {
   const manifest = await Bun.file(resolve(root, "app/mcp/rest/package.json")).json()
-  expect(Object.keys(manifest.dependencies ?? {}).some(name => name.startsWith("@app-server/") ||
+  expect(Object.keys(manifest.dependencies ?? {}).some(name => name.startsWith("@storybook-app-server/") ||
     name === "@modelcontextprotocol/server" || name === "@storybook/app-old")).toBeFalse()
 })

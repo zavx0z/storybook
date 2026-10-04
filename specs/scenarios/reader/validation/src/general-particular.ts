@@ -1,9 +1,9 @@
-import type {ArchetypesScenarioValidation} from "../contract"
+import type {StorybookSpecsScenariosReaderValidation} from "../contract"
 
 /** Общие проверки предшествуют необязательным частным группам второго уровня. */
-export function generalParticular(source: ArchetypesScenarioValidation.Input["source"]): ArchetypesScenarioValidation.Output["checks"][number] {
-  type Registration = ArchetypesScenarioValidation.Input["source"]["registrations"][number]
-  const issues: ArchetypesScenarioValidation.Output["checks"][number]["issues"][number][] = []
+export function generalParticular(source: StorybookSpecsScenariosReaderValidation.Input["source"]): StorybookSpecsScenariosReaderValidation.Output["checks"][number] {
+  type Registration = StorybookSpecsScenariosReaderValidation.Input["source"]["registrations"][number]
+  const issues: StorybookSpecsScenariosReaderValidation.Output["checks"][number]["issues"][number][] = []
   const parents: Registration[] = []
   const particularStarted = new Set<Registration>()
   const registrations = source.registrations

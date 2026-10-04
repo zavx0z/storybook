@@ -1,6 +1,6 @@
 import {lstat, readFile, realpath} from "node:fs/promises"
 import {isAbsolute, relative, resolve, sep} from "node:path"
-import readWorkspacePackages from "@route/workspaces"
+import readWorkspacePackages from "@storybook-package-route/workspaces"
 import type {PackageManifest} from "../contract/types"
 
 const privateSegments = new Set(["spec", "src", "fixture", "node_modules"])

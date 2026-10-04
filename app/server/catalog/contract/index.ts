@@ -1,18 +1,18 @@
-import type {PackageRevision} from "@package/revision"
-import type {RepoDiscovery} from "@repo/discovery"
-import type {PackageSession} from "@package/session"
+import type {StorybookPackageRevision} from "@storybook-package/revision"
+import type {StorybookRepoDiscovery} from "@storybook-repo/discovery"
+import type {StorybookPackageSession} from "@storybook-package/session"
 import type {ExternalStorybookAttachSource, ExternalStorybookRegistrySnapshot, ExternalStorybookRegistryDirtySnapshot, ExternalStorybookRegistryMetrics} from "./models"
 
 /** Контракт атомарного каталога подключённых владельцев приложения. */
-export declare namespace AppServerCatalog {
+export declare namespace StorybookAppServerCatalog {
   /**
   По умолчанию обнаружение, TypeScript-анализ, граф и описания выполняются в native worker.
   Явный resolver подставляет локальное исполнение для специализированного источника или проверки.
   Стили читаются при обновлении; ошибка сохраняет действующий снимок.
   */
   type Input = readonly [
-    resolveCatalog?: (...input: RepoDiscovery.Input) => Promise<RepoDiscovery.Output>,
-    readAuthorStyleSheets?: () => NonNullable<Parameters<PackageRevision.Output["create"]>[3]>,
+    resolveCatalog?: (...input: StorybookRepoDiscovery.Input) => Promise<StorybookRepoDiscovery.Output>,
+    readAuthorStyleSheets?: () => NonNullable<Parameters<StorybookPackageRevision.Output["create"]>[3]>,
   ]
 
   /**
@@ -44,7 +44,7 @@ export declare namespace AppServerCatalog {
     dirtySnapshot(): ExternalStorybookRegistryDirtySnapshot
     metrics(): ExternalStorybookRegistryMetrics
     refreshIfNeeded(): Promise<ExternalStorybookRegistrySnapshot>
-    packageDescriptors(): readonly PackageSession.Input[0][]
+    packageDescriptors(): readonly StorybookPackageSession.Input[0][]
     sourceRoots(): Promise<readonly string[]>
     restore(snapshot: ExternalStorybookRegistrySnapshot): void
   }

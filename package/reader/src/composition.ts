@@ -1,12 +1,12 @@
-import RouteWorkspacesOwner from "@route/workspaces"
+import RouteWorkspacesOwner from "@storybook-package-route/workspaces"
 const readWorkspacePackages = RouteWorkspacesOwner
 import {dirname, resolve} from "node:path"
 import {realpath} from "node:fs/promises"
-import readPackageJson from "@archetypes/package-json"
-import type {ArchetypesPackage} from "../contract"
+import readPackageJson from "@storybook-package/package-json"
+import type {StorybookPackageReader} from "../contract"
 
 /** Выбирает вложенные пакеты из корневого workspace Repo; ближайший пакет определяет принадлежность. */
-export async function readPackageComposition(path: string, metadata: ArchetypesPackage.Output["packageJson"]): Promise<ArchetypesPackage.Output["packages"]> {
+export async function readPackageComposition(path: string, metadata: StorybookPackageReader.Output["packageJson"]): Promise<StorybookPackageReader.Output["packages"]> {
   const root = await realpath(path)
   const names = new Map<string, string>([[metadata.name, root]])
   const found = new Map<string, string>([[root, metadata.name]])

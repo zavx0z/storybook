@@ -1,12 +1,12 @@
 import {randomBytes} from "node:crypto"
 import {dirname, join} from "node:path"
-import createChatSessions, {type ChatSession} from "@chat/session"
-import createAcp from "@tech/acp"
-import storybookRest, {type McpRest} from "@mcp/rest"
-import type {PackageGraphRead} from "@package-graph/read"
+import createChatSessions, {type StorybookChatSession} from "@storybook-chat/session"
+import createAcp from "@storybook-tech/acp"
+import storybookRest, {type StorybookAppMcpRest} from "@storybook-app-mcp/rest"
+import type {StorybookPackageGraphRead} from "@storybook-package-graph/read"
 
-type Graph = PackageGraphRead.Input
-type Snapshot = Awaited<ReturnType<ChatSession.Output["read"]>>
+type Graph = StorybookPackageGraphRead.Input
+type Snapshot = Awaited<ReturnType<StorybookChatSession.Output["read"]>>
 
 /** Соединяет адресные беседы с каталогом, Codex ACP и собственным MCP-входом приложения. */
 export function createChatServer(options: Readonly<{
@@ -15,7 +15,7 @@ export function createChatServer(options: Readonly<{
   toolRoot: string
   origin(): string
   graph(): Graph
-  entries(): McpRest.Input[1]["entries"]
+  entries(): StorybookAppMcpRest.Input[1]["entries"]
   connect?: typeof createAcp
 }>) {
   const grants = new Map<string, string>()
@@ -85,8 +85,8 @@ export function createChatServer(options: Readonly<{
     }
     visit(root.id)
     const rules = graph.nodes.filter(node => node.kind === "package" && [
-      "@archetypes/package", "@archetypes/domain", "@archetypes/cluster", "@archetypes/component",
-      "@archetypes/container", "@archetypes/contracts", "@archetypes/typedoc",
+      "@storybook-package/reader", "@storybook/domain", "@storybook/cluster", "@storybook/component",
+      "@storybook/container", "@storybook/contracts", "@storybook/typedoc",
     ].includes(node.packageId ?? ""))
     for (const rule of rules) visit(rule.id)
     const allowed = entries.filter(entry => permitted.has(entry.path))

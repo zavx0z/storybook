@@ -1,5 +1,5 @@
 {
-  "name": "@archetypes/package-index",
+  "name": "@storybook-package/index",
   "description": "Исследует публичные входы и их владельцев",
   "version": "0.0.0",
   "private": true,

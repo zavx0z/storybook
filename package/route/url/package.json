@@ -1,5 +1,5 @@
 {
-  "name": "@route/url",
+  "name": "@storybook-package-route/url",
   "label": "URL пакета",
   "version": "0.0.0",
   "private": true,
@@ -9,6 +9,6 @@
     ".": "./index.ts"
   },
   "devDependencies": {
-    "@zavx0z/dom": "^0.0.0"
+    "@immersive/dom": "^0.0.0"
   }
 }

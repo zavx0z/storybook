@@ -2,29 +2,29 @@
 
 @packageDocumentation
 */
-import PackageSessionOwner from "@package/session"
-import BuildEnvironmentOwner, {type BuildEnvironment as BuildEnvironmentContract} from "@build/environment"
+import PackageSessionOwner from "@storybook-package/session"
+import BuildEnvironmentOwner, {type StorybookTechBuildEnvironment as BuildEnvironmentContract} from "@storybook-tech-build/environment"
 const storybookBuildError = PackageSessionOwner.buildError
 const storybookDiagnostic = PackageSessionOwner.diagnostic
 const validateStorybookSharedBrowserIdentity = BuildEnvironmentOwner.validate
 type StorybookSharedBrowserIdentity = ReturnType<BuildEnvironmentContract.Output["identity"]>
 import {realpathSync} from "node:fs"
 import {join} from "node:path"
-import runBuildWorker from "@build/worker"
-import Scheduler from "@package-build/scheduler"
+import runBuildWorker from "@storybook-tech-build/worker"
+import Scheduler from "@storybook-package-build/scheduler"
 import {buildStorybookPackageRevisionInProcess} from "./src/in-process"
-import type {PackageBuildPrepare} from "./contract"
+import type {StorybookPackageBuildPrepare} from "./contract"
 import type {BuilderInput, BuildResult, PhaseListener, WorkerLifecycleListener} from "./contract/build"
 import type {WorkerJob, WorkerResult} from "./src/worker-protocol"
 
-export type {PackageBuildPrepare} from "./contract"
+export type {StorybookPackageBuildPrepare} from "./contract"
 
 const {parseStorybookBuildWorkerTransportEvent} = Scheduler
 
-/** Создаёт реальный Bun browser builder для независимых `PackageSession`. */
+/** Создаёт реальный Bun browser builder для независимых `StorybookPackageSession`. */
 export default function createStorybookPackageRevisionBuilder(
-  options: PackageBuildPrepare.Input,
-): PackageBuildPrepare.Output {
+  options: StorybookPackageBuildPrepare.Input,
+): StorybookPackageBuildPrepare.Output {
   const toolRoot = realpathSync(options.toolRoot)
   const browserEntryPath = realpathSync(options.browserEntryPath)
   const workerPath = realpathSync(options.workerPath ?? join(toolRoot, "package/build/prepare/src/package-build-worker.ts"))
@@ -106,7 +106,7 @@ async function runPackageBuildWorker(
 }
 
 async function resolveSharedBrowserIdentity(
-  options: PackageBuildPrepare.Input,
+  options: StorybookPackageBuildPrepare.Input,
 ): Promise<StorybookSharedBrowserIdentity | undefined> {
   if (options.sharedBrowserIdentity !== undefined) {
     return validateStorybookSharedBrowserIdentity(options.sharedBrowserIdentity)

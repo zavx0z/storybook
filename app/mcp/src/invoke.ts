@@ -2,7 +2,7 @@ import type {Controller, ControllerResult} from "../contract/types"
 import type {CallToolResult} from "@modelcontextprotocol/server"
 import type {StorybookControllerAccessor} from "./resources"
 import {resultContent, captureContent} from "./response"
-import response from "@app-mcp/response"
+import response from "@storybook-app-mcp/response"
 
 export async function invoke(
   accessor: StorybookControllerAccessor,

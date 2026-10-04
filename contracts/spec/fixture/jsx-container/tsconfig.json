@@ -1,1 +1,1 @@
-{"compilerOptions":{"target":"ESNext","module":"Preserve","moduleResolution":"bundler","customConditions":["bun"],"types":[],"strict":true,"noEmit":true,"jsx":"react-jsx","jsxImportSource":"@zavx0z/jsx"},"include":["**/*.ts","**/*.tsx"]}
+{"compilerOptions":{"target":"ESNext","module":"Preserve","moduleResolution":"bundler","customConditions":["bun"],"types":[],"strict":true,"noEmit":true,"jsx":"react-jsx","jsxImportSource":"@immersive/jsx"},"include":["**/*.ts","**/*.tsx"]}

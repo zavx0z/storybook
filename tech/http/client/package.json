@@ -1,5 +1,5 @@
 {
-  "name": "@http/client",
+  "name": "@storybook-tech-http/client",
   "label": "Авторизованный HTTP-клиент",
   "version": "0.0.0",
   "private": true,

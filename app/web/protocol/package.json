@@ -1,5 +1,5 @@
 {
-  "name": "@app-web/protocol",
+  "name": "@storybook-app-web/protocol",
   "label": "Протокол Web",
   "version": "0.0.0",
   "private": true,
@@ -9,13 +9,13 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@zavx0z/browser": "^0.0.0",
-    "@route/url": "workspace:*",
-    "@package-graph/read": "workspace:*",
-    "@package-graph/create": "workspace:*"
+    "@immersive/browser": "^0.0.0",
+    "@storybook-package-route/url": "workspace:*",
+    "@storybook-package-graph/read": "workspace:*",
+    "@storybook-package-graph/create": "workspace:*"
   },
   "devDependencies": {
-    "@repo/discovery": "workspace:*",
-    "@package/session": "workspace:*"
+    "@storybook-repo/discovery": "workspace:*",
+    "@storybook-package/session": "workspace:*"
   }
 }

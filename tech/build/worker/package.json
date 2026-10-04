@@ -1,5 +1,5 @@
 {
-  "name": "@build/worker",
+  "name": "@storybook-tech-build/worker",
   "label": "Исполнитель сборки",
   "version": "0.0.0",
   "private": true,
@@ -9,7 +9,7 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@process/wait": "workspace:*"
+    "@storybook-tech-process/wait": "workspace:*"
   },
   "scripts": {
     "test": "bun test ./spec ./test"

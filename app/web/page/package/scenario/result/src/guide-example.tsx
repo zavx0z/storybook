@@ -1,5 +1,5 @@
-import {CodeEditor} from "@zavx0z/ui"
-import {Typography} from "@zavx0z/ui"
+import {CodeEditor} from "@immersive-ui/component"
+import {Typography} from "@immersive-ui/component"
 
 /** Один исходный пример руководства с собственным заголовком и редактором. */
 export function ScenarioGuideExample(props: Readonly<{key?: string, title: string, code: string}>) {

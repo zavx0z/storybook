@@ -1,5 +1,5 @@
 import {describe, expect, test} from "bun:test"
-import measureProcessResources from "@process/measure"
+import measureProcessResources from "@storybook-tech-process/measure"
 
 const rows = [
   {pid: 100, parentPid: 1, cpuPercent: 12.5, rssBytes: 2097152, startedAt: "2026-09-11T08:00:00.000Z"},

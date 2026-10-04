@@ -2,11 +2,11 @@ import {afterEach, expect, test} from "bun:test"
 import {mkdtemp, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import type {ChatSession} from "@chat/session"
-import type {PackageGraphRead} from "@package-graph/read"
+import type {StorybookChatSession} from "@storybook-chat/session"
+import type {StorybookPackageGraphRead} from "@storybook-package-graph/read"
 import {relocateAppChats, relocatedAppAddress} from "../src/layout-relocations"
 
-type Graph = PackageGraphRead.Input
+type Graph = StorybookPackageGraphRead.Input
 const roots: string[] = []
 afterEach(async () => {
   for (const root of roots.splice(0)) await rm(root, {recursive: true, force: true})
@@ -18,16 +18,16 @@ async function fixture() {
   const current = join(toolRoot, "app/web/page/shell/minimap")
   const base = "/storybook/app/web/page/shell/minimap"
   const owner = {
-    id: "package:@web/minimap",
+    id: "package:@storybook-app-web-page-shell/minimap",
     kind: "package",
-    packageId: "@web/minimap",
+    packageId: "@storybook-app-web-page-shell/minimap",
     urlPath: base,
     source: {path: join(current, "package.json")},
   }
   const directory = {
-    id: "directory:@web/minimap/src",
+    id: "directory:@storybook-app-web-page-shell/minimap/src",
     kind: "directory",
-    packageId: "@web/minimap",
+    packageId: "@storybook-app-web-page-shell/minimap",
     urlPath: `${base}/src`,
     source: {path: join(current, "src")},
   }
@@ -44,8 +44,8 @@ async function fixture() {
 
 test("стабильный packageId переносит только собственный пакет и его директории", async () => {
   const f = await fixture()
-  const calls: Parameters<ChatSession.Output["relocate"]>[0][] = []
-  const chats = {async relocate(input: Parameters<ChatSession.Output["relocate"]>[0]) { calls.push(input); return null }} as ChatSession.Output
+  const calls: Parameters<StorybookChatSession.Output["relocate"]>[0][] = []
+  const chats = {async relocate(input: Parameters<StorybookChatSession.Output["relocate"]>[0]) { calls.push(input); return null }} as StorybookChatSession.Output
   await relocateAppChats(f.toolRoot, f.graph(), chats)
   expect(calls).toEqual([
     {
@@ -68,7 +68,7 @@ test("иной toolRoot, packageId или Repo не получает стары�
   const wrongId = {...f.owner, packageId: "@fixture/other"}
   const foreign = {...f.owner, source: {path: join(wrongRoot, "app/web/page/shell/minimap/package.json")}}
   const calls: unknown[] = []
-  const chats = {async relocate(input: unknown) { calls.push(input); return null }} as ChatSession.Output
+  const chats = {async relocate(input: unknown) { calls.push(input); return null }} as StorybookChatSession.Output
   await relocateAppChats(wrongRoot, f.graph(), chats)
   await relocateAppChats(f.toolRoot, f.graph([wrongId]), chats)
   await relocateAppChats(f.toolRoot, f.graph([foreign]), chats)
@@ -87,10 +87,10 @@ test("redirect получает только pathname; сервер сохран
   expect(relocatedAppAddress(f.toolRoot, f.graph(), "/storybook/app/web/minimap?view=contract")).toBeNull()
 })
 
-test("конфликт ChatSession.relocate останавливает переход без подавления ошибки", async () => {
+test("конфликт StorybookChatSession.relocate останавливает переход без подавления ошибки", async () => {
   const f = await fixture()
   let calls = 0
-  const chats = {async relocate() { calls += 1; throw new Error("Новый адрес уже занят другой беседой") }} as unknown as ChatSession.Output
+  const chats = {async relocate() { calls += 1; throw new Error("Новый адрес уже занят другой беседой") }} as unknown as StorybookChatSession.Output
   await expect(relocateAppChats(f.toolRoot, f.graph(), chats)).rejects.toThrow("занят другой беседой")
   expect(calls).toBe(1)
 })

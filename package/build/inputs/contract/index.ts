@@ -1,8 +1,8 @@
 
 /** Контракт физических входов и идентичности пакетной сборки. */
-import {type PackageSession as PackageSessionContract} from "@package/session"
+import {type StorybookPackageSession as PackageSessionContract} from "@storybook-package/session"
 type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
-export declare namespace PackageBuildInputs {
+export declare namespace StorybookPackageBuildInputs {
   /**
   Канонизация списка source paths и проверка принадлежности пакета.
 

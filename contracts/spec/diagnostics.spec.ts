@@ -1,7 +1,7 @@
 /** Нарушения публичной границы не превращаются в успешные примеры использования. */
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readContract from "@archetypes/contracts"
+import readContract from "@storybook/contracts"
 import {createFixture} from "../test/fixture"
 
 describe.each([
@@ -112,7 +112,7 @@ describe.each([
 test("Результат JSX не подменяет заявленные точки вставки", async () => {
   const fixture = await createFixture("jsx-component")
   try {
-    await fixture.write("contract/index.ts", 'import type {JSX} from "@zavx0z/jsx"\nexport declare namespace ContractFixturePanel {type Input = {readonly title: string}\ntype Slots = {readonly default: JSX.Element, readonly header?: JSX.Element}\ntype Output = JSX.Element<{readonly wrong: JSX.Element}>}\n')
+    await fixture.write("contract/index.ts", 'import type {JSX} from "@immersive/jsx"\nexport declare namespace ContractFixturePanel {type Input = {readonly title: string}\ntype Slots = {readonly default: JSX.Element, readonly header?: JSX.Element}\ntype Output = JSX.Element<{readonly wrong: JSX.Element}>}\n')
     const result = await readContract({path: fixture.root})
     expect(result.entries[0]?.namespaces[0]?.slotsLinked,
       "Наличие JSX.Element само по себе не связывает его чужую форму wrong с объявленными Slots").toBeFalse()

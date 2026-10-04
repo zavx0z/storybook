@@ -27,11 +27,11 @@ import {
   isPropertyAccessExpression,
   isStringLiteral,
 } from "typescript/unstable/ast/is"
-import type {ArchetypesScenarioReader} from "../contract"
-import type {ScenarioExecution, ScenarioPreview, TraceValue} from "./types"
+import type {StorybookSpecsScenariosReader} from "../contract"
+import type {ScenarioExecution, StorybookAppWebPagePackageScenarioPreview, TraceValue} from "./types"
 import {createFunctionPreview, inspectFunctionScenario} from "./function-preview"
 import {readJsxProps, readJsxSlots, jsxPropImport, type JsxProp} from "./preview-jsx"
-import validateScenario from "@archetypes/scenario-validation"
+import validateScenario from "@storybook-specs-scenarios-reader/validation"
 import {ScenarioAuthoringError} from "./authoring-error"
 import {readScenarioSource} from "./read-source"
 import {readPreviewSetup} from "./preview-setup"
@@ -343,7 +343,7 @@ function renderSource(descriptor: PreviewDescriptor, props: Readonly<Record<stri
 @param input - Путь к сценарию компонента или функции.
 @returns `true` для JSX внутри render, прямого вызова функции или `new` default-класса.
 */
-export async function supportsScenarioPreview(input: Pick<ArchetypesScenarioReader.Input, "path">): Promise<boolean> {
+export async function supportsScenarioPreview(input: Pick<StorybookSpecsScenariosReader.Input, "path">): Promise<boolean> {
   const source = await readScenarioSource(input.path)
   const checks = validateScenario(source).checks.filter(check => check.status === "failed")
   if (checks.some(check => ["render-jsx", "component-origin", "single-invocation", "general-particular"].includes(check.rule))) {
@@ -359,7 +359,7 @@ export async function createScenarioPreview(
   overriddenProps: readonly string[] = [],
   variantOffset = 0,
   selectedPath?: readonly number[],
-): Promise<ScenarioPreview | undefined> {
+): Promise<StorybookAppWebPagePackageScenarioPreview | undefined> {
   const descriptor = await inspectScenario(path)
   if (!descriptor) {
     const functionDescriptor = await inspectFunctionScenario(path)
@@ -371,7 +371,7 @@ export async function createScenarioPreview(
     && call.location?.path === descriptor.scenarioPath
     && descriptor.renderLines.includes(call.location.line))
   if (calls.length === 0) return undefined
-  const variants: Extract<ScenarioPreview, {kind: "component"}>["variants"][number][] = []
+  const variants: Extract<StorybookAppWebPagePackageScenarioPreview, {kind: "component"}>["variants"][number][] = []
   const seen = new Set<number>()
   for (const call of calls) {
     const group = execution.groups.find(item => item.id === call.groupId)

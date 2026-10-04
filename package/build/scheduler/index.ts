@@ -5,7 +5,7 @@
 @packageDocumentation
 */
 import {randomUUID} from "node:crypto"
-import BuildQueue from "@build/queue"
+import StorybookTechBuildQueue from "@storybook-tech-build/queue"
 import {
   STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL,
   parseStorybookBuildWorkerTransportEvent,
@@ -23,9 +23,9 @@ import type {
   StorybookBuildTransition,
   StorybookBuildTransitionListener,
 } from "./contract/types"
-import type {PackageBuildScheduler} from "./contract"
+import type {StorybookPackageBuildScheduler} from "./contract"
 
-export type {PackageBuildScheduler} from "./contract"
+export type {StorybookPackageBuildScheduler} from "./contract"
 
 /** Safe default оставляет этому 16 GiB Intel host одну тяжёлую build operation. */
 const STORYBOOK_BUILD_CONCURRENCY = 1
@@ -38,29 +38,29 @@ const STORYBOOK_RESOURCE_SAMPLE_THROTTLE_MS = 1_000
 
 /** Сведения о пакетной работе остаются у сборочного координатора. */
 type BuildDetails = Omit<ReturnType<typeof normalizeRequest>, "operationId">
-type BuildContext<Details extends object> = Parameters<Parameters<BuildQueue<Details>["run"]>[1]>[0]
-type BuildOperation<Details extends object> = ReturnType<BuildQueue<Details>["snapshot"]>["active"][number]
-type BuildTransition<Details extends object> = Parameters<Parameters<BuildQueue<Details>["subscribe"]>[0]>[0]
+type BuildContext<Details extends object> = Parameters<Parameters<StorybookTechBuildQueue<Details>["run"]>[1]>[0]
+type BuildOperation<Details extends object> = ReturnType<StorybookTechBuildQueue<Details>["snapshot"]>["active"][number]
+type BuildTransition<Details extends object> = Parameters<Parameters<StorybookTechBuildQueue<Details>["subscribe"]>[0]>[0]
 
 /**
 Связывает пакетную подготовку с технической очередью исполнения.
 
 Координатор проверяет package/shared vocabulary и сохраняет прежнюю публичную
-проекцию состояния. FIFO, владение slot и измерение worker принадлежат BuildQueue.
+проекцию состояния. FIFO, владение slot и измерение worker принадлежат StorybookTechBuildQueue.
 */
-export default class StorybookBuildScheduler implements PackageBuildScheduler.Output {
+export default class StorybookBuildScheduler implements StorybookPackageBuildScheduler.Output {
   static readonly STORYBOOK_BUILD_CONCURRENCY = STORYBOOK_BUILD_CONCURRENCY
   static readonly STORYBOOK_BUILD_CONCURRENCY_MAX = STORYBOOK_BUILD_CONCURRENCY_MAX
   static readonly STORYBOOK_BUILD_RECENT_LIMIT = STORYBOOK_BUILD_RECENT_LIMIT
   static readonly STORYBOOK_RESOURCE_SAMPLE_THROTTLE_MS = STORYBOOK_RESOURCE_SAMPLE_THROTTLE_MS
   static readonly STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL = STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL
   static readonly parseStorybookBuildWorkerTransportEvent = parseStorybookBuildWorkerTransportEvent
-  readonly #queue: BuildQueue<BuildDetails>
+  readonly #queue: StorybookTechBuildQueue<BuildDetails>
 
   /** Создаёт одну очередь, общую для переданных ей пакетных и shared работ. */
   constructor(options: number | StorybookBuildSchedulerOptions = {}) {
     const normalized = typeof options === "number" ? {limit: options} : options
-    this.#queue = new BuildQueue({...normalized, isTimeout: isTimeoutOutcome})
+    this.#queue = new StorybookTechBuildQueue({...normalized, isTimeout: isTimeoutOutcome})
   }
 
   /** Число работ, удерживающих slot до завершения cleanup. */

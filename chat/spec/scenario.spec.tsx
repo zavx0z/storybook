@@ -4,8 +4,8 @@ import {mkdtemp, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {createHeadless} from "@immersive/headless"
-import createSessions, {type ChatSession} from "@archetypes/chat"
-import ChatView from "../web"
+import createSessions, {type StorybookChatSession} from "@storybook/chat"
+import StorybookChatView from "../web"
 
 describe.each([{name: "Одна история в двух средах", props: {address: "/storybook/component", label: "Component", message: "Проверь контракт"}}])("$name", async ({props}) => {
   const directory = await mkdtemp(join(tmpdir(), "chat-domain-"))
@@ -32,8 +32,8 @@ describe.each([{name: "Одна история в двух средах", props:
     await sessions.dispose()
     await rm(directory, {recursive: true, force: true})
   })
-  let finish!: (snapshot: Awaited<ReturnType<ChatSession.Output["read"]>>) => void
-  const completed = new Promise<Awaited<ReturnType<ChatSession.Output["read"]>>>(resolve => {finish = resolve})
+  let finish!: (snapshot: Awaited<ReturnType<StorybookChatSession.Output["read"]>>) => void
+  const completed = new Promise<Awaited<ReturnType<StorybookChatSession.Output["read"]>>>(resolve => {finish = resolve})
   const unsubscribe = await sessions.subscribe(props.address, snapshot => {
     if (snapshot.status === "idle" && snapshot.messages.length === 2) finish(snapshot)
   })
@@ -41,7 +41,7 @@ describe.each([{name: "Одна история в двух средах", props:
   const snapshot = await completed
   unsubscribe()
   const element = await headless.render(
-    <ChatView
+    <StorybookChatView
       address={snapshot.address}
       label={snapshot.label}
       messages={snapshot.messages}

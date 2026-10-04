@@ -1,5 +1,5 @@
 {
-  "name": "@web/client",
+  "name": "@storybook-app-web-page/client",
   "label": "Client",
   "version": "0.0.0",
   "private": true,
@@ -9,6 +9,6 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@app-web/protocol": "workspace:*"
+    "@storybook-app-web/protocol": "workspace:*"
   }
 }

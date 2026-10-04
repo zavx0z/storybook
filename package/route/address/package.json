@@ -1,5 +1,5 @@
 {
-  "name": "@route/address",
+  "name": "@storybook-package-route/address",
   "label": "Адрес маршрута",
   "version": "0.0.0",
   "private": true,

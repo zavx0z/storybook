@@ -1,6 +1,6 @@
 import {createProjectFixture} from "./project.fixture.ts"
-import createWeb from "@app/web"
-import {type Zavx0zStorybookBrowserLifecycle as Zavx0zStorybookBrowserLifecycleContract} from "@zavx0z/storybook-browser-lifecycle"
+import createWeb from "@storybook-app/web"
+import {type StorybookAppServerBrowser as Zavx0zStorybookBrowserLifecycleContract} from "@storybook-app-server/browser"
 type StorybookBrowserLifecycle = Zavx0zStorybookBrowserLifecycleContract.Output
 import {expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm} from "node:fs/promises"

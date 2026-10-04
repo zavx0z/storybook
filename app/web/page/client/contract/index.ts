@@ -1,6 +1,6 @@
 import type {ExternalStorybookClientSnapshot, ExternalStorybookClientNode} from "./types"
 
-export declare namespace WebClient {
+export declare namespace StorybookAppWebPageClient {
   /** Чтение проверенного снимка каталога и документации его точных узлов. */
   export type Output = Readonly<{
     /** Проверяет HTTP и транспортную форму снимка до передачи потребителю. */

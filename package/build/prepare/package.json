@@ -1,5 +1,5 @@
 {
-  "name": "@package-build/prepare",
+  "name": "@storybook-package-build/prepare",
   "label": "Подготовка ревизии пакета",
   "version": "0.0.0",
   "private": true,
@@ -9,23 +9,23 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@zavx0z/jsx": "^0.0.0",
-    "@package-build/scheduler": "workspace:*",
-    "@build/environment": "workspace:*",
-    "@package/session": "workspace:*",
-    "@build/compiler": "workspace:*",
-    "@package-build/loader": "workspace:*",
-    "@package-build/conformance": "workspace:*",
-    "@package-build/scenarios": "workspace:*",
-    "@package-build/inputs": "workspace:*",
-    "@build/worker": "workspace:*"
+    "@immersive/jsx": "^0.0.0",
+    "@storybook-package-build/scheduler": "workspace:*",
+    "@storybook-tech-build/environment": "workspace:*",
+    "@storybook-package/session": "workspace:*",
+    "@storybook-tech-build/compiler": "workspace:*",
+    "@storybook-package-build/loader": "workspace:*",
+    "@storybook-package-build/conformance": "workspace:*",
+    "@storybook-package-build/scenarios": "workspace:*",
+    "@storybook-package-build/inputs": "workspace:*",
+    "@storybook-tech-build/worker": "workspace:*"
   },
   "devDependencies": {
     "@immersive/headless": "^0.0.0",
-    "@repo/discovery": "workspace:*",
-    "@package-graph/create": "workspace:*",
-    "@package/revision": "workspace:*",
-    "@archetypes/scenario-reader": "workspace:*",
-    "@archetypes/spec-reader": "workspace:*"
+    "@storybook-repo/discovery": "workspace:*",
+    "@storybook-package-graph/create": "workspace:*",
+    "@storybook-package/revision": "workspace:*",
+    "@storybook-specs-scenarios/reader": "workspace:*",
+    "@storybook-specs/reader": "workspace:*"
   }
 }

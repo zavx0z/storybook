@@ -1,5 +1,5 @@
 import {describe, expect, test} from "bun:test"
-import WebProtocol from "@app-web/protocol"
+import WebProtocol from "@storybook-app-web/protocol"
 
 describe("external Storybook native page title", () => {
   test("uses selected labels consistently including the self package", () => {

@@ -1,12 +1,12 @@
-import type {WebCatalog} from "@web/catalog"
-type NavigationExpansion = NonNullable<WebCatalog.Input["navigationExpansion"]>
+import type {StorybookAppWebPageShellWorkbenchCatalog} from "@storybook-app-web-page-shell-workbench/catalog"
+type NavigationExpansion = NonNullable<StorybookAppWebPageShellWorkbenchCatalog.Input["navigationExpansion"]>
 
 const STORAGE_KEY = "storybook.navigation-tree.v1"
 const MAX_IDS = 4096
 
 /** Недоступное или повреждённое хранилище не препятствует навигации. */
 export function createNavigationExpansion(storage: () => Pick<Storage, "getItem" | "setItem">): NavigationExpansion {
-  let initialCollapsedIds: readonly string[] = []
+  let initialCollapsedIds: readonly string[] | undefined
   try {
     const value = JSON.parse(storage().getItem(STORAGE_KEY) ?? "null")
     if (value?.version === 1 && Array.isArray(value.collapsedIds)) {

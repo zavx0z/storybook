@@ -1,12 +1,14 @@
-import {databaseIcon} from "@ui-themes/icons"
-import {Inspector} from "@zavx0z/ui"
-import type {UiWidgetsInspector} from "@zavx0z/ui"
-type InspectorCategory = UiWidgetsInspector.Input["categories"][number]
-import type {JSX} from "@jsx-compiler/session"
+import {iconSvg} from "@immersive-ui-theme/icon"
+import {Inspector} from "@immersive-ui/component"
+import type {ImmersiveUiComponentWidgetInspector} from "@immersive-ui/component"
+type InspectorCategory = ImmersiveUiComponentWidgetInspector.Input["categories"][number]
+import type {JSX} from "@immersive-jsx-compiler/session"
 import type {
   WorkbenchInspectorSubject,
   WorkbenchInspectorWidgetRegistration,
 } from "../types.ts"
+
+const branchIcon = iconSvg('<circle cx="6" cy="5" r="2"/><circle cx="18" cy="11" r="2"/><circle cx="18" cy="19" r="2"/><path d="M6 7v12h10M6 11h10"/>')
 
 export type WorkbenchInspectorProps = Readonly<{
   registry: readonly WorkbenchInspectorWidgetRegistration[]
@@ -31,9 +33,9 @@ export function WorkbenchInspector(props: WorkbenchInspectorProps) {
     panelIds: Object.freeze([widget.id]),
   })), {
     id: "tree",
-    label: "Дерево",
-    title: "Дерево",
-    iconSrc: databaseIcon,
+    label: "Ветка",
+    title: "Ветка",
+    iconSrc: branchIcon,
     panelIds: ["tree"],
   }])
   return <Inspector
@@ -42,7 +44,6 @@ export function WorkbenchInspector(props: WorkbenchInspectorProps) {
     categories={categories}
     selectedCategoryId={props.selectedId}
     query={props.query}
-    showSearch={props.selectedId !== "tree"}
     searchLabel="Поиск по инспектору"
     searchPlaceholder="Поиск…"
     onCategoryChange={props.onCategoryChange}

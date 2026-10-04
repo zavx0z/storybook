@@ -5,5 +5,5 @@
 
 @packageDocumentation
 */
-export {default} from "@chat/session"
-export type {ChatSession} from "@chat/session"
+export {default} from "@storybook-chat/session"
+export type {StorybookChatSession} from "@storybook-chat/session"

@@ -1,5 +1,5 @@
 {
-  "name": "@archetypes/spec-reader",
+  "name": "@storybook-specs/reader",
   "label": "Читатель спецификации",
   "description": "Находит и выполняет непосредственный сценарий спецификации владельца",
   "version": "0.0.0",
@@ -9,7 +9,7 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@archetypes/scenario-reader": "workspace:*"
+    "@storybook-specs-scenarios/reader": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^7.0.2"

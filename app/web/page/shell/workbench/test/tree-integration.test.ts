@@ -9,12 +9,12 @@ import {
   KeyboardEvent,
   MouseEvent,
   Node,
-} from "@zavx0z/dom"
+} from "@immersive/dom"
 import type {
   Workbench,
   WorkbenchNavigationItem,
 } from "../src/types.ts"
-import {chevronDownIcon, chevronRightIcon} from "@ui-themes/icons"
+import {chevronDownIcon, chevronRightIcon} from "@immersive-ui-theme/icon"
 import {WORKBENCH_EVENTS} from "../src/events"
 import type {NavigationExpansion} from "../src/types.ts"
 import type * as ControllerModule from "./fixture/create-workbench"
@@ -62,7 +62,7 @@ describe("compiled Storybook catalog navigation tree", () => {
     expect(findLeaf(workbench, "engine")?.querySelector('[data-tree-label]')?.getAttribute("title")).toBe("Движок")
   })
 
-  test("renders selectable repository and nested package branches with independent disclosure", () => {
+  test("ветви сохраняют независимое раскрытие без переходов по клику", () => {
     const workbench = createWorkbench([
       {id: "repo", label: "Repository", route: "/projects/repo/"},
       {id: "parent", label: "Parent", route: "/browse/parent/", parentId: "repo"},
@@ -77,7 +77,7 @@ describe("compiled Storybook catalog navigation tree", () => {
     workbench.element.addEventListener(WORKBENCH_EVENTS.navigate, event => navigated.push((event as CustomEvent<{id: string}>).detail.id))
     const label = repo.querySelector('[data-tree-row]')!
     label.dispatchEvent(new MouseEvent("click", {bubbles: true}))
-    expect(navigated).toEqual(["repo"])
+    expect(navigated).toEqual([])
     focusControl(child).focus()
     repo.querySelector("button")!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
     expect(repo.getAttribute("aria-expanded")).toBe("false")
@@ -88,7 +88,7 @@ describe("compiled Storybook catalog navigation tree", () => {
     expect(findGroup(workbench, "parent")?.getAttribute("aria-expanded")).toBe("false")
     clickGroup(findGroup(workbench, "parent")!)
     expect(findLeaf(workbench, "child") === child).toBeTrue()
-    expect(navigated).toEqual(["repo"])
+    expect(navigated).toEqual([])
   })
 
   test("creates explicit group rows, child groups and active leaves", () => {
@@ -235,7 +235,7 @@ describe("compiled Storybook catalog navigation tree", () => {
     } finally { restored.dispose() }
   })
 
-  test("кнопки рядом с поиском управляют полным деревом и находят текущую страницу", () => {
+  test("кнопки раскрытия управляют веткой независимо от поиска Minimap", () => {
     let collapsedIds: readonly string[] = []
     const workbench = createWorkbench([
       {id: "repo", label: "Repository", route: "/projects/repo/"},
@@ -249,7 +249,8 @@ describe("compiled Storybook catalog navigation tree", () => {
       if (result === null) throw new Error(`Missing toolbar button: ${label}`)
       return result
     }
-    expect(button("Найти текущую страницу в дереве")).toBeDefined()
+    expect([...toolbar.querySelectorAll("button")].map(node => node.getAttribute("aria-label")))
+      .toEqual(["Развернуть всё дерево", "Свернуть всё дерево"])
     workbench.update("catalog.search", "Other")
     button("Свернуть всё дерево").dispatchEvent(new MouseEvent("click", {bubbles: true}))
     expect(collapsedIds).toEqual(["repo", "package"])
@@ -261,8 +262,8 @@ describe("compiled Storybook catalog navigation tree", () => {
 
     button("Свернуть всё дерево").dispatchEvent(new MouseEvent("click", {bubbles: true}))
     workbench.update("catalog.search", "Other")
-    button("Найти текущую страницу в дереве").dispatchEvent(new MouseEvent("click", {bubbles: true}))
-    expect(workbench.controller.read("catalog.search")).toBe("")
+    button("Развернуть всё дерево").dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    expect(workbench.controller.read("catalog.search")).toBe("Other")
     expect(findGroup(workbench, "repo")?.getAttribute("aria-expanded")).toBe("true")
     expect(findGroup(workbench, "package")?.getAttribute("aria-expanded")).toBe("true")
     expect(findLeaf(workbench, "subject")?.getAttribute("aria-current")).toBe("page")
@@ -341,7 +342,7 @@ describe("compiled Storybook catalog navigation tree", () => {
     expect((workbench.document.activeElement as HTMLElement).getAttribute("data-tree-id")).toBe("styles")
   })
 
-  test("searches group, label, title, route and domain aliases without changing collapse state", () => {
+  test("поиск Minimap сохраняет все строки ветки и состояние раскрытия", () => {
     const workbench = createWorkbench(groupedItems)
     const elements = findGroup(workbench, "elements")!
     clickGroup(elements)
@@ -353,7 +354,7 @@ describe("compiled Storybook catalog navigation tree", () => {
       ["DOM API", ["interfaces"]],
       ["dom/interfaces", ["interfaces"]],
       ["EventTarget", ["interfaces"]],
-      ["Элементы", []],
+      ["Элементы", ["interfaces"]],
     ] as const
     for (const [query, ids] of cases) {
       workbench.update("catalog.search", query)
@@ -365,8 +366,8 @@ describe("compiled Storybook catalog navigation tree", () => {
     expect(elements.getAttribute("aria-expanded")).toBe("false")
     clickGroup(elements)
     workbench.update("catalog.search", "Элементы")
-    expect(groupRows(workbench).map((row) => row.getAttribute("data-tree-id"))).toEqual(["group:elements"])
-    expect(leafRows(workbench)).toEqual([])
+    expect(groupRows(workbench).map((row) => row.getAttribute("data-tree-id"))).toEqual(["group:dom", "group:elements"])
+    expect(leafRows(workbench).map(row => row.getAttribute("data-tree-id"))).toEqual(["interfaces", "primitives", "styles"])
     workbench.update("catalog.search", "")
     expect(leafRows(workbench).map((row) => row.getAttribute("data-tree-id"))).toEqual([
       "interfaces",
@@ -447,8 +448,9 @@ describe("compiled Storybook catalog navigation tree", () => {
 
     workbench.update("catalog.search", "needle")
     expect(tree.scrollTop).toBe(0)
-    expect(tree.getAttribute("data-tree-total")).toBe("2")
-    expect(leafRows(workbench).map((row) => row.getAttribute("data-tree-id"))).toEqual(["item-777"])
+    expect(tree.getAttribute("data-tree-total")).toBe("1001")
+    expect(leafRows(workbench)).toHaveLength(79)
+    expect(findLeaf(workbench, "item-0")).toBe(first)
     workbench.update("catalog.search", "")
     expect(tree.scrollTop).toBe(0)
     const retainedFirst = findLeaf(workbench, "item-0")!

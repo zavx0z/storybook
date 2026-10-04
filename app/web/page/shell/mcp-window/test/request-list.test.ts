@@ -1,14 +1,14 @@
-import createJournal, {type McpRestRequests as McpRestRequestsContract} from "@mcp-rest/requests"
-import McpRestScenariosOwner from "@mcp-rest/scenarios"
+import createJournal, {type StorybookAppServerRequests as McpRestRequestsContract} from "@storybook-app-server/requests"
+import McpRestScenariosOwner from "@storybook-specs/presentation"
 const readScenarios = McpRestScenariosOwner
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
 import {expect, test} from "bun:test"
 import {resolve} from "node:path"
-import {createRoot} from "@zavx0z/component"
-import {createDocument, MouseEvent} from "@zavx0z/dom"
-import {createDocumentRenderer} from "@renderer/html"
-import createJsxBunPlugin from "@jsx-compiler/bun"
-import type {CompiledTemplate} from "@zavx0z/template/compiled"
+import {createRoot} from "@immersive/component"
+import {createDocument, MouseEvent} from "@immersive/dom"
+import {createDocumentRenderer} from "@immersive-renderer/html"
+import createJsxBunPlugin from "@immersive-jsx-compiler/bun"
+import type {CompiledTemplate} from "@immersive/template/compiled"
 
 const root = resolve(import.meta.dir, "../../../../../..")
 Bun.plugin(createJsxBunPlugin({cwd: root, persistent: true, sourceRoots: [resolve(root, "app/web/page/shell/mcp-window")]}))

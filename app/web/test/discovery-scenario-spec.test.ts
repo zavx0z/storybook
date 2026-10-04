@@ -2,10 +2,10 @@ import {expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm, symlink} from "node:fs/promises"
 import {join} from "node:path"
 import {tmpdir} from "node:os"
-import discoverStorybookPackages from "@repo/discovery"
-import createExternalStorybookGraph from "@package-graph/create"
-import graphRead from "@package-graph/read"
-import WebNavigationOwner from "@web/navigation"
+import discoverStorybookPackages from "@storybook-repo/discovery"
+import createExternalStorybookGraph from "@storybook-package-graph/create"
+import graphRead from "@storybook-package-graph/read"
+import WebNavigationOwner from "@storybook-app-web-page/navigation"
 const deriveExternalStorybookPackageTab = WebNavigationOwner.deriveExternalStorybookPackageTab
 
 const externalStorybookRoutes = graphRead.routes

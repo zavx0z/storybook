@@ -1,8 +1,8 @@
 import {afterEach, expect, test} from "bun:test"
 import {mkdir, rm, symlink} from "node:fs/promises"
 import {join, resolve} from "node:path"
-import readContainer from "@archetypes/container"
-import readScenario from "@archetypes/scenario-reader"
+import readContainer from "@storybook/container"
+import readScenario from "@storybook-specs-scenarios/reader"
 import {prepareContainerExample} from "../spec/prepare"
 
 const roots: string[] = []

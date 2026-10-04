@@ -1,5 +1,5 @@
 {
-  "name": "@route/ignored",
+  "name": "@storybook-package-route/ignored",
   "label": "Исключения маршрута",
   "version": "0.0.0",
   "private": true,

@@ -22,12 +22,12 @@ test("находит preload и JSX runtime компонента", async () => {
   expect(result, "Среда должна соответствовать test script владельца компонента").toMatchObject({
     cwd: resolve(immersive, "nodes/node"),
     preload: [resolve(immersive, "headless/preload.ts")],
-    jsxImportSource: "@zavx0z/jsx",
+    jsxImportSource: "@immersive/jsx",
   })
 })
 
 test("путь ./spec в команде тестов сохраняет preload примера", async () => {
   const result = await discover(resolve(import.meta.dir, "../spec/fixture/component/spec/scenario.spec.tsx"))
   expect(result.preload).toContain(Bun.resolveSync("@immersive/headless/preload", import.meta.dir))
-  expect(result.jsxImportSource).toBe("@zavx0z/jsx")
+  expect(result.jsxImportSource).toBe("@immersive/jsx")
 })

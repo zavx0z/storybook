@@ -1,4 +1,4 @@
-import type {JSX} from "@zavx0z/jsx"
+import type {JSX} from "@immersive/jsx"
 
 /** Формы взаимодействия самостоятельного владельца примера. */
 export declare namespace ContractFixturePart {

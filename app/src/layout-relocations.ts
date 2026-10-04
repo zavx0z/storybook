@@ -1,73 +1,73 @@
 import {dirname, relative, resolve} from "node:path"
-import type {ChatSession} from "@chat/session"
-import type {PackageGraphRead} from "@package-graph/read"
+import type {StorybookChatSession} from "@storybook-chat/session"
+import type {StorybookPackageGraphRead} from "@storybook-package-graph/read"
 
-type Graph = PackageGraphRead.Input
+type Graph = StorybookPackageGraphRead.Input
 
 /** Разовый переход физических адресов App; identity пакетов при переносе сохранена. */
 const relocations = [
   {
-    "packageId": "@web/workbench",
+    "packageId": "@storybook-app-web-page-shell/workbench",
     "previous": "app/web/workbench",
     "current": "app/web/page/shell/workbench"
   },
   {
-    "packageId": "@web/catalog",
+    "packageId": "@storybook-app-web-page-shell-workbench/catalog",
     "previous": "app/web/catalog",
     "current": "app/web/page/shell/workbench/catalog"
   },
   {
-    "packageId": "@web/minimap",
+    "packageId": "@storybook-app-web-page-shell/minimap",
     "previous": "app/web/minimap",
     "current": "app/web/page/shell/minimap"
   },
   {
-    "packageId": "@web/mcp-window",
+    "packageId": "@storybook-app-web-page-shell/mcp-window",
     "previous": "app/web/mcp-window",
     "current": "app/web/page/shell/mcp-window"
   },
   {
-    "packageId": "@web/viewpoint-controls",
+    "packageId": "@storybook-app-web-page-shell/viewpoint-controls",
     "previous": "app/web/viewpoint-controls",
     "current": "app/web/page/shell/viewpoint-controls"
   },
   {
-    "packageId": "@web/viewpoint-tab",
+    "packageId": "@storybook-app-web-page-shell/viewpoint-tab",
     "previous": "app/web/viewpoint-tab",
     "current": "app/web/page/shell/viewpoint-tab"
   },
   {
-    "packageId": "@web/agent-bridge",
+    "packageId": "@storybook-app-web-page/agent-bridge",
     "previous": "app/web/agent-bridge",
     "current": "app/web/page/agent-bridge"
   },
   {
-    "packageId": "@web/page-target",
+    "packageId": "@storybook-app-web-page/target",
     "previous": "app/web/page-target",
     "current": "app/web/page/target"
   },
   {
-    "packageId": "@web/client",
+    "packageId": "@storybook-app-web-page/client",
     "previous": "app/web/client",
     "current": "app/web/page/client"
   },
   {
-    "packageId": "@web/navigation",
+    "packageId": "@storybook-app-web-page/navigation",
     "previous": "app/web/navigation",
     "current": "app/web/page/navigation"
   },
   {
-    "packageId": "@web/status",
+    "packageId": "@storybook-app-web-page/status",
     "previous": "app/web/status",
     "current": "app/web/page/status"
   },
   {
-    "packageId": "@web/style-sheets",
+    "packageId": "@storybook-app-web-page/style-sheets",
     "previous": "app/web/style-sheets",
     "current": "app/web/page/style-sheets"
   },
   {
-    "packageId": "@web/presentation",
+    "packageId": "@storybook-app-web-page/presentation",
     "previous": "app/web/presentation",
     "current": "app/web/page/presentation"
   },
@@ -77,12 +77,12 @@ const relocations = [
     "current": "app/web/page/package/scenario"
   },
   {
-    "packageId": "@web/reference",
+    "packageId": "@storybook-specs/reference",
     "previous": "app/web/reference",
     "current": "specs/reference"
   },
   {
-    "packageId": "@web/browser-fixture",
+    "packageId": "@storybook-tech-testing/browser-root",
     "previous": "app/web/browser-fixture",
     "current": "tech/testing/browser-root"
   }
@@ -107,7 +107,7 @@ function subjects(toolRoot: string, graph: Graph) {
 Только Chat Session читает и изменяет собственные файлы. Истории не объединяются;
 конфликт останавливает переход, а исходная история остаётся доступной для восстановления.
 */
-export async function relocateAppChats(toolRoot: string, graph: Graph, chats: ChatSession.Output): Promise<void> {
+export async function relocateAppChats(toolRoot: string, graph: Graph, chats: StorybookChatSession.Output): Promise<void> {
   for (const move of subjects(toolRoot, graph)) {
     for (const node of graph.nodes) {
       if (node.packageId !== move.packageId || node.kind === "unavailable") continue

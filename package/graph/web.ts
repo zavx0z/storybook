@@ -4,5 +4,5 @@
 
 @packageDocumentation
 */
-export {default} from "@package-graph/read"
-export type {PackageGraphRead} from "@package-graph/read"
+export {default} from "@storybook-package-graph/read"
+export type {StorybookPackageGraphRead} from "@storybook-package-graph/read"

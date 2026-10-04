@@ -1,9 +1,9 @@
-import type {TechAcp} from "@tech/acp"
+import type {StorybookTechAcp} from "@storybook-tech/acp"
 import type {Snapshot, Subject} from "./state"
 import type {Relocation} from "./relocation"
 
 /** Контракт адресных бесед одного Project. */
-export declare namespace ChatSession {
+export declare namespace StorybookChatSession {
   /**
   Хранение и предоставленные приложением возможности исполнения.
 
@@ -18,10 +18,10 @@ export declare namespace ChatSession {
       subject: Subject
       previousSessionId?: string
       signal: AbortSignal
-      onProgress?: TechAcp.Input["onProgress"]
-      onUpdate: TechAcp.Input["onUpdate"]
-      onPermission: TechAcp.Input["onPermission"]
-    }>): Promise<TechAcp.Output>
+      onProgress?: StorybookTechAcp.Input["onProgress"]
+      onUpdate: StorybookTechAcp.Input["onUpdate"]
+      onPermission: StorybookTechAcp.Input["onPermission"]
+    }>): Promise<StorybookTechAcp.Output>
   }>
 
   /**

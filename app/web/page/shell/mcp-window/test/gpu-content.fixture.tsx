@@ -1,4 +1,4 @@
-import {type McpRestRequests as McpRestRequestsContract} from "@mcp-rest/requests"
+import {type StorybookAppServerRequests as McpRestRequestsContract} from "@storybook-app-server/requests"
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
 import {RequestList} from "../src/request-list"
 

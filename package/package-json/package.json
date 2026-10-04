@@ -1,5 +1,5 @@
 {
-  "name": "@archetypes/package-json",
+  "name": "@storybook-package/package-json",
   "description": "Читает npm metadata пакета",
   "version": "0.0.0",
   "private": true,

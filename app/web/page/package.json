@@ -1,5 +1,5 @@
 {
-  "name": "@web/page",
+  "name": "@storybook-app-web/page",
   "label": "Page",
   "version": "0.0.0",
   "private": true,
@@ -9,29 +9,29 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@app-web/protocol": "workspace:*",
-    "@hmr/connection": "workspace:*",
-    "@hmr/page": "workspace:*",
-    "@page/home": "workspace:*",
-    "@page/package": "workspace:*",
-    "@page/shell": "workspace:*",
-    "@web/agent-bridge": "workspace:*",
-    "@web/page-target": "workspace:*",
-    "@web/status": "workspace:*",
-    "@web/style-sheets": "workspace:*"
+    "@storybook-app-web/protocol": "workspace:*",
+    "@storybook-tech-hmr/connection": "workspace:*",
+    "@storybook-tech-hmr/page": "workspace:*",
+    "@storybook-app-web-page/home": "workspace:*",
+    "@storybook-app-web-page/package": "workspace:*",
+    "@storybook-app-web-page/shell": "workspace:*",
+    "@storybook-app-web-page/agent-bridge": "workspace:*",
+    "@storybook-app-web-page/target": "workspace:*",
+    "@storybook-app-web-page/status": "workspace:*",
+    "@storybook-app-web-page/style-sheets": "workspace:*"
   },
   "devDependencies": {
-    "@jsx-compiler/session": "^0.0.0",
-    "@package-graph/create": "workspace:*",
-    "@package/revision": "workspace:*",
-    "@package/session": "workspace:*",
-    "@renderer/html": "^0.0.0",
-    "@repo/discovery": "workspace:*",
-    "@web/browser-fixture": "workspace:*",
-    "@web/navigation": "workspace:*",
-    "@zavx0z/browser": "^0.0.0",
-    "@zavx0z/component": "^0.0.0",
-    "@zavx0z/dom": "^0.0.0",
-    "@zavx0z/space": "^0.0.0"
+    "@immersive-jsx-compiler/session": "^0.0.0",
+    "@storybook-package-graph/create": "workspace:*",
+    "@storybook-package/revision": "workspace:*",
+    "@storybook-package/session": "workspace:*",
+    "@immersive-renderer/html": "^0.0.0",
+    "@storybook-repo/discovery": "workspace:*",
+    "@storybook-tech-testing/browser-root": "workspace:*",
+    "@storybook-app-web-page/navigation": "workspace:*",
+    "@immersive/browser": "^0.0.0",
+    "@immersive/component": "^0.0.0",
+    "@immersive/dom": "^0.0.0",
+    "@immersive/space": "^0.0.0"
   }
 }

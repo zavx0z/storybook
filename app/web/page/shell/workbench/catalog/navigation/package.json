@@ -1,5 +1,5 @@
 {
-  "name": "@catalog/navigation",
+  "name": "@storybook-app-web-page-shell-workbench-catalog/navigation",
   "label": "Навигационные данные каталога",
   "version": "0.0.0",
   "private": true,

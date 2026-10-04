@@ -1,6 +1,6 @@
-import {type RepoDiscovery as RepoDiscoveryContract} from "@repo/discovery"
-import AppServerCatalogOwner, {type AppServerCatalog as AppServerCatalogContract} from "@app-server/catalog"
-import PackageGraphReadOwner from "@package-graph/read"
+import {type StorybookRepoDiscovery as RepoDiscoveryContract} from "@storybook-repo/discovery"
+import AppServerCatalogOwner, {type StorybookAppServerCatalog as AppServerCatalogContract} from "@storybook-app-server/catalog"
+import PackageGraphReadOwner from "@storybook-package-graph/read"
 const ExternalStorybookRegistry = AppServerCatalogOwner
 const externalStorybookNode = PackageGraphReadOwner.node
 const externalStorybookRoutes = PackageGraphReadOwner.routes

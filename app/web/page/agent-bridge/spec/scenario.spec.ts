@@ -5,23 +5,23 @@ import {
   createDocument,
   type Document as SemanticDocument,
   type Element as SemanticElement,
-} from "@zavx0z/dom"
+} from "@immersive/dom"
 import type {
   RootPointerInput,
   RootWheelInput,
-} from "@zavx0z/browser/integration"
-import {createDocumentInteractionController, createDocumentRenderer, hitTestProjection} from "@renderer/html"
-import {createSpaceElementFactories} from "@zavx0z/space"
-import {HUDElement} from "@zavx0z/dom/hud"
-import {SpaceElement} from "@zavx0z/dom/space"
-import createStorybookAgentBridge, {type WebAgentBridge} from "../index"
+} from "@immersive/browser/integration"
+import {createDocumentInteractionController, createDocumentRenderer, hitTestProjection} from "@immersive-renderer/html"
+import {createSpaceElementFactories} from "@immersive/space"
+import {HUDElement} from "@immersive/dom/hud"
+import {SpaceElement} from "@immersive/dom/space"
+import createStorybookAgentBridge, {type StorybookAppWebPageAgentBridge} from "../index"
 const STORYBOOK_AGENT_BRIDGE_GLOBAL = createStorybookAgentBridge.global
 const STORYBOOK_AGENT_BRIDGE_PROTOCOL = createStorybookAgentBridge.protocol
-type StorybookAgentBridge = WebAgentBridge.Output
-type StorybookAgentBridgeRequest = Parameters<WebAgentBridge.Output["invoke"]>[0]
-import type {Presentation} from "@zavx0z/browser/integration"
-type ExternalStorybookNativeKey = Parameters<WebAgentBridge.Input["shell"]["dispatchNativeKey"]>[1]
-type ExternalStorybookShell = WebAgentBridge.Input["shell"] & Readonly<{
+type StorybookAgentBridge = StorybookAppWebPageAgentBridge.Output
+type StorybookAgentBridgeRequest = Parameters<StorybookAppWebPageAgentBridge.Output["invoke"]>[0]
+import type {Presentation} from "@immersive/browser/integration"
+type ExternalStorybookNativeKey = Parameters<StorybookAppWebPageAgentBridge.Input["shell"]["dispatchNativeKey"]>[1]
+type ExternalStorybookShell = StorybookAppWebPageAgentBridge.Input["shell"] & Readonly<{
   hud: HUDElement
   root: Pick<Presentation, "input" | "getProjection">
 }>
@@ -29,7 +29,7 @@ type ExternalStorybookShell = WebAgentBridge.Input["shell"] & Readonly<{
 describe("external Storybook agent bridge inspection", () => {
   test("subject без workspaceId сохраняет отсутствие workspace identity без нового кадра", async () => {
     const fixture = createFixture()
-    const controller: NonNullable<WebAgentBridge.Input["shell"]["workbench"]["controller"]> = {
+    const controller: NonNullable<StorybookAppWebPageAgentBridge.Input["shell"]["workbench"]["controller"]> = {
       selectedInspector: () => "input",
       read: () => ({}),
     }
@@ -483,7 +483,7 @@ type Fixture = Readonly<{
   preview: SemanticElement
   run: SemanticElement
   destination: SemanticElement
-  input: InstanceType<typeof import("@zavx0z/dom").HTMLInputElement>
+  input: InstanceType<typeof import("@immersive/dom").HTMLInputElement>
   calls: InteractionCalls
   navigations: string[]
   nodeIds(inspection: AgentInspection): Readonly<{run: string; destination: string; input: string}>
@@ -625,7 +625,7 @@ function createFixture(options: Readonly<{
     urlPath: "/pkg-fixture-storybook/controls/default",
     tabs: [{id: "overview:controls", label: "Обзор", route: "dir-controls", urlPath: "/pkg-fixture-storybook/controls", title: "Обзор", searchText: "Обзор"}],
     tabActiveId: "overview:controls",
-  } satisfies ReturnType<WebAgentBridge.Input["getModel"]> & Readonly<Record<string, unknown>>
+  } satisfies ReturnType<StorybookAppWebPageAgentBridge.Input["getModel"]> & Readonly<Record<string, unknown>>
   const workbench = {
     document,
     element: root,
@@ -640,7 +640,7 @@ function createFixture(options: Readonly<{
     viewPoint,
     hud,
     workbench,
-    projectionFor(node: import("@zavx0z/dom").Node) {
+    projectionFor(node: import("@immersive/dom").Node) {
       if (node === hud || hud.contains(node)) return hudProjection
       if (node === space || space.contains(node)) return spaceProjection
       throw new Error("Fixture node is outside Root")

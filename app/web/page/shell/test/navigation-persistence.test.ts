@@ -8,7 +8,7 @@ test("свёрнутые ветви восстанавливаются посл�
     setItem: (key: string, value: string) => { values.set(key, value) },
   })
   const first = createNavigationExpansion(storage)
-  expect(first.initialCollapsedIds).toEqual([])
+  expect(first.initialCollapsedIds).toBeUndefined()
   first.save(["package:@zavx0z/storybook", "category:specs", "package:@zavx0z/storybook"])
   const restored = createNavigationExpansion(storage)
   expect(restored.initialCollapsedIds).toEqual(["package:@zavx0z/storybook", "category:specs"])
@@ -17,10 +17,10 @@ test("свёрнутые ветви восстанавливаются посл�
   expect(createNavigationExpansion(storage).initialCollapsedIds).toEqual([])
 })
 
-test("неправильное или недоступное хранилище оставляет дерево открытым", () => {
+test("неправильное или недоступное хранилище оставляет выбор начального раскрытия поверхности", () => {
   const broken = {getItem: () => '{"version":1,"collapsedIds":"wrong"}', setItem: () => {}}
-  expect(createNavigationExpansion(() => broken).initialCollapsedIds).toEqual([])
+  expect(createNavigationExpansion(() => broken).initialCollapsedIds).toBeUndefined()
   const unavailable = createNavigationExpansion(() => { throw new Error("storage unavailable") })
-  expect(unavailable.initialCollapsedIds).toEqual([])
+  expect(unavailable.initialCollapsedIds).toBeUndefined()
   expect(() => unavailable.save(["package:example"])).not.toThrow()
 })

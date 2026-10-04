@@ -1,5 +1,5 @@
 {
-  "name": "@package/revision",
+  "name": "@storybook-package/revision",
   "label": "Ревизия пакета",
   "version": "0.0.0",
   "private": true,
@@ -9,11 +9,11 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@zavx0z/ui": "^0.0.0",
-    "@package-graph/read": "workspace:*",
-    "@package-graph/create": "workspace:*"
+    "@immersive-ui/component": "^0.0.0",
+    "@storybook-package-graph/read": "workspace:*",
+    "@storybook-package-graph/create": "workspace:*"
   },
   "devDependencies": {
-    "@repo/discovery": "workspace:*"
+    "@storybook-repo/discovery": "workspace:*"
   }
 }

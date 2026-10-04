@@ -1,5 +1,5 @@
-import RouteAddressOwner from "@route/address"
-import ReadGraph from "@package-graph/read"
+import RouteAddressOwner from "@storybook-package-route/address"
+import ReadGraph from "@storybook-package-graph/read"
 import type {
   WorkbenchBreadcrumb,
   ExternalStorybookClientSnapshot,

@@ -12,17 +12,17 @@
 
 @packageDocumentation
 */
-import {type McpRestRequests as McpRestRequestsContract} from "@mcp-rest/requests"
+import {type StorybookAppServerRequests as McpRestRequestsContract} from "@storybook-app-server/requests"
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
-import {useEffect, useState} from "@zavx0z/component"
-import {Window} from "@zavx0z/ui"
+import {useEffect, useState} from "@immersive/component"
+import {Window} from "@immersive-ui/component"
 import {McpContent} from "./src/content"
 import {normalizeMcpWindowState} from "./src/state"
-import type {WebMcpWindow} from "./contract"
-export type {WebMcpWindow} from "./contract"
+import type {StorybookAppWebPageShellMcpWindow} from "./contract"
+export type {StorybookAppWebPageShellMcpWindow} from "./contract"
 
 /** Содержимое журнала в общем Window; внешняя кнопка MCP управляет той же видимостью. */
-export default function McpWindow(props: WebMcpWindow.Input) {
+export default function McpWindow(props: StorybookAppWebPageShellMcpWindow.Input) {
   const [entries, setEntries] = useState<readonly McpRequestRecord[]>([])
   const [error, setError] = useState("")
   const [initial] = useState(() => normalizeMcpWindowState(props.initialState))

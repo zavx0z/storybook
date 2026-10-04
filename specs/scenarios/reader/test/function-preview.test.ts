@@ -1,6 +1,6 @@
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readScenario from "@archetypes/scenario-reader"
+import readScenario from "@storybook-specs-scenarios/reader"
 
 describe("Представление readPackage", async () => {
   const path = resolve(import.meta.dir, "../../../../package/reader/spec/scenario.spec.ts")
@@ -23,7 +23,7 @@ describe("Представление readPackage", async () => {
         expect(call.outcome, "Результат взят из того же наблюдённого вызова без повторного выполнения")
           .toEqual(observed.outcome)
       }
-      expect(variant.source).toContain('from "@archetypes/package"')
+      expect(variant.source).toContain('from "@storybook-package/reader"')
       expect(variant.source).toContain("await readPackage(")
       expect(variant.source).not.toContain("process.env")
       expect(variant.points).not.toHaveLength(0)

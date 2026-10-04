@@ -3,7 +3,7 @@ import {afterAll, describe, expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import resolveRoute from "@route/resolve"
+import resolveRoute from "@storybook-package-route/resolve"
 
 describe.each([
   {name: "Обзор владельца", props: {route: "/project/packages/component"}, expected: {node: "project/packages/component", view: "overview", packageId: "@fixture/component", relativePath: ""}},

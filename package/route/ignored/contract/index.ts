@@ -1,5 +1,5 @@
 /** Контракт native Git-проверки исключений файлов маршрута. */
-export declare namespace RouteIgnored {
+export declare namespace StorybookPackageRouteIgnored {
   /** Корень пакета, проверяемые пути и необязательный найденный Git root. */
   type Input = Readonly<{
     root: string

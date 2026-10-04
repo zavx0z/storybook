@@ -45,7 +45,7 @@
   `app` композирует MCP, Web и Server; `tech` предоставляет технические механизмы.
   Импорты направлять к публичному входу точного владельца без старых псевдонимов.
 - Нормализованное обнаружение принадлежит [Repo Discovery](repo/discovery/index.ts)
-  и его `RepoDiscovery.Output`. [Каталог сервера](app/server/catalog/index.ts)
+  и его `StorybookRepoDiscovery.Output`. [Каталог сервера](app/server/catalog/index.ts)
   и [граф пакетов](package/graph/README.md) используют тот же контракт.
 
 - Начинать с изучения без правок и соблюдать границы владельцев, подтверждённые
@@ -77,19 +77,19 @@
   а [переход](./package/notes/archetype-transition.md) отделён от текущих проверок. Не добавлять
   псевдонимы совместимости, `paths`, сгенерированные копии или обёртки ради старых импортов.
 - В сборке каждой страницы сохраняется по одной resolved identity для
-  `@zavx0z/browser`, `@zavx0z/component`, `@zavx0z/devtools`, `@zavx0z/dom`, `@zavx0z/engine`,
-  `@nodes/layout`, `@immersive/nodes`, `@nodes/tree`, `@nodes/parameters`,
-  `@nodes/sockets`, `@nodes/node`, `@renderer/html`, `@immersive/markdown`,
-  `@zavx0z/space`, `@zavx0z/template`, `@zavx0z/ui` и `@zavx0z/webgpu`.
+  `@immersive/browser`, `@immersive/component`, `@immersive/devtool`, `@immersive/dom`, `@immersive/engine`,
+  `@immersive-nodes/layout`, `@immersive/nodes`, `@immersive-nodes/tree`, `@immersive-nodes/parameter`,
+  `@immersive-nodes/socket`, `@immersive-nodes/node`, `@immersive-renderer/html`, `@immersive/markdown`,
+  `@immersive/space`, `@immersive/template`, `@immersive-ui/component` и `@immersive/webgpu`.
   Исторические package identities, compatibility aliases и
   generic Layout preview owners не возвращаются.
 - Число пакетов Immersive не фиксировано: состав следует самостоятельным
   ответственностям и принятым решениям. Диагностика использует
-  `@zavx0z/devtools` из монорепозитория, без зависимости от исходного Renderer checkout.
+  `@immersive/devtool` из монорепозитория, без зависимости от исходного Renderer checkout.
 - Корневая страница и каждая package page владеют ровно одним
-  `@zavx0z/browser` Root. Browser владеет его semantic Document, native
+  `@immersive/browser` Root. Browser владеет его semantic Document, native
   Canvas, циклом кадров и вводом. Root содержит exact
-  `@zavx0z/dom/space` `SpaceElement` и `@zavx0z/dom/viewpoint` `ViewPointElement`;
+  `@immersive/dom/space` `SpaceElement` и `@immersive/dom/viewpoint` `ViewPointElement`;
   структурные представления не создают второй Root или owner.
 - Весь Workbench, его меню и окна монтируются в Display пространства. HUD
   содержит Tab управления ViewPoint; остальная область доступна другим компонентам. Встроенные представления используют
@@ -108,8 +108,8 @@
 - Исполнение примеров использует структурные сценарии владельца; проектный
   runtime-адаптер Storybook не создаётся. Implementation objects Renderer и Browser
   остаются private.
-- Шрифт страницы загружается через exact `@zavx0z/engine/default-font` и asset
-  `@zavx0z/engine/fonts/inter-regular.ttf`; копии шрифта и запасные owner paths
+- Шрифт страницы загружается через exact `@immersive/engine/default-font` и asset
+  `@immersive/engine/fonts/inter-regular.ttf`; копии шрифта и запасные owner paths
   запрещены.
 - Репозиторий выражает сведения о себе в коде, TSDoc, contract и spec.
   Каждое изменение публичного контракта, наблюдаемого общего поведения, правила

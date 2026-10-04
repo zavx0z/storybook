@@ -16,7 +16,7 @@
 */
 import {describe, expect, test} from "bun:test"
 import {basename, dirname, resolve} from "node:path"
-import readSpec from "@archetypes/spec-reader"
+import readSpec from "@storybook-specs/reader"
 
 /** Четыре варианта размещения спецификации у непосредственного владельца. */
 describe.each([

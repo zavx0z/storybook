@@ -1,5 +1,5 @@
 {
-  "name": "@route/resolve",
+  "name": "@storybook-package-route/resolve",
   "label": "Разрешение маршрута",
   "version": "0.0.0",
   "private": true,
@@ -9,16 +9,16 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@route/address": "workspace:*",
-    "@route/directories": "workspace:*",
-    "@route/ignored": "workspace:*",
-    "@route/structure": "workspace:*",
-    "@archetypes/package-json": "workspace:*",
-    "@archetypes/package-index": "workspace:*",
-    "@archetypes/contracts": "workspace:*"
+    "@storybook-package-route/address": "workspace:*",
+    "@storybook-package-route/directories": "workspace:*",
+    "@storybook-package-route/ignored": "workspace:*",
+    "@storybook-package-route/structure": "workspace:*",
+    "@storybook-package/package-json": "workspace:*",
+    "@storybook-package/index": "workspace:*",
+    "@storybook/contracts": "workspace:*"
   },
   "devDependencies": {
-    "@nodes/node": "^0.0.0",
-    "@route/children": "workspace:*"
+    "@immersive-nodes/node": "^0.0.0",
+    "@storybook-package-route/children": "workspace:*"
   }
 }

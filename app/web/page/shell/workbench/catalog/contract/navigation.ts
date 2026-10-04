@@ -1,7 +1,7 @@
-import type {CatalogNavigation} from "@catalog/navigation"
+import type {StorybookAppWebPageShellWorkbenchCatalogNavigation} from "@storybook-app-web-page-shell-workbench-catalog/navigation"
 
 /** Узел публичной навигационной модели дочернего владельца. */
-export type Item = ReturnType<CatalogNavigation.Output["normalizeItems"]>[number]
+export type Item = ReturnType<StorybookAppWebPageShellWorkbenchCatalogNavigation.Output["normalizeItems"]>[number]
 
 /** Та же группа раскрытия, которую содержит навигационный узел. */
 export type Group = NonNullable<Item["group"]>
@@ -11,6 +11,7 @@ export type Group = NonNullable<Item["group"]>
 Фокус, поиск и выбранная страница не входят в этот порт.
 */
 export type Expansion = Readonly<{
-  initialCollapsedIds: readonly string[]
+  /** Отсутствие сохранённого состояния отличается от явно раскрытого дерева с пустым списком. */
+  initialCollapsedIds?: readonly string[] | undefined
   save(collapsedIds: readonly string[]): void
 }>

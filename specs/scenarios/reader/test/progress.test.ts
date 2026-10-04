@@ -1,9 +1,9 @@
 import {expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readScenario, {type ArchetypesScenarioReader} from "@archetypes/scenario-reader"
+import readScenario, {type StorybookSpecsScenariosReader} from "@storybook-specs-scenarios/reader"
 
 test("Вывод Bun передаётся по мере выполнения и сохраняется в полном отчёте", async () => {
-  const events: Parameters<NonNullable<ArchetypesScenarioReader.Input["onProgress"]>>[0][] = []
+  const events: Parameters<NonNullable<StorybookSpecsScenariosReader.Input["onProgress"]>>[0][] = []
   const result = await readScenario({
     path: resolve(import.meta.dir, "fixture/progress.test.ts"),
     onProgress: event => events.push(event),

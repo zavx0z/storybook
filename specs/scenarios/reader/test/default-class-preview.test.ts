@@ -1,6 +1,6 @@
 import {expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readScenario from "@archetypes/scenario-reader"
+import readScenario from "@storybook-specs-scenarios/reader"
 
 const fixture = resolve(import.meta.dir, "fixture/default-class/spec")
 

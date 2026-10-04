@@ -1,5 +1,5 @@
 {
-  "name": "@app-server/catalog",
+  "name": "@storybook-app-server/catalog",
   "label": "Каталог приложения",
   "version": "0.0.0",
   "private": true,
@@ -8,15 +8,15 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@repo/discovery": "workspace:*",
-    "@package-graph/create": "workspace:*",
-    "@package-graph/read": "workspace:*",
-    "@package/session": "workspace:*",
-    "@package-build/descriptor": "workspace:*",
-    "@package/revision": "workspace:*"
+    "@storybook-repo/discovery": "workspace:*",
+    "@storybook-package-graph/create": "workspace:*",
+    "@storybook-package-graph/read": "workspace:*",
+    "@storybook-package/session": "workspace:*",
+    "@storybook-package-build/descriptor": "workspace:*",
+    "@storybook-package/revision": "workspace:*"
   },
   "devDependencies": {
-    "@zavx0z/ui": "^0.0.0"
+    "@immersive-ui/component": "^0.0.0"
   },
   "description": "Атомарно обновляет каталог подключённых владельцев и производный граф приложения"
 }

@@ -7,13 +7,13 @@ HTTP-соединения, каталог и пакетные сессии. По
 
 @packageDocumentation
 */
-import Build from "@app-web/build"
-import createRelease from "@web/release"
+import Build from "@storybook-app-web/build"
+import createRelease from "@storybook-app-web/release"
 import {join} from "node:path"
 import {describeHost, message} from "./src/host"
-import type {AppWeb} from "./contract"
+import type {StorybookAppWeb} from "./contract"
 import type {WebAssets, WebFailure, WebHost, WebPreparation} from "./contract/types"
-export type {AppWeb} from "./contract"
+export type {StorybookAppWeb} from "./contract"
 
 /**
 Создаёт одного владельца Web-выпуска без запуска сервера или компиляции.
@@ -22,7 +22,7 @@ export type {AppWeb} from "./contract"
 @returns Управление текущими артефактами и одной операцией выпуска интерфейса.
 @throws При повреждённой конфигурации хранилища или входов установленного Build.
 */
-export default function createWeb(input: AppWeb.Input): AppWeb.Output {
+export default function createWeb(input: StorybookAppWeb.Input): StorybookAppWeb.Output {
   const artifactRoot = join(input.artifactRoot, "shared")
   const build = input.build ?? Build.runWorker
   const entries = {

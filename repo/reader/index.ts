@@ -5,13 +5,13 @@ Project соединяет независимые Repo; вложенные са�
 
 @packageDocumentation
 */
-import readPackage from "@archetypes/package"
-import type {ArchetypesRepo} from "./contract"
+import readPackage from "@storybook-package/reader"
+import type {StorybookRepoReader} from "./contract"
 
-export type {ArchetypesRepo} from "./contract"
+export type {StorybookRepoReader} from "./contract"
 
 /** Читает точную Git-границу и gitlinks, сохраняя обычный пакет без Git как отрицательный пример. */
-export default async function readRepo({path}: ArchetypesRepo.Input): Promise<ArchetypesRepo.Output> {
+export default async function readRepo({path}: StorybookRepoReader.Input): Promise<StorybookRepoReader.Output> {
   const description = await readPackage({path})
   return {package: description, root: description.root, ...description.repository}
 }

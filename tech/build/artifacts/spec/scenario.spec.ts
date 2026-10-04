@@ -4,7 +4,7 @@ import {createHash} from "node:crypto"
 import {mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import Artifacts from "@build/artifacts"
+import Artifacts from "@storybook-tech-build/artifacts"
 
 describe.each([
   {name: "JavaScript entry", props: {path: "entry.js", bytes: "export const value = 42\n"}},

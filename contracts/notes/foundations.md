@@ -5,7 +5,7 @@
 ## Преимущества
 
 1. **Имя раскрывает смысл через владельца.** `StorybookApp.Input` означает вход
-   `@storybook/app`, а `WebRelease.Output` — результат `@web/release`. Короткие имена не
+   `@storybook/app`, а `StorybookAppWebRelease.Output` — результат `@storybook-app-web/release`. Короткие имена не
    дублируют контекст; переименование владельца не требует переименовывать каждую
    внутреннюю форму. Имя и положение вместе выражают отношение
    ([смысл](../../project/notes/foundations/meaning.md)).
@@ -23,7 +23,7 @@
    Реэкспорт сохраняет владельца исходных деклараций
    ([эмерджентность](../../project/notes/foundations/emergence.md)).
 1. **Один способ доступа переносится между владельцами.** `StorybookApp.Input`,
-   `StorybookApp.Output` и `WebRelease.Output` узнаваемы и позволяют предсказать, где
+   `StorybookApp.Output` и `StorybookAppWebRelease.Output` узнаваемы и позволяют предсказать, где
    искать форму, сохраняя особенности каждого пакета
    ([единство](../../project/notes/foundations/coherence.md)).
 1. **Список реэкспортов не растёт вместе с числом определений.** В корне остаются
@@ -37,7 +37,7 @@
    их разделение не меняет API потребителя
    ([простота](../../project/notes/foundations/simplicity.md)).
 1. **Связанные формы не копируют поля.** `Pick`, `Omit`, indexed access или
-   `WebRelease.Output` выражают реальное отношение, в том числе к примитивному типу.
+   `StorybookAppWebRelease.Output` выражают реальное отношение, в том числе к примитивному типу.
    `BuildResolver.Output["path"]` показывает владельца и роль даже обычной строки.
    Изменение источника не требует вручную поддерживать независимую копию
    ([простота](../../project/notes/foundations/simplicity.md)).

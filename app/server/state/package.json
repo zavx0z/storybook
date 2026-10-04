@@ -1,5 +1,5 @@
 {
-  "name": "@app-server/state",
+  "name": "@storybook-app-server/state",
   "label": "Состояние сервера",
   "version": "0.0.0",
   "private": true,
@@ -9,6 +9,6 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@http/client": "workspace:*"
+    "@storybook-tech-http/client": "workspace:*"
   }
 }

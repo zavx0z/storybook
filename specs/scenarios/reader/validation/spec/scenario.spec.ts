@@ -7,7 +7,7 @@
 */
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import validateScenario from "@archetypes/scenario-validation"
+import validateScenario from "@storybook-specs-scenarios-reader/validation"
 
 describe.each([
   {name: "Описание рядом с данными", inline: true, expected: "passed"},

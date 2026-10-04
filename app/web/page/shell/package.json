@@ -1,5 +1,5 @@
 {
-  "name": "@page/shell",
+  "name": "@storybook-app-web-page/shell",
   "label": "Shell",
   "version": "0.0.0",
   "private": true,
@@ -9,32 +9,32 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@app-web/protocol": "workspace:*",
+    "@storybook-app-web/protocol": "workspace:*",
     "@immersive/markdown": "^0.0.0",
     "@immersive/nodes": "^0.0.0",
     "@immersive/typedoc": "^0.0.0",
-    "@jsx-compiler/session": "^0.0.0",
-    "@mcp-rest/requests": "workspace:*",
-    "@nodes/layout": "^0.0.0",
-    "@nodes/node": "^0.0.0",
-    "@package-graph/create": "workspace:*",
-    "@web/catalog": "workspace:*",
-    "@web/mcp-window": "workspace:*",
-    "@web/minimap": "workspace:*",
-    "@web/presentation": "workspace:*",
-    "@web/viewpoint-controls": "workspace:*",
-    "@web/viewpoint-tab": "workspace:*",
-    "@web/workbench": "workspace:*",
-    "@zavx0z/browser": "^0.0.0",
-    "@zavx0z/component": "^0.0.0",
-    "@zavx0z/dom": "^0.0.0",
-    "@zavx0z/engine": "^0.0.0",
-    "@zavx0z/template": "^0.0.0",
-    "@zavx0z/ui": "^0.0.0"
+    "@immersive-jsx-compiler/session": "^0.0.0",
+    "@storybook-app-server/requests": "workspace:*",
+    "@immersive-nodes/layout": "^0.0.0",
+    "@immersive-nodes/node": "^0.0.0",
+    "@storybook-package-graph/create": "workspace:*",
+    "@storybook-app-web-page-shell-workbench/catalog": "workspace:*",
+    "@storybook-app-web-page-shell/mcp-window": "workspace:*",
+    "@storybook-app-web-page-shell/minimap": "workspace:*",
+    "@storybook-app-web-page/presentation": "workspace:*",
+    "@storybook-app-web-page-shell/viewpoint-controls": "workspace:*",
+    "@storybook-app-web-page-shell/viewpoint-tab": "workspace:*",
+    "@storybook-app-web-page-shell/workbench": "workspace:*",
+    "@immersive/browser": "^0.0.0",
+    "@immersive/component": "^0.0.0",
+    "@immersive/dom": "^0.0.0",
+    "@immersive/engine": "^0.0.0",
+    "@immersive/template": "^0.0.0",
+    "@immersive-ui/component": "^0.0.0"
   },
   "devDependencies": {
-    "@renderer/html": "^0.0.0",
-    "@web/browser-fixture": "workspace:*",
-    "@zavx0z/space": "^0.0.0"
+    "@immersive-renderer/html": "^0.0.0",
+    "@storybook-tech-testing/browser-root": "workspace:*",
+    "@immersive/space": "^0.0.0"
   }
 }

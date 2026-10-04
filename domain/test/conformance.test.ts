@@ -2,7 +2,7 @@ import {expect, test} from "bun:test"
 import {mkdir, mkdtemp, realpath, rm, symlink} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {resolve} from "node:path"
-import readScenario from "@archetypes/scenario-reader"
+import readScenario from "@storybook-specs-scenarios/reader"
 
 test("Domain с двумя настоящими входами без index проходит нормативный сценарий", async () => {
   const result = await readScenario({

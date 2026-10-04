@@ -1,5 +1,6 @@
 /**
-Minimap показывает каталог в HUD того же Experience. Поиск, выбор страницы
+Minimap показывает каталог в HUD того же Experience. Без сохранённого состояния
+ветви первоначально свёрнуты; сохранённое раскрытие имеет приоритет. Поиск, выбор страницы
 и команды дерева используют общую панель с Display. «Скрыть» сворачивает
 панель в перетаскиваемый Tab; кнопка с именем Project возвращает то же дерево
 с сохранением раскрытых ветвей и позиции прокрутки.
@@ -12,17 +13,17 @@ Host Storybook сохраняет видимость, размер и полож
 
 @packageDocumentation
 */
-import {useId, useRef, useState} from "@zavx0z/component"
-import {Window} from "@zavx0z/ui"
-import {WindowControl} from "@zavx0z/ui"
-import {Tab} from "@zavx0z/ui"
-import CatalogPanel from "@web/catalog"
+import {useId, useRef, useState} from "@immersive/component"
+import {Window} from "@immersive-ui/component"
+import {WindowControl} from "@immersive-ui/component"
+import {Tab} from "@immersive-ui/component"
+import CatalogPanel from "@storybook-app-web-page-shell-workbench/catalog"
 import {normalizeMinimapState} from "./src/state"
-import type {WebMinimap} from "./contract"
-export type {WebMinimap} from "./contract"
+import type {StorybookAppWebPageShellMinimap} from "./contract"
+export type {StorybookAppWebPageShellMinimap} from "./contract"
 
 /** Компонует общую оболочку Window и WindowControl в Tab того же Document. */
-export default function Minimap(props: WebMinimap.Input) {
+export default function Minimap(props: StorybookAppWebPageShellMinimap.Input) {
   const id = useId()
   const [state, setState] = useState(() => normalizeMinimapState(props.initialState))
   const current = useRef(state)
@@ -45,7 +46,7 @@ export default function Minimap(props: WebMinimap.Input) {
     }
   }
   /** Публикует один завершённый снимок, общий для оболочки и её управляющего Tab. */
-  const update = (patch: Partial<WebMinimap.Output>) => {
+  const update = (patch: Partial<StorybookAppWebPageShellMinimap.Output>) => {
     const next = {...current.current, ...patch}
     current.current = next
     setState(next)
@@ -76,6 +77,7 @@ export default function Minimap(props: WebMinimap.Input) {
     >
       <CatalogPanel
         label={props.catalog.label}
+        defaultCollapsed={true}
         search={props.catalog.search}
         items={props.catalog.items}
         activeId={props.catalog.activeId}

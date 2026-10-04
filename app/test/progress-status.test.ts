@@ -3,7 +3,7 @@ import {mkdtempSync, rmSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import createApp from "@storybook/app"
-import State from "@app-server/state"
+import State from "@storybook-app-server/state"
 
 test("MCP status читает последнюю фактическую стадию при неответившем HTTP, без признания сборки готовой", async () => {
   const root = mkdtempSync(join(tmpdir(), "storybook-progress-status-"))

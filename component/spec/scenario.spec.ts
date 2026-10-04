@@ -6,7 +6,7 @@
 */
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readComponent from "@archetypes/component"
+import readComponent from "@storybook/component"
 
 describe.each([{name: "Функция увеличения числа", props: {path: resolve(import.meta.dir, "fixture/component")}}])("$name", async ({props}) => {
   const result = await readComponent(props)

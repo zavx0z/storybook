@@ -1,6 +1,6 @@
 import {afterAll, describe, expect, test} from "bun:test"
-import type {WebWorkbench} from "@web/workbench"
-import type {CompiledTemplate} from "@zavx0z/template/compiled"
+import type {StorybookAppWebPageShellWorkbench} from "@storybook-app-web-page-shell/workbench"
+import type {CompiledTemplate} from "@immersive/template/compiled"
 import {WorkbenchFrame} from "./fixture/frame"
 import {createFrameEnvironment} from "./fixture/environment"
 
@@ -9,8 +9,8 @@ describe.each([
   {name: "Каталог", props: {title: "Каталог", "catalog.items": [{id: "example", label: "Пример", route: "/example"}]}},
 ])("$name", ({props}) => {
   const frame = createFrameEnvironment()
-  let ready: WebWorkbench.Output | undefined
-  frame.component.render(WorkbenchFrame as unknown as CompiledTemplate<WebWorkbench.Input>, {
+  let ready: StorybookAppWebPageShellWorkbench.Output | undefined
+  frame.component.render(WorkbenchFrame as unknown as CompiledTemplate<StorybookAppWebPageShellWorkbench.Input>, {
     initial: props,
     displayId: "scenario-display",
     hudId: "scenario-hud",

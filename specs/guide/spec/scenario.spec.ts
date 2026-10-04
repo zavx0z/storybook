@@ -6,7 +6,7 @@
 */
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readSpecGuide from "@specs/guide"
+import readSpecGuide from "@storybook-specs/guide"
 
 describe.each([
   {name: "Репозиторий", props: {path: resolve(import.meta.dir, "../../reader/spec/fixture/repository")}},

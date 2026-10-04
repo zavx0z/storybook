@@ -1,8 +1,8 @@
 /** Preview оставляет место фикстуре в общем Display и переносит её по placement. */
 import {afterAll, describe, expect, test} from "bun:test"
 import {createHeadless} from "@immersive/headless"
-import createScenarioApp from "@scenario/model"
-import ScenarioPreview from "@scenario/preview"
+import createScenarioApp from "@storybook-app-web-page-package-scenario/model"
+import StorybookAppWebPagePackageScenarioPreview from "@storybook-app-web-page-package-scenario/preview"
 
 describe.each([
   {name: "Начальная позиция", props: {placement: {x: 0, y: 0}}},
@@ -15,7 +15,7 @@ describe.each([
   const headless = createHeadless({width: 320, height: 240})
   afterAll(() => { app.dispose(); headless.dispose() })
   const element = await headless.render(
-    <ScenarioPreview
+    <StorybookAppWebPagePackageScenarioPreview
       app={app}
       placement={props.placement}
     />,

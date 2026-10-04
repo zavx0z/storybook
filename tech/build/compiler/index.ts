@@ -25,11 +25,11 @@ import {
 import {conditionalExportTarget} from "./src/export-target"
 import {ensureGeneratedJsxProtocol} from "./src/generated-jsx-protocol"
 import {isOwnedJsxProtocol} from "./src/jsx-protocol-owner"
-import type {BuildCompiler} from "./contract"
-export type {BuildCompiler} from "./contract"
+import type {StorybookTechBuildCompiler} from "./contract"
+export type {StorybookTechBuildCompiler} from "./contract"
 
 /** Один API compiler setup и его физических границ; вызовы сами владеют необходимым чтением. */
-const Compiler: BuildCompiler.Output = Object.freeze({
+const Compiler: StorybookTechBuildCompiler.Output = Object.freeze({
   exactFile: canonicalLexicalFile,
   resolveStorybookCompilerSourceRoots,
   resolveStorybookPackageCompilerInputs,

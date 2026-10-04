@@ -1,5 +1,5 @@
 {
-  "name": "@scenario/preview",
+  "name": "@storybook-app-web-page-package-scenario/preview",
   "label": "Просмотр сценария",
   "version": "0.0.0",
   "private": true,
@@ -9,11 +9,11 @@
     ".": "./index.tsx"
   },
   "dependencies": {
-    "@zavx0z/component": "^0.0.0",
-    "@scenario/result": "workspace:*"
+    "@immersive/component": "^0.0.0",
+    "@storybook-app-web-page-package-scenario/result": "workspace:*"
   },
   "devDependencies": {
     "@immersive/headless": "^0.0.0",
-    "@scenario/model": "workspace:*"
+    "@storybook-app-web-page-package-scenario/model": "workspace:*"
   }
 }

@@ -1,4 +1,4 @@
-import PackageBuildSchedulerOwner, {type PackageBuildScheduler as PackageBuildSchedulerContract} from "@package-build/scheduler"
+import PackageBuildSchedulerOwner, {type StorybookPackageBuildScheduler as PackageBuildSchedulerContract} from "@storybook-package-build/scheduler"
 const StorybookBuildScheduler = PackageBuildSchedulerOwner
 type StorybookBuildScheduler = PackageBuildSchedulerContract.Output
 import {afterEach, describe, expect, test} from "bun:test"
@@ -6,14 +6,14 @@ import {createHash} from "node:crypto"
 import {existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import Revision, {type PackageRevision} from "@package/revision"
-import type {ProcessSample} from "@process/sample"
-import StorybookPackageSession, {type PackageSession} from "@package/session"
+import Revision, {type StorybookPackageRevision} from "@storybook-package/revision"
+import type {StorybookTechProcessSample} from "@storybook-tech-process/sample"
+import StorybookPackageSession, {type StorybookPackageSession as Contract} from "@storybook-package/session"
 
-type StorybookPackageBuildDescriptor = PackageSession.Input[0]
-type StorybookPackageRevisionBuilder = PackageSession.Input[1]["buildRevision"]
-type StorybookPackageEvent = Parameters<NonNullable<PackageSession.Input[1]["publish"]>>[0]
-type StorybookPackageRevisionGraphSnapshot = ReturnType<PackageRevision.Output["create"]>
+type StorybookPackageBuildDescriptor = Contract.Input[0]
+type StorybookPackageRevisionBuilder = Contract.Input[1]["buildRevision"]
+type StorybookPackageEvent = Parameters<NonNullable<Contract.Input[1]["publish"]>>[0]
+type StorybookPackageRevisionGraphSnapshot = ReturnType<StorybookPackageRevision.Output["create"]>
 
 const roots: string[] = []
 
@@ -21,7 +21,7 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, {recursive: true, force: true})
 })
 
-describe("working Storybook PackageSession lifecycle", () => {
+describe("working Storybook StorybookPackageSession lifecycle", () => {
   test("платформа потребителя сохраняется вместе с применённой ревизией", async () => {
     const root = fixtureRoot("kernel-receipt")
     const value = descriptor(root, "@fixture/kernel")
@@ -837,7 +837,7 @@ describe("working Storybook PackageSession lifecycle", () => {
 
   test("binds exact per-operation phase and worker lifecycle to scheduler resources", async () => {
     const root = fixtureRoot("scheduler-hooks")
-    const rows = [{pid: 100, parentPid: 1, cpuPercent: 9.5, rssBytes: 1048576, startedAt: "2026-09-11T08:00:00.000Z"}, {pid: 101, parentPid: 100, cpuPercent: 2.5, rssBytes: 262144, startedAt: "2026-09-11T08:00:01.000Z"}] satisfies ProcessSample.Output
+    const rows = [{pid: 100, parentPid: 1, cpuPercent: 9.5, rssBytes: 1048576, startedAt: "2026-09-11T08:00:00.000Z"}, {pid: 101, parentPid: 100, cpuPercent: 2.5, rssBytes: 262144, startedAt: "2026-09-11T08:00:01.000Z"}] satisfies StorybookTechProcessSample.Output
     const scheduler = new StorybookBuildScheduler({
       limit: 1,
       resourceSampler: {sample: () => rows},
@@ -888,7 +888,7 @@ describe("working Storybook PackageSession lifecycle", () => {
     const graphSnapshot = redigest({
       ...base.graphSnapshot,
       workbenchAuthorStyleSheets: [{
-        specifier: "@zavx0z/ui/theme/theme.css",
+        specifier: "@immersive-ui/component/theme/theme.css",
         url: "workbench-author-style-sheets/0.css",
         contentDigest,
       }],

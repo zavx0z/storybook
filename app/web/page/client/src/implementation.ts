@@ -1,4 +1,4 @@
-import WebProtocol from "@app-web/protocol"
+import WebProtocol from "@storybook-app-web/protocol"
 import type {ExternalStorybookClientSnapshot} from "../contract/types"
 
 export function validateClientSnapshot(value: unknown): ExternalStorybookClientSnapshot {

@@ -1,5 +1,5 @@
 {
-  "name": "@archetypes/typedoc",
+  "name": "@storybook/typedoc",
   "label": "TypeDoc",
   "version": "0.0.0",
   "private": true,
@@ -10,13 +10,13 @@
   },
   "dependencies": {
     "typescript": "^7.0.2",
-    "@archetypes/package-documentation": "workspace:*"
+    "@storybook-package/documentation": "workspace:*"
   },
   "scripts": {
     "test": "bun test ./spec ./test --max-concurrency=1",
     "typecheck": "tsc --project tsconfig.json --pretty false"
   },
   "devDependencies": {
-    "@archetypes/scenario-reader": "workspace:*"
+    "@storybook-specs-scenarios/reader": "workspace:*"
   }
 }

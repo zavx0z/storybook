@@ -1,5 +1,5 @@
-import type {AppWebProtocol} from "@app-web/protocol"
-type StorybookSharedHost = Awaited<ReturnType<AppWebProtocol.Output["readSharedHost"]>>
+import type {StorybookAppWebProtocol} from "@storybook-app-web/protocol"
+type StorybookSharedHost = Awaited<ReturnType<StorybookAppWebProtocol.Output["readSharedHost"]>>
 
 /**
 Доставляет новую оболочку также уже открытой landing прежнего выпуска.

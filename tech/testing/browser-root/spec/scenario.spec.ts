@@ -6,10 +6,10 @@
 @packageDocumentation
 */
 import {describe, expect, mock, test} from "bun:test"
-import presentationRootFixture, {type WebBrowserFixture} from "@web/browser-fixture"
+import presentationRootFixture, {type StorybookTechTestingBrowserRoot} from "@storybook-tech-testing/browser-root"
 
-type Presentation = Awaited<ReturnType<WebBrowserFixture.Input>>
-type Application = NonNullable<Parameters<ReturnType<WebBrowserFixture.Output>["render"]>[0]>
+type Presentation = Awaited<ReturnType<StorybookTechTestingBrowserRoot.Input>>
+type Application = NonNullable<Parameters<ReturnType<StorybookTechTestingBrowserRoot.Output>["render"]>[0]>
 
 describe.each([
   {name: "Повторное использование готового Presentation", props: {canvas: {} as HTMLCanvasElement}},
@@ -18,7 +18,7 @@ describe.each([
   const renderApplication = mock((_app: Application) => {})
   // Контролируемая seam: Browser Fixture обращается только к renderApplication и unmount.
   const presentation = {unmount, renderApplication} as unknown as Presentation
-  const factory = mock((async (_options: Parameters<WebBrowserFixture.Input>[0]) => presentation) as WebBrowserFixture.Input)
+  const factory = mock((async (_options: Parameters<StorybookTechTestingBrowserRoot.Input>[0]) => presentation) as StorybookTechTestingBrowserRoot.Input)
   const createRoot = presentationRootFixture(factory)
 
   test("Полный жизненный цикл", async () => {

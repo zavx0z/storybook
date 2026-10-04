@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import routeUrl from "@route/url"
+import routeUrl from "@storybook-package-route/url"
 
 const validStorybookViewQuery = routeUrl.validViewQuery
 

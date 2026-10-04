@@ -1,12 +1,12 @@
 import {realpath, lstat} from "node:fs/promises"
 import {resolve} from "node:path"
-import type {ArchetypesPackage} from "../contract"
+import type {StorybookPackageReader} from "../contract"
 
 /** Читает Git-корень и вложенные gitlinks, не меняя историю или рабочее дерево. */
 export async function readRepositoryBoundary(
   root: string,
-  packages: ArchetypesPackage.Output["packages"],
-): Promise<ArchetypesPackage.Output["repository"]> {
+  packages: StorybookPackageReader.Output["packages"],
+): Promise<StorybookPackageReader.Output["repository"]> {
   const git = Bun.spawn(["git", "-C", root, "rev-parse", "--show-toplevel"], {stdout: "pipe", stderr: "ignore"})
   const [output, code] = await Promise.all([new Response(git.stdout).text(), git.exited])
   const gitRoot = code === 0 ? await realpath(output.trim()) : null

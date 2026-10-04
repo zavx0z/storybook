@@ -6,13 +6,13 @@
 
 @packageDocumentation
 */
-import type {CatalogNavigation} from "./contract"
+import type {StorybookAppWebPageShellWorkbenchCatalogNavigation} from "./contract"
 import type {Item, Group} from "./contract/navigation"
 import type {NavigationLeafProjection, NavigationTopLevelProjection, NavigationRow, NavigationProjection} from "./contract/projection"
 import {normalizeSearch, matches, requiredText, stringValue} from "./src/navigation"
-export type {CatalogNavigation} from "./contract"
+export type {StorybookAppWebPageShellWorkbenchCatalogNavigation} from "./contract"
 
-const Navigation: CatalogNavigation.Output = Object.freeze<CatalogNavigation.Output>({
+const Navigation: StorybookAppWebPageShellWorkbenchCatalogNavigation.Output = Object.freeze<StorybookAppWebPageShellWorkbenchCatalogNavigation.Output>({
   /**
 Проверяет и замораживает навигационные данные до изменения модели или отрисовки.
 

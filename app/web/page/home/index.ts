@@ -7,41 +7,41 @@
 
 @packageDocumentation
 */
-import WebProtocol from "@app-web/protocol"
-import createHmrConnection from "@hmr/connection"
-import WebNavigationOwner from "@web/navigation"
+import WebProtocol from "@storybook-app-web/protocol"
+import createHmrConnection from "@storybook-tech-hmr/connection"
+import WebNavigationOwner from "@storybook-app-web-page/navigation"
 const navigatePackage = WebNavigationOwner.navigatePackage
-import ReadGraph from "@package-graph/read"
+import ReadGraph from "@storybook-package-graph/read"
 import {attachPickedDirectory, pickStorybookDirectory} from "./src/directory-picker.ts"
 
-import type {CustomEvent} from "@zavx0z/dom"
-import indexedWorkbenchAuthorStyleSheetSources from "@web/style-sheets"
-import type {WebCatalog} from "@web/catalog"
-type WorkbenchCatalogAction = Parameters<WebCatalog.Input["onAction"]>[0]
-type WorkbenchCatalogManagement = NonNullable<WebCatalog.Input["management"]>
+import type {CustomEvent} from "@immersive/dom"
+import indexedWorkbenchAuthorStyleSheetSources from "@storybook-app-web-page/style-sheets"
+import type {StorybookAppWebPageShellWorkbenchCatalog} from "@storybook-app-web-page-shell-workbench/catalog"
+type WorkbenchCatalogAction = Parameters<StorybookAppWebPageShellWorkbenchCatalog.Input["onAction"]>[0]
+type WorkbenchCatalogManagement = NonNullable<StorybookAppWebPageShellWorkbenchCatalog.Input["management"]>
 const deriveExternalStorybookLanding = WebNavigationOwner.deriveExternalStorybookLanding
 const deriveExternalStorybookLandingSelection = WebNavigationOwner.deriveExternalStorybookLandingSelection
 const deriveExternalStorybookNavigationTree = WebNavigationOwner.deriveExternalStorybookNavigationTree
-import createExternalStorybookShell from "@page/shell"
-import WebClientOwner from "@web/client"
+import createExternalStorybookShell from "@storybook-app-web-page/shell"
+import WebClientOwner from "@storybook-app-web-page/client"
 const externalStorybookClientNode = WebClientOwner.externalStorybookClientNode
 const fetchExternalStorybookClientSnapshot = WebClientOwner.fetchExternalStorybookClientSnapshot
 const readExternalStorybookNodeDocumentation = WebClientOwner.readExternalStorybookNodeDocumentation
 const deriveStorybookBreadcrumbs = WebNavigationOwner.deriveStorybookBreadcrumbs
 const storybookRootBreadcrumb = WebNavigationOwner.storybookRootBreadcrumb
 const STORYBOOK_ROOT_BREADCRUMB = WebNavigationOwner.STORYBOOK_ROOT_BREADCRUMB
-import WebStatusOwner from "@web/status"
+import WebStatusOwner from "@storybook-app-web-page/status"
 const packageEventStatus = WebStatusOwner.packageEvent
 const storybookConnectionStatus = WebStatusOwner.connection
 const buildProgressStatus = WebStatusOwner.build
 const catalogProgressStatus = WebStatusOwner.catalog
 const readBuildProgress = WebStatusOwner.readBuild
 const readCatalogProgress = WebStatusOwner.readCatalog
-import type {PageHome} from "./contract"
-type StartExternalStorybookLandingOptions = PageHome.Input
-type ExternalStorybookLandingController = PageHome.Output
+import type {StorybookAppWebPageHome} from "./contract"
+type StartExternalStorybookLandingOptions = StorybookAppWebPageHome.Input
+type ExternalStorybookLandingController = StorybookAppWebPageHome.Output
 import {createLandingSocket, parseLandingEvent, navigationItems, overviewDescription, requestRegistryChange, isolateLandingError, errorText, assertActive} from './src/implementation'
-export type {PageHome} from './contract'
+export type {StorybookAppWebPageHome} from './contract'
 
 async function startExternalStorybookLanding(
   options: StartExternalStorybookLandingOptions = {},
@@ -74,7 +74,7 @@ async function startExternalStorybookLanding(
   const updateManagement = (patch: Partial<WorkbenchCatalogManagement> = {}): void => {
     management = {...management, ...patch}
     management = {...management, removableIds: management.pending ? [] : landing.catalogItems.filter(item => item.parentId === undefined).map(item => item.id)}
-    shell.workbench.update("catalog.management", management)
+    shell.workbench.update("catalog.management", null)
   }
   updateManagement()
   shell.document.transaction(() => {

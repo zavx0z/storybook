@@ -293,14 +293,14 @@
               "path": "<repo>/package/reader/index.ts",
               "exports": [
                 {
-                  "name": "ArchetypesPackage",
+                  "name": "StorybookPackageReader",
                   "runtime": false,
                   "declarations": [
                     {
                       "path": "<repo>/package/reader/contract/index.ts",
                       "owner": {
                         "path": "<repo>/package/reader",
-                        "name": "@archetypes/package"
+                        "name": "@storybook-package/reader"
                       }
                     }
                   ],
@@ -315,7 +315,7 @@
                       "path": "<repo>/package/reader/index.ts",
                       "owner": {
                         "path": "<repo>/package/reader",
-                        "name": "@archetypes/package"
+                        "name": "@storybook-package/reader"
                       }
                     }
                   ],
@@ -353,7 +353,7 @@
                 },
                 {
                   "from": "<repo>/package/reader/index.ts",
-                  "module": "@archetypes/package-json",
+                  "module": "@storybook-package/package-json",
                   "names": [
                     "default"
                   ],
@@ -362,13 +362,13 @@
                   "path": "<repo>/package/package-json/index.ts",
                   "owner": {
                     "path": "<repo>/package/package-json",
-                    "name": "@archetypes/package-json"
+                    "name": "@storybook-package/package-json"
                   },
                   "public": true
                 },
                 {
                   "from": "<repo>/package/reader/index.ts",
-                  "module": "@archetypes/package-index",
+                  "module": "@storybook-package/index",
                   "names": [
                     "default"
                   ],
@@ -377,7 +377,7 @@
                   "path": "<repo>/package/index/index.ts",
                   "owner": {
                     "path": "<repo>/package/index",
-                    "name": "@archetypes/package-index"
+                    "name": "@storybook-package/index"
                   },
                   "public": true
                 },
@@ -392,7 +392,7 @@
                   "path": "<repo>/package/reader/src/root-documentation.ts",
                   "owner": {
                     "path": "<repo>/package/reader",
-                    "name": "@archetypes/package"
+                    "name": "@storybook-package/reader"
                   },
                   "public": true
                 },
@@ -407,7 +407,7 @@
                   "path": "<repo>/package/reader/src/sources.ts",
                   "owner": {
                     "path": "<repo>/package/reader",
-                    "name": "@archetypes/package"
+                    "name": "@storybook-package/reader"
                   },
                   "public": true
                 },
@@ -422,7 +422,7 @@
                   "path": "<repo>/package/reader/src/repository.ts",
                   "owner": {
                     "path": "<repo>/package/reader",
-                    "name": "@archetypes/package"
+                    "name": "@storybook-package/reader"
                   },
                   "public": true
                 },
@@ -437,7 +437,7 @@
                   "path": "<repo>/package/reader/src/composition.ts",
                   "owner": {
                     "path": "<repo>/package/reader",
-                    "name": "@archetypes/package"
+                    "name": "@storybook-package/reader"
                   },
                   "public": true
                 },
@@ -445,14 +445,14 @@
                   "from": "<repo>/package/reader/index.ts",
                   "module": "./contract",
                   "names": [
-                    "ArchetypesPackage"
+                    "StorybookPackageReader"
                   ],
                   "typeOnly": true,
                   "exported": false,
                   "path": "<repo>/package/reader/contract/index.ts",
                   "owner": {
                     "path": "<repo>/package/reader",
-                    "name": "@archetypes/package"
+                    "name": "@storybook-package/reader"
                   },
                   "public": true
                 },
@@ -460,59 +460,59 @@
                   "from": "<repo>/package/reader/index.ts",
                   "module": "./contract",
                   "names": [
-                    "ArchetypesPackage"
+                    "StorybookPackageReader"
                   ],
                   "typeOnly": true,
                   "exported": true,
                   "path": "<repo>/package/reader/contract/index.ts",
                   "owner": {
                     "path": "<repo>/package/reader",
-                    "name": "@archetypes/package"
+                    "name": "@storybook-package/reader"
                   },
                   "public": true
                 },
                 {
                   "from": "<repo>/package/reader/contract/index.ts",
-                  "module": "@archetypes/package-json",
+                  "module": "@storybook-package/package-json",
                   "names": [
-                    "ArchetypesPackageJson"
+                    "StorybookPackagePackageJson"
                   ],
                   "typeOnly": true,
                   "exported": false,
                   "path": "<repo>/package/package-json/index.ts",
                   "owner": {
                     "path": "<repo>/package/package-json",
-                    "name": "@archetypes/package-json"
+                    "name": "@storybook-package/package-json"
                   },
                   "public": true
                 },
                 {
                   "from": "<repo>/package/reader/contract/index.ts",
-                  "module": "@archetypes/package-documentation",
+                  "module": "@storybook-package/documentation",
                   "names": [
-                    "ArchetypesPackageDocumentation"
+                    "StorybookPackageDocumentation"
                   ],
                   "typeOnly": true,
                   "exported": false,
                   "path": "<repo>/package/documentation/index.ts",
                   "owner": {
                     "path": "<repo>/package/documentation",
-                    "name": "@archetypes/package-documentation"
+                    "name": "@storybook-package/documentation"
                   },
                   "public": true
                 },
                 {
                   "from": "<repo>/package/reader/contract/index.ts",
-                  "module": "@archetypes/package-index",
+                  "module": "@storybook-package/index",
                   "names": [
-                    "ArchetypesPackageIndex"
+                    "StorybookPackageIndex"
                   ],
                   "typeOnly": true,
                   "exported": false,
                   "path": "<repo>/package/index/index.ts",
                   "owner": {
                     "path": "<repo>/package/index",
-                    "name": "@archetypes/package-index"
+                    "name": "@storybook-package/index"
                   },
                   "public": true
                 }
@@ -529,7 +529,7 @@
                       "path": "<repo>/package/reader/src/repository.ts",
                       "owner": {
                         "path": "<repo>/package/reader",
-                        "name": "@archetypes/package"
+                        "name": "@storybook-package/reader"
                       }
                     }
                   ],
@@ -570,14 +570,14 @@
                   "from": "<repo>/package/reader/src/repository.ts",
                   "module": "../contract",
                   "names": [
-                    "ArchetypesPackage"
+                    "StorybookPackageReader"
                   ],
                   "typeOnly": true,
                   "exported": false,
                   "path": "<repo>/package/reader/contract/index.ts",
                   "owner": {
                     "path": "<repo>/package/reader",
-                    "name": "@archetypes/package"
+                    "name": "@storybook-package/reader"
                   },
                   "public": true
                 }
@@ -594,7 +594,7 @@
                       "path": "<repo>/package/reader/src/composition.ts",
                       "owner": {
                         "path": "<repo>/package/reader",
-                        "name": "@archetypes/package"
+                        "name": "@storybook-package/reader"
                       }
                     }
                   ],
@@ -609,7 +609,7 @@
               "references": [
                 {
                   "from": "<repo>/package/reader/src/composition.ts",
-                  "module": "@route/workspaces",
+                  "module": "@storybook-package-route/workspaces",
                   "names": [
                     "default"
                   ],
@@ -618,7 +618,7 @@
                   "path": "<repo>/package/route/workspaces/index.ts",
                   "owner": {
                     "path": "<repo>/package/route/workspaces",
-                    "name": "@route/workspaces"
+                    "name": "@storybook-package-route/workspaces"
                   },
                   "public": true
                 },
@@ -649,7 +649,7 @@
                 },
                 {
                   "from": "<repo>/package/reader/src/composition.ts",
-                  "module": "@archetypes/package-json",
+                  "module": "@storybook-package/package-json",
                   "names": [
                     "default"
                   ],
@@ -658,7 +658,7 @@
                   "path": "<repo>/package/package-json/index.ts",
                   "owner": {
                     "path": "<repo>/package/package-json",
-                    "name": "@archetypes/package-json"
+                    "name": "@storybook-package/package-json"
                   },
                   "public": true
                 },
@@ -666,14 +666,14 @@
                   "from": "<repo>/package/reader/src/composition.ts",
                   "module": "../contract",
                   "names": [
-                    "ArchetypesPackage"
+                    "StorybookPackageReader"
                   ],
                   "typeOnly": true,
                   "exported": false,
                   "path": "<repo>/package/reader/contract/index.ts",
                   "owner": {
                     "path": "<repo>/package/reader",
-                    "name": "@archetypes/package"
+                    "name": "@storybook-package/reader"
                   },
                   "public": true
                 }
@@ -690,7 +690,7 @@
                       "path": "<repo>/package/reader/src/sources.ts",
                       "owner": {
                         "path": "<repo>/package/reader",
-                        "name": "@archetypes/package"
+                        "name": "@storybook-package/reader"
                       }
                     }
                   ],
@@ -713,7 +713,7 @@
                   "path": "<repo>/package/reader/src/exports.ts",
                   "owner": {
                     "path": "<repo>/package/reader",
-                    "name": "@archetypes/package"
+                    "name": "@storybook-package/reader"
                   },
                   "public": true
                 },
@@ -746,14 +746,14 @@
                   "from": "<repo>/package/reader/src/sources.ts",
                   "module": "../contract",
                   "names": [
-                    "ArchetypesPackage"
+                    "StorybookPackageReader"
                   ],
                   "typeOnly": true,
                   "exported": false,
                   "path": "<repo>/package/reader/contract/index.ts",
                   "owner": {
                     "path": "<repo>/package/reader",
-                    "name": "@archetypes/package"
+                    "name": "@storybook-package/reader"
                   },
                   "public": true
                 }
@@ -770,7 +770,7 @@
                       "path": "<repo>/package/reader/src/root-documentation.ts",
                       "owner": {
                         "path": "<repo>/package/reader",
-                        "name": "@archetypes/package"
+                        "name": "@storybook-package/reader"
                       }
                     }
                   ],
@@ -822,7 +822,7 @@
                 },
                 {
                   "from": "<repo>/package/reader/src/root-documentation.ts",
-                  "module": "@archetypes/package-documentation",
+                  "module": "@storybook-package/documentation",
                   "names": [
                     "default"
                   ],
@@ -831,22 +831,22 @@
                   "path": "<repo>/package/documentation/index.ts",
                   "owner": {
                     "path": "<repo>/package/documentation",
-                    "name": "@archetypes/package-documentation"
+                    "name": "@storybook-package/documentation"
                   },
                   "public": true
                 },
                 {
                   "from": "<repo>/package/reader/src/root-documentation.ts",
-                  "module": "@archetypes/package-documentation",
+                  "module": "@storybook-package/documentation",
                   "names": [
-                    "ArchetypesPackageDocumentation"
+                    "StorybookPackageDocumentation"
                   ],
                   "typeOnly": true,
                   "exported": false,
                   "path": "<repo>/package/documentation/index.ts",
                   "owner": {
                     "path": "<repo>/package/documentation",
-                    "name": "@archetypes/package-documentation"
+                    "name": "@storybook-package/documentation"
                   },
                   "public": true
                 }
@@ -863,7 +863,7 @@
                       "path": "<repo>/package/reader/src/exports.ts",
                       "owner": {
                         "path": "<repo>/package/reader",
-                        "name": "@archetypes/package"
+                        "name": "@storybook-package/reader"
                       }
                     }
                   ],
@@ -987,7 +987,7 @@
                 },
                 {
                   "from": "<repo>/package/reader/src/exports.ts",
-                  "module": "@archetypes/package-index",
+                  "module": "@storybook-package/index",
                   "names": [
                     "default"
                   ],
@@ -996,13 +996,13 @@
                   "path": "<repo>/package/index/index.ts",
                   "owner": {
                     "path": "<repo>/package/index",
-                    "name": "@archetypes/package-index"
+                    "name": "@storybook-package/index"
                   },
                   "public": true
                 },
                 {
                   "from": "<repo>/package/reader/src/exports.ts",
-                  "module": "@build/compiler",
+                  "module": "@storybook-tech-build/compiler",
                   "names": [
                     "default"
                   ],
@@ -1011,7 +1011,7 @@
                   "path": "<repo>/tech/build/compiler/index.ts",
                   "owner": {
                     "path": "<repo>/tech/build/compiler",
-                    "name": "@build/compiler"
+                    "name": "@storybook-tech-build/compiler"
                   },
                   "public": true
                 },
@@ -1019,14 +1019,14 @@
                   "from": "<repo>/package/reader/src/exports.ts",
                   "module": "../contract",
                   "names": [
-                    "ArchetypesPackage"
+                    "StorybookPackageReader"
                   ],
                   "typeOnly": true,
                   "exported": false,
                   "path": "<repo>/package/reader/contract/index.ts",
                   "owner": {
                     "path": "<repo>/package/reader",
-                    "name": "@archetypes/package"
+                    "name": "@storybook-package/reader"
                   },
                   "public": true
                 },
@@ -1051,14 +1051,14 @@
               "path": "<repo>/package/reader/contract/index.ts",
               "exports": [
                 {
-                  "name": "ArchetypesPackage",
+                  "name": "StorybookPackageReader",
                   "runtime": false,
                   "declarations": [
                     {
                       "path": "<repo>/package/reader/contract/index.ts",
                       "owner": {
                         "path": "<repo>/package/reader",
-                        "name": "@archetypes/package"
+                        "name": "@storybook-package/reader"
                       }
                     }
                   ],
@@ -1070,46 +1070,46 @@
               "references": [
                 {
                   "from": "<repo>/package/reader/contract/index.ts",
-                  "module": "@archetypes/package-json",
+                  "module": "@storybook-package/package-json",
                   "names": [
-                    "ArchetypesPackageJson"
+                    "StorybookPackagePackageJson"
                   ],
                   "typeOnly": true,
                   "exported": false,
                   "path": "<repo>/package/package-json/index.ts",
                   "owner": {
                     "path": "<repo>/package/package-json",
-                    "name": "@archetypes/package-json"
+                    "name": "@storybook-package/package-json"
                   },
                   "public": true
                 },
                 {
                   "from": "<repo>/package/reader/contract/index.ts",
-                  "module": "@archetypes/package-documentation",
+                  "module": "@storybook-package/documentation",
                   "names": [
-                    "ArchetypesPackageDocumentation"
+                    "StorybookPackageDocumentation"
                   ],
                   "typeOnly": true,
                   "exported": false,
                   "path": "<repo>/package/documentation/index.ts",
                   "owner": {
                     "path": "<repo>/package/documentation",
-                    "name": "@archetypes/package-documentation"
+                    "name": "@storybook-package/documentation"
                   },
                   "public": true
                 },
                 {
                   "from": "<repo>/package/reader/contract/index.ts",
-                  "module": "@archetypes/package-index",
+                  "module": "@storybook-package/index",
                   "names": [
-                    "ArchetypesPackageIndex"
+                    "StorybookPackageIndex"
                   ],
                   "typeOnly": true,
                   "exported": false,
                   "path": "<repo>/package/index/index.ts",
                   "owner": {
                     "path": "<repo>/package/index",
-                    "name": "@archetypes/package-index"
+                    "name": "@storybook-package/index"
                   },
                   "public": true
                 }
@@ -1120,18 +1120,18 @@
             "<repo>/package/reader/spec/scenario.spec.ts"
           ],
           "packageJson": {
-            "name": "@archetypes/package",
+            "name": "@storybook-package/reader",
             "dependencies": {
               "typescript": "^7.0.2",
-              "@build/compiler": "workspace:*",
-              "@archetypes/package-index": "workspace:*",
-              "@archetypes/package-documentation": "workspace:*",
-              "@route/workspaces": "workspace:*",
-              "@archetypes/package-json": "workspace:*"
+              "@storybook-tech-build/compiler": "workspace:*",
+              "@storybook-package/index": "workspace:*",
+              "@storybook-package/documentation": "workspace:*",
+              "@storybook-package-route/workspaces": "workspace:*",
+              "@storybook-package/package-json": "workspace:*"
             },
             "devDependencies": {
-              "@archetypes/domain": "workspace:*",
-              "@archetypes/scenario-reader": "workspace:*"
+              "@storybook/domain": "workspace:*",
+              "@storybook-specs-scenarios/reader": "workspace:*"
             },
             "label": "Пакет",
             "description": "Объясняет и проверяет назначение пакета, принадлежность публичных входов и наличие их контрактов",

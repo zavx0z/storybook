@@ -1,10 +1,10 @@
-import PackageStandardOwner from "@package/standard"
+import PackageStandardOwner from "@storybook-package/standard"
 const appliedPackageStandard = PackageStandardOwner.applied
 const readPackageVerification = PackageStandardOwner.readVerification
 import {expect, test} from "bun:test"
-import type {ArchetypesScenarioReader} from "@archetypes/scenario-reader"
+import type {StorybookSpecsScenariosReader} from "@storybook-specs-scenarios/reader"
 /** Форма исходного публичного владельца. */
-type ReadScenarioOutput = ArchetypesScenarioReader.Output
+type ReadScenarioOutput = StorybookSpecsScenariosReader.Output
 import conformance from "../index"
 
 const scenarioVerification = conformance.verify

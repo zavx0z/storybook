@@ -1,5 +1,5 @@
 {
-  "name": "@package-build/consumer-boundary",
+  "name": "@storybook-package-build/consumer-boundary",
   "label": "Граница потребителя",
   "version": "0.0.0",
   "private": true,

@@ -1,9 +1,9 @@
 import {mock} from "bun:test"
-import WebProtocol from "@app-web/protocol"
-import type {WebClient} from "@web/client"
+import WebProtocol from "@storybook-app-web/protocol"
+import type {StorybookAppWebPageClient} from "@storybook-app-web-page/client"
 
-type Snapshot = Awaited<ReturnType<WebClient.Output["fetchExternalStorybookClientSnapshot"]>>
-type ClientNode = Parameters<WebClient.Output["readExternalStorybookNodeDocumentation"]>[0]
+type Snapshot = Awaited<ReturnType<StorybookAppWebPageClient.Output["fetchExternalStorybookClientSnapshot"]>>
+type ClientNode = Parameters<StorybookAppWebPageClient.Output["readExternalStorybookNodeDocumentation"]>[0]
 
 /** Управляемый fetch сохраняет наблюдаемые вызовы и полный Bun transport contract. */
 export function controlledFetcher(respond: (...input: Parameters<typeof fetch>) => ReturnType<typeof fetch>) {

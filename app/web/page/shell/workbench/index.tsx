@@ -5,13 +5,13 @@
 
 @packageDocumentation
 */
-import {HUDElement} from "@zavx0z/dom/hud"
-import {DisplayElement} from "@zavx0z/dom/display"
-import {useLayoutEffect, useMemo, useRef, useSyncExternalStore} from "@zavx0z/component"
-import {SpaceElement} from "@zavx0z/dom/space"
-import type {HTMLDivElement as SemanticDiv} from "@zavx0z/dom"
-import type {WebWorkbench} from "./contract"
-export type {WebWorkbench} from "./contract"
+import {HUDElement} from "@immersive/dom/hud"
+import {DisplayElement} from "@immersive/dom/display"
+import {useLayoutEffect, useMemo, useRef, useSyncExternalStore} from "@immersive/component"
+import {SpaceElement} from "@immersive/dom/space"
+import type {HTMLDivElement as SemanticDiv} from "@immersive/dom"
+import type {StorybookAppWebPageShellWorkbench} from "./contract"
+export type {StorybookAppWebPageShellWorkbench} from "./contract"
 import {WorkbenchView} from "./src/view"
 import {selectWorkbenchNavigationBranch} from "./src/navigation/branch"
 import {createWorkbenchModel} from "./src/model"
@@ -21,7 +21,7 @@ Workbench в Display показывает каталог от текущего �
 Это проекция полного каталога модели: HUD продолжает получать всю иерархию.
 document привязывается компилятором к Document этого приложения, включая callbacks.
 */
-export default function Workbench(props: WebWorkbench.Input) {
+export default function Workbench(props: StorybookAppWebPageShellWorkbench.Input) {
   const element = useRef<HTMLDivElement | null>(null)
   const model = useMemo(() => createWorkbenchModel({
     document,

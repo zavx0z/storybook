@@ -1,7 +1,7 @@
 /** Имя namespace выражает полное имя пакета, включая его scope. */
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readContract from "@archetypes/contracts"
+import readContract from "@storybook/contracts"
 import {createFixture} from "../test/fixture"
 
 describe.each([
@@ -12,10 +12,10 @@ describe.each([
     expected: "StorybookApp",
   },
   {
-    name: "@app/web — AppWeb",
-    packageName: "@app/web",
-    namespaceName: "AppWeb",
-    expected: "AppWeb",
+    name: "@storybook-app/web — StorybookAppWeb",
+    packageName: "@storybook-app/web",
+    namespaceName: "StorybookAppWeb",
+    expected: "StorybookAppWeb",
   },
   {
     name: "web-worker — WebWorker",
@@ -36,10 +36,10 @@ describe.each([
     expected: "StorybookApp",
   },
   {
-    name: "Намеренно неверное имя @app/web — Web",
-    packageName: "@app/web",
+    name: "Намеренно неверное имя @storybook-app/web — Web",
+    packageName: "@storybook-app/web",
     namespaceName: "Web",
-    expected: "AppWeb",
+    expected: "StorybookAppWeb",
   },
 ])("$name", ({packageName, namespaceName, expected}) => {
   test("Имя, предупреждение и доступность ролей", async () => {

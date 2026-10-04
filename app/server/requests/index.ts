@@ -5,12 +5,12 @@
 @packageDocumentation
 */
 import type {McpRequestRecord} from "./contract/record"
-import type {McpRestRequests} from "./contract"
+import type {StorybookAppServerRequests} from "./contract"
 
-export type {McpRestRequests} from "./contract"
+export type {StorybookAppServerRequests} from "./contract"
 
 /** Создаёт ограниченный журнал одного HTTP-сервера; сохраняет последние 20 обращений. */
-export default function createMcpRequestJournal(): McpRestRequests.Output {
+export default function createMcpRequestJournal(): StorybookAppServerRequests.Output {
   const records = new Map<string, McpRequestRecord>()
   return {
     write(value: unknown): void {

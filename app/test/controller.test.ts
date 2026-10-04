@@ -1,6 +1,6 @@
 import StorybookAppOwner from "@storybook/app"
 const createExternalStorybookController = StorybookAppOwner
-import ServerState from "@app-server/state"
+import ServerState from "@storybook-app-server/state"
 const {createExternalStorybookServerRecord, externalStorybookServerStatePath, externalStorybookMigrationStatePath, readExternalStorybookMigrationRecord, readExternalStorybookServerRecord, processExists, writeExternalStorybookMigrationRecord, writeExternalStorybookServerRecord} = ServerState
 import {afterAll, beforeAll, beforeEach, describe, expect, test} from "bun:test"
 import {cpSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync} from "node:fs"

@@ -27,7 +27,7 @@ import {
   isSpreadElement,
   isStringLiteral,
 } from "typescript/unstable/ast/is"
-import type {ScenarioExecution, ScenarioPreview, TraceValue} from "./types"
+import type {ScenarioExecution, StorybookAppWebPagePackageScenarioPreview, TraceValue} from "./types"
 import {isPortable, previewPoints} from "./preview-values"
 import {defaultExportInvocation} from "./public-callable"
 
@@ -300,9 +300,9 @@ export function createFunctionPreview(
   execution: ScenarioExecution,
   overriddenProps: readonly string[] = [],
   variantOffset = 0,
-): Extract<ScenarioPreview, {kind: "function"}> | undefined {
+): Extract<StorybookAppWebPagePackageScenarioPreview, {kind: "function"}> | undefined {
   const groups = execution.groups.filter(group => group.parentId === null)
-  const variants: Extract<ScenarioPreview, {kind: "function"}>["variants"][number][] = []
+  const variants: Extract<StorybookAppWebPagePackageScenarioPreview, {kind: "function"}>["variants"][number][] = []
   for (const [variantIndex, group] of groups.entries()) {
     const observed = execution.calls.filter(call => call.groupId === group.id && call.test === null
       && call.module === descriptor.module && call.name === descriptor.export
@@ -311,7 +311,7 @@ export function createFunctionPreview(
     if (observed.length !== 1) return undefined
     const usedImports = new Set<string>()
     let authoredSource: string | undefined
-    const calls: Extract<ScenarioPreview, {kind: "function"}>["variants"][number]["calls"][number][] = []
+    const calls: Extract<StorybookAppWebPagePackageScenarioPreview, {kind: "function"}>["variants"][number]["calls"][number][] = []
     for (const call of observed) {
       const location = descriptor.locations.find(item => item.line === call.location?.line
         && item.column === call.location.column)

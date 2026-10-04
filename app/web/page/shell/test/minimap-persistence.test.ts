@@ -1,18 +1,18 @@
-import Minimap from "@web/minimap"
+import Minimap from "@storybook-app-web-page-shell/minimap"
 import {expect, test} from "bun:test"
-import {createRoot} from "@zavx0z/component"
-import {createDocument, MouseEvent, type Element} from "@zavx0z/dom"
-import {flushDocumentLayoutObservers} from "@zavx0z/dom/geometry"
-import {createDocumentInteractionController, createDocumentRenderer, hitTestProjection} from "@renderer/html"
-import type {CompiledTemplate} from "@zavx0z/template/compiled"
-import type {WebMinimap} from "@web/minimap"
-type MinimapProps = WebMinimap.Input
-type MinimapState = WebMinimap.Output
+import {createRoot} from "@immersive/component"
+import {createDocument, MouseEvent, type Element} from "@immersive/dom"
+import {flushDocumentLayoutObservers} from "@immersive/dom/geometry"
+import {createDocumentInteractionController, createDocumentRenderer, hitTestProjection} from "@immersive-renderer/html"
+import type {CompiledTemplate} from "@immersive/template/compiled"
+import type {StorybookAppWebPageShellMinimap} from "@storybook-app-web-page-shell/minimap"
+type MinimapProps = StorybookAppWebPageShellMinimap.Input
+type MinimapState = StorybookAppWebPageShellMinimap.Output
 import {createMinimapPersistence} from "../src/minimap-persistence"
 
 const initialLayout: MinimapState = {collapsed: false, geometry: {x: 8, y: 8, width: 300, height: 480}, tab: {edge: "left", offset: .5}}
 
-const theme = await Bun.file(Bun.resolveSync("@zavx0z/ui/theme/theme.css", import.meta.dir)).text()
+const theme = await Bun.file(Bun.resolveSync("@immersive-ui/component/theme/theme.css", import.meta.dir)).text()
 
 /** Новая сессия компонента использует настоящее дерево, layout, ввод и переданное хранилище. */
 function mount(storage: () => Pick<Storage, "getItem" | "setItem">, width = 800, height = 600) {

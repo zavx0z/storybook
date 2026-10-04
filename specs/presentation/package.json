@@ -1,5 +1,5 @@
 {
-  "name": "@mcp-rest/scenarios",
+  "name": "@storybook-specs/presentation",
   "label": "Представление сценариев",
   "version": "0.0.0",
   "private": true,
@@ -9,10 +9,10 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@archetypes/spec-reader": "workspace:*"
+    "@storybook-specs/reader": "workspace:*"
   },
   "devDependencies": {
-    "@archetypes/scenario-reader": "workspace:*",
-    "@repo/discovery": "workspace:*"
+    "@storybook-specs-scenarios/reader": "workspace:*",
+    "@storybook-repo/discovery": "workspace:*"
   }
 }

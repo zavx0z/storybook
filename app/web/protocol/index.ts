@@ -20,12 +20,12 @@ import {
   importStorybookSharedHost,
   synchronizeStorybookHostStyles,
 } from "./src/shared-host"
-import type {AppWebProtocol} from "./contract"
+import type {StorybookAppWebProtocol} from "./contract"
 
-export type {AppWebProtocol} from "./contract"
+export type {StorybookAppWebProtocol} from "./contract"
 
 /** Одна браузерно-безопасная таблица фактических операций протокола Web. */
-const protocol: AppWebProtocol.Output = Object.freeze({
+const protocol: StorybookAppWebProtocol.Output = Object.freeze({
   clientProtocol: EXTERNAL_STORYBOOK_CLIENT_PROTOCOL,
   resourcePrefix: EXTERNAL_STORYBOOK_RESOURCE_PREFIX,
   clientSnapshot: createExternalStorybookClientSnapshot,

@@ -1,11 +1,11 @@
 import {describe, expect, mock, test} from "bun:test"
 import {readdirSync} from "node:fs"
-import runBuildWorker from "@build/worker"
-import type {BuildWorker} from "@build/worker"
+import runBuildWorker from "@storybook-tech-build/worker"
+import type {StorybookTechBuildWorker} from "@storybook-tech-build/worker"
 import readWorkerEvents from "../src/read-events"
 import {parseFixtureEvent, prepareWorkerFixture} from "../fixtures/prepare"
 
-type LifecycleEvent = Parameters<NonNullable<BuildWorker.Input<unknown, unknown>["onLifecycle"]>>[0]
+type LifecycleEvent = Parameters<NonNullable<StorybookTechBuildWorker.Input<unknown, unknown>["onLifecycle"]>>[0]
 
 describe("Подтверждение потока worker", () => {
   test("Точный nonce и PID; лишние записи tolerant не создают lifecycle", async () => {

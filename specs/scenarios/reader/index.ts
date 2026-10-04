@@ -8,12 +8,12 @@
 import {traceScenario} from "./src/trace"
 import {validateRunProps} from "./src/run-props"
 import {readScenarioSource} from "./src/read-source"
-import validateScenario from "@archetypes/scenario-validation"
+import validateScenario from "@storybook-specs-scenarios-reader/validation"
 import {createScenarioPreview, supportsScenarioPreview} from "./src/preview"
 import {ScenarioAuthoringError} from "./src/authoring-error"
-import type {ArchetypesScenarioReader} from "./contract"
+import type {StorybookSpecsScenariosReader} from "./contract"
 
-export type {ArchetypesScenarioReader} from "./contract"
+export type {StorybookSpecsScenariosReader} from "./contract"
 
 /**
 Получает структуру исходника, выполняет его настоящим Bun Test и применяет правила архетипа.
@@ -26,9 +26,9 @@ export type {ArchetypesScenarioReader} from "./contract"
 нереализованные проверки не считаются пройденными.
 @throws Ошибка запуска, таймаут или отсутствие завершающего отчёта.
 */
-async function readScenario(input: ArchetypesScenarioReader.Input): Promise<ArchetypesScenarioReader.Output> {
+async function readScenario(input: StorybookSpecsScenariosReader.Input): Promise<StorybookSpecsScenariosReader.Output> {
   input.signal?.throwIfAborted()
-  const onProgress: NonNullable<ArchetypesScenarioReader.Input["onProgress"]> = progress => {
+  const onProgress: NonNullable<StorybookSpecsScenariosReader.Input["onProgress"]> = progress => {
     try { input.onProgress?.(progress) } catch { /* Наблюдение не влияет на результат теста. */ }
   }
   onProgress({phase: "preparing"})
@@ -60,7 +60,7 @@ async function readScenario(input: ArchetypesScenarioReader.Input): Promise<Arch
 /** Читает сценарий и предоставляет статическую проверку поддержки preview того же формата. */
 export default Object.assign(readScenario, {
   supportsPreview: supportsScenarioPreview,
-  isAuthoringError(error: unknown): error is Error & {readonly checks: ArchetypesScenarioReader.Output["validation"]["checks"]} {
+  isAuthoringError(error: unknown): error is Error & {readonly checks: StorybookSpecsScenariosReader.Output["validation"]["checks"]} {
     return error instanceof ScenarioAuthoringError
   },
 })

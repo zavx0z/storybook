@@ -6,7 +6,7 @@ Trusted default factory и его зависимости находятся в �
 @packageDocumentation
 */
 import {describe, expect, test} from "bun:test"
-import createLazyMcpServer from "@mcp/lazy"
+import createLazyMcpServer from "@storybook-tech-mcp/lazy"
 import {connectLazyFixture, createLazyFixture} from "../test/fixture"
 
 describe.each([{name: "Свежая реализация в том же MCP", props: {text: "hello"}}])("$name", async ({props}) => {

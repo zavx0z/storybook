@@ -5,10 +5,10 @@ MCP и package.json scripts вызывают эти же операции; со�
 
 @packageDocumentation
 */
-import ServerState, {type AppServerState} from "@app-server/state"
+import ServerState, {type StorybookAppServerState} from "@storybook-app-server/state"
 const {readExternalStorybookOperationProgress, readExternalStorybookStartupProgress, writeExternalStorybookStartupProgress, acquireExternalStorybookStartLease, clearExternalStorybookMigrationRecord, externalStorybookLegacyStatePaths, externalStorybookServerStatePath, inspectExternalStorybookServer, publishExternalStorybookStartCandidate, readExternalStorybookMigrationRecord, removeReplaceableExternalStorybookState, writeExternalStorybookMigrationRecord} = ServerState
-type ExternalStorybookMigrationRecord = NonNullable<ReturnType<AppServerState.Output["readExternalStorybookMigrationRecord"]>>
-type ExternalStorybookServerRecord = ReturnType<AppServerState.Output["readExternalStorybookServerRecord"]>
+type ExternalStorybookMigrationRecord = NonNullable<ReturnType<StorybookAppServerState.Output["readExternalStorybookMigrationRecord"]>>
+type ExternalStorybookServerRecord = ReturnType<StorybookAppServerState.Output["readExternalStorybookServerRecord"]>
 import {createHmac} from "node:crypto"
 import {existsSync, realpathSync} from "node:fs"
 import {fileURLToPath} from "node:url"

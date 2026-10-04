@@ -8,8 +8,8 @@ import {describe, expect, test} from "bun:test"
 import {createHash} from "node:crypto"
 import {readFile} from "node:fs/promises"
 import {resolve} from "node:path"
-import readContract from "@archetypes/contracts"
-import readScenario from "@archetypes/scenario-reader"
+import readContract from "@storybook/contracts"
+import readScenario from "@storybook-specs-scenarios/reader"
 describe.each([
   {
     name: "Component",

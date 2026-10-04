@@ -7,7 +7,7 @@
 
 ## Root, Display и HUD
 
-Landing и каждая package page владеют ровно одним `@zavx0z/browser` Root.
+Landing и каждая package page владеют ровно одним `@immersive/browser` Root.
 Страница передаёт Browser один native Canvas. Browser владеет semantic Document,
 Space, ViewPoint, циклом кадров и вводом. Весь Workbench, его меню и окна монтируются в один Display пространства.
 HUD содержит перетаскиваемый Tab управления ViewPoint: приближение, отдаление,
@@ -17,7 +17,7 @@ HUD содержит перетаскиваемый Tab управления Vie
 кнопку в строке состояния. Структурные обзоры и
 сценарии используют этот Experience; они не создают второй Root или semantic
 Document. Host default font загружается из exact
-`@zavx0z/engine/fonts/inter-regular.ttf` через публичный export.
+`@immersive/engine/fonts/inter-regular.ttf` через публичный export.
 В compiled TSX свободное имя `document` связано Template с semantic Document
 компонента, в том числе после `await`. Native document и одноимённые локальные
 переменные его не подменяют. Внутренний контроллер проверяет Document перед

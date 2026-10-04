@@ -1,7 +1,7 @@
 import type {Controller} from "../contract/types"
 type StorybookCaptureResult = Awaited<ReturnType<Controller["capture"]>>
 import type {CallToolResult} from "@modelcontextprotocol/server"
-import response from "@app-mcp/response"
+import response from "@storybook-app-mcp/response"
 
 export function resultContent(result: Readonly<Record<string, unknown>>): CallToolResult {
   const content = response(result)

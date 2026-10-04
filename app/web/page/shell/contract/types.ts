@@ -1,12 +1,12 @@
-import type {createRoot as createBrowserRoot, IntegrationRoot} from "@zavx0z/browser/integration"
-import type {WebWorkbench} from "@web/workbench"
-import type {WebMinimap} from "@web/minimap"
-import type {WebMcpWindow} from "@web/mcp-window"
+import type {createRoot as createBrowserRoot, IntegrationRoot} from "@immersive/browser/integration"
+import type {StorybookAppWebPageShellWorkbench} from "@storybook-app-web-page-shell/workbench"
+import type {StorybookAppWebPageShellMinimap} from "@storybook-app-web-page-shell/minimap"
+import type {StorybookAppWebPageShellMcpWindow} from "@storybook-app-web-page-shell/mcp-window"
 import type {SavedState} from "./viewpoint-state"
 
-type WorkbenchUserState = NonNullable<WebWorkbench.Input["userState"]>
-type MinimapState = NonNullable<WebMinimap.Input["initialState"]>
-type McpWindowState = NonNullable<WebMcpWindow.Input["initialState"]>
+type WorkbenchUserState = NonNullable<StorybookAppWebPageShellWorkbench.Input["userState"]>
+type MinimapState = NonNullable<StorybookAppWebPageShellMinimap.Input["initialState"]>
+type McpWindowState = NonNullable<StorybookAppWebPageShellMcpWindow.Input["initialState"]>
 
 export type ExternalStorybookRootFactory = typeof createBrowserRoot
 
@@ -24,7 +24,7 @@ export type StorybookShellUserState = Readonly<{
   minimap: MinimapState | undefined
   mcpWindow: McpWindowState | undefined
   viewPoint: SavedState
-  collapsedNavigation: readonly string[]
+  collapsedNavigation: readonly string[] | undefined
 }>
 
 /** Передача существующего Browser root новой реализации App в той же платформе. */

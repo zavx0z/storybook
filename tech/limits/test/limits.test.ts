@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import limits from "@tech/limits"
+import limits from "@storybook-tech/limits"
 
 test("лимиты транспорта не содержат общего срока сборки и сценария", () => {
   expect(Object.keys(limits).some(key => key.includes("COMPILE") || key.includes("SCENARIO"))).toBeFalse()

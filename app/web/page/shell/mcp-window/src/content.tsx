@@ -1,6 +1,6 @@
-import {type McpRestRequests as McpRestRequestsContract} from "@mcp-rest/requests"
+import {type StorybookAppServerRequests as McpRestRequestsContract} from "@storybook-app-server/requests"
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
-import {Button} from "@zavx0z/ui"
+import {Button} from "@immersive-ui/component"
 import {RequestList} from "./request-list"
 import {AddressRequest} from "./address-request"
 import type {McpAddressSource} from "../contract/address"

@@ -6,8 +6,8 @@
 проверить его для навигации, но не получает права применить произвольную revision.
 `preview` принадлежит явному URL пользователя и никогда не становится autoapply.
 */
-import {type PackageSession as PackageSessionContract} from "@package/session"
-import {type PackageRevision as PackageRevisionContract} from "@package/revision"
+import {type StorybookPackageSession as PackageSessionContract} from "@storybook-package/session"
+import {type StorybookPackageRevision as PackageRevisionContract} from "@storybook-package/revision"
 type StorybookPackageSession = PackageSessionContract.Output
 type StorybookPackageSessionSnapshot = ReturnType<PackageSessionContract.Output["snapshot"]>
 type StorybookPackageRevisionGraphSnapshot = ReturnType<PackageRevisionContract.Output["create"]>

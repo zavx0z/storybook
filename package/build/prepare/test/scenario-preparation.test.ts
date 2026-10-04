@@ -1,13 +1,13 @@
-import {type PackageSession as PackageSessionContract} from "@package/session"
+import {type StorybookPackageSession as PackageSessionContract} from "@storybook-package/session"
 type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 type StorybookPackageDiagnostic = ReturnType<PackageSessionContract.Output["snapshot"]>["diagnostics"][number]
 import {expect, test} from "bun:test"
 import {mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {resolve} from "node:path"
-import readScenario from "@archetypes/scenario-reader"
-import readSpec from "@archetypes/spec-reader"
-import prepareStorybookScenarios from "@package-build/scenarios"
+import readScenario from "@storybook-specs-scenarios/reader"
+import readSpec from "@storybook-specs/reader"
+import prepareStorybookScenarios from "@storybook-package-build/scenarios"
 
 test("готовит один preview только для однозначного поддержанного scenario source", async () => {
   const supported = resolve(
@@ -18,7 +18,7 @@ test("готовит один preview только для однозначног
   const descriptor = {
     scenarioSpecs: [
       {nodeId: "directory:package:@fixture/scenarios/component", sourcePaths: [supported]},
-      {nodeId: "package:@archetypes/package", sourcePaths: [functionSource]},
+      {nodeId: "package:@storybook-package/reader", sourcePaths: [functionSource]},
     ],
   } as unknown as StorybookPackageBuildDescriptor
 
@@ -29,7 +29,7 @@ test("готовит один preview только для однозначног
 
   expect(result.map(item => [item.kind, item.nodeId])).toEqual([
     ["component", "directory:package:@fixture/scenarios/component"],
-    ["function", "package:@archetypes/package"],
+    ["function", "package:@storybook-package/reader"],
   ])
   expect(result[0]).toMatchObject({module: {
     path: realpathSync(supported),

@@ -1,5 +1,5 @@
-import PackageRevisionOwner, {type PackageRevision as PackageRevisionContract} from "@package/revision"
-import {type PackageSession as PackageSessionContract} from "@package/session"
+import PackageRevisionOwner, {type StorybookPackageRevision as PackageRevisionContract} from "@storybook-package/revision"
+import {type StorybookPackageSession as PackageSessionContract} from "@storybook-package/session"
 const STORYBOOK_PACKAGE_GRAPH_PROTOCOL = PackageRevisionOwner.protocol
 type StorybookPackageRevisionGraphSnapshot = ReturnType<PackageRevisionContract.Output["create"]>
 type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
@@ -9,12 +9,12 @@ import {linkSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, readdirSyn
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import createStorybookPackageRevisionBuilder from "../index.ts"
-import inputs from "@package-build/inputs"
-import prepareStorybookScenarios from "@package-build/scenarios"
+import inputs from "@storybook-package-build/inputs"
+import prepareStorybookScenarios from "@storybook-package-build/scenarios"
 import {isolatedStorybookSharedModuleEpoch} from "../src/in-process"
 
 const canonicalizeStorybookPackageIdentities = inputs.canonicalizeIdentities
-import Scheduler from "@package-build/scheduler"
+import Scheduler from "@storybook-package-build/scheduler"
 const STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL = Scheduler.STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL
 
 const toolRoot = realpathSync(join(import.meta.dir, "../../../.."))
@@ -198,7 +198,7 @@ describe("structural package revision build", () => {
     unlinkSync(join(fixture.packageRoot, "module/index.ts"))
     mkdirSync(join(fixture.packageRoot, "module/spec"), {recursive: true})
     writeFileSync(componentPath, [
-      "/** @jsxImportSource @zavx0z/jsx */",
+      "/** @jsxImportSource @immersive/jsx */",
       "export function Command(props: Readonly<{label: string; onActivate?: (label: string) => void}>) {",
       "  return <button onClick={() => props.onActivate?.(props.label)}>{props.label}</button>",
       "}", "",
@@ -209,7 +209,7 @@ describe("structural package revision build", () => {
       "}", "",
     ].join("\n"))
     writeFileSync(join(fixture.packageRoot, "tsconfig.json"), JSON.stringify({
-      compilerOptions: {jsx: "preserve", jsxImportSource: "@zavx0z/jsx", module: "ESNext", moduleResolution: "Bundler", target: "ESNext"},
+      compilerOptions: {jsx: "preserve", jsxImportSource: "@immersive/jsx", module: "ESNext", moduleResolution: "Bundler", target: "ESNext"},
       include: ["**/*.ts", "**/*.tsx"],
     }))
     mkdirSync(join(fixture.root, "node_modules", "@immersive"), {recursive: true})
@@ -329,12 +329,12 @@ function createFixture(): Readonly<{root: string; packageRoot: string; browserEn
   mkdirSync(join(packageRoot, "module"), {recursive: true})
   const sourcePath = join(packageRoot, "package.json")
   const browserEntry = join(root, "browser-entry.ts")
-  const jsxRoot = realpathSync(join(import.meta.dir, "../../../../node_modules/@zavx0z/jsx"))
+  const jsxRoot = realpathSync(join(import.meta.dir, "../../../../node_modules/@immersive/jsx"))
   writeFileSync(join(root, "package.json"), JSON.stringify({name: "@fixture/repo", type: "module",
-    devDependencies: {"@zavx0z/jsx": "link:@zavx0z/jsx"}}))
+    devDependencies: {"@immersive/jsx": "link:@immersive/jsx"}}))
   mkdirSync(join(root, "node_modules", "@zavx0z"), {recursive: true})
   symlinkSync(jsxRoot, join(root, "node_modules", "@zavx0z", "jsx"))
-  symlinkSync(realpathSync(join(import.meta.dir, "../../../../node_modules/@zavx0z/template")), join(root, "node_modules", "@zavx0z", "template"))
+  symlinkSync(realpathSync(join(import.meta.dir, "../../../../node_modules/@immersive/template")), join(root, "node_modules", "@zavx0z", "template"))
   writeFileSync(sourcePath, JSON.stringify({name: "@fixture/package", type: "module"}))
   writeFileSync(join(packageRoot, "module/index.ts"), "export const module = true\n")
   writeFileSync(browserEntry, ["export default async function startExternalStorybookPackage(input: unknown) {",

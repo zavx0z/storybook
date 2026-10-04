@@ -9,10 +9,10 @@
 import {Glob} from "bun"
 import {lstat, readFile, realpath} from "node:fs/promises"
 import {dirname, isAbsolute, join, relative, resolve, sep} from "node:path"
-import type {RouteWorkspaces} from "./contract"
+import type {StorybookPackageRouteWorkspaces} from "./contract"
 import {validateWorkspacePatterns} from "./src/validate-patterns.ts"
 
-export type {RouteWorkspaces} from "./contract"
+export type {StorybookPackageRouteWorkspaces} from "./contract"
 
 /**
 Раскрывает корневые workspaces без чтения кода пакетов.
@@ -25,7 +25,7 @@ export type {RouteWorkspaces} from "./contract"
 @returns Найденные непосредственные package roots и пути наблюдения.
 @throws Ошибка при недопустимом шаблоне, symlink или выходе за корень.
 */
-export default async function readWorkspacePackages({root, value}: RouteWorkspaces.Input): Promise<RouteWorkspaces.Output> {
+export default async function readWorkspacePackages({root, value}: StorybookPackageRouteWorkspaces.Input): Promise<StorybookPackageRouteWorkspaces.Output> {
   root = await realpath(root)
   if (value === undefined) {
     const selected = root

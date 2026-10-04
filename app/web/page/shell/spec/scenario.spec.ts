@@ -1,23 +1,23 @@
-import {DisplayElement} from "@zavx0z/dom/display"
-import presentationRootFixture, {type WebBrowserFixture} from "@web/browser-fixture"
-type PresentationFixtureOptions = Parameters<WebBrowserFixture.Input>[0]
-import {createRoot} from "@zavx0z/component"
-import {createDocumentClipboardController} from "@zavx0z/browser/clipboard"
+import {DisplayElement} from "@immersive/dom/display"
+import presentationRootFixture, {type StorybookTechTestingBrowserRoot} from "@storybook-tech-testing/browser-root"
+type PresentationFixtureOptions = Parameters<StorybookTechTestingBrowserRoot.Input>[0]
+import {createRoot} from "@immersive/component"
+import {createDocumentClipboardController} from "@immersive/browser/clipboard"
 import {describe, expect, test} from "bun:test"
-import {ViewPoint, Vector3} from "@zavx0z/engine"
-import type {Presentation as Root, RootDocumentProjection, RootLinkedAuthorStyleSheet, RootProjection} from "@zavx0z/browser/integration"
-import {createDocument, MouseEvent, type Element, type Node} from "@zavx0z/dom"
-import {readDisplayStyle, createDocumentRenderer, type RenderBox, type RenderFrame} from "@renderer/html"
-import {createSpaceElementFactories} from "@zavx0z/space"
-import {HUDElement} from "@zavx0z/dom/hud"
-import {SpaceElement} from "@zavx0z/dom/space"
-import {ViewPointElement} from "@zavx0z/dom/viewpoint"
-import PageShellOwner from "@page/shell"
+import {ViewPoint, Vector3} from "@immersive/engine"
+import type {Presentation as Root, RootDocumentProjection, RootLinkedAuthorStyleSheet, RootProjection} from "@immersive/browser/integration"
+import {createDocument, MouseEvent, type Element, type Node} from "@immersive/dom"
+import {readDisplayStyle, createDocumentRenderer, type RenderBox, type RenderFrame} from "@immersive-renderer/html"
+import {createSpaceElementFactories} from "@immersive/space"
+import {HUDElement} from "@immersive/dom/hud"
+import {SpaceElement} from "@immersive/dom/space"
+import {ViewPointElement} from "@immersive/dom/viewpoint"
+import PageShellOwner from "@storybook-app-web-page/shell"
 const EXTERNAL_STORYBOOK_DISPLAY_ID = PageShellOwner.displayId
 const EXTERNAL_STORYBOOK_WORKBENCH_ID = PageShellOwner.workbenchId
-import createExternalStorybookShell from "@page/shell"
-import type {PageShell} from "@page/shell"
-type ExternalStorybookRootFactory = NonNullable<PageShell.Input["createRoot"]>
+import createExternalStorybookShell from "@storybook-app-web-page/shell"
+import type {StorybookAppWebPageShell} from "@storybook-app-web-page/shell"
+type ExternalStorybookRootFactory = NonNullable<StorybookAppWebPageShell.Input["createRoot"]>
 
 describe("external Storybook shared Browser Root", () => {
   test("открытие и закрытие MCP сохраняет камеру и дисплей", async () => {
@@ -175,11 +175,11 @@ describe("external Storybook shared Browser Root", () => {
     const state = createFakeRootState()
     const link = {} as HTMLLinkElement
     const shell = await createShell(state, {
-      authorStyleSheetSources: [{id: "@zavx0z/ui/theme/theme.css", link}],
+      authorStyleSheetSources: [{id: "@immersive-ui/component/theme/theme.css", link}],
     })
 
     expect(state.options?.stylesheets).toEqual([{
-      id: "@zavx0z/ui/theme/theme.css",
+      id: "@immersive-ui/component/theme/theme.css",
       link,
     }])
     expect(state.options?.stylesheets).toHaveLength(1)

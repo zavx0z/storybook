@@ -1,6 +1,6 @@
-import type {PackageBuildScheduler} from "@package-build/scheduler"
+import type {StorybookPackageBuildScheduler} from "@storybook-package-build/scheduler"
 
-export type BuildTransition = Parameters<Parameters<PackageBuildScheduler.Output["subscribe"]>[0]>[0]
+export type BuildTransition = Parameters<Parameters<StorybookPackageBuildScheduler.Output["subscribe"]>[0]>[0]
 export type BuildReason = NonNullable<BuildTransition["reason"]>
 export type BuildCacheStatus = NonNullable<BuildTransition["cache"]>["status"]
 export type BuildCacheLayer = NonNullable<BuildTransition["cache"]>["layer"]

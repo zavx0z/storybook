@@ -6,12 +6,12 @@
 */
 import {buildPlatform, validatePlatformArtifacts} from "./src/build"
 import {runPlatformBuild} from "./src/builder"
-import Compiler from "@build/compiler"
-import Protocol from "@build-environment/protocol"
+import Compiler from "@storybook-tech-build/compiler"
+import Protocol from "@storybook-tech-build-environment/protocol"
 import {createHash} from "node:crypto"
 import {existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync} from "node:fs"
 import {extname, join, resolve, sep} from "node:path"
-import type {BuildEnvironment} from "./contract"
+import type {StorybookTechBuildEnvironment} from "./contract"
 import type {
   StorybookSharedBrowserIdentity,
   StorybookSharedBrowserModule,
@@ -24,26 +24,26 @@ import {
 
 const {conditionalExportTarget, readStorybookPackageOwner, isOwnedJsxProtocol} = Compiler
 
-export type {BuildEnvironment} from "./contract"
+export type {StorybookTechBuildEnvironment} from "./contract"
 
 /** Владельцы платформы, чьи browser-значения сохраняют одну identity в realm страницы. */
 const STORYBOOK_SHARED_BROWSER_OWNER_PACKAGES = Object.freeze([
-  "@renderer/html",
-  "@zavx0z/browser",
-  "@zavx0z/component",
-  "@zavx0z/devtools",
-  "@zavx0z/dom",
-  "@zavx0z/engine",
-  "@zavx0z/jsx",
-  "@jsx-runtime/fragment",
-  "@jsx/events",
-  "@jsx-runtime/create",
-  "@jsx-development/create",
-  "@jsx-slot/plan",
-  "@jsx-slot/child",
-  "@zavx0z/space",
-  "@zavx0z/template",
-  "@zavx0z/webgpu",
+  "@immersive-renderer/html",
+  "@immersive/browser",
+  "@immersive/component",
+  "@immersive/devtool",
+  "@immersive/dom",
+  "@immersive/engine",
+  "@immersive/jsx",
+  "@immersive-jsx-runtime/fragment",
+  "@immersive-jsx/event",
+  "@immersive-jsx-runtime/create",
+  "@immersive-jsx-development/create",
+  "@immersive-jsx-slot/plan",
+  "@immersive-jsx-slot/child",
+  "@immersive/space",
+  "@immersive/template",
+  "@immersive/webgpu",
 ] as const)
 
 /**
@@ -256,4 +256,4 @@ export default Object.freeze({
   identity: storybookSharedBrowserIdentity,
   exactFile: canonicalExactFile,
   directory: canonicalDirectory,
-}) satisfies BuildEnvironment.Output
+}) satisfies StorybookTechBuildEnvironment.Output

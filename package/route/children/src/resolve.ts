@@ -1,12 +1,12 @@
-import resolveRoute from "@route/resolve"
-import type {RouteChildren} from "../contract"
+import resolveRoute from "@storybook-package-route/resolve"
+import type {StorybookPackageRouteChildren} from "../contract"
 
 /** Разрешает набор имён как один следующий уровень указанного родителя. */
 export async function resolveImmediateChildren(
   names: readonly string[],
   parentNode: string,
-  roots: RouteChildren.Input["roots"],
-): Promise<RouteChildren.Output> {
+  roots: StorybookPackageRouteChildren.Input["roots"],
+): Promise<StorybookPackageRouteChildren.Output> {
   const children: NonNullable<Awaited<ReturnType<typeof resolveRoute>>>[] = []
   for (const name of names) {
     const route = parentNode === "" ? name : `${parentNode}/${name}`

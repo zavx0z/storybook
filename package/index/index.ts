@@ -7,9 +7,9 @@
 import {resolve} from "node:path"
 import {collectTargets} from "./src/targets"
 import {readTarget} from "./src/target"
-import type {ArchetypesPackageIndex} from "./contract"
+import type {StorybookPackageIndex} from "./contract"
 
-export type {ArchetypesPackageIndex} from "./contract"
+export type {StorybookPackageIndex} from "./contract"
 
 /**
 Читает наличие и принадлежность точных файлов из exports.
@@ -20,7 +20,7 @@ export type {ArchetypesPackageIndex} from "./contract"
 Шаблоны и fallback-массивы сохраняются как непроверенные, не как отсутствующие файлы.
 @throws Ошибки доступа к файлам, кроме отсутствия пути.
 */
-export default async function readPackageIndex({path, exports}: ArchetypesPackageIndex.Input): Promise<ArchetypesPackageIndex.Output> {
+export default async function readPackageIndex({path, exports}: StorybookPackageIndex.Input): Promise<StorybookPackageIndex.Output> {
   const declared = collectTargets(exports)
   const entries = await Promise.all(declared.targets.map(target => readTarget(resolve(path), target)))
   return {entries, unchecked: declared.unchecked}

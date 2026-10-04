@@ -1,7 +1,7 @@
-import PagePackageOwner from "@page/package"
+import PagePackageOwner from "@storybook-app-web-page/package"
 const STORYBOOK_PAGE_REALM_PROTOCOL = PagePackageOwner.protocol
-import type {PagePackage} from "@page/package"
-type ExternalStorybookAppliedRevision = Awaited<ReturnType<NonNullable<NonNullable<PagePackage.Input["environment"]>["loadAppliedRevision"]>>>
+import type {StorybookAppWebPagePackage} from "@storybook-app-web-page/package"
+type ExternalStorybookAppliedRevision = Awaited<ReturnType<NonNullable<NonNullable<StorybookAppWebPagePackage.Input["environment"]>["loadAppliedRevision"]>>>
 
 const REVISION_PAYLOAD_FILE = "revision-payload.js"
 

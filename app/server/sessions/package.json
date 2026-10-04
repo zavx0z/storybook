@@ -1,5 +1,5 @@
 {
-  "name": "@app-server/sessions",
+  "name": "@storybook-app-server/sessions",
   "label": "Сессии приложения",
   "version": "0.0.0",
   "private": true,
@@ -8,13 +8,13 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@package-build/scheduler": "workspace:*",
-    "@package/session": "workspace:*"
+    "@storybook-package-build/scheduler": "workspace:*",
+    "@storybook-package/session": "workspace:*"
   },
   "devDependencies": {
-    "@app-server/catalog": "workspace:*",
-    "@repo/discovery": "workspace:*",
-    "@package/revision": "workspace:*"
+    "@storybook-app-server/catalog": "workspace:*",
+    "@storybook-repo/discovery": "workspace:*",
+    "@storybook-package/revision": "workspace:*"
   },
   "description": "Соединяет состав каталога с независимыми сессиями пакетов и общей очередью сборки"
 }

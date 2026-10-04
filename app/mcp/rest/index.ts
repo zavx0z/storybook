@@ -1,16 +1,32 @@
 /**
 Раскрывает выбранного владельца из единственного каталога Storybook.
 Структура задаёт переходы; контракты раскрываются как JSON Schema, сценарии сохраняют авторский код.
+Корневой ответ формирует предметный владелец Project через собственный MCP-вход.
+Пакет с подтверждённым типом обслуживает MCP соответствующего предметного владельца.
+Без подтверждения сохраняются общие сведения и явное состояние type-unconfirmed.
 
 @packageDocumentation
 */
-import resolveMcpAddress from "@mcp/address"
-import readMcpRoot from "@mcp/root"
-import readMcpChildren from "@mcp/children"
+import resolveMcpAddress from "@storybook-app-mcp-rest/address"
+import readProjectMcp from "@storybook-project/mcp"
+import readMcpChildren from "@storybook-app-mcp-rest/children"
 import {readMcpContent} from "./src/content"
-import type {McpRest} from "./contract"
+import type {StorybookAppMcpRest} from "./contract"
+import readRepoMcp from "@storybook-repo/mcp"
+import readComponentMcp from "@storybook-component/mcp"
+import readContainerMcp from "@storybook-container/mcp"
+import readClusterMcp from "@storybook-cluster/mcp"
+import readDomainMcp from "@storybook-domain/mcp"
 
-export type {McpRest} from "./contract"
+const entityMcp = {
+  Repo: readRepoMcp,
+  Component: readComponentMcp,
+  Container: readContainerMcp,
+  Cluster: readClusterMcp,
+  Domain: readDomainMcp,
+}
+
+export type {StorybookAppMcpRest} from "./contract"
 
 /**
 Навигационная проекция canonical graph без повторного discovery.
@@ -25,7 +41,7 @@ export type {McpRest} from "./contract"
 @param options - Публичная структура действующего каталога с источниками контрактов и сценариев.
 @returns Назначение, схемы контрактов, сценарии и непосредственные переходы. Чтение не выполняет код и не запускает сборку.
 */
-export default async function storybookRest(request: McpRest.Input[0], options: McpRest.Input[1]): Promise<McpRest.Output> {
+export default async function storybookRest(request: StorybookAppMcpRest.Input[0], options: StorybookAppMcpRest.Input[1]): Promise<StorybookAppMcpRest.Output> {
   if (request.method !== "GET" && request.method !== "POST") {
     return Response.json({status: "failed", error: "Поддерживаются GET и POST"}, {status: 405, headers: {Allow: "GET, POST"}})
   }
@@ -49,9 +65,21 @@ export default async function storybookRest(request: McpRest.Input[0], options: 
   }
   const path = "path" in input ? input.path as string : undefined
   try {
-    if (path === undefined) return Response.json(readMcpRoot(options))
+    if (path === undefined) return Response.json(readProjectMcp(options))
     const address = resolveMcpAddress({address: path, paths: options.entries.map(item => item.path)})
     const selected = options.entries.find(item => item.path === address)!
+    if (selected.readType !== undefined) {
+      const verification = await selected.readType()
+      if (verification.status === "confirmed") {
+        return Response.json({...entityMcp[verification.type]({path: selected.path}), verification})
+      }
+      return Response.json({
+        ...readMcpChildren({path: selected.path, ...(selected.label === undefined ? {} : {label: selected.label}), description: selected.description, entries: options.entries}),
+        status: "type-unconfirmed",
+        message: "Тип сущности ещё не подтверждён нормативным сценарием Package.",
+        verification,
+      })
+    }
     const navigation = readMcpChildren({
       path: selected.path, ...(selected.label === undefined ? {} : {label: selected.label}),
       description: selected.description, entries: options.entries,

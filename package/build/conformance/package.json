@@ -1,5 +1,5 @@
 {
-  "name": "@package-build/conformance",
+  "name": "@storybook-package-build/conformance",
   "label": "Проверка пакета",
   "version": "0.0.0",
   "private": true,
@@ -9,8 +9,8 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@package/standard": "workspace:*",
-    "@package/session": "workspace:*",
-    "@archetypes/scenario-reader": "workspace:*"
+    "@storybook-package/standard": "workspace:*",
+    "@storybook-package/session": "workspace:*",
+    "@storybook-specs-scenarios/reader": "workspace:*"
   }
 }

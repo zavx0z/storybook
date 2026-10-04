@@ -6,7 +6,7 @@ import type {HmrSocket} from "./socket"
 Вход описывает socket и обработчики событий, выход освобождает их и соединение.
 Смысл сообщений остаётся у вызывающего владельца.
 */
-export declare namespace HmrConnection {
+export declare namespace StorybookTechHmrConnection {
   /**
   Socket и обработчики жизненного цикла соединения.
 

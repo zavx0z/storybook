@@ -5,12 +5,12 @@ Bridge удерживает inspector и публикует себя в realm д
 
 @packageDocumentation
 */
-import {createDomInspector} from "@zavx0z/devtools"
-import type {WebAgentBridge} from "./contract"
+import {createDomInspector} from "@immersive/devtool"
+import type {StorybookAppWebPageAgentBridge} from "./contract"
 import type {Request} from "./contract/request"
 import {STORYBOOK_AGENT_BRIDGE_GLOBAL, STORYBOOK_AGENT_BRIDGE_PROTOCOL} from "./src/protocol"
 import {projectNode, applyNodeAction, validateRequest, boundedInteger, boundedText, decodeCursor, encodeCursor, agentNodeId, exactClip, parseAgentNodeId, resolveTarget} from "./src/actions"
-export type {WebAgentBridge} from "./contract"
+export type {StorybookAppWebPageAgentBridge} from "./contract"
 
 /**
 Публикует bridge для текущего scope и подключает inspector к его semantic Document.
@@ -32,8 +32,8 @@ try {
 ```
 */
 function createStorybookAgentBridge(
-  options: WebAgentBridge.Input,
-): WebAgentBridge.Output {
+  options: StorybookAppWebPageAgentBridge.Input,
+): StorybookAppWebPageAgentBridge.Output {
   const inspector = createDomInspector({
     document: options.shell.document,
     readFrame(node) {
@@ -50,7 +50,7 @@ function createStorybookAgentBridge(
   let revision = options.revision
   let graphDigest = options.graphDigest
 
-  const bridge: WebAgentBridge.Output = Object.freeze({
+  const bridge: StorybookAppWebPageAgentBridge.Output = Object.freeze({
     protocol: STORYBOOK_AGENT_BRIDGE_PROTOCOL,
     async call(method, params) {
       if (method === "identity") {

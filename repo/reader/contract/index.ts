@@ -1,6 +1,6 @@
-import type {ArchetypesPackage} from "@archetypes/package"
+import type {StorybookPackageReader} from "@storybook-package/reader"
 
-export declare namespace ArchetypesRepo {
+export declare namespace StorybookRepoReader {
   /**
   Директория проверяемого пакета; класс не передаётся вызывающим кодом.
 
@@ -19,7 +19,7 @@ export declare namespace ArchetypesRepo {
   @property nestedRepositories - Gitlinks и самостоятельные Git-корни обнаруженных вложенных пакетов.
   */
   export interface Output {
-    readonly package: ArchetypesPackage.Output
+    readonly package: StorybookPackageReader.Output
     readonly root: string
     readonly gitRoot: string | null
     readonly nestedRepositories: readonly string[]

@@ -25,8 +25,8 @@ Component владеет протоколом своей возможности,
 Component и Container публикуют ровно два корневых вида API: собственную
 runtime-реализацию через `default` и собственное пространство типов через
 именованный type-only экспорт. Имя namespace образуется из полного имени пакета
-со scope в PascalCase: `@storybook/app` → `StorybookApp`, `@web/release` → `WebRelease`,
-`@archetypes/contracts` → `ArchetypesContracts`. В `contract/index.ts`
+со scope в PascalCase: `@storybook/app` → `StorybookApp`, `@storybook-app-web/release` → `StorybookAppWebRelease`,
+`@storybook/contracts` → `StorybookContracts`. В `contract/index.ts`
 пространство непосредственно объявляет формы `Input`, `Output` и `Slots`,
 когда соответствующие роли нужны. Их состав собирается здесь, без отдельных
 одноимённых определений и промежуточных aliases для публикации. JSX может использоваться как
@@ -43,7 +43,7 @@ Component, так и Container; типовые слоты не обязател�
 Отдельные файлы содержат составляющие контракта с предметными именами;
 целая форма роли не выносится туда только ради alias в namespace.
 Типовые зависимости подключаются обычными `import type` в начале модуля.
-Форма роли может выводиться из чужого контракта, например `type Input = WebRelease.Output`.
+Форма роли может выводиться из чужого контракта, например `type Input = StorybookAppWebRelease.Output`.
 Короткие имена описывают тип внутри своего пространства. Старайтесь обходиться
 без повторяющих контекст префиксов вроде `ContractInput` или `ComponentOutput`.
 Пакет не вводит `types`-переопределение `package.json` для своего исходного API:
@@ -51,7 +51,7 @@ Component, так и Container; типовые слоты не обязател�
 
 Файлы одной реализации могут напрямую импортировать типы друг друга. Между
 пакетами потребитель обращается через публичное пространство исходного владельца:
-`import type {WebRelease} from "@web/release"`, затем `WebRelease.Output`.
+`import type {StorybookAppWebRelease} from "@storybook-app-web/release"`, затем `StorybookAppWebRelease.Output`.
 Реэкспорт такого пространства сохраняет происхождение его деклараций;
 само опубликование чужого namespace не создаёт собственный контракт.
 Это не отменяет принадлежащего Cluster общего протокола.
@@ -63,7 +63,7 @@ Component, так и Container; типовые слоты не обязател�
 
 ## Текущие проверяемые варианты
 
-Нормативный сценарий `@archetypes/contracts` проверяет четыре положительных
+Нормативный сценарий `@storybook/contracts` проверяет четыре положительных
 варианта и прежнюю отрицательную применимость Domain-фасада.
 Эта последняя проверка требует пересмотра по новым определениям Domain и Cluster.
 Роли пакета и JSX независимы: Container, как и Component, может иметь
@@ -86,8 +86,8 @@ Component, так и Container; типовые слоты не обязател�
   Cluster или считать проверкой средовых протоколов нового Domain.
   Type-only экспорт не доказывает runtime-передачу данных.
 
-`@archetypes/contracts` предоставляет default-читатель `readContract` и типы
-своего API под пространством `ArchetypesContracts`. Читатель раскрывает native символы
+`@storybook/contracts` предоставляет default-читатель `readContract` и типы
+своего API под пространством `StorybookContracts`. Читатель раскрывает native символы
 TypeScript и происхождение типов без исполнения проверяемого пакета. Сценарий
 пока проверяет перечисленные выше варианты. Читатель ещё не подключён
 к Storybook discovery, UI или MCP; обновление заметки не меняет эту интеграцию.

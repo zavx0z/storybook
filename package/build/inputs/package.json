@@ -1,5 +1,5 @@
 {
-  "name": "@package-build/inputs",
+  "name": "@storybook-package-build/inputs",
   "label": "Входы пакетной сборки",
   "version": "0.0.0",
   "private": true,
@@ -9,7 +9,7 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@package/session": "workspace:*",
-    "@build/compiler": "workspace:*"
+    "@storybook-package/session": "workspace:*",
+    "@storybook-tech-build/compiler": "workspace:*"
   }
 }

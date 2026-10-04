@@ -1,5 +1,5 @@
 {
-  "name": "@build/environment",
+  "name": "@storybook-tech-build/environment",
   "label": "Браузерная среда сборки",
   "version": "0.0.0",
   "private": true,
@@ -9,30 +9,30 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@renderer/html": "^0.0.0",
-    "@zavx0z/browser": "^0.0.0",
-    "@zavx0z/component": "^0.0.0",
-    "@zavx0z/devtools": "^0.0.0",
-    "@zavx0z/dom": "^0.0.0",
-    "@zavx0z/engine": "^0.0.0",
-    "@zavx0z/jsx": "^0.0.0",
-    "@jsx-runtime/fragment": "^0.0.0",
-    "@jsx/events": "^0.0.0",
-    "@jsx-runtime/create": "^0.0.0",
-    "@jsx-development/create": "^0.0.0",
-    "@jsx-slot/plan": "^0.0.0",
-    "@jsx-slot/child": "^0.0.0",
-    "@zavx0z/space": "^0.0.0",
-    "@zavx0z/template": "^0.0.0",
-    "@zavx0z/webgpu": "^0.0.0",
-    "@build/compiler": "workspace:*",
-    "@build-environment/protocol": "workspace:*",
-    "@build/artifacts": "workspace:*",
-    "@build/worker": "workspace:*",
-    "@package-build/scheduler": "workspace:*"
+    "@immersive-renderer/html": "^0.0.0",
+    "@immersive/browser": "^0.0.0",
+    "@immersive/component": "^0.0.0",
+    "@immersive/devtool": "^0.0.0",
+    "@immersive/dom": "^0.0.0",
+    "@immersive/engine": "^0.0.0",
+    "@immersive/jsx": "^0.0.0",
+    "@immersive-jsx-runtime/fragment": "^0.0.0",
+    "@immersive-jsx/event": "^0.0.0",
+    "@immersive-jsx-runtime/create": "^0.0.0",
+    "@immersive-jsx-development/create": "^0.0.0",
+    "@immersive-jsx-slot/plan": "^0.0.0",
+    "@immersive-jsx-slot/child": "^0.0.0",
+    "@immersive/space": "^0.0.0",
+    "@immersive/template": "^0.0.0",
+    "@immersive/webgpu": "^0.0.0",
+    "@storybook-tech-build/compiler": "workspace:*",
+    "@storybook-tech-build-environment/protocol": "workspace:*",
+    "@storybook-tech-build/artifacts": "workspace:*",
+    "@storybook-tech-build/worker": "workspace:*",
+    "@storybook-package-build/scheduler": "workspace:*"
   },
   "devDependencies": {
-    "@jsx/runtime": "^0.0.0",
-    "@jsx/development": "^0.0.0"
+    "@immersive-jsx/runtime": "^0.0.0",
+    "@immersive-jsx/development": "^0.0.0"
   }
 }

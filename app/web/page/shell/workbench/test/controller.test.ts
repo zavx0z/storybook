@@ -8,10 +8,10 @@ import {
   type HTMLButtonElement,
   type HTMLInputElement,
   type HTMLElement,
-} from "@zavx0z/dom"
-import {createDocumentRenderer} from "@renderer/html"
-import {isCompiledTemplate} from "@zavx0z/template/compiled"
-import uiIcons from "@ui-themes-icons/collection"
+} from "@immersive/dom"
+import {createDocumentRenderer} from "@immersive-renderer/html"
+import uiIcons from "@immersive-ui-theme/icon-set"
+import {isCompiledTemplate} from "@immersive/template/compiled"
 import {WORKBENCH_EVENTS, WORKBENCH_LAYOUT_PROTOCOL, WORKBENCH_REGIONS} from "../src/events"
 import type {Workbench} from "../src/types.ts"
 import type * as ControllerModule from "./fixture/create-workbench"
@@ -76,7 +76,7 @@ describe("compiled Storybook Workbench", () => {
       const tree = workbench.elements.catalogItems
       const catalog = workbench.elements.catalog
       expect(catalog.hasAttribute("hidden")).toBeTrue()
-      const tab = workbench.elements.inspectorHost.querySelector('button[title="Дерево"]') as HTMLButtonElement
+      const tab = workbench.elements.inspectorHost.querySelector('button[title="Ветка"]') as HTMLButtonElement
       expect(tab).not.toBeNull()
       tab.click()
       expect(workbench.selectedInspector()).toBe("tree")
@@ -94,6 +94,44 @@ describe("compiled Storybook Workbench", () => {
       const saved = workbench.controller.captureUserState()
       expect(saved.inspector.some(entry => entry.selectedId === "tree")).toBeTrue()
     } finally { workbench.dispose() }
+  })
+
+  test("поиск и геометрия шапки Inspector сохраняются при выборе ветки", () => {
+    const document = createDocument()
+    const workbench = api.createWorkbench({document, parent: document, initial: {
+      "inspector.subject": {subjectId: "layout", widgetIds: ["source"]},
+      "inspector.values": {source: ""},
+      "catalog.items": [{id: "item", label: "Элемент", route: "/item"}],
+    }})
+    const renderer = createDocumentRenderer({
+      document,
+      root: workbench.element,
+      viewport: {width: 1280, height: 720},
+    })
+    try {
+      const inspector = workbench.elements.inspectorHost.querySelector("aside")!
+      const header = inspector.querySelector("header")!
+      const categories = inspector.querySelector('nav[aria-label="Панели"]')!
+      const search = header.querySelector('input[type="search"]')!
+      const geometry = () => {
+        const boxes = renderer.flush().boxByNode
+        return [inspector, header, categories, search].map(node => {
+          const box = boxes.get(node)!
+          return {x: box.x, y: box.y, width: box.width, height: box.height}
+        })
+      }
+      const before = geometry()
+      expect(before[1]!.height).toBe(30)
+      workbench.selectInspector("tree")
+      expect(geometry()).toEqual(before)
+      expect(workbench.elements.catalog.querySelector('input[type="search"]')).toBeNull()
+      expect(header.querySelector('input[type="search"]')).toBe(search)
+      workbench.selectInspector("source")
+      expect(geometry()).toEqual(before)
+    } finally {
+      renderer.dispose()
+      workbench.dispose()
+    }
   })
 
   test("creates one ComponentRoot, five exact regions and one production Inspector", () => {
@@ -159,8 +197,6 @@ describe("compiled Storybook Workbench", () => {
       'input[type="search"]',
     ) as HTMLInputElement | null
     expect(inspectorSearch?.placeholder).toBe("Поиск…")
-    expect(inspectorSearch?.parentElement?.parentElement?.querySelector("img")?.getAttribute("src"))
-      .toBe(uiIcons.search)
     expect(workbench.componentRoot.readStyleSheets().styleSheets.length).toBeGreaterThan(0)
     const componentNames = new Set(workbench.componentRoot.readStyleSheets().styleSheets
       .flatMap(sheet => sheet.source?.kind === "authored-css" ? [sheet.source.componentName] : []))
@@ -258,7 +294,7 @@ describe("compiled Storybook Workbench", () => {
     expect(space.firstChild).toBe(identity)
   })
 
-  test("uses production Fields and emits bubbling semantic navigation events", () => {
+  test("ветка не переходит по клику; вкладки, breadcrumbs и HUD сохраняют события", () => {
     const document = createDocument()
     const workbench = api.createWorkbench({document, parent: document})
     workbench.update("catalog.items", [
@@ -277,23 +313,20 @@ describe("compiled Storybook Workbench", () => {
 
     row(workbench, "button").querySelector('[data-tree-row]')!
       .dispatchEvent(new MouseEvent("click", {bubbles: true}))
-    expect(workbench.controller.read("catalog.active")).toBe("button")
-    expect(events[0]).toEqual({
-      type: "storybooknavigate",
-      detail: {kind: "catalog", id: "button", route: "components/button"},
-    })
+    expect(workbench.controller.read("catalog.active")).toBeNull()
+    expect(events).toEqual([])
 
     expect(workbench.elements.catalog.querySelector('input[type="search"]')).toBeNull()
     workbench.getSnapshot().onCatalogSearch("поле", workbench.elements.catalog as unknown as globalThis.HTMLElement)
     expect(workbench.controller.read("catalog.search")).toBe("поле")
-    expect(row(workbench, "button", false)).toBeNull()
+    expect(row(workbench, "button").textContent).toContain("Кнопка")
     expect(row(workbench, "input").textContent).toContain("Поле")
-    expect(events[1]).toEqual({type: "storybooksearch", detail: {value: "поле"}})
+    expect(events[0]).toEqual({type: "storybooksearch", detail: {value: "поле"}})
 
     const tab = workbench.elements.tabItems.querySelector("button") as HTMLButtonElement
     tab.click()
     expect(workbench.controller.read("tabs.active")).toBe("hover")
-    expect(events[2]).toEqual({type: "storybooktab", detail: {id: "hover", route: "components/button/hover"}})
+    expect(events[1]).toEqual({type: "storybooktab", detail: {id: "hover", route: "components/button/hover"}})
 
     workbench.update("status", {
       lead: "",
@@ -308,13 +341,13 @@ describe("compiled Storybook Workbench", () => {
       '[data-breadcrumb-id="package"] button',
     ) as HTMLButtonElement
     breadcrumb.click()
-    expect(events[3]).toEqual({
+    expect(events[2]).toEqual({
       type: "storybooknavigate",
       detail: {kind: "breadcrumb", id: "package", route: ""},
     })
   })
 
-  test("повторный выбор активного предмета снова отправляет адрес его обзора", () => {
+  test("клик и Enter в ветке сохраняют текущий предмет и вкладку", () => {
     const document = createDocument()
     const workbench = api.createWorkbench({
       document,
@@ -337,9 +370,8 @@ describe("compiled Storybook Workbench", () => {
       itemRow.dispatchEvent(new MouseEvent("click", {bubbles: true}))
       item.focus()
       item.dispatchEvent(new KeyboardEvent("keydown", {key: "Enter", bubbles: true, cancelable: true}))
-      expect(events).toEqual(Array.from({length: 3}, () => ({
-        kind: "catalog", id: "button", route: "components/button",
-      })))
+      expect(events).toEqual([])
+      expect(workbench.controller.read("tabs.active")).toBe("hover")
       expect(workbench.controller.read("catalog.active")).toBe("button")
       expect(workbench.elements.catalogItems.querySelector('[data-tree-id="button"]') === item).toBeTrue()
     } finally {
@@ -495,7 +527,7 @@ describe("compiled Storybook Workbench", () => {
     const view = await Bun.file(new URL("../src/view.tsx", import.meta.url)).text()
     const inspector = await Bun.file(new URL("../src/inspector/panel.tsx", import.meta.url)).text()
     const navigation = await Bun.file(new URL("../src/regions/catalog.tsx", import.meta.url)).text()
-    expect(inspector).toContain('from "@zavx0z/ui/widget/inspector"')
+    expect(inspector).toContain('from "@immersive-ui/component/widget/inspector"')
     expect(inspector).not.toContain("InspectorSections")
     expect(inspector).not.toContain("uiIcons")
     expect(view).not.toContain("createElement(")

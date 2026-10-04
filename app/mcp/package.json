@@ -1,5 +1,5 @@
 {
-  "name": "@app/mcp",
+  "name": "@storybook-app/mcp",
   "label": "MCP",
   "version": "0.0.0",
   "private": true,
@@ -10,16 +10,16 @@
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.0.0",
-    "@app-server/state": "workspace:*",
-    "@mcp/progress": "workspace:*",
+    "@storybook-app-server/state": "workspace:*",
+    "@storybook-tech-mcp/progress": "workspace:*",
     "zod": "^4.4.3",
-    "@app-mcp/proxy": "workspace:*",
-    "@app-mcp/response": "workspace:*",
-    "@mcp/rest": "workspace:*",
+    "@storybook-app-mcp/proxy": "workspace:*",
+    "@storybook-app-mcp/response": "workspace:*",
+    "@storybook-app-mcp/rest": "workspace:*",
     "@storybook/app": "workspace:*"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "^2.0.0",
-    "@mcp-rest/requests": "workspace:*"
+    "@storybook-app-server/requests": "workspace:*"
   }
 }

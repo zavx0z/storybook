@@ -1,6 +1,6 @@
-import AppServerSessionsOwner, {type AppServerSessions as AppServerSessionsContract} from "@app-server/sessions"
-import PackageRevisionOwner, {type PackageRevision as PackageRevisionContract} from "@package/revision"
-import {type PackageSession as PackageSessionContract} from "@package/session"
+import AppServerSessionsOwner, {type StorybookAppServerSessions as AppServerSessionsContract} from "@storybook-app-server/sessions"
+import PackageRevisionOwner, {type StorybookPackageRevision as PackageRevisionContract} from "@storybook-package/revision"
+import {type StorybookPackageSession as PackageSessionContract} from "@storybook-package/session"
 const ExternalStorybookSessionManager = AppServerSessionsOwner
 const STORYBOOK_PACKAGE_GRAPH_PROTOCOL = PackageRevisionOwner.protocol
 type ExternalStorybookSessionManager = AppServerSessionsContract.Output
@@ -20,7 +20,7 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, {recursive: true, force: true})
 })
 
-describe("external Storybook PackageSession manager", () => {
+describe("external Storybook StorybookPackageSession manager", () => {
 
   test("sync adds, preserves, reconfigures and detaches exact sessions", async () => {
     const root = fixtureRoot()

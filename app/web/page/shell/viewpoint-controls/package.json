@@ -1,5 +1,5 @@
 {
-  "name": "@web/viewpoint-controls",
+  "name": "@storybook-app-web-page-shell/viewpoint-controls",
   "label": "Управление ViewPoint",
   "version": "0.0.0",
   "private": true,
@@ -9,10 +9,10 @@
   },
   "description": "Управление существующим ViewPoint страницы: движение, масштаб, заморозка и вписывание",
   "dependencies": {
-    "@zavx0z/dom": "^0.0.0",
-    "@zavx0z/ui": "^0.0.0"
+    "@immersive/dom": "^0.0.0",
+    "@immersive-ui/component": "^0.0.0"
   },
   "devDependencies": {
-    "@zavx0z/space": "^0.0.0"
+    "@immersive/space": "^0.0.0"
   }
 }

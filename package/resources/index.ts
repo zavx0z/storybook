@@ -10,8 +10,8 @@ import {markdownDestinations} from "@immersive/markdown/destination"
 
 const EXTERNAL_STORYBOOK_DOCUMENTATION_MAX_BYTES = 1_048_576
 
-import type {PackageResources} from "./contract"
-export type {PackageResources} from "./contract"
+import type {StorybookPackageResources} from "./contract"
+export type {StorybookPackageResources} from "./contract"
 import type {ExternalStorybookResourceAllowListEntry} from "./contract/models"
 /**
 Сохраняет точный исходник TSDoc и только явно связанные с ним локальные ресурсы.
@@ -19,8 +19,8 @@ import type {ExternalStorybookResourceAllowListEntry} from "./contract/models"
 разрешает ресурсы относительно исходника. Соседние файлы сами по себе не доступны.
 */
 export default function createExternalStorybookResourceAllowList(
-  input: PackageResources.Input,
-): PackageResources.Output {
+  input: StorybookPackageResources.Input,
+): StorybookPackageResources.Output {
   const ownerRoot = canonicalDirectory(input.ownerRoot, "Storybook resource owner root")
   const sourcePath = input.sourcePath === null
     ? null

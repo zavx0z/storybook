@@ -1,5 +1,5 @@
 {
-  "name": "@scenario/model",
+  "name": "@storybook-app-web-page-package-scenario/model",
   "label": "Модель просмотра сценария",
   "version": "0.0.0",
   "private": true,
@@ -9,10 +9,10 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@zavx0z/template": "^0.0.0",
-    "@archetypes/scenario-reader": "workspace:*"
+    "@immersive/template": "^0.0.0",
+    "@storybook-specs-scenarios/reader": "workspace:*"
   },
   "devDependencies": {
-    "@zavx0z/component": "^0.0.0"
+    "@immersive/component": "^0.0.0"
   }
 }

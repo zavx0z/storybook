@@ -4,11 +4,11 @@
 
 @packageDocumentation
 */
-import readSpec from "@archetypes/spec-reader"
-import createScenarioGuide from "@archetypes/scenario-document"
-import type {SpecsGuide} from "./contract"
+import readSpec from "@storybook-specs/reader"
+import createScenarioGuide from "@storybook-specs/document"
+import type {StorybookSpecsGuide} from "./contract"
 
-export type {SpecsGuide} from "./contract"
+export type {StorybookSpecsGuide} from "./contract"
 
 /**
 Находит непосредственный сценарий владельца и показывает его структуру и код.
@@ -17,7 +17,7 @@ export type {SpecsGuide} from "./contract"
 @returns Руководство либо null, если у выбранного владельца нет сценария.
 @throws Ошибки чтения и запуска спецификации читателем Specs.
 */
-export default async function readSpecGuide({path}: SpecsGuide.Input): Promise<SpecsGuide.Output> {
+export default async function readSpecGuide({path}: StorybookSpecsGuide.Input): Promise<StorybookSpecsGuide.Output> {
   const result = await readSpec({path})
   return result?.scenario ? createScenarioGuide({report: result.scenario}) : null
 }

@@ -5,7 +5,7 @@
 @packageDocumentation
 */
 import {dirname, resolve} from "node:path"
-import Compiler from "@build/compiler"
+import Compiler from "@storybook-tech-build/compiler"
 
 /** Возвращает единственный runtime; неоднозначные preload требуют исправления конфигурации пакета. */
 export async function findJsxRuntime(resolvedPreloads: readonly string[], sourcePath?: string): Promise<string | undefined> {

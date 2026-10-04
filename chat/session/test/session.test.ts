@@ -3,18 +3,18 @@ import {mkdtemp, readdir, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import createChatSessions from "../index"
-import type {ChatSession} from "../contract"
+import type {StorybookChatSession} from "../contract"
 
 const cleanup: (() => Promise<void>)[] = []
 afterEach(async () => {
   for (const close of cleanup.splice(0).reverse()) await close()
 })
 
-async function fixture(connect: ChatSession.Input["connect"]) {
+async function fixture(connect: StorybookChatSession.Input["connect"]) {
   const root = await mkdtemp(join(tmpdir(), "storybook-chat-"))
   cleanup.push(() => rm(root, {recursive: true, force: true}))
   const directory = join(root, "chats")
-  const input: ChatSession.Input = {
+  const input: StorybookChatSession.Input = {
     directory,
     resolve(address) {
       if (!["/", "/button", "/input"].includes(address)) throw new Error("Неизвестный адрес")
@@ -27,7 +27,7 @@ async function fixture(connect: ChatSession.Input["connect"]) {
   return {chats, input, directory}
 }
 
-async function settled(chats: ChatSession.Output, address: string) {
+async function settled(chats: StorybookChatSession.Output, address: string) {
   for (let attempt = 0; attempt < 100; attempt++) {
     const value = await chats.read(address)
     if (value.status === "idle" || value.status === "failed") return value

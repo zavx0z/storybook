@@ -9,10 +9,10 @@ import {afterAll, describe, expect, mock, test} from "bun:test"
 import {resolve} from "node:path"
 import {mkdtemp, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
-import type {ArchetypesPackageJson} from "@archetypes/package-json"
+import type {StorybookPackagePackageJson} from "@storybook-package/package-json"
 
-const readPackageJsonMock = mock(async (props: ArchetypesPackageJson.Input) => {
-  const {default: readPackageJson} = await import("@archetypes/package-json")
+const readPackageJsonMock = mock(async (props: StorybookPackagePackageJson.Input) => {
+  const {default: readPackageJson} = await import("@storybook-package/package-json")
   return readPackageJson(props)
 })
 

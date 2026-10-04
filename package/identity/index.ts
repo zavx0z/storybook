@@ -3,8 +3,8 @@
 
 @packageDocumentation
 */
-import type {PackageIdentity} from "./contract"
-export type {PackageIdentity} from "./contract"
+import type {StorybookPackageIdentity} from "./contract"
+export type {StorybookPackageIdentity} from "./contract"
 
 /** Проверяет package identity и имена публичных экспортов структурных сценариев. */
 const EXTERNAL_STORYBOOK_PACKAGE_ID_PATTERN = "^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$" as const
@@ -33,6 +33,6 @@ function requiredText(value: unknown, label: string): string {
   return value
 }
 
-const identity: PackageIdentity.Output = Object.freeze({pattern: EXTERNAL_STORYBOOK_PACKAGE_ID_PATTERN, package: validateExternalStorybookPackageId, export: validateExternalStorybookExportName})
+const identity: StorybookPackageIdentity.Output = Object.freeze({pattern: EXTERNAL_STORYBOOK_PACKAGE_ID_PATTERN, package: validateExternalStorybookPackageId, export: validateExternalStorybookExportName})
 
 export default identity

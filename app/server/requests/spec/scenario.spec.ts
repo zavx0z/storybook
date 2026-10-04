@@ -1,6 +1,6 @@
 /** Журнал MCP хранит последние обращения и раскрывает краткую сводку. */
 import {describe, expect, test} from "bun:test"
-import createMcpRequestJournal from "@mcp-rest/requests"
+import createMcpRequestJournal from "@storybook-app-server/requests"
 
 describe.each([
   {name: "Один запрос", props: {records: [{id: "one", tool: "storybook_status", startedAt: 1, status: "success", input: "{}", result: "ok"}]}},

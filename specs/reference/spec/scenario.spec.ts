@@ -1,6 +1,6 @@
 /** Неизменное свидетельство и его сравнение сохраняют исходный масштаб изображения. */
 import {describe, expect, test} from "bun:test"
-import Reference from "@web/reference"
+import Reference from "@storybook-specs/reference"
 
 describe.each([
   {name: "Широкое свидетельство", props: {width: 420, height: 80}, orientation: "vertical"},

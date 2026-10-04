@@ -3,14 +3,14 @@ import type {
   HTMLDivElement,
   HTMLElement,
   Node,
-} from "@zavx0z/dom"
-import type {CompiledTemplate} from "@zavx0z/template/compiled"
-import type {WebCatalog} from "@web/catalog"
+} from "@immersive/dom"
+import type {CompiledTemplate} from "@immersive/template/compiled"
+import type {StorybookAppWebPageShellWorkbenchCatalog} from "@storybook-app-web-page-shell-workbench/catalog"
 import type {WorkbenchViewProps} from "./view"
 
-export type WorkbenchNavigationItem = WebCatalog.Input["items"][number]
-export type WorkbenchNavigationGroup = Parameters<WebCatalog.Input["onGroupToggle"]>[0]
-export type NavigationExpansion = NonNullable<WebCatalog.Input["navigationExpansion"]>
+export type WorkbenchNavigationItem = StorybookAppWebPageShellWorkbenchCatalog.Input["items"][number]
+export type WorkbenchNavigationGroup = Parameters<StorybookAppWebPageShellWorkbenchCatalog.Input["onGroupToggle"]>[0]
+export type NavigationExpansion = NonNullable<StorybookAppWebPageShellWorkbenchCatalog.Input["navigationExpansion"]>
 
 /**
 Виды встроенных секций инспектора: свойства, исходник, события, диагностика,
@@ -247,7 +247,7 @@ export type WorkbenchPresentationUpdate = Readonly<{
 
 @property removableIds - Идентификаторы записей каталога, доступных для отключения.
 */
-export type WorkbenchCatalogManagement = NonNullable<WebCatalog.Input["management"]>
+export type WorkbenchCatalogManagement = NonNullable<StorybookAppWebPageShellWorkbenchCatalog.Input["management"]>
 
 /**
 Действие пользователя по подключению или отключению области каталога.
@@ -256,7 +256,7 @@ export type WorkbenchCatalogManagement = NonNullable<WebCatalog.Input["managemen
 
 @property [value] - Значение, передаваемое обработчику выбранного действия.
 */
-export type WorkbenchCatalogAction = Parameters<WebCatalog.Input["onAction"]>[0]
+export type WorkbenchCatalogAction = Parameters<StorybookAppWebPageShellWorkbenchCatalog.Input["onAction"]>[0]
 
 /**
 Типизированные адреса данных, которыми принимающая сторона управляет рабочей областью.

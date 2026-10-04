@@ -12,7 +12,7 @@ import type {
 } from "./types"
 
 /** Контракт жизненного цикла точных вкладок одного внешнего Storybook. */
-export declare namespace Zavx0zStorybookBrowserLifecycle {
+export declare namespace StorybookAppServerBrowser {
   /**
   Приватные директории состояния и снимков, а также необязательный клиент Chrome.
 

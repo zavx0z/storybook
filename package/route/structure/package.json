@@ -1,5 +1,5 @@
 {
-  "name": "@route/structure",
+  "name": "@storybook-package-route/structure",
   "label": "Структура маршрута",
   "version": "0.0.0",
   "private": true,
@@ -9,7 +9,7 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@route/workspaces": "workspace:*",
-    "@route/ignored": "workspace:*"
+    "@storybook-package-route/workspaces": "workspace:*",
+    "@storybook-package-route/ignored": "workspace:*"
   }
 }

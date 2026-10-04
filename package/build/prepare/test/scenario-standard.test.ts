@@ -1,11 +1,11 @@
-import {type PackageSession as PackageSessionContract} from "@package/session"
+import {type StorybookPackageSession as PackageSessionContract} from "@storybook-package/session"
 type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 type StorybookPackageDiagnostic = ReturnType<PackageSessionContract.Output["snapshot"]>["diagnostics"][number]
 import {afterAll, expect, test} from "bun:test"
 import {mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import prepareStorybookScenarios from "@package-build/scenarios"
+import prepareStorybookScenarios from "@storybook-package-build/scenarios"
 
 const roots: string[] = []
 afterAll(() => { for (const root of roots.splice(0)) rmSync(root, {recursive: true, force: true}) })

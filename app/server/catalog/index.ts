@@ -3,9 +3,9 @@
 
 @packageDocumentation
 */
-import {type RepoDiscovery as RepoDiscoveryContract} from "@repo/discovery"
-import PackageGraphCreateOwner, {type PackageGraphCreate as PackageGraphCreateContract} from "@package-graph/create"
-import {type PackageSession as PackageSessionContract} from "@package/session"
+import {type StorybookRepoDiscovery as RepoDiscoveryContract} from "@storybook-repo/discovery"
+import PackageGraphCreateOwner, {type StorybookPackageGraphCreate as PackageGraphCreateContract} from "@storybook-package-graph/create"
+import {type StorybookPackageSession as PackageSessionContract} from "@storybook-package/session"
 const createExternalStorybookGraph = PackageGraphCreateOwner
 type StorybookCatalog = RepoDiscoveryContract.Output
 type StorybookCatalogScope = RepoDiscoveryContract.Output["scopes"][number]
@@ -23,8 +23,8 @@ import type {
   ExternalStorybookRegistryDirtySnapshot,
   ExternalStorybookRegistryMetrics,
 } from "./contract/models"
-import type {AppServerCatalog} from "./contract"
-export type {AppServerCatalog} from "./contract"
+import type {StorybookAppServerCatalog} from "./contract"
+export type {StorybookAppServerCatalog} from "./contract"
 import {scopePaths, emptyCatalog} from "./src/helpers"
 /**
 Атомарно принимает нормализованный каталог от выбранного источника.
@@ -50,8 +50,8 @@ export default class ExternalStorybookRegistry {
   #dependencyAnalysisSessions = 0
 
   constructor(
-    private readonly resolveCatalog: AppServerCatalog.Input[0] = undefined,
-    private readonly readAuthorStyleSheets: NonNullable<AppServerCatalog.Input[1]> = () => [],
+    private readonly resolveCatalog: StorybookAppServerCatalog.Input[0] = undefined,
+    private readonly readAuthorStyleSheets: NonNullable<StorybookAppServerCatalog.Input[1]> = () => [],
   ) {}
 
   snapshot(): ExternalStorybookRegistrySnapshot {

@@ -1,12 +1,12 @@
-import type {ProcessSample} from "@process/sample"
+import type {StorybookTechProcessSample} from "@storybook-tech-process/sample"
 import type {ProcessBinding} from "./binding"
 
 /** Измерение ресурсов дерева точного корневого процесса. */
-export declare namespace ProcessMeasure {
+export declare namespace StorybookTechProcessMeasure {
   /** Привязка корня и строки одного системного снимка. */
   type Input = Readonly<{
     binding: ProcessBinding
-    rows: ProcessSample.Output
+    rows: StorybookTechProcessSample.Output
   }>
 
   /** Итог ресурсов либо отсутствие подтверждённого корня. */

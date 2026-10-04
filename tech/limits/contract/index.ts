@@ -1,5 +1,5 @@
 /** Настройки транспорта без срока завершения сборки или сценария. */
-export declare namespace TechLimits {
+export declare namespace StorybookTechLimits {
   /**
   Продолжительности сохраняют единицы вызывающих API.
   @property STORYBOOK_SERVER_IDLE_TIMEOUT_SECONDS - Время удержания HTTP-запроса, секунды.

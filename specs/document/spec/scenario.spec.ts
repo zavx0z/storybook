@@ -5,8 +5,8 @@
 */
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readScenario from "@archetypes/scenario-reader"
-import createScenarioGuide from "@archetypes/scenario-document"
+import readScenario from "@storybook-specs-scenarios/reader"
+import createScenarioGuide from "@storybook-specs/document"
 
 const report = await readScenario({path: resolve(import.meta.dir, "../../scenarios/reader/spec/fixture/function/spec/scenario.spec.ts")})
 describe.each([{name: "Документ сценария", props: {report}}])("$name", async ({props}) => {

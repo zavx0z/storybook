@@ -1,18 +1,18 @@
 /** Подтверждение кадра отдельно от решения о публикации ревизии. */
 import {describe, expect, test} from "bun:test"
-import activateRevision, {type HmrActivation} from "@hmr/activation"
+import activateRevision, {type StorybookPackageActivation} from "@storybook-package/activation"
 
 describe.each([
   {name: "Просмотр кандидата", props: {publish: false}},
   {name: "Применение кандидата", props: {publish: true}},
 ])("$name", async ({props}) => {
-  const commits: HmrActivation.Output[] = []
+  const commits: StorybookPackageActivation.Output[] = []
   const expected = {packageId: "@example/button", revision: "revision-a", route: "", graphDigest: "graph-a"}
   const result = await activateRevision({
     expected,
     signal: new AbortController().signal,
     async inspect() { return {...expected, ready: true, presented: true, frameSequence: 3, consoleErrors: []} },
-    ...(props.publish ? {commit(evidence: HmrActivation.Output) { commits.push(evidence) }} : {}),
+    ...(props.publish ? {commit(evidence: StorybookPackageActivation.Output) { commits.push(evidence) }} : {}),
   })
 
   test("Подтверждённый результат", () => {

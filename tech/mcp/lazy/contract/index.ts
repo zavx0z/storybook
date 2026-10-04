@@ -1,7 +1,7 @@
 import type {McpServer} from "@modelcontextprotocol/server"
 
 /** Один MCP transport с актуальными схемами и handlers отдельного исполняемого модуля. */
-export declare namespace McpLazy {
+export declare namespace StorybookTechMcpLazy {
   /**
   Доверенная конфигурация каждого изолированного выполнения.
 

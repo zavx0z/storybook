@@ -1,5 +1,5 @@
 /** Контракт авторизованного JSON и NDJSON-клиента HTTP API. */
-export declare namespace HttpClient {
+export declare namespace StorybookTechHttpClient {
   /**
   Адрес и полномочие одного удалённого экземпляра.
 

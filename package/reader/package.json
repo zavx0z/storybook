@@ -1,5 +1,5 @@
 {
-  "name": "@archetypes/package",
+  "name": "@storybook-package/reader",
   "label": "Пакет",
   "version": "0.0.0",
   "private": true,
@@ -13,16 +13,16 @@
   },
   "dependencies": {
     "typescript": "^7.0.2",
-    "@build/compiler": "workspace:*",
-    "@archetypes/package-index": "workspace:*",
-    "@archetypes/package-documentation": "workspace:*",
-    "@route/workspaces": "workspace:*",
-    "@archetypes/package-json": "workspace:*"
+    "@storybook-tech-build/compiler": "workspace:*",
+    "@storybook-package/index": "workspace:*",
+    "@storybook-package/documentation": "workspace:*",
+    "@storybook-package-route/workspaces": "workspace:*",
+    "@storybook-package/package-json": "workspace:*"
   },
   "devDependencies": {
-    "@package/name": "workspace:*",
-    "@archetypes/contracts": "workspace:*",
-    "@archetypes/domain": "workspace:*",
-    "@archetypes/scenario-reader": "workspace:*"
+    "@storybook-package/name": "workspace:*",
+    "@storybook/contracts": "workspace:*",
+    "@storybook/domain": "workspace:*",
+    "@storybook-specs-scenarios/reader": "workspace:*"
   }
 }

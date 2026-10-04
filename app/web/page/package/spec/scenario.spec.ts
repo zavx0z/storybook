@@ -2,40 +2,40 @@
 @packageDocumentation
 */
 import {describe} from "bun:test"
-import WebProtocol from "@app-web/protocol"
-import type {ComponentValue} from "@zavx0z/component"
-import type {JSX} from "@jsx-compiler/session"
+import WebProtocol from "@storybook-app-web/protocol"
+import type {ComponentValue} from "@immersive/component"
+import type {JSX} from "@immersive-jsx-compiler/session"
 import {expect, test} from "bun:test"
 import {join} from "node:path"
-import {DisplayElement} from "@zavx0z/dom/display"
-import {createRoot} from "@zavx0z/component"
-import {createDocumentClipboardController} from "@zavx0z/browser/clipboard"
-import {createDocument} from "@zavx0z/dom"
-import type {Presentation as Root, RootDocumentProjection, RootProjection, RootSpaceProjection} from "@zavx0z/browser/integration"
-import type {RenderFrame} from "@renderer/html"
-import {createSpaceElementFactories} from "@zavx0z/space"
-import {HUDElement} from "@zavx0z/dom/hud"
-import {SpaceElement} from "@zavx0z/dom/space"
-import {ViewPointElement} from "@zavx0z/dom/viewpoint"
-import presentationRootFixture from "@web/browser-fixture"
-import discoverStorybookPackages from "@repo/discovery"
-import createExternalStorybookGraph, {type PackageGraphCreate} from "@package-graph/create"
-import type {PackageSession} from "@package/session"
-import Revision from "@package/revision"
-import PagePackageOwner from "@page/package"
-import startExternalStorybookPackage from "@page/package"
-import type {PagePackage} from "@page/package"
-import type {PageShell} from "@page/shell"
+import {DisplayElement} from "@immersive/dom/display"
+import {createRoot} from "@immersive/component"
+import {createDocumentClipboardController} from "@immersive/browser/clipboard"
+import {createDocument} from "@immersive/dom"
+import type {Presentation as Root, RootDocumentProjection, RootProjection, RootSpaceProjection} from "@immersive/browser/integration"
+import type {RenderFrame} from "@immersive-renderer/html"
+import {createSpaceElementFactories} from "@immersive/space"
+import {HUDElement} from "@immersive/dom/hud"
+import {SpaceElement} from "@immersive/dom/space"
+import {ViewPointElement} from "@immersive/dom/viewpoint"
+import presentationRootFixture from "@storybook-tech-testing/browser-root"
+import discoverStorybookPackages from "@storybook-repo/discovery"
+import createExternalStorybookGraph, {type StorybookPackageGraphCreate} from "@storybook-package-graph/create"
+import type {StorybookPackageSession} from "@storybook-package/session"
+import Revision from "@storybook-package/revision"
+import PagePackageOwner from "@storybook-app-web-page/package"
+import startExternalStorybookPackage from "@storybook-app-web-page/package"
+import type {StorybookAppWebPagePackage} from "@storybook-app-web-page/package"
+import type {StorybookAppWebPageShell} from "@storybook-app-web-page/shell"
 
-type ExternalStorybookGraph = PackageGraphCreate.Output
+type ExternalStorybookGraph = StorybookPackageGraphCreate.Output
 
-type StorybookPackageSessionSnapshot = ReturnType<PackageSession.Output["snapshot"]>
+type StorybookPackageSessionSnapshot = ReturnType<StorybookPackageSession.Output["snapshot"]>
 
 const STORYBOOK_PAGE_REALM_PROTOCOL = PagePackageOwner.protocol
 
-type ExternalStorybookPackageEnvironment = NonNullable<PagePackage.Input["environment"]>
+type ExternalStorybookPackageEnvironment = NonNullable<StorybookAppWebPagePackage.Input["environment"]>
 
-type ExternalStorybookRootFactory = NonNullable<PageShell.Input["createRoot"]>
+type ExternalStorybookRootFactory = NonNullable<StorybookAppWebPageShell.Input["createRoot"]>
 
 const fixtureRoot = join(import.meta.dir, "../../../../../repo/discovery/fixtures/valid")
 

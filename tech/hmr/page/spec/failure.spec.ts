@@ -1,5 +1,5 @@
 import {describe, expect, test} from "bun:test"
-import createHmrPage from "@hmr/page"
+import createHmrPage from "@storybook-tech-hmr/page"
 
 describe("Отказ обновления", () => {
   test.each(["create", "accept"])("восстанавливает предыдущее исполнение при ошибке %s", async phase => {

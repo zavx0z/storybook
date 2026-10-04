@@ -6,9 +6,9 @@
 
 @packageDocumentation
 */
-import WebBuild from "@app-web/build"
-import type {WebRelease} from "./contract"
-export type {WebRelease} from "./contract"
+import WebBuild from "@storybook-app-web/build"
+import type {StorybookAppWebRelease} from "./contract"
+export type {StorybookAppWebRelease} from "./contract"
 
 
 /**
@@ -17,14 +17,14 @@ export type {WebRelease} from "./contract"
 не отменяет сборку; прежняя опубликованная версия сохраняется при ошибке подготовки.
 
 @typeParam Prepared - Результат переданной функции `prepare` после `await`.
-Выводится из функций {@link WebRelease.Input} и связывает подготовку, извлечение версий и публикацию.
+Выводится из функций {@link StorybookAppWebRelease.Input} и связывает подготовку, извлечение версий и публикацию.
 
 @param input - Реализации трёх операций от владельца артефактов.
 
 @returns Управление общим выпуском Web; `dispose` отменяет подготовку и ожидает её завершения.
 
 @example
-Переданные функции описаны в {@link WebRelease.Input}:
+Переданные функции описаны в {@link StorybookAppWebRelease.Input}:
 ```ts
 const web = createWeb({prepare, versions, publish})
 try {
@@ -34,8 +34,8 @@ try {
 }
 ```
 */
-export default function createWeb<Prepared>(input: WebRelease.Input<Prepared>): WebRelease.Output {
-  type State = ReturnType<WebRelease.Output["read"]>
+export default function createWeb<Prepared>(input: StorybookAppWebRelease.Input<Prepared>): StorybookAppWebRelease.Output {
+  type State = ReturnType<StorybookAppWebRelease.Output["read"]>
   const lifetime = new AbortController()
   const listeners = new Set<(state: State) => void>()
   let state: State = Object.freeze({operationId: null, phase: "idle", at: new Date().toISOString(), versions: [], error: null})

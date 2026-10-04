@@ -1,6 +1,6 @@
-import type {WebCatalog} from "@web/catalog"
+import type {StorybookAppWebPageShellWorkbenchCatalog} from "@storybook-app-web-page-shell-workbench/catalog"
 import {CatalogRegion} from "./catalog"
-import type {JSX} from "@jsx-compiler/session"
+import type {JSX} from "@immersive-jsx-compiler/session"
 import type {
   WorkbenchInspectorSubject,
   WorkbenchInspectorWidgetRegistration,
@@ -8,7 +8,7 @@ import type {
 import {WorkbenchInspector} from "../inspector/panel.tsx"
 
 export type InspectorRegionProps = Readonly<{
-  catalog: WebCatalog.Input
+  catalog: StorybookAppWebPageShellWorkbenchCatalog.Input
   registry: readonly WorkbenchInspectorWidgetRegistration[]
   subject: WorkbenchInspectorSubject | null
   selectedId: string
@@ -51,7 +51,7 @@ export function InspectorRegion(props: InspectorRegionProps) {
 
 /** Содержимое секций остаётся смонтированным при переключении вкладки дерева. */
 function InspectorContents(props: Readonly<{
-  catalog: WebCatalog.Input
+  catalog: StorybookAppWebPageShellWorkbenchCatalog.Input
   selectedId: string
 }>): JSX.Element<{default: readonly JSX.Element[]}> {
   return <div style={css`

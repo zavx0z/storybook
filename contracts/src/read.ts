@@ -1,13 +1,13 @@
-import RouteIgnoredOwner from "@route/ignored"
+import RouteIgnoredOwner from "@storybook-package-route/ignored"
 const readRouteIgnored = RouteIgnoredOwner
 import {createHash} from "node:crypto"
 import {lstat, readFile} from "node:fs/promises"
 import {resolve} from "node:path"
 import {API} from "typescript/unstable/async"
-import {type ArchetypesPackage} from "@archetypes/package"
+import {type StorybookPackageReader} from "@storybook-package/reader"
 /** Форма из публичного пространства исходного владельца. */
-type ReadPackageOutput = ArchetypesPackage.Output
-import type {ArchetypesContracts} from "../contract"
+type ReadPackageOutput = StorybookPackageReader.Output
+import type {StorybookContracts} from "../contract"
 import {diagnose, inside, rememberSource, type Context} from "./context"
 import {readNamespace} from "./namespaces"
 import {checkPlacement} from "./placement"
@@ -18,16 +18,16 @@ import {declarationOf, originalSymbol} from "./declarations"
 Раскрывает только публичные входы из фактов Package. Snapshot и checker
 освобождаются после чтения; изменение источника отклоняет весь результат.
 */
-export async function readNamespaces(description: ReadPackageOutput, definitions: readonly string[]): Promise<ArchetypesContracts.Output> {
+export async function readNamespaces(description: ReadPackageOutput, definitions: readonly string[]): Promise<StorybookContracts.Output> {
   const paths = [...new Set(description.index.entries.filter(entry => entry.code && entry.target
     && (entry.status === "owned" || entry.status === "forwarded"))
     .map(entry => resolve(description.root, entry.target!)))]
   const api = new API({cwd: description.root})
-  const entries: ArchetypesContracts.Output["entries"][number][] = []
-  const diagnostics: ArchetypesContracts.Output["diagnostics"][number][] = []
+  const entries: StorybookContracts.Output["entries"][number][] = []
+  const diagnostics: StorybookContracts.Output["diagnostics"][number][] = []
   const sources = new Map<string, {path: string, digest: string}>()
-  const extensions: ArchetypesContracts.Output["extensions"][number][] = []
-  const ownedNamespaces: ArchetypesContracts.Output["entries"][number]["namespaces"][number][] = []
+  const extensions: StorybookContracts.Output["extensions"][number][] = []
+  const ownedNamespaces: StorybookContracts.Output["entries"][number]["namespaces"][number][] = []
   let placementContext: Context | undefined
   try {
     const snapshot = await api.updateSnapshot({openFiles: [...paths, ...definitions]})

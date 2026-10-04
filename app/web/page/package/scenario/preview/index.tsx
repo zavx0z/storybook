@@ -2,16 +2,16 @@
 
 @packageDocumentation
 */
-import type {ScenarioPreview as Contract} from "./contract"
-export type {ScenarioPreview} from "./contract"
-import {useSyncExternalStore} from "@zavx0z/component"
-import ScenarioResult from "@scenario/result"
+import type {StorybookAppWebPagePackageScenarioPreview as Contract} from "./contract"
+export type {StorybookAppWebPagePackageScenarioPreview} from "./contract"
+import {useSyncExternalStore} from "@immersive/component"
+import StorybookAppWebPagePackageScenarioResult from "@storybook-app-web-page-package-scenario/result"
 /**
 Предоставляет место общей фикстуре в существующем Display.
 Host подключает компонент к stage один раз и обновляет его props отдельно.
 Во время проверки stage скрыт, вместо него показывается ход выполнения или ошибка.
 */
-export default function ScenarioPreview(props: Contract.Input) {
+export default function StorybookAppWebPagePackageScenarioPreview(props: Contract.Input) {
   const selected = useSyncExternalStore(props.app.subscribe, props.app.getSnapshot)
   const visible = selected.execution === undefined || selected.execution.status === "passed"
   return <section
@@ -41,6 +41,6 @@ export default function ScenarioPreview(props: Contract.Input) {
         }
       `}
     ></div>
-    {!visible ? <ScenarioResult app={props.app} /> : null}
+    {!visible ? <StorybookAppWebPagePackageScenarioResult app={props.app} /> : null}
   </section>
 }

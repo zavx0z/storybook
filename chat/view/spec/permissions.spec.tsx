@@ -1,15 +1,15 @@
 /** Запрос исполнителя раскрывает только предоставленные им варианты решения. */
 import {afterAll, describe, expect, mock, test} from "bun:test"
 import {createHeadless} from "@immersive/headless"
-import type {HTMLButtonElement} from "@zavx0z/dom"
-import ChatView from "@chat/view"
+import type {HTMLButtonElement} from "@immersive/dom"
+import StorybookChatView from "@storybook-chat/view"
 
 describe.each([{name: "Решение пользователя", error: undefined}, {name: "Ошибка исполнителя", error: "Соединение потеряно"}])("$name", async ({error}) => {
   const onPermission = mock((id: string, optionId: string) => {})
   const headless = createHeadless({width: 400, height: 600})
   afterAll(() => headless.dispose())
   const element = await headless.render(
-    <ChatView
+    <StorybookChatView
       address="/storybook/component"
       label="Component"
       messages={[]}

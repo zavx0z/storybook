@@ -1,11 +1,11 @@
 import {lstat, readFile, realpath} from "node:fs/promises"
 import {basename, dirname, relative, resolve, sep} from "node:path"
-import type {ArchetypesPackageIndex} from "../contract"
+import type {StorybookPackageIndex} from "../contract"
 import type {ExportTarget} from "./targets"
 import {collectTargets} from "./targets"
 
 /** Находит точный публичный вход фактического вложенного владельца; частные файлы не открывает. */
-async function forwardedOwner(root: string, target: string): Promise<ArchetypesPackageIndex.Output["entries"][number]["owner"]> {
+async function forwardedOwner(root: string, target: string): Promise<StorybookPackageIndex.Output["entries"][number]["owner"]> {
   const absolute = resolve(root, target)
   const parts = relative(root, dirname(absolute)).split(sep)
   let current = root
@@ -41,7 +41,7 @@ async function forwardedOwner(root: string, target: string): Promise<ArchetypesP
 }
 
 /** Останавливает чтение на символической ссылке или границе вложенного пакета. */
-async function fileStatus(root: string, target: string): Promise<ArchetypesPackageIndex.Output["entries"][number]["status"]> {
+async function fileStatus(root: string, target: string): Promise<StorybookPackageIndex.Output["entries"][number]["status"]> {
   const parts = relative(root, resolve(root, target)).split(sep)
   if (parts[0] === ".." || !target.startsWith("./")) return "outside-package"
   let current = root
@@ -68,7 +68,7 @@ async function fileStatus(root: string, target: string): Promise<ArchetypesPacka
 }
 
 /** Читает точную цель и соседние контракты, не следуя в код другого владельца. */
-export async function readTarget(root: string, declared: ExportTarget): Promise<ArchetypesPackageIndex.Output["entries"][number]> {
+export async function readTarget(root: string, declared: ExportTarget): Promise<StorybookPackageIndex.Output["entries"][number]> {
   const {target} = declared
   let status = target === null ? "blocked" : await fileStatus(root, target)
   const owner = status === "nested-package" && target !== null ? await forwardedOwner(root, target) : undefined

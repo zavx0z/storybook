@@ -1,4 +1,4 @@
-import {useState} from "@zavx0z/component"
+import {useState} from "@immersive/component"
 
 export type ExampleProps = Readonly<{label: string}>
 

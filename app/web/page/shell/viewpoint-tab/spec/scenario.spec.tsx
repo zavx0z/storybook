@@ -1,6 +1,6 @@
 import {afterAll, describe, expect, mock, test} from "bun:test"
 import {createHeadless} from "@immersive/headless"
-import type {HTMLButtonElement} from "@zavx0z/dom"
+import type {HTMLButtonElement} from "@immersive/dom"
 import ViewPointTab from "../index"
 
 describe.each([

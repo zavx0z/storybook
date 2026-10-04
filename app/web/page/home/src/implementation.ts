@@ -1,12 +1,12 @@
-import WebProtocol from "@app-web/protocol"
-import type {WebNavigation} from "@web/navigation"
-type ExternalStorybookBrowserNavigationItem = ReturnType<WebNavigation.Output["deriveExternalStorybookNavigationTree"]>[number]
-import type {PageShell} from "@page/shell"
-type ExternalStorybookShell = PageShell.Output
+import WebProtocol from "@storybook-app-web/protocol"
+import type {StorybookAppWebPageNavigation} from "@storybook-app-web-page/navigation"
+type ExternalStorybookBrowserNavigationItem = ReturnType<StorybookAppWebPageNavigation.Output["deriveExternalStorybookNavigationTree"]>[number]
+import type {StorybookAppWebPageShell} from "@storybook-app-web-page/shell"
+type ExternalStorybookShell = StorybookAppWebPageShell.Output
 
-import type {PageHome} from '../contract'
+import type {StorybookAppWebPageHome} from '../contract'
 
-type StartExternalStorybookLandingOptions = PageHome.Input
+type StartExternalStorybookLandingOptions = StorybookAppWebPageHome.Input
 
 import type {LandingSocket} from "../contract/types"
 

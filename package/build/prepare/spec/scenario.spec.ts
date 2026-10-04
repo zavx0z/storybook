@@ -2,11 +2,11 @@ import {afterAll, describe, expect, setDefaultTimeout, test} from "bun:test"
 import {existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join, resolve} from "node:path"
-import discover from "@repo/discovery"
-import createGraph from "@package-graph/create"
-import revision from "@package/revision"
-import createBuilder from "@package-build/prepare"
-import type {PackageSession} from "@package/session"
+import discover from "@storybook-repo/discovery"
+import createGraph from "@storybook-package-graph/create"
+import revision from "@storybook-package/revision"
+import createBuilder from "@storybook-package-build/prepare"
+import type {StorybookPackageSession} from "@storybook-package/session"
 
 const toolRoot = realpathSync(resolve(import.meta.dir, "../../../.."))
 setDefaultTimeout(60_000)
@@ -22,8 +22,8 @@ describe.each([
   const stagingDirectory = join(root, ".candidate")
   mkdirSync(join(packageRoot, "module"), {recursive: true})
   mkdirSync(join(root, "node_modules/@zavx0z"), {recursive: true})
-  symlinkSync(realpathSync(join(toolRoot, "node_modules/@zavx0z/jsx")), join(root, "node_modules/@zavx0z/jsx"))
-  symlinkSync(realpathSync(join(toolRoot, "node_modules/@zavx0z/template")), join(root, "node_modules/@zavx0z/template"))
+  symlinkSync(realpathSync(join(toolRoot, "node_modules/@immersive/jsx")), join(root, "node_modules/@immersive/jsx"))
+  symlinkSync(realpathSync(join(toolRoot, "node_modules/@immersive/template")), join(root, "node_modules/@immersive/template"))
   writeFileSync(join(root, "package.json"), JSON.stringify({name: "@fixture/repo", type: "module"}))
   writeFileSync(sourcePath, JSON.stringify({name: "@fixture/package", type: "module"}))
   writeFileSync(join(packageRoot, "module/index.ts"), "export const module = true\n")
@@ -40,7 +40,7 @@ describe.each([
     graphSnapshot: revision.create(graph, "@fixture/package", declarationDigest),
     resourceFiles: [],
     scenarioSpecs: [],
-  } as PackageSession.Input[0]
+  } as StorybookPackageSession.Input[0]
   const build = createBuilder({toolRoot, browserEntryPath})
   const result = await build({
     descriptor,

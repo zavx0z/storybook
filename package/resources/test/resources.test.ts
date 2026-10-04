@@ -1,9 +1,9 @@
-import PackageResourcesOwner from "@package/resources"
+import PackageResourcesOwner from "@storybook-package/resources"
 const createExternalStorybookResourceAllowList = PackageResourcesOwner
 const localMarkdownDestinations = PackageResourcesOwner.localMarkdownDestinations
 import {afterEach, describe, expect, test} from "bun:test"
 import {mkdtempSync, readFileSync, mkdirSync, realpathSync, rmSync, symlinkSync, unlinkSync, writeFileSync} from "node:fs"
-import readModuleDocumentation from "@archetypes/package-documentation"
+import readModuleDocumentation from "@storybook-package/documentation"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 

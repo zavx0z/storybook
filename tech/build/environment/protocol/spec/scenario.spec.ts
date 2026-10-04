@@ -1,6 +1,6 @@
 /** Версия протокола общей browser identity передаётся без файлового доступа. */
 import {describe, expect, test} from "bun:test"
-import Protocol from "@build-environment/protocol"
+import Protocol from "@storybook-tech-build-environment/protocol"
 
 describe.each([
   {name: "Общая среда Storybook", props: {expected: "storybook-shared-browser-identity/1"}},

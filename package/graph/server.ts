@@ -5,5 +5,5 @@
 
 @packageDocumentation
 */
-export {default} from "@package-graph/create"
-export type {PackageGraphCreate} from "@package-graph/create"
+export {default} from "@storybook-package-graph/create"
+export type {StorybookPackageGraphCreate} from "@storybook-package-graph/create"

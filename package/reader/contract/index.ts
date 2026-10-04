@@ -1,8 +1,8 @@
-import type {ArchetypesPackageJson} from "@archetypes/package-json"
-import type {ArchetypesPackageDocumentation} from "@archetypes/package-documentation"
-import type {ArchetypesPackageIndex} from "@archetypes/package-index"
+import type {StorybookPackagePackageJson} from "@storybook-package/package-json"
+import type {StorybookPackageDocumentation} from "@storybook-package/documentation"
+import type {StorybookPackageIndex} from "@storybook-package/index"
 
-export declare namespace ArchetypesPackage {
+export declare namespace StorybookPackageReader {
   /**
   Входной контракт чтения структуры пакета.
 
@@ -66,15 +66,15 @@ export declare namespace ArchetypesPackage {
       }[]
     }[]
     readonly scenarios: readonly string[]
-    readonly packageJson: ArchetypesPackageJson.Output
-    readonly documentation: ArchetypesPackageDocumentation.Output
+    readonly packageJson: StorybookPackagePackageJson.Output
+    readonly documentation: StorybookPackageDocumentation.Output
     readonly entryDocumentation: readonly {
       readonly path: string
       readonly target: string
       readonly conditions: readonly string[]
-      readonly documentation: ArchetypesPackageDocumentation.Output
+      readonly documentation: StorybookPackageDocumentation.Output
     }[]
-    readonly index: ArchetypesPackageIndex.Output
+    readonly index: StorybookPackageIndex.Output
     readonly packages: readonly {readonly path: string, readonly name: string, readonly parent: string}[]
   }
 }

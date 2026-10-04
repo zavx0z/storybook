@@ -1,6 +1,6 @@
-import type {ArchetypesScenarioReader} from "@archetypes/scenario-reader"
+import type {StorybookSpecsScenariosReader} from "@storybook-specs-scenarios/reader"
 
-export declare namespace ArchetypesSpecReader {
+export declare namespace StorybookSpecsReader {
   /**
   Вход чтения спецификации.
 
@@ -14,10 +14,10 @@ export declare namespace ArchetypesSpecReader {
   /**
   Прочитанная спецификация либо `null`, если директория `spec` отсутствует.
 
-  @property scenario - Результат запуска сценария {@link ArchetypesScenarioReader.Output}
+  @property scenario - Результат запуска сценария {@link StorybookSpecsScenariosReader.Output}
   либо `null`, если в спецификации нет файла сценария.
   */
   export type Output = {
-    readonly scenario: ArchetypesScenarioReader.Output | null
+    readonly scenario: StorybookSpecsScenariosReader.Output | null
   } | null
 }

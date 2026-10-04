@@ -1,7 +1,7 @@
-import waitForOwnedChild from "@process/wait"
+import waitForOwnedChild from "@storybook-tech-process/wait"
 import {spawn} from "node:child_process"
 import {Readable} from "node:stream"
-import type {TechAcp} from "../contract"
+import type {StorybookTechAcp} from "../contract"
 
 type Probe = Readonly<{
   command: string
@@ -9,8 +9,8 @@ type Probe = Readonly<{
   cwd: string
   env: NodeJS.ProcessEnv
   signal: AbortSignal
-  mcpServers: TechAcp.Input["mcpServers"]
-  config?: TechAcp.Input["config"]
+  mcpServers: StorybookTechAcp.Input["mcpServers"]
+  config?: StorybookTechAcp.Input["config"]
 }>
 
 /** Содержимое CLI-ответа остаётся внутри probe; наружу выходят только config overrides. */

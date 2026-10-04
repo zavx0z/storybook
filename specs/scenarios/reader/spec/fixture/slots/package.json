@@ -9,6 +9,6 @@
     "test": "bun test --preload @immersive/headless/preload ./spec"
   },
   "devDependencies": {
-    "@zavx0z/jsx": "workspace:*"
+    "@immersive/jsx": "workspace:*"
   }
 }

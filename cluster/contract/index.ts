@@ -1,8 +1,8 @@
-import type {ArchetypesPackage} from "@archetypes/package"
-import type {ArchetypesContracts} from "@archetypes/contracts"
+import type {StorybookPackageReader} from "@storybook-package/reader"
+import type {StorybookContracts} from "@storybook/contracts"
 
 /** Контракт чтения группы без ручного назначения архетипа и исполнения участников. */
-export declare namespace ArchetypesCluster {
+export declare namespace StorybookCluster {
   /** Физический корень пакета, публичный состав которого исследуется. */
   interface Input {
     readonly path: string
@@ -16,8 +16,8 @@ export declare namespace ArchetypesCluster {
   @property members - Владельцы опубликованных runtime-реализаций; реэкспорт не меняет их identity.
   */
   interface Output {
-    readonly package: ArchetypesPackage.Output
-    readonly protocols: ArchetypesContracts.Output
+    readonly package: StorybookPackageReader.Output
+    readonly protocols: StorybookContracts.Output
     readonly members: readonly {readonly name: string, readonly path: string}[]
   }
 }

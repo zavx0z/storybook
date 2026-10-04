@@ -1,5 +1,5 @@
 /** Контракт непосредственных переходов единого каталога MCP. */
-export declare namespace McpChildren {
+export declare namespace StorybookAppMcpRestChildren {
   /**
   Текущий контекст и все доступные адреса в порядке каталога.
 

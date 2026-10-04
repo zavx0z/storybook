@@ -1,5 +1,5 @@
 {
-  "name": "@package-build/descriptor",
+  "name": "@storybook-package-build/descriptor",
   "label": "План сборки пакета",
   "version": "0.0.0",
   "private": true,
@@ -9,11 +9,11 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@repo/discovery": "workspace:*",
-    "@package-graph/read": "workspace:*",
-    "@package-graph/create": "workspace:*",
-    "@package/resources": "workspace:*",
-    "@package/session": "workspace:*",
-    "@package/revision": "workspace:*"
+    "@storybook-repo/discovery": "workspace:*",
+    "@storybook-package-graph/read": "workspace:*",
+    "@storybook-package-graph/create": "workspace:*",
+    "@storybook-package/resources": "workspace:*",
+    "@storybook-package/session": "workspace:*",
+    "@storybook-package/revision": "workspace:*"
   }
 }

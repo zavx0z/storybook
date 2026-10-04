@@ -1,5 +1,5 @@
 import {expect, mock, test} from "bun:test"
-import createWeb, {type WebRelease} from "@web/release"
+import createWeb, {type StorybookAppWebRelease} from "@storybook-app-web/release"
 
 const versions = [{platform: "platform-a", web: "web-b"}] as const
 
@@ -31,7 +31,7 @@ test("Ошибка первого уведомления удаляет толь
   const publish = mock((_candidate: string) => {})
   const web = createWeb({prepare: async () => "web-b", versions: () => versions, publish})
   const failedListener = mock(() => { throw new Error("observer failed") })
-  const listener = mock((_state: ReturnType<WebRelease.Output["read"]>) => {})
+  const listener = mock((_state: ReturnType<StorybookAppWebRelease.Output["read"]>) => {})
   const unsubscribeFailed = web.subscribe(failedListener)
   const unsubscribe = web.subscribe(listener)
   try {

@@ -2,9 +2,9 @@ import {afterEach, expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm, symlink} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join, resolve} from "node:path"
-import readWorkspacePackages from "@route/workspaces"
-import resolveRoute from "@route/resolve"
-import readRouteChildren from "@route/children"
+import readWorkspacePackages from "@storybook-package-route/workspaces"
+import resolveRoute from "@storybook-package-route/resolve"
+import readRouteChildren from "@storybook-package-route/children"
 
 const roots: string[] = []
 afterEach(async () => {
@@ -99,7 +99,7 @@ test("публичный workspaces module открывает собственн
     route: "storybook/package/route/workspaces?view=contract",
     roots: [{name: "storybook", path: storybook}],
   })).toMatchObject({
-    package: {id: "@route/workspaces"},
+    package: {id: "@storybook-package-route/workspaces"},
     relativePath: "",
     view: "contract",
     views: ["scenarios", "contract"],

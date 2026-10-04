@@ -1,4 +1,4 @@
-import {useState} from "@zavx0z/component"
+import {useState} from "@immersive/component"
 
 /** Локальное состояние подтверждает сохранение экземпляра при выборе варианта. */
 export function StatefulFixture(props: Readonly<{name: string}>) {
@@ -15,7 +15,7 @@ export function StatefulFixture(props: Readonly<{name: string}>) {
 /** Родитель сохраняет свой semantic Element при смене children в подготовленном результате. */
 export function ChildrenFixture(props: Readonly<{
   label: string | null
-  children?: import("@jsx-compiler/session").JSX.Element | null | undefined
+  children?: import("@immersive-jsx-compiler/session").JSX.Element | null | undefined
 }>) {
   return <section data-container="">
     <span>{props.label}</span>

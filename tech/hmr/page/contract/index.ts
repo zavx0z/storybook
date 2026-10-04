@@ -5,7 +5,7 @@
 `Output` управляет единственным текущим scope; переходы не перезагружают страницу
 и не выбирают маршрут или состав Canvas.
 */
-export declare namespace HmrPage {
+export declare namespace StorybookTechHmrPage {
   /**
   Операции владельца исполнения, необходимые для освобождения и восстановления scope.
 
@@ -38,7 +38,7 @@ export declare namespace HmrPage {
   @property replace - Ставит замену в общую очередь. После освобождения текущего scope вызывает `create`;
   принятый результат становится `current`, затем `accept` получает его с `restored: false`.
   При ошибке `create` или `accept` кандидат освобождается, прежнее исполнение восстанавливается через
-  {@link HmrPage.Input.restore} и принимается с `restored: true`. Ошибка исходного перехода отклоняет Promise.
+  {@link StorybookTechHmrPage.Input.restore} и принимается с `restored: true`. Ошибка исходного перехода отклоняет Promise.
   Если откат также завершается ошибкой, Promise отклоняется с {@link AggregateError}, содержащим обе ошибки.
   Вызов после начала `dispose` отклоняется с ошибкой завершённого lifecycle.
 

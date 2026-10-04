@@ -5,11 +5,11 @@
 
 @packageDocumentation
 */
-import type {ProcessSample} from "@process/sample"
-import type {ProcessMeasure} from "./contract"
+import type {StorybookTechProcessSample} from "@storybook-tech-process/sample"
+import type {StorybookTechProcessMeasure} from "./contract"
 import {normalizeProcessStart, sameProcessStart, isProcessId} from "./src/identity"
 
-export type {ProcessMeasure} from "./contract"
+export type {StorybookTechProcessMeasure} from "./contract"
 
 /**
 Суммирует только дерево точного корневого процесса, выбранного вызывающим кодом.
@@ -22,7 +22,7 @@ export type {ProcessMeasure} from "./contract"
 
 @returns Измерение без PID, команды и путей.
 */
-export default function measureProcessResources({binding, rows}: ProcessMeasure.Input): ProcessMeasure.Output {
+export default function measureProcessResources({binding, rows}: StorybookTechProcessMeasure.Input): StorybookTechProcessMeasure.Output {
   if (!isProcessId(binding.pid)) return null
   const byPid = new Map(rows.map((row) => [row.pid, row]))
   const root = byPid.get(binding.pid)
@@ -45,7 +45,7 @@ export default function measureProcessResources({binding, rows}: ProcessMeasure.
       processIds.push(childPid)
     }
   }
-  const tree = processIds.map((pid) => byPid.get(pid)).filter((row): row is ProcessSample.Output[number] => row !== undefined)
+  const tree = processIds.map((pid) => byPid.get(pid)).filter((row): row is StorybookTechProcessSample.Output[number] => row !== undefined)
   return Object.freeze({
     cpuPercent: tree.some(({cpuPercent}) => cpuPercent === null)
       ? null

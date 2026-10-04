@@ -1,9 +1,9 @@
-import type {HmrConnection} from "@hmr/connection"
+import type {StorybookTechHmrConnection} from "@storybook-tech-hmr/connection"
 
-import createStorybookAgentBridge from "@web/agent-bridge"
+import createStorybookAgentBridge from "@storybook-app-web-page/agent-bridge"
 
-import type {PageShell} from "@page/shell"
-type ExternalStorybookShell = PageShell.Output
+import type {StorybookAppWebPageShell} from "@storybook-app-web-page/shell"
+type ExternalStorybookShell = StorybookAppWebPageShell.Output
 
 import type {ExternalStorybookPreparedPageTarget} from "../contract/types"
 
@@ -166,10 +166,10 @@ Listeners регистрируются сразу, поэтому scope не з�
 @returns Socket-compatible adapter с однократным `connect()`.
 */
 export function createDeferredStorybookSocket(
-  create: () => HmrConnection.Input["socket"],
-): HmrConnection.Input["socket"] & Readonly<{connect(): void}> {
+  create: () => StorybookTechHmrConnection.Input["socket"],
+): StorybookTechHmrConnection.Input["socket"] & Readonly<{connect(): void}> {
   const listeners = new Map<string, Set<(event: any) => void>>()
-  let socket: HmrConnection.Input["socket"] | null = null
+  let socket: StorybookTechHmrConnection.Input["socket"] | null = null
   let closed = false
   const deferred = {
     addEventListener(type: string, listener: (event: any) => void) {

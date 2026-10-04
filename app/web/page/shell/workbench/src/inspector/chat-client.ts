@@ -1,22 +1,22 @@
-import type {ChatView} from "@chat/view"
-import type {ChatSession} from "@chat/session"
+import type {StorybookChatView} from "@storybook-chat/view"
+import type {StorybookChatSession} from "@storybook-chat/session"
 
 /** Браузерный транспорт передаёт снимки сервера; закрытие представления только отписывает поток. */
-export type ChatBrowserSnapshot = Awaited<ReturnType<ChatSession.Output["read"]>>
+export type ChatBrowserSnapshot = Awaited<ReturnType<StorybookChatSession.Output["read"]>>
 
 export type ChatBrowserView = Readonly<{
   address: string
   label: string
-  messages: ChatView.Input["messages"]
+  messages: StorybookChatView.Input["messages"]
   draft: string
-  status: ChatView.Input["status"]
+  status: StorybookChatView.Input["status"]
   sending: boolean
   settings: NonNullable<ChatBrowserSnapshot["settings"]>
   configuring: boolean
   progress: string | undefined
   usage: ChatBrowserSnapshot["usage"]
   error: string | undefined
-  permissions: NonNullable<ChatView.Input["permissions"]>
+  permissions: NonNullable<StorybookChatView.Input["permissions"]>
 }>
 
 type ChatSocket = Pick<WebSocket, "addEventListener" | "removeEventListener" | "send" | "close">

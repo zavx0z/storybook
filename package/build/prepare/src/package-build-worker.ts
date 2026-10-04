@@ -1,7 +1,7 @@
 import {readFileSync} from "node:fs"
 import {buildStorybookPackageRevisionInProcess} from "./in-process"
 import type {WorkerJob as StorybookPackageBuildWorkerJob, WorkerResult as StorybookPackageBuildWorkerResult} from "./worker-protocol"
-import Scheduler from "@package-build/scheduler"
+import Scheduler from "@storybook-package-build/scheduler"
 const STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL = Scheduler.STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL
 type StorybookBuildWorkerTransportEvent = NonNullable<ReturnType<typeof Scheduler.parseStorybookBuildWorkerTransportEvent>>
 type StorybookBuildPhaseEvent = Extract<StorybookBuildWorkerTransportEvent, {kind: "phase"}>["event"]

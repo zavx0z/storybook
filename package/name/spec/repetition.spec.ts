@@ -1,7 +1,7 @@
 /** Проверяет отказы общего сценария и границы сравнения имён. */
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readScenario from "@archetypes/scenario-reader"
+import readScenario from "@storybook-specs-scenarios/reader"
 
 describe.each([
   {name: "Суффикс родителя", props: {name: "number-field", ancestors: ["repo", "field"]}, repeated: ["field"]},

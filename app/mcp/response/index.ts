@@ -6,18 +6,18 @@
 */
 import type {CallToolResult} from "@modelcontextprotocol/server"
 import {sanitizeMcpString, sanitizeMcpText, sanitizeMcpValue} from "./src/public-boundary"
-import type {AppMcpResponse} from "./contract"
+import type {StorybookAppMcpResponse} from "./contract"
 
-export type {AppMcpResponse} from "./contract"
+export type {StorybookAppMcpResponse} from "./contract"
 
 /** Возвращает тот же очищенный объект в structuredContent и текстовом блоке. */
-function proxyContent(result: AppMcpResponse.Input): CallToolResult {
+function proxyContent(result: StorybookAppMcpResponse.Input): CallToolResult {
   const structuredContent = serializableRecord(result)
   return {content: [{type: "text", text: JSON.stringify(structuredContent)}], structuredContent}
 }
 
 /** Проверяет JSON-объект после сериализации и очистки публичной границы. */
-function serializableRecord(value: AppMcpResponse.Input): Record<string, unknown> {
+function serializableRecord(value: StorybookAppMcpResponse.Input): Record<string, unknown> {
   const serialized = JSON.stringify(value)
   if (serialized === undefined) throw new Error("Storybook controller result is not JSON-serializable")
   const parsed = sanitizeMcpValue(JSON.parse(serialized))
@@ -39,7 +39,7 @@ function errorContent(error: unknown): CallToolResult {
 }
 
 /** Одна вызываемая граница кодирования с её операциями очистки. */
-const response: AppMcpResponse.Output = Object.assign(proxyContent, {
+const response: StorybookAppMcpResponse.Output = Object.assign(proxyContent, {
   sanitizeString: sanitizeMcpString,
   sanitizeValue: sanitizeMcpValue,
   sanitizeText: sanitizeMcpText,

@@ -2,8 +2,8 @@
 
 @packageDocumentation
 */
-import BuildEnvironmentOwner from "@build/environment"
-import PackageSessionOwner, {type PackageSession as PackageSessionContract} from "@package/session"
+import BuildEnvironmentOwner from "@storybook-tech-build/environment"
+import PackageSessionOwner, {type StorybookPackageSession as PackageSessionContract} from "@storybook-package/session"
 const createStorybookSharedBrowserExternalPlugin = BuildEnvironmentOwner.externalPlugin
 const validateStorybookSharedBrowserIdentity = BuildEnvironmentOwner.validate
 const storybookBuildError = PackageSessionOwner.buildError
@@ -11,27 +11,27 @@ const storybookDiagnostic = PackageSessionOwner.diagnostic
 type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 type StorybookPackageDiagnostic = ReturnType<PackageSessionContract.Output["snapshot"]>["diagnostics"][number]
 type StorybookPackageRevisionResourceFile = NonNullable<PackageSessionContract.Input[0]["resourceFiles"]>[number]
-import Compiler from "@build/compiler"
+import Compiler from "@storybook-tech-build/compiler"
 import {createHash} from "node:crypto"
 import {closeSync, constants, fstatSync, mkdirSync, openSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync} from "node:fs"
 import {dirname, extname, isAbsolute, join, relative, resolve, sep} from "node:path"
-import loader, {type PackageBuildLoader} from "@package-build/loader"
-import conformance from "@package-build/conformance"
-import prepareStorybookScenarios from "@package-build/scenarios"
-import inputs from "@package-build/inputs"
-import type {PackageBuildPrepare} from "../contract"
+import loader, {type StorybookPackageBuildLoader} from "@storybook-package-build/loader"
+import conformance from "@storybook-package-build/conformance"
+import prepareStorybookScenarios from "@storybook-package-build/scenarios"
+import inputs from "@storybook-package-build/inputs"
+import type {StorybookPackageBuildPrepare} from "../contract"
 import type {BuilderInput, BuildResult, PhaseEvent, PhaseListener} from "../contract/build"
 
 const {createStorybookPackageCompilerPlugins, ensureGeneratedJsxProtocol} = Compiler
 const {check: checkStorybookPackageConformance, verify: scenarioVerification} = conformance
 const {payloadFile: STORYBOOK_REVISION_PAYLOAD_FILE, generateLoaderSource: generateStorybookLoaderSource, generateJsxModules: generateStorybookJsxModules, generateAppliedRevisionLoaderSource: generateStorybookAppliedRevisionLoaderSource, generateRevisionPayloadSource: generateStorybookRevisionPayloadSource} = loader
 const {canonicalBuildInputs, canonicalizeIdentities: canonicalizeStorybookPackageIdentities, stablePath: stableBuildInputPath, validateConsumerBoundary} = inputs
-type StorybookGeneratedScenario = Parameters<PackageBuildLoader.Output["generateJsxModules"]>[0][number]
+type StorybookGeneratedScenario = Parameters<StorybookPackageBuildLoader.Output["generateJsxModules"]>[0][number]
 
 /** Выполняет сборку внутри isolated package worker либо focused test seam. */
 export async function buildStorybookPackageRevisionInProcess(
   input: BuilderInput,
-  options: PackageBuildPrepare.Input,
+  options: StorybookPackageBuildPrepare.Input,
 ): Promise<BuildResult> {
   input.signal.throwIfAborted()
   const toolRoot = realpathSync(options.toolRoot)
@@ -118,7 +118,7 @@ export async function buildStorybookPackageRevisionInProcess(
       ensureGeneratedJsxProtocol(generatedSourceRoot, toolRoot)
       await Bun.write(join(generatedSourceRoot, "tsconfig.json"), JSON.stringify({
         compilerOptions: {target: "ESNext", module: "ESNext", moduleResolution: "Bundler",
-          jsx: "react-jsx", jsxImportSource: "@zavx0z/jsx", noEmit: true, allowImportingTsExtensions: true, strict: true, skipLibCheck: true},
+          jsx: "react-jsx", jsxImportSource: "@immersive/jsx", noEmit: true, allowImportingTsExtensions: true, strict: true, skipLibCheck: true},
         include: ["*.tsx"],
       }))
       for (const module of [...jsxModules, ...componentModules]) await Bun.write(join(stagingDirectory, module.path), module.source)

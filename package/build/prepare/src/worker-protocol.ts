@@ -1,4 +1,4 @@
-import type {BuildEnvironment} from "@build/environment"
+import type {StorybookTechBuildEnvironment} from "@storybook-tech-build/environment"
 import type {BuilderInput, BuildResult} from "../contract/build"
 
 /** Private JSON job, передаваемый точному package compiler worker. */
@@ -7,7 +7,7 @@ export type WorkerJob = Readonly<{
   options: Readonly<{
     toolRoot: string
     browserEntryPath: string
-    sharedBrowserIdentity?: ReturnType<BuildEnvironment.Output["identity"]>
+    sharedBrowserIdentity?: ReturnType<StorybookTechBuildEnvironment.Output["identity"]>
   }>
 }>
 

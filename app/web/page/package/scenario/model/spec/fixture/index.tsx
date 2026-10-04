@@ -1,4 +1,4 @@
-import {useState} from "@zavx0z/component"
+import {useState} from "@immersive/component"
 
 /** Компонент с локальным состоянием для проверки сохранения экземпляра. */
 export function StatefulFixture(props: Readonly<{name: string}>) {

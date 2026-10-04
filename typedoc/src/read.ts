@@ -9,7 +9,7 @@ import {
   isFunctionLikeDeclaration, isVariableDeclaration, isArrowFunction, isFunctionExpression,
 } from "typescript/unstable/ast/is"
 import {getLeadingCommentRanges} from "typescript/unstable/ast/scanner"
-import readModuleDocumentation from "@archetypes/package-documentation"
+import readModuleDocumentation from "@storybook-package/documentation"
 import type {Declaration, Source} from "../contract/source"
 
 /**

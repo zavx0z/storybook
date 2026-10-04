@@ -1,5 +1,5 @@
 import {resolve} from "node:path"
-import readRouteIgnored from "@route/ignored"
+import readRouteIgnored from "@storybook-package-route/ignored"
 import {hasOwnedFile, isPublicSegment, readContainedDirectory, readPackageManifest} from "./files"
 import type {PackageManifest, RoutePosition} from "../contract/types"
 

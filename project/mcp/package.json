@@ -1,0 +1,14 @@
+{
+  "name": "@storybook-project/mcp",
+  "label": "MCP проекта",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Раскрывает имя Project и переходы к участвующим Repo для агента",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "test": "bun test ./spec"
+  }
+}

@@ -1,6 +1,6 @@
-import type {ArchetypesScenarioReader} from "@archetypes/scenario-reader"
+import type {StorybookSpecsScenariosReader} from "@storybook-specs-scenarios/reader"
 /** Форма исходного публичного владельца. */
-type ReadScenarioOutput = ArchetypesScenarioReader.Output
+type ReadScenarioOutput = StorybookSpecsScenariosReader.Output
 /** Подготовленный источник одной ревизии; отсутствие файла и отсутствие результата различаются. */
 export interface ScenariosInput {
   readonly owner: {readonly kind: "repository" | "entity" | "package", readonly path: string}

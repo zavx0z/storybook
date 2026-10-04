@@ -1,7 +1,7 @@
-import Build from "@app-web/build"
-import Environment from "@build/environment"
-import Scheduler from "@package-build/scheduler"
-import type {AppWeb} from "@app/web"
+import Build from "@storybook-app-web/build"
+import Environment from "@storybook-tech-build/environment"
+import Scheduler from "@storybook-package-build/scheduler"
+import type {StorybookAppWeb} from "@storybook-app/web"
 import {createHash} from "node:crypto"
 import {mkdtempSync, mkdirSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
@@ -34,7 +34,7 @@ export function createWebArtifacts() {
       fallbackEntry: paths[1]!,
       bootstrapEntry: paths[2]!,
       browserIdentity: Environment.identity(`/__storybook/shared/${paths[1]}`, [{
-        specifier: "@zavx0z/component",
+        specifier: "@immersive/component",
         sourcePath,
         url: `/__storybook/shared/${paths[0]}`,
       }], digest(host)),
@@ -43,7 +43,7 @@ export function createWebArtifacts() {
     }
   }
   const scheduler = new Scheduler({limit: 1})
-  const input = (build: NonNullable<AppWeb.Input["build"]>, publish?: AppWeb.Input["publish"]): AppWeb.Input => ({
+  const input = (build: NonNullable<StorybookAppWeb.Input["build"]>, publish?: StorybookAppWeb.Input["publish"]): StorybookAppWeb.Input => ({
     toolRoot: root,
     artifactRoot,
     landingEntryPath: sourcePath,

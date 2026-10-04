@@ -3,7 +3,7 @@
 Передаёт прогресс и единственный итог через NDJSON без накопления ответа до конца теста.
 Закрытие соединения отменяет запрос и дочерний процесс. Живой вывод ограничен 256 Ки символов.
 */
-import {type ArchetypesScenarioReader as ArchetypesScenarioReaderContract} from "@archetypes/scenario-reader"
+import {type StorybookSpecsScenariosReader as ArchetypesScenarioReaderContract} from "@storybook-specs-scenarios/reader"
 type ReadScenarioInput = ArchetypesScenarioReaderContract.Input
 export function streamScenarioRun(
   requestSignal: AbortSignal,

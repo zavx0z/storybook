@@ -5,5 +5,5 @@
 
 @packageDocumentation
 */
-export {default} from "@chat/view"
-export type {ChatView} from "@chat/view"
+export {default} from "@storybook-chat/view"
+export type {StorybookChatView} from "@storybook-chat/view"

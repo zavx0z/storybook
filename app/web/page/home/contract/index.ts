@@ -1,12 +1,12 @@
-import type {HmrConnection} from "@hmr/connection"
-import type {PageShell} from "@page/shell"
+import type {StorybookTechHmrConnection} from "@storybook-tech-hmr/connection"
+import type {StorybookAppWebPageShell} from "@storybook-app-web-page/shell"
 import type {ExternalStorybookClientSnapshot, LandingSocket} from "./types"
 
-type CreateExternalStorybookShellOptions = PageShell.Input
-type ExternalStorybookShell = PageShell.Output
+type CreateExternalStorybookShellOptions = StorybookAppWebPageShell.Input
+type ExternalStorybookShell = StorybookAppWebPageShell.Output
 
 /** Публичный контракт @page/home. */
-export declare namespace PageHome {
+export declare namespace StorybookAppWebPageHome {
   type Input = Readonly<{
     fetcher?: typeof fetch
     browserDocument?: globalThis.Document
@@ -21,7 +21,7 @@ export declare namespace PageHome {
       shell: ExternalStorybookShell
       initialPathname: string
       refreshSharedHost?(): Promise<void>
-      reconnectSocket?(): Promise<HmrConnection.Input["socket"]>
+      reconnectSocket?(): Promise<StorybookTechHmrConnection.Input["socket"]>
       navigatePackage(input: Readonly<{packageId: string; route: string}>): Promise<void>
     }>
   }>

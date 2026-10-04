@@ -2,8 +2,8 @@ import {
   component,
   keyedComponents,
   type KeyedComponentsValue,
-} from "@zavx0z/component"
-import type {CompiledTemplate} from "@zavx0z/template/compiled"
+} from "@immersive/component"
+import type {CompiledTemplate} from "@immersive/template/compiled"
 import type {WorkbenchViewState} from "../../contract/workbench.ts"
 import {activeWorkbenchInspectorWidgets} from "./registry.ts"
 import {

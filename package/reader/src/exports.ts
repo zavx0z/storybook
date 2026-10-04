@@ -9,11 +9,11 @@ import {
 } from "typescript/unstable/ast/is"
 import {dirname, resolve} from "node:path"
 import {lstat, realpath, readFile} from "node:fs/promises"
-import readPackageIndex from "@archetypes/package-index"
-import Compiler from "@build/compiler"
-import type {ArchetypesPackage} from "../contract"
+import readPackageIndex from "@storybook-package/index"
+import Compiler from "@storybook-tech-build/compiler"
+import type {StorybookPackageReader} from "../contract"
 
-type Source = ArchetypesPackage.Output["code"][number]
+type Source = StorybookPackageReader.Output["code"][number]
 type Owner = NonNullable<Source["exports"][number]["declarations"][number]["owner"]>
 
 /** Сохраняет адрес владельца при hardlink-копии исходника; symlink продолжает раскрывать фактическую цель. */
@@ -140,7 +140,7 @@ async function moduleReferences(file: SourceFile, project: Project, root: string
 Реэкспорт сохраняет владельцев исходных объявлений; type-only не превращается в runtime.
 Не создаёт классификацию и не исполняет код проверяемых пакетов.
 */
-export async function readSourceExports(root: string, paths: readonly string[]): Promise<ArchetypesPackage.Output["code"]> {
+export async function readSourceExports(root: string, paths: readonly string[]): Promise<StorybookPackageReader.Output["code"]> {
   if (!paths.length) return []
   const api = new API({cwd: root})
   try {

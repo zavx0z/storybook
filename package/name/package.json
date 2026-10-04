@@ -1,5 +1,5 @@
 {
-  "name": "@package/name",
+  "name": "@storybook-package/name",
   "label": "Имя",
   "description": "Протокол и сценарий проверки собственного имени относительно предков до уровня Repo",
   "version": "0.0.0",
@@ -9,7 +9,7 @@
     ".": "./index.ts"
   },
   "devDependencies": {
-    "@archetypes/scenario-reader": "workspace:*"
+    "@storybook-specs-scenarios/reader": "workspace:*"
   },
   "scripts": {
     "test": "bun test ./spec",

@@ -1,15 +1,15 @@
-import type {AppWebProtocol} from "@app-web/protocol"
-import type {PackageGraphCreate} from "@package-graph/create"
-import type {WebWorkbench} from "@web/workbench"
-import type {PackageRevision} from "@package/revision"
+import type {StorybookAppWebProtocol} from "@storybook-app-web/protocol"
+import type {StorybookPackageGraphCreate} from "@storybook-package-graph/create"
+import type {StorybookAppWebPageShellWorkbench} from "@storybook-app-web-page-shell/workbench"
+import type {StorybookPackageRevision} from "@storybook-package/revision"
 
-export type WorkbenchBreadcrumb = NonNullable<ReturnType<WebWorkbench.Output["getSnapshot"]>["state"]["status"]["breadcrumbs"]>[number]
+export type WorkbenchBreadcrumb = NonNullable<ReturnType<StorybookAppWebPageShellWorkbench.Output["getSnapshot"]>["state"]["status"]["breadcrumbs"]>[number]
 
-export type ExternalStorybookClientSnapshot = ReturnType<AppWebProtocol.Output["clientSnapshot"]>
+export type ExternalStorybookClientSnapshot = ReturnType<StorybookAppWebProtocol.Output["clientSnapshot"]>
 
 export type ExternalStorybookClientNode = ExternalStorybookClientSnapshot["nodes"][number]
 
-export type ExternalStorybookGraph = PackageGraphCreate.Output
+export type ExternalStorybookGraph = StorybookPackageGraphCreate.Output
 
 export type ExternalStorybookGraphNode = ExternalStorybookGraph["nodes"][number]
 
@@ -54,7 +54,7 @@ export type ExternalStorybookPackageTabModel = Readonly<{
   tabActiveId: string
 }>
 
-export type StorybookPackageRevisionAncestor = ReturnType<PackageRevision.Output["create"]>["ancestors"][number]
+export type StorybookPackageRevisionAncestor = ReturnType<StorybookPackageRevision.Output["create"]>["ancestors"][number]
 
 export type StorybookBreadcrumbScope =
   | Readonly<{kind: "landing"}>

@@ -1,4 +1,4 @@
-export declare namespace ArchetypesPackageJson {
+export declare namespace StorybookPackagePackageJson {
   /**
   Входной контракт чтения package.json.
 

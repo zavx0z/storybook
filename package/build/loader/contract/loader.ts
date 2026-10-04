@@ -1,6 +1,6 @@
-import type {ArchetypesScenarioReader} from "@archetypes/scenario-reader"
+import type {StorybookSpecsScenariosReader} from "@storybook-specs-scenarios/reader"
 
-type Preview = NonNullable<ArchetypesScenarioReader.Output["preview"]>
+type Preview = NonNullable<StorybookSpecsScenariosReader.Output["preview"]>
 
 export type GeneratedScenario = Preview & Readonly<{nodeId: string}>
 export type LoaderInput = Readonly<{revisionUrl: string; scenarios?: readonly GeneratedScenario[]}>

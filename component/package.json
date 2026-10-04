@@ -1,5 +1,5 @@
 {
-  "name": "@archetypes/component",
+  "name": "@storybook/component",
   "label": "Компонент",
   "version": "0.0.0",
   "private": true,
@@ -9,6 +9,6 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@archetypes/package": "workspace:*"
+    "@storybook-package/reader": "workspace:*"
   }
 }

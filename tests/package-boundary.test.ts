@@ -72,7 +72,7 @@ describe("external @zavx0z/storybook tool boundary", () => {
       "app/web/src/browser-entry.ts",
     ].map((path) => Bun.file(join(root, path)).text()))
     const combined = sources.join("\n")
-    expect(combined).toContain('from "@zavx0z/browser/integration"')
+    expect(combined).toContain('from "@immersive/browser/integration"')
     expect(combined).toContain("createBrowserRoot")
     expect(combined).toContain("application.render(")
     expect(combined).toContain("root.document")
@@ -97,7 +97,7 @@ describe("external @zavx0z/storybook tool boundary", () => {
     expect(combined).not.toContain("STORYBOOK_DOM")
     expect(combined, "Внутреннее состояние рабочей области не является соседним публичным пакетом")
       .not.toContain('from "@web/workbench-model"')
-    expect(app).toContain('from "@web/workbench"')
+    expect(app).toContain('from "@storybook-app-web-page-shell/workbench"')
     expect(combined).not.toContain("createDocumentSpaceRuntime")
   })
 })

@@ -20,12 +20,12 @@ back/forward, Inspector и preview согласованы с адресом. MCP
 
 Fixed `workbench-layout/3` владеет `catalog`, `tabs`, `preview`, `inspector`,
 `status`. Основная строка состоит из двух колонок: содержимого и Inspector.
-`catalog` находится во вкладке «Дерево» Inspector, поле поиска в этой вкладке отсутствует.
+`catalog` находится во вкладке «Ветка» Inspector, поле поиска в этой вкладке отсутствует.
 Переключение секции сохраняет дерево, его раскрытие и содержимое Preview.
 `tabs` — визуально неподписанная полоса непосредственно над preview;
 её label служит доступным именем toolbar. `catalog` и `preview` также не
 рендерят видимые headings. Оболочка содержит один production
-`@zavx0z/ui/widget/inspector#Inspector`; его секции встроены в Storybook и
+`@immersive-ui/component/widget/inspector#Inspector`; его секции встроены в Storybook и
 не объявляются пакетом. Workbench не заменяет navigation или production UI
 владельцев локальной разметкой.
 
@@ -50,7 +50,7 @@ Workbench использует production компоненты UI для нав�
 состоит из физических пакетов и директорий. Общая тема
 принадлежит Storybook и подключается через публичный `.css` export UI.
 Видимый shell остаётся одним compiled TSX ComponentRoot. Inspector получает
-direct keyed `@zavx0z/ui/surface/panel#Panel` children; rail/content остаются
+direct keyed `@immersive-ui/component/surface/panel#Panel` children; rail/content остаются
 его внутренними частями. Компоненты Workbench пишут CSS в собственном
 `style={css\`\`}`. Общие production owners сохраняют свои padding, focus,
 selected, disabled и shadow, а Storybook задаёт только контекстное размещение.
@@ -60,8 +60,10 @@ selected, disabled и shadow, а Storybook задаёт только конте�
 В Display [Workbench](../index.tsx) показывает текущий узел каталога и
 только его потомков. Родители и соседние ветви остаются в Minimap HUD.
 Корень определяется текущим структурным выбором, поэтому переход по адресу и
-Back/Forward меняют ветку без отдельного состояния навигации. Поиск в Display
-ограничен этой веткой; на главной странице без выбранного узла виден весь каталог.
+Back/Forward меняют ветку без отдельного состояния навигации. Клик и Enter в
+ветке не изменяют адрес, её корень или состав. Поиск Minimap не фильтрует ветку.
+Во вкладке «Ветка» остаются только раскрытие и сворачивание; на главной странице
+без выбранного узла виден весь каталог, без добавления и удаления Repo.
 
 [CatalogPanel](../catalog/index.tsx) используется в Display и
 [Minimap](../../minimap/index.tsx) в HUD. Поиск и выбранная страница принадлежат
@@ -76,14 +78,16 @@ Back/Forward меняют ветку без отдельного состоян�
 целое окно, а его шапка сворачивает оболочку обратно в этот control.
 
 Canonical graph проецируется адаптером `WorkbenchNavigationTree` в общий
-`@zavx0z/ui/widget/tree`. UI владеет строками, disclosure, клавиатурой,
+`@immersive-ui/component/widget/tree`. UI владеет строками, disclosure, клавиатурой,
 фокусом и ограниченной отрисовкой большого дерева; Storybook владеет поиском
 по графу, адресами переходов, действием удаления и состоянием раскрытия.
 Физические пакеты и директории показывают имена своих каталогов. У пакета его
 объявленный `package.json#label` остаётся подсказкой при наведении на подпись;
 поиск находит и имя каталога, и label. Заголовок страницы,
 breadcrumbs и package identity продолжают использовать свои доменные данные.
-Group toggle не навигирует. Свёрнутые ID узлов сохраняются для текущего origin
+Group toggle не навигирует. Minimap без сохранённого состояния начинает со свёрнутых ветвей, в том числе
+при получении каталога после монтажа. Явно сохранённый пустой список восстанавливает
+раскрытое дерево. Свёрнутые ID узлов сохраняются для текущего origin
 в `localStorage` и восстанавливаются после перезагрузки; некорректная или
 недоступная запись не мешает навигации. Фокус не сохраняется как часть раскрытия.
 Сворачивание ветви закрывает всех её потомков рекурсивно; повторное раскрытие
@@ -116,7 +120,7 @@ URL, native title и breadcrumbs синхронизируются с выбор�
 из своей immutable `storybook-package-graph/6` ревизии. Цепочка предков
 включает реальные вложенные директории; изменения родителя сами по себе не
 меняют ревизию дочернего пакета. Topic `catalog` обновляет дерево, сохраняя
-изолированные PackageSession.
+изолированные StorybookPackageSession.
 
 Один контроллер страницы владеет Root, Document, Canvas и вводом. Внутренняя
 навигация заменяет выбранное содержимое через History API без reload и второго
@@ -139,7 +143,7 @@ lastWorking. Общая тема Workbench остаётся у оболочки.
 ## Общая тема
 
 Storybook получает тему из exact public CSS export
-`@zavx0z/ui/theme/theme.css`, фиксирует bytes и digest в immutable revision
+`@immersive-ui/component/theme/theme.css`, фиксирует bytes и digest в immutable revision
 и подключает один native `<link>` к той же странице. Каталог пакета не задаёт
 `authorStyleSheets`; стили компонента остаются у его production владельца.
 

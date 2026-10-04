@@ -1,12 +1,12 @@
-import ServerState from "@app-server/state"
+import ServerState from "@storybook-app-server/state"
 const {createExternalStorybookServerRecord, writeExternalStorybookServerRecord, externalStorybookControlAuthorization} = ServerState
 import {mkdtempSync, rmSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join, resolve} from "node:path"
-import requestStorybook, {type AppMcpProxy} from "../../index"
+import requestStorybook, {type StorybookAppMcpProxy} from "../../index"
 import type {ProxyStep} from "./index"
 
-const {steps, request} = await Bun.stdin.json() as {steps: ProxyStep[], request: AppMcpProxy.Input}
+const {steps, request} = await Bun.stdin.json() as {steps: ProxyStep[], request: StorybookAppMcpProxy.Input}
 const stateRoot = mkdtempSync(join(tmpdir(), "storybook-proxy-"))
 Bun.env.STORYBOOK_STATE_ROOT = stateRoot
 const servers: ReturnType<typeof Bun.serve>[] = []

@@ -1,5 +1,5 @@
 {
-  "name": "@repo/discovery",
+  "name": "@storybook-repo/discovery",
   "label": "Обнаружение репозитория",
   "version": "0.0.0",
   "private": true,
@@ -11,16 +11,16 @@
   "dependencies": {
     "@immersive/typedoc": "^0.0.0",
     "typescript": "^7.0.2",
-    "@route/directories": "workspace:*",
-    "@route/ignored": "workspace:*",
-    "@archetypes/package-documentation": "workspace:*",
-    "@archetypes/package-json": "workspace:*",
-    "@archetypes/package-index": "workspace:*",
-    "@archetypes/contracts": "workspace:*",
-    "@route/workspaces": "workspace:*",
-    "@package/identity": "workspace:*"
+    "@storybook-package-route/directories": "workspace:*",
+    "@storybook-package-route/ignored": "workspace:*",
+    "@storybook-package/documentation": "workspace:*",
+    "@storybook-package/package-json": "workspace:*",
+    "@storybook-package/index": "workspace:*",
+    "@storybook/contracts": "workspace:*",
+    "@storybook-package-route/workspaces": "workspace:*",
+    "@storybook-package/identity": "workspace:*"
   },
   "devDependencies": {
-    "@package-graph/create": "workspace:*"
+    "@storybook-package-graph/create": "workspace:*"
   }
 }

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
-import serveMcpStdio from "@mcp/stdio"
-import createLazyMcpServer from "@mcp/lazy"
+import serveMcpStdio from "@storybook-tech-mcp/stdio"
+import createLazyMcpServer from "@storybook-tech-mcp/lazy"
 import {fileURLToPath} from "node:url"
 import {join} from "node:path"
 import {tmpdir} from "node:os"

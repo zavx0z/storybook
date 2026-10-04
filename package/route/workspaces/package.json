@@ -1,5 +1,5 @@
 {
-  "name": "@route/workspaces",
+  "name": "@storybook-package-route/workspaces",
   "label": "Пакеты workspaces",
   "version": "0.0.0",
   "private": true,
@@ -9,7 +9,7 @@
     ".": "./index.ts"
   },
   "devDependencies": {
-    "@route/resolve": "workspace:*",
-    "@route/children": "workspace:*"
+    "@storybook-package-route/resolve": "workspace:*",
+    "@storybook-package-route/children": "workspace:*"
   }
 }

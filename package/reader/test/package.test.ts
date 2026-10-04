@@ -2,11 +2,11 @@ import {afterAll, describe, expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm, symlink, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {resolve} from "node:path"
-import readPackage from "@archetypes/package"
-import readModuleDocumentation from "@archetypes/package-documentation"
-import readPackageIndex from "@archetypes/package-index"
-import readPackageJson from "@archetypes/package-json"
-import readScenario from "@archetypes/scenario-reader"
+import readPackage from "@storybook-package/reader"
+import readModuleDocumentation from "@storybook-package/documentation"
+import readPackageIndex from "@storybook-package/index"
+import readPackageJson from "@storybook-package/package-json"
+import readScenario from "@storybook-specs-scenarios/reader"
 
 const root = await realpath(await mkdtemp(resolve(tmpdir(), "archetype-package-")))
 afterAll(() => rm(root, {recursive: true, force: true}))

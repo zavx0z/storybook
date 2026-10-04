@@ -1,8 +1,8 @@
-import createWeb from "@app/web"
-import AppWebBuildOwner from "@app-web/build"
-import BuildEnvironmentOwner from "@build/environment"
-import RepoDiscoveryOwner from "@repo/discovery"
-import AppServerCatalogOwner, {type AppServerCatalog as AppServerCatalogContract} from "@app-server/catalog"
+import createWeb from "@storybook-app/web"
+import AppWebBuildOwner from "@storybook-app-web/build"
+import BuildEnvironmentOwner from "@storybook-tech-build/environment"
+import RepoDiscoveryOwner from "@storybook-repo/discovery"
+import AppServerCatalogOwner, {type StorybookAppServerCatalog as AppServerCatalogContract} from "@storybook-app-server/catalog"
 const discoverStorybookPackages = RepoDiscoveryOwner
 const ExternalStorybookRegistry = AppServerCatalogOwner
 type ExternalStorybookRegistry = AppServerCatalogContract.Output
@@ -12,11 +12,11 @@ import {mkdirSync, realpathSync, writeFileSync} from "node:fs"
 import {mkdtemp, mkdir, realpath, rm} from "node:fs/promises"
 import {dirname, join} from "node:path"
 import {tmpdir} from "node:os"
-import WebNavigationOwner from "@web/navigation"
+import WebNavigationOwner from "@storybook-app-web-page/navigation"
 const deriveExternalStorybookLanding = WebNavigationOwner.deriveExternalStorybookLanding
 const deriveExternalStorybookLandingSelection = WebNavigationOwner.deriveExternalStorybookLandingSelection
 const deriveExternalStorybookNavigationTree = WebNavigationOwner.deriveExternalStorybookNavigationTree
-import startExternalStorybookServer from "@app/server"
+import startExternalStorybookServer from "@storybook-app/server"
 
 const roots: string[] = []
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, {recursive: true, force: true}))) })

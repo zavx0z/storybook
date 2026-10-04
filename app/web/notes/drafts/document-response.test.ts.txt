@@ -1,6 +1,6 @@
 // Прежний интеграционный тест окна, сохранённый для будущей адаптации в app.
 import {expect, test} from "bun:test"
-import type {CompiledTemplate} from "@zavx0z/template/compiled"
+import type {CompiledTemplate} from "@immersive/template/compiled"
 import type {McpWindowProps} from "../../../../app-old/index"
 import {command, createWindowHost} from "../../scenario/model/spec/fixture"
 

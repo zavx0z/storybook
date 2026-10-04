@@ -1,7 +1,7 @@
 import {expect, test} from "bun:test"
 import {Client, InMemoryTransport} from "@modelcontextprotocol/client"
 import {McpServer} from "@modelcontextprotocol/server"
-import mcp from "@app/mcp"
+import mcp from "@storybook-app/mcp"
 
 test("lazy storybook передаёт полный предметный JSON без загрузки управления", async () => {
   const server = new McpServer({name: "storybook-subject-test", version: "1"})

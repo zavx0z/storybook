@@ -1,5 +1,5 @@
 {
-  "name": "@package/artifacts",
+  "name": "@storybook-package/artifacts",
   "label": "Артефакты пакета",
   "version": "0.0.0",
   "private": true,

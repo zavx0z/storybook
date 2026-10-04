@@ -1,6 +1,6 @@
-import type {RootLinkedAuthorStyleSheet} from "@zavx0z/browser/integration"
+import type {RootLinkedAuthorStyleSheet} from "@immersive/browser/integration"
 
-export declare namespace WebStyleSheets {
+export declare namespace StorybookAppWebPageStyleSheets {
   /** Native Document страницы, содержащий серверный индекс ссылок авторских стилей. */
   export type Input = globalThis.Document
 

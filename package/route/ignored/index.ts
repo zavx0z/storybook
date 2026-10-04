@@ -5,10 +5,10 @@
 */
 import {realpath} from "node:fs/promises"
 import {dirname, resolve} from "node:path"
-import type {RouteIgnored} from "./contract"
+import type {StorybookPackageRouteIgnored} from "./contract"
 import {isContained, runGit} from "./src/git"
 
-export type {RouteIgnored} from "./contract"
+export type {StorybookPackageRouteIgnored} from "./contract"
 
 /**
 Возвращает exclusions и reusable Git root одного traversal run.
@@ -20,7 +20,7 @@ export default async function readRouteIgnored({
   root,
   paths,
   repository,
-}: RouteIgnored.Input): Promise<RouteIgnored.Output> {
+}: StorybookPackageRouteIgnored.Input): Promise<StorybookPackageRouteIgnored.Output> {
   const rootPath = await realpath(resolve(root))
   const absolutePaths = paths.map(path => resolve(path))
   if (absolutePaths.some(path => !isContained(rootPath, path))) {

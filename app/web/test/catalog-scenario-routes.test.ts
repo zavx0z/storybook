@@ -1,8 +1,8 @@
-import RepoDiscoveryOwner from "@repo/discovery"
-import PackageGraphCreateOwner from "@package-graph/create"
-import PackageGraphReadOwner from "@package-graph/read"
-import PackageBuildDescriptorOwner from "@package-build/descriptor"
-import PackageRevisionOwner from "@package/revision"
+import RepoDiscoveryOwner from "@storybook-repo/discovery"
+import PackageGraphCreateOwner from "@storybook-package-graph/create"
+import PackageGraphReadOwner from "@storybook-package-graph/read"
+import PackageBuildDescriptorOwner from "@storybook-package-build/descriptor"
+import PackageRevisionOwner from "@storybook-package/revision"
 const discoverStorybookPackages = RepoDiscoveryOwner
 const createExternalStorybookGraph = PackageGraphCreateOwner
 const resolveExternalStorybookRoute = PackageGraphReadOwner.resolve
@@ -12,7 +12,7 @@ import {afterEach, expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import WebNavigationOwner from "@web/navigation"
+import WebNavigationOwner from "@storybook-app-web-page/navigation"
 const deriveExternalStorybookPackageTab = WebNavigationOwner.deriveExternalStorybookPackageTab
 
 const roots: string[] = []

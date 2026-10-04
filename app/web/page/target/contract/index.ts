@@ -1,6 +1,6 @@
 import type {PrepareInput, Target} from "./target"
 
-export declare namespace WebPageTarget {
+export declare namespace StorybookAppWebPageTarget {
   /** Операции чтения trusted bootstrap и запроса server-owned цели перехода. */
   export type Output = Readonly<{
     /** Читает JSON из серверного HTML, не исполняя runtime и не выбирая ревизию. */

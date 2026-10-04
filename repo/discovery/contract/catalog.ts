@@ -28,7 +28,7 @@ export type StorybookSourceReference = Readonly<{
 }>
 
 /** Документация входного модуля из контракта владельца пакета. */
-export type StorybookModuleDocumentation = NonNullable<ReturnType<typeof import("@archetypes/package-documentation").default>>
+export type StorybookModuleDocumentation = NonNullable<ReturnType<typeof import("@storybook-package/documentation").default>>
 
 /**
 Разобранное описание одного направления контракта.

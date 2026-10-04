@@ -9,7 +9,7 @@ import type {
   StorybookBreadcrumbScope,
 } from "./types"
 
-export declare namespace WebNavigation {
+export declare namespace StorybookAppWebPageNavigation {
   /** Проекции физического графа и передача намерения перехода владельцу страницы. */
   export type Output = Readonly<{
     /** Проецирует физических владельцев пакетов в дерево общего каталога. */

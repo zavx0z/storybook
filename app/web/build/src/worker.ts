@@ -1,6 +1,6 @@
 import {readFileSync, writeFileSync} from "node:fs"
 import {buildSharedBrowserAssets} from "./browser-build"
-import Scheduler from "@package-build/scheduler"
+import Scheduler from "@storybook-package-build/scheduler"
 import type {SharedBrowserBuildInput} from "../contract/build"
 import {saveSharedBrowserCandidate} from "./receipt"
 

@@ -1,5 +1,5 @@
-import {type McpRest as McpRestContract} from "@mcp/rest"
-import {type AppServerCatalog as AppServerCatalogContract} from "@app-server/catalog"
+import {type StorybookAppMcpRest as McpRestContract} from "@storybook-app-mcp/rest"
+import {type StorybookAppServerCatalog as AppServerCatalogContract} from "@storybook-app-server/catalog"
 type StorybookRestOptions = McpRestContract.Input[1]
 type ExternalStorybookRegistrySnapshot = ReturnType<AppServerCatalogContract.Output["snapshot"]>
 import {dirname, join} from "node:path"
@@ -8,8 +8,13 @@ import {dirname, join} from "node:path"
 Передаёт в MCP публичную структуру того же каталога, который показывает Workbench.
 Категории сохраняют своё место; контракты и сценарии принадлежат точному узлу.
 Пути исходников используются читателем и не становятся полями публичного ответа.
+У пакетов чтение типа делегируется сохранённой нормативной проверке их ревизии.
+Директории и входы сред не наследуют тип содержащего пакета.
 */
-export function storybookMcpEntries(snapshot: Pick<ExternalStorybookRegistrySnapshot, "catalog" | "graph">): StorybookRestOptions["entries"] {
+export function storybookMcpEntries(
+  snapshot: Pick<ExternalStorybookRegistrySnapshot, "catalog" | "graph">,
+  readType: (packageId: string) => ReturnType<NonNullable<StorybookRestOptions["entries"][number]["readType"]>> = async () => ({status: "unknown", reason: "missing-report"}),
+): StorybookRestOptions["entries"] {
   const nodes = snapshot.graph.nodes.filter(node => node.packageId !== null)
   const paths = new Map(nodes.map(node => [node.id, node.urlPath.slice(1)]))
   const descriptions = new Map(snapshot.catalog.scopes.map(scope => [scope.canonicalId, scope.description ?? ""]))
@@ -34,6 +39,7 @@ export function storybookMcpEntries(snapshot: Pick<ExternalStorybookRegistrySnap
       label: node.label,
       ...(summary ? {summary} : {}),
       parent: node.parentId === null ? null : paths.get(node.parentId) ?? null,
+      ...(node.kind === "package" ? {readType: () => readType(node.packageId!)} : {}),
       sources: {
         ...(input === undefined ? {} : {input}),
         ...(output === undefined ? {} : {output}),

@@ -1,8 +1,8 @@
-import type {ArchetypesComponent} from "@archetypes/component"
+import type {StorybookComponent} from "@storybook/component"
 
-export declare namespace ArchetypesContainer {
+export declare namespace StorybookContainer {
   /** Тот же путь к физическому владельцу; признак Container не передаётся вызывающим кодом. */
-  export type Input = ArchetypesComponent.Input
+  export type Input = StorybookComponent.Input
 
   /**
   Собственная публичная реализация и состав композиции без исполнения кода.
@@ -18,11 +18,11 @@ export declare namespace ArchetypesContainer {
   Package. Импорт ещё не доказывает вызов.
   */
   export interface Output {
-    readonly component: ArchetypesComponent.Output
+    readonly component: StorybookComponent.Output
     readonly parts: readonly {
       readonly name: string
       readonly path: string
-      readonly references: ArchetypesComponent.Output["package"]["code"][number]["references"]
+      readonly references: StorybookComponent.Output["package"]["code"][number]["references"]
     }[]
   }
 }

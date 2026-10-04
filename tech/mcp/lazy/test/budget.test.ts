@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import createLazyMcpServer from "@mcp/lazy"
+import createLazyMcpServer from "@storybook-tech-mcp/lazy"
 
 test.each([0, -1, Infinity, NaN])("отклоняет некорректный явный срок клиента: %s", timeoutMs => {
   expect(() => createLazyMcpServer({

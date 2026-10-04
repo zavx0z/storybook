@@ -3,9 +3,9 @@ import {afterAll, describe, expect, test} from "bun:test"
 import {mkdtempSync, mkdirSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import Sessions from "@app-server/sessions"
-import Registry from "@app-server/catalog"
-import discoverStorybookPackages from "@repo/discovery"
+import Sessions from "@storybook-app-server/sessions"
+import Registry from "@storybook-app-server/catalog"
+import discoverStorybookPackages from "@storybook-repo/discovery"
 
 const fixtureRoot = join(import.meta.dir, "../../../../repo/discovery/fixtures/valid")
 

@@ -1,28 +1,28 @@
-import WebProtocol from "@app-web/protocol"
-import RouteUrlOwner from "@route/url"
+import WebProtocol from "@storybook-app-web/protocol"
+import RouteUrlOwner from "@storybook-package-route/url"
 const storybookPackageUrlPath = RouteUrlOwner.storybookPackageUrlPath
-import {DisplayElement} from "@zavx0z/dom/display"
-import ScenarioInspector from "@scenario/inspector"
-import presentationRootFixture from "@web/browser-fixture"
-import {createRoot} from "@zavx0z/component"
-import {createDocumentClipboardController} from "@zavx0z/browser/clipboard"
+import {DisplayElement} from "@immersive/dom/display"
+import StorybookAppWebPagePackageScenarioInspector from "@storybook-app-web-page-package-scenario/inspector"
+import presentationRootFixture from "@storybook-tech-testing/browser-root"
+import {createRoot} from "@immersive/component"
+import {createDocumentClipboardController} from "@immersive/browser/clipboard"
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
-import {createDocument} from "@zavx0z/dom"
-import type {Presentation as Root, RootDocumentProjection, RootProjection, RootSpaceProjection} from "@zavx0z/browser/integration"
-import type {RenderFrame} from "@renderer/html"
-import {createSpaceElementFactories} from "@zavx0z/space"
-import {HUDElement} from "@zavx0z/dom/hud"
-import {SpaceElement} from "@zavx0z/dom/space"
-import {ViewPointElement} from "@zavx0z/dom/viewpoint"
-import discoverStorybookPackages from "@repo/discovery"
-import createExternalStorybookGraph, {type PackageGraphCreate} from "@package-graph/create"
-type ExternalStorybookGraph = PackageGraphCreate.Output
-import type {PackageSession} from "@package/session"
-type StorybookPackageSessionSnapshot = ReturnType<PackageSession.Output["snapshot"]>
-import startExternalStorybookLanding from "@page/home"
-import type {PageShell} from "@page/shell"
-type ExternalStorybookRootFactory = NonNullable<PageShell.Input["createRoot"]>
+import {createDocument} from "@immersive/dom"
+import type {Presentation as Root, RootDocumentProjection, RootProjection, RootSpaceProjection} from "@immersive/browser/integration"
+import type {RenderFrame} from "@immersive-renderer/html"
+import {createSpaceElementFactories} from "@immersive/space"
+import {HUDElement} from "@immersive/dom/hud"
+import {SpaceElement} from "@immersive/dom/space"
+import {ViewPointElement} from "@immersive/dom/viewpoint"
+import discoverStorybookPackages from "@storybook-repo/discovery"
+import createExternalStorybookGraph, {type StorybookPackageGraphCreate} from "@storybook-package-graph/create"
+type ExternalStorybookGraph = StorybookPackageGraphCreate.Output
+import type {StorybookPackageSession} from "@storybook-package/session"
+type StorybookPackageSessionSnapshot = ReturnType<StorybookPackageSession.Output["snapshot"]>
+import startExternalStorybookLanding from "@storybook-app-web-page/home"
+import type {StorybookAppWebPageShell} from "@storybook-app-web-page/shell"
+type ExternalStorybookRootFactory = NonNullable<StorybookAppWebPageShell.Input["createRoot"]>
 
 const fixtureRoot = join(import.meta.dir, "../../../../../repo/discovery/fixtures/valid")
 
@@ -85,7 +85,7 @@ describe("external Storybook landing frontend", () => {
       // Домашнюю ссылку landing проверяем из его собственного обзора директории.
       await controller.select("directory:package:@fixture/components/docs")
       expect(controller.shell.workbench.controller.read("catalog.active")).toBe("directory:package:@fixture/components/docs")
-      const homeButton = controller.shell.workbench.elements.status.querySelector('[data-breadcrumb-id="storybook:root"] button') as import("@zavx0z/dom").HTMLButtonElement
+      const homeButton = controller.shell.workbench.elements.status.querySelector('[data-breadcrumb-id="storybook:root"] button') as import("@immersive/dom").HTMLButtonElement
       expect(homeButton.hasAttribute("disabled")).toBeFalse()
       homeButton.click()
       await waitUntil(() => location.pathname === "/")
@@ -109,7 +109,7 @@ describe("external Storybook landing frontend", () => {
     } finally { controller.dispose() }
   })
 
-  test("отложенные действия с Repo видны disabled и не изменяют каталог", async () => {
+  test("главная показывает каталог без добавления и удаления Repo", async () => {
     const graph = await fixtureGraph()
     const snapshot = WebProtocol.clientSnapshot(graph, packageSnapshots(graph), "Fixture Project")
     const requests: string[] = []
@@ -137,13 +137,11 @@ describe("external Storybook landing frontend", () => {
     try {
       const element = controller.shell.workbench.element
       const before = controller.shell.workbench.controller.read("catalog.items")
-      const add = element.querySelector('[aria-label="Добавить репозиторий"]') as import("@zavx0z/dom").HTMLButtonElement
-      const remove = element.querySelector('[aria-label="Удалить Fixture Workspace из каталога"]') as import("@zavx0z/dom").HTMLButtonElement
-      expect(add.hasAttribute("disabled")).toBeTrue()
-      expect(remove.hasAttribute("disabled")).toBeTrue()
-      add.click()
-      remove.click()
-      await new Promise(resolve => setTimeout(resolve, 0))
+      expect(controller.shell.workbench.controller.read("catalog.management")).toBeNull()
+      for (const surface of [element, controller.shell.document.querySelector("[data-storybook-minimap]")!]) {
+        expect(surface.querySelector('[aria-label="Добавить репозиторий"]')).toBeNull()
+        expect(surface.querySelector('[aria-label="Удалить Fixture Workspace из каталога"]')).toBeNull()
+      }
       expect(picks).toBe(0)
       expect(requests).toEqual(["/api/client", "/api/browser/registry-session"])
       expect(controller.shell.workbench.controller.read("catalog.items")).toEqual(before)
@@ -170,7 +168,7 @@ describe("external Storybook landing frontend", () => {
     workbench.update("inspector.subject", {packageId: "@fixture/components", subjectId: "stale", workspaceId: "stale", widgetIds: ["source"]})
     workbench.update("inspector.values", {source: "stale"})
     workbench.update("inspector.registry", [...registry, {
-      id: "fixture-custom", kind: "custom", label: "X", title: "Fixture", component: ScenarioInspector,
+      id: "fixture-custom", kind: "custom", label: "X", title: "Fixture", component: StorybookAppWebPagePackageScenarioInspector,
     }] as never)
     const document = first.shell.document
     const space = first.shell.space

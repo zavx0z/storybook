@@ -3,14 +3,14 @@ import {createHash} from "node:crypto"
 import {mkdir, mkdtemp, readFile, rm, stat} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import createChatSessions, {type ChatSession} from "@chat/session"
+import createChatSessions, {type StorybookChatSession} from "@storybook-chat/session"
 
 const cleanup: (() => Promise<void>)[] = []
 afterEach(async () => {
   for (const close of cleanup.splice(0).reverse()) await close()
 })
 
-async function fixture(connect: ChatSession.Input["connect"]) {
+async function fixture(connect: StorybookChatSession.Input["connect"]) {
   const root = await mkdtemp(join(tmpdir(), "storybook-chat-relocation-"))
   const oldCwd = join(root, "old")
   const newCwd = join(root, "new")
@@ -19,7 +19,7 @@ async function fixture(connect: ChatSession.Input["connect"]) {
   await mkdir(newCwd)
   cleanup.push(() => rm(root, {recursive: true, force: true}))
   let addresses = new Set(["/old"])
-  const input: ChatSession.Input = {
+  const input: StorybookChatSession.Input = {
     directory,
     resolve(address) {
       if (!addresses.has(address)) throw new Error("Адрес отсутствует в текущем каталоге")
@@ -40,7 +40,7 @@ async function fixture(connect: ChatSession.Input["connect"]) {
   }
 }
 
-async function settled(chats: ChatSession.Output, address: string) {
+async function settled(chats: StorybookChatSession.Output, address: string) {
   for (let attempt = 0; attempt < 100; attempt++) {
     const state = await chats.read(address)
     if (state.status === "idle" || state.status === "failed") return state
@@ -49,7 +49,7 @@ async function settled(chats: ChatSession.Output, address: string) {
   throw new Error("Беседа не завершилась")
 }
 
-const successfulConnect: ChatSession.Input["connect"] = async input => ({
+const successfulConnect: StorybookChatSession.Input["connect"] = async input => ({
   sessionId: input.previousSessionId ?? "retained-acp-session",
   configOptions: [],
   async setConfigOption() { throw new Error("Настройки не предоставлены этим исполнителем") },

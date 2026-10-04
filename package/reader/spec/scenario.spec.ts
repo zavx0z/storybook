@@ -9,10 +9,10 @@ props.path позволяет применить те же проверки к �
 */
 import {describe, expect, test} from "bun:test"
 import {basename, dirname, relative, resolve, sep} from "node:path"
-import readPackage from "@archetypes/package"
-import readContract from "@archetypes/contracts"
-import readDomain from "@archetypes/domain"
-import readScenario from "@archetypes/scenario-reader"
+import readPackage from "@storybook-package/reader"
+import readContract from "@storybook/contracts"
+import readDomain from "@storybook/domain"
+import readScenario from "@storybook-specs-scenarios/reader"
 import {runtimeOwnedParts} from "./runtime-owned-parts"
 
 describe.each([
@@ -152,6 +152,15 @@ describe.each([
     }, 30_000)
     test.todo("Смысл именования", () => {
       expect(undefined, "Смысл имени ещё не проверен сценарием Name; отсутствие повторения не доказывает его правильность").toBeDefined()
+    })
+  })
+
+  /** @remarks Для вложенного пакета scope раскрывает путь от Repo до родителя. Имя самого Repo этой формулой не задаётся. */
+  describe.skipIf(repositoryRoot === null || repo)("Имя по расположению", () => {
+    test("Путь родителей в npm-имени", () => {
+      expect(result.packageJson.name,
+        "Полное имя вложенного пакета имеет вид @repo-предок-родитель/пакет: scope содержит все директории от Repo до непосредственного родителя в исходном порядке, а имя после / совпадает с именем директории пакета. Например, storybook/package/name → @storybook-package/name")
+        .toBe(`@${directoryAncestors.join("-")}/${basename(result.root)}`)
     })
   })
 

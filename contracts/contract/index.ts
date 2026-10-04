@@ -1,7 +1,7 @@
 import type {Declaration, Diagnostic, Extension, Namespace} from "./declaration"
 
 /** Типовая сторона публичного читателя контракта. */
-export declare namespace ArchetypesContracts {
+export declare namespace StorybookContracts {
   /**
   Выбор владельца публичного контракта.
 

@@ -1,4 +1,4 @@
-import type {PackageRevision} from "@package/revision"
+import type {StorybookPackageRevision} from "@storybook-package/revision"
 import type {
   StorybookPackageActivation,
   StorybookPackageBuildDemand,
@@ -9,7 +9,7 @@ import type {
 } from "./types"
 
 /** Публичный контракт одного независимо обновляемого пакета. */
-export declare namespace PackageSession {
+export declare namespace StorybookPackageSession {
   /** Дескриптор пакета и предоставленные возможности подготовки ревизии. */
   export type Input = [descriptor: StorybookPackageBuildDescriptor, options: StorybookPackageSessionOptions]
 
@@ -41,7 +41,7 @@ export declare namespace PackageSession {
       diagnostic: StorybookPackageDiagnostic | readonly StorybookPackageDiagnostic[]
     }>): StorybookPackageSessionSnapshot
     acquireRevisionLease(revision: string, leaseId?: string): Readonly<{leaseId: string, revision: string, release(): void}>
-    revisionGraphSnapshot(revision: string): ReturnType<PackageRevision.Output["create"]> | null
+    revisionGraphSnapshot(revision: string): ReturnType<StorybookPackageRevision.Output["create"]> | null
     revisionDirectory(revision?: string | null): string | null
     dispose(): Promise<void>
   }

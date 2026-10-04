@@ -1,5 +1,5 @@
 {
-  "name": "@archetypes/project",
+  "name": "@storybook/project",
   "label": "Проект",
   "version": "0.0.0",
   "private": true,
@@ -9,6 +9,6 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@archetypes/package-json": "workspace:*"
+    "@storybook-package/package-json": "workspace:*"
   }
 }

@@ -1,6 +1,6 @@
 import {expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readScenario from "@archetypes/scenario-reader"
+import readScenario from "@storybook-specs-scenarios/reader"
 
 test.each([
   {name: "Руководство сценариев", path: resolve(import.meta.dir, "../spec/scenario.spec.ts"), count: 3},

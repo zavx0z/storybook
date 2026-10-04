@@ -1,5 +1,5 @@
 {
-  "name": "@scenario/inspector",
+  "name": "@storybook-app-web-page-package-scenario/inspector",
   "label": "Инспектор сценария",
   "version": "0.0.0",
   "private": true,
@@ -9,9 +9,9 @@
     ".": "./index.tsx"
   },
   "dependencies": {
-    "@zavx0z/component": "^0.0.0",
-    "@zavx0z/ui": "^0.0.0",
-    "@scenario/model": "workspace:*"
+    "@immersive/component": "^0.0.0",
+    "@immersive-ui/component": "^0.0.0",
+    "@storybook-app-web-page-package-scenario/model": "workspace:*"
   },
   "devDependencies": {
     "@immersive/headless": "^0.0.0"

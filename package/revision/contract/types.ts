@@ -1,5 +1,5 @@
-import type {RepoDiscovery} from "@repo/discovery"
-type Package = Extract<RepoDiscovery.Output["scopes"][number], {kind: "package"}>
+import type {StorybookRepoDiscovery} from "@storybook-repo/discovery"
+type Package = Extract<StorybookRepoDiscovery.Output["scopes"][number], {kind: "package"}>
 export type StorybookPackageRevisionAncestor = Readonly<{
   id: string
   parentId: string | null

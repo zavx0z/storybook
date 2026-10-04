@@ -1,6 +1,6 @@
-import type {RepoDiscovery} from "@repo/discovery"
+import type {StorybookRepoDiscovery} from "@storybook-repo/discovery"
 
-type Scope = Extract<RepoDiscovery.Output["scopes"][number], {kind: "package"}>
+type Scope = Extract<StorybookRepoDiscovery.Output["scopes"][number], {kind: "package"}>
 type Document = NonNullable<Scope["contractDocumentation"]>["documents"][number]
 export type ContractSchema = NonNullable<Document["document"]["declarations"][number]["schema"]>
 

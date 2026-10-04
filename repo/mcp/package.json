@@ -1,0 +1,14 @@
+{
+  "name": "@storybook-repo/mcp",
+  "label": "MCP: Репозиторий",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Заглушка предметного MCP для Repo",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "scripts": {
+    "test": "bun test ./spec"
+  }
+}

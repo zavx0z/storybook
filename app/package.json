@@ -9,18 +9,18 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@app-server/state": "workspace:*",
-    "@app/mcp": "workspace:*",
-    "@mcp/stdio": "workspace:*",
-    "@package/artifacts": "workspace:*",
-    "@app/server": "workspace:*",
-    "@tech/limits": "workspace:*",
-    "@mcp/lazy": "workspace:*",
-    "@app/web": "workspace:*"
+    "@storybook-app-server/state": "workspace:*",
+    "@storybook-app/mcp": "workspace:*",
+    "@storybook-tech-mcp/stdio": "workspace:*",
+    "@storybook-package/artifacts": "workspace:*",
+    "@storybook-app/server": "workspace:*",
+    "@storybook-tech/limits": "workspace:*",
+    "@storybook-tech-mcp/lazy": "workspace:*",
+    "@storybook-app/web": "workspace:*"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "^2.0.0",
-    "@chat/session": "workspace:*",
-    "@package-graph/read": "workspace:*"
+    "@storybook-chat/session": "workspace:*",
+    "@storybook-package-graph/read": "workspace:*"
   }
 }

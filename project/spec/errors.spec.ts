@@ -1,7 +1,7 @@
 import {describe, expect, test} from "bun:test"
 import {mkdir, rm, symlink, writeFile} from "node:fs/promises"
 import {resolve} from "node:path"
-import readProject from "@archetypes/project"
+import readProject from "@storybook/project"
 import {createProjectFixture, git} from "./fixture"
 
 describe("Ошибки чтения Project", () => {

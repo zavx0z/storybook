@@ -2,8 +2,8 @@ import {afterEach, expect, test} from "bun:test"
 import {mkdtemp, mkdir, rm, symlink, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import discoverStorybookPackages from "@repo/discovery"
-import createExternalStorybookGraph from "@package-graph/create"
+import discoverStorybookPackages from "@storybook-repo/discovery"
+import createExternalStorybookGraph from "@storybook-package-graph/create"
 
 const roots: string[] = []
 afterEach(async () => { for (const root of roots.splice(0)) await rm(root, {recursive: true, force: true}) })

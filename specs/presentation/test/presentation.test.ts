@@ -1,6 +1,6 @@
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readScenario from "@archetypes/scenario-reader"
+import readScenario from "@storybook-specs-scenarios/reader"
 import type {ScenariosInput, ScenarioSection} from "../contract/types"
 import {presentScenarios} from "../src/presentation"
 import readScenarios from ".."

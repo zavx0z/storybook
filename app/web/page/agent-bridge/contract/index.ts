@@ -1,10 +1,10 @@
-import type {AppWebProtocol} from "@app-web/protocol"
+import type {StorybookAppWebProtocol} from "@storybook-app-web/protocol"
 import type {Request} from "./request"
 import type {Shell} from "./shell"
 
-type ClientNode = ReturnType<AppWebProtocol.Output["clientSnapshot"]>["nodes"][number]
+type ClientNode = ReturnType<StorybookAppWebProtocol.Output["clientSnapshot"]>["nodes"][number]
 
-export declare namespace WebAgentBridge {
+export declare namespace StorybookAppWebPageAgentBridge {
   /**
 Связи bridge с уже существующей страницей и её committed scope.
 

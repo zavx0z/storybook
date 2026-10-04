@@ -1,14 +1,14 @@
 /** Проверяет извлечение JSX из render и соединение с фактическими вариантами. @packageDocumentation */
 import {beforeAll, describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readScenario, {type ArchetypesScenarioReader} from "@archetypes/scenario-reader"
+import readScenario, {type StorybookSpecsScenariosReader} from "@storybook-specs-scenarios/reader"
 
 import {readScenarioSource} from "../src/read-source"
-import validateScenario from "@archetypes/scenario-validation"
+import validateScenario from "@storybook-specs-scenarios-reader/validation"
 
 const path = resolve(import.meta.dir, "../spec/fixture/component/spec/scenario.spec.tsx")
-let result: ArchetypesScenarioReader.Output
-let nonportable: ArchetypesScenarioReader.Output
+let result: StorybookSpecsScenariosReader.Output
+let nonportable: StorybookSpecsScenariosReader.Output
 
 test("mock внутри JSX сохраняет callback в браузерном модуле", async () => {
   const report = await readScenario({path: resolve(import.meta.dir, "../spec/fixture/component/spec/inline-mock.test.tsx")})

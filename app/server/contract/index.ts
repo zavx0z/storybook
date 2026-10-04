@@ -1,18 +1,18 @@
-import type {AppWeb} from "@app/web"
-import {type Zavx0zStorybookBrowserLifecycle as Zavx0zStorybookBrowserLifecycleContract} from "@zavx0z/storybook-browser-lifecycle"
+import type {StorybookAppWeb} from "@storybook-app/web"
+import {type StorybookAppServerBrowser as Zavx0zStorybookBrowserLifecycleContract} from "@storybook-app-server/browser"
 type StorybookBrowserLifecycle = Zavx0zStorybookBrowserLifecycleContract.Output
-import {type RepoDiscovery as RepoDiscoveryContract} from "@repo/discovery"
-import {type AppServerCatalog as AppServerCatalogContract} from "@app-server/catalog"
-import {type AppServerSessions as AppServerSessionsContract} from "@app-server/sessions"
+import {type StorybookRepoDiscovery as RepoDiscoveryContract} from "@storybook-repo/discovery"
+import {type StorybookAppServerCatalog as AppServerCatalogContract} from "@storybook-app-server/catalog"
+import {type StorybookAppServerSessions as AppServerSessionsContract} from "@storybook-app-server/sessions"
 type StorybookCatalogResolver = (...input: RepoDiscoveryContract.Input) => Promise<RepoDiscoveryContract.Output>
 type ExternalStorybookRegistry = AppServerCatalogContract.Output
 type ExternalStorybookSessionManager = AppServerSessionsContract.Output
-import type {AppServerState} from "@app-server/state"
+import type {StorybookAppServerState} from "@storybook-app-server/state"
 import type {WebSocketData} from "./server"
-import type {ChatSession} from "@chat/session"
+import type {StorybookChatSession} from "@storybook-chat/session"
 
 /** Контракт серверного исполнения приложения Storybook. */
-export declare namespace AppServer {
+export declare namespace StorybookAppServer {
   /**
   Источники и параметры запуска единственного HTTP/WebSocket-сервера.
   Отсутствующие источники берутся из действующих владельцев приложения.
@@ -54,7 +54,7 @@ export declare namespace AppServer {
   @property [captureRoot] - Каталог снимков browser lifecycle.
 
   @property [writeServerRecord] - Подставленная запись приватного server state;
-  при отсутствии используется атомарная запись владельца {@link AppServerState.Output}.
+  при отсутствии используется атомарная запись владельца {@link StorybookAppServerState.Output}.
 
   @property [startLease] - Поколение запуска; публикация кандидата ожидает
   подтверждения управляющего процесса перед состоянием ready.
@@ -66,10 +66,10 @@ export declare namespace AppServer {
   Возвращаемый путь проверяется сервером; query сохраняется отдельно.
   */
   type Input = Readonly<{
-    createWeb: typeof import("@app/web").default
-    buildWeb?: AppWeb.Input["build"]
+    createWeb: typeof import("@storybook-app/web").default
+    buildWeb?: StorybookAppWeb.Input["build"]
     /** Исполнитель явной подготовки платформы, отдельно от Web Build. */
-    preparePlatform?: AppWeb.Input["preparePlatform"]
+    preparePlatform?: StorybookAppWeb.Input["preparePlatform"]
     onStartupPhase?: (phase: "catalog" | "sessions" | "listen" | "publication" | "ready") => void
     project: string
     resolveCatalog?: StorybookCatalogResolver
@@ -84,9 +84,9 @@ export declare namespace AppServer {
     browserLifecycle?: StorybookBrowserLifecycle
     browserStateRoot?: string
     captureRoot?: string
-    writeServerRecord?: AppServerState.Output["writeExternalStorybookServerRecord"]
+    writeServerRecord?: StorybookAppServerState.Output["writeExternalStorybookServerRecord"]
     startLease?: Readonly<{path: string; token: string}>
-    migrateChats?(chats: ChatSession.Output, graph: ReturnType<AppServerCatalogContract.Output["snapshot"]>["graph"]): Promise<void>
+    migrateChats?(chats: StorybookChatSession.Output, graph: ReturnType<AppServerCatalogContract.Output["snapshot"]>["graph"]): Promise<void>
     previousAddress?(pathname: string, graph: ReturnType<AppServerCatalogContract.Output["snapshot"]>["graph"]): string | null
   }>
 
@@ -112,7 +112,7 @@ export declare namespace AppServer {
   */
   type Output = Readonly<{
     origin: string
-    record: ReturnType<AppServerState.Output["readExternalStorybookServerRecord"]>
+    record: ReturnType<StorybookAppServerState.Output["readExternalStorybookServerRecord"]>
     registry: ExternalStorybookRegistry
     sessions: ExternalStorybookSessionManager
     browserLifecycle: StorybookBrowserLifecycle

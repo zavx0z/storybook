@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import WebProtocol from "@app-web/protocol"
+import WebProtocol from "@storybook-app-web/protocol"
 type StorybookSharedHost = ReturnType<typeof WebProtocol.validateSharedHost>
 
 const host: StorybookSharedHost = {
@@ -42,7 +42,7 @@ test("отсутствующая историческая платформа о�
 test("bootstrap не загружает платформу до выбора совместимого host", async () => {
   const scanner = new Bun.Transpiler({loader: "ts"})
   for (const [source, expected] of [
-    ["../../src/bootstrap.ts", ["@app-web/protocol", "@web/page-target"]],
+    ["../../src/bootstrap.ts", ["@storybook-app-web/protocol", "@storybook-app-web-page/target"]],
     ["../../src/browser-entry.ts", ["./bootstrap"]],
     ["../src/shared-host.ts", []],
     ["../../page/target/index.ts", []],

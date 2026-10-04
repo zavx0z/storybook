@@ -1,21 +1,26 @@
 /**
 Проверяет пакет единым нормативным сценарием и сохраняет исходное свидетельство.
 Технический отказ не превращается в успешную проверку или понижение строгости.
+Тип сущности читается из единственной применимой группы отчёта без ошибок.
+TODO не блокирует выбор типа. Невыполненные проверки и неоднозначность сохраняют
+неизвестность. Изменение исходников не отменяет отчёт уже проверенной ревизии.
 
 @packageDocumentation
 */
-import {type PackageStandard as PackageStandardContract} from "@package/standard"
-import PackageSessionOwner from "@package/session"
+import {type StorybookPackageStandard as PackageStandardContract} from "@storybook-package/standard"
+import PackageSessionOwner from "@storybook-package/session"
 const storybookBuildError = PackageSessionOwner.buildError
 const storybookDiagnostic = PackageSessionOwner.diagnostic
 type StorybookPackageVerification = NonNullable<Parameters<PackageStandardContract.Output["applied"]>[1]>
 import {fileURLToPath} from "node:url"
-import readScenario, {type ArchetypesScenarioReader} from "@archetypes/scenario-reader"
+import {resolve} from "node:path"
+import readScenario, {type StorybookSpecsScenariosReader} from "@storybook-specs-scenarios/reader"
 /** Форма исходного публичного владельца. */
-type ReadScenarioOutput = ArchetypesScenarioReader.Output
-import type {PackageBuildConformance} from "./contract"
+type ReadScenarioOutput = StorybookSpecsScenariosReader.Output
+import type {StorybookPackageBuildConformance} from "./contract"
+import {identifyType} from "./src/identify"
 
-export type {PackageBuildConformance} from "./contract"
+export type {StorybookPackageBuildConformance} from "./contract"
 
 /**
 Исполняет единый нормативный сценарий Package тем же читателем Specs, что документация и MCP.
@@ -53,6 +58,13 @@ function scenarioVerification(report: ReadScenarioOutput): StorybookPackageVerif
 }
 
 /** Нормативный запуск и интерпретация отчёта остаются одной проверкой пакета. */
-const conformance: PackageBuildConformance.Output = Object.freeze({check: checkStorybookPackageConformance, verify: scenarioVerification})
+const conformance: StorybookPackageBuildConformance.Output = Object.freeze({
+  check: checkStorybookPackageConformance,
+  verify: scenarioVerification,
+  identify(report, path) {
+    const scenario = fileURLToPath(new URL("../../reader/spec/scenario.spec.ts", import.meta.url))
+    return identifyType(report, resolve(path), scenario, scenarioVerification)
+  },
+})
 
 export default conformance

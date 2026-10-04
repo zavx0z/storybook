@@ -1,8 +1,8 @@
-import {CodeEditor} from "@zavx0z/ui"
-import {Typography} from "@zavx0z/ui"
-import type {ScenarioModel} from "@scenario/model"
+import {CodeEditor} from "@immersive-ui/component"
+import {Typography} from "@immersive-ui/component"
+import type {StorybookAppWebPagePackageScenarioModel} from "@storybook-app-web-page-package-scenario/model"
 /** Форма исходного публичного владельца. */
-type ScenarioAppInput = ScenarioModel.Input
+type ScenarioAppInput = StorybookAppWebPagePackageScenarioModel.Input
 import {isScenarioGuide, ScenarioGuideResult} from "./guide"
 
 type Call = Extract<ScenarioAppInput, {kind: "function"}>["variants"][number]["calls"][number]

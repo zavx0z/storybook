@@ -1,7 +1,7 @@
 import {readSourceExports} from "./exports.ts"
 import {lstat, readdir} from "node:fs/promises"
 import {resolve} from "node:path"
-import type {ArchetypesPackage} from "../contract"
+import type {StorybookPackageReader} from "../contract"
 
 /**
 Собирает собственные исходники и сценарии без исполнения кода пакета.
@@ -11,8 +11,8 @@ import type {ArchetypesPackage} from "../contract"
 */
 export async function readPackageSources(
   root: string,
-  entries: ArchetypesPackage.Output["index"]["entries"],
-): Promise<Pick<ArchetypesPackage.Output, "code" | "scenarios">> {
+  entries: StorybookPackageReader.Output["index"]["entries"],
+): Promise<Pick<StorybookPackageReader.Output, "code" | "scenarios">> {
   const paths = new Set(entries.filter(entry => entry.code && entry.status === "owned" && entry.target)
     .map(entry => resolve(root, entry.target!)))
   for (const name of ["index.tsx", "index.ts"]) {

@@ -4,7 +4,7 @@ import type {Project} from "typescript/unstable/async"
 import type {Node, SourceFile} from "typescript/unstable/ast"
 import {SyntaxKind} from "typescript/unstable/ast"
 import {isIdentifier, isImportDeclaration, isJsxOpeningElement, isJsxSelfClosingElement, isNamedImports, isNamespaceImport, isPropertyAccessExpression, isStringLiteral} from "typescript/unstable/ast/is"
-import readPackageIndex from "@archetypes/package-index"
+import readPackageIndex from "@storybook-package/index"
 import type {ScenarioSource} from "./types"
 
 /** Проверяет разрешённый файл по exports его владельца; неизвестная форма не считается разрешением. */

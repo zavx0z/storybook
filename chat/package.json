@@ -1,5 +1,5 @@
 {
-  "name": "@archetypes/chat",
+  "name": "@storybook/chat",
   "label": "Чат",
   "version": "0.0.0",
   "private": true,
@@ -12,11 +12,11 @@
     }
   },
   "dependencies": {
-    "@chat/session": "workspace:*",
-    "@chat/view": "workspace:*"
+    "@storybook-chat/session": "workspace:*",
+    "@storybook-chat/view": "workspace:*"
   },
   "devDependencies": {
-    "@archetypes/scenario-reader": "workspace:*",
+    "@storybook-specs-scenarios/reader": "workspace:*",
     "@immersive/headless": "^0.0.0"
   },
   "scripts": {

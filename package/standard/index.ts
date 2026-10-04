@@ -5,14 +5,14 @@
 
 @packageDocumentation
 */
-import type {PackageStandard} from "./contract"
+import type {StorybookPackageStandard as Contract} from "./contract"
 import type {
   StorybookPackageDiagnostic,
   StorybookPackageStandard,
   StorybookPackageVerification,
 } from "./contract/types"
 
-export type {PackageStandard} from "./contract"
+export type {StorybookPackageStandard} from "./contract"
 
 /** Строгость закрепляется только при применении полностью подтверждённого кандидата. */
 function appliedPackageStandard(
@@ -39,7 +39,7 @@ function readPackageVerification(value: unknown): StorybookPackageVerification |
 }
 
 /** Обе операции используют одно свидетельство применённой ревизии пакета. */
-const standard: PackageStandard.Output = Object.freeze({
+const standard: Contract.Output = Object.freeze({
   applied: appliedPackageStandard,
   readVerification: readPackageVerification,
 })

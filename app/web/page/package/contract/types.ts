@@ -1,20 +1,20 @@
-import type {AppWebProtocol} from "@app-web/protocol"
-import type {HmrConnection} from "@hmr/connection"
-import type {ScenarioModel} from "@scenario/model"
+import type {StorybookAppWebProtocol} from "@storybook-app-web/protocol"
+import type {StorybookTechHmrConnection} from "@storybook-tech-hmr/connection"
+import type {StorybookAppWebPagePackageScenarioModel} from "@storybook-app-web-page-package-scenario/model"
 
-import type {PackageRevision} from "@package/revision"
-import type {PageShell} from "@page/shell"
-type CreateExternalStorybookShellOptions = PageShell.Input
-type ExternalStorybookShell = PageShell.Output
+import type {StorybookPackageRevision} from "@storybook-package/revision"
+import type {StorybookAppWebPageShell} from "@storybook-app-web-page/shell"
+type CreateExternalStorybookShellOptions = StorybookAppWebPageShell.Input
+type ExternalStorybookShell = StorybookAppWebPageShell.Output
 
 import type {STORYBOOK_PAGE_REALM_PROTOCOL} from "../src/implementation"
 
-export type ExternalStorybookClientSnapshot = ReturnType<AppWebProtocol.Output["clientSnapshot"]>
+export type ExternalStorybookClientSnapshot = ReturnType<StorybookAppWebProtocol.Output["clientSnapshot"]>
 
 /** Форма исходного публичного владельца. */
-export type ScenarioAppInput = ScenarioModel.Input
+export type ScenarioAppInput = StorybookAppWebPagePackageScenarioModel.Input
 
-export type StorybookPackageRevisionGraphSnapshot = ReturnType<PackageRevision.Output["create"]>
+export type StorybookPackageRevisionGraphSnapshot = ReturnType<StorybookPackageRevision.Output["create"]>
 
 export type ExternalStorybookScenarioLoader = () => Promise<ScenarioAppInput>
 
@@ -36,11 +36,11 @@ export type ExternalStorybookPackageEnvironment = Readonly<{
   browserDocument?: globalThis.Document
   location?: Pick<Location, "pathname" | "href" | "reload">
   history?: Pick<History, "pushState" | "replaceState">
-  createSocket?(url: string): HmrConnection.Input["socket"]
+  createSocket?(url: string): StorybookTechHmrConnection.Input["socket"]
   navigatePackage?(input: Readonly<{packageId: string; route: string}>): Promise<void>
   navigateLanding?(pathname: string): Promise<void>
   /** Already authenticated pending socket transferred by the page controller at commit. */
-  socket?: HmrConnection.Input["socket"]
+  socket?: StorybookTechHmrConnection.Input["socket"]
   bootstrapIntent?: "reader" | "navigation-candidate" | "preview"
   initialAppliedRevision?: string | null
   fallbackRevision?: string | null

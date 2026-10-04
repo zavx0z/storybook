@@ -1,5 +1,5 @@
 import {McpServer} from "@modelcontextprotocol/server"
-import serveMcpStdio from "@mcp/stdio"
+import serveMcpStdio from "@storybook-tech-mcp/stdio"
 
 const diagnosticLabel = process.argv[2] ?? "fixture"
 const handle = serveMcpStdio({

@@ -2,7 +2,7 @@ import {expect, test} from "bun:test"
 import {mkdir, mkdtemp, realpath, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {resolve} from "node:path"
-import readPackage from "@archetypes/package"
+import readPackage from "@storybook-package/reader"
 
 test("native types/typings подтверждают корневой вход зависимости без exports", async () => {
   const root = await realpath(await mkdtemp(resolve(tmpdir(), "package-legacy-entry-")))

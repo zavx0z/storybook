@@ -1,7 +1,7 @@
 /** Публичное чтение возвращает данные сценариев выбранного владельца. */
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readScenarios from "@mcp-rest/scenarios"
+import readScenarios from "@storybook-specs/presentation"
 
 describe.each([
   {name: "Репозиторий", props: {path: resolve(import.meta.dir, "fixture/repository"), format: "data" as const}},

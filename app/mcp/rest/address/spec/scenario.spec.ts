@@ -1,5 +1,5 @@
 import {describe, expect, test} from "bun:test"
-import resolveMcpAddress from "@mcp/address"
+import resolveMcpAddress from "@storybook-app-mcp-rest/address"
 
 const paths = ["storybook", "storybook/package", "storybook/package/documentation", "library.v2"]
 

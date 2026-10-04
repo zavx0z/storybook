@@ -1,9 +1,9 @@
 import {expect, spyOn, test} from "bun:test"
 import {mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from "node:fs"
 import {join, resolve} from "node:path"
-import Environment from "@build/environment"
-import Build from "@app-web/build"
-import Scheduler from "@package-build/scheduler"
+import Environment from "@storybook-tech-build/environment"
+import Build from "@storybook-app-web/build"
+import Scheduler from "@storybook-package-build/scheduler"
 
 const toolRoot = resolve(import.meta.dir, "../../../..")
 
@@ -22,7 +22,7 @@ test("платформенный worker готовит зависимости; W
   const assetsRoot = join(root, "assets")
   const entry = join(root, "web.ts")
   const scheduler = new Scheduler({limit: 1})
-  writeFileSync(entry, 'export * from "@zavx0z/dom"\nexport const title = "first"\n')
+  writeFileSync(entry, 'export * from "@immersive/dom"\nexport const title = "first"\n')
   try {
     const platform = await scheduler.run({packageId: null, owner: "shared", reason: "explicit-build", generation: null},
       context => Environment.runWorker({root: assetsRoot, toolRoot}, context), new AbortController().signal)
@@ -41,7 +41,7 @@ test("платформенный worker готовит зависимости; W
       const nativeResult = await native.mock.results[0]!.value as Bun.BuildOutput
       expect(Object.keys(nativeResult.metafile!.inputs).some(path => platform.identity.modules.some(module => resolve(path) === module.sourcePath))).toBeFalse()
       expect(first.browserIdentity?.epoch).toBe(platform.identity.epoch)
-      writeFileSync(entry, 'export * from "@zavx0z/dom"\nexport const title = "second"\n')
+      writeFileSync(entry, 'export * from "@immersive/dom"\nexport const title = "second"\n')
       const second = await Build.buildAssets(input, event => phases.push(event.phase))
       expect(native).toHaveBeenCalledTimes(2)
       expect(phases).not.toContain("kernel")

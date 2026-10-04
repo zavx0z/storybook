@@ -6,7 +6,7 @@
 */
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readScenario from "@archetypes/scenario-reader"
+import readScenario from "@storybook-specs-scenarios/reader"
 
 describe.each([
   {name: "Компонент со слотами", props: {path: resolve(import.meta.dir, "fixture/slots/spec/scenario.spec.tsx")}},

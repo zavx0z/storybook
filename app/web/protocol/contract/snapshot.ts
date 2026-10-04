@@ -1,11 +1,11 @@
-import type {PackageGraphCreate} from "@package-graph/create"
-import type {PackageSession} from "@package/session"
+import type {StorybookPackageGraphCreate} from "@storybook-package-graph/create"
+import type {StorybookPackageSession} from "@storybook-package/session"
 import type {ExternalStorybookClientNode, ExternalStorybookClientPackageSummary} from "./client"
 
 /** Подготовленный граф, ровно по одному снимку сессии пакета и имя общего Project. */
 export type ClientSnapshotInput = [
-  graph: PackageGraphCreate.Output,
-  sessionSnapshots: readonly ReturnType<PackageSession.Output["snapshot"]>[],
+  graph: StorybookPackageGraphCreate.Output,
+  sessionSnapshots: readonly ReturnType<StorybookPackageSession.Output["snapshot"]>[],
   projectName: string,
 ]
 

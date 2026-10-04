@@ -1,5 +1,5 @@
 {
-  "name": "@package-graph/read",
+  "name": "@storybook-package-graph/read",
   "label": "Чтение графа",
   "version": "0.0.0",
   "private": true,
@@ -9,10 +9,10 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@route/address": "workspace:*"
+    "@storybook-package-route/address": "workspace:*"
   },
   "devDependencies": {
-    "@repo/discovery": "workspace:*",
-    "@package-graph/create": "workspace:*"
+    "@storybook-repo/discovery": "workspace:*",
+    "@storybook-package-graph/create": "workspace:*"
   }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "@build/artifacts",
+  "name": "@storybook-tech-build/artifacts",
   "label": "Неизменяемые артефакты",
   "version": "0.0.0",
   "private": true,

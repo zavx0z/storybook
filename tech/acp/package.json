@@ -1,5 +1,5 @@
 {
-  "name": "@tech/acp",
+  "name": "@storybook-tech/acp",
   "label": "ACP",
   "version": "0.0.0",
   "private": true,
@@ -9,7 +9,7 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@process/wait": "workspace:*",
+    "@storybook-tech-process/wait": "workspace:*",
     "@agentclientprotocol/sdk": "^1.6.0",
     "@agentclientprotocol/codex-acp": "^2.1.1"
   }

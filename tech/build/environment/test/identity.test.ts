@@ -2,13 +2,13 @@ import {expect, test} from "bun:test"
 import {mkdtempSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import Environment from "@build/environment"
+import Environment from "@storybook-tech-build/environment"
 
 const HOST_MODULE_EPOCH = "a".repeat(64)
 
 test("изменение host entry не создаёт новую эпоху модулей платформы", () => {
-  const sourcePath = realpathSync(join(import.meta.dir, "../../../../node_modules/@zavx0z/dom/src/index.ts"))
-  const modules = [{specifier: "@zavx0z/dom", sourcePath, url: "/__storybook/shared/kernel/dom-a.js"}]
+  const sourcePath = realpathSync(join(import.meta.dir, "../../../../node_modules/@immersive/dom/src/index.ts"))
+  const modules = [{specifier: "@immersive/dom", sourcePath, url: "/__storybook/shared/kernel/dom-a.js"}]
   const before = Environment.identity("/__storybook/shared/entries/package-entry-a.js", modules, HOST_MODULE_EPOCH)
   const after = Environment.identity("/__storybook/shared/entries/package-entry-b.js", modules, HOST_MODULE_EPOCH)
   const platformChange = Environment.identity(after.packageEntryUrl,
@@ -23,7 +23,7 @@ test("правка и удаление источника не отменяют 
     const sourcePath = join(root, "kernel.ts")
     writeFileSync(sourcePath, "export const value = 'before'")
     const identity = Environment.identity("/__storybook/shared/entries/package.js",
-      [{specifier: "@zavx0z/dom", sourcePath, url: "/__storybook/shared/kernel/dom.js"}], HOST_MODULE_EPOCH)
+      [{specifier: "@immersive/dom", sourcePath, url: "/__storybook/shared/kernel/dom.js"}], HOST_MODULE_EPOCH)
     writeFileSync(sourcePath, "export const value = 'after'")
     expect(Environment.validate(identity)).toEqual(identity)
     rmSync(sourcePath)
@@ -33,7 +33,7 @@ test("правка и удаление источника не отменяют 
   } finally { rmSync(root, {recursive: true, force: true}) }
 })
 
-test.each(["@retired-platform/component", "@jsx-runtime/create"])("Снимок направляет %s в сохранённый модуль без текущей реализации", async specifier => {
+test.each(["@retired-platform/component", "@immersive-jsx-runtime/create"])("Снимок направляет %s в сохранённый модуль без текущей реализации", async specifier => {
   const root = mkdtempSync(join(tmpdir(), "storybook-archived-import-"))
   try {
     const sourcePath = join(root, "removed-source.ts")

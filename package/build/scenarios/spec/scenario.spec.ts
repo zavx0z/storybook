@@ -1,7 +1,7 @@
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import prepareScenarios from "@package-build/scenarios"
-import type {PackageSession} from "@package/session"
+import prepareScenarios from "@storybook-package-build/scenarios"
+import type {StorybookPackageSession} from "@storybook-package/session"
 
 const source = resolve(import.meta.dir, "fixture/function/spec/scenario.spec.ts")
 
@@ -10,7 +10,7 @@ describe.each([
 ])("$name", async ({props}) => {
   const descriptor = {
     scenarioSpecs: [{nodeId: props.nodeId, sourcePaths: [source]}],
-  } as unknown as PackageSession.Input[0]
+  } as unknown as StorybookPackageSession.Input[0]
   const result = await prepareScenarios(descriptor, new AbortController().signal)
 
   test("Тип подготовленного представления", () => {

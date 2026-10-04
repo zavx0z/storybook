@@ -6,12 +6,12 @@
 
 @packageDocumentation
 */
-import type {WebClient} from "./contract"
+import type {StorybookAppWebPageClient} from "./contract"
 import type {ExternalStorybookClientSnapshot, ExternalStorybookClientNode} from "./contract/types"
 import {validateClientSnapshot} from "./src/implementation"
-export type {WebClient} from "./contract"
+export type {StorybookAppWebPageClient} from "./contract"
 
-const Owner: WebClient.Output = Object.freeze({
+const Owner: StorybookAppWebPageClient.Output = Object.freeze({
   /**
   Получает и проверяет сериализуемый browser snapshot.
 

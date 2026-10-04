@@ -1,7 +1,7 @@
 import {afterAll, describe, expect, test} from "bun:test"
-import {createDocument, type HTMLButtonElement} from "@zavx0z/dom"
-import type {CompiledTemplate} from "@zavx0z/template/compiled"
-import createPresentation from "@web/presentation"
+import {createDocument, type HTMLButtonElement} from "@immersive/dom"
+import type {CompiledTemplate} from "@immersive/template/compiled"
+import createPresentation from "@storybook-app-web-page/presentation"
 import {PresentationExample, type ExampleProps} from "./fixture/view"
 
 describe.each([

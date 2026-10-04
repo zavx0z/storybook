@@ -4,12 +4,12 @@
 
 @packageDocumentation
 */
-import {type RepoDiscovery as RepoDiscoveryContract} from "@repo/discovery"
-import PackageGraphReadOwner from "@package-graph/read"
-import {type PackageGraphCreate as PackageGraphCreateContract} from "@package-graph/create"
-import PackageResourcesOwner from "@package/resources"
-import {type PackageSession as PackageSessionContract} from "@package/session"
-import PackageRevisionOwner from "@package/revision"
+import {type StorybookRepoDiscovery as RepoDiscoveryContract} from "@storybook-repo/discovery"
+import PackageGraphReadOwner from "@storybook-package-graph/read"
+import {type StorybookPackageGraphCreate as PackageGraphCreateContract} from "@storybook-package-graph/create"
+import PackageResourcesOwner from "@storybook-package/resources"
+import {type StorybookPackageSession as PackageSessionContract} from "@storybook-package/session"
+import PackageRevisionOwner from "@storybook-package/revision"
 const externalStorybookNode = PackageGraphReadOwner.node
 const createExternalStorybookResourceAllowList = PackageResourcesOwner
 const createStorybookPackageRevisionGraphSnapshot = PackageRevisionOwner.create
@@ -22,20 +22,20 @@ type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 import {createHash} from "node:crypto"
 import {readFileSync} from "node:fs"
 import {dirname, join, relative} from "node:path"
-import type {PackageBuildDescriptor} from "./contract"
+import type {StorybookPackageBuildDescriptor} from "./contract"
 
-export type {PackageBuildDescriptor} from "./contract"
+export type {StorybookPackageBuildDescriptor} from "./contract"
 
 /**
 Выводит входы сборки из canonical graph. Первый пакет структурного пути задаёт
 содержащий Repo; конкретный Project не входит в compiler context пакета.
 */
 export default function externalStorybookPackageDescriptors(
-  catalog: PackageBuildDescriptor.Input[0],
-  graph: PackageBuildDescriptor.Input[1],
-  include?: PackageBuildDescriptor.Input[2],
-  styles: NonNullable<PackageBuildDescriptor.Input[3]> = [],
-): PackageBuildDescriptor.Output {
+  catalog: StorybookPackageBuildDescriptor.Input[0],
+  graph: StorybookPackageBuildDescriptor.Input[1],
+  include?: StorybookPackageBuildDescriptor.Input[2],
+  styles: NonNullable<StorybookPackageBuildDescriptor.Input[3]> = [],
+): StorybookPackageBuildDescriptor.Output {
   const packages = catalog.scopes.filter(
     (declaration): declaration is StorybookPackage => declaration.kind === "package",
   )

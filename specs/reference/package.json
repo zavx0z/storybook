@@ -1,5 +1,5 @@
 {
-  "name": "@web/reference",
+  "name": "@storybook-specs/reference",
   "label": "Визуальное свидетельство",
   "version": "0.0.0",
   "private": true,

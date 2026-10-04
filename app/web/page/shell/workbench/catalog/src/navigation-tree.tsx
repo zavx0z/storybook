@@ -1,20 +1,21 @@
-import {useLayoutEffect, useRef, useState} from "@zavx0z/component"
-import {Tree} from "@zavx0z/ui"
-import type {UiWidgetsTree} from "@zavx0z/ui"
-type TreeHandle = NonNullable<Parameters<NonNullable<UiWidgetsTree.Input["onReady"]>>[0]>
-type TreeItem = UiWidgetsTree.Input["items"][number]
-import {closeIcon} from "@ui-themes/icons"
-import Navigation, {type CatalogNavigation} from "@catalog/navigation"
-type NavigationTopLevelProjection = ReturnType<CatalogNavigation.Output["projectNavigation"]>["topLevel"][number]
+import {useLayoutEffect, useRef, useState} from "@immersive/component"
+import {Tree} from "@immersive-ui/component"
+import type {ImmersiveUiComponentWidgetTree} from "@immersive-ui/component"
+type TreeHandle = NonNullable<Parameters<NonNullable<ImmersiveUiComponentWidgetTree.Input["onReady"]>>[0]>
+type TreeItem = ImmersiveUiComponentWidgetTree.Input["items"][number]
+import {closeIcon} from "@immersive-ui-theme/icon"
+import Navigation, {type StorybookAppWebPageShellWorkbenchCatalogNavigation} from "@storybook-app-web-page-shell-workbench-catalog/navigation"
+type NavigationTopLevelProjection = ReturnType<StorybookAppWebPageShellWorkbenchCatalogNavigation.Output["projectNavigation"]>["topLevel"][number]
 import type {Item, Group, Expansion} from "../contract/navigation"
 
 export type CatalogNavigationTreeProps = Readonly<{
   items: readonly Item[]
   activeId: string | null
   query: string
+  defaultCollapsed?: boolean | undefined
   removableIds?: readonly string[]
   onRemove?: ((item: Item, source: HTMLElement) => void) | undefined
-  onNavigate(item: Item, source: HTMLElement): void
+  onNavigate?: ((item: Item, source: HTMLElement) => void) | undefined
   onGroupToggle(group: Group, collapsed: boolean, source: HTMLElement): void
   onSearch(value: string, source: HTMLElement): void
   onReady?: ((handle: CatalogNavigationTreeHandle | null) => void) | undefined
@@ -30,14 +31,24 @@ export type CatalogNavigationTreeHandle = Readonly<{
 
 /** Передаёт навигацию Storybook общему UI Tree без передачи ему смысла маршрутов. */
 export function CatalogNavigationTree(props: CatalogNavigationTreeProps) {
+  const completeGroups = new Map<string, Group>()
+  const complete = treeItems(Navigation.projectNavigation(props.items, "", new Set()).topLevel, props, completeGroups)
   const [collapsedIds, setCollapsedIds] = useState<ReadonlySet<string>>(
-    () => new Set(props.navigationExpansion?.initialCollapsedIds ?? []),
+    () => new Set(props.navigationExpansion?.initialCollapsedIds ?? (props.defaultCollapsed
+      ? [...completeGroups.values()].map(group => group.id)
+      : [])),
   )
+  const initialExpansionApplied = useRef(
+    props.navigationExpansion?.initialCollapsedIds !== undefined || completeGroups.size > 0 || !props.defaultCollapsed,
+  )
+  useLayoutEffect(() => {
+    if (initialExpansionApplied.current || completeGroups.size === 0) return
+    initialExpansionApplied.current = true
+    setCollapsedIds(new Set([...completeGroups.values()].map(group => group.id)))
+  })
   const projection = Navigation.projectNavigation(props.items, props.query, new Set())
   const groups = new Map<string, Group>()
   const items = treeItems(projection.topLevel, props, groups)
-  const completeGroups = new Map<string, Group>()
-  const complete = treeItems(Navigation.projectNavigation(props.items, "", new Set()).topLevel, props, completeGroups)
   const expandedKeys = [...groups].filter(([, group]) => !collapsedIds.has(group.id)).map(([treeId]) => treeId)
   const selectable = new Map(props.items.map(item => [item.id, item]))
   const treeHandle = useRef<TreeHandle | null>(null)
@@ -105,7 +116,7 @@ export function CatalogNavigationTree(props: CatalogNavigationTreeProps) {
   })
   const navigate = (id: string, event: Event): void => {
     const item = selectable.get(id)
-    if (item !== undefined && !item.disabled) props.onNavigate(item, event.currentTarget as HTMLElement)
+    if (item !== undefined && !item.disabled) props.onNavigate?.(item, event.currentTarget as HTMLElement)
   }
 
   return <Tree

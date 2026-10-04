@@ -1,19 +1,19 @@
-import type {McpRestRequests as McpRestRequestsContract} from "@mcp-rest/requests"
+import type {StorybookAppServerRequests as McpRestRequestsContract} from "@storybook-app-server/requests"
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
-import type {WebViewpointTab} from "@web/viewpoint-tab"
-type ViewPointTabProps = WebViewpointTab.Input
-import type {WebWorkbench} from "@web/workbench"
-type WorkbenchHandle = WebWorkbench.Output
-type WorkbenchUserState = NonNullable<WebWorkbench.Input["userState"]>
-import type {WebMcpWindow} from "@web/mcp-window"
-type McpAddressSource = NonNullable<WebMcpWindow.Input["addressSource"]>
-type McpWindowInitialState = NonNullable<WebMcpWindow.Input["initialState"]>
-type McpWindowState = WebMcpWindow.Output
-import type {WebMinimap} from "@web/minimap"
-type MinimapInitialState = NonNullable<WebMinimap.Input["initialState"]>
-type MinimapState = WebMinimap.Output
-import type {WebCatalog} from "@web/catalog"
-type NavigationExpansion = NonNullable<WebCatalog.Input["navigationExpansion"]>
+import type {StorybookAppWebPageShellViewpointTab} from "@storybook-app-web-page-shell/viewpoint-tab"
+type ViewPointTabProps = StorybookAppWebPageShellViewpointTab.Input
+import type {StorybookAppWebPageShellWorkbench} from "@storybook-app-web-page-shell/workbench"
+type WorkbenchHandle = StorybookAppWebPageShellWorkbench.Output
+type WorkbenchUserState = NonNullable<StorybookAppWebPageShellWorkbench.Input["userState"]>
+import type {StorybookAppWebPageShellMcpWindow} from "@storybook-app-web-page-shell/mcp-window"
+type McpAddressSource = NonNullable<StorybookAppWebPageShellMcpWindow.Input["addressSource"]>
+type McpWindowInitialState = NonNullable<StorybookAppWebPageShellMcpWindow.Input["initialState"]>
+type McpWindowState = StorybookAppWebPageShellMcpWindow.Output
+import type {StorybookAppWebPageShellMinimap} from "@storybook-app-web-page-shell/minimap"
+type MinimapInitialState = NonNullable<StorybookAppWebPageShellMinimap.Input["initialState"]>
+type MinimapState = StorybookAppWebPageShellMinimap.Output
+import type {StorybookAppWebPageShellWorkbenchCatalog} from "@storybook-app-web-page-shell-workbench/catalog"
+type NavigationExpansion = NonNullable<StorybookAppWebPageShellWorkbenchCatalog.Input["navigationExpansion"]>
 
 export type StorybookAppProps = Readonly<{
   userState?: WorkbenchUserState | undefined

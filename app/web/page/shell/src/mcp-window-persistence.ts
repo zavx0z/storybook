@@ -1,4 +1,4 @@
-import type {WebMcpWindow} from "@web/mcp-window"
+import type {StorybookAppWebPageShellMcpWindow} from "@storybook-app-web-page-shell/mcp-window"
 
 /**
 Хранит настройки окна в localStorage текущего origin. Проверка полей и
@@ -6,14 +6,14 @@ import type {WebMcpWindow} from "@web/mcp-window"
 */
 export function createMcpWindowPersistence(storage: () => Pick<Storage, "getItem" | "setItem">) {
   const key = "storybook.mcp-window.v1"
-  let initialState: NonNullable<WebMcpWindow.Input["initialState"]> | undefined
+  let initialState: NonNullable<StorybookAppWebPageShellMcpWindow.Input["initialState"]> | undefined
   try {
     const value = JSON.parse(storage().getItem(key) ?? "null")
-    if (value && typeof value === "object" && !Array.isArray(value)) initialState = value as NonNullable<WebMcpWindow.Input["initialState"]>
+    if (value && typeof value === "object" && !Array.isArray(value)) initialState = value as NonNullable<StorybookAppWebPageShellMcpWindow.Input["initialState"]>
   } catch {}
   return {
     initialState,
-    save(state: WebMcpWindow.Output): void {
+    save(state: StorybookAppWebPageShellMcpWindow.Output): void {
       try { storage().setItem(key, JSON.stringify(state)) } catch {}
     },
   }

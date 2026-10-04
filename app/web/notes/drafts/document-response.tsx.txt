@@ -1,6 +1,6 @@
-import {memo, useMemo, useState} from "@zavx0z/component"
-import CodeEditor from "@zavx0z/ui/view/code-editor"
-import Button from "@zavx0z/ui/button/button"
+import {memo, useMemo, useState} from "@immersive/component"
+import CodeEditor from "@immersive-ui/component/view/code-editor"
+import Button from "@immersive-ui/component/button/button"
 import {Markdown} from "@immersive/markdown"
 
 /** Форматирует также старые компактные записи; высота зависит от числа строк. */

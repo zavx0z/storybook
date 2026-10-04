@@ -1,5 +1,5 @@
 {
-  "name": "@web/navigation",
+  "name": "@storybook-app-web-page/navigation",
   "label": "Navigation",
   "version": "0.0.0",
   "private": true,
@@ -9,14 +9,14 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@app-web/protocol": "workspace:*",
-    "@package-graph/create": "workspace:*",
-    "@package-graph/read": "workspace:*",
-    "@package/revision": "workspace:*",
-    "@route/address": "workspace:*",
-    "@web/workbench": "workspace:*"
+    "@storybook-app-web/protocol": "workspace:*",
+    "@storybook-package-graph/create": "workspace:*",
+    "@storybook-package-graph/read": "workspace:*",
+    "@storybook-package/revision": "workspace:*",
+    "@storybook-package-route/address": "workspace:*",
+    "@storybook-app-web-page-shell/workbench": "workspace:*"
   },
   "devDependencies": {
-    "@repo/discovery": "workspace:*"
+    "@storybook-repo/discovery": "workspace:*"
   }
 }

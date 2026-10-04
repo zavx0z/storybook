@@ -6,7 +6,7 @@
 import {afterAll, describe, expect, test} from "bun:test"
 import {rm} from "node:fs/promises"
 import {resolve} from "node:path"
-import readCluster from "@archetypes/cluster"
+import readCluster from "@storybook/cluster"
 import {prepareClusterExample} from "./prepare"
 
 const root = await prepareClusterExample()

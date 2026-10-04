@@ -2,10 +2,10 @@ import {afterEach, expect, spyOn, test} from "bun:test"
 import {mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import Registry from "@app-server/catalog"
-import discover from "@repo/discovery"
-import type {AppServer} from "../contract"
-import createWeb from "@app/web"
+import Registry from "@storybook-app-server/catalog"
+import discover from "@storybook-repo/discovery"
+import type {StorybookAppServer} from "../contract"
+import createWeb from "@storybook-app/web"
 import {refreshCheckCatalog} from "../src/check-catalog"
 import {createCatalogRefresh} from "../src/catalog-refresh"
 import {createProjectFixture} from "./project.fixture"
@@ -115,9 +115,9 @@ test("закрытие ожидания во время refresh не отмен�
   const callers: string[] = []
   let waiting = false
   let browserCalls = 0
-  let running: AppServer.Output | undefined
+  let running: StorybookAppServer.Output | undefined
   let unsubscribe = () => {}
-  const prepare = await import("@package-build/prepare")
+  const prepare = await import("@storybook-package-build/prepare")
   const original = prepare.default
   const factory = spyOn(prepare, "default").mockImplementation(() => async input => {
     expect(input.signal.aborted, "Сборкой владеет session, не закрывшийся HTTP-наблюдатель").toBeFalse()

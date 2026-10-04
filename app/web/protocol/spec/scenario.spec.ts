@@ -1,6 +1,6 @@
 /** Один Web-протокол задаёт адрес пакета и заголовок выбранной страницы. */
 import {describe, expect, test} from "bun:test"
-import WebProtocol from "@app-web/protocol"
+import WebProtocol from "@storybook-app-web/protocol"
 
 describe.each([
   {name: "Корневая страница", props: {packageId: null, label: undefined, title: "Storybook"}},

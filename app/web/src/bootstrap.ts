@@ -5,9 +5,9 @@
 
 @packageDocumentation
 */
-import WebProtocol from "@app-web/protocol"
-import PageTarget from "@web/page-target"
-import type startExternalStorybookPage from "@web/page"
+import WebProtocol from "@storybook-app-web/protocol"
+import PageTarget from "@storybook-app-web-page/target"
+import type startExternalStorybookPage from "@storybook-app-web/page"
 
 /**
 Выбирает совместимую актуальную оболочку до первого импорта платформы.

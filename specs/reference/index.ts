@@ -5,11 +5,11 @@
 
 @packageDocumentation
 */
-import type {WebReference} from "./contract"
+import type {StorybookSpecsReference} from "./contract"
 import {validateReferenceText, isCompatibility, isAcceptance, positive, validateReferenceAsset, rect} from "./src/validation"
-export type {WebReference} from "./contract"
+export type {StorybookSpecsReference} from "./contract"
 
-const reference: WebReference.Output = Object.freeze<WebReference.Output>({
+const reference: StorybookSpecsReference.Output = Object.freeze<StorybookSpecsReference.Output>({
   /**
 Проверяет предоставленное владельцем описание и сохраняет неизменный снимок.
 Отображение свидетельства не выполняет переход его состояния приёмки.

@@ -36,9 +36,9 @@ one external Storybook serve process
   ├─ one immutable normalized graph
   ├─ one HTTP origin + WebSocket
   ├─ one shared Workbench frontend and theme
-  ├─ one private @zavx0z/storybook-browser-lifecycle
+  ├─ one private @storybook-app-server/browser
   │      └─ exact packageId → absent | reserved | owned target
-  └─ independent PackageSession per package
+  └─ independent StorybookPackageSession per package
          ├─ structural scenario execution
          ├─ compiler/module graph
          ├─ isolated candidate staging
@@ -53,7 +53,7 @@ one external Storybook serve process
 Корневой `@zavx0z/storybook` владеет discovery, validation, canonical
 graph, search/routing derived views, областями Workbench, package
 build/revision lifecycle и diagnostics. Private nested
-`@zavx0z/storybook-browser-lifecycle` единолично владеет browser target
+`@storybook-app-server/browser` единолично владеет browser target
 reservations, attestation, navigation, readiness и exact-target operations.
 Reservation предшествует preflight; durable createSent записывается dispatch-aware
 драйвером перед native send. Только явный unsent разрешает освобождение записи.
@@ -74,7 +74,7 @@ reconciliation не меняет записи других пакетов и н�
 
 Подключённые корни обрабатывает [Repo Discovery](repo/discovery/index.ts).
 Он читает `package.json`, workspaces и реальные публичные директории, проверяет
-владение и возвращает `RepoDiscovery.Output`. Каталог сервера получает источник
+владение и возвращает `StorybookRepoDiscovery.Output`. Каталог сервера получает источник
 при создании; граф использует тот же нормализованный контракт.
 
 | Владелец | Ответственность |
@@ -89,8 +89,8 @@ reconciliation не меняет записи других пакетов и н�
 | `app` | Лаунчер, управление процессом и управляющие MCP-вызовы |
 | `specs` | Чтение и исполнение сценариев, полные отчёты и правила авторства |
 
-`@archetypes/scenario-reader` исполняет сценарий один раз и сохраняет отчёт для
-сборки, серверной диагностики и просмотра. `@archetypes/spec-reader` находит
+`@storybook-specs-scenarios/reader` исполняет сценарий один раз и сохраняет отчёт для
+сборки, серверной диагностики и просмотра. `@storybook-specs/reader` находит
 спецификации непосредственного владельца. Читатели руководств Specs поручают
 им чтение и показывают исходные примеры и результаты правил. Web владеет
 выбором варианта, подробным выводом и preview того же отчёта.
@@ -141,7 +141,7 @@ Child пишет token-scoped candidate внутрь lease, а
 [Route](package/route/resolve/index.ts). Переход внутри страницы сохраняет Root и меняет
 содержимое через общий контроллер; корневой экран не исполняет код потребителя.
 
-`@zavx0z/storybook-browser-lifecycle` владеет агентским `openPackage`. Package lock
+`@storybook-app-server/browser` владеет агентским `openPackage`. Package lock
 и reservation сериализуют создание рабочей вкладки. Повторный open предпочитает
 её, затем другую подтверждённую вкладку нужного пакета; если таких нет, создаёт
 фоновую. Переход пользователя на другой пакет лишает прежний viewId права
@@ -161,14 +161,14 @@ Child пишет token-scoped candidate внутрь lease, а
 принадлежат [контракту вкладок](app/web/page/shell/workbench/notes/workspace.md#tabs-routes).
 
 Одна package tab имеет один browser realm и одну активную ревизию
-PackageSession. Обзор и встроенные представления читают структурный snapshot
+StorybookPackageSession. Обзор и встроенные представления читают структурный snapshot
 пакета; проектный runtime-адаптер и загрузчики вариантов не создаются.
 
 Корневая страница и каждая package page владеют отдельным
-`@zavx0z/browser` Experience. Browser создаёт и освобождает единственные для
+`@immersive/browser` Experience. Browser создаёт и освобождает единственные для
 страницы semantic Document, native Canvas, цикл кадров и owner ввода.
-Experience содержит `SpaceElement` из `@zavx0z/dom/space` и
-`ViewPointElement` из `@zavx0z/dom/viewpoint`; страницы не разделяют эти объекты или
+Experience содержит `SpaceElement` из `@immersive/dom/space` и
+`ViewPointElement` из `@immersive/dom/viewpoint`; страницы не разделяют эти объекты или
 производные ресурсы Renderer/WebGPU.
 
 Основной Workbench, его меню и окна монтируются в служебный Display пространства.
@@ -195,16 +195,16 @@ Host совмещает поверхность со всем viewport диста
 помещение текста ровно на far plane запрещено, так как его строгая depth-проверка
 должна оставаться истинной.
 
-Host загружает шрифт через `@zavx0z/engine/default-font`, используя exact asset
-export `@zavx0z/engine/fonts/inter-regular.ttf`. Копия шрифта и запасной owner
+Host загружает шрифт через `@immersive/engine/default-font`, используя exact asset
+export `@immersive/engine/fonts/inter-regular.ttf`. Копия шрифта и запасной owner
 path не допускаются.
 
 Shared shell source один для landing и package entries. Package build включает
 только выбранный package graph, поэтому другая package production code в tab не
 попадает. Bun metafile фиксирует canonical dependency realpaths. Identities
-`@zavx0z/browser`, `@zavx0z/component`, `@zavx0z/devtools`, `@zavx0z/dom`, `@zavx0z/engine`,
-`@nodes/layout`, `@immersive/nodes`, `@nodes/tree`, `@renderer/html`,
-`@zavx0z/space`, `@zavx0z/template`, `@zavx0z/ui` и `@zavx0z/webgpu`
+`@immersive/browser`, `@immersive/component`, `@immersive/devtool`, `@immersive/dom`, `@immersive/engine`,
+`@immersive-nodes/layout`, `@immersive/nodes`, `@immersive-nodes/tree`, `@immersive-renderer/html`,
+`@immersive/space`, `@immersive/template`, `@immersive-ui/component` и `@immersive/webgpu`
 проверяются до publish; разные realpath одного обязательного
 runtime и compatibility aliases fail closed.
 
@@ -258,10 +258,10 @@ connection может завершиться независимо от daemon se
 человека и аварийной диагностики, но не содержит отдельной lifecycle/browser
 логики. Landing также является adapter этого application service и не открывает
 package tab самостоятельно. Browser branch диаграммы принадлежит private
-`@zavx0z/storybook-browser-lifecycle`; это package boundary, а не второй runtime
+`@storybook-app-server/browser`; это package boundary, а не второй runtime
 owner или process.
 
-## PackageSession and revisions
+## StorybookPackageSession and revisions
 
 Для каждого package существует независимый state:
 
@@ -292,7 +292,7 @@ Candidate проходит структурное обнаружение, про
 
 Каждая revision содержит exact immutable package graph projection, routes, structural digest, TSDoc resources и metadata. Package tab никогда не
 соединяет старый bundle с новым global graph. Build queue последовательна только
-внутри одной PackageSession; общий semaphore лишь ограничивает число compiler
+внутри одной StorybookPackageSession; общий semaphore лишь ограничивает число compiler
 children. Compile/protocol/activation имеют timeout и exact cancellation.
 
 Проверка входов при явной подготовке учитывает фактические зависимости пакета.
@@ -317,12 +317,24 @@ registry и summary statuses.
 
 Публичный вход `storybook` принимает только необязательный `path` из доступных
 переходов. [Address](app/mcp/rest/address/index.ts) проверяет точное присутствие адреса
-в публичной структуре и отклоняет query и fragment. [Root](app/mcp/rest/root/index.ts)
-и [Children](app/mcp/rest/children/index.ts) возвращают назначение и непосредственные
-переходы. У выбранного владельца [REST](app/mcp/rest/index.ts) дополнительно раскрывает
+в публичной структуре и отклоняет query и fragment. Корневой ответ принадлежит
+[Project MCP](project/mcp/index.ts): имя проекта и переходы к его Repo.
+[Children](app/mcp/rest/children/index.ts) раскрывает непосредственные переходы
+выбранного владельца. [REST](app/mcp/rest/index.ts) вызывает эти публичные входы
+и у выбранного владельца дополнительно раскрывает
 JSON Schema доступных входного и выходного контрактов и авторские исходники
 сценариев. Схемы берутся из разбора TypeDoc в каталоге, код сценариев читается
 из их файлов; чтение не выполняет сценарий и не запускает сборку.
+
+Тип выбранного пакета для MCP следует из нормативного отчёта Package
+с выполненными проверками без ошибок и одной применимой группой.
+TODO сохраняются в отчёте и не блокируют выбор типа. Интерпретацией владеет
+[Conformance](package/build/conformance/index.ts); [Server](app/server/src/mcp-type.ts)
+связывает отчёт с владельцем и рабочей ревизией Storybook. Каталог и текущие
+исходники не подменяют сведения проверенной версии; готовый кандидат используется
+только при отсутствии рабочей ревизии.
+REST выбирает предметный MCP по этому выводу. Неизвестность и TODO сохраняются
+явно; отдельный классификатор по именам или структуре в MCP не создаётся.
 
 Полный отчёт выполненного сценария используется интерфейсом. Внутреннее
 [представление сценариев для потребителя](specs/presentation/notes/presentation.md)
@@ -346,7 +358,7 @@ Private browser lifecycle owner говорит с Chrome по direct CDP; MCP л
 `bringToFront`, focus emulation и OS focus не используются. Небраузерные
 lifecycle/query operations не требуют CDP.
 
-`@zavx0z/devtools` из Immersive владеет идентификаторами элементов, снимками дерева,
+`@immersive/devtool` из Immersive владеет идентификаторами элементов, снимками дерева,
 состояния и результатов Renderer. Storybook подключает `createDomInspector`
 для диагностических панелей и команд агента, передавая существующий Document
 и `readFrame(node)` соответствующей Display/HUD projection. Он не импортирует
@@ -381,7 +393,7 @@ and capture stores retain active/lastWorking/leased data plus bounded recent TTL
 
 ## Compiler boundary
 
-Пакет и его директории не объявляют build callbacks. PackageSession использует
+Пакет и его директории не объявляют build callbacks. StorybookPackageSession использует
 обычное разрешение зависимостей владельца и TypeScript config. Общий Workbench
 и его тема принадлежат Storybook; структурные сценарии остаются в исходниках
 потребителя и не передают ему владение сервером или compiler lifecycle.

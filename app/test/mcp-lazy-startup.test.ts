@@ -1,6 +1,6 @@
-import createLazyMcpServer from "@mcp/lazy"
+import createLazyMcpServer from "@storybook-tech-mcp/lazy"
 import createApp from "@storybook/app"
-import ServerState from "@app-server/state"
+import ServerState from "@storybook-app-server/state"
 import {Client, InMemoryTransport} from "@modelcontextprotocol/client"
 import {expect, test} from "bun:test"
 import {existsSync, mkdirSync, readFileSync, writeFileSync} from "node:fs"

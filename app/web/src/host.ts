@@ -1,4 +1,4 @@
-import Protocol from "@app-web/protocol"
+import Protocol from "@storybook-app-web/protocol"
 import type {WebAssets, WebHost} from "../contract/types"
 
 export function describeHost(assets: WebAssets): WebHost {

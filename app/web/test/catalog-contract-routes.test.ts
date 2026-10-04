@@ -1,8 +1,8 @@
-import RepoDiscoveryOwner from "@repo/discovery"
-import PackageGraphCreateOwner from "@package-graph/create"
-import PackageGraphReadOwner from "@package-graph/read"
-import PackageBuildDescriptorOwner from "@package-build/descriptor"
-import PackageRevisionOwner from "@package/revision"
+import RepoDiscoveryOwner from "@storybook-repo/discovery"
+import PackageGraphCreateOwner from "@storybook-package-graph/create"
+import PackageGraphReadOwner from "@storybook-package-graph/read"
+import PackageBuildDescriptorOwner from "@storybook-package-build/descriptor"
+import PackageRevisionOwner from "@storybook-package/revision"
 const discoverStorybookPackages = RepoDiscoveryOwner
 const createExternalStorybookGraph = PackageGraphCreateOwner
 const resolveExternalStorybookRoute = PackageGraphReadOwner.resolve
@@ -10,9 +10,9 @@ const externalStorybookPackageDescriptors = PackageBuildDescriptorOwner
 const createStorybookPackageRevisionGraphSnapshot = PackageRevisionOwner.create
 import {expect, test} from "bun:test"
 import {join} from "node:path"
-import WebProtocol from "@app-web/protocol"
+import WebProtocol from "@storybook-app-web/protocol"
 const createExternalStorybookClientSnapshot = WebProtocol.clientSnapshot
-import WebNavigationOwner from "@web/navigation"
+import WebNavigationOwner from "@storybook-app-web-page/navigation"
 const deriveExternalStorybookPackageTab = WebNavigationOwner.deriveExternalStorybookPackageTab
 
 const packageId = "@fixture/standalone"

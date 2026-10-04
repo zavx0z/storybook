@@ -1,12 +1,12 @@
 import {readyBrowser} from "./browser.fixture"
 import {expect, spyOn, test} from "bun:test"
 import {Client, InMemoryTransport} from "@modelcontextprotocol/client"
-import createLazyMcpServer from "@mcp/lazy"
-import createWeb from "@app/web"
-import State from "@app-server/state"
-import WebBuild from "@app-web/build"
-import type {PackageBuildPrepare} from "@package-build/prepare"
-import type {AppServer} from "../contract"
+import createLazyMcpServer from "@storybook-tech-mcp/lazy"
+import createWeb from "@storybook-app/web"
+import State from "@storybook-app-server/state"
+import WebBuild from "@storybook-app-web/build"
+import type {StorybookPackageBuildPrepare} from "@storybook-package-build/prepare"
+import type {StorybookAppServer} from "../contract"
 import {StorybookEventHub} from "../src/events"
 import {streamAppOperation} from "../src/app-stream"
 import {mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync} from "node:fs"
@@ -39,7 +39,7 @@ test("lazy worker доставляет package/shared MCP progress до резу
   const sharedStarted = Promise.withResolvers<void>()
   const sharedProgress = Promise.withResolvers<void>()
   const buildOwners: string[] = []
-  const builder: PackageBuildPrepare.Output = async input => {
+  const builder: StorybookPackageBuildPrepare.Output = async input => {
     buildOwners.push(input.descriptor.packageId)
     input.onPhase?.({phase: "exports", state: "started", at: new Date().toISOString()})
     if (input.descriptor.packageId === selected) {
@@ -56,7 +56,7 @@ test("lazy worker доставляет package/shared MCP progress до резу
     }
   }
   // Публичная factory подставляет только compiler; HTTP, sessions, scheduler и MCP остаются настоящими.
-  const prepare = await import("@package-build/prepare")
+  const prepare = await import("@storybook-package-build/prepare")
   const originalFactory = prepare.default
   const factory = spyOn(prepare, "default").mockImplementation(() => builder)
   const nativeSubscribe = StorybookEventHub.prototype.subscribe
@@ -73,11 +73,11 @@ test("lazy worker доставляет package/shared MCP progress до резу
       subscription.close()
     }}
   })
-  let running: AppServer.Output | undefined
+  let running: StorybookAppServer.Output | undefined
   let mcp: ReturnType<typeof createLazyMcpServer> | undefined
   const client = new Client({name: "check-progress-test", version: "1"})
   let request: ReturnType<Client["callTool"]> | undefined
-  let neighborBuild: ReturnType<AppServer.Output["sessions"]["ensure"]> | undefined
+  let neighborBuild: ReturnType<StorybookAppServer.Output["sessions"]["ensure"]> | undefined
   let closeQueueObservation = () => {}
   const progress: Record<string, unknown>[] = []
   let finished = false
@@ -108,8 +108,8 @@ test("lazy worker доставляет package/shared MCP progress до резу
     const serverModule = join(root, "mcp-factory.ts")
     writeFileSync(serverModule, `
 import createApp from "@storybook/app"
-import mcp from "@app/mcp"
-import state from "@app-server/state"
+import mcp from "@storybook-app/mcp"
+import state from "@storybook-app-server/state"
 
 export default async function factory() {
   // Bun --isolate environment родителя не наследуется дочерним процессом.

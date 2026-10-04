@@ -6,12 +6,12 @@
 */
 import {existsSync, lstatSync, readdirSync, readFileSync, rmSync} from "node:fs"
 import {join} from "node:path"
-import type {PackageArtifacts} from "./contract"
+import type {StorybookPackageArtifacts} from "./contract"
 
-export type {PackageArtifacts} from "./contract"
+export type {StorybookPackageArtifacts} from "./contract"
 
 /** Collect interrupted candidates while preserving applied revisions for session validation. */
-export default function collectUnpublishedStorybookArtifacts(root: PackageArtifacts.Input): PackageArtifacts.Output {
+export default function collectUnpublishedStorybookArtifacts(root: StorybookPackageArtifacts.Input): StorybookPackageArtifacts.Output {
   if (!existsSync(root)) return
   for (const entry of readdirSync(root, {withFileTypes: true})) {
     const directory = join(root, entry.name)

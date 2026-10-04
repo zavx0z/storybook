@@ -1,6 +1,6 @@
 import {expect, test} from "bun:test"
 import createApp from "@storybook/app"
-import State from "@app-server/state"
+import State from "@storybook-app-server/state"
 import {writeFileSync} from "node:fs"
 import {join} from "node:path"
 import {createLazyStartupFixture} from "./fixtures/lazy-startup"

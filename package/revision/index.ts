@@ -4,13 +4,13 @@
 
 @packageDocumentation
 */
-import PackageGraphReadOwner from "@package-graph/read"
-import {type PackageGraphCreate as PackageGraphCreateContract} from "@package-graph/create"
+import PackageGraphReadOwner from "@storybook-package-graph/read"
+import {type StorybookPackageGraphCreate as PackageGraphCreateContract} from "@storybook-package-graph/create"
 const externalStorybookRoutes = PackageGraphReadOwner.routes
 type ExternalStorybookGraph = PackageGraphCreateContract.Output
 import type {StorybookAuthorStyleSheetSource as StorybookAuthorStyleSheet} from "./contract/types"
 import {sha256Hex} from "./src/sha256.ts"
-import type {PackageRevision} from "./contract"
+import type {StorybookPackageRevision} from "./contract"
 import type {
   StorybookPackageRevisionAncestor,
   StorybookPackageRevisionGraphNode,
@@ -20,9 +20,9 @@ import type {
   StorybookPackageRevisionGraphSnapshot,
 } from "./contract/types"
 
-export type {PackageRevision} from "./contract"
+export type {StorybookPackageRevision} from "./contract"
 
-const STORYBOOK_PACKAGE_GRAPH_PROTOCOL: PackageRevision.Output["protocol"] = "storybook-package-graph/6"
+const STORYBOOK_PACKAGE_GRAPH_PROTOCOL: StorybookPackageRevision.Output["protocol"] = "storybook-package-graph/6"
 
 /** Creates the exact package projection without executable or author-declared loaders. */
 function createStorybookPackageRevisionGraphSnapshot(
@@ -247,7 +247,7 @@ function revisionWorkbenchAuthorStyleSheetPath(index: number): string {
 }
 
 /** Возможности подготовки и проверки неизменяемой ревизии пакета. */
-const revision: PackageRevision.Output = Object.freeze({
+const revision: StorybookPackageRevision.Output = Object.freeze({
   protocol: STORYBOOK_PACKAGE_GRAPH_PROTOCOL,
   create: createStorybookPackageRevisionGraphSnapshot,
   validate: validateStorybookPackageRevisionGraphSnapshot,

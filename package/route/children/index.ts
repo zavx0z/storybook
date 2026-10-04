@@ -3,16 +3,16 @@
 
 @packageDocumentation
 */
-import resolveRoute from "@route/resolve"
-import readRouteDirectories from "@route/directories"
-import readRouteIgnored from "@route/ignored"
-import address from "@route/address"
-import structure from "@route/structure"
-import type {RouteChildren} from "./contract"
+import resolveRoute from "@storybook-package-route/resolve"
+import readRouteDirectories from "@storybook-package-route/directories"
+import readRouteIgnored from "@storybook-package-route/ignored"
+import address from "@storybook-package-route/address"
+import structure from "@storybook-package-route/structure"
+import type {StorybookPackageRouteChildren} from "./contract"
 import {basename, dirname} from "node:path"
 import {resolveImmediateChildren} from "./src/resolve"
 
-export type {RouteChildren} from "./contract"
+export type {StorybookPackageRouteChildren} from "./contract"
 
 const {parseRoute} = address
 const {readPackageManifest, readWorkspaceChildNames} = structure
@@ -25,7 +25,7 @@ const {readPackageManifest, readWorkspaceChildNames} = structure
 @param input - Адрес родителя и зарегистрированные корни.
 @returns Разрешённые непосредственные маршруты.
 */
-export default async function readRouteChildren({route, roots}: RouteChildren.Input): Promise<RouteChildren.Output> {
+export default async function readRouteChildren({route, roots}: StorybookPackageRouteChildren.Input): Promise<StorybookPackageRouteChildren.Output> {
   const parsed = parseRoute(route)
   if (parsed === null || parsed.variant !== undefined || parsed.view !== undefined) return []
   if (parsed.segments.length === 0) {

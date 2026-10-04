@@ -3,32 +3,39 @@
 и управление Repo проекта. Навигация использует один каталог Workbench;
 управление видимостью принадлежит принимающему Window. Minimap добавляет в строку
 поиска кнопку пересборки Web со значком; ошибка действия показывается под строкой.
-Добавление и удаление Repo показаны отключёнными до реализации операций Project.
+Section занимает ширину и высоту принимающей области; toolbar сохраняет свою
+высоту, а дерево заполняет оставшееся место внутри этой границы.
+Без обработчика перехода панель показывает ветку без навигации и поиска текущей страницы.
+Действия управления Repo появляются только при переданном management.
 
 @packageDocumentation
 */
-import {TextField, type UiFieldsTextField} from "@zavx0z/ui"
-import {Button} from "@zavx0z/ui"
-import {collapseAllIcon, expandAllIcon, plusIcon, selectOpenedItemIcon} from "@ui-themes/icons"
-import {useRef} from "@zavx0z/component"
+import {TextField, type ImmersiveUiComponentFieldText} from "@immersive-ui/component"
+import {Button} from "@immersive-ui/component"
+import {collapseAllIcon, expandAllIcon, plusIcon, selectOpenedItemIcon} from "@immersive-ui-theme/icon"
+import {useRef} from "@immersive/component"
 import {CatalogNavigationTree, type CatalogNavigationTreeHandle} from "./src/navigation-tree"
 import {rebuildIcon} from "./src/icons"
-import type {WebCatalog} from "./contract"
-export type {WebCatalog} from "./contract"
+import type {StorybookAppWebPageShellWorkbenchCatalog} from "./contract"
+export type {StorybookAppWebPageShellWorkbenchCatalog} from "./contract"
 
 /** Показывает готовый каталог через общий Tree и передаёт действия его владельцу. */
-export default function CatalogPanel(value: WebCatalog.Input) {
+export default function CatalogPanel(value: StorybookAppWebPageShellWorkbenchCatalog.Input) {
   const tree = useRef<CatalogNavigationTreeHandle | null>(null)
-  const onSearch: NonNullable<UiFieldsTextField.Input["onInput"]> = (search, event) => {
+  const onSearch: NonNullable<ImmersiveUiComponentFieldText.Input["onInput"]> = (search, event) => {
     value.onSearch(search, event.currentTarget)
   }
-  return <div
+  return <section
+    aria-label={value.label}
     style={css`
+      box-sizing: border-box;
       display: flex;
       flex-direction: column;
       width: 100%;
+      height: 100%;
+      min-width: 0;
       min-height: 0;
-      flex-grow: 1;
+      overflow: hidden;
       gap: 2px;
     `}
   >
@@ -39,6 +46,7 @@ export default function CatalogPanel(value: WebCatalog.Input) {
         align-items: center;
         width: 100%;
         height: 24px;
+        flex-shrink: 0;
         gap: 4px;
       `}
     >
@@ -55,7 +63,7 @@ export default function CatalogPanel(value: WebCatalog.Input) {
         `}
         onInput={onSearch}
       />}
-      <Button
+      {value.onNavigate === undefined ? null : <Button
         label=""
         startIcon={selectOpenedItemIcon}
         title="Найти текущую страницу в дереве"
@@ -65,7 +73,7 @@ export default function CatalogPanel(value: WebCatalog.Input) {
         style={css`
           flex-shrink: 0;
         `}
-      />
+      />}
       <Button
         label=""
         startIcon={expandAllIcon}
@@ -139,12 +147,15 @@ export default function CatalogPanel(value: WebCatalog.Input) {
       style={css`
         display: flex;
         flex-direction: column;
+        min-width: 0;
         min-height: 0;
-        flex-grow: 1;
+        flex: 1 1 0;
+        overflow: hidden;
       `}
     >
       <CatalogNavigationTree
         items={value.items}
+        defaultCollapsed={value.defaultCollapsed}
         activeId={value.activeId}
         query={value.search}
         onNavigate={value.onNavigate}
@@ -156,5 +167,5 @@ export default function CatalogPanel(value: WebCatalog.Input) {
         onRemove={(item, source) => value.onAction({action: "detach", value: item.id}, source)}
       />
     </div>
-  </div>
+  </section>
 }

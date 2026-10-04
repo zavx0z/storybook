@@ -1,6 +1,6 @@
-import createWeb from "@app/web"
-import AppServerCatalogOwner, {type AppServerCatalog as AppServerCatalogContract} from "@app-server/catalog"
-import RepoDiscoveryOwner from "@repo/discovery"
+import createWeb from "@storybook-app/web"
+import AppServerCatalogOwner, {type StorybookAppServerCatalog as AppServerCatalogContract} from "@storybook-app-server/catalog"
+import RepoDiscoveryOwner from "@storybook-repo/discovery"
 const ExternalStorybookRegistry = AppServerCatalogOwner
 const discoverStorybookPackages = RepoDiscoveryOwner
 type ExternalStorybookRegistry = AppServerCatalogContract.Output
@@ -8,15 +8,15 @@ import {afterEach, expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm} from "node:fs/promises"
 import {join} from "node:path"
 import {tmpdir} from "node:os"
-import WebNavigationOwner from "@web/navigation"
+import WebNavigationOwner from "@storybook-app-web-page/navigation"
 const deriveExternalStorybookLanding = WebNavigationOwner.deriveExternalStorybookLanding
 const deriveExternalStorybookLandingSelection = WebNavigationOwner.deriveExternalStorybookLandingSelection
 const deriveExternalStorybookPackageTab = WebNavigationOwner.deriveExternalStorybookPackageTab
 const deriveExternalStorybookNavigationTree = WebNavigationOwner.deriveExternalStorybookNavigationTree
-import WebProtocol from "@app-web/protocol"
+import WebProtocol from "@storybook-app-web/protocol"
 const createExternalStorybookClientSnapshot = WebProtocol.clientSnapshot
 const deriveStorybookBreadcrumbs = WebNavigationOwner.deriveStorybookBreadcrumbs
-import startExternalStorybookServer from "@app/server"
+import startExternalStorybookServer from "@storybook-app/server"
 
 const roots: string[] = []
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, {recursive: true, force: true}))) })

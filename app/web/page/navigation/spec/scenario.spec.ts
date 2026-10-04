@@ -1,7 +1,7 @@
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
-import discoverStorybookPackages from "@repo/discovery"
-import createExternalStorybookGraph from "@package-graph/create"
+import discoverStorybookPackages from "@storybook-repo/discovery"
+import createExternalStorybookGraph from "@storybook-package-graph/create"
 import WebNavigationOwner from "../index"
 const deriveExternalStorybookLanding = WebNavigationOwner.deriveExternalStorybookLanding
 const deriveExternalStorybookLandingSelection = WebNavigationOwner.deriveExternalStorybookLandingSelection

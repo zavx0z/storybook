@@ -1,9 +1,9 @@
-import {useSyncExternalStore} from "@zavx0z/component"
-import {Button} from "@zavx0z/ui"
-import type {WebViewpointTab} from "../contract"
+import {useSyncExternalStore} from "@immersive/component"
+import {Button} from "@immersive-ui/component"
+import type {StorybookAppWebPageShellViewpointTab} from "../contract"
 
 /** Обычные компоненты управления сохраняют клик и перетаскивание родительского Tab. */
-export function ViewPointActions(props: WebViewpointTab.Input & Readonly<{vertical: boolean}>) {
+export function ViewPointActions(props: StorybookAppWebPageShellViewpointTab.Input & Readonly<{vertical: boolean}>) {
   const state = useSyncExternalStore(props.controls.subscribe, props.controls.getSnapshot)
   return <div
     role="toolbar"

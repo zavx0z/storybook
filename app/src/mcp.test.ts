@@ -1,6 +1,6 @@
 import {expect, test} from "bun:test"
 import {Client, InMemoryTransport} from "@modelcontextprotocol/client"
-import type {AppMcp} from "@app/mcp"
+import type {StorybookAppMcp} from "@storybook-app/mcp"
 import {createAppMcpServer} from "./mcp.ts"
 
 test("app передаёт контроллер MCP без загрузки при предметном чтении и сохраняет request progress", async () => {
@@ -9,7 +9,7 @@ test("app передаёт контроллер MCP без загрузки пр
   const progress: {progress: number, message?: string | undefined}[] = []
   /** Остальные управляющие входы присутствуют, но этот пример использует только check. */
   const unused = async () => ({status: "success" as const})
-  const controller: NonNullable<AppMcp.Input["controller"]> = {
+  const controller: NonNullable<StorybookAppMcp.Input["controller"]> = {
     ensure: unused,
     status: unused,
     attach: unused,

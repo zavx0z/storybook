@@ -1,4 +1,4 @@
-import Compiler from "@build/compiler"
+import Compiler from "@storybook-tech-build/compiler"
 const {createStorybookOwnerSourcePath, resolveStorybookCompilerSourceRoots} = Compiler
 import {describe, expect, test} from "bun:test"
 import {
@@ -14,40 +14,40 @@ const monorepoRoot = realpathSync.native(resolve(root, "../immersive"))
 
 const newFamily = Object.freeze({
   "@immersive/headless": "headless",
-  "@zavx0z/browser": "browser",
-  "@zavx0z/component": "component",
-  "@zavx0z/devtools": "devtool",
-  "@zavx0z/dom": "dom",
-  "@zavx0z/engine": "engine",
-  "@nodes/layout": "nodes/layout",
+  "@immersive/browser": "browser",
+  "@immersive/component": "component",
+  "@immersive/devtool": "devtool",
+  "@immersive/dom": "dom",
+  "@immersive/engine": "engine",
+  "@immersive-nodes/layout": "nodes/layout",
   "@immersive/nodes": "nodes",
-  "@nodes/node": "nodes/node",
+  "@immersive-nodes/node": "nodes/node",
   "@immersive/markdown": "markdown",
   "@immersive/typedoc": "typedoc",
-  "@nodes/parameters": "nodes/parameter",
-  "@nodes/sockets": "nodes/socket",
-  "@nodes/tree": "nodes/tree",
-  "@renderer/html": "renderer/html",
-  "@zavx0z/space": "space",
-  "@zavx0z/template": "template",
-  "@zavx0z/jsx": "jsx",
-  "@jsx/compiler": "jsx/compiler",
-  "@jsx/runtime": "jsx/runtime",
-  "@jsx/development": "jsx/development",
-  "@jsx/slot": "jsx/slot",
-  "@jsx-runtime/fragment": "jsx/runtime/fragment",
-  "@jsx-runtime/create": "jsx/runtime/create",
-  "@jsx-development/create": "jsx/development/create",
-  "@jsx/events": "jsx/event",
-  "@jsx-slot/plan": "jsx/slot/plan",
-  "@jsx-slot/child": "jsx/slot/child",
-  "@jsx-compiler/session": "jsx/compiler/session",
-  "@jsx-compiler/bun": "jsx/compiler/bun",
-  "@jsx-slot/authoring": "jsx/slot/authoring",
-  "@jsx-compiler/error": "jsx/compiler/error",
-  "@jsx-slot/contract": "jsx/slot/contract",
-  "@zavx0z/ui": "ui",
-  "@zavx0z/webgpu": "webgpu",
+  "@immersive-nodes/parameter": "nodes/parameter",
+  "@immersive-nodes/socket": "nodes/socket",
+  "@immersive-nodes/tree": "nodes/tree",
+  "@immersive-renderer/html": "renderer/html",
+  "@immersive/space": "space",
+  "@immersive/template": "template",
+  "@immersive/jsx": "jsx",
+  "@immersive-jsx/compiler": "jsx/compiler",
+  "@immersive-jsx/runtime": "jsx/runtime",
+  "@immersive-jsx/development": "jsx/development",
+  "@immersive-jsx/slot": "jsx/slot",
+  "@immersive-jsx-runtime/fragment": "jsx/runtime/fragment",
+  "@immersive-jsx-runtime/create": "jsx/runtime/create",
+  "@immersive-jsx-development/create": "jsx/development/create",
+  "@immersive-jsx/event": "jsx/event",
+  "@immersive-jsx-slot/plan": "jsx/slot/plan",
+  "@immersive-jsx-slot/child": "jsx/slot/child",
+  "@immersive-jsx-compiler/session": "jsx/compiler/session",
+  "@immersive-jsx-compiler/bun": "jsx/compiler/bun",
+  "@immersive-jsx-slot/authoring": "jsx/slot/authoring",
+  "@immersive-jsx-compiler/error": "jsx/compiler/error",
+  "@immersive-jsx-slot/contract": "jsx/slot/contract",
+  "@immersive-ui/component": "ui",
+  "@immersive/webgpu": "webgpu",
 } as const)
 
 describe("Storybook package identity", () => {
@@ -68,9 +68,9 @@ describe("Storybook package identity", () => {
   })
 
   test.each([
-    {name: "REST для сервера", from: ".", specifier: "@mcp/rest", entry: "app/mcp/rest/index.ts"},
-    {name: "REST для проверок MCP", from: "app/mcp", specifier: "@mcp/rest", entry: "app/mcp/rest/index.ts"},
-    {name: "Читатель спецификации для REST", from: "app/mcp/rest", specifier: "@archetypes/spec-reader", entry: "specs/reader/index.ts"},
+    {name: "REST для сервера", from: ".", specifier: "@storybook-app-mcp/rest", entry: "app/mcp/rest/index.ts"},
+    {name: "REST для проверок MCP", from: "app/mcp", specifier: "@storybook-app-mcp/rest", entry: "app/mcp/rest/index.ts"},
+    {name: "Читатель спецификации для REST", from: "app/mcp/rest", specifier: "@storybook-specs/reader", entry: "specs/reader/index.ts"},
   ])("$name", ({from, specifier, entry}) => {
     expect(
       realpathSync.native(Bun.resolveSync(specifier, resolve(root, from))),
@@ -118,24 +118,24 @@ describe("Storybook package identity", () => {
       packageRoot: root,
     })
 
-    assertOnePhysicalOwner(roots, "@zavx0z/component", "component", "src/index.ts")
-    assertOnePhysicalOwner(roots, "@zavx0z/devtools", "devtool", "inspector.ts")
-    assertOnePhysicalOwner(roots, "@zavx0z/dom", "dom", "src/index.ts")
-    assertOnePhysicalOwner(roots, "@renderer/html", "renderer/html", "src/index.ts")
+    assertOnePhysicalOwner(roots, "@immersive/component", "component", "src/index.ts")
+    assertOnePhysicalOwner(roots, "@immersive/devtool", "devtool", "inspector.ts")
+    assertOnePhysicalOwner(roots, "@immersive/dom", "dom", "src/index.ts")
+    assertOnePhysicalOwner(roots, "@immersive-renderer/html", "renderer/html", "src/index.ts")
     assertOnePhysicalOwner(roots, "@immersive/markdown", "markdown", "markdown/index.tsx")
     assertOnePhysicalOwner(roots, "@immersive/typedoc", "typedoc", "typedoc/index.tsx")
-    assertOnePhysicalOwner(roots, "@zavx0z/template", "template", "compiled.ts")
-    assertOnePhysicalOwner(roots, "@zavx0z/jsx", "jsx", "package.json")
-    assertOnePhysicalOwner(roots, "@jsx-runtime/create", "jsx/runtime/create", "index.ts")
-    assertOnePhysicalOwner(roots, "@jsx-compiler/session", "jsx/compiler/session", "index.ts")
-    assertOnePhysicalOwner(roots, "@zavx0z/ui", "ui", "button/button/index.tsx")
-    assertOnePhysicalOwner(roots, "@zavx0z/browser", "browser", "src/index.ts")
-    assertOnePhysicalOwner(roots, "@zavx0z/engine", "engine", "src/index.ts")
-    assertOnePhysicalOwner(roots, "@nodes/layout", "nodes/layout", "index.ts")
+    assertOnePhysicalOwner(roots, "@immersive/template", "template", "compiled.ts")
+    assertOnePhysicalOwner(roots, "@immersive/jsx", "jsx", "package.json")
+    assertOnePhysicalOwner(roots, "@immersive-jsx-runtime/create", "jsx/runtime/create", "index.ts")
+    assertOnePhysicalOwner(roots, "@immersive-jsx-compiler/session", "jsx/compiler/session", "index.ts")
+    assertOnePhysicalOwner(roots, "@immersive-ui/component", "ui", "button/button/index.tsx")
+    assertOnePhysicalOwner(roots, "@immersive/browser", "browser", "src/index.ts")
+    assertOnePhysicalOwner(roots, "@immersive/engine", "engine", "src/index.ts")
+    assertOnePhysicalOwner(roots, "@immersive-nodes/layout", "nodes/layout", "index.ts")
     assertOnePhysicalOwner(roots, "@immersive/nodes", "nodes", "index.ts")
-    assertOnePhysicalOwner(roots, "@nodes/tree", "nodes/tree", "index.ts")
-    assertOnePhysicalOwner(roots, "@zavx0z/space", "space", "src/index.ts")
-    assertOnePhysicalOwner(roots, "@zavx0z/webgpu", "webgpu", "src/index.ts")
+    assertOnePhysicalOwner(roots, "@immersive-nodes/tree", "nodes/tree", "index.ts")
+    assertOnePhysicalOwner(roots, "@immersive/space", "space", "src/index.ts")
+    assertOnePhysicalOwner(roots, "@immersive/webgpu", "webgpu", "src/index.ts")
 
     const rootsByName = packageRootsByName(roots)
     expect(rootsByName.get("@zavx0z/react")).toBeUndefined()
@@ -150,21 +150,21 @@ describe("Storybook package identity", () => {
       packageRoot: root,
     })
     for (const [specifier, ownerPath] of [
-      ["@zavx0z/component", "component/src/index.ts"],
-      ["@zavx0z/devtools", "devtool/inspector.ts"],
-      ["@zavx0z/dom", "dom/src/index.ts"],
-      ["@renderer/html", "renderer/html/src/index.ts"],
+      ["@immersive/component", "component/src/index.ts"],
+      ["@immersive/devtool", "devtool/inspector.ts"],
+      ["@immersive/dom", "dom/src/index.ts"],
+      ["@immersive-renderer/html", "renderer/html/src/index.ts"],
       ["@immersive/markdown", "markdown/markdown/index.tsx"],
       ["@immersive/markdown/parser", "markdown/parser/index.ts"],
       ["@immersive/markdown/destination", "markdown/destination/index.ts"],
       ["@immersive/typedoc", "typedoc/typedoc/index.tsx"],
       ["@immersive/typedoc/parser", "typedoc/parser/index.ts"],
-      ["@zavx0z/template/compiled", "template/compiled.ts"],
-      ["@zavx0z/jsx/jsx-runtime", "jsx/runtime/index.ts"],
-      ["@zavx0z/jsx/jsx-dev-runtime", "jsx/development/index.ts"],
-      ["@jsx-runtime/create", "jsx/runtime/create/index.ts"],
-      ["@jsx-compiler/bun", "jsx/compiler/bun/index.ts"],
-      ["@zavx0z/ui/button/button", "ui/button/button/index.tsx"],
+      ["@immersive/template/compiled", "template/compiled.ts"],
+      ["@immersive/jsx/jsx-runtime", "jsx/runtime/index.ts"],
+      ["@immersive/jsx/jsx-dev-runtime", "jsx/development/index.ts"],
+      ["@immersive-jsx-runtime/create", "jsx/runtime/create/index.ts"],
+      ["@immersive-jsx-compiler/bun", "jsx/compiler/bun/index.ts"],
+      ["@immersive-ui/component/button/button", "ui/button/button/index.tsx"],
     ] as const) {
       const installedPath = Bun.resolveSync(specifier, root)
       expect(ownerSourcePath(installedPath), specifier).toBe(join(monorepoRoot, ownerPath))

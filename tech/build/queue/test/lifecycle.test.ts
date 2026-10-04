@@ -1,8 +1,8 @@
 import {expect, test} from "bun:test"
-import BuildQueue from "@build/queue"
+import StorybookTechBuildQueue from "@storybook-tech-build/queue"
 
 test("очередь изолирует данные разных владельцев и завершает отмену перед следующим допуском", async () => {
-  const queue = new BuildQueue<{label: string}>({limit: 1})
+  const queue = new StorybookTechBuildQueue<{label: string}>({limit: 1})
   const controller = new AbortController()
   let cleanup!: () => void
   const cleaned = new Promise<void>(resolve => { cleanup = resolve })
@@ -34,7 +34,7 @@ test("очередь изолирует данные разных владель
 })
 
 test("закрытие очереди отклоняет ожидания и сохраняет lifecycle допущенной работы", async () => {
-  const queue = new BuildQueue<{}>()
+  const queue = new StorybookTechBuildQueue<{}>()
   const admitted = await queue.acquire({details: {}}, new AbortController().signal)
   const waiting = queue.run({details: {}}, async () => 42, new AbortController().signal)
   queue.dispose()
@@ -49,7 +49,7 @@ test("закрытие очереди отклоняет ожидания и с�
 
 test("ошибка бюджета владельца сохраняет timeout без знания предметной диагностики", async () => {
   const failure = {budget: "exhausted"}
-  const queue = new BuildQueue<{}>({isTimeout: error => error === failure})
+  const queue = new StorybookTechBuildQueue<{}>({isTimeout: error => error === failure})
   await expect(queue.run({details: {}}, async () => { throw failure }, new AbortController().signal)).rejects.toBe(failure)
   expect(queue.snapshot().recent[0]?.outcome).toBe("timed-out")
   queue.dispose()

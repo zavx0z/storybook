@@ -8,10 +8,10 @@ Project читает собственную идентичность Git superpr
 */
 import {lstat, realpath} from "node:fs/promises"
 import {isAbsolute, relative, resolve, sep} from "node:path"
-import readPackageJson from "@archetypes/package-json"
-import type {ArchetypesProject} from "./contract"
+import readPackageJson from "@storybook-package/package-json"
+import type {StorybookProject} from "./contract"
 
-export type {ArchetypesProject} from "./contract"
+export type {StorybookProject} from "./contract"
 
 /**
 Читает точный Git-корень проекта и Repo, объявленные непосредственно в .gitmodules.
@@ -36,7 +36,7 @@ workspaces и сохранённый список каталогов Storybook �
 const project = await readProject({path: "/workspace/product"})
 ```
 */
-export default async function readProject({path}: ArchetypesProject.Input): Promise<ArchetypesProject.Output> {
+export default async function readProject({path}: StorybookProject.Input): Promise<StorybookProject.Output> {
   const root = await realpath(resolve(path))
   const git = await runGit(root, ["rev-parse", "--show-toplevel"])
   if (git.status !== 0 || await realpath(git.output.replace(/\r?\n$/u, "")) !== root) {

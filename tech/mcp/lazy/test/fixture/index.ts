@@ -1,4 +1,4 @@
-import createLazyMcpServer from "@mcp/lazy"
+import createLazyMcpServer from "@storybook-tech-mcp/lazy"
 import type {CallToolResult} from "@modelcontextprotocol/server"
 import {Client, InMemoryTransport} from "@modelcontextprotocol/client"
 import {mkdtempSync, rmSync, symlinkSync, writeFileSync} from "node:fs"

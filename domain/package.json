@@ -1,5 +1,5 @@
 {
-  "name": "@archetypes/domain",
+  "name": "@storybook/domain",
   "label": "Домен",
   "version": "0.0.0",
   "private": true,
@@ -9,10 +9,10 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@archetypes/package": "workspace:*",
-    "@archetypes/contracts": "workspace:*"
+    "@storybook-package/reader": "workspace:*",
+    "@storybook/contracts": "workspace:*"
   },
   "devDependencies": {
-    "@archetypes/component": "workspace:*"
+    "@storybook/component": "workspace:*"
   }
 }

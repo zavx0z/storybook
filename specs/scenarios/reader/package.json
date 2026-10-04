@@ -1,5 +1,5 @@
 {
-  "name": "@archetypes/scenario-reader",
+  "name": "@storybook-specs-scenarios/reader",
   "label": "Читатель сценария",
   "description": "Читает исходник, выполняет Bun Test и сохраняет полный отчёт и preview сценария",
   "version": "0.0.0",
@@ -11,15 +11,15 @@
   "dependencies": {
     "fast-xml-parser": "^5.11.1",
     "typescript": "^7.0.2",
-    "@archetypes/scenario-validation": "workspace:*",
-    "@archetypes/package-index": "workspace:*",
-    "@build/compiler": "workspace:*",
-    "@tech/limits": "workspace:*"
+    "@storybook-specs-scenarios-reader/validation": "workspace:*",
+    "@storybook-package/index": "workspace:*",
+    "@storybook-tech-build/compiler": "workspace:*",
+    "@storybook-tech/limits": "workspace:*"
   },
   "devDependencies": {
-    "@zavx0z/jsx": "^0.0.0",
+    "@immersive/jsx": "^0.0.0",
     "@immersive/headless": "^0.0.0",
-    "@archetypes/package": "workspace:*",
-    "@package-build/loader": "workspace:*"
+    "@storybook-package/reader": "workspace:*",
+    "@storybook-package-build/loader": "workspace:*"
   }
 }

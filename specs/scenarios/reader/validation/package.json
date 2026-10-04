@@ -1,5 +1,5 @@
 {
-  "name": "@archetypes/scenario-validation",
+  "name": "@storybook-specs-scenarios-reader/validation",
   "description": "Проверяет правила авторства сценариев",
   "version": "0.0.0",
   "private": true,

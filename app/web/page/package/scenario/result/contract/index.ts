@@ -1,11 +1,11 @@
-import type {ScenarioModel} from "@scenario/model"
+import type {StorybookAppWebPagePackageScenarioModel} from "@storybook-app-web-page-package-scenario/model"
 
 /** Контракт представления сценария result. */
-export declare namespace ScenarioResult {
+export declare namespace StorybookAppWebPagePackageScenarioResult {
   /**
   @property app - Модель выбранного варианта, хода проверки и исходов вызовов.
   */
   type Input = Readonly<{
-    app: ScenarioModel.Output
+    app: StorybookAppWebPagePackageScenarioModel.Output
   }>
 }

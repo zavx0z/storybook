@@ -1,10 +1,10 @@
 import {expect, test} from "bun:test"
-import {createRoot} from "@zavx0z/component"
-import {createDocument} from "@zavx0z/dom"
-import {createSpaceElementFactories} from "@zavx0z/space"
-import type {CompiledTemplate} from "@zavx0z/template/compiled"
-import Workbench, {type WebWorkbench} from "../index"
-type WorkbenchProps = WebWorkbench.Input
+import {createRoot} from "@immersive/component"
+import {createDocument, MouseEvent, KeyboardEvent} from "@immersive/dom"
+import {createSpaceElementFactories} from "@immersive/space"
+import type {CompiledTemplate} from "@immersive/template/compiled"
+import Workbench, {type StorybookAppWebPageShellWorkbench} from "../index"
+type WorkbenchProps = StorybookAppWebPageShellWorkbench.Input
 import {selectWorkbenchNavigationBranch} from "../src/navigation/branch.ts"
 import type {WorkbenchNavigationItem} from "../src/types"
 
@@ -40,7 +40,7 @@ test("ветка не зависит от порядка родителей и �
   ], "leaf")).toEqual([{id: "leaf", label: "Лист", route: "/leaf"}])
 })
 
-test("Display сужается при смене пути и поиске, модель для HUD сохраняет полный обзор", () => {
+test("Ветка следует адресу, но клики и поиск Minimap не меняют её состав", () => {
   const document = createDocument({elementFactories: createSpaceElementFactories()})
   const space = document.createElement("space")
   const display = document.createElement("display")
@@ -50,7 +50,7 @@ test("Display сужается при смене пути и поиске, мо�
   document.append(space)
   space.append(display, hud)
   const component = createRoot(display)
-  let workbench: WebWorkbench.Output | undefined
+  let workbench: StorybookAppWebPageShellWorkbench.Output | undefined
   const rows = () => [...display.querySelectorAll("[data-tree-id]")]
     .filter(node => node.closest("[hidden]") === null)
     .map(node => node.getAttribute("data-tree-id"))
@@ -62,6 +62,20 @@ test("Display сужается при смене пути и поиске, мо�
     component.flush()
     expect(rows()).toEqual(["package", "component", "child", "sibling"])
     const fullCatalog = workbench!.getSnapshot().state["catalog.items"]
+    const navigations: unknown[] = []
+    workbench!.element.addEventListener(workbench!.events.navigate, event => navigations.push(event))
+    const leaf = display.querySelector('[data-tree-id="sibling"]')!
+    leaf.querySelector('[data-tree-row]')!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+    leaf.dispatchEvent(new KeyboardEvent("keydown", {key: "Enter", bubbles: true}))
+    component.flush()
+    expect(navigations).toEqual([])
+    expect(workbench!.controller.read("catalog.active")).toBe("package")
+    expect(workbench!.getSnapshot().state["catalog.items"]).toBe(fullCatalog)
+    expect(rows()).toEqual(["package", "component", "child", "sibling"])
+    const toolbar = workbench!.elements.catalog.querySelector('[data-storybook-part="catalog-search"]')!
+    expect([...toolbar.querySelectorAll("button")].map(button => button.getAttribute("aria-label")))
+      .toEqual(["Развернуть всё дерево", "Свернуть всё дерево"])
+    expect(workbench!.elements.catalog.querySelector('input[type="search"]')).toBeNull()
     workbench!.update("catalog.active", "component")
     component.flush()
     expect(rows()).toEqual(["component", "child"])
@@ -69,7 +83,7 @@ test("Display сужается при смене пути и поиске, мо�
     expect(fullCatalog.map(item => item.id)).toEqual(items.map(item => item.id))
     workbench!.update("catalog.search", "Сосед")
     component.flush()
-    expect(rows()).toEqual([])
+    expect(rows()).toEqual(["component", "child"])
     workbench!.update("catalog.search", "")
     workbench!.update("catalog.active", "child")
     component.flush()

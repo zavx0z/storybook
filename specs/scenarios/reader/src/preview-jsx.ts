@@ -5,9 +5,9 @@ import {
   isJsxExpression, isJsxFragment, isJsxSelfClosingElement, isJsxSpreadAttribute, isObjectLiteralExpression,
   isParenthesizedExpression, isPropertyAssignment, isSatisfiesExpression, isStringLiteral,
 } from "typescript/unstable/ast/is"
-import type {ScenarioPreview} from "./types"
+import type {StorybookAppWebPagePackageScenarioPreview} from "./types"
 
-type Variant = Extract<ScenarioPreview, {kind: "component"}>["variants"][number]
+type Variant = Extract<StorybookAppWebPagePackageScenarioPreview, {kind: "component"}>["variants"][number]
 export type JsxProp = NonNullable<Variant["jsxProps"]>[string]
 type Binding = Readonly<{module: string; export: string}>
 

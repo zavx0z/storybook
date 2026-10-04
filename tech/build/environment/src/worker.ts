@@ -1,5 +1,5 @@
 import {readFileSync, writeFileSync} from "node:fs"
-import Scheduler from "@package-build/scheduler"
+import Scheduler from "@storybook-package-build/scheduler"
 import {buildPlatform} from "./build"
 import type {PlatformBuildInput} from "../contract/build"
 

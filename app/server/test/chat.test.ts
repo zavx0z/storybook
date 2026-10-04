@@ -3,13 +3,17 @@ import {mkdtemp, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {createChatServer} from "../src/chat"
-import type {TechAcp} from "@tech/acp"
-import type {PackageGraphRead} from "@package-graph/read"
+import type {StorybookTechAcp} from "@storybook-tech/acp"
+import type {StorybookPackageGraphRead} from "@storybook-package-graph/read"
+import type {StorybookAppMcpRest} from "@storybook-app-mcp/rest"
 
 const releases: (() => Promise<void>)[] = []
 afterEach(async () => { for (const release of releases.splice(0).reverse()) await release() })
 
-async function fixture(configOptions: TechAcp.Output["configOptions"] = []) {
+async function fixture(
+  configOptions: StorybookTechAcp.Output["configOptions"] = [],
+  readType?: StorybookAppMcpRest.Input[1]["entries"][number]["readType"],
+) {
   let prompts = 0
   const project = await mkdtemp(join(tmpdir(), "storybook-chat-server-"))
   releases.push(() => rm(project, {recursive: true, force: true}))
@@ -19,11 +23,13 @@ async function fixture(configOptions: TechAcp.Output["configOptions"] = []) {
     {id: "child", urlPath: "/repo/button/part", label: "Part", packageId: "@scope/button", kind: "directory", source: {path: project}, childIds: []},
     {id: "button-other", urlPath: "/repo/button-other", label: "Other", packageId: "@scope/other", kind: "package", source: {path: join(project, "package.json")}, childIds: []},
   ]
-  const entries = nodes.map(node => ({path: node.urlPath.slice(1), label: node.label, description: node.label, parent: null}))
-  const connections: TechAcp.Input[] = []
+  const entries = nodes.map(node => ({path: node.urlPath.slice(1), label: node.label, description: node.label, parent: null,
+    ...(node.kind === "package" && readType !== undefined ? {readType} : {}),
+  }))
+  const connections: StorybookTechAcp.Input[] = []
   const server = createChatServer({
     project, projectName: () => "Project", toolRoot: project, origin: () => "http://127.0.0.1:12345",
-    graph: () => ({nodes} as unknown as PackageGraphRead.Input), entries: () => entries,
+    graph: () => ({nodes} as unknown as StorybookPackageGraphRead.Input), entries: () => entries,
     async connect(input) {
       connections.push(input)
       return {
@@ -81,6 +87,24 @@ test("подписка передаёт историю и её закрытие 
   const retired = await server.request(new Request("http://127.0.0.1:12345/api/browser/chat/events?address=/repo/button"))
   expect(retired.status).toBe(410)
   expect(await retired.json()).toEqual({error: "События чата доступны через WebSocket /api/events"})
+})
+
+test("адресный чат выбирает предметный MCP после проверки grant", async () => {
+  let reads = 0
+  const {server, connections} = await fixture([], async () => {
+    reads += 1
+    return {status: "confirmed", type: "Component", revision: "verified"}
+  })
+  await server.chats.prepare("/repo/button")
+  const mcp = connections[0]!.mcpServers[0]!
+  if (!("env" in mcp)) throw new Error("Ожидается stdio MCP")
+  const key = mcp.env.find(entry => entry.name === "STORYBOOK_CHAT_KEY")!.value
+  expect(await (await server.scopedMcp(scopedRequest(key, {}))).json())
+    .toMatchObject({path: "repo/button", status: "not-implemented", description: "Предметный MCP для Component ещё не реализован.",
+      verification: {status: "confirmed", type: "Component", revision: "verified"}, scope: {path: "repo/button", label: "Button"}})
+  expect(reads).toBe(1)
+  expect((await server.scopedMcp(scopedRequest(key, {path: "repo/button-other"}))).status).toBe(403)
+  expect(reads, "Чужой адрес не читает отчёт до проверки полномочий").toBe(1)
 })
 
 

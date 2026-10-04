@@ -1,13 +1,13 @@
-import type {CompiledTemplate} from "@zavx0z/template/compiled"
-import {Tree} from "@zavx0z/ui"
-import type {UiWidgetsTree} from "@zavx0z/ui"
-type TreeItem = UiWidgetsTree.Input["items"][number]
-type TreeHandle = NonNullable<Parameters<NonNullable<UiWidgetsTree.Input["onReady"]>>[0]>
-import {useLayoutEffect, useRef, useState} from "@zavx0z/component"
-import type {PageShell} from "@page/shell"
-type StorybookContractDocument = Parameters<PageShell.Output["showContract"]>[1][number]
-import type {WebWorkbench} from "@web/workbench"
-type WorkbenchInspectorCustomWidgetProps = Extract<ReturnType<WebWorkbench.Output["getSnapshot"]>["state"]["inspector.registry"][number], {kind: "custom"}>["component"] extends CompiledTemplate<infer Props> ? Props : never
+import type {CompiledTemplate} from "@immersive/template/compiled"
+import {Tree} from "@immersive-ui/component"
+import type {ImmersiveUiComponentWidgetTree} from "@immersive-ui/component"
+type TreeItem = ImmersiveUiComponentWidgetTree.Input["items"][number]
+type TreeHandle = NonNullable<Parameters<NonNullable<ImmersiveUiComponentWidgetTree.Input["onReady"]>>[0]>
+import {useLayoutEffect, useRef, useState} from "@immersive/component"
+import type {StorybookAppWebPageShell} from "@storybook-app-web-page/shell"
+type StorybookContractDocument = Parameters<StorybookAppWebPageShell.Output["showContract"]>[1][number]
+import type {StorybookAppWebPageShellWorkbench} from "@storybook-app-web-page-shell/workbench"
+type WorkbenchInspectorCustomWidgetProps = Extract<ReturnType<StorybookAppWebPageShellWorkbench.Output["getSnapshot"]>["state"]["inspector.registry"][number], {kind: "custom"}>["component"] extends CompiledTemplate<infer Props> ? Props : never
 
 /** Точная декларация TypeDoc из transport контракта Storybook. */
 type ContractDeclaration = StorybookContractDocument["document"]["declarations"][number]

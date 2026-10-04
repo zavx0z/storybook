@@ -1,4 +1,4 @@
-import type {HttpClient} from "@http/client"
+import type {StorybookTechHttpClient} from "@storybook-tech-http/client"
 import type {
   CandidateInput,
   StartupProgress,
@@ -17,7 +17,7 @@ import type {
 } from "./state"
 
 /** Контракт состояния и авторизации единственного серверного процесса Storybook. */
-export declare namespace AppServerState {
+export declare namespace StorybookAppServerState {
   /**
   @property client - Создаёт HTTP-клиент записи. Полномочие проверяется при каждом запросе; клиент не управляет временем жизни сервера.
 
@@ -122,7 +122,7 @@ export declare namespace AppServerState {
   полномочия вызывает HTTP 401, Host и Origin сохраняют свои статусы.
   */
   type Output = Readonly<{
-    client(record: ServerRecord): HttpClient.Output
+    client(record: ServerRecord): StorybookTechHttpClient.Output
     EXTERNAL_STORYBOOK_SERVER_PROTOCOL: "external-storybook-server/1"
     ExternalStorybookSecurityError: new (
       code: SecurityErrorCode,

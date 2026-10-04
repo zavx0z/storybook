@@ -3,7 +3,7 @@ import {mkdir, mkdtemp, realpath, rm, symlink, writeFile} from "node:fs/promises
 import {tmpdir} from "node:os"
 import {dirname, join} from "node:path"
 import {pathToFileURL} from "node:url"
-import type {ArchetypesPackage} from "@archetypes/package"
+import type {StorybookPackageReader} from "@storybook-package/reader"
 import {runtimeOwnedParts} from "../spec/runtime-owned-parts"
 
 const cleanup: string[] = []
@@ -36,7 +36,7 @@ async function fixture() {
     root: parent,
     packages: parts,
     code: [{path: join(parent, "index.ts"), references}],
-  }) as unknown as ArchetypesPackage.Output
+  }) as unknown as StorybookPackageReader.Output
   const fromA = {owner: {path: a, name: "@fixture/a"}, path: join(a, "index.ts"), typeOnly: false, exported: false}
   return {root, parent, a, b, nested, result, fromA}
 }

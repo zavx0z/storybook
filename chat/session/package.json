@@ -1,10 +1,10 @@
 {
-  "name": "@chat/session",
+  "name": "@storybook-chat/session",
   "label": "Сессии чатов",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "description": "История и выполнение отдельной беседы для каждого канонического адреса Project",
   "exports": {".": "./index.ts"},
-  "dependencies": {"@tech/acp": "workspace:*"}
+  "dependencies": {"@storybook-tech/acp": "workspace:*"}
 }

@@ -59,7 +59,7 @@ describe("Workbench component module boundary", () => {
   test("composes the production Pane instead of duplicating its visual contract", () => {
     const panel = readFileSync(join(root, "components/region-panel.tsx"), "utf8")
     const preview = readFileSync(join(root, "regions/preview.tsx"), "utf8")
-    expect(panel).toContain('from "@zavx0z/ui/surface/pane"')
+    expect(panel).toContain('from "@immersive-ui/component/surface/pane"')
     expect(panel).toContain("<Pane")
     for (const declaration of [
       "box-sizing:",
@@ -71,15 +71,15 @@ describe("Workbench component module boundary", () => {
       "color:",
     ]) expect(panel).not.toContain(declaration)
     expect(preview).not.toContain("WorkbenchRegionPanel")
-    expect(preview).toContain('from "@zavx0z/ui/surface/pane"')
+    expect(preview).toContain('from "@immersive-ui/component/surface/pane"')
     expect(preview).toContain('<Pane')
     expect(preview).not.toContain("border:")
   })
 
   test("composes the production StatusBar instead of duplicating its footer visual contract", () => {
     const status = readFileSync(join(root, "regions/status.tsx"), "utf8")
-    expect(status).toContain('from "@zavx0z/ui/feedback/status-bar"')
-    expect(status).toContain('from "@zavx0z/ui/navigation/breadcrumb"')
+    expect(status).toContain('from "@immersive-ui/component/feedback/status-bar"')
+    expect(status).toContain('from "@immersive-ui/component/navigation/breadcrumb"')
     expect(status).toContain("<StatusBar")
     expect(status).toContain("<Breadcrumbs")
     expect(status).not.toContain("<footer")
@@ -141,7 +141,7 @@ describe("Workbench component module boundary", () => {
     }
 
     const navigation = readFileSync(join(root, "regions/catalog.tsx"), "utf8")
-    expect(navigation).toContain('from "@web/catalog"')
+    expect(navigation).toContain('from "@storybook-app-web-page-shell-workbench/catalog"')
     expect(navigation).toContain("<CatalogPanel")
     for (const file of ["tree.tsx", "row.tsx", "windowing.ts"]) {
       expect(existsSync(join(root, "navigation", file))).toBeFalse()
