@@ -14,6 +14,7 @@
   "dependencies": {
     "@zavx0z/storybook-package-mcp": "workspace:*",
     "@zavx0z/storybook-package-mcp-content": "workspace:*",
-    "@zavx0z/storybook-package-mcp-navigation": "workspace:*"
+    "@zavx0z/storybook-package-mcp-navigation": "workspace:*",
+    "@zavx0z/storybook-package-mcp-tools": "workspace:*"
   }
 }

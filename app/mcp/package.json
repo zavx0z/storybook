@@ -16,7 +16,8 @@
     "@zavx0z/storybook-app-mcp-proxy": "workspace:*",
     "@zavx0z/storybook-app-mcp-response": "workspace:*",
     "@zavx0z/storybook-app-mcp-rest": "workspace:*",
-    "@zavx0z/storybook-app": "workspace:*"
+    "@zavx0z/storybook-app": "workspace:*",
+    "@zavx0z/storybook-app-mcp-tools": "workspace:*"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "^2.0.0",

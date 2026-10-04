@@ -7,15 +7,19 @@
 */
 import navigation from "@zavx0z/storybook-package-mcp-navigation"
 import content from "@zavx0z/storybook-package-mcp-content"
+import createTools from "@zavx0z/storybook-package-mcp-tools"
 import type {StorybookContainerMcp as Contract} from "./contract"
 
 export type {StorybookContainerMcp} from "./contract"
 
 /** Формирует содержательный ответ Container, сохраняя точные источники и границы его участников. */
-export default async function readContainerMcp({selected, entries}: Contract.Input): Promise<Contract.Output> {
+async function readContainerMcp({selected, entries}: Contract.Input): Promise<Contract.Output> {
   return {
     ...navigation({path: selected.path, description: selected.description, entries,
       ...(selected.label === undefined ? {} : {label: selected.label})}),
     ...await content(selected.sources),
   }
 }
+
+/** Собственное чтение и расширяемые инструменты назначенной области. */
+export default Object.assign(readContainerMcp, {tools: createTools})

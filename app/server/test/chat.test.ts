@@ -151,15 +151,16 @@ test("адресный чат выбирает предметный MCP посл
     return {status: "confirmed", type: "Component", revision: "verified"}
   })
   await server.chats.prepare("/repo/button")
+  expect(reads, "Подключение выбирает набор инструментов по подтверждённому типу").toBe(1)
   const mcp = connections[0]!.mcpServers[0]!
   if (!("env" in mcp)) throw new Error("Ожидается stdio MCP")
   const key = mcp.env.find(entry => entry.name === "STORYBOOK_CHAT_KEY")!.value
   expect(await (await server.scopedMcp(scopedRequest(key, {}))).json())
     .toMatchObject({path: ".", description: "Button",
       verification: {status: "confirmed", type: "Component", revision: "verified"}})
-  expect(reads).toBe(1)
+  expect(reads, "Предметное чтение отдельно проверяет актуальный отчёт").toBe(2)
   expect((await server.scopedMcp(scopedRequest(key, {path: "repo/button-other"}))).status).toBe(403)
-  expect(reads, "Чужой адрес не читает отчёт до проверки полномочий").toBe(1)
+  expect(reads, "Чужой адрес не читает отчёт до проверки полномочий").toBe(2)
 })
 
 

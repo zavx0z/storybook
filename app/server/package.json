@@ -38,7 +38,9 @@
     "@zavx0z/storybook-project": "workspace:*",
     "@zavx0z/storybook-app-web": "workspace:*",
     "@zavx0z/storybook-tech-build-environment": "workspace:*",
-    "@zavx0z/storybook-package-mcp-source": "workspace:*"
+    "@zavx0z/storybook-package-mcp-source": "workspace:*",
+    "@zavx0z/storybook-app-mcp-tools": "workspace:*",
+    "@zavx0z/ai-tech-failure": "link:@zavx0z/ai-tech-failure"
   },
   "devDependencies": {
     "@zavx0z/storybook-tech-build-artifacts": "workspace:*",

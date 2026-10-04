@@ -121,6 +121,19 @@
     "@zavx0z/immersive-ui-component-view-code-editor": "link:@zavx0z/immersive-ui-component-view-code-editor",
     "@zavx0z/immersive-ui-component-button-basic": "link:@zavx0z/immersive-ui-component-button-basic",
     "@zavx0z/immersive-ui-component-surface-tab": "link:@zavx0z/immersive-ui-component-surface-tab",
-    "@zavx0z/immersive-ui-component-surface-window-control": "link:@zavx0z/immersive-ui-component-surface-window-control"
+    "@zavx0z/immersive-ui-component-surface-window-control": "link:@zavx0z/immersive-ui-component-surface-window-control",
+    "@zavx0z/ai-filesystem-stat": "link:@zavx0z/ai-filesystem-stat",
+    "@zavx0z/ai-filesystem-read": "link:@zavx0z/ai-filesystem-read",
+    "@zavx0z/ai-filesystem-read-many": "link:@zavx0z/ai-filesystem-read-many",
+    "@zavx0z/ai-filesystem-list": "link:@zavx0z/ai-filesystem-list",
+    "@zavx0z/ai-filesystem-write": "link:@zavx0z/ai-filesystem-write",
+    "@zavx0z/ai-filesystem-create": "link:@zavx0z/ai-filesystem-create",
+    "@zavx0z/ai-filesystem-mkdir": "link:@zavx0z/ai-filesystem-mkdir",
+    "@zavx0z/ai-filesystem-remove": "link:@zavx0z/ai-filesystem-remove",
+    "@zavx0z/ai-filesystem-rename": "link:@zavx0z/ai-filesystem-rename",
+    "@zavx0z/ai-filesystem-apply-patch": "link:@zavx0z/ai-filesystem-apply-patch",
+    "@zavx0z/ai-workspace": "link:@zavx0z/ai-workspace",
+    "@zavx0z/ai-git-status": "link:@zavx0z/ai-git-status",
+    "@zavx0z/ai-tech-failure": "link:@zavx0z/ai-tech-failure"
   }
 }

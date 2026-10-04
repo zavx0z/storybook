@@ -1,5 +1,7 @@
 import {randomBytes, randomUUID} from "node:crypto"
 import mcpResponse from "@zavx0z/storybook-app-mcp-response"
+import createEntityTools from "@zavx0z/storybook-app-mcp-tools"
+import ToolError from "@zavx0z/ai-tech-failure"
 import {dirname, join} from "node:path"
 import createChatSessions, {type StorybookChatSession} from "@zavx0z/storybook-chat-session"
 import createAcp from "@zavx0z/storybook-tech-acp"
@@ -20,7 +22,7 @@ export function createChatServer(options: Readonly<{
   connect?: typeof createAcp
   recordRequest?: (entry: Record<string, unknown>) => void
 }>) {
-  const grants = new Map<string, {address: string, agentId: string}>()
+  const grants = new Map<string, {address: string, agentId: string, tools: ReturnType<typeof createEntityTools>}>()
   const subscriptions = new Set<() => void>()
   const resolve = (address: string) => {
     if (address === "/") return {address, label: options.projectName(), cwd: options.project}
@@ -35,7 +37,11 @@ export function createChatServer(options: Readonly<{
     resolve,
     async connect(input) {
       const key = randomBytes(32).toString("hex")
-      grants.set(key, {address: input.subject.address, agentId: randomUUID()})
+      const selected = options.entries().find(entry => entry.path === input.subject.address.slice(1))
+      const verification = await selected?.readType?.()
+      const type = input.subject.address === "/" ? "Project" : verification?.status === "confirmed" ? verification.type : undefined
+      const tools = createEntityTools({directory: input.subject.cwd, ...(type === undefined ? {} : {type})})
+      grants.set(key, {address: input.subject.address, agentId: randomUUID(), tools})
       try {
         const connection = await (options.connect ?? createAcp)({
           cwd: input.subject.cwd,
@@ -105,7 +111,7 @@ export function createChatServer(options: Readonly<{
     const text = request.method === "POST" ? await request.clone().text() : "{}"
     let input: unknown = text.length > 16_384 ? {error: "Превышен размер запроса MCP", length: text.length} : text
     if (text.length <= 16_384) try { input = JSON.parse(text || "{}") } catch {}
-    const record = {id: randomUUID(), tool: "storybook", startedAt, ...grant,
+    const record = {id: randomUUID(), tool: "storybook", startedAt, address: grant.address, agentId: grant.agentId,
       input: JSON.stringify(mcpResponse.sanitizeValue(input), null, 2) ?? ""}
     const write = (value: Record<string, unknown>) => {
       try { options.recordRequest?.(value) } catch { /* Журнал не отменяет вызов агента. */ }
@@ -123,6 +129,33 @@ export function createChatServer(options: Readonly<{
       write({...record, status: "failed", durationMs: Date.now() - startedAt,
         result: JSON.stringify({error: mcpResponse.sanitizeString(error instanceof Error ? error.message : String(error))})})
       throw error
+    }
+  }
+  /** Каталог и вызовы инструментов используют тот же grant и неизменную область агента. */
+  const scopedTools = async (request: Request, command?: unknown): Promise<Response> => {
+    const key = request.headers.get("authorization")?.replace(/^Bearer /u, "")
+    const grant = key === undefined ? undefined : grants.get(key)
+    if (grant === undefined) return Response.json({error: {code: "UNAUTHORIZED", message: "Подключение агента недоступно"}}, {status: 401})
+    if (request.method === "GET") return Response.json({tools: grant.tools.list()}, {headers: {"cache-control": "no-store"}})
+    if (request.method !== "POST") return Response.json({error: {code: "METHOD_NOT_ALLOWED", message: "Ожидается GET или POST"}}, {status: 405})
+    const startedAt = Date.now()
+    const name = command !== null && typeof command === "object" && "name" in command && typeof command.name === "string" ? command.name : "unknown"
+    const entry = {id: randomUUID(), tool: name.slice(0, 128), startedAt, address: grant.address, agentId: grant.agentId,
+      input: JSON.stringify(mcpResponse.sanitizeValue(command)) ?? ""}
+    const write = (value: Record<string, unknown>) => {
+      try { options.recordRequest?.(value) } catch { /* Журнал не отменяет инструмент. */ }
+    }
+    write({...entry, status: "running", durationMs: null, result: ""})
+    try {
+      const result = await grant.tools.call(command, request.signal)
+      write({...entry, status: "success", durationMs: Date.now() - startedAt, result: JSON.stringify(mcpResponse.sanitizeValue(result))})
+      // Содержимое файлов является результатом инструмента: его нельзя очищать как служебную диагностику.
+      return Response.json({result})
+    } catch (cause) {
+      const error = ToolError.from(cause)
+      const value = {code: error.code, message: error.message, ...(error.details === undefined ? {} : {details: error.details})}
+      write({...entry, status: "failed", durationMs: Date.now() - startedAt, result: JSON.stringify(mcpResponse.sanitizeValue({error: value}))})
+      return Response.json({error: value}, {status: error.status})
     }
   }
   /** Один подписчик получает свежий снимок, последующие изменения объединяются за 50 мс. */
@@ -161,6 +194,7 @@ export function createChatServer(options: Readonly<{
   return {
     chats,
     scopedMcp,
+    scopedTools,
     subscribe,
     async request(request: Request): Promise<Response> {
       const path = new URL(request.url).pathname

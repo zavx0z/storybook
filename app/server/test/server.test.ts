@@ -27,6 +27,24 @@ afterEach(async () => {
 
 describe("one external Storybook server", () => {
 
+  test("HTTP инструментов адресного агента требует grant и ограничивает тело до исполнения", async () => {
+    const fixture = serverFixture()
+    const running = await startTestServer({project: createProjectFixture(fixture.root, [fixture.standalone]),
+      statePath: fixture.statePath, artifactRoot: fixture.artifactRoot})
+    servers.push(running)
+    const url = new URL("/api/chat/tools", running.origin)
+    const catalog = await fetch(url)
+    expect(catalog.status).toBe(401)
+    expect(await catalog.json()).toMatchObject({error: {code: "UNAUTHORIZED"}})
+    const call = await fetch(url, {method: "POST", headers: {"content-type": "application/json", authorization: `Bearer ${running.record.controlToken}`},
+      body: JSON.stringify({name: "filesystem.create", arguments: {path: "forbidden.txt", content: "x"}})})
+    expect(call.status, "Управляющий токен не заменяет назначение адресного агента").toBe(401)
+    expect(existsSync(join(fixture.root, "forbidden.txt"))).toBeFalse()
+    const oversized = await fetch(url, {method: "POST", body: new Uint8Array(16 * 1024 * 1024 + 1)})
+    expect(oversized.status).toBe(413)
+    expect(running.sessions.snapshots().every(snapshot => snapshot.builds === 0)).toBeTrue()
+  })
+
   test("isolated package preparation собирает ревизию без shared jobs и артефактов", async () => {
     const fixture = serverFixture()
     const running = await startTestServer({

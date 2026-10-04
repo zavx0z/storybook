@@ -510,6 +510,11 @@ export default async function startExternalStorybookServer(
           assertExternalStorybookRequestOrigin(request, server.url.origin)
           return await chat.scopedMcp(request)
         }
+        if (url.pathname === "/api/chat/tools") {
+          assertExternalStorybookRequestOrigin(request, server.url.origin)
+          const command = request.method === "POST" ? await requestObject(request, 16 * 1024 * 1024) : undefined
+          return await chat.scopedTools(request, command)
+        }
         if (url.pathname.startsWith("/api/browser/chat/")) {
           assertExternalStorybookRequestOrigin(request, server.url.origin, {required: request.method !== "GET"})
           browserSessions.authorize(request.headers.get("x-storybook-session") ?? "")
