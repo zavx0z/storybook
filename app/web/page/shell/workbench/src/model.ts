@@ -136,7 +136,7 @@ export function createWorkbenchModel(options: WorkbenchModel.Input): WorkbenchMo
   }
   const onInspectorCategoryChange = (id: string): void => {
     const retained = retainedWorkbenchInspectorState(state, inspectorStateBySubject)
-    if (retained === null || !activeWorkbenchInspectorWidgets(state).some(widget => widget.id === id)) return
+    if (retained === null || id !== "tree" && !activeWorkbenchInspectorWidgets(state).some(widget => widget.id === id)) return
     retained.selectedId = id
     rerender()
     element.dispatchEvent(new CustomEvent(WORKBENCH_EVENTS.inspector, {
@@ -253,8 +253,8 @@ export function createWorkbenchModel(options: WorkbenchModel.Input): WorkbenchMo
     const retained = retainedWorkbenchInspectorState(state, inspectorStateBySubject)
     if (retained === null) return
     const widgets = activeWorkbenchInspectorWidgets(state)
-    const selected = id === null ? widgets[0]?.id ?? "" : id
-    if (!widgets.some(widget => widget.id === selected)) return
+    const selected = id === null ? widgets[0]?.id ?? "tree" : id
+    if (selected !== "tree" && !widgets.some(widget => widget.id === selected)) return
     retained.selectedId = selected
     rerender()
   }

@@ -11,6 +11,7 @@ export declare namespace WebCatalog {
   Готовый каталог и действия его владельца.
 
   @property label - Название навигационной области у принимающей поверхности.
+  @property [showSearch] - Показывает поле поиска; вкладка дерева Inspector отключает его.
   @property search - Текущий поисковый запрос общей модели.
   @property items - Иерархия доступных элементов для этой поверхности.
   @property activeId - Текущая страница; null отключает поиск текущего места.
@@ -25,6 +26,7 @@ export declare namespace WebCatalog {
   */
   export interface Input {
     label: string
+    showSearch?: boolean | undefined
     search: string
     items: readonly Item[]
     activeId: string | null

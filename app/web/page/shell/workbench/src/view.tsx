@@ -1,11 +1,10 @@
 import type {WorkbenchViewProps} from "./types.ts"
-import {CatalogRegion} from "./regions/catalog.tsx"
 import {InspectorRegion} from "./regions/inspector.tsx"
 import {PreviewRegion} from "./regions/preview.tsx"
 import {TabsRegion} from "./regions/tabs.tsx"
 import {StatusRegion} from "./regions/status.tsx"
 
-/** Композиция пяти областей Workbench с одним левым деревом. */
+/** Рабочая область и Inspector с деревом во вкладке. */
 export function WorkbenchView(props: WorkbenchViewProps) {
   const state = props.state
   const content = state.presentation.projection !== "hud"
@@ -53,18 +52,6 @@ export function WorkbenchView(props: WorkbenchViewProps) {
         }
       `}
     >
-      <CatalogRegion
-        label={state["catalog.label"]}
-        management={state["catalog.management"]}
-        onAction={props.onCatalogAction}
-        search={state["catalog.search"]}
-        items={state["catalog.items"]}
-        activeId={state["catalog.active"]}
-        onNavigate={props.onCatalogNavigate}
-        onSearch={props.onCatalogSearch}
-        onGroupToggle={props.onGroupToggle}
-        navigationExpansion={props.navigationExpansion}
-      />
       <div style={css`
         display: flex;
         flex-direction: column;
@@ -84,13 +71,27 @@ export function WorkbenchView(props: WorkbenchViewProps) {
         />
       </div>
       <InspectorRegion
+        catalog={{
+          label: state["catalog.label"],
+          management: state["catalog.management"],
+          onAction: props.onCatalogAction,
+          search: state["catalog.search"],
+          items: state["catalog.items"],
+          activeId: state["catalog.active"],
+          onNavigate: props.onCatalogNavigate,
+          onSearch: props.onCatalogSearch,
+          onGroupToggle: props.onGroupToggle,
+          navigationExpansion: props.navigationExpansion,
+        }}
         registry={state["inspector.registry"]}
         subject={state["inspector.subject"]}
         selectedId={props.inspectorSelectedId}
         query={props.inspectorQuery}
         onCategoryChange={props.onInspectorCategoryChange}
         onQueryChange={props.onInspectorQueryChange}
-      >{props.children}</InspectorRegion>
+      >
+        {props.children}
+      </InspectorRegion>
     </div>
     <StatusRegion
       mcpOpen={props.mcpOpen}

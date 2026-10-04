@@ -30,6 +30,17 @@ describe.each([
     expect(frame.document.querySelectorAll("viewpoint"), "Сцена сохраняет единственный ViewPoint").toHaveLength(1)
   })
 
+  test("Дерево во вкладке Inspector", () => {
+    const {body, catalog, inspectorHost} = ready!.elements
+    expect(body.children, "Основная строка содержит рабочую область и Inspector").toHaveLength(2)
+    expect(inspectorHost.contains(catalog), "Дерево находится внутри Inspector").toBeTrue()
+    expect(catalog.querySelector('input[type="search"]'), "Вкладка дерева не содержит поле поиска").toBeNull()
+    ready!.selectInspector("tree")
+    frame.component.flush()
+    expect(catalog.hasAttribute("hidden"), "Выбор вкладки показывает дерево").toBeFalse()
+    expect(inspectorHost.querySelector('input[type="search"]')!.closest("[hidden]"), "Вкладка дерева скрывает общий поиск Inspector").not.toBeNull()
+  })
+
   test("Обновление модели сохраняет рабочую область", () => {
     const element = ready!.element
     const space = element.closest("space")

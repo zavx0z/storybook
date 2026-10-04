@@ -1,7 +1,6 @@
 import type {
   Document,
   HTMLDivElement,
-  HTMLInputElement,
   HTMLElement,
   Node,
 } from "@zavx0z/dom"
@@ -385,8 +384,6 @@ export type WorkbenchController = Readonly<{
 
 @property catalog - Область каталога.
 
-@property catalogSearch - Поле поиска в каталоге.
-
 @property catalogItems - Контейнер элементов каталога.
 
 @property preview - Область просмотра.
@@ -411,7 +408,6 @@ export type WorkbenchElements = Readonly<{
   root: HTMLDivElement
   body: HTMLDivElement
   catalog: HTMLElement
-  catalogSearch: HTMLInputElement
   catalogItems: HTMLElement
   preview: HTMLElement
   previewHost: HTMLElement

@@ -59,6 +59,43 @@ describe("compiled Storybook Workbench", () => {
     } finally { workbench.dispose() }
   })
 
+  test("переключение вкладки дерева сохраняет Preview, дерево и раскрытие", () => {
+    const document = createDocument()
+    const workbench = api.createWorkbench({document, parent: document, initial: {
+      "catalog.items": [
+        {id: "repo", label: "Repo", route: "/repo"},
+        {id: "child", parentId: "repo", label: "Child", route: "/repo/child"},
+      ],
+      "inspector.subject": {subjectId: "repo", widgetIds: ["source"]},
+      "inspector.values": {source: "source"},
+    }})
+    try {
+      const preview = document.createElement("article")
+      workbench.update("presentation", {node: preview, projection: "display"})
+      const previewParent = preview.parentNode
+      const tree = workbench.elements.catalogItems
+      const catalog = workbench.elements.catalog
+      expect(catalog.hasAttribute("hidden")).toBeTrue()
+      const tab = workbench.elements.inspectorHost.querySelector('button[title="Дерево"]') as HTMLButtonElement
+      expect(tab).not.toBeNull()
+      tab.click()
+      expect(workbench.selectedInspector()).toBe("tree")
+      expect(catalog.hasAttribute("hidden")).toBeFalse()
+      const repo = tree.querySelector('[data-tree-id="repo"]')!
+      repo.querySelector("button")!.dispatchEvent(new MouseEvent("click", {bubbles: true}))
+      expect(repo.getAttribute("aria-expanded")).toBe("false")
+      workbench.selectInspector("source")
+      expect(catalog.hasAttribute("hidden")).toBeTrue()
+      workbench.selectInspector("tree")
+      expect(workbench.elements.catalogItems).toBe(tree)
+      expect(tree.querySelector('[data-tree-id="repo"]')).toBe(repo)
+      expect(repo.getAttribute("aria-expanded")).toBe("false")
+      expect(preview.parentNode).toBe(previewParent)
+      const saved = workbench.controller.captureUserState()
+      expect(saved.inspector.some(entry => entry.selectedId === "tree")).toBeTrue()
+    } finally { workbench.dispose() }
+  })
+
   test("creates one ComponentRoot, five exact regions and one production Inspector", () => {
     const document = createDocument()
     const workbench = api.createWorkbench({
@@ -246,9 +283,8 @@ describe("compiled Storybook Workbench", () => {
       detail: {kind: "catalog", id: "button", route: "components/button"},
     })
 
-    const search = workbench.elements.catalogSearch as HTMLInputElement
-    search.value = "поле"
-    search.dispatchEvent(new Event("input", {bubbles: true}))
+    expect(workbench.elements.catalog.querySelector('input[type="search"]')).toBeNull()
+    workbench.getSnapshot().onCatalogSearch("поле", workbench.elements.catalog as unknown as globalThis.HTMLElement)
     expect(workbench.controller.read("catalog.search")).toBe("поле")
     expect(row(workbench, "button", false)).toBeNull()
     expect(row(workbench, "input").textContent).toContain("Поле")

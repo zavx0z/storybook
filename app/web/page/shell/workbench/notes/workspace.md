@@ -19,7 +19,10 @@ back/forward, Inspector и preview согласованы с адресом. MCP
 навигации.
 
 Fixed `workbench-layout/3` владеет `catalog`, `tabs`, `preview`, `inspector`,
-`status`. `tabs` — визуально неподписанная полоса непосредственно над preview;
+`status`. Основная строка состоит из двух колонок: содержимого и Inspector.
+`catalog` находится во вкладке «Дерево» Inspector, поле поиска в этой вкладке отсутствует.
+Переключение секции сохраняет дерево, его раскрытие и содержимое Preview.
+`tabs` — визуально неподписанная полоса непосредственно над preview;
 её label служит доступным именем toolbar. `catalog` и `preview` также не
 рендерят видимые headings. Оболочка содержит один production
 `@zavx0z/ui/widget/inspector#Inspector`; его секции встроены в Storybook и

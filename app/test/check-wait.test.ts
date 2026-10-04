@@ -108,7 +108,10 @@ test.each(["storybook:web", "storybook:shared", "@fixture/component"])("%s жд�
     const controller = createExternalStorybookController({toolRoot: fixture.toolRoot, legacyStatePaths: []})
     const pending = controller.check({schemaVersion: 1, scope}, {signal: cancellation.signal,
       onProgress: () => { progressSeen.resolve() },
-    }).then(result => { completed = true; return result })
+    }).then(result => {
+      completed = true
+      return result
+    })
     await progressSeen.promise
     expect(completed).toBeFalse()
     expect((await controller.status({schemaVersion: 1, scope}, {signal: cancellation.signal})).server).toBe("running")

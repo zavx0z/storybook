@@ -19,9 +19,9 @@ export const WORKBENCH_LAYOUT_PROTOCOL = "workbench-layout/3" as const
 Именованные области раскладки: каталог, вкладки, просмотр, инспектор и строка состояния.
 */
 export const WORKBENCH_REGIONS = Object.freeze([
-  "catalog",
   "tabs",
   "preview",
   "inspector",
+  "catalog",
   "status",
 ] as const)

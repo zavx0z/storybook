@@ -83,12 +83,13 @@ async function startExternalStorybookLanding(
     shell.workbench.setChatContext({address: "/", label: snapshot.projectName, fetcher})
   })
 
-  const restoreChatSelection = (): void => {
-    shell.workbench.controller.selectInspector("chat")
-    if (location === undefined || history?.replaceState === undefined) return
-    const url = new URL(location.href)
-    if (url.searchParams.get("inspector") === "chat") return
-    url.searchParams.set("inspector", "chat")
+  const restoreInspectorSelection = (): void => {
+    const url = location === undefined ? null : new URL(location.href)
+    const selected = url?.searchParams.get("inspector") === "tree" ? "tree" : "chat"
+    shell.workbench.controller.selectInspector(selected)
+    if (url === null || history?.replaceState === undefined) return
+    if (url.searchParams.get("inspector") === selected) return
+    url.searchParams.set("inspector", selected)
     history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`)
   }
   const publishChat = (address: string, label: string): void => {
@@ -119,7 +120,7 @@ async function startExternalStorybookLanding(
         "Выберите Repo или пакет в дереве. Состав Project читается из .gitmodules.",
       )
     })
-    restoreChatSelection()
+    restoreInspectorSelection()
   }
 
   const breadcrumbsFor = (nodeId: string) => deriveStorybookBreadcrumbs(graph, nodeId, {kind: "landing"})
@@ -155,7 +156,7 @@ async function startExternalStorybookLanding(
       location.pathname !== ReadGraph.browsePath(clientNode)) {
       history.pushState(null, "", ReadGraph.browsePath(clientNode))
     }
-    restoreChatSelection()
+    restoreInspectorSelection()
     try {
       const documentation = await readExternalStorybookNodeDocumentation(clientNode, fetcher)
       if (disposed || revision !== selectionRevision) return
@@ -197,7 +198,7 @@ async function startExternalStorybookLanding(
         if ("replaceState" in history && typeof history.replaceState === "function") history.replaceState(null, "", "/")
         else history.pushState(null, "", "/")
       }
-      restoreChatSelection()
+      restoreInspectorSelection()
     }
   }
   const changeRepository = async (action: WorkbenchCatalogAction): Promise<void> => {
@@ -224,10 +225,10 @@ async function startExternalStorybookLanding(
 
   const onInspector = (event: unknown): void => {
     const id = (event as CustomEvent<{id?: unknown}>).detail?.id
-    if (id !== "chat" || location === undefined || history === undefined) return
+    if (id !== "chat" && id !== "tree" || location === undefined || history === undefined) return
     const url = new URL(location.href)
-    if (url.searchParams.get("inspector") === "chat") return
-    url.searchParams.set("inspector", "chat")
+    if (url.searchParams.get("inspector") === id) return
+    url.searchParams.set("inspector", id)
     history.pushState(null, "", `${url.pathname}${url.search}${url.hash}`)
   }
 
@@ -236,7 +237,7 @@ async function startExternalStorybookLanding(
     if (detail.kind === "breadcrumb" && detail.id === STORYBOOK_ROOT_BREADCRUMB.id) {
       showRootOverview()
       if (location !== undefined && history !== undefined && location.pathname !== "/") history.pushState(null, "", "/")
-      restoreChatSelection()
+      restoreInspectorSelection()
       return
     }
     const node = externalStorybookClientNode(snapshot, detail.id)

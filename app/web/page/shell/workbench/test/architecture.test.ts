@@ -47,12 +47,13 @@ describe("Workbench component module boundary", () => {
 
     const view = readFileSync(join(root, "view.tsx"), "utf8")
     for (const component of [
-      "CatalogRegion",
       "PreviewRegion",
       "TabsRegion",
       "InspectorRegion",
       "StatusRegion",
     ]) expect(view).toContain(`<${component}`)
+    expect(view).not.toContain("<CatalogRegion")
+    expect(readFileSync(join(root, "regions/inspector.tsx"), "utf8")).toContain("<CatalogRegion")
   })
 
   test("composes the production Pane instead of duplicating its visual contract", () => {

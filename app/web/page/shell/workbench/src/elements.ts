@@ -1,6 +1,5 @@
 import type {
   HTMLDivElement,
-  HTMLInputElement,
   HTMLElement,
   Node,
 } from "@zavx0z/dom"
@@ -11,7 +10,6 @@ export function readWorkbenchElements(root: HTMLDivElement): WorkbenchElements {
     root,
     body: exactElement(root, '[data-storybook-workbench-part="body"]', "Workbench body") as HTMLDivElement,
     catalog: exactElement(root, '[data-storybook-region="catalog"]', "Catalog region"),
-    catalogSearch: exactElement(root, '[data-storybook-part="catalog-search"] input', "Catalog search") as HTMLInputElement,
     catalogItems: exactElement(root, '[data-storybook-part="catalog-items"] [role="tree"]', "Catalog items"),
     preview: exactElement(root, '[data-storybook-region="preview"]', "Preview region"),
     previewHost: exactElement(root, '[data-storybook-part="preview-host"]', "Preview host"),

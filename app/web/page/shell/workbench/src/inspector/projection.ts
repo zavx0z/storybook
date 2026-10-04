@@ -74,13 +74,12 @@ export function retainedWorkbenchInspectorState(
   retainedBySubject: Map<string, WorkbenchInspectorRetainedState>,
 ): WorkbenchInspectorRetainedState | null {
   const subject = state["inspector.subject"]
-  if (subject === null) return null
   const widgets = activeWorkbenchInspectorWidgets(state)
-  const key = `${subject.packageId ?? ""}\0${subject.workspaceId ?? subject.subjectId}`
+  const key = subject === null ? "" : `${subject.packageId ?? ""}\0${subject.workspaceId ?? subject.subjectId}`
   let retained = retainedBySubject.get(key)
   if (retained === undefined) {
     retained = {
-      selectedId: widgets[0]?.id ?? "",
+      selectedId: widgets[0]?.id ?? "tree",
       query: "",
       expanded: new Map(),
       treeExpanded: new Map(),
@@ -88,8 +87,8 @@ export function retainedWorkbenchInspectorState(
     retainedBySubject.set(key, retained)
   } else {
     const current = retained
-    if (!widgets.some(widget => widget.id === current.selectedId)) {
-      current.selectedId = widgets[0]?.id ?? ""
+    if (current.selectedId !== "tree" && !widgets.some(widget => widget.id === current.selectedId)) {
+      current.selectedId = widgets[0]?.id ?? "tree"
     }
   }
   return retained

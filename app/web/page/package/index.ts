@@ -503,6 +503,10 @@ async function startExternalStorybookPackage(
     const subject = shell.workbench.controller.read("inspector.subject")
     const current = new URL(location.href)
     const requested = current.searchParams.get("inspector")
+    if (requested === "tree") {
+      shell.workbench.controller.selectInspector("tree")
+      return
+    }
     if (subject === null || subject.widgetIds.length === 0) {
       if (requested === null) return
       current.searchParams.delete("inspector")
@@ -707,7 +711,7 @@ async function startExternalStorybookPackage(
     const id = (event as CustomEvent<{id?: unknown}>).detail?.id
     if (typeof id !== "string") return
     const subject = shell.workbench.controller.read("inspector.subject")
-    if (subject === null || !subject.widgetIds.includes(id)) return
+    if (id !== "tree" && (subject === null || !subject.widgetIds.includes(id))) return
     const next = new URL(location.href)
     const value = inspectorUrlId(id)
     selectContractDirection?.(id)

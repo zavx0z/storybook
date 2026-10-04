@@ -42,7 +42,7 @@ export default function CatalogPanel(value: WebCatalog.Input) {
         gap: 4px;
       `}
     >
-      <TextField
+      {value.showSearch === false ? null : <TextField
         type="search"
         value={value.search}
         placeholder="Поиск…"
@@ -54,7 +54,7 @@ export default function CatalogPanel(value: WebCatalog.Input) {
           --text-field-width: 100%;
         `}
         onInput={onSearch}
-      />
+      />}
       <Button
         label=""
         startIcon={selectOpenedItemIcon}

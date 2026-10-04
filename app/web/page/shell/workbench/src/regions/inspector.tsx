@@ -1,3 +1,5 @@
+import type {WebCatalog} from "@web/catalog"
+import {CatalogRegion} from "./catalog"
 import type {JSX} from "@jsx-compiler/session"
 import type {
   WorkbenchInspectorSubject,
@@ -6,6 +8,7 @@ import type {
 import {WorkbenchInspector} from "../inspector/panel.tsx"
 
 export type InspectorRegionProps = Readonly<{
+  catalog: WebCatalog.Input
   registry: readonly WorkbenchInspectorWidgetRegistration[]
   subject: WorkbenchInspectorSubject | null
   selectedId: string
@@ -34,6 +37,42 @@ export function InspectorRegion(props: InspectorRegionProps) {
       query={props.query}
       onCategoryChange={props.onCategoryChange}
       onQueryChange={props.onQueryChange}
-    >{props.children}</WorkbenchInspector>
+    >
+      <InspectorContents
+        catalog={props.catalog}
+        selectedId={props.selectedId}
+      >
+        {props.children}
+      </InspectorContents>
+    </WorkbenchInspector>
+  </div>
+}
+
+
+/** Содержимое секций остаётся смонтированным при переключении вкладки дерева. */
+function InspectorContents(props: Readonly<{
+  catalog: WebCatalog.Input
+  selectedId: string
+}>): JSX.Element<{default: readonly JSX.Element[]}> {
+  return <div style={css`
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex-grow: 1;
+  `}>
+    <CatalogRegion
+      hidden={props.selectedId !== "tree"}
+      label={props.catalog.label}
+      management={props.catalog.management}
+      onAction={props.catalog.onAction}
+      search={props.catalog.search}
+      items={props.catalog.items}
+      activeId={props.catalog.activeId}
+      onNavigate={props.catalog.onNavigate}
+      onSearch={props.catalog.onSearch}
+      onGroupToggle={props.catalog.onGroupToggle}
+      navigationExpansion={props.catalog.navigationExpansion}
+    />
+    <slot />
   </div>
 }
