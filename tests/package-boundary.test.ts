@@ -27,7 +27,7 @@ describe("external @zavx0z/storybook tool boundary", () => {
     const paths = new Bun.Glob(ignored!)
     expect(paths.match("tests/isolation.integration.test.ts")).toBeTrue()
     expect(paths.match("owner/spec/fixture/scenario.spec.ts")).toBeTrue()
-    expect(paths.match("repo/discovery/fixtures/sample.test.ts")).toBeTrue()
+    expect(paths.match("package/metadata/collect/fixtures/sample.test.ts")).toBeTrue()
     expect(paths.match("tests/package-boundary.test.ts")).toBeFalse()
     expect(script).toContain("&& bun test --no-orphans --isolate ./tests/isolation.integration.test.ts --max-concurrency=1")
     expect(script).not.toContain("server.test.ts")

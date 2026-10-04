@@ -4,7 +4,7 @@ import {afterEach, expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import discoverStorybookPackages from "@zavx0z/storybook-repo-discovery"
+import discoverStorybookPackages from "@zavx0z/storybook-package-metadata-collect"
 import createExternalStorybookGraph from "@zavx0z/storybook-package-graph-create"
 import WebNavigationOwner from "@zavx0z/storybook-app-web-page-navigation"
 const deriveExternalStorybookNavigationTree = WebNavigationOwner.deriveExternalStorybookNavigationTree

@@ -8,6 +8,7 @@ export declare namespace Zavx0zStorybookAppServerSessions {
   @property artifactRoot - Каталог результатов всех сессий; каждый пакет получает собственную область.
   @property buildRevision - Предоставленная операция подготовки одной ревизии.
   @property [prepareBuild] - Проверяет готовность среды до занятия compiler slot.
+  @property [readDescriptor] - Загружает входы выбранного пакета с ФС при обращении к ним вместо удержания полного каталога сессиями.
   @property [publish] - Наблюдает события владельцев сессий.
   @property [buildScheduler] - Общая очередь с внешним временем жизни.
   @property [buildConcurrency] - Лимит собственной очереди, если она не передана.
@@ -17,6 +18,7 @@ export declare namespace Zavx0zStorybookAppServerSessions {
   type Input = Readonly<{
     artifactRoot: string
     buildRevision: Zavx0zStorybookPackageSession.Input[1]["buildRevision"]
+    readDescriptor?: (packageId: string) => Zavx0zStorybookPackageSession.Input[0]
     prepareBuild?: Zavx0zStorybookPackageSession.Input[1]["prepareBuild"]
     publish?: Zavx0zStorybookPackageSession.Input[1]["publish"]
     buildScheduler?: Zavx0zStorybookPackageBuildScheduler.Output

@@ -189,8 +189,7 @@ export default async function startExternalStorybookServer(
   })
   const sharedAssetRoot = web.artifactRoot
   try {
-    await registry.configure(project.repositories.map(repository => repository.root))
-    await registry.saveMetadata(project)
+    await registry.open(project, project.repositories.map(repository => repository.root))
     options.onStartupPhase?.("sessions")
   } catch (error) {
     await registry.dispose()
@@ -225,6 +224,11 @@ export default async function startExternalStorybookServer(
   }
   const sessions = new ExternalStorybookSessionManager({
     artifactRoot,
+    readDescriptor: packageId => {
+      const descriptor = registry.packageDescriptors().find(descriptor => descriptor.packageId === packageId)
+      if (descriptor === undefined) throw new Error(`Unknown package metadata: ${packageId}`)
+      return descriptor
+    },
     ...(usesSharedKernel ? {prepareBuild: prepareSharedIdentity} : {}),
     buildRevision: createStorybookPackageRevisionBuilder({
       toolRoot,

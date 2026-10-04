@@ -3,12 +3,12 @@ import createDescriptors from "@zavx0z/storybook-package-build-descriptor"
 import {createEntries} from "./helpers"
 import type {Zavx0zStorybookAppServerCatalog} from "../contract"
 import type {ExternalStorybookAttachSource, ExternalStorybookRegistrySnapshot} from "../contract/models"
-import type {Zavx0zStorybookRepoDiscovery} from "@zavx0z/storybook-repo-discovery"
+import type {Zavx0zStorybookPackageMetadataCollect} from "@zavx0z/storybook-package-metadata-collect"
 import type {CatalogPreparation} from "./worker-protocol"
 
-/** Граф, ресурсы, сравнения и описания целиком готовятся до атомарного принятия сервером. */
+/** Граф и индексы готовятся до публикации дерева; сравнение не раскрывает тексты ресурсов. */
 export function prepareCatalogSnapshot(
-  catalog: Zavx0zStorybookRepoDiscovery.Output,
+  catalog: Zavx0zStorybookPackageMetadataCollect.Output,
   sources: readonly ExternalStorybookAttachSource[],
   previous: ExternalStorybookRegistrySnapshot,
   styles: ReturnType<NonNullable<Zavx0zStorybookAppServerCatalog.Input[1]>>,
@@ -23,7 +23,10 @@ export function prepareCatalogSnapshot(
   const before = new Map(previous.descriptors.map(descriptor => [descriptor.packageId, descriptor]))
   const unchangedPackageIds = descriptors.filter(descriptor => {
     const current = before.get(descriptor.packageId)
-    return current !== undefined && JSON.stringify(current) === JSON.stringify(descriptor)
+    return current !== undefined && current.declarationDigest === descriptor.declarationDigest &&
+      current.graphSnapshot.packageGraphDigest === descriptor.graphSnapshot.packageGraphDigest &&
+      current.packageRoot === descriptor.packageRoot && current.repo === descriptor.repo &&
+      current.sourcePath === descriptor.sourcePath
   }).map(descriptor => descriptor.packageId)
   const graphUnchanged = graph.digest === previous.graph.digest
   const descriptorsUnchanged = descriptors.length === previous.descriptors.length && unchangedPackageIds.length === descriptors.length &&

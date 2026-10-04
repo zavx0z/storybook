@@ -1,10 +1,10 @@
 
 /** Контракт вывода пакетных build descriptors из единого каталога. */
-import {type Zavx0zStorybookRepoDiscovery as RepoDiscoveryContract} from "@zavx0z/storybook-repo-discovery"
+import {type Zavx0zStorybookPackageMetadataCollect as PackageMetadataCollectContract} from "@zavx0z/storybook-package-metadata-collect"
 import {type Zavx0zStorybookPackageGraphCreate as PackageGraphCreateContract} from "@zavx0z/storybook-package-graph-create"
 import {type Zavx0zStorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
 import type {Zavx0zStorybookPackageRevision} from "@zavx0z/storybook-package-revision"
-type StorybookCatalog = RepoDiscoveryContract.Output
+type StorybookCatalog = PackageMetadataCollectContract.Output
 type ExternalStorybookGraph = PackageGraphCreateContract.Output
 type Zavx0zStorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 export declare namespace Zavx0zStorybookPackageBuildDescriptor {

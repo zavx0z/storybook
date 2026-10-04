@@ -1,5 +1,8 @@
 /**
-Обнаруживает пакеты и их публичную файловую структуру без деклараций Storybook.
+Собирает сведения выбранных пакетов и их вложенных владельцев.
+Одинаково обслуживает корень Repo и любой вложенный Package; состав определяется
+существующим читателем workspaces, а содержимое каждого владельца остаётся отдельным.
+Общий анализ контрактов сохраняет одну session для выбранной порции данных.
 
 @packageDocumentation
 */
@@ -14,12 +17,12 @@ import {prepareStorybookDirectories, completeStorybookDirectories, type Prepared
 import {readContractDocumentationResults, type ContractDocumentationResult} from "./src/contract-documentation"
 import Identity from "@zavx0z/storybook-package-identity"
 const {package: validateExternalStorybookPackageId} = Identity
-import type {Zavx0zStorybookRepoDiscovery} from "./contract"
+import type {Zavx0zStorybookPackageMetadataCollect} from "./contract"
 
-export type {Zavx0zStorybookRepoDiscovery} from "./contract"
+export type {Zavx0zStorybookPackageMetadataCollect} from "./contract"
 
 /**
-Читает package.json подключённого корня и состав из workspaces его Repo.
+Читает package.json выбранного пакета и относящийся к нему состав workspaces его Repo.
 Вложенность пакетов выводится из физического расположения без повторных деклараций.
 Не загружает исполняемый код и не читает проектные файлы конфигурации Storybook.
 При обновлении изолирует ошибку владельца, сохраняя его предыдущий рабочий состав.
@@ -28,10 +31,10 @@ export type {Zavx0zStorybookRepoDiscovery} from "./contract"
 его владельца, а ошибка общей session помечает все зависящие от неё scope.
 */
 export default async function discoverStorybookPackages(
-  inputs: Zavx0zStorybookRepoDiscovery.Input[0],
-  previous?: Zavx0zStorybookRepoDiscovery.Input[1],
-  options: NonNullable<Zavx0zStorybookRepoDiscovery.Input[2]> = {},
-): Promise<Zavx0zStorybookRepoDiscovery.Output> {
+  inputs: Zavx0zStorybookPackageMetadataCollect.Input[0],
+  previous?: Zavx0zStorybookPackageMetadataCollect.Input[1],
+  options: NonNullable<Zavx0zStorybookPackageMetadataCollect.Input[2]> = {},
+): Promise<Zavx0zStorybookPackageMetadataCollect.Output> {
   if (inputs.length === 0) throw new Error("Storybook requires at least one package directory")
   const scopes = new Map<string, StorybookCatalogScope>()
   const names = new Map<string, string>()

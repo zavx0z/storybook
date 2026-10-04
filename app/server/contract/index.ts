@@ -1,10 +1,10 @@
 import type {Zavx0zStorybookAppWeb} from "@zavx0z/storybook-app-web"
 import {type Zavx0zStorybookAppServerBrowser as Zavx0zStorybookBrowserLifecycleContract} from "@zavx0z/storybook-app-server-browser"
 type StorybookBrowserLifecycle = Zavx0zStorybookBrowserLifecycleContract.Output
-import {type Zavx0zStorybookRepoDiscovery as RepoDiscoveryContract} from "@zavx0z/storybook-repo-discovery"
+import {type Zavx0zStorybookPackageMetadataCollect as PackageMetadataCollectContract} from "@zavx0z/storybook-package-metadata-collect"
 import {type Zavx0zStorybookAppServerCatalog as AppServerCatalogContract} from "@zavx0z/storybook-app-server-catalog"
 import {type Zavx0zStorybookAppServerSessions as AppServerSessionsContract} from "@zavx0z/storybook-app-server-sessions"
-type StorybookCatalogResolver = (...input: RepoDiscoveryContract.Input) => Promise<RepoDiscoveryContract.Output>
+type StorybookCatalogResolver = (...input: PackageMetadataCollectContract.Input) => Promise<PackageMetadataCollectContract.Output>
 type ExternalStorybookRegistry = AppServerCatalogContract.Output
 type ExternalStorybookSessionManager = AppServerSessionsContract.Output
 import type {Zavx0zStorybookAppServerState} from "@zavx0z/storybook-app-server-state"

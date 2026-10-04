@@ -1,12 +1,12 @@
-import RepoDiscoveryOwner from "@zavx0z/storybook-repo-discovery"
+import PackageMetadataCollectOwner from "@zavx0z/storybook-package-metadata-collect"
 import AppServerCatalogOwner, {type Zavx0zStorybookAppServerCatalog as AppServerCatalogContract} from "@zavx0z/storybook-app-server-catalog"
-const discoverStorybookPackages = RepoDiscoveryOwner
+const discoverStorybookPackages = PackageMetadataCollectOwner
 const ExternalStorybookRegistry = AppServerCatalogOwner
 type ExternalStorybookRegistry = AppServerCatalogContract.Output
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
 
-const fixtureRoot = join(import.meta.dir, "../../../../repo/discovery/fixtures/valid")
+const fixtureRoot = join(import.meta.dir, "../../../../package/metadata/collect/fixtures/valid")
 
 describe("external Storybook attached-root registry", () => {
   test("atomically attaches nested workspaces and an independent package", async () => {

@@ -38,7 +38,7 @@
     "@zavx0z/storybook-package-graph-create": "workspace:*",
     "@zavx0z/storybook-package-session": "workspace:*",
     "@zavx0z/immersive-renderer-html": "^0.0.0",
-    "@zavx0z/storybook-repo-discovery": "workspace:*",
+    "@zavx0z/storybook-package-metadata-collect": "workspace:*",
     "@zavx0z/storybook-tech-testing-browser-root": "workspace:*",
     "@zavx0z/immersive-space": "^0.0.0"
   }

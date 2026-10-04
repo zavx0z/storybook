@@ -4,7 +4,7 @@ import {mkdtemp, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {readParameterizedTests} from "../src/read-parameterized-tests.ts"
 
-const root = resolve(import.meta.dir, "../../../../immersive")
+const root = resolve(import.meta.dir, "../../../../../immersive")
 
 test("[DIAGRAM-TEST-PARAMETERS] чтение spec возвращает название теста и полную параметризацию", async () => {
   const declarations = await readParameterizedTests(root, resolve(root, "nodes/node/diagram/spec/deps.spec.ts"))
@@ -19,11 +19,11 @@ test("[DIAGRAM-TEST-PARAMETERS] чтение spec возвращает назв�
           file: "nodes/node/diagram/index.tsx",
           expected: {
             "nodes/node/diagram/index.tsx#DiagramNode": {
-              uses: ["ui/surface/pane/index.tsx#Pane", "ui/typography/index.tsx#Typography"],
+              uses: ["ui/component/surface/pane/index.tsx#Pane", "ui/component/typography/index.tsx#Typography"],
               elements: ["article"],
             },
-            "ui/surface/pane/index.tsx#Pane": {uses: [], elements: ["section"]},
-            "ui/typography/index.tsx#Typography": {uses: [], elements: ["span"]},
+            "ui/component/surface/pane/index.tsx#Pane": {uses: [], elements: ["section"]},
+            "ui/component/typography/index.tsx#Typography": {uses: [], elements: ["span"]},
           },
         },
       ],

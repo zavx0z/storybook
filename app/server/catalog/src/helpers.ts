@@ -1,10 +1,10 @@
-import {type Zavx0zStorybookRepoDiscovery as RepoDiscoveryContract} from "@zavx0z/storybook-repo-discovery"
+import {type Zavx0zStorybookPackageMetadataCollect as PackageMetadataCollectContract} from "@zavx0z/storybook-package-metadata-collect"
 import {type Zavx0zStorybookPackageGraphCreate as PackageGraphCreateContract} from "@zavx0z/storybook-package-graph-create"
 import PackageGraphReadOwner from "@zavx0z/storybook-package-graph-read"
 const EXTERNAL_STORYBOOK_SCHEMA_VERSION = 1
 const externalStorybookNode = PackageGraphReadOwner.node
-type StorybookCatalog = RepoDiscoveryContract.Output
-type StorybookCatalogScope = RepoDiscoveryContract.Output["scopes"][number]
+type StorybookCatalog = PackageMetadataCollectContract.Output
+type StorybookCatalogScope = PackageMetadataCollectContract.Output["scopes"][number]
 type ExternalStorybookGraph = PackageGraphCreateContract.Output
 import {resolve} from "node:path"
 

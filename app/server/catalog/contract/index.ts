@@ -1,5 +1,5 @@
 import type {Zavx0zStorybookPackageRevision} from "@zavx0z/storybook-package-revision"
-import type {Zavx0zStorybookRepoDiscovery} from "@zavx0z/storybook-repo-discovery"
+import type {Zavx0zStorybookPackageMetadataCollect} from "@zavx0z/storybook-package-metadata-collect"
 import type {Zavx0zStorybookPackageSession} from "@zavx0z/storybook-package-session"
 import type {ExternalStorybookAttachSource, ExternalStorybookRegistrySnapshot, ExternalStorybookRegistryDirtySnapshot, ExternalStorybookRegistryMetrics} from "./models"
 
@@ -11,14 +11,15 @@ export declare namespace Zavx0zStorybookAppServerCatalog {
   Стили читаются при обновлении; ошибка сохраняет действующий снимок.
   */
   type Input = readonly [
-    resolveCatalog?: (...input: Zavx0zStorybookRepoDiscovery.Input) => Promise<Zavx0zStorybookRepoDiscovery.Output>,
+    resolveCatalog?: (...input: Zavx0zStorybookPackageMetadataCollect.Input) => Promise<Zavx0zStorybookPackageMetadataCollect.Output>,
     readAuthorStyleSheets?: () => NonNullable<Parameters<Zavx0zStorybookPackageRevision.Output["create"]>[3]>,
   ]
 
   /**
   Управление составом и наблюдаемой актуальностью каталога.
-  @property snapshot - Читает текущий снимок без обнаружения или сборки.
-  @property saveMetadata - Сохраняет собранные сведения в meta/data пакетов и дерево в meta/data Project.
+  @property snapshot - После open читает дерево Project с ФС и предоставляет данные владельцев по обращению к полям, без обнаружения или сборки.
+  @property open - Открывает дерево и данные Project с файловой системы, выполняя первичный сбор только при их отсутствии.
+  @property saveMetadata - Сохраняет собранные сведения в meta/data пакетов и дерево в meta/data Project; в файловом режиме обновляет только имя Project.
   @property configure - Атомарно заменяет выбранный набор корней после успешного чтения.
   @property attach - Подключает один корень, сохраняя остальных владельцев.
   @property attachMany - Подключает набор корней одной операцией.
@@ -36,6 +37,7 @@ export declare namespace Zavx0zStorybookAppServerCatalog {
     /** Отменяет незавершённую подготовку и освобождает worker. */
     dispose(): Promise<void>
     snapshot(): ExternalStorybookRegistrySnapshot
+    open(project: Readonly<{root: string, name: string}>, roots: readonly string[]): Promise<ExternalStorybookRegistrySnapshot>
     saveMetadata(project: Readonly<{root: string, name: string}>): Promise<Readonly<{owners: number, changed: number}>>
     configure(roots: readonly string[]): Promise<ExternalStorybookRegistrySnapshot>
     attach(input: string, attachSource?: ExternalStorybookAttachSource): Promise<ExternalStorybookRegistrySnapshot>

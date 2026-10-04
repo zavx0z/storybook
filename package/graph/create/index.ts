@@ -6,13 +6,13 @@ import RouteAddressOwner from "@zavx0z/storybook-package-route-address"
 const formatRouteAddress = RouteAddressOwner
 import {createHash} from "node:crypto"
 import {dirname, relative} from "node:path"
-import type {Zavx0zStorybookRepoDiscovery} from "@zavx0z/storybook-repo-discovery"
+import type {Zavx0zStorybookPackageMetadataCollect} from "@zavx0z/storybook-package-metadata-collect"
 import type {GraphNode} from "./contract/graph"
 import type {Zavx0zStorybookPackageGraphCreate} from "./contract"
 
 export type {Zavx0zStorybookPackageGraphCreate} from "./contract"
 
-type StorybookCatalogScope = Zavx0zStorybookRepoDiscovery.Output["scopes"][number]
+type StorybookCatalogScope = Zavx0zStorybookPackageMetadataCollect.Output["scopes"][number]
 type NodeInput = Omit<GraphNode, "digest">
 const EXTERNAL_STORYBOOK_SCHEMA_VERSION = 1 as const
 

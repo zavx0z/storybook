@@ -1,6 +1,6 @@
 import {expect, test} from "bun:test"
 import {resolve} from "node:path"
-import discoverStorybookPackages from "@zavx0z/storybook-repo-discovery"
+import discoverStorybookPackages from "@zavx0z/storybook-package-metadata-collect"
 
 test("публичные контракты сценариев проходят структурное обнаружение Storybook", async () => {
   const root = resolve(import.meta.dir, "..")

@@ -1,10 +1,11 @@
 /**
 Выводит входы сборки пакетов из проверенного каталога и его графа.
 Документация, сценарии и переданные приложением стили остаются связаны со своими исходниками.
+Тексты ресурсов раскрываются при запросе сборки, а не при перечислении пакетов.
 
 @packageDocumentation
 */
-import {type Zavx0zStorybookRepoDiscovery as RepoDiscoveryContract} from "@zavx0z/storybook-repo-discovery"
+import {type Zavx0zStorybookPackageMetadataCollect as PackageMetadataCollectContract} from "@zavx0z/storybook-package-metadata-collect"
 import PackageGraphReadOwner from "@zavx0z/storybook-package-graph-read"
 import {type Zavx0zStorybookPackageGraphCreate as PackageGraphCreateContract} from "@zavx0z/storybook-package-graph-create"
 import PackageResourcesOwner from "@zavx0z/storybook-package-resources"
@@ -15,8 +16,8 @@ const createExternalStorybookResourceAllowList = PackageResourcesOwner
 const createStorybookPackageRevisionGraphSnapshot = PackageRevisionOwner.create
 const revisionModuleDocumentationPath = PackageRevisionOwner.moduleDocumentationPath
 const revisionWorkbenchAuthorStyleSheetPath = PackageRevisionOwner.workbenchAuthorStyleSheetPath
-type StorybookCatalog = RepoDiscoveryContract.Output
-type StorybookPackage = Extract<RepoDiscoveryContract.Output["scopes"][number], {kind: "package"}>
+type StorybookCatalog = PackageMetadataCollectContract.Output
+type StorybookPackage = Extract<PackageMetadataCollectContract.Output["scopes"][number], {kind: "package"}>
 type ExternalStorybookGraph = PackageGraphCreateContract.Output
 type Zavx0zStorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 import {createHash} from "node:crypto"
@@ -59,8 +60,9 @@ export default function externalStorybookPackageDescriptors(
         ? [{nodeId: candidate.id, sourcePaths: Object.freeze([...candidate.scenarioSpec.sourcePaths])}]
         : [])
     const documentationAssetsByNode = new Map(graph.nodes.flatMap((candidate) => {
+      if (candidate.packageId !== declaration.id) return []
       const documentation = candidate.moduleDocumentation
-      if (candidate.packageId !== declaration.id || documentation === undefined) return []
+      if (documentation === undefined) return []
       const assets = createExternalStorybookResourceAllowList({
         ownerRoot: declaration.scopeRoot,
         sourcePath: documentation.sourcePath,
@@ -69,7 +71,7 @@ export default function externalStorybookPackageDescriptors(
       return [[candidate.id, Object.freeze(assets)] as const]
     }))
     const declarationDigest = packageDeclarationDigest(declaration, graph)
-    const resourceFiles = [
+    const createResourceFiles = () => Object.freeze([
       ...workbenchAuthorStyleSheets.map((styleSheet, index) => ({
         sourcePath: styleSheet.path,
         sourceRoot: styleSheet.ownerRoot,
@@ -104,14 +106,15 @@ export default function externalStorybookPackageDescriptors(
 
         ]
       }),
-    ]
+    ])
+    let resourceFiles: ReturnType<typeof createResourceFiles> | undefined
     return Object.freeze({
       packageId: declaration.id,
       packageRoot: declaration.scopeRoot,
       repo,
       sourcePath: declaration.source.path,
       declarationDigest,
-      resourceFiles: Object.freeze(resourceFiles),
+      get resourceFiles() { return resourceFiles ??= createResourceFiles() },
       graphSnapshot: createStorybookPackageRevisionGraphSnapshot(
         graph,
         declaration.id,

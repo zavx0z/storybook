@@ -1,7 +1,7 @@
-import type {Zavx0zStorybookRepoDiscovery} from "@zavx0z/storybook-repo-discovery"
+import type {Zavx0zStorybookPackageMetadataCollect} from "@zavx0z/storybook-package-metadata-collect"
 import type {Zavx0zStorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
 import type {Zavx0zStorybookPackageSession} from "@zavx0z/storybook-package-session"
-type StorybookCatalog = Zavx0zStorybookRepoDiscovery.Output
+type StorybookCatalog = Zavx0zStorybookPackageMetadataCollect.Output
 type ExternalStorybookGraph = Zavx0zStorybookPackageGraphCreate.Output
 type Zavx0zStorybookPackageBuildDescriptor = Zavx0zStorybookPackageSession.Input[0]
 

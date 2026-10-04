@@ -1,13 +1,13 @@
-import RepoDiscoveryOwner from "@zavx0z/storybook-repo-discovery"
+import PackageMetadataCollectOwner from "@zavx0z/storybook-package-metadata-collect"
 import PackageGraphCreateOwner from "@zavx0z/storybook-package-graph-create"
-const discoverStorybookPackages = RepoDiscoveryOwner
+const discoverStorybookPackages = PackageMetadataCollectOwner
 const createExternalStorybookGraph = PackageGraphCreateOwner
 import {describe, expect, test} from "bun:test"
 import {createHash} from "node:crypto"
 import {join} from "node:path"
 import Revision from "@zavx0z/storybook-package-revision"
 
-const fixtureRoot = join(import.meta.dir, "../../repo/discovery/fixtures/valid")
+const fixtureRoot = join(import.meta.dir, "../../package/metadata/collect/fixtures/valid")
 const graph = async () => createExternalStorybookGraph(await discoverStorybookPackages([fixtureRoot]))
 
 describe("structural package revision graph", () => {

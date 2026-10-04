@@ -3,7 +3,7 @@ import {mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync} from "node:
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import Registry from "@zavx0z/storybook-app-server-catalog"
-import discover from "@zavx0z/storybook-repo-discovery"
+import discover from "@zavx0z/storybook-package-metadata-collect"
 import type {Zavx0zStorybookAppServer} from "../contract"
 import createWeb from "@zavx0z/storybook-app-web"
 import {refreshCheckCatalog} from "../src/check-catalog"

@@ -1,10 +1,10 @@
 {
-  "name": "@zavx0z/storybook-repo-discovery",
-  "label": "Обнаружение репозитория",
+  "name": "@zavx0z/storybook-package-metadata-collect",
+  "label": "Сбор метаданных пакетов",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Читает физические пакеты, workspaces и публичные директории без деклараций Storybook",
+  "description": "Собирает сведения выбранных пакетов и их вложенного состава существующими читателями",
   "exports": {
     ".": "./index.ts"
   },

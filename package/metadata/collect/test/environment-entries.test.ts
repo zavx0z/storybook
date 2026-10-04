@@ -1,10 +1,10 @@
 import {expect, test} from "bun:test"
 import {resolve} from "node:path"
-import discover from "@zavx0z/storybook-repo-discovery"
+import discover from "@zavx0z/storybook-package-metadata-collect"
 import createGraph from "@zavx0z/storybook-package-graph-create"
 
 test("два публичных входа без index сохраняют свои документы, роли и условия", async () => {
-  const root = resolve(import.meta.dir, "../../../domain/spec/fixture/domain")
+  const root = resolve(import.meta.dir, "../../../../domain/spec/fixture/domain")
   const catalog = await discover([root])
   const scope = catalog.scopes[0]!
   if (scope.kind !== "package") throw new Error("Ожидается пакет Domain")

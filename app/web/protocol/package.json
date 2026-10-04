@@ -15,7 +15,7 @@
     "@zavx0z/storybook-package-graph-create": "workspace:*"
   },
   "devDependencies": {
-    "@zavx0z/storybook-repo-discovery": "workspace:*",
+    "@zavx0z/storybook-package-metadata-collect": "workspace:*",
     "@zavx0z/storybook-package-session": "workspace:*"
   }
 }

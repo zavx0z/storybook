@@ -1,6 +1,6 @@
-import type {Zavx0zStorybookRepoDiscovery} from "@zavx0z/storybook-repo-discovery"
+import type {Zavx0zStorybookPackageMetadataCollect} from "@zavx0z/storybook-package-metadata-collect"
 
-type Scope = Extract<Zavx0zStorybookRepoDiscovery.Output["scopes"][number], {kind: "package"}>
+type Scope = Extract<Zavx0zStorybookPackageMetadataCollect.Output["scopes"][number], {kind: "package"}>
 type Document = NonNullable<Scope["contractDocumentation"]>["documents"][number]
 export type ContractSchema = NonNullable<Document["document"]["declarations"][number]["schema"]>
 

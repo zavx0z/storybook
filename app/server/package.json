@@ -28,7 +28,7 @@
     "@zavx0z/storybook-package-activation": "workspace:*",
     "@zavx0z/storybook-package-graph-read": "workspace:*",
     "@zavx0z/storybook-app-server-requests": "workspace:*",
-    "@zavx0z/storybook-repo-discovery": "workspace:*",
+    "@zavx0z/storybook-package-metadata-collect": "workspace:*",
     "@zavx0z/storybook-package-build-prepare": "workspace:*",
     "@zavx0z/storybook-package-build-scheduler": "workspace:*",
     "@zavx0z/storybook-package-resources": "workspace:*",

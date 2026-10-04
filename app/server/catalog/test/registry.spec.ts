@@ -1,11 +1,11 @@
-import {type Zavx0zStorybookRepoDiscovery as RepoDiscoveryContract} from "@zavx0z/storybook-repo-discovery"
+import {type Zavx0zStorybookPackageMetadataCollect as PackageMetadataCollectContract} from "@zavx0z/storybook-package-metadata-collect"
 import AppServerCatalogOwner, {type Zavx0zStorybookAppServerCatalog as AppServerCatalogContract} from "@zavx0z/storybook-app-server-catalog"
 import PackageGraphReadOwner from "@zavx0z/storybook-package-graph-read"
 const ExternalStorybookRegistry = AppServerCatalogOwner
 const externalStorybookNode = PackageGraphReadOwner.node
 const externalStorybookRoutes = PackageGraphReadOwner.routes
-type StorybookCatalog = RepoDiscoveryContract.Output
-type StorybookPackage = Extract<RepoDiscoveryContract.Output["scopes"][number], {kind: "package"}>
+type StorybookCatalog = PackageMetadataCollectContract.Output
+type StorybookPackage = Extract<PackageMetadataCollectContract.Output["scopes"][number], {kind: "package"}>
 type ExternalStorybookRegistry = AppServerCatalogContract.Output
 import {afterEach, describe, expect, test} from "bun:test"
 import {existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync} from "node:fs"

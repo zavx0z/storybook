@@ -24,6 +24,6 @@
   },
   "devDependencies": {
     "@modelcontextprotocol/server": "^2.0.0",
-    "@zavx0z/storybook-repo-discovery": "workspace:*"
+    "@zavx0z/storybook-package-metadata-collect": "workspace:*"
   }
 }

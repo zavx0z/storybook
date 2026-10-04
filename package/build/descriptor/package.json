@@ -9,7 +9,7 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@zavx0z/storybook-repo-discovery": "workspace:*",
+    "@zavx0z/storybook-package-metadata-collect": "workspace:*",
     "@zavx0z/storybook-package-graph-read": "workspace:*",
     "@zavx0z/storybook-package-graph-create": "workspace:*",
     "@zavx0z/storybook-package-resources": "workspace:*",

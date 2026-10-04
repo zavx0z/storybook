@@ -1,6 +1,6 @@
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
-import discoverStorybookPackages from "@zavx0z/storybook-repo-discovery"
+import discoverStorybookPackages from "@zavx0z/storybook-package-metadata-collect"
 import createExternalStorybookGraph from "@zavx0z/storybook-package-graph-create"
 import WebNavigationOwner from "../index"
 const deriveExternalStorybookLanding = WebNavigationOwner.deriveExternalStorybookLanding
@@ -8,7 +8,7 @@ const deriveExternalStorybookLandingSelection = WebNavigationOwner.deriveExterna
 const deriveExternalStorybookNavigationTree = WebNavigationOwner.deriveExternalStorybookNavigationTree
 const deriveExternalStorybookPackageTab = WebNavigationOwner.deriveExternalStorybookPackageTab
 
-const fixtureRoot = join(import.meta.dir, "../../../../../repo/discovery/fixtures/valid")
+const fixtureRoot = join(import.meta.dir, "../../../../../package/metadata/collect/fixtures/valid")
 const fixtureGraph = async () => createExternalStorybookGraph(await discoverStorybookPackages([
   fixtureRoot, join(fixtureRoot, "standalone"),
 ]))

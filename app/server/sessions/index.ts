@@ -24,6 +24,7 @@ export default class ExternalStorybookSessionManager {
   readonly #artifactRoot: string
   readonly #buildRevision: StorybookPackageRevisionBuilder
   readonly #prepareBuild: ((signal: AbortSignal) => Promise<void>) | undefined
+  readonly #readDescriptor: Zavx0zStorybookAppServerSessions.Input["readDescriptor"]
   readonly #publish: (event: StorybookPackageEvent) => void
   readonly #buildScheduler: StorybookBuildScheduler
   readonly #ownsBuildScheduler: boolean
@@ -38,6 +39,7 @@ export default class ExternalStorybookSessionManager {
     this.#artifactRoot = resolve(options.artifactRoot)
     this.#buildRevision = options.buildRevision
     this.#prepareBuild = options.prepareBuild
+    this.#readDescriptor = options.readDescriptor
     this.#publish = options.publish ?? (() => {})
     this.#activationTimeoutMs = options.activationTimeoutMs
     this.#retainedRevisionLimit = options.retainedRevisionLimit
@@ -67,6 +69,7 @@ export default class ExternalStorybookSessionManager {
       const current = this.#sessions.get(descriptor.packageId)
       if (current === undefined) {
         const session = new Zavx0zStorybookPackageSession(descriptor, {
+          ...(this.#readDescriptor === undefined ? {} : {readDescriptor: () => this.#readDescriptor!(descriptor.packageId)}),
           artifactRoot: this.#artifactRoot,
           buildRevision: this.#buildRevision,
           ...(this.#prepareBuild === undefined ? {} : {prepareBuild: this.#prepareBuild}),

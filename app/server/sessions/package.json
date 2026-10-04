@@ -13,7 +13,7 @@
   },
   "devDependencies": {
     "@zavx0z/storybook-app-server-catalog": "workspace:*",
-    "@zavx0z/storybook-repo-discovery": "workspace:*",
+    "@zavx0z/storybook-package-metadata-collect": "workspace:*",
     "@zavx0z/storybook-package-revision": "workspace:*"
   },
   "description": "Соединяет состав каталога с независимыми сессиями пакетов и общей очередью сборки"

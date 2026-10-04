@@ -72,14 +72,15 @@ reconciliation не меняет записи других пакетов и н�
 
 ## Модули и граница обнаружения
 
-Подключённые корни обрабатывает [Repo Discovery](repo/discovery/index.ts).
+Подключённые корни обрабатывает [Package Metadata Collect](package/metadata/collect/index.ts).
 Он читает `package.json`, workspaces и реальные публичные директории, проверяет
-владение и возвращает `Zavx0zStorybookRepoDiscovery.Output`. Каталог сервера получает источник
+владение и возвращает `Zavx0zStorybookPackageMetadataCollect.Output`. Каталог сервера получает источник
 при создании; граф использует тот же нормализованный контракт.
 
 | Владелец | Ответственность |
 | --- | --- |
-| `repo/discovery` | Пакеты, workspaces, директории и структурные сведения |
+| `package/metadata` | Сбор, запись и чтение собственных данных пакета без Server и дерева Project |
+| `package/metadata/collect` | Пакеты, workspaces, директории и структурные сведения |
 | `package/graph`, `package/route`, `package/resources` | Граф, адреса и ресурсы документации |
 | `package/build`, `package/revision`, `package/session`, `package/activation` | Подготовка и проверенное применение ревизий пакета |
 | `tech/build`, `tech/process`, `tech/hmr` | Компиляция, очередь, процессы, замена с откатом и восстановление связи |
@@ -428,7 +429,7 @@ Read-only topic `catalog` обновляет дерево без передач�
 
 ### Структурные зависимости компонента
 
-Путь данных: `repo/discovery/src/read-parameterized-tests.ts` читает AST → каталог сохраняет
+Путь данных: `package/metadata/collect/src/read-parameterized-tests.ts` читает AST → каталог сохраняет
 ожидаемый граф и digest → immutable revision передаёт данные браузеру → общий
 GraphView отображает их в существующем Display. Это отдельный потребитель
 нормализованного каталога, без второго дерева владельцев или графического runtime.

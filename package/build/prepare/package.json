@@ -22,7 +22,7 @@
   },
   "devDependencies": {
     "@zavx0z/immersive-headless": "^0.0.0",
-    "@zavx0z/storybook-repo-discovery": "workspace:*",
+    "@zavx0z/storybook-package-metadata-collect": "workspace:*",
     "@zavx0z/storybook-package-graph-create": "workspace:*",
     "@zavx0z/storybook-package-revision": "workspace:*",
     "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",

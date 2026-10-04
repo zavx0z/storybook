@@ -126,7 +126,7 @@
       },
       "devDependencies": {
         "@modelcontextprotocol/server": "^2.0.0",
-        "@zavx0z/storybook-repo-discovery": "workspace:*",
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
       },
     },
     "app/mcp/rest/address": {
@@ -163,7 +163,7 @@
         "@zavx0z/storybook-package-resources": "workspace:*",
         "@zavx0z/storybook-package-revision": "workspace:*",
         "@zavx0z/storybook-package-session": "workspace:*",
-        "@zavx0z/storybook-repo-discovery": "workspace:*",
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
         "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
         "@zavx0z/storybook-specs-reader": "workspace:*",
         "@zavx0z/storybook-tech-build-environment": "workspace:*",
@@ -207,14 +207,16 @@
       "name": "@zavx0z/storybook-app-server-catalog",
       "version": "0.0.0",
       "dependencies": {
+        "@zavx0z/storybook-package-metadata": "workspace:*",
         "@zavx0z/storybook-package-build-descriptor": "workspace:*",
         "@zavx0z/storybook-package-graph-create": "workspace:*",
         "@zavx0z/storybook-package-graph-read": "workspace:*",
         "@zavx0z/storybook-package-revision": "workspace:*",
         "@zavx0z/storybook-package-session": "workspace:*",
-        "@zavx0z/storybook-repo-discovery": "workspace:*",
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
       },
       "devDependencies": {
+        "@zavx0z/storybook-app-server-sessions": "workspace:*",
         "@zavx0z/immersive-ui-component": "^0.0.0",
       },
     },
@@ -232,7 +234,7 @@
       "devDependencies": {
         "@zavx0z/storybook-app-server-catalog": "workspace:*",
         "@zavx0z/storybook-package-revision": "workspace:*",
-        "@zavx0z/storybook-repo-discovery": "workspace:*",
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
       },
     },
     "app/server/state": {
@@ -269,7 +271,7 @@
         "@zavx0z/storybook-package-graph-read": "workspace:*",
         "@zavx0z/storybook-package-route-url": "workspace:*",
         "@zavx0z/storybook-package-revision": "workspace:*",
-        "@zavx0z/storybook-repo-discovery": "workspace:*",
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
         "@zavx0z/storybook-tech-build-compiler": "workspace:*",
         "@zavx0z/storybook-tech-build-environment": "workspace:*",
         "@zavx0z/storybook-tech-testing-browser-root": "workspace:*",
@@ -318,7 +320,7 @@
         "@zavx0z/storybook-package-graph-create": "workspace:*",
         "@zavx0z/storybook-package-revision": "workspace:*",
         "@zavx0z/storybook-package-session": "workspace:*",
-        "@zavx0z/storybook-repo-discovery": "workspace:*",
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
         "@zavx0z/storybook-tech-testing-browser-root": "workspace:*",
       },
     },
@@ -367,7 +369,7 @@
         "@zavx0z/storybook-package-graph-create": "workspace:*",
         "@zavx0z/storybook-package-route-url": "workspace:*",
         "@zavx0z/storybook-package-session": "workspace:*",
-        "@zavx0z/storybook-repo-discovery": "workspace:*",
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
         "@zavx0z/storybook-tech-testing-browser-root": "workspace:*",
       },
     },
@@ -383,7 +385,7 @@
         "@zavx0z/storybook-package-revision": "workspace:*",
       },
       "devDependencies": {
-        "@zavx0z/storybook-repo-discovery": "workspace:*",
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
       },
     },
     "app/web/page/package": {
@@ -420,7 +422,7 @@
         "@zavx0z/immersive-space": "^0.0.0",
         "@zavx0z/storybook-package-graph-create": "workspace:*",
         "@zavx0z/storybook-package-session": "workspace:*",
-        "@zavx0z/storybook-repo-discovery": "workspace:*",
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
         "@zavx0z/storybook-tech-testing-browser-root": "workspace:*",
       },
     },
@@ -638,7 +640,7 @@
       },
       "devDependencies": {
         "@zavx0z/storybook-package-session": "workspace:*",
-        "@zavx0z/storybook-repo-discovery": "workspace:*",
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
       },
     },
     "app/web/release": {
@@ -784,7 +786,7 @@
         "@zavx0z/storybook-package-resources": "workspace:*",
         "@zavx0z/storybook-package-revision": "workspace:*",
         "@zavx0z/storybook-package-session": "workspace:*",
-        "@zavx0z/storybook-repo-discovery": "workspace:*",
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
       },
     },
     "package/build/inputs": {
@@ -824,7 +826,7 @@
         "@zavx0z/immersive-headless": "^0.0.0",
         "@zavx0z/storybook-package-graph-create": "workspace:*",
         "@zavx0z/storybook-package-revision": "workspace:*",
-        "@zavx0z/storybook-repo-discovery": "workspace:*",
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
         "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
         "@zavx0z/storybook-specs-reader": "workspace:*",
       },
@@ -863,7 +865,7 @@
         "@zavx0z/storybook-package-graph-read": "workspace:*",
       },
       "devDependencies": {
-        "@zavx0z/storybook-repo-discovery": "workspace:*",
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
         "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
       },
     },
@@ -872,7 +874,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@zavx0z/storybook-package-route-address": "workspace:*",
-        "@zavx0z/storybook-repo-discovery": "workspace:*",
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
       },
       "devDependencies": {
         "@zavx0z/storybook-package-graph-read": "workspace:*",
@@ -886,7 +888,7 @@
       },
       "devDependencies": {
         "@zavx0z/storybook-package-graph-create": "workspace:*",
-        "@zavx0z/storybook-repo-discovery": "workspace:*",
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
       },
     },
     "package/identity": {
@@ -948,7 +950,7 @@
         "@zavx0z/storybook-package-graph-read": "workspace:*",
       },
       "devDependencies": {
-        "@zavx0z/storybook-repo-discovery": "workspace:*",
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
       },
     },
     "package/route/address": {
@@ -1048,8 +1050,15 @@
       "name": "@zavx0z/storybook-project-mcp",
       "version": "0.0.0",
     },
-    "repo/discovery": {
-      "name": "@zavx0z/storybook-repo-discovery",
+    "package/metadata": {
+      "name": "@zavx0z/storybook-package-metadata",
+      "version": "0.0.0",
+      "dependencies": {
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
+      },
+    },
+    "package/metadata/collect": {
+      "name": "@zavx0z/storybook-package-metadata-collect",
       "version": "0.0.0",
       "dependencies": {
         "@zavx0z/immersive-typedoc": "^0.0.0",
@@ -1101,7 +1110,7 @@
         "@zavx0z/storybook-specs-reader": "workspace:*",
       },
       "devDependencies": {
-        "@zavx0z/storybook-repo-discovery": "workspace:*",
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
         "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
       },
     },
@@ -1608,7 +1617,9 @@
 
     "@zavx0z/storybook-project-mcp": ["@zavx0z/storybook-project-mcp@workspace:project/mcp"],
 
-    "@zavx0z/storybook-repo-discovery": ["@zavx0z/storybook-repo-discovery@workspace:repo/discovery"],
+    "@zavx0z/storybook-package-metadata": ["@zavx0z/storybook-package-metadata@workspace:package/metadata"],
+
+    "@zavx0z/storybook-package-metadata-collect": ["@zavx0z/storybook-package-metadata-collect@workspace:package/metadata/collect"],
 
     "@zavx0z/storybook-repo-mcp": ["@zavx0z/storybook-repo-mcp@workspace:repo/mcp"],
 

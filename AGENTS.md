@@ -44,8 +44,8 @@
   `package`, `domain`, `component`, `container`, `contracts`, `typedoc` и `specs`.
   `app` композирует MCP, Web и Server; `tech` предоставляет технические механизмы.
   Импорты направлять к публичному входу точного владельца без старых псевдонимов.
-- Нормализованное обнаружение принадлежит [Repo Discovery](repo/discovery/index.ts)
-  и его `Zavx0zStorybookRepoDiscovery.Output`. [Каталог сервера](app/server/catalog/index.ts)
+- Нормализованное обнаружение принадлежит [Package Metadata Collect](package/metadata/collect/index.ts)
+  и его `Zavx0zStorybookPackageMetadataCollect.Output`. [Каталог сервера](app/server/catalog/index.ts)
   и [граф пакетов](package/graph/README.md) используют тот же контракт.
 
 - Начинать с изучения без правок и соблюдать границы владельцев, подтверждённые

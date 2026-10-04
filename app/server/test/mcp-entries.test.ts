@@ -1,7 +1,7 @@
-import RepoDiscoveryOwner from "@zavx0z/storybook-repo-discovery"
+import PackageMetadataCollectOwner from "@zavx0z/storybook-package-metadata-collect"
 import PackageGraphCreateOwner from "@zavx0z/storybook-package-graph-create"
 import McpRestOwner from "@zavx0z/storybook-app-mcp-rest"
-const discoverStorybookPackages = RepoDiscoveryOwner
+const discoverStorybookPackages = PackageMetadataCollectOwner
 const createExternalStorybookGraph = PackageGraphCreateOwner
 const storybookRest = McpRestOwner
 import {describe, expect, test} from "bun:test"

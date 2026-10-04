@@ -18,7 +18,7 @@ import {HUDElement} from "@zavx0z/immersive-dom/hud"
 import {SpaceElement} from "@zavx0z/immersive-dom/space"
 import {ViewPointElement} from "@zavx0z/immersive-dom/viewpoint"
 import presentationRootFixture from "@zavx0z/storybook-tech-testing-browser-root"
-import discoverStorybookPackages from "@zavx0z/storybook-repo-discovery"
+import discoverStorybookPackages from "@zavx0z/storybook-package-metadata-collect"
 import createExternalStorybookGraph, {type Zavx0zStorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
 import type {Zavx0zStorybookPackageSession} from "@zavx0z/storybook-package-session"
 import Revision from "@zavx0z/storybook-package-revision"
@@ -50,7 +50,7 @@ type StorybookAgentBridge = Zavx0zStorybookAppWebPageAgentBridge.Output
 
 type ExternalStorybookRootFactory = NonNullable<Zavx0zStorybookAppWebPageShell.Input["createRoot"]>
 
-const fixtureRoot = join(import.meta.dir, "../../../../repo/discovery/fixtures/valid")
+const fixtureRoot = join(import.meta.dir, "../../../../package/metadata/collect/fixtures/valid")
 
 const packageId = "@fixture/components"
 

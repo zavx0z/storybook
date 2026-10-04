@@ -5,9 +5,9 @@ import {tmpdir} from "node:os"
 import {join} from "node:path"
 import Sessions from "@zavx0z/storybook-app-server-sessions"
 import Registry from "@zavx0z/storybook-app-server-catalog"
-import discoverStorybookPackages from "@zavx0z/storybook-repo-discovery"
+import discoverStorybookPackages from "@zavx0z/storybook-package-metadata-collect"
 
-const fixtureRoot = join(import.meta.dir, "../../../../repo/discovery/fixtures/valid")
+const fixtureRoot = join(import.meta.dir, "../../../../package/metadata/collect/fixtures/valid")
 
 describe.each([
   {name: "Вложенный компонент", props: {packageId: "@fixture/components"}},

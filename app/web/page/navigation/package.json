@@ -17,6 +17,6 @@
     "@zavx0z/storybook-app-web-page-shell-workbench": "workspace:*"
   },
   "devDependencies": {
-    "@zavx0z/storybook-repo-discovery": "workspace:*"
+    "@zavx0z/storybook-package-metadata-collect": "workspace:*"
   }
 }

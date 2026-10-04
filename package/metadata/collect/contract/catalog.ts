@@ -10,7 +10,7 @@
 Структурный `spec/deps.spec.ts` добавляет данные зависимостей к обнаруженному модулю.
 Исходник теста разбирается без исполнения.
 
-@see [Архитектура Storybook](../../../ARCHITECTURE.md)
+@see [Архитектура Storybook](../../../../ARCHITECTURE.md)
 @packageDocumentation
 */
 

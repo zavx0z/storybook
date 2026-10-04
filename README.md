@@ -26,7 +26,7 @@
 
 ## Владельцы реализации
 
-- [Пакеты и физическая структура](repo/discovery/index.ts).
+- [Пакеты и физическая структура](package/metadata/collect/index.ts).
 - [Общий граф](package/graph/create/index.ts) и [разрешение структурных адресов](package/route/resolve/index.ts).
 - [Сборка пакета](package/build/prepare/index.ts) и [общей Web-оболочки](app/web/build/README.md).
 - [MCP проекта](project/mcp/index.ts), [пакетные переходы](app/mcp/rest/children/index.ts)

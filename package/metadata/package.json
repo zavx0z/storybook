@@ -1,0 +1,12 @@
+{
+  "name": "@zavx0z/storybook-package-metadata",
+  "label": "Метаданные пакета",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Собирает, сохраняет и читает сведения пакета независимо от сервера и дерева Project",
+  "exports": {".": "./index.ts"},
+  "dependencies": {
+    "@zavx0z/storybook-package-metadata-collect": "workspace:*"
+  }
+}

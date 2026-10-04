@@ -3,7 +3,7 @@ import {join} from "node:path"
 import Registry from "../index"
 import {runCatalogWorker} from "../src/worker-client"
 
-const fixture = join(import.meta.dir, "../../../../repo/discovery/fixtures/valid")
+const fixture = join(import.meta.dir, "../../../../package/metadata/collect/fixtures/valid")
 
 test("native worker принимает каталог атомарно и сохраняет объекты неизменённых пакетов", async () => {
   let invalidStyle = false

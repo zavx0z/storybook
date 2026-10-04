@@ -1,8 +1,8 @@
 import createWeb from "@zavx0z/storybook-app-web"
 import AppServerCatalogOwner, {type Zavx0zStorybookAppServerCatalog as AppServerCatalogContract} from "@zavx0z/storybook-app-server-catalog"
-import RepoDiscoveryOwner from "@zavx0z/storybook-repo-discovery"
+import PackageMetadataCollectOwner from "@zavx0z/storybook-package-metadata-collect"
 const ExternalStorybookRegistry = AppServerCatalogOwner
-const discoverStorybookPackages = RepoDiscoveryOwner
+const discoverStorybookPackages = PackageMetadataCollectOwner
 type ExternalStorybookRegistry = AppServerCatalogContract.Output
 import {afterEach, expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm} from "node:fs/promises"

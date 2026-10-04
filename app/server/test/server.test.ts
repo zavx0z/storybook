@@ -1385,7 +1385,7 @@ function serverFixture(): Readonly<{
 }> {
   const root = mkdtempSync(join(tmpdir(), "external-storybook-server-test-"))
   roots.push(root)
-  const source = join(import.meta.dir, "../../../repo/discovery/fixtures/valid")
+  const source = join(import.meta.dir, "../../../package/metadata/collect/fixtures/valid")
   const workspace = join(root, "workspace")
   mkdirSync(workspace, {recursive: true})
   Bun.spawnSync(["cp", "-R", `${source}/.`, workspace])

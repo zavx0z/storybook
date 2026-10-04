@@ -85,6 +85,7 @@ export default class Zavx0zStorybookPackageSession implements Contract.Output {
   static readonly diagnostic = storybookDiagnostic
   static readonly buildError = storybookBuildError
   #descriptor: Zavx0zStorybookPackageBuildDescriptor
+  readonly #readDescriptor: (() => Zavx0zStorybookPackageBuildDescriptor) | undefined
   readonly #artifactRoot: string
   readonly #buildRevision: StorybookPackageRevisionBuilder
   readonly #prepareBuild: ((signal: AbortSignal) => Promise<void>) | undefined
@@ -124,7 +125,8 @@ export default class Zavx0zStorybookPackageSession implements Contract.Output {
   #disposePromise: Promise<void> | null = null
 
   constructor(descriptor: Contract.Input[0], options: Contract.Input[1]) {
-    this.#descriptor = normalizeDescriptor(descriptor)
+    this.#readDescriptor = options.readDescriptor
+    this.#descriptor = this.#readDescriptor === undefined ? normalizeDescriptor(descriptor) : descriptor
     this.#artifactRoot = resolve(options.artifactRoot)
     this.#buildRevision = options.buildRevision
     this.#prepareBuild = options.prepareBuild
@@ -144,7 +146,7 @@ export default class Zavx0zStorybookPackageSession implements Contract.Output {
   }
 
   get descriptor(): Zavx0zStorybookPackageBuildDescriptor {
-    return this.#descriptor
+    return this.#readDescriptor?.() ?? this.#descriptor
   }
 
   /** Isolates declaration failures without retiring an already working revision. */
@@ -164,11 +166,15 @@ export default class Zavx0zStorybookPackageSession implements Contract.Output {
 
   reconfigure(descriptor: Zavx0zStorybookPackageBuildDescriptor): boolean {
     this.#assertActive()
-    const next = normalizeDescriptor(descriptor)
+    const next = this.#readDescriptor === undefined ? normalizeDescriptor(descriptor) : descriptor
     if (next.packageId !== this.packageId) {
       throw new Error(`Cannot reconfigure Storybook package identity ${this.packageId} as ${next.packageId}`)
     }
-    if (sameDescriptor(this.#descriptor, next)) return false
+    if (this.#readDescriptor === undefined ? sameDescriptor(this.#descriptor, next)
+      : this.#descriptor.declarationDigest === next.declarationDigest
+        && this.#descriptor.graphSnapshot.packageGraphDigest === next.graphSnapshot.packageGraphDigest
+        && this.#descriptor.packageRoot === next.packageRoot && this.#descriptor.repo === next.repo
+        && this.#descriptor.sourcePath === next.sourcePath) return false
     this.#descriptor = next
     return true
   }
@@ -493,6 +499,7 @@ export default class Zavx0zStorybookPackageSession implements Contract.Output {
     let startedAtMs: number | null = null
     let outcome: StorybookBuildOutcome = "failed"
     try {
+      if (this.#readDescriptor !== undefined) descriptor = normalizeDescriptor(this.descriptor)
       await this.#prepareBuild?.(controller.signal)
       controller.signal.throwIfAborted()
       if (this.#disposed || generation !== this.#generation) return

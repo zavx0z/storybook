@@ -1,13 +1,13 @@
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
-import discoverStorybookPackages from "@zavx0z/storybook-repo-discovery"
+import discoverStorybookPackages from "@zavx0z/storybook-package-metadata-collect"
 import createExternalStorybookGraph, {type Zavx0zStorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
 type ExternalStorybookGraph = Zavx0zStorybookPackageGraphCreate.Output
 import type {Zavx0zStorybookPackageSession} from "@zavx0z/storybook-package-session"
 type StorybookPackageSessionSnapshot = ReturnType<Zavx0zStorybookPackageSession.Output["snapshot"]>
 import WebProtocol from "@zavx0z/storybook-app-web-protocol"
 
-const fixtureRoot = join(import.meta.dir, "../../../../repo/discovery/fixtures/valid")
+const fixtureRoot = join(import.meta.dir, "../../../../package/metadata/collect/fixtures/valid")
 const fixtureGraph = async () => createExternalStorybookGraph(await discoverStorybookPackages([
   fixtureRoot, join(fixtureRoot, "standalone"),
 ]))

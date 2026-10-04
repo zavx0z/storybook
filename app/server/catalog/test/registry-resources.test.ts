@@ -1,6 +1,6 @@
-import RepoDiscoveryOwner from "@zavx0z/storybook-repo-discovery"
+import PackageMetadataCollectOwner from "@zavx0z/storybook-package-metadata-collect"
 import AppServerCatalogOwner, {type Zavx0zStorybookAppServerCatalog as AppServerCatalogContract} from "@zavx0z/storybook-app-server-catalog"
-const discoverStorybookPackages = RepoDiscoveryOwner
+const discoverStorybookPackages = PackageMetadataCollectOwner
 const ExternalStorybookRegistry = AppServerCatalogOwner
 type ExternalStorybookRegistry = AppServerCatalogContract.Output
 import {expect, test} from "bun:test"

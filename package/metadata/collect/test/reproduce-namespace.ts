@@ -5,12 +5,12 @@
 вложенные поля Input.options и JSON Schema для Input. Сейчас он отклоняет файл
 с `TypeDoc: нет экспортируемого type/interface`, поскольку роли вложены в namespace.
 
-Запуск: `bun repo/discovery/test/reproduce-namespace.ts` из корня Storybook.
+Запуск: `bun package/metadata/collect/test/reproduce-namespace.ts` из корня Storybook.
 */
 import {resolve} from "node:path"
 import {analyzeTypeDoc} from "@zavx0z/immersive-typedoc/parser"
 
-const root = resolve(import.meta.dir, "../../..")
+const root = resolve(import.meta.dir, "../../../..")
 const path = resolve(import.meta.dir, "fixture/namespace-contract/contract/index.ts")
 const {document} = await analyzeTypeDoc({root, path})
 const role = (name: string) => document.declarations.find(declaration =>

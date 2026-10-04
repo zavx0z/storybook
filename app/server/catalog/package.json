@@ -8,7 +8,8 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@zavx0z/storybook-repo-discovery": "workspace:*",
+    "@zavx0z/storybook-package-metadata": "workspace:*",
+    "@zavx0z/storybook-package-metadata-collect": "workspace:*",
     "@zavx0z/storybook-package-graph-create": "workspace:*",
     "@zavx0z/storybook-package-graph-read": "workspace:*",
     "@zavx0z/storybook-package-session": "workspace:*",
@@ -16,6 +17,7 @@
     "@zavx0z/storybook-package-revision": "workspace:*"
   },
   "devDependencies": {
+    "@zavx0z/storybook-app-server-sessions": "workspace:*",
     "@zavx0z/immersive-ui-component": "^0.0.0"
   },
   "description": "Атомарно обновляет каталог подключённых владельцев и производный граф приложения"

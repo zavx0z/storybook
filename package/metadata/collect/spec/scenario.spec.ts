@@ -1,7 +1,7 @@
-/** Discovery читает состав подключённого Repo из package.json и workspaces. */
+/** Сбор сведений пакетов использует package.json и объявленный состав workspaces. */
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
-import discoverStorybookPackages from "@zavx0z/storybook-repo-discovery"
+import discoverStorybookPackages from "@zavx0z/storybook-package-metadata-collect"
 
 const fixtureRoot = join(import.meta.dir, "../fixtures/valid")
 

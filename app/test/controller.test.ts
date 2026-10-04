@@ -11,7 +11,7 @@ const previousConfigRoot = Bun.env.STORYBOOK_CONFIG_ROOT
 const previousStateRoot = Bun.env.STORYBOOK_STATE_ROOT
 const project = join(stateRoot, "project")
 const fixture = join(project, "standalone")
-const fixtureSource = join(import.meta.dir, "../../repo/discovery/fixtures/valid/standalone")
+const fixtureSource = join(import.meta.dir, "../../package/metadata/collect/fixtures/valid/standalone")
 const toolRoot = realpathSync(join(import.meta.dir, "../.."))
 const context = () => ({signal: AbortSignal.timeout(120_000)})
 

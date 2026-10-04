@@ -29,7 +29,7 @@
     "@zavx0z/storybook-package-graph-create": "workspace:*",
     "@zavx0z/storybook-package-graph-read": "workspace:*",
     "@zavx0z/storybook-package-revision": "workspace:*",
-    "@zavx0z/storybook-repo-discovery": "workspace:*",
+    "@zavx0z/storybook-package-metadata-collect": "workspace:*",
     "@zavx0z/storybook-package-route-url": "workspace:*",
     "@zavx0z/storybook-tech-testing-browser-root": "workspace:*",
     "@zavx0z/storybook-app-web-page-navigation": "workspace:*",

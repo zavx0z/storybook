@@ -2,9 +2,9 @@ import {readyBrowser} from "./browser.fixture"
 import {createProjectFixture} from "./project.fixture.ts"
 import createWeb from "@zavx0z/storybook-app-web"
 import AppServerCatalogOwner, {type Zavx0zStorybookAppServerCatalog as AppServerCatalogContract} from "@zavx0z/storybook-app-server-catalog"
-import RepoDiscoveryOwner from "@zavx0z/storybook-repo-discovery"
+import PackageMetadataCollectOwner from "@zavx0z/storybook-package-metadata-collect"
 const ExternalStorybookRegistry = AppServerCatalogOwner
-const discoverStorybookPackages = RepoDiscoveryOwner
+const discoverStorybookPackages = PackageMetadataCollectOwner
 type ExternalStorybookRegistry = AppServerCatalogContract.Output
 import {expect, test} from "bun:test"
 import {mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"

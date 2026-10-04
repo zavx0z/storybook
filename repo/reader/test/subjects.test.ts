@@ -51,7 +51,7 @@ test("предметный раздел не подменяет протокол
     "Общее название раздела не создаёт одну сущность Domain или общий протокол Cluster").toEqual([])
   for (const [directory, name] of [
     ["repo/reader", "@zavx0z/storybook-repo-reader"],
-    ["repo/discovery", "@zavx0z/storybook-repo-discovery"],
+    ["package/metadata/collect", "@zavx0z/storybook-package-metadata-collect"],
     ["specs/reader", "@zavx0z/storybook-specs-reader"],
     ["package/graph", "@zavx0z/storybook-package-graph"],
     ["package/build/prepare", "@zavx0z/storybook-package-build-prepare"],

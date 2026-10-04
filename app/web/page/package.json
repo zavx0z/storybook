@@ -26,7 +26,7 @@
     "@zavx0z/storybook-package-revision": "workspace:*",
     "@zavx0z/storybook-package-session": "workspace:*",
     "@zavx0z/immersive-renderer-html": "^0.0.0",
-    "@zavx0z/storybook-repo-discovery": "workspace:*",
+    "@zavx0z/storybook-package-metadata-collect": "workspace:*",
     "@zavx0z/storybook-tech-testing-browser-root": "workspace:*",
     "@zavx0z/storybook-app-web-page-navigation": "workspace:*",
     "@zavx0z/immersive-browser": "^0.0.0",

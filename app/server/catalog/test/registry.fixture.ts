@@ -1,6 +1,6 @@
-import {type Zavx0zStorybookRepoDiscovery as RepoDiscoveryContract} from "@zavx0z/storybook-repo-discovery"
-type StorybookCatalog = RepoDiscoveryContract.Output
-type StorybookPackage = Extract<RepoDiscoveryContract.Output["scopes"][number], {kind: "package"}>
+import {type Zavx0zStorybookPackageMetadataCollect as PackageMetadataCollectContract} from "@zavx0z/storybook-package-metadata-collect"
+type StorybookCatalog = PackageMetadataCollectContract.Output
+type StorybookPackage = Extract<PackageMetadataCollectContract.Output["scopes"][number], {kind: "package"}>
 import {join} from "node:path"
 
 /** Проверенный структурный каталог невизуального пакета для тестов реестра. */

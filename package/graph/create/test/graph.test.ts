@@ -1,6 +1,6 @@
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
-import discoverStorybookPackages from "@zavx0z/storybook-repo-discovery"
+import discoverStorybookPackages from "@zavx0z/storybook-package-metadata-collect"
 import createExternalStorybookGraph from "@zavx0z/storybook-package-graph-create"
 import graphRead from "@zavx0z/storybook-package-graph-read"
 
@@ -11,7 +11,7 @@ const {
   search: searchExternalStorybookGraph,
 } = graphRead
 
-const fixtureRoot = join(import.meta.dir, "../../../../repo/discovery/fixtures/valid")
+const fixtureRoot = join(import.meta.dir, "../../../../package/metadata/collect/fixtures/valid")
 const fixture = () => discoverStorybookPackages([fixtureRoot, join(fixtureRoot, "standalone")])
 
 describe("structural Storybook graph", () => {

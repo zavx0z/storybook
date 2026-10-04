@@ -1,17 +1,22 @@
 /**
-Атомарный каталог подключённых владельцев и его обновление по явному запросу.
+Открывает дерево Project и данные владельцев с файловой системы.
+Обычные чтения не запускают discovery; явное обновление выполняет прежние читатели
+в worker и публикует новый набор ссылок после сохранения документов владельцев.
 
 @packageDocumentation
 */
-import {type Zavx0zStorybookRepoDiscovery as RepoDiscoveryContract} from "@zavx0z/storybook-repo-discovery"
+import {type Zavx0zStorybookPackageMetadataCollect as PackageMetadataCollectContract} from "@zavx0z/storybook-package-metadata-collect"
 import PackageGraphCreateOwner, {type Zavx0zStorybookPackageGraphCreate as PackageGraphCreateContract} from "@zavx0z/storybook-package-graph-create"
 import {type Zavx0zStorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
 const createExternalStorybookGraph = PackageGraphCreateOwner
-type StorybookCatalog = RepoDiscoveryContract.Output
-type StorybookCatalogScope = RepoDiscoveryContract.Output["scopes"][number]
+type StorybookCatalog = PackageMetadataCollectContract.Output
+type StorybookCatalogScope = PackageMetadataCollectContract.Output["scopes"][number]
 type ExternalStorybookGraph = PackageGraphCreateContract.Output
 type Zavx0zStorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 import {resolve} from "node:path"
+import {statSync} from "node:fs"
+import {join} from "node:path"
+import {readMetadataSnapshot, restoreMetadataSnapshot} from "./src/storage"
 import {prepareCatalogSnapshot} from "./src/prepare"
 import {runCatalogWorker} from "./src/worker-client"
 import type {CatalogPreparation} from "./src/worker-protocol"
@@ -27,10 +32,10 @@ import type {Zavx0zStorybookAppServerCatalog} from "./contract"
 export type {Zavx0zStorybookAppServerCatalog} from "./contract"
 import {scopePaths, emptyCatalog} from "./src/helpers"
 /**
-Атомарно принимает нормализованный каталог от выбранного источника.
-
-Источник подставляется владельцем приложения. Неуспешное обнаружение или
-построение производных данных не изменяет текущие корни и граф.
+В режиме Project источником служит meta/data/tree.json и документы владельцев.
+Полный результат обнаружения не удерживается сервером после открытия файлового
+хранилища. Независимые читатели могут подготовить снимок через configure перед
+первой записью. Неуспешная подготовка не заменяет опубликованное дерево.
 */
 export default class ExternalStorybookRegistry {
   readonly #lifetime = new AbortController()
@@ -48,6 +53,8 @@ export default class ExternalStorybookRegistry {
   #cacheHits = 0
   #contractAnalysisSessions = 0
   #dependencyAnalysisSessions = 0
+  #metadataProject: Readonly<{root: string, name: string}> | undefined
+  #fileSnapshot: {key: string, value: WeakRef<ExternalStorybookRegistrySnapshot>} | undefined
 
   constructor(
     private readonly resolveCatalog: Zavx0zStorybookAppServerCatalog.Input[0] = undefined,
@@ -55,6 +62,16 @@ export default class ExternalStorybookRegistry {
   ) {}
 
   snapshot(): ExternalStorybookRegistrySnapshot {
+    if (this.#metadataProject !== undefined) {
+      const root = this.#metadataProject.root
+      const info = statSync(join(root, "meta/data/tree.json"), {bigint: true})
+      const key = `${info.ino}:${info.mtimeNs}:${info.size}`
+      const previous = this.#fileSnapshot?.key === key ? this.#fileSnapshot.value.deref() : undefined
+      if (previous !== undefined) return previous
+      const snapshot = readMetadataSnapshot(root, this.readAuthorStyleSheets)
+      this.#fileSnapshot = {key, value: new WeakRef(snapshot)}
+      return snapshot
+    }
     return Object.freeze({
       revision: this.#revision,
       entries: this.#entries,
@@ -64,10 +81,35 @@ export default class ExternalStorybookRegistry {
     })
   }
 
+  /** Открывает данные Project с ФС. Прежний формат переводится без повторного анализа; отсутствие данных запускает первичный сбор. */
+  async open(project: Readonly<{root: string, name: string}>, roots: readonly string[]): Promise<ExternalStorybookRegistrySnapshot> {
+    if (this.resolveCatalog !== undefined) {
+      await this.configure(roots)
+      await this.saveMetadata(project)
+    } else {
+      const result = await this.#runWorker({kind: "open-files", project, roots, sources: roots.map(() => "direct-package"), styles: this.readAuthorStyleSheets()})
+      if (result.kind !== "files-ready") throw new Error("Catalog worker returned a different operation")
+      if (result.discovered) this.#resolverCalls += 1
+      if (result.graphChanged) this.#graphRebuilds += 1
+    }
+    this.#metadataProject = project
+    this.#catalog = emptyCatalog()
+    this.#graph = createExternalStorybookGraph(this.#catalog)
+    this.#entries = []
+    this.#descriptors = []
+    return this.snapshot()
+  }
+
   /** Записывает результаты читателей у владельцев; сериализация и запись выполняются вне HTTP-потока. */
   async saveMetadata(project: Readonly<{root: string, name: string}>): Promise<Readonly<{owners: number, changed: number}>> {
-    const result = await this.#runWorker({kind: "save-metadata", project, snapshot: this.snapshot()})
+    if (this.#metadataProject !== undefined && this.#metadataProject.name === project.name) {
+      return {owners: this.snapshot().catalog.scopes.filter(scope => scope.kind === "package").length, changed: 0}
+    }
+    const result = await this.#runWorker(this.#metadataProject === undefined
+      ? {kind: "save-metadata", project, snapshot: this.snapshot()}
+      : {kind: "rename-files", project})
     if (result.kind !== "metadata-saved") throw new Error("Catalog worker returned a different operation")
+    if (this.#metadataProject !== undefined) this.#metadataProject = project
     return result.result
   }
 
@@ -81,17 +123,18 @@ export default class ExternalStorybookRegistry {
 
   async attachMany(inputs: readonly string[], attachSource: ExternalStorybookAttachSource = "cli"): Promise<ExternalStorybookRegistrySnapshot> {
     if (inputs.length === 0) return this.snapshot()
+    const current = this.snapshot()
     const incoming = await this.#callResolver([...new Set(inputs)])
-    if (this.#entries.length === 0) return this.#accept(incoming, incoming.rootIds.map(() => attachSource))
+    if (current.entries.length === 0) return this.#accept(incoming, incoming.rootIds.map(() => attachSource))
     const incomingRoots = incoming.scopes.filter(scope => incoming.rootIds.includes(scope.canonicalId))
     // An explicit ancestor replaces its already selected descendants, avoiding duplicate owners.
     const incomingPaths = new Set(incoming.scopes.map(scope => scope.scopeRoot))
     const exactRoots = new Set(incomingRoots.map(scope => scope.scopeRoot))
-    const kept = this.#entries.filter(entry => {
-      const root = this.#catalog.scopes.find(scope => scope.canonicalId === entry.canonicalId)!.scopeRoot
+    const kept = current.entries.filter(entry => {
+      const root = current.catalog.scopes.find(scope => scope.canonicalId === entry.canonicalId)!.scopeRoot
       return exactRoots.has(root) || !incomingPaths.has(root)
     })
-    const represented = new Set(this.#catalog.scopes.map(scope => scope.scopeRoot))
+    const represented = new Set(current.catalog.scopes.map(scope => scope.scopeRoot))
     const added = incomingRoots.filter(scope => !represented.has(scope.scopeRoot))
     return this.#resolve(
       [...kept.map(entry => entry.declarationPath), ...added.map(scope => scope.source.path)],
@@ -100,10 +143,11 @@ export default class ExternalStorybookRegistry {
   }
 
   async detach(scopeId: string): Promise<ExternalStorybookRegistrySnapshot> {
-    const matches = this.#catalog.scopes.filter(scope => scope.canonicalId === scopeId || scope.id === scopeId)
+    const catalog = this.snapshot().catalog
+    const matches = catalog.scopes.filter(scope => scope.canonicalId === scopeId || scope.id === scopeId)
     if (matches.length !== 1) throw new Error(`Unknown or ambiguous attached external Storybook scope: ${scopeId}`)
     const removed = matches[0]!.canonicalId
-    const scopes = new Map(this.#catalog.scopes.map(scope => [scope.canonicalId, scope]))
+    const scopes = new Map(catalog.scopes.map(scope => [scope.canonicalId, scope]))
     const children = (id: string): readonly string[] => {
       const scope = scopes.get(id)!
       return scope.kind === "package" ? scope.packageIds ?? [] : []
@@ -111,12 +155,12 @@ export default class ExternalStorybookRegistry {
     const contains = (id: string): boolean => id === removed || children(id).some(contains)
     const retain = (id: string): readonly string[] => id === removed ? [] :
       contains(id) ? children(id).flatMap(retain) : [scopes.get(id)!.scopeRoot]
-    const paths = this.#catalog.rootIds.flatMap(retain)
+    const paths = catalog.rootIds.flatMap(retain)
     return this.#resolve(paths, paths.map(() => "direct-package"))
   }
 
   refresh(): Promise<ExternalStorybookRegistrySnapshot> {
-    if (this.#entries.length === 0) return Promise.resolve(this.snapshot())
+    if (this.snapshot().entries.length === 0) return Promise.resolve(this.snapshot())
     this.#forceRefresh = true
     return this.#requestRefresh()
   }
@@ -170,7 +214,7 @@ export default class ExternalStorybookRegistry {
   выполняется следующим проходом до завершения этого Promise.
   */
   refreshIfNeeded(): Promise<ExternalStorybookRegistrySnapshot> {
-    if (this.#entries.length === 0) return Promise.resolve(this.snapshot())
+    if (this.snapshot().entries.length === 0) return Promise.resolve(this.snapshot())
     if (!this.#forceRefresh && this.#dirtyPaths.size === 0 && this.#pendingRefresh === null) {
       this.#cacheHits += 1
       return Promise.resolve(this.snapshot())
@@ -196,8 +240,8 @@ export default class ExternalStorybookRegistry {
       this.#dirtyPaths.clear()
       try {
         snapshot = await this.#resolve(
-          this.#entries.map(entry => entry.declarationPath),
-          this.#entries.map(entry => entry.attachSource),
+          snapshot.entries.map(entry => entry.declarationPath),
+          snapshot.entries.map(entry => entry.attachSource),
           force ? undefined : {dirtyScopeRoots: this.#dirtyScopeRoots(paths)},
         )
       } catch (error) {
@@ -215,6 +259,18 @@ export default class ExternalStorybookRegistry {
     options?: Readonly<{dirtyScopeRoots?: readonly string[]}>,
   ): Promise<ExternalStorybookRegistrySnapshot> {
     this.#lifetime.signal.throwIfAborted()
+    if (this.#metadataProject !== undefined) {
+      if (this.resolveCatalog !== undefined) {
+        const raw = roots.length === 0 ? emptyCatalog() : await this.#callResolver(roots, this.snapshot().catalog, options)
+        return this.#accept(raw, sources)
+      }
+      const result = await this.#runWorker({kind: "refresh-files", project: this.#metadataProject, roots, sources,
+        styles: this.readAuthorStyleSheets(), ...(options ?? {})})
+      if (result.kind !== "files-ready") throw new Error("Catalog worker returned a different operation")
+      if (result.discovered) this.#resolverCalls += 1
+      if (result.graphChanged) this.#graphRebuilds += 1
+      return this.snapshot()
+    }
     if (this.resolveCatalog !== undefined) {
       const raw = roots.length === 0 ? emptyCatalog() : await this.#callResolver(roots, this.#catalog, options)
       return this.#accept(raw, sources)
@@ -253,6 +309,16 @@ export default class ExternalStorybookRegistry {
   }
 
   async #accept(raw: StorybookCatalog, sources: readonly ExternalStorybookAttachSource[]): Promise<ExternalStorybookRegistrySnapshot> {
+    if (this.#metadataProject !== undefined) {
+      const before = this.snapshot()
+      const prepared = prepareCatalogSnapshot(raw, sources, before, this.readAuthorStyleSheets())
+      if (prepared.snapshot !== null) {
+        const result = await this.#runWorker({kind: "save-metadata", project: this.#metadataProject, snapshot: prepared.snapshot})
+        if (result.kind !== "metadata-saved") throw new Error("Catalog worker returned a different operation")
+        if (before.graph.digest !== prepared.snapshot.graph.digest) this.#graphRebuilds += 1
+      }
+      return this.snapshot()
+    }
     if (this.resolveCatalog === undefined) {
       const result = await this.#runWorker({kind: "prepare", roots: [], catalog: raw, sources,
         previous: this.snapshot(), styles: this.readAuthorStyleSheets()})
@@ -284,7 +350,7 @@ export default class ExternalStorybookRegistry {
   }
 
   #dirtyScopeRoots(paths: readonly string[]): string[] {
-    const scopes = this.#catalog.scopes.filter((scope): scope is StorybookCatalogScope & {scopeRoot: string} => scope.kind === "package")
+    const scopes = this.snapshot().catalog.scopes.filter((scope): scope is StorybookCatalogScope & {scopeRoot: string} => scope.kind === "package")
     const roots = new Set<string>()
     for (const path of paths) {
       const exact = scopes.filter(scope => scopePaths(scope).has(path))
@@ -305,17 +371,23 @@ export default class ExternalStorybookRegistry {
   }
 
   packageDescriptors(): readonly Zavx0zStorybookPackageBuildDescriptor[] {
-    return this.#descriptors
+    return this.snapshot().descriptors
   }
 
   /** Explicitly selected roots and their physical descendants. */
   async sourceRoots(): Promise<readonly string[]> {
-    if (this.#entries.length === 0) return Object.freeze([])
-    const raw = this.#catalog
+    const snapshot = this.snapshot()
+    if (snapshot.entries.length === 0) return Object.freeze([])
+    const raw = snapshot.catalog
     return Object.freeze([...new Set(raw.scopes.map(scope => scope.scopeRoot))])
   }
 
   restore(snapshot: ExternalStorybookRegistrySnapshot): void {
+    if (this.#metadataProject !== undefined) {
+      restoreMetadataSnapshot(this.#metadataProject.root, snapshot)
+      this.#fileSnapshot = undefined
+      return
+    }
     if (snapshot === null || typeof snapshot !== "object") {
       throw new Error("External Storybook registry rollback snapshot is invalid")
     }

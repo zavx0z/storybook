@@ -3,12 +3,12 @@ import {resolve, join} from "node:path"
 import {createHash} from "node:crypto"
 import {mkdtempSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
-import discoverStorybookPackages from "@zavx0z/storybook-repo-discovery"
+import discoverStorybookPackages from "@zavx0z/storybook-package-metadata-collect"
 import ExternalStorybookRegistry from "@zavx0z/storybook-app-server-catalog"
 import WebBuild from "@zavx0z/storybook-app-web-build"
 
 const storybookRoot = resolve(import.meta.dir, "../../..")
-const fixtureRoot = resolve(storybookRoot, "repo/discovery/fixtures/valid")
+const fixtureRoot = resolve(storybookRoot, "package/metadata/collect/fixtures/valid")
 
   test("copies one Workbench theme for each package revision", async () => {
     const registry = new ExternalStorybookRegistry(discoverStorybookPackages, () => WebBuild.readTheme(storybookRoot))

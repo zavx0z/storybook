@@ -15,7 +15,7 @@ import {createSpaceElementFactories} from "@zavx0z/immersive-space"
 import {HUDElement} from "@zavx0z/immersive-dom/hud"
 import {SpaceElement} from "@zavx0z/immersive-dom/space"
 import {ViewPointElement} from "@zavx0z/immersive-dom/viewpoint"
-import discoverStorybookPackages from "@zavx0z/storybook-repo-discovery"
+import discoverStorybookPackages from "@zavx0z/storybook-package-metadata-collect"
 import createExternalStorybookGraph, {type Zavx0zStorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
 type ExternalStorybookGraph = Zavx0zStorybookPackageGraphCreate.Output
 import type {Zavx0zStorybookPackageSession} from "@zavx0z/storybook-package-session"
@@ -24,7 +24,7 @@ import startExternalStorybookLanding from "@zavx0z/storybook-app-web-page-home"
 import type {Zavx0zStorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
 type ExternalStorybookRootFactory = NonNullable<Zavx0zStorybookAppWebPageShell.Input["createRoot"]>
 
-const fixtureRoot = join(import.meta.dir, "../../../../../repo/discovery/fixtures/valid")
+const fixtureRoot = join(import.meta.dir, "../../../../../package/metadata/collect/fixtures/valid")
 
 describe("external Storybook landing frontend", () => {
   test("updates Project name from an unchanged graph and keeps navigation in the same page", async () => {

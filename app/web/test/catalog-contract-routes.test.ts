@@ -1,9 +1,9 @@
-import RepoDiscoveryOwner from "@zavx0z/storybook-repo-discovery"
+import PackageMetadataCollectOwner from "@zavx0z/storybook-package-metadata-collect"
 import PackageGraphCreateOwner from "@zavx0z/storybook-package-graph-create"
 import PackageGraphReadOwner from "@zavx0z/storybook-package-graph-read"
 import PackageBuildDescriptorOwner from "@zavx0z/storybook-package-build-descriptor"
 import PackageRevisionOwner from "@zavx0z/storybook-package-revision"
-const discoverStorybookPackages = RepoDiscoveryOwner
+const discoverStorybookPackages = PackageMetadataCollectOwner
 const createExternalStorybookGraph = PackageGraphCreateOwner
 const resolveExternalStorybookRoute = PackageGraphReadOwner.resolve
 const externalStorybookPackageDescriptors = PackageBuildDescriptorOwner
@@ -16,7 +16,7 @@ import WebNavigationOwner from "@zavx0z/storybook-app-web-page-navigation"
 const deriveExternalStorybookPackageTab = WebNavigationOwner.deriveExternalStorybookPackageTab
 
 const packageId = "@fixture/standalone"
-const source = join(import.meta.dir, "../../../repo/discovery/fixtures/valid/standalone")
+const source = join(import.meta.dir, "../../../package/metadata/collect/fixtures/valid/standalone")
 
 async function fixture() {
   const catalog = await discoverStorybookPackages([source])

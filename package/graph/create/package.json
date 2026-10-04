@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@zavx0z/storybook-package-route-address": "workspace:*",
-    "@zavx0z/storybook-repo-discovery": "workspace:*"
+    "@zavx0z/storybook-package-metadata-collect": "workspace:*"
   },
   "devDependencies": {
     "@zavx0z/storybook-package-graph-read": "workspace:*"

@@ -2,8 +2,8 @@
 
 Разные способы обнаружения должны отдавать сведения в один общий формат.
 Тогда граф, сборка, интерфейс и MCP используют одинаковые данные.
-Граница формата находится в [catalog.t.ts](../../repo/discovery/contract/catalog.ts).
-Физические пакеты обнаруживаются в [packages.ts](../../repo/discovery/index.ts).
+Граница формата находится в [catalog.t.ts](../../package/metadata/collect/contract/catalog.ts).
+Физические пакеты обнаруживаются в [packages.ts](../../package/metadata/collect/index.ts).
 
 ```mermaid
 flowchart LR

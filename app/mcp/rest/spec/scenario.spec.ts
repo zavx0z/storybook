@@ -1,7 +1,7 @@
 import {describe, expect, test} from "bun:test"
 import {createHash} from "node:crypto"
 import {join} from "node:path"
-import discoverStorybookPackages from "@zavx0z/storybook-repo-discovery"
+import discoverStorybookPackages from "@zavx0z/storybook-package-metadata-collect"
 import storybookRest from ".."
 
 const projectName = "Fixture Project"

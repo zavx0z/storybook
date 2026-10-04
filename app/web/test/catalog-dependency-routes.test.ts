@@ -1,11 +1,11 @@
 import RouteUrlOwner from "@zavx0z/storybook-package-route-url"
 const storybookPackageRouteFromPathname = RouteUrlOwner.storybookPackageRouteFromPathname
 const storybookPackageUrlPath = RouteUrlOwner.storybookPackageUrlPath
-import RepoDiscoveryOwner from "@zavx0z/storybook-repo-discovery"
+import PackageMetadataCollectOwner from "@zavx0z/storybook-package-metadata-collect"
 import PackageGraphCreateOwner from "@zavx0z/storybook-package-graph-create"
 import PackageGraphReadOwner from "@zavx0z/storybook-package-graph-read"
 import PackageRevisionOwner from "@zavx0z/storybook-package-revision"
-const discoverStorybookPackages = RepoDiscoveryOwner
+const discoverStorybookPackages = PackageMetadataCollectOwner
 const createExternalStorybookGraph = PackageGraphCreateOwner
 const externalStorybookRoutes = PackageGraphReadOwner.routes
 const resolveExternalStorybookRoute = PackageGraphReadOwner.resolve
@@ -20,7 +20,7 @@ const deriveExternalStorybookPackageTab = WebNavigationOwner.deriveExternalStory
 const packageId = "@fixture/standalone"
 
 async function fixture() {
-  const catalog = await discoverStorybookPackages([join(import.meta.dir, "../../../repo/discovery/fixtures/valid/standalone")])
+  const catalog = await discoverStorybookPackages([join(import.meta.dir, "../../../package/metadata/collect/fixtures/valid/standalone")])
   const scope = catalog.scopes[0]!
   const scopes = [{...scope, directories: [{path: join(scope.scopeRoot, "module"), relativePath: "module", name: "module",
     structuralRole: "module" as const,

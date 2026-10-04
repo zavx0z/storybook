@@ -30,9 +30,10 @@ async function fixture() {
 test("готовые сведения сохраняются у пакета, Project хранит дерево и относительную ссылку", async () => {
   const f = await fixture()
   const snapshot = f.registry.snapshot()
-  expect(await f.registry.saveMetadata({root: f.root, name: "Workspace"})).toEqual({owners: 1, changed: 2})
-  const data = await Bun.file(join(f.owner, "meta/data/catalog.json")).json()
-  expect(data).toEqual({schemaVersion: 1, scope: snapshot.catalog.scopes[0]})
+  expect(await f.registry.saveMetadata({root: f.root, name: "Workspace"})).toEqual({owners: 1, changed: 3})
+  const pointer = await Bun.file(join(f.owner, "meta/data/catalog.json")).json()
+  const data = await Bun.file(join(f.owner, "meta/data", pointer.data)).json()
+  expect(data).toEqual({schemaVersion: 2, scope: snapshot.catalog.scopes[0]})
   const restored = {...snapshot.catalog, scopes: [data.scope]}
   const graph = createGraph(restored)
   expect(graph, "Тот же построитель получает прежний граф из сохранённых сведений владельца").toEqual(snapshot.graph)
@@ -41,7 +42,7 @@ test("готовые сведения сохраняются у пакета, Pr
   const tree = await Bun.file(join(f.root, "meta/data/tree.json")).json()
   expect(tree.project).toEqual({name: "Workspace"})
   expect(tree.rootIds).toEqual(snapshot.catalog.rootIds)
-  expect(tree.nodes.every((node: {data: string}) => node.data === "repo/meta/data/catalog.json")).toBeTrue()
+  expect(tree.nodes.every((node: {data: string}) => node.data === `repo/meta/data/${pointer.data}`)).toBeTrue()
   expect(tree).not.toHaveProperty("catalog")
   expect(f.reads(), "Сохранение использует результат прежнего читателя и не запускает анализ повторно").toBe(1)
   expect(f.registry.snapshot()).toEqual(snapshot)

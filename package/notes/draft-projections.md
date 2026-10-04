@@ -8,8 +8,8 @@
 
 ## Единый каталог
 
-[Обнаружение](../../repo/discovery/index.ts) передаёт пакеты, TSDoc, контракты и spec
-в [нормализованный каталог](../../repo/discovery/contract/catalog.ts).
+[Обнаружение](../../package/metadata/collect/index.ts) передаёт пакеты, TSDoc, контракты и spec
+в [нормализованный каталог](../../package/metadata/collect/contract/catalog.ts).
 [Граф](../graph/create/index.ts), UI и [проекция MCP](../../app/server/src/mcp-entries.ts) используют
 эти данные. В текущем каталоге публичные директории также могут иметь адреса
 MCP. Утверждение «MCP адресует только пакеты» больше не описывает реализацию.
@@ -21,7 +21,7 @@ MCP. Утверждение «MCP адресует только пакеты» �
 
 ## Обход переходных директорий
 
-[Читатель директорий](../../repo/discovery/src/directories.ts) использует
+[Читатель директорий](../../package/metadata/collect/src/directories.ts) использует
 [общие правила Route](../route/directories/index.ts).
 Наличие допустимого `index.tsx` или собственного `src/` останавливает рекурсивный
 обход на модуле. Один `index.ts` промежуточной директории сам по себе обход

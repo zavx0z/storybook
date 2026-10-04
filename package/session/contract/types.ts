@@ -164,6 +164,8 @@ export type Zavx0zStorybookPackageActivation = Readonly<{
 }>
 
 export type StorybookPackageSessionOptions = Readonly<{
+  /** Предоставляет файловый дескриптор по запросу; полная проверка выполняется перед сборкой. */
+  readDescriptor?(): Zavx0zStorybookPackageBuildDescriptor
   artifactRoot: string
   buildRevision: StorybookPackageRevisionBuilder
   /** Подготавливает общие зависимости до занятия единственного compiler slot. */
