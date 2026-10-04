@@ -5,6 +5,6 @@ coverage/
 .codex/worktrees/
 .idea/
 .cache/
-/tmp/
+**/tmp/
 /.local/
 **/meta/data/
