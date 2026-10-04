@@ -3,6 +3,7 @@ import {mkdtemp, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {createChatServer} from "../src/chat"
+import createJournal from "@zavx0z/storybook-app-server-requests"
 import type {StorybookTechAcp} from "@zavx0z/storybook-tech-acp"
 import type {StorybookPackageGraphRead} from "@zavx0z/storybook-package-graph-read"
 import type {StorybookAppMcpRest} from "@zavx0z/storybook-app-mcp-rest"
@@ -33,9 +34,11 @@ async function fixture(
     ...(node.kind === "package" && readType !== undefined ? {readType} : {}),
   }))
   const connections: StorybookTechAcp.Input[] = []
+  const journal = createJournal()
   const server = createChatServer({
     project, projectName: () => "Project", toolRoot: project, origin: () => "http://127.0.0.1:12345",
     graph: () => ({nodes} as unknown as StorybookPackageGraphRead.Input), entries: () => entries,
+    recordRequest: entry => journal.write(entry),
     async connect(input) {
       connections.push(input)
       return {
@@ -55,11 +58,35 @@ async function fixture(
     },
   })
   releases.push(() => server.dispose())
-  return {server, connections, prompts: () => prompts}
+  return {server, connections, journal, prompts: () => prompts}
 }
 
 const scopedRequest = (key: string, input: object) => new Request("http://127.0.0.1:12345/api/chat/mcp", {
   method: "POST", headers: {authorization: `Bearer ${key}`, "content-type": "application/json"}, body: JSON.stringify(input),
+})
+
+test("вызовы двух агентов разделяются по источнику и одновременно попадают в общий журнал", async () => {
+  const {server, connections, journal} = await fixture()
+  await server.chats.prepare("/repo/button")
+  await server.chats.prepare("/repo/button-other")
+  const keys = connections.map(connection => {
+    const mcp = connection.mcpServers[0]!
+    if (!("env" in mcp)) throw new Error("Ожидается stdio MCP")
+    return mcp.env.find(entry => entry.name === "STORYBOOK_CHAT_KEY")!.value
+  })
+  await server.scopedMcp(scopedRequest(keys[0]!, {}))
+  await server.scopedMcp(scopedRequest(keys[0]!, {path: "./repo/button-other"}))
+  await server.scopedMcp(scopedRequest(keys[1]!, {}))
+  const first = journal.read("/repo/button")
+  const second = journal.read("/repo/button-other")
+  expect(journal.read()).toHaveLength(3)
+  expect(first).toHaveLength(2)
+  expect(second).toHaveLength(1)
+  expect(first.some(entry => entry.status === "failed")).toBeTrue()
+  expect(first.every(entry => entry.agentId === first[0]?.agentId)).toBeTrue()
+  expect(first[0]?.agentId).not.toBe(second[0]?.agentId)
+  expect(first[0]?.agentId).toBeTruthy()
+  for (const key of keys) expect(JSON.stringify(journal.read())).not.toContain(key)
 })
 
 test("общие правила остаются доступными переходами от root адресного чата", async () => {

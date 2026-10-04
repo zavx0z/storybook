@@ -5,6 +5,7 @@
 каждого запроса сохраняются на публичной границе MCP.
 */
 import {McpServer} from "@modelcontextprotocol/server"
+import {randomUUID} from "node:crypto"
 import {register} from "./subject"
 import {registerStorybookResources} from "./resources"
 import {
@@ -31,6 +32,9 @@ import createRequestProgress from "@zavx0z/storybook-tech-mcp-progress"
 import type {StorybookAppMcp} from "../contract"
 
 export function createServer(options: StorybookAppMcp.Input = {}): ReturnType<StorybookAppMcp.Output["createServer"]> {
+  const agentId = randomUUID()
+  const record = options.recordRequest ?? recordMcpRequest
+  options = {...options, recordRequest: entry => record({...entry, agentId})}
   const server = new McpServer({name: "storybook", version: "1.0.0"})
   const run = retainRequestLifetime(server)
   const controller = controllerAccessor(options, run)

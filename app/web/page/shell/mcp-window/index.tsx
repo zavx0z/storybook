@@ -1,5 +1,7 @@
 /**
-Окно MCP показывает обращения агента и ответ для текущего адреса Storybook.
+Окно MCP показывает переданный ему журнал агента и ответ для текущего адреса Storybook.
+Источник локального Display содержит только его агента. Общий источник всех
+агентов показывается отдельным Window в HUD с journalOnly и собственным Tab.
 
 В режиме «Вызовы агента» доступны параметры, полный ответ и история команд.
 «Текущий адрес → MCP» передаёт путь и параметры адресной строки тому же
@@ -15,7 +17,7 @@
 import {type StorybookAppServerRequests as McpRestRequestsContract} from "@zavx0z/storybook-app-server-requests"
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
 import {useEffect, useState} from "@zavx0z/immersive-component"
-import {Window} from "@zavx0z/immersive-ui-component"
+import Window from "@zavx0z/immersive-ui-component-surface-window"
 import {McpContent} from "./src/content"
 import {normalizeMcpWindowState} from "./src/state"
 import type {StorybookAppWebPageShellMcpWindow} from "./contract"
@@ -26,7 +28,7 @@ export default function McpWindow(props: StorybookAppWebPageShellMcpWindow.Input
   const [entries, setEntries] = useState<readonly McpRequestRecord[]>([])
   const [error, setError] = useState("")
   const [initial] = useState(() => normalizeMcpWindowState(props.initialState))
-  const [mode, setMode] = useState(initial.mode)
+  const [mode, setMode] = useState(props.journalOnly ? "agent" : initial.mode)
   const [geometry, setGeometry] = useState(initial.geometry)
   useEffect(() => {
     props.onStateChange?.({open: props.open, mode, geometry})
@@ -43,7 +45,8 @@ export default function McpWindow(props: StorybookAppWebPageShellMcpWindow.Input
             if (previous.length === result.length && previous.every((entry, index) => {
               const next = result[index]
               return next?.id === entry.id && next.status === entry.status &&
-                next.durationMs === entry.durationMs && next.input === entry.input && next.result === entry.result
+                next.durationMs === entry.durationMs && next.input === entry.input && next.result === entry.result &&
+                next.agentId === entry.agentId && next.address === entry.address
             })) return previous
             return result
           })
@@ -72,8 +75,8 @@ export default function McpWindow(props: StorybookAppWebPageShellMcpWindow.Input
     `}
   >
     <Window
-      id="storybook-mcp-window"
-      title="Журнал MCP"
+      id={props.id ?? "storybook-mcp-window"}
+      title={props.title ?? "Журнал MCP"}
       open={props.open}
       onOpenChange={open => { if (!open) props.onClose() }}
       geometry={geometry}
@@ -90,6 +93,7 @@ export default function McpWindow(props: StorybookAppWebPageShellMcpWindow.Input
         entries={entries}
         error={error}
         addressSource={props.addressSource}
+        journalOnly={props.journalOnly}
       />
     </Window>
   </div>

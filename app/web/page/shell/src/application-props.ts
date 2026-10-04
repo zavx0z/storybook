@@ -1,4 +1,6 @@
 import type {StorybookAppServerRequests as McpRestRequestsContract} from "@zavx0z/storybook-app-server-requests"
+import type {createLocalMcpState} from "./local-mcp-state"
+import type {GlobalMcpWindowState} from "../contract/types"
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
 import type {StorybookAppWebPageShellViewpointTab} from "@zavx0z/storybook-app-web-page-shell-viewpoint-tab"
 type ViewPointTabProps = StorybookAppWebPageShellViewpointTab.Input
@@ -17,10 +19,11 @@ type NavigationExpansion = NonNullable<StorybookAppWebPageShellWorkbenchCatalog.
 
 export type StorybookAppProps = Readonly<{
   userState?: WorkbenchUserState | undefined
-  loadMcpRequests?: (() => Promise<readonly McpRequestRecord[]>) | undefined
+  loadMcpRequests?: ((address?: string) => Promise<readonly McpRequestRecord[]>) | undefined
+  localMcpJournal?: ReturnType<typeof createLocalMcpState> | undefined
   mcpAddressSource?: McpAddressSource | undefined
-  mcpWindowState?: McpWindowInitialState | undefined
-  saveMcpWindowState?: ((state: McpWindowState) => void) | undefined
+  mcpWindowState?: GlobalMcpWindowState | undefined
+  saveMcpWindowState?: ((state: GlobalMcpWindowState) => void) | undefined
   navigationExpansion?: NavigationExpansion | undefined
   minimapState?: MinimapInitialState | undefined
   saveMinimapState?: ((state: MinimapState) => void) | undefined

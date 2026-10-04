@@ -1,6 +1,6 @@
 import {type StorybookAppServerRequests as McpRestRequestsContract} from "@zavx0z/storybook-app-server-requests"
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
-import {Button} from "@zavx0z/immersive-ui-component"
+import Button from "@zavx0z/immersive-ui-component-button-basic"
 import {RequestList} from "./request-list"
 import {AddressRequest} from "./address-request"
 import type {McpAddressSource} from "../contract/address"
@@ -13,6 +13,7 @@ export function McpContent(props: Readonly<{
   entries: readonly McpRequestRecord[]
   error: string
   addressSource?: McpAddressSource | undefined
+  journalOnly?: boolean | undefined
 }>) {
   return <div
     style={css`
@@ -26,12 +27,17 @@ export function McpContent(props: Readonly<{
     <div
       role="toolbar"
       aria-label="Режим журнала MCP"
+      hidden={props.journalOnly === true}
       style={css`
         display: flex;
         flex-wrap: wrap;
         flex-shrink: 0;
         gap: 6px;
         padding: 6px;
+
+        &[hidden] {
+          display: none;
+        }
       `}
     >
       <Button
@@ -64,9 +70,9 @@ export function McpContent(props: Readonly<{
         error={props.error}
       />
     </div>
-    <AddressRequest
+    {props.journalOnly ? null : <AddressRequest
       active={props.open && props.mode === "address"}
       source={props.addressSource}
-    />
+    />}
   </div>
 }

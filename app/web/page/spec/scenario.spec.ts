@@ -562,8 +562,16 @@ describe("Переходы и обновления одной страницы",
     const fixture = await pageFixture(false, false)
     const shell = fixture.page.shell
     const minimap = shell.document.querySelector("[data-storybook-minimap] [data-window]")!
+    const globalJournal = shell.hud.querySelector('[aria-label="Общий журнал вызовов"][data-window]')!
+    const localJournal = shell.display.querySelector('[aria-label="Журнал агента"][data-window]')!
     const settings = shell.captureUserState().minimap
     try {
+      expect(globalJournal).toBeDefined()
+      expect(localJournal).toBeDefined()
+      expect(globalJournal.ownerDocument).toBe(shell.document)
+      expect(localJournal.ownerDocument).toBe(shell.document)
+      expect(shell.display.querySelector('[aria-label="Общий журнал вызовов"][data-window]')).toBeNull()
+      expect(shell.hud.querySelector('[aria-label="Журнал агента"][data-window]')).toBeNull()
       const home = shell.workbench.elements.status.querySelector('[data-breadcrumb-id="storybook:root"] button') as import("@zavx0z/immersive-dom").HTMLButtonElement
       expect(home.textContent).toBe("Fixture Project")
       expect(home.hasAttribute("disabled")).toBeFalse()
@@ -580,6 +588,8 @@ describe("Переходы и обновления одной страницы",
       expect(fixture.page.shell.document === shell.document).toBeTrue()
       expect(fixture.page.shell.space === shell.space).toBeTrue()
       expect(shell.document.querySelector("[data-storybook-minimap] [data-window]") === minimap).toBeTrue()
+      expect(shell.hud.querySelector('[aria-label="Общий журнал вызовов"][data-window]')).toBe(globalJournal)
+      expect(shell.captureUserState().localMcpWindows?.map(state => state.address)).toContain("/")
       expect(shell.captureUserState().minimap).toEqual(settings)
       expect(fixture.state.creations).toBe(1)
       expect(fixture.location.reloads).toBe(0)

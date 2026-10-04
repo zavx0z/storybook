@@ -7,6 +7,8 @@ import type {SavedState} from "./viewpoint-state"
 type WorkbenchUserState = NonNullable<StorybookAppWebPageShellWorkbench.Input["userState"]>
 type MinimapState = NonNullable<StorybookAppWebPageShellMinimap.Input["initialState"]>
 type McpWindowState = NonNullable<StorybookAppWebPageShellMcpWindow.Input["initialState"]>
+export type LocalMcpWindowState = Readonly<{address: string, state: McpWindowState}>
+export type GlobalMcpWindowState = McpWindowState & Readonly<{tab?: Readonly<{edge: "left" | "right" | "top" | "bottom", offset: number}>}>
 
 export type ExternalStorybookRootFactory = typeof createBrowserRoot
 
@@ -22,7 +24,8 @@ export type ExternalStorybookNativeKey = Readonly<{
 export type StorybookShellUserState = Readonly<{
   workbench: WorkbenchUserState
   minimap: MinimapState | undefined
-  mcpWindow: McpWindowState | undefined
+  mcpWindow: GlobalMcpWindowState | undefined
+  localMcpWindows?: readonly LocalMcpWindowState[]
   viewPoint: SavedState
   collapsedNavigation: readonly string[] | undefined
 }>

@@ -1,4 +1,5 @@
-import {randomBytes} from "node:crypto"
+import {randomBytes, randomUUID} from "node:crypto"
+import mcpResponse from "@zavx0z/storybook-app-mcp-response"
 import {dirname, join} from "node:path"
 import createChatSessions, {type StorybookChatSession} from "@zavx0z/storybook-chat-session"
 import createAcp from "@zavx0z/storybook-tech-acp"
@@ -17,8 +18,9 @@ export function createChatServer(options: Readonly<{
   graph(): Graph
   entries(): StorybookAppMcpRest.Input[1]["entries"]
   connect?: typeof createAcp
+  recordRequest?: (entry: Record<string, unknown>) => void
 }>) {
-  const grants = new Map<string, string>()
+  const grants = new Map<string, {address: string, agentId: string}>()
   const subscriptions = new Set<() => void>()
   const resolve = (address: string) => {
     if (address === "/") return {address, label: options.projectName(), cwd: options.project}
@@ -33,7 +35,7 @@ export function createChatServer(options: Readonly<{
     resolve,
     async connect(input) {
       const key = randomBytes(32).toString("hex")
-      grants.set(key, input.subject.address)
+      grants.set(key, {address: input.subject.address, agentId: randomUUID()})
       try {
         const connection = await (options.connect ?? createAcp)({
           cwd: input.subject.cwd,
@@ -65,11 +67,8 @@ export function createChatServer(options: Readonly<{
       }
     },
   })
-  const scopedMcp = async (request: Request): Promise<Response> => {
+  const readScopedMcp = async (request: Request, address: string): Promise<Response> => {
     if (request.method !== "GET" && request.method !== "POST") return Response.json({error: "Ожидается GET или POST"}, {status: 405})
-    const key = request.headers.get("authorization")?.replace(/^Bearer /u, "")
-    const address = key === undefined ? undefined : grants.get(key)
-    if (address === undefined) return Response.json({error: "Подключение агента недоступно"}, {status: 401})
     resolve(address)
     const entries = options.entries()
     if (address === "/") return storybookRest(request, {projectName: options.projectName(), entries})
@@ -96,6 +95,35 @@ export function createChatServer(options: Readonly<{
       entries: allowed,
       root: {path: rootPath, references: rules.map(node => node.urlPath.slice(1))},
     })
+  }
+  /** Источник записи задаёт выданное подключение, независимо от path запроса и результата. */
+  const scopedMcp = async (request: Request): Promise<Response> => {
+    const key = request.headers.get("authorization")?.replace(/^Bearer /u, "")
+    const grant = key === undefined ? undefined : grants.get(key)
+    if (grant === undefined) return Response.json({error: "Подключение агента недоступно"}, {status: 401})
+    const startedAt = Date.now()
+    const text = request.method === "POST" ? await request.clone().text() : "{}"
+    let input: unknown = text.length > 16_384 ? {error: "Превышен размер запроса MCP", length: text.length} : text
+    if (text.length <= 16_384) try { input = JSON.parse(text || "{}") } catch {}
+    const record = {id: randomUUID(), tool: "storybook", startedAt, ...grant,
+      input: JSON.stringify(mcpResponse.sanitizeValue(input), null, 2) ?? ""}
+    const write = (value: Record<string, unknown>) => {
+      try { options.recordRequest?.(value) } catch { /* Журнал не отменяет вызов агента. */ }
+    }
+    write({...record, status: "running", durationMs: null, result: ""})
+    try {
+      const response = await readScopedMcp(request, grant.address)
+      const text = await response.clone().text()
+      let value: unknown = text
+      try { value = JSON.parse(text) } catch {}
+      write({...record, status: response.ok ? "success" : "failed", durationMs: Date.now() - startedAt,
+        result: JSON.stringify(mcpResponse.sanitizeValue(value), null, 2)})
+      return response
+    } catch (error) {
+      write({...record, status: "failed", durationMs: Date.now() - startedAt,
+        result: JSON.stringify({error: mcpResponse.sanitizeString(error instanceof Error ? error.message : String(error))})})
+      throw error
+    }
   }
   /** Один подписчик получает свежий снимок, последующие изменения объединяются за 50 мс. */
   const subscribe = async (address: string, listener: (snapshot: Snapshot) => void): Promise<() => void> => {

@@ -13,6 +13,10 @@ export declare namespace StorybookAppWebPageShellMcpWindow {
   }>
 
   export type Input = Readonly<{
+    id?: string | undefined
+    title?: string | undefined
+    /** Общий журнал содержит только вызовы агентов, без чтения текущего адреса Display. */
+    journalOnly?: boolean | undefined
     open: boolean
     onClose(): void
     load?: (() => Promise<readonly McpRequestRecord[]>) | undefined

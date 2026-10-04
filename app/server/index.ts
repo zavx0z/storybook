@@ -483,6 +483,7 @@ export default async function startExternalStorybookServer(
     origin: () => server.url.origin,
     graph: () => registry.snapshot().graph,
     entries: mcpEntries,
+    recordRequest: entry => mcpRequests.write(entry),
   })
   try {
     await options.migrateChats?.(chat.chats, registry.snapshot().graph)
@@ -590,7 +591,11 @@ export default async function startExternalStorybookServer(
         if (url.pathname === "/api/browser/mcp-requests" && request.method === "GET") {
           assertExternalStorybookRequestOrigin(request, server.url.origin, {required: false})
           browserSessions.authorize(request.headers.get("x-storybook-session") ?? "")
-          return responseJson({entries: mcpRequests.read()})
+          const address = url.searchParams.get("address") ?? undefined
+          if (address !== undefined && address !== "/" && !registry.snapshot().graph.nodes.some(node => node.urlPath === address)) {
+            return responseJson({error: "Неизвестная область журнала"}, 404)
+          }
+          return responseJson({entries: mcpRequests.read(address)})
         }
         if (url.pathname === "/api/browser/mcp-address" && request.method === "POST") {
           assertExternalStorybookRequestOrigin(request, server.url.origin, {required: true})

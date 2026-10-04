@@ -4,8 +4,7 @@ import type {StorybookAppWebPageShellMcpWindow} from "@zavx0z/storybook-app-web-
 Хранит настройки окна в localStorage текущего origin. Проверка полей и
 начальные значения принадлежат самому окну; недоступное хранилище не мешает ему.
 */
-export function createMcpWindowPersistence(storage: () => Pick<Storage, "getItem" | "setItem">) {
-  const key = "storybook.mcp-window.v1"
+export function createMcpWindowPersistence(storage: () => Pick<Storage, "getItem" | "setItem">, key = "storybook.mcp-window.v1") {
   let initialState: NonNullable<StorybookAppWebPageShellMcpWindow.Input["initialState"]> | undefined
   try {
     const value = JSON.parse(storage().getItem(key) ?? "null")
@@ -13,7 +12,7 @@ export function createMcpWindowPersistence(storage: () => Pick<Storage, "getItem
   } catch {}
   return {
     initialState,
-    save(state: StorybookAppWebPageShellMcpWindow.Output): void {
+    save(state: NonNullable<StorybookAppWebPageShellMcpWindow.Input["initialState"]>): void {
       try { storage().setItem(key, JSON.stringify(state)) } catch {}
     },
   }

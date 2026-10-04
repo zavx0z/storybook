@@ -16,6 +16,8 @@ import {createMcpAddressSource} from "./src/mcp-address.ts"
 import {createWebRebuildAction} from "./src/web-rebuild.ts"
 import {createMinimapPersistence} from "./src/minimap-persistence.ts"
 import {createMcpWindowPersistence} from "./src/mcp-window-persistence.ts"
+import {createLocalMcpState} from "./src/local-mcp-state"
+import {createMcpRequestSource} from "./src/mcp-requests"
 import {createNavigationExpansion} from "./src/navigation-persistence.ts"
 import {createRoot as createBrowserRoot, type Presentation as Root, type RootProjection} from "@zavx0z/immersive-browser/integration"
 import {loadDocumentDefaultFont} from "@zavx0z/immersive-engine/default-font"
@@ -83,7 +85,10 @@ async function createExternalStorybookShell(
   }
   const viewPointControls = createViewPointControls(viewPointPersistence)
   const minimap = createMinimapPersistence(() => browserDocument.defaultView!.localStorage)
-  const mcpWindow = createMcpWindowPersistence(() => browserDocument.defaultView!.localStorage)
+  const mcpWindow = createMcpWindowPersistence(() => browserDocument.defaultView!.localStorage, "storybook.mcp-window.global.v1")
+  const localMcpJournal = createLocalMcpState(() => browserDocument.defaultView!.localStorage,
+    browserDocument.location.pathname, options.userState?.localMcpWindows)
+  let stopMcpContext: (() => void) | undefined
   const navigationPersistence = createNavigationExpansion(() => browserDocument.defaultView!.localStorage)
   let minimapState = options.userState?.minimap ?? minimap.initialState
   let mcpWindowState = options.userState?.mcpWindow ?? mcpWindow.initialState
@@ -111,28 +116,29 @@ async function createExternalStorybookShell(
       minimap.save(value)
     },
     mcpWindowState,
+    localMcpJournal,
     saveMcpWindowState(value) {
       mcpWindowState = value
       mcpWindow.save(value)
     },
     navigationExpansion,
-    async loadMcpRequests() {
-      const session = await fetch("/api/browser/registry-session", {
-        method: "POST",
-        headers: {"content-type": "application/json"},
-        body: "{}",
-      })
-      if (!session.ok) throw new Error("Не удалось открыть сессию журнала MCP")
-      const {readerToken: token} = await session.json()
-      if (typeof token !== "string") throw new Error("Нет сессии Storybook для чтения журнала")
-      const response = await fetch("/api/browser/mcp-requests", {headers: {"x-storybook-session": token}})
-      if (!response.ok) throw new Error("Не удалось получить журнал MCP")
-      return (await response.json()).entries
+    loadMcpRequests: createMcpRequestSource(),
+    onReady(value) {
+      workbench = value
+      stopMcpContext?.()
+      const select = () => {
+        const chat = value.getSnapshot().state["inspector.values"].chat
+        if (chat !== null && typeof chat === "object" && "address" in chat && typeof chat.address === "string") {
+          localMcpJournal.select(chat.address)
+        }
+      }
+      stopMcpContext = value.subscribe(select)
+      select()
     },
-    onReady(value) { workbench = value },
   }, globalThis.crypto.randomUUID()))
   let root: Root
   try { root = await application.whenReady() } catch (error) {
+    stopMcpContext?.()
     viewPointControls.dispose()
     if (options.retainedRoot === undefined) application.unmount()
     throw error
@@ -581,7 +587,7 @@ async function createExternalStorybookShell(
     captureUserState() {
       assertActive(disposed)
       return structuredClone({workbench: workbench.controller.captureUserState(), minimap: minimapState,
-        mcpWindow: mcpWindowState, viewPoint: viewPointPersistence.state, collapsedNavigation})
+        mcpWindow: mcpWindowState, localMcpWindows: localMcpJournal.capture(), viewPoint: viewPointPersistence.state, collapsedNavigation})
     },
     releaseRoot() {
       if (disposed) throw new Error("Storybook shell is already disposed")
@@ -594,6 +600,7 @@ async function createExternalStorybookShell(
   function release(unmount: boolean): void {
     if (disposed) return
     disposed = true
+    stopMcpContext?.()
     viewPointControls.dispose()
     activeSpacePreview?.dispose()
     activeShellPresentation?.dispose()

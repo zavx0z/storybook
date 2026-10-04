@@ -8,4 +8,8 @@ export type McpRequestRecord = Readonly<{
   input: string
   result: string
   captureId?: string
+  /** Идентичность подключения вызывающего агента; не идентичность цели команды. */
+  agentId?: string
+  /** Канонический адрес локальной сессии агента; у внешнего общего агента отсутствует. */
+  address?: string
 }>

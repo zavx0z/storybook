@@ -1,8 +1,8 @@
 import {type StorybookAppServerRequests as McpRestRequestsContract} from "@zavx0z/storybook-app-server-requests"
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
 import {memo, useEffect, useLayoutEffect, useRef, useState} from "@zavx0z/immersive-component"
-import {CodeEditor} from "@zavx0z/immersive-ui-component"
-import {Button} from "@zavx0z/immersive-ui-component"
+import CodeEditor from "@zavx0z/immersive-ui-component-view-code-editor"
+import Button from "@zavx0z/immersive-ui-component-button-basic"
 import {selectRequest} from "./selected-request"
 import {formatJson} from "./format-json"
 
@@ -111,6 +111,16 @@ function RequestRow(props: Readonly<{entry: McpRequestRecord}>) {
     border-bottom: 1px solid rgb(var(--surface-700));
   `}>
     <div>{time} · {props.entry.tool} · {props.entry.status} · {duration}</div>
+    <div
+      hidden={props.entry.agentId === undefined}
+      style={css`
+        &[hidden] {
+          display: none;
+        }
+      `}
+    >
+      {props.entry.address ?? "Общий агент"} · {props.entry.agentId?.slice(0, 8)}
+    </div>
     <JsonField title="Параметры запроса" value={props.entry.input} />
     {props.entry.captureId ? <CapturePreview captureId={props.entry.captureId} /> : null}
     <JsonField title="Ответ" value={props.entry.result} />

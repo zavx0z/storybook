@@ -302,6 +302,15 @@ describe("one external Storybook server", () => {
     const {entries} = await response.json()
     expect(entries).toEqual([{...complete}])
     expect(JSON.parse(entries[0].result).tail).toBe("конец ответа")
+    const local = {...complete, id: "local", agentId: "local-agent", address: "/standalone", input: JSON.stringify({path: "./somewhere-else"})}
+    expect((await controlPost(running, "/api/control/mcp-requests", local)).response.status).toBe(200)
+    const readJournal = async (suffix: string) => fetch(new URL(`/api/browser/mcp-requests${suffix}`, running.origin), {
+      headers: {origin: running.origin, "x-storybook-session": readerToken},
+    })
+    expect((await (await readJournal("?address=%2Fstandalone")).json()).entries).toEqual([local])
+    expect((await (await readJournal("")).json()).entries).toHaveLength(2)
+    expect((await (await readJournal("?address=%2F")).json()).entries).toEqual([])
+    expect((await readJournal("?address=%2Fmissing")).status).toBe(404)
     const oversized = await controlPost(running, "/api/control/mcp-requests", {...complete, result: "x".repeat(8 * 1024 * 1024)})
     expect(oversized.response.status).toBe(413)
     expect(running.sessions.snapshots().every(item => item.builds === 0)).toBeTrue()
