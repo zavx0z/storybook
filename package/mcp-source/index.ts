@@ -1,8 +1,15 @@
-import {type Zavx0zStorybookAppMcpRest as McpRestContract} from "@zavx0z/storybook-app-mcp-rest"
-import {type Zavx0zStorybookAppServerCatalog as AppServerCatalogContract} from "@zavx0z/storybook-app-server-catalog"
-type StorybookRestOptions = McpRestContract.Input[1]
-type ExternalStorybookRegistrySnapshot = ReturnType<AppServerCatalogContract.Output["snapshot"]>
+/**
+Раскрывает авторские сведения сохранённого Package для его MCP-представлений.
+Маршруты следуют общему дереву, а описания, контракты и сценарии читаются
+из данных точного владельца. Ленивые поля файлового снимка обращаются к PackageMetadata.
+Чтение типа делегируется сохранённой проверке и не запускает сборку.
+
+@packageDocumentation
+*/
+import type {Zavx0zStorybookPackageMcpSource as Contract} from "./contract"
 import {dirname, join} from "node:path"
+
+export type {Zavx0zStorybookPackageMcpSource} from "./contract"
 
 /**
 Передаёт в MCP публичную структуру того же каталога, который показывает Workbench.
@@ -12,10 +19,10 @@ import {dirname, join} from "node:path"
 Директории и входы сред не наследуют тип содержащего пакета.
 Описания и схемы раскрываются по обращению, а не для всех узлов заранее.
 */
-export function storybookMcpEntries(
-  snapshot: Pick<ExternalStorybookRegistrySnapshot, "catalog" | "graph">,
-  readType: (packageId: string) => ReturnType<NonNullable<StorybookRestOptions["entries"][number]["readType"]>> = async () => ({status: "unknown", reason: "missing-report"}),
-): StorybookRestOptions["entries"] {
+export default function storybookMcpEntries(
+  snapshot: Contract.Input[0],
+  readType: NonNullable<Contract.Input[1]> = async () => ({status: "unknown", reason: "missing-report"}),
+): Contract.Output {
   const nodes = snapshot.graph.nodes.filter(node => node.packageId !== null)
   const paths = new Map(nodes.map(node => [node.id, node.urlPath.slice(1)]))
   const scopes = new Map(snapshot.catalog.scopes.map(scope => [scope.canonicalId, scope]))
@@ -30,7 +37,7 @@ export function storybookMcpEntries(
       const schema = document?.document.declarations[0]?.schema
       return source === undefined ? undefined : {path: source.sourcePath, digest: source.sourceDigest, ...(schema === undefined ? {} : {schema})}
     }
-    const entry: StorybookRestOptions["entries"][number] = {
+    const entry: Contract.Output[number] = {
       get description() { return node.moduleDocumentation?.markdown ?? scopes.get(node.id)?.description ?? "" },
       path: paths.get(node.id)!,
       label: node.label,

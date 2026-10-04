@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import readMcpChildren from "@zavx0z/storybook-app-mcp-rest-children"
+import readMcpChildren from "@zavx0z/storybook-package-mcp-navigation"
 
 test("Название необязательно и не повторяет очевидный адрес или начало описания", () => {
   const entries = [

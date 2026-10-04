@@ -1,5 +1,5 @@
 /** Контракт непосредственных переходов единого каталога MCP. */
-export declare namespace Zavx0zStorybookAppMcpRestChildren {
+export declare namespace Zavx0zStorybookPackageMcpNavigation {
   /**
   Текущий контекст и все доступные адреса в порядке каталога.
 

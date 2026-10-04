@@ -1,5 +1,5 @@
 import {describe, expect, test} from "bun:test"
-import readMcpChildren from "@zavx0z/storybook-app-mcp-rest-children"
+import readMcpChildren from "@zavx0z/storybook-package-mcp-navigation"
 
 const entries = [
   {path: "shop/button", label: "Кнопка", description: "Команды пользователя в интерфейсе магазина.\n\nДополнительные условия доступны при выборе кнопки.", parent: "shop"},

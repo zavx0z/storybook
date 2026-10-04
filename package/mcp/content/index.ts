@@ -1,13 +1,22 @@
+/**
+Читает контракты и сценарии выбранного владельца для его предметного MCP.
+Проверяет происхождение готовых схем и не исполняет исходники сценариев.
+
+@packageDocumentation
+*/
 import {createHash} from "node:crypto"
 import {constants} from "node:fs"
 import {open} from "node:fs/promises"
-import type {ContractSchema, McpContentSources} from "../contract/sources"
+import type {ContractSchema, McpContentSources} from "./contract/types"
+import type {Zavx0zStorybookPackageMcpContent as Contract} from "./contract"
+
+export type {Zavx0zStorybookPackageMcpContent} from "./contract"
 
 /**
 Раскрывает JSON Schema контрактов и сценарии только выбранного владельца.
 Описание и форма схемы принадлежат разбору TypeDoc; чтение ничего не исполняет.
 */
-export async function readMcpContent(sources: McpContentSources = {}) {
+export default async function readMcpContent(sources: Contract.Input = {}): Promise<Contract.Output> {
   const [input, output, slots, scenarios] = await Promise.all([
     readSchema(sources.input),
     readSchema(sources.output),

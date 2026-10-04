@@ -1,6 +1,5 @@
 import type {Zavx0zStorybookProjectMcp} from "@zavx0z/storybook-project-mcp"
-import type {McpContentSources} from "./sources"
-import type {Zavx0zStorybookPackageBuildConformance} from "@zavx0z/storybook-package-build-conformance"
+import type {Zavx0zStorybookPackageMcpSource} from "@zavx0z/storybook-package-mcp-source"
 
 /** Контракт предметного HTTP-чтения одного направления Storybook MCP. */
 export declare namespace Zavx0zStorybookAppMcpRest {
@@ -13,10 +12,7 @@ export declare namespace Zavx0zStorybookAppMcpRest {
     request: Request,
     options: Readonly<{
       projectName: Zavx0zStorybookProjectMcp.Input["projectName"]
-      entries: readonly (Zavx0zStorybookProjectMcp.Input["entries"][number] & Readonly<{
-        sources?: McpContentSources
-        readType?: () => Promise<ReturnType<Zavx0zStorybookPackageBuildConformance.Output["identify"]> & Readonly<{revision?: string}>>
-      }>)[]
+      entries: Zavx0zStorybookPackageMcpSource.Output
     }>,
   ]
 

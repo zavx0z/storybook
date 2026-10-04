@@ -1,24 +1,21 @@
 /**
-Обозначает незавершённый предметный MCP для Container.
-Ответ сохраняет выбранный адрес и явно сообщает, что возможности ещё не реализованы.
-Чтение не запускает сущность и не выполняет её сценарии.
+Раскрывает Container агенту из сохранённых сведений Package.
+Предметный владелец формирует описание, переходы, схемы контрактов и сценарии.
+Чтение не запускает сущность и не исполняет её сценарии.
 
 @packageDocumentation
 */
-import type {Zavx0zStorybookContainerMcp} from "./contract"
+import navigation from "@zavx0z/storybook-package-mcp-navigation"
+import content from "@zavx0z/storybook-package-mcp-content"
+import type {Zavx0zStorybookContainerMcp as Contract} from "./contract"
 
 export type {Zavx0zStorybookContainerMcp} from "./contract"
 
-/**
-Возвращает явную заглушку для выбранного Container.
-
-@param input - Канонический MCP-адрес, уже разрешённый вызывающим владельцем.
-@returns Адрес и состояние незавершённой реализации Container MCP.
-*/
-export default function readContainerMcp(input: Zavx0zStorybookContainerMcp.Input): Zavx0zStorybookContainerMcp.Output {
+/** Формирует содержательный ответ Container, сохраняя точные источники и границы его участников. */
+export default async function readContainerMcp({selected, entries}: Contract.Input): Promise<Contract.Output> {
   return {
-    path: input.path,
-    status: "not-implemented",
-    description: "Предметный MCP для Container ещё не реализован.",
+    ...navigation({path: selected.path, description: selected.description, entries,
+      ...(selected.label === undefined ? {} : {label: selected.label})}),
+    ...await content(selected.sources),
   }
 }

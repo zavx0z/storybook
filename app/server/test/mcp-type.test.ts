@@ -6,7 +6,7 @@ import storybookRest from "@zavx0z/storybook-app-mcp-rest"
 import type {Zavx0zStorybookPackageSession} from "@zavx0z/storybook-package-session"
 import type {Zavx0zStorybookAppServerCatalog} from "@zavx0z/storybook-app-server-catalog"
 import {readMcpEntityType} from "../src/mcp-type"
-import {storybookMcpEntries} from "../src/mcp-entries"
+import storybookMcpEntries from "@zavx0z/storybook-package-mcp-source"
 
 type Snapshot = ReturnType<Zavx0zStorybookAppServerCatalog.Output["snapshot"]>
 const releases: (() => Promise<void>)[] = []
@@ -54,8 +54,8 @@ test.each([...types])("сохранённый отчёт → %s → собств
   const response = await storybookRest(new Request("http://localhost", {method: "POST", body: JSON.stringify({path: "example/owner"})}), {
     projectName: "Project", entries,
   })
-  expect(await response.json()).toEqual({path: "example/owner", status: "not-implemented",
-    description: `Предметный MCP для ${type} ещё не реализован.`, verification: {status: "confirmed", type, revision: "verified"}})
+  expect(await response.json()).toEqual({path: "example/owner", label: "Владелец", children: [],
+    description: "Описание не задано владельцем.", verification: {status: "confirmed", type, revision: "verified"}})
   expect(f.released()).toBe(1)
 })
 

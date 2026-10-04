@@ -10,7 +10,7 @@
 
 [Обнаружение](../../package/metadata/collect/index.ts) передаёт пакеты, TSDoc, контракты и spec
 в [нормализованный каталог](../../package/metadata/collect/contract/catalog.ts).
-[Граф](../graph/create/index.ts), UI и [проекция MCP](../../app/server/src/mcp-entries.ts) используют
+[Граф](../graph/create/index.ts), UI и [проекция MCP](../mcp-source/index.ts) используют
 эти данные. В текущем каталоге публичные директории также могут иметь адреса
 MCP. Утверждение «MCP адресует только пакеты» больше не описывает реализацию.
 

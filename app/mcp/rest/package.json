@@ -20,7 +20,8 @@
     "@zavx0z/storybook-package-build-conformance": "workspace:*",
     "@zavx0z/storybook-app-mcp-rest-address": "workspace:*",
     "@zavx0z/storybook-project-mcp": "workspace:*",
-    "@zavx0z/storybook-app-mcp-rest-children": "workspace:*"
+    "@zavx0z/storybook-package-mcp": "workspace:*",
+    "@zavx0z/storybook-package-mcp-source": "workspace:*"
   },
   "devDependencies": {
     "@modelcontextprotocol/server": "^2.0.0",

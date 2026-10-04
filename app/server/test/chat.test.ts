@@ -100,7 +100,7 @@ test("адресный чат выбирает предметный MCP посл
   if (!("env" in mcp)) throw new Error("Ожидается stdio MCP")
   const key = mcp.env.find(entry => entry.name === "STORYBOOK_CHAT_KEY")!.value
   expect(await (await server.scopedMcp(scopedRequest(key, {}))).json())
-    .toMatchObject({path: "repo/button", status: "not-implemented", description: "Предметный MCP для Component ещё не реализован.",
+    .toMatchObject({path: "repo/button", description: "Button",
       verification: {status: "confirmed", type: "Component", revision: "verified"}, scope: {path: "repo/button", label: "Button"}})
   expect(reads).toBe(1)
   expect((await server.scopedMcp(scopedRequest(key, {path: "repo/button-other"}))).status).toBe(403)

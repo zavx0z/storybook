@@ -3,7 +3,7 @@ import {createHash} from "node:crypto"
 import {mkdtemp, rm, symlink} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import {readMcpContent} from "../src/content"
+import readMcpContent from "@zavx0z/storybook-package-mcp-content"
 
 describe("Чтение исходного контракта", async () => {
   const root = await mkdtemp(join(tmpdir(), "storybook-mcp-content-"))

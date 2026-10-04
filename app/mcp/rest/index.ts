@@ -9,8 +9,7 @@
 */
 import resolveMcpAddress from "@zavx0z/storybook-app-mcp-rest-address"
 import readProjectMcp from "@zavx0z/storybook-project-mcp"
-import readMcpChildren from "@zavx0z/storybook-app-mcp-rest-children"
-import {readMcpContent} from "./src/content"
+import readPackageMcp from "@zavx0z/storybook-package-mcp"
 import type {Zavx0zStorybookAppMcpRest} from "./contract"
 import readRepoMcp from "@zavx0z/storybook-repo-mcp"
 import readComponentMcp from "@zavx0z/storybook-component-mcp"
@@ -71,20 +70,16 @@ export default async function storybookRest(request: Zavx0zStorybookAppMcpRest.I
     if (selected.readType !== undefined) {
       const verification = await selected.readType()
       if (verification.status === "confirmed") {
-        return Response.json({...entityMcp[verification.type]({path: selected.path}), verification})
+        return Response.json({...await entityMcp[verification.type]({selected, entries: options.entries}), verification})
       }
       return Response.json({
-        ...readMcpChildren({path: selected.path, ...(selected.label === undefined ? {} : {label: selected.label}), description: selected.description, entries: options.entries}),
+        ...await readPackageMcp({selected, entries: options.entries, includeContent: false}),
         status: "type-unconfirmed",
         message: "Тип сущности ещё не подтверждён нормативным сценарием Package.",
         verification,
       })
     }
-    const navigation = readMcpChildren({
-      path: selected.path, ...(selected.label === undefined ? {} : {label: selected.label}),
-      description: selected.description, entries: options.entries,
-    })
-    return Response.json({...navigation, ...await readMcpContent(selected.sources)})
+    return Response.json(await readPackageMcp({selected, entries: options.entries}))
   } catch (error) {
     return Response.json({status: "failed", error: error instanceof Error ? error.message : String(error)},
       {status: error instanceof TypeError ? 400 : 404})

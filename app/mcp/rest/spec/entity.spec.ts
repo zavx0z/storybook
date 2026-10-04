@@ -20,7 +20,7 @@ describe.each([
 
   test("Выбранный предметный MCP", () => {
     expect(result, "Один и тот же адрес обслуживается владельцем подтверждённого типа; имя пути не участвует в выборе")
-      .toEqual({path: "same/address", status: "not-implemented", description: `Предметный MCP для ${type} ещё не реализован.`,
+      .toEqual({path: "same/address", description: "Сущность", children: [],
         verification: {status: "confirmed", type, revision: "verified"}})
   })
 })

@@ -4,11 +4,16 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Заглушка предметного MCP для Domain",
+  "description": "Предметный MCP для Domain",
   "exports": {
     ".": "./index.ts"
   },
   "scripts": {
     "test": "bun test ./spec"
+  },
+  "dependencies": {
+    "@zavx0z/storybook-package-mcp": "workspace:*",
+    "@zavx0z/storybook-package-mcp-content": "workspace:*",
+    "@zavx0z/storybook-package-mcp-navigation": "workspace:*"
   }
 }

@@ -1,0 +1,18 @@
+{
+  "name": "@zavx0z/storybook-package-mcp-source",
+  "label": "Источники MCP",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Раскрывает данные владельца из сохранённых метаданных для предметных MCP",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@zavx0z/storybook-package-metadata-collect": "workspace:*",
+    "@zavx0z/storybook-package-graph-create": "workspace:*",
+    "@zavx0z/storybook-package-mcp-navigation": "workspace:*",
+    "@zavx0z/storybook-package-mcp-content": "workspace:*",
+    "@zavx0z/storybook-package-build-conformance": "workspace:*"
+  }
+}

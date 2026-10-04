@@ -9,28 +9,9 @@
         "@zavx0z/storybook-app": "workspace:*",
       },
       "devDependencies": {
-        "@zavx0z/immersive-jsx-compiler-bun": "^0.0.0",
-        "@zavx0z/immersive-jsx-compiler-error": "^0.0.0",
-        "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
-        "@zavx0z/immersive-jsx-development-create": "^0.0.0",
-        "@zavx0z/immersive-jsx-runtime-create": "^0.0.0",
-        "@zavx0z/immersive-jsx-runtime-fragment": "^0.0.0",
-        "@zavx0z/immersive-jsx-slot-authoring": "^0.0.0",
-        "@zavx0z/immersive-jsx-slot-child": "^0.0.0",
-        "@zavx0z/immersive-jsx-slot-contract": "^0.0.0",
-        "@zavx0z/immersive-jsx-slot-plan": "^0.0.0",
-        "@zavx0z/immersive-jsx-compiler": "^0.0.0",
-        "@zavx0z/immersive-jsx-development": "^0.0.0",
-        "@zavx0z/immersive-jsx-event": "^0.0.0",
-        "@zavx0z/immersive-jsx-runtime": "^0.0.0",
-        "@zavx0z/immersive-jsx-slot": "^0.0.0",
-        "@zavx0z/immersive-nodes-layout": "^0.0.0",
-        "@zavx0z/immersive-nodes-node": "^0.0.0",
-        "@zavx0z/immersive-nodes-parameter": "^0.0.0",
-        "@zavx0z/immersive-nodes-socket": "^0.0.0",
-        "@zavx0z/immersive-nodes-tree": "^0.0.0",
-        "@zavx0z/immersive-renderer-html": "^0.0.0",
-        "@zavx0z/immersive-ui-component": "^0.0.0",
+        "@types/bun": "^1.4.2",
+        "@webgpu/types": "^0.1.74",
+        "@zavx0z/highlighter": "^0.1.0",
         "@zavx0z/immersive-browser": "^0.0.0",
         "@zavx0z/immersive-component": "^0.0.0",
         "@zavx0z/immersive-devtool": "^0.0.0",
@@ -38,20 +19,39 @@
         "@zavx0z/immersive-engine": "^0.0.0",
         "@zavx0z/immersive-headless": "^0.0.0",
         "@zavx0z/immersive-jsx": "^0.0.0",
+        "@zavx0z/immersive-jsx-compiler": "^0.0.0",
+        "@zavx0z/immersive-jsx-compiler-bun": "^0.0.0",
+        "@zavx0z/immersive-jsx-compiler-error": "^0.0.0",
+        "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
+        "@zavx0z/immersive-jsx-development": "^0.0.0",
+        "@zavx0z/immersive-jsx-development-create": "^0.0.0",
+        "@zavx0z/immersive-jsx-event": "^0.0.0",
+        "@zavx0z/immersive-jsx-runtime": "^0.0.0",
+        "@zavx0z/immersive-jsx-runtime-create": "^0.0.0",
+        "@zavx0z/immersive-jsx-runtime-fragment": "^0.0.0",
+        "@zavx0z/immersive-jsx-slot": "^0.0.0",
+        "@zavx0z/immersive-jsx-slot-authoring": "^0.0.0",
+        "@zavx0z/immersive-jsx-slot-child": "^0.0.0",
+        "@zavx0z/immersive-jsx-slot-contract": "^0.0.0",
+        "@zavx0z/immersive-jsx-slot-plan": "^0.0.0",
         "@zavx0z/immersive-markdown": "^0.0.0",
         "@zavx0z/immersive-nodes": "^0.0.0",
+        "@zavx0z/immersive-nodes-layout": "^0.0.0",
+        "@zavx0z/immersive-nodes-node": "^0.0.0",
+        "@zavx0z/immersive-nodes-parameter": "^0.0.0",
+        "@zavx0z/immersive-nodes-socket": "^0.0.0",
+        "@zavx0z/immersive-nodes-tree": "^0.0.0",
+        "@zavx0z/immersive-renderer-html": "^0.0.0",
         "@zavx0z/immersive-space": "^0.0.0",
         "@zavx0z/immersive-template": "^0.0.0",
         "@zavx0z/immersive-typedoc": "^0.0.0",
+        "@zavx0z/immersive-ui-component": "^0.0.0",
         "@zavx0z/immersive-webgpu": "^0.0.0",
-        "@zavx0z/storybook-app-web-release": "workspace:*",
         "@zavx0z/storybook-app-server": "workspace:*",
+        "@zavx0z/storybook-app-web-release": "workspace:*",
         "@zavx0z/storybook-package-route-url": "workspace:*",
         "@zavx0z/storybook-tech-build-compiler": "workspace:*",
         "@zavx0z/storybook-tech-limits": "workspace:*",
-        "@types/bun": "^1.4.2",
-        "@webgpu/types": "^0.1.74",
-        "@zavx0z/highlighter": "^0.1.0",
         "typescript": "^7.0.2",
       },
     },
@@ -59,14 +59,14 @@
       "name": "@zavx0z/storybook-app",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/storybook-app-server-state": "workspace:*",
         "@zavx0z/storybook-app-mcp": "workspace:*",
         "@zavx0z/storybook-app-server": "workspace:*",
+        "@zavx0z/storybook-app-server-state": "workspace:*",
         "@zavx0z/storybook-app-web": "workspace:*",
         "@zavx0z/storybook-package-artifacts": "workspace:*",
+        "@zavx0z/storybook-tech-limits": "workspace:*",
         "@zavx0z/storybook-tech-mcp-lazy": "workspace:*",
         "@zavx0z/storybook-tech-mcp-stdio": "workspace:*",
-        "@zavx0z/storybook-tech-limits": "workspace:*",
       },
       "devDependencies": {
         "@modelcontextprotocol/client": "^2.0.0",
@@ -79,12 +79,12 @@
       "version": "0.0.0",
       "dependencies": {
         "@modelcontextprotocol/server": "^2.0.0",
+        "@zavx0z/storybook-app": "workspace:*",
         "@zavx0z/storybook-app-mcp-proxy": "workspace:*",
         "@zavx0z/storybook-app-mcp-response": "workspace:*",
         "@zavx0z/storybook-app-mcp-rest": "workspace:*",
         "@zavx0z/storybook-app-server-state": "workspace:*",
         "@zavx0z/storybook-tech-mcp-progress": "workspace:*",
-        "@zavx0z/storybook-app": "workspace:*",
         "zod": "^4.4.3",
       },
       "devDependencies": {
@@ -115,12 +115,13 @@
       "version": "0.0.0",
       "dependencies": {
         "@zavx0z/storybook-app-mcp-rest-address": "workspace:*",
-        "@zavx0z/storybook-app-mcp-rest-children": "workspace:*",
         "@zavx0z/storybook-cluster-mcp": "workspace:*",
         "@zavx0z/storybook-component-mcp": "workspace:*",
         "@zavx0z/storybook-container-mcp": "workspace:*",
         "@zavx0z/storybook-domain-mcp": "workspace:*",
         "@zavx0z/storybook-package-build-conformance": "workspace:*",
+        "@zavx0z/storybook-package-mcp": "workspace:*",
+        "@zavx0z/storybook-package-mcp-source": "workspace:*",
         "@zavx0z/storybook-project-mcp": "workspace:*",
         "@zavx0z/storybook-repo-mcp": "workspace:*",
       },
@@ -131,10 +132,6 @@
     },
     "app/mcp/rest/address": {
       "name": "@zavx0z/storybook-app-mcp-rest-address",
-      "version": "0.0.0",
-    },
-    "app/mcp/rest/children": {
-      "name": "@zavx0z/storybook-app-mcp-rest-children",
       "version": "0.0.0",
     },
     "app/server": {
@@ -148,45 +145,51 @@
         "@zavx0z/storybook-app-server-requests": "workspace:*",
         "@zavx0z/storybook-app-server-sessions": "workspace:*",
         "@zavx0z/storybook-app-server-state": "workspace:*",
+        "@zavx0z/storybook-app-web": "workspace:*",
         "@zavx0z/storybook-app-web-page-package-scenario-model": "workspace:*",
         "@zavx0z/storybook-app-web-protocol": "workspace:*",
-        "@zavx0z/storybook-app-web": "workspace:*",
         "@zavx0z/storybook-chat-session": "workspace:*",
+        "@zavx0z/storybook-package-activation": "workspace:*",
         "@zavx0z/storybook-package-build-conformance": "workspace:*",
         "@zavx0z/storybook-package-build-prepare": "workspace:*",
         "@zavx0z/storybook-package-build-scheduler": "workspace:*",
         "@zavx0z/storybook-package-graph-read": "workspace:*",
+        "@zavx0z/storybook-package-mcp-source": "workspace:*",
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
+        "@zavx0z/storybook-package-resources": "workspace:*",
+        "@zavx0z/storybook-package-revision": "workspace:*",
         "@zavx0z/storybook-package-route-address": "workspace:*",
         "@zavx0z/storybook-package-route-resolve": "workspace:*",
         "@zavx0z/storybook-package-route-url": "workspace:*",
-        "@zavx0z/storybook-package-activation": "workspace:*",
-        "@zavx0z/storybook-package-resources": "workspace:*",
-        "@zavx0z/storybook-package-revision": "workspace:*",
         "@zavx0z/storybook-package-session": "workspace:*",
-        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
-        "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
-        "@zavx0z/storybook-specs-reader": "workspace:*",
-        "@zavx0z/storybook-tech-build-environment": "workspace:*",
-        "@zavx0z/storybook-tech-acp": "workspace:*",
-        "@zavx0z/storybook-tech-limits": "workspace:*",
         "@zavx0z/storybook-project": "workspace:*",
+        "@zavx0z/storybook-specs-reader": "workspace:*",
+        "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
+        "@zavx0z/storybook-tech-acp": "workspace:*",
+        "@zavx0z/storybook-tech-build-environment": "workspace:*",
+        "@zavx0z/storybook-tech-limits": "workspace:*",
       },
       "devDependencies": {
-        "@zavx0z/immersive-nodes-node": "^0.0.0",
-        "@zavx0z/immersive-ui-component": "^0.0.0",
-        "@zavx0z/immersive-component": "^0.0.0",
-        "@zavx0z/immersive-engine": "^0.0.0",
         "@modelcontextprotocol/client": "^2.0.0",
         "@modelcontextprotocol/server": "^2.0.0",
+        "@zavx0z/immersive-component": "^0.0.0",
+        "@zavx0z/immersive-engine": "^0.0.0",
+        "@zavx0z/immersive-nodes-node": "^0.0.0",
+        "@zavx0z/immersive-ui-component": "^0.0.0",
+        "@zavx0z/storybook-app": "workspace:*",
+        "@zavx0z/storybook-app-mcp": "workspace:*",
         "@zavx0z/storybook-app-web-build": "workspace:*",
         "@zavx0z/storybook-app-web-release": "workspace:*",
-        "@zavx0z/storybook-app-mcp": "workspace:*",
-        "@zavx0z/storybook-package-graph-create": "workspace:*",
+        "@zavx0z/storybook-cluster-mcp": "workspace:*",
+        "@zavx0z/storybook-component-mcp": "workspace:*",
+        "@zavx0z/storybook-container-mcp": "workspace:*",
+        "@zavx0z/storybook-domain-mcp": "workspace:*",
         "@zavx0z/storybook-package-artifacts": "workspace:*",
+        "@zavx0z/storybook-package-graph-create": "workspace:*",
+        "@zavx0z/storybook-repo-mcp": "workspace:*",
         "@zavx0z/storybook-tech-build-artifacts": "workspace:*",
         "@zavx0z/storybook-tech-build-environment": "workspace:*",
         "@zavx0z/storybook-tech-mcp-lazy": "workspace:*",
-        "@zavx0z/storybook-app": "workspace:*",
       },
     },
     "app/server/browser": {
@@ -197,9 +200,9 @@
         "pngjs": "^7.0.0",
       },
       "devDependencies": {
-        "@zavx0z/immersive-nodes-node": "^0.0.0",
         "@types/bun": "^1.4.0",
         "@types/pngjs": "^6.0.5",
+        "@zavx0z/immersive-nodes-node": "^0.0.0",
         "typescript": "^7.0.2",
       },
     },
@@ -207,17 +210,17 @@
       "name": "@zavx0z/storybook-app-server-catalog",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/storybook-package-metadata": "workspace:*",
         "@zavx0z/storybook-package-build-descriptor": "workspace:*",
         "@zavx0z/storybook-package-graph-create": "workspace:*",
         "@zavx0z/storybook-package-graph-read": "workspace:*",
+        "@zavx0z/storybook-package-metadata": "workspace:*",
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
         "@zavx0z/storybook-package-revision": "workspace:*",
         "@zavx0z/storybook-package-session": "workspace:*",
-        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
       },
       "devDependencies": {
-        "@zavx0z/storybook-app-server-sessions": "workspace:*",
         "@zavx0z/immersive-ui-component": "^0.0.0",
+        "@zavx0z/storybook-app-server-sessions": "workspace:*",
       },
     },
     "app/server/requests": {
@@ -233,8 +236,8 @@
       },
       "devDependencies": {
         "@zavx0z/storybook-app-server-catalog": "workspace:*",
-        "@zavx0z/storybook-package-revision": "workspace:*",
         "@zavx0z/storybook-package-metadata-collect": "workspace:*",
+        "@zavx0z/storybook-package-revision": "workspace:*",
       },
     },
     "app/server/state": {
@@ -248,9 +251,9 @@
       "name": "@zavx0z/storybook-app-web",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/storybook-app-web-page-target": "workspace:*",
         "@zavx0z/storybook-app-web-build": "workspace:*",
         "@zavx0z/storybook-app-web-page": "workspace:*",
+        "@zavx0z/storybook-app-web-page-target": "workspace:*",
         "@zavx0z/storybook-app-web-protocol": "workspace:*",
         "@zavx0z/storybook-app-web-release": "workspace:*",
         "@zavx0z/storybook-package-build-scheduler": "workspace:*",
@@ -259,19 +262,19 @@
         "@zavx0z/storybook-tech-limits": "workspace:*",
       },
       "devDependencies": {
-        "@zavx0z/immersive-jsx-compiler-bun": "^0.0.0",
-        "@zavx0z/immersive-ui-component": "^0.0.0",
         "@zavx0z/immersive-component": "^0.0.0",
+        "@zavx0z/immersive-jsx-compiler-bun": "^0.0.0",
         "@zavx0z/immersive-markdown": "^0.0.0",
+        "@zavx0z/immersive-ui-component": "^0.0.0",
+        "@zavx0z/storybook-app-server": "workspace:*",
         "@zavx0z/storybook-app-server-catalog": "workspace:*",
         "@zavx0z/storybook-app-web-page-navigation": "workspace:*",
-        "@zavx0z/storybook-app-server": "workspace:*",
         "@zavx0z/storybook-package-build-descriptor": "workspace:*",
         "@zavx0z/storybook-package-graph-create": "workspace:*",
         "@zavx0z/storybook-package-graph-read": "workspace:*",
-        "@zavx0z/storybook-package-route-url": "workspace:*",
-        "@zavx0z/storybook-package-revision": "workspace:*",
         "@zavx0z/storybook-package-metadata-collect": "workspace:*",
+        "@zavx0z/storybook-package-revision": "workspace:*",
+        "@zavx0z/storybook-package-route-url": "workspace:*",
         "@zavx0z/storybook-tech-build-compiler": "workspace:*",
         "@zavx0z/storybook-tech-build-environment": "workspace:*",
         "@zavx0z/storybook-tech-testing-browser-root": "workspace:*",
@@ -310,17 +313,17 @@
         "@zavx0z/storybook-tech-hmr-page": "workspace:*",
       },
       "devDependencies": {
-        "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
-        "@zavx0z/immersive-renderer-html": "^0.0.0",
         "@zavx0z/immersive-browser": "^0.0.0",
         "@zavx0z/immersive-component": "^0.0.0",
         "@zavx0z/immersive-dom": "^0.0.0",
+        "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
+        "@zavx0z/immersive-renderer-html": "^0.0.0",
         "@zavx0z/immersive-space": "^0.0.0",
         "@zavx0z/storybook-app-web-page-navigation": "workspace:*",
         "@zavx0z/storybook-package-graph-create": "workspace:*",
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
         "@zavx0z/storybook-package-revision": "workspace:*",
         "@zavx0z/storybook-package-session": "workspace:*",
-        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
         "@zavx0z/storybook-tech-testing-browser-root": "workspace:*",
       },
     },
@@ -350,10 +353,10 @@
       "version": "0.0.0",
       "dependencies": {
         "@zavx0z/immersive-dom": "^0.0.0",
-        "@zavx0z/storybook-app-web-page-shell-workbench-catalog": "workspace:*",
         "@zavx0z/storybook-app-web-page-client": "workspace:*",
         "@zavx0z/storybook-app-web-page-navigation": "workspace:*",
         "@zavx0z/storybook-app-web-page-shell": "workspace:*",
+        "@zavx0z/storybook-app-web-page-shell-workbench-catalog": "workspace:*",
         "@zavx0z/storybook-app-web-page-status": "workspace:*",
         "@zavx0z/storybook-app-web-page-style-sheets": "workspace:*",
         "@zavx0z/storybook-app-web-protocol": "workspace:*",
@@ -361,15 +364,15 @@
         "@zavx0z/storybook-tech-hmr-connection": "workspace:*",
       },
       "devDependencies": {
-        "@zavx0z/immersive-renderer-html": "^0.0.0",
         "@zavx0z/immersive-browser": "^0.0.0",
         "@zavx0z/immersive-component": "^0.0.0",
+        "@zavx0z/immersive-renderer-html": "^0.0.0",
         "@zavx0z/immersive-space": "^0.0.0",
         "@zavx0z/storybook-app-web-page-package-scenario-inspector": "workspace:*",
         "@zavx0z/storybook-package-graph-create": "workspace:*",
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
         "@zavx0z/storybook-package-route-url": "workspace:*",
         "@zavx0z/storybook-package-session": "workspace:*",
-        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
         "@zavx0z/storybook-tech-testing-browser-root": "workspace:*",
       },
     },
@@ -381,8 +384,8 @@
         "@zavx0z/storybook-app-web-protocol": "workspace:*",
         "@zavx0z/storybook-package-graph-create": "workspace:*",
         "@zavx0z/storybook-package-graph-read": "workspace:*",
-        "@zavx0z/storybook-package-route-address": "workspace:*",
         "@zavx0z/storybook-package-revision": "workspace:*",
+        "@zavx0z/storybook-package-route-address": "workspace:*",
       },
       "devDependencies": {
         "@zavx0z/storybook-package-metadata-collect": "workspace:*",
@@ -392,22 +395,22 @@
       "name": "@zavx0z/storybook-app-web-page-package",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/immersive-ui-theme-icon": "^0.0.0",
-        "@zavx0z/immersive-ui-component": "^0.0.0",
         "@zavx0z/immersive-browser": "^0.0.0",
         "@zavx0z/immersive-component": "^0.0.0",
         "@zavx0z/immersive-dom": "^0.0.0",
         "@zavx0z/immersive-template": "^0.0.0",
+        "@zavx0z/immersive-ui-component": "^0.0.0",
+        "@zavx0z/immersive-ui-theme-icon": "^0.0.0",
+        "@zavx0z/storybook-app-web-page-agent-bridge": "workspace:*",
+        "@zavx0z/storybook-app-web-page-client": "workspace:*",
+        "@zavx0z/storybook-app-web-page-navigation": "workspace:*",
         "@zavx0z/storybook-app-web-page-package-scenario-inspector": "workspace:*",
         "@zavx0z/storybook-app-web-page-package-scenario-model": "workspace:*",
         "@zavx0z/storybook-app-web-page-package-scenario-preview": "workspace:*",
         "@zavx0z/storybook-app-web-page-package-scenario-result": "workspace:*",
-        "@zavx0z/storybook-app-web-page-shell-workbench": "workspace:*",
-        "@zavx0z/storybook-app-web-page-agent-bridge": "workspace:*",
-        "@zavx0z/storybook-app-web-page-client": "workspace:*",
-        "@zavx0z/storybook-app-web-page-navigation": "workspace:*",
         "@zavx0z/storybook-app-web-page-presentation": "workspace:*",
         "@zavx0z/storybook-app-web-page-shell": "workspace:*",
+        "@zavx0z/storybook-app-web-page-shell-workbench": "workspace:*",
         "@zavx0z/storybook-app-web-page-status": "workspace:*",
         "@zavx0z/storybook-app-web-page-style-sheets": "workspace:*",
         "@zavx0z/storybook-app-web-protocol": "workspace:*",
@@ -421,8 +424,8 @@
         "@zavx0z/immersive-renderer-html": "^0.0.0",
         "@zavx0z/immersive-space": "^0.0.0",
         "@zavx0z/storybook-package-graph-create": "workspace:*",
-        "@zavx0z/storybook-package-session": "workspace:*",
         "@zavx0z/storybook-package-metadata-collect": "workspace:*",
+        "@zavx0z/storybook-package-session": "workspace:*",
         "@zavx0z/storybook-tech-testing-browser-root": "workspace:*",
       },
     },
@@ -430,8 +433,8 @@
       "name": "@zavx0z/storybook-app-web-page-package-scenario-inspector",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/immersive-ui-component": "^0.0.0",
         "@zavx0z/immersive-component": "^0.0.0",
+        "@zavx0z/immersive-ui-component": "^0.0.0",
         "@zavx0z/storybook-app-web-page-package-scenario-model": "workspace:*",
       },
       "devDependencies": {
@@ -465,8 +468,8 @@
       "name": "@zavx0z/storybook-app-web-page-package-scenario-result",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/immersive-ui-component": "^0.0.0",
         "@zavx0z/immersive-component": "^0.0.0",
+        "@zavx0z/immersive-ui-component": "^0.0.0",
         "@zavx0z/storybook-app-web-page-package-scenario-model": "workspace:*",
         "@zavx0z/storybook-specs-scenarios": "workspace:*",
       },
@@ -487,26 +490,26 @@
       "name": "@zavx0z/storybook-app-web-page-shell",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
-        "@zavx0z/immersive-nodes-layout": "^0.0.0",
-        "@zavx0z/immersive-nodes-node": "^0.0.0",
-        "@zavx0z/immersive-ui-component": "^0.0.0",
         "@zavx0z/immersive-browser": "^0.0.0",
         "@zavx0z/immersive-component": "^0.0.0",
         "@zavx0z/immersive-dom": "^0.0.0",
         "@zavx0z/immersive-engine": "^0.0.0",
+        "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
         "@zavx0z/immersive-markdown": "^0.0.0",
         "@zavx0z/immersive-nodes": "^0.0.0",
+        "@zavx0z/immersive-nodes-layout": "^0.0.0",
+        "@zavx0z/immersive-nodes-node": "^0.0.0",
         "@zavx0z/immersive-template": "^0.0.0",
         "@zavx0z/immersive-typedoc": "^0.0.0",
+        "@zavx0z/immersive-ui-component": "^0.0.0",
         "@zavx0z/storybook-app-server-requests": "workspace:*",
-        "@zavx0z/storybook-app-web-page-shell-workbench-catalog": "workspace:*",
+        "@zavx0z/storybook-app-web-page-presentation": "workspace:*",
         "@zavx0z/storybook-app-web-page-shell-mcp-window": "workspace:*",
         "@zavx0z/storybook-app-web-page-shell-minimap": "workspace:*",
         "@zavx0z/storybook-app-web-page-shell-viewpoint-controls": "workspace:*",
         "@zavx0z/storybook-app-web-page-shell-viewpoint-tab": "workspace:*",
         "@zavx0z/storybook-app-web-page-shell-workbench": "workspace:*",
-        "@zavx0z/storybook-app-web-page-presentation": "workspace:*",
+        "@zavx0z/storybook-app-web-page-shell-workbench-catalog": "workspace:*",
         "@zavx0z/storybook-app-web-protocol": "workspace:*",
         "@zavx0z/storybook-package-graph-create": "workspace:*",
       },
@@ -520,15 +523,15 @@
       "name": "@zavx0z/storybook-app-web-page-shell-mcp-window",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/immersive-ui-component": "^0.0.0",
         "@zavx0z/immersive-component": "^0.0.0",
+        "@zavx0z/immersive-ui-component": "^0.0.0",
         "@zavx0z/storybook-app-server-requests": "workspace:*",
       },
       "devDependencies": {
-        "@zavx0z/immersive-jsx-compiler-bun": "^0.0.0",
-        "@zavx0z/immersive-renderer-html": "^0.0.0",
         "@zavx0z/immersive-dom": "^0.0.0",
         "@zavx0z/immersive-headless": "^0.0.0",
+        "@zavx0z/immersive-jsx-compiler-bun": "^0.0.0",
+        "@zavx0z/immersive-renderer-html": "^0.0.0",
         "@zavx0z/immersive-template": "^0.0.0",
         "@zavx0z/storybook-specs-presentation": "workspace:*",
       },
@@ -537,8 +540,8 @@
       "name": "@zavx0z/storybook-app-web-page-shell-minimap",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/immersive-ui-component": "^0.0.0",
         "@zavx0z/immersive-component": "^0.0.0",
+        "@zavx0z/immersive-ui-component": "^0.0.0",
         "@zavx0z/storybook-app-web-page-shell-workbench-catalog": "workspace:*",
       },
       "devDependencies": {
@@ -550,8 +553,8 @@
       "name": "@zavx0z/storybook-app-web-page-shell-viewpoint-controls",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/immersive-ui-component": "^0.0.0",
         "@zavx0z/immersive-dom": "^0.0.0",
+        "@zavx0z/immersive-ui-component": "^0.0.0",
       },
       "devDependencies": {
         "@zavx0z/immersive-space": "^0.0.0",
@@ -561,8 +564,8 @@
       "name": "@zavx0z/storybook-app-web-page-shell-viewpoint-tab",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/immersive-ui-component": "^0.0.0",
         "@zavx0z/immersive-component": "^0.0.0",
+        "@zavx0z/immersive-ui-component": "^0.0.0",
         "@zavx0z/storybook-app-web-page-shell-viewpoint-controls": "workspace:*",
       },
       "devDependencies": {
@@ -574,21 +577,21 @@
       "name": "@zavx0z/storybook-app-web-page-shell-workbench",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
-        "@zavx0z/immersive-ui-theme-icon": "^0.0.0",
-        "@zavx0z/immersive-ui-component": "^0.0.0",
         "@zavx0z/immersive-component": "^0.0.0",
         "@zavx0z/immersive-dom": "^0.0.0",
+        "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
         "@zavx0z/immersive-template": "^0.0.0",
-        "@zavx0z/storybook-app-web-page-shell-workbench-catalog-navigation": "workspace:*",
+        "@zavx0z/immersive-ui-component": "^0.0.0",
+        "@zavx0z/immersive-ui-theme-icon": "^0.0.0",
         "@zavx0z/storybook-app-web-page-shell-workbench-catalog": "workspace:*",
+        "@zavx0z/storybook-app-web-page-shell-workbench-catalog-navigation": "workspace:*",
         "@zavx0z/storybook-chat-session": "workspace:*",
         "@zavx0z/storybook-chat-view": "workspace:*",
       },
       "devDependencies": {
         "@zavx0z/immersive-renderer-html": "^0.0.0",
-        "@zavx0z/immersive-ui-theme-icon-set": "^0.0.0",
         "@zavx0z/immersive-space": "^0.0.0",
+        "@zavx0z/immersive-ui-theme-icon-set": "^0.0.0",
         "@zavx0z/storybook-tech-limits": "workspace:*",
       },
     },
@@ -596,9 +599,9 @@
       "name": "@zavx0z/storybook-app-web-page-shell-workbench-catalog",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/immersive-ui-theme-icon": "^0.0.0",
-        "@zavx0z/immersive-ui-component": "^0.0.0",
         "@zavx0z/immersive-component": "^0.0.0",
+        "@zavx0z/immersive-ui-component": "^0.0.0",
+        "@zavx0z/immersive-ui-theme-icon": "^0.0.0",
         "@zavx0z/storybook-app-web-page-shell-workbench-catalog-navigation": "workspace:*",
       },
       "devDependencies": {
@@ -639,8 +642,8 @@
         "@zavx0z/storybook-package-route-url": "workspace:*",
       },
       "devDependencies": {
-        "@zavx0z/storybook-package-session": "workspace:*",
         "@zavx0z/storybook-package-metadata-collect": "workspace:*",
+        "@zavx0z/storybook-package-session": "workspace:*",
       },
     },
     "app/web/release": {
@@ -673,18 +676,18 @@
       "name": "@zavx0z/storybook-chat-view",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
-        "@zavx0z/immersive-tech-svg-encode": "^0.0.0",
-        "@zavx0z/immersive-ui-component": "^0.0.0",
         "@zavx0z/immersive-component": "^0.0.0",
         "@zavx0z/immersive-jsx": "^0.0.0",
+        "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
         "@zavx0z/immersive-markdown": "^0.0.0",
+        "@zavx0z/immersive-tech-svg-encode": "^0.0.0",
+        "@zavx0z/immersive-ui-component": "^0.0.0",
         "@zavx0z/storybook-chat-session": "workspace:*",
       },
       "devDependencies": {
-        "@zavx0z/immersive-jsx-compiler-bun": "^0.0.0",
         "@zavx0z/immersive-dom": "^0.0.0",
         "@zavx0z/immersive-headless": "^0.0.0",
+        "@zavx0z/immersive-jsx-compiler-bun": "^0.0.0",
         "@zavx0z/storybook-tech-build-compiler": "workspace:*",
       },
     },
@@ -692,8 +695,8 @@
       "name": "@zavx0z/storybook-cluster",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/storybook-package-reader": "workspace:*",
         "@zavx0z/storybook-contracts": "workspace:*",
+        "@zavx0z/storybook-package-reader": "workspace:*",
       },
       "devDependencies": {
         "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
@@ -702,6 +705,11 @@
     "cluster/mcp": {
       "name": "@zavx0z/storybook-cluster-mcp",
       "version": "0.0.0",
+      "dependencies": {
+        "@zavx0z/storybook-package-mcp": "workspace:*",
+        "@zavx0z/storybook-package-mcp-content": "workspace:*",
+        "@zavx0z/storybook-package-mcp-navigation": "workspace:*",
+      },
     },
     "component": {
       "name": "@zavx0z/storybook-component",
@@ -713,6 +721,11 @@
     "component/mcp": {
       "name": "@zavx0z/storybook-component-mcp",
       "version": "0.0.0",
+      "dependencies": {
+        "@zavx0z/storybook-package-mcp": "workspace:*",
+        "@zavx0z/storybook-package-mcp-content": "workspace:*",
+        "@zavx0z/storybook-package-mcp-navigation": "workspace:*",
+      },
     },
     "container": {
       "name": "@zavx0z/storybook-container",
@@ -727,14 +740,19 @@
     "container/mcp": {
       "name": "@zavx0z/storybook-container-mcp",
       "version": "0.0.0",
+      "dependencies": {
+        "@zavx0z/storybook-package-mcp": "workspace:*",
+        "@zavx0z/storybook-package-mcp-content": "workspace:*",
+        "@zavx0z/storybook-package-mcp-navigation": "workspace:*",
+      },
     },
     "contracts": {
       "name": "@zavx0z/storybook-contracts",
       "version": "0.0.0",
       "dependencies": {
         "@zavx0z/immersive-jsx": "^0.0.0",
-        "@zavx0z/storybook-package-route-ignored": "workspace:*",
         "@zavx0z/storybook-package-reader": "workspace:*",
+        "@zavx0z/storybook-package-route-ignored": "workspace:*",
         "typescript": "^7.0.2",
       },
       "devDependencies": {
@@ -745,8 +763,8 @@
       "name": "@zavx0z/storybook-domain",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/storybook-package-reader": "workspace:*",
         "@zavx0z/storybook-contracts": "workspace:*",
+        "@zavx0z/storybook-package-reader": "workspace:*",
       },
       "devDependencies": {
         "@zavx0z/storybook-component": "workspace:*",
@@ -755,6 +773,11 @@
     "domain/mcp": {
       "name": "@zavx0z/storybook-domain-mcp",
       "version": "0.0.0",
+      "dependencies": {
+        "@zavx0z/storybook-package-mcp": "workspace:*",
+        "@zavx0z/storybook-package-mcp-content": "workspace:*",
+        "@zavx0z/storybook-package-mcp-navigation": "workspace:*",
+      },
     },
     "package/activation": {
       "name": "@zavx0z/storybook-package-activation",
@@ -783,10 +806,10 @@
       "dependencies": {
         "@zavx0z/storybook-package-graph-create": "workspace:*",
         "@zavx0z/storybook-package-graph-read": "workspace:*",
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
         "@zavx0z/storybook-package-resources": "workspace:*",
         "@zavx0z/storybook-package-revision": "workspace:*",
         "@zavx0z/storybook-package-session": "workspace:*",
-        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
       },
     },
     "package/build/inputs": {
@@ -825,10 +848,10 @@
       "devDependencies": {
         "@zavx0z/immersive-headless": "^0.0.0",
         "@zavx0z/storybook-package-graph-create": "workspace:*",
-        "@zavx0z/storybook-package-revision": "workspace:*",
         "@zavx0z/storybook-package-metadata-collect": "workspace:*",
-        "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
+        "@zavx0z/storybook-package-revision": "workspace:*",
         "@zavx0z/storybook-specs-reader": "workspace:*",
+        "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
       },
     },
     "package/build/scenarios": {
@@ -873,8 +896,8 @@
       "name": "@zavx0z/storybook-package-graph-create",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/storybook-package-route-address": "workspace:*",
         "@zavx0z/storybook-package-metadata-collect": "workspace:*",
+        "@zavx0z/storybook-package-route-address": "workspace:*",
       },
       "devDependencies": {
         "@zavx0z/storybook-package-graph-read": "workspace:*",
@@ -902,6 +925,63 @@
       "name": "@zavx0z/storybook-package-index",
       "version": "0.0.0",
     },
+    "package/mcp": {
+      "name": "@zavx0z/storybook-package-mcp",
+      "version": "0.0.0",
+      "dependencies": {
+        "@zavx0z/storybook-package-mcp-content": "workspace:*",
+        "@zavx0z/storybook-package-mcp-navigation": "workspace:*",
+        "@zavx0z/storybook-package-mcp-source": "workspace:*",
+      },
+    },
+    "package/mcp-source": {
+      "name": "@zavx0z/storybook-package-mcp-source",
+      "version": "0.0.0",
+      "dependencies": {
+        "@zavx0z/storybook-package-build-conformance": "workspace:*",
+        "@zavx0z/storybook-package-graph-create": "workspace:*",
+        "@zavx0z/storybook-package-mcp-content": "workspace:*",
+        "@zavx0z/storybook-package-mcp-navigation": "workspace:*",
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
+      },
+    },
+    "package/mcp/content": {
+      "name": "@zavx0z/storybook-package-mcp-content",
+      "version": "0.0.0",
+      "dependencies": {
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
+      },
+    },
+    "package/mcp/navigation": {
+      "name": "@zavx0z/storybook-package-mcp-navigation",
+      "version": "0.0.0",
+    },
+    "package/metadata": {
+      "name": "@zavx0z/storybook-package-metadata",
+      "version": "0.0.0",
+      "dependencies": {
+        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
+      },
+    },
+    "package/metadata/collect": {
+      "name": "@zavx0z/storybook-package-metadata-collect",
+      "version": "0.0.0",
+      "dependencies": {
+        "@zavx0z/immersive-typedoc": "^0.0.0",
+        "@zavx0z/storybook-contracts": "workspace:*",
+        "@zavx0z/storybook-package-documentation": "workspace:*",
+        "@zavx0z/storybook-package-identity": "workspace:*",
+        "@zavx0z/storybook-package-index": "workspace:*",
+        "@zavx0z/storybook-package-package-json": "workspace:*",
+        "@zavx0z/storybook-package-route-directories": "workspace:*",
+        "@zavx0z/storybook-package-route-ignored": "workspace:*",
+        "@zavx0z/storybook-package-route-workspaces": "workspace:*",
+        "typescript": "^7.0.2",
+      },
+      "devDependencies": {
+        "@zavx0z/storybook-package-graph-create": "workspace:*",
+      },
+    },
     "package/name": {
       "name": "@zavx0z/storybook-package-name",
       "version": "0.0.0",
@@ -917,18 +997,18 @@
       "name": "@zavx0z/storybook-package-reader",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/storybook-package-route-workspaces": "workspace:*",
         "@zavx0z/storybook-package-documentation": "workspace:*",
         "@zavx0z/storybook-package-index": "workspace:*",
         "@zavx0z/storybook-package-package-json": "workspace:*",
+        "@zavx0z/storybook-package-route-workspaces": "workspace:*",
         "@zavx0z/storybook-tech-build-compiler": "workspace:*",
         "typescript": "^7.0.2",
       },
       "devDependencies": {
-        "@zavx0z/storybook-package-name": "workspace:*",
-        "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
         "@zavx0z/storybook-contracts": "workspace:*",
         "@zavx0z/storybook-domain": "workspace:*",
+        "@zavx0z/storybook-package-name": "workspace:*",
+        "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
       },
     },
     "package/resources": {
@@ -983,13 +1063,13 @@
       "name": "@zavx0z/storybook-package-route-resolve",
       "version": "0.0.0",
       "dependencies": {
+        "@zavx0z/storybook-contracts": "workspace:*",
+        "@zavx0z/storybook-package-index": "workspace:*",
+        "@zavx0z/storybook-package-package-json": "workspace:*",
         "@zavx0z/storybook-package-route-address": "workspace:*",
         "@zavx0z/storybook-package-route-directories": "workspace:*",
         "@zavx0z/storybook-package-route-ignored": "workspace:*",
         "@zavx0z/storybook-package-route-structure": "workspace:*",
-        "@zavx0z/storybook-package-index": "workspace:*",
-        "@zavx0z/storybook-package-package-json": "workspace:*",
-        "@zavx0z/storybook-contracts": "workspace:*",
       },
       "devDependencies": {
         "@zavx0z/immersive-nodes-node": "^0.0.0",
@@ -1028,8 +1108,8 @@
         "@zavx0z/storybook-package-revision": "workspace:*",
         "@zavx0z/storybook-package-standard": "workspace:*",
         "@zavx0z/storybook-tech-build-worker": "workspace:*",
-        "@zavx0z/storybook-tech-process-sample": "workspace:*",
         "@zavx0z/storybook-tech-limits": "workspace:*",
+        "@zavx0z/storybook-tech-process-sample": "workspace:*",
       },
     },
     "package/standard": {
@@ -1050,35 +1130,14 @@
       "name": "@zavx0z/storybook-project-mcp",
       "version": "0.0.0",
     },
-    "package/metadata": {
-      "name": "@zavx0z/storybook-package-metadata",
-      "version": "0.0.0",
-      "dependencies": {
-        "@zavx0z/storybook-package-metadata-collect": "workspace:*",
-      },
-    },
-    "package/metadata/collect": {
-      "name": "@zavx0z/storybook-package-metadata-collect",
-      "version": "0.0.0",
-      "dependencies": {
-        "@zavx0z/immersive-typedoc": "^0.0.0",
-        "@zavx0z/storybook-package-route-directories": "workspace:*",
-        "@zavx0z/storybook-package-route-ignored": "workspace:*",
-        "@zavx0z/storybook-package-route-workspaces": "workspace:*",
-        "@zavx0z/storybook-package-documentation": "workspace:*",
-        "@zavx0z/storybook-package-identity": "workspace:*",
-        "@zavx0z/storybook-package-index": "workspace:*",
-        "@zavx0z/storybook-package-package-json": "workspace:*",
-        "@zavx0z/storybook-contracts": "workspace:*",
-        "typescript": "^7.0.2",
-      },
-      "devDependencies": {
-        "@zavx0z/storybook-package-graph-create": "workspace:*",
-      },
-    },
     "repo/mcp": {
       "name": "@zavx0z/storybook-repo-mcp",
       "version": "0.0.0",
+      "dependencies": {
+        "@zavx0z/storybook-package-mcp": "workspace:*",
+        "@zavx0z/storybook-package-mcp-content": "workspace:*",
+        "@zavx0z/storybook-package-mcp-navigation": "workspace:*",
+      },
     },
     "repo/reader": {
       "name": "@zavx0z/storybook-repo-reader",
@@ -1132,8 +1191,8 @@
       "name": "@zavx0z/storybook-specs-scenarios",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
         "@zavx0z/storybook-specs-document": "workspace:*",
+        "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
       },
       "devDependencies": {
         "@zavx0z/storybook-specs-guide": "workspace:*",
@@ -1178,16 +1237,16 @@
       "name": "@zavx0z/storybook-tech-build-compiler",
       "version": "0.0.0",
       "dependencies": {
+        "@zavx0z/immersive-jsx": "^0.0.0",
         "@zavx0z/immersive-jsx-compiler-bun": "^0.0.0",
         "@zavx0z/immersive-jsx-development": "^0.0.0",
         "@zavx0z/immersive-jsx-runtime": "^0.0.0",
-        "@zavx0z/immersive-jsx": "^0.0.0",
       },
       "devDependencies": {
-        "@zavx0z/immersive-ui-component": "^0.0.0",
         "@zavx0z/immersive-component": "^0.0.0",
         "@zavx0z/immersive-dom": "^0.0.0",
         "@zavx0z/immersive-template": "^0.0.0",
+        "@zavx0z/immersive-ui-component": "^0.0.0",
         "@zavx0z/storybook-package-build-loader": "workspace:*",
         "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
       },
@@ -1196,26 +1255,26 @@
       "name": "@zavx0z/storybook-tech-build-environment",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/immersive-jsx-development-create": "^0.0.0",
-        "@zavx0z/immersive-jsx-runtime-create": "^0.0.0",
-        "@zavx0z/immersive-jsx-runtime-fragment": "^0.0.0",
-        "@zavx0z/immersive-jsx-slot-child": "^0.0.0",
-        "@zavx0z/immersive-jsx-slot-plan": "^0.0.0",
-        "@zavx0z/immersive-jsx-event": "^0.0.0",
-        "@zavx0z/immersive-renderer-html": "^0.0.0",
         "@zavx0z/immersive-browser": "^0.0.0",
         "@zavx0z/immersive-component": "^0.0.0",
         "@zavx0z/immersive-devtool": "^0.0.0",
         "@zavx0z/immersive-dom": "^0.0.0",
         "@zavx0z/immersive-engine": "^0.0.0",
         "@zavx0z/immersive-jsx": "^0.0.0",
+        "@zavx0z/immersive-jsx-development-create": "^0.0.0",
+        "@zavx0z/immersive-jsx-event": "^0.0.0",
+        "@zavx0z/immersive-jsx-runtime-create": "^0.0.0",
+        "@zavx0z/immersive-jsx-runtime-fragment": "^0.0.0",
+        "@zavx0z/immersive-jsx-slot-child": "^0.0.0",
+        "@zavx0z/immersive-jsx-slot-plan": "^0.0.0",
+        "@zavx0z/immersive-renderer-html": "^0.0.0",
         "@zavx0z/immersive-space": "^0.0.0",
         "@zavx0z/immersive-template": "^0.0.0",
         "@zavx0z/immersive-webgpu": "^0.0.0",
         "@zavx0z/storybook-package-build-scheduler": "workspace:*",
-        "@zavx0z/storybook-tech-build-environment-protocol": "workspace:*",
         "@zavx0z/storybook-tech-build-artifacts": "workspace:*",
         "@zavx0z/storybook-tech-build-compiler": "workspace:*",
+        "@zavx0z/storybook-tech-build-environment-protocol": "workspace:*",
         "@zavx0z/storybook-tech-build-worker": "workspace:*",
       },
       "devDependencies": {
@@ -1304,9 +1363,9 @@
       "name": "@zavx0z/storybook-tech-testing-browser-root",
       "version": "0.0.0",
       "dependencies": {
-        "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
         "@zavx0z/immersive-browser": "^0.0.0",
         "@zavx0z/immersive-component": "^0.0.0",
+        "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
       },
     },
     "typedoc": {
@@ -1322,31 +1381,7 @@
     },
   },
   "overrides": {
-    "@zavx0z/immersive-jsx-compiler-bun": "link:@zavx0z/immersive-jsx-compiler-bun",
-    "@zavx0z/immersive-jsx-compiler-error": "link:@zavx0z/immersive-jsx-compiler-error",
-    "@zavx0z/immersive-jsx-compiler-session": "link:@zavx0z/immersive-jsx-compiler-session",
-    "@zavx0z/immersive-jsx-development-create": "link:@zavx0z/immersive-jsx-development-create",
-    "@zavx0z/immersive-jsx-runtime-create": "link:@zavx0z/immersive-jsx-runtime-create",
-    "@zavx0z/immersive-jsx-runtime-fragment": "link:@zavx0z/immersive-jsx-runtime-fragment",
-    "@zavx0z/immersive-jsx-slot-authoring": "link:@zavx0z/immersive-jsx-slot-authoring",
-    "@zavx0z/immersive-jsx-slot-child": "link:@zavx0z/immersive-jsx-slot-child",
-    "@zavx0z/immersive-jsx-slot-contract": "link:@zavx0z/immersive-jsx-slot-contract",
-    "@zavx0z/immersive-jsx-slot-plan": "link:@zavx0z/immersive-jsx-slot-plan",
-    "@zavx0z/immersive-jsx-compiler": "link:@zavx0z/immersive-jsx-compiler",
-    "@zavx0z/immersive-jsx-development": "link:@zavx0z/immersive-jsx-development",
-    "@zavx0z/immersive-jsx-event": "link:@zavx0z/immersive-jsx-event",
-    "@zavx0z/immersive-jsx-runtime": "link:@zavx0z/immersive-jsx-runtime",
-    "@zavx0z/immersive-jsx-slot": "link:@zavx0z/immersive-jsx-slot",
-    "@zavx0z/immersive-nodes-layout": "link:@zavx0z/immersive-nodes-layout",
-    "@zavx0z/immersive-nodes-node": "link:@zavx0z/immersive-nodes-node",
-    "@zavx0z/immersive-nodes-parameter": "link:@zavx0z/immersive-nodes-parameter",
-    "@zavx0z/immersive-nodes-socket": "link:@zavx0z/immersive-nodes-socket",
-    "@zavx0z/immersive-nodes-tree": "link:@zavx0z/immersive-nodes-tree",
-    "@zavx0z/immersive-renderer-html": "link:@zavx0z/immersive-renderer-html",
-    "@zavx0z/immersive-tech-svg-encode": "link:@zavx0z/immersive-tech-svg-encode",
-    "@zavx0z/immersive-ui-theme-icon": "link:@zavx0z/immersive-ui-theme-icon",
-    "@zavx0z/immersive-ui-theme-icon-set": "link:@zavx0z/immersive-ui-theme-icon-set",
-    "@zavx0z/immersive-ui-component": "link:@zavx0z/immersive-ui-component",
+    "@zavx0z/highlighter": "link:@zavx0z/highlighter",
     "@zavx0z/immersive-browser": "link:@zavx0z/immersive-browser",
     "@zavx0z/immersive-component": "link:@zavx0z/immersive-component",
     "@zavx0z/immersive-devtool": "link:@zavx0z/immersive-devtool",
@@ -1354,94 +1389,42 @@
     "@zavx0z/immersive-engine": "link:@zavx0z/immersive-engine",
     "@zavx0z/immersive-headless": "link:@zavx0z/immersive-headless",
     "@zavx0z/immersive-jsx": "link:@zavx0z/immersive-jsx",
+    "@zavx0z/immersive-jsx-compiler": "link:@zavx0z/immersive-jsx-compiler",
+    "@zavx0z/immersive-jsx-compiler-bun": "link:@zavx0z/immersive-jsx-compiler-bun",
+    "@zavx0z/immersive-jsx-compiler-error": "link:@zavx0z/immersive-jsx-compiler-error",
+    "@zavx0z/immersive-jsx-compiler-session": "link:@zavx0z/immersive-jsx-compiler-session",
+    "@zavx0z/immersive-jsx-development": "link:@zavx0z/immersive-jsx-development",
+    "@zavx0z/immersive-jsx-development-create": "link:@zavx0z/immersive-jsx-development-create",
+    "@zavx0z/immersive-jsx-event": "link:@zavx0z/immersive-jsx-event",
+    "@zavx0z/immersive-jsx-runtime": "link:@zavx0z/immersive-jsx-runtime",
+    "@zavx0z/immersive-jsx-runtime-create": "link:@zavx0z/immersive-jsx-runtime-create",
+    "@zavx0z/immersive-jsx-runtime-fragment": "link:@zavx0z/immersive-jsx-runtime-fragment",
+    "@zavx0z/immersive-jsx-slot": "link:@zavx0z/immersive-jsx-slot",
+    "@zavx0z/immersive-jsx-slot-authoring": "link:@zavx0z/immersive-jsx-slot-authoring",
+    "@zavx0z/immersive-jsx-slot-child": "link:@zavx0z/immersive-jsx-slot-child",
+    "@zavx0z/immersive-jsx-slot-contract": "link:@zavx0z/immersive-jsx-slot-contract",
+    "@zavx0z/immersive-jsx-slot-plan": "link:@zavx0z/immersive-jsx-slot-plan",
     "@zavx0z/immersive-markdown": "link:@zavx0z/immersive-markdown",
     "@zavx0z/immersive-nodes": "link:@zavx0z/immersive-nodes",
+    "@zavx0z/immersive-nodes-layout": "link:@zavx0z/immersive-nodes-layout",
+    "@zavx0z/immersive-nodes-node": "link:@zavx0z/immersive-nodes-node",
+    "@zavx0z/immersive-nodes-parameter": "link:@zavx0z/immersive-nodes-parameter",
+    "@zavx0z/immersive-nodes-socket": "link:@zavx0z/immersive-nodes-socket",
+    "@zavx0z/immersive-nodes-tree": "link:@zavx0z/immersive-nodes-tree",
+    "@zavx0z/immersive-renderer-html": "link:@zavx0z/immersive-renderer-html",
     "@zavx0z/immersive-space": "link:@zavx0z/immersive-space",
+    "@zavx0z/immersive-tech-svg-encode": "link:@zavx0z/immersive-tech-svg-encode",
     "@zavx0z/immersive-template": "link:@zavx0z/immersive-template",
     "@zavx0z/immersive-typedoc": "link:@zavx0z/immersive-typedoc",
+    "@zavx0z/immersive-ui-component": "link:@zavx0z/immersive-ui-component",
+    "@zavx0z/immersive-ui-theme-icon": "link:@zavx0z/immersive-ui-theme-icon",
+    "@zavx0z/immersive-ui-theme-icon-set": "link:@zavx0z/immersive-ui-theme-icon-set",
     "@zavx0z/immersive-webgpu": "link:@zavx0z/immersive-webgpu",
-    "@zavx0z/highlighter": "link:@zavx0z/highlighter",
   },
   "packages": {
     "@agentclientprotocol/codex-acp": ["@agentclientprotocol/codex-acp@2.1.1", "", { "dependencies": { "@agentclientprotocol/sdk": "^1.5.0", "@openai/codex": "^0.159.1", "diff": "^9.0.0", "open": "^11.0.1", "vscode-jsonrpc": "^9.0.1", "zod": "^4.0.0" }, "bin": { "codex-acp": "dist/index.js" } }, "sha512-dppZxW3f8kNbTDbR25+lBLtNst5DIC/Sm7GtRF69PI1Ilqv12tDSsIb0hJQW0iNzkx+JdDvX76HOyv5Uibu1qQ=="],
 
     "@agentclientprotocol/sdk": ["@agentclientprotocol/sdk@1.6.0", "", { "peerDependencies": { "zod": "^3.25.0 || ^4.0.0" } }, "sha512-XxXrmX7aZkDgOB0Rg9cu+ZFyiUUc5lF2n9seO3Gc4OR+MTdfZOwIqF6m3LvsmmM8K3qgPmXkDH8/IFM2u9vdcQ=="],
-
-    "@zavx0z/immersive-jsx-compiler-bun": ["@zavx0z/immersive-jsx-compiler-bun@link:@zavx0z/immersive-jsx-compiler-bun", {}],
-
-    "@zavx0z/immersive-jsx-compiler-error": ["@zavx0z/immersive-jsx-compiler-error@link:@zavx0z/immersive-jsx-compiler-error", {}],
-
-    "@zavx0z/immersive-jsx-compiler-session": ["@zavx0z/immersive-jsx-compiler-session@link:@zavx0z/immersive-jsx-compiler-session", {}],
-
-    "@zavx0z/immersive-jsx-development-create": ["@zavx0z/immersive-jsx-development-create@link:@zavx0z/immersive-jsx-development-create", {}],
-
-    "@zavx0z/immersive-jsx-runtime-create": ["@zavx0z/immersive-jsx-runtime-create@link:@zavx0z/immersive-jsx-runtime-create", {}],
-
-    "@zavx0z/immersive-jsx-runtime-fragment": ["@zavx0z/immersive-jsx-runtime-fragment@link:@zavx0z/immersive-jsx-runtime-fragment", {}],
-
-    "@zavx0z/immersive-jsx-slot-authoring": ["@zavx0z/immersive-jsx-slot-authoring@link:@zavx0z/immersive-jsx-slot-authoring", {}],
-
-    "@zavx0z/immersive-jsx-slot-child": ["@zavx0z/immersive-jsx-slot-child@link:@zavx0z/immersive-jsx-slot-child", {}],
-
-    "@zavx0z/immersive-jsx-slot-contract": ["@zavx0z/immersive-jsx-slot-contract@link:@zavx0z/immersive-jsx-slot-contract", {}],
-
-    "@zavx0z/immersive-jsx-slot-plan": ["@zavx0z/immersive-jsx-slot-plan@link:@zavx0z/immersive-jsx-slot-plan", {}],
-
-    "@zavx0z/immersive-jsx-compiler": ["@zavx0z/immersive-jsx-compiler@link:@zavx0z/immersive-jsx-compiler", {}],
-
-    "@zavx0z/immersive-jsx-development": ["@zavx0z/immersive-jsx-development@link:@zavx0z/immersive-jsx-development", {}],
-
-    "@zavx0z/immersive-jsx-event": ["@zavx0z/immersive-jsx-event@link:@zavx0z/immersive-jsx-event", {}],
-
-    "@zavx0z/immersive-jsx-runtime": ["@zavx0z/immersive-jsx-runtime@link:@zavx0z/immersive-jsx-runtime", {}],
-
-    "@zavx0z/immersive-jsx-slot": ["@zavx0z/immersive-jsx-slot@link:@zavx0z/immersive-jsx-slot", {}],
-
-    "@zavx0z/immersive-nodes-layout": ["@zavx0z/immersive-nodes-layout@link:@zavx0z/immersive-nodes-layout", {}],
-
-    "@zavx0z/immersive-nodes-node": ["@zavx0z/immersive-nodes-node@link:@zavx0z/immersive-nodes-node", {}],
-
-    "@zavx0z/immersive-nodes-parameter": ["@zavx0z/immersive-nodes-parameter@link:@zavx0z/immersive-nodes-parameter", {}],
-
-    "@zavx0z/immersive-nodes-socket": ["@zavx0z/immersive-nodes-socket@link:@zavx0z/immersive-nodes-socket", {}],
-
-    "@zavx0z/immersive-nodes-tree": ["@zavx0z/immersive-nodes-tree@link:@zavx0z/immersive-nodes-tree", {}],
-
-    "@zavx0z/immersive-renderer-html": ["@zavx0z/immersive-renderer-html@link:@zavx0z/immersive-renderer-html", {}],
-
-    "@zavx0z/immersive-tech-svg-encode": ["@zavx0z/immersive-tech-svg-encode@link:@zavx0z/immersive-tech-svg-encode", {}],
-
-    "@zavx0z/immersive-ui-theme-icon": ["@zavx0z/immersive-ui-theme-icon@link:@zavx0z/immersive-ui-theme-icon", {}],
-
-    "@zavx0z/immersive-ui-theme-icon-set": ["@zavx0z/immersive-ui-theme-icon-set@link:@zavx0z/immersive-ui-theme-icon-set", {}],
-
-    "@zavx0z/immersive-ui-component": ["@zavx0z/immersive-ui-component@link:@zavx0z/immersive-ui-component", {}],
-
-    "@zavx0z/immersive-browser": ["@zavx0z/immersive-browser@link:@zavx0z/immersive-browser", {}],
-
-    "@zavx0z/immersive-component": ["@zavx0z/immersive-component@link:@zavx0z/immersive-component", {}],
-
-    "@zavx0z/immersive-devtool": ["@zavx0z/immersive-devtool@link:@zavx0z/immersive-devtool", {}],
-
-    "@zavx0z/immersive-dom": ["@zavx0z/immersive-dom@link:@zavx0z/immersive-dom", {}],
-
-    "@zavx0z/immersive-engine": ["@zavx0z/immersive-engine@link:@zavx0z/immersive-engine", {}],
-
-    "@zavx0z/immersive-headless": ["@zavx0z/immersive-headless@link:@zavx0z/immersive-headless", {}],
-
-    "@zavx0z/immersive-jsx": ["@zavx0z/immersive-jsx@link:@zavx0z/immersive-jsx", {}],
-
-    "@zavx0z/immersive-markdown": ["@zavx0z/immersive-markdown@link:@zavx0z/immersive-markdown", {}],
-
-    "@zavx0z/immersive-nodes": ["@zavx0z/immersive-nodes@link:@zavx0z/immersive-nodes", {}],
-
-    "@zavx0z/immersive-space": ["@zavx0z/immersive-space@link:@zavx0z/immersive-space", {}],
-
-    "@zavx0z/immersive-template": ["@zavx0z/immersive-template@link:@zavx0z/immersive-template", {}],
-
-    "@zavx0z/immersive-typedoc": ["@zavx0z/immersive-typedoc@link:@zavx0z/immersive-typedoc", {}],
-
-    "@zavx0z/immersive-webgpu": ["@zavx0z/immersive-webgpu@link:@zavx0z/immersive-webgpu", {}],
 
     "@modelcontextprotocol/client": ["@modelcontextprotocol/client@2.0.0", "", { "dependencies": { "@modelcontextprotocol/core": "2.0.0", "cross-spawn": "^7.0.5", "eventsource": "^3.0.2", "eventsource-parser": "^3.0.0", "jose": "^6.1.3", "pkce-challenge": "^5.0.0", "zod": "^4.2.0" } }, "sha512-8f1OghQ2rjzIOfqgUCP+8GiUWqRs89njoWLNqAe8kWmDePv3s1fZXseej+QXemssEuuOvLLmLO/kqM3IQHtISw=="],
 
@@ -1464,236 +1447,6 @@
     "@openai/codex-win32-arm64": ["@openai/codex@0.159.3-win32-arm64", "", { "os": "win32", "cpu": "arm64" }, "sha512-4C+EuH1zE4rO5w1MsrnS98Tvq6Ff4+zeNr3pVeR/UsQ+VrTY5BCA9nZuXuCXNLKak1tLOw81b+fQM4jKGFCeDA=="],
 
     "@openai/codex-win32-x64": ["@openai/codex@0.159.3-win32-x64", "", { "os": "win32", "cpu": "x64" }, "sha512-h8w5nslfQyoYbonZaRlLwvPKFS9Mcxz5vUeCeoHKF5SsZUP9jSBH7hxUdc8RWJffJtfbV2qxdnImVAj9zy2fwA=="],
-
-    "@zavx0z/storybook-app-mcp-rest-address": ["@zavx0z/storybook-app-mcp-rest-address@workspace:app/mcp/rest/address"],
-
-    "@zavx0z/storybook-app-mcp-rest-children": ["@zavx0z/storybook-app-mcp-rest-children@workspace:app/mcp/rest/children"],
-
-    "@zavx0z/storybook-app-mcp-proxy": ["@zavx0z/storybook-app-mcp-proxy@workspace:app/mcp/proxy"],
-
-    "@zavx0z/storybook-app-mcp-response": ["@zavx0z/storybook-app-mcp-response@workspace:app/mcp/response"],
-
-    "@zavx0z/storybook-app-mcp-rest": ["@zavx0z/storybook-app-mcp-rest@workspace:app/mcp/rest"],
-
-    "@zavx0z/storybook-app-server-browser": ["@zavx0z/storybook-app-server-browser@workspace:app/server/browser"],
-
-    "@zavx0z/storybook-app-server-catalog": ["@zavx0z/storybook-app-server-catalog@workspace:app/server/catalog"],
-
-    "@zavx0z/storybook-app-server-requests": ["@zavx0z/storybook-app-server-requests@workspace:app/server/requests"],
-
-    "@zavx0z/storybook-app-server-sessions": ["@zavx0z/storybook-app-server-sessions@workspace:app/server/sessions"],
-
-    "@zavx0z/storybook-app-server-state": ["@zavx0z/storybook-app-server-state@workspace:app/server/state"],
-
-    "@zavx0z/storybook-app-web-page-package-scenario-inspector": ["@zavx0z/storybook-app-web-page-package-scenario-inspector@workspace:app/web/page/package/scenario/inspector"],
-
-    "@zavx0z/storybook-app-web-page-package-scenario-model": ["@zavx0z/storybook-app-web-page-package-scenario-model@workspace:app/web/page/package/scenario/model"],
-
-    "@zavx0z/storybook-app-web-page-package-scenario-preview": ["@zavx0z/storybook-app-web-page-package-scenario-preview@workspace:app/web/page/package/scenario/preview"],
-
-    "@zavx0z/storybook-app-web-page-package-scenario-result": ["@zavx0z/storybook-app-web-page-package-scenario-result@workspace:app/web/page/package/scenario/result"],
-
-    "@zavx0z/storybook-app-web-page-shell-workbench-catalog-navigation": ["@zavx0z/storybook-app-web-page-shell-workbench-catalog-navigation@workspace:app/web/page/shell/workbench/catalog/navigation"],
-
-    "@zavx0z/storybook-app-web-page-shell-workbench-catalog": ["@zavx0z/storybook-app-web-page-shell-workbench-catalog@workspace:app/web/page/shell/workbench/catalog"],
-
-    "@zavx0z/storybook-app-web-page-shell-mcp-window": ["@zavx0z/storybook-app-web-page-shell-mcp-window@workspace:app/web/page/shell/mcp-window"],
-
-    "@zavx0z/storybook-app-web-page-shell-minimap": ["@zavx0z/storybook-app-web-page-shell-minimap@workspace:app/web/page/shell/minimap"],
-
-    "@zavx0z/storybook-app-web-page-shell-viewpoint-controls": ["@zavx0z/storybook-app-web-page-shell-viewpoint-controls@workspace:app/web/page/shell/viewpoint-controls"],
-
-    "@zavx0z/storybook-app-web-page-shell-viewpoint-tab": ["@zavx0z/storybook-app-web-page-shell-viewpoint-tab@workspace:app/web/page/shell/viewpoint-tab"],
-
-    "@zavx0z/storybook-app-web-page-shell-workbench": ["@zavx0z/storybook-app-web-page-shell-workbench@workspace:app/web/page/shell/workbench"],
-
-    "@zavx0z/storybook-app-web-page-agent-bridge": ["@zavx0z/storybook-app-web-page-agent-bridge@workspace:app/web/page/agent-bridge"],
-
-    "@zavx0z/storybook-app-web-page-client": ["@zavx0z/storybook-app-web-page-client@workspace:app/web/page/client"],
-
-    "@zavx0z/storybook-app-web-page-home": ["@zavx0z/storybook-app-web-page-home@workspace:app/web/page/home"],
-
-    "@zavx0z/storybook-app-web-page-navigation": ["@zavx0z/storybook-app-web-page-navigation@workspace:app/web/page/navigation"],
-
-    "@zavx0z/storybook-app-web-page-package": ["@zavx0z/storybook-app-web-page-package@workspace:app/web/page/package"],
-
-    "@zavx0z/storybook-app-web-page-presentation": ["@zavx0z/storybook-app-web-page-presentation@workspace:app/web/page/presentation"],
-
-    "@zavx0z/storybook-app-web-page-shell": ["@zavx0z/storybook-app-web-page-shell@workspace:app/web/page/shell"],
-
-    "@zavx0z/storybook-app-web-page-status": ["@zavx0z/storybook-app-web-page-status@workspace:app/web/page/status"],
-
-    "@zavx0z/storybook-app-web-page-style-sheets": ["@zavx0z/storybook-app-web-page-style-sheets@workspace:app/web/page/style-sheets"],
-
-    "@zavx0z/storybook-app-web-page-target": ["@zavx0z/storybook-app-web-page-target@workspace:app/web/page/target"],
-
-    "@zavx0z/storybook-app-web-build": ["@zavx0z/storybook-app-web-build@workspace:app/web/build"],
-
-    "@zavx0z/storybook-app-web-page": ["@zavx0z/storybook-app-web-page@workspace:app/web/page"],
-
-    "@zavx0z/storybook-app-web-protocol": ["@zavx0z/storybook-app-web-protocol@workspace:app/web/protocol"],
-
-    "@zavx0z/storybook-app-web-release": ["@zavx0z/storybook-app-web-release@workspace:app/web/release"],
-
-    "@zavx0z/storybook-app-mcp": ["@zavx0z/storybook-app-mcp@workspace:app/mcp"],
-
-    "@zavx0z/storybook-app-server": ["@zavx0z/storybook-app-server@workspace:app/server"],
-
-    "@zavx0z/storybook-app-web": ["@zavx0z/storybook-app-web@workspace:app/web"],
-
-    "@zavx0z/storybook-chat-session": ["@zavx0z/storybook-chat-session@workspace:chat/session"],
-
-    "@zavx0z/storybook-chat-view": ["@zavx0z/storybook-chat-view@workspace:chat/view"],
-
-    "@zavx0z/storybook-cluster-mcp": ["@zavx0z/storybook-cluster-mcp@workspace:cluster/mcp"],
-
-    "@zavx0z/storybook-component-mcp": ["@zavx0z/storybook-component-mcp@workspace:component/mcp"],
-
-    "@zavx0z/storybook-container-mcp": ["@zavx0z/storybook-container-mcp@workspace:container/mcp"],
-
-    "@zavx0z/storybook-domain-mcp": ["@zavx0z/storybook-domain-mcp@workspace:domain/mcp"],
-
-    "@zavx0z/storybook-package-build-conformance": ["@zavx0z/storybook-package-build-conformance@workspace:package/build/conformance"],
-
-    "@zavx0z/storybook-package-build-consumer-boundary": ["@zavx0z/storybook-package-build-consumer-boundary@workspace:package/build/consumer-boundary"],
-
-    "@zavx0z/storybook-package-build-descriptor": ["@zavx0z/storybook-package-build-descriptor@workspace:package/build/descriptor"],
-
-    "@zavx0z/storybook-package-build-inputs": ["@zavx0z/storybook-package-build-inputs@workspace:package/build/inputs"],
-
-    "@zavx0z/storybook-package-build-loader": ["@zavx0z/storybook-package-build-loader@workspace:package/build/loader"],
-
-    "@zavx0z/storybook-package-build-prepare": ["@zavx0z/storybook-package-build-prepare@workspace:package/build/prepare"],
-
-    "@zavx0z/storybook-package-build-scenarios": ["@zavx0z/storybook-package-build-scenarios@workspace:package/build/scenarios"],
-
-    "@zavx0z/storybook-package-build-scheduler": ["@zavx0z/storybook-package-build-scheduler@workspace:package/build/scheduler"],
-
-    "@zavx0z/storybook-package-graph-create": ["@zavx0z/storybook-package-graph-create@workspace:package/graph/create"],
-
-    "@zavx0z/storybook-package-graph-read": ["@zavx0z/storybook-package-graph-read@workspace:package/graph/read"],
-
-    "@zavx0z/storybook-package-route-address": ["@zavx0z/storybook-package-route-address@workspace:package/route/address"],
-
-    "@zavx0z/storybook-package-route-children": ["@zavx0z/storybook-package-route-children@workspace:package/route/children"],
-
-    "@zavx0z/storybook-package-route-directories": ["@zavx0z/storybook-package-route-directories@workspace:package/route/directories"],
-
-    "@zavx0z/storybook-package-route-ignored": ["@zavx0z/storybook-package-route-ignored@workspace:package/route/ignored"],
-
-    "@zavx0z/storybook-package-route-resolve": ["@zavx0z/storybook-package-route-resolve@workspace:package/route/resolve"],
-
-    "@zavx0z/storybook-package-route-structure": ["@zavx0z/storybook-package-route-structure@workspace:package/route/structure"],
-
-    "@zavx0z/storybook-package-route-url": ["@zavx0z/storybook-package-route-url@workspace:package/route/url"],
-
-    "@zavx0z/storybook-package-route-workspaces": ["@zavx0z/storybook-package-route-workspaces@workspace:package/route/workspaces"],
-
-    "@zavx0z/storybook-package-activation": ["@zavx0z/storybook-package-activation@workspace:package/activation"],
-
-    "@zavx0z/storybook-package-artifacts": ["@zavx0z/storybook-package-artifacts@workspace:package/artifacts"],
-
-    "@zavx0z/storybook-package-documentation": ["@zavx0z/storybook-package-documentation@workspace:package/documentation"],
-
-    "@zavx0z/storybook-package-graph": ["@zavx0z/storybook-package-graph@workspace:package/graph"],
-
-    "@zavx0z/storybook-package-identity": ["@zavx0z/storybook-package-identity@workspace:package/identity"],
-
-    "@zavx0z/storybook-package-index": ["@zavx0z/storybook-package-index@workspace:package/index"],
-
-    "@zavx0z/storybook-package-name": ["@zavx0z/storybook-package-name@workspace:package/name"],
-
-    "@zavx0z/storybook-package-package-json": ["@zavx0z/storybook-package-package-json@workspace:package/package-json"],
-
-    "@zavx0z/storybook-package-reader": ["@zavx0z/storybook-package-reader@workspace:package/reader"],
-
-    "@zavx0z/storybook-package-resources": ["@zavx0z/storybook-package-resources@workspace:package/resources"],
-
-    "@zavx0z/storybook-package-revision": ["@zavx0z/storybook-package-revision@workspace:package/revision"],
-
-    "@zavx0z/storybook-package-session": ["@zavx0z/storybook-package-session@workspace:package/session"],
-
-    "@zavx0z/storybook-package-standard": ["@zavx0z/storybook-package-standard@workspace:package/standard"],
-
-    "@zavx0z/storybook-project-mcp": ["@zavx0z/storybook-project-mcp@workspace:project/mcp"],
-
-    "@zavx0z/storybook-package-metadata": ["@zavx0z/storybook-package-metadata@workspace:package/metadata"],
-
-    "@zavx0z/storybook-package-metadata-collect": ["@zavx0z/storybook-package-metadata-collect@workspace:package/metadata/collect"],
-
-    "@zavx0z/storybook-repo-mcp": ["@zavx0z/storybook-repo-mcp@workspace:repo/mcp"],
-
-    "@zavx0z/storybook-repo-reader": ["@zavx0z/storybook-repo-reader@workspace:repo/reader"],
-
-    "@zavx0z/storybook-specs-scenarios-reader-validation": ["@zavx0z/storybook-specs-scenarios-reader-validation@workspace:specs/scenarios/reader/validation"],
-
-    "@zavx0z/storybook-specs-scenarios-reader": ["@zavx0z/storybook-specs-scenarios-reader@workspace:specs/scenarios/reader"],
-
-    "@zavx0z/storybook-specs-document": ["@zavx0z/storybook-specs-document@workspace:specs/document"],
-
-    "@zavx0z/storybook-specs-guide": ["@zavx0z/storybook-specs-guide@workspace:specs/guide"],
-
-    "@zavx0z/storybook-specs-presentation": ["@zavx0z/storybook-specs-presentation@workspace:specs/presentation"],
-
-    "@zavx0z/storybook-specs-reader": ["@zavx0z/storybook-specs-reader@workspace:specs/reader"],
-
-    "@zavx0z/storybook-specs-reference": ["@zavx0z/storybook-specs-reference@workspace:specs/reference"],
-
-    "@zavx0z/storybook-specs-scenarios": ["@zavx0z/storybook-specs-scenarios@workspace:specs/scenarios"],
-
-    "@zavx0z/storybook-tech-build-environment-protocol": ["@zavx0z/storybook-tech-build-environment-protocol@workspace:tech/build/environment/protocol"],
-
-    "@zavx0z/storybook-tech-build-artifacts": ["@zavx0z/storybook-tech-build-artifacts@workspace:tech/build/artifacts"],
-
-    "@zavx0z/storybook-tech-build-compiler": ["@zavx0z/storybook-tech-build-compiler@workspace:tech/build/compiler"],
-
-    "@zavx0z/storybook-tech-build-environment": ["@zavx0z/storybook-tech-build-environment@workspace:tech/build/environment"],
-
-    "@zavx0z/storybook-tech-build-queue": ["@zavx0z/storybook-tech-build-queue@workspace:tech/build/queue"],
-
-    "@zavx0z/storybook-tech-build-worker": ["@zavx0z/storybook-tech-build-worker@workspace:tech/build/worker"],
-
-    "@zavx0z/storybook-tech-hmr-connection": ["@zavx0z/storybook-tech-hmr-connection@workspace:tech/hmr/connection"],
-
-    "@zavx0z/storybook-tech-hmr-page": ["@zavx0z/storybook-tech-hmr-page@workspace:tech/hmr/page"],
-
-    "@zavx0z/storybook-tech-http-client": ["@zavx0z/storybook-tech-http-client@workspace:tech/http/client"],
-
-    "@zavx0z/storybook-tech-mcp-lazy": ["@zavx0z/storybook-tech-mcp-lazy@workspace:tech/mcp/lazy"],
-
-    "@zavx0z/storybook-tech-mcp-progress": ["@zavx0z/storybook-tech-mcp-progress@workspace:tech/mcp/progress"],
-
-    "@zavx0z/storybook-tech-mcp-stdio": ["@zavx0z/storybook-tech-mcp-stdio@workspace:tech/mcp/stdio"],
-
-    "@zavx0z/storybook-tech-process-measure": ["@zavx0z/storybook-tech-process-measure@workspace:tech/process/measure"],
-
-    "@zavx0z/storybook-tech-process-sample": ["@zavx0z/storybook-tech-process-sample@workspace:tech/process/sample"],
-
-    "@zavx0z/storybook-tech-process-wait": ["@zavx0z/storybook-tech-process-wait@workspace:tech/process/wait"],
-
-    "@zavx0z/storybook-tech-testing-browser-root": ["@zavx0z/storybook-tech-testing-browser-root@workspace:tech/testing/browser-root"],
-
-    "@zavx0z/storybook-tech-acp": ["@zavx0z/storybook-tech-acp@workspace:tech/acp"],
-
-    "@zavx0z/storybook-tech-limits": ["@zavx0z/storybook-tech-limits@workspace:tech/limits"],
-
-    "@zavx0z/storybook-app": ["@zavx0z/storybook-app@workspace:app"],
-
-    "@zavx0z/storybook-chat": ["@zavx0z/storybook-chat@workspace:chat"],
-
-    "@zavx0z/storybook-cluster": ["@zavx0z/storybook-cluster@workspace:cluster"],
-
-    "@zavx0z/storybook-component": ["@zavx0z/storybook-component@workspace:component"],
-
-    "@zavx0z/storybook-container": ["@zavx0z/storybook-container@workspace:container"],
-
-    "@zavx0z/storybook-contracts": ["@zavx0z/storybook-contracts@workspace:contracts"],
-
-    "@zavx0z/storybook-domain": ["@zavx0z/storybook-domain@workspace:domain"],
-
-    "@zavx0z/storybook-project": ["@zavx0z/storybook-project@workspace:project"],
-
-    "@zavx0z/storybook-typedoc": ["@zavx0z/storybook-typedoc@workspace:typedoc"],
 
     "@types/bun": ["@types/bun@1.4.2", "", { "dependencies": { "bun-types": "1.4.2" } }, "sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ=="],
 
@@ -1744,6 +1497,318 @@
     "@webgpu/types": ["@webgpu/types@0.1.74", "", {}, "sha512-lgiI4hbuLcI9unnm2cL/tvCaQU45dp0xcLWJh5uB/9MBGvIA4F8XIk7nSiBeg+K4xWGYwgZKn80LmERI5CxoTA=="],
 
     "@zavx0z/highlighter": ["@zavx0z/highlighter@link:@zavx0z/highlighter", {}],
+
+    "@zavx0z/immersive-browser": ["@zavx0z/immersive-browser@link:@zavx0z/immersive-browser", {}],
+
+    "@zavx0z/immersive-component": ["@zavx0z/immersive-component@link:@zavx0z/immersive-component", {}],
+
+    "@zavx0z/immersive-devtool": ["@zavx0z/immersive-devtool@link:@zavx0z/immersive-devtool", {}],
+
+    "@zavx0z/immersive-dom": ["@zavx0z/immersive-dom@link:@zavx0z/immersive-dom", {}],
+
+    "@zavx0z/immersive-engine": ["@zavx0z/immersive-engine@link:@zavx0z/immersive-engine", {}],
+
+    "@zavx0z/immersive-headless": ["@zavx0z/immersive-headless@link:@zavx0z/immersive-headless", {}],
+
+    "@zavx0z/immersive-jsx": ["@zavx0z/immersive-jsx@link:@zavx0z/immersive-jsx", {}],
+
+    "@zavx0z/immersive-jsx-compiler": ["@zavx0z/immersive-jsx-compiler@link:@zavx0z/immersive-jsx-compiler", {}],
+
+    "@zavx0z/immersive-jsx-compiler-bun": ["@zavx0z/immersive-jsx-compiler-bun@link:@zavx0z/immersive-jsx-compiler-bun", {}],
+
+    "@zavx0z/immersive-jsx-compiler-error": ["@zavx0z/immersive-jsx-compiler-error@link:@zavx0z/immersive-jsx-compiler-error", {}],
+
+    "@zavx0z/immersive-jsx-compiler-session": ["@zavx0z/immersive-jsx-compiler-session@link:@zavx0z/immersive-jsx-compiler-session", {}],
+
+    "@zavx0z/immersive-jsx-development": ["@zavx0z/immersive-jsx-development@link:@zavx0z/immersive-jsx-development", {}],
+
+    "@zavx0z/immersive-jsx-development-create": ["@zavx0z/immersive-jsx-development-create@link:@zavx0z/immersive-jsx-development-create", {}],
+
+    "@zavx0z/immersive-jsx-event": ["@zavx0z/immersive-jsx-event@link:@zavx0z/immersive-jsx-event", {}],
+
+    "@zavx0z/immersive-jsx-runtime": ["@zavx0z/immersive-jsx-runtime@link:@zavx0z/immersive-jsx-runtime", {}],
+
+    "@zavx0z/immersive-jsx-runtime-create": ["@zavx0z/immersive-jsx-runtime-create@link:@zavx0z/immersive-jsx-runtime-create", {}],
+
+    "@zavx0z/immersive-jsx-runtime-fragment": ["@zavx0z/immersive-jsx-runtime-fragment@link:@zavx0z/immersive-jsx-runtime-fragment", {}],
+
+    "@zavx0z/immersive-jsx-slot": ["@zavx0z/immersive-jsx-slot@link:@zavx0z/immersive-jsx-slot", {}],
+
+    "@zavx0z/immersive-jsx-slot-authoring": ["@zavx0z/immersive-jsx-slot-authoring@link:@zavx0z/immersive-jsx-slot-authoring", {}],
+
+    "@zavx0z/immersive-jsx-slot-child": ["@zavx0z/immersive-jsx-slot-child@link:@zavx0z/immersive-jsx-slot-child", {}],
+
+    "@zavx0z/immersive-jsx-slot-contract": ["@zavx0z/immersive-jsx-slot-contract@link:@zavx0z/immersive-jsx-slot-contract", {}],
+
+    "@zavx0z/immersive-jsx-slot-plan": ["@zavx0z/immersive-jsx-slot-plan@link:@zavx0z/immersive-jsx-slot-plan", {}],
+
+    "@zavx0z/immersive-markdown": ["@zavx0z/immersive-markdown@link:@zavx0z/immersive-markdown", {}],
+
+    "@zavx0z/immersive-nodes": ["@zavx0z/immersive-nodes@link:@zavx0z/immersive-nodes", {}],
+
+    "@zavx0z/immersive-nodes-layout": ["@zavx0z/immersive-nodes-layout@link:@zavx0z/immersive-nodes-layout", {}],
+
+    "@zavx0z/immersive-nodes-node": ["@zavx0z/immersive-nodes-node@link:@zavx0z/immersive-nodes-node", {}],
+
+    "@zavx0z/immersive-nodes-parameter": ["@zavx0z/immersive-nodes-parameter@link:@zavx0z/immersive-nodes-parameter", {}],
+
+    "@zavx0z/immersive-nodes-socket": ["@zavx0z/immersive-nodes-socket@link:@zavx0z/immersive-nodes-socket", {}],
+
+    "@zavx0z/immersive-nodes-tree": ["@zavx0z/immersive-nodes-tree@link:@zavx0z/immersive-nodes-tree", {}],
+
+    "@zavx0z/immersive-renderer-html": ["@zavx0z/immersive-renderer-html@link:@zavx0z/immersive-renderer-html", {}],
+
+    "@zavx0z/immersive-space": ["@zavx0z/immersive-space@link:@zavx0z/immersive-space", {}],
+
+    "@zavx0z/immersive-tech-svg-encode": ["@zavx0z/immersive-tech-svg-encode@link:@zavx0z/immersive-tech-svg-encode", {}],
+
+    "@zavx0z/immersive-template": ["@zavx0z/immersive-template@link:@zavx0z/immersive-template", {}],
+
+    "@zavx0z/immersive-typedoc": ["@zavx0z/immersive-typedoc@link:@zavx0z/immersive-typedoc", {}],
+
+    "@zavx0z/immersive-ui-component": ["@zavx0z/immersive-ui-component@link:@zavx0z/immersive-ui-component", {}],
+
+    "@zavx0z/immersive-ui-theme-icon": ["@zavx0z/immersive-ui-theme-icon@link:@zavx0z/immersive-ui-theme-icon", {}],
+
+    "@zavx0z/immersive-ui-theme-icon-set": ["@zavx0z/immersive-ui-theme-icon-set@link:@zavx0z/immersive-ui-theme-icon-set", {}],
+
+    "@zavx0z/immersive-webgpu": ["@zavx0z/immersive-webgpu@link:@zavx0z/immersive-webgpu", {}],
+
+    "@zavx0z/storybook-app": ["@zavx0z/storybook-app@workspace:app"],
+
+    "@zavx0z/storybook-app-mcp": ["@zavx0z/storybook-app-mcp@workspace:app/mcp"],
+
+    "@zavx0z/storybook-app-mcp-proxy": ["@zavx0z/storybook-app-mcp-proxy@workspace:app/mcp/proxy"],
+
+    "@zavx0z/storybook-app-mcp-response": ["@zavx0z/storybook-app-mcp-response@workspace:app/mcp/response"],
+
+    "@zavx0z/storybook-app-mcp-rest": ["@zavx0z/storybook-app-mcp-rest@workspace:app/mcp/rest"],
+
+    "@zavx0z/storybook-app-mcp-rest-address": ["@zavx0z/storybook-app-mcp-rest-address@workspace:app/mcp/rest/address"],
+
+    "@zavx0z/storybook-app-server": ["@zavx0z/storybook-app-server@workspace:app/server"],
+
+    "@zavx0z/storybook-app-server-browser": ["@zavx0z/storybook-app-server-browser@workspace:app/server/browser"],
+
+    "@zavx0z/storybook-app-server-catalog": ["@zavx0z/storybook-app-server-catalog@workspace:app/server/catalog"],
+
+    "@zavx0z/storybook-app-server-requests": ["@zavx0z/storybook-app-server-requests@workspace:app/server/requests"],
+
+    "@zavx0z/storybook-app-server-sessions": ["@zavx0z/storybook-app-server-sessions@workspace:app/server/sessions"],
+
+    "@zavx0z/storybook-app-server-state": ["@zavx0z/storybook-app-server-state@workspace:app/server/state"],
+
+    "@zavx0z/storybook-app-web": ["@zavx0z/storybook-app-web@workspace:app/web"],
+
+    "@zavx0z/storybook-app-web-build": ["@zavx0z/storybook-app-web-build@workspace:app/web/build"],
+
+    "@zavx0z/storybook-app-web-page": ["@zavx0z/storybook-app-web-page@workspace:app/web/page"],
+
+    "@zavx0z/storybook-app-web-page-agent-bridge": ["@zavx0z/storybook-app-web-page-agent-bridge@workspace:app/web/page/agent-bridge"],
+
+    "@zavx0z/storybook-app-web-page-client": ["@zavx0z/storybook-app-web-page-client@workspace:app/web/page/client"],
+
+    "@zavx0z/storybook-app-web-page-home": ["@zavx0z/storybook-app-web-page-home@workspace:app/web/page/home"],
+
+    "@zavx0z/storybook-app-web-page-navigation": ["@zavx0z/storybook-app-web-page-navigation@workspace:app/web/page/navigation"],
+
+    "@zavx0z/storybook-app-web-page-package": ["@zavx0z/storybook-app-web-page-package@workspace:app/web/page/package"],
+
+    "@zavx0z/storybook-app-web-page-package-scenario-inspector": ["@zavx0z/storybook-app-web-page-package-scenario-inspector@workspace:app/web/page/package/scenario/inspector"],
+
+    "@zavx0z/storybook-app-web-page-package-scenario-model": ["@zavx0z/storybook-app-web-page-package-scenario-model@workspace:app/web/page/package/scenario/model"],
+
+    "@zavx0z/storybook-app-web-page-package-scenario-preview": ["@zavx0z/storybook-app-web-page-package-scenario-preview@workspace:app/web/page/package/scenario/preview"],
+
+    "@zavx0z/storybook-app-web-page-package-scenario-result": ["@zavx0z/storybook-app-web-page-package-scenario-result@workspace:app/web/page/package/scenario/result"],
+
+    "@zavx0z/storybook-app-web-page-presentation": ["@zavx0z/storybook-app-web-page-presentation@workspace:app/web/page/presentation"],
+
+    "@zavx0z/storybook-app-web-page-shell": ["@zavx0z/storybook-app-web-page-shell@workspace:app/web/page/shell"],
+
+    "@zavx0z/storybook-app-web-page-shell-mcp-window": ["@zavx0z/storybook-app-web-page-shell-mcp-window@workspace:app/web/page/shell/mcp-window"],
+
+    "@zavx0z/storybook-app-web-page-shell-minimap": ["@zavx0z/storybook-app-web-page-shell-minimap@workspace:app/web/page/shell/minimap"],
+
+    "@zavx0z/storybook-app-web-page-shell-viewpoint-controls": ["@zavx0z/storybook-app-web-page-shell-viewpoint-controls@workspace:app/web/page/shell/viewpoint-controls"],
+
+    "@zavx0z/storybook-app-web-page-shell-viewpoint-tab": ["@zavx0z/storybook-app-web-page-shell-viewpoint-tab@workspace:app/web/page/shell/viewpoint-tab"],
+
+    "@zavx0z/storybook-app-web-page-shell-workbench": ["@zavx0z/storybook-app-web-page-shell-workbench@workspace:app/web/page/shell/workbench"],
+
+    "@zavx0z/storybook-app-web-page-shell-workbench-catalog": ["@zavx0z/storybook-app-web-page-shell-workbench-catalog@workspace:app/web/page/shell/workbench/catalog"],
+
+    "@zavx0z/storybook-app-web-page-shell-workbench-catalog-navigation": ["@zavx0z/storybook-app-web-page-shell-workbench-catalog-navigation@workspace:app/web/page/shell/workbench/catalog/navigation"],
+
+    "@zavx0z/storybook-app-web-page-status": ["@zavx0z/storybook-app-web-page-status@workspace:app/web/page/status"],
+
+    "@zavx0z/storybook-app-web-page-style-sheets": ["@zavx0z/storybook-app-web-page-style-sheets@workspace:app/web/page/style-sheets"],
+
+    "@zavx0z/storybook-app-web-page-target": ["@zavx0z/storybook-app-web-page-target@workspace:app/web/page/target"],
+
+    "@zavx0z/storybook-app-web-protocol": ["@zavx0z/storybook-app-web-protocol@workspace:app/web/protocol"],
+
+    "@zavx0z/storybook-app-web-release": ["@zavx0z/storybook-app-web-release@workspace:app/web/release"],
+
+    "@zavx0z/storybook-chat": ["@zavx0z/storybook-chat@workspace:chat"],
+
+    "@zavx0z/storybook-chat-session": ["@zavx0z/storybook-chat-session@workspace:chat/session"],
+
+    "@zavx0z/storybook-chat-view": ["@zavx0z/storybook-chat-view@workspace:chat/view"],
+
+    "@zavx0z/storybook-cluster": ["@zavx0z/storybook-cluster@workspace:cluster"],
+
+    "@zavx0z/storybook-cluster-mcp": ["@zavx0z/storybook-cluster-mcp@workspace:cluster/mcp"],
+
+    "@zavx0z/storybook-component": ["@zavx0z/storybook-component@workspace:component"],
+
+    "@zavx0z/storybook-component-mcp": ["@zavx0z/storybook-component-mcp@workspace:component/mcp"],
+
+    "@zavx0z/storybook-container": ["@zavx0z/storybook-container@workspace:container"],
+
+    "@zavx0z/storybook-container-mcp": ["@zavx0z/storybook-container-mcp@workspace:container/mcp"],
+
+    "@zavx0z/storybook-contracts": ["@zavx0z/storybook-contracts@workspace:contracts"],
+
+    "@zavx0z/storybook-domain": ["@zavx0z/storybook-domain@workspace:domain"],
+
+    "@zavx0z/storybook-domain-mcp": ["@zavx0z/storybook-domain-mcp@workspace:domain/mcp"],
+
+    "@zavx0z/storybook-package-activation": ["@zavx0z/storybook-package-activation@workspace:package/activation"],
+
+    "@zavx0z/storybook-package-artifacts": ["@zavx0z/storybook-package-artifacts@workspace:package/artifacts"],
+
+    "@zavx0z/storybook-package-build-conformance": ["@zavx0z/storybook-package-build-conformance@workspace:package/build/conformance"],
+
+    "@zavx0z/storybook-package-build-consumer-boundary": ["@zavx0z/storybook-package-build-consumer-boundary@workspace:package/build/consumer-boundary"],
+
+    "@zavx0z/storybook-package-build-descriptor": ["@zavx0z/storybook-package-build-descriptor@workspace:package/build/descriptor"],
+
+    "@zavx0z/storybook-package-build-inputs": ["@zavx0z/storybook-package-build-inputs@workspace:package/build/inputs"],
+
+    "@zavx0z/storybook-package-build-loader": ["@zavx0z/storybook-package-build-loader@workspace:package/build/loader"],
+
+    "@zavx0z/storybook-package-build-prepare": ["@zavx0z/storybook-package-build-prepare@workspace:package/build/prepare"],
+
+    "@zavx0z/storybook-package-build-scenarios": ["@zavx0z/storybook-package-build-scenarios@workspace:package/build/scenarios"],
+
+    "@zavx0z/storybook-package-build-scheduler": ["@zavx0z/storybook-package-build-scheduler@workspace:package/build/scheduler"],
+
+    "@zavx0z/storybook-package-documentation": ["@zavx0z/storybook-package-documentation@workspace:package/documentation"],
+
+    "@zavx0z/storybook-package-graph": ["@zavx0z/storybook-package-graph@workspace:package/graph"],
+
+    "@zavx0z/storybook-package-graph-create": ["@zavx0z/storybook-package-graph-create@workspace:package/graph/create"],
+
+    "@zavx0z/storybook-package-graph-read": ["@zavx0z/storybook-package-graph-read@workspace:package/graph/read"],
+
+    "@zavx0z/storybook-package-identity": ["@zavx0z/storybook-package-identity@workspace:package/identity"],
+
+    "@zavx0z/storybook-package-index": ["@zavx0z/storybook-package-index@workspace:package/index"],
+
+    "@zavx0z/storybook-package-mcp": ["@zavx0z/storybook-package-mcp@workspace:package/mcp"],
+
+    "@zavx0z/storybook-package-mcp-content": ["@zavx0z/storybook-package-mcp-content@workspace:package/mcp/content"],
+
+    "@zavx0z/storybook-package-mcp-navigation": ["@zavx0z/storybook-package-mcp-navigation@workspace:package/mcp/navigation"],
+
+    "@zavx0z/storybook-package-mcp-source": ["@zavx0z/storybook-package-mcp-source@workspace:package/mcp-source"],
+
+    "@zavx0z/storybook-package-metadata": ["@zavx0z/storybook-package-metadata@workspace:package/metadata"],
+
+    "@zavx0z/storybook-package-metadata-collect": ["@zavx0z/storybook-package-metadata-collect@workspace:package/metadata/collect"],
+
+    "@zavx0z/storybook-package-name": ["@zavx0z/storybook-package-name@workspace:package/name"],
+
+    "@zavx0z/storybook-package-package-json": ["@zavx0z/storybook-package-package-json@workspace:package/package-json"],
+
+    "@zavx0z/storybook-package-reader": ["@zavx0z/storybook-package-reader@workspace:package/reader"],
+
+    "@zavx0z/storybook-package-resources": ["@zavx0z/storybook-package-resources@workspace:package/resources"],
+
+    "@zavx0z/storybook-package-revision": ["@zavx0z/storybook-package-revision@workspace:package/revision"],
+
+    "@zavx0z/storybook-package-route-address": ["@zavx0z/storybook-package-route-address@workspace:package/route/address"],
+
+    "@zavx0z/storybook-package-route-children": ["@zavx0z/storybook-package-route-children@workspace:package/route/children"],
+
+    "@zavx0z/storybook-package-route-directories": ["@zavx0z/storybook-package-route-directories@workspace:package/route/directories"],
+
+    "@zavx0z/storybook-package-route-ignored": ["@zavx0z/storybook-package-route-ignored@workspace:package/route/ignored"],
+
+    "@zavx0z/storybook-package-route-resolve": ["@zavx0z/storybook-package-route-resolve@workspace:package/route/resolve"],
+
+    "@zavx0z/storybook-package-route-structure": ["@zavx0z/storybook-package-route-structure@workspace:package/route/structure"],
+
+    "@zavx0z/storybook-package-route-url": ["@zavx0z/storybook-package-route-url@workspace:package/route/url"],
+
+    "@zavx0z/storybook-package-route-workspaces": ["@zavx0z/storybook-package-route-workspaces@workspace:package/route/workspaces"],
+
+    "@zavx0z/storybook-package-session": ["@zavx0z/storybook-package-session@workspace:package/session"],
+
+    "@zavx0z/storybook-package-standard": ["@zavx0z/storybook-package-standard@workspace:package/standard"],
+
+    "@zavx0z/storybook-project": ["@zavx0z/storybook-project@workspace:project"],
+
+    "@zavx0z/storybook-project-mcp": ["@zavx0z/storybook-project-mcp@workspace:project/mcp"],
+
+    "@zavx0z/storybook-repo-mcp": ["@zavx0z/storybook-repo-mcp@workspace:repo/mcp"],
+
+    "@zavx0z/storybook-repo-reader": ["@zavx0z/storybook-repo-reader@workspace:repo/reader"],
+
+    "@zavx0z/storybook-specs-document": ["@zavx0z/storybook-specs-document@workspace:specs/document"],
+
+    "@zavx0z/storybook-specs-guide": ["@zavx0z/storybook-specs-guide@workspace:specs/guide"],
+
+    "@zavx0z/storybook-specs-presentation": ["@zavx0z/storybook-specs-presentation@workspace:specs/presentation"],
+
+    "@zavx0z/storybook-specs-reader": ["@zavx0z/storybook-specs-reader@workspace:specs/reader"],
+
+    "@zavx0z/storybook-specs-reference": ["@zavx0z/storybook-specs-reference@workspace:specs/reference"],
+
+    "@zavx0z/storybook-specs-scenarios": ["@zavx0z/storybook-specs-scenarios@workspace:specs/scenarios"],
+
+    "@zavx0z/storybook-specs-scenarios-reader": ["@zavx0z/storybook-specs-scenarios-reader@workspace:specs/scenarios/reader"],
+
+    "@zavx0z/storybook-specs-scenarios-reader-validation": ["@zavx0z/storybook-specs-scenarios-reader-validation@workspace:specs/scenarios/reader/validation"],
+
+    "@zavx0z/storybook-tech-acp": ["@zavx0z/storybook-tech-acp@workspace:tech/acp"],
+
+    "@zavx0z/storybook-tech-build-artifacts": ["@zavx0z/storybook-tech-build-artifacts@workspace:tech/build/artifacts"],
+
+    "@zavx0z/storybook-tech-build-compiler": ["@zavx0z/storybook-tech-build-compiler@workspace:tech/build/compiler"],
+
+    "@zavx0z/storybook-tech-build-environment": ["@zavx0z/storybook-tech-build-environment@workspace:tech/build/environment"],
+
+    "@zavx0z/storybook-tech-build-environment-protocol": ["@zavx0z/storybook-tech-build-environment-protocol@workspace:tech/build/environment/protocol"],
+
+    "@zavx0z/storybook-tech-build-queue": ["@zavx0z/storybook-tech-build-queue@workspace:tech/build/queue"],
+
+    "@zavx0z/storybook-tech-build-worker": ["@zavx0z/storybook-tech-build-worker@workspace:tech/build/worker"],
+
+    "@zavx0z/storybook-tech-hmr-connection": ["@zavx0z/storybook-tech-hmr-connection@workspace:tech/hmr/connection"],
+
+    "@zavx0z/storybook-tech-hmr-page": ["@zavx0z/storybook-tech-hmr-page@workspace:tech/hmr/page"],
+
+    "@zavx0z/storybook-tech-http-client": ["@zavx0z/storybook-tech-http-client@workspace:tech/http/client"],
+
+    "@zavx0z/storybook-tech-limits": ["@zavx0z/storybook-tech-limits@workspace:tech/limits"],
+
+    "@zavx0z/storybook-tech-mcp-lazy": ["@zavx0z/storybook-tech-mcp-lazy@workspace:tech/mcp/lazy"],
+
+    "@zavx0z/storybook-tech-mcp-progress": ["@zavx0z/storybook-tech-mcp-progress@workspace:tech/mcp/progress"],
+
+    "@zavx0z/storybook-tech-mcp-stdio": ["@zavx0z/storybook-tech-mcp-stdio@workspace:tech/mcp/stdio"],
+
+    "@zavx0z/storybook-tech-process-measure": ["@zavx0z/storybook-tech-process-measure@workspace:tech/process/measure"],
+
+    "@zavx0z/storybook-tech-process-sample": ["@zavx0z/storybook-tech-process-sample@workspace:tech/process/sample"],
+
+    "@zavx0z/storybook-tech-process-wait": ["@zavx0z/storybook-tech-process-wait@workspace:tech/process/wait"],
+
+    "@zavx0z/storybook-tech-testing-browser-root": ["@zavx0z/storybook-tech-testing-browser-root@workspace:tech/testing/browser-root"],
+
+    "@zavx0z/storybook-typedoc": ["@zavx0z/storybook-typedoc@workspace:typedoc"],
 
     "anynum": ["anynum@1.0.1", "", {}, "sha512-N6//FLET/tXYNM/F6ABca1oH6fWB+KlTt909Le28WMDBk8oaT4vY17DCrwg2MvmuqUKt3Ni4N5dGJ/EoBgcO6A=="],
 

@@ -62,7 +62,7 @@ type StorybookSharedHost = Awaited<ReturnType<Zavx0zStorybookAppWebProtocol.Outp
 import {resolveStorybookRoute} from "./src/route"
 import {createStorybookScenarioRunner} from "./src/scenario-run"
 import {streamScenarioRun} from "./src/scenario-stream"
-import {storybookMcpEntries} from "./src/mcp-entries"
+import storybookMcpEntries from "@zavx0z/storybook-package-mcp-source"
 import {readMcpEntityType} from "./src/mcp-type"
 import {createChatServer} from "./src/chat"
 import proxyContent from "@zavx0z/storybook-app-mcp-response"

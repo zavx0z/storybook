@@ -1,18 +1,17 @@
 import {describe, expect, test} from "bun:test"
-import readDomainMcp from "@zavx0z/storybook-domain-mcp"
+import readMcp from "@zavx0z/storybook-domain-mcp"
+
+const selected = {path: "example/owner", label: "Владелец", description: "Назначение сущности.", parent: "example"}
+const child = {path: "example/owner/part", label: "Участник", description: "Назначение участника.", parent: selected.path}
 
 describe.each([
-  {name: "Domain в проекте", props: {path: "example/domain"}},
-  {name: "Другой Domain", props: {path: "another/domain"}},
-])("$name", ({props}) => {
-  const result = readDomainMcp(props)
-
-  test("Предметный вход", () => {
-    expect(result, "Выбранный адрес сохраняется; отсутствие реализации Domain MCP выражено явно")
-      .toEqual({
-        path: props.path,
-        status: "not-implemented",
-        description: "Предметный MCP для Domain ещё не реализован.",
-      })
+  {name: "Domain без вложенных направлений", props: {selected, entries: [{...selected}]}, children: []},
+  {name: "Domain с вложенным направлением", props: {selected, entries: [{...selected}, {...child}]},
+    children: [{path: child.path, label: child.label, description: child.description}]},
+])("$name", async ({props, children}) => {
+  const result = await readMcp(props)
+  test("Содержание владельца", () => {
+    expect(result, "Предметный MCP возвращает авторское назначение и только непосредственные переходы")
+      .toEqual({description: selected.description, path: selected.path, label: selected.label, children})
   })
 })

@@ -1,0 +1,14 @@
+{
+  "name": "@zavx0z/storybook-package-mcp-content",
+  "label": "Содержимое MCP",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Читает схемы контрактов и исходники сценариев выбранного владельца",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "@zavx0z/storybook-package-metadata-collect": "workspace:*"
+  }
+}

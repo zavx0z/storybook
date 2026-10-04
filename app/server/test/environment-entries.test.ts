@@ -8,7 +8,7 @@ import createGraph from "@zavx0z/storybook-package-graph-create"
 import revision from "@zavx0z/storybook-package-revision"
 import rest from "@zavx0z/storybook-app-mcp-rest"
 import resolveRoute from "@zavx0z/storybook-package-route-resolve"
-import {storybookMcpEntries} from "../src/mcp-entries"
+import storybookMcpEntries from "@zavx0z/storybook-package-mcp-source"
 import {resolveStorybookRoute} from "../src/route"
 
 test("MCP и сериализованная ревизия сохраняют оба средовых протокола без смешения", async () => {
