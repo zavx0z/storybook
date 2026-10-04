@@ -16,7 +16,7 @@ test("настройки не запускают prompt; модель обнов
   let prompts = 0
   const changes: unknown[] = []
   const chats = createSessions({
-    directory,
+    directory: () => directory,
     resolve: address => ({address, label: "Chat", cwd: directory}),
     async connect(value) {
       input = value
@@ -86,7 +86,7 @@ test("подготовка настроек публикует этапы и о�
   const directory = await mkdtemp(join(tmpdir(), "chat-prepare-cancel-"))
   const started = Promise.withResolvers<void>()
   const chats = createSessions({
-    directory,
+    directory: () => directory,
     resolve: address => ({address, label: "Chat", cwd: directory}),
     async connect(input) {
       input.onProgress?.("initialize")

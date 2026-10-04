@@ -64,6 +64,13 @@ export default class ExternalStorybookRegistry {
     })
   }
 
+  /** Записывает результаты читателей у владельцев; сериализация и запись выполняются вне HTTP-потока. */
+  async saveMetadata(project: Readonly<{root: string, name: string}>): Promise<Readonly<{owners: number, changed: number}>> {
+    const result = await this.#runWorker({kind: "save-metadata", project, snapshot: this.snapshot()})
+    if (result.kind !== "metadata-saved") throw new Error("Catalog worker returned a different operation")
+    return result.result
+  }
+
   async configure(roots: readonly string[]): Promise<ExternalStorybookRegistrySnapshot> {
     return this.#resolve(roots, roots.map(() => "direct-package"))
   }

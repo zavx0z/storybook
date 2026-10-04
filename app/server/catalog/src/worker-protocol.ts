@@ -7,13 +7,14 @@ export type CatalogPreparation = Readonly<{
   unchangedPackageIds: readonly string[]
 }>
 
-export type CatalogWorkerInput = Readonly<{roots: readonly string[], dirtyScopeRoots?: readonly string[]}> & (
+export type CatalogWorkerInput = (Readonly<{roots: readonly string[], dirtyScopeRoots?: readonly string[]}> & (
   Readonly<{kind: "prepare", catalog?: Zavx0zStorybookRepoDiscovery.Output, previous: ExternalStorybookRegistrySnapshot, sources: readonly ExternalStorybookAttachSource[], styles: ReturnType<NonNullable<Zavx0zStorybookAppServerCatalog.Input[1]>>}>
   | Readonly<{kind: "discover", previous?: Zavx0zStorybookRepoDiscovery.Output}>
-)
+)) | Readonly<{kind: "save-metadata", project: Readonly<{root: string, name: string}>, snapshot: ExternalStorybookRegistrySnapshot}>
 
 export type CatalogWorkerResult = Readonly<{kind: "prepared", result: CatalogPreparation}>
   | Readonly<{kind: "discovered", catalog: Zavx0zStorybookRepoDiscovery.Output}>
+  | Readonly<{kind: "metadata-saved", result: Readonly<{owners: number, changed: number}>}>
 export type CatalogWorkerMessage = Readonly<{type: "analysis", kind: "contract" | "dependency"}>
   | Readonly<{type: "result", result: CatalogWorkerResult}>
   | Readonly<{type: "failure", message: string}>

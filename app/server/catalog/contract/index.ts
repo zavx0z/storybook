@@ -18,6 +18,7 @@ export declare namespace Zavx0zStorybookAppServerCatalog {
   /**
   Управление составом и наблюдаемой актуальностью каталога.
   @property snapshot - Читает текущий снимок без обнаружения или сборки.
+  @property saveMetadata - Сохраняет собранные сведения в meta/data пакетов и дерево в meta/data Project.
   @property configure - Атомарно заменяет выбранный набор корней после успешного чтения.
   @property attach - Подключает один корень, сохраняя остальных владельцев.
   @property attachMany - Подключает набор корней одной операцией.
@@ -35,6 +36,7 @@ export declare namespace Zavx0zStorybookAppServerCatalog {
     /** Отменяет незавершённую подготовку и освобождает worker. */
     dispose(): Promise<void>
     snapshot(): ExternalStorybookRegistrySnapshot
+    saveMetadata(project: Readonly<{root: string, name: string}>): Promise<Readonly<{owners: number, changed: number}>>
     configure(roots: readonly string[]): Promise<ExternalStorybookRegistrySnapshot>
     attach(input: string, attachSource?: ExternalStorybookAttachSource): Promise<ExternalStorybookRegistrySnapshot>
     attachMany(inputs: readonly string[], attachSource?: ExternalStorybookAttachSource): Promise<ExternalStorybookRegistrySnapshot>

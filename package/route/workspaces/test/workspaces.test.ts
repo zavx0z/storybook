@@ -38,6 +38,14 @@ test("watches partial nested matches before the final directory exists", async (
   expect(result.inputs).toContain(join(root, "packages/a"))
 })
 
+test("meta остаётся данными владельца и не становится пакетом или входом наблюдения", async () => {
+  const root = await fixture()
+  await Bun.write(join(root, "packages/a/meta/data/package.json"), JSON.stringify({name: "generated-data"}))
+  const result = await readWorkspacePackages({root, value: ["packages/**"]})
+  expect(result.roots.some(path => path.includes("/meta/"))).toBeFalse()
+  expect(result.inputs.some(path => path.includes("/meta/") || path.endsWith("/meta"))).toBeFalse()
+})
+
 test("rejects escaping patterns and symlink packages", async () => {
   const root = await fixture()
   for (const patterns of [["../*"], ["/tmp/*"], ["{../*,plain}"], ["."]]) {

@@ -2,6 +2,7 @@ import {lstat, readdir, realpath} from "node:fs/promises"
 import {isAbsolute, relative, resolve, sep} from "node:path"
 
 const privateNames = new Set([
+  "meta",
   "src",
   "spec",
   "contract",

@@ -20,7 +20,7 @@ async function fixture(connect: Zavx0zStorybookChatSession.Input["connect"]) {
   cleanup.push(() => rm(root, {recursive: true, force: true}))
   let addresses = new Set(["/old"])
   const input: Zavx0zStorybookChatSession.Input = {
-    directory,
+    directory: () => directory,
     resolve(address) {
       if (!addresses.has(address)) throw new Error("Адрес отсутствует в текущем каталоге")
       return {address, label: address, cwd: address === "/old" ? oldCwd : newCwd}
@@ -149,7 +149,7 @@ test("ошибка официального ACP resume сохраняет пре
   f.select("/new")
   const attempts: (string | undefined)[] = []
   const restored = createChatSessions({
-    directory: f.directory,
+    directory: () => f.directory,
     resolve: address => ({address, label: address, cwd: f.newCwd}),
     async connect(input) {
       attempts.push(input.previousSessionId)

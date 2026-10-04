@@ -7,12 +7,14 @@ export declare namespace Zavx0zStorybookChatSession {
   /**
   Хранение и предоставленные приложением возможности исполнения.
 
-  @property directory - Каталог историй внутри Project, независимый от cache и сборочных ревизий.
+  @property directory - Возвращает каталог истории у выбранного владельца, независимый от cache и сборочных ревизий.
+  @property [legacyDirectory] - Прежний общий каталог для переноса существующих историй без изменения сообщений и identity.
   @property resolve - Разрешает точный адрес по действующему каталогу и возвращает его владельца.
   @property connect - Создаёт ACP-подключение с контекстом указанного предмета при первом сообщении или явной подготовке настроек.
   */
   type Input = Readonly<{
-    directory: string
+    directory(subject: Pick<Subject, "address" | "cwd">): string
+    legacyDirectory?: string
     resolve(address: string): Subject
     connect(input: Readonly<{
       subject: Subject
@@ -36,8 +38,11 @@ export declare namespace Zavx0zStorybookChatSession {
   сохраняя id, сообщения и ACP sessionId. При активном turn или занятой цели
   отказывает без перезаписи. Старый файл остаётся для восстановления.
   @property dispose - Отменяет работу, закрывает подключения и дожидается записи историй.
+  @property migrateLegacy - Копирует известные истории из прежнего общего каталога к владельцам без запуска агентов.
+  Истории неразрешённых адресов сохраняются на прежнем месте; существующие назначения не перезаписываются.
   */
   type Output = Readonly<{
+    migrateLegacy(): Promise<Readonly<{migrated: number, unresolved: readonly string[]}>>
     read(address: string): Promise<Snapshot>
     /** Подключает агента для получения настроек без prompt и генерации ответа. */
     prepare(address: string): Promise<Snapshot>

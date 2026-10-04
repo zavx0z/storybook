@@ -7,3 +7,5 @@ coverage/
 .cache/
 /tmp/
 /.local/
+**/meta/data/
+**/meta/date/

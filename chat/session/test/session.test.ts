@@ -15,7 +15,7 @@ async function fixture(connect: Zavx0zStorybookChatSession.Input["connect"]) {
   cleanup.push(() => rm(root, {recursive: true, force: true}))
   const directory = join(root, "chats")
   const input: Zavx0zStorybookChatSession.Input = {
-    directory,
+    directory: () => directory,
     resolve(address) {
       if (!["/", "/button", "/input"].includes(address)) throw new Error("Неизвестный адрес")
       return {address, label: address, cwd: root}

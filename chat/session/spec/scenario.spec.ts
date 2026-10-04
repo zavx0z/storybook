@@ -11,7 +11,7 @@ describe.each([
 ])("$name", async ({props}) => {
   const directory = await mkdtemp(join(tmpdir(), "chat-scenario-"))
   const sessions = createChatSessions({
-    directory,
+    directory: () => directory,
     resolve: address => ({address, label: props.label, cwd: directory}),
     async connect(input) {
       return {

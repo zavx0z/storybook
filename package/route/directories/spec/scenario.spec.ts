@@ -12,6 +12,8 @@ describe.each([
   afterAll(() => rm(root, {recursive: true, force: true}))
   await mkdir(join(root, "controls"))
   await mkdir(join(root, "src"))
+  await mkdir(join(root, "meta/data"), {recursive: true})
+  await writeFile(join(root, "meta/index.ts"), "export const generated = true\n")
   await writeFile(join(root, "controls", props.entry), "export const example = true\n")
 
   const result = await readDirectories({root, parent: root, repository: null})
@@ -24,5 +26,7 @@ describe.each([
   test("Приватный каталог скрыт", () => {
     expect(result.directories.map(directory => directory.name), "Служебный src не входит в структурную навигацию")
       .not.toContain("src")
+    expect(result.directories.map(directory => directory.name), "Собранные данные и истории в meta не входят в дерево исходников")
+      .not.toContain("meta")
   })
 })

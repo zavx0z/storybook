@@ -28,7 +28,8 @@ export function createChatServer(options: Readonly<{
     return {address: node.urlPath, label: node.label, cwd: node.kind === "package" || node.kind === "entry" ? dirname(node.source.path) : node.source.path}
   }
   const chats = createChatSessions({
-    directory: join(options.project, "chats"),
+    directory: subject => join(subject.cwd, "meta/chat"),
+    legacyDirectory: join(options.project, "chats"),
     resolve,
     async connect(input) {
       const key = randomBytes(32).toString("hex")

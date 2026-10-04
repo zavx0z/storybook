@@ -6,8 +6,8 @@
 @packageDocumentation
 */
 import {createHash, randomUUID} from "node:crypto"
-import {link, mkdir, readFile, rename, unlink, writeFile} from "node:fs/promises"
-import {isAbsolute, join} from "node:path"
+import {link, mkdir, readFile, readdir, rename, unlink, writeFile} from "node:fs/promises"
+import {dirname, isAbsolute, join} from "node:path"
 import type {Zavx0zStorybookTechAcp} from "@zavx0z/storybook-tech-acp"
 import type {Zavx0zStorybookChatSession} from "./contract"
 import type {Message, Permission, Snapshot, Subject, Setting, ContextUsage} from "./contract/state"
@@ -75,7 +75,7 @@ export default function createChatSessions(input: Zavx0zStorybookChatSession.Inp
   const save = (state: State): Promise<void> => {
     const text = `${JSON.stringify(state.document, null, 2)}\n`
     state.write = state.write.catch(() => {}).then(async () => {
-      await mkdir(input.directory, {recursive: true})
+      await mkdir(dirname(state.file), {recursive: true})
       const temporary = `${state.file}.${randomUUID()}.tmp`
       await writeFile(temporary, text, {mode: 0o600})
       await rename(temporary, state.file)
@@ -89,19 +89,21 @@ export default function createChatSessions(input: Zavx0zStorybookChatSession.Inp
     let pending = states.get(subject.address)
     if (pending === undefined) {
       pending = (async () => {
-        const file = chatFile(input.directory, subject.address)
-        const id = createHash("sha256").update(input.directory).update("\0").update(subject.address).digest("hex")
+        const directory = input.directory(subject)
+        const file = chatFile(directory, subject.address)
+        const id = createHash("sha256").update(input.legacyDirectory ?? directory).update("\0").update(subject.address).digest("hex")
         let document: Document = {schemaVersion: 1, id, address: subject.address, messages: [], status: "idle", error: null}
-        try {
-          const value: unknown = JSON.parse(await readFile(file, "utf8"))
-          if (!validDocument(value, subject.address)) throw new Error(`Повреждена история чата ${subject.address}`)
+        let value = await readChatDocument(file, subject.address)
+        if (value === null && input.legacyDirectory !== undefined) {
+          const legacy = await readChatDocument(chatFile(input.legacyDirectory, subject.address), subject.address)
+          if (legacy !== null) value = await copyHistory(file, legacy)
+        }
+        if (value !== null) {
           document = value
           if (document.status === "connecting" || document.status === "running") {
             document.status = "failed"
             document.error = "Предыдущее выполнение прервано остановкой сервера. Сообщение автоматически не повторялось."
           }
-        } catch (error) {
-          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error
         }
         return {subject, id: document.id, file, document, version: 0, cancelled: false, lifetime: new AbortController(), listeners: new Set(), permissions: new Map(), write: Promise.resolve()}
       })()
@@ -234,6 +236,32 @@ export default function createChatSessions(input: Zavx0zStorybookChatSession.Inp
     }
   }
   return {
+    async migrateLegacy() {
+      if (disposed) throw new Error("Чаты остановлены")
+      if (input.legacyDirectory === undefined) return {migrated: 0, unresolved: []}
+      const files = await readdir(input.legacyDirectory, {withFileTypes: true}).catch(error => {
+        if (error.code !== "ENOENT") throw error
+        return []
+      })
+      let migrated = 0
+      const unresolved: string[] = []
+      for (const entry of files) {
+        if (!entry.isFile() || !/^[a-f0-9]{64}\.json$/u.test(entry.name)) continue
+        const file = join(input.legacyDirectory, entry.name)
+        const raw: unknown = JSON.parse(await readFile(file, "utf8"))
+        const address = raw !== null && typeof raw === "object" && "address" in raw ? raw.address : undefined
+        if (typeof address !== "string" || !validDocument(raw, address) || chatFile(input.legacyDirectory, address) !== file) {
+          throw new Error("Повреждена прежняя история чата")
+        }
+        let subject: Subject
+        try { subject = input.resolve(address) } catch { unresolved.push(address); continue }
+        const target = chatFile(input.directory(subject), address)
+        if (target === file || await readChatDocument(target, address) !== null) continue
+        await copyHistory(target, raw)
+        migrated += 1
+      }
+      return {migrated, unresolved}
+    },
     async read(address) { return snapshot(await load(address)) },
     async prepare(address) {
       const state = await load(address)
@@ -344,8 +372,8 @@ export default function createChatSessions(input: Zavx0zStorybookChatSession.Inp
         if (subject.address !== to.address || subject.cwd !== to.cwd) {
           throw new Error("Новый адрес и cwd не совпадают с текущим каталогом")
         }
-        const oldFile = chatFile(input.directory, from.address)
-        const newFile = chatFile(input.directory, to.address)
+        const oldFile = chatFile(input.directory(from), from.address)
+        const newFile = chatFile(input.directory(to), to.address)
         const current = await states.get(from.address)
         const existing = await states.get(to.address)
         if (current?.turn !== undefined || current?.permissions.size ||
@@ -356,6 +384,7 @@ export default function createChatSessions(input: Zavx0zStorybookChatSession.Inp
         }
         await current?.write
         const source = await readChatDocument(oldFile, from.address)
+          ?? (input.legacyDirectory === undefined ? null : await readChatDocument(chatFile(input.legacyDirectory, from.address), from.address))
         if (source === null) return null
         if (current !== undefined && (current.id !== source.id || current.document.address !== from.address)) {
           throw new Error("Загруженная беседа не совпадает с сохранённой историей")
@@ -389,7 +418,7 @@ export default function createChatSessions(input: Zavx0zStorybookChatSession.Inp
             address: to.address,
             ...(source.cwd === undefined ? {} : {cwd: to.cwd}),
           }
-          await mkdir(input.directory, {recursive: true})
+          await mkdir(dirname(newFile), {recursive: true})
           const temporary = `${newFile}.${randomUUID()}.tmp`
           try {
             await writeFile(temporary, `${JSON.stringify(document, null, 2)}\n`, {mode: 0o600, flag: "wx"})
@@ -447,6 +476,24 @@ export default function createChatSessions(input: Zavx0zStorybookChatSession.Inp
 
 function chatFile(directory: string, address: string): string {
   return join(directory, `${createHash("sha256").update(address).digest("hex")}.json`)
+}
+
+/** Переносит прежнюю историю в хранилище владельца без перезаписи занятого назначения. */
+async function copyHistory(file: string, document: Document): Promise<Document> {
+  await mkdir(dirname(file), {recursive: true})
+  const temporary = `${file}.${randomUUID()}.tmp`
+  try {
+    await writeFile(temporary, `${JSON.stringify(document, null, 2)}\n`, {mode: 0o600, flag: "wx"})
+    await link(temporary, file)
+    return document
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error
+    const concurrent = await readChatDocument(file, document.address)
+    if (concurrent?.id !== document.id) throw new Error("Назначение уже занято другой историей")
+    return concurrent
+  } finally {
+    await unlink(temporary).catch(error => { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error })
+  }
 }
 
 async function readChatDocument(file: string, address: string): Promise<Document | null> {

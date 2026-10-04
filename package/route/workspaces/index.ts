@@ -59,7 +59,7 @@ export default async function readWorkspacePackages({root, value}: Zavx0zStorybo
     .map(pattern => new Glob(pattern.slice(1)))
   const roots = new Set<string>()
   const inputs = new Set([root])
-  const admitted = (path: string) => !path.split("/").some(part => part === "node_modules" || part === ".git") &&
+  const admitted = (path: string) => !path.split("/").some(part => part === "node_modules" || part === ".git" || part === "meta") &&
     !exclusions.some(pattern => pattern.match(path) || pattern.match(`${path}/`))
   for (const pattern of patterns.filter(pattern => !pattern.startsWith("!"))) {
     // Observe intermediate directories too, including those whose final package does not exist yet.

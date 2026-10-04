@@ -190,6 +190,7 @@ export default async function startExternalStorybookServer(
   const sharedAssetRoot = web.artifactRoot
   try {
     await registry.configure(project.repositories.map(repository => repository.root))
+    await registry.saveMetadata(project)
     options.onStartupPhase?.("sessions")
   } catch (error) {
     await registry.dispose()
@@ -263,7 +264,10 @@ export default async function startExternalStorybookServer(
     const beforeProject = project
     try {
       const snapshot = await operation()
-      if (snapshot.revision !== before.revision || project.name !== beforeProject.name) commitRegistry(snapshot)
+      if (snapshot.revision !== before.revision || project.name !== beforeProject.name) {
+        await registry.saveMetadata(project)
+        commitRegistry(snapshot)
+      }
       return snapshot
     } catch (error) {
       project = beforeProject
@@ -476,6 +480,7 @@ export default async function startExternalStorybookServer(
   })
   try {
     await options.migrateChats?.(chat.chats, registry.snapshot().graph)
+    await chat.chats.migrateLegacy()
     options.onStartupPhase?.("listen")
     server = Bun.serve<WebSocketData>({
       hostname: options.hostname ?? "127.0.0.1",
