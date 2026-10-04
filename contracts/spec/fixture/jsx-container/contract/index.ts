@@ -1,8 +1,8 @@
 import type {JSX} from "@zavx0z/immersive-jsx"
-import type {ContractFixturePart} from "../part/index"
+import type {StorybookContractsSpecFixtureJsxContainerPart} from "../part/index"
 
 /** Формы взаимодействия самостоятельного владельца примера. */
-export declare namespace ContractFixtureWorkspace {
+export declare namespace StorybookContractsSpecFixtureJsxContainer {
   /**
   Данные композиции рабочей области и её части.
 
@@ -10,7 +10,7 @@ export declare namespace ContractFixtureWorkspace {
 
   @property content - Вход принадлежащей части, сохраняющий её типовой контракт.
   */
-  type Input = {readonly title: string, readonly content: ContractFixturePart.Input}
+  type Input = {readonly title: string, readonly content: StorybookContractsSpecFixtureJsxContainerPart.Input}
   /**
   Области содержимого общей композиции.
 

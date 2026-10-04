@@ -1,12 +1,12 @@
-import type {Zavx0zStorybookTechHmrConnection} from "@zavx0z/storybook-tech-hmr-connection"
-import type {Zavx0zStorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
+import type {StorybookTechHmrConnection} from "@zavx0z/storybook-tech-hmr-connection"
+import type {StorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
 import type {ExternalStorybookClientSnapshot, LandingSocket} from "./types"
 
-type CreateExternalStorybookShellOptions = Zavx0zStorybookAppWebPageShell.Input
-type ExternalStorybookShell = Zavx0zStorybookAppWebPageShell.Output
+type CreateExternalStorybookShellOptions = StorybookAppWebPageShell.Input
+type ExternalStorybookShell = StorybookAppWebPageShell.Output
 
 /** Публичный контракт @page/home. */
-export declare namespace Zavx0zStorybookAppWebPageHome {
+export declare namespace StorybookAppWebPageHome {
   type Input = Readonly<{
     fetcher?: typeof fetch
     browserDocument?: globalThis.Document
@@ -21,7 +21,7 @@ export declare namespace Zavx0zStorybookAppWebPageHome {
       shell: ExternalStorybookShell
       initialPathname: string
       refreshSharedHost?(): Promise<void>
-      reconnectSocket?(): Promise<Zavx0zStorybookTechHmrConnection.Input["socket"]>
+      reconnectSocket?(): Promise<StorybookTechHmrConnection.Input["socket"]>
       navigatePackage(input: Readonly<{packageId: string; route: string}>): Promise<void>
     }>
   }>

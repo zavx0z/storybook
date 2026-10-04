@@ -5,7 +5,7 @@ import type {
   StorybookSharedBrowserModuleEntry,
 } from "./types"
 
-export declare namespace Zavx0zStorybookTechBuildEnvironment {
+export declare namespace StorybookTechBuildEnvironment {
   /**
   Публичная таблица определения и проверки общей browser-среды.
   `identity` возвращает проверенную эпоху; чтение файлов и разрешение модулей

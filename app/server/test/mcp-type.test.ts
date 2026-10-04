@@ -3,12 +3,12 @@ import {mkdtemp, readFile, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join, resolve} from "node:path"
 import storybookRest from "@zavx0z/storybook-app-mcp-rest"
-import type {Zavx0zStorybookPackageSession} from "@zavx0z/storybook-package-session"
-import type {Zavx0zStorybookAppServerCatalog} from "@zavx0z/storybook-app-server-catalog"
+import type {StorybookPackageSession} from "@zavx0z/storybook-package-session"
+import type {StorybookAppServerCatalog} from "@zavx0z/storybook-app-server-catalog"
 import {readMcpEntityType} from "../src/mcp-type"
 import storybookMcpEntries from "@zavx0z/storybook-package-mcp-source"
 
-type Snapshot = ReturnType<Zavx0zStorybookAppServerCatalog.Output["snapshot"]>
+type Snapshot = ReturnType<StorybookAppServerCatalog.Output["snapshot"]>
 const releases: (() => Promise<void>)[] = []
 afterEach(async () => { for (const release of releases.splice(0)) await release() })
 const types = ["Repo", "Component", "Container", "Cluster", "Domain"] as const
@@ -28,7 +28,7 @@ async function fixture(type: typeof types[number] = "Component") {
   let released = 0
   const session = {descriptor, snapshot: () => state, revisionGraphSnapshot: () => graph, revisionDirectory: () => directory,
     acquireRevisionLease: () => ({release: () => { released += 1 }}),
-  } as unknown as Zavx0zStorybookPackageSession.Output
+  } as unknown as StorybookPackageSession.Output
   const sessions = {session: () => session}
   const groups = [
     {id: 0, parentId: null, label: "Архетип пакета", mode: "run", parameters: {props: {path: directory}}},

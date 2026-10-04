@@ -1,5 +1,5 @@
-import {type Zavx0zStorybookPackageMetadataCollect as PackageMetadataCollectContract} from "@zavx0z/storybook-package-metadata-collect"
-import AppServerCatalogOwner, {type Zavx0zStorybookAppServerCatalog as AppServerCatalogContract} from "@zavx0z/storybook-app-server-catalog"
+import {type StorybookPackageMetadataCollect as PackageMetadataCollectContract} from "@zavx0z/storybook-package-metadata-collect"
+import AppServerCatalogOwner, {type StorybookAppServerCatalog as AppServerCatalogContract} from "@zavx0z/storybook-app-server-catalog"
 import PackageGraphReadOwner from "@zavx0z/storybook-package-graph-read"
 const ExternalStorybookRegistry = AppServerCatalogOwner
 const externalStorybookNode = PackageGraphReadOwner.node

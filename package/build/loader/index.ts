@@ -5,26 +5,26 @@
 @packageDocumentation
 */
 import {isAbsolute, normalize} from "node:path"
-import type {Zavx0zStorybookSpecsScenariosReader} from "@zavx0z/storybook-specs-scenarios-reader"
+import type {StorybookSpecsScenariosReader} from "@zavx0z/storybook-specs-scenarios-reader"
 import type {
   GeneratedScenario as StorybookGeneratedScenario,
   LoaderInput as StorybookGeneratedLoaderInput,
   RevisionPayloadInput as StorybookGeneratedRevisionPayloadInput,
 } from "./contract/loader"
-import type {Zavx0zStorybookPackageBuildLoader} from "./contract"
+import type {StorybookPackageBuildLoader} from "./contract"
 
-export type {Zavx0zStorybookPackageBuildLoader} from "./contract"
+export type {StorybookPackageBuildLoader} from "./contract"
 /** Форма исходного публичного владельца. */
-type Zavx0zStorybookAppWebPagePackageScenarioPreview = NonNullable<Zavx0zStorybookSpecsScenariosReader.Output["preview"]>
+type StorybookAppWebPagePackageScenarioPreview = NonNullable<StorybookSpecsScenariosReader.Output["preview"]>
 type StorybookGeneratedModule = Readonly<{path: string; export: string}>
-type StorybookGeneratedScenarioVariant = Extract<Zavx0zStorybookAppWebPagePackageScenarioPreview, {kind: "component"}>["variants"][number]
+type StorybookGeneratedScenarioVariant = Extract<StorybookAppWebPagePackageScenarioPreview, {kind: "component"}>["variants"][number]
 import Identity from "@zavx0z/storybook-package-identity"
 const {
   export: validateExternalStorybookExportName,
   package: validateExternalStorybookPackageId,
 } = Identity
 
-type FunctionScenarioVariant = Extract<Zavx0zStorybookAppWebPagePackageScenarioPreview, {kind: "function"}>["variants"][number]
+type FunctionScenarioVariant = Extract<StorybookAppWebPagePackageScenarioPreview, {kind: "function"}>["variants"][number]
 
 const STORYBOOK_REVISION_PAYLOAD_FILE = "revision-payload.js" as const
 
@@ -426,7 +426,7 @@ function generateStorybookJsxModules(scenarios: readonly StorybookGeneratedScena
 }
 
 /** Совместно предоставляет исходники browser loader, payload и slot-модулей ревизии. */
-const loader: Zavx0zStorybookPackageBuildLoader.Output = Object.freeze({
+const loader: StorybookPackageBuildLoader.Output = Object.freeze({
   payloadFile: STORYBOOK_REVISION_PAYLOAD_FILE,
   generateLoaderSource: generateStorybookLoaderSource,
   generateRevisionPayloadSource: generateStorybookRevisionPayloadSource,

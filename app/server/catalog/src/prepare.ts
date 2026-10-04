@@ -1,17 +1,17 @@
 import createGraph from "@zavx0z/storybook-package-graph-create"
 import createDescriptors from "@zavx0z/storybook-package-build-descriptor"
 import {createEntries} from "./helpers"
-import type {Zavx0zStorybookAppServerCatalog} from "../contract"
+import type {StorybookAppServerCatalog} from "../contract"
 import type {ExternalStorybookAttachSource, ExternalStorybookRegistrySnapshot} from "../contract/models"
-import type {Zavx0zStorybookPackageMetadataCollect} from "@zavx0z/storybook-package-metadata-collect"
+import type {StorybookPackageMetadataCollect} from "@zavx0z/storybook-package-metadata-collect"
 import type {CatalogPreparation} from "./worker-protocol"
 
 /** Граф и индексы готовятся до публикации дерева; сравнение не раскрывает тексты ресурсов. */
 export function prepareCatalogSnapshot(
-  catalog: Zavx0zStorybookPackageMetadataCollect.Output,
+  catalog: StorybookPackageMetadataCollect.Output,
   sources: readonly ExternalStorybookAttachSource[],
   previous: ExternalStorybookRegistrySnapshot,
-  styles: ReturnType<NonNullable<Zavx0zStorybookAppServerCatalog.Input[1]>>,
+  styles: ReturnType<NonNullable<StorybookAppServerCatalog.Input[1]>>,
 ): CatalogPreparation {
   const graph = createGraph(catalog)
   const failed = new Set(catalog.scopes.filter(scope => scope.resolutionError !== undefined).map(scope => scope.id))

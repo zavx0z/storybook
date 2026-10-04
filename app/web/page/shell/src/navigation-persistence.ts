@@ -1,5 +1,5 @@
-import type {Zavx0zStorybookAppWebPageShellWorkbenchCatalog} from "@zavx0z/storybook-app-web-page-shell-workbench-catalog"
-type NavigationExpansion = NonNullable<Zavx0zStorybookAppWebPageShellWorkbenchCatalog.Input["navigationExpansion"]>
+import type {StorybookAppWebPageShellWorkbenchCatalog} from "@zavx0z/storybook-app-web-page-shell-workbench-catalog"
+type NavigationExpansion = NonNullable<StorybookAppWebPageShellWorkbenchCatalog.Input["navigationExpansion"]>
 
 const STORAGE_KEY = "storybook.navigation-tree.v1"
 const MAX_IDS = 4096

@@ -17,9 +17,9 @@ import {prepareStorybookDirectories, completeStorybookDirectories, type Prepared
 import {readContractDocumentationResults, type ContractDocumentationResult} from "./src/contract-documentation"
 import Identity from "@zavx0z/storybook-package-identity"
 const {package: validateExternalStorybookPackageId} = Identity
-import type {Zavx0zStorybookPackageMetadataCollect} from "./contract"
+import type {StorybookPackageMetadataCollect} from "./contract"
 
-export type {Zavx0zStorybookPackageMetadataCollect} from "./contract"
+export type {StorybookPackageMetadataCollect} from "./contract"
 
 /**
 Читает package.json выбранного пакета и относящийся к нему состав workspaces его Repo.
@@ -31,10 +31,10 @@ export type {Zavx0zStorybookPackageMetadataCollect} from "./contract"
 его владельца, а ошибка общей session помечает все зависящие от неё scope.
 */
 export default async function discoverStorybookPackages(
-  inputs: Zavx0zStorybookPackageMetadataCollect.Input[0],
-  previous?: Zavx0zStorybookPackageMetadataCollect.Input[1],
-  options: NonNullable<Zavx0zStorybookPackageMetadataCollect.Input[2]> = {},
-): Promise<Zavx0zStorybookPackageMetadataCollect.Output> {
+  inputs: StorybookPackageMetadataCollect.Input[0],
+  previous?: StorybookPackageMetadataCollect.Input[1],
+  options: NonNullable<StorybookPackageMetadataCollect.Input[2]> = {},
+): Promise<StorybookPackageMetadataCollect.Output> {
   if (inputs.length === 0) throw new Error("Storybook requires at least one package directory")
   const scopes = new Map<string, StorybookCatalogScope>()
   const names = new Map<string, string>()

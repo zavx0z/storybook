@@ -1,5 +1,5 @@
 import {cp, mkdir, mkdtemp, realpath, rm} from "node:fs/promises"
-import {dirname, resolve} from "node:path"
+import {basename, dirname, relative, resolve} from "node:path"
 
 /** Создаёт изолированные исходники; удаление затрагивает только принадлежащую этому тесту временную директорию. */
 export async function createFixture(base = "component") {
@@ -19,6 +19,20 @@ export async function createFixture(base = "component") {
   }
   return {
     root,
+    namespaceName: [basename(resolve(import.meta.dir, "../..")), relative(resolve(import.meta.dir, "../.."), root)]
+      .join("/").split(/[^a-zA-Z0-9]+/u).filter(Boolean).map(part => part[0]!.toUpperCase() + part.slice(1)).join(""),
+    namingDiagnostic(name: string, child = "") {
+      const owner = resolve(root, child)
+      const repo = resolve(import.meta.dir, "../..")
+      const expected = [basename(repo), relative(repo, owner)].join("/")
+        .split(/[^a-zA-Z0-9]+/u).filter(Boolean).map(part => part[0]!.toUpperCase() + part.slice(1)).join("")
+      return {
+        severity: "warning" as const,
+        code: "namespace-name",
+        path: resolve(owner, "contract/index.ts"),
+        message: `Namespace ${name} по пути исходного владельца от Repo ожидается с именем ${expected}`,
+      }
+    },
     async write(path: string, text: string) {
       const target = resolve(root, path)
       await mkdir(dirname(target), {recursive: true})

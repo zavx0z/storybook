@@ -1,12 +1,12 @@
-import type {Zavx0zStorybookTechProcessSample} from "@zavx0z/storybook-tech-process-sample"
+import type {StorybookTechProcessSample} from "@zavx0z/storybook-tech-process-sample"
 import type {ProcessBinding} from "./binding"
 
 /** Измерение ресурсов дерева точного корневого процесса. */
-export declare namespace Zavx0zStorybookTechProcessMeasure {
+export declare namespace StorybookTechProcessMeasure {
   /** Привязка корня и строки одного системного снимка. */
   type Input = Readonly<{
     binding: ProcessBinding
-    rows: Zavx0zStorybookTechProcessSample.Output
+    rows: StorybookTechProcessSample.Output
   }>
 
   /** Итог ресурсов либо отсутствие подтверждённого корня. */

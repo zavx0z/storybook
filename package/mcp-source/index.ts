@@ -6,10 +6,10 @@
 
 @packageDocumentation
 */
-import type {Zavx0zStorybookPackageMcpSource as Contract} from "./contract"
+import type {StorybookPackageMcpSource as Contract} from "./contract"
 import {dirname, join} from "node:path"
 
-export type {Zavx0zStorybookPackageMcpSource} from "./contract"
+export type {StorybookPackageMcpSource} from "./contract"
 
 /**
 Передаёт в MCP публичную структуру того же каталога, который показывает Workbench.

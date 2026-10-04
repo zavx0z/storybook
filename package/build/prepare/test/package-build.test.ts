@@ -1,8 +1,8 @@
-import PackageRevisionOwner, {type Zavx0zStorybookPackageRevision as PackageRevisionContract} from "@zavx0z/storybook-package-revision"
-import {type Zavx0zStorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
+import PackageRevisionOwner, {type StorybookPackageRevision as PackageRevisionContract} from "@zavx0z/storybook-package-revision"
+import {type StorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
 const STORYBOOK_PACKAGE_GRAPH_PROTOCOL = PackageRevisionOwner.protocol
 type StorybookPackageRevisionGraphSnapshot = ReturnType<PackageRevisionContract.Output["create"]>
-type Zavx0zStorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
+type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 import {afterEach, describe, expect, setDefaultTimeout, test} from "bun:test"
 import {createHash} from "node:crypto"
 import {linkSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, readdirSync, rmSync, symlinkSync, unlinkSync, watch, writeFileSync} from "node:fs"
@@ -112,7 +112,7 @@ describe("structural package revision build", () => {
       '  test("Результат", () => { expect(result, "Функция выполнена").toBe(1) })',
       '})',
     ].join("\n"))
-    const descriptor = {scenarioSpecs: [{nodeId: "scenario", sourcePaths: [path]}]} as unknown as Zavx0zStorybookPackageBuildDescriptor
+    const descriptor = {scenarioSpecs: [{nodeId: "scenario", sourcePaths: [path]}]} as unknown as StorybookPackageBuildDescriptor
     let failure: unknown
     try { await prepareStorybookScenarios(descriptor, new AbortController().signal) } catch (error) { failure = error }
     expect(failure).toBeInstanceOf(Error)
@@ -322,7 +322,7 @@ test("успешная компиляция сохраняет результа�
   expect(readFileSync(note, "utf8")).toBe("Правка во время успешной компиляции")
 })
 
-function createFixture(): Readonly<{root: string; packageRoot: string; browserEntry: string; descriptor: Zavx0zStorybookPackageBuildDescriptor}> {
+function createFixture(): Readonly<{root: string; packageRoot: string; browserEntry: string; descriptor: StorybookPackageBuildDescriptor}> {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "storybook-package-build-")))
   roots.push(root)
   const packageRoot = join(root, "package")
@@ -346,7 +346,7 @@ function createFixture(): Readonly<{root: string; packageRoot: string; browserEn
   }})
 }
 
-function buildInput(descriptor: Zavx0zStorybookPackageBuildDescriptor, stagingDirectory: string, revision: string) {
+function buildInput(descriptor: StorybookPackageBuildDescriptor, stagingDirectory: string, revision: string) {
   return {descriptor, generation: 1, candidateRevision: revision,
     revisionUrl: `/__storybook/revisions/${encodeURIComponent(descriptor.packageId)}/${revision}/`,
     stagingDirectory, signal: new AbortController().signal}

@@ -6,7 +6,7 @@
 @packageDocumentation
 */
 import ReadGraph from "@zavx0z/storybook-package-graph-read"
-import type {Zavx0zStorybookAppWebPageNavigation} from "./contract"
+import type {StorybookAppWebPageNavigation} from "./contract"
 import type {
   WorkbenchBreadcrumb,
   ExternalStorybookClientSnapshot,
@@ -30,9 +30,9 @@ import {
   packageBreadcrumbs,
   graphPath,
 } from "./src/implementation"
-export type {Zavx0zStorybookAppWebPageNavigation} from "./contract"
+export type {StorybookAppWebPageNavigation} from "./contract"
 
-const Owner: Zavx0zStorybookAppWebPageNavigation.Output = Object.freeze({
+const Owner: StorybookAppWebPageNavigation.Output = Object.freeze({
   /** Проецирует физических владельцев пакетов в дерево общего каталога. */
   deriveExternalStorybookLanding(graph: BrowserGraph): ExternalStorybookLandingModel {
     const items = graph.nodes

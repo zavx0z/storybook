@@ -5,18 +5,18 @@
 @packageDocumentation
 */
 import {serveStdio} from "@modelcontextprotocol/server/stdio"
-import type {Zavx0zStorybookTechMcpStdio} from "./contract"
+import type {StorybookTechMcpStdio} from "./contract"
 
-export type {Zavx0zStorybookTechMcpStdio} from "./contract"
+export type {StorybookTechMcpStdio} from "./contract"
 
 /**
 Подключает один сервер к stdio и закрывает его при SIGINT или SIGTERM.
 
-@param input - Фабрика сервера и метка диагностик согласно {@link Zavx0zStorybookTechMcpStdio.Input}.
-@returns Управление соединением согласно {@link Zavx0zStorybookTechMcpStdio.Output}; сообщение `ready`
+@param input - Фабрика сервера и метка диагностик согласно {@link StorybookTechMcpStdio.Input}.
+@returns Управление соединением согласно {@link StorybookTechMcpStdio.Output}; сообщение `ready`
 записывается в stderr после передачи сервера SDK.
 */
-export default function serveMcpStdio(input: Zavx0zStorybookTechMcpStdio.Input): Zavx0zStorybookTechMcpStdio.Output {
+export default function serveMcpStdio(input: StorybookTechMcpStdio.Input): StorybookTechMcpStdio.Output {
   /** Ограничивает одну строку stderr, не нарушая MCP-протокол в stdout. */
   const diagnostic = (value: string): void => {
     const bounded = String(value).replace(/[\r\n]+/gu, " ").slice(0, 4_096)

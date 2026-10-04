@@ -1,7 +1,7 @@
 import type {Violation} from "./violation"
 
 /** Контракт проверки подключённых потребителей внешнего Storybook. */
-export declare namespace Zavx0zStorybookPackageBuildConsumerBoundary {
+export declare namespace StorybookPackageBuildConsumerBoundary {
   /** Непустой список точных корней; слишком широкий или небезопасный корень вызывает ошибку. */
   type Input = readonly string[]
 

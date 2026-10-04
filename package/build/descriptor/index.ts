@@ -5,11 +5,11 @@
 
 @packageDocumentation
 */
-import {type Zavx0zStorybookPackageMetadataCollect as PackageMetadataCollectContract} from "@zavx0z/storybook-package-metadata-collect"
+import {type StorybookPackageMetadataCollect as PackageMetadataCollectContract} from "@zavx0z/storybook-package-metadata-collect"
 import PackageGraphReadOwner from "@zavx0z/storybook-package-graph-read"
-import {type Zavx0zStorybookPackageGraphCreate as PackageGraphCreateContract} from "@zavx0z/storybook-package-graph-create"
+import {type StorybookPackageGraphCreate as PackageGraphCreateContract} from "@zavx0z/storybook-package-graph-create"
 import PackageResourcesOwner from "@zavx0z/storybook-package-resources"
-import {type Zavx0zStorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
+import {type StorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
 import PackageRevisionOwner from "@zavx0z/storybook-package-revision"
 const externalStorybookNode = PackageGraphReadOwner.node
 const createExternalStorybookResourceAllowList = PackageResourcesOwner
@@ -19,24 +19,24 @@ const revisionWorkbenchAuthorStyleSheetPath = PackageRevisionOwner.workbenchAuth
 type StorybookCatalog = PackageMetadataCollectContract.Output
 type StorybookPackage = Extract<PackageMetadataCollectContract.Output["scopes"][number], {kind: "package"}>
 type ExternalStorybookGraph = PackageGraphCreateContract.Output
-type Zavx0zStorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
+type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 import {createHash} from "node:crypto"
 import {readFileSync} from "node:fs"
 import {dirname, join, relative} from "node:path"
-import type {Zavx0zStorybookPackageBuildDescriptor} from "./contract"
+import type {StorybookPackageBuildDescriptor} from "./contract"
 
-export type {Zavx0zStorybookPackageBuildDescriptor} from "./contract"
+export type {StorybookPackageBuildDescriptor} from "./contract"
 
 /**
 Выводит входы сборки из canonical graph. Первый пакет структурного пути задаёт
 содержащий Repo; конкретный Project не входит в compiler context пакета.
 */
 export default function externalStorybookPackageDescriptors(
-  catalog: Zavx0zStorybookPackageBuildDescriptor.Input[0],
-  graph: Zavx0zStorybookPackageBuildDescriptor.Input[1],
-  include?: Zavx0zStorybookPackageBuildDescriptor.Input[2],
-  styles: NonNullable<Zavx0zStorybookPackageBuildDescriptor.Input[3]> = [],
-): Zavx0zStorybookPackageBuildDescriptor.Output {
+  catalog: StorybookPackageBuildDescriptor.Input[0],
+  graph: StorybookPackageBuildDescriptor.Input[1],
+  include?: StorybookPackageBuildDescriptor.Input[2],
+  styles: NonNullable<StorybookPackageBuildDescriptor.Input[3]> = [],
+): StorybookPackageBuildDescriptor.Output {
   const packages = catalog.scopes.filter(
     (declaration): declaration is StorybookPackage => declaration.kind === "package",
   )

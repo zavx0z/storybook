@@ -5,4 +5,4 @@
 @packageDocumentation
 */
 export {default} from "@zavx0z/storybook-package-graph-read"
-export type {Zavx0zStorybookPackageGraphRead} from "@zavx0z/storybook-package-graph-read"
+export type {StorybookPackageGraphRead} from "@zavx0z/storybook-package-graph-read"

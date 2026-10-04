@@ -1,7 +1,7 @@
 import {expect, test} from "bun:test"
 import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
-import type {Zavx0zStorybookAppWebPageShellMcpWindow} from "../contract"
-type McpWindowProps = Zavx0zStorybookAppWebPageShellMcpWindow.Input
+import type {StorybookAppWebPageShellMcpWindow} from "../contract"
+type McpWindowProps = StorybookAppWebPageShellMcpWindow.Input
 import {createWindowHost} from "../spec/fixture"
 import {command} from "../spec/fixture/records"
 

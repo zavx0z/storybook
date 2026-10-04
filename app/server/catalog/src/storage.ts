@@ -4,13 +4,13 @@ import {lstatSync, readFileSync, realpathSync, renameSync, unlinkSync, writeFile
 import {dirname, isAbsolute, join, relative, resolve, sep} from "node:path"
 import createDescriptors from "@zavx0z/storybook-package-build-descriptor"
 import type {ExternalStorybookRegistrySnapshot as Snapshot} from "../contract/models"
-import type {Zavx0zStorybookAppServerCatalog} from "../contract"
+import type {StorybookAppServerCatalog} from "../contract"
 
 type Scope = Snapshot["catalog"]["scopes"][number]
 type Node = Snapshot["graph"]["nodes"][number]
 type Descriptor = Snapshot["descriptors"][number]
 type RevisionGraph = Descriptor["graphSnapshot"]
-type Styles = ReturnType<NonNullable<Zavx0zStorybookAppServerCatalog.Input[1]>>
+type Styles = ReturnType<NonNullable<StorybookAppServerCatalog.Input[1]>>
 
 export const contentFields = ["moduleDocumentation", "dependencySpec", "contractDocumentation", "scenarioSpec"] as const
 export const scopeFields = [...contentFields, "directories", "entries", "structurePaths", "recoveryPaths", "description"] as const

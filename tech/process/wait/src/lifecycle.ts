@@ -1,6 +1,6 @@
-import type {Zavx0zStorybookTechProcessWait} from "../contract"
+import type {StorybookTechProcessWait} from "../contract"
 
-type OwnedChildWaitInput = Zavx0zStorybookTechProcessWait.Input
+type OwnedChildWaitInput = StorybookTechProcessWait.Input
 
 /** Отправляет сигнал переданному handle либо detached группе с тем же корневым PID. */
 export function signalOwnedProcess(

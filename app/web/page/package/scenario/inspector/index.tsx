@@ -2,17 +2,17 @@
 
 @packageDocumentation
 */
-import type {Zavx0zStorybookAppWebPagePackageScenarioInspector as Contract} from "./contract"
-export type {Zavx0zStorybookAppWebPagePackageScenarioInspector} from "./contract"
+import type {StorybookAppWebPagePackageScenarioInspector as Contract} from "./contract"
+export type {StorybookAppWebPagePackageScenarioInspector} from "./contract"
 import {ScenarioTree} from "./src/tree"
 import {useSyncExternalStore} from "@zavx0z/immersive-component"
 import {CodeEditor} from "@zavx0z/immersive-ui-component"
 import {Button} from "@zavx0z/immersive-ui-component"
-import type {Zavx0zStorybookAppWebPagePackageScenarioModel} from "@zavx0z/storybook-app-web-page-package-scenario-model"
+import type {StorybookAppWebPagePackageScenarioModel} from "@zavx0z/storybook-app-web-page-package-scenario-model"
 /** Форма исходного публичного владельца. */
-type ScenarioApp = Zavx0zStorybookAppWebPagePackageScenarioModel.Output
+type ScenarioApp = StorybookAppWebPagePackageScenarioModel.Output
 /** Один Editor с декларацией и дерево describe с пунктами выбранного варианта. */
-export default function Zavx0zStorybookAppWebPagePackageScenarioInspector(props: Contract.Input) {
+export default function StorybookAppWebPagePackageScenarioInspector(props: Contract.Input) {
   const app = props.value as ScenarioApp
   const selected = useSyncExternalStore(app.subscribe, app.getSnapshot)
   return <section

@@ -3,10 +3,10 @@
 
 @packageDocumentation
 */
-import type {Zavx0zStorybookTechBuildEnvironmentProtocol} from "./contract"
-export type {Zavx0zStorybookTechBuildEnvironmentProtocol} from "./contract"
+import type {StorybookTechBuildEnvironmentProtocol} from "./contract"
+export type {StorybookTechBuildEnvironmentProtocol} from "./contract"
 
-const protocol: Zavx0zStorybookTechBuildEnvironmentProtocol.Output = "storybook-shared-browser-identity/1"
+const protocol: StorybookTechBuildEnvironmentProtocol.Output = "storybook-shared-browser-identity/1"
 
 
 export default protocol

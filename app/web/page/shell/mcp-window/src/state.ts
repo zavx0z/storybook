@@ -1,7 +1,7 @@
-import type {Zavx0zStorybookAppWebPageShellMcpWindow} from "../contract"
+import type {StorybookAppWebPageShellMcpWindow} from "../contract"
 
 /** Дополняет сохранённые поля настройками окна и распознаёт прежнее сворачивание. */
-export function normalizeMcpWindowState(input: unknown): Zavx0zStorybookAppWebPageShellMcpWindow.Output {
+export function normalizeMcpWindowState(input: unknown): StorybookAppWebPageShellMcpWindow.Output {
   const value = record(input)
   const savedGeometry = record(value?.geometry)
   const geometry = {x: 24, y: 24, width: 620, height: 400}

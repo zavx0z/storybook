@@ -1,8 +1,8 @@
 import {CodeEditor} from "@zavx0z/immersive-ui-component"
 import {Typography} from "@zavx0z/immersive-ui-component"
-import {type Zavx0zStorybookSpecsScenarios} from "@zavx0z/storybook-specs-scenarios"
+import {type StorybookSpecsScenarios} from "@zavx0z/storybook-specs-scenarios"
 /** Форма из публичного пространства исходного владельца. */
-type ReadScenarioGuideOutput = Zavx0zStorybookSpecsScenarios.Output
+type ReadScenarioGuideOutput = StorybookSpecsScenarios.Output
 import {ScenarioGuideExample} from "./guide-example"
 
 /** Принимает только явно помеченное руководство с переносимыми кодовыми примерами. */

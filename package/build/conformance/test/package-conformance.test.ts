@@ -2,9 +2,9 @@ import PackageStandardOwner from "@zavx0z/storybook-package-standard"
 const appliedPackageStandard = PackageStandardOwner.applied
 const readPackageVerification = PackageStandardOwner.readVerification
 import {expect, test} from "bun:test"
-import type {Zavx0zStorybookSpecsScenariosReader} from "@zavx0z/storybook-specs-scenarios-reader"
+import type {StorybookSpecsScenariosReader} from "@zavx0z/storybook-specs-scenarios-reader"
 /** Форма исходного публичного владельца. */
-type ReadScenarioOutput = Zavx0zStorybookSpecsScenariosReader.Output
+type ReadScenarioOutput = StorybookSpecsScenariosReader.Output
 import conformance from "../index"
 
 const scenarioVerification = conformance.verify

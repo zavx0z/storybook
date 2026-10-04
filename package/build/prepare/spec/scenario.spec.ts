@@ -6,7 +6,7 @@ import discover from "@zavx0z/storybook-package-metadata-collect"
 import createGraph from "@zavx0z/storybook-package-graph-create"
 import revision from "@zavx0z/storybook-package-revision"
 import createBuilder from "@zavx0z/storybook-package-build-prepare"
-import type {Zavx0zStorybookPackageSession} from "@zavx0z/storybook-package-session"
+import type {StorybookPackageSession} from "@zavx0z/storybook-package-session"
 
 const toolRoot = realpathSync(resolve(import.meta.dir, "../../../.."))
 setDefaultTimeout(60_000)
@@ -40,7 +40,7 @@ describe.each([
     graphSnapshot: revision.create(graph, "@fixture/package", declarationDigest),
     resourceFiles: [],
     scenarioSpecs: [],
-  } as Zavx0zStorybookPackageSession.Input[0]
+  } as StorybookPackageSession.Input[0]
   const build = createBuilder({toolRoot, browserEntryPath})
   const result = await build({
     descriptor,

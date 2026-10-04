@@ -1,6 +1,6 @@
-import {type Zavx0zStorybookPackageStandard as PackageStandardContract} from "@zavx0z/storybook-package-standard"
+import {type StorybookPackageStandard as PackageStandardContract} from "@zavx0z/storybook-package-standard"
 type StorybookPackageVerification = NonNullable<Parameters<PackageStandardContract.Output["applied"]>[1]>
-import type {Zavx0zStorybookSpecsScenariosReader} from "@zavx0z/storybook-specs-scenarios-reader"
+import type {StorybookSpecsScenariosReader} from "@zavx0z/storybook-specs-scenarios-reader"
 
 /** Вывод нормативного сценария; неизвестность сохраняет причину без назначения типа. */
 type EntityTypeResult =
@@ -8,7 +8,7 @@ type EntityTypeResult =
   | Readonly<{status: "unknown", reason: "missing-report" | "stale-report" | "invalid-report" | "failed" | "incomplete" | "ambiguous"}>
 
 /** Контракт нормативной проверки Package при подготовке ревизии. */
-export declare namespace Zavx0zStorybookPackageBuildConformance {
+export declare namespace StorybookPackageBuildConformance {
   /**
   Запуск сценария и интерпретация исходного отчёта без изменения его фактов.
 
@@ -22,8 +22,8 @@ export declare namespace Zavx0zStorybookPackageBuildConformance {
   каталогов и отдельные успешные пункты не заменяют этот отчёт.
   */
   type Output = Readonly<{
-    check(path: string, signal: AbortSignal): Promise<Zavx0zStorybookSpecsScenariosReader.Output>
-    verify(report: Zavx0zStorybookSpecsScenariosReader.Output): StorybookPackageVerification
-    identify(report: Zavx0zStorybookSpecsScenariosReader.Output, path: string): EntityTypeResult
+    check(path: string, signal: AbortSignal): Promise<StorybookSpecsScenariosReader.Output>
+    verify(report: StorybookSpecsScenariosReader.Output): StorybookPackageVerification
+    identify(report: StorybookSpecsScenariosReader.Output, path: string): EntityTypeResult
   }>
 }

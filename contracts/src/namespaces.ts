@@ -3,10 +3,11 @@ import {basename, dirname, resolve} from "node:path"
 import type {Namespace, Role} from "../contract/declaration"
 import {diagnose, type Context} from "./context"
 import {declarationOf, declarationsOf, namespaceDeclaration, originalSymbol, typeDependencies} from "./declarations"
+import {expectedNamespaceName} from "./namespace-name"
 
 /**
 Читает роли namespace и исходные определения их полей штатным TypeScript checker.
-Имя сверяется с полным именем исходного пакета; несовпадение сохраняется
+Имя сверяется с путём от Repo до исходного владельца; несовпадение сохраняется
 предупреждением, не прерывающим чтение и не меняющим владельца при реэкспорте.
 */
 export async function readNamespace(symbol: NativeSymbol, context: Context): Promise<Namespace | null> {
@@ -15,11 +16,13 @@ export async function readNamespace(symbol: NativeSymbol, context: Context): Pro
   const target = await originalSymbol(symbol, context)
   const declaration = await declarationOf(node, target.name, context)
   if (!declaration.owner) return null
-  const expectedName = declaration.owner.name.split(/[^a-zA-Z0-9]+/u).filter(Boolean)
-    .map(part => part[0]!.toUpperCase() + part.slice(1)).join("")
-  if (target.name !== expectedName) {
+  const expectedName = await expectedNamespaceName(declaration.owner.path, context)
+  if (expectedName === null) {
+    diagnose(context, "namespace-name-context", declaration.path,
+      `Имя namespace ${target.name} не проверено: Git-граница Repo исходного владельца не установлена`, "warning")
+  } else if (target.name !== expectedName) {
     diagnose(context, "namespace-name", declaration.path,
-      `Namespace ${target.name} пакета ${declaration.owner.name} ожидается с именем ${expectedName}`, "warning")
+      `Namespace ${target.name} по пути исходного владельца от Repo ожидается с именем ${expectedName}`, "warning")
   }
   const environmentContract = context.entryPath && declaration.owner.path === context.root
     && dirname(context.entryPath) === context.root

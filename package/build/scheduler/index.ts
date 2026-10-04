@@ -5,7 +5,7 @@
 @packageDocumentation
 */
 import {randomUUID} from "node:crypto"
-import Zavx0zStorybookTechBuildQueue from "@zavx0z/storybook-tech-build-queue"
+import StorybookTechBuildQueue from "@zavx0z/storybook-tech-build-queue"
 import {
   STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL,
   parseStorybookBuildWorkerTransportEvent,
@@ -23,9 +23,9 @@ import type {
   StorybookBuildTransition,
   StorybookBuildTransitionListener,
 } from "./contract/types"
-import type {Zavx0zStorybookPackageBuildScheduler} from "./contract"
+import type {StorybookPackageBuildScheduler} from "./contract"
 
-export type {Zavx0zStorybookPackageBuildScheduler} from "./contract"
+export type {StorybookPackageBuildScheduler} from "./contract"
 
 /** Safe default оставляет этому 16 GiB Intel host одну тяжёлую build operation. */
 const STORYBOOK_BUILD_CONCURRENCY = 1
@@ -38,29 +38,29 @@ const STORYBOOK_RESOURCE_SAMPLE_THROTTLE_MS = 1_000
 
 /** Сведения о пакетной работе остаются у сборочного координатора. */
 type BuildDetails = Omit<ReturnType<typeof normalizeRequest>, "operationId">
-type BuildContext<Details extends object> = Parameters<Parameters<Zavx0zStorybookTechBuildQueue<Details>["run"]>[1]>[0]
-type BuildOperation<Details extends object> = ReturnType<Zavx0zStorybookTechBuildQueue<Details>["snapshot"]>["active"][number]
-type BuildTransition<Details extends object> = Parameters<Parameters<Zavx0zStorybookTechBuildQueue<Details>["subscribe"]>[0]>[0]
+type BuildContext<Details extends object> = Parameters<Parameters<StorybookTechBuildQueue<Details>["run"]>[1]>[0]
+type BuildOperation<Details extends object> = ReturnType<StorybookTechBuildQueue<Details>["snapshot"]>["active"][number]
+type BuildTransition<Details extends object> = Parameters<Parameters<StorybookTechBuildQueue<Details>["subscribe"]>[0]>[0]
 
 /**
 Связывает пакетную подготовку с технической очередью исполнения.
 
 Координатор проверяет package/shared vocabulary и сохраняет прежнюю публичную
-проекцию состояния. FIFO, владение slot и измерение worker принадлежат Zavx0zStorybookTechBuildQueue.
+проекцию состояния. FIFO, владение slot и измерение worker принадлежат StorybookTechBuildQueue.
 */
-export default class StorybookBuildScheduler implements Zavx0zStorybookPackageBuildScheduler.Output {
+export default class StorybookBuildScheduler implements StorybookPackageBuildScheduler.Output {
   static readonly STORYBOOK_BUILD_CONCURRENCY = STORYBOOK_BUILD_CONCURRENCY
   static readonly STORYBOOK_BUILD_CONCURRENCY_MAX = STORYBOOK_BUILD_CONCURRENCY_MAX
   static readonly STORYBOOK_BUILD_RECENT_LIMIT = STORYBOOK_BUILD_RECENT_LIMIT
   static readonly STORYBOOK_RESOURCE_SAMPLE_THROTTLE_MS = STORYBOOK_RESOURCE_SAMPLE_THROTTLE_MS
   static readonly STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL = STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL
   static readonly parseStorybookBuildWorkerTransportEvent = parseStorybookBuildWorkerTransportEvent
-  readonly #queue: Zavx0zStorybookTechBuildQueue<BuildDetails>
+  readonly #queue: StorybookTechBuildQueue<BuildDetails>
 
   /** Создаёт одну очередь, общую для переданных ей пакетных и shared работ. */
   constructor(options: number | StorybookBuildSchedulerOptions = {}) {
     const normalized = typeof options === "number" ? {limit: options} : options
-    this.#queue = new Zavx0zStorybookTechBuildQueue({...normalized, isTimeout: isTimeoutOutcome})
+    this.#queue = new StorybookTechBuildQueue({...normalized, isTimeout: isTimeoutOutcome})
   }
 
   /** Число работ, удерживающих slot до завершения cleanup. */

@@ -1,6 +1,6 @@
-import type {ContractFixturePart} from "./contract"
+import type {StorybookContractsSpecFixtureJsxContainerPart} from "./contract"
 
-export type {ContractFixturePart} from "./contract"
-export default function part(props: ContractFixturePart.Input): ContractFixturePart.Output {
+export type {StorybookContractsSpecFixtureJsxContainerPart} from "./contract"
+export default function part(props: StorybookContractsSpecFixtureJsxContainerPart.Input): StorybookContractsSpecFixtureJsxContainerPart.Output {
   return <span>{props.text}</span>
 }

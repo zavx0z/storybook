@@ -1,9 +1,9 @@
-import type {Zavx0zStorybookTechHmrConnection} from "@zavx0z/storybook-tech-hmr-connection"
+import type {StorybookTechHmrConnection} from "@zavx0z/storybook-tech-hmr-connection"
 
 import createStorybookAgentBridge from "@zavx0z/storybook-app-web-page-agent-bridge"
 
-import type {Zavx0zStorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
-type ExternalStorybookShell = Zavx0zStorybookAppWebPageShell.Output
+import type {StorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
+type ExternalStorybookShell = StorybookAppWebPageShell.Output
 
 import type {ExternalStorybookPreparedPageTarget} from "../contract/types"
 
@@ -166,10 +166,10 @@ Listeners регистрируются сразу, поэтому scope не з�
 @returns Socket-compatible adapter с однократным `connect()`.
 */
 export function createDeferredStorybookSocket(
-  create: () => Zavx0zStorybookTechHmrConnection.Input["socket"],
-): Zavx0zStorybookTechHmrConnection.Input["socket"] & Readonly<{connect(): void}> {
+  create: () => StorybookTechHmrConnection.Input["socket"],
+): StorybookTechHmrConnection.Input["socket"] & Readonly<{connect(): void}> {
   const listeners = new Map<string, Set<(event: any) => void>>()
-  let socket: Zavx0zStorybookTechHmrConnection.Input["socket"] | null = null
+  let socket: StorybookTechHmrConnection.Input["socket"] | null = null
   let closed = false
   const deferred = {
     addEventListener(type: string, listener: (event: any) => void) {

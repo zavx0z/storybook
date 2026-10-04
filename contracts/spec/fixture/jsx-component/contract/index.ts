@@ -1,7 +1,7 @@
 import type {JSX} from "@zavx0z/immersive-jsx"
 
 /** Формы взаимодействия самостоятельного владельца примера. */
-export declare namespace ContractFixturePanel {
+export declare namespace StorybookContractsSpecFixtureJsxComponent {
   /**
   Подпись самостоятельной панели.
 

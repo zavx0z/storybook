@@ -55,21 +55,21 @@ flowchart TB
     DependencyView["Представление ожидаемых зависимостей"]
     MessageView["Представление сообщения"]
     ScenarioState["Выбор и состояние сценария"]
-    Zavx0zStorybookAppWebPagePackageScenarioPreview["Представление примера компонента"]
-    Zavx0zStorybookAppWebPagePackageScenarioResult["Представление результата функции"]
-    Zavx0zStorybookAppWebPagePackageScenarioInspector["Инспектор сценария"]
+    StorybookAppWebPagePackageScenarioPreview["Представление примера компонента"]
+    StorybookAppWebPagePackageScenarioResult["Представление результата функции"]
+    StorybookAppWebPagePackageScenarioInspector["Инспектор сценария"]
     AuthoredComponent["Выбранный Component проекта"]
     ComponentDependency["Каждая его самостоятельная зависимость"]
     PreviewHost -.-> MarkdownView
     PreviewHost -.-> ContractView
     PreviewHost -.-> DependencyView
     PreviewHost -.-> MessageView
-    PreviewHost -.-> Zavx0zStorybookAppWebPagePackageScenarioPreview
-    PreviewHost -.-> Zavx0zStorybookAppWebPagePackageScenarioResult
-    Zavx0zStorybookAppWebPagePackageScenarioPreview --> ScenarioState
-    Zavx0zStorybookAppWebPagePackageScenarioResult --> ScenarioState
-    Zavx0zStorybookAppWebPagePackageScenarioInspector --> ScenarioState
-    Zavx0zStorybookAppWebPagePackageScenarioPreview -.-> AuthoredComponent
+    PreviewHost -.-> StorybookAppWebPagePackageScenarioPreview
+    PreviewHost -.-> StorybookAppWebPagePackageScenarioResult
+    StorybookAppWebPagePackageScenarioPreview --> ScenarioState
+    StorybookAppWebPagePackageScenarioResult --> ScenarioState
+    StorybookAppWebPagePackageScenarioInspector --> ScenarioState
+    StorybookAppWebPagePackageScenarioPreview -.-> AuthoredComponent
     AuthoredComponent -.-> ComponentDependency
   end
 
@@ -115,8 +115,8 @@ flowchart TB
   SourceWidget --> CodeEditor
   RequestView --> CodeEditor
   AddressView --> CodeEditor
-  Zavx0zStorybookAppWebPagePackageScenarioInspector --> CodeEditor
-  Zavx0zStorybookAppWebPagePackageScenarioInspector --> Button
+  StorybookAppWebPagePackageScenarioInspector --> CodeEditor
+  StorybookAppWebPagePackageScenarioInspector --> Button
   ViewPointControl --> Tab
   ViewPointControl --> Button
   ValueWidget --> TextField
@@ -153,7 +153,7 @@ flowchart TB
   classDef public fill:#e5f6eb,stroke:#39835a,color:#183d29
   classDef planned fill:#fff3df,stroke:#b57720,stroke-dasharray:5 3,color:#513600
   classDef data fill:#f0f0f0,stroke:#777,color:#292929
-  class Minimap,Catalog,Navigation,ViewPointControl,NavigationState,WorkbenchView,WorkbenchState,DisplaySurface,PreviewHost,Tabs,Status,Inspector,InspectorProjection,SourceWidget,ValueWidget,CustomWidget,ContractOutline,MarkdownView,ContractView,DependencyView,MessageView,ScenarioState,Zavx0zStorybookAppWebPagePackageScenarioPreview,Zavx0zStorybookAppWebPagePackageScenarioResult,Zavx0zStorybookAppWebPagePackageScenarioInspector,McpWindow,RequestView,AddressView existing
+  class Minimap,Catalog,Navigation,ViewPointControl,NavigationState,WorkbenchView,WorkbenchState,DisplaySurface,PreviewHost,Tabs,Status,Inspector,InspectorProjection,SourceWidget,ValueWidget,CustomWidget,ContractOutline,MarkdownView,ContractView,DependencyView,MessageView,ScenarioState,StorybookAppWebPagePackageScenarioPreview,StorybookAppWebPagePackageScenarioResult,StorybookAppWebPagePackageScenarioInspector,McpWindow,RequestView,AddressView existing
   class Tree,CodeEditor,Button,Tab,TextField,NumberField,CheckboxField,SelectField,Markdown,TypeDoc,GraphView,DiagramNode,GraphLayout,GraphRoute,ClipboardMenu,Breadcrumbs,StatusBar,WindowControl,Window,AuthoredComponent,ComponentDependency public
   class EntityDisplays,AgentChat planned
   class CatalogData,DocumentData,ScenarioData,JournalData,Theme,Assets data

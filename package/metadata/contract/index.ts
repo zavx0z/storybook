@@ -1,7 +1,7 @@
 import type {Collection, Package, Options, Reference} from "./types"
 
 /** Собственные сведения пакета и жизненный цикл его файловых версий. */
-export declare namespace Zavx0zStorybookPackageMetadata {
+export declare namespace StorybookPackageMetadata {
   /** Корень выбранного пакета; существующий путь приводится к каноническому. */
   type Input = readonly [path: string]
 

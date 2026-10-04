@@ -6,4 +6,4 @@
 @packageDocumentation
 */
 export {default} from "@zavx0z/storybook-package-graph-create"
-export type {Zavx0zStorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
+export type {StorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"

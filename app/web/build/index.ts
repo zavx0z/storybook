@@ -15,10 +15,10 @@ import {
 } from "./src/receipt"
 import {readWorkbenchStyleSheets} from "./src/theme"
 import {sources} from "./src/sources"
-import type {Zavx0zStorybookAppWebBuild} from "./contract"
+import type {StorybookAppWebBuild} from "./contract"
 import type {PrepareInput, PreparedResult} from "./contract/prepare"
 
-export type {Zavx0zStorybookAppWebBuild} from "./contract"
+export type {StorybookAppWebBuild} from "./contract"
 
 /** Проверяет отмену вокруг подготовки и сохраняет версии ровно этого кандидата. */
 async function prepare<Prepared, Version extends object>(
@@ -33,7 +33,7 @@ async function prepare<Prepared, Version extends object>(
 }
 
 /** Подготовка Web и управление уже созданными ресурсами общей оболочки. */
-const build: Zavx0zStorybookAppWebBuild.Output = Object.freeze({
+const build: StorybookAppWebBuild.Output = Object.freeze({
   sources,
   prepare,
   Assets: StorybookSharedBrowserAssets,

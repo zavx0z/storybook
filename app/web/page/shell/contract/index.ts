@@ -5,18 +5,18 @@ import type {HUDElement} from "@zavx0z/immersive-dom/hud"
 import type {SpaceElement} from "@zavx0z/immersive-dom/space"
 import type {ViewPointElement} from "@zavx0z/immersive-dom/viewpoint"
 import type {HTMLElement as SemanticHTMLElement, Document as SemanticDocument, Node as SemanticNode} from "@zavx0z/immersive-dom"
-import type {Zavx0zStorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
+import type {StorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
 import type {StorybookContractNavigationReady, StorybookContractSelection} from "./contract-view"
 import type {StorybookContractDocument, StorybookDependencyCase} from "./documents"
 import type {StorybookOverviewAction} from "./overview-action"
 import type {StorybookPreviewBounds, StorybookSpacePreviewRegistration, StorybookSpacePreview} from "./preview"
 import type {ExternalStorybookRootFactory, ExternalStorybookNativeKey, StorybookShellUserState, StorybookRetainedRoot} from "./types"
 
-type Workbench = Zavx0zStorybookAppWebPageShellWorkbench.Output
+type Workbench = StorybookAppWebPageShellWorkbench.Output
 type WorkbenchPresentationUpdate = Parameters<Workbench["present"]>[0]
 
 /** Публичный контракт @page/shell. */
-export declare namespace Zavx0zStorybookAppWebPageShell {
+export declare namespace StorybookAppWebPageShell {
   type Input = Readonly<{
     retainedRoot?: StorybookRetainedRoot
     userState?: StorybookShellUserState

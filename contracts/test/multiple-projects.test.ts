@@ -19,7 +19,7 @@ test("переадресованные входы проверяются в со
     await symlink(resolve(fixture.root, "child"), resolve(fixture.root, "node_modules/@fixture/child"))
     const result = await readContract({path: fixture.root})
     expect(result.entries.map(entry => entry.exportPath)).toEqual([".", "./child"])
-    expect(result.diagnostics).toEqual([])
+    expect(result.diagnostics).toEqual([fixture.namingDiagnostic("FixtureChild", "child")])
     await fixture.write("child/index.ts", entry + 'function privateHelper(value) {return value}\n')
     const invalid = await readContract({path: fixture.root})
     expect(invalid.diagnostics.some(diagnostic => diagnostic.code === "typescript-7006"

@@ -1,13 +1,13 @@
-import type {Zavx0zStorybookPackageRouteResolve} from "@zavx0z/storybook-package-route-resolve"
+import type {StorybookPackageRouteResolve} from "@zavx0z/storybook-package-route-resolve"
 
 /** Контракт чтения одного уровня структурной навигации. */
-export declare namespace Zavx0zStorybookPackageRouteChildren {
+export declare namespace StorybookPackageRouteChildren {
   /** Базовый адрес без варианта и список зарегистрированных корней. */
   type Input = Readonly<{
     route: string
-    roots: Zavx0zStorybookPackageRouteResolve.Input["roots"]
+    roots: StorybookPackageRouteResolve.Input["roots"]
   }>
 
   /** Разрешённые непосредственные дети в порядке авторской структуры. */
-  type Output = readonly NonNullable<Zavx0zStorybookPackageRouteResolve.Output>[]
+  type Output = readonly NonNullable<StorybookPackageRouteResolve.Output>[]
 }

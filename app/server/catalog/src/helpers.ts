@@ -1,5 +1,5 @@
-import {type Zavx0zStorybookPackageMetadataCollect as PackageMetadataCollectContract} from "@zavx0z/storybook-package-metadata-collect"
-import {type Zavx0zStorybookPackageGraphCreate as PackageGraphCreateContract} from "@zavx0z/storybook-package-graph-create"
+import {type StorybookPackageMetadataCollect as PackageMetadataCollectContract} from "@zavx0z/storybook-package-metadata-collect"
+import {type StorybookPackageGraphCreate as PackageGraphCreateContract} from "@zavx0z/storybook-package-graph-create"
 import PackageGraphReadOwner from "@zavx0z/storybook-package-graph-read"
 const EXTERNAL_STORYBOOK_SCHEMA_VERSION = 1
 const externalStorybookNode = PackageGraphReadOwner.node

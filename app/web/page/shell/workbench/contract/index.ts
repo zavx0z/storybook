@@ -1,7 +1,7 @@
 import type {Workbench, WorkbenchAddressMap, WorkbenchUserState, NavigationExpansion} from "./workbench"
 
 /** Вход рабочей области в существующем Experience. */
-export declare namespace Zavx0zStorybookAppWebPageShellWorkbench {
+export declare namespace StorybookAppWebPageShellWorkbench {
   /**
   @property [initial] - Начальные данные каталога, просмотра и строки состояния.
   @property [userState] - Сохранённое состояние Inspector этой рабочей области.

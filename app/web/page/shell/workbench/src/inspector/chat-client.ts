@@ -1,22 +1,22 @@
-import type {Zavx0zStorybookChatView} from "@zavx0z/storybook-chat-view"
-import type {Zavx0zStorybookChatSession} from "@zavx0z/storybook-chat-session"
+import type {StorybookChatView} from "@zavx0z/storybook-chat-view"
+import type {StorybookChatSession} from "@zavx0z/storybook-chat-session"
 
 /** Браузерный транспорт передаёт снимки сервера; закрытие представления только отписывает поток. */
-export type ChatBrowserSnapshot = Awaited<ReturnType<Zavx0zStorybookChatSession.Output["read"]>>
+export type ChatBrowserSnapshot = Awaited<ReturnType<StorybookChatSession.Output["read"]>>
 
 export type ChatBrowserView = Readonly<{
   address: string
   label: string
-  messages: Zavx0zStorybookChatView.Input["messages"]
+  messages: StorybookChatView.Input["messages"]
   draft: string
-  status: Zavx0zStorybookChatView.Input["status"]
+  status: StorybookChatView.Input["status"]
   sending: boolean
   settings: NonNullable<ChatBrowserSnapshot["settings"]>
   configuring: boolean
   progress: string | undefined
   usage: ChatBrowserSnapshot["usage"]
   error: string | undefined
-  permissions: NonNullable<Zavx0zStorybookChatView.Input["permissions"]>
+  permissions: NonNullable<StorybookChatView.Input["permissions"]>
 }>
 
 type ChatSocket = Pick<WebSocket, "addEventListener" | "removeEventListener" | "send" | "close">

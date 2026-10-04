@@ -5,8 +5,8 @@ import createLazyMcpServer from "@zavx0z/storybook-tech-mcp-lazy"
 import createWeb from "@zavx0z/storybook-app-web"
 import State from "@zavx0z/storybook-app-server-state"
 import WebBuild from "@zavx0z/storybook-app-web-build"
-import type {Zavx0zStorybookPackageBuildPrepare} from "@zavx0z/storybook-package-build-prepare"
-import type {Zavx0zStorybookAppServer} from "../contract"
+import type {StorybookPackageBuildPrepare} from "@zavx0z/storybook-package-build-prepare"
+import type {StorybookAppServer} from "../contract"
 import {StorybookEventHub} from "../src/events"
 import {streamAppOperation} from "../src/app-stream"
 import {mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync} from "node:fs"
@@ -39,7 +39,7 @@ test("lazy worker доставляет package/shared MCP progress до резу
   const sharedStarted = Promise.withResolvers<void>()
   const sharedProgress = Promise.withResolvers<void>()
   const buildOwners: string[] = []
-  const builder: Zavx0zStorybookPackageBuildPrepare.Output = async input => {
+  const builder: StorybookPackageBuildPrepare.Output = async input => {
     buildOwners.push(input.descriptor.packageId)
     input.onPhase?.({phase: "exports", state: "started", at: new Date().toISOString()})
     if (input.descriptor.packageId === selected) {
@@ -73,11 +73,11 @@ test("lazy worker доставляет package/shared MCP progress до резу
       subscription.close()
     }}
   })
-  let running: Zavx0zStorybookAppServer.Output | undefined
+  let running: StorybookAppServer.Output | undefined
   let mcp: ReturnType<typeof createLazyMcpServer> | undefined
   const client = new Client({name: "check-progress-test", version: "1"})
   let request: ReturnType<Client["callTool"]> | undefined
-  let neighborBuild: ReturnType<Zavx0zStorybookAppServer.Output["sessions"]["ensure"]> | undefined
+  let neighborBuild: ReturnType<StorybookAppServer.Output["sessions"]["ensure"]> | undefined
   let closeQueueObservation = () => {}
   const progress: Record<string, unknown>[] = []
   let finished = false

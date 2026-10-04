@@ -3,15 +3,15 @@ import type {State, Version} from "./release"
 /**
 Типовой контракт подготовки и публикации Web-интерфейса в готовой платформе.
 
-- {@link Zavx0zStorybookAppWebRelease.Input} описывает предоставленные вызывающим кодом `prepare`, `versions` и `publish`.
+- {@link StorybookAppWebRelease.Input} описывает предоставленные вызывающим кодом `prepare`, `versions` и `publish`.
   Параметр `Prepared` сохраняет конкретный тип подготовленных артефактов между этими функциями.
-- {@link Zavx0zStorybookAppWebRelease.Output} описывает `rebuild`, `read`, `subscribe` и `dispose` для управления
+- {@link StorybookAppWebRelease.Output} описывает `rebuild`, `read`, `subscribe` и `dispose` для управления
   общей операцией. Наблюдатели получают {@link State}, а не сами подготовленные артефакты.
 
 Аргументы, результаты, ошибки и жизненный цикл членов собраны в родительских
 описаниях `Input` и `Output`.
 */
-export declare namespace Zavx0zStorybookAppWebRelease {
+export declare namespace StorybookAppWebRelease {
   /**
   Вызывающий код предоставляет три функции для подготовки и публикации Web.
   Web управляет порядком их вызовов и общим состоянием операции.

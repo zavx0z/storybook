@@ -1,13 +1,13 @@
-import type {Zavx0zStorybookSpecsScenariosReader} from "@zavx0z/storybook-specs-scenarios-reader"
+import type {StorybookSpecsScenariosReader} from "@zavx0z/storybook-specs-scenarios-reader"
 
-export declare namespace Zavx0zStorybookSpecsDocument {
+export declare namespace StorybookSpecsDocument {
   /**
   Наблюдения, из которых формируется руководство.
 
   @property report - Полный завершённый отчёт одного запуска сценария.
   */
   export interface Input {
-    readonly report: Zavx0zStorybookSpecsScenariosReader.Output
+    readonly report: StorybookSpecsScenariosReader.Output
   }
 
   /**

@@ -1,5 +1,5 @@
 /** Формы взаимодействия самостоятельного владельца примера. */
-export declare namespace ContractFixtureCounter {
+export declare namespace StorybookContractsSpecFixtureComponent {
   /**
   Параметры одного увеличения значения.
 

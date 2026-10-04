@@ -3,39 +3,39 @@
 
 @packageDocumentation
 */
-import PackageBuildSchedulerOwner, {type Zavx0zStorybookPackageBuildScheduler as PackageBuildSchedulerContract} from "@zavx0z/storybook-package-build-scheduler"
-import PackageSessionOwner, {type Zavx0zStorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
+import PackageBuildSchedulerOwner, {type StorybookPackageBuildScheduler as PackageBuildSchedulerContract} from "@zavx0z/storybook-package-build-scheduler"
+import PackageSessionOwner, {type StorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
 const StorybookBuildScheduler = PackageBuildSchedulerOwner
-const Zavx0zStorybookPackageSession = PackageSessionOwner
+const StorybookPackageSession = PackageSessionOwner
 type StorybookBuildScheduler = PackageBuildSchedulerContract.Output
 type StorybookBuildSchedulerSnapshot = ReturnType<PackageBuildSchedulerContract.Output["snapshot"]>
-type Zavx0zStorybookPackageSession = PackageSessionContract.Output
-type Zavx0zStorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
+type StorybookPackageSession = PackageSessionContract.Output
+type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 type StorybookPackageEvent = Parameters<NonNullable<PackageSessionContract.Input[1]["publish"]>>[0]
 type StorybookPackageBuildDemand = NonNullable<Parameters<PackageSessionContract.Output["ensureBuilt"]>[0]>
 type StorybookPackageRevisionBuilder = PackageSessionContract.Input[1]["buildRevision"]
 type StorybookPackageSessionSnapshot = ReturnType<PackageSessionContract.Output["snapshot"]>
 import {resolve} from "node:path"
 
-import type {Zavx0zStorybookAppServerSessions} from "./contract"
-export type {Zavx0zStorybookAppServerSessions} from "./contract"
+import type {StorybookAppServerSessions} from "./contract"
+export type {StorybookAppServerSessions} from "./contract"
 /** Owns PackageSessions as a derived runtime view of the canonical graph. */
 export default class ExternalStorybookSessionManager {
   readonly #artifactRoot: string
   readonly #buildRevision: StorybookPackageRevisionBuilder
   readonly #prepareBuild: ((signal: AbortSignal) => Promise<void>) | undefined
-  readonly #readDescriptor: Zavx0zStorybookAppServerSessions.Input["readDescriptor"]
+  readonly #readDescriptor: StorybookAppServerSessions.Input["readDescriptor"]
   readonly #publish: (event: StorybookPackageEvent) => void
   readonly #buildScheduler: StorybookBuildScheduler
   readonly #ownsBuildScheduler: boolean
   readonly #activationTimeoutMs: number | undefined
   readonly #retainedRevisionLimit: number | undefined
-  readonly #descriptorInputs = new Map<string, Zavx0zStorybookPackageBuildDescriptor>()
-  readonly #sessions = new Map<string, Zavx0zStorybookPackageSession>()
+  readonly #descriptorInputs = new Map<string, StorybookPackageBuildDescriptor>()
+  readonly #sessions = new Map<string, StorybookPackageSession>()
   #disposed = false
   #disposePromise: Promise<void> | null = null
 
-  constructor(options: Zavx0zStorybookAppServerSessions.Input) {
+  constructor(options: StorybookAppServerSessions.Input) {
     this.#artifactRoot = resolve(options.artifactRoot)
     this.#buildRevision = options.buildRevision
     this.#prepareBuild = options.prepareBuild
@@ -50,12 +50,12 @@ export default class ExternalStorybookSessionManager {
 
   }
 
-  sync(descriptors: readonly Zavx0zStorybookPackageBuildDescriptor[], failures: ReadonlyMap<string, string> = new Map()): void {
+  sync(descriptors: readonly StorybookPackageBuildDescriptor[], failures: ReadonlyMap<string, string> = new Map()): void {
     this.#assertActive()
     const nextIds = new Set<string>()
     for (const descriptor of descriptors) {
       if (nextIds.has(descriptor.packageId)) {
-        throw new Error(`Duplicate Storybook Zavx0zStorybookPackageSession descriptor: ${descriptor.packageId}`)
+        throw new Error(`Duplicate Storybook StorybookPackageSession descriptor: ${descriptor.packageId}`)
       }
       nextIds.add(descriptor.packageId)
     }
@@ -68,7 +68,7 @@ export default class ExternalStorybookSessionManager {
     for (const descriptor of descriptors) {
       const current = this.#sessions.get(descriptor.packageId)
       if (current === undefined) {
-        const session = new Zavx0zStorybookPackageSession(descriptor, {
+        const session = new StorybookPackageSession(descriptor, {
           ...(this.#readDescriptor === undefined ? {} : {readDescriptor: () => this.#readDescriptor!(descriptor.packageId)}),
           artifactRoot: this.#artifactRoot,
           buildRevision: this.#buildRevision,
@@ -88,10 +88,10 @@ export default class ExternalStorybookSessionManager {
     }
   }
 
-  session(packageId: string): Zavx0zStorybookPackageSession {
+  session(packageId: string): StorybookPackageSession {
     this.#assertActive()
     const session = this.#sessions.get(packageId)
-    if (session === undefined) throw new Error(`Unknown Storybook Zavx0zStorybookPackageSession: ${packageId}`)
+    if (session === undefined) throw new Error(`Unknown Storybook StorybookPackageSession: ${packageId}`)
     return session
   }
 

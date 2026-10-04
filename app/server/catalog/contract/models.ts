@@ -1,9 +1,9 @@
-import type {Zavx0zStorybookPackageMetadataCollect} from "@zavx0z/storybook-package-metadata-collect"
-import type {Zavx0zStorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
-import type {Zavx0zStorybookPackageSession} from "@zavx0z/storybook-package-session"
-type StorybookCatalog = Zavx0zStorybookPackageMetadataCollect.Output
-type ExternalStorybookGraph = Zavx0zStorybookPackageGraphCreate.Output
-type Zavx0zStorybookPackageBuildDescriptor = Zavx0zStorybookPackageSession.Input[0]
+import type {StorybookPackageMetadataCollect} from "@zavx0z/storybook-package-metadata-collect"
+import type {StorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
+import type {StorybookPackageSession} from "@zavx0z/storybook-package-session"
+type StorybookCatalog = StorybookPackageMetadataCollect.Output
+type ExternalStorybookGraph = StorybookPackageGraphCreate.Output
+type StorybookPackageBuildDescriptor = StorybookPackageSession.Input[0]
 
 export type ExternalStorybookAttachSource = "cli" | "direct-package"
 
@@ -21,7 +21,7 @@ export type ExternalStorybookRegistrySnapshot = Readonly<{
   entries: readonly ExternalStorybookRegistryEntry[]
   catalog: StorybookCatalog
   graph: ExternalStorybookGraph
-  descriptors: readonly Zavx0zStorybookPackageBuildDescriptor[]
+  descriptors: readonly StorybookPackageBuildDescriptor[]
 }>
 
 /** Текущая причина следующего условного обновления реестра. */

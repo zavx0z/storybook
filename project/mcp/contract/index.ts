@@ -1,5 +1,5 @@
 /** Предметный ответ Project при входе агента в проект. */
-export declare namespace Zavx0zStorybookProjectMcp {
+export declare namespace StorybookProjectMcp {
   /**
   Идентичность Project и навигация по его уже обнаруженному составу.
 

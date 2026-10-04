@@ -1,5 +1,5 @@
 /** Формы взаимодействия самостоятельного владельца примера. */
-export declare namespace ContractFixturePart {
+export declare namespace StorybookContractsSpecFixtureContainerPart {
   /**
   Данные самостоятельного вклада части.
 

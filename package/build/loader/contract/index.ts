@@ -1,7 +1,7 @@
 import type {GeneratedScenario, LoaderInput, RevisionPayloadInput} from "./loader"
 
 /** Контракт генерации источников одного package revision. */
-export declare namespace Zavx0zStorybookPackageBuildLoader {
+export declare namespace StorybookPackageBuildLoader {
   /**
   Исходники, создаваемые для одной подготовленной ревизии без выполнения сценариев.
 

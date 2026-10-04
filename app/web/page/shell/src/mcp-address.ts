@@ -1,5 +1,5 @@
-import type {Zavx0zStorybookAppWebPageShellMcpWindow} from "@zavx0z/storybook-app-web-page-shell-mcp-window"
-type McpAddressSource = NonNullable<Zavx0zStorybookAppWebPageShellMcpWindow.Input["addressSource"]>
+import type {StorybookAppWebPageShellMcpWindow} from "@zavx0z/storybook-app-web-page-shell-mcp-window"
+type McpAddressSource = NonNullable<StorybookAppWebPageShellMcpWindow.Input["addressSource"]>
 
 /** Читает MCP-ответ текущего URL через browser-сессию, без управляющего токена и записи в журнал агента. */
 export function createMcpAddressSource(readAddress: () => string, fetcher: typeof fetch = fetch): McpAddressSource {

@@ -1,4 +1,4 @@
-export declare namespace Zavx0zStorybookPackageDocumentation {
+export declare namespace StorybookPackageDocumentation {
   /**
   Исходник модуля, из которого извлекается авторское описание без исполнения кода.
 

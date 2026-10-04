@@ -1,12 +1,12 @@
 import McpWindow from "@zavx0z/storybook-app-web-page-shell-mcp-window"
 import {expect, test} from "bun:test"
 import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
-import type {Zavx0zStorybookAppWebPageShellMcpWindow} from "@zavx0z/storybook-app-web-page-shell-mcp-window"
-type McpWindowProps = Zavx0zStorybookAppWebPageShellMcpWindow.Input
+import type {StorybookAppWebPageShellMcpWindow} from "@zavx0z/storybook-app-web-page-shell-mcp-window"
+type McpWindowProps = StorybookAppWebPageShellMcpWindow.Input
 import {createMcpWindowPersistence} from "../src/mcp-window-persistence"
 import {createWindowHost} from "./fixture/mcp-window-host"
 
-const initialLayout: Zavx0zStorybookAppWebPageShellMcpWindow.Output = {open: false, mode: "agent", geometry: {x: 24, y: 24, width: 620, height: 400}}
+const initialLayout: StorybookAppWebPageShellMcpWindow.Output = {open: false, mode: "agent", geometry: {x: 24, y: 24, width: 620, height: 400}}
 
 
 test("перемещение, размер, режим и закрытие переживают создание нового окна", async () => {
@@ -71,7 +71,7 @@ test("повреждённое или запрещённое хранилище 
   expect(broken.initialState).toBeUndefined()
   const partial = createMcpWindowPersistence(() => ({getItem: () => JSON.stringify({open: true, mode: "invalid", geometry: {x: -10, y: "bad", width: 1, height: null}}), setItem() {}}))
   const host = createWindowHost()
-  let normalized: Zavx0zStorybookAppWebPageShellMcpWindow.Output | undefined
+  let normalized: StorybookAppWebPageShellMcpWindow.Output | undefined
   try {
     host.component.render(McpWindow as unknown as CompiledTemplate<McpWindowProps>, {
       open: true,

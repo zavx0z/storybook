@@ -4,9 +4,9 @@
 
 @packageDocumentation
 */
-import type {Zavx0zStorybookTechHttpClient} from "./contract"
+import type {StorybookTechHttpClient} from "./contract"
 
-export type {Zavx0zStorybookTechHttpClient} from "./contract"
+export type {StorybookTechHttpClient} from "./contract"
 
 /**
 Привязывает запросы к одной приватной записи сервера.
@@ -14,16 +14,16 @@ export type {Zavx0zStorybookTechHttpClient} from "./contract"
 Клиент удерживает переданную запись, не читает диск повторно и не владеет
 процессом; вызывающий код создаёт новый экземпляр для нового daemon.
 */
-export default class ExternalStorybookControlClient implements Zavx0zStorybookTechHttpClient.Output {
-  readonly #record: Zavx0zStorybookTechHttpClient.Input
+export default class ExternalStorybookControlClient implements StorybookTechHttpClient.Output {
+  readonly #record: StorybookTechHttpClient.Input
 
   /**
   Привязывает запросы к проверенной записи сервера.
 
-  @param record - {@link Zavx0zStorybookTechHttpClient.Input} с операцией получения authorization; экземпляр
+  @param record - {@link StorybookTechHttpClient.Input} с операцией получения authorization; экземпляр
   использует тот же instance и origin весь свой срок жизни.
   */
-  constructor(record: Zavx0zStorybookTechHttpClient.Input) {
+  constructor(record: StorybookTechHttpClient.Input) {
     this.#record = record
   }
 

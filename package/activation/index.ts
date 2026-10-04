@@ -4,11 +4,11 @@
 у владельца сессии. Подготовленный bundle сам по себе не подтверждает применение.
 @packageDocumentation
 */
-import type {Zavx0zStorybookPackageActivation} from "./contract"
-export type {Zavx0zStorybookPackageActivation} from "./contract"
+import type {StorybookPackageActivation} from "./contract"
+export type {StorybookPackageActivation} from "./contract"
 
 /** Проверяет точную цель, видимый кадр и отсутствие новых ошибок до commit. */
-export default async function activateRevision(input: Zavx0zStorybookPackageActivation.Input): Promise<Zavx0zStorybookPackageActivation.Output> {
+export default async function activateRevision(input: StorybookPackageActivation.Input): Promise<StorybookPackageActivation.Output> {
   input.signal.throwIfAborted()
   const evidence = await input.inspect()
   input.signal.throwIfAborted()

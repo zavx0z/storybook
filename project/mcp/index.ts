@@ -6,9 +6,9 @@ Project сам отбирает Repo первого уровня и формир
 
 @packageDocumentation
 */
-import type {Zavx0zStorybookProjectMcp} from "./contract"
+import type {StorybookProjectMcp} from "./contract"
 
-export type {Zavx0zStorybookProjectMcp} from "./contract"
+export type {StorybookProjectMcp} from "./contract"
 
 /**
 Формирует корневой ответ Project без исполнения кода его Repo или изменения каталога.
@@ -28,7 +28,7 @@ const project = readProjectMcp({
 })
 ```
 */
-export default function readProjectMcp(input: Zavx0zStorybookProjectMcp.Input): Zavx0zStorybookProjectMcp.Output {
+export default function readProjectMcp(input: StorybookProjectMcp.Input): StorybookProjectMcp.Output {
   const {projectName, entries} = input
   if (typeof projectName !== "string" || projectName.trim().length === 0) {
     throw new TypeError("Project name must be non-empty text")

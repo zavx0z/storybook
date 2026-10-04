@@ -1,12 +1,12 @@
 import {randomBytes} from "node:crypto"
 import {dirname, join} from "node:path"
-import createChatSessions, {type Zavx0zStorybookChatSession} from "@zavx0z/storybook-chat-session"
+import createChatSessions, {type StorybookChatSession} from "@zavx0z/storybook-chat-session"
 import createAcp from "@zavx0z/storybook-tech-acp"
-import storybookRest, {type Zavx0zStorybookAppMcpRest} from "@zavx0z/storybook-app-mcp-rest"
-import type {Zavx0zStorybookPackageGraphRead} from "@zavx0z/storybook-package-graph-read"
+import storybookRest, {type StorybookAppMcpRest} from "@zavx0z/storybook-app-mcp-rest"
+import type {StorybookPackageGraphRead} from "@zavx0z/storybook-package-graph-read"
 
-type Graph = Zavx0zStorybookPackageGraphRead.Input
-type Snapshot = Awaited<ReturnType<Zavx0zStorybookChatSession.Output["read"]>>
+type Graph = StorybookPackageGraphRead.Input
+type Snapshot = Awaited<ReturnType<StorybookChatSession.Output["read"]>>
 
 /** Соединяет адресные беседы с каталогом, Codex ACP и собственным MCP-входом приложения. */
 export function createChatServer(options: Readonly<{
@@ -15,7 +15,7 @@ export function createChatServer(options: Readonly<{
   toolRoot: string
   origin(): string
   graph(): Graph
-  entries(): Zavx0zStorybookAppMcpRest.Input[1]["entries"]
+  entries(): StorybookAppMcpRest.Input[1]["entries"]
   connect?: typeof createAcp
 }>) {
   const grants = new Map<string, string>()

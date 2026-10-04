@@ -120,7 +120,7 @@ URL, native title и breadcrumbs синхронизируются с выбор�
 из своей immutable `storybook-package-graph/6` ревизии. Цепочка предков
 включает реальные вложенные директории; изменения родителя сами по себе не
 меняют ревизию дочернего пакета. Topic `catalog` обновляет дерево, сохраняя
-изолированные Zavx0zStorybookPackageSession.
+изолированные StorybookPackageSession.
 
 Один контроллер страницы владеет Root, Document, Canvas и вводом. Внутренняя
 навигация заменяет выбранное содержимое через History API без reload и второго

@@ -1,7 +1,7 @@
-import type {Zavx0zStorybookAppWebPageShellWorkbenchCatalogNavigation} from "@zavx0z/storybook-app-web-page-shell-workbench-catalog-navigation"
+import type {StorybookAppWebPageShellWorkbenchCatalogNavigation} from "@zavx0z/storybook-app-web-page-shell-workbench-catalog-navigation"
 
 /** Узел публичной навигационной модели дочернего владельца. */
-export type Item = ReturnType<Zavx0zStorybookAppWebPageShellWorkbenchCatalogNavigation.Output["normalizeItems"]>[number]
+export type Item = ReturnType<StorybookAppWebPageShellWorkbenchCatalogNavigation.Output["normalizeItems"]>[number]
 
 /** Та же группа раскрытия, которую содержит навигационный узел. */
 export type Group = NonNullable<Item["group"]>

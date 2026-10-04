@@ -1,7 +1,7 @@
 import type {ContractSchema, McpContentSources} from "./types"
 
 /** Подготовленные источники владельца и доступные агенту контракты с примерами. */
-export declare namespace Zavx0zStorybookPackageMcpContent {
+export declare namespace StorybookPackageMcpContent {
   type Input = McpContentSources
   type Output = Readonly<{
     input?: ContractSchema

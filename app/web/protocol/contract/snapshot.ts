@@ -1,11 +1,11 @@
-import type {Zavx0zStorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
-import type {Zavx0zStorybookPackageSession} from "@zavx0z/storybook-package-session"
+import type {StorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
+import type {StorybookPackageSession} from "@zavx0z/storybook-package-session"
 import type {ExternalStorybookClientNode, ExternalStorybookClientPackageSummary} from "./client"
 
 /** Подготовленный граф, ровно по одному снимку сессии пакета и имя общего Project. */
 export type ClientSnapshotInput = [
-  graph: Zavx0zStorybookPackageGraphCreate.Output,
-  sessionSnapshots: readonly ReturnType<Zavx0zStorybookPackageSession.Output["snapshot"]>[],
+  graph: StorybookPackageGraphCreate.Output,
+  sessionSnapshots: readonly ReturnType<StorybookPackageSession.Output["snapshot"]>[],
   projectName: string,
 ]
 

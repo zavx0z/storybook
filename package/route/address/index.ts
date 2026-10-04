@@ -3,11 +3,11 @@
 
 @packageDocumentation
 */
-import type {Zavx0zStorybookPackageRouteAddress} from "./contract"
+import type {StorybookPackageRouteAddress} from "./contract"
 import {isAddressSegment} from "./src/segment"
 import {parseRoute, isRouteRootName} from "./src/parse"
 
-export type {Zavx0zStorybookPackageRouteAddress} from "./contract"
+export type {StorybookPackageRouteAddress} from "./contract"
 
 /**
 Кодирует каждый сегмент узла отдельно и добавляет выбранный вариант.
@@ -17,7 +17,7 @@ export type {Zavx0zStorybookPackageRouteAddress} from "./contract"
 @throws TypeError, если путь пуст, содержит служебный сегмент, slash, backslash
 или нулевой символ внутри сегмента.
 */
-function formatRouteAddress({node, view, variant}: Zavx0zStorybookPackageRouteAddress.Input): string {
+function formatRouteAddress({node, view, variant}: StorybookPackageRouteAddress.Input): string {
   const segments = node.split("/")
   if (segments.length === 0 || segments.some(segment => !isAddressSegment(segment))) {
     throw new TypeError("Путь узла содержит недопустимый сегмент")
@@ -37,6 +37,6 @@ function formatRouteAddress({node, view, variant}: Zavx0zStorybookPackageRouteAd
 }
 
 /** Один browser-safe адресный API с кодированием и разбором. */
-const address: Zavx0zStorybookPackageRouteAddress.Output = Object.assign(formatRouteAddress, {parseRoute, isRouteRootName})
+const address: StorybookPackageRouteAddress.Output = Object.assign(formatRouteAddress, {parseRoute, isRouteRootName})
 
 export default address

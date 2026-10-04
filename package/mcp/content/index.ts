@@ -8,9 +8,9 @@ import {createHash} from "node:crypto"
 import {constants} from "node:fs"
 import {open} from "node:fs/promises"
 import type {ContractSchema, McpContentSources} from "./contract/types"
-import type {Zavx0zStorybookPackageMcpContent as Contract} from "./contract"
+import type {StorybookPackageMcpContent as Contract} from "./contract"
 
-export type {Zavx0zStorybookPackageMcpContent} from "./contract"
+export type {StorybookPackageMcpContent} from "./contract"
 
 /**
 Раскрывает JSON Schema контрактов и сценарии только выбранного владельца.

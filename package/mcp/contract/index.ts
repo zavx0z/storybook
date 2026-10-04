@@ -1,14 +1,14 @@
-import type {Zavx0zStorybookPackageMcpSource} from "@zavx0z/storybook-package-mcp-source"
-import type {Zavx0zStorybookPackageMcpNavigation} from "@zavx0z/storybook-package-mcp-navigation"
-import type {Zavx0zStorybookPackageMcpContent} from "@zavx0z/storybook-package-mcp-content"
+import type {StorybookPackageMcpSource} from "@zavx0z/storybook-package-mcp-source"
+import type {StorybookPackageMcpNavigation} from "@zavx0z/storybook-package-mcp-navigation"
+import type {StorybookPackageMcpContent} from "@zavx0z/storybook-package-mcp-content"
 
 /** Общая форма чтения Package, используемая предметными владельцами. */
-export declare namespace Zavx0zStorybookPackageMcp {
+export declare namespace StorybookPackageMcp {
   type Input = Readonly<{
-    selected: Zavx0zStorybookPackageMcpSource.Output[number]
-    entries: Zavx0zStorybookPackageMcpSource.Output
+    selected: StorybookPackageMcpSource.Output[number]
+    entries: StorybookPackageMcpSource.Output
     /** До подтверждения типа маршрутизатор запрашивает только навигацию. */
     includeContent?: boolean
   }>
-  type Output = Zavx0zStorybookPackageMcpNavigation.Output & Zavx0zStorybookPackageMcpContent.Output
+  type Output = StorybookPackageMcpNavigation.Output & StorybookPackageMcpContent.Output
 }

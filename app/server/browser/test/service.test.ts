@@ -6,10 +6,10 @@ import {join} from "node:path"
 import {PNG} from "pngjs"
 import {StorybookBrowserState} from "../src/browser-state.ts"
 import type {ChromeTargetSummary, StorybookBridgeMethod, StorybookChromeClient, StorybookChromeConsoleEntry} from "../contract/types"
-import createStorybookBrowserLifecycle, {type Zavx0zStorybookAppServerBrowser} from "../index.ts"
+import createStorybookBrowserLifecycle, {type StorybookAppServerBrowser} from "../index.ts"
 
 const {storybookPackageRouteFromPathname} = routeUrl
-type StorybookBrowserLifecycle = Zavx0zStorybookAppServerBrowser.Output
+type StorybookBrowserLifecycle = StorybookAppServerBrowser.Output
 
 const roots: string[] = []
 

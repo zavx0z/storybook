@@ -2,12 +2,12 @@ import {component, createRoot} from "@zavx0z/immersive-component"
 import {createDocument, Event, type HTMLElement} from "@zavx0z/immersive-dom"
 import {expect, test} from "bun:test"
 import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
-import type {Zavx0zStorybookAppWebPagePackageScenarioModel} from "@zavx0z/storybook-app-web-page-package-scenario-model"
+import type {StorybookAppWebPagePackageScenarioModel} from "@zavx0z/storybook-app-web-page-package-scenario-model"
 /** Форма исходного публичного владельца. */
-type ScenarioAppInput = Zavx0zStorybookAppWebPagePackageScenarioModel.Input
+type ScenarioAppInput = StorybookAppWebPagePackageScenarioModel.Input
 import {createDocumentRenderer} from "@zavx0z/immersive-renderer-html"
 import {createScenarioPresentation} from "../src/scenario-presentation.ts"
-import Zavx0zStorybookAppWebPagePackageScenarioInspector from "@zavx0z/storybook-app-web-page-package-scenario-inspector"
+import StorybookAppWebPagePackageScenarioInspector from "@zavx0z/storybook-app-web-page-package-scenario-inspector"
 import {ChildrenFixture, Content, FixedSizeFixture, StatefulFixture} from "./fixture/scenario-presentation.tsx"
 
 test("руководство Archetypes показывает файлы и код без JSON-упаковки", async () => {
@@ -152,7 +152,7 @@ test("выбор варианта сохраняет компонент и ег�
   try {
     const inspectorHost = document.createElement("aside")
     inspector = createRoot(inspectorHost)
-    inspector.render(Zavx0zStorybookAppWebPagePackageScenarioInspector as unknown as CompiledTemplate<{value: unknown}>, {value: presentation.app})
+    inspector.render(StorybookAppWebPagePackageScenarioInspector as unknown as CompiledTemplate<{value: unknown}>, {value: presentation.app})
     const button = presentation.element.querySelector("[data-fixture]")!
     expect(inspectorHost.querySelector('[title="Декларация компонента"]'), "Редактор декларации не перекрывается повторяющей его назначение подсказкой").toBeNull()
     button.dispatchEvent(new Event("click"))
@@ -194,7 +194,7 @@ test("Editor остаётся сверху, пока прокручиваетс�
   inspectorHost.setAttribute("style", "display:flex;width:400px;height:600px")
   document.append(inspectorHost)
   const inspector = createRoot(inspectorHost)
-  inspector.render(Zavx0zStorybookAppWebPagePackageScenarioInspector as unknown as CompiledTemplate<{value: unknown}>, {value: presentation.app})
+  inspector.render(StorybookAppWebPagePackageScenarioInspector as unknown as CompiledTemplate<{value: unknown}>, {value: presentation.app})
   const renderer = createDocumentRenderer({
     document,
     root: inspectorHost,
@@ -237,7 +237,7 @@ test("снимки функции переключаются в редактор
   try {
     const inspectorHost = document.createElement("aside")
     inspector = createRoot(inspectorHost)
-    inspector.render(Zavx0zStorybookAppWebPagePackageScenarioInspector as unknown as CompiledTemplate<{value: unknown}>, {value: presentation.app})
+    inspector.render(StorybookAppWebPagePackageScenarioInspector as unknown as CompiledTemplate<{value: unknown}>, {value: presentation.app})
     const editor = presentation.element.querySelector('[data-language-id="json"]')!
     expect(editor).not.toBeNull()
     expect(editor.getAttribute("title"), "Редактор результата не создаёт всплывающую подсказку").toBeNull()
@@ -311,7 +311,7 @@ test("Inspector сохраняет два уровня describe.each и выби
   const host = document.createElement("aside")
   const inspector = createRoot(host)
   try {
-    inspector.render(Zavx0zStorybookAppWebPagePackageScenarioInspector as unknown as CompiledTemplate<{value: unknown}>, {value: presentation.app})
+    inspector.render(StorybookAppWebPagePackageScenarioInspector as unknown as CompiledTemplate<{value: unknown}>, {value: presentation.app})
     const headings = [...host.querySelectorAll("button")].filter(node => node.hasAttribute("aria-expanded"))
     expect(headings.map(node => node.textContent)).toEqual(["label", "Слева", "Справа", "children", "Слева", "Справа"])
     headings[5]!.dispatchEvent(new Event("click"))

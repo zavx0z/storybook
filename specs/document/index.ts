@@ -6,14 +6,14 @@
 */
 import {dirname, join, relative} from "node:path"
 import {lstat} from "node:fs/promises"
-import type {Zavx0zStorybookSpecsDocument} from "./contract"
+import type {StorybookSpecsDocument} from "./contract"
 
-export type {Zavx0zStorybookSpecsDocument} from "./contract"
+export type {StorybookSpecsDocument} from "./contract"
 
 /** Собирает руководство из прочитанного App сценария и реально существующих файлов его владельца. */
-export default async function createScenarioGuide({report}: Zavx0zStorybookSpecsDocument.Input): Promise<Zavx0zStorybookSpecsDocument.Output> {
+export default async function createScenarioGuide({report}: StorybookSpecsDocument.Input): Promise<StorybookSpecsDocument.Output> {
   const owner = dirname(dirname(report.path))
-  const files: Zavx0zStorybookSpecsDocument.Output["files"][number][] = [
+  const files: StorybookSpecsDocument.Output["files"][number][] = [
     {path: relative(owner, report.path), role: "scenario"},
   ]
   for (const [candidates, role] of [

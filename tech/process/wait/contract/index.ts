@@ -1,7 +1,7 @@
 import type {OwnedChildHandle, OwnedChildStdoutReader} from "./child"
 
 /** Ожидание результата или отмены переданного дочернего процесса. */
-export declare namespace Zavx0zStorybookTechProcessWait {
+export declare namespace StorybookTechProcessWait {
   /** Exact handle процесса и политика ожидания владельца. */
   type Input = Readonly<{
     child: OwnedChildHandle

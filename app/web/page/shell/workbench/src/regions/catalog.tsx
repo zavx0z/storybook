@@ -1,5 +1,5 @@
-import CatalogPanel, {type Zavx0zStorybookAppWebPageShellWorkbenchCatalog} from "@zavx0z/storybook-app-web-page-shell-workbench-catalog"
-type CatalogPanelProps = Zavx0zStorybookAppWebPageShellWorkbenchCatalog.Input & Readonly<{hidden?: boolean}>
+import CatalogPanel, {type StorybookAppWebPageShellWorkbenchCatalog} from "@zavx0z/storybook-app-web-page-shell-workbench-catalog"
+type CatalogPanelProps = StorybookAppWebPageShellWorkbenchCatalog.Input & Readonly<{hidden?: boolean}>
 import {WorkbenchRegionPanel} from "../components/region-panel.tsx"
 
 /** Ветка текущего адреса в Inspector: раскрытие без навигации и фильтра Minimap. */

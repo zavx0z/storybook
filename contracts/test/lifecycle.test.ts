@@ -9,9 +9,10 @@ test("Следующее чтение отражает изменение и у�
   try {
     const source = resolve(fixture.root, "contract/index.ts")
     const first = await readContract({path: fixture.root})
-    await fixture.write("contract/index.ts", 'export declare namespace ContractFixtureCounter {type Input = {readonly value: number\nreadonly step?: number\nreadonly unit: "px"}\ntype Output = number}\n')
+    await fixture.write("contract/index.ts", 'export declare namespace StorybookContractsSpecFixtureComponent {type Input = {readonly value: number\nreadonly step?: number\nreadonly unit: "px"}\ntype Output = number}\n')
     const updated = await readContract({path: fixture.root})
-    expect(updated.diagnostics, "Новое определение читается согласованно после изменения").toEqual([])
+    expect(updated.diagnostics, "Форма читается согласованно; перенесённый образец сохраняет предупреждение о новом пути")
+      .toEqual([fixture.namingDiagnostic("StorybookContractsSpecFixtureComponent")])
     expect(updated.sources.find(value => value.path === source)?.digest,
       "Повторное чтение не сохраняет digest старого snapshot").not.toBe(first.sources.find(value => value.path === source)?.digest)
     expect(updated.entries[0]?.namespaces[0]?.roles.find(role => role.name === "Input")?.fields.map(value => value.name),
@@ -44,7 +45,7 @@ test("Символическая ссылка не заменяет собств
   const fixture = await createFixture()
   try {
     const source = resolve(fixture.root, "contract/index.ts")
-    const target = await fixture.write("contract/linked-index.ts", 'export declare namespace ContractFixtureCounter {type Input = {value: number\nstep?: number}\ntype Output = number}\n')
+    const target = await fixture.write("contract/linked-index.ts", 'export declare namespace StorybookContractsSpecFixtureComponent {type Input = {value: number\nstep?: number}\ntype Output = number}\n')
     await rm(source)
     await symlink(target, source)
     await expect(readContract({path: fixture.root}), "Читатель отклоняет подмену физического файла; ссылка целиком находится в принадлежащей тесту директории")

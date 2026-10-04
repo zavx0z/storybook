@@ -11,8 +11,8 @@ test("средовые протоколы и документы читаются
       exports: {".": {browser: "./web.ts", node: "./server.ts"}}}))
     await fixture.write("contract/message.ts", "export interface Message {readonly text: string}\n")
     for (const name of ["web", "server"]) {
-      await fixture.write(`${name}.ts`, `/** Вход ${name}.\n@packageDocumentation\n*/\nimport type {ContractFixtureDomain} from "./contract/${name}"\nexport type {ContractFixtureDomain} from "./contract/${name}"\nthrow new Error("Исследуемый код не исполняется")\nexport default function entry(input: ContractFixtureDomain.Input): ContractFixtureDomain.Output {return input.message.text}\n`)
-      await fixture.write(`contract/${name}.ts`, `import type {Message} from "./message"\nexport declare namespace ContractFixtureDomain {interface Input {readonly message: Message\nreadonly ${name}?: boolean}\ntype Output = string}\n`)
+      await fixture.write(`${name}.ts`, `/** Вход ${name}.\n@packageDocumentation\n*/\nimport type {${fixture.namespaceName}} from "./contract/${name}"\nexport type {${fixture.namespaceName}} from "./contract/${name}"\nthrow new Error("Исследуемый код не исполняется")\nexport default function entry(input: ${fixture.namespaceName}.Input): ${fixture.namespaceName}.Output {return input.message.text}\n`)
+      await fixture.write(`contract/${name}.ts`, `import type {Message} from "./message"\nexport declare namespace ${fixture.namespaceName} {interface Input {readonly message: Message\nreadonly ${name}?: boolean}\ntype Output = string}\n`)
     }
     const result = await readContract({path: fixture.root})
     expect(result.entries.map(entry => ({path: entry.exportPath, conditions: entry.conditions})))

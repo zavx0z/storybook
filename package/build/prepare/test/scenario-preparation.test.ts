@@ -1,5 +1,5 @@
-import {type Zavx0zStorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
-type Zavx0zStorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
+import {type StorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
+type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 type StorybookPackageDiagnostic = ReturnType<PackageSessionContract.Output["snapshot"]>["diagnostics"][number]
 import {expect, test} from "bun:test"
 import {mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
@@ -20,7 +20,7 @@ test("готовит один preview только для однозначног
       {nodeId: "directory:package:@fixture/scenarios/component", sourcePaths: [supported]},
       {nodeId: "package:@zavx0z/storybook-package-reader", sourcePaths: [functionSource]},
     ],
-  } as unknown as Zavx0zStorybookPackageBuildDescriptor
+  } as unknown as StorybookPackageBuildDescriptor
 
   const phases: string[] = []
   const result = await prepareStorybookScenarios(descriptor, new AbortController().signal, undefined, undefined,
@@ -49,7 +49,7 @@ test("ошибка неподдержанного scenario остаётся от
   try {
     const descriptor = {
       scenarioSpecs: [{nodeId: "directory:package:@fixture/unsupported/module", sourcePaths: [path]}],
-    } as unknown as Zavx0zStorybookPackageBuildDescriptor
+    } as unknown as StorybookPackageBuildDescriptor
 
     await expect(prepareStorybookScenarios(descriptor, new AbortController().signal,
       undefined, {standard: "transition", warnings: []})).rejects.toThrow("Этот source нельзя исполнять")
@@ -75,7 +75,7 @@ test("неоднозначность предупреждает переходн
     '})',
   ].join("\n"))
   writeFileSync(unsupported, 'throw new Error("Не выбирать второй сценарий")\n')
-  const descriptor = {scenarioSpecs: [{nodeId: "ambiguous", sourcePaths: [supported, unsupported]}]} as unknown as Zavx0zStorybookPackageBuildDescriptor
+  const descriptor = {scenarioSpecs: [{nodeId: "ambiguous", sourcePaths: [supported, unsupported]}]} as unknown as StorybookPackageBuildDescriptor
   const warnings: StorybookPackageDiagnostic[] = []
   try {
     expect(await readScenario.supportsPreview({path: supported})).toBeTrue()
@@ -92,6 +92,6 @@ test("неоднозначность предупреждает переходн
 
 test("сборка отклоняет раздельные Component и props вместо незаметного пропуска сценария", async () => {
   const path = resolve(import.meta.dir, "../../../../specs/scenarios/reader/spec/fixture/component/spec/separate-props.test.tsx")
-  const descriptor = {scenarioSpecs: [{nodeId: "invalid", sourcePaths: [path]}]} as unknown as Zavx0zStorybookPackageBuildDescriptor
+  const descriptor = {scenarioSpecs: [{nodeId: "invalid", sourcePaths: [path]}]} as unknown as StorybookPackageBuildDescriptor
   await expect(prepareStorybookScenarios(descriptor, new AbortController().signal)).rejects.toThrow("render принимает ровно один аргумент")
 }, 30_000)

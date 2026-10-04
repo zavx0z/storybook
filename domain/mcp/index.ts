@@ -7,9 +7,9 @@
 */
 import navigation from "@zavx0z/storybook-package-mcp-navigation"
 import content from "@zavx0z/storybook-package-mcp-content"
-import type {Zavx0zStorybookDomainMcp as Contract} from "./contract"
+import type {StorybookDomainMcp as Contract} from "./contract"
 
-export type {Zavx0zStorybookDomainMcp} from "./contract"
+export type {StorybookDomainMcp} from "./contract"
 
 /** Формирует содержательный ответ Domain, сохраняя точные источники и границы его участников. */
 export default async function readDomainMcp({selected, entries}: Contract.Input): Promise<Contract.Output> {

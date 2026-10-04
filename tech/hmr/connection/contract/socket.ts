@@ -1,5 +1,5 @@
 /**
-Форма соединения, доступная потребителю через `Zavx0zStorybookTechHmrConnection.Input["socket"]`.
+Форма соединения, доступная потребителю через `StorybookTechHmrConnection.Input["socket"]`.
 
 @property addEventListener - Подключает обработчик события по имени; HMR использует open, message и close.
 

@@ -1,6 +1,6 @@
 import type {ViewPointElement} from "@zavx0z/immersive-dom/viewpoint"
-import type {Zavx0zImmersiveUiComponentSurfaceTab} from "@zavx0z/immersive-ui-component"
-type TabProps = Zavx0zImmersiveUiComponentSurfaceTab.Input
+import type {ImmersiveUiComponentSurfaceTab} from "@zavx0z/immersive-ui-component"
+type TabProps = ImmersiveUiComponentSurfaceTab.Input
 
 /** Настройки Tab, режима жестов и сохранённой камеры того же Experience. */
 export type CameraState = Pick<ViewPointElement, "x" | "y" | "z" | "targetX" | "targetY" | "targetZ" | "fov" | "near" | "far">

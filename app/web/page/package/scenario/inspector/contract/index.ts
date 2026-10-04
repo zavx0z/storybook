@@ -1,5 +1,5 @@
 /** Контракт представления сценария inspector. */
-export declare namespace Zavx0zStorybookAppWebPagePackageScenarioInspector {
+export declare namespace StorybookAppWebPagePackageScenarioInspector {
   /**
   @property value - Модель сценария, предоставленная принимающим Inspector.
   */

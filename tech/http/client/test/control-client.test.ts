@@ -1,6 +1,6 @@
 import {afterEach, expect, test} from "bun:test"
 import ExternalStorybookControlClient from "@zavx0z/storybook-tech-http-client"
-import type {Zavx0zStorybookTechHttpClient} from "@zavx0z/storybook-tech-http-client"
+import type {StorybookTechHttpClient} from "@zavx0z/storybook-tech-http-client"
 
 const originalFetch = globalThis.fetch
 afterEach(() => { globalThis.fetch = originalFetch })
@@ -8,7 +8,7 @@ const client = new ExternalStorybookControlClient({
   origin: "http://127.0.0.1:43210",
   instanceId: "fixture",
   authorization: () => `Bearer ${"x".repeat(43)}`,
-} as Zavx0zStorybookTechHttpClient.Input)
+} as StorybookTechHttpClient.Input)
 
 test("NDJSON сохраняет стадии, UTF-8 и итог через произвольные границы chunks", async () => {
   const received: unknown[] = []

@@ -5,17 +5,17 @@
 явной. Компонент не выбирает маршрут, не собирает пакет и не создаёт Canvas.
 @packageDocumentation
 */
-import type {Zavx0zStorybookTechHmrPage} from "./contract"
-export type {Zavx0zStorybookTechHmrPage} from "./contract"
+import type {StorybookTechHmrPage} from "./contract"
+export type {StorybookTechHmrPage} from "./contract"
 
 /**
 Создаёт сериализованный lifecycle одного исполняемого scope страницы.
 
 @typeParam Scope - Сохраняемые данные, нужные для освобождения и восстановления исполнения.
 
-@param input - Операции владельца исполнения согласно {@link Zavx0zStorybookTechHmrPage.Input}.
+@param input - Операции владельца исполнения согласно {@link StorybookTechHmrPage.Input}.
 
-@returns Управление текущим scope; владелец завершает lifecycle через {@link Zavx0zStorybookTechHmrPage.Output.dispose}.
+@returns Управление текущим scope; владелец завершает lifecycle через {@link StorybookTechHmrPage.Output.dispose}.
 
 @example
 ```ts
@@ -27,7 +27,7 @@ try {
 }
 ```
 */
-export default function createHmrPage<Scope>(input: Zavx0zStorybookTechHmrPage.Input<Scope>): Zavx0zStorybookTechHmrPage.Output<Scope> {
+export default function createHmrPage<Scope>(input: StorybookTechHmrPage.Input<Scope>): StorybookTechHmrPage.Output<Scope> {
   let current: Scope | null = input.initial ?? null
   let tail: Promise<void> = Promise.resolve()
   let closed = false

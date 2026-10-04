@@ -2,7 +2,7 @@ import WebProtocol from "@zavx0z/storybook-app-web-protocol"
 import RouteUrlOwner from "@zavx0z/storybook-package-route-url"
 const storybookPackageUrlPath = RouteUrlOwner.storybookPackageUrlPath
 import {DisplayElement} from "@zavx0z/immersive-dom/display"
-import Zavx0zStorybookAppWebPagePackageScenarioInspector from "@zavx0z/storybook-app-web-page-package-scenario-inspector"
+import StorybookAppWebPagePackageScenarioInspector from "@zavx0z/storybook-app-web-page-package-scenario-inspector"
 import presentationRootFixture from "@zavx0z/storybook-tech-testing-browser-root"
 import {createRoot} from "@zavx0z/immersive-component"
 import {createDocumentClipboardController} from "@zavx0z/immersive-browser/clipboard"
@@ -16,13 +16,13 @@ import {HUDElement} from "@zavx0z/immersive-dom/hud"
 import {SpaceElement} from "@zavx0z/immersive-dom/space"
 import {ViewPointElement} from "@zavx0z/immersive-dom/viewpoint"
 import discoverStorybookPackages from "@zavx0z/storybook-package-metadata-collect"
-import createExternalStorybookGraph, {type Zavx0zStorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
-type ExternalStorybookGraph = Zavx0zStorybookPackageGraphCreate.Output
-import type {Zavx0zStorybookPackageSession} from "@zavx0z/storybook-package-session"
-type StorybookPackageSessionSnapshot = ReturnType<Zavx0zStorybookPackageSession.Output["snapshot"]>
+import createExternalStorybookGraph, {type StorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
+type ExternalStorybookGraph = StorybookPackageGraphCreate.Output
+import type {StorybookPackageSession} from "@zavx0z/storybook-package-session"
+type StorybookPackageSessionSnapshot = ReturnType<StorybookPackageSession.Output["snapshot"]>
 import startExternalStorybookLanding from "@zavx0z/storybook-app-web-page-home"
-import type {Zavx0zStorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
-type ExternalStorybookRootFactory = NonNullable<Zavx0zStorybookAppWebPageShell.Input["createRoot"]>
+import type {StorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
+type ExternalStorybookRootFactory = NonNullable<StorybookAppWebPageShell.Input["createRoot"]>
 
 const fixtureRoot = join(import.meta.dir, "../../../../../package/metadata/collect/fixtures/valid")
 
@@ -168,7 +168,7 @@ describe("external Storybook landing frontend", () => {
     workbench.update("inspector.subject", {packageId: "@fixture/components", subjectId: "stale", workspaceId: "stale", widgetIds: ["source"]})
     workbench.update("inspector.values", {source: "stale"})
     workbench.update("inspector.registry", [...registry, {
-      id: "fixture-custom", kind: "custom", label: "X", title: "Fixture", component: Zavx0zStorybookAppWebPagePackageScenarioInspector,
+      id: "fixture-custom", kind: "custom", label: "X", title: "Fixture", component: StorybookAppWebPagePackageScenarioInspector,
     }] as never)
     const document = first.shell.document
     const space = first.shell.space

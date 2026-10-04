@@ -11,5 +11,5 @@ test("публичные контракты сценариев проходят 
   if (owner?.kind !== "package") return
   expect(owner.contractDocumentation?.sources.map(source => source.sourcePath)).toContain(contract)
   expect(owner.contractDocumentation?.documents.flatMap(document => document.document.declarations.map(declaration => declaration.name)))
-    .toEqual(["Zavx0zStorybookSpecsPresentation.Input", "Zavx0zStorybookSpecsPresentation.Output"])
+    .toEqual(["StorybookSpecsPresentation.Input", "StorybookSpecsPresentation.Output"])
 })

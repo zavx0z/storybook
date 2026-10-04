@@ -3,35 +3,35 @@
 @packageDocumentation
 */
 import BuildEnvironmentOwner from "@zavx0z/storybook-tech-build-environment"
-import PackageSessionOwner, {type Zavx0zStorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
+import PackageSessionOwner, {type StorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
 const createStorybookSharedBrowserExternalPlugin = BuildEnvironmentOwner.externalPlugin
 const validateStorybookSharedBrowserIdentity = BuildEnvironmentOwner.validate
 const storybookBuildError = PackageSessionOwner.buildError
 const storybookDiagnostic = PackageSessionOwner.diagnostic
-type Zavx0zStorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
+type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 type StorybookPackageDiagnostic = ReturnType<PackageSessionContract.Output["snapshot"]>["diagnostics"][number]
 type StorybookPackageRevisionResourceFile = NonNullable<PackageSessionContract.Input[0]["resourceFiles"]>[number]
 import Compiler from "@zavx0z/storybook-tech-build-compiler"
 import {createHash} from "node:crypto"
 import {closeSync, constants, fstatSync, mkdirSync, openSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync} from "node:fs"
 import {dirname, extname, isAbsolute, join, relative, resolve, sep} from "node:path"
-import loader, {type Zavx0zStorybookPackageBuildLoader} from "@zavx0z/storybook-package-build-loader"
+import loader, {type StorybookPackageBuildLoader} from "@zavx0z/storybook-package-build-loader"
 import conformance from "@zavx0z/storybook-package-build-conformance"
 import prepareStorybookScenarios from "@zavx0z/storybook-package-build-scenarios"
 import inputs from "@zavx0z/storybook-package-build-inputs"
-import type {Zavx0zStorybookPackageBuildPrepare} from "../contract"
+import type {StorybookPackageBuildPrepare} from "../contract"
 import type {BuilderInput, BuildResult, PhaseEvent, PhaseListener} from "../contract/build"
 
 const {createStorybookPackageCompilerPlugins, ensureGeneratedJsxProtocol} = Compiler
 const {check: checkStorybookPackageConformance, verify: scenarioVerification} = conformance
 const {payloadFile: STORYBOOK_REVISION_PAYLOAD_FILE, generateLoaderSource: generateStorybookLoaderSource, generateJsxModules: generateStorybookJsxModules, generateAppliedRevisionLoaderSource: generateStorybookAppliedRevisionLoaderSource, generateRevisionPayloadSource: generateStorybookRevisionPayloadSource} = loader
 const {canonicalBuildInputs, canonicalizeIdentities: canonicalizeStorybookPackageIdentities, stablePath: stableBuildInputPath, validateConsumerBoundary} = inputs
-type StorybookGeneratedScenario = Parameters<Zavx0zStorybookPackageBuildLoader.Output["generateJsxModules"]>[0][number]
+type StorybookGeneratedScenario = Parameters<StorybookPackageBuildLoader.Output["generateJsxModules"]>[0][number]
 
 /** Выполняет сборку внутри isolated package worker либо focused test seam. */
 export async function buildStorybookPackageRevisionInProcess(
   input: BuilderInput,
-  options: Zavx0zStorybookPackageBuildPrepare.Input,
+  options: StorybookPackageBuildPrepare.Input,
 ): Promise<BuildResult> {
   input.signal.throwIfAborted()
   const toolRoot = realpathSync(options.toolRoot)
@@ -321,7 +321,7 @@ function notifyPhase(
 }
 
 function validateModuleExports(
-  descriptor: Zavx0zStorybookPackageBuildDescriptor,
+  descriptor: StorybookPackageBuildDescriptor,
   scenarios: readonly StorybookGeneratedScenario[],
 ): void {
   const modules = [
@@ -338,7 +338,7 @@ function validateModuleExports(
 и tree shaking, но не создаёт второй Bun build и не исполняет author modules.
 */
 function validateBundledModuleExports(
-  descriptor: Zavx0zStorybookPackageBuildDescriptor,
+  descriptor: StorybookPackageBuildDescriptor,
   scenarios: readonly StorybookGeneratedScenario[],
   outputs: Readonly<Record<string, unknown>>,
   repo: string,
@@ -401,7 +401,7 @@ function transpilerLoader(path: string): Bun.JavaScriptLoader {
 }
 
 async function buildRevisionDigest(
-  descriptor: Zavx0zStorybookPackageBuildDescriptor,
+  descriptor: StorybookPackageBuildDescriptor,
   inputs: readonly string[],
   outputs: readonly Bun.BuildArtifact[],
   inputMetadata: Readonly<Record<string, unknown>>,

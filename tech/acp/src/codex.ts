@@ -3,7 +3,7 @@
 Передаёт native Codex точные bootstrap overrides до запуска App Server.
 Не читает и не разбирает ACP/JSON-RPC: stdin, stdout и stderr наследуются.
 Процесс остаётся в detached группе владельца ACP, который подтверждает её
-завершение через Zavx0zStorybookTechProcessWait. HOME, credentials и глобальная конфигурация
+завершение через StorybookTechProcessWait. HOME, credentials и глобальная конфигурация
 не подменяются.
 */
 const command = process.env.STORYBOOK_ACP_NATIVE_COMMAND

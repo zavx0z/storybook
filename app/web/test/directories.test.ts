@@ -1,5 +1,5 @@
 import createWeb from "@zavx0z/storybook-app-web"
-import AppServerCatalogOwner, {type Zavx0zStorybookAppServerCatalog as AppServerCatalogContract} from "@zavx0z/storybook-app-server-catalog"
+import AppServerCatalogOwner, {type StorybookAppServerCatalog as AppServerCatalogContract} from "@zavx0z/storybook-app-server-catalog"
 import PackageMetadataCollectOwner from "@zavx0z/storybook-package-metadata-collect"
 const ExternalStorybookRegistry = AppServerCatalogOwner
 const discoverStorybookPackages = PackageMetadataCollectOwner

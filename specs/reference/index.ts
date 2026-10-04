@@ -5,11 +5,11 @@
 
 @packageDocumentation
 */
-import type {Zavx0zStorybookSpecsReference} from "./contract"
+import type {StorybookSpecsReference} from "./contract"
 import {validateReferenceText, isCompatibility, isAcceptance, positive, validateReferenceAsset, rect} from "./src/validation"
-export type {Zavx0zStorybookSpecsReference} from "./contract"
+export type {StorybookSpecsReference} from "./contract"
 
-const reference: Zavx0zStorybookSpecsReference.Output = Object.freeze<Zavx0zStorybookSpecsReference.Output>({
+const reference: StorybookSpecsReference.Output = Object.freeze<StorybookSpecsReference.Output>({
   /**
 Проверяет предоставленное владельцем описание и сохраняет неизменный снимок.
 Отображение свидетельства не выполняет переход его состояния приёмки.

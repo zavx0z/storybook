@@ -24,6 +24,12 @@ describe.each([{name: "Группа числовых операций", props: {
       {name: "Input", linked: true, compatible: true},
       {name: "Output", linked: true, compatible: true},
     ])
-    expect(result.protocols.diagnostics, "Протоколы читаются без фиктивной реализации кластера").toEqual([])
+    expect(result.protocols.diagnostics, "Без Git Repo имена не считаются проверенными; протоколы и их связи доступны")
+      .toEqual(["FixtureGroup", "FixtureIncrement"].map((name, index) => ({
+        severity: "warning" as const,
+        code: "namespace-name-context",
+        path: resolve(props.path, index === 0 ? "contract/index.ts" : "increment/contract/index.ts"),
+        message: `Имя namespace ${name} не проверено: Git-граница Repo исходного владельца не установлена`,
+      })))
   })
 })

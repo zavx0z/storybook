@@ -3,16 +3,16 @@ import {mkdtemp, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {createChatServer} from "../src/chat"
-import type {Zavx0zStorybookTechAcp} from "@zavx0z/storybook-tech-acp"
-import type {Zavx0zStorybookPackageGraphRead} from "@zavx0z/storybook-package-graph-read"
-import type {Zavx0zStorybookAppMcpRest} from "@zavx0z/storybook-app-mcp-rest"
+import type {StorybookTechAcp} from "@zavx0z/storybook-tech-acp"
+import type {StorybookPackageGraphRead} from "@zavx0z/storybook-package-graph-read"
+import type {StorybookAppMcpRest} from "@zavx0z/storybook-app-mcp-rest"
 
 const releases: (() => Promise<void>)[] = []
 afterEach(async () => { for (const release of releases.splice(0).reverse()) await release() })
 
 async function fixture(
-  configOptions: Zavx0zStorybookTechAcp.Output["configOptions"] = [],
-  readType?: Zavx0zStorybookAppMcpRest.Input[1]["entries"][number]["readType"],
+  configOptions: StorybookTechAcp.Output["configOptions"] = [],
+  readType?: StorybookAppMcpRest.Input[1]["entries"][number]["readType"],
   withRules = false,
 ) {
   let prompts = 0
@@ -32,10 +32,10 @@ async function fixture(
   const entries = nodes.map(node => ({path: node.urlPath.slice(1), label: node.label, description: node.label, parent: nodes.find(parent => parent.childIds.includes(node.id))?.urlPath.slice(1) ?? null,
     ...(node.kind === "package" && readType !== undefined ? {readType} : {}),
   }))
-  const connections: Zavx0zStorybookTechAcp.Input[] = []
+  const connections: StorybookTechAcp.Input[] = []
   const server = createChatServer({
     project, projectName: () => "Project", toolRoot: project, origin: () => "http://127.0.0.1:12345",
-    graph: () => ({nodes} as unknown as Zavx0zStorybookPackageGraphRead.Input), entries: () => entries,
+    graph: () => ({nodes} as unknown as StorybookPackageGraphRead.Input), entries: () => entries,
     async connect(input) {
       connections.push(input)
       return {

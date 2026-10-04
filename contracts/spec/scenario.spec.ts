@@ -15,7 +15,7 @@ describe.each([
     name: "Component",
     props: {path: resolve(import.meta.dir, "fixture/component")},
     packageName: "@contract-fixture/counter",
-    namespaceName: "ContractFixtureCounter",
+    namespaceName: "StorybookContractsSpecFixtureComponent",
     jsx: false,
     partName: null,
   },
@@ -23,7 +23,7 @@ describe.each([
     name: "JSX Component",
     props: {path: resolve(import.meta.dir, "fixture/jsx-component")},
     packageName: "@contract-fixture/panel",
-    namespaceName: "ContractFixturePanel",
+    namespaceName: "StorybookContractsSpecFixtureJsxComponent",
     jsx: true,
     partName: null,
   },
@@ -31,7 +31,7 @@ describe.each([
     name: "Container",
     props: {path: resolve(import.meta.dir, "fixture/container")},
     packageName: "@contract-fixture/combined",
-    namespaceName: "ContractFixtureCombined",
+    namespaceName: "StorybookContractsSpecFixtureContainer",
     jsx: false,
     partName: "@contract-fixture/part",
   },
@@ -39,7 +39,7 @@ describe.each([
     name: "JSX Container",
     props: {path: resolve(import.meta.dir, "fixture/jsx-container")},
     packageName: "@contract-fixture/workspace",
-    namespaceName: "ContractFixtureWorkspace",
+    namespaceName: "StorybookContractsSpecFixtureJsxContainer",
     jsx: true,
     partName: "@contract-fixture/part",
   },
@@ -79,10 +79,10 @@ describe.each([
 
   test("Имя владельца в namespace", () => {
     expect(namespace.declaration.name,
-      `Полное имя ${packageName}, включая scope, выражается как ${namespaceName}; несовпадение публикуется предупреждением namespace-name`)
+      `Путь исходного владельца от Repo выражается как ${namespaceName}; организация ${packageName.split("/")[0]} не входит в namespace`)
       .toBe(namespaceName)
     expect(result.diagnostics.filter(value => value.code === "namespace-name"),
-      "Имя namespace соответствует имени пакета и не вызывает предупреждения").toEqual([])
+      "Имя namespace соответствует физическому пути владельца и не вызывает предупреждения").toEqual([])
   })
 
   test("Принадлежащие типы", () => {
@@ -147,14 +147,14 @@ describe.each([
   })
 
   /** @remarks Числовой Component раскрывает primitive Output; формы объектов ему не навязываются. */
-  describe.skipIf(namespaceName !== "ContractFixtureCounter")("Примитив и форма входа", () => {
+  describe.skipIf(namespaceName !== "StorybookContractsSpecFixtureComponent")("Примитив и форма входа", () => {
     test("Примитивный выход", () => {
       expect(namespace.roles.find(role => role.name === "Output"), "Число сохраняется как тип без выдуманных полей объекта")
         .toMatchObject({name: "Output", type: "number", fields: []})
     })
     test("Поля входа", () => {
       expect(namespace.roles.find(role => role.name === "Input")?.fields.map(field => ({name: field.name, type: field.type, optional: field.optional})),
-        "Обязательное значение и необязательный шаг определены непосредственно в Input пространства ContractFixtureCounter")
+        "Обязательное значение и необязательный шаг определены непосредственно в Input пространства StorybookContractsSpecFixtureComponent")
         .toEqual([{name: "value", type: "number", optional: false}, {name: "step", type: "number | undefined", optional: true}])
     })
     test("Частный тип реализации", () => {

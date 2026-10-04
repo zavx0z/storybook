@@ -1,8 +1,8 @@
 import {describe, expect, test} from "bun:test"
 import createScenarioApp from "@zavx0z/storybook-app-web-page-package-scenario-model"
-import type {Zavx0zStorybookAppWebPagePackageScenarioModel} from "@zavx0z/storybook-app-web-page-package-scenario-model"
+import type {StorybookAppWebPagePackageScenarioModel} from "@zavx0z/storybook-app-web-page-package-scenario-model"
 /** Форма исходного публичного владельца. */
-type ScenarioAppInput = Zavx0zStorybookAppWebPagePackageScenarioModel.Input
+type ScenarioAppInput = StorybookAppWebPagePackageScenarioModel.Input
 import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
 import {StatefulFixture} from "./fixture"
 

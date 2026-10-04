@@ -1,7 +1,7 @@
 import type {PackageManifest, RoutePosition} from "./types"
 
 /** Контракт физического прохода workspace и публичных директорий. */
-export declare namespace Zavx0zStorybookPackageRouteStructure {
+export declare namespace StorybookPackageRouteStructure {
   /**
   Операции одного уровня прохода с чтением package.json и проверкой ownership.
 

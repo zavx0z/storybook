@@ -16,9 +16,9 @@ import {attachPickedDirectory, pickStorybookDirectory} from "./src/directory-pic
 
 import type {CustomEvent} from "@zavx0z/immersive-dom"
 import indexedWorkbenchAuthorStyleSheetSources from "@zavx0z/storybook-app-web-page-style-sheets"
-import type {Zavx0zStorybookAppWebPageShellWorkbenchCatalog} from "@zavx0z/storybook-app-web-page-shell-workbench-catalog"
-type WorkbenchCatalogAction = Parameters<Zavx0zStorybookAppWebPageShellWorkbenchCatalog.Input["onAction"]>[0]
-type WorkbenchCatalogManagement = NonNullable<Zavx0zStorybookAppWebPageShellWorkbenchCatalog.Input["management"]>
+import type {StorybookAppWebPageShellWorkbenchCatalog} from "@zavx0z/storybook-app-web-page-shell-workbench-catalog"
+type WorkbenchCatalogAction = Parameters<StorybookAppWebPageShellWorkbenchCatalog.Input["onAction"]>[0]
+type WorkbenchCatalogManagement = NonNullable<StorybookAppWebPageShellWorkbenchCatalog.Input["management"]>
 const deriveExternalStorybookLanding = WebNavigationOwner.deriveExternalStorybookLanding
 const deriveExternalStorybookLandingSelection = WebNavigationOwner.deriveExternalStorybookLandingSelection
 const deriveExternalStorybookNavigationTree = WebNavigationOwner.deriveExternalStorybookNavigationTree
@@ -37,11 +37,11 @@ const buildProgressStatus = WebStatusOwner.build
 const catalogProgressStatus = WebStatusOwner.catalog
 const readBuildProgress = WebStatusOwner.readBuild
 const readCatalogProgress = WebStatusOwner.readCatalog
-import type {Zavx0zStorybookAppWebPageHome} from "./contract"
-type StartExternalStorybookLandingOptions = Zavx0zStorybookAppWebPageHome.Input
-type ExternalStorybookLandingController = Zavx0zStorybookAppWebPageHome.Output
+import type {StorybookAppWebPageHome} from "./contract"
+type StartExternalStorybookLandingOptions = StorybookAppWebPageHome.Input
+type ExternalStorybookLandingController = StorybookAppWebPageHome.Output
 import {createLandingSocket, parseLandingEvent, navigationItems, overviewDescription, requestRegistryChange, isolateLandingError, errorText, assertActive} from './src/implementation'
-export type {Zavx0zStorybookAppWebPageHome} from './contract'
+export type {StorybookAppWebPageHome} from './contract'
 
 async function startExternalStorybookLanding(
   options: StartExternalStorybookLandingOptions = {},

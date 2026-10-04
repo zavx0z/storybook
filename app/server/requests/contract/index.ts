@@ -1,7 +1,7 @@
 import type {McpRequestRecord} from "./record"
 
 /** Контракт ограниченного журнала доставок MCP одного HTTP-сервера. */
-export declare namespace Zavx0zStorybookAppServerRequests {
+export declare namespace StorybookAppServerRequests {
   /** Запись, чтение последних 20 обращений и компактная диагностика доставки. */
   type Output = Readonly<{
     write(value: unknown): void

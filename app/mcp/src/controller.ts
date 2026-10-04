@@ -1,10 +1,10 @@
 import type {StorybookControllerAccessor} from "./resources"
-import type {Zavx0zStorybookAppMcp} from "../contract"
+import type {StorybookAppMcp} from "../contract"
 import type {Controller} from "../contract/types"
 import {recordMcpRequest, traceMcpRequest} from "./request-log"
 
 export function controllerAccessor(
-  options: Zavx0zStorybookAppMcp.Input,
+  options: StorybookAppMcp.Input,
   run: <Result>(operation: () => Promise<Result>) => Promise<Result> = operation => operation(),
 ): StorybookControllerAccessor {
   let pending: Promise<Controller> | null = null

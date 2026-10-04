@@ -1,4 +1,4 @@
-import {Button, type Zavx0zImmersiveUiComponentButtonBasic} from "@zavx0z/immersive-ui-component"
+import {Button, type ImmersiveUiComponentButtonBasic} from "@zavx0z/immersive-ui-component"
 import type {WorkbenchTabItem} from "../types.ts"
 
 type TabProps = Readonly<{
@@ -15,7 +15,7 @@ export type TabsRegionProps = Readonly<{
 }>
 
 function Tab(props: TabProps) {
-  const onClick: NonNullable<Zavx0zImmersiveUiComponentButtonBasic.Input["onClick"]> = event => {
+  const onClick: NonNullable<ImmersiveUiComponentButtonBasic.Input["onClick"]> = event => {
     if (!props.item.disabled) props.onTab(props.item, event.currentTarget)
   }
   return <Button

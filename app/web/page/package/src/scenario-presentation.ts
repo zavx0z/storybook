@@ -1,12 +1,12 @@
 import {createRoot} from "@zavx0z/immersive-component"
 import createScenarioApp from "@zavx0z/storybook-app-web-page-package-scenario-model"
-import type {Zavx0zStorybookAppWebPagePackageScenarioModel} from "@zavx0z/storybook-app-web-page-package-scenario-model"
+import type {StorybookAppWebPagePackageScenarioModel} from "@zavx0z/storybook-app-web-page-package-scenario-model"
 /** Форма исходного публичного владельца. */
-type ScenarioAppInput = Zavx0zStorybookAppWebPagePackageScenarioModel.Input
-import Zavx0zStorybookAppWebPagePackageScenarioPreview, {type Zavx0zStorybookAppWebPagePackageScenarioPreview as ScenarioPreviewContract} from "@zavx0z/storybook-app-web-page-package-scenario-preview"
+type ScenarioAppInput = StorybookAppWebPagePackageScenarioModel.Input
+import StorybookAppWebPagePackageScenarioPreview, {type StorybookAppWebPagePackageScenarioPreview as ScenarioPreviewContract} from "@zavx0z/storybook-app-web-page-package-scenario-preview"
 /** Форма исходного публичного владельца. */
 type ScenarioPreviewPlacement = ScenarioPreviewContract.Input["placement"]
-import Zavx0zStorybookAppWebPagePackageScenarioResult from "@zavx0z/storybook-app-web-page-package-scenario-result"
+import StorybookAppWebPagePackageScenarioResult from "@zavx0z/storybook-app-web-page-package-scenario-result"
 import type {Document} from "@zavx0z/immersive-dom"
 import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
 import createStorybookComponentPresentation from "@zavx0z/storybook-app-web-page-presentation"
@@ -19,7 +19,7 @@ import createStorybookComponentPresentation from "@zavx0z/storybook-app-web-page
 export function createScenarioPresentation(document: Document, input: ScenarioAppInput) {
   const app = createScenarioApp(input)
   if (input.kind === "function") {
-    const template = Zavx0zStorybookAppWebPagePackageScenarioResult as unknown as CompiledTemplate<{app: typeof app}>
+    const template = StorybookAppWebPagePackageScenarioResult as unknown as CompiledTemplate<{app: typeof app}>
     const view = createStorybookComponentPresentation(document, template, {app}, "[data-scenario-result]")
     return Object.freeze({...view, app, center: () => false, dispose() {
       app.dispose()
@@ -32,7 +32,7 @@ export function createScenarioPresentation(document: Document, input: ScenarioAp
     return input.resolveProps?.(selected.id, selected.props) ?? selected.props
   }
   let placement: ScenarioPreviewPlacement = {x: 0, y: 0}
-  const template = Zavx0zStorybookAppWebPagePackageScenarioPreview as unknown as CompiledTemplate<Parameters<typeof Zavx0zStorybookAppWebPagePackageScenarioPreview>[0]>
+  const template = StorybookAppWebPagePackageScenarioPreview as unknown as CompiledTemplate<Parameters<typeof StorybookAppWebPagePackageScenarioPreview>[0]>
   const view = createStorybookComponentPresentation(document, template, {placement, app}, "[data-scenario-preview]")
   const stage = view.element.querySelector("[data-scenario-stage]")!
   const fixtureRoot = createRoot(stage)

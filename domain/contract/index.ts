@@ -1,7 +1,7 @@
-import type {Zavx0zStorybookPackageReader} from "@zavx0z/storybook-package-reader"
-import type {Zavx0zStorybookContracts} from "@zavx0z/storybook-contracts"
+import type {StorybookPackageReader} from "@zavx0z/storybook-package-reader"
+import type {StorybookContracts} from "@zavx0z/storybook-contracts"
 
-export declare namespace Zavx0zStorybookDomain {
+export declare namespace StorybookDomain {
   /**
   Директория проверяемого пакета; класс не передаётся вызывающим кодом.
 
@@ -20,9 +20,9 @@ export declare namespace Zavx0zStorybookDomain {
   @property scenarios - Непосредственные сценарии предметных правил и средовых реализаций.
   */
   export interface Output {
-    readonly package: Zavx0zStorybookPackageReader.Output
-    readonly protocols: Zavx0zStorybookContracts.Output
-    readonly sharedDefinitions: readonly Zavx0zStorybookContracts.Output["entries"][number]["namespaces"][number]["roles"][number]["dependencies"][number][]
+    readonly package: StorybookPackageReader.Output
+    readonly protocols: StorybookContracts.Output
+    readonly sharedDefinitions: readonly StorybookContracts.Output["entries"][number]["namespaces"][number]["roles"][number]["dependencies"][number][]
     readonly scenarios: readonly string[]
   }
 }

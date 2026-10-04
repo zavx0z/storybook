@@ -5,11 +5,11 @@
 
 @packageDocumentation
 */
-import type {Zavx0zStorybookAppWebPageTarget} from "./contract"
+import type {StorybookAppWebPageTarget} from "./contract"
 import type {Intent} from "./contract/target"
-export type {Zavx0zStorybookAppWebPageTarget} from "./contract"
+export type {StorybookAppWebPageTarget} from "./contract"
 
-const pageTarget: Zavx0zStorybookAppWebPageTarget.Output = Object.freeze<Zavx0zStorybookAppWebPageTarget.Output>({
+const pageTarget: StorybookAppWebPageTarget.Output = Object.freeze<StorybookAppWebPageTarget.Output>({
   /**
 Читает server-generated JSON без исполнения HTML и выбора ревизии.
 

@@ -19,36 +19,36 @@ import {SpaceElement} from "@zavx0z/immersive-dom/space"
 import {ViewPointElement} from "@zavx0z/immersive-dom/viewpoint"
 import presentationRootFixture from "@zavx0z/storybook-tech-testing-browser-root"
 import discoverStorybookPackages from "@zavx0z/storybook-package-metadata-collect"
-import createExternalStorybookGraph, {type Zavx0zStorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
-import type {Zavx0zStorybookPackageSession} from "@zavx0z/storybook-package-session"
+import createExternalStorybookGraph, {type StorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
+import type {StorybookPackageSession} from "@zavx0z/storybook-package-session"
 import Revision from "@zavx0z/storybook-package-revision"
 import WebNavigationOwner from "@zavx0z/storybook-app-web-page-navigation"
 import PagePackageOwner from "@zavx0z/storybook-app-web-page-package"
-import type {Zavx0zStorybookAppWebPagePackage} from "@zavx0z/storybook-app-web-page-package"
+import type {StorybookAppWebPagePackage} from "@zavx0z/storybook-app-web-page-package"
 import startExternalStorybookPage from "@zavx0z/storybook-app-web-page"
-import type {Zavx0zStorybookAppWebPage} from "@zavx0z/storybook-app-web-page"
-import createStorybookAgentBridge, {type Zavx0zStorybookAppWebPageAgentBridge} from "@zavx0z/storybook-app-web-page-agent-bridge"
-import type {Zavx0zStorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
+import type {StorybookAppWebPage} from "@zavx0z/storybook-app-web-page"
+import createStorybookAgentBridge, {type StorybookAppWebPageAgentBridge} from "@zavx0z/storybook-app-web-page-agent-bridge"
+import type {StorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
 
 type StorybookSharedHost = ReturnType<typeof WebProtocol.validateSharedHost>
 
-type ExternalStorybookGraph = Zavx0zStorybookPackageGraphCreate.Output
+type ExternalStorybookGraph = StorybookPackageGraphCreate.Output
 
-type StorybookPackageSessionSnapshot = ReturnType<Zavx0zStorybookPackageSession.Output["snapshot"]>
+type StorybookPackageSessionSnapshot = ReturnType<StorybookPackageSession.Output["snapshot"]>
 
 const deriveExternalStorybookPackageTab = WebNavigationOwner.deriveExternalStorybookPackageTab
 
 const STORYBOOK_PAGE_REALM_PROTOCOL = PagePackageOwner.protocol
 
-type ExternalStorybookPackageEnvironment = NonNullable<Zavx0zStorybookAppWebPagePackage.Input["environment"]>
+type ExternalStorybookPackageEnvironment = NonNullable<StorybookAppWebPagePackage.Input["environment"]>
 
-type ExternalStorybookPreparedPackageTarget = Extract<NonNullable<Zavx0zStorybookAppWebPage.Input["initialTarget"]>, {kind: "revision" | "fallback"}>
+type ExternalStorybookPreparedPackageTarget = Extract<NonNullable<StorybookAppWebPage.Input["initialTarget"]>, {kind: "revision" | "fallback"}>
 
 const STORYBOOK_AGENT_BRIDGE_GLOBAL = createStorybookAgentBridge.global
 
-type StorybookAgentBridge = Zavx0zStorybookAppWebPageAgentBridge.Output
+type StorybookAgentBridge = StorybookAppWebPageAgentBridge.Output
 
-type ExternalStorybookRootFactory = NonNullable<Zavx0zStorybookAppWebPageShell.Input["createRoot"]>
+type ExternalStorybookRootFactory = NonNullable<StorybookAppWebPageShell.Input["createRoot"]>
 
 const fixtureRoot = join(import.meta.dir, "../../../../package/metadata/collect/fixtures/valid")
 

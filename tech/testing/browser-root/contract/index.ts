@@ -7,7 +7,7 @@ type PresentationFixtureOptions = IntegrationOptions & {
   app: ComponentValue | JSX.Element
 }
 
-export declare namespace Zavx0zStorybookTechTestingBrowserRoot {
+export declare namespace StorybookTechTestingBrowserRoot {
   /** Тестовая реализация готового Browser presentation. */
   type Input = (options: PresentationFixtureOptions) => Promise<Presentation>
   /** Синхронный корень с явными render, whenReady и unmount. */

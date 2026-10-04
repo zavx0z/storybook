@@ -2,7 +2,7 @@ import {constants} from "node:fs"
 import {lstat, open} from "node:fs/promises"
 import {resolve} from "node:path"
 import readModuleDocumentation from "@zavx0z/storybook-package-documentation"
-import type {Zavx0zStorybookPackageDocumentation} from "@zavx0z/storybook-package-documentation"
+import type {StorybookPackageDocumentation} from "@zavx0z/storybook-package-documentation"
 
 const MAX_MODULE_SOURCE_BYTES = 1024 * 1024
 
@@ -10,7 +10,7 @@ const MAX_MODULE_SOURCE_BYTES = 1024 * 1024
 Читает описание заданного входа; без списка `index.tsx` имеет приоритет.
 ссылка и специальный файл не раскрываются, превышение лимита прерывает чтение.
 */
-export async function readRootDocumentation(directory: string, targets: readonly string[] = ["index.tsx", "index.ts"]): Promise<Zavx0zStorybookPackageDocumentation.Output> {
+export async function readRootDocumentation(directory: string, targets: readonly string[] = ["index.tsx", "index.ts"]): Promise<StorybookPackageDocumentation.Output> {
   for (const name of targets) {
     const path = resolve(directory, name)
     let metadata

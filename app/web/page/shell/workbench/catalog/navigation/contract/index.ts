@@ -1,7 +1,7 @@
 import type {Item} from "./navigation"
 import type {NavigationProjection} from "./projection"
 
-export declare namespace Zavx0zStorybookAppWebPageShellWorkbenchCatalogNavigation {
+export declare namespace StorybookAppWebPageShellWorkbenchCatalogNavigation {
   /** Проверка структурных данных и чистая проекция того же каталога без создания DOM. */
   export type Output = Readonly<{
     /** Проверяет форму и связи узлов до передачи в модель или отрисовку. */

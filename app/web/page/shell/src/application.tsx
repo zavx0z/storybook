@@ -1,6 +1,6 @@
 import {WorkbenchMinimap} from "./workbench-minimap.tsx"
 import ViewPointTab from "@zavx0z/storybook-app-web-page-shell-viewpoint-tab"
-import Workbench, {type Zavx0zStorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
+import Workbench, {type StorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
 import {StorybookDisplay} from "./display-view.tsx"
 import {getDocumentClipboardController} from "@zavx0z/immersive-browser/clipboard"
 import type {Document as SemanticDocument} from "@zavx0z/immersive-dom"
@@ -11,8 +11,8 @@ import McpWindow from "@zavx0z/storybook-app-web-page-shell-mcp-window"
 import type {StorybookAppProps} from "./application-props"
 
 /** Одна сцена с правой системой координат, осью Z вверх и расстояниями в миллиметрах. */
-export function Zavx0zStorybookApp(props: StorybookAppProps) {
-  const [workbench, setWorkbench] = useState<Zavx0zStorybookAppWebPageShellWorkbench.Output | null>(null)
+export function StorybookApp(props: StorybookAppProps) {
+  const [workbench, setWorkbench] = useState<StorybookAppWebPageShellWorkbench.Output | null>(null)
   return <space>
     <viewpoint
       x={0}

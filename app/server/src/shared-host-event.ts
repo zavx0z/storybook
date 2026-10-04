@@ -1,5 +1,5 @@
-import type {Zavx0zStorybookAppWebProtocol} from "@zavx0z/storybook-app-web-protocol"
-type StorybookSharedHost = Awaited<ReturnType<Zavx0zStorybookAppWebProtocol.Output["readSharedHost"]>>
+import type {StorybookAppWebProtocol} from "@zavx0z/storybook-app-web-protocol"
+type StorybookSharedHost = Awaited<ReturnType<StorybookAppWebProtocol.Output["readSharedHost"]>>
 
 /**
 Доставляет новую оболочку также уже открытой landing прежнего выпуска.

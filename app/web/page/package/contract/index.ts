@@ -1,13 +1,13 @@
-import type {Zavx0zStorybookAppWebPageNavigation} from "@zavx0z/storybook-app-web-page-navigation"
-type ExternalStorybookPackageTabModel = ReturnType<Zavx0zStorybookAppWebPageNavigation.Output["deriveExternalStorybookPackageTab"]>
+import type {StorybookAppWebPageNavigation} from "@zavx0z/storybook-app-web-page-navigation"
+type ExternalStorybookPackageTabModel = ReturnType<StorybookAppWebPageNavigation.Output["deriveExternalStorybookPackageTab"]>
 
-import type {Zavx0zStorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
-type ExternalStorybookShell = Zavx0zStorybookAppWebPageShell.Output
+import type {StorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
+type ExternalStorybookShell = StorybookAppWebPageShell.Output
 
 import type {ExternalStorybookClientSnapshot, StorybookPackageRevisionGraphSnapshot, ExternalStorybookScenarioLoader, ExternalStorybookPackageEnvironment} from "./types"
 
 /** Публичный контракт @page/package. */
-export declare namespace Zavx0zStorybookAppWebPagePackage {
+export declare namespace StorybookAppWebPagePackage {
   type Input = Readonly<{
     packageId: string
     candidateRevision: string | null

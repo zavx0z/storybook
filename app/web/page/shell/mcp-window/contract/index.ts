@@ -1,10 +1,10 @@
-import type {Zavx0zStorybookAppServerRequests} from "@zavx0z/storybook-app-server-requests"
+import type {StorybookAppServerRequests} from "@zavx0z/storybook-app-server-requests"
 import type {McpAddressSource} from "./address"
 import type {McpWindowInitialState} from "./state"
-type McpRequestRecord = ReturnType<Zavx0zStorybookAppServerRequests.Output["read"]>[number]
+type McpRequestRecord = ReturnType<StorybookAppServerRequests.Output["read"]>[number]
 
 /** Вход журнала обращений и чтения текущего адреса. */
-export declare namespace Zavx0zStorybookAppWebPageShellMcpWindow {
+export declare namespace StorybookAppWebPageShellMcpWindow {
   /** Полный сохраняемый снимок окна; история и ответы MCP сюда не входят. */
   export type Output = Readonly<{
     open: boolean

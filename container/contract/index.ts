@@ -1,8 +1,8 @@
-import type {Zavx0zStorybookComponent} from "@zavx0z/storybook-component"
+import type {StorybookComponent} from "@zavx0z/storybook-component"
 
-export declare namespace Zavx0zStorybookContainer {
+export declare namespace StorybookContainer {
   /** Тот же путь к физическому владельцу; признак Container не передаётся вызывающим кодом. */
-  export type Input = Zavx0zStorybookComponent.Input
+  export type Input = StorybookComponent.Input
 
   /**
   Собственная публичная реализация и состав композиции без исполнения кода.
@@ -18,11 +18,11 @@ export declare namespace Zavx0zStorybookContainer {
   Package. Импорт ещё не доказывает вызов.
   */
   export interface Output {
-    readonly component: Zavx0zStorybookComponent.Output
+    readonly component: StorybookComponent.Output
     readonly parts: readonly {
       readonly name: string
       readonly path: string
-      readonly references: Zavx0zStorybookComponent.Output["package"]["code"][number]["references"]
+      readonly references: StorybookComponent.Output["package"]["code"][number]["references"]
     }[]
   }
 }

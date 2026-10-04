@@ -1,12 +1,12 @@
 import resolveRoute from "@zavx0z/storybook-package-route-resolve"
-import type {Zavx0zStorybookPackageRouteChildren} from "../contract"
+import type {StorybookPackageRouteChildren} from "../contract"
 
 /** Разрешает набор имён как один следующий уровень указанного родителя. */
 export async function resolveImmediateChildren(
   names: readonly string[],
   parentNode: string,
-  roots: Zavx0zStorybookPackageRouteChildren.Input["roots"],
-): Promise<Zavx0zStorybookPackageRouteChildren.Output> {
+  roots: StorybookPackageRouteChildren.Input["roots"],
+): Promise<StorybookPackageRouteChildren.Output> {
   const children: NonNullable<Awaited<ReturnType<typeof resolveRoute>>>[] = []
   for (const name of names) {
     const route = parentNode === "" ? name : `${parentNode}/${name}`

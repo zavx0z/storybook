@@ -8,9 +8,9 @@
 */
 import navigation from "@zavx0z/storybook-package-mcp-navigation"
 import content from "@zavx0z/storybook-package-mcp-content"
-import type {Zavx0zStorybookPackageMcp as Contract} from "./contract"
+import type {StorybookPackageMcp as Contract} from "./contract"
 
-export type {Zavx0zStorybookPackageMcp} from "./contract"
+export type {StorybookPackageMcp} from "./contract"
 
 /** Формирует ответ выбранного Package без запуска сценариев или повторного обнаружения. */
 export default async function readPackageMcp({selected, entries, includeContent = true}: Contract.Input): Promise<Contract.Output> {

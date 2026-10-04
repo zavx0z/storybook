@@ -1,5 +1,5 @@
 /** Данные именования, передаваемые непосредственно в сценарий. */
-export declare namespace Zavx0zStorybookPackageName {
+export declare namespace StorybookPackageName {
   /**
   Собственное имя и контекст вложенности в пределах репозитория.
 

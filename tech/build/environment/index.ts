@@ -11,7 +11,7 @@ import Protocol from "@zavx0z/storybook-tech-build-environment-protocol"
 import {createHash} from "node:crypto"
 import {existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync} from "node:fs"
 import {extname, join, resolve, sep} from "node:path"
-import type {Zavx0zStorybookTechBuildEnvironment} from "./contract"
+import type {StorybookTechBuildEnvironment} from "./contract"
 import type {
   StorybookSharedBrowserIdentity,
   StorybookSharedBrowserModule,
@@ -24,7 +24,7 @@ import {
 
 const {conditionalExportTarget, readStorybookPackageOwner, isOwnedJsxProtocol} = Compiler
 
-export type {Zavx0zStorybookTechBuildEnvironment} from "./contract"
+export type {StorybookTechBuildEnvironment} from "./contract"
 
 /** Владельцы платформы, чьи browser-значения сохраняют одну identity в realm страницы. */
 const STORYBOOK_SHARED_BROWSER_OWNER_PACKAGES = Object.freeze([
@@ -256,4 +256,4 @@ export default Object.freeze({
   identity: storybookSharedBrowserIdentity,
   exactFile: canonicalExactFile,
   directory: canonicalDirectory,
-}) satisfies Zavx0zStorybookTechBuildEnvironment.Output
+}) satisfies StorybookTechBuildEnvironment.Output

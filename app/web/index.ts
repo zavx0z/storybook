@@ -11,9 +11,9 @@ import Build from "@zavx0z/storybook-app-web-build"
 import createRelease from "@zavx0z/storybook-app-web-release"
 import {join} from "node:path"
 import {describeHost, message} from "./src/host"
-import type {Zavx0zStorybookAppWeb} from "./contract"
+import type {StorybookAppWeb} from "./contract"
 import type {WebAssets, WebFailure, WebHost, WebPreparation} from "./contract/types"
-export type {Zavx0zStorybookAppWeb} from "./contract"
+export type {StorybookAppWeb} from "./contract"
 
 /**
 Создаёт одного владельца Web-выпуска без запуска сервера или компиляции.
@@ -22,7 +22,7 @@ export type {Zavx0zStorybookAppWeb} from "./contract"
 @returns Управление текущими артефактами и одной операцией выпуска интерфейса.
 @throws При повреждённой конфигурации хранилища или входов установленного Build.
 */
-export default function createWeb(input: Zavx0zStorybookAppWeb.Input): Zavx0zStorybookAppWeb.Output {
+export default function createWeb(input: StorybookAppWeb.Input): StorybookAppWeb.Output {
   const artifactRoot = join(input.artifactRoot, "shared")
   const build = input.build ?? Build.runWorker
   const entries = {

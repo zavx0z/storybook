@@ -1,6 +1,6 @@
-import type {Zavx0zStorybookTechBuildEnvironment} from "@zavx0z/storybook-tech-build-environment"
+import type {StorybookTechBuildEnvironment} from "@zavx0z/storybook-tech-build-environment"
 import type Scheduler from "@zavx0z/storybook-package-build-scheduler"
-import type {Zavx0zStorybookPackageBuildScheduler} from "@zavx0z/storybook-package-build-scheduler"
+import type {StorybookPackageBuildScheduler} from "@zavx0z/storybook-package-build-scheduler"
 
 /** Фазы одной общей сборки из публичного worker-протокола планировщика. */
 export type SharedBrowserBuildPhaseListener = (event: Extract<
@@ -9,7 +9,7 @@ export type SharedBrowserBuildPhaseListener = (event: Extract<
 >["event"]) => void
 
 /** Контекст уже допущенной scheduler операции. */
-export type SharedBrowserBuildOperationContext = Parameters<Parameters<Zavx0zStorybookPackageBuildScheduler.Output["run"]>[1]>[0]
+export type SharedBrowserBuildOperationContext = Parameters<Parameters<StorybookPackageBuildScheduler.Output["run"]>[1]>[0]
 
 /**
 Файловый вход одной сборки общей оболочки.
@@ -33,8 +33,8 @@ export interface SharedBrowserBuildInput {
   readonly landingEntryPath: string
   readonly fallbackEntryPath: string
   readonly packageEntryPath?: string
-  readonly sharedKernel: ReturnType<Zavx0zStorybookTechBuildEnvironment.Output["identity"]>
+  readonly sharedKernel: ReturnType<StorybookTechBuildEnvironment.Output["identity"]>
   /** Полный набор готовых файлов платформы в root; Web не создаёт их заново. */
-  readonly kernelArtifacts: Awaited<ReturnType<Zavx0zStorybookTechBuildEnvironment.Output["build"]>>["artifacts"]
+  readonly kernelArtifacts: Awaited<ReturnType<StorybookTechBuildEnvironment.Output["build"]>>["artifacts"]
   readonly stagingDirectory: string
 }

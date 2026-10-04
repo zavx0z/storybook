@@ -2,9 +2,9 @@ import {afterAll, describe, expect, mock, test} from "bun:test"
 import {readdirSync} from "node:fs"
 import runBuildWorker from "@zavx0z/storybook-tech-build-worker"
 import {prepareWorkerFixture} from "../fixtures/prepare"
-import type {Zavx0zStorybookTechBuildWorker} from "@zavx0z/storybook-tech-build-worker"
+import type {StorybookTechBuildWorker} from "@zavx0z/storybook-tech-build-worker"
 
-type LifecycleEvent = Parameters<NonNullable<Zavx0zStorybookTechBuildWorker.Input<unknown, unknown>["onLifecycle"]>>[0]
+type LifecycleEvent = Parameters<NonNullable<StorybookTechBuildWorker.Input<unknown, unknown>["onLifecycle"]>>[0]
 
 describe.each([
   {

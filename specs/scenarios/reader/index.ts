@@ -11,9 +11,9 @@ import {readScenarioSource} from "./src/read-source"
 import validateScenario from "@zavx0z/storybook-specs-scenarios-reader-validation"
 import {createScenarioPreview, supportsScenarioPreview} from "./src/preview"
 import {ScenarioAuthoringError} from "./src/authoring-error"
-import type {Zavx0zStorybookSpecsScenariosReader} from "./contract"
+import type {StorybookSpecsScenariosReader} from "./contract"
 
-export type {Zavx0zStorybookSpecsScenariosReader} from "./contract"
+export type {StorybookSpecsScenariosReader} from "./contract"
 
 /**
 Получает структуру исходника, выполняет его настоящим Bun Test и применяет правила архетипа.
@@ -26,9 +26,9 @@ export type {Zavx0zStorybookSpecsScenariosReader} from "./contract"
 нереализованные проверки не считаются пройденными.
 @throws Ошибка запуска, таймаут или отсутствие завершающего отчёта.
 */
-async function readScenario(input: Zavx0zStorybookSpecsScenariosReader.Input): Promise<Zavx0zStorybookSpecsScenariosReader.Output> {
+async function readScenario(input: StorybookSpecsScenariosReader.Input): Promise<StorybookSpecsScenariosReader.Output> {
   input.signal?.throwIfAborted()
-  const onProgress: NonNullable<Zavx0zStorybookSpecsScenariosReader.Input["onProgress"]> = progress => {
+  const onProgress: NonNullable<StorybookSpecsScenariosReader.Input["onProgress"]> = progress => {
     try { input.onProgress?.(progress) } catch { /* Наблюдение не влияет на результат теста. */ }
   }
   onProgress({phase: "preparing"})
@@ -60,7 +60,7 @@ async function readScenario(input: Zavx0zStorybookSpecsScenariosReader.Input): P
 /** Читает сценарий и предоставляет статическую проверку поддержки preview того же формата. */
 export default Object.assign(readScenario, {
   supportsPreview: supportsScenarioPreview,
-  isAuthoringError(error: unknown): error is Error & {readonly checks: Zavx0zStorybookSpecsScenariosReader.Output["validation"]["checks"]} {
+  isAuthoringError(error: unknown): error is Error & {readonly checks: StorybookSpecsScenariosReader.Output["validation"]["checks"]} {
     return error instanceof ScenarioAuthoringError
   },
 })

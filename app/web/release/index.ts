@@ -7,8 +7,8 @@
 @packageDocumentation
 */
 import WebBuild from "@zavx0z/storybook-app-web-build"
-import type {Zavx0zStorybookAppWebRelease} from "./contract"
-export type {Zavx0zStorybookAppWebRelease} from "./contract"
+import type {StorybookAppWebRelease} from "./contract"
+export type {StorybookAppWebRelease} from "./contract"
 
 
 /**
@@ -17,14 +17,14 @@ export type {Zavx0zStorybookAppWebRelease} from "./contract"
 не отменяет сборку; прежняя опубликованная версия сохраняется при ошибке подготовки.
 
 @typeParam Prepared - Результат переданной функции `prepare` после `await`.
-Выводится из функций {@link Zavx0zStorybookAppWebRelease.Input} и связывает подготовку, извлечение версий и публикацию.
+Выводится из функций {@link StorybookAppWebRelease.Input} и связывает подготовку, извлечение версий и публикацию.
 
 @param input - Реализации трёх операций от владельца артефактов.
 
 @returns Управление общим выпуском Web; `dispose` отменяет подготовку и ожидает её завершения.
 
 @example
-Переданные функции описаны в {@link Zavx0zStorybookAppWebRelease.Input}:
+Переданные функции описаны в {@link StorybookAppWebRelease.Input}:
 ```ts
 const web = createWeb({prepare, versions, publish})
 try {
@@ -34,8 +34,8 @@ try {
 }
 ```
 */
-export default function createWeb<Prepared>(input: Zavx0zStorybookAppWebRelease.Input<Prepared>): Zavx0zStorybookAppWebRelease.Output {
-  type State = ReturnType<Zavx0zStorybookAppWebRelease.Output["read"]>
+export default function createWeb<Prepared>(input: StorybookAppWebRelease.Input<Prepared>): StorybookAppWebRelease.Output {
+  type State = ReturnType<StorybookAppWebRelease.Output["read"]>
   const lifetime = new AbortController()
   const listeners = new Set<(state: State) => void>()
   let state: State = Object.freeze({operationId: null, phase: "idle", at: new Date().toISOString(), versions: [], error: null})

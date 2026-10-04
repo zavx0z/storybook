@@ -1,6 +1,6 @@
 import {DisplayElement} from "@zavx0z/immersive-dom/display"
-import presentationRootFixture, {type Zavx0zStorybookTechTestingBrowserRoot} from "@zavx0z/storybook-tech-testing-browser-root"
-type PresentationFixtureOptions = Parameters<Zavx0zStorybookTechTestingBrowserRoot.Input>[0]
+import presentationRootFixture, {type StorybookTechTestingBrowserRoot} from "@zavx0z/storybook-tech-testing-browser-root"
+type PresentationFixtureOptions = Parameters<StorybookTechTestingBrowserRoot.Input>[0]
 import {createRoot} from "@zavx0z/immersive-component"
 import {createDocumentClipboardController} from "@zavx0z/immersive-browser/clipboard"
 import {describe, expect, test} from "bun:test"
@@ -16,8 +16,8 @@ import PageShellOwner from "@zavx0z/storybook-app-web-page-shell"
 const EXTERNAL_STORYBOOK_DISPLAY_ID = PageShellOwner.displayId
 const EXTERNAL_STORYBOOK_WORKBENCH_ID = PageShellOwner.workbenchId
 import createExternalStorybookShell from "@zavx0z/storybook-app-web-page-shell"
-import type {Zavx0zStorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
-type ExternalStorybookRootFactory = NonNullable<Zavx0zStorybookAppWebPageShell.Input["createRoot"]>
+import type {StorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
+type ExternalStorybookRootFactory = NonNullable<StorybookAppWebPageShell.Input["createRoot"]>
 
 describe("external Storybook shared Browser Root", () => {
   test("открытие и закрытие MCP сохраняет камеру и дисплей", async () => {

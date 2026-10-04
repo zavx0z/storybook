@@ -1,13 +1,13 @@
 /** Подключение, настройки и несколько turn проходят через настоящий ACP SDK и отдельный controlled process. */
 import {afterAll, describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import connect, {type Zavx0zStorybookTechAcp} from "@zavx0z/storybook-tech-acp"
+import connect, {type StorybookTechAcp} from "@zavx0z/storybook-tech-acp"
 
 describe.each([
   {name: "Новая сессия", props: {previousSessionId: null}},
   {name: "Восстановленная сессия", props: {previousSessionId: "saved-session"}},
 ])("$name", async ({props}) => {
-  const updates: Parameters<Zavx0zStorybookTechAcp.Input["onUpdate"]>[0][] = []
+  const updates: Parameters<StorybookTechAcp.Input["onUpdate"]>[0][] = []
   const connection = await connect({
     cwd: resolve(import.meta.dir, "../../.."),
     command: process.execPath,

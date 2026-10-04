@@ -41,7 +41,7 @@ Document, Canvas, Space или input state.
 
 ## Композиция приложения и общий ввод
 
-Landing и package pages запускают один `Zavx0zStorybookApp` через публичный
+Landing и package pages запускают один `StorybookApp` через публичный
 `@zavx0z/browser.createRoot`. App объявляет свой Space, ViewPoint, Display и HUD
 в TSX; Browser не создаёт второй semantic каркас. Component владеет App,
 его refs и cleanup. После `render` оболочка ожидает готовность приложения через

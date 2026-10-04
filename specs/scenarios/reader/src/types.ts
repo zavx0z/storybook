@@ -4,13 +4,13 @@
 
 @packageDocumentation
 */
-import type {Zavx0zStorybookSpecsScenariosReader} from "../contract"
+import type {StorybookSpecsScenariosReader} from "../contract"
 
 /** Представление компонента или функции, производное от публичного выходного контракта. */
-export type Zavx0zStorybookAppWebPagePackageScenarioPreview = NonNullable<Zavx0zStorybookSpecsScenariosReader.Output["preview"]>
+export type StorybookAppWebPagePackageScenarioPreview = NonNullable<StorybookSpecsScenariosReader.Output["preview"]>
 
 /** Запись вызова в публичном результате. */
-export type TraceCall = Zavx0zStorybookSpecsScenariosReader.Output["calls"][number]
+export type TraceCall = StorybookSpecsScenariosReader.Output["calls"][number]
 
 /** Значение аргумента после сериализации. */
 export type TraceValue = TraceCall["args"][number]
@@ -22,15 +22,15 @@ export type TraceOutcome = TraceCall["outcome"]
 export type TraceLocation = NonNullable<TraceCall["location"]>
 
 /** Одно достигнутое утверждение из выходного контракта. */
-export type ScenarioAssertion = Zavx0zStorybookSpecsScenariosReader.Output["assertions"][number]
-export type ScenarioGroup = Zavx0zStorybookSpecsScenariosReader.Output["groups"][number]
-export type ScenarioTest = Zavx0zStorybookSpecsScenariosReader.Output["tests"][number]
+export type ScenarioAssertion = StorybookSpecsScenariosReader.Output["assertions"][number]
+export type ScenarioGroup = StorybookSpecsScenariosReader.Output["groups"][number]
+export type ScenarioTest = StorybookSpecsScenariosReader.Output["tests"][number]
 
 /** Сведения об исходнике для документации и валидации. */
-export type ScenarioSource = Zavx0zStorybookSpecsScenariosReader.Output["source"]
+export type ScenarioSource = StorybookSpecsScenariosReader.Output["source"]
 
 /** Результаты проверок сценария. */
-export type ScenarioValidation = Zavx0zStorybookSpecsScenariosReader.Output["validation"]
+export type ScenarioValidation = StorybookSpecsScenariosReader.Output["validation"]
 
 /** Данные одного запуска до присоединения структуры и валидации. */
-export type ScenarioExecution = Omit<Zavx0zStorybookSpecsScenariosReader.Output, "source" | "validation" | "preview">
+export type ScenarioExecution = Omit<StorybookSpecsScenariosReader.Output, "source" | "validation" | "preview">

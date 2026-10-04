@@ -3,13 +3,13 @@ import {createHash} from "node:crypto"
 import {mkdir, mkdtemp, readdir, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import createSessions, {type Zavx0zStorybookChatSession} from "@zavx0z/storybook-chat-session"
+import createSessions, {type StorybookChatSession} from "@zavx0z/storybook-chat-session"
 
 const cleanup: (() => Promise<void>)[] = []
 afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close() })
 const filename = (address: string) => `${createHash("sha256").update(address).digest("hex")}.json`
 
-async function settled(sessions: Zavx0zStorybookChatSession.Output, address: string): Promise<void> {
+async function settled(sessions: StorybookChatSession.Output, address: string): Promise<void> {
   for (let attempt = 0; attempt < 100; attempt++) {
     const value = await sessions.read(address)
     if (value.status === "idle") return
@@ -23,8 +23,8 @@ async function fixture() {
   const root = await mkdtemp(join(tmpdir(), "storybook-owner-chat-"))
   cleanup.push(() => rm(root, {recursive: true, force: true}))
   for (const owner of ["a", "b"]) await mkdir(join(root, owner))
-  const connections: Parameters<Zavx0zStorybookChatSession.Input["connect"]>[0][] = []
-  const input: Zavx0zStorybookChatSession.Input = {
+  const connections: Parameters<StorybookChatSession.Input["connect"]>[0][] = []
+  const input: StorybookChatSession.Input = {
     directory: subject => join(subject.cwd, "meta/chat"),
     legacyDirectory: join(root, "chats"),
     resolve(address) {

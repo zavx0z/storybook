@@ -7,9 +7,9 @@
 */
 import navigation from "@zavx0z/storybook-package-mcp-navigation"
 import content from "@zavx0z/storybook-package-mcp-content"
-import type {Zavx0zStorybookClusterMcp as Contract} from "./contract"
+import type {StorybookClusterMcp as Contract} from "./contract"
 
-export type {Zavx0zStorybookClusterMcp} from "./contract"
+export type {StorybookClusterMcp} from "./contract"
 
 /** Формирует содержательный ответ Cluster, сохраняя точные источники и границы его участников. */
 export default async function readClusterMcp({selected, entries}: Contract.Input): Promise<Contract.Output> {

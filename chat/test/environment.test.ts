@@ -21,7 +21,7 @@ test("browser выбирает представление без файлово�
     const entry = join(root, "entry.ts")
     await Bun.write(entry, 'import Chat from "@zavx0z/storybook-chat"\nconsole.log(Chat)\n')
     // UI-зависимости предоставляет общая браузерная среда.
-    // Zavx0zStorybookChatSession разрешается полностью: случайный runtime-импорт обязан прервать сборку.
+    // StorybookChatSession разрешается полностью: случайный runtime-импорт обязан прервать сборку.
     const result = await Bun.build({entrypoints: [entry], target: "browser", minify: false,
       external: ["@zavx0z/*", "@zavx0z/immersive-markdown", "@zavx0z/immersive-jsx-compiler-session"]})
     expect(result.success, JSON.stringify(result.logs)).toBeTrue()

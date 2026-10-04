@@ -5,10 +5,10 @@ MCP и package.json scripts вызывают эти же операции; со�
 
 @packageDocumentation
 */
-import ServerState, {type Zavx0zStorybookAppServerState} from "@zavx0z/storybook-app-server-state"
+import ServerState, {type StorybookAppServerState} from "@zavx0z/storybook-app-server-state"
 const {readExternalStorybookOperationProgress, readExternalStorybookStartupProgress, writeExternalStorybookStartupProgress, acquireExternalStorybookStartLease, clearExternalStorybookMigrationRecord, externalStorybookLegacyStatePaths, externalStorybookServerStatePath, inspectExternalStorybookServer, publishExternalStorybookStartCandidate, readExternalStorybookMigrationRecord, removeReplaceableExternalStorybookState, writeExternalStorybookMigrationRecord} = ServerState
-type ExternalStorybookMigrationRecord = NonNullable<ReturnType<Zavx0zStorybookAppServerState.Output["readExternalStorybookMigrationRecord"]>>
-type ExternalStorybookServerRecord = ReturnType<Zavx0zStorybookAppServerState.Output["readExternalStorybookServerRecord"]>
+type ExternalStorybookMigrationRecord = NonNullable<ReturnType<StorybookAppServerState.Output["readExternalStorybookMigrationRecord"]>>
+type ExternalStorybookServerRecord = ReturnType<StorybookAppServerState.Output["readExternalStorybookServerRecord"]>
 import {createHmac} from "node:crypto"
 import {existsSync, realpathSync} from "node:fs"
 import {fileURLToPath} from "node:url"
@@ -34,8 +34,8 @@ import {
 } from "./contract/control"
 
 
-import type {Zavx0zStorybookApp} from "./contract"
-export type {Zavx0zStorybookApp} from "./contract"
+import type {StorybookApp} from "./contract"
+export type {StorybookApp} from "./contract"
 
 /**
 Создаёт управление приложением без запуска серверного процесса или компиляции.
@@ -43,7 +43,7 @@ export type {Zavx0zStorybookApp} from "./contract"
 @param options - Корень готового приложения и операции запуска принадлежащего ему daemon.
 @returns API запуска, состояния, подготовки и применения с явным контекстом отмены.
 */
-export default function createApp(options: Zavx0zStorybookApp.Input = {}): Zavx0zStorybookApp.Output {
+export default function createApp(options: StorybookApp.Input = {}): StorybookApp.Output {
   type ClientSnapshot = Readonly<{
     graphDigest: string
     rootIds: readonly string[]
@@ -55,10 +55,10 @@ export default function createApp(options: Zavx0zStorybookApp.Input = {}): Zavx0
 
   const DAEMON_STDERR_TAIL_LENGTH = 2_048
 
-  type CreateExternalStorybookControllerOptions = Zavx0zStorybookApp.Input
+  type CreateExternalStorybookControllerOptions = StorybookApp.Input
 
   /** One typed application service shared by human CLI and Storybook MCP. */
-  class ExternalStorybookController implements Zavx0zStorybookApp.Output {
+  class ExternalStorybookController implements StorybookApp.Output {
     readonly #toolRoot: string
     readonly #daemonEntryPath: string
     readonly #spawnDaemon: (input: Readonly<{

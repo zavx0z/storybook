@@ -6,13 +6,13 @@
 import {randomUUID} from "node:crypto"
 import {resolve} from "node:path"
 import readSpec from "@zavx0z/storybook-specs-reader"
-import type {Zavx0zStorybookSpecsPresentation} from "./contract"
+import type {StorybookSpecsPresentation} from "./contract"
 import {presentScenarios} from "./src/presentation"
 
-export type {Zavx0zStorybookSpecsPresentation} from "./contract"
+export type {StorybookSpecsPresentation} from "./contract"
 
 /** Читает публичную спецификацию либо использует результат уже применённой ревизии. */
-export default async function readScenarios({path, source: expectedSource, prepared, format = "document", selection}: Zavx0zStorybookSpecsPresentation.Input): Promise<Zavx0zStorybookSpecsPresentation.Output> {
+export default async function readScenarios({path, source: expectedSource, prepared, format = "document", selection}: StorybookSpecsPresentation.Input): Promise<StorybookSpecsPresentation.Output> {
   if (format === "data" && selection !== undefined) throw new Error("Режим data возвращает все данные без выбора темы")
   const owner = {path, kind: await Bun.file(resolve(path, "package.json")).exists() ? "package" as const : "entity" as const}
   const revision = prepared?.revision ?? randomUUID()

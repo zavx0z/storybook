@@ -2,10 +2,10 @@ import {describe, expect, test} from "bun:test"
 import {existsSync, mkdirSync, readdirSync, writeFileSync} from "node:fs"
 import {join, relative} from "node:path"
 import runBuildWorker from "@zavx0z/storybook-tech-build-worker"
-import type {Zavx0zStorybookTechBuildWorker} from "@zavx0z/storybook-tech-build-worker"
+import type {StorybookTechBuildWorker} from "@zavx0z/storybook-tech-build-worker"
 import {prepareWorkerFixture} from "../fixtures/prepare"
 
-type LifecycleEvent = Parameters<NonNullable<Zavx0zStorybookTechBuildWorker.Input<unknown, unknown>["onLifecycle"]>>[0]
+type LifecycleEvent = Parameters<NonNullable<StorybookTechBuildWorker.Input<unknown, unknown>["onLifecycle"]>>[0]
 
 describe("Временная область и результат", () => {
   test("worker без общего срока публикует результат и сохраняет относительный temporaryRoot", async () => {

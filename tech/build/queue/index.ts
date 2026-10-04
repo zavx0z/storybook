@@ -9,17 +9,17 @@
 */
 import {randomUUID} from "node:crypto"
 import ProcessResourceSampler from "@zavx0z/storybook-tech-process-sample"
-import measureProcessResources, {type Zavx0zStorybookTechProcessMeasure} from "@zavx0z/storybook-tech-process-measure"
-import type {Zavx0zStorybookTechBuildQueue as BuildQueueContract} from "./contract"
+import measureProcessResources, {type StorybookTechProcessMeasure} from "@zavx0z/storybook-tech-process-measure"
+import type {StorybookTechBuildQueue as BuildQueueContract} from "./contract"
 import type {BuildCompletion, BuildOperation, BuildOutcome, BuildResources, BuildState} from "./contract/operation"
 import type {BuildAdmission, BuildContext, BuildRequest, BuildTransition} from "./src/operation"
-export type {Zavx0zStorybookTechBuildQueue} from "./contract"
+export type {StorybookTechBuildQueue} from "./contract"
 
 type BuildQueueInput = BuildQueueContract.Input
 type BuildQueueSnapshot<Details extends object> = BuildQueueContract.Output<Details>
 type ResourceSampler = Pick<InstanceType<typeof ProcessResourceSampler>, "sample">
-type ProcessBinding = Zavx0zStorybookTechProcessMeasure.Input["binding"]
-type MeasuredResources = Zavx0zStorybookTechProcessMeasure.Output
+type ProcessBinding = StorybookTechProcessMeasure.Input["binding"]
+type MeasuredResources = StorybookTechProcessMeasure.Output
 
 /** Изменяемое исполнение; private process binding никогда не проецируется в snapshot. */
 type OperationRecord<Details extends object> = {
@@ -39,7 +39,7 @@ type OperationRecord<Details extends object> = {
 }
 
 /** FIFO-очередь с ограничением исполнения и независимым чтением состояния. */
-export default class Zavx0zStorybookTechBuildQueue<Details extends object> {
+export default class StorybookTechBuildQueue<Details extends object> {
   readonly #limit: number
   readonly #recentLimit: number
   readonly #resourceSampleThrottleMs: number

@@ -11,18 +11,18 @@ import {McpServer, type CallToolResult, type ListToolsResult, type ListResources
 import {isAbsolute} from "node:path"
 import {executeLazyRequest} from "./src/execute"
 import {watchSourceChanges} from "./src/notifications"
-import type {Zavx0zStorybookTechMcpLazy} from "./contract"
-export type {Zavx0zStorybookTechMcpLazy} from "./contract"
+import type {StorybookTechMcpLazy} from "./contract"
+export type {StorybookTechMcpLazy} from "./contract"
 
 /**
 Создаёт только transport и стандартные protocol handlers.
 
-@param input - Доверенные пути и срок выполнения из {@link Zavx0zStorybookTechMcpLazy.Input}.
+@param input - Доверенные пути и срок выполнения из {@link StorybookTechMcpLazy.Input}.
 @returns SDK server, который подключается штатным connect или serveStdio.
 @throws TypeError При относительных или пустых обязательных путях.
 @throws RangeError При неположительном явно заданном бюджете.
 */
-export default function createLazyMcpServer(input: Zavx0zStorybookTechMcpLazy.Input): Zavx0zStorybookTechMcpLazy.Output {
+export default function createLazyMcpServer(input: StorybookTechMcpLazy.Input): StorybookTechMcpLazy.Output {
   for (const [name, path] of Object.entries({serverModule: input.serverModule, cwd: input.cwd, temporaryRoot: input.temporaryRoot})) {
     if (typeof path !== "string" || !isAbsolute(path)) throw new TypeError(`MCP lazy ${name} must be an absolute trusted path`)
   }

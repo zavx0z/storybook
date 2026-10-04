@@ -3,8 +3,8 @@ import {createRoot} from "@zavx0z/immersive-component"
 import {createDocument, MouseEvent, KeyboardEvent} from "@zavx0z/immersive-dom"
 import {createSpaceElementFactories} from "@zavx0z/immersive-space"
 import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
-import Workbench, {type Zavx0zStorybookAppWebPageShellWorkbench} from "../index"
-type WorkbenchProps = Zavx0zStorybookAppWebPageShellWorkbench.Input
+import Workbench, {type StorybookAppWebPageShellWorkbench} from "../index"
+type WorkbenchProps = StorybookAppWebPageShellWorkbench.Input
 import {selectWorkbenchNavigationBranch} from "../src/navigation/branch.ts"
 import type {WorkbenchNavigationItem} from "../src/types"
 
@@ -50,7 +50,7 @@ test("Ветка следует адресу, но клики и поиск Mini
   document.append(space)
   space.append(display, hud)
   const component = createRoot(display)
-  let workbench: Zavx0zStorybookAppWebPageShellWorkbench.Output | undefined
+  let workbench: StorybookAppWebPageShellWorkbench.Output | undefined
   const rows = () => [...display.querySelectorAll("[data-tree-id]")]
     .filter(node => node.closest("[hidden]") === null)
     .map(node => node.getAttribute("data-tree-id"))

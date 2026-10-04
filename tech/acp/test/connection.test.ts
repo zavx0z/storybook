@@ -5,18 +5,18 @@ import {copyFileSync, mkdtempSync, mkdirSync, rmSync, writeFileSync} from "node:
 import {tmpdir} from "node:os"
 import {pathToFileURL} from "node:url"
 import type {SessionUpdate} from "@agentclientprotocol/sdk"
-import createAcp, {type Zavx0zStorybookTechAcp} from "../index"
+import createAcp, {type StorybookTechAcp} from "../index"
 
 const cwd = resolve(import.meta.dir, "../../..")
 const fixture = resolve(import.meta.dir, "fixture/agent.ts")
-const mcpServers: Zavx0zStorybookTechAcp.Input["mcpServers"] = [{
+const mcpServers: StorybookTechAcp.Input["mcpServers"] = [{
   name: "scope-fixture",
   command: "fixture-mcp",
   args: ["--exact"],
   env: [{name: "SCOPE", value: "/fixture/address"}],
 }]
 
-function options(overrides: Partial<Zavx0zStorybookTechAcp.Input> = {}): Zavx0zStorybookTechAcp.Input {
+function options(overrides: Partial<StorybookTechAcp.Input> = {}): StorybookTechAcp.Input {
   return {
     cwd,
     command: process.execPath,
@@ -254,7 +254,7 @@ test("изолированный bundle разрешает default adapter в in
   writeFileSync(join(installation, "package.json"), JSON.stringify({name: "fixture-tool", type: "module"}))
   writeFileSync(join(adapter, "package.json"), JSON.stringify({name: "@agentclientprotocol/codex-acp", main: "index.js", type: "module"}))
   writeFileSync(join(adapter, "index.js"), `await import(${JSON.stringify(pathToFileURL(fixture).href)})\n`)
-  let connection: Zavx0zStorybookTechAcp.Output | undefined
+  let connection: StorybookTechAcp.Output | undefined
   try {
     const result = await Bun.build({entrypoints: [resolve(import.meta.dir, "../index.ts")], outdir: artifacts, target: "bun"})
     expect(result.success).toBeTrue()

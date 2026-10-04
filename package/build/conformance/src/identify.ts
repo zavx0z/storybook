@@ -1,8 +1,8 @@
 import {resolve} from "node:path"
-import type {Zavx0zStorybookPackageBuildConformance} from "../contract"
+import type {StorybookPackageBuildConformance} from "../contract"
 
-type Report = Parameters<Zavx0zStorybookPackageBuildConformance.Output["identify"]>[0]
-type Result = ReturnType<Zavx0zStorybookPackageBuildConformance.Output["identify"]>
+type Report = Parameters<StorybookPackageBuildConformance.Output["identify"]>[0]
+type Result = ReturnType<StorybookPackageBuildConformance.Output["identify"]>
 const types = ["Repo", "Component", "Container", "Cluster", "Domain"] as const
 
 /**
@@ -15,7 +15,7 @@ export function identifyType(
   report: Report,
   owner: string,
   scenario: string,
-  verify: Zavx0zStorybookPackageBuildConformance.Output["verify"],
+  verify: StorybookPackageBuildConformance.Output["verify"],
 ): Result {
   if (report === null || typeof report !== "object" || report.path !== scenario
     || !Array.isArray(report.groups) || !Array.isArray(report.tests)) {

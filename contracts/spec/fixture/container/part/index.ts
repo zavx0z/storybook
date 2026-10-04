@@ -1,6 +1,6 @@
-import type {ContractFixturePart} from "./contract"
+import type {StorybookContractsSpecFixtureContainerPart} from "./contract"
 
-export type {ContractFixturePart} from "./contract"
-export default function part(input: ContractFixturePart.Input): ContractFixturePart.Output {
+export type {StorybookContractsSpecFixtureContainerPart} from "./contract"
+export default function part(input: StorybookContractsSpecFixtureContainerPart.Input): StorybookContractsSpecFixtureContainerPart.Output {
   return {value: input.value}
 }

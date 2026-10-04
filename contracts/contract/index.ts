@@ -1,7 +1,7 @@
 import type {Declaration, Diagnostic, Extension, Namespace} from "./declaration"
 
 /** Типовая сторона публичного читателя контракта. */
-export declare namespace Zavx0zStorybookContracts {
+export declare namespace StorybookContracts {
   /**
   Выбор владельца публичного контракта.
 
@@ -15,7 +15,9 @@ export declare namespace Zavx0zStorybookContracts {
   Сведения о типовой границе пакета, полученные без выполнения исследуемых модулей.
 
   @property entries - Публичные кодовые входы и namespace с исходными владельцами.
-  @property diagnostics - Нарушения структуры контракта; пустой массив не доказывает корректность runtime.
+  @property diagnostics - Нарушения структуры и предупреждения об имени namespace.
+  namespace-name означает несовпадение с путём от Repo; namespace-name-context —
+  неустановленную границу Repo. Пустой массив не доказывает корректность runtime.
   @property extensions - Исходные связи общего протокола и протоколов участников с результатом типовой совместимости каждой общей роли.
   @property sources - Прочитанные исходники и их SHA-256 для проверки одного согласованного чтения.
   */

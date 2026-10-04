@@ -1,3 +1,3 @@
-import type {Zavx0zStorybookAppWebProtocol} from "@zavx0z/storybook-app-web-protocol"
-export type ExternalStorybookClientSnapshot = ReturnType<Zavx0zStorybookAppWebProtocol.Output["clientSnapshot"]>
+import type {StorybookAppWebProtocol} from "@zavx0z/storybook-app-web-protocol"
+export type ExternalStorybookClientSnapshot = ReturnType<StorybookAppWebProtocol.Output["clientSnapshot"]>
 export type ExternalStorybookClientNode = ExternalStorybookClientSnapshot["nodes"][number]

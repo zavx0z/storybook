@@ -1,6 +1,6 @@
 /** Управляющий клиент передаёт авторизованный запрос одному loopback instance. */
 import {afterAll, describe, expect, test} from "bun:test"
-import Zavx0zStorybookTechHttpClient from "@zavx0z/storybook-tech-http-client"
+import StorybookTechHttpClient from "@zavx0z/storybook-tech-http-client"
 
 describe.each([
   {name: "Чтение состояния", props: {method: "GET" as const, path: "/api/status", body: undefined}},
@@ -21,7 +21,7 @@ describe.each([
     },
   })
   afterAll(() => server.stop(true))
-  const client = new Zavx0zStorybookTechHttpClient({
+  const client = new StorybookTechHttpClient({
     origin: server.url.origin,
     instanceId: "fixture-instance",
     authorization: () => "Bearer fixture-secret",

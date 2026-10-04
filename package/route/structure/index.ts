@@ -7,11 +7,11 @@
 /** Читает физическую ветку пакета без построения второго каталога. */
 import {readPackageManifest, readRootPath} from "./src/files"
 import {enterWorkspace, readAvailableViews, readWorkspaceChildNames} from "./src/structure"
-import type {Zavx0zStorybookPackageRouteStructure} from "./contract"
+import type {StorybookPackageRouteStructure} from "./contract"
 
-export type {Zavx0zStorybookPackageRouteStructure} from "./contract"
+export type {StorybookPackageRouteStructure} from "./contract"
 
-const structure: Zavx0zStorybookPackageRouteStructure.Output = Object.freeze({
+const structure: StorybookPackageRouteStructure.Output = Object.freeze({
   readPackageManifest,
   readRootPath,
   enterWorkspace,

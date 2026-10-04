@@ -1,7 +1,7 @@
 import {iconSvg} from "@zavx0z/immersive-ui-theme-icon"
 import {Inspector} from "@zavx0z/immersive-ui-component"
-import type {Zavx0zImmersiveUiComponentWidgetInspector} from "@zavx0z/immersive-ui-component"
-type InspectorCategory = Zavx0zImmersiveUiComponentWidgetInspector.Input["categories"][number]
+import type {ImmersiveUiComponentWidgetInspector} from "@zavx0z/immersive-ui-component"
+type InspectorCategory = ImmersiveUiComponentWidgetInspector.Input["categories"][number]
 import type {JSX} from "@zavx0z/immersive-jsx-compiler-session"
 import type {
   WorkbenchInspectorSubject,

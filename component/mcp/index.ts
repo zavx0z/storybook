@@ -7,9 +7,9 @@
 */
 import navigation from "@zavx0z/storybook-package-mcp-navigation"
 import content from "@zavx0z/storybook-package-mcp-content"
-import type {Zavx0zStorybookComponentMcp as Contract} from "./contract"
+import type {StorybookComponentMcp as Contract} from "./contract"
 
-export type {Zavx0zStorybookComponentMcp} from "./contract"
+export type {StorybookComponentMcp} from "./contract"
 
 /** Формирует содержательный ответ Component, сохраняя точные источники и границы его участников. */
 export default async function readComponentMcp({selected, entries}: Contract.Input): Promise<Contract.Output> {

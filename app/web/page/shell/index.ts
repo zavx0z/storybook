@@ -19,26 +19,26 @@ import {createMcpWindowPersistence} from "./src/mcp-window-persistence.ts"
 import {createNavigationExpansion} from "./src/navigation-persistence.ts"
 import {createRoot as createBrowserRoot, type Presentation as Root, type RootProjection} from "@zavx0z/immersive-browser/integration"
 import {loadDocumentDefaultFont} from "@zavx0z/immersive-engine/default-font"
-import {Zavx0zStorybookApp} from "./src/application.tsx"
+import {StorybookApp} from "./src/application.tsx"
 import type {StorybookAppProps} from "./src/application-props"
 import {component} from "@zavx0z/immersive-component"
 import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
 import {HTMLElement as SemanticHTMLElement, type Node as SemanticNode} from "@zavx0z/immersive-dom"
 import {HUDElement} from "@zavx0z/immersive-dom/hud"
-import type {Zavx0zStorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
-type Workbench = Zavx0zStorybookAppWebPageShellWorkbench.Output
+import type {StorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
+type Workbench = StorybookAppWebPageShellWorkbench.Output
 
 import {renderStorybookMarkdown, type StorybookMarkdownPresentation} from "./src/markdown.ts"
 import {createStorybookMessagePresentation} from "./src/message-presentation.ts"
 import type {StorybookOverviewAction} from "./contract/overview-action.ts"
 import type {StorybookPreviewBounds, StorybookSpacePreview, StorybookSpacePreviewRegistration} from "./contract/preview.ts"
-import type {Zavx0zStorybookAppWebPageShell} from "./contract"
-type CreateExternalStorybookShellOptions = Zavx0zStorybookAppWebPageShell.Input
-type ExternalStorybookShell = Zavx0zStorybookAppWebPageShell.Output
+import type {StorybookAppWebPageShell} from "./contract"
+type CreateExternalStorybookShellOptions = StorybookAppWebPageShell.Input
+type ExternalStorybookShell = StorybookAppWebPageShell.Output
 import type {ExternalStorybookNativeKey} from "./contract/types"
 import type {StorybookComponentPresentation, BoundStorybookSpacePreview} from "./src/types"
 import {EXTERNAL_STORYBOOK_CANVAS_ID, EXTERNAL_STORYBOOK_DISPLAY_ID, EXTERNAL_STORYBOOK_WORKBENCH_ID, spaceViewPointSnapshot, canvasPixelRatio, readViewPointSnapshot, writeViewPointSnapshot, ensureCanvas, sameBounds, assertActive, markShellPhase} from './src/implementation'
-export type {Zavx0zStorybookAppWebPageShell} from './contract'
+export type {StorybookAppWebPageShell} from './contract'
 
 /** Подключает авторский Workbench App и связывает его проекции с навигацией Storybook. */
 async function createExternalStorybookShell(
@@ -96,7 +96,7 @@ async function createExternalStorybookShell(
     },
   }
   // Новый ключ монтирует актуальную App даже при неизменившемся compiler chunk её шаблона.
-  application.render(component(Zavx0zStorybookApp as unknown as CompiledTemplate<StorybookAppProps>, {
+  application.render(component(StorybookApp as unknown as CompiledTemplate<StorybookAppProps>, {
     title: options.title,
     userState: options.userState?.workbench,
     viewPointControls,

@@ -1,8 +1,8 @@
-import {type Zavx0zStorybookAppWebPagePackageScenarioModel as ScenarioModelContract} from "@zavx0z/storybook-app-web-page-package-scenario-model"
+import {type StorybookAppWebPagePackageScenarioModel as ScenarioModelContract} from "@zavx0z/storybook-app-web-page-package-scenario-model"
 type ScenarioAppInput = ScenarioModelContract.Input
-import ArchetypesScenarioReaderOwner, {type Zavx0zStorybookSpecsScenariosReader as ArchetypesScenarioReaderContract} from "@zavx0z/storybook-specs-scenarios-reader"
-import {type Zavx0zStorybookAppServerCatalog as AppServerCatalogContract} from "@zavx0z/storybook-app-server-catalog"
-import {type Zavx0zStorybookAppServerSessions as AppServerSessionsContract} from "@zavx0z/storybook-app-server-sessions"
+import ArchetypesScenarioReaderOwner, {type StorybookSpecsScenariosReader as ArchetypesScenarioReaderContract} from "@zavx0z/storybook-specs-scenarios-reader"
+import {type StorybookAppServerCatalog as AppServerCatalogContract} from "@zavx0z/storybook-app-server-catalog"
+import {type StorybookAppServerSessions as AppServerSessionsContract} from "@zavx0z/storybook-app-server-sessions"
 const readScenario = ArchetypesScenarioReaderOwner
 type ReadScenarioInput = ArchetypesScenarioReaderContract.Input
 type ReadScenarioOutput = ArchetypesScenarioReaderContract.Output

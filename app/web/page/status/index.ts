@@ -5,14 +5,14 @@
 
 @packageDocumentation
 */
-import type {Zavx0zStorybookAppWebPageStatus} from "./contract"
+import type {StorybookAppWebPageStatus} from "./contract"
 import type {BuildProgress, CatalogProgress} from "./contract/progress"
 import type {PackageBuildState} from "./contract/package"
 import {phaseLabels, reasonLabels} from "./src/labels"
 import {validCache} from "./src/cache"
-export type {Zavx0zStorybookAppWebPageStatus} from "./contract"
+export type {StorybookAppWebPageStatus} from "./contract"
 
-const status: Zavx0zStorybookAppWebPageStatus.Output = Object.freeze<Zavx0zStorybookAppWebPageStatus.Output>({
+const status: StorybookAppWebPageStatus.Output = Object.freeze<StorybookAppWebPageStatus.Output>({
   /**
 Проверяет полученный переход очереди перед обновлением информационной панели.
 
@@ -80,13 +80,13 @@ const status: Zavx0zStorybookAppWebPageStatus.Output = Object.freeze<Zavx0zStory
   /**
 Переводит подтверждённые package events в текст существующей StatusBar.
 
-Текст описывает только факт, уже опубликованный Zavx0zStorybookPackageSession. Он не выводит
+Текст описывает только факт, уже опубликованный StorybookPackageSession. Он не выводит
 проценты, не называет built revision применённой и не заменяет server startup
 phases, которые browser до подключения не получает.
 
 @param packageId - Exact identity пакета, к которому относится состояние.
 
-@param type - Тип опубликованного события Zavx0zStorybookPackageSession.
+@param type - Тип опубликованного события StorybookPackageSession.
 
 @returns Короткое русское описание наблюдаемого этапа.
 */
@@ -103,7 +103,7 @@ phases, которые browser до подключения не получает
   },
 
   /**
-Переводит восстановленный снимок Zavx0zStorybookPackageSession в StatusBar text.
+Переводит восстановленный снимок StorybookPackageSession в StatusBar text.
 
 @param packageId - Exact identity пакета из snapshot.
 

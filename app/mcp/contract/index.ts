@@ -1,10 +1,10 @@
 import type {CallToolResult, McpServer, ServerContext} from "@modelcontextprotocol/server"
-import type {Zavx0zStorybookAppMcpProxy} from "@zavx0z/storybook-app-mcp-proxy"
-import type {Zavx0zStorybookAppMcpRest} from "@zavx0z/storybook-app-mcp-rest"
+import type {StorybookAppMcpProxy} from "@zavx0z/storybook-app-mcp-proxy"
+import type {StorybookAppMcpRest} from "@zavx0z/storybook-app-mcp-rest"
 import type {Controller, ControllerContext, ControllerResult} from "./types"
 
 /** Контракт предметного lazy-входа Storybook MCP. */
-export declare namespace Zavx0zStorybookAppMcp {
+export declare namespace StorybookAppMcp {
   /**
   Необязательные зависимости предметной регистрации и полной MCP-сессии.
 
@@ -20,12 +20,12 @@ export declare namespace Zavx0zStorybookAppMcp {
   @property [registerTools] - Дополнительные регистрации на том же SDK server.
   */
   type Input = Readonly<{
-    request?: (input: Zavx0zStorybookAppMcpProxy.Input, signal: AbortSignal) => Promise<Zavx0zStorybookAppMcpProxy.Output>
+    request?: (input: StorybookAppMcpProxy.Input, signal: AbortSignal) => Promise<StorybookAppMcpProxy.Output>
     traceRequest?: (
       tool: "storybook",
-      input: Zavx0zStorybookAppMcpProxy.Input,
-      execute: () => Promise<Zavx0zStorybookAppMcpProxy.Output>,
-    ) => Promise<Zavx0zStorybookAppMcpProxy.Output>
+      input: StorybookAppMcpProxy.Input,
+      execute: () => Promise<StorybookAppMcpProxy.Output>,
+    ) => Promise<StorybookAppMcpProxy.Output>
     controller?: Controller
     controllerFactory?: () => Controller | Promise<Controller>
     recordRequest?: (entry: Record<string, unknown>) => Promise<void>
@@ -51,7 +51,7 @@ export declare namespace Zavx0zStorybookAppMcp {
   */
   type Output = Readonly<{
     register(server: McpServer, options?: Input): void
-    read(request: Zavx0zStorybookAppMcpRest.Input[0], options: Zavx0zStorybookAppMcpRest.Input[1]): Promise<Zavx0zStorybookAppMcpRest.Output>
+    read(request: StorybookAppMcpRest.Input[0], options: StorybookAppMcpRest.Input[1]): Promise<StorybookAppMcpRest.Output>
     createServer(options?: Input): McpServer
   }>
 }

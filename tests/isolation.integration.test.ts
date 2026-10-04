@@ -8,8 +8,8 @@ import {afterEach, describe, expect, test} from "bun:test"
 import {mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import startExternalStorybookServer, {type Zavx0zStorybookAppServer} from "@zavx0z/storybook-app-server"
-type ExternalStorybookRunningServer = Zavx0zStorybookAppServer.Output
+import startExternalStorybookServer, {type StorybookAppServer} from "@zavx0z/storybook-app-server"
+type ExternalStorybookRunningServer = StorybookAppServer.Output
 
 const roots: string[] = []
 const servers: ExternalStorybookRunningServer[] = []

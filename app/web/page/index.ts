@@ -7,7 +7,7 @@
 @packageDocumentation
 */
 import WebProtocol from "@zavx0z/storybook-app-web-protocol"
-import type {Zavx0zStorybookTechHmrConnection} from "@zavx0z/storybook-tech-hmr-connection"
+import type {StorybookTechHmrConnection} from "@zavx0z/storybook-tech-hmr-connection"
 import createHmrPage from "@zavx0z/storybook-tech-hmr-page"
 import PageTarget from "@zavx0z/storybook-app-web-page-target"
 import createStorybookAgentBridge from "@zavx0z/storybook-app-web-page-agent-bridge"
@@ -15,8 +15,8 @@ import indexedWorkbenchAuthorStyleSheetSources from "@zavx0z/storybook-app-web-p
 import startExternalStorybookLanding from "@zavx0z/storybook-app-web-page-home"
 
 import startExternalStorybookPackage from "@zavx0z/storybook-app-web-page-package"
-import type {Zavx0zStorybookAppWebPagePackage} from "@zavx0z/storybook-app-web-page-package"
-type ExternalStorybookAppliedRevision = Awaited<ReturnType<NonNullable<NonNullable<Zavx0zStorybookAppWebPagePackage.Input["environment"]>["loadAppliedRevision"]>>>
+import type {StorybookAppWebPagePackage} from "@zavx0z/storybook-app-web-page-package"
+type ExternalStorybookAppliedRevision = Awaited<ReturnType<NonNullable<NonNullable<StorybookAppWebPagePackage.Input["environment"]>["loadAppliedRevision"]>>>
 import {loadStorybookAppliedRevision} from "./src/revision-loader.ts"
 import WebStatusOwner from "@zavx0z/storybook-app-web-page-status"
 const buildProgressStatus = WebStatusOwner.build
@@ -24,15 +24,15 @@ const catalogProgressStatus = WebStatusOwner.catalog
 const readBuildProgress = WebStatusOwner.readBuild
 const readCatalogProgress = WebStatusOwner.readCatalog
 import createExternalStorybookShell from "@zavx0z/storybook-app-web-page-shell"
-import type {Zavx0zStorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
-type StorybookRetainedRoot = ReturnType<Zavx0zStorybookAppWebPageShell.Output["releaseRoot"]>
-import type {Zavx0zStorybookAppWebPage} from "./contract"
-type StartExternalStorybookPageOptions = Zavx0zStorybookAppWebPage.Input
-type ExternalStorybookPageController = Zavx0zStorybookAppWebPage.Output
+import type {StorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
+type StorybookRetainedRoot = ReturnType<StorybookAppWebPageShell.Output["releaseRoot"]>
+import type {StorybookAppWebPage} from "./contract"
+type StartExternalStorybookPageOptions = StorybookAppWebPage.Input
+type ExternalStorybookPageController = StorybookAppWebPage.Output
 import type {StorybookSharedHost, ExternalStorybookPreparedPageTarget, ExternalStorybookPagePrepareInput} from "./contract/types"
 import type {StorybookAgentBridge, ExternalStorybookPreparedPackageTarget, ExternalStorybookPreparedLandingTarget, ActivePackagePageScope, ActiveLandingPageScope, ActivePageScope} from "./src/types"
 import {STORYBOOK_AGENT_BRIDGE_GLOBAL, requirePackageScope, readPageScroll, restorePageScroll, createStorybookScopeAddress, currentPageAddress, createDeferredStorybookSocket} from "./src/implementation"
-export type {Zavx0zStorybookAppWebPage} from './contract'
+export type {StorybookAppWebPage} from './contract'
 
 /**
 Создаёт один page owner с динамическим обновлением пакетов и платформы.
@@ -114,7 +114,7 @@ async function startExternalStorybookPage(
     return payload
   }
 
-  const eventSocket = (target: ExternalStorybookPreparedPageTarget): Zavx0zStorybookTechHmrConnection.Input["socket"] => {
+  const eventSocket = (target: ExternalStorybookPreparedPageTarget): StorybookTechHmrConnection.Input["socket"] => {
     const url = new URL("/api/events", location.href)
     url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
     url.searchParams.set("session", target.readerToken)

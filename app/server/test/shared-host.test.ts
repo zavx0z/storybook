@@ -1,12 +1,12 @@
 import {createProjectFixture} from "./project.fixture.ts"
 import createWeb from "@zavx0z/storybook-app-web"
-import AppWebBuildOwner, {type Zavx0zStorybookAppWebBuild} from "@zavx0z/storybook-app-web-build"
+import AppWebBuildOwner, {type StorybookAppWebBuild} from "@zavx0z/storybook-app-web-build"
 import BuildEnvironmentOwner from "@zavx0z/storybook-tech-build-environment"
 import BuildArtifactsOwner from "@zavx0z/storybook-tech-build-artifacts"
 const readPublishedSharedBrowserReceipt = AppWebBuildOwner.readPublishedReceipt
 const saveSharedBrowserReceipt = AppWebBuildOwner.saveReceipt
 const storybookSharedBrowserIdentity = BuildEnvironmentOwner.identity
-type SharedBrowserAssets = Awaited<ReturnType<Zavx0zStorybookAppWebBuild.Output["buildAssets"]>>
+type SharedBrowserAssets = Awaited<ReturnType<StorybookAppWebBuild.Output["buildAssets"]>>
 import {expect, mock, test} from "bun:test"
 import {createHash} from "node:crypto"
 import {mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync} from "node:fs"
@@ -20,7 +20,7 @@ test("shared check передаёт точный immutable collision от publis
   const target = join(fixture.current.root, path)
   const originalBytes = readFileSync(target)
   writeFileSync(target, "damaged output")
-  const build = mock<Zavx0zStorybookAppWebBuild.Output["runWorker"]>(async input => {
+  const build = mock<StorybookAppWebBuild.Output["runWorker"]>(async input => {
     const staging = join(fixture.root, "collision-candidate")
     mkdirSync(dirname(join(staging, path)), {recursive: true})
     writeFileSync(join(staging, path), originalBytes)
@@ -110,7 +110,7 @@ test("отмена shared check не публикует результат, сл
   const retained = Promise.withResolvers<SharedBrowserAssets>()
   const started = Promise.withResolvers<AbortSignal>()
   let builds = 0
-  const build = mock<Zavx0zStorybookAppWebBuild.Output["runWorker"]>(async (input, context) => {
+  const build = mock<StorybookAppWebBuild.Output["runWorker"]>(async (input, context) => {
     expect(input.sharedKernel).toBeDefined()
     builds += 1
     started.resolve(context.signal)
@@ -165,7 +165,7 @@ test("остановка сервера отменяет текущую сбор
   const aborted = Promise.withResolvers<void>()
   const cleanup = Promise.withResolvers<void>()
   let cleaned = false
-  const build = mock<Zavx0zStorybookAppWebBuild.Output["runWorker"]>(async (input, context) => {
+  const build = mock<StorybookAppWebBuild.Output["runWorker"]>(async (input, context) => {
     expect(input.sharedKernel).toBeDefined()
     started.resolve(context.signal)
     await new Promise<void>(resolve => context.signal.addEventListener("abort", () => {
@@ -249,7 +249,7 @@ test("Minimap и управляющий app разделяют одну пере
   const gate = Promise.withResolvers<SharedBrowserAssets>()
   const started = Promise.withResolvers<void>()
   let calls = 0
-  const build = mock<Zavx0zStorybookAppWebBuild.Output["runWorker"]>(async input => {
+  const build = mock<StorybookAppWebBuild.Output["runWorker"]>(async input => {
     calls += 1
     expect(input.sharedKernel?.epoch).toBe(fixture.current.browserIdentity!.epoch)
     started.resolve()
@@ -310,7 +310,7 @@ test("Minimap и управляющий app разделяют одну пере
 
 test("ошибка явного выпуска Web сохраняет опубликованную среду", async () => {
   const fixture = retainedHostFixture()
-  const build = mock<Zavx0zStorybookAppWebBuild.Output["runWorker"]>(async () => { throw new Error("Web compilation failed") })
+  const build = mock<StorybookAppWebBuild.Output["runWorker"]>(async () => { throw new Error("Web compilation failed") })
   let server: Awaited<ReturnType<typeof startExternalStorybookServer>> | undefined
   try {
     server = await startExternalStorybookServer({createWeb, ...fixture.options, buildWeb: build})

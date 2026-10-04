@@ -3,7 +3,7 @@ import {afterAll, describe, expect, test} from "bun:test"
 import {mkdtempSync, rmSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import createStorybookBrowserLifecycle, {type Zavx0zStorybookAppServerBrowser} from "@zavx0z/storybook-app-server-browser"
+import createStorybookBrowserLifecycle, {type StorybookAppServerBrowser} from "@zavx0z/storybook-app-server-browser"
 
 describe.each([
   {name: "Нет вкладок", props: {targets: []}},
@@ -11,7 +11,7 @@ describe.each([
 ])("$name", async ({props}) => {
   const root = mkdtempSync(join(tmpdir(), "storybook-browser-scenario-"))
   afterAll(() => rmSync(root, {recursive: true, force: true}))
-  const chrome = {targets: async () => props.targets} as unknown as NonNullable<Zavx0zStorybookAppServerBrowser.Input["chrome"]>
+  const chrome = {targets: async () => props.targets} as unknown as NonNullable<StorybookAppServerBrowser.Input["chrome"]>
   const lifecycle = createStorybookBrowserLifecycle({
     chrome,
     stateRoot: join(root, "state"),

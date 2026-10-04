@@ -1,8 +1,8 @@
-import type {Zavx0zStorybookAppWebPageShellViewpointControls} from "@zavx0z/storybook-app-web-page-shell-viewpoint-controls"
+import type {StorybookAppWebPageShellViewpointControls} from "@zavx0z/storybook-app-web-page-shell-viewpoint-controls"
 
-export declare namespace Zavx0zStorybookAppWebPageShellViewpointTab {
+export declare namespace StorybookAppWebPageShellViewpointTab {
   /** Команды ViewPoint существующего Browser Root без создания новой камеры. */
   export interface Input {
-    readonly controls: Zavx0zStorybookAppWebPageShellViewpointControls.Output
+    readonly controls: StorybookAppWebPageShellViewpointControls.Output
   }
 }

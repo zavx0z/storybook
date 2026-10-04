@@ -1,6 +1,6 @@
-import type {Zavx0zStorybookPackageReader} from "@zavx0z/storybook-package-reader"
+import type {StorybookPackageReader} from "@zavx0z/storybook-package-reader"
 
-export declare namespace Zavx0zStorybookComponent {
+export declare namespace StorybookComponent {
   /**
   Директория проверяемого пакета; класс не передаётся вызывающим кодом.
 
@@ -20,7 +20,7 @@ export declare namespace Zavx0zStorybookComponent {
   @property scenarios - Непосредственные сценарии использования компонента.
   */
   export interface Output {
-    readonly package: Zavx0zStorybookPackageReader.Output
+    readonly package: StorybookPackageReader.Output
     readonly entries: readonly {readonly path: string, readonly exports: readonly string[], readonly input: string | null, readonly output: string | null, readonly jsx: boolean}[]
     readonly additionalCode: readonly string[]
     readonly scenarios: readonly string[]

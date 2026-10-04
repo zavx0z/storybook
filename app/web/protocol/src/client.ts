@@ -1,7 +1,7 @@
 import RouteUrlOwner from "@zavx0z/storybook-package-route-url"
 import ReadGraph from "@zavx0z/storybook-package-graph-read"
-import type {Zavx0zStorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
-import type {Zavx0zStorybookAppWebProtocol} from "../contract"
+import type {StorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
+import type {StorybookAppWebProtocol} from "../contract"
 import type {
   ExternalStorybookClientNode,
   ExternalStorybookClientDiagnostic,
@@ -10,11 +10,11 @@ import type {
 
 const storybookPackagePathSegment = RouteUrlOwner.storybookPackagePathSegment
 
-type ExternalStorybookClientSnapshot = ReturnType<Zavx0zStorybookAppWebProtocol.Output["clientSnapshot"]>
-type StorybookPackageSessionSnapshot = Parameters<Zavx0zStorybookAppWebProtocol.Output["clientSnapshot"]>[1][number]
+type ExternalStorybookClientSnapshot = ReturnType<StorybookAppWebProtocol.Output["clientSnapshot"]>
+type StorybookPackageSessionSnapshot = Parameters<StorybookAppWebProtocol.Output["clientSnapshot"]>[1][number]
 type StorybookPackageBuildState = StorybookPackageSessionSnapshot["buildState"]
 type StorybookPackageDiagnostic = StorybookPackageSessionSnapshot["diagnostics"][number]
-type ExternalStorybookGraph = Zavx0zStorybookPackageGraphCreate.Output
+type ExternalStorybookGraph = StorybookPackageGraphCreate.Output
 
 /**
 Маркер версии сериализуемого протокола между сервером и страницей Storybook.

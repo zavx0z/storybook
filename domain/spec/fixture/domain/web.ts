@@ -3,10 +3,10 @@
 
 @packageDocumentation
 */
-import type {FixtureArchetypeDomain} from "./contract/web"
-export type {FixtureArchetypeDomain} from "./contract/web"
+import type {StorybookDomainSpecFixtureDomain} from "./contract/web"
+export type {StorybookDomainSpecFixtureDomain} from "./contract/web"
 
 /** Общая величина сохраняется; представление добавляет только подпись. */
-export default function showCounter({counter, prefix = ""}: FixtureArchetypeDomain.Input): FixtureArchetypeDomain.Output {
+export default function showCounter({counter, prefix = ""}: StorybookDomainSpecFixtureDomain.Input): StorybookDomainSpecFixtureDomain.Output {
   return `${prefix}${counter.value}`
 }

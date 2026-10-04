@@ -7,10 +7,10 @@ App передаёт свой контроллер через фабрику; HT
 */
 import {register, read} from "./src/subject"
 import {createServer} from "./src/server"
-import type {Zavx0zStorybookAppMcp} from "./contract"
+import type {StorybookAppMcp} from "./contract"
 
-export type {Zavx0zStorybookAppMcp} from "./contract"
+export type {StorybookAppMcp} from "./contract"
 
-const mcp: Zavx0zStorybookAppMcp.Output = Object.freeze({register, read, createServer})
+const mcp: StorybookAppMcp.Output = Object.freeze({register, read, createServer})
 
 export default mcp

@@ -1,9 +1,9 @@
-import type {Zavx0zStorybookTechAcp} from "@zavx0z/storybook-tech-acp"
+import type {StorybookTechAcp} from "@zavx0z/storybook-tech-acp"
 import type {Snapshot, Subject} from "./state"
 import type {Relocation} from "./relocation"
 
 /** Контракт адресных бесед одного Project. */
-export declare namespace Zavx0zStorybookChatSession {
+export declare namespace StorybookChatSession {
   /**
   Хранение и предоставленные приложением возможности исполнения.
 
@@ -20,10 +20,10 @@ export declare namespace Zavx0zStorybookChatSession {
       subject: Subject
       previousSessionId?: string
       signal: AbortSignal
-      onProgress?: Zavx0zStorybookTechAcp.Input["onProgress"]
-      onUpdate: Zavx0zStorybookTechAcp.Input["onUpdate"]
-      onPermission: Zavx0zStorybookTechAcp.Input["onPermission"]
-    }>): Promise<Zavx0zStorybookTechAcp.Output>
+      onProgress?: StorybookTechAcp.Input["onProgress"]
+      onUpdate: StorybookTechAcp.Input["onUpdate"]
+      onPermission: StorybookTechAcp.Input["onPermission"]
+    }>): Promise<StorybookTechAcp.Output>
   }>
 
   /**

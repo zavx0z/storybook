@@ -7,9 +7,9 @@
 */
 import navigation from "@zavx0z/storybook-package-mcp-navigation"
 import content from "@zavx0z/storybook-package-mcp-content"
-import type {Zavx0zStorybookRepoMcp as Contract} from "./contract"
+import type {StorybookRepoMcp as Contract} from "./contract"
 
-export type {Zavx0zStorybookRepoMcp} from "./contract"
+export type {StorybookRepoMcp} from "./contract"
 
 /** Формирует содержательный ответ Repo, сохраняя точные источники и границы его участников. */
 export default async function readRepoMcp({selected, entries}: Contract.Input): Promise<Contract.Output> {

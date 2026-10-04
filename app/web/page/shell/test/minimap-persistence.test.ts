@@ -5,9 +5,9 @@ import {createDocument, MouseEvent, type Element} from "@zavx0z/immersive-dom"
 import {flushDocumentLayoutObservers} from "@zavx0z/immersive-dom/geometry"
 import {createDocumentInteractionController, createDocumentRenderer, hitTestProjection} from "@zavx0z/immersive-renderer-html"
 import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
-import type {Zavx0zStorybookAppWebPageShellMinimap} from "@zavx0z/storybook-app-web-page-shell-minimap"
-type MinimapProps = Zavx0zStorybookAppWebPageShellMinimap.Input
-type MinimapState = Zavx0zStorybookAppWebPageShellMinimap.Output
+import type {StorybookAppWebPageShellMinimap} from "@zavx0z/storybook-app-web-page-shell-minimap"
+type MinimapProps = StorybookAppWebPageShellMinimap.Input
+type MinimapState = StorybookAppWebPageShellMinimap.Output
 import {createMinimapPersistence} from "../src/minimap-persistence"
 
 const initialLayout: MinimapState = {collapsed: false, geometry: {x: 8, y: 8, width: 300, height: 480}, tab: {edge: "left", offset: .5}}

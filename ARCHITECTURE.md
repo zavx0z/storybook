@@ -38,7 +38,7 @@ one external Storybook serve process
   ├─ one shared Workbench frontend and theme
   ├─ one private @zavx0z/storybook-app-server-browser
   │      └─ exact packageId → absent | reserved | owned target
-  └─ independent Zavx0zStorybookPackageSession per package
+  └─ independent StorybookPackageSession per package
          ├─ structural scenario execution
          ├─ compiler/module graph
          ├─ isolated candidate staging
@@ -74,7 +74,7 @@ reconciliation не меняет записи других пакетов и н�
 
 Подключённые корни обрабатывает [Package Metadata Collect](package/metadata/collect/index.ts).
 Он читает `package.json`, workspaces и реальные публичные директории, проверяет
-владение и возвращает `Zavx0zStorybookPackageMetadataCollect.Output`. Каталог сервера получает источник
+владение и возвращает `StorybookPackageMetadataCollect.Output`. Каталог сервера получает источник
 при создании; граф использует тот же нормализованный контракт.
 
 | Владелец | Ответственность |
@@ -162,7 +162,7 @@ Child пишет token-scoped candidate внутрь lease, а
 принадлежат [контракту вкладок](app/web/page/shell/workbench/notes/workspace.md#tabs-routes).
 
 Одна package tab имеет один browser realm и одну активную ревизию
-Zavx0zStorybookPackageSession. Обзор и встроенные представления читают структурный snapshot
+StorybookPackageSession. Обзор и встроенные представления читают структурный snapshot
 пакета; проектный runtime-адаптер и загрузчики вариантов не создаются.
 
 Корневая страница и каждая package page владеют отдельным
@@ -262,7 +262,7 @@ package tab самостоятельно. Browser branch диаграммы пр
 `@zavx0z/storybook-app-server-browser`; это package boundary, а не второй runtime
 owner или process.
 
-## Zavx0zStorybookPackageSession and revisions
+## StorybookPackageSession and revisions
 
 Для каждого package существует независимый state:
 
@@ -293,7 +293,7 @@ Candidate проходит структурное обнаружение, про
 
 Каждая revision содержит exact immutable package graph projection, routes, structural digest, TSDoc resources и metadata. Package tab никогда не
 соединяет старый bundle с новым global graph. Build queue последовательна только
-внутри одной Zavx0zStorybookPackageSession; общий semaphore лишь ограничивает число compiler
+внутри одной StorybookPackageSession; общий semaphore лишь ограничивает число compiler
 children. Compile/protocol/activation имеют timeout и exact cancellation.
 
 Проверка входов при явной подготовке учитывает фактические зависимости пакета.
@@ -395,7 +395,7 @@ and capture stores retain active/lastWorking/leased data plus bounded recent TTL
 
 ## Compiler boundary
 
-Пакет и его директории не объявляют build callbacks. Zavx0zStorybookPackageSession использует
+Пакет и его директории не объявляют build callbacks. StorybookPackageSession использует
 обычное разрешение зависимостей владельца и TypeScript config. Общий Workbench
 и его тема принадлежат Storybook; структурные сценарии остаются в исходниках
 потребителя и не передают ему владение сервером или compiler lifecycle.

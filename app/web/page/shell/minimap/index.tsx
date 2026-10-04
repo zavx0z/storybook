@@ -19,11 +19,11 @@ import {WindowControl} from "@zavx0z/immersive-ui-component"
 import {Tab} from "@zavx0z/immersive-ui-component"
 import CatalogPanel from "@zavx0z/storybook-app-web-page-shell-workbench-catalog"
 import {normalizeMinimapState} from "./src/state"
-import type {Zavx0zStorybookAppWebPageShellMinimap} from "./contract"
-export type {Zavx0zStorybookAppWebPageShellMinimap} from "./contract"
+import type {StorybookAppWebPageShellMinimap} from "./contract"
+export type {StorybookAppWebPageShellMinimap} from "./contract"
 
 /** Компонует общую оболочку Window и WindowControl в Tab того же Document. */
-export default function Minimap(props: Zavx0zStorybookAppWebPageShellMinimap.Input) {
+export default function Minimap(props: StorybookAppWebPageShellMinimap.Input) {
   const id = useId()
   const [state, setState] = useState(() => normalizeMinimapState(props.initialState))
   const current = useRef(state)
@@ -46,7 +46,7 @@ export default function Minimap(props: Zavx0zStorybookAppWebPageShellMinimap.Inp
     }
   }
   /** Публикует один завершённый снимок, общий для оболочки и её управляющего Tab. */
-  const update = (patch: Partial<Zavx0zStorybookAppWebPageShellMinimap.Output>) => {
+  const update = (patch: Partial<StorybookAppWebPageShellMinimap.Output>) => {
     const next = {...current.current, ...patch}
     current.current = next
     setState(next)

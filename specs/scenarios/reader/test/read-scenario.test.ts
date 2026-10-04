@@ -8,12 +8,12 @@ props.path задаёт внешний путь к сценарию вместо
 */
 import {describe, expect, test} from "bun:test"
 import {isAbsolute, resolve} from "node:path"
-import readScenario, {type Zavx0zStorybookSpecsScenariosReader} from "@zavx0z/storybook-specs-scenarios-reader"
+import readScenario, {type StorybookSpecsScenariosReader} from "@zavx0z/storybook-specs-scenarios-reader"
 import {inspectSnapshot} from "./fixture/snapshot"
 
 type Scenario = {
   name: string
-  props: Zavx0zStorybookSpecsScenariosReader.Input
+  props: StorybookSpecsScenariosReader.Input
   expected: {name: string, describe: string[], test: string | null, outcome: {type: string}}[]
 }
 

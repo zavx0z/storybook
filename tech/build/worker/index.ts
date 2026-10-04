@@ -12,9 +12,9 @@ import waitForOwnedChild from "@zavx0z/storybook-tech-process-wait"
 import readWorkerEvents from "./src/read-events"
 import readWorkerResult from "./src/read-result"
 import notifyObserver from "./src/notify"
-import type {Zavx0zStorybookTechBuildWorker} from "./contract"
+import type {StorybookTechBuildWorker} from "./contract"
 
-export type {Zavx0zStorybookTechBuildWorker} from "./contract"
+export type {StorybookTechBuildWorker} from "./contract"
 
 /**
 Запускает worker через текущий Bun с argv: entryPath, input.json, result.json, workerId.
@@ -32,8 +32,8 @@ started публикуется после exact nonce/PID handshake. exited сл
 @throws RangeError при неверном timeoutMs, maxResultBytes или hardKillDelayMs до создания процесса.
 */
 export default async function runBuildWorker<Job, Progress>(
-  input: Zavx0zStorybookTechBuildWorker.Input<Job, Progress>,
-): Promise<Zavx0zStorybookTechBuildWorker.Output> {
+  input: StorybookTechBuildWorker.Input<Job, Progress>,
+): Promise<StorybookTechBuildWorker.Output> {
   if (input.timeoutMs !== undefined && (!Number.isFinite(input.timeoutMs) || input.timeoutMs <= 0)) {
     throw new RangeError(`Build worker timeout must be positive: ${input.timeoutMs}`)
   }

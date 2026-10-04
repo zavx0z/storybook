@@ -1,79 +1,76 @@
-/** Имя namespace выражает полное имя пакета, включая его scope. */
+/** Путь исходного владельца определяет namespace независимо от организации и npm-имени. */
 import {describe, expect, test} from "bun:test"
+import {mkdir, mkdtemp, rm} from "node:fs/promises"
+import {tmpdir} from "node:os"
 import {resolve} from "node:path"
 import readContract from "@zavx0z/storybook-contracts"
 import {createFixture} from "../test/fixture"
 
 describe.each([
-  {
-    name: "@zavx0z/storybook-app — Zavx0zStorybookApp",
-    packageName: "@zavx0z/storybook-app",
-    namespaceName: "Zavx0zStorybookApp",
-    expected: "Zavx0zStorybookApp",
-  },
-  {
-    name: "@zavx0z/storybook-app-web — Zavx0zStorybookAppWeb",
-    packageName: "@zavx0z/storybook-app-web",
-    namespaceName: "Zavx0zStorybookAppWeb",
-    expected: "Zavx0zStorybookAppWeb",
-  },
-  {
-    name: "web-worker — WebWorker",
-    packageName: "web-worker",
-    namespaceName: "WebWorker",
-    expected: "WebWorker",
-  },
-  {
-    name: "@build-tools/web-worker — BuildToolsWebWorker",
-    packageName: "@build-tools/web-worker",
-    namespaceName: "BuildToolsWebWorker",
-    expected: "BuildToolsWebWorker",
-  },
-  {
-    name: "Намеренно неверное имя @zavx0z/storybook-app — Contract",
-    packageName: "@zavx0z/storybook-app",
-    namespaceName: "Contract",
-    expected: "Zavx0zStorybookApp",
-  },
-  {
-    name: "Намеренно неверное имя @zavx0z/storybook-app-web — Web",
-    packageName: "@zavx0z/storybook-app-web",
-    namespaceName: "Web",
-    expected: "Zavx0zStorybookAppWeb",
-  },
-])("$name", ({packageName, namespaceName, expected}) => {
+  {name: "Организация zavx0z", packageName: "@zavx0z/storybook-app", mode: "correct"},
+  {name: "Другая организация", packageName: "@other/storybook-app", mode: "correct"},
+  {name: "Ошибочное npm-имя", packageName: "@wrong/completely-different", mode: "correct"},
+  {name: "Npm-имя без scope", packageName: "unrelated", mode: "correct"},
+  {name: "Организация попала в namespace", packageName: "@zavx0z/storybook-app", mode: "organization"},
+  {name: "Потеряна вложенность", packageName: "@zavx0z/storybook-app", mode: "short"},
+])("$name", ({packageName, mode}) => {
   test("Имя, предупреждение и доступность ролей", async () => {
     const fixture = await createFixture("empty")
     try {
-      await fixture.write("package.json", JSON.stringify({
-        name: packageName,
-        type: "module",
-        exports: {".": "./index.ts"},
-      }))
-      await fixture.write("index.ts", `import type {${namespaceName}} from "./contract"\nexport type {${namespaceName}} from "./contract"\nexport default function run(input: ${namespaceName}.Input): ${namespaceName}.Output {return {result: input.value.length}}\n`)
-      const contractPath = resolve(fixture.root, "contract/index.ts")
+      const namespaceName = mode === "correct" ? fixture.namespaceName
+        : mode === "organization" ? `Zavx0z${fixture.namespaceName}` : "Contract"
+      await fixture.write("package.json", JSON.stringify({name: packageName, type: "module", exports: {".": "./index.ts"}}))
+      await fixture.write("index.ts", `export type {${namespaceName}} from "./contract"\nexport default function run(value: string) {return value.length}\n`)
       await fixture.write("contract/index.ts", `export declare namespace ${namespaceName} {type Input = {readonly value: string}\ntype Output = {readonly result: number}}\n`)
-
       const result = await readContract({path: fixture.root})
       const namespace = result.entries[0]?.namespaces[0]
-
-      expect(namespace?.declaration.name, "Читатель сохраняет фактическое имя исходного объявления").toBe(namespaceName)
-      expect(result.diagnostics,
-        "Совпадающее имя проходит без предупреждения; неверное имя даёт одну точную диагностику")
-        .toEqual(namespaceName === expected ? [] : [{
-          severity: "warning",
-          code: "namespace-name",
-          path: contractPath,
-          message: `Namespace ${namespaceName} пакета ${packageName} ожидается с именем ${expected}`,
-        }])
-      expect(namespace?.roles.map(role => role.name),
-        "Предупреждение об имени не мешает читать типовые роли").toEqual(["Input", "Output"])
-      expect(namespace?.roles.find(role => role.name === "Input")?.fields,
-        "Входная форма доступна и при предупреждении").toMatchObject([{name: "value", type: "string", optional: false}])
-      expect(namespace?.roles.find(role => role.name === "Output")?.fields,
-        "Результатная форма доступна и при предупреждении").toMatchObject([{name: "result", type: "number", optional: false}])
+      expect(namespace?.declaration.name).toBe(namespaceName)
+      expect(result.diagnostics, "Ожидаемое имя определяется путём, а не корректностью npm-имени")
+        .toEqual(mode === "correct" ? [] : [fixture.namingDiagnostic(namespaceName)])
+      expect(namespace?.roles.map(role => role.name)).toEqual(["Input", "Output"])
+      expect(namespace?.roles[0]?.fields).toMatchObject([{name: "value", type: "string", optional: false}])
+      expect(namespace?.roles.find(role => role.name === "Output")?.fields)
+        .toMatchObject([{name: "result", type: "number", optional: false}])
     } finally {
       await fixture.close()
     }
   })
+})
+
+test("Реэкспорт использует путь исходного владельца, включая дальних предков", async () => {
+  const fixture = await createFixture("empty")
+  try {
+    const name = `${fixture.namespaceName}GrandparentParentChild`
+    await fixture.write("grandparent/parent/child/package.json", JSON.stringify({name: "@unrelated/child", exports: {".": "./index.ts"}}))
+    await fixture.write("grandparent/parent/child/index.ts", `export type {${name}} from "./contract"\nexport default 1\n`)
+    await fixture.write("grandparent/parent/child/contract/index.ts", `export declare namespace ${name} {type Output = number}\n`)
+    await fixture.write("index.ts", `export type {${name} as PublicName} from "./grandparent/parent/child"\nexport {default as Child} from "./grandparent/parent/child"\n`)
+    const result = await readContract({path: fixture.root})
+    expect(result.diagnostics).toEqual([])
+    expect(result.entries[0]?.namespaces[0]?.name).toBe("PublicName")
+    expect(result.entries[0]?.namespaces[0]?.declaration).toMatchObject({name, owner: {path: resolve(fixture.root, "grandparent/parent/child")}})
+  } finally {
+    await fixture.close()
+  }
+})
+
+test("Без Repo имя не выводится из npm-адреса", async () => {
+  const root = await mkdtemp(resolve(tmpdir(), "namespace-no-repo-"))
+  try {
+    await mkdir(resolve(root, "contract"))
+    await Bun.write(resolve(root, "package.json"), JSON.stringify({name: "@org/name", type: "module", exports: {".": "./index.ts"}}))
+    await Bun.write(resolve(root, "tsconfig.json"), JSON.stringify({compilerOptions: {types: [], strict: true, module: "Preserve", moduleResolution: "bundler"}, include: ["**/*.ts"]}))
+    await Bun.write(resolve(root, "index.ts"), 'export type {OrgName} from "./contract"\nexport default 1\n')
+    await Bun.write(resolve(root, "contract/index.ts"), 'export declare namespace OrgName {type Output = number}\n')
+    const result = await readContract({path: root})
+    expect(result.diagnostics).toEqual([{
+      severity: "warning",
+      code: "namespace-name-context",
+      path: resolve(result.root, "contract/index.ts"),
+      message: "Имя namespace OrgName не проверено: Git-граница Repo исходного владельца не установлена",
+    }])
+    expect(result.entries[0]?.namespaces[0]?.roles.map(role => role.name)).toEqual(["Output"])
+  } finally {
+    await rm(root, {recursive: true, force: true})
+  }
 })

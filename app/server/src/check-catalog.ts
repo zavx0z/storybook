@@ -1,6 +1,6 @@
-import type {Zavx0zStorybookAppServerCatalog} from "@zavx0z/storybook-app-server-catalog"
+import type {StorybookAppServerCatalog} from "@zavx0z/storybook-app-server-catalog"
 
-type Registry = Zavx0zStorybookAppServerCatalog.Output
+type Registry = StorybookAppServerCatalog.Output
 type Snapshot = ReturnType<Registry["snapshot"]>
 
 /** Обновляет структуру выбранных владельцев через существующие dirty paths каталога. */

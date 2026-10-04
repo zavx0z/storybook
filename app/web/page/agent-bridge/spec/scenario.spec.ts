@@ -14,14 +14,14 @@ import {createDocumentInteractionController, createDocumentRenderer, hitTestProj
 import {createSpaceElementFactories} from "@zavx0z/immersive-space"
 import {HUDElement} from "@zavx0z/immersive-dom/hud"
 import {SpaceElement} from "@zavx0z/immersive-dom/space"
-import createStorybookAgentBridge, {type Zavx0zStorybookAppWebPageAgentBridge} from "../index"
+import createStorybookAgentBridge, {type StorybookAppWebPageAgentBridge} from "../index"
 const STORYBOOK_AGENT_BRIDGE_GLOBAL = createStorybookAgentBridge.global
 const STORYBOOK_AGENT_BRIDGE_PROTOCOL = createStorybookAgentBridge.protocol
-type StorybookAgentBridge = Zavx0zStorybookAppWebPageAgentBridge.Output
-type StorybookAgentBridgeRequest = Parameters<Zavx0zStorybookAppWebPageAgentBridge.Output["invoke"]>[0]
+type StorybookAgentBridge = StorybookAppWebPageAgentBridge.Output
+type StorybookAgentBridgeRequest = Parameters<StorybookAppWebPageAgentBridge.Output["invoke"]>[0]
 import type {Presentation} from "@zavx0z/immersive-browser/integration"
-type ExternalStorybookNativeKey = Parameters<Zavx0zStorybookAppWebPageAgentBridge.Input["shell"]["dispatchNativeKey"]>[1]
-type ExternalStorybookShell = Zavx0zStorybookAppWebPageAgentBridge.Input["shell"] & Readonly<{
+type ExternalStorybookNativeKey = Parameters<StorybookAppWebPageAgentBridge.Input["shell"]["dispatchNativeKey"]>[1]
+type ExternalStorybookShell = StorybookAppWebPageAgentBridge.Input["shell"] & Readonly<{
   hud: HUDElement
   root: Pick<Presentation, "input" | "getProjection">
 }>
@@ -29,7 +29,7 @@ type ExternalStorybookShell = Zavx0zStorybookAppWebPageAgentBridge.Input["shell"
 describe("external Storybook agent bridge inspection", () => {
   test("subject без workspaceId сохраняет отсутствие workspace identity без нового кадра", async () => {
     const fixture = createFixture()
-    const controller: NonNullable<Zavx0zStorybookAppWebPageAgentBridge.Input["shell"]["workbench"]["controller"]> = {
+    const controller: NonNullable<StorybookAppWebPageAgentBridge.Input["shell"]["workbench"]["controller"]> = {
       selectedInspector: () => "input",
       read: () => ({}),
     }
@@ -625,7 +625,7 @@ function createFixture(options: Readonly<{
     urlPath: "/pkg-fixture-storybook/controls/default",
     tabs: [{id: "overview:controls", label: "Обзор", route: "dir-controls", urlPath: "/pkg-fixture-storybook/controls", title: "Обзор", searchText: "Обзор"}],
     tabActiveId: "overview:controls",
-  } satisfies ReturnType<Zavx0zStorybookAppWebPageAgentBridge.Input["getModel"]> & Readonly<Record<string, unknown>>
+  } satisfies ReturnType<StorybookAppWebPageAgentBridge.Input["getModel"]> & Readonly<Record<string, unknown>>
   const workbench = {
     document,
     element: root,

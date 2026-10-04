@@ -1,11 +1,11 @@
-import AppServerSessionsOwner, {type Zavx0zStorybookAppServerSessions as AppServerSessionsContract} from "@zavx0z/storybook-app-server-sessions"
-import PackageRevisionOwner, {type Zavx0zStorybookPackageRevision as PackageRevisionContract} from "@zavx0z/storybook-package-revision"
-import {type Zavx0zStorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
+import AppServerSessionsOwner, {type StorybookAppServerSessions as AppServerSessionsContract} from "@zavx0z/storybook-app-server-sessions"
+import PackageRevisionOwner, {type StorybookPackageRevision as PackageRevisionContract} from "@zavx0z/storybook-package-revision"
+import {type StorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
 const ExternalStorybookSessionManager = AppServerSessionsOwner
 const STORYBOOK_PACKAGE_GRAPH_PROTOCOL = PackageRevisionOwner.protocol
 type ExternalStorybookSessionManager = AppServerSessionsContract.Output
 type StorybookPackageRevisionGraphSnapshot = ReturnType<PackageRevisionContract.Output["create"]>
-type Zavx0zStorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
+type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 type StorybookPackageEvent = Parameters<NonNullable<PackageSessionContract.Input[1]["publish"]>>[0]
 type StorybookPackageRevisionBuilder = PackageSessionContract.Input[1]["buildRevision"]
 import {afterEach, describe, expect, spyOn, test} from "bun:test"
@@ -20,7 +20,7 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, {recursive: true, force: true})
 })
 
-describe("external Storybook Zavx0zStorybookPackageSession manager", () => {
+describe("external Storybook StorybookPackageSession manager", () => {
 
   test("sync adds, preserves, reconfigures and detaches exact sessions", async () => {
     const root = fixtureRoot()
@@ -162,7 +162,7 @@ function descriptor(
   root: string,
   id: string,
   declarationDigest = id,
-): Zavx0zStorybookPackageBuildDescriptor {
+): StorybookPackageBuildDescriptor {
   const packageRoot = join(root, id)
   mkdirSync(packageRoot, {recursive: true})
   const sourcePath = join(packageRoot, "package.json")

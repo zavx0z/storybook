@@ -1,7 +1,7 @@
 import {describe, expect, spyOn, test} from "bun:test"
 import StorybookBuildScheduler from "../index.ts"
 import type {StorybookBuildRequest, StorybookBuildOperationContext, StorybookBuildTransition} from "../contract/types"
-import type {Zavx0zStorybookTechProcessSample} from "@zavx0z/storybook-tech-process-sample"
+import type {StorybookTechProcessSample} from "@zavx0z/storybook-tech-process-sample"
 
 const request = (operationId: string, packageId = `@fixture/${operationId}`): StorybookBuildRequest => ({
   operationId,
@@ -236,7 +236,7 @@ describe("Storybook build scheduler observability", () => {
   test("samples bound worker trees only on throttled status reads without exposing PID", async () => {
     let samples = 0
     let now = Date.parse("2026-09-11T08:00:00.000Z")
-    const rows = [{pid: 100, parentPid: 1, cpuPercent: 12.5, rssBytes: 2097152, startedAt: "2026-09-11T08:00:00.000Z"}, {pid: 101, parentPid: 100, cpuPercent: 3.25, rssBytes: 524288, startedAt: "2026-09-11T08:00:01.000Z"}] satisfies Zavx0zStorybookTechProcessSample.Output
+    const rows = [{pid: 100, parentPid: 1, cpuPercent: 12.5, rssBytes: 2097152, startedAt: "2026-09-11T08:00:00.000Z"}, {pid: 101, parentPid: 100, cpuPercent: 3.25, rssBytes: 524288, startedAt: "2026-09-11T08:00:01.000Z"}] satisfies StorybookTechProcessSample.Output
     const scheduler = new StorybookBuildScheduler({
       limit: 1,
       now: () => now,

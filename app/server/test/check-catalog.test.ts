@@ -4,7 +4,7 @@ import {tmpdir} from "node:os"
 import {join} from "node:path"
 import Registry from "@zavx0z/storybook-app-server-catalog"
 import discover from "@zavx0z/storybook-package-metadata-collect"
-import type {Zavx0zStorybookAppServer} from "../contract"
+import type {StorybookAppServer} from "../contract"
 import createWeb from "@zavx0z/storybook-app-web"
 import {refreshCheckCatalog} from "../src/check-catalog"
 import {createCatalogRefresh} from "../src/catalog-refresh"
@@ -115,7 +115,7 @@ test("закрытие ожидания во время refresh не отмен�
   const callers: string[] = []
   let waiting = false
   let browserCalls = 0
-  let running: Zavx0zStorybookAppServer.Output | undefined
+  let running: StorybookAppServer.Output | undefined
   let unsubscribe = () => {}
   const prepare = await import("@zavx0z/storybook-package-build-prepare")
   const original = prepare.default

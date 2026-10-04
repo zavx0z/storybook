@@ -3,21 +3,21 @@
 
 @packageDocumentation
 */
-import type {Zavx0zStorybookTechMcpProgress} from "./contract"
+import type {StorybookTechMcpProgress} from "./contract"
 
-export type {Zavx0zStorybookTechMcpProgress} from "./contract"
+export type {StorybookTechMcpProgress} from "./contract"
 
 /**
 Связывает уведомления о ходе одной работы с progressToken текущего MCP-запроса.
 Число progress считает наблюдаемые события; total не задаётся без известного объёма работы.
 Без запроса уведомлений или после отмены клиента сообщения не отправляются.
 
-@param context - Контекст {@link Zavx0zStorybookTechMcpProgress.Input} текущего запроса SDK.
-@returns Callback согласно {@link Zavx0zStorybookTechMcpProgress.Output} либо `undefined` при
+@param context - Контекст {@link StorybookTechMcpProgress.Input} текущего запроса SDK.
+@returns Callback согласно {@link StorybookTechMcpProgress.Output} либо `undefined` при
 отсутствии progressToken; каждое сообщение ждёт завершения SDK `notify`.
 @throws Ошибка отправки уведомления отклоняет Promise callback.
 */
-export default function createRequestProgress(context: Zavx0zStorybookTechMcpProgress.Input): Zavx0zStorybookTechMcpProgress.Output {
+export default function createRequestProgress(context: StorybookTechMcpProgress.Input): StorybookTechMcpProgress.Output {
   const progressToken = context.mcpReq._meta?.progressToken
   if (typeof progressToken !== "string" && typeof progressToken !== "number") return undefined
   let progress = 0

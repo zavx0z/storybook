@@ -1,8 +1,8 @@
-import {type Zavx0zStorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
+import {type StorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
 type StorybookPackageRevisionBuilder = PackageSessionContract.Input[1]["buildRevision"]
-import type {Zavx0zStorybookTechBuildWorker} from "@zavx0z/storybook-tech-build-worker"
+import type {StorybookTechBuildWorker} from "@zavx0z/storybook-tech-build-worker"
 
-type BuildWorkerLifecycleEvent = Parameters<NonNullable<Zavx0zStorybookTechBuildWorker.Input<unknown, unknown>["onLifecycle"]>>[0]
+type BuildWorkerLifecycleEvent = Parameters<NonNullable<StorybookTechBuildWorker.Input<unknown, unknown>["onLifecycle"]>>[0]
 
 type TransportEvent = NonNullable<ReturnType<typeof import("@zavx0z/storybook-package-build-scheduler").default.parseStorybookBuildWorkerTransportEvent>>
 

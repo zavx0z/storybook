@@ -1,16 +1,16 @@
 import RouteAddressOwner from "@zavx0z/storybook-package-route-address"
-import {type Zavx0zStorybookSpecsReader as ArchetypesSpecReaderContract} from "@zavx0z/storybook-specs-reader"
+import {type StorybookSpecsReader as ArchetypesSpecReaderContract} from "@zavx0z/storybook-specs-reader"
 const formatRouteAddress = RouteAddressOwner
 type ReadSpecOutput = ArchetypesSpecReaderContract.Output
-import {type Zavx0zStorybookSpecsScenariosReader as ArchetypesScenarioReaderContract} from "@zavx0z/storybook-specs-scenarios-reader"
-import {type Zavx0zStorybookAppServerCatalog as AppServerCatalogContract} from "@zavx0z/storybook-app-server-catalog"
-import {type Zavx0zStorybookAppServerSessions as AppServerSessionsContract} from "@zavx0z/storybook-app-server-sessions"
+import {type StorybookSpecsScenariosReader as ArchetypesScenarioReaderContract} from "@zavx0z/storybook-specs-scenarios-reader"
+import {type StorybookAppServerCatalog as AppServerCatalogContract} from "@zavx0z/storybook-app-server-catalog"
+import {type StorybookAppServerSessions as AppServerSessionsContract} from "@zavx0z/storybook-app-server-sessions"
 type ReadScenarioOutput = ArchetypesScenarioReaderContract.Output
 type ExternalStorybookRegistrySnapshot = ReturnType<AppServerCatalogContract.Output["snapshot"]>
 type ExternalStorybookSessionManager = AppServerSessionsContract.Output
-import resolveRoute, {type Zavx0zStorybookPackageRouteResolve} from "@zavx0z/storybook-package-route-resolve"
-type ResolveRouteInput = Zavx0zStorybookPackageRouteResolve.Input
-type ResolveRouteOutput = Zavx0zStorybookPackageRouteResolve.Output
+import resolveRoute, {type StorybookPackageRouteResolve} from "@zavx0z/storybook-package-route-resolve"
+type ResolveRouteInput = StorybookPackageRouteResolve.Input
+type ResolveRouteOutput = StorybookPackageRouteResolve.Output
 import {dirname, resolve} from "node:path"
 
 /** Подключённые корни дают только первый шаг адреса, без таблицы дочерних маршрутов. */

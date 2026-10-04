@@ -1,7 +1,7 @@
-import type {Zavx0zStorybookAppServer} from "../contract"
+import type {StorybookAppServer} from "../contract"
 
 /** Проверяет серверный протокол применения через управляемый browser adapter, без запуска Chrome. */
-export function readyBrowser(getServer: () => Zavx0zStorybookAppServer.Output): NonNullable<Zavx0zStorybookAppServer.Input["browserLifecycle"]> {
+export function readyBrowser(getServer: () => StorybookAppServer.Output): NonNullable<StorybookAppServer.Input["browserLifecycle"]> {
   const views = new Map<string, {viewId: string, packageId: string, route: string, title: string, revision: string}>()
   const identity = (view: {packageId: string, route: string, revision: string}) => ({
     protocol: "external-storybook-agent-bridge/1" as const, ...view,

@@ -1,11 +1,11 @@
 /** Увеличивает значение; чтение контракта не выполняет эту реализацию. */
-import type {ContractFixtureCounter} from "./contract"
+import type {StorybookContractsSpecFixtureComponent} from "./contract"
 import {stepOf} from "./src/increment"
 
-export type {ContractFixtureCounter} from "./contract"
+export type {StorybookContractsSpecFixtureComponent} from "./contract"
 
 throw new Error("Исследуемый исходник не исполняется")
 
-export default function increment(input: ContractFixtureCounter.Input): number {
+export default function increment(input: StorybookContractsSpecFixtureComponent.Input): number {
   return input.value + stepOf(input.step)
 }

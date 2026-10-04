@@ -1,7 +1,7 @@
-import type {Zavx0zStorybookTechProcessMeasure} from "@zavx0z/storybook-tech-process-measure"
+import type {StorybookTechProcessMeasure} from "@zavx0z/storybook-tech-process-measure"
 import type ProcessResourceSampler from "@zavx0z/storybook-tech-process-sample"
 
-type StorybookBuildWorkerBinding = Zavx0zStorybookTechProcessMeasure.Input["binding"]
+type StorybookBuildWorkerBinding = StorybookTechProcessMeasure.Input["binding"]
 type StorybookResourceSampler = Pick<InstanceType<typeof ProcessResourceSampler>, "sample">
 
 export type StorybookBuildOwner = "open" | "check" | "subscribe" | "startup-validation" | "shared"

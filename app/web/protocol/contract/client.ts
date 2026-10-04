@@ -1,9 +1,9 @@
-import type {Zavx0zStorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
-import type {Zavx0zStorybookPackageSession} from "@zavx0z/storybook-package-session"
+import type {StorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
+import type {StorybookPackageSession} from "@zavx0z/storybook-package-session"
 
-type GraphNode = Zavx0zStorybookPackageGraphCreate.Output["nodes"][number]
+type GraphNode = StorybookPackageGraphCreate.Output["nodes"][number]
 type ExternalStorybookGraphNodeKind = GraphNode["kind"]
-type StorybookPackageSessionSnapshot = ReturnType<Zavx0zStorybookPackageSession.Output["snapshot"]>
+type StorybookPackageSessionSnapshot = ReturnType<StorybookPackageSession.Output["snapshot"]>
 type StorybookPackageBuildState = StorybookPackageSessionSnapshot["buildState"]
 type StorybookPackageDiagnostic = StorybookPackageSessionSnapshot["diagnostics"][number]
 type StorybookDependencyCase = NonNullable<GraphNode["dependencySpec"]>["cases"][number]

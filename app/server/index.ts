@@ -6,7 +6,7 @@ Web-выпуск, browser lifecycle и авторизованный HTTP/WebSock
 */
 import BuildEnvironmentOwner from "@zavx0z/storybook-tech-build-environment"
 import RouteUrlOwner from "@zavx0z/storybook-package-route-url"
-import Zavx0zStorybookBrowserLifecycleOwner, {type Zavx0zStorybookAppServerBrowser as Zavx0zStorybookBrowserLifecycleContract} from "@zavx0z/storybook-app-server-browser"
+import Zavx0zStorybookBrowserLifecycleOwner, {type StorybookAppServerBrowser as Zavx0zStorybookBrowserLifecycleContract} from "@zavx0z/storybook-app-server-browser"
 const storybookPackagePathMatches = RouteUrlOwner.storybookPackagePathMatches
 const storybookPackageRouteFromPathname = RouteUrlOwner.storybookPackageRouteFromPathname
 const storybookCurrentRouteKey = RouteUrlOwner.storybookCurrentRouteKey
@@ -14,18 +14,18 @@ const validStorybookViewQuery = RouteUrlOwner.validViewQuery
 const createStorybookBrowserLifecycle = Zavx0zStorybookBrowserLifecycleOwner
 type StorybookBrowserCaptureInput = Parameters<Zavx0zStorybookBrowserLifecycleContract.Output["capture"]>[0]
 type StorybookBrowserInteractInput = Parameters<Zavx0zStorybookBrowserLifecycleContract.Output["interact"]>[0]
-import activateRevision, {type Zavx0zStorybookPackageActivation as HmrActivationContract} from "@zavx0z/storybook-package-activation"
-import {type Zavx0zStorybookSpecsScenariosReader as ArchetypesScenarioReaderContract} from "@zavx0z/storybook-specs-scenarios-reader"
+import activateRevision, {type StorybookPackageActivation as HmrActivationContract} from "@zavx0z/storybook-package-activation"
+import {type StorybookSpecsScenariosReader as ArchetypesScenarioReaderContract} from "@zavx0z/storybook-specs-scenarios-reader"
 import PackageGraphReadOwner from "@zavx0z/storybook-package-graph-read"
 import storybookRest from "@zavx0z/storybook-app-mcp-rest"
 import McpRestRequestsOwner from "@zavx0z/storybook-app-server-requests"
-import AppServerCatalogOwner, {type Zavx0zStorybookAppServerCatalog as AppServerCatalogContract} from "@zavx0z/storybook-app-server-catalog"
+import AppServerCatalogOwner, {type StorybookAppServerCatalog as AppServerCatalogContract} from "@zavx0z/storybook-app-server-catalog"
 import readProject from "@zavx0z/storybook-project"
 import PackageBuildPrepareOwner from "@zavx0z/storybook-package-build-prepare"
-import {type Zavx0zStorybookPackageBuildScheduler as PackageBuildSchedulerContract} from "@zavx0z/storybook-package-build-scheduler"
-import {type Zavx0zStorybookPackageRevision as PackageRevisionContract} from "@zavx0z/storybook-package-revision"
-import AppServerSessionsOwner, {type Zavx0zStorybookAppServerSessions as AppServerSessionsContract} from "@zavx0z/storybook-app-server-sessions"
-import PackageSessionOwner, {type Zavx0zStorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
+import {type StorybookPackageBuildScheduler as PackageBuildSchedulerContract} from "@zavx0z/storybook-package-build-scheduler"
+import {type StorybookPackageRevision as PackageRevisionContract} from "@zavx0z/storybook-package-revision"
+import AppServerSessionsOwner, {type StorybookAppServerSessions as AppServerSessionsContract} from "@zavx0z/storybook-app-server-sessions"
+import PackageSessionOwner, {type StorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
 import PackageResourcesOwner from "@zavx0z/storybook-package-resources"
 import TechLimitsOwner from "@zavx0z/storybook-tech-limits"
 const externalStorybookBrowsePath = PackageGraphReadOwner.browsePath
@@ -43,22 +43,22 @@ type ActivationOutput = HmrActivationContract.Output
 type ReadScenarioInput = ArchetypesScenarioReaderContract.Input
 type ExternalStorybookRegistry = AppServerCatalogContract.Output
 type ExternalStorybookRegistrySnapshot = ReturnType<AppServerCatalogContract.Output["snapshot"]>
-type SharedBrowserAssets = ReturnType<Zavx0zStorybookAppWeb.Output["assets"]>
+type SharedBrowserAssets = ReturnType<StorybookAppWeb.Output["assets"]>
 type StorybookBuildTransition = Parameters<Parameters<PackageBuildSchedulerContract.Output["subscribe"]>[0]>[0]
 type StorybookPackageRevisionAuthorStyleSheet = ReturnType<PackageRevisionContract.Output["create"]>["workbenchAuthorStyleSheets"][number]
 type ExternalStorybookSessionManager = AppServerSessionsContract.Output
 type StorybookPackageEvent = Parameters<NonNullable<PackageSessionContract.Input[1]["publish"]>>[0]
-import type {Zavx0zStorybookAppWeb} from "@zavx0z/storybook-app-web"
-import state, {type Zavx0zStorybookAppServerState} from "@zavx0z/storybook-app-server-state"
+import type {StorybookAppWeb} from "@zavx0z/storybook-app-web"
+import state, {type StorybookAppServerState} from "@zavx0z/storybook-app-server-state"
 import {StorybookBrowserSessionRegistry} from "./src/browser-session-registry"
 import type {BrowserSessionGrant, WebSocketData} from "./contract/server"
-import type {Zavx0zStorybookAppServer} from "./contract"
+import type {StorybookAppServer} from "./contract"
 
-export type {Zavx0zStorybookAppServer} from "./contract"
+export type {StorybookAppServer} from "./contract"
 import {streamAppOperation} from "./src/app-stream.ts"
 import {sharedHostEvent} from "./src/shared-host-event.ts"
-import WebProtocol, {type Zavx0zStorybookAppWebProtocol} from "@zavx0z/storybook-app-web-protocol"
-type StorybookSharedHost = Awaited<ReturnType<Zavx0zStorybookAppWebProtocol.Output["readSharedHost"]>>
+import WebProtocol, {type StorybookAppWebProtocol} from "@zavx0z/storybook-app-web-protocol"
+type StorybookSharedHost = Awaited<ReturnType<StorybookAppWebProtocol.Output["readSharedHost"]>>
 import {resolveStorybookRoute} from "./src/route"
 import {createStorybookScenarioRunner} from "./src/scenario-run"
 import {streamScenarioRun} from "./src/scenario-stream"
@@ -106,7 +106,7 @@ const {
   writeExternalStorybookServerRecord,
   writeExternalStorybookStartCandidate,
 } = state
-type ExternalStorybookServerRecord = ReturnType<Zavx0zStorybookAppServerState.Output["readExternalStorybookServerRecord"]>
+type ExternalStorybookServerRecord = ReturnType<StorybookAppServerState.Output["readExternalStorybookServerRecord"]>
 
 const STORYBOOK_CONTROL_BODY_MAX_BYTES = 65_536
 const STORYBOOK_MCP_JOURNAL_BODY_MAX_BYTES = 8 * 1024 * 1024
@@ -119,16 +119,16 @@ type StorybookHtmlAuthorStyleSheet = StorybookPackageRevisionAuthorStyleSheet & 
 /**
 Запускает единый внешний HTTP/WebSocket-сервер Storybook и публикует его запись.
 
-@param options - Подключения и пути согласно {@link Zavx0zStorybookAppServer.Input}; порт `0`
+@param options - Подключения и пути согласно {@link StorybookAppServer.Input}; порт `0`
 позволяет ОС выбрать свободный адрес, если другой не задан.
-@returns Работающий instance согласно {@link Zavx0zStorybookAppServer.Output}; остановка
+@returns Работающий instance согласно {@link StorybookAppServer.Output}; остановка
 принадлежит вызывающему коду и выполняется через `stop`.
 @throws Ошибка discovery, подготовки shared resources, открытия listener или
 публикации server state освобождает уже созданные ресурсы и не возвращает instance.
 */
 export default async function startExternalStorybookServer(
-  options: Zavx0zStorybookAppServer.Input,
-): Promise<Zavx0zStorybookAppServer.Output> {
+  options: StorybookAppServer.Input,
+): Promise<StorybookAppServer.Output> {
   const toolRoot = realpathSync(options.toolRoot ?? fileURLToPath(new URL("../..", import.meta.url)))
   const createWeb = options.createWeb
   const statePath = resolve(options.statePath ?? externalStorybookServerStatePath())
@@ -1359,7 +1359,7 @@ type RegistryEvent = Readonly<{
   type: "shared.failed"
   message: string
 }> | (Readonly<{type: "build.progress"}> & StorybookBuildTransition)
-  | Readonly<{type: "app.web", state: ReturnType<Zavx0zStorybookAppWeb.Output["read"]>}>
+  | Readonly<{type: "app.web", state: ReturnType<StorybookAppWeb.Output["read"]>}>
 
 
 async function packagePageResponse(

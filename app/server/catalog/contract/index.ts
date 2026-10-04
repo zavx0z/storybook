@@ -1,18 +1,18 @@
-import type {Zavx0zStorybookPackageRevision} from "@zavx0z/storybook-package-revision"
-import type {Zavx0zStorybookPackageMetadataCollect} from "@zavx0z/storybook-package-metadata-collect"
-import type {Zavx0zStorybookPackageSession} from "@zavx0z/storybook-package-session"
+import type {StorybookPackageRevision} from "@zavx0z/storybook-package-revision"
+import type {StorybookPackageMetadataCollect} from "@zavx0z/storybook-package-metadata-collect"
+import type {StorybookPackageSession} from "@zavx0z/storybook-package-session"
 import type {ExternalStorybookAttachSource, ExternalStorybookRegistrySnapshot, ExternalStorybookRegistryDirtySnapshot, ExternalStorybookRegistryMetrics} from "./models"
 
 /** Контракт атомарного каталога подключённых владельцев приложения. */
-export declare namespace Zavx0zStorybookAppServerCatalog {
+export declare namespace StorybookAppServerCatalog {
   /**
   По умолчанию обнаружение, TypeScript-анализ, граф и описания выполняются в native worker.
   Явный resolver подставляет локальное исполнение для специализированного источника или проверки.
   Стили читаются при обновлении; ошибка сохраняет действующий снимок.
   */
   type Input = readonly [
-    resolveCatalog?: (...input: Zavx0zStorybookPackageMetadataCollect.Input) => Promise<Zavx0zStorybookPackageMetadataCollect.Output>,
-    readAuthorStyleSheets?: () => NonNullable<Parameters<Zavx0zStorybookPackageRevision.Output["create"]>[3]>,
+    resolveCatalog?: (...input: StorybookPackageMetadataCollect.Input) => Promise<StorybookPackageMetadataCollect.Output>,
+    readAuthorStyleSheets?: () => NonNullable<Parameters<StorybookPackageRevision.Output["create"]>[3]>,
   ]
 
   /**
@@ -48,7 +48,7 @@ export declare namespace Zavx0zStorybookAppServerCatalog {
     dirtySnapshot(): ExternalStorybookRegistryDirtySnapshot
     metrics(): ExternalStorybookRegistryMetrics
     refreshIfNeeded(): Promise<ExternalStorybookRegistrySnapshot>
-    packageDescriptors(): readonly Zavx0zStorybookPackageSession.Input[0][]
+    packageDescriptors(): readonly StorybookPackageSession.Input[0][]
     sourceRoots(): Promise<readonly string[]>
     restore(snapshot: ExternalStorybookRegistrySnapshot): void
   }

@@ -25,7 +25,7 @@ test("кластер владеет общим протоколом, участ�
   const fixture = await extensionFixture("interface Input extends ContractFixtureGroup.Input {readonly disabled?: boolean}")
   try {
     const result = await readContract({path: fixture.root})
-    expect(result.diagnostics).toEqual([])
+    expect(result.diagnostics).toEqual([fixture.namingDiagnostic("ContractFixtureGroup"), fixture.namingDiagnostic("ContractFixtureChild", "child")])
     expect(result.extensions).toHaveLength(1)
     expect(result.extensions[0]?.base.owner?.name).toBe("@contract-fixture/group")
     expect(result.extensions[0]?.member.owner?.name).toBe("@contract-fixture/child")
@@ -63,7 +63,7 @@ test("транзитивный alias сохраняет общее основа�
     const common = 'import type {ContractFixtureGroup} from "@contract-fixture/group/contract"\nimport type {ContractFixtureMiddle} from "@contract-fixture/middle/contract"\n'
     await fixture.write("child/contract/index.ts", common + 'export declare namespace ContractFixtureChild {interface Input extends ContractFixtureGroup.Input {}\ntype Output = ContractFixtureMiddle.Output}\n')
     const linked = await readContract({path: fixture.root})
-    expect(linked.diagnostics).toEqual([])
+    expect(linked.diagnostics).toEqual([fixture.namingDiagnostic("ContractFixtureGroup"), fixture.namingDiagnostic("ContractFixtureChild", "child")])
     expect(linked.extensions[0]?.roles.find(role => role.name === "Output")).toEqual({name: "Output", linked: true, compatible: true})
     expect(linked.sources.some(source => source.path.endsWith("/middle/contract/index.ts"))).toBeTrue()
     await fixture.write("child/contract/index.ts", common + 'export declare namespace ContractFixtureChild {interface Input extends ContractFixtureGroup.Input {}\ntype Output = string}\n')

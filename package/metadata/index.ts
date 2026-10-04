@@ -10,10 +10,10 @@ import {createHash} from "node:crypto"
 import {realpathSync} from "node:fs"
 import {join} from "node:path"
 import {readDocument, writeDocument} from "./src/files"
-import type {Zavx0zStorybookPackageMetadata as Contract} from "./contract"
+import type {StorybookPackageMetadata as Contract} from "./contract"
 import type {Collection, Package, Options, Reference} from "./contract/types"
 
-export type {Zavx0zStorybookPackageMetadata} from "./contract"
+export type {StorybookPackageMetadata} from "./contract"
 
 /**
 Предоставляет сбор и хранение сведений по адресу пакета.

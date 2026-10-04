@@ -1,7 +1,7 @@
 import type {CallToolResult} from "@modelcontextprotocol/server"
 
 /** Контракт публичной очистки непрозрачного предметного MCP-ответа. */
-export declare namespace Zavx0zStorybookAppMcpResponse {
+export declare namespace StorybookAppMcpResponse {
   /** Успешный JSON-объект предметного HTTP-читателя. */
   type Input = Readonly<Record<string, unknown>>
 

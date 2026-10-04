@@ -1,15 +1,15 @@
-import ContractFixturePart from "./part/index"
-import type {ContractFixtureWorkspace} from "./contract"
+import StorybookContractsSpecFixtureJsxContainerPart from "./part/index"
+import type {StorybookContractsSpecFixtureJsxContainer} from "./contract"
 
-export type {ContractFixtureWorkspace} from "./contract"
+export type {StorybookContractsSpecFixtureJsxContainer} from "./contract"
 
 throw new Error("JSX контейнер не исполняется")
 
-export default function workspace(props: ContractFixtureWorkspace.Input): ContractFixtureWorkspace.Output {
+export default function workspace(props: StorybookContractsSpecFixtureJsxContainer.Input): StorybookContractsSpecFixtureJsxContainer.Output {
   return (
     <article aria-label={props.title}>
       <slot name="header" />
-      <ContractFixturePart text={props.content.text} />
+      <StorybookContractsSpecFixtureJsxContainerPart text={props.content.text} />
       <slot />
     </article>
   )

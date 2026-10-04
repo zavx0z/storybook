@@ -1,15 +1,15 @@
-import type {Zavx0zStorybookAppWebProtocol} from "@zavx0z/storybook-app-web-protocol"
-import type {Zavx0zStorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
-import type {Zavx0zStorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
-import type {Zavx0zStorybookPackageRevision} from "@zavx0z/storybook-package-revision"
+import type {StorybookAppWebProtocol} from "@zavx0z/storybook-app-web-protocol"
+import type {StorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
+import type {StorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
+import type {StorybookPackageRevision} from "@zavx0z/storybook-package-revision"
 
-export type WorkbenchBreadcrumb = NonNullable<ReturnType<Zavx0zStorybookAppWebPageShellWorkbench.Output["getSnapshot"]>["state"]["status"]["breadcrumbs"]>[number]
+export type WorkbenchBreadcrumb = NonNullable<ReturnType<StorybookAppWebPageShellWorkbench.Output["getSnapshot"]>["state"]["status"]["breadcrumbs"]>[number]
 
-export type ExternalStorybookClientSnapshot = ReturnType<Zavx0zStorybookAppWebProtocol.Output["clientSnapshot"]>
+export type ExternalStorybookClientSnapshot = ReturnType<StorybookAppWebProtocol.Output["clientSnapshot"]>
 
 export type ExternalStorybookClientNode = ExternalStorybookClientSnapshot["nodes"][number]
 
-export type ExternalStorybookGraph = Zavx0zStorybookPackageGraphCreate.Output
+export type ExternalStorybookGraph = StorybookPackageGraphCreate.Output
 
 export type ExternalStorybookGraphNode = ExternalStorybookGraph["nodes"][number]
 
@@ -54,7 +54,7 @@ export type ExternalStorybookPackageTabModel = Readonly<{
   tabActiveId: string
 }>
 
-export type StorybookPackageRevisionAncestor = ReturnType<Zavx0zStorybookPackageRevision.Output["create"]>["ancestors"][number]
+export type StorybookPackageRevisionAncestor = ReturnType<StorybookPackageRevision.Output["create"]>["ancestors"][number]
 
 export type StorybookBreadcrumbScope =
   | Readonly<{kind: "landing"}>

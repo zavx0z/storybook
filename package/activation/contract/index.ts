@@ -1,4 +1,4 @@
-export declare namespace Zavx0zStorybookPackageActivation {
+export declare namespace StorybookPackageActivation {
   /**
   Серверно выбранная цель и независимая инспекция браузера. inspect читает фактический
   кадр и новые ошибки console. commit вызывается только после полного подтверждения;

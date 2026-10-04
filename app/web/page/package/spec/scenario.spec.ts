@@ -19,23 +19,23 @@ import {SpaceElement} from "@zavx0z/immersive-dom/space"
 import {ViewPointElement} from "@zavx0z/immersive-dom/viewpoint"
 import presentationRootFixture from "@zavx0z/storybook-tech-testing-browser-root"
 import discoverStorybookPackages from "@zavx0z/storybook-package-metadata-collect"
-import createExternalStorybookGraph, {type Zavx0zStorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
-import type {Zavx0zStorybookPackageSession} from "@zavx0z/storybook-package-session"
+import createExternalStorybookGraph, {type StorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
+import type {StorybookPackageSession} from "@zavx0z/storybook-package-session"
 import Revision from "@zavx0z/storybook-package-revision"
 import PagePackageOwner from "@zavx0z/storybook-app-web-page-package"
 import startExternalStorybookPackage from "@zavx0z/storybook-app-web-page-package"
-import type {Zavx0zStorybookAppWebPagePackage} from "@zavx0z/storybook-app-web-page-package"
-import type {Zavx0zStorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
+import type {StorybookAppWebPagePackage} from "@zavx0z/storybook-app-web-page-package"
+import type {StorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
 
-type ExternalStorybookGraph = Zavx0zStorybookPackageGraphCreate.Output
+type ExternalStorybookGraph = StorybookPackageGraphCreate.Output
 
-type StorybookPackageSessionSnapshot = ReturnType<Zavx0zStorybookPackageSession.Output["snapshot"]>
+type StorybookPackageSessionSnapshot = ReturnType<StorybookPackageSession.Output["snapshot"]>
 
 const STORYBOOK_PAGE_REALM_PROTOCOL = PagePackageOwner.protocol
 
-type ExternalStorybookPackageEnvironment = NonNullable<Zavx0zStorybookAppWebPagePackage.Input["environment"]>
+type ExternalStorybookPackageEnvironment = NonNullable<StorybookAppWebPagePackage.Input["environment"]>
 
-type ExternalStorybookRootFactory = NonNullable<Zavx0zStorybookAppWebPageShell.Input["createRoot"]>
+type ExternalStorybookRootFactory = NonNullable<StorybookAppWebPageShell.Input["createRoot"]>
 
 const fixtureRoot = join(import.meta.dir, "../../../../../package/metadata/collect/fixtures/valid")
 

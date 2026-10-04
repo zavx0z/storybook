@@ -3,7 +3,7 @@
 @packageDocumentation
 */
 import PackageSessionOwner from "@zavx0z/storybook-package-session"
-import BuildEnvironmentOwner, {type Zavx0zStorybookTechBuildEnvironment as BuildEnvironmentContract} from "@zavx0z/storybook-tech-build-environment"
+import BuildEnvironmentOwner, {type StorybookTechBuildEnvironment as BuildEnvironmentContract} from "@zavx0z/storybook-tech-build-environment"
 const storybookBuildError = PackageSessionOwner.buildError
 const storybookDiagnostic = PackageSessionOwner.diagnostic
 const validateStorybookSharedBrowserIdentity = BuildEnvironmentOwner.validate
@@ -13,18 +13,18 @@ import {join} from "node:path"
 import runBuildWorker from "@zavx0z/storybook-tech-build-worker"
 import Scheduler from "@zavx0z/storybook-package-build-scheduler"
 import {buildStorybookPackageRevisionInProcess} from "./src/in-process"
-import type {Zavx0zStorybookPackageBuildPrepare} from "./contract"
+import type {StorybookPackageBuildPrepare} from "./contract"
 import type {BuilderInput, BuildResult, PhaseListener, WorkerLifecycleListener} from "./contract/build"
 import type {WorkerJob, WorkerResult} from "./src/worker-protocol"
 
-export type {Zavx0zStorybookPackageBuildPrepare} from "./contract"
+export type {StorybookPackageBuildPrepare} from "./contract"
 
 const {parseStorybookBuildWorkerTransportEvent} = Scheduler
 
-/** Создаёт реальный Bun browser builder для независимых `Zavx0zStorybookPackageSession`. */
+/** Создаёт реальный Bun browser builder для независимых `StorybookPackageSession`. */
 export default function createStorybookPackageRevisionBuilder(
-  options: Zavx0zStorybookPackageBuildPrepare.Input,
-): Zavx0zStorybookPackageBuildPrepare.Output {
+  options: StorybookPackageBuildPrepare.Input,
+): StorybookPackageBuildPrepare.Output {
   const toolRoot = realpathSync(options.toolRoot)
   const browserEntryPath = realpathSync(options.browserEntryPath)
   const workerPath = realpathSync(options.workerPath ?? join(toolRoot, "package/build/prepare/src/package-build-worker.ts"))
@@ -106,7 +106,7 @@ async function runPackageBuildWorker(
 }
 
 async function resolveSharedBrowserIdentity(
-  options: Zavx0zStorybookPackageBuildPrepare.Input,
+  options: StorybookPackageBuildPrepare.Input,
 ): Promise<StorybookSharedBrowserIdentity | undefined> {
   if (options.sharedBrowserIdentity !== undefined) {
     return validateStorybookSharedBrowserIdentity(options.sharedBrowserIdentity)

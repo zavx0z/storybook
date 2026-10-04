@@ -1,5 +1,5 @@
 /** Артефакты пакета после прерванной публикации. */
-export declare namespace Zavx0zStorybookPackageArtifacts {
+export declare namespace StorybookPackageArtifacts {
   /** Корень сохранённых ревизий. */
   export type Input = string
 

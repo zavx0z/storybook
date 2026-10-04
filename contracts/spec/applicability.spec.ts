@@ -7,14 +7,14 @@ import {createFixture} from "../test/fixture"
 describe.each([
   {
     name: "Runtime и типовой реэкспорт",
-    entry: 'export {default as counter} from "./counter/index"\nexport type {ContractFixtureCounter} from "./counter/index"\n',
-    exports: [{name: "counter", runtime: true}, {name: "ContractFixtureCounter", runtime: false}],
+    entry: 'export {default as counter} from "./counter/index"\nexport type {StorybookContractsSpecFixtureComponent} from "./counter/index"\n',
+    exports: [{name: "counter", runtime: true}, {name: "StorybookContractsSpecFixtureComponent", runtime: false}],
     namespace: true,
   },
   {
     name: "Только типовой реэкспорт",
-    entry: 'export type {ContractFixtureCounter} from "./counter/index"\n',
-    exports: [{name: "ContractFixtureCounter", runtime: false}],
+    entry: 'export type {StorybookContractsSpecFixtureComponent} from "./counter/index"\n',
+    exports: [{name: "StorybookContractsSpecFixtureComponent", runtime: false}],
     namespace: true,
   },
   {
@@ -29,12 +29,13 @@ describe.each([
     try {
       const owner = resolve(fixture.root, "counter")
       await fixture.write("counter/package.json", '{"name":"@contract-fixture/counter","exports":{".":"./index.ts"}}')
-      await fixture.write("counter/index.ts", 'export type {ContractFixtureCounter} from "./contract"\nthrow new Error("Не исполнять")\nexport default function counter(value: number) {return value + 1}\n')
-      await fixture.write("counter/contract/index.ts", 'export declare namespace ContractFixtureCounter {type Input = number\ntype Output = number}\n')
+      await fixture.write("counter/index.ts", 'export type {StorybookContractsSpecFixtureComponent} from "./contract"\nthrow new Error("Не исполнять")\nexport default function counter(value: number) {return value + 1}\n')
+      await fixture.write("counter/contract/index.ts", 'export declare namespace StorybookContractsSpecFixtureComponent {type Input = number\ntype Output = number}\n')
       await fixture.write("index.ts", entry)
       const result = await readContract({path: fixture.root})
       expect(result.entries[0]?.exports, "Публикация раскрывает выбранный API его владельца").toEqual([...exports])
-      expect(result.diagnostics, "Реэкспорт не создаёт новое соглашение владельца").toEqual([])
+      expect(result.diagnostics, "Реэкспорт сохраняет предупреждение об имени исходного владельца")
+        .toEqual(namespace ? [fixture.namingDiagnostic("StorybookContractsSpecFixtureComponent", "counter")] : [])
       expect(result.entries[0]?.namespaces.map(value => value.declaration.owner),
         "Типовой фасад сохраняет исходного владельца, даже без runtime реэкспорта")
         .toEqual(namespace ? [{name: "@contract-fixture/counter", path: owner}] : [])
@@ -47,7 +48,7 @@ describe.each([
 test("Одиночный type-only фасад не создаёт контракт реализации или группы", async () => {
   const fixture = await createFixture()
   try {
-    await fixture.write("index.ts", 'export type {ContractFixtureCounter} from "./contract"\n')
+    await fixture.write("index.ts", 'export type {StorybookContractsSpecFixtureComponent} from "./contract"\n')
     const result = await readContract({path: fixture.root})
     expect(result.diagnostics, "Собственный namespace требует собственной публичной runtime реализации")
       .toContainEqual(expect.objectContaining({code: "contract-without-implementation", path: resolve(fixture.root, "contract/index.ts")}))

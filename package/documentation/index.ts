@@ -6,9 +6,9 @@
 */
 import {createHash} from "node:crypto"
 import {renderModuleComment} from "./src/render-comment"
-import type {Zavx0zStorybookPackageDocumentation} from "./contract"
+import type {StorybookPackageDocumentation} from "./contract"
 
-export type {Zavx0zStorybookPackageDocumentation} from "./contract"
+export type {StorybookPackageDocumentation} from "./contract"
 
 const MAX_MODULE_SOURCE_BYTES = 1024 * 1024
 
@@ -21,7 +21,7 @@ const MAX_MODULE_SOURCE_BYTES = 1024 * 1024
 @throws RangeError, если исходник превышает допустимый размер.
 @throws Error, если до первого выражения расположено несколько модульных блоков.
 */
-export default function readModuleDocumentation({source, path}: Zavx0zStorybookPackageDocumentation.Input): Zavx0zStorybookPackageDocumentation.Output {
+export default function readModuleDocumentation({source, path}: StorybookPackageDocumentation.Input): StorybookPackageDocumentation.Output {
   if (Buffer.byteLength(source, "utf8") > MAX_MODULE_SOURCE_BYTES) {
     throw new RangeError(`Module source exceeds ${MAX_MODULE_SOURCE_BYTES} bytes: ${path}`)
   }

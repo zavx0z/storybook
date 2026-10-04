@@ -11,6 +11,7 @@ export interface Context {
   readonly root: string
   readonly entryPath?: string
   readonly owners: Map<string, Promise<Declaration["owner"]>>
+  readonly namespaceNames: Map<string, Promise<string | null>>
   readonly sources: Map<string, {path: string, digest: string}>
   readonly diagnostics: Diagnostic[]
 }

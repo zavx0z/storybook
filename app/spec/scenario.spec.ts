@@ -6,14 +6,14 @@
 */
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import createApp, {type Zavx0zStorybookApp} from "@zavx0z/storybook-app"
+import createApp, {type StorybookApp} from "@zavx0z/storybook-app"
 
 describe.each([{
   name: "Готовый лаунчер",
   props: {toolRoot: resolve(import.meta.dir, "../..")},
 }])("$name", ({props}) => {
   let launches = 0
-  const input: Zavx0zStorybookApp.Input = {
+  const input: StorybookApp.Input = {
     ...props,
     daemonEntryPath: resolve(props.toolRoot, "app/src/daemon-entry.ts"),
     spawnDaemon() {

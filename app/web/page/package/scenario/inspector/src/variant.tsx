@@ -1,8 +1,8 @@
 import {Panel} from "@zavx0z/immersive-ui-component"
 import {Typography} from "@zavx0z/immersive-ui-component"
-import type {Zavx0zStorybookAppWebPagePackageScenarioModel} from "@zavx0z/storybook-app-web-page-package-scenario-model"
+import type {StorybookAppWebPagePackageScenarioModel} from "@zavx0z/storybook-app-web-page-package-scenario-model"
 /** Форма исходного публичного владельца. */
-type ScenarioApp = Zavx0zStorybookAppWebPagePackageScenarioModel.Output
+type ScenarioApp = StorybookAppWebPagePackageScenarioModel.Output
 /** Вариант и его пункты из подготовленного снимка сценария. */
 type Variant = ScenarioApp["variants"][number]
 

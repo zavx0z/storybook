@@ -1,9 +1,9 @@
-import {type Zavx0zStorybookTechBuildEnvironment as BuildEnvironmentContract} from "@zavx0z/storybook-tech-build-environment"
+import {type StorybookTechBuildEnvironment as BuildEnvironmentContract} from "@zavx0z/storybook-tech-build-environment"
 type StorybookSharedBrowserIdentity = ReturnType<BuildEnvironmentContract.Output["identity"]>
 import type {BuilderInput, BuildResult, CompilerPluginResolver, PhaseListener, WorkerLifecycleListener} from "./build"
 
 /** Контракт подготовки одной пакетной ревизии в готовой общей среде Storybook. */
-export declare namespace Zavx0zStorybookPackageBuildPrepare {
+export declare namespace StorybookPackageBuildPrepare {
   /**
   Параметры создания builder для одного tool owner.
 

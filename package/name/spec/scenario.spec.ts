@@ -7,13 +7,13 @@
 @packageDocumentation
 */
 import {describe, expect, test} from "bun:test"
-import type {Zavx0zStorybookPackageName} from "@zavx0z/storybook-package-name"
+import type {StorybookPackageName} from "@zavx0z/storybook-package-name"
 
 describe.each([
   {name: "Имя внутри репозитория", props: {name: "normalize-items", ancestors: ["immersive", "collection", "model"]}},
   {name: "Имя репозитория", props: {name: "immersive", ancestors: []}},
   {name: "Совпадение части слова", props: {name: "transport", ancestors: ["repo", "port"]}},
-])("$name", ({props}: {props: Zavx0zStorybookPackageName.Input}) => {
+])("$name", ({props}: {props: StorybookPackageName.Input}) => {
   const [words = [], ...ancestors] = [props.name, ...props.ancestors].map(name => name
     .replace(/(\p{Lu})(\p{Lu}\p{Ll})/gu, "$1 $2")
     .replace(/([\p{Ll}\p{N}])(\p{Lu})/gu, "$1 $2")

@@ -4,9 +4,9 @@
 
 @packageDocumentation
 */
-import type {Zavx0zStorybookPackagePackageJson} from "./contract"
+import type {StorybookPackagePackageJson} from "./contract"
 
-export type {Zavx0zStorybookPackagePackageJson} from "./contract"
+export type {StorybookPackagePackageJson} from "./contract"
 
 /**
 Читает указанный файл через Bun и возвращает только поля выходного контракта.
@@ -23,7 +23,7 @@ export type {Zavx0zStorybookPackagePackageJson} from "./contract"
 @throws TypeError, если манифест не является объектом, имя отсутствует,
 description/label имеют неверный тип либо exports/workspaces, engines и карты зависимостей имеют недопустимую форму.
 */
-export default async function readPackageJson({path}: Zavx0zStorybookPackagePackageJson.Input): Promise<Zavx0zStorybookPackagePackageJson.Output> {
+export default async function readPackageJson({path}: StorybookPackagePackageJson.Input): Promise<StorybookPackagePackageJson.Output> {
   const manifest: unknown = await Bun.file(path).json()
   if (manifest === null || typeof manifest !== "object" || Array.isArray(manifest)) {
     throw new TypeError("package.json должен содержать объект")
@@ -40,7 +40,7 @@ export default async function readPackageJson({path}: Zavx0zStorybookPackagePack
   if (workspaces !== undefined && (!Array.isArray(patterns) || !patterns.every(value => typeof value === "string"))) {
     throw new TypeError("workspaces задаёт массив путей либо объект с массивом packages")
   }
-  const dependencies: Partial<Pick<Zavx0zStorybookPackagePackageJson.Output, "dependencies" | "peerDependencies" | "optionalDependencies" | "devDependencies">> = {}
+  const dependencies: Partial<Pick<StorybookPackagePackageJson.Output, "dependencies" | "peerDependencies" | "optionalDependencies" | "devDependencies">> = {}
   const engines = "engines" in manifest ? manifest.engines : undefined
   if (engines !== undefined && (!engines || typeof engines !== "object" || Array.isArray(engines)
     || Object.values(engines).some(value => typeof value !== "string"))) {
@@ -64,7 +64,7 @@ export default async function readPackageJson({path}: Zavx0zStorybookPackagePack
     ...("label" in manifest ? {label: manifest.label as string} : {}),
     description: "description" in manifest ? manifest.description as string : "",
     exports,
-    ...(workspaces === undefined ? {} : {workspaces: workspaces as NonNullable<Zavx0zStorybookPackagePackageJson.Output["workspaces"]>}),
-    ...(engines === undefined ? {} : {engines: engines as NonNullable<Zavx0zStorybookPackagePackageJson.Output["engines"]>}),
+    ...(workspaces === undefined ? {} : {workspaces: workspaces as NonNullable<StorybookPackagePackageJson.Output["workspaces"]>}),
+    ...(engines === undefined ? {} : {engines: engines as NonNullable<StorybookPackagePackageJson.Output["engines"]>}),
   }
 }

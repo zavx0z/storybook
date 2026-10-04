@@ -2,12 +2,12 @@ import {expect, test} from "bun:test"
 import {mkdtemp, rm} from "node:fs/promises"
 import {join} from "node:path"
 import {tmpdir} from "node:os"
-import type {Zavx0zStorybookTechAcp} from "@zavx0z/storybook-tech-acp"
+import type {StorybookTechAcp} from "@zavx0z/storybook-tech-acp"
 import createSessions from "../index"
 
 test("настройки не запускают prompt; модель обновляет уровни, usage берётся из агента и история сохраняется", async () => {
   const directory = await mkdtemp(join(tmpdir(), "chat-settings-"))
-  let options: Zavx0zStorybookTechAcp.Output["configOptions"] = [
+  let options: StorybookTechAcp.Output["configOptions"] = [
     {id: "provider-model", type: "select", category: "model", name: "Model", currentValue: "a", options: [{value: "a", name: "A"}, {value: "b", name: "B"}]},
     {id: "provider-thinking", type: "select", category: "thought_level", name: "Thinking", currentValue: "high", options: [{value: "low", name: "Low"}, {value: "high", name: "High"}]},
   ]

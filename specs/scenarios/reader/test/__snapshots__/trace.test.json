@@ -293,7 +293,7 @@
               "path": "<repo>/package/reader/index.ts",
               "exports": [
                 {
-                  "name": "Zavx0zStorybookPackageReader",
+                  "name": "StorybookPackageReader",
                   "runtime": false,
                   "declarations": [
                     {
@@ -445,7 +445,7 @@
                   "from": "<repo>/package/reader/index.ts",
                   "module": "./contract",
                   "names": [
-                    "Zavx0zStorybookPackageReader"
+                    "StorybookPackageReader"
                   ],
                   "typeOnly": true,
                   "exported": false,
@@ -460,7 +460,7 @@
                   "from": "<repo>/package/reader/index.ts",
                   "module": "./contract",
                   "names": [
-                    "Zavx0zStorybookPackageReader"
+                    "StorybookPackageReader"
                   ],
                   "typeOnly": true,
                   "exported": true,
@@ -475,7 +475,7 @@
                   "from": "<repo>/package/reader/contract/index.ts",
                   "module": "@zavx0z/storybook-package-package-json",
                   "names": [
-                    "Zavx0zStorybookPackagePackageJson"
+                    "StorybookPackagePackageJson"
                   ],
                   "typeOnly": true,
                   "exported": false,
@@ -490,7 +490,7 @@
                   "from": "<repo>/package/reader/contract/index.ts",
                   "module": "@zavx0z/storybook-package-documentation",
                   "names": [
-                    "Zavx0zStorybookPackageDocumentation"
+                    "StorybookPackageDocumentation"
                   ],
                   "typeOnly": true,
                   "exported": false,
@@ -505,7 +505,7 @@
                   "from": "<repo>/package/reader/contract/index.ts",
                   "module": "@zavx0z/storybook-package-index",
                   "names": [
-                    "Zavx0zStorybookPackageIndex"
+                    "StorybookPackageIndex"
                   ],
                   "typeOnly": true,
                   "exported": false,
@@ -570,7 +570,7 @@
                   "from": "<repo>/package/reader/src/repository.ts",
                   "module": "../contract",
                   "names": [
-                    "Zavx0zStorybookPackageReader"
+                    "StorybookPackageReader"
                   ],
                   "typeOnly": true,
                   "exported": false,
@@ -666,7 +666,7 @@
                   "from": "<repo>/package/reader/src/composition.ts",
                   "module": "../contract",
                   "names": [
-                    "Zavx0zStorybookPackageReader"
+                    "StorybookPackageReader"
                   ],
                   "typeOnly": true,
                   "exported": false,
@@ -746,7 +746,7 @@
                   "from": "<repo>/package/reader/src/sources.ts",
                   "module": "../contract",
                   "names": [
-                    "Zavx0zStorybookPackageReader"
+                    "StorybookPackageReader"
                   ],
                   "typeOnly": true,
                   "exported": false,
@@ -839,7 +839,7 @@
                   "from": "<repo>/package/reader/src/root-documentation.ts",
                   "module": "@zavx0z/storybook-package-documentation",
                   "names": [
-                    "Zavx0zStorybookPackageDocumentation"
+                    "StorybookPackageDocumentation"
                   ],
                   "typeOnly": true,
                   "exported": false,
@@ -1019,7 +1019,7 @@
                   "from": "<repo>/package/reader/src/exports.ts",
                   "module": "../contract",
                   "names": [
-                    "Zavx0zStorybookPackageReader"
+                    "StorybookPackageReader"
                   ],
                   "typeOnly": true,
                   "exported": false,
@@ -1051,7 +1051,7 @@
               "path": "<repo>/package/reader/contract/index.ts",
               "exports": [
                 {
-                  "name": "Zavx0zStorybookPackageReader",
+                  "name": "StorybookPackageReader",
                   "runtime": false,
                   "declarations": [
                     {
@@ -1072,7 +1072,7 @@
                   "from": "<repo>/package/reader/contract/index.ts",
                   "module": "@zavx0z/storybook-package-package-json",
                   "names": [
-                    "Zavx0zStorybookPackagePackageJson"
+                    "StorybookPackagePackageJson"
                   ],
                   "typeOnly": true,
                   "exported": false,
@@ -1087,7 +1087,7 @@
                   "from": "<repo>/package/reader/contract/index.ts",
                   "module": "@zavx0z/storybook-package-documentation",
                   "names": [
-                    "Zavx0zStorybookPackageDocumentation"
+                    "StorybookPackageDocumentation"
                   ],
                   "typeOnly": true,
                   "exported": false,
@@ -1102,7 +1102,7 @@
                   "from": "<repo>/package/reader/contract/index.ts",
                   "module": "@zavx0z/storybook-package-index",
                   "names": [
-                    "Zavx0zStorybookPackageIndex"
+                    "StorybookPackageIndex"
                   ],
                   "typeOnly": true,
                   "exported": false,

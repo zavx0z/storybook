@@ -11,9 +11,9 @@ import {dirname, resolve} from "node:path"
 import {lstat, realpath, readFile} from "node:fs/promises"
 import readPackageIndex from "@zavx0z/storybook-package-index"
 import Compiler from "@zavx0z/storybook-tech-build-compiler"
-import type {Zavx0zStorybookPackageReader} from "../contract"
+import type {StorybookPackageReader} from "../contract"
 
-type Source = Zavx0zStorybookPackageReader.Output["code"][number]
+type Source = StorybookPackageReader.Output["code"][number]
 type Owner = NonNullable<Source["exports"][number]["declarations"][number]["owner"]>
 
 /** Сохраняет адрес владельца при hardlink-копии исходника; symlink продолжает раскрывать фактическую цель. */
@@ -140,7 +140,7 @@ async function moduleReferences(file: SourceFile, project: Project, root: string
 Реэкспорт сохраняет владельцев исходных объявлений; type-only не превращается в runtime.
 Не создаёт классификацию и не исполняет код проверяемых пакетов.
 */
-export async function readSourceExports(root: string, paths: readonly string[]): Promise<Zavx0zStorybookPackageReader.Output["code"]> {
+export async function readSourceExports(root: string, paths: readonly string[]): Promise<StorybookPackageReader.Output["code"]> {
   if (!paths.length) return []
   const api = new API({cwd: root})
   try {

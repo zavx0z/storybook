@@ -12,7 +12,7 @@ children на любой глубине отсчитываются от той �
 import resolveMcpAddress from "@zavx0z/storybook-app-mcp-rest-address"
 import readProjectMcp from "@zavx0z/storybook-project-mcp"
 import readPackageMcp from "@zavx0z/storybook-package-mcp"
-import type {Zavx0zStorybookAppMcpRest} from "./contract"
+import type {StorybookAppMcpRest} from "./contract"
 import {rootEntries} from "./src/root"
 import readRepoMcp from "@zavx0z/storybook-repo-mcp"
 import readComponentMcp from "@zavx0z/storybook-component-mcp"
@@ -28,7 +28,7 @@ const entityMcp = {
   Domain: readDomainMcp,
 }
 
-export type {Zavx0zStorybookAppMcpRest} from "./contract"
+export type {StorybookAppMcpRest} from "./contract"
 
 /**
 Навигационная проекция canonical graph без повторного discovery.
@@ -43,7 +43,7 @@ export type {Zavx0zStorybookAppMcpRest} from "./contract"
 @param options - Публичная структура, источники и необязательный фиксированный root подключения.
 @returns Назначение, схемы контрактов, сценарии и непосредственные переходы. Чтение не выполняет код и не запускает сборку.
 */
-export default async function storybookRest(request: Zavx0zStorybookAppMcpRest.Input[0], options: Zavx0zStorybookAppMcpRest.Input[1]): Promise<Zavx0zStorybookAppMcpRest.Output> {
+export default async function storybookRest(request: StorybookAppMcpRest.Input[0], options: StorybookAppMcpRest.Input[1]): Promise<StorybookAppMcpRest.Output> {
   if (request.method !== "GET" && request.method !== "POST") {
     return Response.json({status: "failed", error: "Поддерживаются GET и POST"}, {status: 405, headers: {Allow: "GET, POST"}})
   }

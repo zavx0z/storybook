@@ -1,5 +1,5 @@
 import McpRestScenariosOwner from "@zavx0z/storybook-specs-presentation"
-import {type Zavx0zStorybookAppServerRequests as McpRestRequestsContract} from "@zavx0z/storybook-app-server-requests"
+import {type StorybookAppServerRequests as McpRestRequestsContract} from "@zavx0z/storybook-app-server-requests"
 const readScenarios = McpRestScenariosOwner
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
 import {expect, test} from "bun:test"

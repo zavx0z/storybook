@@ -1,7 +1,7 @@
 import resolveAddress from "@zavx0z/storybook-app-mcp-rest-address"
-import type {Zavx0zStorybookAppMcpRest} from "../contract"
+import type {StorybookAppMcpRest} from "../contract"
 
-type Options = Zavx0zStorybookAppMcpRest.Input[1]
+type Options = StorybookAppMcpRest.Input[1]
 
 /** Проецирует разрешённые адреса относительно неизменного root, не читая содержимое владельцев. */
 export function rootEntries({entries, root}: Options): Options["entries"] {

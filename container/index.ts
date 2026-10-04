@@ -10,9 +10,9 @@ Container реализует целое через композицию прин
 @packageDocumentation
 */
 import readComponent from "@zavx0z/storybook-component"
-import type {Zavx0zStorybookContainer} from "./contract"
+import type {StorybookContainer} from "./contract"
 
-export type {Zavx0zStorybookContainer} from "./contract"
+export type {StorybookContainer} from "./contract"
 
 /**
 Читает композицию через публичный читатель Component без запуска её реализации.
@@ -21,7 +21,7 @@ export type {Zavx0zStorybookContainer} from "./contract"
 @returns Публичная граница целого и принадлежащие ему непосредственные части.
 @throws Ошибки чтения пакета, разрешения экспортов и анализа TypeScript.
 */
-export default async function readContainer(input: Zavx0zStorybookContainer.Input): Promise<Zavx0zStorybookContainer.Output> {
+export default async function readContainer(input: StorybookContainer.Input): Promise<StorybookContainer.Output> {
   const component = await readComponent(input)
   const references = component.package.code.flatMap(source => source.references)
   return {

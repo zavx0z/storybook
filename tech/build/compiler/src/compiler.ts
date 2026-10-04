@@ -1,8 +1,8 @@
-import type {Zavx0zStorybookTechBuildCompiler} from "../contract"
+import type {StorybookTechBuildCompiler} from "../contract"
 import type {StorybookPackageCompilerInputs} from "../contract/models"
 
 /** Внутреннее краткое имя публичных входов compiler setup. */
-type StorybookPackageCompilerInput = Zavx0zStorybookTechBuildCompiler.Input
+type StorybookPackageCompilerInput = StorybookTechBuildCompiler.Input
 /**
 Собирает граф физических владельцев для компиляции пакета и общей оболочки.
 Объявление зависимости задаёт имя и совместимость; установленная ссылка на
@@ -133,7 +133,7 @@ type JsxPluginFactory = (
 ) => unknown
 
 /**
-Создаёт свежие compiler plugins для одного candidate `Zavx0zStorybookPackageSession`.
+Создаёт свежие compiler plugins для одного candidate `StorybookPackageSession`.
 
 Compiler выбирается только по owner source paths и effective `tsconfig`.
 JSX получает adapter через owner dependency graph; declaration не может

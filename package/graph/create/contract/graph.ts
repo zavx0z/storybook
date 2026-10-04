@@ -1,6 +1,6 @@
-import type {Zavx0zStorybookPackageMetadataCollect} from "@zavx0z/storybook-package-metadata-collect"
+import type {StorybookPackageMetadataCollect} from "@zavx0z/storybook-package-metadata-collect"
 
-type Scope = Zavx0zStorybookPackageMetadataCollect.Output["scopes"][number]
+type Scope = StorybookPackageMetadataCollect.Output["scopes"][number]
 type PackageScope = Extract<Scope, {kind: "package"}>
 
 /** Вид физического источника навигации; не назначает архетип пакета. */

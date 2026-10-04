@@ -1,4 +1,4 @@
-import {type Zavx0zStorybookPackageMetadataCollect as PackageMetadataCollectContract} from "@zavx0z/storybook-package-metadata-collect"
+import {type StorybookPackageMetadataCollect as PackageMetadataCollectContract} from "@zavx0z/storybook-package-metadata-collect"
 type StorybookCatalog = PackageMetadataCollectContract.Output
 type StorybookPackage = Extract<PackageMetadataCollectContract.Output["scopes"][number], {kind: "package"}>
 import {join} from "node:path"

@@ -1,7 +1,7 @@
 import {afterAll, describe, expect, mock, test} from "bun:test"
 import {createHeadless} from "@zavx0z/immersive-headless"
 import {Event, KeyboardEvent, MouseEvent, type HTMLInputElement} from "@zavx0z/immersive-dom"
-import CatalogPanel, {type Zavx0zStorybookAppWebPageShellWorkbenchCatalog} from "@zavx0z/storybook-app-web-page-shell-workbench-catalog"
+import CatalogPanel, {type StorybookAppWebPageShellWorkbenchCatalog} from "@zavx0z/storybook-app-web-page-shell-workbench-catalog"
 
 const items = [
   {id: "button", label: "Кнопка", route: "/button", group: {id: "components", label: "Компоненты"}},
@@ -10,8 +10,8 @@ const items = [
 
 type Scenario = Readonly<{
   name: string
-  props: Omit<Zavx0zStorybookAppWebPageShellWorkbenchCatalog.Input, "onAction" | "onSearch" | "onGroupToggle" | "navigationExpansion"> & {
-    navigationExpansion: Pick<NonNullable<Zavx0zStorybookAppWebPageShellWorkbenchCatalog.Input["navigationExpansion"]>, "initialCollapsedIds">
+  props: Omit<StorybookAppWebPageShellWorkbenchCatalog.Input, "onAction" | "onSearch" | "onGroupToggle" | "navigationExpansion"> & {
+    navigationExpansion: Pick<NonNullable<StorybookAppWebPageShellWorkbenchCatalog.Input["navigationExpansion"]>, "initialCollapsedIds">
   }
   expected: Readonly<{
     expanded: boolean

@@ -1,10 +1,10 @@
-import type {Zavx0zStorybookPackageMetadataCollect} from "@zavx0z/storybook-package-metadata-collect"
+import type {StorybookPackageMetadataCollect} from "@zavx0z/storybook-package-metadata-collect"
 import type {GraphNode} from "./graph"
 
 /** Контракт детерминированного графа физического каталога Repo. */
-export declare namespace Zavx0zStorybookPackageGraphCreate {
+export declare namespace StorybookPackageGraphCreate {
   /** Сырой каталог с версией 1 без состояния реестра. */
-  type Input = Zavx0zStorybookPackageMetadataCollect.Output
+  type Input = StorybookPackageMetadataCollect.Output
 
   /** Узлы, корни и digest одной проверенной структурной ревизии. */
   type Output = Readonly<{

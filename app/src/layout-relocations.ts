@@ -1,8 +1,8 @@
 import {dirname, relative, resolve} from "node:path"
-import type {Zavx0zStorybookChatSession} from "@zavx0z/storybook-chat-session"
-import type {Zavx0zStorybookPackageGraphRead} from "@zavx0z/storybook-package-graph-read"
+import type {StorybookChatSession} from "@zavx0z/storybook-chat-session"
+import type {StorybookPackageGraphRead} from "@zavx0z/storybook-package-graph-read"
 
-type Graph = Zavx0zStorybookPackageGraphRead.Input
+type Graph = StorybookPackageGraphRead.Input
 
 /** Разовый переход физических адресов App; identity пакетов при переносе сохранена. */
 const relocations = [
@@ -107,7 +107,7 @@ function subjects(toolRoot: string, graph: Graph) {
 Только Chat Session читает и изменяет собственные файлы. Истории не объединяются;
 конфликт останавливает переход, а исходная история остаётся доступной для восстановления.
 */
-export async function relocateAppChats(toolRoot: string, graph: Graph, chats: Zavx0zStorybookChatSession.Output): Promise<void> {
+export async function relocateAppChats(toolRoot: string, graph: Graph, chats: StorybookChatSession.Output): Promise<void> {
   for (const move of subjects(toolRoot, graph)) {
     for (const node of graph.nodes) {
       if (node.packageId !== move.packageId || node.kind === "unavailable") continue

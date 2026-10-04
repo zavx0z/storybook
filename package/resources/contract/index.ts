@@ -1,7 +1,7 @@
 import type {ExternalStorybookResourceAllowListEntry} from "./models"
 
 /** Контракт проверенных ресурсов документации одного владельца. */
-export declare namespace Zavx0zStorybookPackageResources {
+export declare namespace StorybookPackageResources {
   /**
   Извлечённый документ и его источник.
   @property ownerRoot - Каноническая граница владельца ресурсов.

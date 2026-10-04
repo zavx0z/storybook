@@ -2,7 +2,7 @@ import createWeb from "@zavx0z/storybook-app-web"
 import AppWebBuildOwner from "@zavx0z/storybook-app-web-build"
 import BuildEnvironmentOwner from "@zavx0z/storybook-tech-build-environment"
 import PackageMetadataCollectOwner from "@zavx0z/storybook-package-metadata-collect"
-import AppServerCatalogOwner, {type Zavx0zStorybookAppServerCatalog as AppServerCatalogContract} from "@zavx0z/storybook-app-server-catalog"
+import AppServerCatalogOwner, {type StorybookAppServerCatalog as AppServerCatalogContract} from "@zavx0z/storybook-app-server-catalog"
 const discoverStorybookPackages = PackageMetadataCollectOwner
 const ExternalStorybookRegistry = AppServerCatalogOwner
 type ExternalStorybookRegistry = AppServerCatalogContract.Output

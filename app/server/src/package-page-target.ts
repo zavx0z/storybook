@@ -6,9 +6,9 @@
 проверить его для навигации, но не получает права применить произвольную revision.
 `preview` принадлежит явному URL пользователя и никогда не становится autoapply.
 */
-import {type Zavx0zStorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
-import {type Zavx0zStorybookPackageRevision as PackageRevisionContract} from "@zavx0z/storybook-package-revision"
-type Zavx0zStorybookPackageSession = PackageSessionContract.Output
+import {type StorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
+import {type StorybookPackageRevision as PackageRevisionContract} from "@zavx0z/storybook-package-revision"
+type StorybookPackageSession = PackageSessionContract.Output
 type StorybookPackageSessionSnapshot = ReturnType<PackageSessionContract.Output["snapshot"]>
 type StorybookPackageRevisionGraphSnapshot = ReturnType<PackageRevisionContract.Output["create"]>
 type StorybookPackageRevisionRoute = ReturnType<PackageRevisionContract.Output["create"]>["routes"][number]
@@ -183,7 +183,7 @@ Preview читает точную запрошенную ревизию и ни�
 не превращаются в fallback.
 */
 export async function prepareStorybookPackagePageTarget(input: Readonly<{
-  session: Zavx0zStorybookPackageSession
+  session: StorybookPackageSession
   routePath: string
   previewRevision: string | null
   currentRoute: Pick<StorybookPackageRevisionRoute, "nodeId" | "kind"> | null

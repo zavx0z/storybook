@@ -8,11 +8,11 @@ import readRouteDirectories from "@zavx0z/storybook-package-route-directories"
 import readRouteIgnored from "@zavx0z/storybook-package-route-ignored"
 import address from "@zavx0z/storybook-package-route-address"
 import structure from "@zavx0z/storybook-package-route-structure"
-import type {Zavx0zStorybookPackageRouteChildren} from "./contract"
+import type {StorybookPackageRouteChildren} from "./contract"
 import {basename, dirname} from "node:path"
 import {resolveImmediateChildren} from "./src/resolve"
 
-export type {Zavx0zStorybookPackageRouteChildren} from "./contract"
+export type {StorybookPackageRouteChildren} from "./contract"
 
 const {parseRoute} = address
 const {readPackageManifest, readWorkspaceChildNames} = structure
@@ -25,7 +25,7 @@ const {readPackageManifest, readWorkspaceChildNames} = structure
 @param input - Адрес родителя и зарегистрированные корни.
 @returns Разрешённые непосредственные маршруты.
 */
-export default async function readRouteChildren({route, roots}: Zavx0zStorybookPackageRouteChildren.Input): Promise<Zavx0zStorybookPackageRouteChildren.Output> {
+export default async function readRouteChildren({route, roots}: StorybookPackageRouteChildren.Input): Promise<StorybookPackageRouteChildren.Output> {
   const parsed = parseRoute(route)
   if (parsed === null || parsed.variant !== undefined || parsed.view !== undefined) return []
   if (parsed.segments.length === 0) {

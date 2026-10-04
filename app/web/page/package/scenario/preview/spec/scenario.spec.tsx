@@ -2,7 +2,7 @@
 import {afterAll, describe, expect, test} from "bun:test"
 import {createHeadless} from "@zavx0z/immersive-headless"
 import createScenarioApp from "@zavx0z/storybook-app-web-page-package-scenario-model"
-import Zavx0zStorybookAppWebPagePackageScenarioPreview from "@zavx0z/storybook-app-web-page-package-scenario-preview"
+import StorybookAppWebPagePackageScenarioPreview from "@zavx0z/storybook-app-web-page-package-scenario-preview"
 
 describe.each([
   {name: "Начальная позиция", props: {placement: {x: 0, y: 0}}},
@@ -15,7 +15,7 @@ describe.each([
   const headless = createHeadless({width: 320, height: 240})
   afterAll(() => { app.dispose(); headless.dispose() })
   const element = await headless.render(
-    <Zavx0zStorybookAppWebPagePackageScenarioPreview
+    <StorybookAppWebPagePackageScenarioPreview
       app={app}
       placement={props.placement}
     />,
