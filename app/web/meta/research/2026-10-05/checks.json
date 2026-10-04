@@ -1,0 +1,27 @@
+{
+  "date": "2026-10-05",
+  "typecheck": {
+    "command": "./node_modules/.bin/tsc --noEmit --pretty false",
+    "exitCode": 0
+  },
+  "tests": {
+    "pageClientProtocolJournal": {
+      "passed": 57,
+      "skipped": 2,
+      "failed": 0
+    },
+    "http": {
+      "passed": 1,
+      "failed": 0
+    },
+    "agentBridge": {
+      "passed": 17,
+      "failed": 0
+    }
+  },
+  "initialFailures": {
+    "obsoleteRouteExpectation": "Исправлено ожидание полного имени в App test; реализация маршрутизации не менялась",
+    "incompleteBrowserFixture": "В App fixture добавлен document.location; поведение Shell не ослаблялось"
+  },
+  "platformSourceChanges": false
+}

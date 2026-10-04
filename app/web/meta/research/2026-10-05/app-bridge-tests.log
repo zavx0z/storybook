@@ -1,0 +1,25 @@
+bun test v1.4.2 (744846f84)
+
+app/web/page/agent-bridge/spec/scenario.spec.ts:
+(pass) external Storybook agent bridge inspection > subject без workspaceId сохраняет отсутствие workspace identity без нового кадра [5.75ms]
+(pass) external Storybook agent bridge inspection > ошибка перехода видна в диагностике независимо от выбранной секции Inspector [1.18ms]
+(pass) external Storybook agent bridge inspection > читает параметр Inspector без раскрытия остальных query данных [0.75ms]
+(pass) external Storybook agent bridge inspection > читает актуальную видимость native страницы без нового кадра или ввода [0.92ms]
+(pass) external Storybook agent bridge inspection > отмечает недоступные native page сведения как null [0.69ms]
+(pass) external Storybook agent bridge inspection > rejects an interaction when the caller expected another package [0.65ms]
+(pass) external Storybook agent bridge inspection > keeps stable node identities across compact, default and paginated projections [17.58ms]
+(pass) external Storybook agent bridge interaction > попадает в кнопку при scale %s, box fallback %s и единственной проекции [11.13ms]
+(pass) external Storybook agent bridge interaction > попадает в кнопку при scale %s, box fallback %s и единственной проекции [6.78ms]
+(pass) external Storybook agent bridge interaction > попадает в кнопку при scale %s, box fallback %s и единственной проекции [6.07ms]
+(pass) external Storybook agent bridge interaction > отклоняет нечисловую клиентскую точку до доставки pointer [2.36ms]
+(pass) external Storybook agent bridge interaction > resolves exact role and name and performs the complete bounded action vocabulary [10.48ms]
+(pass) external Storybook agent bridge interaction > key focuses without pointer synthesis and preserves the exact existing selection [3.36ms]
+(pass) external Storybook agent bridge interaction > contenteditable type delegates to Browser without Storybook text mutation [6.83ms]
+(pass) external Storybook agent bridge capture > returns exact presented workbench, preview, host canvas and semantic node clips [3.25ms]
+(pass) курсор поддерева раскрывает глубокое поле и сохраняет точный nodeId при пагинации [9.22ms]
+(pass) поля получают имена из настоящих label и роли select [5.70ms]
+
+ 17 pass
+ 0 fail
+ 204 expect() calls
+Ran 17 tests across 1 file. [1156.00ms]

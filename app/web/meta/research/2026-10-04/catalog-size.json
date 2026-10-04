@@ -1,0 +1,49 @@
+{
+  "totalBytes": 6690962,
+  "nodes": 669,
+  "packages": 400,
+  "nodeBytes": 6529250,
+  "navigationOnlyBytes": 417969,
+  "fields": {
+    "id": 34810,
+    "kind": 6543,
+    "ownerId": 22876,
+    "packageId": 22876,
+    "label": 10987,
+    "directoryName": 3877,
+    "parentId": 27617,
+    "childIds": 36564,
+    "urlPath": 22101,
+    "routePath": 6853,
+    "searchTerms": 32149,
+    "hasModuleDocumentation": 1800,
+    "resourceUrl": 60366,
+    "contractDocuments": 6068605,
+    "contractRoutePath": 4065,
+    "scenariosRoutePath": 4150,
+    "dependencyCases": 34486,
+    "dependencyRoutePath": 325
+  },
+  "largest": [
+    {
+      "path": "/storybook/app/web/page/package",
+      "bytes": 514330
+    },
+    {
+      "path": "/storybook/app/web/page/home",
+      "bytes": 493179
+    },
+    {
+      "path": "/storybook/app/web/page",
+      "bytes": 292946
+    },
+    {
+      "path": "/storybook/app/web/page/shell",
+      "bytes": 261706
+    },
+    {
+      "path": "/storybook/app/web/page/shell/workbench",
+      "bytes": 249176
+    }
+  ]
+}

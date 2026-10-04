@@ -1,0 +1,11 @@
+import {StorybookCdpClient} from '../../app/server/browser/src/chrome-client.ts'
+import {StorybookCdpConnection} from '../../app/server/browser/src/cdp-connection.ts'
+const api=new StorybookCdpClient({launchIfMissing:false})
+const targets=await(await fetch(new URL('/json/list',await api.cdpOrigin()))).json()
+const target=targets.find((t:any)=>t.type==='page'&&new URL(t.url).pathname==='/storybook/package')
+const cdp=await StorybookCdpConnection.connect(target.webSocketDebuggerUrl)
+try{
+ const result:any=await cdp.command('Runtime.evaluate',{expression:`(async()=>{const response=await fetch('/api/client');if(!response.ok)throw new Error('Client snapshot failed');const data=await response.json();const bytes=x=>new TextEncoder().encode(JSON.stringify(x)).length;const nodes=data.nodes;const fields={};for(const node of nodes)for(const [key,value] of Object.entries(node))fields[key]=(fields[key]||0)+bytes(value);const navigation=nodes.map(({contractDocuments,dependencyCases,...rest})=>rest);return {totalBytes:bytes(data),nodes:nodes.length,packages:data.packages.length,nodeBytes:bytes(nodes),navigationOnlyBytes:bytes(navigation),fields,largest:nodes.map(n=>({path:n.urlPath,bytes:bytes(n)})).sort((a,b)=>b.bytes-a.bytes).slice(0,5)}})()`,awaitPromise:true,returnByValue:true},{timeoutMs:15000})
+ await Bun.write('tmp/performance/catalog-size.json',JSON.stringify(result.result.value,null,2))
+ console.log(JSON.stringify(result.result.value,null,2))
+}finally{cdp.close()}

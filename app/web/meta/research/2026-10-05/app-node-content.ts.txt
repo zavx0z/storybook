@@ -1,0 +1,36 @@
+import {StorybookCdpClient} from '../../app/server/browser/src/chrome-client.ts'
+import {StorybookCdpConnection} from '../../app/server/browser/src/cdp-connection.ts'
+
+const browser = new StorybookCdpClient({launchIfMissing: false})
+const targets = await (await fetch(new URL('/json/list', await browser.cdpOrigin()))).json()
+const matches = targets.filter((target: {type: string, url: string}) =>
+  target.type === 'page' && new URL(target.url).pathname === '/storybook/package')
+if (matches.length !== 1) throw new Error('Expected one existing package view')
+const connection = await StorybookCdpConnection.connect(matches[0].webSocketDebuggerUrl)
+try {
+  const result = await connection.command('Runtime.evaluate', {
+    expression: `(async () => {
+      const snapshot = await (await fetch('/api/client')).json()
+      const node = snapshot.nodes.find(node => node.packageId === '@zavx0z/storybook-app-web-page-client' && node.contractRoutePath !== undefined)
+      if (node === undefined) throw new Error('Contract node missing')
+      const params = new URLSearchParams({nodeId: node.id, graphDigest: snapshot.graphDigest})
+      const response = await fetch('/api/client/node?' + params)
+      const content = await response.json()
+      return {
+        status: response.status,
+        nodeId: content.nodeId,
+        identityMatches: content.nodeId === node.id,
+        digestMatches: content.graphDigest === snapshot.graphDigest,
+        navigationContainsDocuments: snapshot.nodes.some(node => node.contractDocuments !== undefined || node.dependencyCases !== undefined),
+        documents: content.contractDocuments.map(item => ({direction: item.direction, declarations: item.document.declarations.length}))
+      }
+    })()`,
+    awaitPromise: true,
+    returnByValue: true,
+  }, {timeoutMs: 15000}) as {result: {value: unknown}, exceptionDetails?: unknown}
+  if (result.exceptionDetails !== undefined) throw new Error(JSON.stringify(result.exceptionDetails))
+  await Bun.write('tmp/performance/app-node-content.json', JSON.stringify(result.result.value, null, 2))
+  console.log(JSON.stringify(result.result.value, null, 2))
+} finally {
+  connection.close()
+}

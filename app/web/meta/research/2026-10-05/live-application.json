@@ -1,0 +1,144 @@
+{
+  "date": "2026-10-05",
+  "beforeServerRestart": {
+    "status": "success",
+    "protocol": "external-storybook-agent-bridge/1",
+    "capabilities": {
+      "inPageUpdates": true
+    },
+    "packageId": "@zavx0z/storybook",
+    "revision": "3a213f948d7502625051c5a2",
+    "graphDigest": "29ae235d22e4b46a98d35cfdf67a04bac7b26eb75b40712568cd16c9fcdaa2aa",
+    "sharedModuleEpoch": "a7a7fa8cf38681f82c95fc5332ef8831da756e353c8b8cc3003667e9017d4a12",
+    "hostModuleEpoch": "5936a21767f82cc7d83cfc711dfdb131a187c254b03d15c82338e53724370dae",
+    "route": "dir-package",
+    "pathname": "/storybook/package",
+    "preview": false,
+    "viewName": "storybook:@zavx0z/storybook",
+    "markers": {
+      "package": "ready",
+      "packageId": "@zavx0z/storybook",
+      "route": "dir-package",
+      "revision": "3a213f948d7502625051c5a2"
+    },
+    "ready": true,
+    "presented": true,
+    "error": null,
+    "timeOrigin": 1791150002738.5,
+    "frameSequence": 75,
+    "nativePage": {
+      "visibilityState": "visible",
+      "hasFocus": false
+    },
+    "selected": {
+      "nodeId": "directory:package:@zavx0z/storybook/package",
+      "directoryId": "directory:package:@zavx0z/storybook/package",
+      "tabId": "overview:directory:package:@zavx0z/storybook/package"
+    },
+    "inspector": {
+      "selectedId": "chat",
+      "workspaceId": "/storybook/package",
+      "parameter": "chat"
+    },
+    "diagnostics": [],
+    "view": {
+      "viewId": "storybook-view-v1_S--3ruD0UAeAUqQV131SqCZuRi3GYgsWiKlbnUluTB0",
+      "packageId": "@zavx0z/storybook",
+      "route": "dir-package",
+      "title": "Storybook"
+    }
+  },
+  "afterServerRestart": {
+    "status": "success",
+    "protocol": "external-storybook-agent-bridge/1",
+    "capabilities": {
+      "inPageUpdates": true
+    },
+    "packageId": "@zavx0z/storybook",
+    "revision": "3a213f948d7502625051c5a2",
+    "graphDigest": "29ae235d22e4b46a98d35cfdf67a04bac7b26eb75b40712568cd16c9fcdaa2aa",
+    "sharedModuleEpoch": "a7a7fa8cf38681f82c95fc5332ef8831da756e353c8b8cc3003667e9017d4a12",
+    "hostModuleEpoch": "5936a21767f82cc7d83cfc711dfdb131a187c254b03d15c82338e53724370dae",
+    "route": "dir-package",
+    "pathname": "/storybook/package",
+    "preview": false,
+    "viewName": "storybook:@zavx0z/storybook",
+    "markers": {
+      "package": "ready",
+      "packageId": "@zavx0z/storybook",
+      "route": "dir-package",
+      "revision": "3a213f948d7502625051c5a2"
+    },
+    "ready": true,
+    "presented": true,
+    "error": null,
+    "timeOrigin": 1791150002738.5,
+    "frameSequence": 91,
+    "nativePage": {
+      "visibilityState": "visible",
+      "hasFocus": false
+    },
+    "selected": {
+      "nodeId": "directory:package:@zavx0z/storybook/package",
+      "directoryId": "directory:package:@zavx0z/storybook/package",
+      "tabId": "overview:directory:package:@zavx0z/storybook/package"
+    },
+    "inspector": {
+      "selectedId": "chat",
+      "workspaceId": "/storybook/package",
+      "parameter": "chat"
+    },
+    "diagnostics": [],
+    "view": {
+      "viewId": "storybook-view-v1_S--3ruD0UAeAUqQV131SqCZuRi3GYgsWiKlbnUluTB0",
+      "packageId": "@zavx0z/storybook",
+      "route": "dir-package",
+      "title": "Storybook"
+    }
+  },
+  "build": {
+    "ok": true,
+    "shared": {
+      "protocol": "storybook-shared-host/1",
+      "sharedModuleEpoch": "a7a7fa8cf38681f82c95fc5332ef8831da756e353c8b8cc3003667e9017d4a12",
+      "hostModuleEpoch": "5936a21767f82cc7d83cfc711dfdb131a187c254b03d15c82338e53724370dae",
+      "pageEntryUrl": "/__storybook/shared/host/c8de0d7d9ffcd442e022fa0a0b371f77ab98ac58611c20439d6747f51c85ca65/page-entry-mcstts39.js",
+      "authorStyleSheets": [
+        {
+          "specifier": "@zavx0z/immersive-ui-component/theme/theme.css",
+          "contentDigest": "67e81721485b8d14443927635a8a860148299c5e304f3c70cd4e87ce43110b0a"
+        }
+      ]
+    },
+    "hosts": [
+      {
+        "protocol": "storybook-shared-host/1",
+        "sharedModuleEpoch": "a7a7fa8cf38681f82c95fc5332ef8831da756e353c8b8cc3003667e9017d4a12",
+        "hostModuleEpoch": "5936a21767f82cc7d83cfc711dfdb131a187c254b03d15c82338e53724370dae",
+        "pageEntryUrl": "/__storybook/shared/host/c8de0d7d9ffcd442e022fa0a0b371f77ab98ac58611c20439d6747f51c85ca65/page-entry-mcstts39.js",
+        "authorStyleSheets": [
+          {
+            "specifier": "@zavx0z/immersive-ui-component/theme/theme.css",
+            "contentDigest": "67e81721485b8d14443927635a8a860148299c5e304f3c70cd4e87ce43110b0a"
+          }
+        ]
+      }
+    ],
+    "packages": [],
+    "published": true,
+    "applied": false,
+    "web": {
+      "operationId": "8e12a8c3-3518-4243-be03-79de54da40c4",
+      "phase": "published",
+      "at": "2026-10-04T21:40:14.881Z",
+      "versions": [
+        {
+          "platform": "a7a7fa8cf38681f82c95fc5332ef8831da756e353c8b8cc3003667e9017d4a12",
+          "web": "5936a21767f82cc7d83cfc711dfdb131a187c254b03d15c82338e53724370dae"
+        }
+      ],
+      "error": null
+    },
+    "status": "success"
+  }
+}

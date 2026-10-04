@@ -1,0 +1,13 @@
+{
+  "status": 200,
+  "nodeId": "package:@zavx0z/storybook-app-web-page-client",
+  "identityMatches": true,
+  "digestMatches": true,
+  "navigationContainsDocuments": false,
+  "documents": [
+    {
+      "direction": "output",
+      "declarations": 1
+    }
+  ]
+}

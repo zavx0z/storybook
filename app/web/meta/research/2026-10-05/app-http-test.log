@@ -1,0 +1,10 @@
+bun test v1.4.2 (744846f84)
+
+app/server/test/server.test.ts:
+(pass) one external Storybook server > HTTP каталог раскрывает документы только выбранного узла и той же версии графа [634.64ms]
+
+ 1 pass
+ 38 filtered out
+ 0 fail
+ 11 expect() calls
+Ran 1 test across 1 file. [2.56s]

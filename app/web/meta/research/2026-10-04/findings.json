@@ -1,0 +1,207 @@
+{
+  "date": "2026-10-04",
+  "pageContext": {
+    "page": {
+      "timeOrigin": 1791145356214.8,
+      "now": 406403.89999997616,
+      "devicePixelRatio": 2,
+      "innerWidth": 1920,
+      "innerHeight": 1088,
+      "canvas": [
+        {
+          "width": 3840,
+          "height": 2176
+        }
+      ],
+      "visibility": "visible"
+    },
+    "heap": {
+      "usedSize": 51202272,
+      "totalSize": 54034432,
+      "embedderHeapUsedSize": 1299336,
+      "backingStorageSize": 64501542
+    }
+  },
+  "activeRenderer": {
+    "objects": 780,
+    "skinned": 0,
+    "perObjectCapacity": 2048,
+    "bonesCpuBytes": 16777216,
+    "bonesGpuBytes": 16777216,
+    "textures": {
+      "depth": {
+        "label": "",
+        "width": 3840,
+        "height": 2176,
+        "format": "depth24plus-stencil8",
+        "samples": 4,
+        "mips": 1
+      },
+      "multisample": {
+        "label": "",
+        "width": 3840,
+        "height": 2176,
+        "format": "bgra8unorm",
+        "samples": 4,
+        "mips": 1
+      },
+      "presented": {
+        "label": "",
+        "width": 3840,
+        "height": 2176,
+        "format": "bgra8unorm",
+        "samples": 1,
+        "mips": 1
+      },
+      "displays": []
+    }
+  },
+  "textCache": {
+    "name": "Text2",
+    "entries": 628,
+    "cpuBytes": 33257400,
+    "inactiveBytes": 20695728,
+    "inactiveEntries": 408,
+    "constructionDefaults": {
+      "entries": 313,
+      "bytes": 16554744,
+      "active": 0
+    },
+    "largest": [
+      {
+        "constructionDefault": true,
+        "keyCharacters": 159,
+        "bytes": 368304,
+        "active": false
+      },
+      {
+        "constructionDefault": false,
+        "keyCharacters": 162,
+        "bytes": 368304,
+        "active": true
+      },
+      {
+        "constructionDefault": true,
+        "keyCharacters": 99,
+        "bytes": 224568,
+        "active": false
+      },
+      {
+        "constructionDefault": false,
+        "keyCharacters": 102,
+        "bytes": 224568,
+        "active": false
+      },
+      {
+        "constructionDefault": true,
+        "keyCharacters": 99,
+        "bytes": 223248,
+        "active": false
+      },
+      {
+        "constructionDefault": false,
+        "keyCharacters": 102,
+        "bytes": 223248,
+        "active": false
+      },
+      {
+        "constructionDefault": true,
+        "keyCharacters": 99,
+        "bytes": 209616,
+        "active": false
+      },
+      {
+        "constructionDefault": false,
+        "keyCharacters": 102,
+        "bytes": 209616,
+        "active": false
+      }
+    ]
+  },
+  "catalog": {
+    "totalBytes": 6690962,
+    "nodes": 669,
+    "packages": 400,
+    "nodeBytes": 6529250,
+    "navigationOnlyBytes": 417969,
+    "fields": {
+      "id": 34810,
+      "kind": 6543,
+      "ownerId": 22876,
+      "packageId": 22876,
+      "label": 10987,
+      "directoryName": 3877,
+      "parentId": 27617,
+      "childIds": 36564,
+      "urlPath": 22101,
+      "routePath": 6853,
+      "searchTerms": 32149,
+      "hasModuleDocumentation": 1800,
+      "resourceUrl": 60366,
+      "contractDocuments": 6068605,
+      "contractRoutePath": 4065,
+      "scenariosRoutePath": 4150,
+      "dependencyCases": 34486,
+      "dependencyRoutePath": 325
+    },
+    "largest": [
+      {
+        "path": "/storybook/app/web/page/package",
+        "bytes": 514330
+      },
+      {
+        "path": "/storybook/app/web/page/home",
+        "bytes": 493179
+      },
+      {
+        "path": "/storybook/app/web/page",
+        "bytes": 292946
+      },
+      {
+        "path": "/storybook/app/web/page/shell",
+        "bytes": 261706
+      },
+      {
+        "path": "/storybook/app/web/page/shell/workbench",
+        "bytes": 249176
+      }
+    ]
+  },
+  "findings": [
+    {
+      "owner": "immersive/engine/src/object/text.ts + immersive/webgpu/src/webgpu-backend.ts",
+      "status": "confirmed",
+      "finding": "Конструктор строит геометрию с промежуточными настройками, затем backend строит финальную; 313 промежуточных вариантов занимают 16554744 байта, ни один не используется текущей сценой."
+    },
+    {
+      "owner": "immersive/engine/src/object/text.ts",
+      "status": "confirmed",
+      "finding": "Кэш ограничен 4096 записями, без байтового бюджета. Сейчас 408 из 628 записей не используются текущей сценой и занимают 20695728 байт."
+    },
+    {
+      "owner": "immersive/webgpu/src/renderer/index.ts",
+      "status": "confirmed",
+      "finding": "Резервируются матрицы 128 костей для каждого render slot, хотя в текущей сцене нет skinned mesh. CPU и GPU выделяют по 16777216 байт. Емкость растет степенями двойки и не уменьшается."
+    },
+    {
+      "owner": "storybook/app/web/protocol/src/client.ts",
+      "status": "confirmed",
+      "finding": "Из 6690962 байт client snapshot 6068605 байт приходятся на contractDocuments всех узлов. Навигационные nodes без контрактов и dependencyCases занимают 417969 байт."
+    },
+    {
+      "owner": "immersive/webgpu/src/renderer/index.ts",
+      "status": "measured_descriptors_estimated_bytes",
+      "finding": "Активны 3 полноэкранные текстуры 3840x2176: color MSAA4, depth/stencil MSAA4, сохраненный кадр. Оценка 286.875 MiB при 4 байтах на sample, без накладных расходов и особенностей реализации depth."
+    },
+    {
+      "owner": "storybook/app/web/page + immersive/browser + immersive/webgpu",
+      "status": "needs_reproduction",
+      "finding": "В текущем контексте найден один Renderer. По исходникам есть цепочка replacement и нет общей явной очистки всех ресурсов Renderer при dispose runtime. Полный повтор HMR не запускался; объем удержания этим путем не установлен."
+    }
+  ],
+  "limitations": [
+    "RSS, JS heap, backingStorageSize и оценки GPU нельзя складывать как независимые показатели.",
+    "Текущий timeOrigin отличается от предыдущего исследования: сравнение с прежним состоянием не является чистым A/B исправления.",
+    "Платформенный код не изменялся, сборки и сообщения агентам не запускались."
+  ]
+}

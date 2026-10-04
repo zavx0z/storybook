@@ -1,0 +1,47 @@
+{
+  "totalBytes": 579681,
+  "nodes": 669,
+  "packages": 400,
+  "nodeBytes": 417969,
+  "navigationOnlyBytes": 417969,
+  "fields": {
+    "id": 34810,
+    "kind": 6543,
+    "ownerId": 22876,
+    "packageId": 22876,
+    "label": 10987,
+    "directoryName": 3877,
+    "parentId": 27617,
+    "childIds": 36564,
+    "urlPath": 22101,
+    "routePath": 6853,
+    "searchTerms": 32149,
+    "hasModuleDocumentation": 1800,
+    "resourceUrl": 60366,
+    "contractRoutePath": 4065,
+    "scenariosRoutePath": 4150,
+    "dependencyRoutePath": 325
+  },
+  "largest": [
+    {
+      "path": "/immersive",
+      "bytes": 6020
+    },
+    {
+      "path": "/immersive/ui/theme/icon",
+      "bytes": 1966
+    },
+    {
+      "path": "/immersive/icons",
+      "bytes": 1907
+    },
+    {
+      "path": "/immersive/ui/component/field",
+      "bytes": 1404
+    },
+    {
+      "path": "/immersive/field-layout",
+      "bytes": 1294
+    }
+  ]
+}

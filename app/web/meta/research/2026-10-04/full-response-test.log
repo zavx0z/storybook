@@ -1,0 +1,10 @@
+bun test v1.4.2 (744846f84)
+
+app/web/page/shell/mcp-window/test/request-list.test.ts:
+(pass) журнал монтирует одну команду и сохраняет весь длинный ответ при переключении [2868.62ms]
+
+ 1 pass
+ 1 filtered out
+ 0 fail
+ 9 expect() calls
+Ran 1 test across 1 file. [15.14s]
