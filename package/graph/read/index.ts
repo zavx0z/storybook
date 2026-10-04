@@ -2,14 +2,14 @@
 
 @packageDocumentation
 */
-import RouteAddressOwner from "@storybook-package-route/address"
+import RouteAddressOwner from "@zavx0z/storybook-package-route-address"
 const formatRouteAddress = RouteAddressOwner
-import type {StorybookPackageGraphRead} from "./contract"
+import type {Zavx0zStorybookPackageGraphRead} from "./contract"
 import type {GraphRoute as ExternalStorybookRoute} from "./contract/route"
 
-export type {StorybookPackageGraphRead} from "./contract"
+export type {Zavx0zStorybookPackageGraphRead} from "./contract"
 
-type ExternalStorybookGraph = StorybookPackageGraphRead.Input
+type ExternalStorybookGraph = Zavx0zStorybookPackageGraphRead.Input
 type ExternalStorybookGraphNode = ExternalStorybookGraph["nodes"][number]
 
 function externalStorybookRoutes(
@@ -106,7 +106,7 @@ function externalStorybookBrowsePath(node: Readonly<{kind: string; packageId: st
 }
 
 /** Один browser-safe API чтения подготовленного графа. */
-const read: StorybookPackageGraphRead.Output = Object.freeze({
+const read: Zavx0zStorybookPackageGraphRead.Output = Object.freeze({
   routes: externalStorybookRoutes,
   resolve: resolveExternalStorybookRoute,
   node: externalStorybookNode,

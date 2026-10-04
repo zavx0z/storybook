@@ -2,7 +2,7 @@
 import {expect, test} from "bun:test"
 import {mkdir, mkdtemp, realpath, rm} from "node:fs/promises"
 import {basename, join, resolve} from "node:path"
-import readScenario from "@storybook-specs-scenarios/reader"
+import readScenario from "@zavx0z/storybook-specs-scenarios-reader"
 
 const repo = resolve(import.meta.dir, "../../..")
 const scenario = resolve(import.meta.dir, "../spec/scenario.spec.ts")
@@ -12,6 +12,8 @@ test.each([
   {label: "Пропущен Repo", variant: "without-repo", passed: false},
   {label: "Пропущен предок", variant: "without-parent", passed: false},
   {label: "Переставлены предки", variant: "reordered", passed: false},
+  {label: "Чужая организация", variant: "other-org", passed: false},
+  {label: "Прежний scope из родителей", variant: "old-scope", passed: false},
   {label: "Другое локальное имя", variant: "other-name", passed: false},
 ])("$label", async ({variant, passed}) => {
   const temporary = join(repo, "tmp")
@@ -20,13 +22,15 @@ test.each([
   try {
     const leaf = join(root, "grandparent", "parent", "leaf")
     const prefix = `${basename(repo)}-tmp-${basename(root)}`
-    const expected = `@${prefix}-grandparent-parent/leaf`
+    const expected = `@zavx0z/${prefix}-grandparent-parent-leaf`
     const names: Record<string, string> = {
       complete: expected,
-      "without-repo": `@tmp-${basename(root)}-grandparent-parent/leaf`,
-      "without-parent": `@${prefix}-parent/leaf`,
-      reordered: `@${prefix}-parent-grandparent/leaf`,
-      "other-name": `@${prefix}-grandparent-parent/other`,
+      "other-org": `@other/${prefix}-grandparent-parent-leaf`,
+      "old-scope": `@${prefix}-grandparent-parent/leaf`,
+      "without-repo": `@zavx0z/tmp-${basename(root)}-grandparent-parent-leaf`,
+      "without-parent": `@zavx0z/${prefix}-parent-leaf`,
+      reordered: `@zavx0z/${prefix}-parent-grandparent-leaf`,
+      "other-name": `@zavx0z/${prefix}-grandparent-parent-other`,
     }
     await Bun.write(join(leaf, "package.json"), JSON.stringify({
       name: names[variant],

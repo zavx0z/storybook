@@ -1,6 +1,6 @@
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readPackageIndex from "@storybook-package/index"
+import readPackageIndex from "@zavx0z/storybook-package-index"
 
 describe.each([
   {name: "Публичный вход пакета", props: {path: resolve(import.meta.dir, ".."), exports: {".": "./index.ts"}}},

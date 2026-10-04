@@ -1,6 +1,6 @@
 /** Предметный JSON передаётся одновременно в structured и текстовом MCP ответе. */
 import {describe, expect, test} from "bun:test"
-import ResponseContent from "@storybook-app-mcp/response"
+import ResponseContent from "@zavx0z/storybook-app-mcp-response"
 
 describe.each([
   {name: "Готовый результат", props: {value: {status: "active", revision: "r1"}}},

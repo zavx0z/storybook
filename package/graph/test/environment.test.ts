@@ -2,7 +2,7 @@ import {expect, test} from "bun:test"
 import {mkdir, mkdtemp, realpath, rm, symlink} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join, resolve} from "node:path"
-import readScenario from "@storybook-specs-scenarios/reader"
+import readScenario from "@zavx0z/storybook-specs-scenarios-reader"
 
 test("Graph проходит единый нормативный сценарий Domain", async () => {
   const report = await readScenario({path: resolve(import.meta.dir, "../../reader/spec/scenario.spec.ts"), props: {path: resolve(import.meta.dir, "..")}})
@@ -15,8 +15,8 @@ test("browser resolver не включает серверное создание
   try {
     const entry = join(root, "entry.ts")
     await mkdir(join(root, "node_modules/@package"), {recursive: true})
-    await symlink(resolve(import.meta.dir, ".."), join(root, "node_modules/@storybook-package/graph"))
-    await Bun.write(entry, 'import graph from "@storybook-package/graph"\nconsole.log(graph)\n')
+    await symlink(resolve(import.meta.dir, ".."), join(root, "node_modules/@zavx0z/storybook-package-graph"))
+    await Bun.write(entry, 'import graph from "@zavx0z/storybook-package-graph"\nconsole.log(graph)\n')
     const result = await Bun.build({entrypoints: [entry], target: "browser", minify: false})
     expect(result.success, JSON.stringify(result.logs)).toBeTrue()
     const code = await result.outputs[0]!.text()

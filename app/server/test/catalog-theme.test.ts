@@ -3,9 +3,9 @@ import {resolve, join} from "node:path"
 import {createHash} from "node:crypto"
 import {mkdtempSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
-import discoverStorybookPackages from "@storybook-repo/discovery"
-import ExternalStorybookRegistry from "@storybook-app-server/catalog"
-import WebBuild from "@storybook-app-web/build"
+import discoverStorybookPackages from "@zavx0z/storybook-repo-discovery"
+import ExternalStorybookRegistry from "@zavx0z/storybook-app-server-catalog"
+import WebBuild from "@zavx0z/storybook-app-web-build"
 
 const storybookRoot = resolve(import.meta.dir, "../../..")
 const fixtureRoot = resolve(storybookRoot, "repo/discovery/fixtures/valid")
@@ -15,12 +15,12 @@ const fixtureRoot = resolve(storybookRoot, "repo/discovery/fixtures/valid")
     await registry.attachMany([fixtureRoot])
     const descriptor = registry.packageDescriptors().find(({packageId}) => packageId === "@fixture/components")!
     expect(descriptor.graphSnapshot.workbenchAuthorStyleSheets.map(({specifier, url}) => ({specifier, url}))).toEqual([{
-      specifier: "@immersive-ui/component/theme/theme.css",
+      specifier: "@zavx0z/immersive-ui-component/theme/theme.css",
       url: "workbench-author-style-sheets/0.css",
     }])
     const resource = descriptor.resourceFiles?.find(({targetPath}) => targetPath === "workbench-author-style-sheets/0.css")
     expect(resource?.contentDigest).toBe(descriptor.graphSnapshot.workbenchAuthorStyleSheets[0]!.contentDigest)
-    expect(resource?.sourcePath).toBe(Bun.resolveSync("@immersive-ui/component/theme/theme.css", storybookRoot))
+    expect(resource?.sourcePath).toBe(Bun.resolveSync("@zavx0z/immersive-ui-component/theme/theme.css", storybookRoot))
     expect(descriptor.resourceFiles).toContain(resource!)
   }, 20_000)
 

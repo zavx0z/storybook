@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-app-web/release",
+  "name": "@zavx0z/storybook-app-web-release",
   "label": "Выпуск Web",
   "version": "0.0.0",
   "private": true,
@@ -9,6 +9,6 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@storybook-app-web/build": "workspace:*"
+    "@zavx0z/storybook-app-web-build": "workspace:*"
   }
 }

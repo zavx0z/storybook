@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-tech-build/queue",
+  "name": "@zavx0z/storybook-tech-build-queue",
   "label": "Очередь сборочных работ",
   "version": "0.0.0",
   "private": true,
@@ -9,7 +9,7 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@storybook-tech-process/measure": "workspace:*",
-    "@storybook-tech-process/sample": "workspace:*"
+    "@zavx0z/storybook-tech-process-measure": "workspace:*",
+    "@zavx0z/storybook-tech-process-sample": "workspace:*"
   }
 }

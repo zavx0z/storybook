@@ -3,14 +3,14 @@
 
 @packageDocumentation
 */
-import {type StorybookRepoDiscovery as RepoDiscoveryContract} from "@storybook-repo/discovery"
-import PackageGraphCreateOwner, {type StorybookPackageGraphCreate as PackageGraphCreateContract} from "@storybook-package-graph/create"
-import {type StorybookPackageSession as PackageSessionContract} from "@storybook-package/session"
+import {type Zavx0zStorybookRepoDiscovery as RepoDiscoveryContract} from "@zavx0z/storybook-repo-discovery"
+import PackageGraphCreateOwner, {type Zavx0zStorybookPackageGraphCreate as PackageGraphCreateContract} from "@zavx0z/storybook-package-graph-create"
+import {type Zavx0zStorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
 const createExternalStorybookGraph = PackageGraphCreateOwner
 type StorybookCatalog = RepoDiscoveryContract.Output
 type StorybookCatalogScope = RepoDiscoveryContract.Output["scopes"][number]
 type ExternalStorybookGraph = PackageGraphCreateContract.Output
-type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
+type Zavx0zStorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 import {resolve} from "node:path"
 import {prepareCatalogSnapshot} from "./src/prepare"
 import {runCatalogWorker} from "./src/worker-client"
@@ -23,8 +23,8 @@ import type {
   ExternalStorybookRegistryDirtySnapshot,
   ExternalStorybookRegistryMetrics,
 } from "./contract/models"
-import type {StorybookAppServerCatalog} from "./contract"
-export type {StorybookAppServerCatalog} from "./contract"
+import type {Zavx0zStorybookAppServerCatalog} from "./contract"
+export type {Zavx0zStorybookAppServerCatalog} from "./contract"
 import {scopePaths, emptyCatalog} from "./src/helpers"
 /**
 Атомарно принимает нормализованный каталог от выбранного источника.
@@ -36,7 +36,7 @@ export default class ExternalStorybookRegistry {
   readonly #lifetime = new AbortController()
   readonly #workers = new Set<Promise<unknown>>()
   #revision = 0
-  #descriptors: readonly StorybookPackageBuildDescriptor[] = Object.freeze([])
+  #descriptors: readonly Zavx0zStorybookPackageBuildDescriptor[] = Object.freeze([])
   #entries: readonly ExternalStorybookRegistryEntry[] = Object.freeze([])
   #catalog: StorybookCatalog = emptyCatalog()
   #graph: ExternalStorybookGraph = createExternalStorybookGraph(this.#catalog)
@@ -50,8 +50,8 @@ export default class ExternalStorybookRegistry {
   #dependencyAnalysisSessions = 0
 
   constructor(
-    private readonly resolveCatalog: StorybookAppServerCatalog.Input[0] = undefined,
-    private readonly readAuthorStyleSheets: NonNullable<StorybookAppServerCatalog.Input[1]> = () => [],
+    private readonly resolveCatalog: Zavx0zStorybookAppServerCatalog.Input[0] = undefined,
+    private readonly readAuthorStyleSheets: NonNullable<Zavx0zStorybookAppServerCatalog.Input[1]> = () => [],
   ) {}
 
   snapshot(): ExternalStorybookRegistrySnapshot {
@@ -297,7 +297,7 @@ export default class ExternalStorybookRegistry {
     return [...roots].sort()
   }
 
-  packageDescriptors(): readonly StorybookPackageBuildDescriptor[] {
+  packageDescriptors(): readonly Zavx0zStorybookPackageBuildDescriptor[] {
     return this.#descriptors
   }
 

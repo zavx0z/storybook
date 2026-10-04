@@ -1,5 +1,5 @@
-import {type StorybookPackageSession as PackageSessionContract} from "@storybook-package/session"
-import {type StorybookPackageRevision as PackageRevisionContract} from "@storybook-package/revision"
+import {type Zavx0zStorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
+import {type Zavx0zStorybookPackageRevision as PackageRevisionContract} from "@zavx0z/storybook-package-revision"
 type StorybookPackageSessionSnapshot = ReturnType<PackageSessionContract.Output["snapshot"]>
 type StorybookPackageRevisionGraphSnapshot = ReturnType<PackageRevisionContract.Output["create"]>
 import {describe, expect, test} from "bun:test"

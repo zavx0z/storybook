@@ -9,14 +9,14 @@ export function isOwnedJsxProtocol(
   owner: StorybookPackageOwner | null,
 ): boolean {
   const protocols: Readonly<Record<string, Readonly<{directory: string; name: string}>>> = {
-    "@immersive/jsx/jsx-runtime": {directory: "runtime", name: "@immersive-jsx/runtime"},
-    "@immersive/jsx/jsx-dev-runtime": {directory: "development", name: "@immersive-jsx/development"},
+    "@zavx0z/immersive-jsx/jsx-runtime": {directory: "runtime", name: "@zavx0z/immersive-jsx-runtime"},
+    "@zavx0z/immersive-jsx/jsx-dev-runtime": {directory: "development", name: "@zavx0z/immersive-jsx-development"},
   }
   const expected = protocols[specifier]
   if (expected === undefined || owner?.name !== expected.name) return false
   const manifest = JSON.parse(readFileSync(join(packageRoot, "package.json"), "utf8")) as Record<string, unknown>
-  if (manifest.name !== "@immersive/jsx" ||
-    (manifest.exports as Record<string, unknown> | undefined)?.[specifier.slice("@immersive/jsx".length).replace(/^\//u, "./")] !== `./${expected.directory}/index.ts`) return false
+  if (manifest.name !== "@zavx0z/immersive-jsx" ||
+    (manifest.exports as Record<string, unknown> | undefined)?.[specifier.slice("@zavx0z/immersive-jsx".length).replace(/^\//u, "./")] !== `./${expected.directory}/index.ts`) return false
   const dependencies = manifest.dependencies
   if (dependencies === null || typeof dependencies !== "object" || Array.isArray(dependencies)) return false
   const dependency = (dependencies as Record<string, unknown>)[expected.name]

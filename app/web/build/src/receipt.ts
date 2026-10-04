@@ -3,7 +3,7 @@ import {constants, closeSync, fstatSync, lstatSync, mkdirSync, existsSync, openS
 import {isAbsolute, join, relative} from "node:path"
 import type {SharedBrowserAssets} from "../contract/assets"
 import type {SharedBrowserBuildInput} from "../contract/build"
-import Environment from "@storybook-tech-build/environment"
+import Environment from "@zavx0z/storybook-tech-build-environment"
 
 /** Максимум сериализованных shared assets и их receipt; транспорт worker использует ту же границу. */
 export const STORYBOOK_SHARED_ASSETS_MAX_BYTES = 8 * 1024 * 1024

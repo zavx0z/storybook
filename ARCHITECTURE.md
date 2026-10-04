@@ -36,9 +36,9 @@ one external Storybook serve process
   ├─ one immutable normalized graph
   ├─ one HTTP origin + WebSocket
   ├─ one shared Workbench frontend and theme
-  ├─ one private @storybook-app-server/browser
+  ├─ one private @zavx0z/storybook-app-server-browser
   │      └─ exact packageId → absent | reserved | owned target
-  └─ independent StorybookPackageSession per package
+  └─ independent Zavx0zStorybookPackageSession per package
          ├─ structural scenario execution
          ├─ compiler/module graph
          ├─ isolated candidate staging
@@ -53,7 +53,7 @@ one external Storybook serve process
 Корневой `@zavx0z/storybook` владеет discovery, validation, canonical
 graph, search/routing derived views, областями Workbench, package
 build/revision lifecycle и diagnostics. Private nested
-`@storybook-app-server/browser` единолично владеет browser target
+`@zavx0z/storybook-app-server-browser` единолично владеет browser target
 reservations, attestation, navigation, readiness и exact-target operations.
 Reservation предшествует preflight; durable createSent записывается dispatch-aware
 драйвером перед native send. Только явный unsent разрешает освобождение записи.
@@ -74,7 +74,7 @@ reconciliation не меняет записи других пакетов и н�
 
 Подключённые корни обрабатывает [Repo Discovery](repo/discovery/index.ts).
 Он читает `package.json`, workspaces и реальные публичные директории, проверяет
-владение и возвращает `StorybookRepoDiscovery.Output`. Каталог сервера получает источник
+владение и возвращает `Zavx0zStorybookRepoDiscovery.Output`. Каталог сервера получает источник
 при создании; граф использует тот же нормализованный контракт.
 
 | Владелец | Ответственность |
@@ -89,8 +89,8 @@ reconciliation не меняет записи других пакетов и н�
 | `app` | Лаунчер, управление процессом и управляющие MCP-вызовы |
 | `specs` | Чтение и исполнение сценариев, полные отчёты и правила авторства |
 
-`@storybook-specs-scenarios/reader` исполняет сценарий один раз и сохраняет отчёт для
-сборки, серверной диагностики и просмотра. `@storybook-specs/reader` находит
+`@zavx0z/storybook-specs-scenarios-reader` исполняет сценарий один раз и сохраняет отчёт для
+сборки, серверной диагностики и просмотра. `@zavx0z/storybook-specs-reader` находит
 спецификации непосредственного владельца. Читатели руководств Specs поручают
 им чтение и показывают исходные примеры и результаты правил. Web владеет
 выбором варианта, подробным выводом и preview того же отчёта.
@@ -141,7 +141,7 @@ Child пишет token-scoped candidate внутрь lease, а
 [Route](package/route/resolve/index.ts). Переход внутри страницы сохраняет Root и меняет
 содержимое через общий контроллер; корневой экран не исполняет код потребителя.
 
-`@storybook-app-server/browser` владеет агентским `openPackage`. Package lock
+`@zavx0z/storybook-app-server-browser` владеет агентским `openPackage`. Package lock
 и reservation сериализуют создание рабочей вкладки. Повторный open предпочитает
 её, затем другую подтверждённую вкладку нужного пакета; если таких нет, создаёт
 фоновую. Переход пользователя на другой пакет лишает прежний viewId права
@@ -161,14 +161,14 @@ Child пишет token-scoped candidate внутрь lease, а
 принадлежат [контракту вкладок](app/web/page/shell/workbench/notes/workspace.md#tabs-routes).
 
 Одна package tab имеет один browser realm и одну активную ревизию
-StorybookPackageSession. Обзор и встроенные представления читают структурный snapshot
+Zavx0zStorybookPackageSession. Обзор и встроенные представления читают структурный snapshot
 пакета; проектный runtime-адаптер и загрузчики вариантов не создаются.
 
 Корневая страница и каждая package page владеют отдельным
-`@immersive/browser` Experience. Browser создаёт и освобождает единственные для
+`@zavx0z/immersive-browser` Experience. Browser создаёт и освобождает единственные для
 страницы semantic Document, native Canvas, цикл кадров и owner ввода.
-Experience содержит `SpaceElement` из `@immersive/dom/space` и
-`ViewPointElement` из `@immersive/dom/viewpoint`; страницы не разделяют эти объекты или
+Experience содержит `SpaceElement` из `@zavx0z/immersive-dom/space` и
+`ViewPointElement` из `@zavx0z/immersive-dom/viewpoint`; страницы не разделяют эти объекты или
 производные ресурсы Renderer/WebGPU.
 
 Основной Workbench, его меню и окна монтируются в служебный Display пространства.
@@ -195,16 +195,16 @@ Host совмещает поверхность со всем viewport диста
 помещение текста ровно на far plane запрещено, так как его строгая depth-проверка
 должна оставаться истинной.
 
-Host загружает шрифт через `@immersive/engine/default-font`, используя exact asset
-export `@immersive/engine/fonts/inter-regular.ttf`. Копия шрифта и запасной owner
+Host загружает шрифт через `@zavx0z/immersive-engine/default-font`, используя exact asset
+export `@zavx0z/immersive-engine/fonts/inter-regular.ttf`. Копия шрифта и запасной owner
 path не допускаются.
 
 Shared shell source один для landing и package entries. Package build включает
 только выбранный package graph, поэтому другая package production code в tab не
 попадает. Bun metafile фиксирует canonical dependency realpaths. Identities
-`@immersive/browser`, `@immersive/component`, `@immersive/devtool`, `@immersive/dom`, `@immersive/engine`,
-`@immersive-nodes/layout`, `@immersive/nodes`, `@immersive-nodes/tree`, `@immersive-renderer/html`,
-`@immersive/space`, `@immersive/template`, `@immersive-ui/component` и `@immersive/webgpu`
+`@zavx0z/immersive-browser`, `@zavx0z/immersive-component`, `@zavx0z/immersive-devtool`, `@zavx0z/immersive-dom`, `@zavx0z/immersive-engine`,
+`@zavx0z/immersive-nodes-layout`, `@zavx0z/immersive-nodes`, `@zavx0z/immersive-nodes-tree`, `@zavx0z/immersive-renderer-html`,
+`@zavx0z/immersive-space`, `@zavx0z/immersive-template`, `@zavx0z/immersive-ui-component` и `@zavx0z/immersive-webgpu`
 проверяются до publish; разные realpath одного обязательного
 runtime и compatibility aliases fail closed.
 
@@ -258,10 +258,10 @@ connection может завершиться независимо от daemon se
 человека и аварийной диагностики, но не содержит отдельной lifecycle/browser
 логики. Landing также является adapter этого application service и не открывает
 package tab самостоятельно. Browser branch диаграммы принадлежит private
-`@storybook-app-server/browser`; это package boundary, а не второй runtime
+`@zavx0z/storybook-app-server-browser`; это package boundary, а не второй runtime
 owner или process.
 
-## StorybookPackageSession and revisions
+## Zavx0zStorybookPackageSession and revisions
 
 Для каждого package существует независимый state:
 
@@ -292,7 +292,7 @@ Candidate проходит структурное обнаружение, про
 
 Каждая revision содержит exact immutable package graph projection, routes, structural digest, TSDoc resources и metadata. Package tab никогда не
 соединяет старый bundle с новым global graph. Build queue последовательна только
-внутри одной StorybookPackageSession; общий semaphore лишь ограничивает число compiler
+внутри одной Zavx0zStorybookPackageSession; общий semaphore лишь ограничивает число compiler
 children. Compile/protocol/activation имеют timeout и exact cancellation.
 
 Проверка входов при явной подготовке учитывает фактические зависимости пакета.
@@ -358,7 +358,7 @@ Private browser lifecycle owner говорит с Chrome по direct CDP; MCP л
 `bringToFront`, focus emulation и OS focus не используются. Небраузерные
 lifecycle/query operations не требуют CDP.
 
-`@immersive/devtool` из Immersive владеет идентификаторами элементов, снимками дерева,
+`@zavx0z/immersive-devtool` из Immersive владеет идентификаторами элементов, снимками дерева,
 состояния и результатов Renderer. Storybook подключает `createDomInspector`
 для диагностических панелей и команд агента, передавая существующий Document
 и `readFrame(node)` соответствующей Display/HUD projection. Он не импортирует
@@ -393,7 +393,7 @@ and capture stores retain active/lastWorking/leased data plus bounded recent TTL
 
 ## Compiler boundary
 
-Пакет и его директории не объявляют build callbacks. StorybookPackageSession использует
+Пакет и его директории не объявляют build callbacks. Zavx0zStorybookPackageSession использует
 обычное разрешение зависимостей владельца и TypeScript config. Общий Workbench
 и его тема принадлежат Storybook; структурные сценарии остаются в исходниках
 потребителя и не передают ему владение сервером или compiler lifecycle.

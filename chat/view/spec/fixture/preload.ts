@@ -1,6 +1,6 @@
 /** Настраивает штатный JSX compiler на объявленные источники UI-зависимостей этого пакета. */
-import Compiler from "@storybook-tech-build/compiler"
-import createJsxBunPlugin from "@immersive-jsx-compiler/bun"
+import Compiler from "@zavx0z/storybook-tech-build-compiler"
+import createJsxBunPlugin from "@zavx0z/immersive-jsx-compiler-bun"
 import {readFileSync} from "node:fs"
 import {join, resolve} from "node:path"
 

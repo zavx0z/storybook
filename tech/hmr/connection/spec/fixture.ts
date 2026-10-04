@@ -1,7 +1,7 @@
-import type {StorybookTechHmrConnection} from "@storybook-tech-hmr/connection"
+import type {Zavx0zStorybookTechHmrConnection} from "@zavx0z/storybook-tech-hmr-connection"
 
 /** Соединение берётся из публичного входа HMR без копирования его полей. */
-type Socket = StorybookTechHmrConnection.Input["socket"]
+type Socket = Zavx0zStorybookTechHmrConnection.Input["socket"]
 
 /** Наблюдаемое соединение без сети; события доставляются тем же listener API. */
 export class FixtureSocket implements Socket {

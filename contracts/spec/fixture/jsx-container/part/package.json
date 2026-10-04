@@ -1,1 +1,1 @@
-{"name":"@contract-fixture/part","type":"module","exports":{".":"./index.tsx"},"dependencies":{"@immersive/jsx":"workspace:*"}}
+{"name":"@contract-fixture/part","type":"module","exports":{".":"./index.tsx"},"dependencies":{"@zavx0z/immersive-jsx":"workspace:*"}}

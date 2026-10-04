@@ -1,6 +1,6 @@
 import {afterAll, describe, expect, test} from "bun:test"
-import {createDocument} from "@immersive/dom"
-import {createSpaceElementFactories} from "@immersive/space"
+import {createDocument} from "@zavx0z/immersive-dom"
+import {createSpaceElementFactories} from "@zavx0z/immersive-space"
 import createViewPointControls from "../index"
 
 describe.each([

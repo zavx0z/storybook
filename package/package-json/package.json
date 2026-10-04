@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-package/package-json",
+  "name": "@zavx0z/storybook-package-package-json",
   "description": "Читает npm metadata пакета",
   "version": "0.0.0",
   "private": true,

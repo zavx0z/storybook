@@ -1,6 +1,6 @@
 /** Уведомления MCP привязаны к токену одного запроса и его отмене. */
 import {describe, expect, test} from "bun:test"
-import createRequestProgress from "@storybook-tech-mcp/progress"
+import createRequestProgress from "@zavx0z/storybook-tech-mcp-progress"
 
 describe.each([
   {name: "Числовой token", props: {progressToken: 0}},

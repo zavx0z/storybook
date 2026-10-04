@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-package-route/directories",
+  "name": "@zavx0z/storybook-package-route-directories",
   "label": "Директории маршрута",
   "version": "0.0.0",
   "private": true,
@@ -9,6 +9,6 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@storybook-package-route/ignored": "workspace:*"
+    "@zavx0z/storybook-package-route-ignored": "workspace:*"
   }
 }

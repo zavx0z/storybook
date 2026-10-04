@@ -1,5 +1,5 @@
 import {describe, expect, test} from "bun:test"
-import readProjectMcp from "@storybook-project/mcp"
+import readProjectMcp from "@zavx0z/storybook-project-mcp"
 
 describe.each([
   {

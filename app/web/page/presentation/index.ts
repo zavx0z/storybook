@@ -5,10 +5,10 @@
 
 @packageDocumentation
 */
-import type {Element, HTMLElement} from "@immersive/dom"
-import {createRoot} from "@immersive/component"
-import type {StorybookAppWebPagePresentation} from "./contract"
-export type {StorybookAppWebPagePresentation} from "./contract"
+import type {Element, HTMLElement} from "@zavx0z/immersive-dom"
+import {createRoot} from "@zavx0z/immersive-component"
+import type {Zavx0zStorybookAppWebPagePresentation} from "./contract"
+export type {Zavx0zStorybookAppWebPagePresentation} from "./contract"
 
 /**
 Создаёт представление в staging и отделяет единственный найденный корень.
@@ -37,11 +37,11 @@ try {
 ```
 */
 export default function createStorybookComponentPresentation<Props, Root extends Element = HTMLElement>(
-  document: StorybookAppWebPagePresentation.Input<Props>[0],
-  template: StorybookAppWebPagePresentation.Input<Props>[1],
-  props: StorybookAppWebPagePresentation.Input<Props>[2],
-  selector: StorybookAppWebPagePresentation.Input<Props>[3],
-): StorybookAppWebPagePresentation.Output<Root> {
+  document: Zavx0zStorybookAppWebPagePresentation.Input<Props>[0],
+  template: Zavx0zStorybookAppWebPagePresentation.Input<Props>[1],
+  props: Zavx0zStorybookAppWebPagePresentation.Input<Props>[2],
+  selector: Zavx0zStorybookAppWebPagePresentation.Input<Props>[3],
+): Zavx0zStorybookAppWebPagePresentation.Output<Root> {
   const staging = document.createDocumentFragment()
   const componentRoot = createRoot(staging)
   componentRoot.render(template, props)

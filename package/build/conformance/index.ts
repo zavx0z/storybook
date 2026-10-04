@@ -7,20 +7,20 @@ TODO не блокирует выбор типа. Невыполненные п�
 
 @packageDocumentation
 */
-import {type StorybookPackageStandard as PackageStandardContract} from "@storybook-package/standard"
-import PackageSessionOwner from "@storybook-package/session"
+import {type Zavx0zStorybookPackageStandard as PackageStandardContract} from "@zavx0z/storybook-package-standard"
+import PackageSessionOwner from "@zavx0z/storybook-package-session"
 const storybookBuildError = PackageSessionOwner.buildError
 const storybookDiagnostic = PackageSessionOwner.diagnostic
 type StorybookPackageVerification = NonNullable<Parameters<PackageStandardContract.Output["applied"]>[1]>
 import {fileURLToPath} from "node:url"
 import {resolve} from "node:path"
-import readScenario, {type StorybookSpecsScenariosReader} from "@storybook-specs-scenarios/reader"
+import readScenario, {type Zavx0zStorybookSpecsScenariosReader} from "@zavx0z/storybook-specs-scenarios-reader"
 /** Форма исходного публичного владельца. */
-type ReadScenarioOutput = StorybookSpecsScenariosReader.Output
-import type {StorybookPackageBuildConformance} from "./contract"
+type ReadScenarioOutput = Zavx0zStorybookSpecsScenariosReader.Output
+import type {Zavx0zStorybookPackageBuildConformance} from "./contract"
 import {identifyType} from "./src/identify"
 
-export type {StorybookPackageBuildConformance} from "./contract"
+export type {Zavx0zStorybookPackageBuildConformance} from "./contract"
 
 /**
 Исполняет единый нормативный сценарий Package тем же читателем Specs, что документация и MCP.
@@ -58,7 +58,7 @@ function scenarioVerification(report: ReadScenarioOutput): StorybookPackageVerif
 }
 
 /** Нормативный запуск и интерпретация отчёта остаются одной проверкой пакета. */
-const conformance: StorybookPackageBuildConformance.Output = Object.freeze({
+const conformance: Zavx0zStorybookPackageBuildConformance.Output = Object.freeze({
   check: checkStorybookPackageConformance,
   verify: scenarioVerification,
   identify(report, path) {

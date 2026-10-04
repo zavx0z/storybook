@@ -1,6 +1,6 @@
 import {dirname, join} from "node:path"
-import runWorker from "@storybook-tech-build/worker"
-import Scheduler from "@storybook-package-build/scheduler"
+import runWorker from "@zavx0z/storybook-tech-build-worker"
+import Scheduler from "@zavx0z/storybook-package-build-scheduler"
 import {validatePlatformArtifacts} from "./build"
 import type {PlatformArtifacts, PlatformBuildInput, PlatformBuildContext} from "../contract/build"
 

@@ -1,6 +1,6 @@
-import RepoDiscoveryOwner from "@storybook-repo/discovery"
-import PackageGraphCreateOwner from "@storybook-package-graph/create"
-import McpRestOwner from "@storybook-app-mcp/rest"
+import RepoDiscoveryOwner from "@zavx0z/storybook-repo-discovery"
+import PackageGraphCreateOwner from "@zavx0z/storybook-package-graph-create"
+import McpRestOwner from "@zavx0z/storybook-app-mcp-rest"
 const discoverStorybookPackages = RepoDiscoveryOwner
 const createExternalStorybookGraph = PackageGraphCreateOwner
 const storybookRest = McpRestOwner
@@ -9,7 +9,7 @@ import {join, resolve} from "node:path"
 import {mkdtemp, mkdir, realpath, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {storybookMcpEntries} from "../src/mcp-entries"
-import resolveRoute from "@storybook-package-route/resolve"
+import resolveRoute from "@zavx0z/storybook-package-route-resolve"
 
 describe("Код владельца через общий каталог", async () => {
   const root = join(import.meta.dir, "../../mcp/rest/spec/fixture/library")

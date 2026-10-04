@@ -6,7 +6,7 @@ import type {
 import type {Action, Management} from "./management"
 
 /** Публичные данные и действия общей панели каталога Display и Minimap. */
-export declare namespace StorybookAppWebPageShellWorkbenchCatalog {
+export declare namespace Zavx0zStorybookAppWebPageShellWorkbenchCatalog {
   /**
   Готовый каталог и действия его владельца.
 

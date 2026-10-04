@@ -6,7 +6,7 @@
 @packageDocumentation
 */
 import {describe, expect, test} from "bun:test"
-import Client from "@storybook-app-web-page/client"
+import Client from "@zavx0z/storybook-app-web-page-client"
 import {controlledFetcher, documentedNode, emptySnapshot, undocumentedNode} from "./fixture/transport"
 
 describe.each([

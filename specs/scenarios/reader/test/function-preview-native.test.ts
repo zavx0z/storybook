@@ -1,6 +1,6 @@
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readScenario from "@storybook-specs-scenarios/reader"
+import readScenario from "@zavx0z/storybook-specs-scenarios-reader"
 import {createFunctionPreview, inspectFunctionScenario} from "../src/function-preview.ts"
 
 const path = "/fixture/spec/scenario.spec.ts"

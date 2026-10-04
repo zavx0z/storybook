@@ -1,4 +1,4 @@
-export declare namespace StorybookPackageIndex {
+export declare namespace Zavx0zStorybookPackageIndex {
   /**
   Выбор пакета и его объявленных публичных входов.
 

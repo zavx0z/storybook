@@ -2,23 +2,23 @@
 
 @packageDocumentation
 */
-import PackageSessionOwner, {type StorybookPackageSession as PackageSessionContract} from "@storybook-package/session"
-import {type StorybookPackageStandard as PackageStandardContract} from "@storybook-package/standard"
+import PackageSessionOwner, {type Zavx0zStorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
+import {type Zavx0zStorybookPackageStandard as PackageStandardContract} from "@zavx0z/storybook-package-standard"
 const storybookBuildError = PackageSessionOwner.buildError
 const storybookDiagnostic = PackageSessionOwner.diagnostic
-type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
+type Zavx0zStorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 type StorybookPackageDiagnostic = ReturnType<PackageSessionContract.Output["snapshot"]>["diagnostics"][number]
-type StorybookPackageStandard = ReturnType<PackageStandardContract.Output["applied"]>
-import readScenario, {type StorybookSpecsScenariosReader} from "@storybook-specs-scenarios/reader"
-import conformance from "@storybook-package-build/conformance"
-import inputs from "@storybook-package-build/inputs"
-import type {StorybookPackageBuildLoader} from "@storybook-package-build/loader"
-import type {StorybookPackageBuildScenarios} from "./contract"
+type Zavx0zStorybookPackageStandard = ReturnType<PackageStandardContract.Output["applied"]>
+import readScenario, {type Zavx0zStorybookSpecsScenariosReader} from "@zavx0z/storybook-specs-scenarios-reader"
+import conformance from "@zavx0z/storybook-package-build-conformance"
+import inputs from "@zavx0z/storybook-package-build-inputs"
+import type {Zavx0zStorybookPackageBuildLoader} from "@zavx0z/storybook-package-build-loader"
+import type {Zavx0zStorybookPackageBuildScenarios} from "./contract"
 
-export type {StorybookPackageBuildScenarios} from "./contract"
+export type {Zavx0zStorybookPackageBuildScenarios} from "./contract"
 
-type ReadScenarioOutput = StorybookSpecsScenariosReader.Output
-type StorybookGeneratedScenario = Parameters<StorybookPackageBuildLoader.Output["generateJsxModules"]>[0][number]
+type ReadScenarioOutput = Zavx0zStorybookSpecsScenariosReader.Output
+type StorybookGeneratedScenario = Parameters<Zavx0zStorybookPackageBuildLoader.Output["generateJsxModules"]>[0][number]
 const {stablePath: stableBuildInputPath} = inputs
 const {verify: scenarioVerification} = conformance
 
@@ -32,11 +32,11 @@ const {verify: scenarioVerification} = conformance
 Полный отчёт сохраняется отдельно от браузерного модуля.
 */
 export default async function prepareStorybookScenarios(
-  descriptor: StorybookPackageBuildDescriptor,
+  descriptor: Zavx0zStorybookPackageBuildDescriptor,
   signal: AbortSignal,
   onPrepared?: (nodeId: string, result: ReadScenarioOutput) => void,
-  policy: Readonly<{standard: StorybookPackageStandard, warnings: StorybookPackageDiagnostic[]}> = {standard: "strict", warnings: []},
-  onProgress?: StorybookSpecsScenariosReader.Input["onProgress"],
+  policy: Readonly<{standard: Zavx0zStorybookPackageStandard, warnings: StorybookPackageDiagnostic[]}> = {standard: "strict", warnings: []},
+  onProgress?: Zavx0zStorybookSpecsScenariosReader.Input["onProgress"],
 ): Promise<readonly StorybookGeneratedScenario[]> {
   const prepared: StorybookGeneratedScenario[] = []
   const read = (path: string) => readScenario({path, signal, ...(onProgress === undefined ? {} : {onProgress})})

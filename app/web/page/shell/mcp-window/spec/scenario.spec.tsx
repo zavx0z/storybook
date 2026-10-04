@@ -1,8 +1,8 @@
 import {afterAll, describe, expect, mock, test} from "bun:test"
 import McpWindow from "../index"
 import {command} from "./fixture/records"
-import {createHeadless} from "@immersive/headless"
-import {MouseEvent} from "@immersive/dom"
+import {createHeadless} from "@zavx0z/immersive-headless"
+import {MouseEvent} from "@zavx0z/immersive-dom"
 
 describe.each([
   {name: "Пустой журнал", props: {open: true, entries: []}},

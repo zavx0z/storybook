@@ -5,26 +5,26 @@
 @packageDocumentation
 */
 import {isAbsolute, normalize} from "node:path"
-import type {StorybookSpecsScenariosReader} from "@storybook-specs-scenarios/reader"
+import type {Zavx0zStorybookSpecsScenariosReader} from "@zavx0z/storybook-specs-scenarios-reader"
 import type {
   GeneratedScenario as StorybookGeneratedScenario,
   LoaderInput as StorybookGeneratedLoaderInput,
   RevisionPayloadInput as StorybookGeneratedRevisionPayloadInput,
 } from "./contract/loader"
-import type {StorybookPackageBuildLoader} from "./contract"
+import type {Zavx0zStorybookPackageBuildLoader} from "./contract"
 
-export type {StorybookPackageBuildLoader} from "./contract"
+export type {Zavx0zStorybookPackageBuildLoader} from "./contract"
 /** Форма исходного публичного владельца. */
-type StorybookAppWebPagePackageScenarioPreview = NonNullable<StorybookSpecsScenariosReader.Output["preview"]>
+type Zavx0zStorybookAppWebPagePackageScenarioPreview = NonNullable<Zavx0zStorybookSpecsScenariosReader.Output["preview"]>
 type StorybookGeneratedModule = Readonly<{path: string; export: string}>
-type StorybookGeneratedScenarioVariant = Extract<StorybookAppWebPagePackageScenarioPreview, {kind: "component"}>["variants"][number]
-import Identity from "@storybook-package/identity"
+type StorybookGeneratedScenarioVariant = Extract<Zavx0zStorybookAppWebPagePackageScenarioPreview, {kind: "component"}>["variants"][number]
+import Identity from "@zavx0z/storybook-package-identity"
 const {
   export: validateExternalStorybookExportName,
   package: validateExternalStorybookPackageId,
 } = Identity
 
-type FunctionScenarioVariant = Extract<StorybookAppWebPagePackageScenarioPreview, {kind: "function"}>["variants"][number]
+type FunctionScenarioVariant = Extract<Zavx0zStorybookAppWebPagePackageScenarioPreview, {kind: "function"}>["variants"][number]
 
 const STORYBOOK_REVISION_PAYLOAD_FILE = "revision-payload.js" as const
 
@@ -102,9 +102,9 @@ function generateStorybookLoaderSource(
 
   return [
     ...(scenarios.some(scenario => scenario.kind === "component" && scenario.variants.some(variant => variant.jsxProps || variant.slots !== undefined))
-      ? ['import {component as bindStorybookJsx} from "@immersive/component"'] : []),
+      ? ['import {component as bindStorybookJsx} from "@zavx0z/immersive-component"'] : []),
     ...(scenarios.some(scenario => scenario.kind === "component" && scenario.variants.some(variant => variant.slots !== undefined))
-      ? ['import {slotContents as storybookSlotContents} from "@immersive/template/compiled"'] : []),
+      ? ['import {slotContents as storybookSlotContents} from "@zavx0z/immersive-template/compiled"'] : []),
     scenarioVariants,
     `export const storybookRevisionUrl = ${jsString(revisionUrl)}`,
     `export const STORYBOOK_PACKAGE_SCENARIO_LOADERS = new Map([`,
@@ -426,7 +426,7 @@ function generateStorybookJsxModules(scenarios: readonly StorybookGeneratedScena
 }
 
 /** Совместно предоставляет исходники browser loader, payload и slot-модулей ревизии. */
-const loader: StorybookPackageBuildLoader.Output = Object.freeze({
+const loader: Zavx0zStorybookPackageBuildLoader.Output = Object.freeze({
   payloadFile: STORYBOOK_REVISION_PAYLOAD_FILE,
   generateLoaderSource: generateStorybookLoaderSource,
   generateRevisionPayloadSource: generateStorybookRevisionPayloadSource,

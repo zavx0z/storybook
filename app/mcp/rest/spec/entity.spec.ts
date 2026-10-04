@@ -1,5 +1,5 @@
 import {describe, expect, test} from "bun:test"
-import storybookRest from "@storybook-app-mcp/rest"
+import storybookRest from "@zavx0z/storybook-app-mcp-rest"
 
 describe.each([
   {name: "Repo", type: "Repo" as const},

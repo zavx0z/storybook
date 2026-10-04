@@ -2,7 +2,7 @@
 import {describe, expect, test} from "bun:test"
 import {mkdir, mkdtemp, rm} from "node:fs/promises"
 import {resolve} from "node:path"
-import readScenario from "@storybook-specs-scenarios/reader"
+import readScenario from "@zavx0z/storybook-specs-scenarios-reader"
 describe.each([
   {name: "Нет описания", source: 'export type Value = string\n', point: "Описание у владельца"},
   {name: "Нет typeParam", source: '/** Результат переданной операции. */\nexport type Value<Prepared> = {value: Prepared}\n', point: "Generic-параметры"},

@@ -4,7 +4,7 @@
 
 @packageDocumentation
 */
-import PackageBuildSchedulerOwner, {type StorybookPackageBuildScheduler as PackageBuildSchedulerContract} from "@storybook-package-build/scheduler"
+import PackageBuildSchedulerOwner, {type Zavx0zStorybookPackageBuildScheduler as PackageBuildSchedulerContract} from "@zavx0z/storybook-package-build-scheduler"
 const StorybookBuildScheduler = PackageBuildSchedulerOwner
 type StorybookBuildScheduler = PackageBuildSchedulerContract.Output
 type StorybookBuildCacheLayer = NonNullable<Parameters<PackageBuildSchedulerContract.Output["run"]>[0]["cache"]>["layer"]
@@ -14,15 +14,15 @@ type StorybookBuildOwner = Parameters<PackageBuildSchedulerContract.Output["run"
 type StorybookBuildReason = Parameters<PackageBuildSchedulerContract.Output["run"]>[0]["reason"]
 type StorybookBuildPhaseListener = NonNullable<Parameters<StorybookPackageRevisionBuilder>[0]["onPhase"]>
 type StorybookBuildWorkerLifecycleListener = NonNullable<Parameters<StorybookPackageRevisionBuilder>[0]["onWorkerLifecycle"]>
-import Standard from "@storybook-package/standard"
+import Standard from "@zavx0z/storybook-package-standard"
 import {createHash, randomUUID} from "node:crypto"
 import {existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync} from "node:fs"
 import {isAbsolute, join, relative, resolve} from "node:path"
-import Revision, {type StorybookPackageRevision} from "@storybook-package/revision"
+import Revision, {type Zavx0zStorybookPackageRevision} from "@zavx0z/storybook-package-revision"
 import type {
   StorybookPackageScenarioSpec,
   StorybookPackageRevisionResourceFile,
-  StorybookPackageBuildDescriptor,
+  Zavx0zStorybookPackageBuildDescriptor,
   StorybookPackageDiagnostic,
   StorybookPackageBuildState,
   StorybookPackageRevisionStatus,
@@ -32,14 +32,14 @@ import type {
   StorybookPackageEvent,
   StorybookPackageRevisionBuild,
   StorybookPackageRevisionBuilder,
-  StorybookPackageActivation,
+  Zavx0zStorybookPackageActivation,
   StorybookPackageSessionOptions,
-  StorybookPackageStandard,
+  Zavx0zStorybookPackageStandard,
   StorybookPackageVerification,
 } from "./contract/types"
-import type {StorybookPackageSession as Contract} from "./contract"
+import type {Zavx0zStorybookPackageSession as Contract} from "./contract"
 
-export type {StorybookPackageSession} from "./contract"
+export type {Zavx0zStorybookPackageSession} from "./contract"
 
 /** Нормализованная причина только текущей очереди с обязательным reason. */
 type NormalizedStorybookPackageBuildDemand = Readonly<{
@@ -54,7 +54,7 @@ type RevisionRecord = {
   status: StorybookPackageRevisionStatus
   declarationDigest: string
   packageRoot: string
-  graphSnapshot: ReturnType<StorybookPackageRevision.Output["create"]>
+  graphSnapshot: ReturnType<Zavx0zStorybookPackageRevision.Output["create"]>
   moduleGraphRevision: string
   sharedModuleEpoch?: string
   entryRelativePath: string
@@ -80,11 +80,11 @@ type RunningBuild = Readonly<{generation: number, operationId: string, controlle
 const DEFAULT_RETAINED_REVISION_LIMIT = 3
 
 /** One independently queued, activated and diagnosable package boundary. */
-export default class StorybookPackageSession implements Contract.Output {
+export default class Zavx0zStorybookPackageSession implements Contract.Output {
   static readonly revisionUrl = revisionUrl
   static readonly diagnostic = storybookDiagnostic
   static readonly buildError = storybookBuildError
-  #descriptor: StorybookPackageBuildDescriptor
+  #descriptor: Zavx0zStorybookPackageBuildDescriptor
   readonly #artifactRoot: string
   readonly #buildRevision: StorybookPackageRevisionBuilder
   readonly #prepareBuild: ((signal: AbortSignal) => Promise<void>) | undefined
@@ -106,7 +106,7 @@ export default class StorybookPackageSession implements Contract.Output {
   #failedRevision: string | null = null
   #diagnostics: readonly StorybookPackageDiagnostic[] = Object.freeze([])
   #resolutionError: string | null = null
-  #standard: StorybookPackageStandard = "transition"
+  #standard: Zavx0zStorybookPackageStandard = "transition"
   #standardRestoreError: string | null = null
   #buildState: StorybookPackageBuildState = "idle"
   #builds = 0
@@ -143,7 +143,7 @@ export default class StorybookPackageSession implements Contract.Output {
     return this.#descriptor.packageId
   }
 
-  get descriptor(): StorybookPackageBuildDescriptor {
+  get descriptor(): Zavx0zStorybookPackageBuildDescriptor {
     return this.#descriptor
   }
 
@@ -162,7 +162,7 @@ export default class StorybookPackageSession implements Contract.Output {
     }
   }
 
-  reconfigure(descriptor: StorybookPackageBuildDescriptor): boolean {
+  reconfigure(descriptor: Zavx0zStorybookPackageBuildDescriptor): boolean {
     this.#assertActive()
     const next = normalizeDescriptor(descriptor)
     if (next.packageId !== this.packageId) {
@@ -278,7 +278,7 @@ export default class StorybookPackageSession implements Contract.Output {
     viewId: string
     route: string
     timeoutMs?: number
-  }>): StorybookPackageActivation {
+  }>): Zavx0zStorybookPackageActivation {
     this.#assertActive()
     const revision = requiredText("activation revision", input.revision)
     const viewId = requiredText("activation viewId", input.viewId)
@@ -410,7 +410,7 @@ export default class StorybookPackageSession implements Contract.Output {
     })
   }
 
-  revisionGraphSnapshot(revision: string): ReturnType<StorybookPackageRevision.Output["create"]> | null {
+  revisionGraphSnapshot(revision: string): ReturnType<Zavx0zStorybookPackageRevision.Output["create"]> | null {
     return this.#revisions.get(revision)?.graphSnapshot ?? null
   }
 
@@ -473,7 +473,7 @@ export default class StorybookPackageSession implements Contract.Output {
   }
 
   async #buildCandidate(
-    descriptor: StorybookPackageBuildDescriptor,
+    descriptor: Zavx0zStorybookPackageBuildDescriptor,
     generation: number,
     demand: NormalizedStorybookPackageBuildDemand,
   ): Promise<void> {
@@ -833,7 +833,7 @@ function storybookBuildError(
   return error
 }
 
-function normalizeDescriptor(value: StorybookPackageBuildDescriptor): StorybookPackageBuildDescriptor {
+function normalizeDescriptor(value: Zavx0zStorybookPackageBuildDescriptor): Zavx0zStorybookPackageBuildDescriptor {
   if (value === null || typeof value !== "object") throw new Error("Storybook package descriptor must be an object")
   const packageId = requiredText("packageId", value.packageId)
   const packageRoot = realpathSync(value.packageRoot)
@@ -928,7 +928,7 @@ function normalizeDescriptor(value: StorybookPackageBuildDescriptor): StorybookP
   })
 }
 
-function sameDescriptor(left: StorybookPackageBuildDescriptor, right: StorybookPackageBuildDescriptor): boolean {
+function sameDescriptor(left: Zavx0zStorybookPackageBuildDescriptor, right: Zavx0zStorybookPackageBuildDescriptor): boolean {
   return left.declarationDigest === right.declarationDigest &&
     left.graphSnapshot.packageGraphDigest === right.graphSnapshot.packageGraphDigest &&
     left.packageRoot === right.packageRoot &&
@@ -957,7 +957,7 @@ function validateBuildResult(
   }
 }
 
-function candidateRevision(descriptor: StorybookPackageBuildDescriptor, build: number): string {
+function candidateRevision(descriptor: Zavx0zStorybookPackageBuildDescriptor, build: number): string {
   return createHash("sha256")
     .update(`${descriptor.packageId}\0${descriptor.declarationDigest}\0${build}\0${Date.now()}\0${randomUUID()}`)
     .digest("hex").slice(0, 24)

@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-specs/guide",
+  "name": "@zavx0z/storybook-specs-guide",
   "label": "Руководство спецификации",
   "description": "Собирает руководство по непосредственной спецификации владельца",
   "version": "0.0.0",
@@ -9,8 +9,8 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@storybook-specs/reader": "workspace:*",
-    "@storybook-specs/document": "workspace:*",
-    "@storybook-specs/scenarios": "workspace:*"
+    "@zavx0z/storybook-specs-reader": "workspace:*",
+    "@zavx0z/storybook-specs-document": "workspace:*",
+    "@zavx0z/storybook-specs-scenarios": "workspace:*"
   }
 }

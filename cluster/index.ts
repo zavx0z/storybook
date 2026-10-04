@@ -7,14 +7,14 @@ Cluster группирует самостоятельных участников
 @packageDocumentation
 */
 import {resolve} from "node:path"
-import readPackage from "@storybook-package/reader"
-import readContract from "@storybook/contracts"
-import type {StorybookCluster} from "./contract"
+import readPackage from "@zavx0z/storybook-package-reader"
+import readContract from "@zavx0z/storybook-contracts"
+import type {Zavx0zStorybookCluster} from "./contract"
 
-export type {StorybookCluster} from "./contract"
+export type {Zavx0zStorybookCluster} from "./contract"
 
 /** Возвращает владельцев реализаций и отношения протоколов из публичного входа группы. */
-export default async function readCluster({path}: StorybookCluster.Input): Promise<StorybookCluster.Output> {
+export default async function readCluster({path}: Zavx0zStorybookCluster.Input): Promise<Zavx0zStorybookCluster.Output> {
   const description = await readPackage({path})
   const entries = new Set(description.index.entries.filter(entry => entry.path === "." && entry.target)
     .map(entry => resolve(description.root, entry.target!)))

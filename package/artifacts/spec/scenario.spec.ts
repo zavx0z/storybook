@@ -2,7 +2,7 @@ import {afterAll, describe, expect, test} from "bun:test"
 import {mkdtempSync, mkdirSync, readdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import collectArtifacts from "@storybook-package/artifacts"
+import collectArtifacts from "@zavx0z/storybook-package-artifacts"
 
 describe.each([
   {name: "Прерванный кандидат", props: {published: false}, remaining: []},

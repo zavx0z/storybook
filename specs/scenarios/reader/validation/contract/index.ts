@@ -5,7 +5,7 @@ interface ScenarioValidationLocation {
   readonly column: number
 }
 
-export declare namespace StorybookSpecsScenariosReaderValidation {
+export declare namespace Zavx0zStorybookSpecsScenariosReaderValidation {
   /**
   Структура исходника и выполненные данные, нужные правилам Archetypes.
   Исполнитель может сохранять более полный отчёт без передачи его в валидатор.

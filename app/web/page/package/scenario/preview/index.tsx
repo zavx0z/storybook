@@ -2,16 +2,16 @@
 
 @packageDocumentation
 */
-import type {StorybookAppWebPagePackageScenarioPreview as Contract} from "./contract"
-export type {StorybookAppWebPagePackageScenarioPreview} from "./contract"
-import {useSyncExternalStore} from "@immersive/component"
-import StorybookAppWebPagePackageScenarioResult from "@storybook-app-web-page-package-scenario/result"
+import type {Zavx0zStorybookAppWebPagePackageScenarioPreview as Contract} from "./contract"
+export type {Zavx0zStorybookAppWebPagePackageScenarioPreview} from "./contract"
+import {useSyncExternalStore} from "@zavx0z/immersive-component"
+import Zavx0zStorybookAppWebPagePackageScenarioResult from "@zavx0z/storybook-app-web-page-package-scenario-result"
 /**
 Предоставляет место общей фикстуре в существующем Display.
 Host подключает компонент к stage один раз и обновляет его props отдельно.
 Во время проверки stage скрыт, вместо него показывается ход выполнения или ошибка.
 */
-export default function StorybookAppWebPagePackageScenarioPreview(props: Contract.Input) {
+export default function Zavx0zStorybookAppWebPagePackageScenarioPreview(props: Contract.Input) {
   const selected = useSyncExternalStore(props.app.subscribe, props.app.getSnapshot)
   const visible = selected.execution === undefined || selected.execution.status === "passed"
   return <section
@@ -41,6 +41,6 @@ export default function StorybookAppWebPagePackageScenarioPreview(props: Contrac
         }
       `}
     ></div>
-    {!visible ? <StorybookAppWebPagePackageScenarioResult app={props.app} /> : null}
+    {!visible ? <Zavx0zStorybookAppWebPagePackageScenarioResult app={props.app} /> : null}
   </section>
 }

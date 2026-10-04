@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import readModuleDocumentation from "@storybook-package/documentation"
+import readModuleDocumentation from "@zavx0z/storybook-package-documentation"
 
 test("читает только модульный TSDoc, сохраняя Markdown и примеры", () => {
   const source = '/** Лицензия */\n/**\n * # Модуль\n *\n * Описание `API`.\n * @remarks\n * Подробности.\n * @example\n * ```ts\n * const value = "@packageDocumentation"\n * ```\n * @packageDocumentation\n */\nthrow new Error("Не исполнять")\n/** Документация класса */\nexport class Sample {}'

@@ -1,10 +1,10 @@
-import type {StorybookPackageSession} from "@storybook-package/session"
+import type {Zavx0zStorybookPackageSession} from "@zavx0z/storybook-package-session"
 
 /** Строгость применённой ревизии пакета. */
-export type StorybookPackageStandard = "transition" | "strict"
+export type Zavx0zStorybookPackageStandard = "transition" | "strict"
 
 /** Диагностика жизненного цикла пакета сохраняет исходного владельца. */
-export type StorybookPackageDiagnostic = ReturnType<StorybookPackageSession.Output["snapshot"]>["diagnostics"][number]
+export type StorybookPackageDiagnostic = ReturnType<Zavx0zStorybookPackageSession.Output["snapshot"]>["diagnostics"][number]
 
 /** Подтверждение нормативных сценариев пакета. */
 export type StorybookPackageVerification = Readonly<{

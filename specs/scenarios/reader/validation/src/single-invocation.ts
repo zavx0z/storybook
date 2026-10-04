@@ -1,7 +1,7 @@
-import type {StorybookSpecsScenariosReaderValidation} from "../contract"
+import type {Zavx0zStorybookSpecsScenariosReaderValidation} from "../contract"
 
 /** Один авторский вызов при подготовке каждого конечного варианта, подтверждённый его запуском. */
-export function singleInvocation(source: StorybookSpecsScenariosReaderValidation.Input["source"], execution?: StorybookSpecsScenariosReaderValidation.Input["execution"]): StorybookSpecsScenariosReaderValidation.Output["checks"][number] {
+export function singleInvocation(source: Zavx0zStorybookSpecsScenariosReaderValidation.Input["source"], execution?: Zavx0zStorybookSpecsScenariosReaderValidation.Input["execution"]): Zavx0zStorybookSpecsScenariosReaderValidation.Output["checks"][number] {
   const subject = source.subject
   const rule = "single-invocation"
   if (!subject) return {rule, status: "not-checked", issues: []}
@@ -14,7 +14,7 @@ export function singleInvocation(source: StorybookSpecsScenariosReaderValidation
     }
     return true
   })
-  const issues: StorybookSpecsScenariosReaderValidation.Output["checks"][number]["issues"][number][] = []
+  const issues: Zavx0zStorybookSpecsScenariosReaderValidation.Output["checks"][number]["issues"][number][] = []
   if (!scopes.length) issues.push({
     message: `Сценарий ${subject.name} задаёт вариант each с единственным вызовом`,
     location: {path: source.path, line: 1, column: 1},

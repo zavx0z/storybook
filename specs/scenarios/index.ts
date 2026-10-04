@@ -47,11 +47,11 @@
 @packageDocumentation
 */
 import {basename, dirname, resolve} from "node:path"
-import readScenario from "@storybook-specs-scenarios/reader"
-import createScenarioGuide from "@storybook-specs/document"
-import type {StorybookSpecsScenarios} from "./contract"
+import readScenario from "@zavx0z/storybook-specs-scenarios-reader"
+import createScenarioGuide from "@zavx0z/storybook-specs-document"
+import type {Zavx0zStorybookSpecsScenarios} from "./contract"
 
-export type {StorybookSpecsScenarios} from "./contract"
+export type {Zavx0zStorybookSpecsScenarios} from "./contract"
 
 /**
 Читает указанный сценарий через Specs и собирает руководство его написания.
@@ -62,7 +62,7 @@ export type {StorybookSpecsScenarios} from "./contract"
 @throws TypeError, если путь не указывает на spec/scenario.spec.ts либо spec/scenario.spec.tsx.
 @throws Ошибки чтения и запуска сценария из Specs.
 */
-export default async function readScenarioGuide({path}: StorybookSpecsScenarios.Input): Promise<StorybookSpecsScenarios.Output> {
+export default async function readScenarioGuide({path}: Zavx0zStorybookSpecsScenarios.Input): Promise<Zavx0zStorybookSpecsScenarios.Output> {
   const source = resolve(path)
   if (basename(dirname(source)) !== "spec" || !/^scenario\.spec\.tsx?$/u.test(basename(source))) {
     throw new TypeError("Укажите файл spec/scenario.spec.ts либо spec/scenario.spec.tsx владельца")

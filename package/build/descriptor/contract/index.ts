@@ -1,21 +1,21 @@
 
 /** Контракт вывода пакетных build descriptors из единого каталога. */
-import {type StorybookRepoDiscovery as RepoDiscoveryContract} from "@storybook-repo/discovery"
-import {type StorybookPackageGraphCreate as PackageGraphCreateContract} from "@storybook-package-graph/create"
-import {type StorybookPackageSession as PackageSessionContract} from "@storybook-package/session"
-import type {StorybookPackageRevision} from "@storybook-package/revision"
+import {type Zavx0zStorybookRepoDiscovery as RepoDiscoveryContract} from "@zavx0z/storybook-repo-discovery"
+import {type Zavx0zStorybookPackageGraphCreate as PackageGraphCreateContract} from "@zavx0z/storybook-package-graph-create"
+import {type Zavx0zStorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
+import type {Zavx0zStorybookPackageRevision} from "@zavx0z/storybook-package-revision"
 type StorybookCatalog = RepoDiscoveryContract.Output
 type ExternalStorybookGraph = PackageGraphCreateContract.Output
-type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
-export declare namespace StorybookPackageBuildDescriptor {
+type Zavx0zStorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
+export declare namespace Zavx0zStorybookPackageBuildDescriptor {
   /** Catalog, canonical graph и необязательный набор package ID для отбора. */
   type Input = readonly [
     catalog: StorybookCatalog,
     graph: ExternalStorybookGraph,
     include?: ReadonlySet<string>,
-    styles?: NonNullable<Parameters<StorybookPackageRevision.Output["create"]>[3]>,
+    styles?: NonNullable<Parameters<Zavx0zStorybookPackageRevision.Output["create"]>[3]>,
   ]
 
   /** Неизменяемый список descriptors для выбранных пакетов каталога. */
-  type Output = readonly StorybookPackageBuildDescriptor[]
+  type Output = readonly Zavx0zStorybookPackageBuildDescriptor[]
 }

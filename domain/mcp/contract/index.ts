@@ -1,5 +1,5 @@
 /** Контракт заглушки предметного MCP для Domain. */
-export declare namespace StorybookDomainMcp {
+export declare namespace Zavx0zStorybookDomainMcp {
   /**
   Выбранная сущность в публичной структуре проекта.
 

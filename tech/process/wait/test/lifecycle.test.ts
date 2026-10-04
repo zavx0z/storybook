@@ -1,5 +1,5 @@
 import {describe, expect, spyOn, test} from "bun:test"
-import waitForOwnedChild from "@storybook-tech-process/wait"
+import waitForOwnedChild from "@zavx0z/storybook-tech-process-wait"
 
 describe("Owned child lifecycle", () => {
   test("дренирует stdout сверх capture limit без EPIPE у успешного child", async () => {

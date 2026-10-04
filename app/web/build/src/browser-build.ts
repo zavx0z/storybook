@@ -1,12 +1,12 @@
-import Compiler from "@storybook-tech-build/compiler"
-import Artifacts from "@storybook-tech-build/artifacts"
+import Compiler from "@zavx0z/storybook-tech-build-compiler"
+import Artifacts from "@zavx0z/storybook-tech-build-artifacts"
 import {mkdirSync, readFileSync, rmSync, writeFileSync} from "node:fs"
 import {dirname, join, relative} from "node:path"
 import type {SharedBrowserAssets} from "../contract/assets"
 import type {SharedBrowserBuildInput, SharedBrowserBuildPhaseListener} from "../contract/build"
 import {createHash} from "node:crypto"
 import {readWorkbenchStyleSheets} from "./theme"
-import Environment from "@storybook-tech-build/environment"
+import Environment from "@zavx0z/storybook-tech-build-environment"
 import {sources} from "./sources"
 const {emittedEntry} = Artifacts
 

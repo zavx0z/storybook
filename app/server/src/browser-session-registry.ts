@@ -1,5 +1,5 @@
 import {randomBytes} from "node:crypto"
-import state from "@storybook-app-server/state"
+import state from "@zavx0z/storybook-app-server-state"
 import type {StorybookPackageBootstrapIntent} from "./package-page-target"
 import type {BrowserSessionGrant} from "../contract/server"
 

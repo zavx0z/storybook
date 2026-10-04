@@ -2,22 +2,22 @@
 
 @packageDocumentation
 */
-import RouteAddressOwner from "@storybook-package-route/address"
+import RouteAddressOwner from "@zavx0z/storybook-package-route-address"
 const formatRouteAddress = RouteAddressOwner
 import {createHash} from "node:crypto"
 import {dirname, relative} from "node:path"
-import type {StorybookRepoDiscovery} from "@storybook-repo/discovery"
+import type {Zavx0zStorybookRepoDiscovery} from "@zavx0z/storybook-repo-discovery"
 import type {GraphNode} from "./contract/graph"
-import type {StorybookPackageGraphCreate} from "./contract"
+import type {Zavx0zStorybookPackageGraphCreate} from "./contract"
 
-export type {StorybookPackageGraphCreate} from "./contract"
+export type {Zavx0zStorybookPackageGraphCreate} from "./contract"
 
-type StorybookCatalogScope = StorybookRepoDiscovery.Output["scopes"][number]
+type StorybookCatalogScope = Zavx0zStorybookRepoDiscovery.Output["scopes"][number]
 type NodeInput = Omit<GraphNode, "digest">
 const EXTERNAL_STORYBOOK_SCHEMA_VERSION = 1 as const
 
 /** Строит навигацию из package.json/workspaces, публичных входов и обнаруженных директорий. */
-export default function createExternalStorybookGraph(catalog: StorybookPackageGraphCreate.Input): StorybookPackageGraphCreate.Output {
+export default function createExternalStorybookGraph(catalog: Zavx0zStorybookPackageGraphCreate.Input): Zavx0zStorybookPackageGraphCreate.Output {
   if (catalog.schemaVersion !== EXTERNAL_STORYBOOK_SCHEMA_VERSION) throw new Error("Unsupported Storybook catalog version")
   const owners = new Map(catalog.scopes.map(scope => [scope.canonicalId, scope]))
   if (owners.size !== catalog.scopes.length) throw new Error("Duplicate Storybook package identity")
@@ -137,7 +137,7 @@ function directoryNodeId(scopeId: string, path: string): string {
 }
 
 /** Сохраняет проверку уникальности точных route keys без браузерного read-модуля. */
-function validateDerivedRoutes(graph: StorybookPackageGraphCreate.Output): void {
+function validateDerivedRoutes(graph: Zavx0zStorybookPackageGraphCreate.Output): void {
   const routes = new Set<string>()
   for (const node of graph.nodes) {
     if (node.packageId === null || node.routePath === null) continue

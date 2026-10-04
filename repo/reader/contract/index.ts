@@ -1,6 +1,6 @@
-import type {StorybookPackageReader} from "@storybook-package/reader"
+import type {Zavx0zStorybookPackageReader} from "@zavx0z/storybook-package-reader"
 
-export declare namespace StorybookRepoReader {
+export declare namespace Zavx0zStorybookRepoReader {
   /**
   Директория проверяемого пакета; класс не передаётся вызывающим кодом.
 
@@ -19,7 +19,7 @@ export declare namespace StorybookRepoReader {
   @property nestedRepositories - Gitlinks и самостоятельные Git-корни обнаруженных вложенных пакетов.
   */
   export interface Output {
-    readonly package: StorybookPackageReader.Output
+    readonly package: Zavx0zStorybookPackageReader.Output
     readonly root: string
     readonly gitRoot: string | null
     readonly nestedRepositories: readonly string[]

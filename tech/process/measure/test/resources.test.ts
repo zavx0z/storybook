@@ -1,5 +1,5 @@
 import {describe, expect, test} from "bun:test"
-import measureProcessResources from "@storybook-tech-process/measure"
+import measureProcessResources from "@zavx0z/storybook-tech-process-measure"
 
 describe("Ресурсы точного дерева процессов", () => {
   test("aggregates only the bound worker tree and rejects a reused PID", () => {

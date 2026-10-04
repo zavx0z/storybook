@@ -10,15 +10,15 @@ Component владеет конкретной возможностью, публ
 @packageDocumentation
 */
 import {resolve} from "node:path"
-import readPackage from "@storybook-package/reader"
-import type {StorybookComponent} from "./contract"
+import readPackage from "@zavx0z/storybook-package-reader"
+import type {Zavx0zStorybookComponent} from "./contract"
 
-export type {StorybookComponent} from "./contract"
+export type {Zavx0zStorybookComponent} from "./contract"
 
 /** Сканирует публичные входы без исполнения и без генерации bundle. */
-export default async function readComponent({path}: StorybookComponent.Input): Promise<StorybookComponent.Output> {
+export default async function readComponent({path}: Zavx0zStorybookComponent.Input): Promise<Zavx0zStorybookComponent.Output> {
   const description = await readPackage({path})
-  const entries: StorybookComponent.Output["entries"][number][] = []
+  const entries: Zavx0zStorybookComponent.Output["entries"][number][] = []
   for (const entry of description.index.entries) {
     if (entry.path !== "." || entry.status !== "owned" || !entry.code || !entry.target) continue
     const source = resolve(description.root, entry.target)

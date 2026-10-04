@@ -1,1 +1,1 @@
-{"name":"@contract-fixture/panel","type":"module","exports":{".":"./index.tsx"},"dependencies":{"@immersive/jsx":"workspace:*"}}
+{"name":"@contract-fixture/panel","type":"module","exports":{".":"./index.tsx"},"dependencies":{"@zavx0z/immersive-jsx":"workspace:*"}}

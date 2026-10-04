@@ -1,4 +1,4 @@
-import ServerState from "@storybook-app-server/state"
+import ServerState from "@zavx0z/storybook-app-server-state"
 const {acquireExternalStorybookStartLease} = ServerState
 import {appendFile} from "node:fs/promises"
 const [statePath, events, label, holdText] = process.argv.slice(2)

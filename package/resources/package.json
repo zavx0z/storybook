@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-package/resources",
+  "name": "@zavx0z/storybook-package-resources",
   "label": "Ресурсы пакета",
   "version": "0.0.0",
   "private": true,
@@ -8,10 +8,10 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@immersive/markdown": "^0.0.0"
+    "@zavx0z/immersive-markdown": "^0.0.0"
   },
   "devDependencies": {
-    "@storybook-package/documentation": "workspace:*"
+    "@zavx0z/storybook-package-documentation": "workspace:*"
   },
   "description": "Разрешает исходник документации и явно связанные локальные ресурсы в границах владельца"
 }

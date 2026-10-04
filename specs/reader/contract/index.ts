@@ -1,6 +1,6 @@
-import type {StorybookSpecsScenariosReader} from "@storybook-specs-scenarios/reader"
+import type {Zavx0zStorybookSpecsScenariosReader} from "@zavx0z/storybook-specs-scenarios-reader"
 
-export declare namespace StorybookSpecsReader {
+export declare namespace Zavx0zStorybookSpecsReader {
   /**
   Вход чтения спецификации.
 
@@ -14,10 +14,10 @@ export declare namespace StorybookSpecsReader {
   /**
   Прочитанная спецификация либо `null`, если директория `spec` отсутствует.
 
-  @property scenario - Результат запуска сценария {@link StorybookSpecsScenariosReader.Output}
+  @property scenario - Результат запуска сценария {@link Zavx0zStorybookSpecsScenariosReader.Output}
   либо `null`, если в спецификации нет файла сценария.
   */
   export type Output = {
-    readonly scenario: StorybookSpecsScenariosReader.Output | null
+    readonly scenario: Zavx0zStorybookSpecsScenariosReader.Output | null
   } | null
 }

@@ -13,14 +13,14 @@ import {realpath} from "node:fs/promises"
 import {resolve} from "node:path"
 import {API} from "typescript/unstable/async"
 import {readSource} from "./src/read"
-import type {StorybookTypedoc} from "./contract"
+import type {Zavx0zStorybookTypedoc} from "./contract"
 
-export type {StorybookTypedoc} from "./contract"
+export type {Zavx0zStorybookTypedoc} from "./contract"
 
 /**
 Читает собственные объявления выбранных файлов через одну сессию TypeScript.
 
-@param input - Пути к исходникам согласно {@link StorybookTypedoc.Input}.
+@param input - Пути к исходникам согласно {@link Zavx0zStorybookTypedoc.Input}.
 
 @returns Документация, исходные сигнатуры и digest каждого файла.
 Пустые описания сохраняются для проверки в сценарии; reader не объявляет их соответствующими правилам.
@@ -34,7 +34,7 @@ export type {StorybookTypedoc} from "./contract"
 const result = await readTypeDoc({paths: ["app/web/release/contract/index.ts"]})
 ```
 */
-export default async function readTypeDoc(input: StorybookTypedoc.Input): Promise<StorybookTypedoc.Output> {
+export default async function readTypeDoc(input: Zavx0zStorybookTypedoc.Input): Promise<Zavx0zStorybookTypedoc.Output> {
   if (input.paths.length === 0) throw new TypeError("Укажите хотя бы один исходник TypeDoc")
   const paths = [...new Set(await Promise.all(input.paths.map(path => realpath(resolve(path)))))]
   const api = new API({cwd: process.cwd()})

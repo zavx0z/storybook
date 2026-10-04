@@ -1,7 +1,7 @@
 import type {ServerContext} from "@modelcontextprotocol/server"
 
 /** Контракт уведомлений о прогрессе одного MCP-запроса. */
-export declare namespace StorybookTechMcpProgress {
+export declare namespace Zavx0zStorybookTechMcpProgress {
   /**
   Контекст SDK текущего запроса, из которого читаются progressToken и отмена.
 

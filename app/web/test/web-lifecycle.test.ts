@@ -1,9 +1,9 @@
 import {expect, mock, test} from "bun:test"
-import createWeb, {type StorybookAppWeb} from "@storybook-app/web"
-import type {StorybookAppWebBuild} from "@storybook-app-web/build"
+import createWeb, {type Zavx0zStorybookAppWeb} from "@zavx0z/storybook-app-web"
+import type {Zavx0zStorybookAppWebBuild} from "@zavx0z/storybook-app-web-build"
 import {createWebArtifacts} from "../spec/fixture/web-artifacts"
 
-type Assets = Awaited<ReturnType<StorybookAppWebBuild.Output["buildAssets"]>>
+type Assets = Awaited<ReturnType<Zavx0zStorybookAppWebBuild.Output["buildAssets"]>>
 
 test("обновление Web адресуется только страницам текущей платформы", async () => {
   const fixture = createWebArtifacts()
@@ -11,7 +11,7 @@ test("обновление Web адресуется только страниц�
   fixture.save(old)
   const current = fixture.assets("platform-b", "web-b")
   fixture.save(current)
-  const build = mock<StorybookAppWebBuild.Output["runWorker"]>(async () => { throw new Error("Чтение не компилирует") })
+  const build = mock<Zavx0zStorybookAppWebBuild.Output["runWorker"]>(async () => { throw new Error("Чтение не компилирует") })
   const snapshot = {
     packageId: "@fixture/page", declarationDigest: "fixture", moduleGraphRevision: "fixture",
     candidateRevision: null, activeRevision: "old", lastGoodRevision: "old", entryRelativePath: "entry.js",
@@ -22,7 +22,7 @@ test("обновление Web адресуется только страниц�
     ].map(value => ({...value, generation: 1, status: "working" as const, declarationDigest: "fixture",
       packageGraphDigest: "fixture", moduleGraphRevision: "fixture", entryRelativePath: "entry.js",
       dependencyRealpaths: [], diagnostics: [], createdAt: "2026-10-03T00:00:00Z", leases: 1})),
-  } satisfies ReturnType<StorybookAppWeb.Input["revisions"]>[number]
+  } satisfies ReturnType<Zavx0zStorybookAppWeb.Input["revisions"]>[number]
   const web = createWeb({...fixture.input(build), revisions: () => [snapshot]})
   try {
     expect(web.canRefresh("@fixture/page", "old")).toBeFalse()
@@ -43,7 +43,7 @@ test("конкурентные запросы делят кандидат, а п
   fixture.save(current)
   const gate = Promise.withResolvers<Assets>()
   const started = Promise.withResolvers<void>()
-  const build = mock<StorybookAppWebBuild.Output["runWorker"]>(async input => {
+  const build = mock<Zavx0zStorybookAppWebBuild.Output["runWorker"]>(async input => {
     expect(input.sharedKernel?.epoch, "Web пересобирается поверх опубликованной платформы")
       .toBe(current.browserIdentity!.epoch)
     started.resolve()
@@ -88,7 +88,7 @@ test("ошибка подготовки сохраняет прежнюю опу
   const fixture = createWebArtifacts()
   const current = fixture.assets("platform-a", "web-a")
   fixture.save(current)
-  const build = mock<StorybookAppWebBuild.Output["runWorker"]>(async () => { throw new Error("fixture build failed") })
+  const build = mock<Zavx0zStorybookAppWebBuild.Output["runWorker"]>(async () => { throw new Error("fixture build failed") })
   const events: string[] = []
   const web = createWeb(fixture.input(build, event => events.push(event.type)))
   try {
@@ -115,7 +115,7 @@ test("dispose ждёт cleanup Web worker и сохраняет общую оч�
   const started = Promise.withResolvers<AbortSignal>()
   const cleanup = Promise.withResolvers<void>()
   let cleaned = false
-  const build = mock<StorybookAppWebBuild.Output["runWorker"]>(async (_input, context) => {
+  const build = mock<Zavx0zStorybookAppWebBuild.Output["runWorker"]>(async (_input, context) => {
     started.resolve(context.signal)
     await new Promise<void>(resolve => context.signal.addEventListener("abort", () => resolve(), {once: true}))
     await cleanup.promise
@@ -156,7 +156,7 @@ test("новая среда публикуется одним build, стара�
   const old = fixture.assets("platform-a", "web-a")
   fixture.save(old)
   const next = fixture.assets("platform-b", "web-b")
-  const build = mock<StorybookAppWebBuild.Output["runWorker"]>(async input => {
+  const build = mock<Zavx0zStorybookAppWebBuild.Output["runWorker"]>(async input => {
     expect(input.sharedKernel).toBeDefined()
     return next
   })
@@ -186,7 +186,7 @@ test("отдельный выпуск Web обновляет текущую пл
   const current = fixture.assets("platform-b", "web-b")
   fixture.save(current)
   const next = fixture.assets("platform-b", "web-c")
-  const build = mock<StorybookAppWebBuild.Output["runWorker"]>(async input => {
+  const build = mock<Zavx0zStorybookAppWebBuild.Output["runWorker"]>(async input => {
     expect(input.sharedKernel?.epoch).toBe(current.browserIdentity!.epoch)
     return next
   })
@@ -211,7 +211,7 @@ test.each([false, true])("отменённый apply не публикует, he
   const gate = Promise.withResolvers<Assets>()
   const started = Promise.withResolvers<void>()
   let signal: AbortSignal | undefined
-  const build = mock<StorybookAppWebBuild.Output["runWorker"]>(async (_input, context) => {
+  const build = mock<Zavx0zStorybookAppWebBuild.Output["runWorker"]>(async (_input, context) => {
     signal = context.signal
     started.resolve()
     return gate.promise
@@ -245,7 +245,7 @@ test("после отмены ожидания следующий check полу
   const candidate = fixture.assets("platform-b", "web-b")
   const gate = Promise.withResolvers<Assets>()
   const started = Promise.withResolvers<AbortSignal>()
-  const build = mock<StorybookAppWebBuild.Output["runWorker"]>(async (_input, context) => {
+  const build = mock<Zavx0zStorybookAppWebBuild.Output["runWorker"]>(async (_input, context) => {
     started.resolve(context.signal)
     return gate.promise
   })
@@ -281,7 +281,7 @@ test.each(["shared-first", "web-first"] as const)("shared и WebOnly сохра�
   const preparedAssets = fixture.assets("prepared-platform", "prepared-host")
   const prepared = {identity: preparedAssets.browserIdentity!}
   const seen: (string | undefined)[] = []
-  const build = mock<StorybookAppWebBuild.Output["runWorker"]>(async input => {
+  const build = mock<Zavx0zStorybookAppWebBuild.Output["runWorker"]>(async input => {
     seen.push(input.sharedKernel?.epoch)
     if (seen.length === 1) {
       started.resolve()
@@ -315,8 +315,8 @@ test.each(["shared-first", "web-first"] as const)("shared и WebOnly сохра�
 
 test("Web rebuild никогда не вызывает подготовку платформы, в том числе без готовой среды", async () => {
   const fixture = createWebArtifacts()
-  const prepared = mock<NonNullable<StorybookAppWeb.Input["preparePlatform"]>>(async () => { throw new Error("Платформа не должна собираться") })
-  const build = mock<StorybookAppWebBuild.Output["runWorker"]>(async () => fixture.assets("platform-a", "web-next"))
+  const prepared = mock<NonNullable<Zavx0zStorybookAppWeb.Input["preparePlatform"]>>(async () => { throw new Error("Платформа не должна собираться") })
+  const build = mock<Zavx0zStorybookAppWebBuild.Output["runWorker"]>(async () => fixture.assets("platform-a", "web-next"))
   let web = createWeb({...fixture.input(build), preparePlatform: prepared})
   try {
     await expect(web.rebuild({apply: true})).rejects.toThrow()

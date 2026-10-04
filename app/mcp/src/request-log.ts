@@ -1,7 +1,7 @@
-import ServerState from "@storybook-app-server/state"
+import ServerState from "@zavx0z/storybook-app-server-state"
 const {externalStorybookServerStatePath, readExternalStorybookServerRecord} = ServerState
 import {randomUUID} from "node:crypto"
-import response from "@storybook-app-mcp/response"
+import response from "@zavx0z/storybook-app-mcp-response"
 
 const {sanitizeValue: sanitizeMcpValue, sanitizeString: sanitizeMcpString} = response
 

@@ -1,6 +1,6 @@
 /** Управляющий запрос допускается только с точной capability текущего сервера. */
 import {describe, expect, test} from "bun:test"
-import State from "@storybook-app-server/state"
+import State from "@zavx0z/storybook-app-server-state"
 
 const origin = "http://127.0.0.1:43123"
 const controlToken = "a".repeat(43)

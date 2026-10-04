@@ -3,7 +3,7 @@ import {createHash} from "node:crypto"
 import {mkdir, mkdtemp, readFile, realpath, rm, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import discoverStorybookPackages from "@storybook-repo/discovery"
+import discoverStorybookPackages from "@zavx0z/storybook-repo-discovery"
 
 const roots: string[] = []
 afterEach(async () => {

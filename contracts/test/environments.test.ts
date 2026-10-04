@@ -1,7 +1,7 @@
 import {expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readContract from "@storybook/contracts"
-import readPackage from "@storybook-package/reader"
+import readContract from "@zavx0z/storybook-contracts"
+import readPackage from "@zavx0z/storybook-package-reader"
 import {createFixture} from "./fixture"
 
 test("средовые протоколы и документы читаются без общего index и без исполнения", async () => {

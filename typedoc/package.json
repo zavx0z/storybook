@@ -1,5 +1,5 @@
 {
-  "name": "@storybook/typedoc",
+  "name": "@zavx0z/storybook-typedoc",
   "label": "TypeDoc",
   "version": "0.0.0",
   "private": true,
@@ -10,13 +10,13 @@
   },
   "dependencies": {
     "typescript": "^7.0.2",
-    "@storybook-package/documentation": "workspace:*"
+    "@zavx0z/storybook-package-documentation": "workspace:*"
   },
   "scripts": {
     "test": "bun test ./spec ./test --max-concurrency=1",
     "typecheck": "tsc --project tsconfig.json --pretty false"
   },
   "devDependencies": {
-    "@storybook-specs-scenarios/reader": "workspace:*"
+    "@zavx0z/storybook-specs-scenarios-reader": "workspace:*"
   }
 }

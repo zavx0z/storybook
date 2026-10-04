@@ -1,7 +1,7 @@
 import type {ParsedRoute} from "./parsed"
 
 /** Контракт кодирования и разбора адреса структурного узла. */
-export declare namespace StorybookPackageRouteAddress {
+export declare namespace Zavx0zStorybookPackageRouteAddress {
   /** Канонический путь и необязательные публичные параметры страницы. */
   type Input = Readonly<{
     node: string

@@ -1,10 +1,10 @@
-import type {StorybookPackageGraphCreate} from "@storybook-package-graph/create"
+import type {Zavx0zStorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
 import type {GraphRoute} from "./route"
 
 /** Контракт чтения готового графа в сервере и браузере. */
-export declare namespace StorybookPackageGraphRead {
+export declare namespace Zavx0zStorybookPackageGraphRead {
   /** Граф, подготовленный владельцем create; чтение не выполняет discovery. */
-  type Input = StorybookPackageGraphCreate.Output
+  type Input = Zavx0zStorybookPackageGraphCreate.Output
 
   /**
   Только синхронные проекции уже готовых узлов и маршрутов.

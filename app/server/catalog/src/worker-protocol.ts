@@ -1,6 +1,6 @@
-import type {StorybookAppServerCatalog} from "../contract"
+import type {Zavx0zStorybookAppServerCatalog} from "../contract"
 import type {ExternalStorybookAttachSource, ExternalStorybookRegistrySnapshot} from "../contract/models"
-import type {StorybookRepoDiscovery} from "@storybook-repo/discovery"
+import type {Zavx0zStorybookRepoDiscovery} from "@zavx0z/storybook-repo-discovery"
 
 export type CatalogPreparation = Readonly<{
   snapshot: ExternalStorybookRegistrySnapshot | null
@@ -8,12 +8,12 @@ export type CatalogPreparation = Readonly<{
 }>
 
 export type CatalogWorkerInput = Readonly<{roots: readonly string[], dirtyScopeRoots?: readonly string[]}> & (
-  Readonly<{kind: "prepare", catalog?: StorybookRepoDiscovery.Output, previous: ExternalStorybookRegistrySnapshot, sources: readonly ExternalStorybookAttachSource[], styles: ReturnType<NonNullable<StorybookAppServerCatalog.Input[1]>>}>
-  | Readonly<{kind: "discover", previous?: StorybookRepoDiscovery.Output}>
+  Readonly<{kind: "prepare", catalog?: Zavx0zStorybookRepoDiscovery.Output, previous: ExternalStorybookRegistrySnapshot, sources: readonly ExternalStorybookAttachSource[], styles: ReturnType<NonNullable<Zavx0zStorybookAppServerCatalog.Input[1]>>}>
+  | Readonly<{kind: "discover", previous?: Zavx0zStorybookRepoDiscovery.Output}>
 )
 
 export type CatalogWorkerResult = Readonly<{kind: "prepared", result: CatalogPreparation}>
-  | Readonly<{kind: "discovered", catalog: StorybookRepoDiscovery.Output}>
+  | Readonly<{kind: "discovered", catalog: Zavx0zStorybookRepoDiscovery.Output}>
 export type CatalogWorkerMessage = Readonly<{type: "analysis", kind: "contract" | "dependency"}>
   | Readonly<{type: "result", result: CatalogWorkerResult}>
   | Readonly<{type: "failure", message: string}>

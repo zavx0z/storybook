@@ -1,4 +1,4 @@
-import type {Document} from "@immersive/dom"
+import type {Document} from "@zavx0z/immersive-dom"
 import type {
   WorkbenchAddress,
   WorkbenchCatalogManagement,
@@ -13,7 +13,7 @@ import {
   validateWorkbenchInspectorValues,
   validateWorkbenchWidgetRegistry,
 } from "./inspector/registry.ts"
-import Navigation from "@storybook-app-web-page-shell-workbench-catalog/navigation"
+import Navigation from "@zavx0z/storybook-app-web-page-shell-workbench-catalog-navigation"
 const normalizeWorkbenchNavigationItems = Navigation.normalizeItems
 import {validateWorkbenchPresentation} from "./presentation.ts"
 import {

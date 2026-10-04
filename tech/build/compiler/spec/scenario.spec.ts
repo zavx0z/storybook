@@ -1,6 +1,6 @@
 /** Compiler выбирает точную цель условного экспорта для заданной среды. */
 import {describe, expect, test} from "bun:test"
-import Compiler from "@storybook-tech-build/compiler"
+import Compiler from "@zavx0z/storybook-tech-build-compiler"
 
 describe.each([
   {name: "Browser export", props: {declaration: {browser: "./browser.ts", default: "./index.ts"}, conditions: ["browser"], expected: "./browser.ts"}},

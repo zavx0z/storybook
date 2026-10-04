@@ -1,7 +1,7 @@
 import type {Descriptor} from "./reference"
 import type {Orientation, Plan} from "./comparison"
 
-export declare namespace StorybookSpecsReference {
+export declare namespace Zavx0zStorybookSpecsReference {
   /** Публичные операции над описанием свидетельства и геометрией его сравнения. */
   export type Output = Readonly<{
     /** Проверяет metadata и возвращает неизменный снимок без загрузки или изменения приёмки. */

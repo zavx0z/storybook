@@ -3,21 +3,21 @@
 
 @packageDocumentation
 */
-import address from "@storybook-package-route/address"
-import readRouteDirectories from "@storybook-package-route/directories"
-import readRouteIgnored from "@storybook-package-route/ignored"
-import structure, {type StorybookPackageRouteStructure} from "@storybook-package-route/structure"
-import readPackageJson from "@storybook-package/package-json"
-import readPackageIndex from "@storybook-package/index"
-import readContract from "@storybook/contracts"
+import address from "@zavx0z/storybook-package-route-address"
+import readRouteDirectories from "@zavx0z/storybook-package-route-directories"
+import readRouteIgnored from "@zavx0z/storybook-package-route-ignored"
+import structure, {type Zavx0zStorybookPackageRouteStructure} from "@zavx0z/storybook-package-route-structure"
+import readPackageJson from "@zavx0z/storybook-package-package-json"
+import readPackageIndex from "@zavx0z/storybook-package-index"
+import readContract from "@zavx0z/storybook-contracts"
 import {join, resolve} from "node:path"
-import type {StorybookPackageRouteResolve} from "./contract"
+import type {Zavx0zStorybookPackageRouteResolve} from "./contract"
 
-export type {StorybookPackageRouteResolve} from "./contract"
+export type {Zavx0zStorybookPackageRouteResolve} from "./contract"
 
 const {parseRoute, isRouteRootName} = address
 const {readPackageManifest, readRootPath, enterWorkspace, readAvailableViews} = structure
-type RoutePosition = NonNullable<Awaited<ReturnType<StorybookPackageRouteStructure.Output["enterWorkspace"]>>>
+type RoutePosition = NonNullable<Awaited<ReturnType<Zavx0zStorybookPackageRouteStructure.Output["enterWorkspace"]>>>
 
 /**
 Разрешает только одну указанную ветку через `workspaces` и видимые директории.
@@ -26,7 +26,7 @@ type RoutePosition = NonNullable<Awaited<ReturnType<StorybookPackageRouteStructu
 @param input - Пользовательский адрес и зарегистрированные корни.
 @returns Канонический узел с физическим владельцем либо `null`.
 */
-export default async function resolveRoute({route, roots}: StorybookPackageRouteResolve.Input): Promise<StorybookPackageRouteResolve.Output> {
+export default async function resolveRoute({route, roots}: Zavx0zStorybookPackageRouteResolve.Input): Promise<Zavx0zStorybookPackageRouteResolve.Output> {
   const parsed = parseRoute(route)
   if (parsed === null || parsed.segments.length === 0) return null
 
@@ -53,7 +53,7 @@ export default async function resolveRoute({route, roots}: StorybookPackageRoute
     moduleOwner: true,
     stopsTraversal: false,
   }
-  let view: NonNullable<StorybookPackageRouteResolve.Output>["view"] = "overview"
+  let view: NonNullable<Zavx0zStorybookPackageRouteResolve.Output>["view"] = "overview"
   let entryPath: string | undefined
 
   for (let index = 0; index < segments.length; index += 1) {
@@ -116,7 +116,7 @@ export default async function resolveRoute({route, roots}: StorybookPackageRoute
   ).catch(() => null) : await readContract({path: position.packagePath}).then(contract =>
     contract.entries.some(entry => entry.path === entryPath && entry.namespaces.length > 0) ? ["contract" as const] : []).catch(() => null)
   if (availableViews === null) return null
-  const views: NonNullable<StorybookPackageRouteResolve.Output>["views"] = availableViews
+  const views: NonNullable<Zavx0zStorybookPackageRouteResolve.Output>["views"] = availableViews
   if (parsed.view !== undefined) {
     if (!views.includes(parsed.view)) return null
     view = parsed.view

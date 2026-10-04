@@ -1,6 +1,6 @@
-import ArchetypesScenarioReaderOwner from "@storybook-specs-scenarios/reader"
-import {type StorybookAppServerCatalog as AppServerCatalogContract} from "@storybook-app-server/catalog"
-import {type StorybookAppServerSessions as AppServerSessionsContract} from "@storybook-app-server/sessions"
+import ArchetypesScenarioReaderOwner from "@zavx0z/storybook-specs-scenarios-reader"
+import {type Zavx0zStorybookAppServerCatalog as AppServerCatalogContract} from "@zavx0z/storybook-app-server-catalog"
+import {type Zavx0zStorybookAppServerSessions as AppServerSessionsContract} from "@zavx0z/storybook-app-server-sessions"
 const readScenario = ArchetypesScenarioReaderOwner
 type ExternalStorybookRegistrySnapshot = ReturnType<AppServerCatalogContract.Output["snapshot"]>
 type ExternalStorybookSessionManager = AppServerSessionsContract.Output

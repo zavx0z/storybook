@@ -1,4 +1,4 @@
-import PackageBuildSchedulerOwner, {type StorybookPackageBuildScheduler as PackageBuildSchedulerContract} from "@storybook-package-build/scheduler"
+import PackageBuildSchedulerOwner, {type Zavx0zStorybookPackageBuildScheduler as PackageBuildSchedulerContract} from "@zavx0z/storybook-package-build-scheduler"
 const StorybookBuildScheduler = PackageBuildSchedulerOwner
 type StorybookBuildScheduler = PackageBuildSchedulerContract.Output
 import {afterEach, describe, expect, test} from "bun:test"
@@ -6,14 +6,14 @@ import {createHash} from "node:crypto"
 import {existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import Revision, {type StorybookPackageRevision} from "@storybook-package/revision"
-import type {StorybookTechProcessSample} from "@storybook-tech-process/sample"
-import StorybookPackageSession, {type StorybookPackageSession as Contract} from "@storybook-package/session"
+import Revision, {type Zavx0zStorybookPackageRevision} from "@zavx0z/storybook-package-revision"
+import type {Zavx0zStorybookTechProcessSample} from "@zavx0z/storybook-tech-process-sample"
+import Zavx0zStorybookPackageSession, {type Zavx0zStorybookPackageSession as Contract} from "@zavx0z/storybook-package-session"
 
-type StorybookPackageBuildDescriptor = Contract.Input[0]
+type Zavx0zStorybookPackageBuildDescriptor = Contract.Input[0]
 type StorybookPackageRevisionBuilder = Contract.Input[1]["buildRevision"]
 type StorybookPackageEvent = Parameters<NonNullable<Contract.Input[1]["publish"]>>[0]
-type StorybookPackageRevisionGraphSnapshot = ReturnType<StorybookPackageRevision.Output["create"]>
+type StorybookPackageRevisionGraphSnapshot = ReturnType<Zavx0zStorybookPackageRevision.Output["create"]>
 
 const roots: string[] = []
 
@@ -21,7 +21,7 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, {recursive: true, force: true})
 })
 
-describe("working Storybook StorybookPackageSession lifecycle", () => {
+describe("working Storybook Zavx0zStorybookPackageSession lifecycle", () => {
   test("платформа потребителя сохраняется вместе с применённой ревизией", async () => {
     const root = fixtureRoot("kernel-receipt")
     const value = descriptor(root, "@fixture/kernel")
@@ -54,7 +54,7 @@ describe("working Storybook StorybookPackageSession lifecycle", () => {
     const built = await session.ensureBuilt()
     expect(built.standard).toBe("transition")
     const rejected = session.beginActivation({revision: built.builtRevision!, viewId: "view", route: ""})
-    session.failActivation({...rejected, diagnostic: StorybookPackageSession.diagnostic("activation", "кадр не готов")})
+    session.failActivation({...rejected, diagnostic: Zavx0zStorybookPackageSession.diagnostic("activation", "кадр не готов")})
     expect(session.snapshot().standard).toBe("transition")
     session.retryFailed()
     const next = await session.build()
@@ -94,7 +94,7 @@ describe("working Storybook StorybookPackageSession lifecycle", () => {
 
   test("переходный пакет применяет предупреждения без подтверждения миграции", async () => {
     const root = fixtureRoot("standard-warning")
-    const warning = StorybookPackageSession.diagnostic("validate", "Обязательное требование ещё TODO")
+    const warning = Zavx0zStorybookPackageSession.diagnostic("validate", "Обязательное требование ещё TODO")
     const value = descriptor(root, "@fixture/warning")
     const builder: StorybookPackageRevisionBuilder = async input => ({...successfulBuild(input.stagingDirectory),
       verification: {status: "incomplete", diagnostics: []}, warnings: [warning]})
@@ -114,7 +114,7 @@ describe("working Storybook StorybookPackageSession lifecycle", () => {
     const root = fixtureRoot("shared-before-admission")
     const scheduler = new StorybookBuildScheduler(1)
     const order: string[] = []
-    const session = new StorybookPackageSession(descriptor(root, "@fixture/a"), {
+    const session = new Zavx0zStorybookPackageSession(descriptor(root, "@fixture/a"), {
       artifactRoot: join(root, ".artifacts"),
       buildScheduler: scheduler,
       prepareBuild: async signal => {
@@ -214,7 +214,7 @@ describe("working Storybook StorybookPackageSession lifecycle", () => {
     const failed = session.failActivation({
       revision: secondActivation.revision,
       activationId: secondActivation.activationId,
-      diagnostic: StorybookPackageSession.diagnostic("activation", "runtime.create failed"),
+      diagnostic: Zavx0zStorybookPackageSession.diagnostic("activation", "runtime.create failed"),
     })
     expect(failed.buildState).toBe("failed")
     expect(failed.activeRevision).toBe(working.activeRevision)
@@ -244,7 +244,7 @@ describe("working Storybook StorybookPackageSession lifecycle", () => {
     const root = fixtureRoot("compile-failure")
     let fail = false
     const session = createSession(descriptor(root, "@fixture/a"), async (input) => {
-      if (fail) throw StorybookPackageSession.buildError(StorybookPackageSession.diagnostic("compile", "Unexpected token", input.descriptor.sourcePath))
+      if (fail) throw Zavx0zStorybookPackageSession.buildError(Zavx0zStorybookPackageSession.diagnostic("compile", "Unexpected token", input.descriptor.sourcePath))
       return successfulBuild(input.stagingDirectory)
     }, [])
     const first = await session.ensureBuilt()
@@ -345,7 +345,7 @@ describe("working Storybook StorybookPackageSession lifecycle", () => {
   test("does not restart a failed package while it has no subscribers", async () => {
     const root = fixtureRoot("inactive-failure")
     const session = createSession(descriptor(root, "@fixture/a", "one"), async (input) => {
-      throw StorybookPackageSession.buildError(StorybookPackageSession.diagnostic("compile", "broken fixture", input.descriptor.sourcePath))
+      throw Zavx0zStorybookPackageSession.buildError(Zavx0zStorybookPackageSession.diagnostic("compile", "broken fixture", input.descriptor.sourcePath))
     }, [])
     await session.ensureBuilt()
     expect(session.snapshot()).toMatchObject({subscribers: 0, builds: 1, buildState: "failed"})
@@ -364,7 +364,7 @@ describe("working Storybook StorybookPackageSession lifecycle", () => {
     let fail = false
     const session = createSession(descriptor(root, "@fixture/a"), async (input) => {
       if (fail) {
-        throw StorybookPackageSession.buildError(StorybookPackageSession.diagnostic("compile", "broken fixture", input.descriptor.sourcePath))
+        throw Zavx0zStorybookPackageSession.buildError(Zavx0zStorybookPackageSession.diagnostic("compile", "broken fixture", input.descriptor.sourcePath))
       }
       return successfulBuild(input.stagingDirectory)
     }, [])
@@ -780,7 +780,7 @@ describe("working Storybook StorybookPackageSession lifecycle", () => {
     const value = descriptor(root, "@fixture/a")
     let failed = false
     const session = createSession(value, async input => {
-      if (failed && phase === "compile") throw StorybookPackageSession.buildError(StorybookPackageSession.diagnostic("compile", "Compiler failed"))
+      if (failed && phase === "compile") throw Zavx0zStorybookPackageSession.buildError(Zavx0zStorybookPackageSession.diagnostic("compile", "Compiler failed"))
       const result = successfulBuild(input.stagingDirectory)
       return failed ? {...result, entryRelativePath: "missing.js"} : result
     }, [])
@@ -837,7 +837,7 @@ describe("working Storybook StorybookPackageSession lifecycle", () => {
 
   test("binds exact per-operation phase and worker lifecycle to scheduler resources", async () => {
     const root = fixtureRoot("scheduler-hooks")
-    const rows = [{pid: 100, parentPid: 1, cpuPercent: 9.5, rssBytes: 1048576, startedAt: "2026-09-11T08:00:00.000Z"}, {pid: 101, parentPid: 100, cpuPercent: 2.5, rssBytes: 262144, startedAt: "2026-09-11T08:00:01.000Z"}] satisfies StorybookTechProcessSample.Output
+    const rows = [{pid: 100, parentPid: 1, cpuPercent: 9.5, rssBytes: 1048576, startedAt: "2026-09-11T08:00:00.000Z"}, {pid: 101, parentPid: 100, cpuPercent: 2.5, rssBytes: 262144, startedAt: "2026-09-11T08:00:01.000Z"}] satisfies Zavx0zStorybookTechProcessSample.Output
     const scheduler = new StorybookBuildScheduler({
       limit: 1,
       resourceSampler: {sample: () => rows},
@@ -888,7 +888,7 @@ describe("working Storybook StorybookPackageSession lifecycle", () => {
     const graphSnapshot = redigest({
       ...base.graphSnapshot,
       workbenchAuthorStyleSheets: [{
-        specifier: "@immersive-ui/component/theme/theme.css",
+        specifier: "@zavx0z/immersive-ui-component/theme/theme.css",
         url: "workbench-author-style-sheets/0.css",
         contentDigest,
       }],
@@ -911,15 +911,15 @@ describe("working Storybook StorybookPackageSession lifecycle", () => {
 })
 
 function createSession(
-  value: StorybookPackageBuildDescriptor,
+  value: Zavx0zStorybookPackageBuildDescriptor,
   buildRevision: StorybookPackageRevisionBuilder,
   events: StorybookPackageEvent[],
   overrides: Readonly<{
     retainedRevisionLimit?: number
     buildScheduler?: StorybookBuildScheduler
   }> = {},
-): StorybookPackageSession {
-  return new StorybookPackageSession(value, {
+): Zavx0zStorybookPackageSession {
+  return new Zavx0zStorybookPackageSession(value, {
     artifactRoot: join(value.repo, ".artifacts"),
     buildRevision,
     publish: (event) => events.push(event),
@@ -935,7 +935,7 @@ async function waitFor(predicate: () => boolean, timeoutMs = 1_000): Promise<voi
   }
 }
 
-function descriptor(root: string, packageId: string, version = "one"): StorybookPackageBuildDescriptor {
+function descriptor(root: string, packageId: string, version = "one"): Zavx0zStorybookPackageBuildDescriptor {
   const packageJsonPath = join(root, "package.json")
   const modulePath = join(root, "module.ts")
   writeFileSync(packageJsonPath, JSON.stringify({name: packageId}))

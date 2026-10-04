@@ -9,10 +9,11 @@ props.path позволяет применить те же проверки к �
 */
 import {describe, expect, test} from "bun:test"
 import {basename, dirname, relative, resolve, sep} from "node:path"
-import readPackage from "@storybook-package/reader"
-import readContract from "@storybook/contracts"
-import readDomain from "@storybook/domain"
-import readScenario from "@storybook-specs-scenarios/reader"
+import readPackage from "@zavx0z/storybook-package-reader"
+import readPackageJson from "@zavx0z/storybook-package-package-json"
+import readContract from "@zavx0z/storybook-contracts"
+import readDomain from "@zavx0z/storybook-domain"
+import readScenario from "@zavx0z/storybook-specs-scenarios-reader"
 import {runtimeOwnedParts} from "./runtime-owned-parts"
 
 describe.each([
@@ -51,7 +52,16 @@ describe.each([
   const directoryAncestors = repositoryRoot === null || repo ? []
     : [basename(repositoryRoot), ...relative(repositoryRoot, result.root).split(sep).slice(0, -1)]
   const packageSegments = result.packageJson.name.split("/")
-  const packageScope = result.packageJson.name.startsWith("@") ? packageSegments[0] : undefined
+  const repoManifest = repositoryRoot === null ? null : repo ? result.packageJson
+    : await readPackageJson({path: resolve(repositoryRoot, "package.json")})
+  const repoIdentity = repoManifest?.name.match(/^(@[a-z0-9][a-z0-9._-]*)\/([a-z0-9][a-z0-9._-]*)$/u)
+  const relativeDirectories = repositoryRoot === null || repo ? [] : relative(repositoryRoot, result.root).split(sep)
+  const packageParents = repoIdentity === null || repoIdentity === undefined || repo ? []
+    : [repoIdentity[2]!, ...relativeDirectories.slice(0, -1)]
+  const inheritedPrefix = packageParents.length === 0 ? "" : `${packageParents.join("-")}-`
+  const packageLocalName = packageSegments.at(-1)!
+  const ownPackageName = packageLocalName.startsWith(inheritedPrefix)
+    ? packageLocalName.slice(inheritedPrefix.length) : packageLocalName
 
   describe("Назначение", () => {
     test("Идентичность", () => {
@@ -137,7 +147,7 @@ describe.each([
   describe.skipIf(repositoryRoot === null)("Именование", () => {
     test.each([
       {label: "Имя директории", name: basename(result.root), ancestors: directoryAncestors},
-      {label: "Имя пакета", name: packageSegments.at(-1)!, ancestors: [...directoryAncestors, ...(packageScope ? [packageScope] : [])]},
+      {label: "Имя пакета", name: ownPackageName, ancestors: packageParents},
     ])("$label", async ({name, ancestors}) => {
       const report = await readScenario({
         path: resolve(import.meta.dir, "../../name/spec/scenario.spec.ts"),
@@ -155,12 +165,13 @@ describe.each([
     })
   })
 
-  /** @remarks Для вложенного пакета scope раскрывает путь от Repo до родителя. Имя самого Repo этой формулой не задаётся. */
+  /** @remarks Вложенный пакет наследует организацию Repo; путь от Repo записывается после косой черты. */
   describe.skipIf(repositoryRoot === null || repo)("Имя по расположению", () => {
     test("Путь родителей в npm-имени", () => {
+      if (!repoIdentity) throw new Error("Имя Repo не содержит организацию: ожидается @организация/репозиторий")
       expect(result.packageJson.name,
-        "Полное имя вложенного пакета имеет вид @repo-предок-родитель/пакет: scope содержит все директории от Repo до непосредственного родителя в исходном порядке, а имя после / совпадает с именем директории пакета. Например, storybook/package/name → @storybook-package/name")
-        .toBe(`@${directoryAncestors.join("-")}/${basename(result.root)}`)
+        "Scope принадлежит организации Repo. После / перечислены имя Repo, родительские директории и имя пакета через дефис. Project не участвует. Например, @zavx0z/storybook и путь package/name дают @zavx0z/storybook-package-name")
+        .toBe(`${repoIdentity[1]}/${[repoIdentity[2], ...relativeDirectories].join("-")}`)
     })
   })
 
@@ -204,6 +215,11 @@ describe.each([
 
   /** @remarks Repo проверяется только для пакета в точном корне собственной Git-истории. */
   describe.skipIf(!repo)("Repo", () => {
+    test("Организация в npm-имени Repo", () => {
+      expect(result.packageJson.name,
+        "Repo имеет scoped npm-имя @организация/репозиторий. Организация наследуется вложенными пакетами; имя Project не входит в npm-адрес")
+        .toMatch(/^@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$/u)
+    })
     test("Экспорты репозитория", () => {
       expect(result.packageJson.exports,
         "Repo без собственного публичного API может не объявлять exports: читатель возвращает {}. Состав вложенных пакетов задаётся workspaces и сам по себе не требует экспортировать их через Repo")

@@ -1,7 +1,7 @@
 import {expect, test} from "bun:test"
 import {mkdir, symlink} from "node:fs/promises"
 import {resolve} from "node:path"
-import readContract from "@storybook/contracts"
+import readContract from "@zavx0z/storybook-contracts"
 import {createFixture} from "./fixture"
 
 test("переадресованные входы проверяются в собственных TypeScript проектах", async () => {

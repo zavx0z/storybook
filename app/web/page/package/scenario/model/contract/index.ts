@@ -1,11 +1,11 @@
-import type {StorybookSpecsScenariosReader} from "@storybook-specs-scenarios/reader"
-import type {CompiledTemplate} from "@immersive/template/compiled"
+import type {Zavx0zStorybookSpecsScenariosReader} from "@zavx0z/storybook-specs-scenarios-reader"
+import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
 
 /** Подготовленные данные выбранного сценария принадлежат читателю Specs. */
-type Preview = NonNullable<StorybookSpecsScenariosReader.Output["preview"]>
+type Preview = NonNullable<Zavx0zStorybookSpecsScenariosReader.Output["preview"]>
 
 /** Контракт модели выбора и повторного выполнения вариантов сценария. */
-export declare namespace StorybookAppWebPagePackageScenarioModel {
+export declare namespace Zavx0zStorybookAppWebPagePackageScenarioModel {
   /**
   Данные подготовленного сценария и операция его повторного выполнения.
 
@@ -29,7 +29,7 @@ export declare namespace StorybookAppWebPagePackageScenarioModel {
     readonly run?: (
       variant: Preview["variants"][number],
       signal: AbortSignal,
-      onProgress: NonNullable<StorybookSpecsScenariosReader.Input["onProgress"]>,
+      onProgress: NonNullable<Zavx0zStorybookSpecsScenariosReader.Input["onProgress"]>,
       rerun?: boolean,
     ) => Promise<{
       source: string
@@ -64,7 +64,7 @@ export declare namespace StorybookAppWebPagePackageScenarioModel {
         readonly status: "running" | "passed" | "failed"
         readonly message?: string
         readonly progress?: {
-          readonly phase: Parameters<NonNullable<StorybookSpecsScenariosReader.Input["onProgress"]>>[0]["phase"]
+          readonly phase: Parameters<NonNullable<Zavx0zStorybookSpecsScenariosReader.Input["onProgress"]>>[0]["phase"]
           readonly output: string
         }
         readonly tests?: readonly {label: string; status: string; message: string | null}[]

@@ -1,15 +1,15 @@
 import type {CallToolResult, McpServer, ServerContext} from "@modelcontextprotocol/server"
-import type {StorybookAppMcpProxy} from "@storybook-app-mcp/proxy"
-import type {StorybookAppMcpRest} from "@storybook-app-mcp/rest"
+import type {Zavx0zStorybookAppMcpProxy} from "@zavx0z/storybook-app-mcp-proxy"
+import type {Zavx0zStorybookAppMcpRest} from "@zavx0z/storybook-app-mcp-rest"
 import type {Controller, ControllerContext, ControllerResult} from "./types"
 
 /** Контракт предметного lazy-входа Storybook MCP. */
-export declare namespace StorybookAppMcp {
+export declare namespace Zavx0zStorybookAppMcp {
   /**
   Необязательные зависимости предметной регистрации и полной MCP-сессии.
 
   @property [request] - Передаёт непрозрачный path действующему серверу;
-  по умолчанию используется публичный `@storybook-app-mcp/proxy`, читающий state при вызове.
+  по умолчанию используется публичный `@zavx0z/storybook-app-mcp-proxy`, читающий state при вызове.
 
   @property [traceRequest] - Оборачивает только доставку предметного запроса
   в журнал вызывающего приложения. Успешный JSON status не меняет исход
@@ -20,12 +20,12 @@ export declare namespace StorybookAppMcp {
   @property [registerTools] - Дополнительные регистрации на том же SDK server.
   */
   type Input = Readonly<{
-    request?: (input: StorybookAppMcpProxy.Input, signal: AbortSignal) => Promise<StorybookAppMcpProxy.Output>
+    request?: (input: Zavx0zStorybookAppMcpProxy.Input, signal: AbortSignal) => Promise<Zavx0zStorybookAppMcpProxy.Output>
     traceRequest?: (
       tool: "storybook",
-      input: StorybookAppMcpProxy.Input,
-      execute: () => Promise<StorybookAppMcpProxy.Output>,
-    ) => Promise<StorybookAppMcpProxy.Output>
+      input: Zavx0zStorybookAppMcpProxy.Input,
+      execute: () => Promise<Zavx0zStorybookAppMcpProxy.Output>,
+    ) => Promise<Zavx0zStorybookAppMcpProxy.Output>
     controller?: Controller
     controllerFactory?: () => Controller | Promise<Controller>
     recordRequest?: (entry: Record<string, unknown>) => Promise<void>
@@ -44,14 +44,14 @@ export declare namespace StorybookAppMcp {
   @property register - Регистрирует один lazy-инструмент `storybook` в
   переданном сервере MCP SDK; не создаёт контроллер и не запускает HTTP-сервер.
 
-  @property read - Читает выбранный адрес через публичный `@storybook-app-mcp/rest`, используя
+  @property read - Читает выбранный адрес через публичный `@zavx0z/storybook-app-mcp-rest`, используя
   готовые entries того же каталога; не выполняет файлы сценариев.
   @property createServer - Регистрирует управляющие инструменты и ресурсы на
   одном SDK server; получает контроллер только при первом управляющем вызове.
   */
   type Output = Readonly<{
     register(server: McpServer, options?: Input): void
-    read(request: StorybookAppMcpRest.Input[0], options: StorybookAppMcpRest.Input[1]): Promise<StorybookAppMcpRest.Output>
+    read(request: Zavx0zStorybookAppMcpRest.Input[0], options: Zavx0zStorybookAppMcpRest.Input[1]): Promise<Zavx0zStorybookAppMcpRest.Output>
     createServer(options?: Input): McpServer
   }>
 }

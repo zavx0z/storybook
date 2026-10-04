@@ -1,6 +1,6 @@
 import {describe, expect, test} from "bun:test"
 import {Client, InMemoryTransport} from "@modelcontextprotocol/client"
-import mcp from "@storybook-app/mcp"
+import mcp from "@zavx0z/storybook-app-mcp"
 
 describe.each([{
   name: "Неизменный MCP при развитии HTTP-ответа",

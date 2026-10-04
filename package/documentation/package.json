@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-package/documentation",
+  "name": "@zavx0z/storybook-package-documentation",
   "description": "Извлекает модульный TSDoc из исходника",
   "version": "0.0.0",
   "private": true,

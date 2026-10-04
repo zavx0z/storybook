@@ -6,12 +6,12 @@
 */
 import {realpathSync, statSync} from "node:fs"
 import {dirname, isAbsolute, relative, resolve} from "node:path"
-import {markdownDestinations} from "@immersive/markdown/destination"
+import {markdownDestinations} from "@zavx0z/immersive-markdown/destination"
 
 const EXTERNAL_STORYBOOK_DOCUMENTATION_MAX_BYTES = 1_048_576
 
-import type {StorybookPackageResources} from "./contract"
-export type {StorybookPackageResources} from "./contract"
+import type {Zavx0zStorybookPackageResources} from "./contract"
+export type {Zavx0zStorybookPackageResources} from "./contract"
 import type {ExternalStorybookResourceAllowListEntry} from "./contract/models"
 /**
 Сохраняет точный исходник TSDoc и только явно связанные с ним локальные ресурсы.
@@ -19,8 +19,8 @@ import type {ExternalStorybookResourceAllowListEntry} from "./contract/models"
 разрешает ресурсы относительно исходника. Соседние файлы сами по себе не доступны.
 */
 export default function createExternalStorybookResourceAllowList(
-  input: StorybookPackageResources.Input,
-): StorybookPackageResources.Output {
+  input: Zavx0zStorybookPackageResources.Input,
+): Zavx0zStorybookPackageResources.Output {
   const ownerRoot = canonicalDirectory(input.ownerRoot, "Storybook resource owner root")
   const sourcePath = input.sourcePath === null
     ? null

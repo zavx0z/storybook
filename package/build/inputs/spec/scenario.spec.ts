@@ -2,7 +2,7 @@ import {afterAll, describe, expect, test} from "bun:test"
 import {mkdtempSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import inputs from "@storybook-package-build/inputs"
+import inputs from "@zavx0z/storybook-package-build-inputs"
 
 describe.each([
   {name: "Один исходник", props: {duplicate: false}},

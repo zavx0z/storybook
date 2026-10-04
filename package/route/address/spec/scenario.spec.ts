@@ -1,5 +1,5 @@
 import {describe, expect, test} from "bun:test"
-import address from "@storybook-package-route/address"
+import address from "@zavx0z/storybook-package-route-address"
 
 describe.each([
   {

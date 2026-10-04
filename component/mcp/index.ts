@@ -5,9 +5,9 @@
 
 @packageDocumentation
 */
-import type {StorybookComponentMcp} from "./contract"
+import type {Zavx0zStorybookComponentMcp} from "./contract"
 
-export type {StorybookComponentMcp} from "./contract"
+export type {Zavx0zStorybookComponentMcp} from "./contract"
 
 /**
 Возвращает явную заглушку для выбранного Component.
@@ -15,7 +15,7 @@ export type {StorybookComponentMcp} from "./contract"
 @param input - Канонический MCP-адрес, уже разрешённый вызывающим владельцем.
 @returns Адрес и состояние незавершённой реализации Component MCP.
 */
-export default function readComponentMcp(input: StorybookComponentMcp.Input): StorybookComponentMcp.Output {
+export default function readComponentMcp(input: Zavx0zStorybookComponentMcp.Input): Zavx0zStorybookComponentMcp.Output {
   return {
     path: input.path,
     status: "not-implemented",

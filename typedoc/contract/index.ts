@@ -3,10 +3,10 @@ import type {Source} from "./source"
 /**
 Типовая граница чтения документации исходников без исполнения их кода.
 
-{@link StorybookTypedoc.Input} выбирает исходники; {@link StorybookTypedoc.Output}
+{@link Zavx0zStorybookTypedoc.Input} выбирает исходники; {@link Zavx0zStorybookTypedoc.Output}
 сохраняет документацию вместе с независимыми фактами сигнатур для сценария проверки.
 */
-export declare namespace StorybookTypedoc {
+export declare namespace Zavx0zStorybookTypedoc {
   /**
   Исходники, чьи собственные объявления требуется описать.
 

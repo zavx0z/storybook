@@ -1,21 +1,21 @@
 /** Имя namespace выражает полное имя пакета, включая его scope. */
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readContract from "@storybook/contracts"
+import readContract from "@zavx0z/storybook-contracts"
 import {createFixture} from "../test/fixture"
 
 describe.each([
   {
-    name: "@storybook/app — StorybookApp",
-    packageName: "@storybook/app",
-    namespaceName: "StorybookApp",
-    expected: "StorybookApp",
+    name: "@zavx0z/storybook-app — Zavx0zStorybookApp",
+    packageName: "@zavx0z/storybook-app",
+    namespaceName: "Zavx0zStorybookApp",
+    expected: "Zavx0zStorybookApp",
   },
   {
-    name: "@storybook-app/web — StorybookAppWeb",
-    packageName: "@storybook-app/web",
-    namespaceName: "StorybookAppWeb",
-    expected: "StorybookAppWeb",
+    name: "@zavx0z/storybook-app-web — Zavx0zStorybookAppWeb",
+    packageName: "@zavx0z/storybook-app-web",
+    namespaceName: "Zavx0zStorybookAppWeb",
+    expected: "Zavx0zStorybookAppWeb",
   },
   {
     name: "web-worker — WebWorker",
@@ -30,16 +30,16 @@ describe.each([
     expected: "BuildToolsWebWorker",
   },
   {
-    name: "Намеренно неверное имя @storybook/app — Contract",
-    packageName: "@storybook/app",
+    name: "Намеренно неверное имя @zavx0z/storybook-app — Contract",
+    packageName: "@zavx0z/storybook-app",
     namespaceName: "Contract",
-    expected: "StorybookApp",
+    expected: "Zavx0zStorybookApp",
   },
   {
-    name: "Намеренно неверное имя @storybook-app/web — Web",
-    packageName: "@storybook-app/web",
+    name: "Намеренно неверное имя @zavx0z/storybook-app-web — Web",
+    packageName: "@zavx0z/storybook-app-web",
     namespaceName: "Web",
-    expected: "StorybookAppWeb",
+    expected: "Zavx0zStorybookAppWeb",
   },
 ])("$name", ({packageName, namespaceName, expected}) => {
   test("Имя, предупреждение и доступность ролей", async () => {

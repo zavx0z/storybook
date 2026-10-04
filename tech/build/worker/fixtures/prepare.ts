@@ -1,7 +1,7 @@
 import {mkdtempSync, realpathSync, rmSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import type {StorybookTechBuildWorker} from "../index"
+import type {Zavx0zStorybookTechBuildWorker} from "../index"
 
 export type WorkerFixtureJob = Readonly<{
   records?: readonly ("ready" | "wrong-nonce" | "wrong-pid" | "phase" | "unknown" | "malformed" | "empty")[]
@@ -22,7 +22,7 @@ export type WorkerFixtureJob = Readonly<{
 export function prepareWorkerFixture(job: WorkerFixtureJob = {}) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "build-worker-test-")))
   const controller = new AbortController()
-  const input: StorybookTechBuildWorker.Input<WorkerFixtureJob, string> = {
+  const input: Zavx0zStorybookTechBuildWorker.Input<WorkerFixtureJob, string> = {
     entryPath: join(import.meta.dir, "worker.ts"),
     cwd: root,
     temporaryRoot: root,
@@ -37,7 +37,7 @@ export function prepareWorkerFixture(job: WorkerFixtureJob = {}) {
 }
 
 /** Пример owner-specific parser: исполнитель не знает строкового payload. */
-export function parseFixtureEvent(value: unknown): ReturnType<StorybookTechBuildWorker.Input<WorkerFixtureJob, string>["parseEvent"]> {
+export function parseFixtureEvent(value: unknown): ReturnType<Zavx0zStorybookTechBuildWorker.Input<WorkerFixtureJob, string>["parseEvent"]> {
   if (value === null || typeof value !== "object") return null
   const event = value as Record<string, unknown>
   if (event.kind === "ready" && typeof event.workerId === "string" && Number.isSafeInteger(event.pid)) {

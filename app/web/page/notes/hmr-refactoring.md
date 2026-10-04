@@ -15,12 +15,12 @@
 | Разрешение адреса, подготовка цели и композиция страницы | [page-entry](../index.ts) и [package-page-target](../../../../../app/server/src/package-page-target.ts) |
 | Отображение документации, Inspector и сценариев | [package-entry](../package/index.ts) |
 | Выбор согласованной среды и передача Canvas при смене платформы | [shared-host](../../protocol/src/shared-host.ts) и [page-entry](../index.ts) |
-| Поколения, activation leases, active/lastWorking и receipt | [StorybookPackageSession](../../../../../package/session/index.ts) |
+| Поколения, activation leases, active/lastWorking и receipt | [Zavx0zStorybookPackageSession](../../../../../package/session/index.ts) |
 | Проверки исходников и компиляция | [Build](../../build/notes/compilation.md) |
 
 Технический Domain `tech/hmr` собирает публичные API Page и Connection.
-Компоненты сохраняют identities `@storybook-tech-hmr/page` и `@storybook-tech-hmr/connection`, а собственные
-типы публикуют через пространства StorybookTechHmrPage и StorybookTechHmrConnection. Page получает
+Компоненты сохраняют identities `@zavx0z/storybook-tech-hmr-page` и `@zavx0z/storybook-tech-hmr-connection`, а собственные
+типы публикуют через пространства Zavx0zStorybookTechHmrPage и Zavx0zStorybookTechHmrConnection. Page получает
 release/restore от реального исполнителя. Activation остаётся в предметной области
 `package/activation` и получает inspect/commit от владельцев браузера и сессии.
 Компоненты не импортируют фасад родителя и private runtime Storybook.

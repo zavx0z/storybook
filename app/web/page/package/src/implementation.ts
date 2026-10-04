@@ -1,33 +1,33 @@
-import WebProtocol from "@storybook-app-web/protocol"
+import WebProtocol from "@zavx0z/storybook-app-web-protocol"
 
-import {type StorybookTechHmrConnection} from "@storybook-tech-hmr/connection"
-import StorybookAppWebPagePackageScenarioInspector from "@storybook-app-web-page-package-scenario/inspector"
+import {type Zavx0zStorybookTechHmrConnection} from "@zavx0z/storybook-tech-hmr-connection"
+import Zavx0zStorybookAppWebPagePackageScenarioInspector from "@zavx0z/storybook-app-web-page-package-scenario-inspector"
 
-import indexedWorkbenchAuthorStyleSheetSources from "@storybook-app-web-page/style-sheets"
-import WebNavigationOwner from "@storybook-app-web-page/navigation"
+import indexedWorkbenchAuthorStyleSheetSources from "@zavx0z/storybook-app-web-page-style-sheets"
+import WebNavigationOwner from "@zavx0z/storybook-app-web-page-navigation"
 
 /** Вкладка структурного владельца с подготовленными сценариями. */
 
-import type {RootLinkedAuthorStyleSheet} from "@immersive/browser/integration"
-import type {CompiledTemplate} from "@immersive/template/compiled"
-import {arrowDownIcon, arrowUpIcon} from "@immersive-ui-theme/icon"
+import type {RootLinkedAuthorStyleSheet} from "@zavx0z/immersive-browser/integration"
+import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import {arrowDownIcon, arrowUpIcon} from "@zavx0z/immersive-ui-theme-icon"
 
-import type {StorybookAppWebPageShellWorkbench} from "@storybook-app-web-page-shell/workbench"
-type WorkbenchInspectorCustomWidgetProps = Extract<ReturnType<StorybookAppWebPageShellWorkbench.Output["getSnapshot"]>["state"]["inspector.registry"][number], {kind: "custom"}>["component"] extends CompiledTemplate<infer Props> ? Props : never
-type WorkbenchInspectorCustomWidgetRegistration = Extract<ReturnType<StorybookAppWebPageShellWorkbench.Output["getSnapshot"]>["state"]["inspector.registry"][number], {kind: "custom"}>
+import type {Zavx0zStorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
+type WorkbenchInspectorCustomWidgetProps = Extract<ReturnType<Zavx0zStorybookAppWebPageShellWorkbench.Output["getSnapshot"]>["state"]["inspector.registry"][number], {kind: "custom"}>["component"] extends CompiledTemplate<infer Props> ? Props : never
+type WorkbenchInspectorCustomWidgetRegistration = Extract<ReturnType<Zavx0zStorybookAppWebPageShellWorkbench.Output["getSnapshot"]>["state"]["inspector.registry"][number], {kind: "custom"}>
 
-import Revision from "@storybook-package/revision"
+import Revision from "@zavx0z/storybook-package-revision"
 const storybookRootBreadcrumb = WebNavigationOwner.storybookRootBreadcrumb
 const STORYBOOK_ROOT_BREADCRUMB = WebNavigationOwner.STORYBOOK_ROOT_BREADCRUMB
 const deriveExternalStorybookPackageTab = WebNavigationOwner.deriveExternalStorybookPackageTab
 const deriveExternalStorybookNavigationTree = WebNavigationOwner.deriveExternalStorybookNavigationTree
-import type {StorybookAppWebPageNavigation} from "@storybook-app-web-page/navigation"
-type ExternalStorybookBrowserNavigationItem = ReturnType<StorybookAppWebPageNavigation.Output["deriveExternalStorybookNavigationTree"]>[number]
-type ExternalStorybookBrowserTabItem = ReturnType<StorybookAppWebPageNavigation.Output["deriveExternalStorybookPackageTab"]>["tabs"][number]
-type ExternalStorybookPackageTabModel = ReturnType<StorybookAppWebPageNavigation.Output["deriveExternalStorybookPackageTab"]>
+import type {Zavx0zStorybookAppWebPageNavigation} from "@zavx0z/storybook-app-web-page-navigation"
+type ExternalStorybookBrowserNavigationItem = ReturnType<Zavx0zStorybookAppWebPageNavigation.Output["deriveExternalStorybookNavigationTree"]>[number]
+type ExternalStorybookBrowserTabItem = ReturnType<Zavx0zStorybookAppWebPageNavigation.Output["deriveExternalStorybookPackageTab"]>["tabs"][number]
+type ExternalStorybookPackageTabModel = ReturnType<Zavx0zStorybookAppWebPageNavigation.Output["deriveExternalStorybookPackageTab"]>
 
-import type {StorybookAppWebPageShell} from "@storybook-app-web-page/shell"
-type ExternalStorybookShell = StorybookAppWebPageShell.Output
+import type {Zavx0zStorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
+type ExternalStorybookShell = Zavx0zStorybookAppWebPageShell.Output
 import {StorybookContractOutline} from "./contract-outline.tsx"
 
 import type {ExternalStorybookClientSnapshot, StorybookPackageRevisionGraphSnapshot, ExternalStorybookScenarioLoader, ExternalStorybookAppliedRevision, ExternalStorybookPackageEnvironment} from "../contract/types"
@@ -43,7 +43,7 @@ export const BUILTIN_INSPECTOR_WIDGETS = Object.freeze([
     label: "С",
     title: "Сценарии",
     wrapInPanel: false,
-    component: StorybookAppWebPagePackageScenarioInspector as unknown as CompiledTemplate<WorkbenchInspectorCustomWidgetProps>,
+    component: Zavx0zStorybookAppWebPagePackageScenarioInspector as unknown as CompiledTemplate<WorkbenchInspectorCustomWidgetProps>,
   }),
   Object.freeze({
     id: "storybook-contract-input",
@@ -299,7 +299,7 @@ export function createPackageSocket(
   environment: ExternalStorybookPackageEnvironment,
   href: string,
   sessionToken?: string,
-): StorybookTechHmrConnection.Input["socket"] {
+): Zavx0zStorybookTechHmrConnection.Input["socket"] {
   const url = new URL("/api/events", href)
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:"
   if (sessionToken !== undefined) url.searchParams.set("session", sessionToken)

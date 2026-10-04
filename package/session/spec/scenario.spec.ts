@@ -4,8 +4,8 @@ import {createHash} from "node:crypto"
 import {mkdtempSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import Revision, {type StorybookPackageRevision} from "@storybook-package/revision"
-import StorybookPackageSession from "@storybook-package/session"
+import Revision, {type Zavx0zStorybookPackageRevision} from "@zavx0z/storybook-package-revision"
+import Zavx0zStorybookPackageSession from "@zavx0z/storybook-package-session"
 
 describe.each([
   {name: "Новая сессия", props: {subscriber: false, resolutionError: null}},
@@ -21,7 +21,7 @@ describe.each([
   const buildRevision = mock(async () => {
     throw new Error("Начальный снимок не заказывает компиляцию")
   })
-  const session = new StorybookPackageSession({
+  const session = new Zavx0zStorybookPackageSession({
     packageId,
     packageRoot: root,
     repo: root,
@@ -74,7 +74,7 @@ describe.each([
 })
 
 /** Готовит точный граф одного пакета как вход, не создавая сессию или сборку. */
-function packageGraph(packageId: string, declarationDigest: string): ReturnType<StorybookPackageRevision.Output["create"]> {
+function packageGraph(packageId: string, declarationDigest: string): ReturnType<Zavx0zStorybookPackageRevision.Output["create"]> {
   const rootId = `package:${packageId}`
   const urlPath = `/packages/${encodeURIComponent(packageId)}/`
   const withoutDigest = {

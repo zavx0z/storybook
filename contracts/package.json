@@ -1,5 +1,5 @@
 {
-  "name": "@storybook/contracts",
+  "name": "@zavx0z/storybook-contracts",
   "label": "Контракты",
   "version": "0.0.0",
   "private": true,
@@ -10,15 +10,15 @@
   },
   "dependencies": {
     "typescript": "^7.0.2",
-    "@immersive/jsx": "^0.0.0",
-    "@storybook-package-route/ignored": "workspace:*",
-    "@storybook-package/reader": "workspace:*"
+    "@zavx0z/immersive-jsx": "^0.0.0",
+    "@zavx0z/storybook-package-route-ignored": "workspace:*",
+    "@zavx0z/storybook-package-reader": "workspace:*"
   },
   "scripts": {
     "test": "bun test ./spec ./test --max-concurrency=1",
     "typecheck": "tsc --project tsconfig.json --pretty false"
   },
   "devDependencies": {
-    "@storybook-specs-scenarios/reader": "workspace:*"
+    "@zavx0z/storybook-specs-scenarios-reader": "workspace:*"
   }
 }

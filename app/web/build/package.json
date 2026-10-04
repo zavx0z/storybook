@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-app-web/build",
+  "name": "@zavx0z/storybook-app-web-build",
   "label": "Сборка Web",
   "version": "0.0.0",
   "private": true,
@@ -9,16 +9,16 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@immersive-ui/component": "^0.0.0",
-    "@storybook-package-build/scheduler": "workspace:*",
-    "@storybook-tech-build/compiler": "workspace:*",
-    "@storybook-tech-build/environment": "workspace:*",
-    "@storybook-tech-build/artifacts": "workspace:*",
-    "@storybook-tech-build/worker": "workspace:*",
-    "@storybook-package/revision": "workspace:*"
+    "@zavx0z/immersive-ui-component": "^0.0.0",
+    "@zavx0z/storybook-package-build-scheduler": "workspace:*",
+    "@zavx0z/storybook-tech-build-compiler": "workspace:*",
+    "@zavx0z/storybook-tech-build-environment": "workspace:*",
+    "@zavx0z/storybook-tech-build-artifacts": "workspace:*",
+    "@zavx0z/storybook-tech-build-worker": "workspace:*",
+    "@zavx0z/storybook-package-revision": "workspace:*"
   },
   "devDependencies": {
-    "@immersive/component": "^0.0.0",
-    "@storybook-tech/limits": "workspace:*"
+    "@zavx0z/immersive-component": "^0.0.0",
+    "@zavx0z/storybook-tech-limits": "workspace:*"
   }
 }

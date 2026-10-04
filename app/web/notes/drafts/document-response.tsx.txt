@@ -1,7 +1,7 @@
-import {memo, useMemo, useState} from "@immersive/component"
-import CodeEditor from "@immersive-ui/component/view/code-editor"
-import Button from "@immersive-ui/component/button/button"
-import {Markdown} from "@immersive/markdown"
+import {memo, useMemo, useState} from "@zavx0z/immersive-component"
+import CodeEditor from "@zavx0z/immersive-ui-component/view/code-editor"
+import Button from "@zavx0z/immersive-ui-component/button/button"
+import {Markdown} from "@zavx0z/immersive-markdown"
 
 /** Форматирует также старые компактные записи; высота зависит от числа строк. */
 function JsonFieldView(props: Readonly<{title: string, value: string}>) {

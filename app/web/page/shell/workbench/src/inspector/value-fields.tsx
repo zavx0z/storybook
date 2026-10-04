@@ -1,6 +1,6 @@
-import {CheckboxField} from "@immersive-ui/component"
-import {NumberField} from "@immersive-ui/component"
-import {TextField} from "@immersive-ui/component"
+import {CheckboxField} from "@zavx0z/immersive-ui-component"
+import {NumberField} from "@zavx0z/immersive-ui-component"
+import {TextField} from "@zavx0z/immersive-ui-component"
 
 type ValueFieldDefinition = Readonly<{
   id: string

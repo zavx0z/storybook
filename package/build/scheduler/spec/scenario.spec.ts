@@ -1,5 +1,5 @@
 import {describe, expect, test} from "bun:test"
-import Scheduler from "@storybook-package-build/scheduler"
+import Scheduler from "@zavx0z/storybook-package-build-scheduler"
 
 describe.each([
   {name: "Проверка пакета", props: {id: "button", owner: "check" as const}},

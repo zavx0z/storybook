@@ -2,7 +2,7 @@ import {expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import discoverStorybookPackages from "@storybook-repo/discovery"
+import discoverStorybookPackages from "@zavx0z/storybook-repo-discovery"
 
 test("вложенные пакеты contract и spec не становятся представлениями родителя при появлении и удалении package.json", async () => {
   const root = await realpath(await mkdtemp(join(tmpdir(), "storybook-reserved-packages-")))

@@ -18,7 +18,7 @@ export function createLazyStartupFixture() {
   const daemonEntryPath = join(import.meta.dir, "daemon.ts")
   const serverModule = join(root, "factory.ts")
   writeFileSync(serverModule, `
-import createApp from "@storybook/app"
+import createApp from "@zavx0z/storybook-app"
 import {createAppMcpServer} from ${JSON.stringify(join(repository, "app/src/mcp.ts"))}
 import {appendFileSync, writeFileSync} from "node:fs"
 import {join} from "node:path"

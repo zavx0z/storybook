@@ -5,11 +5,11 @@
 
 @packageDocumentation
 */
-import type {StorybookAppWebPageTarget} from "./contract"
+import type {Zavx0zStorybookAppWebPageTarget} from "./contract"
 import type {Intent} from "./contract/target"
-export type {StorybookAppWebPageTarget} from "./contract"
+export type {Zavx0zStorybookAppWebPageTarget} from "./contract"
 
-const pageTarget: StorybookAppWebPageTarget.Output = Object.freeze<StorybookAppWebPageTarget.Output>({
+const pageTarget: Zavx0zStorybookAppWebPageTarget.Output = Object.freeze<Zavx0zStorybookAppWebPageTarget.Output>({
   /**
 Читает server-generated JSON без исполнения HTML и выбора ревизии.
 
@@ -79,7 +79,7 @@ route и явную preview revision. Политика built/active/last-working
 ```ts
 const target = await PageTarget.prepare(
   fetch,
-  {packageId: "@immersive/markdown", route: "", intent: "navigation"},
+  {packageId: "@zavx0z/immersive-markdown", route: "", intent: "navigation"},
   signal,
 )
 ```

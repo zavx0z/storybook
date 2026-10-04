@@ -1,5 +1,5 @@
 {
-  "name": "@storybook/chat",
+  "name": "@zavx0z/storybook-chat",
   "label": "Чат",
   "version": "0.0.0",
   "private": true,
@@ -12,14 +12,14 @@
     }
   },
   "dependencies": {
-    "@storybook-chat/session": "workspace:*",
-    "@storybook-chat/view": "workspace:*"
+    "@zavx0z/storybook-chat-session": "workspace:*",
+    "@zavx0z/storybook-chat-view": "workspace:*"
   },
   "devDependencies": {
-    "@storybook-specs-scenarios/reader": "workspace:*",
-    "@immersive/headless": "^0.0.0"
+    "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
+    "@zavx0z/immersive-headless": "^0.0.0"
   },
   "scripts": {
-    "test": "bun test --config ../contracts/bunfig.toml ./test && bun test --config ../contracts/bunfig.toml --preload ./view/spec/fixture/preload.ts --preload @immersive/headless/preload ./spec"
+    "test": "bun test --config ../contracts/bunfig.toml ./test && bun test --config ../contracts/bunfig.toml --preload ./view/spec/fixture/preload.ts --preload @zavx0z/immersive-headless/preload ./spec"
   }
 }

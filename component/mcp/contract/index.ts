@@ -1,5 +1,5 @@
 /** Контракт заглушки предметного MCP для Component. */
-export declare namespace StorybookComponentMcp {
+export declare namespace Zavx0zStorybookComponentMcp {
   /**
   Выбранная сущность в публичной структуре проекта.
 

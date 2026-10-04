@@ -29,13 +29,13 @@ describe("external Storybook agent tooling", () => {
     expect(lifecycle).not.toContain("activateTarget")
     expect(landing).not.toContain("globalThis.open")
     expect(landing).not.toContain("window.open")
-    expect(manifest.name).toBe("@storybook-app-server/browser")
+    expect(manifest.name).toBe("@zavx0z/storybook-app-server-browser")
     expect(manifest.private).toBeTrue()
   })
 
   test("запуск из scripts использует публичный API App", async () => {
     const manifest = await Bun.file(join(root, "package.json")).json()
-    expect(manifest.scripts.storybook).toContain('from "@storybook/app"')
+    expect(manifest.scripts.storybook).toContain('from "@zavx0z/storybook-app"')
     expect(manifest.scripts.storybook).toContain("createApp().ensure")
     expect(manifest.scripts.build).toContain("createApp().check")
     expect(manifest.scripts.storybook).not.toContain("Bun.spawn")

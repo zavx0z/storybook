@@ -1,4 +1,4 @@
-import {Button} from "@immersive-ui/component"
+import {Button} from "@zavx0z/immersive-ui-component"
 import type {StorybookOverviewAction} from "../../contract/overview-action.ts"
 
 export type StorybookOverviewActionButtonProps = Readonly<{

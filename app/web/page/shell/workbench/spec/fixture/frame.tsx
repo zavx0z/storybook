@@ -1,7 +1,7 @@
-import Workbench, {type StorybookAppWebPageShellWorkbench} from "@storybook-app-web-page-shell/workbench"
+import Workbench, {type Zavx0zStorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
 
 /** Одна сцена передаёт Workbench уже существующие Display и HUD того же Document. */
-export function WorkbenchFrame(props: StorybookAppWebPageShellWorkbench.Input) {
+export function WorkbenchFrame(props: Zavx0zStorybookAppWebPageShellWorkbench.Input) {
   return <space>
     <viewpoint
       x={0}

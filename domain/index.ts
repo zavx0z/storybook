@@ -7,14 +7,14 @@ Domain связывает общие правила одной сущности 
 
 @packageDocumentation
 */
-import readPackage from "@storybook-package/reader"
-import readContract from "@storybook/contracts"
-import type {StorybookDomain} from "./contract"
+import readPackage from "@zavx0z/storybook-package-reader"
+import readContract from "@zavx0z/storybook-contracts"
+import type {Zavx0zStorybookDomain} from "./contract"
 
-export type {StorybookDomain} from "./contract"
+export type {Zavx0zStorybookDomain} from "./contract"
 
 /** Читает средовые протоколы и их общие определения без запуска реализаций. */
-export default async function readDomain({path}: StorybookDomain.Input): Promise<StorybookDomain.Output> {
+export default async function readDomain({path}: Zavx0zStorybookDomain.Input): Promise<Zavx0zStorybookDomain.Output> {
   const description = await readPackage({path})
   const protocols = await readContract({path: description.root})
   const entries = protocols.entries.filter(entry => entry.exportPath === ".")

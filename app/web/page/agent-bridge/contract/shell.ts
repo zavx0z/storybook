@@ -1,5 +1,5 @@
-import type {Document, HTMLElement, Node} from "@immersive/dom"
-import type {Presentation, RootProjection} from "@immersive/browser/integration"
+import type {Document, HTMLElement, Node} from "@zavx0z/immersive-dom"
+import type {Presentation, RootProjection} from "@zavx0z/immersive-browser/integration"
 
 /** Возможности существующей оболочки, необходимые для диагностики и доставки общего ввода. */
 export type Shell = Readonly<{

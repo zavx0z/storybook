@@ -1,17 +1,17 @@
-import {type StorybookPackageSession as PackageSessionContract} from "@storybook-package/session"
-type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
+import {type Zavx0zStorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
+type Zavx0zStorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 type StorybookPackageDiagnostic = ReturnType<PackageSessionContract.Output["snapshot"]>["diagnostics"][number]
 import {afterAll, expect, test} from "bun:test"
 import {mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import prepareStorybookScenarios from "@storybook-package-build/scenarios"
+import prepareStorybookScenarios from "@zavx0z/storybook-package-build-scenarios"
 
 const roots: string[] = []
 afterAll(() => { for (const root of roots.splice(0)) rmSync(root, {recursive: true, force: true}) })
 
 /** Реальное нарушение авторства при исполнимом сценарии, без запуска bundle. */
-function fixture(fails = false): StorybookPackageBuildDescriptor {
+function fixture(fails = false): Zavx0zStorybookPackageBuildDescriptor {
   const root = mkdtempSync(join(tmpdir(), "scenario-standard-"))
   roots.push(root)
   mkdirSync(join(root, "spec"))
@@ -28,7 +28,7 @@ function fixture(fails = false): StorybookPackageBuildDescriptor {
     `  test("Результат", () => { expect(first + second, "Реальный результат исполнения").toBe(${fails ? 3 : 2}) })`,
     '})',
   ].join("\n"))
-  return {scenarioSpecs: [{nodeId: "scenario", sourcePaths: [path]}]} as unknown as StorybookPackageBuildDescriptor
+  return {scenarioSpecs: [{nodeId: "scenario", sourcePaths: [path]}]} as unknown as Zavx0zStorybookPackageBuildDescriptor
 }
 
 const example = fixture()

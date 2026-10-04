@@ -3,7 +3,7 @@
 
 @packageDocumentation
 */
-import RouteWorkspacesOwner from "@storybook-package-route/workspaces"
+import RouteWorkspacesOwner from "@zavx0z/storybook-package-route-workspaces"
 const readWorkspacePackages = RouteWorkspacesOwner
 import {createHash} from "node:crypto"
 import {lstat, readFile, realpath} from "node:fs/promises"
@@ -12,11 +12,11 @@ import type {StorybookCatalogScope, StorybookPackage} from "./contract/catalog"
 import {EXTERNAL_STORYBOOK_SCHEMA_VERSION} from "./src/protocol"
 import {prepareStorybookDirectories, completeStorybookDirectories, type PreparedStorybookDirectories} from "./src/directories"
 import {readContractDocumentationResults, type ContractDocumentationResult} from "./src/contract-documentation"
-import Identity from "@storybook-package/identity"
+import Identity from "@zavx0z/storybook-package-identity"
 const {package: validateExternalStorybookPackageId} = Identity
-import type {StorybookRepoDiscovery} from "./contract"
+import type {Zavx0zStorybookRepoDiscovery} from "./contract"
 
-export type {StorybookRepoDiscovery} from "./contract"
+export type {Zavx0zStorybookRepoDiscovery} from "./contract"
 
 /**
 Читает package.json подключённого корня и состав из workspaces его Repo.
@@ -28,10 +28,10 @@ export type {StorybookRepoDiscovery} from "./contract"
 его владельца, а ошибка общей session помечает все зависящие от неё scope.
 */
 export default async function discoverStorybookPackages(
-  inputs: StorybookRepoDiscovery.Input[0],
-  previous?: StorybookRepoDiscovery.Input[1],
-  options: NonNullable<StorybookRepoDiscovery.Input[2]> = {},
-): Promise<StorybookRepoDiscovery.Output> {
+  inputs: Zavx0zStorybookRepoDiscovery.Input[0],
+  previous?: Zavx0zStorybookRepoDiscovery.Input[1],
+  options: NonNullable<Zavx0zStorybookRepoDiscovery.Input[2]> = {},
+): Promise<Zavx0zStorybookRepoDiscovery.Output> {
   if (inputs.length === 0) throw new Error("Storybook requires at least one package directory")
   const scopes = new Map<string, StorybookCatalogScope>()
   const names = new Map<string, string>()

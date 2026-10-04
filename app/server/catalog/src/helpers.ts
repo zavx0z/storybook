@@ -1,6 +1,6 @@
-import {type StorybookRepoDiscovery as RepoDiscoveryContract} from "@storybook-repo/discovery"
-import {type StorybookPackageGraphCreate as PackageGraphCreateContract} from "@storybook-package-graph/create"
-import PackageGraphReadOwner from "@storybook-package-graph/read"
+import {type Zavx0zStorybookRepoDiscovery as RepoDiscoveryContract} from "@zavx0z/storybook-repo-discovery"
+import {type Zavx0zStorybookPackageGraphCreate as PackageGraphCreateContract} from "@zavx0z/storybook-package-graph-create"
+import PackageGraphReadOwner from "@zavx0z/storybook-package-graph-read"
 const EXTERNAL_STORYBOOK_SCHEMA_VERSION = 1
 const externalStorybookNode = PackageGraphReadOwner.node
 type StorybookCatalog = RepoDiscoveryContract.Output

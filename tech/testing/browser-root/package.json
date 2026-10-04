@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-tech-testing/browser-root",
+  "name": "@zavx0z/storybook-tech-testing-browser-root",
   "label": "Browser Fixture",
   "version": "0.0.0",
   "private": true,
@@ -9,8 +9,8 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@immersive-jsx-compiler/session": "^0.0.0",
-    "@immersive/browser": "^0.0.0",
-    "@immersive/component": "^0.0.0"
+    "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
+    "@zavx0z/immersive-browser": "^0.0.0",
+    "@zavx0z/immersive-component": "^0.0.0"
   }
 }

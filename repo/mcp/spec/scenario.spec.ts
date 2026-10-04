@@ -1,5 +1,5 @@
 import {describe, expect, test} from "bun:test"
-import readRepoMcp from "@storybook-repo/mcp"
+import readRepoMcp from "@zavx0z/storybook-repo-mcp"
 
 describe.each([
   {name: "Repo в проекте", props: {path: "example/repo"}},

@@ -4,12 +4,12 @@ UI получает snapshot и команды; persistence передаётся
 
 @packageDocumentation
 */
-import type {StorybookAppWebPageShellViewpointControls} from "./contract"
-export type {StorybookAppWebPageShellViewpointControls} from "./contract"
-import type {ViewPointElement} from "@immersive/dom/viewpoint"
+import type {Zavx0zStorybookAppWebPageShellViewpointControls} from "./contract"
+export type {Zavx0zStorybookAppWebPageShellViewpointControls} from "./contract"
+import type {ViewPointElement} from "@zavx0z/immersive-dom/viewpoint"
 
 /** Управляет единственным semantic ViewPoint; UI получает только состояние и команды. */
-export default function createViewPointControls(persistence?: StorybookAppWebPageShellViewpointControls.Input): StorybookAppWebPageShellViewpointControls.Output {
+export default function createViewPointControls(persistence?: Zavx0zStorybookAppWebPageShellViewpointControls.Input): Zavx0zStorybookAppWebPageShellViewpointControls.Output {
   let restored = false
   let camera: ViewPointElement | null = null
   let fit = () => {}

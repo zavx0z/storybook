@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import createHmrPage from "@storybook-tech-hmr/page"
+import createHmrPage from "@zavx0z/storybook-tech-hmr-page"
 
 test("замены сериализуются и dispose освобождает созданный после отмены scope", async () => {
   const entered = Promise.withResolvers<void>()

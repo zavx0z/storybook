@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import readProjectMcp from "@storybook-project/mcp"
+import readProjectMcp from "@zavx0z/storybook-project-mcp"
 
 test("Изменение состава Repo не меняет имя Project", () => {
   const repository = {path: "other", label: "Другой Repo", description: "Авторское назначение", parent: null}

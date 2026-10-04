@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-tech-build/environment",
+  "name": "@zavx0z/storybook-tech-build-environment",
   "label": "Браузерная среда сборки",
   "version": "0.0.0",
   "private": true,
@@ -9,30 +9,30 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@immersive-renderer/html": "^0.0.0",
-    "@immersive/browser": "^0.0.0",
-    "@immersive/component": "^0.0.0",
-    "@immersive/devtool": "^0.0.0",
-    "@immersive/dom": "^0.0.0",
-    "@immersive/engine": "^0.0.0",
-    "@immersive/jsx": "^0.0.0",
-    "@immersive-jsx-runtime/fragment": "^0.0.0",
-    "@immersive-jsx/event": "^0.0.0",
-    "@immersive-jsx-runtime/create": "^0.0.0",
-    "@immersive-jsx-development/create": "^0.0.0",
-    "@immersive-jsx-slot/plan": "^0.0.0",
-    "@immersive-jsx-slot/child": "^0.0.0",
-    "@immersive/space": "^0.0.0",
-    "@immersive/template": "^0.0.0",
-    "@immersive/webgpu": "^0.0.0",
-    "@storybook-tech-build/compiler": "workspace:*",
-    "@storybook-tech-build-environment/protocol": "workspace:*",
-    "@storybook-tech-build/artifacts": "workspace:*",
-    "@storybook-tech-build/worker": "workspace:*",
-    "@storybook-package-build/scheduler": "workspace:*"
+    "@zavx0z/immersive-renderer-html": "^0.0.0",
+    "@zavx0z/immersive-browser": "^0.0.0",
+    "@zavx0z/immersive-component": "^0.0.0",
+    "@zavx0z/immersive-devtool": "^0.0.0",
+    "@zavx0z/immersive-dom": "^0.0.0",
+    "@zavx0z/immersive-engine": "^0.0.0",
+    "@zavx0z/immersive-jsx": "^0.0.0",
+    "@zavx0z/immersive-jsx-runtime-fragment": "^0.0.0",
+    "@zavx0z/immersive-jsx-event": "^0.0.0",
+    "@zavx0z/immersive-jsx-runtime-create": "^0.0.0",
+    "@zavx0z/immersive-jsx-development-create": "^0.0.0",
+    "@zavx0z/immersive-jsx-slot-plan": "^0.0.0",
+    "@zavx0z/immersive-jsx-slot-child": "^0.0.0",
+    "@zavx0z/immersive-space": "^0.0.0",
+    "@zavx0z/immersive-template": "^0.0.0",
+    "@zavx0z/immersive-webgpu": "^0.0.0",
+    "@zavx0z/storybook-tech-build-compiler": "workspace:*",
+    "@zavx0z/storybook-tech-build-environment-protocol": "workspace:*",
+    "@zavx0z/storybook-tech-build-artifacts": "workspace:*",
+    "@zavx0z/storybook-tech-build-worker": "workspace:*",
+    "@zavx0z/storybook-package-build-scheduler": "workspace:*"
   },
   "devDependencies": {
-    "@immersive-jsx/runtime": "^0.0.0",
-    "@immersive-jsx/development": "^0.0.0"
+    "@zavx0z/immersive-jsx-runtime": "^0.0.0",
+    "@zavx0z/immersive-jsx-development": "^0.0.0"
   }
 }

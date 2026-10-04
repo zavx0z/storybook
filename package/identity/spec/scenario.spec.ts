@@ -1,5 +1,5 @@
 import {describe, expect, test} from "bun:test"
-import identity from "@storybook-package/identity"
+import identity from "@zavx0z/storybook-package-identity"
 
 describe.each([
   {name: "Имя без области", props: {name: "button", exportName: "default"}},

@@ -1,4 +1,4 @@
-import type {StorybookAppMcpProxy} from "../../index"
+import type {Zavx0zStorybookAppMcpProxy} from "../../index"
 
 export interface ProxyStep {
   readonly reply?: Record<string, unknown>
@@ -9,7 +9,7 @@ export interface ProxyStep {
 }
 
 /** Изолированный HTTP-стенд не меняет запись действующего Storybook и не регистрирует тесты. */
-export async function exerciseProxy(steps: readonly ProxyStep[], request: StorybookAppMcpProxy.Input = {path: "example"}) {
+export async function exerciseProxy(steps: readonly ProxyStep[], request: Zavx0zStorybookAppMcpProxy.Input = {path: "example"}) {
   const child = Bun.spawn([process.execPath, new URL("./worker.ts", import.meta.url).pathname], {
     stdin: new Blob([JSON.stringify({steps, request})]), stdout: "pipe", stderr: "pipe",
   })
@@ -18,6 +18,6 @@ export async function exerciseProxy(steps: readonly ProxyStep[], request: Storyb
   return JSON.parse(stdout) as {
     replies: Record<string, unknown>[]
     errors: {name: string, message: string}[]
-    requests: {input: StorybookAppMcpProxy.Input, path: string, authorized: boolean, server: number}[]
+    requests: {input: Zavx0zStorybookAppMcpProxy.Input, path: string, authorized: boolean, server: number}[]
   }
 }

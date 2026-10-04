@@ -2,8 +2,8 @@ import {afterEach, expect, test} from "bun:test"
 import {mkdtemp, mkdir, writeFile, rm, symlink, realpath} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import readPackage from "@storybook-package/reader"
-import readPackageJson from "@storybook-package/package-json"
+import readPackage from "@zavx0z/storybook-package-reader"
+import readPackageJson from "@zavx0z/storybook-package-package-json"
 
 const roots: string[] = []
 afterEach(async () => {

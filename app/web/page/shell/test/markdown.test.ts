@@ -1,11 +1,11 @@
-import {DisplayElement} from "@immersive/dom/display"
+import {DisplayElement} from "@zavx0z/immersive-dom/display"
 import {describe, expect, test} from "bun:test"
-import {createDocument, type HTMLButtonElement} from "@immersive/dom"
-import {createSpaceElementFactories} from "@immersive/space"
-import {createDocumentRenderer, createDocumentInteractionController, readDisplayStyle} from "@immersive-renderer/html"
-import type {CompiledTemplate} from "@immersive/template/compiled"
+import {createDocument, type HTMLButtonElement} from "@zavx0z/immersive-dom"
+import {createSpaceElementFactories} from "@zavx0z/immersive-space"
+import {createDocumentRenderer, createDocumentInteractionController, readDisplayStyle} from "@zavx0z/immersive-renderer-html"
+import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
 import {StorybookDisplay} from "../src/display-view.tsx"
-import createStorybookComponentPresentation from "@storybook-app-web-page/presentation"
+import createStorybookComponentPresentation from "@zavx0z/storybook-app-web-page-presentation"
 import {renderStorybookMarkdown} from "../src/markdown.ts"
 
 describe("safe compiled Storybook Markdown", () => {

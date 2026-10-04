@@ -1,7 +1,7 @@
 /** Реэкспорт сохраняет исходный namespace; сам по себе фасад не подтверждает архетип. */
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readContract from "@storybook/contracts"
+import readContract from "@zavx0z/storybook-contracts"
 import {createFixture} from "../test/fixture"
 
 describe.each([

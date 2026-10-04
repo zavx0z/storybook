@@ -2,9 +2,9 @@ import {afterAll, describe, expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import discover from "@storybook-repo/discovery"
-import createGraph from "@storybook-package-graph/create"
-import readGraph from "@storybook-package-graph/read"
+import discover from "@zavx0z/storybook-repo-discovery"
+import createGraph from "@zavx0z/storybook-package-graph-create"
+import readGraph from "@zavx0z/storybook-package-graph-read"
 
 describe.each([
   {name: "Обзор пакета", props: {route: "", nodeId: "package:@fixture/button"}},

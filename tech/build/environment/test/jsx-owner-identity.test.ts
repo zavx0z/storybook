@@ -2,7 +2,7 @@ import {expect, test} from "bun:test"
 import {mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync} from "node:fs"
 import {dirname, join} from "node:path"
 import {tmpdir} from "node:os"
-import Environment from "@storybook-tech-build/environment"
+import Environment from "@zavx0z/storybook-tech-build-environment"
 
 /** Exact fixture меняет JSX composition; остальные owners связаны с каноническими исходниками. */
 function fixture() {
@@ -10,7 +10,7 @@ function fixture() {
   const jsx = join(tool, "owners", "jsx")
   const roots = new Map<string, string>()
   mkdirSync(jsx, {recursive: true})
-  for (const [directory, name] of [["runtime", "@immersive-jsx/runtime"], ["development", "@immersive-jsx/development"]] as const) {
+  for (const [directory, name] of [["runtime", "@zavx0z/immersive-jsx-runtime"], ["development", "@zavx0z/immersive-jsx-development"]] as const) {
     const root = join(jsx, directory)
     mkdirSync(root)
     writeFileSync(join(root, "package.json"), JSON.stringify({name, exports: {".": "./index.ts"}}))
@@ -18,13 +18,13 @@ function fixture() {
     roots.set(name, root)
   }
   const manifest = {
-    name: "@immersive/jsx",
+    name: "@zavx0z/immersive-jsx",
     workspaces: ["runtime", "development"],
-    dependencies: {"@immersive-jsx/runtime": "workspace:*", "@immersive-jsx/development": "workspace:*"},
+    dependencies: {"@zavx0z/immersive-jsx-runtime": "workspace:*", "@zavx0z/immersive-jsx-development": "workspace:*"},
     exports: {"./jsx-runtime": "./runtime/index.ts", "./jsx-dev-runtime": "./development/index.ts"},
   }
   writeFileSync(join(jsx, "package.json"), JSON.stringify(manifest))
-  roots.set("@immersive/jsx", jsx)
+  roots.set("@zavx0z/immersive-jsx", jsx)
   for (const name of Environment.owners) {
     const link = join(tool, "node_modules", ...name.split("/"))
     mkdirSync(dirname(link), {recursive: true})
@@ -44,8 +44,8 @@ test("mandatory JSX protocol exports сохраняют identity собстве�
       "a".repeat(64),
     )
     expect({
-      runtime: paths.get("@immersive/jsx/jsx-runtime") === join(f.jsx, "runtime/index.ts"),
-      development: paths.get("@immersive/jsx/jsx-dev-runtime") === join(f.jsx, "development/index.ts"),
+      runtime: paths.get("@zavx0z/immersive-jsx/jsx-runtime") === join(f.jsx, "runtime/index.ts"),
+      development: paths.get("@zavx0z/immersive-jsx/jsx-dev-runtime") === join(f.jsx, "development/index.ts"),
     }).toEqual({runtime: true, development: true})
     expect(identity.modules).toHaveLength(entries.length)
   } finally {
@@ -85,9 +85,9 @@ test("серверный корень JSX исключён из browser identity
   try {
     const entries = Environment.createModuleEntries(realpathSync(join(import.meta.dir, "../../../..")), directory)
     const paths = new Map(entries.map(entry => [entry.specifier, entry.sourcePath]))
-    expect(paths.has("@immersive/jsx")).toBeFalse()
-    expect(paths.get("@immersive-jsx-runtime/fragment")).toBe(realpathSync(join(import.meta.dir, "../../../../node_modules/@immersive-jsx-runtime/fragment/index.ts")))
-    expect(paths.get("@immersive/jsx/jsx-runtime")).toBe(realpathSync(join(import.meta.dir, "../../../../node_modules/@immersive/jsx/runtime/index.ts")))
+    expect(paths.has("@zavx0z/immersive-jsx")).toBeFalse()
+    expect(paths.get("@zavx0z/immersive-jsx-runtime-fragment")).toBe(realpathSync(join(import.meta.dir, "../../../../node_modules/@zavx0z/immersive-jsx-runtime-fragment/index.ts")))
+    expect(paths.get("@zavx0z/immersive-jsx/jsx-runtime")).toBe(realpathSync(join(import.meta.dir, "../../../../node_modules/@zavx0z/immersive-jsx/runtime/index.ts")))
   } finally {
     rmSync(directory, {recursive: true, force: true})
   }

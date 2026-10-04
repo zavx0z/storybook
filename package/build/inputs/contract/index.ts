@@ -1,8 +1,8 @@
 
 /** Контракт физических входов и идентичности пакетной сборки. */
-import {type StorybookPackageSession as PackageSessionContract} from "@storybook-package/session"
-type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
-export declare namespace StorybookPackageBuildInputs {
+import {type Zavx0zStorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
+type Zavx0zStorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
+export declare namespace Zavx0zStorybookPackageBuildInputs {
   /**
   Канонизация списка source paths и проверка принадлежности пакета.
 
@@ -20,7 +20,7 @@ export declare namespace StorybookPackageBuildInputs {
   type Output = Readonly<{
     canonicalBuildInputs(inputs: Readonly<Record<string, unknown>>, repo: string): readonly string[]
     stablePath(path: string): string
-    validateConsumerBoundary(paths: readonly string[], descriptor: StorybookPackageBuildDescriptor, stagingDirectory: string): void
+    validateConsumerBoundary(paths: readonly string[], descriptor: Zavx0zStorybookPackageBuildDescriptor, stagingDirectory: string): void
     canonicalizeIdentities(paths: readonly string[]): readonly string[]
   }>
 }

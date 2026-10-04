@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-app-server/requests",
+  "name": "@zavx0z/storybook-app-server-requests",
   "label": "Журнал MCP-запросов",
   "version": "0.0.0",
   "private": true,

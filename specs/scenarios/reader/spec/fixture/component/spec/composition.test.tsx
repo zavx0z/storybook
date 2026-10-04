@@ -1,5 +1,5 @@
 import {afterAll, describe, expect, test} from "bun:test"
-import {createHeadless} from "@immersive/headless"
+import {createHeadless} from "@zavx0z/immersive-headless"
 import {Command, Badge as Content} from "@fixture/scenario-component"
 import {SlotPanel} from "../../slots"
 import {commandProps} from "./fixture/props"

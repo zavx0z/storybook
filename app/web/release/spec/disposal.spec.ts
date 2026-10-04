@@ -1,5 +1,5 @@
 import {expect, mock, test} from "bun:test"
-import createWeb from "@storybook-app-web/release"
+import createWeb from "@zavx0z/storybook-app-web-release"
 
 test("Завершение из уведомления о публикации исключает позднее применение", async () => {
   const publish = mock((_candidate: string) => {})

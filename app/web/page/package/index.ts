@@ -6,40 +6,40 @@
 
 @packageDocumentation
 */
-import WebProtocol from "@storybook-app-web/protocol"
-import createHmrPage from "@storybook-tech-hmr/page"
-import createHmrConnection, {type StorybookTechHmrConnection} from "@storybook-tech-hmr/connection"
+import WebProtocol from "@zavx0z/storybook-app-web-protocol"
+import createHmrPage from "@zavx0z/storybook-tech-hmr-page"
+import createHmrConnection, {type Zavx0zStorybookTechHmrConnection} from "@zavx0z/storybook-tech-hmr-connection"
 
 import {createScenarioPresentation} from "./src/scenario-presentation.ts"
 import {createScenarioRun} from "./src/scenario-run.ts"
 
-import WebNavigationOwner from "@storybook-app-web-page/navigation"
+import WebNavigationOwner from "@zavx0z/storybook-app-web-page-navigation"
 const navigatePackage = WebNavigationOwner.navigatePackage
-import ReadGraph from "@storybook-package-graph/read"
+import ReadGraph from "@zavx0z/storybook-package-graph-read"
 /** Вкладка структурного владельца с подготовленными сценариями. */
 
-import type {CustomEvent} from "@immersive/dom"
+import type {CustomEvent} from "@zavx0z/immersive-dom"
 
-import type {StorybookAppWebPageShellWorkbench} from "@storybook-app-web-page-shell/workbench"
-type WorkbenchPresentationUpdate = Parameters<StorybookAppWebPageShellWorkbench.Output["present"]>[0]
+import type {Zavx0zStorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
+type WorkbenchPresentationUpdate = Parameters<Zavx0zStorybookAppWebPageShellWorkbench.Output["present"]>[0]
 
-import createStorybookAgentBridge from "@storybook-app-web-page/agent-bridge"
-import Revision from "@storybook-package/revision"
+import createStorybookAgentBridge from "@zavx0z/storybook-app-web-page-agent-bridge"
+import Revision from "@zavx0z/storybook-package-revision"
 const deriveStorybookBreadcrumbs = WebNavigationOwner.deriveStorybookBreadcrumbs
 const STORYBOOK_ROOT_BREADCRUMB = WebNavigationOwner.STORYBOOK_ROOT_BREADCRUMB
 const deriveExternalStorybookPackageTab = WebNavigationOwner.deriveExternalStorybookPackageTab
-import type {StorybookAppWebPageNavigation} from "@storybook-app-web-page/navigation"
-type ExternalStorybookPackageTabModel = ReturnType<StorybookAppWebPageNavigation.Output["deriveExternalStorybookPackageTab"]>
-import createExternalStorybookShell from "@storybook-app-web-page/shell"
-import WebClientOwner from "@storybook-app-web-page/client"
+import type {Zavx0zStorybookAppWebPageNavigation} from "@zavx0z/storybook-app-web-page-navigation"
+type ExternalStorybookPackageTabModel = ReturnType<Zavx0zStorybookAppWebPageNavigation.Output["deriveExternalStorybookPackageTab"]>
+import createExternalStorybookShell from "@zavx0z/storybook-app-web-page-shell"
+import WebClientOwner from "@zavx0z/storybook-app-web-page-client"
 const externalStorybookClientNode = WebClientOwner.externalStorybookClientNode
 const fetchExternalStorybookClientSnapshot = WebClientOwner.fetchExternalStorybookClientSnapshot
 const readExternalStorybookNodeDocumentation = WebClientOwner.readExternalStorybookNodeDocumentation
-import type {StorybookAppWebPageShell} from "@storybook-app-web-page/shell"
-type ExternalStorybookShell = StorybookAppWebPageShell.Output
+import type {Zavx0zStorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
+type ExternalStorybookShell = Zavx0zStorybookAppWebPageShell.Output
 
-type StorybookContractNavigationReady = NonNullable<Parameters<StorybookAppWebPageShell.Output["showContract"]>[3]>
-import WebStatusOwner from "@storybook-app-web-page/status"
+type StorybookContractNavigationReady = NonNullable<Parameters<Zavx0zStorybookAppWebPageShell.Output["showContract"]>[3]>
+import WebStatusOwner from "@zavx0z/storybook-app-web-page-status"
 const packageBuildStatus = WebStatusOwner.packageBuild
 const packageEventStatus = WebStatusOwner.packageEvent
 const storybookConnectionStatus = WebStatusOwner.connection
@@ -47,13 +47,13 @@ const buildProgressStatus = WebStatusOwner.build
 const catalogProgressStatus = WebStatusOwner.catalog
 const readBuildProgress = WebStatusOwner.readBuild
 const readCatalogProgress = WebStatusOwner.readCatalog
-import type {StorybookAppWebPagePackage} from "./contract"
-type StartExternalStorybookPackageInput = StorybookAppWebPagePackage.Input
-type ExternalStorybookPackageController = StorybookAppWebPagePackage.Output
+import type {Zavx0zStorybookAppWebPagePackage} from "./contract"
+type StartExternalStorybookPackageInput = Zavx0zStorybookAppWebPagePackage.Input
+type ExternalStorybookPackageController = Zavx0zStorybookAppWebPagePackage.Output
 import type {ExternalStorybookClientSnapshot, StorybookPackageRevisionGraphSnapshot, ExternalStorybookScenarioLoader, ExternalStorybookAppliedRevision} from "./contract/types"
 import type {ExternalStorybookClientPackageSummary, StorybookAgentBridge, ScrollableStorybookElement} from "./src/types"
 import {STORYBOOK_PAGE_REALM_PROTOCOL, BUILTIN_INSPECTOR_WIDGETS, applyModel, sameWorkspaceAddress, packageRouteFromAddress, revisionClientSnapshot, exactAuthorStyleSheetSources, exactPackageSummary, validateScenarioLoaders, validateAppliedRevision, assertCompatibleAuthorStyleSheets, routeAvailable, isScrollableStorybookElement, exactBoundedText, createPackageSocket, parsePackageEvent, validateRevisionUrl, exactPackageId, safeRevision, overviewDescription, isolatePackageError, readBrowserSessionToken, readMetaContent, errorText, abortable, settleBefore, boundedCleanupTimeout, assertActive} from "./src/implementation"
-export type {StorybookAppWebPagePackage} from './contract'
+export type {Zavx0zStorybookAppWebPagePackage} from './contract'
 
 async function startExternalStorybookPackage(
   input: StartExternalStorybookPackageInput,
@@ -870,7 +870,7 @@ async function startExternalStorybookPackage(
     }
     applyModel(shell, currentModel, navigationSnapshot, snapshot)
   }
-  const onSocketOpen = (socket: StorybookTechHmrConnection.Input["socket"], reconnecting: boolean): void => {
+  const onSocketOpen = (socket: Zavx0zStorybookTechHmrConnection.Input["socket"], reconnecting: boolean): void => {
     latestBuildGeneration = 0
     socket.send(JSON.stringify({type: "subscribe", topic: `package:${packageId}`}))
     socket.send(JSON.stringify({type: "subscribe", topic: "catalog"}))

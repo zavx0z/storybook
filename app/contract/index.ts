@@ -19,7 +19,7 @@ import type {
 } from "./control"
 
 /** Контракт единого приложения Storybook. */
-export declare namespace StorybookApp {
+export declare namespace Zavx0zStorybookApp {
   /**
   Параметры лаунчера; все необязательны для стандартного запуска.
   @property [daemonEntryPath] - Точная точка входа принадлежащего daemon; используется также изолированными проверками.

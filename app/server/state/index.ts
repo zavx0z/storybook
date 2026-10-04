@@ -40,15 +40,15 @@ import {
   externalStorybookControlAuthorization,
   externalStorybookControlTokenMatches,
 } from "./src/security"
-import StorybookTechHttpClient from "@storybook-tech-http/client"
-import type {StorybookAppServerState} from "./contract"
+import Zavx0zStorybookTechHttpClient from "@zavx0z/storybook-tech-http-client"
+import type {Zavx0zStorybookAppServerState} from "./contract"
 
-export type {StorybookAppServerState} from "./contract"
+export type {Zavx0zStorybookAppServerState} from "./contract"
 
 /** Единая публичная возможность для записи, проверки и авторизации процесса. */
-const state: StorybookAppServerState.Output = Object.freeze({
+const state: Zavx0zStorybookAppServerState.Output = Object.freeze({
   client(record) {
-    return new StorybookTechHttpClient({origin: record.origin, instanceId: record.instanceId,
+    return new Zavx0zStorybookTechHttpClient({origin: record.origin, instanceId: record.instanceId,
       authorization: () => externalStorybookControlAuthorization(record.controlToken)})
   },
   EXTERNAL_STORYBOOK_SERVER_PROTOCOL,

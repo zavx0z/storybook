@@ -2,7 +2,7 @@ import {afterEach, expect, test} from "bun:test"
 import {cp, mkdtemp, realpath, rm, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join, resolve} from "node:path"
-import discover from "@storybook-repo/discovery"
+import discover from "@zavx0z/storybook-repo-discovery"
 
 const roots: string[] = []
 afterEach(async () => {

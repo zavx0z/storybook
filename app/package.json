@@ -1,5 +1,5 @@
 {
-  "name": "@storybook/app",
+  "name": "@zavx0z/storybook-app",
   "label": "Приложение",
   "version": "0.0.0",
   "private": true,
@@ -9,18 +9,18 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@storybook-app-server/state": "workspace:*",
-    "@storybook-app/mcp": "workspace:*",
-    "@storybook-tech-mcp/stdio": "workspace:*",
-    "@storybook-package/artifacts": "workspace:*",
-    "@storybook-app/server": "workspace:*",
-    "@storybook-tech/limits": "workspace:*",
-    "@storybook-tech-mcp/lazy": "workspace:*",
-    "@storybook-app/web": "workspace:*"
+    "@zavx0z/storybook-app-server-state": "workspace:*",
+    "@zavx0z/storybook-app-mcp": "workspace:*",
+    "@zavx0z/storybook-tech-mcp-stdio": "workspace:*",
+    "@zavx0z/storybook-package-artifacts": "workspace:*",
+    "@zavx0z/storybook-app-server": "workspace:*",
+    "@zavx0z/storybook-tech-limits": "workspace:*",
+    "@zavx0z/storybook-tech-mcp-lazy": "workspace:*",
+    "@zavx0z/storybook-app-web": "workspace:*"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "^2.0.0",
-    "@storybook-chat/session": "workspace:*",
-    "@storybook-package-graph/read": "workspace:*"
+    "@zavx0z/storybook-chat-session": "workspace:*",
+    "@zavx0z/storybook-package-graph-read": "workspace:*"
   }
 }

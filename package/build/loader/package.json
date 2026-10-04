@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-package-build/loader",
+  "name": "@zavx0z/storybook-package-build-loader",
   "label": "Загрузчик ревизии",
   "version": "0.0.0",
   "private": true,
@@ -9,9 +9,9 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@immersive/component": "^0.0.0",
-    "@immersive/template": "^0.0.0",
-    "@storybook-specs-scenarios/reader": "workspace:*",
-    "@storybook-package/identity": "workspace:*"
+    "@zavx0z/immersive-component": "^0.0.0",
+    "@zavx0z/immersive-template": "^0.0.0",
+    "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
+    "@zavx0z/storybook-package-identity": "workspace:*"
   }
 }

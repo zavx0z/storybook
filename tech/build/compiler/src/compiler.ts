@@ -1,8 +1,8 @@
-import type {StorybookTechBuildCompiler} from "../contract"
+import type {Zavx0zStorybookTechBuildCompiler} from "../contract"
 import type {StorybookPackageCompilerInputs} from "../contract/models"
 
 /** Внутреннее краткое имя публичных входов compiler setup. */
-type StorybookPackageCompilerInput = StorybookTechBuildCompiler.Input
+type StorybookPackageCompilerInput = Zavx0zStorybookTechBuildCompiler.Input
 /**
 Собирает граф физических владельцев для компиляции пакета и общей оболочки.
 Объявление зависимости задаёт имя и совместимость; установленная ссылка на
@@ -30,8 +30,8 @@ import {
   sameStorybookPackageOwner,
 } from "./owner-identity.ts"
 
-const JSX_IMPORT_SOURCE = "@immersive/jsx"
-const JSX_BUN_PACKAGE = "@immersive-jsx-compiler/bun"
+const JSX_IMPORT_SOURCE = "@zavx0z/immersive-jsx"
+const JSX_BUN_PACKAGE = "@zavx0z/immersive-jsx-compiler-bun"
 const LOCAL_DEPENDENCY_PREFIXES = ["link:", "workspace:", "file:", "portal:"] as const
 const PHYSICAL_PROBE_EXTENSIONS = /(?:\.[cm]?[jt]sx?|\.d\.ts)$/u
 const physicalOwnerRootsCache = new Map<string, readonly string[]>()
@@ -133,7 +133,7 @@ type JsxPluginFactory = (
 ) => unknown
 
 /**
-Создаёт свежие compiler plugins для одного candidate `StorybookPackageSession`.
+Создаёт свежие compiler plugins для одного candidate `Zavx0zStorybookPackageSession`.
 
 Compiler выбирается только по owner source paths и effective `tsconfig`.
 JSX получает adapter через owner dependency graph; declaration не может

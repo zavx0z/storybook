@@ -2,10 +2,10 @@ import {afterEach, expect, spyOn, test} from "bun:test"
 import {mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import Registry from "@storybook-app-server/catalog"
-import discover from "@storybook-repo/discovery"
-import type {StorybookAppServer} from "../contract"
-import createWeb from "@storybook-app/web"
+import Registry from "@zavx0z/storybook-app-server-catalog"
+import discover from "@zavx0z/storybook-repo-discovery"
+import type {Zavx0zStorybookAppServer} from "../contract"
+import createWeb from "@zavx0z/storybook-app-web"
 import {refreshCheckCatalog} from "../src/check-catalog"
 import {createCatalogRefresh} from "../src/catalog-refresh"
 import {createProjectFixture} from "./project.fixture"
@@ -115,9 +115,9 @@ test("закрытие ожидания во время refresh не отмен�
   const callers: string[] = []
   let waiting = false
   let browserCalls = 0
-  let running: StorybookAppServer.Output | undefined
+  let running: Zavx0zStorybookAppServer.Output | undefined
   let unsubscribe = () => {}
-  const prepare = await import("@storybook-package-build/prepare")
+  const prepare = await import("@zavx0z/storybook-package-build-prepare")
   const original = prepare.default
   const factory = spyOn(prepare, "default").mockImplementation(() => async input => {
     expect(input.signal.aborted, "Сборкой владеет session, не закрывшийся HTTP-наблюдатель").toBeFalse()

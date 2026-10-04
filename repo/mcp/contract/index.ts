@@ -1,5 +1,5 @@
 /** Контракт заглушки предметного MCP для Repo. */
-export declare namespace StorybookRepoMcp {
+export declare namespace Zavx0zStorybookRepoMcp {
   /**
   Выбранная сущность в публичной структуре проекта.
 

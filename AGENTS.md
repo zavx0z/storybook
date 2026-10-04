@@ -45,7 +45,7 @@
   `app` композирует MCP, Web и Server; `tech` предоставляет технические механизмы.
   Импорты направлять к публичному входу точного владельца без старых псевдонимов.
 - Нормализованное обнаружение принадлежит [Repo Discovery](repo/discovery/index.ts)
-  и его `StorybookRepoDiscovery.Output`. [Каталог сервера](app/server/catalog/index.ts)
+  и его `Zavx0zStorybookRepoDiscovery.Output`. [Каталог сервера](app/server/catalog/index.ts)
   и [граф пакетов](package/graph/README.md) используют тот же контракт.
 
 - Начинать с изучения без правок и соблюдать границы владельцев, подтверждённые
@@ -77,19 +77,19 @@
   а [переход](./package/notes/archetype-transition.md) отделён от текущих проверок. Не добавлять
   псевдонимы совместимости, `paths`, сгенерированные копии или обёртки ради старых импортов.
 - В сборке каждой страницы сохраняется по одной resolved identity для
-  `@immersive/browser`, `@immersive/component`, `@immersive/devtool`, `@immersive/dom`, `@immersive/engine`,
-  `@immersive-nodes/layout`, `@immersive/nodes`, `@immersive-nodes/tree`, `@immersive-nodes/parameter`,
-  `@immersive-nodes/socket`, `@immersive-nodes/node`, `@immersive-renderer/html`, `@immersive/markdown`,
-  `@immersive/space`, `@immersive/template`, `@immersive-ui/component` и `@immersive/webgpu`.
+  `@zavx0z/immersive-browser`, `@zavx0z/immersive-component`, `@zavx0z/immersive-devtool`, `@zavx0z/immersive-dom`, `@zavx0z/immersive-engine`,
+  `@zavx0z/immersive-nodes-layout`, `@zavx0z/immersive-nodes`, `@zavx0z/immersive-nodes-tree`, `@zavx0z/immersive-nodes-parameter`,
+  `@zavx0z/immersive-nodes-socket`, `@zavx0z/immersive-nodes-node`, `@zavx0z/immersive-renderer-html`, `@zavx0z/immersive-markdown`,
+  `@zavx0z/immersive-space`, `@zavx0z/immersive-template`, `@zavx0z/immersive-ui-component` и `@zavx0z/immersive-webgpu`.
   Исторические package identities, compatibility aliases и
   generic Layout preview owners не возвращаются.
 - Число пакетов Immersive не фиксировано: состав следует самостоятельным
   ответственностям и принятым решениям. Диагностика использует
-  `@immersive/devtool` из монорепозитория, без зависимости от исходного Renderer checkout.
+  `@zavx0z/immersive-devtool` из монорепозитория, без зависимости от исходного Renderer checkout.
 - Корневая страница и каждая package page владеют ровно одним
-  `@immersive/browser` Root. Browser владеет его semantic Document, native
+  `@zavx0z/immersive-browser` Root. Browser владеет его semantic Document, native
   Canvas, циклом кадров и вводом. Root содержит exact
-  `@immersive/dom/space` `SpaceElement` и `@immersive/dom/viewpoint` `ViewPointElement`;
+  `@zavx0z/immersive-dom/space` `SpaceElement` и `@zavx0z/immersive-dom/viewpoint` `ViewPointElement`;
   структурные представления не создают второй Root или owner.
 - Весь Workbench, его меню и окна монтируются в Display пространства. HUD
   содержит Tab управления ViewPoint; остальная область доступна другим компонентам. Встроенные представления используют
@@ -108,8 +108,8 @@
 - Исполнение примеров использует структурные сценарии владельца; проектный
   runtime-адаптер Storybook не создаётся. Implementation objects Renderer и Browser
   остаются private.
-- Шрифт страницы загружается через exact `@immersive/engine/default-font` и asset
-  `@immersive/engine/fonts/inter-regular.ttf`; копии шрифта и запасные owner paths
+- Шрифт страницы загружается через exact `@zavx0z/immersive-engine/default-font` и asset
+  `@zavx0z/immersive-engine/fonts/inter-regular.ttf`; копии шрифта и запасные owner paths
   запрещены.
 - Репозиторий выражает сведения о себе в коде, TSDoc, contract и spec.
   Каждое изменение публичного контракта, наблюдаемого общего поведения, правила
@@ -121,7 +121,7 @@
   инспекции, взаимодействия и снимков; они не обращаются к Storybook CLI,
   браузерным скриптам, портам или идентификаторам CDP.
 - Человек запускает приложение через `scripts` корневого `package.json`,
-  обращающиеся к публичному API `@storybook/app`. MCP использует тот же App напрямую.
+  обращающиеся к публичному API `@zavx0z/storybook-app`. MCP использует тот же App напрямую.
 
 ## Жизненный цикл собственной документации
 

@@ -1,7 +1,7 @@
 import type {StorybookCatalogScope} from "./catalog"
 
 /** Контракт обнаружения физических пакетов и их проверенной структуры. */
-export declare namespace StorybookRepoDiscovery {
+export declare namespace Zavx0zStorybookRepoDiscovery {
   /** Выбранные корни, прежний каталог и необязательные границы повторного анализа. */
   type Input = readonly [
     roots: readonly string[],

@@ -1,5 +1,5 @@
 {
-  "name": "@storybook/cluster",
+  "name": "@zavx0z/storybook-cluster",
   "label": "Кластер",
   "version": "0.0.0",
   "private": true,
@@ -9,10 +9,10 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@storybook-package/reader": "workspace:*",
-    "@storybook/contracts": "workspace:*"
+    "@zavx0z/storybook-package-reader": "workspace:*",
+    "@zavx0z/storybook-contracts": "workspace:*"
   },
   "devDependencies": {
-    "@storybook-specs-scenarios/reader": "workspace:*"
+    "@zavx0z/storybook-specs-scenarios-reader": "workspace:*"
   }
 }

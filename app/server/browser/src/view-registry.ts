@@ -1,4 +1,4 @@
-import routeUrl from "@storybook-package-route/url"
+import routeUrl from "@zavx0z/storybook-package-route-url"
 import {createHmac, randomBytes, timingSafeEqual} from "node:crypto"
 import type {
   ChromeTargetSummary,

@@ -5,8 +5,8 @@
 
 @packageDocumentation
 */
-import ReadGraph from "@storybook-package-graph/read"
-import type {StorybookAppWebPageNavigation} from "./contract"
+import ReadGraph from "@zavx0z/storybook-package-graph-read"
+import type {Zavx0zStorybookAppWebPageNavigation} from "./contract"
 import type {
   WorkbenchBreadcrumb,
   ExternalStorybookClientSnapshot,
@@ -30,9 +30,9 @@ import {
   packageBreadcrumbs,
   graphPath,
 } from "./src/implementation"
-export type {StorybookAppWebPageNavigation} from "./contract"
+export type {Zavx0zStorybookAppWebPageNavigation} from "./contract"
 
-const Owner: StorybookAppWebPageNavigation.Output = Object.freeze({
+const Owner: Zavx0zStorybookAppWebPageNavigation.Output = Object.freeze({
   /** Проецирует физических владельцев пакетов в дерево общего каталога. */
   deriveExternalStorybookLanding(graph: BrowserGraph): ExternalStorybookLandingModel {
     const items = graph.nodes
@@ -156,7 +156,7 @@ const Owner: StorybookAppWebPageNavigation.Output = Object.freeze({
   @example
   ```ts
   await Owner.navigatePackage(
-    {packageId: "@immersive/markdown", route: ""},
+    {packageId: "@zavx0z/immersive-markdown", route: ""},
     page.navigatePackage,
   )
   ```

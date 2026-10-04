@@ -1,8 +1,8 @@
 /** Result показывает исход выбранного варианта на общем Experience. */
 import {afterAll, describe, expect, test} from "bun:test"
-import {createHeadless} from "@immersive/headless"
-import createScenarioApp from "@storybook-app-web-page-package-scenario/model"
-import StorybookAppWebPagePackageScenarioResult from "@storybook-app-web-page-package-scenario/result"
+import {createHeadless} from "@zavx0z/immersive-headless"
+import createScenarioApp from "@zavx0z/storybook-app-web-page-package-scenario-model"
+import Zavx0zStorybookAppWebPagePackageScenarioResult from "@zavx0z/storybook-app-web-page-package-scenario-result"
 
 describe.each([
   {name: "Нет выполненных вызовов", props: {source: "await readItems()", title: "Пустой список"}},
@@ -15,7 +15,7 @@ describe.each([
   const headless = createHeadless({width: 320, height: 240})
   afterAll(() => { app.dispose(); headless.dispose() })
   const element = await headless.render(
-    <StorybookAppWebPagePackageScenarioResult
+    <Zavx0zStorybookAppWebPagePackageScenarioResult
       app={app}
     />,
   )

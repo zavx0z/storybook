@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-app-web-page/navigation",
+  "name": "@zavx0z/storybook-app-web-page-navigation",
   "label": "Navigation",
   "version": "0.0.0",
   "private": true,
@@ -9,14 +9,14 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@storybook-app-web/protocol": "workspace:*",
-    "@storybook-package-graph/create": "workspace:*",
-    "@storybook-package-graph/read": "workspace:*",
-    "@storybook-package/revision": "workspace:*",
-    "@storybook-package-route/address": "workspace:*",
-    "@storybook-app-web-page-shell/workbench": "workspace:*"
+    "@zavx0z/storybook-app-web-protocol": "workspace:*",
+    "@zavx0z/storybook-package-graph-create": "workspace:*",
+    "@zavx0z/storybook-package-graph-read": "workspace:*",
+    "@zavx0z/storybook-package-revision": "workspace:*",
+    "@zavx0z/storybook-package-route-address": "workspace:*",
+    "@zavx0z/storybook-app-web-page-shell-workbench": "workspace:*"
   },
   "devDependencies": {
-    "@storybook-repo/discovery": "workspace:*"
+    "@zavx0z/storybook-repo-discovery": "workspace:*"
   }
 }

@@ -1,5 +1,5 @@
 import {describe, expect, test} from "bun:test"
-import standard from "@storybook-package/standard"
+import standard from "@zavx0z/storybook-package-standard"
 
 describe.each([
   {name: "Подтверждённый кандидат", props: {current: "transition" as const, status: "passed" as const}, expected: "strict"},

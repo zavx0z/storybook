@@ -5,7 +5,7 @@ import type {WebSources} from "./sources"
 import type {WebAuthorStyleSheet} from "./theme"
 
 /** Подготовка непрозрачного результата Web с точными версиями для публикации. */
-export declare namespace StorybookAppWebBuild {
+export declare namespace Zavx0zStorybookAppWebBuild {
   /** Публичные операции подготовки, сохранения и публикации общей Web-оболочки. */
   export type Output = Readonly<{
     sources: WebSources

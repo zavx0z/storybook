@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-package/graph",
+  "name": "@zavx0z/storybook-package-graph",
   "label": "Граф пакетов",
   "version": "0.0.0",
   "private": true,
@@ -12,11 +12,11 @@
     }
   },
   "dependencies": {
-    "@storybook-package-graph/create": "workspace:*",
-    "@storybook-package-graph/read": "workspace:*"
+    "@zavx0z/storybook-package-graph-create": "workspace:*",
+    "@zavx0z/storybook-package-graph-read": "workspace:*"
   },
   "devDependencies": {
-    "@storybook-repo/discovery": "workspace:*",
-    "@storybook-specs-scenarios/reader": "workspace:*"
+    "@zavx0z/storybook-repo-discovery": "workspace:*",
+    "@zavx0z/storybook-specs-scenarios-reader": "workspace:*"
   }
 }

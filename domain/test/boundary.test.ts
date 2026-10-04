@@ -2,7 +2,7 @@ import {afterEach, expect, test} from "bun:test"
 import {cp, mkdtemp, readFile, rm, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {resolve} from "node:path"
-import readDomain from "@storybook/domain"
+import readDomain from "@zavx0z/storybook-domain"
 
 const roots: string[] = []
 afterEach(async () => {

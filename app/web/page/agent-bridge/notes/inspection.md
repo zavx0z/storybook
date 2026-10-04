@@ -28,7 +28,7 @@ getBoundingClientRect уже содержит клиентские коорди�
 Нечисловые точки отклоняются до доставки ввода. Regression agent-bridge использует
 реальный hitTestProjection и обработчик кнопки при scale 1 и 0.43 с переносом,
 проверяя exact role/name, nodeId и fallback на box.
-`createDomInspector` импортируется из `@immersive/devtool` в Immersive. Этот владелец
+`createDomInspector` импортируется из `@zavx0z/immersive-devtool` в Immersive. Этот владелец
 предоставляет снимки, стабильные идентификаторы и освобождение ссылок;
 `readFrame(node)` читает готовый кадр нужной projection единственного Root.
 Диагностические панели и команды агента не требуют исходный Renderer checkout.

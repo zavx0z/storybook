@@ -7,7 +7,7 @@
 import {afterAll, describe, expect, test} from "bun:test"
 import {rm} from "node:fs/promises"
 import {resolve} from "node:path"
-import readContainer from "@storybook/container"
+import readContainer from "@zavx0z/storybook-container"
 import {prepareContainerExample} from "./prepare"
 
 const root = await prepareContainerExample()

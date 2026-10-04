@@ -4,10 +4,10 @@
 
 @packageDocumentation
 */
-import type {StorybookAppMcpRestChildren} from "./contract"
+import type {Zavx0zStorybookAppMcpRestChildren} from "./contract"
 import {navigationLabel} from "./src/label"
 
-export type {StorybookAppMcpRestChildren} from "./contract"
+export type {Zavx0zStorybookAppMcpRestChildren} from "./contract"
 
 /**
 Возвращает текущий контекст и только его непосредственных детей в порядке каталога.
@@ -16,7 +16,7 @@ export type {StorybookAppMcpRestChildren} from "./contract"
 @param input - Авторское название, назначение и доступные адреса.
 @returns Новый ответ без изменения входных данных и без раскрытия соседних ветвей.
 */
-export default function readMcpChildren({path, label, description, entries}: StorybookAppMcpRestChildren.Input): StorybookAppMcpRestChildren.Output {
+export default function readMcpChildren({path, label, description, entries}: Zavx0zStorybookAppMcpRestChildren.Input): Zavx0zStorybookAppMcpRestChildren.Output {
   const describe = (value: string) => value.trim().length > 0 ? value : "Описание не задано владельцем."
   const currentLabel = navigationLabel(path, label, description)
   return {

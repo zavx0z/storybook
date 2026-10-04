@@ -1,7 +1,7 @@
 import {expect, test} from "bun:test"
 import {resolve} from "node:path"
-import discover from "@storybook-repo/discovery"
-import createGraph from "@storybook-package-graph/create"
+import discover from "@zavx0z/storybook-repo-discovery"
+import createGraph from "@zavx0z/storybook-package-graph-create"
 
 test("два публичных входа без index сохраняют свои документы, роли и условия", async () => {
   const root = resolve(import.meta.dir, "../../../domain/spec/fixture/domain")

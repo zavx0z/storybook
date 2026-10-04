@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-specs-scenarios/reader",
+  "name": "@zavx0z/storybook-specs-scenarios-reader",
   "label": "Читатель сценария",
   "description": "Читает исходник, выполняет Bun Test и сохраняет полный отчёт и preview сценария",
   "version": "0.0.0",
@@ -11,15 +11,15 @@
   "dependencies": {
     "fast-xml-parser": "^5.11.1",
     "typescript": "^7.0.2",
-    "@storybook-specs-scenarios-reader/validation": "workspace:*",
-    "@storybook-package/index": "workspace:*",
-    "@storybook-tech-build/compiler": "workspace:*",
-    "@storybook-tech/limits": "workspace:*"
+    "@zavx0z/storybook-specs-scenarios-reader-validation": "workspace:*",
+    "@zavx0z/storybook-package-index": "workspace:*",
+    "@zavx0z/storybook-tech-build-compiler": "workspace:*",
+    "@zavx0z/storybook-tech-limits": "workspace:*"
   },
   "devDependencies": {
-    "@immersive/jsx": "^0.0.0",
-    "@immersive/headless": "^0.0.0",
-    "@storybook-package/reader": "workspace:*",
-    "@storybook-package-build/loader": "workspace:*"
+    "@zavx0z/immersive-jsx": "^0.0.0",
+    "@zavx0z/immersive-headless": "^0.0.0",
+    "@zavx0z/storybook-package-reader": "workspace:*",
+    "@zavx0z/storybook-package-build-loader": "workspace:*"
   }
 }

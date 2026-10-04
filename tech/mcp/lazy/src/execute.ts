@@ -1,5 +1,5 @@
 import {ProtocolError, INTERNAL_ERROR, METHOD_NOT_FOUND, INVALID_PARAMS} from "@modelcontextprotocol/client"
-import runBuildWorker from "@storybook-tech-build/worker"
+import runBuildWorker from "@zavx0z/storybook-tech-build-worker"
 import {realpathSync} from "node:fs"
 import {resolve} from "node:path"
 import {fileURLToPath} from "node:url"

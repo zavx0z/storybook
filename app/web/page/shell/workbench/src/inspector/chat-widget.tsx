@@ -1,11 +1,11 @@
-import {useEffect, useMemo, useSyncExternalStore} from "@immersive/component"
-import StorybookChatView from "@storybook-chat/view"
+import {useEffect, useMemo, useSyncExternalStore} from "@zavx0z/immersive-component"
+import Zavx0zStorybookChatView from "@zavx0z/storybook-chat-view"
 import type {WorkbenchInspectorCustomWidgetProps} from "../../contract/workbench.ts"
 import {createChatBrowserClient} from "./chat-client.ts"
 
 import type {WorkbenchChatContext} from "../../contract/workbench.ts"
 
-/** Подключает историю текущего адреса к production StorybookChatView того же Inspector. */
+/** Подключает историю текущего адреса к production Zavx0zStorybookChatView того же Inspector. */
 export function ChatWidget(props: WorkbenchInspectorCustomWidgetProps) {
   const context = props.value as WorkbenchChatContext
   const client = useMemo(() => createChatBrowserClient(context), [context.address, context.label, context.fetcher])
@@ -14,7 +14,7 @@ export function ChatWidget(props: WorkbenchInspectorCustomWidgetProps) {
     client.start()
     return () => client.dispose()
   }, [client])
-  return <StorybookChatView
+  return <Zavx0zStorybookChatView
     address={view.address}
     label={view.label}
     messages={view.messages}

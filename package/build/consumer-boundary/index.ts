@@ -13,9 +13,9 @@ import {
 } from "node:fs"
 import {basename, dirname, extname, join, relative, resolve, sep} from "node:path"
 import type {Kind as StorybookConsumerBoundaryViolationKind, Violation as StorybookConsumerBoundaryViolation} from "./contract/violation"
-import type {StorybookPackageBuildConsumerBoundary} from "./contract"
+import type {Zavx0zStorybookPackageBuildConsumerBoundary} from "./contract"
 
-export type {StorybookPackageBuildConsumerBoundary} from "./contract"
+export type {Zavx0zStorybookPackageBuildConsumerBoundary} from "./contract"
 
 
 const EXCLUDED_DIRECTORIES = new Set(["node_modules", ".git", "dist"])
@@ -31,8 +31,8 @@ generated output directories. Invalid manifests and unsafe broad roots reject
 the verification instead of being treated as clean.
 */
 export default function scanStorybookConsumerBoundaries(
-  connectedRoots: StorybookPackageBuildConsumerBoundary.Input,
-): StorybookPackageBuildConsumerBoundary.Output {
+  connectedRoots: Zavx0zStorybookPackageBuildConsumerBoundary.Input,
+): Zavx0zStorybookPackageBuildConsumerBoundary.Output {
   if (!Array.isArray(connectedRoots) || connectedRoots.length === 0) {
     throw new Error("Storybook consumer boundary requires explicit connected roots")
   }

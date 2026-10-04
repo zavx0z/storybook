@@ -2,9 +2,9 @@
 
 @packageDocumentation
 */
-import type {StorybookPackageRouteUrl} from "./contract"
+import type {Zavx0zStorybookPackageRouteUrl} from "./contract"
 
-export type {StorybookPackageRouteUrl} from "./contract"
+export type {Zavx0zStorybookPackageRouteUrl} from "./contract"
 
 /**
 Проверяет параметры адреса подтверждённой страницы пакета.
@@ -126,7 +126,7 @@ function storybookCurrentRouteKey(route: string): string {
 }
 
 /** Одна browser-safe возможность адресов пакета и проверки view query. */
-const url: StorybookPackageRouteUrl.Output = Object.freeze({
+const url: Zavx0zStorybookPackageRouteUrl.Output = Object.freeze({
   storybookPackagePathSegment,
   storybookPackagePathMatches,
   storybookPackageUrlPath,

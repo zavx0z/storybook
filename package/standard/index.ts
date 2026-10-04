@@ -5,21 +5,21 @@
 
 @packageDocumentation
 */
-import type {StorybookPackageStandard as Contract} from "./contract"
+import type {Zavx0zStorybookPackageStandard as Contract} from "./contract"
 import type {
   StorybookPackageDiagnostic,
-  StorybookPackageStandard,
+  Zavx0zStorybookPackageStandard,
   StorybookPackageVerification,
 } from "./contract/types"
 
-export type {StorybookPackageStandard} from "./contract"
+export type {Zavx0zStorybookPackageStandard} from "./contract"
 
 /** Строгость закрепляется только при применении полностью подтверждённого кандидата. */
 function appliedPackageStandard(
-  current: StorybookPackageStandard,
+  current: Zavx0zStorybookPackageStandard,
   verification: StorybookPackageVerification | null,
   warnings: readonly StorybookPackageDiagnostic[],
-): StorybookPackageStandard {
+): Zavx0zStorybookPackageStandard {
   return current === "strict" || verification?.status === "passed" && warnings.length === 0
     ? "strict" : "transition"
 }

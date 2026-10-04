@@ -1,16 +1,16 @@
 import {createProjectFixture} from "./project.fixture.ts"
-import createWeb from "@storybook-app/web"
-import {type StorybookAppServerBrowser as Zavx0zStorybookBrowserLifecycleContract} from "@storybook-app-server/browser"
-import RouteUrlOwner from "@storybook-package-route/url"
+import createWeb from "@zavx0z/storybook-app-web"
+import {type Zavx0zStorybookAppServerBrowser as Zavx0zStorybookBrowserLifecycleContract} from "@zavx0z/storybook-app-server-browser"
+import RouteUrlOwner from "@zavx0z/storybook-package-route-url"
 const storybookCurrentRouteKey = RouteUrlOwner.storybookCurrentRouteKey
 type StorybookBrowserLifecycle = Zavx0zStorybookBrowserLifecycleContract.Output
-import PackageArtifactsOwner from "@storybook-package/artifacts"
+import PackageArtifactsOwner from "@zavx0z/storybook-package-artifacts"
 const collectUnpublishedStorybookArtifacts = PackageArtifactsOwner
 import {afterEach, expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm} from "node:fs/promises"
 import {join} from "node:path"
 import {tmpdir} from "node:os"
-import startExternalStorybookServer, {type StorybookAppServer} from "../index.ts"
+import startExternalStorybookServer, {type Zavx0zStorybookAppServer} from "../index.ts"
 import {seedPublishedSharedAssets} from "./shared-assets.fixture.ts"
 
 const roots: string[] = []
@@ -34,7 +34,7 @@ test("publishes only after an agent check, notifies every matching tab, and rest
   await Bun.write(join(owner, "component/spec/deps.spec.ts"), 'import {test} from "bun:test"\ntest.each([{name:"Example",file:"component/index.tsx",expected:{"component/index.tsx#Example":{uses:[],elements:["article"]}}}])("Состав $name", () => {})\n')
   await Bun.write(join(owner, "component/contract/input.ts"), "export interface Input {label?: string}\n")
   seedPublishedSharedAssets(join(root, "artifacts"))
-  let server: StorybookAppServer.Output
+  let server: Zavx0zStorybookAppServer.Output
   let opened = 0
   let failInspection = false
   const inventoryScopes: Array<string | undefined> = []

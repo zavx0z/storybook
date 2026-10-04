@@ -3,8 +3,8 @@ import {mkdtemp, mkdir, realpath, rm, symlink} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {basename, join, resolve} from "node:path"
 import {pathToFileURL} from "node:url"
-import readPackage from "@storybook-package/reader"
-import readScenario from "@storybook-specs-scenarios/reader"
+import readPackage from "@zavx0z/storybook-package-reader"
+import readScenario from "@zavx0z/storybook-specs-scenarios-reader"
 
 const roots: string[] = []
 const scenario = resolve(import.meta.dir, "../spec/scenario.spec.ts")

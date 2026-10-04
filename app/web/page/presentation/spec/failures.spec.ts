@@ -1,7 +1,7 @@
 import {describe, expect, test} from "bun:test"
-import {createDocument} from "@immersive/dom"
-import type {CompiledTemplate} from "@immersive/template/compiled"
-import createPresentation from "@storybook-app-web-page/presentation"
+import {createDocument} from "@zavx0z/immersive-dom"
+import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import createPresentation from "@zavx0z/storybook-app-web-page-presentation"
 import {PresentationExample, MultipleRoots} from "./fixture/view"
 
 describe.each([

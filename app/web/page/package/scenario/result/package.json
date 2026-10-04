@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-app-web-page-package-scenario/result",
+  "name": "@zavx0z/storybook-app-web-page-package-scenario-result",
   "label": "Результат сценария",
   "version": "0.0.0",
   "private": true,
@@ -9,12 +9,12 @@
     ".": "./index.tsx"
   },
   "dependencies": {
-    "@immersive/component": "^0.0.0",
-    "@immersive-ui/component": "^0.0.0",
-    "@storybook-app-web-page-package-scenario/model": "workspace:*",
-    "@storybook-specs/scenarios": "workspace:*"
+    "@zavx0z/immersive-component": "^0.0.0",
+    "@zavx0z/immersive-ui-component": "^0.0.0",
+    "@zavx0z/storybook-app-web-page-package-scenario-model": "workspace:*",
+    "@zavx0z/storybook-specs-scenarios": "workspace:*"
   },
   "devDependencies": {
-    "@immersive/headless": "^0.0.0"
+    "@zavx0z/immersive-headless": "^0.0.0"
   }
 }

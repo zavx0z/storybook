@@ -2,7 +2,7 @@ import {afterAll, describe, expect, test} from "bun:test"
 import {mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import resources from "@storybook-package/resources"
+import resources from "@zavx0z/storybook-package-resources"
 
 describe.each([
   {name: "Локальная ссылка", props: {markdown: "[изображение](./media/preview.png)"}, allowAsset: true},

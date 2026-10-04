@@ -1,5 +1,5 @@
-import {Pane} from "@immersive-ui/component"
-import {Typography} from "@immersive-ui/component"
+import {Pane} from "@zavx0z/immersive-ui-component"
+import {Typography} from "@zavx0z/immersive-ui-component"
 import {StorybookOverviewActionButton} from "./components/overview-action-button.tsx"
 import type {StorybookOverviewAction} from "../contract/overview-action.ts"
 

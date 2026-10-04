@@ -8,9 +8,9 @@
 */
 import readBoundedChildStream from "./src/read-bounded"
 import {signalOwnedProcess, confirmOwnedProcessGroupExit, ownedProcessGroupExists, isMissingProcessError, isProcessPermissionError} from "./src/lifecycle"
-import type {StorybookTechProcessWait} from "./contract"
+import type {Zavx0zStorybookTechProcessWait} from "./contract"
 
-export type {StorybookTechProcessWait} from "./contract"
+export type {Zavx0zStorybookTechProcessWait} from "./contract"
 
 /**
 Ожидает переданный дочерний процесс и подтверждает его завершение при успехе, отмене и таймауте.
@@ -27,8 +27,8 @@ export type {StorybookTechProcessWait} from "./contract"
 @throws Ошибка неверной привязки detached группы, чтения вывода или подтверждения завершения.
 */
 export default async function waitForOwnedChild(
-  input: StorybookTechProcessWait.Input,
-): Promise<StorybookTechProcessWait.Output> {
+  input: Zavx0zStorybookTechProcessWait.Input,
+): Promise<Zavx0zStorybookTechProcessWait.Output> {
   const hardKillDelayMs = input.hardKillDelayMs ?? 250
   const outputLimit = input.outputLimit ?? 64 * 1024
   if (input.timeoutMs !== undefined && (!Number.isFinite(input.timeoutMs) || input.timeoutMs <= 0)) {

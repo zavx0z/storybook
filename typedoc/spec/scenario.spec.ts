@@ -7,7 +7,7 @@ Native TypeScript предоставляет сигнатуры и коммен�
 */
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readTypeDoc from "@storybook/typedoc"
+import readTypeDoc from "@zavx0z/storybook-typedoc"
 
 describe.each([
   {name: "Описание кода", props: {paths: [resolve(import.meta.dir, "fixture/prepare.ts")]}},

@@ -6,12 +6,12 @@
 */
 import {buildPlatform, validatePlatformArtifacts} from "./src/build"
 import {runPlatformBuild} from "./src/builder"
-import Compiler from "@storybook-tech-build/compiler"
-import Protocol from "@storybook-tech-build-environment/protocol"
+import Compiler from "@zavx0z/storybook-tech-build-compiler"
+import Protocol from "@zavx0z/storybook-tech-build-environment-protocol"
 import {createHash} from "node:crypto"
 import {existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync} from "node:fs"
 import {extname, join, resolve, sep} from "node:path"
-import type {StorybookTechBuildEnvironment} from "./contract"
+import type {Zavx0zStorybookTechBuildEnvironment} from "./contract"
 import type {
   StorybookSharedBrowserIdentity,
   StorybookSharedBrowserModule,
@@ -24,26 +24,26 @@ import {
 
 const {conditionalExportTarget, readStorybookPackageOwner, isOwnedJsxProtocol} = Compiler
 
-export type {StorybookTechBuildEnvironment} from "./contract"
+export type {Zavx0zStorybookTechBuildEnvironment} from "./contract"
 
 /** Владельцы платформы, чьи browser-значения сохраняют одну identity в realm страницы. */
 const STORYBOOK_SHARED_BROWSER_OWNER_PACKAGES = Object.freeze([
-  "@immersive-renderer/html",
-  "@immersive/browser",
-  "@immersive/component",
-  "@immersive/devtool",
-  "@immersive/dom",
-  "@immersive/engine",
-  "@immersive/jsx",
-  "@immersive-jsx-runtime/fragment",
-  "@immersive-jsx/event",
-  "@immersive-jsx-runtime/create",
-  "@immersive-jsx-development/create",
-  "@immersive-jsx-slot/plan",
-  "@immersive-jsx-slot/child",
-  "@immersive/space",
-  "@immersive/template",
-  "@immersive/webgpu",
+  "@zavx0z/immersive-renderer-html",
+  "@zavx0z/immersive-browser",
+  "@zavx0z/immersive-component",
+  "@zavx0z/immersive-devtool",
+  "@zavx0z/immersive-dom",
+  "@zavx0z/immersive-engine",
+  "@zavx0z/immersive-jsx",
+  "@zavx0z/immersive-jsx-runtime-fragment",
+  "@zavx0z/immersive-jsx-event",
+  "@zavx0z/immersive-jsx-runtime-create",
+  "@zavx0z/immersive-jsx-development-create",
+  "@zavx0z/immersive-jsx-slot-plan",
+  "@zavx0z/immersive-jsx-slot-child",
+  "@zavx0z/immersive-space",
+  "@zavx0z/immersive-template",
+  "@zavx0z/immersive-webgpu",
 ] as const)
 
 /**
@@ -256,4 +256,4 @@ export default Object.freeze({
   identity: storybookSharedBrowserIdentity,
   exactFile: canonicalExactFile,
   directory: canonicalDirectory,
-}) satisfies StorybookTechBuildEnvironment.Output
+}) satisfies Zavx0zStorybookTechBuildEnvironment.Output

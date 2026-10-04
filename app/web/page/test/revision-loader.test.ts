@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import PagePackageOwner from "@storybook-app-web-page/package"
+import PagePackageOwner from "@zavx0z/storybook-app-web-page-package"
 const STORYBOOK_PAGE_REALM_PROTOCOL = PagePackageOwner.protocol
 import {createStorybookAppliedRevisionLoader} from "../src/revision-loader.ts"
 

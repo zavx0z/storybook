@@ -8,7 +8,7 @@ import {mkdtemp, readFile, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {applyReport} from "./report"
 import {discover} from "./discover"
-import type {StorybookSpecsScenariosReader} from "../contract"
+import type {Zavx0zStorybookSpecsScenariosReader} from "../contract"
 import type {ScenarioAssertion, ScenarioExecution, ScenarioGroup, ScenarioTest, TraceCall} from "./types"
 
 interface TraceCallMessage {
@@ -37,7 +37,7 @@ function isTraceCompleteMessage(value: unknown): value is TraceCompleteMessage {
 async function readOutput(
   stream: ReadableStream<Uint8Array>,
   source: "stdout" | "stderr",
-  onProgress: StorybookSpecsScenariosReader.Input["onProgress"],
+  onProgress: Zavx0zStorybookSpecsScenariosReader.Input["onProgress"],
 ): Promise<string> {
   const reader = stream.getReader()
   const decoder = new TextDecoder()
@@ -63,7 +63,7 @@ async function readOutput(
 @returns Вызовы с аргументами, исходами и контекстом Bun Test.
 @throws Ошибка определения среды, запуска или получения завершающего отчёта.
 */
-export async function traceScenario(input: StorybookSpecsScenariosReader.Input): Promise<ScenarioExecution> {
+export async function traceScenario(input: Zavx0zStorybookSpecsScenariosReader.Input): Promise<ScenarioExecution> {
   const path = resolve(input.path)
   const configuration = await discover(path)
   const env: NodeJS.ProcessEnv = {

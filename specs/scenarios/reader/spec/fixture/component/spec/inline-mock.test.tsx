@@ -1,6 +1,6 @@
 import {afterAll, describe, expect, mock as record, test} from "bun:test"
-import {createHeadless} from "@immersive/headless"
-import type {HTMLButtonElement} from "@immersive/dom"
+import {createHeadless} from "@zavx0z/immersive-headless"
+import type {HTMLButtonElement} from "@zavx0z/immersive-dom"
 import {Command} from "@fixture/scenario-component"
 
 describe.each([{name: "Callback в JSX", props: {label: "Продолжить", disabled: false}}])("$name", async ({props}) => {

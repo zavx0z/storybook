@@ -74,9 +74,9 @@ export async function readNamespace(symbol: NativeSymbol, context: Context): Pro
   const slots = roleTypes.get("Slots")
   let slotsLinked: boolean | null = null
   if (output && slots) {
-    const element = await context.project.checker.getPropertyOfType(output, "@immersive/jsx/element")
+    const element = await context.project.checker.getPropertyOfType(output, "@zavx0z/immersive-jsx/element")
     const elementType = element ? await context.project.checker.getTypeOfSymbol(element) : undefined
-    const marker = await context.project.checker.getPropertyOfType(output, "@immersive/jsx/slots")
+    const marker = await context.project.checker.getPropertyOfType(output, "@zavx0z/immersive-jsx/slots")
     const markerType = marker ? await context.project.checker.getTypeOfSymbol(marker) : undefined
     const actual = markerType ? await context.project.checker.getNonNullableType(markerType) : undefined
     slotsLinked = elementType?.isBooleanLiteralType() === true && elementType.value === true

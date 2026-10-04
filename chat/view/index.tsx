@@ -5,13 +5,13 @@
 
 @packageDocumentation
 */
-import {useLayoutEffect, useRef, useState} from "@immersive/component"
-import {Button, IconButton, SelectField} from "@immersive-ui/component"
-import svgIcon from "@immersive-tech-svg/encode"
-import {Markdown} from "@immersive/markdown"
-import type {StorybookChatView as Contract} from "./contract"
+import {useLayoutEffect, useRef, useState} from "@zavx0z/immersive-component"
+import {Button, IconButton, SelectField} from "@zavx0z/immersive-ui-component"
+import svgIcon from "@zavx0z/immersive-tech-svg-encode"
+import {Markdown} from "@zavx0z/immersive-markdown"
+import type {Zavx0zStorybookChatView as Contract} from "./contract"
 
-export type {StorybookChatView} from "./contract"
+export type {Zavx0zStorybookChatView} from "./contract"
 
 const sendIcon = svgIcon('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M12 20V4m-7 7 7-7 7 7" fill="none" stroke="#161616" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>')
 const menuIcon = svgIcon('<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16"><path d="m4 6 4 4 4-4" fill="none" stroke="#aaa" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>')
@@ -260,7 +260,7 @@ function ContextIndicator(props: Readonly<{usage: Contract.Input["usage"]}>) {
 }
 
 /** Управляемое поле сообщения: Enter отправляет, Shift+Enter переносит строку, IME не отправляет. */
-export default function StorybookChatView(props: Contract.Input) {
+export default function Zavx0zStorybookChatView(props: Contract.Input) {
   const end = useRef<HTMLElement | null>(null)
   const follow = useRef(true)
   const previousAddress = useRef(props.address)

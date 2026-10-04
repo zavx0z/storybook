@@ -1,8 +1,8 @@
 /** Беседа показывает историю, управляемый черновик и действия текущего исполнения. */
 import {afterAll, describe, expect, mock, test} from "bun:test"
-import {createHeadless} from "@immersive/headless"
-import {Event, InputEvent, type HTMLButtonElement, type HTMLSelectElement, type HTMLTextAreaElement} from "@immersive/dom"
-import StorybookChatView, {type StorybookChatView as Contract} from "@storybook-chat/view"
+import {createHeadless} from "@zavx0z/immersive-headless"
+import {Event, InputEvent, type HTMLButtonElement, type HTMLSelectElement, type HTMLTextAreaElement} from "@zavx0z/immersive-dom"
+import Zavx0zStorybookChatView, {type Zavx0zStorybookChatView as Contract} from "@zavx0z/storybook-chat-view"
 
 describe.each([
   {
@@ -150,7 +150,7 @@ describe.each([
   const headless = createHeadless({width: 400, height: 600})
   afterAll(() => headless.dispose())
   const element = await headless.render(
-    <StorybookChatView
+    <Zavx0zStorybookChatView
       address={props.address}
       label={props.label}
       messages={props.messages}

@@ -1,5 +1,5 @@
 import {describe, expect, test} from "bun:test"
-import ProcessResourceSampler from "@storybook-tech-process/sample"
+import ProcessResourceSampler from "@zavx0z/storybook-tech-process-sample"
 
 describe.each([
   {name: "Системный снимок по запросу"},

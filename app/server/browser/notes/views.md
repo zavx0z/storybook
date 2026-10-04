@@ -4,7 +4,7 @@
 
 ## Граница владельца
 
-Private nested implementation package `@storybook-app-server/browser`
+Private nested implementation package `@zavx0z/storybook-app-server-browser`
 единолично владеет browser target discovery, reservation, attestation,
 navigation, readiness, exact-target operations и close. Корневой
 `@zavx0z/storybook` композирует ровно один logical lifecycle owner с canonical
@@ -116,4 +116,4 @@ routes, смену origin, timeout/abort/crash, закрытую вкладку,
 пакета и переход пользователя на другой пакет. Повторный open переиспользует
 подходящую вкладку; list не меняет targets; старый package handle не управляет
 новым пакетом. Package-boundary scan сохраняет direct CDP и locks внутри
-`@storybook-app-server/browser`.
+`@zavx0z/storybook-app-server-browser`.

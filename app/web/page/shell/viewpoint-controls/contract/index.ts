@@ -1,8 +1,8 @@
-import type {ViewPointElement} from "@immersive/dom/viewpoint"
-import type {ImmersiveUiComponentSurfaceTab} from "@immersive-ui/component"
-type TabProps = ImmersiveUiComponentSurfaceTab.Input
+import type {ViewPointElement} from "@zavx0z/immersive-dom/viewpoint"
+import type {Zavx0zImmersiveUiComponentSurfaceTab} from "@zavx0z/immersive-ui-component"
+type TabProps = Zavx0zImmersiveUiComponentSurfaceTab.Input
 
-export declare namespace StorybookAppWebPageShellViewpointControls {
+export declare namespace Zavx0zStorybookAppWebPageShellViewpointControls {
   /** Переданное оболочкой сохранение положения Tab, режима жестов и камеры. */
   export interface Input {
     state: {position: NonNullable<TabProps["position"]>, frozen?: boolean}

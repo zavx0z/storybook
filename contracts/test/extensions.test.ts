@@ -1,7 +1,7 @@
 import {expect, test} from "bun:test"
 import {mkdir, symlink} from "node:fs/promises"
 import {resolve} from "node:path"
-import readContract from "@storybook/contracts"
+import readContract from "@zavx0z/storybook-contracts"
 import {createFixture} from "./fixture"
 
 /** Подготавливает общий протокол и самостоятельного участника без исполнения их кода. */

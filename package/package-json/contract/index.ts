@@ -1,4 +1,4 @@
-export declare namespace StorybookPackagePackageJson {
+export declare namespace Zavx0zStorybookPackagePackageJson {
   /**
   Входной контракт чтения package.json.
 

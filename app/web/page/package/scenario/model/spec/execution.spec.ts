@@ -1,8 +1,8 @@
 import {expect, test} from "bun:test"
-import createScenarioApp from "@storybook-app-web-page-package-scenario/model"
-import type {StorybookAppWebPagePackageScenarioModel} from "@storybook-app-web-page-package-scenario/model"
+import createScenarioApp from "@zavx0z/storybook-app-web-page-package-scenario-model"
+import type {Zavx0zStorybookAppWebPagePackageScenarioModel} from "@zavx0z/storybook-app-web-page-package-scenario-model"
 /** Форма исходного публичного владельца. */
-type ScenarioAppInput = StorybookAppWebPagePackageScenarioModel.Input
+type ScenarioAppInput = Zavx0zStorybookAppWebPagePackageScenarioModel.Input
 type Result = Awaited<ReturnType<NonNullable<Extract<ScenarioAppInput, {kind: "function"}>["run"]>>>
 
 test("Переключение отсоединяет предыдущий запрос и отклоняет поздний ответ", async () => {

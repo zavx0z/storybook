@@ -1,5 +1,5 @@
 import {afterAll, describe, expect, test} from "bun:test"
-import {createHeadless} from "@immersive/headless"
+import {createHeadless} from "@zavx0z/immersive-headless"
 import * as Components from "@fixture/scenario-component"
 
 describe.each([{name: "Namespace", props: {label: "Текст", disabled: false}}])("$name", async ({props}) => {

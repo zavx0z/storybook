@@ -1,9 +1,9 @@
-import createWeb from "@storybook-app/web"
-import PackageArtifactsOwner from "@storybook-package/artifacts"
+import createWeb from "@zavx0z/storybook-app-web"
+import PackageArtifactsOwner from "@zavx0z/storybook-package-artifacts"
 const collectUnpublishedStorybookArtifacts = PackageArtifactsOwner
-import ServerState from "@storybook-app-server/state"
+import ServerState from "@zavx0z/storybook-app-server-state"
 const {externalStorybookArtifactRoot, inspectExternalStorybookServer} = ServerState
-import startExternalStorybookServer from "@storybook-app/server"
+import startExternalStorybookServer from "@zavx0z/storybook-app-server"
 import {realpathSync} from "node:fs"
 import {fileURLToPath} from "node:url"
 import {realpath} from "node:fs/promises"

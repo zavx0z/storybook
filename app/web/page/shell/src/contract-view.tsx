@@ -1,10 +1,10 @@
 /** Вкладка контракта использует публичный TypeDoc в существующем Display. */
-import {useLayoutEffect, useState} from "@immersive/component"
-import {TypeDoc} from "@immersive/typedoc"
-import type {Document} from "@immersive/dom"
-import type {CompiledTemplate} from "@immersive/template/compiled"
+import {useLayoutEffect, useState} from "@zavx0z/immersive-component"
+import {TypeDoc} from "@zavx0z/immersive-typedoc"
+import type {Document} from "@zavx0z/immersive-dom"
+import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
 import type {StorybookContractDocument} from "../contract/documents.ts"
-import createStorybookComponentPresentation from "@storybook-app-web-page/presentation"
+import createStorybookComponentPresentation from "@zavx0z/storybook-app-web-page-presentation"
 
 import type {StorybookContractNavigationReady, StorybookContractSelection} from "../contract/contract-view"
 

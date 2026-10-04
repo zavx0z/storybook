@@ -1,12 +1,12 @@
-import WebProtocol from "@storybook-app-web/protocol"
-import type {StorybookAppWebPageNavigation} from "@storybook-app-web-page/navigation"
-type ExternalStorybookBrowserNavigationItem = ReturnType<StorybookAppWebPageNavigation.Output["deriveExternalStorybookNavigationTree"]>[number]
-import type {StorybookAppWebPageShell} from "@storybook-app-web-page/shell"
-type ExternalStorybookShell = StorybookAppWebPageShell.Output
+import WebProtocol from "@zavx0z/storybook-app-web-protocol"
+import type {Zavx0zStorybookAppWebPageNavigation} from "@zavx0z/storybook-app-web-page-navigation"
+type ExternalStorybookBrowserNavigationItem = ReturnType<Zavx0zStorybookAppWebPageNavigation.Output["deriveExternalStorybookNavigationTree"]>[number]
+import type {Zavx0zStorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
+type ExternalStorybookShell = Zavx0zStorybookAppWebPageShell.Output
 
-import type {StorybookAppWebPageHome} from '../contract'
+import type {Zavx0zStorybookAppWebPageHome} from '../contract'
 
-type StartExternalStorybookLandingOptions = StorybookAppWebPageHome.Input
+type StartExternalStorybookLandingOptions = Zavx0zStorybookAppWebPageHome.Input
 
 import type {LandingSocket} from "../contract/types"
 

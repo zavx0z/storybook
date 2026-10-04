@@ -2,7 +2,7 @@ import {afterAll, expect, test} from "bun:test"
 import {cp, mkdir, mkdtemp, realpath, rm, symlink} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {resolve, sep} from "node:path"
-import readScenario from "@storybook-specs-scenarios/reader"
+import readScenario from "@zavx0z/storybook-specs-scenarios-reader"
 import readScenarios from ".."
 
 const root = resolve(import.meta.dir, "../../..")

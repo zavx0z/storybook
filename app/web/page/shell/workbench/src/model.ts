@@ -12,7 +12,7 @@ import {
   Document,
   type HTMLDivElement,
   type HTMLElement,
-} from "@immersive/dom"
+} from "@zavx0z/immersive-dom"
 import type {
   Workbench,
   WorkbenchAddress,

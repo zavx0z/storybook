@@ -1,5 +1,5 @@
 /** Контракт чтения видимых непосредственных директорий пакета. */
-export declare namespace StorybookPackageRouteDirectories {
+export declare namespace Zavx0zStorybookPackageRouteDirectories {
   /** Корень, родитель и необязательные границы известного workspace. */
   type Input = Readonly<{
     root: string

@@ -1,17 +1,17 @@
-import createGraph from "@storybook-package-graph/create"
-import createDescriptors from "@storybook-package-build/descriptor"
+import createGraph from "@zavx0z/storybook-package-graph-create"
+import createDescriptors from "@zavx0z/storybook-package-build-descriptor"
 import {createEntries} from "./helpers"
-import type {StorybookAppServerCatalog} from "../contract"
+import type {Zavx0zStorybookAppServerCatalog} from "../contract"
 import type {ExternalStorybookAttachSource, ExternalStorybookRegistrySnapshot} from "../contract/models"
-import type {StorybookRepoDiscovery} from "@storybook-repo/discovery"
+import type {Zavx0zStorybookRepoDiscovery} from "@zavx0z/storybook-repo-discovery"
 import type {CatalogPreparation} from "./worker-protocol"
 
 /** Граф, ресурсы, сравнения и описания целиком готовятся до атомарного принятия сервером. */
 export function prepareCatalogSnapshot(
-  catalog: StorybookRepoDiscovery.Output,
+  catalog: Zavx0zStorybookRepoDiscovery.Output,
   sources: readonly ExternalStorybookAttachSource[],
   previous: ExternalStorybookRegistrySnapshot,
-  styles: ReturnType<NonNullable<StorybookAppServerCatalog.Input[1]>>,
+  styles: ReturnType<NonNullable<Zavx0zStorybookAppServerCatalog.Input[1]>>,
 ): CatalogPreparation {
   const graph = createGraph(catalog)
   const failed = new Set(catalog.scopes.filter(scope => scope.resolutionError !== undefined).map(scope => scope.id))

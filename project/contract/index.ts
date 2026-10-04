@@ -1,4 +1,4 @@
-export declare namespace StorybookProject {
+export declare namespace Zavx0zStorybookProject {
   /**
   Project читается из собственного Git superproject.
 

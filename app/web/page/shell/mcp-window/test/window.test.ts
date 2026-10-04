@@ -1,9 +1,9 @@
-import {type StorybookAppServerRequests as McpRestRequestsContract} from "@storybook-app-server/requests"
+import {type Zavx0zStorybookAppServerRequests as McpRestRequestsContract} from "@zavx0z/storybook-app-server-requests"
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
 import {afterEach, beforeEach, describe, expect, test} from "bun:test"
-import type {CompiledTemplate} from "@immersive/template/compiled"
-import type {StorybookAppWebPageShellMcpWindow} from "../contract"
-type McpWindowProps = StorybookAppWebPageShellMcpWindow.Input
+import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import type {Zavx0zStorybookAppWebPageShellMcpWindow} from "../contract"
+type McpWindowProps = Zavx0zStorybookAppWebPageShellMcpWindow.Input
 import {createWindowHost} from "../spec/fixture"
 import {command, largeResponse} from "../spec/fixture/records"
 

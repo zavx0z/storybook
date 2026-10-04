@@ -1,6 +1,6 @@
-import {Breadcrumbs, type ImmersiveUiComponentNavigationBreadcrumb} from "@immersive-ui/component"
-import {StatusBar} from "@immersive-ui/component"
-import {WindowControl} from "@immersive-ui/component"
+import {Breadcrumbs, type Zavx0zImmersiveUiComponentNavigationBreadcrumb} from "@zavx0z/immersive-ui-component"
+import {StatusBar} from "@zavx0z/immersive-ui-component"
+import {WindowControl} from "@zavx0z/immersive-ui-component"
 import type {
   WorkbenchBreadcrumb,
   WorkbenchStatus,
@@ -21,7 +21,7 @@ export function StatusRegion(props: StatusRegionProps) {
     label: props.status.owner,
     route: "",
   }])
-  const items: readonly ImmersiveUiComponentNavigationBreadcrumb.Input["items"][number][] = breadcrumbs
+  const items: readonly Zavx0zImmersiveUiComponentNavigationBreadcrumb.Input["items"][number][] = breadcrumbs
   return <div data-storybook-region="status" style={css`
     display: flex;
     flex-direction: row;

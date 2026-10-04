@@ -9,10 +9,10 @@ import {afterAll, describe, expect, mock, test} from "bun:test"
 import {resolve} from "node:path"
 import {mkdtemp, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
-import type {StorybookPackagePackageJson} from "@storybook-package/package-json"
+import type {Zavx0zStorybookPackagePackageJson} from "@zavx0z/storybook-package-package-json"
 
-const readPackageJsonMock = mock(async (props: StorybookPackagePackageJson.Input) => {
-  const {default: readPackageJson} = await import("@storybook-package/package-json")
+const readPackageJsonMock = mock(async (props: Zavx0zStorybookPackagePackageJson.Input) => {
+  const {default: readPackageJson} = await import("@zavx0z/storybook-package-package-json")
   return readPackageJson(props)
 })
 

@@ -1,10 +1,10 @@
-import type {StorybookAppWebProtocol} from "@storybook-app-web/protocol"
+import type {Zavx0zStorybookAppWebProtocol} from "@zavx0z/storybook-app-web-protocol"
 import type {Request} from "./request"
 import type {Shell} from "./shell"
 
-type ClientNode = ReturnType<StorybookAppWebProtocol.Output["clientSnapshot"]>["nodes"][number]
+type ClientNode = ReturnType<Zavx0zStorybookAppWebProtocol.Output["clientSnapshot"]>["nodes"][number]
 
-export declare namespace StorybookAppWebPageAgentBridge {
+export declare namespace Zavx0zStorybookAppWebPageAgentBridge {
   /**
 Связи bridge с уже существующей страницей и её committed scope.
 

@@ -9,12 +9,12 @@ import {
   KeyboardEvent,
   MouseEvent,
   Node,
-} from "@immersive/dom"
+} from "@zavx0z/immersive-dom"
 import type {
   Workbench,
   WorkbenchNavigationItem,
 } from "../src/types.ts"
-import {chevronDownIcon, chevronRightIcon} from "@immersive-ui-theme/icon"
+import {chevronDownIcon, chevronRightIcon} from "@zavx0z/immersive-ui-theme-icon"
 import {WORKBENCH_EVENTS} from "../src/events"
 import type {NavigationExpansion} from "../src/types.ts"
 import type * as ControllerModule from "./fixture/create-workbench"

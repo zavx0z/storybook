@@ -4,7 +4,7 @@ import {mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync} from "node:
 import {tmpdir} from "node:os"
 import {dirname, join} from "node:path"
 import {readPublishedSharedBrowserReceipt, readSharedBrowserEpoch, saveSharedBrowserCandidate, saveSharedBrowserReceipt} from "../src/receipt"
-import Environment from "@storybook-tech-build/environment"
+import Environment from "@zavx0z/storybook-tech-build-environment"
 import type {SharedBrowserAssets} from "../contract/assets"
 
 const roots: string[] = []
@@ -25,9 +25,9 @@ function fixture() {
     }
     return {root, landingEntry: paths[1]!, fallbackEntry: paths[1]!, bootstrapEntry: paths[2]!,
       artifactDigests: paths.map(path => ({path, digest: digest(`${version}:${path}`)})),
-      authorStyleSheets: [{specifier: "@immersive-ui/component/theme.css", url: paths[3]!, contentDigest: digest(`${version}:${paths[3]}`)}],
+      authorStyleSheets: [{specifier: "@zavx0z/immersive-ui-component/theme.css", url: paths[3]!, contentDigest: digest(`${version}:${paths[3]}`)}],
       browserIdentity: Environment.identity(`/__storybook/shared/${paths[1]}`,
-        [{specifier: "@immersive/component", sourcePath: source, url: `/__storybook/shared/${paths[0]}`}],
+        [{specifier: "@zavx0z/immersive-component", sourcePath: source, url: `/__storybook/shared/${paths[0]}`}],
         digest(`host:${version}`)),
     }
   }

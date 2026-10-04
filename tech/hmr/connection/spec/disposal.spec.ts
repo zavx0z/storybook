@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import createHmrConnection from "@storybook-tech-hmr/connection"
+import createHmrConnection from "@zavx0z/storybook-tech-hmr-connection"
 import {FixtureSocket} from "./fixture"
 
 test("dispose отменяет ожидание и закрывает поздний результат reconnect", async () => {

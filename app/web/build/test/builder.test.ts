@@ -1,9 +1,9 @@
-import Environment from "@storybook-tech-build/environment"
+import Environment from "@zavx0z/storybook-tech-build-environment"
 import {afterEach, expect, test} from "bun:test"
 import {mkdtempSync, mkdirSync, realpathSync, readdirSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import Scheduler from "@storybook-package-build/scheduler"
+import Scheduler from "@zavx0z/storybook-package-build-scheduler"
 import {runSharedBrowserBuild} from "../src/builder"
 
 const roots: string[] = []

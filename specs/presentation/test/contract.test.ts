@@ -1,6 +1,6 @@
 import {expect, test} from "bun:test"
 import {resolve} from "node:path"
-import discoverStorybookPackages from "@storybook-repo/discovery"
+import discoverStorybookPackages from "@zavx0z/storybook-repo-discovery"
 
 test("публичные контракты сценариев проходят структурное обнаружение Storybook", async () => {
   const root = resolve(import.meta.dir, "..")
@@ -11,5 +11,5 @@ test("публичные контракты сценариев проходят 
   if (owner?.kind !== "package") return
   expect(owner.contractDocumentation?.sources.map(source => source.sourcePath)).toContain(contract)
   expect(owner.contractDocumentation?.documents.flatMap(document => document.document.declarations.map(declaration => declaration.name)))
-    .toEqual(["StorybookSpecsPresentation.Input", "StorybookSpecsPresentation.Output"])
+    .toEqual(["Zavx0zStorybookSpecsPresentation.Input", "Zavx0zStorybookSpecsPresentation.Output"])
 })

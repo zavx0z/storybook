@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-app-web/page",
+  "name": "@zavx0z/storybook-app-web-page",
   "label": "Page",
   "version": "0.0.0",
   "private": true,
@@ -9,29 +9,29 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@storybook-app-web/protocol": "workspace:*",
-    "@storybook-tech-hmr/connection": "workspace:*",
-    "@storybook-tech-hmr/page": "workspace:*",
-    "@storybook-app-web-page/home": "workspace:*",
-    "@storybook-app-web-page/package": "workspace:*",
-    "@storybook-app-web-page/shell": "workspace:*",
-    "@storybook-app-web-page/agent-bridge": "workspace:*",
-    "@storybook-app-web-page/target": "workspace:*",
-    "@storybook-app-web-page/status": "workspace:*",
-    "@storybook-app-web-page/style-sheets": "workspace:*"
+    "@zavx0z/storybook-app-web-protocol": "workspace:*",
+    "@zavx0z/storybook-tech-hmr-connection": "workspace:*",
+    "@zavx0z/storybook-tech-hmr-page": "workspace:*",
+    "@zavx0z/storybook-app-web-page-home": "workspace:*",
+    "@zavx0z/storybook-app-web-page-package": "workspace:*",
+    "@zavx0z/storybook-app-web-page-shell": "workspace:*",
+    "@zavx0z/storybook-app-web-page-agent-bridge": "workspace:*",
+    "@zavx0z/storybook-app-web-page-target": "workspace:*",
+    "@zavx0z/storybook-app-web-page-status": "workspace:*",
+    "@zavx0z/storybook-app-web-page-style-sheets": "workspace:*"
   },
   "devDependencies": {
-    "@immersive-jsx-compiler/session": "^0.0.0",
-    "@storybook-package-graph/create": "workspace:*",
-    "@storybook-package/revision": "workspace:*",
-    "@storybook-package/session": "workspace:*",
-    "@immersive-renderer/html": "^0.0.0",
-    "@storybook-repo/discovery": "workspace:*",
-    "@storybook-tech-testing/browser-root": "workspace:*",
-    "@storybook-app-web-page/navigation": "workspace:*",
-    "@immersive/browser": "^0.0.0",
-    "@immersive/component": "^0.0.0",
-    "@immersive/dom": "^0.0.0",
-    "@immersive/space": "^0.0.0"
+    "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
+    "@zavx0z/storybook-package-graph-create": "workspace:*",
+    "@zavx0z/storybook-package-revision": "workspace:*",
+    "@zavx0z/storybook-package-session": "workspace:*",
+    "@zavx0z/immersive-renderer-html": "^0.0.0",
+    "@zavx0z/storybook-repo-discovery": "workspace:*",
+    "@zavx0z/storybook-tech-testing-browser-root": "workspace:*",
+    "@zavx0z/storybook-app-web-page-navigation": "workspace:*",
+    "@zavx0z/immersive-browser": "^0.0.0",
+    "@zavx0z/immersive-component": "^0.0.0",
+    "@zavx0z/immersive-dom": "^0.0.0",
+    "@zavx0z/immersive-space": "^0.0.0"
   }
 }

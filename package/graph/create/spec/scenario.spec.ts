@@ -2,8 +2,8 @@ import {afterAll, describe, expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import discover from "@storybook-repo/discovery"
-import createGraph from "@storybook-package-graph/create"
+import discover from "@zavx0z/storybook-repo-discovery"
+import createGraph from "@zavx0z/storybook-package-graph-create"
 
 describe.each([
   {name: "Только пакет", props: {directory: false}, ids: ["package:@fixture/button"]},

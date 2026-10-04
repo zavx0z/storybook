@@ -1,8 +1,8 @@
-import type {StorybookPackageReader} from "@storybook-package/reader"
-import type {StorybookContracts} from "@storybook/contracts"
+import type {Zavx0zStorybookPackageReader} from "@zavx0z/storybook-package-reader"
+import type {Zavx0zStorybookContracts} from "@zavx0z/storybook-contracts"
 
 /** Контракт чтения группы без ручного назначения архетипа и исполнения участников. */
-export declare namespace StorybookCluster {
+export declare namespace Zavx0zStorybookCluster {
   /** Физический корень пакета, публичный состав которого исследуется. */
   interface Input {
     readonly path: string
@@ -16,8 +16,8 @@ export declare namespace StorybookCluster {
   @property members - Владельцы опубликованных runtime-реализаций; реэкспорт не меняет их identity.
   */
   interface Output {
-    readonly package: StorybookPackageReader.Output
-    readonly protocols: StorybookContracts.Output
+    readonly package: Zavx0zStorybookPackageReader.Output
+    readonly protocols: Zavx0zStorybookContracts.Output
     readonly members: readonly {readonly name: string, readonly path: string}[]
   }
 }

@@ -1,5 +1,5 @@
-import AppWebBuildOwner from "@storybook-app-web/build"
-import BuildEnvironmentOwner from "@storybook-tech-build/environment"
+import AppWebBuildOwner from "@zavx0z/storybook-app-web-build"
+import BuildEnvironmentOwner from "@zavx0z/storybook-tech-build-environment"
 import {createHash} from "node:crypto"
 import {mkdirSync, readFileSync, realpathSync, writeFileSync} from "node:fs"
 import {dirname, join} from "node:path"

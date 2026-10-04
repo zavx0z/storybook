@@ -1,13 +1,13 @@
-import type {CompiledTemplate} from "@immersive/template/compiled"
-import {Tree} from "@immersive-ui/component"
-import type {ImmersiveUiComponentWidgetTree} from "@immersive-ui/component"
-type TreeItem = ImmersiveUiComponentWidgetTree.Input["items"][number]
-type TreeHandle = NonNullable<Parameters<NonNullable<ImmersiveUiComponentWidgetTree.Input["onReady"]>>[0]>
-import {useLayoutEffect, useRef, useState} from "@immersive/component"
-import type {StorybookAppWebPageShell} from "@storybook-app-web-page/shell"
-type StorybookContractDocument = Parameters<StorybookAppWebPageShell.Output["showContract"]>[1][number]
-import type {StorybookAppWebPageShellWorkbench} from "@storybook-app-web-page-shell/workbench"
-type WorkbenchInspectorCustomWidgetProps = Extract<ReturnType<StorybookAppWebPageShellWorkbench.Output["getSnapshot"]>["state"]["inspector.registry"][number], {kind: "custom"}>["component"] extends CompiledTemplate<infer Props> ? Props : never
+import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import {Tree} from "@zavx0z/immersive-ui-component"
+import type {Zavx0zImmersiveUiComponentWidgetTree} from "@zavx0z/immersive-ui-component"
+type TreeItem = Zavx0zImmersiveUiComponentWidgetTree.Input["items"][number]
+type TreeHandle = NonNullable<Parameters<NonNullable<Zavx0zImmersiveUiComponentWidgetTree.Input["onReady"]>>[0]>
+import {useLayoutEffect, useRef, useState} from "@zavx0z/immersive-component"
+import type {Zavx0zStorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
+type StorybookContractDocument = Parameters<Zavx0zStorybookAppWebPageShell.Output["showContract"]>[1][number]
+import type {Zavx0zStorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
+type WorkbenchInspectorCustomWidgetProps = Extract<ReturnType<Zavx0zStorybookAppWebPageShellWorkbench.Output["getSnapshot"]>["state"]["inspector.registry"][number], {kind: "custom"}>["component"] extends CompiledTemplate<infer Props> ? Props : never
 
 /** Точная декларация TypeDoc из transport контракта Storybook. */
 type ContractDeclaration = StorybookContractDocument["document"]["declarations"][number]

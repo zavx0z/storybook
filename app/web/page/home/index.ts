@@ -7,41 +7,41 @@
 
 @packageDocumentation
 */
-import WebProtocol from "@storybook-app-web/protocol"
-import createHmrConnection from "@storybook-tech-hmr/connection"
-import WebNavigationOwner from "@storybook-app-web-page/navigation"
+import WebProtocol from "@zavx0z/storybook-app-web-protocol"
+import createHmrConnection from "@zavx0z/storybook-tech-hmr-connection"
+import WebNavigationOwner from "@zavx0z/storybook-app-web-page-navigation"
 const navigatePackage = WebNavigationOwner.navigatePackage
-import ReadGraph from "@storybook-package-graph/read"
+import ReadGraph from "@zavx0z/storybook-package-graph-read"
 import {attachPickedDirectory, pickStorybookDirectory} from "./src/directory-picker.ts"
 
-import type {CustomEvent} from "@immersive/dom"
-import indexedWorkbenchAuthorStyleSheetSources from "@storybook-app-web-page/style-sheets"
-import type {StorybookAppWebPageShellWorkbenchCatalog} from "@storybook-app-web-page-shell-workbench/catalog"
-type WorkbenchCatalogAction = Parameters<StorybookAppWebPageShellWorkbenchCatalog.Input["onAction"]>[0]
-type WorkbenchCatalogManagement = NonNullable<StorybookAppWebPageShellWorkbenchCatalog.Input["management"]>
+import type {CustomEvent} from "@zavx0z/immersive-dom"
+import indexedWorkbenchAuthorStyleSheetSources from "@zavx0z/storybook-app-web-page-style-sheets"
+import type {Zavx0zStorybookAppWebPageShellWorkbenchCatalog} from "@zavx0z/storybook-app-web-page-shell-workbench-catalog"
+type WorkbenchCatalogAction = Parameters<Zavx0zStorybookAppWebPageShellWorkbenchCatalog.Input["onAction"]>[0]
+type WorkbenchCatalogManagement = NonNullable<Zavx0zStorybookAppWebPageShellWorkbenchCatalog.Input["management"]>
 const deriveExternalStorybookLanding = WebNavigationOwner.deriveExternalStorybookLanding
 const deriveExternalStorybookLandingSelection = WebNavigationOwner.deriveExternalStorybookLandingSelection
 const deriveExternalStorybookNavigationTree = WebNavigationOwner.deriveExternalStorybookNavigationTree
-import createExternalStorybookShell from "@storybook-app-web-page/shell"
-import WebClientOwner from "@storybook-app-web-page/client"
+import createExternalStorybookShell from "@zavx0z/storybook-app-web-page-shell"
+import WebClientOwner from "@zavx0z/storybook-app-web-page-client"
 const externalStorybookClientNode = WebClientOwner.externalStorybookClientNode
 const fetchExternalStorybookClientSnapshot = WebClientOwner.fetchExternalStorybookClientSnapshot
 const readExternalStorybookNodeDocumentation = WebClientOwner.readExternalStorybookNodeDocumentation
 const deriveStorybookBreadcrumbs = WebNavigationOwner.deriveStorybookBreadcrumbs
 const storybookRootBreadcrumb = WebNavigationOwner.storybookRootBreadcrumb
 const STORYBOOK_ROOT_BREADCRUMB = WebNavigationOwner.STORYBOOK_ROOT_BREADCRUMB
-import WebStatusOwner from "@storybook-app-web-page/status"
+import WebStatusOwner from "@zavx0z/storybook-app-web-page-status"
 const packageEventStatus = WebStatusOwner.packageEvent
 const storybookConnectionStatus = WebStatusOwner.connection
 const buildProgressStatus = WebStatusOwner.build
 const catalogProgressStatus = WebStatusOwner.catalog
 const readBuildProgress = WebStatusOwner.readBuild
 const readCatalogProgress = WebStatusOwner.readCatalog
-import type {StorybookAppWebPageHome} from "./contract"
-type StartExternalStorybookLandingOptions = StorybookAppWebPageHome.Input
-type ExternalStorybookLandingController = StorybookAppWebPageHome.Output
+import type {Zavx0zStorybookAppWebPageHome} from "./contract"
+type StartExternalStorybookLandingOptions = Zavx0zStorybookAppWebPageHome.Input
+type ExternalStorybookLandingController = Zavx0zStorybookAppWebPageHome.Output
 import {createLandingSocket, parseLandingEvent, navigationItems, overviewDescription, requestRegistryChange, isolateLandingError, errorText, assertActive} from './src/implementation'
-export type {StorybookAppWebPageHome} from './contract'
+export type {Zavx0zStorybookAppWebPageHome} from './contract'
 
 async function startExternalStorybookLanding(
   options: StartExternalStorybookLandingOptions = {},

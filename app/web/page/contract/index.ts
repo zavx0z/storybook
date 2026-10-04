@@ -1,16 +1,16 @@
-import type {StorybookTechHmrConnection} from "@storybook-tech-hmr/connection"
-import type {StorybookAppWebPagePackage} from "@storybook-app-web-page/package"
-type ExternalStorybookAppliedRevision = Awaited<ReturnType<NonNullable<NonNullable<StorybookAppWebPagePackage.Input["environment"]>["loadAppliedRevision"]>>>
+import type {Zavx0zStorybookTechHmrConnection} from "@zavx0z/storybook-tech-hmr-connection"
+import type {Zavx0zStorybookAppWebPagePackage} from "@zavx0z/storybook-app-web-page-package"
+type ExternalStorybookAppliedRevision = Awaited<ReturnType<NonNullable<NonNullable<Zavx0zStorybookAppWebPagePackage.Input["environment"]>["loadAppliedRevision"]>>>
 
-import type {StorybookAppWebPageShell} from "@storybook-app-web-page/shell"
-type CreateExternalStorybookShellOptions = StorybookAppWebPageShell.Input
-type ExternalStorybookShell = StorybookAppWebPageShell.Output
-type StorybookRetainedRoot = ReturnType<StorybookAppWebPageShell.Output["releaseRoot"]>
+import type {Zavx0zStorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
+type CreateExternalStorybookShellOptions = Zavx0zStorybookAppWebPageShell.Input
+type ExternalStorybookShell = Zavx0zStorybookAppWebPageShell.Output
+type StorybookRetainedRoot = ReturnType<Zavx0zStorybookAppWebPageShell.Output["releaseRoot"]>
 import type startExternalStorybookPage from "../index"
 import type {StorybookSharedHost, ExternalStorybookPreparedPageTarget, ExternalStorybookPagePrepareInput} from "./types"
 
 /** Публичный контракт @web/page. */
-export declare namespace StorybookAppWebPage {
+export declare namespace Zavx0zStorybookAppWebPage {
   /**
   Зависимости единственного page owner.
 
@@ -60,13 +60,13 @@ export declare namespace StorybookAppWebPage {
     location?: Pick<Location, "href" | "pathname">
     history?: Pick<History, "pushState" | "replaceState">
     fetcher?: typeof fetch
-    createSocket?(url: string): StorybookTechHmrConnection.Input["socket"]
+    createSocket?(url: string): Zavx0zStorybookTechHmrConnection.Input["socket"]
     shell?: Omit<CreateExternalStorybookShellOptions, "title" | "browserDocument" | "authorStyleSheetSources">
     retainedRoot?: StorybookRetainedRoot
     sharedHost?: StorybookSharedHost
     readSharedHost?(epoch: string | undefined, token: string, signal: AbortSignal, preview?: boolean): Promise<StorybookSharedHost>
     importSharedHost?(host: StorybookSharedHost): Promise<typeof startExternalStorybookPage>
-    startPackage?: (input: StorybookAppWebPagePackage.Input) => Promise<StorybookAppWebPagePackage.Output>
+    startPackage?: (input: Zavx0zStorybookAppWebPagePackage.Input) => Promise<Zavx0zStorybookAppWebPagePackage.Output>
     prepareTarget?(
       input: ExternalStorybookPagePrepareInput,
       signal: AbortSignal,

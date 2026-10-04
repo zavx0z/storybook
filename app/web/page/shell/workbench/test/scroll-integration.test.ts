@@ -1,11 +1,11 @@
 import {beforeAll, expect, test} from "bun:test"
-import {createDocument} from "@immersive/dom"
-import {createDocumentRenderer} from "@immersive-renderer/html"
+import {createDocument} from "@zavx0z/immersive-dom"
+import {createDocumentRenderer} from "@zavx0z/immersive-renderer-html"
 import {loadCompiledWorkbench} from "./fixture/compile-workbench"
 
 let api: Awaited<ReturnType<typeof loadCompiledWorkbench>>
 beforeAll(async () => { api = await loadCompiledWorkbench() }, 480_000)
-const theme = await Bun.file(new URL(import.meta.resolve("@immersive-ui/component/theme/theme.css"))).text()
+const theme = await Bun.file(new URL(import.meta.resolve("@zavx0z/immersive-ui-component/theme/theme.css"))).text()
 
 test("реальная прокрутка обновляет окно строк каталога без ручного dispatchEvent", async () => {
   const document = createDocument()

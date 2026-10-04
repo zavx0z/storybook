@@ -1,4 +1,4 @@
-import ServerState from "@storybook-app-server/state"
+import ServerState from "@zavx0z/storybook-app-server-state"
 const {EXTERNAL_STORYBOOK_SERVER_PROTOCOL, readProcessStart} = ServerState
 import {chmodSync, mkdirSync, unlinkSync, writeFileSync} from "node:fs"
 import {dirname} from "node:path"

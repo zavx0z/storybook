@@ -1,7 +1,7 @@
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import validate from "@storybook-specs-scenarios-reader/validation"
-import readScenario from "@storybook-specs-scenarios/reader"
+import validate from "@zavx0z/storybook-specs-scenarios-reader-validation"
+import readScenario from "@zavx0z/storybook-specs-scenarios-reader"
 import {readScenarioSource} from "../src/read-source"
 
 const fixture = resolve(import.meta.dir, "../spec/fixture/component/spec")

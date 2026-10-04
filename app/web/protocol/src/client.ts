@@ -1,7 +1,7 @@
-import RouteUrlOwner from "@storybook-package-route/url"
-import ReadGraph from "@storybook-package-graph/read"
-import type {StorybookPackageGraphCreate} from "@storybook-package-graph/create"
-import type {StorybookAppWebProtocol} from "../contract"
+import RouteUrlOwner from "@zavx0z/storybook-package-route-url"
+import ReadGraph from "@zavx0z/storybook-package-graph-read"
+import type {Zavx0zStorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
+import type {Zavx0zStorybookAppWebProtocol} from "../contract"
 import type {
   ExternalStorybookClientNode,
   ExternalStorybookClientDiagnostic,
@@ -10,11 +10,11 @@ import type {
 
 const storybookPackagePathSegment = RouteUrlOwner.storybookPackagePathSegment
 
-type ExternalStorybookClientSnapshot = ReturnType<StorybookAppWebProtocol.Output["clientSnapshot"]>
-type StorybookPackageSessionSnapshot = Parameters<StorybookAppWebProtocol.Output["clientSnapshot"]>[1][number]
+type ExternalStorybookClientSnapshot = ReturnType<Zavx0zStorybookAppWebProtocol.Output["clientSnapshot"]>
+type StorybookPackageSessionSnapshot = Parameters<Zavx0zStorybookAppWebProtocol.Output["clientSnapshot"]>[1][number]
 type StorybookPackageBuildState = StorybookPackageSessionSnapshot["buildState"]
 type StorybookPackageDiagnostic = StorybookPackageSessionSnapshot["diagnostics"][number]
-type ExternalStorybookGraph = StorybookPackageGraphCreate.Output
+type ExternalStorybookGraph = Zavx0zStorybookPackageGraphCreate.Output
 
 /**
 Маркер версии сериализуемого протокола между сервером и страницей Storybook.

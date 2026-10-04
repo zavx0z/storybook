@@ -1,12 +1,12 @@
 import {randomBytes} from "node:crypto"
 import {dirname, join} from "node:path"
-import createChatSessions, {type StorybookChatSession} from "@storybook-chat/session"
-import createAcp from "@storybook-tech/acp"
-import storybookRest, {type StorybookAppMcpRest} from "@storybook-app-mcp/rest"
-import type {StorybookPackageGraphRead} from "@storybook-package-graph/read"
+import createChatSessions, {type Zavx0zStorybookChatSession} from "@zavx0z/storybook-chat-session"
+import createAcp from "@zavx0z/storybook-tech-acp"
+import storybookRest, {type Zavx0zStorybookAppMcpRest} from "@zavx0z/storybook-app-mcp-rest"
+import type {Zavx0zStorybookPackageGraphRead} from "@zavx0z/storybook-package-graph-read"
 
-type Graph = StorybookPackageGraphRead.Input
-type Snapshot = Awaited<ReturnType<StorybookChatSession.Output["read"]>>
+type Graph = Zavx0zStorybookPackageGraphRead.Input
+type Snapshot = Awaited<ReturnType<Zavx0zStorybookChatSession.Output["read"]>>
 
 /** Соединяет адресные беседы с каталогом, Codex ACP и собственным MCP-входом приложения. */
 export function createChatServer(options: Readonly<{
@@ -15,7 +15,7 @@ export function createChatServer(options: Readonly<{
   toolRoot: string
   origin(): string
   graph(): Graph
-  entries(): StorybookAppMcpRest.Input[1]["entries"]
+  entries(): Zavx0zStorybookAppMcpRest.Input[1]["entries"]
   connect?: typeof createAcp
 }>) {
   const grants = new Map<string, string>()
@@ -85,8 +85,8 @@ export function createChatServer(options: Readonly<{
     }
     visit(root.id)
     const rules = graph.nodes.filter(node => node.kind === "package" && [
-      "@storybook-package/reader", "@storybook/domain", "@storybook/cluster", "@storybook/component",
-      "@storybook/container", "@storybook/contracts", "@storybook/typedoc",
+      "@zavx0z/storybook-package-reader", "@zavx0z/storybook-domain", "@zavx0z/storybook-cluster", "@zavx0z/storybook-component",
+      "@zavx0z/storybook-container", "@zavx0z/storybook-contracts", "@zavx0z/storybook-typedoc",
     ].includes(node.packageId ?? ""))
     for (const rule of rules) visit(rule.id)
     const allowed = entries.filter(entry => permitted.has(entry.path))

@@ -1,11 +1,11 @@
 import {describe, expect, test} from "bun:test"
 import {readFileSync, readdirSync} from "node:fs"
 import {join} from "node:path"
-import runBuildWorker from "@storybook-tech-build/worker"
-import type {StorybookTechBuildWorker} from "@storybook-tech-build/worker"
+import runBuildWorker from "@zavx0z/storybook-tech-build-worker"
+import type {Zavx0zStorybookTechBuildWorker} from "@zavx0z/storybook-tech-build-worker"
 import {fixtureProcessExists, prepareWorkerFixture} from "../fixtures/prepare"
 
-type LifecycleEvent = Parameters<NonNullable<StorybookTechBuildWorker.Input<unknown, unknown>["onLifecycle"]>>[0]
+type LifecycleEvent = Parameters<NonNullable<Zavx0zStorybookTechBuildWorker.Input<unknown, unknown>["onLifecycle"]>>[0]
 
 describe("Отмена точной группы", () => {
   test.each(["abort", "timeout"] as const)("%s завершается после cleanup exact child и descendant; neighbor жив", async kind => {

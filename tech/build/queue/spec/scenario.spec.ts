@@ -1,12 +1,12 @@
 /** Очередь ограничивает исполнение и сохраняет результаты каждой завершённой работы. */
 import {afterAll, describe, expect, test} from "bun:test"
-import StorybookTechBuildQueue from "@storybook-tech-build/queue"
+import Zavx0zStorybookTechBuildQueue from "@zavx0z/storybook-tech-build-queue"
 
 describe.each([
   {name: "Последовательное исполнение", props: {limit: 1}},
   {name: "Два одновременных исполнителя", props: {limit: 2}},
 ])("$name", async ({props}) => {
-  const queue = new StorybookTechBuildQueue<{label: string}>(props)
+  const queue = new Zavx0zStorybookTechBuildQueue<{label: string}>(props)
   afterAll(() => queue.dispose())
   type Transition = Parameters<Parameters<typeof queue.subscribe>[0]>[0]
   const transitions: Transition[] = []

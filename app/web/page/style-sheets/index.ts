@@ -5,9 +5,9 @@ CSS-текст и не восстанавливает список через о
 
 @packageDocumentation
 */
-import type {StorybookAppWebPageStyleSheets} from "./contract"
+import type {Zavx0zStorybookAppWebPageStyleSheets} from "./contract"
 import {exactIndexedLinkText} from "./src/indexed-link"
-export type {StorybookAppWebPageStyleSheets} from "./contract"
+export type {Zavx0zStorybookAppWebPageStyleSheets} from "./contract"
 
 /**
 Проверяет ограниченный непрерывный индекс серверных stylesheet links.
@@ -21,8 +21,8 @@ export type {StorybookAppWebPageStyleSheets} from "./contract"
 принадлежности link либо неуспешной загрузке после готовности Document.
 */
 export default function indexedWorkbenchAuthorStyleSheetSources(
-  document: StorybookAppWebPageStyleSheets.Input,
-): StorybookAppWebPageStyleSheets.Output {
+  document: Zavx0zStorybookAppWebPageStyleSheets.Input,
+): Zavx0zStorybookAppWebPageStyleSheets.Output {
   if (typeof document.querySelectorAll !== "function" || typeof document.getElementById !== "function") {
     return Object.freeze([])
   }

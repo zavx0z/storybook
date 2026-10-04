@@ -1,6 +1,6 @@
-import type {StorybookSpecsScenariosReader} from "@storybook-specs-scenarios/reader"
+import type {Zavx0zStorybookSpecsScenariosReader} from "@zavx0z/storybook-specs-scenarios-reader"
 
-type Preview = NonNullable<StorybookSpecsScenariosReader.Output["preview"]>
+type Preview = NonNullable<Zavx0zStorybookSpecsScenariosReader.Output["preview"]>
 
 export type GeneratedScenario = Preview & Readonly<{nodeId: string}>
 export type LoaderInput = Readonly<{revisionUrl: string; scenarios?: readonly GeneratedScenario[]}>

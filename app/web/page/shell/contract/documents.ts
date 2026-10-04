@@ -1,6 +1,6 @@
-import type {StorybookPackageGraphCreate} from "@storybook-package-graph/create"
+import type {Zavx0zStorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
 
-type GraphNode = StorybookPackageGraphCreate.Output["nodes"][number]
+type GraphNode = Zavx0zStorybookPackageGraphCreate.Output["nodes"][number]
 
 /** Зависимости из проверенного узла того же графа, который получает Web. */
 export type StorybookDependencyCase = NonNullable<GraphNode["dependencySpec"]>["cases"][number]

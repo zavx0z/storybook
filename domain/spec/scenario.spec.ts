@@ -6,7 +6,7 @@
 */
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readDomain from "@storybook/domain"
+import readDomain from "@zavx0z/storybook-domain"
 
 describe.each([{name: "Средовые входы счётчика", props: {path: resolve(import.meta.dir, "fixture/domain")}}])("$name", async ({props}) => {
   const result = await readDomain(props)

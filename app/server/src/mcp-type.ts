@@ -1,9 +1,9 @@
 import {join} from "node:path"
-import conformance from "@storybook-package-build/conformance"
-import type {StorybookAppMcpRest} from "@storybook-app-mcp/rest"
-import type {StorybookAppServerSessions} from "@storybook-app-server/sessions"
+import conformance from "@zavx0z/storybook-package-build-conformance"
+import type {Zavx0zStorybookAppMcpRest} from "@zavx0z/storybook-app-mcp-rest"
+import type {Zavx0zStorybookAppServerSessions} from "@zavx0z/storybook-app-server-sessions"
 
-type ReadType = NonNullable<StorybookAppMcpRest.Input[1]["entries"][number]["readType"]>
+type ReadType = NonNullable<Zavx0zStorybookAppMcpRest.Input[1]["entries"][number]["readType"]>
 
 /**
 Читает тип из отчёта рабочей ревизии, которую сохраняет Storybook.
@@ -13,7 +13,7 @@ type ReadType = NonNullable<StorybookAppMcpRest.Input[1]["entries"][number]["rea
 */
 export async function readMcpEntityType(
   packageId: string,
-  sessions: Pick<StorybookAppServerSessions.Output, "session">,
+  sessions: Pick<Zavx0zStorybookAppServerSessions.Output, "session">,
 ): ReturnType<ReadType> {
   const session = sessions.session(packageId)
   const state = session.snapshot()

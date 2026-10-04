@@ -6,4 +6,4 @@
 
 @packageDocumentation
 */
-export type {StorybookPackageName} from "./contract"
+export type {Zavx0zStorybookPackageName} from "./contract"

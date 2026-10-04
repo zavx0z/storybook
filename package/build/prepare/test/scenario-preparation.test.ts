@@ -1,13 +1,13 @@
-import {type StorybookPackageSession as PackageSessionContract} from "@storybook-package/session"
-type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
+import {type Zavx0zStorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
+type Zavx0zStorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 type StorybookPackageDiagnostic = ReturnType<PackageSessionContract.Output["snapshot"]>["diagnostics"][number]
 import {expect, test} from "bun:test"
 import {mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {resolve} from "node:path"
-import readScenario from "@storybook-specs-scenarios/reader"
-import readSpec from "@storybook-specs/reader"
-import prepareStorybookScenarios from "@storybook-package-build/scenarios"
+import readScenario from "@zavx0z/storybook-specs-scenarios-reader"
+import readSpec from "@zavx0z/storybook-specs-reader"
+import prepareStorybookScenarios from "@zavx0z/storybook-package-build-scenarios"
 
 test("готовит один preview только для однозначного поддержанного scenario source", async () => {
   const supported = resolve(
@@ -18,9 +18,9 @@ test("готовит один preview только для однозначног
   const descriptor = {
     scenarioSpecs: [
       {nodeId: "directory:package:@fixture/scenarios/component", sourcePaths: [supported]},
-      {nodeId: "package:@storybook-package/reader", sourcePaths: [functionSource]},
+      {nodeId: "package:@zavx0z/storybook-package-reader", sourcePaths: [functionSource]},
     ],
-  } as unknown as StorybookPackageBuildDescriptor
+  } as unknown as Zavx0zStorybookPackageBuildDescriptor
 
   const phases: string[] = []
   const result = await prepareStorybookScenarios(descriptor, new AbortController().signal, undefined, undefined,
@@ -29,7 +29,7 @@ test("готовит один preview только для однозначног
 
   expect(result.map(item => [item.kind, item.nodeId])).toEqual([
     ["component", "directory:package:@fixture/scenarios/component"],
-    ["function", "package:@storybook-package/reader"],
+    ["function", "package:@zavx0z/storybook-package-reader"],
   ])
   expect(result[0]).toMatchObject({module: {
     path: realpathSync(supported),
@@ -49,7 +49,7 @@ test("ошибка неподдержанного scenario остаётся от
   try {
     const descriptor = {
       scenarioSpecs: [{nodeId: "directory:package:@fixture/unsupported/module", sourcePaths: [path]}],
-    } as unknown as StorybookPackageBuildDescriptor
+    } as unknown as Zavx0zStorybookPackageBuildDescriptor
 
     await expect(prepareStorybookScenarios(descriptor, new AbortController().signal,
       undefined, {standard: "transition", warnings: []})).rejects.toThrow("Этот source нельзя исполнять")
@@ -75,7 +75,7 @@ test("неоднозначность предупреждает переходн
     '})',
   ].join("\n"))
   writeFileSync(unsupported, 'throw new Error("Не выбирать второй сценарий")\n')
-  const descriptor = {scenarioSpecs: [{nodeId: "ambiguous", sourcePaths: [supported, unsupported]}]} as unknown as StorybookPackageBuildDescriptor
+  const descriptor = {scenarioSpecs: [{nodeId: "ambiguous", sourcePaths: [supported, unsupported]}]} as unknown as Zavx0zStorybookPackageBuildDescriptor
   const warnings: StorybookPackageDiagnostic[] = []
   try {
     expect(await readScenario.supportsPreview({path: supported})).toBeTrue()
@@ -92,6 +92,6 @@ test("неоднозначность предупреждает переходн
 
 test("сборка отклоняет раздельные Component и props вместо незаметного пропуска сценария", async () => {
   const path = resolve(import.meta.dir, "../../../../specs/scenarios/reader/spec/fixture/component/spec/separate-props.test.tsx")
-  const descriptor = {scenarioSpecs: [{nodeId: "invalid", sourcePaths: [path]}]} as unknown as StorybookPackageBuildDescriptor
+  const descriptor = {scenarioSpecs: [{nodeId: "invalid", sourcePaths: [path]}]} as unknown as Zavx0zStorybookPackageBuildDescriptor
   await expect(prepareStorybookScenarios(descriptor, new AbortController().signal)).rejects.toThrow("render принимает ровно один аргумент")
 }, 30_000)

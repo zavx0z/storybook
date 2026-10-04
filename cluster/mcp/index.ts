@@ -5,9 +5,9 @@
 
 @packageDocumentation
 */
-import type {StorybookClusterMcp} from "./contract"
+import type {Zavx0zStorybookClusterMcp} from "./contract"
 
-export type {StorybookClusterMcp} from "./contract"
+export type {Zavx0zStorybookClusterMcp} from "./contract"
 
 /**
 Возвращает явную заглушку для выбранного Cluster.
@@ -15,7 +15,7 @@ export type {StorybookClusterMcp} from "./contract"
 @param input - Канонический MCP-адрес, уже разрешённый вызывающим владельцем.
 @returns Адрес и состояние незавершённой реализации Cluster MCP.
 */
-export default function readClusterMcp(input: StorybookClusterMcp.Input): StorybookClusterMcp.Output {
+export default function readClusterMcp(input: Zavx0zStorybookClusterMcp.Input): Zavx0zStorybookClusterMcp.Output {
   return {
     path: input.path,
     status: "not-implemented",

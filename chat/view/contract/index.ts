@@ -1,9 +1,9 @@
-import type {StorybookChatSession} from "@storybook-chat/session"
+import type {Zavx0zStorybookChatSession} from "@zavx0z/storybook-chat-session"
 
-type Snapshot = Awaited<ReturnType<StorybookChatSession.Output["read"]>>
+type Snapshot = Awaited<ReturnType<Zavx0zStorybookChatSession.Output["read"]>>
 
 /** Представление беседы с управляемыми принимающим владельцем данными. */
-export declare namespace StorybookChatView {
+export declare namespace Zavx0zStorybookChatView {
   /**
   Снимок одной беседы и действия над ней.
 

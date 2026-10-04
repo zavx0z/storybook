@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-package/identity",
+  "name": "@zavx0z/storybook-package-identity",
   "label": "Идентичность пакета",
   "description": "Проверяет имена пакетов и публичных экспортов",
   "version": "0.0.0",
@@ -9,6 +9,6 @@
     ".": "./index.ts"
   },
   "devDependencies": {
-    "@immersive/dom": "^0.0.0"
+    "@zavx0z/immersive-dom": "^0.0.0"
   }
 }

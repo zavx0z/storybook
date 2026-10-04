@@ -16,14 +16,14 @@ Runtime Storybook и MCP сохраняют отдельный жизненны�
 
 @packageDocumentation
 */
-import readPackage from "@storybook-package/reader"
+import readPackage from "@zavx0z/storybook-package-reader"
 import {realpath} from "node:fs/promises"
 import {resolve} from "node:path"
 import {readNamespaces} from "./src/read"
 import {contractFiles} from "./src/placement"
-import type {StorybookContracts} from "./contract"
+import type {Zavx0zStorybookContracts} from "./contract"
 
-export type {StorybookContracts} from "./contract"
+export type {Zavx0zStorybookContracts} from "./contract"
 
 /**
 Читает публичные namespace пакета и происхождение входящих в них типов.
@@ -32,7 +32,7 @@ export type {StorybookContracts} from "./contract"
 @returns Один согласованный снимок объявлений, типовых ролей и структурных нарушений.
 @throws Ошибки файловой системы, разрешения TypeScript или изменения исходников во время чтения.
 */
-export default async function readContract(input: StorybookContracts.Input): Promise<StorybookContracts.Output> {
+export default async function readContract(input: Zavx0zStorybookContracts.Input): Promise<Zavx0zStorybookContracts.Output> {
   const path = await realpath(resolve(input.path))
   const definitions = await contractFiles(path)
   const description = await readPackage({path})

@@ -1,6 +1,6 @@
-import type {StorybookRepoDiscovery} from "@storybook-repo/discovery"
+import type {Zavx0zStorybookRepoDiscovery} from "@zavx0z/storybook-repo-discovery"
 
-type Scope = StorybookRepoDiscovery.Output["scopes"][number]
+type Scope = Zavx0zStorybookRepoDiscovery.Output["scopes"][number]
 type PackageScope = Extract<Scope, {kind: "package"}>
 
 /** Вид физического источника навигации; не назначает архетип пакета. */

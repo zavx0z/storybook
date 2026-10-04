@@ -5,9 +5,9 @@
 
 @packageDocumentation
 */
-import type {StorybookRepoMcp} from "./contract"
+import type {Zavx0zStorybookRepoMcp} from "./contract"
 
-export type {StorybookRepoMcp} from "./contract"
+export type {Zavx0zStorybookRepoMcp} from "./contract"
 
 /**
 Возвращает явную заглушку для выбранного Repo.
@@ -15,7 +15,7 @@ export type {StorybookRepoMcp} from "./contract"
 @param input - Канонический MCP-адрес, уже разрешённый вызывающим владельцем.
 @returns Адрес и состояние незавершённой реализации Repo MCP.
 */
-export default function readRepoMcp(input: StorybookRepoMcp.Input): StorybookRepoMcp.Output {
+export default function readRepoMcp(input: Zavx0zStorybookRepoMcp.Input): Zavx0zStorybookRepoMcp.Output {
   return {
     path: input.path,
     status: "not-implemented",

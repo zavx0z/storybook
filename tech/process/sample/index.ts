@@ -7,10 +7,10 @@
 */
 import {spawnSync} from "node:child_process"
 import parseProcessResourceRows from "./src/parse-rows"
-import type {StorybookTechProcessSample} from "./contract"
+import type {Zavx0zStorybookTechProcessSample} from "./contract"
 import type {ResourceSampler} from "./src/sampler"
 
-export type {StorybookTechProcessSample} from "./contract"
+export type {Zavx0zStorybookTechProcessSample} from "./contract"
 
 /**
 Читает один системный снимок с ограничением времени и объёма вывода.
@@ -20,7 +20,7 @@ export type {StorybookTechProcessSample} from "./contract"
 */
 export default class ProcessResourceSampler implements ResourceSampler {
   /** Читает CPU, RSS и время старта из ограниченного вызова системного `ps`. */
-  sample(): StorybookTechProcessSample.Output {
+  sample(): Zavx0zStorybookTechProcessSample.Output {
     const result = spawnSync("/bin/ps", ["-axo", "pid=,ppid=,%cpu=,rss=,lstart="], {
       encoding: "utf8",
       env: {...process.env, LC_ALL: "C"},

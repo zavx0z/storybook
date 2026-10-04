@@ -12,8 +12,8 @@ describe("external @zavx0z/storybook tool boundary", () => {
     expect(manifest.bin).toBeUndefined()
     expect(manifest.peerDependencies).toBeUndefined()
     expect(manifest.peerDependenciesMeta).toBeUndefined()
-    expect(manifest.dependencies["@storybook/app"]).toBe("workspace:*")
-    expect(manifest.scripts.storybook).toContain('import createApp from "@storybook/app"')
+    expect(manifest.dependencies["@zavx0z/storybook-app"]).toBe("workspace:*")
+    expect(manifest.scripts.storybook).toContain('import createApp from "@zavx0z/storybook-app"')
     expect(manifest.scripts.storybook).toContain("createApp().ensure(")
     expect(manifest.scripts.serve).toBe("bun run storybook")
   })
@@ -21,7 +21,7 @@ describe("external @zavx0z/storybook tool boundary", () => {
   test("runs multi-package isolation in its own explicit process", async () => {
     const manifest = await Bun.file(join(root, "package.json")).json() as Record<string, any>
     const script = manifest.scripts.test as string
-    expect(script).toContain("bun test --no-orphans --isolate --preload @immersive/headless/preload ./app ./tech ./chat ./project ./repo ./package ./specs ./domain ./cluster ./component ./container ./contracts ./typedoc ./tests --max-concurrency=1")
+    expect(script).toContain("bun test --no-orphans --isolate --preload @zavx0z/immersive-headless/preload ./app ./tech ./chat ./project ./repo ./package ./specs ./domain ./cluster ./component ./container ./contracts ./typedoc ./tests --max-concurrency=1")
     const ignored = script.match(/--path-ignore-patterns '([^']+)'/u)?.[1]
     expect(ignored, "Основной процесс явно исключает изолированную проверку и фикстуры").toBeDefined()
     const paths = new Bun.Glob(ignored!)
@@ -36,7 +36,7 @@ describe("external @zavx0z/storybook tool boundary", () => {
   test("предметный прогон выбирает точные каталоги и изолирует состояние файлов", async () => {
     const manifest = await Bun.file(join(root, "package.json")).json() as Record<string, any>
     expect(manifest.scripts["subjects:check"]).toBe(
-      "bun test --no-orphans --isolate --preload @immersive/headless/preload ./chat ./project ./repo ./package ./specs ./domain ./cluster ./component ./container ./contracts ./typedoc --path-ignore-patterns '**/{fixture,fixtures}/**' --max-concurrency=1",
+      "bun test --no-orphans --isolate --preload @zavx0z/immersive-headless/preload ./chat ./project ./repo ./package ./specs ./domain ./cluster ./component ./container ./contracts ./typedoc --path-ignore-patterns '**/{fixture,fixtures}/**' --max-concurrency=1",
     )
   })
 
@@ -72,7 +72,7 @@ describe("external @zavx0z/storybook tool boundary", () => {
       "app/web/src/browser-entry.ts",
     ].map((path) => Bun.file(join(root, path)).text()))
     const combined = sources.join("\n")
-    expect(combined).toContain('from "@immersive/browser/integration"')
+    expect(combined).toContain('from "@zavx0z/immersive-browser/integration"')
     expect(combined).toContain("createBrowserRoot")
     expect(combined).toContain("application.render(")
     expect(combined).toContain("root.document")
@@ -97,7 +97,7 @@ describe("external @zavx0z/storybook tool boundary", () => {
     expect(combined).not.toContain("STORYBOOK_DOM")
     expect(combined, "Внутреннее состояние рабочей области не является соседним публичным пакетом")
       .not.toContain('from "@web/workbench-model"')
-    expect(app).toContain('from "@storybook-app-web-page-shell/workbench"')
+    expect(app).toContain('from "@zavx0z/storybook-app-web-page-shell-workbench"')
     expect(combined).not.toContain("createDocumentSpaceRuntime")
   })
 })

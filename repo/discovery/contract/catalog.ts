@@ -28,7 +28,7 @@ export type StorybookSourceReference = Readonly<{
 }>
 
 /** Документация входного модуля из контракта владельца пакета. */
-export type StorybookModuleDocumentation = NonNullable<ReturnType<typeof import("@storybook-package/documentation").default>>
+export type StorybookModuleDocumentation = NonNullable<ReturnType<typeof import("@zavx0z/storybook-package-documentation").default>>
 
 /**
 Разобранное описание одного направления контракта.
@@ -42,7 +42,7 @@ export type StorybookContractDocument = Readonly<{
   direction: "input" | "output" | "slots"
   /** Точный источник выбранного протокола; прежние сохранённые документы этого поля не имели. */
   sourcePath?: string
-  document: import("@immersive/typedoc/parser").AnalyzeTypeDocOutput["document"]
+  document: import("@zavx0z/immersive-typedoc/parser").AnalyzeTypeDocOutput["document"]
 }>
 
 /**

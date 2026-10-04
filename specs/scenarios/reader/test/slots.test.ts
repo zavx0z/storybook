@@ -1,7 +1,7 @@
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readScenario from "@storybook-specs-scenarios/reader"
-import Loader from "@storybook-package-build/loader"
+import readScenario from "@zavx0z/storybook-specs-scenarios-reader"
+import Loader from "@zavx0z/storybook-package-build-loader"
 
 const path = resolve(import.meta.dir, "../spec/fixture/slots/spec/scenario.spec.tsx")
 

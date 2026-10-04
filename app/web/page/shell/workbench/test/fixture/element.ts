@@ -1,4 +1,4 @@
-import type {Node, HTMLElement} from "@immersive/dom"
+import type {Node, HTMLElement} from "@zavx0z/immersive-dom"
 
 export function exactWorkbenchElement(root: Node, selector: string, label: string): HTMLElement {
   if (!("querySelectorAll" in root)) throw new TypeError(`${label} root cannot be queried`)

@@ -1,6 +1,6 @@
 import Environment from "../index"
-import Compiler from "@storybook-tech-build/compiler"
-import Artifacts from "@storybook-tech-build/artifacts"
+import Compiler from "@zavx0z/storybook-tech-build-compiler"
+import Artifacts from "@zavx0z/storybook-tech-build-artifacts"
 import {createHash} from "node:crypto"
 import {lstatSync, mkdirSync, readFileSync, realpathSync, rmSync} from "node:fs"
 import {isAbsolute, join, relative} from "node:path"

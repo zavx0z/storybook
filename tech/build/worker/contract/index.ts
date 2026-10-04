@@ -2,7 +2,7 @@ import type {BuildWorkerEvent, BuildWorkerLifecycleEvent} from "./event"
 import type {BuildWorkerWorkspace} from "./workspace"
 
 /** Исполнение одной JSON-задачи в точном дочернем процессе. */
-export declare namespace StorybookTechBuildWorker {
+export declare namespace Zavx0zStorybookTechBuildWorker {
   /**
   Работа и проверка событий задаются владельцем задачи.
 

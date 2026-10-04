@@ -3,7 +3,7 @@ import {afterAll, describe, expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import readWorkspacePackages from "@storybook-package-route/workspaces"
+import readWorkspacePackages from "@zavx0z/storybook-package-route-workspaces"
 
 describe.each([
   {name: "Пустой состав", props: {value: []}, expected: []},

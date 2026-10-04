@@ -1,17 +1,17 @@
-import type {StorybookAppWebProtocol} from "@storybook-app-web/protocol"
-import type {StorybookAppWebPageAgentBridge} from "@storybook-app-web-page/agent-bridge"
-import type {StorybookAppWebPageHome} from "@storybook-app-web-page/home"
-type ExternalStorybookLandingController = StorybookAppWebPageHome.Output
+import type {Zavx0zStorybookAppWebProtocol} from "@zavx0z/storybook-app-web-protocol"
+import type {Zavx0zStorybookAppWebPageAgentBridge} from "@zavx0z/storybook-app-web-page-agent-bridge"
+import type {Zavx0zStorybookAppWebPageHome} from "@zavx0z/storybook-app-web-page-home"
+type ExternalStorybookLandingController = Zavx0zStorybookAppWebPageHome.Output
 
-import type {StorybookAppWebPagePackage} from "@storybook-app-web-page/package"
-type ExternalStorybookAppliedRevision = Awaited<ReturnType<NonNullable<NonNullable<StorybookAppWebPagePackage.Input["environment"]>["loadAppliedRevision"]>>>
-type ExternalStorybookPackageController = StorybookAppWebPagePackage.Output
+import type {Zavx0zStorybookAppWebPagePackage} from "@zavx0z/storybook-app-web-page-package"
+type ExternalStorybookAppliedRevision = Awaited<ReturnType<NonNullable<NonNullable<Zavx0zStorybookAppWebPagePackage.Input["environment"]>["loadAppliedRevision"]>>>
+type ExternalStorybookPackageController = Zavx0zStorybookAppWebPagePackage.Output
 
 import type {ExternalStorybookPreparedPageTarget} from "../contract/types"
 
-export type ExternalStorybookClientSnapshot = ReturnType<StorybookAppWebProtocol.Output["clientSnapshot"]>
+export type ExternalStorybookClientSnapshot = ReturnType<Zavx0zStorybookAppWebProtocol.Output["clientSnapshot"]>
 
-export type StorybookAgentBridge = StorybookAppWebPageAgentBridge.Output
+export type StorybookAgentBridge = Zavx0zStorybookAppWebPageAgentBridge.Output
 
 export type ExternalStorybookPreparedPackageTarget = Extract<ExternalStorybookPreparedPageTarget, {kind: "revision" | "fallback"}>
 

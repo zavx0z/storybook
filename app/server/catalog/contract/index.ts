@@ -1,18 +1,18 @@
-import type {StorybookPackageRevision} from "@storybook-package/revision"
-import type {StorybookRepoDiscovery} from "@storybook-repo/discovery"
-import type {StorybookPackageSession} from "@storybook-package/session"
+import type {Zavx0zStorybookPackageRevision} from "@zavx0z/storybook-package-revision"
+import type {Zavx0zStorybookRepoDiscovery} from "@zavx0z/storybook-repo-discovery"
+import type {Zavx0zStorybookPackageSession} from "@zavx0z/storybook-package-session"
 import type {ExternalStorybookAttachSource, ExternalStorybookRegistrySnapshot, ExternalStorybookRegistryDirtySnapshot, ExternalStorybookRegistryMetrics} from "./models"
 
 /** Контракт атомарного каталога подключённых владельцев приложения. */
-export declare namespace StorybookAppServerCatalog {
+export declare namespace Zavx0zStorybookAppServerCatalog {
   /**
   По умолчанию обнаружение, TypeScript-анализ, граф и описания выполняются в native worker.
   Явный resolver подставляет локальное исполнение для специализированного источника или проверки.
   Стили читаются при обновлении; ошибка сохраняет действующий снимок.
   */
   type Input = readonly [
-    resolveCatalog?: (...input: StorybookRepoDiscovery.Input) => Promise<StorybookRepoDiscovery.Output>,
-    readAuthorStyleSheets?: () => NonNullable<Parameters<StorybookPackageRevision.Output["create"]>[3]>,
+    resolveCatalog?: (...input: Zavx0zStorybookRepoDiscovery.Input) => Promise<Zavx0zStorybookRepoDiscovery.Output>,
+    readAuthorStyleSheets?: () => NonNullable<Parameters<Zavx0zStorybookPackageRevision.Output["create"]>[3]>,
   ]
 
   /**
@@ -44,7 +44,7 @@ export declare namespace StorybookAppServerCatalog {
     dirtySnapshot(): ExternalStorybookRegistryDirtySnapshot
     metrics(): ExternalStorybookRegistryMetrics
     refreshIfNeeded(): Promise<ExternalStorybookRegistrySnapshot>
-    packageDescriptors(): readonly StorybookPackageSession.Input[0][]
+    packageDescriptors(): readonly Zavx0zStorybookPackageSession.Input[0][]
     sourceRoots(): Promise<readonly string[]>
     restore(snapshot: ExternalStorybookRegistrySnapshot): void
   }

@@ -1,4 +1,4 @@
-import Environment from "@storybook-tech-build/environment"
+import Environment from "@zavx0z/storybook-tech-build-environment"
 import {resolve} from "node:path"
 import type {WebSources} from "../contract/sources"
 

@@ -7,8 +7,8 @@ import {afterAll, describe, expect, test} from "bun:test"
 import {mkdtemp, realpath, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import discover from "@storybook-repo/discovery"
-import createGraph from "@storybook-package/graph"
+import discover from "@zavx0z/storybook-repo-discovery"
+import createGraph from "@zavx0z/storybook-package-graph"
 import readGraph from "../web"
 
 describe.each([{name: "Один граф в двух средах", props: {name: "@fixture/graph"}}])("$name", async ({props}) => {

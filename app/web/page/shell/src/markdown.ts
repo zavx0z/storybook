@@ -1,7 +1,7 @@
-import type {Document} from "@immersive/dom"
-import type {CompiledTemplate} from "@immersive/template/compiled"
-import createStorybookComponentPresentation, {type StorybookAppWebPagePresentation} from "@storybook-app-web-page/presentation"
-type StorybookComponentPresentation = StorybookAppWebPagePresentation.Output
+import type {Document} from "@zavx0z/immersive-dom"
+import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import createStorybookComponentPresentation, {type Zavx0zStorybookAppWebPagePresentation} from "@zavx0z/storybook-app-web-page-presentation"
+type StorybookComponentPresentation = Zavx0zStorybookAppWebPagePresentation.Output
 import {StorybookMarkdownView, type StorybookMarkdownViewProps} from "./markdown-view.tsx"
 
 export type RenderStorybookMarkdownOptions = StorybookMarkdownViewProps & Readonly<{

@@ -3,22 +3,22 @@ import readStyleSheets from "../index"
 
 test("reads only bounded contiguous indexed Workbench author links", () => {
     const document = indexedLinkDocument([
-      {specifier: "@immersive-ui/component/theme/theme.css", digest: "a".repeat(64), href: "/revision/theme.css"},
+      {specifier: "@zavx0z/immersive-ui-component/theme/theme.css", digest: "a".repeat(64), href: "/revision/theme.css"},
       {specifier: "@fixture/tokens.css", digest: "b".repeat(64), href: "/revision/tokens.css"},
     ])
     expect(readStyleSheets(document).map(({id}) => id)).toEqual([
-      "@immersive-ui/component/theme/theme.css",
+      "@zavx0z/immersive-ui-component/theme/theme.css",
       "@fixture/tokens.css",
     ])
 
     const duplicate = indexedLinkDocument([
-      {specifier: "@immersive-ui/component/theme/theme.css", digest: "a".repeat(64), href: "/revision/a.css"},
-      {specifier: "@immersive-ui/component/theme/theme.css", digest: "a".repeat(64), href: "/revision/b.css"},
+      {specifier: "@zavx0z/immersive-ui-component/theme/theme.css", digest: "a".repeat(64), href: "/revision/a.css"},
+      {specifier: "@zavx0z/immersive-ui-component/theme/theme.css", digest: "a".repeat(64), href: "/revision/b.css"},
     ])
     expect(() => readStyleSheets(duplicate)).toThrow("invalid or duplicate")
 
     const invalidDigest = indexedLinkDocument([
-      {specifier: "@immersive-ui/component/theme/theme.css", digest: "invalid", href: "/revision/theme.css"},
+      {specifier: "@zavx0z/immersive-ui-component/theme/theme.css", digest: "invalid", href: "/revision/theme.css"},
     ])
     expect(() => readStyleSheets(invalidDigest)).toThrow("digest is invalid")
   })

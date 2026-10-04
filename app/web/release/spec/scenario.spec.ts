@@ -3,7 +3,7 @@
 Примеры показывают одну общую операцию, её наблюдение и отключение подписки.
 */
 import {afterAll, describe, expect, mock, test} from "bun:test"
-import createWeb, {type StorybookAppWebRelease} from "@storybook-app-web/release"
+import createWeb, {type Zavx0zStorybookAppWebRelease} from "@zavx0z/storybook-app-web-release"
 
 const versions = [{platform: "platform-a", web: "web-b"}] as const
 
@@ -21,13 +21,13 @@ describe.each([
     prepare: mock((_signal: AbortSignal) => prepared.promise),
     versions: mock((_candidate: string) => versions),
     publish: mock((candidate: string) => { published = candidate }),
-  } satisfies StorybookAppWebRelease.Input<string>
+  } satisfies Zavx0zStorybookAppWebRelease.Input<string>
   const web = createWeb(input)
   afterAll(() => web.dispose())
   const initial = web.read()
   const initialCalls = input.prepare.mock.calls.length
-  let joined: ReturnType<StorybookAppWebRelease.Output["rebuild"]> | undefined
-  const listener = mock((state: ReturnType<StorybookAppWebRelease.Output["read"]>) => {
+  let joined: ReturnType<Zavx0zStorybookAppWebRelease.Output["rebuild"]> | undefined
+  const listener = mock((state: ReturnType<Zavx0zStorybookAppWebRelease.Output["read"]>) => {
     if (join === "observer" && state.phase === "preparing") joined = web.rebuild({apply: joinApply})
   })
   const unsubscribe = web.subscribe(listener)

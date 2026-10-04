@@ -1,5 +1,5 @@
 import {describe, expect, test} from "bun:test"
-import waitForOwnedChild from "@storybook-tech-process/wait"
+import waitForOwnedChild from "@zavx0z/storybook-tech-process-wait"
 
 describe.each([
   {

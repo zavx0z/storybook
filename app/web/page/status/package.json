@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-app-web-page/status",
+  "name": "@zavx0z/storybook-app-web-page-status",
   "label": "Наблюдаемые состояния",
   "version": "0.0.0",
   "private": true,
@@ -9,7 +9,7 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@storybook-package-build/scheduler": "workspace:*",
-    "@storybook-package/session": "workspace:*"
+    "@zavx0z/storybook-package-build-scheduler": "workspace:*",
+    "@zavx0z/storybook-package-session": "workspace:*"
   }
 }

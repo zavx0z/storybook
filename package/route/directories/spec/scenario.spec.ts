@@ -2,7 +2,7 @@ import {afterAll, describe, expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import readDirectories from "@storybook-package-route/directories"
+import readDirectories from "@zavx0z/storybook-package-route-directories"
 
 describe.each([
   {name: "Каталог с TSX входом", props: {entry: "index.tsx"}, expected: {entry: "tsx", module: true}},

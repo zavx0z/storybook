@@ -1,12 +1,12 @@
 import {beforeAll, expect, test} from "bun:test"
-import {createDocument, CustomEvent, KeyboardEvent, type HTMLButtonElement} from "@immersive/dom"
-import {createDocumentRenderer} from "@immersive-renderer/html"
+import {createDocument, CustomEvent, KeyboardEvent, type HTMLButtonElement} from "@zavx0z/immersive-dom"
+import {createDocumentRenderer} from "@zavx0z/immersive-renderer-html"
 import {WORKBENCH_EVENTS} from "../src/events"
 import type {WorkbenchTabItem} from "../src/types.ts"
 import {loadCompiledWorkbench} from "./fixture/compile-workbench"
 
 let api: Awaited<ReturnType<typeof loadCompiledWorkbench>>
-const theme = await Bun.file(new URL(import.meta.resolve("@immersive-ui/component/theme/theme.css"))).text()
+const theme = await Bun.file(new URL(import.meta.resolve("@zavx0z/immersive-ui-component/theme/theme.css"))).text()
 
 beforeAll(async () => { api = await loadCompiledWorkbench() }, 480_000)
 

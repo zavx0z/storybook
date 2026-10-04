@@ -1,5 +1,5 @@
 /** Контракт непрозрачной доставки предметного адреса действующему серверу. */
-export declare namespace StorybookAppMcpProxy {
+export declare namespace Zavx0zStorybookAppMcpProxy {
   /** Пустой запрос открывает корень, path выбирает точный адрес из children. */
   type Input = Readonly<{path?: string | undefined}>
 

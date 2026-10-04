@@ -6,14 +6,14 @@
 import {beforeAll, expect, test} from "bun:test"
 import {resolve} from "node:path"
 import readScenario from "../index"
-import type {StorybookSpecsScenariosReader} from "../index"
+import type {Zavx0zStorybookSpecsScenariosReader} from "../index"
 import {snapshotPath} from "../../../../tests/fixture/snapshot-paths"
 
 const fixturePath = resolve(import.meta.dir, "fixture/trace-scenario.test.ts")
 const fixtureModule = resolve(import.meta.dir, "fixture/trace-functions.ts")
 const packageScenarioPath = resolve(import.meta.dir, "../../../../package/reader/spec/scenario.spec.ts")
-let fixture: StorybookSpecsScenariosReader.Output
-let packageScenario: StorybookSpecsScenariosReader.Output
+let fixture: Zavx0zStorybookSpecsScenariosReader.Output
+let packageScenario: Zavx0zStorybookSpecsScenariosReader.Output
 
 beforeAll(async () => {
   [fixture, packageScenario] = await Promise.all([
@@ -78,7 +78,7 @@ test("package scenario сохраняет вызов и данные выбра�
       describe: ["Архетип пакета"],
       test: null,
       args: [{path: resolve(import.meta.dir, "../../../../package/reader")}],
-      outcome: {type: "resolve", value: {packageJson: {name: "@storybook-package/reader"}, index: {unchecked: []}}},
+      outcome: {type: "resolve", value: {packageJson: {name: "@zavx0z/storybook-package-reader"}, index: {unchecked: []}}},
     },
   ])
 })

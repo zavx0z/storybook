@@ -1,19 +1,19 @@
-import {type StorybookPackageBuildScheduler as PackageBuildSchedulerContract} from "@storybook-package-build/scheduler"
-import type {StorybookTechBuildWorker} from "@storybook-tech-build/worker"
+import {type Zavx0zStorybookPackageBuildScheduler as PackageBuildSchedulerContract} from "@zavx0z/storybook-package-build-scheduler"
+import type {Zavx0zStorybookTechBuildWorker} from "@zavx0z/storybook-tech-build-worker"
 type StorybookBuildScheduler = PackageBuildSchedulerContract.Output
 type StorybookBuildCacheLayer = NonNullable<Parameters<PackageBuildSchedulerContract.Output["run"]>[0]["cache"]>["layer"]
 type StorybookBuildCacheStatus = NonNullable<Parameters<PackageBuildSchedulerContract.Output["run"]>[0]["cache"]>["status"]
 type StorybookBuildOutcome = ReturnType<PackageBuildSchedulerContract.Output["snapshot"]>["recent"][number]["outcome"]
 type StorybookBuildOwner = Parameters<PackageBuildSchedulerContract.Output["run"]>[0]["owner"]
 type StorybookBuildReason = Parameters<PackageBuildSchedulerContract.Output["run"]>[0]["reason"]
-type TransportEvent = NonNullable<ReturnType<typeof import("@storybook-package-build/scheduler").default.parseStorybookBuildWorkerTransportEvent>>
+type TransportEvent = NonNullable<ReturnType<typeof import("@zavx0z/storybook-package-build-scheduler").default.parseStorybookBuildWorkerTransportEvent>>
 type StorybookBuildPhaseListener = (event: Extract<TransportEvent, {kind: "phase"}>["event"]) => void
-type StorybookBuildWorkerLifecycleListener = NonNullable<StorybookTechBuildWorker.Input<unknown, unknown>["onLifecycle"]>
-import type {StorybookPackageRevision} from "@storybook-package/revision"
-import type {StorybookPackageStandard} from "@storybook-package/standard"
+type StorybookBuildWorkerLifecycleListener = NonNullable<Zavx0zStorybookTechBuildWorker.Input<unknown, unknown>["onLifecycle"]>
+import type {Zavx0zStorybookPackageRevision} from "@zavx0z/storybook-package-revision"
+import type {Zavx0zStorybookPackageStandard} from "@zavx0z/storybook-package-standard"
 
-export type StorybookPackageStandard = ReturnType<StorybookPackageStandard.Output["applied"]>
-export type StorybookPackageVerification = NonNullable<Parameters<StorybookPackageStandard.Output["applied"]>[1]>
+export type Zavx0zStorybookPackageStandard = ReturnType<Zavx0zStorybookPackageStandard.Output["applied"]>
+export type StorybookPackageVerification = NonNullable<Parameters<Zavx0zStorybookPackageStandard.Output["applied"]>[1]>
 
 export type StorybookPackageScenarioSpec = Readonly<{
   nodeId: string
@@ -34,13 +34,13 @@ export type StorybookPackageRevisionResourceFile = Readonly<{
 @property repo - Канонический корень Repo, задающего workspaces и общую среду компиляции.
 Адрес Project не расширяет границу чтения пакета до других участвующих Repo.
 */
-export type StorybookPackageBuildDescriptor = Readonly<{
+export type Zavx0zStorybookPackageBuildDescriptor = Readonly<{
   packageId: string
   packageRoot: string
   repo: string
   sourcePath: string
   declarationDigest: string
-  graphSnapshot: ReturnType<StorybookPackageRevision.Output["create"]>
+  graphSnapshot: ReturnType<Zavx0zStorybookPackageRevision.Output["create"]>
   resourceFiles?: readonly StorybookPackageRevisionResourceFile[]
   scenarioSpecs?: readonly StorybookPackageScenarioSpec[]
 }>
@@ -87,7 +87,7 @@ export type StorybookPackageSessionSnapshot = Readonly<{
   entryRelativePath: string | null
   diagnostics: readonly StorybookPackageDiagnostic[]
   warnings?: readonly StorybookPackageDiagnostic[]
-  standard?: StorybookPackageStandard
+  standard?: Zavx0zStorybookPackageStandard
   verification?: StorybookPackageVerification | null
   dependencyRealpaths: readonly string[]
   revisions?: readonly StorybookPackageRevisionSnapshot[]
@@ -141,18 +141,18 @@ export type StorybookPackageRevisionBuild = Readonly<{
 }>
 
 export type StorybookPackageRevisionBuilder = (input: Readonly<{
-  descriptor: StorybookPackageBuildDescriptor
+  descriptor: Zavx0zStorybookPackageBuildDescriptor
   generation: number
   candidateRevision: string
   revisionUrl: string
   stagingDirectory: string
   signal: AbortSignal
-  standard?: StorybookPackageStandard
+  standard?: Zavx0zStorybookPackageStandard
   onPhase?: StorybookBuildPhaseListener
   onWorkerLifecycle?: StorybookBuildWorkerLifecycleListener
 }>) => Promise<StorybookPackageRevisionBuild>
 
-export type StorybookPackageActivation = Readonly<{
+export type Zavx0zStorybookPackageActivation = Readonly<{
   activationId: string
   packageId: string
   revision: string

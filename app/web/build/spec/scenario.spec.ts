@@ -1,6 +1,6 @@
 /** Явная подготовка Web сохраняет кандидата и объявленные им версии. */
 import {describe, expect, test} from "bun:test"
-import WebBuild from "@storybook-app-web/build"
+import WebBuild from "@zavx0z/storybook-app-web-build"
 
 describe.each([
   {name: "Одна версия", props: {candidate: {entry: "page.js"}, versions: [{kind: "web", epoch: "a"}]}},

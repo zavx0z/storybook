@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-package-graph/create",
+  "name": "@zavx0z/storybook-package-graph-create",
   "label": "Построение графа",
   "version": "0.0.0",
   "private": true,
@@ -9,10 +9,10 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@storybook-package-route/address": "workspace:*",
-    "@storybook-repo/discovery": "workspace:*"
+    "@zavx0z/storybook-package-route-address": "workspace:*",
+    "@zavx0z/storybook-repo-discovery": "workspace:*"
   },
   "devDependencies": {
-    "@storybook-package-graph/read": "workspace:*"
+    "@zavx0z/storybook-package-graph-read": "workspace:*"
   }
 }

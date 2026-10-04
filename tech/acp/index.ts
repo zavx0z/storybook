@@ -13,17 +13,17 @@ import {
   type SessionNotification,
   type SessionConfigOption,
 } from "@agentclientprotocol/sdk"
-import waitForOwnedChild from "@storybook-tech-process/wait"
+import waitForOwnedChild from "@zavx0z/storybook-tech-process-wait"
 import {spawn} from "node:child_process"
 import {realpath, stat} from "node:fs/promises"
 import {createRequire} from "node:module"
 import {isAbsolute, join} from "node:path"
 import {Readable, Writable} from "node:stream"
 import {fileURLToPath} from "node:url"
-import type {StorybookTechAcp} from "./contract"
+import type {Zavx0zStorybookTechAcp} from "./contract"
 import {prepareExclusiveMcp} from "./src/policy"
 
-export type {StorybookTechAcp} from "./contract"
+export type {Zavx0zStorybookTechAcp} from "./contract"
 
 /**
 Инициализирует ACP и создаёт либо восстанавливает точную сессию.
@@ -33,7 +33,7 @@ Credentials наследуются дочерним процессом; тран
 Конфигурацию sandbox и MCP обеспечивает вызывающий владелец через штатный
 environment адаптера. Сам cwd не является sandbox.
 
-@param input - Каталог, MCP-серверы и callbacks согласно {@link StorybookTechAcp.Input}.
+@param input - Каталог, MCP-серверы и callbacks согласно {@link Zavx0zStorybookTechAcp.Input}.
 @returns Готовая сессия; после использования требуется вызвать dispose.
 @throws Ошибка запуска, initialize, восстановления, открытия сессии или callback.
 Ошибка восстановления не заменяется созданием нового контекста.
@@ -53,7 +53,7 @@ try {
 }
 ```
 */
-export default async function createAcp(input: StorybookTechAcp.Input): Promise<StorybookTechAcp.Output> {
+export default async function createAcp(input: Zavx0zStorybookTechAcp.Input): Promise<Zavx0zStorybookTechAcp.Output> {
   input.signal?.throwIfAborted()
   if (!isAbsolute(input.cwd)) throw new TypeError("ACP cwd должен быть абсолютным каталогом")
   const cwd = await realpath(input.cwd)
@@ -83,7 +83,7 @@ export default async function createAcp(input: StorybookTechAcp.Input): Promise<
   if (input.mode !== undefined) env.INITIAL_AGENT_MODE = input.mode
   if (input.config !== undefined) env.CODEX_CONFIG = JSON.stringify(input.config)
   const startupSignal = input.signal ?? new AbortController().signal
-  const progress = (phase: Parameters<NonNullable<StorybookTechAcp.Input["onProgress"]>>[0]): void => {
+  const progress = (phase: Parameters<NonNullable<Zavx0zStorybookTechAcp.Input["onProgress"]>>[0]): void => {
     try { input.onProgress?.(phase) } catch { /* Наблюдатель не меняет выполнение. */ }
   }
   if (input.exclusiveMcp === true) {

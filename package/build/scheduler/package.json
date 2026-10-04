@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-package-build/scheduler",
+  "name": "@zavx0z/storybook-package-build-scheduler",
   "label": "Планировщик сборки пакетов",
   "version": "0.0.0",
   "private": true,
@@ -9,10 +9,10 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@storybook-tech-build/queue": "workspace:*",
-    "@storybook-tech-build/worker": "workspace:*",
-    "@storybook-tech-process/measure": "workspace:*",
-    "@storybook-tech-process/sample": "workspace:*"
+    "@zavx0z/storybook-tech-build-queue": "workspace:*",
+    "@zavx0z/storybook-tech-build-worker": "workspace:*",
+    "@zavx0z/storybook-tech-process-measure": "workspace:*",
+    "@zavx0z/storybook-tech-process-sample": "workspace:*"
   },
   "devDependencies": {}
 }

@@ -9,7 +9,7 @@ import type {
   StorybookBreadcrumbScope,
 } from "./types"
 
-export declare namespace StorybookAppWebPageNavigation {
+export declare namespace Zavx0zStorybookAppWebPageNavigation {
   /** Проекции физического графа и передача намерения перехода владельцу страницы. */
   export type Output = Readonly<{
     /** Проецирует физических владельцев пакетов в дерево общего каталога. */
@@ -48,7 +48,7 @@ export declare namespace StorybookAppWebPageNavigation {
     @example
     ```ts
     await Navigation.navigatePackage(
-      {packageId: "@immersive/markdown", route: ""},
+      {packageId: "@zavx0z/immersive-markdown", route: ""},
       page.navigatePackage,
     )
     ```

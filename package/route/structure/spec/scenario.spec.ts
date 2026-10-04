@@ -2,7 +2,7 @@ import {afterAll, describe, expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rm, writeFile} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import structure from "@storybook-package-route/structure"
+import structure from "@zavx0z/storybook-package-route-structure"
 
 describe.each([
   {name: "Сценарий и контракт", props: {scenarios: true}, expected: ["scenarios", "contract"]},

@@ -1,5 +1,5 @@
-import RepoDiscoveryOwner from "@storybook-repo/discovery"
-import AppServerCatalogOwner, {type StorybookAppServerCatalog as AppServerCatalogContract} from "@storybook-app-server/catalog"
+import RepoDiscoveryOwner from "@zavx0z/storybook-repo-discovery"
+import AppServerCatalogOwner, {type Zavx0zStorybookAppServerCatalog as AppServerCatalogContract} from "@zavx0z/storybook-app-server-catalog"
 const discoverStorybookPackages = RepoDiscoveryOwner
 const ExternalStorybookRegistry = AppServerCatalogOwner
 type ExternalStorybookRegistry = AppServerCatalogContract.Output

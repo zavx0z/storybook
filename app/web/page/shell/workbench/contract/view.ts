@@ -1,5 +1,5 @@
-import type {Document as SemanticDocument} from "@immersive/dom"
-import type {JSX} from "@immersive-jsx-compiler/session"
+import type {Document as SemanticDocument} from "@zavx0z/immersive-dom"
+import type {JSX} from "@zavx0z/immersive-jsx-compiler-session"
 import type {
   WorkbenchNavigationGroup, WorkbenchCatalogAction, WorkbenchNavigationItem,
   WorkbenchBreadcrumb, WorkbenchTabItem, WorkbenchViewState, NavigationExpansion,

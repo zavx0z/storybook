@@ -1,17 +1,17 @@
 import {expect, test} from "bun:test"
-import routeUrl from "@storybook-package-route/url"
+import routeUrl from "@zavx0z/storybook-package-route-url"
 
 const {storybookPackagePathSegment, storybookPackageUrlPath, storybookPackageRouteFromPathname, storybookCurrentRouteKey} = routeUrl
 
 test("uses typed readable package and direct-directory segments without changing identities", () => {
-  expect(storybookPackagePathSegment("@immersive/dom")).toBe("zavx0z-dom")
-  expect(storybookPackageUrlPath("@immersive/dom")).toBe("/pkg-zavx0z-dom/")
+  expect(storybookPackagePathSegment("@zavx0z/immersive-dom")).toBe("zavx0z-dom")
+  expect(storybookPackageUrlPath("@zavx0z/immersive-dom")).toBe("/pkg-zavx0z-dom/")
   expect(storybookPackageUrlPath("bulk")).toBe("/pkg-bulk/")
   const path = "/pkg-zavx0z-storybook/dir-workbench"
   expect(storybookPackageUrlPath("@zavx0z/storybook", "dir-workbench")).toBe(path)
   expect(storybookPackageRouteFromPathname(path, "@zavx0z/storybook")).toBe("dir-workbench")
   expect(storybookPackageUrlPath("@zavx0z/storybook", "workbench/contract")).toBe("/pkg-zavx0z-storybook/workbench/contract")
-  expect(storybookPackageRouteFromPathname(path, "@immersive/dom")).toBeNull()
+  expect(storybookPackageRouteFromPathname(path, "@zavx0z/immersive-dom")).toBeNull()
   expect(storybookPackageRouteFromPathname(`${path}/dir-navigation`, "@zavx0z/storybook")).toBe("dir-workbench/dir-navigation")
   expect(storybookPackageUrlPath("@zavx0z/storybook", "dir-workbench/dir-navigation")).toBe(`${path}/dir-navigation`)
   expect(storybookPackageRouteFromPathname(`${path}/wrong-segment`, "@zavx0z/storybook")).toBeNull()

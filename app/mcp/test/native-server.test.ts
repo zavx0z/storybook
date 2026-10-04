@@ -1,4 +1,4 @@
-import mcp from "@storybook-app/mcp"
+import mcp from "@zavx0z/storybook-app-mcp"
 import type {Controller} from "../contract/types"
 import {afterEach, describe, expect, test} from "bun:test"
 import {fileURLToPath} from "node:url"
@@ -6,7 +6,7 @@ import {Client, InMemoryTransport} from "@modelcontextprotocol/client"
 import {getDefaultEnvironment, StdioClientTransport} from "@modelcontextprotocol/client/stdio"
 import type {McpServer} from "@modelcontextprotocol/server"
 import {STORYBOOK_TOOL_NAMES} from "../src/schemas"
-import storybookRest from "@storybook-app-mcp/rest"
+import storybookRest from "@zavx0z/storybook-app-mcp-rest"
 const catalog = {projectName: "Fixture Project", entries: [
   {path: "example", label: "Пример", description: "Проект с примерами", parent: null},
   {path: "example/button", label: "Кнопка", description: "Действие пользователя", parent: "example"},

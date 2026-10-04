@@ -5,9 +5,9 @@
 
 @packageDocumentation
 */
-import type {StorybookDomainMcp} from "./contract"
+import type {Zavx0zStorybookDomainMcp} from "./contract"
 
-export type {StorybookDomainMcp} from "./contract"
+export type {Zavx0zStorybookDomainMcp} from "./contract"
 
 /**
 Возвращает явную заглушку для выбранного Domain.
@@ -15,7 +15,7 @@ export type {StorybookDomainMcp} from "./contract"
 @param input - Канонический MCP-адрес, уже разрешённый вызывающим владельцем.
 @returns Адрес и состояние незавершённой реализации Domain MCP.
 */
-export default function readDomainMcp(input: StorybookDomainMcp.Input): StorybookDomainMcp.Output {
+export default function readDomainMcp(input: Zavx0zStorybookDomainMcp.Input): Zavx0zStorybookDomainMcp.Output {
   return {
     path: input.path,
     status: "not-implemented",

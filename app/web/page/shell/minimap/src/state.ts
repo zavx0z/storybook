@@ -1,7 +1,7 @@
-import type {StorybookAppWebPageShellMinimap} from "../contract"
+import type {Zavx0zStorybookAppWebPageShellMinimap} from "../contract"
 
 /** Проверяет сохранённые настройки и создаёт собственную полную раскладку Minimap. */
-export function normalizeMinimapState(input: unknown): StorybookAppWebPageShellMinimap.Output {
+export function normalizeMinimapState(input: unknown): Zavx0zStorybookAppWebPageShellMinimap.Output {
   const value = record(input)
   const position = record(value?.geometry)
   const savedTab = record(value?.tab)

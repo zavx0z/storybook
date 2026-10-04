@@ -1,7 +1,7 @@
-import type {StorybookPackageIndex} from "../contract"
+import type {Zavx0zStorybookPackageIndex} from "../contract"
 
 /** Объявленная цель до проверки файловой принадлежности. */
-export type ExportTarget = Pick<StorybookPackageIndex.Output["entries"][number], "path" | "target" | "conditions">
+export type ExportTarget = Pick<Zavx0zStorybookPackageIndex.Output["entries"][number], "path" | "target" | "conditions">
 
 /** Разворачивает точные условные цели, сохраняя неизвестные формы явно непроверенными. */
 export function collectTargets(exports: Readonly<Record<string, unknown>>) {

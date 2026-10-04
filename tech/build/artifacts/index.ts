@@ -8,9 +8,9 @@ import {emittedEntry} from "./src/emitted-entry"
 import {createHash} from "node:crypto"
 import {constants, copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, renameSync} from "node:fs"
 import {dirname, join, relative, resolve} from "node:path"
-import type {StorybookTechBuildArtifacts} from "./contract"
+import type {Zavx0zStorybookTechBuildArtifacts} from "./contract"
 
-export type {StorybookTechBuildArtifacts} from "./contract"
+export type {Zavx0zStorybookTechBuildArtifacts} from "./contract"
 
 /** SHA-256 реальных байтов; существующий symlink не является immutable артефактом. */
 function digest(path: string): string {
@@ -86,7 +86,7 @@ function publishSharedArtifacts(
 }
 
 /** Сборка и публикация используют одну проверку целостности результатов. */
-const artifacts: StorybookTechBuildArtifacts.Output = Object.freeze({
+const artifacts: Zavx0zStorybookTechBuildArtifacts.Output = Object.freeze({
   emittedEntry,
   build: buildSharedArtifactGraph,
   publish: publishSharedArtifacts,

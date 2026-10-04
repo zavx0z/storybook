@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-package/reader",
+  "name": "@zavx0z/storybook-package-reader",
   "label": "Пакет",
   "version": "0.0.0",
   "private": true,
@@ -13,16 +13,16 @@
   },
   "dependencies": {
     "typescript": "^7.0.2",
-    "@storybook-tech-build/compiler": "workspace:*",
-    "@storybook-package/index": "workspace:*",
-    "@storybook-package/documentation": "workspace:*",
-    "@storybook-package-route/workspaces": "workspace:*",
-    "@storybook-package/package-json": "workspace:*"
+    "@zavx0z/storybook-tech-build-compiler": "workspace:*",
+    "@zavx0z/storybook-package-index": "workspace:*",
+    "@zavx0z/storybook-package-documentation": "workspace:*",
+    "@zavx0z/storybook-package-route-workspaces": "workspace:*",
+    "@zavx0z/storybook-package-package-json": "workspace:*"
   },
   "devDependencies": {
-    "@storybook-package/name": "workspace:*",
-    "@storybook/contracts": "workspace:*",
-    "@storybook/domain": "workspace:*",
-    "@storybook-specs-scenarios/reader": "workspace:*"
+    "@zavx0z/storybook-package-name": "workspace:*",
+    "@zavx0z/storybook-contracts": "workspace:*",
+    "@zavx0z/storybook-domain": "workspace:*",
+    "@zavx0z/storybook-specs-scenarios-reader": "workspace:*"
   }
 }

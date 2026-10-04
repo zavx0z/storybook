@@ -1,5 +1,5 @@
 /** Контракт чтения физического состава workspaces Repo. */
-export declare namespace StorybookPackageRouteWorkspaces {
+export declare namespace Zavx0zStorybookPackageRouteWorkspaces {
   /** Корень владельца и необязательное значение package.json#workspaces. */
   type Input = Readonly<{root: string; value?: unknown}>
 

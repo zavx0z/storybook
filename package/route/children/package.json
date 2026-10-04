@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-package-route/children",
+  "name": "@zavx0z/storybook-package-route-children",
   "label": "Дети маршрута",
   "version": "0.0.0",
   "private": true,
@@ -9,10 +9,10 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@storybook-package-route/resolve": "workspace:*",
-    "@storybook-package-route/directories": "workspace:*",
-    "@storybook-package-route/ignored": "workspace:*",
-    "@storybook-package-route/address": "workspace:*",
-    "@storybook-package-route/structure": "workspace:*"
+    "@zavx0z/storybook-package-route-resolve": "workspace:*",
+    "@zavx0z/storybook-package-route-directories": "workspace:*",
+    "@zavx0z/storybook-package-route-ignored": "workspace:*",
+    "@zavx0z/storybook-package-route-address": "workspace:*",
+    "@zavx0z/storybook-package-route-structure": "workspace:*"
   }
 }

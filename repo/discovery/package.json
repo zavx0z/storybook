@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-repo/discovery",
+  "name": "@zavx0z/storybook-repo-discovery",
   "label": "Обнаружение репозитория",
   "version": "0.0.0",
   "private": true,
@@ -9,18 +9,18 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@immersive/typedoc": "^0.0.0",
+    "@zavx0z/immersive-typedoc": "^0.0.0",
     "typescript": "^7.0.2",
-    "@storybook-package-route/directories": "workspace:*",
-    "@storybook-package-route/ignored": "workspace:*",
-    "@storybook-package/documentation": "workspace:*",
-    "@storybook-package/package-json": "workspace:*",
-    "@storybook-package/index": "workspace:*",
-    "@storybook/contracts": "workspace:*",
-    "@storybook-package-route/workspaces": "workspace:*",
-    "@storybook-package/identity": "workspace:*"
+    "@zavx0z/storybook-package-route-directories": "workspace:*",
+    "@zavx0z/storybook-package-route-ignored": "workspace:*",
+    "@zavx0z/storybook-package-documentation": "workspace:*",
+    "@zavx0z/storybook-package-package-json": "workspace:*",
+    "@zavx0z/storybook-package-index": "workspace:*",
+    "@zavx0z/storybook-contracts": "workspace:*",
+    "@zavx0z/storybook-package-route-workspaces": "workspace:*",
+    "@zavx0z/storybook-package-identity": "workspace:*"
   },
   "devDependencies": {
-    "@storybook-package-graph/create": "workspace:*"
+    "@zavx0z/storybook-package-graph-create": "workspace:*"
   }
 }

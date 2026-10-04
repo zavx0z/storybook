@@ -10,19 +10,19 @@ Section занимает ширину и высоту принимающей о�
 
 @packageDocumentation
 */
-import {TextField, type ImmersiveUiComponentFieldText} from "@immersive-ui/component"
-import {Button} from "@immersive-ui/component"
-import {collapseAllIcon, expandAllIcon, plusIcon, selectOpenedItemIcon} from "@immersive-ui-theme/icon"
-import {useRef} from "@immersive/component"
+import {TextField, type Zavx0zImmersiveUiComponentFieldText} from "@zavx0z/immersive-ui-component"
+import {Button} from "@zavx0z/immersive-ui-component"
+import {collapseAllIcon, expandAllIcon, plusIcon, selectOpenedItemIcon} from "@zavx0z/immersive-ui-theme-icon"
+import {useRef} from "@zavx0z/immersive-component"
 import {CatalogNavigationTree, type CatalogNavigationTreeHandle} from "./src/navigation-tree"
 import {rebuildIcon} from "./src/icons"
-import type {StorybookAppWebPageShellWorkbenchCatalog} from "./contract"
-export type {StorybookAppWebPageShellWorkbenchCatalog} from "./contract"
+import type {Zavx0zStorybookAppWebPageShellWorkbenchCatalog} from "./contract"
+export type {Zavx0zStorybookAppWebPageShellWorkbenchCatalog} from "./contract"
 
 /** Показывает готовый каталог через общий Tree и передаёт действия его владельцу. */
-export default function CatalogPanel(value: StorybookAppWebPageShellWorkbenchCatalog.Input) {
+export default function CatalogPanel(value: Zavx0zStorybookAppWebPageShellWorkbenchCatalog.Input) {
   const tree = useRef<CatalogNavigationTreeHandle | null>(null)
-  const onSearch: NonNullable<ImmersiveUiComponentFieldText.Input["onInput"]> = (search, event) => {
+  const onSearch: NonNullable<Zavx0zImmersiveUiComponentFieldText.Input["onInput"]> = (search, event) => {
     value.onSearch(search, event.currentTarget)
   }
   return <section

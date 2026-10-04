@@ -4,18 +4,18 @@
 listeners, отменой и задержкой повторной попытки, а смысл сообщений остаётся
 у получателя. Подписка не запрашивает компиляцию.
 Входной контракт описывает callbacks; socket доступен через тип
-{@link StorybookTechHmrConnection.Input} без отдельного публичного экспорта.
+{@link Zavx0zStorybookTechHmrConnection.Input} без отдельного публичного экспорта.
 @packageDocumentation
 */
-import type {StorybookTechHmrConnection} from "./contract"
-export type {StorybookTechHmrConnection} from "./contract"
+import type {Zavx0zStorybookTechHmrConnection} from "./contract"
+export type {Zavx0zStorybookTechHmrConnection} from "./contract"
 
 /**
 Подключает обработчики к socket и восстанавливает подписку после повторного соединения.
 
-@param input - Socket и callbacks владельца согласно {@link StorybookTechHmrConnection.Input}.
+@param input - Socket и callbacks владельца согласно {@link Zavx0zStorybookTechHmrConnection.Input}.
 
-@returns Lifecycle соединения, который завершается через {@link StorybookTechHmrConnection.Output.dispose}.
+@returns Lifecycle соединения, который завершается через {@link Zavx0zStorybookTechHmrConnection.Output.dispose}.
 
 @example
 ```ts
@@ -27,7 +27,7 @@ try {
 }
 ```
 */
-export default function createHmrConnection(input: StorybookTechHmrConnection.Input): StorybookTechHmrConnection.Output {
+export default function createHmrConnection(input: Zavx0zStorybookTechHmrConnection.Input): Zavx0zStorybookTechHmrConnection.Output {
   const lifetime = new AbortController()
   let socket = input.socket
   let delay = 250
@@ -46,7 +46,7 @@ export default function createHmrConnection(input: StorybookTechHmrConnection.In
     if (!lifetime.signal.aborted) input.onMessage(event)
   }
   /** Снимает принадлежащие lifecycle обработчики перед закрытием socket. */
-  const detach = (value: StorybookTechHmrConnection.Input["socket"]): void => {
+  const detach = (value: Zavx0zStorybookTechHmrConnection.Input["socket"]): void => {
     value.removeEventListener("open", onOpen)
     value.removeEventListener("message", onMessage)
     value.removeEventListener("close", onClose)

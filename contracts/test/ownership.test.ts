@@ -1,6 +1,6 @@
 import {describe, expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readContract from "@storybook/contracts"
+import readContract from "@zavx0z/storybook-contracts"
 import {createFixture} from "./fixture"
 
 describe.each([

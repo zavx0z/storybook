@@ -1,7 +1,7 @@
 import {expect, test} from "bun:test"
 import {resolve} from "node:path"
 import {AjvJsonSchemaValidator} from "@modelcontextprotocol/server/validators/ajv"
-import discoverStorybookPackages from "@storybook-repo/discovery"
+import discoverStorybookPackages from "@zavx0z/storybook-repo-discovery"
 
 test("схемы реального владельца принимает штатный валидатор MCP", async () => {
   const owner = resolve(import.meta.dir, "../spec/fixture/library/text/trim")

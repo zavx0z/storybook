@@ -1,7 +1,7 @@
 import type {ProcessResourceRow} from "./row"
 
 /** Явное чтение одного системного снимка процессов. */
-export declare namespace StorybookTechProcessSample {
+export declare namespace Zavx0zStorybookTechProcessSample {
   /** Снимок не требует аргументов. */
   type Input = void
   /** Строки процессов; пустой массив означает недоступный источник. */

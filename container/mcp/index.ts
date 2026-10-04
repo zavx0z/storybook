@@ -5,9 +5,9 @@
 
 @packageDocumentation
 */
-import type {StorybookContainerMcp} from "./contract"
+import type {Zavx0zStorybookContainerMcp} from "./contract"
 
-export type {StorybookContainerMcp} from "./contract"
+export type {Zavx0zStorybookContainerMcp} from "./contract"
 
 /**
 Возвращает явную заглушку для выбранного Container.
@@ -15,7 +15,7 @@ export type {StorybookContainerMcp} from "./contract"
 @param input - Канонический MCP-адрес, уже разрешённый вызывающим владельцем.
 @returns Адрес и состояние незавершённой реализации Container MCP.
 */
-export default function readContainerMcp(input: StorybookContainerMcp.Input): StorybookContainerMcp.Output {
+export default function readContainerMcp(input: Zavx0zStorybookContainerMcp.Input): Zavx0zStorybookContainerMcp.Output {
   return {
     path: input.path,
     status: "not-implemented",

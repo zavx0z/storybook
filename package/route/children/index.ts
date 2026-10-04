@@ -3,16 +3,16 @@
 
 @packageDocumentation
 */
-import resolveRoute from "@storybook-package-route/resolve"
-import readRouteDirectories from "@storybook-package-route/directories"
-import readRouteIgnored from "@storybook-package-route/ignored"
-import address from "@storybook-package-route/address"
-import structure from "@storybook-package-route/structure"
-import type {StorybookPackageRouteChildren} from "./contract"
+import resolveRoute from "@zavx0z/storybook-package-route-resolve"
+import readRouteDirectories from "@zavx0z/storybook-package-route-directories"
+import readRouteIgnored from "@zavx0z/storybook-package-route-ignored"
+import address from "@zavx0z/storybook-package-route-address"
+import structure from "@zavx0z/storybook-package-route-structure"
+import type {Zavx0zStorybookPackageRouteChildren} from "./contract"
 import {basename, dirname} from "node:path"
 import {resolveImmediateChildren} from "./src/resolve"
 
-export type {StorybookPackageRouteChildren} from "./contract"
+export type {Zavx0zStorybookPackageRouteChildren} from "./contract"
 
 const {parseRoute} = address
 const {readPackageManifest, readWorkspaceChildNames} = structure
@@ -25,7 +25,7 @@ const {readPackageManifest, readWorkspaceChildNames} = structure
 @param input - Адрес родителя и зарегистрированные корни.
 @returns Разрешённые непосредственные маршруты.
 */
-export default async function readRouteChildren({route, roots}: StorybookPackageRouteChildren.Input): Promise<StorybookPackageRouteChildren.Output> {
+export default async function readRouteChildren({route, roots}: Zavx0zStorybookPackageRouteChildren.Input): Promise<Zavx0zStorybookPackageRouteChildren.Output> {
   const parsed = parseRoute(route)
   if (parsed === null || parsed.variant !== undefined || parsed.view !== undefined) return []
   if (parsed.segments.length === 0) {

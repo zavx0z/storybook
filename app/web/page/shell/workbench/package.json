@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-app-web-page-shell/workbench",
+  "name": "@zavx0z/storybook-app-web-page-shell-workbench",
   "label": "Workbench",
   "version": "0.0.0",
   "private": true,
@@ -9,21 +9,21 @@
   },
   "description": "Рабочая область каталога, вкладок, содержимого, Inspector и статуса в одном Display",
   "dependencies": {
-    "@immersive-jsx-compiler/session": "^0.0.0",
-    "@storybook-app-web-page-shell-workbench/catalog": "workspace:*",
-    "@storybook-app-web-page-shell-workbench-catalog/navigation": "workspace:*",
-    "@storybook-chat/session": "workspace:*",
-    "@storybook-chat/view": "workspace:*",
-    "@immersive/component": "^0.0.0",
-    "@immersive/dom": "^0.0.0",
-    "@immersive-ui/component": "^0.0.0",
-    "@immersive/template": "^0.0.0",
-    "@immersive-ui-theme/icon": "^0.0.0"
+    "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
+    "@zavx0z/storybook-app-web-page-shell-workbench-catalog": "workspace:*",
+    "@zavx0z/storybook-app-web-page-shell-workbench-catalog-navigation": "workspace:*",
+    "@zavx0z/storybook-chat-session": "workspace:*",
+    "@zavx0z/storybook-chat-view": "workspace:*",
+    "@zavx0z/immersive-component": "^0.0.0",
+    "@zavx0z/immersive-dom": "^0.0.0",
+    "@zavx0z/immersive-ui-component": "^0.0.0",
+    "@zavx0z/immersive-template": "^0.0.0",
+    "@zavx0z/immersive-ui-theme-icon": "^0.0.0"
   },
   "devDependencies": {
-    "@immersive-renderer/html": "^0.0.0",
-    "@storybook-tech/limits": "workspace:*",
-    "@immersive/space": "^0.0.0",
-    "@immersive-ui-theme/icon-set": "^0.0.0"
+    "@zavx0z/immersive-renderer-html": "^0.0.0",
+    "@zavx0z/storybook-tech-limits": "workspace:*",
+    "@zavx0z/immersive-space": "^0.0.0",
+    "@zavx0z/immersive-ui-theme-icon-set": "^0.0.0"
   }
 }

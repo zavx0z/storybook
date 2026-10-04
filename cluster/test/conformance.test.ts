@@ -2,7 +2,7 @@ import {expect, test} from "bun:test"
 import {mkdir, rm} from "node:fs/promises"
 import {resolve} from "node:path"
 import {pathToFileURL} from "node:url"
-import readScenario from "@storybook-specs-scenarios/reader"
+import readScenario from "@zavx0z/storybook-specs-scenarios-reader"
 import {prepareClusterExample} from "../spec/prepare"
 
 test("один нормативный сценарий подтверждает Cluster и собственного участника", async () => {

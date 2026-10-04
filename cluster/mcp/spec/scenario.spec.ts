@@ -1,5 +1,5 @@
 import {describe, expect, test} from "bun:test"
-import readClusterMcp from "@storybook-cluster/mcp"
+import readClusterMcp from "@zavx0z/storybook-cluster-mcp"
 
 describe.each([
   {name: "Cluster в проекте", props: {path: "example/cluster"}},

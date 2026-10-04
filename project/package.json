@@ -1,5 +1,5 @@
 {
-  "name": "@storybook/project",
+  "name": "@zavx0z/storybook-project",
   "label": "Проект",
   "version": "0.0.0",
   "private": true,
@@ -9,6 +9,6 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@storybook-package/package-json": "workspace:*"
+    "@zavx0z/storybook-package-package-json": "workspace:*"
   }
 }

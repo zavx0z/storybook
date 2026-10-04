@@ -1,5 +1,5 @@
 {
-  "name": "@storybook/domain",
+  "name": "@zavx0z/storybook-domain",
   "label": "Домен",
   "version": "0.0.0",
   "private": true,
@@ -9,10 +9,10 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@storybook-package/reader": "workspace:*",
-    "@storybook/contracts": "workspace:*"
+    "@zavx0z/storybook-package-reader": "workspace:*",
+    "@zavx0z/storybook-contracts": "workspace:*"
   },
   "devDependencies": {
-    "@storybook/component": "workspace:*"
+    "@zavx0z/storybook-component": "workspace:*"
   }
 }

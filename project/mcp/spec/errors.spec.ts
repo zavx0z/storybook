@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import readProjectMcp from "@storybook-project/mcp"
+import readProjectMcp from "@zavx0z/storybook-project-mcp"
 
 test.each(["", " ", "\t\n"])("Пустое имя Project: %j", projectName => {
   expect(() => readProjectMcp({projectName, entries: []}),

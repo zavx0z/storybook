@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-specs/scenarios",
+  "name": "@zavx0z/storybook-specs-scenarios",
   "description": "Раскрывает руководство по исполняемому сценарию",
   "version": "0.0.0",
   "private": true,
@@ -8,10 +8,10 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@storybook-specs-scenarios/reader": "workspace:*",
-    "@storybook-specs/document": "workspace:*"
+    "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
+    "@zavx0z/storybook-specs-document": "workspace:*"
   },
   "devDependencies": {
-    "@storybook-specs/guide": "workspace:*"
+    "@zavx0z/storybook-specs-guide": "workspace:*"
   }
 }

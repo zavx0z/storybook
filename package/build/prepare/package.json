@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-package-build/prepare",
+  "name": "@zavx0z/storybook-package-build-prepare",
   "label": "Подготовка ревизии пакета",
   "version": "0.0.0",
   "private": true,
@@ -9,23 +9,23 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@immersive/jsx": "^0.0.0",
-    "@storybook-package-build/scheduler": "workspace:*",
-    "@storybook-tech-build/environment": "workspace:*",
-    "@storybook-package/session": "workspace:*",
-    "@storybook-tech-build/compiler": "workspace:*",
-    "@storybook-package-build/loader": "workspace:*",
-    "@storybook-package-build/conformance": "workspace:*",
-    "@storybook-package-build/scenarios": "workspace:*",
-    "@storybook-package-build/inputs": "workspace:*",
-    "@storybook-tech-build/worker": "workspace:*"
+    "@zavx0z/immersive-jsx": "^0.0.0",
+    "@zavx0z/storybook-package-build-scheduler": "workspace:*",
+    "@zavx0z/storybook-tech-build-environment": "workspace:*",
+    "@zavx0z/storybook-package-session": "workspace:*",
+    "@zavx0z/storybook-tech-build-compiler": "workspace:*",
+    "@zavx0z/storybook-package-build-loader": "workspace:*",
+    "@zavx0z/storybook-package-build-conformance": "workspace:*",
+    "@zavx0z/storybook-package-build-scenarios": "workspace:*",
+    "@zavx0z/storybook-package-build-inputs": "workspace:*",
+    "@zavx0z/storybook-tech-build-worker": "workspace:*"
   },
   "devDependencies": {
-    "@immersive/headless": "^0.0.0",
-    "@storybook-repo/discovery": "workspace:*",
-    "@storybook-package-graph/create": "workspace:*",
-    "@storybook-package/revision": "workspace:*",
-    "@storybook-specs-scenarios/reader": "workspace:*",
-    "@storybook-specs/reader": "workspace:*"
+    "@zavx0z/immersive-headless": "^0.0.0",
+    "@zavx0z/storybook-repo-discovery": "workspace:*",
+    "@zavx0z/storybook-package-graph-create": "workspace:*",
+    "@zavx0z/storybook-package-revision": "workspace:*",
+    "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
+    "@zavx0z/storybook-specs-reader": "workspace:*"
   }
 }

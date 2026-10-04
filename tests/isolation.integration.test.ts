@@ -1,6 +1,6 @@
-import createWeb from "@storybook-app/web"
+import createWeb from "@zavx0z/storybook-app-web"
 import {createProjectFixture} from "../app/server/test/project.fixture"
-import RouteUrlOwner from "@storybook-package-route/url"
+import RouteUrlOwner from "@zavx0z/storybook-package-route-url"
 const storybookPackageUrlPath = RouteUrlOwner.storybookPackageUrlPath
 const STORYBOOK_SHARED_COMPILE_TIMEOUT_MS = 480_000
 const STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS = 120_000
@@ -8,8 +8,8 @@ import {afterEach, describe, expect, test} from "bun:test"
 import {mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import startExternalStorybookServer, {type StorybookAppServer} from "@storybook-app/server"
-type ExternalStorybookRunningServer = StorybookAppServer.Output
+import startExternalStorybookServer, {type Zavx0zStorybookAppServer} from "@zavx0z/storybook-app-server"
+type ExternalStorybookRunningServer = Zavx0zStorybookAppServer.Output
 
 const roots: string[] = []
 const servers: ExternalStorybookRunningServer[] = []

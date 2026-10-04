@@ -4,7 +4,7 @@ import {existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, 
 import {tmpdir} from "node:os"
 import {dirname, join, relative, resolve} from "node:path"
 import {pathToFileURL} from "node:url"
-import Artifacts from "@storybook-tech-build/artifacts"
+import Artifacts from "@zavx0z/storybook-tech-build-artifacts"
 
 const digest = (bytes: string | Uint8Array) => createHash("sha256").update(bytes).digest("hex")
 

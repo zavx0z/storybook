@@ -8,11 +8,11 @@
 import {createHash, randomUUID} from "node:crypto"
 import {link, mkdir, readFile, rename, unlink, writeFile} from "node:fs/promises"
 import {isAbsolute, join} from "node:path"
-import type {StorybookTechAcp} from "@storybook-tech/acp"
-import type {StorybookChatSession} from "./contract"
+import type {Zavx0zStorybookTechAcp} from "@zavx0z/storybook-tech-acp"
+import type {Zavx0zStorybookChatSession} from "./contract"
 import type {Message, Permission, Snapshot, Subject, Setting, ContextUsage} from "./contract/state"
 
-export type {StorybookChatSession} from "./contract"
+export type {Zavx0zStorybookChatSession} from "./contract"
 
 type Document = {
   schemaVersion: 1
@@ -32,8 +32,8 @@ type State = {
   file: string
   document: Document
   version: number
-  connection?: StorybookTechAcp.Output
-  connecting?: Promise<StorybookTechAcp.Output>
+  connection?: Zavx0zStorybookTechAcp.Output
+  connecting?: Promise<Zavx0zStorybookTechAcp.Output>
   settings?: readonly Setting[]
   configuring?: boolean
   progress?: string
@@ -43,7 +43,7 @@ type State = {
   lifetime: AbortController
   flushTimer?: ReturnType<typeof setTimeout>
   listeners: Set<(value: Snapshot) => void>
-  permissions: Map<string, {value: Permission, resolve: (value: Awaited<ReturnType<StorybookTechAcp.Input["onPermission"]>>) => void}>
+  permissions: Map<string, {value: Permission, resolve: (value: Awaited<ReturnType<Zavx0zStorybookTechAcp.Input["onPermission"]>>) => void}>
   write: Promise<void>
 }
 
@@ -53,7 +53,7 @@ type State = {
 @param input - Каталог Project, разрешение адресов и фабрика исполнителя.
 @returns Действия над независимыми беседами и освобождение принадлежащих ресурсов.
 */
-export default function createChatSessions(input: StorybookChatSession.Input): StorybookChatSession.Output {
+export default function createChatSessions(input: Zavx0zStorybookChatSession.Input): Zavx0zStorybookChatSession.Output {
   const states = new Map<string, Promise<State>>()
   const relocating = new Set<string>()
   let disposed = false
@@ -117,7 +117,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
     state.permissions.clear()
   }
   /** Одна ACP-сессия для настроек и сообщений; подготовка не запускает prompt. */
-  const connect = async (state: State): Promise<StorybookTechAcp.Output> => {
+  const connect = async (state: State): Promise<Zavx0zStorybookTechAcp.Output> => {
     if (state.connection !== undefined) return state.connection
     if (state.connecting !== undefined) return state.connecting
     const pending = (async () => {
@@ -477,7 +477,7 @@ function validDocument(value: unknown, address: string): value is Document {
 }
 
 /** Проецирует только предоставленные агентом настройки модели и мышления. */
-function readSettings(options: StorybookTechAcp.Output["configOptions"]): readonly Setting[] {
+function readSettings(options: Zavx0zStorybookTechAcp.Output["configOptions"]): readonly Setting[] {
   return options.flatMap(option => {
     if (option.type !== "select" || option.category !== "model" && option.category !== "thought_level") return []
     return [{id: option.id, category: option.category, name: option.name, value: option.currentValue,

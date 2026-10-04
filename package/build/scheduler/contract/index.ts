@@ -7,7 +7,7 @@ import type {
 } from "./types"
 
 /** Контракт допуска и наблюдения package/shared build operations. */
-export declare namespace StorybookPackageBuildScheduler {
+export declare namespace Zavx0zStorybookPackageBuildScheduler {
   /** Число одновременных работ либо настройки очереди, измерения и времени. */
   type Input = number | StorybookBuildSchedulerOptions
 

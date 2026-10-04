@@ -1,8 +1,8 @@
-import type {StorybookPackageSession} from "@storybook-package/session"
-import type {StorybookPackageBuildScheduler} from "@storybook-package-build/scheduler"
+import type {Zavx0zStorybookPackageSession} from "@zavx0z/storybook-package-session"
+import type {Zavx0zStorybookPackageBuildScheduler} from "@zavx0z/storybook-package-build-scheduler"
 
 /** Контракт композиции независимых пакетных сессий приложения. */
-export declare namespace StorybookAppServerSessions {
+export declare namespace Zavx0zStorybookAppServerSessions {
   /**
   Исполнение и хранилище общие, состояние ревизии принадлежит конкретному пакету.
   @property artifactRoot - Каталог результатов всех сессий; каждый пакет получает собственную область.
@@ -16,10 +16,10 @@ export declare namespace StorybookAppServerSessions {
   */
   type Input = Readonly<{
     artifactRoot: string
-    buildRevision: StorybookPackageSession.Input[1]["buildRevision"]
-    prepareBuild?: StorybookPackageSession.Input[1]["prepareBuild"]
-    publish?: StorybookPackageSession.Input[1]["publish"]
-    buildScheduler?: StorybookPackageBuildScheduler.Output
+    buildRevision: Zavx0zStorybookPackageSession.Input[1]["buildRevision"]
+    prepareBuild?: Zavx0zStorybookPackageSession.Input[1]["prepareBuild"]
+    publish?: Zavx0zStorybookPackageSession.Input[1]["publish"]
+    buildScheduler?: Zavx0zStorybookPackageBuildScheduler.Output
     buildConcurrency?: number
     activationTimeoutMs?: number
     retainedRevisionLimit?: number
@@ -38,14 +38,14 @@ export declare namespace StorybookAppServerSessions {
   @property dispose - Завершает все свои сессии; собственная очередь закрывается после очистки.
   */
   interface Output {
-    sync(descriptors: readonly StorybookPackageSession.Input[0][], failures?: ReadonlyMap<string, string>): void
-    session(packageId: string): StorybookPackageSession.Output
-    ensure(packageId: string, demand?: Parameters<StorybookPackageSession.Output["ensureBuilt"]>[0]): Promise<ReturnType<StorybookPackageSession.Output["snapshot"]>>
+    sync(descriptors: readonly Zavx0zStorybookPackageSession.Input[0][], failures?: ReadonlyMap<string, string>): void
+    session(packageId: string): Zavx0zStorybookPackageSession.Output
+    ensure(packageId: string, demand?: Parameters<Zavx0zStorybookPackageSession.Output["ensureBuilt"]>[0]): Promise<ReturnType<Zavx0zStorybookPackageSession.Output["snapshot"]>>
     retryFailed(packageId: string): boolean
-    snapshots(): readonly ReturnType<StorybookPackageSession.Output["snapshot"]>[]
-    build(packageId: string, demand?: Parameters<StorybookPackageSession.Output["build"]>[0]): Promise<ReturnType<StorybookPackageSession.Output["snapshot"]>>
-    readonly buildScheduler: StorybookPackageBuildScheduler.Output
-    buildSchedulerSnapshot(options?: Parameters<StorybookPackageBuildScheduler.Output["snapshot"]>[0]): ReturnType<StorybookPackageBuildScheduler.Output["snapshot"]>
+    snapshots(): readonly ReturnType<Zavx0zStorybookPackageSession.Output["snapshot"]>[]
+    build(packageId: string, demand?: Parameters<Zavx0zStorybookPackageSession.Output["build"]>[0]): Promise<ReturnType<Zavx0zStorybookPackageSession.Output["snapshot"]>>
+    readonly buildScheduler: Zavx0zStorybookPackageBuildScheduler.Output
+    buildSchedulerSnapshot(options?: Parameters<Zavx0zStorybookPackageBuildScheduler.Output["snapshot"]>[0]): ReturnType<Zavx0zStorybookPackageBuildScheduler.Output["snapshot"]>
     dispose(): Promise<void>
   }
 }

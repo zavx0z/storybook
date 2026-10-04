@@ -1,14 +1,14 @@
 /** Детерминированная Browser Root seam для проверки жизненного цикла страницы без нового renderer.
 @packageDocumentation
 */
-import type {StorybookTechTestingBrowserRoot} from "./contract"
-export type {StorybookTechTestingBrowserRoot} from "./contract"
-import type {ComponentValue} from "@immersive/component"
-import type {JSX} from "@immersive-jsx-compiler/session"
-import type {IntegrationOptions, IntegrationRoot, Presentation} from "@immersive/browser/integration"
+import type {Zavx0zStorybookTechTestingBrowserRoot} from "./contract"
+export type {Zavx0zStorybookTechTestingBrowserRoot} from "./contract"
+import type {ComponentValue} from "@zavx0z/immersive-component"
+import type {JSX} from "@zavx0z/immersive-jsx-compiler-session"
+import type {IntegrationOptions, IntegrationRoot, Presentation} from "@zavx0z/immersive-browser/integration"
 
 /** Supplies a deterministic presentation behind the synchronous Browser root contract. */
-export default function presentationRootFixture(factory: StorybookTechTestingBrowserRoot.Input): StorybookTechTestingBrowserRoot.Output {
+export default function presentationRootFixture(factory: Zavx0zStorybookTechTestingBrowserRoot.Input): Zavx0zStorybookTechTestingBrowserRoot.Output {
   return (canvas: HTMLCanvasElement, options: IntegrationOptions = {}): IntegrationRoot => {
     let pending: Promise<Presentation> | null = null
     let current: (Presentation & {renderApplication?(app: ComponentValue | JSX.Element): void}) | null = null

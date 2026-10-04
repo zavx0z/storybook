@@ -2,16 +2,16 @@
 
 @packageDocumentation
 */
-import PackageSessionOwner, {type StorybookPackageSession as PackageSessionContract} from "@storybook-package/session"
+import PackageSessionOwner, {type Zavx0zStorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
 const storybookBuildError = PackageSessionOwner.buildError
 const storybookDiagnostic = PackageSessionOwner.diagnostic
-type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
+type Zavx0zStorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 import {existsSync, readFileSync, realpathSync} from "node:fs"
 import {dirname, isAbsolute, join, resolve, sep} from "node:path"
-import Compiler from "@storybook-tech-build/compiler"
-import type {StorybookPackageBuildInputs} from "./contract"
+import Compiler from "@zavx0z/storybook-tech-build-compiler"
+import type {Zavx0zStorybookPackageBuildInputs} from "./contract"
 
-export type {StorybookPackageBuildInputs} from "./contract"
+export type {Zavx0zStorybookPackageBuildInputs} from "./contract"
 
 const {canonicalizeStorybookPackageFile, preferredStorybookPackageRoot, readStorybookPackageOwner, sameStorybookPackageOwner} = Compiler
 
@@ -37,7 +37,7 @@ function stableBuildInputPath(path: string): string {
 
 function validateConsumerBoundary(
   paths: readonly string[],
-  descriptor: StorybookPackageBuildDescriptor,
+  descriptor: Zavx0zStorybookPackageBuildDescriptor,
   stagingDirectory: string,
 ): void {
   const roots = [descriptor.packageRoot, descriptor.repo].map((path) => `${realpathSync(path)}${sep}`)
@@ -99,7 +99,7 @@ function basename(path: string): string {
 
 
 /** Один набор проверки физических входов пакетной сборки. */
-const inputs: StorybookPackageBuildInputs.Output = Object.freeze({
+const inputs: Zavx0zStorybookPackageBuildInputs.Output = Object.freeze({
   canonicalBuildInputs,
   stablePath: stableBuildInputPath,
   validateConsumerBoundary,

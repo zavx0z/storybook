@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-repo/reader",
+  "name": "@zavx0z/storybook-repo-reader",
   "label": "Репозиторий",
   "version": "0.0.0",
   "private": true,
@@ -9,7 +9,7 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@storybook-package/reader": "workspace:*"
+    "@zavx0z/storybook-package-reader": "workspace:*"
   },
   "devDependencies": {}
 }

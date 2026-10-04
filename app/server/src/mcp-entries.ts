@@ -1,5 +1,5 @@
-import {type StorybookAppMcpRest as McpRestContract} from "@storybook-app-mcp/rest"
-import {type StorybookAppServerCatalog as AppServerCatalogContract} from "@storybook-app-server/catalog"
+import {type Zavx0zStorybookAppMcpRest as McpRestContract} from "@zavx0z/storybook-app-mcp-rest"
+import {type Zavx0zStorybookAppServerCatalog as AppServerCatalogContract} from "@zavx0z/storybook-app-server-catalog"
 type StorybookRestOptions = McpRestContract.Input[1]
 type ExternalStorybookRegistrySnapshot = ReturnType<AppServerCatalogContract.Output["snapshot"]>
 import {dirname, join} from "node:path"

@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-app-web-page/home",
+  "name": "@zavx0z/storybook-app-web-page-home",
   "label": "Home",
   "version": "0.0.0",
   "private": true,
@@ -9,27 +9,27 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@storybook-app-web/protocol": "workspace:*",
-    "@storybook-tech-hmr/connection": "workspace:*",
-    "@storybook-package-graph/read": "workspace:*",
-    "@storybook-app-web-page/shell": "workspace:*",
-    "@storybook-app-web-page-shell-workbench/catalog": "workspace:*",
-    "@storybook-app-web-page/client": "workspace:*",
-    "@storybook-app-web-page/navigation": "workspace:*",
-    "@storybook-app-web-page/status": "workspace:*",
-    "@storybook-app-web-page/style-sheets": "workspace:*",
-    "@immersive/dom": "^0.0.0"
+    "@zavx0z/storybook-app-web-protocol": "workspace:*",
+    "@zavx0z/storybook-tech-hmr-connection": "workspace:*",
+    "@zavx0z/storybook-package-graph-read": "workspace:*",
+    "@zavx0z/storybook-app-web-page-shell": "workspace:*",
+    "@zavx0z/storybook-app-web-page-shell-workbench-catalog": "workspace:*",
+    "@zavx0z/storybook-app-web-page-client": "workspace:*",
+    "@zavx0z/storybook-app-web-page-navigation": "workspace:*",
+    "@zavx0z/storybook-app-web-page-status": "workspace:*",
+    "@zavx0z/storybook-app-web-page-style-sheets": "workspace:*",
+    "@zavx0z/immersive-dom": "^0.0.0"
   },
   "devDependencies": {
-    "@storybook-package-graph/create": "workspace:*",
-    "@storybook-package/session": "workspace:*",
-    "@immersive-renderer/html": "^0.0.0",
-    "@storybook-repo/discovery": "workspace:*",
-    "@storybook-package-route/url": "workspace:*",
-    "@storybook-app-web-page-package-scenario/inspector": "workspace:*",
-    "@storybook-tech-testing/browser-root": "workspace:*",
-    "@immersive/browser": "^0.0.0",
-    "@immersive/component": "^0.0.0",
-    "@immersive/space": "^0.0.0"
+    "@zavx0z/storybook-package-graph-create": "workspace:*",
+    "@zavx0z/storybook-package-session": "workspace:*",
+    "@zavx0z/immersive-renderer-html": "^0.0.0",
+    "@zavx0z/storybook-repo-discovery": "workspace:*",
+    "@zavx0z/storybook-package-route-url": "workspace:*",
+    "@zavx0z/storybook-app-web-page-package-scenario-inspector": "workspace:*",
+    "@zavx0z/storybook-tech-testing-browser-root": "workspace:*",
+    "@zavx0z/immersive-browser": "^0.0.0",
+    "@zavx0z/immersive-component": "^0.0.0",
+    "@zavx0z/immersive-space": "^0.0.0"
   }
 }

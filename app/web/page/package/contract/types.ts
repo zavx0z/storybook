@@ -1,20 +1,20 @@
-import type {StorybookAppWebProtocol} from "@storybook-app-web/protocol"
-import type {StorybookTechHmrConnection} from "@storybook-tech-hmr/connection"
-import type {StorybookAppWebPagePackageScenarioModel} from "@storybook-app-web-page-package-scenario/model"
+import type {Zavx0zStorybookAppWebProtocol} from "@zavx0z/storybook-app-web-protocol"
+import type {Zavx0zStorybookTechHmrConnection} from "@zavx0z/storybook-tech-hmr-connection"
+import type {Zavx0zStorybookAppWebPagePackageScenarioModel} from "@zavx0z/storybook-app-web-page-package-scenario-model"
 
-import type {StorybookPackageRevision} from "@storybook-package/revision"
-import type {StorybookAppWebPageShell} from "@storybook-app-web-page/shell"
-type CreateExternalStorybookShellOptions = StorybookAppWebPageShell.Input
-type ExternalStorybookShell = StorybookAppWebPageShell.Output
+import type {Zavx0zStorybookPackageRevision} from "@zavx0z/storybook-package-revision"
+import type {Zavx0zStorybookAppWebPageShell} from "@zavx0z/storybook-app-web-page-shell"
+type CreateExternalStorybookShellOptions = Zavx0zStorybookAppWebPageShell.Input
+type ExternalStorybookShell = Zavx0zStorybookAppWebPageShell.Output
 
 import type {STORYBOOK_PAGE_REALM_PROTOCOL} from "../src/implementation"
 
-export type ExternalStorybookClientSnapshot = ReturnType<StorybookAppWebProtocol.Output["clientSnapshot"]>
+export type ExternalStorybookClientSnapshot = ReturnType<Zavx0zStorybookAppWebProtocol.Output["clientSnapshot"]>
 
 /** Форма исходного публичного владельца. */
-export type ScenarioAppInput = StorybookAppWebPagePackageScenarioModel.Input
+export type ScenarioAppInput = Zavx0zStorybookAppWebPagePackageScenarioModel.Input
 
-export type StorybookPackageRevisionGraphSnapshot = ReturnType<StorybookPackageRevision.Output["create"]>
+export type StorybookPackageRevisionGraphSnapshot = ReturnType<Zavx0zStorybookPackageRevision.Output["create"]>
 
 export type ExternalStorybookScenarioLoader = () => Promise<ScenarioAppInput>
 
@@ -36,11 +36,11 @@ export type ExternalStorybookPackageEnvironment = Readonly<{
   browserDocument?: globalThis.Document
   location?: Pick<Location, "pathname" | "href" | "reload">
   history?: Pick<History, "pushState" | "replaceState">
-  createSocket?(url: string): StorybookTechHmrConnection.Input["socket"]
+  createSocket?(url: string): Zavx0zStorybookTechHmrConnection.Input["socket"]
   navigatePackage?(input: Readonly<{packageId: string; route: string}>): Promise<void>
   navigateLanding?(pathname: string): Promise<void>
   /** Already authenticated pending socket transferred by the page controller at commit. */
-  socket?: StorybookTechHmrConnection.Input["socket"]
+  socket?: Zavx0zStorybookTechHmrConnection.Input["socket"]
   bootstrapIntent?: "reader" | "navigation-candidate" | "preview"
   initialAppliedRevision?: string | null
   fallbackRevision?: string | null

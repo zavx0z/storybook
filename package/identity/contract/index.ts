@@ -1,5 +1,5 @@
 /** Допустимые публичные имена пакета и его экспортов. */
-export declare namespace StorybookPackageIdentity {
+export declare namespace Zavx0zStorybookPackageIdentity {
   /** Проверка exact package identity и импортируемого имени экспорта. */
   type Output = Readonly<{
     /** Образец допустимого публичного имени пакета. */

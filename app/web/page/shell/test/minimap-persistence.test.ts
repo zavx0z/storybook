@@ -1,18 +1,18 @@
-import Minimap from "@storybook-app-web-page-shell/minimap"
+import Minimap from "@zavx0z/storybook-app-web-page-shell-minimap"
 import {expect, test} from "bun:test"
-import {createRoot} from "@immersive/component"
-import {createDocument, MouseEvent, type Element} from "@immersive/dom"
-import {flushDocumentLayoutObservers} from "@immersive/dom/geometry"
-import {createDocumentInteractionController, createDocumentRenderer, hitTestProjection} from "@immersive-renderer/html"
-import type {CompiledTemplate} from "@immersive/template/compiled"
-import type {StorybookAppWebPageShellMinimap} from "@storybook-app-web-page-shell/minimap"
-type MinimapProps = StorybookAppWebPageShellMinimap.Input
-type MinimapState = StorybookAppWebPageShellMinimap.Output
+import {createRoot} from "@zavx0z/immersive-component"
+import {createDocument, MouseEvent, type Element} from "@zavx0z/immersive-dom"
+import {flushDocumentLayoutObservers} from "@zavx0z/immersive-dom/geometry"
+import {createDocumentInteractionController, createDocumentRenderer, hitTestProjection} from "@zavx0z/immersive-renderer-html"
+import type {CompiledTemplate} from "@zavx0z/immersive-template/compiled"
+import type {Zavx0zStorybookAppWebPageShellMinimap} from "@zavx0z/storybook-app-web-page-shell-minimap"
+type MinimapProps = Zavx0zStorybookAppWebPageShellMinimap.Input
+type MinimapState = Zavx0zStorybookAppWebPageShellMinimap.Output
 import {createMinimapPersistence} from "../src/minimap-persistence"
 
 const initialLayout: MinimapState = {collapsed: false, geometry: {x: 8, y: 8, width: 300, height: 480}, tab: {edge: "left", offset: .5}}
 
-const theme = await Bun.file(Bun.resolveSync("@immersive-ui/component/theme/theme.css", import.meta.dir)).text()
+const theme = await Bun.file(Bun.resolveSync("@zavx0z/immersive-ui-component/theme/theme.css", import.meta.dir)).text()
 
 /** Новая сессия компонента использует настоящее дерево, layout, ввод и переданное хранилище. */
 function mount(storage: () => Pick<Storage, "getItem" | "setItem">, width = 800, height = 600) {

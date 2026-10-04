@@ -1,5 +1,5 @@
 import {describe, expect, test} from "bun:test"
-import readDomainMcp from "@storybook-domain/mcp"
+import readDomainMcp from "@zavx0z/storybook-domain-mcp"
 
 describe.each([
   {name: "Domain в проекте", props: {path: "example/domain"}},

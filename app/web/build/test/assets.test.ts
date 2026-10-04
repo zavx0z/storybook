@@ -5,7 +5,7 @@ import {join} from "node:path"
 import {tmpdir} from "node:os"
 import {StorybookSharedBrowserAssets} from "../src/assets"
 import type {SharedBrowserAssets} from "../contract/assets"
-import Environment from "@storybook-tech-build/environment"
+import Environment from "@zavx0z/storybook-tech-build-environment"
 
 const cleanups: Array<() => void> = []
 afterEach(() => { for (const cleanup of cleanups.splice(0).reverse()) cleanup() })
@@ -170,7 +170,7 @@ test("явный запрос полной среды собирает kernel п
         fallbackEntry: "page.js",
         browserIdentity: Environment.identity(
           "/__storybook/shared/page.js",
-          [{specifier: "@immersive/component", sourcePath: platform, url: `/__storybook/shared/kernel/${platformVersion}.js`}],
+          [{specifier: "@zavx0z/immersive-component", sourcePath: platform, url: `/__storybook/shared/kernel/${platformVersion}.js`}],
           digest(readFileSync(web, "utf8")),
         ),
       }

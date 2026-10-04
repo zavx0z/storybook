@@ -1,5 +1,5 @@
 /** Результат технической сборки и публикации артефактов. */
-export declare namespace StorybookTechBuildArtifacts {
+export declare namespace Zavx0zStorybookTechBuildArtifacts {
   /** Публичные операции над графом файлов, не зависящие от Web или Package. */
   export type Output = Readonly<{
     /** Находит единственный выпущенный вход по native metafile. */

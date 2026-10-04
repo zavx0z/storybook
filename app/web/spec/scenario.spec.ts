@@ -3,7 +3,7 @@ Web хранит одну опубликованную оболочку и го�
 Варианты показывают предварительную проверку и публикацию одной среды.
 */
 import {afterAll, describe, expect, mock, test} from "bun:test"
-import createWeb from "@storybook-app/web"
+import createWeb from "@zavx0z/storybook-app-web"
 import {createWebArtifacts} from "./fixture/web-artifacts"
 
 describe.each([

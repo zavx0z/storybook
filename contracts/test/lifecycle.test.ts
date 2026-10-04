@@ -1,7 +1,7 @@
 import {expect, test} from "bun:test"
 import {rm, symlink} from "node:fs/promises"
 import {resolve} from "node:path"
-import readContract from "@storybook/contracts"
+import readContract from "@zavx0z/storybook-contracts"
 import {createFixture} from "./fixture"
 
 test("Следующее чтение отражает изменение и удаление определения", async () => {

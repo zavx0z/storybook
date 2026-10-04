@@ -1,5 +1,5 @@
 /** Контракт чистого публичного URL пакета Storybook. */
-export declare namespace StorybookPackageRouteUrl {
+export declare namespace Zavx0zStorybookPackageRouteUrl {
   /**
   Browser-safe функции построения, сравнения и чтения адреса.
 

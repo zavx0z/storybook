@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-tech-process/measure",
+  "name": "@zavx0z/storybook-tech-process-measure",
   "label": "Ресурсы дерева процессов",
   "version": "0.0.0",
   "private": true,
@@ -12,6 +12,6 @@
     "test": "bun test ./spec ./test"
   },
   "dependencies": {
-    "@storybook-tech-process/sample": "workspace:*"
+    "@zavx0z/storybook-tech-process-sample": "workspace:*"
   }
 }

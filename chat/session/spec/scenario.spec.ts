@@ -3,7 +3,7 @@ import {afterAll, describe, expect, test} from "bun:test"
 import {mkdtemp, rm} from "node:fs/promises"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
-import createChatSessions, {type StorybookChatSession} from "@storybook-chat/session"
+import createChatSessions, {type Zavx0zStorybookChatSession} from "@zavx0z/storybook-chat-session"
 
 describe.each([
   {name: "Project", props: {address: "/", label: "Проект"}},
@@ -30,8 +30,8 @@ describe.each([
   })
   afterAll(async () => { await sessions.dispose(); await rm(directory, {recursive: true, force: true}) })
   const initial = await sessions.read(props.address)
-  let resolveFinished!: (value: Awaited<ReturnType<StorybookChatSession.Output["read"]>>) => void
-  const finished = new Promise<Awaited<ReturnType<StorybookChatSession.Output["read"]>>>(resolve => { resolveFinished = resolve })
+  let resolveFinished!: (value: Awaited<ReturnType<Zavx0zStorybookChatSession.Output["read"]>>) => void
+  const finished = new Promise<Awaited<ReturnType<Zavx0zStorybookChatSession.Output["read"]>>>(resolve => { resolveFinished = resolve })
   const unsubscribe = await sessions.subscribe(props.address, value => {
     if (value.status === "idle" && value.messages.length > 0) resolveFinished(value)
   })

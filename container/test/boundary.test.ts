@@ -1,8 +1,8 @@
 import {afterEach, expect, test} from "bun:test"
 import {mkdir, rm, symlink} from "node:fs/promises"
 import {join, resolve} from "node:path"
-import readContainer from "@storybook/container"
-import readScenario from "@storybook-specs-scenarios/reader"
+import readContainer from "@zavx0z/storybook-container"
+import readScenario from "@zavx0z/storybook-specs-scenarios-reader"
 import {prepareContainerExample} from "../spec/prepare"
 
 const roots: string[] = []

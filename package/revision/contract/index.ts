@@ -1,11 +1,11 @@
-import {type StorybookPackageGraphCreate as PackageGraphCreateContract} from "@storybook-package-graph/create"
+import {type Zavx0zStorybookPackageGraphCreate as PackageGraphCreateContract} from "@zavx0z/storybook-package-graph-create"
 type ExternalStorybookGraph = PackageGraphCreateContract.Output
 import type {
   StorybookAuthorStyleSheetSource,
   StorybookPackageRevisionGraphSnapshot,
 } from "./types"
 
-export declare namespace StorybookPackageRevision {
+export declare namespace Zavx0zStorybookPackageRevision {
   /** Создание, проверка и адресация ресурсов одной пакетной ревизии. */
   type Output = Readonly<{
     protocol: StorybookPackageRevisionGraphSnapshot["protocol"]

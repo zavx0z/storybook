@@ -4,9 +4,9 @@
 
 @packageDocumentation
 */
-import type {StorybookAppMcpRestAddress} from "./contract"
+import type {Zavx0zStorybookAppMcpRestAddress} from "./contract"
 
-export type {StorybookAppMcpRestAddress} from "./contract"
+export type {Zavx0zStorybookAppMcpRestAddress} from "./contract"
 
 /**
 Проверяет синтаксис и точное присутствие адреса в переданной структуре.
@@ -17,7 +17,7 @@ export type {StorybookAppMcpRestAddress} from "./contract"
 @throws TypeError при параметрах, fragment, пустых или относительных сегментах.
 @throws Error, если адрес отсутствует в публичной структуре.
 */
-export default function resolveMcpAddress({address, paths}: StorybookAppMcpRestAddress.Input): StorybookAppMcpRestAddress.Output {
+export default function resolveMcpAddress({address, paths}: Zavx0zStorybookAppMcpRestAddress.Input): Zavx0zStorybookAppMcpRestAddress.Output {
   if (address.length === 0 || address.length > 512 || /[?#\\\u0000-\u0020\u007f]/u.test(address)
     || address.split("/").some(segment => segment === "" || segment === "." || segment === "..")) {
     throw new TypeError("MCP принимает адрес из children через /, без параметров и fragment")

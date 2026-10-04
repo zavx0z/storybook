@@ -6,7 +6,7 @@
 видимым директориям. `package.json#exports` определяет API пакета независимо и
 не классифицирует узлы маршрута.
 
-`@storybook-package-route/workspaces` раскрывает точные пути, glob-шаблоны и исключения
+`@zavx0z/storybook-package-route-workspaces` раскрывает точные пути, glob-шаблоны и исключения
 из `package.json#workspaces`. Discovery и route resolver используют один reader;
 route читает только текущего владельца на выбранной ветке.
 

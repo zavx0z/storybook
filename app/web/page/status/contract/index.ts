@@ -1,7 +1,7 @@
 import type {BuildProgress, CatalogProgress} from "./progress"
 import type {PackageBuildState} from "./package"
 
-export declare namespace StorybookAppWebPageStatus {
+export declare namespace Zavx0zStorybookAppWebPageStatus {
   /** Публичные проверки transport событий и тексты фактически наблюдаемых состояний. */
   export type Output = Readonly<{
     /** Возвращает проверенный scheduler transition либо null для неизвестной формы. */

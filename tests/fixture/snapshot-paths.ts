@@ -21,7 +21,7 @@ export function createSnapshotPaths(locations: readonly Location[]): (value: str
 
 const repo = resolve(import.meta.dir, "../..")
 const require = createRequire(import.meta.url)
-const typedocRequire = createRequire(require.resolve("@immersive/typedoc"))
+const typedocRequire = createRequire(require.resolve("@zavx0z/immersive-typedoc"))
 const locations: Location[] = [{path: repo, label: "<repo>"}]
 for (const manifestPath of new Set([
   require.resolve("@types/node/package.json"),

@@ -1,5 +1,5 @@
-import createLazyMcpServer from "@storybook-tech-mcp/lazy"
-import serveMcpStdio from "@storybook-tech-mcp/stdio"
+import createLazyMcpServer from "@zavx0z/storybook-tech-mcp-lazy"
+import serveMcpStdio from "@zavx0z/storybook-tech-mcp-stdio"
 
 const options = JSON.parse(process.argv[2]!)
 const handle = serveMcpStdio({

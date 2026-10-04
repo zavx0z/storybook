@@ -1,8 +1,8 @@
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
-import discoverStorybookPackages from "@storybook-repo/discovery"
-import createExternalStorybookGraph from "@storybook-package-graph/create"
-import graphRead from "@storybook-package-graph/read"
+import discoverStorybookPackages from "@zavx0z/storybook-repo-discovery"
+import createExternalStorybookGraph from "@zavx0z/storybook-package-graph-create"
+import graphRead from "@zavx0z/storybook-package-graph-read"
 
 const {
   node: externalStorybookNode,

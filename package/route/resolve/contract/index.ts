@@ -1,5 +1,5 @@
 /** Контракт разрешения одной публичной физической ветки зарегистрированного пакета. */
-export declare namespace StorybookPackageRouteResolve {
+export declare namespace Zavx0zStorybookPackageRouteResolve {
   /** Пользовательский адрес и точные зарегистрированные корни первого уровня. */
   type Input = Readonly<{
     route: string

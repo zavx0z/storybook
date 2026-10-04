@@ -1,6 +1,6 @@
 # Как оценить нагрузку перед сборкой
 
-Очередью исполнения владеет [StorybookTechBuildQueue](../../queue/index.ts);
+Очередью исполнения владеет [Zavx0zStorybookTechBuildQueue](../../queue/index.ts);
 [сборочный координатор](../../../../package/build/scheduler/index.ts) связывает её с пакетами,
 а [контроллер сервера](../../../../app/index.ts) возвращает сведения о нагрузке.
 

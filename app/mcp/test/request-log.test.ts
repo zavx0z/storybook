@@ -1,4 +1,4 @@
-import McpRestRequestsOwner from "@storybook-app-server/requests"
+import McpRestRequestsOwner from "@zavx0z/storybook-app-server-requests"
 const createMcpRequestJournal = McpRestRequestsOwner
 import {describe, expect, test} from "bun:test"
 import {traceMcpRequest} from "../src/request-log"

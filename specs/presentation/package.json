@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-specs/presentation",
+  "name": "@zavx0z/storybook-specs-presentation",
   "label": "Представление сценариев",
   "version": "0.0.0",
   "private": true,
@@ -9,10 +9,10 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@storybook-specs/reader": "workspace:*"
+    "@zavx0z/storybook-specs-reader": "workspace:*"
   },
   "devDependencies": {
-    "@storybook-specs-scenarios/reader": "workspace:*",
-    "@storybook-repo/discovery": "workspace:*"
+    "@zavx0z/storybook-specs-scenarios-reader": "workspace:*",
+    "@zavx0z/storybook-repo-discovery": "workspace:*"
   }
 }

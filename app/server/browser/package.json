@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-app-server/browser",
+  "name": "@zavx0z/storybook-app-server-browser",
   "label": "Вкладки Storybook",
   "description": "Управляет единым браузером Chrome и вкладками Storybook: открытием, проверкой готовности и закрытием.",
   "version": "0.0.0",
@@ -15,12 +15,12 @@
   },
   "dependencies": {
     "pngjs": "^7.0.0",
-    "@storybook-package-route/url": "workspace:*"
+    "@zavx0z/storybook-package-route-url": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "^1.4.0",
     "@types/pngjs": "^6.0.5",
     "typescript": "^7.0.2",
-    "@immersive-nodes/node": "^0.0.0"
+    "@zavx0z/immersive-nodes-node": "^0.0.0"
   }
 }

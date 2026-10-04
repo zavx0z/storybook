@@ -1,6 +1,6 @@
 import type {StorybookSharedBrowserIdentity} from "./types"
-import type {StorybookPackageBuildScheduler} from "@storybook-package-build/scheduler"
-import type Scheduler from "@storybook-package-build/scheduler"
+import type {Zavx0zStorybookPackageBuildScheduler} from "@zavx0z/storybook-package-build-scheduler"
+import type Scheduler from "@zavx0z/storybook-package-build-scheduler"
 
 /** Вход явной компиляции общей платформы без browser-входов приложения. */
 export type PlatformBuildInput = Readonly<{root: string, toolRoot: string, stagingDirectory: string}>
@@ -11,5 +11,5 @@ export type PlatformArtifacts = Readonly<{
   artifacts: readonly Readonly<{path: string, digest: string}>[]
 }>
 
-export type PlatformBuildContext = Parameters<Parameters<StorybookPackageBuildScheduler.Output["run"]>[1]>[0]
+export type PlatformBuildContext = Parameters<Parameters<Zavx0zStorybookPackageBuildScheduler.Output["run"]>[1]>[0]
 export type PlatformPhaseListener = (event: Extract<NonNullable<ReturnType<typeof Scheduler.parseStorybookBuildWorkerTransportEvent>>, {kind: "phase"}>["event"]) => void

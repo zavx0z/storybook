@@ -1,8 +1,8 @@
-import type ProcessResourceSampler from "@storybook-tech-process/sample"
+import type ProcessResourceSampler from "@zavx0z/storybook-tech-process-sample"
 import type {BuildCompletion, BuildOperation} from "./operation"
 
 /** Допуск работ и наблюдение их состояния при сохранении типа данных владельца. */
-export declare namespace StorybookTechBuildQueue {
+export declare namespace Zavx0zStorybookTechBuildQueue {
   /**
   Настройки одной очереди сборочных работ и явного измерения ресурсов.
 

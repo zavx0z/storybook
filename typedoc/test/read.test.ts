@@ -1,6 +1,6 @@
 import {expect, test} from "bun:test"
 import {resolve} from "node:path"
-import readTypeDoc from "@storybook/typedoc"
+import readTypeDoc from "@zavx0z/storybook-typedoc"
 
 const path = resolve(import.meta.dir, "../spec/fixture/prepare.ts")
 

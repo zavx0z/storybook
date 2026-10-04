@@ -1,4 +1,4 @@
-import Environment from "@storybook-tech-build/environment"
+import Environment from "@zavx0z/storybook-tech-build-environment"
 import {afterEach, expect, setDefaultTimeout, spyOn, test} from "bun:test"
 import {mkdtempSync, rmSync, writeFileSync} from "node:fs"
 import {randomUUID} from "node:crypto"
@@ -75,7 +75,7 @@ test("сборка host сохраняет платформу и адресуе�
       .toBe(JSON.stringify(webArtifacts(first)) === JSON.stringify(webArtifacts(second)))
     expect(first.browserIdentity?.modules.map(({specifier, url}) => ({specifier, url})))
       .toEqual(second.browserIdentity?.modules.map(({specifier, url}) => ({specifier, url})))
-    expect(first.browserIdentity?.modules.some(({specifier}) => specifier.startsWith("@immersive-ui/component")))
+    expect(first.browserIdentity?.modules.some(({specifier}) => specifier.startsWith("@zavx0z/immersive-ui-component")))
       .toBeFalse()
   } finally {
     nativeBuild.mockRestore()

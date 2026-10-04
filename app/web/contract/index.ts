@@ -1,11 +1,11 @@
-import type {StorybookTechBuildEnvironment} from "@storybook-tech-build/environment"
-import type {StorybookAppWebBuild} from "@storybook-app-web/build"
-import type {StorybookPackageBuildScheduler} from "@storybook-package-build/scheduler"
-import type {StorybookPackageSession} from "@storybook-package/session"
+import type {Zavx0zStorybookTechBuildEnvironment} from "@zavx0z/storybook-tech-build-environment"
+import type {Zavx0zStorybookAppWebBuild} from "@zavx0z/storybook-app-web-build"
+import type {Zavx0zStorybookPackageBuildScheduler} from "@zavx0z/storybook-package-build-scheduler"
+import type {Zavx0zStorybookPackageSession} from "@zavx0z/storybook-package-session"
 import type {WebAssets, WebEvent, WebFailure, WebHost, WebPreparation, WebState} from "./types"
 
 /** Web соединяет подготовку и выпуск текущего интерфейса приложения. */
-export declare namespace StorybookAppWeb {
+export declare namespace Zavx0zStorybookAppWeb {
   /**
   Ресурсы, предоставленные приложением; создание не запускает компиляцию.
 
@@ -30,12 +30,12 @@ export declare namespace StorybookAppWeb {
   export type Input = Readonly<{
     toolRoot: string
     artifactRoot: string
-    scheduler(): StorybookPackageBuildScheduler.Output
-    revisions(): readonly ReturnType<StorybookPackageSession.Output["snapshot"]>[]
+    scheduler(): Zavx0zStorybookPackageBuildScheduler.Output
+    revisions(): readonly ReturnType<Zavx0zStorybookPackageSession.Output["snapshot"]>[]
     publish?(event: WebEvent): void
-    build?: StorybookAppWebBuild.Output["runWorker"]
+    build?: Zavx0zStorybookAppWebBuild.Output["runWorker"]
     /** Явная подготовка платформы предоставляется композицией App; rebuild её не вызывает. */
-    preparePlatform?: StorybookTechBuildEnvironment.Output["runWorker"]
+    preparePlatform?: Zavx0zStorybookTechBuildEnvironment.Output["runWorker"]
     landingEntryPath?: string
     fallbackEntryPath?: string
   }>
@@ -76,7 +76,7 @@ export declare namespace StorybookAppWeb {
   export type Output = Readonly<{
     artifactRoot: string
     packageEntryPath: string
-    readStyleSheets(): ReturnType<StorybookAppWebBuild.Output["readTheme"]>
+    readStyleSheets(): ReturnType<Zavx0zStorybookAppWebBuild.Output["readTheme"]>
     readonly platform: WebAssets["browserIdentity"]
     readonly error: WebFailure | null
     assets(preview?: boolean): WebAssets

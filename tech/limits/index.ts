@@ -5,11 +5,11 @@
 
 @packageDocumentation
 */
-import type {StorybookTechLimits} from "./contract"
-export type {StorybookTechLimits} from "./contract"
+import type {Zavx0zStorybookTechLimits} from "./contract"
+export type {Zavx0zStorybookTechLimits} from "./contract"
 
 /** Общая политика временных бюджетов без запуска процессов при чтении. */
-const limits: StorybookTechLimits.Output = Object.freeze({
+const limits: Zavx0zStorybookTechLimits.Output = Object.freeze({
   STORYBOOK_SERVER_IDLE_TIMEOUT_SECONDS: 125,
 })
 

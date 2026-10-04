@@ -8,10 +8,10 @@ import {
   type HTMLButtonElement,
   type HTMLInputElement,
   type HTMLElement,
-} from "@immersive/dom"
-import {createDocumentRenderer} from "@immersive-renderer/html"
-import uiIcons from "@immersive-ui-theme/icon-set"
-import {isCompiledTemplate} from "@immersive/template/compiled"
+} from "@zavx0z/immersive-dom"
+import {createDocumentRenderer} from "@zavx0z/immersive-renderer-html"
+import uiIcons from "@zavx0z/immersive-ui-theme-icon-set"
+import {isCompiledTemplate} from "@zavx0z/immersive-template/compiled"
 import {WORKBENCH_EVENTS, WORKBENCH_LAYOUT_PROTOCOL, WORKBENCH_REGIONS} from "../src/events"
 import type {Workbench} from "../src/types.ts"
 import type * as ControllerModule from "./fixture/create-workbench"
@@ -527,7 +527,7 @@ describe("compiled Storybook Workbench", () => {
     const view = await Bun.file(new URL("../src/view.tsx", import.meta.url)).text()
     const inspector = await Bun.file(new URL("../src/inspector/panel.tsx", import.meta.url)).text()
     const navigation = await Bun.file(new URL("../src/regions/catalog.tsx", import.meta.url)).text()
-    expect(inspector).toContain('from "@immersive-ui/component/widget/inspector"')
+    expect(inspector).toContain('from "@zavx0z/immersive-ui-component/widget/inspector"')
     expect(inspector).not.toContain("InspectorSections")
     expect(inspector).not.toContain("uiIcons")
     expect(view).not.toContain("createElement(")

@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import Client from "@storybook-tech-http/client"
+import Client from "@zavx0z/storybook-tech-http-client"
 
 test("пауза долгой операции сохраняет ожидание до переданного срока", async () => {
   const nativeFetch = globalThis.fetch

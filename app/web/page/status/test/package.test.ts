@@ -1,7 +1,7 @@
 import {expect, test} from "bun:test"
 import Status from "../index"
 
-test("[PACKAGE-STATUS] отображает только опубликованные этапы StorybookPackageSession", () => {
+test("[PACKAGE-STATUS] отображает только опубликованные этапы Zavx0zStorybookPackageSession", () => {
   expect(Status.packageEvent("@fixture/components", "package.code-updated"))
     .toContain("Изменения обнаружены; подготовка следующей сборки")
   expect(Status.packageEvent("@fixture/components", "package.built"))

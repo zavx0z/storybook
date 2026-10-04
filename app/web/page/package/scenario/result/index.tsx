@@ -2,11 +2,11 @@
 
 @packageDocumentation
 */
-import type {StorybookAppWebPagePackageScenarioResult as Contract} from "./contract"
-export type {StorybookAppWebPagePackageScenarioResult} from "./contract"
-import {useSyncExternalStore} from "@immersive/component"
-import {Typography} from "@immersive-ui/component"
-import {CodeEditor} from "@immersive-ui/component"
+import type {Zavx0zStorybookAppWebPagePackageScenarioResult as Contract} from "./contract"
+export type {Zavx0zStorybookAppWebPagePackageScenarioResult} from "./contract"
+import {useSyncExternalStore} from "@zavx0z/immersive-component"
+import {Typography} from "@zavx0z/immersive-ui-component"
+import {CodeEditor} from "@zavx0z/immersive-ui-component"
 import {ScenarioCallResult} from "./src/call"
 
 /**
@@ -14,7 +14,7 @@ import {ScenarioCallResult} from "./src/call"
 структура файлов и примеры кода, остальные данные сохраняются в редакторе JSON.
 Специальные значения сохраняют метки инспектора, ошибки не подменяются результатом.
 */
-export default function StorybookAppWebPagePackageScenarioResult(props: Contract.Input) {
+export default function Zavx0zStorybookAppWebPagePackageScenarioResult(props: Contract.Input) {
   const selected = useSyncExternalStore(props.app.subscribe, props.app.getSnapshot)
   const calls = "calls" in selected ? selected.calls : []
   const failedTests = selected.execution?.tests?.filter(test => test.status === "failed" || test.status === "error") ?? []

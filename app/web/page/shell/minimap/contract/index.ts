@@ -1,11 +1,11 @@
-import type {ImmersiveUiComponentSurfaceWindow} from "@immersive-ui/component"
-type WindowGeometry = NonNullable<ImmersiveUiComponentSurfaceWindow.Input["geometry"]>
-import type {ImmersiveUiComponentSurfaceTab} from "@immersive-ui/component"
-type TabProps = ImmersiveUiComponentSurfaceTab.Input
-import type {StorybookAppWebPageShellWorkbenchCatalog} from "@storybook-app-web-page-shell-workbench/catalog"
+import type {Zavx0zImmersiveUiComponentSurfaceWindow} from "@zavx0z/immersive-ui-component"
+type WindowGeometry = NonNullable<Zavx0zImmersiveUiComponentSurfaceWindow.Input["geometry"]>
+import type {Zavx0zImmersiveUiComponentSurfaceTab} from "@zavx0z/immersive-ui-component"
+type TabProps = Zavx0zImmersiveUiComponentSurfaceTab.Input
+import type {Zavx0zStorybookAppWebPageShellWorkbenchCatalog} from "@zavx0z/storybook-app-web-page-shell-workbench-catalog"
 import type {MinimapInitialState} from "./state"
 
-export declare namespace StorybookAppWebPageShellMinimap {
+export declare namespace Zavx0zStorybookAppWebPageShellMinimap {
   /** Полный сохраняемый снимок Minimap после завершённого действия. */
   export type Output = Readonly<{
     collapsed: boolean
@@ -35,7 +35,7 @@ export declare namespace StorybookAppWebPageShellMinimap {
   */
   export interface Input {
     readonly projectName: string
-    readonly catalog: StorybookAppWebPageShellWorkbenchCatalog.Input
+    readonly catalog: Zavx0zStorybookAppWebPageShellWorkbenchCatalog.Input
     readonly initialState?: MinimapInitialState | undefined
     readonly onStateChange?: ((state: Output) => void) | undefined
     readonly onRebuildWeb?: (() => Promise<void>) | undefined

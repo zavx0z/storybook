@@ -5,11 +5,11 @@
 */
 import {realpath} from "node:fs/promises"
 import {resolve} from "node:path"
-import readRouteIgnored from "@storybook-package-route/ignored"
-import type {StorybookPackageRouteDirectories} from "./contract"
+import readRouteIgnored from "@zavx0z/storybook-package-route-ignored"
+import type {Zavx0zStorybookPackageRouteDirectories} from "./contract"
 import {isContained, pathExists, readDirectoryCandidates, readDirectoryShape, readExactDirectory} from "./src/files"
 
-export type {StorybookPackageRouteDirectories} from "./contract"
+export type {Zavx0zStorybookPackageRouteDirectories} from "./contract"
 
 /**
 Возвращает видимые непосредственные директории в лексикографическом порядке имён.
@@ -24,7 +24,7 @@ export default async function readRouteDirectories({
   name,
   packagePaths = [],
   repository,
-}: StorybookPackageRouteDirectories.Input): Promise<StorybookPackageRouteDirectories.Output> {
+}: Zavx0zStorybookPackageRouteDirectories.Input): Promise<Zavx0zStorybookPackageRouteDirectories.Output> {
   const rootPath = await readExactDirectory(root)
   const parentPath = await readExactDirectory(parent)
   if (rootPath === null || parentPath === null || !isContained(rootPath, parentPath)) {

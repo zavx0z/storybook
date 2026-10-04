@@ -1,5 +1,5 @@
 import {describe, expect, test} from "bun:test"
-import url from "@storybook-package-route/url"
+import url from "@zavx0z/storybook-package-route-url"
 
 describe.each([
   {name: "Пакет без области", props: {packageId: "button", route: ""}, path: "/pkg-button/"},

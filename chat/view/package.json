@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-chat/view",
+  "name": "@zavx0z/storybook-chat-view",
   "label": "Чат",
   "version": "0.0.0",
   "private": true,
@@ -9,21 +9,21 @@
     ".": "./index.tsx"
   },
   "scripts": {
-    "test": "bun test --preload ./spec/fixture/preload.ts --preload @immersive/headless/preload ./spec"
+    "test": "bun test --preload ./spec/fixture/preload.ts --preload @zavx0z/immersive-headless/preload ./spec"
   },
   "dependencies": {
-    "@immersive-tech-svg/encode": "^0.0.0",
-    "@immersive-ui/component": "^0.0.0",
-    "@immersive/jsx": "^0.0.0",
-    "@immersive-jsx-compiler/session": "^0.0.0",
-    "@storybook-chat/session": "workspace:*",
-    "@immersive/markdown": "^0.0.0",
-    "@immersive/component": "^0.0.0"
+    "@zavx0z/immersive-tech-svg-encode": "^0.0.0",
+    "@zavx0z/immersive-ui-component": "^0.0.0",
+    "@zavx0z/immersive-jsx": "^0.0.0",
+    "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
+    "@zavx0z/storybook-chat-session": "workspace:*",
+    "@zavx0z/immersive-markdown": "^0.0.0",
+    "@zavx0z/immersive-component": "^0.0.0"
   },
   "devDependencies": {
-    "@immersive/headless": "^0.0.0",
-    "@immersive/dom": "^0.0.0",
-    "@immersive-jsx-compiler/bun": "^0.0.0",
-    "@storybook-tech-build/compiler": "workspace:*"
+    "@zavx0z/immersive-headless": "^0.0.0",
+    "@zavx0z/immersive-dom": "^0.0.0",
+    "@zavx0z/immersive-jsx-compiler-bun": "^0.0.0",
+    "@zavx0z/storybook-tech-build-compiler": "workspace:*"
   }
 }

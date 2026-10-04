@@ -1,5 +1,5 @@
 {
-  "name": "@storybook-app-web-page/style-sheets",
+  "name": "@zavx0z/storybook-app-web-page-style-sheets",
   "label": "Авторские таблицы стилей",
   "version": "0.0.0",
   "private": true,
@@ -9,6 +9,6 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@immersive/browser": "^0.0.0"
+    "@zavx0z/immersive-browser": "^0.0.0"
   }
 }

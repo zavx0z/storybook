@@ -1,6 +1,6 @@
 /** Исполняемый scope заменяется в той же странице; данные предыдущего сохраняются для отката. */
 import {afterAll, describe, expect, test} from "bun:test"
-import createHmrPage from "@storybook-tech-hmr/page"
+import createHmrPage from "@zavx0z/storybook-tech-hmr-page"
 
 describe.each([
   {name: "Первое содержимое", props: {previous: null, next: "первая версия"}},

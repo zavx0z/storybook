@@ -1,8 +1,8 @@
-import type {StorybookPackagePackageJson} from "@storybook-package/package-json"
-import type {StorybookPackageDocumentation} from "@storybook-package/documentation"
-import type {StorybookPackageIndex} from "@storybook-package/index"
+import type {Zavx0zStorybookPackagePackageJson} from "@zavx0z/storybook-package-package-json"
+import type {Zavx0zStorybookPackageDocumentation} from "@zavx0z/storybook-package-documentation"
+import type {Zavx0zStorybookPackageIndex} from "@zavx0z/storybook-package-index"
 
-export declare namespace StorybookPackageReader {
+export declare namespace Zavx0zStorybookPackageReader {
   /**
   Входной контракт чтения структуры пакета.
 
@@ -66,15 +66,15 @@ export declare namespace StorybookPackageReader {
       }[]
     }[]
     readonly scenarios: readonly string[]
-    readonly packageJson: StorybookPackagePackageJson.Output
-    readonly documentation: StorybookPackageDocumentation.Output
+    readonly packageJson: Zavx0zStorybookPackagePackageJson.Output
+    readonly documentation: Zavx0zStorybookPackageDocumentation.Output
     readonly entryDocumentation: readonly {
       readonly path: string
       readonly target: string
       readonly conditions: readonly string[]
-      readonly documentation: StorybookPackageDocumentation.Output
+      readonly documentation: Zavx0zStorybookPackageDocumentation.Output
     }[]
-    readonly index: StorybookPackageIndex.Output
+    readonly index: Zavx0zStorybookPackageIndex.Output
     readonly packages: readonly {readonly path: string, readonly name: string, readonly parent: string}[]
   }
 }

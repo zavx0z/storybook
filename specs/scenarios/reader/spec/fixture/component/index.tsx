@@ -1,4 +1,4 @@
-import {useState} from "@immersive/component"
+import {useState} from "@zavx0z/immersive-component"
 
 export interface CommandProps {
   readonly label: string
@@ -15,7 +15,7 @@ export function Command(props: CommandProps) {
 }
 
 /** Контейнер использует обычный children transport Template. */
-export function Container(props: Readonly<{label: string | null; children?: import("@immersive-jsx-compiler/session").JSX.Element | null | undefined}>) {
+export function Container(props: Readonly<{label: string | null; children?: import("@zavx0z/immersive-jsx-compiler-session").JSX.Element | null | undefined}>) {
   return <section data-container="">
     <span>{props.label}</span>
     {props.children}

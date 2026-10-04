@@ -7,16 +7,16 @@
 
 @packageDocumentation
 */
-import resolveMcpAddress from "@storybook-app-mcp-rest/address"
-import readProjectMcp from "@storybook-project/mcp"
-import readMcpChildren from "@storybook-app-mcp-rest/children"
+import resolveMcpAddress from "@zavx0z/storybook-app-mcp-rest-address"
+import readProjectMcp from "@zavx0z/storybook-project-mcp"
+import readMcpChildren from "@zavx0z/storybook-app-mcp-rest-children"
 import {readMcpContent} from "./src/content"
-import type {StorybookAppMcpRest} from "./contract"
-import readRepoMcp from "@storybook-repo/mcp"
-import readComponentMcp from "@storybook-component/mcp"
-import readContainerMcp from "@storybook-container/mcp"
-import readClusterMcp from "@storybook-cluster/mcp"
-import readDomainMcp from "@storybook-domain/mcp"
+import type {Zavx0zStorybookAppMcpRest} from "./contract"
+import readRepoMcp from "@zavx0z/storybook-repo-mcp"
+import readComponentMcp from "@zavx0z/storybook-component-mcp"
+import readContainerMcp from "@zavx0z/storybook-container-mcp"
+import readClusterMcp from "@zavx0z/storybook-cluster-mcp"
+import readDomainMcp from "@zavx0z/storybook-domain-mcp"
 
 const entityMcp = {
   Repo: readRepoMcp,
@@ -26,7 +26,7 @@ const entityMcp = {
   Domain: readDomainMcp,
 }
 
-export type {StorybookAppMcpRest} from "./contract"
+export type {Zavx0zStorybookAppMcpRest} from "./contract"
 
 /**
 Навигационная проекция canonical graph без повторного discovery.
@@ -41,7 +41,7 @@ export type {StorybookAppMcpRest} from "./contract"
 @param options - Публичная структура действующего каталога с источниками контрактов и сценариев.
 @returns Назначение, схемы контрактов, сценарии и непосредственные переходы. Чтение не выполняет код и не запускает сборку.
 */
-export default async function storybookRest(request: StorybookAppMcpRest.Input[0], options: StorybookAppMcpRest.Input[1]): Promise<StorybookAppMcpRest.Output> {
+export default async function storybookRest(request: Zavx0zStorybookAppMcpRest.Input[0], options: Zavx0zStorybookAppMcpRest.Input[1]): Promise<Zavx0zStorybookAppMcpRest.Output> {
   if (request.method !== "GET" && request.method !== "POST") {
     return Response.json({status: "failed", error: "Поддерживаются GET и POST"}, {status: 405, headers: {Allow: "GET, POST"}})
   }

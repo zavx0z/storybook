@@ -1,11 +1,11 @@
 import {describe, expect, test} from "bun:test"
 import {join} from "node:path"
-import discoverStorybookPackages from "@storybook-repo/discovery"
-import createExternalStorybookGraph, {type StorybookPackageGraphCreate} from "@storybook-package-graph/create"
-type ExternalStorybookGraph = StorybookPackageGraphCreate.Output
-import type {StorybookPackageSession} from "@storybook-package/session"
-type StorybookPackageSessionSnapshot = ReturnType<StorybookPackageSession.Output["snapshot"]>
-import WebProtocol from "@storybook-app-web/protocol"
+import discoverStorybookPackages from "@zavx0z/storybook-repo-discovery"
+import createExternalStorybookGraph, {type Zavx0zStorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-create"
+type ExternalStorybookGraph = Zavx0zStorybookPackageGraphCreate.Output
+import type {Zavx0zStorybookPackageSession} from "@zavx0z/storybook-package-session"
+type StorybookPackageSessionSnapshot = ReturnType<Zavx0zStorybookPackageSession.Output["snapshot"]>
+import WebProtocol from "@zavx0z/storybook-app-web-protocol"
 
 const fixtureRoot = join(import.meta.dir, "../../../../repo/discovery/fixtures/valid")
 const fixtureGraph = async () => createExternalStorybookGraph(await discoverStorybookPackages([
@@ -57,7 +57,7 @@ describe("structural browser client protocol", () => {
   })
 
   test("encodes exact package identities in one path segment", () => {
-    expect(WebProtocol.encodePackagePath("@immersive/dom")).toBe("pkg-zavx0z-dom")
+    expect(WebProtocol.encodePackagePath("@zavx0z/immersive-dom")).toBe("pkg-zavx0z-dom")
     const encoded = WebProtocol.encodePackagePath("@fixture/components")
     expect(encoded).toBe("pkg-fixture-components")
     expect(WebProtocol.decodePackagePath(encoded, ["@fixture/components"])).toBe("@fixture/components")

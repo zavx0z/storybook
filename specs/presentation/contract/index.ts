@@ -1,13 +1,13 @@
-import type {StorybookSpecsReader} from "@storybook-specs/reader"
+import type {Zavx0zStorybookSpecsReader} from "@zavx0z/storybook-specs-reader"
 import type {ScenariosDocument, ScenariosOutput} from "./types"
 
 /** Контракт представления сценариев выбранного владельца. */
-export declare namespace StorybookSpecsPresentation {
+export declare namespace Zavx0zStorybookSpecsPresentation {
   /** Директория, проверенный source либо подготовленный отчёт и форма ответа. */
   type Input = Readonly<{
     path: string
     source?: string
-    prepared?: Readonly<{revision: string; result: StorybookSpecsReader.Output}>
+    prepared?: Readonly<{revision: string; result: Zavx0zStorybookSpecsReader.Output}>
     format?: "document" | "data"
     selection?: Readonly<{variant?: string; section?: readonly string[]}>
   }>

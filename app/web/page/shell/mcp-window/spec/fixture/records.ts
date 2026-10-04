@@ -1,4 +1,4 @@
-import {type StorybookAppServerRequests as McpRestRequestsContract} from "@storybook-app-server/requests"
+import {type Zavx0zStorybookAppServerRequests as McpRestRequestsContract} from "@zavx0z/storybook-app-server-requests"
 type McpRequestRecord = ReturnType<McpRestRequestsContract.Output["read"]>[number]
 
 export const largeResponse = JSON.stringify({

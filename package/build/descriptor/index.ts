@@ -4,12 +4,12 @@
 
 @packageDocumentation
 */
-import {type StorybookRepoDiscovery as RepoDiscoveryContract} from "@storybook-repo/discovery"
-import PackageGraphReadOwner from "@storybook-package-graph/read"
-import {type StorybookPackageGraphCreate as PackageGraphCreateContract} from "@storybook-package-graph/create"
-import PackageResourcesOwner from "@storybook-package/resources"
-import {type StorybookPackageSession as PackageSessionContract} from "@storybook-package/session"
-import PackageRevisionOwner from "@storybook-package/revision"
+import {type Zavx0zStorybookRepoDiscovery as RepoDiscoveryContract} from "@zavx0z/storybook-repo-discovery"
+import PackageGraphReadOwner from "@zavx0z/storybook-package-graph-read"
+import {type Zavx0zStorybookPackageGraphCreate as PackageGraphCreateContract} from "@zavx0z/storybook-package-graph-create"
+import PackageResourcesOwner from "@zavx0z/storybook-package-resources"
+import {type Zavx0zStorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
+import PackageRevisionOwner from "@zavx0z/storybook-package-revision"
 const externalStorybookNode = PackageGraphReadOwner.node
 const createExternalStorybookResourceAllowList = PackageResourcesOwner
 const createStorybookPackageRevisionGraphSnapshot = PackageRevisionOwner.create
@@ -18,24 +18,24 @@ const revisionWorkbenchAuthorStyleSheetPath = PackageRevisionOwner.workbenchAuth
 type StorybookCatalog = RepoDiscoveryContract.Output
 type StorybookPackage = Extract<RepoDiscoveryContract.Output["scopes"][number], {kind: "package"}>
 type ExternalStorybookGraph = PackageGraphCreateContract.Output
-type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
+type Zavx0zStorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 import {createHash} from "node:crypto"
 import {readFileSync} from "node:fs"
 import {dirname, join, relative} from "node:path"
-import type {StorybookPackageBuildDescriptor} from "./contract"
+import type {Zavx0zStorybookPackageBuildDescriptor} from "./contract"
 
-export type {StorybookPackageBuildDescriptor} from "./contract"
+export type {Zavx0zStorybookPackageBuildDescriptor} from "./contract"
 
 /**
 Выводит входы сборки из canonical graph. Первый пакет структурного пути задаёт
 содержащий Repo; конкретный Project не входит в compiler context пакета.
 */
 export default function externalStorybookPackageDescriptors(
-  catalog: StorybookPackageBuildDescriptor.Input[0],
-  graph: StorybookPackageBuildDescriptor.Input[1],
-  include?: StorybookPackageBuildDescriptor.Input[2],
-  styles: NonNullable<StorybookPackageBuildDescriptor.Input[3]> = [],
-): StorybookPackageBuildDescriptor.Output {
+  catalog: Zavx0zStorybookPackageBuildDescriptor.Input[0],
+  graph: Zavx0zStorybookPackageBuildDescriptor.Input[1],
+  include?: Zavx0zStorybookPackageBuildDescriptor.Input[2],
+  styles: NonNullable<Zavx0zStorybookPackageBuildDescriptor.Input[3]> = [],
+): Zavx0zStorybookPackageBuildDescriptor.Output {
   const packages = catalog.scopes.filter(
     (declaration): declaration is StorybookPackage => declaration.kind === "package",
   )

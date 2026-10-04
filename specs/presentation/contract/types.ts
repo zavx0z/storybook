@@ -1,6 +1,6 @@
-import type {StorybookSpecsScenariosReader} from "@storybook-specs-scenarios/reader"
+import type {Zavx0zStorybookSpecsScenariosReader} from "@zavx0z/storybook-specs-scenarios-reader"
 /** Форма исходного публичного владельца. */
-type ReadScenarioOutput = StorybookSpecsScenariosReader.Output
+type ReadScenarioOutput = Zavx0zStorybookSpecsScenariosReader.Output
 /** Подготовленный источник одной ревизии; отсутствие файла и отсутствие результата различаются. */
 export interface ScenariosInput {
   readonly owner: {readonly kind: "repository" | "entity" | "package", readonly path: string}

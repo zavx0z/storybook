@@ -3,7 +3,7 @@
 startup candidate и authority; не копирует private server protocol или запись.
 Сборка, discovery, Browser и canonical daemon в этом fixture не запускаются.
 */
-import ServerState from "@storybook-app-server/state"
+import ServerState from "@zavx0z/storybook-app-server-state"
 import {appendFileSync, existsSync, rmSync, writeFileSync} from "node:fs"
 import {join} from "node:path"
 

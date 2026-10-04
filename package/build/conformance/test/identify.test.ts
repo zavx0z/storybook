@@ -1,9 +1,9 @@
 import {expect, test} from "bun:test"
 import {readFileSync} from "node:fs"
 import {resolve} from "node:path"
-import conformance, {type StorybookPackageBuildConformance} from "@storybook-package-build/conformance"
+import conformance, {type Zavx0zStorybookPackageBuildConformance} from "@zavx0z/storybook-package-build-conformance"
 
-type Report = Parameters<StorybookPackageBuildConformance.Output["identify"]>[0]
+type Report = Parameters<Zavx0zStorybookPackageBuildConformance.Output["identify"]>[0]
 const owner = "/fixture/owner"
 const scenario = resolve(import.meta.dir, "../../../reader/spec/scenario.spec.ts")
 const types = ["Repo", "Component", "Container", "Cluster", "Domain"] as const

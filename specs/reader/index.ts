@@ -4,11 +4,11 @@
 @packageDocumentation
 */
 import {resolve} from "node:path"
-import readScenario from "@storybook-specs-scenarios/reader"
-import type {StorybookSpecsReader} from "./contract"
+import readScenario from "@zavx0z/storybook-specs-scenarios-reader"
+import type {Zavx0zStorybookSpecsReader} from "./contract"
 import {findSpec} from "./src/find-spec"
 
-export type {StorybookSpecsReader} from "./contract"
+export type {Zavx0zStorybookSpecsReader} from "./contract"
 
 /**
 Находит непосредственную директорию spec и читает результат её сценария.
@@ -18,7 +18,7 @@ export type {StorybookSpecsReader} from "./contract"
 Поле scenario равно null, если файл сценария отсутствует.
 @throws Ошибки чтения и запуска сценария; ошибка при наличии обоих расширений.
 */
-export default async function readSpec({path}: StorybookSpecsReader.Input): Promise<StorybookSpecsReader.Output> {
+export default async function readSpec({path}: Zavx0zStorybookSpecsReader.Input): Promise<Zavx0zStorybookSpecsReader.Output> {
   const specPath = await findSpec(path)
   if (specPath === null) return null
 

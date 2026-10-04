@@ -1,8 +1,8 @@
 /** Inspector показывает исходную декларацию выбранного варианта. */
 import {afterAll, describe, expect, test} from "bun:test"
-import {createHeadless} from "@immersive/headless"
-import createScenarioApp from "@storybook-app-web-page-package-scenario/model"
-import StorybookAppWebPagePackageScenarioInspector from "@storybook-app-web-page-package-scenario/inspector"
+import {createHeadless} from "@zavx0z/immersive-headless"
+import createScenarioApp from "@zavx0z/storybook-app-web-page-package-scenario-model"
+import Zavx0zStorybookAppWebPagePackageScenarioInspector from "@zavx0z/storybook-app-web-page-package-scenario-inspector"
 
 describe.each([
   {name: "Первый пример", props: {source: "await readPackage({path: 'root'})", title: "Корень"}},
@@ -15,7 +15,7 @@ describe.each([
   const headless = createHeadless({width: 500, height: 360})
   afterAll(() => { app.dispose(); headless.dispose() })
   const element = await headless.render(
-    <StorybookAppWebPagePackageScenarioInspector
+    <Zavx0zStorybookAppWebPagePackageScenarioInspector
       value={app}
     />,
   )

@@ -1,5 +1,5 @@
 import {describe, expect, test} from "bun:test"
-import readContainerMcp from "@storybook-container/mcp"
+import readContainerMcp from "@zavx0z/storybook-container-mcp"
 
 describe.each([
   {name: "Container в проекте", props: {path: "example/container"}},

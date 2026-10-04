@@ -1,5 +1,5 @@
-import createWeb from "@storybook-app/web"
-import {type StorybookAppServerBrowser as Zavx0zStorybookBrowserLifecycleContract} from "@storybook-app-server/browser"
+import createWeb from "@zavx0z/storybook-app-web"
+import {type Zavx0zStorybookAppServerBrowser as Zavx0zStorybookBrowserLifecycleContract} from "@zavx0z/storybook-app-server-browser"
 type StorybookBrowserLifecycle = Zavx0zStorybookBrowserLifecycleContract.Output
 const STORYBOOK_SHARED_COMPILE_TIMEOUT_MS = 480_000
 const STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS = 120_000
@@ -8,14 +8,14 @@ import {existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, u
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import {fileURLToPath} from "node:url"
-import startExternalStorybookServer, {type StorybookAppServer} from "../index.ts"
+import startExternalStorybookServer, {type Zavx0zStorybookAppServer} from "../index.ts"
 import {StorybookBrowserSessionRegistry} from "../src/browser-session-registry.ts"
 import {seedPublishedSharedAssets} from "./shared-assets.fixture.ts"
 import {createProjectFixture} from "./project.fixture.ts"
-import state from "@storybook-app-server/state"
+import state from "@zavx0z/storybook-app-server-state"
 
 const roots: string[] = []
-const servers: StorybookAppServer.Output[] = []
+const servers: Zavx0zStorybookAppServer.Output[] = []
 const {writeExternalStorybookServerRecord} = state
 setDefaultTimeout(STORYBOOK_SHARED_COMPILE_TIMEOUT_MS + STORYBOOK_PACKAGE_COMPILE_TIMEOUT_MS)
 
@@ -49,7 +49,7 @@ describe("one external Storybook server", () => {
     const view = {viewId: `storybook-view-v1_${"n".repeat(43)}`, packageId, route: "", title: "Navigation"}
     let displayedRevision: string | null = null
     let presented = false
-    let running: StorybookAppServer.Output
+    let running: Zavx0zStorybookAppServer.Output
     const browserLifecycle: StorybookBrowserLifecycle = {
       ...fakeBrowserLifecycle().service,
       async listViews() { return [view] },
@@ -140,7 +140,7 @@ describe("one external Storybook server", () => {
   test("адресный режим возвращает тот же ответ, что MCP, и не пишет в журнал агента", async () => {
     const {Client, InMemoryTransport} = await import("@modelcontextprotocol/client")
     const {McpServer} = await import("@modelcontextprotocol/server")
-    const {default: appMcp} = await import("@storybook-app/mcp")
+    const {default: appMcp} = await import("@zavx0z/storybook-app-mcp")
     const fixture = serverFixture()
     mkdirSync(join(fixture.standalone, "text/trim/contract"), {recursive: true})
     mkdirSync(join(fixture.standalone, "text/trim/spec"), {recursive: true})
@@ -597,7 +597,7 @@ describe("one external Storybook server", () => {
     expect(fontAsset.status).toBe(200)
     expect(fontAsset.headers.get("content-type")).toBe("font/ttf")
     expect(Buffer.from(await fontAsset.arrayBuffer())).toEqual(readFileSync(fileURLToPath(
-      import.meta.resolve("@immersive/engine/fonts/inter-regular.ttf"),
+      import.meta.resolve("@zavx0z/immersive-engine/fonts/inter-regular.ttf"),
     )))
     const script = html.match(/<script type="module" src="([^"]+)"/u)?.[1]
     expect(script).toBeDefined()
@@ -1001,7 +1001,7 @@ describe("one external Storybook server", () => {
     const built = await running.sessions.ensure("@fixture/components")
     const revision = built.builtRevision!
     const graph = running.sessions.session("@fixture/components").revisionGraphSnapshot(revision)!
-    expect(graph.workbenchAuthorStyleSheets.map(({specifier}) => specifier)).toEqual(["@immersive-ui/component/theme/theme.css"])
+    expect(graph.workbenchAuthorStyleSheets.map(({specifier}) => specifier)).toEqual(["@zavx0z/immersive-ui-component/theme/theme.css"])
     const resource = graph.workbenchAuthorStyleSheets[0]!
     const response = await fetch(new URL(`/__storybook/revisions/%40fixture%2Fcomponents/${revision}/${resource.url}`, running.origin))
     expect(response.status).toBe(200)
@@ -1272,7 +1272,7 @@ describe("one external Storybook server", () => {
 })
 
 /** Подготавливает данные для HTTP-тестов без имитации публичного check, который теперь всегда применяет результат. */
-async function preparePackages(server: StorybookAppServer.Output, scope: string | null) {
+async function preparePackages(server: Zavx0zStorybookAppServer.Output, scope: string | null) {
   await controlPost(server, "/api/control/refresh", {force: true})
   const ids = scope === null ? server.registry.snapshot().graph.nodes.filter(node => node.kind === "package").map(node => node.packageId!) : [scope]
   const packages = await Promise.all(ids.map(id => server.sessions.build(id)))
@@ -1423,7 +1423,7 @@ async function fetchJson(url: URL): Promise<any> {
   return response.json()
 }
 
-async function controlPost(server: StorybookAppServer.Output, path: string, body: unknown) {
+async function controlPost(server: Zavx0zStorybookAppServer.Output, path: string, body: unknown) {
   const response = await fetch(new URL(path, server.origin), {
     method: "POST",
     headers: {
@@ -1436,12 +1436,12 @@ async function controlPost(server: StorybookAppServer.Output, path: string, body
 }
 
 /** Публикует подготовленную оболочку перед проверкой публичной страницы, сохраняя ревизии пакетов. */
-async function publishTestShared(server: StorybookAppServer.Output): Promise<void> {
+async function publishTestShared(server: Zavx0zStorybookAppServer.Output): Promise<void> {
   const published = await controlPost(server, "/api/control/check", {scope: "storybook:shared"})
   expect(published.body, JSON.stringify(published.body)).toMatchObject({ok: true, published: true})
 }
 
-async function controlGet(server: StorybookAppServer.Output, path: string): Promise<any> {
+async function controlGet(server: Zavx0zStorybookAppServer.Output, path: string): Promise<any> {
   const response = await fetch(new URL(path, server.origin), {
     headers: {authorization: `Bearer ${server.record.controlToken}`},
   })

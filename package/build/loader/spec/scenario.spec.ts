@@ -1,5 +1,5 @@
 import {describe, expect, test} from "bun:test"
-import loader from "@storybook-package-build/loader"
+import loader from "@zavx0z/storybook-package-build-loader"
 
 describe.each([
   {name: "Первая ревизия", props: {revision: "revision-a"}},

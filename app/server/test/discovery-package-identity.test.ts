@@ -1,11 +1,11 @@
-import AppServerCatalogOwner, {type StorybookAppServerCatalog as AppServerCatalogContract} from "@storybook-app-server/catalog"
+import AppServerCatalogOwner, {type Zavx0zStorybookAppServerCatalog as AppServerCatalogContract} from "@zavx0z/storybook-app-server-catalog"
 const ExternalStorybookRegistry = AppServerCatalogOwner
 type ExternalStorybookRegistry = AppServerCatalogContract.Output
 import {afterEach, expect, test} from "bun:test"
 import {mkdtemp, mkdir, realpath, rename, rm} from "node:fs/promises"
 import {join} from "node:path"
 import {tmpdir} from "node:os"
-import discoverStorybookPackages from "@storybook-repo/discovery"
+import discoverStorybookPackages from "@zavx0z/storybook-repo-discovery"
 
 const roots: string[] = []
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, {recursive: true, force: true}))) })

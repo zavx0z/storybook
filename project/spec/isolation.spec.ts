@@ -1,7 +1,7 @@
 import {expect, test} from "bun:test"
 import {mkdir, writeFile} from "node:fs/promises"
 import {resolve} from "node:path"
-import readProject from "@storybook/project"
+import readProject from "@zavx0z/storybook-project"
 import {createProjectFixture} from "./fixture"
 
 test("Неверный workspace package не скрывает участвующий Repo", async () => {

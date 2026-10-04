@@ -10,7 +10,7 @@ test("оболочка принимает публичную тему UI пос�
   const path = join(ownerRoot, "theme/theme.css")
   const sheets = readWorkbenchStyleSheets(toolRoot)
   expect(sheets).toEqual([{
-    specifier: "@immersive-ui/component/theme/theme.css",
+    specifier: "@zavx0z/immersive-ui-component/theme/theme.css",
     path,
     ownerRoot,
     ownerPackageJsonPath: join(ownerRoot, "package.json"),

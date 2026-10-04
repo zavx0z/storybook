@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import Client from "@storybook-app-web-page/client"
+import Client from "@zavx0z/storybook-app-web-page-client"
 import {controlledFetcher, documentedNode, emptySnapshot} from "./fixture/transport"
 
 test("ошибка HTTP не становится снимком каталога", async () => {

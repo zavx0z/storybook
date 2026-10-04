@@ -1,20 +1,20 @@
-import PackageRevisionOwner, {type StorybookPackageRevision as PackageRevisionContract} from "@storybook-package/revision"
-import {type StorybookPackageSession as PackageSessionContract} from "@storybook-package/session"
+import PackageRevisionOwner, {type Zavx0zStorybookPackageRevision as PackageRevisionContract} from "@zavx0z/storybook-package-revision"
+import {type Zavx0zStorybookPackageSession as PackageSessionContract} from "@zavx0z/storybook-package-session"
 const STORYBOOK_PACKAGE_GRAPH_PROTOCOL = PackageRevisionOwner.protocol
 type StorybookPackageRevisionGraphSnapshot = ReturnType<PackageRevisionContract.Output["create"]>
-type StorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
+type Zavx0zStorybookPackageBuildDescriptor = PackageSessionContract.Input[0]
 import {afterEach, describe, expect, setDefaultTimeout, test} from "bun:test"
 import {createHash} from "node:crypto"
 import {linkSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, readdirSync, rmSync, symlinkSync, unlinkSync, watch, writeFileSync} from "node:fs"
 import {tmpdir} from "node:os"
 import {join} from "node:path"
 import createStorybookPackageRevisionBuilder from "../index.ts"
-import inputs from "@storybook-package-build/inputs"
-import prepareStorybookScenarios from "@storybook-package-build/scenarios"
+import inputs from "@zavx0z/storybook-package-build-inputs"
+import prepareStorybookScenarios from "@zavx0z/storybook-package-build-scenarios"
 import {isolatedStorybookSharedModuleEpoch} from "../src/in-process"
 
 const canonicalizeStorybookPackageIdentities = inputs.canonicalizeIdentities
-import Scheduler from "@storybook-package-build/scheduler"
+import Scheduler from "@zavx0z/storybook-package-build-scheduler"
 const STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL = Scheduler.STORYBOOK_BUILD_WORKER_EVENT_PROTOCOL
 
 const toolRoot = realpathSync(join(import.meta.dir, "../../../.."))
@@ -112,7 +112,7 @@ describe("structural package revision build", () => {
       '  test("Результат", () => { expect(result, "Функция выполнена").toBe(1) })',
       '})',
     ].join("\n"))
-    const descriptor = {scenarioSpecs: [{nodeId: "scenario", sourcePaths: [path]}]} as unknown as StorybookPackageBuildDescriptor
+    const descriptor = {scenarioSpecs: [{nodeId: "scenario", sourcePaths: [path]}]} as unknown as Zavx0zStorybookPackageBuildDescriptor
     let failure: unknown
     try { await prepareStorybookScenarios(descriptor, new AbortController().signal) } catch (error) { failure = error }
     expect(failure).toBeInstanceOf(Error)
@@ -198,7 +198,7 @@ describe("structural package revision build", () => {
     unlinkSync(join(fixture.packageRoot, "module/index.ts"))
     mkdirSync(join(fixture.packageRoot, "module/spec"), {recursive: true})
     writeFileSync(componentPath, [
-      "/** @jsxImportSource @immersive/jsx */",
+      "/** @jsxImportSource @zavx0z/immersive-jsx */",
       "export function Command(props: Readonly<{label: string; onActivate?: (label: string) => void}>) {",
       "  return <button onClick={() => props.onActivate?.(props.label)}>{props.label}</button>",
       "}", "",
@@ -209,19 +209,19 @@ describe("structural package revision build", () => {
       "}", "",
     ].join("\n"))
     writeFileSync(join(fixture.packageRoot, "tsconfig.json"), JSON.stringify({
-      compilerOptions: {jsx: "preserve", jsxImportSource: "@immersive/jsx", module: "ESNext", moduleResolution: "Bundler", target: "ESNext"},
+      compilerOptions: {jsx: "preserve", jsxImportSource: "@zavx0z/immersive-jsx", module: "ESNext", moduleResolution: "Bundler", target: "ESNext"},
       include: ["**/*.ts", "**/*.tsx"],
     }))
     mkdirSync(join(fixture.root, "node_modules", "@immersive"), {recursive: true})
-    symlinkSync(realpathSync(join(import.meta.dir, "../../../../node_modules/@immersive/headless")), join(fixture.root, "node_modules", "@immersive/headless"))
+    symlinkSync(realpathSync(join(import.meta.dir, "../../../../node_modules/@zavx0z/immersive-headless")), join(fixture.root, "node_modules", "@zavx0z/immersive-headless"))
     writeFileSync(join(fixture.packageRoot, "preload.ts"), [
       'import {afterAll} from "bun:test"',
-      'import {createHeadless} from "@immersive/headless"',
+      'import {createHeadless} from "@zavx0z/immersive-headless"',
       `const host = createHeadless({projectRoot: ${JSON.stringify(fixture.packageRoot)}})`,
       'afterAll(() => host.dispose())',
     ].join("\n"))
     writeFileSync(join(fixture.packageRoot, "package.json"), JSON.stringify({
-      name: "@fixture/package", type: "module", scripts: {test: "bun test --preload ./preload.ts --preload @immersive/headless"},
+      name: "@fixture/package", type: "module", scripts: {test: "bun test --preload ./preload.ts --preload @zavx0z/immersive-headless"},
     }))
     writeFileSync(scenarioPath, [
       'import {describe, expect, mock, test} from "bun:test"',
@@ -322,19 +322,19 @@ test("успешная компиляция сохраняет результа�
   expect(readFileSync(note, "utf8")).toBe("Правка во время успешной компиляции")
 })
 
-function createFixture(): Readonly<{root: string; packageRoot: string; browserEntry: string; descriptor: StorybookPackageBuildDescriptor}> {
+function createFixture(): Readonly<{root: string; packageRoot: string; browserEntry: string; descriptor: Zavx0zStorybookPackageBuildDescriptor}> {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "storybook-package-build-")))
   roots.push(root)
   const packageRoot = join(root, "package")
   mkdirSync(join(packageRoot, "module"), {recursive: true})
   const sourcePath = join(packageRoot, "package.json")
   const browserEntry = join(root, "browser-entry.ts")
-  const jsxRoot = realpathSync(join(import.meta.dir, "../../../../node_modules/@immersive/jsx"))
+  const jsxRoot = realpathSync(join(import.meta.dir, "../../../../node_modules/@zavx0z/immersive-jsx"))
   writeFileSync(join(root, "package.json"), JSON.stringify({name: "@fixture/repo", type: "module",
-    devDependencies: {"@immersive/jsx": "link:@immersive/jsx"}}))
+    devDependencies: {"@zavx0z/immersive-jsx": "link:@zavx0z/immersive-jsx"}}))
   mkdirSync(join(root, "node_modules", "@zavx0z"), {recursive: true})
   symlinkSync(jsxRoot, join(root, "node_modules", "@zavx0z", "jsx"))
-  symlinkSync(realpathSync(join(import.meta.dir, "../../../../node_modules/@immersive/template")), join(root, "node_modules", "@zavx0z", "template"))
+  symlinkSync(realpathSync(join(import.meta.dir, "../../../../node_modules/@zavx0z/immersive-template")), join(root, "node_modules", "@zavx0z", "template"))
   writeFileSync(sourcePath, JSON.stringify({name: "@fixture/package", type: "module"}))
   writeFileSync(join(packageRoot, "module/index.ts"), "export const module = true\n")
   writeFileSync(browserEntry, ["export default async function startExternalStorybookPackage(input: unknown) {",
@@ -346,7 +346,7 @@ function createFixture(): Readonly<{root: string; packageRoot: string; browserEn
   }})
 }
 
-function buildInput(descriptor: StorybookPackageBuildDescriptor, stagingDirectory: string, revision: string) {
+function buildInput(descriptor: Zavx0zStorybookPackageBuildDescriptor, stagingDirectory: string, revision: string) {
   return {descriptor, generation: 1, candidateRevision: revision,
     revisionUrl: `/__storybook/revisions/${encodeURIComponent(descriptor.packageId)}/${revision}/`,
     stagingDirectory, signal: new AbortController().signal}

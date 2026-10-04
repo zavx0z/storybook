@@ -1,5 +1,5 @@
 {
-  "name": "@storybook/container",
+  "name": "@zavx0z/storybook-container",
   "label": "Контейнер",
   "version": "0.0.0",
   "private": true,
@@ -9,9 +9,9 @@
     ".": "./index.ts"
   },
   "dependencies": {
-    "@storybook/component": "workspace:*"
+    "@zavx0z/storybook-component": "workspace:*"
   },
   "devDependencies": {
-    "@storybook-specs-scenarios/reader": "workspace:*"
+    "@zavx0z/storybook-specs-scenarios-reader": "workspace:*"
   }
 }
