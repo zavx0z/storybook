@@ -940,6 +940,21 @@ export default async function startExternalStorybookServer(
           const snapshot = registry.snapshot()
           return responseJson(createExternalStorybookClientSnapshot(snapshot.graph, sessions.snapshots(), project.name))
         }
+        if (url.pathname === "/api/client/node" && request.method === "GET") {
+          const nodeId = url.searchParams.get("nodeId")
+          const graphDigest = url.searchParams.get("graphDigest")
+          if (!nodeId || !graphDigest || url.searchParams.size !== 2) {
+            return responseJson({error: "Expected nodeId and graphDigest"}, 400)
+          }
+          const {graph} = registry.snapshot()
+          if (graph.digest !== graphDigest) {
+            return responseJson({error: "Storybook client graph changed; refresh navigation"}, 409)
+          }
+          if (!graph.nodes.some(node => node.id === nodeId)) {
+            return responseJson({error: "Unknown Storybook client node"}, 404)
+          }
+          return responseJson(WebProtocol.nodeContent(graph, nodeId))
+        }
         if (["/api/browser/directory", "/api/control/attach", "/api/browser/attach", "/api/control/detach", "/api/browser/detach"].includes(url.pathname) && request.method === "POST") {
           if (url.pathname.startsWith("/api/browser/")) assertRegistryBrowserRequest(request)
           // TODO: создание Repo, клонирование из GitHub и изменение .gitmodules принадлежат Project.

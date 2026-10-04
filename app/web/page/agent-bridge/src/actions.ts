@@ -6,14 +6,13 @@ import {STORYBOOK_AGENT_BRIDGE_PROTOCOL} from "./protocol"
 
 export function projectNode(
   node: DomInspectorNode,
-  byId: ReadonlyMap<number, DomInspectorNode>,
   inspector: DomInspector,
   include: Readonly<{layout: boolean; display: boolean}>,
 ) {
   const semantic = inspector.nodeForId(node.id)
   const attributes = new Map(node.attributes.map(({name, value}) => [name, value] as const))
   const role = attributes.get("role") ?? node.hit?.role ?? implicitRole(node.localName, attributes)
-  const name = accessibleName(semantic, attributes, byId, inspector)
+  const name = accessibleName(semantic, attributes)
   const text = compactText(semantic?.textContent ?? node.nodeValue ?? "")
   return Object.freeze({
     nodeId: agentNodeId(node.id),
@@ -163,12 +162,11 @@ export function resolveTarget(target: Target | undefined, inspector: DomInspecto
     throw new Error("Storybook target requires exact nodeId or role and name")
   }
   const snapshot = inspector.snapshot()
-  const byId = new Map(snapshot.nodes.map((node) => [node.id, node] as const))
   const matches = snapshot.nodes.filter((node) => {
     const semantic = inspector.nodeForId(node.id)
     const attributes = new Map(node.attributes.map(({name, value}) => [name, value] as const))
     const role = attributes.get("role") ?? node.hit?.role ?? implicitRole(node.localName, attributes)
-    return role === target.role && accessibleName(semantic, attributes, byId, inspector) === target.name
+    return role === target.role && accessibleName(semantic, attributes) === target.name
   })
   if (matches.length === 0) throw new Error(`Unknown Storybook semantic target: ${target.role} ${target.name}`)
   // Скрытые retained панели могут содержать такие же кнопки, как активная.
@@ -182,8 +180,6 @@ export function resolveTarget(target: Target | undefined, inspector: DomInspecto
 function accessibleName(
   node: Node | null,
   attributes: ReadonlyMap<string, string>,
-  _byId: ReadonlyMap<number, DomInspectorNode>,
-  _inspector: DomInspector,
 ): string {
   const explicit = attributes.get("aria-label")
   if (explicit !== undefined && explicit.trim().length > 0) return compactText(explicit)

@@ -193,7 +193,6 @@ function createStorybookAgentBridge(
       throw new Error("Storybook inspection subtree no longer belongs to this view")
     }
     const snapshot = inspector.snapshot(root)
-    const byId = new Map(snapshot.nodes.map((node) => [node.id, node] as const))
     const depths = new Map<number, number>([[snapshot.root, 0]])
     const ordered = snapshot.nodes.filter((node) => {
       const parentDepth = node.parent === null ? -1 : depths.get(node.parent) ?? -1
@@ -212,7 +211,7 @@ function createStorybookAgentBridge(
         mutationVersion: snapshot.mutationVersion,
         stateVersion: snapshot.stateVersion,
         root: agentNodeId(snapshot.root),
-        nodes: Object.freeze(page.map((node) => projectNode(node, byId, inspector, {
+        nodes: Object.freeze(page.map((node) => projectNode(node, inspector, {
           layout: include.has("layout"),
           display: include.has("display"),
         }))),

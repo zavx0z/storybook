@@ -36,7 +36,7 @@ type StorybookContractDocument = NonNullable<GraphNode["contractDocumentation"]>
 
 @property [hasModuleDocumentation] - Наличие документации входного модуля.
 
-@property [dependencyCases] - Ожидаемые варианты зависимостей из спецификации.
+@property [dependencyCases] - Варианты зависимостей в снимке выбранной ревизии; общий каталог их не передаёт.
 
 @property [dependencyRoutePath] - Маршрут просмотра зависимостей.
 
@@ -44,7 +44,7 @@ type StorybookContractDocument = NonNullable<GraphNode["contractDocumentation"]>
 
 @property [scenariosRoutePath] - Маршрут просмотра сценариев.
 
-@property [contractDocuments] - Разобранные документы входа и выхода.
+@property [contractDocuments] - Документы выбранной ревизии; в общем каталоге раскрываются отдельно по запросу.
 
 @property resourceUrl - Адрес чтения ресурса узла.
 
@@ -68,6 +68,14 @@ export type ExternalStorybookClientNode = Readonly<{
   scenariosRoutePath?: string
   contractDocuments?: readonly StorybookContractDocument[]
   resourceUrl: string
+}>
+
+/** Документы одного узла с привязкой к прочитанной версии общего графа. */
+export type ExternalStorybookClientNodeContent = Readonly<{
+  nodeId: string
+  graphDigest: string
+  dependencyCases?: readonly StorybookDependencyCase[]
+  contractDocuments?: readonly StorybookContractDocument[]
 }>
 
 /**

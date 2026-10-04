@@ -245,9 +245,17 @@ async function startExternalStorybookPackage(
     const contract = model.viewKind === "contract"
     const scenarios = model.viewKind === "scenarios"
     disposeScenario()
-    const node = externalStorybookClientNode(snapshot, model.selectedNode.id)
+    const node = contract || dependencies
+      ? await WebClientOwner.readExternalStorybookNodeContent(
+        snapshot,
+        model.selectedNode.id,
+        contract ? "contract" : "dependencies",
+        fetcher,
+        signal,
+      )
+      : externalStorybookClientNode(snapshot, model.selectedNode.id)
     const documentation = contract || dependencies || scenarios ? null : await readExternalStorybookNodeDocumentation(node, fetcher)
-    if (disposed || revision !== navigationRevision) return
+    if (disposed || revision !== navigationRevision || signal.aborted) return
     const label = scenarios ? `${node.label} · Сценарии` : contract ? `${node.label} · Контракт` : dependencies ? `${node.label} · Зависимости` : documentation === null ? `${node.label} · Обзор` : `${node.label} · TSDoc`
     const contractNavigators = new Map<
       Parameters<StorybookContractNavigationReady>[0],

@@ -27,6 +27,37 @@ afterEach(async () => {
 
 describe("one external Storybook server", () => {
 
+  test("HTTP каталог раскрывает документы только выбранного узла и той же версии графа", async () => {
+    const fixture = serverFixture()
+    mkdirSync(join(fixture.standalone, "contract"))
+    writeFileSync(join(fixture.standalone, "contract/index.ts"),
+      'export declare namespace Standalone { export type Input = { text: string } }\n')
+    const running = await startTestServer({
+      project: createProjectFixture(fixture.root, [fixture.standalone]),
+      statePath: fixture.statePath,
+      artifactRoot: fixture.artifactRoot,
+    })
+    servers.push(running)
+    const snapshot = await fetchJson(new URL("/api/client", running.origin))
+    const node = snapshot.nodes.find((value: {contractRoutePath?: string}) => value.contractRoutePath !== undefined)
+    expect(node).toBeDefined()
+    expect(snapshot.nodes.every((value: object) => !("contractDocuments" in value) && !("dependencyCases" in value))).toBeTrue()
+    const query = new URLSearchParams({nodeId: node.id, graphDigest: snapshot.graphDigest})
+    const endpoint = (params: URLSearchParams) => new URL(`/api/client/node?${params}`, running.origin)
+    const content = await fetchJson(endpoint(query))
+    expect(content).toMatchObject({nodeId: node.id, graphDigest: snapshot.graphDigest})
+    expect(content.contractDocuments[0].direction).toBe("input")
+    expect(content.contractDocuments[0].document.declarations.length).toBeGreaterThan(0)
+    query.set("graphDigest", "stale")
+    expect((await fetch(endpoint(query))).status).toBe(409)
+    query.set("graphDigest", snapshot.graphDigest)
+    query.set("nodeId", "unknown")
+    expect((await fetch(endpoint(query))).status).toBe(404)
+    query.delete("nodeId")
+    expect((await fetch(endpoint(query))).status).toBe(400)
+    expect(running.sessions.snapshots().every(value => value.builds === 0)).toBeTrue()
+  })
+
   test("HTTP инструментов адресного агента требует grant и ограничивает тело до исполнения", async () => {
     const fixture = serverFixture()
     const running = await startTestServer({project: createProjectFixture(fixture.root, [fixture.standalone]),

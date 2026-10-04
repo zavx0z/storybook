@@ -8,9 +8,13 @@ import {formatJson} from "./format-json"
 
 /** Форматирует полный JSON; выделение, начатое в поле, ограничено его текстом. */
 function JsonFieldView(props: Readonly<{title: string, value: string, active?: boolean}>) {
-  const formatted = useMemo(() => formatJson(props.value), [props.value])
-  const {text: value, softBreaks} = props.active === false ? {text: "", softBreaks: []} : formatted
-  const height = Math.max(1, value.split("\n").length + softBreaks.length) * 16 + 30
+  const {text: value, softBreaks, height} = useMemo(() => {
+    const formatted = props.active === false ? {text: "", softBreaks: []} : formatJson(props.value)
+    return {
+      ...formatted,
+      height: Math.max(1, formatted.text.split("\n").length + formatted.softBreaks.length) * 16 + 30,
+    }
+  }, [props.value, props.active])
   return <section style={css`
     display: flex;
     flex-direction: column;

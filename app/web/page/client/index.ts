@@ -1,7 +1,8 @@
 /**
 Читает подтверждённый сервером снимок каталога и документацию его точных узлов.
-Проверяет транспортную форму снимка, сохраняет node identity и получает текст
-только для узлов с опубликованной документацией. Навигацией, рендерингом и
+Проверяет транспортную форму снимка, сохраняет node identity и раскрывает текст,
+контракты и зависимости выбранного узла по запросу. Документы подготовленной
+ревизии использует непосредственно, не подменяя их новым каталогом. Навигацией, рендерингом и
 жизненным циклом страницы владеют потребители этих данных.
 
 @packageDocumentation
@@ -51,6 +52,32 @@ const Owner: StorybookAppWebPageClient.Output = Object.freeze({
     const response = await fetcher(node.resourceUrl, {headers: {accept: "text/markdown, text/plain"}})
     if (!response.ok) throw new Error(`External Storybook documentation request failed: ${response.status}`)
     return response.text()
+  },
+
+  /**
+  Получает документы только открываемого представления. Данные подготовленной
+  ревизии используются непосредственно; общий каталог не удерживает результат.
+  Несовпадение identity или версии графа отклоняется, отмена передаётся транспорту.
+  */
+  async readExternalStorybookNodeContent(snapshot, nodeId, view, fetcher = globalThis.fetch, signal) {
+    const node = Owner.externalStorybookClientNode(snapshot, nodeId)
+    const field = view === "contract" ? "contractDocuments" : "dependencyCases"
+    if (node[field] !== undefined) return node
+    const query = new URLSearchParams({nodeId, graphDigest: snapshot.graphDigest})
+    const response = await fetcher(`/api/client/node?${query}`, {
+      headers: {accept: "application/json"},
+      ...(signal === undefined ? {} : {signal}),
+    })
+    if (!response.ok) throw new Error(`External Storybook node content request failed: ${response.status}`)
+    const content: unknown = await response.json()
+    if (content === null || typeof content !== "object" || Array.isArray(content) ||
+      !("nodeId" in content) || content.nodeId !== nodeId ||
+      !("graphDigest" in content) || content.graphDigest !== snapshot.graphDigest) {
+      throw new Error("External Storybook node content does not match the requested graph node")
+    }
+    const documents = (content as Record<string, unknown>)[field]
+    if (!Array.isArray(documents)) throw new Error(`External Storybook node content has no ${field}`)
+    return Object.freeze({...node, [field]: documents})
   },
 
   /**

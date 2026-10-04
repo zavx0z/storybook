@@ -129,7 +129,7 @@ function environmentFixture(
 ): ExternalStorybookPackageEnvironment {
   const location = locationFixture(pathname)
   return {
-    browserDocument: {documentElement: {dataset: {}}} as unknown as globalThis.Document,
+    browserDocument: {documentElement: {dataset: {}}, location} as unknown as globalThis.Document,
     location,
     history: historyFixture(location),
     fetcher: (async (_input: URL | RequestInfo) => Response.json(snapshot)) as typeof fetch,

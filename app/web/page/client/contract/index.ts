@@ -7,6 +7,14 @@ export declare namespace StorybookAppWebPageClient {
     fetchExternalStorybookClientSnapshot(fetcher?: typeof fetch, url?: string): Promise<ExternalStorybookClientSnapshot>
     /** Отсутствие опубликованной документации возвращает null без запроса. */
     readExternalStorybookNodeDocumentation(node: ExternalStorybookClientNode, fetcher?: typeof fetch): Promise<string | null>
+    /** Раскрывает контракт или зависимости одного узла; готовые данные ревизии не перечитывает. */
+    readExternalStorybookNodeContent(
+      snapshot: ExternalStorybookClientSnapshot,
+      nodeId: string,
+      view: "contract" | "dependencies",
+      fetcher?: typeof fetch,
+      signal?: AbortSignal,
+    ): Promise<ExternalStorybookClientNode>
     /** Возвращает исходный объект единственного узла либо отклоняет неоднозначную identity. */
     externalStorybookClientNode(snapshot: ExternalStorybookClientSnapshot, nodeId: string): ExternalStorybookClientNode
   }>

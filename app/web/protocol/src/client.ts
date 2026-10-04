@@ -30,6 +30,8 @@ export const EXTERNAL_STORYBOOK_RESOURCE_PREFIX = "/__storybook/resources/nodes/
 
 Отдельный реестр навигации, поиска или сборки не создаётся: порядок массивов
 и идентификаторы сохраняются из исходного графа. Внутренние пути в диагностике скрываются.
+Документы контрактов и варианты зависимостей раскрываются через nodeContent
+при открытии соответствующего представления, а не для всего дерева сразу.
 
 @param graph - Канонический граф подключённых владельцев.
 
@@ -96,9 +98,7 @@ export function createExternalStorybookClientSnapshot(
     routePath: node.routePath,
     searchTerms: Object.freeze([...node.searchTerms]),
     ...(node.moduleDocumentation ? {hasModuleDocumentation: true} : {}),
-    ...(node.dependencySpec ? {dependencyCases: node.dependencySpec.cases} : {}),
     ...(node.dependencyRoutePath === undefined ? {} : {dependencyRoutePath: node.dependencyRoutePath}),
-    ...(node.contractDocumentation ? {contractDocuments: node.contractDocumentation.documents} : {}),
     ...(node.contractRoutePath === undefined ? {} : {contractRoutePath: node.contractRoutePath}),
     ...(node.scenariosRoutePath === undefined ? {} : {scenariosRoutePath: node.scenariosRoutePath}),
     resourceUrl: externalStorybookNodeResourceUrl(graph, node.id),
@@ -110,6 +110,20 @@ export function createExternalStorybookClientSnapshot(
     rootIds: Object.freeze([...graph.rootIds]),
     nodes: Object.freeze(nodes),
     packages: Object.freeze(packages),
+  })
+}
+
+/** Раскрывает документы только выбранного узла того же снимка графа. */
+export function createExternalStorybookClientNodeContent(
+  graph: ExternalStorybookGraph,
+  nodeId: string,
+): ReturnType<StorybookAppWebProtocol.Output["nodeContent"]> {
+  const node = ReadGraph.node(graph, nodeId)
+  return Object.freeze({
+    nodeId: node.id,
+    graphDigest: graph.digest,
+    ...(node.dependencySpec ? {dependencyCases: node.dependencySpec.cases} : {}),
+    ...(node.contractDocumentation ? {contractDocuments: node.contractDocumentation.documents} : {}),
   })
 }
 

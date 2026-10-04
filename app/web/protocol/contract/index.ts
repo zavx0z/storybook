@@ -2,6 +2,7 @@ import type {StorybookPackageGraphCreate} from "@zavx0z/storybook-package-graph-
 import type {BrowserFontFaceSource} from "@zavx0z/immersive-browser/integration"
 import type {StorybookSharedHost} from "./host"
 import type {ClientSnapshotInput, ClientSnapshot} from "./snapshot"
+import type {ExternalStorybookClientNodeContent} from "./client"
 
 export declare namespace StorybookAppWebProtocol {
   /** Публичные browser-safe операции одного протокола Web. */
@@ -9,6 +10,8 @@ export declare namespace StorybookAppWebProtocol {
     clientProtocol: "external-storybook-client/1"
     resourcePrefix: "/__storybook/resources/nodes/"
     clientSnapshot(...input: ClientSnapshotInput): ClientSnapshot
+    /** Контракты и зависимости выбранного узла; общий clientSnapshot содержит только навигацию. */
+    nodeContent(graph: StorybookPackageGraphCreate.Output, nodeId: string): ExternalStorybookClientNodeContent
     encodePackagePath(packageId: string): string
     decodePackagePath(path: string, packageIds: readonly string[]): string
     nodeResourceUrl(graph: StorybookPackageGraphCreate.Output, nodeId: string): string

@@ -44,6 +44,11 @@ test("[CONTRACT-ROUTE] structural contract is one view of its directory", async 
     expect(model.tabs.map(item => item.label)).toEqual(["Обзор", "Контракт"])
     expect(model.tabs.find(item => item.id === model.tabActiveId)?.route).toBe(route.path)
   }
+  expect(client.nodes.every(node => node.contractDocuments === undefined && node.dependencyCases === undefined)).toBeTrue()
+  const content = WebProtocol.nodeContent(graph, route.nodeId)
+  expect(content).toMatchObject({nodeId: route.nodeId, graphDigest: graph.digest})
+  expect(content.contractDocuments).toEqual(graph.nodes.find(node => node.id === route.nodeId)!.contractDocumentation!.documents)
+  expect(WebProtocol.nodeContent(graph, graph.rootIds[0]!).contractDocuments).toBeUndefined()
   const revision = createStorybookPackageRevisionGraphSnapshot(graph, packageId, "fixture")
   expect(revision.routes.find(item => item.path === route.path)).toMatchObject({nodeId: route.nodeId, kind: "contract"})
   expect(revision.nodes.find(item => item.id === route.nodeId)?.contractDocuments?.[0]?.direction).toBe("input")
