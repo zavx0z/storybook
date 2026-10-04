@@ -10,7 +10,7 @@ import Zavx0zStorybookChatView from "../web"
 describe.each([{name: "Одна история в двух средах", props: {address: "/storybook/component", label: "Component", message: "Проверь контракт"}}])("$name", async ({props}) => {
   const directory = await mkdtemp(join(tmpdir(), "chat-domain-"))
   const sessions = createSessions({
-    directory,
+    directory: () => directory,
     resolve: address => ({address, label: props.label, cwd: directory}),
     async connect(input) {
       return {
