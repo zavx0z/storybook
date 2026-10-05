@@ -15,6 +15,7 @@ import {DisplayElement} from "@zavx0z/immersive-dom/display"
 import {createMcpAddressSource} from "./src/mcp-address.ts"
 import {createWebRebuildAction} from "./src/web-rebuild.ts"
 import {createMinimapPersistence} from "./src/minimap-persistence.ts"
+import {createExecutionWindowPersistence} from "./src/execution-window-persistence"
 import {createMcpWindowPersistence} from "./src/mcp-window-persistence.ts"
 import {createLocalMcpState} from "./src/local-mcp-state"
 import {createMcpRequestSource} from "./src/mcp-requests"
@@ -85,12 +86,14 @@ async function createExternalStorybookShell(
   }
   const viewPointControls = createViewPointControls(viewPointPersistence)
   const minimap = createMinimapPersistence(() => browserDocument.defaultView!.localStorage)
+  const executionWindow = createExecutionWindowPersistence(() => browserDocument.defaultView!.localStorage)
   const mcpWindow = createMcpWindowPersistence(() => browserDocument.defaultView!.localStorage, "storybook.mcp-window.global.v1")
   const localMcpJournal = createLocalMcpState(() => browserDocument.defaultView!.localStorage,
     browserDocument.location.pathname, options.userState?.localMcpWindows)
   let stopMcpContext: (() => void) | undefined
   const navigationPersistence = createNavigationExpansion(() => browserDocument.defaultView!.localStorage)
   let minimapState = options.userState?.minimap ?? minimap.initialState
+  let executionWindowState = options.userState?.executionWindow ?? executionWindow.initialState
   let mcpWindowState = options.userState?.mcpWindow ?? mcpWindow.initialState
   let collapsedNavigation = options.userState?.collapsedNavigation ?? navigationPersistence.initialCollapsedIds
   const navigationExpansion = {
@@ -115,6 +118,8 @@ async function createExternalStorybookShell(
       minimapState = value
       minimap.save(value)
     },
+    executionWindowState,
+    saveExecutionWindowState(value) {executionWindowState = value; executionWindow.save(value)},
     mcpWindowState,
     localMcpJournal,
     saveMcpWindowState(value) {
@@ -587,7 +592,7 @@ async function createExternalStorybookShell(
     captureUserState() {
       assertActive(disposed)
       return structuredClone({workbench: workbench.controller.captureUserState(), minimap: minimapState,
-        mcpWindow: mcpWindowState, localMcpWindows: localMcpJournal.capture(), viewPoint: viewPointPersistence.state, collapsedNavigation})
+        executionWindow: executionWindowState, mcpWindow: mcpWindowState, localMcpWindows: localMcpJournal.capture(), viewPoint: viewPointPersistence.state, collapsedNavigation})
     },
     releaseRoot() {
       if (disposed) throw new Error("Storybook shell is already disposed")

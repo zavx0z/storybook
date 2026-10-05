@@ -71,6 +71,45 @@ const scopedRequest = (key: string, input: object) => new Request("http://127.0.
   method: "POST", headers: {authorization: `Bearer ${key}`, "content-type": "application/json"}, body: JSON.stringify({name: "knowledge.read", arguments: input}),
 })
 
+const chatRequest = (operation: string, input: object = {}) => new Request(`http://localhost/api/browser/chat/${operation}`, {
+  method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify(input),
+})
+
+test("HUD читает настройки без запуска модели, probe возвращает только реальные варианты без prompt", async () => {
+  const {server, connections, prompts} = await fixture([
+    {type: "select", category: "model", id: "model", name: "Model", currentValue: "m1", options: [{value: "m1", name: "Model 1"}, {value: "m2", name: "Model 2"}]},
+    {type: "select", category: "thought_level", id: "effort", name: "Effort", currentValue: "medium", options: [{value: "medium", name: "Medium"}]},
+  ])
+  const initial = await (await server.request(chatRequest("execution-settings"))).json()
+  expect(initial.connections).toEqual([{id: "codex", provider: "codex", label: "Codex", enabled: true}])
+  expect(connections).toHaveLength(0)
+  const values = await (await server.request(chatRequest("execution-options", {connectionId: "codex", model: "m2"}))).json()
+  expect(values.find((item: {category: string}) => item.category === "model").value).toBe("m2")
+  expect(connections).toHaveLength(1)
+  expect(prompts()).toBe(0)
+  expect(connections[0]?.config?.["features.shell_tool"]).toBe(false)
+  const updated = await (await server.request(chatRequest("execution-settings-save", {settings: {...initial, general: {connectionId: "codex", model: "m2"}}}))).json()
+  expect(updated.revision).toBe(initial.revision + 1)
+  expect((await server.chats.read("/repo/button")).execution?.effective.model).toBe("m2")
+  expect(connections).toHaveLength(1)
+  await expect(server.request(chatRequest("execution-settings-save", {settings: initial}))).rejects.toThrow("Настройки изменились")
+})
+
+test("настройки типа используют подтверждённый archetype, а не физический kind графа", async () => {
+  const {server} = await fixture([], async () => ({status: "confirmed", type: "Component", revision: "verified"}))
+  const initial = await (await server.request(chatRequest("execution-settings"))).json()
+  await server.request(chatRequest("execution-settings-save", {settings: {...initial, general: {model: "general"}, types: {Component: {model: "component"}, Repo: {model: "repo"}}}}))
+  const confirmed = await server.chats.read("/repo/button")
+  const unconfirmed = await server.chats.read("/repo")
+  expect(confirmed.execution?.effective.model).toBe("component")
+  expect(confirmed.execution?.sources.model).toBe("type")
+  expect(unconfirmed.execution?.effective.model).toBe("general")
+  await server.chats.configureExecution("/repo/button", {scope: "session", selection: {model: "conversation"}})
+  const agent = await (await server.request(chatRequest("executor-preferences", {address: "/repo/button"}))).json()
+  expect(agent.execution.effective.model).toBe("component")
+  expect((await server.chats.read("/repo/button")).execution?.effective.model).toBe("conversation")
+})
+
 test("вызовы двух агентов разделяются по источнику и одновременно попадают в общий журнал", async () => {
   const {server, connections, journal} = await fixture()
   await server.chats.prepare("/repo/button")
@@ -164,14 +203,17 @@ test("адресный чат выбирает инструменты окруж
     return {status: "confirmed", type: "Component", revision: "verified"}
   })
   await server.chats.prepare("/repo/button")
-  expect(reads, "Подключение выбирает набор инструментов по подтверждённому типу").toBe(1)
-  const key = await assignmentKey(server, "/repo/button")
+  const executor = await server.chats.read("/repo/button")
+  const assignment = await server.environment.assignExecutor({executorId: executor.executorId, address: "/repo/button"})
+  expect(assignment.bootstrap.subject.type, "Подключение выбирает набор инструментов по подтверждённому типу").toBe("Component")
+  const key = assignment.token
+  const beforeKnowledge = reads
   expect((await (await server.environment.handle(scopedRequest(key, {}))).json()).result)
     .toMatchObject({path: ".", description: "Button",
       verification: {status: "confirmed", type: "Component", revision: "verified"}})
-  expect(reads, "Предметное чтение отдельно проверяет актуальный отчёт").toBe(2)
+  expect(reads, "Предметное чтение отдельно проверяет актуальный отчёт").toBe(beforeKnowledge + 1)
   expect((await server.environment.handle(scopedRequest(key, {path: "repo/button-other"}))).status).toBe(403)
-  expect(reads, "Чужой адрес не читает отчёт до проверки полномочий").toBe(2)
+  expect(reads, "Чужой адрес не читает отчёт до проверки полномочий").toBe(beforeKnowledge + 1)
 })
 
 

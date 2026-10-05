@@ -14,8 +14,9 @@ export function ChatComposer(input: Readonly<{view: Contract.Input}>) {
   const settings = props.settings ?? []
   const model = settings.find(option => option.category === "model")
   const effort = settings.find(option => option.category === "thought_level")
-  const modelName = model?.options.find(option => option.value === model.value)?.name ?? model?.value ?? "Модель"
-  const effortName = effort ? effortLabels[effort.value] ?? effort.options.find(option => option.value === effort.value)?.name ?? effort.value : ""
+  const modelName = model?.options.find(option => option.value === model.value)?.name ?? model?.value ?? props.execution?.effective.model ?? "Модель"
+  const effortValue = effort?.value ?? props.execution?.effective.thoughtLevel
+  const effortName = effortValue ? effortLabels[effortValue] ?? effort?.options.find(option => option.value === effortValue)?.name ?? effortValue : ""
   const settingsLabel = `${modelName}${effortName ? ` · ${effortName}` : ""}`
   return <div>
     {settingsOpen ? <ChatSettings
@@ -24,6 +25,8 @@ export function ChatComposer(input: Readonly<{view: Contract.Input}>) {
       configuring={props.configuring === true}
       progress={props.progress}
       onConfigure={props.onConfigure}
+      execution={props.execution}
+      onExecutionChange={props.onExecutionChange}
     /> : null}
     <Composer
       draft={props.draft}
@@ -46,7 +49,7 @@ export function ChatComposer(input: Readonly<{view: Contract.Input}>) {
         disabled={pending || props.sending === true || props.onPrepareSettings === undefined}
         onToggle={() => {
           setSettingsOpen(!settingsOpen)
-          if (!settingsOpen && settings.length === 0) props.onPrepareSettings?.()
+          if (!settingsOpen && (settings.length === 0 || props.execution !== undefined)) props.onPrepareSettings?.()
         }}
       />
     </Composer>

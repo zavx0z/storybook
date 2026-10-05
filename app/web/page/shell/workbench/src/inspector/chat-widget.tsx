@@ -62,6 +62,7 @@ export function ChatWidget(props: WorkbenchInspectorCustomWidgetProps) {
       error={view.error}
       permissions={view.permissions}
       settings={view.settings}
+      execution={view.execution}
       configuring={view.configuring}
       progress={view.progress}
       usage={view.usage}
@@ -74,6 +75,7 @@ export function ChatWidget(props: WorkbenchInspectorCustomWidgetProps) {
       onMedia={client.preview}
       onPrepareSettings={() => {void client.prepare()}}
       onConfigure={(id, value) => {void client.configure(id, value)}}
+      onExecutionChange={selection => {void client.configureExecution(selection)}}
       onDraftChange={client.setDraft}
       onSend={() => {void client.send()}}
       onCancel={() => {void client.cancel()}}

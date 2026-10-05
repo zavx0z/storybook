@@ -5,6 +5,7 @@ import Button from "@zavx0z/immersive-ui-component-button-basic"
 import TextField from "@zavx0z/immersive-ui-component-field-text"
 import Conversations from "@zavx0z/chat/conversations"
 import type {WorkbenchChatContext, WorkbenchInspectorCustomWidgetProps} from "../../contract/workbench"
+import {AgentPreferences} from "./agent-preferences"
 import {createChatBrowserClient} from "./chat-client"
 import {readChatSelection, selectChatSession, subscribeChatSelection} from "./chat-selection"
 
@@ -87,6 +88,7 @@ export function AgentsWidget(props: WorkbenchInspectorCustomWidgetProps) {
     {agents.map(agent => <AgentPanel
       key={agent.executorId}
       agent={agent}
+      client={client}
       expanded={expanded === agent.executorId}
       sessions={expanded === agent.executorId ? sessions : []}
       selectedId={choice.executorId === agent.executorId ? choice.sessionId : undefined}
@@ -122,9 +124,16 @@ export function AgentsWidget(props: WorkbenchInspectorCustomWidgetProps) {
   </section>
 }
 
-function AgentPanel(props: Readonly<{agent: Agent, expanded: boolean, sessions: Sessions, selectedId: string | undefined, busy: boolean, onToggle(value: boolean): void, onSelect(id: string): void, onCreate(): Promise<void>, onRename(id: string, title: string): Promise<void>, onDelete(id: string): Promise<void>}>) {
+function AgentPanel(props: Readonly<{client: Client, agent: Agent, expanded: boolean, sessions: Sessions, selectedId: string | undefined, busy: boolean, onToggle(value: boolean): void, onSelect(id: string): void, onCreate(): Promise<void>, onRename(id: string, title: string): Promise<void>, onDelete(id: string): Promise<void>}>) {
   return <Panel label={props.agent.executorLabel} expanded={props.expanded} onToggle={props.onToggle}>
-    {props.expanded ? <Conversations
+    {props.expanded ? <AgentContent input={props} /> : null}
+  </Panel>
+}
+function AgentContent(input: Readonly<{input: Parameters<typeof AgentPanel>[0]}>) {
+  const props = input.input
+  return <div>
+    <AgentPreferences client={props.client} executorId={props.agent.executorId} />
+    <Conversations
       items={props.sessions}
       selectedId={props.selectedId}
       busy={props.busy}
@@ -132,7 +141,7 @@ function AgentPanel(props: Readonly<{agent: Agent, expanded: boolean, sessions: 
       onCreate={props.onCreate}
       onRename={props.onRename}
       onDelete={props.onDelete}
-    /> : null}
-  </Panel>
+    />
+  </div>
 }
 function AgentError(props: Readonly<{error: string}>) {return <p role="alert">{props.error}</p>}

@@ -7,6 +7,28 @@ import StorybookChatView from "./fixture/history"
 const headless = createHeadless({width: 360, height: 680})
 afterAll(() => headless.dispose())
 
+test("наследуемый выбор перечитывается при открытии меню и снимается отдельным override", async () => {
+  const prepare = mock(() => {})
+  const change = mock((value: unknown) => {})
+  const element = await headless.render(<StorybookChatView
+    address="/" label="Project" messages={[]} draft="" status="idle"
+    settings={[{id: "model", category: "model", name: "Модель", value: "fast", options: [{value: "fast", name: "Fast"}]}]}
+    execution={{selection: {model: "fast"}, executorSelection: {}, effective: {connectionId: "codex", model: "fast"},
+      sources: {connectionId: "general", model: "session"}, connections: [{id: "codex", provider: "codex", label: "Codex", enabled: true}]}}
+    onPrepareSettings={prepare} onExecutionChange={change}
+    onDraftChange={() => {}} onSend={() => {}} onCancel={() => {}}
+  />)
+  ;(element.querySelector('button[aria-expanded="false"]') as HTMLButtonElement).click()
+  await headless.capture(element)
+  expect(prepare.mock.calls).toHaveLength(1)
+  const model = [...element.querySelectorAll("select")][0] as HTMLSelectElement
+  model.value = ""
+  model.dispatchEvent(new Event("change", {bubbles: true}))
+  expect(change.mock.calls).toEqual([[{}]])
+  ;(element.querySelector('button[aria-expanded="true"]') as HTMLButtonElement).click()
+  await headless.capture(element)
+})
+
 test("Enter отправляет, Shift+Enter и IME сохраняют ввод; круглая кнопка имеет доступное имя", async () => {
   const send = mock(() => {})
   const element = await headless.render(

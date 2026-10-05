@@ -40,6 +40,8 @@ export default function FixtureChatView(props: FixtureContract.Input) {
     onSend={props.onSend}
     onCancel={props.onCancel}
     settings={props.settings}
+    execution={props.execution}
+    onExecutionChange={props.onExecutionChange}
     configuring={props.configuring}
     progress={props.progress}
     usage={props.usage}

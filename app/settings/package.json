@@ -1,0 +1,10 @@
+{
+  "name": "@zavx0z/storybook-app-settings",
+  "label": "Настройки исполнения",
+  "description": "Подключения среды и наследуемый выбор исполнения предметов, агентов и бесед",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {".": "./index.ts"},
+  "dependencies": {"@zavx0z/storybook-chat-session": "workspace:*"}
+}

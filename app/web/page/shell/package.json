@@ -32,7 +32,8 @@
     "@zavx0z/immersive-template": "^0.0.0",
     "@zavx0z/immersive-ui-component": "^0.0.0",
     "@zavx0z/immersive-ui-component-surface-tab": "^0.0.0",
-    "@zavx0z/immersive-ui-component-surface-window-control": "^0.0.0"
+    "@zavx0z/immersive-ui-component-surface-window-control": "^0.0.0",
+    "@zavx0z/storybook-app-web-page-shell-execution-settings": "workspace:*"
   },
   "devDependencies": {
     "@zavx0z/immersive-renderer-html": "^0.0.0",

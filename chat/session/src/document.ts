@@ -1,5 +1,6 @@
 import type {Snapshot, ContextUsage} from "../contract/state"
 import type {StorybookChatHistory} from "@zavx0z/storybook-chat-history"
+import type {ExecutionSelection} from "../contract/execution"
 
 type TimelineItem = StorybookChatHistory.Output[number]
 
@@ -15,6 +16,14 @@ export type Document = {
   sessionLabelAssigned?: boolean
   address: string
   sessionId?: string
+  /** Подключение, которому принадлежит native session; старый sessionId принадлежит Codex. */
+  connectionId?: string
+  /** Явные настройки беседы; отсутствие отдельных значений сохраняет наследование. */
+  executionSelection?: ExecutionSelection
+  /** Существующие native настройки неизвестны: defaults среды не перезаписывают их автоматически. */
+  preserveNativeSettings?: boolean
+  /** Подтверждённые начальные native значения для возврата после удаления override. */
+  executionBaseline?: ExecutionSelection
   cwd?: string
   /** Последний подтверждённо доставленный контекст, связанный с provider session. */
   environmentContext?: string

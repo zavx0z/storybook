@@ -1,0 +1,30 @@
+{
+  "name": "@zavx0z/storybook-app-web-page-shell-execution-settings",
+  "label": "Подключения",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Настройки подключений среды и значений по типам сущностей в HUD",
+  "exports": {
+    ".": "./index.tsx"
+  },
+  "dependencies": {
+    "@zavx0z/storybook-app-settings": "workspace:*",
+    "@zavx0z/storybook-chat-session": "workspace:*",
+    "@zavx0z/storybook-chat-preferences": "workspace:*",
+    "@zavx0z/immersive-component": "^0.0.0",
+    "@zavx0z/immersive-ui-component-surface-window": "^0.0.0",
+    "@zavx0z/immersive-ui-component-surface-tab": "^0.0.0",
+    "@zavx0z/immersive-ui-component-surface-window-control": "^0.0.0",
+    "@zavx0z/immersive-ui-component-field-select": "^0.0.0",
+    "@zavx0z/immersive-ui-component-field-text": "^0.0.0",
+    "@zavx0z/immersive-ui-component-button-basic": "^0.0.0",
+    "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
+    "@zavx0z/immersive-ui-component-field-switch": "^0.0.0",
+    "@zavx0z/immersive-ui-component-surface-panel": "^0.0.0"
+  },
+  "devDependencies": {
+    "@zavx0z/immersive-headless": "^0.0.0",
+    "@zavx0z/immersive-dom": "^0.0.0"
+  }
+}

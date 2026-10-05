@@ -8,6 +8,7 @@ import {ClipboardMenu} from "@zavx0z/immersive-ui-component"
 import {useCallback, useMemo, useState, useSyncExternalStore} from "@zavx0z/immersive-component"
 import McpWindow from "@zavx0z/storybook-app-web-page-shell-mcp-window"
 import {GlobalMcpWindow} from "./global-mcp-window"
+import ExecutionSettings from "@zavx0z/storybook-app-web-page-shell-execution-settings"
 
 import type {StorybookAppProps} from "./application-props"
 
@@ -44,6 +45,7 @@ export function StorybookApp(props: StorybookAppProps) {
     </StorybookDisplay>
     <hud id={props.hudId}>
       <ViewPointTab controls={props.viewPointControls} />
+      <ExecutionSettings initialState={props.executionWindowState} onStateChange={props.saveExecutionWindowState} />
       <GlobalMcpWindow
         loadMcpRequests={props.loadMcpRequests}
         mcpWindowState={props.mcpWindowState}

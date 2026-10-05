@@ -1,3 +1,4 @@
+import type {StorybookAppWebPageShellExecutionSettings as ExecutionSettings} from "@zavx0z/storybook-app-web-page-shell-execution-settings"
 import type {createRoot as createBrowserRoot, IntegrationRoot} from "@zavx0z/immersive-browser/integration"
 import type {StorybookAppWebPageShellWorkbench} from "@zavx0z/storybook-app-web-page-shell-workbench"
 import type {StorybookAppWebPageShellMinimap} from "@zavx0z/storybook-app-web-page-shell-minimap"
@@ -24,6 +25,7 @@ export type ExternalStorybookNativeKey = Readonly<{
 export type StorybookShellUserState = Readonly<{
   workbench: WorkbenchUserState
   minimap: MinimapState | undefined
+  executionWindow?: ExecutionSettings.Input["initialState"]
   mcpWindow: GlobalMcpWindowState | undefined
   localMcpWindows?: readonly LocalMcpWindowState[]
   viewPoint: SavedState

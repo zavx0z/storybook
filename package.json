@@ -139,6 +139,7 @@
     "@zavx0z/immersive-ui-component-button-icon": "link:@zavx0z/immersive-ui-component-button-icon",
     "@zavx0z/immersive-ui-component-field-select": "link:@zavx0z/immersive-ui-component-field-select",
     "@zavx0z/immersive-ui-component-field-text": "link:@zavx0z/immersive-ui-component-field-text",
-    "@zavx0z/immersive-ui-component-widget-inspector": "link:@zavx0z/immersive-ui-component-widget-inspector"
+    "@zavx0z/immersive-ui-component-widget-inspector": "link:@zavx0z/immersive-ui-component-widget-inspector",
+    "@zavx0z/immersive-ui-component-field-switch": "link:@zavx0z/immersive-ui-component-field-switch"
   }
 }

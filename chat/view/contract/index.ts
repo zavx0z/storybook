@@ -3,6 +3,8 @@ import type {MediaPreview} from "@zavx0z/chat/content"
 import type {HistoryWindow, HistoryViewport} from "./history"
 import type {StorybookChatSession} from "@zavx0z/storybook-chat-session"
 
+type Selection = NonNullable<Awaited<ReturnType<NonNullable<StorybookChatSession.Input["resolveExecution"]>>>>["selection"]
+
 type Snapshot = Awaited<ReturnType<StorybookChatSession.Output["read"]>>
 
 /** Представление беседы с управляемыми принимающим владельцем данными. */
@@ -70,6 +72,9 @@ export declare namespace StorybookChatView {
     onSend(): void
     onCancel(): void
     settings?: Snapshot["settings"]
+    /** Разрешённые настройки и их источники; изменение сохраняет override только этой беседы. */
+    execution?: Snapshot["execution"]
+    onExecutionChange?: ((selection: Selection) => void) | undefined
     configuring?: boolean | undefined
     /** Наблюдаемый этап подключения, предоставленный сессией. */
     progress?: string | undefined

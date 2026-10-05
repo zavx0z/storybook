@@ -153,6 +153,7 @@
         "@zavx0z/storybook-app-server-requests": "workspace:*",
         "@zavx0z/storybook-app-server-sessions": "workspace:*",
         "@zavx0z/storybook-app-server-state": "workspace:*",
+        "@zavx0z/storybook-app-settings": "workspace:*",
         "@zavx0z/storybook-app-web": "workspace:*",
         "@zavx0z/storybook-app-web-page-package-scenario-model": "workspace:*",
         "@zavx0z/storybook-app-web-protocol": "workspace:*",
@@ -250,6 +251,13 @@
       "version": "0.0.0",
       "dependencies": {
         "@zavx0z/storybook-tech-http-client": "workspace:*",
+      },
+    },
+    "app/settings": {
+      "name": "@zavx0z/storybook-app-settings",
+      "version": "0.0.0",
+      "dependencies": {
+        "@zavx0z/storybook-chat-session": "workspace:*",
       },
     },
     "app/web": {
@@ -511,6 +519,7 @@
         "@zavx0z/immersive-ui-component-surface-window-control": "^0.0.0",
         "@zavx0z/storybook-app-server-requests": "workspace:*",
         "@zavx0z/storybook-app-web-page-presentation": "workspace:*",
+        "@zavx0z/storybook-app-web-page-shell-execution-settings": "workspace:*",
         "@zavx0z/storybook-app-web-page-shell-mcp-window": "workspace:*",
         "@zavx0z/storybook-app-web-page-shell-minimap": "workspace:*",
         "@zavx0z/storybook-app-web-page-shell-viewpoint-controls": "workspace:*",
@@ -524,6 +533,29 @@
         "@zavx0z/immersive-renderer-html": "^0.0.0",
         "@zavx0z/immersive-space": "^0.0.0",
         "@zavx0z/storybook-tech-testing-browser-root": "workspace:*",
+      },
+    },
+    "app/web/page/shell/execution-settings": {
+      "name": "@zavx0z/storybook-app-web-page-shell-execution-settings",
+      "version": "0.0.0",
+      "dependencies": {
+        "@zavx0z/immersive-component": "^0.0.0",
+        "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
+        "@zavx0z/immersive-ui-component-button-basic": "^0.0.0",
+        "@zavx0z/immersive-ui-component-field-select": "^0.0.0",
+        "@zavx0z/immersive-ui-component-field-switch": "^0.0.0",
+        "@zavx0z/immersive-ui-component-field-text": "^0.0.0",
+        "@zavx0z/immersive-ui-component-surface-panel": "^0.0.0",
+        "@zavx0z/immersive-ui-component-surface-tab": "^0.0.0",
+        "@zavx0z/immersive-ui-component-surface-window": "^0.0.0",
+        "@zavx0z/immersive-ui-component-surface-window-control": "^0.0.0",
+        "@zavx0z/storybook-app-settings": "workspace:*",
+        "@zavx0z/storybook-chat-preferences": "workspace:*",
+        "@zavx0z/storybook-chat-session": "workspace:*",
+      },
+      "devDependencies": {
+        "@zavx0z/immersive-dom": "^0.0.0",
+        "@zavx0z/immersive-headless": "^0.0.0",
       },
     },
     "app/web/page/shell/mcp-window": {
@@ -602,6 +634,7 @@
         "@zavx0z/storybook-app-web-page-shell-workbench-catalog": "workspace:*",
         "@zavx0z/storybook-app-web-page-shell-workbench-catalog-navigation": "workspace:*",
         "@zavx0z/storybook-chat-history": "workspace:*",
+        "@zavx0z/storybook-chat-preferences": "workspace:*",
         "@zavx0z/storybook-chat-session": "workspace:*",
         "@zavx0z/storybook-chat-view": "workspace:*",
       },
@@ -694,6 +727,19 @@
         "prettier": "^3.9.9",
       },
     },
+    "chat/preferences": {
+      "name": "@zavx0z/storybook-chat-preferences",
+      "version": "0.0.0",
+      "dependencies": {
+        "@zavx0z/immersive-jsx-compiler-session": "^0.0.0",
+        "@zavx0z/immersive-ui-component-field-select": "^0.0.0",
+        "@zavx0z/storybook-chat-session": "workspace:*",
+      },
+      "devDependencies": {
+        "@zavx0z/immersive-dom": "^0.0.0",
+        "@zavx0z/immersive-headless": "^0.0.0",
+      },
+    },
     "chat/session": {
       "name": "@zavx0z/storybook-chat-session",
       "version": "0.0.0",
@@ -719,6 +765,7 @@
         "@zavx0z/immersive-ui-component-surface-panel": "^0.0.0",
         "@zavx0z/immersive-ui-component-view-code-editor": "^0.0.0",
         "@zavx0z/storybook-chat-history": "workspace:*",
+        "@zavx0z/storybook-chat-preferences": "workspace:*",
         "@zavx0z/storybook-chat-session": "workspace:*",
         "@zavx0z/storybook-tech-json-format": "workspace:*",
       },
@@ -1478,6 +1525,7 @@
     "@zavx0z/immersive-ui-component-button-basic": "link:@zavx0z/immersive-ui-component-button-basic",
     "@zavx0z/immersive-ui-component-button-icon": "link:@zavx0z/immersive-ui-component-button-icon",
     "@zavx0z/immersive-ui-component-field-select": "link:@zavx0z/immersive-ui-component-field-select",
+    "@zavx0z/immersive-ui-component-field-switch": "link:@zavx0z/immersive-ui-component-field-switch",
     "@zavx0z/immersive-ui-component-field-text": "link:@zavx0z/immersive-ui-component-field-text",
     "@zavx0z/immersive-ui-component-surface-panel": "link:@zavx0z/immersive-ui-component-surface-panel",
     "@zavx0z/immersive-ui-component-surface-tab": "link:@zavx0z/immersive-ui-component-surface-tab",
@@ -1664,6 +1712,8 @@
 
     "@zavx0z/immersive-ui-component-field-select": ["@zavx0z/immersive-ui-component-field-select@link:@zavx0z/immersive-ui-component-field-select", {}],
 
+    "@zavx0z/immersive-ui-component-field-switch": ["@zavx0z/immersive-ui-component-field-switch@link:@zavx0z/immersive-ui-component-field-switch", {}],
+
     "@zavx0z/immersive-ui-component-field-text": ["@zavx0z/immersive-ui-component-field-text@link:@zavx0z/immersive-ui-component-field-text", {}],
 
     "@zavx0z/immersive-ui-component-surface-panel": ["@zavx0z/immersive-ui-component-surface-panel@link:@zavx0z/immersive-ui-component-surface-panel", {}],
@@ -1710,6 +1760,8 @@
 
     "@zavx0z/storybook-app-server-state": ["@zavx0z/storybook-app-server-state@workspace:app/server/state"],
 
+    "@zavx0z/storybook-app-settings": ["@zavx0z/storybook-app-settings@workspace:app/settings"],
+
     "@zavx0z/storybook-app-web": ["@zavx0z/storybook-app-web@workspace:app/web"],
 
     "@zavx0z/storybook-app-web-build": ["@zavx0z/storybook-app-web-build@workspace:app/web/build"],
@@ -1738,6 +1790,8 @@
 
     "@zavx0z/storybook-app-web-page-shell": ["@zavx0z/storybook-app-web-page-shell@workspace:app/web/page/shell"],
 
+    "@zavx0z/storybook-app-web-page-shell-execution-settings": ["@zavx0z/storybook-app-web-page-shell-execution-settings@workspace:app/web/page/shell/execution-settings"],
+
     "@zavx0z/storybook-app-web-page-shell-mcp-window": ["@zavx0z/storybook-app-web-page-shell-mcp-window@workspace:app/web/page/shell/mcp-window"],
 
     "@zavx0z/storybook-app-web-page-shell-minimap": ["@zavx0z/storybook-app-web-page-shell-minimap@workspace:app/web/page/shell/minimap"],
@@ -1765,6 +1819,8 @@
     "@zavx0z/storybook-chat": ["@zavx0z/storybook-chat@workspace:chat"],
 
     "@zavx0z/storybook-chat-history": ["@zavx0z/storybook-chat-history@workspace:chat/history"],
+
+    "@zavx0z/storybook-chat-preferences": ["@zavx0z/storybook-chat-preferences@workspace:chat/preferences"],
 
     "@zavx0z/storybook-chat-session": ["@zavx0z/storybook-chat-session@workspace:chat/session"],
 

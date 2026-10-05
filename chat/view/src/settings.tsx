@@ -1,6 +1,7 @@
 import SelectField from "@zavx0z/immersive-ui-component-field-select"
 import svgIcon from "@zavx0z/immersive-tech-svg-encode"
 import type {StorybookChatView as Contract} from "../contract"
+import Preferences from "@zavx0z/storybook-chat-preferences"
 
 export const effortLabels: Readonly<Record<string, string>> = {
   none: "Без рассуждения", minimal: "Минимальное", low: "Низкое", medium: "Среднее",
@@ -19,6 +20,8 @@ export function ChatSettings(props: Readonly<{
   configuring: boolean
   progress?: string | undefined
   onConfigure: Contract.Input["onConfigure"]
+  execution?: Contract.Input["execution"]
+  onExecutionChange?: Contract.Input["onExecutionChange"]
 }>) {
   return <section
     aria-label="Настройки модели"
@@ -44,6 +47,20 @@ export function ChatSettings(props: Readonly<{
   >
     {props.configuring ? <SettingsNotice text={props.progress ?? "Загрузка настроек…"} /> : null}
     {!props.configuring && props.settings.length === 0 ? <SettingsNotice text="Настройки пока недоступны" /> : null}
+    {props.execution ? <Preferences
+      selection={props.execution.selection}
+      effective={props.execution.effective}
+      sources={props.execution.sources}
+      connections={props.execution.connections}
+      settings={props.settings}
+      busy={props.busy || props.onExecutionChange === undefined}
+      onChange={value => props.onExecutionChange?.(value)}
+    /> : <NativeSettings settings={props.settings} busy={props.busy} onConfigure={props.onConfigure} />}
+  </section>
+}
+
+function NativeSettings(props: Pick<Parameters<typeof ChatSettings>[0], "settings" | "busy" | "onConfigure">) {
+  return <div>
     {props.settings.map(option => <SelectField
       key={option.id}
       label={option.category === "model" ? "Модель" : "Мышление"}
@@ -58,7 +75,7 @@ export function ChatSettings(props: Readonly<{
       disabled={props.busy || props.onConfigure === undefined}
       onChange={value => props.onConfigure?.(option.id, value)}
     />)}
-  </section>
+  </div>
 }
 
 /** Кольцо показывает только полученные от агента used/size; отсутствие данных не равно нулю. */

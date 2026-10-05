@@ -1,5 +1,6 @@
 import type {StorybookTechAcp} from "@zavx0z/storybook-tech-acp"
 import type {HistoryState} from "./history"
+import type {ExecutionResolution} from "./execution"
 
 /**
 Текстовое представление сообщения канонической timeline для прежних потребителей.
@@ -79,6 +80,7 @@ export type Snapshot = Readonly<{
   /** Текущий этап загрузки настроек или подключения агента. */
   progress?: string
   usage?: ContextUsage | null
+  execution?: ExecutionResolution
 }>
 
 /**
@@ -88,4 +90,4 @@ export type Snapshot = Readonly<{
 @property label - Человекочитаемое имя владельца беседы.
 @property cwd - Существующий каталог предмета, задающий рабочий контекст исполнителя.
 */
-export type Subject = Readonly<{address: string, label: string, cwd: string}>
+export type Subject = Readonly<{address: string, label: string, cwd: string, type?: "Project" | "Repo" | "Domain" | "Cluster" | "Container" | "Component"}>

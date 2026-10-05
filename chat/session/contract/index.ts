@@ -5,6 +5,7 @@ import type {StorybookChatHistory} from "@zavx0z/storybook-chat-history"
 import type {Environment, EnvironmentInput} from "./environment"
 import type {Target} from "./target"
 import type {HistoryBody, HistoryPage, HistoryEvidencePage, HistoryQuery} from "./history"
+import type {ExecutionSelection, ExecutionResolution} from "./execution"
 
 type TimelineContent = Extract<StorybookChatHistory.Output[number], {kind: "message"}>["content"][number]
 
@@ -32,6 +33,10 @@ export declare namespace StorybookChatSession {
     /** Максимум ещё не начатых задач одной беседы, по умолчанию 128. */
     maxPending?: number
     resolve(address: string): Subject
+    /** Разрешает переносимые настройки без подключения модели; тип предмета подтверждает хост. */
+    resolveExecution?(input: Readonly<{subject: Subject, executorId: string, selection: ExecutionSelection, executorSelection?: ExecutionSelection, pinnedConnectionId?: string}>): Promise<ExecutionResolution>
+    /** Сохраняет выбор агента у предмета независимо от удаления его бесед. */
+    saveExecutorSelection?(input: Readonly<{subject: Subject, executorId: string, selection: ExecutionSelection}>): Promise<void>
     environment?(input: EnvironmentInput): Promise<Environment>
     connect(input: Readonly<{
       subject: Subject
@@ -41,6 +46,7 @@ export declare namespace StorybookChatSession {
       executorId: string
       /** Имя исполнителя внутри предмета, независимое от имени самого предмета. */
       executorLabel: string
+      execution: ExecutionResolution
       previousSessionId?: string
       preferResume?: boolean
       signal: AbortSignal
@@ -106,6 +112,8 @@ export declare namespace StorybookChatSession {
     prepare(target: Target): Promise<Snapshot>
     /** Меняет выбранную настройку вне turn; применённые значения подтверждает агент. */
     configure(target: Target, id: string, value: string): Promise<Snapshot>
+    /** Заменяет явный выбор беседы либо агента; пустой объект возвращает наследование. */
+    configureExecution(target: Target, input: Readonly<{scope: "executor" | "session", selection: ExecutionSelection}>): Promise<Snapshot>
     prompt(target: Target, content: string | readonly TimelineContent[], requestId: string): Promise<Snapshot>
     /** Сохраняет идемпотентную входящую задачу и запускает её после текущей работы. */
     enqueue(target: Target, content: string | readonly TimelineContent[], requestId: string): Promise<Snapshot>

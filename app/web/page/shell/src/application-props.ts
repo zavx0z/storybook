@@ -1,3 +1,4 @@
+import type {StorybookAppWebPageShellExecutionSettings as ExecutionSettings} from "@zavx0z/storybook-app-web-page-shell-execution-settings"
 import type {StorybookAppServerRequests as McpRestRequestsContract} from "@zavx0z/storybook-app-server-requests"
 import type {createLocalMcpState} from "./local-mcp-state"
 import type {GlobalMcpWindowState} from "../contract/types"
@@ -18,6 +19,8 @@ import type {StorybookAppWebPageShellWorkbenchCatalog} from "@zavx0z/storybook-a
 type NavigationExpansion = NonNullable<StorybookAppWebPageShellWorkbenchCatalog.Input["navigationExpansion"]>
 
 export type StorybookAppProps = Readonly<{
+  executionWindowState?: ExecutionSettings.Input["initialState"]
+  saveExecutionWindowState?: ExecutionSettings.Input["onStateChange"]
   userState?: WorkbenchUserState | undefined
   loadMcpRequests?: ((address?: string) => Promise<readonly McpRequestRecord[]>) | undefined
   localMcpJournal?: ReturnType<typeof createLocalMcpState> | undefined

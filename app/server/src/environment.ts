@@ -48,6 +48,14 @@ export default function createServerEnvironment(options: Options) {
     if (node === undefined || node.kind === "unavailable") throw new Error("Предмет отсутствует в текущем Project")
     return {address: node.urlPath, label: node.label, cwd: node.kind === "package" || node.kind === "entry" ? dirname(node.source.path) : node.source.path}
   }
+  /** Тип берётся из сохранённой нормативной проверки, без классификации по пути. */
+  const resolveExecutionSubject = async (address: string) => {
+    const subject = resolveSubject(address)
+    const selected = options.entries().find(entry => entry.path === address.slice(1))
+    const verification = address === "/" ? undefined : await selected?.readType?.()
+    const type = address === "/" ? "Project" as const : verification?.status === "confirmed" ? verification.type : undefined
+    return {...subject, ...(type === undefined ? {} : {type})}
+  }
   const readCatalogSubject = async (request: Request, address: string): Promise<Response> => {
     const entries = options.entries()
     if (address === "/") return storybookRest(request, {projectName: options.projectName(), entries})
@@ -93,11 +101,9 @@ export default function createServerEnvironment(options: Options) {
     stream: streamAppOperation,
     instructions: input => readInstructions(input.subject.directory),
     async resolve(address) {
-      const subject = resolveSubject(address)
+      const subject = await resolveExecutionSubject(address)
       notes.bind(subject.cwd)
-      const selected = options.entries().find(entry => entry.path === address.slice(1))
-      const verification = address === "/" ? undefined : await selected?.readType?.()
-      const type = address === "/" ? "Project" : verification?.status === "confirmed" ? verification.type : undefined
+      const type = subject.type
       return {address: subject.address, label: subject.label, directory: subject.cwd, ...(type === undefined ? {} : {type})}
     },
     ...(options.extensions === undefined ? {} : {extensions: options.extensions}),
@@ -157,6 +163,7 @@ export default function createServerEnvironment(options: Options) {
   }
   return {
     resolveSubject,
+    resolveExecutionSubject,
     readSubject,
     assignExecutor,
     /** Сессии одного агента разделяют полномочия, но не события и время жизни наблюдения. */

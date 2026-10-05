@@ -15,6 +15,7 @@ import type {StorybookChatSession} from "./contract"
 import type {Permission, Snapshot, Subject, Setting} from "./contract/state"
 import type {Environment} from "./contract/environment"
 import type {Target} from "./contract/target"
+import type {ExecutionResolution, ExecutionSelection, ExecutionSource} from "./contract/execution"
 
 import type {Archive, ArchiveMetadata, ArchiveCursor} from "./src/archive"
 import {openArchive, readArchiveMetadata, readArchiveState} from "./src/archive"
@@ -52,6 +53,7 @@ type State = {
   environment?: Environment
   connecting?: Promise<StorybookTechAcp.Output>
   settings?: readonly Setting[]
+  execution?: ExecutionResolution
   configuring?: boolean
   progress?: string
   turn?: Promise<void>
@@ -171,13 +173,64 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
     })
     return trimming
   }
-  const snapshot = (state: Pick<State, "id" | "document" | "subject" | "version" | "permissions" | "connection" | "progress" | "settings" | "configuring"> & {archive: Pick<Archive, "stats">}): Snapshot => structuredClone({
+  const projectExecution = (state: Pick<State, "document" | "settings" | "execution">, resolved: ExecutionResolution): ExecutionResolution => {
+    const effective = {...resolved.effective}
+    const sources = {...resolved.sources}
+    const preserve = state.document.preserveNativeSettings === true || state.document.sessionId !== undefined && state.document.connectionId === undefined
+    for (const [field, category] of [["model", "model"], ["thoughtLevel", "thought_level"]] as const) {
+      if (sources[field] === "native") delete effective[field]
+      if (preserve && sources[field] !== "executor" && sources[field] !== "session") {
+        delete effective[field]
+        delete sources[field]
+      }
+      if (effective[field] === undefined) {
+        const baseline = state.document.executionBaseline
+        const native = field === "model" ? baseline?.model ?? state.settings?.find(option => option.category === category)?.value
+          : effective.model === baseline?.model && baseline?.thoughtLevel !== undefined ? baseline.thoughtLevel : state.settings?.find(option => option.category === category)?.value
+        if (native !== undefined) {
+          effective[field] = native
+          sources[field] = "native"
+        }
+      }
+    }
+    return state.execution = {...resolved, effective, sources}
+  }
+  const refreshExecution = async (state: Pick<State, "document" | "subject" | "settings" | "execution">, executorSelection?: ExecutionSelection): Promise<ExecutionResolution> => {
+    const selection = state.document.executionSelection ?? {}
+    const pinnedConnectionId = state.document.sessionId === undefined ? undefined : state.document.connectionId ?? "codex"
+    const resolved = await input.resolveExecution?.({subject: state.subject, executorId: state.document.executorId, selection,
+      ...(executorSelection === undefined ? {} : {executorSelection}),
+      ...(pinnedConnectionId === undefined ? {} : {pinnedConnectionId})}) ?? {
+      selection, executorSelection: {}, effective: {connectionId: pinnedConnectionId ?? selection.connectionId ?? "codex", ...selection},
+      sources: {connectionId: (selection.connectionId === undefined ? pinnedConnectionId === undefined ? "general" : "native" : "session") as ExecutionSource,
+        ...(selection.model === undefined ? {} : {model: "session" as const}), ...(selection.thoughtLevel === undefined ? {} : {thoughtLevel: "session" as const})},
+      connections: [{id: "codex", provider: "codex" as const, label: "Codex", enabled: true}],
+    }
+    return projectExecution(state, resolved)
+  }
+  const applyExecution = async (state: State, connection: StorybookTechAcp.Output, resolved?: ExecutionResolution, document = state.document): Promise<void> => {
+    const current = resolved ?? await refreshExecution(state)
+    for (const [field, category] of [["model", "model"], ["thoughtLevel", "thought_level"]] as const) {
+      const execution = projectExecution({document, settings: state.settings ?? []}, current)
+      const selected = execution.effective[field]
+      if (selected === undefined) continue
+      const option = state.settings?.find(item => item.category === category)
+      if (!option || !option.options.some(item => item.value === selected)) throw new Error(`Выбранная настройка ${category} «${selected}» недоступна в подключении ${execution.effective.connectionId}`)
+      if (option.value !== selected) {
+        state.settings = readSettings(await connection.setConfigOption(option.id, selected))
+        if (category === "model") delete state.document.usage
+      }
+    }
+    state.execution = projectExecution({document, settings: state.settings ?? []}, current)
+  }
+  const snapshot = (state: Pick<State, "id" | "document" | "subject" | "version" | "permissions" | "connection" | "progress" | "settings" | "configuring" | "execution"> & {archive: Pick<Archive, "stats">}): Snapshot => structuredClone({
     id: state.id, sessionId: state.id, sessionLabel: state.document.sessionLabel ?? "Новая беседа", executorId: state.document.executorId, executorLabel: state.document.executorLabel, pending: state.document.pending, address: state.subject.address, label: state.subject.label,
     history: state.archive.stats(), capabilities: state.connection?.capabilities ?? null, status: state.document.status,
     error: state.document.error, permissions: [...state.permissions.values()].map(item => item.value),
     version: state.version,
     ...(state.progress === undefined ? {} : {progress: state.progress}),
     settings: state.settings ?? [], configuring: state.configuring === true, usage: state.document.usage ?? null,
+    ...(state.execution === undefined ? {} : {execution: state.execution}),
   })
   const clearPublication = (state: State): void => {
     clearTimeout(state.publishTimer)
@@ -245,6 +298,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
       archive, accessed: Date.now(), leases: 0, version: document.controlVersion ?? 0, cancelled: false, cursor: {}, lifetime: new AbortController(),
       listeners: new Set(), permissions: new Map(), write: Promise.resolve(),
     }
+    await refreshExecution(state)
     if (document.status === "connecting" || document.status === "running") {
       document.historyComplete = false
       document.status = "failed"
@@ -320,6 +374,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
         throw new Error(`Беседа перенесена или ожидает завершения переноса на ${move.to.address}`)
       }
       current.subject = subject
+      await refreshExecution(current)
       current.accessed = Date.now()
       idle(current)
       if (current.document.pending.length) wake(current)
@@ -386,6 +441,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
     }
     current = await pending
     current.subject = subject
+    await refreshExecution(current)
     current.accessed = Date.now()
     idle(current)
     if (current.document.pending.length) wake(current)
@@ -399,6 +455,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
         lease(resident)
         if (await deletedMetadata(resident.file) !== null) throw new Error("Сессия удалена")
         await resident.archive.flush()
+        await refreshExecution(resident)
         return snapshot(resident)
       }
       if (document.pending.length || document.activeRequest !== undefined || document.status === "connecting" || document.status === "running") {
@@ -412,6 +469,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
       const current = {...saved.metadata, schemaVersion: 3 as const}
       return snapshot({id: current.id, document: current, subject, archive: {stats: () => saved.history},
         version: current.controlVersion ?? 0, permissions: new Map(),
+        execution: await refreshExecution({document: current, subject}),
       })
     }
     const {schemaVersion, ...metadata} = document
@@ -419,6 +477,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
     try {
       return snapshot({id: document.id, document, subject, archive,
         version: document.controlVersion ?? 0, permissions: new Map(),
+        execution: await refreshExecution({document, subject}),
       })
     } finally { await archive.dispose() }
   }
@@ -428,7 +487,13 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
   }
   /** Одна ACP-сессия для настроек и сообщений; подготовка не запускает prompt. */
   const connect = async (state: State): Promise<StorybookTechAcp.Output> => {
-    if (state.connection !== undefined) return state.connection
+    const execution = await refreshExecution(state)
+    if (state.document.sessionId !== undefined && (state.document.connectionId ?? "codex") !== execution.effective.connectionId) throw new Error("Подключение существующей native сессии отличается: несовместимое восстановление запрещено")
+    if (!execution.connections.some(connection => connection.id === execution.effective.connectionId && connection.enabled)) throw new Error("Выбранное подключение отключено: включите его перед продолжением беседы")
+    if (state.connection !== undefined) {
+      await applyExecution(state, state.connection, execution)
+      return state.connection
+    }
     if (state.connecting !== undefined) return state.connecting
     state.cursor = {}
     clearTimeout(state.idleTimer)
@@ -454,6 +519,7 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
         localSessionId: state.id,
         executorId: state.document.executorId,
         executorLabel: state.document.executorLabel,
+        execution,
         signal: state.lifetime.signal,
         ...(state.document.sessionId === undefined ? {} : {previousSessionId: state.document.sessionId}),
         preferResume: state.document.historyComplete,
@@ -499,8 +565,13 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
       })
       state.connection = connection
       state.settings = readSettings(connection.configOptions ?? [])
+      state.document.executionBaseline ??= Object.fromEntries(state.settings.map(option => [option.category === "model" ? "model" : "thoughtLevel", option.value]))
+      if (state.document.sessionId !== undefined && state.document.connectionId === undefined) state.document.preserveNativeSettings = true
       state.document.sessionId = connection.sessionId
+      state.document.connectionId = execution.effective.connectionId
       state.document.cwd = state.subject.cwd
+      await save(state)
+      await applyExecution(state, connection, execution)
       await save(state)
       return connection
     })()
@@ -917,7 +988,6 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
     },
     async prepare(target) {
       const state = await load(target)
-      if (state.connection !== undefined) return snapshot(state)
       if (state.turn !== undefined) throw new Error("Дождитесь завершения текущего ответа")
       if (state.lifetime.signal.aborted) state.lifetime = new AbortController()
       state.cancelled = false
@@ -942,16 +1012,77 @@ export default function createChatSessions(input: StorybookChatSession.Input): S
       state.configuring = true
       publish(state)
       try {
-        const connection = await connect(state)
+        const connection = state.connection ?? await connect(state)
         const previousUsage = state.document.usage
         state.settings = readSettings(await connection.setConfigOption(id, value))
         if (option.category === "model" && value !== option.value && state.document.usage === previousUsage) delete state.document.usage
+        state.document.executionSelection = {...state.document.executionSelection,
+          [option.category === "model" ? "model" : "thoughtLevel"]: value}
+        await refreshExecution(state)
         await save(state)
       } finally {
         state.configuring = false
         publish(state)
         wake(state)
         idle(state)
+      }
+      return snapshot(state)
+    },
+    async configureExecution(target, change) {
+      const state = await load(target)
+      if (busy(state)) throw new Error("Завершите текущую работу и очередь перед изменением выбора исполнения")
+      if (change.scope !== "session" && change.scope !== "executor") throw new TypeError("Выберите настройки беседы или агента")
+      const affected = change.scope === "executor" ? (await Promise.all([...states.values()])).filter(other => other.document.executorId === state.document.executorId) : [state]
+      if (change.scope === "executor") {
+        const records = await sessionRecords(state.subject)
+        if (records.some(record => !record.deleted && record.document.executorId === state.document.executorId &&
+          (record.document.pending.length > 0 || record.document.status === "connecting" || record.document.status === "running"))) throw new Error("Завершите работу и очереди всех бесед агента перед изменением его настроек")
+      }
+      if (affected.some(other => busy(other))) throw new Error("Завершите работу и очереди всех бесед агента перед изменением его настроек")
+      const selected = change.selection
+      if (selected === null || typeof selected !== "object" || Array.isArray(selected) || Object.keys(selected).some(key => !["connectionId", "model", "thoughtLevel"].includes(key)) ||
+        Object.values(selected).some(value => typeof value !== "string" || !value.trim() || value.length > 256)) throw new TypeError("Недопустимый выбор исполнения")
+      if (selected.connectionId !== undefined && selected.connectionId !== (state.document.connectionId ?? "codex")) throw new Error("Подключение существующей native сессии отличается: несовместимое восстановление запрещено")
+      for (const [field, category] of [["model", "model"], ["thoughtLevel", "thought_level"]] as const) {
+        const option = state.settings?.find(item => item.category === category)
+        if (selected[field] !== undefined && option !== undefined && !(category === "thought_level" && selected.model !== undefined) && !option.options.some(item => item.value === selected[field])) throw new Error(`Выбранная настройка ${category} недоступна`)
+      }
+      const previous = state.document.executionSelection
+      const previousPreserve = state.document.preserveNativeSettings
+      for (const other of affected) {
+        other.configuring = true
+        publish(other)
+      }
+      try {
+        const candidateDocument = {...state.document, preserveNativeSettings: false,
+          ...(change.scope === "session" ? {executionSelection: structuredClone(selected)} : {})}
+        const candidateExecutor = change.scope === "executor" ? selected : undefined
+        const candidate = await refreshExecution({document: candidateDocument, subject: state.subject, settings: state.settings ?? []}, candidateExecutor)
+        if (state.connection !== undefined) await applyExecution(state, state.connection, candidate, candidateDocument)
+        if (change.scope === "executor") {
+          if (input.saveExecutorSelection === undefined) throw new Error("Хранилище выбора исполнителя не подключено")
+          await input.saveExecutorSelection({subject: state.subject, executorId: state.document.executorId, selection: structuredClone(selected)})
+        }
+        if (change.scope === "session") state.document.executionSelection = structuredClone(selected)
+        state.document.preserveNativeSettings = false
+        await save(state)
+      } catch (error) {
+        if (previous === undefined) delete state.document.executionSelection
+        else state.document.executionSelection = previous
+        if (previousPreserve === undefined) delete state.document.preserveNativeSettings
+        else state.document.preserveNativeSettings = previousPreserve
+        // Частично применённый model/effort не продолжает turn с неверным выбором.
+        await releaseConnection(state)
+        delete state.settings
+        throw error
+      } finally {
+        for (const other of affected) {
+          other.configuring = false
+          await refreshExecution(other)
+          publish(other)
+          wake(other)
+          idle(other)
+        }
       }
       return snapshot(state)
     },

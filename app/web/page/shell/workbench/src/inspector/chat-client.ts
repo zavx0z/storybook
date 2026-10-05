@@ -2,6 +2,8 @@ import {filesToMedia, pickMedia, type MediaDraftAttachment} from "@zavx0z/chat/m
 import type {MediaPreview} from "@zavx0z/chat/content"
 import type {StorybookChatView} from "@zavx0z/storybook-chat-view"
 import type {StorybookChatSession} from "@zavx0z/storybook-chat-session"
+
+type Selection = NonNullable<Awaited<ReturnType<NonNullable<StorybookChatSession.Input["resolveExecution"]>>>>["selection"]
 import {createChatHistoryWindow} from "./chat-history"
 
 /** Браузерный транспорт передаёт снимки сервера; закрытие представления только отписывает поток. */
@@ -23,6 +25,7 @@ export type ChatBrowserView = Readonly<{
   status: StorybookChatView.Input["status"]
   sending: boolean
   settings: NonNullable<ChatBrowserSnapshot["settings"]>
+  execution: ChatBrowserSnapshot["execution"]
   configuring: boolean
   progress: string | undefined
   usage: ChatBrowserSnapshot["usage"]
@@ -131,6 +134,7 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       media,      status: session?.status ?? (connectionError === undefined ? "connecting" : "failed"),
       sending: submitting,
       settings: session?.settings ?? [],
+      execution: session?.execution,
       progress: session?.progress,
       configuring: configuring || session?.configuring === true,
       usage: session?.usage ?? null,
@@ -379,6 +383,15 @@ export function createChatBrowserClient(options: ChatClientOptions) {
     async createExecutor(label: string): Promise<ChatBrowserSnapshot> {
       return readChatBrowserSnapshot(await post("create", {label}, undefined, lifetime.signal, "address"), address)
     },
+    async executorPreferences(executorId: string, signal = lifetime.signal): Promise<ChatBrowserSnapshot> {
+      return readChatBrowserSnapshot(await post("executor-preferences", {executorId}, undefined, signal, "agent"), address)
+    },
+    async configureExecutor(executorId: string, selection: Selection): Promise<ChatBrowserSnapshot> {
+      return readChatBrowserSnapshot(await post("execution-configure", {executorId, configuration: {scope: "executor", selection}}, undefined, lifetime.signal, "agent"), address)
+    },
+    async executionOptions(connectionId: string, model?: string, signal = lifetime.signal): Promise<NonNullable<ChatBrowserSnapshot["settings"]>> {
+      return await post("execution-options", {connectionId, ...(model ? {model} : {})}, undefined, signal, "address") as NonNullable<ChatBrowserSnapshot["settings"]>
+    },
     async listSessions(executorId: string, signal = lifetime.signal): Promise<readonly Readonly<{id: string, title: string}>[]> {
       const value = await post("sessions", {executorId}, undefined, signal, "agent")
       if (!Array.isArray(value)) throw new Error("Некорректный список сессий")
@@ -474,6 +487,12 @@ export function createChatBrowserClient(options: ChatClientOptions) {
       configuring = true
       notify()
       try { await perform("configure", {id, value}) } finally { configuring = false; notify() }
+    },
+    async configureExecution(selection: Selection) {
+      if (disposed || configuring || view.status === "running" || view.status === "connecting") return
+      configuring = true
+      notify()
+      try {await perform("execution-configure", {configuration: {scope: "session", selection}})} finally {configuring = false; notify()}
     },
     cancel: () => perform("cancel", {}),
     permission: (id: string, optionId: string) => perform("permission", {id, optionId}),
